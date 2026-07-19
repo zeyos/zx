@@ -1,0 +1,48 @@
+.zx-check-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--zx-space-2);
+  min-block-size: var(--zx-control-height);
+  border: 1px solid var(--zx-color-border-control);
+  border-radius: var(--zx-control-radius);
+  background: var(--zx-color-bg-control);
+  color: var(--zx-color-text);
+  padding-inline: var(--zx-control-pad-x);
+  font: inherit;
+  font-size: var(--zx-control-font-size);
+  cursor: pointer;
+}
+
+.zx-check-button:hover:not(:disabled) {
+  background: var(--zx-color-bg-hover);
+}
+
+.zx-check-button[aria-pressed="true"] {
+  border-color: var(--zx-color-accent);
+  background: var(--zx-color-bg-selected);
+  color: var(--zx-color-accent);
+}
+
+.zx-check-button:focus-visible {
+  box-shadow: var(--zx-focus-ring);
+}
+
+.zx-check-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.zx-check-button__icon {
+  display: inline-grid;
+  place-items: center;
+  opacity: 0;
+}
+
+.zx-check-button[aria-pressed="true"] .zx-check-button__icon {
+  opacity: 1;
+}
+
+.zx-check-button__icon > svg {
+  display: block;
+}
