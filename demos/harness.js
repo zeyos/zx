@@ -1,6 +1,12 @@
 const demos = [
   () => import('./components/tokens.demo.js'),
-  () => import('./components/kernel.demo.js')
+  () => import('./components/kernel.demo.js'),
+  () => import('./components/button.demo.js'),
+  () => import('./components/check-button.demo.js'),
+  () => import('./components/toggle.demo.js'),
+  () => import('./components/search.demo.js'),
+  () => import('./components/groupbox.demo.js'),
+  () => import('./components/message.demo.js')
 ];
 
 const STORAGE_KEYS = {
