@@ -4,3 +4,9 @@
 @import url("./tokens/density.css");
 @import url("./tokens/modules.css");
 @import url("./base.css");
+@import url("../src/components/field/field.css");
+@import url("../src/components/fieldset/fieldset.css");
+@import url("../src/components/form/form.css");
+@import url("../src/components/value-list/value-list.css");
+@import url("../src/components/multi-value-editor/multi-value-editor.css");
+@import url("../src/components/field-upload/field-upload.css");

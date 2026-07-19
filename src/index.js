@@ -14,3 +14,9 @@ export {
 } from './core/date.js';
 export { icon, icons } from './core/icons.js';
 export { debounce, uid, deepMerge, isElement, clamp, toArray } from './core/util.js';
+export { Field } from './components/field/field.js';
+export { Fieldset } from './components/fieldset/fieldset.js';
+export { Form } from './components/form/form.js';
+export { ValueList } from './components/value-list/value-list.js';
+export { MultiValueEditor } from './components/multi-value-editor/multi-value-editor.js';
+export { FieldUpload } from './components/field-upload/field-upload.js';
