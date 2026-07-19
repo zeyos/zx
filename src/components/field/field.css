@@ -1,0 +1,127 @@
+.zx-field {
+  display: grid;
+  gap: var(--zx-space-1);
+  min-inline-size: 0;
+}
+
+.zx-field[data-layout="inline"] {
+  grid-template-columns: minmax(8rem, 1fr) minmax(0, 2fr);
+  column-gap: var(--zx-space-4);
+  align-items: start;
+}
+
+.zx-field[data-field-type="hidden"] {
+  display: none;
+}
+
+.zx-field__label {
+  min-inline-size: 0;
+  color: var(--zx-color-text);
+  font-size: var(--zx-text-sm);
+  font-weight: 600;
+}
+
+.zx-field__required,
+.zx-field[data-state="danger"] .zx-field__label {
+  color: var(--zx-color-danger);
+}
+
+.zx-field[data-state="warning"] .zx-field__label {
+  color: var(--zx-color-warning);
+}
+
+.zx-field[data-state="success"] .zx-field__label {
+  color: var(--zx-color-success);
+}
+
+.zx-field__body,
+.zx-field__control {
+  min-inline-size: 0;
+}
+
+.zx-field__control > input:not([type="checkbox"]):not([type="radio"]),
+.zx-field__control > select,
+.zx-field__control > textarea {
+  inline-size: 100%;
+}
+
+.zx-field__control > textarea {
+  min-block-size: calc(var(--zx-control-height) * 2.5);
+  padding-block: var(--zx-space-2);
+  resize: vertical;
+}
+
+.zx-field__option-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zx-space-2) var(--zx-space-4);
+  min-block-size: var(--zx-control-height);
+  align-items: center;
+}
+
+.zx-field__option {
+  display: inline-flex;
+  gap: var(--zx-space-2);
+  align-items: center;
+  cursor: pointer;
+}
+
+.zx-field__option input {
+  margin: 0;
+}
+
+.zx-field__description,
+.zx-field__highlight {
+  margin-block-start: var(--zx-space-1);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+.zx-field__highlight[hidden],
+.zx-field__description:empty {
+  display: none;
+}
+
+.zx-field[data-state="danger"] .zx-field__highlight {
+  color: var(--zx-color-danger);
+}
+
+.zx-field[data-state="warning"] .zx-field__highlight {
+  color: var(--zx-color-warning);
+}
+
+.zx-field[data-state="success"] .zx-field__highlight {
+  color: var(--zx-color-success);
+}
+
+.zx-field[data-state="danger"] .zx-field__control > input,
+.zx-field[data-state="danger"] .zx-field__control > select,
+.zx-field[data-state="danger"] .zx-field__control > textarea,
+.zx-field[data-state="danger"] .zx-field__option-list {
+  border-color: var(--zx-color-danger);
+}
+
+.zx-field__static,
+.zx-field__error-control {
+  min-block-size: var(--zx-control-height);
+  padding: var(--zx-space-2) var(--zx-control-pad-x);
+  border: 1px solid var(--zx-color-border);
+  border-radius: var(--zx-control-radius);
+  background: var(--zx-color-bg-surface);
+}
+
+.zx-field__error-control {
+  border-color: var(--zx-color-danger);
+  background: var(--zx-color-danger-bg);
+  color: var(--zx-color-danger);
+}
+
+.zx-field[data-disabled="true"] {
+  opacity: 0.65;
+}
+
+@container (max-width: 30rem) {
+  .zx-field[data-layout="inline"] {
+    grid-template-columns: 1fr;
+  }
+}

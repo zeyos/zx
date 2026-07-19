@@ -1,0 +1,32 @@
+.zx-form,
+.zx-form__body {
+  display: grid;
+  gap: var(--zx-space-5);
+  min-inline-size: 0;
+}
+
+.zx-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--zx-space-2);
+  padding-block-start: var(--zx-space-2);
+}
+
+.zx-form__actions[hidden] {
+  display: none;
+}
+
+.zx-form__actions .zx-btn {
+  min-inline-size: 6rem;
+}
+
+.zx-form__actions .zx-btn[type="submit"] {
+  border-color: var(--zx-color-accent);
+  background: var(--zx-color-accent);
+  color: var(--zx-color-on-accent);
+}
+
+.zx-form__actions .zx-btn[type="submit"]:hover {
+  background: var(--zx-color-accent-hover);
+}

@@ -1,0 +1,108 @@
+.zx-field-upload {
+  display: grid;
+  gap: var(--zx-space-3);
+  min-inline-size: 0;
+}
+
+.zx-field-upload__input {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.zx-field-upload__dropzone {
+  display: grid;
+  place-items: center;
+  gap: var(--zx-space-1);
+  min-block-size: 8rem;
+  inline-size: 100%;
+  padding: var(--zx-space-5);
+  border: 1px dashed var(--zx-color-border-strong);
+  background: var(--zx-color-bg-surface);
+  text-align: center;
+}
+
+.zx-field-upload__dropzone:hover,
+.zx-field-upload[data-state="dragover"] .zx-field-upload__dropzone {
+  border-color: var(--zx-color-accent);
+  background: var(--zx-color-bg-selected);
+}
+
+.zx-field-upload__prompt {
+  color: var(--zx-color-text);
+  font-weight: 600;
+}
+
+.zx-field-upload__hint,
+.zx-field-upload__status,
+.zx-field-upload__progress-text {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+.zx-field-upload__preview:empty {
+  display: none;
+}
+
+.zx-field-upload__image {
+  display: block;
+  max-inline-size: 12rem;
+  max-block-size: 9rem;
+  border: 1px solid var(--zx-color-border);
+  border-radius: var(--zx-radius-md);
+  object-fit: contain;
+}
+
+.zx-field-upload__progress-wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: var(--zx-space-3);
+  align-items: center;
+}
+
+.zx-field-upload__progress-wrap[hidden] {
+  display: none;
+}
+
+.zx-field-upload__progress {
+  inline-size: 100%;
+  accent-color: var(--zx-color-accent);
+}
+
+.zx-field-upload__abort {
+  color: var(--zx-color-danger);
+}
+
+.zx-field-upload__abort[hidden] {
+  display: none;
+}
+
+.zx-field-upload[data-state="error"] .zx-field-upload__dropzone {
+  border-color: var(--zx-color-danger);
+  background: var(--zx-color-danger-bg);
+}
+
+.zx-field-upload[data-state="error"] .zx-field-upload__status {
+  color: var(--zx-color-danger);
+}
+
+.zx-field-upload[data-state="success"] .zx-field-upload__dropzone {
+  border-color: var(--zx-color-success);
+}
+
+.zx-field-upload[data-state="success"] .zx-field-upload__status {
+  color: var(--zx-color-success);
+}
+
+.zx-field-upload[data-disabled="true"] {
+  opacity: 0.65;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .zx-field-upload__dropzone {
+    transition: border-color var(--zx-dur-fast) var(--zx-ease),
+      background var(--zx-dur-fast) var(--zx-ease);
+  }
+}

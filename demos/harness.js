@@ -19,6 +19,10 @@ const demos = [
   () => import('./components/timebox.demo.js')
   () => import('./components/table.demo.js'),
   () => import('./components/data-filter.demo.js')
+  () => import('./components/form.demo.js'),
+  () => import('./components/value-list.demo.js'),
+  () => import('./components/multi-value-editor.demo.js'),
+  () => import('./components/field-upload.demo.js')
 ];
 
 const STORAGE_KEYS = {
