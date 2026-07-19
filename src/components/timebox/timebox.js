@@ -66,6 +66,7 @@ export class Timebox extends Component {
   render() {
     assertUnit(this.options.unit);
     const root = /** @type {HTMLElement} */ (this.el ?? h('div'));
+    this.el = root;
     this._originalAriaDisabled = root.getAttribute('aria-disabled');
     this._disabled = Boolean(this.options.disabled);
     this._parts = { hours: 0, minutes: 0, seconds: 0, negative: false };

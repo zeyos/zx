@@ -42,29 +42,15 @@ export class Checklist extends Component {
     load: null
   };
 
-  /** @type {ChecklistItem[]} */
-  _items = [];
-  /** @type {ChecklistItem[]} */
-  _visibleItems = [];
-  /** @type {Set<unknown>} */
-  _checked = new Set();
-  /** @type {string} */
-  _query = '';
-  /** @type {number} */
-  _loadSequence = 0;
-  /** @type {boolean} */
-  _createdRoot = false;
-  /** @type {boolean} */
-  _active = true;
-  /** @type {Node[]} */
-  _originalChildren = [];
-  /** @type {Map<string, string|null>} */
-  _originalAttributes = new Map();
 
   /** @returns {HTMLElement} */
   render() {
+    // Instance state initialized here because render() runs inside the base
+    // constructor, before class-field initializers would run (and clobber it).
+    this._items = []; this._visibleItems = []; this._checked = new Set(); this._query = ''; this._loadSequence = 0; this._createdRoot = false; this._active = true; this._originalChildren = []; this._originalAttributes = new Map();
     this._createdRoot = this.el === null;
     const root = /** @type {HTMLElement} */ (this.el ?? h('div'));
+    this.el = root;
     if (!this._createdRoot) this._originalChildren = Array.from(root.childNodes);
     for (const name of ['role', 'aria-labelledby', 'data-state']) {
       this._originalAttributes.set(name, root.getAttribute(name));

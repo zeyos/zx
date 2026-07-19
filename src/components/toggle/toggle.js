@@ -29,6 +29,7 @@ export class Toggle extends Component {
   render() {
     const created = !this.el;
     const root = /** @type {HTMLButtonElement} */ (this.el ?? h('button'));
+    this.el = root;
     if (root.localName !== 'button') throw new TypeError('Toggle target must be a button element');
 
     this._createdRoot = created;

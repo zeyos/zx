@@ -46,6 +46,11 @@ its "Out of scope" section is binding. Do not modify files outside the spec's fi
   `(target, options)` where target is `Element | selector string | null` (null ⇒ the component
   creates its own root via `render()`).
 - Options: declare `static defaults`; never mutate the passed options object.
+- **No instance class-field declarations** (`_foo = [];` at class level) for state the component
+  touches during `render()` or its helpers: `render()` runs inside the base constructor, BEFORE
+  class-field initializers, which would then clobber anything render set. Initialize all instance
+  state at the top of `render()` instead. When creating your own root (target null), assign
+  `this.el = root` immediately after building it so helpers can use it.
 - State is expressed via ARIA attributes and `data-state`, styled with attribute selectors
   (`[aria-expanded="true"]`, `[aria-selected="true"]`, `[data-state="open"]`), not state classes.
 - Accessibility follows the WAI-ARIA Authoring Practices Guide (APG) pattern named in the spec,

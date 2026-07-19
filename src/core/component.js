@@ -63,11 +63,12 @@ export class Component extends EventTarget {
       throw error;
     }
     if (this.#created) {
-      if (!isElement(rendered)) {
+      const root = isElement(rendered) ? rendered : this.el;
+      if (!isElement(root)) {
         this.#abort.abort();
-        throw new TypeError('render() must return an Element when target is null');
+        throw new TypeError('render() must return an Element (or assign this.el) when target is null');
       }
-      this.el = rendered;
+      this.el = root;
     }
     if (!isElement(this.el)) {
       this.#abort.abort();

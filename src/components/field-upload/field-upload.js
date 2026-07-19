@@ -61,6 +61,7 @@ export class FieldUpload extends Component {
   /** @returns {HTMLElement} */
   render() {
     const root = /** @type {HTMLElement} */ (this.el ?? h('div'));
+    this.el = root;
     this._ownedNodes = [];
     this._files = [];
     this._disabled = false;

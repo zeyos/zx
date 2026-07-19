@@ -44,8 +44,18 @@ export const icons = Object.freeze({
  * @param {IconOptions} [options={}] Display and accessibility options.
  * @returns {SVGSVGElement}
  */
+/** Legacy gx Factory icon names mapped to their Zx equivalents. */
+const aliases = Object.freeze({
+  settings: 'gear',
+  clear: 'x',
+  checked: 'check',
+  question: 'info',
+  range: 'filter',
+  fields: 'list'
+});
+
 export function icon(name, { size = 16, label = null } = {}) {
-  const pathData = icons[name];
+  const pathData = icons[name] ?? icons[aliases[name]];
   if (!pathData) throw new RangeError(`Unknown icon: ${name}`);
   const svg = document.createElementNS(SVG_NS, 'svg');
   const path = document.createElementNS(SVG_NS, 'path');

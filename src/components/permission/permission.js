@@ -31,25 +31,15 @@ export class Permission extends Component {
     groupsLabelKey: 'name'
   };
 
-  /** @type {'private'|'public'|'group'} */
-  _mode = 'public';
-  /** @type {unknown} */
-  _groupValue = null;
-  /** @type {Select|null} */
-  _groupSelect = null;
-  /** @type {boolean} */
-  _createdRoot = false;
-  /** @type {Node[]} */
-  _originalChildren = [];
-  /** @type {HTMLElement|null} */
-  _root = null;
-  /** @type {string|null} */
-  _originalState = null;
 
   /** @returns {HTMLElement} */
   render() {
+    // Instance state initialized here because render() runs inside the base
+    // constructor, before class-field initializers would run (and clobber it).
+    this._mode = 'public'; this._groupValue = null; this._groupSelect = null; this._createdRoot = false; this._originalChildren = []; this._root = null; this._originalState = null;
     this._createdRoot = this.el === null;
     const root = /** @type {HTMLElement} */ (this.el ?? h('div'));
+    this.el = root;
     this._root = root;
     if (!this._createdRoot) {
       this._originalChildren = Array.from(root.childNodes);

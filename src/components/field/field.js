@@ -95,6 +95,7 @@ export class Field extends Component {
   /** @returns {HTMLElement} */
   render() {
     const root = /** @type {HTMLElement} */ (this.el ?? h('div'));
+    this.el = root;
     const type = String(this.options.type || 'text').toLowerCase();
     const layout = this.options.layout === 'inline' ? 'inline' : 'stack';
     this._ownedNodes = [];

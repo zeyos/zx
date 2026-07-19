@@ -49,6 +49,7 @@ export class Datebox extends Component {
   /** @returns {HTMLElement} */
   render() {
     const root = /** @type {HTMLElement} */ (this.el ?? h('div'));
+    this.el = root;
     this._originalState = root.getAttribute('data-state');
     this._originalAriaDisabled = root.getAttribute('aria-disabled');
     this._format = effectiveFormat(this.options.format, this.options.time);

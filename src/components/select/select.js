@@ -80,41 +80,15 @@ export class Select extends Component {
     groupKey: null
   };
 
-  /** @type {SelectItem[]} */
-  _items = [];
-  /** @type {SelectItem[]} */
-  _visibleItems = [];
-  /** @type {SelectItem|null} */
-  _selected = null;
-  /** @type {SelectOptionEntry[]} */
-  _optionEntries = [];
-  /** @type {number} */
-  _activeIndex = -1;
-  /** @type {boolean} */
-  _open = false;
-  /** @type {boolean} */
-  _disabled = false;
-  /** @type {boolean} */
-  _loading = false;
-  /** @type {number} */
-  _requestSequence = 0;
-  /** @type {ReturnType<typeof setTimeout>|null} */
-  _queryTimer = null;
-  /** @type {ReturnType<typeof position>|null} */
-  _position = null;
-  /** @type {boolean} */
-  _createdRoot = false;
-  /** @type {HTMLElement|null} */
-  _root = null;
-  /** @type {Node[]} */
-  _originalChildren = [];
-  /** @type {Map<string, string|null>} */
-  _originalAttributes = new Map();
 
   /** @returns {HTMLElement} */
   render() {
+    // Instance state initialized here because render() runs inside the base
+    // constructor, before class-field initializers would run (and clobber it).
+    this._items = []; this._visibleItems = []; this._selected = null; this._optionEntries = []; this._activeIndex = -1; this._open = false; this._disabled = false; this._loading = false; this._requestSequence = 0; this._queryTimer = null; this._position = null; this._createdRoot = false; this._root = null; this._originalChildren = []; this._originalAttributes = new Map();
     this._createdRoot = this.el === null;
     const root = /** @type {HTMLElement} */ (this.el ?? h('div'));
+    this.el = root;
     this._root = root;
     if (!this._createdRoot) this._originalChildren = Array.from(root.childNodes);
     this._rememberAttribute(root, 'data-state');
