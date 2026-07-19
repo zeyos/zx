@@ -1,0 +1,30 @@
+:root {
+  --zx-module-default: #00cc33;
+  --zx-module-settings: #cccccc;
+  --zx-module-accounts: #e5185d;
+  --zx-module-billing: #7b67ae;
+  --zx-module-calendar: #f04639;
+  --zx-module-campaigns: #f1753f;
+  --zx-module-clocking: #ea2830;
+  --zx-module-collection: #0d60ae;
+  --zx-module-contacts: #9f8759;
+  --zx-module-contracts: #b296c7;
+  --zx-module-enhancements: #12959f;
+  --zx-module-inventory: #778590;
+  --zx-module-links: #16884a;
+  --zx-module-mailinglists: #7dcdc2;
+  --zx-module-messages: #31a8e0;
+  --zx-module-notes: #8c6641;
+  --zx-module-opportunities: #f384ae;
+  --zx-module-pricelists: #799155;
+  --zx-module-procurement: #00a8a8;
+  --zx-module-projects: #c05c20;
+  --zx-module-tasks: #fad31c;
+  --zx-module-tickets: #faaa21;
+  --zx-module-pwd: #00cc33;
+  --zx-module-system: #00cc33;
+  --zx-module-usermgmt: #00cc33;
+  --zx-module-usersettings: #00cc33;
+  --zx-module-users: #008040;
+  --zx-module-groups: #008040;
+}

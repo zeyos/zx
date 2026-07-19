@@ -1,0 +1,38 @@
+:root,
+[data-zx-theme="light"] {
+  color-scheme: light;
+  --zx-color-bg-page: var(--zx-gray-50);
+  --zx-color-bg-surface: var(--zx-gray-0);
+  --zx-color-bg-raised: var(--zx-gray-0);
+  --zx-color-bg-control: var(--zx-gray-0);
+  --zx-color-bg-hover: var(--zx-gray-100);
+  --zx-color-bg-selected: color-mix(in srgb, var(--zx-green-500) 12%, var(--zx-gray-0));
+  --zx-color-bg-backdrop: color-mix(in srgb, var(--zx-gray-950) 55%, transparent);
+  --zx-color-border: var(--zx-gray-200);
+  --zx-color-border-strong: var(--zx-gray-400);
+  --zx-color-border-control: var(--zx-gray-300);
+  --zx-color-text: var(--zx-gray-900);
+  --zx-color-text-muted: var(--zx-gray-600);
+  --zx-color-text-placeholder: var(--zx-gray-500);
+  --zx-color-text-invert: var(--zx-gray-0);
+  --zx-color-accent: var(--zx-green-500);
+  --zx-color-accent-hover: var(--zx-green-600);
+  --zx-color-accent-active: var(--zx-green-600);
+  --zx-color-on-accent: var(--zx-gray-0);
+  --zx-color-danger: var(--zx-red-500);
+  --zx-color-danger-bg: color-mix(in srgb, var(--zx-red-400) 12%, var(--zx-gray-0));
+  --zx-color-warning: var(--zx-amber-500);
+  --zx-color-warning-bg: color-mix(in srgb, var(--zx-amber-400) 16%, var(--zx-gray-0));
+  --zx-color-success: var(--zx-green-500);
+  --zx-color-success-bg: color-mix(in srgb, var(--zx-green-400) 12%, var(--zx-gray-0));
+  --zx-color-info: var(--zx-blue-500);
+  --zx-color-info-bg: color-mix(in srgb, var(--zx-blue-400) 12%, var(--zx-gray-0));
+  --zx-focus-ring: 0 0 0 2px color-mix(in srgb, var(--zx-color-accent) 35%, transparent);
+  --zx-control-height: 32px;
+  --zx-control-pad-x: var(--zx-space-3);
+  --zx-control-radius: var(--zx-radius-md);
+  --zx-control-font-size: var(--zx-text-md);
+  --zx-overlay-shadow: var(--zx-shadow-3);
+  --zx-header-bg: var(--zx-gray-800);
+  --zx-header-text: var(--zx-gray-0);
+}

@@ -1,0 +1,56 @@
+:root {
+  --zx-gray-0: #ffffff;
+  --zx-gray-50: #fafafa;
+  --zx-gray-100: #f2f2f2;
+  --zx-gray-150: #eaeaea;
+  --zx-gray-200: #e0e0e0;
+  --zx-gray-300: #d0d0d0;
+  --zx-gray-400: #b0b0b0;
+  --zx-gray-500: #8f8f8f;
+  --zx-gray-600: #6b6b6b;
+  --zx-gray-700: #4b4b4b;
+  --zx-gray-800: #2e2f31;
+  --zx-gray-900: #1d1e20;
+  --zx-gray-950: #161719;
+
+  --zx-green-300: #33d95c;
+  --zx-green-400: #00cc33;
+  --zx-green-500: #008040;
+  --zx-green-600: #00662f;
+  --zx-red-400: #e5484d;
+  --zx-red-500: #c62f34;
+  --zx-amber-400: #f2a900;
+  --zx-amber-500: #c78a00;
+  --zx-blue-400: #3b82d4;
+  --zx-blue-500: #2a66ab;
+
+  --zx-space-1: 4px;
+  --zx-space-2: 8px;
+  --zx-space-3: 12px;
+  --zx-space-4: 16px;
+  --zx-space-5: 20px;
+  --zx-space-6: 24px;
+  --zx-space-7: 32px;
+  --zx-space-8: 40px;
+
+  --zx-radius-sm: 4px;
+  --zx-radius-md: 6px;
+  --zx-radius-lg: 8px;
+  --zx-radius-full: 999px;
+
+  --zx-font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
+  --zx-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --zx-text-xs: 11px;
+  --zx-text-sm: 12.5px;
+  --zx-text-md: 13.5px;
+  --zx-text-lg: 15px;
+  --zx-text-xl: 18px;
+
+  --zx-shadow-1: 0 1px 2px rgb(22 23 25 / 8%);
+  --zx-shadow-2: 0 3px 8px rgb(22 23 25 / 12%);
+  --zx-shadow-3: 0 10px 30px rgb(22 23 25 / 18%);
+
+  --zx-dur-fast: 120ms;
+  --zx-dur-base: 180ms;
+  --zx-ease: cubic-bezier(.2, .6, .3, 1);
+}

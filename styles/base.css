@@ -1,0 +1,70 @@
+.zx-scope,
+.zx-scope *,
+.zx-scope *::before,
+.zx-scope *::after {
+  box-sizing: border-box;
+}
+
+.zx-scope {
+  min-block-size: 100%;
+  margin: 0;
+  background: var(--zx-color-bg-page);
+  color: var(--zx-color-text);
+  font-family: var(--zx-font-sans);
+  font-size: var(--zx-text-md);
+  line-height: 1.5;
+  scrollbar-gutter: stable;
+}
+
+.zx-scope :focus-visible {
+  box-shadow: var(--zx-focus-ring);
+}
+
+.zx-scope ::selection {
+  background: var(--zx-color-accent);
+  color: var(--zx-color-on-accent);
+}
+
+.zx-scope button,
+.zx-scope input,
+.zx-scope select,
+.zx-scope textarea {
+  min-block-size: var(--zx-control-height);
+  border: 1px solid var(--zx-color-border-control);
+  border-radius: var(--zx-control-radius);
+  background: var(--zx-color-bg-control);
+  color: var(--zx-color-text);
+  font: inherit;
+  font-size: var(--zx-control-font-size);
+}
+
+.zx-scope button,
+.zx-scope select,
+.zx-scope input:not([type="checkbox"]):not([type="radio"]),
+.zx-scope textarea {
+  padding-inline: var(--zx-control-pad-x);
+}
+
+.zx-scope button {
+  cursor: pointer;
+}
+
+.zx-scope button:hover {
+  background: var(--zx-color-bg-hover);
+}
+
+.zx-scope input::placeholder,
+.zx-scope textarea::placeholder {
+  color: var(--zx-color-text-placeholder);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zx-scope *,
+  .zx-scope *::before,
+  .zx-scope *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

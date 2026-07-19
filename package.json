@@ -1,0 +1,13 @@
+{
+  "name": "zx",
+  "version": "2.0.0-alpha.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "serve": "esbuild --servedir=. --serve=127.0.0.1:8321",
+    "test": "node --test && node tests/lint-tokens.js"
+  },
+  "devDependencies": {
+    "esbuild": "latest"
+  }
+}
