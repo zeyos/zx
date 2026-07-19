@@ -1,0 +1,47 @@
+.zx-modal {
+  max-inline-size: calc(100vw - (2 * var(--zx-space-4)));
+  max-block-size: calc(100vh - (2 * var(--zx-space-4)));
+  overflow: auto;
+  border: 1px solid var(--zx-color-border);
+  border-radius: var(--zx-radius-lg);
+  background: var(--zx-color-bg-raised);
+  box-shadow: var(--zx-overlay-shadow);
+  color: var(--zx-color-text);
+  padding: 0;
+}
+
+.zx-modal::backdrop {
+  background: var(--zx-color-bg-backdrop);
+}
+
+.zx-modal__content {
+  padding: var(--zx-space-5);
+}
+
+body:has(> .zx-modal[open]) {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .zx-modal[data-state="open"] {
+    animation: zx-modal-enter var(--zx-dur-base) var(--zx-ease);
+  }
+
+  .zx-modal[data-state="open"]::backdrop {
+    animation: zx-modal-backdrop-enter var(--zx-dur-base) var(--zx-ease);
+  }
+}
+
+@keyframes zx-modal-enter {
+  from {
+    opacity: 0;
+    transform: translateY(var(--zx-space-2)) scale(.98);
+  }
+}
+
+@keyframes zx-modal-backdrop-enter {
+  from {
+    opacity: 0;
+  }
+}
