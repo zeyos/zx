@@ -61,7 +61,7 @@ export class DatePicker extends Component {
           class: 'zx-date-picker__heading',
           type: 'button',
           ariaExpanded: 'false',
-          ariaHasPopup: 'grid'
+          'aria-haspopup': 'grid'
         }),
         h('button', {
           ref: 'next',

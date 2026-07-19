@@ -252,13 +252,15 @@ export class Select extends Component {
     this.el.setAttribute('data-state', 'open');
     this.refs.input.setAttribute('aria-expanded', 'true');
     this._renderOptions();
-    this._setActive(this._selectedEntryIndex());
-    if (this._activeIndex < 0 && this._optionEntries.length > 0) this._setActive(0);
     this._position = position(this.refs.control, /** @type {HTMLElement} */ (this.refs.panel), {
       placement: 'bottom-start',
       flip: true,
       matchWidth: true
     });
+    // Set the active option only after position() shows the popover — scrollIntoView
+    // is a no-op while the panel is still hidden.
+    this._setActive(this._selectedEntryIndex());
+    if (this._activeIndex < 0 && this._optionEntries.length > 0) this._setActive(0);
     if (this.options.filter && this._selected !== null) {
       /** @type {HTMLInputElement} */ (this.refs.input).select();
     }

@@ -159,7 +159,8 @@ function applyProperty(element, key, value) {
 function ariaAttribute(key) {
   if (key.startsWith('aria-')) return key;
   if (!/^aria[A-Z]/.test(key)) return null;
-  return 'aria-' + key.slice(4).replace(/[A-Z]/g, (letter) => '-' + letter.toLowerCase()).replace(/^-/, '');
+  // ARIAMixin reflection: ariaHasPopup -> aria-haspopup, ariaValueMin -> aria-valuemin.
+  return 'aria-' + key.slice(4).toLowerCase();
 }
 
 /** @param {Node} parent @param {DomChild[]} children @returns {void} */

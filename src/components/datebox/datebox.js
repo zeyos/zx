@@ -69,7 +69,7 @@ export class Datebox extends Component {
           type: 'text',
           autocomplete: 'off',
           placeholder: this.options.placeholder ?? placeholderFromFormat(this._format),
-          ariaHasPopup: 'grid',
+          'aria-haspopup': 'grid',
           ariaControls: popoverId,
           ariaExpanded: 'false'
         }),
@@ -84,7 +84,7 @@ export class Datebox extends Component {
           class: 'zx-datebox__toggle',
           type: 'button',
           ariaLabel: 'Choose date',
-          ariaHasPopup: 'grid',
+          'aria-haspopup': 'grid',
           ariaControls: popoverId,
           ariaExpanded: 'false'
         }, icon('calendar'))
