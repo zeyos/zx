@@ -1,0 +1,24 @@
+.zx-dropdown {
+  max-inline-size: calc(100vw - (2 * var(--zx-space-3)));
+  max-block-size: calc(100vh - (2 * var(--zx-space-3)));
+  overflow: auto;
+  border: 1px solid var(--zx-color-border);
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-bg-raised);
+  box-shadow: var(--zx-overlay-shadow);
+  color: var(--zx-color-text);
+  padding: var(--zx-space-3);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .zx-dropdown:popover-open {
+    animation: zx-dropdown-enter var(--zx-dur-fast) var(--zx-ease);
+  }
+}
+
+@keyframes zx-dropdown-enter {
+  from {
+    opacity: 0;
+    transform: translateY(calc(-1 * var(--zx-space-1)));
+  }
+}
