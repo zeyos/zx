@@ -1,6 +1,9 @@
 const demos = [
   () => import('./components/tokens.demo.js'),
-  () => import('./components/kernel.demo.js')
+  () => import('./components/kernel.demo.js'),
+  () => import('./components/date-picker.demo.js'),
+  () => import('./components/datebox.demo.js'),
+  () => import('./components/timebox.demo.js')
 ];
 
 const STORAGE_KEYS = {
