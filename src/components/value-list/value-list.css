@@ -1,0 +1,108 @@
+.zx-value-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zx-space-2);
+  min-block-size: var(--zx-control-height);
+  padding: var(--zx-space-1);
+  border: 1px solid var(--zx-color-border-control);
+  border-radius: var(--zx-control-radius);
+  background: var(--zx-color-bg-control);
+}
+
+.zx-value-list:focus-within {
+  box-shadow: var(--zx-focus-ring);
+}
+
+.zx-value-list__list {
+  display: contents;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.zx-value-list__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-1);
+  min-block-size: calc(var(--zx-control-height) - var(--zx-space-2));
+  max-inline-size: 100%;
+  padding-inline: var(--zx-space-2);
+  border: 1px solid var(--zx-color-border);
+  border-radius: var(--zx-radius-full);
+  background: var(--zx-color-bg-selected);
+  color: var(--zx-color-text);
+  cursor: grab;
+}
+
+.zx-value-list__chip:focus-visible {
+  box-shadow: var(--zx-focus-ring);
+}
+
+.zx-value-list__value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-wrap: nowrap;
+}
+
+.zx-value-list__remove {
+  display: inline-grid;
+  place-items: center;
+  min-inline-size: 1.25rem;
+  min-block-size: 1.25rem;
+  border-radius: var(--zx-radius-full);
+  color: var(--zx-color-text-muted);
+  cursor: pointer;
+}
+
+.zx-value-list__remove:hover {
+  background: var(--zx-color-bg-hover);
+  color: var(--zx-color-danger);
+}
+
+.zx-value-list__input {
+  flex: 1 1 8rem;
+  min-inline-size: 6rem;
+  border: 0;
+  background: inherit;
+  box-shadow: none;
+}
+
+.zx-value-list__input:focus-visible {
+  box-shadow: none;
+}
+
+.zx-value-list__status {
+  flex-basis: 100%;
+  color: var(--zx-color-danger);
+  font-size: var(--zx-text-sm);
+}
+
+.zx-value-list__status:empty {
+  display: none;
+}
+
+.zx-value-list__instructions {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.zx-value-list[data-state="dragging"] .zx-value-list__chip {
+  cursor: grabbing;
+}
+
+.zx-value-list[data-disabled="true"] {
+  background: var(--zx-color-bg-page);
+  opacity: 0.65;
+}
+
+.zx-value-list[data-disabled="true"] .zx-value-list__chip {
+  cursor: default;
+}
+
+.zx-value-list[data-disabled="true"] .zx-value-list__remove {
+  display: none;
+}
