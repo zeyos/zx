@@ -1,0 +1,179 @@
+.zx-select {
+  display: inline-block;
+  inline-size: 100%;
+  min-inline-size: 0;
+  color: var(--zx-color-text);
+  font-size: var(--zx-control-font-size);
+}
+
+.zx-select__control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  min-block-size: var(--zx-control-height);
+  overflow: hidden;
+  border: 1px solid var(--zx-color-border-control);
+  border-radius: var(--zx-control-radius);
+  background: var(--zx-color-bg-control);
+}
+
+.zx-select__control:has(.zx-select__input:focus-visible) {
+  box-shadow: var(--zx-focus-ring);
+}
+
+.zx-select__input {
+  inline-size: 100%;
+  min-inline-size: 0;
+  min-block-size: calc(var(--zx-control-height) - 2px) !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+}
+
+.zx-select__input:read-only {
+  cursor: default;
+}
+
+.zx-select__clear,
+.zx-select__toggle {
+  display: grid;
+  place-items: center;
+  inline-size: var(--zx-control-height);
+  min-block-size: calc(var(--zx-control-height) - 2px) !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: none !important;
+  color: var(--zx-color-text-muted);
+  padding: 0 !important;
+}
+
+.zx-select__clear:hover,
+.zx-select__toggle:hover {
+  color: var(--zx-color-text);
+}
+
+.zx-select__clear[hidden],
+.zx-select__loading[hidden] {
+  display: none;
+}
+
+.zx-select__loading {
+  inline-size: 14px;
+  block-size: 14px;
+  border: 2px solid var(--zx-color-border);
+  border-block-start-color: var(--zx-color-accent);
+  border-radius: var(--zx-radius-full);
+}
+
+.zx-select[aria-disabled="true"] .zx-select__control {
+  background: var(--zx-color-bg-page);
+  color: var(--zx-color-text-muted);
+  cursor: default;
+}
+
+.zx-select__panel {
+  z-index: 20;
+  inline-size: max-content;
+  max-inline-size: calc(100vw - var(--zx-space-4));
+  overflow: hidden;
+  border: 1px solid var(--zx-color-border-strong);
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-bg-raised);
+  box-shadow: var(--zx-overlay-shadow);
+  color: var(--zx-color-text);
+  padding: var(--zx-space-1);
+}
+
+.zx-select__list {
+  min-inline-size: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.zx-select__option {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  min-block-size: var(--zx-control-height);
+  border-radius: var(--zx-radius-sm);
+  cursor: default;
+  padding: var(--zx-space-1) var(--zx-control-pad-x);
+}
+
+.zx-select__option-content {
+  min-inline-size: 0;
+  flex: 1;
+}
+
+.zx-select__option[data-active="true"] {
+  background: var(--zx-color-bg-hover);
+}
+
+.zx-select__option:hover {
+  background: var(--zx-color-bg-hover);
+}
+
+.zx-select__option[aria-selected="true"] {
+  background: var(--zx-color-bg-selected);
+}
+
+.zx-select__option > svg {
+  flex: none;
+  color: var(--zx-color-accent);
+}
+
+.zx-select__group {
+  position: sticky;
+  z-index: 1;
+  inset-block-start: 0;
+  background: var(--zx-color-bg-raised);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: var(--zx-space-2) var(--zx-control-pad-x) var(--zx-space-1);
+  text-transform: uppercase;
+}
+
+.zx-select__empty {
+  color: var(--zx-color-text-muted);
+  padding: var(--zx-space-3) var(--zx-control-pad-x);
+  text-align: center;
+}
+
+.zx-select__priority {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+}
+
+.zx-select__priority-icon {
+  inline-size: 10px;
+  block-size: 10px;
+  flex: none;
+  border-radius: var(--zx-radius-sm);
+  background: var(--zx-color-warning);
+}
+
+.zx-select__priority-icon[data-level="0"],
+.zx-select__priority-icon[data-level="1"] {
+  background: var(--zx-color-success);
+}
+
+.zx-select__priority-icon[data-level="3"],
+.zx-select__priority-icon[data-level="4"] {
+  background: var(--zx-color-danger);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .zx-select__loading {
+    animation: zx-select-spin var(--zx-dur-slow) linear infinite;
+  }
+}
+
+@keyframes zx-select-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
