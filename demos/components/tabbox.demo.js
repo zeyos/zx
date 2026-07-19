@@ -43,6 +43,14 @@ export default {
       active: 'overview'
     });
     let badge = 2;
+    const badgeButton = /** @type {HTMLButtonElement} */ (h('button', {
+      type: 'button',
+      onclick: () => {
+        badge += 1;
+        tabbox.setBadge('records', String(badge));
+        log.textContent = `records badge: ${badge}`;
+      }
+    }, 'Update badge'));
     tabbox.setBadge('records', String(badge));
     tabbox.on('change', (event) => {
       if (veto.checked) {
@@ -54,6 +62,7 @@ export default {
     });
     tabbox.on('close', (event) => {
       log.textContent = `close: ${event.detail.name}`;
+      if (event.detail.name === 'records') badgeButton.disabled = true;
     });
 
     const marker = h('div', {},
@@ -63,14 +72,7 @@ export default {
       h('div', { style: {
         display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 'var(--zx-space-3)'
       } },
-      h('button', {
-        type: 'button',
-        onclick: () => {
-          badge += 1;
-          tabbox.setBadge('records', String(badge));
-          log.textContent = `records badge: ${badge}`;
-        }
-      }, 'Update badge'),
+      badgeButton,
       h('button', {
         type: 'button',
         onclick: () => tabbox.enableTab('disabled')
