@@ -1,0 +1,83 @@
+.zx-datebox {
+  display: inline-block;
+  color: var(--zx-color-text);
+  font-size: var(--zx-control-font-size);
+}
+
+.zx-datebox__content,
+.zx-datebox__control {
+  display: inline-flex;
+  align-items: stretch;
+}
+
+.zx-datebox__control {
+  border: 1px solid var(--zx-color-border-control);
+  border-radius: var(--zx-control-radius);
+  background: var(--zx-color-bg-control);
+}
+
+.zx-datebox__control:focus-within {
+  box-shadow: var(--zx-focus-ring);
+}
+
+.zx-datebox[data-state="invalid"] .zx-datebox__control {
+  border-color: var(--zx-color-danger);
+  background: var(--zx-color-danger-bg);
+}
+
+.zx-datebox__input {
+  min-inline-size: 10em;
+  border: 0;
+  border-radius: var(--zx-control-radius) 0 0 var(--zx-control-radius);
+  background: inherit;
+}
+
+.zx-datebox__input:focus-visible,
+.zx-datebox__clear:focus-visible,
+.zx-datebox__toggle:focus-visible {
+  position: relative;
+  z-index: 1;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.zx-datebox__clear,
+.zx-datebox__toggle {
+  display: inline-grid;
+  place-items: center;
+  min-inline-size: var(--zx-control-height);
+  padding: 0;
+  border: 0;
+  border-inline-start: 1px solid var(--zx-color-border-control);
+  border-radius: 0;
+  background: inherit;
+  color: var(--zx-color-text-muted);
+}
+
+.zx-datebox__toggle {
+  border-radius: 0 var(--zx-control-radius) var(--zx-control-radius) 0;
+}
+
+.zx-datebox__clear[hidden] {
+  display: none;
+}
+
+.zx-datebox__popover {
+  overflow: visible;
+  max-inline-size: calc(100vw - var(--zx-space-4));
+  border: 0;
+  background: var(--zx-color-bg-raised);
+  padding: 0;
+}
+
+.zx-datebox__popover:not(:popover-open)[data-state="closed"] {
+  display: none;
+}
+
+.zx-datebox__popover[data-state="open"] {
+  display: block;
+}
+
+.zx-datebox__popover .zx-date-picker__surface {
+  background: var(--zx-color-bg-raised);
+  box-shadow: var(--zx-overlay-shadow);
+}
