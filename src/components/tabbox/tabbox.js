@@ -332,7 +332,7 @@ export class Tabbox extends Component {
       if (!this._removeTab(current.definition.name, true)) return;
       const remaining = this._tabs[Math.min(index, this._tabs.length - 1)] ?? this._tabs[index - 1];
       const focusTarget = remaining && !remaining.definition.disabled ? remaining : this._active;
-      focusTarget?.tab.focus();
+      if (focusTarget) this._setFocused(focusTarget);
     }
   }
 

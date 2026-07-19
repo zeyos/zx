@@ -173,12 +173,13 @@ export class NavigationBar extends Component {
       return definition;
     });
 
-    this._items = [];
-    this._activeName = null;
-    this._tabMode = definitions.some((item) => Object.hasOwn(item, 'content'));
-    if (this._tabMode && definitions.some((item) => !Object.hasOwn(item, 'content'))) {
+    const tabMode = definitions.some((item) => Object.hasOwn(item, 'content'));
+    if (tabMode && definitions.some((item) => !Object.hasOwn(item, 'content'))) {
       throw new TypeError('NavigationBar panel items must all define content');
     }
+    this._items = [];
+    this._activeName = null;
+    this._tabMode = tabMode;
     this.refs.items.replaceChildren();
     this.refs.panels.replaceChildren();
     this.refs.panels.hidden = !this._tabMode;
