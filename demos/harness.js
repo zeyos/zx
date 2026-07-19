@@ -1,5 +1,6 @@
 const demos = [
-  () => import('./components/tokens.demo.js')
+  () => import('./components/tokens.demo.js'),
+  () => import('./components/kernel.demo.js')
 ];
 
 const STORAGE_KEYS = {
