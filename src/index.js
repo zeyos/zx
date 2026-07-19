@@ -14,3 +14,5 @@ export {
 } from './core/date.js';
 export { icon, icons } from './core/icons.js';
 export { debounce, uid, deepMerge, isElement, clamp, toArray } from './core/util.js';
+export { Table } from './components/table/table.js';
+export { DataFilter } from './components/data-filter/data-filter.js';

@@ -4,3 +4,5 @@
 @import url("./tokens/density.css");
 @import url("./tokens/modules.css");
 @import url("./base.css");
+@import url("../src/components/table/table.css");
+@import url("../src/components/data-filter/data-filter.css");

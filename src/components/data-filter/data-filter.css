@@ -1,0 +1,53 @@
+.zx-data-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--zx-space-3);
+  padding: var(--zx-space-3);
+  border: 1px solid var(--zx-color-border);
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-bg-surface);
+}
+
+.zx-data-filter__controls {
+  display: contents;
+}
+
+.zx-data-filter__field {
+  display: grid;
+  flex: 1 1 180px;
+  gap: var(--zx-space-1);
+  min-inline-size: 150px;
+}
+
+.zx-data-filter__field > input:not([type="checkbox"]):not([type="radio"]),
+.zx-data-filter__field > select {
+  inline-size: 100%;
+}
+
+.zx-data-filter__label {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  font-weight: 650;
+}
+
+.zx-data-filter__badge {
+  align-self: center;
+  min-inline-size: var(--zx-control-height);
+  border-radius: var(--zx-radius-full);
+  background: var(--zx-color-bg-selected);
+  color: var(--zx-color-accent);
+  padding: var(--zx-space-1) var(--zx-space-2);
+  font-size: var(--zx-text-sm);
+  font-weight: 650;
+  text-align: center;
+}
+
+.zx-data-filter__clear {
+  align-self: end;
+}
+
+.zx-data-filter__badge[hidden],
+.zx-data-filter__clear[hidden] {
+  display: none;
+}
