@@ -17,3 +17,7 @@
 @import url("../src/components/select/select.css");
 @import url("../src/components/checklist/checklist.css");
 @import url("../src/components/permission/permission.css");
+@import url("../src/components/date-picker/date-picker.css");
+@import url("../src/components/date-picker/time-picker.css");
+@import url("../src/components/datebox/datebox.css");
+@import url("../src/components/timebox/timebox.css");
