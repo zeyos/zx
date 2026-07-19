@@ -32,3 +32,5 @@ export { MonthPicker } from './components/date-picker/month-picker.js';
 export { TimePicker } from './components/date-picker/time-picker.js';
 export { Datebox, DateTimeBox } from './components/datebox/datebox.js';
 export { Timebox, splitTime, joinTime } from './components/timebox/timebox.js';
+export { Table } from './components/table/table.js';
+export { DataFilter } from './components/data-filter/data-filter.js';

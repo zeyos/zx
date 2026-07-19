@@ -17,6 +17,8 @@ const demos = [
   () => import('./components/date-picker.demo.js'),
   () => import('./components/datebox.demo.js'),
   () => import('./components/timebox.demo.js')
+  () => import('./components/table.demo.js'),
+  () => import('./components/data-filter.demo.js')
 ];
 
 const STORAGE_KEYS = {
