@@ -1,6 +1,9 @@
 const demos = [
   () => import('./components/tokens.demo.js'),
-  () => import('./components/kernel.demo.js')
+  () => import('./components/kernel.demo.js'),
+  () => import('./components/select.demo.js'),
+  () => import('./components/checklist.demo.js'),
+  () => import('./components/permission.demo.js')
 ];
 
 const STORAGE_KEYS = {

@@ -14,3 +14,6 @@ export {
 } from './core/date.js';
 export { icon, icons } from './core/icons.js';
 export { debounce, uid, deepMerge, isElement, clamp, toArray } from './core/util.js';
+export { Select } from './components/select/select.js';
+export { Checklist } from './components/checklist/checklist.js';
+export { Permission } from './components/permission/permission.js';

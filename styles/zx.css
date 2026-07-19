@@ -4,3 +4,6 @@
 @import url("./tokens/density.css");
 @import url("./tokens/modules.css");
 @import url("./base.css");
+@import url("../src/components/select/select.css");
+@import url("../src/components/checklist/checklist.css");
+@import url("../src/components/permission/permission.css");
