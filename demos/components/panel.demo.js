@@ -1,4 +1,4 @@
-import { Panel, h } from '../../src/index.js';
+import { MasterPanel, Panel, button, h } from '../../src/index.js';
 
 export default {
   title: 'Panel',
@@ -37,6 +37,12 @@ export default {
       panel.on('close', () => { log.textContent = `${panel.refs.title.textContent}: close`; });
     });
 
+    const moduleLog = output('MasterPanel header actions report here.');
+    const masterPanels = [
+      masterPanel('Projects', 'projects', moduleLog),
+      masterPanel('Billing', 'billing', moduleLog),
+      masterPanel('Calendar', 'calendar', moduleLog)
+    ];
     const marker = h('div', {},
       section('Panel variants', stack(...panels.map((panel) => panel.toElement()))),
       section('Programmatic API', row(
@@ -46,12 +52,53 @@ export default {
           type: 'button',
           onclick: () => approval.setFooter('Footer replaced through setFooter()')
         }, 'Replace footer')
-      ), log)
+      ), log),
+      section('Full-height MasterPanel',
+        h('p', { style: { margin: '0', color: 'var(--zx-color-text-muted)' } },
+          'Each example has a different module accent. Its header and footer remain fixed while the body scrolls.'),
+        h('div', { style: {
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+          gap: 'var(--zx-space-4)'
+        } }, masterPanels.map((panel) => h('div', {
+          style: { minInlineSize: '0', blockSize: '360px' }
+        }, panel))),
+        moduleLog
+      )
     );
     container.append(marker);
-    cleanupWhenRemoved(marker, () => panels.forEach((panel) => panel.destroy()));
+    cleanupWhenRemoved(marker, () => {
+      panels.forEach((panel) => panel.destroy());
+      masterPanels.forEach((panel) => panel.destroy());
+    });
   }
 };
+
+/** @param {string} title @param {string} moduleName @param {HTMLOutputElement} log @returns {MasterPanel} */
+function masterPanel(title, moduleName, log) {
+  const extraAction = button({
+    label: 'Export',
+    size: 'sm',
+    onclick: () => { log.textContent = `${title}: export`; }
+  });
+  return new MasterPanel(null, {
+    title,
+    module: moduleName,
+    content: h('div', {}, Array.from({ length: 12 }, (_, index) => h('p', {},
+      `${title} record ${index + 1}: scroll this content while watching the bars.`
+    ))),
+    buttons: [
+      {
+        label: 'Add',
+        kind: 'primary',
+        size: 'sm',
+        onclick: () => { log.textContent = `${title}: add`; }
+      },
+      extraAction
+    ],
+    footer: `${title}: 12 records`
+  });
+}
 
 /** @param {...Node} children @returns {HTMLElement} */
 function stack(...children) {
