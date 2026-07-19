@@ -4,3 +4,7 @@
 @import url("./tokens/density.css");
 @import url("./tokens/modules.css");
 @import url("./base.css");
+@import url("../src/components/modal/modal.css");
+@import url("../src/components/dialog/dialog.css");
+@import url("../src/components/dropdown/dropdown.css");
+@import url("../src/components/menu-button/menu-button.css");

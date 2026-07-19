@@ -14,3 +14,7 @@ export {
 } from './core/date.js';
 export { icon, icons } from './core/icons.js';
 export { debounce, uid, deepMerge, isElement, clamp, toArray } from './core/util.js';
+export { Modal } from './components/modal/modal.js';
+export { Dialog } from './components/dialog/dialog.js';
+export { Dropdown } from './components/dropdown/dropdown.js';
+export { MenuButton } from './components/menu-button/menu-button.js';
