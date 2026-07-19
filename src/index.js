@@ -20,3 +20,7 @@ export { Toggle } from './components/toggle/toggle.js';
 export { Groupbox } from './components/groupbox/groupbox.js';
 export { Search } from './components/search/search.js';
 export { Message } from './components/message/message.js';
+export { Modal } from './components/modal/modal.js';
+export { Dialog } from './components/dialog/dialog.js';
+export { Dropdown } from './components/dropdown/dropdown.js';
+export { MenuButton } from './components/menu-button/menu-button.js';

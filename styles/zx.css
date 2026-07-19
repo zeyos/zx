@@ -10,3 +10,7 @@
 @import url("../src/components/groupbox/groupbox.css");
 @import url("../src/components/search/search.css");
 @import url("../src/components/message/message.css");
+@import url("../src/components/modal/modal.css");
+@import url("../src/components/dialog/dialog.css");
+@import url("../src/components/dropdown/dropdown.css");
+@import url("../src/components/menu-button/menu-button.css");

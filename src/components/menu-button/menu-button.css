@@ -1,0 +1,49 @@
+.zx-menu-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--zx-space-2);
+}
+
+.zx-menu-button__menu {
+  min-inline-size: 180px;
+  padding: var(--zx-space-1);
+}
+
+.zx-menu-button__item {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  inline-size: 100%;
+  min-block-size: var(--zx-control-height);
+  border-color: var(--zx-color-bg-raised);
+  background: var(--zx-color-bg-raised);
+  padding-inline: var(--zx-control-pad-x);
+  text-align: start;
+}
+
+.zx-menu-button__item:hover,
+.zx-menu-button__item:focus-visible {
+  background: var(--zx-color-bg-hover);
+}
+
+.zx-menu-button__item[data-danger="true"] {
+  color: var(--zx-color-danger);
+}
+
+.zx-menu-button__item[aria-disabled="true"] {
+  color: var(--zx-color-text-muted);
+  cursor: not-allowed;
+  opacity: .65;
+}
+
+.zx-menu-button__icon {
+  display: inline-flex;
+  flex: none;
+}
+
+.zx-menu-button__separator {
+  block-size: 1px;
+  margin: var(--zx-space-1) var(--zx-space-2);
+  background: var(--zx-color-border);
+}

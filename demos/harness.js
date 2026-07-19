@@ -7,6 +7,10 @@ const demos = [
   () => import('./components/search.demo.js'),
   () => import('./components/groupbox.demo.js'),
   () => import('./components/message.demo.js')
+  () => import('./components/modal.demo.js'),
+  () => import('./components/dialog.demo.js'),
+  () => import('./components/dropdown.demo.js'),
+  () => import('./components/menu-button.demo.js')
 ];
 
 const STORAGE_KEYS = {
