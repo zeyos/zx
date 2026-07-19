@@ -18,6 +18,7 @@ export { button, buttonGroup } from './components/button/button.js';
 export { CheckButton } from './components/check-button/check-button.js';
 export { Toggle } from './components/toggle/toggle.js';
 export { Groupbox } from './components/groupbox/groupbox.js';
+export { Panel } from './components/panel/panel.js';
 export { Search } from './components/search/search.js';
 export { Message } from './components/message/message.js';
 export { Modal } from './components/modal/modal.js';
