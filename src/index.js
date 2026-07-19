@@ -3,6 +3,34 @@
  * @module zx
  */
 
+import { registerChecklistFieldAdapter } from './components/checklist/field-adapter.js';
+import { registerDatePickerFieldAdapters } from './components/date-picker/field-adapter.js';
+import { registerDateboxFieldAdapters } from './components/datebox/field-adapter.js';
+import { registerFieldUploadAdapter } from './components/field-upload/field-adapter.js';
+import { registerMultiValueEditorFieldAdapter } from './components/multi-value-editor/field-adapter.js';
+import { registerSelectFieldAdapter } from './components/select/field-adapter.js';
+import { registerTimeboxFieldAdapter } from './components/timebox/field-adapter.js';
+import { registerToggleFieldAdapter } from './components/toggle/field-adapter.js';
+import { registerValueListFieldAdapter } from './components/value-list/field-adapter.js';
+
+/**
+ * Registers every component-backed Field adapter. Calling this function repeatedly is safe.
+ * @returns {void}
+ */
+export function registerFieldAdapters() {
+  registerSelectFieldAdapter();
+  registerChecklistFieldAdapter();
+  registerDateboxFieldAdapters();
+  registerDatePickerFieldAdapters();
+  registerTimeboxFieldAdapter();
+  registerValueListFieldAdapter();
+  registerMultiValueEditorFieldAdapter();
+  registerFieldUploadAdapter();
+  registerToggleFieldAdapter();
+}
+
+registerFieldAdapters();
+
 export { Component } from './core/component.js';
 export { h, htmlEscape, resolveElement } from './core/dom.js';
 export { position } from './core/position.js';

@@ -98,6 +98,7 @@ export class Field extends Component {
     this.el = root;
     const type = String(this.options.type || 'text').toLowerCase();
     const layout = this.options.layout === 'inline' ? 'inline' : 'stack';
+    this._ownedComponents = new Set();
     this._ownedNodes = [];
     this._rootAttributes = rememberAttributes(root, ['data-layout', 'data-field-type', 'data-disabled', 'data-state']);
     root.dataset.layout = layout;
@@ -262,6 +263,18 @@ export class Field extends Component {
     return this.adapter.el;
   }
 
+  /**
+   * Registers a child component for destruction with this field.
+   * @template {Component} T
+   * @param {T} component Child component.
+   * @returns {T} The registered component.
+   */
+  own(component) {
+    if (!(component instanceof Component)) throw new TypeError('Field.own() requires a Component');
+    this._ownedComponents.add(component);
+    return component;
+  }
+
   /** @param {boolean} [highlighted=false] @returns {void} */
   _syncDescription(highlighted = false) {
     const ids = [this._baseDescribedBy, this._descriptionId, highlighted ? this._highlightId : '']
@@ -273,6 +286,8 @@ export class Field extends Component {
   /** @returns {void} */
   destroy() {
     this.adapter?.destroy?.();
+    for (const component of this._ownedComponents ?? []) component.destroy();
+    this._ownedComponents?.clear();
     for (const node of this._ownedNodes ?? []) node.remove();
     restoreAttributes(this.el, this._rootAttributes ?? new Map());
     super.destroy();
