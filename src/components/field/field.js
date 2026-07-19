@@ -85,12 +85,9 @@ export class Field extends Component {
     return Field.#adapters.has(String(type).trim().toLowerCase());
   }
 
-  /** @type {FieldAdapter} */
-  adapter;
-  /** @type {unknown} */
-  initialValue;
-  /** @type {string} */
-  controlId;
+  // `adapter` (FieldAdapter), `initialValue`, and `controlId` are assigned in render();
+  // declaring them as class fields would re-initialize them to undefined after the base
+  // constructor (which calls render()) returns — see AGENTS.md.
 
   /** @returns {HTMLElement} */
   render() {
