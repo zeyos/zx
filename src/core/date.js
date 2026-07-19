@@ -5,12 +5,12 @@ const MONTHS = [
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-const TOKEN_PATTERN = /%[dmYyHMSaAbBs]/g;
+const TOKEN_PATTERN = /%[demYyHMSaAbBs]/g;
 
 /**
  * Formats a local Date using strftime-style kernel tokens.
  * @param {Date} date Date to format.
- * @param {string} fmt Format containing `%d %m %Y %y %H %M %S %a %A %b %B %s` tokens.
+ * @param {string} fmt Format containing `%d %e %m %Y %y %H %M %S %a %A %b %B %s` tokens.
  * @returns {string}
  */
 export function formatDate(date, fmt) {
@@ -18,6 +18,7 @@ export function formatDate(date, fmt) {
   return String(fmt).replace(TOKEN_PATTERN, (token) => {
     switch (token) {
       case '%d': return pad(date.getDate());
+      case '%e': return String(date.getDate());
       case '%m': return pad(date.getMonth() + 1);
       case '%Y': return String(date.getFullYear()).padStart(4, '0');
       case '%y': return pad(date.getFullYear() % 100);
@@ -72,7 +73,7 @@ export function parseDate(str, fmt) {
 
   const year = values['%Y'] ?? yearFromTwoDigits(values['%y']) ?? 1970;
   const month = (values['%m'] ?? 1) - 1;
-  const day = values['%d'] ?? 1;
+  const day = values['%d'] ?? values['%e'] ?? 1;
   const hour = values['%H'] ?? 0;
   const minute = values['%M'] ?? 0;
   const second = values['%S'] ?? 0;
@@ -86,6 +87,7 @@ export function parseDate(str, fmt) {
   if (values['%y'] !== undefined && parsed.getFullYear() % 100 !== values['%y']) return null;
   if (values['%m'] !== undefined && parsed.getMonth() !== month) return null;
   if (values['%d'] !== undefined && parsed.getDate() !== day) return null;
+  if (values['%e'] !== undefined && parsed.getDate() !== day) return null;
   if (values['%H'] !== undefined && parsed.getHours() !== hour) return null;
   if (values['%M'] !== undefined && parsed.getMinutes() !== minute) return null;
   if (values['%S'] !== undefined && parsed.getSeconds() !== second) return null;
@@ -188,6 +190,7 @@ function localizedShortName(type, index, fallback) {
 function numericPattern(token) {
   return {
     '%d': '\\d{1,2}',
+    '%e': '\\d{1,2}',
     '%m': '\\d{1,2}',
     '%Y': '\\d{4}',
     '%y': '\\d{2}',

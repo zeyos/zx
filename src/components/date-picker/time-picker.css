@@ -1,0 +1,27 @@
+.zx-time-picker {
+  display: inline-block;
+  color: var(--zx-color-text);
+  font-size: var(--zx-control-font-size);
+}
+
+.zx-time-picker__segments {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-1);
+}
+
+.zx-time-picker__spin {
+  inline-size: calc(var(--zx-control-height) + var(--zx-space-2));
+  padding-inline: var(--zx-space-1);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.zx-time-picker__spin:focus-visible {
+  box-shadow: var(--zx-focus-ring);
+}
+
+.zx-time-picker__separator {
+  color: var(--zx-color-text-muted);
+  font-weight: 700;
+}
