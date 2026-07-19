@@ -14,3 +14,6 @@
 @import url("../src/components/dialog/dialog.css");
 @import url("../src/components/dropdown/dropdown.css");
 @import url("../src/components/menu-button/menu-button.css");
+@import url("../src/components/select/select.css");
+@import url("../src/components/checklist/checklist.css");
+@import url("../src/components/permission/permission.css");

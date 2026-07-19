@@ -24,3 +24,6 @@ export { Modal } from './components/modal/modal.js';
 export { Dialog } from './components/dialog/dialog.js';
 export { Dropdown } from './components/dropdown/dropdown.js';
 export { MenuButton } from './components/menu-button/menu-button.js';
+export { Select } from './components/select/select.js';
+export { Checklist } from './components/checklist/checklist.js';
+export { Permission } from './components/permission/permission.js';

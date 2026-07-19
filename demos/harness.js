@@ -11,6 +11,9 @@ const demos = [
   () => import('./components/dialog.demo.js'),
   () => import('./components/dropdown.demo.js'),
   () => import('./components/menu-button.demo.js')
+  () => import('./components/select.demo.js'),
+  () => import('./components/checklist.demo.js'),
+  () => import('./components/permission.demo.js')
 ];
 
 const STORAGE_KEYS = {
