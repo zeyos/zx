@@ -1,0 +1,56 @@
+.zx-multi-value-editor {
+  display: grid;
+  gap: var(--zx-space-3);
+  min-inline-size: 0;
+  padding: var(--zx-space-3);
+  border: 1px solid var(--zx-color-border);
+  border-radius: var(--zx-radius-lg);
+  background: var(--zx-color-bg-surface);
+  container-type: inline-size;
+}
+
+.zx-multi-value-editor__rows {
+  display: grid;
+  gap: var(--zx-space-2);
+}
+
+.zx-multi-value-editor__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--zx-space-2);
+  align-items: center;
+}
+
+.zx-multi-value-editor__value {
+  inline-size: 100%;
+}
+
+.zx-multi-value-editor__controls {
+  display: inline-flex;
+  gap: var(--zx-space-1);
+}
+
+.zx-multi-value-editor__controls .zx-btn {
+  min-inline-size: var(--zx-control-height);
+  padding-inline: var(--zx-space-2);
+}
+
+.zx-multi-value-editor__controls .zx-btn:last-child {
+  color: var(--zx-color-danger);
+}
+
+.zx-multi-value-editor__add {
+  justify-self: start;
+  border-color: var(--zx-color-accent);
+  color: var(--zx-color-accent);
+}
+
+@container (max-width: 24rem) {
+  .zx-multi-value-editor__row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .zx-multi-value-editor__controls {
+    justify-self: end;
+  }
+}
