@@ -1,0 +1,84 @@
+.zx-tabbox {
+  min-inline-size: 0;
+  border: 1px solid var(--zx-color-border);
+  border-radius: var(--zx-radius-lg);
+  background: var(--zx-color-bg-surface);
+}
+
+.zx-tabbox__tablist {
+  display: flex;
+  align-items: end;
+  gap: var(--zx-space-1);
+  overflow-x: auto;
+  border-block-end: 1px solid var(--zx-color-border);
+  background: var(--zx-color-bg-raised);
+  padding: var(--zx-space-2) var(--zx-space-2) 0;
+}
+
+.zx-tabbox__tab {
+  position: relative;
+  display: inline-flex;
+  min-block-size: var(--zx-control-height);
+  align-items: center;
+  gap: var(--zx-space-2);
+  border: 1px solid var(--zx-color-border);
+  border-block-end: 0;
+  border-radius: var(--zx-control-radius) var(--zx-control-radius) 0 0;
+  background: var(--zx-color-bg-control);
+  padding-inline: var(--zx-control-pad-x);
+  color: var(--zx-color-text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.zx-tabbox__tab:hover:not([aria-disabled="true"]) {
+  background: var(--zx-color-bg-hover);
+  color: var(--zx-color-text);
+}
+
+.zx-tabbox__tab[aria-selected="true"] {
+  margin-block-end: -1px;
+  border-block-start-color: var(--zx-color-accent);
+  border-block-end-color: var(--zx-color-bg-surface);
+  background: var(--zx-color-bg-surface);
+  color: var(--zx-color-text);
+  font-weight: 650;
+}
+
+.zx-tabbox__tab[aria-disabled="true"] {
+  color: var(--zx-color-text-muted);
+  cursor: not-allowed;
+  opacity: .6;
+}
+
+.zx-tabbox__tab:focus-visible {
+  z-index: 1;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.zx-tabbox__badge {
+  min-inline-size: var(--zx-space-4);
+  border-radius: var(--zx-radius-full);
+  background: var(--zx-color-accent);
+  padding-inline: var(--zx-space-1);
+  color: var(--zx-color-on-accent);
+  font-size: var(--zx-text-sm);
+  font-weight: 700;
+  line-height: var(--zx-space-4);
+  text-align: center;
+}
+
+.zx-tabbox__close {
+  display: inline-grid;
+  place-items: center;
+  color: var(--zx-color-text-muted);
+}
+
+.zx-tabbox__panel {
+  min-block-size: calc(var(--zx-control-height) * 3);
+  padding: var(--zx-space-4);
+}
+
+.zx-tabbox__panel:focus-visible {
+  box-shadow: inset var(--zx-focus-ring);
+}

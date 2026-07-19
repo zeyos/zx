@@ -7,6 +7,7 @@ const demos = [
   () => import('./components/search.demo.js'),
   () => import('./components/groupbox.demo.js'),
   () => import('./components/panel.demo.js'),
+  () => import('./components/tabbox.demo.js'),
   () => import('./components/message.demo.js'),
   () => import('./components/modal.demo.js'),
   () => import('./components/dialog.demo.js'),

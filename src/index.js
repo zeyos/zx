@@ -20,6 +20,7 @@ export { Toggle } from './components/toggle/toggle.js';
 export { Groupbox } from './components/groupbox/groupbox.js';
 export { Panel } from './components/panel/panel.js';
 export { MasterPanel } from './components/master-panel/master-panel.js';
+export { Tabbox } from './components/tabbox/tabbox.js';
 export { Search } from './components/search/search.js';
 export { Message } from './components/message/message.js';
 export { Modal } from './components/modal/modal.js';
