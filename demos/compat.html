@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en" data-zx-theme="light" data-zx-density="cozy">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Zx gx compatibility demos</title>
+  <link rel="stylesheet" href="../styles/zx.css">
+  <style>
+    body { margin: 0; padding: var(--zx-space-6); color: var(--zx-color-text); background: var(--zx-color-bg-page); font-family: var(--zx-font-sans); font-size: var(--zx-text-md); }
+    main { display: grid; gap: var(--zx-space-6); max-width: 72rem; margin-inline: auto; }
+    section { display: grid; gap: var(--zx-space-3); padding: var(--zx-space-5); border: 1px solid var(--zx-color-border); border-radius: var(--zx-radius-lg); }
+    h1, h2 { margin: 0; }
+    .demo-row { display: flex; flex-wrap: wrap; align-items: start; gap: var(--zx-space-3); }
+    .compat-result { margin: 0; font-size: var(--zx-text-sm); }
+    .compat-result[data-state="pass"] { color: var(--zx-color-success); }
+    .compat-result[data-state="fail"] { color: var(--zx-color-danger); }
+    .event-output { min-block-size: 1.5em; color: var(--zx-color-text-muted); }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>gx compatibility smoke demos</h1>
+      <p>Five snippets ported from the legacy documentation and executed against Zx.</p>
+    </header>
+
+    <section>
+      <h2>Select + SelectDyn</h2>
+      <p class="compat-result" id="select-result">Waiting…</p>
+      <div class="demo-row" id="select-demo"></div>
+      <output class="event-output" id="select-output"></output>
+    </section>
+
+    <section>
+      <h2>Table</h2>
+      <p class="compat-result" id="table-result">Waiting…</p>
+      <div id="table-demo"></div>
+      <output class="event-output" id="table-output"></output>
+    </section>
+
+    <section>
+      <h2>Tabbox</h2>
+      <p class="compat-result" id="tabbox-result">Waiting…</p>
+      <div id="tabbox-demo"></div>
+      <output class="event-output" id="tabbox-output"></output>
+    </section>
+
+    <section>
+      <h2>Toggle + Msgbox</h2>
+      <p class="compat-result" id="toggle-result">Waiting…</p>
+      <div class="demo-row" id="toggle-demo"></div>
+      <output class="event-output" id="toggle-output"></output>
+    </section>
+
+    <section>
+      <h2>Form</h2>
+      <p class="compat-result" id="form-result">Waiting…</p>
+      <div id="form-demo"></div>
+      <output class="event-output" id="form-output"></output>
+    </section>
+  </main>
+
+  <script type="module">
+    import '../src/compat-entry.js';
+    window.dispatchEvent(new Event('gx-compat-ready'));
+  </script>
+  <script>
+    window.addEventListener('gx-compat-ready', function () {
+      gx.compat.installGlobals();
+
+      function run(name, callback) {
+        var note = document.getElementById(name + '-result');
+        try {
+          callback();
+          note.textContent = 'PASS — snippet mounted without errors';
+          note.dataset.state = 'pass';
+        } catch (error) {
+          note.textContent = 'FAIL — ' + (error && error.message ? error.message : error);
+          note.dataset.state = 'fail';
+          console.error(error);
+        }
+      }
+
+      run('select', function () {
+        var originalFetch = window.fetch;
+        window.fetch = function (url, options) {
+          if (String(url).indexOf('compat-select') !== -1) {
+            return Promise.resolve(new Response(JSON.stringify({
+              result: [
+                { ID: 4, name: 'Dynamic Alpha' },
+                { ID: 5, name: 'Dynamic Beta' }
+              ]
+            }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+          }
+          return originalFetch.call(window, url, options);
+        };
+
+        var output = document.getElementById('select-output');
+        var select = new gx.zeyos.Select(null, {
+          data: [
+            { ID: 1, name: 'First entry' },
+            { ID: 2, name: 'Second entry' },
+            { ID: 3, name: 'Third entry' }
+          ],
+          elementIndex: 'ID',
+          elementLabel: 'name',
+          elementSelect: 'name',
+          allowEmpty: true,
+          value: 2,
+          onSelect: function (item) { output.textContent = 'Selected: ' + item.name; },
+          onNoselect: function () { output.textContent = 'Selection cleared'; }
+        });
+        var dynamic = new gx.zeyos.SelectDyn(null, {
+          url: './compat-select',
+          method: 'GET',
+          queryParam: 'query',
+          requestData: { active: true },
+          elementIndex: 'ID',
+          elementLabel: 'name',
+          resetable: true,
+          debounce: 0,
+          onRequestFailure: function (error) { output.textContent = 'Request failed: ' + error.message; }
+        });
+        document.getElementById('select-demo').append(select.toElement(), dynamic.toElement());
+        dynamic.show();
+      });
+
+      run('table', function () {
+        var output = document.getElementById('table-output');
+        new gx.zeyos.Table(document.getElementById('table-demo'), {
+          cols: [
+            { label: 'Name', id: 'name', width: '2fr', filter: 'asc' },
+            { label: 'City', id: 'city', width: '1fr' },
+            { label: 'Open tasks', id: 'tasks', width: '1fr', filterable: false }
+          ],
+          structure: function (row) {
+            return [
+              { label: row.name, className: row.important ? 'em' : '' },
+              row.city,
+              row.tasks
+            ];
+          },
+          data: [
+            { ID: 11, name: 'Ada Lovelace', city: 'London', tasks: 3, important: true },
+            { ID: 12, name: 'Grace Hopper', city: 'New York', tasks: 1 },
+            { ID: 13, name: 'Edsger Dijkstra', city: 'Nuenen', tasks: 4 }
+          ],
+          onClick: function (data, row) { output.textContent = 'Clicked ' + data.name + ' (' + row.tagName + ')'; },
+          onFilter: function (column, mode) { output.textContent = 'Sort request: ' + column.id + ' ' + mode; }
+        });
+      });
+
+      run('tabbox', function () {
+        var output = document.getElementById('tabbox-output');
+        var tabs = new gx.bootstrap.Tabbox(document.getElementById('tabbox-demo'), {
+          frames: [
+            { name: 'details', title: 'Details', content: __('Legacy content in the first frame') },
+            { name: 'history', title: 'History', content: __({ tag: 'p', text: 'A second legacy frame' }) },
+            { name: 'notes', title: 'Notes', content: __({ tag: 'p', text: 'Tabs mirror active state with .act' }) }
+          ],
+          show: 2,
+          height: 180,
+          onChange: function (name) { output.textContent = 'Opened tab: ' + name; }
+        });
+        tabs.setHighlight('notes', '2');
+      });
+
+      run('toggle', function () {
+        var output = document.getElementById('toggle-output');
+        var msgbox = new gx.zeyos.Msgbox({ closable: true });
+        var toggle = new gx.zeyos.Toggle(null, {
+          on: true,
+          value: 'enabled',
+          label: 'Runtime notifications',
+          onCheck: function () {
+            output.textContent = 'Toggle checked; value = ' + toggle.getValue();
+            msgbox.show('Runtime notifications enabled', 's_msg_32_success');
+          },
+          onUncheck: function () {
+            output.textContent = 'Toggle unchecked';
+            msgbox.show('Runtime notifications disabled', 's_msg_32_info');
+          }
+        });
+        document.getElementById('toggle-demo').append(toggle.toElement());
+      });
+
+      run('form', function () {
+        var output = document.getElementById('form-output');
+        var form = new gx.bootstrap.Form(null, {
+          title: 'Legacy record',
+          horizontal: ['col-md-3', 'col-md-9'],
+          fields: {
+            subject: { type: 'string', label: 'Subject', default: 'Compatibility check' },
+            customer: {
+              type: 'gxselect',
+              label: 'Customer',
+              data: [
+                { ID: 20, name: 'Example Industries' },
+                { ID: 21, name: 'Sample Trading' }
+              ],
+              elementIndex: 'ID',
+              elementLabel: 'name',
+              default: 21,
+              allowEmpty: true
+            },
+            due: {
+              type: 'date',
+              label: 'Due date',
+              default: new Date(),
+              options: { format: ['d', '.', 'M', '.', 'y'] }
+            }
+          }
+        });
+        document.getElementById('form-demo').append(form.toElement());
+        output.textContent = 'Customer ID: ' + form.getValue('customer');
+      });
+    });
+  </script>
+</body>
+</html>
