@@ -1,0 +1,37 @@
+# Zx
+
+> Zx is the dependency-free, vanilla-JavaScript UI component library for the ZeyOS ERP — the
+> successor to the MooTools-based "gx" libraries. ES2022 modules, WAI-ARIA-accessible native
+> controls, semantic `--zx-*` design tokens with light/dark/density theming, and lifecycle-safe
+> components. Source modules run directly in the browser; a build step emits ESM, IIFE-global,
+> gx-compatibility, and CSS bundles. Zero runtime dependencies.
+
+Instantiate every component as `new Component(target, options)` where `target` is an Element, a
+selector string, or `null` (the component creates and owns its root, retrieved via `.toElement()`).
+Subscribe with `.on(type, fn)` or an `on<type>` option; handlers receive a `CustomEvent` whose
+`.detail` is an object. Call `.destroy()` to clean up. The same API is available as ESM named
+exports and as `window.zx.*`.
+
+## Documentation
+- [README](../README.md): what Zx is, quick start (ESM + global script), component index, theming, browser support, gx compat.
+- [API reference](API.md): per-component constructor options, methods, and events for all 30+ components plus the core helpers.
+- [Skill](../.claude/skills/zx/SKILL.md): task-oriented guide — mental model, recipes, ZeyOS HTTP client, theming, gotchas, commands.
+- [Migration guide](../MIGRATION.md): gx→zx class map, script-tag replacement, deliberate behavior changes, unsupported legacy APIs.
+- [Contributor contract](../AGENTS.md): conventions for editing component source (token rules, render-time state, listeners, ARIA/APG).
+
+## Components
+- Inputs: `button()`, `buttonGroup()`, `CheckButton`, `Toggle`, `Search`, `Select` (APG combobox; `filter: false|'local'|async`), `Checklist`, `DatePicker`, `MonthPicker`, `TimePicker`, `Datebox`/`DateTimeBox`, `Timebox`.
+- Overlays: `Message` (toasts/inline/progress), `Modal`, `Dialog` (+ `alert`/`confirm`/`prompt` Promises), `Dropdown`, `MenuButton`.
+- Data: `Table` (sortable, selectable, sticky header), `DataFilter`.
+- Forms: `Form`, `Fieldset`, `Field` (type registry), `ValueList`, `MultiValueEditor`, `FieldUpload`, `Permission`.
+- Layout: `Groupbox`, `Panel`, `MasterPanel`, `Tabbox`, `NavigationBar`.
+- Core: `Component`, `h`/`icon`, `position`, `Http`/`zeyosService`, i18n, date utils, `defineElements` (declarative `<zx-*>` custom elements).
+
+## Theming
+Load `zx.css` once; set `data-zx-theme` (`light`|`dark`|`auto`) and `data-zx-density` (`cozy`|`compact`) on any ancestor. Define a product theme by overriding semantic `--zx-color-*` / `--zx-control-*` tokens under `[data-zx-theme="name"]`. Never use tier-1 palette tokens or raw color literals in application CSS.
+
+## ZeyOS HTTP client
+`new Http({ base, onError })` and `zeyosService(service, accesskey)` are the Zx successors to `gx.zeyos.Client`/`gx.zeyos.Request`. `get`/`post`/`put`/`delete` return parsed JSON; `parseResult` unwraps the `{result|error}` envelope.
+
+## Commands
+`npm run serve` (no-build demo catalog at http://127.0.0.1:8321/demos/) · `npm test` (unit + token lint) · `npm run build` (dist bundles).
