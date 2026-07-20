@@ -67,7 +67,7 @@ const cases = [
   }),
   componentCase('Message', () => new zx.Message(null, { timeout: 0 }), (component) => {
     const handle = component.show('Ready', { timeout: 0 });
-    assert(component.el.querySelector('.zx-message__item'), 'message was not rendered');
+    assert(component.el.querySelector('.zx-message__toast'), 'message was not rendered');
     handle.close();
   }),
   componentCase('Modal', () => new zx.Modal(null, { content: 'Modal body' }), (component) => {
@@ -418,7 +418,12 @@ function delay(milliseconds) {
 
 /** @returns {Promise<void>} */
 function nextFrame() {
-  return new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+  // rAF is throttled to a standstill in hidden/backgrounded tabs — race a timeout
+  // so headless/automated runs always finish rendering the report.
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    setTimeout(resolve, 200);
+  });
 }
 
 /** @returns {Array<{ID: number, name: string}>} */
