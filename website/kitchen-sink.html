@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="en" data-zx-theme="light" data-zx-density="cozy">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A realistic Zx invoices screen using modern and legacy ZeyOS clients.">
+  <title>Invoices kitchen sink — Zx</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../styles/zx.css">
+  <link rel="stylesheet" href="site.css">
+  <script src="site.js"></script>
+  <script src="mock-remotecall.js"></script>
+  <script src="../dist/zx.global.js"></script>
+  <script src="../dist/zx-compat.global.js"></script>
+  <script>
+    window.loadInvoicesWithLegacyClient = async function () {
+      const output = document.querySelector('#legacy-log');
+      output.textContent = 'gx.zeyos.Client → ./remotecall.php\nRequesting invoice list…';
+      try {
+        const client = new gx.zeyos.Client({ url: './remotecall.php' });
+        const rows = await client.post('', { action: 'list' });
+        output.textContent = [
+          'Legacy gx.zeyos.Client succeeded.',
+          'Endpoint: ./remotecall.php',
+          'Action: list',
+          'Rows received: ' + rows.length,
+          'First invoice: ' + rows[0].number + ' · ' + rows[0].customer
+        ].join('\n');
+        return rows;
+      } catch (error) {
+        output.textContent = 'Legacy gx.zeyos.Client failed.\n' + error.message;
+        throw error;
+      }
+    };
+  </script>
+</head>
+<body class="zx-scope site-page">
+  <header class="site-header">
+    <div class="site-header__inner">
+      <a class="site-brand" href="./" aria-label="Zx home">
+        <img class="brand-logo--light" src="assets/zx-logo.svg" alt="">
+        <img class="brand-logo--dark" src="assets/zx-logo-dark.svg" alt="">
+      </a>
+      <nav class="site-nav" aria-label="Primary">
+        <a href="../docs/API.md">Docs</a>
+        <a href="../demos/">Components</a>
+        <a href="kitchen-sink.html" data-nav-kitchen>Kitchen sink</a>
+        <a href="#" data-placeholder-link title="Repository link coming soon">GitHub</a>
+      </nav>
+      <button class="theme-toggle" type="button" data-theme-toggle>
+        <span class="theme-toggle__icon" data-theme-icon aria-hidden="true">☾</span>
+        <span data-theme-label>Dark</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="kitchen-main">
+    <div id="invoice-app"></div>
+  </main>
+
+  <script type="module">
+    import {
+      DataFilter,
+      Dialog,
+      Fieldset,
+      Form,
+      MasterPanel,
+      Message,
+      Permission,
+      Table,
+      button,
+      h,
+      parseResult,
+      zeyosService
+    } from '../src/index.js';
+
+    const invoiceApi = zeyosService('invoices');
+    const customerApi = zeyosService('customers');
+    const currency = new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: 'EUR'
+    });
+    const dateFormat = new Intl.DateTimeFormat(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit'
+    });
+    const permissionGroups = [
+      { ID: 101, name: 'Executive team' },
+      { ID: 102, name: 'Finance' },
+      { ID: 103, name: 'Sales' },
+      { ID: 104, name: 'Vienna office' }
+    ];
+
+    let invoiceRows = [];
+    let activeDialog = null;
+
+    const sourceStatus = h('span', { 'aria-live': 'polite' }, 'Waiting for the modern client.');
+    const sourceNote = h('p', { class: 'invoice-source' },
+      h('span', {},
+        h('strong', {}, 'Modern Zx client: '),
+        'initial load, refresh, customer options, and saves.'
+      ),
+      sourceStatus
+    );
+
+    const table = new Table(null, {
+      columns: [
+        { id: 'number', label: 'Number', sortable: true, width: '1.1fr' },
+        { id: 'customer', label: 'Customer', sortable: true, width: '2fr' },
+        {
+          id: 'issued',
+          label: 'Issued',
+          sortable: true,
+          width: '1.15fr',
+          render: (row) => formatInvoiceDate(row.issued)
+        },
+        {
+          id: 'amount',
+          label: 'Amount',
+          sortable: true,
+          width: '1fr',
+          align: 'right',
+          render: (row) => currency.format(row.amount)
+        },
+        {
+          id: 'status',
+          label: 'Status',
+          sortable: true,
+          width: '1fr',
+          render: (row) => h('span', {
+            class: 'invoice-status',
+            dataset: { status: String(row.status).toLowerCase() }
+          }, row.status)
+        }
+      ],
+      data: [],
+      rowId: 'ID',
+      sortMode: 'local',
+      sort: { id: 'issued', dir: 'desc' },
+      selectable: 'multi',
+      stickyHeader: true,
+      height: 430,
+      emptyText: 'No invoices match the active filters.',
+      onrowclick: (event) => openInvoice(event.detail.row)
+    });
+
+    const filter = new DataFilter(null, {
+      data: [],
+      clearLabel: 'Clear filters',
+      filters: [
+        {
+          type: 'text',
+          id: 'query',
+          label: 'Find invoice',
+          fields: ['customer', 'number'],
+          placeholder: 'Customer or number'
+        },
+        {
+          type: 'select',
+          id: 'status',
+          label: 'Status',
+          field: 'status',
+          emptyLabel: 'All statuses',
+          options: ['Draft', 'Open', 'Paid', 'Overdue']
+        }
+      ],
+      onfilter: (event) => table.setData(event.detail.rows)
+    });
+
+    const tableWrap = h('div', {
+      class: 'invoice-table-wrap',
+      'aria-busy': 'true'
+    }, table);
+    const legacyLog = h('pre', {
+      class: 'legacy-log',
+      id: 'legacy-log',
+      'aria-live': 'polite'
+    }, 'Legacy client has not run yet.');
+    const legacyAction = h('div', { class: 'legacy-panel__action' });
+    legacyAction.append(button({
+      label: 'Load via legacy client',
+      icon: 'reload',
+      onclick: async (event) => {
+        event.currentTarget.disabled = true;
+        try {
+          await window.loadInvoicesWithLegacyClient();
+          Message.success('Legacy gx.zeyos.Client loaded the invoice list.');
+        } catch (error) {
+          Message.error(error.message);
+        } finally {
+          event.currentTarget.disabled = false;
+        }
+      }
+    }));
+
+    const dataLayer = h('div', { class: 'data-layer-grid' },
+      h('aside', { class: 'data-layer-note', 'aria-labelledby': 'data-layer-title' },
+        h('h2', { id: 'data-layer-title' }, 'About the data layer'),
+        h('p', {},
+          'No real backend is required. mock-remotecall.js fakes the ZeyOS remotecall endpoints ',
+          'with a short network delay. Remove the mock and the same client code can talk to a real ZeyOS server.'
+        )
+      ),
+      h('section', { class: 'legacy-panel', 'aria-labelledby': 'legacy-title' },
+        h('h2', { id: 'legacy-title' }, 'Legacy compatibility proof'),
+        h('p', {},
+          'This action uses the classic bundles and gx.zeyos.Client against the flat remotecall.php endpoint.'
+        ),
+        legacyAction,
+        legacyLog
+      )
+    );
+    const workspace = h('div', { class: 'invoice-workspace' },
+      sourceNote,
+      filter,
+      tableWrap,
+      dataLayer
+    );
+
+    new MasterPanel(document.querySelector('#invoice-app'), {
+      title: 'Invoices',
+      module: 'billing',
+      content: workspace,
+      buttons: [
+        {
+          label: 'New invoice',
+          icon: 'plus',
+          kind: 'primary',
+          onclick: () => openInvoice(null)
+        },
+        {
+          label: 'Refresh',
+          icon: 'reload',
+          onclick: () => loadInvoices()
+        }
+      ],
+      footer: 'Zx Invoices · Data served by the mock ZeyOS remotecall layer'
+    });
+
+    loadInvoices();
+
+    async function loadInvoices() {
+      const started = performance.now();
+      tableWrap.setAttribute('aria-busy', 'true');
+      sourceStatus.textContent = 'zx.zeyosService → ../remotecall/invoices/list · loading…';
+      try {
+        const rows = parseResult(await invoiceApi.get('list'));
+        invoiceRows = rows.map((row) => ({ ...row }));
+        filter.setData(invoiceRows);
+        sourceStatus.textContent = 'Modern client loaded ' + rows.length + ' invoices in '
+          + Math.round(performance.now() - started) + ' ms.';
+      } catch (error) {
+        sourceStatus.textContent = 'Modern client failed: ' + error.message;
+        Message.error('Could not load invoices: ' + error.message);
+      } finally {
+        tableWrap.setAttribute('aria-busy', 'false');
+      }
+    }
+
+    async function openInvoice(row) {
+      if (activeDialog?.isOpen()) return;
+
+      const dialog = new Dialog(null, {
+        title: row ? 'Edit invoice' : 'New invoice',
+        size: 'lg',
+        content: h('p', {
+          class: 'loading-copy',
+          'aria-live': 'polite'
+        }, 'Loading customer options through zeyosService…'),
+        buttons: [{ label: 'Close', action: 'close' }]
+      });
+      activeDialog = dialog;
+      let bundle = null;
+      dialog.once('close', () => {
+        bundle?.form.destroy();
+        bundle?.fieldset.destroy();
+        dialog.destroy();
+        if (activeDialog === dialog) activeDialog = null;
+      });
+      dialog.open();
+
+      try {
+        const customers = parseResult(await customerApi.get('list'));
+        if (!dialog.isOpen()) return;
+        bundle = createInvoiceForm(row, customers);
+        dialog.setContent(bundle.form);
+        dialog.setButtons([
+          { label: 'Cancel', action: 'cancel' },
+          {
+            label: 'Save invoice',
+            kind: 'primary',
+            autofocus: true,
+            action: () => bundle.form.submit()
+          }
+        ]);
+
+        let saving = false;
+        bundle.form.on('submit', (event) => {
+          event.preventDefault();
+          if (saving) return;
+          saving = true;
+          setDialogSaving(dialog, true);
+          saveInvoice(row, event.detail.values)
+            .then((saved) => dialog.close(saved))
+            .catch((error) => {
+              Message.error('Could not save invoice: ' + error.message);
+            })
+            .finally(() => {
+              saving = false;
+              if (dialog.isOpen()) setDialogSaving(dialog, false);
+            });
+        });
+      } catch (error) {
+        if (!dialog.isOpen()) return;
+        dialog.setContent(h('p', { class: 'loading-copy' },
+          'Customer options could not be loaded: ' + error.message
+        ));
+        dialog.setButtons([{ label: 'Close', action: 'close', autofocus: true }]);
+        Message.error('Could not load customers: ' + error.message);
+      }
+    }
+
+    function createInvoiceForm(row, customers) {
+      const values = row
+        ? { ...row, issued: toDateValue(row.issued), due: toDateValue(row.due) }
+        : {
+            number: '',
+            customerId: null,
+            issued: null,
+            due: null,
+            amount: '',
+            status: 'Draft',
+            notes: '',
+            permission: 'public'
+          };
+      const fieldset = new Fieldset(null, {
+        title: 'Invoice details',
+        columns: 2,
+        fields: {
+          number: {
+            type: 'text',
+            label: 'Invoice number',
+            value: values.number,
+            required: true,
+            placeholder: 'INV-26105'
+          },
+          customerId: {
+            type: 'zxselect',
+            label: 'Customer',
+            value: values.customerId,
+            required: true,
+            props: {
+              items: customers,
+              valueKey: 'ID',
+              labelKey: 'name',
+              filter: 'local',
+              clearable: true,
+              placeholder: 'Choose a customer'
+            }
+          },
+          issued: {
+            type: 'date',
+            label: 'Issue date',
+            value: values.issued,
+            required: true,
+            props: { clearable: true }
+          },
+          due: {
+            type: 'date',
+            label: 'Due',
+            value: values.due,
+            required: true,
+            props: { clearable: true }
+          },
+          amount: {
+            type: 'float',
+            label: 'Amount',
+            value: values.amount,
+            required: true,
+            placeholder: '0.00'
+          },
+          status: {
+            type: 'optionlist',
+            label: 'Status',
+            value: values.status,
+            options: {
+              Draft: 'Draft',
+              Open: 'Open',
+              Paid: 'Paid',
+              Overdue: 'Overdue'
+            }
+          },
+          notes: {
+            type: 'textarea',
+            label: 'Notes',
+            value: values.notes,
+            props: { rows: 4 },
+            placeholder: 'Internal notes'
+          },
+          permission: {
+            type: 'custom',
+            label: 'Permission',
+            value: values.permission,
+            adapter: createPermissionAdapter
+          }
+        }
+      });
+      const form = new Form(null, { fieldsets: [fieldset] });
+      return { form, fieldset };
+    }
+
+    function createPermissionAdapter(field, options) {
+      const permission = field.own(new Permission(null, {
+        value: options.value ?? 'public',
+        groups: permissionGroups
+      }));
+      field.listen(permission.el, 'change', (event) => event.stopImmediatePropagation());
+      permission.on('change', (event) => {
+        field.emit('change', { value: event.detail.value });
+      });
+      return {
+        el: permission.el,
+        get: () => permission.get(),
+        set: (value) => permission.set(value ?? 'public', { silent: true }),
+        focus: () => permission.el.querySelector('input:checked')?.focus(),
+        setDisabled: (disabled) => {
+          permission.el.querySelectorAll('input, button').forEach((control) => {
+            control.disabled = disabled;
+          });
+        }
+      };
+    }
+
+    async function saveInvoice(original, values) {
+      const payload = {
+        ...values,
+        ID: original?.ID ?? null,
+        issued: toDateString(values.issued),
+        due: toDateString(values.due)
+      };
+      const saved = parseResult(await invoiceApi.post('save', payload));
+      const index = invoiceRows.findIndex((row) => row.ID === saved.ID);
+      if (index >= 0) invoiceRows.splice(index, 1, saved);
+      else invoiceRows.unshift(saved);
+      filter.setData(invoiceRows);
+      sourceStatus.textContent = 'Modern client saved ' + saved.number
+        + ' through ../remotecall/invoices/save.';
+      Message.success(saved.number + ' saved successfully.');
+      return saved;
+    }
+
+    function setDialogSaving(dialog, saving) {
+      dialog.el.setAttribute('aria-busy', String(saving));
+      dialog.el.querySelectorAll('[data-dialog-button]').forEach((control) => {
+        control.disabled = saving;
+      });
+    }
+
+    function formatInvoiceDate(value) {
+      const date = value instanceof Date ? value : new Date(String(value) + 'T00:00:00');
+      return Number.isNaN(date.getTime()) ? '' : dateFormat.format(date);
+    }
+
+    // The mock stores dates as `YYYY-MM-DD` strings; the Datebox-backed `date` field wants a Date.
+    function toDateValue(value) {
+      if (value == null || value === '') return null;
+      const date = value instanceof Date ? value : new Date(String(value) + 'T00:00:00');
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+
+    function toDateString(value) {
+      if (!(value instanceof Date) || Number.isNaN(value.getTime())) return '';
+      return [
+        value.getFullYear(),
+        String(value.getMonth() + 1).padStart(2, '0'),
+        String(value.getDate()).padStart(2, '0')
+      ].join('-');
+    }
+  </script>
+</body>
+</html>

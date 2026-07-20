@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="en" data-zx-theme="light" data-zx-density="cozy">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Zx is the dependency-free, accessible UI toolkit for ZeyOS.">
+  <title>Zx — The modern UI toolkit for ZeyOS</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../styles/zx.css">
+  <link rel="stylesheet" href="site.css">
+  <script src="site.js"></script>
+</head>
+<body class="zx-scope site-page">
+  <header class="site-header">
+    <div class="site-header__inner">
+      <a class="site-brand" href="./" aria-label="Zx home">
+        <img class="brand-logo--light" src="assets/zx-logo.svg" alt="">
+        <img class="brand-logo--dark" src="assets/zx-logo-dark.svg" alt="">
+      </a>
+      <nav class="site-nav" aria-label="Primary">
+        <a href="../docs/API.md">Docs</a>
+        <a href="#components">Components</a>
+        <a href="kitchen-sink.html" data-nav-kitchen>Kitchen sink</a>
+        <a href="#" data-placeholder-link title="Repository link coming soon">GitHub</a>
+      </nav>
+      <button class="theme-toggle" type="button" data-theme-toggle>
+        <span class="theme-toggle__icon" data-theme-icon aria-hidden="true">☾</span>
+        <span data-theme-label>Dark</span>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="site-section hero__inner">
+        <img class="hero__logo brand-logo--light" src="assets/zx-logo.svg" alt="Zx">
+        <img class="hero__logo brand-logo--dark" src="assets/zx-logo-dark.svg" alt="Zx">
+        <p class="hero__eyebrow">UI infrastructure for modern business software</p>
+        <h1>The modern UI toolkit for ZeyOS</h1>
+        <p class="hero__subhead">
+          Dependency-free, accessible, themeable components — the vanilla-JavaScript successor to gx.
+        </p>
+        <div class="hero__actions" id="hero-actions" aria-label="Get started"></div>
+        <div class="zeyos-lockup">
+          <span>Built for</span>
+          <span class="zeyos-lockup__logo">
+            <img src="../assets/zeyos.black.svg" alt="ZeyOS">
+          </span>
+        </div>
+      </div>
+    </section>
+
+    <section class="site-section" aria-labelledby="features-title">
+      <div class="section-heading">
+        <h2 id="features-title">A focused toolkit for ERP interfaces</h2>
+        <p>Practical building blocks for dense workflows, designed to stay out of the application’s way.</p>
+      </div>
+      <div class="feature-grid">
+        <article class="feature-card">
+          <span class="feature-card__icon" data-feature-icon="lock"></span>
+          <h3>Zero dependencies</h3>
+          <p>Plain ES2022 modules with no runtime package or framework to maintain.</p>
+        </article>
+        <article class="feature-card">
+          <span class="feature-card__icon" data-feature-icon="check"></span>
+          <h3>Accessible</h3>
+          <p>Keyboard-complete controls based on WAI-ARIA Authoring Practices.</p>
+        </article>
+        <article class="feature-card">
+          <span class="feature-card__icon" data-feature-icon="gear"></span>
+          <h3>Themeable tokens</h3>
+          <p>Semantic light, dark, cozy, and compact design tokens throughout.</p>
+        </article>
+        <article class="feature-card">
+          <span class="feature-card__icon" data-feature-icon="list"></span>
+          <h3>30+ components</h3>
+          <p>Inputs, data views, forms, overlays, and application layout primitives.</p>
+        </article>
+        <article class="feature-card">
+          <span class="feature-card__icon" data-feature-icon="reload"></span>
+          <h3>gx compatibility</h3>
+          <p>A migration layer keeps legacy ZeyOS screens moving while code modernizes.</p>
+        </article>
+        <article class="feature-card">
+          <span class="feature-card__icon" data-feature-icon="success"></span>
+          <h3>Native platform</h3>
+          <p>Built on dialog, popover, ElementInternals, and modern browser APIs.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="showcase-section" id="components" aria-labelledby="components-title">
+      <div class="site-section">
+        <div class="section-heading">
+          <h2 id="components-title">Real components, running here</h2>
+          <p>This showcase imports Zx directly from source. Filter, sort, pick a date, and trigger a toast.</p>
+        </div>
+        <div class="showcase-grid">
+          <article class="showcase-card">
+            <h3>Toggle</h3>
+            <div id="showcase-toggle"></div>
+            <output id="toggle-output" aria-live="polite">Workflow is enabled.</output>
+          </article>
+          <article class="showcase-card">
+            <h3>Filterable select</h3>
+            <div id="showcase-select"></div>
+            <output id="select-output" aria-live="polite">Selected: Open</output>
+          </article>
+          <article class="showcase-card">
+            <h3>Datebox</h3>
+            <div id="showcase-date"></div>
+            <output id="date-output" aria-live="polite">Choose an invoice date.</output>
+          </article>
+          <article class="showcase-card">
+            <h3>Message</h3>
+            <div id="showcase-message"></div>
+            <output>Floating messages share the same semantic theme.</output>
+          </article>
+          <article class="showcase-card" data-wide>
+            <h3>Sortable table</h3>
+            <div id="showcase-table"></div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="site-section" id="quick-start" aria-labelledby="quick-start-title">
+      <div class="section-heading">
+        <h2 id="quick-start-title">Quick start</h2>
+        <p>Use modules in modern applications or the global bundle in classic ZeyOS screens.</p>
+      </div>
+      <div class="quick-start-grid">
+        <article class="code-card">
+          <h3>ES module</h3>
+          <pre><code>&lt;link rel="stylesheet" href="/assets/zx.css"&gt;
+&lt;script type="module"&gt;
+  import { Toggle } from '/assets/zx.esm.js';
+
+  const toggle = new Toggle(null, {
+    label: 'Notifications'
+  });
+  document.body.append(toggle.toElement());
+&lt;/script&gt;</code></pre>
+        </article>
+        <article class="code-card">
+          <h3>Global script</h3>
+          <pre><code>&lt;link rel="stylesheet" href="/assets/zx.css"&gt;
+&lt;script src="/assets/zx.global.js"&gt;&lt;/script&gt;
+&lt;script&gt;
+  const toggle = new zx.Toggle(null, {
+    label: 'Notifications'
+  });
+  document.body.append(toggle.toElement());
+&lt;/script&gt;</code></pre>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="site-footer__inner">
+      <p>Zx is the dependency-free successor to gx. MIT license.</p>
+      <nav class="site-footer__links" aria-label="Project resources">
+        <a href="../README.md">Docs</a>
+        <a href="../docs/API.md">API</a>
+        <a href="../MIGRATION.md">Migration</a>
+        <a href="../.claude/skills/zx/SKILL.md">Skill</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script type="module">
+    import {
+      Datebox, Message, Select, Table, Toggle, button, icon
+    } from '../src/index.js';
+
+    const heroActions = document.querySelector('#hero-actions');
+    heroActions.append(
+      button({
+        label: 'Explore components',
+        kind: 'primary',
+        icon: 'list',
+        onclick: () => window.location.assign('../demos/')
+      }),
+      button({
+        label: 'Kitchen sink',
+        kind: 'ghost',
+        icon: 'chevron-right',
+        onclick: () => window.location.assign('kitchen-sink.html')
+      })
+    );
+
+    document.querySelectorAll('[data-feature-icon]').forEach((host) => {
+      host.append(icon(host.dataset.featureIcon, { size: 18 }));
+    });
+
+    const toggleOutput = document.querySelector('#toggle-output');
+    const toggle = new Toggle(null, {
+      label: 'Enable invoice workflow',
+      checked: true,
+      onchange: (event) => {
+        toggleOutput.textContent = event.detail.checked
+          ? 'Workflow is enabled.'
+          : 'Workflow is paused.';
+      }
+    });
+    document.querySelector('#showcase-toggle').append(toggle.toElement());
+
+    const statuses = [
+      { ID: 'open', name: 'Open' },
+      { ID: 'paid', name: 'Paid' },
+      { ID: 'overdue', name: 'Overdue' },
+      { ID: 'draft', name: 'Draft' }
+    ];
+    const selectOutput = document.querySelector('#select-output');
+    const select = new Select(null, {
+      items: statuses,
+      value: 'open',
+      filter: 'local',
+      placeholder: 'Find a status',
+      onchange: (event) => {
+        selectOutput.textContent = 'Selected: ' + (event.detail.item?.name ?? 'None');
+      }
+    });
+    document.querySelector('#showcase-select').append(select.toElement());
+
+    const dateOutput = document.querySelector('#date-output');
+    const datebox = new Datebox(null, {
+      value: new Date(2026, 6, 20),
+      onchange: (event) => {
+        dateOutput.textContent = event.detail.date
+          ? 'Invoice date: ' + event.detail.date.toLocaleDateString()
+          : 'Choose an invoice date.';
+      }
+    });
+    document.querySelector('#showcase-date').append(datebox.toElement());
+
+    const toastButton = button({
+      label: 'Show toast',
+      kind: 'primary',
+      icon: 'success',
+      onclick: () => Message.success('Invoice saved successfully.')
+    });
+    document.querySelector('#showcase-message').append(toastButton);
+
+    const amount = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR' });
+    const table = new Table(null, {
+      columns: [
+        { id: 'number', label: 'Number', sortable: true, width: '1fr' },
+        { id: 'customer', label: 'Customer', sortable: true, width: '2fr' },
+        {
+          id: 'amount',
+          label: 'Amount',
+          sortable: true,
+          align: 'right',
+          width: '1fr',
+          render: (row) => amount.format(row.amount)
+        },
+        { id: 'status', label: 'Status', sortable: true, width: '1fr' }
+      ],
+      data: [
+        { ID: 1, number: 'INV-26041', customer: 'Alpine Works', amount: 4820, status: 'Open' },
+        { ID: 2, number: 'INV-26038', customer: 'Northstar GmbH', amount: 1290.5, status: 'Paid' },
+        { ID: 3, number: 'INV-26035', customer: 'Atelier West', amount: 760, status: 'Draft' },
+        { ID: 4, number: 'INV-26029', customer: 'Danube Systems', amount: 9350, status: 'Overdue' }
+      ],
+      rowId: 'ID',
+      sortMode: 'local',
+      sort: { id: 'number', dir: 'desc' },
+      stickyHeader: true
+    });
+    document.querySelector('#showcase-table').append(table.toElement());
+  </script>
+</body>
+</html>

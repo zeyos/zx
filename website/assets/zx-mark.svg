@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">Zx mark</title>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#008040"/>
+  <path fill="#fff" d="M13 14h28v9L26 41h15v9H12v-9l16-18H13z"/>
+  <path fill="#fff" d="M35 28h8l4 6 4-6h8L51 39l8 11h-8l-4-6-4 6h-8l8-11z"/>
+</svg>
