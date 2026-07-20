@@ -111,12 +111,12 @@ export class Select extends Component {
     });
     const clear = h('button', {
       ref: 'clear',
-      class: 'zx-select__clear',
+      class: 'zx-icon-btn zx-select__clear',
       type: 'button',
       tabIndex: -1,
       ariaLabel: this._message('select.clear', 'Clear selection'),
       hidden: true
-    }, icon('x', { size: 14 }));
+    }, icon('x', { size: 13 }));
     const loading = h('span', {
       ref: 'loading',
       class: 'zx-select__loading',

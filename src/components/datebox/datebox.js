@@ -75,10 +75,10 @@ export class Datebox extends Component {
         }),
         h('button', {
           ref: 'clear',
-          class: 'zx-datebox__clear',
+          class: 'zx-icon-btn zx-datebox__clear',
           type: 'button',
           ariaLabel: 'Clear date'
-        }, icon('x')),
+        }, icon('x', { size: 13 })),
         h('button', {
           ref: 'toggle',
           class: 'zx-datebox__toggle',

@@ -25,10 +25,11 @@
   color: var(--zx-color-on-accent);
 }
 
-.zx-scope button,
-.zx-scope input,
-.zx-scope select,
-.zx-scope textarea {
+/* Native-control defaults are wrapped in :where() so they contribute ZERO specificity:
+   any component class (.zx-tabbox__tab, .zx-message__close, …) overrides them without a
+   specificity fight. This is the default chrome for otherwise-unstyled controls. */
+:where(.zx-scope button:not(.zx-icon-btn)),
+:where(.zx-scope input, .zx-scope select, .zx-scope textarea) {
   min-block-size: var(--zx-control-height);
   border: 1px solid var(--zx-color-border-control);
   border-radius: var(--zx-control-radius);
@@ -38,19 +39,48 @@
   font-size: var(--zx-control-font-size);
 }
 
-.zx-scope button,
-.zx-scope select,
-.zx-scope input:not([type="checkbox"]):not([type="radio"]),
-.zx-scope textarea {
+:where(.zx-scope button:not(.zx-icon-btn), .zx-scope select, .zx-scope textarea),
+:where(.zx-scope input:not([type="checkbox"]):not([type="radio"])) {
   padding-inline: var(--zx-control-pad-x);
 }
 
-.zx-scope button {
+:where(.zx-scope button) {
   cursor: pointer;
 }
 
-.zx-scope button:hover {
+:where(.zx-scope button:not(.zx-icon-btn)):hover {
   background: var(--zx-color-bg-hover);
+}
+
+/* Ghost icon button: a borderless, transparent hit target for small glyph actions
+   (notification close, closable tab ×, field clear). Square, no chrome until hovered. */
+.zx-scope .zx-icon-btn {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  inline-size: var(--zx-control-height);
+  block-size: var(--zx-control-height);
+  padding: 0;
+  border: 0;
+  border-radius: var(--zx-radius-sm);
+  background: none;
+  color: var(--zx-color-text-muted);
+  cursor: pointer;
+}
+
+.zx-scope .zx-icon-btn:hover {
+  background: var(--zx-color-bg-hover);
+  color: var(--zx-color-text);
+}
+
+.zx-scope .zx-icon-btn:focus-visible {
+  outline: 0;
+  box-shadow: inset var(--zx-focus-ring);
+}
+
+.zx-scope .zx-icon-btn:disabled {
+  color: var(--zx-color-text-placeholder);
+  cursor: not-allowed;
 }
 
 .zx-scope input::placeholder,

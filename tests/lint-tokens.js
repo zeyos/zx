@@ -22,9 +22,11 @@ const namedColors = (
   'palegoldenrod palegreen paleturquoise palevioletred papayawhip peachpuff peru pink plum powderblue purple ' +
   'rebeccapurple red rosybrown royalblue saddlebrown salmon sandybrown seagreen seashell sienna silver skyblue ' +
   'slateblue slategray slategrey snow springgreen steelblue tan teal thistle tomato turquoise violet wheat ' +
-  'white whitesmoke yellow yellowgreen transparent'
+  'white whitesmoke yellow yellowgreen'
 ).split(/\s+/);
-const namedColorPattern = new RegExp('\\b(?:' + namedColors.join('|') + ')\\b', 'gi');
+// `transparent` and `currentColor` are theme-neutral keywords, not banned color literals.
+// Exclude hyphen-adjacent matches so property names like `white-space` are not misread as colors.
+const namedColorPattern = new RegExp('(?<![\\w-])(?:' + namedColors.join('|') + ')(?![\\w-])', 'gi');
 const rawColorPatterns = [
   { label: 'hex color', pattern: /#[\da-f]{3,8}\b/gi },
   { label: 'rgb() color', pattern: /\brgba?\s*\(/gi },

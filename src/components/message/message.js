@@ -334,11 +334,11 @@ export class Message extends Component {
 
     if (settings.closable) {
       const close = h('button', {
-        class: 'zx-message__close',
+        class: 'zx-icon-btn zx-message__close',
         type: 'button',
         ariaLabel: 'Close message',
         title: 'Close'
-      }, icon('x', { size: 15 }));
+      }, icon('x', { size: 14 }));
       node.append(close);
       this.listen(close, 'click', () => this._close(entry));
     }

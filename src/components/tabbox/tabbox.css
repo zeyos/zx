@@ -1,84 +1,84 @@
 .zx-tabbox {
   min-inline-size: 0;
-  border: 1px solid var(--zx-color-border);
-  border-radius: var(--zx-radius-lg);
-  background: var(--zx-color-bg-surface);
 }
 
 .zx-tabbox__tablist {
   display: flex;
-  align-items: end;
-  gap: var(--zx-space-1);
+  align-items: stretch;
+  /* Horizontal-only scroll for overflowing tab rows. Setting overflow-x alone would
+     compute overflow-y to auto and reveal a phantom vertical scrollbar, so pin it. */
   overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  scrollbar-gutter: auto;
   border-block-end: 1px solid var(--zx-color-border);
-  background: var(--zx-color-bg-raised);
-  padding: var(--zx-space-2) var(--zx-space-2) 0;
+}
+
+.zx-tabbox__tablist::-webkit-scrollbar {
+  display: none;
 }
 
 .zx-tabbox__tab {
   position: relative;
   display: inline-flex;
-  min-block-size: var(--zx-control-height);
+  flex: 0 0 auto;
+  block-size: calc(var(--zx-control-height) + 8px);
   align-items: center;
   gap: var(--zx-space-2);
-  border: 1px solid var(--zx-color-border);
-  border-block-end: 0;
-  border-radius: var(--zx-control-radius) var(--zx-control-radius) 0 0;
-  background: var(--zx-color-bg-control);
-  padding-inline: var(--zx-control-pad-x);
+  border: 0;
+  border-block-end: 2px solid transparent;
+  background: none;
+  padding-inline: var(--zx-space-4);
   color: var(--zx-color-text-muted);
   font: inherit;
+  white-space: nowrap;
   cursor: pointer;
 }
 
 .zx-tabbox__tab:hover:not([aria-disabled="true"]) {
-  background: var(--zx-color-bg-hover);
   color: var(--zx-color-text);
+  border-block-end-color: var(--zx-color-border-strong);
 }
 
 .zx-tabbox__tab[aria-selected="true"] {
-  margin-block-end: -1px;
-  border-block-start-color: var(--zx-color-accent);
-  border-block-end-color: var(--zx-color-bg-surface);
-  background: var(--zx-color-bg-surface);
   color: var(--zx-color-text);
-  font-weight: 650;
+  border-block-end-color: var(--zx-color-accent);
+  font-weight: 600;
 }
 
 .zx-tabbox__tab[aria-disabled="true"] {
-  color: var(--zx-color-text-muted);
+  color: var(--zx-color-text-placeholder);
   cursor: not-allowed;
-  opacity: .6;
 }
 
 .zx-tabbox__tab:focus-visible {
   z-index: 1;
-  box-shadow: var(--zx-focus-ring);
+  outline: 0;
+  box-shadow: inset var(--zx-focus-ring);
 }
 
 .zx-tabbox__badge {
-  min-inline-size: var(--zx-space-4);
+  min-inline-size: 1.25rem;
   border-radius: var(--zx-radius-full);
   background: var(--zx-color-accent);
   padding-inline: var(--zx-space-1);
   color: var(--zx-color-on-accent);
-  font-size: var(--zx-text-sm);
+  font-size: var(--zx-text-xs);
   font-weight: 700;
-  line-height: var(--zx-space-4);
+  line-height: 1.25rem;
   text-align: center;
 }
 
 .zx-tabbox__close {
-  display: inline-grid;
-  place-items: center;
+  margin-inline-start: calc(-1 * var(--zx-space-1));
   color: var(--zx-color-text-muted);
 }
 
 .zx-tabbox__panel {
-  min-block-size: calc(var(--zx-control-height) * 3);
-  padding: var(--zx-space-4);
+  padding-block-start: var(--zx-space-4);
 }
 
 .zx-tabbox__panel:focus-visible {
+  outline: 0;
   box-shadow: inset var(--zx-focus-ring);
 }

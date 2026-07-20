@@ -62,25 +62,10 @@
   overflow-wrap: anywhere;
 }
 
+/* Visual chrome comes from the shared .zx-icon-btn utility; only alignment is set here so
+   the close control sits flush with the top-right corner without stretching the toast. */
 .zx-message__close {
-  display: inline-grid;
-  place-items: center;
-  min-block-size: 24px;
-  inline-size: 24px;
-  border: 0;
-  border-radius: var(--zx-radius-sm);
-  background: none;
-  color: var(--zx-color-text-muted);
-  padding: 0;
-}
-
-.zx-message__close:hover {
-  background: var(--zx-color-bg-hover);
-  color: var(--zx-color-text);
-}
-
-.zx-message__close:focus-visible {
-  box-shadow: var(--zx-focus-ring);
+  margin: calc(-1 * var(--zx-space-1)) calc(-1 * var(--zx-space-1)) 0 0;
 }
 
 .zx-message__progress {
