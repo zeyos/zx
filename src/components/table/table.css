@@ -13,12 +13,18 @@
 
 .zx-table__table {
   inline-size: 100%;
-  min-inline-size: max-content;
   border-spacing: 0;
   background: var(--zx-color-bg-surface);
   color: var(--zx-color-text);
 }
 
+/* Auto layout (intrinsic/px columns): let content set the width and scroll horizontally. */
+.zx-table__table[data-layout="auto"] {
+  min-inline-size: max-content;
+}
+
+/* Fixed layout (fr/proportional columns): fill the container. `max-content` must NOT apply here —
+   with table-layout:fixed and percentage <col> widths it resolves to a runaway width. */
 .zx-table__table[data-layout="fixed"] {
   table-layout: fixed;
 }
