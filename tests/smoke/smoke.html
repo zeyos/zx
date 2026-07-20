@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en" data-zx-theme="light" data-zx-density="cozy">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Zx source smoke test</title>
+  <link rel="stylesheet" href="../../styles/zx.css">
+  <style>
+    body { margin: 0; padding: var(--zx-space-6); color: var(--zx-color-text); background: var(--zx-color-bg-page); font-family: var(--zx-font-sans); }
+    main { display: grid; gap: var(--zx-space-5); max-width: 72rem; margin-inline: auto; }
+    h1 { margin: 0; }
+    .smoke-summary { padding: var(--zx-space-4); border: 1px solid var(--zx-color-border); border-radius: var(--zx-radius-md); background: var(--zx-color-bg-surface); }
+    .smoke-summary[data-state="pass"] { color: var(--zx-color-success); border-color: var(--zx-color-success); }
+    .smoke-summary[data-state="fail"] { color: var(--zx-color-danger); border-color: var(--zx-color-danger); }
+    .smoke-table-wrap { overflow: auto; border: 1px solid var(--zx-color-border); border-radius: var(--zx-radius-md); }
+    table { width: 100%; border-collapse: collapse; background: var(--zx-color-bg-surface); }
+    th, td { padding: var(--zx-space-2) var(--zx-space-3); border-block-end: 1px solid var(--zx-color-border); text-align: start; }
+    th { background: var(--zx-color-bg-raised); }
+    td[data-state="pass"] { color: var(--zx-color-success); }
+    td[data-state="fail"] { color: var(--zx-color-danger); }
+    .smoke-error { max-width: 34rem; color: var(--zx-color-text-muted); font-family: var(--zx-font-mono); font-size: var(--zx-text-sm); white-space: pre-wrap; }
+    .smoke-fixtures { position: fixed; inset-inline-start: -10000px; inset-block-start: 0; inline-size: 360px; opacity: 0; pointer-events: none; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Zx source smoke test</h1>
+    <div id="summary" class="smoke-summary" role="status" aria-live="polite">Running…</div>
+    <div class="smoke-table-wrap">
+      <table>
+        <thead>
+          <tr><th>Component</th><th>Create</th><th>Exercise</th><th>Destroy</th><th>Re-create</th><th>Details</th></tr>
+        </thead>
+        <tbody id="results"></tbody>
+      </table>
+    </div>
+  </main>
+  <div id="fixtures" class="smoke-fixtures"></div>
+  <script>
+    window.__zxSmokeErrors = [];
+    window.__zxSmoke = { passed: 0, failed: 0, results: [] };
+    window.__zxCaptureSmokeError = function (error) {
+      var text = error && error.message ? error.message : String(error);
+      window.__zxSmokeErrors.push(text);
+      window.__zxSmoke = {
+        passed: 0,
+        failed: window.__zxSmokeErrors.length,
+        results: [{ component: 'Window errors', create: false, exercise: false, destroy: false, recreate: false, error: text }]
+      };
+    };
+    window.addEventListener('error', function (event) { window.__zxCaptureSmokeError(event.error || event.message); });
+    window.addEventListener('unhandledrejection', function (event) { window.__zxCaptureSmokeError(event.reason); });
+  </script>
+  <script type="module" src="./smoke.js"></script>
+</body>
+</html>

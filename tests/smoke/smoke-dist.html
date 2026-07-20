@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en" data-zx-theme="light" data-zx-density="cozy">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Zx distribution smoke test</title>
+  <link rel="stylesheet" href="../../dist/zx.css">
+  <style>
+    body { margin: 0; padding: var(--zx-space-6); color: var(--zx-color-text); background: var(--zx-color-bg-page); font-family: var(--zx-font-sans); }
+    main { max-width: 48rem; margin-inline: auto; }
+    #result { padding: var(--zx-space-4); border: 1px solid var(--zx-color-border); border-radius: var(--zx-radius-md); background: var(--zx-color-bg-surface); }
+    #result[data-state="pass"] { color: var(--zx-color-success); border-color: var(--zx-color-success); }
+    #result[data-state="fail"] { color: var(--zx-color-danger); border-color: var(--zx-color-danger); }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Zx distribution smoke test</h1>
+    <pre id="result" role="status" aria-live="polite">Running…</pre>
+    <div id="legacy-toggle"></div>
+  </main>
+  <script>
+    window.__zxDistErrors = [];
+    window.__zxDistSmoke = { passed: false, failed: 0, results: [] };
+    window.addEventListener('error', function (event) {
+      var text = event.error && event.error.message ? event.error.message : event.message;
+      window.__zxDistErrors.push({ name: 'window error', passed: false, error: text });
+      window.__zxDistSmoke = { passed: false, failed: window.__zxDistErrors.length, results: window.__zxDistErrors.slice() };
+    }, true);
+  </script>
+  <script src="../../dist/zx.global.js"></script>
+  <script src="../../dist/zx-compat.global.js"></script>
+  <script>
+    window.addEventListener('DOMContentLoaded', async function () {
+      var results = window.__zxDistErrors.slice();
+      function check(name, callback) {
+        try {
+          callback();
+          results.push({ name: name, passed: true });
+        } catch (error) {
+          results.push({ name: name, passed: false, error: error && error.message ? error.message : String(error) });
+        }
+      }
+
+      check('global API', function () {
+        if (!window.zx || typeof window.zx.Toggle !== 'function') throw new Error('window.zx is missing');
+      });
+
+      var alertPromise;
+      check('Dialog.alert opens', function () {
+        alertPromise = window.zx.Dialog.alert({ title: 'Distribution', message: 'Global bundle is working.' });
+        var dialog = document.querySelector('dialog.zx-dialog[open]');
+        if (!dialog) throw new Error('Dialog.alert did not open');
+        dialog.querySelector('[data-dialog-button]').click();
+      });
+      if (alertPromise) await alertPromise;
+
+      check('compat Toggle', function () {
+        if (!window.gx || typeof window.gx.zeyos.Toggle !== 'function') throw new Error('window.gx is missing');
+        var host = document.getElementById('legacy-toggle');
+        var toggle = new window.gx.zeyos.Toggle(host, { label: 'Legacy toggle', value: 'enabled' });
+        if (toggle.toElement().retrieve('com') !== toggle) throw new Error('legacy element storage missing');
+        toggle.toggle();
+        if (!toggle.getState() || !toggle.toElement().classList.contains('act')) throw new Error('legacy Toggle did not activate');
+        toggle.destroy();
+        host.replaceChildren();
+      });
+
+      check('explicit globals', function () {
+        if (typeof window.__ !== 'undefined') throw new Error('__ was installed before opt-in');
+        window.gx.compat.installGlobals();
+        if (typeof window.__ !== 'function') throw new Error('installGlobals() did not install __');
+      });
+
+      var failed = results.filter(function (entry) { return !entry.passed; }).length;
+      var passed = failed === 0;
+      var output = document.getElementById('result');
+      output.textContent = (passed ? 'PASS' : 'FAIL') + '\n' + results.map(function (entry) {
+        return (entry.passed ? 'PASS ' : 'FAIL ') + entry.name + (entry.error ? ': ' + entry.error : '');
+      }).join('\n');
+      output.dataset.state = passed ? 'pass' : 'fail';
+      window.__zxDistSmoke = { passed: passed, failed: failed, results: results };
+    });
+  </script>
+</body>
+</html>
