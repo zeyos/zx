@@ -42,6 +42,7 @@ export {
 } from './core/date.js';
 export { icon, icons } from './core/icons.js';
 export { debounce, uid, deepMerge, isElement, clamp, toArray } from './core/util.js';
+export { defineElements } from './elements/define.js';
 export { button, buttonGroup } from './components/button/button.js';
 export { CheckButton } from './components/check-button/check-button.js';
 export { Toggle } from './components/toggle/toggle.js';

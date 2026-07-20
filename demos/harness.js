@@ -24,6 +24,7 @@ const demos = [
   () => import('./components/data-filter.demo.js'),
   () => import('./components/form.demo.js'),
   () => import('./components/form-widgets.demo.js'),
+  () => import('./components/elements.demo.js'),
   () => import('./components/value-list.demo.js'),
   () => import('./components/multi-value-editor.demo.js'),
   () => import('./components/field-upload.demo.js')
