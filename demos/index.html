@@ -3,11 +3,34 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Zx component demos</title>
+    <title>Components — Zx</title>
+    <link rel="icon" href="../website/favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="../styles/zx.css">
+    <link rel="stylesheet" href="../website/site.css">
     <link rel="stylesheet" href="harness.css">
+    <script src="../website/site.js"></script>
   </head>
-  <body class="zx-scope">
+  <body class="zx-scope site-page">
+    <header class="site-header">
+      <div class="site-header__inner">
+        <a class="site-brand" href="../website/" aria-label="Zx home">
+          <img class="brand-logo--light" src="../website/assets/zx-logo.svg" alt="Zx">
+          <img class="brand-logo--dark" src="../website/assets/zx-logo-dark.svg" alt="Zx">
+        </a>
+        <nav class="site-nav" aria-label="Primary">
+          <a href="../website/">Home</a>
+          <a href="../docs/API.md">Docs</a>
+          <a href="./" aria-current="page">Components</a>
+          <a href="../website/kitchen-sink.html">Kitchen sink</a>
+          <a href="#" data-placeholder-link title="Repository link coming soon">GitHub</a>
+        </nav>
+        <button class="theme-toggle" type="button" data-theme-toggle>
+          <span class="theme-toggle__icon" data-theme-icon aria-hidden="true">☾</span>
+          <span data-theme-label>Dark</span>
+        </button>
+      </div>
+    </header>
+
     <div id="demo-app"></div>
     <noscript>The Zx demo harness requires JavaScript.</noscript>
     <script type="module" src="harness.js"></script>

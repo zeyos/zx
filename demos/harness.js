@@ -44,7 +44,6 @@ const registeredDemos = modules.map((module) => module.default);
 const root = document.querySelector('#demo-app');
 const shell = createElement('div', 'demo-shell');
 const sidebar = createElement('aside', 'demo-sidebar');
-const brand = createElement('div', 'demo-brand', 'Zx');
 const navigation = createElement('nav', 'demo-navigation');
 const main = createElement('main', 'demo-main');
 const heading = createElement('h1', 'demo-title');
@@ -52,16 +51,15 @@ const stage = createElement('div', 'demo-stage');
 const toolbar = createElement('div', 'demo-toolbar');
 let activeDemo = 0;
 
-sidebar.append(brand, navigation);
+sidebar.append(navigation);
 main.append(heading, stage);
 shell.append(sidebar, main);
 root.append(shell, toolbar);
 
-const theme = createSwitcher('Theme', 'theme');
+// Theme is owned by the shared site chrome (website/site.js); the harness only controls density.
 const density = createSwitcher('Density', 'density');
-toolbar.append(theme.wrapper, density.wrapper);
+toolbar.append(density.wrapper);
 
-applySetting('theme', readSetting('theme'));
 applySetting('density', readSetting('density'));
 renderNavigation();
 showDemo(0);

@@ -1,13 +1,16 @@
+/* Height of the shared site header (website/site.css .site-header). */
 .demo-shell {
+  --demo-header: 65px;
   display: grid;
   grid-template-columns: 220px minmax(0, 1fr);
-  min-block-size: 100vh;
+  min-block-size: calc(100vh - var(--demo-header));
 }
 
 .demo-sidebar {
   position: sticky;
-  inset-block-start: 0;
-  block-size: 100vh;
+  inset-block-start: var(--demo-header);
+  block-size: calc(100vh - var(--demo-header));
+  overflow-y: auto;
   border-inline-end: 1px solid var(--zx-color-border);
   background: var(--zx-color-bg-surface);
   padding: var(--zx-space-5);
