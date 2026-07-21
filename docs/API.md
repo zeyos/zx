@@ -136,7 +136,7 @@ Methods: `setTitle()`, `setItems()`, `setActive()`, `setBadge()`, `setActions()`
 - `h(tag, props, ...children)`, `h.raw(html)`, `htmlEscape`, `resolveElement`.
 - `icon(name, {size, label})`, `icons` — Font Awesome Free solid, inline SVG.
 - `position(anchor, floating, {placement, offset, flip, matchWidth})` → `{update, destroy}`.
-- `Http`, `zeyosService(service, accesskey, opts)`, `parseResult(json)` — see the ZeyOS client section in the skill.
+- `Http`, `zeyosService(service, accesskey, opts)`, `parseResult(json)` — minimal built-in helpers for ad-hoc ZeyOS `remotecall`. For ZeyOS business data prefer the dedicated **`@zeyos/client`** library (see the skill's "Talking to ZeyOS" section).
 - i18n: `setTranslator`, `setLanguage`, `getLanguage`, `translate`, `printf`.
 - dates: `formatDate(d, fmt)`, `parseDate(s, fmt)` (tokens `%d %m %Y %y %H %M %S %a %A %b %B %s`), `clampDate`, `isSameDay`, `addDays`, `addMonths`, `getWeekStart`.
 - keyboard: `focusTrap`, `rovingTabindex`, `typeahead`. utils: `debounce`, `uid`, `deepMerge`, `isElement`, `clamp`, `toArray`.

@@ -3,36 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="A realistic Zx invoices screen using modern and legacy ZeyOS clients.">
+  <meta name="description" content="A realistic Zx invoices screen powered by the dedicated @zeyos/client library.">
   <title>Invoices kitchen sink — Zx</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../styles/zx.css">
   <link rel="stylesheet" href="site.css">
   <script src="site.js"></script>
-  <script src="mock-remotecall.js"></script>
-  <script src="../dist/zx.global.js"></script>
-  <script src="../dist/zx-compat.global.js"></script>
-  <script>
-    window.loadInvoicesWithLegacyClient = async function () {
-      const output = document.querySelector('#legacy-log');
-      output.textContent = 'gx.zeyos.Client → ./remotecall.php\nRequesting invoice list…';
-      try {
-        const client = new gx.zeyos.Client({ url: './remotecall.php' });
-        const rows = await client.post('', { action: 'list' });
-        output.textContent = [
-          'Legacy gx.zeyos.Client succeeded.',
-          'Endpoint: ./remotecall.php',
-          'Action: list',
-          'Rows received: ' + rows.length,
-          'First invoice: ' + rows[0].number + ' · ' + rows[0].customer
-        ].join('\n');
-        return rows;
-      } catch (error) {
-        output.textContent = 'Legacy gx.zeyos.Client failed.\n' + error.message;
-        throw error;
-      }
-    };
-  </script>
+  <!-- Fakes the ZeyOS OpenAPI backend (patches fetch) so @zeyos/client runs with no live server. -->
+  <script src="mock-zeyos-api.js"></script>
 </head>
 <body class="zx-scope site-page">
   <header class="site-header">
@@ -68,14 +46,21 @@
       Message,
       Permission,
       Table,
-      button,
-      h,
-      parseResult,
-      zeyosService
+      h
     } from '../src/index.js';
+    // The dedicated ZeyOS client library (npm: @zeyos/client), bundled for the zero-build demo.
+    import {
+      createZeyosClient,
+      normalizeListResult
+    } from './vendor/zeyos-client.esm.js';
 
-    const invoiceApi = zeyosService('invoices');
-    const customerApi = zeyosService('customers');
+    // A real @zeyos/client. It talks to the ZeyOS OpenAPI (here faked by mock-zeyos-api.js);
+    // point `platform` at a live instance and drop the mock to run against real ZeyOS.
+    // ZeyOS invoices are billing "transactions"; customers are "accounts".
+    const zeyos = createZeyosClient({
+      platform: 'https://cloud.zeyos.com/demo/',
+      auth: { mode: 'session', session: { enabled: true, credentials: 'include' } }
+    });
     const currency = new Intl.NumberFormat(undefined, {
       style: 'currency',
       currency: 'EUR'
@@ -95,11 +80,11 @@
     let invoiceRows = [];
     let activeDialog = null;
 
-    const sourceStatus = h('span', { 'aria-live': 'polite' }, 'Waiting for the modern client.');
+    const sourceStatus = h('span', { 'aria-live': 'polite' }, 'Waiting for @zeyos/client.');
     const sourceNote = h('p', { class: 'invoice-source' },
       h('span', {},
-        h('strong', {}, 'Modern Zx client: '),
-        'initial load, refresh, customer options, and saves.'
+        h('strong', {}, '@zeyos/client: '),
+        'lists, reads, creates, and updates through the dedicated ZeyOS client library.'
       ),
       sourceStatus
     );
@@ -172,43 +157,24 @@
       class: 'invoice-table-wrap',
       'aria-busy': 'true'
     }, table);
-    const legacyLog = h('pre', {
-      class: 'legacy-log',
-      id: 'legacy-log',
-      'aria-live': 'polite'
-    }, 'Legacy client has not run yet.');
-    const legacyAction = h('div', { class: 'legacy-panel__action' });
-    legacyAction.append(button({
-      label: 'Load via legacy client',
-      icon: 'reload',
-      onclick: async (event) => {
-        event.currentTarget.disabled = true;
-        try {
-          await window.loadInvoicesWithLegacyClient();
-          Message.success('Legacy gx.zeyos.Client loaded the invoice list.');
-        } catch (error) {
-          Message.error(error.message);
-        } finally {
-          event.currentTarget.disabled = false;
-        }
-      }
-    }));
 
-    const dataLayer = h('div', { class: 'data-layer-grid' },
-      h('aside', { class: 'data-layer-note', 'aria-labelledby': 'data-layer-title' },
-        h('h2', { id: 'data-layer-title' }, 'About the data layer'),
-        h('p', {},
-          'No real backend is required. mock-remotecall.js fakes the ZeyOS remotecall endpoints ',
-          'with a short network delay. Remove the mock and the same client code can talk to a real ZeyOS server.'
-        )
+    const dataLayer = h('aside', { class: 'data-layer-note', 'aria-labelledby': 'data-layer-title' },
+      h('h2', { id: 'data-layer-title' }, 'About the data layer'),
+      h('p', {},
+        'This screen is built from Zx components and reads and writes its data through ',
+        h('strong', {}, '@zeyos/client'),
+        ' — the dedicated, dependency-free ZeyOS client library. Invoices map to the ',
+        h('code', {}, 'transactions'),
+        ' resource and customers to ',
+        h('code', {}, 'accounts'),
+        '.'
       ),
-      h('section', { class: 'legacy-panel', 'aria-labelledby': 'legacy-title' },
-        h('h2', { id: 'legacy-title' }, 'Legacy compatibility proof'),
-        h('p', {},
-          'This action uses the classic bundles and gx.zeyos.Client against the flat remotecall.php endpoint.'
-        ),
-        legacyAction,
-        legacyLog
+      h('p', {},
+        'No real backend or credentials are required here: ',
+        h('code', {}, 'mock-zeyos-api.js'),
+        ' fakes the ZeyOS OpenAPI with a short network delay. Point the client’s ',
+        h('code', {}, 'platform'),
+        ' at a live instance and remove the mock to talk to a real ZeyOS server.'
       )
     );
     const workspace = h('div', { class: 'invoice-workspace' },
@@ -235,7 +201,7 @@
           onclick: () => loadInvoices()
         }
       ],
-      footer: 'Zx Invoices · Data served by the mock ZeyOS remotecall layer'
+      footer: 'Zx Invoices · Data via @zeyos/client'
     });
 
     loadInvoices();
@@ -243,15 +209,19 @@
     async function loadInvoices() {
       const started = performance.now();
       tableWrap.setAttribute('aria-busy', 'true');
-      sourceStatus.textContent = 'zx.zeyosService → ../remotecall/invoices/list · loading…';
+      sourceStatus.textContent = 'client.api.listTransactions() · loading…';
       try {
-        const rows = parseResult(await invoiceApi.get('list'));
-        invoiceRows = rows.map((row) => ({ ...row }));
+        const { data } = normalizeListResult(await zeyos.api.listTransactions({
+          filters: { visibility: 0 },
+          sort: ['-issued'],
+          limit: 100
+        }));
+        invoiceRows = data.map((row) => ({ ...row }));
         filter.setData(invoiceRows);
-        sourceStatus.textContent = 'Modern client loaded ' + rows.length + ' invoices in '
+        sourceStatus.textContent = 'listTransactions() returned ' + data.length + ' invoices in '
           + Math.round(performance.now() - started) + ' ms.';
       } catch (error) {
-        sourceStatus.textContent = 'Modern client failed: ' + error.message;
+        sourceStatus.textContent = '@zeyos/client failed: ' + error.message;
         Message.error('Could not load invoices: ' + error.message);
       } finally {
         tableWrap.setAttribute('aria-busy', 'false');
@@ -267,7 +237,7 @@
         content: h('p', {
           class: 'loading-copy',
           'aria-live': 'polite'
-        }, 'Loading customer options through zeyosService…'),
+        }, 'Loading customer options via client.api.listAccounts()…'),
         buttons: [{ label: 'Close', action: 'close' }]
       });
       activeDialog = dialog;
@@ -281,7 +251,9 @@
       dialog.open();
 
       try {
-        const customers = parseResult(await customerApi.get('list'));
+        const { data: customers } = normalizeListResult(await zeyos.api.listAccounts({
+          filters: { visibility: 0 }
+        }));
         if (!dialog.isOpen()) return;
         bundle = createInvoiceForm(row, customers);
         dialog.setContent(bundle.form);
@@ -433,19 +405,24 @@
     }
 
     async function saveInvoice(original, values) {
-      const payload = {
-        ...values,
-        ID: original?.ID ?? null,
+      const fields = {
+        number: values.number,
+        customerId: values.customerId,
+        amount: values.amount,
+        status: values.status,
+        notes: values.notes,
         issued: toDateString(values.issued),
         due: toDateString(values.due)
       };
-      const saved = parseResult(await invoiceApi.post('save', payload));
+      const saved = original?.ID != null
+        ? await zeyos.api.updateTransaction({ ID: original.ID, ...fields })
+        : await zeyos.api.createTransaction(fields);
       const index = invoiceRows.findIndex((row) => row.ID === saved.ID);
       if (index >= 0) invoiceRows.splice(index, 1, saved);
       else invoiceRows.unshift(saved);
       filter.setData(invoiceRows);
-      sourceStatus.textContent = 'Modern client saved ' + saved.number
-        + ' through ../remotecall/invoices/save.';
+      sourceStatus.textContent = 'Saved ' + saved.number + ' via client.api.'
+        + (original?.ID != null ? 'updateTransaction()' : 'createTransaction()') + '.';
       Message.success(saved.number + ' saved successfully.');
       return saved;
     }

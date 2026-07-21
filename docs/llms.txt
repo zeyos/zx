@@ -30,8 +30,8 @@ exports and as `window.zx.*`.
 ## Theming
 Load `zx.css` once; set `data-zx-theme` (`light`|`dark`|`auto`) and `data-zx-density` (`cozy`|`compact`) on any ancestor. Define a product theme by overriding semantic `--zx-color-*` / `--zx-control-*` tokens under `[data-zx-theme="name"]`. Never use tier-1 palette tokens or raw color literals in application CSS.
 
-## ZeyOS HTTP client
-`new Http({ base, onError })` and `zeyosService(service, accesskey)` are the Zx successors to `gx.zeyos.Client`/`gx.zeyos.Request`. `get`/`post`/`put`/`delete` return parsed JSON; `parseResult` unwraps the `{result|error}` envelope.
+## Talking to ZeyOS
+Use the dedicated ZeyOS client library **`@zeyos/client`** (`npm install @zeyos/client`) for ZeyOS business data: `createZeyosClient({ platform, auth })`, typed `client.api.list/get/create/update<Resource>` over the full OpenAPI surface, `normalizeListResult`. It replaces the legacy `gx.zeyos.Client`/`gx.zeyos.Request`. See `website/kitchen-sink.html` for a Zx-components-on-@zeyos/client reference. Zx also ships a minimal `Http`/`zeyosService` for ad-hoc in-app `remotecall`, but `@zeyos/client` is the recommended default.
 
 ## Commands
 `npm run serve` (no-build demo catalog at http://127.0.0.1:8321/demos/) · `npm test` (unit + token lint) · `npm run build` (dist bundles).

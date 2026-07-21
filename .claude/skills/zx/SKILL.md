@@ -86,23 +86,36 @@ const form = new Form(el, { fieldsets: [ new Fieldset(null, { columns: 2, fields
 form.on('submit', (e) => save(e.detail.values));
 ```
 
-## ZeyOS HTTP client
+## Talking to ZeyOS: use the dedicated `@zeyos/client`
 
-`Http` / `zeyosService` are the Zx successors to the legacy `gx.zeyos.Client` / `gx.zeyos.Request`.
-The core is ZeyOS-agnostic: inject the base URL and error handler.
+For reading and writing ZeyOS business data, use the **dedicated ZeyOS client library**
+[`@zeyos/client`](https://github.com/zeyos/client) (`npm install @zeyos/client`) — a
+zero-dependency JS client with auto-generated, typed methods for the full ZeyOS OpenAPI surface
+(accounts, transactions/invoices, tickets, and 50+ resources), OAuth2/session auth, retries, and
+schema introspection. It is the successor to the legacy `gx.zeyos.Client` / `gx.zeyos.Request`,
+which should no longer be used.
 
 ```js
-import { Http, zeyosService, parseResult } from '/assets/zx.esm.js';
+import { createZeyosClient, MemoryTokenStore, normalizeListResult } from '@zeyos/client';
 
-const remote = new Http({ base: './remotecall.php', onError: (err) => Message.error(err.message) });
-const rows = await remote.post('', { action: 'list' });      // POST JSON, parsed JSON back
+const zeyos = createZeyosClient({
+  platform: 'https://cloud.zeyos.com/<instance>/',
+  auth: { mode: 'oauth', oauth: { tokenStore: new MemoryTokenStore({ accessToken }) } }
+  //  or: auth: { mode: 'session', session: { enabled: true, credentials: 'include' } }
+});
 
-// REST-style service (../remotecall/<service>[:<accesskey>]/):
-const invoices = zeyosService('invoices', accesskey);
-const data = await invoices.get('list', { limit: 50 });
+const { data } = normalizeListResult(await zeyos.api.listTransactions({
+  filters: { visibility: 0 }, sort: ['-lastmodified'], limit: 50
+}));
+const created = await zeyos.api.createTransaction({ /* fields */ });
+await zeyos.api.updateTransaction({ ID, status: 9 });
 ```
 
-Legacy `gx.zeyos.Client` / `gx.zeyos.Request` still work via the compat bundle (they wrap `Http`).
+Feed its results straight into Zx components (Table `data`, Select `items`, Form values). The
+`website/kitchen-sink.html` demo is the reference integration. Zx also ships a tiny built-in
+`Http` / `zeyosService(service, accesskey)` (from `src/index.js`) for ad-hoc `remotecall`
+requests inside a ZeyOS app, but `@zeyos/client` is the dedicated, full-featured client and the
+recommended default.
 
 ## Theming
 

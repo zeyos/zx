@@ -2,14 +2,12 @@
 
 This directory is a zero-build static website for Zx. It contains the focused landing page,
 hand-written SVG brand assets, and an Invoices kitchen sink that exercises the real Zx components
-and both generations of the ZeyOS HTTP client.
+on top of the dedicated ZeyOS client library `@zeyos/client`.
 
 ## View locally
 
-From the repository root, build the classic bundles needed by the compatibility example and start
-the development server:
+From the repository root, start the development server:
 
-    npm run build
     npm run serve
 
 Then open:
@@ -17,20 +15,23 @@ Then open:
 - http://127.0.0.1:8321/website/ for the landing page
 - http://127.0.0.1:8321/website/kitchen-sink.html for the Invoices screen
 
-The site itself needs no build step. During development it loads ../src/index.js directly as an ES
-module and uses ../styles/zx.css. A production deployment would load the built dist/zx.esm.js or
-dist/zx.global.js bundles instead.
+The site needs no build step: it loads ../src/index.js directly as an ES module and uses
+../styles/zx.css. A production deployment would load the built dist/zx.esm.js or dist/zx.global.js
+bundles instead.
 
 ## What the kitchen sink demonstrates
 
 - MasterPanel application layout with header actions and a billing-module accent
 - DataFilter connected to a locally sortable, selectable, sticky-header Table
 - Dialog and Form editing with Fieldset, Select, Datebox-backed fields, and Permission
-- Invoice and customer data loaded through zeyosService
-- Saves posted through the modern Zx HTTP client with success and error messages
-- A classic-script gx.zeyos.Client action running through zx.global.js and zx-compat.global.js
+- Invoice and customer data read and written through **`@zeyos/client`** — the dedicated,
+  dependency-free ZeyOS client library (npm: `@zeyos/client`). Invoices map to the ZeyOS
+  `transactions` resource and customers to `accounts`; the demo uses
+  `client.api.listTransactions / getTransaction / createTransaction / updateTransaction` and
+  `client.api.listAccounts`, with `normalizeListResult` for list responses.
 
-mock-remotecall.js patches window.fetch and adds roughly 250 ms of latency while serving deterministic
-invoice and customer data. It understands both REST-style ../remotecall/service/action routes and
-the flat ./remotecall.php shape used by the legacy client. Removing that one script lets the same
-client calls target a real ZeyOS remotecall backend.
+`vendor/zeyos-client.esm.js` is `@zeyos/client` bundled for the browser (zero-build serving);
+a real app would `npm install @zeyos/client` instead. `mock-zeyos-api.js` patches `window.fetch`
+and adds roughly 250 ms of latency while serving deterministic data for the OpenAPI endpoints the
+client calls (`/api/v1/transactions`, `/api/v1/accounts`). Removing that one script and pointing
+the client's `platform` at a live instance lets the same code talk to a real ZeyOS server.
