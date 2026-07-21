@@ -14,7 +14,7 @@ exports and as `window.zx.*`.
 
 ## Documentation
 - [README](../README.md): what Zx is, quick start (ESM + global script), component index, theming, browser support, gx compat.
-- [API reference](API.md): per-component constructor options, methods, and events for all 30+ components plus the core helpers.
+- [API reference](llms.md): per-component constructor options, methods, and events for all 30+ components plus the core helpers.
 - [Skill](../.claude/skills/zx/SKILL.md): task-oriented guide — mental model, recipes, ZeyOS HTTP client, theming, gotchas, commands.
 - [Migration guide](../MIGRATION.md): gx→zx class map, script-tag replacement, deliberate behavior changes, unsupported legacy APIs.
 - [Contributor contract](../AGENTS.md): conventions for editing component source (token rules, render-time state, listeners, ARIA/APG).

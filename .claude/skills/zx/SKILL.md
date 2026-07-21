@@ -40,7 +40,7 @@ const t = new Table(target, options);
 
 ## Component catalog
 
-See `README.md` for the one-line index and `docs/API.md` for per-component options/methods/events.
+See `README.md` for the one-line index and `docs/llms.md` for per-component options/methods/events.
 Groups (matching the demo sidebar):
 
 - **Inputs**: `button()`, `buttonGroup()`, `CheckButton`, `Toggle`, `Search`, `Select`
@@ -176,5 +176,5 @@ npm test        # node --test tests/unit/*.test.js  +  node tests/lint-tokens.js
 npm run build   # dist/: zx.esm.js, zx.global.js (window.zx), zx-compat.global.js (window.gx), zx.css
 ```
 
-Reference docs: `README.md` (index + quick start), `docs/API.md` (per-component API),
+Reference docs: `README.md` (index + quick start), `docs/llms.md` (per-component API),
 `MIGRATION.md` (gx→zx), `docs/llms.txt` (compact AI surface).
