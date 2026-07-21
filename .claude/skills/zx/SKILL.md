@@ -168,10 +168,10 @@ the deliberately-changed behaviors, and unsupported legacy APIs.
 ```
 v2/src/components/<name>/   component + CSS      v2/src/core/   kernel (component, dom, http, …)
 v2/src/compat/              gx compat layer      v2/styles/     tokens + base.css
-v2/demos/                   live catalog          v2/specs/      per-component build specs
+v2/website/                 site + component catalog          v2/specs/      per-component build specs
 v2/tests/                   node unit + smoke     v2/dist/       built bundles
 
-npm run serve   # http://127.0.0.1:8321/demos/ (no build)
+npm run serve   # http://127.0.0.1:8321/website/components.html (no build)
 npm test        # node --test tests/unit/*.test.js  +  node tests/lint-tokens.js
 npm run build   # dist/: zx.esm.js, zx.global.js (window.zx), zx-compat.global.js (window.gx), zx.css
 ```

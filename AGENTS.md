@@ -67,7 +67,7 @@ its "Out of scope" section is binding. Do not modify files outside the spec's fi
 ```
 src/components/<name>/<name>.js     # the component class
 src/components/<name>/<name>.css    # its styles (imported into styles/zx.css)
-demos/components/<name>.demo.js     # demo module (see below)
+website/demos/<name>.demo.js     # demo module (see below)
 tests/unit/<name>.test.js           # only where the spec names pure logic to test
 ```
 
@@ -75,7 +75,7 @@ Register exports in `src/index.js` and CSS `@import` in `styles/zx.css`.
 
 ## Demo modules (required for every component)
 
-`demos/components/<name>.demo.js` exports:
+`website/demos/<name>.demo.js` exports:
 
 ```js
 export default {
@@ -85,7 +85,7 @@ export default {
 };
 ```
 
-and is registered in `demos/harness.js`'s demo list. Demos double as documentation: show the
+and is registered in `website/harness.js`'s demo list. Demos double as documentation: show the
 common options, wire visible event output (e.g. a small log element), keep them self-contained.
 
 ## Definition of done (per WP)

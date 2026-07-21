@@ -158,7 +158,7 @@ npm install
 npm run serve
 ```
 
-Open <http://127.0.0.1:8321/demos/> for the component catalog,
+Open <http://127.0.0.1:8321/website/components.html> for the component catalog,
 <http://127.0.0.1:8321/tests/smoke/smoke.html> for source-module smoke tests, or build first and
 open <http://127.0.0.1:8321/tests/smoke/smoke-dist.html> for classic-script distribution tests.
 
