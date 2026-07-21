@@ -131,12 +131,27 @@ export class Table extends Component {
   }
 
   /**
+   * Toggles a loading state. While loading, the body is dimmed, an indeterminate progress bar is
+   * shown, and `aria-busy` is set — a lightweight take on the busy/skeleton pattern used by
+   * enterprise tables (SAP UI5, Salesforce SLDS). Call `setLoading(false)` (or `setData`) when done.
+   * @param {boolean} [loading=true] Whether the table is loading.
+   * @returns {this}
+   */
+  setLoading(loading = true) {
+    if (loading) this.el.dataset.loading = 'true';
+    else delete this.el.dataset.loading;
+    this.el.setAttribute('aria-busy', String(Boolean(loading)));
+    return this;
+  }
+
+  /**
    * Replaces all rows.
    * @param {TableRow[]} rows New rows.
    * @returns {this}
    * @fires Table#datachange
    */
   setData(rows) {
+    this.setLoading(false);
     assertRows(rows);
     this._data = [...rows];
     if (this._sort && this.options.sortMode === 'local') this._sortData();

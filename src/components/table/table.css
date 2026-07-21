@@ -3,12 +3,48 @@
 }
 
 .zx-table__scroll {
+  position: relative;
   max-inline-size: 100%;
   overflow: auto;
   border: 1px solid var(--zx-color-border);
   border-radius: var(--zx-radius-md);
   background: var(--zx-color-bg-surface);
   scrollbar-gutter: stable;
+}
+
+/* Loading state (Table.setLoading): dim rows and show an indeterminate top progress bar. */
+.zx-table[data-loading="true"] .zx-table__body {
+  opacity: 0.5;
+}
+
+.zx-table[data-loading="true"] .zx-table__scroll::after {
+  content: "";
+  position: sticky;
+  inset-block-start: 0;
+  inset-inline: 0;
+  display: block;
+  block-size: 2px;
+  margin-block-end: -2px;
+  background: var(--zx-color-accent);
+  opacity: 0.85;
+  z-index: 2;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .zx-table[data-loading="true"] .zx-table__scroll::after {
+    background: linear-gradient(90deg,
+      transparent 0%,
+      var(--zx-color-accent) 50%,
+      transparent 100%);
+    background-size: 40% 100%;
+    background-repeat: no-repeat;
+    animation: zx-table-loading 1.1s var(--zx-ease) infinite;
+  }
+}
+
+@keyframes zx-table-loading {
+  from { background-position: -40% 0; }
+  to { background-position: 140% 0; }
 }
 
 .zx-table__table {

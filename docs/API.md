@@ -76,7 +76,7 @@ Methods: `setItems()`, `open()`, `close()`, `setLabel()`. Events: `select {value
 
 ### `Table`
 Options: `columns: [{ id, label, sortable?, width, align, render?, sortValue?, headerTitle? }]`, `data`, `rowId: 'ID'`, `sort: { id, dir }`, `sortMode: 'local'|'server'`, `selectable: false|'single'|'multi'`, `stickyHeader: true`, `height`, `emptyText`, `rowClass`, `zebra: true`.
-Methods: `setData()`, `addData()`, `updateRow(id, row)`, `removeRow(id)`, `getRow(id)`, `getData()`, `empty()`, `setSort(id, dir)`, `getSelection()`, `setSelection(ids)`, `clearSelection()`. Events: `rowclick {row, id, index, event}`, `rowdblclick`, `sort {id, dir}`, `selectionchange {rows, ids}`, `datachange {rows}`. Pure exports: `sortRows`, `createComparator`.
+Methods: `setData()`, `addData()`, `updateRow(id, row)`, `removeRow(id)`, `getRow(id)`, `getData()`, `empty()`, `setSort(id, dir)`, `getSelection()`, `setSelection(ids)`, `clearSelection()`, `setLoading(bool)` (busy/skeleton state; auto-cleared by `setData`). Events: `rowclick {row, id, index, event}`, `rowdblclick`, `sort {id, dir}`, `selectionchange {rows, ids}`, `datachange {rows}`. Pure exports: `sortRows`, `createComparator`.
 
 ### `DataFilter`
 Options: `filters: [{ type: 'select'|'text'|'custom', id, label, field(s)|get, options?, predicate? }]`, `data`, `autoApply: true`, `clearLabel`.

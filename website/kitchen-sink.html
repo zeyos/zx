@@ -209,6 +209,7 @@
     async function loadInvoices() {
       const started = performance.now();
       tableWrap.setAttribute('aria-busy', 'true');
+      table.setLoading(true);
       sourceStatus.textContent = 'client.api.listTransactions() · loading…';
       try {
         const { data } = normalizeListResult(await zeyos.api.listTransactions({
@@ -225,6 +226,7 @@
         Message.error('Could not load invoices: ' + error.message);
       } finally {
         tableWrap.setAttribute('aria-busy', 'false');
+        table.setLoading(false);
       }
     }
 
