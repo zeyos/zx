@@ -111,6 +111,32 @@ helpers, and small dependency-free utilities; see the named exports in `src/inde
 | `Tabbox` | APG tabs with lazy content, closing, badges, and disabled states. |
 | `NavigationBar` | Responsive application navigation with optional tab panels and overflow. |
 
+## Talking to ZeyOS
+
+Use `@zeyos/client` for ZeyOS authentication, transport, generated resource operations, and runtime
+schema introspection. Zx adds `zx-zeyos`, a schema-driven layer above that client: inject an existing
+client into `connect`, `zeyosTable`, `zeyosForm`, or `zeyosSelect` to generate typed tables, forms,
+and async entity selectors from real resource metadata.
+
+```js
+import { createZeyosClient } from '@zeyos/client';
+import { zeyosForm, zeyosTable } from '/assets/zx-zeyos.esm.js';
+
+const client = createZeyosClient({ platform, auth });
+const list = zeyosTable(client, 'transactions', {
+  fields: ['transactionnum', 'account', 'date', 'netamount', 'status']
+});
+await list.load();
+
+const editor = zeyosForm(client, 'transactions', {
+  fields: ['transactionnum', 'account', 'date', 'netamount', 'status']
+});
+```
+
+The injection design means Zx never imports or bundles `@zeyos/client`. The optional binding ships
+separately as `dist/zx-zeyos.esm.js` and is not part of the root `src/index.js` API. See the
+schema-driven `website/kitchen-sink.html` for list, filter, sort, edit, and create wiring.
+
 ## Themes and density
 
 Load `zx.css` once. Zx components consume semantic `--zx-*` tokens and inherit their values from

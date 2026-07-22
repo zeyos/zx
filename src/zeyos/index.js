@@ -11,3 +11,6 @@ export {
   dateToUnixSeconds, unixSecondsToDate
 } from './query.js';
 export { connect } from './connect.js';
+export { zeyosSelect } from './select.js';
+export { zeyosForm } from './form.js';
+export { zeyosTable } from './table.js';

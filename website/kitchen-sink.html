@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="A realistic Zx invoices screen powered by the dedicated @zeyos/client library.">
+  <meta name="description" content="A schema-driven Zx invoices screen powered by the dedicated @zeyos/client library.">
   <title>Invoices kitchen sink — Zx</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../styles/zx.css">
@@ -40,95 +40,82 @@
     import {
       DataFilter,
       Dialog,
-      Fieldset,
-      Form,
       MasterPanel,
       Message,
-      Permission,
-      Table,
       h
     } from '../src/index.js';
+    import {
+      dataFilterStateToFilters,
+      zeyosForm,
+      zeyosTable
+    } from '../src/zeyos/index.js';
     // The dedicated ZeyOS client library (npm: @zeyos/client), bundled for the zero-build demo.
     import {
       createZeyosClient,
       normalizeListResult
     } from './vendor/zeyos-client.esm.js';
 
-    // A real @zeyos/client. It talks to the ZeyOS OpenAPI (here faked by mock-zeyos-api.js);
-    // point `platform` at a live instance and drop the mock to run against real ZeyOS.
-    // ZeyOS invoices are billing "transactions"; customers are "accounts".
-    const zeyos = createZeyosClient({
+    // The binding receives an existing client; it never imports or bundles @zeyos/client itself.
+    const client = createZeyosClient({
       platform: 'https://cloud.zeyos.com/demo/',
       auth: { mode: 'session', session: { enabled: true, credentials: 'include' } }
     });
-    const currency = new Intl.NumberFormat(undefined, {
-      style: 'currency',
-      currency: 'EUR'
-    });
-    const dateFormat = new Intl.DateTimeFormat(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: '2-digit'
-    });
-    const permissionGroups = [
-      { ID: 101, name: 'Executive team' },
-      { ID: 102, name: 'Finance' },
-      { ID: 103, name: 'Sales' },
-      { ID: 104, name: 'Vienna office' }
+    client.normalizeListResult = normalizeListResult;
+
+    const TABLE_FIELDS = [
+      'transactionnum', 'account', 'date', 'duedate', 'netamount', 'status'
+    ];
+    const FORM_FIELDS = [...TABLE_FIELDS, 'currency'];
+    const FIELD_LABELS = {
+      transactionnum: 'Invoice number',
+      account: 'Customer',
+      date: 'Issue date',
+      duedate: 'Due date',
+      netamount: 'Net amount',
+      status: 'Status',
+      currency: 'Currency'
+    };
+    const STATUS_OPTIONS = [
+      { value: 0, label: 'Draft' },
+      { value: 1, label: 'Booked' },
+      { value: 16, label: 'Invoiced' },
+      { value: 20, label: 'Paid' },
+      { value: 21, label: 'Overpaid' }
     ];
 
-    let invoiceRows = [];
     let activeDialog = null;
+    let activeSearch = '';
+    let activeFilters = {};
 
-    const sourceStatus = h('span', { 'aria-live': 'polite' }, 'Waiting for @zeyos/client.');
+    const sourceStatus = h('span', { 'aria-live': 'polite' }, 'Waiting for zx-zeyos.');
     const sourceNote = h('p', { class: 'invoice-source' },
       h('span', {},
-        h('strong', {}, '@zeyos/client: '),
-        'lists, reads, creates, and updates through the dedicated ZeyOS client library.'
+        h('strong', {}, 'zx-zeyos: '),
+        'generates this data view from the injected client’s runtime schema.'
       ),
       sourceStatus
     );
 
-    const table = new Table(null, {
-      columns: [
-        { id: 'number', label: 'Number', sortable: true, width: '1.1fr' },
-        { id: 'customer', label: 'Customer', sortable: true, width: '2fr' },
-        {
-          id: 'issued',
-          label: 'Issued',
-          sortable: true,
-          width: '1.15fr',
-          render: (row) => formatInvoiceDate(row.issued)
-        },
-        {
-          id: 'amount',
-          label: 'Amount',
-          sortable: true,
-          width: '1fr',
-          align: 'right',
-          render: (row) => currency.format(row.amount)
-        },
-        {
-          id: 'status',
-          label: 'Status',
-          sortable: true,
-          width: '1fr',
-          render: (row) => h('span', {
-            class: 'invoice-status',
-            dataset: { status: String(row.status).toLowerCase() }
-          }, row.status)
-        }
-      ],
-      data: [],
-      rowId: 'ID',
-      sortMode: 'local',
-      sort: { id: 'issued', dir: 'desc' },
+    const list = zeyosTable(client, 'transactions', {
+      fields: TABLE_FIELDS,
+      labels: FIELD_LABELS,
+      pageSize: 25,
+      sort: { id: 'date', dir: 'desc' },
       selectable: 'multi',
-      stickyHeader: true,
       height: 430,
-      emptyText: 'No invoices match the active filters.',
-      onrowclick: (event) => openInvoice(event.detail.row)
+      onRowClick: (row) => openEditor(row.ID)
     });
+
+    const loadMore = h('button', {
+      class: 'zx-btn',
+      type: 'button',
+      hidden: true,
+      onclick: () => loadNextPage()
+    }, 'Load more');
+    const tableWrap = h('div', {
+      class: 'invoice-table-wrap',
+      'aria-busy': 'true'
+    }, list.table, loadMore);
 
     const filter = new DataFilter(null, {
       data: [],
@@ -136,10 +123,10 @@
       filters: [
         {
           type: 'text',
-          id: 'query',
+          id: 'search',
           label: 'Find invoice',
-          fields: ['customer', 'number'],
-          placeholder: 'Customer or number'
+          fields: ['transactionnum', 'account_label'],
+          placeholder: 'Customer or invoice number'
         },
         {
           type: 'select',
@@ -147,34 +134,39 @@
           label: 'Status',
           field: 'status',
           emptyLabel: 'All statuses',
-          options: ['Draft', 'Open', 'Paid', 'Overdue']
+          options: STATUS_OPTIONS
         }
       ],
-      onfilter: (event) => table.setData(event.detail.rows)
+      onfilter: (event) => {
+        activeSearch = String(event.detail.state.search ?? '');
+        activeFilters = dataFilterStateToFilters(
+          { status: event.detail.state.status },
+          [{ id: 'status', field: 'status' }]
+        );
+        void loadInvoices('filters');
+      }
     });
-
-    const tableWrap = h('div', {
-      class: 'invoice-table-wrap',
-      'aria-busy': 'true'
-    }, table);
 
     const dataLayer = h('aside', { class: 'data-layer-note', 'aria-labelledby': 'data-layer-title' },
       h('h2', { id: 'data-layer-title' }, 'About the data layer'),
       h('p', {},
-        'This screen is built from Zx components and reads and writes its data through ',
-        h('strong', {}, '@zeyos/client'),
-        ' — the dedicated, dependency-free ZeyOS client library. Invoices map to the ',
+        'The table and form are schema-driven: ',
+        h('code', {}, 'zx-zeyos'),
+        ' generates them from the real ZeyOS ',
         h('code', {}, 'transactions'),
-        ' resource and customers to ',
+        ' and ',
         h('code', {}, 'accounts'),
-        '.'
+        ' schemas exposed by the injected ',
+        h('strong', {}, '@zeyos/client'),
+        '. Typed metadata selects the date, amount, enum, and entity widgets automatically.'
       ),
       h('p', {},
         'No real backend or credentials are required here: ',
         h('code', {}, 'mock-zeyos-api.js'),
-        ' fakes the ZeyOS OpenAPI with a short network delay. Point the client’s ',
+        ' fakes the ZeyOS OpenAPI with Unix-second timestamps and server-side query handling. ',
+        'Point the client’s ',
         h('code', {}, 'platform'),
-        ' at a live instance and remove the mock to talk to a real ZeyOS server.'
+        ' at a live instance and remove the mock to use the same generated UI against ZeyOS.'
       )
     );
     const workspace = h('div', { class: 'invoice-workspace' },
@@ -193,240 +185,113 @@
           label: 'New invoice',
           icon: 'plus',
           kind: 'primary',
-          onclick: () => openInvoice(null)
+          onclick: () => openEditor(null)
         },
         {
           label: 'Refresh',
           icon: 'reload',
-          onclick: () => loadInvoices()
+          onclick: () => loadInvoices('refresh')
         }
       ],
-      footer: 'Zx Invoices · Data via @zeyos/client'
+      footer: 'Zx Invoices · Schema-driven via zx-zeyos + @zeyos/client'
     });
 
-    loadInvoices();
+    list.table.on('datachange', () => {
+      loadMore.hidden = !list.hasMore;
+      sourceStatus.textContent = 'Showing ' + list.table.getData().length
+        + (list.count == null ? ' transactions.' : ' of ' + list.count + ' transactions.');
+    });
+    list.table.on('sort', (event) => {
+      sourceStatus.textContent = 'Server sorting by ' + event.detail.id + '…';
+    });
 
-    async function loadInvoices() {
-      const started = performance.now();
+    void loadInvoices('initial');
+
+    async function loadInvoices(reason) {
       tableWrap.setAttribute('aria-busy', 'true');
-      table.setLoading(true);
-      sourceStatus.textContent = 'client.api.listTransactions() · loading…';
+      list.table.setLoading(true);
+      sourceStatus.textContent = reason === 'filters'
+        ? 'Applying server filters…'
+        : 'client.api.listTransactions() · loading…';
       try {
-        const { data } = normalizeListResult(await zeyos.api.listTransactions({
-          filters: { visibility: 0 },
-          sort: ['-issued'],
-          limit: 100
-        }));
-        invoiceRows = data.map((row) => ({ ...row }));
-        filter.setData(invoiceRows);
-        sourceStatus.textContent = 'listTransactions() returned ' + data.length + ' invoices in '
-          + Math.round(performance.now() - started) + ' ms.';
+        await list.load({ search: activeSearch, filters: activeFilters, page: 0 });
       } catch (error) {
-        sourceStatus.textContent = '@zeyos/client failed: ' + error.message;
-        Message.error('Could not load invoices: ' + error.message);
+        sourceStatus.textContent = 'Could not load transactions: ' + error.message;
       } finally {
         tableWrap.setAttribute('aria-busy', 'false');
-        table.setLoading(false);
+        list.table.setLoading(false);
       }
     }
 
-    async function openInvoice(row) {
-      if (activeDialog?.isOpen()) return;
-
-      const dialog = new Dialog(null, {
-        title: row ? 'Edit invoice' : 'New invoice',
-        size: 'lg',
-        content: h('p', {
-          class: 'loading-copy',
-          'aria-live': 'polite'
-        }, 'Loading customer options via client.api.listAccounts()…'),
-        buttons: [{ label: 'Close', action: 'close' }]
-      });
-      activeDialog = dialog;
-      let bundle = null;
-      dialog.once('close', () => {
-        bundle?.form.destroy();
-        bundle?.fieldset.destroy();
-        dialog.destroy();
-        if (activeDialog === dialog) activeDialog = null;
-      });
-      dialog.open();
-
+    async function loadNextPage() {
+      loadMore.disabled = true;
+      list.table.setLoading(true);
       try {
-        const { data: customers } = normalizeListResult(await zeyos.api.listAccounts({
-          filters: { visibility: 0 }
-        }));
-        if (!dialog.isOpen()) return;
-        bundle = createInvoiceForm(row, customers);
-        dialog.setContent(bundle.form);
-        dialog.setButtons([
+        await list.loadMore();
+      } catch (error) {
+        Message.error('Could not load more transactions: ' + error.message);
+      } finally {
+        loadMore.disabled = false;
+        list.table.setLoading(false);
+      }
+    }
+
+    function openEditor(id) {
+      if (activeDialog?.isOpen()) return;
+      const isEdit = id != null;
+      const editor = zeyosForm(client, 'transactions', {
+        fields: FORM_FIELDS,
+        labels: FIELD_LABELS,
+        title: 'Invoice details',
+        columns: 2,
+        ...(isEdit ? { id } : { value: newInvoiceValue() }),
+        onSaved: async (record) => {
+          sourceStatus.textContent = 'Saved ' + record.transactionnum + ' through zx-zeyos.';
+          await loadInvoices('saved');
+        }
+      });
+      const dialog = new Dialog(null, {
+        title: isEdit ? 'Edit invoice' : 'New invoice',
+        size: 'lg',
+        content: editor.form,
+        buttons: [
           { label: 'Cancel', action: 'cancel' },
           {
             label: 'Save invoice',
             kind: 'primary',
             autofocus: true,
-            action: () => bundle.form.submit()
+            action: () => saveEditor(dialog, editor)
           }
-        ]);
-
-        let saving = false;
-        bundle.form.on('submit', (event) => {
-          event.preventDefault();
-          if (saving) return;
-          saving = true;
-          setDialogSaving(dialog, true);
-          saveInvoice(row, event.detail.values)
-            .then((saved) => dialog.close(saved))
-            .catch((error) => {
-              Message.error('Could not save invoice: ' + error.message);
-            })
-            .finally(() => {
-              saving = false;
-              if (dialog.isOpen()) setDialogSaving(dialog, false);
-            });
-        });
-      } catch (error) {
+        ]
+      });
+      activeDialog = dialog;
+      dialog.once('close', () => {
+        editor.destroy();
+        dialog.destroy();
+        if (activeDialog === dialog) activeDialog = null;
+      });
+      dialog.open();
+      setDialogSaving(dialog, true);
+      editor.ready.then(() => {
+        if (dialog.isOpen()) setDialogSaving(dialog, false);
+      }).catch((error) => {
         if (!dialog.isOpen()) return;
-        dialog.setContent(h('p', { class: 'loading-copy' },
-          'Customer options could not be loaded: ' + error.message
-        ));
+        sourceStatus.textContent = 'Could not load the invoice: ' + error.message;
         dialog.setButtons([{ label: 'Close', action: 'close', autofocus: true }]);
-        Message.error('Could not load customers: ' + error.message);
+        setDialogSaving(dialog, false);
+      });
+    }
+
+    async function saveEditor(dialog, editor) {
+      setDialogSaving(dialog, true);
+      try {
+        const saved = await editor.save();
+        if (saved && dialog.isOpen()) dialog.close(saved);
+      } catch (error) {
+        sourceStatus.textContent = 'Could not save the invoice: ' + error.message;
+      } finally {
+        if (dialog.isOpen()) setDialogSaving(dialog, false);
       }
-    }
-
-    function createInvoiceForm(row, customers) {
-      const values = row
-        ? { ...row, issued: toDateValue(row.issued), due: toDateValue(row.due) }
-        : {
-            number: '',
-            customerId: null,
-            issued: null,
-            due: null,
-            amount: '',
-            status: 'Draft',
-            notes: '',
-            permission: 'public'
-          };
-      const fieldset = new Fieldset(null, {
-        title: 'Invoice details',
-        columns: 2,
-        fields: {
-          number: {
-            type: 'text',
-            label: 'Invoice number',
-            value: values.number,
-            required: true,
-            placeholder: 'INV-26105'
-          },
-          customerId: {
-            type: 'zxselect',
-            label: 'Customer',
-            value: values.customerId,
-            required: true,
-            props: {
-              items: customers,
-              valueKey: 'ID',
-              labelKey: 'name',
-              filter: 'local',
-              clearable: true,
-              placeholder: 'Choose a customer'
-            }
-          },
-          issued: {
-            type: 'date',
-            label: 'Issue date',
-            value: values.issued,
-            required: true,
-            props: { clearable: true }
-          },
-          due: {
-            type: 'date',
-            label: 'Due',
-            value: values.due,
-            required: true,
-            props: { clearable: true }
-          },
-          amount: {
-            type: 'float',
-            label: 'Amount',
-            value: values.amount,
-            required: true,
-            placeholder: '0.00'
-          },
-          status: {
-            type: 'optionlist',
-            label: 'Status',
-            value: values.status,
-            options: {
-              Draft: 'Draft',
-              Open: 'Open',
-              Paid: 'Paid',
-              Overdue: 'Overdue'
-            }
-          },
-          notes: {
-            type: 'textarea',
-            label: 'Notes',
-            value: values.notes,
-            props: { rows: 4 },
-            placeholder: 'Internal notes'
-          },
-          permission: {
-            type: 'custom',
-            label: 'Permission',
-            value: values.permission,
-            adapter: createPermissionAdapter
-          }
-        }
-      });
-      const form = new Form(null, { fieldsets: [fieldset] });
-      return { form, fieldset };
-    }
-
-    function createPermissionAdapter(field, options) {
-      const permission = field.own(new Permission(null, {
-        value: options.value ?? 'public',
-        groups: permissionGroups
-      }));
-      field.listen(permission.el, 'change', (event) => event.stopImmediatePropagation());
-      permission.on('change', (event) => {
-        field.emit('change', { value: event.detail.value });
-      });
-      return {
-        el: permission.el,
-        get: () => permission.get(),
-        set: (value) => permission.set(value ?? 'public', { silent: true }),
-        focus: () => permission.el.querySelector('input:checked')?.focus(),
-        setDisabled: (disabled) => {
-          permission.el.querySelectorAll('input, button').forEach((control) => {
-            control.disabled = disabled;
-          });
-        }
-      };
-    }
-
-    async function saveInvoice(original, values) {
-      const fields = {
-        number: values.number,
-        customerId: values.customerId,
-        amount: values.amount,
-        status: values.status,
-        notes: values.notes,
-        issued: toDateString(values.issued),
-        due: toDateString(values.due)
-      };
-      const saved = original?.ID != null
-        ? await zeyos.api.updateTransaction({ ID: original.ID, ...fields })
-        : await zeyos.api.createTransaction(fields);
-      const index = invoiceRows.findIndex((row) => row.ID === saved.ID);
-      if (index >= 0) invoiceRows.splice(index, 1, saved);
-      else invoiceRows.unshift(saved);
-      filter.setData(invoiceRows);
-      sourceStatus.textContent = 'Saved ' + saved.number + ' via client.api.'
-        + (original?.ID != null ? 'updateTransaction()' : 'createTransaction()') + '.';
-      Message.success(saved.number + ' saved successfully.');
-      return saved;
     }
 
     function setDialogSaving(dialog, saving) {
@@ -436,25 +301,17 @@
       });
     }
 
-    function formatInvoiceDate(value) {
-      const date = value instanceof Date ? value : new Date(String(value) + 'T00:00:00');
-      return Number.isNaN(date.getTime()) ? '' : dateFormat.format(date);
-    }
-
-    // The mock stores dates as `YYYY-MM-DD` strings; the Datebox-backed `date` field wants a Date.
-    function toDateValue(value) {
-      if (value == null || value === '') return null;
-      const date = value instanceof Date ? value : new Date(String(value) + 'T00:00:00');
-      return Number.isNaN(date.getTime()) ? null : date;
-    }
-
-    function toDateString(value) {
-      if (!(value instanceof Date) || Number.isNaN(value.getTime())) return '';
-      return [
-        value.getFullYear(),
-        String(value.getMonth() + 1).padStart(2, '0'),
-        String(value.getDate()).padStart(2, '0')
-      ].join('-');
+    function newInvoiceValue() {
+      const today = Math.floor(Date.now() / 86_400_000) * 86_400;
+      return {
+        transactionnum: '',
+        account: null,
+        date: today,
+        duedate: today + 30 * 86_400,
+        netamount: null,
+        status: 0,
+        currency: 'EUR'
+      };
     }
   </script>
 </body>

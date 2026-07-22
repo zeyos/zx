@@ -111,11 +111,18 @@ const created = await zeyos.api.createTransaction({ /* fields */ });
 await zeyos.api.updateTransaction({ ID, status: 9 });
 ```
 
-Feed its results straight into Zx components (Table `data`, Select `items`, Form values). The
-`website/kitchen-sink.html` demo is the reference integration. Zx also ships a tiny built-in
-`Http` / `zeyosService(service, accesskey)` (from `src/index.js`) for ad-hoc `remotecall`
-requests inside a ZeyOS app, but `@zeyos/client` is the dedicated, full-featured client and the
-recommended default.
+For schema-driven UI, inject that client into the optional `zx-zeyos` binding above the client:
+`connect(client)` provides consistently reported CRUD helpers, `zeyosTable(client, resource)`
+generates typed server-backed columns, `zeyosForm(client, resource)` generates a load/save form,
+and `zeyosSelect(client, resource)` generates an async entity selector. Import these from the
+separate `dist/zx-zeyos.esm.js` entry (or `src/zeyos/index.js` in-repo), not `src/index.js`.
+`zx-zeyos` is injection-based and never imports or bundles `@zeyos/client`, preserving Zx's zero
+runtime-dependency core.
+
+The `website/kitchen-sink.html` demo is the reference schema-driven integration. Zx also ships a
+tiny built-in `Http` / `zeyosService(service, accesskey)` (from `src/index.js`) for ad-hoc
+`remotecall` requests inside a ZeyOS app, but `@zeyos/client` plus `zx-zeyos` is the dedicated,
+full-featured default.
 
 ## Theming
 
