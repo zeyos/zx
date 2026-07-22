@@ -50,17 +50,15 @@
       zeyosTable
     } from '../src/zeyos/index.js';
     // The dedicated ZeyOS client library (npm: @zeyos/client), bundled for the zero-build demo.
-    import {
-      createZeyosClient,
-      normalizeListResult
-    } from './vendor/zeyos-client.esm.js';
+    import { createZeyosClient } from './vendor/zeyos-client.esm.js';
 
     // The binding receives an existing client; it never imports or bundles @zeyos/client itself.
+    // (The @zeyos/client instance is frozen, so the generators normalize list responses via their
+    // own built-in fallback — no need to attach anything to the client.)
     const client = createZeyosClient({
       platform: 'https://cloud.zeyos.com/demo/',
       auth: { mode: 'session', session: { enabled: true, credentials: 'include' } }
     });
-    client.normalizeListResult = normalizeListResult;
 
     const TABLE_FIELDS = [
       'transactionnum', 'account', 'date', 'duedate', 'netamount', 'status'
