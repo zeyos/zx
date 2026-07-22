@@ -9,6 +9,7 @@ const dist = resolve(root, 'dist');
 
 const assets = [
   { name: 'ESM', entry: 'src/index.js', file: 'zx.esm.js', format: 'esm' },
+  { name: 'ZeyOS', entry: 'src/zeyos/index.js', file: 'zx-zeyos.esm.js', format: 'esm' },
   { name: 'Global', entry: 'src/index.js', file: 'zx.global.js', format: 'iife', globalName: 'zx' },
   { name: 'Compatibility', entry: 'src/compat-entry.js', file: 'zx-compat.global.js', format: 'iife' },
   { name: 'CSS', entry: 'styles/zx.css', file: 'zx.css' }

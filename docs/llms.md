@@ -80,6 +80,67 @@ Feed results straight into Zx components (Table `data`, Select `items`, Form val
 `website/kitchen-sink.html` for the reference integration. Zx also ships a minimal `Http` /
 `zeyosService(service, accesskey)` for ad-hoc `remotecall`, but `@zeyos/client` is the default.
 
+<!-- doc:zeyos -->
+## ZeyOS binding (zx-zeyos)
+
+`zx-zeyos` is the optional schema-driven layer above `@zeyos/client`: inject a client instance and
+declare a resource to generate typed Zx controls. It is a separate ESM entry at
+`dist/zx-zeyos.esm.js` (or `src/zeyos/index.js` during no-build development) and is deliberately
+not re-exported from `src/index.js`. The binding has zero runtime dependencies and never imports or
+bundles `@zeyos/client`; the application owns client creation, authentication, and transport.
+
+```js
+import { createZeyosClient } from '@zeyos/client';
+import {
+  connect, dataFilterStateToFilters, zeyosForm, zeyosSelect, zeyosTable
+} from '/assets/zx-zeyos.esm.js';
+
+const client = createZeyosClient({ platform, auth });
+const api = connect(client, { locale: 'en-GB' });
+
+const list = zeyosTable(client, 'transactions', {
+  fields: ['transactionnum', 'account', 'date', 'netamount', 'status'],
+  sort: { id: 'date', dir: 'desc' },
+  selectable: 'multi'
+});
+await list.load();
+
+const editor = zeyosForm(client, 'transactions', {
+  fields: ['transactionnum', 'account', 'date', 'netamount', 'status'],
+  onSaved: () => list.load()
+});
+await editor.load(transactionId);
+await editor.save();
+```
+
+- `connect(client, { onError, locale })` returns `{client, list, get, create, update, reportError}`;
+  generated forms/tables use the same operation discovery and default `Message.error` reporting.
+- `zeyosSelect(client, resource, opts)` returns an async Zx `Select`. Options include `fields`,
+  `labelKey`, `valueKey`, `searchFields`, `filters`, `limit`, and normal Select options. Its list
+  operation receives a query built by `buildListQuery`.
+- `zeyosForm(client, resource, opts)` returns
+  `{form, ready, load(id), save(), getForm(), destroy()}`. `fields` is an ordered allow-list;
+  `exclude`, `labels`, `title`, `columns`, `value|id`, and `onSaved` curate behavior. `load` maps
+  stored timestamps to `Date`; `save` validates and creates/updates, maps back to Unix seconds,
+  calls `onSaved`, and shows a success toast.
+- `zeyosTable(client, resource, opts)` returns
+  `{table, load(), setSearch(), setFilters(), loadMore(), count, page, hasMore, destroy()}`. Columns
+  come from schema metadata, sorting uses `sortMode:'server'`, and page zero replaces rows while
+  later pages append them using server `limit`/`offset` and `count`.
+
+Field mapping is schema-driven: entity/FK → async `zxselect`; enum/list → `optionlist` or native
+`select`; indexed `date` bigint → `date`; other date/time bigints → `datetime`; money/price/numeric
+→ right-aligned `float`/number columns (amount columns use the row currency); boolean/checked →
+`toggle` and a check column; percent/progress → numeric percent; email/tel/url → typed text; arrays
+→ `valuelist`; long text/JSON → `textarea`; short scalar text → `text`.
+
+ZeyOS queries always use `filters` (plural), not `filter`. Full-text input becomes `query`; sort is
+sent as signed server fields (`+field`/`-field`); projection supports aliases and dot joins; and
+search/filter/sort/pagination remain server-side. ZeyOS timestamps are integer Unix seconds, so
+forms convert them to/from `Date`. Use `dataFilterStateToFilters(state, defs)` before
+`tableBinding.setFilters(...)` when wiring a `DataFilter`.
+<!-- /doc -->
+
 ## Custom elements
 
 `defineElements()` (not auto-called) registers light-DOM `<zx-*>` wrappers with attribute↔option
