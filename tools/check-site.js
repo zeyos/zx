@@ -65,6 +65,29 @@ for (const file of files) {
   }
 }
 
+// Zx has no runtime dependencies, so every module specifier in the site's own scripts must be
+// explicitly relative. A bare specifier resolves as a package name and fails in the browser —
+// which is exactly what stripping a `../` too eagerly produces.
+const MODULE_SPECIFIER = /\b(?:from\s+|import\s*\(\s*)['"]([^'"]+)['"]/g;
+const INLINE_MODULE = /<script\b[^>]*type=["']module["'][^>]*>([\s\S]*?)<\/script>/gi;
+for (const file of files) {
+  const extension = extname(file);
+  if (extension !== '.js' && extension !== '.html') continue;
+  if (relative(site, file).split(sep)[0] === 'vendor') continue;
+  const source = readFileSync(file, 'utf8');
+  // In HTML only the inline module scripts count: the guides' `<pre>` samples legitimately show
+  // bare specifiers such as `@zeyos/client`, and those are not executed.
+  const scripts = extension === '.js'
+    ? [source]
+    : [...source.matchAll(INLINE_MODULE)].map(([, body]) => body);
+  for (const script of scripts) {
+    for (const [, specifier] of script.matchAll(MODULE_SPECIFIER)) {
+      if (/^(?:\.{1,2}\/|\/)/.test(specifier)) continue;
+      problems.push(`${relative(site, file)} → bare module specifier "${specifier}"`);
+    }
+  }
+}
+
 // The documentation app imports its entries by id, which the patterns above cannot see.
 const docsSource = readFileSync(join(site, 'docs.js'), 'utf8');
 for (const [listName, directory, suffix] of [

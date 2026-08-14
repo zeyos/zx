@@ -742,6 +742,14 @@
   }
 }
 
+/* The documentation app replaces this placeholder once its modules have loaded. */
+.loading-copy {
+  margin: 0;
+  padding: var(--zx-space-8);
+  color: var(--zx-color-text-muted);
+  text-align: center;
+}
+
 /* ------------------------------------------------- ZeyOS invoices layout -- */
 
 .invoice-workspace {
@@ -766,33 +774,6 @@
 
 .invoice-table-wrap[aria-busy="true"] {
   opacity: 0.65;
-}
-
-.invoice-status {
-  display: inline-block;
-  min-inline-size: 68px;
-  padding: var(--zx-space-1) var(--zx-space-2);
-  border-radius: var(--zx-radius-full);
-  background: var(--zx-color-info-bg);
-  color: var(--zx-color-info);
-  font-size: var(--zx-text-sm);
-  font-weight: 650;
-  text-align: center;
-}
-
-.invoice-status[data-status="paid"] {
-  background: var(--zx-color-success-bg);
-  color: var(--zx-color-success);
-}
-
-.invoice-status[data-status="overdue"] {
-  background: var(--zx-color-danger-bg);
-  color: var(--zx-color-danger);
-}
-
-.invoice-status[data-status="draft"] {
-  background: var(--zx-color-bg-hover);
-  color: var(--zx-color-text-muted);
 }
 
 .data-layer-note {

@@ -29,11 +29,10 @@ jobs:
       - name: Install devDependencies (esbuild only)
         run: npm ci || npm install
 
+      # The site serves the source modules directly, so `dist/` is not part of the artifact and
+      # is not built here — ci.yml covers the bundles on the same push.
       - name: Test (unit + design-token lint)
         run: npm test
-
-      - name: Build distribution bundles
-        run: npm run build
 
       - name: Assemble the site
         run: npm run build:site
