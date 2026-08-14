@@ -1,0 +1,47 @@
+# Netlify deployment for the documentation site.
+#
+# The publish directory is `site/`, not `website/`. The website is developed in place and reaches
+# above itself (`../styles/zx.css`, `../../src/index.js`, `../docs/llms.md`), so serving
+# `website/` directly would return the pages with none of the library behind them.
+# `npm run build:site` flattens that into a self-contained tree; `tools/check-site.js` fails the
+# build if any reference in the output does not resolve.
+
+[build]
+  command = "npm run build:site && node tools/check-site.js"
+  publish = "site"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# Deploy previews build the same way, so a pull request gets a full working copy of the docs.
+[context.deploy-preview]
+  command = "npm run build:site && node tools/check-site.js"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+# The site ships unbundled ES modules with unhashed names, so they must be revalidated rather
+# than cached hard — otherwise a deploy leaves visitors on a mix of old and new modules.
+[[headers]]
+  for = "/src/*"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/styles/*"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# The agent-facing documents are plain text and are fetched by the docs page at runtime.
+[[headers]]
+  for = "/llms.txt"
+  [headers.values]
+    Content-Type = "text/plain; charset=utf-8"
+
+[[headers]]
+  for = "/docs/*.md"
+  [headers.values]
+    Content-Type = "text/markdown; charset=utf-8"

@@ -2,13 +2,16 @@
 
 Two things ship from this repository, on two different triggers:
 
-| What | Trigger | Workflow | Result |
+| What | Trigger | Config | Result |
 | --- | --- | --- | --- |
-| Documentation site | every push to `main` | `.github/workflows/pages.yml` | <https://zx.zeyos.com> |
+| Documentation site | every push to `main` | `pages.yml` **or** `netlify.toml` | <https://zx.zeyos.com> |
 | npm package | publishing a GitHub Release | `.github/workflows/publish.yml` | `@zeyos/zx` on npm |
 
 `.github/workflows/ci.yml` runs the tests, both builds, and the site check on every push and pull
 request, so neither of the above is the first place a problem shows up.
+
+Both hosting options are wired up; **pick one** and delete the other, or the domain will be
+claimed twice. The build output is identical either way.
 
 ## One-time setup
 
@@ -23,7 +26,35 @@ git remote add origin git@github.com:zeyos/zx.git
 git push -u origin main
 ```
 
-### 2. GitHub Pages
+### 2a. Hosting on Netlify
+
+Netlify is the lower-friction option: it manages the certificate, and it builds every pull
+request into a preview URL.
+
+Point it at this repository and let `netlify.toml` do the rest — it already sets
+
+```toml
+[build]
+  command = "npm run build:site && node tools/check-site.js"
+  publish = "site"
+```
+
+**The publish directory must be `site/`, not `website/`.** The website is developed in place and
+reaches above itself (`../styles/zx.css`, `../../src/index.js`, `../docs/llms.md`), so publishing
+`website/` returns `docs.html` with a 404 for the stylesheet and for the whole library — an
+unstyled, inert page. The build step is what makes the tree self-contained.
+
+Then add `zx.zeyos.com` under *Domain management* and create the DNS record Netlify shows, which
+is normally:
+
+```
+zx    CNAME    <site-name>.netlify.app.
+```
+
+If you take this route, delete `.github/workflows/pages.yml`; the `CNAME` file the build writes is
+ignored by Netlify and does no harm.
+
+### 2b. Hosting on GitHub Pages
 
 In **Settings → Pages**, set *Source* to **GitHub Actions** (not "Deploy from a branch"). The
 workflow uploads the `site/` artifact and deploys it; no `gh-pages` branch is involved.
@@ -32,9 +63,7 @@ Then set the custom domain to `zx.zeyos.com` and tick *Enforce HTTPS* once the c
 issued. `tools/build-site.js` writes the `CNAME` file into every build, so the domain survives
 redeploys — do not rely on the setting alone.
 
-### 3. DNS
-
-Add one record in the `zeyos.com` zone:
+The DNS record is:
 
 ```
 zx    CNAME    zeyos.github.io.
@@ -44,7 +73,9 @@ zx    CNAME    zeyos.github.io.
 instead, but a subdomain always uses `CNAME`.) Certificate issuance usually takes a few minutes
 and can take up to an hour.
 
-### 4. npm
+If you take this route, delete `netlify.toml`.
+
+### 3. npm
 
 The package is scoped: `zx` is taken on npm by an unrelated project, so it publishes as
 `@zeyos/zx` with `publishConfig.access: public`.
@@ -115,3 +146,7 @@ Preview the deployable output exactly as it will be served:
 ```sh
 npm run build:site && npm run serve:site
 ```
+
+The output is host-neutral. It contains no dot-directories (the agent skill is republished as
+`skills/`), a `CNAME` file that only GitHub Pages reads, and a `.nojekyll` marker that only
+GitHub Pages needs — both inert everywhere else.
