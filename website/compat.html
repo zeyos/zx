@@ -29,17 +29,15 @@
         <img class="brand-logo--dark" src="assets/zx-logo-dark.svg" alt="Zx">
       </a>
       <nav class="site-nav" aria-label="Primary">
-        <a href="index.html">Home</a>
         <a href="docs.html">Documentation</a>
-        <a href="docs.html#components">Components</a>
         <a href="docs.html#layouts">Layouts</a>
-        <a href="kitchen-sink.html">Kitchen sink</a>
-        <a href="#" data-placeholder-link title="Repository link coming soon">GitHub</a>
       </nav>
-      <button class="theme-toggle" type="button" data-theme-toggle>
-        <span class="theme-toggle__icon" data-theme-icon aria-hidden="true">☾</span>
-        <span data-theme-label>Dark</span>
-      </button>
+      <div class="site-actions">
+        <a class="site-icon-btn" data-site-icon="github" href="#" data-placeholder-link
+          title="Repository" aria-label="GitHub repository"></a>
+        <button class="site-icon-btn" type="button" data-theme-toggle
+          aria-label="Switch theme"></button>
+      </div>
     </div>
   </header>
 
@@ -90,14 +88,18 @@
   </main>
 
   <footer class="site-footer">
-    <div class="site-footer__base">
-      <div class="site-footer__inner">
-        <p>MIT licensed. Built for ZeyOS.</p>
-        <div class="site-footer__meta">
-          <a href="llms.txt">llms.txt</a>
-          <a href="docs.html">Documentation</a>
-          <a href="../MIGRATION.md">Migration guide</a>
-        </div>
+    <div class="site-footer__inner">
+      <div class="site-footer__brand">
+        <img src="assets/zx-logo-dark.svg" alt="Zx">
+        <p>
+          Built for <a href="https://www.zeyos.com" rel="noopener">ZeyOS</a>. Released under the
+          <a href="https://opensource.org/license/mit" rel="noopener">MIT license</a>.
+        </p>
+      </div>
+      <div class="site-footer__meta">
+        <a href="docs.html">Documentation</a>
+        <a href="llms.txt">llms.txt</a>
+        <a href="#" data-placeholder-link>GitHub</a>
       </div>
     </div>
   </footer>

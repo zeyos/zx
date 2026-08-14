@@ -67,6 +67,9 @@ helpers, and small dependency-free utilities; see the named exports in `src/inde
 | `Search` | Search input with debounced input, submit, and clear events. |
 | `Select` | APG combobox with local or async filtering and a priority preset. |
 | `Checklist` | Searchable checkbox group with optional async loading. |
+| `TagPicker` | Multi-select combobox that keeps its selection as removable tags. |
+| `NumberField` | APG spinbutton with step buttons, ranges, units, and wrapping. |
+| `Rating` | Star rating as a radio group, with optional half steps. |
 | `DatePicker` | APG calendar grid with bounds, week numbers, and optional time selection. |
 | `MonthPicker` | Twelve-month grid with year navigation. |
 | `TimePicker` | Segmented local-time picker. |
@@ -89,6 +92,8 @@ helpers, and small dependency-free utilities; see the named exports in `src/inde
 | --- | --- |
 | `Table` | Semantic sortable table with local/server sorting and row selection. |
 | `DataFilter` | Declarative select, text, and custom filters for client-side row sets. |
+| `TreeView` | APG tree with lazy children, filtering, and tri-state checkboxes. |
+| `Finder` | Miller-columns hierarchy browser with an optional preview pane. |
 
 ### Forms
 
@@ -136,7 +141,7 @@ const editor = zeyosForm(client, 'transactions', {
 
 The injection design means Zx never imports or bundles `@zeyos/client`. The optional binding ships
 separately as `dist/zx-zeyos.esm.js` and is not part of the root `src/index.js` API. See the
-schema-driven `website/kitchen-sink.html` for list, filter, sort, edit, and create wiring.
+schema-driven `website/layouts/zeyos-invoices.layout.js` for list, filter, sort, edit, and create wiring.
 
 ## Themes and density
 
@@ -186,8 +191,7 @@ npm run serve
 ```
 
 Open <http://127.0.0.1:8321/website/docs.html> for the documentation — getting started, every
-component with a live demo and its JavaScript source, the application layouts, and the kitchen
-sink. Also available: <http://127.0.0.1:8321/tests/smoke/smoke.html> for source-module smoke
+component with a live demo and its JavaScript source, and the application layouts. Also available: <http://127.0.0.1:8321/tests/smoke/smoke.html> for source-module smoke
 tests, or build first and open <http://127.0.0.1:8321/tests/smoke/smoke-dist.html> for
 classic-script distribution tests.
 

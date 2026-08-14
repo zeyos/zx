@@ -1,0 +1,99 @@
+.zx-tree {
+  --zx-tree-indent: 18px;
+  display: block;
+  min-inline-size: 0;
+  color: var(--zx-color-text);
+  font-size: var(--zx-control-font-size);
+}
+
+.zx-tree__row {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  min-block-size: calc(var(--zx-control-height) - 6px);
+  padding-inline: var(--zx-space-2);
+  padding-inline-start: calc(var(--zx-space-2) + var(--zx-tree-level, 0) * var(--zx-tree-indent));
+  border-radius: var(--zx-radius-md);
+  cursor: pointer;
+}
+
+.zx-tree__row:hover {
+  background: var(--zx-color-bg-hover);
+}
+
+.zx-tree__row[aria-selected="true"] {
+  background: var(--zx-color-bg-selected);
+  color: var(--zx-color-accent);
+  font-weight: 550;
+}
+
+.zx-tree__row:focus-visible {
+  outline: 0;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.zx-tree__twisty {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 14px;
+  block-size: 14px;
+  flex: none;
+  color: var(--zx-color-text-muted);
+}
+
+.zx-tree__row[aria-expanded="true"] .zx-tree__twisty {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .zx-tree__twisty {
+    transition: transform var(--zx-dur-fast) var(--zx-ease);
+  }
+}
+
+.zx-tree__row[data-loading] .zx-tree__twisty {
+  opacity: 0.5;
+}
+
+.zx-tree__checkbox {
+  flex: none;
+  margin: 0;
+}
+
+.zx-tree__icon {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  color: var(--zx-color-text-muted);
+}
+
+.zx-tree__row[data-branch] .zx-tree__icon {
+  color: var(--zx-color-warning);
+}
+
+.zx-tree__row[aria-selected="true"] .zx-tree__icon {
+  color: inherit;
+}
+
+.zx-tree__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zx-tree__badge {
+  margin-inline-start: auto;
+  padding-inline: var(--zx-space-2);
+  border-radius: var(--zx-radius-full);
+  background: var(--zx-color-bg-muted);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.zx-tree__empty {
+  padding: var(--zx-space-5);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  text-align: center;
+}

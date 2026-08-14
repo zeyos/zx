@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Zx documentation — getting started, every component with live demos and source, application layouts, and the ZeyOS kitchen sink.">
+    <meta name="description" content="Zx documentation — getting started, every component with live demos and source, and complete application layouts.">
     <title>Documentation — Zx</title>
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="../styles/zx.css">
@@ -19,17 +19,15 @@
           <img class="brand-logo--dark" src="assets/zx-logo-dark.svg" alt="Zx">
         </a>
         <nav class="site-nav" aria-label="Primary">
-          <a href="index.html">Home</a>
           <a href="docs.html">Documentation</a>
-          <a href="docs.html#components">Components</a>
           <a href="docs.html#layouts">Layouts</a>
-          <a href="kitchen-sink.html">Kitchen sink</a>
-          <a href="#" data-placeholder-link title="Repository link coming soon">GitHub</a>
         </nav>
-        <button class="theme-toggle" type="button" data-theme-toggle>
-          <span class="theme-toggle__icon" data-theme-icon aria-hidden="true">☾</span>
-          <span data-theme-label>Dark</span>
-        </button>
+        <div class="site-actions">
+          <a class="site-icon-btn" data-site-icon="github" href="#" data-placeholder-link
+            title="Repository" aria-label="GitHub repository"></a>
+          <button class="site-icon-btn" type="button" data-theme-toggle
+            aria-label="Switch theme"></button>
+        </div>
       </div>
     </header>
 
@@ -66,9 +64,9 @@
           source, and the API reference. It also covers the general-purpose
           <a href="#components/helpers">helper functions</a> and the
           <a href="#components/gx-compat">gx compatibility layer</a>.</li>
-        <li><strong>Layouts</strong> — four complete application shells assembled from those
-          components, each with its full source.</li>
-        <li><strong>Kitchen sink</strong> — a real ZeyOS invoices screen driven by a live schema.</li>
+        <li><strong>Layouts</strong> — eight complete application shells assembled from those
+          components, each with its full source, ending with a real ZeyOS invoices screen driven
+          by a live schema.</li>
       </ul>
 
       <div class="docs-callout">
@@ -403,7 +401,7 @@ document.querySelector('#invoices').append(list.table);
 
       <div class="docs-callout">
         <p>
-          The <a href="#kitchen-sink/invoices">Kitchen sink</a> is the reference integration: a
+          The <a href="#layouts/zeyos-invoices">ZeyOS invoices</a> layout is the reference integration: a
           complete invoices screen generated from the real <code>transactions</code> and
           <code>accounts</code> schemas, with server-side filtering, sorting, and paging.
         </p>
@@ -462,44 +460,15 @@ document.querySelector('#invoices').append(list.table);
       <div class="site-footer__inner">
         <div class="site-footer__brand">
           <img src="assets/zx-logo-dark.svg" alt="Zx">
-          <p>The dependency-free, accessible UI toolkit for ZeyOS business applications.</p>
+          <p>
+            Built for <a href="https://www.zeyos.com" rel="noopener">ZeyOS</a>. Released under the
+            <a href="https://opensource.org/license/mit" rel="noopener">MIT license</a>.
+          </p>
         </div>
-        <nav aria-labelledby="footer-docs">
-          <h2 id="footer-docs">Documentation</h2>
-          <ul>
-            <li><a href="docs.html#getting-started">Getting started</a></li>
-            <li><a href="docs.html#components">Components</a></li>
-            <li><a href="docs.html#layouts">Layouts</a></li>
-            <li><a href="kitchen-sink.html">Kitchen sink</a></li>
-          </ul>
-        </nav>
-        <nav aria-labelledby="footer-project">
-          <h2 id="footer-project">Project</h2>
-          <ul>
-            <li><a href="../README.md">README</a></li>
-            <li><a href="../MIGRATION.md">Migration guide</a></li>
-            <li><a href="../docs/DESIGN-NOTES.md">Design notes</a></li>
-            <li><a href="../AGENTS.md">Contributor contract</a></li>
-          </ul>
-        </nav>
-        <nav aria-labelledby="footer-agents">
-          <h2 id="footer-agents">For agents</h2>
-          <ul>
-            <li><a href="llms.txt">llms.txt</a></li>
-            <li><a href="../docs/llms.md">Agent reference</a></li>
-            <li><a href="../.claude/skills/zx/SKILL.md">Zx skill</a></li>
-            <li><a href="compat.html">gx compatibility</a></li>
-          </ul>
-        </nav>
-      </div>
-      <div class="site-footer__base">
-        <div class="site-footer__inner">
-          <p>MIT licensed. Built for ZeyOS.</p>
-          <div class="site-footer__meta">
-            <a href="llms.txt">llms.txt</a>
-            <a href="index.html">Home</a>
-            <a href="#" data-placeholder-link>GitHub</a>
-          </div>
+        <div class="site-footer__meta">
+          <a href="docs.html">Documentation</a>
+          <a href="llms.txt">llms.txt</a>
+          <a href="#" data-placeholder-link>GitHub</a>
         </div>
       </div>
     </footer>

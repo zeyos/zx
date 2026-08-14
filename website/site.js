@@ -30,19 +30,19 @@
     });
   }
 
-  /** Wires every `[data-theme-toggle]` button to flip and persist the site theme. */
+  /**
+   * Wires every `[data-theme-toggle]` button to flip and persist the site theme. The glyph itself
+   * is a CSS mask keyed off `data-zx-theme`, so only the accessible name is set here.
+   */
   function setUpThemeToggles() {
     const themeButtons = document.querySelectorAll('[data-theme-toggle]');
     const update = () => {
-      const dark = root.dataset.zxTheme === 'dark';
+      const title = root.dataset.zxTheme === 'dark'
+        ? 'Switch to light theme'
+        : 'Switch to dark theme';
       themeButtons.forEach((button) => {
-        const icon = button.querySelector('[data-theme-icon]');
-        const label = button.querySelector('[data-theme-label]');
-        const title = dark ? 'Switch to light theme' : 'Switch to dark theme';
         button.setAttribute('aria-label', title);
         button.setAttribute('title', title);
-        if (icon) icon.textContent = dark ? '☀' : '☾';
-        if (label) label.textContent = dark ? 'Light' : 'Dark';
       });
     };
 

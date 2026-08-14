@@ -81,7 +81,7 @@ Register exports in `src/index.js` and CSS `@import` in `styles/zx.css`.
 ```js
 export default {
   title: 'Select',            // display name
-  group: 'Inputs',            // sidebar group: Inputs | Overlays | Data | Forms | Layout | Core
+  group: 'Inputs',            // sidebar group: Core | Helpers | Inputs | Overlays | Data | Forms | Layout
   mount(container) { ... }    // build one or more usage examples into container
 };
 ```
@@ -94,9 +94,10 @@ write it as example code a reader can copy.
 ## Layout examples
 
 `website/layouts/<name>.layout.js` holds whole application shells assembled from several
-components (master–detail, dashboard, wizard, settings). Same module shape as a demo plus a
-`blurb`, registered in the `LAYOUT_IDS` list in `website/docs.js`. Their shared classes
-(`.layout-frame`, `.layout-split`, `.stat-card`, …) live in `website/docs.css`.
+components (master–detail, dashboard, inbox, record page, two wizards, settings, ZeyOS invoices).
+Same module shape as a demo plus a `blurb`, registered in the `LAYOUT_IDS` list in
+`website/docs.js`. Their shared classes (`.layout-frame`, `.layout-split`, `.stat-card`,
+`.stepper`, …) live in `website/docs.css`.
 
 ## Definition of done (per WP)
 

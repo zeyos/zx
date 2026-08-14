@@ -1,0 +1,98 @@
+.zx-finder {
+  --zx-finder-column: 220px;
+  display: flex;
+  align-items: stretch;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  border: 1px solid var(--zx-color-border);
+  border-radius: var(--zx-radius-lg);
+  background: var(--zx-color-bg-surface);
+  color: var(--zx-color-text);
+  font-size: var(--zx-control-font-size);
+}
+
+.zx-finder__column {
+  display: flex;
+  inline-size: var(--zx-finder-column);
+  flex: none;
+  min-inline-size: 0;
+  flex-direction: column;
+  border-inline-end: 1px solid var(--zx-color-border);
+}
+
+.zx-finder__list {
+  flex: 1 1 auto;
+  min-block-size: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  padding: var(--zx-space-1);
+}
+
+.zx-finder__row {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  min-block-size: calc(var(--zx-control-height) - 6px);
+  padding-inline: var(--zx-space-2);
+  border-radius: var(--zx-radius-md);
+  cursor: pointer;
+}
+
+.zx-finder__row:hover {
+  background: var(--zx-color-bg-hover);
+}
+
+.zx-finder__row[aria-selected="true"] {
+  background: var(--zx-color-bg-selected);
+  color: var(--zx-color-accent);
+  font-weight: 550;
+}
+
+.zx-finder__row:focus-visible {
+  outline: 0;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.zx-finder__icon {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  color: var(--zx-color-text-muted);
+}
+
+.zx-finder__row[data-branch] .zx-finder__icon {
+  color: var(--zx-color-warning);
+}
+
+.zx-finder__row[aria-selected="true"] .zx-finder__icon {
+  color: inherit;
+}
+
+.zx-finder__label {
+  overflow: hidden;
+  flex: 1 1 auto;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zx-finder__chevron {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  color: var(--zx-color-text-placeholder);
+}
+
+.zx-finder__empty {
+  padding: var(--zx-space-4) var(--zx-space-3);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  text-align: center;
+}
+
+.zx-finder__preview {
+  inline-size: calc(var(--zx-finder-column) * 1.4);
+  flex: none;
+  overflow-y: auto;
+  padding: var(--zx-space-4);
+  background: var(--zx-color-bg-page);
+}

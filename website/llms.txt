@@ -14,15 +14,15 @@ available as ESM named exports and as `window.zx.*`.
 
 ## Documentation site
 - [Documentation](docs.html): the single documentation surface — getting started, every component,
-  application layouts, and the kitchen sink. Each entry shows a live demo, its complete
+  and the application layouts. Each entry shows a live demo, its complete
   JavaScript source, and the API reference.
 - [Getting started](docs.html#getting-started): installation, the mental model, theming,
   accessibility, and talking to ZeyOS.
 - [Components](docs.html#components): 30+ components grouped Core / Helpers / Inputs / Overlays /
   Data / Forms / Layout.
-- [Layouts](docs.html#layouts): four complete application shells — master–detail, dashboard,
-  record wizard, settings workspace.
-- [Kitchen sink](kitchen-sink.html): a schema-driven ZeyOS invoices screen.
+- [Layouts](docs.html#layouts): eight complete application shells — master–detail, dashboard,
+  inbox, record page, two wizards (vertical and horizontal steps), settings workspace, and a
+  schema-driven ZeyOS invoices screen.
 
 ## Deeper references
 - [Agent reference](../docs/llms.md): per-component constructor options, methods, and events for
@@ -37,11 +37,12 @@ available as ESM named exports and as `window.zx.*`.
 
 ## Components
 - Inputs: `button()`, `buttonGroup()`, `CheckButton`, `Toggle`, `Search`, `Select` (APG combobox;
-  `filter: false|'local'|async`), `Checklist`, `DatePicker`, `MonthPicker`, `TimePicker`,
-  `Datebox`/`DateTimeBox`, `Timebox`.
+  `filter: false|'local'|async`), `Checklist`, `TagPicker`,
+  `NumberField`, `Rating`, `DatePicker`, `MonthPicker`, `TimePicker`, `Datebox`/`DateTimeBox`,
+  `Timebox`.
 - Overlays: `Message` (toasts/inline/progress), `Modal`, `Dialog` (+ `alert`/`confirm`/`prompt`
   Promises), `Dropdown`, `MenuButton`.
-- Data: `Table` (sortable, selectable, sticky header), `DataFilter`.
+- Data: `Table` (sortable, selectable, sticky header), `DataFilter`, `TreeView` (APG tree), `Finder` (Miller columns).
 - Forms: `Form`, `Fieldset`, `Field` (type registry), `ValueList`, `MultiValueEditor`,
   `FieldUpload`, `Permission`.
 - Layout: `Groupbox`, `Panel`, `MasterPanel`, `Tabbox`, `NavigationBar`.
@@ -64,7 +65,7 @@ business data: `createZeyosClient({ platform, auth })`, typed
 `client.api.list/get/create/update<Resource>` over the full OpenAPI surface, `normalizeListResult`.
 The optional `zx-zeyos` binding (`src/zeyos/`) generates typed tables, forms, and pickers from
 `client.schema`; it never imports `@zeyos/client` itself and ships as a separate bundle.
-`kitchen-sink.html` is the reference integration. Zx also ships a minimal `Http`/`zeyosService`
+The `ZeyOS invoices` layout is the reference integration. Zx also ships a minimal `Http`/`zeyosService`
 for ad-hoc in-app `remotecall`, but `@zeyos/client` is the recommended default.
 
 ## Legacy gx applications

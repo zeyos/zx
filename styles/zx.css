@@ -20,12 +20,17 @@
 @import url("../src/components/menu-button/menu-button.css");
 @import url("../src/components/select/select.css");
 @import url("../src/components/checklist/checklist.css");
+@import url("../src/components/tag-picker/tag-picker.css");
+@import url("../src/components/number-field/number-field.css");
+@import url("../src/components/rating/rating.css");
 @import url("../src/components/permission/permission.css");
 @import url("../src/components/date-picker/date-picker.css");
 @import url("../src/components/date-picker/time-picker.css");
 @import url("../src/components/datebox/datebox.css");
 @import url("../src/components/timebox/timebox.css");
 @import url("../src/components/table/table.css");
+@import url("../src/components/tree/tree.css");
+@import url("../src/components/finder/finder.css");
 @import url("../src/components/data-filter/data-filter.css");
 @import url("../src/components/field/field.css");
 @import url("../src/components/fieldset/fieldset.css");

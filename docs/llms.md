@@ -76,8 +76,8 @@ const { data } = normalizeListResult(await zeyos.api.listTransactions({ filters:
 await zeyos.api.updateTransaction({ ID, status: 9 });
 ```
 
-Feed results straight into Zx components (Table `data`, Select `items`, Form values). See
-`website/kitchen-sink.html` for the reference integration. Zx also ships a minimal `Http` /
+Feed results straight into Zx components (Table `data`, Select `items`, Form values). See the
+`website/layouts/zeyos-invoices.layout.js` layout for the reference integration. Zx also ships a minimal `Http` /
 `zeyosService(service, accesskey)` for ad-hoc `remotecall`, but `@zeyos/client` is the default.
 
 <!-- doc:zeyos -->
@@ -170,7 +170,7 @@ pattern with `:focus-visible` rings and `prefers-reduced-motion` guards.
 ```
 src/components/<name>/   component + CSS      src/core/   kernel (component, dom, http, i18n, date…)
 src/compat/              gx compat layer      styles/     tokens + base.css
-website/                 marketing page + docs.html (docs.js) + kitchen sink   specs/  build specs
+website/                 marketing page + docs.html (docs.js)          specs/  per-component specs
 website/demos/           per-component demo modules    website/layouts/  application layout examples
 tests/                   node unit + smoke    dist/       built bundles
 
@@ -214,6 +214,16 @@ Unifies single-select, local filtering, and async loading. Options: `items: []`,
 <!-- doc:checklist -->
 ### Checklist
 Searchable multi-check list with optional async loading. Options: `items`, `valueKey: 'ID'`, `labelKey: 'name'`, `checkedKey: 'on'`, `search: true`, `height: 280`, `defaultChecked: false`, `load: async ()=>items`. Methods: `setItems()`, `getValues()`, `setValues(ids)`, `checkAll()`/`uncheckAll()`, `search(query)`, `reload()`. Events: `change {values}`, `loaded`.
+<!-- /doc -->
+
+<!-- doc:number-field -->
+### NumberField
+Numeric input with decrement/increment buttons, following the APG **spinbutton** pattern. Options: `value` (number|null), `min`, `max`, `step: 1`, `largeStep: 10` (PageUp/PageDown multiplier), `precision` (decimals; derived from `step` when null), `wrap: false` (stepping past a bound jumps to the other one), `placeholder`, `unit` (suffix rendered inside the control), `group: false` (thousands separators while idle), `locale`, `disabled`, `readonly`, `required`, `name`. Methods: `get()`, `set(value, {silent})` (parses strings, snaps to the step grid, clamps to the range; `''`/null clear it), `stepUp(n)`, `stepDown(n)`, `setRange(min, max)`, `setReadonly()`, `reset()`, `focus()`, `getInput()`, `enable()`/`disable()`. Events: `change {value}` (committed), `input {value}` (per keystroke, possibly unsnapped). Keyboard: ↑/↓ one step, PageUp/PageDown `largeStep` steps, Home/End jump to `min`/`max` when set (otherwise they keep their caret meaning), Enter commits, wheel steps while focused. The step buttons are `tabindex="-1"`/`aria-hidden` pointer affordances — the input is the spinbutton. Also exported: `parseNumber(raw)` (accepts `.` and `,` as the decimal separator, ignores grouping, returns null for junk) and `snapNumber(value, {min, max, step, precision})`. Field type: `number`.
+<!-- /doc -->
+
+<!-- doc:rating -->
+### Rating
+Star rating built as an APG **radio group**: one radio per selectable step, a single tab stop, arrow-key selection. Options: `value: 0` (0 = unrated), `max: 5`, `allowHalf: false` (renders two radios per symbol so every reachable value has a nameable control), `clearable: true` (re-selecting the current value clears it), `readonly`, `disabled`, `label: 'Rating'`, `icon: 'star'`, `labels: []` (per-step accessible names, lowest first), `showValue: false`, `count` (rating count shown beside the value), `size: 'sm'|'md'|'lg'`. Methods: `get()`, `set(value, {silent})`, `clear()`, `reset()`, `setCount()`, `setReadonly()`, `focus()`, `enable()`/`disable()`. Events: `change {value}`, `hover {value|null}` (pointer or focus preview; null on leave). Keyboard: ←/↓ and →/↑ step, Home selects the first step, End the last, Delete/Backspace clear. Field type: `rating`.
 <!-- /doc -->
 
 <!-- doc:date-picker -->
@@ -266,6 +276,16 @@ Sortable, selectable, sticky-header data table (one component covering both lega
 Declarative client-side filter bar producing a filtered array (commonly wired to a Table). Options: `filters: [{ type: 'select'|'text'|'custom', id, label, field(s)|get, options?, predicate?, emptyLabel?, placeholder? }]`, `data`, `autoApply: true`, `clearLabel`. Methods: `setData()`, `apply()` → rows, `clear()`, `getState()`, `setState()`, `addFilter()`. Event: `filter {rows, state}`. Common pattern: `onfilter: (e) => table.setData(e.detail.rows)`.
 <!-- /doc -->
 
+<!-- doc:tree -->
+### TreeView
+Hierarchical tree implementing the APG **tree** pattern. Rows render as a flat list carrying `aria-level`/`aria-setsize`/`aria-posinset` (the flattened variant the APG allows) rather than nested `role="group"` containers. Options: `items` (nested), `valueKey: 'ID'`, `labelKey: 'name'`, `childrenKey: 'children'`, `expanded: []`, `selection: 'single'|'multi'|false`, `selected: []`, `checkboxes: false` (tri-state), `checked: []`, `icons: true`, `renderLabel`, `load: (node)=>Promise<children>` (lazy children; mark a branch with `hasChildren: true`), `filter`, `emptyText`, `height`. Methods: `setItems()`, `getItems()`, `getNode(id)`, `getPath(id)`, `setFilter(query)` (keeps matching nodes' ancestors and opens the surviving branches), `expand(id)`/`collapse(id)`/`toggle(id)` (async — they await the loader), `expandAll()`/`collapseAll()`, `reveal(id)`, `select(id, {additive})`, `getSelection()`/`setSelection()`/`clearSelection()`, `check(id, checked)`, `getChecked({leavesOnly})`, `setChecked()`, `focusNode(id)`. Events: `select {node, id, ids}`, `expand`, `collapse`, `activate {node, id}` (Enter or double-click), `check {ids, node}`. Keyboard: ↑/↓ move, → expands then descends, ← collapses then ascends, Home/End, Enter activates, Space selects or toggles the checkbox, `*` expands every sibling, typing jumps to the next match. The component clones `items`, so lazily loaded children never mutate the caller's data.
+<!-- /doc -->
+
+<!-- doc:finder -->
+### Finder
+Miller-columns hierarchy browser: each column lists the children of the row selected in the column to its left, like the macOS Finder's column view. Columns are linked listboxes sharing **one** tab stop. Options: `items` (the same nested shape as `TreeView`), `valueKey`, `labelKey`, `childrenKey`, `path: []` (initial selection, root first), `load: (node)=>Promise<children>`, `preview: (node)=>Node|null` (renders a pane after the last column for a selected leaf), `rootLabel`, `columnWidth: 220`, `height: 320`, `icons: true`, `renderItem`, `emptyText`. Methods: `getPath()`, `getNodes()`, `getSelection()`, `setPath(ids, {silent, focus})` (async — loads every branch along the way), `reveal(id)`, `setItems()`, `focus()`. Events: `change {path, nodes, node}`, `activate {node, id}`. Keyboard: ↑/↓ move within the active column, → steps into the selected branch and lands on its first row, ← returns to the parent column and truncates the path, Home/End, Enter opens a leaf, typing jumps to the next match. The constructor applies `path` silently, so read `getNodes()` for the first paint of any breadcrumb.
+<!-- /doc -->
+
 <!-- doc:form -->
 ### Form / Fieldset / Field
 **Form** options: `fieldsets: []`, `actions: [button descriptors]`, `novalidate: true`. Proxy methods across fieldsets: `getValues()`, `setValues()`, `getField()`, `setValue()`, `getValue()`, `reset()`, `setHighlights()`, `clearHighlights()`, `addFieldset()`, `setActions()`, `submit()`. Events: `submit {values}` (preventable; required/int/float validation runs first), `invalid {errors}`, `change {id, value}`.
@@ -275,7 +295,7 @@ Declarative client-side filter bar producing a filtered array (commonly wired to
 
 <!-- doc:form-widgets -->
 ### Field widget types
-Beyond the built-in field types, these widget types wrap full components (used as `{ type, label, props: {…component options…} }`): `zxselect` (Select), `checklist` (Checklist), `date`/`month`/`datetime` (Datebox/MonthPicker — pass a `Date` value), `time` (Timebox), `valuelist` (ValueList), `multivalueeditor` (MultiValueEditor), `upload` (FieldUpload), `toggle` (Toggle). Registered via `registerFieldAdapters()` (called by default from `src/index.js`).
+Beyond the built-in field types, these widget types wrap full components (used as `{ type, label, props: {…component options…} }`): `zxselect` (Select), `checklist` (Checklist), `tagpicker` (TagPicker), `number` (NumberField), `rating` (Rating), `date`/`month`/`datetime` (Datebox/MonthPicker — pass a `Date` value), `time` (Timebox), `valuelist` (ValueList), `multivalueeditor` (MultiValueEditor), `upload` (FieldUpload), `toggle` (Toggle). Registered via `registerFieldAdapters()` (called by default from `src/index.js`).
 <!-- /doc -->
 
 <!-- doc:value-list -->
@@ -291,6 +311,11 @@ Ordered value editor with explicit rows (add / remove / move). Options: `values`
 <!-- doc:field-upload -->
 ### FieldUpload
 Click/drop file upload with progress. Options: `url`, `paramName: 'upload'`, `params`, `headers`, `multiple: false`, `accept`, `maxSize`, `autoUpload: true`, `preview: true`, `http`. Methods: `upload(files?)`, `abort()`, `clear()`, `setDisabled()`. Events: `select {files}`, `progress {percent}`, `success {response}`, `error {error}`, `abort`. Keyboard-accessible drop zone; upload progress via XMLHttpRequest.
+<!-- /doc -->
+
+<!-- doc:tag-picker -->
+### TagPicker
+Multi-select combobox that renders its selection as removable tags inside the control (APG combobox + multi-selectable listbox). Use it when the catalogue is too large to show in full — `Checklist` shows a fixed set, `ValueList` takes free text with no catalogue. Options: `items`, `values: []`, `valueKey: 'ID'`, `labelKey: 'name'`, `searchKeys`, `filter: 'local'|(query)=>Promise<items>`, `minQuery: 0`, `debounce: 200`, `allowCreate: false`, `max` (maximum tags; further options become `aria-disabled`), `closeOnSelect: false`, `placeholder`, `listHeight: 260`, `disabled`, `readonly`, `renderItem`, `renderTag`. Methods: `getValues()`, `getItems()`, `setValues(values, {silent})`, `addValue()`, `removeValue()`, `clear()`, `reset()`, `setItems()`, `isFull()`, `open()`/`close()`, `focus()`, `setReadonly()`, `enable()`/`disable()`. Events: `change {values, items}`, `add {value, item}`, `remove {value, item}`, `create {value, item}`, `query {query}`, `open`, `close`. Keyboard: ↓ opens and moves, ↑ moves, Enter toggles the active option (or creates from the query), Escape closes, Backspace on an empty input removes the last tag, Home/End jump within the list. Unknown IDs passed to `setValues` still render as tags, so a stored selection survives a catalogue that has not loaded yet. Field type: `tagpicker`.
 <!-- /doc -->
 
 <!-- doc:permission -->

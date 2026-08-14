@@ -8,7 +8,10 @@ import { registerDatePickerFieldAdapters } from './components/date-picker/field-
 import { registerDateboxFieldAdapters } from './components/datebox/field-adapter.js';
 import { registerFieldUploadAdapter } from './components/field-upload/field-adapter.js';
 import { registerMultiValueEditorFieldAdapter } from './components/multi-value-editor/field-adapter.js';
+import { registerNumberFieldAdapter } from './components/number-field/field-adapter.js';
+import { registerRatingFieldAdapter } from './components/rating/field-adapter.js';
 import { registerSelectFieldAdapter } from './components/select/field-adapter.js';
+import { registerTagPickerFieldAdapter } from './components/tag-picker/field-adapter.js';
 import { registerTimeboxFieldAdapter } from './components/timebox/field-adapter.js';
 import { registerToggleFieldAdapter } from './components/toggle/field-adapter.js';
 import { registerValueListFieldAdapter } from './components/value-list/field-adapter.js';
@@ -27,6 +30,9 @@ export function registerFieldAdapters() {
   registerMultiValueEditorFieldAdapter();
   registerFieldUploadAdapter();
   registerToggleFieldAdapter();
+  registerNumberFieldAdapter();
+  registerRatingFieldAdapter();
+  registerTagPickerFieldAdapter();
 }
 
 registerFieldAdapters();
@@ -59,6 +65,9 @@ export { Dropdown } from './components/dropdown/dropdown.js';
 export { MenuButton } from './components/menu-button/menu-button.js';
 export { Select } from './components/select/select.js';
 export { Checklist } from './components/checklist/checklist.js';
+export { TagPicker } from './components/tag-picker/tag-picker.js';
+export { NumberField, parseNumber, snapNumber } from './components/number-field/number-field.js';
+export { Rating } from './components/rating/rating.js';
 export { Permission } from './components/permission/permission.js';
 export { DatePicker } from './components/date-picker/date-picker.js';
 export { MonthPicker } from './components/date-picker/month-picker.js';
@@ -66,6 +75,8 @@ export { TimePicker } from './components/date-picker/time-picker.js';
 export { Datebox, DateTimeBox } from './components/datebox/datebox.js';
 export { Timebox, splitTime, joinTime } from './components/timebox/timebox.js';
 export { Table } from './components/table/table.js';
+export { TreeView } from './components/tree/tree.js';
+export { Finder } from './components/finder/finder.js';
 export { DataFilter } from './components/data-filter/data-filter.js';
 export { Field } from './components/field/field.js';
 export { Fieldset } from './components/fieldset/fieldset.js';

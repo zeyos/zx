@@ -119,7 +119,7 @@ separate `dist/zx-zeyos.esm.js` entry (or `src/zeyos/index.js` in-repo), not `sr
 `zx-zeyos` is injection-based and never imports or bundles `@zeyos/client`, preserving Zx's zero
 runtime-dependency core.
 
-The `website/kitchen-sink.html` demo is the reference schema-driven integration. Zx also ships a
+The `website/layouts/zeyos-invoices.layout.js` layout is the reference schema-driven integration. Zx also ships a
 tiny built-in `Http` / `zeyosService(service, accesskey)` (from `src/index.js`) for ad-hoc
 `remotecall` requests inside a ZeyOS app, but `@zeyos/client` plus `zx-zeyos` is the dedicated,
 full-featured default.

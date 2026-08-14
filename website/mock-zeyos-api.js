@@ -1,11 +1,23 @@
 /**
- * Mock ZeyOS OpenAPI backend for the schema-driven kitchen-sink demo.
+ * Mock ZeyOS OpenAPI backend for the schema-driven invoices layout.
  *
  * A real injected @zeyos/client serializes list/create/update inputs as JSON request bodies and
  * places record IDs in GET/PATCH paths. This fetch patch mirrors those endpoints and implements
  * the list directives emitted by zx-zeyos: query, filters, sort, limit, offset, fields, and count.
+ *
+ * Requests that do not target `/api/v1/...` fall through to the original fetch untouched, so the
+ * documentation page keeps loading its own sources normally.
  */
-(function installMockZeyosApi() {
+
+let installed = false;
+
+/**
+ * Patches `window.fetch` to serve the mocked ZeyOS endpoints. Calling it repeatedly is safe.
+ * @returns {void}
+ */
+export function installMockZeyosApi() {
+  if (installed) return;
+  installed = true;
   const LATENCY_MS = 180;
   const DAY_SECONDS = 86_400;
   const statuses = [0, 1, 16, 20, 21];
@@ -296,4 +308,4 @@
   function delay(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
-})();
+}

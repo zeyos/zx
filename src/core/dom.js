@@ -64,6 +64,34 @@ h.raw = function raw(html) {
   return template.content;
 };
 
+/** @typedef {{children: Node[], attributes: [string, string][]}} TargetSnapshot */
+
+/**
+ * Captures an enhanced target's children and attributes so `destroy()` can put it back exactly as
+ * it was found.
+ * @param {Element} element Target being taken over.
+ * @returns {TargetSnapshot}
+ */
+export function snapshotTarget(element) {
+  return {
+    children: Array.from(element.childNodes),
+    attributes: Array.from(element.attributes, (attribute) => [attribute.name, attribute.value])
+  };
+}
+
+/**
+ * Restores a target captured by `snapshotTarget()`.
+ * @param {Element} element Target to restore.
+ * @param {TargetSnapshot|null} snapshot Snapshot taken before the takeover, or null to do nothing.
+ * @returns {void}
+ */
+export function restoreTarget(element, snapshot) {
+  if (!snapshot) return;
+  for (const attribute of Array.from(element.attributes)) element.removeAttribute(attribute.name);
+  for (const [name, value] of snapshot.attributes) element.setAttribute(name, value);
+  element.replaceChildren(...snapshot.children);
+}
+
 /**
  * Escapes text for safe insertion into an HTML string.
  * @param {unknown} str Value to escape.

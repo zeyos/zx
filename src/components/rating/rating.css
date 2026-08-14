@@ -1,0 +1,97 @@
+.zx-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-3);
+  color: var(--zx-color-text);
+}
+
+.zx-rating__symbols {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.zx-rating__symbol {
+  --zx-rating-fill: 0%;
+  position: relative;
+  display: inline-grid;
+  line-height: 0;
+}
+
+/* Both glyphs sit in the same grid cell; the "on" copy is clipped to the filled fraction, which
+   is what makes half steps work without a second icon. */
+.zx-rating__glyph {
+  grid-area: 1 / 1;
+  color: var(--zx-color-border-strong);
+}
+
+.zx-rating__glyph[data-part="on"] {
+  color: var(--zx-color-warning);
+  clip-path: inset(0 calc(100% - var(--zx-rating-fill)) 0 0);
+}
+
+.zx-rating__symbol[data-preview] .zx-rating__glyph[data-part="on"] {
+  color: var(--zx-color-warning);
+  opacity: 0.75;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .zx-rating__glyph[data-part="on"] {
+    transition: clip-path var(--zx-dur-fast) var(--zx-ease);
+  }
+}
+
+/* One transparent hit area per selectable step, layered over the glyph. */
+.zx-rating__radio {
+  position: absolute;
+  inset-block: 0;
+  z-index: 1;
+  min-block-size: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--zx-radius-sm);
+  background: none;
+  cursor: pointer;
+}
+
+.zx-rating__radio[data-part="full"] {
+  inset-inline: 0;
+}
+
+.zx-rating__radio[data-part="half"] {
+  inset-inline-start: 0;
+  inline-size: 50%;
+  z-index: 2;
+}
+
+.zx-rating__radio:hover {
+  background: none;
+}
+
+.zx-rating__radio:focus-visible {
+  outline: 0;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.zx-rating[data-inert] .zx-rating__radio {
+  cursor: default;
+}
+
+.zx-rating[data-disabled] {
+  opacity: 0.55;
+}
+
+.zx-rating__readout {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.zx-rating[data-size="sm"] .zx-rating__symbols {
+  gap: 1px;
+}
+
+.zx-rating[data-size="lg"] .zx-rating__symbols {
+  gap: 4px;
+}

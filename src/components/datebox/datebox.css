@@ -11,6 +11,7 @@
 }
 
 .zx-datebox__control {
+  position: relative;
   border: 1px solid var(--zx-color-border-control);
   border-radius: var(--zx-control-radius);
   background: var(--zx-color-bg-control);
@@ -25,17 +26,25 @@
   background: var(--zx-color-danger-bg);
 }
 
+/* The input always reserves room for the clear button, which floats over its trailing edge —
+   showing or hiding the button must not change the control's total width. */
 .zx-datebox__input {
   min-inline-size: 10em;
   border: 0;
   border-radius: var(--zx-control-radius) 0 0 var(--zx-control-radius);
   background: inherit;
+  padding-inline-end: var(--zx-control-height);
 }
 
+/* The clear button is absolutely positioned, so it must keep that position when focused. */
 .zx-datebox__input:focus-visible,
-.zx-datebox__clear:focus-visible,
 .zx-datebox__toggle:focus-visible {
   position: relative;
+  z-index: 1;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.zx-datebox__clear:focus-visible {
   z-index: 1;
   box-shadow: var(--zx-focus-ring);
 }
@@ -47,14 +56,27 @@
   min-inline-size: var(--zx-control-height);
   padding: 0;
   border: 0;
-  border-inline-start: 1px solid var(--zx-color-border-control);
   border-radius: 0;
   background: inherit;
   color: var(--zx-color-text-muted);
 }
 
 .zx-datebox__toggle {
+  border-inline-start: 1px solid var(--zx-color-border-control);
   border-radius: 0 var(--zx-control-radius) var(--zx-control-radius) 0;
+}
+
+.zx-datebox__clear {
+  position: absolute;
+  inset-block-start: 50%;
+  /* The picker toggle sits to the right of the input; float the clear button just inside it. */
+  inset-inline-end: var(--zx-control-height);
+  transform: translateY(-50%);
+  background: none;
+}
+
+.zx-datebox__clear:hover {
+  color: var(--zx-color-text);
 }
 
 .zx-datebox__clear[hidden] {

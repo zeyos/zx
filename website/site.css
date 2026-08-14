@@ -3,7 +3,7 @@
  *
  * The marketing surfaces follow the ZeyOS visual language (www.zeyos.com): Inter, deep slate-to-
  * black bands, the ZeyOS green as the single accent, heavy tightly-tracked headings, uppercase
- * eyebrow labels, and translucent cards. Application surfaces (documentation, kitchen sink) use
+ * eyebrow labels, and translucent cards. The documentation application uses
  * the themeable `--zx-*` component tokens instead so they follow the light/dark switch.
  *
  * Site-only colours live in the `--site-*` namespace below and are deliberately fixed: the
@@ -136,28 +136,64 @@ body.site-page > main {
   color: #fff;
 }
 
-.theme-toggle {
-  display: inline-flex;
+/* Square, label-free chrome buttons. The glyph is an SVG mask filled with currentColor, so it
+   follows the theme and the overlay header without a second asset. */
+.site-actions {
+  display: flex;
   flex: 0 0 auto;
   align-items: center;
-  justify-content: center;
   gap: var(--zx-space-2);
-  min-inline-size: 78px;
 }
 
-.site-header--overlay .theme-toggle {
+.site-icon-btn {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 34px;
+  block-size: 34px;
+  min-block-size: 0;
+  padding: 0;
+  border: 1px solid var(--zx-color-border);
+  border-radius: var(--zx-radius-lg);
+  background: none;
+  color: var(--zx-color-text-muted);
+  cursor: pointer;
+}
+
+.site-icon-btn::before {
+  content: "";
+  inline-size: 17px;
+  block-size: 17px;
+  background: currentColor;
+  mask: var(--site-icon) center / contain no-repeat;
+}
+
+.site-icon-btn:hover {
+  background: var(--zx-color-bg-hover);
+  color: var(--zx-color-text);
+}
+
+.site-icon-btn[data-site-icon="github"] {
+  --site-icon: url("assets/github.svg");
+}
+
+/* The theme button shows the theme it switches *to*. */
+.site-icon-btn[data-theme-toggle] {
+  --site-icon: url("assets/moon.svg");
+}
+
+[data-zx-theme="dark"] .site-icon-btn[data-theme-toggle] {
+  --site-icon: url("assets/sun.svg");
+}
+
+.site-header--overlay .site-icon-btn {
   border-color: rgb(255 255 255 / 22%);
   background: rgb(255 255 255 / 6%);
+  color: rgb(255 255 255 / 85%);
+}
+
+.site-header--overlay .site-icon-btn:hover {
+  background: rgb(255 255 255 / 14%);
   color: #fff;
-}
-
-.site-header--overlay .theme-toggle:hover {
-  background: rgb(255 255 255 / 12%);
-}
-
-.theme-toggle__icon {
-  font-size: var(--zx-text-lg);
-  line-height: 1;
 }
 
 /* -------------------------------------------------------- marketing bands -- */
@@ -370,7 +406,12 @@ body.site-page > main {
   color: rgb(226 232 240 / 50%);
   font-size: var(--zx-text-sm);
   letter-spacing: 0.04em;
+  text-decoration: none;
   text-transform: uppercase;
+}
+
+.zeyos-lockup:hover {
+  color: rgb(226 232 240 / 80%);
 }
 
 .zeyos-lockup img {
@@ -508,69 +549,41 @@ body.site-page > main {
 }
 
 .site-footer__inner {
-  display: grid;
-  grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(0, 1fr));
-  gap: var(--zx-space-7);
-  padding-block: var(--zx-space-8);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--zx-space-4) var(--zx-space-6);
+  padding-block: var(--zx-space-6);
+}
+
+.site-footer__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-4);
 }
 
 .site-footer__brand img {
   display: block;
-  block-size: 34px;
+  block-size: 26px;
   inline-size: auto;
-  margin-block-end: var(--zx-space-4);
 }
 
-.site-footer__brand p {
+.site-footer p {
   margin: 0;
-  max-inline-size: 34ch;
   font-size: var(--zx-text-sm);
-  line-height: 1.7;
-}
-
-.site-footer h2 {
-  margin: 0 0 var(--zx-space-3);
-  color: rgb(255 255 255 / 85%);
-  font-size: var(--zx-text-xs);
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.site-footer ul {
-  display: grid;
-  gap: var(--zx-space-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
 }
 
 .site-footer a {
   color: inherit;
   font-size: var(--zx-text-sm);
   text-decoration: none;
+  border-block-end: 1px solid rgb(255 255 255 / 25%);
 }
 
 .site-footer a:hover {
+  border-block-end-color: currentColor;
   color: #fff;
-}
-
-.site-footer__base {
-  border-block-start: 1px solid rgb(255 255 255 / 8%);
-}
-
-.site-footer__base .site-footer__inner {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--zx-space-4);
-  padding-block: var(--zx-space-5);
-}
-
-.site-footer__base p {
-  margin: 0;
-  font-size: var(--zx-text-sm);
 }
 
 .site-footer__meta {
@@ -579,102 +592,12 @@ body.site-page > main {
   gap: var(--zx-space-5);
 }
 
-/* --------------------------------------------------------- kitchen sink -- */
-
-.kitchen-main {
-  inline-size: min(100% - (2 * var(--zx-space-5)), 1440px);
-  margin-inline: auto;
-  padding-block: var(--zx-space-5);
+.site-footer__meta a {
+  border-block-end: 0;
 }
 
-/* Header (65) + main padding (40) + the slim base footer (~60). */
-.kitchen-main .zx-master-panel {
-  min-block-size: calc(100dvh - 165px);
-}
-
-.invoice-workspace {
-  display: grid;
-  gap: var(--zx-space-4);
-}
-
-.invoice-source {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--zx-space-3);
-  margin: 0;
-  color: var(--zx-color-text-muted);
-  font-size: var(--zx-text-sm);
-}
-
-.invoice-source strong {
-  color: var(--zx-color-text);
-}
-
-.invoice-table-wrap[aria-busy="true"] {
-  opacity: 0.65;
-}
-
-.invoice-status {
-  display: inline-block;
-  min-inline-size: 68px;
-  padding: var(--zx-space-1) var(--zx-space-2);
-  border-radius: var(--zx-radius-full);
-  background: var(--zx-color-info-bg);
-  color: var(--zx-color-info);
-  font-size: var(--zx-text-sm);
-  font-weight: 650;
-  text-align: center;
-}
-
-.invoice-status[data-status="paid"] {
-  background: var(--zx-color-success-bg);
-  color: var(--zx-color-success);
-}
-
-.invoice-status[data-status="overdue"] {
-  background: var(--zx-color-danger-bg);
-  color: var(--zx-color-danger);
-}
-
-.invoice-status[data-status="draft"] {
-  background: var(--zx-color-bg-hover);
-  color: var(--zx-color-text-muted);
-}
-
-.data-layer-note {
-  display: grid;
-  gap: var(--zx-space-2);
-  padding: var(--zx-space-5);
-  border: 1px solid var(--zx-color-border);
-  border-radius: var(--zx-radius-xl);
-  background: var(--zx-color-bg-surface);
-}
-
-.data-layer-note h2 {
-  margin: 0 0 var(--zx-space-1);
-  font-size: var(--zx-text-lg);
-}
-
-.data-layer-note p {
-  margin: 0;
-  color: var(--zx-color-text-muted);
-}
-
-.data-layer-note code {
-  padding: 0.1em 0.35em;
-  border-radius: var(--zx-radius-sm);
-  background: var(--zx-color-bg-muted);
-  font-family: var(--zx-font-mono);
-  font-size: 0.9em;
-}
-
-.loading-copy {
-  margin: 0;
-  padding: var(--zx-space-6);
-  color: var(--zx-color-text-muted);
-  text-align: center;
+.site-footer__meta a:hover {
+  color: #fff;
 }
 
 /* ------------------------------------------------------------ responsive -- */
@@ -750,8 +673,4 @@ body.site-page > main {
     gap: var(--zx-space-6);
   }
 
-  .kitchen-main {
-    inline-size: calc(100% - (2 * var(--zx-space-3)));
-    padding-block: var(--zx-space-3);
-  }
 }
