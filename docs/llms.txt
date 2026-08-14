@@ -34,5 +34,9 @@ Load `zx.css` once; set `data-zx-theme` (`light`|`dark`|`auto`) and `data-zx-den
 ## Talking to ZeyOS
 Use the dedicated ZeyOS client library **`@zeyos/client`** (`npm install @zeyos/client`) for ZeyOS business data: `createZeyosClient({ platform, auth })`, typed `client.api.list/get/create/update<Resource>` over the full OpenAPI surface, `normalizeListResult`. It replaces the legacy `gx.zeyos.Client`/`gx.zeyos.Request`. See the `website/layouts/zeyos-invoices.layout.js` layout for a Zx-components-on-@zeyos/client reference. Zx also ships a minimal `Http`/`zeyosService` for ad-hoc in-app `remotecall`, but `@zeyos/client` is the recommended default.
 
+## Installing
+`npm install @zeyos/zx`. Entry points: `.` (components), `./zeyos` (ZeyOS binding), `./compat`
+(gx namespace), `./zx.css` (styles), `./global` (classic script tag). Docs: https://zx.zeyos.com
+
 ## Commands
 `npm run serve` (no-build documentation at http://127.0.0.1:8321/website/docs.html) · `npm test` (unit + token lint) · `npm run build` (dist bundles).

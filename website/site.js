@@ -25,6 +25,8 @@
     setUpOverlayHeader();
     markCurrentNavLink();
 
+    // Links marked as placeholders have no destination yet; keep them inert rather than
+    // navigating to the top of the page.
     document.querySelectorAll('[data-placeholder-link]').forEach((link) => {
       link.addEventListener('click', (event) => event.preventDefault());
     });

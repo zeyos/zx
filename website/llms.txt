@@ -75,6 +75,11 @@ existing ZeyOS screens keep running while their code is modernised file by file.
 `util`, `zeyos`, and `bootstrap` namespaces. See [gx compatibility](docs.html#components/gx-compat)
 and the [migration guide](../MIGRATION.md).
 
+## Installing
+`npm install @zeyos/zx` · `import { Table } from '@zeyos/zx'` · `import '@zeyos/zx/zx.css'`.
+Entry points: `.` (components), `./zeyos` (schema-driven ZeyOS binding), `./compat` (gx
+namespace), `./global` and `./compat-global` (classic script tags).
+
 ## Commands
 `npm run serve` (no-build site at http://127.0.0.1:8321/website/docs.html) · `npm test` (unit
-tests + token lint) · `npm run build` (dist bundles).
+tests + token lint) · `npm run build` (dist bundles) · `npm run build:site` (deployable site).

@@ -12,7 +12,9 @@ import { createServer } from 'node:http';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
+// Defaults to the repository root (no-build development); SERVE_ROOT points it at `site/` to
+// preview exactly what gets deployed.
+const root = resolve(fileURLToPath(new URL('..', import.meta.url)), process.env.SERVE_ROOT ?? '.');
 const host = process.env.HOST ?? '127.0.0.1';
 const port = Number(process.env.PORT ?? 8321);
 
@@ -49,7 +51,8 @@ const server = createServer((request, response) => {
 });
 
 server.listen(port, host, () => {
-  console.log(`Zx dev server: http://${host}:${port}/website/docs.html`);
+  const entry = process.env.SERVE_ROOT ? 'docs.html' : 'website/docs.html';
+  console.log(`Zx dev server (${root}): http://${host}:${port}/${entry}`);
 });
 
 /**

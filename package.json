@@ -1,15 +1,71 @@
 {
-  "name": "zx",
+  "name": "@zeyos/zx",
   "version": "2.0.0-alpha.0",
+  "description": "Dependency-free, accessible UI component library for ZeyOS business applications.",
   "type": "module",
-  "private": true,
+  "license": "MIT",
+  "homepage": "https://zx.zeyos.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zeyos/zx.git"
+  },
+  "bugs": {
+    "url": "https://github.com/zeyos/zx/issues"
+  },
+  "keywords": [
+    "zeyos",
+    "ui",
+    "components",
+    "design-system",
+    "accessibility",
+    "wai-aria",
+    "vanilla-js",
+    "erp"
+  ],
+  "sideEffects": [
+    "*.css",
+    "./dist/zx.global.js",
+    "./dist/zx.global.min.js",
+    "./dist/zx-compat.global.js",
+    "./dist/zx-compat.global.min.js"
+  ],
+  "exports": {
+    ".": "./dist/zx.esm.js",
+    "./zeyos": "./dist/zx-zeyos.esm.js",
+    "./compat": "./dist/zx-compat.esm.js",
+    "./global": "./dist/zx.global.js",
+    "./compat-global": "./dist/zx-compat.global.js",
+    "./zx.css": "./dist/zx.css",
+    "./zx.min.css": "./dist/zx.min.css",
+    "./dist/*": "./dist/*",
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/zx.esm.js",
+  "module": "./dist/zx.esm.js",
+  "style": "./dist/zx.css",
+  "files": [
+    "dist",
+    "docs/llms.md",
+    "docs/llms.txt",
+    "README.md",
+    "MIGRATION.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "serve": "node tools/serve.js",
+    "serve:site": "SERVE_ROOT=site node tools/serve.js",
     "build": "node tools/build.js",
-    "test": "node --test && node tests/lint-tokens.js"
+    "build:site": "node tools/build-site.js",
+    "test": "node --test && node tests/lint-tokens.js",
+    "prepublishOnly": "npm test && npm run build"
   },
   "devDependencies": {
     "esbuild": "latest"
-  },
-  "license": "MIT"
+  }
 }

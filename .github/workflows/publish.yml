@@ -1,0 +1,46 @@
+name: Publish to npm
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: Verify the package version matches the release tag
+        env:
+          TAG_NAME: ${{ github.event.release.tag_name }}
+        run: |
+          TAG="${TAG_NAME#v}"
+          PKG="$(node -p "require('./package.json').version")"
+          echo "release tag=$TAG  @zeyos/zx=$PKG"
+          if [ "$TAG" != "$PKG" ]; then
+            echo "Version mismatch: tag '$TAG' must equal the package version '$PKG'." >&2
+            exit 1
+          fi
+
+      - name: Install devDependencies (esbuild only)
+        run: npm ci || npm install
+
+      - name: Test (zero-dependency offline suite)
+        run: npm test
+
+      - name: Build distribution bundles
+        run: npm run build
+
+      - name: Publish @zeyos/zx
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

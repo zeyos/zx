@@ -196,9 +196,28 @@ tests, or build first and open <http://127.0.0.1:8321/tests/smoke/smoke-dist.htm
 classic-script distribution tests.
 
 ```sh
-npm test       # Node unit tests plus semantic-token lint
-npm run build  # writes ESM, global, compatibility, and CSS assets to dist/
+npm test           # Node unit tests plus semantic-token lint
+npm run build      # writes ESM, global, compatibility, and CSS assets to dist/
+npm run build:site # assembles the deployable documentation site into site/
+npm run serve:site # serves site/ exactly as it will be deployed
 ```
+
+## Installing
+
+```sh
+npm install @zeyos/zx
+```
+
+```js
+import { Table, Message } from '@zeyos/zx';
+import '@zeyos/zx/zx.css';
+```
+
+Additional entry points: `@zeyos/zx/zeyos` (the schema-driven ZeyOS binding), `@zeyos/zx/compat`
+(the gx compatibility namespace), and `@zeyos/zx/global` for classic script tags.
+
+Documentation lives at <https://zx.zeyos.com>; see `docs/RELEASING.md` for how the site and the
+package are published.
 
 ## `gx` compatibility layer
 
