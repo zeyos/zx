@@ -1,9 +1,10 @@
 # Zx
 
-Zx is the dependency-free, vanilla-JavaScript component library for the ZeyOS ERP. It replaces
-the MooTools-based `gx` libraries with ES2022 modules, accessible native controls, semantic design
-tokens, and lifecycle-safe components. Source modules run directly in a browser; the distribution
-also provides ESM and classic-script bundles.
+Zx is the dependency-free, vanilla-JavaScript component library for ZeyOS business applications:
+ES2022 modules, accessible native controls, semantic design tokens, and lifecycle-safe components.
+Source modules run directly in a browser; the distribution also provides ESM and classic-script
+bundles. An opt-in compatibility layer keeps existing MooTools-era `gx` code running while it is
+modernised.
 
 ## Quick start
 
@@ -184,9 +185,11 @@ npm install
 npm run serve
 ```
 
-Open <http://127.0.0.1:8321/website/components.html> for the component catalog,
-<http://127.0.0.1:8321/tests/smoke/smoke.html> for source-module smoke tests, or build first and
-open <http://127.0.0.1:8321/tests/smoke/smoke-dist.html> for classic-script distribution tests.
+Open <http://127.0.0.1:8321/website/docs.html> for the documentation — getting started, every
+component with a live demo and its JavaScript source, the application layouts, and the kitchen
+sink. Also available: <http://127.0.0.1:8321/tests/smoke/smoke.html> for source-module smoke
+tests, or build first and open <http://127.0.0.1:8321/tests/smoke/smoke-dist.html> for
+classic-script distribution tests.
 
 ```sh
 npm test       # Node unit tests plus semantic-token lint

@@ -1,8 +1,9 @@
 # Zx — Contributor Contract
 
-Zx is a dependency-free vanilla-JavaScript UI component library for the ZeyOS ERP, the successor
-to the MooTools-based "gx" library (which lives in the sibling directories `../gx-core`,
-`../gx-zeyos`, `../gx-bootstrap` — read-only reference material).
+Zx is a dependency-free vanilla-JavaScript UI component library for ZeyOS business applications.
+The MooTools-based "gx" library it replaces lives in the sibling directories `../gx-core`,
+`../gx-zeyos`, `../gx-bootstrap` — read-only reference material behind the opt-in compatibility
+layer in `src/compat/`.
 
 Every work package (WP) is specified in `specs/WP-*.md`. Implement exactly what the spec says;
 its "Out of scope" section is binding. Do not modify files outside the spec's file scope.
@@ -85,8 +86,17 @@ export default {
 };
 ```
 
-and is registered in `website/harness.js`'s demo list. Demos double as documentation: show the
-common options, wire visible event output (e.g. a small log element), keep them self-contained.
+and is registered in the `COMPONENT_IDS` list in `website/docs.js`. Demos double as documentation:
+show the common options, wire visible event output (e.g. a small log element), keep them
+self-contained. The documentation page shows each demo module's own source in a JavaScript tab, so
+write it as example code a reader can copy.
+
+## Layout examples
+
+`website/layouts/<name>.layout.js` holds whole application shells assembled from several
+components (master–detail, dashboard, wizard, settings). Same module shape as a demo plus a
+`blurb`, registered in the `LAYOUT_IDS` list in `website/docs.js`. Their shared classes
+(`.layout-frame`, `.layout-split`, `.stat-card`, …) live in `website/docs.css`.
 
 ## Definition of done (per WP)
 

@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="en" data-zx-theme="light" data-zx-density="cozy">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Zx documentation — getting started, every component with live demos and source, application layouts, and the ZeyOS kitchen sink.">
+    <title>Documentation — Zx</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="../styles/zx.css">
+    <link rel="stylesheet" href="site.css">
+    <link rel="stylesheet" href="docs.css">
+    <script src="site.js"></script>
+  </head>
+  <body class="zx-scope site-page">
+    <header class="site-header">
+      <div class="site-header__inner">
+        <a class="site-brand" href="index.html" aria-label="Zx home">
+          <img class="brand-logo--light" src="assets/zx-logo.svg" alt="Zx">
+          <img class="brand-logo--dark" src="assets/zx-logo-dark.svg" alt="Zx">
+        </a>
+        <nav class="site-nav" aria-label="Primary">
+          <a href="index.html">Home</a>
+          <a href="docs.html">Documentation</a>
+          <a href="docs.html#components">Components</a>
+          <a href="docs.html#layouts">Layouts</a>
+          <a href="kitchen-sink.html">Kitchen sink</a>
+          <a href="#" data-placeholder-link title="Repository link coming soon">GitHub</a>
+        </nav>
+        <button class="theme-toggle" type="button" data-theme-toggle>
+          <span class="theme-toggle__icon" data-theme-icon aria-hidden="true">☾</span>
+          <span data-theme-label>Dark</span>
+        </button>
+      </div>
+    </header>
+
+    <div id="docs-app">
+      <p class="loading-copy">Loading the documentation…</p>
+    </div>
+    <noscript>The Zx documentation runs the real components, so it requires JavaScript.</noscript>
+
+    <!-- ------------------------------------------------------------- guides -- -->
+
+    <template
+      data-guide="introduction"
+      data-title="Introduction"
+      data-blurb="Zx is the dependency-free UI toolkit behind ZeyOS business screens: 30+ accessible components in plain ES modules.">
+      <h2>What Zx is</h2>
+      <p>
+        Zx is a component library for building business software: dense data screens, long forms,
+        modal workflows, and the application shells around them. It ships as plain ES2022 modules
+        with <strong>no runtime dependencies</strong> — no framework, no bundler, no package to keep
+        on a security treadmill. The same source you read here runs unchanged in the browser.
+      </p>
+      <p>
+        Everything is built on native platform features: <code>&lt;dialog&gt;</code>, the popover
+        attribute, <code>ElementInternals</code>, <code>:has()</code>, and CSS custom properties.
+        Components follow the WAI-ARIA Authoring Practices patterns, so keyboard support and screen
+        reader semantics come from the pattern rather than from bolted-on attributes.
+      </p>
+
+      <h2>How this documentation is organised</h2>
+      <ul>
+        <li><strong>Getting started</strong> — installation, the mental model, theming, and how to
+          talk to ZeyOS.</li>
+        <li><strong>Components</strong> — every component with a live demo, its complete JavaScript
+          source, and the API reference. It also covers the general-purpose
+          <a href="#components/helpers">helper functions</a> and the
+          <a href="#components/gx-compat">gx compatibility layer</a>.</li>
+        <li><strong>Layouts</strong> — four complete application shells assembled from those
+          components, each with its full source.</li>
+        <li><strong>Kitchen sink</strong> — a real ZeyOS invoices screen driven by a live schema.</li>
+      </ul>
+
+      <div class="docs-callout">
+        <p>
+          Building with an AI agent? <a href="llms.txt">llms.txt</a> is the machine-readable index,
+          and <a href="../docs/llms.md">docs/llms.md</a> is the full agent reference — the same text
+          the <strong>Reference</strong> tab shows for each component.
+        </p>
+      </div>
+
+      <h2>Browser support</h2>
+      <p>
+        Evergreen browsers from roughly 2023 onwards: Chrome and Edge 114+, Firefox 121+, Safari
+        17+. There is no transpilation step and no polyfill bundle.
+      </p>
+    </template>
+
+    <template
+      data-guide="installation"
+      data-title="Installation"
+      data-blurb="Add the stylesheet and the modules — or drop the global bundle into a classic ZeyOS screen.">
+      <h2>Bundles</h2>
+      <p>
+        <code>npm run build</code> writes four artefacts to <code>dist/</code>. Pick the one that
+        matches how the host application loads code:
+      </p>
+      <table>
+        <thead>
+          <tr><th>File</th><th>Format</th><th>Use it when</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>zx.esm.js</code></td>
+            <td>ES module</td>
+            <td>The application uses <code>import</code> — the default choice.</td>
+          </tr>
+          <tr>
+            <td><code>zx.global.js</code></td>
+            <td>IIFE → <code>window.zx</code></td>
+            <td>A classic screen with plain <code>&lt;script&gt;</code> tags.</td>
+          </tr>
+          <tr>
+            <td><code>zx-compat.global.js</code></td>
+            <td>IIFE → <code>window.gx</code></td>
+            <td>Legacy gx code should keep running unchanged.</td>
+          </tr>
+          <tr>
+            <td><code>zx.css</code></td>
+            <td>Stylesheet</td>
+            <td>Always. Load it once per document.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>ES modules</h2>
+      <pre data-code="index.html">
+&lt;link rel="stylesheet" href="/assets/zx.css"&gt;
+&lt;body class="zx-scope"&gt;
+  &lt;script type="module"&gt;
+    import { Table, Message } from '/assets/zx.esm.js';
+
+    const table = new Table('#records', {
+      columns: [
+        { id: 'number', label: 'Number', sortable: true, width: '1fr' },
+        { id: 'customer', label: 'Customer', sortable: true, width: '2fr' }
+      ],
+      data: records,
+      rowId: 'ID',
+      sortMode: 'local',
+      onrowclick: (event) =&gt; Message.info('Opening ' + event.detail.row.number)
+    });
+  &lt;/script&gt;
+&lt;/body&gt;
+      </pre>
+
+      <h2>Global script</h2>
+      <p>
+        The global bundle exposes the identical API under <code>window.zx</code>, which is what
+        classic ZeyOS screens use.
+      </p>
+      <pre data-code="legacy-screen.html">
+&lt;link rel="stylesheet" href="/assets/zx.css"&gt;
+&lt;script src="/assets/zx.global.js"&gt;&lt;/script&gt;
+&lt;script&gt;
+  var toggle = new zx.Toggle(null, { label: 'Notifications', checked: true });
+  document.body.append(toggle.toElement());
+&lt;/script&gt;
+      </pre>
+
+      <h2>The <code>zx-scope</code> class</h2>
+      <p>
+        Base typography, box sizing, and the default chrome for unstyled native controls live under
+        <code>.zx-scope</code>. Put it on <code>&lt;body&gt;</code> — or on a single container when
+        Zx has to coexist with another design system on the same page.
+      </p>
+
+      <h2>Running this site locally</h2>
+      <pre data-code="terminal">
+npm run serve   # http://127.0.0.1:8321/website/docs.html
+npm test        # unit tests + design-token lint
+npm run build   # dist/ bundles
+      </pre>
+      <p>
+        No build step is required to develop: the server serves the source modules and the browser
+        imports them directly.
+      </p>
+    </template>
+
+    <template
+      data-guide="quick-start"
+      data-title="Quick start"
+      data-blurb="One constructor signature, one event convention, one teardown method — every component works the same way.">
+      <h2>Constructing a component</h2>
+      <p>
+        Every component takes the same two arguments: a target and an options object.
+      </p>
+      <pre data-code="constructor.js">
+new Component(target, options)
+      </pre>
+      <p><code>target</code> can be:</p>
+      <ul>
+        <li>an <strong>Element</strong> — the component takes it over and renders into it;</li>
+        <li>a <strong>selector string</strong> — resolved with <code>querySelector</code>;</li>
+        <li><strong><code>null</code></strong> — the component builds and owns its own root, which
+          you retrieve with <code>.toElement()</code> and place yourself.</li>
+      </ul>
+      <pre data-code="quick-start.js">
+import { Select, Message } from '/assets/zx.esm.js';
+
+const select = new Select(null, {
+  items: [
+    { ID: 'open', name: 'Open' },
+    { ID: 'paid', name: 'Paid' }
+  ],
+  value: 'open',
+  filter: 'local',
+  placeholder: 'Find a status'
+});
+
+document.querySelector('#status').append(select.toElement());
+      </pre>
+
+      <h2>Events</h2>
+      <p>
+        Subscribe with <code>.on(type, handler)</code>, or pass an <code>on&lt;type&gt;</code>
+        option to the constructor. Handlers receive a <code>CustomEvent</code> whose
+        <code>detail</code> is a plain object. Event names are lowercase and carry no
+        <code>on</code> prefix.
+      </p>
+      <pre data-code="events.js">
+select.on('change', (event) =&gt; {
+  Message.success('Status: ' + event.detail.item.name);
+});
+
+// …identical to:
+new Select(null, {
+  onchange: (event) =&gt; Message.success('Status: ' + event.detail.item.name)
+});
+      </pre>
+      <p>
+        Each emit also dispatches a bubbling, composed <code>zx-&lt;type&gt;</code> event on the
+        component's root element, so an ancestor can listen without holding the instance:
+      </p>
+      <pre data-code="delegated.js">
+document.querySelector('#workspace').addEventListener('zx-change', (event) =&gt; {
+  console.log(event.target, event.detail);
+});
+      </pre>
+
+      <h2>Teardown</h2>
+      <p>
+        Call <code>.destroy()</code> when a screen closes. It aborts every listener the component
+        registered and removes the nodes it created, leaving the DOM as it found it. Creating and
+        destroying a component twice on the same target is safe.
+      </p>
+      <pre data-code="teardown.js">
+select.destroy();
+      </pre>
+
+      <h2>Composing helpers</h2>
+      <p>
+        <code>h()</code> builds elements, <code>icon()</code> returns an inline SVG, and
+        <code>button()</code> is a plain factory rather than a class. See
+        <a href="#components/helpers">Helper functions</a> for the full surface.
+      </p>
+      <pre data-code="compose.js">
+import { h, button, icon } from '/assets/zx.esm.js';
+
+const toolbar = h('div', { class: 'toolbar' },
+  button({ label: 'New invoice', kind: 'primary', icon: 'plus', onclick: create }),
+  button({ label: 'Refresh', icon: 'reload', onclick: reload })
+);
+      </pre>
+    </template>
+
+    <template
+      data-guide="theming"
+      data-title="Theming"
+      data-blurb="Two attributes switch light/dark and cozy/compact. A product theme is a short list of semantic token overrides.">
+      <h2>Switching theme and density</h2>
+      <p>
+        Set <code>data-zx-theme</code> (<code>light</code>, <code>dark</code>, <code>auto</code>)
+        and <code>data-zx-density</code> (<code>cozy</code>, <code>compact</code>) on any ancestor —
+        usually <code>&lt;html&gt;</code>. Both cascade, so a single dense panel inside a cozy
+        application is just another attribute.
+      </p>
+      <pre data-code="theme.html">
+&lt;html data-zx-theme="dark" data-zx-density="compact"&gt;
+      </pre>
+
+      <h2>The token tiers</h2>
+      <p>
+        Colours are defined once as a <strong>tier-1 palette</strong>
+        (<code>--zx-gray-*</code>, <code>--zx-green-*</code>, …) and mapped to
+        <strong>tier-2 semantic tokens</strong> that describe a role rather than a hue. Components —
+        and application CSS — may only use the semantic tier. <code>tests/lint-tokens.js</code>
+        enforces this, which is what makes retheming a one-file change.
+      </p>
+      <table>
+        <thead><tr><th>Token</th><th>Role</th></tr></thead>
+        <tbody>
+          <tr><td><code>--zx-color-bg-page</code></td><td>Application background</td></tr>
+          <tr><td><code>--zx-color-bg-surface</code></td><td>Cards, panels, headers</td></tr>
+          <tr><td><code>--zx-color-bg-raised</code></td><td>Menus, popovers, toolbars</td></tr>
+          <tr><td><code>--zx-color-bg-muted</code></td><td>Inline code, table headers</td></tr>
+          <tr><td><code>--zx-color-bg-hover</code></td><td>Hover and pressed fills</td></tr>
+          <tr><td><code>--zx-color-bg-selected</code></td><td>Selected rows and items</td></tr>
+          <tr><td><code>--zx-color-border</code></td><td>Structural separators</td></tr>
+          <tr><td><code>--zx-color-border-control</code></td><td>Input and button outlines</td></tr>
+          <tr><td><code>--zx-color-text</code> / <code>-muted</code></td><td>Body and secondary text</td></tr>
+          <tr><td><code>--zx-color-accent</code></td><td>Primary actions and selection</td></tr>
+          <tr><td><code>--zx-color-danger</code> / <code>-warning</code> / <code>-success</code> / <code>-info</code></td><td>Status colours, each with a matching <code>-bg</code></td></tr>
+          <tr><td><code>--zx-control-height</code> / <code>-radius</code> / <code>-pad-x</code></td><td>Control geometry</td></tr>
+          <tr><td><code>--zx-focus-ring</code></td><td>The <code>:focus-visible</code> box shadow</td></tr>
+        </tbody>
+      </table>
+      <p>
+        The <a href="#components/tokens">Design tokens</a> entry renders every one of them live.
+      </p>
+
+      <h2>Defining a product theme</h2>
+      <p>
+        Override semantic tokens under a named theme attribute. Nothing else changes — every
+        component picks the new values up.
+      </p>
+      <pre data-code="product-theme.css">
+[data-zx-theme="acme"] {
+  color-scheme: light;
+  --zx-color-accent: #2a66ab;
+  --zx-color-accent-hover: #1d4c80;
+  --zx-color-on-accent: #ffffff;
+  --zx-color-bg-page: #f7f8fa;
+  --zx-radius: 0.25rem;
+}
+      </pre>
+
+      <h2>Where the current theme comes from</h2>
+      <p>
+        The stock light and dark themes follow the shadcn/ui <em>Nova · Zinc</em> preset: a Zinc
+        neutral ramp, <code>0.45rem</code> corner radius, Inter, 32px controls, and a three-pixel
+        translucent focus ring. The accent is the ZeyOS green, tuned across the preset's Emerald
+        ramp so it stays legible on both surfaces.
+      </p>
+
+      <h2>Module accents</h2>
+      <p>
+        ZeyOS module colours ship as <code>--zx-module-*</code> tokens.
+        <code>MasterPanel</code> and <code>NavigationBar</code> accept a <code>module</code> option
+        (<code>billing</code>, <code>projects</code>, <code>tickets</code>, …) and colour their
+        header accordingly.
+      </p>
+    </template>
+
+    <template
+      data-guide="zeyos-data"
+      data-title="Talking to ZeyOS"
+      data-blurb="Use @zeyos/client for business data, and zx-zeyos to generate typed tables, forms, and pickers from its schema.">
+      <h2>The client</h2>
+      <p>
+        Business data comes from the dedicated ZeyOS client library,
+        <strong><code>@zeyos/client</code></strong>: a zero-dependency ESM OpenAPI client covering
+        the whole ZeyOS surface. Zx does not wrap it, bundle it, or depend on it — you construct it
+        and hand it in.
+      </p>
+      <pre data-code="client.js">
+import { createZeyosClient } from '@zeyos/client';
+
+const client = createZeyosClient({
+  platform: 'https://cloud.zeyos.com/your-instance/',
+  auth: { mode: 'session', session: { enabled: true, credentials: 'include' } }
+});
+
+const invoices = await client.api.listTransactions({ limit: 25 });
+      </pre>
+      <p>
+        Note the ZeyOS naming: invoices live under <code>transactions</code> and customers under
+        <code>accounts</code>. Client instances are frozen — never attach properties to them.
+      </p>
+
+      <h2>The zx-zeyos binding</h2>
+      <p>
+        <code>src/zeyos/</code> is an optional, injection-based layer between Zx and the client. It
+        reads <code>client.schema</code> at runtime and generates fully typed UI: date fields become
+        dateboxes, enums become selects, foreign keys become entity pickers.
+      </p>
+      <pre data-code="zeyos-binding.js">
+import { zeyosTable, zeyosForm } from '/assets/zx-zeyos.esm.js';
+
+const list = zeyosTable(client, 'transactions', {
+  fields: ['transactionnum', 'account', 'date', 'netamount', 'status'],
+  pageSize: 25,
+  sort: { id: 'date', dir: 'desc' },
+  onRowClick: (row) =&gt; openEditor(row.ID)
+});
+
+await list.load({ search: '', filters: {} });
+document.querySelector('#invoices').append(list.table);
+      </pre>
+      <p>
+        The binding ships as a separate <code>dist/zx-zeyos.esm.js</code> bundle and is never
+        imported by <code>src/index.js</code>, so the core stays dependency-free. Query rules worth
+        remembering: <code>filters</code> is plural, dates are Unix <em>seconds</em>, and
+        <code>visibility: 0</code> is the default scope.
+      </p>
+
+      <h2>Ad-hoc calls</h2>
+      <p>
+        For in-app <code>remotecall</code>-style requests that are not part of the OpenAPI surface,
+        Zx ships a minimal <code>Http</code> / <code>zeyosService</code> helper. For anything that
+        maps to a ZeyOS resource, prefer <code>@zeyos/client</code>.
+      </p>
+
+      <div class="docs-callout">
+        <p>
+          The <a href="#kitchen-sink/invoices">Kitchen sink</a> is the reference integration: a
+          complete invoices screen generated from the real <code>transactions</code> and
+          <code>accounts</code> schemas, with server-side filtering, sorting, and paging.
+        </p>
+      </div>
+    </template>
+
+    <template
+      data-guide="accessibility"
+      data-title="Accessibility"
+      data-blurb="Every interactive component implements a named WAI-ARIA Authoring Practices pattern, keyboard map included.">
+      <h2>Patterns, not attributes</h2>
+      <p>
+        Each interactive component is built to a specific APG pattern rather than having ARIA
+        sprinkled on afterwards: <code>Select</code> is an editable combobox,
+        <code>MenuButton</code> is a menu button, <code>Tabbox</code> is a tab list,
+        <code>Dialog</code> is a modal dialog on top of native <code>&lt;dialog&gt;</code>.
+        The pattern brings its full keyboard map with it.
+      </p>
+
+      <h2>State lives in ARIA</h2>
+      <p>
+        Components express state through ARIA attributes and <code>data-state</code> — never
+        through state classes — and style themselves from those same attributes
+        (<code>[aria-expanded="true"]</code>, <code>[aria-selected="true"]</code>,
+        <code>[data-state="open"]</code>). What a screen reader announces and what you see are
+        driven by one source of truth.
+      </p>
+
+      <h2>Focus</h2>
+      <p>
+        Focus styling uses <code>:focus-visible</code> with the <code>--zx-focus-ring</code> token,
+        so keyboard users get a ring and mouse users do not. Overlays trap focus with
+        <code>focusTrap()</code> and restore it to the trigger on close. Roving tabindex and
+        typeahead are available as helpers for custom widgets.
+      </p>
+
+      <h2>Motion</h2>
+      <p>
+        All non-essential animation sits behind
+        <code>@media (prefers-reduced-motion: no-preference)</code>, and the base stylesheet
+        collapses transitions entirely when a reduced-motion preference is set.
+      </p>
+
+      <h2>Contrast</h2>
+      <p>
+        Both stock themes are checked against WCAG AA for body text, muted text, status colours, and
+        text on accent fills. If you define a product theme, re-check the accent pair —
+        <code>--zx-color-accent</code> against <code>--zx-color-on-accent</code> — because that is
+        the one that usually slips.
+      </p>
+    </template>
+
+    <script type="module" src="docs.js"></script>
+
+    <footer class="site-footer">
+      <div class="site-footer__inner">
+        <div class="site-footer__brand">
+          <img src="assets/zx-logo-dark.svg" alt="Zx">
+          <p>The dependency-free, accessible UI toolkit for ZeyOS business applications.</p>
+        </div>
+        <nav aria-labelledby="footer-docs">
+          <h2 id="footer-docs">Documentation</h2>
+          <ul>
+            <li><a href="docs.html#getting-started">Getting started</a></li>
+            <li><a href="docs.html#components">Components</a></li>
+            <li><a href="docs.html#layouts">Layouts</a></li>
+            <li><a href="kitchen-sink.html">Kitchen sink</a></li>
+          </ul>
+        </nav>
+        <nav aria-labelledby="footer-project">
+          <h2 id="footer-project">Project</h2>
+          <ul>
+            <li><a href="../README.md">README</a></li>
+            <li><a href="../MIGRATION.md">Migration guide</a></li>
+            <li><a href="../docs/DESIGN-NOTES.md">Design notes</a></li>
+            <li><a href="../AGENTS.md">Contributor contract</a></li>
+          </ul>
+        </nav>
+        <nav aria-labelledby="footer-agents">
+          <h2 id="footer-agents">For agents</h2>
+          <ul>
+            <li><a href="llms.txt">llms.txt</a></li>
+            <li><a href="../docs/llms.md">Agent reference</a></li>
+            <li><a href="../.claude/skills/zx/SKILL.md">Zx skill</a></li>
+            <li><a href="compat.html">gx compatibility</a></li>
+          </ul>
+        </nav>
+      </div>
+      <div class="site-footer__base">
+        <div class="site-footer__inner">
+          <p>MIT licensed. Built for ZeyOS.</p>
+          <div class="site-footer__meta">
+            <a href="llms.txt">llms.txt</a>
+            <a href="index.html">Home</a>
+            <a href="#" data-placeholder-link>GitHub</a>
+          </div>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

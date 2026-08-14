@@ -1,7 +1,7 @@
 [data-zx-density="compact"] {
-  --zx-control-height: 26px;
+  --zx-control-height: 28px;
   --zx-control-pad-x: var(--zx-space-2);
-  --zx-text-md: 12.5px;
+  --zx-text-md: 13px;
   --zx-space-1: 3px;
   --zx-space-2: 6px;
   --zx-space-3: 10px;

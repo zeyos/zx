@@ -11,8 +11,13 @@
   padding-inline: var(--zx-control-pad-x);
   font: inherit;
   font-size: var(--zx-control-font-size);
+  font-weight: var(--zx-control-font-weight);
   line-height: 1;
   cursor: pointer;
+  transition: color var(--zx-dur-fast) var(--zx-ease),
+    background-color var(--zx-dur-fast) var(--zx-ease),
+    border-color var(--zx-dur-fast) var(--zx-ease),
+    box-shadow var(--zx-dur-fast) var(--zx-ease);
 }
 
 .zx-btn:hover:not(:disabled) {
@@ -59,12 +64,12 @@
 }
 
 .zx-btn[data-kind="ghost"] {
-  border-color: var(--zx-color-bg-control);
+  border-color: transparent;
   background: none;
 }
 
 .zx-btn[data-kind="ghost"]:hover:not(:disabled) {
-  border-color: var(--zx-color-bg-hover);
+  border-color: transparent;
   background: var(--zx-color-bg-hover);
 }
 

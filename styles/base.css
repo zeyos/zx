@@ -13,6 +13,7 @@
   font-family: var(--zx-font-sans);
   font-size: var(--zx-text-md);
   line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
   scrollbar-gutter: stable;
 }
 
@@ -37,6 +38,14 @@
   color: var(--zx-color-text);
   font: inherit;
   font-size: var(--zx-control-font-size);
+  transition: color var(--zx-dur-fast) var(--zx-ease),
+    background-color var(--zx-dur-fast) var(--zx-ease),
+    border-color var(--zx-dur-fast) var(--zx-ease),
+    box-shadow var(--zx-dur-fast) var(--zx-ease);
+}
+
+:where(.zx-scope button:not(.zx-icon-btn)) {
+  font-weight: var(--zx-control-font-weight);
 }
 
 :where(.zx-scope button:not(.zx-icon-btn), .zx-scope select, .zx-scope textarea),

@@ -15,14 +15,16 @@
 <body class="zx-scope site-page">
   <header class="site-header">
     <div class="site-header__inner">
-      <a class="site-brand" href="./" aria-label="Zx home">
-        <img class="brand-logo--light" src="assets/zx-logo.svg" alt="">
-        <img class="brand-logo--dark" src="assets/zx-logo-dark.svg" alt="">
+      <a class="site-brand" href="index.html" aria-label="Zx home">
+        <img class="brand-logo--light" src="assets/zx-logo.svg" alt="Zx">
+        <img class="brand-logo--dark" src="assets/zx-logo-dark.svg" alt="Zx">
       </a>
       <nav class="site-nav" aria-label="Primary">
-        <a href="../docs/llms.md">Docs</a>
-        <a href="components.html">Components</a>
-        <a href="kitchen-sink.html" data-nav-kitchen>Kitchen sink</a>
+        <a href="index.html">Home</a>
+        <a href="docs.html">Documentation</a>
+        <a href="docs.html#components">Components</a>
+        <a href="docs.html#layouts">Layouts</a>
+        <a href="kitchen-sink.html">Kitchen sink</a>
         <a href="#" data-placeholder-link title="Repository link coming soon">GitHub</a>
       </nav>
       <button class="theme-toggle" type="button" data-theme-toggle>
@@ -35,6 +37,19 @@
   <main class="kitchen-main">
     <div id="invoice-app"></div>
   </main>
+
+  <footer class="site-footer">
+    <div class="site-footer__base">
+      <div class="site-footer__inner">
+        <p>MIT licensed. Built for ZeyOS.</p>
+        <div class="site-footer__meta">
+          <a href="llms.txt">llms.txt</a>
+          <a href="docs.html">Documentation</a>
+          <a href="index.html">Home</a>
+        </div>
+      </div>
+    </div>
+  </footer>
 
   <script type="module">
     import {

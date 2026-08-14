@@ -1,3 +1,7 @@
+/*
+ * Shared site chrome: theme persistence, the overlay-header scroll state, and nav highlighting.
+ * Loaded as a classic script in <head> so the theme is applied before first paint.
+ */
 (function () {
   'use strict';
 
@@ -17,14 +21,26 @@
     : (preferredDark ? 'dark' : 'light');
 
   function ready() {
+    setUpThemeToggles();
+    setUpOverlayHeader();
+    markCurrentNavLink();
+
+    document.querySelectorAll('[data-placeholder-link]').forEach((link) => {
+      link.addEventListener('click', (event) => event.preventDefault());
+    });
+  }
+
+  /** Wires every `[data-theme-toggle]` button to flip and persist the site theme. */
+  function setUpThemeToggles() {
     const themeButtons = document.querySelectorAll('[data-theme-toggle]');
-    const updateThemeButtons = () => {
+    const update = () => {
       const dark = root.dataset.zxTheme === 'dark';
       themeButtons.forEach((button) => {
         const icon = button.querySelector('[data-theme-icon]');
         const label = button.querySelector('[data-theme-label]');
-        button.setAttribute('aria-label', dark ? 'Switch to light theme' : 'Switch to dark theme');
-        button.setAttribute('title', dark ? 'Switch to light theme' : 'Switch to dark theme');
+        const title = dark ? 'Switch to light theme' : 'Switch to dark theme';
+        button.setAttribute('aria-label', title);
+        button.setAttribute('title', title);
         if (icon) icon.textContent = dark ? '☀' : '☾';
         if (label) label.textContent = dark ? 'Light' : 'Dark';
       });
@@ -38,19 +54,55 @@
         } catch {
           // The theme still works for the current page when persistence is blocked.
         }
-        updateThemeButtons();
+        update();
       });
     });
-    updateThemeButtons();
+    update();
+  }
 
-    const kitchenLink = document.querySelector('[data-nav-kitchen]');
-    if (kitchenLink && window.location.pathname.endsWith('/kitchen-sink.html')) {
-      kitchenLink.setAttribute('aria-current', 'page');
-    }
+  /**
+   * The home page header floats transparently over the dark hero and turns solid once the page
+   * scrolls past it, the way the ZeyOS site behaves.
+   */
+  function setUpOverlayHeader() {
+    const header = document.querySelector('.site-header--overlay');
+    if (!header) return;
+    const sync = () => {
+      if (window.scrollY > 24) header.setAttribute('data-scrolled', '');
+      else header.removeAttribute('data-scrolled');
+    };
+    window.addEventListener('scroll', sync, { passive: true });
+    sync();
+  }
 
-    document.querySelectorAll('[data-placeholder-link]').forEach((link) => {
-      link.addEventListener('click', (event) => event.preventDefault());
-    });
+  /**
+   * Flags one nav entry as the current page. Several entries can point at the same document with
+   * different hashes (Documentation / Components / Layouts all live in docs.html), so an exact
+   * path+hash match wins; otherwise the hash-less entry for this document does.
+   */
+  function markCurrentNavLink() {
+    const links = [...document.querySelectorAll('.site-nav a[href]')]
+      .filter((link) => !link.getAttribute('href').startsWith('#'));
+    if (links.length === 0) return;
+    const page = window.location.pathname.split('/').pop() || 'index.html';
+    const parts = (link) => {
+      const [path, hash = ''] = link.getAttribute('href').split('#');
+      return { page: path.split('/').pop() || 'index.html', hash };
+    };
+
+    const sync = () => {
+      const hash = window.location.hash.replace(/^#/, '');
+      const here = links.filter((link) => parts(link).page === page);
+      const current = here.find((link) => parts(link).hash && hash.startsWith(parts(link).hash))
+        ?? here.find((link) => !parts(link).hash);
+      links.forEach((link) => {
+        if (link === current) link.setAttribute('aria-current', 'page');
+        else link.removeAttribute('aria-current');
+      });
+    };
+
+    window.addEventListener('hashchange', sync);
+    sync();
   }
 
   if (document.readyState === 'loading') {

@@ -1,11 +1,11 @@
 # Zx — agent reference
 
-> Zx is the dependency-free, vanilla-JavaScript UI component library for the ZeyOS ERP, the
-> successor to the MooTools-based "gx" libraries. ES2022 modules, WAI-ARIA-accessible native
-> controls, semantic `--zx-*` design tokens (light/dark + cozy/compact), and lifecycle-safe
-> components. Zero runtime dependencies. This file is the single, complete reference a coding agent
-> needs to build UI with Zx; each component below is wrapped in `<!-- doc:<name> -->` markers so
-> tools can extract a single component's section.
+> Zx is the dependency-free, vanilla-JavaScript UI component library for ZeyOS business
+> applications. ES2022 modules, WAI-ARIA-accessible native controls, semantic `--zx-*` design
+> tokens (light/dark + cozy/compact), and lifecycle-safe components. Zero runtime dependencies.
+> This file is the single, complete reference a coding agent needs to build UI with Zx; each
+> component below is wrapped in `<!-- doc:<name> -->` markers so tools can extract a single
+> component's section (`website/docs.html` renders them as each component's Reference tab).
 
 ## Mental model
 
@@ -150,10 +150,12 @@ reflection and ElementInternals form association: `<zx-toggle>`, `<zx-check-butt
 
 ## gx compatibility
 
-Load `zx.global.js` then `zx-compat.global.js` → `window.gx.{core,ui,util,zeyos,bootstrap}` wrapping
-Zx components (constructor/option/event-name translation, MooTools-style `addEvent`).
-`gx.compat.installGlobals()` (opt-in) installs `__()`, `_()`, `String.htmlSpecialChars`, and the
-element `store/retrieve` shim. See `MIGRATION.md` for the class map and unsupported legacy APIs.
+Load `zx-compat.global.js` (or import `zx-compat.esm.js`) →
+`window.gx.{core,ui,util,zeyos,bootstrap}` wrapping Zx components (constructor/option/event-name
+translation, MooTools-style `addEvent`). `gx.compat.installGlobals()` (opt-in) installs `__()`,
+`_()`, `String.htmlSpecialChars`, and the element `store/retrieve` shim. Full namespace listing in
+the "gx compatibility layer" component section below; class map and unsupported legacy APIs in
+`MIGRATION.md`.
 
 ## Conventions (editing component source)
 
@@ -168,10 +170,11 @@ pattern with `:focus-visible` rings and `prefers-reduced-motion` guards.
 ```
 src/components/<name>/   component + CSS      src/core/   kernel (component, dom, http, i18n, date…)
 src/compat/              gx compat layer      styles/     tokens + base.css
-website/                 site + component catalog + kitchen sink   specs/  per-component build specs
+website/                 marketing page + docs.html (docs.js) + kitchen sink   specs/  build specs
+website/demos/           per-component demo modules    website/layouts/  application layout examples
 tests/                   node unit + smoke    dist/       built bundles
 
-npm run serve   # http://127.0.0.1:8321/website/components.html  (no build)
+npm run serve   # http://127.0.0.1:8321/website/docs.html  (no build)
 npm test        # node --test tests/unit/*.test.js  +  node tests/lint-tokens.js
 npm run build   # dist/: zx.esm.js, zx.global.js (window.zx), zx-compat.global.js (window.gx), zx.css
 ```
@@ -255,7 +258,7 @@ Button opening a `role="menu"`. Options: `label`, `icon`, `kind`, `items: [{ lab
 
 <!-- doc:table -->
 ### Table
-Sortable, selectable, sticky-header data table (single successor to gx.ui.Table + SimpleTable). Options: `columns: [{ id, label, sortable?, width ('120px'|'2fr'|'auto'), align, render?: (row,i)=>Node|string, sortValue?, headerTitle? }]`, `data`, `rowId: 'ID'`, `sort: { id, dir }`, `sortMode: 'local'|'server'`, `selectable: false|'single'|'multi'`, `stickyHeader: true`, `height`, `emptyText`, `rowClass`, `zebra: true`. Methods: `setData()`, `addData()`, `updateRow(id,row)`, `removeRow(id)`, `getRow(id)`, `getData()`, `empty()`, `setSort(id,dir)`, `getSelection()`, `setSelection(ids)`, `clearSelection()`, `setLoading(bool)` (busy/skeleton state — dims rows, shows an indeterminate top bar, sets `aria-busy`; auto-cleared by `setData`). Events: `rowclick {row, id, index, event}`, `rowdblclick`, `sort {id, dir}`, `selectionchange {rows, ids}`, `datachange {rows}`. `fr` widths fill the container; px/auto widths scroll horizontally. Multi-select adds a tri-state header checkbox and Shift+click range select.
+Sortable, selectable, sticky-header data table (one component covering both legacy gx.ui.Table and SimpleTable). Options: `columns: [{ id, label, sortable?, width ('120px'|'2fr'|'auto'), align, render?: (row,i)=>Node|string, sortValue?, headerTitle? }]`, `data`, `rowId: 'ID'`, `sort: { id, dir }`, `sortMode: 'local'|'server'`, `selectable: false|'single'|'multi'`, `stickyHeader: true`, `height`, `emptyText`, `rowClass`, `zebra: true`. Methods: `setData()`, `addData()`, `updateRow(id,row)`, `removeRow(id)`, `getRow(id)`, `getData()`, `empty()`, `setSort(id,dir)`, `getSelection()`, `setSelection(ids)`, `clearSelection()`, `setLoading(bool)` (busy/skeleton state — dims rows, shows an indeterminate top bar, sets `aria-busy`; auto-cleared by `setData`). Events: `rowclick {row, id, index, event}`, `rowdblclick`, `sort {id, dir}`, `selectionchange {rows, ids}`, `datachange {rows}`. `fr` widths fill the container; px/auto widths scroll horizontally. Multi-select adds a tri-state header checkbox and Shift+click range select.
 <!-- /doc -->
 
 <!-- doc:data-filter -->
@@ -319,6 +322,25 @@ Application navigation bar (brand + items + right-aligned actions). Options: `ti
 <!-- doc:kernel -->
 ### Core helpers
 `Component` (base: `on/off/once/emit`, `listen`, `toElement`, `msg`, `destroy`, static `from(el)`). `h(tag, props, ...children)`, `h.raw(html)`, `htmlEscape`, `resolveElement`. `icon(name, {size,label})`, `icons` (Font Awesome Free solid). `position(anchor, floating, {placement, offset, flip, matchWidth})` → `{update, destroy}`. i18n: `setTranslator`, `setLanguage`, `getLanguage`, `translate`, `printf`. Dates: `formatDate(d, fmt)`, `parseDate(s, fmt)` (tokens `%d %m %Y %y %H %M %S %a %A %b %B %s`), `clampDate`, `isSameDay`, `addDays`, `addMonths`, `getWeekStart`. Keyboard: `focusTrap`, `rovingTabindex`, `typeahead`. Utils: `debounce`, `uid`, `deepMerge`, `isElement`, `clamp`, `toArray`.
+<!-- /doc -->
+
+<!-- doc:helpers -->
+### Helper functions
+Standalone exports with no DOM ownership and no lifecycle, importable individually from the same entry point as the components.
+**Dates** — `formatDate(date, fmt)`, `parseDate(str, fmt)` (returns `null` when the string does not match, so it doubles as a validator), `clampDate(date, min, max)`, `isSameDay(a, b)`, `addDays(date, n)`, `addMonths(date, n)`, `getWeekStart(lang?)` → `0` (Sunday) or `1` (Monday). strftime-style tokens: `%d %m %Y %y %H %M %S %a %A %b %B %s`.
+**Utilities** — `debounce(fn, ms)` (trailing edge, preserves `this`), `uid(prefix='zx')` (unique per page load, safe as a DOM id), `deepMerge(a, b)` (never mutates either input; replaces arrays rather than concatenating), `clamp(n, min, max)`, `toArray(value)` (null → `[]`, string → single entry, iterable/array-like → array), `isElement(value)` (cross-realm safe).
+**Escaping** — `htmlEscape(str)`, and `h.raw(html)` as the only sanctioned `innerHTML` path (component-generated markup only).
+**Translation** — `setTranslator(fn)`, `setLanguage(lang)`, `getLanguage()`, `translate(key, args)`, `printf(str, args)` (`%s` placeholders). Every component routes its built-in strings through `translate()`, so one translator covers the library; `setLanguage()` also drives locale-dependent behaviour such as the first day of the week.
+**Keyboard** — `focusTrap(container)` → `{activate, release}` confines Tab to a container; `rovingTabindex(container, itemSelector, {orientation, wrap})` → `{focusFirst, focusLast, destroy}` keeps one tab stop in a group; `typeahead(getItems, onMatch)` → `(event|string) => void` resolves buffered printable keystrokes to an item (500 ms buffer, repeated-letter cycling).
+See also the Kernel section for `Component`, `h`, `icon`, and `position` — the substrate the components themselves are built on.
+<!-- /doc -->
+
+<!-- doc:gx-compat -->
+### gx compatibility layer
+Opt-in re-implementation of the legacy MooTools-era `gx` API on top of Zx, so existing ZeyOS screens keep running while their code is modernised file by file. It lives in its own bundle, is never imported by `src/index.js`, and adds nothing to an application that does not load it.
+**Loading** — classic: `<script src="/assets/zx-compat.global.js">` → `window.gx`; module: `import { gx } from '/assets/zx-compat.esm.js'` (or `src/compat/index.js` in-repo). `gx.compat.installGlobals()` additionally installs the legacy free functions `__()`, `_()`, `String.htmlSpecialChars`, and the element `store`/`retrieve` shim. `gx.install(host)` assigns the namespace without the optional globals.
+**Namespaces** — `gx.zeyos` (Select/SelectFilter/SelectDyn/SelectPrio, Table, Tabbox, Panel, MasterPanel, Groupbox, Search, Datebox, DatePicker, MonthPicker, TimePicker, Timebox, Toggle, Msgbox, Popup, Dialog, Dropdown, Checklist, Permission, Client, Request, Factory), `gx.bootstrap` (Form, Fieldset, Field, Select variants, Checklist, Table, Tabbox, NavigationBar, MenuButton, Message, Popup/PopupAlert/PopupConfirm, CheckButton, DataFilter, ValueList, MultiValueEditor, FieldUpload, Timebox), `gx.util` (`formatNum`, `formatTime`, `getMinutes`, `getNumber`, `printf`, `parseResult`, `Parse`, `isArray`/`isObject`/`isFunction`/`isString`/`isNumber`/`isElement`/`isNode`, `Console`), `gx.ui` (Container, SimpleTable, Timebox, and inert visual-effect stubs Blend/Collapse/Hud/Toggling/HGroup/Templates), `gx.core` (Settings), `gx.compat` (installGlobals, installElementStorage, parse, GxWrapper).
+**Migrating off it** — legacy classes collapse onto fewer Zx components: all four Select variants → one `Select` with a `filter` option; `gx.ui.Table` + `SimpleTable` → one `Table`; `Msgbox`/`bootstrap.Message` → `Message`; `Popup`/`PopupAlert`/`PopupConfirm` → `Modal`/`Dialog` with Promise-returning statics; `gx.zeyos.Client`/`Request` → `@zeyos/client`. Anything that depended on MooTools prototype extensions is gone. `MIGRATION.md` has the full map and the deliberate behaviour changes; `website/compat.html` runs legacy snippets against Zx as a smoke test.
 <!-- /doc -->
 
 <!-- doc:elements -->

@@ -1,13 +1,18 @@
 const semanticColors = [
-  'bg-page', 'bg-surface', 'bg-raised', 'bg-control', 'bg-hover', 'bg-selected', 'bg-backdrop',
-  'border', 'border-strong', 'border-control', 'text', 'text-muted', 'text-placeholder',
-  'text-invert', 'accent', 'accent-hover', 'accent-active', 'on-accent', 'danger', 'danger-bg',
-  'warning', 'warning-bg', 'success', 'success-bg', 'info', 'info-bg'
+  'bg-page', 'bg-surface', 'bg-raised', 'bg-control', 'bg-muted', 'bg-hover', 'bg-selected',
+  'bg-backdrop', 'border', 'border-strong', 'border-control', 'text', 'text-muted',
+  'text-placeholder', 'text-invert', 'accent', 'accent-hover', 'accent-active', 'accent-subtle',
+  'on-accent', 'ring', 'danger', 'danger-bg', 'warning', 'warning-bg', 'success', 'success-bg',
+  'info', 'info-bg'
 ].map((name) => '--zx-color-' + name);
 
 const spacingTokens = Array.from({ length: 8 }, (_, index) => '--zx-space-' + (index + 1));
-const radiusTokens = ['--zx-radius-sm', '--zx-radius-md', '--zx-radius-lg', '--zx-radius-full'];
-const typeTokens = ['--zx-text-xs', '--zx-text-sm', '--zx-text-md', '--zx-text-lg', '--zx-text-xl'];
+const radiusTokens = [
+  '--zx-radius-sm', '--zx-radius-md', '--zx-radius-lg', '--zx-radius-xl', '--zx-radius-full'
+];
+const typeTokens = [
+  '--zx-text-xs', '--zx-text-sm', '--zx-text-md', '--zx-text-lg', '--zx-text-xl', '--zx-text-2xl'
+];
 const moduleNames = [
   'default', 'settings', 'accounts', 'billing', 'calendar', 'campaigns', 'clocking', 'collection',
   'contacts', 'contracts', 'enhancements', 'inventory', 'links', 'mailinglists', 'messages', 'notes',

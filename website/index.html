@@ -3,24 +3,25 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Zx is the dependency-free, accessible UI toolkit for ZeyOS.">
-  <title>Zx — The modern UI toolkit for ZeyOS</title>
+  <meta name="description" content="Zx is the dependency-free, accessible UI toolkit for ZeyOS business applications.">
+  <title>Zx — The UI toolkit for ZeyOS business software</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../styles/zx.css">
   <link rel="stylesheet" href="site.css">
   <script src="site.js"></script>
 </head>
 <body class="zx-scope site-page">
-  <header class="site-header">
+  <header class="site-header site-header--overlay">
     <div class="site-header__inner">
-      <a class="site-brand" href="./" aria-label="Zx home">
+      <a class="site-brand" href="index.html" aria-label="Zx home">
         <img class="brand-logo--light" src="assets/zx-logo.svg" alt="">
         <img class="brand-logo--dark" src="assets/zx-logo-dark.svg" alt="">
       </a>
       <nav class="site-nav" aria-label="Primary">
-        <a href="../docs/llms.md">Docs</a>
-        <a href="components.html">Components</a>
-        <a href="kitchen-sink.html" data-nav-kitchen>Kitchen sink</a>
+        <a href="docs.html">Documentation</a>
+        <a href="docs.html#components">Components</a>
+        <a href="docs.html#layouts">Layouts</a>
+        <a href="kitchen-sink.html">Kitchen sink</a>
         <a href="#" data-placeholder-link title="Repository link coming soon">GitHub</a>
       </nav>
       <button class="theme-toggle" type="button" data-theme-toggle>
@@ -31,69 +32,89 @@
   </header>
 
   <main>
-    <section class="hero">
+    <section class="site-band site-band--gradient hero">
       <div class="site-section hero__inner">
-        <img class="hero__logo brand-logo--light" src="assets/zx-logo.svg" alt="Zx">
-        <img class="hero__logo brand-logo--dark" src="assets/zx-logo-dark.svg" alt="Zx">
-        <p class="hero__eyebrow">UI infrastructure for modern business software</p>
-        <h1>The modern UI toolkit for ZeyOS</h1>
+        <!-- The hero band is always dark, so it always uses the light-ink logo. -->
+        <img class="hero__logo" src="assets/zx-logo-dark.svg" alt="Zx">
+        <p class="band-eyebrow hero__eyebrow">UI infrastructure for business software</p>
+        <h1>Build ZeyOS screens that feel <em>native</em></h1>
         <p class="hero__subhead">
-          Dependency-free, accessible, themeable components — the vanilla-JavaScript successor to gx.
+          Thirty-plus accessible, themeable components in plain ES modules — no framework,
+          no build step, no runtime dependencies.
         </p>
-        <div class="hero__actions" id="hero-actions" aria-label="Get started"></div>
+        <div class="hero__actions">
+          <a class="site-btn site-btn--primary" href="docs.html">Read the documentation</a>
+          <a class="site-btn site-btn--ghost" href="kitchen-sink.html">See a real screen</a>
+        </div>
+        <ul class="hero__tags">
+          <li>Zero dependencies</li>
+          <li>WAI-ARIA patterns</li>
+          <li>Light &amp; dark</li>
+          <li>Cozy &amp; compact</li>
+          <li>ES2022 modules</li>
+          <li>Schema-driven ZeyOS binding</li>
+        </ul>
         <div class="zeyos-lockup">
           <span>Built for</span>
-          <span class="zeyos-lockup__logo">
-            <img src="../assets/zeyos.black.svg" alt="ZeyOS">
-          </span>
+          <img src="assets/zeyos-logo-light.svg" alt="ZeyOS">
         </div>
       </div>
     </section>
 
-    <section class="site-section" aria-labelledby="features-title">
-      <div class="section-heading">
-        <h2 id="features-title">A focused toolkit for ERP interfaces</h2>
-        <p>Practical building blocks for dense workflows, designed to stay out of the application’s way.</p>
-      </div>
-      <div class="feature-grid">
-        <article class="feature-card">
-          <span class="feature-card__icon" data-feature-icon="lock"></span>
-          <h3>Zero dependencies</h3>
-          <p>Plain ES2022 modules with no runtime package or framework to maintain.</p>
-        </article>
-        <article class="feature-card">
-          <span class="feature-card__icon" data-feature-icon="check"></span>
-          <h3>Accessible</h3>
-          <p>Keyboard-complete controls based on WAI-ARIA Authoring Practices.</p>
-        </article>
-        <article class="feature-card">
-          <span class="feature-card__icon" data-feature-icon="gear"></span>
-          <h3>Themeable tokens</h3>
-          <p>Semantic light, dark, cozy, and compact design tokens throughout.</p>
-        </article>
-        <article class="feature-card">
-          <span class="feature-card__icon" data-feature-icon="list"></span>
-          <h3>30+ components</h3>
-          <p>Inputs, data views, forms, overlays, and application layout primitives.</p>
-        </article>
-        <article class="feature-card">
-          <span class="feature-card__icon" data-feature-icon="reload"></span>
-          <h3>gx compatibility</h3>
-          <p>A migration layer keeps legacy ZeyOS screens moving while code modernizes.</p>
-        </article>
-        <article class="feature-card">
-          <span class="feature-card__icon" data-feature-icon="success"></span>
-          <h3>Native platform</h3>
-          <p>Built on dialog, popover, ElementInternals, and modern browser APIs.</p>
-        </article>
+    <section class="site-band" aria-labelledby="features-title">
+      <div class="site-section">
+        <div class="section-heading">
+          <p class="band-eyebrow">Why Zx</p>
+          <h2 id="features-title">A focused toolkit for dense ERP interfaces</h2>
+          <p>
+            Practical building blocks for high-volume workflows, designed to stay out of the
+            application’s way and to survive a decade of business software.
+          </p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card">
+            <span class="feature-card__icon" data-feature-icon="lock"></span>
+            <h3>Zero dependencies</h3>
+            <p>Plain ES2022 modules with no runtime package, bundler, or framework to maintain.</p>
+          </article>
+          <article class="feature-card">
+            <span class="feature-card__icon" data-feature-icon="check"></span>
+            <h3>Accessible by default</h3>
+            <p>Keyboard-complete controls built to the WAI-ARIA Authoring Practices patterns.</p>
+          </article>
+          <article class="feature-card">
+            <span class="feature-card__icon" data-feature-icon="gear"></span>
+            <h3>Themeable tokens</h3>
+            <p>Semantic light, dark, cozy, and compact design tokens throughout the whole set.</p>
+          </article>
+          <article class="feature-card">
+            <span class="feature-card__icon" data-feature-icon="list"></span>
+            <h3>30+ components</h3>
+            <p>Inputs, data views, forms, overlays, and complete application layout primitives.</p>
+          </article>
+          <article class="feature-card">
+            <span class="feature-card__icon" data-feature-icon="reload"></span>
+            <h3>Schema-driven</h3>
+            <p>The zx-zeyos binding generates tables, forms, and pickers from a live ZeyOS schema.</p>
+          </article>
+          <article class="feature-card">
+            <span class="feature-card__icon" data-feature-icon="success"></span>
+            <h3>Native platform</h3>
+            <p>Built on dialog, popover, ElementInternals, and other modern browser APIs.</p>
+          </article>
+        </div>
       </div>
     </section>
 
-    <section class="showcase-section" id="components" aria-labelledby="components-title">
+    <section class="site-band site-band--light" id="components" aria-labelledby="components-title">
       <div class="site-section">
         <div class="section-heading">
-          <h2 id="components-title">Real components, running here</h2>
-          <p>This showcase imports Zx directly from source. Filter, sort, pick a date, and trigger a toast.</p>
+          <p class="band-eyebrow">Live components</p>
+          <h2 id="components-title">Real components, running right here</h2>
+          <p>
+            This showcase imports Zx directly from source. Filter, sort, pick a date, and fire a
+            toast — then switch the theme in the header and watch every token follow.
+          </p>
         </div>
         <div class="showcase-grid">
           <article class="showcase-card">
@@ -124,15 +145,20 @@
       </div>
     </section>
 
-    <section class="site-section" id="quick-start" aria-labelledby="quick-start-title">
-      <div class="section-heading">
-        <h2 id="quick-start-title">Quick start</h2>
-        <p>Use modules in modern applications or the global bundle in classic ZeyOS screens.</p>
-      </div>
-      <div class="quick-start-grid">
-        <article class="code-card">
-          <h3>ES module</h3>
-          <pre><code>&lt;link rel="stylesheet" href="/assets/zx.css"&gt;
+    <section class="site-band site-band--deep" id="quick-start" aria-labelledby="quick-start-title">
+      <div class="site-section">
+        <div class="section-heading">
+          <p class="band-eyebrow">Quick start</p>
+          <h2 id="quick-start-title">Two lines from nothing to a working control</h2>
+          <p>
+            Import the modules in a modern application, or drop the global bundle into a classic
+            ZeyOS screen. Both ship the same API.
+          </p>
+        </div>
+        <div class="quick-start-grid">
+          <article class="code-card">
+            <h3>ES module</h3>
+            <pre><code>&lt;link rel="stylesheet" href="/assets/zx.css"&gt;
 &lt;script type="module"&gt;
   import { Toggle } from '/assets/zx.esm.js';
 
@@ -141,10 +167,10 @@
   });
   document.body.append(toggle.toElement());
 &lt;/script&gt;</code></pre>
-        </article>
-        <article class="code-card">
-          <h3>Global script</h3>
-          <pre><code>&lt;link rel="stylesheet" href="/assets/zx.css"&gt;
+          </article>
+          <article class="code-card">
+            <h3>Global script</h3>
+            <pre><code>&lt;link rel="stylesheet" href="/assets/zx.css"&gt;
 &lt;script src="/assets/zx.global.js"&gt;&lt;/script&gt;
 &lt;script&gt;
   const toggle = new zx.Toggle(null, {
@@ -152,20 +178,61 @@
   });
   document.body.append(toggle.toElement());
 &lt;/script&gt;</code></pre>
-        </article>
+          </article>
+        </div>
+        <div class="hero__actions" style="justify-content: flex-start">
+          <a class="site-btn site-btn--primary site-btn--sm" href="docs.html#getting-started">Getting started guide</a>
+          <a class="site-btn site-btn--ghost site-btn--sm" href="docs.html#layouts">Browse application layouts</a>
+        </div>
       </div>
     </section>
   </main>
 
   <footer class="site-footer">
     <div class="site-footer__inner">
-      <p>Zx is the dependency-free successor to gx. MIT license.</p>
-      <nav class="site-footer__links" aria-label="Project resources">
-        <a href="../README.md">Docs</a>
-        <a href="../docs/llms.md">API</a>
-        <a href="../MIGRATION.md">Migration</a>
-        <a href="../.claude/skills/zx/SKILL.md">Skill</a>
+      <div class="site-footer__brand">
+        <img src="assets/zx-logo-dark.svg" alt="Zx">
+        <p>
+          The dependency-free, accessible UI toolkit for ZeyOS business applications.
+        </p>
+      </div>
+      <nav aria-labelledby="footer-docs">
+        <h2 id="footer-docs">Documentation</h2>
+        <ul>
+          <li><a href="docs.html#getting-started">Getting started</a></li>
+          <li><a href="docs.html#components">Components</a></li>
+          <li><a href="docs.html#layouts">Layouts</a></li>
+          <li><a href="kitchen-sink.html">Kitchen sink</a></li>
+        </ul>
       </nav>
+      <nav aria-labelledby="footer-project">
+        <h2 id="footer-project">Project</h2>
+        <ul>
+          <li><a href="../README.md">README</a></li>
+          <li><a href="../MIGRATION.md">Migration guide</a></li>
+          <li><a href="../docs/DESIGN-NOTES.md">Design notes</a></li>
+          <li><a href="../AGENTS.md">Contributor contract</a></li>
+        </ul>
+      </nav>
+      <nav aria-labelledby="footer-agents">
+        <h2 id="footer-agents">For agents</h2>
+        <ul>
+          <li><a href="llms.txt">llms.txt</a></li>
+          <li><a href="../docs/llms.md">Agent reference</a></li>
+          <li><a href="../.claude/skills/zx/SKILL.md">Zx skill</a></li>
+          <li><a href="compat.html">gx compatibility</a></li>
+        </ul>
+      </nav>
+    </div>
+    <div class="site-footer__base">
+      <div class="site-footer__inner">
+        <p>MIT licensed. Built for ZeyOS.</p>
+        <div class="site-footer__meta">
+          <a href="llms.txt">llms.txt</a>
+          <a href="docs.html">Documentation</a>
+          <a href="#" data-placeholder-link>GitHub</a>
+        </div>
+      </div>
     </div>
   </footer>
 
@@ -173,22 +240,6 @@
     import {
       Datebox, Message, Select, Table, Toggle, button, icon
     } from '../src/index.js';
-
-    const heroActions = document.querySelector('#hero-actions');
-    heroActions.append(
-      button({
-        label: 'Explore components',
-        kind: 'primary',
-        icon: 'list',
-        onclick: () => window.location.assign('components.html')
-      }),
-      button({
-        label: 'Kitchen sink',
-        kind: 'ghost',
-        icon: 'chevron-right',
-        onclick: () => window.location.assign('kitchen-sink.html')
-      })
-    );
 
     document.querySelectorAll('[data-feature-icon]').forEach((host) => {
       host.append(icon(host.dataset.featureIcon, { size: 18 }));

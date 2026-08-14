@@ -1,0 +1,79 @@
+# Zx
+
+> Zx is a dependency-free, vanilla-JavaScript UI component library for ZeyOS business
+> applications. ES2022 modules, WAI-ARIA-accessible controls built on native platform features,
+> semantic `--zx-*` design tokens with light/dark and cozy/compact theming, and lifecycle-safe
+> components. Source modules run directly in the browser; a build step emits ESM, IIFE-global,
+> compatibility, and CSS bundles. Zero runtime dependencies.
+
+Instantiate every component as `new Component(target, options)`, where `target` is an Element, a
+selector string, or `null` (the component creates and owns its root, retrieved via
+`.toElement()`). Subscribe with `.on(type, fn)` or an `on<type>` option; handlers receive a
+`CustomEvent` whose `.detail` is an object. Call `.destroy()` to clean up. The same API is
+available as ESM named exports and as `window.zx.*`.
+
+## Documentation site
+- [Documentation](docs.html): the single documentation surface — getting started, every component,
+  application layouts, and the kitchen sink. Each entry shows a live demo, its complete
+  JavaScript source, and the API reference.
+- [Getting started](docs.html#getting-started): installation, the mental model, theming,
+  accessibility, and talking to ZeyOS.
+- [Components](docs.html#components): 30+ components grouped Core / Helpers / Inputs / Overlays /
+  Data / Forms / Layout.
+- [Layouts](docs.html#layouts): four complete application shells — master–detail, dashboard,
+  record wizard, settings workspace.
+- [Kitchen sink](kitchen-sink.html): a schema-driven ZeyOS invoices screen.
+
+## Deeper references
+- [Agent reference](../docs/llms.md): per-component constructor options, methods, and events for
+  every component plus the core helpers. Sections are marked `<!-- doc:<name> -->`.
+- [README](../README.md): what Zx is, quick start, component index, theming, browser support.
+- [Migration guide](../MIGRATION.md): legacy gx class map, script-tag replacement, deliberate
+  behaviour changes, unsupported legacy APIs.
+- [Contributor contract](../AGENTS.md): conventions for editing component source — token rules,
+  render-time state, listener ownership, ARIA/APG requirements.
+- [Zx skill](../.claude/skills/zx/SKILL.md): task-oriented guide — mental model, recipes, theming,
+  gotchas, commands.
+
+## Components
+- Inputs: `button()`, `buttonGroup()`, `CheckButton`, `Toggle`, `Search`, `Select` (APG combobox;
+  `filter: false|'local'|async`), `Checklist`, `DatePicker`, `MonthPicker`, `TimePicker`,
+  `Datebox`/`DateTimeBox`, `Timebox`.
+- Overlays: `Message` (toasts/inline/progress), `Modal`, `Dialog` (+ `alert`/`confirm`/`prompt`
+  Promises), `Dropdown`, `MenuButton`.
+- Data: `Table` (sortable, selectable, sticky header), `DataFilter`.
+- Forms: `Form`, `Fieldset`, `Field` (type registry), `ValueList`, `MultiValueEditor`,
+  `FieldUpload`, `Permission`.
+- Layout: `Groupbox`, `Panel`, `MasterPanel`, `Tabbox`, `NavigationBar`.
+- Core: `Component`, `h`/`icon`, `position`, i18n, date utilities, `defineElements` (declarative
+  `<zx-*>` custom elements).
+- Helpers: `debounce`, `uid`, `deepMerge`, `clamp`, `toArray`, `isElement`, `htmlEscape`,
+  `formatDate`/`parseDate`/`addDays`/`addMonths`/`clampDate`/`isSameDay`/`getWeekStart`,
+  `translate`/`printf`/`setTranslator`/`setLanguage`, `focusTrap`/`rovingTabindex`/`typeahead`.
+
+## Theming
+Load `zx.css` once and put `zx-scope` on the application root. Set `data-zx-theme`
+(`light`|`dark`|`auto`) and `data-zx-density` (`cozy`|`compact`) on any ancestor. Define a product
+theme by overriding semantic `--zx-color-*` / `--zx-control-*` tokens under
+`[data-zx-theme="name"]`. Never use tier-1 palette tokens or raw colour literals in application
+CSS. The stock themes follow the shadcn/ui Nova · Zinc preset with the ZeyOS green as the accent.
+
+## Talking to ZeyOS
+Use the dedicated ZeyOS client library **`@zeyos/client`** (`npm install @zeyos/client`) for ZeyOS
+business data: `createZeyosClient({ platform, auth })`, typed
+`client.api.list/get/create/update<Resource>` over the full OpenAPI surface, `normalizeListResult`.
+The optional `zx-zeyos` binding (`src/zeyos/`) generates typed tables, forms, and pickers from
+`client.schema`; it never imports `@zeyos/client` itself and ships as a separate bundle.
+`kitchen-sink.html` is the reference integration. Zx also ships a minimal `Http`/`zeyosService`
+for ad-hoc in-app `remotecall`, but `@zeyos/client` is the recommended default.
+
+## Legacy gx applications
+An opt-in compatibility layer re-implements the legacy MooTools-era `gx.*` API on top of Zx, so
+existing ZeyOS screens keep running while their code is modernised file by file. Load
+`zx-compat.global.js` (or import `src/compat/index.js`) to get `window.gx` with the `core`, `ui`,
+`util`, `zeyos`, and `bootstrap` namespaces. See [gx compatibility](docs.html#components/gx-compat)
+and the [migration guide](../MIGRATION.md).
+
+## Commands
+`npm run serve` (no-build site at http://127.0.0.1:8321/website/docs.html) · `npm test` (unit
+tests + token lint) · `npm run build` (dist bundles).

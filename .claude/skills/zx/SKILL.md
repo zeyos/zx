@@ -1,6 +1,6 @@
 ---
 name: zx
-description: Build UI in the ZeyOS ERP with the Zx component library — the dependency-free vanilla-JS successor to the MooTools "gx" library. Use when creating or editing UI in this repo (v2/), instantiating zx.* components (Table, Select, Form, Dialog, Datebox, Message, Tabbox…), wiring the gx compatibility layer, theming with --zx-* tokens, or migrating legacy gx.zeyos.*/gx.bootstrap.* code.
+description: Build UI in ZeyOS business applications with the Zx component library — a dependency-free vanilla-JS component library. Use when creating or editing UI in this repo (v2/), instantiating zx.* components (Table, Select, Form, Dialog, Datebox, Message, Tabbox…), wiring the gx compatibility layer, theming with --zx-* tokens, or migrating legacy gx.zeyos.*/gx.bootstrap.* code.
 ---
 
 # Zx UI library
@@ -92,7 +92,7 @@ For reading and writing ZeyOS business data, use the **dedicated ZeyOS client li
 [`@zeyos/client`](https://github.com/zeyos/client) (`npm install @zeyos/client`) — a
 zero-dependency JS client with auto-generated, typed methods for the full ZeyOS OpenAPI surface
 (accounts, transactions/invoices, tickets, and 50+ resources), OAuth2/session auth, retries, and
-schema introspection. It is the successor to the legacy `gx.zeyos.Client` / `gx.zeyos.Request`,
+schema introspection. It replaces the legacy `gx.zeyos.Client` / `gx.zeyos.Request`,
 which should no longer be used.
 
 ```js
@@ -178,7 +178,7 @@ v2/src/compat/              gx compat layer      v2/styles/     tokens + base.cs
 v2/website/                 site + component catalog          v2/specs/      per-component build specs
 v2/tests/                   node unit + smoke     v2/dist/       built bundles
 
-npm run serve   # http://127.0.0.1:8321/website/components.html (no build)
+npm run serve   # http://127.0.0.1:8321/website/docs.html (no build)
 npm test        # node --test tests/unit/*.test.js  +  node tests/lint-tokens.js
 npm run build   # dist/: zx.esm.js, zx.global.js (window.zx), zx-compat.global.js (window.gx), zx.css
 ```
