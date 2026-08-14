@@ -1,8 +1,10 @@
 name: Deploy documentation
 
+# Manual-only until a host is chosen. `actions/configure-pages` fails unless Pages is enabled for
+# the repository, so an automatic push trigger would mark every commit red while the site is
+# hosted elsewhere. If you go with GitHub Pages: enable it (Settings → Pages → Source: GitHub
+# Actions) and restore `push: branches: [main]` here. If you go with Netlify: delete this file.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -20,9 +22,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
 
