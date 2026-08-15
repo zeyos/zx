@@ -35,28 +35,21 @@
       <div class="site-section hero__inner">
         <!-- The hero band is always dark, so it always uses the light-ink logo. -->
         <img class="hero__logo" src="assets/zx-logo-dark.svg" alt="Zx">
-        <p class="band-eyebrow hero__eyebrow">UI infrastructure for business software</p>
+        <p class="band-eyebrow hero__eyebrow">
+          UI infrastructure for business software
+          <!-- tools/build-site.js rewrites this from package.json on every deploy. -->
+          <span class="hero__version" data-site-version>2.0.0-alpha.1</span>
+        </p>
         <h1>Build ZeyOS screens that feel <em>native</em></h1>
         <p class="hero__subhead">
           Thirty-plus accessible, themeable components in plain ES modules — no framework,
           no build step, no runtime dependencies.
         </p>
         <div class="hero__actions">
-          <a class="site-btn site-btn--primary" href="docs.html">Read the documentation</a>
-          <a class="site-btn site-btn--ghost" href="docs.html#layouts">See real screens</a>
+          <a class="site-btn site-btn--primary" data-btn-icon="book" href="docs.html">Get started</a>
+          <a class="site-btn site-btn--ghost" data-btn-icon="zeyos" href="https://www.zeyos.com"
+            rel="noopener">Get started with ZeyOS</a>
         </div>
-        <ul class="hero__tags">
-          <li>Zero dependencies</li>
-          <li>WAI-ARIA patterns</li>
-          <li>Light &amp; dark</li>
-          <li>Cozy &amp; compact</li>
-          <li>ES2022 modules</li>
-          <li>Schema-driven ZeyOS binding</li>
-        </ul>
-        <a class="zeyos-lockup" href="https://www.zeyos.com" rel="noopener">
-          <span>Built for</span>
-          <img src="assets/zeyos-logo-light.svg" alt="ZeyOS">
-        </a>
       </div>
     </section>
 

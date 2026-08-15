@@ -100,7 +100,25 @@ for (const file of await walk(outDir)) {
   }
 }
 
-// 4. Host-specific extras. Both are harmless on hosts that ignore them, which is what lets the
+// 4. Stamp the published version into the markup. The website carries a literal so development
+//    shows something sensible, but package.json is the source of truth: whatever `npm version`
+//    set is what the deployed site says, with no second place to remember to bump.
+const { version } = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
+let stamped = 0;
+for (const file of await walk(outDir)) {
+  if (extname(file).toLowerCase() !== '.html') continue;
+  const original = await readFile(file, 'utf8');
+  const updated = original.replace(
+    /(<([a-z]+)[^>]*\sdata-site-version[^>]*>)[^<]*(<\/\2>)/gi,
+    `$1${version}$3`
+  );
+  if (updated !== original) {
+    await writeFile(file, updated);
+    stamped += 1;
+  }
+}
+
+// 5. Host-specific extras. Both are harmless on hosts that ignore them, which is what lets the
 //    same output deploy to GitHub Pages or Netlify unchanged: Pages reads the custom domain from
 //    a CNAME file and needs `.nojekyll` so it stops treating the output as a Jekyll source tree.
 await writeFile(join(outDir, 'CNAME'), `${domain}\n`);
@@ -113,6 +131,7 @@ const bytes = (await Promise.all(files.map(async (file) => (await stat(file)).si
 console.log(`Zx site → ${relative(root, outDir)}/`);
 console.log(`  ${files.length} files, ${(bytes / 1024 / 1024).toFixed(2)} MB`);
 console.log(`  ${rewritten} files had escaping paths rewritten`);
+console.log(`  version ${version} stamped into ${stamped} file(s)`);
 console.log(`  CNAME: ${domain}`);
 
 /**

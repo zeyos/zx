@@ -321,6 +321,29 @@ body.site-page > main {
   font-size: var(--zx-text-md);
 }
 
+/* Button glyphs are masked SVGs, so they inherit the button's text colour in both themes. */
+.site-btn[data-btn-icon]::before {
+  content: "";
+  inline-size: 1.05em;
+  block-size: 1.05em;
+  flex: none;
+  background: currentColor;
+  mask: var(--site-btn-icon) center / contain no-repeat;
+}
+
+.site-btn[data-btn-icon="book"] {
+  --site-btn-icon: url("assets/book.svg");
+}
+
+/* The ZeyOS mark is a wide lockup; give it room rather than letterboxing it into a square. */
+.site-btn[data-btn-icon="zeyos"] {
+  --site-btn-icon: url("assets/zeyos-mark.svg");
+}
+
+.site-btn[data-btn-icon="zeyos"]::before {
+  inline-size: 1.7em;
+}
+
 .site-btn:active {
   transform: translateY(1px);
 }
@@ -379,45 +402,23 @@ body.site-page > main {
   margin-block-start: var(--zx-space-7);
 }
 
-.hero__tags {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: var(--zx-space-2);
-  margin-block-start: var(--zx-space-7);
-  padding: 0;
-  list-style: none;
-}
-
-.hero__tags li {
-  padding: 4px 12px;
-  border: 1px solid rgb(255 255 255 / 10%);
+/* The published version, written into the markup by tools/build-site.js. The "v" lives here so
+   the element's text stays exactly the version string the build substitutes. */
+.hero__version {
+  padding: 3px 10px;
+  border: 1px solid rgb(255 255 255 / 16%);
   border-radius: var(--zx-radius-full);
-  background: rgb(255 255 255 / 4%);
-  color: rgb(226 232 240 / 70%);
+  background: rgb(255 255 255 / 6%);
+  color: rgb(226 232 240 / 82%);
   font-size: var(--zx-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: none;
+  white-space: nowrap;
 }
 
-.zeyos-lockup {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--zx-space-3);
-  margin-block-start: var(--zx-space-8);
-  color: rgb(226 232 240 / 50%);
-  font-size: var(--zx-text-sm);
-  letter-spacing: 0.04em;
-  text-decoration: none;
-  text-transform: uppercase;
-}
-
-.zeyos-lockup:hover {
-  color: rgb(226 232 240 / 80%);
-}
-
-.zeyos-lockup img {
-  display: block;
-  inline-size: 96px;
-  block-size: auto;
+.hero__version::before {
+  content: "v";
 }
 
 /* -------------------------------------------------------------- features -- */
