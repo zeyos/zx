@@ -108,8 +108,9 @@ told otherwise. For an alpha you usually do not want that:
 npm publish --tag next
 ```
 
-To keep that behaviour in CI, add `--tag next` to the publish step for as long as the package is
-pre-1.0-stable.
+`publish.yml` already does this: it reads the version and publishes any semver pre-release under
+`next`, and only a stable version under `latest`. Nothing to remember at release time — but a
+**manual** publish still needs the flag, because `npm publish` on its own always writes `latest`.
 
 ## What gets published
 

@@ -39,8 +39,18 @@ jobs:
       - name: Build distribution bundles
         run: npm run build
 
+      # A pre-release must not become `latest`, or `npm i @zeyos/zx` hands everyone an alpha.
+      # Any semver pre-release (`2.0.0-alpha.1`) publishes under `next`; a stable version
+      # publishes under `latest`. Nothing to remember at release time.
       - name: Publish @zeyos/zx
-        run: npm publish --access public
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          case "$VERSION" in
+            *-*) DIST_TAG=next ;;
+            *) DIST_TAG=latest ;;
+          esac
+          echo "Publishing $VERSION under dist-tag $DIST_TAG"
+          npm publish --access public --tag "$DIST_TAG"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
