@@ -139,6 +139,43 @@ sent as signed server fields (`+field`/`-field`); projection supports aliases an
 search/filter/sort/pagination remain server-side. ZeyOS timestamps are integer Unix seconds, so
 forms convert them to/from `Date`. Use `dataFilterStateToFilters(state, defs)` before
 `tableBinding.setFilters(...)` when wiring a `DataFilter`.
+
+### Module icons and colours
+
+`src/zeyos/modules.js` is the configuration file for module identity — one entry per ZeyOS module,
+holding the icon and the colour it is drawn in:
+
+```js
+notes: { label: 'Notes', icon: 'zeyos-notes', color: '#008853', fa: 'note-sticky' }
+```
+
+`icon` is the glyph's name in the ZeyOS Font Awesome kit (61 custom `zeyos-*` icons, rendered as
+`<i class="fa-kit fa-zeyos-notes">`); `fa` is a stock Font Awesome fallback that also exists in
+Font Awesome Free. Colours are the ZeyOS runtime palette (`ICO.Colors`) where ZeyOS defines one and
+Zx defaults elsewhere; they are also emitted as `--zx-module-*` CSS custom properties, generated
+from this file by `tools/build-module-tokens.js` and checked by the unit tests.
+
+```js
+import { moduleChip, moduleColor, registerModules, useZeyosIcons } from '/assets/zx-zeyos.esm.js';
+
+await useZeyosIcons();                          // loads ZEYOS_ICON_KIT, switches Zx to Font Awesome
+nav.append(moduleChip('tickets', { size: 24, title: true }));   // glyph on the module colour
+moduleColor('invoices');                        // '#535494' — aliases resolve to their module
+registerModules({ tickets: '#f04639', 'my-fork': { label: 'My Fork', icon: 'zeyos-weblets' } });
+```
+
+- `moduleIcon(name, {size, label, standard})` → the bare glyph; `standard: true` uses the stock
+  Font Awesome fallback, for pages on a kit without the ZeyOS uploads.
+- `moduleChip(name, {size, iconSize, label, title, standard})` → `<span class="zx-module-icon">`
+  with the glyph on the module colour. The glyph colour is whichever of ZeyOS's two foregrounds
+  (`#ffffff`, `#141414`) contrasts better, via `moduleGlyphColor(hex)`.
+- `moduleInfo`/`moduleColor`/`moduleIconName`/`moduleKeys`/`normalizeModuleName` read the config.
+  Module, entity, and API resource names are all accepted, case-insensitively, with dots and
+  underscores normalized: `'transactions.billing'`, `'invoices'`, and `'Transactions Billing'` all
+  land on `transactions-billing`. Unknown names fall back to the `default` module — lookups never
+  throw.
+- `registerModules(map)` adds forks and weblets or overrides shipped entries (a bare string sets
+  the colour only). Runtime ZeyOS menu data is authoritative: feed its colours in at startup.
 <!-- /doc -->
 
 ## Custom elements
@@ -177,6 +214,7 @@ tests/                   node unit + smoke    dist/       built bundles
 npm run serve   # http://127.0.0.1:8321/website/docs.html  (no build)
 npm test        # node --test tests/unit/*.test.js  +  node tests/lint-tokens.js
 npm run build   # dist/: zx.esm.js, zx.global.js (window.zx), zx-compat.global.js (window.gx), zx.css
+node tools/build-module-tokens.js   # regenerate styles/tokens/modules.css from src/zeyos/modules.js
 ```
 
 ---
@@ -346,7 +384,43 @@ Application navigation bar (brand + items + right-aligned actions). Options: `ti
 
 <!-- doc:kernel -->
 ### Core helpers
-`Component` (base: `on/off/once/emit`, `listen`, `toElement`, `msg`, `destroy`, static `from(el)`). `h(tag, props, ...children)`, `h.raw(html)`, `htmlEscape`, `resolveElement`. `icon(name, {size,label})`, `icons` (Font Awesome Free solid). `position(anchor, floating, {placement, offset, flip, matchWidth})` → `{update, destroy}`. i18n: `setTranslator`, `setLanguage`, `getLanguage`, `translate`, `printf`. Dates: `formatDate(d, fmt)`, `parseDate(s, fmt)` (tokens `%d %m %Y %y %H %M %S %a %A %b %B %s`), `clampDate`, `isSameDay`, `addDays`, `addMonths`, `getWeekStart`. Keyboard: `focusTrap`, `rovingTabindex`, `typeahead`. Utils: `debounce`, `uid`, `deepMerge`, `isElement`, `clamp`, `toArray`.
+`Component` (base: `on/off/once/emit`, `listen`, `toElement`, `msg`, `destroy`, static `from(el)`). `h(tag, props, ...children)`, `h.raw(html)`, `htmlEscape`, `resolveElement`. `icon(name, {size,label})`, `icons` (see the Icons section — bundled inline SVG by default, Font Awesome after opt-in). `position(anchor, floating, {placement, offset, flip, matchWidth})` → `{update, destroy}`. i18n: `setTranslator`, `setLanguage`, `getLanguage`, `translate`, `printf`. Dates: `formatDate(d, fmt)`, `parseDate(s, fmt)` (tokens `%d %m %Y %y %H %M %S %a %A %b %B %s`), `clampDate`, `isSameDay`, `addDays`, `addMonths`, `getWeekStart`. Keyboard: `focusTrap`, `rovingTabindex`, `typeahead`. Utils: `debounce`, `uid`, `deepMerge`, `isElement`, `clamp`, `toArray`.
+<!-- /doc -->
+
+<!-- doc:icons -->
+### Icons — bundled glyphs or Font Awesome
+
+`icon(name, {size, label, class, style, family, fixedWidth})` returns an element: an inline `<svg>`
+from the bundled set, or an `<i>` carrying Font Awesome classes. Both get `class="zx-icon"`, so
+component CSS styles either. Zx renders the bundled glyphs by default and **never loads anything on
+its own** — Font Awesome is an opt-in an application makes.
+
+```js
+import { loadFontAwesome, useFontAwesome, registerIcons } from '/assets/zx.esm.js';
+
+await loadFontAwesome({ kit: 'ae8320b210', style: 'duotone' });  // injects the kit, switches over
+useFontAwesome();                          // page already carries Font Awesome; no network
+registerIcons({ rocket: ['0 0 512 512', 'M…'] });   // extend the bundled inline set
+```
+
+- `loadFontAwesome(kit | {kit, style, family, fixedWidth, activate})` — injects the kit script once
+  per URL (a kit token expands to `https://kit.fontawesome.com/<token>.js`), adopts a kit the page
+  already embeds, then switches the renderer. Rejects if the script fails; kits only load on the
+  domains configured in the Font Awesome account.
+- `useFontAwesome(opts)` / `useBuiltinIcons()` / `configureIcons(opts)` / `getIconConfig()` —
+  switch or read the renderer without touching the network.
+- `iconNames()` lists every inline glyph; `registerIcons(map)` adds `[viewBox, path]` entries.
+
+**Names decide their own renderer.** A bare name (`'check'`) follows the active provider, and the
+built-in names are translated to their Font Awesome counterparts (`x` → `fa-xmark`, `search` →
+`fa-magnifying-glass`, `warning` → `fa-triangle-exclamation`, …), so component code never changes.
+Prefixes override: `'fa:user'`, `'fas:user'`/`'regular:user'`/`'duotone:user'`/`'thin:user'`,
+`'kit:zeyos-notes'` (custom kit icons), `'builtin:check'` (force the inline SVG). A literal class
+list — `'fa-sharp fa-solid fa-user'` — is used verbatim. Unknown *built-in* names throw
+`RangeError`; unknown names under Font Awesome are passed through to the kit.
+
+Font Awesome elements are sized with `font-size` and occupy 1em; bundled SVGs use width/height
+attributes. Both honour `label` (`null` ⇒ `aria-hidden`, otherwise `role="img"` + `aria-label`).
 <!-- /doc -->
 
 <!-- doc:helpers -->

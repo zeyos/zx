@@ -46,7 +46,13 @@ export { focusTrap, rovingTabindex, typeahead } from './core/keyboard.js';
 export {
   formatDate, parseDate, clampDate, isSameDay, addDays, addMonths, getWeekStart
 } from './core/date.js';
-export { icon, icons } from './core/icons.js';
+export {
+  icon, icons, iconNames, registerIcons,
+  configureIcons, getIconConfig, useFontAwesome, useBuiltinIcons, loadFontAwesome
+} from './core/icons.js';
+export {
+  faStyles, faFamilies, faNames, faIconClasses, parseIconSpec, kitUrl, loadFontAwesomeKit
+} from './core/fontawesome.js';
 export { debounce, uid, deepMerge, isElement, clamp, toArray } from './core/util.js';
 export { defineElements } from './elements/define.js';
 export { button, buttonGroup } from './components/button/button.js';

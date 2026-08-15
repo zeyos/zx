@@ -52,10 +52,18 @@ The groups match the demo sidebar.
 | --- | --- |
 | `Component` | Lifecycle, event, element-registry, and cleanup base class. |
 | `defineElements()` | Registers the light-DOM `<zx-*>` wrappers for the supported declarative components. |
-| `h()`, `icon()` | Safe DOM and named-SVG factories used by applications and custom renderers. |
+| `h()`, `icon()` | Safe DOM and icon factories used by applications and custom renderers. |
+| `loadFontAwesome()` | Opts the icon layer into a Font Awesome kit; `useBuiltinIcons()` switches back. |
 
 The public core also includes HTTP helpers, i18n, date formatting/parsing, positioning, keyboard
 helpers, and small dependency-free utilities; see the named exports in `src/index.js`.
+
+`icon()` renders the inline SVG glyphs Zx bundles — no webfont, stylesheet, or network request.
+Applications that want Font Awesome call `loadFontAwesome({ kit })` once, and every icon in the
+library follows, including names Zx maps to their Font Awesome counterparts. Names can also pick a
+renderer themselves: `'fa:user'`, `'duotone:user'`, `'kit:zeyos-notes'`, `'builtin:check'`, or a
+literal `'fa-solid fa-user'` class list. ZeyOS module icons and their identity colours live in the
+ZeyOS binding — see `src/zeyos/modules.js`.
 
 ### Inputs
 
@@ -142,6 +150,21 @@ const editor = zeyosForm(client, 'transactions', {
 The injection design means Zx never imports or bundles `@zeyos/client`. The optional binding ships
 separately as `dist/zx-zeyos.esm.js` and is not part of the root `src/index.js` API. See the
 schema-driven `website/layouts/zeyos-invoices.layout.js` for list, filter, sort, edit, and create wiring.
+
+The same entry point carries ZeyOS module identity — the icon and colour of every module, keyed by
+module, entity, or API resource name:
+
+```js
+import { moduleChip, moduleColor, useZeyosIcons } from '/assets/zx-zeyos.esm.js';
+
+await useZeyosIcons();                        // loads the ZeyOS Font Awesome kit
+nav.append(moduleChip('tickets', { size: 24, title: true }));
+moduleColor('invoices');                      // '#535494'
+```
+
+`src/zeyos/modules.js` is the configuration file behind it: one entry per module with its kit icon
+name, identity colour, label, and a stock Font Awesome fallback. The `--zx-module-*` CSS custom
+properties are generated from that file, so CSS and JavaScript cannot disagree about a colour.
 
 ## Themes and density
 

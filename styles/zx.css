@@ -4,6 +4,7 @@
 @import url("./tokens/density.css");
 @import url("./tokens/modules.css");
 @import url("./base.css");
+@import url("./icons.css");
 @import url("../src/components/button/button.css");
 @import url("../src/components/check-button/check-button.css");
 @import url("../src/components/toggle/toggle.css");

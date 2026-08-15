@@ -43,6 +43,7 @@
   opacity: 1;
 }
 
-.zx-check-button__icon > svg {
+.zx-check-button__icon > svg,
+.zx-check-button__icon > .zx-icon {
   display: block;
 }

@@ -11,6 +11,11 @@ export {
   dateToUnixSeconds, unixSecondsToDate
 } from './query.js';
 export { connect } from './connect.js';
+export {
+  zeyosModules, moduleAliases, moduleInfo, moduleColor, moduleIconName, moduleKeys,
+  moduleGlyphColor, normalizeModuleName, registerModules
+} from './modules.js';
+export { ZEYOS_ICON_KIT, useZeyosIcons, moduleIcon, moduleChip } from './icons.js';
 export { zeyosSelect } from './select.js';
 export { zeyosForm } from './form.js';
 export { zeyosTable } from './table.js';

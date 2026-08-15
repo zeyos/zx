@@ -1,0 +1,34 @@
+/* Icons.
+   Every icon `icon()` builds carries `.zx-icon`, whether it is one of the bundled inline SVG
+   glyphs or a Font Awesome element, so the rules below (and component rules) style both. Font
+   Awesome icons are sized by font-size and occupy exactly one em. */
+
+.zx-icon {
+  flex: none;
+}
+
+i.zx-icon {
+  display: inline-block;
+  inline-size: 1em;
+  block-size: 1em;
+  line-height: 1;
+  text-align: center;
+}
+
+svg.zx-icon {
+  vertical-align: middle;
+}
+
+/* ZeyOS module icon chip: the module glyph on its identity colour. `moduleChip()` sets the three
+   custom properties per module; the glyph is whichever ZeyOS foreground contrasts better. */
+.zx-module-icon {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  inline-size: var(--zx-module-icon-size, 1.5rem);
+  block-size: var(--zx-module-icon-size, 1.5rem);
+  border-radius: var(--zx-radius-sm);
+  background: var(--zx-module-color, var(--zx-module-default));
+  color: var(--zx-module-glyph, var(--zx-module-fg-light));
+  font-size: calc(var(--zx-module-icon-size, 1.5rem) * 0.6);
+}

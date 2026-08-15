@@ -1,3 +1,5 @@
+import { moduleKeys } from '../../src/zeyos/modules.js';
+
 const semanticColors = [
   'bg-page', 'bg-surface', 'bg-raised', 'bg-control', 'bg-muted', 'bg-hover', 'bg-selected',
   'bg-backdrop', 'border', 'border-strong', 'border-control', 'text', 'text-muted',
@@ -13,12 +15,9 @@ const radiusTokens = [
 const typeTokens = [
   '--zx-text-xs', '--zx-text-sm', '--zx-text-md', '--zx-text-lg', '--zx-text-xl', '--zx-text-2xl'
 ];
-const moduleNames = [
-  'default', 'settings', 'accounts', 'billing', 'calendar', 'campaigns', 'clocking', 'collection',
-  'contacts', 'contracts', 'enhancements', 'inventory', 'links', 'mailinglists', 'messages', 'notes',
-  'opportunities', 'pricelists', 'procurement', 'projects', 'tasks', 'tickets', 'pwd', 'system',
-  'usermgmt', 'usersettings', 'users', 'groups'
-];
+// Every ZeyOS module, from the configuration the tokens themselves are generated from. Entity and
+// legacy names (`--zx-module-invoices`, `--zx-module-settings`) resolve too; see the Icons entry.
+const moduleNames = moduleKeys();
 
 export default {
   title: 'Design tokens',

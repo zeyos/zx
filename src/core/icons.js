@@ -1,9 +1,26 @@
+/**
+ * The icon layer. Two renderers sit behind one `icon()` call:
+ *
+ * - **built-in** (default) — the inline SVG glyphs below, no network, no stylesheet, no font.
+ * - **Font Awesome** — `<i>` elements carrying Font Awesome classes, after an application opts in
+ *   with `useFontAwesome()` or `loadFontAwesome(kit)`. Zx never loads a kit by itself.
+ *
+ * Both renderers put `zx-icon` on the element, so component CSS can style either.
+ * @module zx/core/icons
+ */
+
+import { faIconClasses, kitUrl, loadFontAwesomeKit, parseIconSpec } from './fontawesome.js';
+
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 /**
  * @typedef {Object} IconOptions
  * @property {number|string} [size=16] Rendered width and height.
  * @property {string|null} [label=null] Accessible label; null marks the icon decorative.
+ * @property {string|string[]} [class] Extra class names added to the element.
+ * @property {string} [style] Font Awesome style for this icon only (`'solid'`, `'duotone'`, …).
+ * @property {string} [family] Font Awesome family for this icon only (`'classic'`, `'sharp'`, …).
+ * @property {boolean} [fixedWidth] Adds Font Awesome's `fa-fw` for column-aligned glyphs.
  */
 
 /**
@@ -11,6 +28,7 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
  * (https://fontawesome.com/license/free). Path data is embedded unmodified so the library
  * carries no webfont, stylesheet, or package dependency. Each entry is `[viewBox, path]`;
  * Font Awesome glyphs are filled (not stroked) and use per-glyph 512-unit view boxes.
+ * Extend the set with `registerIcons()`; read every available name with `iconNames()`.
  * @type {Readonly<Record<string, [string, string]>>}
  */
 export const icons = Object.freeze({
@@ -57,30 +75,203 @@ const aliases = Object.freeze({
   fields: 'list'
 });
 
+/** @type {Record<string, [string, string]>} Glyphs added at runtime by `registerIcons`. */
+const extraGlyphs = Object.create(null);
+
 /**
- * Creates an inline SVG icon from the Font Awesome Free solid set.
- * @param {string} name Icon name from `icons` (or a legacy alias).
+ * @typedef {Object} IconConfig
+ * @property {'builtin'|'fontawesome'} provider Renderer used for bare icon names.
+ * @property {string} style Default Font Awesome style (`'solid'`, `'regular'`, `'duotone'`, …).
+ * @property {string} family Default Font Awesome family (`'classic'`, `'sharp'`, …).
+ * @property {boolean} fixedWidth Whether Font Awesome icons get `fa-fw` by default.
+ * @property {string|null} kit Kit token or URL passed to the last `loadFontAwesome()` call.
+ */
+
+/** @type {IconConfig} */
+const config = {
+  provider: 'builtin',
+  style: 'solid',
+  family: 'classic',
+  fixedWidth: false,
+  kit: null
+};
+
+/**
+ * Reads the active icon configuration.
+ * @returns {IconConfig} A copy — mutating it does not change the configuration.
+ */
+export function getIconConfig() {
+  return { ...config };
+}
+
+/**
+ * Sets how bare icon names are rendered. Explicitly prefixed names (`'fa:user'`,
+ * `'builtin:check'`) and literal class lists (`'fa-solid fa-user'`) always ignore this.
+ * @param {Partial<IconConfig>} options Values to change.
+ * @returns {IconConfig} The configuration after the change.
+ */
+export function configureIcons(options = {}) {
+  for (const key of ['provider', 'style', 'family', 'fixedWidth', 'kit']) {
+    if (options[key] !== undefined) config[key] = options[key];
+  }
+  return getIconConfig();
+}
+
+/**
+ * Switches bare icon names to Font Awesome. Use this when the kit, or a self-hosted Font Awesome
+ * stylesheet, is already on the page; use `loadFontAwesome()` to inject a kit as well.
+ * @param {Partial<Omit<IconConfig, 'provider'>>} [options={}] Default style, family, modifiers.
+ * @returns {IconConfig} The configuration after the change.
+ */
+export function useFontAwesome(options = {}) {
+  return configureIcons({ ...options, provider: 'fontawesome' });
+}
+
+/**
+ * Switches bare icon names back to the inline SVG glyphs bundled with Zx.
+ * @returns {IconConfig} The configuration after the change.
+ */
+export function useBuiltinIcons() {
+  return configureIcons({ provider: 'builtin' });
+}
+
+/**
+ * Loads a Font Awesome kit and renders bare icon names with it. The script is injected once per
+ * URL; a kit the page already embeds is adopted instead of loaded again.
+ * @param {string|(Partial<Omit<IconConfig, 'provider'>> & {kit: string, activate?: boolean})} options
+ *   Kit token/URL, or an options object naming one.
+ * @returns {Promise<IconConfig>} Resolves with the configuration once the kit has loaded.
+ */
+export async function loadFontAwesome(options) {
+  const settings = typeof options === 'string' ? { kit: options } : { ...options };
+  const { kit, activate = true, ...rest } = settings;
+  if (!kit) throw new TypeError('loadFontAwesome() needs a kit token or URL');
+  configureIcons({ ...rest, kit: kitUrl(kit) });
+  await loadFontAwesomeKit(kit);
+  return activate ? useFontAwesome() : getIconConfig();
+}
+
+/**
+ * Adds inline SVG glyphs to the built-in set, or replaces existing ones. Entries use the same
+ * `[viewBox, path]` shape as `icons`.
+ * @param {Record<string, [string, string]>} glyphs Glyphs keyed by icon name.
+ * @returns {void}
+ */
+export function registerIcons(glyphs) {
+  for (const [name, entry] of Object.entries(glyphs)) {
+    if (!Array.isArray(entry) || entry.length !== 2) {
+      throw new TypeError(`Icon "${name}" must be a [viewBox, path] pair`);
+    }
+    extraGlyphs[name] = [String(entry[0]), String(entry[1])];
+  }
+}
+
+/**
+ * Lists every inline SVG glyph name available, built-in and registered.
+ * @returns {string[]} Sorted icon names.
+ */
+export function iconNames() {
+  return [...new Set([...Object.keys(icons), ...Object.keys(extraGlyphs)])].sort();
+}
+
+/**
+ * Creates an icon element.
+ *
+ * Bare names (`'check'`) render through the active provider: the bundled inline SVG set by
+ * default, or Font Awesome after `useFontAwesome()` / `loadFontAwesome()`. A name can also select
+ * its renderer itself — `'fa:user'`, `'duotone:user'`, `'kit:zeyos-notes'`, `'builtin:check'`, or
+ * a literal Font Awesome class list such as `'fa-solid fa-user'`.
+ *
+ * @param {string} name Icon name or spec.
  * @param {IconOptions} [options={}] Display and accessibility options.
+ * @returns {SVGSVGElement|HTMLElement} An `<svg>` for inline glyphs, an `<i>` for Font Awesome.
+ */
+export function icon(name, options = {}) {
+  const spec = parseIconSpec(name);
+  if (spec.classes) return faIcon(spec.classes, options);
+
+  const resolved = aliases[spec.name] ?? spec.name;
+  if (spec.provider === 'builtin') return builtinIcon(resolved, options);
+  if (spec.provider === 'fa') {
+    return faIcon(faIconClasses(resolved, {
+      style: spec.style ?? options.style ?? config.style,
+      family: options.family ?? config.family,
+      fixedWidth: options.fixedWidth ?? config.fixedWidth
+    }), options);
+  }
+
+  if (config.provider === 'fontawesome') {
+    return faIcon(faIconClasses(resolved, {
+      style: options.style ?? config.style,
+      family: options.family ?? config.family,
+      fixedWidth: options.fixedWidth ?? config.fixedWidth
+    }), options);
+  }
+
+  return builtinIcon(resolved, options);
+}
+
+/**
+ * Renders one of the bundled inline SVG glyphs.
+ * @param {string} name Resolved glyph name.
+ * @param {IconOptions} options Display and accessibility options.
  * @returns {SVGSVGElement}
  */
-export function icon(name, { size = 16, label = null } = {}) {
-  const entry = icons[name] ?? icons[aliases[name]];
+function builtinIcon(name, options) {
+  const entry = extraGlyphs[name] ?? icons[name];
   if (!entry) throw new RangeError(`Unknown icon: ${name}`);
   const [viewBox, pathData] = entry;
+  const { size = 16 } = options;
   const svg = document.createElementNS(SVG_NS, 'svg');
   const path = document.createElementNS(SVG_NS, 'path');
+  svg.setAttribute('class', classList('zx-icon', options.class));
   svg.setAttribute('viewBox', viewBox);
   svg.setAttribute('width', String(size));
   svg.setAttribute('height', String(size));
   svg.setAttribute('fill', 'currentColor');
   svg.setAttribute('focusable', 'false');
-  if (label === null) {
-    svg.setAttribute('aria-hidden', 'true');
-  } else {
-    svg.setAttribute('role', 'img');
-    svg.setAttribute('aria-label', label);
-  }
+  applyLabel(svg, options.label ?? null);
   path.setAttribute('d', pathData);
   svg.append(path);
   return svg;
+}
+
+/**
+ * Renders a Font Awesome icon element. The glyph itself comes from the kit or stylesheet the
+ * application loaded; Zx only writes the classes.
+ * @param {string[]} classes Font Awesome class names.
+ * @param {IconOptions} options Display and accessibility options.
+ * @returns {HTMLElement}
+ */
+function faIcon(classes, options) {
+  const { size = 16 } = options;
+  const element = document.createElement('i');
+  element.className = classList('zx-icon', ...classes, options.class);
+  element.style.fontSize = typeof size === 'number' ? `${size}px` : String(size);
+  applyLabel(element, options.label ?? null);
+  return element;
+}
+
+/**
+ * Marks an icon decorative, or names it for assistive technology.
+ * @param {Element} element Icon element.
+ * @param {string|null} label Accessible label; null marks the icon decorative.
+ * @returns {void}
+ */
+function applyLabel(element, label) {
+  if (label === null) {
+    element.setAttribute('aria-hidden', 'true');
+    return;
+  }
+  element.setAttribute('role', 'img');
+  element.setAttribute('aria-label', label);
+}
+
+/**
+ * Joins class names, accepting strings, arrays, and nullish values.
+ * @param {...(string|string[]|null|undefined)} values Class name sources.
+ * @returns {string}
+ */
+function classList(...values) {
+  return values.flat().filter(Boolean).join(' ');
 }

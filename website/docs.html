@@ -336,7 +336,13 @@ const toolbar = h('div', { class: 'toolbar' },
         ZeyOS module colours ship as <code>--zx-module-*</code> tokens.
         <code>MasterPanel</code> and <code>NavigationBar</code> accept a <code>module</code> option
         (<code>billing</code>, <code>projects</code>, <code>tickets</code>, …) and colour their
-        header accordingly.
+        header accordingly. Entity and API resource names resolve too —
+        <code>--zx-module-invoices</code> points at the billing-transaction colour.
+      </p>
+      <p>
+        The tokens are generated from <code>src/zeyos/modules.js</code>, the configuration file
+        that also names each module's icon in the ZeyOS Font Awesome kit. See
+        <a href="#components/icons">Icons</a> for the module gallery and the chip renderer.
       </p>
     </template>
 

@@ -14,7 +14,7 @@
 
 /** Component demos, in sidebar order. The id is the `website/demos/<id>.demo.js` basename. */
 const COMPONENT_IDS = [
-  'tokens', 'kernel', 'helpers', 'gx-compat',
+  'tokens', 'kernel', 'icons', 'helpers', 'gx-compat',
   'button', 'check-button', 'toggle', 'search', 'number-field', 'rating',
   'groupbox', 'panel', 'tabbox', 'navigation-bar',
   'message', 'modal', 'dialog', 'dropdown', 'menu-button',

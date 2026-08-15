@@ -52,6 +52,10 @@ its "Out of scope" section is binding. Do not modify files outside the spec's fi
   class-field initializers, which would then clobber anything render set. Initialize all instance
   state at the top of `render()` instead. When creating your own root (target null), assign
   `this.el = root` immediately after building it so helpers can use it.
+- **Icons always go through `icon(name, options)`** from `src/core/icons.js` — never hand-written
+  `<svg>` or `<i class="fa-…">` in a component. The same call renders either the bundled inline
+  SVG set or Font Awesome, depending on what the application opted into, and both carry
+  `class="zx-icon"`. Component CSS that targets icons must match `.zx-icon`, not `svg`.
 - State is expressed via ARIA attributes and `data-state`, styled with attribute selectors
   (`[aria-expanded="true"]`, `[aria-selected="true"]`, `[data-state="open"]`), not state classes.
 - Accessibility follows the WAI-ARIA Authoring Practices Guide (APG) pattern named in the spec,
