@@ -108,14 +108,16 @@ let stamped = 0;
 for (const file of await walk(outDir)) {
   if (extname(file).toLowerCase() !== '.html') continue;
   const original = await readFile(file, 'utf8');
+  // Count the elements found, not the files rewritten: when the checked-in literal already
+  // matches package.json nothing changes on disk, and "0 stamped" would read like a failure.
   const updated = original.replace(
     /(<([a-z]+)[^>]*\sdata-site-version[^>]*>)[^<]*(<\/\2>)/gi,
-    `$1${version}$3`
+    (...match) => {
+      stamped += 1;
+      return `${match[1]}${version}${match[3]}`;
+    }
   );
-  if (updated !== original) {
-    await writeFile(file, updated);
-    stamped += 1;
-  }
+  if (updated !== original) await writeFile(file, updated);
 }
 
 // 5. Host-specific extras. Both are harmless on hosts that ignore them, which is what lets the
@@ -131,7 +133,7 @@ const bytes = (await Promise.all(files.map(async (file) => (await stat(file)).si
 console.log(`Zx site → ${relative(root, outDir)}/`);
 console.log(`  ${files.length} files, ${(bytes / 1024 / 1024).toFixed(2)} MB`);
 console.log(`  ${rewritten} files had escaping paths rewritten`);
-console.log(`  version ${version} stamped into ${stamped} file(s)`);
+console.log(`  version ${version} stamped into ${stamped} element(s)`);
 console.log(`  CNAME: ${domain}`);
 
 /**
