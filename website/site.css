@@ -102,6 +102,49 @@ body.site-page > main {
   display: block !important;
 }
 
+/* Current version, next to the wordmark, linking to the newest release. `/releases/latest`
+   rather than a stamped tag, so the link can never go stale against the deployed site. */
+.site-version {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  margin-inline-start: var(--zx-space-2);
+  padding: 1px var(--zx-space-2);
+  border: 1px solid var(--zx-color-border);
+  border-radius: var(--zx-radius-full);
+  background: var(--zx-color-bg-muted);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.7;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.site-version:hover {
+  border-color: var(--zx-color-border-strong);
+  color: var(--zx-color-text);
+}
+
+.site-version:focus-visible {
+  outline: 0;
+  box-shadow: var(--zx-focus-ring);
+}
+
+/* The overlay header sits on the dark hero band in either theme, so it needs its own ink. */
+.site-header--overlay .site-version {
+  border-color: rgb(255 255 255 / 18%);
+  background: rgb(255 255 255 / 8%);
+  color: rgb(255 255 255 / 72%);
+}
+
+.site-header--overlay .site-version:hover {
+  border-color: rgb(255 255 255 / 32%);
+  color: #fff;
+}
+
+
 .site-nav {
   display: flex;
   min-inline-size: 0;
