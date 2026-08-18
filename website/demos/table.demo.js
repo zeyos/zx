@@ -31,7 +31,7 @@ export default {
   group: 'Data',
 
   /**
-   * Mounts sortable, selectable, server-sort, sticky-header, and 5,000-row examples.
+   * Mounts sortable, selectable, editable, server-sort, sticky-header, and 5,000-row examples.
    * @param {HTMLElement} container Demo stage.
    * @returns {void}
    */
@@ -40,6 +40,8 @@ export default {
     const components = [];
     const marker = h('div', {},
       staticExample(data, components),
+      cellEditExample(components),
+      rowEditExample(components),
       performanceExample(components),
       serverSortExample(data, components),
       stickyExample(data, components)
@@ -80,6 +82,180 @@ function staticExample(data, components) {
     selectionLog,
     rowLog
   );
+}
+
+/** @param {Table[]} components @returns {HTMLElement} */
+function cellEditExample(components) {
+  const log = eventLog();
+  const table = new Table(null, {
+    columns: editableColumns(),
+    data: makeEditableRows(),
+    rowId: 'id',
+    editMode: 'cell',
+    ...editLogHandlers(log)
+  });
+  components.push(table);
+
+  const focusCell = h('button', {
+    type: 'button',
+    onclick: () => table.startEdit(2, 'name')
+  }, 'startEdit(2, "name")');
+  const cancel = h('button', { type: 'button', onclick: () => table.cancelEdit() }, 'cancelEdit()');
+
+  return section('Cell editing',
+    h('p', {}, 'Double-click a cell, or focus one and press Enter or F2. Enter commits, Escape ' +
+      'cancels, Tab commits and walks to the next editable cell. "Notes" refuses to be empty, and ' +
+      '"ID" is read-only.'),
+    table.toElement(),
+    h('div', { style: rowStyle }, focusCell, cancel),
+    log.element
+  );
+}
+
+/** @param {Table[]} components @returns {HTMLElement} */
+function rowEditExample(components) {
+  const log = eventLog();
+  let reject = false;
+  const table = new Table(null, {
+    columns: editableColumns(),
+    data: makeEditableRows(),
+    rowId: 'id',
+    editMode: 'row',
+    ...editLogHandlers(log),
+    // A server-backed table rejects a commit exactly like this: keep the editor open and decide
+    // once the round-trip answered.
+    oneditcommit: (event) => {
+      log.push(`editcommit ${describeChanges(event.detail.changes)}${reject ? ' — rejected' : ''}`);
+      if (reject) event.preventDefault();
+    }
+  });
+  components.push(table);
+
+  const rejectToggle = h('input', {
+    type: 'checkbox',
+    onchange: (event) => { reject = event.target.checked; }
+  });
+
+  return section('Row editing',
+    h('p', {}, 'Editing one cell opens every editable cell of the row; they commit or cancel as a ' +
+      'unit and `editcommit` carries one `changes` map for the whole row.'),
+    table.toElement(),
+    h('div', { style: rowStyle },
+      h('button', { type: 'button', onclick: () => table.startEdit(1, 'name') }, 'startEdit(1, "name")'),
+      h('button', { type: 'button', onclick: () => table.commitEdit() }, 'commitEdit()'),
+      h('button', { type: 'button', onclick: () => table.cancelEdit() }, 'cancelEdit()'),
+      h('label', { style: { display: 'flex', alignItems: 'center', gap: 'var(--zx-space-2)' } },
+        rejectToggle, 'Reject commits (simulated server)')
+    ),
+    log.element
+  );
+}
+
+/**
+ * Builds a small rolling event log.
+ * @returns {{element: HTMLElement, push: (line: string) => void}}
+ */
+function eventLog() {
+  const element = h('output', { style: logStyle, ariaLive: 'polite' }, 'No editing events yet.');
+  const lines = [];
+  return {
+    element,
+    push(line) {
+      lines.unshift(line);
+      lines.length = Math.min(lines.length, 6);
+      element.textContent = lines.join('\n');
+    }
+  };
+}
+
+/**
+ * Wires every editing event onto a log.
+ * @param {{push: (line: string) => void}} log Event log.
+ * @returns {Record<string, (event: CustomEvent<any>) => void>} Table option handlers.
+ */
+function editLogHandlers(log) {
+  return {
+    oneditstart: (event) => log.push(`editstart #${event.detail.id} ${event.detail.columnId}`),
+    oneditcommit: (event) => log.push(`editcommit ${describeChanges(event.detail.changes)}`),
+    oneditcancel: (event) => log.push(`editcancel #${event.detail.id} ${event.detail.columnId}`),
+    oneditinvalid: (event) => log.push(`editinvalid ${event.detail.columnId}: ${event.detail.message}`)
+  };
+}
+
+/** @param {Record<string, unknown>} changes @returns {string} */
+function describeChanges(changes) {
+  const entries = Object.entries(changes);
+  if (entries.length === 0) return '(no change)';
+  return entries.map(([id, value]) => `${id}=${formatLogValue(value)}`).join(', ');
+}
+
+/** @param {unknown} value @returns {string} */
+function formatLogValue(value) {
+  if (value instanceof Date) return formatDateCompact(value);
+  return String(value);
+}
+
+/** @returns {Array<Record<string, any>>} */
+function editableColumns() {
+  return [
+    { id: 'id', label: 'ID', width: '70px', align: 'right' },
+    { id: 'name', label: 'Customer', width: '1.6fr', editable: true },
+    {
+      id: 'quantity',
+      label: 'Qty',
+      width: '80px',
+      align: 'right',
+      editable: 'number',
+      editorProps: { min: 0, max: 999, step: 1 }
+    },
+    {
+      id: 'category',
+      label: 'Category',
+      width: '1.2fr',
+      editable: 'select',
+      options: [
+        { value: 'Hardware', label: 'Hardware' },
+        { value: 'Services', label: 'Services' },
+        { value: 'Office', label: 'Office' }
+      ]
+    },
+    {
+      id: 'due',
+      label: 'Due',
+      width: '1.1fr',
+      editable: 'date',
+      render: (row) => (row.due ? formatDateCompact(row.due) : '—')
+    },
+    {
+      id: 'active',
+      label: 'Active',
+      width: '90px',
+      align: 'center',
+      editable: 'checkbox',
+      render: (row) => (row.active ? 'Yes' : 'No')
+    },
+    {
+      id: 'notes',
+      label: 'Notes',
+      width: '1.4fr',
+      editable: true,
+      validate: (value) => (String(value ?? '').trim() === '' ? 'Notes cannot be empty.' : true)
+    }
+  ];
+}
+
+/** @returns {Array<Record<string, any>>} */
+function makeEditableRows() {
+  const categories = ['Hardware', 'Services', 'Office'];
+  return Array.from({ length: 6 }, (_, index) => ({
+    id: index + 1,
+    name: `Customer ${String(index + 1).padStart(4, '0')}`,
+    quantity: (index * 7) % 40 + 1,
+    category: categories[index % categories.length],
+    due: new Date(2026, index % 12, index * 3 % 27 + 1),
+    active: index % 3 !== 0,
+    notes: 'Annual account renewal'
+  }));
 }
 
 /** @param {Table[]} components @returns {HTMLElement} */

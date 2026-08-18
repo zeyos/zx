@@ -43,20 +43,28 @@ const t = new Table(target, options);
 See `README.md` for the one-line index and `docs/llms.md` for per-component options/methods/events.
 Groups (matching the demo sidebar):
 
-- **Inputs**: `button()`, `buttonGroup()`, `CheckButton`, `Toggle`, `Search`, `Select`
-  (APG combobox; `filter: false | 'local' | async fn`; `Select.priority()` preset), `Checklist`,
-  `DatePicker`, `MonthPicker`, `TimePicker`, `Datebox`/`DateTimeBox`, `Timebox`.
-- **Overlays**: `Message` (toasts + inline + progress; statics `Message.info/success/warning/error`),
+- **Inputs**: `button()`, `buttonGroup()`, `badge()`/`badgeGroup()`, `CheckButton`, `Toggle`,
+  `Search`, `Select` (APG combobox; `filter: false | 'local' | async fn`; `Select.priority()`
+  preset), `Checklist`, `DatePicker`, `MonthPicker`, `TimePicker` (with an optional clock
+  face), `Datebox`/`DateTimeBox`, `DateRangePicker`/`DateRangeBox`, `Timebox`.
+- **Overlays**: `Tooltip`/`tooltip()`/`describe()`,
+  `Message` (toasts + inline + progress; statics `Message.info/success/warning/error`),
   `Modal`, `Dialog` (views + statics `Dialog.alert/confirm/prompt` returning Promises),
   `Dropdown`, `MenuButton`.
-- **Data**: `Table` (sortable, selectable, sticky header, local/server sort), `DataFilter`.
+- **Data**: `Table` (sortable, selectable, sticky header, local/server sort, opt-in inline
+  cell/row editing via `editMode`), `DataFilter`, `Pagination` (+ pure `paginationRange()`).
 - **Forms**: `Form` → `Fieldset` → `Field` (type registry: text/password/int/float/textarea/
   checkbox/select/optionlist + widget types zxselect/checklist/date/month/datetime/time/
   valuelist/multivalueeditor/upload/toggle), `ValueList`, `MultiValueEditor`, `FieldUpload`,
   `Permission`.
-- **Layout**: `Groupbox`, `Panel`, `MasterPanel`, `Tabbox`, `NavigationBar`.
+- **Layout**: `Groupbox`, `Panel` (header/footer action buttons), `MasterPanel`,
+  `Tabbox` (`variant: 'line'|'segmented'`), `NavigationBar`, `Toolbar` (APG toolbar with an
+  overflow menu), `SplitView`, `Stepper`, `Breadcrumb`, `emptyState()`.
 - **Core**: `Component`, `h`, `icon`/`icons` (Font Awesome Free solid, inline SVG),
   `position`, `Http`/`zeyosService`/`parseResult`, i18n (`setTranslator`/`translate`),
+  formatters (`formatNumber`/`formatCurrency`/`formatPercent`/`formatFileSize`/
+  `formatRelativeTime`), `storage()`, `toCsv`/`downloadBlob`/`copyToClipboard`,
+  `groupBy`/`sortBy`/`uniqueBy`, `throttle`, `escapeRegExp`/`highlightMatch`,
   date utils (`formatDate`/`parseDate`, tokens `%d %m %Y %H %M %S %a %B %s`), `defineElements`.
 
 ## Common recipes

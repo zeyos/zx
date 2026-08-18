@@ -17,17 +17,20 @@ export default {
         {
           name: 'overview',
           title: 'Overview',
+          icon: 'list',
           content: panelContent('Overview', 'Arrow keys move focus without selecting another tab.')
         },
         {
           name: 'records',
           title: 'Closable records',
+          icon: 'file',
           closable: true,
           content: panelContent('Records', 'Focus this tab and press Delete to close it.')
         },
         {
           name: 'audit',
           title: 'Lazy audit',
+          icon: 'eye',
           content: () => {
             log.textContent = 'lazy build: audit content created';
             return panelContent('Audit', 'This node was created only on first activation.');
@@ -36,11 +39,22 @@ export default {
         {
           name: 'disabled',
           title: 'Disabled',
+          icon: 'lock',
           disabled: true,
           content: panelContent('Disabled', 'This content cannot be selected until enabled.')
         }
       ],
       active: 'overview'
+    });
+
+    // The same component with the compact appearance, for switching a view inside a panel.
+    const segmented = new Tabbox(null, {
+      variant: 'segmented',
+      tabs: [
+        { name: 'chart', title: 'Chart', icon: 'filter', content: panelContent('Chart', 'A segmented row reads as one control, so it suits a card header or toolbar.') },
+        { name: 'table', title: 'Table', icon: 'list', content: panelContent('Table', 'Same component, same keyboard map — only the tab row is styled differently.') },
+        { name: 'raw', title: 'Raw', icon: 'code', content: panelContent('Raw', 'Set variant: "segmented" to opt in; the default stays the line variant.') }
+      ]
     });
     let badge = 2;
     const badgeButton = /** @type {HTMLButtonElement} */ (h('button', {
@@ -83,10 +97,21 @@ export default {
       tabbox.toElement(),
       h('p', { style: { margin: '0', color: 'var(--zx-color-text-muted)' } },
         'Keyboard: Left/Right, Home/End, Enter/Space, and Delete on the closable tab.'),
-      log)
+      log),
+      h('section', { style: {
+        display: 'grid', gap: 'var(--zx-space-4)', justifyItems: 'start'
+      } },
+      h('h2', { style: { margin: '0', fontSize: 'var(--zx-text-xl)' } }, 'Segmented variant'),
+      h('p', { style: { margin: '0', maxInlineSize: '78ch', color: 'var(--zx-color-text-muted)' } },
+        'variant: "segmented" swaps the full-width underlined row for a pill group on a muted '
+        + 'fill, with the active tab raised onto a control surface.'),
+      segmented.toElement())
     );
     container.append(marker);
-    cleanupWhenRemoved(marker, () => tabbox.destroy());
+    cleanupWhenRemoved(marker, () => {
+      tabbox.destroy();
+      segmented.destroy();
+    });
   }
 };
 

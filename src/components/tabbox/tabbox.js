@@ -10,9 +10,15 @@ import { uid } from '../../core/util.js';
  * @property {string} name Stable tab name.
  * @property {string} title Visible tab label.
  * @property {TabContent} content Panel content or a lazy content factory.
+ * @property {string} [icon] Icon name passed to `icon()`, shown before the title.
  * @property {boolean} [closable=false] Whether Delete can close the tab.
  * @property {boolean} [disabled=false] Whether the tab is unavailable.
  */
+
+/** @typedef {'line'|'segmented'} TabboxVariant */
+
+/** Tab row appearances. `line` underlines the active tab; `segmented` is a pill-shaped group. */
+const VARIANTS = new Set(['line', 'segmented']);
 
 /**
  * @typedef {Object} TabInsertOptions
@@ -23,6 +29,8 @@ import { uid } from '../../core/util.js';
  * @typedef {Object} TabboxOptions
  * @property {TabDefinition[]} [tabs=[]] Initial tabs.
  * @property {string|null} [active=null] Initially active tab name, or the first enabled tab.
+ * @property {TabboxVariant} [variant='line'] `line` underlines the active tab across a full-width
+ *   rule; `segmented` renders a compact pill group, for switching a view inside a panel.
  * @property {boolean} [keepAlive=true] Keep inactive panel elements mounted.
  * @property {(event: CustomEvent<{name: string, previous: string|null}>) => void} [onchange] Change callback.
  * @property {(event: CustomEvent<{name: string}>) => void} [onclose] Close callback.
@@ -50,6 +58,7 @@ export class Tabbox extends Component {
   static defaults = {
     tabs: [],
     active: null,
+    variant: 'line',
     keepAlive: true
   };
 
@@ -76,6 +85,10 @@ export class Tabbox extends Component {
     this._active = null;
     this._keepAlive = Boolean(this.options.keepAlive);
     this._initializing = true;
+    if (!VARIANTS.has(this.options.variant)) {
+      throw new RangeError(`Unknown tabbox variant: ${this.options.variant}`);
+    }
+    root.dataset.variant = this.options.variant;
 
     const tablist = h('div', {
       class: 'zx-tabbox__tablist',
@@ -131,6 +144,7 @@ export class Tabbox extends Component {
       name: definition.name,
       title: String(definition.title ?? ''),
       content: definition.content,
+      icon: definition.icon ? String(definition.icon) : null,
       closable: Boolean(definition.closable),
       disabled: Boolean(definition.disabled)
     };
@@ -141,7 +155,12 @@ export class Tabbox extends Component {
       class: 'zx-tabbox__badge',
       hidden: true
     });
-    const children = [title, badge];
+    const children = [];
+    if (normalized.icon) {
+      children.push(h('span', { class: 'zx-tabbox__icon', ariaHidden: 'true' },
+        icon(normalized.icon, { size: 16 })));
+    }
+    children.push(title, badge);
     if (normalized.closable) {
       children.push(h('span', {
         class: 'zx-tabbox__close',

@@ -1,0 +1,234 @@
+/*
+ * Stepper — the wizard progress rail promoted out of website/docs.css.
+ *
+ * One `<li>` per step, each carrying `data-state`; the marker bubble and the connector to the next
+ * step are the only things that change colour, so a rail reads at a glance in both themes:
+ *
+ *   upcoming  outlined bubble, muted text
+ *   active    accent ring on a subtle accent fill, full-strength title
+ *   complete  solid accent bubble with a check, accent connector behind it
+ *   error     danger ring on a danger fill with a warning glyph
+ */
+
+.zx-stepper {
+  /* Bubble diameter. The vertical connector is positioned from it, so it is a variable. */
+  --zx-stepper-marker: 26px;
+  display: grid;
+  gap: var(--zx-space-3);
+  min-inline-size: 0;
+}
+
+.zx-stepper__counter {
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.zx-stepper__list {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.zx-stepper__step {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-inline-size: 0;
+}
+
+/* The whole step is one control: a button when the rail is clickable, an inert span otherwise.
+   Both share the layout so the two modes are pixel-identical. */
+.zx-stepper__control {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: var(--zx-space-3);
+  min-inline-size: 0;
+  min-block-size: 0;
+  border: 0;
+  border-radius: var(--zx-radius-lg);
+  background: none;
+  padding: var(--zx-space-2);
+  color: inherit;
+  font: inherit;
+  text-align: start;
+}
+
+button.zx-stepper__control:not(:disabled) {
+  cursor: pointer;
+}
+
+button.zx-stepper__control:not(:disabled):hover {
+  background: var(--zx-color-bg-hover);
+}
+
+button.zx-stepper__control:disabled {
+  cursor: default;
+}
+
+.zx-stepper__control:focus-visible {
+  outline: 0;
+  box-shadow: var(--zx-focus-ring);
+}
+
+/* ------------------------------------------------------------------------ marker -- */
+
+.zx-stepper__marker {
+  display: grid;
+  place-items: center;
+  flex: none;
+  inline-size: var(--zx-stepper-marker);
+  block-size: var(--zx-stepper-marker);
+  border: 1px solid var(--zx-color-border-strong);
+  border-radius: var(--zx-radius-full);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.zx-stepper__step[data-state="active"] .zx-stepper__marker {
+  border-color: var(--zx-color-accent);
+  background: var(--zx-color-accent-subtle);
+  color: var(--zx-color-accent);
+}
+
+.zx-stepper__step[data-state="complete"] .zx-stepper__marker {
+  border-color: var(--zx-color-accent);
+  background: var(--zx-color-accent);
+  color: var(--zx-color-on-accent);
+}
+
+.zx-stepper__step[data-state="error"] .zx-stepper__marker {
+  border-color: var(--zx-color-danger);
+  background: var(--zx-color-danger-bg);
+  color: var(--zx-color-danger);
+}
+
+/* -------------------------------------------------------------------------- text -- */
+
+.zx-stepper__text {
+  display: grid;
+  gap: 2px;
+  min-inline-size: 0;
+}
+
+.zx-stepper__title {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-control-font-size);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.zx-stepper__step[data-state="active"] .zx-stepper__title,
+.zx-stepper__step[data-state="complete"] .zx-stepper__title {
+  color: var(--zx-color-text);
+}
+
+.zx-stepper__step[data-state="error"] .zx-stepper__title {
+  color: var(--zx-color-danger);
+}
+
+/* The step the user stands on stays the heaviest label even when it is also in error. */
+.zx-stepper__step[aria-current="step"] .zx-stepper__title {
+  font-weight: 600;
+}
+
+.zx-stepper__description {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  overflow-wrap: anywhere;
+}
+
+.zx-stepper__optional {
+  color: var(--zx-color-text-placeholder);
+  font-size: var(--zx-text-xs);
+  font-style: italic;
+}
+
+.zx-stepper__step[data-disabled] {
+  opacity: 0.55;
+}
+
+/* State text for assistive technology; the marker itself is aria-hidden decoration. */
+.zx-stepper__status {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  border: 0;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* -------------------------------------------------------------------- horizontal -- */
+
+.zx-stepper[data-orientation="horizontal"] .zx-stepper__list {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zx-space-2);
+}
+
+.zx-stepper[data-orientation="horizontal"] .zx-stepper__step {
+  flex: 0 1 auto;
+  gap: var(--zx-space-2);
+}
+
+/* The connector doubles as the flexible gap, so the steps size to their labels and the rules
+   absorb whatever is left over. */
+.zx-stepper[data-orientation="horizontal"] .zx-stepper__step:not(:last-child)::after {
+  content: "";
+  flex: 1 1 var(--zx-space-6);
+  min-inline-size: var(--zx-space-4);
+  block-size: 2px;
+  border-radius: var(--zx-radius-full);
+  background: var(--zx-color-border);
+}
+
+/* ---------------------------------------------------------------------- vertical -- */
+
+.zx-stepper[data-orientation="vertical"] .zx-stepper__list {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.zx-stepper[data-orientation="vertical"] .zx-stepper__step {
+  padding-block-end: var(--zx-space-5);
+}
+
+.zx-stepper[data-orientation="vertical"] .zx-stepper__step:last-child {
+  padding-block-end: 0;
+}
+
+/* Drawn from the marker's centre line: the control's own padding plus half a bubble. */
+.zx-stepper[data-orientation="vertical"] .zx-stepper__step:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  inset-block: calc(var(--zx-space-2) + var(--zx-stepper-marker) + var(--zx-space-1)) var(--zx-space-1);
+  inset-inline-start: calc(var(--zx-space-2) + var(--zx-stepper-marker) / 2 - 1px);
+  inline-size: 2px;
+  border-radius: var(--zx-radius-full);
+  background: var(--zx-color-border);
+}
+
+/* A completed step has been walked through, so the rule leading out of it is walked too. */
+.zx-stepper__step[data-state="complete"]::after {
+  background: var(--zx-color-accent);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .zx-stepper__control,
+  .zx-stepper__marker,
+  .zx-stepper__title,
+  .zx-stepper__step::after {
+    transition: color var(--zx-dur-fast) var(--zx-ease),
+      background-color var(--zx-dur-fast) var(--zx-ease),
+      border-color var(--zx-dur-fast) var(--zx-ease);
+  }
+}

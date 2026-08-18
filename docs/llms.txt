@@ -21,12 +21,13 @@ exports and as `window.zx.*`.
 - [Contributor contract](../AGENTS.md): conventions for editing component source (token rules, render-time state, listeners, ARIA/APG).
 
 ## Components
-- Inputs: `button()`, `buttonGroup()`, `CheckButton`, `Toggle`, `Search`, `Select` (APG combobox; `filter: false|'local'|async`), `Checklist`, `TagPicker`, `NumberField`, `Rating`, `DatePicker`, `MonthPicker`, `TimePicker`, `Datebox`/`DateTimeBox`, `Timebox`.
-- Overlays: `Message` (toasts/inline/progress), `Modal`, `Dialog` (+ `alert`/`confirm`/`prompt` Promises), `Dropdown`, `MenuButton`.
-- Data: `Table` (sortable, selectable, sticky header), `DataFilter`, `TreeView` (APG tree), `Finder` (Miller columns).
+- Inputs: `button()`, `buttonGroup()`, `badge()`/`badgeGroup()`, `CheckButton`, `Toggle`, `Search`, `Select` (APG combobox; `filter: false|'local'|async`), `Checklist`, `TagPicker`, `NumberField`, `Rating`, `DatePicker`, `MonthPicker`, `TimePicker`, `Datebox`/`DateTimeBox`, `DateRangePicker`/`DateRangeBox`, `Timebox`.
+- Overlays: `Message` (toasts/inline/progress), `Modal`, `Dialog` (+ `alert`/`confirm`/`prompt` Promises), `Dropdown`, `MenuButton`, `Tooltip`/`tooltip()`/`describe()`.
+- Data: `Table` (sortable, selectable, sticky header, opt-in inline cell/row editing via `editMode`), `DataFilter`, `Pagination` (+ pure `paginationRange()`), `TreeView` (APG tree), `Finder` (Miller columns).
 - Forms: `Form`, `Fieldset`, `Field` (type registry), `ValueList`, `MultiValueEditor`, `FieldUpload`, `Permission`.
-- Layout: `Groupbox`, `Panel`, `MasterPanel`, `Tabbox`, `NavigationBar`.
+- Layout: `Groupbox`, `Panel` (header/footer action buttons), `MasterPanel`, `Tabbox` (`variant: 'line'|'segmented'`), `NavigationBar`, `Toolbar` (APG toolbar with overflow menu), `SplitView`, `Stepper`, `Breadcrumb`, `emptyState()`.
 - Core: `Component`, `h`/`icon`, `position`, `Http`/`zeyosService`, i18n, date utils, `defineElements` (declarative `<zx-*>` custom elements).
+- Helpers: `formatNumber`/`formatCurrency`/`formatPercent`/`formatFileSize`/`formatRelativeTime` (locale-aware, cached `Intl`), `debounce`/`throttle`, `groupBy`/`sortBy`/`uniqueBy`, `escapeRegExp`/`highlightMatch`, `storage()` (namespaced JSON, degrades to memory), `toCsv`/`downloadBlob`/`copyToClipboard`.
 
 ## Theming
 Load `zx.css` once; set `data-zx-theme` (`light`|`dark`|`auto`) and `data-zx-density` (`cozy`|`compact`) on any ancestor. Define a product theme by overriding semantic `--zx-color-*` / `--zx-control-*` tokens under `[data-zx-theme="name"]`. Never use tier-1 palette tokens or raw color literals in application CSS.

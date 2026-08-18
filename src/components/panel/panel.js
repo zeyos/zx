@@ -1,9 +1,21 @@
 import { Component } from '../../core/component.js';
 import { h } from '../../core/dom.js';
 import { icon } from '../../core/icons.js';
-import { uid } from '../../core/util.js';
+import { isElement, uid } from '../../core/util.js';
+import { button } from '../button/button.js';
 
 /** @typedef {string|Node|Component|null} PanelContent */
+/**
+ * @typedef {Object} PanelButtonDescriptor
+ * @property {string} [label=''] Visible button label.
+ * @property {string|null} [icon=null] Icon name from the kernel icon set.
+ * @property {'default'|'primary'|'danger'|'ghost'} [kind='default'] Visual intent.
+ * @property {'md'|'sm'} [size='md'] Control size.
+ * @property {boolean} [disabled=false] Whether the button is disabled.
+ * @property {string} [title] Native title text.
+ * @property {(event: MouseEvent) => void} [onclick] Click callback.
+ */
+/** @typedef {Element|PanelButtonDescriptor} PanelButton */
 
 /**
  * @typedef {Object} PanelOptions
@@ -11,13 +23,18 @@ import { uid } from '../../core/util.js';
  * @property {PanelContent} [content=null] Initial body content.
  * @property {boolean} [open=true] Initial expanded state.
  * @property {boolean} [collapsible=true] Whether the header toggles the body.
+ * @property {PanelButton[]} [buttons=[]] Header actions, right-aligned next to the title.
  * @property {PanelContent} [footer=null] Optional footer content.
+ * @property {PanelButton[]} [footerButtons=[]] Footer actions, right-aligned in the footer bar.
  * @property {(event: CustomEvent<Record<string, never>>) => void} [onopen] Open callback.
  * @property {(event: CustomEvent<Record<string, never>>) => void} [onclose] Close callback.
  */
 
 /**
  * Framed, optionally collapsible titled section.
+ *
+ * The header is a row rather than one big button: the title and chevron form the collapse control
+ * and the action area sits beside it, because a button may not contain other buttons.
  * @fires Panel#open
  * @fires Panel#close
  */
@@ -30,7 +47,9 @@ export class Panel extends Component {
     content: null,
     open: true,
     collapsible: true,
-    footer: null
+    buttons: [],
+    footer: null,
+    footerButtons: []
   };
 
   /**
@@ -53,28 +72,39 @@ export class Panel extends Component {
     this._open = Boolean(this.options.open);
     this._collapsible = Boolean(this.options.collapsible);
 
+    this._hasFooterContent = false;
+
     const originalContent = created ? [] : Array.from(root.childNodes);
     const bodyId = uid('zx-panel-body');
     const title = h('span', { class: 'zx-panel__title', ref: 'title' });
-    const headerChildren = [];
+    const toggleChildren = [];
     if (this._collapsible) {
-      headerChildren.push(h('span', {
+      toggleChildren.push(h('span', {
         class: 'zx-panel__chevron',
         ariaHidden: 'true'
       }, icon('chevron-right', { size: 16 })));
     }
-    headerChildren.push(title);
+    toggleChildren.push(title);
 
-    const header = this._collapsible ? h('button', {
-      class: 'zx-panel__header',
-      ref: 'header',
+    const toggle = this._collapsible ? h('button', {
+      class: 'zx-panel__toggle',
+      ref: 'toggle',
       type: 'button',
       ariaControls: bodyId,
       ariaExpanded: String(this._open)
-    }, headerChildren) : h('div', {
-      class: 'zx-panel__header',
-      ref: 'header'
-    }, headerChildren);
+    }, toggleChildren) : h('div', {
+      class: 'zx-panel__toggle',
+      ref: 'toggle'
+    }, toggleChildren);
+    const header = h('div', { class: 'zx-panel__header', ref: 'header' },
+      toggle,
+      h('div', {
+        class: 'zx-panel__buttons',
+        ref: 'buttons',
+        role: 'group',
+        ariaLabel: 'Panel actions'
+      })
+    );
     const content = h('div', {
       class: 'zx-panel__content',
       ref: 'content'
@@ -88,17 +118,26 @@ export class Panel extends Component {
       class: 'zx-panel__footer',
       ref: 'footer',
       hidden: true
-    });
+    },
+    h('div', { class: 'zx-panel__footer-content', ref: 'footerContent' }),
+    h('div', {
+      class: 'zx-panel__footer-buttons',
+      ref: 'footerButtons',
+      role: 'group',
+      ariaLabel: 'Panel footer actions'
+    }));
     root.replaceChildren(header, body, footer);
 
     this.setTitle(this.options.title);
     if (this.options.content !== null) this.setContent(this.options.content);
     else content.append(...originalContent);
+    this.setButtons(this.options.buttons);
     this.setFooter(this.options.footer);
+    this.setFooterButtons(this.options.footerButtons);
     this._syncOpenState();
 
     if (this._collapsible) {
-      this.listen(header, 'click', () => this.toggle());
+      this.listen(toggle, 'click', () => this.toggle());
     }
     return root;
   }
@@ -124,13 +163,37 @@ export class Panel extends Component {
   }
 
   /**
-   * Replaces or removes the footer.
+   * Replaces the header action area, right-aligned beside the title.
+   * @param {PanelButton[]} list Button descriptors or elements.
+   * @returns {this}
+   */
+  setButtons(list) {
+    this.refs.buttons.replaceChildren(...this._buildButtons(list, 'Panel buttons'));
+    return this;
+  }
+
+  /**
+   * Replaces or removes the footer content. The footer bar appears whenever it has content,
+   * footer buttons, or both.
    * @param {PanelContent} content Next footer content, or null to remove it.
    * @returns {this}
    */
   setFooter(content) {
-    replaceContent(this.refs.footer, content, 'Panel footer');
-    this.refs.footer.hidden = content === null;
+    replaceContent(this.refs.footerContent, content, 'Panel footer');
+    this._hasFooterContent = content !== null;
+    this._syncFooter();
+    return this;
+  }
+
+  /**
+   * Replaces the footer action area, right-aligned in the footer bar.
+   * @param {PanelButton[]} list Button descriptors or elements.
+   * @returns {this}
+   */
+  setFooterButtons(list) {
+    this.refs.footerButtons.replaceChildren(
+      ...this._buildButtons(list, 'Panel footer buttons'));
+    this._syncFooter();
     return this;
   }
 
@@ -191,8 +254,36 @@ export class Panel extends Component {
     this.el.setAttribute('data-state', this._open ? 'open' : 'closed');
     this.refs.body.hidden = !this._open;
     if (this._collapsible) {
-      this.refs.header.setAttribute('aria-expanded', String(this._open));
+      this.refs.toggle.setAttribute('aria-expanded', String(this._open));
     }
+  }
+
+  /** @returns {void} */
+  _syncFooter() {
+    this.refs.footer.hidden = !this._hasFooterContent
+      && this.refs.footerButtons.childElementCount === 0;
+  }
+
+  /**
+   * Turns button descriptors into elements, passing through any Element unchanged.
+   * @param {PanelButton[]} list Button descriptors or elements.
+   * @param {string} label Error-message prefix.
+   * @returns {Element[]}
+   */
+  _buildButtons(list, label) {
+    if (!Array.isArray(list)) throw new TypeError(`${label} must be an array`);
+    return list.map((item) => {
+      if (isElement(item)) return item;
+      if (!item || typeof item !== 'object' || Array.isArray(item)) {
+        throw new TypeError(`${label} must be Elements or button descriptors`);
+      }
+      const descriptor = { ...item };
+      const onclick = descriptor.onclick;
+      delete descriptor.onclick;
+      const element = button(descriptor);
+      if (typeof onclick === 'function') this.listen(element, 'click', onclick);
+      return element;
+    });
   }
 }
 

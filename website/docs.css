@@ -103,22 +103,37 @@
 
 /* --------------------------------------------------------------------- tabs -- */
 
+/* Segmented tabs, matching the shadcn/ui Tabs primitive of the b2BVl11e4 preset: a pill group on
+   a muted fill, with the active tab raised onto a control surface. */
 .docs-tabs {
-  display: flex;
-  gap: var(--zx-space-1);
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  align-items: center;
+  gap: 2px;
+  block-size: var(--zx-control-height);
   margin-block-end: var(--zx-space-6);
-  border-block-end: 1px solid var(--zx-color-border);
+  border-radius: var(--zx-radius-lg);
+  background: var(--zx-color-bg-muted);
+  padding: 3px;
 }
 
 .docs-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   min-block-size: 0;
-  padding: var(--zx-space-2) var(--zx-space-4);
-  border: 0;
-  border-block-end: 2px solid transparent;
-  border-radius: 0;
+  block-size: 100%;
+  padding-inline: var(--zx-space-3);
+  /* A transparent border keeps the active and inactive boxes the same size. */
+  border: 1px solid transparent;
+  border-radius: var(--zx-radius-md);
   background: none;
   color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
   font-weight: 500;
+  white-space: nowrap;
   cursor: pointer;
 }
 
@@ -128,14 +143,21 @@
 }
 
 .docs-tab[aria-selected="true"] {
-  border-block-end-color: var(--zx-color-accent);
+  border-color: var(--zx-color-border-control);
+  background: var(--zx-color-bg-control);
   color: var(--zx-color-text);
-  font-weight: 600;
+  box-shadow: var(--zx-shadow-2);
 }
 
 .docs-tab:focus-visible {
   outline: 0;
-  box-shadow: inset var(--zx-focus-ring);
+  border-color: var(--zx-color-ring);
+  box-shadow: var(--zx-focus-ring);
+}
+
+.docs-tab .zx-icon {
+  display: block;
+  flex: none;
 }
 
 .docs-panel[hidden] {
@@ -243,8 +265,56 @@
   font-weight: 600;
 }
 
-.docs-prose > h3:first-child {
+.docs-prose h4,
+.docs-prose h5 {
+  margin: var(--zx-space-6) 0 var(--zx-space-2);
+  color: var(--zx-color-text);
+  font-size: var(--zx-text-md);
+  font-weight: 650;
+  letter-spacing: -0.005em;
+}
+
+.docs-prose > h3:first-child,
+.docs-prose > h4:first-child {
   margin-block-start: 0;
+}
+
+/* The reference lists are label/value pairs — a bold lead-in naming Options, Methods, Events, or
+   the keyboard map, then the detail. Give them room to breathe and drop the bullet glyph. */
+.docs-prose > ul {
+  padding-inline-start: 0;
+  list-style: none;
+}
+
+.docs-prose > ul > li {
+  margin-block-end: var(--zx-space-3);
+  padding-inline-start: var(--zx-space-4);
+  border-inline-start: 2px solid var(--zx-color-border);
+}
+
+.docs-prose > ul > li > strong:first-child {
+  display: block;
+  margin-block-end: 2px;
+  color: var(--zx-color-text);
+  font-size: var(--zx-text-sm);
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
+.docs-prose ul ul {
+  margin-block-start: var(--zx-space-2);
+  padding-inline-start: var(--zx-space-5);
+  list-style: disc;
+}
+
+.docs-prose .docs-code {
+  margin-block: var(--zx-space-4);
+}
+
+.docs-prose .docs-code code {
+  padding: 0;
+  background: none;
+  font-size: inherit;
 }
 
 .docs-guide p,

@@ -1,4 +1,4 @@
-import { isElement } from './util.js';
+import { escapeRegExp, isElement } from './util.js';
 
 /** @typedef {{toElement: () => Node|null}} ElementProvider */
 /** @typedef {Node|string|number|ElementProvider|null|undefined|Array<DomChild>} DomChild */
@@ -105,6 +105,48 @@ export function htmlEscape(str) {
     '"': '&quot;',
     "'": '&#39;'
   })[character]);
+}
+
+/**
+ * @typedef {Object} HighlightOptions
+ * @property {string} [className='zx-mark'] Class applied to each generated `<mark>`.
+ */
+
+/**
+ * Wraps every case-insensitive occurrence of a query in a `<mark>` element and returns the result
+ * as a fragment. The text is placed in text nodes and the marks are built element by element, so
+ * this is safe for user and server data — no HTML is ever parsed. An empty or whitespace-only
+ * query yields the text unchanged in a single text node.
+ * @param {unknown} text Text to search.
+ * @param {unknown} query Search term, matched literally.
+ * @param {HighlightOptions} [options={}] Marking options.
+ * @returns {DocumentFragment}
+ */
+export function highlightMatch(text, query, options = {}) {
+  const { className = 'zx-mark' } = options;
+  const source = text == null ? '' : String(text);
+  const needle = query == null ? '' : String(query).trim();
+  const fragment = document.createDocumentFragment();
+
+  if (needle === '' || source === '') {
+    fragment.append(document.createTextNode(source));
+    return fragment;
+  }
+
+  const pattern = new RegExp(escapeRegExp(needle), 'gi');
+  let cursor = 0;
+  for (const match of source.matchAll(pattern)) {
+    if (match.index > cursor) {
+      fragment.append(document.createTextNode(source.slice(cursor, match.index)));
+    }
+    const mark = document.createElement('mark');
+    if (className) mark.className = String(className);
+    mark.append(document.createTextNode(match[0]));
+    fragment.append(mark);
+    cursor = match.index + match[0].length;
+  }
+  if (cursor < source.length) fragment.append(document.createTextNode(source.slice(cursor)));
+  return fragment;
 }
 
 /**

@@ -1,0 +1,264 @@
+/* The picker is its own query container: the number of visible month panels is decided by how
+   much room the host gives it, not by the viewport. */
+.zx-date-range-picker {
+  display: block;
+  container-type: inline-size;
+  color: var(--zx-color-text);
+  font-size: var(--zx-control-font-size);
+}
+
+.zx-date-range-picker__surface {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--zx-space-4);
+  /* Fills a narrow host but never stretches past the calendars in a wide one. */
+  max-inline-size: max-content;
+  border: 1px solid var(--zx-color-border);
+  border-radius: var(--zx-radius-lg);
+  background: var(--zx-color-bg-surface);
+  padding: var(--zx-space-3);
+}
+
+/* ------------------------------------------------------------------------ presets -- */
+
+.zx-date-range-picker__presets {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: var(--zx-space-1);
+  min-inline-size: 8.5rem;
+}
+
+.zx-date-range-picker__preset {
+  position: relative;
+  justify-content: start;
+  border-color: transparent;
+  background: none;
+  text-align: start;
+}
+
+.zx-date-range-picker__preset:hover {
+  background: var(--zx-color-bg-hover);
+}
+
+/* ---------------------------------------------------------------------- calendars -- */
+
+.zx-date-range-picker__calendars {
+  display: flex;
+  flex: 1 1 auto;
+  gap: var(--zx-space-4);
+  min-inline-size: 0;
+}
+
+.zx-date-range-picker__month {
+  display: block;
+  flex: 1 1 15rem;
+  min-inline-size: 0;
+}
+
+.zx-date-range-picker__header {
+  display: grid;
+  grid-template-columns: var(--zx-control-height) minmax(0, 1fr) var(--zx-control-height);
+  align-items: center;
+  gap: var(--zx-space-2);
+  margin-block-end: var(--zx-space-2);
+}
+
+.zx-date-range-picker__nav {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  min-inline-size: var(--zx-control-height);
+  padding: 0;
+  border-color: transparent;
+  background: none;
+}
+
+.zx-date-range-picker__caption {
+  overflow: hidden;
+  font-weight: 650;
+  text-align: center;
+  text-overflow: ellipsis;
+  text-wrap: nowrap;
+}
+
+/* Only one month panel is shown until the container is wide enough for two, so the first panel
+   carries both navigation buttons by default. */
+.zx-date-range-picker__month + .zx-date-range-picker__month {
+  display: none;
+}
+
+@container (min-width: 32rem) {
+  .zx-date-range-picker:not([data-presets="true"]) .zx-date-range-picker__month + .zx-date-range-picker__month {
+    display: block;
+  }
+
+  /* `visibility` rather than `display`, so the redundant buttons keep their grid track and the
+     month captions stay aligned — while leaving the tab order and the a11y tree. */
+  .zx-date-range-picker:not([data-presets="true"]) .zx-date-range-picker__month:not(:first-child) .zx-date-range-picker__nav[data-nav="previous"],
+  .zx-date-range-picker:not([data-presets="true"]) .zx-date-range-picker__month:not(:last-child) .zx-date-range-picker__nav[data-nav="next"] {
+    visibility: hidden;
+  }
+}
+
+@container (min-width: 42rem) {
+  .zx-date-range-picker[data-presets="true"] .zx-date-range-picker__month + .zx-date-range-picker__month {
+    display: block;
+  }
+
+  .zx-date-range-picker[data-presets="true"] .zx-date-range-picker__month:not(:first-child) .zx-date-range-picker__nav[data-nav="previous"],
+  .zx-date-range-picker[data-presets="true"] .zx-date-range-picker__month:not(:last-child) .zx-date-range-picker__nav[data-nav="next"] {
+    visibility: hidden;
+  }
+}
+
+/* Very narrow hosts stack the presets above the calendar as a wrapping row. */
+@container (max-width: 26rem) {
+  .zx-date-range-picker__surface {
+    flex-direction: column;
+  }
+
+  .zx-date-range-picker__presets {
+    flex-direction: row;
+    flex-wrap: wrap;
+    min-inline-size: 0;
+  }
+}
+
+/* --------------------------------------------------------------------------- grid -- */
+
+/* No horizontal spacing: adjacent cells must touch so the selected band reads as one bar. */
+.zx-date-range-picker__grid {
+  inline-size: 100%;
+  border-collapse: separate;
+  border-spacing: 0 2px;
+  table-layout: fixed;
+}
+
+.zx-date-range-picker__grid th {
+  block-size: 24px;
+  padding: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-weight: 600;
+  text-align: center;
+}
+
+.zx-date-range-picker__grid td {
+  padding: 0;
+}
+
+.zx-date-range-picker__week,
+.zx-date-range-picker__week-heading {
+  inline-size: 28px;
+  border-inline-end: 1px solid var(--zx-color-border);
+  padding-inline-end: var(--zx-space-1);
+}
+
+.zx-date-range-picker__day {
+  position: relative;
+  inline-size: 100%;
+  min-inline-size: 0;
+  min-block-size: var(--zx-control-height);
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--zx-radius-md);
+  background: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.zx-date-range-picker__day:hover {
+  background: var(--zx-color-bg-hover);
+}
+
+.zx-date-range-picker__day[aria-current="date"] {
+  border-color: var(--zx-color-accent);
+}
+
+.zx-date-range-picker__day[aria-disabled="true"] {
+  color: var(--zx-color-text-placeholder);
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+
+.zx-date-range-picker__day[aria-disabled="true"]:hover {
+  background: none;
+}
+
+/* ------------------------------------------------------------------------ the band -- */
+
+/* The band lives on the cell so it runs edge to edge; the endpoints are chips on the button. */
+.zx-date-range-picker__grid td[data-range] {
+  background: var(--zx-color-accent-subtle);
+}
+
+.zx-date-range-picker__grid td[data-range="preview"] {
+  background: var(--zx-color-bg-hover);
+}
+
+.zx-date-range-picker__grid td[data-range-edge="start"] {
+  border-start-start-radius: var(--zx-radius-full);
+  border-end-start-radius: var(--zx-radius-full);
+}
+
+.zx-date-range-picker__grid td[data-range-edge="end"] {
+  border-start-end-radius: var(--zx-radius-full);
+  border-end-end-radius: var(--zx-radius-full);
+}
+
+.zx-date-range-picker__grid td[data-range-edge="both"] {
+  border-radius: var(--zx-radius-full);
+}
+
+.zx-date-range-picker__grid td[data-range="start"] > .zx-date-range-picker__day,
+.zx-date-range-picker__grid td[data-range="end"] > .zx-date-range-picker__day {
+  border-color: var(--zx-color-accent);
+  border-radius: var(--zx-radius-full);
+  background: var(--zx-color-accent);
+  color: var(--zx-color-on-accent);
+  font-weight: 700;
+}
+
+.zx-date-range-picker__grid td[data-range="middle"] > .zx-date-range-picker__day,
+.zx-date-range-picker__grid td[data-range="preview"] > .zx-date-range-picker__day {
+  color: var(--zx-color-text);
+  font-weight: 600;
+}
+
+/* -------------------------------------------------------------------------- state -- */
+
+.zx-date-range-picker__day:focus-visible,
+.zx-date-range-picker__nav:focus-visible,
+.zx-date-range-picker__preset:focus-visible {
+  z-index: 1;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.zx-date-range-picker[aria-disabled="true"] .zx-date-range-picker__surface {
+  background: var(--zx-color-bg-page);
+  opacity: 0.65;
+}
+
+.zx-date-range-picker__status {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  border: 0;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .zx-date-range-picker__day,
+  .zx-date-range-picker__preset {
+    transition: background-color var(--zx-dur-fast) var(--zx-ease),
+      color var(--zx-dur-fast) var(--zx-ease);
+  }
+
+  .zx-date-range-picker__grid td[data-range] {
+    transition: background-color var(--zx-dur-fast) var(--zx-ease);
+  }
+}

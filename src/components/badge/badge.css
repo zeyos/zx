@@ -1,0 +1,147 @@
+.zx-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-1);
+  max-inline-size: 100%;
+  border: 1px solid transparent;
+  border-radius: var(--zx-radius-full);
+  background: var(--zx-color-bg-muted);
+  color: var(--zx-color-text-muted);
+  padding-block: 2px;
+  padding-inline: var(--zx-space-2);
+  font-size: var(--zx-text-xs);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.35;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.zx-badge__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.zx-badge__dot {
+  flex: none;
+  inline-size: 6px;
+  block-size: 6px;
+  border-radius: var(--zx-radius-full);
+  background: currentColor;
+}
+
+.zx-badge .zx-icon {
+  flex: none;
+}
+
+/* Soft — the default: a tinted fill with the intent colour as text. */
+.zx-badge[data-kind="accent"] {
+  background: var(--zx-color-accent-subtle);
+  color: var(--zx-color-accent);
+}
+
+.zx-badge[data-kind="success"] {
+  background: var(--zx-color-success-bg);
+  color: var(--zx-color-success);
+}
+
+.zx-badge[data-kind="warning"] {
+  background: var(--zx-color-warning-bg);
+  color: var(--zx-color-warning);
+}
+
+.zx-badge[data-kind="danger"] {
+  background: var(--zx-color-danger-bg);
+  color: var(--zx-color-danger);
+}
+
+.zx-badge[data-kind="info"] {
+  background: var(--zx-color-info-bg);
+  color: var(--zx-color-info);
+}
+
+/* Solid — the intent colour as fill, with the on-accent text colour of the active theme. */
+.zx-badge[data-variant="solid"] {
+  background: var(--zx-color-text-muted);
+  color: var(--zx-color-bg-surface);
+}
+
+.zx-badge[data-variant="solid"][data-kind="accent"] {
+  background: var(--zx-color-accent);
+  color: var(--zx-color-on-accent);
+}
+
+.zx-badge[data-variant="solid"][data-kind="success"] {
+  background: var(--zx-color-success);
+  color: var(--zx-color-on-accent);
+}
+
+.zx-badge[data-variant="solid"][data-kind="warning"] {
+  background: var(--zx-color-warning);
+  color: var(--zx-color-on-accent);
+}
+
+.zx-badge[data-variant="solid"][data-kind="danger"] {
+  background: var(--zx-color-danger);
+  color: var(--zx-color-on-accent);
+}
+
+.zx-badge[data-variant="solid"][data-kind="info"] {
+  background: var(--zx-color-info);
+  color: var(--zx-color-on-accent);
+}
+
+/* Outline — no fill, the intent colour on the border and the text. */
+.zx-badge[data-variant="outline"] {
+  border-color: var(--zx-color-border-strong);
+  background: transparent;
+  color: var(--zx-color-text-muted);
+}
+
+.zx-badge[data-variant="outline"][data-kind="accent"],
+.zx-badge[data-variant="outline"][data-kind="success"],
+.zx-badge[data-variant="outline"][data-kind="warning"],
+.zx-badge[data-variant="outline"][data-kind="danger"],
+.zx-badge[data-variant="outline"][data-kind="info"] {
+  border-color: currentColor;
+  background: transparent;
+}
+
+.zx-badge[data-variant="outline"][data-kind="accent"] {
+  color: var(--zx-color-accent);
+}
+
+.zx-badge[data-variant="outline"][data-kind="success"] {
+  color: var(--zx-color-success);
+}
+
+.zx-badge[data-variant="outline"][data-kind="warning"] {
+  color: var(--zx-color-warning);
+}
+
+.zx-badge[data-variant="outline"][data-kind="danger"] {
+  color: var(--zx-color-danger);
+}
+
+.zx-badge[data-variant="outline"][data-kind="info"] {
+  color: var(--zx-color-info);
+}
+
+.zx-badge[data-size="sm"] {
+  gap: calc(var(--zx-space-1) / 2);
+  padding-block: 1px;
+  padding-inline: var(--zx-space-1);
+  font-size: calc(var(--zx-text-xs) - 1px);
+}
+
+.zx-badge[data-size="sm"] .zx-badge__dot {
+  inline-size: 5px;
+  block-size: 5px;
+}
+
+.zx-badge-group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zx-space-1);
+}

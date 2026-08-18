@@ -77,11 +77,13 @@ function hyperscriptCard() {
 
 /** @returns {{element: HTMLElement, cleanup: () => void}} */
 function positionPlayground() {
+  /** @type {import('../../src/core/position.js').PositionController|null} */
   let controller = null;
+
   const panel = h('div', {
     popover: 'manual',
     style: {
-      maxInlineSize: '240px',
+      maxInlineSize: '260px',
       border: '1px solid var(--zx-color-border-strong)',
       borderRadius: 'var(--zx-radius-md)',
       background: 'var(--zx-color-bg-raised)',
@@ -90,19 +92,29 @@ function positionPlayground() {
     }
   },
   h('strong', {}, 'Anchored panel'),
-  h('p', {}, 'Scroll the box: this popover follows the button and flips at viewport edges.'),
+  h('p', {}, 'Change a control above, or scroll the box: the panel keeps following its anchor and '
+    + 'flips when the preferred side runs out of room.'),
   h('button', { type: 'button', onclick: () => close() }, 'Close'));
+
   const anchor = h('button', { type: 'button', onclick: () => toggle() }, 'Toggle anchored panel');
+  const readout = h('output', {
+    style: { color: 'var(--zx-color-text-muted)', fontFamily: 'var(--zx-font-mono)' }
+  });
+
   const placement = h('select', {
     ariaLabel: 'Popover placement',
-    onchange: (event) => {
-      if (!controller) return;
-      controller.destroy();
-      controller = position(anchor, panel, { placement: event.currentTarget.value });
-    }
+    onchange: () => open()
   }, ['bottom-start', 'bottom-end', 'top-start', 'top-end', 'bottom', 'top'].map((value) =>
     h('option', { value }, value)
   ));
+  const offset = h('input', {
+    type: 'range', min: '0', max: '32', step: '2', value: '4',
+    ariaLabel: 'Offset in pixels',
+    oninput: () => open()
+  });
+  const flip = h('input', { type: 'checkbox', checked: true, onchange: () => open() });
+  const matchWidth = h('input', { type: 'checkbox', onchange: () => open() });
+
   const scroller = h('div', {
     style: {
       overflow: 'auto',
@@ -118,22 +130,69 @@ function positionPlayground() {
   h('div', { style: { blockSize: '300px' } }),
   panel);
 
-  /** @returns {void} */
-  function toggle() {
-    if (controller) close();
-    else controller = position(anchor, panel, { placement: placement.value });
+  /**
+   * Opens the panel with the current control values. `position()` resolves its placement once, so
+   * changing an option means destroying the controller and anchoring again.
+   * @returns {void}
+   */
+  function open() {
+    controller?.destroy();
+    controller = position(anchor, panel, {
+      placement: placement.value,
+      offset: Number(offset.value),
+      flip: flip.checked,
+      matchWidth: matchWidth.checked
+    });
+    describe();
   }
 
   /** @returns {void} */
   function close() {
     controller?.destroy();
     controller = null;
+    readout.textContent = 'Closed — open the panel or change any control above.';
   }
 
+  /** @returns {void} */
+  function toggle() {
+    if (controller) close();
+    else open();
+  }
+
+  /**
+   * Reports the active options and which of the helper's two engines is doing the work. Browsers
+   * with CSS anchor positioning resolve the final side during paint, and do not report it back
+   * through getBoundingClientRect(), so this states the request rather than guessing the result.
+   * @returns {void}
+   */
+  function describe() {
+    if (!controller) return;
+    const engine = CSS.supports('anchor-name: --zx-a') ?
+      'CSS anchor positioning' : 'scroll-tracked fallback';
+    readout.textContent = `${engine} · placement ${placement.value} · offset ${offset.value}px`
+      + `${flip.checked ? ' · flip' : ''}${matchWidth.checked ? ' · matchWidth' : ''}`;
+  }
+
+  // The demo stage is not in the document yet while mount() runs, and showPopover() only works on
+  // a connected element — open once the page has inserted the panel. A timer rather than
+  // requestAnimationFrame, because frame callbacks never run while the tab is in the background.
+  setTimeout(() => {
+    if (anchor.isConnected) open();
+  });
+
   return {
-    element: section('position() playground', h('label', { style: rowStyle },
-      h('span', {}, 'Placement'), placement
-    ), scroller),
+    element: section('position() playground',
+      h('p', {}, 'position(anchor, floating, options) anchors a manual popover, using CSS anchor '
+        + 'positioning where the browser supports it and a scroll/resize-tracked fallback where it '
+        + 'does not. Every control below re-anchors the panel immediately.'),
+      h('div', { style: rowStyle },
+        h('label', { style: rowStyle }, h('span', {}, 'Placement'), placement),
+        h('label', { style: rowStyle }, h('span', {}, 'Offset'), offset),
+        h('label', { style: rowStyle }, flip, h('span', {}, 'flip')),
+        h('label', { style: rowStyle }, matchWidth, h('span', {}, 'matchWidth'))
+      ),
+      scroller,
+      readout),
     cleanup: close
   };
 }

@@ -56,7 +56,12 @@ The groups match the demo sidebar.
 | `loadFontAwesome()` | Opts the icon layer into a Font Awesome kit; `useBuiltinIcons()` switches back. |
 
 The public core also includes HTTP helpers, i18n, date formatting/parsing, positioning, keyboard
-helpers, and small dependency-free utilities; see the named exports in `src/index.js`.
+helpers, and small dependency-free utilities; see the named exports in `src/index.js`. Alongside
+them are locale-aware formatters (`formatNumber`, `formatCurrency`, `formatPercent`,
+`formatFileSize`, `formatRelativeTime`), collection helpers (`groupBy`, `sortBy`, `uniqueBy`),
+`throttle` beside `debounce`, `escapeRegExp` and `highlightMatch` for filtering lists, a
+namespaced `storage()` view that degrades to memory when the browser refuses writes, and
+`toCsv`/`downloadBlob`/`copyToClipboard` for exporting what a table is showing.
 
 `icon()` renders the inline SVG glyphs Zx bundles — no webfont, stylesheet, or network request.
 Applications that want Font Awesome call `loadFontAwesome({ kit })` once, and every icon in the
@@ -70,6 +75,7 @@ ZeyOS binding — see `src/zeyos/modules.js`.
 | API | Description |
 | --- | --- |
 | `button()`, `buttonGroup()` | Styled native button and grouped-button factories. |
+| `badge()`, `badgeGroup()` | Status-pill factories with semantic kinds, variants, and sizes. |
 | `CheckButton` | Two-state pressed button with optional state-specific labels. |
 | `Toggle` | Native-button switch with a separate submitted value. |
 | `Search` | Search input with debounced input, submit, and clear events. |
@@ -82,6 +88,8 @@ ZeyOS binding — see `src/zeyos/modules.js`.
 | `MonthPicker` | Twelve-month grid with year navigation. |
 | `TimePicker` | Segmented local-time picker. |
 | `Datebox`, `DateTimeBox` | Formatted date input and its date-time factory variant. |
+| `DateRangePicker` | Two-month range calendar with presets, night bounds, and range preview. |
+| `DateRangeBox` | Formatted date-range input with an anchored range calendar. |
 | `Timebox` | Segmented signed or unsigned duration input. |
 
 ### Overlays
@@ -93,15 +101,17 @@ ZeyOS binding — see `src/zeyos/modules.js`.
 | `Dialog` | Titled modal with buttons, named views, alert, confirm, and prompt helpers. |
 | `Dropdown` | Generic anchored popover with placement fallback. |
 | `MenuButton` | APG menu button built on `Dropdown`. |
+| `Tooltip`, `tooltip()`, `describe()` | Hover/focus description bubble anchored with `position()`. |
 
 ### Data
 
 | API | Description |
 | --- | --- |
-| `Table` | Semantic sortable table with local/server sorting and row selection. |
+| `Table` | Semantic sortable table with local/server sorting, row selection, and opt-in inline cell/row editing. |
 | `DataFilter` | Declarative select, text, and custom filters for client-side row sets. |
 | `TreeView` | APG tree with lazy children, filtering, and tri-state checkboxes. |
 | `Finder` | Miller-columns hierarchy browser with an optional preview pane. |
+| `Pagination` | Page, page-size, and load-more pager, with the pure `paginationRange()` helper. |
 
 ### Forms
 
@@ -124,6 +134,11 @@ ZeyOS binding — see `src/zeyos/modules.js`.
 | `MasterPanel` | Full-height application panel with fixed header actions and footer. |
 | `Tabbox` | APG tabs with lazy content, closing, badges, and disabled states. |
 | `NavigationBar` | Responsive application navigation with optional tab panels and overflow. |
+| `Toolbar` | APG toolbar: one tab stop, arrow-key movement, and overflow into a menu. |
+| `SplitView` | Resizable two-pane split with a keyboard-operable separator. |
+| `Stepper` | Linear multi-step progress with completed, active, and error states. |
+| `Breadcrumb` | Hierarchy trail with middle-collapse, pairing with `Finder` and `TreeView`. |
+| `emptyState()` | Placeholder for an empty list, table, or panel, with optional actions. |
 
 ## Talking to ZeyOS
 

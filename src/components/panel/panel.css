@@ -6,14 +6,24 @@
   box-shadow: var(--zx-overlay-shadow);
 }
 
+/* The header is a row, not one big button: the collapse control takes the title area and the
+   action group sits at its trailing edge, since a button cannot contain other buttons. */
 .zx-panel__header {
   display: flex;
   align-items: center;
   gap: var(--zx-space-2);
-  inline-size: 100%;
   min-block-size: var(--zx-control-height);
-  border: 0;
   background: var(--zx-color-bg-raised);
+}
+
+.zx-panel__toggle {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: var(--zx-space-2);
+  min-inline-size: 0;
+  border: 0;
+  background: none;
   padding: var(--zx-space-3) var(--zx-space-4);
   color: var(--zx-color-text);
   font: inherit;
@@ -21,16 +31,42 @@
   text-align: start;
 }
 
-button.zx-panel__header {
+button.zx-panel__toggle {
   cursor: pointer;
 }
 
-button.zx-panel__header:hover {
+button.zx-panel__toggle:hover {
   background: var(--zx-color-bg-hover);
 }
 
-button.zx-panel__header:focus-visible {
-  box-shadow: var(--zx-focus-ring);
+/* Inset, because the panel clips its own overflow and would cut an outside ring. */
+button.zx-panel__toggle:focus-visible {
+  outline: 0;
+  box-shadow: inset var(--zx-focus-ring);
+}
+
+.zx-panel__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zx-panel__buttons,
+.zx-panel__footer-buttons {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--zx-space-2);
+}
+
+.zx-panel__buttons {
+  padding-inline-end: var(--zx-space-3);
+}
+
+/* An empty action group must not add its gap or padding to the row. */
+.zx-panel__buttons:empty,
+.zx-panel__footer-buttons:empty {
+  display: none;
 }
 
 .zx-panel__chevron {
@@ -49,13 +85,35 @@ button.zx-panel__header:focus-visible {
   border-block-start: 1px solid var(--zx-color-border);
 }
 
-.zx-panel__content,
-.zx-panel__footer {
+.zx-panel__content {
   padding: var(--zx-space-4);
 }
 
 .zx-panel__footer {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-3);
+  padding: var(--zx-space-4);
   background: var(--zx-color-bg-raised);
+}
+
+.zx-panel__footer[hidden] {
+  display: none;
+}
+
+/* Content takes the free space so the buttons stay pinned to the trailing edge, with or
+   without footer text beside them. */
+.zx-panel__footer-content {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+.zx-panel__footer-content:empty {
+  display: none;
+}
+
+.zx-panel__footer-buttons {
+  margin-inline-start: auto;
 }
 
 @media (prefers-reduced-motion: no-preference) {

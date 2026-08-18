@@ -12,15 +12,18 @@
  * from the same file the browser just executed.
  */
 
+import { icon } from '../src/core/icons.js';
+
 /** Component demos, in sidebar order. The id is the `website/demos/<id>.demo.js` basename. */
 const COMPONENT_IDS = [
   'tokens', 'kernel', 'icons', 'helpers', 'gx-compat',
-  'button', 'check-button', 'toggle', 'search', 'number-field', 'rating',
-  'groupbox', 'panel', 'tabbox', 'navigation-bar',
-  'message', 'modal', 'dialog', 'dropdown', 'menu-button',
+  'button', 'badge', 'check-button', 'toggle', 'search', 'number-field', 'rating',
+  'groupbox', 'panel', 'tabbox', 'navigation-bar', 'toolbar', 'empty-state',
+  'stepper', 'breadcrumb', 'split-view',
+  'message', 'modal', 'dialog', 'dropdown', 'menu-button', 'tooltip',
   'select', 'checklist', 'tag-picker', 'permission',
-  'date-picker', 'datebox', 'timebox',
-  'table', 'data-filter', 'tree', 'finder',
+  'date-picker', 'datebox', 'date-range', 'timebox',
+  'table', 'data-filter', 'pagination', 'tree', 'finder',
   'form', 'form-widgets', 'elements',
   'value-list', 'multi-value-editor', 'field-upload'
 ];
@@ -203,7 +206,8 @@ function showEntry(key) {
   const panels = element('div', 'docs-panels');
 
   for (const tab of tabs) {
-    const button = element('button', 'docs-tab', tab.label);
+    const button = element('button', 'docs-tab', undefined,
+      icon(tab.icon, { size: 15 }), element('span', 'docs-tab__label', tab.label));
     button.type = 'button';
     button.setAttribute('role', 'tab');
     button.dataset.tab = tab.id;
@@ -233,16 +237,17 @@ function showEntry(key) {
 }
 
 /**
- * Produces the tab descriptors for one entry.
+ * Produces the tab descriptors for one entry. Each tab carries its own glyph so the three views
+ * stay distinguishable at a glance: the running example, its source, and the written reference.
  * @param {object} entry
- * @returns {{id: string, label: string, panel: HTMLElement, load?: () => void}[]}
+ * @returns {{id: string, label: string, icon: string, panel: HTMLElement, load?: () => void}[]}
  */
 function buildTabs(entry) {
   if (entry.kind === 'guide') {
     const panel = element('div', 'docs-panel docs-guide');
     panel.append(entry.template.content.cloneNode(true));
     enhanceGuide(panel);
-    return [{ id: 'preview', label: 'Guide', panel }];
+    return [{ id: 'preview', label: 'Guide', icon: 'book', panel }];
   }
 
   const preview = element('div', 'docs-panel docs-preview');
@@ -250,11 +255,17 @@ function buildTabs(entry) {
   const tabs = [];
 
   entry.mount(preview);
-  tabs.push({ id: 'preview', label: entry.kind === 'layout' ? 'Preview' : 'Demo', panel: preview });
+  tabs.push({
+    id: 'preview',
+    label: entry.kind === 'layout' ? 'Preview' : 'Demo',
+    icon: 'eye',
+    panel: preview
+  });
 
   tabs.push({
     id: 'source',
     label: 'JavaScript',
+    icon: 'code',
     panel: source,
     load: () => loadSource(entry, source)
   });
@@ -264,6 +275,7 @@ function buildTabs(entry) {
     tabs.push({
       id: 'reference',
       label: 'Reference',
+      icon: 'book',
       panel: reference,
       load: () => loadReference(entry.id, reference)
     });
@@ -366,9 +378,12 @@ async function loadReference(id, panel) {
     if (referenceText === null) referenceText = await (await fetch(DOCS_URL)).text();
     const match = new RegExp(`<!--\\s*doc:${id}\\s*-->([\\s\\S]*?)<!--\\s*/doc\\s*-->`).exec(referenceText);
     const article = element('div', 'docs-prose');
-    article.innerHTML = match
-      ? renderMarkdown(match[1])
-      : `<p>No dedicated section yet — see <a href="${DOCS_URL}">docs/llms.md</a>.</p>`;
+    if (match) {
+      article.append(renderMarkdown(match[1]));
+    } else {
+      article.append(element('p', '', undefined,
+        text('No dedicated section yet — see '), link(DOCS_URL, 'docs/llms.md'), text('.')));
+    }
     panel.replaceChildren(
       element('p', 'docs-panel__note', undefined,
         text('From '), link(DOCS_URL, 'docs/llms.md'),
@@ -381,49 +396,160 @@ async function loadReference(id, panel) {
 }
 
 /**
- * Minimal markdown → HTML for the reference blocks: headings, paragraphs, bullet lists, inline
- * code, bold, and links. Input is escaped first, so only the tags produced here are emitted.
+ * Markdown → DOM for the reference blocks. It covers what `docs/llms.md` actually uses — ATX
+ * headings, paragraphs, nested bullet lists with continuation lines, fenced code, and inline
+ * code/bold/links — and builds nodes rather than a markup string, so fenced blocks get the same
+ * highlighting and copy button as a source view and nothing is ever assigned as HTML.
  * @param {string} md
- * @returns {string}
+ * @returns {DocumentFragment}
  */
 function renderMarkdown(md) {
-  const inline = (value) => escapeHtml(value)
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
-    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" rel="noopener">$1</a>');
+  const fragment = document.createDocumentFragment();
+  const lines = md.replace(/\r\n?/g, '\n').trim().split('\n');
+  let index = 0;
 
-  return md.trim().split(/\n{2,}/).map((block) => {
-    let html = '';
-    let paragraph = [];
-    let bullets = [];
-    const flushParagraph = () => {
-      if (paragraph.length) html += `<p>${inline(paragraph.join(' '))}</p>`;
-      paragraph = [];
-    };
-    const flushBullets = () => {
-      if (bullets.length) html += `<ul>${bullets.map((item) => `<li>${inline(item)}</li>`).join('')}</ul>`;
-      bullets = [];
-    };
-
-    for (const line of block.split('\n')) {
-      const headingMatch = line.match(/^#{2,4}\s+(.*)$/);
-      const bulletMatch = line.match(/^\s*[-*]\s+(.*)$/);
-      if (headingMatch) {
-        flushParagraph();
-        flushBullets();
-        html += `<h3>${inline(headingMatch[1])}</h3>`;
-      } else if (bulletMatch) {
-        flushParagraph();
-        bullets.push(bulletMatch[1]);
-      } else if (line.trim()) {
-        flushBullets();
-        paragraph.push(line.trim());
-      }
+  while (index < lines.length) {
+    const line = lines[index];
+    if (!line.trim()) {
+      index += 1;
+      continue;
     }
-    flushParagraph();
-    flushBullets();
-    return html;
-  }).join('');
+
+    const fence = line.match(/^\s*```(\w*)\s*$/);
+    if (fence) {
+      const body = [];
+      index += 1;
+      while (index < lines.length && !/^\s*```\s*$/.test(lines[index])) {
+        body.push(lines[index]);
+        index += 1;
+      }
+      index += 1;
+      fragment.append(codeBlock(body.join('\n'), fence[1] || 'js'));
+      continue;
+    }
+
+    const heading = line.match(/^(#{2,5})\s+(.*)$/);
+    if (heading) {
+      // The panel already carries the component name as its page title, so the section's own `###`
+      // is the top heading here and `####` its subsections.
+      const node = document.createElement(`h${Math.min(5, Math.max(3, heading[1].length))}`);
+      node.append(renderInline(heading[2]));
+      fragment.append(node);
+      index += 1;
+      continue;
+    }
+
+    if (BULLET.test(line)) {
+      const [list, next] = renderList(lines, index);
+      fragment.append(list);
+      index = next;
+      continue;
+    }
+
+    const paragraph = [];
+    while (index < lines.length && lines[index].trim()
+      && !BULLET.test(lines[index]) && !/^(#{2,5})\s/.test(lines[index])
+      && !/^\s*```/.test(lines[index])) {
+      paragraph.push(lines[index].trim());
+      index += 1;
+    }
+    const node = document.createElement('p');
+    node.append(renderInline(paragraph.join(' ')));
+    fragment.append(node);
+  }
+  return fragment;
+}
+
+/** Matches a bullet and captures its indent and text. */
+const BULLET = /^(\s*)[-*]\s+(.*)$/;
+
+/**
+ * Consumes one bullet list, including deeper-indented sublists and wrapped continuation lines.
+ * @param {string[]} lines All lines of the block.
+ * @param {number} start Index of the list's first bullet.
+ * @returns {[HTMLUListElement, number]} The list and the index of the first line after it.
+ */
+function renderList(lines, start) {
+  const root = document.createElement('ul');
+  const stack = [{ indent: BULLET.exec(lines[start])[1].length, list: root }];
+  let item = null;
+  let index = start;
+
+  while (index < lines.length) {
+    const bullet = BULLET.exec(lines[index]);
+    if (!bullet) {
+      // An indented, non-bullet line continues the item above it; anything else ends the list.
+      if (!item || !lines[index].trim() || !/^\s/.test(lines[index])) break;
+      item.append(renderInline(` ${lines[index].trim()}`));
+      index += 1;
+      continue;
+    }
+
+    const indent = bullet[1].length;
+    while (stack.length > 1 && indent < stack.at(-1).indent) stack.pop();
+    if (indent > stack.at(-1).indent) {
+      const nested = document.createElement('ul');
+      (item ?? stack.at(-1).list).append(nested);
+      stack.push({ indent, list: nested });
+    }
+    item = document.createElement('li');
+    item.append(renderInline(bullet[2]));
+    trimLabelSeparator(item);
+    stack.at(-1).list.append(item);
+    index += 1;
+  }
+  return [root, index];
+}
+
+/**
+ * Drops the dash between a `**Label** — detail` lead-in and its text. The label is styled as a
+ * heading above the detail, where a dangling dash would read as a stray character.
+ * @param {HTMLLIElement} item
+ * @returns {void}
+ */
+function trimLabelSeparator(item) {
+  const label = item.firstChild;
+  const rest = label?.nextSibling;
+  if (label?.nodeName !== 'STRONG' || rest?.nodeType !== Node.TEXT_NODE) return;
+  rest.textContent = rest.textContent.replace(/^\s*[—–-]\s*/, '');
+}
+
+/**
+ * Renders inline markdown — `code`, **bold**, and links — as text and element nodes.
+ * @param {string} value
+ * @returns {DocumentFragment}
+ */
+function renderInline(value) {
+  const fragment = document.createDocumentFragment();
+  let last = 0;
+  for (const match of value.matchAll(/`([^`]+)`|\*\*([^*]+)\*\*|\[([^\]]+)\]\(([^)]+)\)/g)) {
+    if (match.index > last) fragment.append(text(value.slice(last, match.index)));
+    if (match[1] !== undefined) {
+      const code = document.createElement('code');
+      code.textContent = match[1];
+      fragment.append(code);
+    } else if (match[2] !== undefined) {
+      const strong = document.createElement('strong');
+      strong.textContent = match[2];
+      fragment.append(strong);
+    } else {
+      const href = safeHref(match[4]);
+      fragment.append(link(href, match[3], /^https?:/i.test(href) ? { target: '_blank' } : {}));
+    }
+    last = match.index + match[0].length;
+  }
+  fragment.append(text(value.slice(last)));
+  return fragment;
+}
+
+/**
+ * Keeps a markdown link on a navigable scheme, so a stray `javascript:` in the source cannot
+ * become a live link.
+ * @param {string} href
+ * @returns {string}
+ */
+function safeHref(href) {
+  return /^(https?:|mailto:|#|[./])/i.test(href.trim()) ? href.trim() : '#';
 }
 
 /* --------------------------------------------------------------------- guides -- */

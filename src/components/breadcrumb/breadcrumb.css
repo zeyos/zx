@@ -1,0 +1,105 @@
+/*
+ * Breadcrumb — the ancestor trail above a record or a browsed hierarchy.
+ *
+ * Ancestors are quiet (muted, no chrome until hovered) and the current page is the only thing at
+ * full strength, so the trail reads as context rather than as a row of buttons. Separators are
+ * decorative and hidden from assistive technology.
+ */
+
+.zx-breadcrumb {
+  min-inline-size: 0;
+}
+
+.zx-breadcrumb__list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zx-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--zx-text-sm);
+}
+
+.zx-breadcrumb__item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-1);
+  min-inline-size: 0;
+}
+
+.zx-breadcrumb__separator {
+  display: inline-flex;
+  align-items: center;
+  color: var(--zx-color-text-placeholder);
+}
+
+.zx-breadcrumb__link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  min-inline-size: 0;
+  min-block-size: 0;
+  border: 0;
+  border-radius: var(--zx-radius-md);
+  background: none;
+  padding: var(--zx-space-1) var(--zx-space-2);
+  color: var(--zx-color-text-muted);
+  font: inherit;
+  font-size: inherit;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.zx-breadcrumb__link:hover {
+  background: var(--zx-color-bg-hover);
+  color: var(--zx-color-text);
+}
+
+.zx-breadcrumb__link:focus-visible {
+  outline: 0;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.zx-breadcrumb__current {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  min-inline-size: 0;
+  padding: var(--zx-space-1) var(--zx-space-2);
+  color: var(--zx-color-text);
+  font-weight: 600;
+}
+
+.zx-breadcrumb__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zx-breadcrumb__icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  color: var(--zx-color-text-muted);
+}
+
+/* The collapsed-levels trigger is a MenuButton, shrunk to sit on the trail's baseline. */
+.zx-breadcrumb__more.zx-btn {
+  min-block-size: 0;
+  border-radius: var(--zx-radius-md);
+  padding: var(--zx-space-1) var(--zx-space-2);
+  color: var(--zx-color-text-muted);
+}
+
+.zx-breadcrumb__more .zx-btn__label:empty {
+  display: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .zx-breadcrumb__link {
+    transition: color var(--zx-dur-fast) var(--zx-ease),
+      background-color var(--zx-dur-fast) var(--zx-ease);
+  }
+}

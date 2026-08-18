@@ -36,19 +36,21 @@ available as ESM named exports and as `window.zx.*`.
   gotchas, commands.
 
 ## Components
-- Inputs: `button()`, `buttonGroup()`, `CheckButton`, `Toggle`, `Search`, `Select` (APG combobox;
+- Inputs: `button()`, `buttonGroup()`, `badge()`, `CheckButton`, `Toggle`, `Search`, `Select` (APG combobox;
   `filter: false|'local'|async`), `Checklist`, `TagPicker`,
   `NumberField`, `Rating`, `DatePicker`, `MonthPicker`, `TimePicker`, `Datebox`/`DateTimeBox`,
   `Timebox`.
-- Overlays: `Message` (toasts/inline/progress), `Modal`, `Dialog` (+ `alert`/`confirm`/`prompt`
+- Overlays: `Tooltip`, `Message` (toasts/inline/progress), `Modal`, `Dialog` (+ `alert`/`confirm`/`prompt`
   Promises), `Dropdown`, `MenuButton`.
-- Data: `Table` (sortable, selectable, sticky header), `DataFilter`, `TreeView` (APG tree), `Finder` (Miller columns).
+- Data: `Table` (sortable, selectable, sticky header, opt-in inline editing), `DataFilter`, `Pagination`, `TreeView` (APG tree), `Finder` (Miller columns).
 - Forms: `Form`, `Fieldset`, `Field` (type registry), `ValueList`, `MultiValueEditor`,
   `FieldUpload`, `Permission`.
-- Layout: `Groupbox`, `Panel`, `MasterPanel`, `Tabbox`, `NavigationBar`.
+- Layout: `Groupbox`, `Panel`, `MasterPanel`, `Tabbox`, `NavigationBar`, `Toolbar`, `SplitView`, `Stepper`, `Breadcrumb`, `emptyState()`.
 - Core: `Component`, `h`/`icon`, `position`, i18n, date utilities, `defineElements` (declarative
   `<zx-*>` custom elements).
-- Helpers: `debounce`, `uid`, `deepMerge`, `clamp`, `toArray`, `isElement`, `htmlEscape`,
+- Helpers: `formatNumber`/`formatCurrency`/`formatFileSize`/`formatRelativeTime`, `storage()`,
+  `toCsv`/`downloadBlob`/`copyToClipboard`, `groupBy`/`sortBy`/`uniqueBy`, `throttle`,
+  `debounce`, `uid`, `deepMerge`, `clamp`, `toArray`, `isElement`, `htmlEscape`,
   `formatDate`/`parseDate`/`addDays`/`addMonths`/`clampDate`/`isSameDay`/`getWeekStart`,
   `translate`/`printf`/`setTranslator`/`setLanguage`, `focusTrap`/`rovingTabindex`/`typeahead`.
 
