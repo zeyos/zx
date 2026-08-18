@@ -29,9 +29,28 @@ export default {
     const approval = new Panel(null, {
       title: 'Approval',
       content: h('p', { style: { margin: '0' } }, 'Review the record before continuing.'),
-      footer: h('small', {}, 'Last reviewed a few moments ago')
+      footer: h('small', {}, 'Last reviewed a few moments ago'),
+      footerButtons: [
+        { label: 'Reject', kind: 'danger', size: 'sm', onclick: () => { log.textContent = 'Approval: rejected'; } },
+        { label: 'Approve', kind: 'primary', size: 'sm', onclick: () => { log.textContent = 'Approval: approved'; } }
+      ]
     });
-    const panels = [account, details, status, approval];
+    // Header and footer actions live beside the collapse control, not inside it.
+    const attachments = new Panel(null, {
+      title: 'Attachments',
+      content: h('p', { style: { margin: '0' } },
+        'Header actions sit at the trailing edge of the header row. Clicking one does not '
+        + 'collapse the panel — only the title area toggles.'),
+      buttons: [
+        { icon: 'reload', size: 'sm', kind: 'ghost', title: 'Refresh', onclick: () => { log.textContent = 'Attachments: refresh'; } },
+        { label: 'Upload', icon: 'upload', size: 'sm', onclick: () => { log.textContent = 'Attachments: upload'; } }
+      ],
+      footer: h('small', {}, '3 files · 1.2 MB'),
+      footerButtons: [
+        { label: 'Download all', size: 'sm', onclick: () => { log.textContent = 'Attachments: download all'; } }
+      ]
+    });
+    const panels = [account, details, status, approval, attachments];
     panels.forEach((panel) => {
       panel.on('open', () => { log.textContent = `${panel.refs.title.textContent}: open`; });
       panel.on('close', () => { log.textContent = `${panel.refs.title.textContent}: close`; });
@@ -51,7 +70,13 @@ export default {
         h('button', {
           type: 'button',
           onclick: () => approval.setFooter('Footer replaced through setFooter()')
-        }, 'Replace footer')
+        }, 'Replace footer'),
+        h('button', {
+          type: 'button',
+          onclick: () => attachments.setButtons([
+            { label: 'Done', kind: 'primary', size: 'sm', onclick: () => { log.textContent = 'Attachments: done'; } }
+          ])
+        }, 'Replace header buttons')
       ), log),
       section('Full-height MasterPanel',
         h('p', { style: { margin: '0', color: 'var(--zx-color-text-muted)' } },

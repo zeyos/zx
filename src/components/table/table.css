@@ -176,3 +176,89 @@
   color: var(--zx-color-text-muted);
   text-align: center;
 }
+
+/* --- Inline editing (Table editMode) -------------------------------------------------------- */
+
+/* Reserve a control-sized content box in every body cell as soon as the table is editable, so
+   opening an editor never changes a row's height. On a table cell `block-size` is a minimum, which
+   is exactly the wanted behaviour: taller content still grows the row. */
+.zx-table[data-edit-mode] .zx-table__body td {
+  block-size: var(--zx-control-height);
+}
+
+.zx-table__body td[data-editable="true"] {
+  cursor: cell;
+}
+
+/* Cells carry a roving tabindex, so their ring must sit inside the cell box — an outer ring would
+   be painted over by the neighbouring cell. */
+.zx-table__body td[data-editable="true"]:focus-visible {
+  outline: 0;
+  box-shadow: inset var(--zx-focus-ring);
+}
+
+.zx-table__body td[data-editing="true"] {
+  position: relative;
+}
+
+/* The cell keeps its rendered content while editing — invisible, but still contributing its
+   intrinsic width, so no column resizes when an editor opens. */
+.zx-table__cell-shadow {
+  visibility: hidden;
+}
+
+/* No z-index: the editor must stay below the sticky header, which sets one. */
+.zx-table__editor {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-1);
+  padding-inline: var(--zx-space-1);
+  background: var(--zx-color-bg-surface);
+}
+
+.zx-table__editor > * {
+  inline-size: 100%;
+}
+
+.zx-table__editor[data-editor="checkbox"] {
+  justify-content: center;
+}
+
+.zx-table__editor[data-editor="checkbox"] > * {
+  inline-size: auto;
+}
+
+.zx-table__editor-input {
+  inline-size: 100%;
+  min-block-size: 0;
+  block-size: var(--zx-control-height);
+  padding-inline: var(--zx-space-2);
+}
+
+.zx-table__editor-textarea {
+  block-size: 100%;
+  padding-block: var(--zx-space-1);
+  resize: none;
+}
+
+.zx-table__body td[data-invalid="true"] .zx-table__editor {
+  box-shadow: inset 0 0 0 1px var(--zx-color-danger);
+}
+
+.zx-table__body td[data-invalid="true"] .zx-table__editor-input {
+  border-color: var(--zx-color-danger);
+}
+
+/* Validation live region: always in the DOM so announcements are not missed, collapsed while it
+   holds no message. */
+.zx-table__message {
+  padding: var(--zx-space-2) var(--zx-space-3);
+  color: var(--zx-color-danger);
+  font-size: var(--zx-text-sm);
+}
+
+.zx-table__message:empty {
+  display: none;
+}

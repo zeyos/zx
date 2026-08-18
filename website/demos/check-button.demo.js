@@ -16,7 +16,8 @@ export default {
       new CheckButton(null, { label: 'Pinned' }),
       new CheckButton(null, { label: ['Enabled', 'Disabled'], checked: true }),
       new CheckButton(null, { label: 'No icon', icon: false }),
-      new CheckButton(null, { label: 'Unavailable', disabled: true })
+      new CheckButton(null, { label: 'Unavailable', disabled: true }),
+      new CheckButton(null, { label: 'Locked on', checked: true, disabled: true })
     ];
     components.forEach((component, index) => {
       component.on('change', (event) => {
@@ -24,7 +25,10 @@ export default {
       });
     });
     marker.append(
-      section('States', row(...components.map((component) => component.toElement()))),
+      section('States', row(...components.map((component) => component.toElement())),
+        note('The check indicator has a glyph in both states — an empty box when off, a check when '
+          + 'on — so an unpressed or disabled button still reads as a two-state control. Pass '
+          + '`icon: false` for a plain label button.')),
       section('Programmatic API', row(
         h('button', { type: 'button', onclick: () => components[0].set(true) }, 'Set first on'),
         h('button', { type: 'button', onclick: () => components[0].setLabel(['On now', 'Off now']) },
@@ -52,6 +56,13 @@ function section(title, ...children) {
     border: '1px solid var(--zx-color-border)', borderRadius: 'var(--zx-radius-lg)',
     background: 'var(--zx-color-bg-surface)', padding: 'var(--zx-space-5)'
   } }, h('h2', { style: { margin: '0', fontSize: 'var(--zx-text-xl)' } }, title), children);
+}
+
+/** @param {string} text @returns {HTMLElement} */
+function note(text) {
+  return h('p', { style: {
+    margin: '0', maxInlineSize: '78ch', color: 'var(--zx-color-text-muted)', lineHeight: '1.7'
+  } }, text);
 }
 
 /** @param {string} text @returns {HTMLOutputElement} */

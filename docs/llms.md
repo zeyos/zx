@@ -226,165 +226,712 @@ dispatched as bubbling `zx-<name>` on the root). Detail is always an object.
 
 <!-- doc:button -->
 ### Button — `button(options)` / `buttonGroup(buttons)`
-Factories (not classes) returning elements. `button({ label, icon, kind: 'default'|'primary'|'danger'|'ghost', size: 'md'|'sm', disabled, title, onclick })` → `HTMLButtonElement`. `buttonGroup([button(...), ...])` → grouped container. `icon` is an icon name (Font Awesome Free solid, inline SVG). Used both standalone and as the `buttons: [{ label, kind, action|onclick }]` descriptors accepted by Dialog/Modal/MasterPanel.
+
+Factories (not classes) returning elements, used both standalone and as the
+`buttons: [{ label, kind, action|onclick }]` descriptors Dialog, Modal, Panel, and MasterPanel
+accept.
+
+- **`button(options)`** → `HTMLButtonElement`. Options: `label`, `icon` (an icon name), `kind:
+  'default'|'primary'|'danger'|'ghost'`, `size: 'md'|'sm'`, `disabled`, `title`, `onclick`.
+- **`buttonGroup([button(…), …])`** → a container that joins the buttons into one control.
+<!-- /doc -->
+
+<!-- doc:badge -->
+### Badge — `badge(options)` / `badgeGroup(badges)`
+
+Factories (not classes) returning a status pill: a small, non-interactive `<span>` carrying a
+semantic colour, used for stages, counts, tags, and record-header metadata. A badge with no label
+but a `title` is named for assistive technology through `role="img"`; everything else is plain text
+and needs no ARIA.
+
+- **Options** — `label`, `icon` (an icon name, rendered before the label), `kind:
+  'neutral'|'accent'|'success'|'warning'|'danger'|'info'`, `variant: 'soft'|'solid'|'outline'`,
+  `size: 'md'|'sm'`, `dot` (a leading status dot instead of an icon), `title`.
+- **Methods** — none. `badge(options)` → `HTMLSpanElement`, `badgeGroup([badge(…), …])` → a wrapping
+  inline row with its own spacing; you own both elements.
+- **Events** — none; a badge is not interactive.
+<!-- /doc -->
+
+<!-- doc:toolbar -->
+### Toolbar — APG toolbar
+
+A single non-wrapping row of controls that is one tab stop: arrows move between the controls, and
+what no longer fits collapses into a trailing overflow menu. Items are `button()` descriptors,
+ready-made Elements, or `'-'` for a separator; a `ResizeObserver` remeasures the row, hides the
+items that overflow — removing them from the tab order and the roving group — and mirrors them into
+a `MenuButton`, where choosing one activates the original control.
+
+- **Options** — `items: [Element | '-' | {name, label, icon, kind, size, disabled, title, active,
+  onclick}]`, `align: 'start'|'end'|'between'`, `label` (accessible name, default `'Toolbar'`),
+  `overflow` (default `true`), `overflowLabel` (default `'More'`), `dense`. `active` renders the
+  item as a pressed toggle (`aria-pressed`).
+- **Methods** — `setItems()`, `getItem(name)`, `enable(name)`, `disable(name)`,
+  `setActive(name, active?)`, `destroy()`.
+- **Events** — `action {name, item}`, emitted for descriptor-built items in addition to their own
+  `onclick`, from the row and from the overflow menu alike.
+- **Keyboard** — Tab reaches the toolbar once; ArrowLeft/ArrowRight move between controls and wrap;
+  Home/End jump to the first and last control.
+<!-- /doc -->
+
+<!-- doc:empty-state -->
+### EmptyState — `emptyState(options)`
+
+A factory (not a class) returning the placeholder shown where a list, table, or panel has no content
+yet: an optional decorative icon, a headline, a sentence, and optional actions. The headline is a
+paragraph rather than a heading, so dropping one into a Table's empty slot or a Panel body never
+disturbs the page's heading outline.
+
+- **Options** — `icon` (an icon name, `null` for none; default `'folder-open'`), `title`,
+  `description`, `actions: [Element | buttonOptions]`, `size: 'md'|'sm'`, `align: 'center'|'start'`.
+- **Methods** — none. `emptyState(options)` → `HTMLDivElement`, which you own and place yourself.
+- **Events** — none; action buttons carry their own `onclick`.
 <!-- /doc -->
 
 <!-- doc:check-button -->
 ### CheckButton
-Two-state pressed button (`role`-native `<button aria-pressed>`). Options: `label: '' | [onLabel, offLabel]`, `checked: false`, `icon: true`, `disabled: false`. Methods: `get()`, `set(checked, {silent})`, `toggle()`, `setLabel()`, `enable()`/`disable()`. Events: `change {checked}` — fires only on real state change. Keyboard: Space/Enter.
+
+Two-state pressed button on a native `<button aria-pressed>`. The check indicator has a glyph in
+both states — an empty box when off, a check when on — so an unpressed or disabled button still
+reads as a two-state control.
+
+- **Options** — `label: '' | [onLabel, offLabel]`, `checked: false`, `icon: true`,
+  `disabled: false`.
+- **Methods** — `get()`, `set(checked, {silent})`, `toggle()`, `setLabel()`, `enable()`/`disable()`.
+- **Events** — `change {checked}`, fired only on a real state change.
+- **Keyboard** — Space/Enter.
 <!-- /doc -->
 
 <!-- doc:toggle -->
 ### Toggle
-Switch (`role="switch"`, `aria-checked`). Options: `checked: false`, `value: true`, `label: null`, `disabled: false`. Methods: `get()`, `set(checked, {silent})`, `toggle()`, `getValue()` (returns `options.value` when on, `false` when off), `enable()`/`disable()`. Events: `change {checked, value}`. Keyboard: Space/Enter.
+
+Switch (`role="switch"`, `aria-checked`).
+
+- **Options** — `checked: false`, `value: true`, `label: null`, `disabled: false`.
+- **Methods** — `get()`, `set(checked, {silent})`, `toggle()`, `getValue()` (returns
+  `options.value` when on, `false` when off), `enable()`/`disable()`.
+- **Events** — `change {checked, value}`.
+- **Keyboard** — Space/Enter.
 <!-- /doc -->
 
 <!-- doc:search -->
 ### Search
-Search input with embedded search + clear buttons (`role="search"`). Options: `placeholder`, `value`, `clearable: true`, `debounce: 250`. Methods: `get()`, `set(value, {silent})`, `focus()`, `clear()`. Events: `input {value}` (debounced), `submit {value}` (Enter/button), `clear`.
+
+Search input with embedded search and clear buttons (`role="search"`).
+
+- **Options** — `placeholder`, `value`, `clearable: true`, `debounce: 250`.
+- **Methods** — `get()`, `set(value, {silent})`, `focus()`, `clear()`.
+- **Events** — `input {value}` (debounced), `submit {value}` (Enter or the button), `clear`.
 <!-- /doc -->
 
 <!-- doc:select -->
 ### Select — APG editable combobox
-Unifies single-select, local filtering, and async loading. Options: `items: []`, `valueKey: 'ID'` (string key or `(item)=>id`), `labelKey: 'name'` (string or `(item)=>string`), `renderItem`, `renderValue`, `value`, `disabled`, `placeholder`, `clearable: false`, `filter: false | 'local' | async (query)=>items`, `searchKeys`, `minQuery: 0`, `debounce: 200`, `listHeight: 280`, `groupKey`. Getters: `.value`, `.selected`. Methods: `set(id, {silent})`, `setItems()`, `reset()`, `open()`/`close()`, `enable()`/`disable()`, `focus()`. Events: `change {value, item}` (item null on clear), `open`, `close`, `query {query}`, `loaded {items}`. Preset: `Select.priority(target, opts)` (5-level priority picker). Keyboard (APG combobox): ArrowDown/Alt+ArrowDown open; arrows navigate (wrap); Home/End; Enter selects; Esc closes; Tab closes; printable chars filter (editable) or typeahead (readonly); `aria-activedescendant` tracks the active option.
+
+Unifies single-select, local filtering, and async loading.
+
+- **Options** — `items: []`, `valueKey: 'ID'` (string key or `(item)=>id`), `labelKey: 'name'`
+  (string or `(item)=>string`), `renderItem`, `renderValue`, `value`, `disabled`, `placeholder`,
+  `clearable: false`, `filter: false | 'local' | async (query)=>items`, `searchKeys`,
+  `minQuery: 0`, `debounce: 200`, `listHeight: 280`, `groupKey`.
+- **Getters** — `.value`, `.selected`.
+- **Methods** — `set(id, {silent})`, `setItems()`, `reset()`, `open()`/`close()`,
+  `enable()`/`disable()`, `focus()`.
+- **Events** — `change {value, item}` (`item` is null on clear), `open`, `close`, `query {query}`,
+  `loaded {items}`.
+- **Preset** — `Select.priority(target, opts)`, a 5-level priority picker.
+- **Keyboard** (APG combobox) — ArrowDown/Alt+ArrowDown open; arrows navigate and wrap; Home/End;
+  Enter selects; Esc closes; Tab closes; printable characters filter (editable) or run a typeahead
+  (readonly). `aria-activedescendant` tracks the active option.
 <!-- /doc -->
 
 <!-- doc:checklist -->
 ### Checklist
-Searchable multi-check list with optional async loading. Options: `items`, `valueKey: 'ID'`, `labelKey: 'name'`, `checkedKey: 'on'`, `search: true`, `height: 280`, `defaultChecked: false`, `load: async ()=>items`. Methods: `setItems()`, `getValues()`, `setValues(ids)`, `checkAll()`/`uncheckAll()`, `search(query)`, `reload()`. Events: `change {values}`, `loaded`.
+
+Searchable multi-check list with optional async loading.
+
+- **Options** — `items`, `valueKey: 'ID'`, `labelKey: 'name'`, `checkedKey: 'on'`, `search: true`,
+  `height: 280`, `defaultChecked: false`, `load: async ()=>items`.
+- **Methods** — `setItems()`, `getValues()`, `setValues(ids)`, `checkAll()`/`uncheckAll()`,
+  `search(query)`, `reload()`.
+- **Events** — `change {values}`, `loaded`.
 <!-- /doc -->
 
 <!-- doc:number-field -->
 ### NumberField
-Numeric input with decrement/increment buttons, following the APG **spinbutton** pattern. Options: `value` (number|null), `min`, `max`, `step: 1`, `largeStep: 10` (PageUp/PageDown multiplier), `precision` (decimals; derived from `step` when null), `wrap: false` (stepping past a bound jumps to the other one), `placeholder`, `unit` (suffix rendered inside the control), `group: false` (thousands separators while idle), `locale`, `disabled`, `readonly`, `required`, `name`. Methods: `get()`, `set(value, {silent})` (parses strings, snaps to the step grid, clamps to the range; `''`/null clear it), `stepUp(n)`, `stepDown(n)`, `setRange(min, max)`, `setReadonly()`, `reset()`, `focus()`, `getInput()`, `enable()`/`disable()`. Events: `change {value}` (committed), `input {value}` (per keystroke, possibly unsnapped). Keyboard: ↑/↓ one step, PageUp/PageDown `largeStep` steps, Home/End jump to `min`/`max` when set (otherwise they keep their caret meaning), Enter commits, wheel steps while focused. The step buttons are `tabindex="-1"`/`aria-hidden` pointer affordances — the input is the spinbutton. Also exported: `parseNumber(raw)` (accepts `.` and `,` as the decimal separator, ignores grouping, returns null for junk) and `snapNumber(value, {min, max, step, precision})`. Field type: `number`.
+
+Numeric input with decrement/increment buttons, following the APG **spinbutton** pattern. The step
+buttons are `tabindex="-1"`/`aria-hidden` pointer affordances — the input itself is the spinbutton.
+Field type: `number`.
+
+- **Options** — `value` (number|null), `min`, `max`, `step: 1`, `largeStep: 10` (PageUp/PageDown
+  multiplier), `precision` (decimals; derived from `step` when null), `wrap: false` (stepping past
+  a bound jumps to the other one), `placeholder`, `unit` (suffix rendered inside the control),
+  `group: false` (thousands separators while idle), `locale`, `disabled`, `readonly`, `required`,
+  `name`.
+- **Methods** — `get()`, `set(value, {silent})` (parses strings, snaps to the step grid, clamps to
+  the range; `''`/null clear it), `stepUp(n)`, `stepDown(n)`, `setRange(min, max)`,
+  `setReadonly()`, `reset()`, `focus()`, `getInput()`, `enable()`/`disable()`.
+- **Events** — `change {value}` (committed), `input {value}` (per keystroke, possibly unsnapped).
+- **Keyboard** — ↑/↓ one step, PageUp/PageDown `largeStep` steps, Home/End jump to `min`/`max` when
+  set (otherwise they keep their caret meaning), Enter commits, wheel steps while focused.
+- **Also exported** — `parseNumber(raw)` (accepts `.` and `,` as the decimal separator, ignores
+  grouping, returns null for junk) and `snapNumber(value, {min, max, step, precision})`.
 <!-- /doc -->
 
 <!-- doc:rating -->
 ### Rating
-Star rating built as an APG **radio group**: one radio per selectable step, a single tab stop, arrow-key selection. Options: `value: 0` (0 = unrated), `max: 5`, `allowHalf: false` (renders two radios per symbol so every reachable value has a nameable control), `clearable: true` (re-selecting the current value clears it), `readonly`, `disabled`, `label: 'Rating'`, `icon: 'star'`, `labels: []` (per-step accessible names, lowest first), `showValue: false`, `count` (rating count shown beside the value), `size: 'sm'|'md'|'lg'`. Methods: `get()`, `set(value, {silent})`, `clear()`, `reset()`, `setCount()`, `setReadonly()`, `focus()`, `enable()`/`disable()`. Events: `change {value}`, `hover {value|null}` (pointer or focus preview; null on leave). Keyboard: ←/↓ and →/↑ step, Home selects the first step, End the last, Delete/Backspace clear. Field type: `rating`.
+
+Star rating built as an APG **radio group**: one radio per selectable step, a single tab stop,
+arrow-key selection. Field type: `rating`.
+
+- **Options** — `value: 0` (0 = unrated), `max: 5`, `allowHalf: false` (renders two radios per
+  symbol so every reachable value has a nameable control), `clearable: true` (re-selecting the
+  current value clears it), `readonly`, `disabled`, `label: 'Rating'`, `icon: 'star'`,
+  `labels: []` (per-step accessible names, lowest first), `showValue: false`, `count` (rating
+  count shown beside the value), `size: 'sm'|'md'|'lg'`.
+- **Methods** — `get()`, `set(value, {silent})`, `clear()`, `reset()`, `setCount()`,
+  `setReadonly()`, `focus()`, `enable()`/`disable()`.
+- **Events** — `change {value}`, `hover {value|null}` (pointer or focus preview; null on leave).
+- **Keyboard** — ←/↓ and →/↑ step, Home selects the first step, End the last, Delete/Backspace
+  clear.
 <!-- /doc -->
 
 <!-- doc:date-picker -->
 ### DatePicker / MonthPicker / TimePicker
-Inline (embeddable) pickers. **DatePicker** (APG date grid) options: `value: Date|null`, `min`, `max`, `weekStart: 1`, `showWeekNumbers: false`, `time: false`; methods `get()`, `set()`, `focus()`; events `change {date}`, `monthchange {year, month}`; keyboard: Arrows move day, PageUp/PageDown month, Shift+PageUp/PageDown year, Home/End, Enter/Space select; day cells carry `aria-label`. **MonthPicker**: 12-month grid, `get/set` first-of-month, event `change {date}`. **TimePicker**: `value: null`, `seconds: false`, `step: 5`; `get()/set()`; event `change`.
+
+Inline, embeddable pickers.
+
+#### DatePicker — APG date grid
+
+- **Options** — `value: Date|null`, `min`, `max`, `weekStart: 1`, `showWeekNumbers: false`,
+  `time: false`.
+- **Methods** — `get()`, `set()`, `focus()`.
+- **Events** — `change {date}`, `monthchange {year, month}`.
+- **Keyboard** — arrows move a day, PageUp/PageDown a month, Shift+PageUp/PageDown a year,
+  Home/End, Enter/Space select. Day cells carry an `aria-label`.
+
+#### MonthPicker
+
+A 12-month grid. `get()`/`set()` work on the first of the month; event `change {date}`.
+
+#### TimePicker
+
+Two spinbuttons (three with `seconds`), plus an optional clock face behind a toggle button: pick an
+hour on the outer (1–12) or inner (13–23, 00) ring and the dial moves on to the minutes. Every mark
+is a radio in an APG radio group; the spinbuttons stay the primary control.
+
+- **Options** — `value: null`, `seconds: false`, `step: 5` (minute increment for the arrow keys),
+  `clock: true`.
+- **Methods** — `get()`, `set()`, `openClock(unit)`, `closeClock()`, `toggleClock()`.
+- **Events** — `change {time}`.
 <!-- /doc -->
 
 <!-- doc:datebox -->
 ### Datebox / DateTimeBox
-Text date input + calendar popover. Options: `value: Date | number(unix) | string`, `format: '%d.%m.%Y'`, `time: false`, `min`, `max`, `placeholder`, `clearable: true`, `disabled`. Methods: `get(unit='date')` (`'seconds'` → unix), `set(value, {silent})` (accepts a Date; pass Date objects, not display strings), `open()`/`close()`, `enable()`/`disable()`, `focus()`. Events: `change {date}`, `invalid {text}`, `open`, `close`. `DateTimeBox(target, opts)` = Datebox with `time: true`. Format tokens: `%d %m %Y %H %M` (see date utils).
+
+Text date input with a calendar popover. `DateTimeBox(target, opts)` is a Datebox with
+`time: true`, which also brings the TimePicker (and its clock face) into the popover. Format
+tokens are the date-utility ones: `%d %m %Y %H %M`.
+
+- **Options** — `value: Date | number(unix) | string`, `format: '%d.%m.%Y'`, `time: false`, `min`,
+  `max`, `placeholder`, `clearable: true`, `disabled`.
+- **Methods** — `get(unit='date')` (`'seconds'` → unix), `set(value, {silent})` (accepts a Date;
+  pass Date objects, not display strings), `open()`/`close()`, `enable()`/`disable()`, `focus()`.
+- **Events** — `change {date}`, `invalid {text}`, `open`, `close`.
+<!-- /doc -->
+
+<!-- doc:date-range -->
+### DateRangePicker / DateRangeBox
+
+An inline two-month calendar for picking a start and an end day, plus the form-usable text input that wraps it. The first click opens a range and the second closes it; while an end is pending, hovering and arrow-key focus preview where the range would land, and clicking on or before the pending start restarts it there instead of producing an inverted range. Both grids behave as one roving-focus unit, so arrowing right off 31 August continues on 1 September. Range maths is exported separately as `normalizeRange`, `rangeNights`, `rangeStateOf`, and `clampRange`, so the rules can be reused and tested without a DOM.
+
+#### DateRangePicker
+
+- **Options** — `start: null`, `end: null` (Dates), `min: null`, `max: null`, `months: 2` (a container query drops to one month in narrow hosts), `weekStart: 1`, `showWeekNumbers: false`, `minNights: 0`, `maxNights: null`, `presets: []` (an array of `{name, label, range: () => ({start, end})}`, or `true` for the built-in Today, Yesterday, Last 7 days, Last 30 days, This month, Last month, This quarter, This year), `disabled: false`.
+- **Methods** — `get()` → `{start, end}` copies, `set({start, end}, {silent})` (clamped to the bounds, scrolls the first month to the start), `clear({silent})`, `focus()`, `enable()`, `disable()`, `destroy()`.
+- **Events** — `change {start, end}` once a range is complete and on clear, `select {start, end}` on every click including the half-open state where `end` is still null, `monthchange {year, month}` when the first visible month moves.
+- **Keyboard** — arrows move a day, PageUp/PageDown a month, Shift+PageUp/PageDown a year, Home/End the ends of the week, Enter or Space selects, Escape abandons a half-picked range and restores the last complete one. Days outside `min`/`max` — and, once a start is pending, days that would break `minNights`/`maxNights` — stay keyboard-focusable but carry `aria-disabled="true"`. Committed days carry `data-range="start" | "middle" | "end"` and previewed days `data-range="preview"`; the picker is a `role="group"` holding one `role="grid"` per month, and the selection is announced through a visually hidden `aria-live="polite"` region ("1 – 14 August 2026, 13 nights").
+- **Exported helpers** — `normalizeRange(start, end)` orders a pair at local midnight (invalid values become null), `rangeNights(start, end)` counts nights from calendar days so DST never shifts the total, `rangeStateOf(day, start, end)` → `'start' | 'middle' | 'end' | null`, `clampRange(range, {min, max, minNights, maxNights})` pulls a range inside its bounds.
+
+#### DateRangeBox
+
+- **Options** — everything DateRangePicker takes, plus `format: '%d.%m.%Y'`, `separator: ' – '`, `placeholder: null` (derived from the format when null), `clearable: true`. Typed text is parsed as `"<start><separator><end>"`; a lone date reads as a one-day range and a trailing separator keeps the range half open.
+- **Methods** — `get(unit = 'date')` (`'seconds'` returns `{start, end}` as Unix seconds), `set(range, {silent})` accepting `{start, end}` of Dates, Unix-seconds numbers, or formatted strings, `clear({silent})`, `open()`, `close()`, `enable()`, `disable()`, `focus()`, `destroy()`.
+- **Events** — `change {start, end}`, `invalid {text}` when the typed value cannot be parsed (the text stays editable and the field takes `data-state="invalid"` plus `aria-invalid`), `open`, `close`.
 <!-- /doc -->
 
 <!-- doc:timebox -->
 ### Timebox
-Duration input (H:MM[:SS], optional sign). Options: `value: 0`, `unit: 'minutes'|'seconds'|'hours'`, `seconds: false`, `signed: false`, `disabled`. Methods: `get(unit)`, `set(value, unit?, {silent})`, `enable()`/`disable()`. Events: `change {value}` (in `options.unit`). Also exports pure helpers `splitTime`, `joinTime`.
+
+Duration input (H:MM[:SS], optional sign) — a length of time, not a time of day. For a time of day
+use `TimePicker` or `DateTimeBox`.
+
+- **Options** — `value: 0`, `unit: 'minutes'|'seconds'|'hours'`, `seconds: false`, `signed: false`,
+  `disabled`.
+- **Methods** — `get(unit)`, `set(value, unit?, {silent})`, `enable()`/`disable()`.
+- **Events** — `change {value}`, in `options.unit`.
+- **Also exported** — the pure helpers `splitTime` and `joinTime`.
 <!-- /doc -->
 
 <!-- doc:message -->
 ### Message — toasts, inline, progress
-Floating toasts via statics: `Message.info/success/warning/error(msg, opts)`, `Message.show(msg, { kind, timeout=4000, closable })` → `{ close() }`, `Message.progress(text)` → `{ update(pct, text?), done(), fail(text?) }`. Per-message options: `kind: 'info'`, `timeout`, `closable: true`, `maxVisible: 5` (extras queue; hover pauses dismissal). Instance `new Message(target)` gives an inline (non-floating) area with the same `.show()`. Toast region is `role="status"`/`aria-live` (`role="alert"` for errors).
+
+Floating toasts come from statics; `new Message(target)` gives an inline, non-floating area with
+the same `.show()`. The toast region is `role="status"`/`aria-live` (`role="alert"` for errors).
+
+- **Statics** — `Message.info/success/warning/error(msg, opts)`,
+  `Message.show(msg, { kind, timeout=4000, closable })` → `{ close() }`,
+  `Message.progress(text)` → `{ update(pct, text?), done(), fail(text?) }`.
+- **Per-message options** — `kind: 'info'`, `timeout`, `closable: true`, `maxVisible: 5` (extras
+  queue, and hovering pauses dismissal).
 <!-- /doc -->
 
 <!-- doc:modal -->
 ### Modal
-Thin native-`<dialog>` overlay. Options: `content`, `width: 'auto'`, `closable: true`, `lightDismiss: false`, `destroyOnClose: false`. Methods: `open()`, `close(result?)`, `setContent()`, `isOpen()`. Events: `open`, `close {result}`, `cancel` (Esc; preventable via `event.preventDefault()`). Backdrop uses `--zx-color-bg-backdrop`; focus returns to the opener.
+
+Thin overlay on the native `<dialog>` element. The backdrop uses `--zx-color-bg-backdrop`, and
+focus returns to the opener on close.
+
+- **Options** — `content`, `width: 'auto'`, `closable: true`, `lightDismiss: false`,
+  `destroyOnClose: false`.
+- **Methods** — `open()`, `close(result?)`, `setContent()`, `isOpen()`.
+- **Events** — `open`, `close {result}`, `cancel` (Esc; preventable with `event.preventDefault()`).
 <!-- /doc -->
 
 <!-- doc:dialog -->
 ### Dialog (extends Modal)
-Structured modal: header (title + close), body, footer buttons. Options: `title`, `size: 'sm'|'md'|'lg'|number`, `buttons: [{ label, kind, action: 'close'|'cancel'|fn(dialog), autofocus }]`, `closable: true`. Methods: `setTitle()`, `setContent()`, `setButtons()`, `addView(key, { content, buttons? })`, `showView(key)`. Statics returning Promises: `Dialog.alert({ title, message })`, `Dialog.confirm({ title, message, danger })` → boolean, `Dialog.prompt({ title, message, value })` → string|null.
+
+Structured modal: a header with title and close button, a body, and footer buttons.
+
+- **Options** — `title`, `size: 'sm'|'md'|'lg'|number`,
+  `buttons: [{ label, kind, action: 'close'|'cancel'|fn(dialog), autofocus }]`, `closable: true`.
+- **Methods** — `setTitle()`, `setContent()`, `setButtons()`,
+  `addView(key, { content, buttons? })`, `showView(key)`.
+- **Statics returning Promises** — `Dialog.alert({ title, message })`,
+  `Dialog.confirm({ title, message, danger })` → boolean,
+  `Dialog.prompt({ title, message, value })` → string|null.
 <!-- /doc -->
 
 <!-- doc:dropdown -->
 ### Dropdown
-Generic anchored popover (top layer). Constructor `(anchor, options)`. Options: `content`, `placement: 'bottom-start'|'bottom-end'|'top-start'|'top-end'|'bottom'|'top'`, `offset: 4`, `matchWidth: false`, `openOn: 'click'|'manual'`, `closeOnSelect: false`. Methods: `open()`, `close()`, `toggle()`, `isOpen()`, `setContent()`, `getPanel()`. Events: `open`, `close`. Light-dismiss on outside click + Esc; `aria-expanded` mirrored on the anchor.
+
+Generic anchored popover in the top layer, constructed as `new Dropdown(anchor, options)`. It
+light-dismisses on an outside click or Esc, and mirrors `aria-expanded` onto the anchor.
+
+- **Options** — `content`,
+  `placement: 'bottom-start'|'bottom-end'|'top-start'|'top-end'|'bottom'|'top'`, `offset: 4`,
+  `matchWidth: false`, `openOn: 'click'|'manual'`, `closeOnSelect: false`.
+- **Methods** — `open()`, `close()`, `toggle()`, `isOpen()`, `setContent()`, `getPanel()`.
+- **Events** — `open`, `close`.
 <!-- /doc -->
 
 <!-- doc:menu-button -->
 ### MenuButton — APG menu button
-Button opening a `role="menu"`. Options: `label`, `icon`, `kind`, `items: [{ label, icon?, value?, disabled?, danger?, onselect? } | '-']`, `placement`. Methods: `setItems()`, `open()`, `close()`, `setLabel()`. Events: `select {value, item}`, `open`, `close`. Keyboard: ArrowDown/Enter/Space open + focus first; ArrowUp opens + focuses last; Arrow cycle, Home/End, typeahead, Enter/Space select, Esc/Tab close.
+
+A button that opens a `role="menu"`.
+
+- **Options** — `label`, `icon`, `kind`,
+  `items: [{ label, icon?, value?, disabled?, danger?, onselect? } | '-']`, `placement`.
+- **Methods** — `setItems()`, `open()`, `close()`, `setLabel()`.
+- **Events** — `select {value, item}`, `open`, `close`.
+- **Keyboard** — ArrowDown/Enter/Space open and focus the first item; ArrowUp opens and focuses the
+  last; arrows cycle; Home/End; typeahead; Enter/Space select; Esc/Tab close.
+<!-- /doc -->
+
+<!-- doc:tooltip -->
+### Tooltip
+
+A description bubble anchored to another element. The panel is a manual popover positioned by the kernel's `position()`, so it escapes clipping and stacking contexts and flips near a viewport edge; it carries `role="tooltip"` and a generated id, and the anchor gets `aria-describedby` pointing at it only while it is open — closing puts the anchor's original value back, including no value at all. The bubble is never interactive: `pointer-events: none` keeps it from stealing the hover it depends on, and nothing inside it can take focus. Hover opens it after `delay`; keyboard focus opens it immediately, because a keyboard user cannot hover a moment longer; a touch pointer never opens it, since a bubble with no "move away" gesture would simply stick. Only one is ever visible at a time, which falls out of the dismissal rules rather than a registry.
+
+- **Options** — `content` (string, Node, or a function re-evaluated on every open), `placement` (`'top'` default, plus `bottom`, `top-start`, `top-end`, `bottom-start`, `bottom-end`), `offset` (6), `delay` (400), `hideDelay` (80), `maxWidth` (260; a number is pixels, a string is any CSS length), `trigger` (`'both'` default, or `'hover'`, `'focus'`, `'manual'` — `manual` installs no listeners at all and leaves everything to the methods), `disabled` (false).
+- **Methods** — `show()`, `hide()`, `toggle()`, `isOpen()`, `setContent(content)`, `enable()`, `disable()`, `isDisabled()`, `getAnchor()`, `destroy()`. Convenience factories: `tooltip(anchor, contentOrOptions)` takes either a content value or a full option object, and `describe(anchor, text)` is the one-liner replacement for a `title` attribute. Both return the instance.
+- **Events** — `open`, `close`. Both fire only on a real transition, so a `show()` on an open tooltip is silent.
+- **Keyboard** — Focusing the anchor opens the tooltip at once; moving focus away closes it. `Escape` closes it without moving focus, satisfying WCAG 1.4.13. A `pointerdown` anywhere closes it, and focus that arrives with a click does not re-open it.
+<!-- /doc -->
+
+<!-- doc:split-view -->
+### SplitView
+
+Two panes with a divider the user owns. The layout is a three-track CSS grid driven by one custom property, `--zx-split-size`, so a drag writes a single style value per frame and the browser does the rest. That property holds whatever was asked for: `38%` stays a percentage and keeps tracking the container until someone drags, at which point it becomes pixels and stays put. The divider follows the WAI-ARIA window splitter pattern — a focusable `separator` with live pixel `aria-valuenow`/`aria-valuemin`/`aria-valuemax` — and a `ResizeObserver` re-clamps the size when the container shrinks, bailing on a container that measures zero (a hidden tab, a detached node) rather than flattening a good size to nothing. A split view given an existing element with children adopts the first two as its panes and hands them back on `destroy()`.
+
+- **Options** — `orientation` (`'horizontal'` default: panes side by side behind a vertical divider; `'vertical'` stacks them), `start` / `end` (Node, Component, string, or null), `size` (`'38%'`; a number is pixels, a string is any CSS length), `min` (160), `max` (null — "whatever the container allows"), `collapsible` (`false`, `'start'`, or `'end'`), `collapsed` (false, true, or a pane name), `snap` (0 — a radius in pixels within which a settled drag lands exactly on the initial size, the minimum, or the maximum), `storageKey` (null; storage failures degrade to memory rather than throwing), `disabled` (false), `label` (`'Resize panes'`).
+- **Methods** — `setSize(value)`, `getSize()` (pixels), `getRatio()`, `setStart(content)`, `setEnd(content)`, `collapse(which)`, `expand()`, `isCollapsed()` (returns the pane name or false), `enable()`, `disable()`, `isDisabled()`, `destroy()`. The setters are programmatic and emit nothing.
+- **Events** — `resize` `{size, ratio}`, throttled to at most once per animation frame during a drag; `resizeend` `{size, ratio}` once an interaction settles (a drag ends, a key moves the divider, a double-click resets it); `collapse` `{pane}`; `expand`. A press that never moved is a click, not a resize, and reports nothing.
+- **Keyboard** — With the divider focused: `←` / `→` (horizontal) or `↑` / `↓` (vertical) move it 16px, `Shift` with an arrow moves 64px, `Home` goes to the minimum, `End` to the maximum, and `Enter` or `Space` folds a collapsible pane away and brings it back. Any key that moves the divider expands a collapsed pane first. Double-clicking the divider resets it to the initial `size`.
 <!-- /doc -->
 
 <!-- doc:table -->
 ### Table
-Sortable, selectable, sticky-header data table (one component covering both legacy gx.ui.Table and SimpleTable). Options: `columns: [{ id, label, sortable?, width ('120px'|'2fr'|'auto'), align, render?: (row,i)=>Node|string, sortValue?, headerTitle? }]`, `data`, `rowId: 'ID'`, `sort: { id, dir }`, `sortMode: 'local'|'server'`, `selectable: false|'single'|'multi'`, `stickyHeader: true`, `height`, `emptyText`, `rowClass`, `zebra: true`. Methods: `setData()`, `addData()`, `updateRow(id,row)`, `removeRow(id)`, `getRow(id)`, `getData()`, `empty()`, `setSort(id,dir)`, `getSelection()`, `setSelection(ids)`, `clearSelection()`, `setLoading(bool)` (busy/skeleton state — dims rows, shows an indeterminate top bar, sets `aria-busy`; auto-cleared by `setData`). Events: `rowclick {row, id, index, event}`, `rowdblclick`, `sort {id, dir}`, `selectionchange {rows, ids}`, `datachange {rows}`. `fr` widths fill the container; px/auto widths scroll horizontally. Multi-select adds a tri-state header checkbox and Shift+click range select.
+
+Sortable, selectable, sticky-header data table — one component covering both the legacy
+`gx.ui.Table` and `SimpleTable`. `fr` widths fill the container while px/auto widths scroll
+horizontally, and multi-select adds a tri-state header checkbox plus Shift+click range select.
+
+- **Options** — `columns: [{ id, label, sortable?, width ('120px'|'2fr'|'auto'), align,
+  render?: (row,i)=>Node|string, sortValue?, headerTitle? }]`, `data`, `rowId: 'ID'`,
+  `sort: { id, dir }`, `sortMode: 'local'|'server'`, `selectable: false|'single'|'multi'`,
+  `stickyHeader: true`, `height`, `emptyText`, `rowClass`, `zebra: true`.
+- **Methods** — `setData()`, `addData()`, `updateRow(id,row)`, `removeRow(id)`, `getRow(id)`,
+  `getData()`, `empty()`, `setSort(id,dir)`, `getSelection()`, `setSelection(ids)`,
+  `clearSelection()`, `setLoading(bool)` (busy/skeleton state — dims rows, shows an indeterminate
+  top bar, sets `aria-busy`, and is cleared by the next `setData`).
+- **Events** — `rowclick {row, id, index, event}`, `rowdblclick`, `sort {id, dir}`,
+  `selectionchange {rows, ids}`, `datachange {rows}`.
+- **Editing** — `editMode: false|'cell'|'row'` (default `false`, and completely inert until set).
+  `'cell'` edits one cell, `'row'` opens every editable cell of the row and commits them as a unit.
+  Editors are sized into the cell without changing row height, and an editing cell carries
+  `data-editing="true"` (`data-invalid="true"` plus an `aria-live` message when a validator rejects).
+- **Editable columns** — extra column keys: `editable: false|true|'text'|'number'|'select'|'date'|
+  'checkbox'|'textarea'|((row)=>boolean)` (`true` means `'text'`; a function is evaluated per row, so
+  individual rows stay read-only), `options` for `'select'` (`[{value,label}]`, a `{value: label}` map
+  whose keys are always strings, or `(row)=>items`), `editorProps` (forwarded to the underlying
+  NumberField/Select/Datebox/Toggle or to the generated `<input>`/`<textarea>`),
+  `editor: (row, api)=>Node` for a fully custom editor (`api` is `{value, commit(value), cancel(),
+  row, column}`; it wins over `editable`, but a per-row `editable` function returning `false` still
+  marks the cell read-only), `parse: (raw,row)=>value` and `format: (value,row)=>string` (`format`
+  seeds the text of a `'text'`/`'textarea'` editor, `parse` converts every editor's raw output back),
+  and `validate: (value,row)=>true|string` (a returned string marks the cell invalid, shows the
+  message, and refuses the commit).
+- **Editing methods** — `startEdit(rowId, columnId)`, `commitEdit()`, `cancelEdit()`, `isEditing()`,
+  `getEditing()` → `{id, columnId}|null`.
+- **Editing events** — `editstart {row, id, column, columnId, value}`;
+  `editcommit {row, id, column, columnId, value, previous, changes}` — **cancelable**:
+  `preventDefault()` on the component event (`table.on('editcommit', …)` or the `oneditcommit` option,
+  not the mirrored `zx-editcommit` DOM event) keeps the editor open so a server round-trip can reject
+  the change (`changes` is the `{columnId: value}` map and holds every changed cell in row mode);
+  `editcancel {row, id, column, columnId}`;
+  `editinvalid {row, id, column, columnId, value, message}`. A committed change is written
+  back through `updateRow()`, so `datachange` fires exactly as for a programmatic row update — a
+  commit with no changes emits `editcommit` with an empty `changes` map and leaves the data alone.
+  Sorting, filtering, or `setData()` while editing cancels the edit cleanly and emits `editcancel`.
+- **Editing keyboard** — Enter or F2 on a focused editable cell starts editing (editable cells share
+  one roving tab stop), double-click starts editing without emitting `rowdblclick`, Enter commits and
+  returns focus to the cell (Shift+Enter stays a newline in a `'textarea'`, Space toggles a
+  `'checkbox'`), Escape cancels and returns focus to the cell, Tab commits and moves to the next
+  editable cell (Shift+Tab the previous), wrapping across rows, and tabbing past the last editable
+  cell commits and leaves the table normally. Clicking outside the editor commits rather than
+  discarding what was typed.
 <!-- /doc -->
 
 <!-- doc:data-filter -->
 ### DataFilter
-Declarative client-side filter bar producing a filtered array (commonly wired to a Table). Options: `filters: [{ type: 'select'|'text'|'custom', id, label, field(s)|get, options?, predicate?, emptyLabel?, placeholder? }]`, `data`, `autoApply: true`, `clearLabel`. Methods: `setData()`, `apply()` → rows, `clear()`, `getState()`, `setState()`, `addFilter()`. Event: `filter {rows, state}`. Common pattern: `onfilter: (e) => table.setData(e.detail.rows)`.
+
+Declarative client-side filter bar producing a filtered array, commonly wired to a Table with
+`onfilter: (e) => table.setData(e.detail.rows)`.
+
+- **Options** — `filters: [{ type: 'select'|'text'|'custom', id, label, field(s)|get, options?,
+  predicate?, emptyLabel?, placeholder? }]`, `data`, `autoApply: true`, `clearLabel`.
+- **Methods** — `setData()`, `apply()` → rows, `clear()`, `getState()`, `setState()`,
+  `addFilter()`.
+- **Events** — `filter {rows, state}`.
 <!-- /doc -->
 
 <!-- doc:tree -->
 ### TreeView
-Hierarchical tree implementing the APG **tree** pattern. Rows render as a flat list carrying `aria-level`/`aria-setsize`/`aria-posinset` (the flattened variant the APG allows) rather than nested `role="group"` containers. Options: `items` (nested), `valueKey: 'ID'`, `labelKey: 'name'`, `childrenKey: 'children'`, `expanded: []`, `selection: 'single'|'multi'|false`, `selected: []`, `checkboxes: false` (tri-state), `checked: []`, `icons: true`, `renderLabel`, `load: (node)=>Promise<children>` (lazy children; mark a branch with `hasChildren: true`), `filter`, `emptyText`, `height`. Methods: `setItems()`, `getItems()`, `getNode(id)`, `getPath(id)`, `setFilter(query)` (keeps matching nodes' ancestors and opens the surviving branches), `expand(id)`/`collapse(id)`/`toggle(id)` (async — they await the loader), `expandAll()`/`collapseAll()`, `reveal(id)`, `select(id, {additive})`, `getSelection()`/`setSelection()`/`clearSelection()`, `check(id, checked)`, `getChecked({leavesOnly})`, `setChecked()`, `focusNode(id)`. Events: `select {node, id, ids}`, `expand`, `collapse`, `activate {node, id}` (Enter or double-click), `check {ids, node}`. Keyboard: ↑/↓ move, → expands then descends, ← collapses then ascends, Home/End, Enter activates, Space selects or toggles the checkbox, `*` expands every sibling, typing jumps to the next match. The component clones `items`, so lazily loaded children never mutate the caller's data.
+
+Hierarchical tree implementing the APG **tree** pattern. Rows render as a flat list carrying
+`aria-level`/`aria-setsize`/`aria-posinset` (the flattened variant the APG allows) rather than
+nested `role="group"` containers. The component clones `items`, so lazily loaded children never
+mutate the caller's data.
+
+- **Options** — `items` (nested), `valueKey: 'ID'`, `labelKey: 'name'`, `childrenKey: 'children'`,
+  `expanded: []`, `selection: 'single'|'multi'|false`, `selected: []`, `checkboxes: false`
+  (tri-state), `checked: []`, `icons: true`, `renderLabel`, `load: (node)=>Promise<children>`
+  (lazy children; mark a branch with `hasChildren: true`), `filter`, `emptyText`, `height`.
+- **Methods** — `setItems()`, `getItems()`, `getNode(id)`, `getPath(id)`, `setFilter(query)` (keeps
+  matching nodes' ancestors and opens the surviving branches),
+  `expand(id)`/`collapse(id)`/`toggle(id)` (async — they await the loader),
+  `expandAll()`/`collapseAll()`, `reveal(id)`, `select(id, {additive})`,
+  `getSelection()`/`setSelection()`/`clearSelection()`, `check(id, checked)`,
+  `getChecked({leavesOnly})`, `setChecked()`, `focusNode(id)`.
+- **Events** — `select {node, id, ids}`, `expand`, `collapse`, `activate {node, id}` (Enter or
+  double-click), `check {ids, node}`.
+- **Keyboard** — ↑/↓ move, → expands then descends, ← collapses then ascends, Home/End, Enter
+  activates, Space selects or toggles the checkbox, `*` expands every sibling, typing jumps to the
+  next match.
 <!-- /doc -->
 
 <!-- doc:finder -->
 ### Finder
-Miller-columns hierarchy browser: each column lists the children of the row selected in the column to its left, like the macOS Finder's column view. Columns are linked listboxes sharing **one** tab stop. Options: `items` (the same nested shape as `TreeView`), `valueKey`, `labelKey`, `childrenKey`, `path: []` (initial selection, root first), `load: (node)=>Promise<children>`, `preview: (node)=>Node|null` (renders a pane after the last column for a selected leaf), `rootLabel`, `columnWidth: 220`, `height: 320`, `icons: true`, `renderItem`, `emptyText`. Methods: `getPath()`, `getNodes()`, `getSelection()`, `setPath(ids, {silent, focus})` (async — loads every branch along the way), `reveal(id)`, `setItems()`, `focus()`. Events: `change {path, nodes, node}`, `activate {node, id}`. Keyboard: ↑/↓ move within the active column, → steps into the selected branch and lands on its first row, ← returns to the parent column and truncates the path, Home/End, Enter opens a leaf, typing jumps to the next match. The constructor applies `path` silently, so read `getNodes()` for the first paint of any breadcrumb.
+
+Miller-columns hierarchy browser: each column lists the children of the row selected in the column
+to its left, like the macOS Finder's column view. The columns are linked listboxes sharing **one**
+tab stop. The constructor applies `path` silently, so read `getNodes()` for the first paint of any
+breadcrumb.
+
+- **Options** — `items` (the same nested shape as `TreeView`), `valueKey`, `labelKey`,
+  `childrenKey`, `path: []` (initial selection, root first), `load: (node)=>Promise<children>`,
+  `preview: (node)=>Node|null` (renders a pane after the last column for a selected leaf),
+  `rootLabel`, `columnWidth: 220`, `height: 320`, `icons: true`, `renderItem`, `emptyText`.
+- **Methods** — `getPath()`, `getNodes()`, `getSelection()`, `setPath(ids, {silent, focus})`
+  (async — loads every branch along the way), `reveal(id)`, `setItems()`, `focus()`.
+- **Events** — `change {path, nodes, node}`, `activate {node, id}`.
+- **Keyboard** — ↑/↓ move within the active column, → steps into the selected branch and lands on
+  its first row, ← returns to the parent column and truncates the path, Home/End, Enter opens a
+  leaf, typing jumps to the next match.
 <!-- /doc -->
 
 <!-- doc:form -->
 ### Form / Fieldset / Field
-**Form** options: `fieldsets: []`, `actions: [button descriptors]`, `novalidate: true`. Proxy methods across fieldsets: `getValues()`, `setValues()`, `getField()`, `setValue()`, `getValue()`, `reset()`, `setHighlights()`, `clearHighlights()`, `addFieldset()`, `setActions()`, `submit()`. Events: `submit {values}` (preventable; required/int/float validation runs first), `invalid {errors}`, `change {id, value}`.
-**Fieldset** options: `title`, `columns: 1|2|3`, `fields: { id: Field-options }`. Methods: `addField(id, opts)`, `getField/hasField/getFields`, `getValues/setValues/getValue/setValue`, `reset`, `clear`, `focus(id)`, `setHighlights/clearHighlights`.
-**Field** options: `id`, `type: 'text'`, `label`, `description`, `value`, `placeholder`, `required`, `disabled`, `options`, `layout: 'stack'|'inline'`, `props: {}`. Built-in types: `text, password, textarea, checkbox, int, float, select, optionlist, hidden, html`. Methods: `getValue/setValue`, `focus`, `reset`, `setDisabled`, `setHighlight(msg, kind)`, `clearHighlight`, `getInput`, `own(child)`. `Field.register(type, adapter)`, `Field.has(type)`. Events: `change {value}`, `invalid {message}`.
+
+#### Form
+
+- **Options** — `fieldsets: []`, `actions: [button descriptors]`, `novalidate: true`.
+- **Methods** (proxied across the fieldsets) — `getValues()`, `setValues()`, `getField()`,
+  `setValue()`, `getValue()`, `reset()`, `setHighlights()`, `clearHighlights()`, `addFieldset()`,
+  `setActions()`, `submit()`.
+- **Events** — `submit {values}` (preventable; required/int/float validation runs first),
+  `invalid {errors}`, `change {id, value}`.
+
+#### Fieldset
+
+- **Options** — `title`, `columns: 1|2|3`, `fields: { id: Field-options }`.
+- **Methods** — `addField(id, opts)`, `getField`/`hasField`/`getFields`,
+  `getValues`/`setValues`/`getValue`/`setValue`, `reset`, `clear`, `focus(id)`,
+  `setHighlights`/`clearHighlights`.
+
+#### Field
+
+- **Options** — `id`, `type: 'text'`, `label`, `description`, `value`, `placeholder`, `required`,
+  `disabled`, `options`, `layout: 'stack'|'inline'`, `props: {}`.
+- **Built-in types** — `text`, `password`, `textarea`, `checkbox`, `int`, `float`, `select`,
+  `optionlist`, `hidden`, `html`.
+- **Methods** — `getValue`/`setValue`, `focus`, `reset`, `setDisabled`,
+  `setHighlight(msg, kind)`, `clearHighlight`, `getInput`, `own(child)`, plus the statics
+  `Field.register(type, adapter)` and `Field.has(type)`.
+- **Events** — `change {value}`, `invalid {message}`.
 <!-- /doc -->
 
 <!-- doc:form-widgets -->
 ### Field widget types
-Beyond the built-in field types, these widget types wrap full components (used as `{ type, label, props: {…component options…} }`): `zxselect` (Select), `checklist` (Checklist), `tagpicker` (TagPicker), `number` (NumberField), `rating` (Rating), `date`/`month`/`datetime` (Datebox/MonthPicker — pass a `Date` value), `time` (Timebox), `valuelist` (ValueList), `multivalueeditor` (MultiValueEditor), `upload` (FieldUpload), `toggle` (Toggle). Registered via `registerFieldAdapters()` (called by default from `src/index.js`).
+
+Beyond the built-in field types, these widget types wrap whole components, used as
+`{ type, label, props: {…component options…} }`. They are registered by
+`registerFieldAdapters()`, which `src/index.js` calls by default.
+
+- `zxselect` (Select), `checklist` (Checklist), `tagpicker` (TagPicker), `number` (NumberField),
+  `rating` (Rating).
+- `date`/`month`/`datetime` (Datebox/MonthPicker — pass a `Date` value), `time` (Timebox).
+- `valuelist` (ValueList), `multivalueeditor` (MultiValueEditor), `upload` (FieldUpload),
+  `toggle` (Toggle).
 <!-- /doc -->
 
 <!-- doc:value-list -->
 ### ValueList
-Tag/chip input. Options: `values: []`, `placeholder`, `deletable: true`, `sortable: true`, `unique: true`, `validate: (str)=>bool|string`. Methods: `getValues()`, `setValues()`, `addValue()`, `removeValue()`, `focus()`, `enable()`/`disable()`. Events: `change {values}`, `add {value}`, `remove {value}`. Enter adds; Backspace on empty removes last; drag or Ctrl+Arrow reorders.
+
+Tag/chip input. Enter adds a value, Backspace on an empty input removes the last one, and dragging
+or Ctrl+Arrow reorders.
+
+- **Options** — `values: []`, `placeholder`, `deletable: true`, `sortable: true`, `unique: true`,
+  `validate: (str)=>bool|string`.
+- **Methods** — `getValues()`, `setValues()`, `addValue()`, `removeValue()`, `focus()`,
+  `enable()`/`disable()`.
+- **Events** — `change {values}`, `add {value}`, `remove {value}`.
 <!-- /doc -->
 
 <!-- doc:multi-value-editor -->
 ### MultiValueEditor
-Ordered value editor with explicit rows (add / remove / move). Options: `values`, `options` (allowed values → select rows), `addLabel`. Methods: `getValues()`, `setValues()`. Event: `change {values}`.
+
+Ordered value editor with explicit rows (add / remove / move).
+
+- **Options** — `values`, `options` (allowed values, which turns the rows into selects),
+  `addLabel`.
+- **Methods** — `getValues()`, `setValues()`.
+- **Events** — `change {values}`.
 <!-- /doc -->
 
 <!-- doc:field-upload -->
 ### FieldUpload
-Click/drop file upload with progress. Options: `url`, `paramName: 'upload'`, `params`, `headers`, `multiple: false`, `accept`, `maxSize`, `autoUpload: true`, `preview: true`, `http`. Methods: `upload(files?)`, `abort()`, `clear()`, `setDisabled()`. Events: `select {files}`, `progress {percent}`, `success {response}`, `error {error}`, `abort`. Keyboard-accessible drop zone; upload progress via XMLHttpRequest.
+
+Click/drop file upload with progress. The drop zone is keyboard-accessible and progress comes from
+`XMLHttpRequest`.
+
+- **Options** — `url`, `paramName: 'upload'`, `params`, `headers`, `multiple: false`, `accept`,
+  `maxSize`, `autoUpload: true`, `preview: true`, `http`.
+- **Methods** — `upload(files?)`, `abort()`, `clear()`, `setDisabled()`.
+- **Events** — `select {files}`, `progress {percent}`, `success {response}`, `error {error}`,
+  `abort`.
 <!-- /doc -->
 
 <!-- doc:tag-picker -->
 ### TagPicker
-Multi-select combobox that renders its selection as removable tags inside the control (APG combobox + multi-selectable listbox). Use it when the catalogue is too large to show in full — `Checklist` shows a fixed set, `ValueList` takes free text with no catalogue. Options: `items`, `values: []`, `valueKey: 'ID'`, `labelKey: 'name'`, `searchKeys`, `filter: 'local'|(query)=>Promise<items>`, `minQuery: 0`, `debounce: 200`, `allowCreate: false`, `max` (maximum tags; further options become `aria-disabled`), `closeOnSelect: false`, `placeholder`, `listHeight: 260`, `disabled`, `readonly`, `renderItem`, `renderTag`. Methods: `getValues()`, `getItems()`, `setValues(values, {silent})`, `addValue()`, `removeValue()`, `clear()`, `reset()`, `setItems()`, `isFull()`, `open()`/`close()`, `focus()`, `setReadonly()`, `enable()`/`disable()`. Events: `change {values, items}`, `add {value, item}`, `remove {value, item}`, `create {value, item}`, `query {query}`, `open`, `close`. Keyboard: ↓ opens and moves, ↑ moves, Enter toggles the active option (or creates from the query), Escape closes, Backspace on an empty input removes the last tag, Home/End jump within the list. Unknown IDs passed to `setValues` still render as tags, so a stored selection survives a catalogue that has not loaded yet. Field type: `tagpicker`.
+
+Multi-select combobox that renders its selection as removable tags inside the control (APG combobox
+plus multi-selectable listbox). Use it when the catalogue is too large to show in full: `Checklist`
+shows a fixed set, and `ValueList` takes free text with no catalogue. Unknown IDs passed to
+`setValues` still render as tags, so a stored selection survives a catalogue that has not loaded
+yet. Field type: `tagpicker`.
+
+- **Options** — `items`, `values: []`, `valueKey: 'ID'`, `labelKey: 'name'`, `searchKeys`,
+  `filter: 'local'|(query)=>Promise<items>`, `minQuery: 0`, `debounce: 200`, `allowCreate: false`,
+  `max` (maximum tags; further options become `aria-disabled`), `closeOnSelect: false`,
+  `placeholder`, `listHeight: 260`, `disabled`, `readonly`, `renderItem`, `renderTag`.
+- **Methods** — `getValues()`, `getItems()`, `setValues(values, {silent})`, `addValue()`,
+  `removeValue()`, `clear()`, `reset()`, `setItems()`, `isFull()`, `open()`/`close()`, `focus()`,
+  `setReadonly()`, `enable()`/`disable()`.
+- **Events** — `change {values, items}`, `add {value, item}`, `remove {value, item}`,
+  `create {value, item}`, `query {query}`, `open`, `close`.
+- **Keyboard** — ↓ opens and moves, ↑ moves, Enter toggles the active option (or creates one from
+  the query), Escape closes, Backspace on an empty input removes the last tag, Home/End jump
+  within the list.
 <!-- /doc -->
 
 <!-- doc:permission -->
 ### Permission
-Private / public / group record-permission selector. Options: `value: true|false|groupId`, `groups: []`, `groupsValueKey: 'ID'`, `groupsLabelKey: 'name'`. Methods: `get()` → `'private'|'public'|groupId`, `set(value)`. Event: `change {value}`.
+
+Private / public / group record-permission selector.
+
+- **Options** — `value: true|false|groupId`, `groups: []`, `groupsValueKey: 'ID'`,
+  `groupsLabelKey: 'name'`.
+- **Methods** — `get()` → `'private'|'public'|groupId`, `set(value)`.
+- **Events** — `change {value}`.
 <!-- /doc -->
 
 <!-- doc:groupbox -->
 ### Groupbox
-Collapsible titled section on native `<details>`. Options: `title`, `open: true`. Methods: `open()`, `close()`, `toggle()`, `isOpen()`, `setTitle()`, `setContent()`. Events: `open`, `close`.
+
+Collapsible titled section built on the native `<details>` element.
+
+- **Options** — `title`, `open: true`.
+- **Methods** — `open()`, `close()`, `toggle()`, `isOpen()`, `setTitle()`, `setContent()`.
+- **Events** — `open`, `close`.
 <!-- /doc -->
 
 <!-- doc:panel -->
 ### Panel / MasterPanel
-**Panel** — framed, optionally collapsible section. Options: `title`, `content`, `open: true`, `collapsible: true`, `footer`. Methods: `setTitle/setContent/setFooter`, `open()/close()/toggle()`, `isOpen()`. Events: `open`, `close`.
-**MasterPanel** — full-height application panel with a fixed header (title + action buttons) and optional footer. Options: `title`, `content`, `buttons: []`, `module: <ZeyOS module name → accent token>`, `footer`. Methods: `setTitle/setContent/setButtons/setFooter`.
+
+#### Panel
+
+Framed, optionally collapsible section. Its header is a row rather than one big button: the chevron
+and title form the collapse control and `buttons` sit at the trailing edge beside it, so clicking
+an action never collapses the panel. The footer bar appears as soon as it has `footer` content,
+`footerButtons`, or both, and its buttons are right-aligned.
+
+- **Options** — `title`, `content`, `open: true`, `collapsible: true`, `buttons: []` (elements or
+  `button()` descriptors, right-aligned in the header), `footer`, `footerButtons: []`
+  (right-aligned in the footer).
+- **Methods** — `setTitle()`, `setContent()`, `setButtons()`, `setFooter()`, `setFooterButtons()`,
+  `open()`/`close()`/`toggle()`, `isOpen()`.
+- **Events** — `open`, `close`.
+
+#### MasterPanel
+
+Full-height application panel with a fixed header (title plus action buttons) and an optional
+fixed footer, while the body scrolls.
+
+- **Options** — `title`, `content`, `buttons: []`,
+  `module: <ZeyOS module name → accent token>`, `footer`.
+- **Methods** — `setTitle()`, `setContent()`, `setButtons()`, `setFooter()`.
 <!-- /doc -->
 
 <!-- doc:tabbox -->
 ### Tabbox — APG tabs
-Options: `tabs: [{ name, title, content, closable?, disabled? }]`, `active`, `keepAlive: true`. Methods: `addTab()`, `removeTab()`, `openTab(name)`, `getActive()`, `setTitle()`, `setBadge(name, text|null)`, `enableTab()`/`disableTab()`. Events: `change {name, previous}` (preventable), `close {name}`. Keyboard: ArrowLeft/Right + Home/End move focus, Enter/Space activate, Delete closes a closable tab. Carbon-style underline "line tabs".
+
+Two appearances, both following the shadcn/ui `Tabs` primitive: `line` (the default) underlines the
+active tab across a full-width rule, for page- and section-level navigation; `segmented` renders a
+compact pill group on a muted fill with the active tab raised onto a control surface, for switching
+a view inside a panel, toolbar, or card header.
+
+- **Options** — `tabs: [{ name, title, content, icon?, closable?, disabled? }]`, `active`,
+  `variant: 'line'|'segmented'`, `keepAlive: true`.
+- **Methods** — `addTab()`, `removeTab()`, `openTab(name)`, `getActive()`, `setTitle()`,
+  `setBadge(name, text|null)`, `enableTab()`/`disableTab()`.
+- **Events** — `change {name, previous}` (preventable), `close {name}`.
+- **Keyboard** — ArrowLeft/Right and Home/End move focus, Enter/Space activate, Delete closes a
+  closable tab.
+<!-- /doc -->
+
+<!-- doc:stepper -->
+### Stepper
+
+Linear progress through a multi-step flow: a numbered `<ol>` where each step is upcoming, active,
+complete, or errored. It promotes the markup the checkout and record wizards used to hand-roll.
+Advancing past a step marks it complete automatically, and only steps the `clickable` policy allows
+are rendered as real buttons — the rest are not focusable at all.
+
+- **Options** — `steps: [{name, title, description?, optional?, disabled?}]`, `active` (defaults to
+  the first enabled step), `orientation: 'horizontal'|'vertical'`, `clickable:
+  'completed'|'all'|false` (default `'completed'`, so users can go back but not skip ahead),
+  `showNumbers: true`, `counter: false` (adds a "Step 2 of 4" line).
+- **Methods** — `setSteps()`, `goTo(name)`, `next()`, `previous()`, `getActive()`, `getIndex()`,
+  `complete(name)`/`uncomplete(name)`, `setError(name, boolean)`, `setDisabled(name, boolean)`,
+  `getState()` → `{active, index, completed, errored}`, `destroy()`.
+- **Events** — `change {name, previous, index}`, **preventable** with `event.preventDefault()` so a
+  step can refuse to be left until its form validates.
+- **Semantics** — the active step carries `aria-current="step"`; every step carries
+  `data-state="upcoming"|"active"|"complete"|"error"`, and complete and errored steps swap the
+  number for a `check` or `warning` glyph.
+<!-- /doc -->
+
+<!-- doc:breadcrumb -->
+### Breadcrumb
+
+The trail above a hierarchy view. It pairs directly with `Finder` and `TreeView`: feed
+`getNodes()` from a Finder's `change` event into `setItems()` and the two stay in step. When
+`maxVisible` is exceeded the middle collapses behind an ellipsis `MenuButton`, always keeping the
+first and last items.
+
+- **Options** — `items: [{name, label, icon?, href?}]`, `maxVisible: 0` (0 shows all),
+  `separator: 'chevron'|'slash'`, `rootIcon: null`.
+- **Methods** — `setItems()`, `getItems()`, `push(item)`, `pop()`, `truncateTo(name)`, `destroy()`.
+- **Events** — `select {name, item, index}`. An item with an `href` renders as a real `<a>` and its
+  default is left alone, so ordinary navigation and middle-click still work; without one it renders
+  as a `<button>` and only the event fires.
+- **Semantics** — `<nav aria-label="Breadcrumb"><ol>`; the last item is plain text carrying
+  `aria-current="page"` and is deliberately not interactive; separators are `aria-hidden`.
+<!-- /doc -->
+
+<!-- doc:pagination -->
+### Pagination
+
+The pager for a server-backed list, shaped to drop straight onto `Table` with
+`sortMode: 'server'` or onto the `zeyosTable` binding — `getState()` hands back the `offset` and
+`pageSize` a query needs. `page` is 1-based and always clamped into `[1, pages]`; a `total` of 0 is
+treated as one empty page rather than zero pages.
+
+- **Options** — `page: 1`, `pageSize: 25`, `total: 0`, `pageSizes: [25, 50, 100]`, `siblings: 1`,
+  `boundaries: 1`, `showPageSize: true`, `showSummary: true` (renders "26–50 of 312"),
+  `mode: 'pages'|'loadmore'`, `disabled: false`.
+- **Methods** — `setPage(n)`, `setTotal(n)`, `setPageSize(n)`, `setState({page, pageSize, total},
+  {silent})`, `getState()` → `{page, pageSize, total, pages, offset}`, `enable()`/`disable()`,
+  `destroy()`.
+- **Events** — `change {page, pageSize, offset, total, pages}`, fired for a page change, a
+  page-size change (which resets to page 1), and Load more.
+- **Also exported** — `paginationRange({page, pages, siblings, boundaries})` → `Array<number|'…'>`,
+  the pure page-window calculation, usable on its own.
+- **Semantics** — `<nav aria-label="Pagination">`; the current page carries `aria-current="page"`;
+  previous/next are labelled icon buttons that go `disabled` at the ends; the ellipses are
+  `aria-hidden` spans, not buttons.
 <!-- /doc -->
 
 <!-- doc:navigation-bar -->
 ### NavigationBar
-Application navigation bar (brand + items + right-aligned actions). Options: `title`, `items: [{ name, title, badge? }]`, `active`, `actions: []`. Methods: `setTitle()`, `setItems()`, `setActive()`, `setBadge()`, `setActions()`. Event: `change {name}`. Items overflow into a "More" menu on narrow widths.
+
+Application navigation bar: brand, items, and right-aligned actions. Items overflow into a "More"
+menu on narrow widths.
+
+- **Options** — `title`, `items: [{ name, title, badge? }]`, `active`, `actions: []`.
+- **Methods** — `setTitle()`, `setItems()`, `setActive()`, `setBadge()`, `setActions()`.
+- **Events** — `change {name}`.
 <!-- /doc -->
 
 <!-- doc:kernel -->
 ### Core helpers
-`Component` (base: `on/off/once/emit`, `listen`, `toElement`, `msg`, `destroy`, static `from(el)`). `h(tag, props, ...children)`, `h.raw(html)`, `htmlEscape`, `resolveElement`. `icon(name, {size,label})`, `icons` (see the Icons section — bundled inline SVG by default, Font Awesome after opt-in). `position(anchor, floating, {placement, offset, flip, matchWidth})` → `{update, destroy}`. i18n: `setTranslator`, `setLanguage`, `getLanguage`, `translate`, `printf`. Dates: `formatDate(d, fmt)`, `parseDate(s, fmt)` (tokens `%d %m %Y %y %H %M %S %a %A %b %B %s`), `clampDate`, `isSameDay`, `addDays`, `addMonths`, `getWeekStart`. Keyboard: `focusTrap`, `rovingTabindex`, `typeahead`. Utils: `debounce`, `uid`, `deepMerge`, `isElement`, `clamp`, `toArray`.
+
+- **Component** — the base class: `on`/`off`/`once`/`emit`, `listen`, `toElement`, `msg`,
+  `destroy`, and the static `Component.from(el)`.
+- **DOM** — `h(tag, props, ...children)`, `h.raw(html)`, `htmlEscape`, `resolveElement`.
+- **Icons** — `icon(name, {size, label})` and `icons`; see the Icons section — bundled inline SVG
+  by default, Font Awesome after an opt-in.
+- **Positioning** — `position(anchor, floating, {placement, offset, flip, matchWidth})` →
+  `{update, destroy}`. It anchors a manual popover with CSS anchor positioning where the browser
+  supports it and a scroll/resize-tracked fallback where it does not. Options are resolved once,
+  so changing a placement means `destroy()` and a fresh `position()` call.
+- **i18n** — `setTranslator`, `setLanguage`, `getLanguage`, `translate`, `printf`.
+- **Dates** — `formatDate(d, fmt)`, `parseDate(s, fmt)` (tokens
+  `%d %m %Y %y %H %M %S %a %A %b %B %s`), `clampDate`, `isSameDay`, `addDays`, `addMonths`,
+  `getWeekStart`.
+- **Keyboard** — `focusTrap`, `rovingTabindex`, `typeahead`.
+- **Utils** — `debounce`, `uid`, `deepMerge`, `isElement`, `clamp`, `toArray`.
 <!-- /doc -->
 
 <!-- doc:icons -->
@@ -425,29 +972,125 @@ attributes. Both honour `label` (`null` ⇒ `aria-hidden`, otherwise `role="img"
 
 <!-- doc:helpers -->
 ### Helper functions
-Standalone exports with no DOM ownership and no lifecycle, importable individually from the same entry point as the components.
-**Dates** — `formatDate(date, fmt)`, `parseDate(str, fmt)` (returns `null` when the string does not match, so it doubles as a validator), `clampDate(date, min, max)`, `isSameDay(a, b)`, `addDays(date, n)`, `addMonths(date, n)`, `getWeekStart(lang?)` → `0` (Sunday) or `1` (Monday). strftime-style tokens: `%d %m %Y %y %H %M %S %a %A %b %B %s`.
-**Utilities** — `debounce(fn, ms)` (trailing edge, preserves `this`), `uid(prefix='zx')` (unique per page load, safe as a DOM id), `deepMerge(a, b)` (never mutates either input; replaces arrays rather than concatenating), `clamp(n, min, max)`, `toArray(value)` (null → `[]`, string → single entry, iterable/array-like → array), `isElement(value)` (cross-realm safe).
-**Escaping** — `htmlEscape(str)`, and `h.raw(html)` as the only sanctioned `innerHTML` path (component-generated markup only).
-**Translation** — `setTranslator(fn)`, `setLanguage(lang)`, `getLanguage()`, `translate(key, args)`, `printf(str, args)` (`%s` placeholders). Every component routes its built-in strings through `translate()`, so one translator covers the library; `setLanguage()` also drives locale-dependent behaviour such as the first day of the week.
-**Keyboard** — `focusTrap(container)` → `{activate, release}` confines Tab to a container; `rovingTabindex(container, itemSelector, {orientation, wrap})` → `{focusFirst, focusLast, destroy}` keeps one tab stop in a group; `typeahead(getItems, onMatch)` → `(event|string) => void` resolves buffered printable keystrokes to an item (500 ms buffer, repeated-letter cycling).
-See also the Kernel section for `Component`, `h`, `icon`, and `position` — the substrate the components themselves are built on.
+
+Standalone exports with no DOM ownership and no lifecycle, importable individually from the same
+entry point as the components. See also the Kernel section for `Component`, `h`, `icon`, and
+`position` — the substrate the components themselves are built on.
+
+- **Dates** — `formatDate(date, fmt)`, `parseDate(str, fmt)` (returns `null` when the string does
+  not match, so it doubles as a validator), `clampDate(date, min, max)`, `isSameDay(a, b)`,
+  `addDays(date, n)`, `addMonths(date, n)`, `getWeekStart(lang?)` → `0` (Sunday) or `1` (Monday).
+  strftime-style tokens: `%d %m %Y %y %H %M %S %a %A %b %B %s`.
+- **Numbers, money and time** — `formatNumber(value, {locale, decimals, minDecimals, maxDecimals,
+  group=true})`, `formatCurrency(value, currency, {locale, decimals})`, `formatPercent(value,
+  {locale, decimals=0})` (takes a fraction, so `0.42` → `42%`), `formatFileSize(bytes, {locale,
+  decimals=1, standard='iec'})` (`'iec'` → KiB/MiB/GiB in steps of 1024, `'si'` → kB/MB/GB in steps
+  of 1000; `0` → `'0 B'`, trailing zeros dropped), `formatRelativeTime(date, {now=new Date(),
+  locale, numeric='auto'})` (picks the largest sensible unit from second to year; accepts a `Date`,
+  Unix seconds, or an ISO string). `locale` defaults to `getLanguage()` throughout, so
+  `setLanguage()` drives all five. Nothing throws: `null`, `undefined` and `NaN` all format as
+  `''`, an invalid currency code falls back to plain number formatting, and every `Intl` instance
+  is cached because tables call these once per cell.
+- **Utilities** — `debounce(fn, ms)` (trailing edge, preserves `this`), `throttle(fn, ms,
+  {leading=true, trailing=true})` (its rate-limiting counterpart: runs at most once per interval
+  and replays the latest arguments on the trailing edge), `uid(prefix='zx')` (unique
+  per page load, safe as a DOM id), `deepMerge(a, b)` (never mutates either input; replaces arrays
+  rather than concatenating), `clamp(n, min, max)`, `toArray(value)` (null → `[]`, string → single
+  entry, iterable/array-like → array), `isElement(value)` (cross-realm safe).
+- **Collections** — `groupBy(items, key)` → `Record<string, T[]>` ordered by first appearance;
+  `sortBy(items, ...keys)` returns a **new** array and never mutates its input, taking a property
+  name, a `'-name'` prefix or a `{key, dir}` object for descending, or an accessor function,
+  comparing digit runs numerically and always sorting `null`, `undefined` and `NaN` last in either
+  direction; `uniqueBy(items, key?)` keeps the first occurrence.
+- **Escaping** — `htmlEscape(str)`, and `h.raw(html)` as the only sanctioned `innerHTML` path, for
+  component-generated markup only. `escapeRegExp(value)` makes user input safe as a literal
+  pattern, and `highlightMatch(text, query, {className='zx-mark'})` → `DocumentFragment` wraps
+  every case-insensitive occurrence in a `<mark>` built from text nodes, with no `innerHTML`
+  involved — the pairing every filtering list wants.
+- **Storage** — `storage(namespace, {area='local'})` → `{get, set, remove, keys, clear}`, a
+  namespaced JSON-encoded view of `localStorage` (or `sessionStorage` with `{area: 'session'}`).
+  Keys are written as `zx:<namespace>:<key>`, so features share an origin without colliding and
+  `clear()` empties only its own namespace; `keys()` reports namespace-relative names.
+  `get(key, fallback)` returns the fallback both for a missing key and for unparseable JSON, and
+  `set()` drops values JSON cannot represent rather than throwing. When the area is missing or
+  refuses a write — private browsing, a full quota, cookies disabled — the view degrades silently
+  to an in-memory map for the life of the page, so callers never need a `try`/`catch`.
+- **Export** — `toCsv(rows, columns, {delimiter=',', header=true, newline='\r\n'})` serialises to
+  RFC 4180: fields containing the delimiter, a quote, CR or LF are quoted with inner quotes
+  doubled, `Date`s become ISO strings, `null`/`undefined` become empty fields, and text starting
+  with `=`, `+`, `-` or `@` is prefixed with a tab so spreadsheets treat it as text rather than a
+  formula (numbers are exempt, so negative amounts survive). `columns` accepts plain id strings or
+  `{id, label, value(row)}` descriptors. `downloadBlob(filename, data, {type})` saves through a
+  temporary object URL, prepending a UTF-8 BOM for `text/csv` so Excel reads it as UTF-8;
+  `copyToClipboard(text)` → `Promise<boolean>` uses the async Clipboard API and falls back to a
+  hidden textarea, never rejecting.
+- **Translation** — `setTranslator(fn)`, `setLanguage(lang)`, `getLanguage()`,
+  `translate(key, args)`, `printf(str, args)` (`%s` placeholders). Every component routes its
+  built-in strings through `translate()`, so one translator covers the library, and
+  `setLanguage()` also drives locale-dependent behaviour such as the first day of the week.
+- **Keyboard** — `focusTrap(container)` → `{activate, release}` confines Tab to a container;
+  `rovingTabindex(container, itemSelector, {orientation, wrap})` → `{focusFirst, focusLast,
+  destroy}` keeps one tab stop in a group; `typeahead(getItems, onMatch)` →
+  `(event|string) => void` resolves buffered printable keystrokes to an item (500 ms buffer,
+  repeated-letter cycling).
 <!-- /doc -->
 
 <!-- doc:gx-compat -->
 ### gx compatibility layer
-Opt-in re-implementation of the legacy MooTools-era `gx` API on top of Zx, so existing ZeyOS screens keep running while their code is modernised file by file. It lives in its own bundle, is never imported by `src/index.js`, and adds nothing to an application that does not load it.
-**Loading** — classic: `<script src="/assets/zx-compat.global.js">` → `window.gx`; module: `import { gx } from '/assets/zx-compat.esm.js'` (or `src/compat/index.js` in-repo). `gx.compat.installGlobals()` additionally installs the legacy free functions `__()`, `_()`, `String.htmlSpecialChars`, and the element `store`/`retrieve` shim. `gx.install(host)` assigns the namespace without the optional globals.
-**Namespaces** — `gx.zeyos` (Select/SelectFilter/SelectDyn/SelectPrio, Table, Tabbox, Panel, MasterPanel, Groupbox, Search, Datebox, DatePicker, MonthPicker, TimePicker, Timebox, Toggle, Msgbox, Popup, Dialog, Dropdown, Checklist, Permission, Client, Request, Factory), `gx.bootstrap` (Form, Fieldset, Field, Select variants, Checklist, Table, Tabbox, NavigationBar, MenuButton, Message, Popup/PopupAlert/PopupConfirm, CheckButton, DataFilter, ValueList, MultiValueEditor, FieldUpload, Timebox), `gx.util` (`formatNum`, `formatTime`, `getMinutes`, `getNumber`, `printf`, `parseResult`, `Parse`, `isArray`/`isObject`/`isFunction`/`isString`/`isNumber`/`isElement`/`isNode`, `Console`), `gx.ui` (Container, SimpleTable, Timebox, and inert visual-effect stubs Blend/Collapse/Hud/Toggling/HGroup/Templates), `gx.core` (Settings), `gx.compat` (installGlobals, installElementStorage, parse, GxWrapper).
-**Migrating off it** — legacy classes collapse onto fewer Zx components: all four Select variants → one `Select` with a `filter` option; `gx.ui.Table` + `SimpleTable` → one `Table`; `Msgbox`/`bootstrap.Message` → `Message`; `Popup`/`PopupAlert`/`PopupConfirm` → `Modal`/`Dialog` with Promise-returning statics; `gx.zeyos.Client`/`Request` → `@zeyos/client`. Anything that depended on MooTools prototype extensions is gone. `MIGRATION.md` has the full map and the deliberate behaviour changes; `website/compat.html` runs legacy snippets against Zx as a smoke test.
+
+Opt-in re-implementation of the legacy MooTools-era `gx` API on top of Zx, so existing ZeyOS
+screens keep running while their code is modernised file by file. It lives in its own bundle, is
+never imported by `src/index.js`, and adds nothing to an application that does not load it.
+
+- **Loading** — classic: `<script src="/assets/zx-compat.global.js">` → `window.gx`; module:
+  `import { gx } from '/assets/zx-compat.esm.js'` (or `src/compat/index.js` in-repo).
+  `gx.compat.installGlobals()` additionally installs the legacy free functions `__()`, `_()`,
+  `String.htmlSpecialChars`, and the element `store`/`retrieve` shim. `gx.install(host)` assigns
+  the namespace without the optional globals.
+- **`gx.zeyos`** — Select/SelectFilter/SelectDyn/SelectPrio, Table, Tabbox, Panel, MasterPanel,
+  Groupbox, Search, Datebox, DatePicker, MonthPicker, TimePicker, Timebox, Toggle, Msgbox, Popup,
+  Dialog, Dropdown, Checklist, Permission, Client, Request, Factory.
+- **`gx.bootstrap`** — Form, Fieldset, Field, the Select variants, Checklist, Table, Tabbox,
+  NavigationBar, MenuButton, Message, Popup/PopupAlert/PopupConfirm, CheckButton, DataFilter,
+  ValueList, MultiValueEditor, FieldUpload, Timebox.
+- **`gx.util`** — `formatNum`, `formatTime`, `getMinutes`, `getNumber`, `printf`, `parseResult`,
+  `Parse`, `isArray`/`isObject`/`isFunction`/`isString`/`isNumber`/`isElement`/`isNode`,
+  `Console`.
+- **`gx.ui`** — Container, SimpleTable, Timebox, and the inert visual-effect stubs
+  Blend/Collapse/Hud/Toggling/HGroup/Templates. **`gx.core`** — Settings. **`gx.compat`** —
+  installGlobals, installElementStorage, parse, GxWrapper.
+- **Migrating off it** — legacy classes collapse onto fewer Zx components: all four Select
+  variants → one `Select` with a `filter` option; `gx.ui.Table` + `SimpleTable` → one `Table`;
+  `Msgbox`/`bootstrap.Message` → `Message`; `Popup`/`PopupAlert`/`PopupConfirm` → `Modal`/`Dialog`
+  with Promise-returning statics; `gx.zeyos.Client`/`Request` → `@zeyos/client`. Anything that
+  depended on MooTools prototype extensions is gone. `MIGRATION.md` has the full map and the
+  deliberate behaviour changes; `website/compat.html` runs legacy snippets against Zx as a smoke
+  test.
 <!-- /doc -->
 
 <!-- doc:elements -->
 ### Custom elements — `defineElements()`
-Call `defineElements()` once to register `<zx-*>` light-DOM wrappers with attribute↔option reflection and ElementInternals form association (they participate in native `<form>`/`FormData`): `<zx-toggle>`, `<zx-check-button>`, `<zx-select items='[…]' required>`, `<zx-checklist>`, `<zx-datebox>`, `<zx-timebox>`, `<zx-search>`, `<zx-groupbox>`, `<zx-tabbox>`, `<zx-table>`, `<zx-dialog>`. Events bubble as `zx-*` on the host element. Removing an element from the DOM destroys its component.
+
+Call `defineElements()` once to register `<zx-*>` light-DOM wrappers with attribute↔option
+reflection and ElementInternals form association, so they participate in a native `<form>` and its
+`FormData`. Events bubble as `zx-*` on the host element, and removing an element from the DOM
+destroys its component.
+
+Registered elements: `<zx-toggle>`, `<zx-check-button>`, `<zx-select items='[…]' required>`,
+`<zx-checklist>`, `<zx-datebox>`, `<zx-timebox>`, `<zx-search>`, `<zx-groupbox>`, `<zx-tabbox>`,
+`<zx-table>`, `<zx-dialog>`.
 <!-- /doc -->
 
 <!-- doc:tokens -->
 ### Design tokens
-Two tiers of CSS custom properties. **Tier 1** (global palette, `styles/tokens/global.css`) — never referenced by components: `--zx-gray-0…950`, `--zx-green-*`, `--zx-red/amber/blue-*`, `--zx-space-1…8`, `--zx-radius-sm/md/lg/full`, type scale, shadows, motion. **Tier 2** (semantic, the only tokens components may use): the `--zx-color-*`, `--zx-control-*`, `--zx-focus-ring`, `--zx-overlay-shadow` set. Dark mode and density are pure token/attribute swaps (`[data-zx-theme="dark"]`, `[data-zx-density="compact"]`). `tests/lint-tokens.js` forbids raw color literals and tier-1 references in component CSS.
+
+Two tiers of CSS custom properties. Dark mode and density are pure token/attribute swaps
+(`[data-zx-theme="dark"]`, `[data-zx-density="compact"]`), and `tests/lint-tokens.js` forbids raw
+colour literals and tier-1 references in component CSS.
+
+- **Tier 1** — the global palette in `styles/tokens/global.css`, never referenced by components:
+  `--zx-gray-0…950`, `--zx-green-*`, `--zx-red/amber/blue-*`, `--zx-space-1…8`,
+  `--zx-radius-sm/md/lg/full`, the type scale, shadows, and motion.
+- **Tier 2** — the semantic set, the only tokens components may use: `--zx-color-*`,
+  `--zx-control-*`, `--zx-focus-ring`, `--zx-overlay-shadow`.
 <!-- /doc -->

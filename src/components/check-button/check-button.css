@@ -33,17 +33,34 @@
   cursor: not-allowed;
 }
 
+/* Both glyphs occupy the same grid cell, so swapping them never shifts the label. */
 .zx-check-button__icon {
   display: inline-grid;
+  flex: none;
+  grid-template-areas: "state";
   place-items: center;
-  opacity: 0;
 }
 
-.zx-check-button[aria-pressed="true"] .zx-check-button__icon {
-  opacity: 1;
+.zx-check-button__off,
+.zx-check-button__on {
+  display: inline-grid;
+  grid-area: state;
+  place-items: center;
 }
 
-.zx-check-button__icon > svg,
-.zx-check-button__icon > .zx-icon {
+.zx-check-button__off {
+  color: var(--zx-color-text-muted);
+}
+
+.zx-check-button__on,
+.zx-check-button[aria-pressed="true"] .zx-check-button__off {
+  visibility: hidden;
+}
+
+.zx-check-button[aria-pressed="true"] .zx-check-button__on {
+  visibility: visible;
+}
+
+.zx-check-button__icon .zx-icon {
   display: block;
 }

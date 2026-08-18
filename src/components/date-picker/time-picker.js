@@ -1,33 +1,48 @@
 import { Component } from '../../core/component.js';
 import { h } from '../../core/dom.js';
+import { icon } from '../../core/icons.js';
+import { uid } from '../../core/util.js';
 
 /** @typedef {{h: number, m: number, s: number}} TimePickerValue */
+/** @typedef {'h'|'m'} ClockUnit */
 /**
  * @typedef {Object} TimePickerOptions
  * @property {TimePickerValue|Date|null} [value=null] Initial local time.
  * @property {boolean} [seconds=false] Show the seconds spinbutton.
  * @property {number} [step=5] Minute increment used by arrow keys.
+ * @property {boolean} [clock=true] Offer a clock-face dial behind a toggle button.
  * @property {(event: CustomEvent<{time: TimePickerValue}>) => void} [onchange] Change listener.
  */
 /** @typedef {{silent?: boolean}} TimePickerSetOptions */
+/** @typedef {{value: number, label: string, angle: number, ring: 'outer'|'inner'}} ClockMark */
+
+/** Minute marks on the dial, one per 5 minutes — the granularity a clock face can resolve. */
+const MINUTE_STEP = 5;
 
 /**
- * Accessible segmented time picker made from spinbutton inputs.
+ * Accessible segmented time picker made from spinbutton inputs, with an optional clock face for
+ * picking an hour and a minute by eye. The spinbuttons stay the primary control: the dial is a
+ * second, visual route to the same value, and every mark is a radio in an APG radio group.
  * @fires TimePicker#change
  */
 export class TimePicker extends Component {
   static cssName = 'time-picker';
 
   /** @type {TimePickerOptions} */
-  static defaults = { value: null, seconds: false, step: 5 };
+  static defaults = { value: null, seconds: false, step: 5, clock: true };
 
   /** @returns {HTMLElement} */
   render() {
     const root = /** @type {HTMLElement} */ (this.el ?? h('div'));
+    this.el = root;
     const initial = normalizeTime(this.options.value);
     this._value = initial;
     this._display = initial ?? { h: 0, m: 0, s: 0 };
     this._inputs = [];
+    this._clockOpen = false;
+    /** @type {ClockUnit} */
+    this._clockUnit = 'h';
+    this._clock = null;
 
     const content = h('div', {
       class: 'zx-time-picker__segments',
@@ -43,6 +58,22 @@ export class TimePicker extends Component {
       this._addSpin(content, 's', 'Second', 59);
     }
     root.append(content);
+
+    if (this.options.clock) {
+      const clockId = uid('zx-time-picker-clock');
+      content.append(h('button', {
+        ref: 'clockToggle',
+        class: 'zx-icon-btn zx-time-picker__clock-toggle',
+        type: 'button',
+        ariaLabel: 'Pick the time on a clock',
+        ariaExpanded: 'false',
+        ariaControls: clockId
+      }, icon('clock', { size: 15 })));
+      this._clock = this._buildClock(clockId);
+      root.append(this._clock);
+      this.listen(this.refs.clockToggle, 'click', () => this.toggleClock());
+    }
+
     this._writeInputs();
     return root;
   }
@@ -71,9 +102,37 @@ export class TimePicker extends Component {
     return this;
   }
 
+  /**
+   * Opens the clock face on the given unit.
+   * @param {ClockUnit} [unit='h'] Dial to show first.
+   * @returns {this}
+   */
+  openClock(unit = 'h') {
+    if (!this._clock) return this;
+    this._clockOpen = true;
+    this._clockUnit = unit === 'm' ? 'm' : 'h';
+    this._syncClock();
+    return this;
+  }
+
+  /** Closes the clock face. @returns {this} */
+  closeClock() {
+    if (!this._clock) return this;
+    this._clockOpen = false;
+    this._syncClock();
+    return this;
+  }
+
+  /** Toggles the clock face. @returns {this} */
+  toggleClock() {
+    return this._clockOpen ? this.closeClock() : this.openClock('h');
+  }
+
   /** Removes generated content from an enhanced target. @returns {void} */
   destroy() {
     this._content?.remove();
+    this._clock?.remove();
+    this._clock = null;
     super.destroy();
   }
 
@@ -145,6 +204,130 @@ export class TimePicker extends Component {
       input.setAttribute('aria-valuenow', String(this._display[segment]));
       input.setAttribute('aria-valuetext', input.value);
     }
+    this._syncClock();
+  }
+
+  /* ------------------------------------------------------------------- clock -- */
+
+  /**
+   * Builds the collapsible clock face: a read-out that doubles as the hour/minute switch, and a
+   * dial whose marks are radios.
+   * @param {string} id Element id the toggle button controls.
+   * @returns {HTMLElement}
+   */
+  _buildClock(id) {
+    const clock = h('div', { class: 'zx-time-picker__clock', id, hidden: true },
+      h('div', { class: 'zx-time-picker__clock-head' },
+        h('button', {
+          ref: 'headHour',
+          class: 'zx-time-picker__clock-unit',
+          type: 'button',
+          ariaLabel: 'Select the hour',
+          dataset: { unit: 'h' }
+        }),
+        h('span', { class: 'zx-time-picker__clock-colon', ariaHidden: 'true' }, ':'),
+        h('button', {
+          ref: 'headMinute',
+          class: 'zx-time-picker__clock-unit',
+          type: 'button',
+          ariaLabel: 'Select the minutes',
+          dataset: { unit: 'm' }
+        })),
+      h('div', { ref: 'dial', class: 'zx-time-picker__dial', role: 'radiogroup' },
+        h('span', { ref: 'hand', class: 'zx-time-picker__hand', ariaHidden: 'true' }),
+        h('span', { class: 'zx-time-picker__pivot', ariaHidden: 'true' })));
+
+    this.listen(this.refs.headHour, 'click', () => this.openClock('h'));
+    this.listen(this.refs.headMinute, 'click', () => this.openClock('m'));
+    this.listen(this.refs.dial, 'click', (event) => {
+      const mark = event.target.closest?.('.zx-time-picker__mark');
+      if (mark) this._pick(Number(mark.dataset.value));
+    });
+    this.listen(this.refs.dial, 'keydown', (event) => this._onDialKeydown(event));
+    return clock;
+  }
+
+  /**
+   * Applies a mark's value to the active unit, then moves on to the minutes so a whole time can
+   * be set with two clicks.
+   * @param {number} value Hour or minute the mark stands for.
+   * @returns {void}
+   */
+  _pick(value) {
+    const next = { ...this._display, [this._clockUnit]: value };
+    const advance = this._clockUnit === 'h';
+    this.set(next);
+    if (advance) this.openClock('m');
+  }
+
+  /** @param {KeyboardEvent} event @returns {void} */
+  _onDialKeydown(event) {
+    const marks = [...this.refs.dial.querySelectorAll('.zx-time-picker__mark')];
+    const current = event.target.closest?.('.zx-time-picker__mark');
+    const index = marks.indexOf(current);
+    if (index < 0) return;
+    // Marks are laid out clockwise within a ring, so Right/Down step forward and Left/Up back.
+    const offset = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key];
+    let next = null;
+    if (offset !== undefined) next = (index + offset + marks.length) % marks.length;
+    else if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = marks.length - 1;
+    if (next === null) return;
+    event.preventDefault();
+    // Selection follows focus, the APG behaviour for a radio group.
+    this._pick(Number(marks[next].dataset.value));
+    this.refs.dial.querySelector(`[data-value="${marks[next].dataset.value}"]`)?.focus();
+  }
+
+  /** Reflects the open state, the active unit, the marks, and the hand. @returns {void} */
+  _syncClock() {
+    if (!this._clock) return;
+    const hours = this._clockUnit === 'h';
+    this._clock.hidden = !this._clockOpen;
+    this.refs.clockToggle.setAttribute('aria-expanded', String(this._clockOpen));
+    this.refs.headHour.textContent = pad(this._display.h);
+    this.refs.headMinute.textContent = pad(this._display.m);
+    this.refs.headHour.setAttribute('aria-pressed', String(hours));
+    this.refs.headMinute.setAttribute('aria-pressed', String(!hours));
+    this.refs.dial.setAttribute('aria-label', hours ? 'Hour' : 'Minutes');
+    if (!this._clockOpen) return;
+
+    const selected = hours ? this._display.h : this._display.m;
+    const marks = hours ? hourMarks() : minuteMarks();
+    const rendered = this.refs.dial.querySelectorAll('.zx-time-picker__mark');
+    // Rebuild only when the dial switches unit; otherwise just restate which mark is checked.
+    if (rendered.length !== marks.length || this.refs.dial.dataset.unit !== this._clockUnit) {
+      for (const mark of rendered) mark.remove();
+      this.refs.dial.dataset.unit = this._clockUnit;
+      this.refs.dial.append(...marks.map((mark) => this._buildMark(mark, selected)));
+    } else {
+      marks.forEach((mark, index) => this._syncMark(rendered[index], mark, selected));
+    }
+
+    const ring = hours && !isOuterHour(selected) ? 'inner' : 'outer';
+    const angle = hours ? (selected % 12) * 30 : selected * 6;
+    this.refs.hand.dataset.ring = ring;
+    this.refs.hand.style.setProperty('--zx-clock-angle', `${angle}deg`);
+  }
+
+  /** @param {ClockMark} mark @param {number} selected @returns {HTMLElement} */
+  _buildMark(mark, selected) {
+    const element = h('button', {
+      class: 'zx-time-picker__mark',
+      type: 'button',
+      role: 'radio',
+      dataset: { value: String(mark.value), ring: mark.ring }
+    }, mark.label);
+    element.style.setProperty('--zx-clock-angle', `${mark.angle}deg`);
+    this._syncMark(element, mark, selected);
+    return element;
+  }
+
+  /** @param {HTMLElement} element @param {ClockMark} mark @param {number} selected @returns {void} */
+  _syncMark(element, mark, selected) {
+    const checked = mark.value === selected;
+    element.setAttribute('aria-checked', String(checked));
+    element.tabIndex = checked ? 0 : -1;
   }
 }
 
@@ -153,6 +336,37 @@ export class TimePicker extends Component {
  * @event TimePicker#change
  * @type {CustomEvent<{time: TimePickerValue}>}
  */
+
+/**
+ * Hour marks: 1–12 on the outer ring, 13–23 and 00 on the inner one, so all 24 hours are
+ * reachable without an AM/PM switch.
+ * @returns {ClockMark[]}
+ */
+function hourMarks() {
+  const marks = [];
+  for (let index = 1; index <= 12; index += 1) {
+    marks.push({ value: index, label: String(index), angle: (index % 12) * 30, ring: 'outer' });
+  }
+  for (let index = 0; index < 12; index += 1) {
+    const value = index === 0 ? 0 : 12 + index;
+    marks.push({ value, label: pad(value), angle: index * 30, ring: 'inner' });
+  }
+  return marks;
+}
+
+/** @returns {ClockMark[]} */
+function minuteMarks() {
+  const marks = [];
+  for (let value = 0; value < 60; value += MINUTE_STEP) {
+    marks.push({ value, label: pad(value), angle: value * 6, ring: 'outer' });
+  }
+  return marks;
+}
+
+/** @param {number} hour @returns {boolean} */
+function isOuterHour(hour) {
+  return hour >= 1 && hour <= 12;
+}
 
 /** @param {unknown} value @returns {TimePickerValue|null} */
 function normalizeTime(value) {

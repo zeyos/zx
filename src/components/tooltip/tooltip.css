@@ -1,0 +1,36 @@
+/*
+ * The bubble is a manual popover, so it lives in the top layer and the UA stylesheet supplies its
+ * `display: none` while closed — nothing here may set `display`, or a closed tooltip would show.
+ * Everything else in the UA popover rule (border, padding, system colours) is replaced below.
+ */
+
+.zx-tooltip {
+  max-inline-size: var(--zx-tooltip-max-inline-size, 260px);
+  border: 1px solid var(--zx-color-border);
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-bg-raised);
+  box-shadow: var(--zx-overlay-shadow);
+  padding: var(--zx-space-1) var(--zx-space-2);
+  color: var(--zx-color-text);
+  font-size: var(--zx-text-sm);
+  line-height: 1.45;
+  text-align: start;
+  overflow-wrap: anywhere;
+  /* A tooltip describes its anchor; it must never become a target of its own. Without this, the
+     bubble would steal the hover that keeps it open the moment it covered the anchor. */
+  pointer-events: none;
+  user-select: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .zx-tooltip:popover-open {
+    animation: zx-tooltip-enter var(--zx-dur-fast) var(--zx-ease);
+  }
+}
+
+@keyframes zx-tooltip-enter {
+  from {
+    opacity: 0;
+    transform: translateY(calc(-1 * var(--zx-space-1)));
+  }
+}

@@ -1,0 +1,139 @@
+/*
+ * One grid, three tracks, one variable: `--zx-split-size` sizes the start pane, the divider takes
+ * its intrinsic thickness, and the end pane takes the rest. A drag therefore writes a single
+ * custom property per frame instead of two widths.
+ *
+ * The root has no height of its own — give it one (a grid row, `block-size: 100%`, a flex child)
+ * when the panes should fill a shell rather than grow with their content.
+ */
+
+.zx-split-view {
+  --zx-split-view-divider-size: var(--zx-space-2);
+  --zx-split-view-divider-line: 1px;
+  display: grid;
+  min-inline-size: 0;
+  min-block-size: 0;
+}
+
+.zx-split-view[data-orientation="horizontal"] {
+  grid-template-columns: var(--zx-split-size, 38%) auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.zx-split-view[data-orientation="vertical"] {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: var(--zx-split-size, 38%) auto minmax(0, 1fr);
+}
+
+/* A collapsed pane keeps its grid slot at zero so the divider never changes track. */
+.zx-split-view[data-orientation="horizontal"][data-collapsed="start"] {
+  grid-template-columns: 0 auto minmax(0, 1fr);
+}
+
+.zx-split-view[data-orientation="horizontal"][data-collapsed="end"] {
+  grid-template-columns: minmax(0, 1fr) auto 0;
+}
+
+.zx-split-view[data-orientation="vertical"][data-collapsed="start"] {
+  grid-template-rows: 0 auto minmax(0, 1fr);
+}
+
+.zx-split-view[data-orientation="vertical"][data-collapsed="end"] {
+  grid-template-rows: minmax(0, 1fr) auto 0;
+}
+
+.zx-split-view__pane {
+  overflow: auto;
+  /* Grid items refuse to shrink below min-content without this, which would blow the track. */
+  min-inline-size: 0;
+  min-block-size: 0;
+}
+
+/* Hidden rather than clipped: a zero-width pane would still hand its buttons to the tab order. */
+.zx-split-view[data-collapsed="start"] > .zx-split-view__pane[data-pane="start"],
+.zx-split-view[data-collapsed="end"] > .zx-split-view__pane[data-pane="end"] {
+  visibility: hidden;
+}
+
+.zx-split-view__divider {
+  position: relative;
+  /* The hit area is wider than the line it draws, and never scrolls or zooms under a drag. */
+  touch-action: none;
+  /* A press that starts on a non-selectable element never begins a text selection, which is why
+     the component can leave `pointerdown` uncancelled and keep its double-click reset. */
+  user-select: none;
+}
+
+.zx-split-view__divider::before {
+  content: "";
+  position: absolute;
+  background: var(--zx-color-border);
+}
+
+.zx-split-view[data-orientation="horizontal"] > .zx-split-view__divider {
+  inline-size: var(--zx-split-view-divider-size);
+  cursor: col-resize;
+}
+
+.zx-split-view[data-orientation="horizontal"] > .zx-split-view__divider::before {
+  inset-block: 0;
+  inset-inline-start: calc(50% - (var(--zx-split-view-divider-line) / 2));
+  inline-size: var(--zx-split-view-divider-line);
+}
+
+.zx-split-view[data-orientation="vertical"] > .zx-split-view__divider {
+  block-size: var(--zx-split-view-divider-size);
+  cursor: row-resize;
+}
+
+.zx-split-view[data-orientation="vertical"] > .zx-split-view__divider::before {
+  inset-inline: 0;
+  inset-block-start: calc(50% - (var(--zx-split-view-divider-line) / 2));
+  block-size: var(--zx-split-view-divider-line);
+}
+
+.zx-split-view__divider:hover::before,
+.zx-split-view[data-dragging="true"] > .zx-split-view__divider::before {
+  --zx-split-view-divider-line: 2px;
+  background: var(--zx-color-accent);
+}
+
+.zx-split-view__divider:focus-visible {
+  outline: 0;
+  box-shadow: var(--zx-focus-ring);
+  /* The ring sits outside an 8px-wide element, so it must draw over both panes. */
+  z-index: 1;
+}
+
+.zx-split-view__divider:focus-visible::before {
+  background: var(--zx-color-accent);
+}
+
+.zx-split-view__divider[aria-disabled="true"] {
+  cursor: default;
+}
+
+.zx-split-view__divider[aria-disabled="true"]:hover::before {
+  --zx-split-view-divider-line: 1px;
+  background: var(--zx-color-border);
+}
+
+/* While dragging, the pointer owns the whole shell: no text selection, no cursor flicker as it
+   crosses out of the divider's own box. */
+.zx-split-view[data-dragging="true"] {
+  user-select: none;
+}
+
+.zx-split-view[data-orientation="horizontal"][data-dragging="true"] {
+  cursor: col-resize;
+}
+
+.zx-split-view[data-orientation="vertical"][data-dragging="true"] {
+  cursor: row-resize;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .zx-split-view__divider::before {
+    transition: background-color var(--zx-dur-fast) var(--zx-ease);
+  }
+}

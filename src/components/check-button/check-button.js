@@ -43,8 +43,11 @@ export class CheckButton extends Component {
     root.type = 'button';
     const children = [];
     if (this.options.icon) {
+      // Both states carry a glyph — an empty box when off, a check when on — so the control still
+      // reads as a two-state control while pressed, unpressed, or disabled.
       children.push(h('span', { class: 'zx-check-button__icon', ariaHidden: 'true' },
-        icon('check', { size: 15 })));
+        h('span', { class: 'zx-check-button__off' }, icon('square', { size: 15 })),
+        h('span', { class: 'zx-check-button__on' }, icon('check', { size: 15 }))));
     }
     children.push(h('span', { class: 'zx-check-button__label', ref: 'label' }));
     root.replaceChildren(...children);

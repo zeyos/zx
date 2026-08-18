@@ -1,4 +1,6 @@
-import { DataFilter, Form, MasterPanel, Message, Panel, Table, h } from '../../src/index.js';
+import {
+  DataFilter, Form, MasterPanel, Message, Panel, Table, badge, h
+} from '../../src/index.js';
 
 /** Seed records for the list. A real screen would fetch these from @zeyos/client. */
 const RECORDS = [
@@ -57,8 +59,11 @@ export default {
           label: 'Stage',
           sortable: true,
           width: '1fr',
-          render: (row) => h('span', { class: 'stage-pill', dataset: { stage: row.stage } },
-            STAGE_LABELS[row.stage] ?? '—')
+          render: (row) => badge({
+            label: STAGE_LABELS[row.stage] ?? '—',
+            kind: row.stage === 'customer' ? 'accent' : 'neutral',
+            size: 'sm'
+          })
         },
         {
           id: 'volume',

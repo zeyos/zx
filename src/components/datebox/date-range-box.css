@@ -1,0 +1,128 @@
+.zx-date-range-box {
+  display: inline-block;
+  color: var(--zx-color-text);
+  font-size: var(--zx-control-font-size);
+}
+
+.zx-date-range-box__content,
+.zx-date-range-box__control {
+  display: inline-flex;
+  align-items: stretch;
+}
+
+.zx-date-range-box__control {
+  position: relative;
+  border: 1px solid var(--zx-color-border-control);
+  border-radius: var(--zx-control-radius);
+  background: var(--zx-color-bg-control);
+}
+
+.zx-date-range-box__control:focus-within {
+  box-shadow: var(--zx-focus-ring);
+}
+
+.zx-date-range-box[data-state="invalid"] .zx-date-range-box__control {
+  border-color: var(--zx-color-danger);
+  background: var(--zx-color-danger-bg);
+}
+
+/* The input always reserves room for the clear button, which floats over its trailing edge —
+   showing or hiding the button must not change the control's total width. */
+.zx-date-range-box__input {
+  min-inline-size: 16em;
+  border: 0;
+  border-radius: var(--zx-control-radius) 0 0 var(--zx-control-radius);
+  background: inherit;
+  padding-inline-end: var(--zx-control-height);
+}
+
+/* Focused controls lift above their siblings so the ring is never clipped. */
+.zx-date-range-box__input:focus-visible,
+.zx-date-range-box__toggle:focus-visible {
+  position: relative;
+  z-index: 1;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.zx-date-range-box__clear:focus-visible {
+  box-shadow: var(--zx-focus-ring);
+}
+
+.zx-date-range-box__clear,
+.zx-date-range-box__toggle {
+  display: inline-grid;
+  place-items: center;
+  min-inline-size: var(--zx-control-height);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: inherit;
+  color: var(--zx-color-text-muted);
+}
+
+.zx-date-range-box__toggle {
+  border-inline-start: 1px solid var(--zx-color-border-control);
+  border-radius: 0 var(--zx-control-radius) var(--zx-control-radius) 0;
+}
+
+.zx-date-range-box__clear {
+  position: absolute;
+  /* The clear button floats over the input's trailing padding, so it has to outrank the input in
+     the stacking order — a focused input raises itself to z-index 1 and would otherwise cover the
+     button and swallow its clicks. */
+  z-index: 2;
+  inset-block-start: 50%;
+  /* The picker toggle sits to the right of the input; float the clear button just inside it. */
+  inset-inline-end: var(--zx-control-height);
+  transform: translateY(-50%);
+  background: none;
+}
+
+.zx-date-range-box__clear:hover {
+  color: var(--zx-color-text);
+}
+
+.zx-date-range-box__clear[hidden] {
+  display: none;
+}
+
+.zx-date-range-box__popover {
+  overflow: visible;
+  max-inline-size: calc(100vw - var(--zx-space-4));
+  border: 0;
+  /* The picker's own surface paints the raised background; the popover box only positions it. */
+  background: none;
+  padding: 0;
+}
+
+.zx-date-range-box__popover:not(:popover-open)[data-state="closed"] {
+  display: none;
+}
+
+.zx-date-range-box__popover[data-state="open"] {
+  display: block;
+}
+
+/* The picker is a size query container, so it takes no width from its own contents — inside a
+   shrink-to-fit popover it needs an explicit one, sized just past the two-month breakpoint. */
+.zx-date-range-box__popover .zx-date-range-picker {
+  inline-size: min(calc(100vw - var(--zx-space-4)), 33rem);
+}
+
+.zx-date-range-box__popover .zx-date-range-picker[data-presets="true"] {
+  inline-size: min(calc(100vw - var(--zx-space-4)), 43rem);
+}
+
+.zx-date-range-box__popover .zx-date-range-picker[data-months="1"] {
+  inline-size: min(calc(100vw - var(--zx-space-4)), 18rem);
+}
+
+.zx-date-range-box__popover .zx-date-range-picker[data-months="1"][data-presets="true"] {
+  inline-size: min(calc(100vw - var(--zx-space-4)), 27rem);
+}
+
+.zx-date-range-box__popover .zx-date-range-picker__surface {
+  max-inline-size: none;
+  background: var(--zx-color-bg-raised);
+  box-shadow: var(--zx-overlay-shadow);
+}

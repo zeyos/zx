@@ -1,0 +1,95 @@
+/*
+ * Pagination — the footer bar of a server-backed list.
+ *
+ * One row that wraps: the summary is pushed to the start, the page-size select and the pager sit
+ * at the end. Page buttons are ordinary `.zx-btn` controls so they inherit the library's control
+ * height, radius, and focus ring; only the current page repaints in the accent colour.
+ */
+
+.zx-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zx-space-3);
+  min-inline-size: 0;
+  font-size: var(--zx-text-sm);
+}
+
+.zx-pagination__summary {
+  color: var(--zx-color-text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Absorbs the slack, so summary and controls end up at opposite ends of a wide bar and simply
+   stack when there is no room. */
+.zx-pagination__spacer {
+  flex: 1 1 var(--zx-space-4);
+}
+
+.zx-pagination__size {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  color: var(--zx-color-text-muted);
+  white-space: nowrap;
+}
+
+.zx-pagination__select {
+  min-block-size: calc(var(--zx-control-height) - var(--zx-space-1));
+  padding-inline: var(--zx-space-2);
+  font-size: var(--zx-text-sm);
+}
+
+.zx-pagination__select:focus-visible {
+  outline: 0;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.zx-pagination__controls {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-1);
+}
+
+.zx-pagination__pages {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-1);
+}
+
+.zx-pagination__nav {
+  inline-size: calc(var(--zx-control-height) - var(--zx-space-1));
+  padding-inline: 0;
+  color: var(--zx-color-text-muted);
+}
+
+.zx-pagination__page {
+  min-inline-size: calc(var(--zx-control-height) - var(--zx-space-1));
+  padding-inline: var(--zx-space-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.zx-pagination__page[aria-current="page"] {
+  border-color: var(--zx-color-accent);
+  background: var(--zx-color-accent);
+  color: var(--zx-color-on-accent);
+}
+
+.zx-pagination__page[aria-current="page"]:hover:not(:disabled) {
+  border-color: var(--zx-color-accent-hover);
+  background: var(--zx-color-accent-hover);
+}
+
+/* Decorative gap marker: never focusable, never announced. */
+.zx-pagination__ellipsis {
+  display: inline-flex;
+  justify-content: center;
+  min-inline-size: var(--zx-space-5);
+  color: var(--zx-color-text-placeholder);
+  user-select: none;
+}
+
+.zx-pagination[data-mode="loadmore"] .zx-pagination__more {
+  flex: none;
+}

@@ -92,6 +92,15 @@
   cursor: not-allowed;
 }
 
+/* Search-term highlight produced by highlightMatch(). No padding and no border, so marking a run
+   of text never shifts the line it sits in. */
+.zx-scope .zx-mark {
+  padding: 0;
+  border-radius: var(--zx-radius-sm);
+  background: var(--zx-color-accent-subtle);
+  color: var(--zx-color-text);
+}
+
 .zx-scope input::placeholder,
 .zx-scope textarea::placeholder {
   color: var(--zx-color-text-placeholder);

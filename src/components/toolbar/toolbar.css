@@ -1,0 +1,81 @@
+/*
+ * A single, non-wrapping row of controls. It never wraps on purpose: the component measures the
+ * row and moves what no longer fits into the trailing overflow menu, which is the wrapping-free
+ * replacement for the hand-rolled `.layout-toolbar` row in the website.
+ */
+.zx-toolbar {
+  display: flex;
+  flex-wrap: nowrap;
+  min-inline-size: 0;
+  align-items: center;
+  gap: var(--zx-space-2);
+}
+
+/* Items keep their intrinsic width so the measure pass can decide what fits — squashed controls
+   would hide the overflow instead of reporting it. */
+.zx-toolbar > * {
+  flex: 0 0 auto;
+}
+
+/* Pushes everything after it to the trailing edge (the `.layout-toolbar__spacer` role). */
+.zx-toolbar > .zx-toolbar__spacer {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+/* Collapsed items and the empty overflow trigger. The attribute selector outranks the `display`
+   declarations component CSS puts on buttons, which would otherwise defeat `hidden`. */
+.zx-toolbar > [hidden] {
+  display: none;
+}
+
+/* Only the collapsing toolbar clips: between a resize and the next measure pass a control can
+   momentarily stick out, and the clip margin keeps focus rings visible. */
+.zx-toolbar[data-overflow="true"] {
+  overflow: clip;
+  overflow-clip-margin: var(--zx-space-1);
+}
+
+.zx-toolbar[data-align="start"] {
+  justify-content: flex-start;
+}
+
+.zx-toolbar[data-align="end"] {
+  justify-content: flex-end;
+}
+
+.zx-toolbar[data-align="between"] {
+  justify-content: space-between;
+}
+
+.zx-toolbar[data-dense="true"] {
+  gap: var(--zx-space-1);
+}
+
+.zx-toolbar__separator,
+.zx-toolbar > [data-separator] {
+  flex: none;
+  align-self: stretch;
+  inline-size: 1px;
+  min-block-size: calc(var(--zx-control-height) - var(--zx-space-3));
+  margin-block: var(--zx-space-1);
+  border: 0;
+  background: var(--zx-color-border);
+}
+
+.zx-toolbar[data-dense="true"] .zx-toolbar__separator,
+.zx-toolbar[data-dense="true"] > [data-separator] {
+  margin-block: calc(var(--zx-space-1) / 2);
+}
+
+/* The overflow trigger is icon-only; its empty label would otherwise add a gap. */
+.zx-toolbar__overflow > .zx-btn__label:empty {
+  display: none;
+}
+
+/* Every item is reachable by keyboard, so every item rings — including the plain Elements a
+   caller supplied, which carry no Zx button styling of their own. */
+.zx-toolbar > :focus-visible,
+.zx-toolbar > [role="group"] > :focus-visible {
+  box-shadow: var(--zx-focus-ring);
+}

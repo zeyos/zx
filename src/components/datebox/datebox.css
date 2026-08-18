@@ -36,7 +36,7 @@
   padding-inline-end: var(--zx-control-height);
 }
 
-/* The clear button is absolutely positioned, so it must keep that position when focused. */
+/* Focused controls lift above their siblings so the ring is never clipped. */
 .zx-datebox__input:focus-visible,
 .zx-datebox__toggle:focus-visible {
   position: relative;
@@ -45,7 +45,6 @@
 }
 
 .zx-datebox__clear:focus-visible {
-  z-index: 1;
   box-shadow: var(--zx-focus-ring);
 }
 
@@ -68,6 +67,10 @@
 
 .zx-datebox__clear {
   position: absolute;
+  /* The clear button floats over the input's trailing padding, so it has to outrank the input in
+     the stacking order — a focused input raises itself to z-index 1 and would otherwise cover the
+     button and swallow its clicks. */
+  z-index: 2;
   inset-block-start: 50%;
   /* The picker toggle sits to the right of the input; float the clear button just inside it. */
   inset-inline-end: var(--zx-control-height);

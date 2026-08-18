@@ -1,3 +1,12 @@
+/*
+ * Two tab appearances, following the shadcn/ui `Tabs` primitive of the b2BVl11e4 preset:
+ *
+ *   line       a full-width rule with the active tab underlined — for page- and section-level
+ *              navigation, where the row spans the content it switches.
+ *   segmented  a pill-shaped group on a muted fill, the active tab raised onto a control
+ *              surface — for switching a view inside a panel, toolbar, or card header.
+ */
+
 .zx-tabbox {
   min-inline-size: 0;
 }
@@ -11,7 +20,6 @@
   overflow-y: hidden;
   scrollbar-width: none;
   scrollbar-gutter: auto;
-  border-block-end: 1px solid var(--zx-color-border);
 }
 
 .zx-tabbox__tablist::-webkit-scrollbar {
@@ -22,28 +30,25 @@
   position: relative;
   display: inline-flex;
   flex: 0 0 auto;
-  block-size: calc(var(--zx-control-height) + 8px);
   align-items: center;
+  justify-content: center;
   gap: var(--zx-space-2);
   border: 0;
-  border-block-end: 2px solid transparent;
   background: none;
-  padding-inline: var(--zx-space-4);
   color: var(--zx-color-text-muted);
   font: inherit;
+  font-size: var(--zx-control-font-size);
+  font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
 }
 
 .zx-tabbox__tab:hover:not([aria-disabled="true"]) {
   color: var(--zx-color-text);
-  border-block-end-color: var(--zx-color-border-strong);
 }
 
 .zx-tabbox__tab[aria-selected="true"] {
   color: var(--zx-color-text);
-  border-block-end-color: var(--zx-color-accent);
-  font-weight: 600;
 }
 
 .zx-tabbox__tab[aria-disabled="true"] {
@@ -51,11 +56,84 @@
   cursor: not-allowed;
 }
 
-.zx-tabbox__tab:focus-visible {
+.zx-tabbox__icon {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+}
+
+/* ------------------------------------------------------------------ line variant -- */
+
+.zx-tabbox[data-variant="line"] .zx-tabbox__tablist {
+  border-block-end: 1px solid var(--zx-color-border);
+}
+
+.zx-tabbox[data-variant="line"] .zx-tabbox__tab {
+  block-size: calc(var(--zx-control-height) + 8px);
+  border-block-end: 2px solid transparent;
+  padding-inline: var(--zx-space-4);
+}
+
+.zx-tabbox[data-variant="line"] .zx-tabbox__tab:hover:not([aria-disabled="true"]) {
+  border-block-end-color: var(--zx-color-border-strong);
+}
+
+.zx-tabbox[data-variant="line"] .zx-tabbox__tab[aria-selected="true"] {
+  border-block-end-color: var(--zx-color-accent);
+  font-weight: 600;
+}
+
+.zx-tabbox[data-variant="line"] .zx-tabbox__tab:focus-visible {
   z-index: 1;
   outline: 0;
   box-shadow: inset var(--zx-focus-ring);
 }
+
+/* ------------------------------------------------------------- segmented variant -- */
+
+.zx-tabbox[data-variant="segmented"] .zx-tabbox__tablist {
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  align-items: center;
+  gap: 2px;
+  block-size: var(--zx-control-height);
+  border-radius: var(--zx-radius-lg);
+  background: var(--zx-color-bg-muted);
+  padding: 3px;
+}
+
+.zx-tabbox[data-variant="segmented"] .zx-tabbox__tab {
+  block-size: 100%;
+  /* A transparent border keeps the active and inactive boxes the same size. */
+  border: 1px solid transparent;
+  border-radius: var(--zx-radius-md);
+  padding-inline: var(--zx-space-3);
+  font-size: var(--zx-text-sm);
+}
+
+.zx-tabbox[data-variant="segmented"] .zx-tabbox__tab[aria-selected="true"] {
+  border-color: var(--zx-color-border-control);
+  background: var(--zx-color-bg-control);
+  box-shadow: var(--zx-shadow-2);
+}
+
+.zx-tabbox[data-variant="segmented"] .zx-tabbox__tab:focus-visible {
+  z-index: 1;
+  outline: 0;
+  border-color: var(--zx-color-ring);
+  box-shadow: var(--zx-focus-ring);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .zx-tabbox__tab {
+    transition: color var(--zx-dur-fast) var(--zx-ease),
+      background-color var(--zx-dur-fast) var(--zx-ease),
+      border-color var(--zx-dur-fast) var(--zx-ease),
+      box-shadow var(--zx-dur-fast) var(--zx-ease);
+  }
+}
+
+/* ---------------------------------------------------------------- badge & close -- */
 
 .zx-tabbox__badge {
   min-inline-size: 1.25rem;

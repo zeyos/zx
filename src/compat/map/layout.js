@@ -58,7 +58,9 @@ export class Panel extends GxWrapper {
     });
     this._attach(component, {
       events: { open: 'open', close: 'close' },
-      ui: { title: 'header', inner: 'content', content: 'content' },
+      // `title` is the clickable header: the Zx panel splits that into a toggle plus an action
+      // area, and the toggle is what the legacy display key stood for.
+      ui: { title: 'toggle', header: 'header', inner: 'content', content: 'content' },
       setters: { title: 'setTitle', content: 'setContent', open: (value) => value ? this.open() : this.close() }
     });
   }

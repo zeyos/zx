@@ -53,7 +53,9 @@ export default {
     },
     card('Month picker', months.el),
     card('Time picker',
-      h('p', {}, 'Arrow keys step each spinbutton; entering two digits advances focus.'),
+      h('p', {}, 'Arrow keys step each spinbutton; entering two digits advances focus. The clock '
+        + 'button opens a dial: pick an hour on the outer (1–12) or inner (13–23, 00) ring and it '
+        + 'moves on to the minutes. Pass clock: false to leave the spinbuttons on their own.'),
       time.el)),
     log);
     container.append(marker);
