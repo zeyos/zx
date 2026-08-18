@@ -89,7 +89,7 @@ the repository secret `NPM_TOKEN` (Settings → Secrets and variables → Action
 The publish workflow refuses to run if the tag and the package version disagree, so bump first:
 
 ```sh
-npm version 2.0.0-alpha.1 -m "release: %s"
+npm version 2.0.0 -m "release: %s"
 git push --follow-tags
 ```
 

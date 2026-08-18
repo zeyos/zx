@@ -1,5 +1,5 @@
 import {
-  Finder, MasterPanel, Message, Rating, Table, Tabbox, TagPicker, button, h
+  Finder, MasterPanel, Message, Rating, Tabbox, Table, TagPicker, badge, button, h
 } from '../../src/index.js';
 
 const POSITIONS = [
@@ -129,9 +129,9 @@ export default {
         h('p', { class: 'layout-hint' }, 'Opportunity · OPP-26041'),
         h('h2', { class: 'record-header__title' }, 'Warehouse rollout — Bruckner Logistik'),
         h('div', { class: 'record-header__pills' },
-          h('span', { class: 'stage-pill', dataset: { stage: 'customer' } }, 'Negotiation'),
-          h('span', { class: 'stage-pill' }, 'Owner: T. Kern'),
-          h('span', { class: 'stage-pill' }, 'Close: 2 Nov 2026'))),
+          badge({ label: 'Negotiation', kind: 'accent' }),
+          badge({ label: 'Owner: T. Kern' }),
+          badge({ label: 'Close: 2 Nov 2026' }))),
       h('dl', { class: 'record-header__facts' },
         h('dt', {}, 'Value'), h('dd', {}, currency.format(total)),
         h('dt', {}, 'Confidence'), h('dd', {}, confidence.toElement()),

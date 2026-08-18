@@ -1,4 +1,6 @@
-import { Form, MasterPanel, Message, NumberField, Rating, button, h, icon } from '../../src/index.js';
+import {
+  Form, MasterPanel, Message, NumberField, Rating, Stepper, button, h, icon
+} from '../../src/index.js';
 
 const SHIPPING = { standard: 'Standard — 3–5 days (free)', express: 'Express — next day (€ 14.90)' };
 const PAYMENT = { invoice: 'On account', card: 'Credit card', transfer: 'Bank transfer' };
@@ -20,6 +22,8 @@ export default {
   mount(container) {
     const draft = { quantity: 3, shipping: 'standard' };
     let current = 0;
+    // Set while renderStepper() drives the component, so its change events are not user intent.
+    let syncing = false;
 
     const quantity = new NumberField(null, {
       value: draft.quantity,
@@ -103,13 +107,25 @@ export default {
         rating.toElement()));
 
     const steps = [
-      { title: 'Cart', hint: 'Article and quantity', form: cartForm, element: cartStep() },
-      { title: 'Address', hint: 'Where it ships', form: addressForm, element: addressForm.toElement() },
-      { title: 'Payment', hint: 'How you pay', form: paymentForm, element: paymentForm.toElement() },
-      { title: 'Confirm', hint: 'Review and place', form: null, element: confirmStep }
+      { name: 'cart', title: 'Cart', hint: 'Article and quantity', form: cartForm, element: cartStep() },
+      { name: 'address', title: 'Address', hint: 'Where it ships', form: addressForm, element: addressForm.toElement() },
+      { name: 'payment', title: 'Payment', hint: 'How you pay', form: paymentForm, element: paymentForm.toElement() },
+      { name: 'confirm', title: 'Confirm', hint: 'Review and place', form: null, element: confirmStep }
     ];
 
-    const stepper = h('ol', { class: 'stepper' });
+    // The Stepper component replaces the hand-rolled <ol> this layout used to build.
+    const stepper = new Stepper(null, {
+      steps: steps.map((step) => ({ name: step.name, title: step.title, description: step.hint })),
+      clickable: 'completed',
+      onchange: (event) => {
+        // renderStepper() drives the component to mirror `current`; only a real click on a
+        // completed step should steer the wizard, and only ever backwards.
+        if (syncing) return;
+        const index = steps.findIndex((step) => step.name === event.detail.name);
+        event.preventDefault();
+        if (index < current) go(index);
+      }
+    });
     const stage = h('div', { class: 'layout-stack' });
     const back = button({ label: 'Back', icon: 'chevron-left', onclick: () => go(current - 1) });
     const next = button({
@@ -118,13 +134,13 @@ export default {
       icon: 'chevron-right',
       onclick: () => go(current + 1)
     });
-    const total = h('strong', { class: 'stepper-total' });
+    const total = h('strong', { class: 'layout-total' });
 
     const shell = new MasterPanel(null, {
       title: 'Checkout',
       module: 'procurement',
       content: h('div', { class: 'layout-stack' },
-        stepper,
+        stepper.toElement(),
         stage,
         h('div', { class: 'layout-toolbar' },
           back, total, h('span', { class: 'layout-toolbar__spacer' }), next)),
@@ -170,31 +186,18 @@ export default {
       renderStepper();
     }
 
-    /** Redraws the horizontal stepper. Completed steps stay clickable so users can go back. */
+    /** Mirrors the wizard's position into the Stepper. @returns {void} */
     function renderStepper() {
-      stepper.replaceChildren(...steps.map((step, index) => {
-        const state = index < current ? 'done' : index === current ? 'active' : 'pending';
-        const marker = h('span', { class: 'stepper__marker' },
-          state === 'done' ? icon('check', { size: 12 }) : String(index + 1));
-        const item = h('li', {
-          class: 'stepper__step',
-          dataset: { state },
-          'aria-current': index === current ? 'step' : undefined
-        },
-        marker,
-        h('span', { class: 'stepper__text' },
-          h('span', { class: 'stepper__title' }, step.title),
-          h('span', { class: 'stepper__hint' }, step.hint)));
-        if (state === 'done') {
-          item.append(h('button', {
-            class: 'stepper__jump',
-            type: 'button',
-            ariaLabel: `Back to ${step.title}`,
-            onclick: () => go(index)
-          }));
+      syncing = true;
+      try {
+        for (const [index, step] of steps.entries()) {
+          if (index < current) stepper.complete(step.name);
+          else stepper.uncomplete(step.name);
         }
-        return item;
-      }));
+        stepper.goTo(steps[current].name);
+      } finally {
+        syncing = false;
+      }
     }
 
     /** Recomputes the order total and the review list. @returns {void} */
