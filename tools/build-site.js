@@ -13,6 +13,7 @@
  * tab keeps showing the same source the browser actually runs.
  */
 import { cp, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { dirname, extname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -120,6 +121,39 @@ for (const file of await walk(outDir)) {
   if (updated !== original) await writeFile(file, updated);
 }
 
+// 4b. Fingerprint the site's own stylesheets and scripts. They sit at the root with unhashed
+//     names, and the CDN in front of the site rewrites Cache-Control, so a deploy could otherwise
+//     leave a visitor's browser pairing fresh HTML with a stale stylesheet — new markup, old
+//     styles. The HTML itself is always revalidated, so putting a content hash in the query makes
+//     a changed asset a different URL and the pairing can never drift.
+const fingerprints = new Map();
+let fingerprinted = 0;
+for (const file of await walk(outDir)) {
+  if (!/\.(css|js)$/i.test(file)) continue;
+  const key = relative(outDir, file).split(sep).join('/');
+  fingerprints.set(key, createHash('sha256').update(await readFile(file)).digest('hex').slice(0, 8));
+}
+for (const file of await walk(outDir)) {
+  if (extname(file).toLowerCase() !== '.html') continue;
+  const here = dirname(file);
+  const original = await readFile(file, 'utf8');
+  const updated = original.replace(
+    /((?:href|src)=")([^"?#]+\.(?:css|js))(")/gi,
+    (whole, lead, path, tail) => {
+      // An absolute reference is rooted at the site, a relative one at the page holding it.
+      const target = path.startsWith('/')
+        ? join(outDir, path.slice(1))
+        : resolve(here, path);
+      const key = relative(outDir, target).split(sep).join('/');
+      const hash = fingerprints.get(key);
+      if (!hash) return whole;
+      fingerprinted += 1;
+      return `${lead}${path}?v=${hash}${tail}`;
+    }
+  );
+  if (updated !== original) await writeFile(file, updated);
+}
+
 // 5. Host-specific extras. Both are harmless on hosts that ignore them, which is what lets the
 //    same output deploy to GitHub Pages or Netlify unchanged: Pages reads the custom domain from
 //    a CNAME file and needs `.nojekyll` so it stops treating the output as a Jekyll source tree.
@@ -134,6 +168,7 @@ console.log(`Zx site → ${relative(root, outDir)}/`);
 console.log(`  ${files.length} files, ${(bytes / 1024 / 1024).toFixed(2)} MB`);
 console.log(`  ${rewritten} files had escaping paths rewritten`);
 console.log(`  version ${version} stamped into ${stamped} element(s)`);
+console.log(`  ${fingerprinted} asset reference(s) fingerprinted`);
 console.log(`  CNAME: ${domain}`);
 
 /**

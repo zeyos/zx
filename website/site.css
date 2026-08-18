@@ -445,25 +445,6 @@ body.site-page > main {
   margin-block-start: var(--zx-space-7);
 }
 
-/* The published version, written into the markup by tools/build-site.js. The "v" lives here so
-   the element's text stays exactly the version string the build substitutes. */
-.hero__version {
-  padding: 3px 10px;
-  border: 1px solid rgb(255 255 255 / 16%);
-  border-radius: var(--zx-radius-full);
-  background: rgb(255 255 255 / 6%);
-  color: rgb(226 232 240 / 82%);
-  font-size: var(--zx-text-xs);
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: none;
-  white-space: nowrap;
-}
-
-.hero__version::before {
-  content: "v";
-}
-
 /* -------------------------------------------------------------- features -- */
 
 .feature-grid {
