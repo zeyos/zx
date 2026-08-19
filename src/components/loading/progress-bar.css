@@ -1,0 +1,115 @@
+.zx-progress-bar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zx-space-1);
+  inline-size: 100%;
+}
+
+.zx-progress-bar__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--zx-space-3);
+  font-size: var(--zx-control-font-size);
+}
+
+.zx-progress-bar__label {
+  color: var(--zx-color-text);
+  font-weight: 500;
+}
+
+.zx-progress-bar__value {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-1);
+  color: var(--zx-color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.zx-progress-bar__track {
+  position: relative;
+  block-size: var(--zx-progress-thickness, 8px);
+  background: var(--zx-color-bg-muted);
+  border-radius: var(--zx-radius-full);
+  overflow: hidden;
+}
+
+.zx-progress-bar__fill {
+  block-size: 100%;
+  inline-size: var(--zx-progress-fill, 0%);
+  background: var(--zx-color-accent);
+  border-radius: inherit;
+}
+
+.zx-progress-bar__helper {
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+/* An empty head or helper must not add its line box to the stack. */
+.zx-progress-bar__helper:empty,
+.zx-progress-bar__head:not(:has(.zx-progress-bar__label:not(:empty), .zx-progress-bar__value:not(:empty))) {
+  display: none;
+}
+
+.zx-progress-bar[data-size="sm"] {
+  --zx-progress-thickness: 4px;
+}
+
+.zx-progress-bar[data-hide-label] .zx-progress-bar__label {
+  position: absolute;
+  clip-path: inset(50%);
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.zx-progress-bar[data-status="success"] .zx-progress-bar__fill {
+  background: var(--zx-color-success);
+}
+
+.zx-progress-bar[data-status="success"] .zx-progress-bar__value {
+  color: var(--zx-color-success);
+}
+
+.zx-progress-bar[data-status="error"] .zx-progress-bar__fill {
+  background: var(--zx-color-danger);
+}
+
+.zx-progress-bar[data-status="error"] .zx-progress-bar__value {
+  color: var(--zx-color-danger);
+}
+
+/*
+ * With the share unknown there is nothing to fill, so a short band travels the track instead.
+ * Without motion the band would sit still and read as a stalled 30% bar, so reduced motion gets a
+ * full-width muted track — visibly busy, never a wrong number.
+ */
+.zx-progress-bar[data-indeterminate] .zx-progress-bar__fill {
+  inline-size: 100%;
+  background: color-mix(in srgb, var(--zx-color-accent) 30%, var(--zx-color-bg-muted));
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .zx-progress-bar__fill {
+    transition: inline-size var(--zx-dur-base) var(--zx-ease);
+  }
+
+  .zx-progress-bar[data-indeterminate] .zx-progress-bar__fill {
+    inline-size: 35%;
+    background: var(--zx-color-accent);
+    animation: zx-progress-slide 1200ms var(--zx-ease) infinite;
+  }
+}
+
+@keyframes zx-progress-slide {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(calc(100% / 0.35));
+  }
+}
