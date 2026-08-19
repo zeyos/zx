@@ -39,6 +39,7 @@ const LAYOUT_IDS = [
 ];
 
 const DOCS_URL = '../docs/llms.md';
+const API_URL = '../docs/api.json';
 const STORAGE_KEY = 'zx-docs-density';
 const DENSITIES = ['cozy', 'compact'];
 
@@ -59,6 +60,9 @@ const ENUMERABLE = /^(options?|methods?|events?|propert(y|ies)|getters?|statics?
 
 /** @type {Map<string, string>} Module sources, fetched at most once each. */
 const sourceCache = new Map();
+
+/** @type {Record<string, {options: object[], methods: object[], events: object[]}>} */
+let apiData = {};
 
 /*
  * Everything above is declared before the first render, which runs at the bottom of this module's
@@ -120,14 +124,16 @@ async function buildRegistry() {
     template
   }));
 
-  const [demoModules, layoutModules, reference] = await Promise.all([
+  const [demoModules, layoutModules, reference, api] = await Promise.all([
     Promise.all(COMPONENT_IDS.map((id) => import(`./demos/${id}.demo.js`))),
     Promise.all(LAYOUT_IDS.map((id) => import(`./layouts/${id}.layout.js`))),
-    // Every component page opens with its reference, so the one file behind all of them is
+    // Every component page opens with its reference, so the two files behind all of them are
     // fetched once here rather than on each navigation.
-    fetch(moduleUrl(DOCS_URL)).then((response) => (response.ok ? response.text() : '')).catch(() => '')
+    fetch(moduleUrl(DOCS_URL)).then((response) => (response.ok ? response.text() : '')).catch(() => ''),
+    fetch(moduleUrl(API_URL)).then((response) => (response.ok ? response.json() : {})).catch(() => ({}))
   ]);
   referenceText = reference;
+  apiData = api;
 
   const components = demoModules.map((module, index) => describe(module.default, {
     section: 'components',
@@ -184,6 +190,7 @@ function describe(module, base) {
     blurb: module.blurb || '',
     import: module.import || '',
     demoTitle: module.demoTitle || '',
+    api: module.api || null,
     examples,
     mount: examples.length === 0 ? module.mount : null
   };
@@ -403,7 +410,8 @@ function pageHeader(entry, reference) {
  * @returns {HTMLElement | null}
  */
 function apiSection(entry, reference) {
-  if (entry.kind !== 'component' && reference.api.length === 0) return null;
+  const generated = generatedApi(entry);
+  if (entry.kind !== 'component' && reference.api.length === 0 && generated.length === 0) return null;
 
   const section = docsSection('api', 'API');
   const slot = element('div', 'docs-api__import');
@@ -417,17 +425,163 @@ function apiSection(entry, reference) {
     });
   }
 
-  if (reference.api.length) {
-    const body = element('div', 'docs-prose docs-api');
-    body.append(...apiBlocks(reference.api));
-    section.append(body);
-  } else if (!reference.found) {
+  const body = element('div', 'docs-prose docs-api');
+  const notes = referenceNotes(reference.api);
+  const covered = new Set();
+
+  for (const { className, groups } of generated) {
+    for (const group of groups) {
+      covered.add(group.label.toLowerCase());
+      body.append(
+        element('h3', 'docs-api__group', generated.length > 1 ? `${className} — ${group.label}` : group.label),
+        element('div', 'docs-api__scroller', undefined, dataTable(group, notes))
+      );
+    }
+  }
+
+  // Anything the JSDoc does not describe — Select's getters, a factory's signatures — still comes
+  // from the reference, so nothing is lost by preferring the generated tables where they exist.
+  body.append(...apiBlocks(reference.api, covered));
+
+  if (body.childNodes.length) section.append(body);
+  else if (!reference.found) {
     section.append(element('p', 'docs-note', undefined,
       text('No reference section yet — see '), link(DOCS_URL, 'docs/llms.md'), text('.')));
   }
-  // A section that is all prose — `defineElements()` is one — has already been shown under the
-  // title, so the card carries the import line alone rather than claiming there is no reference.
   return section;
+}
+
+/**
+ * The generated API for the classes a page documents.
+ *
+ * A demo names them with `api: [...]` when the page is about more than one — Date range covers
+ * both the picker and the box — and otherwise the id's PascalCase is the class.
+ * @param {object} entry
+ * @returns {{className: string, groups: {label: string, columns: string[], rows: object[]}[]}[]}
+ */
+function generatedApi(entry) {
+  const names = entry.api ?? [entry.id.split('-').map((part) => part[0].toUpperCase() + part.slice(1)).join('')];
+  const found = [];
+
+  for (const className of names) {
+    const record = apiData[className];
+    if (!record) continue;
+    const groups = [];
+    if (record.options?.length) {
+      groups.push({ label: 'Options', columns: ['Option', 'Type', 'Default', 'Description'], rows: record.options });
+    }
+    if (record.methods?.length) {
+      groups.push({ label: 'Methods', columns: ['Method', 'Returns', 'Description'], rows: record.methods });
+    }
+    if (record.events?.length) {
+      groups.push({ label: 'Events', columns: ['Event', 'Payload', 'Description'], rows: record.events });
+    }
+    if (groups.length) found.push({ className, groups });
+  }
+  return found;
+}
+
+/**
+ * Builds one generated table. The description falls back to the reference's note, because a
+ * listener's own JSDoc sentence is usually thinner than the sentence written about the event.
+ * @param {{label: string, columns: string[], rows: object[]}} group
+ * @param {Map<string, Node[]>} notes
+ * @returns {HTMLTableElement}
+ */
+function dataTable(group, notes) {
+  // Each row's cells, resolved first so a column that is empty for every row can be dropped: the
+  // reference documents no payload for some events and no description for others, and a column of
+  // nothing reads as missing work rather than as an honest blank.
+  const cells = group.rows.map((row) => {
+    const note = notes.get(row.name);
+    // A listener's JSDoc is often only "Change listener." — it restates the name and says nothing
+    // about the event, so the sentence written in the reference wins wherever there is one.
+    const thin = !row.description || /^[\w\s-]*(listener|callback)\.?$/i.test(row.description);
+    const description = thin && note
+      ? note.map((node) => node.cloneNode(true))
+      : (row.description ? [renderInline(row.description)] : []);
+
+    return [
+      [inlineCode(row.signature ?? row.name)],
+      codeCell(row.type ?? row.returns ?? row.payload),
+      group.columns.length === 4 ? codeCell(row.default) : null,
+      description
+    ].filter((cell) => cell !== null);
+  });
+
+  const used = group.columns.map((_, index) => cells.some((row) => row[index]?.length));
+  // Fixed layout with explicit shares. Left to itself the table sizes columns to their content,
+  // and one long union type — `Record<string, string>|Record<string, Record<string, string>>` —
+  // takes half the page and pushes the descriptions out of the container.
+  const shares = { 2: [30, 70], 3: [24, 22, 54], 4: [18, 22, 14, 46] }[used.filter(Boolean).length]
+    ?? [];
+  const group_ = document.createElement('colgroup');
+  for (const share of shares) {
+    const col = document.createElement('col');
+    col.style.inlineSize = `${share}%`;
+    group_.append(col);
+  }
+
+  const head = document.createElement('thead');
+  const headRow = document.createElement('tr');
+  for (const [index, column] of group.columns.entries()) {
+    if (used[index]) headRow.append(element('th', 'docs-api__head', column));
+  }
+  head.append(headRow);
+
+  const body = document.createElement('tbody');
+  for (const row of cells) {
+    const line = document.createElement('tr');
+    for (const [index, cell] of row.entries()) {
+      if (!used[index]) continue;
+      if (index === 0) {
+        const term = element('th', 'docs-api__term');
+        term.scope = 'row';
+        term.append(...cell);
+        line.append(term);
+        continue;
+      }
+      const last = index === row.length - 1;
+      const node = element('td', last ? 'docs-api__note' : 'docs-api__type');
+      node.append(...cell);
+      line.append(node);
+    }
+    body.append(line);
+  }
+  return element('table', 'docs-api__table', undefined, group_, head, body);
+}
+
+/** @param {string|null|undefined} value @returns {Node[]} */
+function codeCell(value) {
+  return value === null || value === undefined || value === '' ? [] : [inlineCode(value)];
+}
+
+/**
+ * Indexes the reference's own entries by name, so a generated row with no sentence of its own can
+ * borrow the one written in `docs/llms.md`.
+ * @param {Node[]} nodes The API bucket from `splitReference`.
+ * @returns {Map<string, Node[]>}
+ */
+function referenceNotes(nodes) {
+  const notes = new Map();
+  for (const node of nodes) {
+    if (node.nodeName !== 'UL') continue;
+    for (const item of node.children) {
+      for (const entry of splitEntries([...item.childNodes].slice(1))) {
+        const { term, note } = splitEntry(entry);
+        const name = /^[\w$]+/.exec(term.map((part) => part.textContent).join(''));
+        if (name && note.length) notes.set(name[0], note);
+      }
+    }
+  }
+  return notes;
+}
+
+/** @param {string} value @returns {HTMLElement} */
+function inlineCode(value) {
+  const code = document.createElement('code');
+  code.textContent = value;
+  return code;
 }
 
 /**
@@ -551,9 +705,10 @@ function sourceSection(entry) {
  * parenthesised note — which is compact to author and unreadable to scan once a component has a
  * dozen options.
  * @param {Node[]} nodes The API bucket from `splitReference`.
+ * @param {Set<string>} [covered] Group labels a generated table already covers.
  * @returns {Node[]}
  */
-function apiBlocks(nodes) {
+function apiBlocks(nodes, covered = new Set()) {
   const blocks = [];
   for (const node of nodes) {
     if (node.nodeName !== 'UL') {
@@ -563,6 +718,8 @@ function apiBlocks(nodes) {
     // Bullets that cannot be tabled stay in a list, and consecutive ones share it.
     let list = null;
     for (const item of [...node.children]) {
+      const label = item.firstElementChild?.textContent.trim().toLowerCase();
+      if (label && covered.has(label)) continue;
       const table = apiTable(item);
       if (table) {
         blocks.push(...table);

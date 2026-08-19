@@ -3,6 +3,7 @@ import { MasterPanel, Panel, h } from '../../src/index.js';
 export default {
   title: 'Panel',
   group: 'Layout',
+  api: ['Panel', 'MasterPanel'],
   blurb: 'A raised surface with a title, an optional collapse control, header actions, and a '
     + 'footer — plus MasterPanel, its full-height variant.',
 

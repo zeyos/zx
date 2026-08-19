@@ -3,6 +3,7 @@ import { Datebox, DateTimeBox, h } from '../../src/index.js';
 export default {
   title: 'Datebox',
   group: 'Inputs',
+  api: ['Datebox', 'DateTimeBox'],
   blurb: 'A text date field: it parses what the reader types against a strftime-style format, and '
     + 'keeps unparseable text on screen instead of silently discarding it.',
 

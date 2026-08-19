@@ -47,6 +47,7 @@
     "dist",
     "docs/llms.md",
     "docs/llms.txt",
+    "docs/api.json",
     "README.md",
     "MIGRATION.md",
     "LICENSE"
@@ -61,9 +62,10 @@
     "serve": "node tools/serve.js",
     "serve:site": "SERVE_ROOT=site node tools/serve.js",
     "build": "node tools/build.js",
-    "build:site": "node tools/build-site.js",
+    "build:site": "node tools/build-api.js && node tools/build-site.js",
     "test": "node --test && node tests/lint-tokens.js",
-    "prepublishOnly": "npm test && npm run build"
+    "prepublishOnly": "npm test && npm run build",
+    "build:api": "node tools/build-api.js"
   },
   "devDependencies": {
     "esbuild": "latest"

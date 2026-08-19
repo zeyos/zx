@@ -8,6 +8,7 @@ function stamp(date) {
 export default {
   title: 'Date range',
   group: 'Inputs',
+  api: ['DateRangePicker', 'DateRangeBox'],
   blurb: 'Two calendars driven as one roving-focus grid: the first click opens a range, hovering '
     + 'or arrowing previews where it would end, and the second click closes it.',
 

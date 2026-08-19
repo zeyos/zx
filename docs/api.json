@@ -1,0 +1,4479 @@
+{
+  "Badge": {
+    "options": [
+      {
+        "name": "label",
+        "type": "string",
+        "default": "''",
+        "description": "Visible badge text."
+      },
+      {
+        "name": "icon",
+        "type": "string|null",
+        "default": "null",
+        "description": "Icon name from `icons.js`, rendered before the label."
+      },
+      {
+        "name": "kind",
+        "type": "'neutral'|'accent'|'success'|'warning'|'danger'|'info'",
+        "default": "'neutral'",
+        "description": "Semantic intent."
+      },
+      {
+        "name": "variant",
+        "type": "'soft'|'solid'|'outline'",
+        "default": "'soft'",
+        "description": "Fill treatment."
+      },
+      {
+        "name": "size",
+        "type": "'md'|'sm'",
+        "default": "'md'",
+        "description": "Badge size."
+      },
+      {
+        "name": "dot",
+        "type": "boolean",
+        "default": "false",
+        "description": "Renders a small leading status dot instead of an icon."
+      },
+      {
+        "name": "title",
+        "type": "string",
+        "default": null,
+        "description": "Native title text; also names an icon-only or dot-only badge."
+      }
+    ],
+    "events": [],
+    "methods": []
+  },
+  "Breadcrumb": {
+    "options": [
+      {
+        "name": "items",
+        "type": "BreadcrumbItem[]",
+        "default": "[]",
+        "description": "Trail from the root to the current page."
+      },
+      {
+        "name": "maxVisible",
+        "type": "number",
+        "default": "0",
+        "description": "Number of items rendered inline; 0 renders all of them. Anything in between collapses into an ellipsis menu, always keeping the first and last item. Values below 2 behave as 2."
+      },
+      {
+        "name": "separator",
+        "type": "BreadcrumbSeparator",
+        "default": "'chevron'",
+        "description": "Glyph drawn between items."
+      },
+      {
+        "name": "rootIcon",
+        "type": "string|null",
+        "default": "null",
+        "description": "Icon for the first item when it carries none itself."
+      },
+      {
+        "name": "msg",
+        "type": "Record<string, string>|Record<string, Record<string, string>>",
+        "default": null,
+        "description": "Localized messages."
+      }
+    ],
+    "events": [
+      {
+        "name": "select",
+        "payload": "{name, item, index}",
+        "description": "Selection listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "getItems",
+        "signature": "getItems()",
+        "returns": "NormalizedBreadcrumbItem[]",
+        "description": "Returns a copy of the trail."
+      },
+      {
+        "name": "push",
+        "signature": "push(item)",
+        "returns": "this",
+        "description": "Appends one level, which becomes the current page."
+      },
+      {
+        "name": "pop",
+        "signature": "pop()",
+        "returns": "NormalizedBreadcrumbItem|null",
+        "description": "Removes the deepest level."
+      },
+      {
+        "name": "truncateTo",
+        "signature": "truncateTo(name)",
+        "returns": "this",
+        "description": "Drops every level below a named item, making it the current page."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Destroys the overflow menu, aborts listeners, and restores an enhanced target."
+      }
+    ]
+  },
+  "Button": {
+    "options": [
+      {
+        "name": "label",
+        "type": "string",
+        "default": "''",
+        "description": "Visible button label."
+      },
+      {
+        "name": "icon",
+        "type": "string|null",
+        "default": "null",
+        "description": "Icon name from `icons.js`."
+      },
+      {
+        "name": "kind",
+        "type": "'default'|'primary'|'danger'|'ghost'",
+        "default": "'default'",
+        "description": "Visual intent."
+      },
+      {
+        "name": "size",
+        "type": "'md'|'sm'",
+        "default": "'md'",
+        "description": "Control size."
+      },
+      {
+        "name": "disabled",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether the button is disabled."
+      },
+      {
+        "name": "title",
+        "type": "string",
+        "default": null,
+        "description": "Native title text."
+      }
+    ],
+    "events": [
+      {
+        "name": "click",
+        "payload": null,
+        "description": "Click callback."
+      }
+    ],
+    "methods": []
+  },
+  "CheckButton": {
+    "options": [
+      {
+        "name": "label",
+        "type": "string|[string, string]",
+        "default": "''",
+        "description": "A shared label or `[onLabel, offLabel]`."
+      },
+      {
+        "name": "checked",
+        "type": "boolean",
+        "default": "false",
+        "description": "Initial pressed state."
+      },
+      {
+        "name": "icon",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether to show the check indicator."
+      },
+      {
+        "name": "disabled",
+        "type": "boolean",
+        "default": "false",
+        "description": "Initial disabled state."
+      }
+    ],
+    "events": [
+      {
+        "name": "change",
+        "payload": "{checked: boolean}",
+        "description": "Change callback."
+      }
+    ],
+    "methods": [
+      {
+        "name": "set",
+        "signature": "set(checked, [options])",
+        "returns": "this",
+        "description": "Sets the pressed state."
+      },
+      {
+        "name": "toggle",
+        "signature": "toggle()",
+        "returns": "this",
+        "description": "Toggles the pressed state."
+      },
+      {
+        "name": "setLabel",
+        "signature": "setLabel(label)",
+        "returns": "this",
+        "description": "Replaces the state labels."
+      },
+      {
+        "name": "enable",
+        "signature": "enable()",
+        "returns": "this",
+        "description": "Enables user interaction."
+      },
+      {
+        "name": "disable",
+        "signature": "disable()",
+        "returns": "this",
+        "description": "Disables user interaction."
+      }
+    ]
+  },
+  "Checklist": {
+    "options": [
+      {
+        "name": "items",
+        "type": "ChecklistItem[]",
+        "default": "[]",
+        "description": "Available checkbox items."
+      },
+      {
+        "name": "valueKey",
+        "type": "string|((item: ChecklistItem) => unknown)",
+        "default": "'ID'",
+        "description": "Item ID property or reader."
+      },
+      {
+        "name": "labelKey",
+        "type": "string|((item: ChecklistItem) => string)",
+        "default": "'name'",
+        "description": "Item label property or reader."
+      },
+      {
+        "name": "checkedKey",
+        "type": "string|((item: ChecklistItem) => unknown)",
+        "default": "'on'",
+        "description": "Initial checked-state property or reader."
+      },
+      {
+        "name": "search",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether the search field is shown."
+      },
+      {
+        "name": "height",
+        "type": "number",
+        "default": "280",
+        "description": "Maximum list height in pixels."
+      },
+      {
+        "name": "defaultChecked",
+        "type": "boolean",
+        "default": "false",
+        "description": "Fallback initial checked state."
+      },
+      {
+        "name": "load",
+        "type": "(() => Promise<ChecklistItem[]>|ChecklistItem[])|null",
+        "default": "null",
+        "description": "Async item loader."
+      },
+      {
+        "name": "msg",
+        "type": "Record<string, string>|Record<string, Record<string, string>>",
+        "default": null,
+        "description": "Localized messages."
+      }
+    ],
+    "events": [
+      {
+        "name": "change",
+        "payload": "{values}",
+        "description": "Change listener."
+      },
+      {
+        "name": "loaded",
+        "payload": "{items}",
+        "description": "Loaded listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "getValues",
+        "signature": "getValues()",
+        "returns": null,
+        "description": "Returns checked IDs in item order. @returns {unknown[]}"
+      },
+      {
+        "name": "setValues",
+        "signature": "setValues(ids)",
+        "returns": "this",
+        "description": "Replaces the checked IDs."
+      },
+      {
+        "name": "checkAll",
+        "signature": "checkAll()",
+        "returns": null,
+        "description": "Checks every item. @returns {this} @fires Checklist#change"
+      },
+      {
+        "name": "uncheckAll",
+        "signature": "uncheckAll()",
+        "returns": null,
+        "description": "Unchecks every item. @returns {this} @fires Checklist#change"
+      },
+      {
+        "name": "search",
+        "signature": "search(query)",
+        "returns": "this",
+        "description": "Filters visible items by label."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": null,
+        "description": "Restores an enhanced target and invalidates pending loads. @returns {void}"
+      }
+    ]
+  },
+  "DataFilter": {
+    "options": [
+      {
+        "name": "filters",
+        "type": "FilterDefinition[]",
+        "default": "[]",
+        "description": "Declarative filters."
+      },
+      {
+        "name": "data",
+        "type": "DataFilterRow[]",
+        "default": "[]",
+        "description": "Rows to filter."
+      },
+      {
+        "name": "autoApply",
+        "type": "boolean",
+        "default": "true",
+        "description": "Apply and emit whenever a control changes."
+      },
+      {
+        "name": "clearLabel",
+        "type": "string|null",
+        "default": "null",
+        "description": "Clear button label; null resolves `dataFilter.clear`."
+      }
+    ],
+    "events": [
+      {
+        "name": "filter",
+        "payload": "{rows, state, unknown>}",
+        "description": ""
+      }
+    ],
+    "methods": [
+      {
+        "name": "apply",
+        "signature": "apply()",
+        "returns": "DataFilterRow[]",
+        "description": "Applies current state, emits the filtered rows, and returns them."
+      },
+      {
+        "name": "clear",
+        "signature": "clear()",
+        "returns": "this",
+        "description": "Clears every control and applies the empty state."
+      },
+      {
+        "name": "setState",
+        "signature": "setState(state)",
+        "returns": "this",
+        "description": "Replaces filter state. Missing filter ids are cleared."
+      },
+      {
+        "name": "addFilter",
+        "signature": "addFilter(definition)",
+        "returns": "this",
+        "description": "Adds one filter control without mutating the original options array."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": null,
+        "description": "Restores enhanced content and user-owned custom controls. @returns {void}"
+      }
+    ]
+  },
+  "DatePicker": {
+    "options": [
+      {
+        "name": "value",
+        "type": "Date|null",
+        "default": "null",
+        "description": "Initially selected date."
+      },
+      {
+        "name": "min",
+        "type": "Date|null",
+        "default": "null",
+        "description": "Earliest selectable local calendar day."
+      },
+      {
+        "name": "max",
+        "type": "Date|null",
+        "default": "null",
+        "description": "Latest selectable local calendar day."
+      },
+      {
+        "name": "weekStart",
+        "type": "number",
+        "default": "1",
+        "description": "First weekday, from 0 (Sunday) through 6 (Saturday)."
+      },
+      {
+        "name": "showWeekNumbers",
+        "type": "boolean",
+        "default": "false",
+        "description": "Show ISO week numbers."
+      },
+      {
+        "name": "time",
+        "type": "boolean",
+        "default": "false",
+        "description": "Append a time picker below the calendar."
+      }
+    ],
+    "events": [
+      {
+        "name": "change",
+        "payload": "{date: Date|null}",
+        "description": "Change listener."
+      },
+      {
+        "name": "monthchange",
+        "payload": "{year: number, month: number}",
+        "description": "Visible-month listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "set",
+        "signature": "set(date, [options])",
+        "returns": "this",
+        "description": "Selects a date, clamped to the configured day bounds."
+      },
+      {
+        "name": "focus",
+        "signature": "focus()",
+        "returns": "this",
+        "description": "Moves focus to the currently roving calendar day."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": null,
+        "description": "Cleans up an appended time picker and generated host content. @returns {void}"
+      }
+    ]
+  },
+  "DateRangeBox": {
+    "options": [
+      {
+        "name": "start",
+        "type": "Date|number|string|null",
+        "default": "null",
+        "description": "Initial start: Date, Unix seconds, or formatted text."
+      },
+      {
+        "name": "end",
+        "type": "Date|number|string|null",
+        "default": "null",
+        "description": "Initial end: Date, Unix seconds, or formatted text."
+      },
+      {
+        "name": "format",
+        "type": "string",
+        "default": "'%d.%m.%Y'",
+        "description": "Kernel date format used for both endpoints."
+      },
+      {
+        "name": "separator",
+        "type": "string",
+        "default": "' – '",
+        "description": "Text placed between the two formatted dates."
+      },
+      {
+        "name": "placeholder",
+        "type": "string|null",
+        "default": "null",
+        "description": "Input placeholder; null derives one from the format."
+      },
+      {
+        "name": "clearable",
+        "type": "boolean",
+        "default": "true",
+        "description": "Show a clear button while a range is present."
+      },
+      {
+        "name": "min",
+        "type": "Date|null",
+        "default": "null",
+        "description": "Earliest selectable local calendar day."
+      },
+      {
+        "name": "max",
+        "type": "Date|null",
+        "default": "null",
+        "description": "Latest selectable local calendar day."
+      },
+      {
+        "name": "months",
+        "type": "number",
+        "default": "2",
+        "description": "Month panels in the popover; narrow ones show only the first."
+      },
+      {
+        "name": "weekStart",
+        "type": "number",
+        "default": "1",
+        "description": "First weekday, from 0 (Sunday) through 6 (Saturday)."
+      },
+      {
+        "name": "showWeekNumbers",
+        "type": "boolean",
+        "default": "false",
+        "description": "Show ISO week numbers."
+      },
+      {
+        "name": "minNights",
+        "type": "number",
+        "default": "0",
+        "description": "Smallest number of nights a complete range may span."
+      },
+      {
+        "name": "maxNights",
+        "type": "number|null",
+        "default": "null",
+        "description": "Largest number of nights a complete range may span."
+      },
+      {
+        "name": "presets",
+        "type": "DateRangePreset[]|boolean",
+        "default": "[]",
+        "description": "Preset buttons, or `true` for the built-in set."
+      },
+      {
+        "name": "disabled",
+        "type": "boolean",
+        "default": "false",
+        "description": "Disable all controls."
+      }
+    ],
+    "events": [
+      {
+        "name": "change",
+        "payload": "{start, end}",
+        "description": "Change listener."
+      },
+      {
+        "name": "invalid",
+        "payload": "{text: string}",
+        "description": "Invalid-input listener."
+      },
+      {
+        "name": "open",
+        "payload": "Record<string, never>",
+        "description": "Open listener."
+      },
+      {
+        "name": "close",
+        "payload": "Record<string, never>",
+        "description": "Close listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "set",
+        "signature": "set(range, [options])",
+        "returns": "this",
+        "description": "Sets a range. Each endpoint may be a Date, Unix seconds, or text in the configured format; a whole formatted range string and `null` are accepted too."
+      },
+      {
+        "name": "clear",
+        "signature": "clear([options])",
+        "returns": "this",
+        "description": "Clears the selection."
+      },
+      {
+        "name": "open",
+        "signature": "open()",
+        "returns": "this",
+        "description": "Opens and positions the range calendar, then moves focus into its grid."
+      },
+      {
+        "name": "close",
+        "signature": "close()",
+        "returns": "this",
+        "description": "Closes the range calendar."
+      },
+      {
+        "name": "enable",
+        "signature": "enable()",
+        "returns": null,
+        "description": "Enables the box. @returns {this}"
+      },
+      {
+        "name": "disable",
+        "signature": "disable()",
+        "returns": null,
+        "description": "Disables the box and closes its popover. @returns {this}"
+      },
+      {
+        "name": "focus",
+        "signature": "focus()",
+        "returns": null,
+        "description": "Moves focus to the text input. @returns {this}"
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": null,
+        "description": "Cleans up the open popover, child picker, and generated host content. @returns {void}"
+      }
+    ]
+  },
+  "DateRangePicker": {
+    "options": [
+      {
+        "name": "start",
+        "type": "Date|null",
+        "default": "null",
+        "description": "Initially selected first day."
+      },
+      {
+        "name": "end",
+        "type": "Date|null",
+        "default": "null",
+        "description": "Initially selected last day."
+      },
+      {
+        "name": "min",
+        "type": "Date|null",
+        "default": "null",
+        "description": "Earliest selectable local calendar day."
+      },
+      {
+        "name": "max",
+        "type": "Date|null",
+        "default": "null",
+        "description": "Latest selectable local calendar day."
+      },
+      {
+        "name": "months",
+        "type": "number",
+        "default": "2",
+        "description": "Month panels to render; narrow containers show only the first."
+      },
+      {
+        "name": "weekStart",
+        "type": "number",
+        "default": "1",
+        "description": "First weekday, from 0 (Sunday) through 6 (Saturday)."
+      },
+      {
+        "name": "showWeekNumbers",
+        "type": "boolean",
+        "default": "false",
+        "description": "Show ISO week numbers."
+      },
+      {
+        "name": "minNights",
+        "type": "number",
+        "default": "0",
+        "description": "Smallest number of nights a complete range may span."
+      },
+      {
+        "name": "maxNights",
+        "type": "number|null",
+        "default": "null",
+        "description": "Largest number of nights a complete range may span."
+      },
+      {
+        "name": "presets",
+        "type": "DateRangePreset[]|boolean",
+        "default": "[]",
+        "description": "Preset buttons, or `true` for the built-in set."
+      },
+      {
+        "name": "disabled",
+        "type": "boolean",
+        "default": "false",
+        "description": "Disable every control."
+      }
+    ],
+    "events": [
+      {
+        "name": "change",
+        "payload": "{start, end}",
+        "description": "Complete-range listener."
+      },
+      {
+        "name": "select",
+        "payload": "{start, end}",
+        "description": "Every-click listener."
+      },
+      {
+        "name": "monthchange",
+        "payload": "{year: number, month: number}",
+        "description": "Visible-month listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "set",
+        "signature": "set([range], [options])",
+        "returns": "this",
+        "description": "Selects a range, clamped to the configured bounds, and scrolls the first visible month to the range start."
+      },
+      {
+        "name": "clear",
+        "signature": "clear([options])",
+        "returns": "this",
+        "description": "Clears the selection."
+      },
+      {
+        "name": "focus",
+        "signature": "focus()",
+        "returns": "this",
+        "description": "Moves focus to the currently roving calendar day."
+      },
+      {
+        "name": "enable",
+        "signature": "enable()",
+        "returns": null,
+        "description": "Enables every control. @returns {this}"
+      },
+      {
+        "name": "disable",
+        "signature": "disable()",
+        "returns": null,
+        "description": "Disables every control. @returns {this}"
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": null,
+        "description": "Removes generated content and restores the host element's attributes. @returns {void}"
+      }
+    ]
+  },
+  "Datebox": {
+    "options": [
+      {
+        "name": "value",
+        "type": "Date|number|string|null",
+        "default": "null",
+        "description": "Date, Unix seconds, or formatted string."
+      },
+      {
+        "name": "format",
+        "type": "string",
+        "default": "'%d.%m.%Y'",
+        "description": "Kernel date format."
+      },
+      {
+        "name": "time",
+        "type": "boolean",
+        "default": "false",
+        "description": "Append `%H:%M` and show time controls."
+      },
+      {
+        "name": "min",
+        "type": "Date|null",
+        "default": "null",
+        "description": "Earliest selectable date."
+      },
+      {
+        "name": "max",
+        "type": "Date|null",
+        "default": "null",
+        "description": "Latest selectable date."
+      },
+      {
+        "name": "placeholder",
+        "type": "string|null",
+        "default": "null",
+        "description": "Input placeholder; null derives one from the format."
+      },
+      {
+        "name": "clearable",
+        "type": "boolean",
+        "default": "true",
+        "description": "Show a clear button when a value is present."
+      },
+      {
+        "name": "disabled",
+        "type": "boolean",
+        "default": "false",
+        "description": "Disable all controls."
+      }
+    ],
+    "events": [
+      {
+        "name": "change",
+        "payload": "{date: Date|null}",
+        "description": "Change listener."
+      },
+      {
+        "name": "invalid",
+        "payload": "{text: string}",
+        "description": "Invalid-input listener."
+      },
+      {
+        "name": "open",
+        "payload": "Record<string, never>",
+        "description": "Open listener."
+      },
+      {
+        "name": "close",
+        "payload": "Record<string, never>",
+        "description": "Close listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "set",
+        "signature": "set(value, [options])",
+        "returns": "this",
+        "description": "Sets a Date, Unix-seconds number, formatted string, or null."
+      },
+      {
+        "name": "open",
+        "signature": "open()",
+        "returns": "this",
+        "description": "Opens and positions the calendar popover, then moves focus into its grid."
+      },
+      {
+        "name": "close",
+        "signature": "close()",
+        "returns": "this",
+        "description": "Closes the calendar popover."
+      },
+      {
+        "name": "enable",
+        "signature": "enable()",
+        "returns": null,
+        "description": "Enables the datebox. @returns {this}"
+      },
+      {
+        "name": "disable",
+        "signature": "disable()",
+        "returns": null,
+        "description": "Disables the datebox and closes its popover. @returns {this}"
+      },
+      {
+        "name": "focus",
+        "signature": "focus()",
+        "returns": null,
+        "description": "Moves focus to the text input. @returns {this}"
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": null,
+        "description": "Cleans up the open popover, child picker, and generated host content. @returns {void}"
+      }
+    ]
+  },
+  "Dialog": {
+    "options": [
+      {
+        "name": "title",
+        "type": "string",
+        "default": "''",
+        "description": "Prompt title."
+      },
+      {
+        "name": "message",
+        "type": "Node|string|number|null",
+        "default": "''",
+        "description": "Prompt message."
+      },
+      {
+        "name": "value",
+        "type": "string",
+        "default": "''",
+        "description": "Initial input value."
+      },
+      {
+        "name": "placeholder",
+        "type": "string",
+        "default": "''",
+        "description": "Input placeholder."
+      }
+    ],
+    "events": [],
+    "methods": [
+      {
+        "name": "setTitle",
+        "signature": "setTitle(title)",
+        "returns": "this",
+        "description": "Sets the title shown in the dialog header."
+      },
+      {
+        "name": "setContent",
+        "signature": "setContent(content)",
+        "returns": "this",
+        "description": "Replaces the body content and clears any registered views."
+      },
+      {
+        "name": "setButtons",
+        "signature": "setButtons(list)",
+        "returns": "this",
+        "description": "Replaces the default footer buttons."
+      },
+      {
+        "name": "addView",
+        "signature": "addView(key, options)",
+        "returns": "DialogView",
+        "description": "Adds or replaces a named dialog view. The first view is shown immediately."
+      },
+      {
+        "name": "showView",
+        "signature": "showView(key)",
+        "returns": "DialogView",
+        "description": "Shows one registered view and applies its title and buttons."
+      },
+      {
+        "name": "getView",
+        "signature": "getView(key)",
+        "returns": "DialogView|null",
+        "description": "Returns a registered view."
+      },
+      {
+        "name": "alert",
+        "signature": "alert([options])",
+        "returns": "Promise<void>",
+        "description": "Opens an alert and resolves after it is dismissed."
+      },
+      {
+        "name": "confirm",
+        "signature": "confirm([options])",
+        "returns": "Promise<boolean>",
+        "description": "Opens a confirmation dialog."
+      },
+      {
+        "name": "prompt",
+        "signature": "prompt([options])",
+        "returns": "Promise<string|null>",
+        "description": "Opens a single-line text prompt."
+      }
+    ]
+  },
+  "Dropdown": {
+    "options": [
+      {
+        "name": "content",
+        "type": "Node|string|number|{toElement: () => Node|null}|null",
+        "default": "null",
+        "description": "Panel content."
+      },
+      {
+        "name": "placement",
+        "type": "'bottom-start'|'bottom-end'|'top-start'|'top-end'|'bottom'|'top'",
+        "default": "'bottom-start'",
+        "description": "Panel placement."
+      },
+      {
+        "name": "offset",
+        "type": "number",
+        "default": "4",
+        "description": "Gap between anchor and panel in pixels."
+      },
+      {
+        "name": "matchWidth",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether the panel matches the anchor width."
+      },
+      {
+        "name": "openOn",
+        "type": "'click'|'manual'",
+        "default": "'click'",
+        "description": "Trigger behavior."
+      },
+      {
+        "name": "closeOnSelect",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether a click within the panel closes it."
+      }
+    ],
+    "events": [
+      {
+        "name": "open",
+        "payload": "Record<string, never>",
+        "description": "Open event listener."
+      },
+      {
+        "name": "close",
+        "payload": "Record<string, never>",
+        "description": "Close event listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "open",
+        "signature": "open()",
+        "returns": "this",
+        "description": "Opens and positions the panel."
+      },
+      {
+        "name": "close",
+        "signature": "close()",
+        "returns": "this",
+        "description": "Closes the panel and releases its positioning resources."
+      },
+      {
+        "name": "toggle",
+        "signature": "toggle()",
+        "returns": "this",
+        "description": "Toggles the panel."
+      },
+      {
+        "name": "isOpen",
+        "signature": "isOpen()",
+        "returns": "boolean",
+        "description": "Reports whether the panel is open."
+      },
+      {
+        "name": "setContent",
+        "signature": "setContent(content)",
+        "returns": "this",
+        "description": "Replaces panel content without interpreting strings as HTML."
+      },
+      {
+        "name": "getPanel",
+        "signature": "getPanel()",
+        "returns": "HTMLElement",
+        "description": "Returns the owned popover panel."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Closes and removes the panel, restoring anchor ARIA attributes."
+      }
+    ]
+  },
+  "EmptyState": {
+    "options": [
+      {
+        "name": "icon",
+        "type": "string|null",
+        "default": "'folder-open'",
+        "description": "Decorative icon name; null renders no icon."
+      },
+      {
+        "name": "title",
+        "type": "string",
+        "default": "''",
+        "description": "Headline text, rendered as a paragraph so page outlines stay intact."
+      },
+      {
+        "name": "description",
+        "type": "string",
+        "default": "''",
+        "description": "Supporting sentence below the headline."
+      },
+      {
+        "name": "actions",
+        "type": "Array<Element|ButtonOptions>",
+        "default": "[]",
+        "description": "Buttons or button descriptors below the text."
+      },
+      {
+        "name": "size",
+        "type": "'md'|'sm'",
+        "default": "'md'",
+        "description": "Overall scale."
+      },
+      {
+        "name": "align",
+        "type": "'center'|'start'",
+        "default": "'center'",
+        "description": "Content alignment."
+      }
+    ],
+    "events": [],
+    "methods": []
+  },
+  "Field": {
+    "options": [
+      {
+        "name": "id",
+        "type": "string|null",
+        "default": "null",
+        "description": "Control ID and logical field identifier."
+      },
+      {
+        "name": "type",
+        "type": "string",
+        "default": "'text'",
+        "description": "Registered field type."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "default": "''",
+        "description": "Visible label."
+      },
+      {
+        "name": "description",
+        "type": "string",
+        "default": "''",
+        "description": "Supporting description."
+      },
+      {
+        "name": "value",
+        "type": "unknown",
+        "default": "undefined",
+        "description": "Initial value."
+      },
+      {
+        "name": "placeholder",
+        "type": "string",
+        "default": "''",
+        "description": "Control placeholder."
+      },
+      {
+        "name": "required",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether a value is required."
+      },
+      {
+        "name": "disabled",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether the control is disabled."
+      },
+      {
+        "name": "options",
+        "type": "string[]|Record<string, string>|null",
+        "default": "null",
+        "description": "Select or option-list values."
+      },
+      {
+        "name": "layout",
+        "type": "'stack'|'inline'",
+        "default": "'stack'",
+        "description": "Label/control layout."
+      },
+      {
+        "name": "props",
+        "type": "Record<string, unknown>",
+        "default": "{}",
+        "description": "Adapter-specific control properties."
+      },
+      {
+        "name": "adapter",
+        "type": "FieldAdapterFactory",
+        "default": null,
+        "description": "Adapter used by the `custom` type."
+      }
+    ],
+    "events": [],
+    "methods": [
+      {
+        "name": "has",
+        "signature": "has(type)",
+        "returns": "boolean",
+        "description": "Reports whether a field adapter is registered."
+      },
+      {
+        "name": "setValue",
+        "signature": "setValue(value, [options])",
+        "returns": "this",
+        "description": "Sets the adapter value."
+      },
+      {
+        "name": "focus",
+        "signature": "focus()",
+        "returns": "this",
+        "description": "Focuses the adapter control."
+      },
+      {
+        "name": "reset",
+        "signature": "reset()",
+        "returns": "this",
+        "description": "Restores the initial value without emitting `change`."
+      },
+      {
+        "name": "setDisabled",
+        "signature": "setDisabled(disabled)",
+        "returns": "this",
+        "description": "Enables or disables the adapter control."
+      },
+      {
+        "name": "setHighlight",
+        "signature": "setHighlight(message, [kind])",
+        "returns": "this",
+        "description": "Displays a validation or status message."
+      },
+      {
+        "name": "clearHighlight",
+        "signature": "clearHighlight()",
+        "returns": "this",
+        "description": "Clears the current validation or status message."
+      },
+      {
+        "name": "getInput",
+        "signature": "getInput()",
+        "returns": "Element",
+        "description": "Returns the adapter's control root."
+      },
+      {
+        "name": "own",
+        "signature": "own(component)",
+        "returns": "T",
+        "description": "Registers a child component for destruction with this field."
+      }
+    ]
+  },
+  "FieldUpload": {
+    "options": [
+      {
+        "name": "url",
+        "type": "string",
+        "default": "''",
+        "description": "Upload endpoint."
+      },
+      {
+        "name": "paramName",
+        "type": "string",
+        "default": "'upload'",
+        "description": "Multipart file field name."
+      },
+      {
+        "name": "params",
+        "type": "Record<string, unknown>",
+        "default": "{}",
+        "description": "Extra multipart values."
+      },
+      {
+        "name": "headers",
+        "type": "Record<string, string>",
+        "default": "{}",
+        "description": "Request headers."
+      },
+      {
+        "name": "multiple",
+        "type": "boolean",
+        "default": "false",
+        "description": "Allow multiple files."
+      },
+      {
+        "name": "accept",
+        "type": "string|null",
+        "default": "null",
+        "description": "Native accept filter."
+      },
+      {
+        "name": "maxSize",
+        "type": "number|null",
+        "default": "null",
+        "description": "Maximum size per file in bytes."
+      },
+      {
+        "name": "autoUpload",
+        "type": "boolean",
+        "default": "true",
+        "description": "Upload immediately after selection."
+      },
+      {
+        "name": "preview",
+        "type": "boolean",
+        "default": "true",
+        "description": "Show a preview for the first selected image."
+      },
+      {
+        "name": "http",
+        "type": "UploadTransport|null",
+        "default": "null",
+        "description": "Injected Http-compatible or stub upload transport."
+      }
+    ],
+    "events": [],
+    "methods": [
+      {
+        "name": "abort",
+        "signature": "abort()",
+        "returns": "this",
+        "description": "Aborts the active upload."
+      },
+      {
+        "name": "clear",
+        "signature": "clear()",
+        "returns": "this",
+        "description": "Clears selection, preview, progress, and status."
+      },
+      {
+        "name": "setDisabled",
+        "signature": "setDisabled(disabled)",
+        "returns": "this",
+        "description": "Enables or disables file selection and dropping."
+      }
+    ]
+  },
+  "Fieldset": {
+    "options": [
+      {
+        "name": "title",
+        "type": "string",
+        "default": "''",
+        "description": "Legend text."
+      },
+      {
+        "name": "columns",
+        "type": "1|2|3",
+        "default": "1",
+        "description": "Grid column count."
+      },
+      {
+        "name": "fields",
+        "type": "Record<string, FieldOptions|Field|Element|Component>",
+        "default": "{}",
+        "description": "Initial fields."
+      }
+    ],
+    "events": [],
+    "methods": [
+      {
+        "name": "getField",
+        "signature": "getField(id)",
+        "returns": "Field|null",
+        "description": "Returns a field by logical identifier."
+      },
+      {
+        "name": "hasField",
+        "signature": "hasField(id)",
+        "returns": "boolean",
+        "description": "Reports whether a field exists."
+      },
+      {
+        "name": "getFields",
+        "signature": "getFields()",
+        "returns": "Record<string, Field>",
+        "description": "Returns the fields keyed by logical identifier."
+      },
+      {
+        "name": "getValues",
+        "signature": "getValues()",
+        "returns": "Record<string, unknown>",
+        "description": "Returns all field values."
+      },
+      {
+        "name": "setValues",
+        "signature": "setValues(values, [options])",
+        "returns": "this",
+        "description": "Sets matching field values."
+      },
+      {
+        "name": "getValue",
+        "signature": "getValue(id)",
+        "returns": "unknown",
+        "description": "Returns one field value."
+      },
+      {
+        "name": "setValue",
+        "signature": "setValue(id, value)",
+        "returns": "this",
+        "description": "Sets one field value."
+      },
+      {
+        "name": "reset",
+        "signature": "reset()",
+        "returns": "this",
+        "description": "Restores every field to its initial value."
+      },
+      {
+        "name": "clear",
+        "signature": "clear()",
+        "returns": "this",
+        "description": "Removes every field from this fieldset."
+      },
+      {
+        "name": "focus",
+        "signature": "focus(id)",
+        "returns": "this",
+        "description": "Focuses one field."
+      },
+      {
+        "name": "setHighlights",
+        "signature": "setHighlights(highlights, [kind])",
+        "returns": "number",
+        "description": "Applies messages to matching fields and clears unspecified highlights."
+      },
+      {
+        "name": "clearHighlights",
+        "signature": "clearHighlights()",
+        "returns": "this",
+        "description": "Clears every field highlight."
+      }
+    ]
+  },
+  "Finder": {
+    "options": [
+      {
+        "name": "items",
+        "type": "TreeNode[]",
+        "default": "[]",
+        "description": "Nested nodes."
+      },
+      {
+        "name": "valueKey",
+        "type": "string|((node: TreeNode) => unknown)",
+        "default": "'ID'",
+        "description": "Node ID property or reader."
+      },
+      {
+        "name": "labelKey",
+        "type": "string|((node: TreeNode) => string)",
+        "default": "'name'",
+        "description": "Node label property or reader."
+      },
+      {
+        "name": "childrenKey",
+        "type": "string",
+        "default": "'children'",
+        "description": "Property holding child nodes."
+      },
+      {
+        "name": "path",
+        "type": "unknown[]",
+        "default": "[]",
+        "description": "Initially selected node IDs, from the root down."
+      },
+      {
+        "name": "load",
+        "type": "((node: TreeNode) => Promise<TreeNode[]>|TreeNode[])|null",
+        "default": "null",
+        "description": "Lazy child loader."
+      },
+      {
+        "name": "preview",
+        "type": "((node: TreeNode) => Node|string|null)|null",
+        "default": "null",
+        "description": "Renderer for the leaf preview pane."
+      },
+      {
+        "name": "rootLabel",
+        "type": "string",
+        "default": "''",
+        "description": "Accessible name of the first column."
+      },
+      {
+        "name": "columnWidth",
+        "type": "number",
+        "default": "220",
+        "description": "Column width in pixels."
+      },
+      {
+        "name": "height",
+        "type": "number|string|null",
+        "default": "320",
+        "description": "Component height in pixels or any CSS length."
+      },
+      {
+        "name": "icons",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether to render folder and file icons."
+      },
+      {
+        "name": "renderItem",
+        "type": "((node: TreeNode) => Node|string)|null",
+        "default": "null",
+        "description": "Row renderer."
+      },
+      {
+        "name": "emptyText",
+        "type": "string",
+        "default": "'Empty'",
+        "description": "Text shown in an empty column."
+      },
+      {
+        "name": "msg",
+        "type": "Record<string, string>|Record<string, Record<string, string>>",
+        "default": null,
+        "description": "Localized messages."
+      }
+    ],
+    "events": [
+      {
+        "name": "change",
+        "payload": "{path: unknown[], nodes: TreeNode[], node: TreeNode|null}",
+        "description": "Path listener."
+      },
+      {
+        "name": "activate",
+        "payload": "{node: TreeNode, id: unknown}",
+        "description": "Activation listener."
+      },
+      {
+        "name": "error",
+        "payload": "{error: Error, node: TreeNode, id: unknown}",
+        "description": "Loader-failure listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "getNodes",
+        "signature": "getNodes()",
+        "returns": "TreeNode[]",
+        "description": "Returns the selected nodes from the root down."
+      },
+      {
+        "name": "getSelection",
+        "signature": "getSelection()",
+        "returns": "TreeNode|null",
+        "description": "Returns the deepest selected node."
+      },
+      {
+        "name": "setPath",
+        "signature": "setPath(ids, [options])",
+        "returns": "Promise<this>",
+        "description": "Selects a path, loading every branch along it."
+      },
+      {
+        "name": "reveal",
+        "signature": "reveal(id, [options])",
+        "returns": "Promise<this>",
+        "description": "Reveals and selects a node anywhere in the tree."
+      },
+      {
+        "name": "setItems",
+        "signature": "setItems(items)",
+        "returns": "this",
+        "description": "Replaces the whole hierarchy and clears the path."
+      },
+      {
+        "name": "focus",
+        "signature": "focus()",
+        "returns": null,
+        "description": "Focuses the active column. @returns {this}"
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy(options, column, index, column, index, [options], column, index, node)",
+        "returns": "void",
+        "description": "Rebuilds every column from the current path."
+      }
+    ]
+  },
+  "Form": {
+    "options": [
+      {
+        "name": "fieldsets",
+        "type": "Array<Fieldset|import('../fieldset/fieldset.js').FieldsetOptions>",
+        "default": "[]",
+        "description": "Initial fieldsets."
+      },
+      {
+        "name": "actions",
+        "type": "FormAction[]",
+        "default": "[]",
+        "description": "Form action descriptors."
+      },
+      {
+        "name": "novalidate",
+        "type": "boolean",
+        "default": "true",
+        "description": "Native `novalidate` state."
+      }
+    ],
+    "events": [],
+    "methods": [
+      {
+        "name": "setActions",
+        "signature": "setActions(list)",
+        "returns": "this",
+        "description": "Replaces the rendered action buttons."
+      },
+      {
+        "name": "getValues",
+        "signature": "getValues()",
+        "returns": "Record<string, unknown>",
+        "description": "Returns all values merged in fieldset order."
+      },
+      {
+        "name": "setValues",
+        "signature": "setValues(values, [options])",
+        "returns": "this",
+        "description": "Sets matching values across all fieldsets."
+      },
+      {
+        "name": "getField",
+        "signature": "getField(id)",
+        "returns": "import('../field/field.js').Field|null",
+        "description": "Returns the first matching field."
+      },
+      {
+        "name": "setValue",
+        "signature": "setValue(id, value)",
+        "returns": "this",
+        "description": "Sets one matching field value."
+      },
+      {
+        "name": "getValue",
+        "signature": "getValue(id)",
+        "returns": "unknown",
+        "description": "Returns one matching field value."
+      },
+      {
+        "name": "reset",
+        "signature": "reset()",
+        "returns": "this",
+        "description": "Resets all fieldsets and highlights."
+      },
+      {
+        "name": "setHighlights",
+        "signature": "setHighlights(highlights, [kind])",
+        "returns": "number",
+        "description": "Applies field highlights across all fieldsets."
+      },
+      {
+        "name": "clearHighlights",
+        "signature": "clearHighlights()",
+        "returns": "this",
+        "description": "Clears all field highlights."
+      },
+      {
+        "name": "submit",
+        "signature": "submit()",
+        "returns": "boolean",
+        "description": "Validates and emits a preventable submit event."
+      }
+    ]
+  },
+  "Groupbox": {
+    "options": [
+      {
+        "name": "title",
+        "type": "string",
+        "default": "''",
+        "description": "Section title."
+      },
+      {
+        "name": "open",
+        "type": "boolean",
+        "default": "true",
+        "description": "Initial expanded state."
+      }
+    ],
+    "events": [
+      {
+        "name": "open",
+        "payload": "Record<string, never>",
+        "description": "Open callback."
+      },
+      {
+        "name": "close",
+        "payload": "Record<string, never>",
+        "description": "Close callback."
+      }
+    ],
+    "methods": [
+      {
+        "name": "close",
+        "signature": "close()",
+        "returns": "this",
+        "description": "Collapses the section."
+      },
+      {
+        "name": "toggle",
+        "signature": "toggle()",
+        "returns": "this",
+        "description": "Toggles the section."
+      },
+      {
+        "name": "isOpen",
+        "signature": "isOpen()",
+        "returns": "boolean",
+        "description": "Reports whether the section is expanded."
+      },
+      {
+        "name": "setContent",
+        "signature": "setContent(content)",
+        "returns": "this",
+        "description": "Replaces the section body."
+      }
+    ]
+  },
+  "MasterPanel": {
+    "options": [
+      {
+        "name": "title",
+        "type": "string",
+        "default": "''",
+        "description": "Header title."
+      },
+      {
+        "name": "content",
+        "type": "MasterPanelContent",
+        "default": "null",
+        "description": "Scrollable body content."
+      },
+      {
+        "name": "buttons",
+        "type": "MasterPanelButton[]",
+        "default": "[]",
+        "description": "Header action elements or button descriptors."
+      },
+      {
+        "name": "module",
+        "type": "string|null",
+        "default": "null",
+        "description": "ZeyOS module name used for the header accent."
+      },
+      {
+        "name": "footer",
+        "type": "MasterPanelContent",
+        "default": "null",
+        "description": "Optional fixed footer content."
+      }
+    ],
+    "events": [],
+    "methods": [
+      {
+        "name": "setContent",
+        "signature": "setContent(content)",
+        "returns": "this",
+        "description": "Replaces the scrollable body."
+      },
+      {
+        "name": "setButtons",
+        "signature": "setButtons(list)",
+        "returns": "this",
+        "description": "Replaces the header action area."
+      },
+      {
+        "name": "setFooter",
+        "signature": "setFooter(content)",
+        "returns": "this",
+        "description": "Replaces or removes the fixed footer."
+      }
+    ]
+  },
+  "MenuButton": {
+    "options": [
+      {
+        "name": "label",
+        "type": "string",
+        "default": "''",
+        "description": "Trigger label."
+      },
+      {
+        "name": "icon",
+        "type": "string|null",
+        "default": "null",
+        "description": "Trigger icon name."
+      },
+      {
+        "name": "kind",
+        "type": "'default'|'primary'|'danger'|'ghost'",
+        "default": "'default'",
+        "description": "Trigger button kind."
+      },
+      {
+        "name": "items",
+        "type": "MenuButtonItem[]",
+        "default": "[]",
+        "description": "Menu items and separators."
+      },
+      {
+        "name": "placement",
+        "type": "'bottom-start'|'bottom-end'|'top-start'|'top-end'|'bottom'|'top'",
+        "default": "'bottom-start'",
+        "description": "Menu placement."
+      }
+    ],
+    "events": [
+      {
+        "name": "select",
+        "payload": "{value: unknown, item: MenuItem}",
+        "description": "Select event listener."
+      },
+      {
+        "name": "open",
+        "payload": "Record<string, never>",
+        "description": "Open event listener."
+      },
+      {
+        "name": "close",
+        "payload": "Record<string, never>",
+        "description": "Close event listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "open",
+        "signature": "open()",
+        "returns": "this",
+        "description": "Opens the menu."
+      },
+      {
+        "name": "close",
+        "signature": "close()",
+        "returns": "this",
+        "description": "Closes the menu."
+      },
+      {
+        "name": "isOpen",
+        "signature": "isOpen()",
+        "returns": "boolean",
+        "description": "Reports whether the menu is open."
+      },
+      {
+        "name": "setLabel",
+        "signature": "setLabel(label)",
+        "returns": "this",
+        "description": "Sets the visible trigger label."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Destroys the menu, dropdown panel, and trigger enhancements."
+      }
+    ]
+  },
+  "Message": {
+    "options": [
+      {
+        "name": "kind",
+        "type": "MessageKind|'danger'",
+        "default": "'info'",
+        "description": "Default message intent."
+      },
+      {
+        "name": "timeout",
+        "type": "number",
+        "default": "4000",
+        "description": "Default auto-dismiss delay."
+      },
+      {
+        "name": "closable",
+        "type": "boolean",
+        "default": "true",
+        "description": "Default close-button visibility."
+      },
+      {
+        "name": "maxVisible",
+        "type": "number",
+        "default": "5",
+        "description": "Maximum number of visible messages."
+      }
+    ],
+    "events": [],
+    "methods": [
+      {
+        "name": "enqueue",
+        "signature": "enqueue(item)",
+        "returns": "'active'|'pending'",
+        "description": "Adds an item, activating it immediately when capacity allows."
+      },
+      {
+        "name": "remove",
+        "signature": "remove(item)",
+        "returns": "'active'|'pending'|null",
+        "description": "Removes an item and promotes the oldest pending item when needed."
+      },
+      {
+        "name": "clear",
+        "signature": "clear()",
+        "returns": "{active: T[], pending: T[]}",
+        "description": "Removes every item without activation callbacks."
+      }
+    ]
+  },
+  "MessageShow": {
+    "options": [
+      {
+        "name": "kind",
+        "type": "MessageKind|'danger'",
+        "default": "'info'",
+        "description": "Message intent (`danger` aliases `error`)."
+      },
+      {
+        "name": "timeout",
+        "type": "number",
+        "default": "4000",
+        "description": "Auto-dismiss delay in milliseconds; zero persists."
+      },
+      {
+        "name": "closable",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether to render a close button."
+      }
+    ],
+    "events": [],
+    "methods": []
+  },
+  "Modal": {
+    "options": [
+      {
+        "name": "content",
+        "type": "Node|string|number|{toElement: () => Node|null}|null",
+        "default": "null",
+        "description": "Modal content."
+      },
+      {
+        "name": "width",
+        "type": "string|number",
+        "default": "'auto'",
+        "description": "CSS width, or a pixel width when numeric."
+      },
+      {
+        "name": "closable",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether Escape may close the modal."
+      },
+      {
+        "name": "lightDismiss",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether a backdrop click closes the modal."
+      },
+      {
+        "name": "destroyOnClose",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether to destroy the modal after it closes."
+      }
+    ],
+    "events": [
+      {
+        "name": "open",
+        "payload": "Record<string, never>",
+        "description": "Open event listener."
+      },
+      {
+        "name": "close",
+        "payload": "{result: unknown}",
+        "description": "Close event listener."
+      },
+      {
+        "name": "cancel",
+        "payload": "Record<string, never>",
+        "description": "Cancel event listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "close",
+        "signature": "close([result])",
+        "returns": "this",
+        "description": "Closes the modal with an optional result."
+      },
+      {
+        "name": "setContent",
+        "signature": "setContent(content)",
+        "returns": "this",
+        "description": "Replaces the modal content without interpreting strings as HTML."
+      },
+      {
+        "name": "isOpen",
+        "signature": "isOpen()",
+        "returns": "boolean",
+        "description": "Reports whether the native dialog is open."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Closes and removes the owned dialog. Safe to call repeatedly."
+      }
+    ]
+  },
+  "MonthPicker": {
+    "options": [
+      {
+        "name": "value",
+        "type": "Date|null",
+        "default": "null",
+        "description": "Initially selected month."
+      },
+      {
+        "name": "min",
+        "type": "Date|null",
+        "default": "null",
+        "description": "Earliest selectable month."
+      },
+      {
+        "name": "max",
+        "type": "Date|null",
+        "default": "null",
+        "description": "Latest selectable month."
+      }
+    ],
+    "events": [
+      {
+        "name": "change",
+        "payload": "{date: Date|null}",
+        "description": "Change listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "set",
+        "signature": "set(date, [options])",
+        "returns": "this",
+        "description": "Selects the first day of a month."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": null,
+        "description": "Removes generated content from an enhanced target. @returns {void}"
+      }
+    ]
+  },
+  "MultiValueEditor": {
+    "options": [
+      {
+        "name": "values",
+        "type": "unknown[]",
+        "default": "[]",
+        "description": "Initial ordered values."
+      },
+      {
+        "name": "options",
+        "type": "unknown[]|Record<string, string>|null",
+        "default": "null",
+        "description": "Allowed values; null uses text inputs."
+      },
+      {
+        "name": "addLabel",
+        "type": "string",
+        "default": "'Add value'",
+        "description": "Add-row button text."
+      }
+    ],
+    "events": [],
+    "methods": [
+      {
+        "name": "setValues",
+        "signature": "setValues(values, [options])",
+        "returns": "this",
+        "description": "Replaces all rows."
+      }
+    ]
+  },
+  "NavigationBar": {
+    "options": [
+      {
+        "name": "title",
+        "type": "string",
+        "default": "''",
+        "description": "Brand or application title."
+      },
+      {
+        "name": "items",
+        "type": "NavigationItem[]",
+        "default": "[]",
+        "description": "Navigation items."
+      },
+      {
+        "name": "active",
+        "type": "string|null",
+        "default": "null",
+        "description": "Initially active item, or the first enabled item."
+      },
+      {
+        "name": "actions",
+        "type": "NavigationAction[]",
+        "default": "[]",
+        "description": "Right-aligned action elements or descriptors."
+      }
+    ],
+    "events": [
+      {
+        "name": "change",
+        "payload": "{name: string}",
+        "description": "Change callback."
+      }
+    ],
+    "methods": [
+      {
+        "name": "setItems",
+        "signature": "setItems(list)",
+        "returns": "this",
+        "description": "Replaces navigation items."
+      },
+      {
+        "name": "setActive",
+        "signature": "setActive(name)",
+        "returns": "this",
+        "description": "Selects a navigation item."
+      },
+      {
+        "name": "setBadge",
+        "signature": "setBadge(name, text)",
+        "returns": "this",
+        "description": "Sets or clears an item badge."
+      },
+      {
+        "name": "setActions",
+        "signature": "setActions(list)",
+        "returns": "this",
+        "description": "Replaces right-aligned application actions."
+      }
+    ]
+  },
+  "NumberField": {
+    "options": [
+      {
+        "name": "value",
+        "type": "number|null",
+        "default": "null",
+        "description": "Initial value, or null for empty."
+      },
+      {
+        "name": "min",
+        "type": "number|null",
+        "default": "null",
+        "description": "Lowest accepted value."
+      },
+      {
+        "name": "max",
+        "type": "number|null",
+        "default": "null",
+        "description": "Highest accepted value."
+      },
+      {
+        "name": "step",
+        "type": "number",
+        "default": "1",
+        "description": "Increment applied by the buttons and arrow keys."
+      },
+      {
+        "name": "largeStep",
+        "type": "number",
+        "default": "10",
+        "description": "Multiple of `step` applied by PageUp/PageDown."
+      },
+      {
+        "name": "precision",
+        "type": "number|null",
+        "default": "null",
+        "description": "Decimal places; derived from `step` when null."
+      },
+      {
+        "name": "wrap",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether stepping past a bound wraps to the other one."
+      },
+      {
+        "name": "placeholder",
+        "type": "string",
+        "default": "''",
+        "description": "Empty-state text."
+      },
+      {
+        "name": "label",
+        "type": "string|null",
+        "default": "null",
+        "description": "Accessible name for the spinbutton."
+      },
+      {
+        "name": "unit",
+        "type": "string|null",
+        "default": "null",
+        "description": "Suffix rendered inside the control (e.g. `%`, `kg`)."
+      },
+      {
+        "name": "disabled",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether interaction is disabled."
+      },
+      {
+        "name": "readonly",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether the value is read-only."
+      },
+      {
+        "name": "required",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether an empty value is invalid."
+      },
+      {
+        "name": "name",
+        "type": "string|null",
+        "default": "null",
+        "description": "Native form field name."
+      },
+      {
+        "name": "group",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether to render thousands separators while idle."
+      },
+      {
+        "name": "locale",
+        "type": "string|null",
+        "default": "null",
+        "description": "Locale for formatting; defaults to the document locale."
+      },
+      {
+        "name": "msg",
+        "type": "Record<string, string>|Record<string, Record<string, string>>",
+        "default": null,
+        "description": "Localized messages."
+      }
+    ],
+    "events": [
+      {
+        "name": "change",
+        "payload": "{value: number|null}",
+        "description": "Committed-value listener."
+      },
+      {
+        "name": "input",
+        "payload": "{value: number|null}",
+        "description": "Per-keystroke listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "set",
+        "signature": "set(next, [options])",
+        "returns": "this",
+        "description": "Sets the value, snapping it to `step` and clamping it into `[min, max]`."
+      },
+      {
+        "name": "stepUp",
+        "signature": "stepUp([count])",
+        "returns": "this",
+        "description": "Increases the value by `count` steps."
+      },
+      {
+        "name": "stepDown",
+        "signature": "stepDown([count])",
+        "returns": "this",
+        "description": "Decreases the value by `count` steps."
+      },
+      {
+        "name": "reset",
+        "signature": "reset([options])",
+        "returns": "this",
+        "description": "Restores the configured initial value."
+      },
+      {
+        "name": "focus",
+        "signature": "focus()",
+        "returns": null,
+        "description": "Focuses the input. @returns {this}"
+      },
+      {
+        "name": "getInput",
+        "signature": "getInput()",
+        "returns": null,
+        "description": "Returns the underlying input element. @returns {HTMLInputElement}"
+      },
+      {
+        "name": "disable",
+        "signature": "disable()",
+        "returns": null,
+        "description": "Disables user interaction. @returns {this}"
+      },
+      {
+        "name": "setReadonly",
+        "signature": "setReadonly(readonly)",
+        "returns": "this",
+        "description": "Sets the read-only state."
+      },
+      {
+        "name": "setRange",
+        "signature": "setRange(min, max)",
+        "returns": "this",
+        "description": "Replaces the accepted range."
+      }
+    ]
+  },
+  "Pagination": {
+    "options": [
+      {
+        "name": "page",
+        "type": "number",
+        "default": "1",
+        "description": "One-based current page."
+      },
+      {
+        "name": "pageSize",
+        "type": "number",
+        "default": "25",
+        "description": "Rows per page."
+      },
+      {
+        "name": "total",
+        "type": "number",
+        "default": "0",
+        "description": "Total row count; 0 is one empty page."
+      },
+      {
+        "name": "pageSizes",
+        "type": "number[]",
+        "default": "[25, 50, 100]",
+        "description": "Choices offered by the page-size select."
+      },
+      {
+        "name": "siblings",
+        "type": "number",
+        "default": "1",
+        "description": "Pages shown either side of the current one."
+      },
+      {
+        "name": "boundaries",
+        "type": "number",
+        "default": "1",
+        "description": "Pages pinned at each end of the range."
+      },
+      {
+        "name": "showPageSize",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether to render the page-size select."
+      },
+      {
+        "name": "showSummary",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether to render the \"26–50 of 312\" summary."
+      },
+      {
+        "name": "mode",
+        "type": "PaginationMode",
+        "default": "'pages'",
+        "description": "`pages` renders a numbered pager, `loadmore` a single \"Load more\" button for append-style lists."
+      },
+      {
+        "name": "disabled",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether every control starts disabled."
+      },
+      {
+        "name": "msg",
+        "type": "Record<string, string>|Record<string, Record<string, string>>",
+        "default": null,
+        "description": "Localized messages."
+      }
+    ],
+    "events": [
+      {
+        "name": "change",
+        "payload": "PaginationChangeDetail",
+        "description": "Change listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "setTotal",
+        "signature": "setTotal(total)",
+        "returns": "this",
+        "description": "Replaces the total row count and re-clamps the page. Silent: servers report the count as part of a response the pager itself asked for, so echoing a `change` back would loop."
+      },
+      {
+        "name": "setPageSize",
+        "signature": "setPageSize(pageSize)",
+        "returns": "this",
+        "description": "Replaces the page size and returns to page 1."
+      },
+      {
+        "name": "setState",
+        "signature": "setState([state], [options])",
+        "returns": "this",
+        "description": "Applies any combination of page, page size, and total in one pass, then clamps the page. `change` fires when the effective page or page size moved — updating only `total` is silent unless the new count clamps the page."
+      },
+      {
+        "name": "getState",
+        "signature": "getState()",
+        "returns": "PaginationState",
+        "description": "Returns the current slice description."
+      },
+      {
+        "name": "enable",
+        "signature": "enable()",
+        "returns": "this",
+        "description": "Enables every control."
+      },
+      {
+        "name": "disable",
+        "signature": "disable()",
+        "returns": "this",
+        "description": "Disables every control, for instance while a page is in flight."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Aborts listeners and restores an enhanced target to the markup it had before the takeover."
+      }
+    ]
+  },
+  "Panel": {
+    "options": [
+      {
+        "name": "title",
+        "type": "string",
+        "default": "''",
+        "description": "Section title."
+      },
+      {
+        "name": "content",
+        "type": "PanelContent",
+        "default": "null",
+        "description": "Initial body content."
+      },
+      {
+        "name": "open",
+        "type": "boolean",
+        "default": "true",
+        "description": "Initial expanded state."
+      },
+      {
+        "name": "collapsible",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether the header toggles the body."
+      },
+      {
+        "name": "buttons",
+        "type": "PanelButton[]",
+        "default": "[]",
+        "description": "Header actions, right-aligned next to the title."
+      },
+      {
+        "name": "footer",
+        "type": "PanelContent",
+        "default": "null",
+        "description": "Optional footer content."
+      },
+      {
+        "name": "footerButtons",
+        "type": "PanelButton[]",
+        "default": "[]",
+        "description": "Footer actions, right-aligned in the footer bar."
+      }
+    ],
+    "events": [
+      {
+        "name": "open",
+        "payload": "Record<string, never>",
+        "description": "Open callback."
+      },
+      {
+        "name": "close",
+        "payload": "Record<string, never>",
+        "description": "Close callback."
+      }
+    ],
+    "methods": [
+      {
+        "name": "setContent",
+        "signature": "setContent(content)",
+        "returns": "this",
+        "description": "Replaces the panel body."
+      },
+      {
+        "name": "setButtons",
+        "signature": "setButtons(list)",
+        "returns": "this",
+        "description": "Replaces the header action area, right-aligned beside the title."
+      },
+      {
+        "name": "setFooter",
+        "signature": "setFooter(content)",
+        "returns": "this",
+        "description": "Replaces or removes the footer content. The footer bar appears whenever it has content, footer buttons, or both."
+      },
+      {
+        "name": "setFooterButtons",
+        "signature": "setFooterButtons(list)",
+        "returns": "this",
+        "description": "Replaces the footer action area, right-aligned in the footer bar."
+      },
+      {
+        "name": "open",
+        "signature": "open()",
+        "returns": "this",
+        "description": "Expands the panel."
+      },
+      {
+        "name": "close",
+        "signature": "close()",
+        "returns": "this",
+        "description": "Collapses the panel."
+      },
+      {
+        "name": "toggle",
+        "signature": "toggle()",
+        "returns": "this",
+        "description": "Toggles the panel's expanded state."
+      },
+      {
+        "name": "isOpen",
+        "signature": "isOpen()",
+        "returns": "boolean",
+        "description": "Reports whether the body is expanded."
+      }
+    ]
+  },
+  "Permission": {
+    "options": [
+      {
+        "name": "value",
+        "type": "boolean|string|number|symbol|bigint|null",
+        "default": "true",
+        "description": "Public, private, or group ID."
+      },
+      {
+        "name": "groups",
+        "type": "PermissionGroup[]",
+        "default": "[]",
+        "description": "Available groups."
+      },
+      {
+        "name": "groupsValueKey",
+        "type": "string|((item: PermissionGroup) => unknown)",
+        "default": "'ID'",
+        "description": "Group ID property or reader."
+      },
+      {
+        "name": "groupsLabelKey",
+        "type": "string|((item: PermissionGroup) => string)",
+        "default": "'name'",
+        "description": "Group label property or reader."
+      },
+      {
+        "name": "msg",
+        "type": "Record<string, string>|Record<string, Record<string, string>>",
+        "default": null,
+        "description": "Localized messages."
+      }
+    ],
+    "events": [
+      {
+        "name": "change",
+        "payload": "{value}",
+        "description": "Change listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "set",
+        "signature": "set(value, [options])",
+        "returns": "this",
+        "description": "Sets a public, private, or group permission."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": null,
+        "description": "Destroys the embedded Select and restores an enhanced target. @returns {void}"
+      }
+    ]
+  },
+  "Rating": {
+    "options": [
+      {
+        "name": "value",
+        "type": "number",
+        "default": "0",
+        "description": "Initial rating; 0 means unrated."
+      },
+      {
+        "name": "max",
+        "type": "number",
+        "default": "5",
+        "description": "Number of symbols."
+      },
+      {
+        "name": "allowHalf",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether half steps are selectable."
+      },
+      {
+        "name": "clearable",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether re-selecting the current value clears it."
+      },
+      {
+        "name": "readonly",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether the rating is display-only."
+      },
+      {
+        "name": "disabled",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether interaction is disabled."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "default": "'Rating'",
+        "description": "Accessible name of the group."
+      },
+      {
+        "name": "icon",
+        "type": "string",
+        "default": "'star'",
+        "description": "Icon name used for each symbol."
+      },
+      {
+        "name": "labels",
+        "type": "string[]|null",
+        "default": "null",
+        "description": "Per-step accessible names, lowest first."
+      },
+      {
+        "name": "showValue",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether to render the numeric value beside the symbols."
+      },
+      {
+        "name": "count",
+        "type": "number|null",
+        "default": "null",
+        "description": "Optional rating count rendered beside the value."
+      },
+      {
+        "name": "size",
+        "type": "'sm'|'md'|'lg'",
+        "default": "'md'",
+        "description": "Symbol size."
+      },
+      {
+        "name": "msg",
+        "type": "Record<string, string>|Record<string, Record<string, string>>",
+        "default": null,
+        "description": "Localized messages."
+      }
+    ],
+    "events": [
+      {
+        "name": "change",
+        "payload": "{value: number}",
+        "description": "Change listener."
+      },
+      {
+        "name": "hover",
+        "payload": "{value: number|null}",
+        "description": "Hover-preview listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "set",
+        "signature": "set(next, [options])",
+        "returns": "this",
+        "description": "Sets the rating, snapped to the configured step and clamped to `[0, max]`."
+      },
+      {
+        "name": "clear",
+        "signature": "clear([options])",
+        "returns": "this",
+        "description": "Clears the rating."
+      },
+      {
+        "name": "reset",
+        "signature": "reset([options])",
+        "returns": "this",
+        "description": "Restores the configured initial value."
+      },
+      {
+        "name": "setCount",
+        "signature": "setCount(count)",
+        "returns": "this",
+        "description": "Replaces the rating count shown beside the value."
+      },
+      {
+        "name": "focus",
+        "signature": "focus()",
+        "returns": null,
+        "description": "Focuses the selected step, or the first one when unrated. @returns {this}"
+      },
+      {
+        "name": "enable",
+        "signature": "enable()",
+        "returns": null,
+        "description": "Enables user interaction. @returns {this}"
+      },
+      {
+        "name": "disable",
+        "signature": "disable()",
+        "returns": null,
+        "description": "Disables user interaction. @returns {this}"
+      },
+      {
+        "name": "setReadonly",
+        "signature": "setReadonly(readonly)",
+        "returns": "this",
+        "description": "Sets the read-only state."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy(value, part, value, key, fallback, args, value, allowClear, value)",
+        "returns": "HTMLButtonElement",
+        "description": "Builds one selectable step."
+      }
+    ]
+  },
+  "Search": {
+    "options": [
+      {
+        "name": "placeholder",
+        "type": "string",
+        "default": "''",
+        "description": "Input placeholder."
+      },
+      {
+        "name": "value",
+        "type": "string",
+        "default": "''",
+        "description": "Initial query."
+      },
+      {
+        "name": "clearable",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether to show a clear control."
+      },
+      {
+        "name": "debounce",
+        "type": "number",
+        "default": "250",
+        "description": "Input debounce in milliseconds."
+      }
+    ],
+    "events": [
+      {
+        "name": "input",
+        "payload": "{value: string}",
+        "description": "Input callback."
+      },
+      {
+        "name": "submit",
+        "payload": "{value: string}",
+        "description": "Submit callback."
+      },
+      {
+        "name": "clear",
+        "payload": "Record<string, never>",
+        "description": "Clear callback."
+      }
+    ],
+    "methods": []
+  },
+  "Select": {
+    "options": [
+      {
+        "name": "items",
+        "type": "SelectItem[]",
+        "default": "[]",
+        "description": "Available values."
+      },
+      {
+        "name": "valueKey",
+        "type": "SelectValueReader",
+        "default": "'ID'",
+        "description": "Item ID property or reader."
+      },
+      {
+        "name": "labelKey",
+        "type": "SelectLabelReader",
+        "default": "'name'",
+        "description": "Item label property or reader."
+      },
+      {
+        "name": "renderItem",
+        "type": "((item: SelectItem) => Node|string)|null",
+        "default": "null",
+        "description": "Option renderer."
+      },
+      {
+        "name": "renderValue",
+        "type": "((item: SelectItem) => string)|null",
+        "default": "null",
+        "description": "Selected-value renderer."
+      },
+      {
+        "name": "value",
+        "type": "unknown",
+        "default": "null",
+        "description": "Initially selected ID or item."
+      },
+      {
+        "name": "disabled",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether interaction is disabled."
+      },
+      {
+        "name": "placeholder",
+        "type": "string",
+        "default": "''",
+        "description": "Empty control text."
+      },
+      {
+        "name": "clearable",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether selection may be cleared."
+      },
+      {
+        "name": "filter",
+        "type": "false|'local'|((query: string) => Promise<SelectItem[]>|SelectItem[])",
+        "default": "false",
+        "description": "Filtering mode."
+      },
+      {
+        "name": "searchKeys",
+        "type": "Array<SelectValueReader>|null",
+        "default": "null",
+        "description": "Fields searched by local filtering."
+      },
+      {
+        "name": "minQuery",
+        "type": "number",
+        "default": "0",
+        "description": "Minimum async query length."
+      },
+      {
+        "name": "debounce",
+        "type": "number",
+        "default": "200",
+        "description": "Async query delay in milliseconds."
+      },
+      {
+        "name": "listHeight",
+        "type": "number",
+        "default": "280",
+        "description": "Maximum list height in pixels."
+      },
+      {
+        "name": "groupKey",
+        "type": "SelectValueReader|null",
+        "default": "null",
+        "description": "Optional group reader."
+      },
+      {
+        "name": "msg",
+        "type": "Record<string, string>|Record<string, Record<string, string>>",
+        "default": null,
+        "description": "Localized messages."
+      }
+    ],
+    "events": [
+      {
+        "name": "change",
+        "payload": "{value, item}",
+        "description": "Change listener."
+      },
+      {
+        "name": "open",
+        "payload": "Record<string, never>",
+        "description": "Open listener."
+      },
+      {
+        "name": "close",
+        "payload": "Record<string, never>",
+        "description": "Close listener."
+      },
+      {
+        "name": "query",
+        "payload": "{query}",
+        "description": "Async-query listener."
+      },
+      {
+        "name": "loaded",
+        "payload": "{items}",
+        "description": "Async-loaded listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "setItems",
+        "signature": "setItems(items)",
+        "returns": "this",
+        "description": "Replaces the available items and preserves selection by ID when possible."
+      },
+      {
+        "name": "reset",
+        "signature": "reset([options])",
+        "returns": "this",
+        "description": "Restores the configured initial value."
+      },
+      {
+        "name": "open",
+        "signature": "open()",
+        "returns": null,
+        "description": "Opens the option panel. @returns {this} @fires Select#open"
+      },
+      {
+        "name": "enable",
+        "signature": "enable()",
+        "returns": null,
+        "description": "Enables user interaction. @returns {this}"
+      },
+      {
+        "name": "disable",
+        "signature": "disable()",
+        "returns": null,
+        "description": "Disables user interaction and closes the panel. @returns {this}"
+      },
+      {
+        "name": "focus",
+        "signature": "focus()",
+        "returns": null,
+        "description": "Moves focus to the combobox input. @returns {this}"
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": null,
+        "description": "Cleans up the panel, pending async work, and enhanced target contents. @returns {void}"
+      }
+    ]
+  },
+  "SplitView": {
+    "options": [
+      {
+        "name": "orientation",
+        "type": "'horizontal'|'vertical'",
+        "default": "'horizontal'",
+        "description": "Split axis. `horizontal` puts the panes side by side behind a vertical divider; `vertical` stacks them behind a horizontal one."
+      },
+      {
+        "name": "start",
+        "type": "SplitViewContent",
+        "default": "null",
+        "description": "Leading pane content (left, or top)."
+      },
+      {
+        "name": "end",
+        "type": "SplitViewContent",
+        "default": "null",
+        "description": "Trailing pane content (right, or bottom)."
+      },
+      {
+        "name": "size",
+        "type": "number|string",
+        "default": "'38%'",
+        "description": "Initial size of the START pane. A number is pixels, a string is any CSS length the browser understands; `%` resolves against the container."
+      },
+      {
+        "name": "min",
+        "type": "number",
+        "default": "160",
+        "description": "Smallest the start pane may become, in pixels."
+      },
+      {
+        "name": "max",
+        "type": "number|null",
+        "default": "null",
+        "description": "Largest the start pane may become, in pixels; null means \"as large as the container allows\"."
+      },
+      {
+        "name": "collapsible",
+        "type": "false|'start'|'end'",
+        "default": "false",
+        "description": "Which pane Enter/Space on the divider hides."
+      },
+      {
+        "name": "collapsed",
+        "type": "boolean|'start'|'end'",
+        "default": "false",
+        "description": "Whether a pane starts collapsed; `true` uses the `collapsible` pane."
+      },
+      {
+        "name": "snap",
+        "type": "number",
+        "default": "0",
+        "description": "Snap radius in pixels. A drag that ends within this distance of the initial size, the minimum, or the maximum lands exactly on it. `0` disables snapping."
+      },
+      {
+        "name": "storageKey",
+        "type": "string|null",
+        "default": "null",
+        "description": "Key under which the size is remembered between visits. Storage failures degrade to memory rather than throwing."
+      },
+      {
+        "name": "disabled",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether resizing is blocked."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "default": "'Resize panes'",
+        "description": "Accessible name of the divider."
+      }
+    ],
+    "events": [
+      {
+        "name": "resize",
+        "payload": "{size: number, ratio: number}",
+        "description": "Resize listener."
+      },
+      {
+        "name": "resizeend",
+        "payload": "{size: number, ratio: number}",
+        "description": "Resize-end listener."
+      },
+      {
+        "name": "collapse",
+        "payload": "{pane: 'start'|'end'}",
+        "description": "Collapse listener."
+      },
+      {
+        "name": "expand",
+        "payload": "Record<string, never>",
+        "description": "Expand listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "getRatio",
+        "signature": "getRatio()",
+        "returns": "number",
+        "description": "Returns the start pane's share of the container, between 0 and 1."
+      },
+      {
+        "name": "setStart",
+        "signature": "setStart(content)",
+        "returns": "this",
+        "description": "Replaces the start pane's content."
+      },
+      {
+        "name": "setEnd",
+        "signature": "setEnd(content)",
+        "returns": "this",
+        "description": "Replaces the end pane's content."
+      },
+      {
+        "name": "collapse",
+        "signature": "collapse([which])",
+        "returns": "this",
+        "description": "Folds one pane away, keeping the remembered size for `expand()`. Works whatever `collapsible` says — that option only governs the keyboard affordance."
+      },
+      {
+        "name": "expand",
+        "signature": "expand()",
+        "returns": "this",
+        "description": "Restores a collapsed pane to the size it had."
+      },
+      {
+        "name": "enable",
+        "signature": "enable()",
+        "returns": "this",
+        "description": "Allows resizing again and puts the divider back in the tab order."
+      },
+      {
+        "name": "disable",
+        "signature": "disable()",
+        "returns": "this",
+        "description": "Blocks pointer and keyboard resizing and takes the divider out of the tab order. Any drag in flight ends immediately."
+      },
+      {
+        "name": "isDisabled",
+        "signature": "isDisabled()",
+        "returns": "boolean",
+        "description": "Reports whether resizing is blocked."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Disconnects the observer, drops listeners, and restores an enhanced target's original content."
+      }
+    ]
+  },
+  "Stepper": {
+    "options": [
+      {
+        "name": "steps",
+        "type": "StepDefinition[]",
+        "default": "[]",
+        "description": "Ordered step definitions."
+      },
+      {
+        "name": "active",
+        "type": "string|null",
+        "default": "null",
+        "description": "Initially active step name; defaults to the first enabled step."
+      },
+      {
+        "name": "orientation",
+        "type": "StepperOrientation",
+        "default": "'horizontal'",
+        "description": "`horizontal` lays the rail out above the stage, `vertical` puts it beside the stage."
+      },
+      {
+        "name": "clickable",
+        "type": "StepperClickable",
+        "default": "'completed'",
+        "description": "Which steps are activated by a click: `completed` (go back only), `all`, or `false` for a display-only rail."
+      },
+      {
+        "name": "showNumbers",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether upcoming and active markers show their number."
+      },
+      {
+        "name": "counter",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether to render a \"Step 2 of 4\" line above the rail."
+      },
+      {
+        "name": "msg",
+        "type": "Record<string, string>|Record<string, Record<string, string>>",
+        "default": null,
+        "description": "Localized messages."
+      }
+    ],
+    "events": [
+      {
+        "name": "change",
+        "payload": "{name, previous, index}",
+        "description": "Change listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "goTo",
+        "signature": "goTo(name)",
+        "returns": "this",
+        "description": "Activates a step unless its `change` event is vetoed. Disabled steps are ignored."
+      },
+      {
+        "name": "next",
+        "signature": "next()",
+        "returns": "this",
+        "description": "Activates the next enabled step, marking the current one complete. Does nothing on the last enabled step."
+      },
+      {
+        "name": "previous",
+        "signature": "previous()",
+        "returns": "this",
+        "description": "Activates the previous enabled step. Going back never clears completion flags."
+      },
+      {
+        "name": "getActive",
+        "signature": "getActive()",
+        "returns": "string|null",
+        "description": "Returns the active step name."
+      },
+      {
+        "name": "getIndex",
+        "signature": "getIndex()",
+        "returns": "number",
+        "description": "Returns the zero-based active index."
+      },
+      {
+        "name": "complete",
+        "signature": "complete(name)",
+        "returns": "this",
+        "description": "Marks a step complete."
+      },
+      {
+        "name": "uncomplete",
+        "signature": "uncomplete(name)",
+        "returns": "this",
+        "description": "Clears a step's completion flag."
+      },
+      {
+        "name": "setError",
+        "signature": "setError(name, [errored])",
+        "returns": "this",
+        "description": "Flags or clears a step's error state. An errored step renders a warning marker and keeps its completion flag, so a wizard can still send the user back to fix it."
+      },
+      {
+        "name": "setDisabled",
+        "signature": "setDisabled(name, [disabled])",
+        "returns": "this",
+        "description": "Enables or disables a step. Disabling the active step leaves it active — the user is still standing on it — but `next()`, `previous()`, and `goTo()` will skip or refuse it afterwards."
+      },
+      {
+        "name": "getState",
+        "signature": "getState()",
+        "returns": "StepperState",
+        "description": "Returns a snapshot of the rail's state."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Aborts listeners and restores an enhanced target to the markup it had before the takeover."
+      }
+    ]
+  },
+  "Tabbox": {
+    "options": [
+      {
+        "name": "tabs",
+        "type": "TabDefinition[]",
+        "default": "[]",
+        "description": "Initial tabs."
+      },
+      {
+        "name": "active",
+        "type": "string|null",
+        "default": "null",
+        "description": "Initially active tab name, or the first enabled tab."
+      },
+      {
+        "name": "variant",
+        "type": "TabboxVariant",
+        "default": "'divided'",
+        "description": "`divided` sets flat blocks on a muted track above a bordered panel; `bracket` outlines folder tabs that fuse into that panel; `line` underlines the active tab across a full-width rule; `segmented` renders a compact group that reads as one control, for a toolbar or card header."
+      },
+      {
+        "name": "keepAlive",
+        "type": "boolean",
+        "default": "true",
+        "description": "Keep inactive panel elements mounted."
+      }
+    ],
+    "events": [
+      {
+        "name": "change",
+        "payload": "{name: string, previous: string|null}",
+        "description": "Change callback."
+      },
+      {
+        "name": "close",
+        "payload": "{name: string}",
+        "description": "Close callback."
+      }
+    ],
+    "methods": [
+      {
+        "name": "openTab",
+        "signature": "openTab(name)",
+        "returns": "this",
+        "description": "Activates an enabled tab unless its change event is vetoed."
+      },
+      {
+        "name": "show",
+        "signature": "show(name)",
+        "returns": "this",
+        "description": "Alias of `openTab()`."
+      },
+      {
+        "name": "getActive",
+        "signature": "getActive()",
+        "returns": "string|null",
+        "description": "Returns the active tab name."
+      },
+      {
+        "name": "setTitle",
+        "signature": "setTitle(name, title)",
+        "returns": "this",
+        "description": "Changes a tab title."
+      },
+      {
+        "name": "setBadge",
+        "signature": "setBadge(name, text)",
+        "returns": "this",
+        "description": "Sets or clears a tab badge."
+      },
+      {
+        "name": "enableTab",
+        "signature": "enableTab(name)",
+        "returns": "this",
+        "description": "Enables a tab."
+      },
+      {
+        "name": "disableTab",
+        "signature": "disableTab(name)",
+        "returns": "this",
+        "description": "Disables a tab, moving selection when it is active."
+      }
+    ]
+  },
+  "Table": {
+    "options": [
+      {
+        "name": "columns",
+        "type": "TableColumn[]",
+        "default": "[]",
+        "description": "Column definitions."
+      },
+      {
+        "name": "data",
+        "type": "TableRow[]",
+        "default": "[]",
+        "description": "Initial rows."
+      },
+      {
+        "name": "rowId",
+        "type": "string|((row: TableRow) => unknown)",
+        "default": "'ID'",
+        "description": "Row id accessor."
+      },
+      {
+        "name": "sort",
+        "type": "{id: string, dir: TableSortDirection}|null",
+        "default": "null",
+        "description": "Initial sort."
+      },
+      {
+        "name": "sortMode",
+        "type": "'local'|'server'",
+        "default": "'local'",
+        "description": "Whether sorting reorders local rows."
+      },
+      {
+        "name": "selectable",
+        "type": "TableSelectionMode",
+        "default": "false",
+        "description": "Row selection mode."
+      },
+      {
+        "name": "stickyHeader",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether column headers stick while scrolling."
+      },
+      {
+        "name": "height",
+        "type": "number|string|null",
+        "default": "null",
+        "description": "Scroll-region height in pixels or CSS units."
+      },
+      {
+        "name": "emptyText",
+        "type": "string|null",
+        "default": "null",
+        "description": "Empty message; null resolves `table.empty`."
+      },
+      {
+        "name": "rowClass",
+        "type": "((row: TableRow) => string)|null",
+        "default": "null",
+        "description": "Additional row class callback."
+      },
+      {
+        "name": "zebra",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether alternate rows use the zebra background."
+      },
+      {
+        "name": "editMode",
+        "type": "TableEditMode",
+        "default": "false",
+        "description": "Inline editing mode. `'cell'` edits one cell, `'row'` opens every editable cell of the row together and commits them as a unit. Editing is completely inert while this is `false`."
+      }
+    ],
+    "events": [
+      {
+        "name": "rowclick",
+        "payload": "{row, id, index, event}",
+        "description": ""
+      },
+      {
+        "name": "rowdblclick",
+        "payload": "{row, id, index, event}",
+        "description": ""
+      },
+      {
+        "name": "sort",
+        "payload": "{id, dir}",
+        "description": ""
+      },
+      {
+        "name": "selectionchange",
+        "payload": "{rows, ids}",
+        "description": ""
+      },
+      {
+        "name": "datachange",
+        "payload": "{rows}",
+        "description": ""
+      },
+      {
+        "name": "editstart",
+        "payload": "{row, id, column, columnId, value}",
+        "description": ""
+      },
+      {
+        "name": "editcommit",
+        "payload": "{row, id, column, columnId, value, previous, changes}",
+        "description": ""
+      },
+      {
+        "name": "editcancel",
+        "payload": "{row, id, column, columnId}",
+        "description": ""
+      },
+      {
+        "name": "editinvalid",
+        "payload": "{row, id, column, columnId, value, message}",
+        "description": ""
+      }
+    ],
+    "methods": [
+      {
+        "name": "setData",
+        "signature": "setData(rows)",
+        "returns": "this",
+        "description": "Replaces all rows."
+      },
+      {
+        "name": "addData",
+        "signature": "addData(rows)",
+        "returns": "this",
+        "description": "Appends rows to the current data."
+      },
+      {
+        "name": "updateRow",
+        "signature": "updateRow(id, row)",
+        "returns": "this",
+        "description": "Replaces the row identified by its current id."
+      },
+      {
+        "name": "removeRow",
+        "signature": "removeRow(id)",
+        "returns": "this",
+        "description": "Removes the row with the given id."
+      },
+      {
+        "name": "getRow",
+        "signature": "getRow(id)",
+        "returns": "TableRow|null",
+        "description": "Returns a row by id."
+      },
+      {
+        "name": "empty",
+        "signature": "empty()",
+        "returns": "this",
+        "description": "Removes all rows."
+      },
+      {
+        "name": "setSort",
+        "signature": "setSort(id, [dir], [options])",
+        "returns": "this",
+        "description": "Activates a column sort. Local mode stably reorders data; server mode only updates the header state and emits the request event."
+      },
+      {
+        "name": "setSelection",
+        "signature": "setSelection(ids)",
+        "returns": "this",
+        "description": "Replaces selected ids, ignoring ids absent from the current data."
+      },
+      {
+        "name": "clearSelection",
+        "signature": "clearSelection()",
+        "returns": "this",
+        "description": "Clears all selected rows."
+      },
+      {
+        "name": "startEdit",
+        "signature": "startEdit(rowId, columnId)",
+        "returns": "this",
+        "description": "Opens the editor for a cell. No-op unless the table runs with `editMode` and the column resolves to an editable type for that row. In `'row'` mode every editable cell of the row is opened and `columnId` only decides which editor receives focus. Any other open edit is committed first."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": null,
+        "description": "Restores an enhanced target and releases all component listeners. @returns {void}"
+      }
+    ]
+  },
+  "TagPicker": {
+    "options": [
+      {
+        "name": "items",
+        "type": "TagItem[]",
+        "default": "[]",
+        "description": "Selectable items."
+      },
+      {
+        "name": "values",
+        "type": "unknown[]",
+        "default": "[]",
+        "description": "Initially selected IDs."
+      },
+      {
+        "name": "valueKey",
+        "type": "TagValueReader",
+        "default": "'ID'",
+        "description": "Item ID property or reader."
+      },
+      {
+        "name": "labelKey",
+        "type": "TagLabelReader",
+        "default": "'name'",
+        "description": "Item label property or reader."
+      },
+      {
+        "name": "searchKeys",
+        "type": "Array<TagValueReader>|null",
+        "default": "null",
+        "description": "Fields searched by local filtering."
+      },
+      {
+        "name": "filter",
+        "type": "'local'|((query: string) => Promise<TagItem[]>|TagItem[])",
+        "default": "'local'",
+        "description": "Filtering mode."
+      },
+      {
+        "name": "minQuery",
+        "type": "number",
+        "default": "0",
+        "description": "Minimum async query length."
+      },
+      {
+        "name": "debounce",
+        "type": "number",
+        "default": "200",
+        "description": "Async query delay in milliseconds."
+      },
+      {
+        "name": "allowCreate",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether unknown values may be created from the query."
+      },
+      {
+        "name": "max",
+        "type": "number|null",
+        "default": "null",
+        "description": "Maximum number of selected values."
+      },
+      {
+        "name": "closeOnSelect",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether picking an item closes the list."
+      },
+      {
+        "name": "placeholder",
+        "type": "string",
+        "default": "''",
+        "description": "Empty-state input text."
+      },
+      {
+        "name": "listHeight",
+        "type": "number",
+        "default": "260",
+        "description": "Maximum list height in pixels."
+      },
+      {
+        "name": "disabled",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether interaction is disabled."
+      },
+      {
+        "name": "readonly",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether tags may be added or removed."
+      },
+      {
+        "name": "renderItem",
+        "type": "((item: TagItem) => Node|string)|null",
+        "default": "null",
+        "description": "Option renderer."
+      },
+      {
+        "name": "renderTag",
+        "type": "((item: TagItem) => Node|string)|null",
+        "default": "null",
+        "description": "Tag-label renderer."
+      },
+      {
+        "name": "msg",
+        "type": "Record<string, string>|Record<string, Record<string, string>>",
+        "default": null,
+        "description": "Localized messages."
+      }
+    ],
+    "events": [
+      {
+        "name": "change",
+        "payload": "{values: unknown[], items: TagItem[]}",
+        "description": "Change listener."
+      },
+      {
+        "name": "add",
+        "payload": "{value: unknown, item: TagItem}",
+        "description": "Add listener."
+      },
+      {
+        "name": "remove",
+        "payload": "{value: unknown, item: TagItem}",
+        "description": "Remove listener."
+      },
+      {
+        "name": "create",
+        "payload": "{value: unknown, item: TagItem}",
+        "description": "Create listener."
+      },
+      {
+        "name": "query",
+        "payload": "{query: string}",
+        "description": "Async-query listener."
+      },
+      {
+        "name": "open",
+        "payload": "Record<string, never>",
+        "description": "Open listener."
+      },
+      {
+        "name": "close",
+        "payload": "Record<string, never>",
+        "description": "Close listener."
+      },
+      {
+        "name": "error",
+        "payload": "{error: Error}",
+        "description": "Async-failure listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "getItems",
+        "signature": "getItems()",
+        "returns": "TagItem[]",
+        "description": "Returns the selected items."
+      },
+      {
+        "name": "setValues",
+        "signature": "setValues(values, [options])",
+        "returns": "this",
+        "description": "Replaces the whole selection."
+      },
+      {
+        "name": "addValue",
+        "signature": "addValue(value, [options])",
+        "returns": "this",
+        "description": "Adds one value to the selection."
+      },
+      {
+        "name": "removeValue",
+        "signature": "removeValue(value, [options])",
+        "returns": "this",
+        "description": "Removes one value from the selection."
+      },
+      {
+        "name": "clear",
+        "signature": "clear([options])",
+        "returns": "this",
+        "description": "Clears the selection."
+      },
+      {
+        "name": "reset",
+        "signature": "reset([options])",
+        "returns": "this",
+        "description": "Restores the configured initial selection."
+      },
+      {
+        "name": "setItems",
+        "signature": "setItems(items)",
+        "returns": "this",
+        "description": "Replaces the catalogue of selectable items."
+      },
+      {
+        "name": "isFull",
+        "signature": "isFull()",
+        "returns": null,
+        "description": "Reports whether the configured maximum is reached. @returns {boolean}"
+      },
+      {
+        "name": "open",
+        "signature": "open()",
+        "returns": null,
+        "description": "Opens the option list. @returns {this}"
+      },
+      {
+        "name": "focus",
+        "signature": "focus()",
+        "returns": null,
+        "description": "Focuses the text input. @returns {this}"
+      },
+      {
+        "name": "enable",
+        "signature": "enable()",
+        "returns": null,
+        "description": "Enables user interaction. @returns {this}"
+      },
+      {
+        "name": "disable",
+        "signature": "disable()",
+        "returns": null,
+        "description": "Disables user interaction and closes the list. @returns {this}"
+      },
+      {
+        "name": "setReadonly",
+        "signature": "setReadonly(readonly)",
+        "returns": "this",
+        "description": "Sets the read-only state."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": null,
+        "description": "Cancels pending work and restores an enhanced target. @returns {void}"
+      }
+    ]
+  },
+  "TimePicker": {
+    "options": [
+      {
+        "name": "value",
+        "type": "TimePickerValue|Date|null",
+        "default": "null",
+        "description": "Initial local time."
+      },
+      {
+        "name": "seconds",
+        "type": "boolean",
+        "default": "false",
+        "description": "Show the seconds spinbutton."
+      },
+      {
+        "name": "step",
+        "type": "number",
+        "default": "5",
+        "description": "Minute increment used by arrow keys."
+      },
+      {
+        "name": "clock",
+        "type": "boolean",
+        "default": "true",
+        "description": "Offer a clock-face dial behind a toggle button."
+      }
+    ],
+    "events": [
+      {
+        "name": "change",
+        "payload": "{time: TimePickerValue}",
+        "description": "Change listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "set",
+        "signature": "set(value, [options])",
+        "returns": "this",
+        "description": "Sets the displayed local time."
+      },
+      {
+        "name": "openClock",
+        "signature": "openClock([unit])",
+        "returns": "this",
+        "description": "Opens the clock face on the given unit."
+      },
+      {
+        "name": "closeClock",
+        "signature": "closeClock()",
+        "returns": null,
+        "description": "Closes the clock face. @returns {this}"
+      },
+      {
+        "name": "toggleClock",
+        "signature": "toggleClock()",
+        "returns": null,
+        "description": "Toggles the clock face. @returns {this}"
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": null,
+        "description": "Removes generated content from an enhanced target. @returns {void}"
+      }
+    ]
+  },
+  "Timebox": {
+    "options": [
+      {
+        "name": "value",
+        "type": "number",
+        "default": "0",
+        "description": "Initial duration in `unit`."
+      },
+      {
+        "name": "unit",
+        "type": "TimeUnit",
+        "default": "'minutes'",
+        "description": "Default input and output unit."
+      },
+      {
+        "name": "seconds",
+        "type": "boolean",
+        "default": "false",
+        "description": "Show a seconds segment."
+      },
+      {
+        "name": "signed",
+        "type": "boolean",
+        "default": "false",
+        "description": "Show a positive/negative toggle."
+      },
+      {
+        "name": "disabled",
+        "type": "boolean",
+        "default": "false",
+        "description": "Disable all controls."
+      }
+    ],
+    "events": [
+      {
+        "name": "change",
+        "payload": "{value: number}",
+        "description": "Change listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "set",
+        "signature": "set(value, [unit], [options])",
+        "returns": "this",
+        "description": "Sets the current duration."
+      },
+      {
+        "name": "enable",
+        "signature": "enable()",
+        "returns": null,
+        "description": "Enables the timebox. @returns {this}"
+      },
+      {
+        "name": "disable",
+        "signature": "disable()",
+        "returns": null,
+        "description": "Disables the timebox. @returns {this}"
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": null,
+        "description": "Removes generated content from an enhanced target. @returns {void}"
+      }
+    ]
+  },
+  "Toggle": {
+    "options": [
+      {
+        "name": "checked",
+        "type": "boolean",
+        "default": "false",
+        "description": "Initial switch state."
+      },
+      {
+        "name": "value",
+        "type": "*",
+        "default": "true",
+        "description": "Value returned while on."
+      },
+      {
+        "name": "label",
+        "type": "string|null",
+        "default": "null",
+        "description": "Optional visible label."
+      },
+      {
+        "name": "disabled",
+        "type": "boolean",
+        "default": "false",
+        "description": "Initial disabled state."
+      }
+    ],
+    "events": [
+      {
+        "name": "change",
+        "payload": "{checked: boolean, value: *}",
+        "description": "Change callback."
+      }
+    ],
+    "methods": [
+      {
+        "name": "set",
+        "signature": "set(checked, [options])",
+        "returns": "this",
+        "description": "Sets the switch state."
+      },
+      {
+        "name": "toggle",
+        "signature": "toggle()",
+        "returns": "this",
+        "description": "Toggles the switch state."
+      },
+      {
+        "name": "getValue",
+        "signature": "getValue()",
+        "returns": "*",
+        "description": "Returns the configured value while on, otherwise `false`."
+      },
+      {
+        "name": "enable",
+        "signature": "enable()",
+        "returns": "this",
+        "description": "Enables user interaction."
+      },
+      {
+        "name": "disable",
+        "signature": "disable()",
+        "returns": "this",
+        "description": "Disables user interaction."
+      }
+    ]
+  },
+  "Toolbar": {
+    "options": [
+      {
+        "name": "items",
+        "type": "ToolbarItem[]",
+        "default": "[]",
+        "description": "Controls, separators (`'-'`), and ready-made Elements."
+      },
+      {
+        "name": "align",
+        "type": "'start'|'end'|'between'",
+        "default": "'start'",
+        "description": "Horizontal distribution."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "default": "'Toolbar'",
+        "description": "Accessible name of the toolbar."
+      },
+      {
+        "name": "overflow",
+        "type": "boolean",
+        "default": "true",
+        "description": "Collapses items that no longer fit into a trailing menu."
+      },
+      {
+        "name": "overflowLabel",
+        "type": "string",
+        "default": "'More'",
+        "description": "Accessible name of the overflow menu trigger."
+      },
+      {
+        "name": "dense",
+        "type": "boolean",
+        "default": "false",
+        "description": "Tighter spacing and small controls."
+      }
+    ],
+    "events": [
+      {
+        "name": "action",
+        "payload": "{name: string|null, item: Element}",
+        "description": "Action listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "enable",
+        "signature": "enable(name)",
+        "returns": "this",
+        "description": "Enables an item."
+      },
+      {
+        "name": "disable",
+        "signature": "disable(name)",
+        "returns": "this",
+        "description": "Disables an item."
+      },
+      {
+        "name": "setActive",
+        "signature": "setActive(name, [active])",
+        "returns": "this",
+        "description": "Sets the pressed state of a toggle item."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Removes listeners, the resize observer, the overflow menu, and any DOM changes made to an adopted target."
+      }
+    ]
+  },
+  "Tooltip": {
+    "options": [
+      {
+        "name": "content",
+        "type": "TooltipContent",
+        "default": "''",
+        "description": "Bubble content, re-evaluated on each open when a function."
+      },
+      {
+        "name": "placement",
+        "type": "'top'|'bottom'|'top-start'|'top-end'|'bottom-start'|'bottom-end'",
+        "default": "'top'",
+        "description": "Preferred side; flips when it would overflow."
+      },
+      {
+        "name": "offset",
+        "type": "number",
+        "default": "6",
+        "description": "Gap between anchor and bubble in pixels."
+      },
+      {
+        "name": "delay",
+        "type": "number",
+        "default": "400",
+        "description": "Delay before a hover opens the tooltip, in milliseconds."
+      },
+      {
+        "name": "hideDelay",
+        "type": "number",
+        "default": "80",
+        "description": "Delay before a leave or blur closes it, in milliseconds."
+      },
+      {
+        "name": "maxWidth",
+        "type": "number|string",
+        "default": "260",
+        "description": "Maximum bubble width; a number is pixels, a string is any CSS length."
+      },
+      {
+        "name": "trigger",
+        "type": "'hover'|'focus'|'both'|'manual'",
+        "default": "'both'",
+        "description": "Which interactions open the tooltip."
+      },
+      {
+        "name": "disabled",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether the tooltip starts suppressed."
+      }
+    ],
+    "events": [
+      {
+        "name": "open",
+        "payload": "Record<string, never>",
+        "description": "Open event listener."
+      },
+      {
+        "name": "close",
+        "payload": "Record<string, never>",
+        "description": "Close event listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "show",
+        "signature": "show()",
+        "returns": "this",
+        "description": "Opens the tooltip, evaluating the content first. Does nothing while disabled, already open, or when the content resolves to nothing."
+      },
+      {
+        "name": "toggle",
+        "signature": "toggle()",
+        "returns": "this",
+        "description": "Opens a closed tooltip, closes an open one."
+      },
+      {
+        "name": "isOpen",
+        "signature": "isOpen()",
+        "returns": "boolean",
+        "description": "Reports whether the bubble is currently visible."
+      },
+      {
+        "name": "setContent",
+        "signature": "setContent(content)",
+        "returns": "this",
+        "description": "Replaces the content. Strings are never parsed as HTML. A function is stored, not called, and runs on every subsequent open."
+      },
+      {
+        "name": "enable",
+        "signature": "enable()",
+        "returns": "this",
+        "description": "Allows the tooltip to open again."
+      },
+      {
+        "name": "disable",
+        "signature": "disable()",
+        "returns": "this",
+        "description": "Suppresses the tooltip and closes it if it is open."
+      },
+      {
+        "name": "isDisabled",
+        "signature": "isDisabled()",
+        "returns": "boolean",
+        "description": "Reports whether the tooltip is currently suppressed."
+      },
+      {
+        "name": "getAnchor",
+        "signature": "getAnchor()",
+        "returns": "Element",
+        "description": "Returns the anchor the tooltip describes."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Closes the tooltip, removes the bubble, and puts the anchor's ARIA back as it was found."
+      }
+    ]
+  },
+  "TreeView": {
+    "options": [
+      {
+        "name": "items",
+        "type": "TreeNode[]",
+        "default": "[]",
+        "description": "Nested nodes."
+      },
+      {
+        "name": "valueKey",
+        "type": "string|((node: TreeNode) => unknown)",
+        "default": "'ID'",
+        "description": "Node ID property or reader."
+      },
+      {
+        "name": "labelKey",
+        "type": "string|((node: TreeNode) => string)",
+        "default": "'name'",
+        "description": "Node label property or reader."
+      },
+      {
+        "name": "childrenKey",
+        "type": "string",
+        "default": "'children'",
+        "description": "Property holding child nodes."
+      },
+      {
+        "name": "expanded",
+        "type": "unknown[]",
+        "default": "[]",
+        "description": "Initially expanded node IDs."
+      },
+      {
+        "name": "selection",
+        "type": "false|'single'|'multi'",
+        "default": "'single'",
+        "description": "Selection mode."
+      },
+      {
+        "name": "selected",
+        "type": "unknown[]",
+        "default": "[]",
+        "description": "Initially selected node IDs."
+      },
+      {
+        "name": "checkboxes",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether to render tri-state checkboxes."
+      },
+      {
+        "name": "checked",
+        "type": "unknown[]",
+        "default": "[]",
+        "description": "Initially checked node IDs."
+      },
+      {
+        "name": "icons",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether to render folder and file icons."
+      },
+      {
+        "name": "renderLabel",
+        "type": "((node: TreeNode) => Node|string)|null",
+        "default": "null",
+        "description": "Label renderer."
+      },
+      {
+        "name": "load",
+        "type": "((node: TreeNode) => Promise<TreeNode[]>|TreeNode[])|null",
+        "default": "null",
+        "description": "Lazy child loader."
+      },
+      {
+        "name": "filter",
+        "type": "string",
+        "default": "''",
+        "description": "Label substring the tree is filtered by."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "default": "'Tree'",
+        "description": "Accessible name of the tree."
+      },
+      {
+        "name": "emptyText",
+        "type": "string",
+        "default": "'Nothing to show'",
+        "description": "Text shown when the tree is empty."
+      },
+      {
+        "name": "height",
+        "type": "number|string|null",
+        "default": "null",
+        "description": "Scroll height in pixels or any CSS length."
+      },
+      {
+        "name": "msg",
+        "type": "Record<string, string>|Record<string, Record<string, string>>",
+        "default": null,
+        "description": "Localized messages."
+      }
+    ],
+    "events": [
+      {
+        "name": "select",
+        "payload": "{node: TreeNode, id: unknown, ids: unknown[]}",
+        "description": "Selection listener."
+      },
+      {
+        "name": "expand",
+        "payload": "{node: TreeNode, id: unknown}",
+        "description": "Expand listener."
+      },
+      {
+        "name": "collapse",
+        "payload": "{node: TreeNode, id: unknown}",
+        "description": "Collapse listener."
+      },
+      {
+        "name": "activate",
+        "payload": "{node: TreeNode, id: unknown}",
+        "description": "Activation listener."
+      },
+      {
+        "name": "check",
+        "payload": "{ids: unknown[], node: TreeNode|null}",
+        "description": "Check listener."
+      },
+      {
+        "name": "error",
+        "payload": "{error: Error, node: TreeNode, id: unknown}",
+        "description": "Loader-failure listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "getItems",
+        "signature": "getItems()",
+        "returns": "TreeNode[]",
+        "description": "Returns the working copy of the tree, including lazily loaded children."
+      },
+      {
+        "name": "getNode",
+        "signature": "getNode(id)",
+        "returns": "TreeNode|null",
+        "description": "Looks a node up by ID."
+      },
+      {
+        "name": "getPath",
+        "signature": "getPath(id)",
+        "returns": "TreeNode[]",
+        "description": "Returns the chain of nodes from a root down to the given node."
+      },
+      {
+        "name": "setFilter",
+        "signature": "setFilter(query)",
+        "returns": "this",
+        "description": "Filters the tree by a label substring, keeping the ancestors of every match."
+      },
+      {
+        "name": "expand",
+        "signature": "expand(id)",
+        "returns": "Promise<this>",
+        "description": "Expands one branch, loading its children first when a lazy loader is configured."
+      },
+      {
+        "name": "collapse",
+        "signature": "collapse(id)",
+        "returns": "this",
+        "description": "Collapses one branch."
+      },
+      {
+        "name": "toggle",
+        "signature": "toggle(id)",
+        "returns": "Promise<this>",
+        "description": "Expands or collapses one branch."
+      },
+      {
+        "name": "expandAll",
+        "signature": "expandAll()",
+        "returns": "this",
+        "description": "Expands every already-loaded branch."
+      },
+      {
+        "name": "collapseAll",
+        "signature": "collapseAll()",
+        "returns": null,
+        "description": "Collapses every branch. @returns {this}"
+      },
+      {
+        "name": "reveal",
+        "signature": "reveal(id)",
+        "returns": "this",
+        "description": "Expands every ancestor of a node so the node becomes visible."
+      },
+      {
+        "name": "select",
+        "signature": "select(id, [options])",
+        "returns": "this",
+        "description": "Selects one node, replacing the selection in single mode."
+      },
+      {
+        "name": "getSelection",
+        "signature": "getSelection()",
+        "returns": "unknown[]",
+        "description": "Returns the selected node IDs."
+      },
+      {
+        "name": "setSelection",
+        "signature": "setSelection(ids, [options])",
+        "returns": "this",
+        "description": "Replaces the selection."
+      },
+      {
+        "name": "clearSelection",
+        "signature": "clearSelection()",
+        "returns": null,
+        "description": "Clears the selection. @returns {this}"
+      },
+      {
+        "name": "getChecked",
+        "signature": "getChecked([options])",
+        "returns": "unknown[]",
+        "description": "Returns the checked node IDs."
+      },
+      {
+        "name": "setChecked",
+        "signature": "setChecked(ids, [options])",
+        "returns": "this",
+        "description": "Replaces the checked set, propagating each ID down its sub-tree."
+      },
+      {
+        "name": "check",
+        "signature": "check(id, checked, [options])",
+        "returns": "this",
+        "description": "Checks or unchecks one node and its sub-tree."
+      },
+      {
+        "name": "focusNode",
+        "signature": "focusNode(id)",
+        "returns": "this",
+        "description": "Moves DOM focus to a node, revealing it first."
+      }
+    ]
+  },
+  "ValueList": {
+    "options": [
+      {
+        "name": "values",
+        "type": "unknown[]",
+        "default": "[]",
+        "description": "Initial ordered values."
+      },
+      {
+        "name": "placeholder",
+        "type": "string",
+        "default": "''",
+        "description": "Input placeholder."
+      },
+      {
+        "name": "deletable",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether values can be removed."
+      },
+      {
+        "name": "sortable",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether values can be reordered."
+      },
+      {
+        "name": "unique",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether duplicate strings are rejected."
+      },
+      {
+        "name": "validate",
+        "type": "((value: string) => boolean|string)|null",
+        "default": "null",
+        "description": "Value validator."
+      }
+    ],
+    "events": [],
+    "methods": [
+      {
+        "name": "setValues",
+        "signature": "setValues(values, [options])",
+        "returns": "this",
+        "description": "Replaces all values."
+      },
+      {
+        "name": "addValue",
+        "signature": "addValue(value)",
+        "returns": "boolean",
+        "description": "Validates and appends one value."
+      },
+      {
+        "name": "removeValue",
+        "signature": "removeValue(value)",
+        "returns": "boolean",
+        "description": "Removes the first matching value."
+      },
+      {
+        "name": "focus",
+        "signature": "focus()",
+        "returns": "this",
+        "description": "Focuses the value input."
+      },
+      {
+        "name": "enable",
+        "signature": "enable()",
+        "returns": "this",
+        "description": "Enables editing."
+      },
+      {
+        "name": "disable",
+        "signature": "disable()",
+        "returns": "this",
+        "description": "Disables editing, removal, and reordering."
+      }
+    ]
+  }
+}

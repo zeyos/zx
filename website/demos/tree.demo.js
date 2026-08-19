@@ -47,6 +47,7 @@ function catalogue() {
 export default {
   title: 'Tree view',
   group: 'Data',
+  api: ['TreeView'],
   blurb: 'A hierarchy following the APG tree pattern: arrow-key navigation, expand and collapse, '
     + 'typeahead, lazy children, and optional tri-state checkboxes.',
 

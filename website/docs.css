@@ -260,6 +260,53 @@
   border-collapse: collapse;
 }
 
+/* Generated tables carry a colgroup; the parsed ones size themselves to their two columns. */
+.docs-api__table:has(colgroup) {
+  table-layout: fixed;
+}
+
+.docs-api__head {
+  padding: 0 var(--zx-space-5) var(--zx-space-2) 0;
+  border-block-end: 1px solid var(--zx-color-border);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-align: start;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.docs-api__head:last-child {
+  padding-inline-end: 0;
+}
+
+/* Under a fixed layout the shares decide the widths, so the cells only have to say how their
+   content may break. Signatures and types are long and unbreakable at spaces. */
+.docs-api__table:has(colgroup) :is(.docs-api__term, .docs-api__type) {
+  inline-size: auto;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+/* Type and default sit between the name and the prose: narrow, monospaced, and never the column
+   that absorbs slack — the description does that. */
+.docs-api__type {
+  inline-size: 1%;
+  padding: var(--zx-space-2) var(--zx-space-5) var(--zx-space-2) 0;
+  border-block-end: 1px solid var(--zx-color-border);
+  vertical-align: baseline;
+  white-space: nowrap;
+}
+
+.docs-api__type code {
+  color: var(--zx-color-text-muted);
+}
+
+.docs-api__table tr:last-child .docs-api__type {
+  border-block-end: 0;
+}
+
 /* The name column sizes to its content so the notes get the rest, and never wraps mid-signature. */
 .docs-api__term {
   inline-size: 1%;
