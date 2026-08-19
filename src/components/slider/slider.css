@@ -1,0 +1,181 @@
+.zx-slider {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zx-space-2);
+  inline-size: 100%;
+  --zx-slider-thumb: 16px;
+  --zx-slider-rail: 4px;
+}
+
+.zx-slider[data-size="sm"] {
+  --zx-slider-thumb: 12px;
+  --zx-slider-rail: 3px;
+}
+
+.zx-slider__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--zx-space-3);
+  font-size: var(--zx-control-font-size);
+}
+
+.zx-slider__label {
+  color: var(--zx-color-text);
+  font-weight: 500;
+}
+
+.zx-slider__value {
+  color: var(--zx-color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.zx-slider__value:empty {
+  display: none;
+}
+
+.zx-slider[data-hide-label] .zx-slider__label {
+  position: absolute;
+  clip-path: inset(50%);
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.zx-slider__control {
+  display: flex;
+  align-items: start;
+  gap: var(--zx-space-3);
+}
+
+/*
+ * The bounds centre on the RAIL, not on the control: with marks below it the track grows taller,
+ * and centring on the whole box would float `0` up beside the first mark label instead of beside
+ * the value it bounds. The offset is half the difference between the rail row and this line box.
+ */
+.zx-slider__bound {
+  flex: none;
+  align-self: start;
+  margin-block-start: calc((var(--zx-slider-thumb) - 1.5em) / 2);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.zx-slider__track {
+  position: relative;
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+/*
+ * base.css gives every bare input the control box — a minimum height, a border, a radius, and
+ * inline padding. A range input wants none of them: the element IS the rail, so all four are
+ * cleared here rather than fought with later.
+ */
+.zx-slider__input {
+  display: block;
+  appearance: none;
+  inline-size: 100%;
+  min-block-size: 0;
+  block-size: var(--zx-slider-thumb);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.zx-slider__input::-webkit-slider-runnable-track {
+  block-size: var(--zx-slider-rail);
+  border-radius: var(--zx-radius-full);
+  background: linear-gradient(
+    to right,
+    var(--zx-color-accent) 0 var(--zx-slider-fill, 0%),
+    var(--zx-color-bg-muted) var(--zx-slider-fill, 0%) 100%
+  );
+}
+
+.zx-slider__input::-moz-range-track {
+  block-size: var(--zx-slider-rail);
+  border-radius: var(--zx-radius-full);
+  background: var(--zx-color-bg-muted);
+}
+
+.zx-slider__input::-moz-range-progress {
+  block-size: var(--zx-slider-rail);
+  border-radius: var(--zx-radius-full);
+  background: var(--zx-color-accent);
+}
+
+.zx-slider__input::-webkit-slider-thumb {
+  appearance: none;
+  inline-size: var(--zx-slider-thumb);
+  block-size: var(--zx-slider-thumb);
+  /* Centres the thumb on the rail: half the difference between the two heights. */
+  margin-block-start: calc((var(--zx-slider-rail) - var(--zx-slider-thumb)) / 2);
+  border: 2px solid var(--zx-color-bg-surface);
+  border-radius: var(--zx-radius-full);
+  background: var(--zx-color-accent);
+  box-shadow: var(--zx-shadow-1);
+}
+
+.zx-slider__input::-moz-range-thumb {
+  inline-size: var(--zx-slider-thumb);
+  block-size: var(--zx-slider-thumb);
+  border: 2px solid var(--zx-color-bg-surface);
+  border-radius: var(--zx-radius-full);
+  background: var(--zx-color-accent);
+  box-shadow: var(--zx-shadow-1);
+}
+
+.zx-slider__input:focus-visible {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  box-shadow: var(--zx-focus-ring);
+  border-radius: var(--zx-radius-full);
+}
+
+/* Wide enough for five digits beside the native spin buttons, which eat more room than they look. */
+.zx-slider__number {
+  flex: none;
+  align-self: start;
+  inline-size: 10ch;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.zx-slider__marks {
+  position: relative;
+  block-size: var(--zx-space-5);
+  margin-block-start: var(--zx-space-1);
+}
+
+.zx-slider__mark {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: var(--zx-slider-mark, 0%);
+  transform: translateX(-50%);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  white-space: nowrap;
+}
+
+.zx-slider[data-disabled] {
+  opacity: 0.55;
+}
+
+.zx-slider[data-disabled] .zx-slider__input,
+.zx-slider[data-readonly] .zx-slider__input {
+  cursor: not-allowed;
+}
+
+.zx-slider[data-readonly] .zx-slider__input::-webkit-slider-thumb {
+  background: var(--zx-color-text-muted);
+}
+
+.zx-slider[data-readonly] .zx-slider__input::-moz-range-thumb {
+  background: var(--zx-color-text-muted);
+}
