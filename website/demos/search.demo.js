@@ -3,74 +3,57 @@ import { h, Search } from '../../src/index.js';
 export default {
   title: 'Search',
   group: 'Inputs',
+  blurb: 'A debounced search field with a clear button and a submit on Enter.',
 
-  /**
-   * Mounts clearable and persistent search fields with event output.
-   * @param {HTMLElement} container Demo stage.
-   * @returns {void}
-   */
-  mount(container) {
-    const marker = h('div');
-    const log = output('Type to see debounced input events.');
-    const clearable = new Search(null, {
-      placeholder: 'Search contacts', value: 'Ada', debounce: 250
-    });
-    const persistent = new Search(null, {
-      placeholder: 'Search reference', clearable: false, debounce: 0
-    });
-    const components = [clearable, persistent];
-    components.forEach((component, index) => {
-      component.on('input', (event) => {
-        log.textContent = `Search ${index + 1} input: “${event.detail.value}”`;
-      });
-      component.on('submit', (event) => {
-        log.textContent = `Search ${index + 1} submit: “${event.detail.value}”`;
-      });
-      component.on('clear', () => { log.textContent = `Search ${index + 1} cleared`; });
-    });
-    marker.append(
-      section('Variants', row(clearable.toElement(), persistent.toElement())),
-      section('Programmatic API', row(
-        h('button', { type: 'button', onclick: () => clearable.set('Grace Hopper') }, 'Set value'),
-        h('button', { type: 'button', onclick: () => clearable.clear() }, 'Clear'),
-        h('button', { type: 'button', onclick: () => persistent.focus() }, 'Focus second')
-      )),
-      log
-    );
-    container.append(marker);
-    cleanupWhenRemoved(marker, () => components.forEach((component) => component.destroy()));
-  }
+  examples: [
+    {
+      title: 'Debounced and clearable',
+      blurb: 'input fires once the reader stops typing, submit on Enter, and clear when the '
+        + 'button or Escape empties the field. Watch the log: at 250 ms, keystrokes coalesce.',
+      width: '360px',
+      render: ({ cleanup, log }) => {
+        const search = new Search(null, {
+          placeholder: 'Search contacts',
+          value: 'Ada',
+          debounce: 250
+        });
+        search.on('input', ({ detail }) => log(`input “${detail.value}”`));
+        search.on('submit', ({ detail }) => log(`submit “${detail.value}”`));
+        search.on('clear', () => log('clear'));
+        cleanup(() => search.destroy());
+        return search.toElement();
+      }
+    },
+    {
+      title: 'Without the clear button',
+      blurb: 'clearable: false keeps the field a plain input — the right shape when it filters a '
+        + 'list that is never fully cleared. debounce: 0 reports every keystroke.',
+      width: '360px',
+      render: ({ cleanup, log }) => {
+        const search = new Search(null, {
+          placeholder: 'Search reference',
+          clearable: false,
+          debounce: 0
+        });
+        search.on('input', ({ detail }) => log(`input “${detail.value}”`));
+        cleanup(() => search.destroy());
+        return search.toElement();
+      }
+    },
+    {
+      title: 'Programmatic control',
+      blurb: 'set() writes a value without firing input; clear() and focus() drive the field from '
+        + 'a toolbar or a keyboard shortcut.',
+      render: ({ cleanup }) => {
+        const search = new Search(null, { placeholder: 'Search contacts' });
+        cleanup(() => search.destroy());
+        return [
+          h('div', { style: { inlineSize: '260px' } }, search.toElement()),
+          h('button', { type: 'button', onclick: () => search.set('Grace Hopper') }, 'set(…)'),
+          h('button', { type: 'button', onclick: () => search.clear() }, 'clear()'),
+          h('button', { type: 'button', onclick: () => search.focus() }, 'focus()')
+        ];
+      }
+    }
+  ]
 };
-
-/** @param {...Node} children @returns {HTMLElement} */
-function row(...children) {
-  return h('div', { style: {
-    display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 'var(--zx-space-4)'
-  } }, children);
-}
-
-/** @param {string} title @param {...Node} children @returns {HTMLElement} */
-function section(title, ...children) {
-  return h('section', { style: {
-    display: 'grid', gap: 'var(--zx-space-4)', marginBlockEnd: 'var(--zx-space-6)',
-    border: '1px solid var(--zx-color-border)', borderRadius: 'var(--zx-radius-lg)',
-    background: 'var(--zx-color-bg-surface)', padding: 'var(--zx-space-5)'
-  } }, h('h2', { style: { margin: '0', fontSize: 'var(--zx-text-xl)' } }, title), children);
-}
-
-/** @param {string} text @returns {HTMLOutputElement} */
-function output(text) {
-  return /** @type {HTMLOutputElement} */ (h('output', {
-    ariaLive: 'polite', style: { display: 'block', color: 'var(--zx-color-text-muted)' }
-  }, text));
-}
-
-/** @param {Node} marker @param {() => void} cleanup @returns {void} */
-function cleanupWhenRemoved(marker, cleanup) {
-  const observer = new MutationObserver(() => {
-    if (marker.isConnected) return;
-    cleanup();
-    observer.disconnect();
-  });
-  observer.observe(document.body, { childList: true, subtree: true });
-}

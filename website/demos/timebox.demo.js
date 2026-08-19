@@ -1,84 +1,40 @@
 import { Timebox, h } from '../../src/index.js';
 
-const cardStyle = {
-  display: 'grid',
-  alignContent: 'start',
-  gap: 'var(--zx-space-3)',
-  border: '1px solid var(--zx-color-border)',
-  borderRadius: 'var(--zx-radius-lg)',
-  background: 'var(--zx-color-bg-surface)',
-  padding: 'var(--zx-space-5)'
-};
-
 export default {
   title: 'Timebox',
   group: 'Inputs',
+  blurb: 'A duration field. The value is a plain number in the unit you name; the display is the '
+    + 'h:mm the reader expects.',
 
-  /** @param {HTMLElement} container Demo stage. @returns {void} */
-  mount(container) {
-    const minutesOutput = readout();
-    const secondsOutput = readout();
-    const signedOutput = readout();
-    const minutes = new Timebox(null, {
-      value: 95,
-      unit: 'minutes',
-      onchange: (event) => show(minutesOutput, event.detail.value, 'minutes')
-    });
-    const seconds = new Timebox(null, {
-      value: 90061,
-      unit: 'seconds',
-      seconds: true,
-      onchange: (event) => show(secondsOutput, event.detail.value, 'seconds')
-    });
-    const signed = new Timebox(null, {
-      value: -90,
-      unit: 'minutes',
-      signed: true,
-      onchange: (event) => show(signedOutput, event.detail.value, 'minutes')
-    });
-    show(minutesOutput, minutes.get(), 'minutes');
-    show(secondsOutput, seconds.get(), 'seconds');
-    show(signedOutput, signed.get(), 'minutes');
-
-    const marker = h('div', {
-      style: {
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-        gap: 'var(--zx-space-5)'
+  examples: [
+    {
+      title: 'Units',
+      blurb: 'unit decides what the number means \u2014 95 minutes shows as 1:35. With seconds: true '
+        + 'the field gains a seconds part and durations past 24 hours keep counting up rather '
+        + 'than wrapping, because this measures elapsed time, not a clock.',
+      render: ({ cleanup, log }) => {
+        const minutes = new Timebox(null, { value: 95, unit: 'minutes' });
+        const seconds = new Timebox(null, { value: 90061, unit: 'seconds', seconds: true });
+        minutes.on('change', ({ detail }) => log(`minutes \u2192 ${detail.value}`));
+        seconds.on('change', ({ detail }) => log(`seconds \u2192 ${detail.value}`));
+        cleanup(() => [minutes, seconds].forEach((box) => box.destroy()));
+        return [
+          h('label', { class: 'demo-field' }, h('span', {}, "unit: 'minutes'"), minutes.el),
+          h('label', { class: 'demo-field' }, h('span', {}, "unit: 'seconds', seconds: true"), seconds.el)
+        ];
       }
     },
-    card('Minutes unit', minutes.el, minutesOutput),
-    card('Seconds unit with >24h', seconds.el, secondsOutput),
-    card('Signed duration', signed.el, signedOutput));
-    container.append(marker);
-    cleanupWhenRemoved(marker, [minutes, seconds, signed]);
-  }
+    {
+      title: 'Signed durations',
+      blurb: 'signed: true allows a negative value, for a flexitime balance or a correction '
+        + 'against a booked total.',
+      width: '240px',
+      render: ({ cleanup, log }) => {
+        const box = new Timebox(null, { value: -90, unit: 'minutes', signed: true });
+        box.on('change', ({ detail }) => log(`change \u2192 ${detail.value} minutes`));
+        cleanup(() => box.destroy());
+        return box.el;
+      }
+    }
+  ]
 };
-
-/** @param {string} title @param {...Node} children @returns {HTMLElement} */
-function card(title, ...children) {
-  return h('section', { style: cardStyle }, h('h2', { style: { margin: '0' } }, title), ...children);
-}
-
-/** @returns {HTMLElement} */
-function readout() {
-  return h('output', {
-    ariaLive: 'polite',
-    style: { color: 'var(--zx-color-text-muted)', fontFamily: 'var(--zx-font-mono)' }
-  });
-}
-
-/** @param {HTMLElement} output @param {number} value @param {string} unit @returns {void} */
-function show(output, value, unit) {
-  output.textContent = `${value} ${unit}`;
-}
-
-/** @param {HTMLElement} marker @param {{destroy: () => void}[]} components @returns {void} */
-function cleanupWhenRemoved(marker, components) {
-  const observer = new MutationObserver(() => {
-    if (marker.isConnected) return;
-    for (const component of components) component.destroy();
-    observer.disconnect();
-  });
-  observer.observe(document.body, { childList: true, subtree: true });
-}

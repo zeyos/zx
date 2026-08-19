@@ -12,6 +12,7 @@ const REFERENCE = new Date(2026, 7, 14, 9, 30, 0);
 export default {
   title: 'Helper functions',
   group: 'Helpers',
+  demoTitle: 'Helper gallery',
   blurb: 'The standalone function library that ships alongside the components: dates, formatting, '
     + 'escaping, small utilities, translation, and keyboard behaviours. Every one is a plain '
     + 'export — importable on its own, usable without instantiating anything.',

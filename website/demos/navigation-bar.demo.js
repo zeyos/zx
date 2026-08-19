@@ -12,101 +12,54 @@ const items = [
 export default {
   title: 'Navigation bar',
   group: 'Layout',
+  blurb: 'The application header: a brand, one row of destinations with badges, and the actions '
+    + 'that stay reachable at every width.',
 
-  /**
-   * Mounts full-width and narrow MenuButton-overflow navigation bars.
-   * @param {HTMLElement} container Demo stage.
-   * @returns {void}
-   */
-  mount(container) {
-    const log = output('No navigation event yet.');
-    let inboxBadge = 4;
-    const actions = [
-      {
-        label: 'Create',
-        kind: 'primary',
-        size: 'sm',
-        onclick: () => { log.textContent = 'action: create'; }
-      },
-      {
-        label: 'Help',
-        kind: 'ghost',
-        size: 'sm',
-        onclick: () => { log.textContent = 'action: help'; }
+  examples: [
+    {
+      title: 'Application navigation',
+      blurb: 'items are destinations, actions are the buttons that sit at the trailing edge. '
+        + 'setBadge() updates a count without rebuilding the bar.',
+      layout: 'stack',
+      render: ({ cleanup, log }) => {
+        let unread = 4;
+        const navigation = new NavigationBar(null, {
+          title: 'ZeyOS',
+          items,
+          active: 'home',
+          actions: [
+            { label: 'Create', kind: 'primary', size: 'sm', onclick: () => log('action: create') },
+            { label: 'Help', kind: 'ghost', size: 'sm', onclick: () => log('action: help') }
+          ]
+        });
+        navigation.on('change', ({ detail }) => log(`change: ${detail.name}`));
+        cleanup(() => navigation.destroy());
+        return [
+          navigation.toElement(),
+          h('button', {
+            type: 'button',
+            onclick: () => navigation.setBadge('inbox', String(++unread))
+          }, 'setBadge("inbox", …)')
+        ];
       }
-    ];
-    const full = new NavigationBar(null, {
-      title: 'ZeyOS',
-      items,
-      active: 'home',
-      actions
-    });
-    const narrow = new NavigationBar(null, {
-      title: 'ZeyOS',
-      items,
-      active: 'inbox',
-      actions: [{
-        label: 'Add',
-        kind: 'primary',
-        size: 'sm',
-        onclick: () => { log.textContent = 'narrow action: add'; }
-      }]
-    });
-    for (const navigation of [full, narrow]) {
-      navigation.on('change', (event) => {
-        log.textContent = `change: ${event.detail.name}`;
-      });
+    },
+    {
+      title: 'Narrow-container overflow',
+      blurb: 'At 360px the six destinations move into a More menu, while the brand and the primary '
+        + 'action stay visible. The bar measures its own container, not the viewport, so it '
+        + 'behaves the same inside a split view.',
+      layout: 'stack',
+      render: ({ cleanup, log }) => {
+        const navigation = new NavigationBar(null, {
+          title: 'ZeyOS',
+          items,
+          active: 'inbox',
+          actions: [{ label: 'Add', kind: 'primary', size: 'sm', onclick: () => log('action: add') }]
+        });
+        navigation.on('change', ({ detail }) => log(`change: ${detail.name}`));
+        cleanup(() => navigation.destroy());
+        return h('div', { style: { inlineSize: '360px', maxInlineSize: '100%' } }, navigation.toElement());
+      }
     }
-
-    const marker = h('div', {},
-      section('Application navigation',
-        full.toElement(),
-        h('div', { style: {
-          display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 'var(--zx-space-3)'
-        } },
-        h('button', {
-          type: 'button',
-          onclick: () => {
-            inboxBadge += 1;
-            full.setBadge('inbox', String(inboxBadge));
-          }
-        }, 'Increment inbox badge'),
-        log)
-      ),
-      section('Narrow-container overflow',
-        h('p', { style: { margin: '0', color: 'var(--zx-color-text-muted)' } },
-          'At 360px the six navigation items move into the More menu; the brand and action stay visible.'),
-        h('div', { style: { inlineSize: '360px', maxInlineSize: '100%' } }, narrow)
-      )
-    );
-    container.append(marker);
-    cleanupWhenRemoved(marker, () => {
-      full.destroy();
-      narrow.destroy();
-    });
-  }
+  ]
 };
-
-/** @param {string} title @param {...Node} children @returns {HTMLElement} */
-function section(title, ...children) {
-  return h('section', { style: {
-    display: 'grid', gap: 'var(--zx-space-4)', marginBlockEnd: 'var(--zx-space-7)'
-  } }, h('h2', { style: { margin: '0', fontSize: 'var(--zx-text-xl)' } }, title), children);
-}
-
-/** @param {string} text @returns {HTMLOutputElement} */
-function output(text) {
-  return /** @type {HTMLOutputElement} */ (h('output', {
-    ariaLive: 'polite', style: { display: 'block', color: 'var(--zx-color-text-muted)' }
-  }, text));
-}
-
-/** @param {Node} marker @param {() => void} cleanup @returns {void} */
-function cleanupWhenRemoved(marker, cleanup) {
-  const observer = new MutationObserver(() => {
-    if (marker.isConnected) return;
-    cleanup();
-    observer.disconnect();
-  });
-  observer.observe(document.body, { childList: true, subtree: true });
-}

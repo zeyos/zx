@@ -22,6 +22,7 @@ const rowStyle = {
 export default {
   title: 'Kernel',
   group: 'Core',
+  demoTitle: 'Kernel behaviours',
 
   /**
    * Mounts interactive proofs for the core kernel APIs.

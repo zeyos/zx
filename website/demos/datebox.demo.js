@@ -1,113 +1,63 @@
-import { DateTimeBox, Datebox, h } from '../../src/index.js';
-
-const gridStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-  gap: 'var(--zx-space-5)'
-};
-
-const cardStyle = {
-  display: 'grid',
-  alignContent: 'start',
-  gap: 'var(--zx-space-3)',
-  border: '1px solid var(--zx-color-border)',
-  borderRadius: 'var(--zx-radius-lg)',
-  background: 'var(--zx-color-bg-surface)',
-  padding: 'var(--zx-space-5)'
-};
+import { Datebox, DateTimeBox, h } from '../../src/index.js';
 
 export default {
   title: 'Datebox',
   group: 'Inputs',
+  blurb: 'A text date field: it parses what the reader types against a strftime-style format, and '
+    + 'keeps unparseable text on screen instead of silently discarding it.',
 
-  /** @param {HTMLElement} container Demo stage. @returns {void} */
-  mount(container) {
-    const log = output('Events appear here.');
-    const standard = new Datebox(null, {
-      value: new Date(2026, 6, 17),
-      onchange: (event) => writeDate(log, 'default change', event.detail.date)
-    });
-    const datetime = DateTimeBox(null, {
-      value: new Date(2026, 6, 17, 14, 35),
-      onchange: (event) => writeDate(log, 'datetime change', event.detail.date)
-    });
-    const us = new Datebox(null, {
-      value: '07/17/2026',
-      format: '%m/%d/%Y',
-      onchange: (event) => writeDate(log, 'US change', event.detail.date)
-    });
-    const invalid = new Datebox(null, {
-      placeholder: 'Try 31.02.2026',
-      oninvalid: (event) => {
-        log.textContent = `invalid: kept “${event.detail.text}” for correction`;
+  examples: [
+    {
+      title: 'Formats',
+      blurb: 'format is a strftime pattern, defaulting to %d.%m.%Y. DateTimeBox is the same '
+        + 'component with the time appended, so one field covers both cases.',
+      render: ({ cleanup, log }) => {
+        const standard = new Datebox(null, { value: new Date(2026, 6, 17) });
+        const datetime = DateTimeBox(null, { value: new Date(2026, 6, 17, 14, 35) });
+        const us = new Datebox(null, { value: '07/17/2026', format: '%m/%d/%Y' });
+        for (const [name, box] of Object.entries({ default: standard, datetime, us })) {
+          box.on('change', ({ detail }) => log(`${name} change \u2192 ${detail.date?.toISOString() ?? 'null'}`));
+        }
+        cleanup(() => [standard, datetime, us].forEach((box) => box.destroy()));
+        return [
+          h('label', { class: 'demo-field' }, h('span', {}, '%d.%m.%Y'), standard.el),
+          h('label', { class: 'demo-field' }, h('span', {}, '%d.%m.%Y %H:%M'), datetime.el),
+          h('label', { class: 'demo-field' }, h('span', {}, '%m/%d/%Y'), us.el)
+        ];
       }
-    });
-    const unix = new Datebox(null, {
-      value: 1784296800,
-      clearable: true,
-      onchange: (event) => writeDate(log, 'Unix box change', event.detail.date)
-    });
-
-    const unixReadout = output(`get('seconds') = ${unix.get('seconds')}`);
-    const controls = h('div', {
-      style: { display: 'flex', flexWrap: 'wrap', gap: 'var(--zx-space-2)' }
     },
-    h('button', {
-      type: 'button',
-      onclick: () => {
-        unixReadout.textContent = `get('seconds') = ${unix.get('seconds')}`;
+    {
+      title: 'Invalid input',
+      blurb: 'Type an impossible date \u2014 31.02.2026 \u2014 then blur or press Enter. The field emits '
+        + 'invalid and leaves the text editable, because throwing away what someone typed is the '
+        + 'one thing a date field must not do.',
+      width: '240px',
+      render: ({ cleanup, log }) => {
+        const box = new Datebox(null, { placeholder: 'Try 31.02.2026' });
+        box.on('invalid', ({ detail }) => log(`invalid: kept \u201c${detail.text}\u201d for correction`));
+        cleanup(() => box.destroy());
+        return box.el;
       }
-    }, 'Read Unix seconds'),
-    h('button', {
-      type: 'button',
-      onclick: () => {
-        unix.set(1798761600);
-        unixReadout.textContent = `set(1798761600) → ${unix.get('seconds')}`;
+    },
+    {
+      title: 'Unix seconds',
+      blurb: 'The value accepts a Date, a formatted string, or Unix seconds, and get("seconds") '
+        + 'reads it back in the form the ZeyOS API stores. clearable adds the button that empties '
+        + 'the field to null.',
+      layout: 'stack',
+      width: '300px',
+      render: ({ cleanup, log }) => {
+        const box = new Datebox(null, { value: 1784296800, clearable: true });
+        box.on('change', () => log(`get('seconds') = ${box.get('seconds')}`));
+        cleanup(() => box.destroy());
+        return [
+          box.el,
+          h('div', { class: 'demo-row' },
+            h('button', { type: 'button', onclick: () => log(`get('seconds') = ${box.get('seconds')}`) },
+              "get('seconds')"),
+            h('button', { type: 'button', onclick: () => box.set(1798761600) }, 'set(1798761600)'))
+        ];
       }
-    }, 'Set Unix seconds'));
-
-    const marker = h('div', { style: { display: 'grid', gap: 'var(--zx-space-5)' } },
-      h('div', { style: gridStyle },
-        card('Default format', h('code', {}, '%d.%m.%Y'), standard.el),
-        card('Date and time', h('code', {}, '%d.%m.%Y %H:%M'), datetime.el),
-        card('US format', h('code', {}, '%m/%d/%Y'), us.el),
-        card('Invalid input',
-          h('p', {}, 'Enter an impossible date and blur or press Enter. The text stays editable.'),
-          invalid.el),
-        card('Clear and Unix interop', unix.el, controls, unixReadout)
-      ),
-      log
-    );
-    container.append(marker);
-    cleanupWhenRemoved(marker, [standard, datetime, us, invalid, unix]);
-  }
+    }
+  ]
 };
-
-/** @param {string} title @param {...Node} children @returns {HTMLElement} */
-function card(title, ...children) {
-  return h('section', { style: cardStyle }, h('h2', { style: { margin: '0' } }, title), ...children);
-}
-
-/** @param {string} text @returns {HTMLElement} */
-function output(text) {
-  return h('output', {
-    ariaLive: 'polite',
-    style: { color: 'var(--zx-color-text-muted)', fontFamily: 'var(--zx-font-mono)' }
-  }, text);
-}
-
-/** @param {HTMLElement} log @param {string} type @param {Date|null} date @returns {void} */
-function writeDate(log, type, date) {
-  log.textContent = `${type}: ${date ? date.toString() : 'null'}`;
-}
-
-/** @param {HTMLElement} marker @param {{destroy: () => void}[]} components @returns {void} */
-function cleanupWhenRemoved(marker, components) {
-  const observer = new MutationObserver(() => {
-    if (marker.isConnected) return;
-    for (const component of components) component.destroy();
-    observer.disconnect();
-  });
-  observer.observe(document.body, { childList: true, subtree: true });
-}
-

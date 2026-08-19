@@ -14,6 +14,7 @@ const NAMESPACES = [
 export default {
   title: 'gx compatibility',
   group: 'Helpers',
+  demoTitle: 'Compatibility walkthrough',
   blurb: 'An opt-in layer that re-implements the legacy MooTools-era gx API on top of Zx, so '
     + 'existing ZeyOS applications keep running while their code is modernised file by file.',
 

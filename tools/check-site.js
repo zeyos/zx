@@ -23,10 +23,21 @@ if (!existsSync(site)) {
 
 /** Files whose references are checked. */
 const CHECKED = new Set(['.html', '.js', '.css']);
+/**
+ * Where an ES module specifier can appear. `from` is anchored to a statement that starts a line,
+ * with only the characters an import clause may contain in between: the documentation is full of
+ * prose, and a sentence that happens to end a line with the word "from" before a quoted string is
+ * otherwise indistinguishable from an import.
+ */
+const IMPORT_PATTERNS = [
+  /^(?:import|export)\s[\w\s{},*]*?\bfrom\s*['"]([^'"]+)['"]/gm,
+  /^import\s*['"]([^'"]+)['"]/gm,
+  /\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g
+];
+
 /** Reference positions: ES imports, HTML attributes, and CSS url(). */
 const PATTERNS = [
-  /\bfrom\s+['"]([^'"]+)['"]/g,
-  /\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
+  ...IMPORT_PATTERNS,
   /\b(?:href|src)\s*=\s*"([^"]+)"/g,
   /\burl\(\s*["']?([^"')]+)["']?\s*\)/g
 ];
@@ -68,7 +79,6 @@ for (const file of files) {
 // Zx has no runtime dependencies, so every module specifier in the site's own scripts must be
 // explicitly relative. A bare specifier resolves as a package name and fails in the browser —
 // which is exactly what stripping a `../` too eagerly produces.
-const MODULE_SPECIFIER = /\b(?:from\s+|import\s*\(\s*)['"]([^'"]+)['"]/g;
 const INLINE_MODULE = /<script\b[^>]*type=["']module["'][^>]*>([\s\S]*?)<\/script>/gi;
 for (const file of files) {
   const extension = extname(file);
@@ -81,9 +91,11 @@ for (const file of files) {
     ? [source]
     : [...source.matchAll(INLINE_MODULE)].map(([, body]) => body);
   for (const script of scripts) {
-    for (const [, specifier] of script.matchAll(MODULE_SPECIFIER)) {
-      if (/^(?:\.{1,2}\/|\/)/.test(specifier)) continue;
-      problems.push(`${relative(site, file)} → bare module specifier "${specifier}"`);
+    for (const pattern of IMPORT_PATTERNS) {
+      for (const [, specifier] of script.matchAll(pattern)) {
+        if (/^(?:\.{1,2}\/|\/)/.test(specifier)) continue;
+        problems.push(`${relative(site, file)} → bare module specifier "${specifier}"`);
+      }
     }
   }
 }

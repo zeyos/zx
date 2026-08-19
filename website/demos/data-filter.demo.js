@@ -19,89 +19,70 @@ const rowStyle = {
 export default {
   title: 'DataFilter',
   group: 'Data',
+  blurb: 'The filter bar above a list: typed filter descriptors in, the matching rows out.',
 
-  /**
-   * Mounts a select, fulltext, and custom filter wired to a 30-row table.
-   * @param {HTMLElement} container Demo stage.
-   * @returns {void}
-   */
-  mount(container) {
-    const data = makeRows();
-    const minimum = h('input', {
-      type: 'number',
-      min: '0',
-      step: '50',
-      placeholder: 'Any amount',
-      ariaLabel: 'Minimum amount'
-    });
-    const table = new Table(null, {
-      columns: [
-        { id: 'id', label: 'ID', sortable: true, width: '80px' },
-        { id: 'name', label: 'Name', sortable: true, width: '2fr' },
-        { id: 'category', label: 'Category', sortable: true, width: '1fr' },
-        { id: 'amount', label: 'Amount', sortable: true, width: '1fr', align: 'right', render: (row) => `${row.amount.toFixed(2)} €` },
-        { id: 'notes', label: 'Notes', width: '2fr' }
-      ],
-      data,
-      rowId: 'id',
-      emptyText: 'No rows match the active filters.'
-    });
-    const eventLog = h('output', {
-      ariaLive: 'polite',
-      style: { color: 'var(--zx-color-text-muted)', fontFamily: 'var(--zx-font-mono)' }
-    }, '30 rows');
-    const filter = new DataFilter(null, {
-      data,
-      clearLabel: 'Clear filters',
-      filters: [
-        { type: 'select', id: 'category', label: 'Category', field: 'category', emptyLabel: 'All categories' },
-        { type: 'text', id: 'query', label: 'Fulltext', fields: ['name', 'notes'], placeholder: 'Name and notes' },
-        {
-          type: 'custom',
-          id: 'minimum',
-          label: 'Minimum amount',
-          element: minimum,
-          predicate: (row, value) => row.amount >= Number(value)
-        }
-      ],
-      onfilter: (event) => {
-        table.setData(event.detail.rows);
-        eventLog.textContent = `${event.detail.rows.length} rows · ${JSON.stringify(event.detail.state)}`;
+  examples: [
+    {
+      title: 'Filtering a table',
+      blurb: 'A select filter derives its options from the data, so the list never offers a value '
+        + 'that matches nothing. A text filter matches AND across the fields you name, and a '
+        + 'custom filter contributes any element plus the predicate that goes with it \u2014 which is '
+        + 'how a range, a date, or a remote lookup joins the bar.',
+      layout: 'stack',
+      render: ({ cleanup, log }) => {
+        const data = makeRows();
+        const table = new Table(null, {
+          rowId: 'id',
+          data,
+          emptyText: 'No rows match the active filters.',
+          columns: [
+            { id: 'id', label: 'ID', sortable: true, width: '80px' },
+            { id: 'name', label: 'Name', sortable: true, width: '2fr' },
+            { id: 'category', label: 'Category', sortable: true, width: '1fr' },
+            { id: 'amount', label: 'Amount', sortable: true, width: '1fr', align: 'right', render: (row) => `${row.amount.toFixed(2)} \u20ac` },
+            { id: 'notes', label: 'Notes', width: '2fr' }
+          ]
+        });
+
+        const minimum = h('input', {
+          type: 'number', min: '0', step: '50',
+          placeholder: 'Any amount', ariaLabel: 'Minimum amount'
+        });
+
+        const filter = new DataFilter(null, {
+          data,
+          clearLabel: 'Clear filters',
+          filters: [
+            { type: 'select', id: 'category', label: 'Category', field: 'category', emptyLabel: 'All categories' },
+            { type: 'text', id: 'query', label: 'Fulltext', fields: ['name', 'notes'], placeholder: 'Name and notes' },
+            {
+              type: 'custom',
+              id: 'minimum',
+              label: 'Minimum amount',
+              element: minimum,
+              predicate: (row, value) => row.amount >= Number(value)
+            }
+          ],
+          onfilter: ({ detail }) => {
+            table.setData(detail.rows);
+            log(`${detail.rows.length} rows \u00b7 ${JSON.stringify(detail.state)}`);
+          }
+        });
+        filter.apply();
+        cleanup(() => [filter, table].forEach((component) => component.destroy()));
+        return [
+          filter.toElement(),
+          h('div', { class: 'demo-row' },
+            h('button', { type: 'button', onclick: () => log(JSON.stringify(filter.getState())) }, 'getState()'),
+            h('button', {
+              type: 'button',
+              onclick: () => filter.setState({ category: 'Services', query: 'account', minimum: '300' })
+            }, 'setState(\u2026)')),
+          table.toElement()
+        ];
       }
-    });
-
-    const stateLog = h('output', {
-      ariaLive: 'polite',
-      style: { color: 'var(--zx-color-text-muted)', fontFamily: 'var(--zx-font-mono)' }
-    }, 'Use Get state or Set example state.');
-    const getState = h('button', {
-      type: 'button',
-      onclick: () => { stateLog.textContent = JSON.stringify(filter.getState()); }
-    }, 'Get state');
-    const setState = h('button', {
-      type: 'button',
-      onclick: () => filter.setState({ category: 'Services', query: 'account', minimum: '300' })
-    }, 'Set example state');
-
-    const marker = h('section', { style: sectionStyle },
-      h('h2', { style: { margin: '0' } }, 'Filter a 30-row Table'),
-      h('p', {}, 'The select options are derived from the data. Fulltext terms use AND matching across name and notes.'),
-      filter.toElement(),
-      h('div', { style: rowStyle }, getState, setState, eventLog),
-      stateLog,
-      table.toElement()
-    );
-    container.append(marker);
-    filter.apply();
-
-    const observer = new MutationObserver(() => {
-      if (marker.isConnected) return;
-      filter.destroy();
-      table.destroy();
-      observer.disconnect();
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
-  }
+    }
+  ]
 };
 
 /** @returns {Array<Record<string, any>>} */

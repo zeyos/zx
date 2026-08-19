@@ -1,127 +1,85 @@
-import { Dropdown, h } from '../../src/index.js';
+import { Dropdown, button, h } from '../../src/index.js';
 
-const sectionStyle = {
-  display: 'grid',
-  gap: 'var(--zx-space-4)',
-  marginBlockEnd: 'var(--zx-space-6)',
-  border: '1px solid var(--zx-color-border)',
-  borderRadius: 'var(--zx-radius-lg)',
-  background: 'var(--zx-color-bg-surface)',
-  padding: 'var(--zx-space-5)'
-};
+const PLACEMENTS = ['bottom-start', 'bottom-end', 'top-start', 'top-end', 'bottom', 'top'];
 
 export default {
   title: 'Dropdown',
   group: 'Overlays',
+  blurb: 'A top-layer panel tethered to an anchor. It is the positioning primitive under Select, '
+    + 'MenuButton, and the date pickers.',
 
-  /**
-   * Mounts placement, width matching, and scroll-following examples.
-   * @param {HTMLElement} container Demo stage.
-   * @returns {void}
-   */
-  mount(container) {
-    const instances = [];
-    const log = h('pre', {
-      ariaLive: 'polite',
-      style: { margin: '0', color: 'var(--zx-color-text-muted)', fontFamily: 'var(--zx-font-mono)' }
-    }, 'Open a dropdown to see its event.');
-    const placementGrid = h('div', {
-      style: {
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-        gap: 'var(--zx-space-6)',
-        alignItems: 'center',
-        minBlockSize: '280px'
+  examples: [
+    {
+      title: 'All six placements',
+      blurb: 'placement names the preferred side. A panel that would not fit flips vertically and '
+        + 'clamps horizontally, so the requested placement is a preference rather than a promise — '
+        + 'open one near the top or bottom of the window to see it.',
+      render: ({ cleanup, log }) => {
+        const dropdowns = PLACEMENTS.map((placement) => {
+          const anchor = button({ label: placement });
+          const dropdown = new Dropdown(anchor, {
+            placement,
+            content: h('div', { style: { display: 'grid', gap: 'var(--zx-space-2)', inlineSize: '190px' } },
+              h('strong', {}, placement),
+              h('span', { style: { color: 'var(--zx-color-text-muted)' } }, 'Manual top-layer panel'))
+          });
+          dropdown.on('open', () => log(`${placement}: open`));
+          dropdown.on('close', () => log(`${placement}: close`));
+          return { anchor, dropdown };
+        });
+        cleanup(() => dropdowns.forEach(({ dropdown }) => dropdown.destroy()));
+        return h('div', {
+          style: {
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+            gap: 'var(--zx-space-6)',
+            minBlockSize: '240px',
+            alignItems: 'center'
+          }
+        }, dropdowns.map(({ anchor }) => h('div', { style: { display: 'grid', placeItems: 'center' } }, anchor)));
       }
-    });
-
-    for (const placement of ['bottom-start', 'bottom-end', 'top-start', 'top-end', 'bottom', 'top']) {
-      const anchor = demoButton(placement);
-      const dropdown = new Dropdown(anchor, {
-        placement,
-        content: panelContent(placement)
-      });
-      dropdown.on('open', () => { log.textContent = `${placement}: open`; });
-      dropdown.on('close', () => { log.textContent = `${placement}: close`; });
-      instances.push(dropdown);
-      placementGrid.append(h('div', {
-        style: { display: 'grid', placeItems: 'center', minBlockSize: '80px' }
-      }, anchor));
+    },
+    {
+      title: 'Matching the anchor width',
+      blurb: 'matchWidth: true gives the panel the anchor’s width as a minimum — what a combobox '
+        + 'list wants, so the options line up under the field that opened them.',
+      render: ({ cleanup }) => {
+        const anchor = button({ label: 'A 240px wide anchor' });
+        anchor.style.inlineSize = '240px';
+        const dropdown = new Dropdown(anchor, {
+          matchWidth: true,
+          content: h('div', {}, 'This panel has the anchor’s minimum width.')
+        });
+        cleanup(() => dropdown.destroy());
+        return anchor;
+      }
+    },
+    {
+      title: 'Following a scrolling anchor',
+      blurb: 'Open the panel, then scroll the inner container. The kernel uses CSS anchor '
+        + 'positioning where the browser supports it and a JS fallback everywhere else; there is '
+        + 'no toggle, because the two are meant to be indistinguishable.',
+      render: ({ cleanup }) => {
+        const anchor = button({ label: 'Scroll-following anchor' });
+        const dropdown = new Dropdown(anchor, {
+          placement: 'bottom-start',
+          content: h('div', {}, 'I follow the anchor and flip near the viewport edge.')
+        });
+        cleanup(() => dropdown.destroy());
+        return h('div', {
+          style: {
+            overflow: 'auto',
+            blockSize: '220px',
+            inlineSize: '100%',
+            border: '1px solid var(--zx-color-border)',
+            borderRadius: 'var(--zx-radius-md)',
+            paddingInline: 'var(--zx-space-5)'
+          }
+        },
+        h('div', { style: { blockSize: '130px' } }),
+        anchor,
+        h('div', { style: { blockSize: '300px' } }));
+      }
     }
-
-    const widthAnchor = demoButton('A 240 px wide anchor');
-    widthAnchor.style.inlineSize = '240px';
-    const widthDropdown = new Dropdown(widthAnchor, {
-      matchWidth: true,
-      content: h('div', {}, 'This panel has the anchor’s minimum width.')
-    });
-    instances.push(widthDropdown);
-
-    const scrollAnchor = demoButton('Scroll-following anchor');
-    const scrollDropdown = new Dropdown(scrollAnchor, {
-      placement: 'bottom-start',
-      content: h('div', {}, 'I follow the anchor and flip near the viewport edge.')
-    });
-    instances.push(scrollDropdown);
-    const scroller = h('div', {
-      style: {
-        overflow: 'auto',
-        blockSize: '220px',
-        border: '1px solid var(--zx-color-border)',
-        borderRadius: 'var(--zx-radius-md)',
-        background: 'var(--zx-color-bg-page)',
-        paddingInline: 'var(--zx-space-5)'
-      }
-    }, h('div', { style: { blockSize: '130px' } }), scrollAnchor, h('div', { style: { blockSize: '300px' } }));
-
-    const marker = h('div', {},
-      section('All six placements',
-        h('p', { style: { margin: '0', color: 'var(--zx-color-text-muted)' } },
-          'Open a panel near a viewport edge to see vertical flipping and inline clamping.'
-        ),
-        placementGrid,
-        log
-      ),
-      section('Match anchor width', widthAnchor),
-      section('Scroll-following check',
-        h('p', { style: { margin: '0' } }, 'Open the panel, then scroll this inner container.'),
-        scroller,
-        h('small', { style: { color: 'var(--zx-color-text-muted)' } },
-          'The kernel selects CSS anchor positioning when supported and its JS fallback otherwise; it exposes no force-fallback toggle.'
-        )
-      )
-    );
-    container.append(marker);
-    cleanupWhenRemoved(marker, () => instances.forEach((instance) => instance.destroy()));
-  }
+  ]
 };
-
-/** @param {string} placement @returns {HTMLElement} */
-function panelContent(placement) {
-  return h('div', { style: { display: 'grid', gap: 'var(--zx-space-2)', inlineSize: '190px' } },
-    h('strong', {}, placement),
-    h('span', { style: { color: 'var(--zx-color-text-muted)' } }, 'Manual top-layer popover panel')
-  );
-}
-
-/** @param {string} title @param {...Node} children @returns {HTMLElement} */
-function section(title, ...children) {
-  return h('section', { style: sectionStyle },
-    h('h2', { style: { margin: '0', fontSize: 'var(--zx-text-xl)' } }, title), children
-  );
-}
-
-/** @param {string} label @returns {HTMLButtonElement} */
-function demoButton(label) {
-  return /** @type {HTMLButtonElement} */ (h('button', { class: 'zx-btn', type: 'button' }, label));
-}
-
-/** @param {Node} marker @param {() => void} cleanup @returns {void} */
-function cleanupWhenRemoved(marker, cleanup) {
-  const observer = new MutationObserver(() => {
-    if (marker.isConnected) return;
-    cleanup();
-    observer.disconnect();
-  });
-  observer.observe(document.body, { childList: true, subtree: true });
-}

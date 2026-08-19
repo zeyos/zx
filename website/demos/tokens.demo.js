@@ -22,6 +22,7 @@ const moduleNames = moduleKeys();
 export default {
   title: 'Design tokens',
   group: 'Core',
+  demoTitle: 'Token specimens',
 
   /**
    * Mounts the design-token showcase.

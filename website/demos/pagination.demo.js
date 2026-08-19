@@ -39,176 +39,112 @@ export default {
   blurb: 'The footer bar of a server-backed list: a page window that never changes width, a '
     + 'page-size select, a row summary, and an append-style Load more mode.',
 
-  /**
-   * Mounts a Table paged by a Pagination, a Load more variant, and the page-window maths.
-   * @param {HTMLElement} container Demo stage.
-   * @returns {void}
-   */
-  mount(container) {
-    const log = output('Page through the table — every control emits one change event.');
-    const rows = invoices(312);
-
-    // 1 — a real Table paged client-side. A server-backed list does the same thing, except that
-    //     `offset` and `pageSize` go into the request instead of into slice().
-    const table = new Table(null, { columns: COLUMNS, data: [], height: 260, zebra: true });
-    const pager = new Pagination(null, {
-      total: rows.length,
-      pageSize: 25,
-      pageSizes: [10, 25, 50],
-      onchange: (event) => {
-        showPage(event.detail);
-        write(log, `change: page ${event.detail.page}/${event.detail.pages} · `
-          + `offset ${event.detail.offset} · pageSize ${event.detail.pageSize}`);
+  examples: [
+    {
+      title: 'Paging a table',
+      blurb: 'The pager owns no data — it reports which slice the reader asked for. page is '
+        + '1-based and offset the zero-based first row, which is exactly what a list query wants '
+        + 'next to pageSize. Changing the page size returns to page 1.',
+      layout: 'stack',
+      render: ({ cleanup, log }) => {
+        const rows = invoices(312);
+        const table = new Table(null, { columns: COLUMNS, data: [], height: 260, zebra: true });
+        const pager = new Pagination(null, {
+          total: rows.length,
+          pageSize: 25,
+          pageSizes: [10, 25, 50],
+          onchange: ({ detail }) => {
+            table.setData(rows.slice(detail.offset, detail.offset + detail.pageSize));
+            log(`change page ${detail.page}/${detail.pages} \u00b7 offset ${detail.offset} `
+              + `\u00b7 pageSize ${detail.pageSize}`);
+          }
+        });
+        const state = pager.getState();
+        table.setData(rows.slice(state.offset, state.offset + state.pageSize));
+        cleanup(() => [table, pager].forEach((component) => component.destroy()));
+        return [table.toElement(), pager.toElement()];
       }
-    });
-
-    /** @param {{offset: number, pageSize: number}} state Slice to render. @returns {void} */
-    function showPage({ offset, pageSize }) {
-      table.setData(rows.slice(offset, offset + pageSize));
+    },
+    {
+      title: 'Load more',
+      blurb: 'mode: "loadmore" replaces the page window with a single button, and each change is '
+        + 'one more page to append rather than a replacement — the shape an infinite feed needs, '
+        + 'and what zeyosTable().loadMore() drives.',
+      layout: 'stack',
+      render: ({ cleanup, log }) => {
+        const rows = invoices(312);
+        const table = new Table(null, { columns: COLUMNS, data: rows.slice(0, 10), height: 200 });
+        const more = new Pagination(null, {
+          mode: 'loadmore',
+          total: rows.length,
+          pageSize: 10,
+          showPageSize: false,
+          onchange: ({ detail }) => {
+            table.addData(rows.slice(detail.offset, detail.offset + detail.pageSize));
+            log(`load more: page ${detail.page} \u00b7 offset ${detail.offset}`);
+          }
+        });
+        cleanup(() => [table, more].forEach((component) => component.destroy()));
+        return [table.toElement(), more.toElement()];
+      }
+    },
+    {
+      title: 'Reacting to a changed total',
+      blurb: 'setTotal() re-clamps the current page instead of leaving it pointing past the end '
+        + 'of the data. setState(\u2026, {silent: true}) restores a state without emitting, for when '
+        + 'the caller already has the rows.',
+      layout: 'stack',
+      render: ({ cleanup, log }) => {
+        const rows = invoices(312);
+        const table = new Table(null, { columns: COLUMNS, data: [], height: 200, zebra: true });
+        const pager = new Pagination(null, { total: rows.length, pageSize: 25 });
+        const show = () => {
+          const { offset, pageSize } = pager.getState();
+          table.setData(rows.slice(offset, offset + pageSize));
+        };
+        pager.on('change', show);
+        show();
+        cleanup(() => [table, pager].forEach((component) => component.destroy()));
+        return [
+          table.toElement(),
+          pager.toElement(),
+          h('div', { class: 'demo-row' },
+            h('button', {
+              type: 'button',
+              onclick: () => {
+                pager.setTotal(40);
+                show();
+                log(`setTotal(40) \u2192 page ${pager.getState().page}`);
+              }
+            }, 'setTotal(40)'),
+            h('button', {
+              type: 'button',
+              onclick: () => {
+                pager.setState({ total: rows.length, page: 1 }, { silent: true });
+                show();
+                log('setState({total: 312, page: 1}, {silent: true})');
+              }
+            }, 'restore 312 rows'))
+        ];
+      }
+    },
+    {
+      title: 'The page window',
+      blurb: 'paginationRange() is the exported helper behind the button row. It always returns '
+        + 'the same number of entries, with "\u2026" standing in for the pages it skipped, so the bar '
+        + 'never changes width as the reader moves through it.',
+      render: () => h('pre', {
+        style: {
+          margin: '0', overflowX: 'auto', inlineSize: '100%',
+          fontFamily: 'var(--zx-font-mono)', fontSize: 'var(--zx-text-xs)', lineHeight: '1.8'
+        }
+      }, [
+        { page: 1, pages: 12 },
+        { page: 6, pages: 12 },
+        { page: 12, pages: 12 },
+        { page: 3, pages: 4 }
+      ].map((sample) => `paginationRange(${JSON.stringify(sample)})\n  \u2192 [`
+        + `${paginationRange(sample).map((entry) => typeof entry === 'number' ? entry : `'${entry}'`).join(', ')}]\n`).join(''))
     }
-    showPage(pager.getState());
-
-    // 2 — the same component in append mode, the shape zeyosTable().loadMore() expects.
-    const feed = new Table(null, { columns: COLUMNS, data: rows.slice(0, 10), height: 200 });
-    const more = new Pagination(null, {
-      mode: 'loadmore',
-      total: rows.length,
-      pageSize: 10,
-      showPageSize: false,
-      onchange: (event) => {
-        // In loadmore mode each change is one more page to append, never a replacement.
-        feed.addData(rows.slice(event.detail.offset, event.detail.offset + event.detail.pageSize));
-        write(log, `load more: page ${event.detail.page} · offset ${event.detail.offset}`);
-      }
-    });
-
-    const marker = h('div', {},
-      section('Paging a table',
-        note('The pager owns no data: it reports which slice the user asked for. page is 1-based, '
-          + 'offset is the zero-based first row — exactly what a list query wants next to '
-          + 'pageSize. Changing the page size returns to page 1.'),
-        table.toElement(),
-        pager.toElement(),
-        row(
-          h('button', {
-            class: 'zx-btn',
-            type: 'button',
-            onclick: () => {
-              // Shrinking the total under the user's feet re-clamps the page instead of pointing
-              // past the end of the data.
-              pager.setTotal(40);
-              showPage(pager.getState());
-              write(log, `setTotal(40) → page ${pager.getState().page}`);
-            }
-          }, 'setTotal(40)'),
-          h('button', {
-            class: 'zx-btn',
-            type: 'button',
-            onclick: () => {
-              pager.setState({ total: rows.length, page: 1 }, { silent: true });
-              showPage(pager.getState());
-              write(log, 'setState({total: 312, page: 1}, {silent: true})');
-            }
-          }, 'restore 312 rows'),
-          h('button', {
-            class: 'zx-btn',
-            type: 'button',
-            onclick: () => {
-              pager.disable();
-              write(log, 'disabled — enable() puts every control back');
-            }
-          }, 'disable()'),
-          h('button', {
-            class: 'zx-btn',
-            type: 'button',
-            onclick: () => {
-              pager.enable();
-              write(log, 'enabled');
-            }
-          }, 'enable()'))),
-      section('Load more',
-        note('mode: "loadmore" swaps the numbered pager for one button and a cumulative summary, '
-          + 'for feeds that append rather than replace. The button disables itself on the last '
-          + 'page, the way zeyosTable()’s hasMore does.'),
-        feed.toElement(),
-        more.toElement()),
-      section('The page window',
-        note('paginationRange() is exported next to the component so the window can be reasoned '
-          + 'about — and unit-tested — without a DOM. Its width is fixed at '
-          + 'boundaries * 2 + siblings * 2 + 3, so the row never jitters as the user walks it.'),
-        windowTable()),
-      log);
-
-    container.append(marker);
-    cleanupWhenRemoved(marker, () => {
-      pager.destroy();
-      more.destroy();
-      table.destroy();
-      feed.destroy();
-    });
-  }
+  ]
 };
-
-/** @returns {HTMLElement} A printed sample of the pure range function. */
-function windowTable() {
-  const samples = [
-    { page: 1, pages: 10, siblings: 1, boundaries: 1 },
-    { page: 5, pages: 10, siblings: 1, boundaries: 1 },
-    { page: 10, pages: 10, siblings: 1, boundaries: 1 },
-    { page: 10, pages: 40, siblings: 2, boundaries: 2 },
-    { page: 5, pages: 10, siblings: 0, boundaries: 1 }
-  ];
-  return h('pre', { style: {
-    margin: '0', overflowX: 'auto', border: '1px solid var(--zx-color-border)',
-    borderRadius: 'var(--zx-radius-lg)', background: 'var(--zx-color-bg-muted)',
-    padding: 'var(--zx-space-4)', fontFamily: 'var(--zx-font-mono)',
-    fontSize: 'var(--zx-text-xs)', lineHeight: '1.8'
-  } }, samples.map((sample) => `paginationRange(${JSON.stringify(sample)})\n  → `
-    + `[${paginationRange(sample).map((entry) => typeof entry === 'number' ? entry : `'${entry}'`).join(', ')}]\n`
-  ).join(''));
-}
-
-/** @param {...Node} children @returns {HTMLElement} */
-function row(...children) {
-  return h('div', { style: {
-    display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 'var(--zx-space-3)'
-  } }, children);
-}
-
-/** @param {string} title @param {...Node} children @returns {HTMLElement} */
-function section(title, ...children) {
-  return h('section', { style: {
-    display: 'grid', gap: 'var(--zx-space-4)', marginBlockEnd: 'var(--zx-space-6)',
-    border: '1px solid var(--zx-color-border)', borderRadius: 'var(--zx-radius-lg)',
-    background: 'var(--zx-color-bg-surface)', padding: 'var(--zx-space-5)'
-  } }, h('h2', { style: { margin: '0', fontSize: 'var(--zx-text-xl)' } }, title), children);
-}
-
-/** @param {string} text @returns {HTMLElement} */
-function note(text) {
-  return h('p', { style: {
-    margin: '0', maxInlineSize: '78ch', color: 'var(--zx-color-text-muted)', lineHeight: '1.7'
-  } }, text);
-}
-
-/** @param {string} text @returns {HTMLOutputElement} */
-function output(text) {
-  return /** @type {HTMLOutputElement} */ (h('output', {
-    ariaLive: 'polite', style: { display: 'block', color: 'var(--zx-color-text-muted)' }
-  }, text));
-}
-
-/** @param {HTMLElement} log @param {string} text @returns {void} */
-function write(log, text) {
-  log.textContent = text;
-}
-
-/** @param {Node} marker @param {() => void} cleanup @returns {void} */
-function cleanupWhenRemoved(marker, cleanup) {
-  const observer = new MutationObserver(() => {
-    if (marker.isConnected) return;
-    cleanup();
-    observer.disconnect();
-  });
-  observer.observe(document.body, { childList: true, subtree: true });
-}

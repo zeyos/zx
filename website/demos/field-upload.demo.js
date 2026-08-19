@@ -3,56 +3,46 @@ import { FieldUpload, h } from '../../src/index.js';
 export default {
   title: 'Field upload',
   group: 'Forms',
+  blurb: 'A file field with a preview, a progress bar, and an injectable transport \u2014 which is what '
+    + 'lets this page demonstrate every path without a server.',
 
-  /**
-   * Mounts an offline upload simulation with preview, progress, abort, and error paths.
-   * @param {HTMLElement} container Demo stage.
-   * @returns {void}
-   */
-  mount(container) {
-    const log = h('pre', {
-      ariaLive: 'polite',
-      style: { margin: '0', color: 'var(--zx-color-text-muted)', whiteSpace: 'pre-wrap' }
-    }, 'Choose an image or run a simulation.');
-    const uploader = new FieldUpload(null, {
-      url: '/offline-demo-upload',
-      accept: 'image/*',
-      maxSize: 1024 * 1024,
-      preview: true,
-      autoUpload: true,
-      http: new StubHttp(),
-      onselect: (event) => { log.textContent = `selected: ${event.detail.files.map((file) => file.name).join(', ')}`; },
-      onprogress: (event) => { log.textContent = `progress: ${Math.round(event.detail.percent)}%`; },
-      onsuccess: (event) => { log.textContent = `success: ${JSON.stringify(event.detail.response)}`; },
-      onerror: (event) => { log.textContent = `error: ${event.detail.error.message}`; },
-      onabort: () => { log.textContent = 'abort'; }
-    });
-    const controls = h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 'var(--zx-space-2)' } },
-      h('button', {
-        class: 'zx-btn', type: 'button', onclick: () => { void uploader.upload([demoImage('contact.svg')]); }
-      }, 'Simulate success'),
-      h('button', {
-        class: 'zx-btn', type: 'button', onclick: () => { void uploader.upload([demoImage('error.svg')]); }
-      }, 'Simulate server error'),
-      h('button', { class: 'zx-btn', type: 'button', onclick: () => uploader.abort() }, 'Abort active'),
-      h('button', { class: 'zx-btn', type: 'button', onclick: () => uploader.clear() }, 'Clear'));
-    const marker = h('section', {
-      style: {
-        display: 'grid',
-        gap: 'var(--zx-space-4)',
-        padding: 'var(--zx-space-5)',
-        border: '1px solid var(--zx-color-border)',
-        borderRadius: 'var(--zx-radius-lg)',
-        background: 'var(--zx-color-bg-surface)'
+  examples: [
+    {
+      title: 'Upload, progress, and failure',
+      blurb: 'http takes any object with an upload(url, options) method, so the transport is a '
+        + 'parameter rather than a hard dependency. The stub here reports deterministic progress '
+        + 'and rejects any file whose name contains \u201cerror\u201d, which exercises the failure path '
+        + 'offline. maxSize and accept are checked before a byte is sent.',
+      layout: 'stack',
+      width: '520px',
+      render: ({ cleanup, log }) => {
+        const uploader = new FieldUpload(null, {
+          url: '/offline-demo-upload',
+          accept: 'image/*',
+          maxSize: 1024 * 1024,
+          preview: true,
+          autoUpload: true,
+          http: new StubHttp(),
+          onselect: ({ detail }) => log(`select ${detail.files.map((file) => file.name).join(', ')}`),
+          onprogress: ({ detail }) => log(`progress ${Math.round(detail.percent)}%`),
+          onsuccess: ({ detail }) => log(`success ${JSON.stringify(detail.response)}`),
+          onerror: ({ detail }) => log(`error ${detail.error.message}`),
+          onabort: () => log('abort')
+        });
+        cleanup(() => uploader.destroy());
+        return [
+          uploader.toElement(),
+          h('div', { class: 'demo-row' },
+            h('button', { type: 'button', onclick: () => void uploader.upload([demoImage('contact.svg')]) },
+              'Simulate success'),
+            h('button', { type: 'button', onclick: () => void uploader.upload([demoImage('error.svg')]) },
+              'Simulate server error'),
+            h('button', { type: 'button', onclick: () => uploader.abort() }, 'abort()'),
+            h('button', { type: 'button', onclick: () => uploader.clear() }, 'clear()'))
+        ];
       }
-    },
-    h('p', {}, 'The injected offline transport reports deterministic progress. The generated SVG exercises the image preview without a network endpoint.'),
-    uploader,
-    controls,
-    log);
-    container.append(marker);
-    cleanupWhenRemoved(marker, () => uploader.destroy());
-  }
+    }
+  ]
 };
 
 /** Offline upload transport matching FieldUpload's injected transport contract. */
@@ -91,14 +81,4 @@ function demoImage(name) {
     '<path d="M60 128c8-30 30-45 60-45s52 15 60 45" fill="#008040"/>' +
     '</svg>';
   return new File([svg], name, { type: 'image/svg+xml' });
-}
-
-/** @param {Node} marker @param {() => void} cleanup @returns {void} */
-function cleanupWhenRemoved(marker, cleanup) {
-  const observer = new MutationObserver(() => {
-    if (marker.isConnected) return;
-    cleanup();
-    observer.disconnect();
-  });
-  observer.observe(document.body, { childList: true, subtree: true });
 }

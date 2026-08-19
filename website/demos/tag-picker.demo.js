@@ -24,122 +24,102 @@ export default {
   blurb: 'A multi-select combobox that keeps its selection visible as removable tags inside the '
     + 'control — for picking several values out of a large catalogue.',
 
-  /**
-   * Mounts catalogue, free-form, limited, and asynchronous tag pickers.
-   * @param {HTMLElement} container Demo stage.
-   * @returns {void}
-   */
-  mount(container) {
-    const log = output('Type to filter, Enter to pick, Backspace to remove the last tag.');
-
-    const skills = new TagPicker(null, {
-      items: SKILLS,
-      values: ['js', 'css'],
-      placeholder: 'Add a skill',
-      onchange: (event) => write(log, `skills → [${event.detail.values.join(', ')}]`)
-    });
-
-    const labels = new TagPicker(null, {
-      items: [{ ID: 'urgent', name: 'Urgent' }, { ID: 'billing', name: 'Billing' }],
-      values: ['urgent'],
-      allowCreate: true,
-      placeholder: 'Add or create a label',
-      oncreate: (event) => write(log, `created label “${event.detail.item.name}”`),
-      onchange: (event) => write(log, `labels → [${event.detail.values.join(', ')}]`)
-    });
-
-    const limited = new TagPicker(null, {
-      items: CUSTOMERS,
-      searchKeys: ['name', 'city'],
-      max: 3,
-      placeholder: 'Up to three customers',
-      renderItem: (item) => h('span', {},
-        item.name,
-        h('span', { style: { color: 'var(--zx-color-text-muted)' } }, ` · ${item.city}`)),
-      onchange: (event) => write(log, `customers → ${event.detail.items.map((i) => i.name).join(', ')}`)
-    });
-
-    const remote = new TagPicker(null, {
-      placeholder: 'Search customers…',
-      minQuery: 1,
-      debounce: 250,
-      filter: async (query) => {
-        write(log, `remote query “${query}”…`);
-        await new Promise((resolve) => setTimeout(resolve, 220));
-        const needle = query.toLocaleLowerCase();
-        return CUSTOMERS.filter((item) => item.name.toLocaleLowerCase().includes(needle));
-      },
-      onchange: (event) => write(log, `remote → [${event.detail.values.join(', ')}]`)
-    });
-
-    const readonly = new TagPicker(null, {
-      items: SKILLS, values: ['ts', 'go'], readonly: true
-    });
-
-    container.append(
-      section('Picking from a catalogue',
-        field('Skills', skills.toElement()),
-        field('Customers (searches name and city, max 3)', limited.toElement()),
-        note('The maximum is enforced in both directions: once three tags are set, the remaining '
-          + 'options are marked `aria-disabled` rather than silently ignoring the click.')),
-      section('Creating and loading',
-        field('Labels (creates unknown values)', labels.toElement()),
-        field('Remote search (debounced, min. 1 character)', remote.toElement())),
-      section('Read-only', field('Locked selection', readonly.toElement())),
-      section('Programmatic API',
-        row(
-          h('button', { class: 'zx-btn', type: 'button', onclick: () => skills.addValue('rust') },
-            "addValue('rust')"),
-          h('button', { class: 'zx-btn', type: 'button', onclick: () => skills.removeValue('css') },
-            "removeValue('css')"),
-          h('button', { class: 'zx-btn', type: 'button', onclick: () => skills.clear() }, 'clear()'),
-          h('button', { class: 'zx-btn', type: 'button', onclick: () => skills.focus() }, 'focus()')
-        )),
-      log
-    );
-  }
+  examples: [
+    {
+      title: 'Picking from a catalogue',
+      blurb: 'Type to filter, Enter to pick, Backspace to remove the last tag. searchKeys widens '
+        + 'the match beyond the label, and renderItem draws the option row.',
+      layout: 'stack',
+      width: '460px',
+      render: ({ cleanup, log }) => {
+        const picker = new TagPicker(null, {
+          items: CUSTOMERS,
+          searchKeys: ['name', 'city'],
+          placeholder: 'Search by name or city',
+          renderItem: (item) => h('span', {},
+            item.name,
+            h('span', { style: { color: 'var(--zx-color-text-muted)' } }, ` \u00b7 ${item.city}`)),
+          onchange: ({ detail }) => log(`change [${detail.items.map((item) => item.name).join(', ')}]`)
+        });
+        cleanup(() => picker.destroy());
+        return picker.toElement();
+      }
+    },
+    {
+      title: 'A capped selection',
+      blurb: 'max is enforced in both directions: once three tags are set, the remaining options '
+        + 'are marked aria-disabled rather than silently ignoring the click.',
+      width: '460px',
+      render: ({ cleanup, log }) => {
+        const picker = new TagPicker(null, {
+          items: CUSTOMERS,
+          max: 3,
+          placeholder: 'Up to three customers',
+          onchange: ({ detail }) => log(`change [${detail.values.join(', ')}]`)
+        });
+        cleanup(() => picker.destroy());
+        return picker.toElement();
+      }
+    },
+    {
+      title: 'Creating unknown values',
+      blurb: 'allowCreate turns a query that matches nothing into a new tag, and emits create so '
+        + 'the value can be persisted. This is the shape a free-form label field needs.',
+      width: '460px',
+      render: ({ cleanup, log }) => {
+        const picker = new TagPicker(null, {
+          items: [{ ID: 'urgent', name: 'Urgent' }, { ID: 'billing', name: 'Billing' }],
+          values: ['urgent'],
+          allowCreate: true,
+          placeholder: 'Add or create a label',
+          oncreate: ({ detail }) => log(`create \u201c${detail.item.name}\u201d`),
+          onchange: ({ detail }) => log(`change [${detail.values.join(', ')}]`)
+        });
+        cleanup(() => picker.destroy());
+        return picker.toElement();
+      }
+    },
+    {
+      title: 'Remote search',
+      blurb: 'A filter function makes the options come from the server. minQuery holds the '
+        + 'request back until there is enough to search for, and debounce waits out the typing.',
+      width: '460px',
+      render: ({ cleanup, log }) => {
+        const picker = new TagPicker(null, {
+          placeholder: 'Search customers\u2026',
+          minQuery: 1,
+          debounce: 250,
+          filter: async (query) => {
+            log(`query \u201c${query}\u201d\u2026`);
+            await new Promise((resolve) => setTimeout(resolve, 220));
+            return CUSTOMERS.filter((item) =>
+              item.name.toLocaleLowerCase().includes(query.toLocaleLowerCase()));
+          },
+          onchange: ({ detail }) => log(`change [${detail.values.join(', ')}]`)
+        });
+        cleanup(() => picker.destroy());
+        return picker.toElement();
+      }
+    },
+    {
+      title: 'Read-only and the API',
+      blurb: 'readonly keeps the tags visible but removes the input and the remove buttons. The '
+        + 'value methods work either way.',
+      layout: 'stack',
+      width: '460px',
+      render: ({ cleanup }) => {
+        const locked = new TagPicker(null, { items: SKILLS, values: ['ts', 'go'], readonly: true });
+        const editable = new TagPicker(null, { items: SKILLS, values: ['js', 'css'] });
+        cleanup(() => [locked, editable].forEach((picker) => picker.destroy()));
+        return [
+          h('div', { class: 'demo-field' }, h('span', {}, 'Read-only'), locked.toElement()),
+          h('div', { class: 'demo-field' }, h('span', {}, 'Editable'), editable.toElement()),
+          h('div', { class: 'demo-row' },
+            h('button', { type: 'button', onclick: () => editable.addValue('rust') }, "addValue('rust')"),
+            h('button', { type: 'button', onclick: () => editable.removeValue('css') }, "removeValue('css')"),
+            h('button', { type: 'button', onclick: () => editable.clear() }, 'clear()'))
+        ];
+      }
+    }
+  ]
 };
-
-/** @param {...Node} children @returns {HTMLElement} */
-function row(...children) {
-  return h('div', { style: {
-    display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 'var(--zx-space-3)'
-  } }, children);
-}
-
-/** @param {string} label @param {Node} control @returns {HTMLElement} */
-function field(label, control) {
-  return h('label', { style: {
-    display: 'grid', gap: 'var(--zx-space-1)', maxInlineSize: '520px'
-  } },
-  h('span', { style: { color: 'var(--zx-color-text-muted)', fontSize: 'var(--zx-text-sm)' } }, label),
-  control);
-}
-
-/** @param {string} title @param {...Node} children @returns {HTMLElement} */
-function section(title, ...children) {
-  return h('section', { style: {
-    display: 'grid', gap: 'var(--zx-space-4)', marginBlockEnd: 'var(--zx-space-6)',
-    border: '1px solid var(--zx-color-border)', borderRadius: 'var(--zx-radius-lg)',
-    background: 'var(--zx-color-bg-surface)', padding: 'var(--zx-space-5)'
-  } }, h('h2', { style: { margin: '0', fontSize: 'var(--zx-text-xl)' } }, title), children);
-}
-
-/** @param {string} text @returns {HTMLElement} */
-function note(text) {
-  return h('p', { style: {
-    margin: '0', maxInlineSize: '78ch', color: 'var(--zx-color-text-muted)', lineHeight: '1.7'
-  } }, text);
-}
-
-/** @param {string} text @returns {HTMLOutputElement} */
-function output(text) {
-  return /** @type {HTMLOutputElement} */ (h('output', {
-    ariaLive: 'polite', style: { display: 'block', color: 'var(--zx-color-text-muted)' }
-  }, text));
-}
-
-/** @param {HTMLElement} log @param {string} text @returns {void} */
-function write(log, text) {
-  log.textContent = text;
-}

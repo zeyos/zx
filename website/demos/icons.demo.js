@@ -21,6 +21,7 @@ const SPECS = [
 export default {
   title: 'Icons',
   group: 'Core',
+  demoTitle: 'Icon gallery',
   blurb: 'One icon() call, two renderers: the inline SVG glyphs Zx bundles, or Font Awesome once '
     + 'an application loads a kit. Plus the ZeyOS module icons and the colour each module is '
     + 'drawn in.',
