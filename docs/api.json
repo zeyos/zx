@@ -1,4 +1,28 @@
 {
+  "Aspect": {
+    "options": [
+      {
+        "name": "ratio",
+        "type": "string",
+        "default": "'16 / 9'",
+        "description": "Aspect ratio of the box."
+      },
+      {
+        "name": "fit",
+        "type": "'cover'|'contain'|'fill'",
+        "default": "'cover'",
+        "description": "How the single child fills the box."
+      },
+      {
+        "name": "class",
+        "type": "string",
+        "default": "''",
+        "description": "Extra class names."
+      }
+    ],
+    "events": [],
+    "methods": []
+  },
   "Badge": {
     "options": [
       {
@@ -340,6 +364,198 @@
         "signature": "destroy()",
         "returns": null,
         "description": "Restores an enhanced target and invalidates pending loads. @returns {void}"
+      }
+    ]
+  },
+  "ContextMenu": {
+    "options": [
+      {
+        "name": "items",
+        "type": "ContextMenuEntry[]|((context: Element|null) => ContextMenuEntry[])",
+        "default": "[]",
+        "description": "Menu items and `'-'` separators, or a function returning them for the element the menu is opening on — which is how a row menu disables the actions that row does not allow. Returning an empty array cancels the opening."
+      },
+      {
+        "name": "selector",
+        "type": "string|null",
+        "default": "null",
+        "description": "Restricts the menu to descendants matching this selector, and reports the matched element as the context of the selection. A table passes `'tbody tr'` here to get a per-row menu from one listener."
+      }
+    ],
+    "events": [
+      {
+        "name": "select",
+        "payload": "{value: unknown, item: MenuItem, context: Element|null}",
+        "description": "Selection listener."
+      },
+      {
+        "name": "open",
+        "payload": "{context: Element|null}",
+        "description": "Open listener."
+      },
+      {
+        "name": "close",
+        "payload": "Record<string, never>",
+        "description": "Close listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "setItems",
+        "signature": "setItems(items)",
+        "returns": "this",
+        "description": "Replaces the menu items."
+      },
+      {
+        "name": "openAt",
+        "signature": "openAt(x, y, [context])",
+        "returns": "this",
+        "description": "Opens the menu at a point in viewport coordinates."
+      },
+      {
+        "name": "close",
+        "signature": "close()",
+        "returns": "this",
+        "description": "Closes the menu."
+      },
+      {
+        "name": "isOpen",
+        "signature": "isOpen()",
+        "returns": "boolean",
+        "description": "Reports whether the menu is open."
+      },
+      {
+        "name": "getContext",
+        "signature": "getContext()",
+        "returns": "Element|null",
+        "description": "The element the open menu applies to — the `selector` match under the pointer, or the target."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Detaches the menu and removes its anchor."
+      }
+    ]
+  },
+  "CopyButton": {
+    "options": [
+      {
+        "name": "text",
+        "type": "string|(() => string)",
+        "default": "''",
+        "description": "Text to copy, or a function returning it — a function is what a button beside a live value wants, so the copy is never stale."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "default": "''",
+        "description": "Visible label. Empty renders an icon-only ghost button."
+      },
+      {
+        "name": "title",
+        "type": "string",
+        "default": "'Copy'",
+        "description": "Accessible name, and the native tooltip on the icon-only form."
+      },
+      {
+        "name": "feedback",
+        "type": "string",
+        "default": "'Copied'",
+        "description": "Confirmation announced and shown after a copy."
+      },
+      {
+        "name": "feedbackDuration",
+        "type": "number",
+        "default": "2000",
+        "description": "Milliseconds the confirmation stays."
+      },
+      {
+        "name": "size",
+        "type": "'md'|'sm'",
+        "default": "'md'",
+        "description": "Control size."
+      },
+      {
+        "name": "kind",
+        "type": "'default'|'primary'|'ghost'",
+        "default": "'ghost'",
+        "description": "Visual intent."
+      }
+    ],
+    "events": [
+      {
+        "name": "copy",
+        "payload": null,
+        "description": "Called with the text and whether the clipboard accepted it."
+      }
+    ],
+    "methods": []
+  },
+  "CopyInput": {
+    "options": [
+      {
+        "name": "value",
+        "type": "string",
+        "default": "''",
+        "description": "Text shown and copied."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "default": "''",
+        "description": "Visible label above the box."
+      },
+      {
+        "name": "hideLabel",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether the label is kept for assistive technology only."
+      },
+      {
+        "name": "feedback",
+        "type": "string",
+        "default": "'Copied'",
+        "description": "Confirmation shown after a copy."
+      },
+      {
+        "name": "buttonTitle",
+        "type": "string",
+        "default": "'Copy'",
+        "description": "Accessible name of the copy button."
+      },
+      {
+        "name": "size",
+        "type": "'md'|'sm'",
+        "default": "'md'",
+        "description": "Control size."
+      }
+    ],
+    "events": [
+      {
+        "name": "copy",
+        "payload": "{value: string, copied: boolean}",
+        "description": "Copy listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "set",
+        "signature": "set(value)",
+        "returns": "this",
+        "description": "Replaces the value."
+      },
+      {
+        "name": "focus",
+        "signature": "focus()",
+        "returns": "this",
+        "description": "Focuses the box and selects its contents. The selection is made here as well as in the `focus` listener: the listener covers a click or a Tab, but a programmatic `focus()` fires no focus event when the document itself is not focused, and the value would then be left uncopied under the caret."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": null,
+        "description": "Restores an enhanced target to the markup it had before the takeover. @returns {void}"
       }
     ]
   },
@@ -1663,6 +1879,42 @@
       }
     ]
   },
+  "Grid": {
+    "options": [
+      {
+        "name": "columns",
+        "type": "number|null",
+        "default": "null",
+        "description": "Column count at full width. Null fills the row with as many tracks of `min` width as fit."
+      },
+      {
+        "name": "min",
+        "type": "number|string",
+        "default": "'16rem'",
+        "description": "Narrowest a track may get before the grid drops a column. A number is read as pixels."
+      },
+      {
+        "name": "gap",
+        "type": "number|string",
+        "default": "4",
+        "description": "Space between cells, as in `stack`."
+      },
+      {
+        "name": "align",
+        "type": "'start'|'center'|'end'|'stretch'",
+        "default": null,
+        "description": "Block-axis alignment of each cell."
+      },
+      {
+        "name": "class",
+        "type": "string",
+        "default": "''",
+        "description": "Extra class names."
+      }
+    ],
+    "events": [],
+    "methods": []
+  },
   "Groupbox": {
     "options": [
       {
@@ -1714,6 +1966,67 @@
         "signature": "setContent(content)",
         "returns": "this",
         "description": "Replaces the section body."
+      }
+    ]
+  },
+  "InlineLoading": {
+    "options": [
+      {
+        "name": "status",
+        "type": "'inactive'|'active'|'success'|'error'",
+        "default": "'active'",
+        "description": "Initial state."
+      },
+      {
+        "name": "description",
+        "type": "string",
+        "default": "''",
+        "description": "Text shown beside the indicator."
+      },
+      {
+        "name": "size",
+        "type": "'sm'|'md'",
+        "default": "'sm'",
+        "description": "Indicator size."
+      },
+      {
+        "name": "live",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether state changes are announced through `aria-live`."
+      }
+    ],
+    "events": [
+      {
+        "name": "statuschange",
+        "payload": "{status: string, description: string}",
+        "description": "State-change listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "getDescription",
+        "signature": "getDescription()",
+        "returns": "string",
+        "description": "Returns the current description."
+      },
+      {
+        "name": "set",
+        "signature": "set(status, [description], [options])",
+        "returns": "this",
+        "description": "Moves to a state, optionally replacing the description with it."
+      },
+      {
+        "name": "setDescription",
+        "signature": "setDescription(description)",
+        "returns": "this",
+        "description": "Replaces the description without changing the state."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": null,
+        "description": "Paints the indicator and the description for the current state. @returns {void} */ _sync() { this.el.dataset.status = this._status; this.refs.description.textContent = this._description; this.refs.indicator.replaceChildren(...this._indicator()); } /** @returns {Node[]} */ _indicator() { const size = this.el.dataset.size === 'md' ? 18 : 16; if (this._status === 'active') return [spinner({ size: 'sm', kind: 'current' })]; if (this._status === 'success') return [createIcon('success', { size })]; if (this._status === 'error') return [createIcon('error', { size })]; return []; } /** Restores an enhanced target to the markup it had before the takeover. @returns {void}"
       }
     ]
   },
@@ -2598,6 +2911,132 @@
       }
     ]
   },
+  "ProgressBar": {
+    "options": [
+      {
+        "name": "value",
+        "type": "number",
+        "default": "0",
+        "description": "Completed amount, clamped to `[0, max]`."
+      },
+      {
+        "name": "max",
+        "type": "number",
+        "default": "100",
+        "description": "Amount that counts as finished."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "default": "''",
+        "description": "Visible name of the task."
+      },
+      {
+        "name": "helperText",
+        "type": "string",
+        "default": "''",
+        "description": "Supporting line below the track."
+      },
+      {
+        "name": "status",
+        "type": "'active'|'success'|'error'",
+        "default": "'active'",
+        "description": "Visual state of the track."
+      },
+      {
+        "name": "indeterminate",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether the amount done is unknown."
+      },
+      {
+        "name": "size",
+        "type": "'md'|'sm'",
+        "default": "'md'",
+        "description": "Track thickness."
+      },
+      {
+        "name": "hideLabel",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether the label is kept for assistive technology only."
+      },
+      {
+        "name": "showValue",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether the formatted value is drawn opposite the label."
+      },
+      {
+        "name": "formatValue",
+        "type": "((value: number, max: number) => string)|null",
+        "default": "null",
+        "description": "Replaces the default percentage readout."
+      }
+    ],
+    "events": [
+      {
+        "name": "change",
+        "payload": "{value: number, percent: number}",
+        "description": "Value listener."
+      },
+      {
+        "name": "complete",
+        "payload": "{value: number}",
+        "description": "Listener for reaching `max`."
+      }
+    ],
+    "methods": [
+      {
+        "name": "set",
+        "signature": "set(next, [options])",
+        "returns": "this",
+        "description": "Sets the completed amount, clamped to `[0, max]`."
+      },
+      {
+        "name": "percent",
+        "signature": "percent()",
+        "returns": "number",
+        "description": "Completed share of the track, as a number between 0 and 100."
+      },
+      {
+        "name": "setMax",
+        "signature": "setMax(max)",
+        "returns": "this",
+        "description": "Replaces the upper bound, re-clamping the current value against it."
+      },
+      {
+        "name": "setStatus",
+        "signature": "setStatus(status, [helperText])",
+        "returns": "this",
+        "description": "Sets the visual state, optionally replacing the helper line with it."
+      },
+      {
+        "name": "setLabel",
+        "signature": "setLabel(label)",
+        "returns": "this",
+        "description": "Replaces the visible task name."
+      },
+      {
+        "name": "setHelperText",
+        "signature": "setHelperText(helperText)",
+        "returns": "this",
+        "description": "Replaces the supporting line below the track."
+      },
+      {
+        "name": "setIndeterminate",
+        "signature": "setIndeterminate([indeterminate])",
+        "returns": "this",
+        "description": "Switches between a known and an unknown completed share."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy(text)",
+        "returns": "Node[]",
+        "description": "Paints the track, the readout, and the ARIA value attributes. @returns {void} */ _sync() { const { track, fill, value } = this.refs; this.el.dataset.status = this._status; this.el.toggleAttribute('data-indeterminate', this._indeterminate); if (this._indeterminate) { track.removeAttribute('aria-valuenow'); track.removeAttribute('aria-valuetext'); fill.style.removeProperty('--zx-progress-fill'); value.textContent = ''; return; } const text = this._format(); track.setAttribute('aria-valuenow', String(this._value)); track.setAttribute('aria-valuetext', text); fill.style.setProperty('--zx-progress-fill', `${this.percent()}%`); value.replaceChildren(...this._readout(text)); } /** @returns {string} */ _format() { const formatter = this.options.formatValue; if (typeof formatter === 'function') return String(formatter(this._value, this._max)); return `${Math.round(this.percent())}%`; } /** The readout beside the label: the formatted value, prefixed by a status glyph once the run has finished one way or the other."
+      }
+    ]
+  },
   "Rating": {
     "options": [
       {
@@ -2965,6 +3404,264 @@
       }
     ]
   },
+  "Skeleton": {
+    "options": [
+      {
+        "name": "width",
+        "type": "string|number",
+        "default": "'100%'",
+        "description": "Block width; a number is read as pixels."
+      },
+      {
+        "name": "height",
+        "type": "string|number",
+        "default": "'1rem'",
+        "description": "Block height; a number is read as pixels."
+      },
+      {
+        "name": "radius",
+        "type": "'sm'|'md'|'full'",
+        "default": "'sm'",
+        "description": "Corner rounding. `full` with equal width and height gives the circle an avatar or icon placeholder needs."
+      }
+    ],
+    "events": [],
+    "methods": []
+  },
+  "SkeletonTable": {
+    "options": [
+      {
+        "name": "rows",
+        "type": "number",
+        "default": "5",
+        "description": "Number of body rows."
+      },
+      {
+        "name": "columns",
+        "type": "number",
+        "default": "4",
+        "description": "Number of columns."
+      },
+      {
+        "name": "header",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether a header row is drawn."
+      }
+    ],
+    "events": [],
+    "methods": []
+  },
+  "SkeletonText": {
+    "options": [
+      {
+        "name": "lines",
+        "type": "number",
+        "default": "3",
+        "description": "Number of text lines."
+      },
+      {
+        "name": "width",
+        "type": "string|number",
+        "default": "'100%'",
+        "description": "Width of the block as a whole."
+      },
+      {
+        "name": "heading",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether the first line is drawn taller, as a title."
+      },
+      {
+        "name": "lastLineWidth",
+        "type": "string|number",
+        "default": "'60%'",
+        "description": "Width of the final line, which reads as prose rather than as a filled rectangle."
+      }
+    ],
+    "events": [],
+    "methods": []
+  },
+  "Slider": {
+    "options": [
+      {
+        "name": "value",
+        "type": "number",
+        "default": "0",
+        "description": "Initial value, clamped to the range and snapped to `step`."
+      },
+      {
+        "name": "min",
+        "type": "number",
+        "default": "0",
+        "description": "Lowest selectable value."
+      },
+      {
+        "name": "max",
+        "type": "number",
+        "default": "100",
+        "description": "Highest selectable value."
+      },
+      {
+        "name": "step",
+        "type": "number",
+        "default": "1",
+        "description": "Increment between selectable values."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "default": "''",
+        "description": "Visible name of the control."
+      },
+      {
+        "name": "hideLabel",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether the label is kept for assistive technology only."
+      },
+      {
+        "name": "showValue",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether the current value is drawn opposite the label."
+      },
+      {
+        "name": "showBounds",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether `min` and `max` are drawn either side of the track."
+      },
+      {
+        "name": "showInput",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether a number box is drawn beside the track, for entering a value precisely rather than dragging to it."
+      },
+      {
+        "name": "unit",
+        "type": "string",
+        "default": "''",
+        "description": "Suffix appended to the readout."
+      },
+      {
+        "name": "marks",
+        "type": "Array<number|SliderMark>|null",
+        "default": "null",
+        "description": "Labelled positions under the track."
+      },
+      {
+        "name": "disabled",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether the control is disabled."
+      },
+      {
+        "name": "readonly",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether the value is displayed but cannot be changed."
+      },
+      {
+        "name": "size",
+        "type": "'md'|'sm'",
+        "default": "'md'",
+        "description": "Control size."
+      },
+      {
+        "name": "formatValue",
+        "type": "((value: number) => string)|null",
+        "default": "null",
+        "description": "Replaces the default readout."
+      }
+    ],
+    "events": [
+      {
+        "name": "change",
+        "payload": "{value: number}",
+        "description": "Committed-value listener."
+      },
+      {
+        "name": "input",
+        "payload": "{value: number}",
+        "description": "Listener called while dragging."
+      }
+    ],
+    "methods": [
+      {
+        "name": "set",
+        "signature": "set(next, [options])",
+        "returns": "this",
+        "description": "Sets the value, snapped to `step` and clamped to the range."
+      },
+      {
+        "name": "setRange",
+        "signature": "setRange(min, max, [step])",
+        "returns": "this",
+        "description": "Replaces the range, re-snapping the current value into it."
+      },
+      {
+        "name": "focus",
+        "signature": "focus()",
+        "returns": null,
+        "description": "Focuses the track. @returns {this}"
+      },
+      {
+        "name": "enable",
+        "signature": "enable()",
+        "returns": null,
+        "description": "Enables user interaction. @returns {this}"
+      },
+      {
+        "name": "disable",
+        "signature": "disable()",
+        "returns": null,
+        "description": "Disables user interaction. @returns {this}"
+      },
+      {
+        "name": "setReadonly",
+        "signature": "setReadonly(readonly)",
+        "returns": "this",
+        "description": "Sets the read-only state: the value stays focusable and announced, but cannot be changed."
+      },
+      {
+        "name": "setLabel",
+        "signature": "setLabel(label)",
+        "returns": "this",
+        "description": "Replaces the visible label."
+      }
+    ]
+  },
+  "Spinner": {
+    "options": [
+      {
+        "name": "size",
+        "type": "'sm'|'md'|'lg'",
+        "default": "'md'",
+        "description": "Ring diameter: 16px, 24px, or 40px."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "default": "''",
+        "description": "Accessible name. Empty renders a decorative ring that assistive technology skips — correct whenever a nearby element already announces the wait."
+      },
+      {
+        "name": "showLabel",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether the label is also drawn beside the ring."
+      },
+      {
+        "name": "kind",
+        "type": "'accent'|'current'",
+        "default": "'accent'",
+        "description": "Ring colour: the accent token, or `currentColor` so the ring inherits the colour of the button or badge it sits in."
+      }
+    ],
+    "events": [],
+    "methods": []
+  },
   "SplitView": {
     "options": [
       {
@@ -3118,6 +3815,54 @@
         "description": "Disconnects the observer, drops listeners, and restores an enhanced target's original content."
       }
     ]
+  },
+  "Stack": {
+    "options": [
+      {
+        "name": "direction",
+        "type": "'column'|'row'",
+        "default": "'column'",
+        "description": "Flow direction."
+      },
+      {
+        "name": "gap",
+        "type": "number|string",
+        "default": "4",
+        "description": "Space between children. A number 1–8 picks the matching `--zx-space-*` step; a string is used as-is."
+      },
+      {
+        "name": "align",
+        "type": "'start'|'center'|'end'|'stretch'|'baseline'",
+        "default": null,
+        "description": "Cross-axis alignment."
+      },
+      {
+        "name": "justify",
+        "type": "'start'|'center'|'end'|'between'|'around'",
+        "default": null,
+        "description": "Main-axis distribution."
+      },
+      {
+        "name": "wrap",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether a row wraps."
+      },
+      {
+        "name": "inline",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether the stack is laid out inline."
+      },
+      {
+        "name": "class",
+        "type": "string",
+        "default": "''",
+        "description": "Extra class names."
+      }
+    ],
+    "events": [],
+    "methods": []
   },
   "Stepper": {
     "options": [
@@ -4396,6 +5141,24 @@
         "description": "Moves DOM focus to a node, revealing it first."
       }
     ]
+  },
+  "Truncate": {
+    "options": [
+      {
+        "name": "lines",
+        "type": "number",
+        "default": "1",
+        "description": "Lines to keep. One line ends in an ellipsis; more clamp the block."
+      },
+      {
+        "name": "title",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether a native `title` tooltip is set — and kept up to date — while the text is actually cut off, so the full value stays reachable on hover."
+      }
+    ],
+    "events": [],
+    "methods": []
   },
   "ValueList": {
     "options": [

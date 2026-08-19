@@ -20,11 +20,12 @@ import { icon } from '../src/core/icons.js';
 
 /** Component demos, in sidebar order. The id is the `website/demos/<id>.demo.js` basename. */
 const COMPONENT_IDS = [
-  'tokens', 'kernel', 'icons', 'helpers', 'gx-compat',
-  'button', 'badge', 'check-button', 'toggle', 'search', 'number-field', 'rating',
-  'groupbox', 'panel', 'tabbox', 'navigation-bar', 'toolbar', 'empty-state',
+  'tokens', 'kernel', 'icons', 'helpers', 'truncate', 'gx-compat',
+  'button', 'badge', 'check-button', 'toggle', 'search', 'number-field', 'rating', 'slider', 'copy',
+  'layout', 'groupbox', 'panel', 'tabbox', 'navigation-bar', 'toolbar', 'empty-state',
   'stepper', 'breadcrumb', 'split-view',
-  'message', 'modal', 'dialog', 'dropdown', 'menu-button', 'tooltip',
+  'loading', 'skeleton',
+  'message', 'modal', 'dialog', 'dropdown', 'menu-button', 'context-menu', 'tooltip',
   'select', 'checklist', 'tag-picker', 'permission',
   'date-picker', 'datebox', 'date-range', 'timebox',
   'table', 'data-filter', 'pagination', 'tree', 'finder',

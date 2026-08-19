@@ -287,6 +287,79 @@ disturbs the page's heading outline.
 - **Events** — none; action buttons carry their own `onclick`.
 <!-- /doc -->
 
+<!-- doc:loading -->
+### Spinner / ProgressBar / InlineLoading
+
+Three shapes of "wait". A **spinner** when the duration is unknown and there is nothing to say
+about progress; a **progress bar** when the completed share is known; **inline loading** when the
+wait resolves into its own outcome in the place it started. `spinner()` is a factory returning an
+element — there is no state to update and nothing to destroy — while the other two are components.
+
+#### spinner()
+
+- **Signature** — `spinner({size, label, showLabel, kind})` → `HTMLSpanElement`.
+- **Options** — `size: 'sm'|'md'|'lg'` (16px, 24px, 40px), `label: ''`, `showLabel: false`,
+  `kind: 'accent'|'current'` — `current` draws the ring in `currentColor`, which is what a ring
+  inside a button or a badge needs.
+- **Accessibility** — a `label` makes the element `role="status"` and keeps the text in the
+  accessibility tree even when `showLabel` is false; without a label the ring is `aria-hidden`,
+  which is correct whenever a nearby element already announces the wait.
+
+#### ProgressBar
+
+- **Options** — `value: 0`, `max: 100`, `label: ''`, `helperText: ''`,
+  `status: 'active'|'success'|'error'`, `indeterminate: false`, `size: 'md'|'sm'`,
+  `hideLabel: false`, `showValue: true`, `formatValue: (value, max) => string`.
+- **Methods** — `get()`, `set(value, {silent})` (clamped to `[0, max]`), `percent()`, `setMax()`,
+  `setStatus(status, helperText?)`, `setLabel()`, `setHelperText()`, `setIndeterminate(flag)`.
+- **Events** — `change {value, percent}`, `complete {value}` once the value reaches `max`.
+- **Behaviour** — `status` is a display concern only: a run that failed at 100% still reads 100%.
+  An indeterminate bar drops `aria-valuenow` rather than reporting a number it does not have, and
+  under reduced motion its travelling band becomes a static muted track — visibly busy, never a
+  wrong number.
+- **Accessibility** — the track is `role="progressbar"` with `aria-valuemin`, `aria-valuemax`,
+  `aria-valuenow`, and `aria-valuetext`, labelled by the visible label (kept for assistive
+  technology when `hideLabel` is set).
+
+#### InlineLoading
+
+- **Options** — `status: 'inactive'|'active'|'success'|'error'`, `description: ''`,
+  `size: 'sm'|'md'`, `live: true`.
+- **Methods** — `get()`, `getDescription()`, `set(status, description?, {silent})`,
+  `setDescription()`.
+- **Events** — `statuschange {status, description}`.
+- **Accessibility** — the whole element is one polite live region (`role="status"`), so the
+  outcome is announced without the focus moving off the control that started the work. Use
+  `Message` instead when the outcome deserves a dismissible notification rather than a line of
+  text that stays put.
+<!-- /doc -->
+
+<!-- doc:skeleton -->
+### Skeleton
+
+Placeholders shaped like the content that is coming, so the layout does not jump when it arrives.
+That is the whole reason to prefer them over a spinner, and the reason they only pay off where the
+shape is genuinely known. All three are factories returning elements.
+
+- **Factories** — `skeleton({width, height, radius})` → one block; `skeletonText({lines, width,
+  heading, lastLineWidth})` → a stack of lines; `skeletonTable({rows, columns, header})` → the
+  grid a table will fill.
+- **skeleton options** — `width: '100%'`, `height: '1rem'` (a number is read as pixels),
+  `radius: 'sm'|'md'|'full'`. Equal sides plus `radius: 'full'` gives the circle an avatar or icon
+  placeholder needs.
+- **skeletonText options** — `lines: 3` (1–20), `width: '100%'`, `heading: false` (draws the first
+  line taller), `lastLineWidth: '60%'` — the short final line is what makes the block read as
+  prose rather than as a filled rectangle.
+- **skeletonTable options** — `rows: 5` (1–50), `columns: 4` (1–20), `header: true`. Rendered as
+  plain elements, not a `<table>`: there is no data to expose, and a table whose cells are all
+  empty is worse for assistive technology than no table at all.
+- **Accessibility** — every skeleton is `aria-hidden`, because a screen reader gains nothing from
+  an announced grey box. Set `aria-busy="true"` on the region being filled and remove it together
+  with the placeholder.
+- **Behaviour** — the pulse is wrapped in `prefers-reduced-motion: no-preference`; without motion
+  a legible static block stays behind.
+<!-- /doc -->
+
 <!-- doc:check-button -->
 ### CheckButton
 
@@ -393,6 +466,65 @@ arrow-key selection. Field type: `rating`.
 - **Events** — `change {value}`, `hover {value|null}` (pointer or focus preview; null on leave).
 - **Keyboard** — ←/↓ and →/↑ step, Home selects the first step, End the last, Delete/Backspace
   clear.
+<!-- /doc -->
+
+<!-- doc:slider -->
+### Slider
+
+A bounded numeric value set by dragging — a discount rate, a threshold, a weighting. Built on a
+native `<input type="range">`, which is where the whole keyboard map and the announcement come
+from; everything Zx adds is chrome around it. Field type: `slider`.
+
+- **Options** — `value: 0`, `min: 0`, `max: 100`, `step: 1`, `label: ''`, `hideLabel: false`,
+  `showValue: true`, `showBounds: false` (draws `min` and `max` either side of the track),
+  `showInput: false` (adds a number box for entering a value precisely instead of aiming at it),
+  `unit: ''`, `marks: null` (numbers, or `{value, label}` objects), `disabled: false`,
+  `readonly: false`, `size: 'md'|'sm'`, `formatValue: (value) => string`.
+- **Methods** — `get()`, `set(value, {silent})`, `setRange(min, max, step?)`, `setLabel()`,
+  `setReadonly()`, `focus()`, `enable()`/`disable()`. `value` is also a getter/setter.
+- **Events** — `input {value}` continuously while dragging, `change {value}` once the value is
+  committed (pointer released, or a key pressed).
+- **Behaviour** — values snap to the step grid anchored at `min`, so 5…95 by 10 gives 5, 15, 25 —
+  not 10, 20, 30. Bounds win over the grid, so a `max` that is not a whole number of steps above
+  `min` stays reachable. A fractional step snaps to the decimals it carries: 0.1 gives 0.3, never
+  0.30000000000000004. `stepPrecision(step)` is exported for the same arithmetic elsewhere;
+  snapping itself reuses `snapNumber` from NumberField.
+- **Keyboard** — arrows step by `step`, Page Up/Page Down jump, Home and End go to the bounds —
+  all native. A read-only slider stays focusable and announced but refuses every edit, pointer and
+  keyboard alike; a disabled one leaves the tab order entirely.
+<!-- /doc -->
+
+<!-- doc:copy -->
+### copyButton() / CopyInput
+
+Copying a value, and saying so. A clipboard write is silent, so both of these confirm it in place
+— and stay quiet when the browser refuses. Both go through `copyToClipboard()`, which falls back
+to a hidden textarea when the async Clipboard API is unavailable or denied.
+
+#### copyButton()
+
+- **Signature** — `copyButton({text, label, title, feedback, feedbackDuration, size, kind, oncopy})`
+  → `HTMLButtonElement`.
+- **Options** — `text: ''` — a string, or **a function returning one**, which is what a button
+  beside a live value needs so the copy is never stale; `label: ''` (empty renders an icon-only
+  ghost button), `title: 'Copy'`, `feedback: 'Copied'`, `feedbackDuration: 2000`,
+  `size: 'md'|'sm'`, `kind: 'default'|'primary'|'ghost'`.
+- **Events** — `oncopy(text, copied)` is called for every attempt; `copied` is `false` when the
+  clipboard refused the write, and the button then stays untouched rather than claiming a copy
+  that did not happen.
+- **Accessibility** — on success the glyph becomes a tick and a visually hidden `role="status"`
+  speaks the confirmation, then both revert. The icon-only form carries the `title` as its
+  accessible name.
+
+#### CopyInput
+
+- **Options** — `value: ''`, `label: ''`, `hideLabel: false`, `feedback: 'Copied'`,
+  `buttonTitle: 'Copy'`, `size: 'md'|'sm'`.
+- **Methods** — `get()`, `set(value)`, `focus()` (focuses and selects the whole value).
+- **Events** — `copy {value, copied}`.
+- **Behaviour** — the field is `readonly`, not `disabled`, so the text stays selectable and
+  reachable by keyboard; focusing it selects the whole value, which is what someone reaching for
+  Ctrl+C expects.
 <!-- /doc -->
 
 <!-- doc:date-picker -->
@@ -535,6 +667,34 @@ A button that opens a `role="menu"`.
 - **Events** — `select {value, item}`, `open`, `close`.
 - **Keyboard** — ArrowDown/Enter/Space open and focus the first item; ArrowUp opens and focuses the
   last; arrows cycle; Home/End; typeahead; Enter/Space select; Esc/Tab close.
+<!-- /doc -->
+
+<!-- doc:context-menu -->
+### ContextMenu
+
+Right-click menu for a region or a row, implementing the APG menu pattern. Attaches to an existing
+element and never changes it: the menu lives in the top layer, anchored to a zero-sized element
+parked at the pointer, so it flips near a viewport edge like every other floating panel.
+
+- **Constructor** — `new ContextMenu(target, options)` where `target` is an element or selector.
+  Unlike most components the target is not enhanced or replaced; `destroy()` removes only the
+  anchor the menu created.
+- **Options** — `items: []` — the same `{label, icon, value, disabled, danger, onselect}` shape
+  MenuButton takes, with `'-'` for a separator, **or a function** `(context) => items` called on
+  every opening so a row menu can disable the actions that row does not allow; returning an empty
+  array cancels the opening and leaves the platform menu alone. `selector: null` restricts the
+  menu to matching descendants and reports the matched element as the context — a table passes
+  `'tbody tr'` here and needs one instance, not one per row.
+- **Methods** — `setItems(items)`, `openAt(x, y, context?)` (viewport coordinates),
+  `openAtElement(element)`, `close()`, `isOpen()`, `getContext()`.
+- **Events** — `select {value, item, context}`, `open {context}`, `close`. Subscribe with
+  `menu.on('select', …)` or the `onselect` option: the component's root is the anchor on
+  `<body>`, so the bubbling `zx-select` DOM event is dispatched there and not through the
+  region the menu belongs to — delegation on the target will not see it.
+- **Keyboard** — the Menu key and Shift+F10 open the menu at the focused element, which is the
+  half most pointer-only context menus miss. Arrows move between items, typing jumps to one by its
+  first letters, Enter and Space activate, Escape and Tab close — and closing returns focus to
+  wherever it came from.
 <!-- /doc -->
 
 <!-- doc:tooltip -->
@@ -823,6 +983,38 @@ fixed footer, while the body scrolls.
 - **Methods** — `setTitle()`, `setContent()`, `setButtons()`, `setFooter()`.
 <!-- /doc -->
 
+<!-- doc:layout -->
+### stack() / grid() / aspect()
+
+The small layout pieces that sit under Panel, SplitView, and MasterPanel: consistent spacing, a
+grid that reflows on its own width, and a fixed-ratio box. Zx ships no page grid on purpose — an
+ERP screen is a shell of panels, and those components already own that layer. All three are
+factories returning elements, and all three are plain classes that work just as well in static
+markup with no JavaScript.
+
+- **Factories** — `stack(options, ...children)`, `grid(options, ...children)`,
+  `aspect(options, ...children)`; the classes are `.zx-stack`, `.zx-grid`, `.zx-aspect`.
+- **stack options** — `direction: 'column'|'row'`, `gap: 4` (1–8 picks the matching `--zx-space-*`
+  step; any other value is used as a CSS length), `align: 'start'|'center'|'end'|'stretch'|
+  'baseline'`, `justify: 'start'|'center'|'end'|'between'|'around'`, `wrap: false`,
+  `inline: false`, `class: ''`.
+- **grid options** — `columns: null` (the count at full width; null fills each row with as many
+  `min`-wide tracks as fit), `min: '16rem'` (a number is read as pixels), `gap: 4`,
+  `align: 'start'|'center'|'end'|'stretch'`, `class: ''`.
+- **aspect options** — `ratio: '16 / 9'`, `fit: 'cover'|'contain'|'fill'`, `class: ''`.
+- **Behaviour** — the grid reflows intrinsically: each track asks for its share of the row but
+  never goes below `min`, so `auto-fit` drops one column at a time as the container narrows. No
+  media query is involved, which is why a grid behaves the same in a full-width page, a split
+  pane, and a modal — the usual reason a "responsive" grid still breaks inside a narrow panel.
+- **Breakpoints** — `breakpoints` (`sm: 480`, `md: 768`, `lg: 1024`, `xl: 1280`),
+  `breakpointOf(width)` → `'xs'|'sm'|'md'|'lg'|'xl'`, `matchBreakpoint(name, width)` (the script
+  equivalent of a `min-width` query), and `onBreakpoint(handler, {target})` → `{current, destroy}`,
+  which fires immediately and then on every crossing. `target` defaults to the window but takes an
+  **element**, watched with a `ResizeObserver` — inside a split pane the viewport width says
+  nothing about the space actually available. The scale lives in JavaScript rather than as tokens
+  because a CSS custom property cannot be used inside a media query.
+<!-- /doc -->
+
 <!-- doc:tabbox -->
 ### Tabbox — APG tabs
 
@@ -1040,6 +1232,26 @@ entry point as the components. See also the Kernel section for `Component`, `h`,
   destroy}` keeps one tab stop in a group; `typeahead(getItems, onMatch)` →
   `(event|string) => void` resolves buffered printable keystrokes to an item (500 ms buffer,
   repeated-letter cycling).
+<!-- /doc -->
+
+<!-- doc:truncate -->
+### truncate()
+
+Clamps text to a number of lines and gives the cut-off text back on hover. The tooltip half is
+what makes it more than a CSS class: a cell that silently drops the end of a value is a data-loss
+bug wearing a layout costume, while a tooltip that is always there is noise.
+
+- **Signature** — `truncate(target, {lines, title})` → `{update, isTruncated, destroy}`.
+- **Options** — `lines: 1` (1–10; one line ends in an ellipsis, more clamp the block),
+  `title: true` — sets a native `title` **only while the text is actually cut off**, re-measured
+  through a `ResizeObserver` on every resize, and restores any previous title on `destroy()`.
+- **Controller** — `update()` re-measures and returns the current state, `isTruncated()` reports
+  the last measurement, `destroy()` removes the class, the observer, and any title it set.
+- **Exported helper** — `isTruncated(element)` compares scroll and client sizes on both axes (a
+  single line runs out of width, a clamped block runs out of height) with a one-pixel tolerance
+  for the sub-pixel difference fractional zoom produces.
+- **Class** — `.zx-truncate` alone does the clamping from static markup with no JavaScript;
+  `data-lines` plus `--zx-truncate-lines` select the multi-line form.
 <!-- /doc -->
 
 <!-- doc:gx-compat -->

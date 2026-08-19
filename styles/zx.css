@@ -9,6 +9,14 @@
 @import url("../src/components/badge/badge.css");
 @import url("../src/components/check-button/check-button.css");
 @import url("../src/components/empty-state/empty-state.css");
+@import url("../src/components/layout/layout.css");
+@import url("../src/components/truncate/truncate.css");
+@import url("../src/components/loading/spinner.css");
+@import url("../src/components/loading/progress-bar.css");
+@import url("../src/components/loading/inline-loading.css");
+@import url("../src/components/skeleton/skeleton.css");
+@import url("../src/components/copy/copy-button.css");
+@import url("../src/components/copy/copy-input.css");
 @import url("../src/components/toolbar/toolbar.css");
 @import url("../src/components/toggle/toggle.css");
 @import url("../src/components/groupbox/groupbox.css");
@@ -24,10 +32,12 @@
 @import url("../src/components/tooltip/tooltip.css");
 @import url("../src/components/split-view/split-view.css");
 @import url("../src/components/menu-button/menu-button.css");
+@import url("../src/components/context-menu/context-menu.css");
 @import url("../src/components/select/select.css");
 @import url("../src/components/checklist/checklist.css");
 @import url("../src/components/tag-picker/tag-picker.css");
 @import url("../src/components/number-field/number-field.css");
+@import url("../src/components/slider/slider.css");
 @import url("../src/components/rating/rating.css");
 @import url("../src/components/permission/permission.css");
 @import url("../src/components/date-picker/date-picker.css");

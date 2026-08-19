@@ -54,6 +54,7 @@ The groups match the demo sidebar.
 | `defineElements()` | Registers the light-DOM `<zx-*>` wrappers for the supported declarative components. |
 | `h()`, `icon()` | Safe DOM and icon factories used by applications and custom renderers. |
 | `loadFontAwesome()` | Opts the icon layer into a Font Awesome kit; `useBuiltinIcons()` switches back. |
+| `onBreakpoint()` | Named width bands, observed on an element or the window. |
 
 The public core also includes HTTP helpers, i18n, date formatting/parsing, positioning, keyboard
 helpers, and small dependency-free utilities; see the named exports in `src/index.js`. Alongside
@@ -84,6 +85,7 @@ ZeyOS binding — see `src/zeyos/modules.js`.
 | `TagPicker` | Multi-select combobox that keeps its selection as removable tags. |
 | `NumberField` | APG spinbutton with step buttons, ranges, units, and wrapping. |
 | `Rating` | Star rating as a radio group, with optional half steps. |
+| `Slider` | Range control for a bounded numeric value, with marks and an optional number box. |
 | `DatePicker` | APG calendar grid with bounds, week numbers, and optional time selection. |
 | `MonthPicker` | Twelve-month grid with year navigation. |
 | `TimePicker` | Segmented local-time picker. |
@@ -91,6 +93,8 @@ ZeyOS binding — see `src/zeyos/modules.js`.
 | `DateRangePicker` | Two-month range calendar with presets, night bounds, and range preview. |
 | `DateRangeBox` | Formatted date-range input with an anchored range calendar. |
 | `Timebox` | Segmented signed or unsigned duration input. |
+| `copyButton()` | Button that copies a string and confirms it in place. |
+| `CopyInput` | Read-only box holding a value to be copied, with the copy button attached. |
 
 ### Overlays
 
@@ -101,6 +105,7 @@ ZeyOS binding — see `src/zeyos/modules.js`.
 | `Dialog` | Titled modal with buttons, named views, alert, confirm, and prompt helpers. |
 | `Dropdown` | Generic anchored popover with placement fallback. |
 | `MenuButton` | APG menu button built on `Dropdown`. |
+| `ContextMenu` | APG right-click menu for a region or, via `selector`, per row. |
 | `Tooltip`, `tooltip()`, `describe()` | Hover/focus description bubble anchored with `position()`. |
 
 ### Data
@@ -139,6 +144,12 @@ ZeyOS binding — see `src/zeyos/modules.js`.
 | `Stepper` | Linear multi-step progress with completed, active, and error states. |
 | `Breadcrumb` | Hierarchy trail with middle-collapse, pairing with `Finder` and `TreeView`. |
 | `emptyState()` | Placeholder for an empty list, table, or panel, with optional actions. |
+| `stack()`, `grid()`, `aspect()` | Spacing, an intrinsically reflowing grid, and a fixed-ratio box. |
+| `spinner()` | Indeterminate activity ring for a wait of unknown length. |
+| `ProgressBar` | Determinate progress track, with success and error states. |
+| `InlineLoading` | Status line that resolves a wait into its outcome in place. |
+| `skeleton()`, `skeletonText()`, `skeletonTable()` | Placeholders shaped like the content that is coming. |
+| `truncate()` | Clamps text to a number of lines, with the full value on hover. |
 
 ## Talking to ZeyOS
 
