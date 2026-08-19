@@ -54,8 +54,17 @@ const ACCESSIBILITY_LABELS = /\b(keyboard|accessibilit|a11y|screen reader|aria)\
 /** Matches a bullet in the reference markdown and captures its indent and text. */
 const BULLET = /^(\s*)[-*]\s+(.*)$/;
 
+/** Reference bullets that enumerate a list, and so read better as a table than as a sentence. */
+const ENUMERABLE = /^(options?|methods?|events?|propert(y|ies)|getters?|statics?|refs?)$/i;
+
 /** @type {Map<string, string>} Module sources, fetched at most once each. */
 const sourceCache = new Map();
+
+/*
+ * Everything above is declared before the first render, which runs at the bottom of this module's
+ * evaluation — a `const` placed further down would still be in its temporal dead zone by then.
+ * Module-level data belongs here, not beside the function that happens to use it.
+ */
 
 const root = document.querySelector('#docs-app');
 const shell = element('div', 'docs-shell');
@@ -410,12 +419,14 @@ function apiSection(entry, reference) {
 
   if (reference.api.length) {
     const body = element('div', 'docs-prose docs-api');
-    body.append(...reference.api);
+    body.append(...apiBlocks(reference.api));
     section.append(body);
-  } else {
+  } else if (!reference.found) {
     section.append(element('p', 'docs-note', undefined,
       text('No reference section yet — see '), link(DOCS_URL, 'docs/llms.md'), text('.')));
   }
+  // A section that is all prose — `defineElements()` is one — has already been shown under the
+  // title, so the card carries the import line alone rather than claiming there is no reference.
   return section;
 }
 
@@ -531,6 +542,156 @@ function sourceSection(entry) {
   return section;
 }
 
+/* ------------------------------------------------------------------ api tables -- */
+
+/**
+ * Turns the enumerable API bullets into one table each, leaving anything else as it was.
+ *
+ * `docs/llms.md` writes them as one sentence — a run of code spans, each optionally followed by a
+ * parenthesised note — which is compact to author and unreadable to scan once a component has a
+ * dozen options.
+ * @param {Node[]} nodes The API bucket from `splitReference`.
+ * @returns {Node[]}
+ */
+function apiBlocks(nodes) {
+  const blocks = [];
+  for (const node of nodes) {
+    if (node.nodeName !== 'UL') {
+      blocks.push(node);
+      continue;
+    }
+    // Bullets that cannot be tabled stay in a list, and consecutive ones share it.
+    let list = null;
+    for (const item of [...node.children]) {
+      const table = apiTable(item);
+      if (table) {
+        blocks.push(...table);
+        list = null;
+        continue;
+      }
+      if (!list) {
+        list = document.createElement('ul');
+        blocks.push(list);
+      }
+      list.append(item);
+    }
+  }
+  return blocks;
+}
+
+/**
+ * @param {HTMLLIElement} item
+ * @returns {[HTMLElement, HTMLElement] | null} Heading and table, or null when the bullet is not
+ *   an enumeration — Button and Badge list their factories by signature, which is prose.
+ */
+function apiTable(item) {
+  const label = item.firstElementChild;
+  if (label?.nodeName !== 'STRONG') return null;
+  const name = label.textContent.trim();
+  if (!ENUMERABLE.test(name)) return null;
+
+  const entries = splitEntries([...item.childNodes].slice(1));
+  if (entries.length < 2) return null;
+
+  const body = document.createElement('tbody');
+  for (const entry of entries) {
+    const { term, note } = splitEntry(entry);
+    if (!term.length) return null;
+    const row = document.createElement('tr');
+    const head = element('th', 'docs-api__term');
+    head.scope = 'row';
+    head.append(...term);
+    const detail = element('td', 'docs-api__note');
+    detail.append(...note);
+    row.append(head, detail);
+    body.append(row);
+  }
+
+  const table = element('table', 'docs-api__table', undefined, body);
+  table.setAttribute('aria-label', name);
+  return [
+    element('h3', 'docs-api__group', name),
+    element('div', 'docs-api__scroller', undefined, table)
+  ];
+}
+
+/**
+ * Splits a bullet's contents at the commas that separate its entries.
+ *
+ * Only text nodes are scanned, so a comma inside a code span — `sort: { id, dir }` — is already
+ * out of reach; a paren counter keeps the commas inside a note out of reach too.
+ * @param {Node[]} nodes
+ * @returns {Node[][]}
+ */
+function splitEntries(nodes) {
+  const entries = [[]];
+  let depth = 0;
+
+  for (const node of nodes) {
+    if (node.nodeType !== Node.TEXT_NODE) {
+      entries.at(-1).push(node);
+      continue;
+    }
+    let buffer = '';
+    for (const character of node.textContent) {
+      if ('(['.includes(character)) depth += 1;
+      else if (')]'.includes(character)) depth = Math.max(0, depth - 1);
+      if (character === ',' && depth === 0) {
+        if (buffer.trim()) entries.at(-1).push(text(buffer));
+        buffer = '';
+        entries.push([]);
+        continue;
+      }
+      buffer += character;
+    }
+    if (buffer.trim()) entries.at(-1).push(text(buffer));
+  }
+  return entries.filter((entry) => entry.length);
+}
+
+/**
+ * Separates one entry into the thing being named and the note about it. Code spans joined only by
+ * `/` or `|` stay together, so `enable()`/`disable()` is one term rather than a term and a note.
+ * @param {Node[]} entry
+ * @returns {{term: Node[], note: Node[]}}
+ */
+function splitEntry(entry) {
+  const term = [];
+  let index = 0;
+
+  while (index < entry.length) {
+    const node = entry[index];
+    if (node.nodeName === 'CODE') {
+      term.push(node);
+      index += 1;
+      continue;
+    }
+    const joiner = node.nodeType === Node.TEXT_NODE && /^[\s/|]+$/.test(node.textContent)
+      && term.length && entry[index + 1]?.nodeName === 'CODE';
+    if (!joiner) break;
+    term.push(node);
+    index += 1;
+  }
+
+  return { term, note: trimNote(entry.slice(index)) };
+}
+
+/**
+ * Drops the parentheses and trailing full stop that made the note part of a sentence.
+ * @param {Node[]} nodes
+ * @returns {Node[]}
+ */
+function trimNote(nodes) {
+  const note = nodes.map((node) => (node.nodeType === Node.TEXT_NODE ? text(node.textContent) : node));
+  if (note[0]?.nodeType === Node.TEXT_NODE) {
+    note[0].textContent = note[0].textContent.replace(/^[\s(]+/, '');
+  }
+  if (note.at(-1)?.nodeType === Node.TEXT_NODE) {
+    note.at(-1).textContent = note.at(-1).textContent.replace(/[\s).;]+$/, '');
+  }
+  return note.filter((node) => node.nodeType !== Node.TEXT_NODE || node.textContent !== '');
+}
+
 /* ---------------------------------------------------------------- reference -- */
 
 /**
@@ -539,15 +700,15 @@ function sourceSection(entry) {
  * the examples. The split is on the bold lead-in each bullet already carries — 43 of the 47
  * sections name `Options`, `Methods`, and `Events` this way — so nothing has to be rewritten.
  * @param {string} id Demo basename, which doubles as the `<!-- doc:<id> -->` marker.
- * @returns {{summary: Node[], api: Node[], notes: Node[], accessibility: Node[]}}
+ * @returns {{found: boolean, summary: Node[], api: Node[], notes: Node[], accessibility: Node[]}}
  */
 function splitReference(id) {
-  const empty = { summary: [], api: [], notes: [], accessibility: [] };
+  const empty = { found: false, summary: [], api: [], notes: [], accessibility: [] };
   const match = new RegExp(`<!--\\s*doc:${id}\\s*-->([\\s\\S]*?)<!--\\s*/doc\\s*-->`).exec(referenceText ?? '');
   if (!match) return empty;
 
   const parsed = [...renderMarkdown(match[1]).childNodes];
-  const result = { ...empty };
+  const result = { ...empty, found: true };
   let seenList = false;
 
   for (const node of parsed) {
@@ -1067,31 +1228,36 @@ function renderMarkdown(md) {
 function renderList(lines, start) {
   const root = document.createElement('ul');
   const stack = [{ indent: BULLET.exec(lines[start])[1].length, list: root }];
-  let item = null;
   let index = start;
 
   while (index < lines.length) {
     const bullet = BULLET.exec(lines[index]);
-    if (!bullet) {
-      // An indented, non-bullet line continues the item above it; anything else ends the list.
-      if (!item || !lines[index].trim() || !/^\s/.test(lines[index])) break;
-      item.append(renderInline(` ${lines[index].trim()}`));
-      index += 1;
-      continue;
+    if (!bullet) break;
+
+    // Take the bullet's own text together with every continuation line before rendering any of
+    // it. Rendering line by line would cut an inline code span that wraps — `columns: [{ … }]` in
+    // the Table reference spans four lines — leaving its backticks unpaired and printed as text.
+    const parts = [bullet[2]];
+    let next = index + 1;
+    while (next < lines.length && lines[next].trim()
+      && /^\s/.test(lines[next]) && !BULLET.test(lines[next])) {
+      parts.push(lines[next].trim());
+      next += 1;
     }
 
     const indent = bullet[1].length;
     while (stack.length > 1 && indent < stack.at(-1).indent) stack.pop();
     if (indent > stack.at(-1).indent) {
       const nested = document.createElement('ul');
-      (item ?? stack.at(-1).list).append(nested);
+      (stack.at(-1).list.lastElementChild ?? stack.at(-1).list).append(nested);
       stack.push({ indent, list: nested });
     }
-    item = document.createElement('li');
-    item.append(renderInline(bullet[2]));
+
+    const item = document.createElement('li');
+    item.append(renderInline(parts.join(' ')));
     trimLabelSeparator(item);
     stack.at(-1).list.append(item);
-    index += 1;
+    index = next;
   }
   return [root, index];
 }
@@ -1124,12 +1290,16 @@ function renderInline(value) {
       code.textContent = match[1];
       fragment.append(code);
     } else if (match[2] !== undefined) {
+      // Bold and link text are rendered rather than assigned: the reference regularly puts a code
+      // span inside them — `**`button(options)`**` — and the backticks would otherwise be printed.
       const strong = document.createElement('strong');
-      strong.textContent = match[2];
+      strong.append(renderInline(match[2]));
       fragment.append(strong);
     } else {
       const href = safeHref(match[4]);
-      fragment.append(link(href, match[3], /^https?:/i.test(href) ? { target: '_blank' } : {}));
+      const anchor = link(href, '', /^https?:/i.test(href) ? { target: '_blank' } : {});
+      anchor.append(renderInline(match[3]));
+      fragment.append(anchor);
     }
     last = match.index + match[0].length;
   }

@@ -236,6 +236,54 @@
   font-size: var(--zx-text-sm);
 }
 
+/* ------------------------------------------------------------------ api tables -- */
+
+.docs-api__group {
+  margin: var(--zx-space-6) 0 var(--zx-space-2);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.docs-api > .docs-api__group:first-child {
+  margin-block-start: 0;
+}
+
+.docs-api__scroller {
+  overflow-x: auto;
+}
+
+.docs-api__table {
+  inline-size: 100%;
+  border-collapse: collapse;
+}
+
+/* The name column sizes to its content so the notes get the rest, and never wraps mid-signature. */
+.docs-api__term {
+  inline-size: 1%;
+  padding: var(--zx-space-2) var(--zx-space-5) var(--zx-space-2) 0;
+  border-block-end: 1px solid var(--zx-color-border);
+  font-weight: 400;
+  text-align: start;
+  vertical-align: baseline;
+  white-space: nowrap;
+}
+
+.docs-api__note {
+  padding: var(--zx-space-2) 0;
+  border-block-end: 1px solid var(--zx-color-border);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  line-height: 1.6;
+  vertical-align: baseline;
+}
+
+.docs-api__table tr:last-child :is(.docs-api__term, .docs-api__note) {
+  border-block-end: 0;
+}
+
 .docs-note {
   margin: 0 0 var(--zx-space-4);
   max-inline-size: 78ch;
