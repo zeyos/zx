@@ -121,7 +121,7 @@ const GROUPBOX_ATTRS = attributes({
 const TABBOX_ATTRS = attributes({
   tabs: json({ default: [], normalize: normalizeTabs, rebuild: true }),
   active: text({ default: null, set: (component, value) => { if (value !== null) component.openTab(value); }, get: (component) => component.getActive() }),
-  variant: text({ default: 'line', rebuild: true }),
+  variant: text({ default: 'divided', rebuild: true }),
   'keep-alive': bool({ property: 'keepAlive', rebuild: true })
 });
 

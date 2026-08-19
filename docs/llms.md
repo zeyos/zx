@@ -826,13 +826,20 @@ fixed footer, while the body scrolls.
 <!-- doc:tabbox -->
 ### Tabbox — APG tabs
 
-Two appearances, both following the shadcn/ui `Tabs` primitive: `line` (the default) underlines the
-active tab across a full-width rule, for page- and section-level navigation; `segmented` renders a
-compact pill group on a muted fill with the active tab raised onto a control surface, for switching
-a view inside a panel, toolbar, or card header.
+Four appearances, all square-cornered. `divided` (the default) sets flat blocks on a muted track,
+split by hairline dividers, above a bordered panel, with the active block lifted onto the panel
+surface under an accent rule. `bracket` outlines folder tabs that fuse into that same panel, the
+active tab bridging the seam. `line` underlines the active tab across a full-width rule, for page-
+and section-level navigation. `segmented` renders a compact group on a muted fill with the active
+tab raised onto a control surface, so the row reads as one control inside a toolbar or card header.
+
+`divided` and `bracket` draw the panel box themselves; `line` and `segmented` leave the panel bare
+for the surrounding layout to frame. The boxed variants read `--zx-tabbox-radius` (default `0px`)
+from the component root, so `el.style.setProperty('--zx-tabbox-radius', 'var(--zx-radius-lg)')`
+restores rounded corners without forking the stylesheet.
 
 - **Options** — `tabs: [{ name, title, content, icon?, closable?, disabled? }]`, `active`,
-  `variant: 'line'|'segmented'`, `keepAlive: true`.
+  `variant: 'divided'|'bracket'|'line'|'segmented'`, `keepAlive: true`.
 - **Methods** — `addTab()`, `removeTab()`, `openTab(name)`, `getActive()`, `setTitle()`,
   `setBadge(name, text|null)`, `enableTab()`/`disableTab()`.
 - **Events** — `change {name, previous}` (preventable), `close {name}`.

@@ -132,7 +132,7 @@ ZeyOS binding — see `src/zeyos/modules.js`.
 | `Groupbox` | Collapsible section backed by native `<details>`. |
 | `Panel` | Framed, optionally collapsible section with a footer. |
 | `MasterPanel` | Full-height application panel with fixed header actions and footer. |
-| `Tabbox` | APG tabs with lazy content, closing, badges, and disabled states. |
+| `Tabbox` | APG tabs in four appearances, with lazy content, closing, badges, and disabled states. |
 | `NavigationBar` | Responsive application navigation with optional tab panels and overflow. |
 | `Toolbar` | APG toolbar: one tab stop, arrow-key movement, and overflow into a menu. |
 | `SplitView` | Resizable two-pane split with a keyboard-operable separator. |

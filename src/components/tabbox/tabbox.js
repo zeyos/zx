@@ -15,10 +15,13 @@ import { uid } from '../../core/util.js';
  * @property {boolean} [disabled=false] Whether the tab is unavailable.
  */
 
-/** @typedef {'line'|'segmented'} TabboxVariant */
+/** @typedef {'divided'|'bracket'|'line'|'segmented'} TabboxVariant */
 
-/** Tab row appearances. `line` underlines the active tab; `segmented` is a pill-shaped group. */
-const VARIANTS = new Set(['line', 'segmented']);
+/**
+ * Tab row appearances. All four are square-cornered; the boxed ones read the
+ * `--zx-tabbox-radius` custom property if an application wants rounding back.
+ */
+const VARIANTS = new Set(['divided', 'bracket', 'line', 'segmented']);
 
 /**
  * @typedef {Object} TabInsertOptions
@@ -29,8 +32,10 @@ const VARIANTS = new Set(['line', 'segmented']);
  * @typedef {Object} TabboxOptions
  * @property {TabDefinition[]} [tabs=[]] Initial tabs.
  * @property {string|null} [active=null] Initially active tab name, or the first enabled tab.
- * @property {TabboxVariant} [variant='line'] `line` underlines the active tab across a full-width
- *   rule; `segmented` renders a compact pill group, for switching a view inside a panel.
+ * @property {TabboxVariant} [variant='divided'] `divided` sets flat blocks on a muted track above
+ *   a bordered panel; `bracket` outlines folder tabs that fuse into that panel; `line` underlines
+ *   the active tab across a full-width rule; `segmented` renders a compact group that reads as one
+ *   control, for a toolbar or card header.
  * @property {boolean} [keepAlive=true] Keep inactive panel elements mounted.
  * @property {(event: CustomEvent<{name: string, previous: string|null}>) => void} [onchange] Change callback.
  * @property {(event: CustomEvent<{name: string}>) => void} [onclose] Close callback.
@@ -58,7 +63,7 @@ export class Tabbox extends Component {
   static defaults = {
     tabs: [],
     active: null,
-    variant: 'line',
+    variant: 'divided',
     keepAlive: true
   };
 

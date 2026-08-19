@@ -1,13 +1,25 @@
 /*
- * Two tab appearances, following the shadcn/ui `Tabs` primitive of the b2BVl11e4 preset:
+ * Four tab appearances, all square-cornered by default:
  *
+ *   divided    (default) flat blocks on a muted track, split by hairline dividers, the active
+ *              block lifted onto the panel surface under an accent rule — the workhorse for a
+ *              record page or a panel that owns its content box.
+ *   bracket    folder tabs that outline and fuse into the panel below, the active tab bridging
+ *              the seam — for document-like views where the tabs belong to the sheet.
+ *   segmented  a compact group on a muted fill, the active tab raised onto a control surface —
+ *              for switching a view inside a toolbar or card header, where the row reads as one
+ *              control rather than as navigation.
  *   line       a full-width rule with the active tab underlined — for page- and section-level
  *              navigation, where the row spans the content it switches.
- *   segmented  a pill-shaped group on a muted fill, the active tab raised onto a control
- *              surface — for switching a view inside a panel, toolbar, or card header.
+ *
+ * `divided` and `bracket` draw the panel box themselves; `line` and `segmented` leave the panel
+ * bare so the surrounding layout supplies the chrome.
  */
 
 .zx-tabbox {
+  /* Corner rounding for the boxed variants. 0 keeps every corner square; set it to
+     `var(--zx-radius-lg)` on the root for the rounded pill group Zx shipped previously. */
+  --zx-tabbox-radius: 0px;
   min-inline-size: 0;
 }
 
@@ -62,7 +74,76 @@
   place-items: center;
 }
 
-/* ------------------------------------------------------------------ line variant -- */
+/* ------------------------------------------------------------- divided variant -- */
+
+.zx-tabbox[data-variant="divided"] .zx-tabbox__tablist {
+  border-block-end: 1px solid var(--zx-color-border);
+  background: var(--zx-color-bg-muted);
+}
+
+.zx-tabbox[data-variant="divided"] .zx-tabbox__tab {
+  block-size: calc(var(--zx-control-height) + 8px);
+  /* The top rule is the selected marker; transparent here keeps every block the same height. */
+  border-block-start: 2px solid transparent;
+  border-inline-end: 1px solid var(--zx-color-border);
+  padding-inline: var(--zx-space-4);
+}
+
+.zx-tabbox[data-variant="divided"] .zx-tabbox__tab:last-child {
+  border-inline-end: 0;
+}
+
+.zx-tabbox[data-variant="divided"] .zx-tabbox__tab:hover:not([aria-disabled="true"]):not([aria-selected="true"]) {
+  background: var(--zx-color-bg-hover);
+}
+
+.zx-tabbox[data-variant="divided"] .zx-tabbox__tab[aria-selected="true"] {
+  border-block-start-color: var(--zx-color-accent);
+  background: var(--zx-color-bg-surface);
+  font-weight: 600;
+}
+
+.zx-tabbox[data-variant="divided"] .zx-tabbox__tab:focus-visible {
+  z-index: 1;
+  outline: 0;
+  box-shadow: inset var(--zx-focus-ring);
+}
+
+/* ------------------------------------------------------------- bracket variant -- */
+
+.zx-tabbox[data-variant="bracket"] .zx-tabbox__tablist {
+  border-block-end: 1px solid var(--zx-color-border);
+  padding-inline-start: var(--zx-space-2);
+}
+
+.zx-tabbox[data-variant="bracket"] .zx-tabbox__tab {
+  block-size: calc(var(--zx-control-height) + 8px);
+  /* Pulled down over the tablist rule so the active tab's own fill erases the seam below it. */
+  margin-block-end: -1px;
+  border: 1px solid transparent;
+  border-block-end: 0;
+  border-start-start-radius: var(--zx-tabbox-radius);
+  border-start-end-radius: var(--zx-tabbox-radius);
+  padding-inline: var(--zx-space-4);
+}
+
+.zx-tabbox[data-variant="bracket"] .zx-tabbox__tab:hover:not([aria-disabled="true"]):not([aria-selected="true"]) {
+  background: var(--zx-color-bg-hover);
+}
+
+.zx-tabbox[data-variant="bracket"] .zx-tabbox__tab[aria-selected="true"] {
+  border-color: var(--zx-color-border);
+  background: var(--zx-color-bg-surface);
+  font-weight: 600;
+}
+
+.zx-tabbox[data-variant="bracket"] .zx-tabbox__tab:focus-visible {
+  z-index: 1;
+  outline: 0;
+  box-shadow: inset var(--zx-focus-ring);
+}
+
+/* ----------------------------------------------------------------- line variant -- */
 
 .zx-tabbox[data-variant="line"] .zx-tabbox__tablist {
   border-block-end: 1px solid var(--zx-color-border);
@@ -97,7 +178,7 @@
   align-items: center;
   gap: 2px;
   block-size: var(--zx-control-height);
-  border-radius: var(--zx-radius-lg);
+  border-radius: var(--zx-tabbox-radius);
   background: var(--zx-color-bg-muted);
   padding: 3px;
 }
@@ -106,9 +187,14 @@
   block-size: 100%;
   /* A transparent border keeps the active and inactive boxes the same size. */
   border: 1px solid transparent;
-  border-radius: var(--zx-radius-md);
+  /* Nested inside the track's 3px padding, so the inner corner is one step tighter. */
+  border-radius: max(0px, calc(var(--zx-tabbox-radius) - 2px));
   padding-inline: var(--zx-space-3);
   font-size: var(--zx-text-sm);
+}
+
+.zx-tabbox[data-variant="segmented"] .zx-tabbox__tab:hover:not([aria-disabled="true"]):not([aria-selected="true"]) {
+  background: var(--zx-color-bg-hover);
 }
 
 .zx-tabbox[data-variant="segmented"] .zx-tabbox__tab[aria-selected="true"] {
@@ -152,8 +238,25 @@
   color: var(--zx-color-text-muted);
 }
 
+/* ----------------------------------------------------------------------- panels -- */
+
 .zx-tabbox__panel {
   padding-block-start: var(--zx-space-4);
+}
+
+/* The boxed variants own their panel chrome, so the tabs read as attached to the sheet. */
+.zx-tabbox[data-variant="divided"] .zx-tabbox__panels,
+.zx-tabbox[data-variant="bracket"] .zx-tabbox__panels {
+  border: 1px solid var(--zx-color-border);
+  border-block-start: 0;
+  border-end-start-radius: var(--zx-tabbox-radius);
+  border-end-end-radius: var(--zx-tabbox-radius);
+  background: var(--zx-color-bg-surface);
+}
+
+.zx-tabbox[data-variant="divided"] .zx-tabbox__panel,
+.zx-tabbox[data-variant="bracket"] .zx-tabbox__panel {
+  padding: var(--zx-space-4);
 }
 
 .zx-tabbox__panel:focus-visible {

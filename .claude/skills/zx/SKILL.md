@@ -58,8 +58,9 @@ Groups (matching the demo sidebar):
   valuelist/multivalueeditor/upload/toggle), `ValueList`, `MultiValueEditor`, `FieldUpload`,
   `Permission`.
 - **Layout**: `Groupbox`, `Panel` (header/footer action buttons), `MasterPanel`,
-  `Tabbox` (`variant: 'line'|'segmented'`), `NavigationBar`, `Toolbar` (APG toolbar with an
-  overflow menu), `SplitView`, `Stepper`, `Breadcrumb`, `emptyState()`.
+  `Tabbox` (`variant: 'divided'|'bracket'|'line'|'segmented'`, all square-cornered; boxed variants
+  read `--zx-tabbox-radius`), `NavigationBar`, `Toolbar` (APG toolbar with an overflow menu),
+  `SplitView`, `Stepper`, `Breadcrumb`, `emptyState()`.
 - **Core**: `Component`, `h`, `icon`/`icons` (Font Awesome Free solid, inline SVG),
   `position`, `Http`/`zeyosService`/`parseResult`, i18n (`setTranslator`/`translate`),
   formatters (`formatNumber`/`formatCurrency`/`formatPercent`/`formatFileSize`/
