@@ -85,24 +85,40 @@ The package is scoped: `zx` is taken on npm by an unrelated project, so it publi
 Create an **automation** token on npm with publish rights to the `@zeyos` scope, then add it as
 the repository secret `NPM_TOKEN` (Settings → Secrets and variables → Actions).
 
-> **The first publish needs a token that can _create_ a package, not just write existing ones.**
-> This has already cost three release attempts. `@zeyos/zx` does not exist in the registry yet, so
-> the first `npm publish` has to create it, and a granular token scoped to *selected packages*
-> cannot — npm answers a create it will not allow with **404, not 403**:
+> **Publishing this package needs a granular token with _bypass 2FA_ enabled.** This has already
+> cost three release attempts, and the two failures report it differently, which is why both are
+> written down here.
+>
+> From CI, with the current `NPM_TOKEN`:
 >
 > ```
 > npm error 404 Not Found - PUT https://registry.npmjs.org/@zeyos%2fzx
 > ```
 >
-> That reads exactly like a typo in the package name, which is why it is worth writing down. The
-> scope itself is fine — `@zeyos/client` publishes from the same organisation.
+> From an interactive `npm login` session, as an owner of the `zeyos` organisation:
 >
-> Fix it in one of two ways:
+> ```
+> npm error 403 Forbidden - PUT https://registry.npmjs.org/@zeyos%2fzx
+> npm error 403 Two-factor authentication or granular access token with bypass 2fa enabled
+> npm error 403 is required to publish packages.
+> ```
 >
-> - issue a granular token covering **all packages in the `@zeyos` organisation** (or a classic
->   automation token) and update the `NPM_TOKEN` secret; or
-> - publish once by hand — `npm login && npm publish --access public` — which creates the package,
->   after which a token scoped to `@zeyos/zx` alone is enough for every release after it.
+> The 403 is the one that names the cause: the organisation enforces two-factor authentication for
+> publishing. A plain login session has to supply a one-time code, and an automation token has to
+> be the kind that is allowed to skip it. The 404 is the same wall seen through a token that also
+> cannot see the package it is being asked to create — npm answers that with 404 rather than 403,
+> which reads exactly like a typo in the package name. Neither message points at 2FA.
+>
+> The scope itself has never been the problem: `@zeyos/client` publishes from this organisation.
+>
+> Two ways through:
+>
+> - **For CI, and every release after it** — create a granular access token with **bypass 2FA**
+>   turned on, write access to the `@zeyos` organisation, and permission to create new packages;
+>   put it in the `NPM_TOKEN` secret. This is the one to do, because it fixes every future release
+>   as well as this one.
+> - **By hand, once** — `npm publish --access public --otp=<code>` from a logged-in shell, which
+>   creates the package. Every later release still needs the token above, so this only buys time.
 >
 > Verify with `npm view @zeyos/zx version` before cutting a release that depends on it.
 
