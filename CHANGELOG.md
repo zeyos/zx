@@ -8,6 +8,8 @@ and friends remain the complete record.
 
 ## Unreleased
 
+## 2.1.0 — 2026-08-19
+
 ### Added
 
 - **`spinner()`, `ProgressBar`, `InlineLoading`** — three shapes of "wait". A ring for an unknown
