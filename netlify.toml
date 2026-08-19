@@ -23,12 +23,17 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
 
-# The site ships unbundled ES modules and stylesheets, so anything the pages pull in at runtime
-# must be revalidated rather than cached hard — otherwise a deploy leaves visitors on a mix of old
-# and new modules. `tools/build-site.js` also puts a content hash in the query of every reference
-# it can see, which is the belt to this braces: a CDN that overrides these headers (Cloudflare's
-# Browser Cache TTL does, unless it is set to respect origin headers) still cannot serve a stale
-# file under a changed URL.
+# Everything the pages load lives under `/v/<rev>/`, a path that changes with every deploy, so
+# those files can be cached as hard as the CDN likes: a new deploy asks for new URLs. This is the
+# only mechanism that actually holds here, because Cloudflare sits in front of the site and
+# rewrites Cache-Control to its own Browser Cache TTL unless it is set to respect origin headers.
+[[headers]]
+  for = "/v/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# The root copies keep the stable public URLs — `/docs/llms.md`, `/llms.txt`, `/README.md` — and a
+# stable URL has to be revalidated, since its content changes under it.
 [[headers]]
   for = "/src/*"
   [headers.values]
@@ -40,17 +45,7 @@
     Cache-Control = "public, max-age=0, must-revalidate"
 
 [[headers]]
-  for = "/demos/*"
-  [headers.values]
-    Cache-Control = "public, max-age=0, must-revalidate"
-
-[[headers]]
-  for = "/layouts/*"
-  [headers.values]
-    Cache-Control = "public, max-age=0, must-revalidate"
-
-[[headers]]
-  for = "/vendor/*"
+  for = "/docs/*"
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
 

@@ -13,6 +13,8 @@
  * tab keeps showing the same source the browser actually runs.
  */
 import { cp, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { dirname, extname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -121,29 +123,60 @@ for (const file of await walk(outDir)) {
   if (updated !== original) await writeFile(file, updated);
 }
 
-// 4b. Fingerprint the site's own stylesheets and scripts. They sit at the root with unhashed
-//     names, and the CDN in front of the site rewrites Cache-Control, so a deploy could otherwise
-//     leave a visitor's browser pairing fresh HTML with a stale stylesheet — new markup, old
-//     styles. The HTML itself is always revalidated, so putting a content hash in the query makes
-//     a changed asset a different URL and the pairing can never drift.
-/**
- * Hashes every stylesheet and script in the output, keyed by its site-relative path.
- * @returns {Promise<Map<string, string>>}
- */
-async function hashAssets() {
-  const hashes = new Map();
-  for (const file of await walk(outDir)) {
-    if (!/\.(css|js)$/i.test(file)) continue;
-    const key = relative(outDir, file).split(sep).join('/');
-    hashes.set(key, createHash('sha256').update(await readFile(file)).digest('hex').slice(0, 8));
-  }
-  return hashes;
+// 4b. Publish a second, revision-stamped copy of the whole tree at `v/<rev>/`, and point the
+//     pages at it.
+//
+//     The site is served through a CDN that rewrites Cache-Control to its own browser TTL, so the
+//     headers in `netlify.toml` cannot be relied on to expire anything: the only way to guarantee
+//     a visitor never pairs a new page with an old module is to give the new deploy different
+//     URLs. A query string would do that for browsers, but a CDN can be configured to drop the
+//     query from its cache key, and then the busting is silently gone. A path cannot be dropped.
+//
+//     Hashing each file into its own name would mean rewriting the `import` statements that name
+//     it — and this site displays those statements as its documentation, so a reader would be
+//     shown `from '../src/index.a1b2c3.js'`. Versioning one directory keeps every relative path
+//     inside the tree byte-identical, which is why this needs no path rewriting at all: the copy
+//     is complete, so every relative reference resolves to its versioned neighbour.
+//
+//     The root copy stays where it is. It is what serves the stable public URLs — `/docs/llms.md`,
+//     `/llms.txt`, `/README.md` — and the duplication costs a couple of megabytes on a static
+//     host, which is a fair price for a deploy that cannot go half-stale.
+const rev = await revision();
+const versionedDir = join(outDir, 'v', rev);
+await mkdir(versionedDir, { recursive: true });
+// Entry by entry: `cp` refuses to copy a directory into a subdirectory of itself, and `v/` is
+// inside the tree being copied.
+for (const entry of await readdir(outDir)) {
+  if (entry === 'v') continue;
+  await cp(join(outDir, entry), join(versionedDir, entry), { recursive: true });
+}
+
+// Only the pages at the root are repointed. The copies inside `v/<rev>/` keep their relative
+// references, so that tree also works when opened directly — it simply stays on its own revision.
+let repointed = 0;
+for (const file of await walk(outDir)) {
+  if (extname(file).toLowerCase() !== '.html') continue;
+  if (relative(outDir, file).split(sep)[0] === 'v') continue;
+  const original = await readFile(file, 'utf8');
+  const updated = original.replace(
+    /((?:href|src)=")([^"?#]+\.(?:css|js))(")/gi,
+    (whole, lead, path, tail) => {
+      // An absolute reference is rooted at the site, a relative one at the page holding it. A
+      // target that is not in the output is documentation — the guides quote `<script
+      // src="/assets/zx.global.js">` as installation advice — and must be left alone.
+      const key = assetKey(file, path);
+      if (!existsSync(join(versionedDir, key))) return whole;
+      repointed += 1;
+      return `${lead}/v/${rev}/${key}${tail}`;
+    }
+  );
+  if (updated !== original) await writeFile(file, updated);
 }
 
 /**
- * Resolves a reference written inside `file` to its key in the hash map.
+ * Resolves a reference written inside `file` to its site-relative key.
  * @param {string} file Absolute path of the file holding the reference.
- * @param {string} reference Href, src, or url() target.
+ * @param {string} reference Href or src target.
  * @returns {string}
  */
 function assetKey(file, reference) {
@@ -153,67 +186,24 @@ function assetKey(file, reference) {
   return relative(outDir, target).split(sep).join('/');
 }
 
-let fingerprints = await hashAssets();
-let fingerprinted = 0;
-
-// The stylesheet the pages link is only the entry point: it pulls in every component's CSS with
-// `@import`, and those targets carry no hash of their own. Rewriting them here is what makes the
-// component layer cache-safe — a fresh `zx.css` that imports a stale `tabbox.css` is exactly the
-// mismatch the hashing is meant to prevent.
-for (const file of await walk(outDir)) {
-  if (extname(file).toLowerCase() !== '.css') continue;
-  const original = await readFile(file, 'utf8');
-  const updated = original.replace(
-    /(@import\s+url\(["'])([^"'?#)]+\.css)(["']\))/gi,
-    (whole, lead, path, tail) => {
-      const hash = fingerprints.get(assetKey(file, path));
-      if (!hash) return whole;
-      fingerprinted += 1;
-      return `${lead}${path}?v=${hash}${tail}`;
+/**
+ * The revision the versioned directory is named after. The commit is what a reader would want to
+ * map a deployed URL back to, and Netlify supplies it; a build from a tree with no git falls back
+ * to hashing the output, which changes on exactly the same occasions.
+ * @returns {Promise<string>}
+ */
+async function revision() {
+  const supplied = process.env.SITE_REV ?? process.env.COMMIT_REF;
+  if (supplied) return supplied.trim().slice(0, 8);
+  try {
+    return execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim().slice(0, 8);
+  } catch {
+    const digest = createHash('sha256');
+    for (const file of (await walk(outDir)).sort()) {
+      digest.update(relative(outDir, file)).update(await readFile(file));
     }
-  );
-  if (updated !== original) await writeFile(file, updated);
-}
-
-// The demo and layout modules are imported at runtime from a template literal, so no markup
-// names them and the pass below cannot see them. One hash over all of them goes into the
-// documentation app's `MODULE_VERSION`, which it appends to every such import.
-const modulesDigest = createHash('sha256');
-for (const file of (await walk(outDir)).sort()) {
-  const key = relative(outDir, file).split(sep).join('/');
-  if (!/^(demos|layouts)\/.*\.js$/.test(key)) continue;
-  modulesDigest.update(key).update(await readFile(file));
-}
-const modulesHash = modulesDigest.digest('hex').slice(0, 8);
-const appFile = join(outDir, 'docs.js');
-if (await exists(appFile)) {
-  const original = await readFile(appFile, 'utf8');
-  const updated = original.replace(
-    /^const MODULE_VERSION = '';$/m,
-    `const MODULE_VERSION = '?v=${modulesHash}';`
-  );
-  if (updated !== original) {
-    await writeFile(appFile, updated);
-    fingerprinted += 1;
+    return digest.digest('hex').slice(0, 8);
   }
-}
-
-// Both rewrites changed file contents, so the hashes the markup will carry have to be taken again.
-fingerprints = await hashAssets();
-for (const file of await walk(outDir)) {
-  if (extname(file).toLowerCase() !== '.html') continue;
-  const original = await readFile(file, 'utf8');
-  const updated = original.replace(
-    /((?:href|src)=")([^"?#]+\.(?:css|js))(")/gi,
-    (whole, lead, path, tail) => {
-      // An absolute reference is rooted at the site, a relative one at the page holding it.
-      const hash = fingerprints.get(assetKey(file, path));
-      if (!hash) return whole;
-      fingerprinted += 1;
-      return `${lead}${path}?v=${hash}${tail}`;
-    }
-  );
-  if (updated !== original) await writeFile(file, updated);
 }
 
 // 5. Host-specific extras. Both are harmless on hosts that ignore them, which is what lets the
@@ -230,7 +220,7 @@ console.log(`Zx site → ${relative(root, outDir)}/`);
 console.log(`  ${files.length} files, ${(bytes / 1024 / 1024).toFixed(2)} MB`);
 console.log(`  ${rewritten} files had escaping paths rewritten`);
 console.log(`  version ${version} stamped into ${stamped} element(s)`);
-console.log(`  ${fingerprinted} asset reference(s) fingerprinted`);
+console.log(`  revision ${rev}: ${repointed} reference(s) repointed at v/${rev}/`);
 console.log(`  CNAME: ${domain}`);
 
 /**

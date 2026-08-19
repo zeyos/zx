@@ -39,14 +39,6 @@ const LAYOUT_IDS = [
 ];
 
 const DOCS_URL = '../docs/llms.md';
-
-/**
- * Cache-busting query appended to the demo and layout modules, stamped in by
- * `tools/build-site.js` and empty during development. Those modules are imported at runtime, so
- * they never appear in the markup the fingerprint pass rewrites — without this, a deploy can leave
- * a browser pairing a fresh documentation app with the demo modules it cached hours ago.
- */
-const MODULE_VERSION = '';
 const STORAGE_KEY = 'zx-docs-density';
 const DENSITIES = ['cozy', 'compact'];
 
@@ -120,11 +112,11 @@ async function buildRegistry() {
   }));
 
   const [demoModules, layoutModules, reference] = await Promise.all([
-    Promise.all(COMPONENT_IDS.map((id) => import(`./demos/${id}.demo.js${MODULE_VERSION}`))),
-    Promise.all(LAYOUT_IDS.map((id) => import(`./layouts/${id}.layout.js${MODULE_VERSION}`))),
+    Promise.all(COMPONENT_IDS.map((id) => import(`./demos/${id}.demo.js`))),
+    Promise.all(LAYOUT_IDS.map((id) => import(`./layouts/${id}.layout.js`))),
     // Every component page opens with its reference, so the one file behind all of them is
     // fetched once here rather than on each navigation.
-    fetch(DOCS_URL).then((response) => (response.ok ? response.text() : '')).catch(() => '')
+    fetch(moduleUrl(DOCS_URL)).then((response) => (response.ok ? response.text() : '')).catch(() => '')
   ]);
   referenceText = reference;
 
@@ -133,7 +125,7 @@ async function buildRegistry() {
     id: COMPONENT_IDS[index],
     kind: 'component',
     group: module.default.group,
-    source: `./demos/${COMPONENT_IDS[index]}.demo.js${MODULE_VERSION}`
+    source: `./demos/${COMPONENT_IDS[index]}.demo.js`
   }));
 
   const layouts = layoutModules.map((module, index) => describe(module.default, {
@@ -141,7 +133,7 @@ async function buildRegistry() {
     id: LAYOUT_IDS[index],
     kind: 'layout',
     group: 'Applications',
-    source: `./layouts/${LAYOUT_IDS[index]}.layout.js${MODULE_VERSION}`
+    source: `./layouts/${LAYOUT_IDS[index]}.layout.js`
   }));
 
   const all = [...guides, ...components, ...layouts];
@@ -687,7 +679,7 @@ function importFrom(source) {
 async function fetchSource(entry) {
   if (sourceCache.has(entry.source)) return sourceCache.get(entry.source);
   try {
-    const response = await fetch(entry.source);
+    const response = await fetch(moduleUrl(entry.source));
     if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
     const raw = await response.text();
     sourceCache.set(entry.source, raw);
@@ -697,9 +689,24 @@ async function fetchSource(entry) {
   }
 }
 
-/** @param {object} entry @returns {string} The repository path, without the cache-busting query. */
+/**
+ * Resolves a path that is relative to this module rather than to the page.
+ *
+ * `fetch()` resolves against the document, while `import()` resolves against the importing module.
+ * The two agree until the build serves the application from a revision-stamped directory — then a
+ * bare `fetch('./demos/x.js')` reads the unversioned copy at the site root, which is exactly the
+ * file a CDN may still be holding from the previous deploy. The links shown to a reader keep
+ * pointing at the stable root path; only what is read at runtime is pinned to this revision.
+ * @param {string} path Path relative to `website/`.
+ * @returns {string}
+ */
+function moduleUrl(path) {
+  return new URL(path, import.meta.url).href;
+}
+
+/** @param {object} entry @returns {string} */
 function sourcePath(entry) {
-  return `website/${entry.source.replace(/^\.\//, '').replace(/\?.*$/, '')}`;
+  return `website/${entry.source.replace(/^\.\//, '')}`;
 }
 
 /* --------------------------------------------------------------------- code -- */

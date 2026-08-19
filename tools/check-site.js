@@ -53,7 +53,12 @@ const SCRIPT_PATH = /['"]([\w][\w./-]*\.(?:js|css|md|txt|json|svg|html))['"]/g;
 const SITE_ENTRIES = new Set(readdirSync(site).map((entry) => entry));
 
 const problems = [];
-const files = walk(site);
+/**
+ * Every file whose references are checked. `v/<rev>/` is skipped: it is a verbatim copy of the
+ * tree beside it, so checking it again would only duplicate every finding — and the copy is not
+ * unverified, because the pages' own `/v/<rev>/…` references are resolved below.
+ */
+const files = walk(site).filter((file) => relative(site, file).split(sep)[0] !== 'v');
 
 for (const file of files) {
   if (!CHECKED.has(extname(file).toLowerCase())) continue;
