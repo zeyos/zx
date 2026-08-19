@@ -17,7 +17,13 @@
   scrollbar-gutter: stable;
 }
 
+/* One focus ring only — ours. Without this the browser keeps painting its own ring (a blue
+   outline in Chrome/Safari) at the border edge, so a focused control showed a blue border inside
+   our accent glow. The replacement outline is transparent rather than removed: forced-colors mode
+   drops box-shadows but forces outline-color to a system colour, so focus stays visible there. */
 .zx-scope :focus-visible {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
   box-shadow: var(--zx-focus-ring);
 }
 
