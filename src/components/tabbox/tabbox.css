@@ -45,11 +45,14 @@
   align-items: center;
   justify-content: center;
   gap: var(--zx-space-2);
-  /* `styles/base.css` gives every bare button the control height as a minimum. The tab sets its
-     own height per variant — and segmented asks for 100% of a track that is shorter than that —
-     so the minimum has to go, or the active tab covers the track it is meant to sit inside. */
+  /* `styles/base.css` gives every bare button the control height as a minimum and the control
+     radius as its corners. Both have to be cleared here: the tab sets its own height per variant —
+     and segmented asks for 100% of a track shorter than that — while the corners belong to
+     `--zx-tabbox-radius`, which is square by default. Left in place, `divided` and `line` would
+     keep a rounded fill inside a squared row. The variants that want corners set them below. */
   min-block-size: 0;
   border: 0;
+  border-radius: 0;
   background: none;
   color: var(--zx-color-text-muted);
   font: inherit;
