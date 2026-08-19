@@ -1,0 +1,27 @@
+.zx-copy-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+}
+
+.zx-copy-button__icon {
+  display: inline-flex;
+  flex: none;
+}
+
+.zx-copy-button[data-copied] {
+  color: var(--zx-color-success);
+}
+
+/*
+ * The confirmation is spoken, not drawn: the tick already carries it visually, and a live region
+ * that also took up space would move the layout every time someone copied something.
+ */
+.zx-copy-button__status {
+  position: absolute;
+  clip-path: inset(50%);
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  white-space: nowrap;
+}
