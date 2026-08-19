@@ -108,19 +108,32 @@ for (const file of await walk(outDir)) {
 //    shows something sensible, but package.json is the source of truth: whatever `npm version`
 //    set is what the deployed site says, with no second place to remember to bump.
 const { version } = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
+// A documentation site that cannot say when it was last built is one nobody trusts, so the date
+// is stamped in beside the version rather than left to whoever remembers to edit the footer.
+const buildDate = new Date().toISOString().slice(0, 10);
 let stamped = 0;
 for (const file of await walk(outDir)) {
   if (extname(file).toLowerCase() !== '.html') continue;
   const original = await readFile(file, 'utf8');
   // Count the elements found, not the files rewritten: when the checked-in literal already
   // matches package.json nothing changes on disk, and "0 stamped" would read like a failure.
-  const updated = original.replace(
-    /(<([a-z]+)[^>]*\sdata-site-version[^>]*>)[^<]*(<\/\2>)/gi,
-    (...match) => {
-      stamped += 1;
-      return `${match[1]}${version}${match[3]}`;
-    }
-  );
+  const updated = original
+    .replace(
+      /(<([a-z]+)[^>]*\sdata-site-version[^>]*>)[^<]*(<\/\2>)/gi,
+      (...match) => {
+        stamped += 1;
+        return `${match[1]}${version}${match[3]}`;
+      }
+    )
+    .replace(
+      /(<(time)[^>]*\sdata-site-updated[^>]*>)[^<]*(<\/\2>)/gi,
+      (whole, open, _tag, close) => {
+        const dated = open.includes('datetime=')
+          ? open.replace(/datetime="[^"]*"/i, `datetime="${buildDate}"`)
+          : open.replace(/>$/, ` datetime="${buildDate}">`);
+        return `${dated}${buildDate}${close}`;
+      }
+    );
   if (updated !== original) await writeFile(file, updated);
 }
 
@@ -220,7 +233,7 @@ const bytes = (await Promise.all(files.map(async (file) => (await stat(file)).si
 console.log(`Zx site → ${relative(root, outDir)}/`);
 console.log(`  ${files.length} files, ${(bytes / 1024 / 1024).toFixed(2)} MB`);
 console.log(`  ${rewritten} files had escaping paths rewritten`);
-console.log(`  version ${version} stamped into ${stamped} element(s)`);
+console.log(`  version ${version} stamped into ${stamped} element(s), built ${buildDate}`);
 console.log(`  revision ${rev}: ${repointed} reference(s) repointed at v/${rev}/`);
 console.log(`  CNAME: ${domain}`);
 

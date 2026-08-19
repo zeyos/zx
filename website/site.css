@@ -566,6 +566,247 @@ body.site-page > main {
   white-space: pre;
 }
 
+/* ----------------------------------------------------------------- paths -- */
+
+/*
+ * The three ways into the library, directly under the hero. A visitor arrives with one of three
+ * jobs — start something, look something up, or move an old screen across — and the landing page
+ * should answer that before it starts arguing for itself.
+ */
+.path-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--zx-space-4);
+}
+
+.path-card {
+  display: grid;
+  align-content: start;
+  gap: var(--zx-space-3);
+  padding: var(--zx-space-6);
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: var(--zx-radius-xl);
+  background: rgb(255 255 255 / 4%);
+  color: inherit;
+  text-decoration: none;
+}
+
+.path-card:hover {
+  border-color: rgb(33 204 117 / 45%);
+  background: rgb(33 204 117 / 8%);
+}
+
+.path-card:focus-visible {
+  outline: 2px solid var(--site-brand);
+  outline-offset: 3px;
+}
+
+.path-card__icon {
+  display: inline-grid;
+  inline-size: 34px;
+  block-size: 34px;
+  place-items: center;
+  border: 1px solid rgb(33 204 117 / 24%);
+  border-radius: var(--zx-radius-lg);
+  background: rgb(33 204 117 / 12%);
+  color: var(--site-brand);
+}
+
+.path-card h3 {
+  margin: 0;
+  font-size: var(--zx-text-lg);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.path-card p {
+  margin: 0;
+  color: rgb(226 232 240 / 62%);
+  line-height: 1.6;
+}
+
+.path-card code {
+  font-family: var(--zx-font-mono);
+  font-size: 0.92em;
+}
+
+.path-card__cue {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  color: var(--site-brand);
+  font-size: var(--zx-text-sm);
+  font-weight: 600;
+}
+
+.path-card__cue::after {
+  content: "\2192";
+  transition: transform var(--zx-dur-fast) var(--zx-ease);
+}
+
+.path-card:hover .path-card__cue::after {
+  transform: translateX(3px);
+}
+
+/* ----------------------------------------------------------- entry points -- */
+
+.install-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--zx-space-2) var(--zx-space-4);
+  margin: 0 0 var(--zx-space-5);
+  color: rgb(226 232 240 / 62%);
+  font-size: var(--zx-text-sm);
+}
+
+.install-line > code {
+  padding: var(--zx-space-2) var(--zx-space-4);
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: var(--zx-radius-lg);
+  background: rgb(255 255 255 / 5%);
+  color: var(--site-mist);
+  font-family: var(--zx-font-mono);
+  font-size: var(--zx-text-md);
+}
+
+.install-line code {
+  font-family: var(--zx-font-mono);
+}
+
+.entry-list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--zx-space-2) var(--zx-space-5);
+  margin: var(--zx-space-6) 0 var(--zx-space-6);
+  font-size: var(--zx-text-sm);
+}
+
+.entry-list dt {
+  color: var(--site-mist);
+  font-family: var(--zx-font-mono);
+}
+
+.entry-list dt code,
+.entry-list dt a {
+  color: inherit;
+  font-family: inherit;
+}
+
+.entry-list dd {
+  margin: 0;
+  color: rgb(226 232 240 / 60%);
+}
+
+.entry-list dd code {
+  font-family: var(--zx-font-mono);
+}
+
+/* --------------------------------------------------------------- release -- */
+
+.release-band {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: var(--zx-space-7);
+  align-items: start;
+}
+
+.release-band h2 {
+  margin: 0;
+  font-size: clamp(26px, 3.4vw, 36px);
+  font-weight: 800;
+  letter-spacing: -0.025em;
+}
+
+/* The notes are rendered from CHANGELOG.md at runtime; an empty band would just be a gap. */
+.release-notes:empty {
+  display: none;
+}
+
+.release-notes {
+  margin-block-start: var(--zx-space-5);
+  color: var(--zx-color-text-muted);
+  line-height: 1.65;
+}
+
+.release-notes h3 {
+  margin: var(--zx-space-5) 0 var(--zx-space-2);
+  color: var(--zx-color-text);
+  font-size: var(--zx-text-md);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.release-notes ul {
+  margin: 0;
+  padding-inline-start: var(--zx-space-5);
+}
+
+.release-notes li {
+  margin-block: var(--zx-space-2);
+}
+
+.release-notes strong {
+  color: var(--zx-color-text);
+}
+
+.release-notes code {
+  padding: 1px 5px;
+  border-radius: var(--zx-radius-sm);
+  background: var(--zx-color-bg-muted);
+  font-family: var(--zx-font-mono);
+  font-size: 0.9em;
+}
+
+.contribute-card {
+  padding: var(--zx-space-6);
+  border: 1px solid var(--zx-color-border);
+  border-radius: var(--zx-radius-xl);
+  background: var(--zx-color-bg-page);
+}
+
+.contribute-card h3 {
+  margin: 0 0 var(--zx-space-3);
+  font-size: var(--zx-text-lg);
+  font-weight: 700;
+}
+
+.contribute-card p {
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  line-height: 1.65;
+}
+
+.contribute-card__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zx-space-2) var(--zx-space-5);
+  margin-block-start: var(--zx-space-5);
+}
+
+.contribute-card__links a {
+  color: var(--zx-color-accent);
+  font-size: var(--zx-text-sm);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.contribute-card__links a:hover {
+  text-decoration: underline;
+}
+
+/* -------------------------------------------------------------- utilities -- */
+
+.site-visually-hidden {
+  position: absolute;
+  clip-path: inset(50%);
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
 /* ---------------------------------------------------------------- footer -- */
 
 .site-footer {
@@ -576,10 +817,10 @@ body.site-page > main {
 .site-footer__inner {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: start;
   justify-content: space-between;
-  gap: var(--zx-space-4) var(--zx-space-6);
-  padding-block: var(--zx-space-6);
+  gap: var(--zx-space-6) var(--zx-space-7);
+  padding-block: var(--zx-space-7);
 }
 
 .site-footer__brand {
@@ -611,29 +852,61 @@ body.site-page > main {
   color: #fff;
 }
 
-.site-footer__meta {
+.site-footer__links {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--zx-space-5);
+  gap: var(--zx-space-6) var(--zx-space-8);
 }
 
-.site-footer__meta a {
+.site-footer__group {
+  display: grid;
+  align-content: start;
+  gap: var(--zx-space-2);
+}
+
+.site-footer__group h2 {
+  margin: 0 0 var(--zx-space-1);
+  color: rgb(226 232 240 / 88%);
+  font-size: var(--zx-text-xs);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.site-footer__group a {
   border-block-end: 0;
 }
 
-.site-footer__meta a:hover {
+.site-footer__group a:hover {
   color: #fff;
+}
+
+/*
+ * The version and build date are the maintenance signal: a documentation site with no idea when
+ * it was last built is the one nobody trusts. Both are stamped in by `tools/build-site.js`.
+ */
+.site-footer__stamp {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zx-space-2) var(--zx-space-5);
+  inline-size: min(100% - (2 * var(--zx-space-6)), var(--site-content-width));
+  margin-inline: auto;
+  padding-block: var(--zx-space-4);
+  border-block-start: 1px solid rgb(255 255 255 / 8%);
+  color: rgb(226 232 240 / 45%);
+  font-size: var(--zx-text-xs);
 }
 
 /* ------------------------------------------------------------ responsive -- */
 
 @media (max-width: 900px) {
-  .feature-grid {
+  .feature-grid,
+  .path-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .site-footer__inner {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .release-band {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -660,9 +933,19 @@ body.site-page > main {
   }
 
   .feature-grid,
+  .path-grid,
   .showcase-grid,
   .quick-start-grid {
     grid-template-columns: 1fr;
+  }
+
+  .entry-list {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .entry-list dd {
+    margin-block-end: var(--zx-space-3);
   }
 
   .showcase-card[data-wide] {
@@ -694,8 +977,11 @@ body.site-page > main {
   }
 
   .site-footer__inner {
-    grid-template-columns: 1fr;
     gap: var(--zx-space-6);
+  }
+
+  .site-footer__stamp {
+    inline-size: min(100% - (2 * var(--zx-space-4)), var(--site-content-width));
   }
 
 }

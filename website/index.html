@@ -51,6 +51,41 @@
       </div>
     </section>
 
+    <section class="site-band site-band--deep" aria-labelledby="paths-title">
+      <div class="site-section">
+        <h2 id="paths-title" class="site-visually-hidden">Where to start</h2>
+        <div class="path-grid">
+          <a class="path-card" href="docs.html#getting-started">
+            <span class="path-card__icon" data-feature-icon="plus"></span>
+            <h3>Start something new</h3>
+            <p>
+              Install the package, load one stylesheet, and put a working control on the page.
+              No bundler, no framework, nothing to configure first.
+            </p>
+            <span class="path-card__cue">Getting started</span>
+          </a>
+          <a class="path-card" href="docs.html#components">
+            <span class="path-card__icon" data-feature-icon="list"></span>
+            <h3>See what is there</h3>
+            <p>
+              Every component on one page with a live demo, its complete source, the generated
+              API table, and its keyboard map.
+            </p>
+            <span class="path-card__cue">Browse the components</span>
+          </a>
+          <a class="path-card" href="docs.html#components/gx-compat">
+            <span class="path-card__icon" data-feature-icon="reload"></span>
+            <h3>Move an old screen across</h3>
+            <p>
+              The compatibility layer keeps MooTools-era <code>gx</code> code running while you
+              modernise it a file at a time.
+            </p>
+            <span class="path-card__cue">gx compatibility</span>
+          </a>
+        </div>
+      </div>
+    </section>
+
     <section class="site-band" aria-labelledby="features-title">
       <div class="site-section">
         <div class="section-heading">
@@ -145,6 +180,10 @@
             ZeyOS screen. Both ship the same API.
           </p>
         </div>
+        <p class="install-line">
+          <code>npm install @zeyos/zx</code>
+          <span>or load <code>dist/zx.global.js</code> straight from jsDelivr — no install at all.</span>
+        </p>
         <div class="quick-start-grid">
           <article class="code-card">
             <h3>ES module</h3>
@@ -170,10 +209,47 @@
 &lt;/script&gt;</code></pre>
           </article>
         </div>
+        <dl class="entry-list">
+          <dt><code>@zeyos/zx</code></dt>
+          <dd>The components, as ES modules.</dd>
+          <dt><code>@zeyos/zx/global</code></dt>
+          <dd>The same API on <code>window.zx</code>, for a classic script tag.</dd>
+          <dt><code>@zeyos/zx/zeyos</code></dt>
+          <dd>Tables, forms, and pickers generated from a live ZeyOS schema.</dd>
+          <dt><code>@zeyos/zx/compat</code></dt>
+          <dd>The legacy <code>gx</code> namespace, for screens still being migrated.</dd>
+          <dt><a href="llms.txt">llms.txt</a></dt>
+          <dd>The machine-readable reference a coding agent reads first.</dd>
+        </dl>
         <div class="hero__actions" style="justify-content: flex-start">
           <a class="site-btn site-btn--primary site-btn--sm" href="docs.html#getting-started">Getting started guide</a>
           <a class="site-btn site-btn--ghost site-btn--sm" href="docs.html#components">Browse the components</a>
         </div>
+      </div>
+    </section>
+    <section class="site-band site-band--light" id="whats-new" aria-labelledby="whats-new-title">
+      <div class="site-section release-band">
+        <div class="release-band__main">
+          <p class="band-eyebrow">What's new</p>
+          <h2 id="whats-new-title" data-release-title>Releases</h2>
+          <div class="release-notes" data-release-notes></div>
+          <div class="hero__actions" style="justify-content: flex-start">
+            <a class="site-btn site-btn--ghost site-btn--sm" href="CHANGELOG.md">Full changelog</a>
+          </div>
+        </div>
+        <aside class="contribute-card">
+          <h3>Something missing?</h3>
+          <p>
+            Zx is built against real ZeyOS screens, so the gaps that get found are the ones that
+            hurt in practice. Report one, or read the contributor contract before opening a pull
+            request — it is short, and it is what keeps the components consistent.
+          </p>
+          <div class="contribute-card__links">
+            <a href="https://github.com/zeyos/zx/issues" rel="noopener">Open an issue</a>
+            <a href="AGENTS.md">Contributor contract</a>
+            <a href="MIGRATION.md">Migration guide</a>
+          </div>
+        </aside>
       </div>
     </section>
   </main>
@@ -187,11 +263,30 @@
           <a href="https://github.com/zeyos/zx/blob/main/LICENSE" rel="noopener">MIT license</a>.
         </p>
       </div>
-      <div class="site-footer__meta">
-        <a href="docs.html">Documentation</a>
-        <a href="llms.txt">llms.txt</a>
-        <a href="https://github.com/zeyos/zx" rel="noopener">GitHub</a>
-      </div>
+      <nav class="site-footer__links" aria-label="Footer">
+        <div class="site-footer__group">
+          <h2>Documentation</h2>
+          <a href="docs.html#getting-started">Getting started</a>
+          <a href="docs.html#components">Components</a>
+          <a href="docs.html#layouts">Layouts</a>
+        </div>
+        <div class="site-footer__group">
+          <h2>Reference</h2>
+          <a href="CHANGELOG.md">Changelog</a>
+          <a href="MIGRATION.md">Migration guide</a>
+          <a href="llms.txt">llms.txt</a>
+        </div>
+        <div class="site-footer__group">
+          <h2>Project</h2>
+          <a href="https://github.com/zeyos/zx" rel="noopener">GitHub</a>
+          <a href="https://github.com/zeyos/zx/issues" rel="noopener">Issues</a>
+          <a href="https://www.npmjs.com/package/@zeyos/zx" rel="noopener">npm</a>
+        </div>
+      </nav>
+    </div>
+    <div class="site-footer__stamp">
+      <span>Zx <span data-site-version>2.0.0</span></span>
+      <span>Last updated <time data-site-updated>—</time></span>
     </div>
   </footer>
 
@@ -280,6 +375,85 @@
       stickyHeader: true
     });
     document.querySelector('#showcase-table').append(table.toElement());
+
+    /*
+     * The "what's new" band is rendered from CHANGELOG.md rather than written into this page, so
+     * cutting a release updates the landing page too. Nothing here is required for the page to
+     * work: if the fetch fails the band's heading keeps its static text and the notes stay empty,
+     * and `.release-notes:empty` collapses it away.
+     */
+    renderRelease().catch(() => {});
+
+    async function renderRelease() {
+      const response = await fetch('../CHANGELOG.md');
+      if (!response.ok) return;
+      const section = firstSection(await response.text());
+      if (!section) return;
+
+      document.querySelector('[data-release-title]').textContent = section.title;
+      const notes = document.querySelector('[data-release-notes]');
+      const list = document.createElement('ul');
+      for (const line of section.bullets.slice(0, 6)) list.append(inline('li', headline(line)));
+      notes.append(list);
+    }
+
+    /** The first `## ` block of a changelog: its heading, and the bullets under it. */
+    function firstSection(markdown) {
+      const lines = markdown.split('\n');
+      const start = lines.findIndex((line) => line.startsWith('## '));
+      if (start === -1) return null;
+      const rest = lines.slice(start + 1);
+      const end = rest.findIndex((line) => line.startsWith('## '));
+      const body = end === -1 ? rest : rest.slice(0, end);
+      const bullets = [];
+      for (const line of body) {
+        if (line.startsWith('- ')) bullets.push(line.slice(2).trim());
+        // A wrapped bullet continues the one before it.
+        else if (bullets.length && /^\s+\S/.test(line)) bullets[bullets.length - 1] += ' ' + line.trim();
+      }
+      return { title: lines[start].slice(3).trim(), bullets };
+    }
+
+    /**
+     * A changelog entry reads `what — why it exists`. The landing page wants the what; the
+     * changelog link carries the why, so everything from the first spaced dash on is dropped.
+     *
+     * The cut is on the dash rather than on the closing `**` because the "what" is not always the
+     * bold run alone — "**`Slider`** and the `slider` field type" is one subject, not two. A
+     * bullet with no dash in it is already short enough and is kept whole.
+     */
+    function headline(bullet) {
+      const [head] = bullet.split(/\s+[—–]\s+/);
+      return head && head.length > 2 ? head : bullet;
+    }
+
+    /**
+     * Renders the small markdown subset a changelog bullet uses — bold, code, and links — as real
+     * nodes. Nothing is parsed as HTML, so a changelog entry can never inject markup into the page.
+     * Bold and link contents are rendered through this function again rather than set as text, or
+     * a code span inside them would print its own backticks.
+     */
+    function inline(tag, text) {
+      const element = document.createElement(tag);
+      const pattern = /\*\*([^*]+)\*\*|`([^`]+)`|\[([^\]]+)\]\(([^)]+)\)/g;
+      let index = 0;
+      for (const match of text.matchAll(pattern)) {
+        if (match.index > index) element.append(text.slice(index, match.index));
+        if (match[1] !== undefined) element.append(inline('strong', match[1]));
+        else if (match[2] !== undefined) {
+          const code = document.createElement('code');
+          code.textContent = match[2];
+          element.append(code);
+        } else {
+          const link = inline('a', match[3]);
+          link.href = match[4];
+          element.append(link);
+        }
+        index = match.index + match[0].length;
+      }
+      element.append(text.slice(index));
+      return element;
+    }
   </script>
 </body>
 </html>
