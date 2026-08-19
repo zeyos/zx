@@ -1,0 +1,20 @@
+.zx-truncate {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * `-webkit-line-clamp` is still the only clamp every target browser implements, and it needs the
+ * legacy flexbox display to take effect. `line-clamp` is listed alongside it so the rule stops
+ * needing the prefix as soon as the standard property ships.
+ */
+.zx-truncate[data-lines] {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: var(--zx-truncate-lines, 2);
+  line-clamp: var(--zx-truncate-lines, 2);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
