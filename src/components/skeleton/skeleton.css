@@ -1,0 +1,76 @@
+.zx-skeleton {
+  display: block;
+  background: var(--zx-color-bg-muted);
+  border-radius: var(--zx-radius-sm);
+}
+
+.zx-skeleton[data-radius="md"] {
+  border-radius: var(--zx-radius-md);
+}
+
+.zx-skeleton[data-radius="full"] {
+  border-radius: var(--zx-radius-full);
+}
+
+.zx-skeleton-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zx-space-2);
+}
+
+.zx-skeleton-table {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zx-space-1);
+  inline-size: 100%;
+}
+
+.zx-skeleton-table__row {
+  display: grid;
+  grid-template-columns: repeat(var(--zx-skeleton-columns, 4), minmax(0, 1fr));
+  gap: var(--zx-space-4);
+  align-items: center;
+  padding-block: var(--zx-space-3);
+  padding-inline: var(--zx-space-3);
+  border-block-end: 1px solid var(--zx-color-border);
+}
+
+/*
+ * The header reads through its blocks, not through a filled band: a muted row behind muted
+ * placeholders is one solid bar with no cells visible in it.
+ */
+.zx-skeleton-table__row[data-kind="header"] {
+  border-block-end-color: var(--zx-color-border-strong);
+}
+
+.zx-skeleton-table__row[data-kind="header"] .zx-skeleton {
+  background: var(--zx-color-border);
+}
+
+.zx-skeleton-table__row:last-child {
+  border-block-end: 0;
+}
+
+/*
+ * The pulse is the whole animation: a gradient sweep would need colours the token layer does not
+ * define, and reduced motion has to leave a legible static block behind either way.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .zx-skeleton {
+    animation: zx-skeleton-pulse 1400ms var(--zx-ease) infinite;
+  }
+
+  .zx-skeleton-text .zx-skeleton:nth-child(2n) {
+    animation-delay: 120ms;
+  }
+
+  .zx-skeleton-table__row:nth-child(2n) .zx-skeleton {
+    animation-delay: 120ms;
+  }
+}
+
+@keyframes zx-skeleton-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
