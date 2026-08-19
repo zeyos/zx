@@ -36,6 +36,13 @@ and friends remain the complete record.
 - `copy` added to the built-in icon set.
 - `CHANGELOG.md`, included in the published package.
 
+### Changed
+
+- The landing page routes by intent — start something new, see what is there, or move an old
+  screen across — states how to install the package, lists the entry points, and renders the
+  newest changelog entry so a release updates it too. The footer, shared by every page, carries
+  grouped links plus the version and the build date.
+
 ## 2.0.2 — 2026-08-19
 
 ### Fixed

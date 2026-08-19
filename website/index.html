@@ -397,21 +397,28 @@
       notes.append(list);
     }
 
-    /** The first `## ` block of a changelog: its heading, and the bullets under it. */
+    /**
+     * The newest `## ` block of a changelog that actually says something: its heading, and the
+     * bullets under it. Cutting a release opens an empty `Unreleased` heading for the next change,
+     * and a band announcing "Unreleased" with nothing under it would be worse than no band.
+     */
     function firstSection(markdown) {
       const lines = markdown.split('\n');
-      const start = lines.findIndex((line) => line.startsWith('## '));
-      if (start === -1) return null;
-      const rest = lines.slice(start + 1);
-      const end = rest.findIndex((line) => line.startsWith('## '));
-      const body = end === -1 ? rest : rest.slice(0, end);
-      const bullets = [];
-      for (const line of body) {
-        if (line.startsWith('- ')) bullets.push(line.slice(2).trim());
-        // A wrapped bullet continues the one before it.
-        else if (bullets.length && /^\s+\S/.test(line)) bullets[bullets.length - 1] += ' ' + line.trim();
+      const heads = lines.reduce((found, line, index) => {
+        if (line.startsWith('## ')) found.push(index);
+        return found;
+      }, []);
+
+      for (const [order, start] of heads.entries()) {
+        const bullets = [];
+        for (const line of lines.slice(start + 1, heads[order + 1] ?? lines.length)) {
+          if (line.startsWith('- ')) bullets.push(line.slice(2).trim());
+          // A wrapped bullet continues the one before it.
+          else if (bullets.length && /^\s+\S/.test(line)) bullets[bullets.length - 1] += ' ' + line.trim();
+        }
+        if (bullets.length) return { title: lines[start].slice(3).trim(), bullets };
       }
-      return { title: lines[start].slice(3).trim(), bullets };
+      return null;
     }
 
     /**

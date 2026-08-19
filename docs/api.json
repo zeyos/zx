@@ -413,6 +413,12 @@
         "description": "Opens the menu at a point in viewport coordinates."
       },
       {
+        "name": "openAtElement",
+        "signature": "openAtElement(element)",
+        "returns": "this",
+        "description": "Opens the menu against an element's box, which is where a keyboard invocation puts it."
+      },
+      {
         "name": "close",
         "signature": "close()",
         "returns": "this",

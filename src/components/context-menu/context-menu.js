@@ -154,10 +154,7 @@ export class ContextMenu extends Component {
    */
   openAt(x, y, context = null) {
     if (!this.#prepare(context)) return this;
-    const root = /** @type {HTMLElement} */ (this.el);
-    root.style.insetInlineStart = `${x}px`;
-    root.style.insetBlockStart = `${y}px`;
-    this.#open(context);
+    this.#openResolved(x, y, context);
     return this;
   }
 
@@ -224,8 +221,21 @@ export class ContextMenu extends Component {
     return this.#items.length > 0;
   }
 
-  /** @param {Element|null} context @returns {void} */
-  #open(context) {
+  /**
+   * Places the anchor and opens, with the items for this opening already resolved.
+   *
+   * `left`/`top` rather than the logical insets used everywhere else: these are viewport
+   * coordinates from a pointer event, which are physical whatever the writing direction is.
+   *
+   * @param {number} x Client X.
+   * @param {number} y Client Y.
+   * @param {Element|null} context Element the menu applies to.
+   * @returns {void}
+   */
+  #openResolved(x, y, context) {
+    const root = /** @type {HTMLElement} */ (this.el);
+    root.style.left = `${x}px`;
+    root.style.top = `${y}px`;
     this.#context = context;
     this.#returnFocus = document.activeElement;
     this.#dropdown.open();
@@ -237,11 +247,11 @@ export class ContextMenu extends Component {
   #onContextMenu(event) {
     const pointer = /** @type {PointerEvent & {target: Element}} */ (event);
     const context = this.#contextFor(pointer.target);
-    if (!context) return;
-    // Only take over the platform menu once there is something of our own to show.
-    if (!this.#prepare(context)) return;
+    // Only take over the platform menu once there is something of our own to show — and resolve
+    // the items once for the opening, not once to decide and again to open.
+    if (!context || !this.#prepare(context)) return;
     event.preventDefault();
-    this.openAt(pointer.clientX, pointer.clientY, context);
+    this.#openResolved(pointer.clientX, pointer.clientY, context);
   }
 
   /** @param {Event} event @returns {void} */
@@ -249,9 +259,10 @@ export class ContextMenu extends Component {
     const key = /** @type {KeyboardEvent} */ (event);
     if (key.key !== 'ContextMenu' && !(key.key === 'F10' && key.shiftKey)) return;
     const context = this.#contextFor(/** @type {Element} */ (key.target));
-    if (!context) return;
+    if (!context || !this.#prepare(context)) return;
     event.preventDefault();
-    this.openAtElement(context);
+    const box = context.getBoundingClientRect();
+    this.#openResolved(box.left, box.bottom, context);
   }
 
   /**
