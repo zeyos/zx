@@ -3,6 +3,7 @@ import { Form, h } from '../../src/index.js';
 export default {
   title: 'Form widgets',
   group: 'Forms',
+  api: ['Form'],
   blurb: 'The field types backed by a whole Zx component rather than a native input \u2014 what turns '
     + 'a Form into a real record editor.',
 

@@ -419,9 +419,11 @@ function apiSection(entry, reference) {
   if (entry.import) {
     slot.replaceChildren(codeBlock(entry.import, 'Import', { compact: true }));
   } else {
+    // The source arrives after the page is composed, and the reader may have moved on by then.
+    const key = `${entry.section}/${entry.id}`;
     void fetchSource(entry).then((source) => {
-      const line = importFrom(source);
-      if (line) slot.replaceChildren(codeBlock(line, 'Import', { compact: true }));
+      const line = importFrom(source, entry);
+      if (line && activeKey === key) slot.replaceChildren(codeBlock(line, 'Import', { compact: true }));
     });
   }
 
@@ -978,16 +980,50 @@ function dedent(code) {
  * the published specifier. Deep imports into `src/` are internal paths that no consumer would
  * write, so only the package entry points are shown.
  * @param {string} source The demo module's own source.
+ * @param {object} entry The page the line is shown on.
  * @returns {string}
  */
-function importFrom(source) {
+function importFrom(source, entry) {
+  const owned = ownExports(entry);
   const lines = [];
+
   for (const match of source.matchAll(/^import\s+(\{[^}]*\}|[\w*\s,]+?)\s+from\s+'([^']+)';/gm)) {
     const specifier = /\/src\/index\.js$/.test(match[2]) ? '@zeyos/zx'
-      : /\/src\/zeyos\//.test(match[2]) ? '@zeyos/zx/zeyos' : null;
-    if (specifier) lines.push(`import ${match[1].replace(/\s+/g, ' ')} from '${specifier}';`);
+      : /\/src\/zeyos\//.test(match[2]) ? '@zeyos/zx/zeyos'
+        : /\/src\/compat\//.test(match[2]) ? '@zeyos/zx/compat' : null;
+    // Anything else is a path into the sources that no consumer would write.
+    if (!specifier) continue;
+
+    const clause = match[1].trim();
+    if (!clause.startsWith('{')) {
+      lines.push(`import ${clause} from '${specifier}';`);
+      continue;
+    }
+    // A demo imports whatever its examples needed to stage themselves — `h` to build a wrapper,
+    // `Table` to show what a filter produced. None of that is the component's own surface, and
+    // listing it here tells a reader they need it in order to use the component.
+    const names = clause.slice(1, -1).split(',').map((name) => name.trim()).filter(Boolean);
+    const kept = names.filter((name) => owned(name));
+    // A page that documents no single export — the token and helper galleries — keeps the lot.
+    lines.push(`import { ${(kept.length ? kept : names).join(', ')} } from '${specifier}';`);
   }
   return lines.join('\n');
+}
+
+/**
+ * Tests whether an export belongs to the page it would be listed on: whatever the demo declares in
+ * `api`, plus anything named after the page itself, which covers a factory and its companion —
+ * `badge` and `badgeGroup` on the Badge page.
+ * @param {object} entry
+ * @returns {(name: string) => boolean}
+ */
+function ownExports(entry) {
+  const bare = entry.id.replace(/-/g, '');
+  const declared = new Set((entry.api ?? []).map((name) => name.toLowerCase()));
+  return (name) => {
+    const lower = name.toLowerCase();
+    return declared.has(lower) || lower.startsWith(bare);
+  };
 }
 
 /**
