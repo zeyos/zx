@@ -126,26 +126,88 @@ for (const file of await walk(outDir)) {
 //     leave a visitor's browser pairing fresh HTML with a stale stylesheet — new markup, old
 //     styles. The HTML itself is always revalidated, so putting a content hash in the query makes
 //     a changed asset a different URL and the pairing can never drift.
-const fingerprints = new Map();
-let fingerprinted = 0;
-for (const file of await walk(outDir)) {
-  if (!/\.(css|js)$/i.test(file)) continue;
-  const key = relative(outDir, file).split(sep).join('/');
-  fingerprints.set(key, createHash('sha256').update(await readFile(file)).digest('hex').slice(0, 8));
+/**
+ * Hashes every stylesheet and script in the output, keyed by its site-relative path.
+ * @returns {Promise<Map<string, string>>}
+ */
+async function hashAssets() {
+  const hashes = new Map();
+  for (const file of await walk(outDir)) {
+    if (!/\.(css|js)$/i.test(file)) continue;
+    const key = relative(outDir, file).split(sep).join('/');
+    hashes.set(key, createHash('sha256').update(await readFile(file)).digest('hex').slice(0, 8));
+  }
+  return hashes;
 }
+
+/**
+ * Resolves a reference written inside `file` to its key in the hash map.
+ * @param {string} file Absolute path of the file holding the reference.
+ * @param {string} reference Href, src, or url() target.
+ * @returns {string}
+ */
+function assetKey(file, reference) {
+  const target = reference.startsWith('/')
+    ? join(outDir, reference.slice(1))
+    : resolve(dirname(file), reference);
+  return relative(outDir, target).split(sep).join('/');
+}
+
+let fingerprints = await hashAssets();
+let fingerprinted = 0;
+
+// The stylesheet the pages link is only the entry point: it pulls in every component's CSS with
+// `@import`, and those targets carry no hash of their own. Rewriting them here is what makes the
+// component layer cache-safe — a fresh `zx.css` that imports a stale `tabbox.css` is exactly the
+// mismatch the hashing is meant to prevent.
+for (const file of await walk(outDir)) {
+  if (extname(file).toLowerCase() !== '.css') continue;
+  const original = await readFile(file, 'utf8');
+  const updated = original.replace(
+    /(@import\s+url\(["'])([^"'?#)]+\.css)(["']\))/gi,
+    (whole, lead, path, tail) => {
+      const hash = fingerprints.get(assetKey(file, path));
+      if (!hash) return whole;
+      fingerprinted += 1;
+      return `${lead}${path}?v=${hash}${tail}`;
+    }
+  );
+  if (updated !== original) await writeFile(file, updated);
+}
+
+// The demo and layout modules are imported at runtime from a template literal, so no markup
+// names them and the pass below cannot see them. One hash over all of them goes into the
+// documentation app's `MODULE_VERSION`, which it appends to every such import.
+const modulesDigest = createHash('sha256');
+for (const file of (await walk(outDir)).sort()) {
+  const key = relative(outDir, file).split(sep).join('/');
+  if (!/^(demos|layouts)\/.*\.js$/.test(key)) continue;
+  modulesDigest.update(key).update(await readFile(file));
+}
+const modulesHash = modulesDigest.digest('hex').slice(0, 8);
+const appFile = join(outDir, 'docs.js');
+if (await exists(appFile)) {
+  const original = await readFile(appFile, 'utf8');
+  const updated = original.replace(
+    /^const MODULE_VERSION = '';$/m,
+    `const MODULE_VERSION = '?v=${modulesHash}';`
+  );
+  if (updated !== original) {
+    await writeFile(appFile, updated);
+    fingerprinted += 1;
+  }
+}
+
+// Both rewrites changed file contents, so the hashes the markup will carry have to be taken again.
+fingerprints = await hashAssets();
 for (const file of await walk(outDir)) {
   if (extname(file).toLowerCase() !== '.html') continue;
-  const here = dirname(file);
   const original = await readFile(file, 'utf8');
   const updated = original.replace(
     /((?:href|src)=")([^"?#]+\.(?:css|js))(")/gi,
     (whole, lead, path, tail) => {
       // An absolute reference is rooted at the site, a relative one at the page holding it.
-      const target = path.startsWith('/')
-        ? join(outDir, path.slice(1))
-        : resolve(here, path);
-      const key = relative(outDir, target).split(sep).join('/');
-      const hash = fingerprints.get(key);
+      const hash = fingerprints.get(assetKey(file, path));
       if (!hash) return whole;
       fingerprinted += 1;
       return `${lead}${path}?v=${hash}${tail}`;

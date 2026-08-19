@@ -23,8 +23,12 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
 
-# The site ships unbundled ES modules with unhashed names, so they must be revalidated rather
-# than cached hard — otherwise a deploy leaves visitors on a mix of old and new modules.
+# The site ships unbundled ES modules and stylesheets, so anything the pages pull in at runtime
+# must be revalidated rather than cached hard — otherwise a deploy leaves visitors on a mix of old
+# and new modules. `tools/build-site.js` also puts a content hash in the query of every reference
+# it can see, which is the belt to this braces: a CDN that overrides these headers (Cloudflare's
+# Browser Cache TTL does, unless it is set to respect origin headers) still cannot serve a stale
+# file under a changed URL.
 [[headers]]
   for = "/src/*"
   [headers.values]
@@ -32,6 +36,21 @@
 
 [[headers]]
   for = "/styles/*"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/demos/*"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/layouts/*"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/vendor/*"
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
 

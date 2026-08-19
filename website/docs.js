@@ -39,6 +39,14 @@ const LAYOUT_IDS = [
 ];
 
 const DOCS_URL = '../docs/llms.md';
+
+/**
+ * Cache-busting query appended to the demo and layout modules, stamped in by
+ * `tools/build-site.js` and empty during development. Those modules are imported at runtime, so
+ * they never appear in the markup the fingerprint pass rewrites — without this, a deploy can leave
+ * a browser pairing a fresh documentation app with the demo modules it cached hours ago.
+ */
+const MODULE_VERSION = '';
 const STORAGE_KEY = 'zx-docs-density';
 const DENSITIES = ['cozy', 'compact'];
 
@@ -112,8 +120,8 @@ async function buildRegistry() {
   }));
 
   const [demoModules, layoutModules, reference] = await Promise.all([
-    Promise.all(COMPONENT_IDS.map((id) => import(`./demos/${id}.demo.js`))),
-    Promise.all(LAYOUT_IDS.map((id) => import(`./layouts/${id}.layout.js`))),
+    Promise.all(COMPONENT_IDS.map((id) => import(`./demos/${id}.demo.js${MODULE_VERSION}`))),
+    Promise.all(LAYOUT_IDS.map((id) => import(`./layouts/${id}.layout.js${MODULE_VERSION}`))),
     // Every component page opens with its reference, so the one file behind all of them is
     // fetched once here rather than on each navigation.
     fetch(DOCS_URL).then((response) => (response.ok ? response.text() : '')).catch(() => '')
@@ -125,7 +133,7 @@ async function buildRegistry() {
     id: COMPONENT_IDS[index],
     kind: 'component',
     group: module.default.group,
-    source: `./demos/${COMPONENT_IDS[index]}.demo.js`
+    source: `./demos/${COMPONENT_IDS[index]}.demo.js${MODULE_VERSION}`
   }));
 
   const layouts = layoutModules.map((module, index) => describe(module.default, {
@@ -133,7 +141,7 @@ async function buildRegistry() {
     id: LAYOUT_IDS[index],
     kind: 'layout',
     group: 'Applications',
-    source: `./layouts/${LAYOUT_IDS[index]}.layout.js`
+    source: `./layouts/${LAYOUT_IDS[index]}.layout.js${MODULE_VERSION}`
   }));
 
   const all = [...guides, ...components, ...layouts];
@@ -689,9 +697,9 @@ async function fetchSource(entry) {
   }
 }
 
-/** @param {object} entry @returns {string} */
+/** @param {object} entry @returns {string} The repository path, without the cache-busting query. */
 function sourcePath(entry) {
-  return `website/${entry.source.replace(/^\.\//, '')}`;
+  return `website/${entry.source.replace(/^\.\//, '').replace(/\?.*$/, '')}`;
 }
 
 /* --------------------------------------------------------------------- code -- */
