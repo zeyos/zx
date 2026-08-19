@@ -10,8 +10,10 @@ Two things ship from this repository, on two different triggers:
 `.github/workflows/ci.yml` runs the tests, both builds, and the site check on every push and pull
 request, so neither of the above is the first place a problem shows up.
 
-Both hosting options are wired up; **pick one** and delete the other, or the domain will be
-claimed twice. The build output is identical either way.
+**Netlify is the host.** It builds `site/` on every push to `main` and zx.zeyos.com is serving the
+new build within about a minute. `pages.yml` is parked on `workflow_dispatch` as a fallback, so it
+never runs on its own and cannot claim the domain a second time; delete it if GitHub Pages is
+ruled out for good. The build output is identical either way.
 
 ## One-time setup
 
@@ -81,8 +83,28 @@ The package is scoped: `zx` is taken on npm by an unrelated project, so it publi
 `@zeyos/zx` with `publishConfig.access: public`.
 
 Create an **automation** token on npm with publish rights to the `@zeyos` scope, then add it as
-the repository secret `NPM_TOKEN` (Settings → Secrets and variables → Actions). This mirrors the
-`zeyos/client` setup, so the same token works if it is scoped to the whole organisation.
+the repository secret `NPM_TOKEN` (Settings → Secrets and variables → Actions).
+
+> **The first publish needs a token that can _create_ a package, not just write existing ones.**
+> This has already cost three release attempts. `@zeyos/zx` does not exist in the registry yet, so
+> the first `npm publish` has to create it, and a granular token scoped to *selected packages*
+> cannot — npm answers a create it will not allow with **404, not 403**:
+>
+> ```
+> npm error 404 Not Found - PUT https://registry.npmjs.org/@zeyos%2fzx
+> ```
+>
+> That reads exactly like a typo in the package name, which is why it is worth writing down. The
+> scope itself is fine — `@zeyos/client` publishes from the same organisation.
+>
+> Fix it in one of two ways:
+>
+> - issue a granular token covering **all packages in the `@zeyos` organisation** (or a classic
+>   automation token) and update the `NPM_TOKEN` secret; or
+> - publish once by hand — `npm login && npm publish --access public` — which creates the package,
+>   after which a token scoped to `@zeyos/zx` alone is enough for every release after it.
+>
+> Verify with `npm view @zeyos/zx version` before cutting a release that depends on it.
 
 ## Cutting a release
 
@@ -99,6 +121,9 @@ git push --follow-tags
 
 Then create a GitHub Release for the new tag. Publishing it starts `publish.yml`, which
 re-verifies the version, runs the tests, builds `dist/`, and publishes.
+
+A **draft** release does not start anything — the workflow triggers on `release: published` — so a
+release can be staged with its notes ready and completed with one click once npm is in order.
 
 `prepublishOnly` runs the tests and the build for local `npm publish` too, so a manual publish
 cannot ship a stale or failing `dist/`.
