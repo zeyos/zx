@@ -238,6 +238,18 @@
 
 /* ------------------------------------------------------------------ api tables -- */
 
+/* The API card is tables, not running prose, so it takes the whole content column instead of the
+   78ch reading measure — four columns squeezed into a measure wrap every description onto three
+   lines. Specificity beats `.docs-prose`, which is set further down the file. Whatever in the card
+   really is prose keeps the measure. */
+.docs-prose.docs-api {
+  max-inline-size: none;
+}
+
+.docs-api > :is(p, ul) {
+  max-inline-size: 78ch;
+}
+
 .docs-api__group {
   margin: var(--zx-space-6) 0 var(--zx-space-2);
   color: var(--zx-color-text-muted);
