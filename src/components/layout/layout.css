@@ -1,0 +1,117 @@
+.zx-stack {
+  --zx-stack-gap: var(--zx-space-4);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--zx-stack-gap);
+  min-inline-size: 0;
+}
+
+.zx-stack[data-inline] {
+  display: inline-flex;
+}
+
+.zx-stack[data-direction="row"] {
+  flex-direction: row;
+  align-items: center;
+}
+
+.zx-stack[data-wrap] {
+  flex-wrap: wrap;
+}
+
+.zx-stack[data-align="start"] {
+  align-items: flex-start;
+}
+
+.zx-stack[data-align="center"] {
+  align-items: center;
+}
+
+.zx-stack[data-align="end"] {
+  align-items: flex-end;
+}
+
+.zx-stack[data-align="stretch"] {
+  align-items: stretch;
+}
+
+.zx-stack[data-align="baseline"] {
+  align-items: baseline;
+}
+
+.zx-stack[data-justify="start"] {
+  justify-content: flex-start;
+}
+
+.zx-stack[data-justify="center"] {
+  justify-content: center;
+}
+
+.zx-stack[data-justify="end"] {
+  justify-content: flex-end;
+}
+
+.zx-stack[data-justify="between"] {
+  justify-content: space-between;
+}
+
+.zx-stack[data-justify="around"] {
+  justify-content: space-around;
+}
+
+.zx-grid {
+  --zx-grid-gap: var(--zx-space-4);
+  --zx-grid-min: 16rem;
+
+  display: grid;
+  gap: var(--zx-grid-gap);
+  /* `min(…, 100%)` keeps a track from overflowing a container narrower than the minimum itself. */
+  grid-template-columns: repeat(auto-fit, minmax(min(var(--zx-grid-min), 100%), 1fr));
+  min-inline-size: 0;
+}
+
+/*
+ * With a column count, each track asks for its share of the row but never less than
+ * `--zx-grid-min`, so `auto-fit` lays out the requested columns while there is room for them and
+ * drops one at a time as the container narrows — no media query, and the same behaviour inside a
+ * split pane as on a full-width page.
+ */
+.zx-grid[data-columns] {
+  grid-template-columns: repeat(auto-fit, minmax(
+    max(
+      min(var(--zx-grid-min), 100%),
+      calc((100% - (var(--zx-grid-columns) - 1) * var(--zx-grid-gap)) / var(--zx-grid-columns))
+    ),
+    1fr
+  ));
+}
+
+.zx-grid[data-align="start"] {
+  align-items: start;
+}
+
+.zx-grid[data-align="center"] {
+  align-items: center;
+}
+
+.zx-grid[data-align="end"] {
+  align-items: end;
+}
+
+.zx-grid[data-align="stretch"] {
+  align-items: stretch;
+}
+
+.zx-aspect {
+  display: block;
+  aspect-ratio: var(--zx-aspect-ratio, 16 / 9);
+  inline-size: 100%;
+  overflow: hidden;
+}
+
+.zx-aspect > * {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: var(--zx-aspect-fit, cover);
+}
