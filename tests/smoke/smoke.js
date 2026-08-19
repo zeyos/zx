@@ -58,6 +58,33 @@ const cases = [
     component.setActive('two').setBadge('two', '2');
     events.expect();
   }),
+  componentCase('Toolbar', () => new zx.Toolbar(null, {
+    items: [{ name: 'save', label: 'Save' }, { name: 'remove', label: 'Delete' }]
+  }), (component) => {
+    const events = observe(component, 'action');
+    component.el.querySelector('button').click();
+    events.expect();
+    component.disable('save').enable('save').setActive('remove', true);
+  }),
+  componentCase('Stepper', () => new zx.Stepper(null, {
+    steps: [{ name: 'one', title: 'One' }, { name: 'two', title: 'Two' }]
+  }), (component) => {
+    const events = observe(component, 'change');
+    component.next();
+    assert(component.getActive() === 'two', 'step advance failed');
+    events.expect();
+    component.previous();
+  }),
+  componentCase('Breadcrumb', () => new zx.Breadcrumb(null, {
+    items: [{ name: 'root', label: 'Root' }, { name: 'child', label: 'Child' }]
+  }), (component) => {
+    component.push({ name: 'leaf', label: 'Leaf' });
+    assert(component.getItems().length === 3, 'push failed');
+    component.pop();
+    component.truncateTo('root');
+    assert(component.getItems().length === 1, 'truncateTo failed');
+  }),
+  splitViewCase(),
   componentCase('Search', () => new zx.Search(null, { debounce: 0 }), async (component) => {
     const events = observe(component, 'input');
     component.set('needle');
@@ -95,6 +122,8 @@ const cases = [
     events.expect();
     component.close();
   }),
+  tooltipCase(),
+  contextMenuCase(),
   componentCase('Select', () => new zx.Select(null, { items: sampleItems(), value: 1 }), (component) => {
     const events = observe(component, 'change');
     component.set(2).open().close();
@@ -112,6 +141,40 @@ const cases = [
     component.set(2);
     assert(component.get() === 2, 'permission value mismatch');
     events.expect();
+  }),
+  componentCase('NumberField', () => new zx.NumberField(null, { value: 5, min: 0, max: 10 }), (component) => {
+    const events = observe(component, 'change');
+    component.stepUp();
+    assert(component.get() === 6, 'stepUp mismatch');
+    events.expect();
+    component.setRange(0, 20).set(15);
+    assert(component.get() === 15, 'setRange mismatch');
+  }),
+  componentCase('Rating', () => new zx.Rating(null, { value: 3 }), (component) => {
+    const events = observe(component, 'change');
+    component.set(4);
+    assert(component.get() === 4, 'rating value mismatch');
+    events.expect();
+    component.clear();
+    assert(component.get() === 0, 'clear failed');
+  }),
+  componentCase('Slider', () => new zx.Slider(null, { label: 'Share', value: 20, step: 5 }), (component) => {
+    const events = observe(component, 'change');
+    component.set(45);
+    assert(component.get() === 45, 'slider value mismatch');
+    events.expect();
+    component.setRange(0, 200, 10).set(123);
+    assert(component.get() === 120, 'setRange snap mismatch');
+    component.setReadonly(true);
+    component.setReadonly(false);
+  }),
+  componentCase('TagPicker', () => new zx.TagPicker(null, { items: sampleItems(), values: [1] }), (component) => {
+    const events = observe(component, 'change');
+    component.addValue(2);
+    assert(component.values.length === 2, 'addValue failed');
+    events.expect();
+    component.removeValue(2).clear();
+    assert(component.values.length === 0, 'clear failed');
   }),
   componentCase('DatePicker', () => new zx.DatePicker(null, { value: date(20) }), (component) => {
     const events = observe(component, 'change');
@@ -143,6 +206,26 @@ const cases = [
     assert(component.get() === 90, 'duration value mismatch');
     events.expect();
   }),
+  componentCase('DateRangePicker', () => new zx.DateRangePicker(null, {
+    start: date(10), end: date(14)
+  }), (component) => {
+    const events = observe(component, 'change');
+    component.set({ start: date(11), end: date(15) });
+    assert(component.get().start.getDate() === 11, 'range start mismatch');
+    events.expect();
+    component.clear();
+    assert(component.get().start === null, 'clear failed');
+  }),
+  componentCase('DateRangeBox', () => new zx.DateRangeBox(null, {
+    start: date(10), end: date(14)
+  }), (component) => {
+    const events = observe(component, 'change');
+    component.set({ start: date(11), end: date(15) });
+    assert(component.get().end.getDate() === 15, 'range end mismatch');
+    events.expect();
+    component.open();
+    component.close();
+  }),
   componentCase('Table', () => new zx.Table(null, {
     columns: [{ id: 'id', label: 'ID', sortable: true }, { id: 'name', label: 'Name' }],
     data: [{ id: 1, name: 'One' }], rowId: 'id', selectable: 'single'
@@ -160,6 +243,31 @@ const cases = [
     component.setState({ query: 'alp' });
     assert(component.apply().length === 1, 'filter result mismatch');
     events.expect();
+  }),
+  componentCase('Pagination', () => new zx.Pagination(null, { total: 100, page: 1, pageSize: 25 }), (component) => {
+    const events = observe(component, 'change');
+    component.setState({ page: 3 });
+    assert(component.getState().page === 3, 'page state mismatch');
+    events.expect();
+    component.setTotal(10);
+    assert(component.getState().page === 1, 'total change did not re-clamp the page');
+  }),
+  componentCase('TreeView', () => new zx.TreeView(null, {
+    items: [{ ID: 1, name: 'One', children: [{ ID: 2, name: 'Two' }] }]
+  }), async (component) => {
+    const events = observe(component, 'select');
+    await component.expand(1);
+    component.select(2);
+    assert(component.getSelection().length === 1, 'selection mismatch');
+    events.expect();
+    component.collapse(1);
+  }),
+  componentCase('Finder', () => new zx.Finder(null, {
+    items: [{ ID: 1, name: 'One', children: [{ ID: 2, name: 'Two' }] }]
+  }), async (component) => {
+    await component.setPath([1, 2]);
+    assert(component.getSelection()?.ID === 2, 'path selection mismatch');
+    assert(component.getNodes().length === 2, 'node chain mismatch');
   }),
   componentCase('Field', () => new zx.Field(null, { id: 'name', type: 'text', label: 'Name' }), (component) => {
     const events = observe(component, 'change');
@@ -195,6 +303,67 @@ const cases = [
     component.setDisabled(true).clear().setDisabled(false);
     assert(component.el.dataset.disabled === 'false', 'disabled state mismatch');
   }),
+  componentCase('ProgressBar', () => new zx.ProgressBar(null, { label: 'Upload', value: 10 }), (component) => {
+    const events = observe(component, 'change');
+    component.set(50);
+    assert(component.get() === 50 && component.percent() === 50, 'progress value mismatch');
+    events.expect();
+    component.setStatus('error', 'Failed').setIndeterminate(true).setIndeterminate(false);
+    component.set(999);
+    assert(component.get() === 100, 'clamp to max failed');
+  }),
+  componentCase('InlineLoading', () => new zx.InlineLoading(null, {
+    status: 'active', description: 'Saving…'
+  }), (component) => {
+    const events = observe(component, 'statuschange');
+    component.set('success', 'Saved');
+    assert(component.get() === 'success' && component.getDescription() === 'Saved', 'status mismatch');
+    events.expect();
+    component.setDescription('Saved just now');
+  }),
+  componentCase('CopyInput', () => new zx.CopyInput(null, {
+    label: 'Endpoint', value: 'https://example.com/x'
+  }), (component) => {
+    component.set('https://example.com/y');
+    assert(component.get() === 'https://example.com/y', 'value mismatch');
+    component.focus();
+  }),
+  artifactCase('spinner()', () => {
+    const element = zx.spinner({ label: 'Loading' });
+    return { element, exercise: () => assert(element.getAttribute('role') === 'status', 'spinner is not announced') };
+  }),
+  artifactCase('skeleton()', () => {
+    const element = document.createElement('div');
+    element.append(zx.skeleton({ width: 80 }), zx.skeletonText({ lines: 2 }), zx.skeletonTable({ rows: 2, columns: 3 }));
+    return {
+      element,
+      // Only the three roots are checked: `querySelectorAll` would also count the blocks inside them.
+      exercise: () => assert([...element.children].every((child) => child.getAttribute('aria-hidden') === 'true'),
+        'skeletons are not hidden from assistive technology')
+    };
+  }),
+  artifactCase('stack()', () => {
+    const element = zx.stack({ direction: 'row', gap: 2 },
+      zx.grid({ columns: 2, min: 40 }, document.createElement('span')),
+      zx.aspect({ ratio: '4 / 3' }, document.createElement('span')));
+    return {
+      element,
+      exercise: () => assert(element.querySelector('.zx-grid') && element.querySelector('.zx-aspect'), 'layout children missing')
+    };
+  }),
+  artifactCase('copyButton()', () => {
+    const element = zx.copyButton({ text: 'INV-1042' });
+    return { element, exercise: () => assert(element.getAttribute('aria-label') === 'Copy', 'copy button is unnamed') };
+  }),
+  artifactCase('badge()', () => {
+    const element = zx.badgeGroup([zx.badge({ label: 'Draft' }), zx.badge({ label: 'Posted', kind: 'success' })]);
+    return { element, exercise: () => assert(element.children.length === 2, 'badge group contents missing') };
+  }),
+  artifactCase('emptyState()', () => {
+    const element = zx.emptyState({ title: 'Nothing here', actions: [{ label: 'Add' }] });
+    return { element, exercise: () => assert(element.querySelector('button'), 'empty-state action missing') };
+  }),
+  truncateCase(),
   customElementsCase()
 ];
 
@@ -260,6 +429,128 @@ function dropdownCase() {
     destroy({ component, anchor }) {
       component.destroy();
       anchor.remove();
+    }
+  };
+}
+
+/** @returns {SmokeDefinition} */
+function splitViewCase() {
+  return {
+    name: 'SplitView',
+    create(fixture) {
+      // The divider is positioned against a real box, so the target needs a height of its own.
+      const stage = document.createElement('div');
+      stage.style.blockSize = '160px';
+      fixture.append(stage);
+      const component = new zx.SplitView(stage, {
+        start: document.createElement('div'),
+        end: document.createElement('div'),
+        size: '40%',
+        collapsible: 'start'
+      });
+      return { component, stage };
+    },
+    exercise({ component }) {
+      const events = observe(component, 'collapse');
+      component.collapse('start');
+      events.expect();
+      component.expand();
+      assert(component.getRatio() > 0, 'ratio unavailable after expand');
+      component.disable();
+      assert(component.isDisabled(), 'disable failed');
+      component.enable();
+    },
+    destroy({ component, stage }) {
+      component.destroy();
+      stage.remove();
+    }
+  };
+}
+
+/** @returns {SmokeDefinition} */
+function tooltipCase() {
+  return {
+    name: 'Tooltip',
+    create(fixture) {
+      const anchor = zx.button({ label: 'Hover me' });
+      fixture.append(anchor);
+      const component = new zx.Tooltip(anchor, { content: 'Explains the button', delay: 0 });
+      return { component, anchor };
+    },
+    exercise({ component, anchor }) {
+      const events = observe(component, 'open');
+      component.show();
+      assert(component.isOpen(), 'show failed');
+      events.expect();
+      component.setContent('Updated');
+      component.hide();
+      assert(!component.isOpen(), 'hide failed');
+      component.disable();
+      assert(component.isDisabled(), 'disable failed');
+      component.enable();
+      assert(component.getAnchor() === anchor, 'anchor mismatch');
+    },
+    destroy({ component, anchor }) {
+      component.destroy();
+      anchor.remove();
+    }
+  };
+}
+
+/** @returns {SmokeDefinition} */
+function contextMenuCase() {
+  return {
+    name: 'ContextMenu',
+    create(fixture) {
+      const region = document.createElement('div');
+      region.tabIndex = 0;
+      region.textContent = 'Right-click target';
+      fixture.append(region);
+      const component = new zx.ContextMenu(region, {
+        items: [{ label: 'Open', value: 'open' }, '-', { label: 'Delete', value: 'delete', danger: true }]
+      });
+      return { component, region };
+    },
+    exercise({ component, region }) {
+      const events = observe(component, 'open');
+      component.openAt(20, 20, region);
+      assert(component.isOpen(), 'openAt failed');
+      assert(component.getContext() === region, 'context mismatch');
+      events.expect();
+      component.close();
+      component.setItems([{ label: 'Only one', value: 'one' }]);
+      component.openAtElement(region);
+      assert(component.isOpen(), 'openAtElement failed');
+      component.close();
+    },
+    destroy({ component, region }) {
+      component.destroy();
+      region.remove();
+    }
+  };
+}
+
+/** @returns {SmokeDefinition} */
+function truncateCase() {
+  return {
+    name: 'truncate()',
+    create(fixture) {
+      const element = document.createElement('div');
+      element.style.inlineSize = '60px';
+      element.textContent = 'A value far too long for sixty pixels of column';
+      fixture.append(element);
+      return { element, controller: zx.truncate(element, { lines: 2 }) };
+    },
+    exercise({ element, controller }) {
+      assert(element.classList.contains('zx-truncate'), 'class not applied');
+      // Asserting agreement rather than a fixed outcome: the page may be laid out at any width.
+      assert(controller.update() === zx.isTruncated(element), 'state disagrees with the measurement');
+    },
+    destroy({ element, controller }) {
+      controller.destroy();
+      assert(!element.classList.contains('zx-truncate'), 'class not removed');
+      assert(!element.hasAttribute('title'), 'title not removed');
+      element.remove();
     }
   };
 }
@@ -370,7 +661,10 @@ function auditCoverage(definitions) {
     if (name === 'Component' || typeof value !== 'function') continue;
     if (value.prototype instanceof zx.Component) assert(names.has(name), `Missing smoke case for exported component ${name}`);
   }
-  for (const name of ['button', 'buttonGroup', 'DateTimeBox', 'defineElements']) {
+  for (const name of [
+    'button', 'buttonGroup', 'badge', 'emptyState', 'DateTimeBox', 'defineElements',
+    'spinner', 'skeleton', 'stack', 'copyButton', 'truncate'
+  ]) {
     assert(names.has(name), `Missing smoke case for exported component surface ${name}`);
   }
 }
