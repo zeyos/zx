@@ -1,6 +1,6 @@
 {
   "name": "@zeyos/zx",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Dependency-free, accessible UI component library for ZeyOS business applications.",
   "type": "module",
   "license": "MIT",
