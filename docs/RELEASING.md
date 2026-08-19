@@ -86,7 +86,11 @@ the repository secret `NPM_TOKEN` (Settings → Secrets and variables → Action
 
 ## Cutting a release
 
-The publish workflow refuses to run if the tag and the package version disagree, so bump first:
+First move `CHANGELOG.md`'s `## Unreleased` heading to the version and date being cut, and open a
+fresh `## Unreleased` above it. The file ships in the tarball, so an entry that still says
+"Unreleased" is published as such.
+
+The publish workflow refuses to run if the tag and the package version disagree, so bump next:
 
 ```sh
 npm version 2.0.0 -m "release: %s"
@@ -114,8 +118,9 @@ npm publish --tag next
 
 ## What gets published
 
-`files` in `package.json` limits the tarball to `dist/`, the two agent-facing documents, the
-README, the migration guide, and the licence. The source modules, the website, the demos, and the
+`files` in `package.json` limits the tarball to `dist/`, the three agent-facing documents
+(`llms.md`, `llms.txt`, `api.json`), the README, the changelog, the migration guide, and the
+licence. The source modules, the website, the demos, and the
 tests stay out of it — consumers get the built bundles:
 
 | Entry point | Import |

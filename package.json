@@ -48,6 +48,7 @@
     "docs/llms.md",
     "docs/llms.txt",
     "docs/api.json",
+    "CHANGELOG.md",
     "README.md",
     "MIGRATION.md",
     "LICENSE"

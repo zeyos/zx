@@ -36,6 +36,7 @@ const EXTRA_SOURCES = [
   ['.claude/skills', 'skills'],
   ['README.md', 'README.md'],
   ['MIGRATION.md', 'MIGRATION.md'],
+  ['CHANGELOG.md', 'CHANGELOG.md'],
   ['AGENTS.md', 'AGENTS.md']
 ];
 

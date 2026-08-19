@@ -1,0 +1,65 @@
+# Changelog
+
+Notable changes to `@zeyos/zx`. The format follows [Keep a Changelog](https://keepachangelog.com),
+and the project follows [semantic versioning](https://semver.org).
+
+Releases before this file existed are summarised from the git history; `git log v2.0.1..v2.0.2`
+and friends remain the complete record.
+
+## Unreleased
+
+### Added
+
+- **`spinner()`, `ProgressBar`, `InlineLoading`** — three shapes of "wait". A ring for an unknown
+  duration, a determinate track for a known share, and a status line that resolves in place
+  ("Saving…" becoming "Saved"). Previously the only loading affordance was `Table.setLoading()`,
+  which belongs to the table and cannot be used anywhere else.
+- **`skeleton()`, `skeletonText()`, `skeletonTable()`** — placeholders shaped like the content that
+  is coming, so the layout does not jump when it arrives. All `aria-hidden`; put `aria-busy="true"`
+  on the region being filled.
+- **`stack()`, `grid()`, `aspect()`** and the `.zx-stack` / `.zx-grid` / `.zx-aspect` classes —
+  the spacing and grid primitives under `Panel` and `SplitView`. `grid()` reflows on its own
+  container width rather than the viewport, so it behaves identically inside a split pane or a
+  modal.
+- **`breakpoints`, `breakpointOf()`, `matchBreakpoint()`, `onBreakpoint()`** — named width bands
+  for the decisions only script can make. `onBreakpoint()` observes an element as readily as the
+  window.
+- **`Slider`** and the `slider` field type — a bounded numeric value set by dragging, on a native
+  range input, with optional marks, bounds, and a number box. `stepPrecision()` is exported
+  alongside it.
+- **`ContextMenu`** — right-click menu for a region or, through `selector`, per row from a single
+  instance. Reachable from the keyboard with the Menu key and Shift+F10.
+- **`copyButton()` and `CopyInput`** — copying a value, and confirming it; a refused clipboard
+  write reports `false` rather than claiming success.
+- **`truncate()` and `isTruncated()`**, plus the `.zx-truncate` class — line clamping that exposes
+  the full value as a `title` only while the text is actually cut off.
+- `copy` added to the built-in icon set.
+- `CHANGELOG.md`, included in the published package.
+
+## 2.0.2 — 2026-08-19
+
+### Fixed
+
+- The base stylesheet now replaces the browser's own focus outline instead of stacking on it, so a
+  focused control no longer shows a blue border inside the accent ring.
+- Tabbox variants match the approved draft, and the tab clears the inherited control radius.
+- Every deploy is served from a revision-stamped path, and the imports the markup cannot see are
+  fingerprinted with it — working around a CDN that rewrites cache headers.
+
+## 2.0.1 — 2026-08-19
+
+### Added
+
+- Tabbox gained four square-cornered variants (`divided`, `bracket`, `line`, `segmented`) with
+  `--zx-tabbox-radius` as an escape hatch. **The default moved from `line` to `divided`**, so a
+  Tabbox with no explicit `variant` changes appearance.
+
+### Changed
+
+- The documentation is one scrolling page per component, with the source folded under each example.
+
+## 2.0.0 — 2026-08-18
+
+First stable release: the dependency-free, vanilla-JavaScript successor to the MooTools-era `gx`
+library. Components, design tokens with light/dark and cozy/compact theming, the `zx-zeyos`
+schema-driven binding, and an opt-in `gx` compatibility layer.

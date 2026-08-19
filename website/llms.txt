@@ -18,8 +18,8 @@ available as ESM named exports and as `window.zx.*`.
   JavaScript source, and the API reference.
 - [Getting started](docs.html#getting-started): installation, the mental model, theming,
   accessibility, and talking to ZeyOS.
-- [Components](docs.html#components): 30+ components grouped Core / Helpers / Inputs / Overlays /
-  Data / Forms / Layout.
+- [Components](docs.html#components): 50+ components grouped Core / Helpers / Inputs / Layout /
+  Feedback / Overlays / Pickers / Data / Forms.
 - [Layouts](docs.html#layouts): eight complete application shells — master–detail, dashboard,
   inbox, record page, two wizards (vertical and horizontal steps), settings workspace, and a
   schema-driven ZeyOS invoices screen.
@@ -28,6 +28,8 @@ available as ESM named exports and as `window.zx.*`.
 - [Agent reference](../docs/llms.md): per-component constructor options, methods, and events for
   every component plus the core helpers. Sections are marked `<!-- doc:<name> -->`.
 - [README](../README.md): what Zx is, quick start, component index, theming, browser support.
+- [Changelog](../CHANGELOG.md): what changed in each release, including behaviour changes an
+  upgrade has to account for.
 - [Migration guide](../MIGRATION.md): legacy gx class map, script-tag replacement, deliberate
   behaviour changes, unsupported legacy APIs.
 - [Contributor contract](../AGENTS.md): conventions for editing component source — token rules,
@@ -38,18 +40,24 @@ available as ESM named exports and as `window.zx.*`.
 ## Components
 - Inputs: `button()`, `buttonGroup()`, `badge()`, `CheckButton`, `Toggle`, `Search`, `Select` (APG combobox;
   `filter: false|'local'|async`), `Checklist`, `TagPicker`,
-  `NumberField`, `Rating`, `DatePicker`, `MonthPicker`, `TimePicker`, `Datebox`/`DateTimeBox`,
+  `NumberField`, `Rating`, `Slider` (native range; marks, bounds, optional number box),
+  `copyButton()`/`CopyInput`, `DatePicker`, `MonthPicker`, `TimePicker`, `Datebox`/`DateTimeBox`,
   `Timebox`.
 - Overlays: `Tooltip`, `Message` (toasts/inline/progress), `Modal`, `Dialog` (+ `alert`/`confirm`/`prompt`
-  Promises), `Dropdown`, `MenuButton`.
+  Promises), `Dropdown`, `MenuButton`, `ContextMenu` (right-click and Shift+F10; `selector` gives
+  per-row menus from one instance).
 - Data: `Table` (sortable, selectable, sticky header, opt-in inline editing), `DataFilter`, `Pagination`, `TreeView` (APG tree), `Finder` (Miller columns).
 - Forms: `Form`, `Fieldset`, `Field` (type registry), `ValueList`, `MultiValueEditor`,
   `FieldUpload`, `Permission`.
-- Layout: `Groupbox`, `Panel`, `MasterPanel`, `Tabbox`, `NavigationBar`, `Toolbar`, `SplitView`, `Stepper`, `Breadcrumb`, `emptyState()`.
-- Core: `Component`, `h`/`icon`, `position`, i18n, date utilities, `defineElements` (declarative
-  `<zx-*>` custom elements).
+- Layout: `stack()`/`grid()`/`aspect()`, `Groupbox`, `Panel`, `MasterPanel`, `Tabbox`,
+  `NavigationBar`, `Toolbar`, `SplitView`, `Stepper`, `Breadcrumb`, `emptyState()`.
+- Feedback: `spinner()`, `ProgressBar`, `InlineLoading`,
+  `skeleton()`/`skeletonText()`/`skeletonTable()`.
+- Core: `Component`, `h`/`icon`, `position`, `breakpoints`/`breakpointOf`/`matchBreakpoint`/
+  `onBreakpoint`, i18n, date utilities, `defineElements` (declarative `<zx-*>` custom elements).
 - Helpers: `formatNumber`/`formatCurrency`/`formatFileSize`/`formatRelativeTime`, `storage()`,
-  `toCsv`/`downloadBlob`/`copyToClipboard`, `groupBy`/`sortBy`/`uniqueBy`, `throttle`,
+  `toCsv`/`downloadBlob`/`copyToClipboard`, `truncate()`/`isTruncated()`,
+  `groupBy`/`sortBy`/`uniqueBy`, `throttle`,
   `debounce`, `uid`, `deepMerge`, `clamp`, `toArray`, `isElement`, `htmlEscape`,
   `formatDate`/`parseDate`/`addDays`/`addMonths`/`clampDate`/`isSameDay`/`getWeekStart`,
   `translate`/`printf`/`setTranslator`/`setLanguage`, `focusTrap`/`rovingTabindex`/`typeahead`.

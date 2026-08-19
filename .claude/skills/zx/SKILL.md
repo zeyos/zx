@@ -45,28 +45,45 @@ Groups (matching the demo sidebar):
 
 - **Inputs**: `button()`, `buttonGroup()`, `badge()`/`badgeGroup()`, `CheckButton`, `Toggle`,
   `Search`, `Select` (APG combobox; `filter: false | 'local' | async fn`; `Select.priority()`
-  preset), `Checklist`, `DatePicker`, `MonthPicker`, `TimePicker` (with an optional clock
+  preset), `Checklist`, `NumberField`, `Rating`, `Slider` (native range underneath, so the whole
+  keyboard map is free; `marks`, `showBounds`, `showInput`), `copyButton()`/`CopyInput`,
+  `DatePicker`, `MonthPicker`, `TimePicker` (with an optional clock
   face), `Datebox`/`DateTimeBox`, `DateRangePicker`/`DateRangeBox`, `Timebox`.
 - **Overlays**: `Tooltip`/`tooltip()`/`describe()`,
   `Message` (toasts + inline + progress; statics `Message.info/success/warning/error`),
   `Modal`, `Dialog` (views + statics `Dialog.alert/confirm/prompt` returning Promises),
-  `Dropdown`, `MenuButton`.
+  `Dropdown`, `MenuButton`, `ContextMenu` (right-click **and** the Menu key/Shift+F10; `selector`
+  delegates so a table needs one instance, and `items` may be a function of the clicked row).
+  Note its root is a zero-sized anchor on `<body>`, so listen with `on('select')`/`onselect` —
+  the bubbling `zx-select` does not pass through the target's tree.
 - **Data**: `Table` (sortable, selectable, sticky header, local/server sort, opt-in inline
   cell/row editing via `editMode`), `DataFilter`, `Pagination` (+ pure `paginationRange()`).
 - **Forms**: `Form` → `Fieldset` → `Field` (type registry: text/password/int/float/textarea/
-  checkbox/select/optionlist + widget types zxselect/checklist/date/month/datetime/time/
-  valuelist/multivalueeditor/upload/toggle), `ValueList`, `MultiValueEditor`, `FieldUpload`,
-  `Permission`.
+  checkbox/select/optionlist/hidden/html/custom + widget types zxselect/checklist/date/month/
+  datetime/daterange/time/valuelist/multivalueeditor/upload/toggle/number/rating/tagpicker/
+  slider), `ValueList`, `MultiValueEditor`, `FieldUpload`, `Permission`.
 - **Layout**: `Groupbox`, `Panel` (header/footer action buttons), `MasterPanel`,
   `Tabbox` (`variant: 'divided'|'bracket'|'line'|'segmented'`, all square-cornered; boxed variants
   read `--zx-tabbox-radius`), `NavigationBar`, `Toolbar` (APG toolbar with an overflow menu),
-  `SplitView`, `Stepper`, `Breadcrumb`, `emptyState()`.
+  `SplitView`, `Stepper`, `Breadcrumb`, `emptyState()`, and the primitives under them:
+  `stack()` (spacing; `gap` 1–8 maps to `--zx-space-*`), `grid()` (reflows on the CONTAINER's own
+  width via `auto-fit` + `min`, never a media query, so it behaves identically inside a split pane
+  or modal), `aspect()`. Classes `.zx-stack`/`.zx-grid`/`.zx-aspect` work from static markup too.
+- **Feedback**: `spinner()` (unknown duration; `kind: 'current'` for inside a button),
+  `ProgressBar` (known share; `indeterminate` drops `aria-valuenow` rather than inventing one),
+  `InlineLoading` ("Saving…" → "Saved" in place, as one polite live region),
+  `skeleton()`/`skeletonText()`/`skeletonTable()` (all `aria-hidden` — put `aria-busy="true"` on
+  the region you are filling and drop it with the placeholder).
 - **Core**: `Component`, `h`, `icon`/`icons` (Font Awesome Free solid, inline SVG),
   `position`, `Http`/`zeyosService`/`parseResult`, i18n (`setTranslator`/`translate`),
   formatters (`formatNumber`/`formatCurrency`/`formatPercent`/`formatFileSize`/
   `formatRelativeTime`), `storage()`, `toCsv`/`downloadBlob`/`copyToClipboard`,
   `groupBy`/`sortBy`/`uniqueBy`, `throttle`, `escapeRegExp`/`highlightMatch`,
-  date utils (`formatDate`/`parseDate`, tokens `%d %m %Y %H %M %S %a %B %s`), `defineElements`.
+  date utils (`formatDate`/`parseDate`, tokens `%d %m %Y %H %M %S %a %B %s`), `defineElements`,
+  `truncate()`/`isTruncated()` (line clamp that sets `title` only while the text is really cut off),
+  breakpoints (`breakpoints`, `breakpointOf`, `matchBreakpoint`, `onBreakpoint(fn, {target})` —
+  the scale is JS, not tokens, because a custom property cannot be read inside a media query;
+  pass an element as `target` to observe the space actually available).
 
 ## Common recipes
 
