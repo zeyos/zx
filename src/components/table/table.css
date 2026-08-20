@@ -262,3 +262,83 @@
 .zx-table__message:empty {
   display: none;
 }
+
+/* ------------------------------------------------------------------ stacked -- */
+
+/*
+ * Below the `responsive` width each row becomes a card of label/value pairs, because a dense ERP
+ * table in a 320px pane is not a table any more — it is a horizontal scrollbar with data hidden
+ * behind it. The width is measured on the table's own container rather than the viewport, so this
+ * turns on inside a narrow split pane on a wide screen, which is where it is needed most.
+ *
+ * The layout works by dropping `display: table`, which also drops the implicit ARIA roles — the
+ * component states them explicitly for exactly as long as this mode is on. See `_applyStackedRoles`.
+ */
+.zx-table[data-stacked] .zx-table__table,
+.zx-table[data-stacked] .zx-table__body,
+.zx-table[data-stacked] .zx-table__body > tr {
+  display: block;
+  inline-size: 100%;
+}
+
+/* The header is redundant once every cell carries its own label, and its widths would fight the
+   card layout. Hidden outright rather than visually: the labels replace it in the a11y tree too. */
+.zx-table[data-stacked] .zx-table__head,
+.zx-table[data-stacked] .zx-table__columns {
+  display: none;
+}
+
+.zx-table[data-stacked] .zx-table__body > tr {
+  padding-block: var(--zx-space-3);
+  padding-inline: var(--zx-space-4);
+  border-block-end: 1px solid var(--zx-color-border);
+}
+
+.zx-table[data-stacked] .zx-table__body td {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--zx-space-4);
+  inline-size: auto;
+  padding-block: var(--zx-space-1);
+  padding-inline: 0;
+  border: 0;
+  text-align: start;
+  white-space: normal;
+}
+
+.zx-table[data-stacked] .zx-table__body td::before {
+  content: attr(data-label);
+  flex: none;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+/* A column marked `popin: false` is what identifies the row, so it leads the card instead of
+   becoming another labelled line. */
+.zx-table[data-stacked] .zx-table__body td[data-popin="false"] {
+  display: block;
+  padding-block-end: var(--zx-space-2);
+  font-size: var(--zx-text-lg);
+  font-weight: 600;
+}
+
+.zx-table[data-stacked] .zx-table__body td[data-popin="false"]::before {
+  content: none;
+}
+
+.zx-table[data-stacked] .zx-table__selection-cell {
+  justify-content: flex-start;
+}
+
+.zx-table[data-stacked] .zx-table__selection-cell::before {
+  content: none;
+}
+
+.zx-table[data-stacked] .zx-table__empty-row {
+  display: block;
+}
+
+.zx-table[data-stacked] .zx-table__empty::before {
+  content: none;
+}

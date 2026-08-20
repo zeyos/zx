@@ -9,6 +9,8 @@
  * @module zx/core/breakpoint
  */
 
+import { isElement } from './util.js';
+
 /** @typedef {'xs'|'sm'|'md'|'lg'|'xl'} BreakpointName */
 
 /**
@@ -70,9 +72,20 @@ export function matchBreakpoint(name, width) {
  */
 export function onBreakpoint(handler, options = {}) {
   if (typeof handler !== 'function') throw new TypeError('onBreakpoint requires a handler');
+  /*
+   * An explicitly passed target that is not an element is a mistake worth shouting about. Falling
+   * back to the window looks like it works — the callback fires, the values are plausible — while
+   * measuring something entirely different from what the caller asked for. Table hit exactly this:
+   * it passed `this.el` before the base constructor had assigned it, and quietly watched the
+   * viewport instead of itself.
+   */
+  if ('target' in options && !isElement(options.target) && options.target !== globalThis) {
+    throw new TypeError('onBreakpoint target must be an Element or the window');
+  }
   const target = options.target ?? globalThis;
-  const element = target instanceof Element ? target : null;
-  let name = /** @type {BreakpointName} */ ('xs');
+  const element = isElement(target) ? /** @type {Element} */ (target) : null;
+  /** Null until the first real measurement — see `update()` on why 0 is not a band. */
+  let name = /** @type {BreakpointName|null} */ (null);
   let destroyed = false;
   let observer = null;
 
@@ -83,27 +96,51 @@ export function onBreakpoint(handler, options = {}) {
   const update = () => {
     if (destroyed) return;
     const width = measure();
+    /*
+     * A zero width is not the `xs` band — it is no measurement at all, which is what an element
+     * that has not been laid out yet reports. Recording it as a band silently disarms the whole
+     * watcher: the next real width lands in the same band and never notifies. Table hit exactly
+     * this, rendering before it was inserted, measuring 0, and then sitting at 154px inside a
+     * narrow pane without ever being told it should stack.
+     */
+    if (element && width === 0) return;
     const next = breakpointOf(width);
     if (next === name) return;
     name = next;
     handler(name, width);
   };
 
-  name = breakpointOf(measure());
-  handler(name, measure());
+  update();
+
+  /*
+   * Resize notifications are answered on the next frame rather than inside the observer callback.
+   * A handler that reacts to a width by changing layout — which is the entire point of this
+   * module; Table restyles itself — resizes the very element being observed, and the browser
+   * reports that as "ResizeObserver loop completed with undelivered notifications". Deferring
+   * breaks the cycle, and coalesces a burst of notifications into one.
+   */
+  let frame = 0;
+  const schedule = () => {
+    if (frame || destroyed) return;
+    frame = requestAnimationFrame(() => {
+      frame = 0;
+      update();
+    });
+  };
 
   if (element && typeof ResizeObserver === 'function') {
-    observer = new ResizeObserver(update);
+    observer = new ResizeObserver(schedule);
     observer.observe(element);
   } else {
     globalThis.addEventListener?.('resize', update, { passive: true });
   }
 
   return {
-    current: () => name,
+    current: () => name ?? breakpointOf(measure()),
     destroy: () => {
       if (destroyed) return;
       destroyed = true;
+      if (frame) cancelAnimationFrame(frame);
       observer?.disconnect();
       globalThis.removeEventListener?.('resize', update);
     }

@@ -16,8 +16,19 @@ and friends remain the complete record.
   typedef, which is what makes `new Slider(null, { value: 20 })` check against `SliderOptions`
   rather than accept any object at all.
 
+- **Responsive tables** — `Table` gained `responsive` and a per-column `popin`. Below the given
+  width each row stacks into a card of label/value pairs, measured on the table's own container
+  rather than the viewport, so it triggers inside a narrow split pane on a wide screen.
+- **`Table.emptyText` accepts a Node or a factory**, so an empty table can carry an icon, an
+  explanation, and the action that resolves it instead of one line of grey text.
+
 ### Fixed
 
+- `onBreakpoint()` treated an element that had not been laid out yet — width 0 — as the `xs` band,
+  so the first real width silently never notified if it landed in the same band. It also answered
+  resize notifications inside the observer callback, which the browser reports as a
+  "ResizeObserver loop" whenever the handler changes layout, and rejected nothing when handed a
+  target it could not measure.
 - Two static-field type conflicts in the compatibility layer (`SelectBase.filterMode`,
   `PickerBase.Picker`) that made the emitted declarations fail to compile for consumers who do not
   set `skipLibCheck`.

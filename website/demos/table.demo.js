@@ -1,4 +1,4 @@
-import { Table, badge, h } from '../../src/index.js';
+import { emptyState, Table, badge, h } from '../../src/index.js';
 
 const amountFormatter = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR' });
 
@@ -263,6 +263,59 @@ export default {
             { id: 'amount', label: 'Amount', width: '180px', align: 'right', render: (row) => money(row.amount) },
             { id: 'notes', label: 'Notes', width: '360px' }
           ]
+        });
+        cleanup(() => table.destroy());
+        return table.toElement();
+      }
+    },
+    {
+      title: 'Stacking in a narrow container',
+      blurb: 'Drag the box narrower. Below `responsive` each row becomes a card of label/value '
+        + 'pairs instead of a horizontal scrollbar with the data hidden behind it. The width is '
+        + 'the table\u2019s own container, not the viewport, so this triggers inside a narrow split '
+        + 'pane on a wide screen — which is where a dense ERP table actually becomes unreadable. '
+        + 'Columns marked `popin: false` lead the card instead of becoming another labelled line.',
+      render: ({ cleanup, log }) => {
+        const table = new Table(null, {
+          responsive: 'md',
+          columns: [
+            { id: 'number', label: 'Invoice', popin: false },
+            { id: 'customer', label: 'Customer' },
+            { id: 'due', label: 'Due' },
+            { id: 'status', label: 'Status' },
+            { id: 'total', label: 'Total', align: 'end' }
+          ],
+          data: [
+            { ID: 1, number: 'INV-1042', customer: 'Nordwind GmbH', due: '2026-09-01', status: 'Open', total: '1 240.00' },
+            { ID: 2, number: 'INV-1043', customer: 'Halbe Systeme', due: '2026-09-04', status: 'Paid', total: '880.50' },
+            { ID: 3, number: 'INV-1044', customer: 'Kestrel Ltd', due: '2026-09-11', status: 'Overdue', total: '3 105.00' }
+          ],
+          onstackedchange: ({ detail }) => log(`stacked → ${detail.stacked}`)
+        });
+        cleanup(() => table.destroy());
+        return h('div', { class: 'demo-resizable' }, table.toElement());
+      }
+    },
+    {
+      title: 'An empty table that says something',
+      blurb: 'emptyText takes a node, or a function returning one, so the empty state can carry an '
+        + 'icon, an explanation, and the action that resolves it — the thing someone actually needs '
+        + 'when a filtered list comes back with nothing in it.',
+      render: ({ cleanup, log }) => {
+        const table = new Table(null, {
+          columns: [
+            { id: 'number', label: 'Invoice' },
+            { id: 'customer', label: 'Customer' },
+            { id: 'total', label: 'Total', align: 'end' }
+          ],
+          data: [],
+          emptyText: () => emptyState({
+            icon: 'filter',
+            title: 'No invoices match this filter',
+            description: 'Every invoice was excluded by the current date range.',
+            size: 'sm',
+            actions: [{ label: 'Clear filters', kind: 'primary', onclick: () => log('filters cleared') }]
+          })
         });
         cleanup(() => table.destroy());
         return table.toElement();

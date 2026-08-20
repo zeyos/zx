@@ -770,6 +770,18 @@ horizontally, and multi-select adds a tri-state header checkbox plus Shift+click
   editable cell (Shift+Tab the previous), wrapping across rows, and tabbing past the last editable
   cell commits and leaves the table normally. Clicking outside the editor commits rather than
   discarding what was typed.
+- **Responsive stacking** — `responsive: false|'sm'|'md'|'lg'|'xl'` stacks each row into a card of
+  label/value pairs below that width, instead of leaving a horizontal scrollbar with the data
+  hidden behind it. The width measured is **the table's own container**, not the viewport, so this
+  triggers inside a narrow split pane on a wide screen. A column with `popin: false` leads the card
+  instead of becoming another labelled line — the identifying column usually wants that. Every cell
+  carries `data-label`, so the labels are there whether or not the option is on. `isStacked()`
+  reports the current state and `stackedchange {stacked}` fires on each crossing. Stacking drops
+  `display: table`, which drops the implicit ARIA roles, so the component states
+  `table`/`rowgroup`/`row`/`cell`/`columnheader` explicitly for exactly as long as the mode is on.
+- **Empty state** — `emptyText` takes a string, a Node, or a function returning one, so an empty
+  table can carry an icon, an explanation, and the action that resolves it (`emptyState({…})`).
+  A function is re-called on every render, which is what to use when the placeholder holds controls.
 <!-- /doc -->
 
 <!-- doc:data-filter -->

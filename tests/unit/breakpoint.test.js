@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { breakpointOf, breakpoints, matchBreakpoint } from '../../src/core/breakpoint.js';
+import { breakpointOf, breakpoints, matchBreakpoint, onBreakpoint } from '../../src/core/breakpoint.js';
 
 test('breakpointOf names the band a width falls into', () => {
   assert.equal(breakpointOf(0), 'xs');
@@ -38,4 +38,11 @@ test('the scale is frozen and ascending', () => {
   const values = Object.values(breakpoints);
   assert.deepEqual(values, [...values].sort((a, b) => a - b));
   assert.equal(Object.isFrozen(breakpoints), true);
+});
+
+test('an explicit target that is not an element is rejected', () => {
+  // Falling back to the window here looks like it works while measuring the wrong thing — which is
+  // how Table came to watch the viewport instead of itself.
+  assert.throws(() => onBreakpoint(() => {}, { target: null }), TypeError);
+  assert.throws(() => onBreakpoint(() => {}, { target: 'main' }), TypeError);
 });

@@ -1,4 +1,5 @@
 import { Component } from '../../core/component.js';
+import { breakpoints, onBreakpoint } from '../../core/breakpoint.js';
 import { h } from '../../core/dom.js';
 import { uid } from '../../core/util.js';
 import { Datebox } from '../datebox/datebox.js';
@@ -37,6 +38,8 @@ import { sortRows } from './sort.js';
  * Cell renderer. Non-Node results are inserted as text.
  * @property {(row: TableRow) => unknown} [sortValue] Sort-value accessor.
  * @property {string} [headerTitle] Header tooltip.
+ * @property {boolean} [popin=true] While stacked, whether this column becomes a labelled line.
+ * `false` keeps it in the card's headline — the identifying columns usually want that.
  * @property {boolean|TableEditorType|((row: TableRow) => boolean|TableEditorType)} [editable=false]
  * Editor for this column while the table runs with `editMode`. `true` means `'text'`; a function is
  * evaluated per row so individual rows stay read-only.
@@ -64,8 +67,14 @@ import { sortRows } from './sort.js';
  * @property {'local'|'server'} [sortMode='local'] Whether sorting reorders local rows.
  * @property {TableSelectionMode} [selectable=false] Row selection mode.
  * @property {boolean} [stickyHeader=true] Whether column headers stick while scrolling.
+ * @property {false|'sm'|'md'|'lg'|'xl'} [responsive=false] Width below which each row stacks into a
+ * card of label/value pairs instead of scrolling sideways. Measured on the table's own container,
+ * not the viewport, so a table inside a split pane stacks when *it* is narrow.
  * @property {number|string|null} [height=null] Scroll-region height in pixels or CSS units.
- * @property {string|null} [emptyText=null] Empty message; null resolves `table.empty`.
+ * @property {string|Node|(() => Node|string)|null} [emptyText=null] What to show when there are no
+ * rows; null resolves `table.empty`. A Node — an `emptyState()` with an action in it, say — is
+ * placed as given, and a function is called on each render, which is what to use when the
+ * placeholder holds live controls.
  * @property {((row: TableRow) => string)|null} [rowClass=null] Additional row class callback.
  * @property {boolean} [zebra=true] Whether alternate rows use the zebra background.
  * @property {TableEditMode} [editMode=false] Inline editing mode. `'cell'` edits one cell, `'row'`
@@ -76,6 +85,8 @@ import { sortRows } from './sort.js';
  * @property {(event: CustomEvent<TableSortDetail>) => void} [onsort]
  * @property {(event: CustomEvent<TableSelectionDetail>) => void} [onselectionchange]
  * @property {(event: CustomEvent<TableDataDetail>) => void} [ondatachange]
+ * @property {(event: CustomEvent<{stacked: boolean}>) => void} [onstackedchange] Fired when the
+ * table crosses its `responsive` width in either direction.
  * @property {(event: CustomEvent<TableEditStartDetail>) => void} [oneditstart]
  * @property {(event: CustomEvent<TableEditCommitDetail>) => void} [oneditcommit]
  * @property {(event: CustomEvent<TableEditCancelDetail>) => void} [oneditcancel]
@@ -176,6 +187,7 @@ export class Table extends Component {
     sortMode: 'local',
     selectable: false,
     stickyHeader: true,
+    responsive: false,
     height: null,
     emptyText: null,
     rowClass: null,
@@ -195,6 +207,9 @@ export class Table extends Component {
   /** @returns {HTMLElement} Table root. */
   render() {
     const root = /** @type {HTMLElement} */ (this.el ?? h('div'));
+    // Claimed here, not left to the base constructor: `_watchWidth()` below observes `this.el`,
+    // and until this assignment it is null for a component creating its own root.
+    this.el = root;
     this._originalChildren = this.el ? Array.from(this.el.childNodes) : null;
     this._columns = Array.isArray(this.options.columns) ? this.options.columns.map((column) => ({ ...column })) : [];
     this._data = Array.isArray(this.options.data) ? [...this.options.data] : [];
@@ -209,6 +224,8 @@ export class Table extends Component {
     this._editMode = normalizeEditMode(this.options.editMode);
     this._edit = null;
     this._editMessage = null;
+    this._stacked = false;
+    this._width = null;
     this._rovingKey = null;
     this._rovingCell = null;
     this._rovingMatched = false;
@@ -250,6 +267,7 @@ export class Table extends Component {
     this._renderColumns();
     this._renderHeader();
     this._renderBody();
+    this._watchWidth();
     this.listen(this._tbody, 'click', (event) => this._handleBodyClick(event));
     this.listen(this._tbody, 'dblclick', (event) => this._handleBodyDoubleClick(event));
     if (this._editMode !== false) {
@@ -587,9 +605,78 @@ export class Table extends Component {
     return this._edit ? { id: this._edit.id, columnId: this._edit.columnId } : null;
   }
 
+  /**
+   * Watches the table's own width and stacks the rows below `responsive`.
+   *
+   * The width comes from `onBreakpoint` observing this element rather than the window, which is the
+   * whole point of the option: a table inside a split pane or a modal has no idea how wide the
+   * viewport is, and a media query would stack it on a phone while leaving it unreadable in a
+   * 320px pane on a desktop.
+   * @returns {void}
+   */
+  _watchWidth() {
+    this._width?.destroy();
+    this._width = null;
+    const threshold = this.options.responsive;
+    if (!threshold || !(threshold in breakpoints)) return;
+    this._width = onBreakpoint(
+      (_name, width) => this._setStacked(width > 0 && width < breakpoints[threshold]),
+      { target: this.el }
+    );
+  }
+
+  /**
+   * Enters or leaves stacked mode.
+   * @param {boolean} stacked Whether rows should stack.
+   * @returns {void}
+   * @fires Table#stackedchange
+   */
+  _setStacked(stacked) {
+    if (this._stacked === stacked) return;
+    this._stacked = stacked;
+    this.el.toggleAttribute('data-stacked', stacked);
+    this._applyStackedRoles(stacked);
+    this.emit('stackedchange', { stacked });
+  }
+
+  /**
+   * States the table roles explicitly while stacked, and removes them again on the way out.
+   *
+   * Stacking works by changing `display` on the table elements, and a table whose display is not
+   * `table` loses its implicit ARIA roles — leaving a screen reader with a pile of generic blocks
+   * where a table used to be. The roles are only asserted while the layout has taken them away.
+   * @param {boolean} stacked Whether the roles should be present.
+   * @returns {void}
+   */
+  _applyStackedRoles(stacked) {
+    /** @type {Array<[Element|null, string]>} */
+    const parts = [[this._table, 'table'], [this._thead, 'rowgroup'], [this._tbody, 'rowgroup']];
+    for (const [element, role] of parts) {
+      if (!element) continue;
+      if (stacked) element.setAttribute('role', role);
+      else element.removeAttribute('role');
+    }
+    for (const [selector, role] of [['tr', 'row'], ['td', 'cell'], ['th', 'columnheader']]) {
+      for (const element of this._table.querySelectorAll(selector)) {
+        if (stacked) element.setAttribute('role', role);
+        else element.removeAttribute('role');
+      }
+    }
+  }
+
+  /**
+   * Reports whether the rows are currently stacked.
+   * @returns {boolean}
+   */
+  isStacked() {
+    return Boolean(this._stacked);
+  }
+
   /** Restores an enhanced target and releases all component listeners. @returns {void} */
   destroy() {
     this._teardownEdit();
+    this._width?.destroy();
+    this._width = null;
     if (this.el) delete this.el.dataset.editMode;
     if (!this._restored && this._originalChildren) {
       this.el.replaceChildren(...this._originalChildren);
@@ -680,15 +767,34 @@ export class Table extends Component {
     this._rovingCell = null;
     this._rovingMatched = false;
     if (this._data.length === 0) {
-      const text = this.options.emptyText == null ? this.msg('table.empty') : String(this.options.emptyText);
       fragment.append(h('tr', { class: 'zx-table__empty-row' },
-        h('td', { class: 'zx-table__empty', colspan: this._columns.length + (this.options.selectable === 'multi' ? 1 : 0) }, text)
+        h('td', {
+          class: 'zx-table__empty',
+          colspan: this._columns.length + (this.options.selectable === 'multi' ? 1 : 0)
+        }, this._emptyContent())
       ));
     } else {
       this._data.forEach((row, index) => fragment.append(this._createRow(row, index)));
     }
     this._tbody.replaceChildren(fragment);
     this._syncSelectAll();
+    if (this._stacked) this._applyStackedRoles(true);
+  }
+
+  /**
+   * What to put in the empty row.
+   *
+   * An empty table is a screen in its own right — the place to say why there is nothing and what to
+   * do about it — so this takes a node as readily as a string. A function is re-called on every
+   * render, which matters when the placeholder contains a button: reusing one node would move the
+   * same element between renders and quietly share its listeners.
+   * @returns {Node|string}
+   */
+  _emptyContent() {
+    const empty = this.options.emptyText;
+    if (empty == null) return this.msg('table.empty');
+    if (typeof empty === 'function') return empty();
+    return typeof empty === 'string' ? empty : empty;
   }
 
   /** @param {TableRow} row @param {number} index @returns {HTMLTableRowElement} */
@@ -716,6 +822,10 @@ export class Table extends Component {
     this._columns.forEach((column) => {
       const cell = /** @type {HTMLTableCellElement} */ (h('td'));
       if (column.align) cell.dataset.align = column.align;
+      // Written unconditionally: `responsive` can be switched on after the rows exist, and a
+      // stacked cell has no column header above it to say what its value means.
+      cell.dataset.label = column.label;
+      if (column.popin === false) cell.dataset.popin = 'false';
       if (this._editMode !== false) {
         cell.dataset.column = column.id;
         if (resolveEditable(column, row) !== false) {

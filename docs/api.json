@@ -4120,6 +4120,12 @@
         "description": "Whether column headers stick while scrolling."
       },
       {
+        "name": "responsive",
+        "type": "false|'sm'|'md'|'lg'|'xl'",
+        "default": "false",
+        "description": "Width below which each row stacks into a card of label/value pairs instead of scrolling sideways. Measured on the table's own container, not the viewport, so a table inside a split pane stacks when *it* is narrow."
+      },
+      {
         "name": "height",
         "type": "number|string|null",
         "default": "null",
@@ -4127,9 +4133,9 @@
       },
       {
         "name": "emptyText",
-        "type": "string|null",
+        "type": "string|Node|(() => Node|string)|null",
         "default": "null",
-        "description": "Empty message; null resolves `table.empty`."
+        "description": "What to show when there are no rows; null resolves `table.empty`. A Node — an `emptyState()` with an action in it, say — is placed as given, and a function is called on each render, which is what to use when the placeholder holds live controls."
       },
       {
         "name": "rowClass",
@@ -4175,6 +4181,11 @@
         "name": "datachange",
         "payload": "{rows}",
         "description": ""
+      },
+      {
+        "name": "stackedchange",
+        "payload": "{stacked: boolean}",
+        "description": "Fired when the table crosses its `responsive` width in either direction."
       },
       {
         "name": "editstart",
@@ -4257,6 +4268,12 @@
         "signature": "startEdit(rowId, columnId)",
         "returns": "this",
         "description": "Opens the editor for a cell. No-op unless the table runs with `editMode` and the column resolves to an editable type for that row. In `'row'` mode every editable cell of the row is opened and `columnId` only decides which editor receives focus. Any other open edit is committed first."
+      },
+      {
+        "name": "isStacked",
+        "signature": "isStacked(stacked, stacked)",
+        "returns": "void",
+        "description": "Watches the table's own width and stacks the rows below `responsive`. The width comes from `onBreakpoint` observing this element rather than the window, which is the whole point of the option: a table inside a split pane or a modal has no idea how wide the viewport is, and a media query would stack it on a phone while leaving it unreadable in a 320px pane on a desktop."
       },
       {
         "name": "destroy",

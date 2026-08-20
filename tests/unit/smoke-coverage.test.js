@@ -21,7 +21,17 @@ const source = readFileSync(fileURLToPath(new URL('../smoke/smoke.js', import.me
 const covered = new Set([
   ...[...source.matchAll(/(?:componentCase|artifactCase)\(\s*'([^']+)'/g)].map((match) => match[1]),
   ...[...source.matchAll(/^\s*name: '([^']+)',$/gm)].map((match) => match[1])
-].map((name) => name.replace(/\(\)$/, '')));
+].map(exportName));
+
+/**
+ * The export a case name refers to. A factory case is written `truncate()`, and a second case for
+ * an export already covered elsewhere is written `Table (responsive)` — both name the same export.
+ * @param {string} name Case name.
+ * @returns {string}
+ */
+function exportName(name) {
+  return name.endsWith('()') ? name.slice(0, -2) : name.replace(/\s*\(.*\)$/, '').trim();
+}
 
 test('every exported component has a smoke case', () => {
   const missing = Object.entries(zx)

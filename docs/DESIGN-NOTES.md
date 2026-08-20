@@ -28,7 +28,9 @@ work. Sources are listed at the end.
 
 ## Recommended next (prioritized, not yet done)
 
-1. **Responsive table pop-in.** SAP UI5's most distinctive table feature: below a per-column
+1. ~~**Responsive table pop-in.**~~ **Done** — `Table` gained `responsive` and per-column `popin`,
+   driven by `onBreakpoint()` observing the table's own container. See the Table reference.
+   Originally described as: SAP UI5's most distinctive table feature: below a per-column
    `minScreenWidth`, secondary columns collapse into a stacked label/value block within the row
    instead of horizontal scroll. High value for ERP screens on narrow viewports. Medium effort —
    add a `column.minWidth`/`popin` option and a container-query-driven row layout.
@@ -37,7 +39,8 @@ work. Sources are listed at the end.
    `--zx-button-radius`) that default to the current semantic tokens, so products can restyle a
    component without overriding internal selectors. Note: SLDS itself keeps this layer small and
    warns it's easy to over-expose — pick a handful per component. Low effort, backward-compatible.
-3. **Illustrated empty states.** Enterprise UX guidance treats the empty state as a first-class
+3. ~~**Illustrated empty states.**~~ **Done** — `Table.emptyText` now accepts a Node or a factory,
+   so `emptyState({icon, title, description, actions})` drops straight in. Originally described as: Enterprise UX guidance treats the empty state as a first-class
    screen (guidance + a primary action), not blank space. Zx Table has `emptyText`; extend it to
    accept a node (icon + message + action) and document the pattern.
 4. **Table "growing"/load-more and (later) virtualization.** SAP UI5 grows rows on demand; Zx

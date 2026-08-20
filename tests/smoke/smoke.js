@@ -363,6 +363,7 @@ const cases = [
     const element = zx.emptyState({ title: 'Nothing here', actions: [{ label: 'Add' }] });
     return { element, exercise: () => assert(element.querySelector('button'), 'empty-state action missing') };
   }),
+  tableStackingCase(),
   truncateCase(),
   customElementsCase()
 ];
@@ -526,6 +527,57 @@ function contextMenuCase() {
     destroy({ component, region }) {
       component.destroy();
       region.remove();
+    }
+  };
+}
+
+/**
+ * Responsive stacking, which only a laid-out browser can prove: it is driven by a ResizeObserver,
+ * and RO delivers during rendering steps — so this reports nothing at all in a hidden tab and has
+ * to be verified here rather than in a devtools console.
+ * @returns {SmokeDefinition}
+ */
+function tableStackingCase() {
+  return {
+    name: 'Table (responsive)',
+    create(fixture) {
+      const host = document.createElement('div');
+      host.style.inlineSize = '900px';
+      fixture.append(host);
+      const component = new zx.Table(null, {
+        responsive: 'md',
+        columns: [
+          { id: 'number', label: 'Invoice', popin: false },
+          { id: 'customer', label: 'Customer' }
+        ],
+        data: [{ ID: 1, number: 'INV-1', customer: 'Nordwind' }]
+      });
+      host.append(component.toElement());
+      return { component, host };
+    },
+    async exercise({ component, host }) {
+      const settle = () => new Promise((done) => setTimeout(done, 120));
+      await settle();
+      assert(!component.isStacked(), 'stacked while there was room for the table');
+
+      const events = observe(component, 'stackedchange');
+      host.style.inlineSize = '420px';
+      await settle();
+      assert(component.isStacked(), 'did not stack in a narrow container');
+      events.expect();
+
+      const cell = component.el.querySelector('tbody td[data-label="Customer"]');
+      assert(cell.getAttribute('role') === 'cell', 'stacked cells lost their table role');
+      assert(component.el.querySelector('table').getAttribute('role') === 'table', 'stacked table lost its role');
+
+      host.style.inlineSize = '900px';
+      await settle();
+      assert(!component.isStacked(), 'did not unstack when the room came back');
+      assert(!component.el.querySelector('table').hasAttribute('role'), 'roles outlived stacked mode');
+    },
+    destroy({ component, host }) {
+      component.destroy();
+      host.remove();
     }
   };
 }
