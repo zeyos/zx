@@ -22,6 +22,11 @@ and friends remain the complete record.
 - **`Table.emptyText` accepts a Node or a factory**, so an empty table can carry an icon, an
   explanation, and the action that resolves it instead of one line of grey text.
 
+- **Component styling hooks** — a short, published set of custom properties for restyling one
+  component without reaching into its selectors: `--zx-table-header-bg`, `--zx-table-row-hover-bg`,
+  `--zx-table-row-selected-bg`, `--zx-table-border-color`, `--zx-button-radius`,
+  `--zx-panel-header-bg`. Each falls back to the semantic token it replaces.
+
 ### Fixed
 
 - `onBreakpoint()` treated an element that had not been laid out yet — width 0 — as the `xs` band,

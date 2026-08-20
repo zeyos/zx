@@ -71,14 +71,14 @@
 
 .zx-table th,
 .zx-table td {
-  border-block-end: 1px solid var(--zx-color-border);
+  border-block-end: 1px solid var(--zx-table-border-color, var(--zx-color-border));
   padding: var(--zx-space-2) var(--zx-space-3);
   text-align: start;
   vertical-align: middle;
 }
 
 .zx-table th {
-  background: var(--zx-color-bg-raised);
+  background: var(--zx-table-header-bg, var(--zx-color-bg-raised));
   color: var(--zx-color-text-muted);
   font-size: var(--zx-text-sm);
   font-weight: 650;
@@ -123,7 +123,7 @@
 }
 
 .zx-table__sort-button:hover {
-  background: var(--zx-color-bg-hover);
+  background: var(--zx-table-row-hover-bg, var(--zx-color-bg-hover));
   color: var(--zx-color-text);
 }
 
@@ -150,7 +150,7 @@
 }
 
 .zx-table__body tr[aria-selected="true"] {
-  background: var(--zx-color-bg-selected);
+  background: var(--zx-table-row-selected-bg, var(--zx-color-bg-selected));
 }
 
 .zx-table__body tr[data-row]:hover {

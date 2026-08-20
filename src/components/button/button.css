@@ -5,7 +5,7 @@
   gap: var(--zx-space-2);
   min-block-size: var(--zx-control-height);
   border: 1px solid var(--zx-color-border-control);
-  border-radius: var(--zx-control-radius);
+  border-radius: var(--zx-button-radius, var(--zx-control-radius));
   background: var(--zx-color-bg-control);
   color: var(--zx-color-text);
   padding-inline: var(--zx-control-pad-x);

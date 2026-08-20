@@ -13,7 +13,7 @@
   align-items: center;
   gap: var(--zx-space-2);
   min-block-size: var(--zx-control-height);
-  background: var(--zx-color-bg-raised);
+  background: var(--zx-panel-header-bg, var(--zx-color-bg-raised));
 }
 
 .zx-panel__toggle {

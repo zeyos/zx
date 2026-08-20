@@ -34,7 +34,9 @@ work. Sources are listed at the end.
    `minScreenWidth`, secondary columns collapse into a stacked label/value block within the row
    instead of horizontal scroll. High value for ERP screens on narrow viewports. Medium effort —
    add a `column.minWidth`/`popin` option and a container-query-driven row layout.
-2. **Column-level styling hooks** (SLDS `--slds-c-*`). Expose a small, curated set of
+2. ~~**Column-level styling hooks**~~ **Done** — six published hooks, each falling back to the
+   semantic token it replaces, with a test that keeps the list, the CSS, and the documentation in
+   agreement. Kept deliberately small, as the note below warned. Originally described as: Expose a small, curated set of
    component-level custom properties (e.g. `--zx-table-header-bg`, `--zx-table-row-hover`,
    `--zx-button-radius`) that default to the current semantic tokens, so products can restyle a
    component without overriding internal selectors. Note: SLDS itself keeps this layer small and

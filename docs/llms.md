@@ -1324,4 +1324,12 @@ colour literals and tier-1 references in component CSS.
   `--zx-radius-sm/md/lg/full`, the type scale, shadows, and motion.
 - **Tier 2** — the semantic set, the only tokens components may use: `--zx-color-*`,
   `--zx-control-*`, `--zx-focus-ring`, `--zx-overlay-shadow`.
+- **Component styling hooks** — a short, deliberately small set of component-level custom
+  properties for restyling one component without touching its internals. Each falls back to the
+  semantic token it replaces, so setting none of them changes nothing:
+  `--zx-table-header-bg`, `--zx-table-row-hover-bg`, `--zx-table-row-selected-bg`,
+  `--zx-table-border-color`, `--zx-button-radius`, `--zx-panel-header-bg`.
+  Reach for the least specific override that works: a global semantic token first, one of these
+  second, an internal selector never. Component CSS declares many other `--zx-<component>-*`
+  properties — those are internal geometry, not API, and will change without notice.
 <!-- /doc -->
