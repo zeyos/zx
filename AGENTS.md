@@ -11,8 +11,9 @@ its "Out of scope" section is binding. Do not modify files outside the spec's fi
 
 ## Hard rules
 
-- **Zero runtime dependencies.** `package.json` may contain devDependencies only (esbuild for the
-  bundles, typescript for declaration emit). Never add a runtime import from `node_modules`.
+- **Zero runtime dependencies.** `package.json` may contain devDependencies only — esbuild for the
+  bundles, typescript for declaration emit, playwright-core to drive the browser smoke suites
+  against an already-installed Chrome. Never add a runtime import from `node_modules`.
 - **JSDoc-typed plain JS.** ES2022 modules (`.js`), no TypeScript syntax, no build step required
   to run in a browser. Every public class, method, option object, and event gets JSDoc
   (`@param`, `@returns`, `@fires`, `@typedef` for options).

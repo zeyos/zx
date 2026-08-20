@@ -18,7 +18,7 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install devDependencies (esbuild only)
+      - name: Install devDependencies (esbuild, typescript, playwright-core)
         run: npm ci || npm install
 
       - name: Test (unit + design-token lint)
@@ -26,6 +26,11 @@ jobs:
 
       - name: Build distribution bundles
         run: npm run build
+
+      # After the build: the distribution suite loads `dist/zx.global.js`. Chrome is preinstalled
+      # on the GitHub runners, which is why this needs `playwright-core` and no browser download.
+      - name: Smoke-test both suites in a real browser
+        run: npm run test:browser
 
       - name: Build the documentation site
         run: npm run build:site
