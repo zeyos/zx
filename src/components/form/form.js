@@ -29,6 +29,7 @@ import { coerceFloat, coerceInteger } from '../field/field.js';
  * @fires Form#submit
  * @fires Form#invalid
  * @fires Form#change
+ * @extends {Component<FormOptions>}
  */
 export class Form extends Component {
   static cssName = 'form';

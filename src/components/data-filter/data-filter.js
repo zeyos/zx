@@ -57,6 +57,7 @@ import {
 /**
  * Inline declarative filter bar that produces a filtered copy of client-side data.
  * @fires DataFilter#filter
+ * @extends {Component<DataFilterOptions>}
  */
 export class DataFilter extends Component {
   static cssName = 'data-filter';

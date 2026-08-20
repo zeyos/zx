@@ -30,6 +30,7 @@ import { uid } from '../../core/util.js';
  *
  * @fires Rating#change
  * @fires Rating#hover
+ * @extends {Component<RatingOptions>}
  */
 export class Rating extends Component {
   static cssName = 'rating';

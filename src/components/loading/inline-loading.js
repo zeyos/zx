@@ -24,6 +24,7 @@ const STATUSES = new Set(['inactive', 'active', 'success', 'error']);
  * rather than a line of text that stays put.
  *
  * @fires InlineLoading#statuschange
+ * @extends {Component<InlineLoadingOptions>}
  */
 export class InlineLoading extends Component {
   static cssName = 'inline-loading';

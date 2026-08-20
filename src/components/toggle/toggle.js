@@ -13,6 +13,7 @@ import { h } from '../../core/dom.js';
 /**
  * Accessible on/off switch.
  * @fires Toggle#change
+ * @extends {Component<ToggleOptions>}
  */
 export class Toggle extends Component {
   static cssName = 'toggle';

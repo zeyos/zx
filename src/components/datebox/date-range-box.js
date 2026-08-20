@@ -99,6 +99,7 @@ export function formatRangeText(range, format, separator) {
  * @fires DateRangeBox#invalid
  * @fires DateRangeBox#open
  * @fires DateRangeBox#close
+ * @extends {Component<DateRangeBoxOptions>}
  */
 export class DateRangeBox extends Component {
   static cssName = 'date-range-box';

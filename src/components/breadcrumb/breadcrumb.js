@@ -52,6 +52,7 @@ const SEPARATORS = new Set(['chevron', 'slash']);
  * interactive. Every other item is a real `<a>` when it carries an `href` — its navigation is left
  * alone — and a `<button>` otherwise, for trails an application resolves in JavaScript.
  * @fires Breadcrumb#select
+ * @extends {Component<BreadcrumbOptions>}
  */
 export class Breadcrumb extends Component {
   static cssName = 'breadcrumb';

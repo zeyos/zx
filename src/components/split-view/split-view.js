@@ -54,6 +54,7 @@ const STORAGE_NAMESPACE = 'split-view';
  * @fires SplitView#resizeend
  * @fires SplitView#collapse
  * @fires SplitView#expand
+ * @extends {Component<SplitViewOptions>}
  */
 export class SplitView extends Component {
   static cssName = 'split-view';

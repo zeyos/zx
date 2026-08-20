@@ -10,6 +10,13 @@ const registry = new WeakMap();
 
 /**
  * Base class for lifecycle-safe Zx components.
+ *
+ * Generic over its own options type so a subclass can bind its `XOptions` typedef with
+ * `@extends {Component<XOptions>}`. That is what types `new Select(target, { … })` for editors and
+ * for TypeScript consumers: a subclass declares no constructor of its own, so it inherits this
+ * signature, and without the binding every component would accept any object at all.
+ *
+ * @template {ComponentOptions} [TOptions=ComponentOptions]
  * @fires Component#event
  */
 export class Component extends EventTarget {
@@ -22,7 +29,7 @@ export class Component extends EventTarget {
   /** @type {Record<string, Element>} Elements captured by `h()` ref properties. */
   refs;
 
-  /** @type {Readonly<ComponentOptions>} Merged component options. */
+  /** @type {Readonly<TOptions>} Merged component options. */
   options;
 
   #abort = new AbortController();
@@ -33,7 +40,7 @@ export class Component extends EventTarget {
   /**
    * Creates a component around an existing target, or asks `render()` to create its root.
    * @param {Element|string|null} target Existing element, selector, or null.
-   * @param {ComponentOptions} [options={}] Component options.
+   * @param {TOptions} [options={}] Component options.
    */
   constructor(target, options = {}) {
     super();

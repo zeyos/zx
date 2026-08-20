@@ -21,6 +21,7 @@ import { TimePicker } from './time-picker.js';
  * Accessible inline calendar following the APG date-picker grid pattern.
  * @fires DatePicker#change
  * @fires DatePicker#monthchange
+ * @extends {Component<DatePickerOptions>}
  */
 export class DatePicker extends Component {
   static cssName = 'date-picker';

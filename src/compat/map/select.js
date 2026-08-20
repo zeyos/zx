@@ -5,6 +5,13 @@ import { LEGACY_EVENT_ARGS, translateSelectOptions } from './options.js';
 /** Shared Select facade; concrete subclasses choose filtering and warning identity. */
 class SelectBase extends GxWrapper {
   static legacyName = 'gx.zeyos.Select';
+  /*
+   * Widened deliberately: the subclasses below set `'local' | 'async' | 'priority' | 'rest'`, and
+   * a static field annotated with that union would still clash with the `string` each subclass
+   * infers from its own literal. The static sides have to agree or the emitted declarations do
+   * not type-check for a consumer running without `skipLibCheck`.
+   */
+  /** @type {string|false} */
   static filterMode = false;
 
   /** @param {Element|string|null} display @param {Record<string, any>} [options={}] */

@@ -19,6 +19,7 @@ import { h } from '../../core/dom.js';
  * @fires Modal#open
  * @fires Modal#close
  * @fires Modal#cancel
+ * @extends {Component<ModalOptions>}
  */
 export class Modal extends Component {
   static cssName = 'modal';

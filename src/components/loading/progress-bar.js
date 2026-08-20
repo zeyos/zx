@@ -30,6 +30,7 @@ import { clamp, uid } from '../../core/util.js';
  *
  * @fires ProgressBar#change
  * @fires ProgressBar#complete
+ * @extends {Component<ProgressBarOptions>}
  */
 export class ProgressBar extends Component {
   static cssName = 'progress-bar';

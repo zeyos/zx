@@ -38,6 +38,11 @@ For an application built from classic scripts, the IIFE bundle exposes the same 
 </script>
 ```
 
+TypeScript definitions ship with the package. They are generated from the JSDoc that documents
+every option, method, and event, so `new Slider(null, { … })` is checked against `SliderOptions`
+and an unknown option or a wrong literal is an error in the editor. There is no TypeScript in the
+library itself and no compile step for consumers who do not want one.
+
 Components accept an existing element or selector as their first argument. Passing `null` makes
 the component create and own its root. Call `destroy()` when a component is no longer needed; an
 owned root is removed, while an enhanced target is restored.

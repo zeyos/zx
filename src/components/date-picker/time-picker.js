@@ -24,6 +24,7 @@ const MINUTE_STEP = 5;
  * picking an hour and a minute by eye. The spinbuttons stay the primary control: the dial is a
  * second, visual route to the same value, and every mark is a radio in an APG radio group.
  * @fires TimePicker#change
+ * @extends {Component<TimePickerOptions>}
  */
 export class TimePicker extends Component {
   static cssName = 'time-picker';

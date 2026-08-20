@@ -34,6 +34,7 @@ import { icon } from '../../core/icons.js';
  *
  * @fires NumberField#change
  * @fires NumberField#input
+ * @extends {Component<NumberFieldOptions>}
  */
 export class NumberField extends Component {
   static cssName = 'number-field';

@@ -18,6 +18,7 @@ import { icon } from '../../core/icons.js';
  * @fires Search#input
  * @fires Search#submit
  * @fires Search#clear
+ * @extends {Component<SearchOptions>}
  */
 export class Search extends Component {
   static cssName = 'search';

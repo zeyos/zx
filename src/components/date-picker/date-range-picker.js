@@ -131,6 +131,7 @@ export function clampRange(range, bounds = {}) {
  * @fires DateRangePicker#change
  * @fires DateRangePicker#select
  * @fires DateRangePicker#monthchange
+ * @extends {Component<DateRangePickerOptions>}
  */
 export class DateRangePicker extends Component {
   static cssName = 'date-range-picker';

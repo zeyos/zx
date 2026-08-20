@@ -57,6 +57,7 @@ const PRIORITY_FALLBACKS = ['Lowest', 'Low', 'Normal', 'High', 'Highest'];
  * @fires Select#close
  * @fires Select#query
  * @fires Select#loaded
+ * @extends {Component<SelectOptions>}
  */
 export class Select extends Component {
   static cssName = 'select';

@@ -41,6 +41,7 @@ import { snapNumber } from '../number-field/number-field.js';
  *
  * @fires Slider#change
  * @fires Slider#input
+ * @extends {Component<SliderOptions>}
  */
 export class Slider extends Component {
   static cssName = 'slider';

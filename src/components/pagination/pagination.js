@@ -102,6 +102,7 @@ export function paginationRange({ page = 1, pages = 1, siblings = 1, boundaries 
  * `page` is clamped into `[1, pages]` after every state change, so shrinking `total` under the
  * user's feet can never leave the pager pointing past the end of the data.
  * @fires Pagination#change
+ * @extends {Component<PaginationOptions>}
  */
 export class Pagination extends Component {
   static cssName = 'pagination';

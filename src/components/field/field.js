@@ -35,6 +35,7 @@ import { uid } from '../../core/util.js';
  * One labelled form control backed by a registered adapter.
  * @fires Field#change
  * @fires Field#invalid
+ * @extends {Component<FieldOptions>}
  */
 export class Field extends Component {
   static cssName = 'field';

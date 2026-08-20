@@ -34,6 +34,7 @@ const MODULE_NAMES = Object.freeze([
 
 /**
  * Full-height page panel with fixed header and footer bars.
+ * @extends {Component<MasterPanelOptions>}
  */
 export class MasterPanel extends Component {
   static cssName = 'master-panel';

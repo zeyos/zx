@@ -48,6 +48,7 @@ import {
  * @fires TreeView#activate
  * @fires TreeView#check
  * @fires TreeView#error
+ * @extends {Component<TreeOptions>}
  */
 export class TreeView extends Component {
   static cssName = 'tree';

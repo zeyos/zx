@@ -12,7 +12,10 @@ import { Field } from '../field/field.js';
 
 /** @typedef {import('../field/field.js').FieldOptions} FieldOptions */
 
-/** Native fieldset that owns and coordinates labelled fields. */
+/**
+ * Native fieldset that owns and coordinates labelled fields.
+ * @extends {Component<FieldsetOptions>}
+ */
 export class Fieldset extends Component {
   static cssName = 'fieldset';
 

@@ -162,6 +162,7 @@ const FOCUSABLE = 'input, textarea, select, button, [tabindex]:not([tabindex="-1
  * @fires Table#editcommit
  * @fires Table#editcancel
  * @fires Table#editinvalid
+ * @extends {Component<TableOptions>}
  */
 export class Table extends Component {
   static cssName = 'table';

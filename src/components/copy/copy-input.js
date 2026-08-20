@@ -23,6 +23,7 @@ import { copyButton } from './copy-button.js';
  * expects.
  *
  * @fires CopyInput#copy
+ * @extends {Component<CopyInputOptions>}
  */
 export class CopyInput extends Component {
   static cssName = 'copy-input';

@@ -44,6 +44,12 @@ export class Datebox extends GxWrapper {
 /** Shared inline picker wrapper with legacy date formatting. */
 class PickerBase extends GxWrapper {
   static legacyName = 'gx.zeyos.DatePicker';
+  /*
+   * A constructor type rather than `typeof ZxDatePicker`: each subclass points this at a different
+   * picker, and inferring the base from its own default would make every subclass's static side
+   * incompatible with it.
+   */
+  /** @type {new (target: Element|string|null, options?: any) => any} */
   static Picker = ZxDatePicker;
 
   /** @param {Element|string|null} display @param {Record<string, any>} [options={}] */

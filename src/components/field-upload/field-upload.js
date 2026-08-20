@@ -40,6 +40,7 @@ import { uid } from '../../core/util.js';
  * @fires FieldUpload#success
  * @fires FieldUpload#error
  * @fires FieldUpload#abort
+ * @extends {Component<FieldUploadOptions>}
  */
 export class FieldUpload extends Component {
   static cssName = 'field-upload';

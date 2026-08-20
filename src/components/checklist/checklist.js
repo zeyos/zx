@@ -26,6 +26,7 @@ import { matchItems } from '../select/filter.js';
  *
  * @fires Checklist#change
  * @fires Checklist#loaded
+ * @extends {Component<ChecklistOptions>}
  */
 export class Checklist extends Component {
   static cssName = 'checklist';

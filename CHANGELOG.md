@@ -8,6 +8,20 @@ and friends remain the complete record.
 
 ## Unreleased
 
+### Added
+
+- **TypeScript definitions**, generated from the JSDoc and shipped in the package. `exports` now
+  carries a `types` condition for every entry point, so `@zeyos/zx`, `/zeyos`, and `/compat` all
+  resolve. `Component` became generic over its options type and every component binds its own
+  typedef, which is what makes `new Slider(null, { value: 20 })` check against `SliderOptions`
+  rather than accept any object at all.
+
+### Fixed
+
+- Two static-field type conflicts in the compatibility layer (`SelectBase.filterMode`,
+  `PickerBase.Picker`) that made the emitted declarations fail to compile for consumers who do not
+  set `skipLibCheck`.
+
 ## 2.1.0 — 2026-08-19
 
 ### Added

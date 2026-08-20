@@ -1,0 +1,30 @@
+{
+  "//": [
+    "Declaration emit only. Zx is written in plain ES2022 with JSDoc types — there is no",
+    "TypeScript in the sources and no TypeScript in the build output. This config exists so that",
+    "the types already written for humans are also handed to editors: `tsc` reads the JSDoc and",
+    "writes `dist/types/**.d.ts`, which `exports` points at.",
+    "",
+    "`checkJs` is deliberately off here. Turning it on is worthwhile and is tracked separately —",
+    "it would turn every JSDoc inaccuracy into a build failure on the day it is switched on, which",
+    "is a change to make on purpose rather than as a side effect of shipping declarations."
+  ],
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "rootDir": "src",
+    "allowJs": true,
+    "checkJs": false,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "declarationMap": false,
+    "outDir": "dist/types",
+    "skipLibCheck": true,
+    "strict": false,
+    "noEmitOnError": false
+  },
+  "include": ["src/**/*.js"],
+  "exclude": ["node_modules", "dist", "site", "website", "tests", "tools"]
+}

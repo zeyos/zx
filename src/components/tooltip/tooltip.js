@@ -47,6 +47,7 @@ const TRIGGERS = new Set(['hover', 'focus', 'both', 'manual']);
  * to its own label.
  * @fires Tooltip#open
  * @fires Tooltip#close
+ * @extends {Component<TooltipOptions>}
  */
 export class Tooltip extends Component {
   static cssName = 'tooltip';

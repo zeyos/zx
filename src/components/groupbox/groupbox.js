@@ -16,6 +16,7 @@ import { icon } from '../../core/icons.js';
  * Collapsible section backed by native details and summary elements.
  * @fires Groupbox#open
  * @fires Groupbox#close
+ * @extends {Component<GroupboxOptions>}
  */
 export class Groupbox extends Component {
   static cssName = 'groupbox';

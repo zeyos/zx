@@ -120,6 +120,7 @@ export class MessageQueue {
 
 /**
  * Inline message area and static toast service.
+ * @extends {Component<MessageOptions>}
  */
 export class Message extends Component {
   static cssName = 'message';

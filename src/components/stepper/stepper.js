@@ -62,6 +62,7 @@ const CLICKABLE = new Set(['completed', 'all', false]);
  * The rail owns no stage: it reports where the user is and where they asked to go. Rendering the
  * step's content stays with the application, exactly as in the checkout and record wizards.
  * @fires Stepper#change
+ * @extends {Component<StepperOptions>}
  */
 export class Stepper extends Component {
   static cssName = 'stepper';

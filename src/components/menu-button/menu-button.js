@@ -33,6 +33,7 @@ const MENU_ITEM_SELECTOR = '[role="menuitem"]';
  * @fires MenuButton#select
  * @fires MenuButton#open
  * @fires MenuButton#close
+ * @extends {Component<MenuButtonOptions>}
  */
 export class MenuButton extends Component {
   static cssName = 'menu-button';

@@ -22,6 +22,7 @@ const HANDLE_ESCAPE_DISMISS = Symbol('zxDropdownEscapeDismiss');
  * Generic anchored floating panel using the browser popover top layer.
  * @fires Dropdown#open
  * @fires Dropdown#close
+ * @extends {Component<DropdownOptions>}
  */
 export class Dropdown extends Component {
   static cssName = 'dropdown';

@@ -37,6 +37,7 @@ import { createReaders, isBranch, pathTo } from '../tree/hierarchy.js';
  * @fires Finder#change
  * @fires Finder#activate
  * @fires Finder#error
+ * @extends {Component<FinderOptions>}
  */
 export class Finder extends Component {
   static cssName = 'finder';

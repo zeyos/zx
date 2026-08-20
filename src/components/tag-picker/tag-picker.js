@@ -54,6 +54,7 @@ import { matchItems } from '../select/filter.js';
  * @fires TagPicker#open
  * @fires TagPicker#close
  * @fires TagPicker#error
+ * @extends {Component<TagPickerOptions>}
  */
 export class TagPicker extends Component {
   static cssName = 'tag-picker';

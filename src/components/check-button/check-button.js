@@ -14,6 +14,7 @@ import { icon } from '../../core/icons.js';
 /**
  * Two-state native press button.
  * @fires CheckButton#change
+ * @extends {Component<CheckButtonOptions>}
  */
 export class CheckButton extends Component {
   static cssName = 'check-button';

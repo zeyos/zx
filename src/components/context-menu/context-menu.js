@@ -43,6 +43,7 @@ const MENU_ITEM_SELECTOR = '[role="menuitem"]';
  * @fires ContextMenu#select
  * @fires ContextMenu#open
  * @fires ContextMenu#close
+ * @extends {Component<ContextMenuOptions>}
  */
 export class ContextMenu extends Component {
   /** @type {ContextMenuOptions} */

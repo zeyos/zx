@@ -30,6 +30,7 @@ import { DatePicker } from '../date-picker/date-picker.js';
  * @fires Datebox#invalid
  * @fires Datebox#open
  * @fires Datebox#close
+ * @extends {Component<DateboxOptions>}
  */
 export class Datebox extends Component {
   static cssName = 'datebox';

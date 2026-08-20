@@ -54,6 +54,7 @@ const ITEM_SELECTOR = FOCUSABLE
  * APG toolbar: one tab stop, arrow keys between controls, Home and End to the ends, and an
  * optional overflow menu that swallows the items that no longer fit.
  * @fires Toolbar#action
+ * @extends {Component<ToolbarOptions>}
  */
 export class Toolbar extends Component {
   static cssName = 'toolbar';

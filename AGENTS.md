@@ -11,8 +11,8 @@ its "Out of scope" section is binding. Do not modify files outside the spec's fi
 
 ## Hard rules
 
-- **Zero runtime dependencies.** `package.json` may contain devDependencies only (esbuild).
-  Never add a runtime import from `node_modules`.
+- **Zero runtime dependencies.** `package.json` may contain devDependencies only (esbuild for the
+  bundles, typescript for declaration emit). Never add a runtime import from `node_modules`.
 - **JSDoc-typed plain JS.** ES2022 modules (`.js`), no TypeScript syntax, no build step required
   to run in a browser. Every public class, method, option object, and event gets JSDoc
   (`@param`, `@returns`, `@fires`, `@typedef` for options).
@@ -47,6 +47,11 @@ its "Out of scope" section is binding. Do not modify files outside the spec's fi
   `(target, options)` where target is `Element | selector string | null` (null ⇒ the component
   creates its own root via `render()`).
 - Options: declare `static defaults`; never mutate the passed options object.
+- **Bind the options typedef to the generic**: put `@extends {Component<XOptions>}` in the class
+  JSDoc. `Component` is generic over its options type, and a subclass that declares no constructor
+  inherits the base signature — without the binding the component still works perfectly and
+  silently offers `Record<string, any>` to every TypeScript consumer. `tests/unit/type-bindings.test.js`
+  fails if it is missing, or if it names a typedef the file does not declare.
 - **No instance class-field declarations** (`_foo = [];` at class level) for state the component
   touches during `render()` or its helpers: `render()` runs inside the base constructor, BEFORE
   class-field initializers, which would then clobber anything render set. Initialize all instance

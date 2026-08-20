@@ -19,6 +19,7 @@ import { Select } from '../select/select.js';
  * Record-permission choice for private, public, and group access.
  *
  * @fires Permission#change
+ * @extends {Component<PermissionOptions>}
  */
 export class Permission extends Component {
   static cssName = 'permission';

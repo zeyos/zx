@@ -18,6 +18,7 @@ import { uid } from '../../core/util.js';
  * @fires ValueList#change
  * @fires ValueList#add
  * @fires ValueList#remove
+ * @extends {Component<ValueListOptions>}
  */
 export class ValueList extends Component {
   static cssName = 'value-list';

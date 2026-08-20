@@ -55,6 +55,7 @@ const VARIANTS = new Set(['divided', 'bracket', 'line', 'segmented']);
  * APG tabs with roving focus and manual activation.
  * @fires Tabbox#change
  * @fires Tabbox#close
+ * @extends {Component<TabboxOptions>}
  */
 export class Tabbox extends Component {
   static cssName = 'tabbox';

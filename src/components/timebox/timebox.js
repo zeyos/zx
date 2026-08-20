@@ -49,6 +49,7 @@ export function joinTime(parts, unit = 'minutes') {
 /**
  * Segmented duration input supporting unlimited and signed hours.
  * @fires Timebox#change
+ * @extends {Component<TimeboxOptions>}
  */
 export class Timebox extends Component {
   static cssName = 'timebox';

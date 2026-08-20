@@ -50,6 +50,7 @@ import { MenuButton } from '../menu-button/menu-button.js';
 /**
  * Responsive application navigation with MenuButton overflow.
  * @fires NavigationBar#change
+ * @extends {Component<NavigationBarOptions>}
  */
 export class NavigationBar extends Component {
   static cssName = 'navigation-bar';

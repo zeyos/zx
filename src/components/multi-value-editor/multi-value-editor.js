@@ -11,6 +11,7 @@ import { h } from '../../core/dom.js';
 /**
  * Ordered value editor with explicit editable rows and controls.
  * @fires MultiValueEditor#change
+ * @extends {Component<MultiValueEditorOptions>}
  */
 export class MultiValueEditor extends Component {
   static cssName = 'multi-value-editor';

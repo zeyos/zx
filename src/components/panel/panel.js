@@ -37,6 +37,7 @@ import { button } from '../button/button.js';
  * and the action area sits beside it, because a button may not contain other buttons.
  * @fires Panel#open
  * @fires Panel#close
+ * @extends {Component<PanelOptions>}
  */
 export class Panel extends Component {
   static cssName = 'panel';
