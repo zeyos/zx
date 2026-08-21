@@ -16,6 +16,8 @@ and friends remain the complete record.
   typedef, which is what makes `new Slider(null, { value: 20 })` check against `SliderOptions`
   rather than accept any object at all.
 
+- **Table growing** — `growing: <number>` renders a first batch of rows and offers a control for
+  the next, for the result sets an ERP query returns happily and nobody scrolls through.
 - **Responsive tables** — `Table` gained `responsive` and a per-column `popin`. Below the given
   width each row stacks into a card of label/value pairs, measured on the table's own container
   rather than the viewport, so it triggers inside a narrow split pane on a wide screen.

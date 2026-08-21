@@ -364,6 +364,7 @@ const cases = [
     return { element, exercise: () => assert(element.querySelector('button'), 'empty-state action missing') };
   }),
   tableStackingCase(),
+  tableGrowingCase(),
   truncateCase(),
   customElementsCase()
 ];
@@ -578,6 +579,43 @@ function tableStackingCase() {
     destroy({ component, host }) {
       component.destroy();
       host.remove();
+    }
+  };
+}
+
+/** @returns {SmokeDefinition} */
+function tableGrowingCase() {
+  return {
+    name: 'Table (growing)',
+    create(fixture) {
+      const component = new zx.Table(null, {
+        growing: 5,
+        columns: [{ id: 'a', label: 'A' }],
+        data: Array.from({ length: 40 }, (_, index) => ({ ID: index, a: `row ${index}` }))
+      });
+      fixture.append(component.toElement());
+      return { component };
+    },
+    exercise({ component }) {
+      const rows = () => component.el.querySelectorAll('tbody tr[data-row]').length;
+      const more = () => component.el.querySelector('.zx-table__more');
+      assert(rows() === 5, `rendered ${rows()} rows instead of the first batch`);
+      assert(more(), 'no control offering the remaining rows');
+
+      const events = observe(component, 'grow');
+      more().click();
+      assert(rows() === 10, `growing rendered ${rows()} rows`);
+      events.expect();
+
+      component.showAll();
+      assert(rows() === 40 && !more(), 'showAll did not render everything and retire the control');
+
+      // A new result set is not the old one grown; the batch has to start over.
+      component.setData(Array.from({ length: 12 }, (_, index) => ({ ID: index, a: 'x' })));
+      assert(rows() === 5, `setData left ${rows()} rows rendered instead of resetting the batch`);
+    },
+    destroy({ component }) {
+      component.destroy();
     }
   };
 }

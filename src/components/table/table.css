@@ -341,3 +341,24 @@
   display: block;
 }
 
+
+/*
+ * The growing control. Outside the table rather than in a `<tfoot>` spanning every column: it is a
+ * command, not data, and a button inside the grid would answer the row navigation keys as though
+ * it were a cell.
+ */
+.zx-table__more {
+  display: block;
+  inline-size: 100%;
+  margin-block-start: var(--zx-space-2);
+  border: 1px dashed var(--zx-color-border);
+  background: none;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-control-font-size);
+}
+
+.zx-table__more:hover {
+  border-color: var(--zx-color-border-strong);
+  background: var(--zx-color-bg-hover);
+  color: var(--zx-color-text);
+}

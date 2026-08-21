@@ -45,7 +45,8 @@ work. Sources are listed at the end.
    so `emptyState({icon, title, description, actions})` drops straight in. Originally described as: Enterprise UX guidance treats the empty state as a first-class
    screen (guidance + a primary action), not blank space. Zx Table has `emptyText`; extend it to
    accept a node (icon + message + action) and document the pattern.
-4. **Table "growing"/load-more and (later) virtualization.** SAP UI5 grows rows on demand; Zx
+4. **Table "growing"/load-more** — **done**; row virtualization is the remaining half.
+   `Table` gained `growing`, `growBy()`, `showAll()`. Originally described as: SAP UI5 grows rows on demand; Zx
    renders all rows in one pass (fast to ~5k). For large ERP result sets, add incremental
    load-more, then optional row virtualization.
 5. **"Use the least-specific override that works."** Adopt SLDS's explicit guidance in the theming

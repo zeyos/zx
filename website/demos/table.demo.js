@@ -1,4 +1,4 @@
-import { emptyState, Table, badge, h } from '../../src/index.js';
+import { button, emptyState, Table, badge, h } from '../../src/index.js';
 
 const amountFormatter = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR' });
 
@@ -294,6 +294,39 @@ export default {
         });
         cleanup(() => table.destroy());
         return h('div', { class: 'demo-resizable' }, table.toElement());
+      }
+    },
+    {
+      title: 'Growing a large result set',
+      blurb: 'growing renders a first batch and offers the next on demand. A query that returns ten '
+        + 'thousand rows costs more to lay out than anyone will ever scroll through, and the control '
+        + 'names the number remaining rather than saying "show more". setData starts the batch over, '
+        + 'because a new result set is not the old one grown.',
+      render: ({ cleanup, log }) => {
+        const rows = Array.from({ length: 420 }, (_, index) => ({
+          ID: index + 1,
+          number: `INV-${2000 + index}`,
+          customer: ['Nordwind GmbH', 'Halbe Systeme', 'Kestrel Ltd', 'Aurora AB'][index % 4],
+          total: ((index % 37) * 84.5 + 120).toFixed(2)
+        }));
+        const table = new Table(null, {
+          growing: 20,
+          height: 320,
+          columns: [
+            { id: 'number', label: 'Invoice', sortable: true },
+            { id: 'customer', label: 'Customer', sortable: true },
+            { id: 'total', label: 'Total', align: 'end' }
+          ],
+          data: rows,
+          ongrow: ({ detail }) => log(`showing ${detail.rendered} of ${detail.total}`)
+        });
+        cleanup(() => table.destroy());
+        return [
+          table.toElement(),
+          h('div', { class: 'demo-row' },
+            button({ label: 'Show everything', onclick: () => table.showAll() }),
+            button({ label: 'Reset', onclick: () => table.setData(rows) }))
+        ];
       }
     },
     {

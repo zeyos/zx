@@ -4120,6 +4120,12 @@
         "description": "Whether column headers stick while scrolling."
       },
       {
+        "name": "growing",
+        "type": "false|number",
+        "default": "false",
+        "description": "Number of rows to render at first, with a control that appends the next batch on demand. A result set an ERP query returns happily — tens of thousands of rows — costs more to lay out than anyone will ever scroll through."
+      },
+      {
         "name": "responsive",
         "type": "false|'sm'|'md'|'lg'|'xl'",
         "default": "false",
@@ -4186,6 +4192,11 @@
         "name": "stackedchange",
         "payload": "{stacked: boolean}",
         "description": "Fired when the table crosses its `responsive` width in either direction."
+      },
+      {
+        "name": "grow",
+        "payload": "{rendered: number, total: number}",
+        "description": "Fired after more rows are rendered."
       },
       {
         "name": "editstart",
@@ -4270,10 +4281,28 @@
         "description": "Opens the editor for a cell. No-op unless the table runs with `editMode` and the column resolves to an editable type for that row. In `'row'` mode every editable cell of the row is opened and `columnId` only decides which editor receives focus. Any other open edit is committed first."
       },
       {
+        "name": "growBy",
+        "signature": "growBy([count])",
+        "returns": "TableRow[]",
+        "description": "The rows currently rendered — all of them unless `growing` is on."
+      },
+      {
+        "name": "showAll",
+        "signature": "showAll()",
+        "returns": "this",
+        "description": "Renders every remaining row."
+      },
+      {
+        "name": "getRenderedCount",
+        "signature": "getRenderedCount()",
+        "returns": "number",
+        "description": "How many rows are currently rendered."
+      },
+      {
         "name": "isStacked",
-        "signature": "isStacked(stacked, stacked)",
+        "signature": "isStacked(key, fallback, args, stacked, stacked)",
         "returns": "void",
-        "description": "Watches the table's own width and stacks the rows below `responsive`. The width comes from `onBreakpoint` observing this element rather than the window, which is the whole point of the option: a table inside a split pane or a modal has no idea how wide the viewport is, and a media query would stack it on a phone while leaving it unreadable in a 320px pane on a desktop."
+        "description": "Keeps the \"show more\" control in step with what is rendered. The control sits outside the table rather than in a `<tfoot>` row spanning every column: it is a command, not data, and a button inside the grid would be reachable by the row navigation keys as though it were a cell."
       },
       {
         "name": "destroy",

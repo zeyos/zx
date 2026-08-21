@@ -773,6 +773,11 @@ horizontally, and multi-select adds a tri-state header checkbox plus Shift+click
   editable cell (Shift+Tab the previous), wrapping across rows, and tabbing past the last editable
   cell commits and leaves the table normally. Clicking outside the editor commits rather than
   discarding what was typed.
+- **Growing** — `growing: <number>` renders that many rows and offers a control for the next batch,
+  instead of laying out a result set nobody will scroll through. `growBy(count?)`, `showAll()`,
+  `getRenderedCount()`, and `grow {rendered, total}`. `setData()` starts the batch over, since a new
+  result set is not the old one grown. Row indices stay absolute — a row's index is its place in the
+  data, not in what is on screen.
 - **Responsive stacking** — `responsive: false|'sm'|'md'|'lg'|'xl'` stacks each row into a card of
   label/value pairs below that width, instead of leaving a horizontal scrollbar with the data
   hidden behind it. The width measured is **the table's own container**, not the viewport, so this

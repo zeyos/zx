@@ -1,6 +1,7 @@
 import { Component } from '../../core/component.js';
 import { breakpoints, onBreakpoint } from '../../core/breakpoint.js';
 import { h } from '../../core/dom.js';
+import { printf } from '../../core/i18n.js';
 import { uid } from '../../core/util.js';
 import { Datebox } from '../datebox/datebox.js';
 import { NumberField } from '../number-field/number-field.js';
@@ -67,6 +68,9 @@ import { sortRows } from './sort.js';
  * @property {'local'|'server'} [sortMode='local'] Whether sorting reorders local rows.
  * @property {TableSelectionMode} [selectable=false] Row selection mode.
  * @property {boolean} [stickyHeader=true] Whether column headers stick while scrolling.
+ * @property {false|number} [growing=false] Number of rows to render at first, with a control that
+ * appends the next batch on demand. A result set an ERP query returns happily — tens of thousands
+ * of rows — costs more to lay out than anyone will ever scroll through.
  * @property {false|'sm'|'md'|'lg'|'xl'} [responsive=false] Width below which each row stacks into a
  * card of label/value pairs instead of scrolling sideways. Measured on the table's own container,
  * not the viewport, so a table inside a split pane stacks when *it* is narrow.
@@ -87,6 +91,8 @@ import { sortRows } from './sort.js';
  * @property {(event: CustomEvent<TableDataDetail>) => void} [ondatachange]
  * @property {(event: CustomEvent<{stacked: boolean}>) => void} [onstackedchange] Fired when the
  * table crosses its `responsive` width in either direction.
+ * @property {(event: CustomEvent<{rendered: number, total: number}>) => void} [ongrow] Fired after
+ * more rows are rendered.
  * @property {(event: CustomEvent<TableEditStartDetail>) => void} [oneditstart]
  * @property {(event: CustomEvent<TableEditCommitDetail>) => void} [oneditcommit]
  * @property {(event: CustomEvent<TableEditCancelDetail>) => void} [oneditcancel]
@@ -188,6 +194,7 @@ export class Table extends Component {
     selectable: false,
     stickyHeader: true,
     responsive: false,
+    growing: false,
     height: null,
     emptyText: null,
     rowClass: null,
@@ -226,6 +233,9 @@ export class Table extends Component {
     this._editMessage = null;
     this._stacked = false;
     this._width = null;
+    this._growStep = growStep(this.options.growing);
+    this._rendered = this._growStep ?? Infinity;
+    this._more = null;
     this._rovingKey = null;
     this._rovingCell = null;
     this._rovingMatched = false;
@@ -300,6 +310,8 @@ export class Table extends Component {
    * @fires Table#editcancel
    */
   setData(rows) {
+    // New data means a new result set; whatever the reader had grown to belonged to the old one.
+    this._rendered = this._growStep ?? Infinity;
     this.setLoading(false);
     assertRows(rows);
     this._data = [...rows];
@@ -606,6 +618,90 @@ export class Table extends Component {
   }
 
   /**
+   * The rows currently rendered — all of them unless `growing` is on.
+   * @returns {TableRow[]}
+   */
+  _visibleData() {
+    return this._rendered === Infinity ? this._data : this._data.slice(0, this._rendered);
+  }
+
+  /**
+   * Renders the next batch of rows.
+   * @param {number} [count] How many to add; defaults to the configured batch size.
+   * @returns {this}
+   * @fires Table#grow
+   */
+  growBy(count) {
+    if (!this._growStep) return this;
+    const step = Number(count) > 0 ? Math.trunc(Number(count)) : this._growStep;
+    const before = this._rendered;
+    this._rendered = Math.min(this._data.length, this._rendered + step);
+    if (this._rendered === before) return this;
+    this._renderBody();
+    this.emit('grow', { rendered: this._rendered, total: this._data.length });
+    return this;
+  }
+
+  /**
+   * Renders every remaining row.
+   * @returns {this}
+   * @fires Table#grow
+   */
+  showAll() {
+    return this.growBy(this._data.length);
+  }
+
+  /**
+   * How many rows are currently rendered.
+   * @returns {number}
+   */
+  getRenderedCount() {
+    return Math.min(this._rendered, this._data.length);
+  }
+
+  /**
+   * Keeps the "show more" control in step with what is rendered.
+   *
+   * The control sits outside the table rather than in a `<tfoot>` row spanning every column: it is
+   * a command, not data, and a button inside the grid would be reachable by the row navigation
+   * keys as though it were a cell.
+   * @returns {void}
+   */
+  _syncGrowing() {
+    if (!this._growStep) return;
+    const remaining = this._data.length - this.getRenderedCount();
+    if (remaining <= 0) {
+      this._more?.remove();
+      this._more = null;
+      return;
+    }
+    const label = this._message('table.more', 'Show %1 more', [remaining]);
+    if (!this._more) {
+      this._more = h('button', {
+        class: 'zx-table__more',
+        type: 'button',
+        onclick: () => this.growBy()
+      });
+      this.el.append(this._more);
+    }
+    this._more.textContent = label;
+    // Announced as a count rather than a bare "show more", so the size of what is left is audible.
+    this._more.setAttribute('aria-label', label);
+  }
+
+  /**
+   * Resolves a localized message, falling back to a built-in template.
+   * @param {string} key Message key.
+   * @param {string} fallback Template used when the host has no translation.
+   * @param {unknown[]} args Positional interpolation values.
+   * @returns {string}
+   */
+  _message(key, fallback, args) {
+    const message = this.msg(key, ...args);
+    return message === key ? printf(fallback, args) : message;
+  }
+
+  /**
    * Watches the table's own width and stacks the rows below `responsive`.
    *
    * The width comes from `onBreakpoint` observing this element rather than the window, which is the
@@ -774,10 +870,12 @@ export class Table extends Component {
         }, this._emptyContent())
       ));
     } else {
-      this._data.forEach((row, index) => fragment.append(this._createRow(row, index)));
+      // Indices stay absolute: a row's index is its place in the data, not in what is on screen.
+      this._visibleData().forEach((row, index) => fragment.append(this._createRow(row, index)));
     }
     this._tbody.replaceChildren(fragment);
     this._syncSelectAll();
+    this._syncGrowing();
     if (this._stacked) this._applyStackedRoles(true);
   }
 
@@ -1582,4 +1680,14 @@ function assertRows(rows) {
 /** @param {Set<unknown>} left @param {Set<unknown>} right @returns {boolean} */
 function sameSet(left, right) {
   return left.size === right.size && [...left].every((value) => right.has(value));
+}
+
+/**
+ * Normalizes the `growing` option into a batch size.
+ * @param {unknown} growing Option value.
+ * @returns {number|null} Batch size, or null when the table renders everything at once.
+ */
+function growStep(growing) {
+  const step = Math.trunc(Number(growing));
+  return Number.isFinite(step) && step > 0 ? step : null;
 }
