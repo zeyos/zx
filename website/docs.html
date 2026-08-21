@@ -325,6 +325,25 @@ const toolbar = h('div', { class: 'toolbar' },
 }
       </pre>
 
+      <h2>Restyling one component</h2>
+      <p>
+        Reach for the least specific override that works. A global semantic token first — it keeps
+        the whole set coherent. Then one of the published component hooks, each of which falls back
+        to the token it replaces, so setting none of them changes nothing:
+      </p>
+      <ul>
+        <li><code>--zx-table-header-bg</code>, <code>--zx-table-row-hover-bg</code>,
+          <code>--zx-table-row-selected-bg</code>, <code>--zx-table-border-color</code></li>
+        <li><code>--zx-button-radius</code></li>
+        <li><code>--zx-panel-header-bg</code></li>
+      </ul>
+      <p>
+        An internal selector never. Component CSS declares many other
+        <code>--zx-&lt;component&gt;-*</code> properties — those are internal geometry, not API, and
+        they change without notice. The list above is deliberately short for the same reason: every
+        hook published is a promise to keep.
+      </p>
+
       <h2>Where the current theme comes from</h2>
       <p>
         The stock light and dark themes follow the shadcn/ui <em>Nova · Zinc</em> preset: a Zinc

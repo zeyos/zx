@@ -49,7 +49,8 @@ work. Sources are listed at the end.
    `Table` gained `growing`, `growBy()`, `showAll()`. Originally described as: SAP UI5 grows rows on demand; Zx
    renders all rows in one pass (fast to ~5k). For large ERP result sets, add incremental
    load-more, then optional row virtualization.
-5. **"Use the least-specific override that works."** Adopt SLDS's explicit guidance in the theming
+5. ~~**"Use the least-specific override that works."**~~ **Done** — stated in the Theming guide
+   alongside the published hooks, and in the reference. Originally described as: Adopt SLDS's explicit guidance in the theming
    docs: prefer a global token override; reach for a component hook only when necessary; never
    override internal component selectors. (Partly documented already.)
 
