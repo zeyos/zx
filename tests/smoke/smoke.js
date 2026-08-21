@@ -590,6 +590,7 @@ function tableGrowingCase() {
     create(fixture) {
       const component = new zx.Table(null, {
         growing: 5,
+        selectable: 'multi',
         columns: [{ id: 'a', label: 'A' }],
         data: Array.from({ length: 40 }, (_, index) => ({ ID: index, a: `row ${index}` }))
       });
@@ -613,6 +614,22 @@ function tableGrowingCase() {
       // A new result set is not the old one grown; the batch has to start over.
       component.setData(Array.from({ length: 12 }, (_, index) => ({ ID: index, a: 'x' })));
       assert(rows() === 5, `setData left ${rows()} rows rendered instead of resetting the batch`);
+
+      // Select-all means the rows on screen. Selecting the seven behind the control because
+      // someone ticked a box above the five they can see is how bulk actions go wrong.
+      const selectAll = component.el.querySelector('thead input[type="checkbox"]');
+      selectAll.click();
+      assert(component.getSelection().length === 5,
+        `select-all took ${component.getSelection().length} rows for 5 rendered`);
+      selectAll.click();
+      assert(component.getSelection().length === 0, 'clearing select-all left rows selected');
+
+      // Only a prefix of the data is in the DOM, so the row numbers have to say so.
+      const table = component.el.querySelector('table');
+      assert(table.getAttribute('aria-rowcount') === '13',
+        `aria-rowcount is ${table.getAttribute('aria-rowcount')} for 12 rows plus a header`);
+      assert(component.el.querySelector('tbody tr[data-row]').getAttribute('aria-rowindex') === '2',
+        'the first body row does not follow the header row');
     },
     destroy({ component }) {
       component.destroy();

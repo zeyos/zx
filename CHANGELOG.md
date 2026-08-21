@@ -8,6 +8,16 @@ and friends remain the complete record.
 
 ## Unreleased
 
+### Fixed
+
+- **Select-all covers the rendered rows when `growing` is on**, not the whole result set. Ticking a
+  box above the ten rows you can see and selecting a hundred is a trap, because the next click is
+  usually a bulk action; `showAll()` first to mean all of them. Tables without `growing` are
+  unaffected — everything is rendered, so the two are the same set.
+- **A growing table reports its real size to assistive technology.** Only a prefix of the data is in
+  the DOM, so a screen reader was announcing "row 3 of 10" for a table of ten thousand. The table
+  now carries `aria-rowcount` and each row an `aria-rowindex`.
+
 ## 2.2.0 — 2026-08-21
 
 ### Added

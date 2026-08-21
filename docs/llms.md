@@ -777,7 +777,10 @@ horizontally, and multi-select adds a tri-state header checkbox plus Shift+click
   instead of laying out a result set nobody will scroll through. `growBy(count?)`, `showAll()`,
   `getRenderedCount()`, and `grow {rendered, total}`. `setData()` starts the batch over, since a new
   result set is not the old one grown. Row indices stay absolute — a row's index is its place in the
-  data, not in what is on screen.
+  data, not in what is on screen. **Select-all covers the rendered rows, not the whole result set**;
+  call `showAll()` first to mean all of them. While growing, the table carries `aria-rowcount` and
+  each row an `aria-rowindex`, so assistive technology hears the real total rather than the size of
+  the batch.
 - **Responsive stacking** — `responsive: false|'sm'|'md'|'lg'|'xl'` stacks each row into a card of
   label/value pairs below that width, instead of leaving a horizontal scrollbar with the data
   hidden behind it. The width measured is **the table's own container**, not the viewport, so this

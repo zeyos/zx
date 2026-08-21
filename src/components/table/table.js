@@ -802,6 +802,7 @@ export class Table extends Component {
   /** @returns {void} */
   _renderHeader() {
     const row = h('tr', { class: 'zx-table__header-row' });
+    if (this._growStep) row.setAttribute('aria-rowindex', '1');
     if (this.options.selectable === 'multi') {
       this._selectAll = h('input', {
         class: 'zx-table__checkbox zx-table__select-all',
@@ -814,10 +815,15 @@ export class Table extends Component {
       }, this._selectAll);
       row.append(selectionHeader);
       this.listen(this._selectAll, 'click', () => {
+        /*
+         * The rendered rows, not every row in the data. With `growing` on, selecting a hundred
+         * records because the reader ticked a box above the ten they can see is a trap — the next
+         * click is usually a bulk action. `showAll()` first if you mean all of them.
+         */
         if (this._selectAll.checked) {
-          for (const dataRow of this._data) this._selected.add(this._idFor(dataRow));
+          for (const dataRow of this._visibleData()) this._selected.add(this._idFor(dataRow));
         } else {
-          this._selected.clear();
+          for (const dataRow of this._visibleData()) this._selected.delete(this._idFor(dataRow));
         }
         this._selectionAnchorId = null;
         this._syncSelection();
@@ -874,6 +880,11 @@ export class Table extends Component {
       this._visibleData().forEach((row, index) => fragment.append(this._createRow(row, index)));
     }
     this._tbody.replaceChildren(fragment);
+    /*
+     * With `growing` on, the DOM holds a prefix of the data — so without this a screen reader
+     * announces "row 3 of 10" for a table of ten thousand. The header counts as a row.
+     */
+    if (this._growStep) this._table.setAttribute('aria-rowcount', String(this._data.length + 1));
     this._syncSelectAll();
     this._syncGrowing();
     if (this._stacked) this._applyStackedRoles(true);
@@ -898,6 +909,8 @@ export class Table extends Component {
   _createRow(row, index) {
     const id = this._idFor(row);
     const tr = /** @type {HTMLTableRowElement} */ (h('tr', { dataset: { row: '' } }));
+    // Only a prefix of the data is in the DOM while growing, so each row states where it really is.
+    if (this._growStep) tr.setAttribute('aria-rowindex', String(index + 2));
     const rowClass = typeof this.options.rowClass === 'function' ? this.options.rowClass(row) : '';
     if (rowClass) tr.classList.add(...String(rowClass).split(/\s+/).filter(Boolean));
     if (this.options.selectable !== false) tr.setAttribute('aria-selected', String(this._selected.has(id)));
@@ -1421,10 +1434,15 @@ export class Table extends Component {
   /** @returns {void} */
   _syncSelectAll() {
     if (!this._selectAll) return;
-    const selectedRows = this._data.reduce((count, row) => count + Number(this._selected.has(this._idFor(row))), 0);
-    this._selectAll.disabled = this._data.length === 0;
-    this._selectAll.checked = this._data.length > 0 && selectedRows === this._data.length;
-    this._selectAll.indeterminate = selectedRows > 0 && selectedRows < this._data.length;
+    // Measured against what is rendered, so the box reflects the rows the reader can actually see.
+    const visible = this._visibleData();
+    const selectedRows = visible.reduce(
+      (count, row) => count + Number(this._selected.has(this._idFor(row))),
+      0
+    );
+    this._selectAll.disabled = visible.length === 0;
+    this._selectAll.checked = visible.length > 0 && selectedRows === visible.length;
+    this._selectAll.indeterminate = selectedRows > 0 && selectedRows < visible.length;
   }
 
   /** @returns {void} */
