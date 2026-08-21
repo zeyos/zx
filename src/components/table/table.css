@@ -307,7 +307,12 @@
   white-space: normal;
 }
 
-.zx-table[data-stacked] .zx-table__body td::before {
+/*
+ * Matched on the attribute rather than overridden afterwards: the selection checkbox and the empty
+ * row carry no `data-label`, and the two `content: none` rules that used to exclude them were less
+ * specific than this one, so they never applied — leaving an empty generated box in each.
+ */
+.zx-table[data-stacked] .zx-table__body td[data-label]::before {
   content: attr(data-label);
   flex: none;
   color: var(--zx-color-text-muted);
@@ -331,14 +336,8 @@
   justify-content: flex-start;
 }
 
-.zx-table[data-stacked] .zx-table__selection-cell::before {
-  content: none;
-}
 
 .zx-table[data-stacked] .zx-table__empty-row {
   display: block;
 }
 
-.zx-table[data-stacked] .zx-table__empty::before {
-  content: none;
-}

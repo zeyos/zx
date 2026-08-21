@@ -793,8 +793,7 @@ export class Table extends Component {
   _emptyContent() {
     const empty = this.options.emptyText;
     if (empty == null) return this.msg('table.empty');
-    if (typeof empty === 'function') return empty();
-    return typeof empty === 'string' ? empty : empty;
+    return typeof empty === 'function' ? empty() : empty;
   }
 
   /** @param {TableRow} row @param {number} index @returns {HTMLTableRowElement} */
