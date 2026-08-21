@@ -8,6 +8,8 @@ and friends remain the complete record.
 
 ## Unreleased
 
+## 2.2.1 — 2026-08-21
+
 ### Fixed
 
 - **Select-all covers the rendered rows when `growing` is on**, not the whole result set. Ticking a
