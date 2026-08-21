@@ -1,3 +1,4 @@
+// @ts-check
 /**
  * Font Awesome knowledge for the icon layer: style/family class names, the built-in glyph
  * name → Font Awesome name map, icon-spec parsing, and kit loading.
@@ -150,7 +151,7 @@ export function loadFontAwesomeKit(kit) {
   const pending = kitLoads.get(url);
   if (pending) return pending;
 
-  const promise = new Promise((resolve, reject) => {
+  const promise = /** @type {Promise<void>} */ (new Promise((resolve, reject) => {
     const absolute = new URL(url, document.baseURI).href;
     const existing = [...document.scripts].find((script) => script.src === absolute);
     if (existing && globalThis.FontAwesomeKitConfig) {
@@ -169,7 +170,7 @@ export function loadFontAwesomeKit(kit) {
     script.async = true;
     script.crossOrigin = 'anonymous';
     document.head.append(script);
-  });
+  }));
 
   kitLoads.set(url, promise);
   return promise;

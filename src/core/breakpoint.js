@@ -1,3 +1,4 @@
+// @ts-check
 /**
  * Named width thresholds, and a way to react to one being crossed.
  *
@@ -79,7 +80,8 @@ export function onBreakpoint(handler, options = {}) {
    * it passed `this.el` before the base constructor had assigned it, and quietly watched the
    * viewport instead of itself.
    */
-  if ('target' in options && !isElement(options.target) && options.target !== globalThis) {
+  if ('target' in options && !isElement(options.target)
+    && /** @type {unknown} */ (options.target) !== /** @type {unknown} */ (globalThis)) {
     throw new TypeError('onBreakpoint target must be an Element or the window');
   }
   const target = options.target ?? globalThis;

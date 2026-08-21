@@ -1,3 +1,4 @@
+// @ts-check
 /**
  * Returns a debounced wrapper that runs after calls have stopped for the delay.
  * @template {(...args: any[]) => any} T
@@ -117,7 +118,8 @@ export function deepMerge(a, b) {
  * @returns {value is Element}
  */
 export function isElement(value) {
-  return Boolean(value && typeof value === 'object' && value.nodeType === 1);
+  return Boolean(value && typeof value === 'object'
+    && /** @type {{nodeType?: unknown}} */ (value).nodeType === 1);
 }
 
 /**
@@ -140,11 +142,13 @@ export function clamp(n, min, max) {
 export function toArray(value) {
   if (value == null) return [];
   if (Array.isArray(value)) return value.slice();
-  if (typeof value !== 'string' && typeof value[Symbol.iterator] === 'function') {
-    return Array.from(value);
+  // Both branches are runtime feature tests; the parameter type cannot express either.
+  const candidate = /** @type {any} */ (value);
+  if (typeof value !== 'string' && typeof candidate?.[Symbol.iterator] === 'function') {
+    return Array.from(candidate);
   }
-  if (typeof value !== 'string' && typeof value.length === 'number') {
-    return Array.from(value);
+  if (typeof value !== 'string' && typeof candidate?.length === 'number') {
+    return Array.from(candidate);
   }
   return [/** @type {T} */ (value)];
 }

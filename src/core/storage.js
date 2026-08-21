@@ -1,3 +1,4 @@
+// @ts-check
 /**
  * @typedef {Object} StorageOptions
  * @property {'local'|'session'} [area='local'] Backing Web Storage area.

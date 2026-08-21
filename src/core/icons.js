@@ -1,3 +1,4 @@
+// @ts-check
 /**
  * The icon layer. Two renderers sit behind one `icon()` call:
  *

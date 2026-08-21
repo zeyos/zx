@@ -1,3 +1,4 @@
+// @ts-check
 /**
  * @typedef {Object} CsvColumn
  * @property {string} id Row property read when no `value` accessor is given, and the default label.
@@ -196,6 +197,8 @@ function escapeField(field, delimiter, guard = false) {
 function toBlob(data, type) {
   if (typeof Blob === 'function' && data instanceof Blob) return data;
   // Excel only recognises UTF-8 CSV when the file opens with a byte-order mark.
-  const parts = typeof data === 'string' && /^text\/csv\b/i.test(type) ? ['\uFEFF', data] : [data];
+  const parts = /** @type {BlobPart[]} */ (
+    typeof data === 'string' && /^text\/csv\b/i.test(type) ? ['\uFEFF', data] : [data]
+  );
   return new Blob(parts, { type });
 }

@@ -1,3 +1,4 @@
+// @ts-check
 import { h, resolveElement } from './dom.js';
 import { getLanguage, printf, translate } from './i18n.js';
 import { deepMerge, isElement } from './util.js';
@@ -23,6 +24,14 @@ export class Component extends EventTarget {
   /** @type {ComponentOptions} */
   static defaults = {};
 
+  /**
+   * BEM block a subclass wants on its root, without the `zx-` prefix. Empty on the base, which is
+   * the same falsy answer the undeclared property gave — declared so the statics are visible to
+   * `this.constructor` and to the generated declarations.
+   * @type {string}
+   */
+  static cssName = '';
+
   /** @type {Element} Root element. */
   el;
 
@@ -42,15 +51,17 @@ export class Component extends EventTarget {
    * @param {Element|string|null} target Existing element, selector, or null.
    * @param {TOptions} [options={}] Component options.
    */
-  constructor(target, options = {}) {
+  constructor(target, options = /** @type {TOptions} */ ({})) {
     super();
+    /** `this.constructor` is typed `Function`, which hides the statics this class declares. */
+    const self = /** @type {typeof Component} */ (this.constructor);
     this.#created = target === null;
     const resolved = resolveElement(target);
     if (target !== null && !resolved) throw new TypeError('Component target could not be resolved');
     this.el = /** @type {Element} */ (resolved);
     this.refs = {};
 
-    const merged = mergeOptions(this.constructor, options);
+    const merged = /** @type {TOptions} */ (mergeOptions(self, options));
     const eventOptions = [];
     for (const [key, value] of Object.entries(merged)) {
       if (/^on[a-z]/.test(key) && typeof value === 'function') {
@@ -82,7 +93,7 @@ export class Component extends EventTarget {
       throw new TypeError('Component requires a root Element');
     }
 
-    const cssName = this.constructor.cssName;
+    const cssName = self.cssName;
     if (typeof cssName === 'string' && cssName) {
       const className = `zx-${cssName}`;
       this.#addedRootClass = !this.el.classList.contains(className);
@@ -213,7 +224,7 @@ export class Component extends EventTarget {
     this.#destroyed = true;
     this.#abort.abort();
     if (registry.get(this.el) === this) registry.delete(this.el);
-    const cssName = this.constructor.cssName;
+    const cssName = /** @type {typeof Component} */ (this.constructor).cssName;
     if (this.#addedRootClass && typeof cssName === 'string' && this.el) {
       this.el.classList.remove(`zx-${cssName}`);
     }

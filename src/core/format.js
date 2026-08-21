@@ -1,3 +1,4 @@
+// @ts-check
 import { getLanguage } from './i18n.js';
 
 /**
@@ -159,7 +160,8 @@ export function formatRelativeTime(date, options = {}) {
   const division = TIME_DIVISIONS.find(({ ms, limit }) => Math.abs(diff) / ms < limit)
     ?? TIME_DIVISIONS[TIME_DIVISIONS.length - 1];
   const value = Math.round(diff / division.ms);
-  return relativeFormatter(locale, numeric).format(value, division.unit);
+  return relativeFormatter(locale, numeric)
+    .format(value, /** @type {Intl.RelativeTimeFormatUnit} */ (division.unit));
 }
 
 /**

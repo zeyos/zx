@@ -1,3 +1,4 @@
+// @ts-check
 const FOCUSABLE_SELECTOR = [
   'a[href]', 'area[href]', 'button:not([disabled])', 'input:not([disabled])',
   'select:not([disabled])', 'textarea:not([disabled])', 'iframe', 'object', 'embed',
@@ -84,10 +85,11 @@ export function rovingTabindex(container, itemSelector, { orientation = 'vertica
 
   /** @returns {HTMLElement[]} */
   function items() {
-    return Array.from(container.querySelectorAll(itemSelector)).filter((item) => {
-      remember(item);
-      return isAvailable(item);
-    });
+    return /** @type {HTMLElement[]} */ (Array.from(container.querySelectorAll(itemSelector)))
+      .filter((item) => {
+        remember(item);
+        return isAvailable(item);
+      });
   }
 
   /** @param {HTMLElement} item @returns {void} */
@@ -109,7 +111,9 @@ export function rovingTabindex(container, itemSelector, { orientation = 'vertica
   /** @param {KeyboardEvent} event @returns {void} */
   function onKeydown(event) {
     const available = items();
-    const current = event.target?.closest?.(itemSelector);
+    const current = /** @type {HTMLElement|null} */ (
+      /** @type {Element|null} */ (event.target)?.closest?.(itemSelector) ?? null
+    );
     const index = available.indexOf(current);
     if (index < 0) return;
 
@@ -131,7 +135,9 @@ export function rovingTabindex(container, itemSelector, { orientation = 'vertica
 
   /** @param {FocusEvent} event @returns {void} */
   function onFocus(event) {
-    const item = event.target?.closest?.(itemSelector);
+    const item = /** @type {HTMLElement|null} */ (
+      /** @type {Element|null} */ (event.target)?.closest?.(itemSelector) ?? null
+    );
     if (item && container.contains(item)) update(item);
   }
 
@@ -208,9 +214,8 @@ export function typeahead(getItems, onMatch) {
 
 /** @param {Element} container @returns {HTMLElement[]} */
 function focusableItems(container) {
-  return Array.from(container.querySelectorAll(FOCUSABLE_SELECTOR)).filter((item) =>
-    isAvailable(item) && item.getClientRects().length > 0
-  );
+  return /** @type {HTMLElement[]} */ (Array.from(container.querySelectorAll(FOCUSABLE_SELECTOR)))
+    .filter((item) => isAvailable(item) && item.getClientRects().length > 0);
 }
 
 /** @param {Element} item @returns {item is HTMLElement} */
@@ -227,7 +232,8 @@ function itemText(item) {
     return String(item.textContent ?? '').trim().toLocaleLowerCase();
   }
   if (item && typeof item === 'object') {
-    const value = item.label ?? item.text ?? item.value;
+    const shape = /** @type {{label?: unknown, text?: unknown, value?: unknown}} */ (item);
+    const value = shape.label ?? shape.text ?? shape.value;
     if (value != null) return String(value).trim().toLocaleLowerCase();
   }
   return String(item ?? '').trim().toLocaleLowerCase();

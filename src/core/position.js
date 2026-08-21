@@ -1,3 +1,4 @@
+// @ts-check
 import { clamp, uid } from './util.js';
 
 const PLACEMENTS = new Set([
@@ -44,7 +45,7 @@ export function position(anchor, floating, options = {}) {
   const supportsAnchors = typeof CSS !== 'undefined' && CSS.supports?.('anchor-name: --zx-a');
   if (supportsAnchors) {
     const anchorName = `--${uid('zx-a')}`;
-    anchor.style.setProperty('anchor-name', anchorName);
+    /** @type {HTMLElement} */ (anchor).style.setProperty('anchor-name', anchorName);
     floating.style.position = 'fixed';
     floating.style.inset = 'auto';
     floating.style.margin = '0';
@@ -134,9 +135,9 @@ function updateFallback(anchor, floating, { placement, offset, flip, matchWidth 
 
   if (flip) {
     if (prefersBottom && bottomY + floatingRect.height > viewportHeight && topY >= 0) {
-      actualPlacement = placement.replace('bottom', 'top');
+      actualPlacement = /** @type {typeof placement} */ (placement.replace('bottom', 'top'));
     } else if (!prefersBottom && topY < 0 && bottomY + floatingRect.height <= viewportHeight) {
-      actualPlacement = placement.replace('top', 'bottom');
+      actualPlacement = /** @type {typeof placement} */ (placement.replace('top', 'bottom'));
     }
   }
 

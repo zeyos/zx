@@ -1,3 +1,4 @@
+// @ts-check
 /** @typedef {(key: string) => string|null|undefined} Translator */
 
 /** @type {Translator|null} */

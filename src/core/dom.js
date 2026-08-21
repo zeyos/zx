@@ -1,3 +1,4 @@
+// @ts-check
 import { escapeRegExp, isElement } from './util.js';
 
 /** @typedef {{toElement: () => Node|null}} ElementProvider */
@@ -168,8 +169,10 @@ export function resolveElement(target) {
 /** @param {unknown} value @returns {value is Record<string, any>} */
 function isPropsObject(value) {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
-  if (typeof value.nodeType === 'number') return false;
-  return typeof value.toElement !== 'function';
+  // Duck-typed on purpose: a Node or a component is a child, anything else is the props object.
+  const candidate = /** @type {Record<string, unknown>} */ (value);
+  if (typeof candidate.nodeType === 'number') return false;
+  return typeof candidate.toElement !== 'function';
 }
 
 /** @param {HTMLElement} element @param {string} key @param {any} value @returns {void} */
@@ -235,15 +238,23 @@ function ariaAttribute(key) {
 
 /** @param {Node} parent @param {DomChild[]} children @returns {void} */
 function appendChildren(parent, children) {
-  for (const child of children.flat(Infinity)) {
-    if (child == null) continue;
-    if (typeof child === 'string' || typeof child === 'number') {
-      parent.append(document.createTextNode(String(child)));
-    } else if (child && typeof child === 'object' && typeof child.nodeType === 'number') {
-      parent.append(child);
-    } else if (typeof child === 'object' && typeof child.toElement === 'function') {
+  // `flat(Infinity)` erases the element type, and `append` lives on ParentNode rather than Node.
+  const host = /** @type {ParentNode} */ (parent);
+  // Cast before flattening: `DomChild` is recursive, and flattening it to an unbounded depth is a
+  // type the compiler gives up on ("excessively deep") though the runtime behaviour is trivial.
+  for (const raw of /** @type {any[]} */ (children).flat(Infinity)) {
+    if (raw == null) continue;
+    if (typeof raw === 'string' || typeof raw === 'number') {
+      host.append(document.createTextNode(String(raw)));
+      continue;
+    }
+    if (typeof raw !== 'object') continue;
+    const child = /** @type {{nodeType?: number, toElement?: () => Node|null}} */ (raw);
+    if (typeof child.nodeType === 'number') {
+      host.append(/** @type {Node} */ (raw));
+    } else if (typeof child.toElement === 'function') {
       const element = child.toElement();
-      if (element) parent.append(element);
+      if (element) host.append(element);
     }
   }
 }

@@ -1,3 +1,4 @@
+// @ts-check
 /**
  * @typedef {Object} HttpOptions
  * @property {string} [base=''] URL prefix.
@@ -75,7 +76,9 @@ export class Http {
         try {
           json = JSON.parse(text);
         } catch (cause) {
-          const error = new Error('Invalid JSON response', { cause });
+          const error = /** @type {Error & {response?: Response}} */ (
+            new Error('Invalid JSON response', { cause })
+          );
           error.response = response;
           throw error;
         }
@@ -85,10 +88,12 @@ export class Http {
         try {
           parseResult(json);
         } catch (error) {
-          error.response = response;
+          /** @type {Error & {response?: Response}} */ (error).response = response;
           throw error;
         }
-        const error = new Error(`HTTP ${response.status} ${response.statusText}`.trim());
+        const error = /** @type {Error & {response?: Response}} */ (
+          new Error(`HTTP ${response.status} ${response.statusText}`.trim())
+        );
         error.response = response;
         throw error;
       }
@@ -229,7 +234,9 @@ function appendFormValue(form, key, value) {
     for (const item of value) appendFormValue(form, key, item);
   } else {
     const isBlob = typeof Blob === 'function' && value instanceof Blob;
-    form.append(key, typeof value === 'object' && !isBlob ? JSON.stringify(value) : value);
+    form.append(key, typeof value === 'object' && !isBlob
+      ? JSON.stringify(value)
+      : /** @type {string|Blob} */ (value));
   }
 }
 

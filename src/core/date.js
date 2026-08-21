@@ -1,3 +1,4 @@
+// @ts-check
 import { getLanguage, translate } from './i18n.js';
 
 const MONTHS = [
@@ -157,7 +158,9 @@ export function getWeekStart(lang = getLanguage()) {
   if (!lang) return 1;
   if (lang.toLowerCase() === 'en') return 1;
   try {
-    const locale = new Intl.Locale(lang);
+    /** `getWeekInfo()` and `weekInfo` are newer Intl surface than the bundled lib types know. */
+    const locale = /** @type {Intl.Locale & {getWeekInfo?: () => {firstDay?: number}, weekInfo?: {firstDay?: number}}} */
+      (new Intl.Locale(lang));
     const weekInfo = locale.getWeekInfo?.() ?? locale.weekInfo;
     if (weekInfo?.firstDay) return weekInfo.firstDay % 7;
   } catch {
