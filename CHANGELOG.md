@@ -22,6 +22,10 @@ and friends remain the complete record.
 - **`Table.emptyText` accepts a Node or a factory**, so an empty table can carry an icon, an
   explanation, and the action that resolves it instead of one line of grey text.
 
+- **Per-component imports** — `src/` and `styles/` now ship, and `@zeyos/zx/src/components/…` is a
+  supported subpath carrying its own type declarations. An application using two components bundles
+  26 kB minified that way against 157 kB through the package entry point. Nothing changes for
+  existing imports.
 - **Component styling hooks** — a short, published set of custom properties for restyling one
   component without reaching into its selectors: `--zx-table-header-bg`, `--zx-table-row-hover-bg`,
   `--zx-table-row-selected-bg`, `--zx-table-border-color`, `--zx-button-radius`,

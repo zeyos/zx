@@ -38,6 +38,9 @@ const t = new Table(target, options);
 ## Entry points
 
 - ESM: `import { … } from '/assets/zx.esm.js'` (or `../src/index.js` in-repo, no build).
+- Granular: `import { Slider } from '@zeyos/zx/src/components/slider/slider.js'` — one component
+  rather than the whole library, for consumers running a bundler. Two components bundle 26 kB
+  minified against 157 kB through the package entry. The stylesheet is still loaded whole.
 - Global: `<script src="/assets/zx.global.js">` → `window.zx.*`.
 - Styles: load `/assets/zx.css` once.
 - Build bundles with `npm run build` (esbuild). No build is needed to develop against `src/`.

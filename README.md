@@ -38,6 +38,16 @@ For an application built from classic scripts, the IIFE bundle exposes the same 
 </script>
 ```
 
+Import one component instead of the library when a bundler is doing the work:
+
+```js
+import { Slider } from '@zeyos/zx/src/components/slider/slider.js';
+```
+
+An application using two components bundles 26 kB minified this way against 157 kB through the
+package entry point. Load the one stylesheet either way — it is 13 kB gzipped whole, and splitting
+it per component costs more than it saves.
+
 TypeScript definitions ship with the package. They are generated from the JSDoc that documents
 every option, method, and event, so `new Slider(null, { … })` is checked against `SliderOptions`
 and an unknown option or a wrong literal is an error in the editor. There is no TypeScript in the

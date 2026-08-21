@@ -52,6 +52,11 @@
     },
     "./zx.css": "./dist/zx.css",
     "./zx.min.css": "./dist/zx.min.css",
+    "./src/*.js": {
+      "types": "./dist/types/*.d.ts",
+      "default": "./src/*.js"
+    },
+    "./styles/*": "./styles/*",
     "./dist/*": "./dist/*",
     "./package.json": "./package.json"
   },
@@ -61,6 +66,8 @@
   "files": [
     "dist",
     "dist/types",
+    "styles",
+    "src",
     "docs/llms.md",
     "docs/llms.txt",
     "docs/api.json",
