@@ -8,14 +8,14 @@ and friends remain the complete record.
 
 ## Unreleased
 
-### Added
+## 2.2.0 — 2026-08-21
 
+### Added
 - **TypeScript definitions**, generated from the JSDoc and shipped in the package. `exports` now
   carries a `types` condition for every entry point, so `@zeyos/zx`, `/zeyos`, and `/compat` all
   resolve. `Component` became generic over its options type and every component binds its own
   typedef, which is what makes `new Slider(null, { value: 20 })` check against `SliderOptions`
   rather than accept any object at all.
-
 - **Table growing** — `growing: <number>` renders a first batch of rows and offers a control for
   the next, for the result sets an ERP query returns happily and nobody scrolls through.
 - **Responsive tables** — `Table` gained `responsive` and a per-column `popin`. Below the given
@@ -23,7 +23,6 @@ and friends remain the complete record.
   rather than the viewport, so it triggers inside a narrow split pane on a wide screen.
 - **`Table.emptyText` accepts a Node or a factory**, so an empty table can carry an icon, an
   explanation, and the action that resolves it instead of one line of grey text.
-
 - **Per-component imports** — `src/` and `styles/` now ship, and `@zeyos/zx/src/components/…` is a
   supported subpath carrying its own type declarations. An application using two components bundles
   26 kB minified that way against 157 kB through the package entry point. Nothing changes for
@@ -40,6 +39,10 @@ and friends remain the complete record.
   resize notifications inside the observer callback, which the browser reports as a
   "ResizeObserver loop" whenever the handler changes layout, and rejected nothing when handed a
   target it could not measure.
+- The type declarations describe the kernel accurately now: every module in `src/core/` is type
+  checked on each build, which corrected a set of JSDoc inaccuracies that had been flowing into the
+  published `.d.ts` — among them `Component.cssName`, and the `response` the HTTP helpers attach to
+  the errors they throw, which TypeScript had been told did not exist.
 - Two static-field type conflicts in the compatibility layer (`SelectBase.filterMode`,
   `PickerBase.Picker`) that made the emitted declarations fail to compile for consumers who do not
   set `skipLibCheck`.
