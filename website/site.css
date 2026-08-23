@@ -219,6 +219,15 @@ body.site-page > main {
   --site-icon: url("assets/github.svg");
 }
 
+/* The ZeyOS mark is a wide lockup; widen the glyph box so it is not letterboxed into a square. */
+.site-icon-btn[data-site-icon="zeyos"] {
+  --site-icon: url("assets/zeyos-mark.svg");
+}
+
+.site-icon-btn[data-site-icon="zeyos"]::before {
+  inline-size: 22px;
+}
+
 /* The theme button shows the theme it switches *to*. */
 .site-icon-btn[data-theme-toggle] {
   --site-icon: url("assets/moon.svg");
