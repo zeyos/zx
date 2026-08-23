@@ -1,4 +1,5 @@
 @import url("./tokens/global.css");
+@import url("./tokens/themes.css");
 @import url("./tokens/semantic.css");
 @import url("./tokens/dark.css");
 @import url("./tokens/density.css");

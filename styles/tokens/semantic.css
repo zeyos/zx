@@ -4,6 +4,10 @@
  * The mapping follows the shadcn/ui preset `b2BVl11e4`: white surfaces, Zinc-100 hover/muted
  * fills, Zinc-200 borders and inputs, Zinc-500 muted text, Zinc-950 body text, and the Nova
  * control geometry (32px controls, `--radius` corners, a 3px translucent focus ring).
+ *
+ * The accent roles read `--zx-accent-*` rather than the green ramp directly, which is what lets
+ * `tokens/themes.css` retheme them. Status colours keep their own ramps on purpose — see the note
+ * in that file.
  */
 :root,
 [data-zx-theme="light"] {
@@ -14,7 +18,7 @@
   --zx-color-bg-control: var(--zx-gray-0);
   --zx-color-bg-muted: var(--zx-gray-100);
   --zx-color-bg-hover: var(--zx-gray-100);
-  --zx-color-bg-selected: color-mix(in srgb, var(--zx-green-600) 10%, var(--zx-gray-0));
+  --zx-color-bg-selected: color-mix(in srgb, var(--zx-accent-600) 10%, var(--zx-gray-0));
   --zx-color-bg-backdrop: color-mix(in srgb, var(--zx-gray-950) 50%, transparent);
   --zx-color-border: var(--zx-gray-200);
   --zx-color-border-strong: var(--zx-gray-300);
@@ -23,10 +27,10 @@
   --zx-color-text-muted: var(--zx-gray-500);
   --zx-color-text-placeholder: var(--zx-gray-400);
   --zx-color-text-invert: var(--zx-gray-50);
-  --zx-color-accent: var(--zx-green-600);
-  --zx-color-accent-hover: var(--zx-green-700);
-  --zx-color-accent-active: var(--zx-green-700);
-  --zx-color-accent-subtle: color-mix(in srgb, var(--zx-green-600) 10%, var(--zx-gray-0));
+  --zx-color-accent: var(--zx-accent-600);
+  --zx-color-accent-hover: var(--zx-accent-700);
+  --zx-color-accent-active: var(--zx-accent-700);
+  --zx-color-accent-subtle: color-mix(in srgb, var(--zx-accent-600) 10%, var(--zx-gray-0));
   --zx-color-on-accent: var(--zx-gray-0);
   --zx-color-danger: var(--zx-red-500);
   --zx-color-danger-bg: color-mix(in srgb, var(--zx-red-500) 10%, var(--zx-gray-0));

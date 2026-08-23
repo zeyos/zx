@@ -31,6 +31,18 @@
   --zx-green-600: #007a55;
   --zx-green-700: #006045;
 
+  /*
+   * Accent ramp — the indirection the semantic tier reads. It defaults to the Emerald ramp
+   * above, which is what makes a theme preset five declarations rather than a second copy of
+   * every semantic mapping: `tokens/themes.css` repoints these, and light, dark, and auto all
+   * follow because each of them picks its own stop off the ramp.
+   */
+  --zx-accent-300: var(--zx-green-300);
+  --zx-accent-400: var(--zx-green-400);
+  --zx-accent-500: var(--zx-green-500);
+  --zx-accent-600: var(--zx-green-600);
+  --zx-accent-700: var(--zx-green-700);
+
   /* Status */
   --zx-red-400: #ff6467;
   --zx-red-500: #e7000b;

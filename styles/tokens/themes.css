@@ -1,0 +1,72 @@
+/*
+ * Standard theme presets.
+ *
+ * A preset repoints the tier-1 accent ramp — nothing else. The semantic tier picks its own stop
+ * off that ramp per polarity (600/700 on light surfaces, 300/400/500 on dark ones), so five
+ * declarations retheme light, dark, and auto at once, and every component follows without a
+ * second mapping to keep in sync.
+ *
+ * Set the preset alongside the theme: `<html data-zx-theme="dark" data-zx-preset="ocean">`.
+ * `zx` is the default and never needs stating; the attribute exists so an application can pin it.
+ *
+ * Status colours are deliberately not part of a preset. Danger, warning, and success mean the
+ * same thing whatever a product's brand colour is, and a preset that repainted them would leave
+ * an application with no reliable way to say "this failed".
+ *
+ * Every 600 clears 4.5:1 against white and against the light page, and every 400 clears it
+ * against the dark page, which is what keeps `--zx-color-on-accent` correct in both polarities.
+ */
+
+/* Zx — the ZeyOS brand green on the shadcn Emerald ramp. The default. */
+[data-zx-preset="zx"] {
+  --zx-accent-300: #5ee9b5;
+  --zx-accent-400: #21cc75;
+  --zx-accent-500: #009966;
+  --zx-accent-600: #007a55;
+  --zx-accent-700: #006045;
+}
+
+/* ZeyOS — the gold of the ZeyOS product marque, anchored at 400. */
+[data-zx-preset="zeyos"] {
+  --zx-accent-300: #ffd9a8;
+  --zx-accent-400: #f7bc60;
+  --zx-accent-500: #d0952f;
+  --zx-accent-600: #96690f;
+  --zx-accent-700: #6f4e0b;
+}
+
+/* Ocean — the palette's own blue ramp, for products that read as utilities rather than brands. */
+[data-zx-preset="ocean"] {
+  --zx-accent-300: #8ec5ff;
+  --zx-accent-400: #51a2ff;
+  --zx-accent-500: #2b7fff;
+  --zx-accent-600: #155dfc;
+  --zx-accent-700: #1447e6;
+}
+
+/* Violet */
+[data-zx-preset="violet"] {
+  --zx-accent-300: #c4b4ff;
+  --zx-accent-400: #a684ff;
+  --zx-accent-500: #8e51ff;
+  --zx-accent-600: #7f22fe;
+  --zx-accent-700: #7008e7;
+}
+
+/* Rose */
+[data-zx-preset="rose"] {
+  --zx-accent-300: #ffa1ad;
+  --zx-accent-400: #ff637e;
+  --zx-accent-500: #ff2056;
+  --zx-accent-600: #dc0039;
+  --zx-accent-700: #a80030;
+}
+
+/* Slate — a near-neutral accent, for screens where the data should carry the colour. */
+[data-zx-preset="slate"] {
+  --zx-accent-300: #cad5e2;
+  --zx-accent-400: #90a1b9;
+  --zx-accent-500: #62748e;
+  --zx-accent-600: #45556c;
+  --zx-accent-700: #314158;
+}
