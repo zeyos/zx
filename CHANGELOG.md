@@ -66,8 +66,8 @@ and friends remain the complete record.
   with the row spilling out to the left of it. The rows reflow on their own now — the controls wrap
   under the value when the row runs out of room — which also reads the width that decides the
   layout, the row's, rather than the editor's. Verified from a 1000px grid down to a 100px pane
-  with nothing overflowing. `DateRangePicker`, `Fieldset`, and `NavigationBar` still carry the
-  original recipe and still collapse.
+  with nothing overflowing. `DateRangePicker`, `Fieldset`, and `NavigationBar` still use
+  containment and are only partly rescued — see below.
 - **`MultiValueEditor` keeps focus on the move button.** Up and down disabled themselves at the
   ends of the list, so a row that reached the top took focus down to the document with it, and a
   move sent focus to the value input rather than leaving it on the button that had just moved the
@@ -83,14 +83,20 @@ and friends remain the complete record.
   Delete key. It is now a real hit target that emits `close` and hands focus to the neighbouring
   tab, with Delete unchanged. It stays a `<span>` rather than a nested `<button>`, which buttons
   cannot contain.
-- **Size containers no longer collapse in a host that sizes to its contents.** `DateRangePicker`,
-  `Fieldset`, `MultiValueEditor`, and `NavigationBar` declare `container-type: inline-size` to pick
-  their own layout, which means they contribute nothing to their own intrinsic width — so in a flex
-  row, an inline-block, or a grid `auto` track they were squeezed to a few pixels and their contents
-  spilled out on top of each other. They now fill their host, which is the only thing that can size
-  them. `Form` fills its host for the same reason: containment travels, so a form shrink-wrapped to
-  its buttons while the fieldset inside it overflowed. Eight examples on the documentation site were
-  rendering this way.
+- **Size containers fill their host instead of collapsing inside it.** `DateRangePicker`,
+  `Fieldset`, and `NavigationBar` declare `container-type: inline-size` to pick their own layout,
+  which means they contribute nothing to their own intrinsic width — so in a flex row, an
+  inline-block, or a grid `auto` track they were squeezed to a few pixels and their contents
+  spilled out on top of each other. They now take `inline-size: 100%`, and `Form` does too, because
+  containment travels upward: a form shrink-wrapped to its action buttons while the fieldset inside
+  it overflowed. Eight examples on the documentation site were rendering this way.
+
+  This fixes every host that has a width of its own, which is the case that was actually biting.
+  It cannot fix a host that shrink-wraps its contents — an `inline-block` or a `fit-content` track
+  with no width of its own — because there 100% resolves against a containing block the collapse
+  has already zeroed. Only dropping containment does, as `MultiValueEditor` now has;
+  `DateRangePicker`, `Fieldset`, and `NavigationBar` still need a definite width from their host.
+  `tests/unit/size-containers.test.js` keeps every `container-type` rule declaring a width.
 - **A focused `Search` field is ringed as one control.** The input carried its own focus ring on
   top of the ring the field already draws on `:focus-within`, so a smaller rounded box appeared
   inside the field and cut the submit button out of it — the field read as an input with a

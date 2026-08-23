@@ -8,7 +8,10 @@
   container-type: inline-size;
   /* A size container takes no width from its own contents, so in a shrink-to-fit host — a flex
      row, an inline-block, a grid `auto` track — it would collapse to nothing and spill. Only the
-     host can size it, so it always fills the host. */
+     host can size it, so it always fills the host. That covers every host with a width of its
+     own; a host that shrink-wraps *its* contents still collapses, because 100% then resolves
+     against a containing block this element's own containment zeroed. Dropping containment is the
+     only fix for that — see multi-value-editor.css. */
   inline-size: 100%;
 }
 
