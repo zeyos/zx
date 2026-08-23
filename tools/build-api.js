@@ -152,7 +152,11 @@ function methodsOf(source, className) {
   if (!body) return [];
 
   const methods = [];
-  const pattern = /\/\*\*([\s\S]*?)\*\/\s*\n\s*(?:static\s+)?(?:async\s+)?([A-Za-z][\w]*)\s*\(/g;
+  // The comment must not run across a `*/`. An inline cast — `/** @type {X} */ (expr).focus()` —
+  // is a comment that no method follows, and a pattern allowed to span one swallowed the next
+  // method's doc block along with it, leaving that method undocumented: sixty-three of them,
+  // `Dialog.open` and `Table.commitEdit` among them.
+  const pattern = /\/\*\*((?:(?!\*\/)[\s\S])*?)\*\/\s*\n\s*(?:static\s+)?(?:async\s+)?([A-Za-z][\w]*)\s*\(/g;
   for (const match of body.value.matchAll(pattern)) {
     const [description, ...tags] = tagLines(match[1]);
     const name = match[2];
