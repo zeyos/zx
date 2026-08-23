@@ -4051,7 +4051,7 @@
       {
         "name": "close",
         "payload": "{name: string}",
-        "description": "Close callback."
+        "description": "Close callback, fired when the user dismisses a closable tab."
       }
     ],
     "methods": [

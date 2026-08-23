@@ -11,7 +11,7 @@ import { uid } from '../../core/util.js';
  * @property {string} title Visible tab label.
  * @property {TabContent} content Panel content or a lazy content factory.
  * @property {string} [icon] Icon name passed to `icon()`, shown before the title.
- * @property {boolean} [closable=false] Whether Delete can close the tab.
+ * @property {boolean} [closable=false] Whether the tab shows a close control and Delete closes it.
  * @property {boolean} [disabled=false] Whether the tab is unavailable.
  */
 
@@ -38,7 +38,8 @@ const VARIANTS = new Set(['divided', 'bracket', 'line', 'segmented']);
  *   control, for a toolbar or card header.
  * @property {boolean} [keepAlive=true] Keep inactive panel elements mounted.
  * @property {(event: CustomEvent<{name: string, previous: string|null}>) => void} [onchange] Change callback.
- * @property {(event: CustomEvent<{name: string}>) => void} [onclose] Close callback.
+ * @property {(event: CustomEvent<{name: string}>) => void} [onclose] Close callback, fired when the
+ *   user dismisses a closable tab.
  */
 
 /**
@@ -121,6 +122,10 @@ export class Tabbox extends Component {
       if (!tab || !tablist.contains(tab)) return;
       const record = this._recordForTab(tab);
       if (!record || record.definition.disabled) return;
+      if (event.target.closest?.('.zx-tabbox__close')) {
+        this._closeTab(record);
+        return;
+      }
       this._setFocused(record);
       this.openTab(record.definition.name);
     });
@@ -168,9 +173,13 @@ export class Tabbox extends Component {
     }
     children.push(title, badge);
     if (normalized.closable) {
+      // Deliberately a span and not a nested <button>: the tab itself is a button, and buttons
+      // cannot nest. The tablist click handler routes clicks that land in here to _closeTab(),
+      // and it stays out of the accessibility tree because Delete is the keyboard equivalent.
       children.push(h('span', {
-        class: 'zx-tabbox__close',
-        ariaHidden: 'true'
+        class: 'zx-tabbox__close zx-icon-btn',
+        ariaHidden: 'true',
+        title: 'Close'
       }, icon('x', { size: 14 })));
     }
     const tab = /** @type {HTMLButtonElement} */ (h('button', {
@@ -353,12 +362,26 @@ export class Tabbox extends Component {
     }
     if (event.key === 'Delete' && current.definition.closable) {
       event.preventDefault();
-      const index = this._tabs.indexOf(current);
-      if (!this._removeTab(current.definition.name, true)) return;
-      const remaining = this._tabs[Math.min(index, this._tabs.length - 1)] ?? this._tabs[index - 1];
-      const focusTarget = remaining && !remaining.definition.disabled ? remaining : this._active;
-      if (focusTarget) this._setFocused(focusTarget);
+      this._closeTab(current);
     }
+  }
+
+  /**
+   * Closes a tab on a user gesture, keeping roving focus inside the tablist.
+   * @param {TabRecord} record Tab to close.
+   * @returns {void}
+   * @fires Tabbox#close
+   */
+  _closeTab(record) {
+    const index = this._tabs.indexOf(record);
+    // Clicking the close control focuses its tab first in most browsers, so the element about to
+    // be removed holds the focus; left alone, focus would fall back to <body>.
+    const held = record.tab.contains(document.activeElement);
+    if (!this._removeTab(record.definition.name, true)) return;
+    const remaining = this._tabs[Math.min(index, this._tabs.length - 1)] ?? this._tabs[index - 1];
+    const focusTarget = remaining && !remaining.definition.disabled ? remaining : this._active;
+    // Roving tabindex has to move even for a mouse close, or Tab has no entry point left.
+    if (focusTarget) this._setFocused(focusTarget, held);
   }
 
   /** @param {string} name @param {boolean} emitClose @returns {boolean} */
@@ -453,7 +476,8 @@ export class Tabbox extends Component {
  */
 
 /**
- * Fired after a closable tab is removed through the keyboard.
+ * Fired after the user removes a closable tab, through its close control or Delete.
+ * `removeTab()` is silent.
  * @event Tabbox#close
  * @type {CustomEvent<{name: string}>}
  */
