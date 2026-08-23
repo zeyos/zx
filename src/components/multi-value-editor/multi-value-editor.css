@@ -1,12 +1,22 @@
+/* Deliberately not a size container. Inline-size containment removes an element's own intrinsic
+   width, so every host that sizes to its contents — a flex row, an inline-block, a grid `auto`
+   track, a table cell — measured this editor as nothing and the rows spilled out of a 26px sliver.
+   `inline-size: 100%` does not rescue it either: the percentage resolves against a containing
+   block that was itself measured from the contribution containment had already zeroed. The row
+   below reflows on its own instead, which reads the width that actually matters — the row's.
+
+   Without containment `inline-size: 100%` does work: a percentage that has no definite containing
+   block to resolve against counts as `auto` while the host measures its contents, so the editor
+   contributes its real width and then fills whatever the host settled on. */
 .zx-multi-value-editor {
   display: grid;
   gap: var(--zx-space-3);
   min-inline-size: 0;
+  inline-size: 100%;
   padding: var(--zx-space-3);
   border: 1px solid var(--zx-color-border);
   border-radius: var(--zx-radius-lg);
   background: var(--zx-color-bg-surface);
-  container-type: inline-size;
 }
 
 .zx-multi-value-editor__rows {
@@ -15,19 +25,32 @@
 }
 
 .zx-multi-value-editor__row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  /* A grid item refuses to go under its min-content width unless told to, which in a pane narrower
+     than the control cluster pushed the whole row back out through the editor's side. */
+  min-inline-size: 0;
   gap: var(--zx-space-2);
   align-items: center;
 }
 
+/* Below roughly this basis the controls wrap onto a line of their own, which is what the container
+   query used to do — except a row measures the space the row actually has. */
 .zx-multi-value-editor__value {
-  inline-size: 100%;
+  flex: 1 1 11rem;
+  min-inline-size: 0;
 }
 
+/* Wide enough and this keeps its natural size at the end of the row; narrower than the buttons it
+   holds, and they wrap among themselves rather than out through the side. */
 .zx-multi-value-editor__controls {
   display: inline-flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  min-inline-size: 0;
   gap: var(--zx-space-1);
+  margin-inline-start: auto;
 }
 
 .zx-multi-value-editor__controls .zx-btn {
@@ -35,22 +58,83 @@
   padding-inline: var(--zx-space-2);
 }
 
-.zx-multi-value-editor__controls .zx-btn:last-child {
+.zx-multi-value-editor__controls .zx-btn[data-action="remove"] {
   color: var(--zx-color-danger);
+}
+
+/* A row at either end keeps its move button focusable and merely announces that it cannot go
+   further, so pressing it repeatedly never drops focus to the document. */
+.zx-multi-value-editor__controls .zx-btn[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.zx-multi-value-editor__controls .zx-btn[aria-disabled="true"]:hover {
+  background: var(--zx-color-bg-control);
+}
+
+.zx-multi-value-editor__handle {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-block-size: var(--zx-control-height);
+  min-inline-size: var(--zx-space-6);
+  padding: 0;
+  border: 0;
+  border-radius: var(--zx-control-radius);
+  background: none;
+  color: var(--zx-color-text-muted);
+  cursor: grab;
+  touch-action: none;
+  transition: color var(--zx-dur-fast) var(--zx-ease),
+    background-color var(--zx-dur-fast) var(--zx-ease);
+}
+
+.zx-multi-value-editor__handle:hover:not(:disabled) {
+  background: var(--zx-color-bg-hover);
+  color: var(--zx-color-text);
+}
+
+.zx-multi-value-editor__handle:focus-visible {
+  outline: none;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.zx-multi-value-editor__handle:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.zx-multi-value-editor[data-state="dragging"] .zx-multi-value-editor__handle {
+  cursor: grabbing;
+}
+
+.zx-multi-value-editor__row[data-dragging="true"] {
+  opacity: 0.45;
+}
+
+/* The line sits in the gap between two rows, so it reads as "it lands here", not "it replaces
+   this row". */
+.zx-multi-value-editor__row[data-drop]::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  block-size: 2px;
+  border-radius: var(--zx-radius-full);
+  background: var(--zx-color-accent);
+}
+
+.zx-multi-value-editor__row[data-drop="before"]::after {
+  inset-block-start: calc(var(--zx-space-2) / -2 - 1px);
+}
+
+.zx-multi-value-editor__row[data-drop="after"]::after {
+  inset-block-end: calc(var(--zx-space-2) / -2 - 1px);
 }
 
 .zx-multi-value-editor__add {
   justify-self: start;
   border-color: var(--zx-color-accent);
   color: var(--zx-color-accent);
-}
-
-@container (max-width: 24rem) {
-  .zx-multi-value-editor__row {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .zx-multi-value-editor__controls {
-    justify-self: end;
-  }
 }

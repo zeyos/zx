@@ -2386,6 +2386,12 @@
         "type": "string",
         "default": "'Add value'",
         "description": "Add-row button text."
+      },
+      {
+        "name": "reorder",
+        "type": "'both'|'buttons'|'drag'|'none'",
+        "default": "'both'",
+        "description": "Reordering affordances each row gets: a drag handle, the up/down buttons, both, or neither."
       }
     ],
     "events": [],
