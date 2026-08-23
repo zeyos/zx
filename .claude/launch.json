@@ -5,7 +5,8 @@
       "name": "zx-website",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "serve"],
-      "port": 8321
+      "port": 8321,
+      "autoPort": true
     }
   ]
 }

@@ -42,7 +42,6 @@ const LAYOUT_IDS = [
 
 const DOCS_URL = '../docs/llms.md';
 const API_URL = '../docs/api.json';
-const STORAGE_KEY = 'zx-docs-density';
 const DENSITIES = ['cozy', 'compact'];
 
 /**
@@ -1422,7 +1421,11 @@ function guidePage(entry) {
 
 /* ---------------------------------------------------------------------- chrome -- */
 
-/** Adds the floating density switcher; theme is owned by the shared site chrome. */
+/**
+ * Adds the floating density switcher. Theme, preset, and density all belong to the shared site
+ * chrome — this only offers density a control, and hands the change to `window.zxTheme` so the
+ * theme studio and this switcher can never end up disagreeing about the same stored value.
+ */
 function buildDensitySwitcher() {
   const label = element('span', 'docs-switcher__label', 'Density');
   const select = element('select', 'docs-switcher__select');
@@ -1434,21 +1437,12 @@ function buildDensitySwitcher() {
     select.append(option);
   }
 
-  let saved = DENSITIES[0];
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (DENSITIES.includes(stored)) saved = stored;
-  } catch { /* storage unavailable */ }
-
-  const apply = (value) => {
-    document.documentElement.dataset.zxDensity = value;
-    try { localStorage.setItem(STORAGE_KEY, value); } catch { /* current page only */ }
-  };
+  const stored = window.zxTheme?.get().density;
+  const saved = DENSITIES.includes(stored) ? stored : DENSITIES[0];
 
   select.value = saved;
-  apply(saved);
   select.addEventListener('change', () => {
-    apply(select.value);
+    window.zxTheme?.set({ density: select.value });
     // Re-mount so components that read density at build time pick up the new metrics.
     const key = activeKey;
     activeKey = null;

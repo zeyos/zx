@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en" data-zx-theme="light" data-zx-density="cozy">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Zx theme studio — every component on one page, under any of the standard themes or one you build yourself.">
+    <title>Theming — Zx</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="../styles/zx.css">
+    <link rel="stylesheet" href="site.css">
+    <link rel="stylesheet" href="theme.css">
+    <script src="site.js"></script>
+  </head>
+  <body class="zx-scope site-page site-page--studio">
+    <header class="site-header">
+      <div class="site-header__inner">
+        <a class="site-brand" href="index.html" aria-label="Zx home">
+          <img class="brand-logo--light" src="assets/zx-logo.svg" alt="Zx">
+          <img class="brand-logo--dark" src="assets/zx-logo-dark.svg" alt="Zx">
+        </a>
+        <a class="site-version" href="https://github.com/zeyos/zx/releases/latest"
+          rel="noopener" title="Release notes">v<span data-site-version>2.0.0</span></a>
+        <nav class="site-nav" aria-label="Primary">
+          <a href="docs.html">Documentation</a>
+          <a href="docs.html#layouts">Layouts</a>
+          <a href="theme.html">Theming</a>
+        </nav>
+        <div class="site-actions">
+          <a class="site-icon-btn" data-site-icon="github" href="https://github.com/zeyos/zx" rel="noopener"
+            title="Repository" aria-label="Zx on GitHub"></a>
+          <button class="site-icon-btn" type="button" data-theme-toggle
+            aria-label="Switch theme"></button>
+        </div>
+      </div>
+    </header>
+
+    <div id="theme-app">
+      <p class="loading-copy">Loading the theme studio…</p>
+    </div>
+    <noscript>The theme studio runs the real components against live tokens, so it requires JavaScript.</noscript>
+
+    <script type="module" src="theme.js"></script>
+
+    <footer class="site-footer">
+      <div class="site-footer__inner">
+        <div class="site-footer__brand">
+          <img src="assets/zx-logo-dark.svg" alt="Zx">
+          <p>
+            Built for <a href="https://www.zeyos.com" rel="noopener">ZeyOS</a>. Released under the
+            <a href="https://github.com/zeyos/zx/blob/main/LICENSE" rel="noopener">MIT license</a>.
+          </p>
+        </div>
+        <nav class="site-footer__links" aria-label="Footer">
+          <div class="site-footer__group">
+            <h2>Documentation</h2>
+            <a href="docs.html#getting-started">Getting started</a>
+            <a href="docs.html#components">Components</a>
+            <a href="docs.html#layouts">Layouts</a>
+          </div>
+          <div class="site-footer__group">
+            <h2>Reference</h2>
+            <a href="docs.html#getting-started/theming">Theming guide</a>
+            <a href="docs.html#components/tokens">Design tokens</a>
+            <a href="llms.txt">llms.txt</a>
+          </div>
+          <div class="site-footer__group">
+            <h2>Project</h2>
+            <a href="https://github.com/zeyos/zx" rel="noopener">GitHub</a>
+            <a href="https://github.com/zeyos/zx/issues" rel="noopener">Issues</a>
+            <a href="https://www.npmjs.com/package/@zeyos/zx" rel="noopener">npm</a>
+          </div>
+        </nav>
+      </div>
+      <div class="site-footer__stamp">
+        <span>Zx <span data-site-version>2.0.0</span></span>
+        <span>Last updated <time data-site-updated>—</time></span>
+      </div>
+    </footer>
+  </body>
+</html>
