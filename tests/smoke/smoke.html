@@ -35,7 +35,9 @@
       </table>
     </div>
   </main>
-  <div id="fixtures" class="smoke-fixtures"></div>
+  <!-- `.zx-scope` carries the base box sizing and typography every component is styled
+       against, so the fixtures have to live inside it to lay out as they would in an app. -->
+  <div id="fixtures" class="smoke-fixtures zx-scope"></div>
   <script>
     window.__zxSmokeErrors = [];
     window.__zxSmoke = { passed: 0, failed: 0, results: [] };

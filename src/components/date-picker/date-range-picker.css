@@ -3,6 +3,10 @@
 .zx-date-range-picker {
   display: block;
   container-type: inline-size;
+  /* A size container takes no width from its own contents, so in a shrink-to-fit host — a flex
+     row, an inline-block, a grid `auto` track — it would collapse to nothing and spill. Only the
+     host can size it, so it always fills the host. */
+  inline-size: 100%;
   color: var(--zx-color-text);
   font-size: var(--zx-control-font-size);
 }
