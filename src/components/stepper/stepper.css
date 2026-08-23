@@ -175,13 +175,23 @@ button.zx-stepper__control:disabled {
   gap: var(--zx-space-2);
 }
 
+/* Every step but the last one grows, and inside it only the connector can take the extra, so the
+   rail spans its container: the labels stay their own width and the rules stretch between them.
+   The last step is left shrink-to-fit — growing it would strand the space behind its label. */
 .zx-stepper[data-orientation="horizontal"] .zx-stepper__step {
   flex: 0 1 auto;
   gap: var(--zx-space-2);
 }
 
-/* The connector doubles as the flexible gap, so the steps size to their labels and the rules
-   absorb whatever is left over. */
+.zx-stepper[data-orientation="horizontal"] .zx-stepper__step:not(:last-child) {
+  flex: 1 1 auto;
+}
+
+/* The slack belongs to the connector, not to the label, so hover chrome keeps hugging the text. */
+.zx-stepper[data-orientation="horizontal"] .zx-stepper__control {
+  flex: 0 1 auto;
+}
+
 .zx-stepper[data-orientation="horizontal"] .zx-stepper__step:not(:last-child)::after {
   content: "";
   flex: 1 1 var(--zx-space-6);
