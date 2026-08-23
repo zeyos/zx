@@ -8,6 +8,8 @@ and friends remain the complete record.
 
 ## Unreleased
 
+## 2.3.0 — 2026-08-23
+
 ### Added
 
 - **Six standard themes, as an attribute.** `data-zx-preset="zx" | "zeyos" | "ocean" | "violet" |
