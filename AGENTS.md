@@ -98,8 +98,11 @@ export default {
 
 and is registered in the `COMPONENT_IDS` list in `website/docs.js`. Demos double as documentation:
 show the common options, wire visible event output (e.g. a small log element), keep them
-self-contained. The documentation page shows each demo module's own source in a JavaScript tab, so
-write it as example code a reader can copy.
+self-contained. The documentation page shows each example's own source under it, extracted from the
+function it just ran, so write it as example code a reader can copy. The data an example feeds its
+component belongs in a declaration at the top of the module (`catalogue()`, `COLUMNS`, `makeRows()`)
+rather than inline: the page offers those as tabs beside the snippet, comment included, so the
+shape the component expects is documented by the demo itself.
 
 ## Layout examples
 
