@@ -3,6 +3,9 @@
  * Zinc-950 page, Zinc-900 cards and popovers, Zinc-800 muted fills, translucent white borders
  * (10%) and inputs (15%), Zinc-400 muted text.
  *
+ * The accent roles take the light end of the `--zx-accent-*` ramp (300/400/500) where the light
+ * theme takes the dark end, so a preset that repoints the ramp lands correctly in both.
+ *
  * The `[data-zx-theme="auto"]` block below repeats these assignments under a
  * `prefers-color-scheme` query; CSS has no way to share a declaration block across a media
  * boundary, so the two lists must be kept in sync.
@@ -15,7 +18,7 @@
   --zx-color-bg-control: color-mix(in srgb, var(--zx-gray-0) 5%, transparent);
   --zx-color-bg-muted: var(--zx-gray-800);
   --zx-color-bg-hover: color-mix(in srgb, var(--zx-gray-0) 8%, transparent);
-  --zx-color-bg-selected: color-mix(in srgb, var(--zx-green-400) 18%, var(--zx-gray-900));
+  --zx-color-bg-selected: color-mix(in srgb, var(--zx-accent-400) 18%, var(--zx-gray-900));
   --zx-color-bg-backdrop: color-mix(in srgb, var(--zx-gray-950) 75%, transparent);
   --zx-color-border: color-mix(in srgb, var(--zx-gray-0) 10%, transparent);
   --zx-color-border-strong: color-mix(in srgb, var(--zx-gray-0) 28%, transparent);
@@ -24,10 +27,10 @@
   --zx-color-text-muted: var(--zx-gray-400);
   --zx-color-text-placeholder: var(--zx-gray-500);
   --zx-color-text-invert: var(--zx-gray-950);
-  --zx-color-accent: var(--zx-green-400);
-  --zx-color-accent-hover: var(--zx-green-300);
-  --zx-color-accent-active: var(--zx-green-500);
-  --zx-color-accent-subtle: color-mix(in srgb, var(--zx-green-400) 16%, var(--zx-gray-900));
+  --zx-color-accent: var(--zx-accent-400);
+  --zx-color-accent-hover: var(--zx-accent-300);
+  --zx-color-accent-active: var(--zx-accent-500);
+  --zx-color-accent-subtle: color-mix(in srgb, var(--zx-accent-400) 16%, var(--zx-gray-900));
   --zx-color-on-accent: var(--zx-gray-950);
   --zx-color-danger: var(--zx-red-400);
   --zx-color-danger-bg: color-mix(in srgb, var(--zx-red-400) 16%, var(--zx-gray-900));
@@ -53,7 +56,7 @@
     --zx-color-bg-control: color-mix(in srgb, var(--zx-gray-0) 5%, transparent);
     --zx-color-bg-muted: var(--zx-gray-800);
     --zx-color-bg-hover: color-mix(in srgb, var(--zx-gray-0) 8%, transparent);
-    --zx-color-bg-selected: color-mix(in srgb, var(--zx-green-400) 18%, var(--zx-gray-900));
+    --zx-color-bg-selected: color-mix(in srgb, var(--zx-accent-400) 18%, var(--zx-gray-900));
     --zx-color-bg-backdrop: color-mix(in srgb, var(--zx-gray-950) 75%, transparent);
     --zx-color-border: color-mix(in srgb, var(--zx-gray-0) 10%, transparent);
     --zx-color-border-strong: color-mix(in srgb, var(--zx-gray-0) 28%, transparent);
@@ -62,10 +65,10 @@
     --zx-color-text-muted: var(--zx-gray-400);
     --zx-color-text-placeholder: var(--zx-gray-500);
     --zx-color-text-invert: var(--zx-gray-950);
-    --zx-color-accent: var(--zx-green-400);
-    --zx-color-accent-hover: var(--zx-green-300);
-    --zx-color-accent-active: var(--zx-green-500);
-    --zx-color-accent-subtle: color-mix(in srgb, var(--zx-green-400) 16%, var(--zx-gray-900));
+    --zx-color-accent: var(--zx-accent-400);
+    --zx-color-accent-hover: var(--zx-accent-300);
+    --zx-color-accent-active: var(--zx-accent-500);
+    --zx-color-accent-subtle: color-mix(in srgb, var(--zx-accent-400) 16%, var(--zx-gray-900));
     --zx-color-on-accent: var(--zx-gray-950);
     --zx-color-danger: var(--zx-red-400);
     --zx-color-danger-bg: color-mix(in srgb, var(--zx-red-400) 16%, var(--zx-gray-900));

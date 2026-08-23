@@ -217,8 +217,34 @@ the document. Select a built-in theme and density on any ancestor (normally `<ht
 ```
 
 Theme values are `light`, `dark`, and `auto`; density values are `cozy` and `compact`. `auto`
-follows the operating-system color preference. A product theme can override semantic tokens
-without reaching into component CSS:
+follows the operating-system color preference.
+
+A third attribute picks the **accent**, orthogonally to the other two:
+
+```html
+<html data-zx-theme="dark" data-zx-preset="ocean">
+```
+
+Six presets ship — `zx` (the ZeyOS green, and the default), `zeyos`, `ocean`, `violet`, `rose`,
+`slate`. Each is five declarations of the tier-1 accent ramp that the semantic tier resolves
+through, so a preset rethemes light, dark, and auto at once:
+
+```css
+[data-zx-preset="acme"] {
+  --zx-accent-300: #c4b4ff;
+  --zx-accent-400: #a684ff;
+  --zx-accent-500: #8e51ff;
+  --zx-accent-600: #7f22fe;
+  --zx-accent-700: #7008e7;
+}
+```
+
+Light surfaces take the 600 and 700 stops, dark ones take 300, 400, and 500 — so keep 600 legible
+against white and 400 against near-black, and `--zx-color-on-accent` stays correct in both. The
+[theme studio](https://zx.zeyos.com/theme.html) renders every component under a live theme and
+exports the result.
+
+Anything beyond the accent is a semantic token override, without reaching into component CSS:
 
 ```css
 :root[data-zx-theme="acme"] {

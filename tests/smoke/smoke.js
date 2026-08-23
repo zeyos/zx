@@ -44,11 +44,17 @@ const cases = [
     component.setTitle('Updated').setContent('Updated body').setButtons([{ label: 'Action' }]);
     assert(component.refs.title.textContent === 'Updated', 'title update failed');
   }),
-  componentCase('Tabbox', () => new zx.Tabbox(null, { tabs: tabDefinitions() }), (component) => {
+  componentCase('Tabbox', () => new zx.Tabbox(null, {
+    tabs: [...tabDefinitions(), { name: 'three', title: 'Three', closable: true, content: document.createTextNode('Three') }]
+  }), (component) => {
     const events = observe(component, 'change');
     component.openTab('two');
     assert(component.getActive() === 'two', 'active tab mismatch');
     events.expect();
+    const closes = observe(component, 'close');
+    component.el.querySelector('[data-closable] .zx-tabbox__close').click();
+    assert(!component.el.querySelector('[data-closable]'), 'close control did not remove the tab');
+    closes.expect();
   }),
   componentCase('NavigationBar', () => new zx.NavigationBar(null, {
     title: 'App',
@@ -128,6 +134,25 @@ const cases = [
     const events = observe(component, 'change');
     component.set(2).open().close();
     assert(component.value === 2 && component.selected.name === 'Two', 'selection mismatch');
+    events.expect();
+  }),
+  componentCase('Select (fixed items)', () => zx.Select.permission(null, {
+    groups: sampleItems(), value: false
+  }), (component) => {
+    const events = observe(component, 'change');
+    assert(component.value === false, 'permission preset did not start private');
+    component.open();
+    const labels = [...component.refs.list.querySelectorAll('.zx-select__option')]
+      .map((option) => option.textContent.trim());
+    assert(labels[0] === 'Private' && labels[1] === 'Public', `pinned choices missing: ${labels}`);
+    assert(component.refs.list.querySelector('.zx-select__separator'), 'section rule missing');
+    component.close();
+    component.set(2);
+    assert(component.value === 2, 'group selection mismatch');
+    // What an async filter does on every query: the item list is replaced under the selection.
+    component.setItems([]);
+    component.set(true);
+    assert(component.value === true, 'a pinned value stopped resolving after setItems');
     events.expect();
   }),
   componentCase('Checklist', () => new zx.Checklist(null, { items: sampleItems(), search: false }), (component) => {
@@ -366,6 +391,7 @@ const cases = [
   tableStackingCase(),
   tableGrowingCase(),
   truncateCase(),
+  sizeContainerCase(),
   customElementsCase()
 ];
 
@@ -633,6 +659,43 @@ function tableGrowingCase() {
     },
     destroy({ component }) {
       component.destroy();
+    }
+  };
+}
+
+/**
+ * A form in a host that sizes to its contents.
+ *
+ * `tests/unit/size-containers.test.js` keeps every `container-type` rule honest about its own
+ * width, but containment travels: a size container contributes nothing to its *ancestors*'
+ * intrinsic width either, so a form shrink-wrapped to its action buttons while the fieldset inside
+ * it spilled out sideways. Only a real layout can show that, so it is checked here.
+ *
+ * @returns {SmokeDefinition}
+ */
+function sizeContainerCase() {
+  return {
+    name: 'Form (in a flex row)',
+    create(fixture) {
+      const host = document.createElement('div');
+      host.style.cssText = 'display: flex; align-items: center; inline-size: 640px';
+      fixture.append(host);
+      const component = new zx.Form(null, {
+        fieldsets: [{ title: 'Details', columns: 2, fields: { name: { type: 'text', label: 'Name' } } }],
+        actions: [{ label: 'Save', type: 'submit' }]
+      });
+      host.append(component.toElement());
+      return { component, host };
+    },
+    exercise({ component, host }) {
+      const width = (selector) => component.el.querySelector(selector)?.getBoundingClientRect().width ?? 0;
+      assert(component.el.getBoundingClientRect().width > 600, 'the form shrank away from its host');
+      assert(width('.zx-fieldset') > 600, 'the fieldset collapsed instead of filling the form');
+      assert(width('.zx-field') > 0 && host.scrollWidth <= host.clientWidth + 1, 'the form spilled out of its host');
+    },
+    destroy({ component, host }) {
+      component.destroy();
+      host.remove();
     }
   };
 }

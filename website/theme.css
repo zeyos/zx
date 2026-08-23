@@ -1,0 +1,526 @@
+/*
+ * The theme studio: a sticky control rail beside a column of component cards.
+ *
+ * Everything here is written in semantic tokens, exactly like the components it frames. That is
+ * not tidiness for its own sake — the studio changes those tokens live, so a hard-coded colour
+ * anywhere in this file would be a patch of the old theme sitting inside the new one, and the one
+ * page where that is impossible to miss is this one.
+ */
+
+/* The chrome goes full-bleed, so the rail lines up with the wordmark above it. */
+.site-page--studio .site-header__inner,
+.site-page--studio .site-footer__inner,
+.site-page--studio .site-footer__stamp {
+  inline-size: 100%;
+  padding-inline: var(--zx-space-5);
+}
+
+.studio {
+  --studio-header: 65px;
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  align-items: start;
+}
+
+.loading-copy {
+  padding: var(--zx-space-8) var(--zx-space-5);
+  color: var(--zx-color-text-muted);
+}
+
+/* ------------------------------------------------------------------- the rail -- */
+
+.studio-rail {
+  position: sticky;
+  inset-block-start: var(--studio-header);
+  block-size: calc(100dvh - var(--studio-header));
+  overflow-y: auto;
+  border-inline-end: 1px solid var(--zx-color-border);
+  background: var(--zx-color-bg-surface);
+}
+
+.studio-rail__inner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zx-space-5);
+  padding: var(--zx-space-5);
+}
+
+.studio-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zx-space-2);
+}
+
+.studio-section__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--zx-space-2);
+  min-block-size: var(--zx-control-height);
+}
+
+.studio-section__title {
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.studio-section__hint,
+.studio-rail__note,
+.studio-readout {
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  line-height: 1.5;
+}
+
+.studio-cycle {
+  display: flex;
+  gap: 2px;
+}
+
+/* The rail is taller than most viewports, so the two actions stay pinned to the bottom of it:
+   "Copy CSS" is the whole point of the page and must never be something a reader has to scroll a
+   sub-panel to find. The negative margins let the bar span the rail's padding. */
+.studio-rail__actions {
+  position: sticky;
+  inset-block-end: calc(var(--zx-space-5) * -1);
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--zx-space-2);
+  margin: 0 calc(var(--zx-space-5) * -1) calc(var(--zx-space-5) * -1);
+  padding: var(--zx-space-3) var(--zx-space-5);
+  border-block-start: 1px solid var(--zx-color-border);
+  background: var(--zx-color-bg-surface);
+}
+
+/* ------------------------------------------------------------------- presets -- */
+
+.studio-presets {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.studio-preset {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-3);
+  padding: var(--zx-space-2);
+  border: 1px solid transparent;
+  border-radius: var(--zx-radius-md);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.studio-preset:hover {
+  background: var(--zx-color-bg-hover);
+}
+
+.studio-preset:focus-visible {
+  outline: none;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.studio-preset[aria-checked="true"] {
+  border-color: var(--zx-color-accent);
+  background: var(--zx-color-bg-selected);
+}
+
+.studio-preset__ramp {
+  display: flex;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 1px solid var(--zx-color-border);
+  border-radius: var(--zx-radius-full);
+}
+
+.studio-preset__stop {
+  inline-size: 12px;
+  block-size: 22px;
+}
+
+.studio-preset__text {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+}
+
+.studio-preset__name {
+  font-size: var(--zx-text-sm);
+  font-weight: 600;
+}
+
+.studio-preset__note {
+  overflow: hidden;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  line-height: 1.4;
+  /* Two lines is enough to say what a theme is for; a third would push the rail past the fold. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* ---------------------------------------------------------------- segmented -- */
+
+.studio-segmented {
+  display: flex;
+  padding: 2px;
+  border: 1px solid var(--zx-color-border-control);
+  border-radius: var(--zx-control-radius);
+  background: var(--zx-color-bg-muted);
+}
+
+.studio-segment {
+  flex: 1;
+  min-block-size: calc(var(--zx-control-height) - 6px);
+  border: none;
+  border-radius: calc(var(--zx-control-radius) - 2px);
+  background: none;
+  color: var(--zx-color-text-muted);
+  font: inherit;
+  font-size: var(--zx-text-sm);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.studio-segment:focus-visible {
+  outline: none;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.studio-segment[aria-checked="true"] {
+  background: var(--zx-color-bg-surface);
+  color: var(--zx-color-text);
+  box-shadow: var(--zx-shadow-1);
+}
+
+/* -------------------------------------------------------------------- accent -- */
+
+.studio-color {
+  inline-size: 48px;
+  block-size: var(--zx-control-height);
+  padding: 2px;
+  border: 1px solid var(--zx-color-border-control);
+  border-radius: var(--zx-control-radius);
+  background: var(--zx-color-bg-control);
+  cursor: pointer;
+}
+
+.studio-ramp {
+  display: flex;
+  overflow: hidden;
+  border: 1px solid var(--zx-color-border);
+  border-radius: var(--zx-radius-md);
+}
+
+.studio-ramp__stop {
+  flex: 1;
+  block-size: 26px;
+}
+
+/* The stop the current theme actually uses is worth pointing at: it is the one the contrast
+   number below refers to. */
+.studio-ramp__stop[data-current="true"] {
+  box-shadow: inset 0 0 0 2px var(--zx-color-bg-surface), inset 0 0 0 3px var(--zx-color-text);
+}
+
+/* --------------------------------------------------------------------- canvas -- */
+
+.studio-main {
+  min-inline-size: 0;
+  padding: var(--zx-space-6) var(--zx-space-5) var(--zx-space-8);
+}
+
+.studio-intro {
+  max-inline-size: 62ch;
+  margin-block-end: var(--zx-space-5);
+}
+
+.studio-intro__title {
+  margin: 0 0 var(--zx-space-2);
+  font-size: var(--zx-text-2xl);
+  letter-spacing: -0.02em;
+}
+
+.studio-intro__blurb {
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  line-height: 1.6;
+}
+
+.studio-index {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zx-space-1) var(--zx-space-2);
+  margin-block-end: var(--zx-space-6);
+  padding-block-end: var(--zx-space-4);
+  border-block-end: 1px solid var(--zx-color-border);
+}
+
+.studio-index__link {
+  padding: 2px var(--zx-space-2);
+  border-radius: var(--zx-radius-full);
+  background: var(--zx-color-bg-muted);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  text-decoration: none;
+}
+
+.studio-index__link:hover {
+  background: var(--zx-color-bg-selected);
+  color: var(--zx-color-accent);
+}
+
+/* Multi-column rather than grid: the cards differ wildly in height, and columns pack them without
+   the gaps a row-aligned grid leaves. `break-inside` is what keeps a card whole. */
+.studio-canvas {
+  column-width: 380px;
+  column-gap: var(--zx-space-4);
+}
+
+.studio-card {
+  break-inside: avoid;
+  margin-block-end: var(--zx-space-4);
+  border: 1px solid var(--zx-color-border);
+  border-radius: var(--zx-radius-lg);
+  background: var(--zx-color-bg-surface);
+  /* A column box is a fragmentation context, and an inline-block establishes a new one, which is
+     what stops a tall card from being sliced across two columns in Safari. */
+  display: inline-block;
+  inline-size: 100%;
+}
+
+.studio-card__head {
+  padding: var(--zx-space-3) var(--zx-space-4);
+  border-block-end: 1px solid var(--zx-color-border);
+}
+
+.studio-card__title {
+  margin: 0;
+  font-size: var(--zx-text-md);
+  font-weight: 600;
+}
+
+.studio-card__hint {
+  margin: 2px 0 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+}
+
+.studio-card__body {
+  padding: var(--zx-space-4);
+}
+
+/* ------------------------------------------------------- inside the cards -- */
+
+.studio-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zx-space-3);
+}
+
+.studio-stack--wide {
+  gap: var(--zx-space-4);
+}
+
+.studio-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zx-space-2);
+}
+
+.studio-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zx-space-1);
+}
+
+.studio-field__label,
+.studio-caption {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+}
+
+.studio-caption {
+  min-inline-size: 52px;
+}
+
+.studio-prose {
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  line-height: 1.5;
+}
+
+.studio-frame {
+  overflow: hidden;
+  border: 1px solid var(--zx-color-border);
+  border-radius: var(--zx-radius-md);
+}
+
+.studio-frame--short {
+  block-size: 190px;
+  overflow-y: auto;
+}
+
+.studio-menu {
+  display: flex;
+  flex-direction: column;
+  padding: var(--zx-space-1);
+  min-inline-size: 180px;
+}
+
+.studio-contextzone {
+  display: grid;
+  place-items: center;
+  padding: var(--zx-space-5);
+  border: 1px dashed var(--zx-color-border-strong);
+  border-radius: var(--zx-radius-md);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+.studio-swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: var(--zx-space-2);
+}
+
+.studio-swatch {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.studio-swatch__chip {
+  block-size: 34px;
+  border: 1px solid var(--zx-color-border);
+  border-radius: var(--zx-radius-sm);
+}
+
+.studio-swatch__label {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+}
+
+.studio-type > p {
+  margin: 0 0 var(--zx-space-2);
+}
+
+.studio-type__display {
+  font-size: var(--zx-text-2xl);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.studio-type__lead {
+  font-size: var(--zx-text-lg);
+  line-height: 1.45;
+}
+
+.studio-type__body {
+  font-size: var(--zx-text-md);
+  line-height: 1.6;
+}
+
+.studio-type__muted {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+.studio-icons {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(38px, 1fr));
+  gap: var(--zx-space-1);
+}
+
+.studio-icons__cell {
+  display: grid;
+  place-items: center;
+  block-size: 38px;
+  border-radius: var(--zx-radius-sm);
+  color: var(--zx-color-text-muted);
+}
+
+.studio-icons__cell:hover {
+  background: var(--zx-color-bg-hover);
+  color: var(--zx-color-accent);
+}
+
+.studio-code {
+  max-block-size: 46vh;
+  margin: 0;
+  overflow: auto;
+  padding: var(--zx-space-3);
+  border: 1px solid var(--zx-color-border);
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-bg-muted);
+  font-family: var(--zx-font-mono);
+  font-size: var(--zx-text-sm);
+  line-height: 1.55;
+  tab-size: 2;
+}
+
+/* ------------------------------------------------------------------ narrow -- */
+
+@media (max-width: 1080px) {
+  .studio {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Stacked, the rail is a band at the top of the page rather than a column beside it: sticking
+     it would cost half the viewport on exactly the screens with least to spare. */
+  .studio-rail {
+    position: static;
+    block-size: auto;
+    border-inline-end: none;
+    border-block-end: 1px solid var(--zx-color-border);
+  }
+
+  /* Columns rather than a grid: the sections differ by a factor of eight in height, and grid rows
+     align to their tallest member, which left the two short ones sitting in half a screen of
+     nothing beside the preset list. */
+  .studio-rail__inner {
+    display: block;
+    column-width: 250px;
+    column-gap: var(--zx-space-5);
+    padding-block: var(--zx-space-4);
+  }
+
+  .studio-section {
+    break-inside: avoid;
+    margin-block-end: var(--zx-space-4);
+  }
+
+  /* Nothing scrolls inside the rail once it is a band, so the actions stop being sticky. */
+  .studio-rail__actions {
+    position: static;
+    break-inside: avoid;
+    margin: 0;
+    padding: 0;
+    border-block-start: none;
+    background: none;
+  }
+
+  .studio-rail__note {
+    break-inside: avoid;
+    margin-block-end: var(--zx-space-3);
+  }
+
+  .site-page--studio .site-header__inner,
+  .site-page--studio .site-footer__inner,
+  .site-page--studio .site-footer__stamp,
+  .studio-main {
+    padding-inline: var(--zx-space-4);
+  }
+}

@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="docs.css">
     <script src="site.js"></script>
   </head>
-  <body class="zx-scope site-page">
+  <body class="zx-scope site-page site-page--app">
     <header class="site-header">
       <div class="site-header__inner">
         <a class="site-brand" href="index.html" aria-label="Zx home">
@@ -23,8 +23,11 @@
         <nav class="site-nav" aria-label="Primary">
           <a href="docs.html">Documentation</a>
           <a href="docs.html#layouts">Layouts</a>
+          <a href="theme.html">Theming</a>
         </nav>
         <div class="site-actions">
+          <a class="site-icon-btn" data-site-icon="zeyos" href="https://www.zeyos.com" rel="noopener"
+            title="ZeyOS" aria-label="ZeyOS website"></a>
           <a class="site-icon-btn" data-site-icon="github" href="https://github.com/zeyos/zx" rel="noopener"
             title="Repository" aria-label="Zx on GitHub"></a>
           <button class="site-icon-btn" type="button" data-theme-toggle
@@ -267,7 +270,15 @@ const toolbar = h('div', { class: 'toolbar' },
     <template
       data-guide="theming"
       data-title="Theming"
-      data-blurb="Two attributes switch light/dark and cozy/compact. A product theme is a short list of semantic token overrides.">
+      data-blurb="Three attributes switch light/dark, cozy/compact, and the accent. A product theme is a short list of semantic token overrides.">
+      <div class="docs-callout">
+        <p>
+          The <a href="theme.html">theme studio</a> puts every component on one page under a live
+          theme: cycle the standard presets, change the accent, radius, density, and type, and copy
+          the result out as CSS. It is the fastest way to read the rest of this page.
+        </p>
+      </div>
+
       <h2>Switching theme and density</h2>
       <p>
         Set <code>data-zx-theme</code> (<code>light</code>, <code>dark</code>, <code>auto</code>)
@@ -279,6 +290,52 @@ const toolbar = h('div', { class: 'toolbar' },
 &lt;html data-zx-theme="dark" data-zx-density="compact"&gt;
       </pre>
 
+      <h2>The standard themes</h2>
+      <p>
+        <code>data-zx-preset</code> is the third attribute, and it is orthogonal to the first two:
+        it picks the <strong>accent ramp</strong>, while <code>data-zx-theme</code> decides which
+        end of that ramp each surface uses. Six ship with the library:
+      </p>
+      <table>
+        <thead><tr><th>Preset</th><th>Accent</th><th>For</th></tr></thead>
+        <tbody>
+          <tr><td><code>zx</code></td><td>ZeyOS green</td><td>The default. Set nothing to get it.</td></tr>
+          <tr><td><code>zeyos</code></td><td>ZeyOS gold</td><td>Screens that sit inside the ZeyOS product marque.</td></tr>
+          <tr><td><code>ocean</code></td><td>Blue</td><td>Tools meant to read as infrastructure.</td></tr>
+          <tr><td><code>violet</code></td><td>Violet</td><td>The most saturated of the six.</td></tr>
+          <tr><td><code>rose</code></td><td>Rose</td><td>Warm and loud; check it against the danger colour.</td></tr>
+          <tr><td><code>slate</code></td><td>Near-neutral</td><td>Data-heavy screens that should carry their own colour.</td></tr>
+        </tbody>
+      </table>
+      <pre data-code="preset.html">
+&lt;html data-zx-theme="dark" data-zx-preset="ocean"&gt;
+      </pre>
+
+      <h2>Defining your own accent</h2>
+      <p>
+        A preset is five tier-1 declarations — <code>--zx-accent-300</code> through
+        <code>--zx-accent-700</code> — and nothing else. The semantic tier reads
+        600 and 700 on light surfaces and 300, 400, and 500 on dark ones, so one block rethemes
+        light, dark, and auto together, with no second list to keep in sync.
+      </p>
+      <pre data-code="accent.css">
+[data-zx-preset="acme"] {
+  --zx-accent-300: #c4b4ff;
+  --zx-accent-400: #a684ff;
+  --zx-accent-500: #8e51ff;
+  --zx-accent-600: #7f22fe;
+  --zx-accent-700: #7008e7;
+}
+      </pre>
+      <p>
+        Two stops carry a contract. <code>--zx-color-on-accent</code> is white on light surfaces and
+        near-black on dark ones, and it is never restated per theme — which only works while
+        <strong>600 clears 4.5:1 against white</strong> and <strong>400 clears 4.5:1 against the
+        dark page</strong>. Every shipped preset does, and the studio reports the ratio for whatever
+        you build. Status colours are deliberately not part of a preset: danger, warning, and
+        success mean the same thing whatever the brand colour is.
+      </p>
+
       <h2>The token tiers</h2>
       <p>
         Colours are defined once as a <strong>tier-1 palette</strong>
@@ -286,6 +343,11 @@ const toolbar = h('div', { class: 'toolbar' },
         <strong>tier-2 semantic tokens</strong> that describe a role rather than a hue. Components —
         and application CSS — may only use the semantic tier. <code>tests/lint-tokens.js</code>
         enforces this, which is what makes retheming a one-file change.
+      </p>
+      <p>
+        One tier-1 name is meant to be overridden: <code>--zx-accent-*</code>. It is an alias the
+        accent roles resolve through, so a preset can repoint the brand colour without touching a
+        single semantic mapping. Everything else in tier 1 stays private.
       </p>
       <table>
         <thead><tr><th>Token</th><th>Role</th></tr></thead>
@@ -306,7 +368,9 @@ const toolbar = h('div', { class: 'toolbar' },
         </tbody>
       </table>
       <p>
-        The <a href="#components/tokens">Design tokens</a> entry renders every one of them live.
+        The <a href="#components/tokens">Design tokens</a> entry renders every one of them live, and
+        the <a href="theme.html">theme studio</a> shows what changing them does to the whole library
+        at once.
       </p>
 
       <h2>Defining a product theme</h2>

@@ -6,7 +6,7 @@ function pad(value) {
 }
 
 export default {
-  title: 'Date picker',
+  title: 'Date/Time picker',
   group: 'Inputs',
   api: ['DatePicker', 'MonthPicker', 'TimePicker'],
   blurb: 'Three inline pickers \u2014 a calendar, a month grid, and a time control \u2014 each a roving '

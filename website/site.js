@@ -1,24 +1,160 @@
 /*
  * Shared site chrome: theme persistence, the overlay-header scroll state, and nav highlighting.
  * Loaded as a classic script in <head> so the theme is applied before first paint.
+ *
+ * "The theme" here is four things, each in its own storage entry: the light/dark choice, the
+ * standard preset, the density, and the custom property overrides the theme studio produced.
+ * They are applied together on every page, which is what lets a reader build a theme in the
+ * studio and then read the documentation in it.
+ *
+ * The overrides come out of storage, so they are treated as untrusted: only `--zx-*` names get
+ * through, and only values that cannot terminate the <style> element or start a rule of their
+ * own. See `writeVars`.
  */
 (function () {
   'use strict';
 
-  const storageKey = 'zx-site-theme';
+  const KEYS = {
+    theme: 'zx-site-theme',
+    preset: 'zx-site-preset',
+    // Shared with the documentation app's own density switcher, so the two never disagree.
+    density: 'zx-docs-density',
+    vars: 'zx-site-theme-vars'
+  };
+  const THEMES = ['light', 'dark', 'auto'];
+  const DENSITIES = ['cozy', 'compact'];
   const root = document.documentElement;
   const preferredDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches;
-  let storedTheme = null;
 
-  try {
-    storedTheme = window.localStorage.getItem(storageKey);
-  } catch {
-    // Storage can be unavailable in privacy-restricted browsing modes.
+  /** @type {HTMLStyleElement|null} Holds the custom overrides; created on first use. */
+  let varSheet = null;
+
+  const state = {
+    theme: readTheme(),
+    preset: read(KEYS.preset) || 'zx',
+    density: DENSITIES.includes(read(KEYS.density)) ? read(KEYS.density) : 'cozy',
+    vars: readVars()
+  };
+  applyState();
+
+  /**
+   * The site-wide theme, for the pages that let a reader change it.
+   * A classic-script global because this file has to run before the module graph does.
+   */
+  window.zxTheme = {
+    /** @returns {{theme: string, preset: string, density: string, vars: object}} */
+    get() {
+      return { ...state, vars: { ...state.vars } };
+    },
+    /**
+     * Merges a change in, applies it, persists it, and announces it.
+     * @param {{theme?: string, preset?: string, density?: string, vars?: object}} patch
+     * @returns {void}
+     */
+    set(patch) {
+      if (THEMES.includes(patch.theme)) state.theme = patch.theme;
+      if (typeof patch.preset === 'string') state.preset = patch.preset;
+      if (DENSITIES.includes(patch.density)) state.density = patch.density;
+      if (patch.vars) state.vars = safeVars(patch.vars);
+      applyState();
+      write(KEYS.theme, state.theme);
+      write(KEYS.preset, state.preset);
+      write(KEYS.density, state.density);
+      write(KEYS.vars, JSON.stringify(state.vars));
+      document.dispatchEvent(new CustomEvent('zx-theme-change', { detail: window.zxTheme.get() }));
+    },
+    /** Returns the theme actually being rendered, resolving `auto`. @returns {'light'|'dark'} */
+    resolved() {
+      if (state.theme !== 'auto') return state.theme;
+      return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+  };
+
+  /** @returns {void} */
+  function applyState() {
+    root.dataset.zxTheme = state.theme;
+    root.dataset.zxDensity = state.density;
+    if (state.preset && state.preset !== 'zx') root.dataset.zxPreset = state.preset;
+    else delete root.dataset.zxPreset;
+    writeVars();
   }
 
-  root.dataset.zxTheme = storedTheme === 'dark' || storedTheme === 'light'
-    ? storedTheme
-    : (preferredDark ? 'dark' : 'light');
+  /**
+   * Writes the overrides into a single stylesheet.
+   *
+   * A stylesheet rather than inline styles on <html>: inline styles are the highest-priority
+   * origin short of !important, so they would also beat the density attribute and any override a
+   * page sets for itself. A `:root` rule sits exactly where the stock tokens sit.
+   * @returns {void}
+   */
+  function writeVars() {
+    const names = Object.keys(state.vars);
+    if (names.length === 0) {
+      if (varSheet) varSheet.textContent = '';
+      return;
+    }
+    if (!varSheet) {
+      varSheet = document.createElement('style');
+      varSheet.id = 'zx-theme-vars';
+      document.head.append(varSheet);
+    }
+    varSheet.textContent = ':root{'
+      + names.map((name) => name + ':' + state.vars[name] + ';').join('')
+      + '}';
+  }
+
+  /**
+   * Keeps only what the studio can legitimately have written. Everything here arrives from
+   * storage, which any script on the origin can write, and it ends up inside a <style> element.
+   * @param {object} input
+   * @returns {object}
+   */
+  function safeVars(input) {
+    const output = {};
+    if (!input || typeof input !== 'object') return output;
+    for (const name of Object.keys(input)) {
+      if (!/^--zx-[a-z0-9-]+$/.test(name)) continue;
+      const value = String(input[name]);
+      if (value.length > 240 || /[<>{};@\\]/.test(value)) continue;
+      output[name] = value;
+    }
+    return output;
+  }
+
+  /** @returns {string} */
+  function readTheme() {
+    const stored = read(KEYS.theme);
+    if (THEMES.includes(stored)) return stored;
+    return preferredDark ? 'dark' : 'light';
+  }
+
+  /** @returns {object} */
+  function readVars() {
+    try {
+      return safeVars(JSON.parse(read(KEYS.vars) || '{}'));
+    } catch {
+      return {};
+    }
+  }
+
+  /** @param {string} key @returns {string|null} */
+  function read(key) {
+    try {
+      return window.localStorage.getItem(key);
+    } catch {
+      // Storage can be unavailable in privacy-restricted browsing modes.
+      return null;
+    }
+  }
+
+  /** @param {string} key @param {string} value @returns {void} */
+  function write(key, value) {
+    try {
+      window.localStorage.setItem(key, value);
+    } catch {
+      // The theme still works for the current page when persistence is blocked.
+    }
+  }
 
   function ready() {
     setUpThemeToggles();
@@ -29,11 +165,15 @@
   /**
    * Wires every `[data-theme-toggle]` button to flip and persist the site theme. The glyph itself
    * is a CSS mask keyed off `data-zx-theme`, so only the accessible name is set here.
+   *
+   * The flip is against what is on screen, not against the stored value, so a reader on `auto`
+   * gets the opposite of what they are looking at rather than a button that appears to do
+   * nothing on half of all machines.
    */
   function setUpThemeToggles() {
     const themeButtons = document.querySelectorAll('[data-theme-toggle]');
     const update = () => {
-      const title = root.dataset.zxTheme === 'dark'
+      const title = window.zxTheme.resolved() === 'dark'
         ? 'Switch to light theme'
         : 'Switch to dark theme';
       themeButtons.forEach((button) => {
@@ -44,15 +184,10 @@
 
     themeButtons.forEach((button) => {
       button.addEventListener('click', () => {
-        root.dataset.zxTheme = root.dataset.zxTheme === 'dark' ? 'light' : 'dark';
-        try {
-          window.localStorage.setItem(storageKey, root.dataset.zxTheme);
-        } catch {
-          // The theme still works for the current page when persistence is blocked.
-        }
-        update();
+        window.zxTheme.set({ theme: window.zxTheme.resolved() === 'dark' ? 'light' : 'dark' });
       });
     });
+    document.addEventListener('zx-theme-change', update);
     update();
   }
 

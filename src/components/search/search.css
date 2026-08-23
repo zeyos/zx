@@ -22,10 +22,18 @@
   padding-inline: var(--zx-control-pad-x) var(--zx-control-height);
 }
 
-.zx-search__input:focus-visible,
+/* The field draws one ring for the whole control (:focus-within above). Inner controls must not
+   add a second, smaller ring — an outset ring on the input cut the submit button out of the field.
+   The input rides the field ring; the buttons mark themselves with an inset one, as .zx-icon-btn
+   does, so the field's outline stays whole. The transparent outline from base.css is left in place
+   for forced-colors mode. */
+.zx-search__input:focus-visible {
+  box-shadow: none;
+}
+
 .zx-search__clear:focus-visible,
 .zx-search__submit:focus-visible {
-  box-shadow: var(--zx-focus-ring);
+  box-shadow: inset var(--zx-focus-ring);
 }
 
 .zx-search__input::-webkit-search-cancel-button {

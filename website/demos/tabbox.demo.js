@@ -17,8 +17,9 @@ export default {
     {
       title: 'Tabs, badges, and lazy panels',
       blurb: 'Arrow keys move focus without selecting — the reader commits with Enter or Space. A '
-        + 'content function instead of a node defers building the panel until its first '
-        + 'activation; open the Lazy audit tab and watch the log.',
+        + 'closable tab carries a × and also answers to Delete. A content function instead of a '
+        + 'node defers building the panel until its first activation; open the Lazy audit tab and '
+        + 'watch the log.',
       layout: 'stack',
       render: ({ cleanup, log }) => {
         const tabbox = new Tabbox(null, {
@@ -35,7 +36,7 @@ export default {
               title: 'Closable records',
               icon: 'file',
               closable: true,
-              content: panelContent('Records', 'Focus this tab and press Delete to close it.')
+              content: panelContent('Records', 'Click the × on this tab, or focus it and press Delete.')
             },
             {
               name: 'audit',

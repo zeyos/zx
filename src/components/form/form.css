@@ -5,6 +5,13 @@
   min-inline-size: 0;
 }
 
+/* Fieldsets are size containers, and a contained descendant contributes nothing to its ancestors'
+   intrinsic width either — so a form in a shrink-to-fit host would shrink-wrap to its action
+   buttons and leave the fields spilling out of a sliver. The form fills its host instead. */
+.zx-form {
+  inline-size: 100%;
+}
+
 .zx-form__actions {
   display: flex;
   flex-wrap: wrap;

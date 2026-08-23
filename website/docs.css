@@ -4,6 +4,18 @@
   flex: 1 0 auto;
 }
 
+/* The documentation is an application shell, not a marketing page. Its sidebar and "On this page"
+   rail are anchored to the viewport edges, so the header and footer have to be anchored there too:
+   a centred 1200px band stacked on a full-bleed grid reads as two different pages. The gutter is
+   the sidebar's own padding, which lines the wordmark up with the navigation and the theme toggle
+   up with the rail. */
+.site-page--app .site-header__inner,
+.site-page--app .site-footer__inner,
+.site-page--app .site-footer__stamp {
+  inline-size: 100%;
+  padding-inline: var(--zx-space-5);
+}
+
 .docs-shell {
   --docs-header: 65px;
   display: grid;
@@ -562,12 +574,76 @@
   color: var(--zx-color-text);
 }
 
+/* What the folded block holds besides the example itself — the demo data behind it. Once the tabs
+   are on screen they say it better, so the hint steps aside. */
+.docs-disclosure__hint {
+  overflow: hidden;
+  min-inline-size: 0;
+  margin-inline-end: auto;
+  color: var(--zx-color-text-placeholder);
+  font-family: var(--zx-font-mono);
+  font-size: var(--zx-text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.docs-disclosure--open .docs-disclosure__hint {
+  visibility: hidden;
+}
+
 .docs-disclosure__body {
   border-block-start: 1px solid var(--zx-color-border);
 }
 
 .docs-disclosure__body[hidden] {
   display: none;
+}
+
+.docs-disclosure__tabs {
+  display: flex;
+  gap: var(--zx-space-1);
+  overflow-x: auto;
+  padding: var(--zx-space-2) var(--zx-space-2) 0;
+  border-block-end: 1px solid var(--zx-color-border);
+  background: var(--zx-color-bg-muted);
+  scrollbar-width: thin;
+}
+
+.docs-disclosure__tab {
+  flex: none;
+  min-block-size: 28px;
+  margin-block-end: -1px;
+  padding-inline: var(--zx-space-3);
+  border: 1px solid transparent;
+  border-radius: var(--zx-radius-md) var(--zx-radius-md) 0 0;
+  background: none;
+  color: var(--zx-color-text-muted);
+  font-family: var(--zx-font-mono);
+  font-size: var(--zx-text-xs);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.docs-disclosure__tab:hover {
+  color: var(--zx-color-text);
+}
+
+.docs-disclosure__tab[aria-selected="true"] {
+  border-color: var(--zx-color-border);
+  border-block-end-color: var(--zx-color-bg-surface);
+  background: var(--zx-color-bg-surface);
+  color: var(--zx-color-text);
+}
+
+.docs-disclosure__tab:focus-visible {
+  outline: 0;
+  border-color: var(--zx-color-ring);
+  box-shadow: var(--zx-focus-ring);
+}
+
+.docs-disclosure__body [role="tabpanel"]:focus-visible {
+  outline: 0;
+  box-shadow: inset var(--zx-focus-ring);
 }
 
 /* A section-level disclosure (the whole module, at the foot of the page) has no demo above it, so
@@ -1352,6 +1428,13 @@
 
   .docs-main {
     padding: var(--zx-space-6) var(--zx-space-4) 120px;
+  }
+
+  /* The shell stacks and its gutter tightens, so the chrome's gutter tightens with it. */
+  .site-page--app .site-header__inner,
+  .site-page--app .site-footer__inner,
+  .site-page--app .site-footer__stamp {
+    padding-inline: var(--zx-space-4);
   }
 
   .docs-header,

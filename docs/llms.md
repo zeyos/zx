@@ -53,8 +53,27 @@ Load `zx.css`, then set theme/density on any ancestor (usually `<html>`):
 <html data-zx-theme="dark" data-zx-density="compact">
 ```
 
-Themes: `light` | `dark` | `auto` (follows OS). Density: `cozy` | `compact`. Define a product theme
-by overriding **semantic** tokens under a `[data-zx-theme="name"]` selector:
+Themes: `light` | `dark` | `auto` (follows OS). Density: `cozy` | `compact`.
+
+**Accent presets.** A second, orthogonal attribute picks the accent ramp:
+`data-zx-preset="zx" | "zeyos" | "ocean" | "violet" | "rose" | "slate"` (`zx` is the default and
+need not be set). A preset repoints five tier-1 tokens — `--zx-accent-300` … `--zx-accent-700` —
+and the semantic tier takes its own stop per polarity (600/700 on light surfaces, 300/400/500 on
+dark), so one five-line block rethemes light, dark, and auto together. Status colours are not part
+of a preset. Define your own the same way, or build one at `/theme.html` (the theme studio, which
+renders every component live and exports the CSS):
+
+```css
+:root {
+  --zx-accent-300: #c4b4ff; --zx-accent-400: #a684ff; --zx-accent-500: #8e51ff;
+  --zx-accent-600: #7f22fe; --zx-accent-700: #7008e7;
+}
+```
+
+Keep the 600 stop at 4.5:1 or better against white and the 400 stop at 4.5:1 against the dark page
+— that is what makes `--zx-color-on-accent` legible without being restated per theme.
+
+Define a product theme by overriding **semantic** tokens under a `[data-zx-theme="name"]` selector:
 `--zx-color-bg-page/surface/raised/control/hover/selected`, `--zx-color-border(-strong/-control)`,
 `--zx-color-text(-muted/-placeholder)`, `--zx-color-accent(-hover)/on-accent`,
 `--zx-color-danger/warning/success/info(+ -bg)`, `--zx-focus-ring`, `--zx-control-height/-radius`,
@@ -404,16 +423,26 @@ Search input with embedded search and clear buttons (`role="search"`).
 
 Unifies single-select, local filtering, and async loading.
 
-- **Options** — `items: []`, `valueKey: 'ID'` (string key or `(item)=>id`), `labelKey: 'name'`
-  (string or `(item)=>string`), `renderItem`, `renderValue`, `value`, `disabled`, `placeholder`,
-  `clearable: false`, `filter: false | 'local' | async (query)=>items`, `searchKeys`,
-  `minQuery: 0`, `debounce: 200`, `listHeight: 280`, `groupKey`.
+- **Options** — `items: []`, `fixedItems: []`, `valueKey: 'ID'` (string key or `(item)=>id`),
+  `labelKey: 'name'` (string or `(item)=>string`), `renderItem`, `renderValue`, `value`,
+  `disabled`, `placeholder`, `clearable: false`, `filter: false | 'local' | async (query)=>items`,
+  `searchKeys`, `minQuery: 0`, `debounce: 200`, `listHeight: 280`, `groupKey`.
 - **Getters** — `.value`, `.selected`.
-- **Methods** — `set(id, {silent})`, `setItems()`, `reset()`, `open()`/`close()`,
+- **Methods** — `set(id, {silent})`, `setItems()`, `setFixedItems()`, `reset()`, `open()`/`close()`,
   `enable()`/`disable()`, `focus()`.
 - **Events** — `change {value, item}` (`item` is null on clear), `open`, `close`, `query {query}`,
   `loaded {items}`.
-- **Preset** — `Select.priority(target, opts)`, a 5-level priority picker.
+- **Fixed choices** — `fixedItems` pins entries to the top of the list, separated by a rule (the
+  rule is dropped when `groupKey` is on, since a heading already divides them). They belong to the
+  control, not to its data: a `filter` function replaces `items` on every query, while the pinned
+  entries are narrowed locally against the same query and stay resolvable by `set()`. They survive
+  `setItems()` and are shown below `minQuery`. Use them for choices with no row in the source —
+  "Unassigned", "Everyone", "Private".
+- **Presets** — `Select.priority(target, opts)`, a 5-level priority picker;
+  `Select.permission(target, {groups, value})`, the record-access picker with Private and Public
+  pinned above the groups. Its value is the tri-state ZeyOS stores (`false` private, `true` public,
+  or a group ID), `groups` takes an array or a loader `(query)=>items`, and the labels come from
+  `msg` (`permission.private`, `permission.public`). Replaces the deprecated `Permission`.
 - **Keyboard** (APG combobox) — ArrowDown/Alt+ArrowDown open; arrows navigate and wrap; Home/End;
   Enter selects; Esc closes; Tab closes; printable characters filter (editable) or run a typeahead
   (readonly). `aria-activedescendant` tracks the active option.
@@ -917,9 +946,13 @@ or Ctrl+Arrow reorders.
 Ordered value editor with explicit rows (add / remove / move).
 
 - **Options** — `values`, `options` (allowed values, which turns the rows into selects),
-  `addLabel`.
+  `addLabel`, `reorder: 'both'` (`'both'` | `'buttons'` | `'drag'` | `'none'` — a drag handle, the
+  up/down buttons, both, or neither).
 - **Methods** — `getValues()`, `setValues()`.
 - **Events** — `change {values}`.
+- Dragging goes through a dedicated handle, so text selection inside a row's input still works. The
+  handle is also a keyboard control (Arrow keys, Home, End), which is what keeps `reorder: 'drag'`
+  operable without a pointer.
 <!-- /doc -->
 
 <!-- doc:field-upload -->
@@ -961,7 +994,9 @@ yet. Field type: `tagpicker`.
 <!-- doc:permission -->
 ### Permission
 
-Private / public / group record-permission selector.
+Private / public / group record-permission selector. **Deprecated** — use
+`Select.permission(target, {groups})`, which carries the same tri-state value in one control and
+can query the groups remotely. This class stays for `gx.zeyos.Permission` and is removed in 3.0.
 
 - **Options** — `value: true|false|groupId`, `groups: []`, `groupsValueKey: 'ID'`,
   `groupsLabelKey: 'name'`.
@@ -1058,8 +1093,13 @@ restores rounded corners without forking the stylesheet.
 - **Methods** — `addTab()`, `removeTab()`, `openTab(name)`, `getActive()`, `setTitle()`,
   `setBadge(name, text|null)`, `enableTab()`/`disableTab()`.
 - **Events** — `change {name, previous}` (preventable), `close {name}`.
+- **Behaviour** — a `closable` tab renders a × that closes it on click, and `close` fires for that
+  gesture just as it does for Delete. `removeTab()` is the silent programmatic path. Closing the
+  active tab activates its neighbour through the usual `change` event, so a `preventDefault()` on
+  that change also vetoes the close.
 - **Keyboard** — ArrowLeft/Right and Home/End move focus, Enter/Space activate, Delete closes a
-  closable tab.
+  closable tab. The × is a plain glyph rather than a nested button (buttons cannot nest), so
+  keyboard and screen-reader users close through Delete; focus lands on the neighbouring tab.
 <!-- /doc -->
 
 <!-- doc:stepper -->
@@ -1068,7 +1108,9 @@ restores rounded corners without forking the stylesheet.
 Linear progress through a multi-step flow: a numbered `<ol>` where each step is upcoming, active,
 complete, or errored. It promotes the markup the checkout and record wizards used to hand-roll.
 Advancing past a step marks it complete automatically, and only steps the `clickable` policy allows
-are rendered as real buttons — the rest are not focusable at all.
+are rendered as real buttons — the rest are not focusable at all. A horizontal rail fills the width
+it is given: the labels keep their own width and the connectors stretch to take the slack, wrapping
+onto more lines only when the container is too narrow to hold them.
 
 - **Options** — `steps: [{name, title, description?, optional?, disabled?}]`, `active` (defaults to
   the first enabled step), `orientation: 'horizontal'|'vertical'`, `clickable:

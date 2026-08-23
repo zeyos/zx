@@ -18,6 +18,9 @@ import { Select } from '../select/select.js';
 /**
  * Record-permission choice for private, public, and group access.
  *
+ * @deprecated Use `Select.permission(target, {groups})`, which carries the same tri-state value in
+ * one control and accepts a loader function for installations whose group list is too long to ship
+ * with the form. This class stays for `gx.zeyos.Permission` and will be removed in 3.0.
  * @fires Permission#change
  * @extends {Component<PermissionOptions>}
  */

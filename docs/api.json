@@ -113,6 +113,12 @@
     ],
     "methods": [
       {
+        "name": "setItems",
+        "signature": "setItems(list)",
+        "returns": "this",
+        "description": "Replaces the whole trail."
+      },
+      {
         "name": "getItems",
         "signature": "getItems()",
         "returns": "NormalizedBreadcrumbItem[]",
@@ -228,6 +234,12 @@
     ],
     "methods": [
       {
+        "name": "get",
+        "signature": "get()",
+        "returns": "boolean",
+        "description": "Returns the current pressed state."
+      },
+      {
         "name": "set",
         "signature": "set(checked, [options])",
         "returns": "this",
@@ -330,6 +342,12 @@
     ],
     "methods": [
       {
+        "name": "setItems",
+        "signature": "setItems(items)",
+        "returns": "this",
+        "description": "Replaces items and derives checked state from `checkedKey` and `defaultChecked`."
+      },
+      {
         "name": "getValues",
         "signature": "getValues()",
         "returns": null,
@@ -358,6 +376,12 @@
         "signature": "search(query)",
         "returns": "this",
         "description": "Filters visible items by label."
+      },
+      {
+        "name": "reload",
+        "signature": "reload()",
+        "returns": "Promise<this>",
+        "description": "Reloads items through the configured async loader."
       },
       {
         "name": "destroy",
@@ -546,6 +570,12 @@
     ],
     "methods": [
       {
+        "name": "get",
+        "signature": "get()",
+        "returns": "string",
+        "description": "Returns the current value."
+      },
+      {
         "name": "set",
         "signature": "set(value)",
         "returns": "this",
@@ -600,6 +630,12 @@
       }
     ],
     "methods": [
+      {
+        "name": "setData",
+        "signature": "setData(rows)",
+        "returns": "this",
+        "description": "Replaces source rows and refreshes auto-derived select options."
+      },
       {
         "name": "apply",
         "signature": "apply()",
@@ -684,6 +720,12 @@
       }
     ],
     "methods": [
+      {
+        "name": "get",
+        "signature": "get()",
+        "returns": "Date|null",
+        "description": "Returns a copy of the selected date."
+      },
       {
         "name": "set",
         "signature": "set(date, [options])",
@@ -820,6 +862,12 @@
       }
     ],
     "methods": [
+      {
+        "name": "get",
+        "signature": "get([unit])",
+        "returns": "DateRange|DateRangeSeconds",
+        "description": "Returns the selected range as dates or as Unix timestamps."
+      },
       {
         "name": "set",
         "signature": "set(range, [options])",
@@ -958,6 +1006,12 @@
     ],
     "methods": [
       {
+        "name": "get",
+        "signature": "get()",
+        "returns": "DateRange",
+        "description": "Returns copies of the selected endpoints; the internal dates are never handed out."
+      },
+      {
         "name": "set",
         "signature": "set([range], [options])",
         "returns": "this",
@@ -1070,6 +1124,12 @@
     ],
     "methods": [
       {
+        "name": "get",
+        "signature": "get([unit])",
+        "returns": "Date|number|null",
+        "description": "Returns the selected date or Unix timestamp."
+      },
+      {
         "name": "set",
         "signature": "set(value, [options])",
         "returns": "this",
@@ -1142,6 +1202,12 @@
     ],
     "events": [],
     "methods": [
+      {
+        "name": "open",
+        "signature": "open()",
+        "returns": "this",
+        "description": "Opens the dialog and focuses its autofocus control or first focusable descendant."
+      },
       {
         "name": "setTitle",
         "signature": "setTitle(title)",
@@ -1414,10 +1480,22 @@
     "events": [],
     "methods": [
       {
+        "name": "register",
+        "signature": "register(type, adapter)",
+        "returns": "typeof Field",
+        "description": "Registers or replaces a field adapter."
+      },
+      {
         "name": "has",
         "signature": "has(type)",
         "returns": "boolean",
         "description": "Reports whether a field adapter is registered."
+      },
+      {
+        "name": "getValue",
+        "signature": "getValue()",
+        "returns": "unknown",
+        "description": "Returns the adapter value."
       },
       {
         "name": "setValue",
@@ -1535,6 +1613,12 @@
     "events": [],
     "methods": [
       {
+        "name": "upload",
+        "signature": "upload([files])",
+        "returns": "Promise<unknown|null>",
+        "description": "Uploads supplied files, or the current selection when omitted."
+      },
+      {
         "name": "abort",
         "signature": "abort()",
         "returns": "this",
@@ -1577,6 +1661,12 @@
     ],
     "events": [],
     "methods": [
+      {
+        "name": "addField",
+        "signature": "addField(id, field)",
+        "returns": "Field",
+        "description": "Adds a field from options, an existing field, an element, or a component."
+      },
       {
         "name": "getField",
         "signature": "getField(id)",
@@ -1757,6 +1847,12 @@
     ],
     "methods": [
       {
+        "name": "getPath",
+        "signature": "getPath()",
+        "returns": "unknown[]",
+        "description": "Returns the selected IDs from the root down."
+      },
+      {
         "name": "getNodes",
         "signature": "getNodes()",
         "returns": "TreeNode[]",
@@ -1794,9 +1890,9 @@
       },
       {
         "name": "destroy",
-        "signature": "destroy(options, column, index, column, index, [options], column, index, node)",
-        "returns": "void",
-        "description": "Rebuilds every column from the current path."
+        "signature": "destroy()",
+        "returns": null,
+        "description": "Restores an enhanced target to the markup it had before the takeover. @returns {void}"
       }
     ]
   },
@@ -1823,6 +1919,12 @@
     ],
     "events": [],
     "methods": [
+      {
+        "name": "addFieldset",
+        "signature": "addFieldset(fieldset)",
+        "returns": "Fieldset",
+        "description": "Adds an existing fieldset or constructs one from options."
+      },
       {
         "name": "setActions",
         "signature": "setActions(list)",
@@ -1950,6 +2052,12 @@
     ],
     "methods": [
       {
+        "name": "open",
+        "signature": "open()",
+        "returns": "this",
+        "description": "Expands the section."
+      },
+      {
         "name": "close",
         "signature": "close()",
         "returns": "this",
@@ -1966,6 +2074,12 @@
         "signature": "isOpen()",
         "returns": "boolean",
         "description": "Reports whether the section is expanded."
+      },
+      {
+        "name": "setTitle",
+        "signature": "setTitle(title)",
+        "returns": "this",
+        "description": "Replaces the visible title."
       },
       {
         "name": "setContent",
@@ -2011,6 +2125,12 @@
     ],
     "methods": [
       {
+        "name": "get",
+        "signature": "get()",
+        "returns": "'inactive'|'active'|'success'|'error'",
+        "description": "Returns the current state."
+      },
+      {
         "name": "getDescription",
         "signature": "getDescription()",
         "returns": "string",
@@ -2032,7 +2152,7 @@
         "name": "destroy",
         "signature": "destroy()",
         "returns": null,
-        "description": "Paints the indicator and the description for the current state. @returns {void} */ _sync() { this.el.dataset.status = this._status; this.refs.description.textContent = this._description; this.refs.indicator.replaceChildren(...this._indicator()); } /** @returns {Node[]} */ _indicator() { const size = this.el.dataset.size === 'md' ? 18 : 16; if (this._status === 'active') return [spinner({ size: 'sm', kind: 'current' })]; if (this._status === 'success') return [createIcon('success', { size })]; if (this._status === 'error') return [createIcon('error', { size })]; return []; } /** Restores an enhanced target to the markup it had before the takeover. @returns {void}"
+        "description": "Restores an enhanced target to the markup it had before the takeover. @returns {void}"
       }
     ]
   },
@@ -2071,6 +2191,12 @@
     ],
     "events": [],
     "methods": [
+      {
+        "name": "setTitle",
+        "signature": "setTitle(title)",
+        "returns": "this",
+        "description": "Replaces the header title."
+      },
       {
         "name": "setContent",
         "signature": "setContent(content)",
@@ -2143,6 +2269,12 @@
     ],
     "methods": [
       {
+        "name": "setItems",
+        "signature": "setItems(items)",
+        "returns": "this",
+        "description": "Replaces menu items and separators."
+      },
+      {
         "name": "open",
         "signature": "open()",
         "returns": "this",
@@ -2214,6 +2346,12 @@
         "signature": "remove(item)",
         "returns": "'active'|'pending'|null",
         "description": "Removes an item and promotes the oldest pending item when needed."
+      },
+      {
+        "name": "isActive",
+        "signature": "isActive(item)",
+        "returns": "boolean",
+        "description": "Reports whether an item is active."
       },
       {
         "name": "clear",
@@ -2298,6 +2436,12 @@
       }
     ],
     "methods": [
+      {
+        "name": "open",
+        "signature": "open()",
+        "returns": "this",
+        "description": "Opens the modal in the browser top layer."
+      },
       {
         "name": "close",
         "signature": "close([result])",
@@ -2386,10 +2530,22 @@
         "type": "string",
         "default": "'Add value'",
         "description": "Add-row button text."
+      },
+      {
+        "name": "reorder",
+        "type": "'both'|'buttons'|'drag'|'none'",
+        "default": "'both'",
+        "description": "Reordering affordances each row gets: a drag handle, the up/down buttons, both, or neither."
       }
     ],
     "events": [],
     "methods": [
+      {
+        "name": "getValues",
+        "signature": "getValues()",
+        "returns": "string[]",
+        "description": "Returns a copy of the ordered values."
+      },
       {
         "name": "setValues",
         "signature": "setValues(values, [options])",
@@ -2433,6 +2589,12 @@
       }
     ],
     "methods": [
+      {
+        "name": "setTitle",
+        "signature": "setTitle(title)",
+        "returns": "this",
+        "description": "Replaces the brand or application title."
+      },
       {
         "name": "setItems",
         "signature": "setItems(list)",
@@ -2578,6 +2740,12 @@
     ],
     "methods": [
       {
+        "name": "get",
+        "signature": "get()",
+        "returns": "number|null",
+        "description": "Returns the current value."
+      },
+      {
         "name": "set",
         "signature": "set(next, [options])",
         "returns": "this",
@@ -2614,6 +2782,12 @@
         "description": "Returns the underlying input element. @returns {HTMLInputElement}"
       },
       {
+        "name": "enable",
+        "signature": "enable()",
+        "returns": null,
+        "description": "Enables user interaction. @returns {this}"
+      },
+      {
         "name": "disable",
         "signature": "disable()",
         "returns": null,
@@ -2630,6 +2804,12 @@
         "signature": "setRange(min, max)",
         "returns": "this",
         "description": "Replaces the accepted range."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": null,
+        "description": "Restores an enhanced target to the markup it had before the takeover. @returns {void}"
       }
     ]
   },
@@ -2710,6 +2890,12 @@
       }
     ],
     "methods": [
+      {
+        "name": "setPage",
+        "signature": "setPage(page)",
+        "returns": "this",
+        "description": "Moves to a page, clamped into `[1, pages]`."
+      },
       {
         "name": "setTotal",
         "signature": "setTotal(total)",
@@ -2813,6 +2999,12 @@
     ],
     "methods": [
       {
+        "name": "setTitle",
+        "signature": "setTitle(title)",
+        "returns": "this",
+        "description": "Replaces the visible title."
+      },
+      {
         "name": "setContent",
         "signature": "setContent(content)",
         "returns": "this",
@@ -2904,6 +3096,12 @@
     ],
     "methods": [
       {
+        "name": "get",
+        "signature": "get()",
+        "returns": null,
+        "description": "Returns the normalized permission value. @returns {'private'|'public'|unknown}"
+      },
+      {
         "name": "set",
         "signature": "set(value, [options])",
         "returns": "this",
@@ -2994,6 +3192,12 @@
     ],
     "methods": [
       {
+        "name": "get",
+        "signature": "get()",
+        "returns": "number",
+        "description": "Returns the current value."
+      },
+      {
         "name": "set",
         "signature": "set(next, [options])",
         "returns": "this",
@@ -3037,9 +3241,9 @@
       },
       {
         "name": "destroy",
-        "signature": "destroy(text)",
-        "returns": "Node[]",
-        "description": "Paints the track, the readout, and the ARIA value attributes. @returns {void} */ _sync() { const { track, fill, value } = this.refs; this.el.dataset.status = this._status; this.el.toggleAttribute('data-indeterminate', this._indeterminate); if (this._indeterminate) { track.removeAttribute('aria-valuenow'); track.removeAttribute('aria-valuetext'); fill.style.removeProperty('--zx-progress-fill'); value.textContent = ''; return; } const text = this._format(); track.setAttribute('aria-valuenow', String(this._value)); track.setAttribute('aria-valuetext', text); fill.style.setProperty('--zx-progress-fill', `${this.percent()}%`); value.replaceChildren(...this._readout(text)); } /** @returns {string} */ _format() { const formatter = this.options.formatValue; if (typeof formatter === 'function') return String(formatter(this._value, this._max)); return `${Math.round(this.percent())}%`; } /** The readout beside the label: the formatted value, prefixed by a status glyph once the run has finished one way or the other."
+        "signature": "destroy()",
+        "returns": null,
+        "description": "Restores an enhanced target to the markup it had before the takeover. @returns {void}"
       }
     ]
   },
@@ -3138,6 +3342,12 @@
     ],
     "methods": [
       {
+        "name": "get",
+        "signature": "get()",
+        "returns": "number",
+        "description": "Returns the current rating."
+      },
+      {
         "name": "set",
         "signature": "set(next, [options])",
         "returns": "this",
@@ -3187,9 +3397,9 @@
       },
       {
         "name": "destroy",
-        "signature": "destroy(value, part, value, key, fallback, args, value, allowClear, value)",
-        "returns": "HTMLButtonElement",
-        "description": "Builds one selectable step."
+        "signature": "destroy()",
+        "returns": null,
+        "description": "Restores an enhanced target to the markup it had before the takeover. @returns {void}"
       }
     ]
   },
@@ -3237,7 +3447,32 @@
         "description": "Clear callback."
       }
     ],
-    "methods": []
+    "methods": [
+      {
+        "name": "get",
+        "signature": "get()",
+        "returns": "string",
+        "description": "Returns the current query."
+      },
+      {
+        "name": "set",
+        "signature": "set(value, [options])",
+        "returns": "this",
+        "description": "Sets the current query."
+      },
+      {
+        "name": "focus",
+        "signature": "focus()",
+        "returns": "this",
+        "description": "Focuses the input."
+      },
+      {
+        "name": "clear",
+        "signature": "clear()",
+        "returns": "this",
+        "description": "Clears the query and reports both the value update and clear action."
+      }
+    ]
   },
   "Select": {
     "options": [
@@ -3246,6 +3481,12 @@
         "type": "SelectItem[]",
         "default": "[]",
         "description": "Available values."
+      },
+      {
+        "name": "fixedItems",
+        "type": "SelectItem[]",
+        "default": "[]",
+        "description": "Choices pinned above the list, kept through filtering and async loads."
       },
       {
         "name": "valueKey",
@@ -3367,10 +3608,22 @@
     ],
     "methods": [
       {
+        "name": "set",
+        "signature": "set(idOrItem, [options])",
+        "returns": "this",
+        "description": "Selects an item or item ID."
+      },
+      {
         "name": "setItems",
         "signature": "setItems(items)",
         "returns": "this",
         "description": "Replaces the available items and preserves selection by ID when possible."
+      },
+      {
+        "name": "setFixedItems",
+        "signature": "setFixedItems(items)",
+        "returns": "this",
+        "description": "Replaces the pinned choices and preserves selection by ID when possible."
       },
       {
         "name": "reset",
@@ -3383,6 +3636,12 @@
         "signature": "open()",
         "returns": null,
         "description": "Opens the option panel. @returns {this} @fires Select#open"
+      },
+      {
+        "name": "close",
+        "signature": "close()",
+        "returns": null,
+        "description": "Closes the option panel and restores the selected label. @returns {this} @fires Select#close"
       },
       {
         "name": "enable",
@@ -3401,6 +3660,18 @@
         "signature": "focus()",
         "returns": null,
         "description": "Moves focus to the combobox input. @returns {this}"
+      },
+      {
+        "name": "priority",
+        "signature": "priority(target, [options])",
+        "returns": "Select",
+        "description": "Creates the five-level priority preset."
+      },
+      {
+        "name": "permission",
+        "signature": "permission(target, [options])",
+        "returns": "Select",
+        "description": "Creates the record-permission picker: the fixed Private and Public choices above the groups a record can be shared with. The value is the tri-state ZeyOS stores — `false` for private, `true` for public, or a group ID — so the control binds straight to the record field."
       },
       {
         "name": "destroy",
@@ -3595,6 +3866,12 @@
     ],
     "methods": [
       {
+        "name": "get",
+        "signature": "get()",
+        "returns": "number",
+        "description": "Returns the current value."
+      },
+      {
         "name": "set",
         "signature": "set(next, [options])",
         "returns": "this",
@@ -3635,6 +3912,12 @@
         "signature": "setLabel(label)",
         "returns": "this",
         "description": "Replaces the visible label."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": null,
+        "description": "Restores an enhanced target to the markup it had before the takeover. @returns {void}"
       }
     ]
   },
@@ -3767,6 +4050,18 @@
     ],
     "methods": [
       {
+        "name": "setSize",
+        "signature": "setSize(value)",
+        "returns": "this",
+        "description": "Sets the start pane size. Pixels and percentages are clamped against `min`, `max`, and the container immediately; any other CSS length is handed to the browser unclamped. Programmatic, so it emits nothing."
+      },
+      {
+        "name": "getSize",
+        "signature": "getSize()",
+        "returns": "number",
+        "description": "Returns the start pane's current size in pixels: `0` while the start pane is collapsed, and everything but the divider while the end pane is."
+      },
+      {
         "name": "getRatio",
         "signature": "getRatio()",
         "returns": "number",
@@ -3795,6 +4090,12 @@
         "signature": "expand()",
         "returns": "this",
         "description": "Restores a collapsed pane to the size it had."
+      },
+      {
+        "name": "isCollapsed",
+        "signature": "isCollapsed()",
+        "returns": "'start'|'end'|false",
+        "description": "Reports which pane is collapsed, if any."
       },
       {
         "name": "enable",
@@ -3924,6 +4225,12 @@
     ],
     "methods": [
       {
+        "name": "setSteps",
+        "signature": "setSteps(list)",
+        "returns": "this",
+        "description": "Replaces the whole step list. Completion and error flags survive for steps that are still present, and so does the active step; when it is gone the first enabled step takes over. This is a structural change, so it never emits `change`."
+      },
+      {
         "name": "goTo",
         "signature": "goTo(name)",
         "returns": "this",
@@ -4027,10 +4334,22 @@
       {
         "name": "close",
         "payload": "{name: string}",
-        "description": "Close callback."
+        "description": "Close callback, fired when the user dismisses a closable tab."
       }
     ],
     "methods": [
+      {
+        "name": "addTab",
+        "signature": "addTab(definition, [insert])",
+        "returns": "this",
+        "description": "Adds a tab."
+      },
+      {
+        "name": "removeTab",
+        "signature": "removeTab(name)",
+        "returns": "this",
+        "description": "Removes a tab by name."
+      },
       {
         "name": "openTab",
         "signature": "openTab(name)",
@@ -4221,6 +4540,12 @@
     ],
     "methods": [
       {
+        "name": "setLoading",
+        "signature": "setLoading([loading])",
+        "returns": "this",
+        "description": "Toggles a loading state. While loading, the body is dimmed, an indeterminate progress bar is shown, and `aria-busy` is set — a lightweight take on the busy/skeleton pattern used by enterprise tables (SAP UI5, Salesforce SLDS). Call `setLoading(false)` (or `setData`) when done."
+      },
+      {
         "name": "setData",
         "signature": "setData(rows)",
         "returns": "this",
@@ -4281,10 +4606,22 @@
         "description": "Opens the editor for a cell. No-op unless the table runs with `editMode` and the column resolves to an editable type for that row. In `'row'` mode every editable cell of the row is opened and `columnId` only decides which editor receives focus. Any other open edit is committed first."
       },
       {
+        "name": "commitEdit",
+        "signature": "commitEdit()",
+        "returns": "this",
+        "description": "Commits the open edit. Validation runs first: the first column whose `validate` rejects marks its cell invalid, emits `editinvalid`, and leaves the editor open. A listener may `preventDefault()` the `editcommit` event — e.g. while a server round-trip is pending — which also keeps the editor open. Otherwise every changed cell is written back through `updateRow()`, so `datachange` fires exactly as it does for a programmatic row update."
+      },
+      {
+        "name": "cancelEdit",
+        "signature": "cancelEdit()",
+        "returns": "this",
+        "description": "Closes the open edit without writing anything back and returns focus to the cell."
+      },
+      {
         "name": "growBy",
         "signature": "growBy([count])",
-        "returns": "TableRow[]",
-        "description": "The rows currently rendered — all of them unless `growing` is on."
+        "returns": "this",
+        "description": "Renders the next batch of rows."
       },
       {
         "name": "showAll",
@@ -4300,9 +4637,9 @@
       },
       {
         "name": "isStacked",
-        "signature": "isStacked(key, fallback, args, stacked, stacked)",
-        "returns": "void",
-        "description": "Keeps the \"show more\" control in step with what is rendered. The control sits outside the table rather than in a `<tfoot>` row spanning every column: it is a command, not data, and a button inside the grid would be reachable by the row navigation keys as though it were a cell."
+        "signature": "isStacked()",
+        "returns": "boolean",
+        "description": "Reports whether the rows are currently stacked."
       },
       {
         "name": "destroy",
@@ -4467,6 +4804,12 @@
     ],
     "methods": [
       {
+        "name": "getValues",
+        "signature": "getValues()",
+        "returns": "unknown[]",
+        "description": "Returns the selected IDs in selection order."
+      },
+      {
         "name": "getItems",
         "signature": "getItems()",
         "returns": "TagItem[]",
@@ -4519,6 +4862,12 @@
         "signature": "open()",
         "returns": null,
         "description": "Opens the option list. @returns {this}"
+      },
+      {
+        "name": "close",
+        "signature": "close()",
+        "returns": null,
+        "description": "Closes the option list. @returns {this}"
       },
       {
         "name": "focus",
@@ -4587,6 +4936,12 @@
       }
     ],
     "methods": [
+      {
+        "name": "get",
+        "signature": "get()",
+        "returns": "TimePickerValue|null",
+        "description": "Returns a copy of the selected time, or null when no initial value has been committed."
+      },
       {
         "name": "set",
         "signature": "set(value, [options])",
@@ -4661,6 +5016,12 @@
     ],
     "methods": [
       {
+        "name": "get",
+        "signature": "get([unit])",
+        "returns": "number",
+        "description": "Returns the current duration."
+      },
+      {
         "name": "set",
         "signature": "set(value, [unit], [options])",
         "returns": "this",
@@ -4721,6 +5082,12 @@
       }
     ],
     "methods": [
+      {
+        "name": "get",
+        "signature": "get()",
+        "returns": "boolean",
+        "description": "Returns the current switch state."
+      },
       {
         "name": "set",
         "signature": "set(checked, [options])",
@@ -4800,6 +5167,18 @@
       }
     ],
     "methods": [
+      {
+        "name": "setItems",
+        "signature": "setItems(list)",
+        "returns": "this",
+        "description": "Replaces every item and remeasures the overflow."
+      },
+      {
+        "name": "getItem",
+        "signature": "getItem(name)",
+        "returns": "Element|null",
+        "description": "Looks up an item element by name."
+      },
       {
         "name": "enable",
         "signature": "enable(name)",
@@ -4895,6 +5274,12 @@
         "signature": "show()",
         "returns": "this",
         "description": "Opens the tooltip, evaluating the content first. Does nothing while disabled, already open, or when the content resolves to nothing."
+      },
+      {
+        "name": "hide",
+        "signature": "hide()",
+        "returns": "this",
+        "description": "Closes the tooltip and restores the anchor's original `aria-describedby`."
       },
       {
         "name": "toggle",
@@ -5085,6 +5470,12 @@
     ],
     "methods": [
       {
+        "name": "setItems",
+        "signature": "setItems(items)",
+        "returns": "this",
+        "description": "Replaces the whole tree."
+      },
+      {
         "name": "getItems",
         "signature": "getItems()",
         "returns": "TreeNode[]",
@@ -5191,6 +5582,12 @@
         "signature": "focusNode(id)",
         "returns": "this",
         "description": "Moves DOM focus to a node, revealing it first."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": null,
+        "description": "Restores an enhanced target to the markup it had before the takeover. @returns {void}"
       }
     ]
   },
@@ -5253,6 +5650,12 @@
     ],
     "events": [],
     "methods": [
+      {
+        "name": "getValues",
+        "signature": "getValues()",
+        "returns": "string[]",
+        "description": "Returns a copy of the ordered values."
+      },
       {
         "name": "setValues",
         "signature": "setValues(values, [options])",

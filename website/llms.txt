@@ -68,6 +68,9 @@ Load `zx.css` once and put `zx-scope` on the application root. Set `data-zx-them
 theme by overriding semantic `--zx-color-*` / `--zx-control-*` tokens under
 `[data-zx-theme="name"]`. Never use tier-1 palette tokens or raw colour literals in application
 CSS. The stock themes follow the shadcn/ui Nova · Zinc preset with the ZeyOS green as the accent.
+Six accent presets ship as `data-zx-preset` (zx, zeyos, ocean, violet, rose, slate); each is five
+`--zx-accent-*` values. `/theme.html` is the theme studio: every component under a live theme,
+with the result exportable as CSS.
 
 ## Talking to ZeyOS
 Use the dedicated ZeyOS client library **`@zeyos/client`** (`npm install @zeyos/client`) for ZeyOS

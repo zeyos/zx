@@ -36,7 +36,11 @@ its "Out of scope" section is binding. Do not modify files outside the spec's fi
   (`--zx-color-*`, `--zx-control-*`, `--zx-focus-ring`, `--zx-overlay-shadow`, `--zx-space-*`,
   `--zx-radius-*`, `--zx-text-*`, `--zx-dur-*`, `--zx-ease`). Never tier-1 palette tokens
   (`--zx-gray-500` etc.), never raw color literals (`#hex`, `rgb()`, `hsl()`, named colors).
-  `tests/lint-tokens.js` enforces this.
+  `tests/lint-tokens.js` enforces this. One tier-1 name is public API for *applications* though
+  still off limits to components: `--zx-accent-300`…`-700`, the ramp the accent roles resolve
+  through, which is all a theme preset overrides. A new preset keeps the invariant the semantic
+  tier assumes — 600 at 4.5:1 or better on white, 400 the same on the dark page — and
+  `tests/unit/theme-presets.test.js` checks it.
 - Custom elements (WP9 only): `<zx-*>`.
 - Events: lowercase names without `on` prefix (`change`, `open`, `close`, `rowclick`, `sort`).
   Emit via `this.emit(type, detail)` which also dispatches a bubbling, composed
@@ -69,7 +73,9 @@ its "Out of scope" section is binding. Do not modify files outside the spec's fi
   `--zx-focus-ring` token. Wrap all non-essential animation in
   `@media (prefers-reduced-motion: no-preference)`.
 - Both themes and densities must work: verify light/dark (`data-zx-theme`) × cozy/compact
-  (`data-zx-density`) render correctly for every component you touch.
+  (`data-zx-density`) render correctly for every component you touch. `website/theme.html` renders
+  the whole library at once and is the fastest way to check a component against all of them,
+  including the six accent presets (`data-zx-preset`, `styles/tokens/themes.css`).
 - `destroy()` must leave the DOM as found: remove created elements, abort listeners.
   Creating and destroying a component twice on the same target must not throw or leak nodes.
 
@@ -98,8 +104,11 @@ export default {
 
 and is registered in the `COMPONENT_IDS` list in `website/docs.js`. Demos double as documentation:
 show the common options, wire visible event output (e.g. a small log element), keep them
-self-contained. The documentation page shows each demo module's own source in a JavaScript tab, so
-write it as example code a reader can copy.
+self-contained. The documentation page shows each example's own source under it, extracted from the
+function it just ran, so write it as example code a reader can copy. The data an example feeds its
+component belongs in a declaration at the top of the module (`catalogue()`, `COLUMNS`, `makeRows()`)
+rather than inline: the page offers those as tabs beside the snippet, comment included, so the
+shape the component expects is documented by the demo itself.
 
 ## Layout examples
 

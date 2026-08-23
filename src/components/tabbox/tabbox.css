@@ -249,9 +249,19 @@
   text-align: center;
 }
 
-.zx-tabbox__close {
-  margin-inline-start: calc(-1 * var(--zx-space-1));
-  color: var(--zx-color-text-muted);
+/* Chrome comes from the shared .zx-icon-btn ghost utility; only the box is reset here, because
+   a full control-height square would widen every closable tab. The extra .zx-tabbox raises the
+   specificity to match `.zx-scope .zx-icon-btn` in base.css, which sets the size. */
+.zx-tabbox .zx-tabbox__close {
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  margin-inline: calc(-1 * var(--zx-space-1));
+}
+
+/* The tab under the pointer is already filled with bg-hover, so the close control needs a tint
+   that still reads on top of it — in both themes, over any variant's tab background. */
+.zx-tabbox .zx-tabbox__close:hover {
+  background: color-mix(in srgb, var(--zx-color-text) 12%, transparent);
 }
 
 /* ----------------------------------------------------------------------- panels -- */

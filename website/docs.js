@@ -17,6 +17,7 @@
  */
 
 import { icon } from '../src/core/icons.js';
+import { collectDependencies } from './demo-source.js';
 
 /** Component demos, in sidebar order. The id is the `website/demos/<id>.demo.js` basename. */
 const COMPONENT_IDS = [
@@ -41,7 +42,6 @@ const LAYOUT_IDS = [
 
 const DOCS_URL = '../docs/llms.md';
 const API_URL = '../docs/api.json';
-const STORAGE_KEY = 'zx-docs-density';
 const DENSITIES = ['cozy', 'compact'];
 
 /**
@@ -61,6 +61,9 @@ const ENUMERABLE = /^(options?|methods?|events?|propert(y|ies)|getters?|statics?
 
 /** @type {Map<string, string>} Module sources, fetched at most once each. */
 const sourceCache = new Map();
+
+/** Distinguishes one disclosure's tabs from another's, so a tab can label its own panel. */
+let disclosures = 0;
 
 /** @type {Record<string, {options: object[], methods: object[], events: object[]}>} */
 let apiData = {};
@@ -610,8 +613,35 @@ function exampleCard(entry, example) {
   mountExample(example, card, stage);
 
   const code = example.code ?? sourceOf(example.render);
-  if (code) card.append(codeDisclosure(code));
+  if (code) card.append(exampleCode(entry, code));
   return card;
+}
+
+/**
+ * The code under one example: the snippet the browser just ran, plus a tab for each declaration in
+ * the demo module it leans on.
+ *
+ * `items: catalogue()` documents nothing on its own — the shape the component wants is in the
+ * helper, and a reader who cannot see it has to go and read the whole module to find out what a
+ * tree node looks like. The helpers are read out of the module text, which the API card has
+ * already fetched by now, so a card that needs none of them is unchanged and costs nothing.
+ * @param {object} entry
+ * @param {string} code The example's own source.
+ * @returns {HTMLElement}
+ */
+function exampleCode(entry, code) {
+  const disclosure = codeDisclosure(code);
+  if (!entry.source) return disclosure;
+
+  void fetchSource(entry).then((source) => {
+    const dependencies = collectDependencies(source, code);
+    if (!dependencies.length) return;
+    disclosure.setFiles([
+      { name: 'Example', code },
+      ...dependencies.map((dependency) => ({ name: dependency.label, code: dependency.code }))
+    ]);
+  });
+  return disclosure;
 }
 
 /**
@@ -1071,17 +1101,24 @@ function sourcePath(entry) {
  * keeps the running demo on screen while its source is read: the card grows downward instead of
  * swapping its contents.
  *
- * The returned element carries `onOpen` and `setCode`, so a block whose source has to be fetched
- * can be appended immediately and filled in when the reader first opens it.
+ * It holds one file by default and a tab strip as soon as it is given more, so an example can show
+ * the data behind it without the snippet growing a second job. The returned element carries
+ * `onOpen`, `setCode`, and `setFiles`, so a block whose source arrives later can be appended
+ * immediately and filled in when it does.
  * @param {string} code
  * @param {{label?: string, toggle?: string}} [options]
- * @returns {HTMLElement & {onOpen: (fn: () => void | Promise<void>) => void, setCode: (code: string) => void}}
+ * @returns {HTMLElement & {onOpen: (fn: () => void | Promise<void>) => void,
+ *   setCode: (code: string) => void, setFiles: (files: {name: string, code: string}[]) => void}}
  */
 function codeDisclosure(code, options = {}) {
   const { label = '', toggle: toggleLabel = 'Code' } = options;
+  const id = `disclosure-${(disclosures += 1)}`;
   const body = element('div', 'docs-disclosure__body');
   body.hidden = true;
-  let current = code;
+  body.id = `${id}-body`;
+  /** @type {{name: string, code: string}[]} The first is the one the card is really about. */
+  let files = [{ name: label, code }];
+  let active = 0;
   let loaded = false;
   /** @type {(() => void | Promise<void>) | null} */
   let onOpenHandler = null;
@@ -1091,11 +1128,37 @@ function codeDisclosure(code, options = {}) {
     element('span', 'docs-disclosure__label', toggleLabel));
   toggle.type = 'button';
   toggle.setAttribute('aria-expanded', 'false');
+  toggle.setAttribute('aria-controls', body.id);
 
-  const bar = element('div', 'docs-disclosure__bar', undefined, toggle, copyButton(() => current));
+  // What is folded away is otherwise invisible: a reader with no reason to open the code has no
+  // reason to suspect the demo data is in there.
+  const hint = element('span', 'docs-disclosure__hint');
+  const bar = element('div', 'docs-disclosure__bar', undefined,
+    toggle, hint, copyButton(() => files[active].code));
   const wrapper = element('div', 'docs-disclosure', undefined, bar, body);
 
-  const render = () => body.replaceChildren(codeBlock(current, label, { bare: !label }));
+  /** @param {{focus?: boolean}} [options] Whether the newly selected tab should take focus. */
+  const render = ({ focus = false } = {}) => {
+    const file = files[active];
+    const block = codeBlock(file.code, file.name, { bare: files.length > 1 || !file.name });
+    if (files.length < 2) {
+      body.replaceChildren(block);
+      return;
+    }
+    block.id = `${id}-panel`;
+    block.tabIndex = 0;
+    block.setAttribute('role', 'tabpanel');
+    block.setAttribute('aria-labelledby', `${id}-tab-${active}`);
+    body.replaceChildren(codeTabs(id, files, active, select), block);
+    if (focus) body.querySelector('[role="tab"][aria-selected="true"]')?.focus();
+  };
+
+  /** @param {number} index @param {boolean} focus */
+  const select = (index, focus) => {
+    active = index;
+    render({ focus });
+  };
+
   toggle.addEventListener('click', () => {
     const open = body.hidden;
     body.hidden = !open;
@@ -1114,10 +1177,58 @@ function codeDisclosure(code, options = {}) {
     onOpen(fn) { onOpenHandler = fn; },
     /** @param {string} value */
     setCode(value) {
-      current = value;
+      files = [{ name: label, code: value }];
+      active = 0;
+      if (!body.hidden) render();
+    },
+    /** @param {{name: string, code: string}[]} value At least two, or there is nothing to tab. */
+    setFiles(value) {
+      if (value.length < 2) return;
+      files = value;
+      active = 0;
+      hint.textContent = `+ ${value.slice(1).map((file) => file.name).join(', ')}`;
       if (!body.hidden) render();
     }
   });
+}
+
+/**
+ * The tab strip of a disclosure holding more than one file, following the APG tab pattern: the
+ * strip is a single stop in the page's tab order, the arrows move between tabs, and selecting one
+ * labels the panel below it.
+ * @param {string} id Prefix for the ids that tie a tab to its panel.
+ * @param {{name: string, code: string}[]} files
+ * @param {number} active
+ * @param {(index: number, focus: boolean) => void} select
+ * @returns {HTMLElement}
+ */
+function codeTabs(id, files, active, select) {
+  const list = element('div', 'docs-disclosure__tabs');
+  list.setAttribute('role', 'tablist');
+  list.setAttribute('aria-label', 'Files');
+
+  for (const [index, file] of files.entries()) {
+    const tab = element('button', 'docs-disclosure__tab', file.name);
+    tab.type = 'button';
+    tab.id = `${id}-tab-${index}`;
+    tab.tabIndex = index === active ? 0 : -1;
+    tab.setAttribute('role', 'tab');
+    tab.setAttribute('aria-selected', String(index === active));
+    tab.setAttribute('aria-controls', `${id}-panel`);
+    // Enter and Space on a focused tab arrive as a click, and the strip is rebuilt underneath it,
+    // so focus has to be handed to the tab that replaces this one.
+    tab.addEventListener('click', () => select(index, list.contains(document.activeElement)));
+    list.append(tab);
+  }
+
+  list.addEventListener('keydown', (event) => {
+    const last = files.length - 1;
+    const next = { ArrowRight: active + 1, ArrowLeft: active - 1, Home: 0, End: last }[event.key];
+    if (next === undefined) return;
+    event.preventDefault();
+    select(Math.min(last, Math.max(0, next)), true);
+  });
+  return list;
 }
 
 /**
@@ -1310,7 +1421,11 @@ function guidePage(entry) {
 
 /* ---------------------------------------------------------------------- chrome -- */
 
-/** Adds the floating density switcher; theme is owned by the shared site chrome. */
+/**
+ * Adds the floating density switcher. Theme, preset, and density all belong to the shared site
+ * chrome — this only offers density a control, and hands the change to `window.zxTheme` so the
+ * theme studio and this switcher can never end up disagreeing about the same stored value.
+ */
 function buildDensitySwitcher() {
   const label = element('span', 'docs-switcher__label', 'Density');
   const select = element('select', 'docs-switcher__select');
@@ -1322,21 +1437,12 @@ function buildDensitySwitcher() {
     select.append(option);
   }
 
-  let saved = DENSITIES[0];
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (DENSITIES.includes(stored)) saved = stored;
-  } catch { /* storage unavailable */ }
-
-  const apply = (value) => {
-    document.documentElement.dataset.zxDensity = value;
-    try { localStorage.setItem(STORAGE_KEY, value); } catch { /* current page only */ }
-  };
+  const stored = window.zxTheme?.get().density;
+  const saved = DENSITIES.includes(stored) ? stored : DENSITIES[0];
 
   select.value = saved;
-  apply(saved);
   select.addEventListener('change', () => {
-    apply(select.value);
+    window.zxTheme?.set({ density: select.value });
     // Re-mount so components that read density at build time pick up the new metrics.
     const key = activeKey;
     activeKey = null;

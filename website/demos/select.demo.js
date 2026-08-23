@@ -99,6 +99,34 @@ export default {
       }
     },
     {
+      title: 'Fixed choices above a search',
+      blurb: 'fixedItems pins choices to the top of the list, above a rule. They are part of the '
+        + 'control rather than of its data: a filter function replaces the item list on every '
+        + 'query, and the pinned choices are narrowed locally instead — so they stay selectable, '
+        + 'and a form that loads one back still resolves it.',
+      width: '360px',
+      render: ({ cleanup, log }) => {
+        const select = new Select(null, {
+          fixedItems: [
+            { ID: 'none', name: 'Unassigned' },
+            { ID: 'me', name: 'Assign to me' }
+          ],
+          items: [
+            { ID: 1, name: 'Ava Stone' },
+            { ID: 2, name: 'Ben Keller' },
+            { ID: 3, name: 'Cara Müller' },
+            { ID: 4, name: 'Dan Novak' }
+          ],
+          filter: 'local',
+          value: 'me',
+          placeholder: 'Search people'
+        });
+        select.on('change', ({ detail }) => log(`change value=${JSON.stringify(detail.value)}`));
+        cleanup(() => select.destroy());
+        return select.toElement();
+      }
+    },
+    {
       title: 'Custom option rendering',
       blurb: 'renderItem draws the row inside the listbox and renderValue the text left in the '
         + 'input once something is chosen. The two are separate because a rich row rarely reads '
@@ -165,6 +193,34 @@ export default {
           }
         });
         select.refs.input.setAttribute('aria-label', 'Priority preset');
+        cleanup(() => select.destroy());
+        return select.toElement();
+      }
+    },
+    {
+      title: 'The permission preset',
+      blurb: 'Select.permission() is the record-access control: Private and Public pinned above '
+        + 'the groups a record may be shared with, carrying the tri-state the ZeyOS API stores — '
+        + 'false, true, or a group ID — so it binds straight to the record field. groups takes an '
+        + 'array, or a function to query them as the reader types, as here.',
+      width: '360px',
+      render: ({ cleanup, log }) => {
+        const groups = [
+          { ID: 101, name: 'Executive team' },
+          { ID: 102, name: 'Finance' },
+          { ID: 103, name: 'Project Phoenix' },
+          { ID: 104, name: 'Vienna office' }
+        ];
+        const select = Select.permission(null, {
+          value: false,
+          debounce: 40,
+          groups: async (query) => {
+            await new Promise((resolve) => setTimeout(resolve, 120));
+            return matchItems(groups, query, ['name']);
+          },
+          onchange: ({ detail }) => log(`change value=${JSON.stringify(detail.value)}`)
+        });
+        select.refs.input.setAttribute('aria-label', 'Record permission');
         cleanup(() => select.destroy());
         return select.toElement();
       }
