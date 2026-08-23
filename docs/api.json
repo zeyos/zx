@@ -3248,6 +3248,12 @@
         "description": "Available values."
       },
       {
+        "name": "fixedItems",
+        "type": "SelectItem[]",
+        "default": "[]",
+        "description": "Choices pinned above the list, kept through filtering and async loads."
+      },
+      {
         "name": "valueKey",
         "type": "SelectValueReader",
         "default": "'ID'",
@@ -3373,6 +3379,12 @@
         "description": "Replaces the available items and preserves selection by ID when possible."
       },
       {
+        "name": "setFixedItems",
+        "signature": "setFixedItems(items)",
+        "returns": "this",
+        "description": "Replaces the pinned choices and preserves selection by ID when possible."
+      },
+      {
         "name": "reset",
         "signature": "reset([options])",
         "returns": "this",
@@ -3401,6 +3413,12 @@
         "signature": "focus()",
         "returns": null,
         "description": "Moves focus to the combobox input. @returns {this}"
+      },
+      {
+        "name": "permission",
+        "signature": "permission(target, [options])",
+        "returns": "Select",
+        "description": "Creates the record-permission picker: the fixed Private and Public choices above the groups a record can be shared with. The value is the tri-state ZeyOS stores — `false` for private, `true` for public, or a group ID — so the control binds straight to the record field."
       },
       {
         "name": "destroy",

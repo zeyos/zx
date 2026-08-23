@@ -3,14 +3,18 @@ import { Permission } from '../../src/index.js';
 export default {
   title: 'Permission',
   group: 'Forms',
-  blurb: 'The ZeyOS record-access control: public, private, or shared with exactly one group.',
+  blurb: 'Deprecated. The ZeyOS record-access control — public, private, or shared with exactly '
+    + 'one group — as three radios and a group picker. Select.permission() carries the same value '
+    + 'in one control and can query the groups remotely; this class stays for gx.zeyos.Permission '
+    + 'and goes away in 3.0.',
 
   examples: [
     {
       title: 'Record access',
       blurb: 'The value is a tri-state: true for public, false for private, or a group ID. That '
         + 'is the shape the ZeyOS API expects, so the control can be bound straight to a record '
-        + 'field without translation.',
+        + 'field without translation. Select.permission() takes the same value and the same '
+        + 'groups, so replacing this control is a one-line change.',
       width: '420px',
       render: ({ cleanup, log }) => {
         const permission = new Permission(null, {

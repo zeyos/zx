@@ -137,6 +137,12 @@
   text-transform: uppercase;
 }
 
+.zx-select__separator {
+  block-size: 1px;
+  margin: var(--zx-space-1) var(--zx-control-pad-x);
+  background: var(--zx-color-border);
+}
+
 .zx-select__empty {
   color: var(--zx-color-text-muted);
   padding: var(--zx-space-3) var(--zx-control-pad-x);

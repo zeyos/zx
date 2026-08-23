@@ -13,6 +13,7 @@ import { matchItems } from './filter.js';
 /**
  * @typedef {Object} SelectOptions
  * @property {SelectItem[]} [items=[]] Available values.
+ * @property {SelectItem[]} [fixedItems=[]] Choices pinned above the list, kept through filtering and async loads.
  * @property {SelectValueReader} [valueKey='ID'] Item ID property or reader.
  * @property {SelectLabelReader} [labelKey='name'] Item label property or reader.
  * @property {((item: SelectItem) => Node|string)|null} [renderItem=null] Option renderer.
@@ -65,6 +66,7 @@ export class Select extends Component {
   /** @type {SelectOptions} */
   static defaults = {
     items: [],
+    fixedItems: [],
     valueKey: 'ID',
     labelKey: 'name',
     renderItem: null,
@@ -86,7 +88,7 @@ export class Select extends Component {
   render() {
     // Instance state initialized here because render() runs inside the base
     // constructor, before class-field initializers would run (and clobber it).
-    this._items = []; this._visibleItems = []; this._selected = null; this._optionEntries = []; this._activeIndex = -1; this._open = false; this._disabled = false; this._loading = false; this._requestSequence = 0; this._queryTimer = null; this._position = null; this._createdRoot = false; this._root = null; this._originalChildren = []; this._originalAttributes = new Map();
+    this._items = []; this._visibleItems = []; this._fixedItems = []; this._visibleFixed = []; this._selected = null; this._optionEntries = []; this._activeIndex = -1; this._open = false; this._disabled = false; this._loading = false; this._requestSequence = 0; this._queryTimer = null; this._position = null; this._createdRoot = false; this._root = null; this._originalChildren = []; this._originalAttributes = new Map();
     this._createdRoot = this.el === null;
     const root = /** @type {HTMLElement} */ (this.el ?? h('div'));
     this.el = root;
@@ -151,6 +153,8 @@ export class Select extends Component {
 
     this._items = Array.isArray(this.options.items) ? this.options.items.slice() : [];
     this._visibleItems = this._items.slice();
+    this._fixedItems = Array.isArray(this.options.fixedItems) ? this.options.fixedItems.slice() : [];
+    this._visibleFixed = this._fixedItems.slice();
     this._disabled = Boolean(this.options.disabled);
     this._handleTypeahead = typeahead(
       () => this._optionEntries.filter((entry) => !entry.clear).map((entry) => entry.element),
@@ -228,8 +232,23 @@ export class Select extends Component {
     const selectedValue = this.value;
     this._items = Array.isArray(items) ? items.slice() : [];
     this._visibleItems = this._items.slice();
-    this._selected = selectedValue == null ? null :
-      this._items.find((item) => Object.is(this._itemValue(item), selectedValue)) ?? null;
+    this._selected = selectedValue == null ? null : this._findItem(selectedValue);
+    this._syncInputValue();
+    this._renderOptions();
+    this._position?.update();
+    return this;
+  }
+
+  /**
+   * Replaces the pinned choices and preserves selection by ID when possible.
+   * @param {SelectItem[]} items New fixed items.
+   * @returns {this}
+   */
+  setFixedItems(items) {
+    const selectedValue = this.value;
+    this._fixedItems = Array.isArray(items) ? items.slice() : [];
+    this._visibleFixed = this._fixedItems.slice();
+    this._selected = selectedValue == null ? null : this._findItem(selectedValue);
     this._syncInputValue();
     this._renderOptions();
     this._position?.update();
@@ -283,6 +302,7 @@ export class Select extends Component {
     this.refs.input.removeAttribute('aria-activedescendant');
     this._activeIndex = -1;
     this._visibleItems = this._items.slice();
+    this._visibleFixed = this._fixedItems.slice();
     this._syncInputValue();
     this.emit('close', {});
     return this;
@@ -338,6 +358,40 @@ export class Select extends Component {
       level
     })));
     select.set(requestedValue, { silent: true });
+    return select;
+  }
+
+  /**
+   * Creates the record-permission picker: the fixed Private and Public choices above the groups a
+   * record can be shared with. The value is the tri-state ZeyOS stores — `false` for private,
+   * `true` for public, or a group ID — so the control binds straight to the record field.
+   *
+   * @param {Element|string|null} target Component target.
+   * @param {SelectOptions & {groups?: SelectItem[]|((query: string) => Promise<SelectItem[]>|SelectItem[])}} [options={}]
+   *   Select overrides other than the fixed choices; `groups` holds the shareable groups, either as
+   *   an array (filtered locally) or as a loader function (queried remotely).
+   * @returns {Select}
+   */
+  static permission(target, options = {}) {
+    const { groups = [], value = true, valueKey = 'ID', labelKey = 'name', ...rest } = options;
+    const loader = typeof groups === 'function' ? groups : null;
+    const shareable = loader ? [] : groups;
+    const choices = [{ ID: false, name: 'Private' }, { ID: true, name: 'Public' }];
+    const select = new Select(target, {
+      filter: loader ?? 'local',
+      ...rest,
+      value: null,
+      items: shareable,
+      fixedItems: [],
+      // The two choices carry their own ID and label, so a caller's group readers stay untouched.
+      valueKey: (item) => choices.includes(item) ? item.ID : readItem(item, valueKey),
+      labelKey: (item) => choices.includes(item) ?
+        item.name : String(readItem(item, labelKey) ?? '')
+    });
+    choices[0].name = select._message('permission.private', 'Private');
+    choices[1].name = select._message('permission.public', 'Public');
+    select.setFixedItems(choices);
+    select.set(value, { silent: true });
     return select;
   }
 
@@ -407,8 +461,8 @@ export class Select extends Component {
     const query = /** @type {HTMLInputElement} */ (this.refs.input).value;
     if (!this._open) this.open();
     if (this.options.filter === 'local') {
-      const keys = this.options.searchKeys ?? [this.options.labelKey];
-      this._visibleItems = matchItems(this._items, query, keys);
+      this._visibleFixed = this._matchFixed(query);
+      this._visibleItems = matchItems(this._items, query, this._searchKeys());
       this._renderOptions();
       this._setActive(this._optionEntries.length > 0 ? 0 : -1);
       this._position?.update();
@@ -466,6 +520,11 @@ export class Select extends Component {
     if (this.options.clearable) {
       this._appendOption(null, true, this.options.placeholder || this._message('select.none', 'No selection'));
     }
+    for (const item of this._visibleFixed) this._appendOption(item, false);
+    // A group heading already divides the two sections, and a rule right above one reads as a slip.
+    if (this._visibleFixed.length > 0 && this._visibleItems.length > 0 && !this.options.groupKey) {
+      list.append(h('div', { class: 'zx-select__separator', role: 'presentation' }));
+    }
     for (const item of this._visibleItems) {
       if (this.options.groupKey) {
         const group = this._read(item, this.options.groupKey);
@@ -479,7 +538,7 @@ export class Select extends Component {
       }
       this._appendOption(item, false);
     }
-    if (this._visibleItems.length === 0 && !this._loading) {
+    if (this._visibleItems.length === 0 && this._visibleFixed.length === 0 && !this._loading) {
       list.append(h('div', {
         class: 'zx-select__empty',
         role: 'status'
@@ -521,6 +580,7 @@ export class Select extends Component {
     if (this._queryTimer !== null) clearTimeout(this._queryTimer);
     this._requestSequence += 1;
     const sequence = this._requestSequence;
+    this._visibleFixed = this._matchFixed(query);
     if (query.length < Math.max(0, Number(this.options.minQuery) || 0)) {
       this._setLoading(false);
       this._visibleItems = [];
@@ -601,11 +661,14 @@ export class Select extends Component {
 
   /** @param {unknown} candidate @returns {SelectItem|null} */
   _findItem(candidate) {
-    const direct = this._items.find((item) => item === candidate);
+    // Fixed choices are searched too: an async filter replaces the item list on every query, so a
+    // pinned value would otherwise stop resolving the moment the first result arrived.
+    const pool = this._fixedItems.length === 0 ? this._items : [...this._fixedItems, ...this._items];
+    const direct = pool.find((item) => item === candidate);
     if (direct !== undefined) return direct;
     const value = candidate !== null && typeof candidate === 'object' ?
       this._itemValue(/** @type {SelectItem} */ (candidate)) : candidate;
-    return this._items.find((item) => Object.is(this._itemValue(item), value)) ?? null;
+    return pool.find((item) => Object.is(this._itemValue(item), value)) ?? null;
   }
 
   /** @param {SelectItem|null} item @returns {unknown} */
@@ -621,9 +684,22 @@ export class Select extends Component {
 
   /** @param {SelectItem|null} item @param {SelectValueReader|SelectLabelReader} reader @returns {unknown} */
   _read(item, reader) {
-    if (typeof reader === 'function') return reader(item);
-    if (item === null || typeof item !== 'object') return item;
-    return item[reader];
+    return readItem(item, reader);
+  }
+
+  /** @returns {Array<SelectValueReader|SelectLabelReader>} */
+  _searchKeys() {
+    return this.options.searchKeys ?? [this.options.labelKey];
+  }
+
+  /**
+   * Narrows the pinned choices. They are always matched here and never handed to a filter
+   * function: a fixed choice belongs to the control, not to whatever the remote source returns.
+   * @param {string} query Search text.
+   * @returns {SelectItem[]}
+   */
+  _matchFixed(query) {
+    return matchItems(this._fixedItems, query, this._searchKeys());
   }
 
   /** @returns {number} */
@@ -656,6 +732,18 @@ export class Select extends Component {
 /** Panel-close notification. @event Select#close @type {CustomEvent<Record<string, never>>} */
 /** Async-query start notification. @event Select#query @type {CustomEvent<SelectQueryDetail>} */
 /** Async results notification. @event Select#loaded @type {CustomEvent<SelectLoadedDetail>} */
+
+/**
+ * Reads a value off an item through a property name or a reader function.
+ * @param {SelectItem|null} item Item to read.
+ * @param {SelectValueReader|SelectLabelReader} reader Property name or reader.
+ * @returns {unknown}
+ */
+function readItem(item, reader) {
+  if (typeof reader === 'function') return reader(item);
+  if (item === null || typeof item !== 'object') return item;
+  return item[reader];
+}
 
 /** @param {KeyboardEvent} event @returns {boolean} */
 function isPrintable(event) {
