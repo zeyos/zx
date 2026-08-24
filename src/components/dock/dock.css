@@ -1,0 +1,228 @@
+/*
+ * One flex line, one custom property per pane. A sized pane is `flex: 0 0 var(--zx-pane-size)`, a
+ * collapsed one falls back to `auto` and hides its body so it measures exactly its header, and one
+ * element carries `data-grow` to absorb the slack. That is what keeps a drag local: it rewrites at
+ * most two properties and nothing else in the stack moves.
+ *
+ * The root has no size of its own — give it one (a grid area, `block-size: 100%`, a flex child)
+ * when the panes should fill a shell rather than grow with their content.
+ */
+.zx-dock {
+  --zx-dock-divider-size: var(--zx-space-2);
+  --zx-dock-divider-line: 1px;
+  display: flex;
+  min-inline-size: 0;
+  min-block-size: 0;
+  background: var(--zx-color-bg-surface);
+  color: var(--zx-color-text);
+}
+
+.zx-dock[data-orientation="vertical"] { flex-direction: column; }
+.zx-dock[data-orientation="horizontal"] { flex-direction: row; }
+
+.zx-dock[data-dragging="true"] {
+  user-select: none;
+  cursor: inherit;
+}
+
+.zx-dock__pane {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 var(--zx-pane-size, auto);
+  min-inline-size: 0;
+  min-block-size: 0;
+  overflow: hidden;
+}
+
+.zx-dock__pane[data-grow="true"],
+.zx-dock__content {
+  flex: 1 1 0;
+  min-inline-size: 0;
+  min-block-size: 0;
+}
+
+.zx-dock__content { overflow: auto; }
+
+/* A collapsed pane keeps its header and nothing else, so the stack measures it exactly. */
+.zx-dock__pane[data-state="collapsed"] { flex: 0 0 auto; }
+.zx-dock__pane[data-state="collapsed"] > .zx-dock__body { display: none; }
+
+.zx-dock__header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-1);
+  padding-inline: var(--zx-space-2);
+  min-block-size: var(--zx-control-height);
+  border-block-end: 1px solid var(--zx-color-border);
+  background: var(--zx-color-bg-muted);
+}
+
+.zx-dock__pane[data-state="collapsed"] > .zx-dock__header { border-block-end-color: transparent; }
+
+.zx-dock__toggle {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  /* Clears the control chrome `styles/base.css` puts on every bare button. */
+  min-block-size: 0;
+  border: 0;
+  border-radius: var(--zx-radius-sm);
+  padding: var(--zx-space-1);
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: var(--zx-text-sm);
+  font-weight: var(--zx-control-font-weight);
+  cursor: pointer;
+}
+
+.zx-dock__toggle:hover:not(:disabled) { background: var(--zx-color-bg-hover); }
+.zx-dock__toggle:disabled { cursor: default; }
+.zx-dock__toggle:disabled .zx-dock__chevron { visibility: hidden; }
+
+.zx-dock__toggle:focus-visible {
+  outline: none;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.zx-dock__chevron {
+  display: inline-flex;
+  color: var(--zx-color-text-muted);
+  transition: rotate var(--zx-dur-fast) var(--zx-ease);
+}
+
+.zx-dock__pane[data-state="open"] > .zx-dock__header .zx-dock__chevron { rotate: 90deg; }
+
+@media (prefers-reduced-motion: reduce) {
+  .zx-dock__chevron { transition: none; }
+}
+
+.zx-dock__title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* A tab group puts its strip where the title would be, which is what makes it read as one pane. */
+.zx-dock__tabs {
+  display: flex;
+  align-items: stretch;
+  gap: var(--zx-space-1);
+  min-inline-size: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.zx-dock__tabs::-webkit-scrollbar { display: none; }
+
+.zx-dock__tab {
+  flex: none;
+  /* Same reason as the toggle: the base control box does not apply to a tab. */
+  min-block-size: 0;
+  border: 0;
+  border-radius: var(--zx-radius-sm);
+  padding: var(--zx-space-1) var(--zx-space-2);
+  background: none;
+  color: var(--zx-color-text-muted);
+  font: inherit;
+  font-size: var(--zx-text-sm);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.zx-dock__tab:hover { color: var(--zx-color-text); }
+
+.zx-dock__tab[aria-selected="true"] {
+  background: var(--zx-color-bg-surface);
+  color: var(--zx-color-text);
+  font-weight: var(--zx-control-font-weight);
+}
+
+.zx-dock__tab:focus-visible {
+  outline: none;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.zx-dock__body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-block-size: 0;
+  min-inline-size: 0;
+  overflow: auto;
+}
+
+.zx-dock__pane-content,
+.zx-dock__panel {
+  flex: 1 1 auto;
+  min-block-size: 0;
+  padding: var(--zx-space-3);
+}
+
+/*
+ * A dock nested as a pane's whole content fills it. Without this the inner dock would size to its
+ * own content and its growing pane would collapse to nothing — and dock-in-dock is exactly how a
+ * workbench is built, so it should not need a rule in the application.
+ */
+.zx-dock__pane-content > .zx-dock:only-child,
+.zx-dock__panel > .zx-dock:only-child {
+  block-size: 100%;
+}
+
+.zx-dock__panel:focus-visible {
+  outline: none;
+  box-shadow: inset var(--zx-focus-ring);
+}
+
+/*
+ * The hit area is thicker than the line it draws, so the divider is grabbable without a visible
+ * gutter — the same trade SplitView makes.
+ */
+.zx-dock__divider {
+  position: relative;
+  flex: none;
+  background: none;
+}
+
+.zx-dock[data-orientation="vertical"] > .zx-dock__divider {
+  block-size: var(--zx-dock-divider-size);
+  margin-block: calc(var(--zx-dock-divider-size) / -2);
+  cursor: row-resize;
+}
+
+.zx-dock[data-orientation="horizontal"] > .zx-dock__divider {
+  inline-size: var(--zx-dock-divider-size);
+  margin-inline: calc(var(--zx-dock-divider-size) / -2);
+  cursor: col-resize;
+}
+
+.zx-dock__divider[data-disabled] { cursor: default; }
+
+.zx-dock__divider::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  background: var(--zx-color-border);
+}
+
+.zx-dock[data-orientation="vertical"] > .zx-dock__divider::after {
+  block-size: var(--zx-dock-divider-line);
+}
+
+.zx-dock[data-orientation="horizontal"] > .zx-dock__divider::after {
+  inline-size: var(--zx-dock-divider-line);
+}
+
+.zx-dock__divider:not([data-disabled]):hover::after,
+.zx-dock[data-dragging="true"] .zx-dock__divider:focus::after {
+  background: var(--zx-color-accent);
+}
+
+.zx-dock__divider:focus-visible {
+  outline: none;
+  z-index: 1;
+  box-shadow: var(--zx-focus-ring);
+}

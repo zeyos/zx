@@ -1,5 +1,5 @@
 import {
-  Form, Groupbox, Message, NavigationBar, Panel, Permission, Toggle, button, h
+  Form, Groupbox, Message, NavigationBar, Panel, Select, Toggle, button, h
 } from '../../src/index.js';
 
 const GROUPS = [
@@ -31,7 +31,7 @@ export default {
     + 'of grouped controls with its own save action.',
 
   /**
-   * Mounts a settings screen driven by NavigationBar, Groupbox, Form, Toggle, and Permission.
+   * Mounts a settings screen driven by NavigationBar, Groupbox, Form, Toggle, and Select.permission().
    * @param {HTMLElement} container Documentation stage.
    * @returns {void}
    */
@@ -167,13 +167,13 @@ export default {
 
     /** @returns {Node[]} */
     function sharingSection() {
-      const permission = new Permission(null, {
+      const permission = Select.permission(null, {
         value: 13,
         groups: GROUPS,
         onchange: (event) => {
           const value = event.detail.value;
-          const label = value === 'private' ? 'Private'
-            : value === 'public' ? 'Everyone'
+          const label = value === false ? 'Private'
+            : value === true ? 'Everyone'
               : GROUPS.find((group) => group.ID === value)?.name;
           note.textContent = `New records default to: ${label}.`;
         }

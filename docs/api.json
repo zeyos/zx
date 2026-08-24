@@ -1264,6 +1264,195 @@
       }
     ]
   },
+  "Dock": {
+    "options": [
+      {
+        "name": "orientation",
+        "type": "'vertical'|'horizontal'",
+        "default": "'vertical'",
+        "description": "Axis the panes stack along. `vertical` stacks them top to bottom behind horizontal dividers."
+      },
+      {
+        "name": "content",
+        "type": "DockContent",
+        "default": "null",
+        "description": "Optional flexible middle. With it the dock is a region and panes sit on either `side` of it; without it the panes fill the dock."
+      },
+      {
+        "name": "panes",
+        "type": "DockPane[]",
+        "default": "[]",
+        "description": "Panes, in order."
+      },
+      {
+        "name": "resizable",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether dividers may be dragged."
+      },
+      {
+        "name": "collapsible",
+        "type": "boolean",
+        "default": "true",
+        "description": "Default for `pane.collapsible`."
+      },
+      {
+        "name": "lazy",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether content factories run on first reveal rather than up front."
+      },
+      {
+        "name": "storageKey",
+        "type": "string|null",
+        "default": "null",
+        "description": "Key under which sizes, collapsed panes, and active tabs are remembered. Storage failures degrade to memory rather than throwing."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "default": "'Resize panes'",
+        "description": "Accessible name given to every divider."
+      }
+    ],
+    "events": [
+      {
+        "name": "collapse",
+        "payload": "{name: string}",
+        "description": "Collapse listener."
+      },
+      {
+        "name": "expand",
+        "payload": "{name: string}",
+        "description": "Expand listener."
+      },
+      {
+        "name": "resize",
+        "payload": "{name: string, size: number}",
+        "description": "Resize listener."
+      },
+      {
+        "name": "tabchange",
+        "payload": "{pane: string, tab: string, previous: string|null}",
+        "description": "Tab listener."
+      },
+      {
+        "name": "reveal",
+        "payload": "{name: string}",
+        "description": "Reveal listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "pane",
+        "signature": "pane(name)",
+        "returns": "Record<string, any>|null",
+        "description": "Returns a pane's record."
+      },
+      {
+        "name": "names",
+        "signature": "names()",
+        "returns": "string[]",
+        "description": "Lists pane names in visual order."
+      },
+      {
+        "name": "add",
+        "signature": "add(definition, [options])",
+        "returns": "Record<string, any>",
+        "description": "Adds a pane."
+      },
+      {
+        "name": "remove",
+        "signature": "remove(name)",
+        "returns": "this",
+        "description": "Removes a pane and its element."
+      },
+      {
+        "name": "collapse",
+        "signature": "collapse(name)",
+        "returns": "this",
+        "description": "Collapses a pane to its header."
+      },
+      {
+        "name": "expand",
+        "signature": "expand(name)",
+        "returns": "this",
+        "description": "Expands a pane."
+      },
+      {
+        "name": "toggle",
+        "signature": "toggle(name)",
+        "returns": "this",
+        "description": "Toggles a pane's collapsed state."
+      },
+      {
+        "name": "isCollapsed",
+        "signature": "isCollapsed(name)",
+        "returns": "boolean",
+        "description": "Reports whether a pane is collapsed."
+      },
+      {
+        "name": "reveal",
+        "signature": "reveal(name)",
+        "returns": "this",
+        "description": "Brings something into view by name — a pane, or a tab in one of them. Expands the pane, activates the tab where the name is a tab's, and scrolls the pane into view."
+      },
+      {
+        "name": "setSize",
+        "signature": "setSize(name, size)",
+        "returns": "this",
+        "description": "Sets a pane's size along the dock's axis."
+      },
+      {
+        "name": "getSize",
+        "signature": "getSize(name)",
+        "returns": "number",
+        "description": "Returns a pane's current size in pixels."
+      },
+      {
+        "name": "activate",
+        "signature": "activate(paneName, tabName)",
+        "returns": "this",
+        "description": "Activates a tab inside a tab-group pane."
+      },
+      {
+        "name": "getActive",
+        "signature": "getActive(paneName)",
+        "returns": "string|null",
+        "description": "Returns the active tab name of a tab-group pane."
+      },
+      {
+        "name": "state",
+        "signature": "state()",
+        "returns": "DockState",
+        "description": "Captures the layout as a serialisable object."
+      },
+      {
+        "name": "setState",
+        "signature": "setState(state)",
+        "returns": "this",
+        "description": "Restores a layout captured by `state()`. Unknown pane names are ignored, so a stored layout survives a release that added or removed panes."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Removes created nodes and restores an enhanced target."
+      },
+      {
+        "name": "adopt",
+        "signature": "adopt(sheet, [options])",
+        "returns": "Record<string, any>",
+        "description": "Hands a Sheet's positioning to this dock. The sheet becomes a track in the dock's flow: the dock owns its side, size, and resizing, while the sheet keeps its own content and lifecycle. Nothing about the sheet is rebuilt — adoption moves the element and reopens it in place, so listeners and DOM state survive the handoff."
+      },
+      {
+        "name": "release",
+        "signature": "release(sheet)",
+        "returns": "this",
+        "description": "Hands a sheet back. It becomes a free overlay again, still open if it was open."
+      }
+    ]
+  },
   "Dropdown": {
     "options": [
       {
@@ -2437,6 +2626,12 @@
     ],
     "methods": [
       {
+        "name": "mountTarget",
+        "signature": "mountTarget()",
+        "returns": "Element",
+        "description": "Element the owned dialog is appended to. Overridden by subclasses that live inside a host rather than at the document level. Called from `render()`, which the base constructor runs before any subclass field initializers, so an override may read `this.options` but must not touch instance state."
+      },
+      {
         "name": "open",
         "signature": "open()",
         "returns": "this",
@@ -3054,67 +3249,6 @@
       }
     ]
   },
-  "Permission": {
-    "options": [
-      {
-        "name": "value",
-        "type": "boolean|string|number|symbol|bigint|null",
-        "default": "true",
-        "description": "Public, private, or group ID."
-      },
-      {
-        "name": "groups",
-        "type": "PermissionGroup[]",
-        "default": "[]",
-        "description": "Available groups."
-      },
-      {
-        "name": "groupsValueKey",
-        "type": "string|((item: PermissionGroup) => unknown)",
-        "default": "'ID'",
-        "description": "Group ID property or reader."
-      },
-      {
-        "name": "groupsLabelKey",
-        "type": "string|((item: PermissionGroup) => string)",
-        "default": "'name'",
-        "description": "Group label property or reader."
-      },
-      {
-        "name": "msg",
-        "type": "Record<string, string>|Record<string, Record<string, string>>",
-        "default": null,
-        "description": "Localized messages."
-      }
-    ],
-    "events": [
-      {
-        "name": "change",
-        "payload": "{value}",
-        "description": "Change listener."
-      }
-    ],
-    "methods": [
-      {
-        "name": "get",
-        "signature": "get()",
-        "returns": null,
-        "description": "Returns the normalized permission value. @returns {'private'|'public'|unknown}"
-      },
-      {
-        "name": "set",
-        "signature": "set(value, [options])",
-        "returns": "this",
-        "description": "Sets a public, private, or group permission."
-      },
-      {
-        "name": "destroy",
-        "signature": "destroy()",
-        "returns": null,
-        "description": "Destroys the embedded Select and restores an enhanced target. @returns {void}"
-      }
-    ]
-  },
   "ProgressBar": {
     "options": [
       {
@@ -3244,6 +3378,206 @@
         "signature": "destroy()",
         "returns": null,
         "description": "Restores an enhanced target to the markup it had before the takeover. @returns {void}"
+      }
+    ]
+  },
+  "Questionnaire": {
+    "options": [
+      {
+        "name": "items",
+        "type": "QuestionnaireItem[]",
+        "default": "[]",
+        "description": "Ordered question definitions."
+      },
+      {
+        "name": "answers",
+        "type": "Record<string, unknown>",
+        "default": "{}",
+        "description": "Answers to start from. Together with `active` this is the resume pair: hand back what a previous session collected."
+      },
+      {
+        "name": "active",
+        "type": "string|null",
+        "default": "null",
+        "description": "Item to open, defaulting to the first visible one."
+      },
+      {
+        "name": "progress",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether the progress bar and counter are shown."
+      },
+      {
+        "name": "review",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether a summary of every answer is shown before submitting."
+      },
+      {
+        "name": "advance",
+        "type": "QuestionnaireAdvance",
+        "default": "'manual'",
+        "description": "`auto` moves on by itself once a single-choice question is answered."
+      },
+      {
+        "name": "shortcuts",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether `1`–`9` and `a`–`z` pick an answer."
+      },
+      {
+        "name": "allowBack",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether the Back action is offered."
+      },
+      {
+        "name": "msg",
+        "type": "Record<string, string>|Record<string, Record<string, string>>",
+        "default": null,
+        "description": "Localized messages."
+      }
+    ],
+    "events": [
+      {
+        "name": "change",
+        "payload": "{name, value, answers}",
+        "description": "Answer listener."
+      },
+      {
+        "name": "navigate",
+        "payload": "{from, to, reason}",
+        "description": "Navigation listener."
+      },
+      {
+        "name": "skip",
+        "payload": "{name}",
+        "description": "Skip listener."
+      },
+      {
+        "name": "invalid",
+        "payload": "{name, message}",
+        "description": "Validation listener."
+      },
+      {
+        "name": "submit",
+        "payload": "{answers, unknown>, path}",
+        "description": "Submit listener."
+      },
+      {
+        "name": "complete",
+        "payload": "{answers, unknown>, path}",
+        "description": "Completion listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "setItems",
+        "signature": "setItems(list)",
+        "returns": "this",
+        "description": "Replaces the whole item list. Answers survive for items that are still present, and so does the active item; when it is gone the first visible item takes over. This is a structural change, so it never emits `navigate`."
+      },
+      {
+        "name": "getItems",
+        "signature": "getItems()",
+        "returns": "NormalizedItem[]",
+        "description": "Returns the normalized items, including ones currently conditioned out."
+      },
+      {
+        "name": "goTo",
+        "signature": "goTo(name)",
+        "returns": "boolean",
+        "description": "Opens an item without validating the one being left — what the review screen's Edit action does. An item already on the path truncates it, so Back keeps working; a new one is appended."
+      },
+      {
+        "name": "next",
+        "signature": "next()",
+        "returns": "Promise<boolean>",
+        "description": "Validates the active item and moves on: to the branch target, then the review screen, then submission. Returns a promise because an item's `validate` may be asynchronous."
+      },
+      {
+        "name": "previous",
+        "signature": "previous()",
+        "returns": "boolean",
+        "description": "Steps back along the path actually walked — which is not `index - 1` once a branch has been taken. From the review screen it reopens the last question."
+      },
+      {
+        "name": "skip",
+        "signature": "skip()",
+        "returns": "Promise<boolean>",
+        "description": "Clears the active item's answer and moves on without validating it. Skipping the last question submits, so this is a promise for the same reason `submit()` is."
+      },
+      {
+        "name": "submit",
+        "signature": "submit()",
+        "returns": "Promise<boolean>",
+        "description": "Validates the active item (unless already on the review screen) and submits."
+      },
+      {
+        "name": "getAnswers",
+        "signature": "getAnswers()",
+        "returns": "Record<string, unknown>",
+        "description": "Returns the answers of every visible question that carries one, in declaration order. Questions conditioned out are left out, so an abandoned branch never submits stale data."
+      },
+      {
+        "name": "getAnswer",
+        "signature": "getAnswer(name)",
+        "returns": "unknown",
+        "description": "Returns one answer, whether or not its question is currently visible."
+      },
+      {
+        "name": "setAnswers",
+        "signature": "setAnswers(values, [options])",
+        "returns": "this",
+        "description": "Sets several answers at once."
+      },
+      {
+        "name": "setAnswer",
+        "signature": "setAnswer(name, value, [options])",
+        "returns": "this",
+        "description": "Sets one answer. A value matching a choice selects it; anything else lands in the freeform input when the item has one."
+      },
+      {
+        "name": "getActive",
+        "signature": "getActive()",
+        "returns": "string|null",
+        "description": "Returns the active item name, or null on the review or completion screen."
+      },
+      {
+        "name": "getPath",
+        "signature": "getPath()",
+        "returns": "string[]",
+        "description": "Returns the item names visited so far, active last. This is the questionnaire's memory of the route through the branches."
+      },
+      {
+        "name": "getProgress",
+        "signature": "getProgress()",
+        "returns": "QuestionnaireProgress",
+        "description": "Returns progress along the path walked. `total` is exact while the flow is static and an estimate once a function `next` can jump somewhere the forward walk cannot predict."
+      },
+      {
+        "name": "getState",
+        "signature": "getState()",
+        "returns": "{active: string|null, status: QuestionnaireStatus, answers: Record<string, unknown>, path: string[], progress: QuestionnaireProgress}",
+        "description": "Returns everything a caller needs to resume this questionnaire later."
+      },
+      {
+        "name": "toFormData",
+        "signature": "toFormData()",
+        "returns": "FormData",
+        "description": "Returns the visible answers as form data, with one entry per value of a multiple-choice item — the same shape `new FormData(questionnaire.toElement())` produces."
+      },
+      {
+        "name": "reset",
+        "signature": "reset()",
+        "returns": "this",
+        "description": "Clears every answer and returns to the first visible question."
+      },
+      {
+        "name": "focus",
+        "signature": "focus()",
+        "returns": "this",
+        "description": "Moves focus to the active question, which is what a screen reader announces after a move."
       }
     ]
   },
@@ -3678,6 +4012,305 @@
         "signature": "destroy()",
         "returns": null,
         "description": "Cleans up the panel, pending async work, and enhanced target contents. @returns {void}"
+      }
+    ]
+  },
+  "Sheet": {
+    "options": [
+      {
+        "name": "side",
+        "type": "SheetSide",
+        "default": "'end'",
+        "description": "Edge the sheet is anchored to. Logical, so `start` and `end` follow the writing direction."
+      },
+      {
+        "name": "modal",
+        "type": "SheetModality",
+        "default": "true",
+        "description": "`true` traps focus, locks page scroll, and blocks pointer interaction behind a backdrop; `'trap-focus'` traps focus only; `false` leaves the page fully interactive. Only `true` renders a backdrop — that is what makes the other two non-modal."
+      },
+      {
+        "name": "backdrop",
+        "type": "SheetBackdrop",
+        "default": "'dim'",
+        "description": "Backdrop treatment, applied only when `modal` is `true`. `'blur'` reads `--zx-overlay-blur`."
+      },
+      {
+        "name": "size",
+        "type": "string|number|null",
+        "default": "null",
+        "description": "Size along the sheet's own axis — width for `start`/`end`, height for `top`/`bottom`. A number is pixels, a string is any CSS length. Null keeps the per-side default."
+      },
+      {
+        "name": "closeButton",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether the header shows its close control. Independent of `closable`, so a sheet can offer Escape without an ✕, or the reverse."
+      },
+      {
+        "name": "resizable",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether the inner edge may be dragged to resize the sheet."
+      },
+      {
+        "name": "min",
+        "type": "number",
+        "default": "160",
+        "description": "Smallest the sheet may be dragged to, in pixels."
+      },
+      {
+        "name": "max",
+        "type": "number|null",
+        "default": "null",
+        "description": "Largest it may be dragged to; null means the viewport."
+      },
+      {
+        "name": "handle",
+        "type": "boolean|'auto'",
+        "default": "'auto'",
+        "description": "Whether to show a grab handle on the inner edge. `'auto'` shows one for `top` and `bottom` sheets, which is what makes them read as drawers."
+      },
+      {
+        "name": "snap",
+        "type": "Array<number|string>|null",
+        "default": "null",
+        "description": "Detents the sheet settles on. A number at or below 1 is a fraction of the viewport along the sheet's axis, anything larger is pixels, and a string is any CSS length `resolveSize` understands (`'320px'`, `'90%'`)."
+      },
+      {
+        "name": "title",
+        "type": "string",
+        "default": "''",
+        "description": "Header title."
+      },
+      {
+        "name": "content",
+        "type": "Node|string|number|{toElement: () => Node|null}|null",
+        "default": "null",
+        "description": "Body content."
+      },
+      {
+        "name": "buttons",
+        "type": "import('../dialog/dialog.js').DialogButton[]",
+        "default": "[]",
+        "description": "Footer buttons."
+      },
+      {
+        "name": "closable",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether Escape may close the sheet."
+      },
+      {
+        "name": "lightDismiss",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether a click outside closes the sheet — the backdrop when modal, a document-level pointer press when not."
+      },
+      {
+        "name": "destroyOnClose",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether to destroy the sheet after it closes."
+      }
+    ],
+    "events": [
+      {
+        "name": "open",
+        "payload": "Record<string, never>",
+        "description": "Open event listener."
+      },
+      {
+        "name": "close",
+        "payload": "{result: unknown}",
+        "description": "Close event listener."
+      },
+      {
+        "name": "cancel",
+        "payload": "Record<string, never>",
+        "description": "Cancel event listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "snapTo",
+        "signature": "snapTo(target)",
+        "returns": "this",
+        "description": "Moves to one of the configured detents."
+      },
+      {
+        "name": "getSize",
+        "signature": "getSize()",
+        "returns": "number",
+        "description": "Returns the sheet's current size along its own axis, in pixels."
+      },
+      {
+        "name": "mountTarget",
+        "signature": "mountTarget()",
+        "returns": "Element",
+        "description": "Where the dialog lives: the owning dock while adopted, the document otherwise."
+      },
+      {
+        "name": "isDocked",
+        "signature": "isDocked()",
+        "returns": "boolean",
+        "description": "Reports whether a dock currently owns this sheet's positioning."
+      },
+      {
+        "name": "open",
+        "signature": "open()",
+        "returns": "this",
+        "description": "Opens the sheet, trapping focus first where the modality asks for it."
+      },
+      {
+        "name": "close",
+        "signature": "close([result])",
+        "returns": "this",
+        "description": "Closes the sheet with an optional result."
+      },
+      {
+        "name": "setSide",
+        "signature": "setSide(side)",
+        "returns": "this",
+        "description": "Moves the sheet to another edge. Takes effect immediately, open or closed."
+      },
+      {
+        "name": "getSide",
+        "signature": "getSide()",
+        "returns": "SheetSide",
+        "description": "Returns the edge the sheet is anchored to."
+      },
+      {
+        "name": "setSize",
+        "signature": "setSize(size)",
+        "returns": "this",
+        "description": "Resizes the sheet along its own axis."
+      },
+      {
+        "name": "isModal",
+        "signature": "isModal()",
+        "returns": "boolean",
+        "description": "Reports whether focus containment is active."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Releases the focus trap and the owned dialog."
+      }
+    ]
+  },
+  "SheetStack": {
+    "options": [
+      {
+        "name": "layout",
+        "type": "'stack'|'cascade'",
+        "default": "'stack'",
+        "description": "How depth is expressed. `stack` slides each covered sheet back toward its edge and scales it down, leaving only the top one usable — the drill-down feel. `cascade` shifts each covered sheet clear of the ones in front so they sit side by side and all stay usable, which is what an ERP screen usually wants: the parent record stays readable while a line item is edited."
+      },
+      {
+        "name": "offset",
+        "type": "number",
+        "default": "24",
+        "description": "Pixels a `stack` layout moves per depth step."
+      },
+      {
+        "name": "scale",
+        "type": "number",
+        "default": "0.04",
+        "description": "How much a `stack` layout shrinks per depth step, as a fraction."
+      },
+      {
+        "name": "max",
+        "type": "number",
+        "default": "3",
+        "description": "Depth at which a sheet stops being drawn. Deeper sheets stay open and in the stack; they are simply no longer visible behind the ones in front."
+      }
+    ],
+    "events": [
+      {
+        "name": "push",
+        "payload": "{sheet: Sheet, depth: number}",
+        "description": "Push listener."
+      },
+      {
+        "name": "pop",
+        "payload": "{sheet: Sheet}",
+        "description": "Pop listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "push",
+        "signature": "push(sheet)",
+        "returns": "this",
+        "description": "Adds a sheet to the top of the stack, opening it if it is closed. A sheet already in the stack is raised rather than added twice."
+      },
+      {
+        "name": "pop",
+        "signature": "pop()",
+        "returns": "Sheet|null",
+        "description": "Closes the top sheet and removes it from the stack. The removal is synchronous while the close is not — a dialog dispatches `close` in a queued task — so the stack updates itself here rather than waiting for the event. The close listener is left to handle the other direction: a sheet dismissed by Escape or its own button."
+      },
+      {
+        "name": "popTo",
+        "signature": "popTo(sheet)",
+        "returns": "this",
+        "description": "Closes everything above a sheet, leaving it on top."
+      },
+      {
+        "name": "clear",
+        "signature": "clear()",
+        "returns": "this",
+        "description": "Closes every sheet, from the top down."
+      },
+      {
+        "name": "top",
+        "signature": "top()",
+        "returns": "Sheet|null",
+        "description": "The sheet currently on top."
+      },
+      {
+        "name": "size",
+        "signature": "size()",
+        "returns": "number",
+        "description": "How many sheets the stack holds."
+      },
+      {
+        "name": "sheets",
+        "signature": "sheets()",
+        "returns": "Sheet[]",
+        "description": "The sheets, bottom first."
+      },
+      {
+        "name": "has",
+        "signature": "has(sheet)",
+        "returns": "boolean",
+        "description": "Whether a sheet is in this stack."
+      },
+      {
+        "name": "on",
+        "signature": "on(type, fn)",
+        "returns": "this",
+        "description": "Subscribes to a stack event."
+      },
+      {
+        "name": "off",
+        "signature": "off(type, fn)",
+        "returns": "this",
+        "description": "Removes a stack event listener."
+      },
+      {
+        "name": "once",
+        "signature": "once(type, fn)",
+        "returns": "this",
+        "description": "Subscribes to one occurrence of a stack event."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Empties the stack without closing anything. The sheets are not the stack's to destroy, so they are simply released with their depth styling removed."
       }
     ]
   },
@@ -5691,206 +6324,6 @@
         "signature": "disable()",
         "returns": "this",
         "description": "Disables editing, removal, and reordering."
-      }
-    ]
-  },
-  "Questionnaire": {
-    "options": [
-      {
-        "name": "items",
-        "type": "QuestionnaireItem[]",
-        "default": "[]",
-        "description": "Ordered question definitions."
-      },
-      {
-        "name": "answers",
-        "type": "Record<string, unknown>",
-        "default": "{}",
-        "description": "Answers to start from. Together with `active` this is the resume pair: hand back what a previous session collected."
-      },
-      {
-        "name": "active",
-        "type": "string|null",
-        "default": "null",
-        "description": "Item to open, defaulting to the first visible one."
-      },
-      {
-        "name": "progress",
-        "type": "boolean",
-        "default": "true",
-        "description": "Whether the progress bar and counter are shown."
-      },
-      {
-        "name": "review",
-        "type": "boolean",
-        "default": "false",
-        "description": "Whether a summary of every answer is shown before submitting."
-      },
-      {
-        "name": "advance",
-        "type": "QuestionnaireAdvance",
-        "default": "'manual'",
-        "description": "`auto` moves on by itself once a single-choice question is answered."
-      },
-      {
-        "name": "shortcuts",
-        "type": "boolean",
-        "default": "true",
-        "description": "Whether `1`–`9` and `a`–`z` pick an answer."
-      },
-      {
-        "name": "allowBack",
-        "type": "boolean",
-        "default": "true",
-        "description": "Whether the Back action is offered."
-      },
-      {
-        "name": "msg",
-        "type": "Record<string, string>|Record<string, Record<string, string>>",
-        "default": null,
-        "description": "Localized messages."
-      }
-    ],
-    "events": [
-      {
-        "name": "change",
-        "payload": "{name, value, answers}",
-        "description": "Answer listener."
-      },
-      {
-        "name": "navigate",
-        "payload": "{from, to, reason}",
-        "description": "Navigation listener."
-      },
-      {
-        "name": "skip",
-        "payload": "{name}",
-        "description": "Skip listener."
-      },
-      {
-        "name": "invalid",
-        "payload": "{name, message}",
-        "description": "Validation listener."
-      },
-      {
-        "name": "submit",
-        "payload": "{answers, unknown>, path}",
-        "description": "Submit listener."
-      },
-      {
-        "name": "complete",
-        "payload": "{answers, unknown>, path}",
-        "description": "Completion listener."
-      }
-    ],
-    "methods": [
-      {
-        "name": "setItems",
-        "signature": "setItems(list)",
-        "returns": "this",
-        "description": "Replaces the whole item list. Answers survive for items that are still present, and so does the active item; when it is gone the first visible item takes over. This is a structural change, so it never emits `navigate`."
-      },
-      {
-        "name": "getItems",
-        "signature": "getItems()",
-        "returns": "NormalizedItem[]",
-        "description": "Returns the normalized items, including ones currently conditioned out."
-      },
-      {
-        "name": "goTo",
-        "signature": "goTo(name)",
-        "returns": "boolean",
-        "description": "Opens an item without validating the one being left — what the review screen's Edit action does. An item already on the path truncates it, so Back keeps working; a new one is appended."
-      },
-      {
-        "name": "next",
-        "signature": "next()",
-        "returns": "Promise<boolean>",
-        "description": "Validates the active item and moves on: to the branch target, then the review screen, then submission. Returns a promise because an item's `validate` may be asynchronous."
-      },
-      {
-        "name": "previous",
-        "signature": "previous()",
-        "returns": "boolean",
-        "description": "Steps back along the path actually walked — which is not `index - 1` once a branch has been taken. From the review screen it reopens the last question."
-      },
-      {
-        "name": "skip",
-        "signature": "skip()",
-        "returns": "Promise<boolean>",
-        "description": "Clears the active item's answer and moves on without validating it. Skipping the last question submits, so this is a promise for the same reason `submit()` is."
-      },
-      {
-        "name": "submit",
-        "signature": "submit()",
-        "returns": "Promise<boolean>",
-        "description": "Validates the active item (unless already on the review screen) and submits."
-      },
-      {
-        "name": "getAnswers",
-        "signature": "getAnswers()",
-        "returns": "Record<string, unknown>",
-        "description": "Returns the answers of every visible question that carries one, in declaration order. Questions conditioned out are left out, so an abandoned branch never submits stale data."
-      },
-      {
-        "name": "getAnswer",
-        "signature": "getAnswer(name)",
-        "returns": "unknown",
-        "description": "Returns one answer, whether or not its question is currently visible."
-      },
-      {
-        "name": "setAnswers",
-        "signature": "setAnswers(values, [options])",
-        "returns": "this",
-        "description": "Sets several answers at once."
-      },
-      {
-        "name": "setAnswer",
-        "signature": "setAnswer(name, value, [options])",
-        "returns": "this",
-        "description": "Sets one answer. A value matching a choice selects it; anything else lands in the freeform input when the item has one."
-      },
-      {
-        "name": "getActive",
-        "signature": "getActive()",
-        "returns": "string|null",
-        "description": "Returns the active item name, or null on the review or completion screen."
-      },
-      {
-        "name": "getPath",
-        "signature": "getPath()",
-        "returns": "string[]",
-        "description": "Returns the item names visited so far, active last. This is the questionnaire's memory of the route through the branches."
-      },
-      {
-        "name": "getProgress",
-        "signature": "getProgress()",
-        "returns": "QuestionnaireProgress",
-        "description": "Returns progress along the path walked. `total` is exact while the flow is static and an estimate once a function `next` can jump somewhere the forward walk cannot predict."
-      },
-      {
-        "name": "getState",
-        "signature": "getState()",
-        "returns": "{active: string|null, status: QuestionnaireStatus, answers: Record<string, unknown>, path: string[], progress: QuestionnaireProgress}",
-        "description": "Returns everything a caller needs to resume this questionnaire later."
-      },
-      {
-        "name": "toFormData",
-        "signature": "toFormData()",
-        "returns": "FormData",
-        "description": "Returns the visible answers as form data, with one entry per value of a multiple-choice item — the same shape `new FormData(questionnaire.toElement())` produces."
-      },
-      {
-        "name": "reset",
-        "signature": "reset()",
-        "returns": "this",
-        "description": "Clears every answer and returns to the first visible question."
-      },
-      {
-        "name": "focus",
-        "signature": "focus()",
-        "returns": "this",
-        "description": "Moves focus to the active question, which is what a screen reader announces after a move."
       }
     ]
   }

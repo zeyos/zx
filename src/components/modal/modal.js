@@ -52,6 +52,7 @@ export class Modal extends Component {
       if (!this.options.closable || cancelEvent.defaultPrevented) event.preventDefault();
     });
     this.listen(this.el, 'close', () => {
+      if (!this._isRealClose()) return;
       this.el.dataset.state = 'closed';
       delete this.el.dataset.zxOverlayOrder;
       const result = this.#hasPendingResult ? this.#pendingResult : (this.el.returnValue || undefined);
@@ -67,6 +68,40 @@ export class Modal extends Component {
   }
 
   /**
+   * Element the owned dialog is appended to. Overridden by subclasses that live inside a host
+   * rather than at the document level.
+   *
+   * Called from `render()`, which the base constructor runs before any subclass field
+   * initializers, so an override may read `this.options` but must not touch instance state.
+   * @returns {Element}
+   */
+  mountTarget() {
+    return document.body;
+  }
+
+  /**
+   * Puts the dialog on screen. Overridden by subclasses that open non-modally.
+   * @returns {void}
+   */
+  _show() {
+    this.el.showModal();
+  }
+
+  /**
+   * Whether an incoming `close` event is a real dismissal.
+   *
+   * A dialog cannot move between the top layer and the page flow while it is open, so a subclass
+   * that re-hosts itself has to close and immediately reopen. `close` is dispatched in a queued
+   * task, not synchronously, so that stale event arrives once the dialog is already open again —
+   * late enough to clobber `data-state`, fire a `close` nobody asked for, and trip
+   * `destroyOnClose`. Returning false from an override drops it at the source instead.
+   * @returns {boolean}
+   */
+  _isRealClose() {
+    return true;
+  }
+
+  /**
    * Creates the owned native dialog.
    * @returns {HTMLDialogElement}
    */
@@ -75,7 +110,7 @@ export class Modal extends Component {
       class: 'zx-modal'
     }, h('div', { class: 'zx-modal__content', ref: 'content' })));
     dialog.dataset.state = 'closed';
-    document.body.append(dialog);
+    this.mountTarget().append(dialog);
     return dialog;
   }
 
@@ -89,7 +124,7 @@ export class Modal extends Component {
     this.el.dataset.zxOverlayOrder = String(nextOverlayOrder());
     this.el.returnValue = '';
     try {
-      this.el.showModal();
+      this._show();
     } catch (error) {
       delete this.el.dataset.zxOverlayOrder;
       throw error;

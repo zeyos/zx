@@ -95,7 +95,7 @@ ZeyOS binding — see `src/zeyos/modules.js`.
 | `CheckButton` | Two-state pressed button with optional state-specific labels. |
 | `Toggle` | Native-button switch with a separate submitted value. |
 | `Search` | Search input with debounced input, submit, and clear events. |
-| `Select` | APG combobox with local or async filtering and a priority preset. |
+| `Select` | APG combobox with local or async filtering, pinned fixed items, and priority/permission presets. |
 | `Checklist` | Searchable checkbox group with optional async loading. |
 | `TagPicker` | Multi-select combobox that keeps its selection as removable tags. |
 | `NumberField` | APG spinbutton with step buttons, ranges, units, and wrapping. |
@@ -137,7 +137,6 @@ ZeyOS binding — see `src/zeyos/modules.js`.
 
 | API | Description |
 | --- | --- |
-| `Permission` | Private, public, or group-level permission selector. |
 | `Field` | Label, description, validation state, and adapter-backed form control. |
 | `Fieldset` | Native fieldset that owns and coordinates fields. |
 | `Form` | Form composition, values, validation, highlighting, and actions. |

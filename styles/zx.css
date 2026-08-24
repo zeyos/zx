@@ -29,9 +29,11 @@
 @import url("../src/components/message/message.css");
 @import url("../src/components/modal/modal.css");
 @import url("../src/components/dialog/dialog.css");
+@import url("../src/components/sheet/sheet.css");
 @import url("../src/components/dropdown/dropdown.css");
 @import url("../src/components/tooltip/tooltip.css");
 @import url("../src/components/split-view/split-view.css");
+@import url("../src/components/dock/dock.css");
 @import url("../src/components/menu-button/menu-button.css");
 @import url("../src/components/context-menu/context-menu.css");
 @import url("../src/components/select/select.css");
@@ -40,7 +42,6 @@
 @import url("../src/components/number-field/number-field.css");
 @import url("../src/components/slider/slider.css");
 @import url("../src/components/rating/rating.css");
-@import url("../src/components/permission/permission.css");
 @import url("../src/components/date-picker/date-picker.css");
 @import url("../src/components/date-picker/time-picker.css");
 @import url("../src/components/datebox/datebox.css");

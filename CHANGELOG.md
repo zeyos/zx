@@ -24,6 +24,58 @@ and friends remain the complete record.
   edit, `advance: 'auto'` moves on by itself after a single choice, and `1`–`9`/`a`–`z` shortcuts
   are assigned and shown on each answer.
 
+- **`Sheet`** — an edge-anchored `Dialog`, covering what shadcn splits into a Sheet and a Drawer;
+  the two differ only in which edge they take, so `side` (`'start' | 'end' | 'top' | 'bottom'`,
+  logical) replaces a second component. `modal` is three-way rather than a boolean because the
+  three real behaviours do not collapse into two: `true` hands focus containment, page inertness,
+  Escape and the backdrop to the browser via `showModal()`, while `'trap-focus'` and `false` open
+  non-modally and re-implement only what they still want. `backdrop: 'dim'|'blur'|'none'` applies
+  to modal sheets alone — `::backdrop` does not render for a non-modal dialog, and a painted
+  stand-in would make a non-blocking sheet look blocking. Entry **and exit** animate, which a
+  `<dialog>` normally cannot do, via `@starting-style` and `transition-behavior: allow-discrete`
+  on `display`/`overlay`. `resizable`, `snap` detents and swipe-to-dismiss are deliberately one
+  gesture whose meaning is decided when the pointer settles, so the sheet follows the pointer the
+  whole way instead of pinning at its minimum and then vanishing.
+- **`SheetStack`** — several sheets as one drill-down. Small on purpose: nested dialogs already
+  stack in the top layer by open order and Escape already closes only the topmost, so no z-index
+  bookkeeping and no unwinding logic. `stack` slides covered sheets back, scales them down and
+  makes them `inert`; `cascade` shifts each clear of the ones in front by their **measured** size
+  so they sit side by side and all stay usable — usually the right one for an ERP screen, where
+  the parent record should stay readable while a line item is edited.
+- **`Dock`** — a stack of collapsible, resizable panes: the docked inspector column of a design
+  tool, and the detail side of a master–detail screen. A pane is either titled or a **tab group**
+  whose strip replaces the title. Giving the dock a `content` turns it into a region with panes on
+  either `side` of it, and nesting one dock in another's pane gives a workbench. Sizes, collapsed
+  panes and active tabs persist through `storageKey`; content factories run on first reveal.
+- **`Dock.adopt(sheet)`** — a dock can take over a `Sheet`'s positioning, so the sheet becomes a
+  track in the dock's flow instead of an overlay. A dock is a flex container by construction and
+  therefore always a valid host, which is why docking needs no arrangement from the application.
+  `dockAt` hands the sheet back to a free overlay below a breakpoint measured on the **dock's own
+  width**, so a dock inside a split pane behaves correctly where a viewport media query would not.
+  Nothing is rebuilt across the handoff: the element moves and reopens in place, so DOM state and
+  listeners survive and no `open`/`close` is emitted for what is only a change of address.
+- **`--zx-overlay-blur`** — tier-2 semantic token behind `Sheet`'s `'blur'` backdrop, default `8px`.
+
+### Changed
+
+- **`SplitView` now shares one axis-drag engine with `Sheet` and `Dock`**, extracted to
+  `core/drag-axis.js`: pointer capture, one write per frame, telling a click from a zero-distance
+  drag, and the WAI-ARIA keyboard map. Behaviour is unchanged. `resolveSize` moved to the kernel
+  and is re-exported from `split-view.js`, so every existing import keeps working.
+- **`Modal` gained three protected seams** — `mountTarget()`, `_show()` and `_isRealClose()` — so a
+  subclass can live somewhere other than `document.body`, open non-modally, and re-host itself.
+  `Dialog`'s size application became the overridable `_applySize()`. No public behaviour changed.
+- **The modal scroll lock keys off `:modal` rather than `[open]`**, so a non-modal dialog no longer
+  locks the page behind it. `Modal` and `Dialog` always open modally, so neither is affected.
+
+### Removed
+
+- **`Permission` is removed**, not just deprecated. 2.3.0 kept the class around for
+  `gx.zeyos.Permission` while pointing new code at `Select.permission()`; there is no longer a
+  second implementation to keep in sync, and `gx.zeyos.Permission` now builds directly on
+  `Select.permission()` instead of wrapping the removed class. The legacy constructor, options,
+  `get()`/`set()`, and the `change` event are unchanged — only the `zx.Permission` export is gone.
+
 ## 2.3.0 — 2026-08-23
 
 ### Added

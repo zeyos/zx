@@ -44,14 +44,16 @@ available as ESM named exports and as `window.zx.*`.
   `copyButton()`/`CopyInput`, `DatePicker`, `MonthPicker`, `TimePicker`, `Datebox`/`DateTimeBox`,
   `Timebox`.
 - Overlays: `Tooltip`, `Message` (toasts/inline/progress), `Modal`, `Dialog` (+ `alert`/`confirm`/`prompt`
-  Promises), `Dropdown`, `MenuButton`, `ContextMenu` (right-click and Shift+F10; `selector` gives
-  per-row menus from one instance).
+  Promises), `Sheet` (edge-anchored Dialog; `side`, `modal: true|'trap-focus'|false`, `backdrop`,
+  `snap` detents, swipe-to-dismiss), `SheetStack` (drill-down; `stack`/`cascade`), `Dropdown`,
+  `MenuButton`, `ContextMenu` (right-click and Shift+F10; `selector` gives per-row menus from one
+  instance).
 - Data: `Table` (sortable, selectable, sticky header, opt-in inline editing), `DataFilter`, `Pagination`, `TreeView` (APG tree), `Finder` (Miller columns).
-- Forms: `Form`, `Fieldset`, `Questionnaire` (guided one-question-at-a-time flow with
-  branching), `Field` (type registry), `ValueList`, `MultiValueEditor`,
-  `FieldUpload`, `Permission`.
+- Forms: `Form`, `Fieldset`, `Questionnaire` (guided one-question-at-a-time flow with branching), `Field` (type registry), `ValueList`, `MultiValueEditor`,
+  `FieldUpload`.
 - Layout: `stack()`/`grid()`/`aspect()`, `Groupbox`, `Panel`, `MasterPanel`, `Tabbox`,
-  `NavigationBar`, `Toolbar`, `SplitView`, `Stepper`, `Breadcrumb`, `emptyState()`.
+  `NavigationBar`, `Toolbar`, `SplitView`, `Dock` (collapsible resizable pane stack; tab groups,
+  regions, adopts a `Sheet`), `Stepper`, `Breadcrumb`, `emptyState()`.
 - Feedback: `spinner()`, `ProgressBar`, `InlineLoading`,
   `skeleton()`/`skeletonText()`/`skeletonTable()`.
 - Core: `Component`, `h`/`icon`, `position`, `breakpoints`/`breakpointOf`/`matchBreakpoint`/
