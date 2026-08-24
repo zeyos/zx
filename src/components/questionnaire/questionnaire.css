@@ -1,0 +1,387 @@
+/*
+ * Questionnaire — one question at a time, with the answers as cards rather than a dense form row.
+ *
+ * The choice is a `<label>` wrapping a real radio or checkbox, so `:has(:checked)` is the whole
+ * selected-state mechanism: no class bookkeeping, and the card stays in step with the control even
+ * when something else moves the selection. The native input itself is hidden from sight but not
+ * from the accessibility tree or the focus order — `:focus-visible` on it rings the card instead.
+ */
+
+.zx-questionnaire {
+  /* Card geometry shared by the choices and the review rows. */
+  --zx-questionnaire-radius: var(--zx-radius-lg);
+  --zx-questionnaire-gap: var(--zx-space-3);
+  display: block;
+  color: var(--zx-color-text);
+}
+
+.zx-questionnaire__form,
+.zx-questionnaire:is(form) {
+  display: grid;
+  gap: var(--zx-space-5);
+}
+
+.zx-questionnaire__progress {
+  display: block;
+}
+
+/*
+ * Every part the component shows and hides needs this. `[hidden]` is a UA rule of the lowest
+ * possible specificity, so any `display` a class sets silently beats it — which is how the review
+ * screen ended up rendering underneath the question it replaces.
+ */
+.zx-questionnaire__progress[hidden],
+.zx-questionnaire__item[hidden],
+.zx-questionnaire__review[hidden],
+.zx-questionnaire__error[hidden],
+.zx-questionnaire__actions > .zx-btn[hidden] {
+  display: none;
+}
+
+/* ------------------------------------------------------------------ item */
+
+.zx-questionnaire__item {
+  display: grid;
+  gap: var(--zx-questionnaire-gap);
+  margin: 0;
+  border: 0;
+  /* A fieldset carries default padding in every browser; the grid owns the spacing here. */
+  padding: 0;
+  min-inline-size: 0;
+}
+
+.zx-questionnaire__item:focus {
+  outline: none;
+}
+
+.zx-questionnaire__item:focus-visible {
+  outline: none;
+  box-shadow: var(--zx-focus-ring);
+  border-radius: var(--zx-questionnaire-radius);
+}
+
+/* `<legend>` is laid out by the fieldset rather than by its own display, so it is taken out of
+   that flow and placed as an ordinary block before the answers. */
+.zx-questionnaire__prompt {
+  display: block;
+  float: none;
+  margin: 0;
+  padding: 0;
+  inline-size: 100%;
+  color: var(--zx-color-text);
+  font-size: var(--zx-text-lg);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.zx-questionnaire__description {
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  line-height: 1.5;
+}
+
+.zx-questionnaire__error {
+  display: flex;
+  gap: var(--zx-space-2);
+  margin: 0;
+  color: var(--zx-color-danger);
+  font-size: var(--zx-text-sm);
+}
+
+
+/* --------------------------------------------------------------- choices */
+
+.zx-questionnaire__choices {
+  display: grid;
+  gap: var(--zx-space-2);
+}
+
+.zx-questionnaire__choice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--zx-space-3);
+  border: 1px solid var(--zx-color-border-control);
+  border-radius: var(--zx-questionnaire-radius);
+  background: var(--zx-color-bg-control);
+  padding: var(--zx-space-3);
+  min-inline-size: 0;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .zx-questionnaire__choice {
+    transition: border-color var(--zx-dur-fast) var(--zx-ease),
+      background-color var(--zx-dur-fast) var(--zx-ease);
+  }
+}
+
+.zx-questionnaire__choice:hover:not([data-disabled]) {
+  border-color: var(--zx-color-border-strong);
+  background: var(--zx-color-bg-hover);
+}
+
+.zx-questionnaire__choice:has(.zx-questionnaire__control:checked) {
+  border-color: var(--zx-color-accent);
+  background: var(--zx-color-bg-selected);
+}
+
+/* The ring belongs on the card, since the control it belongs to is the thing being hidden. */
+.zx-questionnaire__choice:has(.zx-questionnaire__control:focus-visible) {
+  box-shadow: var(--zx-focus-ring);
+}
+
+.zx-questionnaire__choice[data-disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Kept in the layout at zero size: hiding it with `display: none` would take it out of the focus
+   order and out of the accessibility tree, which is the entire semantic contract here. */
+.zx-questionnaire__control {
+  position: absolute;
+  margin: 0;
+  border: 0;
+  padding: 0;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.zx-questionnaire__marker {
+  flex: none;
+  display: grid;
+  place-items: center;
+  margin-block-start: 1px;
+  border: 1px solid var(--zx-color-border-strong);
+  inline-size: 18px;
+  block-size: 18px;
+  background: var(--zx-color-bg-surface);
+}
+
+/* Radios are round, checkboxes are square — the shape is how a reader tells "pick one" from
+   "pick any", so it follows the control type rather than a component option. */
+.zx-questionnaire__choice:has(.zx-questionnaire__control[type="radio"]) .zx-questionnaire__marker {
+  border-radius: 50%;
+}
+
+.zx-questionnaire__choice:has(.zx-questionnaire__control[type="checkbox"]) .zx-questionnaire__marker {
+  border-radius: var(--zx-radius-sm);
+}
+
+.zx-questionnaire__choice:has(.zx-questionnaire__control:checked) .zx-questionnaire__marker {
+  border-color: var(--zx-color-accent);
+  background: var(--zx-color-accent);
+}
+
+.zx-questionnaire__marker::after {
+  content: "";
+  inline-size: 8px;
+  block-size: 8px;
+  border-radius: inherit;
+  background: var(--zx-color-on-accent);
+  transform: scale(0);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .zx-questionnaire__marker::after {
+    transition: transform var(--zx-dur-fast) var(--zx-ease);
+  }
+}
+
+.zx-questionnaire__choice:has(.zx-questionnaire__control:checked) .zx-questionnaire__marker::after {
+  transform: scale(1);
+}
+
+.zx-questionnaire__choice > .zx-icon {
+  flex: none;
+  margin-block-start: 1px;
+  color: var(--zx-color-text-muted);
+}
+
+.zx-questionnaire__choice:has(.zx-questionnaire__control:checked) > .zx-icon {
+  color: var(--zx-color-accent);
+}
+
+.zx-questionnaire__text {
+  display: grid;
+  gap: 2px;
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+.zx-questionnaire__label {
+  font-size: var(--zx-control-font-size);
+  line-height: 1.4;
+}
+
+.zx-questionnaire__hint {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  line-height: 1.45;
+}
+
+/* The key cap advertises the shortcut. It is `aria-hidden`: a screen-reader user navigates the
+   group with the arrow keys, and reading "one" before every answer would only be noise. */
+.zx-questionnaire__key {
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--zx-color-border);
+  border-radius: var(--zx-radius-sm);
+  background: var(--zx-color-bg-muted);
+  padding-inline: var(--zx-space-2);
+  min-inline-size: 22px;
+  block-size: 22px;
+  color: var(--zx-color-text-muted);
+  font-family: inherit;
+  font-size: var(--zx-text-xs);
+  text-transform: uppercase;
+}
+
+.zx-questionnaire__choice:has(.zx-questionnaire__control:checked) .zx-questionnaire__key {
+  border-color: var(--zx-color-accent);
+  color: var(--zx-color-accent);
+}
+
+/* -------------------------------------------------------------- freeform */
+
+.zx-questionnaire__freeform {
+  display: grid;
+  gap: var(--zx-space-2);
+  padding-block-start: var(--zx-space-1);
+}
+
+.zx-questionnaire__freeform-label {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+.zx-questionnaire__freeform-input {
+  border: 1px solid var(--zx-color-border-control);
+  border-radius: var(--zx-control-radius);
+  background: var(--zx-color-bg-control);
+  padding: var(--zx-space-2) var(--zx-control-pad-x);
+  min-block-size: var(--zx-control-height);
+  color: var(--zx-color-text);
+  font: inherit;
+  font-size: var(--zx-control-font-size);
+}
+
+.zx-questionnaire__freeform-input::placeholder {
+  color: var(--zx-color-text-placeholder);
+}
+
+.zx-questionnaire__freeform-input:focus-visible {
+  outline: none;
+  border-color: var(--zx-color-accent);
+  box-shadow: var(--zx-focus-ring);
+}
+
+/* ----------------------------------------------------------------- field */
+
+/* A `field` item is named by the legend above it, so the Field's own label would say it twice —
+   hidden from sight, kept for the accessibility tree that uses it as the control's name. */
+.zx-questionnaire__field[data-hide-label] > .zx-field__label {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------- review */
+
+.zx-questionnaire__review {
+  display: grid;
+  gap: var(--zx-space-3);
+}
+
+.zx-questionnaire__review:focus {
+  outline: none;
+}
+
+
+.zx-questionnaire__review-title {
+  margin: 0;
+  font-size: var(--zx-text-lg);
+  font-weight: 600;
+}
+
+.zx-questionnaire__answers {
+  display: grid;
+  gap: var(--zx-space-2);
+  margin: 0;
+}
+
+.zx-questionnaire__answer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0 var(--zx-space-3);
+  border: 1px solid var(--zx-color-border);
+  border-radius: var(--zx-questionnaire-radius);
+  background: var(--zx-color-bg-surface);
+  padding: var(--zx-space-3);
+}
+
+.zx-questionnaire__answer-prompt {
+  grid-column: 1;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+.zx-questionnaire__answer-value {
+  grid-column: 1;
+  margin: 0;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.zx-questionnaire__answer-value[data-empty] {
+  color: var(--zx-color-text-muted);
+  font-style: italic;
+}
+
+.zx-questionnaire__answer > .zx-btn {
+  grid-area: 1 / 2 / 3 / 3;
+}
+
+/* --------------------------------------------------------------- actions */
+
+.zx-questionnaire__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  flex-wrap: wrap;
+}
+
+.zx-questionnaire__spacer {
+  flex: 1 1 auto;
+}
+
+
+/* The forward action carries the pending state, because it is the control that started the wait. */
+.zx-questionnaire[data-state="checking"] .zx-questionnaire__item,
+.zx-questionnaire[data-state="checking"] .zx-questionnaire__choice {
+  cursor: progress;
+}
+
+.zx-questionnaire[data-state="complete"] .zx-questionnaire__item {
+  opacity: 0.7;
+}
+
+/* --------------------------------------------------------------- narrow */
+
+@media (max-width: 480px) {
+  .zx-questionnaire__key {
+    display: none;
+  }
+
+  .zx-questionnaire__actions > .zx-btn {
+    flex: 1 1 auto;
+  }
+}

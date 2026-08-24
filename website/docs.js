@@ -30,7 +30,7 @@ const COMPONENT_IDS = [
   'select', 'checklist', 'tag-picker', 'permission',
   'date-picker', 'datebox', 'date-range', 'timebox',
   'table', 'data-filter', 'pagination', 'tree', 'finder',
-  'form', 'form-widgets', 'elements',
+  'form', 'form-widgets', 'questionnaire', 'elements',
   'value-list', 'multi-value-editor', 'field-upload'
 ];
 

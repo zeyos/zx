@@ -312,6 +312,43 @@ const cases = [
     component.setValue('name', 'Ada');
     assert(component.getValues().name === 'Ada' && component.submit(), 'form value/submit mismatch');
   }),
+  componentCase('Questionnaire', () => new zx.Questionnaire(null, {
+    review: true,
+    items: questionnaireItems()
+  }), async (component) => {
+    const changes = observe(component, 'change');
+    const navigations = observe(component, 'navigate');
+
+    // A required question refuses to be left, and says so where a screen reader will hear it.
+    assert(await component.next() === false, 'an unanswered required question advanced');
+    assert(component.el.querySelector('.zx-questionnaire__error:not([hidden])'), 'no error was shown');
+
+    // Answering by clicking the real radio, which is what a reader does.
+    component.el.querySelector('.zx-questionnaire__control[data-index="0"]').click();
+    changes.expect();
+    assert(await component.next(), 'answering did not unblock the question');
+    navigations.expect();
+    assert(component.getActive() === 'vat', 'the company branch did not open');
+
+    // Going back and switching branches must take the VAT question, and its answer, with it.
+    component.setAnswer('vat', 'DE123');
+    assert(component.previous(), 'previous() failed');
+    component.el.querySelector('.zx-questionnaire__control[data-index="1"]').click();
+    assert(await component.next(), 'next() failed after switching branches');
+    assert(component.getActive() === 'contact', 'the branch did not close');
+    assert(!('vat' in component.getAnswers()), 'an abandoned branch kept its answer');
+
+    component.setAnswer('contact', 'ada@example.com');
+    assert(await component.next(), 'entering review failed');
+    assert(component.getActive() === null && component.el.dataset.state === 'review', 'review not entered');
+
+    const submits = observe(component, 'submit');
+    assert(await component.submit(), 'submit failed');
+    submits.expect();
+    assert([...component.toFormData().keys()].join(',') === 'type,contact', 'form data mismatch');
+    component.reset();
+    assert(component.getActive() === 'type', 'reset did not return to the first question');
+  }),
   componentCase('ValueList', () => new zx.ValueList(null, { values: ['one'] }), (component) => {
     const events = observe(component, 'change');
     component.setValues(['two']);
@@ -420,6 +457,18 @@ function componentCase(name, create, exercise) {
     exercise: ({ component }) => exercise(component),
     destroy: ({ component }) => component.destroy()
   };
+}
+
+/** A branching intake: answering "company" opens a VAT question that "private" leaves out. */
+function questionnaireItems() {
+  return [
+    { name: 'type', prompt: 'Who is buying?', required: true, choices: [
+      { value: 'company', label: 'A company' },
+      { value: 'private', label: 'A private buyer' }
+    ] },
+    { name: 'vat', prompt: 'VAT id', input: {}, when: (answers) => answers.type === 'company' },
+    { name: 'contact', prompt: 'How do we reach you?', input: {} }
+  ];
 }
 
 /** @param {string} name @param {() => {element: Element, exercise: () => unknown}} create @returns {SmokeDefinition} */

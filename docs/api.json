@@ -5693,5 +5693,205 @@
         "description": "Disables editing, removal, and reordering."
       }
     ]
+  },
+  "Questionnaire": {
+    "options": [
+      {
+        "name": "items",
+        "type": "QuestionnaireItem[]",
+        "default": "[]",
+        "description": "Ordered question definitions."
+      },
+      {
+        "name": "answers",
+        "type": "Record<string, unknown>",
+        "default": "{}",
+        "description": "Answers to start from. Together with `active` this is the resume pair: hand back what a previous session collected."
+      },
+      {
+        "name": "active",
+        "type": "string|null",
+        "default": "null",
+        "description": "Item to open, defaulting to the first visible one."
+      },
+      {
+        "name": "progress",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether the progress bar and counter are shown."
+      },
+      {
+        "name": "review",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether a summary of every answer is shown before submitting."
+      },
+      {
+        "name": "advance",
+        "type": "QuestionnaireAdvance",
+        "default": "'manual'",
+        "description": "`auto` moves on by itself once a single-choice question is answered."
+      },
+      {
+        "name": "shortcuts",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether `1`–`9` and `a`–`z` pick an answer."
+      },
+      {
+        "name": "allowBack",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether the Back action is offered."
+      },
+      {
+        "name": "msg",
+        "type": "Record<string, string>|Record<string, Record<string, string>>",
+        "default": null,
+        "description": "Localized messages."
+      }
+    ],
+    "events": [
+      {
+        "name": "change",
+        "payload": "{name, value, answers}",
+        "description": "Answer listener."
+      },
+      {
+        "name": "navigate",
+        "payload": "{from, to, reason}",
+        "description": "Navigation listener."
+      },
+      {
+        "name": "skip",
+        "payload": "{name}",
+        "description": "Skip listener."
+      },
+      {
+        "name": "invalid",
+        "payload": "{name, message}",
+        "description": "Validation listener."
+      },
+      {
+        "name": "submit",
+        "payload": "{answers, unknown>, path}",
+        "description": "Submit listener."
+      },
+      {
+        "name": "complete",
+        "payload": "{answers, unknown>, path}",
+        "description": "Completion listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "setItems",
+        "signature": "setItems(list)",
+        "returns": "this",
+        "description": "Replaces the whole item list. Answers survive for items that are still present, and so does the active item; when it is gone the first visible item takes over. This is a structural change, so it never emits `navigate`."
+      },
+      {
+        "name": "getItems",
+        "signature": "getItems()",
+        "returns": "NormalizedItem[]",
+        "description": "Returns the normalized items, including ones currently conditioned out."
+      },
+      {
+        "name": "goTo",
+        "signature": "goTo(name)",
+        "returns": "boolean",
+        "description": "Opens an item without validating the one being left — what the review screen's Edit action does. An item already on the path truncates it, so Back keeps working; a new one is appended."
+      },
+      {
+        "name": "next",
+        "signature": "next()",
+        "returns": "Promise<boolean>",
+        "description": "Validates the active item and moves on: to the branch target, then the review screen, then submission. Returns a promise because an item's `validate` may be asynchronous."
+      },
+      {
+        "name": "previous",
+        "signature": "previous()",
+        "returns": "boolean",
+        "description": "Steps back along the path actually walked — which is not `index - 1` once a branch has been taken. From the review screen it reopens the last question."
+      },
+      {
+        "name": "skip",
+        "signature": "skip()",
+        "returns": "boolean",
+        "description": "Clears the active item's answer and moves on without validating it."
+      },
+      {
+        "name": "submit",
+        "signature": "submit()",
+        "returns": "Promise<boolean>",
+        "description": "Validates the active item (unless already on the review screen) and submits."
+      },
+      {
+        "name": "getAnswers",
+        "signature": "getAnswers()",
+        "returns": "Record<string, unknown>",
+        "description": "Returns the answers of every visible question that carries one, in declaration order. Questions conditioned out are left out, so an abandoned branch never submits stale data."
+      },
+      {
+        "name": "getAnswer",
+        "signature": "getAnswer(name)",
+        "returns": "unknown",
+        "description": "Returns one answer, whether or not its question is currently visible."
+      },
+      {
+        "name": "setAnswers",
+        "signature": "setAnswers(values, [options])",
+        "returns": "this",
+        "description": "Sets several answers at once."
+      },
+      {
+        "name": "setAnswer",
+        "signature": "setAnswer(name, value, [options])",
+        "returns": "this",
+        "description": "Sets one answer. A value matching a choice selects it; anything else lands in the freeform input when the item has one."
+      },
+      {
+        "name": "getActive",
+        "signature": "getActive()",
+        "returns": "string|null",
+        "description": "Returns the active item name, or null on the review or completion screen."
+      },
+      {
+        "name": "getPath",
+        "signature": "getPath()",
+        "returns": "string[]",
+        "description": "Returns the item names visited so far, active last. This is the questionnaire's memory of the route through the branches."
+      },
+      {
+        "name": "getProgress",
+        "signature": "getProgress()",
+        "returns": "QuestionnaireProgress",
+        "description": "Returns progress along the path walked. `total` is exact while the flow is static and an estimate once a function `next` can jump somewhere the forward walk cannot predict."
+      },
+      {
+        "name": "getState",
+        "signature": "getState()",
+        "returns": "{active: string|null, status: QuestionnaireStatus, answers: Record<string, unknown>, path: string[], progress: QuestionnaireProgress}",
+        "description": "Returns everything a caller needs to resume this questionnaire later."
+      },
+      {
+        "name": "toFormData",
+        "signature": "toFormData()",
+        "returns": "FormData",
+        "description": "Returns the visible answers as form data, with one entry per value of a multiple-choice item — the same shape `new FormData(questionnaire.toElement())` produces."
+      },
+      {
+        "name": "reset",
+        "signature": "reset()",
+        "returns": "this",
+        "description": "Clears every answer and returns to the first visible question."
+      },
+      {
+        "name": "focus",
+        "signature": "focus()",
+        "returns": "this",
+        "description": "Moves focus to the active question, which is what a screen reader announces after a move."
+      }
+    ]
   }
 }

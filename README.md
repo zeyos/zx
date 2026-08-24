@@ -141,6 +141,7 @@ ZeyOS binding — see `src/zeyos/modules.js`.
 | `Field` | Label, description, validation state, and adapter-backed form control. |
 | `Fieldset` | Native fieldset that owns and coordinates fields. |
 | `Form` | Form composition, values, validation, highlighting, and actions. |
+| `Questionnaire` | Guided one-question-at-a-time flow: branching, path-aware progress, review. |
 | `ValueList` | Validated, sortable tag/chip editor. |
 | `MultiValueEditor` | Ordered editable rows with add, remove, and move controls. |
 | `FieldUpload` | Click/drop file upload with progress, abort, validation, and preview. |

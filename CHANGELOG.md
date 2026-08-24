@@ -8,6 +8,22 @@ and friends remain the complete record.
 
 ## Unreleased
 
+### Added
+
+- **`Questionnaire`** — a guided, one-question-at-a-time flow for onboarding intake, service
+  checklists, audits and surveys, where a `Form` full of fieldsets is the wrong shape. The root is
+  a real `<form>` and the choices are native radios and checkboxes carrying the item name, so
+  `new FormData(questionnaire.toElement())` reads the answers and the keyboard contract inside a
+  choice group is the browser's. Three things go beyond a stack of fieldsets: an item carries a
+  `when` predicate and a `next` target, so the flow **branches** — conditions cascade, an
+  abandoned branch's answers drop out of `getAnswers()`, progress counts the questions actually
+  reachable, and Back retraces the path walked rather than an array index; an item's answer control
+  can be **any registered `Field` type** (`field: {type: 'date'}`), which is what lets a question
+  ask for a date, a number, a rating or an upload; and `validate` may return a **promise**, so a
+  question can be gated on a server check. `review: true` adds a summary screen with jump-back-to-
+  edit, `advance: 'auto'` moves on by itself after a single choice, and `1`–`9`/`a`–`z` shortcuts
+  are assigned and shown on each answer.
+
 ## 2.3.0 — 2026-08-23
 
 ### Added

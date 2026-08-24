@@ -126,6 +126,7 @@ export { DataFilter } from './components/data-filter/data-filter.js';
 export { Field } from './components/field/field.js';
 export { Fieldset } from './components/fieldset/fieldset.js';
 export { Form } from './components/form/form.js';
+export { Questionnaire } from './components/questionnaire/questionnaire.js';
 export { ValueList } from './components/value-list/value-list.js';
 export { MultiValueEditor } from './components/multi-value-editor/multi-value-editor.js';
 export { FieldUpload } from './components/field-upload/field-upload.js';
