@@ -349,6 +349,7 @@ const cases = [
     component.reset();
     assert(component.getActive() === 'type', 'reset did not return to the first question');
   }),
+  questionnaireTargetCase(),
   componentCase('ValueList', () => new zx.ValueList(null, { values: ['one'] }), (component) => {
     const events = observe(component, 'change');
     component.setValues(['two']);
@@ -506,6 +507,47 @@ function dropdownCase() {
     destroy({ component, anchor }) {
       component.destroy();
       anchor.remove();
+    }
+  };
+}
+
+/**
+ * The other Questionnaire case creates its own root. This one takes over an element that already
+ * has content, which is a different code path: the component builds an inner `<form>` so its
+ * radios group against a form owner rather than the whole document, and `destroy()` has to put the
+ * target back exactly as it was found. The runner creates and destroys every case twice, so the
+ * re-create half of the contract comes for free.
+ * @returns {SmokeDefinition}
+ */
+function questionnaireTargetCase() {
+  return {
+    name: 'Questionnaire (existing target)',
+    create(fixture) {
+      const stage = document.createElement('div');
+      stage.dataset.keep = 'yes';
+      stage.append(document.createTextNode('original content'));
+      fixture.append(stage);
+      const before = stage.outerHTML;
+      const component = new zx.Questionnaire(stage, {
+        // `name` stays off the start of a line: smoke-coverage.test.js scrapes case names with a
+        // `^\s*name: '...',$` regex and would read this item as a case naming a missing export.
+        items: [{ name: 'a', prompt: 'Pick one',
+          choices: [{ value: 'x', label: 'X' }, { value: 'y', label: 'Y' }] }]
+      });
+      return { component, stage, before };
+    },
+    exercise({ component, stage }) {
+      const form = stage.querySelector('form');
+      assert(form, 'no inner form was created for a non-form target');
+      const input = /** @type {HTMLInputElement} */ (stage.querySelector('input'));
+      assert(input.form === form, 'the choices are not owned by the inner form');
+      input.click();
+      assert(component.getAnswer('a') === 'x', 'answering an enhanced target failed');
+    },
+    destroy({ component, stage, before }) {
+      component.destroy();
+      assert(stage.outerHTML === before, `destroy() did not restore the target: ${stage.outerHTML}`);
+      stage.remove();
     }
   };
 }
