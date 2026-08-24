@@ -4,6 +4,7 @@ const runtimeErrors = window.__zxSmokeErrors;
 const resultBody = document.querySelector('#results');
 const summary = document.querySelector('#summary');
 const fixtures = document.querySelector('#fixtures');
+const resourceAudit = installResourceAudit();
 
 const cases = [
   artifactCase('button()', () => {
@@ -99,6 +100,210 @@ const cases = [
     await delay(0);
     assert(component.get() === 'needle', 'set/get mismatch');
     events.expect();
+  }),
+  componentCase('Launcher', () => new zx.Launcher(null, {
+    debounce: 0,
+    items: [{ id: 'invoices', label: 'Invoices', icon: 'search' }],
+    sources: [{
+      id: 'records',
+      label: 'Records',
+      load: (query, { signal }) => new Promise((resolve, reject) => {
+        const timer = setTimeout(() => resolve([{ id: query, label: `Result ${query}` }]), query === 'old' ? 30 : 0);
+        signal.addEventListener('abort', () => {
+          clearTimeout(timer);
+          reject(new DOMException('Aborted', 'AbortError'));
+        }, { once: true });
+      })
+    }]
+  }), async (component) => {
+    component.open().setQuery('old');
+    await delay(0);
+    component.setQuery('current');
+    await delay(40);
+    assert(component.isOpen(), 'launcher did not open');
+    assert(component.el.querySelectorAll('[role="option"]').length === 1, 'async launcher result missing');
+    assert(component.el.querySelector('[role="option"]').textContent.includes('Result current'),
+      'stale launcher source replaced the current query');
+    component.refs.input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
+    assert(component.isOpen(), 'Tab closed the native modal launcher');
+    component.close();
+  }),
+  launcherTargetCase(),
+  componentCase('Avatar', () => new zx.Avatar(null, {
+    name: 'Ada Lovelace', label: 'Ada Lovelace', status: 'online', statusLabel: 'Online'
+  }), (component) => {
+    assert(component.refs.fallback.textContent === 'AL', 'avatar initials missing');
+    assert(component.el.getAttribute('aria-label') === 'Ada Lovelace, Online', 'avatar presence text is not accessible');
+    component.set({ name: 'Grace Hopper', label: 'Grace Hopper', src: null }).setStatus('away', 'Away');
+    assert(component.refs.fallback.textContent === 'GH' && !component.hasImage(), 'avatar update failed');
+    assert(component.el.getAttribute('aria-label') === 'Grace Hopper, Away', 'setStatus did not update the avatar name');
+  }),
+  componentCase('AccountMenu', () => new zx.AccountMenu(null, {
+    account: { name: 'Ada Lovelace', secondary: 'ada@example.test', status: 'online', statusLabel: 'Online' },
+    items: [{ label: 'Settings', value: 'settings', onselect: () => {
+      throw new Error('canceled account selection invoked its item callback');
+    } }, '-', { label: 'Sign out', value: 'logout', danger: true }],
+    onselect: (event) => event.preventDefault()
+  }), (component) => {
+    let rootSelects = 0;
+    let ancestorSelects = 0;
+    component.el.addEventListener('zx-select', () => { rootSelects += 1; });
+    component.el.parentElement.addEventListener('zx-select', () => { ancestorSelects += 1; });
+    component.open();
+    assert(component.isOpen(), 'account menu did not open');
+    assert(component.getPanel().textContent.includes('ada@example.test'), 'account identity not repeated');
+    assert(component.refs.trigger.getAttribute('aria-label').includes('Online'),
+      'account trigger omitted presence text');
+    component.getPanel().querySelector('[data-menu-item="0"]').click();
+    assert(component.isOpen(), 'canceled account action closed the menu');
+    assert(rootSelects === 1, `account menu emitted ${rootSelects} bubbling select events instead of one`);
+    assert(ancestorSelects === 1,
+      `account menu ancestor received ${ancestorSelects} bubbling select events instead of one`);
+    component.close().setAccount({ name: 'Grace Hopper' });
+  }),
+  componentCase('AppRail', () => new zx.AppRail(null, {
+    items: [{ id: 'sales', label: 'Sales', icon: 'search', children: [
+      { id: 'blocked', label: 'Unavailable', disabled: true },
+      { id: 'leads', label: 'Leads' },
+      { id: 'reports', label: 'Reports', children: [{ id: 'pipeline', label: 'Pipeline' }] }
+    ] }, { id: 'admin', label: 'Admin', disabled: true, children: [
+      { id: 'settings', label: 'Settings', children: [{ id: 'profile', label: 'Profile' }] }
+    ] }, { id: 'home', label: 'Home', icon: 'search' }],
+    orientation: 'horizontal',
+    side: 'top',
+    openDelay: 0,
+    closeDelay: 20
+  }), async (component) => {
+    const changes = [];
+    component.on('flyoutchange', (event) => changes.push(event.detail.open));
+    const trigger = component.el.querySelector('[data-app-nav-id="sales"]');
+    trigger.dispatchEvent(new PointerEvent('pointerenter', { pointerType: 'mouse' }));
+    await delay(0);
+    assert(component.isFlyoutOpen('sales'), 'horizontal rail hover did not open its flyout');
+    assert(!component.el.querySelector('.zx-app-sidebar__sublist'), 'rail rendered inline descendants');
+    const panel = document.querySelector('.zx-app-rail__popover[aria-label="Sales sub-navigation"]');
+    assert(!trigger.hasAttribute('aria-haspopup'), 'rail disclosure incorrectly claimed menu popup semantics');
+    assert(trigger.getAttribute('aria-controls') === panel.id && panel.getAttribute('role') === 'region'
+      && panel.getAttribute('aria-label') === 'Sales sub-navigation',
+    'rail disclosure did not control a named popup region');
+    trigger.dispatchEvent(new PointerEvent('pointerleave', { pointerType: 'mouse' }));
+    panel.dispatchEvent(new PointerEvent('pointerenter', { pointerType: 'mouse' }));
+    await delay(30);
+    assert(component.isFlyoutOpen('sales'), 'trigger-to-panel close grace lost the flyout');
+    panel.querySelector('[data-app-nav-id="sales/blocked"]').click();
+    assert(component.isFlyoutOpen('sales'), 'disabled rail child closed the flyout');
+    assert(panel.querySelectorAll('.zx-app-rail__flyout-list').length === 1,
+      'a deeper rail collection was rendered inline in its parent flyout');
+    const reports = panel.querySelector('[data-app-nav-id="sales/reports"]');
+    reports.dispatchEvent(new PointerEvent('pointerenter', { pointerType: 'mouse' }));
+    await delay(0);
+    assert(component.isFlyoutOpen('sales/reports'), 'nested rail branch did not open an anchored flyout');
+    const nestedPanel = [...document.querySelectorAll('.zx-app-rail__popover')]
+      .find((candidate) => candidate.textContent.includes('Pipeline'));
+    assert(nestedPanel && nestedPanel.querySelector('[data-app-nav-id="sales/reports/pipeline"]'),
+      'nested rail descendant was not exposed in its own flyout');
+    const pipeline = nestedPanel.querySelector('[data-app-nav-id="sales/reports/pipeline"]');
+    pipeline.focus();
+    pipeline.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    assert(!component.isFlyoutOpen('sales/reports') && component.isFlyoutOpen('sales')
+      && document.activeElement === reports, 'nested panel Escape did not restore its branch trigger');
+    component.openFlyout('sales/reports');
+    reports.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    assert(!component.isFlyoutOpen('sales/reports') && component.isFlyoutOpen('sales')
+      && document.activeElement === reports, 'nested trigger Escape closed the owning rail flyout');
+    component.openFlyout('sales/reports');
+    pipeline.focus();
+    const outside = document.createElement('button');
+    component.el.append(outside);
+    outside.focus();
+    await delay(30);
+    assert(!component.isFlyoutOpen('sales/reports') && !component.isFlyoutOpen('sales'),
+      'leaving the deepest flyout did not close its owning chain after the grace interval');
+    outside.remove();
+    component.openFlyout('sales');
+    component.openFlyout('sales/reports');
+    component.el.querySelector('[data-app-nav-id="home"]').click();
+    assert(!component.isFlyoutOpen('sales/reports') && !component.isFlyoutOpen('sales'),
+      'selecting another top-level rail item left the old flyout chain open');
+    component.openFlyout('sales');
+    component.openFlyout('sales/reports');
+    document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    assert(!component.isFlyoutOpen('sales/reports') && !component.isFlyoutOpen('sales'),
+      'outside activation did not close the complete rail flyout chain');
+    component.openFlyout('sales/reports');
+    assert(component.isFlyoutOpen('sales/reports') && component.isFlyoutOpen('sales'),
+      'opening a nested rail flyout directly did not open its owning chain');
+    component.closeAllFlyouts();
+    assert(!component.isFlyoutOpen('sales/reports') && !component.isFlyoutOpen('sales'),
+      'closeAllFlyouts did not close the complete rail flyout chain');
+    component.openFlyout('admin/settings');
+    assert(!component.isFlyoutOpen('admin/settings') && !component.isFlyoutOpen('admin'),
+      'opening a descendant bypassed its disabled owning rail branch');
+    trigger.focus();
+    assert(component.isFlyoutOpen('sales'), 'rail focus did not open its flyout');
+    document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    assert(!component.isFlyoutOpen('sales') && changes.at(-1) === false,
+      'outside dismissal did not report the rail flyout close');
+    component.setActive('leads');
+    assert(trigger.dataset.activeDescendant === 'true', 'active rail child did not mark its parent');
+    assert(panel.querySelector('[data-app-nav-id="sales/leads"]').getAttribute('aria-current') === 'page',
+      'active rail child was not exposed in its flyout');
+    component.setItems([{ id: 'billing', label: 'Billing', icon: 'search' }]);
+    assert(!document.querySelector('.zx-app-rail__popover'), 'setItems left an old flyout in the document');
+    assert(document.querySelectorAll('[data-zx-app-rail-listener-scope]').length === 1,
+      'setItems retained a dynamic rail listener scope');
+  }),
+  componentCase('AppSidebar', () => new zx.AppSidebar(null, {
+    items: [{ id: 'sales', label: 'Sales', icon: 'search', children: [{ id: 'overview', label: 'Overview' }] }],
+    expanded: ['sales']
+  }), (component) => {
+    let rootSelects = 0;
+    let ancestorSelects = 0;
+    component.el.addEventListener('zx-select', () => { rootSelects += 1; });
+    component.el.parentElement.addEventListener('zx-select', () => { ancestorSelects += 1; });
+    assert(!component.el.querySelector('.zx-app-sidebar__sublist').hidden, 'expanded branch missing');
+    let salesDisclosure = component.el.querySelector('[data-app-nav-id="sales"]');
+    salesDisclosure.focus();
+    salesDisclosure.click();
+    salesDisclosure = component.el.querySelector('[data-app-nav-id="sales"]');
+    assert(document.activeElement === salesDisclosure && salesDisclosure.getAttribute('aria-expanded') === 'false',
+      'collapsing a focused sidebar disclosure lost focus');
+    salesDisclosure.click();
+    salesDisclosure = component.el.querySelector('[data-app-nav-id="sales"]');
+    assert(document.activeElement === salesDisclosure && salesDisclosure.getAttribute('aria-expanded') === 'true',
+      'expanding a focused sidebar disclosure lost focus');
+    component.el.querySelector('[data-app-nav-id="overview"]').focus();
+    salesDisclosure.click();
+    salesDisclosure = component.el.querySelector('[data-app-nav-id="sales"]');
+    assert(document.activeElement === salesDisclosure,
+      'collapsing a sidebar branch did not move descendant focus to its owning disclosure');
+    salesDisclosure.click();
+    component.setActive('overview');
+    assert(component.el.querySelector('[data-app-nav-id="sales"]').dataset.activeDescendant === 'true',
+      'active sidebar child did not mark its parent');
+    component.el.querySelector('[data-app-nav-id="overview"]').focus();
+    component.collapse();
+    assert(component.isCollapsed(), 'sidebar did not minimize');
+    const expand = component.el.querySelector('.zx-app-sidebar__rail-toggle');
+    assert(document.activeElement === expand, 'programmatic minimization did not move focus to its rail toggle');
+    component.getRail().openFlyout('sales', { focus: true });
+    component.expand();
+    assert(component.refs.rail.hidden && !component.getRail().isFlyoutOpen('sales')
+      && document.activeElement === component.refs.collapse,
+    'programmatic expansion left a minimized-rail flyout open or lost its detached-panel focus');
+    component.collapse();
+    assert(document.activeElement === expand,
+      'programmatic minimization did not restore focus from the expanded presentation');
+    component.getRail().openFlyout('sales');
+    document.querySelector('.zx-app-rail__popover[aria-label="Sales sub-navigation"]')
+      .querySelector('[data-app-nav-id="sales/overview"]').click();
+    assert(rootSelects === 1, `collapsed sidebar emitted ${rootSelects} bubbling select events instead of one`);
+    assert(ancestorSelects === 1,
+      `collapsed sidebar ancestor received ${ancestorSelects} bubbling select events instead of one`);
+    component.expand();
+    assert(document.activeElement === component.refs.collapse,
+      'programmatic expansion did not move focus to its expanded toggle');
+    assert(component.getExpanded()[0] === 'sales', 'branch state did not survive minimization');
   }),
   componentCase('Message', () => new zx.Message(null, { timeout: 0 }), (component) => {
     const handle = component.show('Ready', { timeout: 0 });
@@ -296,6 +501,19 @@ const cases = [
     assert(component.getData()[0].id === 2 && component.getSelection()[0].id === 2, 'table data/selection mismatch');
     events.expect();
   }),
+  componentCase('Grid', () => zx.Grid.BillingItems(null, {
+    data: [
+      { id: 'group', parent: null, kind: 'group', item: 'Services', total: 100, currency: 'EUR' },
+      { id: 'line', parent: 'group', kind: 'line', item: 'Consulting', quantity: 2, unit: 'hours', unitPrice: 50, total: 100, currency: 'EUR' }
+    ],
+    units: { hours: 'Hours' },
+    currencies: { EUR: 'Euro' }
+  }), (component) => {
+    assert(component instanceof zx.Table, 'Grid stopped inheriting Table');
+    assert(component.el.dataset.preset === 'billing-items', 'billing preset marker missing');
+    assert(component.getExpanded()[0] === 'group', 'billing hierarchy did not expand');
+  }),
+  chartCase(),
   componentCase('DataFilter', () => new zx.DataFilter(null, {
     filters: [{ type: 'text', id: 'query', label: 'Search', fields: ['name'] }],
     data: [{ name: 'Alpha' }, { name: 'Beta' }]
@@ -464,8 +682,10 @@ const cases = [
   }),
   tableStackingCase(),
   tableGrowingCase(),
+  tableHierarchyCase(),
   truncateCase(),
   sizeContainerCase(),
+  positionRtlCase(),
   customElementsCase()
 ];
 
@@ -493,6 +713,72 @@ function componentCase(name, create, exercise) {
     },
     exercise: ({ component }) => exercise(component),
     destroy: ({ component }) => component.destroy()
+  };
+}
+
+/** Exercises the explicit-target Launcher contract and exact target restoration. @returns {SmokeDefinition} */
+function launcherTargetCase() {
+  return {
+    name: 'Launcher (existing target)',
+    create(fixture) {
+      const dialog = document.createElement('dialog');
+      dialog.dataset.keep = 'yes';
+      dialog.append(document.createTextNode('original launcher content'));
+      fixture.append(dialog);
+      const before = dialog.outerHTML;
+      const component = new zx.Launcher(dialog, { items: [{ id: 'home', label: 'Home' }] });
+      return { component, dialog, before };
+    },
+    exercise({ component }) {
+      component.open();
+      assert(component.isOpen(), 'enhanced launcher target did not open');
+      component.close();
+    },
+    destroy({ component, dialog, before }) {
+      component.destroy();
+      assert(dialog.outerHTML === before, `Launcher did not restore its target: ${dialog.outerHTML}`);
+      dialog.remove();
+    }
+  };
+}
+
+/** Exercises Chart host lifecycle, semantic summary, and exact adapter destruction. @returns {SmokeDefinition} */
+function chartCase() {
+  return {
+    name: 'Chart',
+    create(fixture) {
+      const instance = { data: null, destroyed: false };
+      const component = new zx.Chart(null, {
+        adapter: {
+          create(_canvas, spec) {
+            instance.data = spec.data;
+            return {
+              instance,
+              update(next) { instance.data = next.data; },
+              resize() {},
+              destroy() { instance.destroyed = true; }
+            };
+          }
+        },
+        label: '   ',
+        data: { labels: ['Jan'], datasets: [{ label: 'Revenue', data: [42] }] }
+      });
+      fixture.append(component.toElement());
+      return { component, instance };
+    },
+    exercise({ component }) {
+      assert(component.getInstance(), 'chart adapter was not mounted');
+      assert(component.refs.canvas.getAttribute('aria-label') === 'Chart'
+        && component.el.querySelector('.zx-chart__table caption').textContent === 'Chart',
+      'blank chart label did not fall back to an accessible canvas and summary name');
+      component.setData({ labels: ['Feb'], datasets: [{ label: 'Revenue', data: [84] }] }).resize();
+      assert(component.el.querySelector('.zx-chart__table').textContent.includes('84'),
+        'chart summary did not update');
+    },
+    destroy({ component, instance }) {
+      component.destroy();
+      assert(instance.destroyed, 'chart adapter handle was not destroyed');
+    }
   };
 }
 
@@ -952,6 +1238,60 @@ function tableGrowingCase() {
   };
 }
 
+/** @returns {SmokeDefinition} */
+function tableHierarchyCase() {
+  return {
+    name: 'Table (transaction hierarchy)',
+    create(fixture) {
+      const component = new zx.Table(null, {
+        rowId: 'id',
+        selectable: 'single',
+        hierarchy: { parentId: 'parent', column: 'item', expanded: true },
+        columns: [
+          { id: 'item', label: 'Item' },
+          { id: 'amount', label: 'Amount', type: 'currency', currency: 'EUR', locale: 'en-US' }
+        ],
+        data: [
+          { id: 'invoice', parent: null, item: 'Invoice', amount: 1200 },
+          { id: 'line', parent: 'invoice', item: 'Consulting', amount: 1200 }
+        ]
+      });
+      fixture.append(component.toElement());
+      return { component };
+    },
+    exercise({ component }) {
+      const table = component.el.querySelector('table');
+      const root = component.el.querySelector('tbody tr');
+      const toggle = component.el.querySelector('.zx-table__tree-toggle');
+      let rowClicks = 0;
+      component.on('rowclick', () => { rowClicks += 1; });
+
+      assert(table.getAttribute('role') === 'treegrid', 'hierarchy did not expose a treegrid');
+      assert(root.getAttribute('aria-level') === '1', 'root row has the wrong aria-level');
+      assert(root.getAttribute('aria-expanded') === 'true', 'root row does not expose expansion');
+      assert(component.el.querySelectorAll('tbody tr[data-row]').length === 2, 'expanded child is missing');
+      assert(component.el.querySelector('tbody tr:nth-child(2)').getAttribute('aria-level') === '2',
+        'child row has the wrong aria-level');
+      assert(component.el.querySelector('tbody tr:first-child td:last-child').textContent.includes('€'),
+        'typed currency cell was not formatted');
+
+      toggle.click();
+      assert(component.getExpanded().length === 0, 'disclosure did not collapse the branch');
+      assert(component.getSelection().length === 0, 'disclosure selected its row');
+      assert(rowClicks === 0, 'disclosure emitted rowclick');
+      assert(component.el.querySelectorAll('tbody tr[data-row]').length === 1, 'collapsed child stayed visible');
+
+      component.updateRow('invoice', { ...component.getRow('invoice'), amount: 1250 });
+      assert(component.getExpanded().length === 0, 'editing data reapplied the initial expanded state');
+      assert(component.el.querySelectorAll('tbody tr[data-row]').length === 1,
+        'editing data reopened a reader-collapsed branch');
+    },
+    destroy({ component }) {
+      component.destroy();
+    }
+  };
+}
+
 /**
  * A form in a host that sizes to its contents.
  *
@@ -1014,6 +1354,77 @@ function truncateCase() {
   };
 }
 
+/**
+ * CSS-anchor and coordinate fallback modes share one contract in RTL: sides are physical,
+ * inline start/end alignment is logical, and the offset always separates anchor and popup.
+ * @returns {SmokeDefinition}
+ */
+function positionRtlCase() {
+  return {
+    name: 'position() (RTL parity)',
+    create(fixture) {
+      fixture.dir = 'rtl';
+      const anchor = document.createElement('button');
+      anchor.style.cssText = 'position: fixed; left: 280px; top: 220px; width: 72px; height: 48px';
+      const floating = document.createElement('div');
+      floating.style.cssText = 'box-sizing: border-box; width: 96px; height: 56px';
+      fixture.append(anchor, floating);
+      return { anchor, floating };
+    },
+    async exercise({ anchor, floating }) {
+      assert(CSS.supports('anchor-name: --zx-a'), 'browser cannot compare CSS-anchor and fallback positioning');
+      const supportsDescriptor = Object.getOwnPropertyDescriptor(CSS, 'supports');
+      assert(supportsDescriptor?.configurable, 'CSS.supports cannot be overridden for fallback parity testing');
+      const offset = 7;
+      const placements = [
+        'bottom-start', 'bottom-end', 'top-start', 'top-end', 'bottom', 'top',
+        'right-start', 'right-end', 'left-start', 'left-end', 'right', 'left'
+      ];
+
+      for (const placement of placements) {
+        const cssPosition = zx.position(anchor, floating, { placement, offset, flip: false });
+        await nextFrame();
+        const cssRect = rectSnapshot(floating);
+        cssPosition.destroy();
+
+        Object.defineProperty(CSS, 'supports', { ...supportsDescriptor, value: () => false });
+        let fallbackPosition;
+        let fallbackRect;
+        try {
+          fallbackPosition = zx.position(anchor, floating, { placement, offset, flip: false });
+          await nextFrame();
+          fallbackRect = rectSnapshot(floating);
+        } finally {
+          fallbackPosition?.destroy();
+          Object.defineProperty(CSS, 'supports', supportsDescriptor);
+        }
+
+        for (const edge of ['left', 'right', 'top', 'bottom']) {
+          assert(Math.abs(cssRect[edge] - fallbackRect[edge]) <= 1,
+            `${placement} RTL CSS/fallback ${edge} differed (${cssRect[edge]} vs ${fallbackRect[edge]})`);
+        }
+        const anchorRect = anchor.getBoundingClientRect();
+        const side = placement.split('-')[0];
+        const gap = side === 'right' ? cssRect.left - anchorRect.right
+          : side === 'left' ? anchorRect.left - cssRect.right
+            : side === 'bottom' ? cssRect.top - anchorRect.bottom
+              : anchorRect.top - cssRect.bottom;
+        assert(Math.abs(gap - offset) <= 1, `${placement} RTL gap was ${gap} instead of ${offset}`);
+      }
+    },
+    destroy({ anchor, floating }) {
+      anchor.remove();
+      floating.remove();
+    }
+  };
+}
+
+/** @param {Element} element @returns {{left: number, right: number, top: number, bottom: number}} */
+function rectSnapshot(element) {
+  const rect = element.getBoundingClientRect();
+  return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom };
+}
+
 /** @returns {SmokeDefinition} */
 function customElementsCase() {
   zx.defineElements('zx-smoke');
@@ -1043,6 +1454,7 @@ async function runCase(definition) {
   const result = { component: definition.name, create: false, exercise: false, destroy: false, recreate: false, error: '' };
   const errors = [];
   const firstFixture = fixture();
+  const firstResources = resourceAudit.snapshot();
   let first = null;
   try {
     first = definition.create(firstFixture);
@@ -1061,6 +1473,7 @@ async function runCase(definition) {
       await definition.destroy(first);
       await Promise.resolve();
       assertEmpty(firstFixture);
+      resourceAudit.assertRestored(firstResources);
       result.destroy = true;
     } catch (error) {
       errors.push(`destroy: ${message(error)}`);
@@ -1069,12 +1482,14 @@ async function runCase(definition) {
   firstFixture.remove();
 
   const secondFixture = fixture();
+  const secondResources = resourceAudit.snapshot();
   let second = null;
   try {
     second = definition.create(secondFixture);
     await definition.destroy(second);
     await Promise.resolve();
     assertEmpty(secondFixture);
+    resourceAudit.assertRestored(secondResources);
     result.recreate = true;
   } catch (error) {
     errors.push(`re-create: ${message(error)}`);
@@ -1083,6 +1498,75 @@ async function runCase(definition) {
   secondFixture.remove();
   result.error = errors.join('\n');
   return result;
+}
+
+/** Tracks body-level nodes, document listeners, and ResizeObservers created by each smoke case. */
+function installResourceAudit() {
+  const documentListeners = new Set();
+  const nativeAdd = document.addEventListener.bind(document);
+  const nativeRemove = document.removeEventListener.bind(document);
+  document.addEventListener = (type, listener, options) => {
+    const capture = typeof options === 'boolean' ? options : Boolean(options?.capture);
+    const signal = typeof options === 'object' ? options?.signal : null;
+    if (!signal?.aborted) {
+      const existing = [...documentListeners].find((entry) =>
+        entry.type === type && entry.listener === listener && entry.capture === capture);
+      if (!existing) {
+        const entry = { type, listener, capture };
+        documentListeners.add(entry);
+        signal?.addEventListener('abort', () => documentListeners.delete(entry), { once: true });
+      }
+    }
+    return nativeAdd(type, listener, options);
+  };
+  document.removeEventListener = (type, listener, options) => {
+    const capture = typeof options === 'boolean' ? options : Boolean(options?.capture);
+    for (const entry of documentListeners) {
+      if (entry.type === type && entry.listener === listener && entry.capture === capture) {
+        documentListeners.delete(entry);
+      }
+    }
+    return nativeRemove(type, listener, options);
+  };
+
+  const resizeObservers = new Set();
+  const NativeResizeObserver = window.ResizeObserver;
+  if (typeof NativeResizeObserver === 'function') {
+    window.ResizeObserver = class AuditedResizeObserver extends NativeResizeObserver {
+      constructor(callback) {
+        super(callback);
+        resizeObservers.add(this);
+      }
+      disconnect() {
+        resizeObservers.delete(this);
+        return super.disconnect();
+      }
+    };
+  }
+
+  const snapshot = () => ({
+    bodyNodes: new Set(document.body.querySelectorAll('*')),
+    documentListeners: new Set(documentListeners),
+    resizeObservers: new Set(resizeObservers)
+  });
+  return {
+    snapshot,
+    assertRestored(before) {
+      const after = snapshot();
+      const addedNodes = [...after.bodyNodes].filter((node) => !before.bodyNodes.has(node));
+      const removedNodes = [...before.bodyNodes].filter((node) => !after.bodyNodes.has(node));
+      const addedListeners = [...after.documentListeners].filter((entry) => !before.documentListeners.has(entry));
+      const removedListeners = [...before.documentListeners].filter((entry) => !after.documentListeners.has(entry));
+      const addedObservers = [...after.resizeObservers].filter((observer) => !before.resizeObservers.has(observer));
+      const removedObservers = [...before.resizeObservers].filter((observer) => !after.resizeObservers.has(observer));
+      assert(addedNodes.length === 0 && removedNodes.length === 0,
+        `body resource delta: +${addedNodes.length}/-${removedNodes.length} node(s)`);
+      assert(addedListeners.length === 0 && removedListeners.length === 0,
+        `document listener delta: +${addedListeners.length}/-${removedListeners.length}`);
+      assert(addedObservers.length === 0 && removedObservers.length === 0,
+        `ResizeObserver delta: +${addedObservers.length}/-${removedObservers.length}`);
+    }
+  };
 }
 
 /** @param {SmokeResult[]} results @returns {void} */

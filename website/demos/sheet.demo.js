@@ -25,8 +25,8 @@ function summary() {
 export default {
   title: 'Sheet',
   group: 'Overlays',
-  blurb: 'An edge-anchored Dialog — one component for what shadcn splits into Sheet and Drawer, '
-    + 'since the two differ only in which edge they take.',
+  blurb: 'An edge-anchored Dialog — one component covers both side sheets and mobile drawers, '
+    + 'since only the edge and presentation differ.',
 
   examples: [
     {

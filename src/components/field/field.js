@@ -16,6 +16,8 @@ import { uid } from '../../core/util.js';
  * @property {'stack'|'inline'} [layout='stack'] Label/control layout.
  * @property {Record<string, unknown>} [props={}] Adapter-specific control properties.
  * @property {FieldAdapterFactory} [adapter] Adapter used by the `custom` type.
+ * @property {(event: CustomEvent<{value: unknown}>) => void} [onchange] Value change listener.
+ * @property {(event: CustomEvent<{message: string}>) => void} [oninvalid] Validation failure listener.
  */
 
 /**

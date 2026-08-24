@@ -1,5 +1,5 @@
 import {
-  addDays, addMonths, clamp, clampDate, copyToClipboard, debounce, deepMerge, downloadBlob,
+  __, addDays, addMonths, clamp, clampDate, copyToClipboard, debounce, deepMerge, downloadBlob,
   escapeRegExp, formatCurrency, formatDate, formatFileSize, formatNumber, formatPercent,
   formatRelativeTime, getLanguage, getWeekStart, groupBy, h, highlightMatch, htmlEscape, isElement,
   isSameDay, parseDate, printf, rovingTabindex, sortBy, storage, throttle, toArray, toCsv,
@@ -25,6 +25,7 @@ export default {
   mount(container) {
     container.append(
       intro(),
+      domBuilderHelpers(),
       dateHelpers(),
       formattingHelpers(),
       utilityHelpers(),
@@ -48,6 +49,38 @@ function intro() {
     note('For the element factory h(), the icon set, the anchored-positioning helper, and the '
       + 'Component base class, see the Kernel entry — those are the building blocks components '
       + 'themselves are made of.')
+  );
+}
+
+/** @returns {HTMLElement} */
+function domBuilderHelpers() {
+  const action = __('button#builder-save.primary', {
+    Daction: 'save',
+    title: 'Save invoice',
+    onclick: (event) => {
+      event.currentTarget.textContent = 'Saved';
+    }
+  }, 'Save invoice');
+  action.classList.add('zx-btn');
+
+  return section('ZeyOS DOM builder',
+    note('The established __(tag#id.class, properties, content) grammar is now a first-class Zx '
+      + 'export. D* writes a data attribute, S* writes a style property, on* attaches the familiar '
+      + 'legacy callback, and content stays text-safe. Pure appendCompact() and '
+      + 'appendCompactChild() helpers preserve the two chain return contracts without modifying '
+      + 'globals or DOM prototypes.'),
+    code([
+      "import { __, appendCompact, appendCompactChild } from '/assets/zx.esm.js';",
+      '',
+      "const save = __('button#save.primary', {",
+      "  Daction: 'save',",
+      "  onclick: () => submit()",
+      "}, 'Save invoice');",
+      '',
+      "appendCompact(toolbar, 'span.status', null, 'Ready'); // returns toolbar",
+      "const item = appendCompactChild(list, 'li.item', null, 'Invoice'); // returns item"
+    ].join('\n')),
+    action
   );
 }
 

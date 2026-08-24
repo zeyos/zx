@@ -126,7 +126,9 @@ export function parse(source) {
  */
 export function installGlobals(host = globalThis) {
   installElementStorage(host);
-  host.__ = parse;
+  // `__` is also the current ZeyOS compact DOM builder. Never replace an existing meaning; the
+  // gx parser is still installed for legacy-only hosts where the name is genuinely free.
+  if (host.__ === undefined) host.__ = parse;
   const stringPrototype = host.String?.prototype;
   if (stringPrototype && typeof stringPrototype.htmlSpecialChars !== 'function') {
     Object.defineProperty(stringPrototype, 'htmlSpecialChars', {

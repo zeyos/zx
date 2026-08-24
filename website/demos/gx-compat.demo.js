@@ -50,12 +50,12 @@ function loading() {
   return section('Loading it',
     note('In a classic screen, load the compatibility bundle instead of (or alongside) the global '
       + 'one. It installs window.gx; installGlobals() additionally restores the legacy free '
-      + 'functions such as __() that old code calls without a namespace.'),
+      + 'functions old gx code calls without a namespace. An existing __() is preserved.'),
     code([
       '<link rel="stylesheet" href="/assets/zx.css">',
       '<script src="/assets/zx-compat.global.js"></script>',
       '<script>',
-      '  gx.compat.installGlobals();          // optional: __(), element storage',
+      '  gx.compat.installGlobals();          // optional; preserves an existing __()',
       '  var toggle = new gx.zeyos.Toggle(null, { label: "Notifications", on: true });',
       '  document.body.append(toggle.toElement());',
       '</script>'

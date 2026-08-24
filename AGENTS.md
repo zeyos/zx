@@ -1,6 +1,6 @@
-# Zx — Contributor Contract
+# Xenon / Zx — Contributor Contract
 
-Zx is a dependency-free vanilla-JavaScript UI component library for ZeyOS business applications.
+Xenon is the ZeyOS design system; Zx is its dependency-free vanilla-JavaScript implementation.
 The MooTools-based "gx" library it replaces lives in the sibling directories `../gx-core`,
 `../gx-zeyos`, `../gx-bootstrap` — read-only reference material behind the opt-in compatibility
 layer in `src/compat/`.
@@ -97,7 +97,7 @@ Register exports in `src/index.js` and CSS `@import` in `styles/zx.css`.
 ```js
 export default {
   title: 'Select',            // display name
-  group: 'Inputs',            // sidebar group: Core | Helpers | Inputs | Overlays | Data | Forms | Layout
+  group: 'Inputs',            // Core | Helpers | Inputs | Layout | Feedback | Overlays | Pickers | Data | Forms
   mount(container) { ... }    // build one or more usage examples into container
 };
 ```

@@ -177,7 +177,9 @@ export default {
       }
     },
     {
-      title: 'The priority preset',
+      id: 'priority',
+      title: 'Select.priority()',
+      preset: true,
       blurb: 'Select.priority() builds the five-step ZeyOS priority scale, with its labels taken '
         + 'from the msg map you pass so the preset localises with the rest of the application.',
       width: '360px',
@@ -198,7 +200,9 @@ export default {
       }
     },
     {
-      title: 'The permission preset',
+      id: 'permission',
+      title: 'Select.permission()',
+      preset: true,
       blurb: 'Select.permission() is the record-access control: Private and Public pinned above '
         + 'the groups a record may be shared with, carrying the tri-state the ZeyOS API stores — '
         + 'false, true, or a group ID — so it binds straight to the record field. groups takes an '

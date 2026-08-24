@@ -10,6 +10,9 @@ import { uid } from '../../core/util.js';
  * @property {boolean} [sortable=true] Whether values can be reordered.
  * @property {boolean} [unique=true] Whether duplicate strings are rejected.
  * @property {((value: string) => boolean|string)|null} [validate=null] Value validator.
+ * @property {(event: CustomEvent<{values: string[]}>) => void} [onchange] Values change listener.
+ * @property {(event: CustomEvent<{value: string}>) => void} [onadd] Value added listener.
+ * @property {(event: CustomEvent<{value: string}>) => void} [onremove] Value removed listener.
  */
 
 /**
@@ -320,17 +323,17 @@ function normalizeValues(values, unique) {
 /**
  * Values changed event.
  * @event ValueList#change
- * @type {CustomEvent<{values: string[]}>
+ * @type {CustomEvent<{values: string[]}>}
  */
 
 /**
  * Value added event.
  * @event ValueList#add
- * @type {CustomEvent<{value: string}>
+ * @type {CustomEvent<{value: string}>}
  */
 
 /**
  * Value removed event.
  * @event ValueList#remove
- * @type {CustomEvent<{value: string}>
+ * @type {CustomEvent<{value: string}>}
  */

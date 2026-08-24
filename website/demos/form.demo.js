@@ -18,6 +18,8 @@ function rangeAdapter(_field, options) {
 export default {
   title: 'Form system',
   group: 'Forms',
+  api: ['Form', 'Fieldset', 'Field'],
+  apiImport: "import { Field, Fieldset, Form } from '@zeyos/zx';",
   blurb: 'Fieldsets of typed fields with one values object in and out \u2014 the schema-shaped way to '
     + 'build a record editor.',
 

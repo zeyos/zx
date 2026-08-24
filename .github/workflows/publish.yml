@@ -30,7 +30,7 @@ jobs:
             exit 1
           fi
 
-      - name: Install devDependencies (esbuild only)
+      - name: Install devDependencies
         run: npm ci || npm install
 
       - name: Test (zero-dependency offline suite)

@@ -118,7 +118,6 @@
   background: var(--zx-color-bg-selected);
 }
 
-.zx-select__option > svg,
 .zx-select__option > .zx-icon {
   flex: none;
   color: var(--zx-color-accent);

@@ -9,7 +9,7 @@ const HANDLE_ESCAPE_DISMISS = Symbol('zxDropdownEscapeDismiss');
 /**
  * @typedef {Object} DropdownOptions
  * @property {Node|string|number|{toElement: () => Node|null}|null} [content=null] Panel content.
- * @property {'bottom-start'|'bottom-end'|'top-start'|'top-end'|'bottom'|'top'} [placement='bottom-start'] Panel placement.
+ * @property {'bottom-start'|'bottom-end'|'top-start'|'top-end'|'bottom'|'top'|'right-start'|'right-end'|'left-start'|'left-end'|'right'|'left'} [placement='bottom-start'] Panel placement.
  * @property {number} [offset=4] Gap between anchor and panel in pixels.
  * @property {boolean} [matchWidth=false] Whether the panel matches the anchor width.
  * @property {'click'|'manual'} [openOn='click'] Trigger behavior.

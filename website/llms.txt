@@ -1,7 +1,7 @@
-# Zx
+# Xenon Design System (Zx)
 
-> Zx is a dependency-free, vanilla-JavaScript UI component library for ZeyOS business
-> applications. ES2022 modules, WAI-ARIA-accessible controls built on native platform features,
+> Xenon is the dependency-free design system for ZeyOS business applications; Zx is its
+> vanilla-JavaScript implementation. ES2022 modules, WAI-ARIA-accessible controls built on native platform features,
 > semantic `--zx-*` design tokens with light/dark and cozy/compact theming, and lifecycle-safe
 > components. Source modules run directly in the browser; a build step emits ESM, IIFE-global,
 > compatibility, and CSS bundles. Zero runtime dependencies.
@@ -38,7 +38,8 @@ available as ESM named exports and as `window.zx.*`.
   gotchas, commands.
 
 ## Components
-- Inputs: `button()`, `buttonGroup()`, `badge()`, `CheckButton`, `Toggle`, `Search`, `Select` (APG combobox;
+- Inputs: `button()`, `buttonGroup()`, `badge()`, `CheckButton`, `Toggle`, `Search`, `Launcher`,
+  `Avatar`, `AccountMenu`, `Select` (APG combobox;
   `filter: false|'local'|async`), `Checklist`, `TagPicker`,
   `NumberField`, `Rating`, `Slider` (native range; marks, bounds, optional number box),
   `copyButton()`/`CopyInput`, `DatePicker`, `MonthPicker`, `TimePicker`, `Datebox`/`DateTimeBox`,
@@ -48,11 +49,14 @@ available as ESM named exports and as `window.zx.*`.
   `snap` detents, swipe-to-dismiss), `SheetStack` (drill-down; `stack`/`cascade`), `Dropdown`,
   `MenuButton`, `ContextMenu` (right-click and Shift+F10; `selector` gives per-row menus from one
   instance).
-- Data: `Table` (sortable, selectable, sticky header, opt-in inline editing), `DataFilter`, `Pagination`, `TreeView` (APG tree), `Finder` (Miller columns).
+- Data: `Table` (sortable, selectable, sticky header, opt-in inline editing), `Grid` with
+  `Grid.BillingItems()`, engine-neutral `Chart` with injected `ChartJsAdapter`, `DataFilter`,
+  `Pagination`, `TreeView` (APG tree), `Finder` (Miller columns).
 - Forms: `Form`, `Fieldset`, `Questionnaire` (guided one-question-at-a-time flow with branching), `Field` (type registry), `ValueList`, `MultiValueEditor`,
   `FieldUpload`.
 - Layout: `stack()`/`grid()`/`aspect()`, `Groupbox`, `Panel`, `MasterPanel`, `Tabbox`,
-  `NavigationBar`, `Toolbar`, `SplitView`, `Dock` (collapsible resizable pane stack; tab groups,
+  `NavigationBar`, `AppSidebar`, minimized `AppRail`, `Toolbar`, `SplitView`, `Dock` (collapsible
+  resizable pane stack; tab groups,
   regions, adopts a `Sheet`), `Stepper`, `Breadcrumb`, `emptyState()`.
 - Feedback: `spinner()`, `ProgressBar`, `InlineLoading`,
   `skeleton()`/`skeletonText()`/`skeletonTable()`.
@@ -70,7 +74,7 @@ Load `zx.css` once and put `zx-scope` on the application root. Set `data-zx-them
 (`light`|`dark`|`auto`) and `data-zx-density` (`cozy`|`compact`) on any ancestor. Define a product
 theme by overriding semantic `--zx-color-*` / `--zx-control-*` tokens under
 `[data-zx-theme="name"]`. Never use tier-1 palette tokens or raw colour literals in application
-CSS. The stock themes follow the shadcn/ui Nova · Zinc preset with the ZeyOS green as the accent.
+CSS. The stock themes use a restrained neutral ramp with the ZeyOS green as the accent.
 Six accent presets ship as `data-zx-preset` (zx, zeyos, ocean, violet, rose, slate); each is five
 `--zx-accent-*` values. `/theme.html` is the theme studio: every component under a live theme,
 with the result exportable as CSS.

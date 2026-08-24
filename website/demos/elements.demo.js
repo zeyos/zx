@@ -6,7 +6,7 @@ export default {
   title: 'Custom elements',
   group: 'Core',
   api: ['defineElements', 'Component'],
-  blurb: 'Every Zx component also ships as a custom element, so a screen can be written as markup '
+  blurb: 'A focused set of Zx controls also ships as custom elements, so a screen can be written as markup '
     + 'and configured with attributes instead of constructor calls.',
 
   examples: [

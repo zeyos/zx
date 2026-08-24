@@ -1,7 +1,7 @@
 {
   "name": "@zeyos/zx",
-  "version": "2.3.0",
-  "description": "Dependency-free, accessible UI component library for ZeyOS business applications.",
+  "version": "3.0.0",
+  "description": "Dependency-free JavaScript implementation of the Xenon Design System for ZeyOS.",
   "type": "module",
   "license": "MIT",
   "homepage": "https://zx.zeyos.com",
@@ -73,6 +73,7 @@
     "docs/api.json",
     "CHANGELOG.md",
     "README.md",
+    "DESIGN-SYSTEM.md",
     "MIGRATION.md",
     "LICENSE"
   ],
@@ -94,6 +95,7 @@
     "test:browser": "node tools/run-smoke.js"
   },
   "devDependencies": {
+    "chart.js": "4.5.1",
     "esbuild": "latest",
     "playwright-core": "^1.62.1",
     "typescript": "^7.0.2"

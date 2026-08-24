@@ -1,10 +1,13 @@
-# Zx
+# Xenon Design System (Zx)
 
-Zx is the dependency-free, vanilla-JavaScript component library for ZeyOS business applications:
-ES2022 modules, accessible native controls, semantic design tokens, and lifecycle-safe components.
-Source modules run directly in a browser; the distribution also provides ESM and classic-script
-bundles. An opt-in compatibility layer keeps existing MooTools-era `gx` code running while it is
-modernised.
+Xenon is the dependency-free design system for ZeyOS business applications; Zx is its
+vanilla-JavaScript implementation. It combines foundations, accessible components, repeatable
+workflow patterns, and application layouts in plain ES2022 modules. Source modules run directly in
+a browser; the distribution also provides ESM and classic-script bundles. An opt-in compatibility
+layer remains available for genuine MooTools-era `gx` applications while they are modernised.
+
+The [design-system audit](./DESIGN-SYSTEM.md) records current ZeyOS coverage, missing shell
+patterns, the adoption boundary, transaction-grid follow-ups, and chart-engine candidates.
 
 ## Quick start
 
@@ -95,6 +98,7 @@ ZeyOS binding — see `src/zeyos/modules.js`.
 | `CheckButton` | Two-state pressed button with optional state-specific labels. |
 | `Toggle` | Native-button switch with a separate submitted value. |
 | `Search` | Search input with debounced input, submit, and clear events. |
+| `Launcher` | Cmd/Ctrl+K application and record launcher with ranked local items and abortable grouped sources. |
 | `Select` | APG combobox with local or async filtering, pinned fixed items, and priority/permission presets. |
 | `Checklist` | Searchable checkbox group with optional async loading. |
 | `TagPicker` | Multi-select combobox that keeps its selection as removable tags. |
@@ -122,12 +126,16 @@ ZeyOS binding — see `src/zeyos/modules.js`.
 | `MenuButton` | APG menu button built on `Dropdown`. |
 | `ContextMenu` | APG right-click menu for a region or, via `selector`, per row. |
 | `Tooltip`, `tooltip()`, `describe()` | Hover/focus description bubble anchored with `position()`. |
+| `Avatar` | Fixed-size user image with initials fallback and optional presence. |
+| `AccountMenu` | Identity trigger and grouped account actions over `MenuButton`. |
 
 ### Data
 
 | API | Description |
 | --- | --- |
-| `Table` | Semantic sortable table with local/server sorting, row selection, and opt-in inline cell/row editing. |
+| `Table` | Sortable/selectable table with typed transaction columns, flat-data hierarchy/treegrid projection, and opt-in cell/row editing. |
+| `Grid`, `Grid.BillingItems()` | Table-compatible preset surface with editable currencies, units, totals, and sub-items. |
+| `Chart`, `ChartJsAdapter` | Accessible engine-neutral chart host and explicitly injected Chart.js adapter. |
 | `DataFilter` | Declarative select, text, and custom filters for client-side row sets. |
 | `TreeView` | APG tree with lazy children, filtering, and tri-state checkboxes. |
 | `Finder` | Miller-columns hierarchy browser with an optional preview pane. |
@@ -154,6 +162,8 @@ ZeyOS binding — see `src/zeyos/modules.js`.
 | `MasterPanel` | Full-height application panel with fixed header actions and footer. |
 | `Tabbox` | APG tabs in four appearances, with lazy content, closing, badges, and disabled states. |
 | `NavigationBar` | Responsive application navigation with optional tab panels and overflow. |
+| `AppSidebar` | Expanded vertical application navigation with inline disclosure children. |
+| `AppRail` | Minimized vertical/horizontal application navigation with flyout-only descendants. |
 | `Toolbar` | APG toolbar: one tab stop, arrow-key movement, and overflow into a menu. |
 | `SplitView` | Resizable two-pane split with a keyboard-operable separator. |
 | `Stepper` | Linear multi-step progress with completed, active, and error states. |
@@ -241,7 +251,7 @@ through, so a preset rethemes light, dark, and auto at once:
 
 Light surfaces take the 600 and 700 stops, dark ones take 300, 400, and 500 — so keep 600 legible
 against white and 400 against near-black, and `--zx-color-on-accent` stays correct in both. The
-[theme studio](https://zx.zeyos.com/theme.html) renders every component under a live theme and
+[theme studio](https://zx.zeyos.com/theme.html) renders every component family under a live theme and
 exports the result.
 
 Anything beyond the accent is a semantic token override, without reaching into component CSS:
@@ -273,7 +283,7 @@ JavaScript positioning fallback.
 
 ## Development
 
-Install the single development dependency and start the no-build demo server:
+Install the development toolchain and start the no-build demo server:
 
 ```sh
 npm install
@@ -318,12 +328,13 @@ During an incremental migration, load the global API before the compatibility bu
 <script src="/assets/zx.global.js"></script>
 <script src="/assets/zx-compat.global.js"></script>
 <script>
-  // Only when old code relies on __(), _(), or prototype conveniences:
+  // Only for gx-era free functions; an existing ZeyOS __() is preserved:
   gx.compat.installGlobals();
 </script>
 ```
 
 The compatibility bundle always exposes `window.gx` and installs only the element
 `store`/`retrieve`/`eliminate` shim automatically. Legacy globals and prototype conveniences are
-an explicit opt-in through `gx.compat.installGlobals()`. See [MIGRATION.md](./MIGRATION.md) for
+an explicit opt-in through `gx.compat.installGlobals()`; it never replaces an existing `__`.
+See [MIGRATION.md](./MIGRATION.md) for
 class mappings, script replacement, deliberate behavior changes, and unsupported legacy APIs.

@@ -35,9 +35,12 @@ const EXTRA_SOURCES = [
   ['docs', 'docs'],
   ['.claude/skills', 'skills'],
   ['README.md', 'README.md'],
+  ['DESIGN-SYSTEM.md', 'DESIGN-SYSTEM.md'],
   ['MIGRATION.md', 'MIGRATION.md'],
   ['CHANGELOG.md', 'CHANGELOG.md'],
-  ['AGENTS.md', 'AGENTS.md']
+  ['AGENTS.md', 'AGENTS.md'],
+  ['node_modules/chart.js/dist/chart.umd.js', 'vendor/chart.umd.js'],
+  ['node_modules/chart.js/LICENSE.md', 'vendor/chart.LICENSE.md']
 ];
 
 /**
@@ -87,7 +90,7 @@ for (const file of await walk(outDir)) {
   if (sourceDir === null) continue;
 
   const original = await readFile(file, 'utf8');
-  const updated = original.replace(/(?<=['"(])\.\.\/[^'")\s]*/g, (reference) => {
+  let updated = original.replace(/(?<=['"(])\.\.\/[^'")\s]*/g, (reference) => {
     const target = resolve(sourceDir, reference);
     // A path that still lands inside `website/` keeps working unchanged.
     if (target === websiteDir || target.startsWith(websiteDir + sep)) return reference;
@@ -98,6 +101,16 @@ for (const file of await walk(outDir)) {
     const stripped = renamed(reference.replace('../', ''));
     return stripped.startsWith('.') || stripped.startsWith('/') ? stripped : `./${stripped}`;
   });
+  // Dynamically inserted classic scripts resolve plain relative URLs against the HTML document,
+  // not against the ES module that created them. Convert the one documentation-only Chart.js
+  // asset after path flattening so both the root and revision-stamped demo resolve their own
+  // neighbouring `vendor/` copy. The development source stays parseable by the demo extractor.
+  if (relative(outDir, file).split(sep).join('/') === 'demos/chart.demo.js') {
+    updated = updated.replace(
+      "script.src = '../vendor/chart.umd.js';",
+      "script.src = new URL('../vendor/chart.umd.js', import.meta.url).href;"
+    );
+  }
   if (updated !== original) {
     await writeFile(file, updated);
     rewritten += 1;
@@ -257,10 +270,12 @@ function sourceDirOf(file) {
  * @returns {string}
  */
 function renamed(reference) {
+  const lead = reference.startsWith('../') ? '../' : '';
+  const candidate = lead ? reference.slice(3) : reference;
   for (const [source, destination] of EXTRA_SOURCES) {
     if (source === destination) continue;
-    if (reference === source) return destination;
-    if (reference.startsWith(`${source}/`)) return `${destination}${reference.slice(source.length)}`;
+    if (candidate === source) return `${lead}${destination}`;
+    if (candidate.startsWith(`${source}/`)) return `${lead}${destination}${candidate.slice(source.length)}`;
   }
   return reference;
 }

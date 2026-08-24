@@ -1,7 +1,6 @@
 /*
- * Tier-2 semantic tokens — dark theme, from the shadcn/ui preset `b2BVl11e4` (Zinc):
- * Zinc-950 page, Zinc-900 cards and popovers, Zinc-800 muted fills, translucent white borders
- * (10%) and inputs (15%), Zinc-400 muted text.
+ * Tier-2 semantic tokens — dark theme: a near-black page, raised neutral surfaces, muted fills,
+ * translucent white borders (10%) and inputs (15%), and restrained secondary text.
  *
  * The accent roles take the light end of the `--zx-accent-*` ramp (300/400/500) where the light
  * theme takes the dark end, so a preset that repoints the ramp lands correctly in both.

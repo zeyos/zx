@@ -9,6 +9,7 @@ import { icon } from '../../core/icons.js';
  * @property {string} [addLabel='Add value'] Add-row button text.
  * @property {'both'|'buttons'|'drag'|'none'} [reorder='both'] Reordering affordances each row gets:
  *   a drag handle, the up/down buttons, both, or neither.
+ * @property {(event: CustomEvent<{values: string[]}>) => void} [onchange] Values change listener.
  */
 
 /** Affordances each `reorder` setting turns on. */
@@ -383,5 +384,5 @@ function normalizeOptions(options) {
 /**
  * Ordered values changed event.
  * @event MultiValueEditor#change
- * @type {CustomEvent<{values: string[]}>
+ * @type {CustomEvent<{values: string[]}>}
  */

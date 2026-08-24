@@ -77,6 +77,40 @@ function editableRows() {
   }));
 }
 
+/** @returns {Array<Record<string, any>>} */
+function transactionRows() {
+  return [
+    {
+      id: 'project', parent: null, item: 'Berlin office refit', kind: 'group',
+      quantity: null, unit: '', unitPrice: null, total: 3654.8, currency: 'EUR'
+    },
+    {
+      id: 'services', parent: 'project', item: 'Installation services', kind: 'group',
+      quantity: null, unit: '', unitPrice: null, total: 1722.5, currency: 'EUR'
+    },
+    {
+      id: 'planning', parent: 'services', item: 'Planning and coordination', kind: 'line',
+      quantity: 6.5, unit: 'hours', unitPrice: 95, total: 617.5, currency: 'EUR'
+    },
+    {
+      id: 'install', parent: 'services', item: 'On-site installation', kind: 'line',
+      quantity: 13, unit: 'hours', unitPrice: 85, total: 1105, currency: 'EUR'
+    },
+    {
+      id: 'hardware', parent: 'project', item: 'Hardware', kind: 'group',
+      quantity: null, unit: '', unitPrice: null, total: 1932.3, currency: 'EUR'
+    },
+    {
+      id: 'desks', parent: 'hardware', item: 'Standing desk controllers', kind: 'line',
+      quantity: 4, unit: 'pcs', unitPrice: 288.2, total: 1152.8, currency: 'EUR'
+    },
+    {
+      id: 'sensors', parent: 'hardware', item: 'Occupancy sensors', kind: 'line',
+      quantity: 10, unit: 'pcs', unitPrice: 84.5, total: 845, currency: 'USD'
+    }
+  ];
+}
+
 /** @param {Record<string, unknown>} changes @returns {string} */
 function describeChanges(changes) {
   const entries = Object.entries(changes);
@@ -123,6 +157,58 @@ export default {
         });
         cleanup(() => table.destroy());
         return table.toElement();
+      }
+    },
+    {
+      title: 'Editable transaction lines',
+      blurb: 'Typed columns keep values numeric in row data while formatting each row’s currency '
+        + 'and unit. hierarchy projects the flat parent references as expandable line items; '
+        + 'double-click Quantity or Unit price to edit, then commit with Enter or Tab.',
+      layout: 'stack',
+      render: ({ cleanup, log }) => {
+        const table = new Table(null, {
+          rowId: 'id',
+          data: transactionRows(),
+          hierarchy: { parentId: 'parent', column: 'item', expanded: true },
+          editMode: 'cell',
+          sort: { id: 'item', dir: 'asc' },
+          columns: [
+            { id: 'item', label: 'Item', width: '2fr', sortable: true },
+            {
+              id: 'quantity', label: 'Quantity', width: '1fr', type: 'unit',
+              unit: (row) => row.unit,
+              decimals: (row) => row.unit === 'hours' ? 2 : 0,
+              editable: (row) => row.kind === 'line' ? 'number' : false,
+              editorProps: { min: 0, step: 0.25 },
+              validate: (value) => Number(value) > 0 ? true : 'Quantity must be greater than zero.'
+            },
+            {
+              id: 'unitPrice', label: 'Unit price', width: '1fr', type: 'currency', decimals: 2,
+              currency: (row) => row.currency,
+              editable: (row) => row.kind === 'line' ? 'number' : false,
+              editorProps: { min: 0, step: 0.01 },
+              validate: (value) => Number(value) >= 0 ? true : 'Unit price cannot be negative.'
+            },
+            {
+              id: 'total', label: 'Line total', width: '1fr', type: 'currency', decimals: 2,
+              currency: (row) => row.currency
+            }
+          ],
+          oneditcommit: ({ detail }) => {
+            const quantity = detail.changes.quantity ?? detail.row.quantity;
+            const unitPrice = detail.changes.unitPrice ?? detail.row.unitPrice;
+            if (detail.row.kind === 'line') detail.changes.total = Number(quantity) * Number(unitPrice);
+            log(`editcommit ${detail.id}: ${describeChanges(detail.changes)}`);
+          },
+          onrowtoggle: ({ detail }) => log(`${detail.expanded ? 'expanded' : 'collapsed'} ${detail.id}`)
+        });
+        cleanup(() => table.destroy());
+        return [
+          table.toElement(),
+          h('div', { class: 'demo-row' },
+            h('button', { type: 'button', onclick: () => table.expandAll() }, 'expandAll()'),
+            h('button', { type: 'button', onclick: () => table.collapseAll() }, 'collapseAll()'))
+        ];
       }
     },
     {

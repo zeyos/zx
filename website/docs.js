@@ -22,14 +22,14 @@ import { collectDependencies } from './demo-source.js';
 /** Component demos, in sidebar order. The id is the `website/demos/<id>.demo.js` basename. */
 const COMPONENT_IDS = [
   'tokens', 'kernel', 'icons', 'helpers', 'truncate', 'gx-compat',
-  'button', 'badge', 'check-button', 'toggle', 'search', 'number-field', 'rating', 'slider', 'copy',
+  'button', 'badge', 'check-button', 'toggle', 'search', 'launcher', 'avatar', 'account-menu', 'number-field', 'rating', 'slider', 'copy',
   'layout', 'groupbox', 'panel', 'tabbox', 'navigation-bar', 'toolbar', 'empty-state',
-  'stepper', 'breadcrumb', 'split-view', 'dock',
+  'stepper', 'breadcrumb', 'split-view', 'dock', 'app-sidebar', 'app-rail',
   'loading', 'skeleton',
   'message', 'modal', 'dialog', 'sheet', 'sheet-stack', 'dropdown', 'menu-button', 'context-menu', 'tooltip',
   'select', 'checklist', 'tag-picker',
   'date-picker', 'datebox', 'date-range', 'timebox',
-  'table', 'data-filter', 'pagination', 'tree', 'finder',
+  'table', 'grid', 'chart', 'data-filter', 'pagination', 'tree', 'finder',
   'form', 'form-widgets', 'questionnaire', 'elements',
   'value-list', 'multi-value-editor', 'field-upload'
 ];
@@ -371,11 +371,14 @@ function entryPage(entry) {
   const api = apiSection(entry, reference);
   if (api) nodes.push(api);
 
-  const examples = element('div', 'docs-examples', undefined,
-    element('h2', 'docs-examples__title', 'Examples'));
-  for (const example of entry.examples) examples.append(exampleCard(entry, example));
-  if (entry.mount) examples.append(legacyCard(entry));
-  nodes.push(examples);
+  const presets = entry.examples.filter((example) => example.preset === true);
+  const examples = entry.examples.filter((example) => example.preset !== true);
+  if (presets.length) nodes.push(exampleGroup(entry, 'Presets', presets, 'docs-presets'));
+  if (examples.length || entry.mount) {
+    const group = exampleGroup(entry, 'Examples', examples, 'docs-examples');
+    if (entry.mount) group.append(legacyCard(entry));
+    nodes.push(group);
+  }
 
   if (reference.notes.length) {
     nodes.push(referenceSection('notes', 'Behaviour', reference.notes));
@@ -385,6 +388,24 @@ function entryPage(entry) {
   }
   nodes.push(sourceSection(entry));
   return nodes;
+}
+
+/**
+ * A named group of runnable examples. Presets are deliberately separated from general examples:
+ * they are callable pieces of product policy, not just another configuration to scroll past.
+ * @param {object} entry Registry entry the examples belong to.
+ * @param {string} title Group heading.
+ * @param {object[]} examples Examples in display order.
+ * @param {string} className Group-specific class.
+ * @returns {HTMLElement}
+ */
+function exampleGroup(entry, title, examples, className) {
+  const group = docsSection(slug(title), title, {
+    className: `docs-example-group ${className}`
+  });
+  group.querySelector('.docs-section__title')?.classList.add('docs-example-group__title');
+  for (const example of examples) group.append(exampleCard(entry, example));
+  return group;
 }
 
 /**
@@ -601,7 +622,8 @@ function inlineCode(value) {
 function exampleCard(entry, example) {
   const card = docsSection(example.id, example.title, {
     className: 'docs-example',
-    href: `#${entry.section}/${entry.id}/${example.id}`
+    href: `#${entry.section}/${entry.id}/${example.id}`,
+    headingLevel: 3
   });
   if (example.blurb) card.append(element('p', 'docs-example__blurb', example.blurb));
 
@@ -692,7 +714,8 @@ function legacyCard(entry) {
   const title = entry.demoTitle || (entry.kind === 'layout' ? 'Preview' : 'Demo');
   const card = docsSection('demo', title, {
     className: 'docs-example',
-    href: `#${entry.section}/${entry.id}/demo`
+    href: `#${entry.section}/${entry.id}/demo`,
+    headingLevel: 3
   });
   const stage = element('div', 'docs-example__stage docs-example__stage--full');
   try {
@@ -1364,7 +1387,7 @@ function buildToc() {
  * reader can hand someone a URL that lands on this exact example.
  * @param {string} id
  * @param {string} title
- * @param {{className?: string, href?: string}} [options]
+ * @param {{className?: string, href?: string, headingLevel?: 2|3}} [options]
  * @returns {HTMLElement}
  */
 function docsSection(id, title, options = {}) {
@@ -1372,7 +1395,7 @@ function docsSection(id, title, options = {}) {
   section.id = `section-${id}`;
   section.dataset.title = title;
 
-  const heading = element('h2', 'docs-section__title');
+  const heading = element(options.headingLevel === 3 ? 'h3' : 'h2', 'docs-section__title');
   if (options.href) {
     const anchor = element('a', 'docs-section__anchor', title);
     anchor.href = options.href;

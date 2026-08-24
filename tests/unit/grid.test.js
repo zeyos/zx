@@ -1,0 +1,80 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+
+import { Grid, billingColumns, billingItemsConfig, isBillingLine } from '../../src/components/grid/grid.js';
+import { Table } from '../../src/components/table/table.js';
+
+const fields = {
+  id: 'key', parent: 'parentKey', item: 'description', kind: 'rowType',
+  quantity: 'qty', unit: 'measure', unitPrice: 'price', currency: 'ccy', total: 'amount'
+};
+
+test('Grid is a Table specialization and keeps the Table CSS block', () => {
+  assert.equal(Grid.prototype instanceof Table, true);
+  assert.equal(Grid.cssName, 'table');
+});
+
+test('billing line detection keeps groups and subtotals read-only', () => {
+  assert.equal(isBillingLine({ rowType: 'line' }, fields), true);
+  assert.equal(isBillingLine({ rowType: 'group' }, fields), false);
+  assert.equal(isBillingLine({ rowType: 'subtotal' }, fields), false);
+});
+
+test('billing columns apply field maps, choices, formatting, and immutable overrides', () => {
+  const overrides = { quantity: { label: 'Hours' } };
+  const columns = billingColumns(fields, {
+    units: [{ value: 'h', label: 'Hours' }],
+    currencies: { EUR: 'Euro' },
+    currency: 'EUR',
+    locale: 'de-DE',
+    decimals: 2,
+    columnOverrides: overrides
+  });
+  assert.deepEqual(columns.map((column) => column.id),
+    ['description', 'qty', 'measure', 'price', 'ccy', 'amount']);
+  assert.equal(columns[1].label, 'Hours');
+  assert.equal(columns[2].editable({ rowType: 'line' }), 'select');
+  assert.equal(columns[3].currency({ ccy: 'USD' }), 'USD');
+  assert.deepEqual(overrides, { quantity: { label: 'Hours' } });
+});
+
+test('billing preset config merges Table options and calculates totals before caller listeners', () => {
+  const calls = [];
+  const source = {
+    fields: { ...fields },
+    selectable: 'multiple',
+    columnOverrides: { item: { label: 'Service' } },
+    lineTotal: (row, changes) => {
+      calls.push(['calculate', { ...changes }]);
+      return row.qty * row.price;
+    },
+    oneditcommit: (event) => calls.push(['listener', event.detail.changes.amount])
+  };
+  const config = billingItemsConfig(source);
+  const changes = { qty: 3 };
+  config.oneditcommit({ detail: {
+    row: { rowType: 'line', qty: 2, price: 10, amount: 20 },
+    changes
+  } });
+
+  assert.equal(config.rowId, 'key');
+  assert.equal(config.hierarchy.parentId, 'parentKey');
+  assert.equal(config.selectable, 'multiple');
+  assert.equal(config.columns[0].label, 'Service');
+  assert.equal(changes.amount, 30);
+  assert.deepEqual(calls, [['calculate', { qty: 3 }], ['listener', 30]]);
+  assert.deepEqual(source.fields, fields);
+  assert.deepEqual(source.columnOverrides, { item: { label: 'Service' } });
+});
+
+test('billing preset keeps group rows read-only and does not calculate their totals', () => {
+  let calculated = false;
+  const config = billingItemsConfig({
+    lineTotal: () => { calculated = true; return 99; }
+  });
+  const changes = { quantity: 2 };
+  config.oneditcommit({ detail: { row: { kind: 'subtotal', total: 10 }, changes } });
+  assert.equal(calculated, false);
+  assert.deepEqual(changes, { quantity: 2 });
+  assert.match(config.rowClass({ kind: 'group' }), /zx-grid-billing__summary/);
+});

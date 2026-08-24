@@ -63,13 +63,19 @@ function balanced(text, start, open, close) {
  * @returns {string[]} One entry per tag, plus a leading entry for the untagged description.
  */
 function tagLines(block) {
-  const lines = block.split('\n').map((line) => line.replace(/^\s*\*ted?\s?/, '').replace(/^\s*\*\s?/, ''));
-  const entries = [''];
-  for (const line of lines) {
-    if (/^\s*@\w+/.test(line)) entries.push(line.trim());
-    else entries[entries.length - 1] += ` ${line.trim()}`;
-  }
-  return entries.map((entry) => entry.replace(/\s+/g, ' ').trim());
+  const text = block.split('\n')
+    .map((line) => line.replace(/^\s*\*ted?\s?/, '').replace(/^\s*\*\s?/, ''))
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!text) return [''];
+
+  // Public methods frequently keep a short tag on the same physical line as the sentence:
+  // `/** Opens the panel. @returns {this} */`. Split only JSDoc tags we consume or preserve;
+  // package names such as `@zeyos/client` remain ordinary prose.
+  const entries = text.split(/\s+(?=@(?:typedef|property|param|returns|fires|event|type|extends|template)\b)/);
+  if (entries[0].startsWith('@')) entries.unshift('');
+  return entries;
 }
 
 /**
@@ -188,7 +194,11 @@ function methodsOf(source, className) {
 function classFor(source, base) {
   const exported = [...source.matchAll(/export class (\w+)/g)].map((match) => match[1]);
   if (exported.includes(base)) return base;
-  return exported.length === 1 ? exported[0] : base;
+  // A differently named helper typedef is its own API record. Mapping every typedef in a
+  // one-class file to that class made `PromptOptions` silently replace `DialogOptions`, and did
+  // the same to other factory/helper records. Tree is the sole deliberate class-name alias.
+  if (base === 'Tree' && exported.includes('TreeView')) return 'TreeView';
+  return base;
 }
 
 /**
@@ -247,7 +257,10 @@ export async function collectApi() {
         .filter((entry) => entry.startsWith('@property'))
         .map(parseMember)
         .filter(Boolean);
-      if (members.length === 0) continue;
+      // An exported class may deliberately add no constructor options of its own while still
+      // owning public static methods (Grid is the Table-compatible preset extension point).
+      // Keep that class record; helper typedefs with no members remain noise and are skipped.
+      if (members.length === 0 && !source.includes(`export class ${className}`)) continue;
 
       const { options, events } = partition(members);
       components[className] = {

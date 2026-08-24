@@ -1,7 +1,7 @@
-# Zx — agent reference
+# Xenon Design System (Zx) — agent reference
 
-> Zx is the dependency-free, vanilla-JavaScript UI component library for ZeyOS business
-> applications. ES2022 modules, WAI-ARIA-accessible native controls, semantic `--zx-*` design
+> Xenon is the dependency-free design system for ZeyOS business applications; Zx is its
+> vanilla-JavaScript implementation. ES2022 modules, WAI-ARIA-accessible native controls, semantic `--zx-*` design
 > tokens (light/dark + cozy/compact), and lifecycle-safe components. Zero runtime dependencies.
 > This file is the single, complete reference a coding agent needs to build UI with Zx; each
 > component below is wrapped in `<!-- doc:<name> -->` markers so tools can extract a single
@@ -61,7 +61,7 @@ need not be set). A preset repoints five tier-1 tokens — `--zx-accent-300` …
 and the semantic tier takes its own stop per polarity (600/700 on light surfaces, 300/400/500 on
 dark), so one five-line block rethemes light, dark, and auto together. Status colours are not part
 of a preset. Define your own the same way, or build one at `/theme.html` (the theme studio, which
-renders every component live and exports the CSS):
+renders every component family live and exports the CSS):
 
 ```css
 :root {
@@ -211,8 +211,9 @@ reflection and ElementInternals form association: `<zx-toggle>`, `<zx-check-butt
 
 Load `zx-compat.global.js` (or import `zx-compat.esm.js`) →
 `window.gx.{core,ui,util,zeyos,bootstrap}` wrapping Zx components (constructor/option/event-name
-translation, MooTools-style `addEvent`). `gx.compat.installGlobals()` (opt-in) installs `__()`,
-`_()`, `String.htmlSpecialChars`, and the element `store/retrieve` shim. Full namespace listing in
+translation, MooTools-style `addEvent`). `gx.compat.installGlobals()` (opt-in) installs its gx
+`__()` parser only when that name is free, plus `_()`, `String.htmlSpecialChars`, and the element
+`store/retrieve` shim. Full namespace listing in
 the "gx compatibility layer" component section below; class map and unsupported legacy APIs in
 `MIGRATION.md`.
 
@@ -416,6 +417,67 @@ Search input with embedded search and clear buttons (`role="search"`).
 - **Options** — `placeholder`, `value`, `clearable: true`, `debounce: 250`.
 - **Methods** — `get()`, `set(value, {silent})`, `focus()`, `clear()`.
 - **Events** — `input {value}` (debounced), `submit {value}` (Enter or the button), `clear`.
+<!-- /doc -->
+
+<!-- doc:launcher -->
+### Launcher — application and record search
+
+A native-dialog launcher for applications, recent records, commands, and grouped remote results.
+Zx owns ranking, focus, request cancellation, and presentation; ZeyOS owns the catalogue,
+permissions, recent-history/cache policy, and the route or command ultimately invoked.
+
+- **Constructor** — `new Launcher(null, options)` owns a body-level dialog;
+  `new Launcher(existingDialog, options)` enhances and later restores an existing `<dialog>`.
+- **Options** — `items`, abortable `sources: [{id, label?, minQuery?, load(query, {signal})}]`,
+  `query`, `debounce: 250`, `minQuery: 0`, `maxResults: 100`, `placeholder`, `label`, `emptyText`,
+  `loadingText`, and `shortcut: 'mod+k'|false`.
+- **Items** — `{id, label, description?, keywords?, group?, icon?, badge?, value?, href?, target?,
+  invoke?, pinned?, disabled?}`. Links stay native so modified and middle clicks work; non-link
+  commands may provide an application-owned `invoke` callback.
+- **Methods** — `open()`, `close()`, `toggle()`, `isOpen()`, `focus()`, `setQuery()`, `getQuery()`,
+  `setItems()`, `setSources()`, `destroy()`.
+- **Events** — cancelable `select {item, value, source, query}`, `query {query}`, `open`, `close`,
+  and `error {source, error}`. Preventing `select` suppresses the supplied link or callback.
+- **Ranking** — local results are case/diacritic-insensitive and deterministic: exact label,
+  label prefix, word prefix, label substring, identifier substring, then acronym prefix. Pinned
+  items retain an explicit order ahead of otherwise equal results. A new async query aborts and
+  ignores stale source work.
+- **Keyboard** — Cmd+K on macOS or Ctrl+K elsewhere opens by default; the shortcut is ignored in
+  editable controls, composition, and modal contexts. Arrow keys, Home/End, and Enter operate the
+  single listbox selection model; Escape closes and restores focus.
+<!-- /doc -->
+
+<!-- doc:avatar -->
+### Avatar
+
+A fixed-geometry user image with deterministic initials fallback. Image loading or failure never
+changes layout, and the component is decorative by default so adjacent identity text is not
+announced twice.
+
+- **Options** — `src`, `name`, `initials`, `label`, `size: 'sm'|'md'|'lg'|<pixels>`,
+  `shape: 'circle'|'rounded'|'square'`, `status: 'online'|'away'|'busy'|'offline'|null`, and
+  `statusLabel`.
+- **Methods** — `set(values)`, `setStatus(status, label?)`, `hasImage()`, `destroy()`.
+- **Accessibility** — set `label` only when the avatar stands alone. Presence is supplementary
+  status, not the account's accessible name; supply `statusLabel` when it conveys information.
+<!-- /doc -->
+
+<!-- doc:account-menu -->
+### AccountMenu
+
+Composes `Avatar` and `MenuButton` into one account trigger and APG menu. The popup repeats the
+identity before its actions; Zx never decides role visibility, changes preferences, signs a user
+out, or mutates the session.
+
+- **Options** — `account: {name, secondary, src?, initials?, status?, statusLabel?}`, `items`,
+  `compact: false`, `label`, and any top/bottom/left/right `placement`.
+- **Methods** — `open()`, `close()`, `toggle()`, `isOpen()`, `setAccount()`, `setItems()`, `focus()`,
+  `getPanel()`, `destroy()`.
+- **Events** — cancelable `select {value, item}`, `open`, and `close`. A canceled selection does
+  not run the item's callback and leaves the menu open, so an application can reject or confirm an
+  action without rebuilding the account surface.
+- **Accessibility** — compact mode is visually avatar-only but keeps the full account-menu name on
+  its single native trigger; MenuButton retains focus return, typeahead, and arrow-key behavior.
 <!-- /doc -->
 
 <!-- doc:select -->
@@ -679,7 +741,7 @@ Structured modal: a header with title and close button, a body, and footer butto
 ### Sheet
 
 Edge-anchored surface — a `Dialog` attached to one side of the viewport instead of floating in the
-middle. Covers both the shadcn Sheet and Drawer, which differ only in which edge they take, so
+middle. One primitive covers both side sheets and mobile drawers, which differ mainly in the edge they take, so
 `side` replaces what would otherwise be two components. Inherits the whole Dialog anatomy: title,
 footer buttons, switchable views, and focus restoration.
 
@@ -778,7 +840,8 @@ Generic anchored popover in the top layer, constructed as `new Dropdown(anchor, 
 light-dismisses on an outside click or Esc, and mirrors `aria-expanded` onto the anchor.
 
 - **Options** — `content`,
-  `placement: 'bottom-start'|'bottom-end'|'top-start'|'top-end'|'bottom'|'top'`, `offset: 4`,
+  `placement: 'bottom-start'|'bottom-end'|'top-start'|'top-end'|'bottom'|'top'` plus the matching
+  `left*` and `right*` placements, `offset: 4`,
   `matchWidth: false`, `openOn: 'click'|'manual'`, `closeOnSelect: false`.
 - **Methods** — `open()`, `close()`, `toggle()`, `isOpen()`, `setContent()`, `getPanel()`.
 - **Events** — `open`, `close`.
@@ -791,8 +854,11 @@ A button that opens a `role="menu"`.
 
 - **Options** — `label`, `icon`, `kind`,
   `items: [{ label, icon?, value?, disabled?, danger?, onselect? } | '-']`, `placement`.
-- **Methods** — `setItems()`, `open()`, `close()`, `setLabel()`.
+- **Methods** — `setItems()`, `open()`, `close()`, `setLabel()`, `getTrigger()`, `getPanel()`,
+  `focusFirst()`, `focusLast()`.
 - **Events** — `select {value, item}`, `open`, `close`.
+- **Cancellation** — `select` is cancelable. Preventing it skips the item's `onselect` callback and
+  leaves the menu open, which is the composition seam used by `AccountMenu` and rail flyouts.
 - **Keyboard** — ArrowDown/Enter/Space open and focus the first item; ArrowUp opens and focuses the
   last; arrows cycle; Home/End; typeahead; Enter/Space select; Esc/Tab close.
 <!-- /doc -->
@@ -830,7 +896,11 @@ parked at the pointer, so it flips near a viewport edge like every other floatin
 
 A description bubble anchored to another element. The panel is a manual popover positioned by the kernel's `position()`, so it escapes clipping and stacking contexts and flips near a viewport edge; it carries `role="tooltip"` and a generated id, and the anchor gets `aria-describedby` pointing at it only while it is open — closing puts the anchor's original value back, including no value at all. The bubble is never interactive: `pointer-events: none` keeps it from stealing the hover it depends on, and nothing inside it can take focus. Hover opens it after `delay`; keyboard focus opens it immediately, because a keyboard user cannot hover a moment longer; a touch pointer never opens it, since a bubble with no "move away" gesture would simply stick. Only one is ever visible at a time, which falls out of the dismissal rules rather than a registry.
 
-- **Options** — `content` (string, Node, or a function re-evaluated on every open), `placement` (`'top'` default, plus `bottom`, `top-start`, `top-end`, `bottom-start`, `bottom-end`), `offset` (6), `delay` (400), `hideDelay` (80), `maxWidth` (260; a number is pixels, a string is any CSS length), `trigger` (`'both'` default, or `'hover'`, `'focus'`, `'manual'` — `manual` installs no listeners at all and leaves everything to the methods), `disabled` (false).
+- **Options** — `content` (string, Node, or a function re-evaluated on every open), `placement`
+  (`'top'` default, plus top/bottom/left/right and their start/end variants), `offset` (6), `delay`
+  (400), `hideDelay` (80), `maxWidth` (260; a number is pixels, a string is any CSS length),
+  `trigger` (`'both'` default, or `'hover'`, `'focus'`, `'manual'` — `manual` installs no listeners
+  at all and leaves everything to the methods), `disabled` (false).
 - **Methods** — `show()`, `hide()`, `toggle()`, `isOpen()`, `setContent(content)`, `enable()`, `disable()`, `isDisabled()`, `getAnchor()`, `destroy()`. Convenience factories: `tooltip(anchor, contentOrOptions)` takes either a content value or a full option object, and `describe(anchor, text)` is the one-liner replacement for a `title` attribute. Both return the instance.
 - **Events** — `open`, `close`. Both fire only on a real transition, so a `show()` on an open tooltip is silent.
 - **Keyboard** — Focusing the anchor opens the tooltip at once; moving focus away closes it. `Escape` closes it without moving focus, satisfying WCAG 1.4.13. A `pointerdown` anywhere closes it, and focus that arrives with a click does not re-open it.
@@ -855,22 +925,32 @@ Sortable, selectable, sticky-header data table — one component covering both t
 horizontally, and multi-select adds a tri-state header checkbox plus Shift+click range select.
 
 - **Options** — `columns: [{ id, label, sortable?, width ('120px'|'2fr'|'auto'), align,
+  type?: 'text'|'number'|'currency'|'percent'|'unit', locale?, decimals?, currency?, unit?,
   render?: (row,i)=>Node|string, sortValue?, headerTitle? }]`, `data`, `rowId: 'ID'`,
   `sort: { id, dir }`, `sortMode: 'local'|'server'`, `selectable: false|'single'|'multi'`,
-  `stickyHeader: true`, `height`, `emptyText`, `rowClass`, `zebra: true`.
+  `stickyHeader: true`, `height`, `emptyText`, `rowClass`, `zebra: true`, and
+  `hierarchy: false|{parentId, column?, expanded?}`. Locale, currency, unit, and decimals may be
+  row callbacks; values remain numbers in row data while display formatting is locale-aware.
 - **Methods** — `setData()`, `addData()`, `updateRow(id,row)`, `removeRow(id)`, `getRow(id)`,
   `getData()`, `empty()`, `setSort(id,dir)`, `getSelection()`, `setSelection(ids)`,
   `clearSelection()`, `setLoading(bool)` (busy/skeleton state — dims rows, shows an indeterminate
   top bar, sets `aria-busy`, and is cleared by the next `setData`).
 - **Events** — `rowclick {row, id, index, event}`, `rowdblclick`, `sort {id, dir}`,
-  `selectionchange {rows, ids}`, `datachange {rows}`.
+  `selectionchange {rows, ids}`, `datachange {rows}`, and `rowtoggle {row, id, expanded}`.
+- **Hierarchy** — flat parent references are projected as an ARIA `treegrid`; `getData()` and all
+  editing/mutation APIs stay flat and ID-based. Orphans become roots, cycles render once, local
+  sort reorders siblings without mixing levels, and growing counts visible rows. Use
+  `toggleRow()`, `expandRow()`, `collapseRow()`, `expandAll()`, `collapseAll()`, and
+  `getExpanded()`. The native disclosure button works by pointer and keyboard without selecting
+  or clicking the row.
 - **Editing** — `editMode: false|'cell'|'row'` (default `false`, and completely inert until set).
   `'cell'` edits one cell, `'row'` opens every editable cell of the row and commits them as a unit.
   Editors are sized into the cell without changing row height, and an editing cell carries
   `data-editing="true"` (`data-invalid="true"` plus an `aria-live` message when a validator rejects).
 - **Editable columns** — extra column keys: `editable: false|true|'text'|'number'|'select'|'date'|
-  'checkbox'|'textarea'|((row)=>boolean)` (`true` means `'text'`; a function is evaluated per row, so
-  individual rows stay read-only), `options` for `'select'` (`[{value,label}]`, a `{value: label}` map
+  'checkbox'|'textarea'|((row)=>boolean)` (`true` infers `'number'` for number/currency/percent/unit
+  columns and `'text'` otherwise; a function is evaluated per row, so individual rows stay
+  read-only), `options` for `'select'` (`[{value,label}]`, a `{value: label}` map
   whose keys are always strings, or `(row)=>items`), `editorProps` (forwarded to the underlying
   NumberField/Select/Datebox/Toggle or to the generated `<input>`/`<textarea>`),
   `editor: (row, api)=>Node` for a fully custom editor (`api` is `{value, commit(value), cancel(),
@@ -879,6 +959,10 @@ horizontally, and multi-select adds a tri-state header checkbox plus Shift+click
   seeds the text of a `'text'`/`'textarea'` editor, `parse` converts every editor's raw output back),
   and `validate: (value,row)=>true|string` (a returned string marks the cell invalid, shows the
   message, and refuses the commit).
+- **Transaction editors** — currency and unit columns reuse `NumberField` and show the resolved
+  currency/unit as its suffix unless `editorProps.unit` overrides it. This is a generic typed-grid
+  contract: application code remains responsible for tax, discount, subtotal, and accounting
+  formula rules.
 - **Editing methods** — `startEdit(rowId, columnId)`, `commitEdit()`, `cancelEdit()`, `isEditing()`,
   `getEditing()` → `{id, columnId}|null`.
 - **Editing events** — `editstart {row, id, column, columnId, value}`;
@@ -918,6 +1002,53 @@ horizontally, and multi-select adds a tri-state header checkbox plus Shift+click
 - **Empty state** — `emptyText` takes a string, a Node, or a function returning one, so an empty
   table can carry an icon, an explanation, and the action that resolves it (`emptyState({…})`).
   A function is re-called on every render, which is what to use when the placeholder holds controls.
+<!-- /doc -->
+
+<!-- doc:grid -->
+### Grid and `Grid.BillingItems()`
+
+`Grid` is the public extension point for repeatable data-table presets. It subclasses `Table`
+without forking its implementation, so sorting, selection, hierarchy, responsive stacking,
+editable cells/rows, loading, events, and teardown keep the Table contract.
+
+- **Constructor** — `new Grid(target, tableOptions)` accepts the complete `Table` API.
+- **Preset** — `Grid.BillingItems(target, options)` supplies an editable hierarchical billing
+  schema for item, quantity, unit, unit price, currency, and line total. It returns a `Grid`.
+- **Billing options** — `data`, `fields` key overrides, `units`, `currencies`, fallback `currency`,
+  `locale`, `decimals`, `columnOverrides`, complete `columns` replacement, `lineTotal(row, changes)`,
+  and `oneditcommit` in addition to ordinary Table options.
+- **Rows** — default field names are `id`, `parent`, `kind`, `item`, `quantity`, `unit`,
+  `unitPrice`, `currency`, and `total`. `kind: 'group'|'subtotal'|'header'|'section'` is read-only;
+  other rows are editable. Parent references use Table's flat-data treegrid projection.
+- **Calculation boundary** — the default line total is quantity × unit price. Applications own
+  taxes, discounts, rounding, subtotal/group recalculation, optimistic persistence, and server
+  validation; provide `lineTotal` or cancel `editcommit` when product policy differs.
+<!-- /doc -->
+
+<!-- doc:chart -->
+### Chart and `ChartJsAdapter`
+
+An accessible, engine-neutral chart host. Zx renders state, canvas, semantic data summary, tokens,
+and lifecycle; an injected adapter owns the drawing engine. The Zx runtime imports no Chart.js
+code, so future adapters do not change the public `Chart` API.
+
+- **Options** — `adapter`, `type: 'bar'`, `data`, engine-specific `chartOptions`, `label`,
+  `description`, `summary: 'hidden'|'visible'`, `loading`, loading/empty/error text, and
+  `aspectRatio: '16 / 9'`.
+- **Methods** — `setData()`, `setType()`, `update(chartOptions)`, `setAdapter()`, `setLoading()`,
+  `setError()`, `clearError()`, `resize()`, `refreshTheme()`, `getInstance()`, `destroy()`.
+- **Events** — `ready {instance}`, `update {data, type}`, `select {datasetIndex, index, dataset,
+  label, value, nativeEvent}`, and `error {error}`.
+- **Adapter contract** — `adapter.create(canvas, {type, data, options, onSelect})` returns
+  `{update(spec), resize(), destroy(), instance?}`. Implementations must destroy engine resources
+  and must not retain the component after teardown.
+- **`ChartJsAdapter`** — construct it with a Chart.js constructor or namespace:
+  `new ChartJsAdapter(window.Chart)`. The documentation pins Chart.js 4.5.1 as a development-only
+  asset; `package.json` has no runtime dependencies and application builds explicitly choose how
+  the engine is loaded.
+- **Accessibility** — the canvas always has a name and optional description, while synchronized
+  labels and dataset values live in a semantic table. `summary: 'hidden'` keeps it visually hidden
+  for assistive technology; `'visible'` makes exact values part of the interface.
 <!-- /doc -->
 
 <!-- doc:data-filter -->
@@ -1387,12 +1518,67 @@ menu on narrow widths.
 - **Events** — `change {name}`.
 <!-- /doc -->
 
+<!-- doc:app-sidebar -->
+### AppSidebar — expanded application navigation
+
+Persistent vertical application navigation with header, scrollable tree, and sticky footer slots.
+It is route-agnostic: ZeyOS supplies native `href` values or handles cancelable selections through
+`PG.go()`. This expanded presentation is the only application-nav component that reveals children
+inline.
+
+- **Options** — shared application `items`, `active`, `expanded`, `collapsed`, `side: 'left'|'right'`,
+  `label`, and `header`, `footer`, `railHeader`, `railFooter` content slots.
+- **Methods** — `setItems()`, `setActive()`, `setExpanded()`, `getExpanded()`, `toggleBranch()`,
+  `expand()`, `collapse()`, `setCollapsed()`, `isCollapsed()`, `getRail()`, `destroy()`.
+- **Events** — cancelable `select {item, id, value, href, event}`,
+  `branchchange {item, id, expanded, ids}` (`item`, `id`, and `expanded` are null for a bulk
+  `setExpanded()`), and `collapsechange {collapsed}`.
+- **Minimized state** — collapse composes `AppRail` over the same normalized item tree. Expanded
+  branch IDs survive the round trip but are not rendered inline while minimized.
+- **Semantics** — persistent navigation uses `<nav>` and nested lists with native links and
+  disclosure buttons, not menu or menubar roles. A parent with children is disclosure-only; give
+  it an explicit Overview child when the parent also needs a destination.
+<!-- /doc -->
+
+<!-- doc:app-rail -->
+### AppRail — minimized application navigation
+
+The compact form of application navigation for left, right, top, or bottom placement. It can flow
+vertically or horizontally, but descendants are always anchored flyouts—never inline—and open
+toward the workspace.
+
+- **Options** — shared application `items`, `active`, `orientation: 'vertical'|'horizontal'`,
+  `side: 'left'|'right'|'top'|'bottom'`, `label`, `header`, `footer`, `openDelay: 80`, and
+  `closeDelay: 160`.
+- **Methods** — `setItems()`, `setActive()`, `getItems()`, `openFlyout(id, {focus})`,
+  `closeFlyout()`, `closeAllFlyouts()` (including pending hover/focus timers and descendant
+  branches), `isFlyoutOpen()`, `focus()`, `destroy()`.
+- **Events** — cancelable `select {item, id, value, href, event}` and
+  `flyoutchange {item, id, open}`.
+- **Pointer and focus** — hover or focus reveals a child collection without stealing focus. The
+  close delay covers the trigger-to-panel gap; leaving both trigger and panel closes it. Click,
+  Enter, Space, and the inward arrow also open it, so horizontal subnavigation is discoverable and
+  usable without hover. Escape, outside activation, or selection closes it.
+- **Semantics** — every icon-only destination retains a visible Tooltip and an accessible name.
+  Persistent rail destinations remain native links/buttons in a labelled navigation list; the
+  transient child flyout supplies its own arrow-key focus interaction.
+<!-- /doc -->
+
 <!-- doc:kernel -->
 ### Core helpers
 
 - **Component** — the base class: `on`/`off`/`once`/`emit`, `listen`, `toElement`, `msg`,
   `destroy`, and the static `Component.from(el)`.
-- **DOM** — `h(tag, props, ...children)`, `h.raw(html)`, `htmlEscape`, `resolveElement`.
+- **DOM** — `h(tag, props, ...children)`, `h.raw(html)`, `htmlEscape`, `resolveElement`. The current
+  ZeyOS builder is also first-class: `__(tag#id.class, properties, content)` is the migration alias
+  for `compactElement()`. It preserves `D*` data, `S*` style, boolean/built-in property, attribute,
+  and legacy `on*` callback rules while keeping content text-safe. `applyCompactProperties`,
+  `appendContent`, `appendCompact` (parent return), `appendCompactChild` (child return), and
+  `fragment(...children)` are the pure forms.
+- **Compact events** — `onCompactEvent`, `offCompactEvent`, and `fireCompactEvent` share one
+  newest-first handler registry. Existing `DOM.on/remEvt/fireEvt` methods can delegate to this
+  triad. Zx never installs globals or alters DOM prototypes; the current application owns those
+  temporary seams while `UI.new*` implementations are replaced without rewriting `PG` routing.
 - **Icons** — `icon(name, {size, label})` and `icons`; see the Icons section — bundled inline SVG
   by default, Font Awesome after an opt-in.
 - **Positioning** — `position(anchor, floating, {placement, offset, flip, matchWidth})` →
@@ -1537,8 +1723,9 @@ never imported by `src/index.js`, and adds nothing to an application that does n
 
 - **Loading** — classic: `<script src="/assets/zx-compat.global.js">` → `window.gx`; module:
   `import { gx } from '/assets/zx-compat.esm.js'` (or `src/compat/index.js` in-repo).
-  `gx.compat.installGlobals()` additionally installs the legacy free functions `__()`, `_()`,
-  `String.htmlSpecialChars`, and the element `store`/`retrieve` shim. `gx.install(host)` assigns
+  `gx.compat.installGlobals()` additionally installs the gx `__()` parser only when that name is
+  free, plus `_()`, `String.htmlSpecialChars`, and the element `store`/`retrieve` shim. It never
+  replaces ZeyOS's compact builder. `gx.install(host)` assigns
   the namespace without the optional globals.
 - **`gx.zeyos`** — Select/SelectFilter/SelectDyn/SelectPrio, Table, Tabbox, Panel, MasterPanel,
   Groupbox, Search, Datebox, DatePicker, MonthPicker, TimePicker, Timebox, Toggle, Msgbox, Popup,

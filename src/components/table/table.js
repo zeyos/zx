@@ -1,6 +1,8 @@
 import { Component } from '../../core/component.js';
 import { breakpoints, onBreakpoint } from '../../core/breakpoint.js';
 import { h } from '../../core/dom.js';
+import { formatCurrency, formatNumber, formatPercent } from '../../core/format.js';
+import { icon } from '../../core/icons.js';
 import { printf } from '../../core/i18n.js';
 import { uid } from '../../core/util.js';
 import { Datebox } from '../datebox/datebox.js';
@@ -14,7 +16,17 @@ import { sortRows } from './sort.js';
 /** @typedef {false|'single'|'multi'} TableSelectionMode */
 /** @typedef {false|'cell'|'row'} TableEditMode */
 /** @typedef {'text'|'number'|'select'|'date'|'checkbox'|'textarea'|'custom'} TableEditorType */
+/** @typedef {'text'|'number'|'currency'|'percent'|'unit'} TableColumnType */
 /** @typedef {{value: unknown, label: string}} TableEditorOption */
+
+/**
+ * @typedef {Object} TableHierarchyOptions
+ * @property {string|((row: TableRow) => unknown)} parentId Row property or callback returning its
+ * parent row id. Null and undefined identify a root row.
+ * @property {string} [column] Column that receives indentation and the disclosure control; the
+ * first column is used when omitted.
+ * @property {boolean|unknown[]} [expanded=false] Initially expanded branches: all, none, or ids.
+ */
 
 /**
  * Editing handle handed to a custom `column.editor`.
@@ -39,11 +51,19 @@ import { sortRows } from './sort.js';
  * Cell renderer. Non-Node results are inserted as text.
  * @property {(row: TableRow) => unknown} [sortValue] Sort-value accessor.
  * @property {string} [headerTitle] Header tooltip.
+ * @property {TableColumnType} [type='text'] Built-in display formatter used when `render` is absent.
+ * @property {string|((row: TableRow) => string|null|undefined)} [locale] BCP 47 formatting locale.
+ * @property {number|((row: TableRow) => number|null|undefined)} [decimals] Fraction digits.
+ * @property {string|((row: TableRow) => string|null|undefined)} [currency] ISO 4217 code used by a
+ * `currency` column.
+ * @property {string|((row: TableRow) => string|null|undefined)} [unit] Suffix used by a `unit`
+ * column. Row callbacks support mixed units in one transaction table.
  * @property {boolean} [popin=true] While stacked, whether this column becomes a labelled line.
  * `false` keeps it in the card's headline — the identifying columns usually want that.
  * @property {boolean|TableEditorType|((row: TableRow) => boolean|TableEditorType)} [editable=false]
- * Editor for this column while the table runs with `editMode`. `true` means `'text'`; a function is
- * evaluated per row so individual rows stay read-only.
+ * Editor for this column while the table runs with `editMode`. `true` infers `'number'` for numeric
+ * display types and `'text'` otherwise; a function is evaluated per row so individual rows stay
+ * read-only.
  * @property {TableEditorOption[]|Record<string, string>|((row: TableRow) => TableEditorOption[]|Record<string, string>)} [options]
  * Choices for an `'select'` editor: `[{value, label}]`, a `{value: label}` map, or a row callback.
  * @property {Record<string, unknown>} [editorProps] Options forwarded to the underlying editor
@@ -84,6 +104,8 @@ import { sortRows } from './sort.js';
  * @property {TableEditMode} [editMode=false] Inline editing mode. `'cell'` edits one cell, `'row'`
  * opens every editable cell of the row together and commits them as a unit. Editing is completely
  * inert while this is `false`.
+ * @property {false|TableHierarchyOptions} [hierarchy=false] Flat parent references projected as an
+ * expandable treegrid. Row data and mutation APIs remain flat.
  * @property {(event: CustomEvent<TableRowClickDetail>) => void} [onrowclick]
  * @property {(event: CustomEvent<TableRowClickDetail>) => void} [onrowdblclick]
  * @property {(event: CustomEvent<TableSortDetail>) => void} [onsort]
@@ -97,6 +119,7 @@ import { sortRows } from './sort.js';
  * @property {(event: CustomEvent<TableEditCommitDetail>) => void} [oneditcommit]
  * @property {(event: CustomEvent<TableEditCancelDetail>) => void} [oneditcancel]
  * @property {(event: CustomEvent<TableEditInvalidDetail>) => void} [oneditinvalid]
+ * @property {(event: CustomEvent<TableRowToggleDetail>) => void} [onrowtoggle]
  */
 
 /**
@@ -110,6 +133,27 @@ import { sortRows } from './sort.js';
 /** @typedef {{id: string, dir: TableSortDirection}} TableSortDetail */
 /** @typedef {{rows: TableRow[], ids: unknown[]}} TableSelectionDetail */
 /** @typedef {{rows: TableRow[]}} TableDataDetail */
+/** @typedef {{row: TableRow, id: unknown, expanded: boolean}} TableRowToggleDetail */
+
+/**
+ * Visible hierarchy metadata returned by `projectHierarchyRows`.
+ * @typedef {Object} TableHierarchyEntry
+ * @property {TableRow} row
+ * @property {unknown} id
+ * @property {number} index Index in the flat input data.
+ * @property {number} depth Zero-based visual depth.
+ * @property {boolean} hasChildren
+ * @property {unknown} parentId Canonical parent id, or null for a root.
+ */
+
+/**
+ * @typedef {Object} TableHierarchyNode
+ * @property {TableRow} row
+ * @property {unknown} id
+ * @property {number} index
+ * @property {TableHierarchyNode|null} parent
+ * @property {TableHierarchyNode[]} children
+ */
 
 /**
  * @typedef {Object} TableEditStartDetail
@@ -179,6 +223,9 @@ const FOCUSABLE = 'input, textarea, select, button, [tabindex]:not([tabindex="-1
  * @fires Table#editcommit
  * @fires Table#editcancel
  * @fires Table#editinvalid
+ * @fires Table#rowtoggle
+ * @fires Table#stackedchange
+ * @fires Table#grow
  * @extends {Component<TableOptions>}
  */
 export class Table extends Component {
@@ -199,7 +246,8 @@ export class Table extends Component {
     emptyText: null,
     rowClass: null,
     zebra: true,
-    editMode: false
+    editMode: false,
+    hierarchy: false
   };
 
   /**
@@ -239,10 +287,19 @@ export class Table extends Component {
     this._rovingKey = null;
     this._rovingCell = null;
     this._rovingMatched = false;
+    this._hierarchy = normalizeHierarchy(this.options.hierarchy, this._columns);
+    this._expanded = initialExpanded(this._hierarchy?.expanded);
 
     if (this._sort && this.options.sortMode === 'local') this._sortData();
+    if (this._hierarchy?.expanded === true) {
+      for (const id of hierarchyBranchIds(this._data, this.options.rowId, this._hierarchy.parentId)) {
+        this._expanded.add(id);
+      }
+    }
+    this._reconcileExpanded();
 
     this._table = h('table', { class: 'zx-table__table' });
+    if (this._hierarchy) this._table.setAttribute('role', 'treegrid');
     this._colgroup = h('colgroup', { class: 'zx-table__columns' });
     this._thead = h('thead', { class: 'zx-table__head' });
     this._tbody = h('tbody', { class: 'zx-table__body' });
@@ -316,6 +373,7 @@ export class Table extends Component {
     assertRows(rows);
     this._data = [...rows];
     if (this._sort && this.options.sortMode === 'local') this._sortData();
+    this._reconcileExpanded();
     const selectionChanged = this._pruneSelection();
     this._renderBody();
     if (selectionChanged) this._emitSelectionChange();
@@ -334,6 +392,7 @@ export class Table extends Component {
     assertRows(rows);
     this._data.push(...rows);
     if (this._sort && this.options.sortMode === 'local') this._sortData();
+    this._reconcileExpanded();
     this._renderBody();
     this._emitDataChange();
     return this;
@@ -354,6 +413,7 @@ export class Table extends Component {
     this._data[index] = row;
     if (wasSelected) this._selected.add(this._idFor(row));
     if (this._sort && this.options.sortMode === 'local') this._sortData();
+    this._reconcileExpanded();
     this._renderBody();
     if (wasSelected && !Object.is(id, this._idFor(row))) this._emitSelectionChange();
     this._emitDataChange();
@@ -372,6 +432,7 @@ export class Table extends Component {
     const index = this._data.findIndex((candidate) => Object.is(this._idFor(candidate), id));
     if (index < 0) return this;
     this._data.splice(index, 1);
+    this._reconcileExpanded();
     const selectionChanged = this._selected.delete(id);
     if (Object.is(this._selectionAnchorId, id)) this._selectionAnchorId = null;
     this._renderBody();
@@ -389,7 +450,10 @@ export class Table extends Component {
     return this._data.find((row) => Object.is(this._idFor(row), id)) ?? null;
   }
 
-  /** @returns {TableRow[]} Shallow copy of current rows in display order. */
+  /**
+   * Returns a shallow copy of the current rows in display order.
+   * @returns {TableRow[]} Current table rows.
+   */
   getData() {
     return [...this._data];
   }
@@ -404,6 +468,7 @@ export class Table extends Component {
   empty() {
     const selectionChanged = this._selected.size > 0;
     this._data = [];
+    this._expanded.clear();
     this._selected.clear();
     this._selectionAnchorId = null;
     this._renderBody();
@@ -442,7 +507,10 @@ export class Table extends Component {
     return this;
   }
 
-  /** @returns {TableRow[]} Selected rows in current display order. */
+  /**
+   * Returns selected rows in current display order.
+   * @returns {TableRow[]} Selected rows.
+   */
   getSelection() {
     return this._data.filter((row) => this._selected.has(this._idFor(row)));
   }
@@ -482,6 +550,81 @@ export class Table extends Component {
     this._syncSelection();
     this._emitSelectionChange();
     return this;
+  }
+
+  /**
+   * Toggles one hierarchy branch. A leaf or an id absent from the table is a no-op.
+   * @param {unknown} id Row id.
+   * @param {{silent?: boolean}} [options={}] Event behavior.
+   * @returns {this}
+   * @fires Table#rowtoggle
+   */
+  toggleRow(id, options = {}) {
+    return this._expanded.has(id) ? this.collapseRow(id, options) : this.expandRow(id, options);
+  }
+
+  /**
+   * Expands one hierarchy branch.
+   * @param {unknown} id Row id.
+   * @param {{silent?: boolean}} [options={}] Event behavior.
+   * @returns {this}
+   * @fires Table#rowtoggle
+   */
+  expandRow(id, options = {}) {
+    return this._setRowExpanded(id, true, options);
+  }
+
+  /**
+   * Collapses one hierarchy branch without discarding its descendants or their expansion state.
+   * @param {unknown} id Row id.
+   * @param {{silent?: boolean}} [options={}] Event behavior.
+   * @returns {this}
+   * @fires Table#rowtoggle
+   */
+  collapseRow(id, options = {}) {
+    return this._setRowExpanded(id, false, options);
+  }
+
+  /**
+   * Expands every row that currently has children.
+   * @param {{silent?: boolean}} [options={}] Event behavior. When not silent, one `rowtoggle`
+   * event is emitted per branch whose state changed.
+   * @returns {this}
+   */
+  expandAll(options = {}) {
+    if (!this._hierarchy) return this;
+    const branchIds = hierarchyBranchIds(this._data, this.options.rowId, this._hierarchy.parentId);
+    const changed = branchIds.filter((id) => !this._expanded.has(id));
+    for (const id of changed) this._expanded.add(id);
+    if (changed.length) this._renderBody();
+    if (!options.silent) {
+      for (const id of changed) this._emitRowToggle(id, true);
+    }
+    return this;
+  }
+
+  /**
+   * Collapses every hierarchy branch.
+   * @param {{silent?: boolean}} [options={}] Event behavior.
+   * @returns {this}
+   */
+  collapseAll(options = {}) {
+    if (!this._hierarchy || this._expanded.size === 0) return this;
+    const changed = [...this._expanded];
+    this._expanded.clear();
+    this._renderBody();
+    if (!options.silent) {
+      for (const id of changed) this._emitRowToggle(id, false);
+    }
+    return this;
+  }
+
+  /**
+   * Returns expanded branch ids in current flat-data order.
+   * @returns {unknown[]} Expanded branch ids.
+   */
+  getExpanded() {
+    return this._data.map((row) => this._idFor(row)).filter((id) => this._expanded.has(id));
   }
 
   /**
@@ -607,12 +750,18 @@ export class Table extends Component {
     return this;
   }
 
-  /** @returns {boolean} Whether a cell or row is currently open for editing. */
+  /**
+   * Reports whether a cell or row is currently open for editing.
+   * @returns {boolean} Whether an edit is open.
+   */
   isEditing() {
     return this._edit !== null;
   }
 
-  /** @returns {{id: unknown, columnId: string}|null} Row id and focused column id, or null. */
+  /**
+   * Returns the row id and focused column id for the open edit.
+   * @returns {{id: unknown, columnId: string}|null} Editing location, or null.
+   */
   getEditing() {
     return this._edit ? { id: this._edit.id, columnId: this._edit.columnId } : null;
   }
@@ -622,7 +771,25 @@ export class Table extends Component {
    * @returns {TableRow[]}
    */
   _visibleData() {
-    return this._rendered === Infinity ? this._data : this._data.slice(0, this._rendered);
+    return this._visibleEntries().map((entry) => entry.row);
+  }
+
+  /** @returns {TableHierarchyEntry[]} Rows visible after hierarchy expansion, before growing. */
+  _projectedData() {
+    if (!this._hierarchy) {
+      return this._data.map((row, index) => ({
+        row, id: this._idFor(row), index, depth: 0, hasChildren: false, parentId: null
+      }));
+    }
+    return projectHierarchyRows(
+      this._data, this.options.rowId, this._hierarchy.parentId, this._expanded
+    );
+  }
+
+  /** @returns {TableHierarchyEntry[]} Rows that currently have DOM entries. */
+  _visibleEntries() {
+    const projected = this._projectedData();
+    return this._rendered === Infinity ? projected : projected.slice(0, this._rendered);
   }
 
   /**
@@ -635,10 +802,11 @@ export class Table extends Component {
     if (!this._growStep) return this;
     const step = Number(count) > 0 ? Math.trunc(Number(count)) : this._growStep;
     const before = this._rendered;
-    this._rendered = Math.min(this._data.length, this._rendered + step);
+    const total = this._projectedData().length;
+    this._rendered = Math.min(total, this._rendered + step);
     if (this._rendered === before) return this;
     this._renderBody();
-    this.emit('grow', { rendered: this._rendered, total: this._data.length });
+    this.emit('grow', { rendered: this._rendered, total });
     return this;
   }
 
@@ -648,7 +816,7 @@ export class Table extends Component {
    * @fires Table#grow
    */
   showAll() {
-    return this.growBy(this._data.length);
+    return this.growBy(this._projectedData().length);
   }
 
   /**
@@ -656,7 +824,7 @@ export class Table extends Component {
    * @returns {number}
    */
   getRenderedCount() {
-    return Math.min(this._rendered, this._data.length);
+    return Math.min(this._rendered, this._projectedData().length);
   }
 
   /**
@@ -669,7 +837,7 @@ export class Table extends Component {
    */
   _syncGrowing() {
     if (!this._growStep) return;
-    const remaining = this._data.length - this.getRenderedCount();
+    const remaining = this._projectedData().length - this.getRenderedCount();
     if (remaining <= 0) {
       this._more?.remove();
       this._more = null;
@@ -746,10 +914,11 @@ export class Table extends Component {
    */
   _applyStackedRoles(stacked) {
     /** @type {Array<[Element|null, string]>} */
-    const parts = [[this._table, 'table'], [this._thead, 'rowgroup'], [this._tbody, 'rowgroup']];
+    const parts = [[this._table, this._hierarchy ? 'treegrid' : 'table'], [this._thead, 'rowgroup'], [this._tbody, 'rowgroup']];
     for (const [element, role] of parts) {
       if (!element) continue;
       if (stacked) element.setAttribute('role', role);
+      else if (element === this._table && this._hierarchy) element.setAttribute('role', 'treegrid');
       else element.removeAttribute('role');
     }
     for (const [selector, role] of [['tr', 'row'], ['td', 'cell'], ['th', 'columnheader']]) {
@@ -836,7 +1005,8 @@ export class Table extends Component {
     this._headers = new Map();
     for (const column of this._columns) {
       const th = h('th', { scope: 'col' });
-      if (column.align) th.dataset.align = column.align;
+      const align = column.align ?? (isNumericColumn(column) ? 'end' : null);
+      if (align) th.dataset.align = align;
       if (column.headerTitle) th.title = column.headerTitle;
       if (column.sortable) {
         const button = h('button', {
@@ -868,6 +1038,8 @@ export class Table extends Component {
     this._rowElements = new Map();
     this._rovingCell = null;
     this._rovingMatched = false;
+    const projected = this._projectedData();
+    this._hierarchyMeta = new Map(projected.map((entry) => [entry.id, entry]));
     if (this._data.length === 0) {
       fragment.append(h('tr', { class: 'zx-table__empty-row' },
         h('td', {
@@ -877,14 +1049,16 @@ export class Table extends Component {
       ));
     } else {
       // Indices stay absolute: a row's index is its place in the data, not in what is on screen.
-      this._visibleData().forEach((row, index) => fragment.append(this._createRow(row, index)));
+      this._visibleEntries().forEach((entry, visibleIndex) => {
+        fragment.append(this._createRow(entry.row, entry.index, { ...entry, visibleIndex }));
+      });
     }
     this._tbody.replaceChildren(fragment);
     /*
      * With `growing` on, the DOM holds a prefix of the data — so without this a screen reader
      * announces "row 3 of 10" for a table of ten thousand. The header counts as a row.
      */
-    if (this._growStep) this._table.setAttribute('aria-rowcount', String(this._data.length + 1));
+    if (this._growStep) this._table.setAttribute('aria-rowcount', String(projected.length + 1));
     this._syncSelectAll();
     this._syncGrowing();
     if (this._stacked) this._applyStackedRoles(true);
@@ -905,16 +1079,25 @@ export class Table extends Component {
     return typeof empty === 'function' ? empty() : empty;
   }
 
-  /** @param {TableRow} row @param {number} index @returns {HTMLTableRowElement} */
-  _createRow(row, index) {
+  /**
+   * @param {TableRow} row
+   * @param {number} index
+   * @param {TableHierarchyEntry & {visibleIndex: number}} tree
+   * @returns {HTMLTableRowElement}
+   */
+  _createRow(row, index, tree) {
     const id = this._idFor(row);
     const tr = /** @type {HTMLTableRowElement} */ (h('tr', { dataset: { row: '' } }));
-    // Only a prefix of the data is in the DOM while growing, so each row states where it really is.
-    if (this._growStep) tr.setAttribute('aria-rowindex', String(index + 2));
+    // Only a prefix is in the DOM while growing, so each visible row states where it really is.
+    if (this._growStep) tr.setAttribute('aria-rowindex', String(tree.visibleIndex + 2));
     const rowClass = typeof this.options.rowClass === 'function' ? this.options.rowClass(row) : '';
     if (rowClass) tr.classList.add(...String(rowClass).split(/\s+/).filter(Boolean));
     if (this.options.selectable !== false) tr.setAttribute('aria-selected', String(this._selected.has(id)));
-    this._rowMeta.set(tr, { row, id, index });
+    if (this._hierarchy) {
+      tr.setAttribute('aria-level', String(tree.depth + 1));
+      if (tree.hasChildren) tr.setAttribute('aria-expanded', String(this._expanded.has(id)));
+    }
+    this._rowMeta.set(tr, { row, id, index, visibleIndex: tree.visibleIndex });
     const elements = this._rowElements.get(id) ?? [];
     elements.push(tr);
     this._rowElements.set(id, elements);
@@ -931,7 +1114,8 @@ export class Table extends Component {
 
     this._columns.forEach((column) => {
       const cell = /** @type {HTMLTableCellElement} */ (h('td'));
-      if (column.align) cell.dataset.align = column.align;
+      const align = column.align ?? (isNumericColumn(column) ? 'end' : null);
+      if (align) cell.dataset.align = align;
       // Written unconditionally: `responsive` can be switched on after the rows exist, and a
       // stacked cell has no column header above it to say what its value means.
       cell.dataset.label = column.label;
@@ -944,7 +1128,7 @@ export class Table extends Component {
           this._offerRovingCell(cell, id, column.id);
         }
       }
-      this._renderCellContent(cell, column, row, index);
+      this._renderCellContent(cell, column, row, index, tree);
       tr.append(cell);
     });
     return tr;
@@ -956,13 +1140,35 @@ export class Table extends Component {
    * @param {TableColumn} column Column definition.
    * @param {TableRow} row Row data.
    * @param {number} index Row index.
+   * @param {TableHierarchyEntry} [tree] Hierarchy metadata for the row.
    * @returns {void}
    */
-  _renderCellContent(cell, column, row, index) {
-    const value = typeof column.render === 'function' ? column.render(row, index) : row?.[column.id];
-    if (value && typeof value === 'object' && typeof value.nodeType === 'number') cell.replaceChildren(value);
-    else if (value != null) cell.replaceChildren(document.createTextNode(String(value)));
-    else cell.replaceChildren();
+  _renderCellContent(cell, column, row, index, tree = this._hierarchyMeta?.get(this._idFor(row))) {
+    const value = formatTableCell(column, row, index);
+    const content = h('span', { class: 'zx-table__cell-content' });
+    if (value && typeof value === 'object' && typeof value.nodeType === 'number') content.append(value);
+    else if (value != null) content.append(document.createTextNode(String(value)));
+
+    if (!this._hierarchy || column.id !== this._hierarchy.column || !tree) {
+      cell.replaceChildren(...content.childNodes);
+      return;
+    }
+
+    const branch = h('span', { class: 'zx-table__tree-cell' });
+    branch.style.setProperty('--zx-table-depth', String(tree.depth));
+    if (tree.hasChildren) {
+      const expanded = this._expanded.has(tree.id);
+      branch.append(h('button', {
+        class: 'zx-table__tree-toggle',
+        type: 'button',
+        ariaExpanded: String(expanded),
+        ariaLabel: `${expanded ? 'Collapse' : 'Expand'} row ${index + 1}`
+      }, icon(expanded ? 'chevron-down' : 'chevron-right', { size: 14 })));
+    } else {
+      branch.append(h('span', { class: 'zx-table__tree-spacer', ariaHidden: 'true' }));
+    }
+    branch.append(content);
+    cell.replaceChildren(branch);
   }
 
   /** @param {MouseEvent} event @returns {void} */
@@ -975,7 +1181,17 @@ export class Table extends Component {
     const meta = this._rowMeta.get(rowElement);
     if (!meta) return;
     // Read the row metadata first: committing re-renders the body and detaches `rowElement`.
-    if (this._edit) this.commitEdit();
+    if (this._edit) {
+      this.commitEdit();
+      // Validation or a preventDefault() persistence guard keeps the editor authoritative.
+      if (this._edit) return;
+    }
+
+    const disclosure = target.closest('.zx-table__tree-toggle');
+    if (disclosure) {
+      this.toggleRow(meta.id);
+      return;
+    }
 
     const checkbox = target.closest('.zx-table__row-checkbox');
     if (checkbox && this.options.selectable === 'multi') {
@@ -1075,7 +1291,19 @@ export class Table extends Component {
       return entry;
     }
     if (type === 'number') {
-      const field = new NumberField(null, { ...props, value: value ?? null });
+      const locale = resolveColumnOption(column.locale, row);
+      const decimals = resolveColumnDecimals(column, row);
+      const suffix = column.type === 'currency'
+        ? resolveColumnOption(column.currency, row)
+        : column.type === 'unit' ? resolveColumnOption(column.unit, row) : null;
+      const inferred = {
+        ...(locale != null && !Object.prototype.hasOwnProperty.call(props, 'locale') ? { locale } : {}),
+        ...(decimals != null && !Object.prototype.hasOwnProperty.call(props, 'precision')
+          ? { precision: decimals }
+          : {}),
+        ...(suffix != null && !Object.prototype.hasOwnProperty.call(props, 'unit') ? { unit: String(suffix) } : {})
+      };
+      const field = new NumberField(null, { ...inferred, ...props, value: value ?? null });
       host.append(field.el);
       entry.component = field;
       entry.control = field.getInput();
@@ -1316,9 +1544,12 @@ export class Table extends Component {
   _nextEditableCell(rowIndex, columnId, direction) {
     const columnCount = this._columns.length;
     if (rowIndex < 0 || columnCount === 0) return null;
-    let row = rowIndex;
+    const visible = this._visibleData();
+    const startingId = this._idFor(this._data[rowIndex]);
+    let row = visible.findIndex((candidate) => Object.is(this._idFor(candidate), startingId));
+    if (row < 0) return null;
     let column = this._columns.findIndex((candidate) => candidate.id === columnId);
-    const limit = this._data.length * columnCount + columnCount;
+    const limit = visible.length * columnCount + columnCount;
     for (let step = 0; step < limit; step += 1) {
       column += direction;
       if (column >= columnCount) {
@@ -1328,11 +1559,15 @@ export class Table extends Component {
         row -= 1;
         column = columnCount - 1;
       }
-      if (row < 0 || row >= this._data.length) return null;
-      const candidateRow = this._data[row];
+      if (row < 0 || row >= visible.length) return null;
+      const candidateRow = visible[row];
       const candidateColumn = this._columns[column];
       if (resolveEditable(candidateColumn, candidateRow) !== false) {
-        return { id: this._idFor(candidateRow), columnId: candidateColumn.id, index: row };
+        return {
+          id: this._idFor(candidateRow),
+          columnId: candidateColumn.id,
+          index: this._data.indexOf(candidateRow)
+        };
       }
     }
     return null;
@@ -1397,14 +1632,16 @@ export class Table extends Component {
     return message === key ? fallback : message;
   }
 
-  /** @param {{row: TableRow, id: unknown, index: number}} meta @param {boolean} checked @param {boolean} shiftKey @returns {void} */
+  /** @param {{row: TableRow, id: unknown, index: number, visibleIndex?: number}} meta @param {boolean} checked @param {boolean} shiftKey @returns {void} */
   _toggleMultiSelection(meta, checked, shiftKey) {
-    const anchorIndex = this._data.findIndex((row) => Object.is(this._idFor(row), this._selectionAnchorId));
+    const visible = this._visibleData();
+    const anchorIndex = visible.findIndex((row) => Object.is(this._idFor(row), this._selectionAnchorId));
     if (shiftKey && anchorIndex >= 0) {
-      const start = Math.min(anchorIndex, meta.index);
-      const end = Math.max(anchorIndex, meta.index);
+      const currentIndex = meta.visibleIndex ?? visible.findIndex((row) => Object.is(this._idFor(row), meta.id));
+      const start = Math.min(anchorIndex, currentIndex);
+      const end = Math.max(anchorIndex, currentIndex);
       for (let index = start; index <= end; index += 1) {
-        const id = this._idFor(this._data[index]);
+        const id = this._idFor(visible[index]);
         if (checked) this._selected.add(id);
         else this._selected.delete(id);
       }
@@ -1460,7 +1697,39 @@ export class Table extends Component {
     const column = this._columns.find((candidate) => candidate.id === this._sort.id);
     if (!column) return;
     const getValue = typeof column.sortValue === 'function' ? column.sortValue : (row) => row?.[column.id];
-    this._data = sortRows(this._data, getValue, this._sort.dir);
+    this._data = this._hierarchy
+      ? sortHierarchyRows(this._data, this.options.rowId, this._hierarchy.parentId, getValue, this._sort.dir)
+      : sortRows(this._data, getValue, this._sort.dir);
+  }
+
+  /** @param {unknown} id @param {boolean} expanded @param {{silent?: boolean}} options @returns {this} */
+  _setRowExpanded(id, expanded, options) {
+    if (!this._hierarchy) return this;
+    const branchIds = hierarchyBranchIds(this._data, this.options.rowId, this._hierarchy.parentId);
+    if (!branchIds.some((candidate) => Object.is(candidate, id))) return this;
+    if (this._expanded.has(id) === expanded) return this;
+    if (expanded) this._expanded.add(id);
+    else this._expanded.delete(id);
+    this._renderBody();
+    if (!options.silent) this._emitRowToggle(id, expanded);
+    return this;
+  }
+
+  /** @param {unknown} id @param {boolean} expanded @returns {void} */
+  _emitRowToggle(id, expanded) {
+    const row = this.getRow(id);
+    if (row) this.emit('rowtoggle', { row, id, expanded });
+  }
+
+  /** Keeps the reader's current expansion state limited to branches still present in the data. */
+  _reconcileExpanded() {
+    if (!this._hierarchy) {
+      this._expanded.clear();
+      return;
+    }
+    const branches = hierarchyBranchIds(this._data, this.options.rowId, this._hierarchy.parentId);
+    const valid = new Set(branches);
+    for (const id of this._expanded) if (!valid.has(id)) this._expanded.delete(id);
   }
 
   /** @returns {boolean} Whether selection changed. */
@@ -1504,6 +1773,9 @@ export class Table extends Component {
 /** @event Table#sort @type {CustomEvent<TableSortDetail>} */
 /** @event Table#selectionchange @type {CustomEvent<TableSelectionDetail>} */
 /** @event Table#datachange @type {CustomEvent<TableDataDetail>} */
+/** @event Table#rowtoggle @type {CustomEvent<TableRowToggleDetail>} */
+/** @event Table#stackedchange @type {CustomEvent<{stacked: boolean}>} */
+/** @event Table#grow @type {CustomEvent<{rendered: number, total: number}>} */
 
 /**
  * Editor opened for a cell (or, in row mode, for the row).
@@ -1532,11 +1804,103 @@ export class Table extends Component {
  */
 
 /**
+ * Applies a column's built-in display type. A custom renderer always wins and may still return a
+ * Node; all built-in results are strings so `_renderCellContent` can insert them as text.
+ * @param {TableColumn} column Column definition.
+ * @param {TableRow} row Source row.
+ * @param {number} [index=0] Flat row index.
+ * @returns {Node|string|number|null|undefined} Rendered cell value.
+ */
+export function formatTableCell(column, row, index = 0) {
+  if (typeof column?.render === 'function') return column.render(row, index);
+  const value = row?.[column?.id];
+  const type = column?.type ?? 'text';
+  if (type === 'text') return value;
+
+  const locale = resolveColumnOption(column.locale, row);
+  const decimals = resolveColumnDecimals(column, row);
+  const options = {
+    ...(locale != null ? { locale: String(locale) } : {}),
+    ...(decimals != null ? { decimals } : {})
+  };
+  if (type === 'number') return formatNumber(value, options);
+  if (type === 'currency') {
+    const currency = resolveColumnOption(column.currency, row);
+    return formatCurrency(value, currency == null ? null : String(currency), options);
+  }
+  if (type === 'percent') return formatPercent(value, options);
+  if (type === 'unit') {
+    const number = formatNumber(value, options);
+    const unit = resolveColumnOption(column.unit, row);
+    return number && unit != null && String(unit) !== '' ? `${number}\u00a0${unit}` : number;
+  }
+  return value;
+}
+
+/**
+ * Projects flat parent references into the currently visible stable depth-first order. Orphans
+ * become roots. A cycle is broken at its first source row, so every row is emitted once and the
+ * traversal can never recurse forever.
+ * @param {TableRow[]} rows Flat source rows.
+ * @param {string|((row: TableRow) => unknown)} rowId Row id accessor.
+ * @param {string|((row: TableRow) => unknown)} parentId Parent id accessor.
+ * @param {Set<unknown>|unknown[]} [expanded=[]] Expanded branch ids.
+ * @returns {TableHierarchyEntry[]} Visible hierarchy entries.
+ */
+export function projectHierarchyRows(rows, rowId, parentId, expanded = []) {
+  const forest = hierarchyForest(rows, rowId, parentId);
+  const open = expanded instanceof Set ? expanded : new Set(expanded);
+  /** @type {TableHierarchyEntry[]} */
+  const result = [];
+  const stack = forest.roots.slice().reverse().map((node) => ({ node, depth: 0 }));
+  while (stack.length) {
+    const { node, depth } = stack.pop();
+    result.push({
+      row: node.row,
+      id: node.id,
+      index: node.index,
+      depth,
+      hasChildren: node.children.length > 0,
+      parentId: node.parent?.id ?? null
+    });
+    if (!open.has(node.id)) continue;
+    for (let index = node.children.length - 1; index >= 0; index -= 1) {
+      stack.push({ node: node.children[index], depth: depth + 1 });
+    }
+  }
+  return result;
+}
+
+/**
+ * Sorts roots and each sibling set independently, returning all rows in depth-first order. Parent
+ * and child rows never cross levels merely because their cell values compare differently.
+ * @param {TableRow[]} rows Flat source rows.
+ * @param {string|((row: TableRow) => unknown)} rowId Row id accessor.
+ * @param {string|((row: TableRow) => unknown)} parentId Parent id accessor.
+ * @param {(row: TableRow) => unknown} getValue Sort accessor.
+ * @param {TableSortDirection} direction Sort direction.
+ * @returns {TableRow[]} Sorted flat rows.
+ */
+export function sortHierarchyRows(rows, rowId, parentId, getValue, direction) {
+  const forest = hierarchyForest(rows, rowId, parentId);
+  const sorted = (nodes) => sortRows(nodes, (node) => getValue(node.row), direction);
+  const result = [];
+  const stack = sorted(forest.roots).reverse();
+  while (stack.length) {
+    const node = stack.pop();
+    result.push(node.row);
+    const children = sorted(node.children);
+    for (let index = children.length - 1; index >= 0; index -= 1) stack.push(children[index]);
+  }
+  return result;
+}
+
+/**
  * Resolves the editor type of a column for one row.
  *
  * `column.editor` wins over `column.editable`, except that a per-row `editable` function returning
- * `false` still marks the cell read-only. `editable: true` means `'text'`; unknown type names are
- * treated as not editable.
+ * `false` still marks the cell read-only. `editable: true` infers `'number'` for number, currency,
+ * percent, and unit columns and `'text'` otherwise; unknown type names are treated as not editable.
  * @param {TableColumn} column Column definition.
  * @param {TableRow} row Row the cell belongs to.
  * @returns {TableEditorType|false} Editor type, or false when the cell is read-only.
@@ -1548,7 +1912,7 @@ export function resolveEditable(column, row) {
     return 'custom';
   }
   const declared = typeof column.editable === 'function' ? column.editable(row) : column.editable;
-  if (declared === true) return 'text';
+  if (declared === true) return isNumericColumn(column) ? 'number' : 'text';
   if (typeof declared === 'string' && EDITOR_TYPES.has(declared)) return /** @type {TableEditorType} */ (declared);
   return false;
 }
@@ -1645,6 +2009,120 @@ export function firstValidationError(values, columns, row, fallbackMessage = 'In
     if (result === false) return { columnId: column.id, message: fallbackMessage };
   }
   return null;
+}
+
+/** @param {unknown} option @param {TableRow} row @returns {unknown} */
+function resolveColumnOption(option, row) {
+  return typeof option === 'function' ? option(row) : option;
+}
+
+/**
+ * Normalizes an explicit fraction-digit value while preserving a nullish callback result as
+ * "unspecified" so Intl and NumberField can use their normal currency/value defaults.
+ * @param {TableColumn} column
+ * @param {TableRow} row
+ * @returns {number|null}
+ */
+function resolveColumnDecimals(column, row) {
+  const value = resolveColumnOption(column?.decimals, row);
+  if (value == null) return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.max(0, Math.trunc(number)) : null;
+}
+
+/** @param {TableColumn} column @returns {boolean} */
+function isNumericColumn(column) {
+  return ['number', 'currency', 'percent', 'unit'].includes(column?.type);
+}
+
+/**
+ * Builds a canonical forest without mutating source rows. The first row encountered in a cycle is
+ * promoted to a root; source order therefore makes malformed data deterministic.
+ * @param {TableRow[]} rows
+ * @param {string|((row: TableRow) => unknown)} rowId
+ * @param {string|((row: TableRow) => unknown)} parentId
+ * @returns {{roots: TableHierarchyNode[], nodes: TableHierarchyNode[]}}
+ */
+function hierarchyForest(rows, rowId, parentId) {
+  /** @type {TableHierarchyNode[]} */
+  const nodes = (Array.isArray(rows) ? rows : []).map((row, index) => ({
+    row,
+    id: readRowValue(rowId, row),
+    index,
+    parent: null,
+    children: []
+  }));
+  const byId = new Map();
+  for (const node of nodes) if (!byId.has(node.id)) byId.set(node.id, node);
+
+  /** @type {Map<TableHierarchyNode, TableHierarchyNode|null>} */
+  const parentOf = new Map();
+  for (const node of nodes) {
+    const parent = byId.get(readRowValue(parentId, node.row)) ?? null;
+    parentOf.set(node, parent === node ? null : parent);
+  }
+
+  // Parent references form a functional graph. Breaking the repeated node's edge turns every
+  // connected component into a finite tree while keeping all non-cyclic parent links intact.
+  for (const node of nodes) {
+    const seen = new Set([node]);
+    let cursor = parentOf.get(node) ?? null;
+    while (cursor) {
+      if (seen.has(cursor)) {
+        parentOf.set(cursor, null);
+        break;
+      }
+      seen.add(cursor);
+      cursor = parentOf.get(cursor) ?? null;
+    }
+  }
+
+  const roots = [];
+  for (const node of nodes) {
+    node.parent = parentOf.get(node) ?? null;
+    if (node.parent) node.parent.children.push(node);
+    else roots.push(node);
+  }
+  return { roots, nodes };
+}
+
+/**
+ * @param {TableRow[]} rows
+ * @param {string|((row: TableRow) => unknown)} rowId
+ * @param {string|((row: TableRow) => unknown)} parentId
+ * @returns {unknown[]}
+ */
+function hierarchyBranchIds(rows, rowId, parentId) {
+  return hierarchyForest(rows, rowId, parentId).nodes
+    .filter((node) => node.children.length > 0)
+    .map((node) => node.id);
+}
+
+/** @param {string|((row: TableRow) => unknown)} accessor @param {TableRow} row @returns {unknown} */
+function readRowValue(accessor, row) {
+  return typeof accessor === 'function' ? accessor(row) : row?.[accessor];
+}
+
+/**
+ * @param {unknown} option
+ * @param {TableColumn[]} columns
+ * @returns {(TableHierarchyOptions & {column: string})|null}
+ */
+function normalizeHierarchy(option, columns) {
+  if (!option || typeof option !== 'object') return null;
+  const parentId = option.parentId;
+  if (typeof parentId !== 'string' && typeof parentId !== 'function') return null;
+  const requested = typeof option.column === 'string' ? option.column : null;
+  const column = columns.some((candidate) => candidate.id === requested)
+    ? requested
+    : columns[0]?.id;
+  if (!column) return null;
+  return { ...option, parentId, column };
+}
+
+/** @param {unknown} option @returns {Set<unknown>} */
+function initialExpanded(option) {
+  return new Set(Array.isArray(option) ? option : []);
 }
 
 /** @param {unknown} mode @returns {TableEditMode} */

@@ -1,4 +1,410 @@
 {
+  "AccountMenu": {
+    "options": [
+      {
+        "name": "account",
+        "type": "AccountIdentity",
+        "default": "{}",
+        "description": "Account presentation supplied by the application."
+      },
+      {
+        "name": "items",
+        "type": "MenuButtonItem[]",
+        "default": "[]",
+        "description": "Account actions and `'-'` separators."
+      },
+      {
+        "name": "compact",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether only the avatar is visually shown in the trigger."
+      },
+      {
+        "name": "label",
+        "type": "string|null",
+        "default": "null",
+        "description": "Trigger label; defaults to `Account menu for <name>`."
+      },
+      {
+        "name": "placement",
+        "type": "'bottom-start'|'bottom-end'|'top-start'|'top-end'|'bottom'|'top'|'right-start'|'right-end'|'left-start'|'left-end'|'right'|'left'",
+        "default": "'top-start'",
+        "description": "Popup placement."
+      }
+    ],
+    "events": [
+      {
+        "name": "select",
+        "payload": "{value: unknown, item: object}",
+        "description": "Preventable action listener."
+      },
+      {
+        "name": "open",
+        "payload": "Record<string, never>",
+        "description": "Open listener."
+      },
+      {
+        "name": "close",
+        "payload": "Record<string, never>",
+        "description": "Close listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "open",
+        "signature": "open()",
+        "returns": "this",
+        "description": "Opens the account menu."
+      },
+      {
+        "name": "close",
+        "signature": "close()",
+        "returns": "this",
+        "description": "Closes the account menu."
+      },
+      {
+        "name": "toggle",
+        "signature": "toggle()",
+        "returns": "this",
+        "description": "Toggles the account menu."
+      },
+      {
+        "name": "isOpen",
+        "signature": "isOpen()",
+        "returns": "boolean",
+        "description": "Reports whether the menu is open."
+      },
+      {
+        "name": "setAccount",
+        "signature": "setAccount(account)",
+        "returns": "this",
+        "description": "Replaces account presentation without touching session state."
+      },
+      {
+        "name": "setItems",
+        "signature": "setItems(items)",
+        "returns": "this",
+        "description": "Replaces account actions."
+      },
+      {
+        "name": "focus",
+        "signature": "focus()",
+        "returns": "this",
+        "description": "Focuses the account trigger."
+      },
+      {
+        "name": "getPanel",
+        "signature": "getPanel()",
+        "returns": "HTMLElement",
+        "description": "Returns the underlying menu panel for shell hover/focus coordination."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Destroys child components and restores/removes the host."
+      }
+    ]
+  },
+  "Alert": {
+    "options": [
+      {
+        "name": "title",
+        "type": "string",
+        "default": "''",
+        "description": "Alert title."
+      },
+      {
+        "name": "message",
+        "type": "Node|string|number|null",
+        "default": "''",
+        "description": "Alert message."
+      },
+      {
+        "name": "okLabel",
+        "type": "string",
+        "default": "'OK'",
+        "description": "Confirmation label."
+      }
+    ],
+    "events": [],
+    "methods": []
+  },
+  "AppRail": {
+    "options": [
+      {
+        "name": "items",
+        "type": "AppNavItem[]",
+        "default": "[]",
+        "description": "Application navigation tree."
+      },
+      {
+        "name": "active",
+        "type": "string|number|null",
+        "default": "null",
+        "description": "Active item id."
+      },
+      {
+        "name": "orientation",
+        "type": "'vertical'|'horizontal'",
+        "default": "'vertical'",
+        "description": "Rail flow."
+      },
+      {
+        "name": "side",
+        "type": "'left'|'right'|'top'|'bottom'",
+        "default": "'left'",
+        "description": "Workspace edge occupied by the rail."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "default": "'Applications'",
+        "description": "Navigation accessible label."
+      },
+      {
+        "name": "header",
+        "type": "Node|string|number|{toElement: () => Node|null}|null",
+        "default": "null",
+        "description": "Leading rail content."
+      },
+      {
+        "name": "footer",
+        "type": "Node|string|number|{toElement: () => Node|null}|null",
+        "default": "null",
+        "description": "Trailing rail content."
+      },
+      {
+        "name": "openDelay",
+        "type": "number",
+        "default": "80",
+        "description": "Hover-open delay in milliseconds."
+      },
+      {
+        "name": "closeDelay",
+        "type": "number",
+        "default": "160",
+        "description": "Pointer/focus crossing grace in milliseconds."
+      }
+    ],
+    "events": [
+      {
+        "name": "select",
+        "payload": "{item, id, value, href, event}",
+        "description": "Preventable action listener."
+      },
+      {
+        "name": "flyoutchange",
+        "payload": "{item: AppNavItem, id: string|number, open: boolean}",
+        "description": "Flyout-state listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "setItems",
+        "signature": "setItems(items)",
+        "returns": "this",
+        "description": "Replaces navigation items and closes removed flyouts."
+      },
+      {
+        "name": "setActive",
+        "signature": "setActive(id)",
+        "returns": "this",
+        "description": "Sets the active item without routing."
+      },
+      {
+        "name": "getItems",
+        "signature": "getItems()",
+        "returns": "AppNavItem[]",
+        "description": "Returns a shallow copy of normalized items."
+      },
+      {
+        "name": "openFlyout",
+        "signature": "openFlyout(id, [options])",
+        "returns": "this",
+        "description": "Opens one item's flyout, optionally focusing its first action."
+      },
+      {
+        "name": "closeFlyout",
+        "signature": "closeFlyout(id)",
+        "returns": "this",
+        "description": "Closes one flyout."
+      },
+      {
+        "name": "closeAllFlyouts",
+        "signature": "closeAllFlyouts()",
+        "returns": "this",
+        "description": "Closes every flyout and cancels pending hover/focus transitions."
+      },
+      {
+        "name": "isFlyoutOpen",
+        "signature": "isFlyoutOpen(id)",
+        "returns": "boolean",
+        "description": "Reports whether an item's flyout is open."
+      },
+      {
+        "name": "focus",
+        "signature": "focus()",
+        "returns": "this",
+        "description": "Focuses the first top-level rail item."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Destroys body popovers/tooltips and restores or removes the root."
+      }
+    ]
+  },
+  "AppSidebar": {
+    "options": [
+      {
+        "name": "items",
+        "type": "AppNavItem[]",
+        "default": "[]",
+        "description": "Application navigation tree."
+      },
+      {
+        "name": "active",
+        "type": "string|number|null",
+        "default": "null",
+        "description": "Active item id."
+      },
+      {
+        "name": "expanded",
+        "type": "Array<string|number>",
+        "default": "[]",
+        "description": "Initially expanded branch ids."
+      },
+      {
+        "name": "collapsed",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether the minimized AppRail is shown."
+      },
+      {
+        "name": "side",
+        "type": "'left'|'right'",
+        "default": "'left'",
+        "description": "Workspace side."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "default": "'Applications'",
+        "description": "Navigation accessible label."
+      },
+      {
+        "name": "header",
+        "type": "Node|string|number|{toElement: () => Node|null}|null",
+        "default": "null",
+        "description": "Expanded header content."
+      },
+      {
+        "name": "footer",
+        "type": "Node|string|number|{toElement: () => Node|null}|null",
+        "default": "null",
+        "description": "Expanded sticky footer content."
+      },
+      {
+        "name": "railHeader",
+        "type": "Node|string|number|{toElement: () => Node|null}|null",
+        "default": "null",
+        "description": "Minimized rail header content."
+      },
+      {
+        "name": "railFooter",
+        "type": "Node|string|number|{toElement: () => Node|null}|null",
+        "default": "null",
+        "description": "Minimized rail footer content."
+      }
+    ],
+    "events": [
+      {
+        "name": "select",
+        "payload": "{item, id, value, href, event}",
+        "description": "Preventable action listener."
+      },
+      {
+        "name": "branchchange",
+        "payload": "{item: AppNavItem|null, id: string|number|null, expanded: boolean|null, ids: Array<string|number>}",
+        "description": "Branch-state listener; bulk replacement reports null state."
+      },
+      {
+        "name": "collapsechange",
+        "payload": "{collapsed: boolean}",
+        "description": "Presentation-state listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "setItems",
+        "signature": "setItems(items)",
+        "returns": "this",
+        "description": "Replaces the navigation tree in both expanded and rail presentations."
+      },
+      {
+        "name": "setActive",
+        "signature": "setActive(id)",
+        "returns": "this",
+        "description": "Sets the active id in both presentations without routing."
+      },
+      {
+        "name": "setExpanded",
+        "signature": "setExpanded(ids, [options])",
+        "returns": "this",
+        "description": "Replaces expanded branch ids."
+      },
+      {
+        "name": "getExpanded",
+        "signature": "getExpanded()",
+        "returns": "Array<string|number>",
+        "description": "Returns expanded branch ids in navigation order."
+      },
+      {
+        "name": "toggleBranch",
+        "signature": "toggleBranch(id, [options])",
+        "returns": "this",
+        "description": "Toggles one inline branch."
+      },
+      {
+        "name": "expand",
+        "signature": "expand([options])",
+        "returns": "this",
+        "description": "Shows the expanded sidebar presentation."
+      },
+      {
+        "name": "collapse",
+        "signature": "collapse([options])",
+        "returns": "this",
+        "description": "Shows the minimized AppRail presentation."
+      },
+      {
+        "name": "setCollapsed",
+        "signature": "setCollapsed(collapsed, [options])",
+        "returns": "this",
+        "description": "Sets expanded/minimized presentation while preserving branch state."
+      },
+      {
+        "name": "isCollapsed",
+        "signature": "isCollapsed()",
+        "returns": "boolean",
+        "description": "Reports whether the rail presentation is active."
+      },
+      {
+        "name": "getRail",
+        "signature": "getRail()",
+        "returns": "AppRail",
+        "description": "Returns the composed minimized rail."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Destroys the rail and restores/removes the sidebar host."
+      }
+    ]
+  },
   "Aspect": {
     "options": [
       {
@@ -22,6 +428,85 @@
     ],
     "events": [],
     "methods": []
+  },
+  "Avatar": {
+    "options": [
+      {
+        "name": "src",
+        "type": "string|null",
+        "default": "null",
+        "description": "Image URL."
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "default": "''",
+        "description": "Name used to derive fallback initials."
+      },
+      {
+        "name": "initials",
+        "type": "string|null",
+        "default": "null",
+        "description": "Explicit fallback initials."
+      },
+      {
+        "name": "label",
+        "type": "string|null",
+        "default": "null",
+        "description": "Accessible label; null makes the avatar decorative."
+      },
+      {
+        "name": "size",
+        "type": "string|number",
+        "default": "'md'",
+        "description": "Preset (`sm`, `md`, `lg`) or pixel size."
+      },
+      {
+        "name": "shape",
+        "type": "'circle'|'rounded'|'square'",
+        "default": "'circle'",
+        "description": "Avatar shape."
+      },
+      {
+        "name": "status",
+        "type": "'online'|'away'|'busy'|'offline'|null",
+        "default": "null",
+        "description": "Optional presence state."
+      },
+      {
+        "name": "statusLabel",
+        "type": "string|null",
+        "default": "null",
+        "description": "Text alternative for the presence state."
+      }
+    ],
+    "events": [],
+    "methods": [
+      {
+        "name": "set",
+        "signature": "set(values)",
+        "returns": "this",
+        "description": "Replaces avatar identity and presentation values."
+      },
+      {
+        "name": "setStatus",
+        "signature": "setStatus(status, [label])",
+        "returns": "this",
+        "description": "Sets the presence state and its text alternative."
+      },
+      {
+        "name": "hasImage",
+        "signature": "hasImage()",
+        "returns": "boolean",
+        "description": "Returns whether the image is currently visible."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Restores an enhanced target or removes an owned root."
+      }
+    ]
   },
   "Badge": {
     "options": [
@@ -69,6 +554,78 @@
       }
     ],
     "events": [],
+    "methods": []
+  },
+  "BillingItems": {
+    "options": [
+      {
+        "name": "data",
+        "type": "BillingRow[]",
+        "default": "[]",
+        "description": "Billing rows."
+      },
+      {
+        "name": "fields",
+        "type": "Partial<BillingFields>",
+        "default": "{}",
+        "description": "Schema field overrides."
+      },
+      {
+        "name": "units",
+        "type": "Array<{value: unknown, label: string}>|Record<string, string>",
+        "default": "[]",
+        "description": "Unit choices."
+      },
+      {
+        "name": "currencies",
+        "type": "Array<{value: unknown, label: string}>|Record<string, string>",
+        "default": "[]",
+        "description": "Currency choices."
+      },
+      {
+        "name": "currency",
+        "type": "string",
+        "default": "'EUR'",
+        "description": "Fallback currency."
+      },
+      {
+        "name": "locale",
+        "type": "string",
+        "default": null,
+        "description": "Number/currency locale."
+      },
+      {
+        "name": "decimals",
+        "type": "number",
+        "default": "2",
+        "description": "Currency fraction digits."
+      },
+      {
+        "name": "columnOverrides",
+        "type": "Record<string, object>",
+        "default": "{}",
+        "description": "Per-canonical-column overrides."
+      },
+      {
+        "name": "lineTotal",
+        "type": "(row: BillingRow, changes: Record<string, unknown>) => number|null|undefined",
+        "default": null,
+        "description": "Optional total calculation; defaults to quantity × unit price."
+      },
+      {
+        "name": "columns",
+        "type": "import('../table/table.js').TableColumn[]",
+        "default": null,
+        "description": "Complete column replacement."
+      }
+    ],
+    "events": [
+      {
+        "name": "editcommit",
+        "payload": "import('../table/table.js').TableEditCommitDetail",
+        "description": "Caller edit listener, invoked after total calculation."
+      }
+    ],
     "methods": []
   },
   "Breadcrumb": {
@@ -197,6 +754,184 @@
       }
     ],
     "methods": []
+  },
+  "Chart": {
+    "options": [
+      {
+        "name": "adapter",
+        "type": "ChartAdapter|null",
+        "default": "null",
+        "description": "Injected engine adapter."
+      },
+      {
+        "name": "type",
+        "type": "string",
+        "default": "'bar'",
+        "description": "Chart type passed to the adapter."
+      },
+      {
+        "name": "data",
+        "type": "ChartData",
+        "default": "{labels: [], datasets: []}",
+        "description": "Chart data."
+      },
+      {
+        "name": "chartOptions",
+        "type": "Record<string, unknown>",
+        "default": "{}",
+        "description": "Engine-specific options."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "default": "'Chart'",
+        "description": "Accessible canvas and summary label; blank text falls back to `Chart`."
+      },
+      {
+        "name": "description",
+        "type": "string",
+        "default": "''",
+        "description": "Accessible description."
+      },
+      {
+        "name": "summary",
+        "type": "'hidden'|'visible'",
+        "default": "'hidden'",
+        "description": "Semantic data-table presentation."
+      },
+      {
+        "name": "loading",
+        "type": "boolean",
+        "default": "false",
+        "description": "Initial loading state."
+      },
+      {
+        "name": "emptyText",
+        "type": "string",
+        "default": "'No chart data'",
+        "description": "Empty-state text."
+      },
+      {
+        "name": "loadingText",
+        "type": "string",
+        "default": "'Loading chart…'",
+        "description": "Loading-state text."
+      },
+      {
+        "name": "errorText",
+        "type": "string",
+        "default": "'Unable to render chart'",
+        "description": "Error fallback text."
+      },
+      {
+        "name": "aspectRatio",
+        "type": "string",
+        "default": "'16 / 9'",
+        "description": "Responsive container aspect ratio."
+      }
+    ],
+    "events": [
+      {
+        "name": "ready",
+        "payload": "{instance: unknown}",
+        "description": "Engine-ready listener."
+      },
+      {
+        "name": "update",
+        "payload": "{data: ChartData, type: string}",
+        "description": "Update listener."
+      },
+      {
+        "name": "select",
+        "payload": "{datasetIndex, index, dataset, label, value, nativeEvent}",
+        "description": "Point-selection listener."
+      },
+      {
+        "name": "error",
+        "payload": "{error: unknown}",
+        "description": "Engine error listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "setData",
+        "signature": "setData(data)",
+        "returns": "this",
+        "description": "Replaces chart data and updates or mounts the engine."
+      },
+      {
+        "name": "setType",
+        "signature": "setType(type)",
+        "returns": "this",
+        "description": "Changes the chart type and updates/recreates the engine as needed."
+      },
+      {
+        "name": "update",
+        "signature": "update(options)",
+        "returns": "this",
+        "description": "Replaces engine-specific options."
+      },
+      {
+        "name": "setAdapter",
+        "signature": "setAdapter(adapter)",
+        "returns": "this",
+        "description": "Replaces the engine adapter."
+      },
+      {
+        "name": "setLoading",
+        "signature": "setLoading([loading])",
+        "returns": "this",
+        "description": "Toggles loading state. Loading charts do not keep an engine instance alive."
+      },
+      {
+        "name": "setError",
+        "signature": "setError(error)",
+        "returns": "this",
+        "description": "Shows an error and destroys the current engine."
+      },
+      {
+        "name": "clearError",
+        "signature": "clearError()",
+        "returns": "this",
+        "description": "Clears the error and remounts when data and an adapter are available."
+      },
+      {
+        "name": "resize",
+        "signature": "resize()",
+        "returns": "this",
+        "description": "Requests an engine resize."
+      },
+      {
+        "name": "refreshTheme",
+        "signature": "refreshTheme()",
+        "returns": "this",
+        "description": "Re-applies computed theme defaults through the adapter update path."
+      },
+      {
+        "name": "getInstance",
+        "signature": "getInstance()",
+        "returns": "unknown",
+        "description": "Returns the underlying engine instance when the adapter exposes it."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Destroys the engine/observer and restores or removes the host."
+      }
+    ]
+  },
+  "ChartJsAdapter": {
+    "options": [],
+    "events": [],
+    "methods": [
+      {
+        "name": "create",
+        "signature": "create(canvas, spec)",
+        "returns": "ChartHandle",
+        "description": "Creates one Chart.js lifecycle handle."
+      }
+    ]
   },
   "CheckButton": {
     "options": [
@@ -350,8 +1085,8 @@
       {
         "name": "getValues",
         "signature": "getValues()",
-        "returns": null,
-        "description": "Returns checked IDs in item order. @returns {unknown[]}"
+        "returns": "unknown[]",
+        "description": "Returns checked IDs in item order."
       },
       {
         "name": "setValues",
@@ -362,14 +1097,14 @@
       {
         "name": "checkAll",
         "signature": "checkAll()",
-        "returns": null,
-        "description": "Checks every item. @returns {this} @fires Checklist#change"
+        "returns": "this",
+        "description": "Checks every item."
       },
       {
         "name": "uncheckAll",
         "signature": "uncheckAll()",
-        "returns": null,
-        "description": "Unchecks every item. @returns {this} @fires Checklist#change"
+        "returns": "this",
+        "description": "Unchecks every item."
       },
       {
         "name": "search",
@@ -386,10 +1121,46 @@
       {
         "name": "destroy",
         "signature": "destroy()",
-        "returns": null,
-        "description": "Restores an enhanced target and invalidates pending loads. @returns {void}"
+        "returns": "void",
+        "description": "Restores an enhanced target and invalidates pending loads."
       }
     ]
+  },
+  "Confirm": {
+    "options": [
+      {
+        "name": "title",
+        "type": "string",
+        "default": "''",
+        "description": "Confirmation title."
+      },
+      {
+        "name": "message",
+        "type": "Node|string|number|null",
+        "default": "''",
+        "description": "Confirmation message."
+      },
+      {
+        "name": "okLabel",
+        "type": "string",
+        "default": "'OK'",
+        "description": "Confirmation label."
+      },
+      {
+        "name": "cancelLabel",
+        "type": "string",
+        "default": "'Cancel'",
+        "description": "Cancellation label."
+      },
+      {
+        "name": "danger",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether the confirmation action is dangerous."
+      }
+    ],
+    "events": [],
+    "methods": []
   },
   "ContextMenu": {
     "options": [
@@ -590,8 +1361,8 @@
       {
         "name": "destroy",
         "signature": "destroy()",
-        "returns": null,
-        "description": "Restores an enhanced target to the markup it had before the takeover. @returns {void}"
+        "returns": "void",
+        "description": "Restores an enhanced target to the markup it had before the takeover."
       }
     ]
   },
@@ -663,8 +1434,8 @@
       {
         "name": "destroy",
         "signature": "destroy()",
-        "returns": null,
-        "description": "Restores enhanced content and user-owned custom controls. @returns {void}"
+        "returns": "void",
+        "description": "Restores enhanced content and user-owned custom controls."
       }
     ]
   },
@@ -741,8 +1512,8 @@
       {
         "name": "destroy",
         "signature": "destroy()",
-        "returns": null,
-        "description": "Cleans up an appended time picker and generated host content. @returns {void}"
+        "returns": "void",
+        "description": "Cleans up an appended time picker and generated host content."
       }
     ]
   },
@@ -895,26 +1666,26 @@
       {
         "name": "enable",
         "signature": "enable()",
-        "returns": null,
-        "description": "Enables the box. @returns {this}"
+        "returns": "this",
+        "description": "Enables the box."
       },
       {
         "name": "disable",
         "signature": "disable()",
-        "returns": null,
-        "description": "Disables the box and closes its popover. @returns {this}"
+        "returns": "this",
+        "description": "Disables the box and closes its popover."
       },
       {
         "name": "focus",
         "signature": "focus()",
-        "returns": null,
-        "description": "Moves focus to the text input. @returns {this}"
+        "returns": "this",
+        "description": "Moves focus to the text input."
       },
       {
         "name": "destroy",
         "signature": "destroy()",
-        "returns": null,
-        "description": "Cleans up the open popover, child picker, and generated host content. @returns {void}"
+        "returns": "void",
+        "description": "Cleans up the open popover, child picker, and generated host content."
       }
     ]
   },
@@ -1032,20 +1803,20 @@
       {
         "name": "enable",
         "signature": "enable()",
-        "returns": null,
-        "description": "Enables every control. @returns {this}"
+        "returns": "this",
+        "description": "Enables every control."
       },
       {
         "name": "disable",
         "signature": "disable()",
-        "returns": null,
-        "description": "Disables every control. @returns {this}"
+        "returns": "this",
+        "description": "Disables every control."
       },
       {
         "name": "destroy",
         "signature": "destroy()",
-        "returns": null,
-        "description": "Removes generated content and restores the host element's attributes. @returns {void}"
+        "returns": "void",
+        "description": "Removes generated content and restores the host element's attributes."
       }
     ]
   },
@@ -1150,26 +1921,26 @@
       {
         "name": "enable",
         "signature": "enable()",
-        "returns": null,
-        "description": "Enables the datebox. @returns {this}"
+        "returns": "this",
+        "description": "Enables the datebox."
       },
       {
         "name": "disable",
         "signature": "disable()",
-        "returns": null,
-        "description": "Disables the datebox and closes its popover. @returns {this}"
+        "returns": "this",
+        "description": "Disables the datebox and closes its popover."
       },
       {
         "name": "focus",
         "signature": "focus()",
-        "returns": null,
-        "description": "Moves focus to the text input. @returns {this}"
+        "returns": "this",
+        "description": "Moves focus to the text input."
       },
       {
         "name": "destroy",
         "signature": "destroy()",
-        "returns": null,
-        "description": "Cleans up the open popover, child picker, and generated host content. @returns {void}"
+        "returns": "void",
+        "description": "Cleans up the open popover, child picker, and generated host content."
       }
     ]
   },
@@ -1179,28 +1950,50 @@
         "name": "title",
         "type": "string",
         "default": "''",
-        "description": "Prompt title."
+        "description": "Dialog title."
       },
       {
-        "name": "message",
-        "type": "Node|string|number|null",
-        "default": "''",
-        "description": "Prompt message."
+        "name": "size",
+        "type": "'sm'|'md'|'lg'|number",
+        "default": "'md'",
+        "description": "Preset or pixel width."
       },
       {
-        "name": "value",
-        "type": "string",
-        "default": "''",
-        "description": "Initial input value."
+        "name": "buttons",
+        "type": "DialogButton[]",
+        "default": "[]",
+        "description": "Footer buttons."
       },
       {
-        "name": "placeholder",
-        "type": "string",
-        "default": "''",
-        "description": "Input placeholder."
+        "name": "closable",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether Escape and the header button may close the dialog."
+      },
+      {
+        "name": "content",
+        "type": "Node|string|number|{toElement: () => Node|null}|null",
+        "default": "null",
+        "description": "Body content."
       }
     ],
-    "events": [],
+    "events": [
+      {
+        "name": "open",
+        "payload": "Record<string, never>",
+        "description": "Open event listener."
+      },
+      {
+        "name": "close",
+        "payload": "{result: unknown}",
+        "description": "Close event listener."
+      },
+      {
+        "name": "cancel",
+        "payload": "Record<string, never>",
+        "description": "Cancel event listener."
+      }
+    ],
     "methods": [
       {
         "name": "open",
@@ -1263,6 +2056,30 @@
         "description": "Opens a single-line text prompt."
       }
     ]
+  },
+  "DialogView": {
+    "options": [
+      {
+        "name": "content",
+        "type": "Node|string|number|{toElement: () => Node|null}|null",
+        "default": null,
+        "description": "View content."
+      },
+      {
+        "name": "buttons",
+        "type": "DialogButton[]",
+        "default": null,
+        "description": "View-specific footer buttons."
+      },
+      {
+        "name": "title",
+        "type": "string",
+        "default": null,
+        "description": "View-specific title."
+      }
+    ],
+    "events": [],
+    "methods": []
   },
   "Dock": {
     "options": [
@@ -1463,7 +2280,7 @@
       },
       {
         "name": "placement",
-        "type": "'bottom-start'|'bottom-end'|'top-start'|'top-end'|'bottom'|'top'",
+        "type": "'bottom-start'|'bottom-end'|'top-start'|'top-end'|'bottom'|'top'|'right-start'|'right-end'|'left-start'|'left-end'|'right'|'left'",
         "default": "'bottom-start'",
         "description": "Panel placement."
       },
@@ -1666,7 +2483,18 @@
         "description": "Adapter used by the `custom` type."
       }
     ],
-    "events": [],
+    "events": [
+      {
+        "name": "change",
+        "payload": "{value: unknown}",
+        "description": "Value change listener."
+      },
+      {
+        "name": "invalid",
+        "payload": "{message: string}",
+        "description": "Validation failure listener."
+      }
+    ],
     "methods": [
       {
         "name": "register",
@@ -1799,7 +2627,33 @@
         "description": "Injected Http-compatible or stub upload transport."
       }
     ],
-    "events": [],
+    "events": [
+      {
+        "name": "select",
+        "payload": "{files: File[]}",
+        "description": "File selection listener."
+      },
+      {
+        "name": "progress",
+        "payload": "{percent: number}",
+        "description": "Upload progress listener."
+      },
+      {
+        "name": "success",
+        "payload": "{response: unknown}",
+        "description": "Upload success listener."
+      },
+      {
+        "name": "error",
+        "payload": "{error: Error}",
+        "description": "Upload failure listener."
+      },
+      {
+        "name": "abort",
+        "payload": "Record<string, never>",
+        "description": "Upload abort listener."
+      }
+    ],
     "methods": [
       {
         "name": "upload",
@@ -2074,14 +2928,14 @@
       {
         "name": "focus",
         "signature": "focus()",
-        "returns": null,
-        "description": "Focuses the active column. @returns {this}"
+        "returns": "this",
+        "description": "Focuses the active column."
       },
       {
         "name": "destroy",
         "signature": "destroy()",
-        "returns": null,
-        "description": "Restores an enhanced target to the markup it had before the takeover. @returns {void}"
+        "returns": "void",
+        "description": "Restores an enhanced target to the markup it had before the takeover."
       }
     ]
   },
@@ -2106,7 +2960,23 @@
         "description": "Native `novalidate` state."
       }
     ],
-    "events": [],
+    "events": [
+      {
+        "name": "submit",
+        "payload": "{values: Record<string, unknown>}",
+        "description": "Submit listener."
+      },
+      {
+        "name": "invalid",
+        "payload": "{errors: Record<string, string>}",
+        "description": "Invalid listener."
+      },
+      {
+        "name": "change",
+        "payload": "{id: string, value: unknown}",
+        "description": "Field change listener."
+      }
+    ],
     "methods": [
       {
         "name": "addFieldset",
@@ -2177,40 +3047,16 @@
     ]
   },
   "Grid": {
-    "options": [
-      {
-        "name": "columns",
-        "type": "number|null",
-        "default": "null",
-        "description": "Column count at full width. Null fills the row with as many tracks of `min` width as fit."
-      },
-      {
-        "name": "min",
-        "type": "number|string",
-        "default": "'16rem'",
-        "description": "Narrowest a track may get before the grid drops a column. A number is read as pixels."
-      },
-      {
-        "name": "gap",
-        "type": "number|string",
-        "default": "4",
-        "description": "Space between cells, as in `stack`."
-      },
-      {
-        "name": "align",
-        "type": "'start'|'center'|'end'|'stretch'",
-        "default": null,
-        "description": "Block-axis alignment of each cell."
-      },
-      {
-        "name": "class",
-        "type": "string",
-        "default": "''",
-        "description": "Extra class names."
-      }
-    ],
+    "options": [],
     "events": [],
-    "methods": []
+    "methods": [
+      {
+        "name": "BillingItems",
+        "signature": "BillingItems(target, [options])",
+        "returns": "Grid",
+        "description": "Creates an editable hierarchical billing-line grid."
+      }
+    ]
   },
   "Groupbox": {
     "options": [
@@ -2340,10 +3186,205 @@
       {
         "name": "destroy",
         "signature": "destroy()",
-        "returns": null,
-        "description": "Restores an enhanced target to the markup it had before the takeover. @returns {void}"
+        "returns": "void",
+        "description": "Restores an enhanced target to the markup it had before the takeover."
       }
     ]
+  },
+  "Launcher": {
+    "options": [
+      {
+        "name": "items",
+        "type": "LauncherItem[]",
+        "default": "[]",
+        "description": "Local application/action catalogue."
+      },
+      {
+        "name": "sources",
+        "type": "LauncherSource[]",
+        "default": "[]",
+        "description": "Abortable asynchronous result sources."
+      },
+      {
+        "name": "query",
+        "type": "string",
+        "default": "''",
+        "description": "Initial query."
+      },
+      {
+        "name": "debounce",
+        "type": "number",
+        "default": "250",
+        "description": "Source-query delay in milliseconds."
+      },
+      {
+        "name": "minQuery",
+        "type": "number",
+        "default": "0",
+        "description": "Global source minimum query length."
+      },
+      {
+        "name": "maxResults",
+        "type": "number",
+        "default": "100",
+        "description": "Maximum combined results."
+      },
+      {
+        "name": "placeholder",
+        "type": "string",
+        "default": "'Search applications and records'",
+        "description": "Search-field placeholder."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "default": "'Launcher'",
+        "description": "Dialog and field label."
+      },
+      {
+        "name": "emptyText",
+        "type": "string",
+        "default": "'No results'",
+        "description": "Empty-state text."
+      },
+      {
+        "name": "loadingText",
+        "type": "string",
+        "default": "'Searching…'",
+        "description": "Loading-state text."
+      },
+      {
+        "name": "shortcut",
+        "type": "'mod+k'|false",
+        "default": "'mod+k'",
+        "description": "Optional global keyboard shortcut."
+      }
+    ],
+    "events": [
+      {
+        "name": "select",
+        "payload": "{item, value, source, query}",
+        "description": "Preventable selection listener."
+      },
+      {
+        "name": "query",
+        "payload": "{query: string}",
+        "description": "Query-change listener."
+      },
+      {
+        "name": "open",
+        "payload": "Record<string, never>",
+        "description": "Open listener."
+      },
+      {
+        "name": "close",
+        "payload": "Record<string, never>",
+        "description": "Close listener."
+      },
+      {
+        "name": "error",
+        "payload": "{source: LauncherSource, error: unknown}",
+        "description": "Source error listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "open",
+        "signature": "open()",
+        "returns": "this",
+        "description": "Opens the launcher and focuses/selects its query."
+      },
+      {
+        "name": "close",
+        "signature": "close()",
+        "returns": "this",
+        "description": "Closes the launcher."
+      },
+      {
+        "name": "toggle",
+        "signature": "toggle()",
+        "returns": "this",
+        "description": "Toggles the launcher."
+      },
+      {
+        "name": "isOpen",
+        "signature": "isOpen()",
+        "returns": "boolean",
+        "description": "Reports whether the launcher is open."
+      },
+      {
+        "name": "focus",
+        "signature": "focus()",
+        "returns": "this",
+        "description": "Focuses and selects the query field."
+      },
+      {
+        "name": "setQuery",
+        "signature": "setQuery(query)",
+        "returns": "this",
+        "description": "Replaces the query and refreshes local and remote results."
+      },
+      {
+        "name": "getQuery",
+        "signature": "getQuery()",
+        "returns": "string",
+        "description": "Returns the untrimmed query."
+      },
+      {
+        "name": "setItems",
+        "signature": "setItems(items)",
+        "returns": "this",
+        "description": "Replaces local catalogue items."
+      },
+      {
+        "name": "setSources",
+        "signature": "setSources(sources)",
+        "returns": "this",
+        "description": "Replaces asynchronous sources and aborts work from the old set."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Aborts sources and removes the owned dialog."
+      }
+    ]
+  },
+  "LayoutGrid": {
+    "options": [
+      {
+        "name": "columns",
+        "type": "number|null",
+        "default": "null",
+        "description": "Column count at full width. Null fills the row with as many tracks of `min` width as fit."
+      },
+      {
+        "name": "min",
+        "type": "number|string",
+        "default": "'16rem'",
+        "description": "Narrowest a track may get before the grid drops a column. A number is read as pixels."
+      },
+      {
+        "name": "gap",
+        "type": "number|string",
+        "default": "4",
+        "description": "Space between cells, as in `stack`."
+      },
+      {
+        "name": "align",
+        "type": "'start'|'center'|'end'|'stretch'",
+        "default": null,
+        "description": "Block-axis alignment of each cell."
+      },
+      {
+        "name": "class",
+        "type": "string",
+        "default": "''",
+        "description": "Extra class names."
+      }
+    ],
+    "events": [],
+    "methods": []
   },
   "MasterPanel": {
     "options": [
@@ -2434,7 +3475,7 @@
       },
       {
         "name": "placement",
-        "type": "'bottom-start'|'bottom-end'|'top-start'|'top-end'|'bottom'|'top'",
+        "type": "'bottom-start'|'bottom-end'|'top-start'|'top-end'|'bottom'|'top'|'right-start'|'right-end'|'left-start'|'left-end'|'right'|'left'",
         "default": "'bottom-start'",
         "description": "Menu placement."
       }
@@ -2480,6 +3521,30 @@
         "signature": "isOpen()",
         "returns": "boolean",
         "description": "Reports whether the menu is open."
+      },
+      {
+        "name": "getTrigger",
+        "signature": "getTrigger()",
+        "returns": "HTMLElement",
+        "description": "Returns the trigger button."
+      },
+      {
+        "name": "getPanel",
+        "signature": "getPanel()",
+        "returns": "HTMLElement",
+        "description": "Returns the owned menu panel."
+      },
+      {
+        "name": "focusFirst",
+        "signature": "focusFirst()",
+        "returns": "this",
+        "description": "Opens the menu and focuses its first enabled item."
+      },
+      {
+        "name": "focusLast",
+        "signature": "focusLast()",
+        "returns": "this",
+        "description": "Opens the menu and focuses its last enabled item."
       },
       {
         "name": "setLabel",
@@ -2701,8 +3766,8 @@
       {
         "name": "destroy",
         "signature": "destroy()",
-        "returns": null,
-        "description": "Removes generated content from an enhanced target. @returns {void}"
+        "returns": "void",
+        "description": "Removes generated content from an enhanced target."
       }
     ]
   },
@@ -2733,7 +3798,13 @@
         "description": "Reordering affordances each row gets: a drag handle, the up/down buttons, both, or neither."
       }
     ],
-    "events": [],
+    "events": [
+      {
+        "name": "change",
+        "payload": "{values: string[]}",
+        "description": "Values change listener."
+      }
+    ],
     "methods": [
       {
         "name": "getValues",
@@ -2967,26 +4038,26 @@
       {
         "name": "focus",
         "signature": "focus()",
-        "returns": null,
-        "description": "Focuses the input. @returns {this}"
+        "returns": "this",
+        "description": "Focuses the input."
       },
       {
         "name": "getInput",
         "signature": "getInput()",
-        "returns": null,
-        "description": "Returns the underlying input element. @returns {HTMLInputElement}"
+        "returns": "HTMLInputElement",
+        "description": "Returns the underlying input element."
       },
       {
         "name": "enable",
         "signature": "enable()",
-        "returns": null,
-        "description": "Enables user interaction. @returns {this}"
+        "returns": "this",
+        "description": "Enables user interaction."
       },
       {
         "name": "disable",
         "signature": "disable()",
-        "returns": null,
-        "description": "Disables user interaction. @returns {this}"
+        "returns": "this",
+        "description": "Disables user interaction."
       },
       {
         "name": "setReadonly",
@@ -3003,8 +4074,8 @@
       {
         "name": "destroy",
         "signature": "destroy()",
-        "returns": null,
-        "description": "Restores an enhanced target to the markup it had before the takeover. @returns {void}"
+        "returns": "void",
+        "description": "Restores an enhanced target to the markup it had before the takeover."
       }
     ]
   },
@@ -3134,6 +4205,36 @@
         "description": "Aborts listeners and restores an enhanced target to the markup it had before the takeover."
       }
     ]
+  },
+  "PaginationRange": {
+    "options": [
+      {
+        "name": "page",
+        "type": "number",
+        "default": null,
+        "description": "One-based current page."
+      },
+      {
+        "name": "pages",
+        "type": "number",
+        "default": null,
+        "description": "Total number of pages."
+      },
+      {
+        "name": "siblings",
+        "type": "number",
+        "default": "1",
+        "description": "Pages shown either side of the current one."
+      },
+      {
+        "name": "boundaries",
+        "type": "number",
+        "default": "1",
+        "description": "Pages pinned at each end of the range."
+      }
+    ],
+    "events": [],
+    "methods": []
   },
   "Panel": {
     "options": [
@@ -3376,10 +4477,40 @@
       {
         "name": "destroy",
         "signature": "destroy()",
-        "returns": null,
-        "description": "Restores an enhanced target to the markup it had before the takeover. @returns {void}"
+        "returns": "void",
+        "description": "Restores an enhanced target to the markup it had before the takeover."
       }
     ]
+  },
+  "Prompt": {
+    "options": [
+      {
+        "name": "title",
+        "type": "string",
+        "default": "''",
+        "description": "Prompt title."
+      },
+      {
+        "name": "message",
+        "type": "Node|string|number|null",
+        "default": "''",
+        "description": "Prompt message."
+      },
+      {
+        "name": "value",
+        "type": "string",
+        "default": "''",
+        "description": "Initial input value."
+      },
+      {
+        "name": "placeholder",
+        "type": "string",
+        "default": "''",
+        "description": "Input placeholder."
+      }
+    ],
+    "events": [],
+    "methods": []
   },
   "Questionnaire": {
     "options": [
@@ -3708,20 +4839,20 @@
       {
         "name": "focus",
         "signature": "focus()",
-        "returns": null,
-        "description": "Focuses the selected step, or the first one when unrated. @returns {this}"
+        "returns": "this",
+        "description": "Focuses the selected step, or the first one when unrated."
       },
       {
         "name": "enable",
         "signature": "enable()",
-        "returns": null,
-        "description": "Enables user interaction. @returns {this}"
+        "returns": "this",
+        "description": "Enables user interaction."
       },
       {
         "name": "disable",
         "signature": "disable()",
-        "returns": null,
-        "description": "Disables user interaction. @returns {this}"
+        "returns": "this",
+        "description": "Disables user interaction."
       },
       {
         "name": "setReadonly",
@@ -3732,8 +4863,8 @@
       {
         "name": "destroy",
         "signature": "destroy()",
-        "returns": null,
-        "description": "Restores an enhanced target to the markup it had before the takeover. @returns {void}"
+        "returns": "void",
+        "description": "Restores an enhanced target to the markup it had before the takeover."
       }
     ]
   },
@@ -3968,32 +5099,32 @@
       {
         "name": "open",
         "signature": "open()",
-        "returns": null,
-        "description": "Opens the option panel. @returns {this} @fires Select#open"
+        "returns": "this",
+        "description": "Opens the option panel."
       },
       {
         "name": "close",
         "signature": "close()",
-        "returns": null,
-        "description": "Closes the option panel and restores the selected label. @returns {this} @fires Select#close"
+        "returns": "this",
+        "description": "Closes the option panel and restores the selected label."
       },
       {
         "name": "enable",
         "signature": "enable()",
-        "returns": null,
-        "description": "Enables user interaction. @returns {this}"
+        "returns": "this",
+        "description": "Enables user interaction."
       },
       {
         "name": "disable",
         "signature": "disable()",
-        "returns": null,
-        "description": "Disables user interaction and closes the panel. @returns {this}"
+        "returns": "this",
+        "description": "Disables user interaction and closes the panel."
       },
       {
         "name": "focus",
         "signature": "focus()",
-        "returns": null,
-        "description": "Moves focus to the combobox input. @returns {this}"
+        "returns": "this",
+        "description": "Moves focus to the combobox input."
       },
       {
         "name": "priority",
@@ -4010,8 +5141,8 @@
       {
         "name": "destroy",
         "signature": "destroy()",
-        "returns": null,
-        "description": "Cleans up the panel, pending async work, and enhanced target contents. @returns {void}"
+        "returns": "void",
+        "description": "Cleans up the panel, pending async work, and enhanced target contents."
       }
     ]
   },
@@ -4129,6 +5260,16 @@
         "name": "cancel",
         "payload": "Record<string, never>",
         "description": "Cancel event listener."
+      },
+      {
+        "name": "resize",
+        "payload": "{size: number, ratio: number}",
+        "description": "Resize listener."
+      },
+      {
+        "name": "dockchange",
+        "payload": "{docked: boolean, dock: import('../dock/dock.js').Dock|null}",
+        "description": "Dock-state listener."
       }
     ],
     "methods": [
@@ -4519,20 +5660,20 @@
       {
         "name": "focus",
         "signature": "focus()",
-        "returns": null,
-        "description": "Focuses the track. @returns {this}"
+        "returns": "this",
+        "description": "Focuses the track."
       },
       {
         "name": "enable",
         "signature": "enable()",
-        "returns": null,
-        "description": "Enables user interaction. @returns {this}"
+        "returns": "this",
+        "description": "Enables user interaction."
       },
       {
         "name": "disable",
         "signature": "disable()",
-        "returns": null,
-        "description": "Disables user interaction. @returns {this}"
+        "returns": "this",
+        "description": "Disables user interaction."
       },
       {
         "name": "setReadonly",
@@ -4549,8 +5690,8 @@
       {
         "name": "destroy",
         "signature": "destroy()",
-        "returns": null,
-        "description": "Restores an enhanced target to the markup it had before the takeover. @returns {void}"
+        "returns": "void",
+        "description": "Restores an enhanced target to the markup it had before the takeover."
       }
     ]
   },
@@ -4931,6 +6072,18 @@
       }
     ]
   },
+  "TabInsert": {
+    "options": [
+      {
+        "name": "index",
+        "type": "number",
+        "default": null,
+        "description": "Zero-based insertion index; omitted appends."
+      }
+    ],
+    "events": [],
+    "methods": []
+  },
   "Tabbox": {
     "options": [
       {
@@ -5112,6 +6265,12 @@
         "type": "TableEditMode",
         "default": "false",
         "description": "Inline editing mode. `'cell'` edits one cell, `'row'` opens every editable cell of the row together and commits them as a unit. Editing is completely inert while this is `false`."
+      },
+      {
+        "name": "hierarchy",
+        "type": "false|TableHierarchyOptions",
+        "default": "false",
+        "description": "Flat parent references projected as an expandable treegrid. Row data and mutation APIs remain flat."
       }
     ],
     "events": [
@@ -5169,6 +6328,11 @@
         "name": "editinvalid",
         "payload": "{row, id, column, columnId, value, message}",
         "description": ""
+      },
+      {
+        "name": "rowtoggle",
+        "payload": "{row, id, expanded}",
+        "description": ""
       }
     ],
     "methods": [
@@ -5209,6 +6373,12 @@
         "description": "Returns a row by id."
       },
       {
+        "name": "getData",
+        "signature": "getData()",
+        "returns": "TableRow[]",
+        "description": "Returns a shallow copy of the current rows in display order."
+      },
+      {
         "name": "empty",
         "signature": "empty()",
         "returns": "this",
@@ -5221,6 +6391,12 @@
         "description": "Activates a column sort. Local mode stably reorders data; server mode only updates the header state and emits the request event."
       },
       {
+        "name": "getSelection",
+        "signature": "getSelection()",
+        "returns": "TableRow[]",
+        "description": "Returns selected rows in current display order."
+      },
+      {
         "name": "setSelection",
         "signature": "setSelection(ids)",
         "returns": "this",
@@ -5231,6 +6407,42 @@
         "signature": "clearSelection()",
         "returns": "this",
         "description": "Clears all selected rows."
+      },
+      {
+        "name": "toggleRow",
+        "signature": "toggleRow(id, [options])",
+        "returns": "this",
+        "description": "Toggles one hierarchy branch. A leaf or an id absent from the table is a no-op."
+      },
+      {
+        "name": "expandRow",
+        "signature": "expandRow(id, [options])",
+        "returns": "this",
+        "description": "Expands one hierarchy branch."
+      },
+      {
+        "name": "collapseRow",
+        "signature": "collapseRow(id, [options])",
+        "returns": "this",
+        "description": "Collapses one hierarchy branch without discarding its descendants or their expansion state."
+      },
+      {
+        "name": "expandAll",
+        "signature": "expandAll([options])",
+        "returns": "this",
+        "description": "Expands every row that currently has children."
+      },
+      {
+        "name": "collapseAll",
+        "signature": "collapseAll([options])",
+        "returns": "this",
+        "description": "Collapses every hierarchy branch."
+      },
+      {
+        "name": "getExpanded",
+        "signature": "getExpanded()",
+        "returns": "unknown[]",
+        "description": "Returns expanded branch ids in current flat-data order."
       },
       {
         "name": "startEdit",
@@ -5249,6 +6461,18 @@
         "signature": "cancelEdit()",
         "returns": "this",
         "description": "Closes the open edit without writing anything back and returns focus to the cell."
+      },
+      {
+        "name": "isEditing",
+        "signature": "isEditing()",
+        "returns": "boolean",
+        "description": "Reports whether a cell or row is currently open for editing."
+      },
+      {
+        "name": "getEditing",
+        "signature": "getEditing()",
+        "returns": "{id: unknown, columnId: string}|null",
+        "description": "Returns the row id and focused column id for the open edit."
       },
       {
         "name": "growBy",
@@ -5277,10 +6501,34 @@
       {
         "name": "destroy",
         "signature": "destroy()",
-        "returns": null,
-        "description": "Restores an enhanced target and releases all component listeners. @returns {void}"
+        "returns": "void",
+        "description": "Restores an enhanced target and releases all component listeners."
       }
     ]
+  },
+  "TableHierarchy": {
+    "options": [
+      {
+        "name": "parentId",
+        "type": "string|((row: TableRow) => unknown)",
+        "default": null,
+        "description": "Row property or callback returning its parent row id. Null and undefined identify a root row."
+      },
+      {
+        "name": "column",
+        "type": "string",
+        "default": null,
+        "description": "Column that receives indentation and the disclosure control; the first column is used when omitted."
+      },
+      {
+        "name": "expanded",
+        "type": "boolean|unknown[]",
+        "default": "false",
+        "description": "Initially expanded branches: all, none, or ids."
+      }
+    ],
+    "events": [],
+    "methods": []
   },
   "TagPicker": {
     "options": [
@@ -5487,38 +6735,38 @@
       {
         "name": "isFull",
         "signature": "isFull()",
-        "returns": null,
-        "description": "Reports whether the configured maximum is reached. @returns {boolean}"
+        "returns": "boolean",
+        "description": "Reports whether the configured maximum is reached."
       },
       {
         "name": "open",
         "signature": "open()",
-        "returns": null,
-        "description": "Opens the option list. @returns {this}"
+        "returns": "this",
+        "description": "Opens the option list."
       },
       {
         "name": "close",
         "signature": "close()",
-        "returns": null,
-        "description": "Closes the option list. @returns {this}"
+        "returns": "this",
+        "description": "Closes the option list."
       },
       {
         "name": "focus",
         "signature": "focus()",
-        "returns": null,
-        "description": "Focuses the text input. @returns {this}"
+        "returns": "this",
+        "description": "Focuses the text input."
       },
       {
         "name": "enable",
         "signature": "enable()",
-        "returns": null,
-        "description": "Enables user interaction. @returns {this}"
+        "returns": "this",
+        "description": "Enables user interaction."
       },
       {
         "name": "disable",
         "signature": "disable()",
-        "returns": null,
-        "description": "Disables user interaction and closes the list. @returns {this}"
+        "returns": "this",
+        "description": "Disables user interaction and closes the list."
       },
       {
         "name": "setReadonly",
@@ -5529,8 +6777,8 @@
       {
         "name": "destroy",
         "signature": "destroy()",
-        "returns": null,
-        "description": "Cancels pending work and restores an enhanced target. @returns {void}"
+        "returns": "void",
+        "description": "Cancels pending work and restores an enhanced target."
       }
     ]
   },
@@ -5590,20 +6838,20 @@
       {
         "name": "closeClock",
         "signature": "closeClock()",
-        "returns": null,
-        "description": "Closes the clock face. @returns {this}"
+        "returns": "this",
+        "description": "Closes the clock face."
       },
       {
         "name": "toggleClock",
         "signature": "toggleClock()",
-        "returns": null,
-        "description": "Toggles the clock face. @returns {this}"
+        "returns": "this",
+        "description": "Toggles the clock face."
       },
       {
         "name": "destroy",
         "signature": "destroy()",
-        "returns": null,
-        "description": "Removes generated content from an enhanced target. @returns {void}"
+        "returns": "void",
+        "description": "Removes generated content from an enhanced target."
       }
     ]
   },
@@ -5663,20 +6911,20 @@
       {
         "name": "enable",
         "signature": "enable()",
-        "returns": null,
-        "description": "Enables the timebox. @returns {this}"
+        "returns": "this",
+        "description": "Enables the timebox."
       },
       {
         "name": "disable",
         "signature": "disable()",
-        "returns": null,
-        "description": "Disables the timebox. @returns {this}"
+        "returns": "this",
+        "description": "Disables the timebox."
       },
       {
         "name": "destroy",
         "signature": "destroy()",
-        "returns": null,
-        "description": "Removes generated content from an enhanced target. @returns {void}"
+        "returns": "void",
+        "description": "Removes generated content from an enhanced target."
       }
     ]
   },
@@ -5848,7 +7096,7 @@
       },
       {
         "name": "placement",
-        "type": "'top'|'bottom'|'top-start'|'top-end'|'bottom-start'|'bottom-end'",
+        "type": "'top'|'bottom'|'top-start'|'top-end'|'bottom-start'|'bottom-end'|'left'|'right'|'left-start'|'left-end'|'right-start'|'right-end'",
         "default": "'top'",
         "description": "Preferred side; flips when it would overflow."
       },
@@ -6159,8 +7407,8 @@
       {
         "name": "collapseAll",
         "signature": "collapseAll()",
-        "returns": null,
-        "description": "Collapses every branch. @returns {this}"
+        "returns": "this",
+        "description": "Collapses every branch."
       },
       {
         "name": "reveal",
@@ -6189,8 +7437,8 @@
       {
         "name": "clearSelection",
         "signature": "clearSelection()",
-        "returns": null,
-        "description": "Clears the selection. @returns {this}"
+        "returns": "this",
+        "description": "Clears the selection."
       },
       {
         "name": "getChecked",
@@ -6219,8 +7467,8 @@
       {
         "name": "destroy",
         "signature": "destroy()",
-        "returns": null,
-        "description": "Restores an enhanced target to the markup it had before the takeover. @returns {void}"
+        "returns": "void",
+        "description": "Restores an enhanced target to the markup it had before the takeover."
       }
     ]
   },
@@ -6237,6 +7485,48 @@
         "type": "boolean",
         "default": "true",
         "description": "Whether a native `title` tooltip is set — and kept up to date — while the text is actually cut off, so the full value stays reachable on hover."
+      }
+    ],
+    "events": [],
+    "methods": []
+  },
+  "UploadTransport": {
+    "options": [
+      {
+        "name": "files",
+        "type": "File[]",
+        "default": null,
+        "description": "Selected files."
+      },
+      {
+        "name": "paramName",
+        "type": "string",
+        "default": null,
+        "description": "Multipart field name."
+      },
+      {
+        "name": "params",
+        "type": "Record<string, unknown>",
+        "default": null,
+        "description": "Extra form values."
+      },
+      {
+        "name": "headers",
+        "type": "Record<string, string>",
+        "default": null,
+        "description": "Request headers."
+      },
+      {
+        "name": "signal",
+        "type": "AbortSignal",
+        "default": null,
+        "description": "Abort signal."
+      },
+      {
+        "name": "onProgress",
+        "type": "(percent: number) => void",
+        "default": null,
+        "description": "Progress callback."
       }
     ],
     "events": [],
@@ -6281,7 +7571,23 @@
         "description": "Value validator."
       }
     ],
-    "events": [],
+    "events": [
+      {
+        "name": "change",
+        "payload": "{values: string[]}",
+        "description": "Values change listener."
+      },
+      {
+        "name": "add",
+        "payload": "{value: string}",
+        "description": "Value added listener."
+      },
+      {
+        "name": "remove",
+        "payload": "{value: string}",
+        "description": "Value removed listener."
+      }
+    ],
     "methods": [
       {
         "name": "getValues",

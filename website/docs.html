@@ -3,8 +3,8 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Zx documentation — getting started, every component with live demos and source, and complete application layouts.">
-    <title>Documentation — Zx</title>
+    <meta name="description" content="Xenon Design System documentation — foundations, components, patterns, and application layouts implemented by Zx.">
+    <title>Documentation — Xenon Design System</title>
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="../styles/zx.css">
     <link rel="stylesheet" href="site.css">
@@ -46,13 +46,14 @@
     <template
       data-guide="introduction"
       data-title="Introduction"
-      data-blurb="Zx is the dependency-free UI toolkit behind ZeyOS business screens: 30+ accessible components in plain ES modules.">
-      <h2>What Zx is</h2>
+      data-blurb="Xenon is the dependency-free ZeyOS design system; Zx implements its 50+ accessible components as plain ES modules.">
+      <h2>What Xenon and Zx are</h2>
       <p>
-        Zx is a component library for building business software: dense data screens, long forms,
-        modal workflows, and the application shells around them. It ships as plain ES2022 modules
-        with <strong>no runtime dependencies</strong> — no framework, no bundler, no package to keep
-        on a security treadmill. The same source you read here runs unchanged in the browser.
+        Xenon is the design system for ZeyOS business software: foundations, components, workflow
+        patterns, and the application layouts around dense data screens, long forms, and modal
+        tasks. Zx is its implementation. It ships as plain ES2022 modules with <strong>no runtime
+        dependencies</strong> — no framework or bundler required. The same source you read here
+        runs unchanged in the browser.
       </p>
       <p>
         Everything is built on native platform features: <code>&lt;dialog&gt;</code>, the popover
@@ -273,7 +274,7 @@ const toolbar = h('div', { class: 'toolbar' },
       data-blurb="Three attributes switch light/dark, cozy/compact, and the accent. A product theme is a short list of semantic token overrides.">
       <div class="docs-callout">
         <p>
-          The <a href="theme.html">theme studio</a> puts every component on one page under a live
+          The <a href="theme.html">theme studio</a> puts every component family on one page under a live
           theme: cycle the standard presets, change the accent, radius, density, and type, and copy
           the result out as CSS. It is the fastest way to read the rest of this page.
         </p>
@@ -410,10 +411,9 @@ const toolbar = h('div', { class: 'toolbar' },
 
       <h2>Where the current theme comes from</h2>
       <p>
-        The stock light and dark themes follow the shadcn/ui <em>Nova · Zinc</em> preset: a Zinc
-        neutral ramp, <code>0.45rem</code> corner radius, Inter, 32px controls, and a three-pixel
-        translucent focus ring. The accent is the ZeyOS green, tuned across the preset's Emerald
-        ramp so it stays legible on both surfaces.
+        The stock light and dark themes use a restrained neutral ramp, <code>0.45rem</code> corner
+        radius, Inter, 32px controls, and a three-pixel translucent focus ring. The accent is the
+        ZeyOS green, tuned across Xenon's emerald ramp so it stays legible on both surfaces.
       </p>
 
       <h2>Module accents</h2>
@@ -565,8 +565,8 @@ document.querySelector('#invoices').append(list.table);
           </div>
           <div class="site-footer__group">
             <h2>Reference</h2>
-            <a href="CHANGELOG.md">Changelog</a>
-            <a href="MIGRATION.md">Migration guide</a>
+            <a href="../CHANGELOG.md">Changelog</a>
+            <a href="../MIGRATION.md">Migration guide</a>
             <a href="llms.txt">llms.txt</a>
           </div>
           <div class="site-footer__group">

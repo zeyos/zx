@@ -46,7 +46,7 @@ const main = h('main', { class: 'studio-main' },
   h('div', { class: 'studio-intro' },
     h('h1', { class: 'studio-intro__title' }, 'Theme studio'),
     h('p', { class: 'studio-intro__blurb' },
-      'Every Zx component on one page. Pick one of the standard themes, or change a few '
+      'Every Xenon component family on one page. Pick one of the standard themes, or change a few '
       + 'properties to build your own — then copy the result as CSS. Whatever you choose applies '
       + 'to the whole site until you reset it.')),
   // A short index, so the rail is not the only way to reach a family far down a very long page.

@@ -48,7 +48,7 @@ export const PRESETS = [
   {
     id: 'zx',
     label: 'Zx',
-    note: 'The ZeyOS green on the shadcn Emerald ramp. The default.',
+    note: 'The ZeyOS green on Xenon\u2019s emerald ramp. The default.',
     ramp: { 300: '#5ee9b5', 400: '#21cc75', 500: '#009966', 600: '#007a55', 700: '#006045' }
   },
   {

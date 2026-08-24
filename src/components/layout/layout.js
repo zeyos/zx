@@ -13,7 +13,7 @@ import { h } from '../../core/dom.js';
  */
 
 /**
- * @typedef {Object} GridOptions
+ * @typedef {Object} LayoutGridOptions
  * @property {number|null} [columns=null] Column count at full width. Null fills the row with as
  *   many tracks of `min` width as fit.
  * @property {number|string} [min='16rem'] Narrowest a track may get before the grid drops a
@@ -67,7 +67,7 @@ export function stack(options = {}, ...children) {
  * in a full-width page, a split pane, and a modal. Nothing here consults the viewport, which is
  * the usual reason a "responsive" grid still breaks inside a narrow panel.
  *
- * @param {GridOptions} [options={}] Grid options.
+ * @param {LayoutGridOptions} [options={}] Grid options.
  * @param {...DomChild} children Cells.
  * @returns {HTMLDivElement}
  */

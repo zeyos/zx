@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Zx is the dependency-free, accessible UI toolkit for ZeyOS business applications.">
-  <title>Zx — The UI toolkit for ZeyOS business software</title>
+  <meta name="description" content="Xenon is the dependency-free design system for ZeyOS. Zx provides its accessible components, patterns, and application layouts in plain JavaScript.">
+  <title>Xenon Design System — Zx for ZeyOS</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../styles/zx.css">
   <link rel="stylesheet" href="site.css">
@@ -13,16 +13,17 @@
 <body class="zx-scope site-page">
   <header class="site-header site-header--overlay">
     <div class="site-header__inner">
-      <a class="site-brand" href="index.html" aria-label="Zx home">
+      <a class="site-brand" href="index.html" aria-label="Xenon Design System home">
         <img class="brand-logo--light" src="assets/zx-logo.svg" alt="">
         <img class="brand-logo--dark" src="assets/zx-logo-dark.svg" alt="">
       </a>
       <a class="site-version" href="https://github.com/zeyos/zx/releases/latest"
         rel="noopener" title="Release notes">v<span data-site-version>2.0.0</span></a>
       <nav class="site-nav" aria-label="Primary">
+        <a href="#system">Design system</a>
         <a href="docs.html">Documentation</a>
-        <a href="docs.html#layouts">Layouts</a>
-        <a href="theme.html">Theming</a>
+        <a href="docs.html#components">Components</a>
+        <a href="../MIGRATION.md">Migration</a>
       </nav>
       <div class="site-actions">
         <a class="site-icon-btn" data-site-icon="zeyos" href="https://www.zeyos.com" rel="noopener"
@@ -40,51 +41,58 @@
       <div class="site-section hero__inner">
         <!-- The hero band is always dark, so it always uses the light-ink logo. -->
         <img class="hero__logo" src="assets/zx-logo-dark.svg" alt="Zx">
-        <p class="band-eyebrow hero__eyebrow">UI infrastructure for business software</p>
-        <h1>Build ZeyOS screens that feel <em>native</em></h1>
+        <p class="band-eyebrow hero__eyebrow">ZeyOS Xenon Design System</p>
+        <h1>One coherent system for every ZeyOS <em>workflow</em></h1>
         <p class="hero__subhead">
-          Fifty-plus accessible, themeable components in plain ES modules — no framework,
-          no build step, no runtime dependencies.
+          Xenon brings foundations, accessible components, enterprise patterns, and application
+          layouts into one shared language. Zx is its plain-JavaScript implementation — no
+          framework, no build step, and no runtime dependencies.
         </p>
         <div class="hero__actions">
-          <a class="site-btn site-btn--primary" data-btn-icon="book" href="docs.html">Get started</a>
-          <a class="site-btn site-btn--ghost" data-btn-icon="zeyos" href="https://www.zeyos.com"
-            rel="noopener">Get started with ZeyOS</a>
+          <a class="site-btn site-btn--primary" data-btn-icon="book" href="docs.html">Explore Xenon</a>
+          <a class="site-btn site-btn--ghost" href="../MIGRATION.md">Migration strategy</a>
         </div>
       </div>
     </section>
 
-    <section class="site-band site-band--deep" aria-labelledby="paths-title">
+    <section class="site-band site-band--deep" id="system" aria-labelledby="system-title">
       <div class="site-section">
-        <h2 id="paths-title" class="site-visually-hidden">Where to start</h2>
-        <div class="path-grid">
-          <a class="path-card" href="docs.html#getting-started">
-            <span class="path-card__icon" data-feature-icon="plus"></span>
-            <h3>Start something new</h3>
-            <p>
-              Install the package, load one stylesheet, and put a working control on the page.
-              No bundler, no framework, nothing to configure first.
-            </p>
-            <span class="path-card__cue">Getting started</span>
-          </a>
-          <a class="path-card" href="docs.html#components">
-            <span class="path-card__icon" data-feature-icon="list"></span>
-            <h3>See what is there</h3>
-            <p>
-              Every component on one page with a live demo, its complete source, the generated
-              API table, and its keyboard map.
-            </p>
-            <span class="path-card__cue">Browse the components</span>
-          </a>
-          <a class="path-card" href="docs.html#components/gx-compat">
-            <span class="path-card__icon" data-feature-icon="reload"></span>
-            <h3>Move an old screen across</h3>
-            <p>
-              The compatibility layer keeps MooTools-era <code>gx</code> code running while you
-              modernise it a file at a time.
-            </p>
-            <span class="path-card__cue">gx compatibility</span>
-          </a>
+        <div class="section-heading">
+          <p class="band-eyebrow">System architecture</p>
+          <h2 id="system-title">More than a component catalogue</h2>
+          <p>
+            Xenon applies the discipline of mature enterprise systems such as
+            <a href="https://carbondesignsystem.com/all-about-carbon/what-is-carbon/" rel="noopener">IBM Carbon</a>
+            and <a href="https://experience.sap.com/fiori-design-web/design-principles/" rel="noopener">SAP Fiori</a>
+            to ZeyOS: shared foundations, reusable controls, task-level patterns, and layout
+            guidance. It is purpose-built for ZeyOS, not a visual copy of either system.
+          </p>
+        </div>
+        <div class="system-grid">
+          <article class="system-card">
+            <span class="system-card__index">01</span>
+            <h3>Foundations</h3>
+            <p>Semantic tokens, typography, spacing, motion, icons, themes, density, and accessibility rules.</p>
+            <a href="theme.html">Explore foundations</a>
+          </article>
+          <article class="system-card">
+            <span class="system-card__index">02</span>
+            <h3>Components</h3>
+            <p>Keyboard-complete inputs, overlays, navigation, forms, and data controls with one consistent API.</p>
+            <a href="docs.html#components">Browse components</a>
+          </article>
+          <article class="system-card">
+            <span class="system-card__index">03</span>
+            <h3>Patterns</h3>
+            <p>Guidance for finding, editing, approving, filtering, and communicating in dense business workflows.</p>
+            <a href="docs.html#getting-started">Read the guidance</a>
+          </article>
+          <article class="system-card">
+            <span class="system-card__index">04</span>
+            <h3>Application layouts</h3>
+            <p>Composable shells and floorplans for records, inboxes, settings, dashboards, and master-detail work.</p>
+            <a href="docs.html#layouts">See layouts</a>
+          </article>
         </div>
       </div>
     </section>
@@ -92,44 +100,77 @@
     <section class="site-band" aria-labelledby="features-title">
       <div class="site-section">
         <div class="section-heading">
-          <p class="band-eyebrow">Why Zx</p>
-          <h2 id="features-title">A focused toolkit for dense ERP interfaces</h2>
+          <p class="band-eyebrow">Design principles</p>
+          <h2 id="features-title">Coherent, adaptive, and made for real work</h2>
           <p>
-            Practical building blocks for high-volume workflows, designed to stay out of the
-            application’s way and to survive a decade of business software.
+            Every Xenon decision should reduce relearning across modules while keeping high-volume
+            work fast. The system grows from documented behavior, not isolated visual treatments.
           </p>
         </div>
         <div class="feature-grid">
           <article class="feature-card">
             <span class="feature-card__icon" data-feature-icon="lock"></span>
-            <h3>Zero dependencies</h3>
+            <h3>Durable by default</h3>
             <p>Plain ES2022 modules with no runtime package, bundler, or framework to maintain.</p>
           </article>
           <article class="feature-card">
             <span class="feature-card__icon" data-feature-icon="check"></span>
-            <h3>Accessible by default</h3>
-            <p>Keyboard-complete controls built to the WAI-ARIA Authoring Practices patterns.</p>
+            <h3>Inclusive by default</h3>
+            <p>Keyboard-complete controls, semantic markup, and explicit screen-reader behavior.</p>
           </article>
           <article class="feature-card">
             <span class="feature-card__icon" data-feature-icon="gear"></span>
-            <h3>Themeable tokens</h3>
-            <p>Semantic light, dark, cozy, and compact design tokens throughout the whole set.</p>
+            <h3>Adaptive, not fragmented</h3>
+            <p>Semantic light, dark, cozy, compact, and responsive behavior across the same API.</p>
           </article>
           <article class="feature-card">
             <span class="feature-card__icon" data-feature-icon="list"></span>
-            <h3>50+ components</h3>
-            <p>Inputs, data views, forms, overlays, and complete application layout primitives.</p>
+            <h3>Composed in layers</h3>
+            <p>Foundations lead to components, patterns, and layouts instead of one-off screens.</p>
           </article>
           <article class="feature-card">
             <span class="feature-card__icon" data-feature-icon="reload"></span>
-            <h3>Schema-driven</h3>
-            <p>The zx-zeyos binding generates tables, forms, and pickers from a live ZeyOS schema.</p>
+            <h3>Task and role focused</h3>
+            <p>Dense enterprise flows prioritize the user’s next decision, not decorative chrome.</p>
           </article>
           <article class="feature-card">
             <span class="feature-card__icon" data-feature-icon="success"></span>
-            <h3>Native platform</h3>
-            <p>Built on dialog, popover, ElementInternals, and other modern browser APIs.</p>
+            <h3>Incrementally adoptable</h3>
+            <p>Current DOM and UI seams let existing application logic move one surface at a time.</p>
           </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="site-band site-band--deep" aria-labelledby="paths-title">
+      <div class="site-section">
+        <div class="section-heading">
+          <p class="band-eyebrow">Adoption</p>
+          <h2 id="paths-title">Start where the application is</h2>
+          <p>
+            Xenon does not require a router rewrite. Use Zx directly for new work, generate common
+            surfaces from ZeyOS schemas, and replace current UI factories at their existing seams.
+          </p>
+        </div>
+        <div class="path-grid">
+          <a class="path-card" href="docs.html#getting-started">
+            <span class="path-card__icon" data-feature-icon="plus"></span>
+            <h3>Build a new surface</h3>
+            <p>Load one stylesheet and import only the plain-JavaScript controls the screen needs.</p>
+            <span class="path-card__cue">Getting started</span>
+          </a>
+          <a class="path-card" href="docs.html#components/zeyos-generators">
+            <span class="path-card__icon" data-feature-icon="list"></span>
+            <h3>Bind existing schemas</h3>
+            <p>Generate tables, forms, and pickers while keeping current records and service calls.</p>
+            <span class="path-card__cue">ZeyOS bindings</span>
+          </a>
+          <a class="path-card" href="../MIGRATION.md">
+            <span class="path-card__icon" data-feature-icon="reload"></span>
+            <h3>Move an existing screen</h3>
+            <p>Preserve routing and application logic, then replace UI seams in controlled waves.</p>
+            <span class="path-card__cue">Migration strategy</span>
+          </a>
         </div>
       </div>
     </section>
@@ -177,10 +218,10 @@
       <div class="site-section">
         <div class="section-heading">
           <p class="band-eyebrow">Quick start</p>
-          <h2 id="quick-start-title">Two lines from nothing to a working control</h2>
+          <h2 id="quick-start-title">Use the Zx implementation directly</h2>
           <p>
-            Import the modules in a modern application, or drop the global bundle into a classic
-            ZeyOS screen. Both ship the same API.
+            Import Xenon’s components in a modern application, or drop the Zx global bundle into
+            an established ZeyOS screen. Both expose the same dependency-free API.
           </p>
         </div>
         <p class="install-line">
@@ -237,7 +278,7 @@
           <h2 id="whats-new-title" data-release-title>Releases</h2>
           <div class="release-notes" data-release-notes></div>
           <div class="hero__actions" style="justify-content: flex-start">
-            <a class="site-btn site-btn--ghost site-btn--sm" href="CHANGELOG.md">Full changelog</a>
+            <a class="site-btn site-btn--ghost site-btn--sm" href="../CHANGELOG.md">Full changelog</a>
           </div>
         </div>
         <aside class="contribute-card">
@@ -249,8 +290,8 @@
           </p>
           <div class="contribute-card__links">
             <a href="https://github.com/zeyos/zx/issues" rel="noopener">Open an issue</a>
-            <a href="AGENTS.md">Contributor contract</a>
-            <a href="MIGRATION.md">Migration guide</a>
+            <a href="../AGENTS.md">Contributor contract</a>
+            <a href="../MIGRATION.md">Migration guide</a>
           </div>
         </aside>
       </div>
@@ -262,7 +303,8 @@
       <div class="site-footer__brand">
         <img src="assets/zx-logo-dark.svg" alt="Zx">
         <p>
-          Built for <a href="https://www.zeyos.com" rel="noopener">ZeyOS</a>. Released under the
+          Xenon is the design system for <a href="https://www.zeyos.com" rel="noopener">ZeyOS</a>;
+          Zx is its dependency-free implementation. Released under the
           <a href="https://github.com/zeyos/zx/blob/main/LICENSE" rel="noopener">MIT license</a>.
         </p>
       </div>
@@ -275,8 +317,9 @@
         </div>
         <div class="site-footer__group">
           <h2>Reference</h2>
-          <a href="CHANGELOG.md">Changelog</a>
-          <a href="MIGRATION.md">Migration guide</a>
+          <a href="../CHANGELOG.md">Changelog</a>
+          <a href="../DESIGN-SYSTEM.md">Coverage audit</a>
+          <a href="../MIGRATION.md">Migration guide</a>
           <a href="llms.txt">llms.txt</a>
         </div>
         <div class="site-footer__group">
@@ -351,19 +394,11 @@
     });
     document.querySelector('#showcase-message').append(toastButton);
 
-    const amount = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR' });
     const table = new Table(null, {
       columns: [
         { id: 'number', label: 'Number', sortable: true, width: '1fr' },
         { id: 'customer', label: 'Customer', sortable: true, width: '2fr' },
-        {
-          id: 'amount',
-          label: 'Amount',
-          sortable: true,
-          align: 'right',
-          width: '1fr',
-          render: (row) => amount.format(row.amount)
-        },
+        { id: 'amount', label: 'Amount', type: 'currency', currency: 'EUR', sortable: true, width: '1fr' },
         { id: 'status', label: 'Status', sortable: true, width: '1fr' }
       ],
       data: [

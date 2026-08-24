@@ -22,7 +22,7 @@ const MENU_ITEM_SELECTOR = '[role="menuitem"]';
  * @property {string|null} [icon=null] Trigger icon name.
  * @property {'default'|'primary'|'danger'|'ghost'} [kind='default'] Trigger button kind.
  * @property {MenuButtonItem[]} [items=[]] Menu items and separators.
- * @property {'bottom-start'|'bottom-end'|'top-start'|'top-end'|'bottom'|'top'} [placement='bottom-start'] Menu placement.
+ * @property {'bottom-start'|'bottom-end'|'top-start'|'top-end'|'bottom'|'top'|'right-start'|'right-end'|'left-start'|'left-end'|'right'|'left'} [placement='bottom-start'] Menu placement.
  * @property {(event: CustomEvent<{value: unknown, item: MenuItem}>) => void} [onselect] Select event listener.
  * @property {(event: CustomEvent<Record<string, never>>) => void} [onopen] Open event listener.
  * @property {(event: CustomEvent<Record<string, never>>) => void} [onclose] Close event listener.
@@ -190,6 +190,30 @@ export class MenuButton extends Component {
     return this.#dropdown.isOpen();
   }
 
+  /** Returns the trigger button. @returns {HTMLElement} */
+  getTrigger() {
+    return /** @type {HTMLElement} */ (this.el);
+  }
+
+  /** Returns the owned menu panel. @returns {HTMLElement} */
+  getPanel() {
+    return this.#panel;
+  }
+
+  /** Opens the menu and focuses its first enabled item. @returns {this} */
+  focusFirst() {
+    this.open();
+    this.#roving.focusFirst();
+    return this;
+  }
+
+  /** Opens the menu and focuses its last enabled item. @returns {this} */
+  focusLast() {
+    this.open();
+    this.#roving.focusLast();
+    return this;
+  }
+
   /**
    * Sets the visible trigger label.
    * @param {string} label Trigger label.
@@ -253,7 +277,8 @@ export class MenuButton extends Component {
     const index = Number(element.getAttribute('data-menu-item'));
     const item = this.#items[index];
     if (!item || item === '-' || item.disabled) return;
-    this.emit('select', { value: item.value, item });
+    const selected = this.emit('select', { value: item.value, item });
+    if (selected.defaultPrevented) return;
     try {
       item.onselect?.(item.value, item, this);
     } finally {

@@ -4,7 +4,10 @@ import { position } from '../../core/position.js';
 import { uid } from '../../core/util.js';
 
 /** Placements accepted by the option and understood by `position()`. */
-const PLACEMENTS = new Set(['top', 'bottom', 'top-start', 'top-end', 'bottom-start', 'bottom-end']);
+const PLACEMENTS = new Set([
+  'top', 'bottom', 'top-start', 'top-end', 'bottom-start', 'bottom-end',
+  'left', 'right', 'left-start', 'left-end', 'right-start', 'right-end'
+]);
 /** Trigger modes. `manual` installs no listeners at all. */
 const TRIGGERS = new Set(['hover', 'focus', 'both', 'manual']);
 
@@ -21,7 +24,7 @@ const TRIGGERS = new Set(['hover', 'focus', 'both', 'manual']);
 /**
  * @typedef {Object} TooltipOptions
  * @property {TooltipContent} [content=''] Bubble content, re-evaluated on each open when a function.
- * @property {'top'|'bottom'|'top-start'|'top-end'|'bottom-start'|'bottom-end'} [placement='top'] Preferred side; flips when it would overflow.
+ * @property {'top'|'bottom'|'top-start'|'top-end'|'bottom-start'|'bottom-end'|'left'|'right'|'left-start'|'left-end'|'right-start'|'right-end'} [placement='top'] Preferred side; flips when it would overflow.
  * @property {number} [offset=6] Gap between anchor and bubble in pixels.
  * @property {number} [delay=400] Delay before a hover opens the tooltip, in milliseconds.
  * @property {number} [hideDelay=80] Delay before a leave or blur closes it, in milliseconds.

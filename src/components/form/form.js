@@ -22,6 +22,9 @@ import { coerceFloat, coerceInteger } from '../field/field.js';
  * @property {Array<Fieldset|import('../fieldset/fieldset.js').FieldsetOptions>} [fieldsets=[]] Initial fieldsets.
  * @property {FormAction[]} [actions=[]] Form action descriptors.
  * @property {boolean} [novalidate=true] Native `novalidate` state.
+ * @property {(event: CustomEvent<{values: Record<string, unknown>}>) => void} [onsubmit] Submit listener.
+ * @property {(event: CustomEvent<{errors: Record<string, string>}>) => void} [oninvalid] Invalid listener.
+ * @property {(event: CustomEvent<{id: string, value: unknown}>) => void} [onchange] Field change listener.
  */
 
 /**
@@ -286,17 +289,17 @@ function isEmpty(value) {
 /**
  * Successful form submission event.
  * @event Form#submit
- * @type {CustomEvent<{values: Record<string, unknown>}>
+ * @type {CustomEvent<{values: Record<string, unknown>}>}
  */
 
 /**
  * Form validation failure event.
  * @event Form#invalid
- * @type {CustomEvent<{errors: Record<string, string>}>
+ * @type {CustomEvent<{errors: Record<string, string>}>}
  */
 
 /**
  * Delegated field value change event.
  * @event Form#change
- * @type {CustomEvent<{id: string, value: unknown}>
+ * @type {CustomEvent<{id: string, value: unknown}>}
  */

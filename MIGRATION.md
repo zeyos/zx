@@ -4,6 +4,136 @@ Zx replaces the MooTools-era `gx` UI libraries with dependency-free ES2022 modul
 compatibility bundle lets mapped legacy code keep running while classes are migrated one at a
 time. Compatibility constructors warn once per legacy class so remaining call sites are visible.
 
+Xenon is the ZeyOS design system; Zx is its browser implementation. A complete migration therefore
+means more than swapping constructors: foundations, components, application patterns, and layout
+contracts must move together while routing and business behavior stay authoritative.
+
+## Introducing Xenon into ZeyOS Classic
+
+The current ZeyOS Classic application is **not** a `gx.*` application. Its modules call the global
+`UI` factories, use `PG` for routing and page lifecycle, and rely on an extended DOM API including a
+CSS-like `__()` element builder. Do not call `gx.compat.installGlobals()` there: that opt-in helper
+preserves an existing `__()` but installs unrelated `gx` globals and prototype compatibility that
+the current application does not need.
+
+The migration does not need a separate application bridge. Zx now exports the established builder
+directly, including its exact compact tag and property conventions:
+
+```js
+const node = zx.__('button#save.primary', {
+  Daction: 'save',
+  onclick: () => save()
+}, 'Save');
+```
+
+Zx does not install globals or alter DOM prototypes. The current runtime keeps owning its global
+`__`, `_`, `Node._`, `Node.__`, `Node.$__`, and `Element.be` seams during the migration and delegates
+their bodies to `zx.compactElement()`, `zx.appendContent()`, `zx.appendCompact()`,
+`zx.appendCompactChild()`, and `zx.applyCompactProperties()`. Its `DOM.on`, `DOM.remEvt`, and
+`DOM.fireEvt` facade likewise delegates to Zx's shared compact-event helpers, so registration,
+removal, and synthetic firing always see the same handlers. Replace the implementations of
+`UI.new*` component families progressively with Zx components; do not insert a second routing or
+application abstraction between those components and `PG`.
+
+### Keep these authorities in place
+
+- `PG` remains responsible for URL construction, history, transport, exit guards, page dispatch,
+  and the `page:beforeUnmount` / `page:mounted` lifecycle.
+- Existing `MD` handlers and business logic continue receiving the same page data.
+- Existing `UI.new*` call sites keep their DOM return values and `getV` / `setV` / chaining
+  contracts while each factory implementation is replaced. New code uses the Zx component API
+  directly; the old factory is removed when its call-site count reaches zero.
+- Zx owns only the mounted component subtree and tears that subtree down exactly once.
+- New client/schema-driven screens may use `@zeyos/zx/zeyos`; adopting that optional layer is not a
+  prerequisite for converting current server-rendered screens.
+
+Safe bootstrap order is the normal Zx bundle, the current Classic runtime delegating its compact
+DOM seams to Zx, then the existing `Z(data)` application bootstrap. Component actions must call
+`PG.go()` for internal routes; do not let a navigation component fall back to `location.assign()`.
+
+### Recommended adoption waves
+
+1. Mount persistent shell components behind current lifecycle events: launcher, account menu,
+   application rail, detail chrome, and overlays.
+2. Replace the highest-volume `UI.new*` implementations—inputs, Selects, tabs, menus, dialogs, and
+   tables—one family at a time while preserving their existing call-site contract.
+3. Move record and transaction patterns only after old/new behavior has discriminating fixtures.
+4. Use direct Zx and the ZeyOS schema binding for new surfaces; retire an old factory only after its
+   remaining call-site count reaches zero.
+
+### Shell components and ownership
+
+`Search` remains a field-level input. `Launcher` is the shell-level application/record surface: it
+ranks local items, debounces and aborts grouped sources, ignores stale responses, and supplies the
+Cmd/Ctrl+K dialog/listbox interaction. ZeyOS filters permissions, supplies apps/recent records,
+decides caching, and handles the cancelable selection through `PG`; Launcher never becomes a
+router.
+
+`Avatar` and `AccountMenu` provide the identity trigger, profile header, grouped actions, focus
+return, and compact rail presentation. ZeyOS still decides permission-dependent routes, language
+and theme choices, authentication/logout, and About/version data. A selection is a request to the
+application, not a session mutation.
+
+`AppSidebar` is the expanded vertical application tree and is the only presentation with inline
+children. Its collapsed state renders `AppRail`. A standalone rail may be vertical or horizontal,
+but every child collection remains a hover/focus/keyboard flyout. Both components accept native
+links or cancelable actions and expose active/collapsed/expanded state without persisting it.
+
+Use bundled Zx icons or explicitly registered local assets. The optional ZeyOS icon helper's
+remote Font Awesome kit is not appropriate for a dependency-free production shell.
+
+### Persistent shell contract
+
+These invariants were validated while prototyping the replacement shell and remain binding for a
+Xenon implementation:
+
+- Application-menu position is `top`, `bottom`, `left`, `right`, or `none`, defaulting to `left`.
+  Persist it under `zeyos.appMenu.position` (scope-suffixed where separate workspaces share an
+  origin) and publish the resolved value on `:root[data-app-menu-effective]`.
+- Sidebar minimization is a user choice, never a hover side effect. Keep the existing
+  `zeyos.appRail.expanded` preference while migrating and map it to
+  `AppSidebar.setCollapsed(!expanded)`. `AppRail` itself never expands labels or inline children.
+- The minimized rail is 48 px and the expanded sidebar 184 px. The application bar is 48 px; tiles
+  are 30 px, glyphs 22 px, and compact controls 31 px. Workspace tools in a side layout remain
+  inside the rail, and page insets derive from the effective rail/bar geometry.
+- Theme preference is `auto`, `light`, or `dark`, persisted under `zeyos.theme` and applied before
+  paint. `auto` follows the system color-scheme media query.
+- The dark neutral ramp is a coal surface rebased from Carbon Gray 100 toward `#0b0c0e`. Avoid a
+  cyan/slate cast that competes with ZeyOS module colors; module accents must retain clear contrast
+  on both shell and content surfaces.
+
+### Migration proof points
+
+Before replacing any Classic surface, verify that internal navigation and browser history still use
+`PG.go()` without a full reload; page-scoped instances are destroyed exactly once; persistent shell
+listeners do not multiply across navigation or language changes; launcher output matches permission,
+app, recent, and search fixtures; account content matches ordinary/admin/developer roles; and the
+production shell loads no remote UI or icon dependency.
+
+The shell wiring stays direct:
+
+```js
+const launcher = new zx.Launcher(null, {
+  items: applicationCatalogue,
+  sources: recordSources,
+  onselect(event) {
+    event.preventDefault();
+    PG.go(resolveLauncherRoute(event.detail.item));
+  }
+});
+
+const sidebar = new zx.AppSidebar(shellHost, {
+  items: applicationTree,
+  active: currentRouteId,
+  collapsed: !savedAppRailExpanded,
+  footer: accountMenu,
+  onselect(event) {
+    event.preventDefault();
+    PG.go(event.detail.href);
+  }
+});
+```
+
 ## Deployment script swap
 
 For deployments that serve the old libraries directly from
@@ -25,8 +155,9 @@ with this order:
 ```
 
 The compatibility entry exposes both `window.zx` and `window.gx`. Element
-`store`/`retrieve`/`eliminate` is installed automatically. If the application uses `__()`, `_()`,
-`String.prototype.htmlSpecialChars`, or `Array.prototype.findBy`, opt in after both scripts load:
+`store`/`retrieve`/`eliminate` is installed automatically. If a genuine gx application uses its
+free parser, `_()`, `String.prototype.htmlSpecialChars`, or `Array.prototype.findBy`, opt in after
+both scripts load. An existing `__()` is deliberately never replaced:
 
 ```js
 gx.compat.installGlobals();
@@ -294,6 +425,26 @@ table.addData([{ ID: 1, name: 'Ada' }]);
 ```
 
 Use `setData`, `addData`, `updateRow`, `removeRow`, and `getData` for row operations.
+
+### Billing/transaction rows → `zx.Grid.BillingItems()`
+
+Use the generic preset when the existing screen has description, quantity, unit, unit price,
+currency, total, and optional parent rows:
+
+```js
+const items = zx.Grid.BillingItems(host, {
+  data: rows,
+  units: unitChoices,
+  currencies: currencyChoices,
+  oneditcommit(event) {
+    if (!controller.accept(event.detail.changes)) event.preventDefault();
+  }
+});
+```
+
+The default line total is quantity × unit price. Keep taxes, discounts, subtotal/group updates,
+rounding policy, posting, server persistence, and undo in the existing controller. Override
+`lineTotal` only when that calculation is a stable screen-level rule.
 
 ### `gx.zeyos.Tabbox` and `gx.bootstrap.Tabbox` → `zx.Tabbox`
 

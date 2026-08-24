@@ -30,6 +30,11 @@ import { uid } from '../../core/util.js';
  * @property {boolean} [autoUpload=true] Upload immediately after selection.
  * @property {boolean} [preview=true] Show a preview for the first selected image.
  * @property {UploadTransport|null} [http=null] Injected Http-compatible or stub upload transport.
+ * @property {(event: CustomEvent<{files: File[]}>) => void} [onselect] File selection listener.
+ * @property {(event: CustomEvent<{percent: number}>) => void} [onprogress] Upload progress listener.
+ * @property {(event: CustomEvent<{response: unknown}>) => void} [onsuccess] Upload success listener.
+ * @property {(event: CustomEvent<{error: Error}>) => void} [onerror] Upload failure listener.
+ * @property {(event: CustomEvent<Record<string, never>>) => void} [onabort] Upload abort listener.
  */
 
 /**
@@ -447,25 +452,25 @@ function abortError() {
 /**
  * Files selected event.
  * @event FieldUpload#select
- * @type {CustomEvent<{files: File[]}>
+ * @type {CustomEvent<{files: File[]}>}
  */
 
 /**
  * Upload progress event.
  * @event FieldUpload#progress
- * @type {CustomEvent<{percent: number}>
+ * @type {CustomEvent<{percent: number}>}
  */
 
 /**
  * Upload success event.
  * @event FieldUpload#success
- * @type {CustomEvent<{response: unknown}>
+ * @type {CustomEvent<{response: unknown}>}
  */
 
 /**
  * Upload failure event.
  * @event FieldUpload#error
- * @type {CustomEvent<{error: Error}>
+ * @type {CustomEvent<{error: Error}>}
  */
 
 /**

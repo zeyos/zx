@@ -79,7 +79,6 @@
   font-size: var(--zx-text-sm);
 }
 
-.zx-btn > svg,
 .zx-btn > .zx-icon {
   flex: none;
 }

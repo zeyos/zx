@@ -22,6 +22,15 @@ export class MonthPicker extends DatePicker {
   /** @type {MonthPickerOptions} */
   static defaults = { value: null, min: null, max: null };
 
+  /**
+   * Creates a month picker with its narrower month-based option contract.
+   * @param {Element|string|null} target Existing element, selector, or null.
+   * @param {MonthPickerOptions} [options={}] Month-picker options.
+   */
+  constructor(target, options = {}) {
+    super(target, options);
+  }
+
   /** @returns {HTMLElement} */
   render() {
     const root = /** @type {HTMLElement} */ (this.el ?? h('div'));

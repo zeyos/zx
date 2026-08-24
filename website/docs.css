@@ -175,9 +175,10 @@
 
 .docs-title {
   margin: 0;
-  font-size: var(--zx-text-2xl);
-  font-weight: 700;
-  letter-spacing: -0.022em;
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  font-weight: 750;
+  line-height: 1.08;
+  letter-spacing: -0.032em;
 }
 
 .docs-blurb {
@@ -205,9 +206,10 @@
 
 .docs-section__title {
   margin: 0 0 var(--zx-space-4);
-  font-size: var(--zx-text-xl);
-  font-weight: 650;
-  letter-spacing: -0.015em;
+  font-size: clamp(1.35rem, 2.2vw, 1.65rem);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.022em;
 }
 
 .docs-section__anchor {
@@ -367,29 +369,40 @@
   color: var(--zx-color-accent);
 }
 
-/* ------------------------------------------------------------------ examples -- */
+/* --------------------------------------------------------- presets & examples -- */
 
-.docs-examples {
+.docs-example-group {
   margin-block-start: var(--zx-space-8);
 }
 
-.docs-examples__title {
+.docs-example-group__title {
   display: flex;
   align-items: center;
   gap: var(--zx-space-4);
   margin: 0 0 var(--zx-space-5);
-  color: var(--zx-color-text-muted);
-  font-size: var(--zx-text-xs);
-  font-weight: 600;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
+  color: var(--zx-color-text);
+  font-size: clamp(1.4rem, 2.4vw, 1.75rem);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
 }
 
-.docs-examples__title::after {
+.docs-example-group__title::after {
   content: "";
   flex: 1;
   block-size: 1px;
   background: var(--zx-color-border);
+}
+
+/* The examples are the practical entry point into each API, so their landmark carries the same
+   high-contrast green as links and focus states instead of reading like secondary metadata. */
+.docs-examples .docs-example-group__title {
+  color: var(--zx-color-accent);
+}
+
+.docs-presets {
+  padding-block-start: var(--zx-space-2);
+  border-block-start: 1px solid var(--zx-color-border);
 }
 
 /* One example: the heading and blurb sit on the page, the running component and its source share
@@ -401,8 +414,10 @@
 
 .docs-example .docs-section__title {
   margin-block-end: var(--zx-space-2);
-  font-size: var(--zx-text-lg);
-  font-weight: 600;
+  font-size: clamp(1.05rem, 1.8vw, 1.2rem);
+  font-weight: 650;
+  line-height: 1.35;
+  letter-spacing: -0.012em;
 }
 
 .docs-example__blurb {

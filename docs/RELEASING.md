@@ -159,10 +159,10 @@ npm publish --tag next
 
 ## What gets published
 
-`files` in `package.json` limits the tarball to `dist/`, the three agent-facing documents
-(`llms.md`, `llms.txt`, `api.json`), the README, the changelog, the migration guide, and the
-licence. The source modules, the website, the demos, and the
-tests stay out of it — consumers get the built bundles:
+`files` in `package.json` limits the tarball to the built `dist/` assets, the public `src/` and
+`styles/` trees, the agent-facing reference files (`llms.md`, `llms.txt`, `api.json`), and the
+project documentation and licence. The documentation website, demos, tests, tools, and specs stay
+out of it. Most consumers should use the built entry points:
 
 | Entry point | Import |
 | --- | --- |

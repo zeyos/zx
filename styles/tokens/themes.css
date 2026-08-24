@@ -17,7 +17,7 @@
  * against the dark page, which is what keeps `--zx-color-on-accent` correct in both polarities.
  */
 
-/* Zx — the ZeyOS brand green on the shadcn Emerald ramp. The default. */
+/* Zx — the ZeyOS brand green on Xenon's emerald ramp. The default. */
 [data-zx-preset="zx"] {
   --zx-accent-300: #5ee9b5;
   --zx-accent-400: #21cc75;

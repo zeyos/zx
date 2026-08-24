@@ -42,7 +42,12 @@ export function registerFieldAdapters() {
 registerFieldAdapters();
 
 export { Component } from './core/component.js';
-export { h, htmlEscape, resolveElement, highlightMatch } from './core/dom.js';
+export {
+  h, htmlEscape, resolveElement, highlightMatch,
+  __, compactElement, fragment, parseCompactTag, applyCompactProperties,
+  appendContent, appendCompact, appendCompactChild,
+  onCompactEvent, offCompactEvent, fireCompactEvent
+} from './core/dom.js';
 export { position } from './core/position.js';
 export { breakpoints, breakpointOf, matchBreakpoint, onBreakpoint } from './core/breakpoint.js';
 export { Http, zeyosService, parseResult } from './core/http.js';
@@ -95,6 +100,11 @@ export { Stepper } from './components/stepper/stepper.js';
 export { Breadcrumb } from './components/breadcrumb/breadcrumb.js';
 export { Pagination, paginationRange } from './components/pagination/pagination.js';
 export { Search } from './components/search/search.js';
+export { Launcher, rankLauncherItems } from './components/launcher/launcher.js';
+export { Avatar, avatarInitials } from './components/avatar/avatar.js';
+export { AccountMenu } from './components/account-menu/account-menu.js';
+export { AppRail, normalizeAppItems } from './components/app-rail/app-rail.js';
+export { AppSidebar } from './components/app-sidebar/app-sidebar.js';
 export { Message } from './components/message/message.js';
 export { Modal } from './components/modal/modal.js';
 export { Dialog } from './components/dialog/dialog.js';
@@ -122,6 +132,10 @@ export {
 } from './components/datebox/date-range-box.js';
 export { Timebox, splitTime, joinTime } from './components/timebox/timebox.js';
 export { Table } from './components/table/table.js';
+export { Grid, billingColumns, isBillingLine } from './components/grid/grid.js';
+export {
+  Chart, ChartJsAdapter, chartSummaryTable, cloneChartValue, isEmptyChartData
+} from './components/chart/chart.js';
 export { TreeView } from './components/tree/tree.js';
 export { Finder } from './components/finder/finder.js';
 export { DataFilter } from './components/data-filter/data-filter.js';

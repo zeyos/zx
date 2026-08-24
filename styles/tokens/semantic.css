@@ -1,9 +1,9 @@
 /*
  * Tier-2 semantic tokens — light theme (the default).
  *
- * The mapping follows the shadcn/ui preset `b2BVl11e4`: white surfaces, Zinc-100 hover/muted
- * fills, Zinc-200 borders and inputs, Zinc-500 muted text, Zinc-950 body text, and the Nova
- * control geometry (32px controls, `--radius` corners, a 3px translucent focus ring).
+ * The mapping uses white surfaces, restrained neutral hover/muted fills, quiet borders and inputs,
+ * strong body text, and compact control geometry (32px controls, `--radius` corners, a 3px
+ * translucent focus ring).
  *
  * The accent roles read `--zx-accent-*` rather than the green ramp directly, which is what lets
  * `tokens/themes.css` retheme them. Status colours keep their own ramps on purpose — see the note

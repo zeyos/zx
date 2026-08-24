@@ -3,7 +3,7 @@ import { aspect, badge, breakpointOf, button, grid, h, onBreakpoint, stack } fro
 export default {
   title: 'Layout',
   group: 'Layout',
-  api: ['Stack', 'Grid', 'Aspect'],
+  api: ['Stack', 'LayoutGrid', 'Aspect'],
   blurb: 'The small pieces under Panel and SplitView: consistent spacing, a grid that reflows on '
     + 'its own width rather than the viewport, and a fixed-ratio box.',
 

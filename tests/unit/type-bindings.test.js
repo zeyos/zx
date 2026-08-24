@@ -17,6 +17,7 @@ const CLASS = /export class (\w+) extends Component\b/g;
 // own docstring, which is quoted mid-sentence in backticks, is not read as a binding.
 const BINDING = /^\s*\*\s*@extends \{Component<(\w+)>\}/gm;
 const OPTIONS_TYPEDEF = /@typedef \{Object\} (\w+Options)\b/g;
+const DERIVED_CLASS = /export class (\w+) extends (?!Component\b|EventTarget\b)(\w+)/g;
 
 /** @returns {Promise<{file: string, source: string}[]>} */
 async function sources() {
@@ -49,4 +50,23 @@ test('every binding names a typedef that exists in its own file', async () => {
     }
   }
   assert.deepEqual(dangling, [], `these bindings name a typedef that is not declared: ${dangling.join(', ')}`);
+});
+
+test('derived components with their own options expose an explicitly typed constructor', async () => {
+  const missing = [];
+  for (const { file, source } of await sources()) {
+    for (const [, name] of source.matchAll(DERIVED_CLASS)) {
+      if (!source.includes(`@typedef {Object} ${name}Options`)) continue;
+      const classStart = source.indexOf(`export class ${name}`);
+      const nextClass = source.indexOf('export class ', classStart + 1);
+      const body = source.slice(classStart, nextClass === -1 ? undefined : nextClass);
+      // An intersection beginning with the component's own options is also explicit — Grid adds
+      // its documentation record while intentionally inheriting Table's full constructor surface.
+      if (!body.includes(`@param {${name}Options`) || !/\n\s*constructor\s*\(/.test(body)) {
+        missing.push(`${file} -> ${name}Options`);
+      }
+    }
+  }
+  assert.deepEqual(missing, [],
+    `derived components need a constructor bound to their own options: ${missing.join(', ')}`);
 });

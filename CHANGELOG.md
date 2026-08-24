@@ -8,7 +8,26 @@ and friends remain the complete record.
 
 ## Unreleased
 
+## 3.0.0 — 2026-08-24
+
 ### Added
+
+- **Xenon application shell components.** `Launcher` combines deterministic local ranking with
+  abortable grouped sources and a Cmd/Ctrl+K dialog; `Avatar` provides a stable initials fallback;
+  `AccountMenu` composes identity with an APG menu; `AppSidebar` is expanded vertical navigation;
+  and minimized `AppRail` keeps descendants in pointer-, focus-, and keyboard-accessible flyouts
+  for both vertical and horizontal placement. All route, permission, session, and persistence work
+  remains application-owned behind cancelable events.
+- **`Grid` and `Grid.BillingItems()`.** The public Table specialization keeps every Table feature
+  while providing a conventional editable billing schema for currencies, units, line totals, and
+  flat parent rows. The default line formula is quantity × unit price; tax, discount, rounding,
+  subtotal, validation, and persistence policy remain caller-owned.
+- **Engine-neutral `Chart` and injected `ChartJsAdapter`.** Chart owns responsive canvas lifecycle,
+  loading/empty/error states, Xenon theme defaults, point-selection events, and a synchronized
+  semantic data table. Chart.js 4.5.1 is pinned only as a development/documentation asset; the Zx
+  runtime has no chart import and no runtime dependency.
+- **Lateral anchored-overlay placement.** `position()`, `Dropdown`, `MenuButton`, and `Tooltip` now
+  accept left/right start/end variants for rail and account surfaces.
 
 - **`Questionnaire`** — a guided, one-question-at-a-time flow for onboarding intake, service
   checklists, audits and surveys, where a `Form` full of fieldsets is the wrong shape. The root is
@@ -24,7 +43,7 @@ and friends remain the complete record.
   edit, `advance: 'auto'` moves on by itself after a single choice, and `1`–`9`/`a`–`z` shortcuts
   are assigned and shown on each answer.
 
-- **`Sheet`** — an edge-anchored `Dialog`, covering what shadcn splits into a Sheet and a Drawer;
+- **`Sheet`** — an edge-anchored `Dialog` covering both side-sheet and mobile-drawer patterns;
   the two differ only in which edge they take, so `side` (`'start' | 'end' | 'top' | 'bottom'`,
   logical) replaces a second component. `modal` is three-way rather than a boolean because the
   three real behaviours do not collapse into two: `true` hands focus containment, page inertness,

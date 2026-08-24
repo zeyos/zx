@@ -1,9 +1,9 @@
 /*
  * Tier-1 palette and primitives.
  *
- * Derived from the shadcn/ui preset `b2BVl11e4` (style Nova · base colour Zinc · theme Zinc ·
- * chart colour Emerald · Inter · radius small). The neutral ramp is Tailwind Zinc; the accent
- * ramp is the preset's Emerald chart ramp, anchored at 400 to the ZeyOS brand green #21cc75.
+ * The neutral ramp uses Zinc-like values; the accent ramp uses an emerald progression anchored at
+ * 400 to the ZeyOS brand green #21cc75. Inter and a compact radius scale support dense business
+ * interfaces without coupling the token contract to another UI toolkit.
  *
  * Only tier-2 semantic tokens (tokens/semantic.css, tokens/dark.css) may reference these.
  * Component CSS must never use them directly — tests/lint-tokens.js enforces that.
@@ -24,7 +24,7 @@
   --zx-gray-900: #18181b;
   --zx-gray-950: #09090b;
 
-  /* Accent — the preset's Emerald chart ramp, with the ZeyOS brand green at 400 */
+  /* Accent — an emerald ramp with the ZeyOS brand green at 400 */
   --zx-green-300: #5ee9b5;
   --zx-green-400: #21cc75;
   --zx-green-500: #009966;
@@ -63,7 +63,7 @@
   --zx-space-7: 32px;
   --zx-space-8: 40px;
 
-  /* Radius — the preset's `--radius: 0.45rem`, with shadcn's derived steps */
+  /* Radius — a 0.45rem base with compact derived steps */
   --zx-radius: 0.45rem;
   --zx-radius-sm: calc(var(--zx-radius) - 4px);
   --zx-radius-md: calc(var(--zx-radius) - 2px);

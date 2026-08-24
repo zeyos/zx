@@ -425,7 +425,7 @@ body.site-page > main {
 }
 
 .hero h1 {
-  max-inline-size: 15ch;
+  max-inline-size: 18ch;
   margin: 0;
   font-size: clamp(38px, 6.6vw, 68px);
   font-weight: 800;
@@ -452,6 +452,72 @@ body.site-page > main {
   justify-content: center;
   gap: var(--zx-space-3);
   margin-block-start: var(--zx-space-7);
+}
+
+/* --------------------------------------------------------- system layers -- */
+
+.system-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-block-start: 1px solid rgb(255 255 255 / 12%);
+  border-inline-start: 1px solid rgb(255 255 255 / 12%);
+}
+
+.system-card {
+  display: grid;
+  align-content: start;
+  min-block-size: 280px;
+  padding: var(--zx-space-6);
+  border-block-end: 1px solid rgb(255 255 255 / 12%);
+  border-inline-end: 1px solid rgb(255 255 255 / 12%);
+  background: rgb(255 255 255 / 2%);
+}
+
+.system-card__index {
+  color: var(--site-brand);
+  font-family: var(--zx-font-mono);
+  font-size: var(--zx-text-xs);
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+}
+
+.system-card h3 {
+  margin: auto 0 var(--zx-space-3);
+  padding-block-start: var(--zx-space-8);
+  font-size: var(--zx-text-xl);
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+
+.system-card p {
+  margin: 0;
+  color: rgb(226 232 240 / 62%);
+  line-height: 1.6;
+}
+
+.system-card a {
+  justify-self: start;
+  margin-block-start: var(--zx-space-5);
+  color: var(--site-brand);
+  font-size: var(--zx-text-sm);
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.system-card a::after {
+  content: "\2192";
+  margin-inline-start: var(--zx-space-2);
+}
+
+.system-card a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.system-card a:focus-visible {
+  outline: 2px solid var(--site-brand);
+  outline-offset: 3px;
 }
 
 /* -------------------------------------------------------------- features -- */
@@ -910,7 +976,8 @@ body.site-page > main {
 
 @media (max-width: 900px) {
   .feature-grid,
-  .path-grid {
+  .path-grid,
+  .system-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -943,6 +1010,7 @@ body.site-page > main {
 
   .feature-grid,
   .path-grid,
+  .system-grid,
   .showcase-grid,
   .quick-start-grid {
     grid-template-columns: 1fr;

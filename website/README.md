@@ -67,7 +67,7 @@ appending its id to `LAYOUT_IDS`.
 
 ## The theme studio
 
-`theme.html` puts every component on one page under a live theme, so a theme can be judged as a set
+`theme.html` puts every component family on one page under a live theme, so a theme can be judged as a set
 rather than one component at a time. `theme-showcase.js` holds the cards; adding one means
 appending a factory to its `CARDS` list.
 

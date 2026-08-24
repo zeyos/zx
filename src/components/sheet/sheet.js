@@ -48,24 +48,27 @@ const GROW_SIGN = Object.freeze({ start: 1, end: -1, top: 1, bottom: -1 });
  * @property {(event: CustomEvent<Record<string, never>>) => void} [onopen] Open event listener.
  * @property {(event: CustomEvent<{result: unknown}>) => void} [onclose] Close event listener.
  * @property {(event: CustomEvent<Record<string, never>>) => void} [oncancel] Cancel event listener.
+ * @property {(event: CustomEvent<{size: number, ratio: number}>) => void} [onresize] Resize listener.
+ * @property {(event: CustomEvent<{docked: boolean, dock: import('../dock/dock.js').Dock|null}>) => void} [ondockchange] Dock-state listener.
  */
 
 /**
  * Edge-anchored surface: a Dialog that attaches to one side of the viewport instead of floating in
- * the middle. Covers both of shadcn's Sheet and Drawer, which differ only in which edge they take.
+ * the middle. One primitive covers both side sheets and mobile drawers; only the edge differs.
  *
  * Extends `Dialog` rather than reimplementing it, so the header, footer buttons, switchable views,
- * and focus restoration all come for free — the same relationship shadcn describes when it says a
- * sheet "extends the Dialog component".
+ * and focus restoration all come from the same structured-dialog foundation.
  *
  * Modality is a three-way choice rather than a boolean because the three real behaviours do not
  * collapse into two: a modal sheet delegates focus containment, page inertness, and Escape to the
  * browser via `showModal()`; the other two open with `show()` and re-implement only what they still
  * want. That is also why `backdrop` applies only to `modal: true` — `::backdrop` does not render
  * for a non-modal dialog, and painting a fake one would make a sheet look blocking while it is not.
- * @fires Modal#open
- * @fires Modal#close
- * @fires Modal#cancel
+ * @fires Sheet#open
+ * @fires Sheet#close
+ * @fires Sheet#cancel
+ * @fires Sheet#resize
+ * @fires Sheet#dockchange
  */
 export class Sheet extends Dialog {
   static cssName = 'sheet';
@@ -534,3 +537,15 @@ function normalizeSize(size) {
   if (typeof size === 'number') return Number.isFinite(size) ? `${Math.max(0, size)}px` : null;
   return String(size);
 }
+
+/**
+ * Sheet resize event.
+ * @event Sheet#resize
+ * @type {CustomEvent<{size: number, ratio: number}>}
+ */
+
+/**
+ * Sheet dock-state event.
+ * @event Sheet#dockchange
+ * @type {CustomEvent<{docked: boolean, dock: import('../dock/dock.js').Dock|null}>}
+ */

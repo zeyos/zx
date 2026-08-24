@@ -177,6 +177,49 @@
   text-align: center;
 }
 
+/* --- Hierarchical line items --------------------------------------------------------------- */
+
+.zx-table__tree-cell {
+  display: flex;
+  min-inline-size: 0;
+  align-items: center;
+  gap: var(--zx-space-1);
+  padding-inline-start: calc(var(--zx-table-depth, 0) * var(--zx-space-4));
+}
+
+.zx-table__tree-toggle,
+.zx-table__tree-spacer {
+  inline-size: 24px;
+  block-size: 24px;
+  flex: 0 0 24px;
+}
+
+.zx-table__tree-toggle {
+  display: inline-grid;
+  min-block-size: 0;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--zx-radius-sm);
+  background: transparent;
+  color: var(--zx-color-text-muted);
+  cursor: pointer;
+}
+
+.zx-table__tree-toggle:hover {
+  background: var(--zx-color-bg-hover);
+  color: var(--zx-color-text);
+}
+
+.zx-table__tree-toggle:focus-visible {
+  outline: 0;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.zx-table__cell-content {
+  min-inline-size: 0;
+}
+
 /* --- Inline editing (Table editMode) -------------------------------------------------------- */
 
 /* Reserve a control-sized content box in every body cell as soon as the table is editable, so

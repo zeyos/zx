@@ -1,5 +1,5 @@
 /*
- * The Theme studio's canvas: one card per family, together covering the whole library.
+ * The Theme studio's canvas: one dense card per family, covering a representative cross-section.
  *
  * The point of putting them on one page is comparison. A component looks fine on its own page
  * under any theme; what a theme has to survive is a table beside a form beside a toolbar, where
@@ -13,7 +13,7 @@
  */
 
 import {
-  Breadcrumb, Checklist, ContextMenu, CopyInput, DataFilter, DateRangeBox, Datebox, DatePicker,
+  Breadcrumb, Checklist, Component, ContextMenu, CopyInput, DataFilter, DateRangeBox, Datebox, DatePicker,
   Dialog, Dropdown, Finder, Form, Groupbox, InlineLoading, MasterPanel, MenuButton, Message,
   Modal, MultiValueEditor, NavigationBar, NumberField, Pagination, Panel, ProgressBar,
   Rating, Search, Select, Slider, Stepper, Table, Tabbox, TagPicker, Timebox, Toggle, Toolbar,
@@ -110,15 +110,29 @@ export function mountShowcase(container) {
   /** @type {(() => void)[]} */
   const teardowns = [];
   const collect = (fn) => teardowns.push(fn);
+  /** @type {Set<Component>} */
+  const components = new Set();
+  const collectComponents = (node) => {
+    const elements = node instanceof Element
+      ? [node, ...node.querySelectorAll('*')]
+      : node instanceof DocumentFragment ? [...node.querySelectorAll('*')] : [];
+    for (const element of elements) {
+      const component = Component.from(element);
+      if (component) components.add(component);
+    }
+  };
 
   container.replaceChildren(...CARDS.map((card) => h('section', { class: 'studio-card', id: `card-${card.id}` },
     h('header', { class: 'studio-card__head' },
       h('h2', { class: 'studio-card__title' }, card.title),
       h('p', { class: 'studio-card__hint' }, card.hint)),
-    h('div', { class: 'studio-card__body' }, body(card, collect)))));
+    h('div', { class: 'studio-card__body' }, body(card, collect, collectComponents)))));
 
   return () => {
-    for (const teardown of teardowns) {
+    for (const component of [...components].reverse()) {
+      try { component.destroy(); } catch { /* one component must not block the rebuild */ }
+    }
+    for (const teardown of [...teardowns].reverse()) {
       try { teardown(); } catch { /* a failed teardown must not block the rebuild */ }
     }
   };
@@ -131,11 +145,14 @@ export function mountShowcase(container) {
  * during construction should cost that card, not the other nineteen.
  * @param {{title: string, render: (teardown: (fn: () => void) => void) => Node}} card
  * @param {(fn: () => void) => void} collect
+ * @param {(node: Node) => void} collectComponents
  * @returns {Node}
  */
-function body(card, collect) {
+function body(card, collect, collectComponents) {
   try {
-    return card.render(collect);
+    const rendered = card.render(collect);
+    collectComponents(rendered);
+    return rendered;
   } catch (error) {
     console.error(`Theme studio: the ${card.title} card failed to render.`, error);
     return h('p', { class: 'studio-prose' }, `This card failed to render: ${error.message}`);
@@ -449,10 +466,11 @@ function overlaysCard(teardown) {
       '-', { label: 'Delete', icon: 'trash', value: 'delete', danger: true }]
   });
   const hinted = button({ label: 'Hover me' });
-  tooltip(hinted, 'Tooltips inherit the raised surface and the overlay shadow.');
+  const hint = tooltip(hinted, 'Tooltips inherit the raised surface and the overlay shadow.');
 
   teardown(() => {
     for (const handle of toasts) handle.close();
+    hint.destroy();
     modal.destroy();
     dialog.destroy();
     menu.destroy();
