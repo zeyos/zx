@@ -251,14 +251,14 @@ list.setValues([1, 2]);
 
 For remote data pass `load: () => Promise<items>` and listen for `loaded`.
 
-### `gx.zeyos.Permission` → `zx.Permission`
+### `gx.zeyos.Permission` → `zx.Select.permission()`
 
 ```js
 // gx
 const permission = new gx.zeyos.Permission(host, { value: true, groups });
 
 // Zx
-const permission = new zx.Permission(host, { value: 'public', groups });
+const permission = zx.Select.permission(host, { value: true, groups });
 permission.on('change', (event) => save(event.detail.value));
 ```
 

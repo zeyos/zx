@@ -2,7 +2,7 @@ import {
   Checklist as ZxChecklist,
   DataFilter as ZxDataFilter,
   Http,
-  Permission as ZxPermission,
+  Select as ZxSelect,
   Table as ZxTable
 } from '../../index.js';
 import { GxWrapper } from '../base.js';
@@ -75,23 +75,45 @@ export class Checklist extends ChecklistBase { static legacyName = 'gx.zeyos.Che
 /** Legacy bootstrap checklist. */
 export class BootstrapChecklist extends ChecklistBase { static legacyName = 'gx.bootstrap.Checklist'; }
 
-/** Legacy permission selector. */
+/**
+ * Legacy `get()`/`change` shape is `'private'|'public'|groupId` (see `gx-zeyos/src/classes/Permission.js`);
+ * `Select.permission()`'s own value is the raw ZeyOS tri-state (`false|true|groupId`).
+ * @param {unknown} value
+ * @returns {unknown}
+ */
+function toLegacyPermission(value) {
+  if (value === false) return 'private';
+  if (value === true) return 'public';
+  return value;
+}
+/** @param {unknown} value @returns {unknown} */
+function fromLegacyPermission(value) {
+  if (value === false || value === 'private') return false;
+  if (value === true || value === 'public') return true;
+  return value;
+}
+
+/** Legacy permission selector, backed by the `Select.permission()` preset. */
 export class Permission extends GxWrapper {
   static legacyName = 'gx.zeyos.Permission';
 
   /** @param {Element|string|null} display @param {Record<string, any>} [options={}] */
   constructor(display, options = {}) {
     super(options, { value: true, groups: [] });
-    const component = new ZxPermission(display, {
-      value: options.value ?? true,
+    const component = ZxSelect.permission(display, {
+      value: fromLegacyPermission(options.value ?? true),
       groups: options.groups ?? options.data ?? [],
-      groupsValueKey: options.groupsValueKey ?? options.elementIndex ?? 'ID',
-      groupsLabelKey: options.groupsLabelKey ?? options.elementLabel ?? 'name'
+      valueKey: options.groupsValueKey ?? options.elementIndex ?? 'ID',
+      labelKey: options.groupsLabelKey ?? options.elementLabel ?? 'name'
     });
-    this._attach(component, { events: { change: { type: 'change', args: (detail) => [detail.value] } }, setters: { value: 'set' } });
+    this._attach(component, {
+      events: { change: { type: 'change', args: (detail) => [toLegacyPermission(detail.value)] } },
+      setters: { value: 'set' }
+    });
   }
-  /** @returns {unknown} */ get() { return this._zx.get(); }
-  /** @param {unknown} value @param {boolean} [silent=false] @returns {this} */ set(value, silent = false) { this._zx.set(value, { silent }); return this; }
+  /** @returns {unknown} */ get() { return toLegacyPermission(this._zx.value); }
+  /** @param {unknown} value @param {boolean} [silent=false] @returns {this} */
+  set(value, silent = false) { this._zx.set(fromLegacyPermission(value), { silent }); return this; }
 }
 
 /** Shared full Table wrapper. */

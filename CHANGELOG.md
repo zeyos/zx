@@ -24,6 +24,14 @@ and friends remain the complete record.
   edit, `advance: 'auto'` moves on by itself after a single choice, and `1`–`9`/`a`–`z` shortcuts
   are assigned and shown on each answer.
 
+### Removed
+
+- **`Permission` is removed**, not just deprecated. 2.3.0 kept the class around for
+  `gx.zeyos.Permission` while pointing new code at `Select.permission()`; there is no longer a
+  second implementation to keep in sync, and `gx.zeyos.Permission` now builds directly on
+  `Select.permission()` instead of wrapping the removed class. The legacy constructor, options,
+  `get()`/`set()`, and the `change` event are unchanged — only the `zx.Permission` export is gone.
+
 ## 2.3.0 — 2026-08-23
 
 ### Added

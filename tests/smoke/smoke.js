@@ -161,12 +161,6 @@ const cases = [
     assert(component.getValues()[0] === 2, 'checked values mismatch');
     events.expect();
   }),
-  componentCase('Permission', () => new zx.Permission(null, { groups: sampleItems() }), (component) => {
-    const events = observe(component, 'change');
-    component.set(2);
-    assert(component.get() === 2, 'permission value mismatch');
-    events.expect();
-  }),
   componentCase('NumberField', () => new zx.NumberField(null, { value: 5, min: 0, max: 10 }), (component) => {
     const events = observe(component, 'change');
     component.stepUp();

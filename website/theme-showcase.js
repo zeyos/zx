@@ -15,7 +15,7 @@
 import {
   Breadcrumb, Checklist, ContextMenu, CopyInput, DataFilter, DateRangeBox, Datebox, DatePicker,
   Dialog, Dropdown, Finder, Form, Groupbox, InlineLoading, MasterPanel, MenuButton, Message,
-  Modal, MultiValueEditor, NavigationBar, NumberField, Pagination, Panel, Permission, ProgressBar,
+  Modal, MultiValueEditor, NavigationBar, NumberField, Pagination, Panel, ProgressBar,
   Rating, Search, Select, Slider, Stepper, Table, Tabbox, TagPicker, Timebox, Toggle, Toolbar,
   TreeView, ValueList, badge, button, buttonGroup, CheckButton, emptyState, h, icon, iconNames,
   skeletonText, spinner, tooltip
@@ -220,7 +220,7 @@ function selectionCard() {
   return h('div', { class: 'studio-stack' },
     field('Owner', new Select(null, { items: PEOPLE, value: 2, filter: 'local' }).toElement()),
     field('Recipients', new TagPicker(null, { items: PEOPLE, values: [1, 3] }).toElement()),
-    field('Visibility', new Permission(null, { groups: PEOPLE }).toElement()),
+    field('Visibility', Select.permission(null, { groups: PEOPLE }).toElement()),
     field('Columns', new Checklist(null, {
       items: [{ ID: 'number', name: 'Number', on: true }, { ID: 'customer', name: 'Customer' },
         { ID: 'amount', name: 'Amount', on: true }],

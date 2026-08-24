@@ -27,7 +27,7 @@ const COMPONENT_IDS = [
   'stepper', 'breadcrumb', 'split-view',
   'loading', 'skeleton',
   'message', 'modal', 'dialog', 'dropdown', 'menu-button', 'context-menu', 'tooltip',
-  'select', 'checklist', 'tag-picker', 'permission',
+  'select', 'checklist', 'tag-picker',
   'date-picker', 'datebox', 'date-range', 'timebox',
   'table', 'data-filter', 'pagination', 'tree', 'finder',
   'form', 'form-widgets', 'questionnaire', 'elements',

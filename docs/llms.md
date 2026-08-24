@@ -442,7 +442,7 @@ Unifies single-select, local filtering, and async loading.
   `Select.permission(target, {groups, value})`, the record-access picker with Private and Public
   pinned above the groups. Its value is the tri-state ZeyOS stores (`false` private, `true` public,
   or a group ID), `groups` takes an array or a loader `(query)=>items`, and the labels come from
-  `msg` (`permission.private`, `permission.public`). Replaces the deprecated `Permission`.
+  `msg` (`permission.private`, `permission.public`).
 - **Keyboard** (APG combobox) — ArrowDown/Alt+ArrowDown open; arrows navigate and wrap; Home/End;
   Enter selects; Esc closes; Tab closes; printable characters filter (editable) or run a typeahead
   (readonly). `aria-activedescendant` tracks the active option.
@@ -1059,19 +1059,6 @@ yet. Field type: `tagpicker`.
 - **Keyboard** — ↓ opens and moves, ↑ moves, Enter toggles the active option (or creates one from
   the query), Escape closes, Backspace on an empty input removes the last tag, Home/End jump
   within the list.
-<!-- /doc -->
-
-<!-- doc:permission -->
-### Permission
-
-Private / public / group record-permission selector. **Deprecated** — use
-`Select.permission(target, {groups})`, which carries the same tri-state value in one control and
-can query the groups remotely. This class stays for `gx.zeyos.Permission` and is removed in 3.0.
-
-- **Options** — `value: true|false|groupId`, `groups: []`, `groupsValueKey: 'ID'`,
-  `groupsLabelKey: 'name'`.
-- **Methods** — `get()` → `'private'|'public'|groupId`, `set(value)`.
-- **Events** — `change {value}`.
 <!-- /doc -->
 
 <!-- doc:groupbox -->

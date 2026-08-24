@@ -44,8 +44,9 @@ See `README.md` for the one-line index and `docs/llms.md` for per-component opti
 Groups (matching the demo sidebar):
 
 - **Inputs**: `button()`, `buttonGroup()`, `badge()`/`badgeGroup()`, `CheckButton`, `Toggle`,
-  `Search`, `Select` (APG combobox; `filter: false | 'local' | async fn`; `Select.priority()`
-  preset), `Checklist`, `NumberField`, `Rating`, `Slider` (native range underneath, so the whole
+  `Search`, `Select` (APG combobox; `filter: false | 'local' | async fn`; `fixedItems` pins
+  choices above the list; `Select.priority()` and `Select.permission()` presets), `Checklist`,
+  `NumberField`, `Rating`, `Slider` (native range underneath, so the whole
   keyboard map is free; `marks`, `showBounds`, `showInput`), `copyButton()`/`CopyInput`,
   `DatePicker`, `MonthPicker`, `TimePicker` (with an optional clock
   face), `Datebox`/`DateTimeBox`, `DateRangePicker`/`DateRangeBox`, `Timebox`.
@@ -61,7 +62,7 @@ Groups (matching the demo sidebar):
 - **Forms**: `Form` → `Fieldset` → `Field` (type registry: text/password/int/float/textarea/
   checkbox/select/optionlist/hidden/html/custom + widget types zxselect/checklist/date/month/
   datetime/daterange/time/valuelist/multivalueeditor/upload/toggle/number/rating/tagpicker/
-  slider), `ValueList`, `MultiValueEditor`, `FieldUpload`, `Permission`.
+  slider), `ValueList`, `MultiValueEditor`, `FieldUpload`.
 - **Layout**: `Groupbox`, `Panel` (header/footer action buttons), `MasterPanel`,
   `Tabbox` (`variant: 'divided'|'bracket'|'line'|'segmented'`, all square-cornered; boxed variants
   read `--zx-tabbox-radius`), `NavigationBar`, `Toolbar` (APG toolbar with an overflow menu),

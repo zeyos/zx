@@ -107,7 +107,6 @@ export { TagPicker } from './components/tag-picker/tag-picker.js';
 export { NumberField, parseNumber, snapNumber } from './components/number-field/number-field.js';
 export { Rating } from './components/rating/rating.js';
 export { Slider, stepPrecision } from './components/slider/slider.js';
-export { Permission } from './components/permission/permission.js';
 export { DatePicker } from './components/date-picker/date-picker.js';
 export { MonthPicker } from './components/date-picker/month-picker.js';
 export { TimePicker } from './components/date-picker/time-picker.js';
