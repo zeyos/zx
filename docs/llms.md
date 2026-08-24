@@ -951,8 +951,9 @@ can be any registered `Field` type, and its validation may be asynchronous.
 - **Methods** — `setItems()`, `getItems()`, `goTo(name)`, `next()`, `previous()`, `skip()`,
   `submit()`, `getAnswers()`, `getAnswer(name)`, `setAnswers(values, {silent})`,
   `setAnswer(name, value, {silent})`, `getActive()`, `getPath()`, `getProgress()`, `getState()`,
-  `toFormData()`, `reset()`, `focus()`, `destroy()`. `next()` and `submit()` return **promises**,
-  because an item's `validate` may be asynchronous — everything else is synchronous.
+  `toFormData()`, `reset()`, `focus()`, `destroy()`. `next()`, `skip()` and `submit()` return
+  **promises** — `next()` because an item's `validate` may be asynchronous, and `skip()` because
+  skipping the last question submits. Everything else is synchronous.
 - **Events** — `change {name, value, answers}`, `navigate {from, to, reason}` **preventable**,
   `skip {name}`, `invalid {name, message}`, `submit {answers, path}` **preventable**,
   `complete {answers, path}`.

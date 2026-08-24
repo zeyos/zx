@@ -5817,8 +5817,8 @@
       {
         "name": "skip",
         "signature": "skip()",
-        "returns": "boolean",
-        "description": "Clears the active item's answer and moves on without validating it."
+        "returns": "Promise<boolean>",
+        "description": "Clears the active item's answer and moves on without validating it. Skipping the last question submits, so this is a promise for the same reason `submit()` is."
       },
       {
         "name": "submit",

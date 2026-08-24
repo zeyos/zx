@@ -1,3 +1,4 @@
+// @ts-check
 import { Component } from '../../core/component.js';
 import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
 import { icon as createIcon } from '../../core/icons.js';
@@ -320,12 +321,13 @@ export class Questionnaire extends Component {
   }
 
   /**
-   * Clears the active item's answer and moves on without validating it.
-   * @returns {boolean} False when the item is not skippable or the move was vetoed.
+   * Clears the active item's answer and moves on without validating it. Skipping the last
+   * question submits, so this is a promise for the same reason `submit()` is.
+   * @returns {Promise<boolean>} False when the item is not skippable or the move was vetoed.
    * @fires Questionnaire#skip
    * @fires Questionnaire#navigate
    */
-  skip() {
+  async skip() {
     const item = this._activeItem();
     if (!item || !item.skippable || this._busy) return false;
     this.setAnswer(item.name, null, { silent: true });
@@ -668,7 +670,7 @@ export class Questionnaire extends Component {
 
   /** @returns {void} */
   _syncState() {
-    this.el.dataset.state = this._busy ? 'checking' : this._status;
+    /** @type {HTMLElement} */ (this.el).dataset.state = this._busy ? 'checking' : this._status;
   }
 
   /** @returns {void} */
@@ -699,7 +701,9 @@ export class Questionnaire extends Component {
     if (item.description) {
       children.push(h('p', { class: 'zx-questionnaire__description', id: descriptionId }, item.description));
     }
-    children.push(item.field ? this._field(item).el : this._choices(item));
+    children.push(item.field
+      ? /** @type {HTMLElement} */ (this._field(item).el)
+      : this._choices(item));
     children.push(h('p', {
       class: 'zx-questionnaire__error',
       id: errorId,
@@ -915,7 +919,7 @@ export class Questionnaire extends Component {
     const target = event.target instanceof Element ? event.target.closest('[data-action]') : null;
     if (!(target instanceof HTMLElement) || !this._actionsHost.contains(target)) return;
     if (target.dataset.action === 'previous') this.previous();
-    else if (target.dataset.action === 'skip') this.skip();
+    else if (target.dataset.action === 'skip') void this.skip();
     else void this.next();
   }
 
