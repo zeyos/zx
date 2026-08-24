@@ -675,6 +675,102 @@ Structured modal: a header with title and close button, a body, and footer butto
   `Dialog.prompt({ title, message, value })` → string|null.
 <!-- /doc -->
 
+<!-- doc:sheet -->
+### Sheet
+
+Edge-anchored surface — a `Dialog` attached to one side of the viewport instead of floating in the
+middle. Covers both the shadcn Sheet and Drawer, which differ only in which edge they take, so
+`side` replaces what would otherwise be two components. Inherits the whole Dialog anatomy: title,
+footer buttons, switchable views, and focus restoration.
+
+- **Options** — `side: 'end'` (`'start' | 'end' | 'top' | 'bottom'`, logical), `modal: true`
+  (`true | 'trap-focus' | false`), `backdrop: 'dim'` (`'dim' | 'blur' | 'none'`), `size: null`
+  (CSS length or px number, applied to whichever axis `side` implies), `closeButton: true`,
+  plus everything Dialog takes — `title`, `content`, `buttons`, `closable`, `lightDismiss`
+  (defaults to `true` here, unlike Modal), `destroyOnClose`.
+- **Methods** — `open()`, `close(result?)`, `setSide(side)`, `getSide()`, `setSize(size)`,
+  `isModal()`, `isDocked()`, `isOpen()`, `getSize()`, `snapTo(target)`, plus Dialog's `setTitle()`, `setContent()`,
+  `setButtons()`, `addView()`, `showView()`.
+- **Events** — `open`, `close {result}`, `cancel` (preventable with `event.preventDefault()`),
+  `resize {size, ratio}`, `dockchange {docked, dock}`.
+- **Docked** — a sheet has two lives, and it does not choose between them: `Dock.adopt(sheet)`
+  makes it a track in that dock's flow instead of an overlay, and the dock then owns its side,
+  size, and resizing. A docked sheet is always non-modal, `close()` collapses its track to zero
+  rather than sliding away, and Escape and outside-click stop dismissing it — it is part of the
+  layout, not something covering it. `Dock.release(sheet)` hands it back. Nothing is rebuilt
+  across a handoff: the element moves and reopens in place, so DOM state and listeners survive,
+  and no `open`/`close` is emitted for what is only a change of address.
+- **Modality** — `true` delegates focus containment, page inertness, Escape, and the backdrop to
+  the browser through `showModal()`. `'trap-focus'` and `false` open with `show()`, so the page
+  keeps scrolling and stays interactive; Escape and outside-click are re-implemented, and
+  `'trap-focus'` adds `focusTrap()` on top. Only a modal sheet renders a `::backdrop`, so
+  `backdrop` is meaningful only when `modal` is `true`.
+- **Resizing and detents** — `resizable` makes the inner edge draggable between `min` and `max`.
+  `snap` gives it detents: a number at or below 1 is a fraction of the viewport along the sheet's
+  axis, anything larger is pixels, and a string is any CSS length (`'320px'`, `'90%'`). With
+  detents a drag settles on the nearest one rather than where it was released, and `snapTo(index)`
+  or `snapTo(value)` moves there directly. Dragging below half the smallest allowed size dismisses
+  a `closable` sheet, so resize, detent, and swipe-to-dismiss are one gesture whose meaning is
+  decided when the pointer settles. `getSize()` reports the current pixel size. A sheet that is
+  neither `resizable` nor snapping still has a draggable handle where `handle` shows one — that is
+  what makes a drawer dismissible — but the drag may only take size away, never add it, so it
+  cannot be grown by dragging when nothing asked for resizing.
+- **Handle** — `handle: 'auto'` shows a grab handle on `top` and `bottom` sheets, which is what
+  makes them read as drawers; `true` and `false` force it either way. It exists whenever the sheet
+  is `resizable` or has `snap`, visible or not. It is a `separator` with live
+  `aria-valuenow`/`aria-valuemin`/`aria-valuemax`: arrow keys along the axis step it by 16px, Shift
+  by 64px. A docked sheet hides its handle — the dock's own divider resizes it there.
+- **Custom properties** — `--zx-sheet-size` (written by `size`; the per-side default otherwise)
+  and `--zx-sheet-radius` (inner corners of a top/bottom sheet, default `--zx-radius-xl`) are
+  internal geometry, not published styling hooks — prefer the options. `--zx-overlay-blur` is a
+  tier-2 semantic token and is public: it sets the `'blur'` backdrop's radius, default `8px`.
+- **Motion** — entry and exit both animate, via `@starting-style` and
+  `transition-behavior: allow-discrete` on `display`/`overlay`; without them the sheet appears and
+  disappears instantly. All of it sits inside `prefers-reduced-motion: no-preference`.
+- **Keyboard and screen readers** — identical to Dialog: the native `<dialog>` supplies the role
+  and `aria-labelledby` points at the title. Escape closes when `closable`, focus moves to the
+  `[autofocus]` control or the first focusable descendant on open, and returns to the opener on
+  close. Tab cycles within the sheet when `modal` is `true` or `'trap-focus'`.
+<!-- /doc -->
+
+<!-- doc:sheet-stack -->
+### SheetStack
+
+An ordered group of Sheets that reads as one drill-down. Deliberately tiny, because the browser
+already does the hard part: nested dialogs stack in the top layer by open order, so there is no
+z-index bookkeeping, and Escape closes only the topmost, so unwinding one level at a time is
+native. What is left is which sheet sits at which depth, written onto the elements as `data-depth`
+and `--zx-sheet-depth` for CSS to interpret.
+
+Owns no element, so it is a controller rather than a `Component` — constructed with options
+alone, `new SheetStack({…})`.
+
+- **Options** — `layout: 'stack'` (`'stack' | 'cascade'`), `offset: 24`, `scale: 0.04`, `max: 3`.
+- **Methods** — `push(sheet)`, `pop()`, `popTo(sheet)`, `clear()`, `top()`, `size()`, `sheets()`,
+  `has(sheet)`, `on/off/once`, `destroy()`.
+- **Events** — `push {sheet, depth}`, `pop {sheet}`. `pop` fires however a sheet left — popped,
+  dismissed with Escape, or closed by its own button.
+- **Layouts** — `stack` slides each covered sheet back toward its own edge, scales it down, and
+  takes it out of the tab order; only the top one is usable, which is the drill-down feel.
+  `cascade` shifts each covered sheet clear of the ones in front — by their measured size, not a
+  guess — so they sit side by side and all stay usable. `cascade` is usually the right one for an
+  ERP screen, where the parent record should stay readable while a line item is edited.
+- **Depth** — numbered from the top: the visible sheet is `0`. Past `max` a sheet stops being
+  drawn but stays open and in the stack. In a `stack` only the topmost backdrop shades the page;
+  one per depth would compound into black. A `cascade` shades nothing — a backdrop paints directly
+  beneath its own dialog in the top layer, so the top sheet's would dim exactly the sheets the
+  layout exists to keep readable. Pair a cascade with `modal: false` when the page behind it
+  should stay live as well.
+- **Ownership** — the stack never owns its sheets. `destroy()` empties it and strips the depth
+  styling without closing anything.
+- **Accessibility** — for `stack`, covered sheets are `inert`. The browser does that on its own
+  for stacked *modal* dialogs, but a non-modal stack gets nothing, so the attribute is set either
+  way. `cascade` deliberately leaves them interactive.
+- **Gotcha** — `close()` on a dialog dispatches its `close` event in a queued task, not
+  synchronously. `pop()` therefore removes the sheet from the stack itself rather than waiting for
+  the event, so `popTo()` and `clear()` can loop without racing it.
+<!-- /doc -->
+
 <!-- doc:dropdown -->
 ### Dropdown
 
@@ -1128,6 +1224,62 @@ markup with no JavaScript.
   **element**, watched with a `ResizeObserver` — inside a split pane the viewport width says
   nothing about the space actually available. The scale lives in JavaScript rather than as tokens
   because a CSS custom property cannot be used inside a media query.
+<!-- /doc -->
+
+<!-- doc:dock -->
+### Dock
+
+A stack of collapsible, resizable panes: the docked inspector column of a design tool, and the
+detail side of a master–detail screen. Give the root a size of its own (a grid area, `block-size:
+100%`, a flex child) when the panes should fill a shell rather than grow with their content.
+
+- **Options** — `orientation: 'vertical'`, `content: null`, `panes: []`, `resizable: true`,
+  `collapsible: true`, `lazy: true`, `storageKey: null`.
+- **Pane** — `{name, title?, content?, tabs?, active?, size?, min?, grow?, collapsed?,
+  collapsible?, side?}`. `content` takes a string, Node, Component, or a factory called on first
+  reveal. A pane with `tabs` renders its strip in place of the title; `content` is then ignored.
+  `side` (`'start' | 'end'`) only applies when the dock has a `content`.
+- **Tab** — `{name, title, content?}`, same content shapes.
+- **Methods** — `pane(name)`, `names()`, `add(pane, {index})`, `remove(name)`,
+  `collapse(name)`, `expand(name)`, `toggle(name)`, `isCollapsed(name)`, `reveal(name)`,
+  `setSize(name, size)`, `getSize(name)`, `activate(pane, tab)`, `getActive(pane)`,
+  `state()`, `setState(state)`, `adopt(sheet, options)`, `release(sheet)`.
+- **Adopting a Sheet** — `adopt(sheet, {name?, side?, index?, size?, min?, dockAt?})` takes over a
+  `Sheet`'s positioning: it becomes a track in the dock rather than an overlay. The dock owns
+  where it sits, its size, and its resizing; the sheet keeps its content, header, footer, events,
+  and its own `open()`/`close()`. `dockAt` names a breakpoint below which the dock hands the sheet
+  back to a free overlay and reclaims the track, re-adopting it above — measured on the **dock's
+  own width**, so a dock inside a split pane behaves correctly where a viewport media query would
+  not. Because a dock is a flex container by construction it is always a valid host, which is why
+  docking needs no arrangement from the application.
+- **Ownership** — the dock never owns an adopted sheet: `destroy()` releases them rather than
+  destroying them, `remove(name)` on a sheet releases it, and a sheet that destroys itself while
+  adopted drops out of the dock cleanly.
+- **Events** — `collapse {name}`, `expand {name}`, `resize {name, size}`,
+  `tabchange {pane, tab, previous}`, `reveal {name}`.
+- **Sizing** — one custom property per pane and one flex rule: a sized pane is
+  `flex: 0 0 var(--zx-pane-size)`, a collapsed one falls to `flex: 0 0 auto` with its body hidden,
+  and exactly one element grows. With a `content` that is always the content; without one it is the
+  pane declaring `grow`, or the last expanded pane. A drag therefore rewrites at most two
+  properties, and collapsing a pane feeds the grower rather than redistributing across the stack.
+- **Regions** — with `content` the dock is a region rather than a plain stack: panes sit on either
+  `side` of the flexible middle. Nesting one dock inside another dock's pane gives a workbench —
+  a canvas with an inspector column beside it.
+- **`reveal(name)`** — accepts a pane name or a tab name. Expands whichever pane holds it,
+  activates the tab when the name is a tab's, and scrolls it into view.
+- **Persistence** — `storageKey` remembers sizes, collapsed panes, and active tabs through
+  `storage()`, which degrades to memory rather than throwing. `state()`/`setState()` expose the
+  same shape for storing it elsewhere; unknown pane names are ignored, so a stored layout survives
+  a release that added or removed panes.
+- **Keyboard and screen readers** — each pane header is a row, not one big button, so the collapse
+  toggle and the tab strip can coexist; the toggle carries `aria-expanded` and `aria-controls`.
+  Tabs follow the APG tab pattern with one roving tab stop, Left/Right moving between them.
+  Dividers are focusable `separator`s carrying live `aria-valuenow`/`aria-valuemin`/`aria-valuemax`
+  in pixels: Up/Down (or Left/Right when horizontal) resize by 16px, Shift by 64px, and Enter or
+  Space collapses the pane before the divider. A divider with nothing to resize is taken out of the
+  tab order.
+- **Out of scope** — drag-to-rearrange, tear-off panels, and multi-column docks. All three are
+  additive without changing the API above.
 <!-- /doc -->
 
 <!-- doc:tabbox -->

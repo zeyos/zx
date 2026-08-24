@@ -48,6 +48,8 @@
   --zx-control-font-size: var(--zx-text-md);
   --zx-control-font-weight: 500;
   --zx-overlay-shadow: var(--zx-shadow-3);
+  /* Blur applied behind a backdrop that asked for it. Theme-independent, so light defines it once. */
+  --zx-overlay-blur: 8px;
   --zx-header-bg: var(--zx-gray-900);
   --zx-header-text: var(--zx-gray-50);
 }

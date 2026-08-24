@@ -1,12 +1,10 @@
 import { Component } from '../../core/component.js';
+export { resolveSize } from '../../core/drag-axis.js';
+import { STEP, STEP_LARGE, dragAxis, resolveSize } from '../../core/drag-axis.js';
 import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
 import { storage } from '../../core/storage.js';
 import { uid } from '../../core/util.js';
 
-/** Pixels an arrow key moves the divider. */
-const STEP = 16;
-/** Pixels a shifted arrow key moves the divider. */
-const STEP_LARGE = 64;
 /** Storage namespace shared by every split view that opted into persistence. */
 const STORAGE_NAMESPACE = 'split-view';
 
@@ -79,6 +77,8 @@ export class SplitView extends Component {
   #observer = null;
   /** @type {ReturnType<typeof storage>|null} */
   #store = null;
+  /** @type {ReturnType<typeof dragAxis>|null} */
+  #drag = null;
 
   /**
    * Creates a split view, or turns an existing element into one.
@@ -102,11 +102,33 @@ export class SplitView extends Component {
     }
 
     const divider = this.refs.divider;
-    this.listen(divider, 'pointerdown', (event) => this.#onPointerDown(/** @type {PointerEvent} */ (event)));
-    this.listen(divider, 'pointermove', (event) => this.#onPointerMove(/** @type {PointerEvent} */ (event)));
-    this.listen(divider, 'pointerup', (event) => this.#endDrag(/** @type {PointerEvent} */ (event)));
-    this.listen(divider, 'pointercancel', (event) => this.#endDrag(/** @type {PointerEvent} */ (event)));
-    this.listen(divider, 'keydown', (event) => this.#onKeyDown(/** @type {KeyboardEvent} */ (event)));
+    this.#drag = dragAxis(divider, {
+      orientation: this._orientation,
+      disabled: () => this._disabled,
+      onStart: () => {
+        this._startSize = this.getSize();
+        /** @type {HTMLElement} */ (this.el).dataset.dragging = 'true';
+      },
+      onMove: (delta) => this.#trackDelta(delta, false),
+      onEnd: (delta, moved) => {
+        // A drag that ends back where it started still has a final position to restore.
+        if (moved) this.#trackDelta(delta, true);
+        delete /** @type {HTMLElement} */ (this.el).dataset.dragging;
+        if (!moved) return;
+        this.#persist();
+        this.#emitResizeEnd();
+      },
+      onStep: (direction, large) => this.#stepBy(direction * (large ? STEP_LARGE : STEP)),
+      onJump: (edge) => this.#jumpTo(edge),
+      onActivate: () => {
+        if (!this.options.collapsible) return;
+        if (this._collapsed === null) {
+          this.collapse(/** @type {'start'|'end'} */ (this.options.collapsible));
+        } else {
+          this.expand();
+        }
+      }
+    });
     this.listen(divider, 'dblclick', () => this.#onDoubleClick());
 
     if (typeof ResizeObserver === 'function') {
@@ -133,16 +155,8 @@ export class SplitView extends Component {
     this._collapsed = null;
     this._disabled = Boolean(options.disabled);
     this._destroyed = false;
-    this._dragging = false;
-    /** Handle of the frame a pending drag update is scheduled in; `0` if none. */
-    this._frame = 0;
-    /** @type {number|null} */
-    this._pointerId = null;
-    this._startClient = 0;
+    /** Start-pane size when the current drag began, in pixels. */
     this._startSize = 0;
-    this._pointerClient = 0;
-    /** Whether the pointer left its starting position, which separates a drag from a click. */
-    this._moved = false;
     /** Container size of the last observer pass; `-1` forces the next one to run. */
     this._lastTotal = -1;
 
@@ -307,7 +321,8 @@ export class SplitView extends Component {
    */
   disable() {
     this._disabled = true;
-    this.#endDrag(null);
+    this.#drag?.cancel();
+    delete /** @type {HTMLElement} */ (this.el).dataset.dragging;
     this.refs.divider.setAttribute('aria-disabled', 'true');
     this.refs.divider.setAttribute('tabindex', '-1');
     return this;
@@ -328,11 +343,8 @@ export class SplitView extends Component {
   destroy() {
     if (this._destroyed) return;
     this._destroyed = true;
-    if (this._frame !== 0) {
-      cancelAnimationFrame(this._frame);
-      this._frame = 0;
-    }
-    this.#releasePointer();
+    this.#drag?.destroy();
+    this.#drag = null;
     this.#observer?.disconnect();
     this.#observer = null;
     super.destroy();
@@ -390,55 +402,20 @@ export class SplitView extends Component {
     return this;
   }
 
-  /** @param {PointerEvent} event @returns {void} */
-  #onPointerDown(event) {
-    if (this._disabled || this._dragging || event.button !== 0) return;
-    // No preventDefault(): cancelling pointerdown suppresses the compatibility mouse events the
-    // double-click reset is built on. `user-select: none` on the divider stops the text selection
-    // this would otherwise be guarding against.
-    this._dragging = true;
-    this._pointerId = event.pointerId;
-    this._startClient = axisClient(event, this._orientation);
-    this._pointerClient = this._startClient;
-    this._startSize = this.getSize();
-    this._moved = false;
-    /** @type {HTMLElement} */ (this.el).dataset.dragging = 'true';
-    try {
-      this.refs.divider.setPointerCapture(event.pointerId);
-    } catch {
-      // A pointer that ended between the event and this call cannot be captured; the drag simply
-      // finishes on the next pointerup.
-    }
-  }
-
-  /** @param {PointerEvent} event @returns {void} */
-  #onPointerMove(event) {
-    if (!this._dragging || event.pointerId !== this._pointerId) return;
-    this._pointerClient = axisClient(event, this._orientation);
-    if (this._pointerClient !== this._startClient) this._moved = true;
-    if (this._frame !== 0) return;
-    // One write and at most one `resize` per frame, however fast the pointer reports.
-    this._frame = requestAnimationFrame(() => {
-      this._frame = 0;
-      this.#trackPointer(false);
-    });
-  }
-
   /**
-   * Clamps the pointer position into a legal size and applies it.
+   * Applies a pointer delta as a new start-pane size.
+   * @param {number} delta Pixels travelled along the axis since the drag began.
    * @param {boolean} settle Whether to apply the snap radius, which only makes sense at drag end.
    * @returns {void}
    */
-  #trackPointer(settle) {
-    if (!this._dragging || this._destroyed) return;
+  #trackDelta(delta, settle) {
+    if (this._destroyed) return;
     const { total, divider, min, max } = this.#metrics();
     if (total <= 0) return;
     // Dragging a folded pane brings it back rather than doing nothing; a plain click does not,
     // because this runs only once the pointer has actually moved.
     if (this._collapsed !== null) this.expand();
-    let next = clampSize({
-      size: this._startSize + (this._pointerClient - this._startClient), min, max, total, divider
-    });
+    let next = clampSize({ size: this._startSize + delta, min, max, total, divider });
     if (settle) {
       next = clampSize({
         size: snapSize(next, this.#snapTargets(total, divider), Number(this.options.snap)),
@@ -448,6 +425,44 @@ export class SplitView extends Component {
     if (next === this._size) return;
     this.#applySize(next);
     this.emit('resize', { size: next, ratio: next / total });
+  }
+
+  /**
+   * Moves the divider by a keyboard step and reports it as a completed resize.
+   * @param {number} amount Signed pixels.
+   * @returns {void}
+   */
+  #stepBy(amount) {
+    const { total, divider, min, max } = this.#metrics();
+    if (total <= 0) return;
+    if (this._collapsed !== null) this.expand();
+    this.#commit(clampSize({ size: this.getSize() + amount, min, max, total, divider }), total);
+  }
+
+  /**
+   * Sends the divider to one end of its travel.
+   * @param {'min'|'max'} edge Bound to jump to.
+   * @returns {void}
+   */
+  #jumpTo(edge) {
+    const { total, divider, min, max } = this.#metrics();
+    if (total <= 0) return;
+    if (this._collapsed !== null) this.expand();
+    const bounds = sizeBounds({ min, max, total, divider });
+    this.#commit(clampSize({ size: bounds[edge], min, max, total, divider }), total);
+  }
+
+  /**
+   * @param {number} size
+   * @param {number} total
+   * @returns {void}
+   */
+  #commit(size, total) {
+    if (size === this._size) return;
+    this.#applySize(size);
+    this.emit('resize', { size, ratio: size / total });
+    this.#persist();
+    this.#emitResizeEnd();
   }
 
   /**
@@ -462,85 +477,6 @@ export class SplitView extends Component {
     const initial = resolveSize(this.options.size, total);
     if (Number.isFinite(initial)) targets.unshift(initial);
     return targets;
-  }
-
-  /**
-   * Finishes a drag: flushes the last frame, applies the snap radius, releases the capture,
-   * persists, and reports. A press that never moved is a click, not a resize, and reports nothing.
-   * @param {PointerEvent|null} event Ending pointer event, or null when ending programmatically.
-   * @returns {void}
-   * @fires SplitView#resizeend
-   */
-  #endDrag(event) {
-    if (!this._dragging) return;
-    if (event && event.pointerId !== this._pointerId) return;
-    if (this._frame !== 0) {
-      cancelAnimationFrame(this._frame);
-      this._frame = 0;
-    }
-    if (event) this._pointerClient = axisClient(event, this._orientation);
-    const moved = this._moved;
-    // A drag that ends back where it started still has a final position to restore and report.
-    if (moved) this.#trackPointer(true);
-    this._dragging = false;
-    this._moved = false;
-    this.#releasePointer();
-    delete /** @type {HTMLElement} */ (this.el).dataset.dragging;
-    if (!moved) return;
-    this.#persist();
-    this.#emitResizeEnd();
-  }
-
-  /** @returns {void} */
-  #releasePointer() {
-    const pointerId = this._pointerId;
-    this._pointerId = null;
-    if (pointerId === null) return;
-    try {
-      this.refs.divider.releasePointerCapture(pointerId);
-    } catch {
-      // The capture is already gone once the pointer was cancelled or the node was detached.
-    }
-  }
-
-  /** @param {KeyboardEvent} event @returns {void} */
-  #onKeyDown(event) {
-    if (this._disabled) return;
-    const key = event.key;
-
-    if (key === 'Enter' || key === ' ') {
-      if (!this.options.collapsible) return;
-      event.preventDefault();
-      if (this._collapsed === null) {
-        this.collapse(/** @type {'start'|'end'} */ (this.options.collapsible));
-      } else {
-        this.expand();
-      }
-      return;
-    }
-
-    const horizontal = this._orientation === 'horizontal';
-    const shrink = horizontal ? 'ArrowLeft' : 'ArrowUp';
-    const grow = horizontal ? 'ArrowRight' : 'ArrowDown';
-    if (key !== shrink && key !== grow && key !== 'Home' && key !== 'End') return;
-    event.preventDefault();
-    // A key that moves the divider implies the pane should be visible again.
-    if (this._collapsed !== null) this.expand();
-
-    const { total, divider, min, max } = this.#metrics();
-    if (total <= 0) return;
-    const bounds = sizeBounds({ min, max, total, divider });
-    const step = event.shiftKey ? STEP_LARGE : STEP;
-    let next = bounds.min;
-    if (key === 'End') next = bounds.max;
-    else if (key !== 'Home') next = this.getSize() + (key === grow ? step : -step);
-
-    const size = clampSize({ size: next, min, max, total, divider });
-    if (size === this._size) return;
-    this.#applySize(size);
-    this.emit('resize', { size, ratio: size / total });
-    this.#persist();
-    this.#emitResizeEnd();
   }
 
   /**
@@ -583,7 +519,7 @@ export class SplitView extends Component {
    * @returns {void}
    */
   #onContainerResize() {
-    if (this._destroyed || this._dragging) return;
+    if (this._destroyed || this.#drag?.isDragging()) return;
     const { total, divider, min, max } = this.#metrics();
     if (total <= 0 || total === this._lastTotal) return;
     this._lastTotal = total;
@@ -688,27 +624,6 @@ export function clampSize({ size, min = 0, max = null, total = 0, divider = 0 })
   return Math.min(bounds.max, Math.max(bounds.min, requested));
 }
 
-/**
- * Resolves a size option to pixels without touching the DOM.
- *
- * Numbers, bare numeric strings, and `px` lengths are pixels; a percentage resolves against
- * `total`. Every other CSS length — `rem`, `vh`, `calc()` — needs the browser, so it returns `NaN`
- * and the caller hands the value to CSS instead of guessing at it.
- * @param {number|string} value Size option.
- * @param {number} total Container size along the split axis, in pixels.
- * @returns {number} Pixels, or `NaN` when only the browser can resolve the value.
- */
-export function resolveSize(value, total) {
-  if (typeof value === 'number') return Number.isFinite(value) ? value : Number.NaN;
-  if (typeof value !== 'string') return Number.NaN;
-  const match = /^([+-]?(?:\d+\.?\d*|\.\d+))(px|%)?$/i.exec(value.trim());
-  if (!match) return Number.NaN;
-  const amount = Number(match[1]);
-  if (!Number.isFinite(amount)) return Number.NaN;
-  if ((match[2] ?? '').toLowerCase() !== '%') return amount;
-  const span = Number(total);
-  return Number.isFinite(span) ? (amount / 100) * span : Number.NaN;
-}
 
 /**
  * Pulls a size onto the nearest target within a radius, leaving it alone when nothing is close.

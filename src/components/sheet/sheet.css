@@ -1,0 +1,351 @@
+/*
+ * Sheet builds on `.zx-modal` and `.zx-dialog`, so this file must be imported after both: the
+ * overrides below share their specificity and win on source order alone.
+ */
+.zx-sheet {
+  position: fixed;
+  margin: 0;
+  padding: 0;
+  max-inline-size: 100vw;
+  max-block-size: 100dvh;
+  border: 0;
+  border-radius: 0;
+  /* The header and footer stay put; `.zx-dialog__body` is what scrolls. */
+  overflow: hidden;
+  box-shadow: var(--zx-overlay-shadow);
+}
+
+/* Horizontal sheets: full height, sized across the inline axis. */
+.zx-sheet[data-side="start"],
+.zx-sheet[data-side="end"] {
+  inset-block: 0;
+  block-size: 100dvh;
+  inline-size: var(--zx-sheet-size, min(24rem, 100vw));
+}
+
+.zx-sheet[data-side="start"] {
+  inset-inline-start: 0;
+  inset-inline-end: auto;
+  border-inline-end: 1px solid var(--zx-color-border);
+  --zx-sheet-enter: -100% 0;
+}
+
+.zx-sheet[data-side="end"] {
+  inset-inline-start: auto;
+  inset-inline-end: 0;
+  border-inline-start: 1px solid var(--zx-color-border);
+  --zx-sheet-enter: 100% 0;
+}
+
+/*
+ * `translate` is physical, so the logical sides need the one direction-aware rule in the library.
+ * Attribute rather than `:dir()` because the latter only reached Chrome in December 2023, at the
+ * very edge of the supported baseline, and this is the sole place it would buy anything.
+ */
+[dir="rtl"] .zx-sheet[data-side="start"] { --zx-sheet-enter: 100% 0; }
+[dir="rtl"] .zx-sheet[data-side="end"] { --zx-sheet-enter: -100% 0; }
+
+/* Vertical sheets: full width, sized down the block axis, inner corners rounded like a drawer. */
+.zx-sheet[data-side="top"],
+.zx-sheet[data-side="bottom"] {
+  inset-inline: 0;
+  inline-size: 100vw;
+  block-size: var(--zx-sheet-size, min(60dvh, 100dvh));
+}
+
+.zx-sheet[data-side="top"] {
+  inset-block-start: 0;
+  inset-block-end: auto;
+  border-block-end: 1px solid var(--zx-color-border);
+  border-end-start-radius: var(--zx-sheet-radius, var(--zx-radius-xl));
+  border-end-end-radius: var(--zx-sheet-radius, var(--zx-radius-xl));
+  --zx-sheet-enter: 0 -100%;
+}
+
+.zx-sheet[data-side="bottom"] {
+  inset-block-start: auto;
+  inset-block-end: 0;
+  border-block-start: 1px solid var(--zx-color-border);
+  border-start-start-radius: var(--zx-sheet-radius, var(--zx-radius-xl));
+  border-start-end-radius: var(--zx-sheet-radius, var(--zx-radius-xl));
+  --zx-sheet-enter: 0 100%;
+}
+
+/*
+ * Backdrop treatments. Only a modal sheet has a `::backdrop` at all, which is why `backdrop` is
+ * documented as meaningful only alongside `modal: true`.
+ */
+.zx-sheet[data-backdrop="none"]::backdrop {
+  background: transparent;
+}
+
+.zx-sheet[data-backdrop="blur"]::backdrop {
+  backdrop-filter: blur(var(--zx-overlay-blur));
+}
+
+/*
+ * Entry and exit both animate. A `<dialog>` normally cannot animate out — `close()` applies
+ * `display: none` immediately — so `display` and `overlay` transition with `allow-discrete`, which
+ * defers the discrete jump until the rest of the transition has finished. `@starting-style` gives
+ * the entry its from-state. Where either is unsupported the sheet simply appears and disappears.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .zx-sheet {
+    transition:
+      translate var(--zx-dur-base) var(--zx-ease),
+      opacity var(--zx-dur-base) var(--zx-ease),
+      display var(--zx-dur-base) allow-discrete,
+      overlay var(--zx-dur-base) allow-discrete;
+  }
+
+  /* Modal's entry keyframes animate the centre-screen case and would fight the slide. */
+  .zx-sheet[data-state="open"] {
+    animation: none;
+  }
+
+  .zx-sheet:not([open]) {
+    translate: var(--zx-sheet-enter, 0 0);
+    opacity: 0;
+  }
+
+  @starting-style {
+    .zx-sheet[open] {
+      translate: var(--zx-sheet-enter, 0 0);
+      opacity: 0;
+    }
+  }
+
+  .zx-sheet::backdrop {
+    transition:
+      opacity var(--zx-dur-base) var(--zx-ease),
+      display var(--zx-dur-base) allow-discrete,
+      overlay var(--zx-dur-base) allow-discrete;
+  }
+
+  .zx-sheet[data-state="open"]::backdrop {
+    animation: none;
+  }
+
+  .zx-sheet:not([open])::backdrop {
+    opacity: 0;
+  }
+
+  @starting-style {
+    .zx-sheet[open]::backdrop {
+      opacity: 0;
+    }
+  }
+}
+
+/*
+ * A docked sheet is a track in its dock's flow, not an overlay: it drops out of fixed positioning
+ * and takes its size from the dock's own custom property, the same one the dock's panes use. It is
+ * always non-modal while docked, so there is no backdrop to consider.
+ *
+ * Closing animates the track to zero rather than sliding the sheet away — in the flow there is
+ * nowhere to slide to, and collapsing the space is what the surrounding layout should see.
+ */
+.zx-sheet[data-docked] {
+  position: relative;
+  inset: auto;
+  flex: 0 0 var(--zx-pane-size, var(--zx-sheet-size, min(24rem, 100%)));
+  inline-size: auto;
+  block-size: auto;
+  max-inline-size: none;
+  max-block-size: none;
+  min-inline-size: 0;
+  min-block-size: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.zx-dock[data-orientation="vertical"] > .zx-sheet[data-docked] {
+  border-inline: 0;
+  border-block: 1px solid var(--zx-color-border);
+}
+
+.zx-dock[data-orientation="horizontal"] > .zx-sheet[data-docked] {
+  border-block: 0;
+  border-inline: 1px solid var(--zx-color-border);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .zx-sheet[data-docked] {
+    transition:
+      flex-basis var(--zx-dur-base) var(--zx-ease),
+      opacity var(--zx-dur-base) var(--zx-ease),
+      display var(--zx-dur-base) allow-discrete,
+      overlay var(--zx-dur-base) allow-discrete;
+    /* The slide belongs to the overlay life; in the flow the track itself is what moves. */
+    translate: none;
+  }
+
+  .zx-sheet[data-docked]:not([open]) {
+    flex-basis: 0;
+    translate: none;
+    opacity: 0;
+  }
+
+  @starting-style {
+    .zx-sheet[data-docked][open] {
+      flex-basis: 0;
+      translate: none;
+      opacity: 0;
+    }
+  }
+}
+
+/*
+ * The grab handle sits just inside the sheet's inner edge — the one facing the page. It is a
+ * `separator` with live values, so it is draggable, focusable, and steppable with the arrow keys.
+ * The hit area is deliberately wider than the pill it draws.
+ */
+.zx-sheet__handle {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+  user-select: none;
+}
+
+.zx-sheet__handle::after {
+  content: "";
+  border-radius: var(--zx-radius-full);
+  background: var(--zx-color-border-strong);
+  opacity: 0;
+  transition: opacity var(--zx-dur-fast) var(--zx-ease);
+}
+
+.zx-sheet__handle:hover::after,
+.zx-sheet__handle:focus-visible::after,
+.zx-sheet[data-dragging] .zx-sheet__handle::after {
+  opacity: 1;
+}
+
+.zx-sheet__handle:focus-visible {
+  outline: none;
+  box-shadow: var(--zx-focus-ring);
+}
+
+/* Inner edge for each side, and the pill drawn across it. */
+.zx-sheet[data-side="start"] > .zx-sheet__handle,
+.zx-sheet[data-side="end"] > .zx-sheet__handle {
+  inset-block: 0;
+  inline-size: var(--zx-space-3);
+  cursor: col-resize;
+}
+
+.zx-sheet[data-side="start"] > .zx-sheet__handle { inset-inline-end: 0; }
+.zx-sheet[data-side="end"] > .zx-sheet__handle { inset-inline-start: 0; }
+
+.zx-sheet[data-side="start"] > .zx-sheet__handle::after,
+.zx-sheet[data-side="end"] > .zx-sheet__handle::after {
+  inline-size: 3px;
+  block-size: var(--zx-space-8);
+}
+
+.zx-sheet[data-side="top"] > .zx-sheet__handle,
+.zx-sheet[data-side="bottom"] > .zx-sheet__handle {
+  inset-inline: 0;
+  block-size: var(--zx-space-4);
+  cursor: row-resize;
+}
+
+.zx-sheet[data-side="top"] > .zx-sheet__handle { inset-block-end: 0; }
+.zx-sheet[data-side="bottom"] > .zx-sheet__handle { inset-block-start: 0; }
+
+.zx-sheet[data-side="top"] > .zx-sheet__handle::after,
+.zx-sheet[data-side="bottom"] > .zx-sheet__handle::after {
+  inline-size: var(--zx-space-8);
+  block-size: 4px;
+}
+
+/* A drawer's handle is a standing invitation, so it does not wait to be hovered. */
+.zx-sheet[data-side="top"] > .zx-sheet__handle::after,
+.zx-sheet[data-side="bottom"] > .zx-sheet__handle::after {
+  opacity: 1;
+}
+
+/* A docked sheet is resized by the dock's divider, so its own handle stands down. */
+.zx-sheet[data-docked] > .zx-sheet__handle {
+  display: none;
+}
+
+/* Nothing may animate while the pointer is driving the size, or the sheet lags behind it. */
+.zx-sheet[data-dragging] {
+  transition: none;
+}
+
+/*
+ * Stacking. Depth is written by `SheetStack` as `--zx-sheet-depth`; the direction it moves in is
+ * a per-side unit vector pointing at the sheet's own edge, so one rule covers all four sides.
+ *
+ * `transform` rather than `translate`, because the enter and exit animation already owns
+ * `translate` — the two are independent properties and compose, so a sheet can slide in and sit at
+ * a depth at the same time.
+ */
+.zx-sheet[data-side="start"] { --zx-sheet-dx: -1; --zx-sheet-dy: 0; }
+.zx-sheet[data-side="end"] { --zx-sheet-dx: 1; --zx-sheet-dy: 0; }
+.zx-sheet[data-side="top"] { --zx-sheet-dx: 0; --zx-sheet-dy: -1; }
+.zx-sheet[data-side="bottom"] { --zx-sheet-dx: 0; --zx-sheet-dy: 1; }
+
+/* Scaling a covered sheet shrinks it toward its own edge, so it never unglues from it. */
+.zx-sheet[data-side="start"] { transform-origin: left center; }
+.zx-sheet[data-side="end"] { transform-origin: right center; }
+.zx-sheet[data-side="top"] { transform-origin: center top; }
+.zx-sheet[data-side="bottom"] { transform-origin: center bottom; }
+
+.zx-sheet[data-stack="stack"] {
+  transform:
+    translate(
+      calc(var(--zx-sheet-dx, 0) * var(--zx-sheet-depth, 0) * var(--zx-sheet-stack-offset, 24px)),
+      calc(var(--zx-sheet-dy, 0) * var(--zx-sheet-depth, 0) * var(--zx-sheet-stack-offset, 24px))
+    )
+    scale(calc(1 - var(--zx-sheet-depth, 0) * var(--zx-sheet-stack-scale, 0.04)));
+}
+
+/* A cascade moves each covered sheet clear of everything in front of it, so all stay readable. */
+.zx-sheet[data-stack="cascade"] {
+  transform: translate(
+    calc(var(--zx-sheet-dx, 0) * var(--zx-sheet-depth-offset, 0px) * -1),
+    calc(var(--zx-sheet-dy, 0) * var(--zx-sheet-depth-offset, 0px) * -1)
+  );
+}
+
+/* Past `max` a sheet stays open and in the stack, but stops being drawn. */
+.zx-sheet[data-stack-hidden] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/*
+ * Only the topmost backdrop shades the page — one per depth would compound into black.
+ */
+.zx-sheet[data-depth]:not([data-depth="0"])::backdrop {
+  background: transparent;
+  backdrop-filter: none;
+}
+
+/*
+ * A cascade shades nothing at all. Its whole point is that the covered sheets stay readable and
+ * usable beside the top one, and a backdrop is painted directly beneath its own dialog in the top
+ * layer — so the topmost sheet's backdrop would dim exactly the sheets the layout exists to keep
+ * available. Pair a cascade with `modal: false` when the page behind should stay live too.
+ */
+.zx-sheet[data-stack="cascade"]::backdrop {
+  background: transparent;
+  backdrop-filter: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .zx-sheet[data-stack] {
+    transition:
+      transform var(--zx-dur-base) var(--zx-ease),
+      translate var(--zx-dur-base) var(--zx-ease),
+      opacity var(--zx-dur-base) var(--zx-ease),
+      display var(--zx-dur-base) allow-discrete,
+      overlay var(--zx-dur-base) allow-discrete;
+  }
+}

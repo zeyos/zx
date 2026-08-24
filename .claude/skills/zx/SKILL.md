@@ -53,6 +53,9 @@ Groups (matching the demo sidebar):
 - **Overlays**: `Tooltip`/`tooltip()`/`describe()`,
   `Message` (toasts + inline + progress; statics `Message.info/success/warning/error`),
   `Modal`, `Dialog` (views + statics `Dialog.alert/confirm/prompt` returning Promises),
+  `Sheet` (a Dialog anchored to one edge — `side`, `modal: true|'trap-focus'|false`, `backdrop`
+  incl. `'blur'`, `snap` detents and swipe-to-dismiss; a `Dock` can adopt it and own its
+  positioning), `SheetStack` (several sheets as one drill-down; `stack` or `cascade`),
   `Dropdown`, `MenuButton`, `ContextMenu` (right-click **and** the Menu key/Shift+F10; `selector`
   delegates so a table needs one instance, and `items` may be a function of the clicked row).
   Note its root is a zero-sized anchor on `<body>`, so listen with `on('select')`/`onselect` —
@@ -66,7 +69,10 @@ Groups (matching the demo sidebar):
 - **Layout**: `Groupbox`, `Panel` (header/footer action buttons), `MasterPanel`,
   `Tabbox` (`variant: 'divided'|'bracket'|'line'|'segmented'`, all square-cornered; boxed variants
   read `--zx-tabbox-radius`), `NavigationBar`, `Toolbar` (APG toolbar with an overflow menu),
-  `SplitView`, `Stepper`, `Breadcrumb`, `emptyState()`, and the primitives under them:
+  `SplitView`, `Dock` (a stack of collapsible, resizable panes — the inspector column of a design
+  tool; panes may be tab groups, a `content` turns it into a region with panes on either side, and
+  `adopt(sheet)` hands it a `Sheet` to position), `Stepper`, `Breadcrumb`, `emptyState()`, and the
+  primitives under them:
   `stack()` (spacing; `gap` 1–8 maps to `--zx-space-*`), `grid()` (reflows on the CONTAINER's own
   width via `auto-fit` + `min`, never a media query, so it behaves identically inside a split pane
   or modal), `aspect()`. Classes `.zx-stack`/`.zx-grid`/`.zx-aspect` work from static markup too.

@@ -18,7 +18,11 @@
   padding: var(--zx-space-5);
 }
 
-body:has(> .zx-modal[open]) {
+/*
+ * `:modal` rather than `[open]`: only a dialog opened with `showModal()` blocks the page, and a
+ * non-modal one (Sheet's `modal: false`) must leave the page scrollable behind it.
+ */
+body:has(> .zx-modal:modal) {
   overflow: hidden;
   overscroll-behavior: none;
 }

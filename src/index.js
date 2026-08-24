@@ -88,6 +88,7 @@ export { MasterPanel } from './components/master-panel/master-panel.js';
 export {
   SplitView, clampSize, resolveSize, snapSize
 } from './components/split-view/split-view.js';
+export { Dock } from './components/dock/dock.js';
 export { Tabbox } from './components/tabbox/tabbox.js';
 export { NavigationBar } from './components/navigation-bar/navigation-bar.js';
 export { Stepper } from './components/stepper/stepper.js';
@@ -97,6 +98,8 @@ export { Search } from './components/search/search.js';
 export { Message } from './components/message/message.js';
 export { Modal } from './components/modal/modal.js';
 export { Dialog } from './components/dialog/dialog.js';
+export { Sheet } from './components/sheet/sheet.js';
+export { SheetStack } from './components/sheet/sheet-stack.js';
 export { Dropdown } from './components/dropdown/dropdown.js';
 export { Tooltip, tooltip, describe } from './components/tooltip/tooltip.js';
 export { MenuButton } from './components/menu-button/menu-button.js';

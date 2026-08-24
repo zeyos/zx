@@ -91,6 +91,8 @@ const cases = [
     assert(component.getItems().length === 1, 'truncateTo failed');
   }),
   splitViewCase(),
+  dockCase(),
+  adoptionCase(),
   componentCase('Search', () => new zx.Search(null, { debounce: 0 }), async (component) => {
     const events = observe(component, 'input');
     component.set('needle');
@@ -118,6 +120,46 @@ const cases = [
     assert(component.isOpen(), 'open failed');
     component.close();
   }),
+  componentCase('Sheet', () => new zx.Sheet(null, {
+    title: 'Invoice', content: 'Body', side: 'end', backdrop: 'blur'
+  }), (component) => {
+    const events = observe(component, 'open');
+    component.open();
+    assert(component.isOpen(), 'open failed');
+    assert(component.el.dataset.side === 'end', 'side attribute missing');
+    assert(component.el.dataset.backdrop === 'blur', 'backdrop attribute missing');
+    assert(component.el.matches(':modal'), 'modal sheet did not enter the top layer');
+    events.expect();
+    component.setSide('bottom').setSize(320);
+    assert(component.getSide() === 'bottom', 'setSide failed');
+    assert(component.el.style.getPropertyValue('--zx-sheet-size') === '320px', 'setSize failed');
+    component.close('done');
+  }),
+  componentCase('Sheet (resizable)', () => new zx.Sheet(null, {
+    title: 'Drawer', content: 'Body', side: 'bottom', snap: [0.3, 0.9], min: 100
+  }), (component) => {
+    component.open();
+    const handle = component.refs.handle;
+    assert(handle, 'a snapping sheet must render its handle');
+    assert(handle.getAttribute('role') === 'separator', 'handle is not a separator');
+    assert(handle.hasAttribute('aria-valuenow'), 'handle carries no live value');
+    const events = observe(component, 'resize');
+    component.snapTo(1);
+    assert(component.getSize() > 0, 'snapTo produced no size');
+    events.expect();
+    component.close();
+  }),
+  componentCase('Sheet (non-modal)', () => new zx.Sheet(null, {
+    content: 'Body', side: 'start', modal: false
+  }), (component) => {
+    component.open();
+    assert(component.isOpen(), 'non-modal open failed');
+    assert(!component.el.matches(':modal'), 'non-modal sheet entered the top layer');
+    assert(component.el.dataset.modality === 'none', 'modality attribute missing');
+    assert(!component.isModal(), 'isModal() disagreed with the option');
+    component.close();
+  }),
+  sheetStackCase(),
   dropdownCase(),
   componentCase('MenuButton', () => new zx.MenuButton(null, {
     label: 'Actions', items: [{ label: 'Run', value: 'run' }]
@@ -134,6 +176,12 @@ const cases = [
     const events = observe(component, 'change');
     component.set(2).open().close();
     assert(component.value === 2 && component.selected.name === 'Two', 'selection mismatch');
+    events.expect();
+  }),
+  componentCase('Checklist', () => new zx.Checklist(null, { items: sampleItems(), search: false }), (component) => {
+    const events = observe(component, 'change');
+    component.setValues([2]);
+    assert(component.getValues()[0] === 2, 'checked values mismatch');
     events.expect();
   }),
   componentCase('Select (fixed items)', () => zx.Select.permission(null, {
@@ -153,12 +201,6 @@ const cases = [
     component.setItems([]);
     component.set(true);
     assert(component.value === true, 'a pinned value stopped resolving after setItems');
-    events.expect();
-  }),
-  componentCase('Checklist', () => new zx.Checklist(null, { items: sampleItems(), search: false }), (component) => {
-    const events = observe(component, 'change');
-    component.setValues([2]);
-    assert(component.getValues()[0] === 2, 'checked values mismatch');
     events.expect();
   }),
   componentCase('NumberField', () => new zx.NumberField(null, { value: 5, min: 0, max: 10 }), (component) => {
@@ -505,6 +547,40 @@ function dropdownCase() {
   };
 }
 
+/** @returns {SmokeDefinition} */
+function splitViewCase() {
+  return {
+    name: 'SplitView',
+    create(fixture) {
+      // The divider is positioned against a real box, so the target needs a height of its own.
+      const stage = document.createElement('div');
+      stage.style.blockSize = '160px';
+      fixture.append(stage);
+      const component = new zx.SplitView(stage, {
+        start: document.createElement('div'),
+        end: document.createElement('div'),
+        size: '40%',
+        collapsible: 'start'
+      });
+      return { component, stage };
+    },
+    exercise({ component }) {
+      const events = observe(component, 'collapse');
+      component.collapse('start');
+      events.expect();
+      component.expand();
+      assert(component.getRatio() > 0, 'ratio unavailable after expand');
+      component.disable();
+      assert(component.isDisabled(), 'disable failed');
+      component.enable();
+    },
+    destroy({ component, stage }) {
+      component.destroy();
+      stage.remove();
+    }
+  };
+}
+
 /**
  * The other Questionnaire case creates its own root. This one takes over an element that already
  * has content, which is a different code path: the component builds an inner `<form>` so its
@@ -547,35 +623,163 @@ function questionnaireTargetCase() {
 }
 
 /** @returns {SmokeDefinition} */
-function splitViewCase() {
+function dockCase() {
   return {
-    name: 'SplitView',
+    name: 'Dock',
     create(fixture) {
-      // The divider is positioned against a real box, so the target needs a height of its own.
+      // Panes are measured against a real box, so the target needs a height of its own.
       const stage = document.createElement('div');
-      stage.style.blockSize = '160px';
+      stage.style.blockSize = '320px';
       fixture.append(stage);
-      const component = new zx.SplitView(stage, {
-        start: document.createElement('div'),
-        end: document.createElement('div'),
-        size: '40%',
-        collapsible: 'start'
+      const component = new zx.Dock(stage, {
+        panes: [
+          { name: 'summary', title: 'Summary', content: 'Totals', size: 120 },
+          {
+            name: 'files', size: 100, active: 'notes', tabs: [
+              { name: 'docs', title: 'Documents', content: () => document.createTextNode('Docs') },
+              { name: 'notes', title: 'Notes', content: 'Notes' }
+            ]
+          },
+          { name: 'audit', title: 'Audit', content: 'Log', grow: true }
+        ]
       });
       return { component, stage };
     },
     exercise({ component }) {
-      const events = observe(component, 'collapse');
-      component.collapse('start');
-      events.expect();
-      component.expand();
-      assert(component.getRatio() > 0, 'ratio unavailable after expand');
-      component.disable();
-      assert(component.isDisabled(), 'disable failed');
-      component.enable();
+      const collapses = observe(component, 'collapse');
+      component.collapse('summary');
+      assert(component.isCollapsed('summary'), 'collapse failed');
+      collapses.expect();
+
+      const expands = observe(component, 'expand');
+      component.expand('summary');
+      assert(!component.isCollapsed('summary'), 'expand failed');
+      expands.expect();
+
+      assert(component.getActive('files') === 'notes', 'initial active tab ignored');
+      const tabs = observe(component, 'tabchange');
+      component.activate('files', 'docs');
+      assert(component.getActive('files') === 'docs', 'activate failed');
+      tabs.expect();
+
+      const reveals = observe(component, 'reveal');
+      component.reveal('notes');
+      assert(component.getActive('files') === 'notes', 'reveal did not activate the tab');
+      reveals.expect();
+
+      component.setSize('summary', 160);
+      assert(Math.round(component.getSize('summary')) === 160, 'setSize failed');
+
+      const state = component.state();
+      component.collapse('audit');
+      component.setState(state);
+      assert(!component.isCollapsed('audit'), 'setState did not restore the collapsed set');
+
+      assert(component.el.querySelectorAll(':scope > .zx-dock__divider').length === 2,
+        'divider count does not match the pane count');
+      component.add({ name: 'extra', title: 'Extra', content: 'More' }, { index: 0 });
+      assert(component.names()[0] === 'extra', 'add(index) ignored its position');
+      component.remove('extra');
+      assert(!component.pane('extra'), 'remove failed');
     },
     destroy({ component, stage }) {
       component.destroy();
       stage.remove();
+    }
+  };
+}
+
+/** @returns {SmokeDefinition} */
+function adoptionCase() {
+  return {
+    name: 'Dock (adoption)',
+    create(fixture) {
+      const stage = document.createElement('div');
+      stage.style.blockSize = '240px';
+      stage.style.inlineSize = '600px';
+      fixture.append(stage);
+      const dock = new zx.Dock(null, { orientation: 'horizontal', content: 'Table' });
+      stage.append(dock.toElement());
+      const sheet = new zx.Sheet(null, { title: 'Detail', content: 'Body', side: 'end', size: 200 });
+      return { dock, sheet, stage };
+    },
+    exercise({ dock, sheet }) {
+      const changes = observe(sheet, 'dockchange');
+      dock.adopt(sheet, { side: 'end', size: 200 });
+      assert(sheet.isDocked(), 'adopt did not dock the sheet');
+      assert(sheet.el.parentElement === dock.el, 'adopted sheet is not in the dock');
+      changes.expect();
+
+      sheet.open();
+      assert(sheet.isOpen(), 'docked open failed');
+      assert(!sheet.el.matches(':modal'), 'a docked sheet must not enter the top layer');
+
+      // The handoff round-trips through the native dialog; it must stay silent and lossless.
+      let closes = 0;
+      sheet.on('close', () => { closes += 1; });
+      dock.release(sheet);
+      assert(!sheet.isDocked(), 'release did not float the sheet');
+      assert(sheet.el.parentElement === document.body, 'released sheet did not return to the body');
+      assert(sheet.isOpen(), 'release closed the sheet');
+      assert(closes === 0, 'the re-hosting handoff emitted a close event');
+
+      dock.adopt(sheet, { side: 'end', size: 200 });
+      dock.destroy();
+      assert(!sheet.isDocked(), 'destroying the dock did not release the sheet');
+      assert(sheet.isOpen(), 'destroying the dock closed a sheet it did not own');
+      sheet.close();
+    },
+    destroy({ dock, sheet, stage }) {
+      sheet.destroy();
+      dock.destroy();
+      stage.remove();
+    }
+  };
+}
+
+/** @returns {SmokeDefinition} */
+function sheetStackCase() {
+  return {
+    name: 'SheetStack',
+    create() {
+      const stack = new zx.SheetStack({ layout: 'stack', max: 3 });
+      const sheets = ['A', 'B', 'C'].map((title) =>
+        new zx.Sheet(null, { title, content: title, side: 'end', size: 240 }));
+      return { stack, sheets };
+    },
+    exercise({ stack, sheets }) {
+      const [a, b, c] = sheets;
+      const pushes = [];
+      stack.on('push', (event) => pushes.push(event.detail.sheet));
+      stack.push(a).push(b).push(c);
+      assert(stack.size() === 3, 'push did not stack');
+      assert(stack.top() === c, 'top is not the last pushed sheet');
+      assert(pushes.length === 3, 'push event did not fire per sheet');
+      assert(c.el.dataset.depth === '0' && a.el.dataset.depth === '2', 'depths are not numbered from the top');
+      // A covered sheet in a drill-down must leave the tab order.
+      assert(a.el.inert && b.el.inert && !c.el.inert, 'inertness does not follow depth');
+
+      const pops = [];
+      stack.on('pop', (event) => pops.push(event.detail.sheet));
+      assert(stack.pop() === c, 'pop did not return the top sheet');
+      assert(stack.size() === 2 && stack.top() === b, 'pop left the stack wrong');
+      assert(pops.length === 1, 'pop event did not fire');
+
+      stack.popTo(a);
+      assert(stack.size() === 1 && stack.top() === a, 'popTo did not unwind to its target');
+      stack.clear();
+      assert(stack.size() === 0, 'clear left sheets behind');
+
+      // The stack never owned the sheets, so destroying it must not take them down.
+      stack.push(a);
+      stack.destroy();
+      assert(a.isOpen(), 'destroying the stack closed a sheet it did not own');
+      assert(!a.el.dataset.depth, 'destroying the stack left depth styling behind');
+      a.close();
+    },
+    destroy({ stack, sheets }) {
+      stack.destroy();
+      for (const sheet of sheets) sheet.destroy();
     }
   };
 }

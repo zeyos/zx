@@ -95,7 +95,7 @@ export class Dialog extends Modal {
    */
   constructor(_target = null, options = {}) {
     super(null, options);
-    this.#setSize(this.options.size);
+    this._applySize(this.options.size);
     this.#baseTitle = String(this.options.title ?? '');
     this.#applyTitle(this.#baseTitle);
     this.#baseButtons = copyButtons(this.options.buttons);
@@ -141,7 +141,7 @@ export class Dialog extends Modal {
       h('footer', { class: 'zx-dialog__footer', ref: 'footer' })
     ));
     dialog.dataset.state = 'closed';
-    document.body.append(dialog);
+    this.mountTarget().append(dialog);
     return dialog;
   }
 
@@ -368,8 +368,15 @@ export class Dialog extends Modal {
     });
   }
 
-  /** @param {'sm'|'md'|'lg'|number} size @returns {void} */
-  #setSize(size) {
+  /**
+   * Applies the dialog width. Subclasses that size themselves on a different axis override this.
+   *
+   * Called from the constructor before any subclass field initializers have run, so an override
+   * may only touch the DOM — reading an uninitialized private field here throws.
+   * @param {'sm'|'md'|'lg'|number} size Preset or pixel width.
+   * @returns {void}
+   */
+  _applySize(size) {
     const presets = { sm: 400, md: 600, lg: 840 };
     const width = typeof size === 'number' && Number.isFinite(size) ? size : (presets[size] ?? presets.md);
     this.el.style.inlineSize = `${Math.max(0, width)}px`;
