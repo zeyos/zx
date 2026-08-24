@@ -17,7 +17,6 @@
   <main>
     <h1>Zx distribution smoke test</h1>
     <pre id="result" role="status" aria-live="polite">Running…</pre>
-    <div id="legacy-toggle"></div>
   </main>
   <script>
     window.__zxDistErrors = [];
@@ -29,7 +28,6 @@
     }, true);
   </script>
   <script src="../../dist/zx.global.js"></script>
-  <script src="../../dist/zx-compat.global.js"></script>
   <script>
     window.addEventListener('DOMContentLoaded', async function () {
       var results = window.__zxDistErrors.slice();
@@ -55,21 +53,10 @@
       });
       if (alertPromise) await alertPromise;
 
-      check('compat Toggle', function () {
-        if (!window.gx || typeof window.gx.zeyos.Toggle !== 'function') throw new Error('window.gx is missing');
-        var host = document.getElementById('legacy-toggle');
-        var toggle = new window.gx.zeyos.Toggle(host, { label: 'Legacy toggle', value: 'enabled' });
-        if (toggle.toElement().retrieve('com') !== toggle) throw new Error('legacy element storage missing');
-        toggle.toggle();
-        if (!toggle.getState() || !toggle.toElement().classList.contains('act')) throw new Error('legacy Toggle did not activate');
-        toggle.destroy();
-        host.replaceChildren();
-      });
-
-      check('explicit globals', function () {
-        if (typeof window.__ !== 'undefined') throw new Error('__ was installed before opt-in');
-        window.gx.compat.installGlobals();
-        if (typeof window.__ !== 'function') throw new Error('installGlobals() did not install __');
+      check('compact DOM builder', function () {
+        if (typeof window.zx.__ !== 'function') throw new Error('window.zx.__ is missing');
+        var built = window.zx.__('button#built.primary', null, 'Built');
+        if (built.id !== 'built' || built.textContent !== 'Built') throw new Error('window.zx.__ did not build DOM');
       });
 
       var failed = results.filter(function (entry) { return !entry.passed; }).length;

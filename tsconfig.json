@@ -2,13 +2,13 @@
   "//": [
     "Declaration emit only. Zx is written in plain ES2022 with JSDoc types — there is no",
     "TypeScript in the sources and no TypeScript in the build output. This config exists so that",
-    "the types already written for humans are also handed to editors: `tsc` reads the JSDoc and",
+    "the public types already written for humans are also handed to editors: `tsc` reads the JSDoc and",
     "writes `dist/types/**.d.ts`, which `exports` points at.",
     "",
     "`checkJs` is off globally and opted into per file with `// @ts-check`. Every module in",
     "`src/core/` carries it, so the shared kernel is type-checked on every build — the build fails",
-    "on any tsc output. The rest of the tree is not there yet: components, the gx compatibility",
-    "layer and the custom elements together still report a few hundred JSDoc inaccuracies, and",
+    "on any tsc output. The rest of the public tree is not there yet: components and custom",
+    "elements still report JSDoc inaccuracies, and",
     "switching them on wholesale would be a large change disguised as a config flag. Add the",
     "pragma to a file once it is clean, and the guard extends with it."
   ],
@@ -29,5 +29,8 @@
     "noEmitOnError": false
   },
   "include": ["src/**/*.js"],
-  "exclude": ["node_modules", "dist", "site", "website", "tests", "tools"]
+  "exclude": [
+    "node_modules", "dist", "site", "website", "tests", "tools",
+    "src/compat-entry.js", "src/compat/**/*"
+  ]
 }

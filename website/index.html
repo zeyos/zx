@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Xenon is the dependency-free design system for ZeyOS. Zx provides its accessible components, patterns, and application layouts in plain JavaScript.">
-  <title>Xenon Design System — Zx for ZeyOS</title>
+  <meta name="description" content="Xenon is a dependency-free design system for modern front ends. Zx provides accessible components, patterns, and application layouts in plain JavaScript.">
+  <title>ZeyOS Xenon Design System</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../styles/zx.css">
   <link rel="stylesheet" href="site.css">
@@ -18,12 +18,12 @@
         <img class="brand-logo--dark" src="assets/zx-logo-dark.svg" alt="">
       </a>
       <a class="site-version" href="https://github.com/zeyos/zx/releases/latest"
-        rel="noopener" title="Release notes">v<span data-site-version>2.0.0</span></a>
+        rel="noopener" title="Release notes">v<span data-site-version>4.0.0</span></a>
       <nav class="site-nav" aria-label="Primary">
         <a href="#system">Design system</a>
         <a href="docs.html">Documentation</a>
         <a href="docs.html#components">Components</a>
-        <a href="../MIGRATION.md">Migration</a>
+        <a href="theme.html">Theming</a>
       </nav>
       <div class="site-actions">
         <a class="site-icon-btn" data-site-icon="zeyos" href="https://www.zeyos.com" rel="noopener"
@@ -41,16 +41,17 @@
       <div class="site-section hero__inner">
         <!-- The hero band is always dark, so it always uses the light-ink logo. -->
         <img class="hero__logo" src="assets/zx-logo-dark.svg" alt="Zx">
-        <p class="band-eyebrow hero__eyebrow">ZeyOS Xenon Design System</p>
-        <h1>One coherent system for every ZeyOS <em>workflow</em></h1>
+        <p class="band-eyebrow hero__eyebrow">Dependency-free design system</p>
+        <h1>One coherent system for every <em>front end</em></h1>
         <p class="hero__subhead">
           Xenon brings foundations, accessible components, enterprise patterns, and application
           layouts into one shared language. Zx is its plain-JavaScript implementation — no
           framework, no build step, and no runtime dependencies.
         </p>
         <div class="hero__actions">
-          <a class="site-btn site-btn--primary" data-btn-icon="book" href="docs.html">Explore Xenon</a>
-          <a class="site-btn site-btn--ghost" href="../MIGRATION.md">Migration strategy</a>
+          <a class="site-btn site-btn--primary" data-btn-icon="book" href="docs.html">Explore the docs</a>
+          <a class="site-btn site-btn--ghost" data-btn-icon="zeyos"
+            href="https://www.zeyos.com" rel="noopener">Learn more about ZeyOS</a>
         </div>
       </div>
     </section>
@@ -61,11 +62,9 @@
           <p class="band-eyebrow">System architecture</p>
           <h2 id="system-title">More than a component catalogue</h2>
           <p>
-            Xenon applies the discipline of mature enterprise systems such as
-            <a href="https://carbondesignsystem.com/all-about-carbon/what-is-carbon/" rel="noopener">IBM Carbon</a>
-            and <a href="https://experience.sap.com/fiori-design-web/design-principles/" rel="noopener">SAP Fiori</a>
-            to ZeyOS: shared foundations, reusable controls, task-level patterns, and layout
-            guidance. It is purpose-built for ZeyOS, not a visual copy of either system.
+            Xenon unifies shared foundations, reusable controls, task-level patterns, and layout
+            guidance into one coherent language for modern front ends. It was developed through
+            demanding ZeyOS workflows, while its components and contracts remain product-agnostic.
           </p>
         </div>
         <div class="system-grid">
@@ -146,10 +145,10 @@
       <div class="site-section">
         <div class="section-heading">
           <p class="band-eyebrow">Adoption</p>
-          <h2 id="paths-title">Start where the application is</h2>
+          <h2 id="paths-title">Start with the surface you need</h2>
           <p>
-            Xenon does not require a router rewrite. Use Zx directly for new work, generate common
-            surfaces from ZeyOS schemas, and replace current UI factories at their existing seams.
+            Xenon does not prescribe a router, framework, or data layer. Use Zx directly, compose
+            complete application shells, or connect the optional ZeyOS schema bindings.
           </p>
         </div>
         <div class="path-grid">
@@ -159,17 +158,17 @@
             <p>Load one stylesheet and import only the plain-JavaScript controls the screen needs.</p>
             <span class="path-card__cue">Getting started</span>
           </a>
-          <a class="path-card" href="docs.html#components/zeyos-generators">
+          <a class="path-card" href="docs.html#getting-started/zeyos-data">
             <span class="path-card__icon" data-feature-icon="list"></span>
             <h3>Bind existing schemas</h3>
             <p>Generate tables, forms, and pickers while keeping current records and service calls.</p>
             <span class="path-card__cue">ZeyOS bindings</span>
           </a>
-          <a class="path-card" href="../MIGRATION.md">
+          <a class="path-card" href="docs.html#layouts">
             <span class="path-card__icon" data-feature-icon="reload"></span>
-            <h3>Move an existing screen</h3>
-            <p>Preserve routing and application logic, then replace UI seams in controlled waves.</p>
-            <span class="path-card__cue">Migration strategy</span>
+            <h3>Compose an application shell</h3>
+            <p>Combine navigation, launch, account, workspace, and data surfaces without adopting a framework.</p>
+            <span class="path-card__cue">Application layouts</span>
           </a>
         </div>
       </div>
@@ -260,8 +259,6 @@
           <dd>The same API on <code>window.zx</code>, for a classic script tag.</dd>
           <dt><code>@zeyos/zx/zeyos</code></dt>
           <dd>Tables, forms, and pickers generated from a live ZeyOS schema.</dd>
-          <dt><code>@zeyos/zx/compat</code></dt>
-          <dd>The legacy <code>gx</code> namespace, for screens still being migrated.</dd>
           <dt><a href="llms.txt">llms.txt</a></dt>
           <dd>The machine-readable reference a coding agent reads first.</dd>
         </dl>
@@ -291,7 +288,7 @@
           <div class="contribute-card__links">
             <a href="https://github.com/zeyos/zx/issues" rel="noopener">Open an issue</a>
             <a href="../AGENTS.md">Contributor contract</a>
-            <a href="../MIGRATION.md">Migration guide</a>
+            <a href="../DESIGN-SYSTEM.md">Coverage audit</a>
           </div>
         </aside>
       </div>
@@ -303,8 +300,9 @@
       <div class="site-footer__brand">
         <img src="assets/zx-logo-dark.svg" alt="Zx">
         <p>
-          Xenon is the design system for <a href="https://www.zeyos.com" rel="noopener">ZeyOS</a>;
-          Zx is its dependency-free implementation. Released under the
+          Xenon is a product-agnostic design system developed by
+          <a href="https://www.zeyos.com" rel="noopener">ZeyOS</a>; Zx is its dependency-free
+          implementation. Released under the
           <a href="https://github.com/zeyos/zx/blob/main/LICENSE" rel="noopener">MIT license</a>.
         </p>
       </div>
@@ -319,7 +317,6 @@
           <h2>Reference</h2>
           <a href="../CHANGELOG.md">Changelog</a>
           <a href="../DESIGN-SYSTEM.md">Coverage audit</a>
-          <a href="../MIGRATION.md">Migration guide</a>
           <a href="llms.txt">llms.txt</a>
         </div>
         <div class="site-footer__group">
@@ -331,7 +328,7 @@
       </nav>
     </div>
     <div class="site-footer__stamp">
-      <span>Zx <span data-site-version>2.0.0</span></span>
+      <span>Zx <span data-site-version>4.0.0</span></span>
       <span>Last updated <time data-site-updated>—</time></span>
     </div>
   </footer>

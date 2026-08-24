@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="Xenon Design System documentation — foundations, components, patterns, and application layouts implemented by Zx.">
-    <title>Documentation — Xenon Design System</title>
+    <title>Documentation — ZeyOS Xenon Design System</title>
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="../styles/zx.css">
     <link rel="stylesheet" href="site.css">
@@ -19,7 +19,16 @@
           <img class="brand-logo--dark" src="assets/zx-logo-dark.svg" alt="Zx">
         </a>
         <a class="site-version" href="https://github.com/zeyos/zx/releases/latest"
-          rel="noopener" title="Release notes">v<span data-site-version>2.0.0</span></a>
+          rel="noopener" title="Release notes">v<span data-site-version>4.0.0</span></a>
+        <div class="docs-global-search" data-docs-search>
+          <form data-docs-search-field></form>
+          <div class="docs-global-search__popover" hidden>
+            <div id="docs-search-status" class="docs-global-search__status"
+              role="status" aria-live="polite" aria-atomic="true"></div>
+            <div id="docs-search-results" role="listbox"
+              aria-label="Documentation search results"></div>
+          </div>
+        </div>
         <nav class="site-nav" aria-label="Primary">
           <a href="docs.html">Documentation</a>
           <a href="docs.html#layouts">Layouts</a>
@@ -46,14 +55,15 @@
     <template
       data-guide="introduction"
       data-title="Introduction"
-      data-blurb="Xenon is the dependency-free ZeyOS design system; Zx implements its 50+ accessible components as plain ES modules.">
+      data-blurb="Xenon is a dependency-free design system; Zx implements its accessible components as plain ES modules.">
       <h2>What Xenon and Zx are</h2>
       <p>
-        Xenon is the design system for ZeyOS business software: foundations, components, workflow
-        patterns, and the application layouts around dense data screens, long forms, and modal
-        tasks. Zx is its implementation. It ships as plain ES2022 modules with <strong>no runtime
+        Xenon is a design system for browser applications: foundations, components, workflow
+        patterns, and application layouts for dense data screens, long forms, and focused tasks.
+        Zx is its implementation. It ships as plain ES2022 modules with <strong>no runtime
         dependencies</strong> — no framework or bundler required. The same source you read here
-        runs unchanged in the browser.
+        runs unchanged in the browser. Xenon was developed at ZeyOS, but its public contracts are
+        product- and framework-agnostic.
       </p>
       <p>
         Everything is built on native platform features: <code>&lt;dialog&gt;</code>, the popover
@@ -68,8 +78,7 @@
           talk to ZeyOS.</li>
         <li><strong>Components</strong> — every component with a live demo, its complete JavaScript
           source, and the API reference. It also covers the general-purpose
-          <a href="#components/helpers">helper functions</a> and the
-          <a href="#components/gx-compat">gx compatibility layer</a>.</li>
+          <a href="#components/helpers">helper functions</a>.</li>
         <li><strong>Layouts</strong> — eight complete application shells assembled from those
           components, each with its full source, ending with a real ZeyOS invoices screen driven
           by a live schema.</li>
@@ -96,8 +105,8 @@
       data-blurb="Add the stylesheet and the modules — or drop the global bundle into a classic ZeyOS screen.">
       <h2>Bundles</h2>
       <p>
-        <code>npm run build</code> writes four artefacts to <code>dist/</code>. Pick the one that
-        matches how the host application loads code:
+        <code>npm run build</code> writes four asset families in regular and minified form, plus
+        generated declarations, to <code>dist/</code>. Pick the entry points that match the host:
       </p>
       <table>
         <thead>
@@ -115,9 +124,9 @@
             <td>A classic screen with plain <code>&lt;script&gt;</code> tags.</td>
           </tr>
           <tr>
-            <td><code>zx-compat.global.js</code></td>
-            <td>IIFE → <code>window.gx</code></td>
-            <td>Legacy gx code should keep running unchanged.</td>
+            <td><code>zx-zeyos.esm.js</code></td>
+            <td>ES module</td>
+            <td>The application uses the optional schema, module-icon, launcher, or entity bindings.</td>
           </tr>
           <tr>
             <td><code>zx.css</code></td>
@@ -552,7 +561,8 @@ document.querySelector('#invoices').append(list.table);
         <div class="site-footer__brand">
           <img src="assets/zx-logo-dark.svg" alt="Zx">
           <p>
-            Built for <a href="https://www.zeyos.com" rel="noopener">ZeyOS</a>. Released under the
+            Product-agnostic and developed by
+            <a href="https://www.zeyos.com" rel="noopener">ZeyOS</a>. Released under the
             <a href="https://github.com/zeyos/zx/blob/main/LICENSE" rel="noopener">MIT license</a>.
           </p>
         </div>
@@ -566,7 +576,6 @@ document.querySelector('#invoices').append(list.table);
           <div class="site-footer__group">
             <h2>Reference</h2>
             <a href="../CHANGELOG.md">Changelog</a>
-            <a href="../MIGRATION.md">Migration guide</a>
             <a href="llms.txt">llms.txt</a>
           </div>
           <div class="site-footer__group">
@@ -578,7 +587,7 @@ document.querySelector('#invoices').append(list.table);
         </nav>
       </div>
       <div class="site-footer__stamp">
-        <span>Zx <span data-site-version>2.0.0</span></span>
+        <span>Zx <span data-site-version>4.0.0</span></span>
         <span>Last updated <time data-site-updated>—</time></span>
       </div>
     </footer>

@@ -9,7 +9,7 @@
  * Component CSS must never use them directly — tests/lint-tokens.js enforces that.
  */
 :root {
-  /* Neutrals — Tailwind Zinc */
+  /* Neutrals */
   --zx-gray-0: #ffffff;
   --zx-gray-50: #fafafa;
   --zx-gray-100: #f4f4f5;

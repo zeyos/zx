@@ -89,6 +89,7 @@
   --zx-module-linecoupon: var(--zx-module-line);
   --zx-module-logins: var(--zx-module-auth);
   --zx-module-mailservers: var(--zx-module-channels);
+  --zx-module-main: var(--zx-module-zeyos);
   --zx-module-notifications: var(--zx-module-messages);
   --zx-module-participants-campaigns: var(--zx-module-participants);
   --zx-module-participants-mailinglists: var(--zx-module-participants);

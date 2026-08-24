@@ -36,7 +36,6 @@ const EXTRA_SOURCES = [
   ['.claude/skills', 'skills'],
   ['README.md', 'README.md'],
   ['DESIGN-SYSTEM.md', 'DESIGN-SYSTEM.md'],
-  ['MIGRATION.md', 'MIGRATION.md'],
   ['CHANGELOG.md', 'CHANGELOG.md'],
   ['AGENTS.md', 'AGENTS.md'],
   ['node_modules/chart.js/dist/chart.umd.js', 'vendor/chart.umd.js'],
@@ -49,6 +48,14 @@ const EXTRA_SOURCES = [
  * would land on `README.md` in the output.
  */
 const WEBSITE_EXCLUDE = new Set(['README.md']);
+
+/** Internal implementation and operating notes that are intentionally not part of the public site. */
+const PUBLIC_EXTRA_EXCLUDE = new Set([
+  'docs/DESIGN-NOTES.md',
+  'docs/RELEASING.md',
+  'src/compat-entry.js'
+]);
+const PUBLIC_EXTRA_EXCLUDE_PREFIXES = ['src/compat/'];
 
 /** Extensions whose contents get their escaping paths rewritten. */
 const TEXT_EXTENSIONS = new Set(['.html', '.js', '.css', '.txt', '.md', '.json', '.svg']);
@@ -79,7 +86,16 @@ for (const [source, destination] of EXTRA_SOURCES) {
       + 'which the website already provides. Rename one of them or drop the copy.'
     );
   }
-  await cp(from, to, { recursive: true });
+  await cp(from, to, {
+    recursive: true,
+    filter: (sourcePath) => {
+      const publicPath = relative(root, sourcePath).split(sep).join('/');
+      return !PUBLIC_EXTRA_EXCLUDE.has(publicPath)
+        && !PUBLIC_EXTRA_EXCLUDE_PREFIXES.some((prefix) => (
+          publicPath === prefix.slice(0, -1) || publicPath.startsWith(prefix)
+        ));
+    }
+  });
 }
 
 // 3. Rewrite the paths that used to escape `website/`.

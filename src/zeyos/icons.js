@@ -55,6 +55,7 @@ export function moduleIcon(name, options = {}) {
  * @property {string|null} [label=null] Accessible label; null marks the chip decorative.
  * @property {boolean} [title=false] Adds the module's display name as a `title` tooltip.
  * @property {boolean} [standard=false] Use the stock Font Awesome fallback glyph.
+ * @property {string} [color] Override the module colour for a server-defined fork or weblet.
  * @property {string|string[]} [class] Extra class names.
  */
 
@@ -67,16 +68,20 @@ export function moduleIcon(name, options = {}) {
  * @returns {HTMLElement} A `<span class="zx-module-icon">` wrapping the glyph.
  */
 export function moduleChip(name, options = {}) {
-  const { size = 24, iconSize = '1em', label = null, title = false, standard = false } = options;
+  const {
+    size = 24, iconSize = '1em', label = null, title = false, standard = false,
+    color = null
+  } = options;
   const key = normalizeModuleName(name);
   const info = moduleInfo(name);
+  const background = color || info.color;
 
   const chip = h('span', {
     class: ['zx-module-icon', options.class].flat().filter(Boolean),
     dataset: { module: key },
     style: {
-      '--zx-module-color': info.color,
-      '--zx-module-glyph': moduleGlyphColor(info.color),
+      '--zx-module-color': background,
+      '--zx-module-glyph': moduleGlyphColor(background),
       '--zx-module-icon-size': typeof size === 'number' ? `${size}px` : String(size)
     },
     title: title ? info.label : null

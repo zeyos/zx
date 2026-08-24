@@ -8,7 +8,6 @@ Branch: `wp11-ship` from `main` (everything merged). Read `AGENTS.md`.
 tools/build.js
 tests/smoke/smoke.html  tests/smoke/smoke.js
 README.md               # rewrite
-MIGRATION.md            # gx → zx guide
 demos/index.html        # final polish only if needed
 package.json            # add "build": "node tools/build.js"
 ```
@@ -18,8 +17,7 @@ package.json            # add "build": "node tools/build.js"
 Outputs to `dist/`:
 - `zx.esm.js` — bundle of `src/index.js`, ESM, minify:false + `zx.esm.min.js` minified.
 - `zx.global.js` (+ `.min.js`) — IIFE, `globalName: 'zx'`, from `src/index.js`.
-- `zx-compat.global.js` (+ `.min.js`) — IIFE from `src/compat-entry.js` (bundles zx + compat;
-  assigns window.zx and window.gx itself — no globalName needed, entry does assignment).
+- `zx.zeyos.js` (+ `.min.js`) — optional ZeyOS data/icon helpers from `src/zeyos/index.js`.
 - `zx.css` (+ `.min.css`) — bundle styles/zx.css with esbuild CSS (resolves @imports).
 - Prints a size report table (raw/minified/gzip via node:zlib).
 
@@ -37,14 +35,7 @@ PASS/FAIL table (component × create/exercise/destroy/re-create) + summary banne
 What Zx is; quick start (ESM + global script); component index table with one-line descriptions
 grouped like the demo sidebar; theming guide (tokens, data-zx-theme/density, custom theme
 example overriding ~8 semantic tokens); browser support statement; dev workflow (serve/test/
-build); compat layer usage (script order, installGlobals) linking MIGRATION.md.
-
-## MIGRATION.md
-
-Per legacy class: old snippet → new snippet (use the WP10 mapping tables); the
-"intentionally not reproduced" list with rationale & workaround; script-tag swap recipe for
-`net.zeyon.lib.gx-3000/assets/` deployments (gx-core.js+gx-zeyos.js+css → zx.global.js+
-zx-compat.global.js+zx.css); note that `__()`/globals need `gx.compat.installGlobals()`.
+build); and the optional ZeyOS helper bundle.
 
 ## Acceptance criteria
 
@@ -52,10 +43,9 @@ zx-compat.global.js+zx.css); note that `__()`/globals need `gx.compat.installGlo
    `zx.global.min.js` parses in isolation (node --check equivalent or new Function smoke).
 2. Loading `dist/zx.global.js` + `dist/zx.css` in a plain HTML file (add
    `tests/smoke/smoke-dist.html` doing exactly this) exposes working `window.zx` — Dialog.alert
-   opens; compat bundle exposes `window.gx` and a legacy Toggle works.
+   opens, `__()` builds a DOM tree, and the optional ZeyOS bundle exposes its helper namespace.
 3. smoke.html: all components PASS in a real browser (orchestrator will run it).
-4. `npm test` still green; README/MIGRATION accurate against actual exports (spot-check 10
-   claims).
+4. `npm test` still green; README accurate against actual exports (spot-check 10 claims).
 5. Committed on `wp11-ship`.
 
 ## Out of scope

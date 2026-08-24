@@ -13,11 +13,10 @@ const assets = [
   { name: 'ESM', entry: 'src/index.js', file: 'zx.esm.js', format: 'esm' },
   { name: 'ZeyOS', entry: 'src/zeyos/index.js', file: 'zx-zeyos.esm.js', format: 'esm' },
   { name: 'Global', entry: 'src/index.js', file: 'zx.global.js', format: 'iife', globalName: 'zx' },
-  { name: 'Compatibility', entry: 'src/compat-entry.js', file: 'zx-compat.global.js', format: 'iife' },
-  { name: 'Compatibility ESM', entry: 'src/compat/index.js', file: 'zx-compat.esm.js', format: 'esm' },
   { name: 'CSS', entry: 'styles/zx.css', file: 'zx.css' }
 ];
 
+await rm(dist, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });
 await Promise.all(assets.flatMap((asset) => [false, true].map((minify) => {
   const extension = asset.file.endsWith('.css') ? '.css' : '.js';
@@ -59,7 +58,6 @@ for (const asset of assets) {
  * at. Consumers get completion and type checking without the library growing a compile step of its
  * own, and the types cannot drift from the documentation because they are the same text.
  */
-await rm(resolve(dist, 'types'), { recursive: true, force: true });
 // tsc must exit clean. Declarations that do not type-check are worse than none: a consumer who
 // has not turned `skipLibCheck` on inherits the errors, in files they did not write.
 try {

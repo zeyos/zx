@@ -1,9 +1,7 @@
 # Xenon / Zx — Contributor Contract
 
-Xenon is the ZeyOS design system; Zx is its dependency-free vanilla-JavaScript implementation.
-The MooTools-based "gx" library it replaces lives in the sibling directories `../gx-core`,
-`../gx-zeyos`, `../gx-bootstrap` — read-only reference material behind the opt-in compatibility
-layer in `src/compat/`.
+Xenon is a product-agnostic design system developed at ZeyOS; Zx is its dependency-free
+vanilla-JavaScript implementation.
 
 Every work package (WP) is specified in `specs/WP-*.md`. Implement exactly what the spec says;
 its "Out of scope" section is binding. Do not modify files outside the spec's file scope.

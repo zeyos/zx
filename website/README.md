@@ -13,7 +13,6 @@ Then open:
 - <http://127.0.0.1:8321/website/> — landing page
 - <http://127.0.0.1:8321/website/docs.html> — documentation
 - <http://127.0.0.1:8321/website/theme.html> — theme studio
-- <http://127.0.0.1:8321/website/compat.html> — legacy gx snippet smoke page
 
 Nothing is built: the pages load `../src/index.js` directly as an ES module and use
 `../styles/zx.css`. A production deployment would load `dist/zx.esm.js` or `dist/zx.global.js`

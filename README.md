@@ -1,10 +1,10 @@
 # Xenon Design System (Zx)
 
-Xenon is the dependency-free design system for ZeyOS business applications; Zx is its
-vanilla-JavaScript implementation. It combines foundations, accessible components, repeatable
-workflow patterns, and application layouts in plain ES2022 modules. Source modules run directly in
-a browser; the distribution also provides ESM and classic-script bundles. An opt-in compatibility
-layer remains available for genuine MooTools-era `gx` applications while they are modernised.
+Xenon is a dependency-free design system for browser applications; Zx is its vanilla-JavaScript
+implementation. It combines foundations, accessible components, repeatable workflow patterns,
+and application layouts in plain ES2022 modules. Source modules run directly in a browser; the
+distribution also provides ESM and classic-script bundles. Xenon originated at ZeyOS, while its
+components and contracts remain product- and framework-agnostic.
 
 The [design-system audit](./DESIGN-SYSTEM.md) records current ZeyOS coverage, missing shell
 patterns, the adoption boundary, transaction-grid follow-ups, and chart-engine candidates.
@@ -41,15 +41,15 @@ For an application built from classic scripts, the IIFE bundle exposes the same 
 </script>
 ```
 
-Import one component instead of the library when a bundler is doing the work:
+Import a component source module directly when a bundler needs the narrowest possible graph:
 
 ```js
 import { Slider } from '@zeyos/zx/src/components/slider/slider.js';
 ```
 
-An application using two components bundles 26 kB minified this way against 157 kB through the
-package entry point. Load the one stylesheet either way — it is 13 kB gzipped whole, and splitting
-it per component costs more than it saves.
+The package also exposes the bundled ESM entry for ordinary named imports. Load the complete
+stylesheet either way: it contains the shared tokens and cross-component states that make the
+system coherent, while JavaScript can still be tree-shaken or imported component by component.
 
 TypeScript definitions ship with the package. They are generated from the JSDoc that documents
 every option, method, and event, so `new Slider(null, { … })` is checked against `SliderOptions`
@@ -99,7 +99,7 @@ ZeyOS binding — see `src/zeyos/modules.js`.
 | `Toggle` | Native-button switch with a separate submitted value. |
 | `Search` | Search input with debounced input, submit, and clear events. |
 | `Launcher` | Cmd/Ctrl+K application and record launcher with ranked local items and abortable grouped sources. |
-| `Select` | APG combobox with local or async filtering, pinned fixed items, and priority/permission presets. |
+| `Select` | APG combobox with local or async filtering, pinned items, priority/status/permission presets, and an optional ZeyOS entity picker. |
 | `Checklist` | Searchable checkbox group with optional async loading. |
 | `TagPicker` | Multi-select combobox that keeps its selection as removable tags. |
 | `NumberField` | APG spinbutton with step buttons, ranges, units, and wrapping. |
@@ -158,12 +158,12 @@ ZeyOS binding — see `src/zeyos/modules.js`.
 | API | Description |
 | --- | --- |
 | `Groupbox` | Collapsible section backed by native `<details>`. |
+| `Card` | Semantic content/record surface with media, native title link, actions, and footer. |
 | `Panel` | Framed, optionally collapsible section with a footer. |
 | `MasterPanel` | Full-height application panel with fixed header actions and footer. |
 | `Tabbox` | APG tabs in four appearances, with lazy content, closing, badges, and disabled states. |
 | `NavigationBar` | Responsive application navigation with optional tab panels and overflow. |
-| `AppSidebar` | Expanded vertical application navigation with inline disclosure children. |
-| `AppRail` | Minimized vertical/horizontal application navigation with flyout-only descendants. |
+| `AppSidebar` | Expanded or minimized vertical application navigation plus horizontal rails; descendants are inline only while expanded. |
 | `Toolbar` | APG toolbar: one tab stop, arrow-key movement, and overflow into a menu. |
 | `SplitView` | Resizable two-pane split with a keyboard-operable separator. |
 | `Stepper` | Linear multi-step progress with completed, active, and error states. |
@@ -297,7 +297,7 @@ classic-script distribution tests.
 
 ```sh
 npm test           # Node unit tests plus semantic-token lint
-npm run build      # writes ESM, global, compatibility, and CSS assets to dist/
+npm run build      # writes ESM, ZeyOS, global, CSS, and declaration assets to dist/
 npm run build:site # assembles the deployable documentation site into site/
 npm run serve:site # serves site/ exactly as it will be deployed
 ```
@@ -313,28 +313,7 @@ import { Table, Message } from '@zeyos/zx';
 import '@zeyos/zx/zx.css';
 ```
 
-Additional entry points: `@zeyos/zx/zeyos` (the schema-driven ZeyOS binding), `@zeyos/zx/compat`
-(the gx compatibility namespace), and `@zeyos/zx/global` for classic script tags.
+Additional entry points: `@zeyos/zx/zeyos` (the schema-driven ZeyOS binding) and
+`@zeyos/zx/global` for classic script tags.
 
-Documentation lives at <https://zx.zeyos.com>; see `docs/RELEASING.md` for how the site and the
-package are published.
-
-## `gx` compatibility layer
-
-During an incremental migration, load the global API before the compatibility bundle:
-
-```html
-<link rel="stylesheet" href="/assets/zx.css">
-<script src="/assets/zx.global.js"></script>
-<script src="/assets/zx-compat.global.js"></script>
-<script>
-  // Only for gx-era free functions; an existing ZeyOS __() is preserved:
-  gx.compat.installGlobals();
-</script>
-```
-
-The compatibility bundle always exposes `window.gx` and installs only the element
-`store`/`retrieve`/`eliminate` shim automatically. Legacy globals and prototype conveniences are
-an explicit opt-in through `gx.compat.installGlobals()`; it never replaces an existing `__`.
-See [MIGRATION.md](./MIGRATION.md) for
-class mappings, script replacement, deliberate behavior changes, and unsupported legacy APIs.
+Documentation lives at <https://zx.zeyos.com>.

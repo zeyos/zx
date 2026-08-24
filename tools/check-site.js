@@ -123,12 +123,26 @@ for (const required of ['index.html', 'docs.html', 'llms.txt', 'CNAME', 'docs/ll
   if (!existsSync(join(site, required))) problems.push(`missing required file: ${required}`);
 }
 
+// Compatibility and operating material may remain in the repository/package for supported
+// consumers, but it is deliberately not documentation-site content.
+for (const privatePath of [
+  'MIGRATION.md',
+  'compat.html',
+  'demos/gx-compat.demo.js',
+  'src/compat',
+  'src/compat-entry.js',
+  'docs/DESIGN-NOTES.md',
+  'docs/RELEASING.md'
+]) {
+  if (existsSync(join(site, privatePath))) problems.push(`private path published: ${privatePath}`);
+}
+
 if (problems.length > 0) {
   console.error(`Broken references in the built site (${problems.length}):\n`);
   for (const problem of problems) console.error(`  - ${problem}`);
   process.exit(1);
 }
-console.log(`Site check passed (${files.length} files, no broken internal references).`);
+console.log(`Site check passed (${files.length} files, no broken references or private paths).`);
 
 /**
  * Reports whether a reference points at a file inside the site.

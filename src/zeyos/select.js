@@ -1,5 +1,6 @@
-import { Select } from '../index.js';
+import { Select, h, icon } from '../index.js';
 import { connect } from './connect.js';
+import { moduleChip } from './icons.js';
 import { buildListQuery } from './query.js';
 
 /**
@@ -94,6 +95,105 @@ export function zeyosSelect(client, resource, opts = {}) {
 }
 
 /**
+ * Builds the rich, resource-specific Entity-box preset over the generic injected Select binding.
+ * It adds module-colored icons, optional subtitles/groups, a fixed clear row, and an optional
+ * application-owned create command without changing the selected ID contract.
+ * @param {Record<string, any>} client Injected ZeyOS client instance.
+ * @param {string} resource Resource such as `projects` or `accounts`.
+ * @param {ZeyosSelectOptions & {
+ *   subtitleKey?: string|((item: Record<string, unknown>) => unknown)|null,
+ *   moduleKey?: string|((item: Record<string, unknown>) => unknown),
+ *   none?: boolean|string,
+ *   create?: boolean|{id?: string|number, label?: string, group?: string, icon?: string|Node, oninvoke?: Function},
+ *   renderIcon?: ((item: Record<string, unknown>, context: Record<string, unknown>) => Node|null)|null
+ * }} [opts={}] Entity presentation, query, and Select options.
+ * @returns {Record<string, any>} Plain Select options.
+ */
+export function buildZeyosEntitySelectConfig(client, resource, opts = {}) {
+  const {
+    fields,
+    labelKey = inferLabelKey(client, resource),
+    valueKey = 'ID',
+    searchFields = inferSearchFields(client, resource),
+    subtitleKey = null,
+    moduleKey = () => resource,
+    groupKey = null,
+    none = true,
+    create = false,
+    renderIcon = defaultEntityIcon,
+    renderItem,
+    renderValueAdornment,
+    ...rest
+  } = opts;
+  const projection = fields ?? defaultProjection(valueKey, labelKey, [
+    ...searchFields,
+    ...[subtitleKey, moduleKey, groupKey].filter((reader) => typeof reader === 'string')
+  ]);
+  const base = buildZeyosSelectConfig(client, resource, {
+    ...rest,
+    fields: projection,
+    labelKey,
+    valueKey,
+    searchFields,
+    groupKey,
+    clearable: none === false ? Boolean(rest.clearable) : true
+  });
+  const renderModuleIcon = (item, selected = false) => {
+    if (renderIcon === null) return null;
+    const module = readRecord(item, moduleKey) ?? resource;
+    return renderIcon(item, { resource, module: String(module), selected });
+  };
+  base.renderItem = renderItem ?? ((item) => {
+    const visual = renderModuleIcon(item);
+    return h('span', { class: 'zx-select__entity' },
+      visual ? h('span', {
+        class: 'zx-select__entity-icon',
+        ariaHidden: 'true'
+      }, visual) : null,
+      h('span', { class: 'zx-select__entity-copy' },
+        h('span', { class: 'zx-select__entity-label' }, String(readRecord(item, labelKey) ?? '')),
+        subtitleKey && readRecord(item, subtitleKey) != null
+          ? h('span', { class: 'zx-select__entity-subtitle' }, String(readRecord(item, subtitleKey)))
+          : null));
+  });
+  base.renderValueAdornment = renderValueAdornment ?? ((item) => renderModuleIcon(item, true));
+  if (none !== false) {
+    base.noneLabel = typeof none === 'string' ? none : rest.noneLabel ?? 'No selection';
+    base.renderNone = rest.renderNone ?? ((label) => h('span', { class: 'zx-select__entity-none' },
+      h('span', { class: 'zx-select__entity-none-icon', ariaHidden: 'true' }),
+      h('span', {}, label)));
+  }
+  if (create) {
+    const descriptor = create === true ? {} : create;
+    const invoke = typeof descriptor.oninvoke === 'function' ? descriptor.oninvoke : null;
+    base.actions = [...(Array.isArray(base.actions) ? base.actions : []), {
+      id: descriptor.id ?? 'create',
+      label: descriptor.label ?? 'Create new…',
+      group: descriptor.group ?? 'New',
+      icon: descriptor.icon ?? 'plus',
+      invoke: (detail) => invoke?.({ ...detail, resource })
+    }];
+  }
+  return base;
+}
+
+/**
+ * Creates a ZeyOS Entity-box preset. Await `select.ready` when a non-null initial ID must be
+ * hydrated before presentation.
+ * @param {Record<string, any>} client Injected ZeyOS client instance.
+ * @param {string} resource Resource name.
+ * @param {Record<string, any>} [opts={}] Entity Select options.
+ * @returns {Select & {ready: Promise<Select>}}
+ */
+export function zeyosEntitySelect(client, resource, opts = {}) {
+  const config = buildZeyosEntitySelectConfig(client, resource, opts);
+  const requestedValue = opts.value ?? null;
+  const select = /** @type {Select & {ready: Promise<Select>}} */ (new Select(null, config));
+  select.ready = hydrateInitialValue(select, client, resource, requestedValue);
+  return select;
+}
+
+/**
  * Normalizes list output without importing the client package. If the injected client exposes its
  * own `normalizeListResult`, that implementation wins; otherwise arrays and `.data` are handled
  * locally and numeric string counts are accepted.
@@ -137,6 +237,20 @@ function normalizeRecord(result) {
     return result;
   }
   throw new TypeError('ZeyOS get operation did not return a record');
+}
+
+/** @param {Record<string, unknown>} item @param {unknown} reader @returns {unknown} */
+function readRecord(item, reader) {
+  if (typeof reader === 'function') return reader(item);
+  if (item && typeof item === 'object' && typeof reader === 'string') return item[reader];
+  return null;
+}
+
+/** Dependency-free module-color example; exact product glyphs remain host-injectable. @param {Record<string, unknown>} _item @param {{module?: unknown}} context @returns {Node} */
+function defaultEntityIcon(_item, context) {
+  const chip = moduleChip(String(context.module ?? 'default'), { size: 20 });
+  chip.replaceChildren(icon('square', { size: 10 }));
+  return chip;
 }
 
 /** @param {unknown} valueKey @param {unknown} labelKey @param {string[]} searchFields @returns {string[]|undefined} */

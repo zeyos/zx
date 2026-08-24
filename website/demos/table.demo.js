@@ -122,8 +122,8 @@ function describeChanges(changes) {
 export default {
   title: 'Table',
   group: 'Data',
-  blurb: 'A sortable, selectable, editable data table with a sticky header — one component for '
-    + 'everything the legacy gx.ui.Table and SimpleTable did.',
+  blurb: 'A sortable, selectable, editable data table with a sticky header for dense records, '
+    + 'transactions, and operational workflows.',
 
   examples: [
     {

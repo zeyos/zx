@@ -7,10 +7,15 @@ import { Select } from './select.js';
  */
 export function registerSelectFieldAdapter() {
   Field.register('zxselect', (field, options) => {
-    const select = field.own(new Select(null, {
-      ...(options.props ?? {}),
-      value: options.value
-    }));
+    const props = options.props ?? {};
+    const preset = props.preset;
+    const selectOptions = { ...props, value: options.value };
+    delete selectOptions.preset;
+    const select = field.own(preset === 'priority'
+      ? Select.priority(null, selectOptions)
+      : preset === 'status'
+        ? Select.status(null, selectOptions)
+        : new Select(null, selectOptions));
     field.listen(select.el, 'change', (event) => event.stopImmediatePropagation());
     select.on('change', (event) => field.emit('change', { value: event.detail.value }));
     return {

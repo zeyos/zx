@@ -38,7 +38,7 @@ website/README.md should say the production site would instead load the built `d
 
 ## 1. Logo
 
-Design a clean, modern **"Zx"** logo — the library is called Zx, the successor to gx.
+Design a clean, modern **"Zx"** logo for the ZeyOS Xenon Design System.
 - A **wordmark** "Zx" set in a strong geometric style, plus a **monogram mark** (the "Zx"
   or a stylized "Z"/"x" ligature) inside a rounded square for the favicon/app icon.
 - Use the Zx green accent (`#008040`/`#00cc33`). Keep it simple and confident — geometric,
@@ -54,18 +54,16 @@ Reference `assets/zeyos.black.svg` only for co-branding context ("built for ZeyO
 Sections, in order, simple and scannable:
 1. **Header**: Zx logo (left), nav links (Docs, Components, Kitchen sink, GitHub placeholder `#`),
    a light/dark theme toggle button on the right.
-2. **Hero**: the logo/wordmark, headline (e.g. "The modern UI toolkit for ZeyOS"), one-sentence
-   subhead ("Dependency-free, accessible, themeable components — the vanilla-JS successor to gx."),
-   two buttons (`zx.button`): primary "Explore components" (→ `../demos/`), ghost "Kitchen sink"
-   (→ kitchen-sink.html). A subtle "Built for ZeyOS" line with the ZeyOS logo small.
+2. **Hero**: the logo/wordmark, a product-agnostic design-system headline, one-sentence subhead,
+   and the established "Explore the docs" and "Learn more about ZeyOS" calls to action.
 3. **Feature grid** (module-grid motif, ~6 cards): Zero dependencies · Accessible (WAI-ARIA APG) ·
-   Themeable tokens (light/dark/density) · 30+ components · gx compatibility layer · Native
+   Themeable tokens (light/dark/density) · broad component coverage · composable primitives · Native
    platform (dialog/popover/ElementInternals). Each card: an `icon()` glyph + title + one line.
 4. **Live showcase**: instantiate ~5 real Zx components inline so visitors see them working —
    a `Toggle`, a `Select` (local filter), a small `Table`, a `Datebox`, and a "Show toast" button
    firing `Message.success`. Wire them with the real ESM imports.
 5. **Quick start**: two short code blocks (ESM import + global script), copied from README.
-6. **Footer**: links (Docs/API/Migration/Skill), "successor to gx", license line.
+6. **Footer**: links to public documentation, API references, skills, and the license.
 
 Keep total custom CSS modest; lean on `zx.css` tokens (`--zx-color-*`, `--zx-space-*`, etc.) for
 colors and spacing so the site tracks the theme automatically. The theme toggle sets
@@ -73,8 +71,8 @@ colors and spacing so the site tracks the theme automatically. The theme toggle 
 
 ## 3. Kitchen sink (`kitchen-sink.html`) — with the ZeyOS Client library
 
-A realistic single-screen ERP module — **"Invoices"** — that exercises many components AND loads
-its data through the ZeyOS HTTP client, both the modern Zx client and the legacy compat client.
+A realistic single-screen ERP module — **"Invoices"** — that exercises many components and loads
+its data through the modern ZeyOS HTTP client.
 
 Layout: a `MasterPanel` (title "Invoices", `module` accent, header action buttons "New invoice"
 and "Refresh"), containing:
@@ -92,14 +90,14 @@ and "Refresh"), containing:
 ### The ZeyOS client (this is the point of the exercise)
 
 `mock-remotecall.js` patches `window.fetch` to simulate a ZeyOS backend with ~250ms latency, so
-the **real** `zx.Http` / `zeyosService` and the **compat** `gx.zeyos.Client` work unmodified:
+the real `zx.Http` / `zeyosService` works unmodified:
 - Intercept REST-style `../remotecall/invoices[:key]/list`, `/get`, `/save` and return
-  `{ result: … }` JSON envelopes. Also intercept the flat `./remotecall.php` endpoint (action in
-  the POST body) for the compat-client demo.
+  `{ result: … }` JSON envelopes.
 - Seed ~25 fake invoices and ~8 customers in-module.
 
-Wire it two ways and make the page state which client did what (a small "data source" note):
-1. **Modern Zx client** (primary): 
+Wire it through the modern Zx client and show a small data-source note:
+
+1. **Modern Zx client**:
    ```js
    import { zeyosService, parseResult } from '../src/index.js';
    const api = zeyosService('invoices');            // base ../remotecall/invoices/
@@ -107,26 +105,20 @@ Wire it two ways and make the page state which client did what (a small "data so
    const customers = parseResult(await zeyosService('customers').get('list'));
    await api.post('save', invoiceData);
    ```
-2. **Legacy compat client** (show it works): load `../dist/zx.global.js` + `../dist/zx-compat.global.js`
-   (run `npm run build` first so these exist), then in a classic script use
-   `new gx.zeyos.Client({ url: './remotecall.php' })` for ONE action (e.g. the "Refresh" button,
-   or a small "Load via legacy client" button) and log the result to a visible panel. This proves
-   the ZeyOS Client library runs on Zx.
-
 Add a short "About the data layer" note on the page explaining that no real backend is required —
 `mock-remotecall.js` fakes the ZeyOS `remotecall` endpoints, and the same code would talk to a
 real ZeyOS server by removing the mock.
 
 ## Acceptance criteria
 
-1. `npm run build` succeeds (needed for the compat-client part of the kitchen sink).
+1. `npm run build` succeeds.
 2. `npm run serve`, then:
    - `http://127.0.0.1:8321/website/` renders the landing page with the logo, working live
      showcase components, and a functioning light/dark toggle (persisted).
    - `http://127.0.0.1:8321/website/kitchen-sink.html` loads invoices into the table via the Zx
      client (visible latency), filtering and sorting work, editing opens the dialog with the
      customer select populated via the client, saving shows a success toast and updates the row,
-     and the legacy `gx.zeyos.Client` action works and logs its result.
+     and all data-client actions complete successfully.
    - No console errors on either page.
 3. Logo reads clearly at favicon size; light and dark variants both legible.
 4. Light/dark parity on both pages; the site uses semantic `--zx-*` tokens (no hardcoded colors

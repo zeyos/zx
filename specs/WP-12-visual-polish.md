@@ -1,9 +1,8 @@
-# WP12 — Carbon-inspired visual polish: line tabs, notification close, Font Awesome icons
+# WP12 — Visual polish: line tabs, notification close, Font Awesome icons
 
 Branch: work directly on `main` (single cohesive package, orchestrator reviews before push).
-Read `AGENTS.md`. Design reference: IBM Carbon Design System (carbondesignsystem.com) —
-we borrow its *patterns* (line tabs, notification anatomy, ghost icon buttons, restrained
-radii), not its tokens or assets. User-reported problems driving this WP:
+Read `AGENTS.md`. Refine the existing line-tab, notification, and icon treatments while keeping
+Zx's tokens and assets independent. User-reported problems driving this WP:
 
 1. Tabbox tabs look like buttons, and a scrollbar appears that should not be there.
 2. The Message toast close button is badly formatted.
@@ -13,7 +12,7 @@ radii), not its tokens or assets. User-reported problems driving this WP:
 
 ```
 src/core/icons.js                       # replace path set with Font Awesome Free (solid)
-src/components/tabbox/tabbox.css        # Carbon line-tab restyle
+src/components/tabbox/tabbox.css        # line-tab restyle
 src/components/navigation-bar/navigation-bar.css  # align with the same line-tab language
 src/components/message/message.css      # notification anatomy + ghost close button
 styles/base.css                         # scope scrollbar-gutter properly (see below)
@@ -44,12 +43,12 @@ npm package):
   control, verify 12–14px sizing may fit better and adjust the call sites' `size` option,
   e.g. select chevron, datebox calendar, search glass, toast close x).
 
-## 2. Tabbox — Carbon "line tabs"
+## 2. Tabbox — line tabs
 
 Current problems: tabs are raised bordered boxes (button look); tablist has `overflow-x: auto`
 which, combined with the global `scrollbar-gutter: stable`, reserves a permanent scrollbar.
 
-Restyle `.zx-tabbox` to Carbon line-tab anatomy:
+Restyle `.zx-tabbox` to a restrained line-tab anatomy:
 - Container: NO outer border, NO radius, transparent background (the tabbox no longer draws
   a card around itself — panels sit directly under the tab line). Remove the container
   border/background/radius rules.
@@ -71,7 +70,7 @@ Restyle `.zx-tabbox` to Carbon line-tab anatomy:
 - NavigationBar items adopt the same underline language (it already renders a tablist-like
   bar — align hover/active/underline styles; keep its bar background).
 
-## 3. Message — Carbon notification anatomy + ghost close
+## 3. Message — notification anatomy + ghost close
 
 Restyle `.zx-message__toast`:
 - Grid: `[icon] [content] [close]` with `align-items: start`; kind icon 16px aligned with the
@@ -99,7 +98,7 @@ layout shift regressions in the demos.
 
 1. `node --test tests/unit/*.test.js` and `node tests/lint-tokens.js` green (icon aliases
    keep passing; no raw colors added).
-2. Demos: Tabbox shows Carbon-style line tabs — no borders around tabs, no visible scrollbar
+2. Demos: Tabbox shows line tabs — no borders around tabs, no visible scrollbar
    in the tab row (macOS "always show scrollbars" case covered by scrollbar-width: none);
    selected tab = green underline + semibold.
 3. Message demo: toast close button is a borderless ghost icon button, correctly aligned;

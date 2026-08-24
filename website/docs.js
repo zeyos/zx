@@ -16,15 +16,18 @@
  * gives every example a linkable anchor (`#components/select/async-filter`).
  */
 
+import { highlightMatch } from '../src/core/dom.js';
 import { icon } from '../src/core/icons.js';
+import { Search } from '../src/components/search/search.js';
 import { collectDependencies } from './demo-source.js';
+import { rankDocsSearch } from './docs-search.js';
 
 /** Component demos, in sidebar order. The id is the `website/demos/<id>.demo.js` basename. */
 const COMPONENT_IDS = [
-  'tokens', 'kernel', 'icons', 'helpers', 'truncate', 'gx-compat',
+  'tokens', 'kernel', 'icons', 'helpers', 'truncate',
   'button', 'badge', 'check-button', 'toggle', 'search', 'launcher', 'avatar', 'account-menu', 'number-field', 'rating', 'slider', 'copy',
-  'layout', 'groupbox', 'panel', 'tabbox', 'navigation-bar', 'toolbar', 'empty-state',
-  'stepper', 'breadcrumb', 'split-view', 'dock', 'app-sidebar', 'app-rail',
+  'layout', 'groupbox', 'card', 'panel', 'tabbox', 'navigation-bar', 'toolbar', 'empty-state',
+  'stepper', 'breadcrumb', 'split-view', 'dock', 'app-sidebar',
   'loading', 'skeleton',
   'message', 'modal', 'dialog', 'sheet', 'sheet-stack', 'dropdown', 'menu-button', 'context-menu', 'tooltip',
   'select', 'checklist', 'tag-picker',
@@ -110,6 +113,8 @@ let referenceText = null;
 
 await buildRegistry();
 renderNavigation();
+buildGlobalSearch();
+observeHeaderHeight();
 buildDensitySwitcher();
 window.addEventListener('hashchange', route);
 route();
@@ -168,8 +173,16 @@ async function buildRegistry() {
       if (!groups.has(entry.group)) groups.set(entry.group, []);
       groups.get(entry.group).push(entry);
     }
+    for (const items of groups.values()) items.sort(compareEntriesByTitle);
     sections.push({ id, label, groups });
   }
+}
+
+/** Locale-independent alphabetical documentation order. @param {object} left @param {object} right @returns {number} */
+function compareEntriesByTitle(left, right) {
+  const a = String(left.title ?? '').normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase();
+  const b = String(right.title ?? '').normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase();
+  return a < b ? -1 : a > b ? 1 : String(left.title ?? '').localeCompare(String(right.title ?? ''), 'en');
 }
 
 /**
@@ -280,16 +293,261 @@ function buildFilter() {
     if (first) window.location.hash = `#${first.dataset.key}`;
   });
 
-  // `/` is the conventional focus shortcut, and must not fire while the reader is typing.
-  window.addEventListener('keydown', (event) => {
-    if (event.key !== '/' || event.metaKey || event.ctrlKey || event.altKey) return;
-    const active = document.activeElement;
-    if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement
-      || (active instanceof HTMLElement && active.isContentEditable)) return;
-    event.preventDefault();
-    filterField.focus();
-    filterField.select();
+}
+
+/* ------------------------------------------------------------ global search -- */
+
+/**
+ * Builds a destination-level index from the registry already loaded for the documentation app.
+ * Source code is deliberately excluded: it would swamp component, API, preset, and guide hits.
+ * @returns {Array<Record<string, any>>}
+ */
+function docsSearchIndex() {
+  const records = [];
+  const push = (record) => records.push({ ...record, id: `docs-search-record-${records.length}` });
+
+  for (const entry of entries.values()) {
+    const base = `#${entry.section}/${entry.id}`;
+    const category = `${entry.kind === 'guide' ? 'Guide' : entry.kind === 'layout' ? 'Layout' : 'Component'} · ${entry.group}`;
+    const marker = new RegExp(`<!--\\s*doc:${entry.id}\\s*-->([\\s\\S]*?)<!--\\s*/doc\\s*-->`)
+      .exec(referenceText ?? '');
+    const generated = (entry.api ?? []).map((name) => apiData[name]).filter(Boolean);
+    push({
+      label: entry.title,
+      parent: '',
+      category,
+      description: entry.blurb,
+      aliases: [entry.id, entry.import, ...(entry.api ?? [])],
+      keywords: `${marker?.[1] ?? ''} ${JSON.stringify(generated)}`,
+      href: base
+    });
+
+    if (entry.kind === 'guide') {
+      for (const heading of entry.template.content.querySelectorAll('h2')) {
+        let copy = '';
+        for (let node = heading.nextSibling; node && node.nodeName !== 'H2'; node = node.nextSibling) {
+          copy += ` ${node.textContent ?? ''}`;
+        }
+        push({
+          label: heading.textContent,
+          parent: entry.title,
+          category: 'Guide section',
+          description: copy.trim(),
+          aliases: [entry.id],
+          keywords: copy,
+          href: `${base}/${slug(heading.textContent)}`
+        });
+      }
+      continue;
+    }
+
+    for (const example of entry.examples) {
+      push({
+        label: example.title,
+        parent: entry.title,
+        category: `${example.preset ? 'Preset' : 'Example'} · ${entry.group}`,
+        description: example.blurb ?? '',
+        aliases: [entry.id, entry.title, example.id],
+        keywords: example.blurb ?? '',
+        href: `${base}/${example.id}`
+      });
+    }
+
+    const reference = splitReference(entry.id);
+    for (const [anchor, label, nodes] of [
+      ['api', 'API', reference.api],
+      ['notes', 'Behaviour', reference.notes],
+      ['accessibility', 'Keyboard and screen readers', reference.accessibility]
+    ]) {
+      if (nodes.length === 0 && anchor !== 'api') continue;
+      const prose = nodes.map((node) => node.textContent ?? '').join(' ');
+      push({
+        label: `${entry.title} ${label}`,
+        parent: entry.title,
+        category: label,
+        description: prose,
+        aliases: [entry.id, label],
+        keywords: `${prose} ${anchor === 'api' ? JSON.stringify(generated) : ''}`,
+        href: `${base}/${anchor}`
+      });
+    }
+  }
+  return records;
+}
+
+/** Wires the header combobox and its destination result list. @returns {void} */
+function buildGlobalSearch() {
+  const host = document.querySelector('[data-docs-search]');
+  const form = host?.querySelector('[data-docs-search-field]');
+  const popover = host?.querySelector('.docs-global-search__popover');
+  const results = host?.querySelector('#docs-search-results');
+  const status = host?.querySelector('#docs-search-status');
+  if (!host || !form || !popover || !results || !status) return;
+
+  const records = docsSearchIndex();
+  const search = new Search(form, {
+    placeholder: 'Search documentation',
+    debounce: 60
   });
+  const input = /** @type {HTMLInputElement} */ (search.refs.input);
+  input.role = 'combobox';
+  input.autocomplete = 'off';
+  input.spellcheck = false;
+  input.setAttribute('aria-autocomplete', 'list');
+  input.setAttribute('aria-controls', results.id);
+  input.setAttribute('aria-expanded', 'false');
+
+  let matches = [];
+  let active = -1;
+
+  const close = () => {
+    popover.hidden = true;
+    input.setAttribute('aria-expanded', 'false');
+    input.removeAttribute('aria-activedescendant');
+    active = -1;
+  };
+
+  const syncActive = () => {
+    const options = [...results.querySelectorAll('[role="option"]')];
+    options.forEach((option, index) => {
+      option.dataset.active = String(index === active);
+      option.setAttribute('aria-selected', String(index === active));
+    });
+    const option = options[active];
+    if (option) {
+      input.setAttribute('aria-activedescendant', option.id);
+      option.scrollIntoView({ block: 'nearest' });
+    } else input.removeAttribute('aria-activedescendant');
+  };
+
+  const render = () => {
+    const query = search.get().trim();
+    matches = rankDocsSearch(records, query, 10);
+    results.replaceChildren(...matches.map((record, index) => {
+      const result = element('a', 'docs-global-search__result');
+      result.id = `docs-search-option-${index}`;
+      result.href = record.href;
+      result.role = 'option';
+      result.setAttribute('aria-selected', 'false');
+      result.append(
+        element('span', 'docs-global-search__label', undefined,
+          highlightMatch(record.label, query)),
+        element('span', 'docs-global-search__meta',
+          [record.parent, record.category].filter(Boolean).join(' · '))
+      );
+      if (record.description) {
+        result.append(element('span', 'docs-global-search__description', record.description));
+      }
+      result.addEventListener('pointermove', () => {
+        if (active === index) return;
+        active = index;
+        syncActive();
+      });
+      return result;
+    }));
+
+    if (!query) {
+      status.textContent = '';
+      close();
+      return;
+    }
+    active = matches.length ? 0 : -1;
+    status.textContent = matches.length
+      ? `${matches.length} documentation ${matches.length === 1 ? 'result' : 'results'}`
+      : `No documentation found for “${query}”`;
+    popover.hidden = false;
+    input.setAttribute('aria-expanded', 'true');
+    syncActive();
+  };
+
+  const follow = (index) => {
+    const result = matches[index];
+    if (!result) return;
+    close();
+    window.location.hash = result.href;
+    queueMicrotask(focusSearchDestination);
+  };
+
+  search.on('input', render);
+  search.on('submit', () => follow(active));
+  input.addEventListener('focus', () => {
+    if (search.get().trim()) render();
+  });
+  input.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      if (!popover.hidden) event.preventDefault();
+      close();
+      return;
+    }
+    if (event.key === 'Tab') {
+      close();
+      return;
+    }
+    // Follow the active combobox option directly. Native form submission remains the pointer
+    // fallback, while this keeps Enter deterministic for keyboard and assistive-technology users.
+    if (event.key === 'Enter' && matches.length) {
+      event.preventDefault();
+      follow(active);
+      return;
+    }
+    if (matches.length === 0) return;
+    if (event.key === 'Home') active = 0;
+    else if (event.key === 'End') active = matches.length - 1;
+    else if (event.key === 'ArrowDown') active = (active + 1 + matches.length) % matches.length;
+    else if (event.key === 'ArrowUp') active = (active - 1 + matches.length) % matches.length;
+    else return;
+    event.preventDefault();
+    syncActive();
+  });
+  results.addEventListener('click', (event) => {
+    if (!event.target.closest?.('.docs-global-search__result')) return;
+    close();
+    queueMicrotask(focusSearchDestination);
+  });
+  document.addEventListener('pointerdown', (event) => {
+    if (!host.contains(event.target)) close();
+  });
+
+  // The header search owns the conventional documentation shortcuts. They stay inert while a
+  // reader is typing into another control.
+  window.addEventListener('keydown', (event) => {
+    const slash = event.key === '/' && !event.metaKey && !event.ctrlKey && !event.altKey;
+    const command = event.key.toLowerCase() === 'k' && (event.metaKey || event.ctrlKey)
+      && !event.altKey;
+    if ((!slash && !command) || event.isComposing) return;
+    const focused = document.activeElement;
+    if (focused !== input && (focused instanceof HTMLInputElement
+      || focused instanceof HTMLTextAreaElement || focused instanceof HTMLSelectElement
+      || (focused instanceof HTMLElement && focused.isContentEditable))) return;
+    event.preventDefault();
+    search.focus();
+    input.select();
+    if (search.get().trim()) render();
+  });
+}
+
+/** Focuses the routed section heading after a search selection. @returns {void} */
+function focusSearchDestination() {
+  requestAnimationFrame(() => {
+    const { anchor } = readHash();
+    const target = anchor
+      ? document.querySelector(`#section-${CSS.escape(anchor)} > :is(h2, h3)`)
+      : article.querySelector('h1');
+    if (!(target instanceof HTMLElement)) return;
+    target.tabIndex = -1;
+    target.focus({ preventScroll: true });
+    target.removeAttribute('tabindex');
+  });
+}
+
+/** Keeps every sticky offset correct when the responsive header gains a second row. */
+function observeHeaderHeight() {
+  const header = document.querySelector('.site-header');
+  if (!header) return;
+  const sync = () => shell.style.setProperty('--docs-header', `${header.getBoundingClientRect().height}px`);
+  sync();
+  if ('ResizeObserver' in window) new ResizeObserver(sync).observe(header);
+  else window.addEventListener('resize', sync);
 }
 
 /**
@@ -309,6 +567,10 @@ function route() {
  */
 function readHash() {
   const hash = decodeURIComponent(window.location.hash.replace(/^#/, ''));
+  if (hash === '' || hash === 'getting-started') {
+    const introduction = 'getting-started/introduction';
+    if (entries.has(introduction)) return { key: introduction, anchor: '' };
+  }
   const parts = hash.split('/');
   const key = parts.slice(0, 2).join('/');
   if (entries.has(key)) return { key, anchor: parts.slice(2).join('/') };
@@ -353,7 +615,7 @@ function showEntry(key) {
 
   const blocks = entry.kind === 'guide' ? guidePage(entry) : entryPage(entry);
   article.replaceChildren(...blocks);
-  document.title = `${entry.title} — Zx`;
+  document.title = `${entry.title} — ZeyOS Xenon Design System`;
   buildToc();
   window.scrollTo({ top: 0, behavior: 'instant' });
 }
@@ -1043,8 +1305,7 @@ function importFrom(source, entry) {
 
   for (const match of source.matchAll(/^import\s+(\{[^}]*\}|[\w*\s,]+?)\s+from\s+'([^']+)';/gm)) {
     const specifier = /\/src\/index\.js$/.test(match[2]) ? '@zeyos/zx'
-      : /\/src\/zeyos\//.test(match[2]) ? '@zeyos/zx/zeyos'
-        : /\/src\/compat\//.test(match[2]) ? '@zeyos/zx/compat' : null;
+      : /\/src\/zeyos\//.test(match[2]) ? '@zeyos/zx/zeyos' : null;
     // Anything else is a path into the sources that no consumer would write.
     if (!specifier) continue;
 
@@ -1362,10 +1623,12 @@ function buildToc() {
   const spy = () => {
     frame = 0;
     // The section whose top has most recently passed under the sticky header is the one being
-    // read; before any has, the first stays marked.
+    // read; before any has, the first stays marked. A shallow viewport-relative reading line
+    // tolerates live demos and source hints expanding above a freshly routed anchor.
+    const readingLine = Math.max(140, Math.min(240, window.innerHeight * 0.25));
     let current = targets[0];
     for (const target of targets) {
-      if (target.getBoundingClientRect().top <= 140) current = target;
+      if (target.getBoundingClientRect().top <= readingLine) current = target;
     }
     for (const [target, anchor] of links) {
       anchor.classList.toggle('docs-toc__link--current', target === current);

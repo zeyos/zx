@@ -106,6 +106,7 @@ export class Chart extends Component {
     this._chartOptions = cloneChartValue(this.options.chartOptions);
     this._loading = Boolean(this.options.loading);
     this._error = null;
+    this._hasError = false;
     this._handle = null;
     this._destroyed = false;
 
@@ -151,6 +152,7 @@ export class Chart extends Component {
   setData(data) {
     this._data = normalizeChartData(data);
     this._error = null;
+    this._hasError = false;
     this._loading = false;
     this._renderSummary();
     this._mountOrUpdate(true);
@@ -191,6 +193,7 @@ export class Chart extends Component {
   /** Shows an error and destroys the current engine. @param {unknown} error @returns {this} */
   setError(error) {
     this._error = error ?? new Error(String(this.options.errorText));
+    this._hasError = true;
     this._loading = false;
     this._destroyHandle();
     this._syncState();
@@ -201,6 +204,7 @@ export class Chart extends Component {
   /** Clears the error and remounts when data and an adapter are available. @returns {this} */
   clearError() {
     this._error = null;
+    this._hasError = false;
     this._mountOrUpdate(false);
     return this;
   }
@@ -240,7 +244,7 @@ export class Chart extends Component {
   /** @param {boolean} emitUpdate @returns {void} */
   _mountOrUpdate(emitUpdate) {
     this._syncState();
-    if (this._loading || this._error || isEmptyChartData(this._data)) {
+    if (this._loading || this._hasError || isEmptyChartData(this._data)) {
       this._destroyHandle();
       return;
     }
@@ -288,7 +292,7 @@ export class Chart extends Component {
   /** @returns {void} */
   _syncState() {
     const empty = isEmptyChartData(this._data);
-    const state = this._loading ? 'loading' : this._error ? 'error' : empty ? 'empty' : 'ready';
+    const state = this._loading ? 'loading' : this._hasError ? 'error' : empty ? 'empty' : 'ready';
     this.el.dataset.state = state;
     this.refs.viewport.hidden = state !== 'ready';
     let text = '';
@@ -509,7 +513,8 @@ function themeChartOptions(root) {
 
 /** @param {unknown} error @param {unknown} fallback @returns {string} */
 function errorMessage(error, fallback) {
-  return error && typeof error === 'object' && 'message' in error ? String(error.message) : String(fallback);
+  const message = error && typeof error === 'object' && 'message' in error ? String(error.message) : '';
+  return message.trim() ? message : String(fallback);
 }
 
 /** Fired after the adapter creates an engine instance. @event Chart#ready @type {CustomEvent<{instance: unknown}>} */

@@ -34,6 +34,56 @@ const cases = [
     component.open().setContent('Ready');
     assert(component.isOpen(), 'open failed');
   }),
+  componentCase('Card', () => new zx.Card(null, {
+    title: 'Account',
+    link: '#account',
+    content: 'Account summary',
+    footer: 'Updated today',
+    actions: [{ label: 'Edit', size: 'sm' }]
+  }), (component) => {
+    assert(component.el.localName === 'article', 'owned Card root is not an article');
+    const primary = component.el.querySelector('.zx-card__primary');
+    const action = component.el.querySelector('.zx-card__actions button');
+    assert(primary?.localName === 'a', 'Card primary action is not a native anchor');
+    assert(action && !primary.contains(action), 'Card secondary action is nested in its link');
+    component.setLink(null);
+    assert(!component.el.querySelector('.zx-card__primary'), 'setLink(null) kept the link');
+    component.setTitle('Updated account').setLink({ href: '#updated', target: '_blank' });
+    assert(component.el.querySelector('.zx-card__primary').rel.includes('noopener'),
+      'blank Card link omitted safe rel');
+    let rejectedUnsafeLink = false;
+    try { component.setLink('java\nscript:alert(1)'); } catch { rejectedUnsafeLink = true; }
+    assert(rejectedUnsafeLink, 'Card accepted a control-obfuscated javascript URL');
+    let staleLinkClicks = 0;
+    component.setLink({ href: '#old', onclick: () => { staleLinkClicks += 1; } });
+    const oldLink = component.el.querySelector('.zx-card__primary');
+    oldLink.addEventListener('click', (event) => event.preventDefault());
+    component.setLink('#new');
+    oldLink.click();
+    assert(staleLinkClicks === 0, 'a replaced Card link retained its old callback');
+    let staleActionClicks = 0;
+    component.setActions([{ label: 'Old action', onclick: () => { staleActionClicks += 1; } }]);
+    const oldAction = component.el.querySelector('.zx-card__actions button');
+    component.setActions([{ label: 'New action' }]);
+    oldAction.click();
+    assert(staleActionClicks === 0, 'a replaced Card action retained its old callback');
+    const savedStyle = component.el.getAttribute('style');
+    Object.assign(component.el.style, {
+      position: 'fixed', inset: '8px auto auto 8px', width: '320px', zIndex: '2147483647',
+      pointerEvents: 'auto'
+    });
+    const primaryLink = component.el.querySelector('.zx-card__primary');
+    const contentRect = component.refs.content.getBoundingClientRect();
+    const contentHit = document.elementFromPoint(contentRect.right - 4, contentRect.top + contentRect.height / 2);
+    assert(contentHit === primaryLink, 'Card primary link did not cover empty body space');
+    const actionRect = component.el.querySelector('.zx-card__actions button').getBoundingClientRect();
+    const actionHit = document.elementFromPoint(actionRect.left + actionRect.width / 2,
+      actionRect.top + actionRect.height / 2);
+    assert(actionHit?.closest('.zx-card__actions button'), 'Card primary link covered a secondary action');
+    if (savedStyle === null) component.el.removeAttribute('style');
+    else component.el.setAttribute('style', savedStyle);
+  }),
+  cardTargetCase(),
   componentCase('Panel', () => new zx.Panel(null, { title: 'Panel', content: 'Body' }), (component) => {
     const events = observe(component, 'close');
     component.close();
@@ -128,6 +178,65 @@ const cases = [
     assert(component.isOpen(), 'Tab closed the native modal launcher');
     component.close();
   }),
+  componentCase('Launcher (async selection stability)', () => new zx.Launcher(null, {
+    debounce: 0,
+    items: [
+      { id: 'alpha', label: 'Alpha', kind: 'application' },
+      { id: 'beta', label: 'Beta', kind: 'application' }
+    ],
+    sources: [{
+      id: 'records',
+      label: 'Records',
+      load: () => new Promise((resolve) => setTimeout(() => resolve([
+        { id: 'remote', label: 'Remote result', kind: 'record' }
+      ]), 20))
+    }]
+  }), async (component) => {
+    component.open();
+    await delay(0);
+    component.refs.input.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
+    assert(component._results[component._active]?.id === 'beta', 'launcher did not move to Beta');
+    await delay(30);
+    assert(component._results[component._active]?.id === 'beta',
+      'late launcher results replaced the keyboard-selected item');
+    component.setQuery('a');
+    assert(component._results[component._active]?.id === 'alpha',
+      'a new launcher query retained the previous query selection');
+    component.close();
+  }),
+  componentCase('Launcher (safe destinations)', () => new zx.Launcher(null, {
+    debounce: 0,
+    items: [{
+      id: 'unsafe-local',
+      label: 'Unsafe local',
+      href: 'java\nscript:globalThis.__zxUnsafeNavigationAudit=1'
+    }],
+    sources: [{
+      id: 'unsafe-source',
+      minQuery: 1,
+      load: () => [{
+        id: 'unsafe-remote',
+        label: 'Unsafe remote',
+        href: 'javascript:globalThis.__zxUnsafeNavigationAudit=2'
+      }]
+    }]
+  }), async (component) => {
+    globalThis.__zxUnsafeNavigationAudit = 0;
+    component.open();
+    const local = component.el.querySelector('[data-launcher-index="0"]');
+    assert(local.localName === 'button' && local.getAttribute('aria-disabled') === 'true',
+      'launcher rendered an unsafe local destination as an enabled anchor');
+    local.click();
+    component.setQuery('unsafe remote');
+    await delay(10);
+    const remote = component.el.querySelector('[data-launcher-index="0"]');
+    assert(remote.localName === 'button' && remote.getAttribute('aria-disabled') === 'true',
+      'launcher rendered an unsafe source destination as an enabled anchor');
+    remote.click();
+    assert(globalThis.__zxUnsafeNavigationAudit === 0, 'launcher executed an unsafe destination');
+    delete globalThis.__zxUnsafeNavigationAudit;
+    component.close();
+  }),
   launcherTargetCase(),
   componentCase('Avatar', () => new zx.Avatar(null, {
     name: 'Ada Lovelace', label: 'Ada Lovelace', status: 'online', statusLabel: 'Online'
@@ -161,7 +270,7 @@ const cases = [
       `account menu ancestor received ${ancestorSelects} bubbling select events instead of one`);
     component.close().setAccount({ name: 'Grace Hopper' });
   }),
-  componentCase('AppRail', () => new zx.AppRail(null, {
+  componentCase('AppSidebar (horizontal rail)', () => new zx.AppSidebar(null, {
     items: [{ id: 'sales', label: 'Sales', icon: 'search', children: [
       { id: 'blocked', label: 'Unavailable', disabled: true },
       { id: 'leads', label: 'Leads' },
@@ -241,6 +350,8 @@ const cases = [
       'opening a descendant bypassed its disabled owning rail branch');
     trigger.focus();
     assert(component.isFlyoutOpen('sales'), 'rail focus did not open its flyout');
+    trigger.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
+    assert(component.isFlyoutOpen('sales'), 'activating a focused rail branch closed its flyout');
     document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
     assert(!component.isFlyoutOpen('sales') && changes.at(-1) === false,
       'outside dismissal did not report the rail flyout close');
@@ -257,10 +368,15 @@ const cases = [
     items: [{ id: 'sales', label: 'Sales', icon: 'search', children: [{ id: 'overview', label: 'Overview' }] }],
     expanded: ['sales']
   }), (component) => {
+    const root = component.el;
     let rootSelects = 0;
     let ancestorSelects = 0;
     component.el.addEventListener('zx-select', () => { rootSelects += 1; });
     component.el.parentElement.addEventListener('zx-select', () => { ancestorSelects += 1; });
+    const detachedCollapse = component.refs.collapse;
+    component.collapse().expand();
+    detachedCollapse.click();
+    assert(!component.isCollapsed(), 'a detached sidebar control retained a live mode listener');
     assert(!component.el.querySelector('.zx-app-sidebar__sublist').hidden, 'expanded branch missing');
     let salesDisclosure = component.el.querySelector('[data-app-nav-id="sales"]');
     salesDisclosure.focus();
@@ -286,15 +402,16 @@ const cases = [
     assert(component.isCollapsed(), 'sidebar did not minimize');
     const expand = component.el.querySelector('.zx-app-sidebar__rail-toggle');
     assert(document.activeElement === expand, 'programmatic minimization did not move focus to its rail toggle');
-    component.getRail().openFlyout('sales', { focus: true });
+    component.openFlyout('sales', { focus: true });
     component.expand();
-    assert(component.refs.rail.hidden && !component.getRail().isFlyoutOpen('sales')
+    assert(component.el === root && !component.el.querySelector('.zx-app-sidebar__rail')
+      && !component.isFlyoutOpen('sales')
       && document.activeElement === component.refs.collapse,
-    'programmatic expansion left a minimized-rail flyout open or lost its detached-panel focus');
+    'programmatic expansion replaced the owner, left a flyout open, or lost focus');
     component.collapse();
-    assert(document.activeElement === expand,
+    assert(document.activeElement === component.el.querySelector('.zx-app-sidebar__rail-toggle'),
       'programmatic minimization did not restore focus from the expanded presentation');
-    component.getRail().openFlyout('sales');
+    component.openFlyout('sales');
     document.querySelector('.zx-app-rail__popover[aria-label="Sales sub-navigation"]')
       .querySelector('[data-app-nav-id="sales/overview"]').click();
     assert(rootSelects === 1, `collapsed sidebar emitted ${rootSelects} bubbling select events instead of one`);
@@ -304,6 +421,59 @@ const cases = [
     assert(document.activeElement === component.refs.collapse,
       'programmatic expansion did not move focus to its expanded toggle');
     assert(component.getExpanded()[0] === 'sales', 'branch state did not survive minimization');
+    const layoutChanges = [];
+    component.on('collapsechange', (event) => layoutChanges.push(event.detail.collapsed));
+    component.el.querySelector('[data-app-nav-id="overview"]').focus();
+    component.setCollapsed(false).setLayout({ orientation: 'horizontal', side: 'top' });
+    assert(component.isCollapsed() && !component.el.querySelector('.zx-app-sidebar__collapse')
+      && !component.el.querySelector('.zx-app-sidebar__sublist'),
+    'horizontal layout exposed expansion UI or inline descendants');
+    assert(component.el.contains(document.activeElement),
+      'horizontal layout change discarded focus from application navigation');
+    component.setLayout({ orientation: 'vertical', side: 'left' });
+    assert(!component.isCollapsed() && component.getExpanded()[0] === 'sales',
+      'returning from horizontal layout lost the vertical state');
+    assert(component.el.contains(document.activeElement),
+      'vertical layout change discarded focus from application navigation');
+    assert(layoutChanges.join(',') === 'true,false',
+      `layout changes emitted the wrong collapsed states: ${layoutChanges}`);
+  }),
+  componentCase('AppSidebar (safe destinations)', () => new zx.AppSidebar(null, {
+    items: [
+      {
+        id: 'unsafe-root',
+        label: 'Unsafe root',
+        href: 'javascript:globalThis.__zxUnsafeNavigationAudit=1'
+      },
+      {
+        id: 'records',
+        label: 'Records',
+        children: [{
+          id: 'unsafe-child',
+          label: 'Unsafe child',
+          href: 'java\nscript:globalThis.__zxUnsafeNavigationAudit=2'
+        }]
+      }
+    ],
+    expanded: ['records'],
+    openDelay: 0
+  }), (component) => {
+    globalThis.__zxUnsafeNavigationAudit = 0;
+    for (const control of component.el.querySelectorAll('[data-app-nav-id*="unsafe"]')) {
+      assert(control.localName === 'button' && control.getAttribute('aria-disabled') === 'true',
+        'expanded sidebar rendered an unsafe destination as an enabled anchor');
+      control.click();
+    }
+    component.collapse().openFlyout('records');
+    const railRoot = component.el.querySelector('[data-app-nav-id="unsafe-root"]');
+    const railChild = document.querySelector('[data-app-nav-id="records/unsafe-child"]');
+    for (const control of [railRoot, railChild]) {
+      assert(control.localName === 'button' && control.getAttribute('aria-disabled') === 'true',
+        'minimized sidebar rendered an unsafe destination as an enabled anchor');
+      control.click();
+    }
+    assert(globalThis.__zxUnsafeNavigationAudit === 0, 'sidebar executed an unsafe destination');
+    delete globalThis.__zxUnsafeNavigationAudit;
   }),
   componentCase('Message', () => new zx.Message(null, { timeout: 0 }), (component) => {
     const handle = component.show('Ready', { timeout: 0 });
@@ -407,6 +577,53 @@ const cases = [
     component.set(true);
     assert(component.value === true, 'a pinned value stopped resolving after setItems');
     events.expect();
+  }),
+  componentCase('Select (permission async groups)', () => {
+    const select = zx.Select.permission(null, {
+      groups: () => {
+        select._permissionLoads = (select._permissionLoads ?? 0) + 1;
+        return sampleItems();
+      },
+      filter: false,
+      debounce: 0
+    });
+    return select;
+  }, async (component) => {
+    assert(typeof component.options.filter === 'function',
+      'permission filter override disconnected its async group loader');
+    component.open();
+    await delay(5);
+    assert(component._permissionLoads === 1, 'permission async group loader did not run');
+    component.close();
+  }),
+  componentCase('Select (priority preset)', () => zx.Select.priority(null, { value: 2 }), (component) => {
+    const indicator = component.refs.valueAdornment.querySelector('.zx-select__priority-icon');
+    assert(indicator && !component.refs.valueAdornment.hidden, 'priority value adornment missing');
+    assert(indicator.children.length === 5, 'priority indicator does not contain five squares');
+    assert(indicator.querySelectorAll('[data-filled="true"]').length === 3,
+      'priority level did not fill the expected number of squares');
+  }),
+  componentCase('Select (status preset)', () => zx.Select.status(null, { value: 'in-progress' }), (component) => {
+    const events = observe(component, 'change');
+    assert(!component.refs.valueAdornment.hidden, 'status value adornment missing');
+    component.open();
+    const options = [...component.refs.list.querySelectorAll('[role="option"]')];
+    assert(options.length === 9, `status preset rendered ${options.length} options instead of nine`);
+    assert(options[0].querySelector('kbd')?.textContent === '1', 'status keyboard hint missing');
+    component.refs.input.dispatchEvent(new KeyboardEvent('keydown', { key: '4', bubbles: true }));
+    assert(component.value === 'in-review', 'status option did not update the value');
+    events.expect();
+  }),
+  componentCase('Select (action rows)', () => new zx.Select(null, {
+    items: sampleItems(),
+    value: 1,
+    actions: [{ id: 'create', label: 'Create item…', icon: 'plus' }]
+  }), (component) => {
+    const actions = observe(component, 'action');
+    component.open();
+    component.refs.list.querySelector('[data-kind="action"]').click();
+    assert(component.value === 1, 'command row changed the selected value');
+    actions.expect();
   }),
   componentCase('NumberField', () => new zx.NumberField(null, { value: 5, min: 0, max: 10 }), (component) => {
     const events = observe(component, 'change');
@@ -513,6 +730,7 @@ const cases = [
     assert(component.el.dataset.preset === 'billing-items', 'billing preset marker missing');
     assert(component.getExpanded()[0] === 'group', 'billing hierarchy did not expand');
   }),
+  billingGridTargetCase(),
   chartCase(),
   componentCase('DataFilter', () => new zx.DataFilter(null, {
     filters: [{ type: 'text', id: 'query', label: 'Search', fields: ['name'] }],
@@ -742,6 +960,72 @@ function launcherTargetCase() {
   };
 }
 
+/** Exercises Card enhancement and exact target restoration. @returns {SmokeDefinition} */
+function cardTargetCase() {
+  return {
+    name: 'Card (existing target)',
+    create(fixture) {
+      const rejected = document.createElement('section');
+      rejected.dataset.keep = 'rejected';
+      rejected.append(document.createTextNode('original rejected target'));
+      fixture.append(rejected);
+      const rejectedBefore = rejected.outerHTML;
+      let threw = false;
+      try {
+        new zx.Card(rejected, { title: 'Unsafe', link: 'java\nscript:alert(1)' });
+      } catch { threw = true; }
+      assert(threw, 'unsafe Card construction did not throw');
+      assert(rejected.outerHTML === rejectedBefore,
+        `rejected Card construction corrupted its target: ${rejected.outerHTML}`);
+      rejected.remove();
+      const target = document.createElement('section');
+      target.dataset.keep = 'yes';
+      target.append(document.createTextNode('original card content'));
+      fixture.append(target);
+      const before = target.outerHTML;
+      const component = new zx.Card(target, { title: 'Enhanced card' });
+      return { component, target, before };
+    },
+    exercise({ component }) {
+      assert(component.refs.content.textContent === 'original card content',
+        'Card did not adopt enhanced children');
+      component.setFooter('Footer').setActions([{ label: 'Action' }]);
+    },
+    destroy({ component, target, before }) {
+      component.destroy();
+      assert(target.outerHTML === before, `Card did not restore its target: ${target.outerHTML}`);
+      target.remove();
+    }
+  };
+}
+
+/** Exercises BillingItems enhancement and exact target restoration. @returns {SmokeDefinition} */
+function billingGridTargetCase() {
+  return {
+    name: 'Grid (existing billing target)',
+    create(fixture) {
+      const target = document.createElement('section');
+      target.dataset.keep = 'yes';
+      target.setAttribute('aria-busy', 'mixed');
+      target.append(document.createTextNode('original grid content'));
+      fixture.append(target);
+      const before = target.outerHTML;
+      const component = zx.Grid.BillingItems(target, { data: [] });
+      return { component, target, before };
+    },
+    exercise({ component }) {
+      component.setLoading(true);
+      component._setStacked(true);
+      assert(component.el.dataset.preset === 'billing-items', 'enhanced billing preset marker missing');
+    },
+    destroy({ component, target, before }) {
+      component.destroy();
+      assert(target.outerHTML === before, `Grid did not restore its target: ${target.outerHTML}`);
+      target.remove();
+    }
+  };
+}
+
 /** Exercises Chart host lifecycle, semantic summary, and exact adapter destruction. @returns {SmokeDefinition} */
 function chartCase() {
   return {
@@ -774,6 +1058,15 @@ function chartCase() {
       component.setData({ labels: ['Feb'], datasets: [{ label: 'Revenue', data: [84] }] }).resize();
       assert(component.el.querySelector('.zx-chart__table').textContent.includes('84'),
         'chart summary did not update');
+      component.setError(false);
+      assert(component.el.dataset.state === 'error' && component.refs.viewport.hidden
+        && !component.refs.status.hidden && component.refs.status.textContent === component.options.errorText,
+      'a falsy chart error left the component visually ready');
+      component.clearError().setError(new Error(''));
+      assert(component.el.dataset.state === 'error' && !component.refs.status.hidden
+        && component.refs.status.textContent === component.options.errorText,
+      'an empty chart error hid its fallback status');
+      component.clearError();
     },
     destroy({ component, instance }) {
       component.destroy();

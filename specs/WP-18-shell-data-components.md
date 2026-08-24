@@ -8,7 +8,7 @@ primitives only where the new shell components need reusable behavior.
 
 Add the dependency-free application-shell components needed to adopt Zx in the current ZeyOS UI
 without replacing its routing, authentication, permissions, or page-controller logic: Launcher,
-Avatar, AccountMenu, expanded AppSidebar, minimized AppRail, a generic chart adapter with a
+Avatar, AccountMenu, the expanded and minimized AppSidebar modes, a generic chart adapter with a
 Chart.js implementation, and a generic Grid with `Grid.BillingItems()`.
 
 ## Scope
@@ -30,7 +30,7 @@ src/components/account-menu/account-menu.js
 src/components/account-menu/account-menu.css
 src/components/app-sidebar/app-sidebar.js
 src/components/app-sidebar/app-sidebar.css
-src/components/app-rail/app-rail.js
+src/internal/app-rail.js
 src/components/app-rail/app-rail.css
 src/components/chart/chart.js
 src/components/chart/chart.css
@@ -49,7 +49,6 @@ website/demos/launcher.demo.js
 website/demos/avatar.demo.js
 website/demos/account-menu.demo.js
 website/demos/app-sidebar.demo.js
-website/demos/app-rail.demo.js
 website/demos/chart.demo.js
 website/demos/grid.demo.js
 tools/build-site.js
@@ -57,7 +56,6 @@ docs/llms.md
 docs/llms.txt
 docs/api.json
 DESIGN-SYSTEM.md
-MIGRATION.md
 CHANGELOG.md
 src/components/layout/layout.js
 website/demos/layout.demo.js
@@ -105,19 +103,20 @@ repeats identity, accepts grouped items/separators, isolates destructive actions
 metadata, and preserves MenuButton's APG keyboard/focus behavior. It emits actions and never owns
 authentication, preference mutation, or sign-out.
 
-## AppSidebar and AppRail
+## AppSidebar
 
-Both components accept the same tree of application navigation items. A parent with children is a
+The component accepts a tree of application navigation items. A parent with children is a
 disclosure-only control; applications that need a parent destination provide an explicit Overview
 child. Persistent application navigation uses semantic `nav`, lists, links, and disclosure buttons,
 not menu/menubar roles.
 
-- `AppSidebar` is the expanded vertical presentation. It alone may reveal descendants inline.
-  It provides header, scrollable navigation, and sticky footer regions; exposes controlled
-  collapsed, active, expanded-branch, and item update methods; and renders an `AppRail` while
-  collapsed. Expanded branch IDs survive collapse and restoration.
-- `AppRail` is the minimized presentation and supports vertical and horizontal orientation. It
-  never reveals descendants inline. Child collections appear in anchored flyouts: toward the
+- `AppSidebar` is the single public application-navigation component. Its expanded vertical mode
+  alone may reveal descendants inline. It provides header, scrollable navigation, and sticky
+  footer regions; exposes controlled layout, collapsed, active, expanded-branch, and item update
+  methods; and uses an internal rail presenter for compact layouts. Expanded branch IDs survive
+  collapse and restoration.
+- Minimized vertical and horizontal layouts never reveal descendants inline. Child collections
+  appear in anchored flyouts: toward the
   workspace for a vertical rail and away from a top/bottom horizontal rail.
 - Rail flyouts open by hover and keyboard focus, and remain reachable through click/Enter/Space and
   arrow keys. They do not steal focus on hover, remain open while pointer or focus crosses between
@@ -173,18 +172,18 @@ expanded inline children and the same tree collapsed into a rail; a horizontal r
 prove hover/focus flyouts. The Chart demo injects Chart.js into `ChartJsAdapter` and explains the
 zero-runtime-dependency boundary.
 
-Update the design-system inventory and migration guide with the new shell/data coverage and the
-explicit application-owned boundaries. Do not copy Shadcn markup/classes/assets or Carbon/Fiori
-implementation code.
+Update the design-system inventory with the new shell/data coverage and the explicit
+application-owned boundaries. Do not copy third-party markup, classes, assets, or implementation
+code.
 
 ## Non-goals
 
 - Rewriting ZeyOS routing, page lifecycle, authorization, launcher endpoints, account/session
   behavior, server schemas, or UI controllers.
-- React, Shadcn, Tailwind, Radix, Base UI, Lucide, a router, a state store, or any Chart.js runtime
-  import in Zx.
+- Component frameworks, CSS utility frameworks, icon packages, a router, a state store, or any
+  Chart.js runtime import in Zx.
 - Hover-only navigation, an ARIA menubar for persistent navigation, ambiguous parent
-  navigate-and-expand behavior, or inline submenus in any AppRail orientation.
+  navigate-and-expand behavior, or inline submenus in any minimized AppSidebar layout.
 - Spreadsheet formulas, tax engines, accounting rounding policy, pivoting, virtual scrolling,
   remote persistence, or undo history.
 
@@ -196,9 +195,9 @@ implementation code.
    invariants without adding a DOM emulation dependency.
 2. Browser smoke creates, exercises, and destroys every new exported Component; teardown leaves no
    dialogs, popovers, observers, document listeners, or Chart.js instances.
-3. Expanded AppSidebar is the only inline submenu presentation. Vertical and horizontal AppRail
-   expose all children in flyouts through pointer, focus, and keyboard, with correct accessible
-   names and focus restoration.
+3. Expanded AppSidebar is the only inline submenu presentation. Its minimized vertical and
+   horizontal layouts expose all children in flyouts through pointer, focus, and keyboard, with
+   correct accessible names and focus restoration.
 4. Launcher selection and all navigation/account actions are cancelable events and never perform
    application-owned work themselves.
 5. `Grid.BillingItems()` demonstrates editable currencies, units, and nested line items while

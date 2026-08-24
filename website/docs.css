@@ -16,6 +16,87 @@
   padding-inline: var(--zx-space-5);
 }
 
+/* Global documentation search occupies the flexible centre of the application header. */
+.docs-global-search {
+  position: relative;
+  flex: 1 1 24rem;
+  min-inline-size: 12rem;
+  max-inline-size: 34rem;
+  margin-inline: auto;
+}
+
+.docs-global-search .zx-search {
+  inline-size: 100%;
+}
+
+.docs-global-search .zx-search__input {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  background: var(--zx-color-bg-page);
+}
+
+.docs-global-search__popover {
+  position: absolute;
+  z-index: 40;
+  inset-block-start: calc(100% + var(--zx-space-2));
+  inset-inline: 0;
+  max-block-size: min(70dvh, 32rem);
+  overflow-y: auto;
+  border: 1px solid var(--zx-color-border);
+  border-radius: var(--zx-radius-lg);
+  background: var(--zx-color-bg-raised);
+  box-shadow: var(--zx-overlay-shadow);
+}
+
+.docs-global-search__popover[hidden] {
+  display: none;
+}
+
+.docs-global-search__status {
+  padding: var(--zx-space-2) var(--zx-space-3);
+  border-block-end: 1px solid var(--zx-color-border);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+}
+
+.docs-global-search__result {
+  display: grid;
+  gap: 2px;
+  padding: var(--zx-space-3) var(--zx-space-4);
+  color: var(--zx-color-text);
+  text-decoration: none;
+}
+
+.docs-global-search__result:hover,
+.docs-global-search__result[data-active="true"] {
+  background: var(--zx-color-bg-selected);
+}
+
+.docs-global-search__result:focus-visible {
+  outline: 0;
+  box-shadow: inset var(--zx-focus-ring);
+}
+
+.docs-global-search__label {
+  font-weight: 650;
+}
+
+.docs-global-search__meta,
+.docs-global-search__description {
+  overflow: hidden;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.docs-global-search mark {
+  background: transparent;
+  color: var(--zx-color-accent);
+  font-weight: inherit;
+}
+
 .docs-shell {
   --docs-header: 65px;
   display: grid;
@@ -357,6 +438,12 @@
   border-block-end: 0;
 }
 
+/* Small reference lists such as getters are labels, not data grids. Row rules only add visual
+   noise immediately before the next section; generated multi-column API tables keep theirs. */
+.docs-api__table:not(:has(colgroup)) :is(.docs-api__term, .docs-api__type, .docs-api__note) {
+  border-block-end: 0;
+}
+
 .docs-note {
   margin: 0 0 var(--zx-space-4);
   max-inline-size: 78ch;
@@ -378,31 +465,21 @@
 .docs-example-group__title {
   display: flex;
   align-items: center;
-  gap: var(--zx-space-4);
+  gap: var(--zx-space-3);
   margin: 0 0 var(--zx-space-5);
-  color: var(--zx-color-text);
-  font-size: clamp(1.4rem, 2.4vw, 1.75rem);
+  color: var(--zx-color-accent);
+  font-size: var(--zx-text-sm);
   font-weight: 700;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
+  line-height: 1.3;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
 }
 
 .docs-example-group__title::after {
   content: "";
   flex: 1;
   block-size: 1px;
-  background: var(--zx-color-border);
-}
-
-/* The examples are the practical entry point into each API, so their landmark carries the same
-   high-contrast green as links and focus states instead of reading like secondary metadata. */
-.docs-examples .docs-example-group__title {
-  color: var(--zx-color-accent);
-}
-
-.docs-presets {
-  padding-block-start: var(--zx-space-2);
-  border-block-start: 1px solid var(--zx-color-border);
+  background: currentColor;
 }
 
 /* One example: the heading and blurb sit on the page, the running component and its source share
@@ -1401,6 +1478,10 @@
 }
 
 @media (max-width: 900px) {
+  .docs-global-search {
+    flex-basis: 18rem;
+  }
+
   .docs-shell {
     display: block;
   }
@@ -1420,6 +1501,29 @@
   .docs-filter {
   inline-size: 100%;
   margin-block-end: var(--zx-space-5);
+}
+
+@media (max-width: 780px) {
+  .site-page--app .site-actions {
+    order: 1;
+    margin-inline-start: auto;
+  }
+
+  .docs-global-search {
+    order: 2;
+    flex: 1 0 100%;
+    min-inline-size: 0;
+    max-inline-size: none;
+    margin-inline: 0;
+  }
+
+  .site-page--app .site-nav {
+    order: 3;
+  }
+
+  .docs-global-search__popover {
+    max-block-size: min(62dvh, 28rem);
+  }
 }
 
 .docs-navigation__empty {

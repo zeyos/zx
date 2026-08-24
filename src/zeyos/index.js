@@ -16,6 +16,12 @@ export {
   moduleGlyphColor, normalizeModuleName, registerModules
 } from './modules.js';
 export { ZEYOS_ICON_KIT, useZeyosIcons, moduleIcon, moduleChip } from './icons.js';
-export { zeyosSelect } from './select.js';
+export {
+  ZEYOS_LAUNCHER_APPLICATIONS, buildZeyosLauncherConfig, zeyosLauncher,
+  normalizeZeyosLauncherApplications, normalizeZeyosLauncherRecords, zeyosActiveIdentifier
+} from './launcher.js';
+export {
+  zeyosSelect, buildZeyosSelectConfig, zeyosEntitySelect, buildZeyosEntitySelectConfig
+} from './select.js';
 export { zeyosForm } from './form.js';
 export { zeyosTable } from './table.js';

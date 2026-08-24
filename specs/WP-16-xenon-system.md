@@ -1,6 +1,6 @@
 # WP16 — Xenon design-system positioning and transaction tables
 
-Branch: work on `main`. Read `AGENTS.md`, `MIGRATION.md`, `specs/WP-6-table.md`, and
+Branch: work on `main`. Read `AGENTS.md`, `specs/WP-6-table.md`, and
 `specs/WP-13-website.md` first. This work package supersedes WP6's inline-editing exclusion and
 WP13's website-only source exclusion only for the files and behavior named below.
 
@@ -15,7 +15,6 @@ or requiring an application rewrite.
 
 ```
 specs/WP-16-xenon-system.md
-MIGRATION.md
 DESIGN-SYSTEM.md
 website/index.html
 website/site.css
@@ -114,7 +113,7 @@ as HTML. Existing `h()` behavior stays unchanged.
 - Formula parsing, spreadsheet fill handles, arbitrary nested tables, pivoting, grouping unrelated
   rows, virtual scrolling, remote persistence, or undo history.
 - Rewriting ZeyOS routing, page controllers, server schemas, or current UI application logic.
-- Copying Carbon or Fiori code, markup, visual assets, or proprietary language.
+- Copying third-party code, markup, visual assets, or proprietary language.
 
 ## Acceptance criteria
 

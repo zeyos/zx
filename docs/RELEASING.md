@@ -128,11 +128,20 @@ First move `CHANGELOG.md`'s `## Unreleased` heading to the version and date bein
 fresh `## Unreleased` above it. The file ships in the tarball, so an entry that still says
 "Unreleased" is published as such.
 
-The publish workflow refuses to run if the tag and the package version disagree, so bump next:
+The publish workflow refuses to run if the tag and package version disagree. Set the intended
+semver, update both manifests without creating an implicit commit, then commit and tag the verified
+tree explicitly:
 
 ```sh
-npm version 2.0.0 -m "release: %s"
-git push --follow-tags
+ZX_RELEASE_VERSION=4.0.0
+npm version "$ZX_RELEASE_VERSION" --no-git-tag-version
+npm test
+npm run build
+git add package.json package-lock.json CHANGELOG.md
+git commit -m "release: $ZX_RELEASE_VERSION"
+git tag -a "v$ZX_RELEASE_VERSION" -m "release: $ZX_RELEASE_VERSION"
+git push origin main
+git push origin "v$ZX_RELEASE_VERSION"
 ```
 
 Then create a GitHub Release for the new tag. Publishing it starts `publish.yml`, which
@@ -159,18 +168,17 @@ npm publish --tag next
 
 ## What gets published
 
-`files` in `package.json` limits the tarball to the built `dist/` assets, the public `src/` and
-`styles/` trees, the agent-facing reference files (`llms.md`, `llms.txt`, `api.json`), and the
-project documentation and licence. The documentation website, demos, tests, tools, and specs stay
-out of it. Most consumers should use the built entry points:
+`files` in `package.json` limits the tarball to the built `dist/` assets, public component source,
+the `styles/` tree, the agent-facing reference files (`llms.md`, `llms.txt`, `api.json`), and the
+project documentation and licence. Repository-internal adapters, the documentation website,
+demos, tests, tools, and specs stay out of it. Most consumers should use the built entry points:
 
 | Entry point | Import |
 | --- | --- |
 | Components | `import { Table } from '@zeyos/zx'` |
 | Styles | `import '@zeyos/zx/zx.css'` |
 | ZeyOS binding | `import { zeyosTable } from '@zeyos/zx/zeyos'` |
-| gx compatibility | `import { gx } from '@zeyos/zx/compat'` |
-| Global bundles | `@zeyos/zx/global`, `@zeyos/zx/compat-global` |
+| Global bundle | `@zeyos/zx/global` |
 
 Publishing to npm also makes the CDN copies work without any extra step:
 `https://cdn.jsdelivr.net/npm/@zeyos/zx/dist/zx.esm.js`.

@@ -8,6 +8,57 @@ and friends remain the complete record.
 
 ## Unreleased
 
+## 4.0.0 — 2026-08-24
+
+### Added
+
+- **`Card`.** A semantic, product-agnostic content and record surface with optional media, native
+  title link, secondary actions, footer metadata, three variants, horizontal/vertical layout, and
+  exact enhanced-target restoration. The root never impersonates a link or button, so nested
+  controls remain valid and independently keyboard-accessible.
+
+### Changed
+
+- **One public application-navigation component.** `AppSidebar` now owns expanded vertical, minimized
+  vertical, and horizontal rail presentations over one active/branch state model. Descendants are
+  inline only while expanded and use pointer-, focus-, and keyboard-accessible flyouts in rail
+  states; its minimized renderer is an implementation detail, not a second public component.
+- **Richer Select presets.** `Select.priority()` now uses the five-square ZeyOS scale;
+  `Select.status()` adds shape- and semantic-color-distinct workflow states; and the optional
+  `zeyosEntitySelect()` binding adds grouped remote records, module-colored icons, an explicit
+  empty choice, and application-owned command rows without changing the selected-ID contract.
+- **Full launcher parity.** `Launcher` now distinguishes application tiles from record rows,
+  exposes current and pinned state, spatial keyboard movement, visible hints, query-state/source
+  ordering, and injected icon factories. The optional ZeyOS adapter maps all 29 prototype
+  applications, forks/weblets, cached or async recent records, and grouped abortable search while
+  leaving permissions, icons, destinations, and routing with the host application.
+- The documentation now has a global destination search, a clearer uppercase green
+  Presets/Examples hierarchy, and product-agnostic Xenon positioning. The internal rollout guide
+  is no longer shipped or linked from public surfaces.
+
+### Removed
+
+- **The separate `AppRail` constructor.** Use `AppSidebar` with `collapsed: true` for a vertical
+  rail or `orientation: 'horizontal'` for a horizontal rail. This completes the single-owner
+  navigation contract instead of maintaining two public root-DOM models.
+- **Public gx compatibility entry points and bundles.** The compact `__()` DOM builder is part of
+  the Zx core; gx adapter source remains repository-internal and is no longer exported, built, or
+  included in the npm package.
+
+### Fixed
+
+- Late Launcher sources preserve the current keyboard choice only while completing the same query;
+  a new query resets to its own best match.
+- Card rejects control-obfuscated unsafe URL schemes; Launcher and every AppSidebar presentation
+  strip executable/data destinations and disable inert descriptors. AppSidebar also relocates focus,
+  emits its effective collapse state across layout changes, and releases obsolete mode listeners.
+- Card restores an enhanced target after failed construction, releases callbacks when links or
+  actions are replaced, and keeps the full non-interactive body inside the primary-link target.
+- Status shortcut hints now activate their options, async permission group loaders cannot be
+  disconnected by a filter override, and enhanced billing grids restore every target attribute.
+- Billing totals now distinguish a missing operand from an explicit zero, and Chart renders a
+  consistent error state for falsy payloads and errors without a message.
+
 ## 3.0.0 — 2026-08-24
 
 ### Added

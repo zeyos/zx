@@ -6,6 +6,18 @@
   color: var(--zx-color-text);
 }
 
+.zx-app-sidebar[data-orientation="horizontal"] {
+  inline-size: 100%;
+}
+
+.zx-app-sidebar[data-orientation="horizontal"] > .zx-app-sidebar__rail {
+  inline-size: 100%;
+}
+
+.zx-app-sidebar__rail.zx-app-rail {
+  border: 0;
+}
+
 .zx-app-sidebar__expanded {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;

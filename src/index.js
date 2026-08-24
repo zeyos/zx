@@ -88,6 +88,7 @@ export { CopyInput } from './components/copy/copy-input.js';
 export { Toolbar } from './components/toolbar/toolbar.js';
 export { Toggle } from './components/toggle/toggle.js';
 export { Groupbox } from './components/groupbox/groupbox.js';
+export { Card } from './components/card/card.js';
 export { Panel } from './components/panel/panel.js';
 export { MasterPanel } from './components/master-panel/master-panel.js';
 export {
@@ -103,7 +104,7 @@ export { Search } from './components/search/search.js';
 export { Launcher, rankLauncherItems } from './components/launcher/launcher.js';
 export { Avatar, avatarInitials } from './components/avatar/avatar.js';
 export { AccountMenu } from './components/account-menu/account-menu.js';
-export { AppRail, normalizeAppItems } from './components/app-rail/app-rail.js';
+export { normalizeAppItems } from './internal/app-rail.js';
 export { AppSidebar } from './components/app-sidebar/app-sidebar.js';
 export { Message } from './components/message/message.js';
 export { Modal } from './components/modal/modal.js';

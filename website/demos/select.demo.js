@@ -1,5 +1,6 @@
 import { h, Select } from '../../src/index.js';
 import { matchItems } from '../../src/components/select/filter.js';
+import { zeyosEntitySelect } from '../../src/zeyos/index.js';
 
 /** @param {number} count @param {string} prefix @returns {Array<{ID: number, name: string}>} */
 function makeItems(count, prefix) {
@@ -11,9 +12,38 @@ function initials(name) {
   return name.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase();
 }
 
+const PROJECTS = [
+  { ID: 1, name: 'Deploy', team: 'UniBack / Katayo', group: 'TEAM PROJECTS', module: 'projects' },
+  { ID: 2, name: 'Katayo', team: 'UniBack / Katayo', group: 'TEAM PROJECTS', module: 'projects' },
+  { ID: 3, name: 'Website', team: 'UniBack / Katayo', group: 'TEAM PROJECTS', module: 'projects' },
+  { ID: 4, name: 'Backend', team: 'Other projects', group: 'OTHER PROJECTS', module: 'projects' },
+  { ID: 5, name: 'Frontend', team: 'Other projects', group: 'OTHER PROJECTS', module: 'projects' }
+];
+
+function projectClient() {
+  return {
+    schema: {
+      describe: () => ({ fields: {
+        ID: { type: 'integer' }, name: { type: 'text', indexed: true },
+        team: { type: 'text' }, group: { type: 'text' }, module: { type: 'text' }
+      } }),
+      fields: () => ['ID', 'name', 'team', 'group', 'module'],
+      operations: () => ['listProjects', 'getProject']
+    },
+    api: {
+      listProjects: async ({ query = '' }) => {
+        await new Promise((resolve) => setTimeout(resolve, 90));
+        const needle = query.toLowerCase();
+        return { data: PROJECTS.filter((project) => project.name.toLowerCase().includes(needle)) };
+      },
+      getProject: async ({ ID }) => PROJECTS.find((project) => project.ID === ID)
+    }
+  };
+}
+
 export default {
   title: 'Select',
-  group: 'Pickers',
+  group: 'Inputs',
   blurb: 'An APG editable combobox: a real text input, a top-layer listbox, and three filtering '
     + 'modes — none, local, and a function you supply.',
 
@@ -195,6 +225,54 @@ export default {
           }
         });
         select.refs.input.setAttribute('aria-label', 'Priority preset');
+        cleanup(() => select.destroy());
+        return select.toElement();
+      }
+    },
+    {
+      id: 'status',
+      title: 'Select.status()',
+      preset: true,
+      blurb: 'Select.status() provides a compact workflow-status vocabulary with distinct shapes, '
+        + 'semantic colors, and optional keyboard hints. Pass your own items to retain the same '
+        + 'presentation with application-specific states.',
+      width: '360px',
+      render: ({ cleanup, log }) => {
+        const select = Select.status(null, {
+          value: 'in-progress',
+          onchange: ({ detail }) => log(`status ${detail.value}`)
+        });
+        select.refs.input.setAttribute('aria-label', 'Workflow status');
+        cleanup(() => select.destroy());
+        return select.toElement();
+      }
+    },
+    {
+      id: 'zeyos-entity',
+      title: 'zeyosEntitySelect()',
+      preset: true,
+      blurb: 'The optional ZeyOS binding turns Select into an Entity-box picker with module-colored '
+        + 'icons, grouped async results, a deliberate empty choice, and an application-owned '
+        + 'create command. The selected value remains the record ID.',
+      width: '360px',
+      render: ({ cleanup, log }) => {
+        const select = zeyosEntitySelect(projectClient(), 'projects', {
+          value: 3,
+          labelKey: 'name',
+          subtitleKey: 'team',
+          groupKey: 'group',
+          moduleKey: 'module',
+          none: 'No project',
+          placeholder: 'Move to project…',
+          debounce: 20,
+          create: {
+            label: 'Create new project…',
+            group: 'NEW PROJECT',
+            oninvoke: () => log('create project')
+          },
+          onchange: ({ detail }) => log(`project ${detail.value}`)
+        });
+        select.refs.input.setAttribute('aria-label', 'Project');
         cleanup(() => select.destroy());
         return select.toElement();
       }

@@ -1,7 +1,7 @@
 {
   "name": "@zeyos/zx",
-  "version": "3.0.0",
-  "description": "Dependency-free JavaScript implementation of the Xenon Design System for ZeyOS.",
+  "version": "4.0.0",
+  "description": "Dependency-free JavaScript implementation of the Xenon Design System.",
   "type": "module",
   "license": "MIT",
   "homepage": "https://zx.zeyos.com",
@@ -25,9 +25,7 @@
   "sideEffects": [
     "*.css",
     "./dist/zx.global.js",
-    "./dist/zx.global.min.js",
-    "./dist/zx-compat.global.js",
-    "./dist/zx-compat.global.min.js"
+    "./dist/zx.global.min.js"
   ],
   "exports": {
     ".": {
@@ -38,23 +36,15 @@
       "types": "./dist/types/zeyos/index.d.ts",
       "default": "./dist/zx-zeyos.esm.js"
     },
-    "./compat": {
-      "types": "./dist/types/compat/index.d.ts",
-      "default": "./dist/zx-compat.esm.js"
-    },
     "./global": {
       "types": "./dist/types/index.d.ts",
       "default": "./dist/zx.global.js"
     },
-    "./compat-global": {
-      "types": "./dist/types/compat/index.d.ts",
-      "default": "./dist/zx-compat.global.js"
-    },
     "./zx.css": "./dist/zx.css",
     "./zx.min.css": "./dist/zx.min.css",
-    "./src/*.js": {
-      "types": "./dist/types/*.d.ts",
-      "default": "./src/*.js"
+    "./src/components/*.js": {
+      "types": "./dist/types/components/*.d.ts",
+      "default": "./src/components/*.js"
     },
     "./styles/*": "./styles/*",
     "./dist/*": "./dist/*",
@@ -68,13 +58,14 @@
     "dist/types",
     "styles",
     "src",
+    "!src/compat",
+    "!src/compat-entry.js",
     "docs/llms.md",
     "docs/llms.txt",
     "docs/api.json",
     "CHANGELOG.md",
     "README.md",
     "DESIGN-SYSTEM.md",
-    "MIGRATION.md",
     "LICENSE"
   ],
   "engines": {

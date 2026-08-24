@@ -109,6 +109,7 @@ export const zeyosModules = Object.freeze({
  * @type {Readonly<Record<string, string>>}
  */
 export const moduleAliases = Object.freeze({
+  main: 'zeyos',
   addresses: 'contacts',
   clocking: 'actionsteps',
   comments: 'notes',

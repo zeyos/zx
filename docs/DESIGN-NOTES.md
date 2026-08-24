@@ -1,61 +1,40 @@
-# Design notes — learnings from SAP Fiori/UI5 and Salesforce SLDS
+# Design notes
 
-A short review of two mature enterprise component systems and how Zx compares, to guide future
-work. Sources are listed at the end.
+Internal design principles and completed follow-ups that guide future Zx work.
 
-## What Zx already does well (validated against both systems)
+## Stable principles
 
-- **Design tokens as the theming contract.** SLDS 2's central idea is *styling hooks* — CSS custom
-  properties that "separate structure from theme"; IBM Carbon and SAP use the same model. Zx's
-  two-tier tokens (global palette → semantic `--zx-color-*` / `--zx-control-*`) match this, and
-  dark mode + density are pure token/attribute swaps.
-- **Content density.** SAP ships cozy/compact (and a denser "condensed" for tables); SLDS has
-  comparable density. Zx has `data-zx-density="cozy|compact"`.
-- **Accessibility first.** Both mandate WAI-ARIA patterns and visible focus. Zx implements the APG
-  patterns (combobox, dialog, tabs, grid, menu) with `:focus-visible` rings.
-- **Restrained modern visuals.** SLDS 2 "Cosmos" moved to rounded-but-restrained corners and a
-  refined neutral palette — the direction Zx already took (small radii, 1px borders over heavy
-  shadows, system/Inter type).
-- **Declarative, metadata-driven composition.** SAP Fiori elements generate forms/tables from
-  annotations; Zx's Form field registry (`Field.register`, declarative `fields: {}`) and Table
-  column config are the same idea at a smaller scale.
+- **Design tokens are the theming contract.** The two-tier token model (global palette → semantic
+  `--zx-color-*` and `--zx-control-*` roles) separates structure from theme. Dark mode, density,
+  and product accents are attribute and token changes rather than component forks.
+- **Density is contextual.** `data-zx-density="cozy|compact"` lets the same component adapt to
+  spacious and information-dense interfaces.
+- **Accessibility starts with the interaction pattern.** Components implement native semantics or
+  the relevant WAI-ARIA Authoring Practices pattern, visible focus, and reduced-motion behavior.
+- **Application content stays visually primary.** Small radii, hairline borders, limited shadows,
+  and neutral type keep component chrome quiet around dense workflows.
+- **Composition is declarative.** The Form field registry, Table columns, shell navigation items,
+  and component options turn application metadata into consistent controls without coupling Zx to
+  a router, back end, or state store.
 
-## Applied now
+## Applied follow-ups
 
-- **Table loading state** (`Table.setLoading(true|false)`): dims the body, shows an indeterminate
-  top progress bar, and sets `aria-busy` — the busy/skeleton pattern both SAP UI5 tables and SLDS
-  emphasize. Wired into the kitchen sink's `@zeyos/client` loads. Reduced-motion safe.
+- `Table.setLoading(true|false)` dims the body, shows an indeterminate top progress bar, and sets
+  `aria-busy`; the behavior is reduced-motion safe.
+- Responsive table pop-in collapses secondary columns into a stacked label/value block within the
+  row according to the table container rather than the viewport.
+- A deliberately small set of component styling hooks falls back to semantic tokens and is kept in
+  sync with tests and documentation.
+- `Table.emptyText` accepts a Node or factory, allowing an illustrated, actionable `emptyState()`.
+- Growing tables expose `growing`, `growBy()`, and `showAll()`; row virtualization remains a
+  separate future concern.
+- The theming guide documents the override order: global semantic token, published component hook,
+  and only then an application-owned selector.
 
-## Recommended next (prioritized, not yet done)
+## Open follow-ups
 
-1. ~~**Responsive table pop-in.**~~ **Done** — `Table` gained `responsive` and per-column `popin`,
-   driven by `onBreakpoint()` observing the table's own container. See the Table reference.
-   Originally described as: SAP UI5's most distinctive table feature: below a per-column
-   `minScreenWidth`, secondary columns collapse into a stacked label/value block within the row
-   instead of horizontal scroll. High value for ERP screens on narrow viewports. Medium effort —
-   add a `column.minWidth`/`popin` option and a container-query-driven row layout.
-2. ~~**Column-level styling hooks**~~ **Done** — six published hooks, each falling back to the
-   semantic token it replaces, with a test that keeps the list, the CSS, and the documentation in
-   agreement. Kept deliberately small, as the note below warned. Originally described as: Expose a small, curated set of
-   component-level custom properties (e.g. `--zx-table-header-bg`, `--zx-table-row-hover`,
-   `--zx-button-radius`) that default to the current semantic tokens, so products can restyle a
-   component without overriding internal selectors. Note: SLDS itself keeps this layer small and
-   warns it's easy to over-expose — pick a handful per component. Low effort, backward-compatible.
-3. ~~**Illustrated empty states.**~~ **Done** — `Table.emptyText` now accepts a Node or a factory,
-   so `emptyState({icon, title, description, actions})` drops straight in. Originally described as: Enterprise UX guidance treats the empty state as a first-class
-   screen (guidance + a primary action), not blank space. Zx Table has `emptyText`; extend it to
-   accept a node (icon + message + action) and document the pattern.
-4. **Table "growing"/load-more** — **done**; row virtualization is the remaining half.
-   `Table` gained `growing`, `growBy()`, `showAll()`. Originally described as: SAP UI5 grows rows on demand; Zx
-   renders all rows in one pass (fast to ~5k). For large ERP result sets, add incremental
-   load-more, then optional row virtualization.
-5. ~~**"Use the least-specific override that works."**~~ **Done** — stated in the Theming guide
-   alongside the published hooks, and in the reference. Originally described as: Adopt SLDS's explicit guidance in the theming
-   docs: prefer a global token override; reach for a component hook only when necessary; never
-   override internal component selectors. (Partly documented already.)
-
-## Sources
-
-- [UI5 Web Components](https://ui5.github.io/webcomponents/) · [SAP Fiori design system](https://www.sap.com/design-system/fiori-design-web/) · [SAP responsive table / auto pop-in](https://community.sap.com/t5/technology-blog-posts-by-sap/ui5ers-buzz-58-column-resizing-auto-pop-in-feature-in-responsive-table/ba-p/13506047)
-- [What is SLDS 2](https://www.salesforce.com/blog/what-is-slds-2/) · [SLDS styling hooks](https://developer.salesforce.com/docs/platform/lwc/guide/create-components-css-custom-properties.html)
-- [Enterprise data-table UX patterns](https://pencilandpaper.io/articles/user-experience/ux-pattern-analysis-enterprise-data-tables/) · [Empty-state best practices](https://www.pencilandpaper.io/articles/empty-states)
+- Evaluate row virtualization only with measured production data and a stable row-height contract.
+- Add public component hooks only when multiple real applications need the same override; every
+  published hook is a compatibility promise.
+- Keep application-owned concerns—routing, persistence, permissions, formulas, and remote
+  orchestration—outside the component layer.

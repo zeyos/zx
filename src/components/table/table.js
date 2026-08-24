@@ -1,6 +1,6 @@
 import { Component } from '../../core/component.js';
 import { breakpoints, onBreakpoint } from '../../core/breakpoint.js';
-import { h } from '../../core/dom.js';
+import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
 import { formatCurrency, formatNumber, formatPercent } from '../../core/format.js';
 import { icon } from '../../core/icons.js';
 import { printf } from '../../core/i18n.js';
@@ -261,11 +261,13 @@ export class Table extends Component {
 
   /** @returns {HTMLElement} Table root. */
   render() {
+    const created = this.el === null;
     const root = /** @type {HTMLElement} */ (this.el ?? h('div'));
     // Claimed here, not left to the base constructor: `_watchWidth()` below observes `this.el`,
     // and until this assignment it is null for a component creating its own root.
     this.el = root;
-    this._originalChildren = this.el ? Array.from(this.el.childNodes) : null;
+    this._createdRoot = created;
+    this._original = created ? null : snapshotTarget(root);
     this._columns = Array.isArray(this.options.columns) ? this.options.columns.map((column) => ({ ...column })) : [];
     this._data = Array.isArray(this.options.data) ? [...this.options.data] : [];
     this._selected = new Set();
@@ -347,8 +349,8 @@ export class Table extends Component {
 
   /**
    * Toggles a loading state. While loading, the body is dimmed, an indeterminate progress bar is
-   * shown, and `aria-busy` is set — a lightweight take on the busy/skeleton pattern used by
-   * enterprise tables (SAP UI5, Salesforce SLDS). Call `setLoading(false)` (or `setData`) when done.
+   * shown, and `aria-busy` is set — a lightweight enterprise-table busy and skeleton pattern.
+   * Call `setLoading(false)` (or `setData`) when done.
    * @param {boolean} [loading=true] Whether the table is loading.
    * @returns {this}
    */
@@ -942,9 +944,8 @@ export class Table extends Component {
     this._teardownEdit();
     this._width?.destroy();
     this._width = null;
-    if (this.el) delete this.el.dataset.editMode;
-    if (!this._restored && this._originalChildren) {
-      this.el.replaceChildren(...this._originalChildren);
+    if (!this._restored && !this._createdRoot) {
+      restoreTarget(this.el, this._original);
       this._restored = true;
     }
     super.destroy();

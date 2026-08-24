@@ -13,7 +13,7 @@
  */
 
 import {
-  Breadcrumb, Checklist, Component, ContextMenu, CopyInput, DataFilter, DateRangeBox, Datebox, DatePicker,
+  Breadcrumb, Card, Checklist, Component, ContextMenu, CopyInput, DataFilter, DateRangeBox, Datebox, DatePicker,
   Dialog, Dropdown, Finder, Form, Groupbox, InlineLoading, MasterPanel, MenuButton, Message,
   Modal, MultiValueEditor, NavigationBar, NumberField, Pagination, Panel, ProgressBar,
   Rating, Search, Select, Slider, Stepper, Table, Tabbox, TagPicker, Timebox, Toggle, Toolbar,
@@ -93,7 +93,7 @@ export const CARDS = [
   { id: 'filter', title: 'Data filter', hint: 'The filter bar above a table', render: filterCard },
   { id: 'tabs', title: 'Tabs', hint: 'All four Tabbox variants', render: tabsCard },
   { id: 'navigation', title: 'Navigation', hint: 'App bar, breadcrumb, steps, toolbar', render: navigationCard },
-  { id: 'containers', title: 'Containers', hint: 'Panel, groupbox, master panel', render: containersCard },
+  { id: 'containers', title: 'Containers', hint: 'Card, panel, groupbox, master panel', render: containersCard },
   { id: 'overlays', title: 'Overlays', hint: 'Modal, dialog, menus, tooltips, toasts', render: overlaysCard },
   { id: 'hierarchy', title: 'Hierarchy', hint: 'Tree and finder', render: hierarchyCard },
   { id: 'lists', title: 'Value editors', hint: 'Chips and multi-value rows', render: listsCard },
@@ -410,6 +410,13 @@ function navigationCard() {
 /** @returns {Node} */
 function containersCard() {
   return h('div', { class: 'studio-stack' },
+    new Card(null, {
+      title: 'Alpine Works GmbH',
+      link: '#card-containers',
+      content: 'Account · 3 open opportunities',
+      footer: 'Last contact yesterday',
+      actions: [{ icon: 'dots', title: 'Account actions', kind: 'ghost', size: 'sm' }]
+    }).toElement(),
     new Panel(null, {
       title: 'Delivery address',
       content: h('p', { class: 'studio-prose' }, 'A raised surface with a header and an optional footer.'),

@@ -130,132 +130,6 @@
     "events": [],
     "methods": []
   },
-  "AppRail": {
-    "options": [
-      {
-        "name": "items",
-        "type": "AppNavItem[]",
-        "default": "[]",
-        "description": "Application navigation tree."
-      },
-      {
-        "name": "active",
-        "type": "string|number|null",
-        "default": "null",
-        "description": "Active item id."
-      },
-      {
-        "name": "orientation",
-        "type": "'vertical'|'horizontal'",
-        "default": "'vertical'",
-        "description": "Rail flow."
-      },
-      {
-        "name": "side",
-        "type": "'left'|'right'|'top'|'bottom'",
-        "default": "'left'",
-        "description": "Workspace edge occupied by the rail."
-      },
-      {
-        "name": "label",
-        "type": "string",
-        "default": "'Applications'",
-        "description": "Navigation accessible label."
-      },
-      {
-        "name": "header",
-        "type": "Node|string|number|{toElement: () => Node|null}|null",
-        "default": "null",
-        "description": "Leading rail content."
-      },
-      {
-        "name": "footer",
-        "type": "Node|string|number|{toElement: () => Node|null}|null",
-        "default": "null",
-        "description": "Trailing rail content."
-      },
-      {
-        "name": "openDelay",
-        "type": "number",
-        "default": "80",
-        "description": "Hover-open delay in milliseconds."
-      },
-      {
-        "name": "closeDelay",
-        "type": "number",
-        "default": "160",
-        "description": "Pointer/focus crossing grace in milliseconds."
-      }
-    ],
-    "events": [
-      {
-        "name": "select",
-        "payload": "{item, id, value, href, event}",
-        "description": "Preventable action listener."
-      },
-      {
-        "name": "flyoutchange",
-        "payload": "{item: AppNavItem, id: string|number, open: boolean}",
-        "description": "Flyout-state listener."
-      }
-    ],
-    "methods": [
-      {
-        "name": "setItems",
-        "signature": "setItems(items)",
-        "returns": "this",
-        "description": "Replaces navigation items and closes removed flyouts."
-      },
-      {
-        "name": "setActive",
-        "signature": "setActive(id)",
-        "returns": "this",
-        "description": "Sets the active item without routing."
-      },
-      {
-        "name": "getItems",
-        "signature": "getItems()",
-        "returns": "AppNavItem[]",
-        "description": "Returns a shallow copy of normalized items."
-      },
-      {
-        "name": "openFlyout",
-        "signature": "openFlyout(id, [options])",
-        "returns": "this",
-        "description": "Opens one item's flyout, optionally focusing its first action."
-      },
-      {
-        "name": "closeFlyout",
-        "signature": "closeFlyout(id)",
-        "returns": "this",
-        "description": "Closes one flyout."
-      },
-      {
-        "name": "closeAllFlyouts",
-        "signature": "closeAllFlyouts()",
-        "returns": "this",
-        "description": "Closes every flyout and cancels pending hover/focus transitions."
-      },
-      {
-        "name": "isFlyoutOpen",
-        "signature": "isFlyoutOpen(id)",
-        "returns": "boolean",
-        "description": "Reports whether an item's flyout is open."
-      },
-      {
-        "name": "focus",
-        "signature": "focus()",
-        "returns": "this",
-        "description": "Focuses the first top-level rail item."
-      },
-      {
-        "name": "destroy",
-        "signature": "destroy()",
-        "returns": "void",
-        "description": "Destroys body popovers/tooltips and restores or removes the root."
-      }
-    ]
-  },
   "AppSidebar": {
     "options": [
       {
@@ -280,13 +154,25 @@
         "name": "collapsed",
         "type": "boolean",
         "default": "false",
-        "description": "Whether the minimized AppRail is shown."
+        "description": "Whether the minimized presentation is shown."
+      },
+      {
+        "name": "collapsible",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether vertical navigation exposes a mode toggle."
+      },
+      {
+        "name": "orientation",
+        "type": "'vertical'|'horizontal'",
+        "default": "'vertical'",
+        "description": "Navigation flow; horizontal is always minimized."
       },
       {
         "name": "side",
-        "type": "'left'|'right'",
+        "type": "'left'|'right'|'top'|'bottom'",
         "default": "'left'",
-        "description": "Workspace side."
+        "description": "Workspace edge occupied by navigation."
       },
       {
         "name": "label",
@@ -310,30 +196,53 @@
         "name": "railHeader",
         "type": "Node|string|number|{toElement: () => Node|null}|null",
         "default": "null",
-        "description": "Minimized rail header content."
+        "description": "Minimized leading content."
       },
       {
         "name": "railFooter",
         "type": "Node|string|number|{toElement: () => Node|null}|null",
         "default": "null",
-        "description": "Minimized rail footer content."
+        "description": "Minimized trailing content."
+      },
+      {
+        "name": "openDelay",
+        "type": "number",
+        "default": "80",
+        "description": "Minimized flyout hover-open delay."
+      },
+      {
+        "name": "closeDelay",
+        "type": "number",
+        "default": "160",
+        "description": "Minimized flyout crossing grace."
+      },
+      {
+        "name": "renderIcon",
+        "type": "(item: AppNavItem, context: Record<string, any>) => Node|null",
+        "default": null,
+        "description": "Optional host icon renderer."
       }
     ],
     "events": [
       {
         "name": "select",
-        "payload": "{item, id, value, href, event}",
+        "payload": "AppNavSelectDetail",
         "description": "Preventable action listener."
       },
       {
         "name": "branchchange",
         "payload": "{item: AppNavItem|null, id: string|number|null, expanded: boolean|null, ids: Array<string|number>}",
-        "description": "Branch-state listener; bulk replacement reports null state."
+        "description": "Branch-state listener."
       },
       {
         "name": "collapsechange",
         "payload": "{collapsed: boolean}",
         "description": "Presentation-state listener."
+      },
+      {
+        "name": "flyoutchange",
+        "payload": "{item: AppNavItem, id: string|number, open: boolean}",
+        "description": "Minimized flyout-state listener."
       }
     ],
     "methods": [
@@ -341,13 +250,19 @@
         "name": "setItems",
         "signature": "setItems(items)",
         "returns": "this",
-        "description": "Replaces the navigation tree in both expanded and rail presentations."
+        "description": "Replaces the navigation tree in the active presentation."
+      },
+      {
+        "name": "getItems",
+        "signature": "getItems()",
+        "returns": "AppNavItem[]",
+        "description": "Returns a shallow copy of normalized items."
       },
       {
         "name": "setActive",
         "signature": "setActive(id)",
         "returns": "this",
-        "description": "Sets the active id in both presentations without routing."
+        "description": "Sets the active id without routing."
       },
       {
         "name": "setExpanded",
@@ -371,37 +286,67 @@
         "name": "expand",
         "signature": "expand([options])",
         "returns": "this",
-        "description": "Shows the expanded sidebar presentation."
+        "description": "Shows the expanded vertical presentation."
       },
       {
         "name": "collapse",
         "signature": "collapse([options])",
         "returns": "this",
-        "description": "Shows the minimized AppRail presentation."
+        "description": "Shows the minimized presentation."
       },
       {
         "name": "setCollapsed",
         "signature": "setCollapsed(collapsed, [options])",
         "returns": "this",
-        "description": "Sets expanded/minimized presentation while preserving branch state."
+        "description": "Sets the saved vertical expanded/minimized state."
       },
       {
         "name": "isCollapsed",
         "signature": "isCollapsed()",
         "returns": "boolean",
-        "description": "Reports whether the rail presentation is active."
+        "description": "Reports the effective presentation state; horizontal navigation is always minimized."
       },
       {
-        "name": "getRail",
-        "signature": "getRail()",
-        "returns": "AppRail",
-        "description": "Returns the composed minimized rail."
+        "name": "setLayout",
+        "signature": "setLayout(layout, [options])",
+        "returns": "this",
+        "description": "Changes navigation flow/edge without replacing state."
+      },
+      {
+        "name": "openFlyout",
+        "signature": "openFlyout(id, [options])",
+        "returns": "this",
+        "description": "Opens a minimized descendant flyout."
+      },
+      {
+        "name": "closeFlyout",
+        "signature": "closeFlyout(id)",
+        "returns": "this",
+        "description": "Closes a minimized descendant flyout."
+      },
+      {
+        "name": "closeAllFlyouts",
+        "signature": "closeAllFlyouts()",
+        "returns": "this",
+        "description": "Closes every minimized flyout."
+      },
+      {
+        "name": "isFlyoutOpen",
+        "signature": "isFlyoutOpen(id)",
+        "returns": "boolean",
+        "description": "Reports whether a minimized flyout is open."
+      },
+      {
+        "name": "focus",
+        "signature": "focus()",
+        "returns": "this",
+        "description": "Focuses the first navigation action."
       },
       {
         "name": "destroy",
         "signature": "destroy()",
         "returns": "void",
-        "description": "Destroys the rail and restores/removes the sidebar host."
+        "description": "Destroys flyouts and restores/removes the host."
       }
     ]
   },
@@ -754,6 +699,109 @@
       }
     ],
     "methods": []
+  },
+  "Card": {
+    "options": [
+      {
+        "name": "title",
+        "type": "string",
+        "default": "''",
+        "description": "Card title."
+      },
+      {
+        "name": "media",
+        "type": "CardContent",
+        "default": "null",
+        "description": "Optional image, avatar, icon, or other media."
+      },
+      {
+        "name": "content",
+        "type": "CardContent",
+        "default": "null",
+        "description": "Main card content; enhanced children are adopted by default."
+      },
+      {
+        "name": "actions",
+        "type": "CardAction[]",
+        "default": "[]",
+        "description": "Secondary native controls beside the title."
+      },
+      {
+        "name": "footer",
+        "type": "CardContent",
+        "default": "null",
+        "description": "Optional metadata or trailing content."
+      },
+      {
+        "name": "link",
+        "type": "CardLink",
+        "default": "null",
+        "description": "Optional native primary link rendered around the title."
+      },
+      {
+        "name": "variant",
+        "type": "'outlined'|'raised'|'filled'",
+        "default": "'outlined'",
+        "description": "Surface treatment."
+      },
+      {
+        "name": "orientation",
+        "type": "'vertical'|'horizontal'",
+        "default": "'vertical'",
+        "description": "Media/content arrangement."
+      },
+      {
+        "name": "headingLevel",
+        "type": "1|2|3|4|5|6",
+        "default": "3",
+        "description": "Semantic title heading level."
+      }
+    ],
+    "events": [],
+    "methods": [
+      {
+        "name": "setTitle",
+        "signature": "setTitle(title)",
+        "returns": "this",
+        "description": "Replaces the card title."
+      },
+      {
+        "name": "setMedia",
+        "signature": "setMedia(content)",
+        "returns": "this",
+        "description": "Replaces or removes the media region."
+      },
+      {
+        "name": "setContent",
+        "signature": "setContent(content)",
+        "returns": "this",
+        "description": "Replaces or clears the main content."
+      },
+      {
+        "name": "setActions",
+        "signature": "setActions(actions)",
+        "returns": "this",
+        "description": "Replaces the secondary action controls."
+      },
+      {
+        "name": "setFooter",
+        "signature": "setFooter(content)",
+        "returns": "this",
+        "description": "Replaces or removes the footer."
+      },
+      {
+        "name": "setLink",
+        "signature": "setLink(link)",
+        "returns": "this",
+        "description": "Sets or removes the title's native primary link."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Restores an enhanced target exactly, or removes an owned card."
+      }
+    ]
   },
   "Chart": {
     "options": [
@@ -3242,6 +3290,18 @@
         "description": "Dialog and field label."
       },
       {
+        "name": "closeLabel",
+        "type": "string",
+        "default": "'Close launcher'",
+        "description": "Close-button accessible label."
+      },
+      {
+        "name": "resultsLabel",
+        "type": "string",
+        "default": "'Launcher results'",
+        "description": "Results-region accessible label."
+      },
+      {
         "name": "emptyText",
         "type": "string",
         "default": "'No results'",
@@ -3258,6 +3318,12 @@
         "type": "'mod+k'|false",
         "default": "'mod+k'",
         "description": "Optional global keyboard shortcut."
+      },
+      {
+        "name": "hints",
+        "type": "false|{move?: string, open?: string, close?: string}",
+        "default": null,
+        "description": "Visible keyboard hints, or false."
       }
     ],
     "events": [
@@ -3335,6 +3401,12 @@
         "signature": "setItems(items)",
         "returns": "this",
         "description": "Replaces local catalogue items."
+      },
+      {
+        "name": "setCurrent",
+        "signature": "setCurrent(id)",
+        "returns": "this",
+        "description": "Marks one local item as the current destination."
       },
       {
         "name": "setSources",
@@ -4978,6 +5050,30 @@
         "description": "Selected-value renderer."
       },
       {
+        "name": "renderValueAdornment",
+        "type": "((item: SelectItem) => Node|string|null)|null",
+        "default": "null",
+        "description": "Decorative content before the selected text."
+      },
+      {
+        "name": "renderNone",
+        "type": "((label: string) => Node|string)|null",
+        "default": "null",
+        "description": "Clear-row renderer."
+      },
+      {
+        "name": "noneLabel",
+        "type": "string|null",
+        "default": "null",
+        "description": "Clear-row label independent from the input placeholder."
+      },
+      {
+        "name": "actions",
+        "type": "SelectAction[]",
+        "default": "[]",
+        "description": "Command rows that emit `action` without changing value."
+      },
+      {
         "name": "value",
         "type": "unknown",
         "default": "null",
@@ -5069,6 +5165,11 @@
         "name": "loaded",
         "payload": "{items}",
         "description": "Async-loaded listener."
+      },
+      {
+        "name": "action",
+        "payload": "{id, action, query, select}",
+        "description": "Preventable command-row listener."
       }
     ],
     "methods": [
@@ -5089,6 +5190,12 @@
         "signature": "setFixedItems(items)",
         "returns": "this",
         "description": "Replaces the pinned choices and preserves selection by ID when possible."
+      },
+      {
+        "name": "setActions",
+        "signature": "setActions(actions)",
+        "returns": "this",
+        "description": "Replaces command rows without changing the selected value."
       },
       {
         "name": "reset",
@@ -5131,6 +5238,12 @@
         "signature": "priority(target, [options])",
         "returns": "Select",
         "description": "Creates the five-level priority preset."
+      },
+      {
+        "name": "status",
+        "signature": "status(target, [options])",
+        "returns": "Select",
+        "description": "Creates a status picker with shape- and color-distinct workflow indicators."
       },
       {
         "name": "permission",
@@ -6340,7 +6453,7 @@
         "name": "setLoading",
         "signature": "setLoading([loading])",
         "returns": "this",
-        "description": "Toggles a loading state. While loading, the body is dimmed, an indeterminate progress bar is shown, and `aria-busy` is set — a lightweight take on the busy/skeleton pattern used by enterprise tables (SAP UI5, Salesforce SLDS). Call `setLoading(false)` (or `setData`) when done."
+        "description": "Toggles a loading state. While loading, the body is dimmed, an indeterminate progress bar is shown, and `aria-busy` is set — a lightweight enterprise-table busy and skeleton pattern. Call `setLoading(false)` (or `setData`) when done."
       },
       {
         "name": "setData",

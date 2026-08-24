@@ -1,5 +1,5 @@
 import { Component } from '../../core/component.js';
-import { h } from '../../core/dom.js';
+import { h, safeHref } from '../../core/dom.js';
 import { icon } from '../../core/icons.js';
 import { uid } from '../../core/util.js';
 
@@ -10,10 +10,15 @@ import { uid } from '../../core/util.js';
  * @property {string} [description] Secondary text.
  * @property {string|string[]} [keywords] Additional search text.
  * @property {string} [group] Result group.
- * @property {string} [icon] Kernel icon name.
+ * @property {string|Node|((item: LauncherItem) => Node|null)} [icon] Decorative icon name, node, or factory.
  * @property {string|number} [badge] Compact metadata.
+ * @property {'application'|'record'|'action'} [kind='action'] Tile or row presentation.
+ * @property {boolean} [current=false] Whether this is the current application or destination.
+ * @property {'always'|'empty'|'query'} [when='always'] Query state in which the item is visible.
+ * @property {number} [groupOrder] Explicit group order.
+ * @property {number} [itemOrder] Stable order within equally ranked results.
  * @property {unknown} [value] Emitted value; defaults to `id`.
- * @property {string} [href] Native link target.
+ * @property {string} [href] Native link target; executable/data schemes are disabled.
  * @property {string} [target] Native link browsing context.
  * @property {() => void} [invoke] Application-owned callback for non-link actions.
  * @property {boolean|number} [pinned] Pinned state or explicit pinned order.
@@ -24,6 +29,8 @@ import { uid } from '../../core/util.js';
  * @property {string} id Source identifier.
  * @property {string} [label] Default group label.
  * @property {number} [minQuery] Per-source minimum query length.
+ * @property {'always'|'empty'|'query'} [when='always'] Query state in which the source runs.
+ * @property {'rank'|'source'} [order='rank'] Whether Zx ranks results or preserves source order.
  * @property {(query: string, context: {signal: AbortSignal}) => Promise<LauncherItem[]>|LauncherItem[]} load Loader.
  */
 /**
@@ -36,9 +43,12 @@ import { uid } from '../../core/util.js';
  * @property {number} [maxResults=100] Maximum combined results.
  * @property {string} [placeholder='Search applications and records'] Search-field placeholder.
  * @property {string} [label='Launcher'] Dialog and field label.
+ * @property {string} [closeLabel='Close launcher'] Close-button accessible label.
+ * @property {string} [resultsLabel='Launcher results'] Results-region accessible label.
  * @property {string} [emptyText='No results'] Empty-state text.
  * @property {string} [loadingText='Searching…'] Loading-state text.
  * @property {'mod+k'|false} [shortcut='mod+k'] Optional global keyboard shortcut.
+ * @property {false|{move?: string, open?: string, close?: string}} [hints] Visible keyboard hints, or false.
  * @property {(event: CustomEvent<LauncherSelectDetail>) => void} [onselect] Preventable selection listener.
  * @property {(event: CustomEvent<{query: string}>) => void} [onquery] Query-change listener.
  * @property {(event: CustomEvent<Record<string, never>>) => void} [onopen] Open listener.
@@ -70,9 +80,12 @@ export class Launcher extends Component {
     maxResults: 100,
     placeholder: 'Search applications and records',
     label: 'Launcher',
+    closeLabel: 'Close launcher',
+    resultsLabel: 'Launcher results',
     emptyText: 'No results',
     loadingText: 'Searching…',
-    shortcut: 'mod+k'
+    shortcut: 'mod+k',
+    hints: { move: 'Move', open: 'Open', close: 'Close' }
   };
 
   /**
@@ -100,6 +113,7 @@ export class Launcher extends Component {
     this._sources = normalizeSources(this.options.sources);
     this._sourceItems = new Map();
     this._query = String(this.options.query ?? '');
+    this._renderedQuery = null;
     this._results = [];
     this._active = -1;
     this._request = null;
@@ -127,7 +141,7 @@ export class Launcher extends Component {
       ref: 'close',
       class: 'zx-icon-btn zx-launcher__close',
       type: 'button',
-      ariaLabel: 'Close launcher'
+      ariaLabel: this.options.closeLabel
     }, icon('x'));
     const status = h('div', {
       ref: 'status',
@@ -140,14 +154,23 @@ export class Launcher extends Component {
       class: 'zx-launcher__results',
       id: listId,
       role: 'listbox',
-      ariaLabel: 'Launcher results'
+      ariaLabel: this.options.resultsLabel
     });
+    const shortcut = this.options.shortcut === 'mod+k' ? h('kbd', {
+      class: 'zx-launcher__shortcut',
+      ariaHidden: 'true'
+    }, launcherShortcutLabel()) : null;
+    const footer = launcherHints(this.options.hints);
     dialog.setAttribute('aria-label', String(this.options.label));
     dialog.replaceChildren(
     h('div', { class: 'zx-launcher__surface' },
-      h('div', { class: 'zx-launcher__search' }, icon('search'), input, close),
+      h('div', {
+        class: 'zx-launcher__search',
+        dataset: { shortcut: shortcut ? 'true' : 'false' }
+      }, icon('search'), input, shortcut, close),
       status,
-      results));
+      results,
+      footer));
     dialog.dataset.state = 'closed';
     if (this._createdRoot) document.body.append(dialog);
 
@@ -162,6 +185,14 @@ export class Launcher extends Component {
       const option = /** @type {Element|null} */ (event.target)?.closest?.('[data-launcher-index]');
       if (!option || !results.contains(option)) return;
       this._activate(Number(option.getAttribute('data-launcher-index')), event);
+    });
+    this.listen(results, 'pointermove', (event) => {
+      const option = /** @type {Element|null} */ (event.target)?.closest?.('[data-launcher-index]');
+      if (!option || !results.contains(option)) return;
+      const index = Number(option.getAttribute('data-launcher-index'));
+      if (!Number.isInteger(index) || this._results[index]?.disabled || index === this._active) return;
+      this._active = index;
+      this._syncActive();
     });
     this.listen(dialog, 'cancel', (event) => {
       event.preventDefault();
@@ -238,6 +269,14 @@ export class Launcher extends Component {
     return this;
   }
 
+  /** Marks one local item as the current destination. @param {string|number|null} id Item id. @returns {this} */
+  setCurrent(id) {
+    const key = id == null ? null : String(id);
+    this._items = this._items.map((item) => ({ ...item, current: key !== null && String(item.id) === key }));
+    this._renderResults();
+    return this;
+  }
+
   /** Replaces asynchronous sources and aborts work from the old set. @param {LauncherSource[]} sources @returns {this} */
   setSources(sources) {
     this._abortRequest();
@@ -276,8 +315,8 @@ export class Launcher extends Component {
   async _loadSources() {
     this._queryTimer = null;
     const query = this._query.trim();
-    const sources = this._sources.filter((source) =>
-      query.length >= Math.max(Number(this.options.minQuery) || 0, Number(source.minQuery) || 0));
+    const sources = this._sources.filter((source) => visibleForQuery(source.when, query)
+      && query.length >= Math.max(Number(this.options.minQuery) || 0, Number(source.minQuery) || 0));
     if (sources.length === 0) return;
     const request = new AbortController();
     const sequence = ++this._requestSequence;
@@ -287,8 +326,13 @@ export class Launcher extends Component {
       try {
         const loaded = await source.load(query, { signal: request.signal });
         if (request.signal.aborted || sequence !== this._requestSequence) return;
-        this._sourceItems.set(source.id, normalizeItems(loaded).map((item) => ({ ...item, _source: source.id,
-          group: item.group ?? source.label ?? '' })));
+        this._sourceItems.set(source.id, normalizeItems(loaded).map((item, itemOrder) => ({
+          ...item,
+          _source: source.id,
+          _sourceOrder: source.order === 'source',
+          group: item.group ?? source.label ?? '',
+          itemOrder: item.itemOrder ?? (source.order === 'source' ? itemOrder : undefined)
+        })));
         this._renderResults();
       } catch (error) {
         if (request.signal.aborted || sequence !== this._requestSequence) return;
@@ -319,18 +363,30 @@ export class Launcher extends Component {
 
   /** @returns {void} */
   _renderResults() {
-    const remote = orderedLauncherSourceItems(this._sources, this._sourceItems);
+    const queryKey = this._query;
+    const activeId = this._renderedQuery === queryKey && this._active >= 0 && this._results[this._active]
+      ? String(this._results[this._active].id) : null;
+    const query = this._query.trim();
+    const local = this._items.filter((item) => visibleForQuery(item.when, query));
+    const rankedLocal = rankLauncherItems(local, query, this.options.maxResults);
+    const remote = this._sources.flatMap((source) => {
+      const loaded = this._sourceItems.get(String(source.id)) ?? [];
+      return source.order === 'source'
+        ? loaded.filter((item) => visibleForQuery(item.when, query))
+        : rankLauncherItems(loaded.filter((item) => visibleForQuery(item.when, query)),
+          query, this.options.maxResults);
+    });
     const seen = new Set();
-    const combined = [...this._items.map((item) => ({ ...item, _source: null })), ...remote]
+    const combined = [...rankedLocal.map((item) => ({ ...item, _source: null })), ...remote]
       .filter((item) => {
         const key = String(item.id);
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
-      });
-    const ranked = rankLauncherItems(combined, this._query, this.options.maxResults);
+      })
+      .slice(0, Math.max(0, Number(this.options.maxResults) || 0));
     const groups = new Map();
-    for (const item of ranked) {
+    for (const item of combined) {
       const group = String(item.group ?? '');
       if (!groups.has(group)) groups.set(group, []);
       groups.get(group).push(item);
@@ -338,7 +394,10 @@ export class Launcher extends Component {
     // Grouping changes visual order, so it must also become keyboard order. Keeping the original
     // ranked indices made ArrowDown jump past an intervening option whenever groups interleaved.
     this._results = [...groups.values()].flat();
-    this._active = this._results.findIndex((item) => !item.disabled);
+    this._renderedQuery = queryKey;
+    const preserved = activeId === null ? -1
+      : this._results.findIndex((item) => !item.disabled && String(item.id) === activeId);
+    this._active = preserved >= 0 ? preserved : this._results.findIndex((item) => !item.disabled);
     const nodes = [];
     let index = 0;
     for (const [group, items] of groups) {
@@ -346,7 +405,8 @@ export class Launcher extends Component {
       if (group) nodes.push(h('div', {
         class: 'zx-launcher__group',
         role: 'group',
-        ariaLabel: group
+        ariaLabel: group,
+        dataset: { layout: items.every((item) => item.kind === 'application') ? 'grid' : 'list' }
       }, h('div', { class: 'zx-launcher__group-label', ariaHidden: 'true' }, group), options));
       else nodes.push(...options);
     }
@@ -357,9 +417,14 @@ export class Launcher extends Component {
 
   /** @param {RankedLauncherItem} item @param {number} index @returns {HTMLElement} */
   _option(item, index) {
-    const tag = item.href ? 'a' : 'button';
+    const href = safeHref(item.href);
+    const tag = href ? 'a' : 'button';
     const children = [];
-    if (item.icon) children.push(h('span', { class: 'zx-launcher__icon' }, icon(item.icon)));
+    const visual = launcherItemIcon(item);
+    if (visual) children.push(h('span', {
+      class: 'zx-launcher__icon',
+      ariaHidden: 'true'
+    }, visual));
     children.push(h('span', { class: 'zx-launcher__copy' },
       h('span', { class: 'zx-launcher__label' }, item.label),
       item.description ? h('span', { class: 'zx-launcher__description' }, item.description) : null));
@@ -367,14 +432,20 @@ export class Launcher extends Component {
     return /** @type {HTMLElement} */ (h(tag, {
       class: 'zx-launcher__option',
       type: tag === 'button' ? 'button' : null,
-      href: item.href ?? null,
+      href,
       target: item.target ?? null,
+      rel: tag === 'a' ? 'noopener' : null,
       role: 'option',
       id: uid('zx-launcher-option'),
       tabIndex: -1,
       ariaSelected: 'false',
       ariaDisabled: item.disabled ? 'true' : null,
-      dataset: { launcherIndex: index, pinned: item.pinned ? 'true' : null }
+      ariaCurrent: item.current ? 'page' : null,
+      dataset: {
+        launcherIndex: index,
+        pinned: item.pinned !== undefined && item.pinned !== false ? 'true' : null,
+        kind: normalizeLauncherKind(item.kind)
+      }
     }, children));
   }
 
@@ -413,6 +484,18 @@ export class Launcher extends Component {
     }
     const enabled = this._results.map((item, index) => item.disabled ? -1 : index).filter((index) => index >= 0);
     if (enabled.length === 0) return;
+    if (/^Arrow(?:Left|Right|Up|Down)$/.test(event.key)) {
+      const next = this._spatialIndex(event.key, enabled);
+      if (next !== null) {
+        event.preventDefault();
+        this._active = next;
+        this._syncActive();
+        this.refs.results.querySelector(`[data-launcher-index="${this._active}"]`)
+          ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        return;
+      }
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') return;
+    }
     let position = enabled.indexOf(this._active);
     if (event.key === 'Home' || event.key === 'PageUp') position = 0;
     else if (event.key === 'End' || event.key === 'PageDown') position = enabled.length - 1;
@@ -423,6 +506,20 @@ export class Launcher extends Component {
     this._active = enabled[position];
     this._syncActive();
     this.refs.results.querySelector(`[data-launcher-index="${this._active}"]`)?.scrollIntoView({ block: 'nearest' });
+  }
+
+  /** @param {string} direction @param {number[]} enabled @returns {number|null} */
+  _spatialIndex(direction, enabled) {
+    const current = this.refs.results.querySelector(`[data-launcher-index="${this._active}"]`);
+    if (!(current instanceof HTMLElement)) return null;
+    if ((direction === 'ArrowLeft' || direction === 'ArrowRight')
+      && this._results[this._active]?.kind !== 'application') return null;
+    const candidates = [...this.refs.results.querySelectorAll('[data-launcher-index]')]
+      .filter((option) => enabled.includes(Number(option.getAttribute('data-launcher-index')))
+        && (direction !== 'ArrowLeft' && direction !== 'ArrowRight'
+          || option.getAttribute('data-kind') === 'application'));
+    const next = findSpatialLauncherOption(candidates, current, direction);
+    return next ? Number(next.getAttribute('data-launcher-index')) : null;
   }
 
   /** @param {number} index @param {Event} event @returns {void} */
@@ -452,15 +549,102 @@ export class Launcher extends Component {
   /** @param {KeyboardEvent} event @returns {void} */
   _onDocumentKeydown(event) {
     if (this.options.shortcut !== 'mod+k' || event.isComposing || event.key.toLowerCase() !== 'k'
-      || (!event.metaKey && !event.ctrlKey) || event.altKey) return;
+      || Number(event.metaKey) + Number(event.ctrlKey) !== 1 || event.altKey || event.shiftKey) return;
     const active = document.activeElement;
     if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement
+      || active instanceof HTMLSelectElement
       || (active instanceof HTMLElement && active.isContentEditable)) return;
     const modal = document.querySelector('dialog:modal');
     if (modal && modal !== this.el) return;
     event.preventDefault();
     this.open();
   }
+}
+
+/** @returns {string} */
+function launcherShortcutLabel() {
+  const platform = String((/** @type {any} */ (navigator)).userAgentData?.platform
+    ?? navigator.platform ?? '');
+  return /mac|iphone|ipad/i.test(platform) ? '⌘ K' : 'Ctrl K';
+}
+
+/** @param {LauncherOptions['hints']} hints @returns {HTMLElement|null} */
+function launcherHints(hints) {
+  if (hints === false) return null;
+  const labels = hints && typeof hints === 'object' ? hints : {};
+  return h('footer', { class: 'zx-launcher__hints', ariaHidden: 'true' },
+    h('span', {}, h('kbd', {}, '↑↓←→'), labels.move ?? 'Move'),
+    h('span', {}, h('kbd', {}, '↵'), labels.open ?? 'Open'),
+    h('span', {}, h('kbd', {}, 'Esc'), labels.close ?? 'Close'));
+}
+
+/** @param {LauncherItem} item @returns {Node|null} */
+function launcherItemIcon(item) {
+  let visual = item.icon;
+  if (typeof visual === 'function') visual = visual(item);
+  if (typeof visual === 'string') return icon(visual);
+  if (visual instanceof Node) return visual.cloneNode(true);
+  if (visual && typeof visual === 'object'
+    && typeof (/** @type {any} */ (visual)).toElement === 'function') {
+    const element = (/** @type {any} */ (visual)).toElement();
+    return element instanceof Node ? element.cloneNode(true) : null;
+  }
+  return null;
+}
+
+/** @param {unknown} kind @returns {'application'|'record'|'action'} */
+function normalizeLauncherKind(kind) {
+  return kind === 'application' || kind === 'record' ? kind : 'action';
+}
+
+/** @param {unknown} when @param {string} query @returns {boolean} */
+function visibleForQuery(when, query) {
+  if (when === 'empty') return query === '';
+  if (when === 'query') return query !== '';
+  return true;
+}
+
+/**
+ * Finds the nearest launcher option in a visual direction. Horizontal movement is constrained by
+ * the caller to application tiles; vertical movement may cross from the app grid into row groups.
+ * @param {Element[]} options Candidate options.
+ * @param {HTMLElement} current Active option.
+ * @param {string} direction Arrow key.
+ * @returns {Element|null}
+ */
+function findSpatialLauncherOption(options, current, direction) {
+  const origin = current.getBoundingClientRect();
+  if (origin.width === 0 && origin.height === 0) return null;
+  const originX = origin.left + origin.width / 2;
+  const originY = origin.top + origin.height / 2;
+  let best = null;
+  let bestScore = Infinity;
+  for (const option of options) {
+    if (option === current) continue;
+    const rect = option.getBoundingClientRect();
+    const dx = rect.left + rect.width / 2 - originX;
+    const dy = rect.top + rect.height / 2 - originY;
+    let valid = false;
+    let score = Infinity;
+    if (direction === 'ArrowLeft') {
+      valid = dx < -2 && Math.abs(dy) < Math.max(origin.height, rect.height) / 2;
+      score = Math.abs(dx) + Math.abs(dy) * 4;
+    } else if (direction === 'ArrowRight') {
+      valid = dx > 2 && Math.abs(dy) < Math.max(origin.height, rect.height) / 2;
+      score = Math.abs(dx) + Math.abs(dy) * 4;
+    } else if (direction === 'ArrowUp') {
+      valid = dy < -2;
+      score = Math.abs(dy) * 10 + Math.abs(dx);
+    } else if (direction === 'ArrowDown') {
+      valid = dy > 2;
+      score = Math.abs(dy) * 10 + Math.abs(dx);
+    }
+    if (valid && score < bestScore) {
+      best = option;
+      bestScore = score;
+    }
+  }
+  return best;
 }
 
 /**
@@ -475,12 +659,18 @@ export function rankLauncherItems(items, query, limit = 100) {
   const ranked = items.map((item, order) => ({ item, order, score: launcherScore(item, needle) }))
     .filter(({ score }) => score < Infinity);
   ranked.sort((a, b) => {
+    const aGroup = finiteOrder(a.item.groupOrder);
+    const bGroup = finiteOrder(b.item.groupOrder);
+    if (aGroup !== bGroup) return aGroup - bGroup;
     if (needle === '') {
       const aPinned = pinOrder(a.item.pinned, a.order);
       const bPinned = pinOrder(b.item.pinned, b.order);
       if (aPinned !== bPinned) return aPinned - bPinned;
     }
-    return a.score - b.score || compareLauncherText(a.item.label, b.item.label) || a.order - b.order;
+    return a.score - b.score
+      || finiteOrder(a.item.itemOrder) - finiteOrder(b.item.itemOrder)
+      || compareLauncherText(a.item.label, b.item.label)
+      || a.order - b.order;
   });
   const maximum = Math.max(0, Number(limit) || 0);
   return ranked.slice(0, maximum || 0).map(({ item, score }) => ({ ...item, _score: score }));
@@ -509,6 +699,11 @@ function pinOrder(pinned, order) {
   return Number.MAX_SAFE_INTEGER;
 }
 
+/** @param {unknown} value @returns {number} */
+function finiteOrder(value) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : Number.MAX_SAFE_INTEGER;
+}
+
 /** @param {unknown} value @returns {string} */
 function searchable(value) {
   return String(value ?? '').normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase();
@@ -529,7 +724,20 @@ function compareLauncherText(left, right) {
 function normalizeItems(items) {
   if (!Array.isArray(items)) return [];
   return items.filter((item) => item && typeof item === 'object' && item.id != null && item.label != null)
-    .map((item) => ({ ...item, label: String(item.label) }));
+    .map((item) => normalizeLauncherItem(item));
+}
+
+/** @param {Record<string, any>} item @returns {LauncherItem} */
+function normalizeLauncherItem(item) {
+  const normalized = { ...item, label: String(item.label) };
+  if (item.href == null) return normalized;
+  const href = safeHref(item.href);
+  if (href !== null) normalized.href = href;
+  else {
+    delete normalized.href;
+    if (typeof normalized.invoke !== 'function') normalized.disabled = true;
+  }
+  return normalized;
 }
 
 /** @param {unknown} sources @returns {LauncherSource[]} */

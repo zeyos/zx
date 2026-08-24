@@ -1,19 +1,20 @@
 ---
 name: zx
-description: Build UI in ZeyOS business applications with the Zx component library — a dependency-free vanilla-JS component library. Use when creating or editing UI in this repo (v2/), instantiating zx.* components (Table, Select, Form, Dialog, Datebox, Message, Tabbox…), wiring the gx compatibility layer, theming with --zx-* tokens, or migrating legacy gx.zeyos.*/gx.bootstrap.* code.
+description: Build accessible front ends with Zx, the dependency-free vanilla-JavaScript implementation of the Xenon Design System. Use when creating or editing UI in this repo, instantiating zx.* components, composing layouts, or theming with --zx-* tokens.
 ---
 
 # Zx UI library
 
-Zx is a dependency-free, accessible, themeable vanilla-JavaScript UI component library for the
-ZeyOS ERP. It lives in `v2/` and replaces the MooTools-based `gx` libraries. Source modules run
-directly in the browser (no build step to develop); `npm run build` emits distribution bundles.
+Zx is a dependency-free, accessible, themeable vanilla-JavaScript implementation of the Xenon
+Design System. It was developed through ZeyOS workflows, but its components and contracts are
+product-agnostic. Source modules run directly in the browser (no build step to develop);
+`npm run build` emits distribution bundles.
 
 ## When to use this skill
 
-Use it whenever you create or modify UI in `v2/`: instantiating components, composing forms and
-tables, opening dialogs and toasts, theming, adding a `<zx-*>` custom element, wiring the ZeyOS
-HTTP client, or migrating legacy `gx.*` code through the compatibility layer.
+Use it whenever you create or modify Zx UI: instantiating components, composing forms and tables,
+opening dialogs and toasts, theming, adding a `<zx-*>` custom element, or wiring the optional
+ZeyOS data binding.
 
 ## Core mental model
 
@@ -36,7 +37,8 @@ const t = new Table(target, options);
   unregisters the element, and removes an owned root. `Component.from(el)` returns the component
   for a root element (replaces the legacy `el.retrieve('com')`).
 - **`h(tag, props, ...children)`** is the internal DOM factory (safe: no `innerHTML` except
-  explicit `h.raw(trustedHtml)`). Use it for custom content/renderers.
+  explicit `h.raw(trustedHtml)`). The compact `__(tag#id.class, properties, content)` builder is
+  also exported for existing application code. Use either for custom content/renderers.
 
 ## Component catalog
 
@@ -45,7 +47,8 @@ Groups (matching the demo sidebar):
 
 - **Inputs**: `button()`, `buttonGroup()`, `badge()`/`badgeGroup()`, `CheckButton`, `Toggle`,
   `Search`, `Select` (APG combobox; `filter: false | 'local' | async fn`; `fixedItems` pins
-  choices above the list; `Select.priority()` and `Select.permission()` presets), `Checklist`,
+  choices above the list; `Select.priority()`, `Select.status()`, and `Select.permission()`
+  presets), `Checklist`,
   `NumberField`, `Rating`, `Slider` (native range underneath, so the whole
   keyboard map is free; `marks`, `showBounds`, `showInput`), `copyButton()`/`CopyInput`,
   `DatePicker`, `MonthPicker`, `TimePicker` (with an optional clock
@@ -66,7 +69,8 @@ Groups (matching the demo sidebar):
   checkbox/select/optionlist/hidden/html/custom + widget types zxselect/checklist/date/month/
   datetime/daterange/time/valuelist/multivalueeditor/upload/toggle/number/rating/tagpicker/
   slider), `ValueList`, `MultiValueEditor`, `FieldUpload`.
-- **Layout**: `Groupbox`, `Panel` (header/footer action buttons), `MasterPanel`,
+- **Layout**: `Groupbox`, `Card` (semantic record/content surface), `Panel` (header/footer action
+  buttons), `MasterPanel`,
   `Tabbox` (`variant: 'divided'|'bracket'|'line'|'segmented'`, all square-cornered; boxed variants
   read `--zx-tabbox-radius`), `NavigationBar`, `Toolbar` (APG toolbar with an overflow menu),
   `SplitView`, `Dock` (a stack of collapsible, resizable panes — the inspector column of a design
@@ -125,8 +129,7 @@ For reading and writing ZeyOS business data, use the **dedicated ZeyOS client li
 [`@zeyos/client`](https://github.com/zeyos/client) (`npm install @zeyos/client`) — a
 zero-dependency JS client with auto-generated, typed methods for the full ZeyOS OpenAPI surface
 (accounts, transactions/invoices, tickets, and 50+ resources), OAuth2/session auth, retries, and
-schema introspection. It replaces the legacy `gx.zeyos.Client` / `gx.zeyos.Request`,
-which should no longer be used.
+schema introspection. Zx accepts the client by injection and does not bundle it.
 
 ```js
 import { createZeyosClient, MemoryTokenStore, normalizeListResult } from '@zeyos/client';
@@ -182,14 +185,6 @@ defineElements();
 // <zx-select items='[…]' required></zx-select>, <zx-toggle>, <zx-datebox>, <zx-tabbox>, <zx-table>…
 ```
 
-## gx compatibility layer
-
-Load `zx.global.js` then `zx-compat.global.js` to expose `window.gx.{core,ui,util,zeyos,bootstrap}`
-wrapping Zx components. Constructors, option names, and MooTools-style `addEvent` events are
-translated. `gx.compat.installGlobals()` (explicit opt-in) installs `__()`, `_()`,
-`String.htmlSpecialChars`, and prototype conveniences. See `MIGRATION.md` for the full class map,
-the deliberately-changed behaviors, and unsupported legacy APIs.
-
 ## Conventions & gotchas (when editing component source)
 
 - Follow `AGENTS.md` (the contributor contract). Key rules:
@@ -206,15 +201,14 @@ the deliberately-changed behaviors, and unsupported legacy APIs.
 ## Where things are & commands
 
 ```
-v2/src/components/<name>/   component + CSS      v2/src/core/   kernel (component, dom, http, …)
-v2/src/compat/              gx compat layer      v2/styles/     tokens + base.css
-v2/website/                 site + component catalog          v2/specs/      per-component build specs
-v2/tests/                   node unit + smoke     v2/dist/       built bundles
+src/components/<name>/   component + CSS      src/core/   kernel (component, dom, http, …)
+styles/                  tokens + base CSS     website/    site + component catalogue
+tests/                   node unit + smoke     dist/       built bundles
 
 npm run serve   # http://127.0.0.1:8321/website/docs.html (no build)
 npm test        # node --test tests/unit/*.test.js  +  node tests/lint-tokens.js
-npm run build   # dist/: zx.esm.js, zx.global.js (window.zx), zx-compat.global.js (window.gx), zx.css
+npm run build   # distribution modules, global bundle, declarations, and zx.css
 ```
 
 Reference docs: `README.md` (index + quick start), `docs/llms.md` (per-component API),
-`MIGRATION.md` (gx→zx), `docs/llms.txt` (compact AI surface).
+`docs/llms.txt` (compact AI surface).

@@ -6,8 +6,7 @@ import test from 'node:test';
 /*
  * The `exports` map is the package's public surface and nothing else checks it. A path that stops
  * resolving fails in a consumer's build, not here — and the granular route added for tree-shaking
- * is easy to break silently, because the declaration for a source module lives on a different path
- * from the module itself.
+ * is easy to break silently, because declarations and source modules live in different trees.
  */
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const manifest = JSON.parse(readFileSync(root + 'package.json', 'utf8'));
@@ -15,21 +14,26 @@ const manifest = JSON.parse(readFileSync(root + 'package.json', 'utf8'));
 test('every published file entry exists', () => {
   // `dist` is a build output; a clean checkout has not made it yet.
   const missing = manifest.files
+    .filter((entry) => !entry.startsWith('!'))
     .filter((entry) => !entry.startsWith('dist'))
     .filter((entry) => !existsSync(root + entry));
   assert.deepEqual(missing, []);
 });
 
-test('source and styles ship, or the granular imports resolve to nothing', () => {
-  assert.ok(manifest.files.includes('src'), 'src/ must be published for ./src/*.js to resolve');
+test('public component source and styles ship, while compatibility source stays internal', () => {
+  assert.ok(manifest.files.includes('src'), 'src/ must be published for component source imports');
   assert.ok(manifest.files.includes('styles'), 'styles/ must be published for ./styles/* to resolve');
+  assert.ok(manifest.files.includes('!src/compat'));
+  assert.ok(manifest.files.includes('!src/compat-entry.js'));
+  assert.equal(manifest.exports['./compat'], undefined);
+  assert.equal(manifest.exports['./compat-global'], undefined);
 });
 
 test('the granular source pattern carries types alongside the module', () => {
-  const entry = manifest.exports['./src/*.js'];
-  assert.ok(entry, 'the ./src/*.js subpath is missing');
-  assert.equal(entry.default, './src/*.js');
-  assert.equal(entry.types, './dist/types/*.d.ts',
+  const entry = manifest.exports['./src/components/*.js'];
+  assert.ok(entry, 'the public component-source subpath is missing');
+  assert.equal(entry.default, './src/components/*.js');
+  assert.equal(entry.types, './dist/types/components/*.d.ts',
     'the declaration mirrors the source path with a .d.ts extension — see tsconfig outDir');
 });
 

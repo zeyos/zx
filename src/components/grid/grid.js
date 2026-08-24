@@ -85,9 +85,9 @@ export function billingItemsConfig(options = {}) {
   } = options;
   const fields = { ...DEFAULT_FIELDS, ...requestedFields };
   const calculateLineTotal = typeof lineTotal === 'function' ? lineTotal : (row) => {
-    const quantity = Number(row?.[fields.quantity]);
-    const price = Number(row?.[fields.unitPrice]);
-    return Number.isFinite(quantity) && Number.isFinite(price) ? quantity * price : null;
+    const quantity = billingNumber(row?.[fields.quantity]);
+    const price = billingNumber(row?.[fields.unitPrice]);
+    return quantity !== null && price !== null ? quantity * price : null;
   };
   const columns = Array.isArray(suppliedColumns) ? suppliedColumns.map((column) => ({ ...column }))
     : billingColumns(fields, { units, currencies, currency, locale, decimals, columnOverrides });
@@ -210,4 +210,11 @@ export function billingColumns(fields, { units, currencies, currency, locale, de
 /** @param {unknown} value @returns {boolean} */
 function hasChoices(value) {
   return Array.isArray(value) ? value.length > 0 : Boolean(value && typeof value === 'object' && Object.keys(value).length);
+}
+
+/** Missing billing operands stay missing; explicit numeric zero remains a valid value. @param {unknown} value @returns {number|null} */
+function billingNumber(value) {
+  if (value == null || typeof value === 'string' && value.trim() === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
 }

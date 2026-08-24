@@ -10,6 +10,7 @@ import { matchItems } from './filter.js';
 /** @typedef {Record<string, any>|Primitive} SelectItem */
 /** @typedef {string|((item: SelectItem) => unknown)} SelectValueReader */
 /** @typedef {string|((item: SelectItem) => string)} SelectLabelReader */
+/** @typedef {{id: string|number, label: string, icon?: string|Node, description?: string, group?: string, invoke?: (detail: SelectActionDetail) => void}} SelectAction */
 /**
  * @typedef {Object} SelectOptions
  * @property {SelectItem[]} [items=[]] Available values.
@@ -18,6 +19,10 @@ import { matchItems } from './filter.js';
  * @property {SelectLabelReader} [labelKey='name'] Item label property or reader.
  * @property {((item: SelectItem) => Node|string)|null} [renderItem=null] Option renderer.
  * @property {((item: SelectItem) => string)|null} [renderValue=null] Selected-value renderer.
+ * @property {((item: SelectItem) => Node|string|null)|null} [renderValueAdornment=null] Decorative content before the selected text.
+ * @property {((label: string) => Node|string)|null} [renderNone=null] Clear-row renderer.
+ * @property {string|null} [noneLabel=null] Clear-row label independent from the input placeholder.
+ * @property {SelectAction[]} [actions=[]] Command rows that emit `action` without changing value.
  * @property {unknown} [value=null] Initially selected ID or item.
  * @property {boolean} [disabled=false] Whether interaction is disabled.
  * @property {string} [placeholder=''] Empty control text.
@@ -34,11 +39,13 @@ import { matchItems } from './filter.js';
  * @property {(event: CustomEvent<Record<string, never>>) => void} [onclose] Close listener.
  * @property {(event: CustomEvent<SelectQueryDetail>) => void} [onquery] Async-query listener.
  * @property {(event: CustomEvent<SelectLoadedDetail>) => void} [onloaded] Async-loaded listener.
+ * @property {(event: CustomEvent<SelectActionDetail>) => void} [onaction] Preventable command-row listener.
  */
 /** @typedef {{value: unknown, item: SelectItem|null}} SelectChangeDetail */
 /** @typedef {{query: string}} SelectQueryDetail */
 /** @typedef {{items: SelectItem[]}} SelectLoadedDetail */
-/** @typedef {{item: SelectItem|null, clear: boolean, element: HTMLElement}} SelectOptionEntry */
+/** @typedef {{id: string|number, action: SelectAction, query: string, select: Select}} SelectActionDetail */
+/** @typedef {{item: SelectItem|null, clear: boolean, action: SelectAction|null, element: HTMLElement}} SelectOptionEntry */
 /** @typedef {{silent?: boolean}} SelectSetOptions */
 
 const PRIORITY_KEYS = [
@@ -48,7 +55,19 @@ const PRIORITY_KEYS = [
   'priority.high',
   'priority.highest'
 ];
-const PRIORITY_FALLBACKS = ['Lowest', 'Low', 'Normal', 'High', 'Highest'];
+const PRIORITY_FALLBACKS = ['Lowest', 'Low', 'Medium', 'High', 'Highest'];
+
+const DEFAULT_STATUSES = Object.freeze([
+  ['backlog', 'status.backlog', 'Backlog', 'dotted', 'muted'],
+  ['todo', 'status.todo', 'Todo', 'ring', 'neutral'],
+  ['in-progress', 'status.inProgress', 'In Progress', 'progress', 'warning'],
+  ['in-review', 'status.inReview', 'In Review', 'review', 'info'],
+  ['ready', 'status.ready', 'Ready to Merge', 'ready', 'accent'],
+  ['waiting', 'status.waiting', 'Waiting for feedback', 'waiting', 'warning'],
+  ['done', 'status.done', 'Done', 'done', 'info'],
+  ['canceled', 'status.canceled', 'Canceled', 'canceled', 'muted'],
+  ['duplicate', 'status.duplicate', 'Duplicate', 'duplicate', 'muted']
+]);
 
 /**
  * APG editable combobox with optional local or asynchronous filtering.
@@ -71,6 +90,10 @@ export class Select extends Component {
     labelKey: 'name',
     renderItem: null,
     renderValue: null,
+    renderValueAdornment: null,
+    renderNone: null,
+    noneLabel: null,
+    actions: [],
     value: null,
     disabled: false,
     placeholder: '',
@@ -88,7 +111,7 @@ export class Select extends Component {
   render() {
     // Instance state initialized here because render() runs inside the base
     // constructor, before class-field initializers would run (and clobber it).
-    this._items = []; this._visibleItems = []; this._fixedItems = []; this._visibleFixed = []; this._selected = null; this._optionEntries = []; this._activeIndex = -1; this._open = false; this._disabled = false; this._loading = false; this._requestSequence = 0; this._queryTimer = null; this._position = null; this._createdRoot = false; this._root = null; this._originalChildren = []; this._originalAttributes = new Map();
+    this._items = []; this._visibleItems = []; this._fixedItems = []; this._visibleFixed = []; this._actions = []; this._selected = null; this._optionEntries = []; this._activeIndex = -1; this._open = false; this._disabled = false; this._loading = false; this._requestSequence = 0; this._queryTimer = null; this._position = null; this._createdRoot = false; this._root = null; this._originalChildren = []; this._originalAttributes = new Map();
     this._createdRoot = this.el === null;
     const root = /** @type {HTMLElement} */ (this.el ?? h('div'));
     this.el = root;
@@ -111,6 +134,12 @@ export class Select extends Component {
       ariaAutocomplete: this.options.filter ? 'list' : 'none',
       placeholder: String(this.options.placeholder ?? ''),
       readOnly: !this.options.filter
+    });
+    const valueAdornment = h('span', {
+      ref: 'valueAdornment',
+      class: 'zx-select__value-adornment',
+      ariaHidden: 'true',
+      hidden: true
     });
     const clear = h('button', {
       ref: 'clear',
@@ -135,7 +164,7 @@ export class Select extends Component {
       ariaLabel: this._message('select.toggle', 'Toggle options')
     }, icon('chevron-down', { size: 16 }));
     const control = h('div', { ref: 'control', class: 'zx-select__control' },
-      input, clear, loading, toggle
+      valueAdornment, input, clear, loading, toggle
     );
     const list = h('div', {
       ref: 'list',
@@ -155,9 +184,11 @@ export class Select extends Component {
     this._visibleItems = this._items.slice();
     this._fixedItems = Array.isArray(this.options.fixedItems) ? this.options.fixedItems.slice() : [];
     this._visibleFixed = this._fixedItems.slice();
+    this._actions = normalizeSelectActions(this.options.actions);
     this._disabled = Boolean(this.options.disabled);
     this._handleTypeahead = typeahead(
-      () => this._optionEntries.filter((entry) => !entry.clear).map((entry) => entry.element),
+      () => this._optionEntries.filter((entry) => !entry.clear && !entry.action)
+        .map((entry) => entry.element),
       (_option, index) => {
         if (!this._open) this.open();
         this._setActive(this._itemEntryIndex(index));
@@ -255,6 +286,14 @@ export class Select extends Component {
     return this;
   }
 
+  /** Replaces command rows without changing the selected value. @param {SelectAction[]} actions @returns {this} */
+  setActions(actions) {
+    this._actions = normalizeSelectActions(actions);
+    this._renderOptions();
+    this._position?.update();
+    return this;
+  }
+
   /**
    * Restores the configured initial value.
    * @param {{silent?: boolean}} [options={}] Reset behavior.
@@ -342,22 +381,45 @@ export class Select extends Component {
       value: null,
       items: [],
       renderItem(item) {
-        return h('span', { class: 'zx-select__priority' },
-          h('span', {
-            class: 'zx-select__priority-icon',
-            dataset: { level: item.level },
-            ariaHidden: 'true'
-          }),
-          h('span', {}, String(item.name))
-        );
-      }
+        return priorityContent(item, true);
+      },
+      renderValueAdornment(item) { return priorityIndicator(item.level); }
     });
-    select.setItems(PRIORITY_KEYS.map((key, level) => ({
-      ID: level,
-      name: select._message(key, PRIORITY_FALLBACKS[level]),
-      level
-    })));
+    select.setItems(PRIORITY_KEYS.map((key, level) => {
+      let name = level === 2 ? select.msg('priority.medium') : key;
+      if (name === 'priority.medium') name = select._message(key, PRIORITY_FALLBACKS[level]);
+      else if (level !== 2) name = select._message(key, PRIORITY_FALLBACKS[level]);
+      return { ID: level, name, level };
+    }));
     select.set(requestedValue, { silent: true });
+    return select;
+  }
+
+  /**
+   * Creates a status picker with shape- and color-distinct workflow indicators.
+   * @param {Element|string|null} target Component target.
+   * @param {SelectOptions & {items?: Array<Record<string, any>>}} [options={}] Select overrides and status items.
+   * @returns {Select}
+   */
+  static status(target, options = {}) {
+    const { items = null, value = null, ...rest } = options;
+    const select = new Select(target, {
+      ...rest,
+      value: null,
+      items: [],
+      renderItem(item) { return statusContent(item); },
+      renderValueAdornment(item) { return statusIndicator(item); }
+    });
+    const statuses = Array.isArray(items) ? items.map(normalizeStatusItem).filter(Boolean)
+      : DEFAULT_STATUSES.map(([ID, key, fallback, indicator, tone], index) => ({
+        ID,
+        name: select._message(key, fallback),
+        indicator,
+        tone,
+        shortcut: String(index + 1)
+      }));
+    select.setItems(statuses);
+    select.set(value, { silent: true });
     return select;
   }
 
@@ -373,12 +435,16 @@ export class Select extends Component {
    * @returns {Select}
    */
   static permission(target, options = {}) {
-    const { groups = [], value = true, valueKey = 'ID', labelKey = 'name', ...rest } = options;
+    const {
+      groups = [], value = true, valueKey = 'ID', labelKey = 'name', filter = 'local', ...rest
+    } = options;
     const loader = typeof groups === 'function' ? groups : null;
     const shareable = loader ? [] : groups;
     const choices = [{ ID: false, name: 'Private' }, { ID: true, name: 'Public' }];
     const select = new Select(target, {
-      filter: loader ?? 'local',
+      // An async group loader is the data source and cannot be disconnected by an incidental
+      // `filter` override. Array-backed groups still honor local/disabled filtering.
+      filter: loader ?? filter,
       ...rest,
       value: null,
       items: shareable,
@@ -414,6 +480,16 @@ export class Select extends Component {
   /** @param {KeyboardEvent} event @returns {void} */
   _onKeydown(event) {
     if (this._disabled) return;
+    if (this._open && isPrintable(event)) {
+      const shortcut = this._optionEntries.findIndex((entry) => !entry.clear && !entry.action
+        && String((/** @type {Record<string, any>|null} */ (entry.item))?.shortcut ?? '') === event.key);
+      if (shortcut >= 0) {
+        event.preventDefault();
+        this._setActive(shortcut);
+        this._chooseEntry(this._optionEntries[shortcut]);
+        return;
+      }
+    }
     if (event.key === 'ArrowDown') {
       event.preventDefault();
       if (!this._open) this.open();
@@ -459,6 +535,7 @@ export class Select extends Component {
   _onInput() {
     if (!this.options.filter) return;
     const query = /** @type {HTMLInputElement} */ (this.refs.input).value;
+    this._syncValueAdornment();
     if (!this._open) this.open();
     if (this.options.filter === 'local') {
       this._visibleFixed = this._matchFixed(query);
@@ -481,6 +558,19 @@ export class Select extends Component {
   /** @param {SelectOptionEntry|undefined} entry @returns {void} */
   _chooseEntry(entry) {
     if (!entry) return;
+    if (entry.action) {
+      const detail = {
+        id: entry.action.id,
+        action: entry.action,
+        query: /** @type {HTMLInputElement} */ (this.refs.input).value,
+        select: this
+      };
+      const action = this.emit('action', detail);
+      if (!action.defaultPrevented) entry.action.invoke?.(detail);
+      this.close();
+      this.focus();
+      return;
+    }
     this.set(entry.clear ? null : entry.item);
     this.close();
     this.focus();
@@ -518,7 +608,8 @@ export class Select extends Component {
     let lastGroup = Symbol('initial-group');
 
     if (this.options.clearable) {
-      this._appendOption(null, true, this.options.placeholder || this._message('select.none', 'No selection'));
+      this._appendOption(null, true, this.options.noneLabel
+        ?? this._message('select.none', 'No selection'));
     }
     for (const item of this._visibleFixed) this._appendOption(item, false);
     // A group heading already divides the two sections, and a rule right above one reads as a slip.
@@ -538,7 +629,24 @@ export class Select extends Component {
       }
       this._appendOption(item, false);
     }
-    if (this._visibleItems.length === 0 && this._visibleFixed.length === 0 && !this._loading) {
+    if (this._actions.length > 0) {
+      if (this._visibleFixed.length > 0 || this._visibleItems.length > 0 || this.options.clearable) {
+        list.append(h('div', { class: 'zx-select__separator', role: 'presentation' }));
+      }
+      let actionGroup = Symbol('initial-action-group');
+      for (const action of this._actions) {
+        if (action.group && action.group !== actionGroup) {
+          list.append(h('div', {
+            class: 'zx-select__group',
+            role: 'presentation'
+          }, action.group));
+          actionGroup = action.group;
+        }
+        this._appendAction(action);
+      }
+    }
+    if (this._visibleItems.length === 0 && this._visibleFixed.length === 0
+      && this._actions.length === 0 && !this._loading) {
       list.append(h('div', {
         class: 'zx-select__empty',
         role: 'status'
@@ -552,7 +660,9 @@ export class Select extends Component {
     const selected = clear ? this._selected === null :
       this._selected !== null && Object.is(this._itemValue(item), this.value);
     const index = this._optionEntries.length;
-    const content = clear ? String(label ?? '') : this._renderItem(item);
+    const content = clear && typeof this.options.renderNone === 'function'
+      ? normalizeRenderedContent(this.options.renderNone(String(label ?? '')))
+      : clear ? String(label ?? '') : this._renderItem(item);
     const option = h('div', {
       class: 'zx-select__option',
       id: uid('zx-select-option'),
@@ -562,15 +672,33 @@ export class Select extends Component {
     }, h('span', { class: 'zx-select__option-content' }, content));
     if (selected) option.append(icon('check', { size: 15 }));
     this.refs.list.append(option);
-    this._optionEntries.push({ item, clear, element: option });
+    this._optionEntries.push({ item, clear, action: null, element: option });
+  }
+
+  /** @param {SelectAction} action @returns {void} */
+  _appendAction(action) {
+    const index = this._optionEntries.length;
+    const visual = selectActionIcon(action.icon);
+    const option = h('div', {
+      class: 'zx-select__option zx-select__action',
+      id: uid('zx-select-option'),
+      role: 'option',
+      ariaSelected: 'false',
+      dataset: { index, kind: 'action' }
+    }, h('span', { class: 'zx-select__option-content zx-select__action-content' },
+      visual ? h('span', { class: 'zx-select__action-icon', ariaHidden: 'true' }, visual) : null,
+      h('span', { class: 'zx-select__action-copy' },
+        h('span', { class: 'zx-select__action-label' }, action.label),
+        action.description ? h('span', { class: 'zx-select__action-description' }, action.description) : null)));
+    this.refs.list.append(option);
+    this._optionEntries.push({ item: null, clear: false, action, element: option });
   }
 
   /** @param {SelectItem|null} item @returns {Node|string} */
   _renderItem(item) {
     if (typeof this.options.renderItem === 'function') {
       const rendered = this.options.renderItem(item);
-      return rendered && typeof rendered === 'object' && 'nodeType' in rendered ?
-        /** @type {Node} */ (rendered) : String(rendered ?? '');
+      return normalizeRenderedContent(rendered);
     }
     return this._itemLabel(item);
   }
@@ -645,7 +773,28 @@ export class Select extends Component {
     input.value = this._selected === null ? '' :
       (typeof this.options.renderValue === 'function' ?
         String(this.options.renderValue(this._selected) ?? '') : this._itemLabel(this._selected));
+    this._syncValueAdornment();
     this.refs.clear.hidden = !this.options.clearable || this._selected === null;
+  }
+
+  /** @returns {void} */
+  _syncValueAdornment() {
+    const host = this.refs.valueAdornment;
+    if (!host) return;
+    const selectedLabel = this._selected === null ? '' :
+      (typeof this.options.renderValue === 'function'
+        ? String(this.options.renderValue(this._selected) ?? '') : this._itemLabel(this._selected));
+    const query = String((/** @type {HTMLInputElement} */ (this.refs.input))?.value ?? '');
+    if (this._selected === null || typeof this.options.renderValueAdornment !== 'function'
+      || Boolean(this.options.filter && query !== selectedLabel)) {
+      host.replaceChildren();
+      host.hidden = true;
+      return;
+    }
+    const rendered = this.options.renderValueAdornment(this._selected);
+    const content = normalizeRenderedContent(rendered);
+    host.replaceChildren(content instanceof Node ? content : document.createTextNode(content));
+    host.hidden = rendered == null || (typeof content === 'string' && content === '');
   }
 
   /** @returns {void} */
@@ -727,11 +876,94 @@ export class Select extends Component {
   }
 }
 
+/** @param {unknown} rendered @returns {Node|string} */
+function normalizeRenderedContent(rendered) {
+  return rendered && typeof rendered === 'object' && 'nodeType' in rendered
+    ? /** @type {Node} */ (rendered) : String(rendered ?? '');
+}
+
+/** @param {unknown} actions @returns {SelectAction[]} */
+function normalizeSelectActions(actions) {
+  if (!Array.isArray(actions)) return [];
+  return actions.filter((action) => action && typeof action === 'object'
+    && action.id != null && action.label != null).map((action) => ({
+    ...action,
+    label: String(action.label),
+    description: action.description == null ? undefined : String(action.description),
+    group: action.group == null ? undefined : String(action.group)
+  }));
+}
+
+/** @param {unknown} visual @returns {Node|null} */
+function selectActionIcon(visual) {
+  if (typeof visual === 'string') return icon(visual);
+  if (visual instanceof Node) return visual.cloneNode(true);
+  return null;
+}
+
+/** @param {Record<string, any>} item @param {boolean} label @returns {Node} */
+function priorityContent(item, label) {
+  return h('span', { class: 'zx-select__priority' },
+    priorityIndicator(item.level),
+    label ? h('span', {}, String(item.name)) : null);
+}
+
+/** @param {unknown} level @returns {Node} */
+function priorityIndicator(level) {
+  const normalized = Math.max(0, Math.min(4, Math.trunc(Number(level) || 0)));
+  return h('span', {
+    class: 'zx-select__priority-icon',
+    dataset: { level: normalized },
+    ariaHidden: 'true'
+  }, Array.from({ length: 5 }, (_, index) => h('span', {
+    dataset: { filled: String(index <= normalized) }
+  })));
+}
+
+/** @param {unknown} input @returns {Record<string, any>|null} */
+function normalizeStatusItem(input) {
+  if (!input || typeof input !== 'object' || input.ID == null || input.name == null) return null;
+  const indicators = ['dotted', 'ring', 'progress', 'review', 'ready', 'waiting', 'done', 'canceled', 'duplicate'];
+  const tones = ['muted', 'neutral', 'warning', 'info', 'accent', 'success', 'danger'];
+  return {
+    ...input,
+    name: String(input.name),
+    indicator: indicators.includes(String(input.indicator)) ? String(input.indicator) : 'ring',
+    tone: tones.includes(String(input.tone)) ? String(input.tone) : 'muted',
+    description: input.description == null ? '' : String(input.description),
+    shortcut: input.shortcut == null ? '' : String(input.shortcut)
+  };
+}
+
+/** @param {Record<string, any>} item @returns {Node} */
+function statusContent(item) {
+  return h('span', { class: 'zx-select__status' },
+    statusIndicator(item),
+    h('span', { class: 'zx-select__status-copy' },
+      h('span', { class: 'zx-select__status-label' }, String(item.name)),
+      item.description ? h('span', { class: 'zx-select__status-description' }, item.description) : null),
+    item.shortcut ? h('kbd', { class: 'zx-select__status-shortcut' }, item.shortcut) : null);
+}
+
+/** @param {Record<string, any>} item @returns {Node} */
+function statusIndicator(item) {
+  const indicator = String(item.indicator ?? 'ring');
+  const marker = h('span', {
+    class: 'zx-select__status-indicator',
+    dataset: { indicator, tone: String(item.tone ?? 'muted') },
+    ariaHidden: 'true'
+  });
+  if (indicator === 'done') marker.append(icon('check', { size: 8 }));
+  if (indicator === 'canceled') marker.append(icon('x', { size: 7 }));
+  return marker;
+}
+
 /** Change emitted when the selected value changes. @event Select#change @type {CustomEvent<SelectChangeDetail>} */
 /** Panel-open notification. @event Select#open @type {CustomEvent<Record<string, never>>} */
 /** Panel-close notification. @event Select#close @type {CustomEvent<Record<string, never>>} */
 /** Async-query start notification. @event Select#query @type {CustomEvent<SelectQueryDetail>} */
 /** Async results notification. @event Select#loaded @type {CustomEvent<SelectLoadedDetail>} */
+/** Command-row activation; preventing it suppresses the action callback. @event Select#action @type {CustomEvent<SelectActionDetail>} */
 
 /**
  * Reads a value off an item through a property name or a reader function.

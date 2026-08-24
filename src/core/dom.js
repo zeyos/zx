@@ -96,6 +96,26 @@ export function compactElement(compact, properties = null, content = null) {
 export const __ = compactElement;
 
 /**
+ * Returns a trimmed native-link destination unless its parsed scheme can execute document code.
+ * Relative URLs, fragments, and ordinary application protocols remain valid; malformed and
+ * control-obfuscated script/data schemes are rejected.
+ * @param {unknown} value Candidate href.
+ * @returns {string|null}
+ */
+export function safeHref(value) {
+  if (typeof value !== 'string') return null;
+  const href = value.trim();
+  if (!href) return null;
+  try {
+    const protocol = new URL(href, globalThis.location?.href ?? 'https://zx.invalid/').protocol;
+    if (['javascript:', 'data:', 'vbscript:'].includes(protocol.toLowerCase())) return null;
+  } catch {
+    return null;
+  }
+  return href;
+}
+
+/**
  * Applies the established ZeyOS property rules to an existing element:
  * `Dname` → `data-name`, `SfontSize` → `style.fontSize`, `on*` → a legacy-compatible listener,
  * booleans/built-ins → DOM properties, and everything else → attributes.

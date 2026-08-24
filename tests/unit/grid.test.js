@@ -78,3 +78,20 @@ test('billing preset keeps group rows read-only and does not calculate their tot
   assert.deepEqual(changes, { quantity: 2 });
   assert.match(config.rowClass({ kind: 'group' }), /zx-grid-billing__summary/);
 });
+
+test('billing preset does not turn missing operands into zero totals', () => {
+  const config = billingItemsConfig();
+  for (const field of ['quantity', 'unitPrice']) {
+    for (const missing of [null, undefined, '', '   ']) {
+      const changes = { item: 'Edited' };
+      const row = { kind: 'line', quantity: 2, unitPrice: 12, total: null, [field]: missing };
+      config.oneditcommit({ detail: { row, changes } });
+      assert.deepEqual(changes, { item: 'Edited' }, `${field} ${String(missing)} created a total`);
+    }
+  }
+  const changes = { quantity: 0 };
+  config.oneditcommit({ detail: {
+    row: { kind: 'line', quantity: 4, unitPrice: '12', total: 48 }, changes
+  } });
+  assert.equal(changes.total, 0);
+});

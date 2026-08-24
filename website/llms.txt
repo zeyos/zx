@@ -1,10 +1,10 @@
 # Xenon Design System (Zx)
 
-> Xenon is the dependency-free design system for ZeyOS business applications; Zx is its
+> Xenon is a dependency-free design system for browser applications; Zx is its product-agnostic
 > vanilla-JavaScript implementation. ES2022 modules, WAI-ARIA-accessible controls built on native platform features,
 > semantic `--zx-*` design tokens with light/dark and cozy/compact theming, and lifecycle-safe
 > components. Source modules run directly in the browser; a build step emits ESM, IIFE-global,
-> compatibility, and CSS bundles. Zero runtime dependencies.
+> ZeyOS binding, and CSS bundles. Zero runtime dependencies.
 
 Instantiate every component as `new Component(target, options)`, where `target` is an Element, a
 selector string, or `null` (the component creates and owns its root, retrieved via
@@ -18,8 +18,8 @@ available as ESM named exports and as `window.zx.*`.
   JavaScript source, and the API reference.
 - [Getting started](docs.html#getting-started): installation, the mental model, theming,
   accessibility, and talking to ZeyOS.
-- [Components](docs.html#components): 50+ components grouped Core / Helpers / Inputs / Layout /
-  Feedback / Overlays / Pickers / Data / Forms.
+- [Components](docs.html#components): components organized into task-based sections, with entries
+  alphabetized inside each section.
 - [Layouts](docs.html#layouts): eight complete application shells — master–detail, dashboard,
   inbox, record page, two wizards (vertical and horizontal steps), settings workspace, and a
   schema-driven ZeyOS invoices screen.
@@ -30,8 +30,6 @@ available as ESM named exports and as `window.zx.*`.
 - [README](../README.md): what Zx is, quick start, component index, theming, browser support.
 - [Changelog](../CHANGELOG.md): what changed in each release, including behaviour changes an
   upgrade has to account for.
-- [Migration guide](../MIGRATION.md): legacy gx class map, script-tag replacement, deliberate
-  behaviour changes, unsupported legacy APIs.
 - [Contributor contract](../AGENTS.md): conventions for editing component source — token rules,
   render-time state, listener ownership, ARIA/APG requirements.
 - [Zx skill](../.claude/skills/zx/SKILL.md): task-oriented guide — mental model, recipes, theming,
@@ -39,8 +37,8 @@ available as ESM named exports and as `window.zx.*`.
 
 ## Components
 - Inputs: `button()`, `buttonGroup()`, `badge()`, `CheckButton`, `Toggle`, `Search`, `Launcher`,
-  `Avatar`, `AccountMenu`, `Select` (APG combobox;
-  `filter: false|'local'|async`), `Checklist`, `TagPicker`,
+  `Avatar`, `AccountMenu`, `Select` (APG combobox; `filter: false|'local'|async`; priority,
+  status, permission, and optional ZeyOS entity presets), `Checklist`, `TagPicker`,
   `NumberField`, `Rating`, `Slider` (native range; marks, bounds, optional number box),
   `copyButton()`/`CopyInput`, `DatePicker`, `MonthPicker`, `TimePicker`, `Datebox`/`DateTimeBox`,
   `Timebox`.
@@ -54,13 +52,13 @@ available as ESM named exports and as `window.zx.*`.
   `Pagination`, `TreeView` (APG tree), `Finder` (Miller columns).
 - Forms: `Form`, `Fieldset`, `Questionnaire` (guided one-question-at-a-time flow with branching), `Field` (type registry), `ValueList`, `MultiValueEditor`,
   `FieldUpload`.
-- Layout: `stack()`/`grid()`/`aspect()`, `Groupbox`, `Panel`, `MasterPanel`, `Tabbox`,
-  `NavigationBar`, `AppSidebar`, minimized `AppRail`, `Toolbar`, `SplitView`, `Dock` (collapsible
+- Layout: `stack()`/`grid()`/`aspect()`, `Groupbox`, `Card`, `Panel`, `MasterPanel`, `Tabbox`,
+  `NavigationBar`, `AppSidebar` (expanded/minimized vertical and horizontal rail states), `Toolbar`, `SplitView`, `Dock` (collapsible
   resizable pane stack; tab groups,
   regions, adopts a `Sheet`), `Stepper`, `Breadcrumb`, `emptyState()`.
 - Feedback: `spinner()`, `ProgressBar`, `InlineLoading`,
   `skeleton()`/`skeletonText()`/`skeletonTable()`.
-- Core: `Component`, `h`/`icon`, `position`, `breakpoints`/`breakpointOf`/`matchBreakpoint`/
+- Core: `Component`, `h`/`__`/`icon`, `position`, `breakpoints`/`breakpointOf`/`matchBreakpoint`/
   `onBreakpoint`, i18n, date utilities, `defineElements` (declarative `<zx-*>` custom elements).
 - Helpers: `formatNumber`/`formatCurrency`/`formatFileSize`/`formatRelativeTime`, `storage()`,
   `toCsv`/`downloadBlob`/`copyToClipboard`, `truncate()`/`isTruncated()`,
@@ -88,17 +86,10 @@ The optional `zx-zeyos` binding (`src/zeyos/`) generates typed tables, forms, an
 The `ZeyOS invoices` layout is the reference integration. Zx also ships a minimal `Http`/`zeyosService`
 for ad-hoc in-app `remotecall`, but `@zeyos/client` is the recommended default.
 
-## Legacy gx applications
-An opt-in compatibility layer re-implements the legacy MooTools-era `gx.*` API on top of Zx, so
-existing ZeyOS screens keep running while their code is modernised file by file. Load
-`zx-compat.global.js` (or import `src/compat/index.js`) to get `window.gx` with the `core`, `ui`,
-`util`, `zeyos`, and `bootstrap` namespaces. See [gx compatibility](docs.html#components/gx-compat)
-and the [migration guide](../MIGRATION.md).
-
 ## Installing
 `npm install @zeyos/zx` · `import { Table } from '@zeyos/zx'` · `import '@zeyos/zx/zx.css'`.
-Entry points: `.` (components), `./zeyos` (schema-driven ZeyOS binding), `./compat` (gx
-namespace), `./global` and `./compat-global` (classic script tags).
+Entry points: `.` (components), `./zeyos` (schema-driven ZeyOS binding), and `./global`
+(classic script tags).
 
 ## Commands
 `npm run serve` (no-build site at http://127.0.0.1:8321/website/docs.html) · `npm test` (unit

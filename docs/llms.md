@@ -1,6 +1,6 @@
 # Xenon Design System (Zx) — agent reference
 
-> Xenon is the dependency-free design system for ZeyOS business applications; Zx is its
+> Xenon is a dependency-free design system for browser applications; Zx is its product-agnostic
 > vanilla-JavaScript implementation. ES2022 modules, WAI-ARIA-accessible native controls, semantic `--zx-*` design
 > tokens (light/dark + cozy/compact), and lifecycle-safe components. Zero runtime dependencies.
 > This file is the single, complete reference a coding agent needs to build UI with Zx; each
@@ -85,8 +85,8 @@ override that works (global token → then, if needed, a component style).
 
 For ZeyOS business data use the **dedicated client library** `@zeyos/client`
 (`npm install @zeyos/client`) — a zero-dependency, typed OpenAPI client (accounts,
-transactions/invoices, tickets, 50+ resources), OAuth2/session auth, retries, schema
-introspection. It replaces the legacy `gx.zeyos.Client` / `gx.zeyos.Request`.
+transactions/invoices, tickets, 50+ resources), OAuth2/session auth, retries, and schema
+introspection. Zx accepts the client by injection and does not bundle it.
 
 ```js
 import { createZeyosClient, MemoryTokenStore, normalizeListResult } from '@zeyos/client';
@@ -207,16 +207,6 @@ reflection and ElementInternals form association: `<zx-toggle>`, `<zx-check-butt
 `<zx-checklist>`, `<zx-datebox>`, `<zx-timebox>`, `<zx-search>`, `<zx-groupbox>`, `<zx-tabbox>`,
 `<zx-table>`, `<zx-dialog>`.
 
-## gx compatibility
-
-Load `zx-compat.global.js` (or import `zx-compat.esm.js`) →
-`window.gx.{core,ui,util,zeyos,bootstrap}` wrapping Zx components (constructor/option/event-name
-translation, MooTools-style `addEvent`). `gx.compat.installGlobals()` (opt-in) installs its gx
-`__()` parser only when that name is free, plus `_()`, `String.htmlSpecialChars`, and the element
-`store/retrieve` shim. Full namespace listing in
-the "gx compatibility layer" component section below; class map and unsupported legacy APIs in
-`MIGRATION.md`.
-
 ## Conventions (editing component source)
 
 Follow `AGENTS.md`. Key rules: never declare instance class fields for state used in `render()`
@@ -229,14 +219,13 @@ pattern with `:focus-visible` rings and `prefers-reduced-motion` guards.
 
 ```
 src/components/<name>/   component + CSS      src/core/   kernel (component, dom, http, i18n, date…)
-src/compat/              gx compat layer      styles/     tokens + base.css
 website/                 marketing page + docs.html (docs.js)          specs/  per-component specs
 website/demos/           per-component demo modules    website/layouts/  application layout examples
 tests/                   node unit + smoke    dist/       built bundles
 
 npm run serve   # http://127.0.0.1:8321/website/docs.html  (no build)
 npm test        # node --test tests/unit/*.test.js  +  node tests/lint-tokens.js
-npm run build   # dist/: zx.esm.js, zx.global.js (window.zx), zx-compat.global.js (window.gx), zx.css
+npm run build   # dist/: ESM, global, ZeyOS binding, and CSS assets
 node tools/build-module-tokens.js   # regenerate styles/tokens/modules.css from src/zeyos/modules.js
 ```
 
@@ -428,14 +417,16 @@ permissions, recent-history/cache policy, and the route or command ultimately in
 
 - **Constructor** — `new Launcher(null, options)` owns a body-level dialog;
   `new Launcher(existingDialog, options)` enhances and later restores an existing `<dialog>`.
-- **Options** — `items`, abortable `sources: [{id, label?, minQuery?, load(query, {signal})}]`,
+- **Options** — `items`, abortable `sources: [{id, label?, minQuery?, when?, order?, load(query, {signal})}]`,
   `query`, `debounce: 250`, `minQuery: 0`, `maxResults: 100`, `placeholder`, `label`, `emptyText`,
-  `loadingText`, and `shortcut: 'mod+k'|false`.
+  `loadingText`, `shortcut: 'mod+k'|false`, and visible `hints` labels (or `false`).
 - **Items** — `{id, label, description?, keywords?, group?, icon?, badge?, value?, href?, target?,
-  invoke?, pinned?, disabled?}`. Links stay native so modified and middle clicks work; non-link
-  commands may provide an application-owned `invoke` callback.
+  invoke?, pinned?, disabled?, kind?, current?, when?, groupOrder?, itemOrder?}`. `icon` accepts a
+  bundled icon name, Node, or factory. Links stay native so modified and middle clicks work;
+  non-link commands may provide an application-owned `invoke` callback. Malformed and executable
+  URL schemes are stripped; a descriptor with no safe link or callback is disabled.
 - **Methods** — `open()`, `close()`, `toggle()`, `isOpen()`, `focus()`, `setQuery()`, `getQuery()`,
-  `setItems()`, `setSources()`, `destroy()`.
+  `setItems()`, `setCurrent()`, `setSources()`, `destroy()`.
 - **Events** — cancelable `select {item, value, source, query}`, `query {query}`, `open`, `close`,
   and `error {source, error}`. Preventing `select` suppresses the supplied link or callback.
 - **Ranking** — local results are case/diacritic-insensitive and deterministic: exact label,
@@ -443,8 +434,15 @@ permissions, recent-history/cache policy, and the route or command ultimately in
   items retain an explicit order ahead of otherwise equal results. A new async query aborts and
   ignores stale source work.
 - **Keyboard** — Cmd+K on macOS or Ctrl+K elsewhere opens by default; the shortcut is ignored in
-  editable controls, composition, and modal contexts. Arrow keys, Home/End, and Enter operate the
-  single listbox selection model; Escape closes and restores focus.
+  editable controls, composition, and modal contexts. Application tiles use spatial arrow-key
+  movement; Up/Down may continue into record groups. Home/End, Page Up/Down, and Enter operate the
+  single listbox selection model; Escape closes and restores focus. `aria-current` marks the
+  active destination independently from the keyboard's `aria-selected` option.
+- **Optional ZeyOS adapter** — import `zeyosLauncher()` or `buildZeyosLauncherConfig()` from
+  `@zeyos/zx/zeyos`. The adapter receives the permitted module/menu catalogue, pins, current
+  identifier, recent loader or cache, abortable search, destination resolvers, and application/
+  record icon renderers explicitly. It maps the complete shell payload without reading globals or
+  taking over application routing.
 <!-- /doc -->
 
 <!-- doc:avatar -->
@@ -486,25 +484,31 @@ out, or mutates the session.
 Unifies single-select, local filtering, and async loading.
 
 - **Options** — `items: []`, `fixedItems: []`, `valueKey: 'ID'` (string key or `(item)=>id`),
-  `labelKey: 'name'` (string or `(item)=>string`), `renderItem`, `renderValue`, `value`,
-  `disabled`, `placeholder`, `clearable: false`, `filter: false | 'local' | async (query)=>items`,
-  `searchKeys`, `minQuery: 0`, `debounce: 200`, `listHeight: 280`, `groupKey`.
+  `labelKey: 'name'` (string or `(item)=>string`), `renderItem`, `renderValue`,
+  `renderValueAdornment`, `renderNone`, `noneLabel`, `actions`, `value`, `disabled`, `placeholder`,
+  `clearable: false`, `filter: false | 'local' | async (query)=>items`, `searchKeys`,
+  `minQuery: 0`, `debounce: 200`, `listHeight: 280`, `groupKey`.
 - **Getters** — `.value`, `.selected`.
-- **Methods** — `set(id, {silent})`, `setItems()`, `setFixedItems()`, `reset()`, `open()`/`close()`,
-  `enable()`/`disable()`, `focus()`.
-- **Events** — `change {value, item}` (`item` is null on clear), `open`, `close`, `query {query}`,
-  `loaded {items}`.
+- **Methods** — `set(id, {silent})`, `setItems()`, `setFixedItems()`, `setActions()`, `reset()`,
+  `open()`/`close()`, `enable()`/`disable()`, `focus()`.
+- **Events** — `change {value, item}` (`item` is null on clear), preventable
+  `action {id, action, query, select}`, `open`, `close`, `query {query}`, `loaded {items}`.
 - **Fixed choices** — `fixedItems` pins entries to the top of the list, separated by a rule (the
   rule is dropped when `groupKey` is on, since a heading already divides them). They belong to the
   control, not to its data: a `filter` function replaces `items` on every query, while the pinned
   entries are narrowed locally against the same query and stay resolvable by `set()`. They survive
   `setItems()` and are shown below `minQuery`. Use them for choices with no row in the source —
   "Unassigned", "Everyone", "Private".
-- **Presets** — `Select.priority(target, opts)`, a 5-level priority picker;
-  `Select.permission(target, {groups, value})`, the record-access picker with Private and Public
-  pinned above the groups. Its value is the tri-state ZeyOS stores (`false` private, `true` public,
-  or a group ID), `groups` takes an array or a loader `(query)=>items`, and the labels come from
-  `msg` (`permission.private`, `permission.public`).
+- **Presets** — `Select.priority(target, opts)` renders the five-level, five-square ZeyOS priority
+  scale; `Select.status(target, opts)` supplies shape- and semantic-color-distinct workflow states
+  and accepts replacement `items`; `Select.permission(target, {groups, value})` pins Private and
+  Public above record-access groups. Its value is the tri-state ZeyOS stores (`false` private,
+  `true` public, or a group ID), and `groups` takes an array or loader `(query)=>items`.
+- **ZeyOS entity preset** — import `zeyosEntitySelect(client, resource, options)` or the DOM-free
+  `buildZeyosEntitySelectConfig()` from `@zeyos/zx/zeyos`. It composes the async client binding
+  with module-colored icons, subtitle/group readers, a deliberate none row, and an optional
+  application-owned create command. The selected value remains the record ID and exact product
+  glyphs stay injectable through `renderIcon`.
 - **Keyboard** (APG combobox) — ArrowDown/Alt+ArrowDown open; arrows navigate and wrap; Home/End;
   Enter selects; Esc closes; Tab closes; printable characters filter (editable) or run a typeahead
   (readonly). `aria-activedescendant` tracks the active option.
@@ -920,9 +924,9 @@ Two panes with a divider the user owns. The layout is a three-track CSS grid dri
 <!-- doc:table -->
 ### Table
 
-Sortable, selectable, sticky-header data table — one component covering both the legacy
-`gx.ui.Table` and `SimpleTable`. `fr` widths fill the container while px/auto widths scroll
-horizontally, and multi-select adds a tri-state header checkbox plus Shift+click range select.
+Sortable, selectable, sticky-header data table. `fr` widths fill the container while px/auto
+widths scroll horizontally, and multi-select adds a tri-state header checkbox plus Shift+click
+range select.
 
 - **Options** — `columns: [{ id, label, sortable?, width ('120px'|'2fr'|'auto'), align,
   type?: 'text'|'number'|'currency'|'percent'|'unit', locale?, decimals?, currency?, unit?,
@@ -1298,6 +1302,30 @@ Collapsible titled section built on the native `<details>` element.
 - **Events** — `open`, `close`.
 <!-- /doc -->
 
+<!-- doc:card -->
+### Card
+
+A semantic content or record surface. Card is intentionally not a Panel preset: it has no
+disclosure state or application chrome, and composes as one repeated item in a grid or list. A
+linked Card keeps the root non-interactive and renders a real title anchor as its primary action,
+so buttons and links in its action, content, and footer regions remain valid sibling controls.
+
+- **Options** — `title: ''`, `media: null`, `content: null`, `actions: []`, `footer: null`,
+  `link: null|string|{href, target?, rel?, onclick?}`, `variant: 'outlined'|'raised'|'filled'`,
+  `orientation: 'vertical'|'horizontal'`, `headingLevel: 3`.
+- **Methods** — `setTitle()`, `setMedia()`, `setContent()`, `setActions()`, `setFooter()`,
+  `setLink()`.
+- **Content** — media, body, and footer accept text, a Node, a Component, or null. Enhanced target
+  children become body content when no explicit content is supplied, and `destroy()` restores the
+  target exactly.
+- **Interaction** — `link` stretches the native title anchor across the visual surface; secondary
+  controls stay above it and are never nested inside it. A linked card requires a non-empty title.
+  Executable/data URL schemes are rejected. Commands belong in `actions`, and selectable cards
+  should compose a native checkbox or radio.
+- **Layout** — horizontal media uses the public `--zx-card-media-size` hook and stacks through a
+  container query when the card itself becomes narrow.
+<!-- /doc -->
+
 <!-- doc:panel -->
 ### Panel / MasterPanel
 
@@ -1519,49 +1547,36 @@ menu on narrow widths.
 <!-- /doc -->
 
 <!-- doc:app-sidebar -->
-### AppSidebar — expanded application navigation
+### AppSidebar — application navigation in every presentation
 
-Persistent vertical application navigation with header, scrollable tree, and sticky footer slots.
-It is route-agnostic: ZeyOS supplies native `href` values or handles cancelable selections through
-`PG.go()`. This expanded presentation is the only application-nav component that reveals children
-inline.
+One route-agnostic application-navigation owner with an expanded vertical tree, a minimized
+vertical rail, and horizontal rail layouts. It mounts exactly one presentation at a time while
+preserving active and expanded branch state. Only the expanded vertical state reveals descendants
+inline; every rail state opens descendants toward the workspace in anchored flyouts.
 
-- **Options** — shared application `items`, `active`, `expanded`, `collapsed`, `side: 'left'|'right'`,
-  `label`, and `header`, `footer`, `railHeader`, `railFooter` content slots.
-- **Methods** — `setItems()`, `setActive()`, `setExpanded()`, `getExpanded()`, `toggleBranch()`,
-  `expand()`, `collapse()`, `setCollapsed()`, `isCollapsed()`, `getRail()`, `destroy()`.
+- **Options** — `items`, `active`, `expanded`, `collapsed`, `collapsible`,
+  `orientation: 'vertical'|'horizontal'`, `side: 'left'|'right'|'top'|'bottom'`, `label`,
+  `header`, `footer`, `railHeader`, `railFooter`, `openDelay: 80`, `closeDelay: 160`, and
+  `renderIcon(item, context)`. Icon values may also be names, nodes, components, or factories.
+- **Methods** — `setItems()`, `getItems()`, `setActive()`, `setExpanded()`, `getExpanded()`,
+  `toggleBranch()`, `expand()`, `collapse()`, `setCollapsed()`, `isCollapsed()`,
+  `setLayout({orientation, side})`, `openFlyout(id, {focus})`, `closeFlyout()`,
+  `closeAllFlyouts()`, `isFlyoutOpen()`, `focus()`, `destroy()`.
 - **Events** — cancelable `select {item, id, value, href, event}`,
-  `branchchange {item, id, expanded, ids}` (`item`, `id`, and `expanded` are null for a bulk
-  `setExpanded()`), and `collapsechange {collapsed}`.
-- **Minimized state** — collapse composes `AppRail` over the same normalized item tree. Expanded
-  branch IDs survive the round trip but are not rendered inline while minimized.
-- **Semantics** — persistent navigation uses `<nav>` and nested lists with native links and
-  disclosure buttons, not menu or menubar roles. A parent with children is disclosure-only; give
-  it an explicit Overview child when the parent also needs a destination.
-<!-- /doc -->
-
-<!-- doc:app-rail -->
-### AppRail — minimized application navigation
-
-The compact form of application navigation for left, right, top, or bottom placement. It can flow
-vertically or horizontally, but descendants are always anchored flyouts—never inline—and open
-toward the workspace.
-
-- **Options** — shared application `items`, `active`, `orientation: 'vertical'|'horizontal'`,
-  `side: 'left'|'right'|'top'|'bottom'`, `label`, `header`, `footer`, `openDelay: 80`, and
-  `closeDelay: 160`.
-- **Methods** — `setItems()`, `setActive()`, `getItems()`, `openFlyout(id, {focus})`,
-  `closeFlyout()`, `closeAllFlyouts()` (including pending hover/focus timers and descendant
-  branches), `isFlyoutOpen()`, `focus()`, `destroy()`.
-- **Events** — cancelable `select {item, id, value, href, event}` and
+  `branchchange {item, id, expanded, ids}`, `collapsechange {collapsed}`, and
   `flyoutchange {item, id, open}`.
-- **Pointer and focus** — hover or focus reveals a child collection without stealing focus. The
-  close delay covers the trigger-to-panel gap; leaving both trigger and panel closes it. Click,
-  Enter, Space, and the inward arrow also open it, so horizontal subnavigation is discoverable and
-  usable without hover. Escape, outside activation, or selection closes it.
-- **Semantics** — every icon-only destination retains a visible Tooltip and an accessible name.
-  Persistent rail destinations remain native links/buttons in a labelled navigation list; the
-  transient child flyout supplies its own arrow-key focus interaction.
+- **Presentation state** — horizontal navigation is always effectively minimized and never exposes
+  an expand control. Switching layouts does not erase the saved vertical collapsed preference or
+  expanded branch IDs. `AppSidebar` is the single public application-navigation component; use
+  `collapsed: true` or `orientation: 'horizontal'` for its rail presentations.
+- **Pointer and focus** — hover or focus reveals rail descendants without stealing focus. Click,
+  Enter, Space, and the arrow toward the workspace also open a flyout; Escape, outside activation,
+  or selection closes it. Expanded navigation supports arrows plus Home/End across visible rows.
+- **Semantics** — persistent navigation uses `<nav>` and nested lists with native links and
+  disclosure buttons, not menu or menubar roles. Icon-only destinations retain an accessible name
+  and Tooltip. A parent with children is disclosure-only; add an Overview child when it also needs
+  a destination. Malformed and executable URL schemes are stripped; an item with no remaining
+  link or callback is disabled in every presentation.
 <!-- /doc -->
 
 <!-- doc:kernel -->
@@ -1712,40 +1727,6 @@ bug wearing a layout costume, while a tooltip that is always there is noise.
   for the sub-pixel difference fractional zoom produces.
 - **Class** — `.zx-truncate` alone does the clamping from static markup with no JavaScript;
   `data-lines` plus `--zx-truncate-lines` select the multi-line form.
-<!-- /doc -->
-
-<!-- doc:gx-compat -->
-### gx compatibility layer
-
-Opt-in re-implementation of the legacy MooTools-era `gx` API on top of Zx, so existing ZeyOS
-screens keep running while their code is modernised file by file. It lives in its own bundle, is
-never imported by `src/index.js`, and adds nothing to an application that does not load it.
-
-- **Loading** — classic: `<script src="/assets/zx-compat.global.js">` → `window.gx`; module:
-  `import { gx } from '/assets/zx-compat.esm.js'` (or `src/compat/index.js` in-repo).
-  `gx.compat.installGlobals()` additionally installs the gx `__()` parser only when that name is
-  free, plus `_()`, `String.htmlSpecialChars`, and the element `store`/`retrieve` shim. It never
-  replaces ZeyOS's compact builder. `gx.install(host)` assigns
-  the namespace without the optional globals.
-- **`gx.zeyos`** — Select/SelectFilter/SelectDyn/SelectPrio, Table, Tabbox, Panel, MasterPanel,
-  Groupbox, Search, Datebox, DatePicker, MonthPicker, TimePicker, Timebox, Toggle, Msgbox, Popup,
-  Dialog, Dropdown, Checklist, Permission, Client, Request, Factory.
-- **`gx.bootstrap`** — Form, Fieldset, Field, the Select variants, Checklist, Table, Tabbox,
-  NavigationBar, MenuButton, Message, Popup/PopupAlert/PopupConfirm, CheckButton, DataFilter,
-  ValueList, MultiValueEditor, FieldUpload, Timebox.
-- **`gx.util`** — `formatNum`, `formatTime`, `getMinutes`, `getNumber`, `printf`, `parseResult`,
-  `Parse`, `isArray`/`isObject`/`isFunction`/`isString`/`isNumber`/`isElement`/`isNode`,
-  `Console`.
-- **`gx.ui`** — Container, SimpleTable, Timebox, and the inert visual-effect stubs
-  Blend/Collapse/Hud/Toggling/HGroup/Templates. **`gx.core`** — Settings. **`gx.compat`** —
-  installGlobals, installElementStorage, parse, GxWrapper.
-- **Migrating off it** — legacy classes collapse onto fewer Zx components: all four Select
-  variants → one `Select` with a `filter` option; `gx.ui.Table` + `SimpleTable` → one `Table`;
-  `Msgbox`/`bootstrap.Message` → `Message`; `Popup`/`PopupAlert`/`PopupConfirm` → `Modal`/`Dialog`
-  with Promise-returning statics; `gx.zeyos.Client`/`Request` → `@zeyos/client`. Anything that
-  depended on MooTools prototype extensions is gone. `MIGRATION.md` has the full map and the
-  deliberate behaviour changes; `website/compat.html` runs legacy snippets against Zx as a smoke
-  test.
 <!-- /doc -->
 
 <!-- doc:elements -->

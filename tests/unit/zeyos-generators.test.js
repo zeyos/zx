@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { buildZeyosFormConfig } from '../../src/zeyos/form.js';
-import { buildZeyosSelectConfig } from '../../src/zeyos/select.js';
+import {
+  buildZeyosEntitySelectConfig, buildZeyosSelectConfig
+} from '../../src/zeyos/select.js';
 import { buildZeyosTableConfig } from '../../src/zeyos/table.js';
 
 const TRANSACTION_FIELDS = {
@@ -121,6 +123,40 @@ test('buildZeyosSelectConfig sends the buildListQuery shape to the generated lis
     limit: 25
   });
   assert.equal(Object.prototype.hasOwnProperty.call(client.calls[0], 'filter'), false);
+});
+
+test('buildZeyosEntitySelectConfig composes rich entity rows without changing the ID contract', async () => {
+  const client = fakeClient();
+  let action = null;
+  const config = buildZeyosEntitySelectConfig(client, 'accounts', {
+    labelKey: 'lastname',
+    subtitleKey: 'customernum',
+    groupKey: 'type',
+    moduleKey: () => 'accounts',
+    none: 'No account',
+    create: {
+      label: 'Create account…',
+      oninvoke: (detail) => { action = detail; }
+    }
+  });
+
+  assert.equal(config.valueKey, 'ID');
+  assert.equal(config.clearable, true);
+  assert.equal(config.noneLabel, 'No account');
+  assert.equal(typeof config.renderItem, 'function');
+  assert.equal(typeof config.renderValueAdornment, 'function');
+  assert.deepEqual(config.actions.map(({ id, label, group }) => ({ id, label, group })), [
+    { id: 'create', label: 'Create account…', group: 'New' }
+  ]);
+
+  await config.filter('alpine');
+  assert.ok(client.calls[0].fields.includes('ID'));
+  assert.ok(client.calls[0].fields.includes('lastname'));
+  assert.ok(client.calls[0].fields.includes('customernum'));
+  assert.ok(client.calls[0].fields.includes('type'));
+  config.actions[0].invoke({ id: 'create', query: 'Alpine', select: null });
+  assert.equal(action.resource, 'accounts');
+  assert.equal(action.query, 'Alpine');
 });
 
 function fakeClient() {

@@ -1,24 +1,24 @@
-import { Component } from '../../core/component.js';
-import { h } from '../../core/dom.js';
-import { icon } from '../../core/icons.js';
-import { Dropdown } from '../dropdown/dropdown.js';
-import { Tooltip } from '../tooltip/tooltip.js';
+import { Component } from '../core/component.js';
+import { h, safeHref } from '../core/dom.js';
+import { icon } from '../core/icons.js';
+import { Dropdown } from '../components/dropdown/dropdown.js';
+import { Tooltip } from '../components/tooltip/tooltip.js';
 
 /**
  * @typedef {Object} AppNavItem
  * @property {string|number} id Stable item identifier.
  * @property {string} label Visible/accessibility label.
- * @property {string} [icon] Kernel icon name.
+ * @property {string|Node|{toElement: () => Node|null}|((context: Record<string, any>, item: AppNavItem) => Node|null)} [icon] Icon name, node, component, or factory.
  * @property {string|number} [badge] Count or status badge.
  * @property {unknown} [value] Emitted value; defaults to `id`.
- * @property {string} [href] Native navigation target.
+ * @property {string} [href] Native navigation target; executable/data schemes are disabled.
  * @property {string} [target] Native link browsing context.
  * @property {() => void} [invoke] Application-owned non-link action.
  * @property {boolean} [disabled] Whether activation is unavailable.
  * @property {AppNavItem[]} [children] Child destinations/actions.
  */
 /**
- * @typedef {Object} AppRailOptions
+ * @typedef {Object} AppRailPresenterOptions
  * @property {AppNavItem[]} [items=[]] Application navigation tree.
  * @property {string|number|null} [active=null] Active item id.
  * @property {'vertical'|'horizontal'} [orientation='vertical'] Rail flow.
@@ -28,6 +28,7 @@ import { Tooltip } from '../tooltip/tooltip.js';
  * @property {Node|string|number|{toElement: () => Node|null}|null} [footer=null] Trailing rail content.
  * @property {number} [openDelay=80] Hover-open delay in milliseconds.
  * @property {number} [closeDelay=160] Pointer/focus crossing grace in milliseconds.
+ * @property {(item: AppNavItem, context: Record<string, any>) => Node|null} [renderIcon] Optional host icon renderer.
  * @property {(event: CustomEvent<AppNavSelectDetail>) => void} [onselect] Preventable action listener.
  * @property {(event: CustomEvent<{item: AppNavItem, id: string|number, open: boolean}>) => void} [onflyoutchange] Flyout-state listener.
  */
@@ -36,14 +37,14 @@ import { Tooltip } from '../tooltip/tooltip.js';
 
 /**
  * Minimized application navigation; descendants always open in hover/focus flyouts, never inline.
- * @fires AppRail#select
- * @fires AppRail#flyoutchange
- * @extends {Component<AppRailOptions>}
+ * @fires AppRailPresenter#select
+ * @fires AppRailPresenter#flyoutchange
+ * @extends {Component<AppRailPresenterOptions>}
  */
-export class AppRail extends Component {
+export class AppRailPresenter extends Component {
   static cssName = 'app-rail';
 
-  /** @type {Readonly<AppRailOptions>} */
+  /** @type {Readonly<AppRailPresenterOptions>} */
   static defaults = {
     items: [],
     active: null,
@@ -53,13 +54,14 @@ export class AppRail extends Component {
     header: null,
     footer: null,
     openDelay: 80,
-    closeDelay: 160
+    closeDelay: 160,
+    renderIcon: null
   };
 
   /**
    * Creates or enhances a rail host.
    * @param {Element|string|null} target Rail target.
-   * @param {AppRailOptions} [options={}] Rail options.
+   * @param {AppRailPresenterOptions} [options={}] Rail options.
    */
   constructor(target = null, options = {}) {
     super(target, options);
@@ -213,7 +215,14 @@ export class AppRail extends Component {
         index: String(item.id),
         iconOnly: true,
         disclosure: hasChildren,
-        disclosureIcon: railDisclosureIcon(this.el.dataset.side)
+        disclosureIcon: railDisclosureIcon(this.el.dataset.side),
+        visual: appNavIcon(item, this.options.renderIcon, {
+          orientation: this.el.dataset.orientation,
+          collapsed: true,
+          side: this.el.dataset.side,
+          level: 1,
+          location: 'root'
+        })
       });
       const row = h('li', { class: 'zx-app-rail__row' }, control);
       this.refs.list.append(row);
@@ -255,7 +264,14 @@ export class AppRail extends Component {
         index: childKey,
         iconOnly: false,
         disclosure: hasChildren,
-        disclosureIcon: nestedDisclosureIcon(this.el.dataset.side)
+        disclosureIcon: nestedDisclosureIcon(this.el.dataset.side),
+        visual: appNavIcon(child, this.options.renderIcon, {
+          orientation: this.el.dataset.orientation,
+          collapsed: true,
+          side: this.el.dataset.side,
+          level: childKey.split('/').length,
+          location: 'flyout'
+        })
       });
       list.append(h('li', {}, control));
       if (hasChildren) this._buildFlyout(child, control, childKey, key);
@@ -305,7 +321,6 @@ export class AppRail extends Component {
     this._interaction.listen(trigger, 'click', (event) => {
       event.preventDefault();
       if (event instanceof MouseEvent && event.detail === 0) this.openFlyout(key, { focus: true });
-      else if (dropdown.isOpen()) this.closeFlyout(key);
       else this.openFlyout(key);
     });
     this._interaction.listen(actualPanel, 'pointerenter', () => this._cancelFlyoutTimers(flyout, true));
@@ -582,26 +597,61 @@ class RailListenerScope extends Component {
 export function normalizeAppItems(items) {
   if (!Array.isArray(items)) return [];
   return items.filter((item) => item && typeof item === 'object' && item.id != null && item.label != null)
-    .map((item) => ({
-      ...item,
-      label: String(item.label),
-      children: Array.isArray(item.children) ? normalizeAppItems(item.children) : []
-    }));
+    .map((item) => {
+      const normalized = {
+        ...item,
+        label: String(item.label),
+        children: Array.isArray(item.children) ? normalizeAppItems(item.children) : []
+      };
+      if (item.href == null) return normalized;
+      const href = safeHref(item.href);
+      if (href !== null) normalized.href = href;
+      else {
+        delete normalized.href;
+        if (normalized.children.length === 0 && typeof normalized.invoke !== 'function') {
+          normalized.disabled = true;
+        }
+      }
+      return normalized;
+    });
 }
 
-/** @param {AppNavItem} item @param {{className: string, index: string, iconOnly: boolean, disclosure: boolean, disclosureIcon: string}} options @returns {HTMLElement} */
-function navControl(item, { className, index, iconOnly, disclosure, disclosureIcon }) {
-  const tag = item.href && !disclosure ? 'a' : 'button';
+/**
+ * Resolves a host-rendered or item-owned navigation icon without moving a mounted source node.
+ * @param {AppNavItem} item Navigation item.
+ * @param {unknown} renderer Optional component-level renderer.
+ * @param {Record<string, any>} context Presentation context.
+ * @returns {Node|null}
+ */
+export function appNavIcon(item, renderer, context) {
+  let visual = typeof renderer === 'function' ? renderer(item, context) : null;
+  if (visual == null) visual = item.icon;
+  if (typeof visual === 'function') visual = visual(context, item);
+  if (typeof visual === 'string') return icon(visual);
+  if (visual instanceof Node) return visual.cloneNode(true);
+  if (visual && typeof visual === 'object'
+    && typeof (/** @type {any} */ (visual)).toElement === 'function') {
+    const element = (/** @type {any} */ (visual)).toElement();
+    return element instanceof Node ? element.cloneNode(true) : null;
+  }
+  return null;
+}
+
+/** @param {AppNavItem} item @param {{className: string, index: string, iconOnly: boolean, disclosure: boolean, disclosureIcon: string, visual: Node|null}} options @returns {HTMLElement} */
+function navControl(item, { className, index, iconOnly, disclosure, disclosureIcon, visual }) {
+  const href = safeHref(item.href);
+  const tag = href && !disclosure ? 'a' : 'button';
   return /** @type {HTMLElement} */ (h(tag, {
     class: className,
     type: tag === 'button' ? 'button' : null,
-    href: tag === 'a' ? item.href : null,
+    href: tag === 'a' ? href : null,
     target: tag === 'a' ? item.target ?? null : null,
+    rel: tag === 'a' ? 'noopener' : null,
     ariaLabel: iconOnly ? item.label : null,
     ariaDisabled: item.disabled ? 'true' : null,
     dataset: { appNavId: index, appNavValueId: String(item.id) }
   },
-  item.icon ? h('span', { class: `${className}-icon`, ariaHidden: 'true' }, icon(item.icon)) : null,
+  visual ? h('span', { class: `${className}-icon`, ariaHidden: 'true' }, visual) : null,
   h('span', { class: `${className}-label` }, item.label),
   item.badge != null ? h('span', { class: `${className}-badge` }, String(item.badge)) : null,
   disclosure ? h('span', { class: `${className}-disclosure`, ariaHidden: 'true' }, icon(disclosureIcon)) : null));
@@ -664,5 +714,5 @@ function appendSlot(target, content) {
   } else if (typeof content === 'object' && typeof content.nodeType === 'number') target.append(content);
 }
 
-/** Fired when a destination/action is activated. @event AppRail#select @type {CustomEvent<AppNavSelectDetail>} */
-/** Fired when a flyout opens or closes. @event AppRail#flyoutchange @type {CustomEvent<{item: AppNavItem, id: string|number, open: boolean}>} */
+/** Fired when a destination/action is activated. @event AppRailPresenter#select @type {CustomEvent<AppNavSelectDetail>} */
+/** Fired when a flyout opens or closes. @event AppRailPresenter#flyoutchange @type {CustomEvent<{item: AppNavItem, id: string|number, open: boolean}>} */
