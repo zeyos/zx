@@ -136,6 +136,7 @@ ZeyOS binding — see `src/zeyos/modules.js`.
 | `Table` | Sortable/selectable table with typed transaction columns, flat-data hierarchy/treegrid projection, and opt-in cell/row editing. |
 | `Grid`, `Grid.BillingItems()` | Table-compatible preset surface with editable currencies, units, totals, and sub-items. |
 | `Chart`, `ChartJsAdapter` | Accessible engine-neutral chart host and explicitly injected Chart.js adapter. |
+| `Calendar` | Agenda/day/week/month/year scheduling with timed collisions, spanning events, range selection, and configurable optimistic drag/resize editing. |
 | `DataFilter` | Declarative select, text, and custom filters for client-side row sets. |
 | `TreeView` | APG tree with lazy children, filtering, and tri-state checkboxes. |
 | `Finder` | Miller-columns hierarchy browser with an optional preview pane. |

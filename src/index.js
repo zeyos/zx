@@ -133,6 +133,13 @@ export {
   DateRangeBox, formatRangeText, parseRangeText
 } from './components/datebox/date-range-box.js';
 export { Timebox, splitTime, joinTime } from './components/timebox/timebox.js';
+export { Calendar } from './components/calendar/calendar.js';
+export {
+  CALENDAR_VIEWS, addCalendarDays, calendarDayDifference, calendarDayKey,
+  calendarEventIntersects, calendarEventSpansDays, calendarRange, cloneCalendarEvent,
+  layoutCalendarSpans, layoutTimedCalendarEvents, normalizeCalendarEvents,
+  shiftCalendarEvent, startOfCalendarDay, startOfCalendarWeek
+} from './components/calendar/calendar-model.js';
 export { Table, reorderTableRows } from './components/table/table.js';
 export { Grid, billingColumns, isBillingLine } from './components/grid/grid.js';
 export {

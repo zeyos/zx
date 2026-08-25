@@ -32,7 +32,7 @@ const COMPONENT_IDS = [
   'message', 'modal', 'dialog', 'sheet', 'sheet-stack', 'dropdown', 'menu-button', 'context-menu', 'tooltip',
   'select', 'checklist', 'tag-picker',
   'date-picker', 'datebox', 'date-range', 'timebox',
-  'table', 'grid', 'chart', 'data-filter', 'filter', 'pagination', 'tree', 'finder',
+  'table', 'grid', 'chart', 'calendar', 'data-filter', 'filter', 'pagination', 'tree', 'finder',
   'form', 'form-widgets', 'questionnaire', 'elements',
   'value-list', 'multi-value-editor', 'field-upload'
 ];

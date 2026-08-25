@@ -50,7 +50,8 @@ available as ESM named exports and as `window.zx.*`.
   instance).
 - Data: `Table` (sortable, selectable, sticky header, opt-in inline editing, row reorder, column
   visibility), `Grid` with single-click editing and `Grid.BillingItems()`, engine-neutral `Chart`
-  with injected `ChartJsAdapter`, backend-neutral nested `Filter`, simple client-side `DataFilter`,
+  with injected `ChartJsAdapter`, `Calendar` (agenda/day/week/month/year, pointer/keyboard drag and
+  resize, `optimistic: true|false`), backend-neutral nested `Filter`, simple client-side `DataFilter`,
   `Pagination`, `TreeView` (APG tree), `Finder` (Miller columns).
 - Forms: `Form`, `Fieldset`, `Questionnaire` (guided one-question-at-a-time flow with branching), `Field` (type registry), `ValueList`, `MultiValueEditor`,
   `FieldUpload`.

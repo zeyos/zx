@@ -8,6 +8,15 @@ and friends remain the complete record.
 
 ## Unreleased
 
+### Added
+
+- **Calendar scheduling.** `Calendar` adds agenda/day/week/month/year views, local-time collision
+  and spanning layout, range selection, now/loading states, and pointer plus keyboard move/resize.
+  Optimistic updates are the default with an idempotent version-guarded rollback; setting
+  `optimistic: false` leaves updates application-controlled. The optional ZeyOS adapter maps
+  expanded appointment occurrences and Unix seconds while recurrence, DAV, and persistence remain
+  outside core.
+
 ## 4.1.1 — 2026-08-25
 
 ### Changed

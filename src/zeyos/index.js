@@ -25,3 +25,7 @@ export {
 } from './select.js';
 export { zeyosForm } from './form.js';
 export { zeyosTable } from './table.js';
+export {
+  buildZeyosCalendarOptions, calendarEventToZeyosPatch, zeyosAppointmentToEvent,
+  zeyosAppointmentsToEvents, zeyosCalendar
+} from './calendar.js';

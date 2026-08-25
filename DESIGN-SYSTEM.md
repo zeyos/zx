@@ -34,6 +34,7 @@ and navigation remain application-owned.
 | Dialogs, sheets, dropdowns, context menus, tooltips, messages | Covered | Consolidate duplicate menu behavior before building account/launcher surfaces. |
 | Tabs, panels, toolbar, breadcrumbs, stepper, split view, dock | Covered | Compose layouts; do not let navigation components own routes. |
 | Sorting, selection, dynamic/local filtering, pagination, trees/finder | Covered | `Filter` authors typed nested expressions; `DataFilter` executes simple local predicates. Backend query compilation stays in adapters. |
+| Operational calendars and scheduling | Covered | `Calendar` provides agenda/day/week/month/year views, local collision/spanning layout, selection, and configurable optimistic pointer/keyboard edits. The host owns loading, persistence, permissions, recurrence rules, and DAV. |
 | Editable billing/transaction rows | Covered at generic-grid level | `Grid.BillingItems()` composes single-click typed currency/unit editors, flat hierarchy, same-parent row movement, and column visibility over `Table`. Tax, subtotal, posting, rounding, and persistence stay domain code. |
 | Global launcher/search | Covered | `Launcher` combines an application grid, current/pinned state, recent records, and abortable grouped sources. The optional ZeyOS adapter maps the complete 29-app shell catalogue while the host retains permissions, icons, and routing. |
 | Account/profile/preferences menu | Covered at presentation level | `Avatar` and `AccountMenu` provide identity and action UI. The host supplies permitted actions and owns preferences, authentication, and logout. |
@@ -57,6 +58,7 @@ a Zx component or a documented composition are not counted as gaps.
 | ZeyOS behavior | Source evidence | Xenon/Zx coverage |
 | --- | --- | --- |
 | Dynamic search/filter authoring and saved filter controls | [`UI.newSearch`](../zeyos/ext/global.orig/4-ui.orig.js#L3378) and [`UI.newContainerFilters`](../zeyos/ext/global.orig/4-ui.orig.js#L7723) | `Filter` supplies a typed/versioned AST editor; `DataFilter` remains the lightweight local-row helper. A compiler and persistence service are intentionally not core. |
+| Agenda/day/week/month/year scheduling | [`calendar.orig.js`](../zeyos/ext/mod/calendar.orig.js#L61) | `Calendar` covers timed collisions, spanning lanes, windowed range events, activity year view, selection, now state, and pointer/keyboard move/resize. `zeyosCalendar()` maps expanded appointment rows and Unix seconds without importing recurrence, DAV, routing, or permissions into core. |
 | Editable transaction rows and row movement | [`_newTblAddColEdit`](../zeyos/ext/global.orig/4-ui.orig.js#L5613) and [`newTblItems`](../zeyos/ext/global.orig/4-ui.orig.js#L6070) | `Table`/`Grid.BillingItems()` cover typed editing, currencies/units, hierarchy, single-click entry, same-parent drag/keyboard reorder, and show/hide columns. |
 | Entity selection, priority, status, and permission choices | [`newSelEntity`](../zeyos/ext/global.orig/4-ui.orig.js#L3296), [`newSelPriority`](../zeyos/ext/global.orig/4-ui.orig.js#L3101), and the surrounding Select family | `Select.entity()`, `.priority()`, `.status()`, and `.permission()` cover the interaction contract; the ZeyOS adapter owns schemas and localized catalogues. |
 | Application launcher and module/entity identity | [`newExpLst`](../zeyos/ext/global.orig/4-ui.orig.js#L4355) and entity/module item builders through line 4457 | `Launcher`, `AppIcon`, and the optional ZeyOS adapter cover the full app catalogue, current/pinned state, recent records, grouped abortable search, forks/weblets, and injected routing. |
@@ -70,7 +72,6 @@ a Zx component or a documented composition are not counted as gaps.
 | P0 | **EntityRef** | ZeyOS has a large family of linked/static entity presentations with subtitle, owner/group/assignee context, fork, and record actions: [`newLinkEntity*`](../zeyos/ext/global.orig/4-ui.orig.js#L225) and [`newEntityStatic`/`newEntity*`](../zeyos/ext/global.orig/4-ui.orig.js#L8262). A generic `EntityRef` should own icon/title/subtitle/metadata/link/action semantics; ZeyOS routing, permissions, and context menus remain injected. `Card` is too large for dense table/feed rows. |
 | P0 | **FileItem / FileList** | Existing-file, temporary-file, waiting/progress, MIME, size, and download rows recur in [`newFile`, `newFileTemp`, and `newFileWait`](../zeyos/ext/global.orig/4-ui.orig.js#L8158). `FieldUpload` owns selection/upload but not durable file presentation. Core should render file identity/state/actions; transport, authorization, preview, and download URLs stay with the host. |
 | P0 | **ActivityList / ActivityItem** | [`newFeed`](../zeyos/ext/global.orig/4-ui.orig.js#L8704) combines chronological records, comments, attachments, likes, and incremental updates. Core should own an accessible chronological list, grouping, loading/empty state, and action slots. Posting, reactions, channels, permissions, and persistence remain application code. |
-| P1 | **Scheduler** | The current calendar implements agenda/day/week/month/year views, timed and spanning items, keyboard/routing affordances, and dense collision layout in [`calendar.orig.js`](../zeyos/ext/mod/calendar.orig.js#L61). A generic scheduler is a real core gap, but should be a separate workstream with interval-layout and accessibility invariants; recurrence, DAV, permissions, and routes are adapters/application logic. |
 | P1 | **FacetList** | Counted activity/status/tag/entity side filters appear in [`newNavActivityStatus`](../zeyos/ext/global.orig/4-ui.orig.js#L3967), `newNavTag`, and `newNavEntity`. `Filter` is an expression author, not a compact persistent facet navigator. Core should own selection/count/collapse/loading behavior; query mapping stays injected. |
 | P1 | **EditorHost** | ZeyOS uses plain/Markdown/contenteditable/iframe editors through [`newEditor`](../zeyos/ext/global.orig/4-ui.orig.js#L1607) and `newFrameEditor`. Like `Chart`, core should provide labels, toolbar/action slots, value/lifecycle, dirty/read-only/error states, and an injected engine adapter. Sanitization and document/media policy must not be implicit core behavior. |
 | P1 | **ColorPicker** | The reusable swatch picker is [`newCl`](../zeyos/ext/global.orig/4-ui.orig.js#L3753). A dependency-free accessible swatch/custom-color picker belongs in core and would also serve the Theme Studio. |
@@ -130,6 +131,20 @@ follow-ups, deliberately separate from this generic preset:
 - column reorder and user-persisted column state;
 - product-specific invoice/transaction presets with tax, discount, rounding, and formula golden tests;
 - server persistence, optimistic rejection, and undo owned by the application/controller layer.
+
+## Calendar contract
+
+`Calendar` normalizes arbitrary event records into stable IDs, copied local Dates, optional colour
+and location, and per-event edit policies. Agenda, day, week, month, and year are presentations of
+the same event set. The interval helpers operate on calendar days rather than fixed 24-hour spans,
+so DST does not move a date; timed overlaps get deterministic columns and all-day/multi-day items
+get non-overlapping clipped lanes.
+
+Move and resize proposals are cancelable and keyboard-equivalent. Optimistic mode is the default
+and provides a version-guarded `revert()` that cannot overwrite a newer local edit. Controlled mode
+emits the same proposal without local mutation. The optional ZeyOS adapter maps expanded
+appointment occurrences and Unix seconds while the application retains transport, recurrence/DAV,
+permissions, routing, validation, and conflict handling.
 
 ## Chart-engine candidates
 

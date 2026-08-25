@@ -13,7 +13,7 @@
  */
 
 import {
-  AppIcon, Breadcrumb, Card, Checklist, Component, ContextMenu, CopyInput, DataFilter, DateRangeBox, Datebox, DatePicker,
+  AppIcon, Breadcrumb, Calendar, Card, Checklist, Component, ContextMenu, CopyInput, DataFilter, DateRangeBox, Datebox, DatePicker,
   Dialog, Dropdown, Finder, Form, Groupbox, InlineLoading, MasterPanel, MenuButton, Message,
   Modal, MultiValueEditor, NavigationBar, NumberField, Pagination, Panel, ProgressBar,
   Rating, Search, Select, Slider, Stepper, Table, Tabbox, TagPicker, Timebox, Toggle, Toolbar,
@@ -89,6 +89,7 @@ export const CARDS = [
   { id: 'ranges', title: 'Ranges and progress', hint: 'Slider, rating, progress, loading', render: rangesCard },
   { id: 'dates', title: 'Dates and time', hint: 'Boxes, ranges, durations', render: datesCard },
   { id: 'calendar', title: 'Calendar', hint: 'The inline picker — the densest accent surface', render: calendarCard },
+  { id: 'schedule', title: 'Schedule', hint: 'Agenda events and Calendar controls', render: scheduleCard },
   { id: 'form', title: 'Form', hint: 'A fieldset of typed fields with actions', render: formCard },
   { id: 'table', title: 'Table', hint: 'Sorting, zebra rows, selection, pagination', render: tableCard },
   { id: 'filter', title: 'Data filter', hint: 'The filter bar above a table', render: filterCard },
@@ -286,6 +287,26 @@ function datesCard() {
 /** @returns {Node} */
 function calendarCard() {
   return new DatePicker(null, { value: new Date() }).toElement();
+}
+
+/** @returns {Node} */
+function scheduleCard() {
+  const first = new Date();
+  first.setHours(9, 0, 0, 0);
+  const second = new Date(first.getTime());
+  second.setDate(second.getDate() + 1);
+  second.setHours(13, 30, 0, 0);
+  return new Calendar(null, {
+    date: first,
+    view: 'agenda',
+    views: ['agenda', 'week'],
+    agendaDays: 3,
+    nowIndicator: false,
+    events: [
+      { id: 'studio-briefing', title: 'Team briefing', start: first, end: new Date(first.getTime() + 60 * 60_000), color: 'var(--zx-color-accent)' },
+      { id: 'studio-review', title: 'Customer review', start: second, end: new Date(second.getTime() + 90 * 60_000), location: 'Video call', color: 'var(--zx-color-info)' }
+    ]
+  }).toElement();
 }
 
 /** @returns {Node} */

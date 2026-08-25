@@ -773,6 +773,424 @@
     ],
     "methods": []
   },
+  "Calendar": {
+    "options": [
+      {
+        "name": "events",
+        "type": "Record<string, any>[]",
+        "default": "[]",
+        "description": "Event records."
+      },
+      {
+        "name": "date",
+        "type": "Date|string|number|null",
+        "default": "null",
+        "description": "Initial local anchor date; null uses today."
+      },
+      {
+        "name": "view",
+        "type": "CalendarView",
+        "default": "'month'",
+        "description": "Initial view."
+      },
+      {
+        "name": "views",
+        "type": "CalendarView[]",
+        "default": "['agenda','day','week','month','year']",
+        "description": "Allowed views."
+      },
+      {
+        "name": "locale",
+        "type": "string|string[]",
+        "default": null,
+        "description": "Intl locale override."
+      },
+      {
+        "name": "weekStart",
+        "type": "number",
+        "default": "1",
+        "description": "First weekday, 0 (Sunday) through 6 (Saturday)."
+      },
+      {
+        "name": "weekNumbers",
+        "type": "boolean",
+        "default": "true",
+        "description": "Show ISO week numbers in month view."
+      },
+      {
+        "name": "workweek",
+        "type": "boolean",
+        "default": "false",
+        "description": "Show Monday–Friday in the week time grid."
+      },
+      {
+        "name": "agendaDays",
+        "type": "number",
+        "default": "14",
+        "description": "Number of days in agenda view."
+      },
+      {
+        "name": "slotDuration",
+        "type": "number",
+        "default": "30",
+        "description": "Time-grid snap interval in minutes."
+      },
+      {
+        "name": "slotMinTime",
+        "type": "number",
+        "default": "0",
+        "description": "First visible minute of the day."
+      },
+      {
+        "name": "slotMaxTime",
+        "type": "number",
+        "default": "1440",
+        "description": "Exclusive last visible minute of the day."
+      },
+      {
+        "name": "scrollTime",
+        "type": "number",
+        "default": "480",
+        "description": "Minute initially scrolled into view."
+      },
+      {
+        "name": "eventLimit",
+        "type": "number",
+        "default": "3",
+        "description": "Maximum visible month lanes before a More button."
+      },
+      {
+        "name": "selectable",
+        "type": "boolean",
+        "default": "false",
+        "description": "Enable pointer time-range selection."
+      },
+      {
+        "name": "editable",
+        "type": "boolean",
+        "default": "false",
+        "description": "Enable event moving and resizing."
+      },
+      {
+        "name": "eventStartEditable",
+        "type": "boolean|null",
+        "default": "null",
+        "description": "Global move override; null inherits editable."
+      },
+      {
+        "name": "eventDurationEditable",
+        "type": "boolean|null",
+        "default": "null",
+        "description": "Global resize override; null inherits editable."
+      },
+      {
+        "name": "optimistic",
+        "type": "boolean",
+        "default": "true",
+        "description": "Apply event proposals locally before persistence confirms."
+      },
+      {
+        "name": "nowIndicator",
+        "type": "boolean",
+        "default": "true",
+        "description": "Show the current-time line in day/week views."
+      },
+      {
+        "name": "now",
+        "type": "Date|(() => Date)|null",
+        "default": "null",
+        "description": "Current-time override for deterministic rendering."
+      },
+      {
+        "name": "disabled",
+        "type": "boolean",
+        "default": "false",
+        "description": "Disable toolbar, date, selection, and editing controls."
+      },
+      {
+        "name": "eventId",
+        "type": "CalendarReader",
+        "default": "'id'",
+        "description": "Event ID reader."
+      },
+      {
+        "name": "eventTitle",
+        "type": "CalendarReader",
+        "default": "'title'",
+        "description": "Event title reader."
+      },
+      {
+        "name": "eventStart",
+        "type": "CalendarReader",
+        "default": "'start'",
+        "description": "Event start reader."
+      },
+      {
+        "name": "eventEnd",
+        "type": "CalendarReader",
+        "default": "'end'",
+        "description": "Event end reader."
+      },
+      {
+        "name": "eventAllDay",
+        "type": "CalendarReader",
+        "default": "'allDay'",
+        "description": "Event all-day reader."
+      },
+      {
+        "name": "eventColor",
+        "type": "CalendarReader",
+        "default": "'color'",
+        "description": "Event colour reader."
+      },
+      {
+        "name": "eventLocation",
+        "type": "CalendarReader",
+        "default": "'location'",
+        "description": "Event location reader."
+      },
+      {
+        "name": "eventEditable",
+        "type": "CalendarReader",
+        "default": "'editable'",
+        "description": "Per-event move reader."
+      },
+      {
+        "name": "eventDurationEditable",
+        "type": "CalendarReader",
+        "default": "'durationEditable'",
+        "description": "Per-event resize reader."
+      },
+      {
+        "name": "dateUnit",
+        "type": "'milliseconds'|'seconds'",
+        "default": "'milliseconds'",
+        "description": "Unit for numeric event dates."
+      },
+      {
+        "name": "msg",
+        "type": "Record<string, string>",
+        "default": null,
+        "description": "Localized component messages."
+      },
+      {
+        "name": "renderEvent",
+        "type": "(event: CalendarEvent) => Node|string|null",
+        "default": null,
+        "description": "Optional safe event-content renderer."
+      }
+    ],
+    "events": [
+      {
+        "name": "eventschange",
+        "payload": "{events: CalendarEvent[]}",
+        "description": "Programmatic event-data listener."
+      },
+      {
+        "name": "viewchange",
+        "payload": "{view: CalendarView, oldView: CalendarView}",
+        "description": "View listener."
+      },
+      {
+        "name": "dateschange",
+        "payload": "{view: CalendarView, start: Date, end: Date}",
+        "description": "Visible-range listener."
+      },
+      {
+        "name": "eventclick",
+        "payload": "{event: CalendarEvent, jsEvent: Event}",
+        "description": "Event activation listener."
+      },
+      {
+        "name": "eventdblclick",
+        "payload": "{event: CalendarEvent, jsEvent: Event}",
+        "description": "Event double-activation listener."
+      },
+      {
+        "name": "dateclick",
+        "payload": "{date: Date, allDay: boolean, view: CalendarView, jsEvent: Event}",
+        "description": "Date/time activation listener."
+      },
+      {
+        "name": "select",
+        "payload": "{start: Date, end: Date, allDay: boolean, view: CalendarView, jsEvent: Event}",
+        "description": "Range-selection listener."
+      },
+      {
+        "name": "eventchange",
+        "payload": "{event, oldEvent, action, delta, jsEvent, revert}",
+        "description": "Move/resize proposal listener."
+      },
+      {
+        "name": "new",
+        "payload": "{date: Date, view: CalendarView, jsEvent: Event}",
+        "description": "New-event command listener."
+      },
+      {
+        "name": "moreclick",
+        "payload": "{date: Date, count: number, jsEvent: Event}",
+        "description": "Month-overflow listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "getEvents",
+        "signature": "getEvents()",
+        "returns": "CalendarEvent[]",
+        "description": "Returns defensive copies of every normalized event."
+      },
+      {
+        "name": "setEvents",
+        "signature": "setEvents(events, [options])",
+        "returns": "this",
+        "description": "Replaces all source records atomically."
+      },
+      {
+        "name": "addEvent",
+        "signature": "addEvent(event, [options])",
+        "returns": "this",
+        "description": "Adds one source event."
+      },
+      {
+        "name": "updateEvent",
+        "signature": "updateEvent(id, changes, [options])",
+        "returns": "this",
+        "description": "Updates one normalized event. Date changes accept valid Date objects, ISO strings, or numeric values in the configured date unit."
+      },
+      {
+        "name": "removeEvent",
+        "signature": "removeEvent(id, [options])",
+        "returns": "this",
+        "description": "Removes one event when present."
+      },
+      {
+        "name": "getDate",
+        "signature": "getDate()",
+        "returns": "Date",
+        "description": "Returns a copy of the current anchor date."
+      },
+      {
+        "name": "setDate",
+        "signature": "setDate(date, [options])",
+        "returns": "this",
+        "description": "Sets the anchor date and visible period."
+      },
+      {
+        "name": "getView",
+        "signature": "getView()",
+        "returns": "CalendarView",
+        "description": "Returns the current view."
+      },
+      {
+        "name": "setView",
+        "signature": "setView(view, [options])",
+        "returns": "this",
+        "description": "Changes view while retaining the anchor date."
+      },
+      {
+        "name": "prev",
+        "signature": "prev()",
+        "returns": "this",
+        "description": "Moves to the previous visible period."
+      },
+      {
+        "name": "next",
+        "signature": "next()",
+        "returns": "this",
+        "description": "Moves to the next visible period."
+      },
+      {
+        "name": "today",
+        "signature": "today()",
+        "returns": "this",
+        "description": "Moves to today."
+      },
+      {
+        "name": "setLoading",
+        "signature": "setLoading([loading])",
+        "returns": "this",
+        "description": "Toggles loading state without discarding the rendered calendar."
+      },
+      {
+        "name": "focusEvent",
+        "signature": "focusEvent(id)",
+        "returns": "this",
+        "description": "Focuses an event in the current view when rendered."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Restores an enhanced target or removes the owned root and releases timers."
+      }
+    ]
+  },
+  "CalendarNormalize": {
+    "options": [
+      {
+        "name": "eventId",
+        "type": "CalendarReader",
+        "default": "'id'",
+        "description": "ID reader."
+      },
+      {
+        "name": "eventTitle",
+        "type": "CalendarReader",
+        "default": "'title'",
+        "description": "Title reader."
+      },
+      {
+        "name": "eventStart",
+        "type": "CalendarReader",
+        "default": "'start'",
+        "description": "Start reader."
+      },
+      {
+        "name": "eventEnd",
+        "type": "CalendarReader",
+        "default": "'end'",
+        "description": "End reader."
+      },
+      {
+        "name": "eventAllDay",
+        "type": "CalendarReader",
+        "default": "'allDay'",
+        "description": "All-day reader."
+      },
+      {
+        "name": "eventColor",
+        "type": "CalendarReader",
+        "default": "'color'",
+        "description": "Colour reader."
+      },
+      {
+        "name": "eventLocation",
+        "type": "CalendarReader",
+        "default": "'location'",
+        "description": "Location reader."
+      },
+      {
+        "name": "eventEditable",
+        "type": "CalendarReader",
+        "default": "'editable'",
+        "description": "Move-policy reader."
+      },
+      {
+        "name": "eventDurationEditable",
+        "type": "CalendarReader",
+        "default": "'durationEditable'",
+        "description": "Resize-policy reader."
+      },
+      {
+        "name": "dateUnit",
+        "type": "'milliseconds'|'seconds'",
+        "default": "'milliseconds'",
+        "description": "Unit used for numeric dates."
+      }
+    ],
+    "events": [],
+    "methods": []
+  },
   "Card": {
     "options": [
       {

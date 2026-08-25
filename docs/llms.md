@@ -1102,6 +1102,47 @@ code, so future adapters do not change the public `Chart` API.
   for assistive technology; `'visible'` makes exact values part of the interface.
 <!-- /doc -->
 
+<!-- doc:calendar -->
+### Calendar
+
+A dependency-free scheduling surface for operational events. One component owns agenda, day,
+week, month, and year views; local-time range math; timed collision columns; multi-day lanes;
+loading and empty states; pointer range selection; and equivalent pointer/keyboard move and resize
+interactions. Visible ranges use an exclusive `end`, so `dateschange` can be passed directly to a
+windowed loader.
+
+- **Options** — `events`, `date`, `view: 'month'`, `views: ['agenda','day','week','month','year']`,
+  `locale`, `weekStart: 1`, `weekNumbers: true`, `workweek: false`, `agendaDays: 14`,
+  `slotDuration: 30`, `slotMinTime: 0`, `slotMaxTime: 1440`, `scrollTime: 480`, `eventLimit: 3`,
+  `selectable: false`, `editable: false`, `eventStartEditable`, `eventDurationEditable`,
+  `optimistic: true`, `nowIndicator: true`, `now`, `disabled`, and `renderEvent(event)`.
+- **Event input** — generic records default to `{id,title,start,end,allDay,color,location,editable,
+  durationEditable}`. Every field has a string-or-function reader (`eventId`, `eventTitle`,
+  `eventStart`, …); numeric dates use `dateUnit: 'milliseconds'|'seconds'`. Inputs are normalized
+  atomically, duplicate IDs and inverted intervals throw, Dates are copied, text is never parsed as
+  HTML, and suspicious CSS colour strings are ignored.
+- **Methods** — `getEvents()`, `setEvents()`, `addEvent()`, `updateEvent()`, `removeEvent()`,
+  `getDate()`, `setDate()`, `getView()`, `setView()`, `prev()`, `next()`, `today()`,
+  `setLoading()`, `focusEvent()`, `destroy()`.
+- **Events** — `dateschange {view,start,end}`, `viewchange {view,oldView}`, `eventclick`,
+  `eventdblclick`, `dateclick {date,allDay,view}`, `select {start,end,allDay,view}`,
+  `new {date,view}`, `moreclick {date,count}`, `eventschange {events}`, and cancelable
+  `eventchange {event,oldEvent,action,delta,jsEvent,revert}`.
+- **Persistence** — `optimistic: true` updates local events before `eventchange`; call the
+  idempotent, version-guarded `detail.revert()` if persistence fails. With `optimistic: false`, the
+  component stays controlled: it emits the proposal without changing data, and the application
+  applies an accepted response through `updateEvent()` or `setEvents()`. Zx does not send requests.
+- **Keyboard** — time slots and date grids use arrow-key navigation, Home/End, PageUp/PageDown,
+  Enter/Space activation, and roving focus. On an editable event, Space grabs it, arrows propose a
+  slot/day move (or change the focused resize grip), Space drops, and Escape cancels. Live status
+  text announces the edit and its proposed times.
+- **ZeyOS binding** — `zeyosCalendar()` maps current appointment occurrence rows (`ID`, `name`,
+  `location`, `color`, `datefrom`, `dateto`, and association text). `calendarEventToZeyosPatch()`
+  returns the base `ID` with Unix-second dates. The current server already expands recurrence into
+  the requested window; recurrence rules, DAV synchronization, permissions, and routes therefore
+  remain in ZeyOS instead of being reimplemented in core.
+<!-- /doc -->
+
 <!-- doc:data-filter -->
 ### DataFilter
 

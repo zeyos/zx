@@ -856,6 +856,9 @@ const cases = [
   }),
   billingGridTargetCase(),
   chartCase(),
+  calendarCase(),
+  calendarControlledCase(),
+  calendarTargetCase(),
   componentCase('DataFilter', () => new zx.DataFilter(null, {
     filters: [{ type: 'text', id: 'query', label: 'Search', fields: ['name'] }],
     data: [{ name: 'Alpha' }, { name: 'Beta' }]
@@ -1342,6 +1345,130 @@ function chartCase() {
     destroy({ component, instance }) {
       component.destroy();
       assert(instance.destroyed, 'chart adapter handle was not destroyed');
+    }
+  };
+}
+
+/** Exercises every Calendar view plus keyboard move/resize and optimistic rollback. @returns {SmokeDefinition} */
+function calendarCase() {
+  return {
+    name: 'Calendar',
+    create(fixture) {
+      const component = new zx.Calendar(null, {
+        date: new Date(2026, 7, 25),
+        now: new Date(2026, 7, 25, 10, 15),
+        view: 'week',
+        editable: true,
+        selectable: true,
+        slotMinTime: 480,
+        slotMaxTime: 1080,
+        events: [{
+          id: 'work', title: 'Project kickoff', location: 'Room 2', color: '#13795b',
+          start: new Date(2026, 7, 25, 9), end: new Date(2026, 7, 25, 10)
+        }, {
+          id: 'span', title: 'Quarterly planning', allDay: true,
+          start: new Date(2026, 7, 26), end: new Date(2026, 7, 28)
+        }]
+      });
+      fixture.append(component.toElement());
+      return { component };
+    },
+    exercise({ component }) {
+      const views = observe(component, 'viewchange');
+      for (const view of ['agenda', 'day', 'month', 'year', 'week']) {
+        component.setView(view);
+        assert(component.getView() === view && component.el.dataset.view === view,
+          `Calendar did not render ${view}`);
+      }
+      views.expect();
+      assert(component.el.querySelectorAll('.zx-calendar__view-button').length === 5,
+        'Calendar omitted a configured view control');
+      assert(component.el.querySelector('.zx-calendar__now:not([hidden])'),
+        'Calendar did not render the deterministic now indicator');
+
+      let change = null;
+      component.on('eventchange', (event) => { change = event.detail; });
+      const moves = observe(component, 'eventchange');
+      const control = component.el.querySelector('[data-event-id="work"][data-event-action="activate"]');
+      control.focus();
+      control.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+      control.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+      control.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+      assert(component.getEvents().find((event) => event.id === 'work').start.getDate() === 26,
+        'optimistic keyboard move did not update local data');
+      assert(change?.action === 'move' && change.revert(), 'Calendar move did not expose a working revert');
+      assert(component.getEvents().find((event) => event.id === 'work').start.getDate() === 25,
+        'Calendar revert did not restore the old event');
+      assert(change.revert() === false, 'Calendar revert was not idempotent');
+      moves.expect();
+
+      component.setLoading(true);
+      assert(component.el.getAttribute('aria-busy') === 'true' && !component.refs.loading.hidden,
+        'Calendar loading state was not exposed');
+      component.setLoading(false);
+      const changes = observe(component, 'eventschange');
+      component.updateEvent('work', { title: 'Updated kickoff' });
+      assert(component.getEvents().find((event) => event.id === 'work').title === 'Updated kickoff',
+        'Calendar updateEvent did not update data');
+      changes.expect();
+    },
+    destroy({ component }) { component.destroy(); }
+  };
+}
+
+/** Proves that optimistic:false emits a proposal while leaving local data untouched. @returns {SmokeDefinition} */
+function calendarControlledCase() {
+  return {
+    name: 'Calendar (controlled updates)',
+    create(fixture) {
+      const component = new zx.Calendar(null, {
+        date: new Date(2026, 7, 25), view: 'day', views: ['day'], editable: true,
+        optimistic: false, slotMinTime: 480, slotMaxTime: 1080,
+        events: [{ id: 'controlled', title: 'Controlled event', start: new Date(2026, 7, 25, 9), end: new Date(2026, 7, 25, 10) }]
+      });
+      fixture.append(component.toElement());
+      return { component };
+    },
+    exercise({ component }) {
+      const original = component.getEvents()[0].start.getTime();
+      let proposal = null;
+      component.on('eventchange', (event) => { proposal = event.detail.event; });
+      const control = component.el.querySelector('[data-event-action="activate"]');
+      control.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+      control.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+      control.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+      assert(proposal?.start.getTime() > original, 'controlled Calendar did not emit its proposal');
+      assert(component.getEvents()[0].start.getTime() === original,
+        'controlled Calendar mutated local data before acceptance');
+      component.updateEvent('controlled', proposal, { silent: true });
+      assert(component.getEvents()[0].start.getTime() === proposal.start.getTime(),
+        'controlled Calendar could not apply the accepted event');
+    },
+    destroy({ component }) { component.destroy(); }
+  };
+}
+
+/** Exercises exact restoration when Calendar enhances an existing target. @returns {SmokeDefinition} */
+function calendarTargetCase() {
+  return {
+    name: 'Calendar (existing target)',
+    create(fixture) {
+      const target = document.createElement('section');
+      target.dataset.keep = 'yes';
+      target.setAttribute('aria-label', 'Original schedule');
+      target.append(document.createTextNode('original calendar content'));
+      fixture.append(target);
+      const before = target.outerHTML;
+      const component = new zx.Calendar(target, { date: new Date(2026, 7, 25), events: [] });
+      return { component, target, before };
+    },
+    exercise({ component }) {
+      component.setView('agenda').setLoading(true).setLoading(false);
+    },
+    destroy({ component, target, before }) {
+      component.destroy();
+      assert(target.outerHTML === before, `Calendar did not restore its target: ${target.outerHTML}`);
+      target.remove();
     }
   };
 }
