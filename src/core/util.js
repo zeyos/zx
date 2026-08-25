@@ -123,6 +123,26 @@ export function isElement(value) {
 }
 
 /**
+ * Accepts concrete CSS colours while rejecting image/function values that could make a colour
+ * descriptor trigger a network request when it is later consumed through a custom property.
+ * `CSS.supports()` provides the authoritative browser check; the conservative fallback covers
+ * ordinary named, hexadecimal, and functional colours in non-browser test environments.
+ * @param {unknown} value Candidate colour.
+ * @returns {value is string}
+ */
+export function isCssColor(value) {
+  if (typeof value !== 'string') return false;
+  const text = value.trim();
+  if (!text || text.length > 256 || /[;{}\u0000-\u001f\u007f]/.test(text)
+    || /(?:url|image|image-set|cross-fade|element|var)\s*\(/i.test(text)) return false;
+  const supports = globalThis.CSS?.supports;
+  if (typeof supports === 'function') {
+    try { return supports.call(globalThis.CSS, 'color', text); } catch { return false; }
+  }
+  return /^(?:#[\da-f]{3,8}|[a-z]+|(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color|color-mix)\([^;{}]+\))$/i.test(text);
+}
+
+/**
  * Restricts a number to an inclusive range.
  * @param {number} n Value to restrict.
  * @param {number} min Minimum value.

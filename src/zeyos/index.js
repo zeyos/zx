@@ -15,7 +15,7 @@ export {
   zeyosModules, moduleAliases, moduleInfo, moduleColor, moduleIconName, moduleKeys,
   moduleGlyphColor, normalizeModuleName, registerModules
 } from './modules.js';
-export { ZEYOS_ICON_KIT, useZeyosIcons, moduleIcon, moduleChip } from './icons.js';
+export { ZEYOS_ICON_KIT, useZeyosIcons, moduleIcon, moduleChip, zeyosAppIcon } from './icons.js';
 export {
   ZEYOS_LAUNCHER_APPLICATIONS, buildZeyosLauncherConfig, zeyosLauncher,
   normalizeZeyosLauncherApplications, normalizeZeyosLauncherRecords, zeyosActiveIdentifier

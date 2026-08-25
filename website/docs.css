@@ -18,11 +18,7 @@
 
 /* Global documentation search occupies the flexible centre of the application header. */
 .docs-global-search {
-  position: relative;
-  flex: 1 1 24rem;
-  min-inline-size: 12rem;
-  max-inline-size: 34rem;
-  margin-inline: auto;
+  min-inline-size: 0;
 }
 
 .docs-global-search .zx-search {
@@ -193,6 +189,8 @@
 /* Code needs width — Zx examples routinely run past 80 columns — so the article is wider than the
    78ch measure used for prose, and the prose keeps its own cap inside it. */
 .docs-article {
+  inline-size: 100%;
+  min-inline-size: 0;
   max-inline-size: 62rem;
 }
 
@@ -338,7 +336,10 @@
    lines. Specificity beats `.docs-prose`, which is set further down the file. Whatever in the card
    really is prose keeps the measure. */
 .docs-prose.docs-api {
+  inline-size: 100%;
+  min-inline-size: 0;
   max-inline-size: none;
+  overflow-x: clip;
 }
 
 .docs-api > :is(p, ul) {
@@ -359,7 +360,16 @@
 }
 
 .docs-api__scroller {
+  inline-size: 100%;
+  min-inline-size: 0;
+  max-inline-size: 100%;
   overflow-x: auto;
+  contain: inline-size;
+}
+
+.docs-api__scroller:focus-visible {
+  outline: 0;
+  box-shadow: var(--zx-focus-ring);
 }
 
 .docs-api__table {
@@ -1478,10 +1488,6 @@
 }
 
 @media (max-width: 900px) {
-  .docs-global-search {
-    flex-basis: 18rem;
-  }
-
   .docs-shell {
     display: block;
   }
@@ -1499,48 +1505,11 @@
   }
 
   .docs-filter {
-  inline-size: 100%;
-  margin-block-end: var(--zx-space-5);
-}
-
-@media (max-width: 780px) {
-  .site-page--app .site-actions {
-    order: 1;
-    margin-inline-start: auto;
+    inline-size: 100%;
+    margin-block-end: var(--zx-space-5);
   }
 
-  .docs-global-search {
-    order: 2;
-    flex: 1 0 100%;
-    min-inline-size: 0;
-    max-inline-size: none;
-    margin-inline: 0;
-  }
-
-  .site-page--app .site-nav {
-    order: 3;
-  }
-
-  .docs-global-search__popover {
-    max-block-size: min(62dvh, 28rem);
-  }
-}
-
-.docs-navigation__empty {
-  margin: 0;
-  padding: var(--zx-space-2) var(--zx-space-3);
-  color: var(--zx-color-text-muted);
-  font-size: var(--zx-text-sm);
-}
-
-.docs-navigation__empty[hidden],
-.docs-navigation__row[hidden],
-.docs-navigation__group[hidden],
-.docs-navigation__section[hidden] {
-  display: none;
-}
-
-.docs-navigation__section + .docs-navigation__section {
+  .docs-navigation__section + .docs-navigation__section {
     margin-block-start: var(--zx-space-4);
     padding-block-start: var(--zx-space-4);
   }
@@ -1549,10 +1518,7 @@
     padding: var(--zx-space-6) var(--zx-space-4) 120px;
   }
 
-  /* The shell stacks and its gutter tightens, so the chrome's gutter tightens with it. */
-  .site-page--app .site-header__inner,
-  .site-page--app .site-footer__inner,
-  .site-page--app .site-footer__stamp {
+  .site-page--app .site-header__inner {
     padding-inline: var(--zx-space-4);
   }
 
@@ -1580,5 +1546,24 @@
   .docs-toolbar {
     inset-inline: var(--zx-space-3);
     justify-content: center;
+  }
+}
+
+@media (max-width: 600px) {
+  /* Keep generated signatures, types, defaults, and notes as four readable columns. Their named
+     wrapper is keyboard-scrollable, so a phone gets deliberate horizontal inspection instead of
+     character-wide wrapping. */
+  .docs-api__table:has(colgroup) {
+    min-inline-size: 42rem;
+  }
+}
+
+@media (max-width: 780px) {
+  .site-page--app .site-actions {
+    margin-inline-start: auto;
+  }
+
+  .docs-global-search__popover {
+    max-block-size: min(62dvh, 28rem);
   }
 }

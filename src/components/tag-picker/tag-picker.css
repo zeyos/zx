@@ -47,6 +47,22 @@
   line-height: 1.5;
 }
 
+.zx-tag-picker__tag[data-colored="true"] {
+  border-color: color-mix(in srgb, var(--zx-tag-color) 48%, var(--zx-color-border));
+  background: color-mix(in srgb, var(--zx-tag-color) 14%, var(--zx-color-bg-muted));
+}
+
+.zx-tag-picker__visual {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  inline-size: 18px;
+  block-size: 18px;
+  border-radius: var(--zx-radius-sm);
+  background: color-mix(in srgb, var(--zx-tag-color, var(--zx-color-accent)) 16%, transparent);
+  color: var(--zx-tag-color, var(--zx-color-accent));
+}
+
 .zx-tag-picker__tag:not(:has(.zx-tag-picker__remove)) {
   padding-inline-end: var(--zx-space-2);
 }
@@ -152,6 +168,9 @@
 }
 
 .zx-tag-picker__option-label {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

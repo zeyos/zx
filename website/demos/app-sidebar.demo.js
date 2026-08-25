@@ -38,7 +38,7 @@ function renderModuleIcon(item) {
 
 export default {
   title: 'AppSidebar',
-  group: 'Application shell',
+  group: 'Layout',
   blurb: 'One application-navigation component with an expanded vertical tree, a minimized '
     + 'vertical rail, and horizontal rail layouts. Only the expanded vertical state reveals '
     + 'children inline; every rail state presents descendants in hover-, focus-, and '

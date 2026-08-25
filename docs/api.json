@@ -130,6 +130,79 @@
     "events": [],
     "methods": []
   },
+  "AppIcon": {
+    "options": [
+      {
+        "name": "icon",
+        "type": "string|Node|(()=>string|Node)|null",
+        "default": "null",
+        "description": "Icon name, node, or lazy renderer."
+      },
+      {
+        "name": "color",
+        "type": "string|null",
+        "default": "null",
+        "description": "Identity colour; falls back to the accent colour."
+      },
+      {
+        "name": "size",
+        "type": "number|string",
+        "default": "36",
+        "description": "Edge length in pixels or any CSS length."
+      },
+      {
+        "name": "iconSize",
+        "type": "number|string",
+        "default": "'52%'",
+        "description": "Glyph size."
+      },
+      {
+        "name": "label",
+        "type": "string|null",
+        "default": "null",
+        "description": "Accessible image label; null makes the icon decorative."
+      },
+      {
+        "name": "badge",
+        "type": "string|number|null",
+        "default": "null",
+        "description": "Optional corner badge."
+      },
+      {
+        "name": "selected",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether the icon represents the active application."
+      },
+      {
+        "name": "glass",
+        "type": "false|'subtle'|'strong'",
+        "default": "'subtle'",
+        "description": "CSS-first glass treatment."
+      },
+      {
+        "name": "class",
+        "type": "string|string[]",
+        "default": null,
+        "description": "Additional class names."
+      }
+    ],
+    "events": [],
+    "methods": [
+      {
+        "name": "set",
+        "signature": "set(values)",
+        "returns": "this",
+        "description": "Updates identity or presentation without replacing the root."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Restores an enhanced target."
+      }
+    ]
+  },
   "AppSidebar": {
     "options": [
       {
@@ -2456,6 +2529,54 @@
     "events": [],
     "methods": []
   },
+  "EntitySelect": {
+    "options": [
+      {
+        "name": "recent",
+        "type": "SelectItem[]",
+        "default": "[]",
+        "description": "Choices pinned above ordinary results."
+      },
+      {
+        "name": "recentLabel",
+        "type": "string",
+        "default": "'Recent'",
+        "description": "Heading above recent choices."
+      },
+      {
+        "name": "create",
+        "type": "boolean|SelectAction",
+        "default": "false",
+        "description": "Optional create command at the bottom."
+      },
+      {
+        "name": "iconKey",
+        "type": "string|((item: SelectItem)=>unknown)",
+        "default": "'icon'",
+        "description": "Item icon reader."
+      },
+      {
+        "name": "colorKey",
+        "type": "string|((item: SelectItem)=>unknown)",
+        "default": "'color'",
+        "description": "Optional icon colour reader."
+      },
+      {
+        "name": "subtitleKey",
+        "type": "string|((item: SelectItem)=>unknown)",
+        "default": "'description'",
+        "description": "Secondary-text reader."
+      },
+      {
+        "name": "renderIcon",
+        "type": "((item: SelectItem, context:{selected:boolean})=>Node|string|null)|null",
+        "default": "null",
+        "description": "Entity icon renderer."
+      }
+    ],
+    "events": [],
+    "methods": []
+  },
   "Field": {
     "options": [
       {
@@ -2829,6 +2950,176 @@
         "signature": "clearHighlights()",
         "returns": "this",
         "description": "Clears every field highlight."
+      }
+    ]
+  },
+  "Filter": {
+    "options": [
+      {
+        "name": "fields",
+        "type": "FilterField[]",
+        "default": null,
+        "description": "Field definitions."
+      },
+      {
+        "name": "value",
+        "type": "FilterAst",
+        "default": null,
+        "description": "Initial expression."
+      },
+      {
+        "name": "operators",
+        "type": "Array<{id:string,label:string,arity:'none'|'single'|'pair'|'many',types:string[]}>",
+        "default": null,
+        "description": "Additional/overridden operators."
+      },
+      {
+        "name": "allowGroups",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether nested groups may be authored."
+      },
+      {
+        "name": "maxDepth",
+        "type": "number",
+        "default": "3",
+        "description": "Maximum nested group depth."
+      },
+      {
+        "name": "maxConditions",
+        "type": "number",
+        "default": "50",
+        "description": "Maximum condition count."
+      },
+      {
+        "name": "autoApply",
+        "type": "boolean",
+        "default": "false",
+        "description": "Emit apply after every valid mutation."
+      },
+      {
+        "name": "readonly",
+        "type": "boolean",
+        "default": "false",
+        "description": "Prevent mutations while keeping values readable."
+      },
+      {
+        "name": "disabled",
+        "type": "boolean",
+        "default": "false",
+        "description": "Disable all controls."
+      },
+      {
+        "name": "applyLabel",
+        "type": "string",
+        "default": "'Apply filters'",
+        "description": "Apply button label."
+      },
+      {
+        "name": "clearLabel",
+        "type": "string",
+        "default": "'Clear'",
+        "description": "Clear button label."
+      }
+    ],
+    "events": [
+      {
+        "name": "change",
+        "payload": "Record<string,unknown>",
+        "description": "Draft-change listener."
+      },
+      {
+        "name": "apply",
+        "payload": "Record<string,unknown>",
+        "description": "Valid-apply listener."
+      },
+      {
+        "name": "invalid",
+        "payload": "Record<string,unknown>",
+        "description": "Invalid-apply listener."
+      },
+      {
+        "name": "query",
+        "payload": "Record<string,unknown>",
+        "description": "Async query listener."
+      },
+      {
+        "name": "loaded",
+        "payload": "Record<string,unknown>",
+        "description": "Async loaded listener."
+      },
+      {
+        "name": "error",
+        "payload": "Record<string,unknown>",
+        "description": "Async failure listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "getValue",
+        "signature": "getValue()",
+        "returns": "FilterAst",
+        "description": "Returns a defensive AST copy."
+      },
+      {
+        "name": "setValue",
+        "signature": "setValue(value, [options])",
+        "returns": "this",
+        "description": "Atomically replaces the AST."
+      },
+      {
+        "name": "addCondition",
+        "signature": "addCondition([parentId], [initial])",
+        "returns": "string|null",
+        "description": "Adds a condition to a group."
+      },
+      {
+        "name": "addGroup",
+        "signature": "addGroup([parentId], [logic])",
+        "returns": "string|null",
+        "description": "Adds a nested group."
+      },
+      {
+        "name": "update",
+        "signature": "update(id, patch)",
+        "returns": "this",
+        "description": "Updates a node by stable ID."
+      },
+      {
+        "name": "remove",
+        "signature": "remove(id)",
+        "returns": "this",
+        "description": "Removes a non-root node."
+      },
+      {
+        "name": "move",
+        "signature": "move(id, parentId, index)",
+        "returns": "this",
+        "description": "Moves a node into a group while preserving its identity."
+      },
+      {
+        "name": "validate",
+        "signature": "validate()",
+        "returns": "{valid:boolean,errors:Array<Record<string,string>>}",
+        "description": "Returns semantic validity and errors."
+      },
+      {
+        "name": "apply",
+        "signature": "apply()",
+        "returns": "FilterAst|null",
+        "description": "Applies only a valid AST."
+      },
+      {
+        "name": "clear",
+        "signature": "clear([options])",
+        "returns": "this",
+        "description": "Clears all conditions."
+      },
+      {
+        "name": "focus",
+        "signature": "focus([id])",
+        "returns": "this",
+        "description": "Focuses a condition's field or the Add button."
       }
     ]
   },
@@ -5026,6 +5317,12 @@
         "description": "Choices pinned above the list, kept through filtering and async loads."
       },
       {
+        "name": "fixedLabel",
+        "type": "string|null",
+        "default": "null",
+        "description": "Optional heading above pinned choices."
+      },
+      {
         "name": "valueKey",
         "type": "SelectValueReader",
         "default": "'ID'",
@@ -5244,6 +5541,12 @@
         "signature": "status(target, [options])",
         "returns": "Select",
         "description": "Creates a status picker with shape- and color-distinct workflow indicators."
+      },
+      {
+        "name": "entity",
+        "signature": "entity(target, [options])",
+        "returns": "Select",
+        "description": "Creates a rich entity picker with optional Recent choices and a create command."
       },
       {
         "name": "permission",
@@ -6380,6 +6683,30 @@
         "description": "Inline editing mode. `'cell'` edits one cell, `'row'` opens every editable cell of the row together and commits them as a unit. Editing is completely inert while this is `false`."
       },
       {
+        "name": "editTrigger",
+        "type": "'single'|'double'",
+        "default": "'double'",
+        "description": "Gesture that starts an editable cell."
+      },
+      {
+        "name": "rowReorder",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether rows expose pointer/keyboard reorder handles."
+      },
+      {
+        "name": "columnVisibility",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether a column visibility chooser is rendered."
+      },
+      {
+        "name": "hiddenColumns",
+        "type": "string[]",
+        "default": "[]",
+        "description": "Initially hidden column IDs; at least one stays visible."
+      },
+      {
         "name": "hierarchy",
         "type": "false|TableHierarchyOptions",
         "default": "false",
@@ -6446,6 +6773,16 @@
         "name": "rowtoggle",
         "payload": "{row, id, expanded}",
         "description": ""
+      },
+      {
+        "name": "rowmove",
+        "payload": "{row, id, target, targetId, position}",
+        "description": ""
+      },
+      {
+        "name": "columnvisibilitychange",
+        "payload": "{visible:string[],hidden:string[]}",
+        "description": ""
       }
     ],
     "methods": [
@@ -6490,6 +6827,36 @@
         "signature": "getData()",
         "returns": "TableRow[]",
         "description": "Returns a shallow copy of the current rows in display order."
+      },
+      {
+        "name": "getVisibleColumns",
+        "signature": "getVisibleColumns()",
+        "returns": "string[]",
+        "description": "Returns visible column IDs in caller order."
+      },
+      {
+        "name": "getHiddenColumns",
+        "signature": "getHiddenColumns()",
+        "returns": "string[]",
+        "description": "Returns hidden column IDs in caller order."
+      },
+      {
+        "name": "setColumnVisible",
+        "signature": "setColumnVisible(id, [visible], [options])",
+        "returns": "this",
+        "description": "Shows or hides one column. The final visible column cannot be hidden."
+      },
+      {
+        "name": "toggleColumn",
+        "signature": "toggleColumn(id, [options])",
+        "returns": "this",
+        "description": "Toggles one column."
+      },
+      {
+        "name": "moveRow",
+        "signature": "moveRow(id, targetId, [position])",
+        "returns": "this",
+        "description": "Reorders one row relative to another and emits a cancelable `rowmove` before committing. Hierarchical rows may only move among siblings; an active local sort disables manual order."
       },
       {
         "name": "empty",
@@ -6668,6 +7035,18 @@
         "type": "TagLabelReader",
         "default": "'name'",
         "description": "Item label property or reader."
+      },
+      {
+        "name": "iconKey",
+        "type": "TagValueReader",
+        "default": "'icon'",
+        "description": "Optional item icon property or reader."
+      },
+      {
+        "name": "colorKey",
+        "type": "TagValueReader",
+        "default": "'color'",
+        "description": "Optional item colour property or reader."
       },
       {
         "name": "searchKeys",

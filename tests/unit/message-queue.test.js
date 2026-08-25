@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
 import { MessageQueue } from '../../src/components/message/message.js';
@@ -45,4 +47,15 @@ test('MessageQueue clear returns and removes active and pending entries', () => 
   assert.deepEqual(queue.clear(), { active: [1], pending: [2] });
   assert.equal(queue.activeCount, 0);
   assert.equal(queue.pendingCount, 0);
+});
+
+test('floating Message CSS is upper-right/content-sized with an opaque transparency fallback', () => {
+  const css = readFileSync(fileURLToPath(new URL(
+    '../../src/components/message/message.css', import.meta.url)), 'utf8');
+  assert.match(css, /\.zx-message-region\s*\{[^}]*position:\s*fixed;[^}]*inset-block-start:/s);
+  assert.match(css, /\.zx-message-region\s*\{[^}]*block-size:\s*max-content;/s);
+  assert.match(css, /@media \(prefers-reduced-transparency: reduce\)[\s\S]*backdrop-filter:\s*none;/);
+  for (const token of ['info-bg', 'success-bg', 'warning-bg', 'danger-bg']) {
+    assert.match(css, new RegExp(`prefers-reduced-transparency[\\s\\S]*var\\(--zx-color-${token}\\)`));
+  }
 });

@@ -2,7 +2,7 @@ import { Component } from '../../core/component.js';
 import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
 import { icon } from '../../core/icons.js';
 import { position } from '../../core/position.js';
-import { uid } from '../../core/util.js';
+import { isCssColor, uid } from '../../core/util.js';
 import { matchItems } from '../select/filter.js';
 
 /** @typedef {Record<string, any>|string|number} TagItem */
@@ -14,6 +14,8 @@ import { matchItems } from '../select/filter.js';
  * @property {unknown[]} [values=[]] Initially selected IDs.
  * @property {TagValueReader} [valueKey='ID'] Item ID property or reader.
  * @property {TagLabelReader} [labelKey='name'] Item label property or reader.
+ * @property {TagValueReader} [iconKey='icon'] Optional item icon property or reader.
+ * @property {TagValueReader} [colorKey='color'] Optional item colour property or reader.
  * @property {Array<TagValueReader>|null} [searchKeys=null] Fields searched by local filtering.
  * @property {'local'|((query: string) => Promise<TagItem[]>|TagItem[])} [filter='local'] Filtering mode.
  * @property {number} [minQuery=0] Minimum async query length.
@@ -65,6 +67,8 @@ export class TagPicker extends Component {
     values: [],
     valueKey: 'ID',
     labelKey: 'name',
+    iconKey: 'icon',
+    colorKey: 'color',
     searchKeys: null,
     filter: 'local',
     minQuery: 0,
@@ -411,9 +415,14 @@ export class TagPicker extends Component {
   _renderTags() {
     const tags = this._selected.map((item) => {
       const label = this._labelOf(item);
-      const content = this.options.renderTag ? this.options.renderTag(item) : label;
-      const tag = h('span', { class: 'zx-tag-picker__tag' },
-        h('span', { class: 'zx-tag-picker__tag-label' }, content));
+      const color = this._colorOf(item);
+      const content = this.options.renderTag ? this.options.renderTag(item)
+        : [this._iconOf(item), h('span', { class: 'zx-tag-picker__tag-label' }, label)];
+      const tag = h('span', {
+        class: 'zx-tag-picker__tag',
+        dataset: { colored: String(Boolean(color)) },
+        style: color ? { '--zx-tag-color': color } : null
+      }, content);
       if (!this._readonly && !this._disabled) {
         tag.append(h('button', {
           class: 'zx-icon-btn zx-tag-picker__remove',
@@ -446,7 +455,8 @@ export class TagPicker extends Component {
       h('span', { class: 'zx-tag-picker__check', ariaHidden: 'true' },
         selected ? icon('check', { size: 13 }) : null),
       h('span', { class: 'zx-tag-picker__option-label' },
-        this.options.renderItem ? this.options.renderItem(item) : this._labelOf(item)));
+        this.options.renderItem ? this.options.renderItem(item)
+          : [this._iconOf(item), h('span', {}, this._labelOf(item))]));
       if (!selected && this.isFull()) option.setAttribute('aria-disabled', 'true');
       this._entries.push({ item, element: option, create: false });
       nodes.push(option);
@@ -771,6 +781,33 @@ export class TagPicker extends Component {
     if (typeof key === 'function') return String(key(/** @type {TagItem} */ (item)));
     if (item !== null && typeof item === 'object') return String(item[key] ?? '');
     return String(item ?? '');
+  }
+
+  /** @param {unknown} item @returns {Node|null} */
+  _iconOf(item) {
+    const value = this._readItem(item, this.options.iconKey);
+    const visual = value && typeof value === 'object' && typeof value.nodeType === 'number'
+      ? /** @type {Node} */ (value).cloneNode(true)
+      : typeof value === 'string' && value.trim() ? icon(value, { size: 12 }) : null;
+    if (!visual) return null;
+    return h('span', {
+      class: 'zx-tag-picker__visual',
+      style: this._colorOf(item) ? { '--zx-tag-color': this._colorOf(item) } : null,
+      ariaHidden: 'true'
+    }, visual);
+  }
+
+  /** @param {unknown} item @returns {string|null} */
+  _colorOf(item) {
+    const value = this._readItem(item, this.options.colorKey);
+    return isCssColor(value) ? value : null;
+  }
+
+  /** @param {unknown} item @param {unknown} reader @returns {unknown} */
+  _readItem(item, reader) {
+    if (typeof reader === 'function') return reader(/** @type {TagItem} */ (item));
+    if (item !== null && typeof item === 'object' && typeof reader === 'string') return item[reader];
+    return null;
   }
 
   /** @returns {void} */

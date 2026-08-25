@@ -25,14 +25,14 @@ import { rankDocsSearch } from './docs-search.js';
 /** Component demos, in sidebar order. The id is the `website/demos/<id>.demo.js` basename. */
 const COMPONENT_IDS = [
   'tokens', 'kernel', 'icons', 'helpers', 'truncate',
-  'button', 'badge', 'check-button', 'toggle', 'search', 'launcher', 'avatar', 'account-menu', 'number-field', 'rating', 'slider', 'copy',
+  'button', 'badge', 'check-button', 'toggle', 'search', 'launcher', 'app-icon', 'avatar', 'account-menu', 'number-field', 'rating', 'slider', 'copy',
   'layout', 'groupbox', 'card', 'panel', 'tabbox', 'navigation-bar', 'toolbar', 'empty-state',
   'stepper', 'breadcrumb', 'split-view', 'dock', 'app-sidebar',
   'loading', 'skeleton',
   'message', 'modal', 'dialog', 'sheet', 'sheet-stack', 'dropdown', 'menu-button', 'context-menu', 'tooltip',
   'select', 'checklist', 'tag-picker',
   'date-picker', 'datebox', 'date-range', 'timebox',
-  'table', 'grid', 'chart', 'data-filter', 'pagination', 'tree', 'finder',
+  'table', 'grid', 'chart', 'data-filter', 'filter', 'pagination', 'tree', 'finder',
   'form', 'form-widgets', 'questionnaire', 'elements',
   'value-list', 'multi-value-editor', 'field-upload'
 ];
@@ -309,6 +309,8 @@ function docsSearchIndex() {
   for (const entry of entries.values()) {
     const base = `#${entry.section}/${entry.id}`;
     const category = `${entry.kind === 'guide' ? 'Guide' : entry.kind === 'layout' ? 'Layout' : 'Component'} · ${entry.group}`;
+    const rootPath = entry.kind === 'guide' ? 'Getting started'
+      : entry.kind === 'layout' ? 'Layouts' : entry.group;
     const marker = new RegExp(`<!--\\s*doc:${entry.id}\\s*-->([\\s\\S]*?)<!--\\s*/doc\\s*-->`)
       .exec(referenceText ?? '');
     const generated = (entry.api ?? []).map((name) => apiData[name]).filter(Boolean);
@@ -316,6 +318,7 @@ function docsSearchIndex() {
       label: entry.title,
       parent: '',
       category,
+      path: [rootPath, entry.title],
       description: entry.blurb,
       aliases: [entry.id, entry.import, ...(entry.api ?? [])],
       keywords: `${marker?.[1] ?? ''} ${JSON.stringify(generated)}`,
@@ -332,6 +335,7 @@ function docsSearchIndex() {
           label: heading.textContent,
           parent: entry.title,
           category: 'Guide section',
+          path: [rootPath, entry.title, heading.textContent],
           description: copy.trim(),
           aliases: [entry.id],
           keywords: copy,
@@ -346,6 +350,7 @@ function docsSearchIndex() {
         label: example.title,
         parent: entry.title,
         category: `${example.preset ? 'Preset' : 'Example'} · ${entry.group}`,
+        path: [rootPath, entry.title, example.title],
         description: example.blurb ?? '',
         aliases: [entry.id, entry.title, example.id],
         keywords: example.blurb ?? '',
@@ -365,6 +370,7 @@ function docsSearchIndex() {
         label: `${entry.title} ${label}`,
         parent: entry.title,
         category: label,
+        path: [rootPath, entry.title, label],
         description: prose,
         aliases: [entry.id, label],
         keywords: `${prose} ${anchor === 'api' ? JSON.stringify(generated) : ''}`,
@@ -433,7 +439,8 @@ function buildGlobalSearch() {
         element('span', 'docs-global-search__label', undefined,
           highlightMatch(record.label, query)),
         element('span', 'docs-global-search__meta',
-          [record.parent, record.category].filter(Boolean).join(' · '))
+          Array.isArray(record.path) ? record.path.join(' > ')
+            : [record.parent, record.category].filter(Boolean).join(' > '))
       );
       if (record.description) {
         result.append(element('span', 'docs-global-search__description', record.description));
@@ -524,6 +531,16 @@ function buildGlobalSearch() {
     input.select();
     if (search.get().trim()) render();
   });
+
+  const incoming = new URLSearchParams(window.location.search).get('q')?.trim();
+  if (incoming) {
+    search.set(incoming, { silent: true });
+    render();
+    queueMicrotask(() => {
+      search.focus();
+      input.select();
+    });
+  }
 }
 
 /** Focuses the routed section heading after a search selection. @returns {void} */
@@ -723,7 +740,7 @@ function apiSection(entry, reference) {
       covered.add(group.label.toLowerCase());
       body.append(
         element('h3', 'docs-api__group', generated.length > 1 ? `${className} — ${group.label}` : group.label),
-        element('div', 'docs-api__scroller', undefined, dataTable(group, notes))
+        apiScroller(dataTable(group, notes), `${className} ${group.label}`)
       );
     }
   }
@@ -1086,8 +1103,24 @@ function apiTable(item) {
   table.setAttribute('aria-label', name);
   return [
     element('h3', 'docs-api__group', name),
-    element('div', 'docs-api__scroller', undefined, table)
+    apiScroller(table, name)
   ];
+}
+
+/**
+ * Wraps a wide reference table in a named keyboard-scrollable region. Generated signatures are
+ * intentionally wider than a phone; preserving readable columns is better than breaking method
+ * names and types every few characters.
+ * @param {HTMLTableElement} table Reference table.
+ * @param {string} label Region label.
+ * @returns {HTMLElement}
+ */
+function apiScroller(table, label) {
+  const scroller = element('div', 'docs-api__scroller', undefined, table);
+  scroller.tabIndex = 0;
+  scroller.setAttribute('role', 'region');
+  scroller.setAttribute('aria-label', `${label} API table`);
+  return scroller;
 }
 
 /**

@@ -8,6 +8,50 @@ and friends remain the complete record.
 
 ## Unreleased
 
+## 4.1.0 — 2026-08-25
+
+### Added
+
+- **`AppIcon`.** A reusable application-identity surface with safe semantic colours, badges,
+  accessible labelled and decorative modes, and an optional CSS-only translucent glass material.
+  The ZeyOS adapter supplies presets for all 29 current applications while keeping glyph loading
+  and routing application-owned.
+- **`Filter`.** A backend-neutral visual expression builder with a versioned JSON-safe AST,
+  nested AND/OR groups, typed operators and value editors, abortable asynchronous choices,
+  structural and semantic validation, defensive limits, deterministic keyboard focus, and
+  valid-only Apply events. Query compilation, saved views, and URL state remain adapter concerns.
+- **Richer entity and tag selection.** `Select.entity()` supports optional recent items and an
+  application-owned create command; `TagPicker` now renders native item icons and semantic colours
+  without overriding a custom renderer.
+
+### Changed
+
+- **Transaction grids are faster to operate.** `Grid.BillingItems()` and `Table` now support
+  single-click typed editing, opt-in double-click compatibility, same-parent row reordering by
+  drag or keyboard, hierarchy-safe branch moves, and accessible column visibility controls.
+- **ZeyOS identity is consistent across workflows.** Launcher application tiles use the new
+  AppIcons, while Launcher recents and entity-select results use module/entity identities and
+  colours rather than generic placeholders.
+- **The documentation shell is easier to navigate.** Global search is centred in every header and
+  reports full breadcrumb paths; component groups are alphabetized, application-shell primitives
+  are collected under Layout, narrow API tables remain locally scrollable, and public navigation
+  and footer links are reduced to their canonical destinations.
+- **Theme Studio now applies complete recipes.** Presets change typography, tint, radius, density,
+  control sizing, and glass strength in addition to colour; the house preset is named `ZeyOS`.
+
+### Fixed
+
+- Select preset chevrons retain their alignment across theme recipes and enhanced
+  `Select.entity()` targets restore their exact original DOM when destroyed.
+- Floating messages default to a content-sized upper-right glass surface instead of stretching
+  with the document, with opaque and reduced-transparency fallbacks.
+- Filter mutations preserve keyboard focus and accessible announcements; asynchronous editors
+  expose busy state and abort stale work.
+- Row editing no longer targets hidden columns or hijacks buttons and links rendered inside cells;
+  column toggles retain focus and row drags do not export record identifiers as plain text.
+- Application and tag colour overrides reject CSS image and URL values before reaching public
+  custom properties.
+
 ## 4.0.0 — 2026-08-24
 
 ### Added

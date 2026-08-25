@@ -1,9 +1,9 @@
 import { Component } from '../../core/component.js';
-import { h } from '../../core/dom.js';
+import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
 import { icon } from '../../core/icons.js';
 import { typeahead } from '../../core/keyboard.js';
 import { position } from '../../core/position.js';
-import { uid } from '../../core/util.js';
+import { isCssColor, uid } from '../../core/util.js';
 import { matchItems } from './filter.js';
 
 /** @typedef {string|number|boolean|symbol|bigint|null|undefined} Primitive */
@@ -15,6 +15,7 @@ import { matchItems } from './filter.js';
  * @typedef {Object} SelectOptions
  * @property {SelectItem[]} [items=[]] Available values.
  * @property {SelectItem[]} [fixedItems=[]] Choices pinned above the list, kept through filtering and async loads.
+ * @property {string|null} [fixedLabel=null] Optional heading above pinned choices.
  * @property {SelectValueReader} [valueKey='ID'] Item ID property or reader.
  * @property {SelectLabelReader} [labelKey='name'] Item label property or reader.
  * @property {((item: SelectItem) => Node|string)|null} [renderItem=null] Option renderer.
@@ -40,6 +41,16 @@ import { matchItems } from './filter.js';
  * @property {(event: CustomEvent<SelectQueryDetail>) => void} [onquery] Async-query listener.
  * @property {(event: CustomEvent<SelectLoadedDetail>) => void} [onloaded] Async-loaded listener.
  * @property {(event: CustomEvent<SelectActionDetail>) => void} [onaction] Preventable command-row listener.
+ */
+/**
+ * @typedef {Object} EntitySelectOptions
+ * @property {SelectItem[]} [recent=[]] Choices pinned above ordinary results.
+ * @property {string} [recentLabel='Recent'] Heading above recent choices.
+ * @property {boolean|SelectAction} [create=false] Optional create command at the bottom.
+ * @property {string|((item: SelectItem)=>unknown)} [iconKey='icon'] Item icon reader.
+ * @property {string|((item: SelectItem)=>unknown)} [colorKey='color'] Optional icon colour reader.
+ * @property {string|((item: SelectItem)=>unknown)} [subtitleKey='description'] Secondary-text reader.
+ * @property {((item: SelectItem, context:{selected:boolean})=>Node|string|null)|null} [renderIcon=null] Entity icon renderer.
  */
 /** @typedef {{value: unknown, item: SelectItem|null}} SelectChangeDetail */
 /** @typedef {{query: string}} SelectQueryDetail */
@@ -86,6 +97,7 @@ export class Select extends Component {
   static defaults = {
     items: [],
     fixedItems: [],
+    fixedLabel: null,
     valueKey: 'ID',
     labelKey: 'name',
     renderItem: null,
@@ -111,15 +123,12 @@ export class Select extends Component {
   render() {
     // Instance state initialized here because render() runs inside the base
     // constructor, before class-field initializers would run (and clobber it).
-    this._items = []; this._visibleItems = []; this._fixedItems = []; this._visibleFixed = []; this._actions = []; this._selected = null; this._optionEntries = []; this._activeIndex = -1; this._open = false; this._disabled = false; this._loading = false; this._requestSequence = 0; this._queryTimer = null; this._position = null; this._createdRoot = false; this._root = null; this._originalChildren = []; this._originalAttributes = new Map();
+    this._items = []; this._visibleItems = []; this._fixedItems = []; this._visibleFixed = []; this._actions = []; this._selected = null; this._optionEntries = []; this._activeIndex = -1; this._open = false; this._disabled = false; this._loading = false; this._requestSequence = 0; this._queryTimer = null; this._position = null; this._createdRoot = false; this._root = null; this._snapshot = null;
     this._createdRoot = this.el === null;
     const root = /** @type {HTMLElement} */ (this.el ?? h('div'));
     this.el = root;
     this._root = root;
-    if (!this._createdRoot) this._originalChildren = Array.from(root.childNodes);
-    this._rememberAttribute(root, 'data-state');
-    this._rememberAttribute(root, 'data-loading');
-    this._rememberAttribute(root, 'aria-disabled');
+    this._snapshot = this._createdRoot ? null : snapshotTarget(root);
 
     const listId = uid('zx-select-list');
     const input = h('input', {
@@ -424,6 +433,54 @@ export class Select extends Component {
   }
 
   /**
+   * Creates a rich entity picker with optional Recent choices and a create command.
+   * @param {Element|string|null} target Component target.
+   * @param {SelectOptions & EntitySelectOptions} [options={}] Entity-preset options.
+   * @returns {Select}
+   */
+  static entity(target, options = {}) {
+    const {
+      recent = [], recentLabel = 'Recent', create = false, iconKey = 'icon', colorKey = 'color',
+      subtitleKey = 'description', renderIcon = null,
+      fixedItems = [], actions = [], renderItem = null, renderValueAdornment = null,
+      ...rest
+    } = options;
+    const visual = (item, selected = false) => {
+      if (typeof renderIcon === 'function') return renderIcon(item, { selected });
+      const value = readSelectItem(item, iconKey);
+      if (value && typeof value === 'object' && typeof value.nodeType === 'number') return value.cloneNode(true);
+      if (typeof value !== 'string' || !value) return null;
+      const color = readSelectItem(item, colorKey);
+      return h('span', {
+        class: 'zx-select__entity-glyph',
+        style: isCssColor(color) ? { '--zx-select-entity-color': String(color) } : null,
+        ariaHidden: 'true'
+      }, icon(value, { size: 14 }));
+    };
+    const createAction = create ? normalizeEntityCreateAction(create) : null;
+    const select = new Select(target, {
+      ...rest,
+      fixedItems: [...(Array.isArray(recent) ? recent : []), ...(Array.isArray(fixedItems) ? fixedItems : [])],
+      fixedLabel: Array.isArray(recent) && recent.length ? recentLabel : rest.fixedLabel ?? null,
+      actions: [...(Array.isArray(actions) ? actions : []), ...(createAction ? [createAction] : [])],
+      renderItem: renderItem ?? ((item) => {
+        const decoration = visual(item, false);
+        const subtitle = readSelectItem(item, subtitleKey);
+        const copy = h('span', { class: 'zx-select__entity-copy' },
+          h('span', { class: 'zx-select__entity-label' }, String(readSelectItem(item, rest.labelKey ?? 'name') ?? '')),
+          subtitle == null || subtitle === ''
+            ? null : h('span', { class: 'zx-select__entity-subtitle' }, String(subtitle)));
+        return h('span', { class: 'zx-select__entity' },
+          decoration ? h('span', { class: 'zx-select__entity-icon', ariaHidden: 'true' }, decoration) : null,
+          copy);
+      }),
+      renderValueAdornment: renderValueAdornment ?? ((item) => visual(item, true))
+    });
+    select.el.dataset.preset = 'entity';
+    return select;
+  }
+
+  /**
    * Creates the record-permission picker: the fixed Private and Public choices above the groups a
    * record can be shared with. The value is the tri-state ZeyOS stores — `false` for private,
    * `true` for public, or a group ID — so the control binds straight to the record field.
@@ -467,13 +524,7 @@ export class Select extends Component {
     this._position?.destroy();
     this._position = null;
     const root = /** @type {HTMLElement} */ (this.el);
-    if (!this._createdRoot && root) {
-      root.replaceChildren(...this._originalChildren);
-      for (const [name, value] of this._originalAttributes) {
-        if (value === null) root.removeAttribute(name);
-        else root.setAttribute(name, value);
-      }
-    }
+    if (!this._createdRoot && root) restoreTarget(root, this._snapshot);
     super.destroy();
   }
 
@@ -606,17 +657,22 @@ export class Select extends Component {
     list.replaceChildren();
     this._optionEntries = [];
     let lastGroup = Symbol('initial-group');
+    const fixed = this._uniqueItems(this._visibleFixed);
+    const items = this._uniqueItems(this._visibleItems, fixed);
 
     if (this.options.clearable) {
       this._appendOption(null, true, this.options.noneLabel
         ?? this._message('select.none', 'No selection'));
     }
-    for (const item of this._visibleFixed) this._appendOption(item, false);
+    if (fixed.length > 0 && this.options.fixedLabel) {
+      list.append(h('div', { class: 'zx-select__group', role: 'presentation' }, String(this.options.fixedLabel)));
+    }
+    for (const item of fixed) this._appendOption(item, false);
     // A group heading already divides the two sections, and a rule right above one reads as a slip.
-    if (this._visibleFixed.length > 0 && this._visibleItems.length > 0 && !this.options.groupKey) {
+    if (fixed.length > 0 && items.length > 0 && !this.options.groupKey) {
       list.append(h('div', { class: 'zx-select__separator', role: 'presentation' }));
     }
-    for (const item of this._visibleItems) {
+    for (const item of items) {
       if (this.options.groupKey) {
         const group = this._read(item, this.options.groupKey);
         if (!Object.is(group, lastGroup)) {
@@ -630,7 +686,7 @@ export class Select extends Component {
       this._appendOption(item, false);
     }
     if (this._actions.length > 0) {
-      if (this._visibleFixed.length > 0 || this._visibleItems.length > 0 || this.options.clearable) {
+      if (fixed.length > 0 || items.length > 0 || this.options.clearable) {
         list.append(h('div', { class: 'zx-select__separator', role: 'presentation' }));
       }
       let actionGroup = Symbol('initial-action-group');
@@ -645,7 +701,7 @@ export class Select extends Component {
         this._appendAction(action);
       }
     }
-    if (this._visibleItems.length === 0 && this._visibleFixed.length === 0
+    if (items.length === 0 && fixed.length === 0
       && this._actions.length === 0 && !this._loading) {
       list.append(h('div', {
         class: 'zx-select__empty',
@@ -851,6 +907,17 @@ export class Select extends Component {
     return matchItems(this._fixedItems, query, this._searchKeys());
   }
 
+  /** De-duplicates choices by public value while preserving caller order. @param {SelectItem[]} items @param {SelectItem[]} [excluded=[]] @returns {SelectItem[]} */
+  _uniqueItems(items, excluded = []) {
+    const values = excluded.map((item) => this._itemValue(item));
+    return items.filter((item) => {
+      const value = this._itemValue(item);
+      if (values.some((candidate) => Object.is(candidate, value))) return false;
+      values.push(value);
+      return true;
+    });
+  }
+
   /** @returns {number} */
   _selectedEntryIndex() {
     if (this._selected === null) return this.options.clearable ? 0 : -1;
@@ -864,17 +931,31 @@ export class Select extends Component {
     return itemIndex + (this.options.clearable ? 1 : 0);
   }
 
-  /** @param {string} name @returns {void} */
-  _rememberAttribute(element, name) {
-    this._originalAttributes.set(name, element.getAttribute(name));
-  }
-
   /** @param {string} key @param {string} fallback @returns {string} */
   _message(key, fallback) {
     const message = this.msg(key);
     return message === key ? fallback : message;
   }
 }
+
+/** @param {SelectItem} item @param {unknown} reader @returns {unknown} */
+function readSelectItem(item, reader) {
+  if (typeof reader === 'function') return reader(item);
+  if (item !== null && typeof item === 'object' && typeof reader === 'string') return item[reader];
+  return null;
+}
+
+/** @param {boolean|SelectAction} value @returns {SelectAction} */
+function normalizeEntityCreateAction(value) {
+  const descriptor = value === true ? {} : value;
+  return {
+    id: descriptor.id ?? 'create', label: descriptor.label ?? 'Create new…',
+    description: descriptor.description, group: descriptor.group ?? 'New',
+    icon: descriptor.icon ?? 'plus', invoke: descriptor.invoke
+  };
+}
+
+/** @param {unknown} value @returns {boolean} */
 
 /** @param {unknown} rendered @returns {Node|string} */
 function normalizeRenderedContent(rendered) {

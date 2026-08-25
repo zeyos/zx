@@ -86,6 +86,12 @@ test('hierarchy projection is stable, depth-first, and controlled by expansion i
   );
 });
 
+test('null and undefined parent values both project as hierarchy roots', () => {
+  const roots = [{ id: 'null-root', parent: null }, { id: 'undefined-root' }];
+  assert.deepEqual(projectHierarchyRows(roots, 'id', 'parent').map(({ id }) => id),
+    ['null-root', 'undefined-root']);
+});
+
 test('orphans become roots and cyclic input is emitted exactly once', () => {
   const malformed = [
     { id: 'a', parent: 'b' },

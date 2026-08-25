@@ -22,30 +22,32 @@ exports and as `window.zx.*`.
 
 ## Components
 - Inputs and identity: `button()`, `buttonGroup()`, `badge()`/`badgeGroup()`, `CheckButton`,
-  `Toggle`, `Search`, `Launcher`, `Avatar`, `AccountMenu`, `Select` (APG combobox;
-  `filter: false|'local'|async`; priority, status, permission, and optional ZeyOS entity presets),
-  `Checklist`, `TagPicker`, `NumberField`, `Rating`, `Slider`,
+  `Toggle`, `Search`, `AppIcon` (+ `zeyosAppIcon()` presets), `Avatar`,
+  `Select` (APG combobox; `filter: false|'local'|async`; priority, status, permission, and
+  `Select.entity()` presets), `Checklist`, `TagPicker` (icon/color identity), `NumberField`, `Rating`, `Slider`,
   `copyButton()`/`CopyInput`, `DatePicker`, `MonthPicker`, `TimePicker`,
   `Datebox`/`DateTimeBox`, `DateRangePicker`/`DateRangeBox`, `Timebox`.
 - Overlays: `Message` (toasts/inline/progress), `Modal`, `Dialog` (+ `alert`/`confirm`/`prompt` Promises), `Sheet` (edge-anchored Dialog; `side`, `modal: true|'trap-focus'|false`, `backdrop`, `snap` detents, swipe-to-dismiss), `SheetStack` (drill-down; `stack`/`cascade`), `Dropdown`, `MenuButton`, `ContextMenu` (right-click; `selector` for per-row menus), `Tooltip`/`tooltip()`/`describe()`.
-- Data: `Table` (sortable, selectable, sticky header, opt-in inline cell/row editing via
-  `editMode`), `Grid` with `Grid.BillingItems()`, engine-neutral `Chart` with injected
-  `ChartJsAdapter`, `DataFilter`, `Pagination` (+ pure `paginationRange()`), `TreeView` (APG tree),
+- Data: `Table` (sortable, selectable, sticky header, opt-in inline cell/row editing, row reorder,
+  column visibility), `Grid` with single-click editing and `Grid.BillingItems()`, engine-neutral
+  `Chart` with injected `ChartJsAdapter`, backend-neutral nested `Filter`, simple client-side
+  `DataFilter`, `Pagination` (+ pure `paginationRange()`), `TreeView` (APG tree),
   `Finder` (Miller columns).
 - Forms: `Form`, `Fieldset`, `Questionnaire` (guided one-question-at-a-time flow with branching), `Field` (type registry), `ValueList`, `MultiValueEditor`, `FieldUpload`.
 - Layout: `stack()`/`grid()`/`aspect()` (spacing, an intrinsically reflowing grid, a fixed-ratio
   box), `Groupbox`, `Card` (media/title link/actions/footer), `Panel` (header/footer action
   buttons), `MasterPanel`, `Tabbox`
   (`variant: 'divided'|'bracket'|'line'|'segmented'`), `NavigationBar`, `AppSidebar` (expanded and
-  minimized vertical states plus horizontal rail layouts), `Toolbar` (APG toolbar with overflow menu), `SplitView`, `Dock`
+  minimized vertical states plus horizontal rail layouts), `AccountMenu`, `Launcher`,
+  `spinner()`/`ProgressBar`/`InlineLoading`, `skeleton()`/`skeletonText()`/`skeletonTable()`,
+  `Toolbar` (APG toolbar with overflow menu), `SplitView`, `Dock`
   (collapsible resizable pane stack; tab groups, regions, adopts a `Sheet`), `Stepper`,
   `Breadcrumb`, `emptyState()`.
-- Feedback: `spinner()` (unknown duration), `ProgressBar` (known share; determinate or indeterminate), `InlineLoading` (a wait resolving into its outcome in place), `skeleton()`/`skeletonText()`/`skeletonTable()` (placeholders shaped like the content; `aria-hidden`, set `aria-busy` on the region).
 - Core: `Component`, `h`/`__`/`icon`, `position`, `breakpoints`/`breakpointOf`/`matchBreakpoint`/`onBreakpoint` (named width bands, observed on an element or the window), `Http`/`zeyosService`, i18n, date utils, `defineElements` (declarative `<zx-*>` custom elements).
 - Helpers: `formatNumber`/`formatCurrency`/`formatPercent`/`formatFileSize`/`formatRelativeTime` (locale-aware, cached `Intl`), `debounce`/`throttle`, `groupBy`/`sortBy`/`uniqueBy`, `escapeRegExp`/`highlightMatch`, `storage()` (namespaced JSON, degrades to memory), `toCsv`/`downloadBlob`/`copyToClipboard`, `truncate()`/`isTruncated()` (line clamp with the full value on hover).
 
 ## Theming
-Load `zx.css` once; set `data-zx-theme` (`light`|`dark`|`auto`) and `data-zx-density` (`cozy`|`compact`) on any ancestor. Define a product theme by overriding semantic `--zx-color-*` / `--zx-control-*` tokens under `[data-zx-theme="name"]`. Never use tier-1 palette tokens or raw color literals in application CSS.
+Load `zx.css` once; set `data-zx-theme` (`light`|`dark`|`auto`) and `data-zx-density` (`cozy`|`compact`) on any ancestor. Define a product theme by overriding semantic `--zx-color-*` / `--zx-control-*` tokens under `[data-zx-theme="name"]`. The theme studio controls accent, neutral tint, density, font, type size, radius, control height, and CSS-first glass material. Never use tier-1 palette tokens or raw color literals in application CSS.
 
 ## Talking to ZeyOS
 Use the dedicated ZeyOS client library **`@zeyos/client`** (`npm install @zeyos/client`) for ZeyOS business data: `createZeyosClient({ platform, auth })`, typed `client.api.list/get/create/update<Resource>` over the full OpenAPI surface, and `normalizeListResult`. Zx accepts the client by injection and does not bundle it. See the `website/layouts/zeyos-invoices.layout.js` layout for a Zx-components-on-@zeyos/client reference. Zx also ships a minimal `Http`/`zeyosService` for ad-hoc in-app `remotecall`, but `@zeyos/client` is the recommended default.

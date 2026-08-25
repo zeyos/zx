@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { clamp, debounce, deepMerge, toArray, uid } from '../../src/core/util.js';
+import { clamp, debounce, deepMerge, isCssColor, toArray, uid } from '../../src/core/util.js';
 
 test('deepMerge recursively merges plain objects without mutating inputs', () => {
   const base = { nested: { left: 1, shared: 'base' }, list: [1, 2], keep: true };
@@ -40,4 +40,11 @@ test('clamp and toArray normalize common values', () => {
   assert.deepEqual(toArray(null), []);
   assert.deepEqual(toArray('value'), ['value']);
   assert.deepEqual(toArray(new Set([1, 2])), [1, 2]);
+});
+
+test('isCssColor accepts concrete colours and rejects image or variable functions', () => {
+  for (const value of ['#0c8', '#00cc88aa', 'rebeccapurple', 'rgb(0 204 136 / 80%)',
+    'color-mix(in srgb, red, blue)']) assert.equal(isCssColor(value), true, value);
+  for (const value of ['', 'url(https://example.invalid/pixel)', 'var(--remote)', 'red; background:url(x)',
+    'linear-gradient(red, blue)']) assert.equal(isCssColor(value), false, value);
 });

@@ -5,11 +5,14 @@
 
 .zx-message-region {
   position: fixed;
-  inset-block: var(--zx-space-4) auto;
-  inset-inline: var(--zx-space-4);
+  inset-block-start: var(--zx-space-4);
+  inset-block-end: auto;
+  inset-inline-start: auto;
+  inset-inline-end: var(--zx-space-4);
   inline-size: min(420px, calc(100% - (2 * var(--zx-space-4))));
+  block-size: max-content;
   max-block-size: calc(100% - (2 * var(--zx-space-4)));
-  margin: 0 auto;
+  margin: 0;
   overflow: visible;
   border: 0;
   background: none;
@@ -18,6 +21,8 @@
 
 .zx-message-region:popover-open {
   display: grid;
+  grid-auto-rows: max-content;
+  align-content: start;
 }
 
 .zx-message__toast {
@@ -49,6 +54,34 @@
 .zx-message__toast[data-kind="error"] {
   --zx-message-kind: var(--zx-color-danger);
   background: var(--zx-color-danger-bg);
+}
+
+@supports (backdrop-filter: blur(1px)) {
+  .zx-message__toast {
+    background: color-mix(in srgb, var(--zx-color-info-bg) 38%, var(--zx-color-glass-surface));
+    backdrop-filter: blur(var(--zx-overlay-blur)) saturate(var(--zx-glass-saturation));
+    box-shadow: inset 0 1px 0 var(--zx-color-glass-highlight), var(--zx-overlay-shadow);
+  }
+
+  .zx-message__toast[data-kind="success"] {
+    background: color-mix(in srgb, var(--zx-color-success-bg) 38%, var(--zx-color-glass-surface));
+  }
+
+  .zx-message__toast[data-kind="warning"] {
+    background: color-mix(in srgb, var(--zx-color-warning-bg) 38%, var(--zx-color-glass-surface));
+  }
+
+  .zx-message__toast[data-kind="error"] {
+    background: color-mix(in srgb, var(--zx-color-danger-bg) 38%, var(--zx-color-glass-surface));
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .zx-message__toast { backdrop-filter: none; }
+  .zx-message__toast[data-kind="info"] { background: var(--zx-color-info-bg); }
+  .zx-message__toast[data-kind="success"] { background: var(--zx-color-success-bg); }
+  .zx-message__toast[data-kind="warning"] { background: var(--zx-color-warning-bg); }
+  .zx-message__toast[data-kind="error"] { background: var(--zx-color-danger-bg); }
 }
 
 .zx-message__icon {

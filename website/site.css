@@ -69,6 +69,7 @@ body.site-page > main {
 }
 
 .site-header__inner {
+  position: relative;
   display: flex;
   min-block-size: var(--site-header-height);
   align-items: center;
@@ -177,6 +178,21 @@ body.site-page > main {
 .site-header--overlay .site-nav a[aria-current="page"] {
   background: rgb(255 255 255 / 10%);
   color: #fff;
+}
+
+/* The documentation search stays on the physical centre line even though the brand and actions
+   have different widths. Below tablet width it becomes a centred second row. */
+.site-docs-search {
+  position: absolute;
+  inset-inline-start: 50%;
+  inline-size: min(34rem, 38vw);
+  transform: translateX(-50%);
+}
+
+.site-docs-search .zx-search,
+.site-docs-search .zx-search__input {
+  inline-size: 100%;
+  min-inline-size: 0;
 }
 
 /* Square, label-free chrome buttons. The glyph is an SVG mask filled with currentColor, so it
@@ -424,8 +440,16 @@ body.site-page > main {
   justify-content: center;
 }
 
+.hero__eyebrow::before {
+  inline-size: 30px;
+  block-size: 18px;
+  border-radius: 0;
+  background: #fff;
+  mask: url("assets/zeyos-mark.svg") center / contain no-repeat;
+}
+
 .hero h1 {
-  max-inline-size: 18ch;
+  max-inline-size: 24ch;
   margin: 0;
   font-size: clamp(38px, 6.6vw, 68px);
   font-weight: 800;
@@ -889,6 +913,16 @@ body.site-page > main {
   color: rgb(226 232 240 / 60%);
 }
 
+.site-footer__legal {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--zx-space-3) var(--zx-space-5);
+  inline-size: min(100% - (2 * var(--zx-space-6)), var(--site-content-width));
+  margin-inline: auto;
+  padding-block: var(--zx-space-5);
+}
+
 .site-footer__inner {
   display: flex;
   flex-wrap: wrap;
@@ -986,6 +1020,23 @@ body.site-page > main {
   }
 }
 
+@media (max-width: 980px) {
+  .site-header__inner {
+    flex-wrap: wrap;
+    padding-block: var(--zx-space-2);
+  }
+
+  .site-docs-search {
+    position: relative;
+    order: 4;
+    inset-inline-start: auto;
+    flex: 1 0 100%;
+    inline-size: min(100%, 34rem);
+    margin-inline: auto;
+    transform: none;
+  }
+}
+
 @media (max-width: 780px) {
   .site-header__inner {
     flex-wrap: wrap;
@@ -1002,6 +1053,10 @@ body.site-page > main {
 
   .site-nav a {
     padding-inline: var(--zx-space-2);
+  }
+
+  .site-actions {
+    margin-inline-start: auto;
   }
 
   .theme-toggle {
@@ -1058,6 +1113,10 @@ body.site-page > main {
   }
 
   .site-footer__stamp {
+    inline-size: min(100% - (2 * var(--zx-space-4)), var(--site-content-width));
+  }
+
+  .site-footer__legal {
     inline-size: min(100% - (2 * var(--zx-space-4)), var(--site-content-width));
   }
 

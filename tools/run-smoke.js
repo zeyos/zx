@@ -45,6 +45,7 @@ try {
   await waitForServer();
   browser = await chromium.launch({ channel: 'chrome' });
   for (const suite of suites) failed = (await run(browser, suite)) || failed;
+  failed = (await runDocumentationShell(browser)) || failed;
 } catch (error) {
   console.error(`\nSmoke run could not start: ${error.message}`);
   if (String(error.message).includes('chrome')) {
@@ -131,6 +132,57 @@ async function run(instance, suite) {
   }
   console.log(`PASS  ${suite.name} — ${count} checks`);
   return false;
+}
+
+/** Exercises the real documentation shell, which the isolated component fixture cannot cover. */
+async function runDocumentationShell(instance) {
+  const page = await instance.newPage({ viewport: { width: 1440, height: 900 } });
+  const problems = [];
+  page.on('pageerror', (error) => problems.push(`uncaught: ${error.message}`));
+  page.on('console', (message) => {
+    if (message.type() === 'error') problems.push(`console: ${message.text()}`);
+  });
+  try {
+    await page.goto(`${base}/website/docs.html#components/filter`, { waitUntil: 'load' });
+    await page.waitForFunction(() => document.querySelector('.docs-title')?.textContent === 'Filter');
+    const search = page.locator('.site-docs-search').first();
+    const searchBox = await search.boundingBox();
+    if (!searchBox || Math.abs(searchBox.x + searchBox.width / 2 - 720) > 2) {
+      throw new Error('documentation search is not centered');
+    }
+    await search.locator('input').fill('toolbar');
+    await page.waitForSelector('.docs-global-search__result');
+    const breadcrumb = await page.locator('.docs-global-search__meta').first().textContent();
+    if (!String(breadcrumb).includes('Layout > Toolbar')) throw new Error(`search breadcrumb was ${breadcrumb}`);
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    const mobile = await page.evaluate(() => {
+      const scrollers = [...document.querySelectorAll('.docs-api__scroller')];
+      return {
+        root: document.documentElement.scrollWidth - innerWidth,
+        apiOverflow: scrollers.some((node) => node.scrollWidth > node.clientWidth + 1)
+      };
+    });
+    if (mobile.root > 1 || !mobile.apiOverflow) {
+      throw new Error(`mobile docs overflow root=${mobile.root}, apiScroller=${mobile.apiOverflow}`);
+    }
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`${base}/website/theme.html`, { waitUntil: 'load' });
+    await page.waitForSelector('.theme-global-search input');
+    const themeBox = await page.locator('.theme-global-search').boundingBox();
+    if (!themeBox || Math.abs(themeBox.x + themeBox.width / 2 - 720) > 2) {
+      throw new Error('theme search is not centered');
+    }
+    if (problems.length) throw new Error(problems.slice(0, 5).join(' / '));
+    console.log('PASS  documentation shell — centered search, breadcrumbs, and contained mobile API tables');
+    return false;
+  } catch (error) {
+    console.error(`FAIL  documentation shell: ${error.message}`);
+    return true;
+  } finally {
+    await page.close();
+  }
 }
 
 /** @returns {Promise<void>} */

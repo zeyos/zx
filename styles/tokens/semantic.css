@@ -50,6 +50,15 @@
   --zx-overlay-shadow: var(--zx-shadow-3);
   /* Blur applied behind a backdrop that asked for it. Theme-independent, so light defines it once. */
   --zx-overlay-blur: 8px;
+  --zx-color-glass-border: color-mix(in srgb, var(--zx-gray-0) 24%, transparent);
+  --zx-color-glass-highlight: color-mix(in srgb, var(--zx-gray-0) 24%, transparent);
+  --zx-color-glass-highlight-strong: color-mix(in srgb, var(--zx-gray-0) 38%, transparent);
+  --zx-color-glass-surface: color-mix(in srgb, var(--zx-color-bg-raised) 78%, transparent);
+  --zx-glass-blur: 8px;
+  --zx-glass-saturation: 130%;
+  --zx-glass-color-strength: 82%;
+  --zx-app-icon-shadow: inset 0 1px 0 color-mix(in srgb, var(--zx-gray-0) 28%, transparent), inset 0 -1px 0 color-mix(in srgb, var(--zx-gray-950) 16%, transparent), 0 5px 14px color-mix(in srgb, var(--zx-app-icon-color) 28%, transparent);
+  --zx-glass-glyph-shadow: 0 1px 1px color-mix(in srgb, var(--zx-gray-950) 22%, transparent);
   --zx-header-bg: var(--zx-gray-900);
   --zx-header-text: var(--zx-gray-50);
 }

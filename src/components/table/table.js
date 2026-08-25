@@ -104,6 +104,10 @@ import { sortRows } from './sort.js';
  * @property {TableEditMode} [editMode=false] Inline editing mode. `'cell'` edits one cell, `'row'`
  * opens every editable cell of the row together and commits them as a unit. Editing is completely
  * inert while this is `false`.
+ * @property {'single'|'double'} [editTrigger='double'] Gesture that starts an editable cell.
+ * @property {boolean} [rowReorder=false] Whether rows expose pointer/keyboard reorder handles.
+ * @property {boolean} [columnVisibility=false] Whether a column visibility chooser is rendered.
+ * @property {string[]} [hiddenColumns=[]] Initially hidden column IDs; at least one stays visible.
  * @property {false|TableHierarchyOptions} [hierarchy=false] Flat parent references projected as an
  * expandable treegrid. Row data and mutation APIs remain flat.
  * @property {(event: CustomEvent<TableRowClickDetail>) => void} [onrowclick]
@@ -120,6 +124,8 @@ import { sortRows } from './sort.js';
  * @property {(event: CustomEvent<TableEditCancelDetail>) => void} [oneditcancel]
  * @property {(event: CustomEvent<TableEditInvalidDetail>) => void} [oneditinvalid]
  * @property {(event: CustomEvent<TableRowToggleDetail>) => void} [onrowtoggle]
+ * @property {(event: CustomEvent<TableRowMoveDetail>) => void} [onrowmove]
+ * @property {(event: CustomEvent<{visible:string[],hidden:string[]}>) => void} [oncolumnvisibilitychange]
  */
 
 /**
@@ -134,6 +140,7 @@ import { sortRows } from './sort.js';
 /** @typedef {{rows: TableRow[], ids: unknown[]}} TableSelectionDetail */
 /** @typedef {{rows: TableRow[]}} TableDataDetail */
 /** @typedef {{row: TableRow, id: unknown, expanded: boolean}} TableRowToggleDetail */
+/** @typedef {{row:TableRow,id:unknown,target:TableRow,targetId:unknown,position:'before'|'after'}} TableRowMoveDetail */
 
 /**
  * Visible hierarchy metadata returned by `projectHierarchyRows`.
@@ -226,6 +233,8 @@ const FOCUSABLE = 'input, textarea, select, button, [tabindex]:not([tabindex="-1
  * @fires Table#rowtoggle
  * @fires Table#stackedchange
  * @fires Table#grow
+ * @fires Table#rowmove
+ * @fires Table#columnvisibilitychange
  * @extends {Component<TableOptions>}
  */
 export class Table extends Component {
@@ -247,7 +256,11 @@ export class Table extends Component {
     rowClass: null,
     zebra: true,
     editMode: false,
-    hierarchy: false
+    editTrigger: 'double',
+    hierarchy: false,
+    rowReorder: false,
+    columnVisibility: false,
+    hiddenColumns: []
   };
 
   /**
@@ -279,6 +292,7 @@ export class Table extends Component {
     // Editing state. `_edit` is null unless a cell or row is currently open for editing; every
     // other member below is only ever touched while `_editMode !== false`.
     this._editMode = normalizeEditMode(this.options.editMode);
+    this._editTrigger = this.options.editTrigger === 'single' ? 'single' : 'double';
     this._edit = null;
     this._editMessage = null;
     this._stacked = false;
@@ -290,6 +304,11 @@ export class Table extends Component {
     this._rovingCell = null;
     this._rovingMatched = false;
     this._hierarchy = normalizeHierarchy(this.options.hierarchy, this._columns);
+    this._hiddenColumns = new Set((Array.isArray(this.options.hiddenColumns) ? this.options.hiddenColumns : [])
+      .map(String).filter((id) => this._columns.some((column) => column.id === id)));
+    if (this._hiddenColumns.size >= this._columns.length && this._columns[0]) this._hiddenColumns.delete(this._columns[0].id);
+    this._dragId = null;
+    this._grabbedId = null;
     this._expanded = initialExpanded(this._hierarchy?.expanded);
 
     if (this._sort && this.options.sortMode === 'local') this._sortData();
@@ -314,12 +333,16 @@ export class Table extends Component {
         zebra: String(Boolean(this.options.zebra))
       }
     }, this._table);
+    this._rowMoveMessage = this.options.rowReorder ? h('div', {
+      class: 'zx-table__reorder-status', role: 'status', ariaLive: 'polite'
+    }) : null;
     if (this.options.height != null) {
       this._scroll.style.blockSize = typeof this.options.height === 'number' ?
         `${this.options.height}px` : String(this.options.height);
     }
+    this._columnControls = this.options.columnVisibility ? this._createColumnControls() : null;
     if (this._editMode === false) {
-      root.replaceChildren(this._scroll);
+      root.replaceChildren(...[this._columnControls, this._scroll, this._rowMoveMessage].filter(Boolean));
     } else {
       root.dataset.editMode = this._editMode;
       // Always present and empty rather than hidden: a live region that is revealed together with
@@ -330,7 +353,7 @@ export class Table extends Component {
         role: 'status',
         ariaLive: 'polite'
       });
-      root.replaceChildren(this._scroll, this._editMessage);
+      root.replaceChildren(...[this._columnControls, this._scroll, this._editMessage, this._rowMoveMessage].filter(Boolean));
     }
 
     this._renderColumns();
@@ -339,6 +362,19 @@ export class Table extends Component {
     this._watchWidth();
     this.listen(this._tbody, 'click', (event) => this._handleBodyClick(event));
     this.listen(this._tbody, 'dblclick', (event) => this._handleBodyDoubleClick(event));
+    if (this.options.rowReorder) {
+      this.listen(this._tbody, 'dragstart', (event) => this._handleRowDragStart(/** @type {DragEvent} */ (event)));
+      this.listen(this._tbody, 'dragover', (event) => this._handleRowDragOver(/** @type {DragEvent} */ (event)));
+      this.listen(this._tbody, 'drop', (event) => this._handleRowDrop(/** @type {DragEvent} */ (event)));
+      this.listen(this._tbody, 'dragend', () => this._clearRowDrag());
+      this.listen(this._tbody, 'keydown', (event) => this._handleRowHandleKeydown(/** @type {KeyboardEvent} */ (event)));
+    }
+    if (this._columnControls) {
+      this.listen(this._columnControls, 'change', (event) => {
+        const input = /** @type {HTMLInputElement|null} */ (event.target);
+        if (input?.classList.contains('zx-table__column-toggle')) this.setColumnVisible(input.value, input.checked);
+      });
+    }
     if (this._editMode !== false) {
       this.listen(this._tbody, 'keydown', (event) => this._handleEditKeydown(/** @type {KeyboardEvent} */ (event)));
       this.listen(this._tbody, 'focusin', (event) => this._handleEditFocusIn(event));
@@ -458,6 +494,80 @@ export class Table extends Component {
    */
   getData() {
     return [...this._data];
+  }
+
+  /** Returns visible column IDs in caller order. @returns {string[]} */
+  getVisibleColumns() {
+    return this._visibleColumns().map((column) => column.id);
+  }
+
+  /** Returns hidden column IDs in caller order. @returns {string[]} */
+  getHiddenColumns() {
+    return this._columns.filter((column) => this._hiddenColumns.has(column.id)).map((column) => column.id);
+  }
+
+  /**
+   * Shows or hides one column. The final visible column cannot be hidden.
+   * @param {string} id Column ID.
+   * @param {boolean} [visible=true] Desired visibility.
+   * @param {{silent?:boolean}} [options={}] Event behavior.
+   * @returns {this}
+   */
+  setColumnVisible(id, visible = true, options = {}) {
+    const column = this._columns.find((candidate) => candidate.id === id);
+    if (!column) throw new RangeError(`Unknown table column: ${id}`);
+    const active = /** @type {HTMLElement|null} */ (document.activeElement);
+    const restoreFocus = active?.classList.contains('zx-table__column-toggle')
+      && this._columnList?.contains(active) ? /** @type {HTMLInputElement} */ (active).value : null;
+    if (!visible && !this._hiddenColumns.has(id) && this._visibleColumns().length <= 1) {
+      this._renderColumnControls(restoreFocus);
+      return this;
+    }
+    const changed = visible ? this._hiddenColumns.delete(id) : !this._hiddenColumns.has(id);
+    if (!visible && changed) this._hiddenColumns.add(id);
+    if (!changed) return this;
+    this._renderColumns();
+    this._renderHeader();
+    this._renderBody();
+    this._renderColumnControls(restoreFocus);
+    if (!options.silent) this.emit('columnvisibilitychange', {
+      visible: this.getVisibleColumns(), hidden: this.getHiddenColumns()
+    });
+    return this;
+  }
+
+  /** Toggles one column. @param {string} id @param {{silent?:boolean}} [options={}] @returns {this} */
+  toggleColumn(id, options = {}) {
+    return this.setColumnVisible(id, this._hiddenColumns.has(id), options);
+  }
+
+  /**
+   * Reorders one row relative to another and emits a cancelable `rowmove` before committing.
+   * Hierarchical rows may only move among siblings; an active local sort disables manual order.
+   * @param {unknown} id Moving row ID.
+   * @param {unknown} targetId Target row ID.
+   * @param {'before'|'after'} [position='before'] Target edge.
+   * @returns {this}
+   */
+  moveRow(id, targetId, position = 'before') {
+    if (!this.options.rowReorder || this._sort && this.options.sortMode === 'local') return this;
+    const row = this.getRow(id);
+    const target = this.getRow(targetId);
+    if (!row || !target || Object.is(id, targetId)) return this;
+    const next = reorderTableRows(this._data, this.options.rowId, id, targetId, position, this._hierarchy?.parentId);
+    if (!next) return this;
+    const event = this.emit('rowmove', { row, id, target, targetId, position });
+    if (event.defaultPrevented) return this;
+    this._data = next;
+    this._renderBody();
+    if (this._rowMoveMessage) {
+      const siblings = this._siblingIds(id);
+      const index = siblings.findIndex((candidate) => Object.is(candidate, id));
+      this._rowMoveMessage.textContent = `Moved row to position ${index + 1} of ${siblings.length}.`;
+    }
+    this._emitDataChange();
+    queueMicrotask(() => this._rowHandle(id)?.focus());
+    return this;
   }
 
   /**
@@ -641,15 +751,20 @@ export class Table extends Component {
    */
   startEdit(rowId, columnId) {
     if (this._editMode === false) return this;
-    const column = this._columns.find((candidate) => candidate.id === columnId);
-    if (!column) return this;
+    const requested = this._columns.find((candidate) => candidate.id === columnId);
+    if (!requested) return this;
     const current = this._data.find((candidate) => Object.is(this._idFor(candidate), rowId));
-    if (current === undefined || resolveEditable(column, current) === false) return this;
+    if (current === undefined) return this;
+    const column = this._editMode === 'row' && this._hiddenColumns.has(requested.id)
+      ? this._visibleColumns().find((candidate) => resolveEditable(candidate, current) !== false) ?? null
+      : requested;
+    if (!column || resolveEditable(column, current) === false) return this;
+    const activeColumnId = column.id;
 
     if (this._edit) {
-      if (Object.is(this._edit.id, rowId) && this._edit.cells.has(columnId)) {
-        this._edit.columnId = columnId;
-        this._focusEditor(columnId);
+      if (Object.is(this._edit.id, rowId) && this._edit.cells.has(activeColumnId)) {
+        this._edit.columnId = activeColumnId;
+        this._focusEditor(activeColumnId);
         return this;
       }
       this.commitEdit();
@@ -664,7 +779,7 @@ export class Table extends Component {
     const tr = this._rowElements.get(rowId)?.[0];
     if (!tr) return this;
     const targets = this._editMode === 'row'
-      ? this._columns.filter((candidate) => resolveEditable(candidate, row) !== false)
+      ? this._visibleColumns().filter((candidate) => resolveEditable(candidate, row) !== false)
       : [column];
     /** @type {Map<string, TableEditorEntry>} */
     const cells = new Map();
@@ -676,10 +791,10 @@ export class Table extends Component {
     }
     if (cells.size === 0) return this;
 
-    this._edit = { id: rowId, columnId, row, cells, tr };
+    this._edit = { id: rowId, columnId: activeColumnId, row, cells, tr };
     tr.dataset.editing = 'true';
-    this.emit('editstart', { row, id: rowId, column, columnId, value: row?.[columnId] });
-    this._focusEditor(columnId);
+    this.emit('editstart', { row, id: rowId, column, columnId: activeColumnId, value: row?.[activeColumnId] });
+    this._focusEditor(activeColumnId);
     return this;
   }
 
@@ -951,16 +1066,185 @@ export class Table extends Component {
     super.destroy();
   }
 
+  /** @returns {TableColumn[]} */
+  _visibleColumns() {
+    return this._columns.filter((column) => !this._hiddenColumns.has(column.id));
+  }
+
+  /** @returns {HTMLElement} */
+  _createColumnControls() {
+    const list = h('div', { class: 'zx-table__column-list' });
+    this._columnList = list;
+    const details = h('details', { class: 'zx-table__column-controls' },
+      h('summary', { class: 'zx-button zx-button--sm' }, icon('fields', { size: 13 }), 'Columns'),
+      list);
+    this._renderColumnControls();
+    return details;
+  }
+
+  /** @param {string|null} [focusColumn=null] Column checkbox that keeps focus. @returns {void} */
+  _renderColumnControls(focusColumn = null) {
+    if (!this._columnList) return;
+    const visible = this._visibleColumns();
+    const current = [...this._columnList.querySelectorAll('.zx-table__column-toggle')];
+    const reusable = current.length === this._columns.length
+      && current.every((control, index) => /** @type {HTMLInputElement} */ (control).value === this._columns[index].id);
+    if (reusable) {
+      current.forEach((control, index) => {
+        const input = /** @type {HTMLInputElement} */ (control);
+        const checked = !this._hiddenColumns.has(this._columns[index].id);
+        input.checked = checked;
+        input.disabled = checked && visible.length === 1;
+      });
+      return;
+    }
+    this._columnList.replaceChildren(...this._columns.map((column) => {
+      const checked = !this._hiddenColumns.has(column.id);
+      return h('label', { class: 'zx-table__column-option' },
+        h('input', {
+          class: 'zx-table__column-toggle', type: 'checkbox', value: column.id, checked,
+          disabled: checked && visible.length === 1
+        }),
+        h('span', {}, column.label));
+    }));
+    if (focusColumn !== null) {
+      const control = [...this._columnList.querySelectorAll('.zx-table__column-toggle')]
+        .find((candidate) => /** @type {HTMLInputElement} */ (candidate).value === focusColumn);
+      queueMicrotask(() => {
+        if (control?.isConnected) /** @type {HTMLElement} */ (control).focus();
+      });
+    }
+  }
+
+  /** @param {DragEvent} event @returns {void} */
+  _handleRowDragStart(event) {
+    const handle = /** @type {Element|null} */ (event.target)?.closest?.('.zx-table__row-handle');
+    const rowElement = handle?.closest('tr[data-row]');
+    const meta = rowElement ? this._rowMeta.get(rowElement) : null;
+    if (!handle || !meta || this._sort && this.options.sortMode === 'local') {
+      event.preventDefault();
+      return;
+    }
+    this._dragId = meta.id;
+    rowElement.dataset.dragging = 'true';
+    // Native drag needs a payload in some engines, but internal movement already uses `_dragId`.
+    // Keep the transferable marker opaque so record identifiers never leave the table.
+    event.dataTransfer?.setData('text/plain', 'zx-table-row');
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+  }
+
+  /** @param {DragEvent} event @returns {void} */
+  _handleRowDragOver(event) {
+    if (this._dragId == null) return;
+    const rowElement = /** @type {Element|null} */ (event.target)?.closest?.('tr[data-row]');
+    const meta = rowElement ? this._rowMeta.get(rowElement) : null;
+    if (!meta || Object.is(meta.id, this._dragId) || !this._canMoveTogether(this._dragId, meta.id)) return;
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+    this._clearDropMarkers();
+    const rectangle = rowElement.getBoundingClientRect();
+    rowElement.dataset.drop = event.clientY >= rectangle.top + rectangle.height / 2 ? 'after' : 'before';
+  }
+
+  /** @param {DragEvent} event @returns {void} */
+  _handleRowDrop(event) {
+    if (this._dragId == null) return;
+    const rowElement = /** @type {Element|null} */ (event.target)?.closest?.('tr[data-row]');
+    const meta = rowElement ? this._rowMeta.get(rowElement) : null;
+    const position = rowElement?.dataset.drop === 'after' ? 'after' : 'before';
+    if (meta && this._canMoveTogether(this._dragId, meta.id)) {
+      event.preventDefault();
+      this.moveRow(this._dragId, meta.id, position);
+    }
+    this._clearRowDrag();
+  }
+
+  /** @param {KeyboardEvent} event @returns {void} */
+  _handleRowHandleKeydown(event) {
+    const handle = /** @type {Element|null} */ (event.target)?.closest?.('.zx-table__row-handle');
+    const rowElement = handle?.closest('tr[data-row]');
+    const meta = rowElement ? this._rowMeta.get(rowElement) : null;
+    if (!handle || !meta) return;
+    if (event.key === ' ' || event.key === 'Enter') {
+      event.preventDefault();
+      this._grabbedId = Object.is(this._grabbedId, meta.id) ? null : meta.id;
+      handle.setAttribute('aria-pressed', String(this._grabbedId != null));
+      // Row movement has its own visually hidden live region. Reusing the visible validation
+      // message would make a successful drop look like a red editing error on editable grids.
+      const status = this._rowMoveMessage ?? this._editMessage;
+      if (status) status.textContent = this._grabbedId == null
+        ? 'Row dropped' : 'Row grabbed. Use the arrow keys to move it.';
+      return;
+    }
+    if (event.key === 'Escape' && this._grabbedId != null) {
+      event.preventDefault();
+      this._grabbedId = null;
+      handle.setAttribute('aria-pressed', 'false');
+      return;
+    }
+    if (!Object.is(this._grabbedId, meta.id) || !['ArrowUp', 'ArrowDown'].includes(event.key)) return;
+    event.preventDefault();
+    const siblings = this._siblingIds(meta.id);
+    const index = siblings.findIndex((id) => Object.is(id, meta.id));
+    const targetId = siblings[index + (event.key === 'ArrowUp' ? -1 : 1)];
+    if (targetId !== undefined) this.moveRow(meta.id, targetId, event.key === 'ArrowUp' ? 'before' : 'after');
+  }
+
+  /** @param {unknown} id @returns {unknown[]} */
+  _siblingIds(id) {
+    const row = this.getRow(id);
+    if (!row) return [];
+    const parent = this._hierarchy ? readRowValue(this._hierarchy.parentId, row) : null;
+    return this._data.filter((candidate) => !this._hierarchy
+      || sameHierarchyParent(readRowValue(this._hierarchy.parentId, candidate), parent))
+      .map((candidate) => this._idFor(candidate));
+  }
+
+  /** @param {unknown} left @param {unknown} right @returns {boolean} */
+  _canMoveTogether(left, right) {
+    if (!this._hierarchy) return true;
+    const a = this.getRow(left);
+    const b = this.getRow(right);
+    return Boolean(a && b && sameHierarchyParent(
+      readRowValue(this._hierarchy.parentId, a), readRowValue(this._hierarchy.parentId, b)));
+  }
+
+  /** @param {unknown} id @returns {HTMLElement|null} */
+  _rowHandle(id) {
+    return /** @type {HTMLElement|null} */ (this._rowElements.get(id)?.[0]?.querySelector('.zx-table__row-handle') ?? null);
+  }
+
+  /** @returns {void} */
+  _clearDropMarkers() {
+    for (const row of this._tbody.querySelectorAll('tr[data-drop]')) delete row.dataset.drop;
+  }
+
+  /** @returns {void} */
+  _clearRowDrag() {
+    for (const row of this._tbody.querySelectorAll('tr[data-dragging]')) delete row.dataset.dragging;
+    this._clearDropMarkers();
+    this._dragId = null;
+  }
+
+  /** @returns {string|null} */
+  _hierarchyColumn() {
+    if (!this._hierarchy) return null;
+    return this._visibleColumns().some((column) => column.id === this._hierarchy.column)
+      ? this._hierarchy.column : this._visibleColumns()[0]?.id ?? null;
+  }
+
   /** @returns {void} */
   _renderColumns() {
     const fragment = document.createDocumentFragment();
+    if (this.options.rowReorder) fragment.append(h('col', { class: 'zx-table__reorder-column' }));
     if (this.options.selectable === 'multi') {
       fragment.append(h('col', { class: 'zx-table__selection-column' }));
     }
-    const fractions = this._columns.map((column) => parseFraction(column.width));
+    const columns = this._visibleColumns();
+    const fractions = columns.map((column) => parseFraction(column.width));
     const total = fractions.reduce((sum, value) => sum + value, 0);
     this._table.dataset.layout = total > 0 ? 'fixed' : 'auto';
-    this._columns.forEach((column, index) => {
+    columns.forEach((column, index) => {
       const col = h('col');
       if (fractions[index] > 0) col.style.width = `${fractions[index] / total * 100}%`;
       else if (column.width && column.width !== 'auto') col.style.width = String(column.width);
@@ -973,6 +1257,9 @@ export class Table extends Component {
   _renderHeader() {
     const row = h('tr', { class: 'zx-table__header-row' });
     if (this._growStep) row.setAttribute('aria-rowindex', '1');
+    if (this.options.rowReorder) row.append(h('th', {
+      class: 'zx-table__reorder-header', scope: 'col', ariaLabel: 'Row order'
+    }));
     if (this.options.selectable === 'multi') {
       this._selectAll = h('input', {
         class: 'zx-table__checkbox zx-table__select-all',
@@ -1004,7 +1291,7 @@ export class Table extends Component {
     }
 
     this._headers = new Map();
-    for (const column of this._columns) {
+    for (const column of this._visibleColumns()) {
       const th = h('th', { scope: 'col' });
       const align = column.align ?? (isNumericColumn(column) ? 'end' : null);
       if (align) th.dataset.align = align;
@@ -1045,7 +1332,8 @@ export class Table extends Component {
       fragment.append(h('tr', { class: 'zx-table__empty-row' },
         h('td', {
           class: 'zx-table__empty',
-          colspan: this._columns.length + (this.options.selectable === 'multi' ? 1 : 0)
+          colspan: this._visibleColumns().length + (this.options.selectable === 'multi' ? 1 : 0)
+            + (this.options.rowReorder ? 1 : 0)
         }, this._emptyContent())
       ));
     } else {
@@ -1055,6 +1343,8 @@ export class Table extends Component {
       });
     }
     this._tbody.replaceChildren(fragment);
+    this._table.setAttribute('aria-colcount', String(this._visibleColumns().length
+      + (this.options.selectable === 'multi' ? 1 : 0) + (this.options.rowReorder ? 1 : 0)));
     /*
      * With `growing` on, the DOM holds a prefix of the data — so without this a screen reader
      * announces "row 3 of 10" for a table of ten thousand. The header counts as a row.
@@ -1103,6 +1393,17 @@ export class Table extends Component {
     elements.push(tr);
     this._rowElements.set(id, elements);
 
+    if (this.options.rowReorder) {
+      const handle = h('button', {
+        class: 'zx-table__row-handle', type: 'button', draggable: true,
+        dataset: { rowHandle: '' }, ariaLabel: `Move row ${index + 1}`,
+        ariaPressed: String(Object.is(this._grabbedId, id)),
+        disabled: Boolean(this._sort && this.options.sortMode === 'local'),
+        title: this._sort && this.options.sortMode === 'local' ? 'Clear sorting to reorder rows' : null
+      }, icon('drag', { size: 14 }));
+      tr.append(h('td', { class: 'zx-table__reorder-cell' }, handle));
+    }
+
     if (this.options.selectable === 'multi') {
       const checkbox = h('input', {
         class: 'zx-table__checkbox zx-table__row-checkbox',
@@ -1113,7 +1414,7 @@ export class Table extends Component {
       tr.append(h('td', { class: 'zx-table__selection-cell' }, checkbox));
     }
 
-    this._columns.forEach((column) => {
+    this._visibleColumns().forEach((column) => {
       const cell = /** @type {HTMLTableCellElement} */ (h('td'));
       const align = column.align ?? (isNumericColumn(column) ? 'end' : null);
       if (align) cell.dataset.align = align;
@@ -1150,7 +1451,7 @@ export class Table extends Component {
     if (value && typeof value === 'object' && typeof value.nodeType === 'number') content.append(value);
     else if (value != null) content.append(document.createTextNode(String(value)));
 
-    if (!this._hierarchy || column.id !== this._hierarchy.column || !tree) {
+    if (!this._hierarchy || column.id !== this._hierarchyColumn() || !tree) {
       cell.replaceChildren(...content.childNodes);
       return;
     }
@@ -1181,6 +1482,7 @@ export class Table extends Component {
     if (!rowElement || !this._tbody.contains(rowElement)) return;
     const meta = this._rowMeta.get(rowElement);
     if (!meta) return;
+    if (target.closest('.zx-table__row-handle')) return;
     // Read the row metadata first: committing re-renders the body and detaches `rowElement`.
     if (this._edit) {
       this.commitEdit();
@@ -1198,6 +1500,16 @@ export class Table extends Component {
     if (checkbox && this.options.selectable === 'multi') {
       this._toggleMultiSelection(meta, /** @type {HTMLInputElement} */ (checkbox).checked, event.shiftKey);
       return;
+    }
+
+    if (isInteractiveCellContent(target)) return;
+
+    if (this._editMode !== false && this._editTrigger === 'single') {
+      const cell = target?.closest('td[data-editable="true"]');
+      if (cell && this._tbody.contains(cell)) {
+        this.startEdit(meta.id, String(cell.dataset.column));
+        return;
+      }
     }
 
     this.emit('rowclick', { ...meta, event });
@@ -1218,7 +1530,8 @@ export class Table extends Component {
     if (!rowElement || !this._tbody.contains(rowElement)) return;
     const meta = this._rowMeta.get(rowElement);
     if (!meta) return;
-    if (this._editMode !== false) {
+    if (isInteractiveCellContent(target)) return;
+    if (this._editMode !== false && this._editTrigger === 'double') {
       const cell = target?.closest('td[data-editable="true"]');
       if (cell && this._tbody.contains(cell)) {
         // A double-click that opens an editor is an edit gesture, not a row activation.
@@ -1543,13 +1856,14 @@ export class Table extends Component {
    * @returns {{id: unknown, columnId: string, index: number}|null} Next cell, or null at the end.
    */
   _nextEditableCell(rowIndex, columnId, direction) {
-    const columnCount = this._columns.length;
+    const columns = this._visibleColumns();
+    const columnCount = columns.length;
     if (rowIndex < 0 || columnCount === 0) return null;
     const visible = this._visibleData();
     const startingId = this._idFor(this._data[rowIndex]);
     let row = visible.findIndex((candidate) => Object.is(this._idFor(candidate), startingId));
     if (row < 0) return null;
-    let column = this._columns.findIndex((candidate) => candidate.id === columnId);
+    let column = columns.findIndex((candidate) => candidate.id === columnId);
     const limit = visible.length * columnCount + columnCount;
     for (let step = 0; step < limit; step += 1) {
       column += direction;
@@ -1562,7 +1876,7 @@ export class Table extends Component {
       }
       if (row < 0 || row >= visible.length) return null;
       const candidateRow = visible[row];
-      const candidateColumn = this._columns[column];
+      const candidateColumn = columns[column];
       if (resolveEditable(candidateColumn, candidateRow) !== false) {
         return {
           id: this._idFor(candidateRow),
@@ -1897,6 +2211,65 @@ export function sortHierarchyRows(rows, rowId, parentId, getValue, direction) {
 }
 
 /**
+ * Returns a reordered copy, or null when IDs are missing or hierarchical rows are not siblings.
+ * Moving a parent changes its sibling order; hierarchy projection keeps its descendant subtree
+ * attached as a unit because parent references are never rewritten.
+ * @param {TableRow[]} rows
+ * @param {string|((row:TableRow)=>unknown)} rowId
+ * @param {unknown} id
+ * @param {unknown} targetId
+ * @param {'before'|'after'} [position='before']
+ * @param {string|((row:TableRow)=>unknown)|null} [parentId=null]
+ * @returns {TableRow[]|null}
+ */
+export function reorderTableRows(rows, rowId, id, targetId, position = 'before', parentId = null) {
+  if (!Array.isArray(rows) || Object.is(id, targetId)) return null;
+  const from = rows.findIndex((row) => Object.is(readRowValue(rowId, row), id));
+  const target = rows.findIndex((row) => Object.is(readRowValue(rowId, row), targetId));
+  if (from < 0 || target < 0) return null;
+  if (parentId && !sameHierarchyParent(
+    readRowValue(parentId, rows[from]), readRowValue(parentId, rows[target]))) return null;
+  if (parentId) {
+    const forest = hierarchyForest(rows, rowId, parentId);
+    const movingNode = forest.nodes[from];
+    const targetNode = forest.nodes[target];
+    if (!movingNode || !targetNode || movingNode.parent !== targetNode.parent) return null;
+
+    /** @param {TableHierarchyNode} root @returns {TableHierarchyNode[]} */
+    const branchNodes = (root) => {
+      const result = [];
+      const stack = [root];
+      while (stack.length) {
+        const node = /** @type {TableHierarchyNode} */ (stack.pop());
+        result.push(node);
+        for (let index = node.children.length - 1; index >= 0; index -= 1) stack.push(node.children[index]);
+      }
+      return result;
+    };
+    const moving = new Set(branchNodes(movingNode).map((node) => node.index));
+    const targetBranch = new Set(branchNodes(targetNode).map((node) => node.index));
+    const block = rows.filter((_row, index) => moving.has(index));
+    const remaining = rows.filter((_row, index) => !moving.has(index));
+    const remainingSourceIndexes = rows.map((_row, index) => index).filter((index) => !moving.has(index));
+    let insertion = remainingSourceIndexes.findIndex((index) => index === target);
+    if (position === 'after') {
+      const targetPositions = remainingSourceIndexes
+        .map((sourceIndex, index) => targetBranch.has(sourceIndex) ? index : -1)
+        .filter((index) => index >= 0);
+      insertion = Math.max(...targetPositions) + 1;
+    }
+    if (insertion < 0) return null;
+    remaining.splice(insertion, 0, ...block);
+    return remaining;
+  }
+  const next = [...rows];
+  const [moving] = next.splice(from, 1);
+  const adjustedTarget = next.findIndex((row) => Object.is(readRowValue(rowId, row), targetId));
+  next.splice(adjustedTarget + (position === 'after' ? 1 : 0), 0, moving);
+  return next;
+}
+
+/**
  * Resolves the editor type of a column for one row.
  *
  * `column.editor` wins over `column.editable`, except that a per-row `editable` function returning
@@ -2059,7 +2432,8 @@ function hierarchyForest(rows, rowId, parentId) {
   /** @type {Map<TableHierarchyNode, TableHierarchyNode|null>} */
   const parentOf = new Map();
   for (const node of nodes) {
-    const parent = byId.get(readRowValue(parentId, node.row)) ?? null;
+    const parentValue = readRowValue(parentId, node.row);
+    const parent = parentValue == null ? null : byId.get(parentValue) ?? null;
     parentOf.set(node, parent === node ? null : parent);
   }
 
@@ -2105,6 +2479,16 @@ function readRowValue(accessor, row) {
 }
 
 /**
+ * Null and undefined both identify the hierarchy root; other IDs retain exact identity.
+ * @param {unknown} left
+ * @param {unknown} right
+ * @returns {boolean}
+ */
+function sameHierarchyParent(left, right) {
+  return left == null && right == null || Object.is(left, right);
+}
+
+/**
  * @param {unknown} option
  * @param {TableColumn[]} columns
  * @returns {(TableHierarchyOptions & {column: string})|null}
@@ -2135,6 +2519,16 @@ function normalizeEditMode(mode) {
 /** @param {Element|null} target @returns {boolean} */
 function isInsideEditor(target) {
   return Boolean(target?.closest?.('.zx-table__editor'));
+}
+
+/** @param {Element|null} target @returns {boolean} */
+function isInteractiveCellContent(target) {
+  const cell = target?.closest?.('td[data-column]');
+  const interactive = target?.closest?.([
+    'a[href]', 'button', 'input', 'select', 'textarea', 'summary', '[contenteditable="true"]',
+    '[role="button"]', '[role="link"]', '[tabindex]:not([tabindex="-1"])', '[data-zx-table-no-edit]'
+  ].join(','));
+  return Boolean(cell && interactive && interactive !== cell && cell.contains(interactive));
 }
 
 /**

@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import {
   normalizeDocsSearchText, rankDocsSearch
@@ -27,4 +29,34 @@ test('documentation search is stable, limited, and blank-safe', () => {
     ['#0', '#1', '#2']);
   assert.deepEqual(rankDocsSearch(records, '   '), []);
   assert.deepEqual(rankDocsSearch(records, 'missing'), []);
+});
+
+test('both machine indexes keep the requested application-shell components in Layout', () => {
+  for (const relative of ['../../website/llms.txt', '../../docs/llms.txt']) {
+    const source = readFileSync(fileURLToPath(new URL(relative, import.meta.url)), 'utf8');
+    const groups = [...source.matchAll(/^- ([^:\n]+):([\s\S]*?)(?=^- [^:\n]+:|^## |(?![\s\S]))/gm)]
+      .map((match) => ({ name: match[1], body: match[2] }));
+    const layout = groups.find((group) => group.name === 'Layout')?.body ?? '';
+    for (const component of ['AppSidebar', 'AccountMenu', 'Launcher', 'InlineLoading', 'skeleton()']) {
+      assert.ok(layout.includes(component), `${relative}: ${component} is not in Layout`);
+      assert.equal(groups.some((group) => group.name !== 'Layout' && group.body.includes(component)), false,
+        `${relative}: ${component} is duplicated outside Layout`);
+    }
+  }
+});
+
+test('public documentation presents the compact builder as a first-class API', () => {
+  for (const relative of ['../../website/llms.txt', '../../docs/llms.txt', '../../docs/llms.md']) {
+    const source = readFileSync(fileURLToPath(new URL(relative, import.meta.url)), 'utf8');
+    assert.doesNotMatch(source, /migration alias|gx compatibility|carbon|fiori/i, relative);
+  }
+  const reference = readFileSync(fileURLToPath(new URL('../../docs/llms.md', import.meta.url)), 'utf8');
+  assert.match(reference, /Zx's compact DOM builder and public alias/);
+});
+
+test('documentation and theme headers expose their centered search mount', () => {
+  const docs = readFileSync(fileURLToPath(new URL('../../website/docs.html', import.meta.url)), 'utf8');
+  const theme = readFileSync(fileURLToPath(new URL('../../website/theme.html', import.meta.url)), 'utf8');
+  assert.match(docs, /class="site-docs-search docs-global-search"/);
+  assert.match(theme, /class="site-docs-search theme-global-search"/);
 });

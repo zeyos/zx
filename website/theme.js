@@ -16,7 +16,7 @@
  */
 
 import {
-  Dialog, Select, Slider, button, copyToClipboard, h, icon, rovingTabindex
+  Dialog, Search, Select, Slider, button, copyToClipboard, h, icon, rovingTabindex
 } from '../src/index.js';
 import {
   DEFAULTS, FONTS, PRESETS, STOPS, TINTS, accentRamp, contrast, presetById, resolvedAccent,
@@ -35,6 +35,11 @@ const THEMES = [
 const DENSITIES = [
   { id: 'cozy', label: 'Cozy' },
   { id: 'compact', label: 'Compact' }
+];
+const MATERIALS = [
+  { id: 'none', label: 'Flat' },
+  { id: 'subtle', label: 'Glass' },
+  { id: 'strong', label: 'Deep glass' }
 ];
 
 const state = restore();
@@ -68,9 +73,24 @@ document.addEventListener('zx-theme-change', () => {
 });
 
 app.replaceChildren(h('div', { class: 'studio' }, rail, main));
+buildThemeSearch();
 buildRail();
 rebuildCanvas();
 apply();
+
+/** Sends the shared header search into the full documentation result combobox. @returns {void} */
+function buildThemeSearch() {
+  const form = document.querySelector('[data-theme-search-field]');
+  if (!form) return;
+  const search = new Search(form, {
+    placeholder: 'Search documentation',
+    debounce: 0
+  });
+  search.on('submit', () => {
+    const query = search.get().trim();
+    if (query) window.location.assign(`docs.html?q=${encodeURIComponent(query)}`);
+  });
+}
 
 // `[` and `]` cycle the preset — the fastest way to see what a theme does to a whole screen is to
 // flip between two of them without moving the pointer to the rail.
@@ -98,6 +118,10 @@ function buildRail() {
       state.density = value;
       apply({ rebuild: true });
     })),
+    section('Material', segmented('Material', MATERIALS, () => state.glass, (value) => {
+      state.glass = value;
+      apply();
+    }), 'Glass uses CSS highlights and borders; backdrop blur is reserved for the strong setting and transient overlays.'),
     accentSection(),
     section('Neutral tint', choice(TINTS, () => state.tint, (value) => {
       state.tint = value;
@@ -123,9 +147,10 @@ function buildRail() {
       set: (value) => { state.textSize = value; }
     })),
     h('p', { class: 'studio-rail__note' },
-      'Presets ship as ', h('code', {}, 'data-zx-preset'),
-      ' in ', h('code', {}, 'styles/tokens/themes.css'), '. Everything else is a custom property '
-      + 'you can paste into your own stylesheet.'),
+      'Preset accent ramps ship as ', h('code', {}, 'data-zx-preset'),
+      ' in ', h('code', {}, 'styles/tokens/themes.css'), '. The studio also applies each preset’s '
+      + 'complete type, geometry, density, tint, and material recipe; Copy CSS exports those '
+      + 'choices for an application.'),
     // Last in the rail, and pinned to the bottom of it by the stylesheet.
     h('div', { class: 'studio-rail__actions' },
       button({ label: 'Reset', icon: 'reload', onclick: reset }),
@@ -354,10 +379,12 @@ function cyclePreset(step) {
 
 /** @param {string} id @returns {void} */
 function selectPreset(id) {
-  state.preset = id;
+  const preset = presetById(id);
+  state.preset = preset.id;
+  Object.assign(state, preset.recipe);
   // Picking a standard theme means picking its ramp, so a custom accent gets out of the way.
   state.accent = null;
-  apply();
+  apply({ rebuild: true });
 }
 
 /** @returns {void} */
@@ -402,6 +429,7 @@ function restore() {
   if (DENSITIES.some((density) => density.id === stored.density)) state.density = stored.density;
   if (TINTS.some((tint) => tint.id === stored.tint)) state.tint = stored.tint;
   if (FONTS.some((font) => font.id === stored.font)) state.font = stored.font;
+  if (MATERIALS.some((material) => material.id === stored.glass)) state.glass = stored.glass;
   if (typeof stored.accent === 'string' && /^#[\da-f]{6}$/i.test(stored.accent)) {
     state.accent = stored.accent;
   }

@@ -4,7 +4,9 @@
  * @module zx/zeyos/icons
  */
 
-import { h, icon, loadFontAwesome } from '../index.js';
+import { icon, loadFontAwesome } from '../index.js';
+import { appIcon } from '../components/app-icon/app-icon.js';
+import { isCssColor } from '../core/util.js';
 import { moduleGlyphColor, moduleInfo, normalizeModuleName } from './modules.js';
 
 /**
@@ -51,11 +53,13 @@ export function moduleIcon(name, options = {}) {
 /**
  * @typedef {Object} ModuleChipOptions
  * @property {number|string} [size=24] Chip edge length.
- * @property {number|string} [iconSize='1em'] Glyph size; `1em` is 60% of the chip edge.
+ * @property {number|string} [iconSize='52%'] Glyph size relative to the tile edge.
  * @property {string|null} [label=null] Accessible label; null marks the chip decorative.
  * @property {boolean} [title=false] Adds the module's display name as a `title` tooltip.
  * @property {boolean} [standard=false] Use the stock Font Awesome fallback glyph.
+ * @property {string|Node|(()=>string|Node)|null} [icon] Explicit glyph override, useful for an offline fallback.
  * @property {string} [color] Override the module colour for a server-defined fork or weblet.
+ * @property {false|'subtle'|'strong'} [glass='subtle'] AppIcon material treatment.
  * @property {string|string[]} [class] Extra class names.
  */
 
@@ -69,29 +73,38 @@ export function moduleIcon(name, options = {}) {
  */
 export function moduleChip(name, options = {}) {
   const {
-    size = 24, iconSize = '1em', label = null, title = false, standard = false,
+    size = 24, iconSize = '52%', label = null, title = false, standard = false,
     color = null
   } = options;
   const key = normalizeModuleName(name);
   const info = moduleInfo(name);
-  const background = color || info.color;
+  const background = isCssColor(color) ? color : info.color;
 
-  const chip = h('span', {
-    class: ['zx-module-icon', options.class].flat().filter(Boolean),
-    dataset: { module: key },
-    style: {
-      '--zx-module-color': background,
-      '--zx-module-glyph': moduleGlyphColor(background),
-      '--zx-module-icon-size': typeof size === 'number' ? `${size}px` : String(size)
-    },
-    title: title ? info.label : null
-  }, moduleIcon(name, { size: iconSize, standard }));
-
-  if (label === null) {
-    chip.setAttribute('aria-hidden', 'true');
-  } else {
-    chip.setAttribute('role', 'img');
-    chip.setAttribute('aria-label', label);
-  }
+  const chip = appIcon({
+    // AppIcon owns glyph sizing. Keep the provider glyph at 1em so the percentage is not applied
+    // once to the wrapper and a second time to a Font Awesome <i>.
+    icon: options.icon ?? moduleIcon(name, { size: '1em', standard }),
+    size,
+    iconSize,
+    color: background,
+    label,
+    glass: options.glass ?? 'subtle',
+    class: ['zx-module-icon', options.class].flat().filter(Boolean)
+  });
+  chip.dataset.module = key;
+  chip.style.setProperty('--zx-module-color', background);
+  chip.style.setProperty('--zx-module-glyph', moduleGlyphColor(background));
+  chip.style.setProperty('--zx-app-icon-glyph', moduleGlyphColor(background));
+  if (title) chip.title = info.label;
   return chip;
+}
+
+/**
+ * Creates the public ZeyOS AppIcon preset for any module, entity, fork, or weblet identity.
+ * @param {string} name Module/entity identifier.
+ * @param {ModuleChipOptions} [options={}] AppIcon options.
+ * @returns {HTMLElement}
+ */
+export function zeyosAppIcon(name, options = {}) {
+  return moduleChip(name, options);
 }

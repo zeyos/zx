@@ -19,8 +19,8 @@
           <img class="brand-logo--dark" src="assets/zx-logo-dark.svg" alt="Zx">
         </a>
         <a class="site-version" href="https://github.com/zeyos/zx/releases/latest"
-          rel="noopener" title="Release notes">v<span data-site-version>4.0.0</span></a>
-        <div class="docs-global-search" data-docs-search>
+          rel="noopener" title="Release notes">v<span data-site-version>4.1.0</span></a>
+        <div class="site-docs-search docs-global-search" data-docs-search>
           <form data-docs-search-field></form>
           <div class="docs-global-search__popover" hidden>
             <div id="docs-search-status" class="docs-global-search__status"
@@ -557,39 +557,11 @@ document.querySelector('#invoices').append(list.table);
     <script type="module" src="docs.js"></script>
 
     <footer class="site-footer">
-      <div class="site-footer__inner">
-        <div class="site-footer__brand">
-          <img src="assets/zx-logo-dark.svg" alt="Zx">
-          <p>
-            Product-agnostic and developed by
-            <a href="https://www.zeyos.com" rel="noopener">ZeyOS</a>. Released under the
-            <a href="https://github.com/zeyos/zx/blob/main/LICENSE" rel="noopener">MIT license</a>.
-          </p>
-        </div>
-        <nav class="site-footer__links" aria-label="Footer">
-          <div class="site-footer__group">
-            <h2>Documentation</h2>
-            <a href="docs.html#getting-started">Getting started</a>
-            <a href="docs.html#components">Components</a>
-            <a href="docs.html#layouts">Layouts</a>
-          </div>
-          <div class="site-footer__group">
-            <h2>Reference</h2>
-            <a href="../CHANGELOG.md">Changelog</a>
-            <a href="llms.txt">llms.txt</a>
-          </div>
-          <div class="site-footer__group">
-            <h2>Project</h2>
-            <a href="https://github.com/zeyos/zx" rel="noopener">GitHub</a>
-            <a href="https://github.com/zeyos/zx/issues" rel="noopener">Issues</a>
-            <a href="https://www.npmjs.com/package/@zeyos/zx" rel="noopener">npm</a>
-          </div>
-        </nav>
-      </div>
-      <div class="site-footer__stamp">
-        <span>Zx <span data-site-version>4.0.0</span></span>
-        <span>Last updated <time data-site-updated>—</time></span>
-      </div>
+      <nav class="site-footer__legal" aria-label="Legal">
+        <a href="https://www.zeyos.com/impressum/" rel="noopener">Imprint</a>
+        <a href="https://www.zeyos.com/privacy/" rel="noopener">Privacy Policy</a>
+        <a href="llms.txt">LLMs.txt</a>
+      </nav>
     </footer>
   </body>
 </html>

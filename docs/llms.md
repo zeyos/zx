@@ -73,6 +73,11 @@ renders every component family live and exports the CSS):
 Keep the 600 stop at 4.5:1 or better against white and the 400 stop at 4.5:1 against the dark page
 — that is what makes `--zx-color-on-accent` legible without being restated per theme.
 
+The theme studio treats those stable IDs as complete recipes: selecting a preset also changes its
+density, neutral tint, radius, control height, base text size, font stack, and material strength.
+Its **Material** control is CSS-first (`Flat`, `Glass`, or `Deep glass`); only the deep setting uses
+backdrop blur, and components fall back to solid surfaces under reduced-transparency preferences.
+
 Define a product theme by overriding **semantic** tokens under a `[data-zx-theme="name"]` selector:
 `--zx-color-bg-page/surface/raised/control/hover/selected`, `--zx-color-border(-strong/-control)`,
 `--zx-color-text(-muted/-placeholder)`, `--zx-color-accent(-hover)/on-accent`,
@@ -445,6 +450,30 @@ permissions, recent-history/cache policy, and the route or command ultimately in
   taking over application routing.
 <!-- /doc -->
 
+<!-- doc:app-icon -->
+### AppIcon — application identity
+
+A fixed-size, product-agnostic application tile. It keeps glyph geometry stable in launchers,
+sidebars, entity results, and recent-item rows while identity colour and material remain explicit
+options rather than application globals.
+
+- **Options** — `icon` (bundled name, Node, or lazy renderer), `color`, `size: 36`,
+  `iconSize: '52%'`, `label`, `badge`, `selected: false`, `glass: false|'subtle'|'strong'`, and
+  additional `class` names.
+- **Methods** — `set(partialOptions)` updates the existing root; `destroy()` restores an enhanced
+  target. `appIcon(options)` is the element-returning convenience factory.
+- **ZeyOS preset** — import `zeyosAppIcon(module, options)` from `@zeyos/zx/zeyos`. Every current
+  ZeyOS application/module has a canonical colour and icon mapping in `src/zeyos/modules.js`;
+  entity names and aliases resolve through the same catalogue. `moduleChip()` is the compatible
+  alias. An application may call `useZeyosIcons()` for the existing custom glyph kit or inject an
+  offline `icon` override; Zx never loads a network asset automatically.
+- **Material** — subtle glass is a CSS border/highlight treatment; strong glass progressively adds
+  `backdrop-filter`. `prefers-reduced-transparency` and browsers without support receive a solid
+  tile. The glyph and label semantics do not depend on the visual treatment.
+- **Accessibility** — a non-empty `label` gives the root `role="img"`; otherwise it is decorative.
+  The badge is visual supplementary status, so include its meaning in `label` when it matters.
+<!-- /doc -->
+
 <!-- doc:avatar -->
 ### Avatar
 
@@ -483,7 +512,7 @@ out, or mutates the session.
 
 Unifies single-select, local filtering, and async loading.
 
-- **Options** — `items: []`, `fixedItems: []`, `valueKey: 'ID'` (string key or `(item)=>id`),
+- **Options** — `items: []`, `fixedItems: []`, optional `fixedLabel`, `valueKey: 'ID'` (string key or `(item)=>id`),
   `labelKey: 'name'` (string or `(item)=>string`), `renderItem`, `renderValue`,
   `renderValueAdornment`, `renderNone`, `noneLabel`, `actions`, `value`, `disabled`, `placeholder`,
   `clearable: false`, `filter: false | 'local' | async (query)=>items`, `searchKeys`,
@@ -504,11 +533,13 @@ Unifies single-select, local filtering, and async loading.
   and accepts replacement `items`; `Select.permission(target, {groups, value})` pins Private and
   Public above record-access groups. Its value is the tri-state ZeyOS stores (`false` private,
   `true` public, or a group ID), and `groups` takes an array or loader `(query)=>items`.
-- **ZeyOS entity preset** — import `zeyosEntitySelect(client, resource, options)` or the DOM-free
-  `buildZeyosEntitySelectConfig()` from `@zeyos/zx/zeyos`. It composes the async client binding
-  with module-colored icons, subtitle/group readers, a deliberate none row, and an optional
-  application-owned create command. The selected value remains the record ID and exact product
-  glyphs stay injectable through `renderIcon`.
+- **Entity preset** — `Select.entity(target, options)` renders icon/color, label, and secondary
+  text using `iconKey`, `colorKey`, and `subtitleKey` (or `renderIcon`). `recent` pins a deduplicated
+  **Recent** section above ordinary/local/async results; `create: true|actionDescriptor` appends an
+  application-owned command at the bottom without changing the selected ID. `recentLabel` and the
+  ordinary Select options remain overridable. For schema-driven ZeyOS loading,
+  `zeyosEntitySelect(client, resource, options)` and `buildZeyosEntitySelectConfig()` compose this
+  preset from `@zeyos/zx/zeyos`; the core preset itself is backend-neutral.
 - **Keyboard** (APG combobox) — ArrowDown/Alt+ArrowDown open; arrows navigate and wrap; Home/End;
   Enter selects; Esc closes; Tab closes; printable characters filter (editable) or run a typeahead
   (readonly). `aria-activedescendant` tracks the active option.
@@ -707,6 +738,8 @@ use `TimePicker` or `DateTimeBox`.
 
 Floating toasts come from statics; `new Message(target)` gives an inline, non-floating area with
 the same `.show()`. The toast region is `role="status"`/`aria-live` (`role="alert"` for errors).
+The shared floating region is fixed to the upper-right logical corner by default, sizes to its
+messages rather than the page, and uses the translucent glass surface tokens with a solid fallback.
 
 - **Statics** — `Message.info/success/warning/error(msg, opts)`,
   `Message.show(msg, { kind, timeout=4000, closable })` → `{ close() }`,
@@ -947,7 +980,8 @@ range select.
   `toggleRow()`, `expandRow()`, `collapseRow()`, `expandAll()`, `collapseAll()`, and
   `getExpanded()`. The native disclosure button works by pointer and keyboard without selecting
   or clicking the row.
-- **Editing** — `editMode: false|'cell'|'row'` (default `false`, and completely inert until set).
+- **Editing** — `editMode: false|'cell'|'row'` (default `false`, and completely inert until set),
+  plus `editTrigger: 'double'|'single'` (Table defaults to double; Grid defaults to single).
   `'cell'` edits one cell, `'row'` opens every editable cell of the row and commits them as a unit.
   Editors are sized into the cell without changing row height, and an editing cell carries
   `data-editing="true"` (`data-invalid="true"` plus an `aria-live` message when a validator rejects).
@@ -980,7 +1014,8 @@ range select.
   commit with no changes emits `editcommit` with an empty `changes` map and leaves the data alone.
   Sorting, filtering, or `setData()` while editing cancels the edit cleanly and emits `editcancel`.
 - **Editing keyboard** — Enter or F2 on a focused editable cell starts editing (editable cells share
-  one roving tab stop), double-click starts editing without emitting `rowdblclick`, Enter commits and
+  one roving tab stop); the configured single/double pointer gesture starts it without emitting
+  `rowdblclick`. Enter commits and
   returns focus to the cell (Shift+Enter stays a newline in a `'textarea'`, Space toggles a
   `'checkbox'`), Escape cancels and returns focus to the cell, Tab commits and moves to the next
   editable cell (Shift+Tab the previous), wrapping across rows, and tabbing past the last editable
@@ -1006,6 +1041,14 @@ range select.
 - **Empty state** — `emptyText` takes a string, a Node, or a function returning one, so an empty
   table can carry an icon, an explanation, and the action that resolves it (`emptyState({…})`).
   A function is re-called on every render, which is what to use when the placeholder holds controls.
+- **Row order** — `rowReorder: true` adds a dedicated drag handle. Pointer drag moves rows before
+  or after a sibling; Space/Enter grabs/releases the same handle and ArrowUp/ArrowDown moves it for
+  keyboard users. `moveRow(id, targetId, position)` exposes the same guarded operation. Hierarchical
+  rows only move among siblings, and an active local sort disables manual order. A cancelable
+  `rowmove {row,id,target,targetId,position}` fires before `datachange`.
+- **Column visibility** — `columnVisibility: true` renders a chooser; `hiddenColumns` seeds it.
+  `getVisibleColumns()`, `getHiddenColumns()`, `setColumnVisible()`, and `toggleColumn()` preserve
+  caller column order and never allow the final visible column to disappear.
 <!-- /doc -->
 
 <!-- doc:grid -->
@@ -1015,9 +1058,11 @@ range select.
 without forking its implementation, so sorting, selection, hierarchy, responsive stacking,
 editable cells/rows, loading, events, and teardown keep the Table contract.
 
-- **Constructor** — `new Grid(target, tableOptions)` accepts the complete `Table` API.
+- **Constructor** — `new Grid(target, tableOptions)` accepts the complete `Table` API and defaults
+  editable cells to a single-click trigger.
 - **Preset** — `Grid.BillingItems(target, options)` supplies an editable hierarchical billing
-  schema for item, quantity, unit, unit price, currency, and line total. It returns a `Grid`.
+  schema for item, quantity, unit, unit price, currency, and line total. It enables single-click
+  editing, hierarchy, row reorder handles, and the column visibility chooser. It returns a `Grid`.
 - **Billing options** — `data`, `fields` key overrides, `units`, `currencies`, fallback `currency`,
   `locale`, `decimals`, `columnOverrides`, complete `columns` replacement, `lineTotal(row, changes)`,
   and `oneditcommit` in addition to ordinary Table options.
@@ -1066,6 +1111,35 @@ Declarative client-side filter bar producing a filtered array, commonly wired to
 - **Methods** — `setData()`, `apply()` → rows, `clear()`, `getState()`, `setState()`,
   `addFilter()`.
 - **Events** — `filter {rows, state}`.
+<!-- /doc -->
+
+<!-- doc:filter -->
+### Filter — dynamic backend-neutral expressions
+
+An authoring component for typed, nested filter expressions. It never evaluates application data
+or interpolates query text: it emits a versioned, JSON-safe AST for an allowlisted application
+adapter to compile into its own backend query language.
+
+- **AST** — `{version: 1, root: {kind:'group', id, logic:'and'|'or', children}}`; children are
+  stable-ID groups or `{kind:'condition', id, field, operator, value}` records. Unknown field or
+  operator IDs survive parsing and render as unavailable/invalid instead of being silently lost.
+- **Fields** — `{id,label,type,operators?,defaultOperator?,choices?,loadChoices?,editor?,minQuery?,
+  debounce?}`. Built-in types cover text, number/money, date/datetime, boolean, enum/status/
+  priority/country/currency/unit/entity, and tags. Compatible operators and their arity come from
+  the exported `filterOperators` matrix; applications may explicitly override/add operator IDs.
+- **Options** — `fields`, `value`, `operators`, `allowGroups: true`, `maxDepth: 3`,
+  `maxConditions: 50`, `autoApply: false`, `readonly`, `disabled`, `applyLabel`, `clearLabel`.
+- **Methods** — `getValue()`, atomic `setValue()`, `addCondition()`, `addGroup()`, `update()`,
+  `remove()`, `move()`, `validate()`, `apply()`, `clear()`, `focus()`, `setReadonly()`,
+  `enable()`/`disable()`.
+- **Events** — `change {value,valid,errors,reason,nodeId}`, `apply {value}`, `invalid {errors}`,
+  and abortable async-choice lifecycle `query`, `loaded`, `error`. `apply()` returns null and
+  focuses the first invalid condition when validation fails.
+- **Pure exports** — `emptyFilterAst`, `filterCondition`, `filterGroup`, `parseFilterAst`,
+  `cloneFilterAst`, `cloneFilterValue`, `stringifyFilterAst`, and `validateFilterAst`.
+- **Boundary** — keep the AST in saved views/audit state and compile it in a backend-specific
+  adapter with an allowlist and bound parameters. Do not put SQL, URL query fragments, functions,
+  DOM nodes, Dates, non-finite numbers, or other executable/non-JSON values into conditions.
 <!-- /doc -->
 
 <!-- doc:tree -->
@@ -1278,10 +1352,13 @@ shows a fixed set, and `ValueList` takes free text with no catalogue. Unknown ID
 `setValues` still render as tags, so a stored selection survives a catalogue that has not loaded
 yet. Field type: `tagpicker`.
 
-- **Options** — `items`, `values: []`, `valueKey: 'ID'`, `labelKey: 'name'`, `searchKeys`,
+- **Options** — `items`, `values: []`, `valueKey: 'ID'`, `labelKey: 'name'`, `iconKey: 'icon'`,
+  `colorKey: 'color'`, `searchKeys`,
   `filter: 'local'|(query)=>Promise<items>`, `minQuery: 0`, `debounce: 200`, `allowCreate: false`,
   `max` (maximum tags; further options become `aria-disabled`), `closeOnSelect: false`,
   `placeholder`, `listHeight: 260`, `disabled`, `readonly`, `renderItem`, `renderTag`.
+- **Tag identity** — icon values accept a bundled icon name or Node; colors are scoped to the tag
+  and its option through `--zx-tag-color`. Custom `renderItem`/`renderTag` remain authoritative.
 - **Methods** — `getValues()`, `getItems()`, `setValues(values, {silent})`, `addValue()`,
   `removeValue()`, `clear()`, `reset()`, `setItems()`, `isFull()`, `open()`/`close()`, `focus()`,
   `setReadonly()`, `enable()`/`disable()`.
@@ -1584,16 +1661,16 @@ inline; every rail state opens descendants toward the workspace in anchored flyo
 
 - **Component** — the base class: `on`/`off`/`once`/`emit`, `listen`, `toElement`, `msg`,
   `destroy`, and the static `Component.from(el)`.
-- **DOM** — `h(tag, props, ...children)`, `h.raw(html)`, `htmlEscape`, `resolveElement`. The current
-  ZeyOS builder is also first-class: `__(tag#id.class, properties, content)` is the migration alias
-  for `compactElement()`. It preserves `D*` data, `S*` style, boolean/built-in property, attribute,
+- **DOM** — `h(tag, props, ...children)`, `h.raw(html)`, `htmlEscape`, `resolveElement`.
+  `__(tag#id.class, properties, content)` is Zx's compact DOM builder and public alias for
+  `compactElement()`. It preserves `D*` data, `S*` style, boolean/built-in property, attribute,
   and legacy `on*` callback rules while keeping content text-safe. `applyCompactProperties`,
   `appendContent`, `appendCompact` (parent return), `appendCompactChild` (child return), and
   `fragment(...children)` are the pure forms.
 - **Compact events** — `onCompactEvent`, `offCompactEvent`, and `fireCompactEvent` share one
   newest-first handler registry. Existing `DOM.on/remEvt/fireEvt` methods can delegate to this
-  triad. Zx never installs globals or alters DOM prototypes; the current application owns those
-  temporary seams while `UI.new*` implementations are replaced without rewriting `PG` routing.
+  triad. Zx never installs globals or alters DOM prototypes; applications decide whether to expose
+  these functions globally or compose them into their own UI and routing layer.
 - **Icons** — `icon(name, {size, label})` and `icons`; see the Icons section — bundled inline SVG
   by default, Font Awesome after an opt-in.
 - **Positioning** — `position(anchor, floating, {placement, offset, flip, matchWidth})` →

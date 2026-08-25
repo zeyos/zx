@@ -2,6 +2,87 @@
   min-inline-size: 0;
 }
 
+.zx-table__column-controls {
+  position: relative;
+  inline-size: max-content;
+  margin: 0 0 var(--zx-space-2) auto;
+}
+
+.zx-table__reorder-status {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.zx-table__column-controls > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  list-style: none;
+  cursor: pointer;
+}
+
+.zx-table__column-controls > summary::-webkit-details-marker { display: none; }
+
+.zx-table__column-list {
+  position: absolute;
+  z-index: 4;
+  inset-block-start: calc(100% + var(--zx-space-1));
+  inset-inline-end: 0;
+  display: grid;
+  min-inline-size: 190px;
+  border: 1px solid var(--zx-color-border-strong);
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-bg-raised);
+  box-shadow: var(--zx-overlay-shadow);
+  padding: var(--zx-space-2);
+}
+
+.zx-table__column-option {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  min-block-size: var(--zx-control-height);
+  border-radius: var(--zx-radius-sm);
+  padding-inline: var(--zx-space-2);
+}
+
+.zx-table__column-option:hover { background: var(--zx-color-bg-hover); }
+
+.zx-table__reorder-column,
+.zx-table__reorder-header,
+.zx-table__reorder-cell {
+  inline-size: var(--zx-control-height);
+  text-align: center;
+}
+
+.zx-table__row-handle {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 26px;
+  block-size: 26px;
+  min-block-size: 0;
+  border: 0;
+  border-radius: var(--zx-radius-sm);
+  background: transparent;
+  padding: 0;
+  color: var(--zx-color-text-muted);
+  cursor: grab;
+}
+
+.zx-table__row-handle:hover,
+.zx-table__row-handle[aria-pressed="true"] {
+  background: var(--zx-color-bg-hover);
+  color: var(--zx-color-text);
+}
+
+.zx-table__row-handle:active { cursor: grabbing; }
+.zx-table__body tr[data-dragging] { opacity: .55; }
+.zx-table__body tr[data-drop="before"] { box-shadow: inset 0 2px 0 var(--zx-color-accent); }
+.zx-table__body tr[data-drop="after"] { box-shadow: inset 0 -2px 0 var(--zx-color-accent); }
+
 .zx-table__scroll {
   position: relative;
   max-inline-size: 100%;
@@ -376,6 +457,10 @@
 }
 
 .zx-table[data-stacked] .zx-table__selection-cell {
+  justify-content: flex-start;
+}
+
+.zx-table[data-stacked] .zx-table__reorder-cell {
   justify-content: flex-start;
 }
 

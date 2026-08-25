@@ -36,9 +36,10 @@ available as ESM named exports and as `window.zx.*`.
   gotchas, commands.
 
 ## Components
-- Inputs: `button()`, `buttonGroup()`, `badge()`, `CheckButton`, `Toggle`, `Search`, `Launcher`,
-  `Avatar`, `AccountMenu`, `Select` (APG combobox; `filter: false|'local'|async`; priority,
-  status, permission, and optional ZeyOS entity presets), `Checklist`, `TagPicker`,
+- Inputs: `button()`, `buttonGroup()`, `badge()`, `CheckButton`, `Toggle`, `Search`,
+  `AppIcon` (+ `zeyosAppIcon()` presets), `Avatar`, `Select` (APG combobox;
+  `filter: false|'local'|async`; priority, status, permission, and `Select.entity()` presets),
+  `Checklist`, `TagPicker` (icon/color identity),
   `NumberField`, `Rating`, `Slider` (native range; marks, bounds, optional number box),
   `copyButton()`/`CopyInput`, `DatePicker`, `MonthPicker`, `TimePicker`, `Datebox`/`DateTimeBox`,
   `Timebox`.
@@ -47,17 +48,18 @@ available as ESM named exports and as `window.zx.*`.
   `snap` detents, swipe-to-dismiss), `SheetStack` (drill-down; `stack`/`cascade`), `Dropdown`,
   `MenuButton`, `ContextMenu` (right-click and Shift+F10; `selector` gives per-row menus from one
   instance).
-- Data: `Table` (sortable, selectable, sticky header, opt-in inline editing), `Grid` with
-  `Grid.BillingItems()`, engine-neutral `Chart` with injected `ChartJsAdapter`, `DataFilter`,
+- Data: `Table` (sortable, selectable, sticky header, opt-in inline editing, row reorder, column
+  visibility), `Grid` with single-click editing and `Grid.BillingItems()`, engine-neutral `Chart`
+  with injected `ChartJsAdapter`, backend-neutral nested `Filter`, simple client-side `DataFilter`,
   `Pagination`, `TreeView` (APG tree), `Finder` (Miller columns).
 - Forms: `Form`, `Fieldset`, `Questionnaire` (guided one-question-at-a-time flow with branching), `Field` (type registry), `ValueList`, `MultiValueEditor`,
   `FieldUpload`.
 - Layout: `stack()`/`grid()`/`aspect()`, `Groupbox`, `Card`, `Panel`, `MasterPanel`, `Tabbox`,
-  `NavigationBar`, `AppSidebar` (expanded/minimized vertical and horizontal rail states), `Toolbar`, `SplitView`, `Dock` (collapsible
+  `NavigationBar`, `AppSidebar` (expanded/minimized vertical and horizontal rail states),
+  `AccountMenu`, `Launcher`, `spinner()`/`ProgressBar`/`InlineLoading`,
+  `skeleton()`/`skeletonText()`/`skeletonTable()`, `Toolbar`, `SplitView`, `Dock` (collapsible
   resizable pane stack; tab groups,
   regions, adopts a `Sheet`), `Stepper`, `Breadcrumb`, `emptyState()`.
-- Feedback: `spinner()`, `ProgressBar`, `InlineLoading`,
-  `skeleton()`/`skeletonText()`/`skeletonTable()`.
 - Core: `Component`, `h`/`__`/`icon`, `position`, `breakpoints`/`breakpointOf`/`matchBreakpoint`/
   `onBreakpoint`, i18n, date utilities, `defineElements` (declarative `<zx-*>` custom elements).
 - Helpers: `formatNumber`/`formatCurrency`/`formatFileSize`/`formatRelativeTime`, `storage()`,
@@ -73,9 +75,9 @@ Load `zx.css` once and put `zx-scope` on the application root. Set `data-zx-them
 theme by overriding semantic `--zx-color-*` / `--zx-control-*` tokens under
 `[data-zx-theme="name"]`. Never use tier-1 palette tokens or raw colour literals in application
 CSS. The stock themes use a restrained neutral ramp with the ZeyOS green as the accent.
-Six accent presets ship as `data-zx-preset` (zx, zeyos, ocean, violet, rose, slate); each is five
-`--zx-accent-*` values. `/theme.html` is the theme studio: every component under a live theme,
-with the result exportable as CSS.
+Six stable accent IDs ship as `data-zx-preset` (zx, zeyos, ocean, violet, rose, slate). The theme
+studio applies complete recipes spanning accent, neutral tint, density, font, type size, radius,
+control height, and CSS-first glass material, with the result exportable as CSS.
 
 ## Talking to ZeyOS
 Use the dedicated ZeyOS client library **`@zeyos/client`** (`npm install @zeyos/client`) for ZeyOS

@@ -107,7 +107,7 @@ test('a neutral tint stays neutral at the ends of the ramp', () => {
 
 test('an unchanged state produces no overrides', () => {
   assert.deepEqual(themeVars({ ...DEFAULTS }), {});
-  assert.match(themeCss({ ...DEFAULTS }), /stock Zx theme/);
+  assert.match(themeCss({ ...DEFAULTS }), /stock ZeyOS theme/);
 });
 
 test('the exported CSS names where the values came from', () => {
@@ -120,4 +120,28 @@ test('only what changed is exported', () => {
   const vars = themeVars({ ...DEFAULTS, radius: 0.75, font: 'serif' });
   assert.deepEqual(Object.keys(vars), ['--zx-radius', '--zx-font-sans']);
   assert.equal(vars['--zx-radius'], '0.75rem');
+});
+
+test('non-default presets carry complete studio recipes, not only accent ramps', () => {
+  for (const preset of PRESETS.slice(1)) {
+    const changed = Object.entries(preset.recipe)
+      .filter(([key, value]) => value !== DEFAULTS[key])
+      .map(([key]) => key);
+    assert.ok(changed.length >= 3, `${preset.label} does not meaningfully change its recipe`);
+    const vars = themeVars({ ...DEFAULTS, preset: preset.id, ...preset.recipe });
+    assert.ok(Object.keys(vars).length >= 3, `${preset.label} recipe produced only an accent change`);
+  }
+});
+
+test('theme geometry, type, tint, and material controls each produce a token', () => {
+  const vars = themeVars({
+    ...DEFAULTS, tint: 'cool', radius: 0.8, controlHeight: 38, textSize: 16,
+    font: 'serif', glass: 'strong'
+  });
+  assert.equal(vars['--zx-radius'], '0.8rem');
+  assert.equal(vars['--zx-control-height'], '38px');
+  assert.equal(vars['--zx-text-md'], '16px');
+  assert.match(vars['--zx-font-sans'], /Iowan Old Style/);
+  assert.equal(vars['--zx-glass-blur'], '14px');
+  assert.ok(Object.hasOwn(vars, '--zx-gray-500'), 'neutral tint did not produce a ramp');
 });

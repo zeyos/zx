@@ -1,6 +1,6 @@
 /* Data Grid intentionally renders the Table block. Preset-only treatment stays narrowly scoped so
    the lowercase `.zx-grid` layout helper remains a separate, unchanged primitive. */
 .zx-table[data-preset="billing-items"] tr.zx-grid-billing__summary > td {
-  background: var(--zx-color-bg-subtle);
+  background: var(--zx-color-bg-muted);
   font-weight: 700;
 }

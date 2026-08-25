@@ -1,4 +1,4 @@
-import { Select, h, icon } from '../index.js';
+import { Select, h } from '../index.js';
 import { connect } from './connect.js';
 import { moduleChip } from './icons.js';
 import { buildListQuery } from './query.js';
@@ -104,6 +104,7 @@ export function zeyosSelect(client, resource, opts = {}) {
  *   subtitleKey?: string|((item: Record<string, unknown>) => unknown)|null,
  *   moduleKey?: string|((item: Record<string, unknown>) => unknown),
  *   none?: boolean|string,
+ *   recent?: Record<string, unknown>[],
  *   create?: boolean|{id?: string|number, label?: string, group?: string, icon?: string|Node, oninvoke?: Function},
  *   renderIcon?: ((item: Record<string, unknown>, context: Record<string, unknown>) => Node|null)|null
  * }} [opts={}] Entity presentation, query, and Select options.
@@ -119,6 +120,7 @@ export function buildZeyosEntitySelectConfig(client, resource, opts = {}) {
     moduleKey = () => resource,
     groupKey = null,
     none = true,
+    recent = [],
     create = false,
     renderIcon = defaultEntityIcon,
     renderItem,
@@ -138,6 +140,7 @@ export function buildZeyosEntitySelectConfig(client, resource, opts = {}) {
     groupKey,
     clearable: none === false ? Boolean(rest.clearable) : true
   });
+  base.recent = Array.isArray(recent) ? recent : [];
   const renderModuleIcon = (item, selected = false) => {
     if (renderIcon === null) return null;
     const module = readRecord(item, moduleKey) ?? resource;
@@ -188,7 +191,7 @@ export function buildZeyosEntitySelectConfig(client, resource, opts = {}) {
 export function zeyosEntitySelect(client, resource, opts = {}) {
   const config = buildZeyosEntitySelectConfig(client, resource, opts);
   const requestedValue = opts.value ?? null;
-  const select = /** @type {Select & {ready: Promise<Select>}} */ (new Select(null, config));
+  const select = /** @type {Select & {ready: Promise<Select>}} */ (Select.entity(null, config));
   select.ready = hydrateInitialValue(select, client, resource, requestedValue);
   return select;
 }
@@ -248,9 +251,7 @@ function readRecord(item, reader) {
 
 /** Dependency-free module-color example; exact product glyphs remain host-injectable. @param {Record<string, unknown>} _item @param {{module?: unknown}} context @returns {Node} */
 function defaultEntityIcon(_item, context) {
-  const chip = moduleChip(String(context.module ?? 'default'), { size: 20 });
-  chip.replaceChildren(icon('square', { size: 10 }));
-  return chip;
+  return moduleChip(String(context.module ?? 'default'), { size: 20 });
 }
 
 /** @param {unknown} valueKey @param {unknown} labelKey @param {string[]} searchFields @returns {string[]|undefined} */

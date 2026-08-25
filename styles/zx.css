@@ -27,6 +27,7 @@
 @import url("../src/components/tabbox/tabbox.css");
 @import url("../src/components/navigation-bar/navigation-bar.css");
 @import url("../src/components/search/search.css");
+@import url("../src/components/app-icon/app-icon.css");
 @import url("../src/components/launcher/launcher.css");
 @import url("../src/components/avatar/avatar.css");
 @import url("../src/components/account-menu/account-menu.css");
@@ -60,6 +61,7 @@
 @import url("../src/components/tree/tree.css");
 @import url("../src/components/finder/finder.css");
 @import url("../src/components/data-filter/data-filter.css");
+@import url("../src/components/filter/filter.css");
 @import url("../src/components/pagination/pagination.css");
 @import url("../src/components/stepper/stepper.css");
 @import url("../src/components/breadcrumb/breadcrumb.css");

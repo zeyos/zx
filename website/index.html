@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Xenon is a dependency-free design system for modern front ends. Zx provides accessible components, patterns, and application layouts in plain JavaScript.">
+  <meta name="description" content="Beautifully crafted, dependency-free UI components for composable business applications. Xenon provides accessible patterns and layouts in plain JavaScript.">
   <title>ZeyOS Xenon Design System</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../styles/zx.css">
@@ -18,11 +18,10 @@
         <img class="brand-logo--dark" src="assets/zx-logo-dark.svg" alt="">
       </a>
       <a class="site-version" href="https://github.com/zeyos/zx/releases/latest"
-        rel="noopener" title="Release notes">v<span data-site-version>4.0.0</span></a>
+        rel="noopener" title="Release notes">v<span data-site-version>4.1.0</span></a>
       <nav class="site-nav" aria-label="Primary">
-        <a href="#system">Design system</a>
         <a href="docs.html">Documentation</a>
-        <a href="docs.html#components">Components</a>
+        <a href="docs.html#layouts">Layouts</a>
         <a href="theme.html">Theming</a>
       </nav>
       <div class="site-actions">
@@ -41,8 +40,8 @@
       <div class="site-section hero__inner">
         <!-- The hero band is always dark, so it always uses the light-ink logo. -->
         <img class="hero__logo" src="assets/zx-logo-dark.svg" alt="Zx">
-        <p class="band-eyebrow hero__eyebrow">Dependency-free design system</p>
-        <h1>One coherent system for every <em>front end</em></h1>
+        <p class="band-eyebrow hero__eyebrow">ZeyOS XENON DESIGN SYSTEM</p>
+        <h1>Dependency-free UI for <em>composable business applications</em></h1>
         <p class="hero__subhead">
           Xenon brings foundations, accessible components, enterprise patterns, and application
           layouts into one shared language. Zx is its plain-JavaScript implementation — no
@@ -268,69 +267,14 @@
         </div>
       </div>
     </section>
-    <section class="site-band site-band--light" id="whats-new" aria-labelledby="whats-new-title">
-      <div class="site-section release-band">
-        <div class="release-band__main">
-          <p class="band-eyebrow">What's new</p>
-          <h2 id="whats-new-title" data-release-title>Releases</h2>
-          <div class="release-notes" data-release-notes></div>
-          <div class="hero__actions" style="justify-content: flex-start">
-            <a class="site-btn site-btn--ghost site-btn--sm" href="../CHANGELOG.md">Full changelog</a>
-          </div>
-        </div>
-        <aside class="contribute-card">
-          <h3>Something missing?</h3>
-          <p>
-            Zx is built against real ZeyOS screens, so the gaps that get found are the ones that
-            hurt in practice. Report one, or read the contributor contract before opening a pull
-            request — it is short, and it is what keeps the components consistent.
-          </p>
-          <div class="contribute-card__links">
-            <a href="https://github.com/zeyos/zx/issues" rel="noopener">Open an issue</a>
-            <a href="../AGENTS.md">Contributor contract</a>
-            <a href="../DESIGN-SYSTEM.md">Coverage audit</a>
-          </div>
-        </aside>
-      </div>
-    </section>
   </main>
 
   <footer class="site-footer">
-    <div class="site-footer__inner">
-      <div class="site-footer__brand">
-        <img src="assets/zx-logo-dark.svg" alt="Zx">
-        <p>
-          Xenon is a product-agnostic design system developed by
-          <a href="https://www.zeyos.com" rel="noopener">ZeyOS</a>; Zx is its dependency-free
-          implementation. Released under the
-          <a href="https://github.com/zeyos/zx/blob/main/LICENSE" rel="noopener">MIT license</a>.
-        </p>
-      </div>
-      <nav class="site-footer__links" aria-label="Footer">
-        <div class="site-footer__group">
-          <h2>Documentation</h2>
-          <a href="docs.html#getting-started">Getting started</a>
-          <a href="docs.html#components">Components</a>
-          <a href="docs.html#layouts">Layouts</a>
-        </div>
-        <div class="site-footer__group">
-          <h2>Reference</h2>
-          <a href="../CHANGELOG.md">Changelog</a>
-          <a href="../DESIGN-SYSTEM.md">Coverage audit</a>
-          <a href="llms.txt">llms.txt</a>
-        </div>
-        <div class="site-footer__group">
-          <h2>Project</h2>
-          <a href="https://github.com/zeyos/zx" rel="noopener">GitHub</a>
-          <a href="https://github.com/zeyos/zx/issues" rel="noopener">Issues</a>
-          <a href="https://www.npmjs.com/package/@zeyos/zx" rel="noopener">npm</a>
-        </div>
-      </nav>
-    </div>
-    <div class="site-footer__stamp">
-      <span>Zx <span data-site-version>4.0.0</span></span>
-      <span>Last updated <time data-site-updated>—</time></span>
-    </div>
+    <nav class="site-footer__legal" aria-label="Legal">
+      <a href="https://www.zeyos.com/impressum/" rel="noopener">Imprint</a>
+      <a href="https://www.zeyos.com/privacy/" rel="noopener">Privacy Policy</a>
+      <a href="llms.txt">LLMs.txt</a>
+    </nav>
   </footer>
 
   <script type="module">
@@ -411,91 +355,6 @@
     });
     document.querySelector('#showcase-table').append(table.toElement());
 
-    /*
-     * The "what's new" band is rendered from CHANGELOG.md rather than written into this page, so
-     * cutting a release updates the landing page too. Nothing here is required for the page to
-     * work: if the fetch fails the band's heading keeps its static text and the notes stay empty,
-     * and `.release-notes:empty` collapses it away.
-     */
-    renderRelease().catch(() => {});
-
-    async function renderRelease() {
-      const response = await fetch('../CHANGELOG.md');
-      if (!response.ok) return;
-      const section = firstSection(await response.text());
-      if (!section) return;
-
-      document.querySelector('[data-release-title]').textContent = section.title;
-      const notes = document.querySelector('[data-release-notes]');
-      const list = document.createElement('ul');
-      for (const line of section.bullets.slice(0, 6)) list.append(inline('li', headline(line)));
-      notes.append(list);
-    }
-
-    /**
-     * The newest `## ` block of a changelog that actually says something: its heading, and the
-     * bullets under it. Cutting a release opens an empty `Unreleased` heading for the next change,
-     * and a band announcing "Unreleased" with nothing under it would be worse than no band.
-     */
-    function firstSection(markdown) {
-      const lines = markdown.split('\n');
-      const heads = lines.reduce((found, line, index) => {
-        if (line.startsWith('## ')) found.push(index);
-        return found;
-      }, []);
-
-      for (const [order, start] of heads.entries()) {
-        const bullets = [];
-        for (const line of lines.slice(start + 1, heads[order + 1] ?? lines.length)) {
-          if (line.startsWith('- ')) bullets.push(line.slice(2).trim());
-          // A wrapped bullet continues the one before it.
-          else if (bullets.length && /^\s+\S/.test(line)) bullets[bullets.length - 1] += ' ' + line.trim();
-        }
-        if (bullets.length) return { title: lines[start].slice(3).trim(), bullets };
-      }
-      return null;
-    }
-
-    /**
-     * A changelog entry reads `what — why it exists`. The landing page wants the what; the
-     * changelog link carries the why, so everything from the first spaced dash on is dropped.
-     *
-     * The cut is on the dash rather than on the closing `**` because the "what" is not always the
-     * bold run alone — "**`Slider`** and the `slider` field type" is one subject, not two. A
-     * bullet with no dash in it is already short enough and is kept whole.
-     */
-    function headline(bullet) {
-      const [head] = bullet.split(/\s+[—–]\s+/);
-      return head && head.length > 2 ? head : bullet;
-    }
-
-    /**
-     * Renders the small markdown subset a changelog bullet uses — bold, code, and links — as real
-     * nodes. Nothing is parsed as HTML, so a changelog entry can never inject markup into the page.
-     * Bold and link contents are rendered through this function again rather than set as text, or
-     * a code span inside them would print its own backticks.
-     */
-    function inline(tag, text) {
-      const element = document.createElement(tag);
-      const pattern = /\*\*([^*]+)\*\*|`([^`]+)`|\[([^\]]+)\]\(([^)]+)\)/g;
-      let index = 0;
-      for (const match of text.matchAll(pattern)) {
-        if (match.index > index) element.append(text.slice(index, match.index));
-        if (match[1] !== undefined) element.append(inline('strong', match[1]));
-        else if (match[2] !== undefined) {
-          const code = document.createElement('code');
-          code.textContent = match[2];
-          element.append(code);
-        } else {
-          const link = inline('a', match[3]);
-          link.href = match[4];
-          element.append(link);
-        }
-        index = match.index + match[0].length;
-      }
-      element.append(text.slice(index));
-      return element;
-    }
   </script>
 </body>
 </html>

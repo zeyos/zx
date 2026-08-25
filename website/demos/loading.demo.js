@@ -2,7 +2,7 @@ import { InlineLoading, ProgressBar, button, h, spinner } from '../../src/index.
 
 export default {
   title: 'Loading',
-  group: 'Feedback',
+  group: 'Layout',
   api: ['Spinner', 'ProgressBar', 'InlineLoading'],
   blurb: 'Three shapes of "wait": a ring when the duration is unknown, a track when the share '
     + 'done is known, and a status line that resolves into its own outcome.',

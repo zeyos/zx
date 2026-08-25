@@ -1,16 +1,8 @@
-import { button, h, icon } from '../../src/index.js';
+import { button, h } from '../../src/index.js';
 import {
-  ZEYOS_LAUNCHER_APPLICATIONS, moduleChip, moduleInfo, zeyosLauncher
+  ZEYOS_LAUNCHER_APPLICATIONS, moduleInfo, zeyosLauncher
 } from '../../src/zeyos/index.js';
-
-const BUILTIN_APP_ICONS = {
-  accounts: 'folder', actionsteps: 'clock', admin: 'gear', auth: 'lock', billing: 'file',
-  calendar: 'calendar', campaigns: 'star', collection: 'folder-open', contacts: 'book',
-  contracts: 'file', control: 'filter', coupons: 'tag', dev: 'code', documents: 'copy',
-  inventory: 'square', mailinglists: 'list', main: 'heart', messages: 'info', links: 'tag',
-  notes: 'file', objects: 'square', opportunities: 'star', payments: 'check', pricelists: 'list',
-  procurement: 'folder-open', production: 'gear', projects: 'folder', tasks: 'check', tickets: 'tag'
-};
+import { demoZeyosAppIcon } from '../zeyos-demo-icons.js';
 
 const RECENT = [
   { entity: 'accounts', ID: 18, name: 'Nordwind GmbH', sec: 'Customer · Berlin' },
@@ -25,12 +17,6 @@ const SEARCH_RECORDS = {
   'transactions.billing': [[1042, null, 'INV-1042', 'Nordwind GmbH · €1,428.00']],
   projects: [[7, null, 'Berlin office refit', 'Active']]
 };
-
-function builtinModuleChip(module, size) {
-  const chip = moduleChip(module, { size });
-  chip.replaceChildren(icon(BUILTIN_APP_ICONS[module] ?? 'square'));
-  return chip;
-}
 
 function searchRecords(query, { signal }) {
   return new Promise((resolve, reject) => {
@@ -49,7 +35,7 @@ function searchRecords(query, { signal }) {
 
 export default {
   title: 'Launcher',
-  group: 'Navigation',
+  group: 'Layout',
   blurb: 'A full application launcher with app tiles, current and pinned state, recent records, grouped asynchronous search, and application-owned routing.',
   examples: [
     {
@@ -65,8 +51,12 @@ export default {
           search: searchRecords,
           resolveApplication: (raw) => ({ value: Array.isArray(raw) ? raw[0] : raw.identifier, invoke() {} }),
           resolveRecord: (record) => ({ value: record, invoke() {} }),
-          renderApplicationIcon: (_raw, app) => builtinModuleChip(app.module, 36),
-          renderRecordIcon: (_raw, record) => builtinModuleChip(record.entity, 28),
+          renderApplicationIcon: (_raw, app) => demoZeyosAppIcon(app.module, {
+            size: 36, label: app.label
+          }),
+          renderRecordIcon: (_raw, record) => demoZeyosAppIcon(record.entity, {
+            size: 28, label: record.name
+          }),
           labels: {
             entities: {
               contacts: 'Contacts', projects: 'Projects',

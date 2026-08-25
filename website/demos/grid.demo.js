@@ -31,7 +31,7 @@ export default {
           onrowtoggle: ({ detail }) => log(`${detail.expanded ? 'expanded' : 'collapsed'} ${detail.id}`)
         });
         cleanup(() => grid.destroy());
-        return [grid.toElement(), h('p', { class: 'demo-caption' }, 'Double-click a line quantity, unit, unit price, or currency to edit.')];
+        return [grid.toElement(), h('p', { class: 'demo-caption' }, 'Single-click an editable cell. Drag the row handle (or use Space and arrow keys) to reorder siblings; use Columns to show or hide fields.')];
       }
     },
     {

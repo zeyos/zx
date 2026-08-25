@@ -92,7 +92,7 @@ export function compactElement(compact, properties = null, content = null) {
   return element;
 }
 
-/** Exact migration-facing alias retained for existing ZeyOS builder calls. */
+/** Public compact-builder alias for concise application DOM construction. */
 export const __ = compactElement;
 
 /**

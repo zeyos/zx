@@ -18,6 +18,14 @@ const CUSTOMERS = [
   { ID: 7, name: 'Kestrel Analytics', city: 'Bristol' }
 ];
 
+const LABELS = [
+  { ID: 'urgent', name: 'Urgent', icon: 'warning', color: '#f04639' },
+  { ID: 'billing', name: 'Billing', icon: 'file', color: '#535494' },
+  { ID: 'customer', name: 'Customer', icon: 'folder', color: '#bc3885' },
+  { ID: 'follow-up', name: 'Follow up', icon: 'clock', color: '#f67f00' },
+  { ID: 'approved', name: 'Approved', icon: 'check', color: '#008853' }
+];
+
 export default {
   title: 'Tag picker',
   group: 'Inputs',
@@ -25,6 +33,23 @@ export default {
     + 'control — for picking several values out of a large catalogue.',
 
   examples: [
+    {
+      title: 'Colored tags with icons',
+      blurb: 'iconKey and colorKey apply the same identity to selected tags and option rows. '
+        + 'Custom renderTag or renderItem callbacks still take precedence when a product needs '
+        + 'a different visual vocabulary.',
+      width: '460px',
+      render: ({ cleanup, log }) => {
+        const picker = new TagPicker(null, {
+          items: LABELS,
+          values: ['urgent', 'billing', 'approved'],
+          placeholder: 'Add a label',
+          onchange: ({ detail }) => log(`labels [${detail.values.join(', ')}]`)
+        });
+        cleanup(() => picker.destroy());
+        return picker.toElement();
+      }
+    },
     {
       title: 'Picking from a catalogue',
       blurb: 'Type to filter, Enter to pick, Backspace to remove the last tag. searchKeys widens '

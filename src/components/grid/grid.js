@@ -47,7 +47,7 @@ export class Grid extends Table {
    * @param {GridOptions & import('../table/table.js').TableOptions} [options={}] Grid/Table options.
    */
   constructor(target = null, options = {}) {
-    super(target, options);
+    super(target, { editTrigger: 'single', ...options });
   }
 
   /**
@@ -94,6 +94,9 @@ export function billingItemsConfig(options = {}) {
   return {
     rowId: fields.id,
     editMode: 'cell',
+    editTrigger: 'single',
+    rowReorder: true,
+    columnVisibility: true,
     hierarchy: { parentId: fields.parent, column: fields.item, expanded: true },
     responsive: 'sm',
     ...tableOptions,

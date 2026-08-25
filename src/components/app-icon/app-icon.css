@@ -1,0 +1,105 @@
+.zx-app-icon {
+  --zx-app-icon-size: 36px;
+  --zx-app-icon-glyph-size: 52%;
+  --zx-app-icon-color: var(--zx-color-accent);
+  position: relative;
+  isolation: isolate;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  inline-size: var(--zx-app-icon-size);
+  block-size: var(--zx-app-icon-size);
+  overflow: hidden;
+  border: 1px solid var(--zx-color-glass-border);
+  border-radius: max(var(--zx-radius-md), calc(var(--zx-app-icon-size) * .22));
+  background: var(--zx-app-icon-color);
+  box-shadow: var(--zx-app-icon-shadow);
+  color: var(--zx-app-icon-glyph, var(--zx-color-text-invert));
+  font-size: var(--zx-app-icon-size);
+  vertical-align: middle;
+}
+
+.zx-app-icon[data-glass="subtle"],
+.zx-app-icon[data-glass="strong"] {
+  background:
+    linear-gradient(145deg, var(--zx-color-glass-highlight), transparent 44%),
+    color-mix(in srgb, var(--zx-app-icon-color) var(--zx-glass-color-strength), transparent);
+}
+
+.zx-app-icon[data-glass="strong"] {
+  backdrop-filter: blur(var(--zx-glass-blur)) saturate(var(--zx-glass-saturation));
+}
+
+.zx-app-icon[data-glass="none"] {
+  border-color: var(--zx-color-border);
+  box-shadow: none;
+}
+
+.zx-app-icon[data-glass="none"] .zx-app-icon__shine { display: none; }
+
+.zx-app-icon[data-selected] {
+  outline: 2px solid var(--zx-color-bg-page);
+  box-shadow: 0 0 0 3px var(--zx-color-ring), var(--zx-overlay-shadow);
+}
+
+.zx-app-icon__shine {
+  position: absolute;
+  z-index: -1;
+  inset: 1px 12% auto;
+  block-size: 42%;
+  border-radius: 999px;
+  background: linear-gradient(to bottom, var(--zx-color-glass-highlight-strong), transparent);
+  filter: blur(2px);
+  pointer-events: none;
+}
+
+.zx-app-icon__glyph {
+  display: inline-grid;
+  place-items: center;
+  inline-size: var(--zx-app-icon-glyph-size);
+  block-size: var(--zx-app-icon-glyph-size);
+  font-size: var(--zx-app-icon-glyph-size);
+  line-height: 1;
+  filter: drop-shadow(var(--zx-glass-glyph-shadow));
+}
+
+.zx-app-icon__glyph > .zx-icon,
+.zx-app-icon__glyph > svg,
+.zx-app-icon__glyph > i {
+  inline-size: 1em;
+  block-size: 1em;
+}
+
+.zx-app-icon__badge {
+  position: absolute;
+  inset-block-end: 1px;
+  inset-inline-end: 1px;
+  display: grid;
+  place-items: center;
+  min-inline-size: 14px;
+  block-size: 14px;
+  padding-inline: 3px;
+  border: 1px solid var(--zx-color-bg-raised);
+  border-radius: var(--zx-radius-full);
+  background: var(--zx-color-danger);
+  color: var(--zx-color-text-invert);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .zx-app-icon[data-glass="strong"] {
+    background: var(--zx-app-icon-color);
+    backdrop-filter: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .zx-app-icon {
+    border-color: ButtonText;
+    background: ButtonFace;
+    color: ButtonText;
+    box-shadow: none;
+  }
+}

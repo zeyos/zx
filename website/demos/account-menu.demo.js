@@ -10,7 +10,7 @@ const ACTIONS = [
 
 export default {
   title: 'AccountMenu',
-  group: 'Identity',
+  group: 'Layout',
   blurb: 'A single accessible Avatar trigger and grouped account-action popup; identity, permissions, preferences, and sign-out stay application-owned.',
   examples: [
     {

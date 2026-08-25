@@ -2,7 +2,7 @@ import { Table, button, h, skeleton, skeletonTable, skeletonText } from '../../s
 
 export default {
   title: 'Skeleton',
-  group: 'Feedback',
+  group: 'Layout',
   api: ['Skeleton', 'SkeletonText', 'SkeletonTable'],
   blurb: 'Placeholders shaped like the content that is coming, so the layout does not jump when '
     + 'it arrives. Every skeleton is aria-hidden — set aria-busy on the region instead.',

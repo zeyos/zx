@@ -1,4 +1,5 @@
 import * as zx from '../../src/index.js';
+import * as zeyos from '../../src/zeyos/index.js';
 
 const runtimeErrors = window.__zxSmokeErrors;
 const resultBody = document.querySelector('#results');
@@ -82,6 +83,28 @@ const cases = [
     assert(actionHit?.closest('.zx-card__actions button'), 'Card primary link covered a secondary action');
     if (savedStyle === null) component.el.removeAttribute('style');
     else component.el.setAttribute('style', savedStyle);
+  }),
+  componentCase('AppIcon', () => new zx.AppIcon(null, {
+    icon: 'file', color: '#535494', label: 'Billing', badge: 3, glass: 'strong'
+  }), (component) => {
+    assert(component.el.getAttribute('role') === 'img', 'labelled AppIcon has no image role');
+    assert(component.el.dataset.glass === 'strong', 'AppIcon material did not render');
+    assert(component.el.querySelector('.zx-app-icon__badge')?.textContent === '3', 'AppIcon badge missing');
+    component.set({ selected: true, size: 40, badge: null });
+    assert(component.el.hasAttribute('data-selected'), 'AppIcon selected state did not update');
+    assert(component.el.style.getPropertyValue('--zx-app-icon-size') === '40px', 'AppIcon size did not update');
+    component.set({ color: 'url(https://example.invalid/app-icon)' });
+    assert(component.el.style.getPropertyValue('--zx-app-icon-color') === '', 'AppIcon accepted a non-colour image value');
+    component.set({ label: null });
+    assert(component.el.getAttribute('aria-hidden') === 'true' && !component.el.hasAttribute('role')
+      && !component.el.hasAttribute('aria-label'), 'decorative AppIcon retained image semantics');
+  }),
+  artifactCase('AppIcon (ZeyOS preset)', () => {
+    const element = zeyos.zeyosAppIcon('billing', { color: 'url(https://example.invalid/module)' });
+    return { element, exercise: () => {
+      const color = element.style.getPropertyValue('--zx-module-color');
+      assert(/^#[\da-f]{6}$/i.test(color) && !color.includes('url('), 'ZeyOS AppIcon retained an unsafe color override');
+    } };
   }),
   cardTargetCase(),
   componentCase('Panel', () => new zx.Panel(null, { title: 'Panel', content: 'Body' }), (component) => {
@@ -480,6 +503,21 @@ const cases = [
     assert(component.el.querySelector('.zx-message__toast'), 'message was not rendered');
     handle.close();
   }),
+  componentCase('Message (floating geometry)', () => {
+    const component = new zx.Message(null, { timeout: 0 });
+    component.el.classList.add('zx-message-region');
+    return component;
+  }, async (component) => {
+    const handle = component.show('Invoice saved successfully.', { timeout: 0, kind: 'success' });
+    await nextFrame();
+    const region = component.el.getBoundingClientRect();
+    const toast = component.el.querySelector('.zx-message__toast').getBoundingClientRect();
+    assert(getComputedStyle(component.el).position === 'fixed' && region.top <= 24
+      && Math.abs(region.right - innerWidth) <= 24, 'floating Message is not anchored in the upper right');
+    assert(region.height < 160 && toast.height < 160 && region.width <= 420,
+      'floating Message stretched beyond its content-sized region');
+    handle.close();
+  }),
   componentCase('Modal', () => new zx.Modal(null, { content: 'Modal body' }), (component) => {
     const events = observe(component, 'open');
     component.open();
@@ -561,7 +599,7 @@ const cases = [
   }),
   componentCase('Select (fixed items)', () => zx.Select.permission(null, {
     groups: sampleItems(), value: false
-  }), (component) => {
+  }), async (component) => {
     const events = observe(component, 'change');
     assert(component.value === false, 'permission preset did not start private');
     component.open();
@@ -576,8 +614,24 @@ const cases = [
     component.setItems([]);
     component.set(true);
     assert(component.value === true, 'a pinned value stopped resolving after setItems');
+    const previousTheme = document.documentElement.dataset.zxTheme;
+    for (const [theme, height] of [['light', '32px'], ['dark', '44px']]) {
+      document.documentElement.dataset.zxTheme = theme;
+      component.el.style.setProperty('--zx-control-height', height);
+      component.el.style.setProperty('--zx-control-radius', theme === 'light' ? '2px' : '14px');
+      component.el.style.setProperty('--zx-control-font-size', theme === 'light' ? '13px' : '17px');
+      await nextFrame();
+      const control = component.el.querySelector('.zx-select__control').getBoundingClientRect();
+      const toggle = component.refs.toggle.getBoundingClientRect();
+      assert(Math.abs((control.top + control.height / 2) - (toggle.top + toggle.height / 2)) <= 1
+        && Math.abs(control.right - toggle.right) <= 1,
+      `Select chevron drifted under the ${theme} geometry`);
+    }
+    if (previousTheme === undefined) delete document.documentElement.dataset.zxTheme;
+    else document.documentElement.dataset.zxTheme = previousTheme;
     events.expect();
   }),
+  selectEntityTargetCase(),
   componentCase('Select (permission async groups)', () => {
     const select = zx.Select.permission(null, {
       groups: () => {
@@ -651,13 +705,41 @@ const cases = [
     component.setReadonly(true);
     component.setReadonly(false);
   }),
-  componentCase('TagPicker', () => new zx.TagPicker(null, { items: sampleItems(), values: [1] }), (component) => {
+  componentCase('TagPicker', () => new zx.TagPicker(null, {
+    items: [
+      { ID: 1, name: 'Urgent', icon: 'warning', color: '#d97706' },
+      { ID: 2, name: 'Finance', icon: 'tag', color: '#535494' }
+    ],
+    values: [1]
+  }), (component) => {
     const events = observe(component, 'change');
+    assert(component.el.querySelector('.zx-tag-picker__tag .zx-tag-picker__visual'),
+      'selected tag omitted its icon');
+    assert(component.el.querySelector('.zx-tag-picker__tag').style.getPropertyValue('--zx-tag-color') === '#d97706',
+      'selected tag omitted its color');
     component.addValue(2);
     assert(component.values.length === 2, 'addValue failed');
     events.expect();
     component.removeValue(2).clear();
     assert(component.values.length === 0, 'clear failed');
+  }),
+  componentCase('TagPicker (custom renderers)', () => new zx.TagPicker(null, {
+    items: [{ ID: 1, name: 'Urgent', icon: 'warning', color: '#d97706' }],
+    values: [1],
+    renderItem: () => {
+      const node = document.createElement('strong'); node.className = 'custom-tag-option'; node.textContent = 'Option'; return node;
+    },
+    renderTag: () => {
+      const node = document.createElement('em'); node.className = 'custom-tag-value'; node.textContent = 'Value'; return node;
+    }
+  }), (component) => {
+    component.open();
+    assert(component.el.querySelector('.custom-tag-value') && component.el.querySelector('.custom-tag-option'),
+      'TagPicker custom renderers did not win');
+    assert(!component.el.querySelector('.zx-tag-picker__tag .zx-tag-picker__visual')
+      && !component.el.querySelector('.zx-tag-picker__option .zx-tag-picker__visual'),
+    'TagPicker added native icon content beside custom renderers');
+    component.close();
   }),
   componentCase('DatePicker', () => new zx.DatePicker(null, { value: date(20) }), (component) => {
     const events = observe(component, 'change');
@@ -718,17 +800,52 @@ const cases = [
     assert(component.getData()[0].id === 2 && component.getSelection()[0].id === 2, 'table data/selection mismatch');
     events.expect();
   }),
+  componentCase('Table (double-click edit compatibility)', () => new zx.Table(null, {
+    rowId: 'id', editMode: 'cell', editTrigger: 'double',
+    columns: [{ id: 'name', label: 'Name', editable: true }],
+    data: [{ id: 1, name: 'One' }]
+  }), (component) => {
+    const cell = component.el.querySelector('td[data-column="name"]');
+    cell.click();
+    assert(!component.isEditing(), 'double-click Table began editing after one click');
+    cell.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    assert(component.isEditing(), 'double-click Table compatibility did not open its editor');
+    component.cancelEdit();
+  }),
+  tableInteractionGuardsCase(),
   componentCase('Grid', () => zx.Grid.BillingItems(null, {
     data: [
       { id: 'group', parent: null, kind: 'group', item: 'Services', total: 100, currency: 'EUR' },
-      { id: 'line', parent: 'group', kind: 'line', item: 'Consulting', quantity: 2, unit: 'hours', unitPrice: 50, total: 100, currency: 'EUR' }
+      { id: 'line', parent: 'group', kind: 'line', item: 'Consulting', quantity: 2, unit: 'hours', unitPrice: 50, total: 100, currency: 'EUR' },
+      { id: 'support', parent: 'group', kind: 'line', item: 'Support', quantity: 1, unit: 'hours', unitPrice: 25, total: 25, currency: 'EUR' }
     ],
     units: { hours: 'Hours' },
     currencies: { EUR: 'Euro' }
-  }), (component) => {
+  }), async (component) => {
     assert(component instanceof zx.Table, 'Grid stopped inheriting Table');
     assert(component.el.dataset.preset === 'billing-items', 'billing preset marker missing');
     assert(component.getExpanded()[0] === 'group', 'billing hierarchy did not expand');
+    assert(component.el.querySelector('.zx-table__column-controls'), 'billing column chooser missing');
+    const editable = component.el.querySelector('td[data-editable="true"]');
+    editable.click();
+    assert(component.el.querySelector('td[data-editing="true"]'), 'billing cell did not edit on one click');
+    component.cancelEdit();
+
+    const moves = observe(component, 'rowmove');
+    const handles = component.el.querySelectorAll('.zx-table__row-handle');
+    handles[1].dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+    handles[1].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    await Promise.resolve();
+    assert(component.getData().findIndex((row) => row.id === 'line')
+      > component.getData().findIndex((row) => row.id === 'support'), 'keyboard row move failed');
+    assert(component.el.querySelector('.zx-table__reorder-status').textContent.includes('Moved row'),
+      'keyboard row move was not announced');
+    moves.expect();
+
+    const visibility = observe(component, 'columnvisibilitychange');
+    component.setColumnVisible('total', false);
+    assert(component.getHiddenColumns().includes('total'), 'billing column did not hide');
+    visibility.expect();
   }),
   billingGridTargetCase(),
   chartCase(),
@@ -740,6 +857,70 @@ const cases = [
     component.setState({ query: 'alp' });
     assert(component.apply().length === 1, 'filter result mismatch');
     events.expect();
+  }),
+  componentCase('Filter', () => {
+    const requests = [];
+    const component = new zx.Filter(null, {
+      fields: [{
+        id: 'status', label: 'Status', type: 'status', defaultOperator: 'eq',
+        choices: [{ value: 'paid', label: 'Paid' }, { value: 'open', label: 'Open' }]
+      }, { id: 'archived', label: 'Archived', type: 'boolean', defaultOperator: 'eq' }, {
+        id: 'owner', label: 'Owner', type: 'entity', defaultOperator: 'eq', debounce: 0,
+        loadChoices: ({ query, signal }) => {
+          requests.push({ query, signal });
+          if (query !== 'first') return [{ value: 'ada', label: 'Ada Lovelace' }];
+          return new Promise((resolve) => signal.addEventListener('abort', () => resolve([]), { once: true }));
+        }
+      }]
+    });
+    component._smokeRequests = requests;
+    return component;
+  }, async (component) => {
+    const changes = observe(component, 'change');
+    const applies = observe(component, 'apply');
+    const id = component.addCondition(null, { field: 'status', operator: 'eq', value: 'paid' });
+    assert(id && component.validate().valid, 'valid dynamic filter did not validate');
+    changes.expect();
+    const value = component.apply();
+    assert(value?.version === 1 && value.root.children[0].value === 'paid', 'Filter did not return its AST');
+    applies.expect();
+    component.update(id, { field: 'archived', operator: 'eq', value: true });
+    const booleanEditor = component.el.querySelector(`[data-node-id="${id}"] [data-filter-value]`);
+    assert(booleanEditor?.localName === 'select' && booleanEditor.options.length === 3,
+      'boolean Filter field did not render an explicit True/False editor');
+    component.update(id, { field: 'owner', operator: 'eq', value: null });
+    const asyncEditor = component.el.querySelector(`[data-node-id="${id}"] [data-filter-value]`);
+    asyncEditor.value = 'first';
+    asyncEditor.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    assert(asyncEditor.getAttribute('aria-busy') === 'true', 'async Filter editor did not expose busy state');
+    asyncEditor.value = 'second';
+    asyncEditor.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    assert(component._smokeRequests.length === 2 && component._smokeRequests[0].signal.aborted,
+      'replaced Filter query did not abort its loader');
+    assert(!asyncEditor.hasAttribute('aria-busy') && component.el.querySelector('datalist option')?.value === 'ada',
+      'latest Filter query did not settle its choices and busy state');
+    component.setReadonly(true);
+    assert(component.addCondition() === null && component.el.querySelector('[data-filter-action="apply"]:not(:disabled)'),
+      'readonly Filter did not preserve inspection/apply while blocking mutation');
+    component.setReadonly(false);
+    component.disable();
+    assert(component.apply() === null && [...component.el.querySelectorAll('button')].every((button) => button.disabled),
+      'disabled Filter retained actionable controls');
+    component.enable();
+    const groupId = component.addGroup();
+    await Promise.resolve();
+    assert(groupId && component.el.querySelector(`[data-node-id="${groupId}"]`)?.contains(document.activeElement),
+      'adding a Filter group dropped keyboard focus');
+    component.addCondition(groupId, { field: 'status', operator: 'eq', value: 'paid' });
+    await Promise.resolve();
+    component.remove(groupId);
+    await Promise.resolve();
+    assert(component.el.contains(document.activeElement) && document.activeElement !== document.body,
+      'removing a Filter group dropped keyboard focus');
+    component.clear();
+    assert(component.getValue().root.children.length === 0, 'Filter clear failed');
   }),
   componentCase('Pagination', () => new zx.Pagination(null, { total: 100, page: 1, pageSize: 25 }), (component) => {
     const events = observe(component, 'change');
@@ -931,6 +1112,89 @@ function componentCase(name, create, exercise) {
     },
     exercise: ({ component }) => exercise(component),
     destroy: ({ component }) => component.destroy()
+  };
+}
+
+/** Exercises exact teardown for the preset attribute added after Select construction. @returns {SmokeDefinition} */
+function selectEntityTargetCase() {
+  return {
+    name: 'Select (entity preset target)',
+    create(fixture) {
+      const target = document.createElement('div');
+      target.className = 'application-select';
+      target.dataset.keep = 'yes';
+      target.append(document.createTextNode('original entity target'));
+      fixture.append(target);
+      const before = target.outerHTML;
+      const component = zx.Select.entity(target, {
+        items: [{ ID: 1, name: 'Account' }], value: 1
+      });
+      return { component, target, before };
+    },
+    exercise({ component }) {
+      assert(component.el.dataset.preset === 'entity', 'entity preset marker missing');
+    },
+    destroy({ component, target, before }) {
+      component.destroy();
+      assert(target.outerHTML === before, `Select.entity() did not restore its target: ${target.outerHTML}`);
+      target.remove();
+    }
+  };
+}
+
+/** Covers edit/content/focus/privacy interactions that need a real browser event path. @returns {SmokeDefinition} */
+function tableInteractionGuardsCase() {
+  return {
+    name: 'Table (interactive edit guards)',
+    create(fixture) {
+      let buttonClicks = 0;
+      const component = new zx.Table(null, {
+        rowId: 'id', editMode: 'row', editTrigger: 'single', rowReorder: true,
+        columnVisibility: true, hiddenColumns: ['secret'],
+        columns: [{
+          id: 'name', label: 'Name', editable: true,
+          render: (row) => {
+            const button = document.createElement('button');
+            button.type = 'button'; button.textContent = row.name;
+            button.addEventListener('click', () => { buttonClicks += 1; });
+            return button;
+          }
+        }, { id: 'secret', label: 'Secret', editable: true }],
+        data: [{ id: 'record-42', name: 'Open record', secret: 'private' }]
+      });
+      fixture.append(component.toElement());
+      return { component, clicks: () => buttonClicks };
+    },
+    async exercise({ component, clicks }) {
+      component.el.querySelector('td[data-column="name"] button').click();
+      assert(clicks() === 1 && !component.isEditing(), 'interactive cell content was replaced by single-click editing');
+
+      component.startEdit('record-42', 'secret');
+      const visibleEditor = component.el.querySelector('td[data-column="name"] .zx-table__editor');
+      assert(component.getEditing()?.columnId === 'name'
+        && visibleEditor?.contains(document.activeElement),
+      'row editing did not fall back from a hidden column to the visible editor');
+      component.cancelEdit();
+
+      const hiddenToggle = [...component.el.querySelectorAll('.zx-table__column-toggle')]
+        .find((input) => input.value === 'secret');
+      hiddenToggle.closest('details').open = true;
+      hiddenToggle.focus();
+      hiddenToggle.click();
+      await Promise.resolve();
+      assert(document.activeElement?.classList.contains('zx-table__column-toggle')
+        && document.activeElement.value === 'secret', 'column visibility rerender dropped checkbox focus');
+
+      const transfer = new DataTransfer();
+      component.el.querySelector('.zx-table__row-handle').dispatchEvent(new DragEvent('dragstart', {
+        bubbles: true, cancelable: true, dataTransfer: transfer
+      }));
+      assert(transfer.getData('text/plain') === 'zx-table-row'
+        && !transfer.getData('text/plain').includes('record-42'), 'row drag exported its application ID');
+      component.el.querySelector('.zx-table__row-handle').dispatchEvent(new DragEvent('dragend', { bubbles: true }));
+      await Promise.resolve();
+    },
+    destroy({ component }) { component.destroy(); }
   };
 }
 

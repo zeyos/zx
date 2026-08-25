@@ -41,45 +41,52 @@ const STOP_SHAPE = {
  * @property {string} label Display name.
  * @property {string} note One line on what the preset is for.
  * @property {Record<number, string>} ramp The five accent stops.
+ * @property {Omit<ThemeState,'preset'|'theme'|'accent'>} recipe Complete studio recipe.
  */
 
 /** The standard themes, in the order the studio cycles through them. */
 export const PRESETS = [
   {
     id: 'zx',
-    label: 'Zx',
-    note: 'The ZeyOS green on Xenon\u2019s emerald ramp. The default.',
-    ramp: { 300: '#5ee9b5', 400: '#21cc75', 500: '#009966', 600: '#007a55', 700: '#006045' }
+    label: 'ZeyOS',
+    note: 'The ZeyOS green with balanced type, geometry, density, and glass. The default.',
+    ramp: { 300: '#5ee9b5', 400: '#21cc75', 500: '#009966', 600: '#007a55', 700: '#006045' },
+    recipe: { density: 'cozy', tint: 'zinc', radius: 0.45, controlHeight: 32, textSize: 14, font: 'inter', glass: 'subtle' }
   },
   {
     id: 'zeyos',
-    label: 'ZeyOS',
+    label: 'Marque Gold',
     note: 'The gold of the ZeyOS product marque, anchored at 400.',
-    ramp: { 300: '#ffd9a8', 400: '#f7bc60', 500: '#d0952f', 600: '#96690f', 700: '#6f4e0b' }
+    ramp: { 300: '#ffd9a8', 400: '#f7bc60', 500: '#d0952f', 600: '#96690f', 700: '#6f4e0b' },
+    recipe: { density: 'cozy', tint: 'warm', radius: 0.65, controlHeight: 34, textSize: 14, font: 'humanist', glass: 'strong' }
   },
   {
     id: 'ocean',
     label: 'Ocean',
     note: 'A utility blue, for tools that should read as infrastructure.',
-    ramp: { 300: '#8ec5ff', 400: '#51a2ff', 500: '#2b7fff', 600: '#155dfc', 700: '#1447e6' }
+    ramp: { 300: '#8ec5ff', 400: '#51a2ff', 500: '#2b7fff', 600: '#155dfc', 700: '#1447e6' },
+    recipe: { density: 'compact', tint: 'cool', radius: 0.35, controlHeight: 30, textSize: 14, font: 'system', glass: 'subtle' }
   },
   {
     id: 'violet',
     label: 'Violet',
     note: 'The most saturated of the six — it carries a small accent a long way.',
-    ramp: { 300: '#c4b4ff', 400: '#a684ff', 500: '#8e51ff', 600: '#7f22fe', 700: '#7008e7' }
+    ramp: { 300: '#c4b4ff', 400: '#a684ff', 500: '#8e51ff', 600: '#7f22fe', 700: '#7008e7' },
+    recipe: { density: 'cozy', tint: 'accent', radius: 0.8, controlHeight: 36, textSize: 15, font: 'geometric', glass: 'strong' }
   },
   {
     id: 'rose',
     label: 'Rose',
     note: 'Warm and loud. Watch how it sits beside the danger colour.',
-    ramp: { 300: '#ffa1ad', 400: '#ff637e', 500: '#ff2056', 600: '#dc0039', 700: '#a80030' }
+    ramp: { 300: '#ffa1ad', 400: '#ff637e', 500: '#ff2056', 600: '#dc0039', 700: '#a80030' },
+    recipe: { density: 'cozy', tint: 'warm', radius: 1, controlHeight: 34, textSize: 15, font: 'humanist', glass: 'strong' }
   },
   {
     id: 'slate',
     label: 'Slate',
     note: 'A near-neutral accent, for screens where the data carries the colour.',
-    ramp: { 300: '#cad5e2', 400: '#90a1b9', 500: '#62748e', 600: '#45556c', 700: '#314158' }
+    ramp: { 300: '#cad5e2', 400: '#90a1b9', 500: '#62748e', 600: '#45556c', 700: '#314158' },
+    recipe: { density: 'compact', tint: 'zinc', radius: 0.2, controlHeight: 28, textSize: 13, font: 'mono', glass: 'none' }
   }
 ];
 
@@ -146,7 +153,8 @@ export const DEFAULTS = {
   radius: 0.45,
   controlHeight: 32,
   textSize: 14,
-  font: 'inter'
+  font: 'inter',
+  glass: 'subtle'
 };
 
 /* --------------------------------------------------------------------- colour -- */
@@ -262,6 +270,7 @@ export function contrast(one, two) {
  * @property {number} controlHeight Control height in pixels.
  * @property {number} textSize Base control text size in pixels.
  * @property {string} font Font stack id.
+ * @property {'none'|'subtle'|'strong'} glass Surface material strength.
  */
 
 /**
@@ -292,6 +301,15 @@ export function themeVars(state) {
   if (state.textSize !== DEFAULTS.textSize) vars['--zx-text-md'] = `${state.textSize}px`;
   if (state.font !== DEFAULTS.font) {
     vars['--zx-font-sans'] = (FONTS.find((entry) => entry.id === state.font) ?? FONTS[0]).stack;
+  }
+  if (state.glass === 'none') {
+    vars['--zx-glass-blur'] = '0px';
+    vars['--zx-glass-saturation'] = '100%';
+    vars['--zx-color-glass-surface'] = 'var(--zx-color-bg-raised)';
+  } else if (state.glass === 'strong') {
+    vars['--zx-glass-blur'] = '14px';
+    vars['--zx-glass-saturation'] = '155%';
+    vars['--zx-color-glass-surface'] = 'color-mix(in srgb, var(--zx-color-bg-raised) 68%, transparent)';
   }
   return vars;
 }
@@ -330,14 +348,14 @@ export function themeCss(state) {
     : `the ${preset.label} preset`;
   const lines = [
     '/*',
-    ` * A Zx theme, built from ${origin}.`,
+    ` * A Xenon theme, built from ${origin}.`,
     ' * Load it after zx.css. Wrap the block in [data-zx-preset="mytheme"] instead of :root to',
     ' * keep it switchable, and set the attribute on <html>.',
     ' */'
   ];
 
   if (Object.keys(vars).length === 0 && state.preset === DEFAULTS.preset) {
-    return `${lines.join('\n')}\n\n/* Nothing overridden — this is the stock Zx theme. */`;
+    return `${lines.join('\n')}\n\n/* Nothing overridden — this is the stock ZeyOS theme. */`;
   }
 
   lines.push('', ':root {');

@@ -101,6 +101,7 @@ export { Stepper } from './components/stepper/stepper.js';
 export { Breadcrumb } from './components/breadcrumb/breadcrumb.js';
 export { Pagination, paginationRange } from './components/pagination/pagination.js';
 export { Search } from './components/search/search.js';
+export { AppIcon, appIcon } from './components/app-icon/app-icon.js';
 export { Launcher, rankLauncherItems } from './components/launcher/launcher.js';
 export { Avatar, avatarInitials } from './components/avatar/avatar.js';
 export { AccountMenu } from './components/account-menu/account-menu.js';
@@ -132,7 +133,7 @@ export {
   DateRangeBox, formatRangeText, parseRangeText
 } from './components/datebox/date-range-box.js';
 export { Timebox, splitTime, joinTime } from './components/timebox/timebox.js';
-export { Table } from './components/table/table.js';
+export { Table, reorderTableRows } from './components/table/table.js';
 export { Grid, billingColumns, isBillingLine } from './components/grid/grid.js';
 export {
   Chart, ChartJsAdapter, chartSummaryTable, cloneChartValue, isEmptyChartData
@@ -140,6 +141,11 @@ export {
 export { TreeView } from './components/tree/tree.js';
 export { Finder } from './components/finder/finder.js';
 export { DataFilter } from './components/data-filter/data-filter.js';
+export { Filter } from './components/filter/filter.js';
+export {
+  filterOperators, emptyFilterAst, filterCondition, filterGroup,
+  parseFilterAst, cloneFilterAst, stringifyFilterAst, validateFilterAst
+} from './components/filter/filter-model.js';
 export { Field } from './components/field/field.js';
 export { Fieldset } from './components/fieldset/fieldset.js';
 export { Form } from './components/form/form.js';

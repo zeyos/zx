@@ -1,6 +1,6 @@
 import { h, Select } from '../../src/index.js';
 import { matchItems } from '../../src/components/select/filter.js';
-import { zeyosEntitySelect } from '../../src/zeyos/index.js';
+import { demoZeyosAppIcon } from '../zeyos-demo-icons.js';
 
 /** @param {number} count @param {string} prefix @returns {Array<{ID: number, name: string}>} */
 function makeItems(count, prefix) {
@@ -19,27 +19,6 @@ const PROJECTS = [
   { ID: 4, name: 'Backend', team: 'Other projects', group: 'OTHER PROJECTS', module: 'projects' },
   { ID: 5, name: 'Frontend', team: 'Other projects', group: 'OTHER PROJECTS', module: 'projects' }
 ];
-
-function projectClient() {
-  return {
-    schema: {
-      describe: () => ({ fields: {
-        ID: { type: 'integer' }, name: { type: 'text', indexed: true },
-        team: { type: 'text' }, group: { type: 'text' }, module: { type: 'text' }
-      } }),
-      fields: () => ['ID', 'name', 'team', 'group', 'module'],
-      operations: () => ['listProjects', 'getProject']
-    },
-    api: {
-      listProjects: async ({ query = '' }) => {
-        await new Promise((resolve) => setTimeout(resolve, 90));
-        const needle = query.toLowerCase();
-        return { data: PROJECTS.filter((project) => project.name.toLowerCase().includes(needle)) };
-      },
-      getProject: async ({ ID }) => PROJECTS.find((project) => project.ID === ID)
-    }
-  };
-}
 
 export default {
   title: 'Select',
@@ -249,26 +228,28 @@ export default {
     },
     {
       id: 'zeyos-entity',
-      title: 'zeyosEntitySelect()',
+      title: 'Select.entity()',
       preset: true,
-      blurb: 'The optional ZeyOS binding turns Select into an Entity-box picker with module-colored '
-        + 'icons, grouped async results, a deliberate empty choice, and an application-owned '
-        + 'create command. The selected value remains the record ID.',
+      blurb: 'Select.entity() is the rich Entity-box preset: optional Recent items stay above '
+        + 'grouped results, duplicate result IDs are removed, and an application-owned create '
+        + 'command stays at the bottom. The optional ZeyOS adapter composes this same preset.',
       width: '360px',
       render: ({ cleanup, log }) => {
-        const select = zeyosEntitySelect(projectClient(), 'projects', {
+        const select = Select.entity(null, {
+          items: PROJECTS,
+          recent: [PROJECTS[2], PROJECTS[0]],
           value: 3,
-          labelKey: 'name',
           subtitleKey: 'team',
           groupKey: 'group',
-          moduleKey: 'module',
-          none: 'No project',
+          clearable: true,
+          noneLabel: 'No project',
           placeholder: 'Move to project…',
-          debounce: 20,
+          filter: 'local',
+          renderIcon: (item) => demoZeyosAppIcon(item.module, { size: 20 }),
           create: {
             label: 'Create new project…',
             group: 'NEW PROJECT',
-            oninvoke: () => log('create project')
+            invoke: () => log('create project')
           },
           onchange: ({ detail }) => log(`project ${detail.value}`)
         });
