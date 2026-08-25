@@ -142,6 +142,24 @@ test('theme geometry, type, tint, and material controls each produce a token', (
   assert.equal(vars['--zx-control-height'], '38px');
   assert.equal(vars['--zx-text-md'], '16px');
   assert.match(vars['--zx-font-sans'], /Iowan Old Style/);
-  assert.equal(vars['--zx-glass-blur'], '14px');
+  assert.equal(vars['--zx-glass-blur'], '18px');
+  assert.equal(vars['--zx-glass-color-strength'], '68%');
+  assert.ok(Object.hasOwn(vars, '--zx-color-glass-control'), 'material controls did not change');
+  assert.equal(vars['--zx-color-app-icon-depth'], 'color-mix(in srgb, var(--zx-color-app-icon-shade) 34%, transparent)');
+  assert.ok(Object.hasOwn(vars, '--zx-glass-raised-shadow'), 'raised material did not change');
   assert.ok(Object.hasOwn(vars, '--zx-gray-500'), 'neutral tint did not produce a ramp');
+});
+
+test('flat and deep-glass recipes change every shared material consumer', () => {
+  const flat = themeVars({ ...DEFAULTS, glass: 'none' });
+  const deep = themeVars({ ...DEFAULTS, glass: 'strong' });
+  for (const name of [
+    '--zx-glass-blur', '--zx-glass-color-strength', '--zx-color-glass-border',
+    '--zx-color-glass-surface', '--zx-color-glass-control', '--zx-color-app-icon-depth', '--zx-app-icon-shadow',
+    '--zx-glass-control-shadow', '--zx-glass-raised-shadow', '--zx-glass-glyph-shadow'
+  ]) {
+    assert.ok(Object.hasOwn(flat, name), `flat is missing ${name}`);
+    assert.ok(Object.hasOwn(deep, name), `deep glass is missing ${name}`);
+    assert.notEqual(flat[name], deep[name], `${name} does not distinguish the modes`);
+  }
 });

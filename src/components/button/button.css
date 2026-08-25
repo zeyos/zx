@@ -6,7 +6,7 @@
   min-block-size: var(--zx-control-height);
   border: 1px solid var(--zx-color-border-control);
   border-radius: var(--zx-button-radius, var(--zx-control-radius));
-  background: var(--zx-color-bg-control);
+  background: var(--zx-color-glass-control);
   color: var(--zx-color-text);
   padding-inline: var(--zx-control-pad-x);
   font: inherit;
@@ -14,6 +14,9 @@
   font-weight: var(--zx-control-font-weight);
   line-height: 1;
   cursor: pointer;
+  -webkit-backdrop-filter: blur(var(--zx-glass-blur)) saturate(var(--zx-glass-saturation));
+  backdrop-filter: blur(var(--zx-glass-blur)) saturate(var(--zx-glass-saturation));
+  box-shadow: var(--zx-glass-control-shadow);
   transition: color var(--zx-dur-fast) var(--zx-ease),
     background-color var(--zx-dur-fast) var(--zx-ease),
     border-color var(--zx-dur-fast) var(--zx-ease),
@@ -21,7 +24,7 @@
 }
 
 .zx-btn:hover:not(:disabled) {
-  background: var(--zx-color-bg-hover);
+  background: var(--zx-color-glass-control-hover);
 }
 
 .zx-btn:active:not(:disabled) {
@@ -66,6 +69,9 @@
 .zx-btn[data-kind="ghost"] {
   border-color: transparent;
   background: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: none;
 }
 
 .zx-btn[data-kind="ghost"]:hover:not(:disabled) {
@@ -100,4 +106,30 @@
 
 .zx-btn-group > .zx-btn:focus-visible {
   z-index: 1;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .zx-btn {
+    background: var(--zx-color-bg-control);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .zx-btn {
+    border-color: ButtonText;
+    background: ButtonFace;
+    color: ButtonText;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .zx-btn[data-kind="primary"] {
+    border-color: Highlight;
+    background: Highlight;
+    color: HighlightText;
+  }
 }

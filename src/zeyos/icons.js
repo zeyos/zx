@@ -7,7 +7,7 @@
 import { icon, loadFontAwesome } from '../index.js';
 import { appIcon } from '../components/app-icon/app-icon.js';
 import { isCssColor } from '../core/util.js';
-import { moduleGlyphColor, moduleInfo, normalizeModuleName } from './modules.js';
+import { moduleInfo, normalizeModuleName } from './modules.js';
 
 /**
  * The ZeyOS Font Awesome kit. It carries the licensed Font Awesome styles plus the custom
@@ -65,8 +65,8 @@ export function moduleIcon(name, options = {}) {
 
 /**
  * Creates a module's icon chip: the glyph on the module's identity colour, the way ZeyOS draws
- * module icons in navigation and record headers. The glyph colour is whichever of ZeyOS's two
- * foregrounds contrasts better with the background.
+ * module icons in navigation and record headers. AppIcon identity glyphs stay white across every
+ * module colour; material shading and the glyph shadow preserve their silhouette on light colours.
  * @param {string} name Module, entity, or resource name.
  * @param {ModuleChipOptions} [options={}] Display and accessibility options.
  * @returns {HTMLElement} A `<span class="zx-module-icon">` wrapping the glyph.
@@ -93,8 +93,8 @@ export function moduleChip(name, options = {}) {
   });
   chip.dataset.module = key;
   chip.style.setProperty('--zx-module-color', background);
-  chip.style.setProperty('--zx-module-glyph', moduleGlyphColor(background));
-  chip.style.setProperty('--zx-app-icon-glyph', moduleGlyphColor(background));
+  chip.style.setProperty('--zx-module-glyph', 'var(--zx-color-app-icon-glyph)');
+  chip.style.setProperty('--zx-app-icon-glyph', 'var(--zx-color-app-icon-glyph)');
   if (title) chip.title = info.label;
   return chip;
 }

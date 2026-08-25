@@ -95,11 +95,14 @@ export class AppIcon extends Component {
     const badge = state.badge == null || state.badge === '' ? null : h('span', {
       class: 'zx-app-icon__badge', ariaHidden: 'true'
     }, String(state.badge));
-    this.el.replaceChildren(
+    const children = [
       h('span', { class: 'zx-app-icon__shine', ariaHidden: 'true' }),
-      h('span', { class: 'zx-app-icon__glyph', ariaHidden: 'true' }, visual),
-      badge
-    );
+      h('span', { class: 'zx-app-icon__glyph', ariaHidden: 'true' }, visual)
+    ];
+    // Native replaceChildren() stringifies nullish arguments. Only append a badge when it exists,
+    // otherwise the icon gets a visible "null" text node that can also disturb optical centring.
+    if (badge) children.push(badge);
+    this.el.replaceChildren(...children);
   }
 }
 

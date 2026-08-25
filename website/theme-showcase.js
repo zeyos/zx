@@ -13,7 +13,7 @@
  */
 
 import {
-  Breadcrumb, Card, Checklist, Component, ContextMenu, CopyInput, DataFilter, DateRangeBox, Datebox, DatePicker,
+  AppIcon, Breadcrumb, Card, Checklist, Component, ContextMenu, CopyInput, DataFilter, DateRangeBox, Datebox, DatePicker,
   Dialog, Dropdown, Finder, Form, Groupbox, InlineLoading, MasterPanel, MenuButton, Message,
   Modal, MultiValueEditor, NavigationBar, NumberField, Pagination, Panel, ProgressBar,
   Rating, Search, Select, Slider, Stepper, Table, Tabbox, TagPicker, Timebox, Toggle, Toolbar,
@@ -81,6 +81,7 @@ const currency = new Intl.NumberFormat(undefined, {
 export const CARDS = [
   { id: 'palette', title: 'Semantic palette', hint: 'What every component resolves its colour through', render: paletteCard },
   { id: 'type', title: 'Type scale', hint: '--zx-font-sans and the text steps', render: typeCard },
+  { id: 'material', title: 'Material', hint: 'App identity, controls, and raised surfaces', render: materialCard },
   { id: 'buttons', title: 'Buttons', hint: 'Four kinds, two sizes, joined groups', render: buttonsCard },
   { id: 'badges', title: 'Badges', hint: 'Six intents in three weights', render: badgesCard },
   { id: 'inputs', title: 'Text input', hint: 'Search, copy, numbers, native controls', render: inputsCard },
@@ -179,6 +180,21 @@ function typeCard() {
       'Body copy at --zx-text-md, the size every control inherits. Numerals matter in business '
       + 'software: 1 234,56 · 0 987 · 2026-08-21.'),
     h('p', { class: 'studio-type__muted' }, 'Secondary text at --zx-color-text-muted.'));
+}
+
+/** @returns {Node} */
+function materialCard() {
+  return h('div', { class: 'studio-stack' },
+    row(
+      new AppIcon(null, { icon: 'folder', color: '#bc3885', size: 52, label: 'Accounts' }).toElement(),
+      new AppIcon(null, { icon: 'file', color: '#535494', size: 52, label: 'Billing', glass: 'strong' }).toElement(),
+      new AppIcon(null, { icon: 'check', color: '#e2b301', size: 52, label: 'Tasks' }).toElement()),
+    new Card(null, {
+      variant: 'raised',
+      title: 'Raised material surface',
+      content: 'Identity and temporary elevation can carry glass; dense tables stay opaque.',
+      actions: [{ label: 'Review', kind: 'primary', size: 'sm' }]
+    }).toElement());
 }
 
 /** @returns {Node} */

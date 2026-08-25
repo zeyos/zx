@@ -305,11 +305,35 @@ export function themeVars(state) {
   if (state.glass === 'none') {
     vars['--zx-glass-blur'] = '0px';
     vars['--zx-glass-saturation'] = '100%';
+    vars['--zx-glass-color-strength'] = '100%';
+    vars['--zx-color-glass-border'] = 'var(--zx-color-border)';
+    vars['--zx-color-glass-highlight'] = 'transparent';
+    vars['--zx-color-glass-highlight-strong'] = 'transparent';
+    vars['--zx-color-app-icon-depth'] = 'transparent';
     vars['--zx-color-glass-surface'] = 'var(--zx-color-bg-raised)';
+    vars['--zx-color-glass-control'] = 'var(--zx-color-bg-control)';
+    vars['--zx-color-glass-control-hover'] = 'var(--zx-color-bg-hover)';
+    vars['--zx-app-icon-shadow'] = 'none';
+    vars['--zx-app-icon-shadow-hover'] = 'none';
+    vars['--zx-glass-control-shadow'] = 'none';
+    vars['--zx-glass-raised-shadow'] = 'var(--zx-overlay-shadow)';
+    vars['--zx-glass-glyph-shadow'] = 'none';
   } else if (state.glass === 'strong') {
-    vars['--zx-glass-blur'] = '14px';
-    vars['--zx-glass-saturation'] = '155%';
-    vars['--zx-color-glass-surface'] = 'color-mix(in srgb, var(--zx-color-bg-raised) 68%, transparent)';
+    vars['--zx-glass-blur'] = '18px';
+    vars['--zx-glass-saturation'] = '165%';
+    vars['--zx-glass-color-strength'] = '68%';
+    vars['--zx-color-glass-border'] = 'color-mix(in srgb, var(--zx-color-app-icon-glyph) 34%, transparent)';
+    vars['--zx-color-glass-highlight'] = 'color-mix(in srgb, var(--zx-color-app-icon-glyph) 32%, transparent)';
+    vars['--zx-color-glass-highlight-strong'] = 'color-mix(in srgb, var(--zx-color-app-icon-glyph) 54%, transparent)';
+    vars['--zx-color-app-icon-depth'] = 'color-mix(in srgb, var(--zx-color-app-icon-shade) 34%, transparent)';
+    vars['--zx-color-glass-surface'] = 'color-mix(in srgb, var(--zx-color-bg-raised) 62%, transparent)';
+    vars['--zx-color-glass-control'] = 'color-mix(in srgb, var(--zx-color-bg-control) 62%, transparent)';
+    vars['--zx-color-glass-control-hover'] = 'color-mix(in srgb, var(--zx-color-bg-hover) 52%, var(--zx-color-glass-surface))';
+    vars['--zx-app-icon-shadow'] = 'inset 0 1px 0 var(--zx-color-glass-highlight-strong), inset 0 -1px 0 color-mix(in srgb, var(--zx-color-app-icon-shade) 24%, transparent), 0 9px 26px color-mix(in srgb, var(--zx-color-app-icon-shade) 38%, transparent)';
+    vars['--zx-app-icon-shadow-hover'] = 'inset 0 1px 0 var(--zx-color-glass-highlight-strong), inset 0 -1px 0 color-mix(in srgb, var(--zx-color-app-icon-shade) 30%, transparent), 0 14px 34px color-mix(in srgb, var(--zx-color-app-icon-shade) 46%, transparent)';
+    vars['--zx-glass-control-shadow'] = 'inset 0 1px 0 var(--zx-color-glass-highlight), var(--zx-shadow-1)';
+    vars['--zx-glass-raised-shadow'] = 'inset 0 1px 0 var(--zx-color-glass-highlight-strong), var(--zx-overlay-shadow)';
+    vars['--zx-glass-glyph-shadow'] = '0 2px 3px color-mix(in srgb, var(--zx-color-app-icon-shade) 72%, transparent)';
   }
   return vars;
 }

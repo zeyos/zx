@@ -8,6 +8,23 @@ and friends remain the complete record.
 
 ## Unreleased
 
+## 4.1.1 — 2026-08-25
+
+### Changed
+
+- **Material recipes are visibly distinct.** Flat, Glass, and Deep glass now resolve shared
+  semantic tokens consumed by application icons, buttons, raised cards, and transient messages;
+  reduced-transparency and forced-colour environments retain opaque accessible fallbacks.
+- **Theme Studio documents the material system.** Its component showcase now includes the shared
+  AppIcon and raised-surface treatments, and explains which component families consume them.
+- **Application identity is more consistent.** ZeyOS AppIcons use centred white glyphs, a tighter
+  corner radius, CSS-only depth, and explicit hover and focus feedback across module colours.
+
+### Fixed
+
+- AppIcons without badges no longer append a visible `null` text node, preserving exact glyph
+  centring and clean accessible output.
+
 ## 4.1.0 — 2026-08-25
 
 ### Added

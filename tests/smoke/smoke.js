@@ -104,6 +104,13 @@ const cases = [
     return { element, exercise: () => {
       const color = element.style.getPropertyValue('--zx-module-color');
       assert(/^#[\da-f]{6}$/i.test(color) && !color.includes('url('), 'ZeyOS AppIcon retained an unsafe color override');
+      assert(element.style.getPropertyValue('--zx-app-icon-glyph') === 'var(--zx-color-app-icon-glyph)',
+        'ZeyOS AppIcon did not use the stable white glyph token');
+      const rootRect = element.getBoundingClientRect();
+      const glyphRect = element.querySelector('.zx-app-icon__glyph').getBoundingClientRect();
+      const deltaX = Math.abs((rootRect.left + rootRect.width / 2) - (glyphRect.left + glyphRect.width / 2));
+      const deltaY = Math.abs((rootRect.top + rootRect.height / 2) - (glyphRect.top + glyphRect.height / 2));
+      assert(deltaX < 0.6 && deltaY < 0.6, `ZeyOS AppIcon glyph is off-centre by ${deltaX}, ${deltaY}`);
     } };
   }),
   cardTargetCase(),

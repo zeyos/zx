@@ -27,6 +27,8 @@
   --zx-color-text-muted: var(--zx-gray-500);
   --zx-color-text-placeholder: var(--zx-gray-400);
   --zx-color-text-invert: var(--zx-gray-50);
+  --zx-color-app-icon-glyph: var(--zx-gray-0);
+  --zx-color-app-icon-shade: var(--zx-gray-950);
   --zx-color-accent: var(--zx-accent-600);
   --zx-color-accent-hover: var(--zx-accent-700);
   --zx-color-accent-active: var(--zx-accent-700);
@@ -53,12 +55,18 @@
   --zx-color-glass-border: color-mix(in srgb, var(--zx-gray-0) 24%, transparent);
   --zx-color-glass-highlight: color-mix(in srgb, var(--zx-gray-0) 24%, transparent);
   --zx-color-glass-highlight-strong: color-mix(in srgb, var(--zx-gray-0) 38%, transparent);
+  --zx-color-app-icon-depth: color-mix(in srgb, var(--zx-color-app-icon-shade) 26%, transparent);
   --zx-color-glass-surface: color-mix(in srgb, var(--zx-color-bg-raised) 78%, transparent);
+  --zx-color-glass-control: color-mix(in srgb, var(--zx-color-bg-control) 88%, transparent);
+  --zx-color-glass-control-hover: color-mix(in srgb, var(--zx-color-bg-hover) 76%, var(--zx-color-glass-surface));
   --zx-glass-blur: 8px;
   --zx-glass-saturation: 130%;
   --zx-glass-color-strength: 82%;
-  --zx-app-icon-shadow: inset 0 1px 0 color-mix(in srgb, var(--zx-gray-0) 28%, transparent), inset 0 -1px 0 color-mix(in srgb, var(--zx-gray-950) 16%, transparent), 0 5px 14px color-mix(in srgb, var(--zx-app-icon-color) 28%, transparent);
-  --zx-glass-glyph-shadow: 0 1px 1px color-mix(in srgb, var(--zx-gray-950) 22%, transparent);
+  --zx-app-icon-shadow: inset 0 1px 0 color-mix(in srgb, var(--zx-gray-0) 28%, transparent), inset 0 -1px 0 color-mix(in srgb, var(--zx-gray-950) 16%, transparent), 0 5px 14px color-mix(in srgb, var(--zx-color-app-icon-shade) 28%, transparent);
+  --zx-app-icon-shadow-hover: inset 0 1px 0 color-mix(in srgb, var(--zx-gray-0) 40%, transparent), inset 0 -1px 0 color-mix(in srgb, var(--zx-gray-950) 20%, transparent), 0 9px 22px color-mix(in srgb, var(--zx-color-app-icon-shade) 36%, transparent);
+  --zx-glass-control-shadow: inset 0 1px 0 color-mix(in srgb, var(--zx-gray-0) 18%, transparent), var(--zx-shadow-1);
+  --zx-glass-raised-shadow: inset 0 1px 0 color-mix(in srgb, var(--zx-gray-0) 18%, transparent), var(--zx-overlay-shadow);
+  --zx-glass-glyph-shadow: 0 1px 2px color-mix(in srgb, var(--zx-gray-950) 58%, transparent);
   --zx-header-bg: var(--zx-gray-900);
   --zx-header-text: var(--zx-gray-50);
 }

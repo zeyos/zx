@@ -18,6 +18,8 @@ specs/WP-19-xenon-workflow-components.md
 src/index.js
 src/components/app-icon/app-icon.js
 src/components/app-icon/app-icon.css
+src/components/button/button.css
+src/components/card/card.css
 src/components/filter/filter-model.js
 src/components/filter/filter.js
 src/components/filter/filter.css
@@ -47,6 +49,7 @@ tests/unit/tag-picker.test.js
 tests/unit/zeyos-launcher.test.js
 tests/unit/zeyos-select.test.js
 tests/unit/type-bindings.test.js
+tests/unit/theme-presets.test.js
 tests/smoke/smoke.js
 website/docs.html
 website/docs.js
@@ -57,6 +60,7 @@ website/theme.html
 website/theme.js
 website/theme.css
 website/theme-presets.js
+website/theme-showcase.js
 website/site.js
 website/site.css
 website/demos/app-icon.demo.js
@@ -154,6 +158,10 @@ and invalid instead of being discarded.
 
 - Theme Studio must apply font, tint, radius, density/control height, text size, and glass strength
   in addition to colours; its default preset label is `ZeyOS`. Rebuilds must not leak components.
+- Flat, Glass, and Deep glass must resolve to visibly different semantic material tokens consumed
+  by AppIcon, ordinary buttons, raised cards, and transient messages. Dense data surfaces remain
+  opaque. ZeyOS AppIcons use one white glyph treatment across every module colour, with stable
+  geometric centring and pointer/focus feedback.
 - Every primary header, including Theme Studio, contains the centred documentation search. Search
   results show full `Group > Component > Section` breadcrumbs and the docs sidebar alphabetizes
   entries within each group.

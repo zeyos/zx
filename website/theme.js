@@ -121,7 +121,7 @@ function buildRail() {
     section('Material', segmented('Material', MATERIALS, () => state.glass, (value) => {
       state.glass = value;
       apply();
-    }), 'Glass uses CSS highlights and borders; backdrop blur is reserved for the strong setting and transient overlays.'),
+    }), 'Flat is opaque, Glass adds restrained depth, and Deep glass increases translucency, blur, highlights, and elevation on identity and raised surfaces.'),
     accentSection(),
     section('Neutral tint', choice(TINTS, () => state.tint, (value) => {
       state.tint = value;

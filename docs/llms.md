@@ -194,8 +194,8 @@ registerModules({ tickets: '#f04639', 'my-fork': { label: 'My Fork', icon: 'zeyo
 - `moduleIcon(name, {size, label, standard})` → the bare glyph; `standard: true` uses the stock
   Font Awesome fallback, for pages on a kit without the ZeyOS uploads.
 - `moduleChip(name, {size, iconSize, label, title, standard})` → `<span class="zx-module-icon">`
-  with the glyph on the module colour. The glyph colour is whichever of ZeyOS's two foregrounds
-  (`#ffffff`, `#141414`) contrasts better, via `moduleGlyphColor(hex)`.
+  with a centred white glyph on the module colour. `moduleGlyphColor(hex)` remains available as a
+  separate contrast helper for non-AppIcon integrations that deliberately choose their foreground.
 - `moduleInfo`/`moduleColor`/`moduleIconName`/`moduleKeys`/`normalizeModuleName` read the config.
   Module, entity, and API resource names are all accepted, case-insensitively, with dots and
   underscores normalized: `'transactions.billing'`, `'invoices'`, and `'Transactions Billing'` all
@@ -469,7 +469,9 @@ options rather than application globals.
   offline `icon` override; Zx never loads a network asset automatically.
 - **Material** — subtle glass is a CSS border/highlight treatment; strong glass progressively adds
   `backdrop-filter`. `prefers-reduced-transparency` and browsers without support receive a solid
-  tile. The glyph and label semantics do not depend on the visual treatment.
+  tile. Glyphs remain white and geometrically centred in either built-in SVG or Font Awesome form;
+  hover and focus feedback use the same semantic material tokens. The glyph and label semantics do
+  not depend on the visual treatment.
 - **Accessibility** — a non-empty `label` gives the root `role="img"`; otherwise it is decorative.
   The badge is visual supplementary status, so include its meaning in `label` when it matters.
 <!-- /doc -->

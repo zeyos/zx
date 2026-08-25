@@ -8,13 +8,13 @@ export default {
   title: 'AppIcon',
   group: 'Layout',
   api: ['AppIcon'],
-  blurb: 'A stable application-identity tile with module colour, accessible labeling, badges, selection state, and an optional CSS-first glass material.',
+  blurb: 'A stable application-identity tile with a centred white glyph, module colour, accessible labeling, hover/focus feedback, badges, selection state, and an optional CSS-first glass material.',
   examples: [
     {
       id: 'zeyos-app-icon',
       title: 'zeyosAppIcon()',
       preset: true,
-      blurb: 'The ZeyOS adapter maps every application in the current launcher catalogue to its canonical colour and optional custom glyph. This offline gallery supplies built-in glyph overrides; an application that calls useZeyosIcons() receives the exact existing ZeyOS glyphs.',
+      blurb: 'The ZeyOS adapter maps every application in the current launcher catalogue to its canonical colour and a consistently centred white glyph. This offline gallery supplies built-in glyph overrides; an application that calls useZeyosIcons() receives the exact existing ZeyOS glyphs.',
       render: () => h('div', {
         style: {
           display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(112px, 1fr))',
