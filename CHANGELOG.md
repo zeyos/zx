@@ -29,6 +29,9 @@ and friends remain the complete record.
 - The landing page hero is lit by the shipped `Aurora` component rather than a bespoke gradient,
   and gains a "Latest release" band covering Calendar, the record views, Aurora, Sheet and Dock,
   the glass materials, and application identity.
+- The documentation Introduction gains a "New in 4.3" section linking the newest component pages,
+  and every site page now carries the same primary navigation, so the Aurora showcase is reachable
+  from the documentation and Theme Studio rather than only from the component page.
 
 ### Fixed
 
