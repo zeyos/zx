@@ -18,18 +18,36 @@ test('KanbanView extends the shared RecordView contract', () => {
   assert.equal(KanbanView.cssName, 'kanban-view');
 });
 
-test('board styling keeps hierarchy, progressive controls, and coarse targets scoped', () => {
+test('board styling keeps rail hierarchy, progressive controls, and coarse targets scoped', () => {
   const source = readFileSync(new URL(
     '../../src/components/kanban-view/kanban-view.css', import.meta.url), 'utf8');
-  assert.match(source, /--zx-kanban-column-width:\s*20rem/);
+  assert.match(source, /--zx-kanban-column-width:\s*18\.5rem/);
   assert.match(source, /--zx-kanban-thumbnail-size:\s*2rem/);
   assert.match(source, /--zx-kanban-card-padding-block:\s*var\(--zx-space-2\)/);
   assert.match(source, /--zx-kanban-card-padding-inline:\s*var\(--zx-space-3\)/);
   assert.match(source, /--zx-kanban-card-gap:\s*var\(--zx-space-2\)/);
-  assert.match(source, /\.zx-kanban-view__column-heading\s*\{[^}]*min-block-size:\s*3rem/s);
-  assert.match(source, /\.zx-kanban-view__column\s*\{[^}]*background:\s*var\(--zx-color-bg-muted\)/s);
+  // The board keeps horizontal scrolling but no longer renders a filled, bordered panel.
+  assert.match(source, /\.zx-kanban-view__board\s*\{[^}]*overflow:\s*auto/s);
+  assert.doesNotMatch(source, /\.zx-kanban-view__board\s*\{[^}]*border:/s);
+  assert.doesNotMatch(source, /\.zx-kanban-view__board\s*\{[^}]*background:/s);
+  // Columns are transparent rails separated by the grid gap, not nested boxes.
+  assert.match(source, /\.zx-kanban-view__columns\s*\{[^}]*gap:\s*var\(--zx-space-4\)/s);
+  assert.doesNotMatch(source, /\.zx-kanban-view__column\s*\{[^}]*border:/s);
+  assert.doesNotMatch(source, /\.zx-kanban-view__column\s*\{[^}]*background:/s);
+  // Compact headings keep title, count, and collapse control on one short row.
+  assert.match(source, /\.zx-kanban-view__column-heading\s*\{[^}]*min-block-size:\s*2rem/s);
+  // Counts stay quiet text; WIP limit/exceeded uses semantic colour, not a filled pill.
+  assert.match(source, /\.zx-kanban-view__count\s*\{[^}]*color:\s*var\(--zx-color-text-muted\)/s);
+  assert.match(source, /\.zx-kanban-view__column\[data-wip="limit"\] \.zx-kanban-view__count\s*\{[^}]*color:\s*var\(--zx-color-warning\)/s);
+  assert.match(source, /\.zx-kanban-view__column\[data-wip="exceeded"\] \.zx-kanban-view__count\s*\{[^}]*color:\s*var\(--zx-color-danger\)/s);
+  assert.doesNotMatch(source, /\.zx-kanban-view__column\[data-wip="limit"\] \.zx-kanban-view__count\s*\{[^}]*background:/s);
+  // Empty card lists stay transparent but keep a usable drop height.
+  assert.match(source, /\.zx-kanban-view__cards\s*\{[^}]*min-block-size:\s*4rem/s);
+  assert.doesNotMatch(source, /\.zx-kanban-view__cards\s*\{[^}]*background:/s);
   assert.match(source, /\.zx-kanban-view__cards\s*\{[^}]*gap:\s*var\(--zx-space-2\)/s);
   assert.match(source, /\.zx-kanban-view__columns\[hidden\],[\s\S]*\.zx-kanban-view__cards\[hidden\]\s*\{[^}]*display:\s*none/s);
+  // Cards remain the primary surfaces with a restrained radius and subtle shadow.
+  assert.match(source, /\.zx-kanban-view__cards > \.zx-record-card\s*\{[^}]*border-radius:\s*var\(--zx-radius-md\)/s);
   assert.match(source, /\.zx-kanban-view \.zx-record-card:has\(> \.zx-record-card__preview\)/);
   assert.match(source, /\.zx-kanban-view :where\(\.zx-record-card\[data-variant="outlined"\]\)\s*\{[^}]*box-shadow:\s*var\(--zx-shadow-1\)/s);
   assert.match(source, /\.zx-kanban-view \.zx-record-card__eyebrow-group\[data-card-slot="eyebrow-start"\]/);

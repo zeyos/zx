@@ -56,6 +56,7 @@ test('floating Message CSS is upper-right/content-sized with an opaque transpare
   assert.match(css, /\.zx-message-region\s*\{[^}]*block-size:\s*max-content;/s);
   assert.match(css, /@media \(prefers-reduced-transparency: reduce\)[\s\S]*backdrop-filter:\s*none;/);
   for (const token of ['info-bg', 'success-bg', 'warning-bg', 'danger-bg']) {
-    assert.match(css, new RegExp(`prefers-reduced-transparency[\\s\\S]*var\\(--zx-color-${token}\\)`));
+    assert.match(css, new RegExp(`--zx-message-fallback-bg:\\s*var\\(--zx-color-${token}\\)`));
   }
+  assert.match(css, /prefers-reduced-transparency[\s\S]*background:\s*var\(--zx-message-fallback-bg\)/);
 });

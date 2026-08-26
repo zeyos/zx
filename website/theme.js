@@ -16,7 +16,7 @@
  */
 
 import {
-  Dialog, Search, Select, Slider, button, copyToClipboard, h, icon, rovingTabindex
+  Dialog, Select, Slider, button, copyToClipboard, h, icon, rovingTabindex
 } from '../src/index.js';
 import {
   DEFAULTS, FONTS, PRESETS, STOPS, TINTS, accentRamp, contrast, presetById, resolvedAccent,
@@ -73,24 +73,9 @@ document.addEventListener('zx-theme-change', () => {
 });
 
 app.replaceChildren(h('div', { class: 'studio' }, rail, main));
-buildThemeSearch();
 buildRail();
 rebuildCanvas();
 apply();
-
-/** Sends the shared header search into the full documentation result combobox. @returns {void} */
-function buildThemeSearch() {
-  const form = document.querySelector('[data-theme-search-field]');
-  if (!form) return;
-  const search = new Search(form, {
-    placeholder: 'Search documentation',
-    debounce: 0
-  });
-  search.on('submit', () => {
-    const query = search.get().trim();
-    if (query) window.location.assign(`docs.html?q=${encodeURIComponent(query)}`);
-  });
-}
 
 // `[` and `]` cycle the preset — the fastest way to see what a theme does to a whole screen is to
 // flip between two of them without moving the pointer to the rail.

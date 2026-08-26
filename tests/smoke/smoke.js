@@ -1630,8 +1630,21 @@ function calendarCase() {
       views.expect();
       assert(component.el.querySelectorAll('.zx-calendar__view-button').length === 5,
         'Calendar omitted a configured view control');
+      assert(getComputedStyle(component.el).borderRadius === '0px',
+        'Calendar retained rounded outer grid corners');
+      assert(getComputedStyle(component.el.querySelector('.zx-calendar__day-heading')).borderRadius === '0px',
+        'Calendar retained rounded week column headers');
+      assert(getComputedStyle(component.el.querySelector('.zx-calendar__slot')).borderRadius === '0px',
+        'Calendar retained rounded week time-grid cells');
       assert(component.el.querySelector('.zx-calendar__now:not([hidden])'),
         'Calendar did not render the deterministic now indicator');
+
+      component.setView('day');
+      assert(getComputedStyle(component.el.querySelector('.zx-calendar__day-heading')).borderRadius === '0px',
+        'Calendar retained rounded day-view column headers');
+      assert(getComputedStyle(component.el.querySelector('.zx-calendar__slot')).borderRadius === '0px',
+        'Calendar retained rounded day-view time-grid cells');
+      component.setView('week');
 
       let change = null;
       component.on('eventchange', (event) => { change = event.detail; });

@@ -224,26 +224,6 @@ body.site-page > main {
   min-inline-size: 0;
 }
 
-/* The landing search occupies the same header position and uses the same Search component as the
-   documentation. Its ink remains legible while the header is transparent over the dark hero. */
-.site-header--overlay .site-docs-search .zx-search {
-  border-color: rgb(255 255 255 / 22%);
-  background: rgb(255 255 255 / 8%);
-}
-
-.site-header--overlay .site-docs-search .zx-search__input {
-  color: #fff;
-}
-
-.site-header--overlay .site-docs-search .zx-search__input::placeholder,
-.site-header--overlay .site-docs-search :is(.zx-search__clear, .zx-search__submit) {
-  color: rgb(255 255 255 / 68%);
-}
-
-.site-header--overlay .site-docs-search :is(.zx-search__clear, .zx-search__submit):hover {
-  color: #fff;
-}
-
 /* Square, label-free chrome buttons. The glyph is an SVG mask filled with currentColor, so it
    follows the theme and the overlay header without a second asset. */
 .site-actions {
@@ -515,6 +495,7 @@ body.site-page > main {
 
 .hero__eyebrow {
   justify-content: center;
+  font-size: var(--zx-text-lg);
 }
 
 .hero__eyebrow::before {
@@ -528,7 +509,7 @@ body.site-page > main {
 .hero h1 {
   max-inline-size: 24ch;
   margin: 0;
-  font-size: clamp(38px, 6.6vw, 68px);
+  font-size: clamp(36px, 5.8vw, 60px);
   font-weight: 800;
   line-height: 1.02;
   letter-spacing: -0.035em;
@@ -553,76 +534,6 @@ body.site-page > main {
   justify-content: center;
   gap: var(--zx-space-3);
   margin-block-start: var(--zx-space-7);
-}
-
-/* ------------------------------------------------------- latest release -- */
-
-/*
- * The release strip sits directly under the hero, so it stays on the same night surface and
- * separates itself with a rule rather than another background step.
- */
-.release {
-  border-block-start: 1px solid rgb(255 255 255 / 8%);
-}
-
-.release__version {
-  color: var(--site-brand);
-  font-variant-numeric: tabular-nums;
-}
-
-.release-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--zx-space-5);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-/* A brand hairline over each entry, the way a release note marks its bullets. */
-.release-card {
-  display: grid;
-  grid-template-rows: auto 1fr;
-  padding-block-start: var(--zx-space-4);
-  border-block-start: 2px solid color-mix(in srgb, var(--site-brand) 55%, transparent);
-}
-
-.release-card h3 {
-  margin: 0 0 var(--zx-space-2);
-  font-size: var(--zx-text-lg);
-  font-weight: 700;
-  letter-spacing: -0.015em;
-}
-
-.release-card h3 a {
-  color: #fff;
-  text-decoration: none;
-}
-
-.release-card h3 a::after {
-  content: "\2192";
-  margin-inline-start: var(--zx-space-2);
-  color: var(--site-brand);
-}
-
-.release-card h3 a:hover {
-  color: var(--site-brand);
-}
-
-.release-card h3 a:focus-visible {
-  outline: 2px solid var(--site-brand);
-  outline-offset: 3px;
-}
-
-.release-card p {
-  margin: 0;
-  color: rgb(226 232 240 / 62%);
-  font-size: var(--zx-text-md);
-  line-height: 1.6;
-}
-
-.release-footer {
-  margin: var(--zx-space-7) 0 0;
 }
 
 /* --------------------------------------------------------- system layers -- */
@@ -1113,7 +1024,6 @@ body.site-page > main {
 @media (max-width: 900px) {
   .feature-grid,
   .path-grid,
-  .release-grid,
   .system-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1127,8 +1037,7 @@ body.site-page > main {
  * the brand, version, nav, or actions at 1280px.
  */
 @media (max-width: 1400px) {
-  /* Keyed off the search itself rather than a page class: the documentation and Theme Studio
-     shells both mount one, and the row below only works in a header that is allowed to wrap. */
+  /* Keyed off the search itself so this only changes the documentation header. */
   .site-header__inner:has(.site-docs-search) {
     flex-wrap: wrap;
     padding-block: var(--zx-space-2);
@@ -1158,7 +1067,7 @@ body.site-page > main {
 }
 
 @media (max-width: 780px) {
-  /* The compact header gains nav and search rows. Keeping it in flow prevents those rows from
+  /* The compact header gains another navigation row. Keeping it in flow prevents that row from
      covering the hero while its transparent surface still reads as part of the same night band. */
   .site-header--overlay {
     position: sticky;
@@ -1191,7 +1100,6 @@ body.site-page > main {
 
   .feature-grid,
   .path-grid,
-  .release-grid,
   .system-grid,
   .showcase-grid,
   .quick-start-grid {

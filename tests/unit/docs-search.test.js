@@ -54,15 +54,13 @@ test('public documentation presents the compact builder as a first-class API', (
   assert.match(reference, /Zx's compact DOM builder and public alias/);
 });
 
-test('documentation, theme, and landing headers expose their centered search mount', () => {
+test('only the documentation header exposes the centered search mount', () => {
   const docs = readFileSync(fileURLToPath(new URL('../../website/docs.html', import.meta.url)), 'utf8');
   const theme = readFileSync(fileURLToPath(new URL('../../website/theme.html', import.meta.url)), 'utf8');
   const landing = readFileSync(fileURLToPath(new URL('../../website/index.html', import.meta.url)), 'utf8');
   assert.match(docs, /class="site-docs-search docs-global-search"/);
-  assert.match(theme, /class="site-docs-search theme-global-search"/);
-  assert.match(landing, /class="site-docs-search site-landing-search"/);
-  assert.match(landing, /new Search\(document\.querySelector\('\[data-landing-search-field\]'\)/);
-  assert.match(landing, /docs\.html\?q=\$\{encodeURIComponent\(query\)\}/);
+  assert.doesNotMatch(theme, /site-docs-search|data-theme-search-field/);
+  assert.doesNotMatch(landing, /site-docs-search|data-landing-search-field/);
   const css = readFileSync(fileURLToPath(new URL('../../website/site.css', import.meta.url)), 'utf8');
   assert.match(css, /\.site-docs-search\s*\{[\s\S]*?inline-size: min\(19rem, 24vw\)/,
     'the centered documentation search must leave room for primary navigation');
@@ -81,9 +79,9 @@ test('public site keeps Aurora in component docs without publishing study pages'
     assert.doesNotMatch(source, /href="aurora\.html"/, file);
   }
   const landing = readFileSync(fileURLToPath(new URL('../../website/index.html', import.meta.url)), 'utf8');
-  const docs = readFileSync(fileURLToPath(new URL('../../website/docs.html', import.meta.url)), 'utf8');
-  assert.match(landing, /href="docs\.html#components\/aurora"/);
-  assert.match(docs, /href="#components\/aurora"/);
+  const docsJs = readFileSync(fileURLToPath(new URL('../../website/docs.js', import.meta.url)), 'utf8');
+  assert.match(landing, /new Aurora\('#hero'/);
+  assert.match(docsJs, /['"]aurora['"]/);
   for (const file of [
     'aurora.html', 'aurora.js', 'aurora.css', 'aurora-preview.html', 'aurora-preview.css'
   ]) {

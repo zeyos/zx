@@ -257,11 +257,6 @@ async function runDocumentationShell(instance) {
 
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(`${base}/website/theme.html`, { waitUntil: 'load' });
-    await page.waitForSelector('.theme-global-search input');
-    const themeBox = await page.locator('.theme-global-search').boundingBox();
-    if (!themeBox || Math.abs(themeBox.x + themeBox.width / 2 - 720) > 2) {
-      throw new Error('theme search is not centered');
-    }
     await assertOverlayMaterials(page);
     if (problems.length) throw new Error(problems.slice(0, 5).join(' / '));
     console.log('PASS  documentation shell — search, mobile API tables, and computed overlay materials');

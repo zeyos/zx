@@ -18,10 +18,7 @@
         <img class="brand-logo--dark" src="assets/zx-logo-dark.svg" alt="">
       </a>
       <a class="site-version" href="https://github.com/zeyos/zx/releases/latest"
-        rel="noopener" title="Release notes">v<span data-site-version>4.3.2</span></a>
-      <div class="site-docs-search site-landing-search">
-        <form data-landing-search-field></form>
-      </div>
+        rel="noopener" title="Release notes">v<span data-site-version>4.3.3</span></a>
       <nav class="site-nav" aria-label="Primary">
         <a href="docs.html">Documentation</a>
         <a href="docs.html#layouts">Layouts</a>
@@ -57,68 +54,6 @@
           <a class="site-btn site-btn--ghost" data-btn-icon="zeyos"
             href="https://www.zeyos.com" rel="noopener">Learn more about ZeyOS</a>
         </div>
-      </div>
-    </section>
-
-    <section class="site-band release" id="whats-new" aria-labelledby="whats-new-title">
-      <div class="site-section">
-        <div class="section-heading">
-          <p class="band-eyebrow">Latest release</p>
-          <h2 id="whats-new-title">What arrived in <span class="release__version">4.3</span></h2>
-          <p>
-            Scheduling, three record views over one contract, an ambient light layer, and a real
-            overlay material — each with the keyboard map, accessible fallbacks, and zero
-            dependencies the rest of the system already commits to.
-          </p>
-        </div>
-        <ul class="release-grid">
-          <li class="release-card">
-            <h3><a href="docs.html#components/calendar">Calendar</a></h3>
-            <p>
-              Agenda, day, week, month, and year views with local-time collision layout, multi-day
-              lanes, range selection, and equivalent pointer and keyboard move and resize.
-            </p>
-          </li>
-          <li class="release-card">
-            <h3><a href="docs.html#components/kanban-view">Record views</a></h3>
-            <p>
-              TableView, CardView, and KanbanView share one field, sort, selection, and versioned
-              view-state contract — with swim lanes, WIP limits, and cancelable moves on the board.
-            </p>
-          </li>
-          <li class="release-card">
-            <h3><a href="docs.html#components/aurora">Aurora</a></h3>
-            <p>
-              A one- to four-colour ambient light field in six geometries. CSS-only, pointer
-              transparent, and flat again under reduced transparency or forced colours.
-            </p>
-          </li>
-          <li class="release-card">
-            <h3><a href="docs.html#components/sheet">Sheet &amp; Dock</a></h3>
-            <p>
-              Edge-anchored sheets with snap detents and swipe dismissal, drill-down stacks, and a
-              dock of collapsible resizable panes that can adopt a sheet outright.
-            </p>
-          </li>
-          <li class="release-card">
-            <h3><a href="theme.html">Liquid glass</a></h3>
-            <p>
-              Compact overlays and reading panels draw on separate translucent materials, with
-              deterministic opaque fallbacks wherever blur or transparency is unwelcome.
-            </p>
-          </li>
-          <li class="release-card">
-            <h3><a href="docs.html#components/app-icon">Application identity</a></h3>
-            <p>
-              Circular chromatic lenses for applications, low-radius chips for entities and
-              records — one shape language across Launcher, AppSidebar, and every module surface.
-            </p>
-          </li>
-        </ul>
-        <p class="release-footer">
-          <a class="site-btn site-btn--ghost site-btn--sm"
-            href="https://github.com/zeyos/zx/blob/main/CHANGELOG.md" rel="noopener">Read the changelog</a>
-        </p>
       </div>
     </section>
 
@@ -355,20 +290,11 @@
 
   <script type="module">
     import {
-      Aurora, Datebox, Message, Search, Select, Table, Toggle, button, icon
+      Aurora, Datebox, Message, Select, Table, Toggle, button, icon
     } from '../src/index.js';
 
     document.querySelectorAll('[data-feature-icon]').forEach((host) => {
       host.append(icon(host.dataset.featureIcon, { size: 18 }));
-    });
-
-    const landingSearch = new Search(document.querySelector('[data-landing-search-field]'), {
-      placeholder: 'Search documentation',
-      debounce: 0
-    });
-    landingSearch.on('submit', () => {
-      const query = landingSearch.get().trim();
-      if (query) window.location.assign(`docs.html?q=${encodeURIComponent(query)}`);
     });
 
     // The hero's ambient light is the shipped component, not a bespoke gradient: Aurora enhances

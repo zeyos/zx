@@ -1,5 +1,5 @@
 .zx-kanban-view {
-  --zx-kanban-column-width: 20rem;
+  --zx-kanban-column-width: 18.5rem;
   --zx-kanban-thumbnail-size: 2rem;
   --zx-kanban-card-padding-block: var(--zx-space-2);
   --zx-kanban-card-padding-inline: var(--zx-space-3);
@@ -21,10 +21,6 @@
   min-inline-size: 0;
   overflow: auto;
   overscroll-behavior-inline: contain;
-  border: 1px solid var(--zx-color-border);
-  border-radius: var(--zx-radius-md);
-  background: var(--zx-color-bg-page);
-  padding: var(--zx-space-2);
   scrollbar-gutter: stable;
 }
 
@@ -50,13 +46,12 @@
   min-block-size: 2rem;
   gap: var(--zx-space-1);
   margin-block-end: var(--zx-space-1);
-  padding-inline: var(--zx-space-1);
 }
 
 .zx-kanban-view__column-heading {
-  min-block-size: 3rem;
+  min-block-size: 2rem;
   gap: var(--zx-space-1);
-  padding-inline: var(--zx-space-2);
+  margin-block-end: var(--zx-space-2);
 }
 
 .zx-kanban-view__columns {
@@ -64,7 +59,7 @@
   grid-auto-flow: column;
   grid-auto-columns: minmax(18rem, var(--zx-kanban-column-width));
   align-items: start;
-  gap: var(--zx-space-3);
+  gap: var(--zx-space-4);
   min-inline-size: max-content;
 }
 
@@ -75,12 +70,8 @@
 
 .zx-kanban-view__column {
   display: grid;
-  grid-template-rows: auto minmax(3rem, auto);
+  grid-template-rows: auto minmax(4rem, auto);
   min-inline-size: 0;
-  border: 1px solid var(--zx-color-border);
-  border-radius: var(--zx-radius-lg);
-  background: var(--zx-color-bg-muted);
-  padding: 0 var(--zx-space-2) var(--zx-space-2);
 }
 
 .zx-kanban-view__column[data-collapsed="true"] {
@@ -144,8 +135,6 @@
 .zx-kanban-view__count {
   order: 2;
   flex: 0 0 auto;
-  border-radius: var(--zx-radius-full);
-  padding: 0;
   color: var(--zx-color-text-muted);
   font-size: var(--zx-text-xs);
   font-weight: 400;
@@ -153,19 +142,14 @@
   white-space: nowrap;
 }
 
-.zx-kanban-view__column[data-wip="limit"] .zx-kanban-view__count,
-.zx-kanban-view__column[data-wip="exceeded"] .zx-kanban-view__count {
-  padding: var(--zx-space-1) var(--zx-space-2);
-}
-
 .zx-kanban-view__column[data-wip="limit"] .zx-kanban-view__count {
-  background: var(--zx-color-warning-bg);
   color: var(--zx-color-warning);
+  font-weight: 600;
 }
 
 .zx-kanban-view__column[data-wip="exceeded"] .zx-kanban-view__count {
-  background: var(--zx-color-danger-bg);
   color: var(--zx-color-danger);
+  font-weight: 600;
 }
 
 .zx-kanban-view__cards {
@@ -173,9 +157,8 @@
   display: flex;
   flex-direction: column;
   gap: var(--zx-space-2);
-  min-block-size: 3rem;
+  min-block-size: 4rem;
   margin: 0;
-  border-radius: var(--zx-radius-sm);
   padding: 0;
   list-style: none;
 }
@@ -184,7 +167,7 @@
   inline-size: 100%;
   min-inline-size: 0;
   overflow: visible;
-  border-radius: var(--zx-radius-xl);
+  border-radius: var(--zx-radius-md);
 }
 
 .zx-kanban-view :where(.zx-record-card[data-variant="outlined"]) {

@@ -8,6 +8,24 @@ and friends remain the complete record.
 
 ## Unreleased
 
+## 4.3.3 — 2026-08-26
+
+### Changed
+
+- **Kanban boards use a lighter rail hierarchy.** The board and columns no longer stack filled,
+  bordered panels around every lane. Compact headers, quiet semantic WIP counts, wider rail gaps,
+  and restrained card radii make record cards the primary surfaces while preserving horizontal
+  scrolling, empty drop targets, swim lanes, and every existing interaction.
+- **Calendar grids use square structural edges.** The outer calendar, day headings, and time slots
+  align as one continuous grid, while the view picker becomes a compact segmented control with a
+  raised active view.
+- **Floating messages keep severity visible on glass.** Toasts use a coloured leading inset over
+  the shared overlay material and retain deterministic severity backgrounds when transparency is
+  reduced or unsupported.
+- The public landing page and Theme Studio no longer duplicate documentation search in their
+  headers. Dated 4.3 promotional sections were removed from the landing page and documentation
+  introduction, and the landing hero typography was rebalanced around the simplified header.
+
 ## 4.3.2 — 2026-08-26
 
 ### Added
