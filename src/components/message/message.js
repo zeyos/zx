@@ -1,6 +1,7 @@
 import { Component } from '../../core/component.js';
 import { h } from '../../core/dom.js';
 import { icon } from '../../core/icons.js';
+import { overlayHost } from '../../core/overlay-host.js';
 
 /** @typedef {'info'|'success'|'warning'|'error'} MessageKind */
 
@@ -9,6 +10,7 @@ import { icon } from '../../core/icons.js';
  * @property {MessageKind|'danger'} [kind='info'] Message intent (`danger` aliases `error`).
  * @property {number} [timeout=4000] Auto-dismiss delay in milliseconds; zero persists.
  * @property {boolean} [closable=true] Whether to render a close button.
+ * @property {Element|string|null} [scope=null] Element whose nearest Zx theme scope owns a floating toast.
  */
 
 /**
@@ -133,8 +135,8 @@ export class Message extends Component {
     maxVisible: 5
   };
 
-  /** @type {Message|null} */
-  static #floating = null;
+  /** @type {WeakMap<Element, Message>} */
+  static #floating = new WeakMap();
 
   /** @returns {HTMLElement} */
   render() {
@@ -217,16 +219,17 @@ export class Message extends Component {
    * @returns {MessageHandle}
    */
   static show(msg, options = {}) {
-    return this.#floatingRegion().show(msg, options);
+    return this.#floatingRegion(options.scope).show(msg, options);
   }
 
   /**
    * Shows a floating progress status.
    * @param {string} text Initial status text.
+   * @param {{scope?: Element|string|null}} [options={}] Floating-region scope.
    * @returns {ProgressHandle}
    */
-  static progress(text) {
-    return this.#floatingRegion()._progress(text);
+  static progress(text, options = {}) {
+    return this.#floatingRegion(options.scope)._progress(text);
   }
 
   /** @returns {void} */
@@ -414,19 +417,22 @@ export class Message extends Component {
     this._queue.remove(entry);
   }
 
-  /** @returns {Message} */
-  static #floatingRegion() {
-    if (this.#floating) return this.#floating;
+  /** @param {Element|string|null|undefined} scope @returns {Message} */
+  static #floatingRegion(scope) {
+    const host = overlayHost(scope ?? null);
+    const existing = this.#floating.get(host);
+    if (existing) return existing;
     const region = h('div', {
       class: 'zx-message-region',
       popover: 'manual',
       role: 'status',
       ariaLive: 'polite'
     });
-    document.body.append(region);
-    this.#floating = new Message(region);
+    host.append(region);
+    const floating = new Message(region);
+    this.#floating.set(host, floating);
     if (typeof region.showPopover === 'function') region.showPopover();
-    return this.#floating;
+    return floating;
   }
 }
 

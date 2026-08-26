@@ -60,7 +60,7 @@
   min-inline-size: 220px;
   gap: 2px;
   margin: calc(-1 * var(--zx-space-1)) calc(-1 * var(--zx-space-1)) var(--zx-space-1);
-  border-block-end: 1px solid var(--zx-color-border);
+  border-block-end: 1px solid var(--zx-color-overlay-divider);
   padding: var(--zx-space-3);
 }
 

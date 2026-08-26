@@ -22,6 +22,7 @@ const FOCUSABLE_SELECTOR = [
  * @property {DialogButton[]} [buttons=[]] Footer buttons.
  * @property {boolean} [closable=true] Whether Escape and the header button may close the dialog.
  * @property {Node|string|number|{toElement: () => Node|null}|null} [content=null] Body content.
+ * @property {Element|string|null} [scope=null] Element whose nearest Zx theme scope owns the overlay; defaults to the opener.
  * @property {(event: CustomEvent<Record<string, never>>) => void} [onopen] Open event listener.
  * @property {(event: CustomEvent<{result: unknown}>) => void} [onclose] Close event listener.
  * @property {(event: CustomEvent<Record<string, never>>) => void} [oncancel] Cancel event listener.
@@ -89,7 +90,7 @@ export class Dialog extends Modal {
   #opener = null;
 
   /**
-   * Creates a structured dialog appended to `document.body`.
+   * Creates a structured dialog in the configured theme scope, or at document level when unscoped.
    * @param {Element|string|null} [_target=null] Ignored; Dialog always owns its root.
    * @param {DialogOptions} [options={}] Dialog options.
    */

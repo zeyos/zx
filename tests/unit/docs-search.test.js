@@ -60,6 +60,8 @@ test('documentation and theme headers expose their centered search mount', () =>
   assert.match(docs, /class="site-docs-search docs-global-search"/);
   assert.match(theme, /class="site-docs-search theme-global-search"/);
   const css = readFileSync(fileURLToPath(new URL('../../website/site.css', import.meta.url)), 'utf8');
-  assert.match(css, /\.site-docs-search\s*\{[\s\S]*?inline-size: min\(26rem, 30vw\)/,
-    'the centered documentation search can still collide with primary navigation');
+  assert.match(css, /\.site-docs-search\s*\{[\s\S]*?inline-size: min\(19rem, 24vw\)/,
+    'the centered documentation search must leave room for primary navigation');
+  assert.match(css, /@media \(max-width: 1260px\)[\s\S]*?\.site-docs-search\s*\{[\s\S]*?flex: 1 0 100%/,
+    'the documentation search must move to its own row before header chrome can collide');
 });

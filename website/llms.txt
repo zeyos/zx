@@ -83,9 +83,9 @@ CSS. The stock themes use a restrained neutral ramp with the ZeyOS green as the 
 Six stable accent IDs ship as `data-zx-preset` (zx, zeyos, ocean, violet, rose, slate). The theme
 studio applies complete recipes spanning accent, neutral tint, density, font, type size, radius,
 control height, and CSS-first glass material, with the result exportable as CSS. Compact menus,
-pickers, tooltips, column menus, and toasts use the floating overlay material; Launcher, Modal,
-Dialog, and overlay Sheets use the more opaque panel material. Docked Sheets and dense data
-surfaces remain opaque.
+pickers, tooltips, column menus, and toasts use responsive compact glass; Launcher, Modal,
+Dialog, and floating Sheets use a calmer reading panel. Both preserve scoped theme inheritance and
+refract Aurora/page content; docked Sheets and dense data surfaces remain opaque.
 
 ## Talking to ZeyOS
 Use the dedicated ZeyOS client library **`@zeyos/client`** (`npm install @zeyos/client`) for ZeyOS

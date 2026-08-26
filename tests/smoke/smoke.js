@@ -578,12 +578,31 @@ const cases = [
       'floating Message stretched beyond its content-sized region');
     handle.close();
   }),
-  componentCase('Modal', () => new zx.Modal(null, { content: 'Modal body' }), (component) => {
+  componentCase('Modal', () => new zx.Modal(null, { content: 'Modal body' }), async (component) => {
     const events = observe(component, 'open');
+    const results = [];
+    component.on('close', (event) => results.push(event.detail.result));
     component.open();
     assert(component.isOpen(), 'open failed');
     events.expect();
-    component.close('done');
+    const staleNativeClose = new Promise((resolve) => component.el.addEventListener('close', resolve, { once: true }));
+    component.close('stale-result');
+    component.open();
+    await Promise.race([
+      staleNativeClose,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('stale native close timed out')), 500))
+    ]);
+    assert(component.isOpen() && component.el.dataset.state === 'open',
+      'a queued close invalidated a reopened Modal');
+    assert(results.length === 0, 'a stale Modal close emitted a lifecycle event');
+    const finalClose = new Promise((resolve) => component.once('close', resolve));
+    component.el.close();
+    await Promise.race([
+      finalClose,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('native Modal dismissal timed out')), 500))
+    ]);
+    assert(results.length === 1 && results[0] === undefined,
+      `a native dismissal inherited a stale result (${JSON.stringify(results)})`);
   }),
   componentCase('Dialog', () => new zx.Dialog(null, { title: 'Dialog', content: 'Body' }), (component) => {
     component.addView('one', { content: 'One' });
@@ -627,7 +646,8 @@ const cases = [
   }), (component) => {
     component.open();
     assert(component.isOpen(), 'non-modal open failed');
-    assert(!component.el.matches(':modal'), 'non-modal sheet entered the top layer');
+    assert(!component.el.matches(':modal'), 'non-modal sheet became modal');
+    assert(component.el.matches(':popover-open'), 'non-modal sheet did not enter the popover top layer');
     assert(component.el.dataset.modality === 'none', 'modality attribute missing');
     assert(!component.isModal(), 'isModal() disagreed with the option');
     component.close();
@@ -1976,10 +1996,12 @@ function adoptionCase() {
       fixture.append(stage);
       const dock = new zx.Dock(null, { orientation: 'horizontal', content: 'Table' });
       stage.append(dock.toElement());
-      const sheet = new zx.Sheet(null, { title: 'Detail', content: 'Body', side: 'end', size: 200 });
+      const sheet = new zx.Sheet(null, {
+        title: 'Detail', content: 'Body', side: 'end', size: 200, scope: fixture, modal: false
+      });
       return { dock, sheet, stage };
     },
-    exercise({ dock, sheet }) {
+    async exercise({ dock, sheet, stage }) {
       const changes = observe(sheet, 'dockchange');
       dock.adopt(sheet, { side: 'end', size: 200 });
       assert(sheet.isDocked(), 'adopt did not dock the sheet');
@@ -1995,15 +2017,49 @@ function adoptionCase() {
       sheet.on('close', () => { closes += 1; });
       dock.release(sheet);
       assert(!sheet.isDocked(), 'release did not float the sheet');
-      assert(sheet.el.parentElement === document.body, 'released sheet did not return to the body');
+      assert(sheet.el.parentElement === stage.closest('.zx-scope'),
+        `released sheet did not return to its configured theme scope (${sheet.el.parentElement?.id
+          || sheet.el.parentElement?.className || sheet.el.parentElement?.tagName})`);
       assert(sheet.isOpen(), 'release closed the sheet');
       assert(closes === 0, 'the re-hosting handoff emitted a close event');
 
       dock.adopt(sheet, { side: 'end', size: 200 });
+      dock.release(sheet);
+      dock.adopt(sheet, { side: 'end', size: 200 });
+      dock.release(sheet);
+      await Promise.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      assert(!sheet.isDocked(), 'repeated handoffs did not leave the sheet floating');
+      assert(sheet.isOpen() && sheet.el.dataset.state === 'open',
+        'a queued handoff close invalidated the live presentation');
+      assert(closes === 0, `repeated handoffs emitted ${closes} close event(s)`);
+
+      dock.adopt(sheet, { side: 'end', size: 200 });
       dock.destroy();
+      await Promise.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 0));
       assert(!sheet.isDocked(), 'destroying the dock did not release the sheet');
-      assert(sheet.isOpen(), 'destroying the dock closed a sheet it did not own');
+      assert(sheet.isOpen() && sheet.el.dataset.state === 'open',
+        'destroying the dock closed a sheet it did not own');
+      assert(closes === 0, 'destroying the dock emitted a sheet close event');
+
       sheet.close();
+      sheet.open();
+      await Promise.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      assert(sheet.isOpen() && sheet.el.dataset.state === 'open',
+        'a stale close event invalidated a reopened presentation');
+      assert(closes === 0, 'close then reopen emitted a stale close event');
+
+      sheet.close();
+      await Promise.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      assert(!sheet.isOpen() && sheet.el.dataset.state === 'closed',
+        `final close did not settle (${JSON.stringify({
+          open: sheet.isOpen(), state: sheet.el.dataset.state,
+          popover: sheet.el.matches(':popover-open'), dialogOpen: sheet.el.open, closes
+        })})`);
+      assert(closes === 1, `final close emitted ${closes} close event(s)`);
     },
     destroy({ dock, sheet, stage }) {
       sheet.destroy();

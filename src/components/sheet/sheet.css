@@ -12,7 +12,7 @@
   border-radius: 0;
   /* The header and footer stay put; `.zx-dialog__body` is what scrolls. */
   overflow: hidden;
-  box-shadow: var(--zx-glass-raised-shadow);
+  box-shadow: var(--zx-glass-panel-shadow);
 }
 
 /* Horizontal sheets: full height, sized across the inline axis. */
@@ -26,14 +26,14 @@
 .zx-sheet[data-side="start"] {
   inset-inline-start: 0;
   inset-inline-end: auto;
-  border-inline-end: 1px solid var(--zx-color-border);
+  border-inline-end: 1px solid var(--zx-color-overlay-border);
   --zx-sheet-enter: -100% 0;
 }
 
 .zx-sheet[data-side="end"] {
   inset-inline-start: auto;
   inset-inline-end: 0;
-  border-inline-start: 1px solid var(--zx-color-border);
+  border-inline-start: 1px solid var(--zx-color-overlay-border);
   --zx-sheet-enter: 100% 0;
 }
 
@@ -56,7 +56,7 @@
 .zx-sheet[data-side="top"] {
   inset-block-start: 0;
   inset-block-end: auto;
-  border-block-end: 1px solid var(--zx-color-border);
+  border-block-end: 1px solid var(--zx-color-overlay-border);
   border-end-start-radius: var(--zx-sheet-radius, var(--zx-radius-xl));
   border-end-end-radius: var(--zx-sheet-radius, var(--zx-radius-xl));
   --zx-sheet-enter: 0 -100%;
@@ -65,7 +65,7 @@
 .zx-sheet[data-side="bottom"] {
   inset-block-start: auto;
   inset-block-end: 0;
-  border-block-start: 1px solid var(--zx-color-border);
+  border-block-start: 1px solid var(--zx-color-overlay-border);
   border-start-start-radius: var(--zx-sheet-radius, var(--zx-radius-xl));
   border-start-end-radius: var(--zx-sheet-radius, var(--zx-radius-xl));
   --zx-sheet-enter: 0 100%;
@@ -80,7 +80,24 @@
 }
 
 .zx-sheet[data-backdrop="blur"]::backdrop {
+  -webkit-backdrop-filter: blur(var(--zx-overlay-blur));
   backdrop-filter: blur(var(--zx-overlay-blur));
+}
+
+/* A non-modal Sheet uses the popover top layer to escape transformed/clipped application shells,
+   but it must not gain a visual or interactive modal backdrop in the process. */
+.zx-sheet[data-modality="none"]::backdrop,
+.zx-sheet[data-modality="trap-focus"]::backdrop {
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
+  .zx-sheet[data-backdrop="blur"]::backdrop {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
 }
 
 /*
@@ -103,13 +120,14 @@
     animation: none;
   }
 
-  .zx-sheet:not([open]) {
+  .zx-sheet:not([open]):not(:popover-open) {
     translate: var(--zx-sheet-enter, 0 0);
     opacity: 0;
   }
 
   @starting-style {
-    .zx-sheet[open] {
+    .zx-sheet[open],
+    .zx-sheet:popover-open {
       translate: var(--zx-sheet-enter, 0 0);
       opacity: 0;
     }

@@ -24,7 +24,7 @@
 
 .zx-menu-button__item:hover,
 .zx-menu-button__item:focus-visible {
-  background: var(--zx-color-bg-hover);
+  background: var(--zx-color-overlay-hover);
 }
 
 .zx-menu-button__item[data-danger="true"] {
@@ -45,5 +45,5 @@
 .zx-menu-button__separator {
   block-size: 1px;
   margin: var(--zx-space-1) var(--zx-space-2);
-  background: var(--zx-color-border);
+  background: var(--zx-color-overlay-divider);
 }

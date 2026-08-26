@@ -8,6 +8,43 @@ and friends remain the complete record.
 
 ## Unreleased
 
+## 4.3.0 — 2026-08-26
+
+### Added
+
+- **Scoped top-layer ownership.** Dropdown, Modal, Dialog, Sheet, Launcher, and floating Message
+  regions accept an optional `scope` context and otherwise resolve the opener's nearest Zx theme
+  scope. Native popovers and dialogs still use the browser top layer, while material, density,
+  product-token, and nested-theme inheritance remain intact.
+
+### Changed
+
+- **Liquid glass is now a real overlay material.** Compact overlays and reading panels use
+  separate translucent bases, restrained specular and Aurora-response layers, blur/saturation,
+  shadows, borders, dividers, and interaction-state tokens. Menus, Select, TagPicker, date
+  popovers, tooltips, table column controls, and Toast use compact glass; Launcher, Modal, Dialog,
+  and floating Sheets use the calmer reading material. Docked Sheets remain opaque.
+- **Theme Studio makes optical differences visible.** Its overlay specimen now sits on a
+  multicolour Aurora field, while Flat, Glass, and Deep glass expose materially different alpha,
+  refraction, and elevation in both light and dark themes.
+- **Accessible material fallbacks are deterministic.** Reduced-transparency, increased-contrast,
+  forced-colour, and unsupported-filter environments remove reflection and backdrop effects and
+  restore solid surfaces; blurred Sheet backdrops follow the same rule.
+
+### Fixed
+
+- Toast intent colours no longer turn the surface effectively opaque, modal backdrops no longer
+  erase the content meant to refract through the panel, scoped modals lock page scrolling again,
+  and DatePicker controls no longer tile the owning surface's reflection gradient.
+- Floating non-modal Sheets now remain viewport-anchored inside transformed or clipped theme
+  scopes, and generation-aware lifecycle handling prevents queued close events from invalidating
+  a reopened Sheet during rapid dock/release handoffs.
+- Documentation search now consumes the same compact overlay material, interaction states, and
+  accessibility fallbacks as library popovers; fallback tokens cover every supported theme scope.
+- Calendar drag operations preserve the grabbed time/day offset, resize previews track their
+  proposed duration, pointer capture is resilient, and agenda/month layouts keep their event and
+  day controls aligned across desktop and mobile views.
+
 ## 4.2.0 — 2026-08-26
 
 ### Added

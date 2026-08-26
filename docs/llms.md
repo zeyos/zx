@@ -80,14 +80,19 @@ ambient canvas layer; material controls how surfaces respond to that light. The 
 applies to AppIcons, ordinary controls, persistent chrome, raised cards, and every transient overlay: Dropdown, ContextMenu,
 MenuButton, AccountMenu, AppRail flyouts, Select, TagPicker, date pickers, tooltips, column menus,
 and toasts use `--zx-color-overlay-surface`; Launcher, Modal, Dialog, and overlay Sheets use the
-more opaque `--zx-color-overlay-panel`. A docked Sheet is layout rather than
-an overlay and becomes opaque, as do dense data surfaces. Glass and Deep glass progressively raise
-translucency, blur, highlights, and elevation; reduced-transparency preferences restore solid
-surfaces.
+calmer `--zx-color-overlay-panel`. Both tiers combine a translucent base, responsive specular and
+Aurora tint layers, backdrop filtering, and dedicated state/divider roles; the modal backdrop is a
+separate material token so it does not erase the light the panel should refract. A docked Sheet is
+layout rather than an overlay and becomes opaque, as do dense data surfaces. Glass and Deep glass
+progressively raise translucency, blur, highlights, and elevation; reduced-transparency,
+increased-contrast, forced-colour, and unsupported-filter environments restore solid surfaces.
+Top-layer components remain DOM children of their nearest Zx theme scope, so a theme or material
+set on an application region continues to inherit through its menus, dialogs, tooltips, and toasts.
 
 Define a product theme by overriding **semantic** tokens under a `[data-zx-theme="name"]` selector:
 `--zx-color-bg-page/surface/raised/control/hover/selected`, `--zx-color-glass-chrome/surface`,
-`--zx-color-overlay-surface/panel/border`, `--zx-color-border(-strong/-control)`,
+`--zx-color-overlay-surface/panel/backdrop/border/hover/selected/divider/scrim`,
+`--zx-overlay-surface-image/toast-image/panel-image`, `--zx-color-border(-strong/-control)`,
 `--zx-color-text(-muted/-placeholder)`, `--zx-color-accent(-hover)/on-accent`,
 `--zx-color-danger/warning/success/info(+ -bg)`, `--zx-focus-ring`, `--zx-control-height/-radius`,
 `--zx-space-*`, `--zx-radius-*`, `--zx-text-*`. Never use tier-1 palette tokens (`--zx-gray-*`,
@@ -456,11 +461,13 @@ A native-dialog launcher for applications, recent records, commands, and grouped
 Zx owns ranking, focus, request cancellation, and presentation; ZeyOS owns the catalogue,
 permissions, recent-history/cache policy, and the route or command ultimately invoked.
 
-- **Constructor** — `new Launcher(null, options)` owns a body-level dialog;
+- **Constructor** — `new Launcher(null, options)` owns a top-layer dialog in the opener's nearest
+  Zx theme scope;
   `new Launcher(existingDialog, options)` enhances and later restores an existing `<dialog>`.
 - **Options** — `items`, abortable `sources: [{id, label?, minQuery?, when?, order?, load(query, {signal})}]`,
   `query`, `debounce: 250`, `minQuery: 0`, `maxResults: 100`, `placeholder`, `label`, `emptyText`,
-  `loadingText`, `shortcut: 'mod+k'|false`, and visible `hints` labels (or `false`).
+  `loadingText`, `shortcut: 'mod+k'|false`, visible `hints` labels (or `false`), and `scope` to
+  explicitly select an element whose nearest Zx theme scope owns the launcher.
 - **Items** — `{id, label, description?, keywords?, group?, icon?, badge?, value?, href?, target?,
   invoke?, pinned?, disabled?, kind?, current?, when?, groupOrder?, itemOrder?}`. `icon` accepts a
   bundled icon name, Node, or factory. Links stay native so modified and middle clicks work;
@@ -787,8 +794,10 @@ The shared floating region is fixed to the upper-right logical corner by default
 messages rather than the page, and uses the translucent glass surface tokens with a solid fallback.
 
 - **Statics** — `Message.info/success/warning/error(msg, opts)`,
-  `Message.show(msg, { kind, timeout=4000, closable })` → `{ close() }`,
-  `Message.progress(text)` → `{ update(pct, text?), done(), fail(text?) }`.
+  `Message.show(msg, { kind, timeout=4000, closable, scope? })` → `{ close() }`,
+  `Message.progress(text, {scope?})` → `{ update(pct, text?), done(), fail(text?) }`. `scope` is
+  an element or selector whose nearest Zx theme scope owns that floating region; without it the
+  focused opener supplies the scope.
 - **Per-message options** — `kind: 'info'`, `timeout`, `closable: true`, `maxVisible: 5` (extras
   queue, and hovering pauses dismissal).
 <!-- /doc -->
@@ -797,10 +806,10 @@ messages rather than the page, and uses the translucent glass surface tokens wit
 ### Modal
 
 Thin overlay on the native `<dialog>` element. The surface uses the shared, reading-sized overlay
-panel material; the backdrop uses `--zx-color-bg-backdrop`, and focus returns to the opener on close.
+panel material; the backdrop uses `--zx-color-overlay-backdrop`, and focus returns to the opener on close.
 
 - **Options** — `content`, `width: 'auto'`, `closable: true`, `lightDismiss: false`,
-  `destroyOnClose: false`.
+  `destroyOnClose: false`, `scope: null` (the opener's nearest Zx theme scope by default).
 - **Methods** — `open()`, `close(result?)`, `setContent()`, `isOpen()`.
 - **Events** — `open`, `close {result}`, `cancel` (Esc; preventable with `event.preventDefault()`).
 <!-- /doc -->
@@ -832,7 +841,7 @@ When a Dock adopts it, the Sheet becomes an opaque layout surface instead.
   (`true | 'trap-focus' | false`), `backdrop: 'dim'` (`'dim' | 'blur' | 'none'`), `size: null`
   (CSS length or px number, applied to whichever axis `side` implies), `closeButton: true`,
   plus everything Dialog takes — `title`, `content`, `buttons`, `closable`, `lightDismiss`
-  (defaults to `true` here, unlike Modal), `destroyOnClose`.
+  (defaults to `true` here, unlike Modal), `destroyOnClose`, `scope`.
 - **Methods** — `open()`, `close(result?)`, `setSide(side)`, `getSide()`, `setSize(size)`,
   `isModal()`, `isDocked()`, `isOpen()`, `getSize()`, `snapTo(target)`, plus Dialog's `setTitle()`, `setContent()`,
   `setButtons()`, `addView()`, `showView()`.
@@ -846,10 +855,12 @@ When a Dock adopts it, the Sheet becomes an opaque layout surface instead.
   across a handoff: the element moves and reopens in place, so DOM state and listeners survive,
   and no `open`/`close` is emitted for what is only a change of address.
 - **Modality** — `true` delegates focus containment, page inertness, Escape, and the backdrop to
-  the browser through `showModal()`. `'trap-focus'` and `false` open with `show()`, so the page
-  keeps scrolling and stays interactive; Escape and outside-click are re-implemented, and
-  `'trap-focus'` adds `focusTrap()` on top. Only a modal sheet renders a `::backdrop`, so
-  `backdrop` is meaningful only when `modal` is `true`.
+  the browser through `showModal()`. Floating `'trap-focus'` and `false` sheets use a manual
+  Popover top layer, so they stay viewport-anchored even inside a transformed or clipped theme
+  scope while the page keeps scrolling and stays interactive. Escape and outside-click are
+  re-implemented, and `'trap-focus'` adds `focusTrap()` on top. Their top-layer backdrop is
+  explicitly transparent and non-filtering; `backdrop` is meaningful only when `modal` is `true`.
+  A docked Sheet remains a native non-modal dialog in its Dock's flow.
 - **Resizing and detents** — `resizable` makes the inner edge draggable between `min` and `max`.
   `snap` gives it detents: a number at or below 1 is a fraction of the viewport along the sheet's
   axis, anything larger is pixels, and a string is any CSS length (`'320px'`, `'90%'`). With
@@ -920,12 +931,14 @@ alone, `new SheetStack({…})`.
 ### Dropdown
 
 Generic anchored popover in the top layer, constructed as `new Dropdown(anchor, options)`. It
-light-dismisses on an outside click or Esc, and mirrors `aria-expanded` onto the anchor.
+light-dismisses on an outside click or Esc, mirrors `aria-expanded` onto the anchor, and stays a
+DOM child of the anchor's nearest Zx theme scope while the browser lifts it into the top layer.
 
 - **Options** — `content`,
   `placement: 'bottom-start'|'bottom-end'|'top-start'|'top-end'|'bottom'|'top'` plus the matching
   `left*` and `right*` placements, `offset: 4`,
-  `matchWidth: false`, `openOn: 'click'|'manual'`, `closeOnSelect: false`.
+  `matchWidth: false`, `openOn: 'click'|'manual'`, `closeOnSelect: false`, `scope: null` (the
+  anchor's nearest Zx theme scope by default).
 - **Methods** — `open()`, `close()`, `toggle()`, `isOpen()`, `setContent()`, `getPanel()`.
 - **Events** — `open`, `close`.
 <!-- /doc -->

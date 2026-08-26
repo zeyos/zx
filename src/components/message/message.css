@@ -55,24 +55,15 @@
   background: var(--zx-color-danger-bg);
 }
 
-@supports (backdrop-filter: blur(1px)) {
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .zx-message__toast {
-    background: color-mix(in srgb, var(--zx-color-info-bg) 34%, var(--zx-color-overlay-surface));
+    border-color: color-mix(in srgb, var(--zx-message-kind) 28%, var(--zx-color-overlay-border));
+    background-color: var(--zx-color-overlay-surface);
+    background-image: var(--zx-overlay-toast-image);
+    background-clip: padding-box;
     -webkit-backdrop-filter: var(--zx-glass-filter-overlay);
     backdrop-filter: var(--zx-glass-filter-overlay);
-    box-shadow: inset 0 0 0 1px var(--zx-message-kind), var(--zx-glass-raised-shadow);
-  }
-
-  .zx-message__toast[data-kind="success"] {
-    background: color-mix(in srgb, var(--zx-color-success-bg) 34%, var(--zx-color-overlay-surface));
-  }
-
-  .zx-message__toast[data-kind="warning"] {
-    background: color-mix(in srgb, var(--zx-color-warning-bg) 34%, var(--zx-color-overlay-surface));
-  }
-
-  .zx-message__toast[data-kind="error"] {
-    background: color-mix(in srgb, var(--zx-color-danger-bg) 34%, var(--zx-color-overlay-surface));
+    box-shadow: var(--zx-glass-overlay-shadow);
   }
 }
 
@@ -111,7 +102,7 @@
   block-size: 4px;
   margin-block-start: var(--zx-space-2);
   border-radius: var(--zx-radius-full);
-  background: var(--zx-color-border);
+  background: var(--zx-color-overlay-divider);
 }
 
 .zx-message__progress-fill {

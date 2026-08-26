@@ -340,6 +340,16 @@
   background: var(--zx-color-bg-page);
 }
 
+/* A deliberately chromatic backing makes the material selector honest: every top-layer example
+   opens above this field, so blur, saturation, surface alpha, and specular light are all visible. */
+.studio-overlay-canvas {
+  overflow: hidden;
+  padding: var(--zx-space-4);
+  border: 1px solid var(--zx-color-border);
+  border-radius: var(--zx-radius-lg);
+  background: var(--zx-color-bg-page);
+}
+
 .studio-row {
   display: flex;
   flex-wrap: wrap;

@@ -29,7 +29,7 @@
 
 .zx-context-menu__item:hover,
 .zx-context-menu__item:focus-visible {
-  background: var(--zx-color-bg-hover);
+  background: var(--zx-color-overlay-hover);
 }
 
 .zx-context-menu__item[data-danger="true"] {
@@ -50,5 +50,5 @@
 .zx-context-menu__separator {
   block-size: 1px;
   margin: var(--zx-space-1) var(--zx-space-2);
-  background: var(--zx-color-border);
+  background: var(--zx-color-overlay-divider);
 }

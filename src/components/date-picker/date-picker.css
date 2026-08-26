@@ -31,14 +31,14 @@
   place-items: center;
   min-inline-size: var(--zx-control-height);
   padding: 0;
-  border-color: var(--zx-color-bg-surface);
-  background: inherit;
+  border-color: transparent;
+  background: transparent;
 }
 
 .zx-date-picker__heading {
   overflow: hidden;
-  border-color: var(--zx-color-bg-surface);
-  background: inherit;
+  border-color: transparent;
+  background: transparent;
   font-weight: 650;
   text-overflow: ellipsis;
   text-wrap: nowrap;
@@ -76,9 +76,9 @@
   min-inline-size: 0;
   min-block-size: var(--zx-control-height);
   padding: 0;
-  border-color: var(--zx-color-bg-surface);
+  border-color: transparent;
   border-radius: var(--zx-radius-md);
-  background: inherit;
+  background: transparent;
   font-variant-numeric: tabular-nums;
 }
 
@@ -125,10 +125,12 @@
   inset: var(--zx-space-3);
   border: 1px solid var(--zx-color-overlay-border);
   border-radius: var(--zx-radius-md);
-  background: var(--zx-color-overlay-surface);
+  background-color: var(--zx-color-overlay-surface);
+  background-image: var(--zx-overlay-surface-image);
+  background-clip: padding-box;
   -webkit-backdrop-filter: var(--zx-glass-filter-overlay);
   backdrop-filter: var(--zx-glass-filter-overlay);
-  box-shadow: var(--zx-glass-raised-shadow);
+  box-shadow: var(--zx-glass-overlay-shadow);
   padding: var(--zx-space-3);
 }
 
@@ -157,11 +159,16 @@
 .zx-month-picker__month {
   min-inline-size: 0;
   padding-inline: var(--zx-space-1);
-  border-color: var(--zx-color-bg-surface);
-  background: inherit;
+  border-color: transparent;
+  background: transparent;
 }
 
-.zx-date-picker__quick-month[aria-selected="true"],
+.zx-date-picker__quick-month[aria-selected="true"] {
+  background: var(--zx-color-overlay-selected);
+  color: var(--zx-color-accent);
+  font-weight: 700;
+}
+
 .zx-month-picker__month[aria-selected="true"] {
   background: var(--zx-color-bg-selected);
   color: var(--zx-color-accent);

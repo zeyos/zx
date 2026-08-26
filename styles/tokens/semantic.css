@@ -70,10 +70,33 @@
   --zx-color-glass-chrome: color-mix(in srgb, var(--zx-color-bg-surface) 90%, transparent);
   --zx-color-glass-control: color-mix(in srgb, var(--zx-color-bg-control) 88%, transparent);
   --zx-color-glass-control-hover: color-mix(in srgb, var(--zx-color-bg-hover) 76%, var(--zx-color-glass-surface));
-  /* Compact overlays can show more of the page; reading-sized panels stay quieter and more opaque. */
-  --zx-color-overlay-surface: color-mix(in srgb, var(--zx-color-bg-raised) 88%, transparent);
-  --zx-color-overlay-panel: color-mix(in srgb, var(--zx-color-bg-raised) 94%, transparent);
-  --zx-color-overlay-border: color-mix(in srgb, var(--zx-color-border-strong) 72%, var(--zx-color-glass-highlight));
+  /* Overlay glass is composed from four roles: a neutral base, translucent colour, a restrained
+     reflection, and the backdrop behind modal panels. Keeping them separate makes the material
+     visibly react to Aurora/content without baking decoration into each component. */
+  --zx-color-overlay-base: var(--zx-color-bg-raised);
+  --zx-color-overlay-surface: color-mix(in srgb, var(--zx-color-overlay-base) 72%, transparent);
+  --zx-color-overlay-panel: color-mix(in srgb, var(--zx-color-overlay-base) 80%, transparent);
+  --zx-color-overlay-backdrop: color-mix(in srgb, var(--zx-gray-950) 28%, transparent);
+  --zx-color-overlay-border: color-mix(in srgb, var(--zx-color-text) 14%, transparent);
+  --zx-color-overlay-hover: color-mix(in srgb, var(--zx-color-text) 8%, transparent);
+  --zx-color-overlay-selected: color-mix(in srgb, var(--zx-color-accent) 18%, transparent);
+  --zx-color-overlay-divider: color-mix(in srgb, var(--zx-color-text) 11%, transparent);
+  --zx-color-overlay-scrim: color-mix(in srgb, var(--zx-color-overlay-base) 28%, transparent);
+  --zx-overlay-specular-strength: 48%;
+  --zx-overlay-surface-image: linear-gradient(145deg,
+    color-mix(in srgb, var(--zx-color-glass-highlight-strong) var(--zx-overlay-specular-strength), transparent) 0%,
+    color-mix(in srgb, var(--zx-color-glass-highlight) 16%, transparent) 28%,
+    transparent 54%), radial-gradient(120% 100% at 8% -12%,
+    color-mix(in srgb, var(--zx-color-accent) 8%, transparent), transparent 58%);
+  --zx-overlay-toast-image: radial-gradient(120% 160% at 0% 0%,
+    color-mix(in srgb, var(--zx-message-kind, var(--zx-color-info)) 18%, transparent), transparent 62%),
+    var(--zx-overlay-surface-image);
+  --zx-overlay-panel-image: radial-gradient(140% 100% at 0% 0%,
+    color-mix(in srgb, var(--zx-color-glass-highlight-strong) var(--zx-overlay-specular-strength), transparent) 0%,
+    transparent 58%), radial-gradient(100% 70% at 100% 0%,
+    color-mix(in srgb, var(--zx-color-accent) 5%, transparent), transparent 64%),
+    linear-gradient(180deg, color-mix(in srgb, var(--zx-color-glass-highlight) 16%, transparent) 0%,
+    transparent 28%);
   --zx-glass-blur: 8px;
   --zx-glass-saturation: 130%;
   --zx-glass-color-strength: 82%;
@@ -82,13 +105,15 @@
   --zx-glass-filter-control: blur(6px) saturate(116%);
   --zx-glass-filter-raised: blur(8px) saturate(120%);
   --zx-glass-filter-chrome: blur(10px) saturate(122%);
-  --zx-glass-filter-overlay: blur(12px) saturate(128%);
-  --zx-glass-filter-panel: blur(9px) saturate(120%);
+  --zx-glass-filter-overlay: blur(16px) saturate(140%);
+  --zx-glass-filter-panel: blur(14px) saturate(132%);
   --zx-app-icon-shadow: inset 0 1px 0 color-mix(in srgb, var(--zx-gray-0) 14%, transparent), inset 0 -1px 0 color-mix(in srgb, var(--zx-gray-950) 28%, transparent), 0 2px 6px color-mix(in srgb, var(--zx-color-app-icon-shade) 24%, transparent);
   --zx-app-icon-shadow-hover: inset 0 1px 0 color-mix(in srgb, var(--zx-gray-0) 20%, transparent), inset 0 -1px 0 color-mix(in srgb, var(--zx-gray-950) 32%, transparent), 0 4px 10px color-mix(in srgb, var(--zx-color-app-icon-shade) 30%, transparent);
   --zx-glass-control-shadow: inset 0 1px 0 color-mix(in srgb, var(--zx-gray-0) 18%, transparent), var(--zx-shadow-1);
   --zx-glass-chrome-shadow: inset 0 1px 0 color-mix(in srgb, var(--zx-gray-0) 16%, transparent), var(--zx-shadow-1);
   --zx-glass-raised-shadow: inset 0 1px 0 color-mix(in srgb, var(--zx-gray-0) 18%, transparent), var(--zx-overlay-shadow);
+  --zx-glass-overlay-shadow: inset 0 1px 0 color-mix(in srgb, var(--zx-color-glass-highlight-strong) 42%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--zx-color-glass-highlight) 20%, transparent), var(--zx-overlay-shadow);
+  --zx-glass-panel-shadow: inset 0 1px 0 color-mix(in srgb, var(--zx-color-glass-highlight-strong) 34%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--zx-color-glass-highlight) 14%, transparent), var(--zx-overlay-shadow);
   --zx-header-bg: var(--zx-gray-900);
   --zx-header-text: var(--zx-gray-50);
 }
@@ -97,13 +122,25 @@
    chrome outside a component stylesheet, receives the same deterministic opaque fallback. */
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
   :root,
-  [data-zx-theme] {
+  .zx-scope,
+  [data-zx-theme],
+  [data-zx-density],
+  [data-zx-preset] {
     --zx-color-glass-chrome: var(--zx-color-bg-surface) !important;
     --zx-color-glass-surface: var(--zx-color-bg-raised) !important;
     --zx-color-glass-control: var(--zx-color-bg-control) !important;
     --zx-color-glass-control-hover: var(--zx-color-bg-hover) !important;
     --zx-color-overlay-surface: var(--zx-color-bg-raised) !important;
     --zx-color-overlay-panel: var(--zx-color-bg-raised) !important;
+    --zx-color-overlay-backdrop: var(--zx-color-bg-backdrop) !important;
+    --zx-color-overlay-hover: var(--zx-color-bg-hover) !important;
+    --zx-color-overlay-selected: var(--zx-color-bg-selected) !important;
+    --zx-color-overlay-divider: var(--zx-color-border) !important;
+    --zx-color-overlay-scrim: var(--zx-color-bg-raised) !important;
+    --zx-overlay-specular-strength: 0% !important;
+    --zx-overlay-surface-image: none !important;
+    --zx-overlay-toast-image: none !important;
+    --zx-overlay-panel-image: none !important;
     --zx-app-icon-core-strength: 68% !important;
     --zx-app-icon-rim-strength: 62% !important;
     --zx-app-icon-bloom-strength: 0% !important;
@@ -116,21 +153,59 @@
     --zx-glass-filter-chrome: none !important;
     --zx-glass-filter-overlay: none !important;
     --zx-glass-filter-panel: none !important;
+    --zx-glass-overlay-shadow: var(--zx-overlay-shadow) !important;
+    --zx-glass-panel-shadow: var(--zx-overlay-shadow) !important;
   }
 }
 
 @media (forced-colors: active) {
   :root,
-  [data-zx-theme] {
+  .zx-scope,
+  [data-zx-theme],
+  [data-zx-density],
+  [data-zx-preset] {
     --zx-color-glass-chrome: Canvas !important;
     --zx-color-glass-surface: Canvas !important;
     --zx-color-glass-control: ButtonFace !important;
     --zx-color-glass-control-hover: Highlight !important;
     --zx-color-overlay-surface: Canvas !important;
     --zx-color-overlay-panel: Canvas !important;
+    --zx-color-overlay-backdrop: transparent !important;
     --zx-color-overlay-border: CanvasText !important;
+    --zx-color-overlay-hover: Highlight !important;
+    --zx-color-overlay-selected: Highlight !important;
+    --zx-color-overlay-divider: CanvasText !important;
+    --zx-color-overlay-scrim: Canvas !important;
+    --zx-overlay-specular-strength: 0% !important;
+    --zx-overlay-surface-image: none !important;
+    --zx-overlay-toast-image: none !important;
+    --zx-overlay-panel-image: none !important;
     --zx-glass-control-shadow: none !important;
     --zx-glass-chrome-shadow: none !important;
     --zx-glass-raised-shadow: none !important;
+    --zx-glass-filter-overlay: none !important;
+    --zx-glass-filter-panel: none !important;
+    --zx-glass-overlay-shadow: none !important;
+    --zx-glass-panel-shadow: none !important;
+  }
+}
+
+/* Browsers without backdrop filtering get an intentionally opaque material instead of a washed
+   translucent colour. This is a capability fallback, independent of user preference fallbacks. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root,
+  .zx-scope,
+  [data-zx-theme],
+  [data-zx-density],
+  [data-zx-preset] {
+    --zx-color-overlay-surface: var(--zx-color-bg-raised) !important;
+    --zx-color-overlay-panel: var(--zx-color-bg-raised) !important;
+    --zx-color-overlay-backdrop: var(--zx-color-bg-backdrop) !important;
+    --zx-overlay-specular-strength: 0% !important;
+    --zx-overlay-surface-image: none !important;
+    --zx-overlay-toast-image: none !important;
+    --zx-overlay-panel-image: none !important;
+    --zx-glass-filter-overlay: none !important;
+    --zx-glass-filter-panel: none !important;
   }
 }

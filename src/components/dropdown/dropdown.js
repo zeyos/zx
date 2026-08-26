@@ -1,5 +1,6 @@
 import { Component } from '../../core/component.js';
 import { h, resolveElement } from '../../core/dom.js';
+import { overlayHost } from '../../core/overlay-host.js';
 import { position } from '../../core/position.js';
 import { uid } from '../../core/util.js';
 
@@ -14,6 +15,7 @@ const HANDLE_ESCAPE_DISMISS = Symbol('zxDropdownEscapeDismiss');
  * @property {boolean} [matchWidth=false] Whether the panel matches the anchor width.
  * @property {'click'|'manual'} [openOn='click'] Trigger behavior.
  * @property {boolean} [closeOnSelect=false] Whether a click within the panel closes it.
+ * @property {Element|string|null} [scope=null] Element whose nearest Zx theme scope owns the panel; defaults to the anchor.
  * @property {(event: CustomEvent<Record<string, never>>) => void} [onopen] Open event listener.
  * @property {(event: CustomEvent<Record<string, never>>) => void} [onclose] Close event listener.
  */
@@ -34,7 +36,8 @@ export class Dropdown extends Component {
     offset: 4,
     matchWidth: false,
     openOn: 'click',
-    closeOnSelect: false
+    closeOnSelect: false,
+    scope: null
   };
 
   /** @type {Element} */
@@ -55,6 +58,7 @@ export class Dropdown extends Component {
     if (!resolved) throw new TypeError('Dropdown anchor could not be resolved');
     super(null, options);
     this.#anchor = resolved;
+    overlayHost(this.options.scope ?? resolved).append(this.el);
     this.#rememberAnchorAttribute('aria-expanded');
     this.#rememberAnchorAttribute('aria-controls');
     this.#anchor.setAttribute('aria-expanded', 'false');
@@ -79,7 +83,6 @@ export class Dropdown extends Component {
       popover: 'manual'
     });
     panel.dataset.state = 'closed';
-    document.body.append(panel);
     return panel;
   }
 
@@ -90,6 +93,8 @@ export class Dropdown extends Component {
    */
   open() {
     if (this.isOpen() || this.#destroyed) return this;
+    const host = overlayHost(this.options.scope ?? this.#anchor);
+    if (this.el.parentElement !== host) host.append(this.el);
     this.#position = position(this.#anchor, this.el, {
       placement: this.options.placement,
       offset: Number(this.options.offset),

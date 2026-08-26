@@ -4,10 +4,12 @@
   overflow: auto;
   border: 1px solid var(--zx-color-overlay-border);
   border-radius: var(--zx-radius-lg);
-  background: var(--zx-color-overlay-panel);
+  background-color: var(--zx-color-overlay-panel);
+  background-image: var(--zx-overlay-panel-image);
+  background-clip: padding-box;
   -webkit-backdrop-filter: var(--zx-glass-filter-panel);
   backdrop-filter: var(--zx-glass-filter-panel);
-  box-shadow: var(--zx-glass-raised-shadow);
+  box-shadow: var(--zx-glass-panel-shadow);
   color: var(--zx-color-text);
   padding: 0;
 }
@@ -23,7 +25,7 @@
 }
 
 .zx-modal::backdrop {
-  background: var(--zx-color-bg-backdrop);
+  background: var(--zx-color-overlay-backdrop);
 }
 
 .zx-modal__content {
@@ -34,7 +36,7 @@
  * `:modal` rather than `[open]`: only a dialog opened with `showModal()` blocks the page, and a
  * non-modal one (Sheet's `modal: false`) must leave the page scrollable behind it.
  */
-body:has(> .zx-modal:modal) {
+body:has(.zx-modal:modal) {
   overflow: hidden;
   overscroll-behavior: none;
 }

@@ -1,6 +1,7 @@
 import { Component } from '../../core/component.js';
 import { h, safeHref } from '../../core/dom.js';
 import { icon } from '../../core/icons.js';
+import { overlayHost } from '../../core/overlay-host.js';
 import { uid } from '../../core/util.js';
 
 /**
@@ -49,6 +50,7 @@ import { uid } from '../../core/util.js';
  * @property {string} [loadingText='Searching…'] Loading-state text.
  * @property {'mod+k'|false} [shortcut='mod+k'] Optional global keyboard shortcut.
  * @property {false|{move?: string, open?: string, close?: string}} [hints] Visible keyboard hints, or false.
+ * @property {Element|string|null} [scope=null] Element whose nearest Zx theme scope owns an internally created launcher; defaults to the opener.
  * @property {(event: CustomEvent<LauncherSelectDetail>) => void} [onselect] Preventable selection listener.
  * @property {(event: CustomEvent<{query: string}>) => void} [onquery] Query-change listener.
  * @property {(event: CustomEvent<Record<string, never>>) => void} [onopen] Open listener.
@@ -85,7 +87,8 @@ export class Launcher extends Component {
     emptyText: 'No results',
     loadingText: 'Searching…',
     shortcut: 'mod+k',
-    hints: { move: 'Move', open: 'Open', close: 'Close' }
+    hints: { move: 'Move', open: 'Open', close: 'Close' },
+    scope: null
   };
 
   /**
@@ -172,7 +175,7 @@ export class Launcher extends Component {
       results,
       footer));
     dialog.dataset.state = 'closed';
-    if (this._createdRoot) document.body.append(dialog);
+    if (this._createdRoot) overlayHost(this.options.scope).append(dialog);
 
     this.listen(input, 'input', () => {
       this._query = /** @type {HTMLInputElement} */ (input).value;
@@ -212,6 +215,10 @@ export class Launcher extends Component {
   /** Opens the launcher and focuses/selects its query. @returns {this} @fires Launcher#open */
   open() {
     if (this.isOpen() || this._destroyed) return this;
+    if (this._createdRoot) {
+      const host = overlayHost(this.options.scope);
+      if (this.el.parentElement !== host) host.append(this.el);
+    }
     this.el.showModal();
     this.el.dataset.state = 'open';
     this.refs.input.setAttribute('aria-expanded', 'true');

@@ -195,7 +195,7 @@ body.site-page > main {
 .site-docs-search {
   position: absolute;
   inset-inline-start: 50%;
-  inline-size: min(26rem, 30vw);
+  inline-size: min(19rem, 24vw);
   transform: translateX(-50%);
 }
 
@@ -1040,7 +1040,7 @@ body.site-page > main {
   }
 }
 
-@media (max-width: 980px) {
+@media (max-width: 1260px) {
   .site-header__inner {
     flex-wrap: wrap;
     padding-block: var(--zx-space-2);

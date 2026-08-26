@@ -238,6 +238,11 @@ the document. Select a built-in theme and density on any ancestor (normally `<ht
 <html data-zx-theme="dark" data-zx-density="compact">
 ```
 
+Top-layer menus, dialogs, tooltips, launchers, and toast regions stay under the nearest Zx theme
+scope in the DOM, so a theme or product-token override on a nested application shell also applies
+to its overlays. Pass the optional `scope` context to Modal, Dialog, Sheet, Launcher, or static
+Message calls when the opener is not inside the intended scope.
+
 Theme values are `light`, `dark`, and `auto`; density values are `cozy` and `compact`. `auto`
 follows the operating-system color preference.
 

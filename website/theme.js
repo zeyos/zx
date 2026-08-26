@@ -121,7 +121,7 @@ function buildRail() {
     section('Material', segmented('Material', MATERIALS, () => state.glass, (value) => {
       state.glass = value;
       apply();
-    }), 'Aurora supplies ambient light; material controls how surfaces respond to it. Flat is opaque. Glass and Deep glass progressively affect AppIcons, controls, persistent chrome, raised cards, and every transient overlay. Menus, pickers, tooltips, column menus, and Toast use the compact floating surface. Launcher, Modal, Dialog, and overlay Sheet use a quieter reading panel. Docked Sheets and dense data surfaces stay opaque.'),
+    }), 'Aurora supplies ambient light; material controls how surfaces respond to it. Flat is opaque. Glass and Deep glass progressively increase translucency, blur, colour response, and specular light across AppIcons, controls, persistent chrome, raised cards, and every transient overlay. Menus, pickers, tooltips, column menus, and Toast use compact glass. Launcher, Modal, Dialog, and floating Sheet use a calmer reading panel. Docked Sheets and dense data surfaces stay opaque.'),
     accentSection(),
     section('Neutral tint', choice(TINTS, () => state.tint, (value) => {
       state.tint = value;

@@ -323,7 +323,16 @@ export function themeVars(state) {
     vars['--zx-color-glass-control-hover'] = 'var(--zx-color-bg-hover)';
     vars['--zx-color-overlay-surface'] = 'var(--zx-color-bg-raised)';
     vars['--zx-color-overlay-panel'] = 'var(--zx-color-bg-raised)';
+    vars['--zx-color-overlay-backdrop'] = 'var(--zx-color-bg-backdrop)';
     vars['--zx-color-overlay-border'] = 'var(--zx-color-border)';
+    vars['--zx-color-overlay-hover'] = 'var(--zx-color-bg-hover)';
+    vars['--zx-color-overlay-selected'] = 'var(--zx-color-bg-selected)';
+    vars['--zx-color-overlay-divider'] = 'var(--zx-color-border)';
+    vars['--zx-color-overlay-scrim'] = 'var(--zx-color-bg-raised)';
+    vars['--zx-overlay-specular-strength'] = '0%';
+    vars['--zx-overlay-surface-image'] = 'none';
+    vars['--zx-overlay-toast-image'] = 'none';
+    vars['--zx-overlay-panel-image'] = 'none';
     vars['--zx-glass-filter-icon'] = 'none';
     vars['--zx-glass-filter-control'] = 'none';
     vars['--zx-glass-filter-raised'] = 'none';
@@ -335,6 +344,8 @@ export function themeVars(state) {
     vars['--zx-glass-control-shadow'] = 'none';
     vars['--zx-glass-chrome-shadow'] = 'none';
     vars['--zx-glass-raised-shadow'] = 'var(--zx-overlay-shadow)';
+    vars['--zx-glass-overlay-shadow'] = 'var(--zx-overlay-shadow)';
+    vars['--zx-glass-panel-shadow'] = 'var(--zx-overlay-shadow)';
   } else if (state.glass === 'strong') {
     vars['--zx-glass-blur'] = '18px';
     vars['--zx-glass-saturation'] = '165%';
@@ -354,20 +365,28 @@ export function themeVars(state) {
     vars['--zx-color-glass-chrome'] = 'color-mix(in srgb, var(--zx-color-bg-surface) 74%, transparent)';
     vars['--zx-color-glass-control'] = 'color-mix(in srgb, var(--zx-color-bg-control) 62%, transparent)';
     vars['--zx-color-glass-control-hover'] = 'color-mix(in srgb, var(--zx-color-bg-hover) 52%, var(--zx-color-glass-surface))';
-    vars['--zx-color-overlay-surface'] = 'color-mix(in srgb, var(--zx-color-bg-raised) 70%, transparent)';
-    vars['--zx-color-overlay-panel'] = 'color-mix(in srgb, var(--zx-color-bg-raised) 82%, transparent)';
-    vars['--zx-color-overlay-border'] = 'color-mix(in srgb, var(--zx-color-border-strong) 58%, var(--zx-color-glass-highlight))';
+    vars['--zx-color-overlay-surface'] = 'color-mix(in srgb, var(--zx-color-overlay-base) 62%, transparent)';
+    vars['--zx-color-overlay-panel'] = 'color-mix(in srgb, var(--zx-color-overlay-base) 68%, transparent)';
+    vars['--zx-color-overlay-backdrop'] = 'color-mix(in srgb, var(--zx-gray-950) 18%, transparent)';
+    vars['--zx-color-overlay-border'] = 'color-mix(in srgb, var(--zx-color-text) 18%, transparent)';
+    vars['--zx-color-overlay-hover'] = 'color-mix(in srgb, var(--zx-color-text) 10%, transparent)';
+    vars['--zx-color-overlay-selected'] = 'color-mix(in srgb, var(--zx-color-accent) 22%, transparent)';
+    vars['--zx-color-overlay-divider'] = 'color-mix(in srgb, var(--zx-color-text) 13%, transparent)';
+    vars['--zx-color-overlay-scrim'] = 'color-mix(in srgb, var(--zx-color-overlay-base) 24%, transparent)';
+    vars['--zx-overlay-specular-strength'] = '58%';
     vars['--zx-glass-filter-icon'] = 'blur(9px) saturate(148%)';
     vars['--zx-glass-filter-control'] = 'blur(12px) saturate(146%)';
     vars['--zx-glass-filter-raised'] = 'blur(15px) saturate(152%)';
     vars['--zx-glass-filter-chrome'] = 'blur(18px) saturate(158%)';
     vars['--zx-glass-filter-overlay'] = 'blur(22px) saturate(165%)';
-    vars['--zx-glass-filter-panel'] = 'blur(16px) saturate(152%)';
+    vars['--zx-glass-filter-panel'] = 'blur(20px) saturate(152%)';
     vars['--zx-app-icon-shadow'] = 'inset 0 1px 0 color-mix(in srgb, var(--zx-color-app-icon-glyph) 20%, transparent), inset 0 -1px 0 color-mix(in srgb, var(--zx-color-app-icon-shade) 34%, transparent), 0 3px 9px color-mix(in srgb, var(--zx-color-app-icon-shade) 30%, transparent)';
     vars['--zx-app-icon-shadow-hover'] = 'inset 0 1px 0 color-mix(in srgb, var(--zx-color-app-icon-glyph) 26%, transparent), inset 0 -1px 0 color-mix(in srgb, var(--zx-color-app-icon-shade) 38%, transparent), 0 5px 13px color-mix(in srgb, var(--zx-color-app-icon-shade) 36%, transparent)';
     vars['--zx-glass-control-shadow'] = 'inset 0 1px 0 var(--zx-color-glass-highlight), var(--zx-shadow-1)';
     vars['--zx-glass-chrome-shadow'] = 'inset 0 1px 0 var(--zx-color-glass-highlight-strong), var(--zx-shadow-2)';
     vars['--zx-glass-raised-shadow'] = 'inset 0 1px 0 var(--zx-color-glass-highlight-strong), var(--zx-overlay-shadow)';
+    vars['--zx-glass-overlay-shadow'] = 'inset 0 1px 0 color-mix(in srgb, var(--zx-color-glass-highlight-strong) 44%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--zx-color-glass-highlight) 22%, transparent), var(--zx-overlay-shadow)';
+    vars['--zx-glass-panel-shadow'] = 'inset 0 1px 0 color-mix(in srgb, var(--zx-color-glass-highlight-strong) 36%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--zx-color-glass-highlight) 16%, transparent), var(--zx-overlay-shadow)';
   }
   return vars;
 }

@@ -104,10 +104,12 @@
 
 .zx-datebox__popover .zx-date-picker__surface {
   border-color: var(--zx-color-overlay-border);
-  background: var(--zx-color-overlay-surface);
+  background-color: var(--zx-color-overlay-surface);
+  background-image: var(--zx-overlay-surface-image);
+  background-clip: padding-box;
   -webkit-backdrop-filter: var(--zx-glass-filter-overlay);
   backdrop-filter: var(--zx-glass-filter-overlay);
-  box-shadow: var(--zx-glass-raised-shadow);
+  box-shadow: var(--zx-glass-overlay-shadow);
 }
 
 @media (prefers-reduced-transparency: reduce) {

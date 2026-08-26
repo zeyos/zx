@@ -4,10 +4,12 @@
   overflow: auto;
   border: 1px solid var(--zx-color-overlay-border);
   border-radius: var(--zx-radius-md);
-  background: var(--zx-color-overlay-surface);
+  background-color: var(--zx-color-overlay-surface);
+  background-image: var(--zx-overlay-surface-image);
+  background-clip: padding-box;
   -webkit-backdrop-filter: var(--zx-glass-filter-overlay);
   backdrop-filter: var(--zx-glass-filter-overlay);
-  box-shadow: var(--zx-glass-raised-shadow);
+  box-shadow: var(--zx-glass-overlay-shadow);
   color: var(--zx-color-text);
   padding: var(--zx-space-3);
 }

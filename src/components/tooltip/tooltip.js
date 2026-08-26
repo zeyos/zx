@@ -1,5 +1,6 @@
 import { Component } from '../../core/component.js';
 import { h, resolveElement } from '../../core/dom.js';
+import { overlayHost } from '../../core/overlay-host.js';
 import { position } from '../../core/position.js';
 import { uid } from '../../core/util.js';
 
@@ -95,6 +96,7 @@ export class Tooltip extends Component {
     super(null, options);
 
     this.#anchor = resolved;
+    overlayHost(resolved).append(this.el);
     this.#content = this.options.content;
     this.#disabled = Boolean(this.options.disabled);
     this.#describedBy = resolved.getAttribute('aria-describedby');
@@ -154,7 +156,6 @@ export class Tooltip extends Component {
       popover: 'manual'
     });
     panel.dataset.state = 'closed';
-    document.body.append(panel);
     return panel;
   }
 
@@ -167,6 +168,8 @@ export class Tooltip extends Component {
   show() {
     if (this.#destroyed || this.#disabled || this.isOpen()) return this;
     this.#cancelTimers();
+    const host = overlayHost(this.#anchor);
+    if (this.el.parentElement !== host) host.append(this.el);
     const node = resolveContent(this.#content);
     if (node === null) return this;
 

@@ -165,19 +165,30 @@ test('flat and deep-glass recipes change every shared material consumer', () => 
   for (const name of [
     '--zx-glass-blur', '--zx-glass-color-strength', '--zx-color-glass-border',
     '--zx-color-glass-surface', '--zx-color-glass-chrome', '--zx-color-glass-control', '--zx-color-overlay-surface',
-    '--zx-color-overlay-panel', '--zx-color-overlay-border', '--zx-color-app-icon-depth',
+    '--zx-color-overlay-panel', '--zx-color-overlay-backdrop', '--zx-color-overlay-border',
+    '--zx-color-overlay-hover', '--zx-color-overlay-selected', '--zx-color-overlay-divider',
+    '--zx-color-overlay-scrim', '--zx-color-app-icon-depth',
     '--zx-app-icon-core-strength', '--zx-app-icon-rim-strength', '--zx-app-icon-bloom-strength',
     '--zx-app-icon-specular-strength', '--zx-app-icon-rim-base', '--zx-app-icon-halo-size',
     '--zx-app-icon-halo-strength', '--zx-app-icon-shadow',
     '--zx-glass-filter-icon', '--zx-glass-filter-control', '--zx-glass-filter-raised',
     '--zx-glass-filter-chrome', '--zx-glass-filter-overlay', '--zx-glass-filter-panel',
-    '--zx-glass-control-shadow', '--zx-glass-chrome-shadow', '--zx-glass-raised-shadow'
+    '--zx-glass-control-shadow', '--zx-glass-chrome-shadow', '--zx-glass-raised-shadow',
+    '--zx-glass-overlay-shadow', '--zx-glass-panel-shadow'
   ]) {
     assert.ok(Object.hasOwn(flat, name), `flat is missing ${name}`);
     assert.ok(Object.hasOwn(deep, name), `deep glass is missing ${name}`);
     assert.notEqual(flat[name], deep[name], `${name} does not distinguish the modes`);
   }
   assert.equal(flat['--zx-glass-filter-overlay'], 'none');
+  assert.equal(flat['--zx-overlay-toast-image'], 'none');
+  assert.equal(flat['--zx-color-overlay-surface'], 'var(--zx-color-bg-raised)');
+  assert.equal(flat['--zx-color-overlay-panel'], 'var(--zx-color-bg-raised)');
+  assert.match(deep['--zx-color-overlay-surface'], /62%/);
+  assert.match(deep['--zx-color-overlay-panel'], /68%/);
+  assert.match(deep['--zx-color-overlay-backdrop'], /18%/);
+  assert.equal(deep['--zx-glass-filter-overlay'], 'blur(22px) saturate(165%)');
+  assert.equal(deep['--zx-glass-filter-panel'], 'blur(20px) saturate(152%)');
 });
 
 test('persistent application chrome consumes the shared material role', () => {
@@ -195,16 +206,19 @@ test('every transient overlay consumes a shared material tier with an opaque fal
   for (const path of [
     'dropdown/dropdown.css', 'select/select.css', 'tag-picker/tag-picker.css',
     'tooltip/tooltip.css', 'table/table.css', 'datebox/datebox.css',
-    'datebox/date-range-box.css', 'date-picker/date-picker.css', 'message/message.css'
+    'datebox/date-range-box.css', 'date-picker/date-picker.css'
   ]) {
     const css = componentCss(path);
     assert.match(css, /var\(--zx-color-overlay-surface\)/, `${path} does not use the floating overlay tier`);
+    assert.match(css, /var\(--zx-overlay-surface-image\)/, `${path} has no material reflection layer`);
     assert.match(css, /prefers-reduced-transparency: reduce/, `${path} has no opaque fallback`);
   }
 
   for (const path of ['modal/modal.css', 'launcher/launcher.css']) {
     const css = componentCss(path);
     assert.match(css, /var\(--zx-color-overlay-panel\)/, `${path} does not use the reading-panel tier`);
+    assert.match(css, /var\(--zx-overlay-panel-image\)/, `${path} has no reading-panel reflection layer`);
+    assert.match(css, /var\(--zx-glass-panel-shadow\)/, `${path} has no reading-panel shadow`);
     assert.match(css, /prefers-reduced-transparency: reduce/, `${path} has no opaque fallback`);
   }
 
@@ -213,4 +227,46 @@ test('every transient overlay consumes a shared material tier with an opaque fal
     'a docked Sheet did not return to an opaque layout surface');
   assert.match(sheet, /\.zx-sheet\[data-docked\][\s\S]*backdrop-filter: none/,
     'a docked Sheet retained overlay backdrop filtering');
+
+  const select = componentCss('select/select.css');
+  assert.match(select, /\.zx-select__group[\s\S]*var\(--zx-color-overlay-scrim\)/,
+    'Select sticky group repeats the full overlay surface');
+  const message = componentCss('message/message.css');
+  assert.match(message, /var\(--zx-overlay-toast-image\)/,
+    'Message does not use the status-aware overlay material');
+  assert.match(message, /@supports \(\(backdrop-filter:[\s\S]*-webkit-backdrop-filter/,
+    'Message glass ignores prefixed backdrop-filter support');
+});
+
+test('overlay tokens include accessibility and unsupported-filter fallbacks at the shared seam', () => {
+  const css = readFileSync(
+    fileURLToPath(new URL('../../styles/tokens/semantic.css', import.meta.url)), 'utf8'
+  );
+  assert.match(css, /--zx-overlay-surface-image:\s*linear-gradient/);
+  assert.match(css, /--zx-overlay-panel-image:\s*radial-gradient/);
+  assert.match(css, /@supports not \(\(backdrop-filter:[\s\S]*-webkit-backdrop-filter/);
+  assert.match(css, /@media \(forced-colors: active\)[\s\S]*--zx-glass-filter-overlay: none !important/);
+  assert.match(css, /@media \(forced-colors: active\)[\s\S]*--zx-glass-filter-panel: none !important/);
+
+  const scopeRoots = String.raw`:root,\s*\.zx-scope,\s*\[data-zx-theme\],\s*\[data-zx-density\],\s*\[data-zx-preset\]`;
+  for (const fallback of [
+    String.raw`@media \(prefers-reduced-transparency: reduce\), \(prefers-contrast: more\)`,
+    String.raw`@media \(forced-colors: active\)`,
+    String.raw`@supports not \(\(backdrop-filter:`
+  ]) {
+    assert.match(css, new RegExp(`${fallback}[\\s\\S]*?${scopeRoots}\\s*\\{`),
+      `${fallback} does not cover every overlay theme-scope root`);
+  }
+});
+
+test('documentation search uses the same compact overlay material as library popovers', () => {
+  const css = readFileSync(
+    fileURLToPath(new URL('../../website/docs.css', import.meta.url)), 'utf8'
+  );
+  const block = /\.docs-global-search__popover\s*\{([\s\S]*?)\}/.exec(css)?.[1] ?? '';
+  assert.match(block, /background-color:\s*var\(--zx-color-overlay-surface\)/);
+  assert.match(block, /background-image:\s*var\(--zx-overlay-surface-image\)/);
+  assert.match(block, /box-shadow:\s*var\(--zx-glass-overlay-shadow\)/);
+  assert.match(css, /\.docs-global-search__result:hover\s*\{[\s\S]*var\(--zx-color-overlay-hover\)/);
+  assert.match(css, /\.docs-global-search__result\[data-active="true"\]\s*\{[\s\S]*var\(--zx-color-overlay-selected\)/);
 });

@@ -31,6 +31,7 @@ const PALETTE = [
   ['Raised', '--zx-color-bg-raised'],
   ['Glass chrome', '--zx-color-glass-chrome'],
   ['Floating overlay', '--zx-color-overlay-surface'],
+  ['Reading overlay', '--zx-color-overlay-panel'],
   ['Muted', '--zx-color-bg-muted'],
   ['Border', '--zx-color-border'],
   ['Text', '--zx-color-text'],
@@ -195,7 +196,7 @@ function materialCard() {
     new Card(null, {
       variant: 'raised',
       title: 'Raised material surface',
-      content: 'Menus, pickers, tooltips, column menus, and toasts use the lighter floating surface. Launcher, dialogs, and overlay Sheets use a more opaque reading panel. Docked Sheets and dense data surfaces stay opaque.',
+      content: 'Menus, pickers, tooltips, column menus, and toasts use responsive compact glass. Launcher, dialogs, and overlay Sheets use a calmer reading panel. Both refract Aurora and page content; docked Sheets and dense data surfaces stay opaque.',
       actions: [{ label: 'Review', kind: 'primary', size: 'sm' }]
     }).toElement());
   new Aurora(canvas, {
@@ -208,7 +209,7 @@ function materialCard() {
 
 /** @returns {Node} */
 function buttonsCard() {
-  return h('div', { class: 'studio-stack' },
+  const canvas = h('div', { class: 'studio-overlay-canvas studio-stack' },
     row(
       button({ label: 'Default' }),
       button({ label: 'Primary', kind: 'primary', icon: 'plus' }),
@@ -230,6 +231,7 @@ function buttonsCard() {
         label: 'Actions',
         items: [{ label: 'Duplicate', value: 'copy' }, { label: 'Archive', value: 'archive' }]
       }).toElement()));
+  return canvas;
 }
 
 /** @returns {Node} */
@@ -541,7 +543,7 @@ function overlaysCard(teardown) {
 
   const toast = (kind) => toasts.add(Message[kind](`A ${kind} toast, themed like everything else.`));
 
-  return h('div', { class: 'studio-stack' },
+  const canvas = h('div', { class: 'studio-overlay-canvas studio-stack' },
     row(
       button({ label: 'Modal', onclick: () => modal.open() }),
       button({ label: 'Dialog', onclick: () => dialog.open() }),
@@ -554,6 +556,12 @@ function overlaysCard(teardown) {
       button({ label: 'Warning', size: 'sm', onclick: () => toast('warning') }),
       button({ label: 'Error', size: 'sm', kind: 'danger', onclick: () => toast('error') })),
     contextTarget);
+  new Aurora(canvas, {
+    preset: 'confluence',
+    colors: ['#21cc75', '#2b7fff', '#9a67ff', '#f05a8a'],
+    intensity: 'vivid'
+  });
+  return canvas;
 }
 
 /** @returns {Node} */

@@ -45,6 +45,7 @@ const GROW_SIGN = Object.freeze({ start: 1, end: -1, top: 1, bottom: -1 });
  * @property {boolean} [lightDismiss=true] Whether a click outside closes the sheet — the backdrop
  *   when modal, a document-level pointer press when not.
  * @property {boolean} [destroyOnClose=false] Whether to destroy the sheet after it closes.
+ * @property {Element|string|null} [scope=null] Element whose nearest Zx theme scope owns a floating sheet; defaults to the opener.
  * @property {(event: CustomEvent<Record<string, never>>) => void} [onopen] Open event listener.
  * @property {(event: CustomEvent<{result: unknown}>) => void} [onclose] Close event listener.
  * @property {(event: CustomEvent<Record<string, never>>) => void} [oncancel] Cancel event listener.
@@ -61,9 +62,11 @@ const GROW_SIGN = Object.freeze({ start: 1, end: -1, top: 1, bottom: -1 });
  *
  * Modality is a three-way choice rather than a boolean because the three real behaviours do not
  * collapse into two: a modal sheet delegates focus containment, page inertness, and Escape to the
- * browser via `showModal()`; the other two open with `show()` and re-implement only what they still
- * want. That is also why `backdrop` applies only to `modal: true` — `::backdrop` does not render
- * for a non-modal dialog, and painting a fake one would make a sheet look blocking while it is not.
+ * browser via `showModal()`; floating non-modal sheets use the manual Popover top layer so a
+ * transformed or clipped application scope cannot displace them, and re-implement only what they
+ * still want. Docked sheets remain native non-modal dialogs in flow. That is also why `backdrop`
+ * applies only to `modal: true`: painting one for either non-modal mode would make the sheet look
+ * blocking while it is not.
  * @fires Sheet#open
  * @fires Sheet#close
  * @fires Sheet#cancel
@@ -109,7 +112,6 @@ export class Sheet extends Dialog {
      * field would be undefined at best and a private one would throw.
      */
     this._dock = null;
-    this._handoff = false;
     this.setSide(this.options.side);
     this.el.dataset.backdrop = BACKDROPS.has(this.options.backdrop) ? this.options.backdrop : 'dim';
     this.el.dataset.modality = modality(this.options.modal);
@@ -318,7 +320,7 @@ export class Sheet extends Dialog {
    * @returns {Element}
    */
   mountTarget() {
-    return this._dock?.el ?? document.body;
+    return this._dock?.el ?? super.mountTarget();
   }
 
   /**
@@ -347,35 +349,23 @@ export class Sheet extends Dialog {
   /**
    * Moves the dialog to its current mount and, when it was open, reopens it there.
    *
-   * The close is unavoidable — a dialog cannot cross between the top layer and the flow while
-   * open — but it is invisible: `_isRealClose()` drops the stale event, and reopening bypasses
-   * `open()` so no lifecycle event is emitted for what is only a change of address.
+   * The close is unavoidable — a dialog cannot cross between presentation layers while open —
+   * but it is invisible: Modal's presentation generation drops the stale event, and reopening
+   * bypasses `open()` so no lifecycle event is emitted for what is only a change of address.
    * @returns {void}
    */
   _rehost() {
     const wasOpen = this.isOpen();
-    if (wasOpen) {
-      this._handoff = true;
-      /** @type {HTMLDialogElement} */ (this.el).close();
-    }
+    if (wasOpen) this._dismiss();
     this.mountTarget().append(this.el);
     if (!wasOpen) return;
     this.el.returnValue = '';
-    this._show();
+    this._present();
     this.el.dataset.state = 'open';
     if (this._dock) delete /** @type {HTMLElement} */ (this.el).dataset.zxOverlayOrder;
     else this.el.dataset.zxOverlayOrder = String(nextOverlayOrder());
   }
 
-  /**
-   * Drops the stale `close` a re-hosting handoff leaves behind.
-   * @returns {boolean}
-   */
-  _isRealClose() {
-    if (!this._handoff) return true;
-    this._handoff = false;
-    return false;
-  }
 
   /**
    * Opens the sheet, trapping focus first where the modality asks for it.
@@ -465,10 +455,40 @@ export class Sheet extends Dialog {
    */
   _show() {
     if (this.options.modal === true && !this._dock) {
+      this.el.removeAttribute('popover');
+      this.el.removeAttribute('aria-modal');
       super._show();
       return;
     }
-    /** @type {HTMLDialogElement} */ (this.el).show();
+    this.el.setAttribute('aria-modal', 'false');
+    if (this._dock) {
+      this.el.removeAttribute('popover');
+      /** @type {HTMLDialogElement} */ (this.el).show();
+      return;
+    }
+    this.el.setAttribute('popover', 'manual');
+    /** @type {HTMLElement} */ (this.el).showPopover();
+  }
+
+  /**
+   * Hides a native dialog or a non-modal Sheet promoted through the popover top layer.
+   * @param {string} [result=''] Native string return value.
+   * @param {number} [presentation] Presentation generation being hidden.
+   * @returns {void}
+   */
+  _hide(result = '', presentation) {
+    if (!this.el.matches(':popover-open')) {
+      super._hide(result, presentation);
+      return;
+    }
+    this.el.returnValue = result;
+    /** @type {HTMLElement} */ (this.el).hidePopover();
+    queueMicrotask(() => this._settleClose(presentation));
+  }
+
+  /** @returns {boolean} */
+  _isShown() {
+    return this.el.matches(':popover-open') || super._isShown();
   }
 
   /**

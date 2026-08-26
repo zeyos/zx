@@ -101,7 +101,7 @@
 }
 .zx-app-rail__flyout-item:hover,
 .zx-app-rail__flyout-item:focus-visible,
-.zx-app-rail__flyout-item[aria-current="page"] { background: var(--zx-color-bg-hover); color: var(--zx-color-accent); }
+.zx-app-rail__flyout-item[aria-current="page"] { background: var(--zx-color-overlay-hover); color: var(--zx-color-accent); }
 .zx-app-rail__flyout-item-icon { display: inline-flex; grid-column: 1; }
 .zx-app-rail__flyout-item-label { grid-column: 2; }
 .zx-app-rail__flyout-item-badge { grid-column: 3; color: var(--zx-color-text-muted); font-size: var(--zx-text-xs); }

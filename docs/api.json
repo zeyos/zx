@@ -2750,6 +2750,12 @@
         "type": "Node|string|number|{toElement: () => Node|null}|null",
         "default": "null",
         "description": "Body content."
+      },
+      {
+        "name": "scope",
+        "type": "Element|string|null",
+        "default": "null",
+        "description": "Element whose nearest Zx theme scope owns the overlay; defaults to the opener."
       }
     ],
     "events": [
@@ -3082,6 +3088,12 @@
         "type": "boolean",
         "default": "false",
         "description": "Whether a click within the panel closes it."
+      },
+      {
+        "name": "scope",
+        "type": "Element|string|null",
+        "default": "null",
+        "description": "Element whose nearest Zx theme scope owns the panel; defaults to the anchor."
       }
     ],
     "events": [
@@ -4587,6 +4599,12 @@
         "type": "false|{move?: string, open?: string, close?: string}",
         "default": null,
         "description": "Visible keyboard hints, or false."
+      },
+      {
+        "name": "scope",
+        "type": "Element|string|null",
+        "default": "null",
+        "description": "Element whose nearest Zx theme scope owns an internally created launcher; defaults to the opener."
       }
     ],
     "events": [
@@ -4969,6 +4987,12 @@
         "type": "boolean",
         "default": "true",
         "description": "Whether to render a close button."
+      },
+      {
+        "name": "scope",
+        "type": "Element|string|null",
+        "default": "null",
+        "description": "Element whose nearest Zx theme scope owns a floating toast."
       }
     ],
     "events": [],
@@ -5005,6 +5029,12 @@
         "type": "boolean",
         "default": "false",
         "description": "Whether to destroy the modal after it closes."
+      },
+      {
+        "name": "scope",
+        "type": "Element|string|null",
+        "default": "null",
+        "description": "Element whose nearest Zx theme scope owns the overlay; defaults to the opener."
       }
     ],
     "events": [
@@ -6985,6 +7015,12 @@
         "type": "boolean",
         "default": "false",
         "description": "Whether to destroy the sheet after it closes."
+      },
+      {
+        "name": "scope",
+        "type": "Element|string|null",
+        "default": "null",
+        "description": "Element whose nearest Zx theme scope owns a floating sheet; defaults to the opener."
       }
     ],
     "events": [

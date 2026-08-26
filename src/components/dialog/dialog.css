@@ -3,7 +3,8 @@
   padding: 0;
 }
 
-.zx-dialog[open] {
+.zx-dialog[open],
+.zx-dialog:popover-open {
   display: grid;
 }
 
@@ -17,7 +18,7 @@
 
 .zx-dialog__header {
   justify-content: space-between;
-  border-block-end: 1px solid var(--zx-color-border);
+  border-block-end: 1px solid var(--zx-color-overlay-divider);
 }
 
 .zx-dialog__title {
@@ -40,7 +41,7 @@
 
 .zx-dialog__footer {
   justify-content: flex-end;
-  border-block-start: 1px solid var(--zx-color-border);
+  border-block-start: 1px solid var(--zx-color-overlay-divider);
 }
 
 .zx-dialog__footer[hidden] {

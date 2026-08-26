@@ -82,7 +82,11 @@ export class ContextMenu extends Component {
     this.#target = resolved;
     document.body.append(this.el);
 
-    this.#dropdown = new Dropdown(this.el, { openOn: 'manual', placement: 'bottom-start' });
+    this.#dropdown = new Dropdown(this.el, {
+      openOn: 'manual',
+      placement: 'bottom-start',
+      scope: resolved
+    });
     this.#panel = this.#dropdown.getPanel();
     this.#panel.classList.add('zx-context-menu');
     this.#panel.setAttribute('role', 'menu');

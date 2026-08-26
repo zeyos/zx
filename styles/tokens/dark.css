@@ -19,6 +19,8 @@
   --zx-color-bg-hover: color-mix(in srgb, var(--zx-gray-0) 8%, transparent);
   --zx-color-bg-selected: color-mix(in srgb, var(--zx-accent-400) 18%, var(--zx-gray-900));
   --zx-color-bg-backdrop: color-mix(in srgb, var(--zx-gray-950) 75%, transparent);
+  --zx-color-overlay-base: color-mix(in srgb, var(--zx-color-bg-raised) 42%, var(--zx-color-bg-page));
+  --zx-color-overlay-backdrop: color-mix(in srgb, var(--zx-gray-950) 38%, transparent);
   --zx-color-border: color-mix(in srgb, var(--zx-gray-0) 10%, transparent);
   --zx-color-border-strong: color-mix(in srgb, var(--zx-gray-0) 28%, transparent);
   --zx-color-border-control: color-mix(in srgb, var(--zx-gray-0) 15%, transparent);
@@ -57,6 +59,8 @@
     --zx-color-bg-hover: color-mix(in srgb, var(--zx-gray-0) 8%, transparent);
     --zx-color-bg-selected: color-mix(in srgb, var(--zx-accent-400) 18%, var(--zx-gray-900));
     --zx-color-bg-backdrop: color-mix(in srgb, var(--zx-gray-950) 75%, transparent);
+    --zx-color-overlay-base: color-mix(in srgb, var(--zx-color-bg-raised) 42%, var(--zx-color-bg-page));
+    --zx-color-overlay-backdrop: color-mix(in srgb, var(--zx-gray-950) 38%, transparent);
     --zx-color-border: color-mix(in srgb, var(--zx-gray-0) 10%, transparent);
     --zx-color-border-strong: color-mix(in srgb, var(--zx-gray-0) 28%, transparent);
     --zx-color-border-control: color-mix(in srgb, var(--zx-gray-0) 15%, transparent);
