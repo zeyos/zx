@@ -145,7 +145,9 @@ and field visibility work. Each view returns a versioned JSON-safe configuration
 The optional ZeyOS adapter builds the shared descriptors and server projection, including hidden
 title, media, column, and swim-lane fields. It can page any concrete record view through an injected
 client. Preference storage remains outside Zx, and Kanban moves are cancelable: local mode updates a
-record clone, while external mode waits for the application to supply accepted server state.
+record clone, while external mode waits for the application to supply accepted server state. The
+bubbling `zx-recordmove` mirror participates in that veto boundary, and pending preferences for
+data-derived axes survive state restore before an asynchronous result supplies their descriptors.
 
 ## Calendar contract
 

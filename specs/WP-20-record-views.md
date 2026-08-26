@@ -126,7 +126,8 @@ and `loadingCount`.
 - `preview` accepts a field id or callback returning an image URL, an `{src,alt,fit}` descriptor, a
   Node, or null. Unsafe URL schemes are rejected; image failure reveals a stable fallback.
 - Cards use semantic list/listitem structure. A primary native title link is never wrapped around
-  secondary actions. Selection uses native checkboxes in multi mode and `aria-selected` state.
+  secondary actions. Selection uses native checkboxes in multi mode and a global ARIA description
+  on the focusable listitem; `aria-selected` is not applied to a role that does not support it.
 - The default CardView presentation is deliberately dense: titles clamp to two lines, previews stay
   at thumbnail/avatar scale, and visible fields render as compact labelled metadata chips in shared
   field order. Title/subtitle fields are not duplicated unless explicitly requested with a
@@ -163,13 +164,16 @@ descriptor list is omitted. Explicit descriptors may display empty columns/lanes
   Up/Down chooses a record position, and modified Arrow Up/Down changes swim lane when configured.
   A polite live region announces grab, target, rejection, cancellation, and completion.
 - `moveRecord(id, destination)` emits a cancelable `recordmove` with from/to column, lane, and index
-  before committing. `accept` and WIP limits are advisory presentation constraints; host listeners
-  may veto any business-invalid move.
+  before committing. Both the component event and its bubbling `zx-recordmove` mirror may veto the
+  move. `accept` and WIP limits are advisory presentation constraints; host listeners may veto any
+  business-invalid move.
 - `moveMode:'local'` updates a cloned record and local order after acceptance. `moveMode:'external'`
   emits only; the application updates data after its server accepts the change. Records supplied by
-  the caller are never mutated in either mode.
+  the caller are never mutated in either mode. An accepted manual local move clears an active local
+  sort so visible record order and serialized sort state cannot contradict each other.
 - Column/lane collapse and order belong to view state. Record movement and selection do not become
-  persisted configuration.
+  persisted configuration. For data-derived axes, saved order and collapsed IDs remain pending when
+  state is restored before an empty/partial async result and reconcile when later records arrive.
 
 ## ZeyOS integration boundary
 

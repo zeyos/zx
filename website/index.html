@@ -18,12 +18,14 @@
         <img class="brand-logo--dark" src="assets/zx-logo-dark.svg" alt="">
       </a>
       <a class="site-version" href="https://github.com/zeyos/zx/releases/latest"
-        rel="noopener" title="Release notes">v<span data-site-version>4.3.1</span></a>
+        rel="noopener" title="Release notes">v<span data-site-version>4.3.2</span></a>
+      <div class="site-docs-search site-landing-search">
+        <form data-landing-search-field></form>
+      </div>
       <nav class="site-nav" aria-label="Primary">
         <a href="docs.html">Documentation</a>
         <a href="docs.html#layouts">Layouts</a>
         <a href="theme.html">Theming</a>
-        <a href="aurora.html">Aurora</a>
       </nav>
       <div class="site-actions">
         <a class="site-icon-btn" data-site-icon="zeyos" href="https://www.zeyos.com" rel="noopener"
@@ -85,7 +87,7 @@
             </p>
           </li>
           <li class="release-card">
-            <h3><a href="aurora.html">Aurora</a></h3>
+            <h3><a href="docs.html#components/aurora">Aurora</a></h3>
             <p>
               A one- to four-colour ambient light field in six geometries. CSS-only, pointer
               transparent, and flat again under reduced transparency or forced colours.
@@ -335,20 +337,38 @@
   </main>
 
   <footer class="site-footer">
-    <nav class="site-footer__legal" aria-label="Legal">
-      <a href="https://www.zeyos.com/impressum/" rel="noopener">Imprint</a>
-      <a href="https://www.zeyos.com/privacy/" rel="noopener">Privacy Policy</a>
-      <a href="llms.txt">LLMs.txt</a>
-    </nav>
+    <div class="site-footer__inner">
+      <div class="site-footer__brand">
+        <img src="assets/zeyos-logo-light.svg" alt="ZeyOS">
+        <p class="site-footer__copyright">
+          Copyright © 2012–2026 ZeyOS GmbH &amp; Co. KG<br>
+          <span>All rights reserved.</span>
+        </p>
+      </div>
+      <nav class="site-footer__legal" aria-label="Legal">
+        <a href="https://www.zeyos.com/impressum/" rel="noopener">Imprint</a>
+        <a href="https://www.zeyos.com/privacy/" rel="noopener">Privacy Policy</a>
+        <a href="llms.txt">LLMs.txt</a>
+      </nav>
+    </div>
   </footer>
 
   <script type="module">
     import {
-      Aurora, Datebox, Message, Select, Table, Toggle, button, icon
+      Aurora, Datebox, Message, Search, Select, Table, Toggle, button, icon
     } from '../src/index.js';
 
     document.querySelectorAll('[data-feature-icon]').forEach((host) => {
       host.append(icon(host.dataset.featureIcon, { size: 18 }));
+    });
+
+    const landingSearch = new Search(document.querySelector('[data-landing-search-field]'), {
+      placeholder: 'Search documentation',
+      debounce: 0
+    });
+    landingSearch.on('submit', () => {
+      const query = landingSearch.get().trim();
+      if (query) window.location.assign(`docs.html?q=${encodeURIComponent(query)}`);
     });
 
     // The hero's ambient light is the shipped component, not a bespoke gradient: Aurora enhances

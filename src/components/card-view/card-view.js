@@ -329,7 +329,7 @@ export class CardView extends RecordView {
     for (const [id, card] of this._cardNodesById) {
       const selected = this._isViewSelected(id);
       card.dataset.selected = String(selected);
-      if (this.options.selectable) card.setAttribute('aria-selected', String(selected));
+      if (this.options.selectable) card.setAttribute('aria-description', selected ? 'Selected' : 'Not selected');
       const checkbox = /** @type {HTMLInputElement|null} */ (card.querySelector('[data-record-selection]'));
       if (checkbox) checkbox.checked = selected;
     }

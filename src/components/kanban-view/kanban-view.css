@@ -257,7 +257,7 @@
 
 .zx-kanban-view .zx-record-card:hover .zx-record-card__actions,
 .zx-kanban-view .zx-record-card:focus-within .zx-record-card__actions,
-.zx-kanban-view .zx-record-card[aria-selected="true"] .zx-record-card__actions,
+.zx-kanban-view .zx-record-card[data-selected="true"] .zx-record-card__actions,
 .zx-kanban-view .zx-record-card[data-grabbed="true"] .zx-record-card__actions {
   opacity: 1;
   pointer-events: auto;

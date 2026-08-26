@@ -959,12 +959,21 @@ const cases = [
   }), async (component) => {
     const sourceRecord = component.options.data[0];
     const moves = observe(component, 'recordmove');
+    component.setSort('title', 'asc');
     component.moveRecord('opp-1', { column: 'open', lane: 'south', index: 1 });
     assert(sourceRecord.status === 'new' && sourceRecord.team === 'north',
       'KanbanView mutated a host record during a local move');
     assert(component.getRecord('opp-1').status === 'open' && component.getRecord('opp-1').team === 'south',
       'KanbanView did not apply its accepted local move');
+    assert(component.getSort() === null, 'KanbanView retained a local sort after a manual move');
     moves.expect();
+    component.el.addEventListener('zx-recordmove', (event) => event.preventDefault(), { once: true });
+    component.moveRecord('opp-1', { column: 'won', lane: 'south', index: 0 });
+    assert(component.getRecord('opp-1').status === 'open',
+      'KanbanView ignored cancellation of the bubbling recordmove event');
+    await Promise.resolve();
+    assert(component.el.querySelector('.zx-kanban-view__live').textContent.includes('canceled'),
+      'KanbanView did not announce a DOM-canceled move');
     const handle = component.el.querySelector('.zx-kanban-view__move-handle');
     handle.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
     handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
@@ -977,6 +986,45 @@ const cases = [
     component.setColumnCollapsed('won', true);
     const state = component.getViewState();
     assert(state.collapsedColumns.includes('won'), 'KanbanView did not persist collapsed columns');
+
+    const derived = new zx.KanbanView(null, {
+      fields: recordViewFields(), data: [], recordId: 'id', titleField: 'title',
+      columnBy: 'status', swimlaneBy: 'team'
+    });
+    const external = new zx.KanbanView(null, {
+      fields: recordViewFields(), data: recordViewData(), recordId: 'id', titleField: 'title',
+      columnBy: 'status', columns: [{ id: 'new', label: 'New' }, { id: 'open', label: 'Open' }],
+      moveMode: 'external'
+    });
+    try {
+      // Announcements intentionally update only connected live regions. Mount this secondary
+      // fixture so the external-mode assertion exercises the same accessible behavior as a real view.
+      component.el.append(external.el);
+      derived.setViewState({
+        version: 1,
+        columnOrder: ['open', 'new'],
+        swimlaneOrder: ['south', 'north'],
+        collapsedColumns: ['open'],
+        collapsedSwimlanes: ['south']
+      });
+      assert(derived.getViewState().columnOrder.join(',') === 'open,new',
+        'KanbanView discarded saved derived columns while empty');
+      derived.setData(recordViewData());
+      assert(derived.getColumnOrder().join(',') === 'open,new'
+        && derived.getSwimlaneOrder().join(',') === 'south,north'
+        && derived.getCollapsedColumns().includes('open')
+        && derived.getCollapsedSwimlanes().includes('south'),
+      'KanbanView did not reconcile pending derived state after data arrived');
+
+      external.el.addEventListener('zx-recordmove', (event) => event.preventDefault(), { once: true });
+      external.moveRecord('opp-1', { column: 'open', index: 0 });
+      await Promise.resolve();
+      assert(external.el.querySelector('.zx-kanban-view__live').textContent.includes('canceled'),
+        'External KanbanView did not honor mirrored DOM cancellation');
+    } finally {
+      derived.destroy();
+      external.destroy();
+    }
   }),
   recordViewsTargetCase(),
   componentCase('Table', () => new zx.Table(null, {

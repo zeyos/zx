@@ -82,11 +82,12 @@ import { readViewField, renderViewField } from '../view/record-view.js';
  * becomes text, URLs are normalized before reaching native attributes, and actions expose stable
  * data attributes for a component-owned delegated listener.
  *
- * The returned `<li>` belongs in a semantic `<ul>`/`<ol>`. When selectable it carries
- * `aria-selected`; multi-selection adds a native checkbox. It deliberately retains list-item
- * semantics rather than becoming an ARIA option because cards may contain native links and
- * buttons, which the listbox pattern does not permit inside an option. Preview images are paired
- * with a stable fallback. The owning component listens for image `error` and marks the fallback.
+ * The returned `<li>` belongs in a semantic `<ul>`/`<ol>`. When selectable its global
+ * `aria-description` announces selection without applying the unsupported `aria-selected` state
+ * to a listitem; multi-selection also adds a native checkbox. It deliberately remains a listitem
+ * rather than becoming an ARIA option because cards may contain native links and buttons, which
+ * the listbox pattern does not permit inside an option. Preview images are paired with a stable
+ * fallback. The owning component listens for image `error` and marks the fallback.
  *
  * @param {ViewRecord} record Record to render.
  * @param {number} index Current display index.
@@ -151,7 +152,7 @@ export function createRecordCard(record, index, options = {}) {
   const card = /** @type {HTMLLIElement} */ (h('li', {
     class: 'zx-record-card',
     tabindex: 0,
-    ariaSelected: selectable ? String(selected) : undefined,
+    ariaDescription: selectable ? selected ? 'Selected' : 'Not selected' : undefined,
     ariaLabelledby: headingId,
     dataset: {
       recordIndex: String(index),
@@ -428,7 +429,7 @@ function safePreviewUrl(value) {
   try {
     const base = globalThis.location?.href ?? 'https://zx.invalid/';
     const protocol = new URL(href, base).protocol.toLowerCase();
-    return ['http:', 'https:', 'blob:', 'file:'].includes(protocol) ? href : null;
+    return ['http:', 'https:', 'blob:'].includes(protocol) ? href : null;
   } catch {
     return null;
   }

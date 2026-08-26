@@ -7,7 +7,7 @@
  * needs lives above it.
  *
  * This script therefore flattens one level: the contents of `website/` become the site root, and
- * the directories it reaches into (`src/`, `styles/`, `docs/`, the repository markdown) are copied
+ * the directories it reaches into (`src/`, `styles/`, `docs/`, and public repository markdown) are copied
  * in beside them. Every relative path that used to escape `website/` loses exactly one `../`;
  * paths that stayed inside it are left alone. Nothing is bundled or minified, so the JavaScript
  * tab keeps showing the same source the browser actually runs.
@@ -24,20 +24,16 @@ const websiteDir = join(root, 'website');
 const outDir = join(root, 'site');
 
 /**
- * Directories and files the website reaches into, copied in beside the flattened website as
- * `[source, destination]`. The agent skill is republished as `skills/` rather than `.claude/`:
- * dot-directories are handled inconsistently by static hosts, and a docs site should not depend
- * on any one of them serving hidden paths.
+ * Public directories and files the website reaches into, copied in beside the flattened website
+ * as `[source, destination]`. Contributor instructions, agent skills, design audits, and other
+ * working material deliberately stay in the repository rather than the public site.
  */
 const EXTRA_SOURCES = [
   ['src', 'src'],
   ['styles', 'styles'],
   ['docs', 'docs'],
-  ['.claude/skills', 'skills'],
   ['README.md', 'README.md'],
-  ['DESIGN-SYSTEM.md', 'DESIGN-SYSTEM.md'],
   ['CHANGELOG.md', 'CHANGELOG.md'],
-  ['AGENTS.md', 'AGENTS.md'],
   ['node_modules/chart.js/dist/chart.umd.js', 'vendor/chart.umd.js'],
   ['node_modules/chart.js/LICENSE.md', 'vendor/chart.LICENSE.md']
 ];

@@ -8,7 +8,7 @@ and friends remain the complete record.
 
 ## Unreleased
 
-## 4.3.1 — 2026-08-26
+## 4.3.2 — 2026-08-26
 
 ### Added
 
@@ -29,9 +29,14 @@ and friends remain the complete record.
 - The landing page hero is lit by the shipped `Aurora` component rather than a bespoke gradient,
   and gains a "Latest release" band covering Calendar, the record views, Aurora, Sheet and Dock,
   the glass materials, and application identity.
-- The documentation Introduction gains a "New in 4.3" section linking the newest component pages,
-  and every site page now carries the same primary navigation, so the Aurora showcase is reachable
-  from the documentation and Theme Studio rather than only from the component page.
+- The documentation Introduction gains a "New in 4.3" section linking the newest component pages.
+  Aurora stays documented through its supported component examples and API reference; the
+  standalone showcase route is no longer part of the public site.
+- The landing page now carries documentation search, restores the ZeyOS copyright identity in the
+  shared footer, and transitions its initially transparent navigation to the established glass
+  material after scrolling, with reduced-motion and reduced-transparency fallbacks.
+- Public site and package assembly now exclude non-product contributor material and design audits,
+  with release checks that reject private paths in deployable output.
 
 ### Fixed
 
@@ -47,11 +52,16 @@ and friends remain the complete record.
 - Kanban announces a reached or exceeded work-in-progress limit with the move it belongs to, and
   keeps focus on a collapse control across a board refresh — including when a programmatic
   collapse hides the card that had focus.
+- Kanban preserves saved order and collapse preferences for data-derived columns and swim lanes
+  when state is restored before asynchronous records arrive. Canceling the bubbling
+  `zx-recordmove` event now vetoes the move, and a manual local move clears a conflicting local
+  sort so serialized state matches visible order.
+- Selectable record cards retain valid list-item semantics with a global selection description,
+  and preview media no longer accepts local `file:` URLs.
 - The four system-architecture cards on the landing page align their links again, and ~60 lines of
   dead `.release-band`/`.release-notes` site CSS with no remaining markup were removed.
-- The documentation and Theme Studio search no longer collides with the primary navigation. It is
-  centred on the page line and cannot be pushed aside, so the extra nav entry overlapped it by 48px
-  at 1280px; both shells now move it to its own row below 1400px rather than below 1260px.
+- Documentation search no longer collides with primary navigation: responsive headers move the
+  centered field to its own row before their chrome can overlap.
 
 ## 4.3.0 — 2026-08-26
 
@@ -112,7 +122,7 @@ and friends remain the complete record.
 - **Aurora surfaces.** `Aurora` adds a dependency-free, one- to four-colour ambient-light layer
   with six geometries, bounded palettes and intensity, CSS-only composition, and deterministic
   reduced-motion, reduced-transparency, and forced-colour fallbacks. The documentation includes a
-  live application composition and an earlier-studies comparison page.
+  live application composition and examples for all six supported geometries.
 
 ### Changed
 

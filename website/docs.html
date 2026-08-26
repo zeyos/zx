@@ -19,7 +19,7 @@
           <img class="brand-logo--dark" src="assets/zx-logo-dark.svg" alt="Zx">
         </a>
         <a class="site-version" href="https://github.com/zeyos/zx/releases/latest"
-          rel="noopener" title="Release notes">v<span data-site-version>4.3.1</span></a>
+          rel="noopener" title="Release notes">v<span data-site-version>4.3.2</span></a>
         <div class="site-docs-search docs-global-search" data-docs-search>
           <form data-docs-search-field></form>
           <div class="docs-global-search__popover" hidden>
@@ -33,7 +33,6 @@
           <a href="docs.html">Documentation</a>
           <a href="docs.html#layouts">Layouts</a>
           <a href="theme.html">Theming</a>
-          <a href="aurora.html">Aurora</a>
         </nav>
         <div class="site-actions">
           <a class="site-icon-btn" data-site-icon="zeyos" href="https://www.zeyos.com" rel="noopener"
@@ -106,9 +105,8 @@
           <a href="#components/kanban-view">KanbanView</a> — three presentations over one field,
           sort, selection, and versioned view-state contract, so a saved view moves between them.</li>
         <li><a href="#components/aurora">Aurora</a> — a one- to four-colour ambient light field in
-          six geometries; see the <a href="aurora.html">Aurora showcase</a> for a live composition
-          and the <a href="#getting-started/theming">theming guide</a> for how surfaces respond
-          to it.</li>
+          six geometries, with live component examples and an API reference; the
+          <a href="#getting-started/theming">theming guide</a> explains how surfaces respond to it.</li>
         <li><a href="#components/sheet">Sheet</a>,
           <a href="#components/sheet-stack">SheetStack</a>, and
           <a href="#components/dock">Dock</a> — edge-anchored panels with snap detents, drill-down
@@ -617,11 +615,20 @@ document.querySelector('#invoices').append(list.table);
     <script type="module" src="docs.js"></script>
 
     <footer class="site-footer">
-      <nav class="site-footer__legal" aria-label="Legal">
-        <a href="https://www.zeyos.com/impressum/" rel="noopener">Imprint</a>
-        <a href="https://www.zeyos.com/privacy/" rel="noopener">Privacy Policy</a>
-        <a href="llms.txt">LLMs.txt</a>
-      </nav>
+      <div class="site-footer__inner">
+        <div class="site-footer__brand">
+          <img src="assets/zeyos-logo-light.svg" alt="ZeyOS">
+          <p class="site-footer__copyright">
+            Copyright © 2012–2026 ZeyOS GmbH &amp; Co. KG<br>
+            <span>All rights reserved.</span>
+          </p>
+        </div>
+        <nav class="site-footer__legal" aria-label="Legal">
+          <a href="https://www.zeyos.com/impressum/" rel="noopener">Imprint</a>
+          <a href="https://www.zeyos.com/privacy/" rel="noopener">Privacy Policy</a>
+          <a href="llms.txt">LLMs.txt</a>
+        </nav>
+      </div>
     </footer>
   </body>
 </html>

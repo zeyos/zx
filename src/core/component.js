@@ -157,21 +157,26 @@ export class Component extends EventTarget {
    * Dispatches a component event and a bubbling, composed `zx-*` DOM event.
    * @param {string} type Lowercase event name.
    * @param {Record<string, unknown>} [detail={}] Single event detail object.
+   * @param {{honorDomCancellation?:boolean}} [options={}] Mirrored DOM-event behavior. Components
+   * with a cancelable mutation boundary may opt into treating `preventDefault()` on the bubbling
+   * `zx-*` event exactly like cancellation of the component event.
    * @returns {Event & {detail: Record<string, unknown>}}
    * @fires Component#event
    */
-  emit(type, detail = {}) {
+  emit(type, detail = {}, options = {}) {
     if (detail === null || typeof detail !== 'object' || Array.isArray(detail)) {
       throw new TypeError('Event detail must be an object');
     }
     const componentEvent = createCustomEvent(type, detail, { cancelable: true });
     this.dispatchEvent(componentEvent);
     if (this.el) {
-      this.el.dispatchEvent(createCustomEvent(`zx-${type}`, detail, {
+      const domEvent = createCustomEvent(`zx-${type}`, detail, {
         bubbles: true,
         composed: true,
         cancelable: true
-      }));
+      });
+      this.el.dispatchEvent(domEvent);
+      if (options.honorDomCancellation && domEvent.defaultPrevented) componentEvent.preventDefault();
     }
     return componentEvent;
   }

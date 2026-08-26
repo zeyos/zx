@@ -16,9 +16,7 @@ exports and as `window.zx.*`.
 - [Documentation site](https://zx.zeyos.com/docs.html): getting started, every component with a live demo and its JavaScript source, and the application layouts. Machine index: [llms.txt](https://zx.zeyos.com/llms.txt).
 - [README](../README.md): what Zx is, quick start (ESM + global script), component index, theming, and browser support.
 - [API reference](llms.md): per-component constructor options, methods, and events for all public components plus the core helpers.
-- [Skill](https://zx.zeyos.com/skills/zx/SKILL.md): task-oriented guide — mental model, recipes, ZeyOS HTTP client, theming, gotchas, commands.
 - [Changelog](../CHANGELOG.md): what changed in each release, including behaviour changes an upgrade has to account for.
-- [Contributor contract](https://github.com/zeyos/zx/blob/main/AGENTS.md): conventions for editing component source (token rules, render-time state, listeners, ARIA/APG).
 
 ## Components
 - Inputs: `button()`, `buttonGroup()`, `badge()`/`badgeGroup()`, `CheckButton`,

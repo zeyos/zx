@@ -30,10 +30,6 @@ available as ESM named exports and as `window.zx.*`.
 - [README](../README.md): what Zx is, quick start, component index, theming, browser support.
 - [Changelog](../CHANGELOG.md): what changed in each release, including behaviour changes an
   upgrade has to account for.
-- [Contributor contract](../AGENTS.md): conventions for editing component source — token rules,
-  render-time state, listener ownership, ARIA/APG requirements.
-- [Zx skill](../.claude/skills/zx/SKILL.md): task-oriented guide — mental model, recipes, theming,
-  gotchas, commands.
 
 ## Components
 - Inputs: `button()`, `buttonGroup()`, `badge()`, `CheckButton`, `Toggle`, `Search`,

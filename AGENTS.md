@@ -24,6 +24,22 @@ its "Out of scope" section is binding. Do not modify files outside the spec's fi
   `destroy()` cleans them up via one AbortController. No stray `addEventListener` in components.
 - **No module-level mutable state** in components (module-level constants are fine).
 
+## Public website content
+
+- The public website, documentation, demos, release notes, and published package may contain only
+  supported product documentation and intentional public examples. Never publish internal studies,
+  experiments, discarded directions, design explorations, review transcripts, prompts, agent output,
+  implementation reasoning, or other internal working material.
+- Component documentation may explain the stable public API, supported behavior, accessibility, and
+  usage. Keep internal decision history, comparative studies, prototypes, and speculative material
+  outside every file copied into the public site or package.
+- Standalone exploratory pages and internal preview routes must not be linked, copied, or deployed
+  unless the user explicitly approves that exact material for publication. Before every release,
+  audit public navigation and generated site output for accidental internal content.
+- Contributor instructions, agent skills, internal design audits, release procedures, and working
+  notes stay repository-only. Keep them out of `tools/build-site.js` public sources and out of the
+  npm package allowlist; extend `tools/check-site.js` whenever a new private path is identified.
+
 ## Naming
 
 - API namespace: lowercase `zx` — classes exported PascalCase from `src/index.js`

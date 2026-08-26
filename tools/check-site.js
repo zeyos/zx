@@ -127,7 +127,15 @@ for (const required of ['index.html', 'docs.html', 'llms.txt', 'CNAME', 'docs/ll
 // consumers, but it is deliberately not documentation-site content.
 for (const privatePath of [
   'MIGRATION.md',
+  'AGENTS.md',
+  'DESIGN-SYSTEM.md',
+  'skills',
   'compat.html',
+  'aurora.html',
+  'aurora.css',
+  'aurora.js',
+  'aurora-preview.html',
+  'aurora-preview.css',
   'demos/gx-compat.demo.js',
   'src/compat',
   'src/compat-entry.js',

@@ -118,7 +118,7 @@ export default {
           card.destroy();
           aurora.destroy();
         });
-        return [target, h('a', { href: 'aurora.html' }, 'Open the full Aurora example page')];
+        return target;
       }
     }
   ]

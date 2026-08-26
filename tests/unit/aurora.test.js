@@ -60,17 +60,3 @@ test('Aurora ships all geometries, accessibility fallbacks, and public registrat
   assert.match(styles, /components\/aurora\/aurora\.css/);
   assert.match(docs, /'aurora'/);
 });
-
-test('standalone Aurora page demonstrates a live multicolour component', () => {
-  const html = readFileSync(fileURLToPath(new URL('../../website/aurora.html', import.meta.url)), 'utf8');
-  const script = readFileSync(fileURLToPath(new URL('../../website/aurora.js', import.meta.url)), 'utf8');
-  assert.match(html, /id="aurora-stage"/);
-  assert.equal((html.match(/data-aurora-preset=/g) ?? []).length, 6);
-  assert.match(html, /id="aurora-code"/);
-  assert.match(script, /new Aurora\(stageHost/);
-  assert.match(script, /new AppSidebar/);
-  assert.match(script, /new MasterPanel/);
-  assert.match(script, /new Table/);
-  assert.match(script, /colors: PALETTES\.northern/);
-  assert.match(script, /setPreset\(preset\.value\)\.setColors\(colors\)\.setIntensity\(intensity\.value\)/);
-});

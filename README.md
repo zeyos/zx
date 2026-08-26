@@ -6,9 +6,6 @@ and application layouts in plain ES2022 modules. Source modules run directly in 
 distribution also provides ESM and classic-script bundles. Xenon originated at ZeyOS, while its
 components and contracts remain product- and framework-agnostic.
 
-The [design-system audit](./DESIGN-SYSTEM.md) records current ZeyOS coverage, missing shell
-patterns, the adoption boundary, transaction-grid follow-ups, and chart-engine candidates.
-
 ## Quick start
 
 Use the ESM bundle when the application already uses modules:

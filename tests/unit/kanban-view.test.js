@@ -7,8 +7,10 @@ import {
   deriveKanbanDescriptors,
   normalizeKanbanDescriptors,
   reconcileKanbanOrder,
+  reconcileKanbanPreference,
   reorderKanbanData
 } from '../../src/components/kanban-view/kanban-view.js';
+import { Component } from '../../src/core/component.js';
 import { RecordView } from '../../src/components/view/record-view.js';
 
 test('KanbanView extends the shared RecordView contract', () => {
@@ -34,6 +36,8 @@ test('board styling keeps hierarchy, progressive controls, and coarse targets sc
   assert.match(source, /\.zx-kanban-view \.zx-record-card__title-prefix \.zx-icon/);
   assert.match(source, /\.zx-kanban-view \.zx-record-card__actions\s*\{[^}]*opacity:\s*0[^}]*pointer-events:\s*none/s);
   assert.match(source, /\.zx-kanban-view \.zx-record-card:focus-within \.zx-record-card__actions/);
+  assert.match(source, /\.zx-kanban-view \.zx-record-card\[data-selected="true"\] \.zx-record-card__actions/);
+  assert.doesNotMatch(source, /\.zx-kanban-view \.zx-record-card\[aria-selected="true"\]/);
   assert.match(source, /-webkit-line-clamp:\s*2/);
   assert.match(source, /@media \(hover:\s*none\), \(pointer:\s*coarse\)[\s\S]*opacity:\s*1/s);
   assert.match(source, /@media \(pointer:\s*coarse\)[\s\S]*inline-size:\s*2\.75rem[\s\S]*min-block-size:\s*2\.75rem/s);
@@ -74,6 +78,90 @@ test('descriptor order reconciles stale ids and appends new values deterministic
   assert.deepEqual(reconcileKanbanOrder(descriptors, ['won', 'missing', 'won']),
     ['won', 'qualified', 'proposal']);
   assert.deepEqual(reconcileKanbanOrder(descriptors, null), ['qualified', 'proposal', 'won']);
+});
+
+test('derived-axis preferences survive empty results and reconcile when descriptors arrive', () => {
+  assert.deepEqual(reconcileKanbanPreference([], ['done', 'todo'], true), ['done', 'todo']);
+  assert.deepEqual(reconcileKanbanPreference([{ id: 'todo' }], ['done', 'todo'], true),
+    ['done', 'todo']);
+  assert.deepEqual(reconcileKanbanPreference(
+    [{ id: 'todo' }, { id: 'done' }, { id: 'review' }], ['done', 'todo'], true),
+  ['done', 'todo', 'review']);
+  assert.deepEqual(reconcileKanbanPreference([{ id: 'todo' }], ['done', 'todo'], false), ['todo']);
+});
+
+test('saved derived order and collapse state remain pending until records load', () => {
+  const view = kanbanMethodFixture({ data: [], swimlaneBy: 'team' });
+  view.setViewState({
+    version: 1,
+    columnOrder: ['done', 'todo'],
+    swimlaneOrder: ['red', 'blue'],
+    collapsedColumns: ['done'],
+    collapsedSwimlanes: ['red']
+  }, { silent: true });
+
+  assert.deepEqual(view.getViewState().columnOrder, ['done', 'todo']);
+  assert.deepEqual(view.getViewState().swimlaneOrder, ['red', 'blue']);
+  assert.deepEqual(view.getViewState().collapsedColumns, ['done']);
+  assert.deepEqual(view.getViewState().collapsedSwimlanes, ['red']);
+
+  view._viewData = [
+    { ID: 1, status: 'todo', team: 'blue' },
+    { ID: 2, status: 'done', team: 'red' }
+  ];
+  assert.deepEqual(view.getColumnOrder(), ['done', 'todo']);
+  assert.deepEqual(view.getSwimlaneOrder(), ['red', 'blue']);
+  assert.deepEqual(view.getCollapsedColumns(), ['done']);
+  assert.deepEqual(view.getCollapsedSwimlanes(), ['red']);
+});
+
+test('Component can honor mirrored DOM cancellation without changing ordinary emit behavior', () => {
+  const component = /** @type {EventTarget & {el:EventTarget}} */ (new EventTarget());
+  component.el = new EventTarget();
+  component.el.addEventListener('zx-ordinary', (event) => event.preventDefault());
+  component.el.addEventListener('zx-guarded', (event) => event.preventDefault());
+
+  const ordinary = Component.prototype.emit.call(component, 'ordinary', {});
+  const guarded = Component.prototype.emit.call(component, 'guarded', {}, { honorDomCancellation: true });
+  assert.equal(ordinary.defaultPrevented, false);
+  assert.equal(guarded.defaultPrevented, true);
+});
+
+test('component and mirrored-event cancellation veto local and external Kanban moves', () => {
+  for (const moveMode of ['local', 'external']) {
+    const view = kanbanMethodFixture({
+      moveMode,
+      data: [{ ID: 1, status: 'todo', title: 'Alpha' }, { ID: 2, status: 'done', title: 'Beta' }]
+    });
+    let emitOptions = null;
+    view.emit = (type, _detail, options) => {
+      if (type === 'recordmove') emitOptions = options;
+      return /** @type {any} */ ({ defaultPrevented: type === 'recordmove' });
+    };
+    const before = view.getData();
+    view.moveRecord(1, { column: 'done', index: 0 });
+    assert.deepEqual(view.getData(), before);
+    assert.deepEqual(emitOptions, { honorDomCancellation: true });
+    assert.match(view._lastAnnouncement, /canceled/);
+  }
+});
+
+test('an accepted manual local move clears local sort before publishing reordered data', () => {
+  const view = kanbanMethodFixture({
+    data: [{ ID: 1, status: 'todo', title: 'Alpha' }, { ID: 2, status: 'todo', title: 'Beta' }],
+    sort: { id: 'title', dir: 'asc' }
+  });
+  const events = [];
+  view.emit = (type) => {
+    events.push(type);
+    return /** @type {any} */ ({ defaultPrevented: false });
+  };
+
+  view.moveRecord(1, { column: 'todo', index: 1 });
+  assert.deepEqual(view.getData().map((record) => record.ID), [2, 1]);
+  assert.equal(view.getSort(), null);
+  assert.ok(events.includes('sortchange'));
+  assert.ok(events.includes('datachange'));
 });
 
 test('cross-column and cross-lane moves clone the record and use a bucket-relative index', () => {
@@ -137,3 +225,49 @@ test('movement accepts callback readers and clamps out-of-range destination inde
     destination: { column: 'B', lane: null, index: 0 }
   }), null);
 });
+
+/**
+ * Builds a DOM-free instance for public-method regression tests. Render hooks and announcements are
+ * replaced, but all RecordView/Kanban data, state, sorting, acceptance, and move logic stays real.
+ * @param {{data?:Record<string,any>[],moveMode?:'local'|'external',swimlaneBy?:string|null,sort?:{id:string,dir:'asc'|'desc'}|null}} [overrides]
+ * @returns {KanbanView & {_lastAnnouncement:string}}
+ */
+function kanbanMethodFixture(overrides = {}) {
+  const data = overrides.data ?? [{ ID: 1, status: 'todo', title: 'Alpha' }];
+  const swimlaneBy = overrides.swimlaneBy ?? null;
+  const fields = [{ id: 'title', label: 'Title', sortable: true }];
+  const view = /** @type {KanbanView & {_lastAnnouncement:string}} */ (Object.create(KanbanView.prototype));
+  Object.assign(view, {
+    options: {
+      ...KanbanView.defaults,
+      fields,
+      data,
+      recordId: 'ID',
+      columnBy: 'status',
+      columns: null,
+      swimlaneBy,
+      swimlanes: null,
+      moveMode: overrides.moveMode ?? 'local',
+      sortMode: 'local'
+    },
+    _viewFields: fields,
+    _viewFieldOrder: ['title'],
+    _viewHidden: new Set(),
+    _viewData: [...data],
+    _viewSort: overrides.sort ?? null,
+    _viewSelected: new Set(),
+    _viewFieldList: null,
+    _kanbanColumns: null,
+    _kanbanSwimlanes: null,
+    _kanbanColumnOrder: [],
+    _kanbanSwimlaneOrder: [],
+    _collapsedColumns: new Set(),
+    _collapsedSwimlanes: new Set(),
+    _board: null,
+    _lastAnnouncement: ''
+  });
+  view._refreshView = () => {};
+  view._announce = (message) => { view._lastAnnouncement = message; };
+  view._moveHandle = () => null;
+  return view;
+}

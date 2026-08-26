@@ -30,6 +30,10 @@ body.site-page {
   flex-direction: column;
 }
 
+body.site-page:has(.site-header--overlay) {
+  background: var(--site-night);
+}
+
 body.site-page > main {
   flex: 1 0 auto;
 }
@@ -55,20 +59,35 @@ body.site-page > main {
   box-shadow: var(--zx-glass-chrome-shadow);
 }
 
-/* Home page: the header shares the hero's top colour so the two read as one dark surface, then
-   picks up a border and a blur once the page scrolls past the hero. (A sticky header stays in
-   flow, so a transparent background would show the page colour, not the hero.) */
+/* Home page: the header starts as chrome-free content over the hero. Once the page moves, it
+   adopts the same glass material as persistent application chrome. */
 .site-header--overlay {
+  position: fixed;
+  inset-inline: 0;
   border-block-end-color: transparent;
-  background: var(--site-night);
+  background: transparent;
+  -webkit-backdrop-filter: none;
   backdrop-filter: none;
+  box-shadow: none;
   color: #fff;
 }
 
 .site-header--overlay[data-scrolled] {
   border-block-end-color: rgb(255 255 255 / 10%);
-  background: color-mix(in srgb, var(--site-night) 88%, transparent);
-  backdrop-filter: blur(14px);
+  background: color-mix(in srgb, var(--site-night) 76%, transparent);
+  -webkit-backdrop-filter: var(--zx-glass-filter-chrome);
+  backdrop-filter: var(--zx-glass-filter-chrome);
+  box-shadow: var(--zx-glass-chrome-shadow);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .site-header--overlay {
+    transition:
+      background-color var(--zx-dur-normal) var(--zx-ease),
+      border-color var(--zx-dur-normal) var(--zx-ease),
+      box-shadow var(--zx-dur-normal) var(--zx-ease),
+      backdrop-filter var(--zx-dur-normal) var(--zx-ease);
+  }
 }
 
 .site-header__inner,
@@ -205,6 +224,26 @@ body.site-page > main {
   min-inline-size: 0;
 }
 
+/* The landing search occupies the same header position and uses the same Search component as the
+   documentation. Its ink remains legible while the header is transparent over the dark hero. */
+.site-header--overlay .site-docs-search .zx-search {
+  border-color: rgb(255 255 255 / 22%);
+  background: rgb(255 255 255 / 8%);
+}
+
+.site-header--overlay .site-docs-search .zx-search__input {
+  color: #fff;
+}
+
+.site-header--overlay .site-docs-search .zx-search__input::placeholder,
+.site-header--overlay .site-docs-search :is(.zx-search__clear, .zx-search__submit) {
+  color: rgb(255 255 255 / 68%);
+}
+
+.site-header--overlay .site-docs-search :is(.zx-search__clear, .zx-search__submit):hover {
+  color: #fff;
+}
+
 /* Square, label-free chrome buttons. The glyph is an SVG mask filled with currentColor, so it
    follows the theme and the overlay header without a second asset. */
 .site-actions {
@@ -235,6 +274,24 @@ body.site-page > main {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
     box-shadow: none;
+  }
+
+  .site-header--overlay[data-scrolled] {
+    background: var(--site-night);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .site-header--overlay[data-scrolled] {
+    border-block-end-color: CanvasText;
+    background: Canvas;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: none;
+    color: CanvasText;
   }
 }
 
@@ -954,9 +1011,9 @@ body.site-page > main {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: var(--zx-space-3) var(--zx-space-5);
-  inline-size: min(100% - (2 * var(--zx-space-6)), var(--site-content-width));
-  margin-inline: auto;
-  padding-block: var(--zx-space-5);
+  inline-size: auto;
+  margin: 0;
+  padding: 0;
 }
 
 .site-footer__inner {
@@ -978,6 +1035,15 @@ body.site-page > main {
   display: block;
   block-size: 26px;
   inline-size: auto;
+}
+
+.site-footer__copyright {
+  color: rgb(226 232 240 / 68%);
+  line-height: 1.5;
+}
+
+.site-footer__copyright span {
+  color: rgb(226 232 240 / 45%);
 }
 
 .site-footer p {
@@ -1092,6 +1158,12 @@ body.site-page > main {
 }
 
 @media (max-width: 780px) {
+  /* The compact header gains nav and search rows. Keeping it in flow prevents those rows from
+     covering the hero while its transparent surface still reads as part of the same night band. */
+  .site-header--overlay {
+    position: sticky;
+  }
+
   .site-header__inner {
     flex-wrap: wrap;
     gap: var(--zx-space-2);
@@ -1171,8 +1243,8 @@ body.site-page > main {
     inline-size: min(100% - (2 * var(--zx-space-4)), var(--site-content-width));
   }
 
-  .site-footer__legal {
-    inline-size: min(100% - (2 * var(--zx-space-4)), var(--site-content-width));
+  .site-footer__brand {
+    align-items: flex-start;
   }
 
 }

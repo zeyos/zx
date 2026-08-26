@@ -216,7 +216,13 @@ export class KanbanView extends RecordView {
    */
   setColumns(columns) {
     this._kanbanColumns = columns === null ? null : normalizeKanbanDescriptors(columns, 'column');
-    this._kanbanColumnOrder = reconcileKanbanOrder(this._rawColumns(), this._kanbanColumnOrder);
+    const descriptors = this._rawColumns();
+    this._kanbanColumnOrder = reconcileKanbanPreference(
+      descriptors, this._kanbanColumnOrder, this._kanbanColumns === null);
+    if (this._kanbanColumns !== null) {
+      const ids = new Set(descriptors.map((column) => column.id));
+      this._collapsedColumns = new Set([...this._collapsedColumns].filter((id) => ids.has(id)));
+    }
     this._refreshView('columns');
     this._emitKanbanState('columns');
     return this;
@@ -234,7 +240,14 @@ export class KanbanView extends RecordView {
    */
   setSwimlanes(lanes) {
     this._kanbanSwimlanes = lanes === null ? null : normalizeKanbanDescriptors(lanes, 'swimlane');
-    this._kanbanSwimlaneOrder = reconcileKanbanOrder(this._rawSwimlanes(), this._kanbanSwimlaneOrder);
+    const descriptors = this._rawSwimlanes();
+    const preserveUnknown = this._kanbanSwimlanes === null && this._kanbanOptions().swimlaneBy != null;
+    this._kanbanSwimlaneOrder = reconcileKanbanPreference(
+      descriptors, this._kanbanSwimlaneOrder, preserveUnknown);
+    if (!preserveUnknown) {
+      const ids = new Set(descriptors.map((lane) => lane.id));
+      this._collapsedSwimlanes = new Set([...this._collapsedSwimlanes].filter((id) => ids.has(id)));
+    }
     this._refreshView('swimlanes');
     this._emitKanbanState('swimlanes');
     return this;
@@ -252,9 +265,12 @@ export class KanbanView extends RecordView {
    * @returns {this}
    */
   setColumnOrder(order, options = {}) {
-    const next = reconcileKanbanOrder(this._rawColumns(), order);
-    if (sameArray(next, this.getColumnOrder())) return this;
-    this._kanbanColumnOrder = next;
+    const descriptors = this._rawColumns();
+    const current = this.getColumnOrder();
+    const next = reconcileKanbanOrder(descriptors, order);
+    if (sameArray(next, current)) return this;
+    this._kanbanColumnOrder = mergeKanbanResolvedOrder(
+      this._kanbanColumnOrder, descriptors, next, this._kanbanColumns === null);
     this._refreshView('columnorder');
     if (!options.silent) this._emitKanbanState('columnorder');
     return this;
@@ -283,9 +299,13 @@ export class KanbanView extends RecordView {
    * @returns {this}
    */
   setSwimlaneOrder(order, options = {}) {
-    const next = reconcileKanbanOrder(this._rawSwimlanes(), order);
-    if (sameArray(next, this.getSwimlaneOrder())) return this;
-    this._kanbanSwimlaneOrder = next;
+    const descriptors = this._rawSwimlanes();
+    const current = this.getSwimlaneOrder();
+    const next = reconcileKanbanOrder(descriptors, order);
+    if (sameArray(next, current)) return this;
+    const preserveUnknown = this._kanbanSwimlanes === null && this._kanbanOptions().swimlaneBy != null;
+    this._kanbanSwimlaneOrder = mergeKanbanResolvedOrder(
+      this._kanbanSwimlaneOrder, descriptors, next, preserveUnknown);
     this._refreshView('swimlaneorder');
     if (!options.silent) this._emitKanbanState('swimlaneorder');
     return this;
@@ -428,7 +448,7 @@ export class KanbanView extends RecordView {
     const moveEvent = this.emit('recordmove', {
       record, id, from: { ...from }, to: { ...next.to }, column: { ...column },
       swimlane: lane ? { ...lane } : null, limitExceeded
-    });
+    }, { honorDomCancellation: true });
     if (moveEvent.defaultPrevented) {
       this._announce(`Move canceled for ${this._recordName(record, from.index)}.`);
       return this;
@@ -438,7 +458,10 @@ export class KanbanView extends RecordView {
       return this;
     }
     this._viewData = next.records;
-    this._refreshView('move');
+    // A manual bucket position and a local sort cannot both be authoritative. Clear the local sort
+    // on an accepted local move so the visible order and serialized state remain truthful.
+    if (options.sortMode === 'local' && this.getSort()) this.setSort(null);
+    else this._refreshView('move');
     this.emit('datachange', { records: this.getData() });
     this._announce(`Moved ${this._recordName(movedRecord, next.to.index)} to ${this._targetName(next.to)}.${limitAnnouncement}`);
     queueMicrotask(() => this._moveHandle(id)?.focus());
@@ -447,12 +470,19 @@ export class KanbanView extends RecordView {
 
   /** Returns common plus board-specific serializable configuration. @returns {KanbanViewState} */
   getViewState() {
+    // Resolve once so newly derived axes join the preference without discarding saved axes that are
+    // temporarily absent from an empty or partial result set.
+    this.getColumnOrder();
+    this.getSwimlaneOrder();
+    const derivedColumns = this._kanbanColumns === null;
+    const derivedSwimlanes = this._kanbanSwimlanes === null && this._kanbanOptions().swimlaneBy != null;
     return {
       ...super.getViewState(),
-      columnOrder: this.getColumnOrder(),
-      swimlaneOrder: this.getSwimlaneOrder(),
-      collapsedColumns: this.getCollapsedColumns(),
-      collapsedSwimlanes: this.getCollapsedSwimlanes()
+      columnOrder: derivedColumns ? [...this._kanbanColumnOrder] : this.getColumnOrder(),
+      swimlaneOrder: derivedSwimlanes ? [...this._kanbanSwimlaneOrder] : this.getSwimlaneOrder(),
+      collapsedColumns: derivedColumns ? [...this._collapsedColumns] : this.getCollapsedColumns(),
+      collapsedSwimlanes: derivedSwimlanes
+        ? [...this._collapsedSwimlanes] : this.getCollapsedSwimlanes()
     };
   }
 
@@ -465,17 +495,25 @@ export class KanbanView extends RecordView {
   setViewState(state, options = {}) {
     const source = state && typeof state === 'object' ? state : {};
     super.setViewState(source, { silent: true });
-    this._kanbanColumnOrder = reconcileKanbanOrder(
-      this._rawColumns(), Array.isArray(source.columnOrder) ? source.columnOrder : this._kanbanColumnOrder);
-    this._kanbanSwimlaneOrder = reconcileKanbanOrder(
-      this._rawSwimlanes(), Array.isArray(source.swimlaneOrder) ? source.swimlaneOrder : this._kanbanSwimlaneOrder);
-    const columnIds = new Set(this._rawColumns().map((column) => column.id));
-    const laneIds = new Set(this._rawSwimlanes().map((lane) => lane.id));
+    const columns = this._rawColumns();
+    const lanes = this._rawSwimlanes();
+    const derivedColumns = this._kanbanColumns === null;
+    const derivedSwimlanes = this._kanbanSwimlanes === null && this._kanbanOptions().swimlaneBy != null;
+    this._kanbanColumnOrder = reconcileKanbanPreference(columns,
+      Array.isArray(source.columnOrder) ? source.columnOrder : this._kanbanColumnOrder,
+      derivedColumns);
+    this._kanbanSwimlaneOrder = reconcileKanbanPreference(lanes,
+      Array.isArray(source.swimlaneOrder) ? source.swimlaneOrder : this._kanbanSwimlaneOrder,
+      derivedSwimlanes);
+    const columnIds = new Set(columns.map((column) => column.id));
+    const laneIds = new Set(lanes.map((lane) => lane.id));
     if (Array.isArray(source.collapsedColumns)) {
-      this._collapsedColumns = new Set(source.collapsedColumns.map(String).filter((id) => columnIds.has(id)));
+      const collapsed = normalizeOrder(source.collapsedColumns);
+      this._collapsedColumns = new Set(derivedColumns ? collapsed : collapsed.filter((id) => columnIds.has(id)));
     }
     if (Array.isArray(source.collapsedSwimlanes)) {
-      this._collapsedSwimlanes = new Set(source.collapsedSwimlanes.map(String).filter((id) => laneIds.has(id)));
+      const collapsed = normalizeOrder(source.collapsedSwimlanes);
+      this._collapsedSwimlanes = new Set(derivedSwimlanes ? collapsed : collapsed.filter((id) => laneIds.has(id)));
     }
     this._refreshView('state');
     if (!options.silent) this._emitKanbanState('restore');
@@ -680,7 +718,8 @@ export class KanbanView extends RecordView {
   /** @returns {KanbanColumn[]} */
   _resolvedColumns() {
     const columns = this._rawColumns();
-    this._kanbanColumnOrder = reconcileKanbanOrder(columns, this._kanbanColumnOrder);
+    this._kanbanColumnOrder = reconcileKanbanPreference(
+      columns, this._kanbanColumnOrder, this._kanbanColumns === null);
     return orderDescriptors(columns, this._kanbanColumnOrder);
   }
 
@@ -696,7 +735,9 @@ export class KanbanView extends RecordView {
   /** @returns {KanbanSwimlane[]} */
   _resolvedSwimlanes() {
     const lanes = this._rawSwimlanes();
-    this._kanbanSwimlaneOrder = reconcileKanbanOrder(lanes, this._kanbanSwimlaneOrder);
+    const preserveUnknown = this._kanbanSwimlanes === null && this._kanbanOptions().swimlaneBy != null;
+    this._kanbanSwimlaneOrder = reconcileKanbanPreference(
+      lanes, this._kanbanSwimlaneOrder, preserveUnknown);
     return orderDescriptors(lanes, this._kanbanSwimlaneOrder);
   }
 
@@ -1003,7 +1044,7 @@ export class KanbanView extends RecordView {
     for (const [id, card] of this._cardsById) {
       const selected = this._isViewSelected(id);
       card.dataset.selected = String(selected);
-      if (this.options.selectable) card.setAttribute('aria-selected', String(selected));
+      if (this.options.selectable) card.setAttribute('aria-description', selected ? 'Selected' : 'Not selected');
       const input = /** @type {HTMLInputElement|null} */ (card.querySelector('[data-record-selection]'));
       if (input) input.checked = selected;
     }
@@ -1143,6 +1184,22 @@ export function reconcileKanbanOrder(descriptors, order) {
 }
 
 /**
+ * Reconciles the visible descriptor order while optionally retaining preferences for derived axes
+ * that are absent from the current result set. This lets saved state be applied before an async
+ * query supplies the records from which columns or lanes are derived.
+ * @param {{id:string}[]} descriptors Available descriptors.
+ * @param {unknown} order Preferred order.
+ * @param {boolean} [preserveUnknown=false] Retain temporarily unavailable ids.
+ * @returns {string[]}
+ */
+export function reconcileKanbanPreference(descriptors, order, preserveUnknown = false) {
+  if (!preserveUnknown) return reconcileKanbanOrder(descriptors, order);
+  const preferred = normalizeOrder(order);
+  const available = descriptors.map((descriptor) => descriptor.id);
+  return [...preferred, ...available.filter((id) => !preferred.includes(id))];
+}
+
+/**
  * Reorders records around an already-cloned moved record. The input array and every input record
  * remain untouched; destination index is relative to records in that one column/lane.
  * @param {KanbanRecord[]} records Records.
@@ -1234,6 +1291,28 @@ function moveOrderedId(order, id, targetId, position) {
   const target = next.indexOf(String(targetId));
   next.splice(target + (position === 'after' ? 1 : 0), 0, String(id));
   return next;
+}
+
+/**
+ * Replaces only the currently resolved axis positions inside a retained preference. Temporarily
+ * absent derived ids keep their relative slots until later data makes them available again.
+ * @param {string[]} preference Full retained preference.
+ * @param {{id:string}[]} descriptors Currently available descriptors.
+ * @param {string[]} resolvedOrder Next order for available descriptors.
+ * @param {boolean} preserveUnknown Whether unavailable ids should be retained.
+ * @returns {string[]}
+ */
+function mergeKanbanResolvedOrder(preference, descriptors, resolvedOrder, preserveUnknown) {
+  if (!preserveUnknown) return [...resolvedOrder];
+  const available = new Set(descriptors.map((descriptor) => descriptor.id));
+  const replacements = [...resolvedOrder];
+  let cursor = 0;
+  const merged = normalizeOrder(preference).flatMap((id) => {
+    if (!available.has(id)) return [id];
+    return cursor < replacements.length ? [replacements[cursor++]] : [];
+  });
+  merged.push(...replacements.slice(cursor));
+  return normalizeOrder(merged);
 }
 
 /** @param {KanbanMovePoint} left @param {KanbanMovePoint} right @returns {boolean} */

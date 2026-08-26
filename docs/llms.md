@@ -31,6 +31,8 @@ const t = new Table(target, options);
   (always an object, e.g. `{ value, item }`).
 - Every `emit` also dispatches a **bubbling, composed** `zx-<type>` `CustomEvent` on `t.el`, so
   `t.el.addEventListener('zx-change', …)` and event delegation work.
+- Mutation boundaries may opt into honoring cancellation of that mirrored DOM event; Kanban's
+  `zx-recordmove` does, so delegated hosts can veto a move without a component reference.
 - `t.destroy()` aborts all listeners (one AbortController), unregisters the element, and removes an
   owned root. `Component.from(el)` returns the component for a root element (replaces the legacy
   `el.retrieve('com')`).
@@ -252,28 +254,6 @@ registerModules({ tickets: '#f04639', 'my-fork': { label: 'My Fork', icon: 'zeyo
 reflection and ElementInternals form association: `<zx-toggle>`, `<zx-check-button>`, `<zx-select>`,
 `<zx-checklist>`, `<zx-datebox>`, `<zx-timebox>`, `<zx-search>`, `<zx-groupbox>`, `<zx-tabbox>`,
 `<zx-table>`, `<zx-dialog>`.
-
-## Conventions (editing component source)
-
-Follow `AGENTS.md`. Key rules: never declare instance class fields for state used in `render()`
-(render runs inside the base constructor before field initializers); route all DOM listeners
-through `this.listen()`; no `innerHTML` outside `h.raw()`; express state via ARIA/`data-*`, not
-state classes; small glyph buttons use the shared `.zx-icon-btn` utility; follow the named APG
-pattern with `:focus-visible` rings and `prefers-reduced-motion` guards.
-
-## File map & commands
-
-```
-src/components/<name>/   component + CSS      src/core/   kernel (component, dom, http, i18n, date…)
-website/                 marketing page + docs.html (docs.js)          specs/  per-component specs
-website/demos/           per-component demo modules    website/layouts/  application layout examples
-tests/                   node unit + smoke    dist/       built bundles
-
-npm run serve   # http://127.0.0.1:8321/website/docs.html  (no build)
-npm test        # node --test tests/unit/*.test.js  +  node tests/lint-tokens.js
-npm run build   # dist/: ESM, global, ZeyOS binding, and CSS assets
-node tools/build-module-tokens.js   # regenerate styles/tokens/modules.css from src/zeyos/modules.js
-```
 
 ---
 
@@ -1151,7 +1131,8 @@ portable state as TableView and KanbanView.
   `previewAlt`, `link`, `actions`, `groupBy`, `groupOrder`, `minCardWidth`, `maxColumns`,
   `variant: 'outlined'|'raised'|'filled'`, `loadingCount`, `headingLevel`, and `label`.
 - **Cards** — each record is a focusable `<li>` with a native title link, separate secondary
-  actions, optional native multi-select checkbox, labelled metadata, and `aria-selected` state.
+  actions, optional native multi-select checkbox, labelled metadata, and a global ARIA selection
+  description that retains valid listitem semantics.
   CardView uses a dense collection rhythm: titles clamp to two lines, previews stay at
   thumbnail/avatar scale, and visible fields become compact labelled metadata chips. Title/subtitle
   fields are not duplicated in metadata unless their field sets `duplicate:true`.
@@ -1182,7 +1163,8 @@ cards, advisory work-in-progress limits, and equivalent pointer/programmatic/key
   columns may also declare an advisory `limit`.
 - **Methods** — configure/get/move columns and swim lanes, collapse either axis, and
   `moveRecord(id,{column?,lane?,index?})`. Board-specific order/collapse joins the common view
-  state; record order, movement history, and selection do not.
+  state; record order, movement history, and selection do not. Saved preferences for data-derived
+  axes survive an empty/partial result set and reconcile as later records introduce their IDs.
 - **Dense board layout** — bounded muted columns use a stable 20rem rail with native horizontal
   overflow, 48px headings, compact counts, 8–12px card padding, and 8px card gaps. Surface cards
   use an optional square thumbnail and a two-tier hierarchy from shared card field slots:
@@ -1190,9 +1172,11 @@ cards, advisory work-in-progress limits, and equivalent pointer/programmatic/key
   facts. Titles clamp visually to two lines while retaining their complete accessible text. Move
   and action controls reveal on hover/focus/selection/grab, and remain visible on touch devices.
 - **Movement boundary** — `recordmove {record,id,from,to,column,swimlane,limitExceeded}` is
-  cancelable and fires before a commit/request. `accept` is a hard eligibility gate; WIP is visual
-  advice. Local mode clones the moved record and never mutates host data. External mode emits only,
-  for server validation and optimistic rollback owned by ZeyOS.
+  cancelable and fires before a commit/request; either the component event or bubbling
+  `zx-recordmove` mirror may veto it. `accept` is a hard eligibility gate; WIP is visual advice.
+  Local mode clones the moved record and never mutates host data, and a manual local move clears an
+  active local sort so saved state matches visible order. External mode emits only, for server
+  validation and optimistic rollback owned by ZeyOS.
 - **Keyboard** — focus the move handle; Enter/Space grabs or drops, Escape cancels, Left/Right
   chooses a column, Up/Down chooses a bucket-relative position, and Alt+Up/Down chooses a swim
   lane. A polite live region announces every target, result, and reached/exceeded WIP limit.

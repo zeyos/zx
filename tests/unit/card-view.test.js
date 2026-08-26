@@ -51,6 +51,13 @@ test('preview resolution accepts safe URLs and nodes while rejecting executable 
     fit: 'contain',
     rejected: true
   });
+  assert.deepEqual(resolveRecordPreview(record, 0, () => 'file:///Users/example/private.png', null, fields), {
+    node: null,
+    src: null,
+    alt: '',
+    fit: 'cover',
+    rejected: true
+  });
   assert.equal(resolveRecordPreview(record, 0, () => null, null, fields), null);
 
   const nodeLike = { nodeType: 1, textContent: 'Initials' };
@@ -184,6 +191,21 @@ test('shared card slots render in semantic order with safe text, Nodes, and titl
   });
 });
 
+test('selectable cards keep listitem semantics without unsupported aria-selected', () => {
+  withFakeDocument(() => {
+    const card = createRecordCard({ title: 'Renew Northwind' }, 0, {
+      fields: [{ id: 'title', label: 'Title' }],
+      titleField: 'title',
+      selectable: 'single',
+      selected: true
+    });
+    assert.equal(card.tagName, 'LI');
+    assert.equal(card.attributes.get('aria-description'), 'Selected');
+    assert.equal(card.attributes.has('aria-selected'), false);
+    assert.equal(card.dataset.selected, 'true');
+  });
+});
+
 test('compact card styling is scoped away from the shared Kanban card anatomy', () => {
   const source = readFileSync(new URL('../../src/components/card-view/card-view.css', import.meta.url), 'utf8');
   assert.match(source, /\.zx-card-view \.zx-record-card__preview\s*\{/);
@@ -193,6 +215,8 @@ test('compact card styling is scoped away from the shared Kanban card anatomy', 
   assert.match(source, /-webkit-line-clamp:\s*2/);
   assert.match(source, /\.zx-card-view \.zx-card-view__skeleton-preview\s*\{[^}]*--zx-card-view-preview-size/s);
   assert.match(source, /@media \(pointer:\s*coarse\)[\s\S]*min-block-size:\s*44px/);
+  assert.match(source, /\.zx-record-card\[data-selected="true"\]/);
+  assert.doesNotMatch(source, /\.zx-record-card\[aria-selected="true"\]/);
   assert.doesNotMatch(source, /(?<!\.zx-card-view )\.zx-record-card__preview\s*\{[^}]*inline-size:\s*1\.5rem/s);
 });
 
