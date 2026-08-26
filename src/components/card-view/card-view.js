@@ -39,7 +39,7 @@ import {
  * @property {string|((record:ViewRecord,index:number)=>unknown)|null} [groupBy=null]
  * Field id or local group resolver.
  * @property {unknown[]} [groupOrder=[]] Preferred group ids; missing ids render as empty groups.
- * @property {number|string} [minCardWidth='18rem'] Responsive minimum card width.
+ * @property {number|string} [minCardWidth='15rem'] Responsive minimum card width.
  * @property {number|null} [maxColumns=null] Maximum cards per row; null is unconstrained.
  * @property {'outlined'|'raised'|'filled'} [variant='outlined'] Card surface treatment.
  * @property {number} [loadingCount=6] Skeleton cards shown while loading.
@@ -87,7 +87,7 @@ export class CardView extends RecordView {
     actions: [],
     groupBy: null,
     groupOrder: [],
-    minCardWidth: '18rem',
+    minCardWidth: '15rem',
     maxColumns: null,
     variant: 'outlined',
     loadingCount: 6,
@@ -469,11 +469,11 @@ function normalizeGroupId(value) {
 
 /** @param {unknown} value @returns {string} */
 export function normalizeCardWidth(value) {
-  if (typeof value === 'number') return Number.isFinite(value) && value > 0 ? `${value}px` : '18rem';
+  if (typeof value === 'number') return Number.isFinite(value) && value > 0 ? `${value}px` : '15rem';
   const text = String(value ?? '').trim();
-  if (!text || text.length > 128 || /[;{}\u0000-\u001f\u007f]/.test(text)) return '18rem';
-  if (/(?:url|image|image-set|cross-fade|element|expression)\s*\(/i.test(text)) return '18rem';
-  if (typeof globalThis.CSS?.supports === 'function' && !globalThis.CSS.supports('width', text)) return '18rem';
+  if (!text || text.length > 128 || /[;{}\u0000-\u001f\u007f]/.test(text)) return '15rem';
+  if (/(?:url|image|image-set|cross-fade|element|expression)\s*\(/i.test(text)) return '15rem';
+  if (typeof globalThis.CSS?.supports === 'function' && !globalThis.CSS.supports('width', text)) return '15rem';
   return text;
 }
 

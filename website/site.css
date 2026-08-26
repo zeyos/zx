@@ -498,6 +498,76 @@ body.site-page > main {
   margin-block-start: var(--zx-space-7);
 }
 
+/* ------------------------------------------------------- latest release -- */
+
+/*
+ * The release strip sits directly under the hero, so it stays on the same night surface and
+ * separates itself with a rule rather than another background step.
+ */
+.release {
+  border-block-start: 1px solid rgb(255 255 255 / 8%);
+}
+
+.release__version {
+  color: var(--site-brand);
+  font-variant-numeric: tabular-nums;
+}
+
+.release-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--zx-space-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A brand hairline over each entry, the way a release note marks its bullets. */
+.release-card {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  padding-block-start: var(--zx-space-4);
+  border-block-start: 2px solid color-mix(in srgb, var(--site-brand) 55%, transparent);
+}
+
+.release-card h3 {
+  margin: 0 0 var(--zx-space-2);
+  font-size: var(--zx-text-lg);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.release-card h3 a {
+  color: #fff;
+  text-decoration: none;
+}
+
+.release-card h3 a::after {
+  content: "\2192";
+  margin-inline-start: var(--zx-space-2);
+  color: var(--site-brand);
+}
+
+.release-card h3 a:hover {
+  color: var(--site-brand);
+}
+
+.release-card h3 a:focus-visible {
+  outline: 2px solid var(--site-brand);
+  outline-offset: 3px;
+}
+
+.release-card p {
+  margin: 0;
+  color: rgb(226 232 240 / 62%);
+  font-size: var(--zx-text-md);
+  line-height: 1.6;
+}
+
+.release-footer {
+  margin: var(--zx-space-7) 0 0;
+}
+
 /* --------------------------------------------------------- system layers -- */
 
 .system-grid {
@@ -507,9 +577,11 @@ body.site-page > main {
   border-inline-start: 1px solid rgb(255 255 255 / 12%);
 }
 
+/* Four explicit rows — index, title, body, link — with the body absorbing the slack, so the four
+   "Explore …" links line up across the row however long each description runs. */
 .system-card {
   display: grid;
-  align-content: start;
+  grid-template-rows: auto auto 1fr auto;
   min-block-size: 280px;
   padding: var(--zx-space-6);
   border-block-end: 1px solid rgb(255 255 255 / 12%);
@@ -527,7 +599,7 @@ body.site-page > main {
 }
 
 .system-card h3 {
-  margin: auto 0 var(--zx-space-3);
+  margin: 0 0 var(--zx-space-3);
   padding-block-start: var(--zx-space-8);
   font-size: var(--zx-text-xl);
   font-weight: 750;
@@ -541,6 +613,7 @@ body.site-page > main {
 }
 
 .system-card a {
+  align-self: end;
   justify-self: start;
   margin-block-start: var(--zx-space-5);
   color: var(--site-brand);
@@ -821,63 +894,6 @@ body.site-page > main {
   font-family: var(--zx-font-mono);
 }
 
-/* --------------------------------------------------------------- release -- */
-
-.release-band {
-  display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
-  gap: var(--zx-space-7);
-  align-items: start;
-}
-
-.release-band h2 {
-  margin: 0;
-  font-size: clamp(26px, 3.4vw, 36px);
-  font-weight: 800;
-  letter-spacing: -0.025em;
-}
-
-/* The notes are rendered from CHANGELOG.md at runtime; an empty band would just be a gap. */
-.release-notes:empty {
-  display: none;
-}
-
-.release-notes {
-  margin-block-start: var(--zx-space-5);
-  color: var(--zx-color-text-muted);
-  line-height: 1.65;
-}
-
-.release-notes h3 {
-  margin: var(--zx-space-5) 0 var(--zx-space-2);
-  color: var(--zx-color-text);
-  font-size: var(--zx-text-md);
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.release-notes ul {
-  margin: 0;
-  padding-inline-start: var(--zx-space-5);
-}
-
-.release-notes li {
-  margin-block: var(--zx-space-2);
-}
-
-.release-notes strong {
-  color: var(--zx-color-text);
-}
-
-.release-notes code {
-  padding: 1px 5px;
-  border-radius: var(--zx-radius-sm);
-  background: var(--zx-color-bg-muted);
-  font-family: var(--zx-font-mono);
-  font-size: 0.9em;
-}
-
 .contribute-card {
   padding: var(--zx-space-6);
   border: 1px solid var(--zx-color-border);
@@ -1031,12 +1047,9 @@ body.site-page > main {
 @media (max-width: 900px) {
   .feature-grid,
   .path-grid,
+  .release-grid,
   .system-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .release-band {
-    grid-template-columns: 1fr;
   }
 }
 
@@ -1085,6 +1098,7 @@ body.site-page > main {
 
   .feature-grid,
   .path-grid,
+  .release-grid,
   .system-grid,
   .showcase-grid,
   .quick-start-grid {

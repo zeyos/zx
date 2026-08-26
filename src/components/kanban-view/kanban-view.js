@@ -422,6 +422,9 @@ export class KanbanView extends RecordView {
     }
     const finalCount = destinationColumnCount + 1;
     const limitExceeded = column.limit != null && finalCount > column.limit;
+    const limitAnnouncement = column.limit == null ? ''
+      : limitExceeded ? ` Work-in-progress limit ${column.limit} exceeded.`
+        : finalCount === column.limit ? ` Work-in-progress limit ${column.limit} reached.` : '';
     const moveEvent = this.emit('recordmove', {
       record, id, from: { ...from }, to: { ...next.to }, column: { ...column },
       swimlane: lane ? { ...lane } : null, limitExceeded
@@ -431,13 +434,13 @@ export class KanbanView extends RecordView {
       return this;
     }
     if (options.moveMode === 'external') {
-      this._announce(`Move requested for ${this._recordName(record, from.index)} to ${this._targetName(next.to)}.`);
+      this._announce(`Move requested for ${this._recordName(record, from.index)} to ${this._targetName(next.to)}.${limitAnnouncement}`);
       return this;
     }
     this._viewData = next.records;
     this._refreshView('move');
     this.emit('datachange', { records: this.getData() });
-    this._announce(`Moved ${this._recordName(movedRecord, next.to.index)} to ${this._targetName(next.to)}.`);
+    this._announce(`Moved ${this._recordName(movedRecord, next.to.index)} to ${this._targetName(next.to)}.${limitAnnouncement}`);
     queueMicrotask(() => this._moveHandle(id)?.focus());
     return this;
   }
@@ -498,8 +501,17 @@ export class KanbanView extends RecordView {
     }
     if (_reason === 'loading') return;
     const options = this._kanbanOptions();
+    const activeElement = document.activeElement;
     const activeMeta = this._metaForTarget(document.activeElement);
     const restoreHandle = Boolean(document.activeElement?.classList?.contains('zx-kanban-view__move-handle'));
+    const activeCollapse = activeElement instanceof Element
+      ? activeElement.closest('[data-kanban-collapse]') : null;
+    const activeSection = activeCollapse?.closest('.zx-kanban-view__column');
+    const activeCollapseFocus = activeCollapse && this._board.contains(activeCollapse) ? {
+      axis: /** @type {'column'|'swimlane'} */ (/** @type {HTMLElement} */ (activeCollapse).dataset.kanbanCollapse),
+      id: String(/** @type {HTMLElement} */ (activeCollapse).dataset.kanbanId),
+      lane: activeSection ? this._sectionMeta.get(activeSection)?.lane ?? null : null
+    } : null;
     const columns = this._resolvedColumns();
     const lanes = this._resolvedSwimlanes();
     this._cardMeta = new WeakMap();
@@ -516,7 +528,21 @@ export class KanbanView extends RecordView {
     this._board.replaceChildren(...content);
     if (this._keyboardMove && !this.getRecord(this._keyboardMove.id)) this._keyboardMove = null;
     this._syncKeyboardTarget();
-    if (activeMeta) queueMicrotask(() => {
+    if (activeCollapseFocus || activeMeta) queueMicrotask(() => {
+      if (activeCollapseFocus) {
+        this._collapseControl(activeCollapseFocus.axis, activeCollapseFocus.id,
+          activeCollapseFocus.lane)?.focus();
+        return;
+      }
+      if (!activeMeta) return;
+      if (activeMeta.lane != null && this._collapsedSwimlanes.has(activeMeta.lane)) {
+        this._collapseControl('swimlane', activeMeta.lane)?.focus();
+        return;
+      }
+      if (this._collapsedColumns.has(activeMeta.column)) {
+        this._collapseControl('column', activeMeta.column, activeMeta.lane)?.focus();
+        return;
+      }
       const card = this._cardsById.get(activeMeta.id);
       const target = restoreHandle ? card?.querySelector('.zx-kanban-view__move-handle') : card;
       if (target?.isConnected) /** @type {HTMLElement} */ (target).focus();
@@ -992,6 +1018,24 @@ export class KanbanView extends RecordView {
   /** @param {unknown} id @returns {HTMLElement|null} */
   _moveHandle(id) {
     return /** @type {HTMLElement|null} */ (this._cardsById.get(id)?.querySelector('.zx-kanban-view__move-handle') ?? null);
+  }
+
+  /**
+   * Resolves a collapse control after a board refresh, retaining the same lane copy for columns.
+   * @param {'column'|'swimlane'} axis Collapse axis.
+   * @param {string} id Descriptor id.
+   * @param {string|null} [lane=null] Column copy's lane.
+   * @returns {HTMLElement|null}
+   */
+  _collapseControl(axis, id, lane = null) {
+    return /** @type {HTMLElement|null} */ ([...this._board.querySelectorAll('[data-kanban-collapse]')]
+      .find((candidate) => {
+        const control = /** @type {HTMLElement} */ (candidate);
+        if (control.dataset.kanbanCollapse !== axis || control.dataset.kanbanId !== id) return false;
+        if (axis !== 'column') return true;
+        const section = control.closest('.zx-kanban-view__column');
+        return section ? this._sectionMeta.get(section)?.lane === lane : false;
+      }) ?? null);
   }
 
   /** @param {KanbanRecord} record @param {number} index @returns {string} */

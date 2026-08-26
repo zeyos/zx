@@ -1,6 +1,10 @@
 .zx-card-view {
-  --zx-card-view-min-card-width: 18rem;
+  --zx-card-view-min-card-width: 15rem;
   --zx-card-view-column-basis: 0%;
+  --zx-card-view-card-padding: var(--zx-space-3);
+  --zx-card-view-card-gap: var(--zx-space-2);
+  --zx-card-view-grid-gap: var(--zx-space-3);
+  --zx-card-view-preview-size: 1.75rem;
   inline-size: 100%;
   min-inline-size: 0;
   container-type: inline-size;
@@ -44,22 +48,23 @@
 }
 
 .zx-card-view__group + .zx-card-view__group {
-  margin-block-start: var(--zx-space-6);
+  margin-block-start: var(--zx-space-4);
 }
 
 .zx-card-view__group-heading {
-  margin: 0 0 var(--zx-space-3);
+  margin: 0 0 var(--zx-space-2);
   color: var(--zx-color-text);
-  font-size: var(--zx-text-lg);
-  line-height: 1.35;
+  font-size: var(--zx-text-sm);
+  font-weight: 600;
+  line-height: 1.3;
 }
 
 .zx-card-view__list {
   display: grid;
-  grid-template-columns: repeat(auto-fit,
+  grid-template-columns: repeat(auto-fill,
     minmax(min(100%, max(var(--zx-card-view-min-card-width),
-      calc(var(--zx-card-view-column-basis) - var(--zx-space-4)))), 1fr));
-  gap: var(--zx-space-4);
+      calc(var(--zx-card-view-column-basis) - var(--zx-card-view-grid-gap)))), 1fr));
+  gap: var(--zx-card-view-grid-gap);
   min-inline-size: 0;
   margin: 0;
   padding: 0;
@@ -177,6 +182,40 @@
 }
 
 .zx-record-card__titles {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+.zx-record-card__eyebrow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--zx-space-2);
+  min-inline-size: 0;
+}
+
+.zx-record-card__eyebrow-group,
+.zx-record-card__title-prefix {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zx-space-1);
+  min-inline-size: 0;
+  margin: 0;
+}
+
+.zx-record-card__eyebrow-group[data-card-slot="eyebrow-end"] {
+  justify-content: flex-end;
+  margin-inline-start: auto;
+}
+
+.zx-record-card__title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--zx-space-2);
+  min-inline-size: 0;
+}
+
+.zx-record-card__title-row > .zx-record-card__heading {
   flex: 1 1 auto;
   min-inline-size: 0;
 }
@@ -385,5 +424,168 @@
       background var(--zx-dur-fast) var(--zx-ease),
       color var(--zx-dur-fast) var(--zx-ease),
       box-shadow var(--zx-dur-fast) var(--zx-ease);
+  }
+}
+
+/*
+ * CardView intentionally presents the shared record-card anatomy more densely than Kanban. Keep
+ * these selectors scoped: Kanban owns its own board-card rhythm while both views retain the same
+ * safe, semantic markup and delegated interaction hooks.
+ */
+.zx-card-view .zx-record-card {
+  border-radius: var(--zx-radius-md);
+}
+
+.zx-card-view .zx-record-card:has(> .zx-record-card__preview) {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+}
+
+.zx-card-view .zx-record-card__preview {
+  inline-size: var(--zx-card-view-preview-size);
+  block-size: var(--zx-card-view-preview-size);
+  margin-block-start: var(--zx-card-view-card-padding);
+  margin-inline-start: var(--zx-card-view-card-padding);
+  border: 0;
+  border-radius: var(--zx-radius-sm);
+  aspect-ratio: 1;
+}
+
+.zx-card-view .zx-record-card__preview .zx-icon {
+  inline-size: .875rem;
+  block-size: .875rem;
+}
+
+.zx-card-view .zx-record-card__body {
+  gap: var(--zx-card-view-card-gap);
+  padding: var(--zx-card-view-card-padding);
+}
+
+.zx-card-view .zx-record-card:has(> .zx-record-card__preview) .zx-record-card__body {
+  padding-inline-start: var(--zx-card-view-card-gap);
+}
+
+.zx-card-view .zx-record-card__header {
+  gap: var(--zx-space-2);
+}
+
+.zx-card-view .zx-record-card__selection {
+  min-block-size: 1.25rem;
+}
+
+.zx-card-view .zx-record-card__heading {
+  font-size: var(--zx-text-md);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.zx-card-view .zx-record-card__primary,
+.zx-card-view .zx-record-card__title {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.zx-card-view .zx-record-card__subtitle {
+  margin-block-start: calc(var(--zx-space-1) / 2);
+  overflow: hidden;
+  font-size: var(--zx-text-xs);
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zx-card-view .zx-record-card__actions {
+  flex-wrap: nowrap;
+  gap: calc(var(--zx-space-1) / 2);
+}
+
+.zx-card-view .zx-record-card__action {
+  min-block-size: 1.75rem;
+  border-color: transparent;
+  background: transparent;
+  padding-inline: var(--zx-space-2);
+  font-size: var(--zx-text-xs);
+}
+
+.zx-card-view .zx-record-card__metadata {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zx-space-1);
+}
+
+.zx-card-view .zx-record-card__field {
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: var(--zx-space-1);
+  max-inline-size: 100%;
+  border: 1px solid var(--zx-color-border);
+  border-radius: var(--zx-radius-full);
+  background: var(--zx-color-bg-muted);
+  padding: calc(var(--zx-space-1) / 2) var(--zx-space-2);
+}
+
+.zx-card-view .zx-record-card__label {
+  flex: none;
+  font-size: var(--zx-text-xs);
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.zx-card-view .zx-record-card__value {
+  overflow: hidden;
+  font-size: var(--zx-text-xs);
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zx-card-view .zx-card-view__group-empty {
+  padding: var(--zx-space-3);
+  font-size: var(--zx-text-sm);
+}
+
+.zx-card-view .zx-card-view__empty {
+  min-block-size: 6rem;
+  border-radius: var(--zx-radius-md);
+  padding: var(--zx-space-4);
+  font-size: var(--zx-text-sm);
+}
+
+.zx-card-view .zx-card-view__skeleton {
+  grid-template-columns: var(--zx-card-view-preview-size) minmax(0, 1fr);
+  gap: var(--zx-card-view-card-gap);
+  padding: var(--zx-card-view-card-padding);
+}
+
+.zx-card-view .zx-card-view__skeleton-preview {
+  grid-row: 1 / span 2;
+  inline-size: var(--zx-card-view-preview-size);
+  margin: 0;
+  aspect-ratio: 1;
+  border-radius: var(--zx-radius-sm);
+}
+
+.zx-card-view .zx-card-view__skeleton-line {
+  min-inline-size: 0;
+  block-size: .625rem;
+}
+
+.zx-card-view .zx-card-view__skeleton-line:nth-child(3) {
+  inline-size: 62%;
+}
+
+.zx-card-view .zx-card-view__skeleton-line:nth-child(4) {
+  grid-column: 1 / -1;
+  inline-size: 42%;
+}
+
+@media (pointer: coarse) {
+  .zx-card-view .zx-record-card__selection,
+  .zx-card-view .zx-record-card__action {
+    min-inline-size: 44px;
+    min-block-size: 44px;
   }
 }

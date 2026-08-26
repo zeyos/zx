@@ -71,6 +71,51 @@ export function calendarRange(view, anchor, options = {}) {
 }
 
 /**
+ * Returns the anchor date one visible period away from `anchor`.
+ *
+ * Month and year steps clamp the day of month into the target month instead of letting it
+ * overflow: `setMonth()` alone turns 31 January into 3 March, which makes February unreachable
+ * from a month-end anchor and leaves `prev()` on 31 March landing back inside March.
+ * @param {CalendarView} view Current view.
+ * @param {Date} anchor Current anchor date.
+ * @param {number} direction -1 for the previous period, 1 for the next.
+ * @param {{agendaDays?: number}} [options={}] Paging options.
+ * @returns {Date}
+ */
+export function calendarPageDate(view, anchor, direction, options = {}) {
+  const date = validDate(anchor, 'Calendar date');
+  const step = integer(direction, 'direction');
+  if (view === 'day') date.setDate(date.getDate() + step);
+  else if (view === 'agenda') {
+    date.setDate(date.getDate() + step * positiveInteger(options.agendaDays ?? 14, 'agendaDays'));
+  } else if (view === 'week') date.setDate(date.getDate() + step * 7);
+  else if (view === 'month') return addCalendarMonths(date, step);
+  else if (view === 'year') return addCalendarMonths(date, step * 12);
+  else throw new RangeError(`Unknown calendar view: ${view}`);
+  return date;
+}
+
+/**
+ * Adds whole months, clamping the day of month to the last day the target month actually has.
+ * @param {Date} value Local date.
+ * @param {number} months Months to add.
+ * @returns {Date}
+ */
+export function addCalendarMonths(value, months) {
+  const date = validDate(value, 'Calendar date');
+  const day = date.getDate();
+  date.setDate(1);
+  date.setMonth(date.getMonth() + integer(months, 'month amount'));
+  date.setDate(Math.min(day, daysInCalendarMonth(date.getFullYear(), date.getMonth())));
+  return date;
+}
+
+/** @param {number} year @param {number} month @returns {number} */
+function daysInCalendarMonth(year, month) {
+  return new Date(year, month + 1, 0).getDate();
+}
+
+/**
  * Normalizes caller records atomically into the Calendar event contract.
  * @param {Record<string, any>[]} records Source records.
  * @param {CalendarNormalizeOptions} [options={}] Reader and date options.

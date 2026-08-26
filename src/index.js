@@ -136,9 +136,9 @@ export {
 export { Timebox, splitTime, joinTime } from './components/timebox/timebox.js';
 export { Calendar } from './components/calendar/calendar.js';
 export {
-  CALENDAR_VIEWS, addCalendarDays, calendarDayDifference, calendarDayKey,
-  calendarEventIntersects, calendarEventSpansDays, calendarRange, cloneCalendarEvent,
-  layoutCalendarSpans, layoutTimedCalendarEvents, normalizeCalendarEvents,
+  CALENDAR_VIEWS, addCalendarDays, addCalendarMonths, calendarDayDifference, calendarDayKey,
+  calendarEventIntersects, calendarEventSpansDays, calendarPageDate, calendarRange,
+  cloneCalendarEvent, layoutCalendarSpans, layoutTimedCalendarEvents, normalizeCalendarEvents,
   shiftCalendarEvent, startOfCalendarDay, startOfCalendarWeek
 } from './components/calendar/calendar-model.js';
 export {

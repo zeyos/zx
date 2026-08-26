@@ -1152,7 +1152,13 @@ portable state as TableView and KanbanView.
   `variant: 'outlined'|'raised'|'filled'`, `loadingCount`, `headingLevel`, and `label`.
 - **Cards** — each record is a focusable `<li>` with a native title link, separate secondary
   actions, optional native multi-select checkbox, labelled metadata, and `aria-selected` state.
-  Title/subtitle fields are not duplicated in metadata unless their field sets `duplicate:true`.
+  CardView uses a dense collection rhythm: titles clamp to two lines, previews stay at
+  thumbnail/avatar scale, and visible fields become compact labelled metadata chips. Title/subtitle
+  fields are not duplicated in metadata unless their field sets `duplicate:true`.
+- **Shared card slots** — a visible field may set
+  `view.card.slot: 'eyebrow-start'|'eyebrow-end'|'title-prefix'`. These slots create a semantic
+  eyebrow row or put labelled content immediately before (and outside) the title heading/link.
+  Unknown slots remain ordinary metadata; visibility and field order still control rendering.
 - **Media and URLs** — `preview` accepts a field ID or callback returning an image URL,
   `{src,alt,fit}`, Node, or null. Executable/non-image schemes are rejected and image failures show
   a stable fallback. Title/action links are normalized; `_blank` links receive `noopener`.
@@ -1177,13 +1183,21 @@ cards, advisory work-in-progress limits, and equivalent pointer/programmatic/key
 - **Methods** — configure/get/move columns and swim lanes, collapse either axis, and
   `moveRecord(id,{column?,lane?,index?})`. Board-specific order/collapse joins the common view
   state; record order, movement history, and selection do not.
+- **Dense board layout** — bounded muted columns use a stable 20rem rail with native horizontal
+  overflow, 48px headings, compact counts, 8–12px card padding, and 8px card gaps. Surface cards
+  use an optional square thumbnail and a two-tier hierarchy from shared card field slots:
+  `eyebrow-start`, `eyebrow-end`, and `title-prefix`. Unslotted metadata stays as quiet inline
+  facts. Titles clamp visually to two lines while retaining their complete accessible text. Move
+  and action controls reveal on hover/focus/selection/grab, and remain visible on touch devices.
 - **Movement boundary** — `recordmove {record,id,from,to,column,swimlane,limitExceeded}` is
   cancelable and fires before a commit/request. `accept` is a hard eligibility gate; WIP is visual
   advice. Local mode clones the moved record and never mutates host data. External mode emits only,
   for server validation and optimistic rollback owned by ZeyOS.
 - **Keyboard** — focus the move handle; Enter/Space grabs or drops, Escape cancels, Left/Right
   chooses a column, Up/Down chooses a bucket-relative position, and Alt+Up/Down chooses a swim
-  lane. A polite live region announces every target and result. Native drag is an enhancement.
+  lane. A polite live region announces every target, result, and reached/exceeded WIP limit.
+  Collapse keeps focus on its control, including when a programmatic collapse hides the focused
+  card. Native drag is an enhancement.
 <!-- /doc -->
 
 <!-- doc:grid -->
@@ -1256,7 +1270,9 @@ windowed loader.
   HTML, and suspicious CSS colour strings are ignored.
 - **Methods** — `getEvents()`, `setEvents()`, `addEvent()`, `updateEvent()`, `removeEvent()`,
   `getDate()`, `setDate()`, `getView()`, `setView()`, `prev()`, `next()`, `today()`,
-  `setLoading()`, `focusEvent()`, `destroy()`.
+  `setLoading()`, `focusEvent()`, `destroy()`. `prev()`/`next()` step one visible period and clamp
+  the day of month into the target month, so a 29th–31st anchor cannot skip a shorter month; the
+  same arithmetic is exported as `calendarPageDate()` and `addCalendarMonths()`.
 - **Events** — `dateschange {view,start,end}`, `viewchange {view,oldView}`, `eventclick`,
   `eventdblclick`, `dateclick {date,allDay,view}`, `select {start,end,allDay,view}`,
   `new {date,view}`, `moreclick {date,count}`, `eventschange {events}`, and cancelable

@@ -8,6 +8,45 @@ and friends remain the complete record.
 
 ## Unreleased
 
+## 4.3.1 — 2026-08-26
+
+### Added
+
+- **Shared card field slots.** A visible field may opt into the shared record-card anatomy with
+  `view.card.slot: 'eyebrow-start' | 'eyebrow-end' | 'title-prefix'`, producing a semantic eyebrow
+  row or labelled content immediately before — but outside — the title heading and primary link.
+  Absent, malformed, and unknown slots fall back to ordinary labelled metadata, and field
+  visibility and order remain authoritative.
+
+### Changed
+
+- **CardView and KanbanView read as collections, not documents.** CardView clamps titles to two
+  lines, keeps previews at thumbnail scale, and renders visible fields as compact metadata chips.
+  Kanban columns use a stable 20rem rail with native horizontal overflow, compact headings and
+  counts, tighter card padding, an optional square thumbnail, and move/action controls that reveal
+  on hover, focus, selection, or grab while staying visible on touch. Both views keep the same
+  markup, semantics, and delegated interaction hooks.
+- The landing page hero is lit by the shipped `Aurora` component rather than a bespoke gradient,
+  and gains a "Latest release" band covering Calendar, the record views, Aurora, Sheet and Dock,
+  the glass materials, and application identity.
+
+### Fixed
+
+- **Calendar month and year paging no longer overflows a month-end anchor.** From 31 January,
+  `next()` reached 3 March and skipped February entirely; from 31 March, `prev()` landed back
+  inside March, so the button appeared dead. Both steps now clamp the day of month into the target
+  month via the new `calendarPageDate()` / `addCalendarMonths()` model helpers.
+- `Calendar.updateEvent()` honours the configured `dateUnit` again. It normalized without it, so a
+  numeric `start`/`end` change was read as milliseconds on a calendar configured for Unix seconds.
+- The Calendar toolbar no longer overlaps itself. The end-justified view/new controls kept their
+  min-content width inside a narrower `1fr` track and bled back over the centred heading, hiding
+  the first view button; the heading is now the only elastic track and ellipsizes instead.
+- Kanban announces a reached or exceeded work-in-progress limit with the move it belongs to, and
+  keeps focus on a collapse control across a board refresh — including when a programmatic
+  collapse hides the card that had focus.
+- The four system-architecture cards on the landing page align their links again, and ~60 lines of
+  dead `.release-band`/`.release-notes` site CSS with no remaining markup were removed.
+
 ## 4.3.0 — 2026-08-26
 
 ### Added

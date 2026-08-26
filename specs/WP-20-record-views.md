@@ -127,8 +127,17 @@ and `loadingCount`.
   Node, or null. Unsafe URL schemes are rejected; image failure reveals a stable fallback.
 - Cards use semantic list/listitem structure. A primary native title link is never wrapped around
   secondary actions. Selection uses native checkboxes in multi mode and `aria-selected` state.
-- Visible fields render as labelled metadata in shared field order. Title/subtitle fields are not
-  duplicated unless explicitly requested with a per-field option.
+- The default CardView presentation is deliberately dense: titles clamp to two lines, previews stay
+  at thumbnail/avatar scale, and visible fields render as compact labelled metadata chips in shared
+  field order. Title/subtitle fields are not duplicated unless explicitly requested with a
+  per-field option. Kanban retains its independently scoped board-card rhythm.
+- A visible field may opt into the shared semantic card anatomy with
+  `field.view.card.slot: 'eyebrow-start'|'eyebrow-end'|'title-prefix'`. Eyebrow fields render before
+  the header; title-prefix fields render immediately before, but outside, the heading and primary
+  link. Recognized slotted fields are not duplicated in ordinary metadata, while absent, malformed,
+  or unknown slots safely fall back to ordinary labelled metadata. Field visibility and order remain
+  authoritative, and primitive values are always rendered as text; an explicit field renderer may
+  still return a Node.
 - Group headings and empty groups are deterministic. Local sort uses the common sort contract;
   server sort emits without reordering.
 - Card activation avoids stealing clicks from links, buttons, inputs, selection controls, and text

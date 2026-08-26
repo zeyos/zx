@@ -23,7 +23,7 @@ function opportunityFields() {
 // records without media so the fallback and no-preview anatomies are both visible.
 function opportunities() {
   return [
-    { ID: 101, opportunity: 'Northwind European workspace renewal', account: 'Northwind GmbH', stage: 'Qualified', owner: 'Ada Lovelace', value: 48000, updated: 'Today, 09:42', preview: './favicon.svg' },
+    { ID: 101, opportunity: 'Northwind European workspace renewal and regional rollout planning', account: 'Northwind GmbH', stage: 'Qualified', owner: 'Ada Lovelace', value: 48000, updated: 'Today, 09:42', preview: './favicon.svg' },
     { ID: 102, opportunity: 'Aurora fleet analytics', account: 'Aurora AB', stage: 'Proposal', owner: 'Grace Hopper', value: 73500, updated: 'Yesterday', preview: './assets/missing-opportunity-preview.webp' },
     { ID: 103, opportunity: 'Contoso service rollout', account: 'Contoso Ltd.', stage: 'Proposal', owner: 'Ada Lovelace', value: 29800, updated: '22 Aug', preview: null },
     { ID: 104, opportunity: 'Fabrikam office automation', account: 'Fabrikam AG', stage: 'Negotiation', owner: 'Grace Hopper', value: 112000, updated: '21 Aug', preview: './favicon.svg' },
@@ -43,15 +43,15 @@ function viewOptions(log) {
     previewAlt: (record) => `${record.account} preview`,
     link: (record) => `#opportunity-${record.ID}`,
     actions: [
-      { id: 'open', label: 'Open', icon: 'eye' },
+      { id: 'open', title: 'Open opportunity', icon: 'eye' },
       { id: 'archive', title: 'Archive opportunity', icon: 'folder' }
     ],
     groupBy: 'stage',
     groupOrder: ['Qualified', 'Proposal', 'Negotiation', 'Won', 'On hold'],
     selectable: 'multi',
     sort: { id: 'value', dir: 'desc' },
-    minCardWidth: '17rem',
-    maxColumns: 3,
+    minCardWidth: '15rem',
+    maxColumns: 4,
     variant: 'outlined',
     onrecordclick: ({ detail }) => log(`activate #${detail.id}: ${detail.record.opportunity}`),
     onrecordaction: ({ detail }) => log(`${detail.action.id} #${detail.id}`),
@@ -65,15 +65,15 @@ export default {
   title: 'Card view',
   group: 'Data',
   api: ['CardView', 'RecordView'],
-  blurb: 'A responsive record collection sharing fields, sort, selection, visibility, order, and '
-    + 'serializable state with TableView and KanbanView.',
+  blurb: 'A compact responsive record collection sharing fields, sort, selection, visibility, '
+    + 'order, and serializable state with TableView and KanbanView.',
 
   examples: [
     {
       title: 'Grouped opportunity cards',
-      blurb: 'A native title link, secondary actions, preview fallback, labelled metadata, an '
-        + 'explicit empty group, and multi-selection remain separate interactive targets. Focus a '
-        + 'card and press Enter to activate it; Space toggles selection.',
+      blurb: 'Two-line titles, thumbnail-scale previews, compact metadata chips, icon actions, an '
+        + 'explicit empty group, and multi-selection remain separate interactive targets. Focus '
+        + 'a card and press Enter to activate it; Space toggles selection.',
       layout: 'stack',
       render: ({ cleanup, log }) => {
         const view = new CardView(null, viewOptions(log));

@@ -5,9 +5,9 @@ import test from 'node:test';
 process.env.TZ = 'Europe/Vienna';
 
 import {
-  addCalendarDays, calendarDayDifference, calendarDayKey, calendarEventSpansDays, calendarRange,
-  layoutCalendarSpans, layoutTimedCalendarEvents, normalizeCalendarEvents, shiftCalendarEvent,
-  startOfCalendarWeek
+  addCalendarDays, addCalendarMonths, calendarDayDifference, calendarDayKey,
+  calendarEventSpansDays, calendarPageDate, calendarRange, layoutCalendarSpans,
+  layoutTimedCalendarEvents, normalizeCalendarEvents, shiftCalendarEvent, startOfCalendarWeek
 } from '../../src/components/calendar/calendar-model.js';
 
 const event = (id, start, end, options = {}) => normalizeCalendarEvents([{
@@ -39,6 +39,35 @@ test('calendar local-day helpers ignore DST hour changes', () => {
   assert.equal(springNext.getHours(), 9);
   assert.equal(autumnNext.getHours(), 9);
   assert.equal(calendarDayKey(startOfCalendarWeek(new Date(2026, 7, 30), 1)), '2026-08-24');
+});
+
+test('period paging never overflows a month-end anchor into the wrong month', () => {
+  const page = (view, anchor, direction) => calendarDayKey(
+    calendarPageDate(view, anchor, direction, { agendaDays: 14 })
+  );
+
+  // 31 January + one month is 3 March through `setMonth` alone, which skipped February entirely.
+  assert.equal(page('month', new Date(2026, 0, 31), 1), '2026-02-28');
+  // 31 March - one month landed back on 3 March, so `prev()` appeared to do nothing.
+  assert.equal(page('month', new Date(2026, 2, 31), -1), '2026-02-28');
+  assert.equal(page('month', new Date(2026, 4, 31), -1), '2026-04-30');
+  // A day the target month does have is preserved rather than snapped.
+  assert.equal(page('month', new Date(2026, 0, 15), 1), '2026-02-15');
+  assert.equal(page('month', new Date(2026, 11, 31), 1), '2027-01-31');
+  // 29 February is the same trap one year out.
+  assert.equal(page('year', new Date(2028, 1, 29), 1), '2029-02-28');
+  assert.equal(page('year', new Date(2026, 7, 26), -1), '2025-08-26');
+
+  assert.equal(page('day', new Date(2026, 7, 31), 1), '2026-09-01');
+  assert.equal(page('week', new Date(2026, 7, 26), 1), '2026-09-02');
+  assert.equal(page('agenda', new Date(2026, 7, 26), 1), '2026-09-09');
+  assert.throws(() => calendarPageDate('decade', new Date(2026, 0, 1), 1), RangeError);
+
+  // Paging preserves the anchor's wall-clock time and never mutates the caller's Date.
+  const anchor = new Date(2026, 0, 31, 9, 30);
+  assert.equal(calendarPageDate('month', anchor, 1).getHours(), 9);
+  assert.equal(calendarDayKey(anchor), '2026-01-31');
+  assert.equal(calendarDayKey(addCalendarMonths(new Date(2026, 0, 31), 1)), '2026-02-28');
 });
 
 test('event normalization supports configurable readers, Unix seconds, and defensive Dates', () => {

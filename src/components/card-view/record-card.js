@@ -7,6 +7,15 @@ import { readViewField, renderViewField } from '../view/record-view.js';
 /** @typedef {Record<string, any>} ViewRecord */
 /** @typedef {import('../view/record-view.js').ViewField} ViewField */
 /** @typedef {string|((record:ViewRecord,index:number)=>unknown)|null} RecordCardValueSource */
+/** @typedef {'eyebrow-start'|'eyebrow-end'|'title-prefix'} RecordCardFieldSlot */
+
+/**
+ * @typedef {Object} RecordCardFieldGroups
+ * @property {ViewField[]} eyebrowStart Fields shown at the logical start of the eyebrow row.
+ * @property {ViewField[]} eyebrowEnd Fields shown at the logical end of the eyebrow row.
+ * @property {ViewField[]} titlePrefix Fields shown immediately before, but outside, the heading.
+ * @property {ViewField[]} metadata Remaining labelled metadata fields.
+ */
 
 /**
  * @typedef {Object} RecordCardPreviewDescriptor
@@ -112,6 +121,13 @@ export function createRecordCard(record, index, options = {}) {
     class: 'zx-record-card__heading',
     id: headingId
   }, headingContent);
+  const fieldGroups = partitionRecordCardFields(visibleFields, titleSource, subtitleSource);
+  const eyebrow = createEyebrow(record, index, fieldGroups.eyebrowStart, fieldGroups.eyebrowEnd);
+  const titlePrefix = createFieldList(record, index, fieldGroups.titlePrefix,
+    'zx-record-card__title-prefix', 'title-prefix');
+  const titleRow = titlePrefix
+    ? h('div', { class: 'zx-record-card__title-row' }, titlePrefix, heading)
+    : heading;
   const selection = selectable === 'multi' ? h('label', {
     class: 'zx-record-card__selection'
   }, h('input', {
@@ -127,11 +143,11 @@ export function createRecordCard(record, index, options = {}) {
     ariaLabel: `Actions for ${textAlternative(title) || 'record'}`
   }, controls, actionNodes) : null;
   const header = h('header', { class: 'zx-record-card__header' }, selection,
-    h('div', { class: 'zx-record-card__titles' }, heading,
+    h('div', { class: 'zx-record-card__titles' }, titleRow,
       isEmptyContent(subtitle) ? null : h('p', { class: 'zx-record-card__subtitle' }, contentNode(subtitle))),
     actionArea);
-  const metadata = createMetadata(record, index, visibleFields, titleSource, subtitleSource);
-  const body = h('div', { class: 'zx-record-card__body' }, header, metadata);
+  const metadata = createFieldList(record, index, fieldGroups.metadata, 'zx-record-card__metadata');
+  const body = h('div', { class: 'zx-record-card__body' }, eyebrow, header, metadata);
   const card = /** @type {HTMLLIElement} */ (h('li', {
     class: 'zx-record-card',
     tabindex: 0,
@@ -144,6 +160,36 @@ export function createRecordCard(record, index, options = {}) {
     }
   }, preview ? createPreview(preview) : null, body));
   return card;
+}
+
+/**
+ * Partitions ordered visible fields into the shared record-card slots. A recognized
+ * `field.view.card.slot` moves the field to that semantic region; absent or unknown values remain
+ * ordinary metadata. Title and subtitle fields retain the existing no-duplication rule.
+ *
+ * The input array and descriptors are never mutated. Each field appears in at most one result
+ * array, and the order within every result follows the supplied visible-field order.
+ *
+ * @param {ViewField[]} fields Ordered visible fields.
+ * @param {RecordCardValueSource} [titleSource=null] Active title field or resolver.
+ * @param {RecordCardValueSource} [subtitleSource=null] Active subtitle field or resolver.
+ * @returns {RecordCardFieldGroups} Partitioned fields.
+ */
+export function partitionRecordCardFields(fields, titleSource = null, subtitleSource = null) {
+  /** @type {RecordCardFieldGroups} */
+  const groups = { eyebrowStart: [], eyebrowEnd: [], titlePrefix: [], metadata: [] };
+  const titleId = typeof titleSource === 'string' ? titleSource : null;
+  const subtitleId = typeof subtitleSource === 'string' ? subtitleSource : null;
+
+  for (const field of Array.isArray(fields) ? fields : []) {
+    if (!field.duplicate && (field.id === titleId || field.id === subtitleId)) continue;
+    const slot = resolveRecordCardFieldSlot(field);
+    if (slot === 'eyebrow-start') groups.eyebrowStart.push(field);
+    else if (slot === 'eyebrow-end') groups.eyebrowEnd.push(field);
+    else if (slot === 'title-prefix') groups.titlePrefix.push(field);
+    else groups.metadata.push(field);
+  }
+  return groups;
 }
 
 /**
@@ -248,21 +294,47 @@ function createPreview(preview) {
 /**
  * @param {ViewRecord} record
  * @param {number} index
- * @param {ViewField[]} fields
- * @param {RecordCardValueSource} titleSource
- * @param {RecordCardValueSource} subtitleSource
+ * @param {ViewField[]} eyebrowStart
+ * @param {ViewField[]} eyebrowEnd
  * @returns {HTMLElement|null}
  */
-function createMetadata(record, index, fields, titleSource, subtitleSource) {
-  const titleId = typeof titleSource === 'string' ? titleSource : null;
-  const subtitleId = typeof subtitleSource === 'string' ? subtitleSource : null;
-  const visible = fields.filter((field) => field.duplicate || field.id !== titleId && field.id !== subtitleId);
-  if (visible.length === 0) return null;
-  return h('dl', { class: 'zx-record-card__metadata' }, visible.map((field) => h('div', {
+function createEyebrow(record, index, eyebrowStart, eyebrowEnd) {
+  const start = createFieldList(record, index, eyebrowStart,
+    'zx-record-card__eyebrow-group', 'eyebrow-start');
+  const end = createFieldList(record, index, eyebrowEnd,
+    'zx-record-card__eyebrow-group', 'eyebrow-end');
+  return start || end ? h('div', { class: 'zx-record-card__eyebrow' }, start, end) : null;
+}
+
+/**
+ * @param {ViewRecord} record
+ * @param {number} index
+ * @param {ViewField[]} fields
+ * @param {string} className
+ * @param {RecordCardFieldSlot|null} [slot=null]
+ * @returns {HTMLElement|null}
+ */
+function createFieldList(record, index, fields, className, slot = null) {
+  if (fields.length === 0) return null;
+  return h('dl', {
+    class: className,
+    dataset: slot ? { cardSlot: slot } : undefined
+  }, fields.map((field) => h('div', {
     class: 'zx-record-card__field',
-    dataset: { fieldId: field.id }
+    dataset: { fieldId: field.id, ...(slot ? { cardSlot: slot } : {}) }
   }, h('dt', { class: 'zx-record-card__label' }, field.label),
   h('dd', { class: 'zx-record-card__value' }, contentNode(renderViewField(field, record, index))))));
+}
+
+/** @param {ViewField} field @returns {RecordCardFieldSlot|null} */
+function resolveRecordCardFieldSlot(field) {
+  const view = field?.view;
+  if (!view || typeof view !== 'object' || Array.isArray(view)) return null;
+  const card = view.card;
+  if (!card || typeof card !== 'object' || Array.isArray(card)) return null;
+  const slot = /** @type {{slot?:unknown}} */ (card).slot;
+  return slot === 'eyebrow-start' || slot === 'eyebrow-end' || slot === 'title-prefix'
+    ? slot : null;
 }
 
 /** @param {RecordCardAction} action @returns {HTMLElement} */

@@ -1,4 +1,4 @@
-import { KanbanView, button, h } from '../../src/index.js';
+import { KanbanView, badge, button, h, icon } from '../../src/index.js';
 
 // One projection can feed TableView, CardView, or KanbanView. Presentation-only preview fields may
 // stay hidden while title, group, and board fields remain available to their resolvers.
@@ -6,7 +6,10 @@ function opportunityFields() {
   const money = new Intl.NumberFormat('en', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
   return [
     { id: 'opportunity', label: 'Opportunity', sortable: true },
-    { id: 'account', label: 'Account', sortable: true },
+    {
+      id: 'account', label: 'Account', sortable: true,
+      view: { card: { slot: 'eyebrow-start' } }
+    },
     { id: 'stage', label: 'Stage', sortable: true },
     { id: 'owner', label: 'Owner', sortable: true },
     {
@@ -14,7 +17,21 @@ function opportunityFields() {
       render: (_record, _index, value) => money.format(Number(value) || 0),
       sortValue: (record) => record.value
     },
-    { id: 'updated', label: 'Updated', sortable: true },
+    {
+      id: 'updated', label: 'Updated', sortable: true,
+      view: { card: { slot: 'eyebrow-end' } },
+      render: (_record, _index, value) => h('span', {}, icon('calendar', { size: 11 }), String(value))
+    },
+    {
+      id: 'status', label: 'Delivery status',
+      view: { card: { slot: 'title-prefix' } },
+      render: (_record, _index, value) => badge({
+        dot: true,
+        kind: value === 'At risk' ? 'danger' : value === 'Needs review' ? 'warning' : 'success',
+        size: 'sm',
+        title: String(value)
+      })
+    },
     { id: 'preview', label: 'Preview', visible: false }
   ];
 }
@@ -23,12 +40,12 @@ function opportunityFields() {
 // records without media so board cards prove the shared renderer rather than a Kanban-only shape.
 function opportunities() {
   return [
-    { ID: 101, opportunity: 'Northwind European workspace renewal', account: 'Northwind GmbH', stage: 'Qualified', owner: 'Ada Lovelace', value: 48000, updated: 'Today, 09:42', preview: './assets/zeyos-mark.svg' },
-    { ID: 102, opportunity: 'Aurora fleet analytics', account: 'Aurora AB', stage: 'Proposal', owner: 'Grace Hopper', value: 73500, updated: 'Yesterday', preview: './assets/missing-opportunity-preview.webp' },
-    { ID: 103, opportunity: 'Contoso service rollout', account: 'Contoso Ltd.', stage: 'Proposal', owner: 'Ada Lovelace', value: 29800, updated: '22 Aug', preview: null },
-    { ID: 104, opportunity: 'Fabrikam office automation', account: 'Fabrikam AG', stage: 'Negotiation', owner: 'Grace Hopper', value: 112000, updated: '21 Aug', preview: './assets/zx-mark.svg' },
-    { ID: 105, opportunity: 'Alpine logistics platform', account: 'Alpine Logistics', stage: 'Negotiation', owner: 'Ada Lovelace', value: 95000, updated: '18 Aug', preview: null },
-    { ID: 106, opportunity: 'Tailspin support extension', account: 'Tailspin Toys', stage: 'Won', owner: 'Grace Hopper', value: 18000, updated: '12 Aug', preview: null }
+    { ID: 101, opportunity: 'Northwind European workspace renewal', account: 'Northwind GmbH', stage: 'Qualified', owner: 'Ada Lovelace', value: 48000, updated: 'Today, 09:42', status: 'On track', preview: './assets/zeyos-mark.svg' },
+    { ID: 102, opportunity: 'Aurora fleet analytics', account: 'Aurora AB', stage: 'Proposal', owner: 'Grace Hopper', value: 73500, updated: 'Yesterday', status: 'Needs review', preview: './assets/missing-opportunity-preview.webp' },
+    { ID: 103, opportunity: 'Contoso service rollout', account: 'Contoso Ltd.', stage: 'Proposal', owner: 'Ada Lovelace', value: 29800, updated: '22 Aug', status: 'On track', preview: null },
+    { ID: 104, opportunity: 'Fabrikam office automation', account: 'Fabrikam AG', stage: 'Negotiation', owner: 'Grace Hopper', value: 112000, updated: '21 Aug', status: 'At risk', preview: './assets/zx-mark.svg' },
+    { ID: 105, opportunity: 'Alpine logistics platform', account: 'Alpine Logistics', stage: 'Negotiation', owner: 'Ada Lovelace', value: 95000, updated: '18 Aug', status: 'On track', preview: null },
+    { ID: 106, opportunity: 'Tailspin support extension', account: 'Tailspin Toys', stage: 'Won', owner: 'Grace Hopper', value: 18000, updated: '12 Aug', status: 'Complete', preview: null }
   ];
 }
 
@@ -47,23 +64,28 @@ const OWNERS = [
   { id: 'Grace Hopper', label: 'Grace Hopper' }
 ];
 
-function viewOptions(log) {
+function viewOptions(log, {
+  swimlanes = false,
+  showPreviews = false,
+  showSubtitle = false,
+  showValue = false,
+  selectable = false
+} = {}) {
   return {
     fields: opportunityFields(),
     data: opportunities(),
     recordId: 'ID',
     columnBy: 'stage',
     columns: STAGES,
-    swimlaneBy: 'owner',
-    swimlanes: OWNERS,
+    ...(swimlanes ? { swimlaneBy: 'owner', swimlanes: OWNERS } : {}),
     titleField: 'opportunity',
-    subtitleField: 'account',
-    preview: 'preview',
+    subtitleField: showSubtitle ? 'account' : null,
+    preview: showPreviews ? 'preview' : null,
     previewAlt: (record) => `${record.account} preview`,
     link: (record) => `#opportunity-${record.ID}`,
     actions: [{ id: 'open', label: 'Open', icon: 'eye' }],
-    selectable: 'multi',
-    hiddenFields: ['stage', 'owner', 'preview'],
+    selectable,
+    hiddenFields: ['stage', 'owner', 'preview', ...(showValue ? [] : ['value'])],
     moveMode: 'local',
     showCounts: true,
     showEmptyColumns: true,
@@ -84,10 +106,10 @@ export default {
 
   examples: [
     {
-      title: 'Opportunity board with swim lanes',
-      blurb: 'Counts and advisory WIP limits remain visible across configured columns and owner '
-        + 'lanes. Drag the move handle, or focus it and press Enter/Space to grab, arrows to choose '
-        + 'a target, Alt+Up/Down to change owner, and Enter/Space again to drop.',
+      title: 'Compact opportunity pipeline',
+      blurb: 'A quiet account/date eyebrow and status-led title keep the default board scannable. '
+        + 'Hover or focus a card to reveal its move and action controls; press Enter/Space on the '
+        + 'move handle to grab, arrows to choose a target, then Enter/Space to drop.',
       layout: 'stack',
       render: ({ cleanup, log }) => {
         const view = new KanbanView(null, viewOptions(log));
@@ -96,13 +118,19 @@ export default {
       }
     },
     {
-      title: 'Saved board configuration',
-      blurb: 'Column and lane order plus collapsed sections join the common JSON-safe state. '
-        + 'Selection, records, and movement history are deliberately excluded.',
+      title: 'Advanced swim lanes and saved state',
+      blurb: 'Optional thumbnails, subtitles, metadata, selection, actions, swim lanes, and JSON-safe '
+        + 'configuration remain available without making every board card carry that weight.',
       layout: 'stack',
       render: ({ cleanup, log }) => {
         let saved = null;
-        const view = new KanbanView(null, { ...viewOptions(log), preview: null, actions: [] });
+        const view = new KanbanView(null, viewOptions(log, {
+          swimlanes: true,
+          showPreviews: true,
+          showSubtitle: true,
+          showValue: true,
+          selectable: 'multi'
+        }));
         cleanup(() => view.destroy());
         return [
           view.toElement(),

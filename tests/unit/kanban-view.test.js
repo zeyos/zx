@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
@@ -13,6 +14,31 @@ import { RecordView } from '../../src/components/view/record-view.js';
 test('KanbanView extends the shared RecordView contract', () => {
   assert.equal(KanbanView.prototype instanceof RecordView, true);
   assert.equal(KanbanView.cssName, 'kanban-view');
+});
+
+test('board styling keeps hierarchy, progressive controls, and coarse targets scoped', () => {
+  const source = readFileSync(new URL(
+    '../../src/components/kanban-view/kanban-view.css', import.meta.url), 'utf8');
+  assert.match(source, /--zx-kanban-column-width:\s*20rem/);
+  assert.match(source, /--zx-kanban-thumbnail-size:\s*2rem/);
+  assert.match(source, /--zx-kanban-card-padding-block:\s*var\(--zx-space-2\)/);
+  assert.match(source, /--zx-kanban-card-padding-inline:\s*var\(--zx-space-3\)/);
+  assert.match(source, /--zx-kanban-card-gap:\s*var\(--zx-space-2\)/);
+  assert.match(source, /\.zx-kanban-view__column-heading\s*\{[^}]*min-block-size:\s*3rem/s);
+  assert.match(source, /\.zx-kanban-view__column\s*\{[^}]*background:\s*var\(--zx-color-bg-muted\)/s);
+  assert.match(source, /\.zx-kanban-view__cards\s*\{[^}]*gap:\s*var\(--zx-space-2\)/s);
+  assert.match(source, /\.zx-kanban-view__columns\[hidden\],[\s\S]*\.zx-kanban-view__cards\[hidden\]\s*\{[^}]*display:\s*none/s);
+  assert.match(source, /\.zx-kanban-view \.zx-record-card:has\(> \.zx-record-card__preview\)/);
+  assert.match(source, /\.zx-kanban-view :where\(\.zx-record-card\[data-variant="outlined"\]\)\s*\{[^}]*box-shadow:\s*var\(--zx-shadow-1\)/s);
+  assert.match(source, /\.zx-kanban-view \.zx-record-card__eyebrow-group\[data-card-slot="eyebrow-start"\]/);
+  assert.match(source, /\.zx-kanban-view \.zx-record-card__title-prefix \.zx-icon/);
+  assert.match(source, /\.zx-kanban-view \.zx-record-card__actions\s*\{[^}]*opacity:\s*0[^}]*pointer-events:\s*none/s);
+  assert.match(source, /\.zx-kanban-view \.zx-record-card:focus-within \.zx-record-card__actions/);
+  assert.match(source, /-webkit-line-clamp:\s*2/);
+  assert.match(source, /@media \(hover:\s*none\), \(pointer:\s*coarse\)[\s\S]*opacity:\s*1/s);
+  assert.match(source, /@media \(pointer:\s*coarse\)[\s\S]*inline-size:\s*2\.75rem[\s\S]*min-block-size:\s*2\.75rem/s);
+  assert.doesNotMatch(source, /@media \(pointer:\s*coarse\)[\s\S]*::before/);
+  assert.doesNotMatch(source, /^\.zx-record-card__/m);
 });
 
 test('configured descriptors are cloned, normalized, and keep advisory WIP limits', () => {

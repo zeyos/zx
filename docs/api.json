@@ -1468,7 +1468,7 @@
       {
         "name": "minCardWidth",
         "type": "number|string",
-        "default": "'18rem'",
+        "default": "'15rem'",
         "description": "Responsive minimum card width."
       },
       {

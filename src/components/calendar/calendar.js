@@ -3,8 +3,8 @@ import { h } from '../../core/dom.js';
 import { icon } from '../../core/icons.js';
 import {
   CALENDAR_VIEWS, addCalendarDays, calendarDayDifference, calendarDayKey,
-  calendarEventIntersects, calendarEventSpansDays, calendarRange, cloneCalendarEvent,
-  layoutCalendarSpans, layoutTimedCalendarEvents, normalizeCalendarEvents,
+  calendarEventIntersects, calendarEventSpansDays, calendarPageDate, calendarRange,
+  cloneCalendarEvent, layoutCalendarSpans, layoutTimedCalendarEvents, normalizeCalendarEvents,
   shiftCalendarEvent, startOfCalendarDay
 } from './calendar-model.js';
 
@@ -289,7 +289,9 @@ export class Calendar extends Component {
         ? changes.durationEditable : current.durationEditable,
       data: changes.data ?? current.data
     };
-    const [next] = normalizeCalendarEvents([source]);
+    // `source` is assembled from canonical keys, so the configured readers must not be reapplied
+    // here — but `dateUnit` must, or a numeric change is read in the wrong unit.
+    const [next] = normalizeCalendarEvents([source], { dateUnit: this.options.dateUnit });
     next.data = source.data;
     this._events = this._events.map((event, eventIndex) => eventIndex === index ? next : event);
     this._mutationVersions.delete(String(id));
@@ -1335,13 +1337,9 @@ export class Calendar extends Component {
 
   /** @param {number} direction @returns {this} */
   _page(direction) {
-    const date = new Date(this._date.getTime());
-    if (this._view === 'day') date.setDate(date.getDate() + direction);
-    else if (this._view === 'agenda') date.setDate(date.getDate() + direction * this.options.agendaDays);
-    else if (this._view === 'week') date.setDate(date.getDate() + direction * 7);
-    else if (this._view === 'month') date.setMonth(date.getMonth() + direction);
-    else date.setFullYear(date.getFullYear() + direction);
-    return this.setDate(date);
+    return this.setDate(calendarPageDate(this._view, this._date, direction, {
+      agendaDays: this.options.agendaDays
+    }));
   }
 
   /** @param {{start: Date, end: Date}} range @returns {string} */
