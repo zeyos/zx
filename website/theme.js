@@ -121,7 +121,7 @@ function buildRail() {
     section('Material', segmented('Material', MATERIALS, () => state.glass, (value) => {
       state.glass = value;
       apply();
-    }), 'Flat is opaque, Glass adds restrained depth, and Deep glass increases translucency, blur, highlights, and elevation on identity and raised surfaces.'),
+    }), 'Aurora supplies ambient light; material controls how surfaces respond to it. Flat is opaque. Glass and Deep glass progressively affect AppIcons, controls, persistent chrome, raised cards, and every transient overlay. Menus, pickers, tooltips, column menus, and Toast use the compact floating surface. Launcher, Modal, Dialog, and overlay Sheet use a quieter reading panel. Docked Sheets and dense data surfaces stay opaque.'),
     accentSection(),
     section('Neutral tint', choice(TINTS, () => state.tint, (value) => {
       state.tint = value;

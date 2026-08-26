@@ -1,0 +1,114 @@
+.zx-record-view {
+  min-inline-size: 0;
+  color: var(--zx-color-text);
+}
+
+.zx-record-view__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--zx-space-2);
+  margin-block-end: var(--zx-space-2);
+}
+
+.zx-record-view__field-controls {
+  position: relative;
+  inline-size: max-content;
+  margin-inline-start: auto;
+}
+
+.zx-record-view__field-controls > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-1);
+  cursor: pointer;
+  list-style: none;
+}
+
+.zx-record-view__field-controls > summary::-webkit-details-marker {
+  display: none;
+}
+
+.zx-record-view__field-list {
+  position: absolute;
+  z-index: 4;
+  inset-block-start: calc(100% + var(--zx-space-1));
+  inset-inline-end: 0;
+  display: grid;
+  min-inline-size: 230px;
+  max-block-size: min(360px, 70vh);
+  overflow: auto;
+  border: 1px solid var(--zx-color-border-strong);
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-bg-raised);
+  box-shadow: var(--zx-overlay-shadow);
+  padding: var(--zx-space-2);
+}
+
+.zx-record-view__field-option {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--zx-space-2);
+  min-block-size: var(--zx-control-height);
+}
+
+.zx-record-view__field-option > label {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  min-inline-size: 0;
+}
+
+.zx-record-view__field-option > label > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zx-record-view__field-order {
+  display: inline-flex;
+}
+
+.zx-record-view__field-move {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 26px;
+  block-size: 26px;
+  border: 0;
+  border-radius: var(--zx-radius-sm);
+  background: transparent;
+  color: var(--zx-color-text-muted);
+  cursor: pointer;
+}
+
+.zx-record-view__field-move:hover:not(:disabled) {
+  background: var(--zx-color-bg-hover);
+  color: var(--zx-color-text);
+}
+
+.zx-record-view__field-move:focus-visible {
+  outline: none;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.zx-record-view__field-move:disabled {
+  opacity: .35;
+  cursor: not-allowed;
+}
+
+.zx-record-view[data-loading="true"] {
+  cursor: progress;
+}
+
+.zx-record-view[data-loading="true"] > :not(.zx-record-view__toolbar) {
+  opacity: .62;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .zx-record-view__field-move,
+  .zx-record-view[data-loading="true"] > :not(.zx-record-view__toolbar) {
+    transition: color var(--zx-dur-fast) var(--zx-ease),
+      background var(--zx-dur-fast) var(--zx-ease), opacity var(--zx-dur-fast) var(--zx-ease);
+  }
+}

@@ -56,17 +56,81 @@
   --zx-color-glass-highlight: color-mix(in srgb, var(--zx-gray-0) 24%, transparent);
   --zx-color-glass-highlight-strong: color-mix(in srgb, var(--zx-gray-0) 38%, transparent);
   --zx-color-app-icon-depth: color-mix(in srgb, var(--zx-color-app-icon-shade) 26%, transparent);
+  /* AppIcon is a dark chromatic lens: colour lives in its rim and low bloom, not a glossy fill. */
+  /* Strengths remain inherited, while each AppIcon mixes them with its own module colour. */
+  --zx-app-icon-core-strength: 52%;
+  --zx-app-icon-rim-strength: 58%;
+  --zx-app-icon-bloom-strength: 64%;
+  --zx-app-icon-specular-strength: 72%;
+  --zx-app-icon-rim-base: var(--zx-color-glass-highlight);
+  --zx-app-icon-halo-size: 14px;
+  --zx-app-icon-halo-strength: 22%;
   --zx-color-glass-surface: color-mix(in srgb, var(--zx-color-bg-raised) 78%, transparent);
+  /* Persistent application chrome is quieter and more opaque than a raised feature card. */
+  --zx-color-glass-chrome: color-mix(in srgb, var(--zx-color-bg-surface) 90%, transparent);
   --zx-color-glass-control: color-mix(in srgb, var(--zx-color-bg-control) 88%, transparent);
   --zx-color-glass-control-hover: color-mix(in srgb, var(--zx-color-bg-hover) 76%, var(--zx-color-glass-surface));
+  /* Compact overlays can show more of the page; reading-sized panels stay quieter and more opaque. */
+  --zx-color-overlay-surface: color-mix(in srgb, var(--zx-color-bg-raised) 88%, transparent);
+  --zx-color-overlay-panel: color-mix(in srgb, var(--zx-color-bg-raised) 94%, transparent);
+  --zx-color-overlay-border: color-mix(in srgb, var(--zx-color-border-strong) 72%, var(--zx-color-glass-highlight));
   --zx-glass-blur: 8px;
   --zx-glass-saturation: 130%;
   --zx-glass-color-strength: 82%;
-  --zx-app-icon-shadow: inset 0 1px 0 color-mix(in srgb, var(--zx-gray-0) 28%, transparent), inset 0 -1px 0 color-mix(in srgb, var(--zx-gray-950) 16%, transparent), 0 5px 14px color-mix(in srgb, var(--zx-color-app-icon-shade) 28%, transparent);
-  --zx-app-icon-shadow-hover: inset 0 1px 0 color-mix(in srgb, var(--zx-gray-0) 40%, transparent), inset 0 -1px 0 color-mix(in srgb, var(--zx-gray-950) 20%, transparent), 0 9px 22px color-mix(in srgb, var(--zx-color-app-icon-shade) 36%, transparent);
+  /* Material filters are roles, not component recipes. Aurora remains a separate canvas layer. */
+  --zx-glass-filter-icon: blur(4px) saturate(118%);
+  --zx-glass-filter-control: blur(6px) saturate(116%);
+  --zx-glass-filter-raised: blur(8px) saturate(120%);
+  --zx-glass-filter-chrome: blur(10px) saturate(122%);
+  --zx-glass-filter-overlay: blur(12px) saturate(128%);
+  --zx-glass-filter-panel: blur(9px) saturate(120%);
+  --zx-app-icon-shadow: inset 0 1px 0 color-mix(in srgb, var(--zx-gray-0) 14%, transparent), inset 0 -1px 0 color-mix(in srgb, var(--zx-gray-950) 28%, transparent), 0 2px 6px color-mix(in srgb, var(--zx-color-app-icon-shade) 24%, transparent);
+  --zx-app-icon-shadow-hover: inset 0 1px 0 color-mix(in srgb, var(--zx-gray-0) 20%, transparent), inset 0 -1px 0 color-mix(in srgb, var(--zx-gray-950) 32%, transparent), 0 4px 10px color-mix(in srgb, var(--zx-color-app-icon-shade) 30%, transparent);
   --zx-glass-control-shadow: inset 0 1px 0 color-mix(in srgb, var(--zx-gray-0) 18%, transparent), var(--zx-shadow-1);
+  --zx-glass-chrome-shadow: inset 0 1px 0 color-mix(in srgb, var(--zx-gray-0) 16%, transparent), var(--zx-shadow-1);
   --zx-glass-raised-shadow: inset 0 1px 0 color-mix(in srgb, var(--zx-gray-0) 18%, transparent), var(--zx-overlay-shadow);
-  --zx-glass-glyph-shadow: 0 1px 2px color-mix(in srgb, var(--zx-gray-950) 58%, transparent);
   --zx-header-bg: var(--zx-gray-900);
   --zx-header-text: var(--zx-gray-50);
+}
+
+/* Preferences are resolved at the token seam so every material consumer, including application
+   chrome outside a component stylesheet, receives the same deterministic opaque fallback. */
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  :root,
+  [data-zx-theme] {
+    --zx-color-glass-chrome: var(--zx-color-bg-surface) !important;
+    --zx-color-glass-surface: var(--zx-color-bg-raised) !important;
+    --zx-color-glass-control: var(--zx-color-bg-control) !important;
+    --zx-color-glass-control-hover: var(--zx-color-bg-hover) !important;
+    --zx-color-overlay-surface: var(--zx-color-bg-raised) !important;
+    --zx-color-overlay-panel: var(--zx-color-bg-raised) !important;
+    --zx-app-icon-core-strength: 68% !important;
+    --zx-app-icon-rim-strength: 62% !important;
+    --zx-app-icon-bloom-strength: 0% !important;
+    --zx-app-icon-specular-strength: 0% !important;
+    --zx-app-icon-rim-base: var(--zx-color-border) !important;
+    --zx-app-icon-halo-strength: 0% !important;
+    --zx-glass-filter-icon: none !important;
+    --zx-glass-filter-control: none !important;
+    --zx-glass-filter-raised: none !important;
+    --zx-glass-filter-chrome: none !important;
+    --zx-glass-filter-overlay: none !important;
+    --zx-glass-filter-panel: none !important;
+  }
+}
+
+@media (forced-colors: active) {
+  :root,
+  [data-zx-theme] {
+    --zx-color-glass-chrome: Canvas !important;
+    --zx-color-glass-surface: Canvas !important;
+    --zx-color-glass-control: ButtonFace !important;
+    --zx-color-glass-control-hover: Highlight !important;
+    --zx-color-overlay-surface: Canvas !important;
+    --zx-color-overlay-panel: Canvas !important;
+    --zx-color-overlay-border: CanvasText !important;
+    --zx-glass-control-shadow: none !important;
+    --zx-glass-chrome-shadow: none !important;
+    --zx-glass-raised-shadow: none !important;
+  }
 }

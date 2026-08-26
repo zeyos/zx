@@ -29,3 +29,12 @@ export {
   buildZeyosCalendarOptions, calendarEventToZeyosPatch, zeyosAppointmentToEvent,
   zeyosAppointmentsToEvents, zeyosCalendar
 } from './calendar.js';
+export { buildZeyosViewConfig, zeyosView } from './view.js';
+export {
+  SAVED_VIEWS_VERSION, SavedViewDuplicateNameError, SavedViewRegistry,
+  SavedViewScopeMismatchError, createSavedViewRegistry, migrateSavedViewDocument,
+  normalizeSavedViewDocument, normalizeSavedViewScope
+} from './saved-views.js';
+export {
+  createLegacySavedViewTransport, legacySavedViewRequest
+} from './legacy-saved-views.js';

@@ -14,8 +14,8 @@
   font-weight: var(--zx-control-font-weight);
   line-height: 1;
   cursor: pointer;
-  -webkit-backdrop-filter: blur(var(--zx-glass-blur)) saturate(var(--zx-glass-saturation));
-  backdrop-filter: blur(var(--zx-glass-blur)) saturate(var(--zx-glass-saturation));
+  -webkit-backdrop-filter: var(--zx-glass-filter-control);
+  backdrop-filter: var(--zx-glass-filter-control);
   box-shadow: var(--zx-glass-control-shadow);
   transition: color var(--zx-dur-fast) var(--zx-ease),
     background-color var(--zx-dur-fast) var(--zx-ease),

@@ -8,6 +8,8 @@ and friends remain the complete record.
 
 ## Unreleased
 
+## 4.2.0 — 2026-08-26
+
 ### Added
 
 - **Calendar scheduling.** `Calendar` adds agenda/day/week/month/year views, local-time collision
@@ -16,6 +18,39 @@ and friends remain the complete record.
   `optimistic: false` leaves updates application-controlled. The optional ZeyOS adapter maps
   expanded appointment occurrences and Unix seconds while recurrence, DAV, and persistence remain
   outside core.
+- **Shared record views.** `TableView`, `CardView`, and `KanbanView` use one schema-friendly field,
+  data, sort, selection, loading, and versioned view-state contract. Tables can expose accessible
+  column ordering; cards support safe preview media and grouped responsive layouts; Kanban boards
+  add columns, swim lanes, WIP indicators, and cancelable pointer/keyboard moves in local or
+  application-controlled mode. The optional ZeyOS binding derives fields and projections from an
+  injected client without making validation, permissions, or routing core concerns. Its optional
+  saved-view registry persists named Table/Card/Kanban state by user, workspace, and resource
+  through an injected atomic transport; a compatibility adapter reuses ZeyOS's existing
+  `userfields` endpoints without trusting a client-supplied user identity.
+- **Aurora surfaces.** `Aurora` adds a dependency-free, one- to four-colour ambient-light layer
+  with six geometries, bounded palettes and intensity, CSS-only composition, and deterministic
+  reduced-motion, reduced-transparency, and forced-colour fallbacks. The documentation includes a
+  live application composition and an earlier-studies comparison page.
+
+### Changed
+
+- Liquid-glass recipes now distinguish compact floating overlays from reading-sized panels and
+  apply consistently to menus, pickers, tooltips, column controls, toasts, Launcher, Modal,
+  Dialog, and overlay Sheets. Docked Sheets remain opaque.
+- The documentation search is narrower at desktop widths, and Avatar now appears under Layout.
+- **Application identity now has one deliberate shape language.** `zeyosAppIcon()` and application
+  destinations in Launcher/AppSidebar use quiet circular chromatic lenses with crisp centred white
+  glyphs; `moduleChip()` remains a low-radius tile for entities, nested destinations, and records.
+  Per-icon blur and hover movement were removed, while rim/light/shadow feedback and material-mode
+  differences remain visible without changing geometry.
+
+### Fixed
+
+- AppIcon now preserves native button/link semantics when enhancing an interactive target, forwards
+  ZeyOS badge and selection state, ignores hover on disabled destinations, and uses forced-colour
+  system values for badges.
+- The AppSidebar example no longer replaces AppIcon's internal surface, so collapsed rails retain
+  the same material, focus, selection, and accessibility behavior as expanded navigation.
 
 ## 4.1.1 — 2026-08-25
 

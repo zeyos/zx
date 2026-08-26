@@ -196,7 +196,9 @@ export function zeyosTable(client, resource, opts = {}) {
   };
 
   table.on('sort', (event) => {
-    currentSort = { id: String(event.detail.id), dir: event.detail.dir === 'desc' ? 'desc' : 'asc' };
+    const id = event.detail?.id;
+    currentSort = id == null ? null
+      : { id: String(id), dir: event.detail.dir === 'desc' ? 'desc' : 'asc' };
     void load({ page: 0 }).catch(() => { /* The connection facade already reported the failure. */ });
   });
   return binding;

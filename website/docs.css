@@ -28,7 +28,7 @@
 .docs-global-search .zx-search__input {
   flex: 1 1 auto;
   min-inline-size: 0;
-  background: var(--zx-color-bg-page);
+  background: var(--zx-color-glass-control);
 }
 
 .docs-global-search__popover {
@@ -38,10 +38,12 @@
   inset-inline: 0;
   max-block-size: min(70dvh, 32rem);
   overflow-y: auto;
-  border: 1px solid var(--zx-color-border);
+  border: 1px solid var(--zx-color-overlay-border);
   border-radius: var(--zx-radius-lg);
-  background: var(--zx-color-bg-raised);
-  box-shadow: var(--zx-overlay-shadow);
+  background: var(--zx-color-overlay-surface);
+  -webkit-backdrop-filter: var(--zx-glass-filter-overlay);
+  backdrop-filter: var(--zx-glass-filter-overlay);
+  box-shadow: var(--zx-glass-raised-shadow);
 }
 
 .docs-global-search__popover[hidden] {
@@ -98,6 +100,7 @@
   display: grid;
   grid-template-columns: 268px minmax(0, 1fr) 232px;
   min-block-size: calc(100dvh - var(--docs-header));
+  background: var(--zx-color-bg-page);
 }
 
 /* ------------------------------------------------------------------ sidebar -- */
@@ -108,8 +111,9 @@
   block-size: calc(100dvh - var(--docs-header));
   overflow-y: auto;
   padding: var(--zx-space-6) var(--zx-space-5);
-  border-inline-end: 1px solid var(--zx-color-border);
-  background: var(--zx-color-bg-surface);
+  border-inline-end: 1px solid var(--zx-color-glass-border);
+  background: var(--zx-color-glass-chrome);
+  box-shadow: var(--zx-glass-chrome-shadow);
 }
 
 .docs-filter {
@@ -184,6 +188,7 @@
 .docs-main {
   min-inline-size: 0;
   padding: var(--zx-space-8) var(--zx-space-8) 96px;
+  background: transparent;
 }
 
 /* Code needs width — Zx examples routinely run past 80 columns — so the article is wider than the
@@ -517,9 +522,8 @@
 .docs-example__stage {
   padding: var(--zx-space-6);
   border: 1px solid var(--zx-color-border);
-  border-radius: var(--zx-radius-xl) var(--zx-radius-xl) 0 0;
-  border-block-end: 0;
-  background: var(--zx-color-bg-page);
+  border-radius: var(--zx-radius-xl);
+  background: var(--zx-color-bg-surface);
 }
 
 /* The stage does the arranging, so an example's source is a list of components rather than the
@@ -548,9 +552,10 @@
   display: block;
   min-block-size: 46px;
   padding: var(--zx-space-3) var(--zx-space-6);
-  border-inline: 1px solid var(--zx-color-border);
-  border-block-start: 1px dashed var(--zx-color-border);
-  background: var(--zx-color-bg-page);
+  margin-block-start: var(--zx-space-2);
+  border: 1px dashed var(--zx-color-border);
+  border-radius: var(--zx-radius-lg);
+  background: var(--zx-color-bg-surface);
   color: var(--zx-color-text-muted);
   font-family: var(--zx-font-mono);
   font-size: var(--zx-text-xs);
@@ -618,14 +623,40 @@
   padding: var(--zx-space-4);
 }
 
+.demo-aurora-surface {
+  display: grid;
+  min-block-size: 13rem;
+  overflow: hidden;
+  place-items: center;
+  padding: var(--zx-space-6);
+  border: 1px solid var(--zx-color-border);
+  border-radius: var(--zx-radius-lg);
+  background: var(--zx-color-bg-page);
+}
+
+.demo-aurora-surface--compact {
+  min-block-size: 10rem;
+  padding: var(--zx-space-4);
+}
+
+.demo-aurora-surface--large {
+  min-block-size: 18rem;
+  padding: var(--zx-space-7);
+}
+
+.demo-aurora-surface > .zx-card {
+  max-inline-size: 28rem;
+}
+
 /* --------------------------------------------------------------- disclosure -- */
 
 /* The source lives under its demo, folded away. Disclosing it grows the card downward, so the
    component stays on screen and the code is never a view the reader has to come back from. */
 .docs-disclosure {
   border: 1px solid var(--zx-color-border);
-  border-radius: 0 0 var(--zx-radius-xl) var(--zx-radius-xl);
+  border-radius: var(--zx-radius-xl);
   background: var(--zx-color-bg-surface);
+  margin-block-start: var(--zx-space-2);
 }
 
 .docs-disclosure__bar {
@@ -981,9 +1012,9 @@
   margin: 0 0 var(--zx-space-5);
   padding: var(--zx-space-4) var(--zx-space-5);
   border: 1px solid var(--zx-color-border);
-  border-inline-start: 3px solid var(--zx-color-accent);
   border-radius: var(--zx-radius-lg);
   background: var(--zx-color-bg-surface);
+  box-shadow: inset 0 0 0 1px var(--zx-color-accent-subtle);
 }
 
 .docs-callout p:last-child {
@@ -1000,6 +1031,7 @@
   border: 1px solid var(--zx-color-border);
   border-radius: var(--zx-radius-xl);
   background: var(--zx-color-bg-page);
+  box-shadow: var(--zx-shadow-1);
 }
 
 .layout-frame .zx-master-panel {
@@ -1058,9 +1090,12 @@
   display: grid;
   gap: var(--zx-space-1);
   padding: var(--zx-space-4);
-  border: 1px solid var(--zx-color-border);
+  border: 1px solid var(--zx-color-glass-border);
   border-radius: var(--zx-radius-lg);
-  background: var(--zx-color-bg-surface);
+  background: var(--zx-color-glass-surface);
+  -webkit-backdrop-filter: var(--zx-glass-filter-raised);
+  backdrop-filter: var(--zx-glass-filter-raised);
+  box-shadow: var(--zx-glass-control-shadow);
 }
 
 .stat-card__label {
@@ -1232,9 +1267,12 @@
   grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
   gap: var(--zx-space-5);
   padding: var(--zx-space-5);
-  border: 1px solid var(--zx-color-border);
+  border: 1px solid var(--zx-color-glass-border);
   border-radius: var(--zx-radius-xl);
-  background: var(--zx-color-bg-surface);
+  background: var(--zx-color-glass-surface);
+  -webkit-backdrop-filter: var(--zx-glass-filter-raised);
+  backdrop-filter: var(--zx-glass-filter-raised);
+  box-shadow: var(--zx-glass-control-shadow);
 }
 
 .record-header__main {
@@ -1373,10 +1411,37 @@
   display: flex;
   gap: var(--zx-space-3);
   padding: var(--zx-space-2);
-  border: 1px solid var(--zx-color-border);
+  border: 1px solid var(--zx-color-glass-border);
   border-radius: var(--zx-radius-xl);
-  background: var(--zx-color-bg-raised);
-  box-shadow: var(--zx-overlay-shadow);
+  background: var(--zx-color-glass-chrome);
+  -webkit-backdrop-filter: var(--zx-glass-filter-chrome);
+  backdrop-filter: var(--zx-glass-filter-chrome);
+  box-shadow: var(--zx-glass-chrome-shadow);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .docs-global-search__popover,
+  .docs-sidebar,
+  .docs-toolbar,
+  .stat-card,
+  .record-header {
+    border-color: var(--zx-color-border);
+    background: var(--zx-color-bg-surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: var(--zx-shadow-1);
+  }
+}
+
+@media (prefers-contrast: more) {
+  .docs-global-search__popover,
+  .docs-sidebar,
+  .docs-toolbar,
+  .stat-card,
+  .record-header {
+    border-color: var(--zx-color-border-strong);
+    background: var(--zx-color-bg-surface);
+  }
 }
 
 .docs-switcher {

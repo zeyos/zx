@@ -1,8 +1,9 @@
 .zx-app-sidebar {
   display: flex;
   min-block-size: 0;
-  border: 1px solid var(--zx-color-border);
-  background: var(--zx-color-bg-raised);
+  border: 1px solid var(--zx-color-glass-border);
+  background: var(--zx-color-glass-chrome);
+  box-shadow: var(--zx-glass-chrome-shadow);
   color: var(--zx-color-text);
 }
 
@@ -78,3 +79,11 @@
 }
 .zx-app-sidebar__footer[hidden] { display: none; }
 .zx-app-sidebar__rail-header { display: grid; gap: var(--zx-space-1); }
+
+@media (prefers-reduced-transparency: reduce) {
+  .zx-app-sidebar {
+    border-color: var(--zx-color-border);
+    background: var(--zx-color-bg-surface);
+    box-shadow: none;
+  }
+}

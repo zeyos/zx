@@ -45,6 +45,16 @@ body.site-page > main {
   backdrop-filter: blur(14px);
 }
 
+/* Documentation chrome responds to the same material recipe as Zx components. Marketing pages
+   keep their deliberately fixed bands and overlay header below. */
+.site-page--app .site-header {
+  border-block-end-color: var(--zx-color-glass-border);
+  background: var(--zx-color-glass-chrome);
+  -webkit-backdrop-filter: var(--zx-glass-filter-chrome);
+  backdrop-filter: var(--zx-glass-filter-chrome);
+  box-shadow: var(--zx-glass-chrome-shadow);
+}
+
 /* Home page: the header shares the hero's top colour so the two read as one dark surface, then
    picks up a border and a blur once the page scrolls past the hero. (A sticky header stays in
    flow, so a transparent background would show the page colour, not the hero.) */
@@ -185,7 +195,7 @@ body.site-page > main {
 .site-docs-search {
   position: absolute;
   inset-inline-start: 50%;
-  inline-size: min(34rem, 38vw);
+  inline-size: min(26rem, 30vw);
   transform: translateX(-50%);
 }
 
@@ -212,10 +222,20 @@ body.site-page > main {
   min-block-size: 0;
   padding: 0;
   border: 1px solid var(--zx-color-border);
-  border-radius: var(--zx-radius-lg);
+  border-radius: var(--zx-radius-full);
   background: none;
   color: var(--zx-color-text-muted);
   cursor: pointer;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .site-page--app .site-header {
+    border-block-end-color: var(--zx-color-border);
+    background: var(--zx-color-bg-surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: none;
+  }
 }
 
 .site-icon-btn::before {

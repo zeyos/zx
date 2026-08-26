@@ -90,7 +90,7 @@
   overflow: visible;
   max-inline-size: calc(100vw - var(--zx-space-4));
   border: 0;
-  background: var(--zx-color-bg-raised);
+  background: none;
   padding: 0;
 }
 
@@ -103,6 +103,19 @@
 }
 
 .zx-datebox__popover .zx-date-picker__surface {
-  background: var(--zx-color-bg-raised);
-  box-shadow: var(--zx-overlay-shadow);
+  border-color: var(--zx-color-overlay-border);
+  background: var(--zx-color-overlay-surface);
+  -webkit-backdrop-filter: var(--zx-glass-filter-overlay);
+  backdrop-filter: var(--zx-glass-filter-overlay);
+  box-shadow: var(--zx-glass-raised-shadow);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .zx-datebox__popover .zx-date-picker__surface {
+    border-color: var(--zx-color-border);
+    background: var(--zx-color-bg-raised);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: var(--zx-overlay-shadow);
+  }
 }

@@ -1,8 +1,9 @@
 .zx-app-rail {
   display: flex;
   min-inline-size: 0;
-  border: 1px solid var(--zx-color-border);
-  background: var(--zx-color-bg-raised);
+  border: 1px solid var(--zx-color-glass-border);
+  background: var(--zx-color-glass-chrome);
+  box-shadow: var(--zx-glass-chrome-shadow);
   color: var(--zx-color-text);
 }
 
@@ -105,3 +106,11 @@
 .zx-app-rail__flyout-item-label { grid-column: 2; }
 .zx-app-rail__flyout-item-badge { grid-column: 3; color: var(--zx-color-text-muted); font-size: var(--zx-text-xs); }
 .zx-app-rail__flyout-item-disclosure { display: inline-flex; grid-column: 4; color: var(--zx-color-text-muted); }
+
+@media (prefers-reduced-transparency: reduce) {
+  .zx-app-rail {
+    border-color: var(--zx-color-border);
+    background: var(--zx-color-bg-surface);
+    box-shadow: none;
+  }
+}

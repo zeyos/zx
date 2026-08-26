@@ -1,0 +1,18 @@
+.zx-table-view {
+  min-inline-size: 0;
+}
+
+.zx-table-view__table {
+  min-inline-size: 0;
+}
+
+.zx-table-view[data-loading="true"] .zx-table__column-controls {
+  pointer-events: none;
+  opacity: .62;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .zx-table-view .zx-table__column-controls {
+    transition: opacity var(--zx-dur-fast) var(--zx-ease);
+  }
+}

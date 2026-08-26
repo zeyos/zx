@@ -22,6 +22,7 @@
 @import url("../src/components/toggle/toggle.css");
 @import url("../src/components/groupbox/groupbox.css");
 @import url("../src/components/card/card.css");
+@import url("../src/components/aurora/aurora.css");
 @import url("../src/components/panel/panel.css");
 @import url("../src/components/master-panel/master-panel.css");
 @import url("../src/components/tabbox/tabbox.css");
@@ -56,7 +57,11 @@
 @import url("../src/components/datebox/date-range-box.css");
 @import url("../src/components/timebox/timebox.css");
 @import url("../src/components/calendar/calendar.css");
+@import url("../src/components/view/record-view.css");
 @import url("../src/components/table/table.css");
+@import url("../src/components/table-view/table-view.css");
+@import url("../src/components/card-view/card-view.css");
+@import url("../src/components/kanban-view/kanban-view.css");
 @import url("../src/components/grid/grid.css");
 @import url("../src/components/chart/chart.css");
 @import url("../src/components/tree/tree.css");

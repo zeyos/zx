@@ -52,10 +52,10 @@ export default {
           resolveApplication: (raw) => ({ value: Array.isArray(raw) ? raw[0] : raw.identifier, invoke() {} }),
           resolveRecord: (record) => ({ value: record, invoke() {} }),
           renderApplicationIcon: (_raw, app) => demoZeyosAppIcon(app.module, {
-            size: 36, label: app.label
+            size: 36, label: app.label, shape: 'circle'
           }),
           renderRecordIcon: (_raw, record) => demoZeyosAppIcon(record.entity, {
-            size: 28, label: record.name
+            size: 28, label: record.name, shape: 'tile'
           }),
           labels: {
             entities: {

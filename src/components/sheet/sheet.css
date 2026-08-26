@@ -12,7 +12,7 @@
   border-radius: 0;
   /* The header and footer stay put; `.zx-dialog__body` is what scrolls. */
   overflow: hidden;
-  box-shadow: var(--zx-overlay-shadow);
+  box-shadow: var(--zx-glass-raised-shadow);
 }
 
 /* Horizontal sheets: full height, sized across the inline axis. */
@@ -156,6 +156,9 @@
   min-inline-size: 0;
   min-block-size: 0;
   border-radius: 0;
+  background: var(--zx-color-bg-raised);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
   box-shadow: none;
 }
 

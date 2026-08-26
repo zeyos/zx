@@ -89,6 +89,7 @@ export { Toolbar } from './components/toolbar/toolbar.js';
 export { Toggle } from './components/toggle/toggle.js';
 export { Groupbox } from './components/groupbox/groupbox.js';
 export { Card } from './components/card/card.js';
+export { Aurora } from './components/aurora/aurora.js';
 export { Panel } from './components/panel/panel.js';
 export { MasterPanel } from './components/master-panel/master-panel.js';
 export {
@@ -140,7 +141,14 @@ export {
   layoutCalendarSpans, layoutTimedCalendarEvents, normalizeCalendarEvents,
   shiftCalendarEvent, startOfCalendarDay, startOfCalendarWeek
 } from './components/calendar/calendar-model.js';
+export {
+  RecordView, normalizeViewFields, reconcileFieldOrder, moveViewField,
+  readViewField, renderViewField, sortViewRecords, normalizeViewState, viewRecordId
+} from './components/view/record-view.js';
 export { Table, reorderTableRows } from './components/table/table.js';
+export { TableView } from './components/table-view/table-view.js';
+export { CardView } from './components/card-view/card-view.js';
+export { KanbanView } from './components/kanban-view/kanban-view.js';
 export { Grid, billingColumns, isBillingLine } from './components/grid/grid.js';
 export {
   Chart, ChartJsAdapter, chartSummaryTable, cloneChartValue, isEmptyChartData

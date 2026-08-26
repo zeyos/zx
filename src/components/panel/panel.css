@@ -3,7 +3,7 @@
   border: 1px solid var(--zx-color-border);
   border-radius: var(--zx-radius-lg);
   background: var(--zx-color-bg-surface);
-  box-shadow: var(--zx-overlay-shadow);
+  box-shadow: var(--zx-shadow-1);
 }
 
 /* The header is a row, not one big button: the collapse control takes the title area and the
@@ -13,7 +13,15 @@
   align-items: center;
   gap: var(--zx-space-2);
   min-block-size: var(--zx-control-height);
-  background: var(--zx-panel-header-bg, var(--zx-color-bg-raised));
+  background: var(--zx-panel-header-bg, var(--zx-color-glass-chrome));
+  box-shadow: var(--zx-glass-chrome-shadow);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .zx-panel__header {
+    background: var(--zx-panel-header-bg, var(--zx-color-bg-raised));
+    box-shadow: none;
+  }
 }
 
 .zx-panel__toggle {

@@ -37,7 +37,7 @@ available as ESM named exports and as `window.zx.*`.
 
 ## Components
 - Inputs: `button()`, `buttonGroup()`, `badge()`, `CheckButton`, `Toggle`, `Search`,
-  `AppIcon` (+ `zeyosAppIcon()` presets), `Avatar`, `Select` (APG combobox;
+  `Select` (APG combobox;
   `filter: false|'local'|async`; priority, status, permission, and `Select.entity()` presets),
   `Checklist`, `TagPicker` (icon/color identity),
   `NumberField`, `Rating`, `Slider` (native range; marks, bounds, optional number box),
@@ -49,13 +49,17 @@ available as ESM named exports and as `window.zx.*`.
   `MenuButton`, `ContextMenu` (right-click and Shift+F10; `selector` gives per-row menus from one
   instance).
 - Data: `Table` (sortable, selectable, sticky header, opt-in inline editing, row reorder, column
-  visibility), `Grid` with single-click editing and `Grid.BillingItems()`, engine-neutral `Chart`
+  visibility), shared `RecordView` state through `TableView`, `CardView`, and `KanbanView`, `Grid`
+  with single-click editing and `Grid.BillingItems()`, engine-neutral `Chart`
   with injected `ChartJsAdapter`, `Calendar` (agenda/day/week/month/year, pointer/keyboard drag and
   resize, `optimistic: true|false`), backend-neutral nested `Filter`, simple client-side `DataFilter`,
   `Pagination`, `TreeView` (APG tree), `Finder` (Miller columns).
 - Forms: `Form`, `Fieldset`, `Questionnaire` (guided one-question-at-a-time flow with branching), `Field` (type registry), `ValueList`, `MultiValueEditor`,
   `FieldUpload`.
-- Layout: `stack()`/`grid()`/`aspect()`, `Groupbox`, `Card`, `Panel`, `MasterPanel`, `Tabbox`,
+- Layout: `stack()`/`grid()`/`aspect()`, `Groupbox`, `Card`, `AppIcon` (generic tile geometry;
+  circular `zeyosAppIcon()` application presets and compact `moduleChip()` identities),
+  `Aurora` (one- to four-colour ambient
+  canvas light; shared material roles govern chrome and overlays), `Avatar`, `Panel`, `MasterPanel`, `Tabbox`,
   `NavigationBar`, `AppSidebar` (expanded/minimized vertical and horizontal rail states),
   `AccountMenu`, `Launcher`, `spinner()`/`ProgressBar`/`InlineLoading`,
   `skeleton()`/`skeletonText()`/`skeletonTable()`, `Toolbar`, `SplitView`, `Dock` (collapsible
@@ -78,7 +82,10 @@ theme by overriding semantic `--zx-color-*` / `--zx-control-*` tokens under
 CSS. The stock themes use a restrained neutral ramp with the ZeyOS green as the accent.
 Six stable accent IDs ship as `data-zx-preset` (zx, zeyos, ocean, violet, rose, slate). The theme
 studio applies complete recipes spanning accent, neutral tint, density, font, type size, radius,
-control height, and CSS-first glass material, with the result exportable as CSS.
+control height, and CSS-first glass material, with the result exportable as CSS. Compact menus,
+pickers, tooltips, column menus, and toasts use the floating overlay material; Launcher, Modal,
+Dialog, and overlay Sheets use the more opaque panel material. Docked Sheets and dense data
+surfaces remain opaque.
 
 ## Talking to ZeyOS
 Use the dedicated ZeyOS client library **`@zeyos/client`** (`npm install @zeyos/client`) for ZeyOS
@@ -88,6 +95,12 @@ The optional `zx-zeyos` binding (`src/zeyos/`) generates typed tables, forms, an
 `client.schema`; it never imports `@zeyos/client` itself and ships as a separate bundle.
 The `ZeyOS invoices` layout is the reference integration. Zx also ships a minimal `Http`/`zeyosService`
 for ad-hoc in-app `remotecall`, but `@zeyos/client` is the recommended default.
+
+That optional entry also maps schemas into Table, Card, and Kanban record views. Its
+`SavedViewRegistry` adds private named configurations scoped by user, workspace/fork (null means
+the base workspace), and resource through an injected atomic transport. A compatibility adapter
+reuses authenticated ZeyOS `userfields` without persisting records, selection, pages, callbacks,
+or DOM.
 
 ## Installing
 `npm install @zeyos/zx` · `import { Table } from '@zeyos/zx'` · `import '@zeyos/zx/zx.css'`.

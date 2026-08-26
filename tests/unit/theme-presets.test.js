@@ -18,6 +18,11 @@ const themesCss = readFileSync(
   fileURLToPath(new URL('../../styles/tokens/themes.css', import.meta.url)), 'utf8'
 );
 
+/** @param {string} path @returns {string} */
+function componentCss(path) {
+  return readFileSync(fileURLToPath(new URL(`../../src/components/${path}`, import.meta.url)), 'utf8');
+}
+
 /** @returns {Record<string, Record<number, string>>} Every `[data-zx-preset]` block in the CSS. */
 function cssPresets() {
   const found = {};
@@ -145,7 +150,11 @@ test('theme geometry, type, tint, and material controls each produce a token', (
   assert.equal(vars['--zx-glass-blur'], '18px');
   assert.equal(vars['--zx-glass-color-strength'], '68%');
   assert.ok(Object.hasOwn(vars, '--zx-color-glass-control'), 'material controls did not change');
+  assert.ok(Object.hasOwn(vars, '--zx-color-glass-chrome'), 'persistent chrome did not change');
+  assert.equal(vars['--zx-glass-filter-overlay'], 'blur(22px) saturate(165%)');
   assert.equal(vars['--zx-color-app-icon-depth'], 'color-mix(in srgb, var(--zx-color-app-icon-shade) 34%, transparent)');
+  assert.equal(vars['--zx-app-icon-core-strength'], '48%');
+  assert.equal(vars['--zx-app-icon-bloom-strength'], '78%');
   assert.ok(Object.hasOwn(vars, '--zx-glass-raised-shadow'), 'raised material did not change');
   assert.ok(Object.hasOwn(vars, '--zx-gray-500'), 'neutral tint did not produce a ramp');
 });
@@ -155,11 +164,53 @@ test('flat and deep-glass recipes change every shared material consumer', () => 
   const deep = themeVars({ ...DEFAULTS, glass: 'strong' });
   for (const name of [
     '--zx-glass-blur', '--zx-glass-color-strength', '--zx-color-glass-border',
-    '--zx-color-glass-surface', '--zx-color-glass-control', '--zx-color-app-icon-depth', '--zx-app-icon-shadow',
-    '--zx-glass-control-shadow', '--zx-glass-raised-shadow', '--zx-glass-glyph-shadow'
+    '--zx-color-glass-surface', '--zx-color-glass-chrome', '--zx-color-glass-control', '--zx-color-overlay-surface',
+    '--zx-color-overlay-panel', '--zx-color-overlay-border', '--zx-color-app-icon-depth',
+    '--zx-app-icon-core-strength', '--zx-app-icon-rim-strength', '--zx-app-icon-bloom-strength',
+    '--zx-app-icon-specular-strength', '--zx-app-icon-rim-base', '--zx-app-icon-halo-size',
+    '--zx-app-icon-halo-strength', '--zx-app-icon-shadow',
+    '--zx-glass-filter-icon', '--zx-glass-filter-control', '--zx-glass-filter-raised',
+    '--zx-glass-filter-chrome', '--zx-glass-filter-overlay', '--zx-glass-filter-panel',
+    '--zx-glass-control-shadow', '--zx-glass-chrome-shadow', '--zx-glass-raised-shadow'
   ]) {
     assert.ok(Object.hasOwn(flat, name), `flat is missing ${name}`);
     assert.ok(Object.hasOwn(deep, name), `deep glass is missing ${name}`);
     assert.notEqual(flat[name], deep[name], `${name} does not distinguish the modes`);
   }
+  assert.equal(flat['--zx-glass-filter-overlay'], 'none');
+});
+
+test('persistent application chrome consumes the shared material role', () => {
+  for (const path of [
+    'app-sidebar/app-sidebar.css', 'app-rail/app-rail.css',
+    'master-panel/master-panel.css', 'navigation-bar/navigation-bar.css', 'panel/panel.css'
+  ]) {
+    const css = componentCss(path);
+    assert.match(css, /var\(--zx-color-glass-chrome\)/, `${path} does not use persistent chrome`);
+    assert.match(css, /prefers-reduced-transparency: reduce/, `${path} has no opaque fallback`);
+  }
+});
+
+test('every transient overlay consumes a shared material tier with an opaque fallback', () => {
+  for (const path of [
+    'dropdown/dropdown.css', 'select/select.css', 'tag-picker/tag-picker.css',
+    'tooltip/tooltip.css', 'table/table.css', 'datebox/datebox.css',
+    'datebox/date-range-box.css', 'date-picker/date-picker.css', 'message/message.css'
+  ]) {
+    const css = componentCss(path);
+    assert.match(css, /var\(--zx-color-overlay-surface\)/, `${path} does not use the floating overlay tier`);
+    assert.match(css, /prefers-reduced-transparency: reduce/, `${path} has no opaque fallback`);
+  }
+
+  for (const path of ['modal/modal.css', 'launcher/launcher.css']) {
+    const css = componentCss(path);
+    assert.match(css, /var\(--zx-color-overlay-panel\)/, `${path} does not use the reading-panel tier`);
+    assert.match(css, /prefers-reduced-transparency: reduce/, `${path} has no opaque fallback`);
+  }
+
+  const sheet = componentCss('sheet/sheet.css');
+  assert.match(sheet, /\.zx-sheet\[data-docked\][\s\S]*background: var\(--zx-color-bg-raised\)/,
+    'a docked Sheet did not return to an opaque layout surface');
+  assert.match(sheet, /\.zx-sheet\[data-docked\][\s\S]*backdrop-filter: none/,
+    'a docked Sheet retained overlay backdrop filtering');
 });

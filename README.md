@@ -98,7 +98,6 @@ ZeyOS binding — see `src/zeyos/modules.js`.
 | `CheckButton` | Two-state pressed button with optional state-specific labels. |
 | `Toggle` | Native-button switch with a separate submitted value. |
 | `Search` | Search input with debounced input, submit, and clear events. |
-| `Launcher` | Cmd/Ctrl+K application and record launcher with ranked local items and abortable grouped sources. |
 | `Select` | APG combobox with local or async filtering, pinned items, priority/status/permission presets, and an optional ZeyOS entity picker. |
 | `Checklist` | Searchable checkbox group with optional async loading. |
 | `TagPicker` | Multi-select combobox that keeps its selection as removable tags. |
@@ -126,14 +125,15 @@ ZeyOS binding — see `src/zeyos/modules.js`.
 | `MenuButton` | APG menu button built on `Dropdown`. |
 | `ContextMenu` | APG right-click menu for a region or, via `selector`, per row. |
 | `Tooltip`, `tooltip()`, `describe()` | Hover/focus description bubble anchored with `position()`. |
-| `Avatar` | Fixed-size user image with initials fallback and optional presence. |
-| `AccountMenu` | Identity trigger and grouped account actions over `MenuButton`. |
 
 ### Data
 
 | API | Description |
 | --- | --- |
 | `Table` | Sortable/selectable table with typed transaction columns, flat-data hierarchy/treegrid projection, and opt-in cell/row editing. |
+| `TableView` | Record-oriented Table composition with shared fields, portable state, column visibility/order, sorting, and selection. |
+| `CardView` | Responsive record cards with configurable fields, safe preview media, grouping, actions, sorting, and selection. |
+| `KanbanView` | Record board with configurable columns, swim lanes, WIP guidance, and cancelable pointer/keyboard movement. |
 | `Grid`, `Grid.BillingItems()` | Table-compatible preset surface with editable currencies, units, totals, and sub-items. |
 | `Chart`, `ChartJsAdapter` | Accessible engine-neutral chart host and explicitly injected Chart.js adapter. |
 | `Calendar` | Agenda/day/week/month/year scheduling with timed collisions, spanning events, range selection, and configurable optimistic drag/resize editing. |
@@ -158,8 +158,13 @@ ZeyOS binding — see `src/zeyos/modules.js`.
 
 | API | Description |
 | --- | --- |
+| `AccountMenu` | Identity trigger and grouped account actions over `MenuButton`. |
+| `AppIcon`, `zeyosAppIcon()`, `moduleChip()` | White-glyph identity surface: a generic tile core, circular ZeyOS application presets, compact module/entity tiles, module colour, badges, selection, and CSS-first material. |
+| `Avatar` | Fixed-size user image with initials fallback and optional presence. |
 | `Groupbox` | Collapsible section backed by native `<details>`. |
 | `Card` | Semantic content/record surface with media, native title link, actions, and footer. |
+| `Aurora` | One- to four-colour ambient canvas light; chrome, raised content, and overlays respond through shared material tokens. |
+| `Launcher` | Cmd/Ctrl+K application and record launcher with ranked local items and abortable grouped sources. |
 | `Panel` | Framed, optionally collapsible section with a footer. |
 | `MasterPanel` | Full-height application panel with fixed header actions and footer. |
 | `Tabbox` | APG tabs in four appearances, with lazy content, closing, badges, and disabled states. |
@@ -181,8 +186,8 @@ ZeyOS binding — see `src/zeyos/modules.js`.
 
 Use `@zeyos/client` for ZeyOS authentication, transport, generated resource operations, and runtime
 schema introspection. Zx adds `zx-zeyos`, a schema-driven layer above that client: inject an existing
-client into `connect`, `zeyosTable`, `zeyosForm`, or `zeyosSelect` to generate typed tables, forms,
-and async entity selectors from real resource metadata.
+client into `connect`, `zeyosTable`, `zeyosView`, `zeyosForm`, or `zeyosSelect` to generate typed
+record views, tables, forms, and async entity selectors from real resource metadata.
 
 ```js
 import { createZeyosClient } from '@zeyos/client';
@@ -198,6 +203,12 @@ const editor = zeyosForm(client, 'transactions', {
   fields: ['transactionnum', 'account', 'date', 'netamount', 'status']
 });
 ```
+
+`zeyosView()` can coordinate named Table, Card, and Kanban configurations through
+`SavedViewRegistry`. Saved documents are isolated by exact `userId + workspaceId + resource`, keep
+records and selection out of persistence, and use an injected atomic transport. Existing ZeyOS
+installations can adapt their authenticated `fields`, `fields_save`, and `fields_remove` endpoints
+with `createLegacySavedViewTransport()`; the client-provided user id is never sent as authority.
 
 The injection design means Zx never imports or bundles `@zeyos/client`. The optional binding ships
 separately as `dist/zx-zeyos.esm.js` and is not part of the root `src/index.js` API. See the

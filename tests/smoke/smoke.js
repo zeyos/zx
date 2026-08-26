@@ -84,11 +84,38 @@ const cases = [
     if (savedStyle === null) component.el.removeAttribute('style');
     else component.el.setAttribute('style', savedStyle);
   }),
+  componentCase('Aurora', () => new zx.Aurora(null, {
+    preset: 'source',
+    colors: ['#21cc75', '#2b7fff', '#9a67ff', '#ffb900'],
+    intensity: 'balanced'
+  }), (component) => {
+    component.el.append(document.createTextNode('Application content'));
+    component.setPreset('horizon').setColors(['#ff6f54', '#ffb900']).setIntensity('vivid');
+    assert(component.el.dataset.preset === 'horizon', 'Aurora preset did not update');
+    assert(component.el.dataset.intensity === 'vivid', 'Aurora intensity did not update');
+    assert(component.el.textContent === 'Application content', 'Aurora replaced application content');
+    assert(component.el.style.getPropertyValue('--zx-aurora-color-3') === '#ff6f54',
+      'two-colour Aurora palette did not repeat across four fields');
+
+    const target = document.createElement('section');
+    target.className = 'existing-surface';
+    target.style.padding = '7px';
+    target.append(document.createTextNode('Preserved child'));
+    const before = target.outerHTML;
+    fixtures.append(target);
+    const enhanced = new zx.Aurora(target, {
+      preset: 'edge', colors: ['#21cc75', '#2b7fff', '#9a67ff'], intensity: 'subtle'
+    });
+    enhanced.setPreset('curtain').destroy();
+    assert(target.outerHTML === before, `Aurora did not restore its target: ${target.outerHTML}`);
+    target.remove();
+  }),
   componentCase('AppIcon', () => new zx.AppIcon(null, {
-    icon: 'file', color: '#535494', label: 'Billing', badge: 3, glass: 'strong'
+    icon: 'file', color: '#535494', label: 'Billing', badge: 3, glass: 'strong', shape: 'circle'
   }), (component) => {
     assert(component.el.getAttribute('role') === 'img', 'labelled AppIcon has no image role');
     assert(component.el.dataset.glass === 'strong', 'AppIcon material did not render');
+    assert(component.el.dataset.shape === 'circle', 'AppIcon circle shape did not render');
     assert(component.el.querySelector('.zx-app-icon__badge')?.textContent === '3', 'AppIcon badge missing');
     component.set({ selected: true, size: 40, badge: null });
     assert(component.el.hasAttribute('data-selected'), 'AppIcon selected state did not update');
@@ -100,17 +127,43 @@ const cases = [
       && !component.el.hasAttribute('aria-label'), 'decorative AppIcon retained image semantics');
   }),
   artifactCase('AppIcon (ZeyOS preset)', () => {
-    const element = zeyos.zeyosAppIcon('billing', { color: 'url(https://example.invalid/module)' });
+    const element = zeyos.zeyosAppIcon('billing', {
+      color: 'url(https://example.invalid/module)', badge: 3, selected: true
+    });
     return { element, exercise: () => {
       const color = element.style.getPropertyValue('--zx-module-color');
       assert(/^#[\da-f]{6}$/i.test(color) && !color.includes('url('), 'ZeyOS AppIcon retained an unsafe color override');
       assert(element.style.getPropertyValue('--zx-app-icon-glyph') === 'var(--zx-color-app-icon-glyph)',
         'ZeyOS AppIcon did not use the stable white glyph token');
+      assert(element.dataset.shape === 'circle', 'ZeyOS AppIcon did not use its application circle');
+      assert(element.hasAttribute('data-selected')
+        && element.querySelector('.zx-app-icon__badge')?.textContent === '3',
+      'ZeyOS AppIcon did not forward state');
+      const compact = zeyos.moduleChip('billing');
+      assert(compact.dataset.shape === 'tile', 'compact module chip lost its tile default');
       const rootRect = element.getBoundingClientRect();
       const glyphRect = element.querySelector('.zx-app-icon__glyph').getBoundingClientRect();
       const deltaX = Math.abs((rootRect.left + rootRect.width / 2) - (glyphRect.left + glyphRect.width / 2));
       const deltaY = Math.abs((rootRect.top + rootRect.height / 2) - (glyphRect.top + glyphRect.height / 2));
       assert(deltaX < 0.6 && deltaY < 0.6, `ZeyOS AppIcon glyph is off-centre by ${deltaX}, ${deltaY}`);
+    } };
+  }),
+  artifactCase('AppIcon (enhanced button semantics)', () => {
+    const element = document.createElement('button');
+    element.type = 'button';
+    element.setAttribute('aria-label', 'Original action');
+    const before = element.outerHTML;
+    const component = new zx.AppIcon(element, { icon: 'file', label: 'Billing action' });
+    return { element, exercise: () => {
+      assert(element.localName === 'button' && !element.hasAttribute('role'),
+        'enhanced AppIcon replaced native button semantics');
+      assert(element.getAttribute('aria-label') === 'Billing action' && !element.hasAttribute('aria-hidden'),
+        'enhanced AppIcon lost its accessible button name');
+      component.set({ label: null });
+      assert(element.getAttribute('aria-label') === 'Original action' && !element.hasAttribute('aria-hidden'),
+        'enhanced AppIcon did not restore the original button label');
+      component.destroy();
+      assert(element.outerHTML === before, 'enhanced AppIcon did not restore its button');
     } };
   }),
   cardTargetCase(),
@@ -798,6 +851,114 @@ const cases = [
     component.open();
     component.close();
   }),
+  componentCase('RecordView', () => new zx.RecordView(null, {
+    fields: recordViewFields(),
+    data: recordViewData(),
+    recordId: 'id',
+    selectable: 'multi'
+  }), (component) => {
+    component.setFieldVisible('amount', false);
+    component.moveField('owner', 'title', 'before');
+    component.setSort('title', 'desc');
+    component.setSelection(['opp-2']);
+    const state = component.getViewState();
+    assert(state.hiddenFields.includes('amount') && state.fieldOrder[0] === 'owner',
+      'shared field state did not update');
+    assert(component.getSelectionIds()[0] === 'opp-2' && component.getData()[0].id === 'opp-2',
+      'shared sort or selection state did not update');
+    component.setViewState({ ...state, hiddenFields: [], sort: null });
+    assert(component.getHiddenFields().length === 0 && component.getSort() === null,
+      'shared state restore did not reconcile');
+  }),
+  componentCase('TableView', () => new zx.TableView(null, {
+    fields: recordViewFields(),
+    data: recordViewData(),
+    recordId: 'id',
+    selectable: 'multi',
+    table: { responsive: 'sm', growing: 2 }
+  }), (component) => {
+    const states = observe(component, 'statechange');
+    component.setFieldVisible('amount', false);
+    component.moveField('owner', 'title', 'before');
+    component.setSort('title', 'asc');
+    component.setSelection(['opp-1']);
+    assert(component.getTable() instanceof zx.Table, 'TableView did not expose its composed Table');
+    assert(component.getTable().getHiddenColumns().includes('amount'),
+      'TableView did not synchronize hidden fields');
+    assert(component.getTable().getColumnOrder()[0] === 'owner',
+      'TableView did not synchronize field order');
+    assert(component.getTable().getSort()?.id === 'title' && component.getSelectionIds()[0] === 'opp-1',
+      'TableView did not synchronize sort or selection');
+    states.expect();
+  }),
+  componentCase('CardView', () => new zx.CardView(null, {
+    fields: recordViewFields(),
+    data: recordViewData(),
+    recordId: 'id',
+    selectable: 'multi',
+    titleField: 'title',
+    subtitleField: 'owner',
+    preview: (record) => record.preview,
+    previewAlt: 'title',
+    groupBy: 'status',
+    groupOrder: ['new', 'open', 'won'],
+    actions: [{ id: 'open', label: 'Open' }]
+  }), (component) => {
+    const actions = observe(component, 'recordaction');
+    component.el.querySelector('[data-record-action="open"]').click();
+    actions.expect();
+    const selection = component.el.querySelector('input[data-record-selection]');
+    selection.click();
+    assert(component.getSelectionIds().length === 1, 'CardView checkbox did not update selection');
+    component.setSort('title', 'desc');
+    component.setFieldVisible('amount', false);
+    const state = component.getViewState();
+    component.setViewState({ ...state, hiddenFields: [], sort: null });
+    assert(component.getHiddenFields().length === 0 && component.getSort() === null,
+      'CardView state round-trip failed');
+    assert(component.el.querySelectorAll('.zx-card-view__group').length === 3,
+      'CardView did not retain explicit empty groups');
+    const rejectedPreview = component.el.querySelector('.zx-record-card__preview[data-failed="true"]');
+    assert(rejectedPreview, 'CardView did not render a safe fallback for an unsafe preview');
+  }),
+  componentCase('KanbanView', () => new zx.KanbanView(null, {
+    fields: recordViewFields(),
+    data: recordViewData(),
+    recordId: 'id',
+    selectable: 'multi',
+    titleField: 'title',
+    subtitleField: 'owner',
+    columnBy: 'status',
+    columns: [
+      { id: 'new', label: 'New', limit: 1 },
+      { id: 'open', label: 'Open', limit: 2 },
+      { id: 'won', label: 'Won' }
+    ],
+    swimlaneBy: 'team',
+    swimlanes: [{ id: 'north', label: 'North' }, { id: 'south', label: 'South' }]
+  }), async (component) => {
+    const sourceRecord = component.options.data[0];
+    const moves = observe(component, 'recordmove');
+    component.moveRecord('opp-1', { column: 'open', lane: 'south', index: 1 });
+    assert(sourceRecord.status === 'new' && sourceRecord.team === 'north',
+      'KanbanView mutated a host record during a local move');
+    assert(component.getRecord('opp-1').status === 'open' && component.getRecord('opp-1').team === 'south',
+      'KanbanView did not apply its accepted local move');
+    moves.expect();
+    const handle = component.el.querySelector('.zx-kanban-view__move-handle');
+    handle.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+    handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    assert(handle.getAttribute('aria-pressed') === 'true'
+      && component.el.querySelector('[data-keyboard-target]'),
+    'KanbanView did not expose a keyboard move target');
+    handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await Promise.resolve();
+    assert(handle.getAttribute('aria-pressed') === 'false', 'KanbanView did not cancel a keyboard move');
+    component.setColumnCollapsed('won', true);
+    const state = component.getViewState();
+    assert(state.collapsedColumns.includes('won'), 'KanbanView did not persist collapsed columns');
+  }),
+  recordViewsTargetCase(),
   componentCase('Table', () => new zx.Table(null, {
     columns: [{ id: 'id', label: 'ID', sortable: true }, { id: 'name', label: 'Name' }],
     data: [{ id: 1, name: 'One' }], rowId: 'id', selectable: 'single'
@@ -1483,6 +1644,80 @@ function questionnaireItems() {
     { name: 'vat', prompt: 'VAT id', input: {}, when: (answers) => answers.type === 'company' },
     { name: 'contact', prompt: 'How do we reach you?', input: {} }
   ];
+}
+
+/** Shared fields used to prove that all record views accept the same schema. */
+function recordViewFields() {
+  return [
+    { id: 'title', label: 'Opportunity', sortable: true },
+    { id: 'owner', label: 'Owner', sortable: true },
+    { id: 'amount', label: 'Amount', type: 'currency', sortable: true },
+    { id: 'status', label: 'Status' },
+    { id: 'team', label: 'Team' }
+  ];
+}
+
+/** Shared records used by TableView, CardView, and KanbanView smoke cases. */
+function recordViewData() {
+  return [
+    {
+      id: 'opp-1', title: 'Alpine rollout', owner: 'Ada', amount: 42000,
+      status: 'new', team: 'north', preview: 'javascript:alert(1)'
+    },
+    {
+      id: 'opp-2', title: 'Borealis renewal', owner: 'Grace', amount: 28000,
+      status: 'open', team: 'south', preview: null
+    }
+  ];
+}
+
+/** Proves exact enhanced-target restoration for the shared base and every concrete record view. */
+function recordViewsTargetCase() {
+  return {
+    name: 'RecordView (existing targets)',
+    create(fixture) {
+      const constructors = [
+        (target) => new zx.RecordView(target, {
+          fields: recordViewFields(), data: recordViewData(), recordId: 'id'
+        }),
+        (target) => new zx.TableView(target, {
+          fields: recordViewFields(), data: recordViewData(), recordId: 'id'
+        }),
+        (target) => new zx.CardView(target, {
+          fields: recordViewFields(), data: recordViewData(), recordId: 'id', titleField: 'title'
+        }),
+        (target) => new zx.KanbanView(target, {
+          fields: recordViewFields(), data: recordViewData(), recordId: 'id', titleField: 'title',
+          columnBy: 'status', columns: [{ id: 'new', label: 'New' }, { id: 'open', label: 'Open' }]
+        })
+      ];
+      const targets = constructors.map((create, index) => {
+        const target = document.createElement('section');
+        target.dataset.keep = `view-${index}`;
+        target.setAttribute('aria-label', `Original view ${index}`);
+        target.append(document.createTextNode(`original view content ${index}`));
+        fixture.append(target);
+        const before = target.outerHTML;
+        return { target, before, component: create(target) };
+      });
+      return { targets };
+    },
+    exercise({ targets }) {
+      for (const { component } of targets) {
+        component.setFieldVisible('amount', false);
+        component.setSort('title', 'asc');
+      }
+    },
+    destroy({ targets }) {
+      for (const { component, target, before } of targets) {
+        component.destroy();
+        component.destroy();
+        assert(target.outerHTML === before,
+          `${component.constructor.name} did not restore its target: ${target.outerHTML}`);
+        target.remove();
+      }
+    }
+  };
 }
 
 /** @param {string} name @param {() => {element: Element, exercise: () => unknown}} create @returns {SmokeDefinition} */

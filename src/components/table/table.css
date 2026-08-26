@@ -33,15 +33,30 @@
   inset-inline-end: 0;
   display: grid;
   min-inline-size: 190px;
-  border: 1px solid var(--zx-color-border-strong);
+  border: 1px solid var(--zx-color-overlay-border);
   border-radius: var(--zx-radius-md);
-  background: var(--zx-color-bg-raised);
-  box-shadow: var(--zx-overlay-shadow);
+  background: var(--zx-color-overlay-surface);
+  -webkit-backdrop-filter: var(--zx-glass-filter-overlay);
+  backdrop-filter: var(--zx-glass-filter-overlay);
+  box-shadow: var(--zx-glass-raised-shadow);
   padding: var(--zx-space-2);
+  max-block-size: min(360px, 70vh);
+  overflow: auto;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .zx-table__column-list {
+    border-color: var(--zx-color-border-strong);
+    background: var(--zx-color-bg-raised);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: var(--zx-overlay-shadow);
+  }
 }
 
 .zx-table__column-option {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--zx-space-2);
   min-block-size: var(--zx-control-height);
@@ -50,6 +65,67 @@
 }
 
 .zx-table__column-option:hover { background: var(--zx-color-bg-hover); }
+
+.zx-table__column-option > label,
+.zx-table__column-label {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  min-inline-size: 0;
+}
+
+.zx-table__column-option > label > span,
+.zx-table__column-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zx-table__column-order {
+  display: inline-flex;
+}
+
+.zx-table__column-move {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 26px;
+  block-size: 26px;
+  border: 0;
+  border-radius: var(--zx-radius-sm);
+  background: transparent;
+  color: var(--zx-color-text-muted);
+  cursor: pointer;
+}
+
+.zx-table__column-move:hover:not(:disabled) {
+  background: var(--zx-color-bg-hover);
+  color: var(--zx-color-text);
+}
+
+.zx-table__column-move:focus-visible {
+  outline: none;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.zx-table__column-move:disabled {
+  opacity: .35;
+  cursor: not-allowed;
+}
+
+.zx-table__column-status {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .zx-table__column-move {
+    transition: color var(--zx-dur-fast) var(--zx-ease),
+      background var(--zx-dur-fast) var(--zx-ease), opacity var(--zx-dur-fast) var(--zx-ease);
+  }
+}
 
 .zx-table__reorder-column,
 .zx-table__reorder-header,

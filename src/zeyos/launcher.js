@@ -1,5 +1,5 @@
 import { Launcher } from '../components/launcher/launcher.js';
-import { moduleChip } from './icons.js';
+import { moduleChip, zeyosAppIcon } from './icons.js';
 import { moduleInfo } from './modules.js';
 
 /** Static application identifiers present in the current ZeyOS shell prototype. */
@@ -139,7 +139,7 @@ export function normalizeZeyosLauncherApplications(state = {}, options = {}) {
         ? options.renderApplicationIcon(app.raw, app)
         : app.type === 'weblet' && typeof options.renderWebletIcon === 'function'
           ? options.renderWebletIcon(app.raw, app) : null;
-      return custom ?? moduleChip(app.module, {
+      return custom ?? zeyosAppIcon(app.module, {
         size: 36,
         standard: Boolean(options.standardIcons),
         color: app.color

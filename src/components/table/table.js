@@ -107,6 +107,8 @@ import { sortRows } from './sort.js';
  * @property {'single'|'double'} [editTrigger='double'] Gesture that starts an editable cell.
  * @property {boolean} [rowReorder=false] Whether rows expose pointer/keyboard reorder handles.
  * @property {boolean} [columnVisibility=false] Whether a column visibility chooser is rendered.
+ * @property {boolean} [columnReorder=false] Whether the column chooser also exposes accessible
+ * earlier/later controls. Column headers never become draggable.
  * @property {string[]} [hiddenColumns=[]] Initially hidden column IDs; at least one stays visible.
  * @property {false|TableHierarchyOptions} [hierarchy=false] Flat parent references projected as an
  * expandable treegrid. Row data and mutation APIs remain flat.
@@ -126,6 +128,7 @@ import { sortRows } from './sort.js';
  * @property {(event: CustomEvent<TableRowToggleDetail>) => void} [onrowtoggle]
  * @property {(event: CustomEvent<TableRowMoveDetail>) => void} [onrowmove]
  * @property {(event: CustomEvent<{visible:string[],hidden:string[]}>) => void} [oncolumnvisibilitychange]
+ * @property {(event: CustomEvent<{order:string[]}>) => void} [oncolumnorderchange]
  */
 
 /**
@@ -136,7 +139,7 @@ import { sortRows } from './sort.js';
  * @property {Event} event
  */
 
-/** @typedef {{id: string, dir: TableSortDirection}} TableSortDetail */
+/** @typedef {{id: string|null, dir: TableSortDirection|null}} TableSortDetail */
 /** @typedef {{rows: TableRow[], ids: unknown[]}} TableSelectionDetail */
 /** @typedef {{rows: TableRow[]}} TableDataDetail */
 /** @typedef {{row: TableRow, id: unknown, expanded: boolean}} TableRowToggleDetail */
@@ -235,6 +238,7 @@ const FOCUSABLE = 'input, textarea, select, button, [tabindex]:not([tabindex="-1
  * @fires Table#grow
  * @fires Table#rowmove
  * @fires Table#columnvisibilitychange
+ * @fires Table#columnorderchange
  * @extends {Component<TableOptions>}
  */
 export class Table extends Component {
@@ -260,6 +264,7 @@ export class Table extends Component {
     hierarchy: false,
     rowReorder: false,
     columnVisibility: false,
+    columnReorder: false,
     hiddenColumns: []
   };
 
@@ -281,7 +286,7 @@ export class Table extends Component {
     this.el = root;
     this._createdRoot = created;
     this._original = created ? null : snapshotTarget(root);
-    this._columns = Array.isArray(this.options.columns) ? this.options.columns.map((column) => ({ ...column })) : [];
+    this._columns = normalizeTableColumns(this.options.columns);
     this._data = Array.isArray(this.options.data) ? [...this.options.data] : [];
     this._selected = new Set();
     this._selectionAnchorId = null;
@@ -309,6 +314,8 @@ export class Table extends Component {
     if (this._hiddenColumns.size >= this._columns.length && this._columns[0]) this._hiddenColumns.delete(this._columns[0].id);
     this._dragId = null;
     this._grabbedId = null;
+    this._columnControlIds = new Map();
+    this._columnStatus = null;
     this._expanded = initialExpanded(this._hierarchy?.expanded);
 
     if (this._sort && this.options.sortMode === 'local') this._sortData();
@@ -340,7 +347,8 @@ export class Table extends Component {
       this._scroll.style.blockSize = typeof this.options.height === 'number' ?
         `${this.options.height}px` : String(this.options.height);
     }
-    this._columnControls = this.options.columnVisibility ? this._createColumnControls() : null;
+    this._columnControls = this.options.columnVisibility || this.options.columnReorder
+      ? this._createColumnControls() : null;
     if (this._editMode === false) {
       root.replaceChildren(...[this._columnControls, this._scroll, this._rowMoveMessage].filter(Boolean));
     } else {
@@ -374,6 +382,9 @@ export class Table extends Component {
         const input = /** @type {HTMLInputElement|null} */ (event.target);
         if (input?.classList.contains('zx-table__column-toggle')) this.setColumnVisible(input.value, input.checked);
       });
+      this.listen(this._columnControls, 'click', (event) => this._handleColumnControlClick(event));
+      this.listen(this._columnControls, 'keydown', (event) =>
+        this._handleColumnControlKeydown(/** @type {KeyboardEvent} */ (event)));
     }
     if (this._editMode !== false) {
       this.listen(this._tbody, 'keydown', (event) => this._handleEditKeydown(/** @type {KeyboardEvent} */ (event)));
@@ -496,6 +507,108 @@ export class Table extends Component {
     return [...this._data];
   }
 
+  /**
+   * Returns shallow-cloned column descriptors in their current display order.
+   * @returns {TableColumn[]} Current columns.
+   */
+  getColumns() {
+    return this._columns.map((column) => ({ ...column }));
+  }
+
+  /**
+   * Replaces all column descriptors. Hidden state and the active sort follow retained stable IDs;
+   * an edit is canceled before cells are rebuilt.
+   * @param {TableColumn[]} columns New column descriptors.
+   * @param {{silent?:boolean}} [options={}] Event behavior.
+   * @returns {this}
+   * @fires Table#columnvisibilitychange
+   * @fires Table#columnorderchange
+   * @fires Table#editcancel
+   */
+  setColumns(columns, options = {}) {
+    const next = normalizeTableColumns(columns);
+    const previousOrder = this.getColumnOrder();
+    const previousHidden = this.getHiddenColumns();
+    const previousSort = this.getSort();
+    this._abortEdit({ focus: false });
+    this._columns = next;
+    this._hiddenColumns = new Set(previousHidden.filter((id) =>
+      next.some((column) => column.id === id)));
+    if (this._hiddenColumns.size >= next.length && next[0]) this._hiddenColumns.delete(next[0].id);
+    this._sort = normalizeSort(previousSort, next);
+    this._hierarchy = normalizeHierarchy(this.options.hierarchy, next);
+    this._reconcileExpanded();
+    this._renderColumns();
+    this._renderHeader();
+    this._renderBody();
+    this._renderColumnControls();
+    if (!options.silent) {
+      if (!sameArray(previousOrder, this.getColumnOrder())) {
+        this.emit('columnorderchange', { order: this.getColumnOrder() });
+      }
+      if (!sameArray(previousHidden, this.getHiddenColumns())) {
+        this.emit('columnvisibilitychange', {
+          visible: this.getVisibleColumns(), hidden: this.getHiddenColumns()
+        });
+      }
+    }
+    return this;
+  }
+
+  /** Returns every stable column ID in current display order. @returns {string[]} */
+  getColumnOrder() {
+    return this._columns.map((column) => column.id);
+  }
+
+  /**
+   * Reconciles a partial or stale preferred order with every current column.
+   * @param {string[]} order Preferred stable IDs.
+   * @param {{silent?:boolean}} [options={}] Event behavior.
+   * @returns {this}
+   * @fires Table#columnorderchange
+   * @fires Table#editcancel
+   */
+  setColumnOrder(order, options = {}) {
+    const nextOrder = reconcileTableColumnOrder(this._columns, order);
+    if (sameArray(nextOrder, this.getColumnOrder())) return this;
+    const focus = this._activeColumnControl();
+    const byId = new Map(this._columns.map((column) => [column.id, column]));
+    this._abortEdit({ focus: false });
+    this._columns = nextOrder.map((id) => /** @type {TableColumn} */ (byId.get(id)));
+    this._hierarchy = normalizeHierarchy(this.options.hierarchy, this._columns);
+    this._renderColumns();
+    this._renderHeader();
+    this._renderBody();
+    this._renderColumnControls(focus);
+    if (!options.silent) this.emit('columnorderchange', { order: this.getColumnOrder() });
+    return this;
+  }
+
+  /**
+   * Moves one column to an edge of another column. Unknown IDs are a safe no-op.
+   * @param {string} id Moving stable ID.
+   * @param {string} targetId Target stable ID.
+   * @param {'before'|'after'} [position='before'] Target edge.
+   * @param {{silent?:boolean}} [options={}] Event behavior.
+   * @returns {this}
+   */
+  moveColumn(id, targetId, position = 'before', options = {}) {
+    if (position !== 'before' && position !== 'after') {
+      throw new TypeError('Table column position must be "before" or "after"');
+    }
+    const next = moveTableColumn(this.getColumnOrder(), String(id), String(targetId), position);
+    if (sameArray(next, this.getColumnOrder())) return this;
+    this.setColumnOrder(next, options);
+    if (this._columnStatus) {
+      const column = this._columns.find((candidate) => candidate.id === String(id));
+      const index = this.getColumnOrder().indexOf(String(id));
+      if (column && index >= 0) {
+        this._columnStatus.textContent = `Moved ${column.label} to position ${index + 1} of ${this._columns.length}.`;
+      }
+    }
+    return this;
+  }
+
   /** Returns visible column IDs in caller order. @returns {string[]} */
   getVisibleColumns() {
     return this._visibleColumns().map((column) => column.id);
@@ -514,17 +627,16 @@ export class Table extends Component {
    * @returns {this}
    */
   setColumnVisible(id, visible = true, options = {}) {
-    const column = this._columns.find((candidate) => candidate.id === id);
-    if (!column) throw new RangeError(`Unknown table column: ${id}`);
-    const active = /** @type {HTMLElement|null} */ (document.activeElement);
-    const restoreFocus = active?.classList.contains('zx-table__column-toggle')
-      && this._columnList?.contains(active) ? /** @type {HTMLInputElement} */ (active).value : null;
-    if (!visible && !this._hiddenColumns.has(id) && this._visibleColumns().length <= 1) {
+    const columnId = String(id);
+    const column = this._columns.find((candidate) => candidate.id === columnId);
+    if (!column) throw new RangeError(`Unknown table column: ${columnId}`);
+    const restoreFocus = this._activeColumnControl();
+    if (!visible && !this._hiddenColumns.has(columnId) && this._visibleColumns().length <= 1) {
       this._renderColumnControls(restoreFocus);
       return this;
     }
-    const changed = visible ? this._hiddenColumns.delete(id) : !this._hiddenColumns.has(id);
-    if (!visible && changed) this._hiddenColumns.add(id);
+    const changed = visible ? this._hiddenColumns.delete(columnId) : !this._hiddenColumns.has(columnId);
+    if (!visible && changed) this._hiddenColumns.add(columnId);
     if (!changed) return this;
     this._renderColumns();
     this._renderHeader();
@@ -538,7 +650,7 @@ export class Table extends Component {
 
   /** Toggles one column. @param {string} id @param {{silent?:boolean}} [options={}] @returns {this} */
   toggleColumn(id, options = {}) {
-    return this.setColumnVisible(id, this._hiddenColumns.has(id), options);
+    return this.setColumnVisible(id, this._hiddenColumns.has(String(id)), options);
   }
 
   /**
@@ -616,6 +728,28 @@ export class Table extends Component {
     }
     this._syncSortHeader();
     if (!options.silent) this.emit('sort', { id, dir: direction });
+    return this;
+  }
+
+  /** Returns a defensive copy of the active sort. @returns {{id:string,dir:TableSortDirection}|null} */
+  getSort() {
+    return this._sort ? { ...this._sort } : null;
+  }
+
+  /**
+   * Clears the active sort indicator without attempting to reconstruct the caller's original row
+   * order. The current display order becomes the unsorted order until data is replaced.
+   * @param {{silent?:boolean}} [options={}] Event behavior.
+   * @returns {this}
+   * @fires Table#sort
+   * @fires Table#editcancel
+   */
+  clearSort(options = {}) {
+    if (!this._sort) return this;
+    this._abortEdit({ focus: false });
+    this._sort = null;
+    this._syncSortHeader();
+    if (!options.silent) this.emit('sort', { id: null, dir: null });
     return this;
   }
 
@@ -1075,6 +1209,9 @@ export class Table extends Component {
   _createColumnControls() {
     const list = h('div', { class: 'zx-table__column-list' });
     this._columnList = list;
+    this._columnStatus = h('div', {
+      class: 'zx-table__column-status', role: 'status', ariaLive: 'polite'
+    });
     const details = h('details', { class: 'zx-table__column-controls' },
       h('summary', { class: 'zx-button zx-button--sm' }, icon('fields', { size: 13 }), 'Columns'),
       list);
@@ -1082,37 +1219,116 @@ export class Table extends Component {
     return details;
   }
 
-  /** @param {string|null} [focusColumn=null] Column checkbox that keeps focus. @returns {void} */
-  _renderColumnControls(focusColumn = null) {
+  /**
+   * @param {{id:string,action:string}|null} [focusControl=null] Control that keeps focus.
+   * @returns {void}
+   */
+  _renderColumnControls(focusControl = null) {
     if (!this._columnList) return;
     const visible = this._visibleColumns();
-    const current = [...this._columnList.querySelectorAll('.zx-table__column-toggle')];
-    const reusable = current.length === this._columns.length
-      && current.every((control, index) => /** @type {HTMLInputElement} */ (control).value === this._columns[index].id);
-    if (reusable) {
-      current.forEach((control, index) => {
-        const input = /** @type {HTMLInputElement} */ (control);
-        const checked = !this._hiddenColumns.has(this._columns[index].id);
-        input.checked = checked;
-        input.disabled = checked && visible.length === 1;
-      });
-      return;
-    }
-    this._columnList.replaceChildren(...this._columns.map((column) => {
+    const controls = this._columns.map((column, index) => {
       const checked = !this._hiddenColumns.has(column.id);
-      return h('label', { class: 'zx-table__column-option' },
-        h('input', {
-          class: 'zx-table__column-toggle', type: 'checkbox', value: column.id, checked,
-          disabled: checked && visible.length === 1
-        }),
-        h('span', {}, column.label));
-    }));
-    if (focusColumn !== null) {
-      const control = [...this._columnList.querySelectorAll('.zx-table__column-toggle')]
-        .find((candidate) => /** @type {HTMLInputElement} */ (candidate).value === focusColumn);
+      let controlId = this._columnControlIds.get(column.id);
+      if (!controlId) {
+        controlId = uid('zx-table-column');
+        this._columnControlIds.set(column.id, controlId);
+      }
+      const toggle = this.options.columnVisibility ? h('input', {
+        id: controlId,
+        class: 'zx-table__column-toggle', type: 'checkbox', value: column.id, checked,
+        disabled: checked && visible.length === 1,
+        dataset: { columnId: column.id, columnAction: 'toggle' }
+      }) : null;
+      const label = toggle
+        ? h('label', { for: controlId }, toggle, h('span', {}, column.label))
+        : h('span', { class: 'zx-table__column-label' }, column.label);
+      const order = this.options.columnReorder ? h('span', {
+        class: 'zx-table__column-order', role: 'group', ariaLabel: `Move ${column.label}`
+      },
+      h('button', {
+        class: 'zx-table__column-move', type: 'button', disabled: index === 0,
+        ariaLabel: `Move ${column.label} earlier`,
+        dataset: { columnId: column.id, columnAction: 'up' }
+      }, icon('chevron-up', { size: 11 })),
+      h('button', {
+        class: 'zx-table__column-move', type: 'button', disabled: index === this._columns.length - 1,
+        ariaLabel: `Move ${column.label} later`,
+        dataset: { columnId: column.id, columnAction: 'down' }
+      }, icon('chevron-down', { size: 11 }))) : null;
+      return h('div', { class: 'zx-table__column-option', dataset: { columnId: column.id } }, label, order);
+    });
+    this._columnList.replaceChildren(...controls, this._columnStatus);
+    if (focusControl !== null) {
+      let control = [...this._columnList.querySelectorAll('[data-column-action]')]
+        .find((candidate) => {
+          const element = /** @type {HTMLElement} */ (candidate);
+          return element.dataset.columnId === focusControl.id
+            && element.dataset.columnAction === focusControl.action;
+        });
+      if (/** @type {HTMLButtonElement|HTMLInputElement|undefined} */ (control)?.disabled) {
+        control = [...this._columnList.querySelectorAll('.zx-table__column-move[data-column-action]')]
+          .find((candidate) => {
+            const element = /** @type {HTMLButtonElement|HTMLInputElement} */ (candidate);
+            return element.dataset.columnId === focusControl.id && !element.disabled;
+          }) ?? [...this._columnList.querySelectorAll('[data-column-action]')]
+            .find((candidate) => {
+              const element = /** @type {HTMLButtonElement|HTMLInputElement} */ (candidate);
+              return element.dataset.columnId === focusControl.id && !element.disabled;
+            });
+      }
       queueMicrotask(() => {
         if (control?.isConnected) /** @type {HTMLElement} */ (control).focus();
       });
+    }
+  }
+
+  /** @returns {{id:string,action:string}|null} */
+  _activeColumnControl() {
+    const active = typeof document === 'undefined' ? null : /** @type {HTMLElement|null} */ (document.activeElement);
+    if (!active || !this._columnList?.contains(active)) return null;
+    const id = active.dataset.columnId;
+    const action = active.dataset.columnAction;
+    return id && action ? { id, action } : null;
+  }
+
+  /** @param {Event} event @returns {void} */
+  _handleColumnControlClick(event) {
+    const button = /** @type {Element|null} */ (event.target)?.closest?.('.zx-table__column-move');
+    if (!button || !this._columnList?.contains(button)) return;
+    const id = /** @type {HTMLElement} */ (button).dataset.columnId;
+    const action = /** @type {HTMLElement} */ (button).dataset.columnAction;
+    const index = this.getColumnOrder().indexOf(String(id));
+    if (action === 'up' && index > 0) this.moveColumn(String(id), this._columns[index - 1].id, 'before');
+    if (action === 'down' && index >= 0 && index < this._columns.length - 1) {
+      this.moveColumn(String(id), this._columns[index + 1].id, 'after');
+    }
+  }
+
+  /**
+   * Adds Arrow/Home/End movement to the reorder buttons; Enter and Space retain native button
+   * activation. Focus follows the stable column id across the cancel-safe row/header rebuild.
+   * @param {KeyboardEvent} event Keyboard event.
+   * @returns {void}
+   */
+  _handleColumnControlKeydown(event) {
+    const control = /** @type {Element|null} */ (event.target)?.closest?.('.zx-table__column-move');
+    if (!control || !this._columnList?.contains(control)) return;
+    const id = String(/** @type {HTMLElement} */ (control).dataset.columnId);
+    const order = this.getColumnOrder();
+    const index = order.indexOf(id);
+    if (index < 0) return;
+    if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
+      event.preventDefault();
+      if (index > 0) this.moveColumn(id, order[index - 1], 'before');
+    } else if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
+      event.preventDefault();
+      if (index < order.length - 1) this.moveColumn(id, order[index + 1], 'after');
+    } else if (event.key === 'Home') {
+      event.preventDefault();
+      if (index > 0) this.moveColumn(id, order[0], 'before');
+    } else if (event.key === 'End') {
+      event.preventDefault();
+      if (index < order.length - 1) this.moveColumn(id, order.at(-1), 'after');
     }
   }
 
@@ -2091,6 +2307,9 @@ export class Table extends Component {
 /** @event Table#rowtoggle @type {CustomEvent<TableRowToggleDetail>} */
 /** @event Table#stackedchange @type {CustomEvent<{stacked: boolean}>} */
 /** @event Table#grow @type {CustomEvent<{rendered: number, total: number}>} */
+/** @event Table#rowmove @type {CustomEvent<TableRowMoveDetail>} */
+/** @event Table#columnvisibilitychange @type {CustomEvent<{visible:string[],hidden:string[]}>} */
+/** @event Table#columnorderchange @type {CustomEvent<{order:string[]}>} */
 
 /**
  * Editor opened for a cell (or, in row mode, for the row).
@@ -2541,6 +2760,67 @@ function deferToEditor(target) {
   return target.getAttribute?.('aria-expanded') === 'true';
 }
 
+/**
+ * Validates and shallow-clones table columns so stable-id APIs never mutate caller descriptors.
+ * @param {unknown} columns Column descriptors.
+ * @returns {TableColumn[]} Normalized descriptors.
+ */
+export function normalizeTableColumns(columns) {
+  if (!Array.isArray(columns)) throw new TypeError('Table columns must be an array');
+  const seen = new Set();
+  return columns.map((column, index) => {
+    if (!column || typeof column !== 'object' || Array.isArray(column)) {
+      throw new TypeError(`Table column at index ${index} must be an object`);
+    }
+    const id = String(column.id ?? '').trim();
+    if (!id) throw new TypeError(`Table column at index ${index} requires an id`);
+    if (seen.has(id)) throw new TypeError(`Duplicate table column: ${id}`);
+    seen.add(id);
+    return { ...column, id, label: String(column.label ?? id) };
+  });
+}
+
+/**
+ * Reconciles saved or partial column IDs with every current column.
+ * @param {TableColumn[]} columns Current columns.
+ * @param {unknown} order Preferred IDs.
+ * @returns {string[]} Complete stable order.
+ */
+export function reconcileTableColumnOrder(columns, order) {
+  const available = columns.map((column) => column.id);
+  const allowed = new Set(available);
+  const preferred = Array.isArray(order) ? order.map(String) : [];
+  const included = new Set();
+  const result = [];
+  for (const id of preferred) {
+    if (allowed.has(id) && !included.has(id)) {
+      included.add(id);
+      result.push(id);
+    }
+  }
+  for (const id of available) if (!included.has(id)) result.push(id);
+  return result;
+}
+
+/**
+ * Moves one stable column ID without changing the supplied order.
+ * @param {string[]} order Current IDs.
+ * @param {string} id Moving ID.
+ * @param {string} targetId Target ID.
+ * @param {'before'|'after'} [position='before'] Target edge.
+ * @returns {string[]} Reordered copy, or an unchanged copy for unknown/same IDs.
+ */
+export function moveTableColumn(order, id, targetId, position = 'before') {
+  const next = [...order];
+  const from = next.indexOf(id);
+  const target = next.indexOf(targetId);
+  if (from < 0 || target < 0 || from === target) return next;
+  next.splice(from, 1);
+  const insertion = next.indexOf(targetId) + (position === 'after' ? 1 : 0);
+  next.splice(insertion, 0, id);
+  return next;
+}
+
 /** @param {HTMLTableRowElement} tr @param {string} columnId @returns {HTMLTableCellElement|null} */
 function cellIn(tr, columnId) {
   for (const cell of tr.cells) {
@@ -2571,6 +2851,11 @@ function assertRows(rows) {
 /** @param {Set<unknown>} left @param {Set<unknown>} right @returns {boolean} */
 function sameSet(left, right) {
   return left.size === right.size && [...left].every((value) => right.has(value));
+}
+
+/** @param {unknown[]} left @param {unknown[]} right @returns {boolean} */
+function sameArray(left, right) {
+  return left.length === right.length && left.every((value, index) => Object.is(value, right[index]));
 }
 
 /**

@@ -16,8 +16,8 @@
 .zx-card[data-variant="raised"] {
   border: 1px solid var(--zx-color-glass-border);
   background: var(--zx-color-glass-surface);
-  -webkit-backdrop-filter: blur(var(--zx-glass-blur)) saturate(var(--zx-glass-saturation));
-  backdrop-filter: blur(var(--zx-glass-blur)) saturate(var(--zx-glass-saturation));
+  -webkit-backdrop-filter: var(--zx-glass-filter-raised);
+  backdrop-filter: var(--zx-glass-filter-raised);
   box-shadow: var(--zx-glass-raised-shadow);
 }
 

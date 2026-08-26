@@ -2,7 +2,7 @@ import { Avatar, h } from '../../src/index.js';
 
 export default {
   title: 'Avatar',
-  group: 'Identity',
+  group: 'Layout',
   blurb: 'A stable-size user image with deterministic initials fallback and an optional text-described presence indicator.',
   examples: [
     {

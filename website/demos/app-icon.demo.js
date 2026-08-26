@@ -8,7 +8,7 @@ export default {
   title: 'AppIcon',
   group: 'Layout',
   api: ['AppIcon'],
-  blurb: 'A stable application-identity tile with a centred white glyph, module colour, accessible labeling, hover/focus feedback, badges, selection state, and an optional CSS-first glass material.',
+  blurb: 'A stable application identity with a centred white glyph, module colour, tile or circle geometry, accessible labeling, interaction-aware feedback, badges, selection state, and an optional CSS-first glass material.',
   examples: [
     {
       id: 'zeyos-app-icon',
@@ -23,17 +23,17 @@ export default {
       }, ZEYOS_LAUNCHER_APPLICATIONS.map((name) => h('div', {
         style: { display: 'grid', justifyItems: 'center', gap: 'var(--zx-space-2)', textAlign: 'center' }
       },
-      demoZeyosAppIcon(name, { size: 44, label: moduleInfo(name).label }),
+      demoZeyosAppIcon(name, { size: 44, label: moduleInfo(name).label, shape: 'circle' }),
       h('span', { style: { fontSize: 'var(--zx-text-xs)', color: 'var(--zx-color-text-muted)' } }, moduleInfo(name).label))))
     },
     {
       title: 'Material and state',
-      blurb: 'AppIcon itself is product-agnostic. The subtle treatment uses borders and a specular highlight; only strong glass opts into backdrop blur, and reduced-transparency preferences fall back to a solid identity tile.',
+      blurb: 'AppIcon itself is product-agnostic and keeps a compact tile default. The zeyosAppIcon() application preset uses a circle, while moduleChip() keeps the tile for entities and dense record rows. Glass uses shared material roles, and reduced-transparency preferences fall back to a solid identity surface.',
       render: ({ cleanup }) => {
         const icons = [
           new AppIcon(null, { icon: 'folder', color: '#bc3885', size: 48, label: 'Flat account', glass: false }),
-          new AppIcon(null, { icon: 'calendar', color: '#bd1e32', size: 48, label: 'Calendar', glass: 'subtle' }),
-          new AppIcon(null, { icon: 'file', color: '#535494', size: 48, label: 'Selected billing', selected: true, glass: 'strong' }),
+          new AppIcon(null, { icon: 'calendar', color: '#bd1e32', size: 48, label: 'Calendar', glass: 'subtle', shape: 'circle' }),
+          new AppIcon(null, { icon: 'file', color: '#535494', size: 48, label: 'Selected billing', selected: true, glass: 'strong', shape: 'circle' }),
           new AppIcon(null, { icon: 'info', color: '#31a8e0', size: 48, label: 'Messages, three unread', badge: 3 })
         ];
         cleanup(() => icons.forEach((item) => item.destroy()));

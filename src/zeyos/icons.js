@@ -59,6 +59,9 @@ export function moduleIcon(name, options = {}) {
  * @property {boolean} [standard=false] Use the stock Font Awesome fallback glyph.
  * @property {string|Node|(()=>string|Node)|null} [icon] Explicit glyph override, useful for an offline fallback.
  * @property {string} [color] Override the module colour for a server-defined fork or weblet.
+ * @property {string|number|null} [badge=null] Optional corner badge.
+ * @property {boolean} [selected=false] Whether the application identity is selected.
+ * @property {'tile'|'circle'} [shape='tile'] AppIcon vessel geometry.
  * @property {false|'subtle'|'strong'} [glass='subtle'] AppIcon material treatment.
  * @property {string|string[]} [class] Extra class names.
  */
@@ -66,7 +69,7 @@ export function moduleIcon(name, options = {}) {
 /**
  * Creates a module's icon chip: the glyph on the module's identity colour, the way ZeyOS draws
  * module icons in navigation and record headers. AppIcon identity glyphs stay white across every
- * module colour; material shading and the glyph shadow preserve their silhouette on light colours.
+ * module colour; material shading preserves their silhouette on light colours.
  * @param {string} name Module, entity, or resource name.
  * @param {ModuleChipOptions} [options={}] Display and accessibility options.
  * @returns {HTMLElement} A `<span class="zx-module-icon">` wrapping the glyph.
@@ -74,7 +77,7 @@ export function moduleIcon(name, options = {}) {
 export function moduleChip(name, options = {}) {
   const {
     size = 24, iconSize = '52%', label = null, title = false, standard = false,
-    color = null
+    color = null, badge = null, selected = false
   } = options;
   const key = normalizeModuleName(name);
   const info = moduleInfo(name);
@@ -88,6 +91,9 @@ export function moduleChip(name, options = {}) {
     iconSize,
     color: background,
     label,
+    badge,
+    selected,
+    shape: options.shape ?? 'tile',
     glass: options.glass ?? 'subtle',
     class: ['zx-module-icon', options.class].flat().filter(Boolean)
   });
@@ -100,11 +106,12 @@ export function moduleChip(name, options = {}) {
 }
 
 /**
- * Creates the public ZeyOS AppIcon preset for any module, entity, fork, or weblet identity.
+ * Creates the public ZeyOS application-identity preset for any module, fork, or weblet. It uses
+ * the circular application vessel by default; use `moduleChip()` for compact entity/record tiles.
  * @param {string} name Module/entity identifier.
  * @param {ModuleChipOptions} [options={}] AppIcon options.
  * @returns {HTMLElement}
  */
 export function zeyosAppIcon(name, options = {}) {
-  return moduleChip(name, options);
+  return moduleChip(name, { shape: 'circle', ...options });
 }

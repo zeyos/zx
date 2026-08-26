@@ -1,6 +1,6 @@
 {
   "name": "@zeyos/zx",
-  "version": "4.1.1",
+  "version": "4.2.0",
   "description": "Dependency-free JavaScript implementation of the Xenon Design System.",
   "type": "module",
   "license": "MIT",

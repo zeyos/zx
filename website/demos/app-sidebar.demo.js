@@ -1,4 +1,4 @@
-import { AccountMenu, AppSidebar, h, icon } from '../../src/index.js';
+import { AccountMenu, AppSidebar, h } from '../../src/index.js';
 import { moduleChip } from '../../src/zeyos/index.js';
 
 const BUILTIN_MODULE_ICONS = {
@@ -6,10 +6,12 @@ const BUILTIN_MODULE_ICONS = {
   projects: 'folder-open', tasks: 'check'
 };
 
-function moduleVisual(name, size = 24) {
-  const chip = moduleChip(name, { size });
-  chip.replaceChildren(icon(BUILTIN_MODULE_ICONS[name] ?? 'square', { size: 13 }));
-  return chip;
+function moduleVisual(name, size = 24, shape = 'tile') {
+  return moduleChip(name, {
+    size,
+    shape,
+    icon: BUILTIN_MODULE_ICONS[name] ?? 'square'
+  });
 }
 
 function applicationItems() {
@@ -32,8 +34,8 @@ function applicationItems() {
   ];
 }
 
-function renderModuleIcon(item) {
-  return moduleVisual(item.module ?? item.id);
+function renderModuleIcon(item, context = {}) {
+  return moduleVisual(item.module ?? item.id, 24, context.location === 'root' ? 'circle' : 'tile');
 }
 
 export default {

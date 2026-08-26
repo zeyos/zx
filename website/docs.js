@@ -18,6 +18,7 @@
 
 import { highlightMatch } from '../src/core/dom.js';
 import { icon } from '../src/core/icons.js';
+import { Aurora } from '../src/components/aurora/aurora.js';
 import { Search } from '../src/components/search/search.js';
 import { collectDependencies } from './demo-source.js';
 import { rankDocsSearch } from './docs-search.js';
@@ -26,13 +27,13 @@ import { rankDocsSearch } from './docs-search.js';
 const COMPONENT_IDS = [
   'tokens', 'kernel', 'icons', 'helpers', 'truncate',
   'button', 'badge', 'check-button', 'toggle', 'search', 'launcher', 'app-icon', 'avatar', 'account-menu', 'number-field', 'rating', 'slider', 'copy',
-  'layout', 'groupbox', 'card', 'panel', 'tabbox', 'navigation-bar', 'toolbar', 'empty-state',
+  'layout', 'groupbox', 'card', 'aurora', 'panel', 'tabbox', 'navigation-bar', 'toolbar', 'empty-state',
   'stepper', 'breadcrumb', 'split-view', 'dock', 'app-sidebar',
   'loading', 'skeleton',
   'message', 'modal', 'dialog', 'sheet', 'sheet-stack', 'dropdown', 'menu-button', 'context-menu', 'tooltip',
   'select', 'checklist', 'tag-picker',
   'date-picker', 'datebox', 'date-range', 'timebox',
-  'table', 'grid', 'chart', 'calendar', 'data-filter', 'filter', 'pagination', 'tree', 'finder',
+  'table', 'table-view', 'card-view', 'kanban-view', 'grid', 'chart', 'calendar', 'data-filter', 'filter', 'pagination', 'tree', 'finder',
   'form', 'form-widgets', 'questionnaire', 'elements',
   'value-list', 'multi-value-editor', 'field-upload'
 ];
@@ -95,6 +96,8 @@ sidebar.append(filterField, navigation);
 main.append(article);
 shell.append(sidebar, main, rail);
 root.replaceChildren(shell, toolbar);
+const docsAurora = new Aurora(shell, { preset: 'source', intensity: 'subtle' });
+window.addEventListener('pagehide', () => docsAurora.destroy(), { once: true });
 
 /** @type {Map<string, object>} Every entry, keyed by `<section>/<id>`. */
 const entries = new Map();
@@ -999,6 +1002,15 @@ function legacyCard(entry) {
   const stage = element('div', 'docs-example__stage docs-example__stage--full');
   try {
     entry.mount(stage);
+    if (entry.kind === 'layout') {
+      const frame = stage.querySelector('.layout-frame');
+      if (frame) {
+        const previewAurora = new Aurora(frame, { preset: 'source', intensity: 'subtle' });
+        const module = frame.querySelector('.zx-master-panel[data-module]')?.dataset.module;
+        if (module) frame.style.setProperty('--zx-aurora-color-1', `var(--zx-module-${module})`);
+        pageCleanups.push(() => previewAurora.destroy());
+      }
+    }
   } catch (error) {
     stage.append(element('p', 'docs-note', `This demo failed to run: ${error.message}`));
     console.error(error);

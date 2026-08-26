@@ -19,16 +19,9 @@ svg.zx-icon {
   vertical-align: middle;
 }
 
-/* ZeyOS module icon chip: the module glyph on its identity colour. `moduleChip()` sets the three
-   custom properties per module; the glyph is whichever ZeyOS foreground contrasts better. */
+/* ZeyOS identity hook. `moduleChip()` now delegates vessel geometry and material entirely to
+   AppIcon; this class only preserves the module variables for host styling and older selectors. */
 .zx-module-icon {
-  display: inline-grid;
-  place-items: center;
   flex: none;
-  inline-size: var(--zx-module-icon-size, 1.5rem);
-  block-size: var(--zx-module-icon-size, 1.5rem);
-  border-radius: var(--zx-radius-sm);
-  background: var(--zx-module-color, var(--zx-module-default));
-  color: var(--zx-module-glyph, var(--zx-module-fg-light));
-  font-size: calc(var(--zx-module-icon-size, 1.5rem) * 0.6);
+  color: var(--zx-module-glyph, var(--zx-color-app-icon-glyph));
 }

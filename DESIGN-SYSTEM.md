@@ -35,6 +35,7 @@ and navigation remain application-owned.
 | Tabs, panels, toolbar, breadcrumbs, stepper, split view, dock | Covered | Compose layouts; do not let navigation components own routes. |
 | Sorting, selection, dynamic/local filtering, pagination, trees/finder | Covered | `Filter` authors typed nested expressions; `DataFilter` executes simple local predicates. Backend query compilation stays in adapters. |
 | Operational calendars and scheduling | Covered | `Calendar` provides agenda/day/week/month/year views, local collision/spanning layout, selection, and configurable optimistic pointer/keyboard edits. The host owns loading, persistence, permissions, recurrence rules, and DAV. |
+| Record table, card, and Kanban views | Covered by one shared contract | `TableView`, `CardView`, and `KanbanView` share schema fields, records, sort, selection, field controls, loading, and versioned state. Core remains persistence-neutral; the optional ZeyOS registry coordinates named layouts through an injected server transport. The host still owns permissions, server validation, and rollback. |
 | Editable billing/transaction rows | Covered at generic-grid level | `Grid.BillingItems()` composes single-click typed currency/unit editors, flat hierarchy, same-parent row movement, and column visibility over `Table`. Tax, subtotal, posting, rounding, and persistence stay domain code. |
 | Global launcher/search | Covered | `Launcher` combines an application grid, current/pinned state, recent records, and abortable grouped sources. The optional ZeyOS adapter maps the complete 29-app shell catalogue while the host retains permissions, icons, and routing. |
 | Account/profile/preferences menu | Covered at presentation level | `Avatar` and `AccountMenu` provide identity and action UI. The host supplies permitted actions and owns preferences, authentication, and logout. |
@@ -59,6 +60,7 @@ a Zx component or a documented composition are not counted as gaps.
 | --- | --- | --- |
 | Dynamic search/filter authoring and saved filter controls | [`UI.newSearch`](../zeyos/ext/global.orig/4-ui.orig.js#L3378) and [`UI.newContainerFilters`](../zeyos/ext/global.orig/4-ui.orig.js#L7723) | `Filter` supplies a typed/versioned AST editor; `DataFilter` remains the lightweight local-row helper. A compiler and persistence service are intentionally not core. |
 | Agenda/day/week/month/year scheduling | [`calendar.orig.js`](../zeyos/ext/mod/calendar.orig.js#L61) | `Calendar` covers timed collisions, spanning lanes, windowed range events, activity year view, selection, now state, and pointer/keyboard move/resize. `zeyosCalendar()` maps expanded appointment rows and Unix seconds without importing recurrence, DAV, routing, or permissions into core. |
+| Record table/card collections and reusable view state | [`_newCrdLstTbl`](../zeyos/ext/global.orig/4-ui.orig.js#L4457), [`newCrd`](../zeyos/ext/global.orig/4-ui.orig.js#L4649), and [`newTbl`](../zeyos/ext/global.orig/4-ui.orig.js#L4782) | `TableView`, `CardView`, and the additive `KanbanView` consume the same field descriptors and JSON-safe layout state. `buildZeyosViewConfig()` derives them from the runtime schema; `SavedViewRegistry` adds exact user/workspace/resource scoping and can bridge the existing `userfields` endpoints. Neither imports the client into core. |
 | Editable transaction rows and row movement | [`_newTblAddColEdit`](../zeyos/ext/global.orig/4-ui.orig.js#L5613) and [`newTblItems`](../zeyos/ext/global.orig/4-ui.orig.js#L6070) | `Table`/`Grid.BillingItems()` cover typed editing, currencies/units, hierarchy, single-click entry, same-parent drag/keyboard reorder, and show/hide columns. |
 | Entity selection, priority, status, and permission choices | [`newSelEntity`](../zeyos/ext/global.orig/4-ui.orig.js#L3296), [`newSelPriority`](../zeyos/ext/global.orig/4-ui.orig.js#L3101), and the surrounding Select family | `Select.entity()`, `.priority()`, `.status()`, and `.permission()` cover the interaction contract; the ZeyOS adapter owns schemas and localized catalogues. |
 | Application launcher and module/entity identity | [`newExpLst`](../zeyos/ext/global.orig/4-ui.orig.js#L4355) and entity/module item builders through line 4457 | `Launcher`, `AppIcon`, and the optional ZeyOS adapter cover the full app catalogue, current/pinned state, recent records, grouped abortable search, forks/weblets, and injected routing. |
@@ -95,7 +97,7 @@ a Zx component or a documented composition are not counted as gaps.
 ### Deliberately application-owned
 
 Routing/history, authentication/session/logout, authorization, server transport/caching, saved-view
-storage, audit policy, transaction tax/discount/subtotal/posting formulas, optimistic writes/undo,
+storage, audit policy, transaction tax/discount/subtotal/posting formulas, server reconciliation and undo history,
 calendar recurrence/DAV synchronization, rich-text sanitization, and activity actions are not
 design-system responsibilities. Moving them into Zx would reproduce ZeyOS application logic inside
 the library and make Xenon less reusable.
@@ -128,9 +130,22 @@ currency, line-total, and hierarchy schema while retaining Table's editing contr
 follow-ups, deliberately separate from this generic preset:
 
 - summary/footer rows and grouped subtotals;
-- column reorder and user-persisted column state;
+- persistence connectors for versioned view state (column order and visibility are now component capabilities);
 - product-specific invoice/transaction presets with tax, discount, rounding, and formula golden tests;
 - server persistence, optimistic rejection, and undo owned by the application/controller layer.
+
+## Record-view contract
+
+`RecordView` is the presentation-neutral base for `TableView`, `CardView`, and `KanbanView`.
+Stable field IDs allow a runtime ZeyOS schema to drive every presentation, while per-view properties
+add table widths, card previews, or board grouping without changing how values, sorting, selection,
+and field visibility work. Each view returns a versioned JSON-safe configuration through
+`getViewState()`; record data and rendered Nodes are deliberately excluded.
+
+The optional ZeyOS adapter builds the shared descriptors and server projection, including hidden
+title, media, column, and swim-lane fields. It can page any concrete record view through an injected
+client. Preference storage remains outside Zx, and Kanban moves are cancelable: local mode updates a
+record clone, while external mode waits for the application to supply accepted server state.
 
 ## Calendar contract
 

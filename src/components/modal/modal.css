@@ -2,12 +2,24 @@
   max-inline-size: calc(100vw - (2 * var(--zx-space-4)));
   max-block-size: calc(100vh - (2 * var(--zx-space-4)));
   overflow: auto;
-  border: 1px solid var(--zx-color-border);
+  border: 1px solid var(--zx-color-overlay-border);
   border-radius: var(--zx-radius-lg);
-  background: var(--zx-color-bg-raised);
-  box-shadow: var(--zx-overlay-shadow);
+  background: var(--zx-color-overlay-panel);
+  -webkit-backdrop-filter: var(--zx-glass-filter-panel);
+  backdrop-filter: var(--zx-glass-filter-panel);
+  box-shadow: var(--zx-glass-raised-shadow);
   color: var(--zx-color-text);
   padding: 0;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .zx-modal {
+    border-color: var(--zx-color-border);
+    background: var(--zx-color-bg-raised);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: var(--zx-overlay-shadow);
+  }
 }
 
 .zx-modal::backdrop {

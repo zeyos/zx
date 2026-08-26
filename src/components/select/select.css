@@ -96,10 +96,12 @@
   inline-size: max-content;
   max-inline-size: calc(100vw - var(--zx-space-4));
   overflow: hidden;
-  border: 1px solid var(--zx-color-border-strong);
+  border: 1px solid var(--zx-color-overlay-border);
   border-radius: var(--zx-radius-md);
-  background: var(--zx-color-bg-raised);
-  box-shadow: var(--zx-overlay-shadow);
+  background: var(--zx-color-overlay-surface);
+  -webkit-backdrop-filter: var(--zx-glass-filter-overlay);
+  backdrop-filter: var(--zx-glass-filter-overlay);
+  box-shadow: var(--zx-glass-raised-shadow);
   color: var(--zx-color-text);
   padding: var(--zx-space-1);
 }
@@ -146,13 +148,27 @@
   position: sticky;
   z-index: 1;
   inset-block-start: 0;
-  background: var(--zx-color-bg-raised);
+  background: var(--zx-color-overlay-surface);
   color: var(--zx-color-text-muted);
   font-size: var(--zx-text-xs);
   font-weight: 700;
   letter-spacing: 0.04em;
   padding: var(--zx-space-2) var(--zx-control-pad-x) var(--zx-space-1);
   text-transform: uppercase;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .zx-select__panel,
+  .zx-select__group {
+    background: var(--zx-color-bg-raised);
+  }
+
+  .zx-select__panel {
+    border-color: var(--zx-color-border-strong);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: var(--zx-overlay-shadow);
+  }
 }
 
 .zx-select__separator {

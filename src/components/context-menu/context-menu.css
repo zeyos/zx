@@ -21,8 +21,8 @@
   gap: var(--zx-space-2);
   inline-size: 100%;
   min-block-size: var(--zx-control-height);
-  border-color: var(--zx-color-bg-raised);
-  background: var(--zx-color-bg-raised);
+  border-color: transparent;
+  background: transparent;
   padding-inline: var(--zx-control-pad-x);
   text-align: start;
 }

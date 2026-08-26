@@ -20,19 +20,29 @@ src/components/app-icon/app-icon.js
 src/components/app-icon/app-icon.css
 src/components/button/button.css
 src/components/card/card.css
+src/components/context-menu/context-menu.css
+src/components/date-picker/date-picker.css
+src/components/datebox/datebox.css
+src/components/datebox/date-range-box.css
+src/components/dropdown/dropdown.css
 src/components/filter/filter-model.js
 src/components/filter/filter.js
 src/components/filter/filter.css
 src/components/grid/grid.js
 src/components/grid/grid.css
 src/components/launcher/launcher.js
+src/components/launcher/launcher.css
+src/components/menu-button/menu-button.css
 src/components/message/message.css
+src/components/modal/modal.css
 src/components/select/select.js
 src/components/select/select.css
+src/components/sheet/sheet.css
 src/components/table/table.js
 src/components/table/table.css
 src/components/tag-picker/tag-picker.js
 src/components/tag-picker/tag-picker.css
+src/components/tooltip/tooltip.css
 src/zeyos/icons.js
 src/zeyos/index.js
 src/zeyos/launcher.js
@@ -50,6 +60,7 @@ tests/unit/zeyos-launcher.test.js
 tests/unit/zeyos-select.test.js
 tests/unit/type-bindings.test.js
 tests/unit/theme-presets.test.js
+tests/unit/docs-search.test.js
 tests/smoke/smoke.js
 website/docs.html
 website/docs.js
@@ -64,6 +75,7 @@ website/theme-showcase.js
 website/site.js
 website/site.css
 website/demos/app-icon.demo.js
+website/demos/avatar.demo.js
 website/demos/filter.demo.js
 website/demos/grid.demo.js
 website/demos/launcher.demo.js
@@ -159,13 +171,15 @@ and invalid instead of being discarded.
 - Theme Studio must apply font, tint, radius, density/control height, text size, and glass strength
   in addition to colours; its default preset label is `ZeyOS`. Rebuilds must not leak components.
 - Flat, Glass, and Deep glass must resolve to visibly different semantic material tokens consumed
-  by AppIcon, ordinary buttons, raised cards, and transient messages. Dense data surfaces remain
+  by AppIcon, ordinary buttons, raised cards, and every transient overlay. Compact menus, pickers,
+  tooltips, column menus, and toasts use a lighter floating tier; Launcher, Modal, Dialog, and
+  overlay Sheets use a more opaque reading-panel tier. Docked Sheets and dense data surfaces remain
   opaque. ZeyOS AppIcons use one white glyph treatment across every module colour, with stable
   geometric centring and pointer/focus feedback.
 - Every primary header, including Theme Studio, contains the centred documentation search. Search
   results show full `Group > Component > Section` breadcrumbs and the docs sidebar alphabetizes
   entries within each group.
-- Documentation groups AppSidebar, Loading, Skeleton, Launcher, and AccountMenu under Layout.
+- Documentation groups AppSidebar, Loading, Skeleton, Launcher, AccountMenu, and Avatar under Layout.
 - Landing navigation removes redundant Design System and Components links. Footers contain only
   Imprint, Privacy Policy, and LLMs.txt at the lower right.
 - Message/Toast floating regions default to the upper right, size to their content, and use a

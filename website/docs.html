@@ -19,7 +19,7 @@
           <img class="brand-logo--dark" src="assets/zx-logo-dark.svg" alt="Zx">
         </a>
         <a class="site-version" href="https://github.com/zeyos/zx/releases/latest"
-          rel="noopener" title="Release notes">v<span data-site-version>4.1.1</span></a>
+          rel="noopener" title="Release notes">v<span data-site-version>4.2.0</span></a>
         <div class="site-docs-search docs-global-search" data-docs-search>
           <form data-docs-search-field></form>
           <div class="docs-global-search__popover" hidden>
@@ -300,6 +300,32 @@ const toolbar = h('div', { class: 'toolbar' },
 &lt;html data-zx-theme="dark" data-zx-density="compact"&gt;
       </pre>
 
+      <h2>Surface hierarchy and Aurora</h2>
+      <p>
+        Xenon separates <strong>ambient light</strong> from <strong>material</strong>. Add one
+        <a href="#components/aurora">Aurora</a> to an application canvas, then let semantic surface
+        roles decide how much of that light shows through. Persistent chrome is translucent but
+        calm; raised feature cards reveal a little more; menus and dialogs use the overlay tiers.
+        Tables, forms, code, long lists, and docked work areas stay opaque for sustained reading.
+      </p>
+      <pre data-code="surfaces.js">
+import { Aurora } from '/assets/zx.esm.js';
+
+const light = new Aurora('#application-canvas', {
+  preset: 'source',
+  colors: ['#21cc75', '#2b7fff', '#9a67ff'],
+  intensity: 'subtle'
+});
+
+// Components on the canvas consume the shared chrome, raised, and overlay material tokens.
+// They never need their own Aurora instance.
+      </pre>
+      <p>
+        The Theme Studio's Flat, Glass, and Deep Glass modes change the response of those
+        materials without changing Aurora itself. Reduced-transparency and forced-colour modes
+        suppress ambient illumination and return every material to an opaque semantic surface.
+      </p>
+
       <h2>The standard themes</h2>
       <p>
         <code>data-zx-preset</code> is the third attribute, and it is orthogonal to the first two:
@@ -368,6 +394,10 @@ const toolbar = h('div', { class: 'toolbar' },
           <tr><td><code>--zx-color-bg-muted</code></td><td>Inline code, table headers</td></tr>
           <tr><td><code>--zx-color-bg-hover</code></td><td>Hover and pressed fills</td></tr>
           <tr><td><code>--zx-color-bg-selected</code></td><td>Selected rows and items</td></tr>
+          <tr><td><code>--zx-color-glass-chrome</code></td><td>Persistent navigation and application chrome</td></tr>
+          <tr><td><code>--zx-color-glass-surface</code></td><td>Explicitly raised feature content</td></tr>
+          <tr><td><code>--zx-color-overlay-surface</code></td><td>Compact menus, pickers, tooltips, and Toast</td></tr>
+          <tr><td><code>--zx-color-overlay-panel</code></td><td>Launcher, Dialog, Modal, and overlay Sheet</td></tr>
           <tr><td><code>--zx-color-border</code></td><td>Structural separators</td></tr>
           <tr><td><code>--zx-color-border-control</code></td><td>Input and button outlines</td></tr>
           <tr><td><code>--zx-color-text</code> / <code>-muted</code></td><td>Body and secondary text</td></tr>

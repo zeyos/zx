@@ -39,7 +39,7 @@
   display: grid;
   place-items: center;
   border: 1px solid var(--zx-color-border);
-  background: var(--zx-color-bg-subtle);
+  background: var(--zx-color-bg-muted);
   font-size: calc(var(--zx-avatar-size) * .34);
   font-weight: 700;
   line-height: 1;

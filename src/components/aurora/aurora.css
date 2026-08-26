@@ -1,0 +1,143 @@
+.zx-aurora {
+  --zx-aurora-color-1: var(--zx-color-accent);
+  --zx-aurora-color-2: var(--zx-color-info);
+  --zx-aurora-color-3: var(--zx-color-success);
+  --zx-aurora-color-4: var(--zx-color-warning);
+  --zx-aurora-core: 7%;
+  --zx-aurora-wash: 4%;
+  --zx-aurora-faint: 2%;
+  --zx-aurora-core-1: color-mix(in srgb, var(--zx-aurora-color-1) var(--zx-aurora-core), transparent);
+  --zx-aurora-core-2: color-mix(in srgb, var(--zx-aurora-color-2) var(--zx-aurora-core), transparent);
+  --zx-aurora-core-3: color-mix(in srgb, var(--zx-aurora-color-3) var(--zx-aurora-core), transparent);
+  --zx-aurora-core-4: color-mix(in srgb, var(--zx-aurora-color-4) var(--zx-aurora-core), transparent);
+  --zx-aurora-wash-1: color-mix(in srgb, var(--zx-aurora-color-1) var(--zx-aurora-wash), transparent);
+  --zx-aurora-wash-2: color-mix(in srgb, var(--zx-aurora-color-2) var(--zx-aurora-wash), transparent);
+  --zx-aurora-wash-3: color-mix(in srgb, var(--zx-aurora-color-3) var(--zx-aurora-wash), transparent);
+  --zx-aurora-wash-4: color-mix(in srgb, var(--zx-aurora-color-4) var(--zx-aurora-wash), transparent);
+  --zx-aurora-faint-1: color-mix(in srgb, var(--zx-aurora-color-1) var(--zx-aurora-faint), transparent);
+  --zx-aurora-faint-2: color-mix(in srgb, var(--zx-aurora-color-2) var(--zx-aurora-faint), transparent);
+  --zx-aurora-faint-3: color-mix(in srgb, var(--zx-aurora-color-3) var(--zx-aurora-faint), transparent);
+  --zx-aurora-faint-4: color-mix(in srgb, var(--zx-aurora-color-4) var(--zx-aurora-faint), transparent);
+  position: relative;
+  isolation: isolate;
+}
+
+.zx-aurora[data-intensity="balanced"] {
+  --zx-aurora-core: 11%;
+  --zx-aurora-wash: 6.5%;
+  --zx-aurora-faint: 3%;
+}
+
+.zx-aurora[data-intensity="vivid"] {
+  --zx-aurora-core: 16%;
+  --zx-aurora-wash: 9%;
+  --zx-aurora-faint: 4.5%;
+}
+
+:is([data-zx-theme="dark"] .zx-aurora, .zx-aurora[data-zx-theme="dark"]) {
+  --zx-aurora-core: 12%;
+  --zx-aurora-wash: 7%;
+  --zx-aurora-faint: 3%;
+}
+
+:is([data-zx-theme="dark"] .zx-aurora, .zx-aurora[data-zx-theme="dark"])[data-intensity="balanced"] {
+  --zx-aurora-core: 17%;
+  --zx-aurora-wash: 10%;
+  --zx-aurora-faint: 5%;
+}
+
+:is([data-zx-theme="dark"] .zx-aurora, .zx-aurora[data-zx-theme="dark"])[data-intensity="vivid"] {
+  --zx-aurora-core: 24%;
+  --zx-aurora-wash: 14%;
+  --zx-aurora-faint: 7%;
+}
+
+.zx-aurora::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  border-radius: inherit;
+  background-repeat: no-repeat;
+  pointer-events: none;
+}
+
+.zx-aurora[data-preset="source"]::before {
+  background-image:
+    radial-gradient(94% 78% at 0% 0%, var(--zx-aurora-core-1) 0%, var(--zx-aurora-wash-1) 34%, transparent 72%),
+    radial-gradient(68% 54% at 72% 0%, var(--zx-aurora-wash-2) 0%, var(--zx-aurora-faint-2) 42%, transparent 74%),
+    radial-gradient(62% 74% at 100% 82%, var(--zx-aurora-wash-3) 0%, transparent 68%),
+    radial-gradient(58% 42% at 38% 100%, var(--zx-aurora-faint-4) 0%, transparent 72%);
+}
+
+.zx-aurora[data-preset="confluence"]::before {
+  background-image:
+    radial-gradient(108% 84% at 0% 0%, var(--zx-aurora-core-1) 0%, var(--zx-aurora-wash-1) 34%, transparent 70%),
+    radial-gradient(92% 72% at 100% 0%, var(--zx-aurora-core-2) 0%, var(--zx-aurora-wash-2) 36%, transparent 72%),
+    radial-gradient(78% 62% at 0% 100%, var(--zx-aurora-wash-3) 0%, transparent 70%),
+    radial-gradient(72% 64% at 100% 100%, var(--zx-aurora-wash-4) 0%, transparent 72%);
+}
+
+.zx-aurora[data-preset="horizon"]::before {
+  background-image:
+    radial-gradient(72% 28% at 8% 19%, var(--zx-aurora-core-1) 0%, var(--zx-aurora-wash-1) 48%, transparent 78%),
+    radial-gradient(68% 24% at 42% 23%, var(--zx-aurora-core-2) 0%, var(--zx-aurora-wash-2) 44%, transparent 78%),
+    radial-gradient(72% 26% at 76% 18%, var(--zx-aurora-core-3) 0%, var(--zx-aurora-wash-3) 46%, transparent 80%),
+    radial-gradient(54% 22% at 100% 26%, var(--zx-aurora-wash-4) 0%, transparent 78%);
+}
+
+.zx-aurora[data-preset="diagonal"]::before {
+  background-image:
+    linear-gradient(126deg, var(--zx-aurora-core-1) 0%, var(--zx-aurora-wash-1) 18%, transparent 44%),
+    linear-gradient(126deg, transparent 18%, var(--zx-aurora-wash-2) 42%, transparent 63%),
+    linear-gradient(126deg, transparent 44%, var(--zx-aurora-wash-3) 67%, transparent 84%),
+    linear-gradient(126deg, transparent 68%, var(--zx-aurora-wash-4) 90%, transparent 100%);
+}
+
+.zx-aurora[data-preset="edge"]::before {
+  background-image:
+    radial-gradient(38% 108% at 0% 18%, var(--zx-aurora-core-1) 0%, var(--zx-aurora-faint-1) 52%, transparent 78%),
+    radial-gradient(72% 34% at 72% 0%, var(--zx-aurora-wash-2) 0%, transparent 74%),
+    radial-gradient(38% 106% at 100% 84%, var(--zx-aurora-wash-3) 0%, transparent 74%),
+    radial-gradient(76% 32% at 32% 100%, var(--zx-aurora-wash-4) 0%, transparent 76%);
+}
+
+.zx-aurora[data-preset="curtain"]::before {
+  background-image:
+    radial-gradient(28% 112% at 10% 0%, var(--zx-aurora-core-1) 0%, var(--zx-aurora-faint-1) 52%, transparent 78%),
+    radial-gradient(26% 104% at 38% 0%, var(--zx-aurora-core-2) 0%, var(--zx-aurora-faint-2) 48%, transparent 76%),
+    radial-gradient(28% 110% at 67% 0%, var(--zx-aurora-core-3) 0%, var(--zx-aurora-faint-3) 50%, transparent 78%),
+    radial-gradient(26% 106% at 92% 0%, var(--zx-aurora-core-4) 0%, var(--zx-aurora-faint-4) 48%, transparent 76%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :is([data-zx-theme="auto"] .zx-aurora, .zx-aurora[data-zx-theme="auto"]) {
+    --zx-aurora-core: 12%;
+    --zx-aurora-wash: 7%;
+    --zx-aurora-faint: 3%;
+  }
+
+  :is([data-zx-theme="auto"] .zx-aurora, .zx-aurora[data-zx-theme="auto"])[data-intensity="balanced"] {
+    --zx-aurora-core: 17%;
+    --zx-aurora-wash: 10%;
+    --zx-aurora-faint: 5%;
+  }
+
+  :is([data-zx-theme="auto"] .zx-aurora, .zx-aurora[data-zx-theme="auto"])[data-intensity="vivid"] {
+    --zx-aurora-core: 24%;
+    --zx-aurora-wash: 14%;
+    --zx-aurora-faint: 7%;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce), (forced-colors: active) {
+  .zx-aurora::before {
+    display: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .zx-aurora::before {
+    opacity: .35;
+  }
+}

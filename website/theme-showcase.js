@@ -13,10 +13,10 @@
  */
 
 import {
-  AppIcon, Breadcrumb, Calendar, Card, Checklist, Component, ContextMenu, CopyInput, DataFilter, DateRangeBox, Datebox, DatePicker,
+  AppIcon, Aurora, Breadcrumb, Calendar, Card, Checklist, Component, ContextMenu, CopyInput, DataFilter, DateRangeBox, Datebox, DatePicker,
   Dialog, Dropdown, Finder, Form, Groupbox, InlineLoading, MasterPanel, MenuButton, Message,
   Modal, MultiValueEditor, NavigationBar, NumberField, Pagination, Panel, ProgressBar,
-  Rating, Search, Select, Slider, Stepper, Table, Tabbox, TagPicker, Timebox, Toggle, Toolbar,
+  Rating, Search, Select, Sheet, Slider, Stepper, Table, Tabbox, TagPicker, Timebox, Toggle, Toolbar,
   TreeView, ValueList, badge, button, buttonGroup, CheckButton, emptyState, h, icon, iconNames,
   skeletonText, spinner, tooltip
 } from '../src/index.js';
@@ -29,6 +29,8 @@ const PALETTE = [
   ['Selected', '--zx-color-bg-selected'],
   ['Surface', '--zx-color-bg-surface'],
   ['Raised', '--zx-color-bg-raised'],
+  ['Glass chrome', '--zx-color-glass-chrome'],
+  ['Floating overlay', '--zx-color-overlay-surface'],
   ['Muted', '--zx-color-bg-muted'],
   ['Border', '--zx-color-border'],
   ['Text', '--zx-color-text'],
@@ -81,7 +83,7 @@ const currency = new Intl.NumberFormat(undefined, {
 export const CARDS = [
   { id: 'palette', title: 'Semantic palette', hint: 'What every component resolves its colour through', render: paletteCard },
   { id: 'type', title: 'Type scale', hint: '--zx-font-sans and the text steps', render: typeCard },
-  { id: 'material', title: 'Material', hint: 'App identity, controls, and raised surfaces', render: materialCard },
+  { id: 'material', title: 'Material', hint: 'Identity, controls, raised surfaces, and overlay tiers', render: materialCard },
   { id: 'buttons', title: 'Buttons', hint: 'Four kinds, two sizes, joined groups', render: buttonsCard },
   { id: 'badges', title: 'Badges', hint: 'Six intents in three weights', render: badgesCard },
   { id: 'inputs', title: 'Text input', hint: 'Search, copy, numbers, native controls', render: inputsCard },
@@ -96,7 +98,7 @@ export const CARDS = [
   { id: 'tabs', title: 'Tabs', hint: 'All four Tabbox variants', render: tabsCard },
   { id: 'navigation', title: 'Navigation', hint: 'App bar, breadcrumb, steps, toolbar', render: navigationCard },
   { id: 'containers', title: 'Containers', hint: 'Card, panel, groupbox, master panel', render: containersCard },
-  { id: 'overlays', title: 'Overlays', hint: 'Modal, dialog, menus, tooltips, toasts', render: overlaysCard },
+  { id: 'overlays', title: 'Overlays', hint: 'Modal, dialog, Sheet, menus, tooltips, and toasts', render: overlaysCard },
   { id: 'hierarchy', title: 'Hierarchy', hint: 'Tree and finder', render: hierarchyCard },
   { id: 'lists', title: 'Value editors', hint: 'Chips and multi-value rows', render: listsCard },
   { id: 'states', title: 'Empty and loading', hint: 'What a screen shows before it has data', render: statesCard },
@@ -185,17 +187,23 @@ function typeCard() {
 
 /** @returns {Node} */
 function materialCard() {
-  return h('div', { class: 'studio-stack' },
+  const canvas = h('div', { class: 'studio-material-canvas studio-stack' },
     row(
-      new AppIcon(null, { icon: 'folder', color: '#bc3885', size: 52, label: 'Accounts' }).toElement(),
-      new AppIcon(null, { icon: 'file', color: '#535494', size: 52, label: 'Billing', glass: 'strong' }).toElement(),
+      new AppIcon(null, { icon: 'folder', color: '#bc3885', size: 52, label: 'Accounts', shape: 'circle' }).toElement(),
+      new AppIcon(null, { icon: 'file', color: '#535494', size: 52, label: 'Billing', glass: 'strong', shape: 'circle' }).toElement(),
       new AppIcon(null, { icon: 'check', color: '#e2b301', size: 52, label: 'Tasks' }).toElement()),
     new Card(null, {
       variant: 'raised',
       title: 'Raised material surface',
-      content: 'Identity and temporary elevation can carry glass; dense tables stay opaque.',
+      content: 'Menus, pickers, tooltips, column menus, and toasts use the lighter floating surface. Launcher, dialogs, and overlay Sheets use a more opaque reading panel. Docked Sheets and dense data surfaces stay opaque.',
       actions: [{ label: 'Review', kind: 'primary', size: 'sm' }]
     }).toElement());
+  new Aurora(canvas, {
+    preset: 'source',
+    colors: ['#21cc75', '#2b7fff', '#9a67ff'],
+    intensity: 'balanced'
+  });
+  return canvas;
 }
 
 /** @returns {Node} */
@@ -496,6 +504,15 @@ function overlaysCard(teardown) {
     buttons: [{ label: 'Close', kind: 'primary', action: 'close', autofocus: true }]
   });
 
+  const sheet = new Sheet(null, {
+    title: 'Invoice details',
+    side: 'end',
+    size: 360,
+    content: h('p', { class: 'studio-prose' },
+      'An overlay Sheet uses the quieter glass panel; docking the same Sheet makes it opaque.'),
+    buttons: [{ label: 'Close', kind: 'primary', action: 'close' }]
+  });
+
   const anchor = button({ label: 'Assign to', icon: 'chevron-down' });
   const dropdown = new Dropdown(anchor, {
     matchWidth: true,
@@ -517,6 +534,7 @@ function overlaysCard(teardown) {
     hint.destroy();
     modal.destroy();
     dialog.destroy();
+    sheet.destroy();
     menu.destroy();
     dropdown.destroy();
   });
@@ -527,6 +545,7 @@ function overlaysCard(teardown) {
     row(
       button({ label: 'Modal', onclick: () => modal.open() }),
       button({ label: 'Dialog', onclick: () => dialog.open() }),
+      button({ label: 'Sheet', onclick: () => sheet.open() }),
       hinted),
     row(anchor),
     row(

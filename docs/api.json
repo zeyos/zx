@@ -175,6 +175,12 @@
         "description": "Whether the icon represents the active application."
       },
       {
+        "name": "shape",
+        "type": "'tile'|'circle'",
+        "default": "'tile'",
+        "description": "Identity vessel geometry."
+      },
+      {
         "name": "glass",
         "type": "false|'subtle'|'strong'",
         "default": "'subtle'",
@@ -446,6 +452,55 @@
     ],
     "events": [],
     "methods": []
+  },
+  "Aurora": {
+    "options": [
+      {
+        "name": "preset",
+        "type": "'source'|'confluence'|'horizon'|'diagonal'|'edge'|'curtain'",
+        "default": "'source'",
+        "description": "Geometry of the ambient light field."
+      },
+      {
+        "name": "colors",
+        "type": "string[]",
+        "default": "[]",
+        "description": "Zero to four concrete CSS colours. An empty list uses semantic Zx colours; shorter palettes repeat across the four gradient fields."
+      },
+      {
+        "name": "intensity",
+        "type": "'subtle'|'balanced'|'vivid'",
+        "default": "'subtle'",
+        "description": "Strength of the light field."
+      }
+    ],
+    "events": [],
+    "methods": [
+      {
+        "name": "setPreset",
+        "signature": "setPreset(preset)",
+        "returns": "this",
+        "description": "Sets the light-field geometry without replacing surface content."
+      },
+      {
+        "name": "setColors",
+        "signature": "setColors(colors)",
+        "returns": "this",
+        "description": "Sets zero to four concrete colours without replacing surface content."
+      },
+      {
+        "name": "setIntensity",
+        "signature": "setIntensity(intensity)",
+        "returns": "this",
+        "description": "Sets the light-field strength without replacing surface content."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Restores an enhanced target exactly, or removes an owned surface."
+      }
+    ]
   },
   "Avatar": {
     "options": [
@@ -1291,6 +1346,187 @@
         "signature": "destroy()",
         "returns": "void",
         "description": "Restores an enhanced target exactly, or removes an owned card."
+      }
+    ]
+  },
+  "CardView": {
+    "options": [
+      {
+        "name": "fields",
+        "type": "ViewField[]",
+        "default": "[]",
+        "description": "Shared ordered field descriptors."
+      },
+      {
+        "name": "data",
+        "type": "ViewRecord[]",
+        "default": "[]",
+        "description": "Initial records."
+      },
+      {
+        "name": "recordId",
+        "type": "string|((record:ViewRecord)=>unknown)",
+        "default": "'ID'",
+        "description": "Stable record id accessor."
+      },
+      {
+        "name": "sort",
+        "type": "import('../view/record-view.js').ViewSort|null",
+        "default": "null",
+        "description": "Initial shared sort."
+      },
+      {
+        "name": "sortMode",
+        "type": "'local'|'server'",
+        "default": "'local'",
+        "description": "Local sorting or event-only server sorting."
+      },
+      {
+        "name": "selectable",
+        "type": "false|'single'|'multi'",
+        "default": "false",
+        "description": "Record selection behavior."
+      },
+      {
+        "name": "selection",
+        "type": "unknown[]",
+        "default": "[]",
+        "description": "Initially selected record ids."
+      },
+      {
+        "name": "fieldOrder",
+        "type": "string[]",
+        "default": "[]",
+        "description": "Preferred shared field order."
+      },
+      {
+        "name": "hiddenFields",
+        "type": "string[]",
+        "default": "[]",
+        "description": "Initially hidden metadata fields."
+      },
+      {
+        "name": "fieldControls",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether to expose shared field controls."
+      },
+      {
+        "name": "emptyText",
+        "type": "string|Node|(()=>string|Node)|null",
+        "default": "null",
+        "description": "Empty-result content."
+      },
+      {
+        "name": "titleField",
+        "type": "RecordCardValueSource",
+        "default": "null",
+        "description": "Title field id or explicit resolver."
+      },
+      {
+        "name": "subtitleField",
+        "type": "RecordCardValueSource",
+        "default": "null",
+        "description": "Subtitle field id or explicit resolver."
+      },
+      {
+        "name": "preview",
+        "type": "string|((record:ViewRecord,index:number)=>RecordCardPreview)",
+        "default": null,
+        "description": "Preview field id or explicit resolver."
+      },
+      {
+        "name": "previewAlt",
+        "type": "string|((record:ViewRecord,index:number)=>unknown)|null",
+        "default": "null",
+        "description": "Preview alt field, literal, or resolver."
+      },
+      {
+        "name": "link",
+        "type": "RecordCardLink|((record:ViewRecord,index:number)=>RecordCardLink)",
+        "default": null,
+        "description": "Safe native title link or resolver."
+      },
+      {
+        "name": "actions",
+        "type": "RecordCardAction[]|((record:ViewRecord,index:number)=>RecordCardAction[])",
+        "default": "[]",
+        "description": "Listener-free action descriptors or resolver."
+      },
+      {
+        "name": "groupBy",
+        "type": "string|((record:ViewRecord,index:number)=>unknown)|null",
+        "default": "null",
+        "description": "Field id or local group resolver."
+      },
+      {
+        "name": "groupOrder",
+        "type": "unknown[]",
+        "default": "[]",
+        "description": "Preferred group ids; missing ids render as empty groups."
+      },
+      {
+        "name": "minCardWidth",
+        "type": "number|string",
+        "default": "'18rem'",
+        "description": "Responsive minimum card width."
+      },
+      {
+        "name": "maxColumns",
+        "type": "number|null",
+        "default": "null",
+        "description": "Maximum cards per row; null is unconstrained."
+      },
+      {
+        "name": "variant",
+        "type": "'outlined'|'raised'|'filled'",
+        "default": "'outlined'",
+        "description": "Card surface treatment."
+      },
+      {
+        "name": "loadingCount",
+        "type": "number",
+        "default": "6",
+        "description": "Skeleton cards shown while loading."
+      },
+      {
+        "name": "headingLevel",
+        "type": "1|2|3|4|5|6",
+        "default": "3",
+        "description": "Per-card title heading level."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "default": "'Card view'",
+        "description": "Accessible collection label."
+      }
+    ],
+    "events": [
+      {
+        "name": "recordaction",
+        "payload": "Record<string,unknown>",
+        "description": ""
+      }
+    ],
+    "methods": [
+      {
+        "name": "getViewState",
+        "signature": "getViewState()",
+        "returns": "CardViewState",
+        "description": "Returns shared plus CardView configuration, never records or rendered values."
+      },
+      {
+        "name": "setViewState",
+        "signature": "setViewState(state, [options])",
+        "returns": "this",
+        "description": "Restores shared and CardView configuration. Unknown shared fields reconcile in RecordView."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Restores an enhanced target exactly, or removes an owned root."
       }
     ]
   },
@@ -3948,6 +4184,324 @@
       }
     ]
   },
+  "KanbanView": {
+    "options": [
+      {
+        "name": "fields",
+        "type": "import('../view/record-view.js').ViewField[]",
+        "default": "[]",
+        "description": "Shared field descriptors."
+      },
+      {
+        "name": "data",
+        "type": "KanbanRecord[]",
+        "default": "[]",
+        "description": "Records."
+      },
+      {
+        "name": "recordId",
+        "type": "string|((record:KanbanRecord)=>unknown)",
+        "default": "'ID'",
+        "description": "Stable record id accessor."
+      },
+      {
+        "name": "sort",
+        "type": "{id:string,dir:'asc'|'desc'}|null",
+        "default": "null",
+        "description": "Shared initial sort."
+      },
+      {
+        "name": "sortMode",
+        "type": "'local'|'server'",
+        "default": "'local'",
+        "description": "Shared sort mode."
+      },
+      {
+        "name": "selectable",
+        "type": "false|'single'|'multi'",
+        "default": "false",
+        "description": "Shared selection mode."
+      },
+      {
+        "name": "selection",
+        "type": "unknown[]",
+        "default": "[]",
+        "description": "Initial record ids."
+      },
+      {
+        "name": "fieldOrder",
+        "type": "string[]",
+        "default": "[]",
+        "description": "Shared field order."
+      },
+      {
+        "name": "hiddenFields",
+        "type": "string[]",
+        "default": "[]",
+        "description": "Shared hidden fields."
+      },
+      {
+        "name": "fieldControls",
+        "type": "boolean",
+        "default": "true",
+        "description": "Show shared field controls."
+      },
+      {
+        "name": "emptyText",
+        "type": "string|Node|(() => string|Node)|null",
+        "default": "null",
+        "description": "Empty-board content."
+      },
+      {
+        "name": "columnBy",
+        "type": "KanbanAccessor",
+        "default": "'status'",
+        "description": "Column accessor."
+      },
+      {
+        "name": "columns",
+        "type": "KanbanColumn[]|null",
+        "default": "null",
+        "description": "Explicit columns, or null to derive them."
+      },
+      {
+        "name": "swimlaneBy",
+        "type": "KanbanAccessor",
+        "default": "null",
+        "description": "Optional swim-lane accessor."
+      },
+      {
+        "name": "swimlanes",
+        "type": "KanbanSwimlane[]|null",
+        "default": "null",
+        "description": "Explicit lanes, or null to derive them."
+      },
+      {
+        "name": "titleField",
+        "type": "KanbanCardField",
+        "default": "null",
+        "description": "Card title field or reader."
+      },
+      {
+        "name": "subtitleField",
+        "type": "KanbanCardField",
+        "default": "null",
+        "description": "Card subtitle field or reader."
+      },
+      {
+        "name": "preview",
+        "type": "string|((record:KanbanRecord,index:number)=>RecordCardPreview)|null",
+        "default": "null",
+        "description": "Preview field or reader."
+      },
+      {
+        "name": "previewAlt",
+        "type": "KanbanCardField",
+        "default": "null",
+        "description": "Preview alternative-text field or reader."
+      },
+      {
+        "name": "link",
+        "type": "RecordCardLink|((record:KanbanRecord,index:number)=>RecordCardLink)|null",
+        "default": "null",
+        "description": "Record-card primary link descriptor or reader."
+      },
+      {
+        "name": "actions",
+        "type": "RecordCardAction[]|((record:KanbanRecord,index:number)=>RecordCardAction[])",
+        "default": "[]",
+        "description": "Card actions."
+      },
+      {
+        "name": "moveMode",
+        "type": "'local'|'external'",
+        "default": "'local'",
+        "description": "Whether accepted moves update local data."
+      },
+      {
+        "name": "columnOrder",
+        "type": "string[]",
+        "default": "[]",
+        "description": "Preferred column order."
+      },
+      {
+        "name": "swimlaneOrder",
+        "type": "string[]",
+        "default": "[]",
+        "description": "Preferred swim-lane order."
+      },
+      {
+        "name": "collapsedColumns",
+        "type": "string[]",
+        "default": "[]",
+        "description": "Initially collapsed columns."
+      },
+      {
+        "name": "collapsedSwimlanes",
+        "type": "string[]",
+        "default": "[]",
+        "description": "Initially collapsed lanes."
+      },
+      {
+        "name": "showCounts",
+        "type": "boolean",
+        "default": "true",
+        "description": "Show record counts and WIP indicators."
+      },
+      {
+        "name": "showEmptyColumns",
+        "type": "boolean",
+        "default": "true",
+        "description": "Keep configured empty columns visible."
+      },
+      {
+        "name": "variant",
+        "type": "'outlined'|'raised'|'filled'",
+        "default": "'outlined'",
+        "description": "Shared record-card treatment."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "default": "'Kanban board'",
+        "description": "Accessible board label."
+      }
+    ],
+    "events": [
+      {
+        "name": "recordmove",
+        "payload": "Record<string,unknown>",
+        "description": ""
+      },
+      {
+        "name": "recordaction",
+        "payload": "Record<string,unknown>",
+        "description": ""
+      }
+    ],
+    "methods": [
+      {
+        "name": "getColumns",
+        "signature": "getColumns()",
+        "returns": "KanbanColumn[]",
+        "description": "Returns resolved columns in visual order."
+      },
+      {
+        "name": "setColumns",
+        "signature": "setColumns(columns)",
+        "returns": "this",
+        "description": "Replaces configured columns. Pass null to derive them from current data."
+      },
+      {
+        "name": "getSwimlanes",
+        "signature": "getSwimlanes()",
+        "returns": "KanbanSwimlane[]",
+        "description": "Returns resolved lane descriptors in visual order."
+      },
+      {
+        "name": "setSwimlanes",
+        "signature": "setSwimlanes(lanes)",
+        "returns": "this",
+        "description": "Replaces configured lanes. Pass null to derive them from current data."
+      },
+      {
+        "name": "getColumnOrder",
+        "signature": "getColumnOrder()",
+        "returns": "string[]",
+        "description": "Returns the current resolved column order."
+      },
+      {
+        "name": "setColumnOrder",
+        "signature": "setColumnOrder(order, [options])",
+        "returns": "this",
+        "description": "Reconciles and applies a preferred column order."
+      },
+      {
+        "name": "moveColumn",
+        "signature": "moveColumn(id, targetId, [position])",
+        "returns": "this",
+        "description": "Moves a column relative to another."
+      },
+      {
+        "name": "getSwimlaneOrder",
+        "signature": "getSwimlaneOrder()",
+        "returns": "string[]",
+        "description": "Returns the current resolved lane order."
+      },
+      {
+        "name": "setSwimlaneOrder",
+        "signature": "setSwimlaneOrder(order, [options])",
+        "returns": "this",
+        "description": "Reconciles and applies a preferred lane order."
+      },
+      {
+        "name": "moveSwimlane",
+        "signature": "moveSwimlane(id, targetId, [position])",
+        "returns": "this",
+        "description": "Moves a lane relative to another."
+      },
+      {
+        "name": "getCollapsedColumns",
+        "signature": "getCollapsedColumns()",
+        "returns": "string[]",
+        "description": "Returns collapsed column ids."
+      },
+      {
+        "name": "setColumnCollapsed",
+        "signature": "setColumnCollapsed(id, [collapsed], [options])",
+        "returns": "this",
+        "description": "Expands or collapses one column across every lane."
+      },
+      {
+        "name": "toggleColumn",
+        "signature": "toggleColumn(id)",
+        "returns": "this",
+        "description": "Toggles a column."
+      },
+      {
+        "name": "getCollapsedSwimlanes",
+        "signature": "getCollapsedSwimlanes()",
+        "returns": "string[]",
+        "description": "Returns collapsed lane ids."
+      },
+      {
+        "name": "setSwimlaneCollapsed",
+        "signature": "setSwimlaneCollapsed(id, [collapsed], [options])",
+        "returns": "this",
+        "description": "Expands or collapses one lane."
+      },
+      {
+        "name": "toggleSwimlane",
+        "signature": "toggleSwimlane(id)",
+        "returns": "this",
+        "description": "Toggles a lane."
+      },
+      {
+        "name": "moveRecord",
+        "signature": "moveRecord(id, destination)",
+        "returns": "this",
+        "description": "Proposes and, in local mode, commits a record move. Destination acceptance is checked before a cancelable `recordmove` event. WIP limits are reported but remain advisory."
+      },
+      {
+        "name": "getViewState",
+        "signature": "getViewState()",
+        "returns": "KanbanViewState",
+        "description": "Returns common plus board-specific serializable configuration."
+      },
+      {
+        "name": "setViewState",
+        "signature": "setViewState(state, [options])",
+        "returns": "this",
+        "description": "Restores common and Kanban configuration. State from another record view is accepted safely."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Restores enhanced targets after base lifecycle cleanup."
+      }
+    ]
+  },
   "Launcher": {
     "options": [
       {
@@ -5649,6 +6203,360 @@
       }
     ]
   },
+  "RecordCard": {
+    "options": [
+      {
+        "name": "fields",
+        "type": "ViewField[]",
+        "default": "[]",
+        "description": "Complete fields, used to resolve title and subtitle sources."
+      },
+      {
+        "name": "visibleFields",
+        "type": "ViewField[]",
+        "default": "fields",
+        "description": "Ordered fields rendered as labelled metadata."
+      },
+      {
+        "name": "titleField",
+        "type": "RecordCardValueSource",
+        "default": "null",
+        "description": "Field id or explicit value resolver."
+      },
+      {
+        "name": "subtitleField",
+        "type": "RecordCardValueSource",
+        "default": "null",
+        "description": "Field id or explicit value resolver."
+      },
+      {
+        "name": "preview",
+        "type": "string|((record:ViewRecord,index:number)=>RecordCardPreview)",
+        "default": null,
+        "description": "Preview field id or explicit resolver."
+      },
+      {
+        "name": "previewAlt",
+        "type": "string|((record:ViewRecord,index:number)=>unknown)|null",
+        "default": "null",
+        "description": "Alternative-text field, literal text, or resolver."
+      },
+      {
+        "name": "link",
+        "type": "RecordCardLink|((record:ViewRecord,index:number)=>RecordCardLink)",
+        "default": null,
+        "description": ""
+      },
+      {
+        "name": "actions",
+        "type": "RecordCardAction[]|((record:ViewRecord,index:number)=>RecordCardAction[])",
+        "default": "[]",
+        "description": ""
+      },
+      {
+        "name": "selectable",
+        "type": "false|'single'|'multi'",
+        "default": "false",
+        "description": "Selection presentation."
+      },
+      {
+        "name": "selected",
+        "type": "boolean",
+        "default": "false",
+        "description": "Current selection state."
+      },
+      {
+        "name": "variant",
+        "type": "'outlined'|'raised'|'filled'",
+        "default": "'outlined'",
+        "description": "Surface treatment."
+      },
+      {
+        "name": "headingLevel",
+        "type": "1|2|3|4|5|6",
+        "default": "3",
+        "description": "Card title heading level."
+      },
+      {
+        "name": "controls",
+        "type": "Node[]",
+        "default": "[]",
+        "description": "Listener-free, owner-created controls such as a move handle."
+      }
+    ],
+    "events": [],
+    "methods": []
+  },
+  "RecordView": {
+    "options": [
+      {
+        "name": "fields",
+        "type": "ViewField[]",
+        "default": "[]",
+        "description": "Shared ordered field descriptors."
+      },
+      {
+        "name": "data",
+        "type": "ViewRecord[]",
+        "default": "[]",
+        "description": "Initial records."
+      },
+      {
+        "name": "recordId",
+        "type": "string|((record: ViewRecord) => unknown)",
+        "default": "'ID'",
+        "description": "Record id accessor."
+      },
+      {
+        "name": "sort",
+        "type": "ViewSort|null",
+        "default": "null",
+        "description": "Initial sort."
+      },
+      {
+        "name": "sortMode",
+        "type": "'local'|'server'",
+        "default": "'local'",
+        "description": "Whether Zx reorders local records."
+      },
+      {
+        "name": "selectable",
+        "type": "ViewSelectionMode",
+        "default": "false",
+        "description": "Record selection behavior."
+      },
+      {
+        "name": "selection",
+        "type": "unknown[]",
+        "default": "[]",
+        "description": "Initially selected record ids."
+      },
+      {
+        "name": "fieldOrder",
+        "type": "string[]",
+        "default": "[]",
+        "description": "Field ids in preferred order."
+      },
+      {
+        "name": "hiddenFields",
+        "type": "string[]",
+        "default": "[]",
+        "description": "Initially hidden field ids."
+      },
+      {
+        "name": "fieldControls",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether concrete views show the shared field chooser."
+      },
+      {
+        "name": "emptyText",
+        "type": "string|Node|(() => string|Node)|null",
+        "default": "null",
+        "description": "Empty-result content."
+      }
+    ],
+    "events": [
+      {
+        "name": "recordclick",
+        "payload": "Record<string, unknown>",
+        "description": ""
+      },
+      {
+        "name": "recorddblclick",
+        "payload": "Record<string, unknown>",
+        "description": ""
+      },
+      {
+        "name": "datachange",
+        "payload": "{records:ViewRecord[]}",
+        "description": ""
+      },
+      {
+        "name": "selectionchange",
+        "payload": "{records:ViewRecord[],ids:unknown[]}",
+        "description": ""
+      },
+      {
+        "name": "sortchange",
+        "payload": "{id:string|null,dir:ViewSortDirection|null}",
+        "description": ""
+      },
+      {
+        "name": "fieldvisibilitychange",
+        "payload": "{visible:string[],hidden:string[]}",
+        "description": ""
+      },
+      {
+        "name": "fieldorderchange",
+        "payload": "{order:string[]}",
+        "description": ""
+      },
+      {
+        "name": "statechange",
+        "payload": "{state:RecordViewState,reason:string}",
+        "description": ""
+      }
+    ],
+    "methods": [
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Cleans up a directly instantiated base view and restores an enhanced target."
+      },
+      {
+        "name": "setData",
+        "signature": "setData(records)",
+        "returns": "this",
+        "description": "Replaces every record and clears selections whose ids disappeared."
+      },
+      {
+        "name": "addData",
+        "signature": "addData(records)",
+        "returns": "this",
+        "description": "Appends records without mutating the supplied array."
+      },
+      {
+        "name": "updateRecord",
+        "signature": "updateRecord(id, record)",
+        "returns": "this",
+        "description": "Replaces the record currently identified by `id`."
+      },
+      {
+        "name": "removeRecord",
+        "signature": "removeRecord(id)",
+        "returns": "this",
+        "description": "Removes one record by id."
+      },
+      {
+        "name": "getRecord",
+        "signature": "getRecord(id)",
+        "returns": "ViewRecord|null",
+        "description": "Returns a record by id."
+      },
+      {
+        "name": "getData",
+        "signature": "getData()",
+        "returns": "ViewRecord[]",
+        "description": "Returns a shallow copy in current display order."
+      },
+      {
+        "name": "setFields",
+        "signature": "setFields(fields)",
+        "returns": "this",
+        "description": "Replaces field descriptors while reconciling order, visibility, and sort by stable id."
+      },
+      {
+        "name": "getFields",
+        "signature": "getFields()",
+        "returns": "ViewField[]",
+        "description": "Returns cloned field descriptors in configured order."
+      },
+      {
+        "name": "getVisibleFields",
+        "signature": "getVisibleFields()",
+        "returns": "ViewField[]",
+        "description": "Returns visible cloned descriptors in configured order."
+      },
+      {
+        "name": "getHiddenFields",
+        "signature": "getHiddenFields()",
+        "returns": "string[]",
+        "description": "Returns hidden field ids in configured order."
+      },
+      {
+        "name": "getFieldOrder",
+        "signature": "getFieldOrder()",
+        "returns": "string[]",
+        "description": "Returns the complete field id order."
+      },
+      {
+        "name": "setFieldVisible",
+        "signature": "setFieldVisible(id, [visible], [options])",
+        "returns": "this",
+        "description": "Shows or hides one field. The final visible field cannot be hidden."
+      },
+      {
+        "name": "toggleField",
+        "signature": "toggleField(id, [options])",
+        "returns": "this",
+        "description": "Toggles one field."
+      },
+      {
+        "name": "moveField",
+        "signature": "moveField(id, targetId, [position], [options])",
+        "returns": "this",
+        "description": "Moves one field relative to another."
+      },
+      {
+        "name": "setFieldOrder",
+        "signature": "setFieldOrder(order, [options])",
+        "returns": "this",
+        "description": "Reconciles a preferred field order with every current field."
+      },
+      {
+        "name": "setSort",
+        "signature": "setSort(id, [dir], [options])",
+        "returns": "this",
+        "description": "Changes or clears the active sort."
+      },
+      {
+        "name": "getSort",
+        "signature": "getSort()",
+        "returns": "ViewSort|null",
+        "description": "Returns a copy of the active sort."
+      },
+      {
+        "name": "getSelection",
+        "signature": "getSelection()",
+        "returns": "ViewRecord[]",
+        "description": "Returns selected records in display order."
+      },
+      {
+        "name": "getSelectionIds",
+        "signature": "getSelectionIds()",
+        "returns": "unknown[]",
+        "description": "Returns selected record ids in display order."
+      },
+      {
+        "name": "setSelection",
+        "signature": "setSelection(ids, [options])",
+        "returns": "this",
+        "description": "Replaces selection from record ids."
+      },
+      {
+        "name": "clearSelection",
+        "signature": "clearSelection([options])",
+        "returns": "this",
+        "description": "Clears selection."
+      },
+      {
+        "name": "toggleSelection",
+        "signature": "toggleSelection(id, [options])",
+        "returns": "this",
+        "description": "Toggles a record selection, with optional multi-select range behavior."
+      },
+      {
+        "name": "setLoading",
+        "signature": "setLoading([loading])",
+        "returns": "this",
+        "description": "Marks the whole view busy without imposing a loading presentation."
+      },
+      {
+        "name": "getViewState",
+        "signature": "getViewState()",
+        "returns": "RecordViewState",
+        "description": "Returns JSON-safe, persistence-neutral view configuration."
+      },
+      {
+        "name": "setViewState",
+        "signature": "setViewState(state, [options])",
+        "returns": "this",
+        "description": "Restores common configuration. Unknown fields are ignored and newly introduced fields append."
+      }
+    ]
+  },
   "Search": {
     "options": [
       {
@@ -7119,6 +8027,12 @@
         "description": "Whether a column visibility chooser is rendered."
       },
       {
+        "name": "columnReorder",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether the column chooser also exposes accessible earlier/later controls. Column headers never become draggable."
+      },
+      {
         "name": "hiddenColumns",
         "type": "string[]",
         "default": "[]",
@@ -7201,6 +8115,11 @@
         "name": "columnvisibilitychange",
         "payload": "{visible:string[],hidden:string[]}",
         "description": ""
+      },
+      {
+        "name": "columnorderchange",
+        "payload": "{order:string[]}",
+        "description": ""
       }
     ],
     "methods": [
@@ -7247,6 +8166,36 @@
         "description": "Returns a shallow copy of the current rows in display order."
       },
       {
+        "name": "getColumns",
+        "signature": "getColumns()",
+        "returns": "TableColumn[]",
+        "description": "Returns shallow-cloned column descriptors in their current display order."
+      },
+      {
+        "name": "setColumns",
+        "signature": "setColumns(columns, [options])",
+        "returns": "this",
+        "description": "Replaces all column descriptors. Hidden state and the active sort follow retained stable IDs; an edit is canceled before cells are rebuilt."
+      },
+      {
+        "name": "getColumnOrder",
+        "signature": "getColumnOrder()",
+        "returns": "string[]",
+        "description": "Returns every stable column ID in current display order."
+      },
+      {
+        "name": "setColumnOrder",
+        "signature": "setColumnOrder(order, [options])",
+        "returns": "this",
+        "description": "Reconciles a partial or stale preferred order with every current column."
+      },
+      {
+        "name": "moveColumn",
+        "signature": "moveColumn(id, targetId, [position], [options])",
+        "returns": "this",
+        "description": "Moves one column to an edge of another column. Unknown IDs are a safe no-op."
+      },
+      {
         "name": "getVisibleColumns",
         "signature": "getVisibleColumns()",
         "returns": "string[]",
@@ -7287,6 +8236,18 @@
         "signature": "setSort(id, [dir], [options])",
         "returns": "this",
         "description": "Activates a column sort. Local mode stably reorders data; server mode only updates the header state and emits the request event."
+      },
+      {
+        "name": "getSort",
+        "signature": "getSort()",
+        "returns": "{id:string,dir:TableSortDirection}|null",
+        "description": "Returns a defensive copy of the active sort."
+      },
+      {
+        "name": "clearSort",
+        "signature": "clearSort([options])",
+        "returns": "this",
+        "description": "Clears the active sort indicator without attempting to reconstruct the caller's original row order. The current display order becomes the unsorted order until data is replaced."
       },
       {
         "name": "getSelection",
@@ -7427,6 +8388,138 @@
     ],
     "events": [],
     "methods": []
+  },
+  "TableView": {
+    "options": [
+      {
+        "name": "fields",
+        "type": "ViewField[]",
+        "default": "[]",
+        "description": "Shared ordered field descriptors. These win over `table.columns`."
+      },
+      {
+        "name": "data",
+        "type": "TableViewRecord[]",
+        "default": "[]",
+        "description": "Initial records. These win over `table.data`."
+      },
+      {
+        "name": "recordId",
+        "type": "string|((record:TableViewRecord)=>unknown)",
+        "default": "'ID'",
+        "description": "Stable record id accessor."
+      },
+      {
+        "name": "sort",
+        "type": "ViewSort|null",
+        "default": "null",
+        "description": "Initial shared sort."
+      },
+      {
+        "name": "sortMode",
+        "type": "'local'|'server'",
+        "default": "'local'",
+        "description": "Local or server-controlled sorting."
+      },
+      {
+        "name": "selectable",
+        "type": "false|'single'|'multi'",
+        "default": "false",
+        "description": "Shared selection behavior."
+      },
+      {
+        "name": "selection",
+        "type": "unknown[]",
+        "default": "[]",
+        "description": "Initially selected record ids."
+      },
+      {
+        "name": "fieldOrder",
+        "type": "string[]",
+        "default": "[]",
+        "description": "Preferred stable field order."
+      },
+      {
+        "name": "hiddenFields",
+        "type": "string[]",
+        "default": "[]",
+        "description": "Initially hidden field ids."
+      },
+      {
+        "name": "fieldControls",
+        "type": "boolean",
+        "default": "true",
+        "description": "Show the accessible visibility and reorder disclosure."
+      },
+      {
+        "name": "emptyText",
+        "type": "string|Node|(()=>string|Node)|null",
+        "default": "null",
+        "description": "Empty-result content."
+      },
+      {
+        "name": "table",
+        "type": "TableOptions",
+        "default": "{}",
+        "description": "Advanced low-level Table options. Shared options win where their contracts overlap; all other options and callbacks are forwarded unchanged."
+      }
+    ],
+    "events": [
+      {
+        "name": "recordclick",
+        "payload": "Record<string,unknown>",
+        "description": ""
+      },
+      {
+        "name": "recorddblclick",
+        "payload": "Record<string,unknown>",
+        "description": ""
+      },
+      {
+        "name": "datachange",
+        "payload": "{records:TableViewRecord[]}",
+        "description": ""
+      },
+      {
+        "name": "selectionchange",
+        "payload": "{records:TableViewRecord[],ids:unknown[]}",
+        "description": ""
+      },
+      {
+        "name": "sortchange",
+        "payload": "{id:string|null,dir:'asc'|'desc'|null}",
+        "description": ""
+      },
+      {
+        "name": "fieldvisibilitychange",
+        "payload": "{visible:string[],hidden:string[]}",
+        "description": ""
+      },
+      {
+        "name": "fieldorderchange",
+        "payload": "{order:string[]}",
+        "description": ""
+      },
+      {
+        "name": "statechange",
+        "payload": "Record<string,unknown>",
+        "description": ""
+      }
+    ],
+    "methods": [
+      {
+        "name": "getTable",
+        "signature": "getTable()",
+        "returns": "Table",
+        "description": "Returns the composed Table for advanced methods and Table-specific events."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Destroys the inner Table and restores an enhanced target exactly once."
+      }
+    ]
   },
   "TagPicker": {
     "options": [

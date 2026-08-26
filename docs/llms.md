@@ -75,11 +75,19 @@ Keep the 600 stop at 4.5:1 or better against white and the 400 stop at 4.5:1 aga
 
 The theme studio treats those stable IDs as complete recipes: selecting a preset also changes its
 density, neutral tint, radius, control height, base text size, font stack, and material strength.
-Its **Material** control is CSS-first (`Flat`, `Glass`, or `Deep glass`); only the deep setting uses
-backdrop blur, and components fall back to solid surfaces under reduced-transparency preferences.
+Its **Material** control is CSS-first (`Flat`, `Glass`, or `Deep glass`). Aurora is the independent
+ambient canvas layer; material controls how surfaces respond to that light. The shared recipe
+applies to AppIcons, ordinary controls, persistent chrome, raised cards, and every transient overlay: Dropdown, ContextMenu,
+MenuButton, AccountMenu, AppRail flyouts, Select, TagPicker, date pickers, tooltips, column menus,
+and toasts use `--zx-color-overlay-surface`; Launcher, Modal, Dialog, and overlay Sheets use the
+more opaque `--zx-color-overlay-panel`. A docked Sheet is layout rather than
+an overlay and becomes opaque, as do dense data surfaces. Glass and Deep glass progressively raise
+translucency, blur, highlights, and elevation; reduced-transparency preferences restore solid
+surfaces.
 
 Define a product theme by overriding **semantic** tokens under a `[data-zx-theme="name"]` selector:
-`--zx-color-bg-page/surface/raised/control/hover/selected`, `--zx-color-border(-strong/-control)`,
+`--zx-color-bg-page/surface/raised/control/hover/selected`, `--zx-color-glass-chrome/surface`,
+`--zx-color-overlay-surface/panel/border`, `--zx-color-border(-strong/-control)`,
 `--zx-color-text(-muted/-placeholder)`, `--zx-color-accent(-hover)/on-accent`,
 `--zx-color-danger/warning/success/info(+ -bg)`, `--zx-focus-ring`, `--zx-control-height/-radius`,
 `--zx-space-*`, `--zx-radius-*`, `--zx-text-*`. Never use tier-1 palette tokens (`--zx-gray-*`,
@@ -119,8 +127,10 @@ bundles `@zeyos/client`; the application owns client creation, authentication, a
 ```js
 import { createZeyosClient } from '@zeyos/client';
 import {
-  connect, dataFilterStateToFilters, zeyosForm, zeyosSelect, zeyosTable
+  connect, createLegacySavedViewTransport, createSavedViewRegistry,
+  dataFilterStateToFilters, legacySavedViewRequest, zeyosForm, zeyosSelect, zeyosTable, zeyosView
 } from '/assets/zx-zeyos.esm.js';
+import { CardView, TableView } from '/assets/zx.esm.js';
 
 const client = createZeyosClient({ platform, auth });
 const api = connect(client, { locale: 'en-GB' });
@@ -138,6 +148,17 @@ const editor = zeyosForm(client, 'transactions', {
 });
 await editor.load(transactionId);
 await editor.save();
+
+const records = zeyosView(client, 'transactions', TableView, {
+  fields: ['transactionnum', 'account', 'date', 'netamount', 'status'],
+  savedViews: {
+    transport: savedViewTransport,
+    scope: { userId: currentUserId, workspaceId: currentWorkspaceId }
+  }
+});
+await records.ready; // restores a compatible default before the first list request
+await records.load();
+await records.saveView({ name: 'My open invoices', setDefault: true });
 ```
 
 - `connect(client, { onError, locale })` returns `{client, list, get, create, update, reportError}`;
@@ -154,6 +175,21 @@ await editor.save();
   `{table, load(), setSearch(), setFilters(), loadMore(), count, page, hasMore, destroy()}`. Columns
   come from schema metadata, sorting uses `sortMode:'server'`, and page zero replaces rows while
   later pages append them using server `limit`/`offset` and `count`.
+- `buildZeyosViewConfig(client, resource, opts)` resolves one schema to shared `ViewField[]`, a
+  complete projection, and view options. `zeyosView(client, resource, CardView|TableView|KanbanView,
+  opts)` returns `{view, load(), setSearch(), setFilters(), loadMore(), count, page, hasMore,
+  savedViews, ready, restoreDefault(), captureView(), saveView(), applyView(), destroy()}` with
+  paging and server sort. Title, preview, group, column, and swim-lane fields stay in the projection
+  even when hidden. Without `savedViews`, the host may persist `view.getViewState()` directly.
+- `createSavedViewRegistry(transport, {userId,workspaceId,resource})` coordinates private named
+  Table/Card/Kanban configurations as one versioned, atomically replaced document. Entries capture
+  component state plus filters/search and an explicit presentation type, never records, selection,
+  pages, callbacks, or DOM. Duplicate names, defaults, migration, type mismatch, failed writes, and
+  teardown are explicit. `workspaceId:null` addresses ZeyOS's base workspace.
+- `createLegacySavedViewTransport(request)` reuses the authenticated `fields`, `fields_save`, and
+  `fields_remove` endpoints through one reserved, namespaced `userfields` record.
+  `legacySavedViewRequest(PG.load.bind(PG))` is the optional Promise bridge for a legacy host. The
+  scope's `userId` is intentionally not sent to the endpoint; the server session remains authority.
 
 Field mapping is schema-driven: entity/FK → async `zxselect`; enum/list → `optionlist` or native
 `select`; indexed `date` bigint → `date`; other date/time bigints → `datetime`; money/price/numeric
@@ -453,27 +489,34 @@ permissions, recent-history/cache policy, and the route or command ultimately in
 <!-- doc:app-icon -->
 ### AppIcon — application identity
 
-A fixed-size, product-agnostic application tile. It keeps glyph geometry stable in launchers,
+A fixed-size, product-agnostic application identity. It keeps glyph geometry stable in launchers,
 sidebars, entity results, and recent-item rows while identity colour and material remain explicit
 options rather than application globals.
 
 - **Options** — `icon` (bundled name, Node, or lazy renderer), `color`, `size: 36`,
-  `iconSize: '52%'`, `label`, `badge`, `selected: false`, `glass: false|'subtle'|'strong'`, and
+  `iconSize: '52%'`, `label`, `badge`, `selected: false`, `shape: 'tile'|'circle'`,
+  `glass: false|'subtle'|'strong'`, and
   additional `class` names.
 - **Methods** — `set(partialOptions)` updates the existing root; `destroy()` restores an enhanced
   target. `appIcon(options)` is the element-returning convenience factory.
 - **ZeyOS preset** — import `zeyosAppIcon(module, options)` from `@zeyos/zx/zeyos`. Every current
   ZeyOS application/module has a canonical colour and icon mapping in `src/zeyos/modules.js`;
-  entity names and aliases resolve through the same catalogue. `moduleChip()` is the compatible
-  alias. An application may call `useZeyosIcons()` for the existing custom glyph kit or inject an
-  offline `icon` override; Zx never loads a network asset automatically.
-- **Material** — subtle glass is a CSS border/highlight treatment; strong glass progressively adds
-  `backdrop-filter`. `prefers-reduced-transparency` and browsers without support receive a solid
-  tile. Glyphs remain white and geometrically centred in either built-in SVG or Font Awesome form;
-  hover and focus feedback use the same semantic material tokens. The glyph and label semantics do
-  not depend on the visual treatment.
-- **Accessibility** — a non-empty `label` gives the root `role="img"`; otherwise it is decorative.
-  The badge is visual supplementary status, so include its meaning in `label` when it matters.
+  entity names and aliases resolve through the same catalogue. `zeyosAppIcon()` defaults to a
+  circular application vessel; `moduleChip()` deliberately keeps a compact tile for entity and
+  record identity. An application may call `useZeyosIcons()` for the existing custom glyph kit or
+  inject an offline `icon` override; Zx never loads a network asset automatically.
+- **Shape and material** — core `AppIcon` keeps the backward-compatible `tile` default. Application
+  launchers and rails use `circle`; entity rows, recent records, badges, and tables use `tile`.
+  Subtle glass uses a quiet colour bloom, rim, reflection, and shadow without per-icon backdrop
+  blur; strong glass increases those material cues without changing geometry.
+  `prefers-reduced-transparency` receives a solid surface. Glyphs remain crisp white and
+  geometrically centred in either built-in SVG or Font Awesome form. Enabled interactive hosts
+  respond through rim, light, and shadow without translating the icon; decorative and disabled
+  identities do not imply clickability.
+- **Accessibility** — on an owned identity surface, a non-empty `label` gives the root
+  `role="img"`; otherwise it is decorative. When AppIcon enhances a button or link, it preserves
+  that control's native role and uses `label` only as its accessible name. The badge is visual
+  supplementary status, so include its meaning in `label` when it matters.
 <!-- /doc -->
 
 <!-- doc:avatar -->
@@ -753,8 +796,8 @@ messages rather than the page, and uses the translucent glass surface tokens wit
 <!-- doc:modal -->
 ### Modal
 
-Thin overlay on the native `<dialog>` element. The backdrop uses `--zx-color-bg-backdrop`, and
-focus returns to the opener on close.
+Thin overlay on the native `<dialog>` element. The surface uses the shared, reading-sized overlay
+panel material; the backdrop uses `--zx-color-bg-backdrop`, and focus returns to the opener on close.
 
 - **Options** — `content`, `width: 'auto'`, `closable: true`, `lightDismiss: false`,
   `destroyOnClose: false`.
@@ -782,7 +825,8 @@ Structured modal: a header with title and close button, a body, and footer butto
 Edge-anchored surface — a `Dialog` attached to one side of the viewport instead of floating in the
 middle. One primitive covers both side sheets and mobile drawers, which differ mainly in the edge they take, so
 `side` replaces what would otherwise be two components. Inherits the whole Dialog anatomy: title,
-footer buttons, switchable views, and focus restoration.
+footer buttons, switchable views, focus restoration, and the reading-sized overlay panel material.
+When a Dock adopts it, the Sheet becomes an opaque layout surface instead.
 
 - **Options** — `side: 'end'` (`'start' | 'end' | 'top' | 'bottom'`, logical), `modal: true`
   (`true | 'trap-focus' | false`), `backdrop: 'dim'` (`'dim' | 'blur' | 'none'`), `size: null`
@@ -971,7 +1015,7 @@ range select.
   `hierarchy: false|{parentId, column?, expanded?}`. Locale, currency, unit, and decimals may be
   row callbacks; values remain numbers in row data while display formatting is locale-aware.
 - **Methods** — `setData()`, `addData()`, `updateRow(id,row)`, `removeRow(id)`, `getRow(id)`,
-  `getData()`, `empty()`, `setSort(id,dir)`, `getSelection()`, `setSelection(ids)`,
+  `getData()`, `empty()`, `setSort(id,dir)`, `getSort()`, `clearSort()`, `getSelection()`, `setSelection(ids)`,
   `clearSelection()`, `setLoading(bool)` (busy/skeleton state — dims rows, shows an indeterminate
   top bar, sets `aria-busy`, and is cleared by the next `setData`).
 - **Events** — `rowclick {row, id, index, event}`, `rowdblclick`, `sort {id, dir}`,
@@ -1051,6 +1095,82 @@ range select.
 - **Column visibility** — `columnVisibility: true` renders a chooser; `hiddenColumns` seeds it.
   `getVisibleColumns()`, `getHiddenColumns()`, `setColumnVisible()`, and `toggleColumn()` preserve
   caller column order and never allow the final visible column to disappear.
+- **Column order** — `columnReorder: true` adds up/down buttons to the chooser and ArrowUp/
+  ArrowDown support while a column option is focused. `getColumns()`, `setColumns()`,
+  `getColumnOrder()`, `setColumnOrder()`, and `moveColumn()` reconcile stale saved IDs and keep
+  hidden/sorted state attached to stable column IDs. `columnorderchange {order}` fires after a
+  user or non-silent programmatic change.
+<!-- /doc -->
+
+<!-- doc:table-view -->
+### TableView and the shared RecordView contract
+
+`TableView` is the record-oriented entry point above the lower-level `Table`. It extends
+`RecordView` and composes one complete `Table`, so editing, hierarchy, growing, row movement,
+responsive stacking, loading, and advanced table events remain available through `getTable()`.
+
+- **Shared fields** — every view accepts `fields: [{id,label,get?,render?,sortValue?,sortable?,
+  visible?,duplicate?,type?,view?}]`. Primitive rendered values become text; an explicit Node is
+  adopted. `field.view.table` carries Table-only column keys without changing CardView or KanbanView.
+- **Shared options** — `data`, `recordId: 'ID'`, `sort`, `sortMode: 'local'|'server'`,
+  `selectable: false|'single'|'multi'`, `selection`, `fieldOrder`, `hiddenFields`,
+  `fieldControls: true`, and `emptyText`. At least one field remains visible.
+- **Shared methods** — `setData()`, `addData()`, `updateRecord()`, `removeRecord()`, `getRecord()`,
+  `getData()`, field getters/order/visibility methods, `setSort()`/`getSort()`, selection methods,
+  `setLoading()`, `getViewState()`, and `setViewState()`.
+- **Portable state** — `{version:1,fieldOrder,hiddenFields,sort}` is JSON-safe configuration only.
+  Records, selection, DOM nodes, rendered values, and callbacks are never serialized. A state from
+  one record view may seed another; unknown fields are ignored and new fields append.
+- **TableView composition** — `table: {...}` forwards every advanced Table option, while shared
+  fields/data/id/sort/selection/visibility/order win on overlaps. `getTable()` returns the composed
+  instance. Row events become shared `recordclick`/`recorddblclick` details.
+- **Events** — `recordclick`, `recorddblclick`, `datachange`, `selectionchange`, `sortchange`,
+  `fieldvisibilitychange`, `fieldorderchange`, and `statechange {state,reason}`.
+<!-- /doc -->
+
+<!-- doc:card-view -->
+### CardView
+
+A responsive semantic record collection using the same fields, records, sort, selection, and
+portable state as TableView and KanbanView.
+
+- **Options** — the shared RecordView options plus `titleField`, `subtitleField`, `preview`,
+  `previewAlt`, `link`, `actions`, `groupBy`, `groupOrder`, `minCardWidth`, `maxColumns`,
+  `variant: 'outlined'|'raised'|'filled'`, `loadingCount`, `headingLevel`, and `label`.
+- **Cards** — each record is a focusable `<li>` with a native title link, separate secondary
+  actions, optional native multi-select checkbox, labelled metadata, and `aria-selected` state.
+  Title/subtitle fields are not duplicated in metadata unless their field sets `duplicate:true`.
+- **Media and URLs** — `preview` accepts a field ID or callback returning an image URL,
+  `{src,alt,fit}`, Node, or null. Executable/non-image schemes are rejected and image failures show
+  a stable fallback. Title/action links are normalized; `_blank` links receive `noopener`.
+- **Grouping and layout** — `groupBy` is a field ID or callback; `groupOrder` may deliberately show
+  empty groups. Cards reflow through container queries and may cap columns without viewport logic.
+- **Interaction** — Enter activates a focused card; Space toggles selection. Links, actions,
+  selection controls, and selected text do not also activate the card. `recordaction` adds the
+  resolved action to the shared event set.
+<!-- /doc -->
+
+<!-- doc:kanban-view -->
+### KanbanView
+
+A semantic record board with explicit or data-derived columns, optional swim lanes, shared record
+cards, advisory work-in-progress limits, and equivalent pointer/programmatic/keyboard movement.
+
+- **Options** — the shared RecordView options plus `columnBy`, `columns`, `swimlaneBy`,
+  `swimlanes`, card title/subtitle/preview/link/actions, `moveMode: 'local'|'external'`,
+  `columnOrder`, `swimlaneOrder`, collapsed IDs, `showCounts`, `showEmptyColumns`, `variant`, and
+  `label`. Column/lane descriptors use stable `id`, `label`, optional stored `value`, and `accept`;
+  columns may also declare an advisory `limit`.
+- **Methods** — configure/get/move columns and swim lanes, collapse either axis, and
+  `moveRecord(id,{column?,lane?,index?})`. Board-specific order/collapse joins the common view
+  state; record order, movement history, and selection do not.
+- **Movement boundary** — `recordmove {record,id,from,to,column,swimlane,limitExceeded}` is
+  cancelable and fires before a commit/request. `accept` is a hard eligibility gate; WIP is visual
+  advice. Local mode clones the moved record and never mutates host data. External mode emits only,
+  for server validation and optimistic rollback owned by ZeyOS.
+- **Keyboard** — focus the move handle; Enter/Space grabs or drops, Escape cancels, Left/Right
+  chooses a column, Up/Down chooses a bucket-relative position, and Alt+Up/Down chooses a swim
+  lane. A polite live region announces every target and result. Native drag is an enhancement.
 <!-- /doc -->
 
 <!-- doc:grid -->
@@ -1444,6 +1564,30 @@ so buttons and links in its action, content, and footer regions remain valid sib
   should compose a native checkbox or radio.
 - **Layout** — horizontal media uses the public `--zx-card-media-size` hook and stacks through a
   container query when the card itself becomes narrow.
+<!-- /doc -->
+
+<!-- doc:aurora -->
+### Aurora
+
+A decorative, CSS-driven ambient light field for an existing application surface. Aurora enhances
+the target in place: it does not wrap, replace, or relocate the surface's content, and it does not
+own routing, overlays, or interaction. Its gradients sit behind the target's children, so raised
+Cards and other Liquid Glass surfaces can pick up the underlying colour naturally.
+
+- **Options** — `preset: 'source'|'confluence'|'horizon'|'diagonal'|'edge'|'curtain'`,
+  `colors: []` (zero to four concrete CSS colours),
+  `intensity: 'subtle'|'balanced'|'vivid'`.
+- **Methods** — `setPreset(preset)`, `setColors(colors)`, `setIntensity(intensity)`.
+- **Palette** — an empty list uses semantic accent, info, success, and warning colours. One colour
+  fills all four fields; two alternate; three repeat the second colour in the fourth field; four
+  map directly. Network/image-bearing CSS values and palettes longer than four are rejected.
+- **Geometry** — Source starts at the leading chrome; Confluence meets from the corners; Horizon
+  forms a shallow top band; Diagonal crosses the surface; Edge preserves a neutral centre; Curtain
+  descends as four elongated fields. All use ordinary CSS gradients without animation.
+- **Lifecycle** — `destroy()` removes an owned root or restores every original attribute and child
+  of an enhanced target. Content is never rebuilt when a setter changes the effect.
+- **Accessibility** — the light field is pointer-transparent and purely decorative. Forced-colour
+  and reduced-transparency preferences remove it entirely.
 <!-- /doc -->
 
 <!-- doc:panel -->

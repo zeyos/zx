@@ -15,11 +15,13 @@
   min-inline-size: 0;
   align-items: center;
   gap: var(--zx-space-3);
-  border: 1px solid var(--zx-color-border);
+  border: 1px solid var(--zx-color-glass-border);
   border-radius: var(--zx-radius-lg);
-  background: var(--zx-color-bg-raised);
+  background: var(--zx-color-glass-chrome);
   padding: var(--zx-space-2) var(--zx-space-3);
-  box-shadow: var(--zx-overlay-shadow);
+  -webkit-backdrop-filter: var(--zx-glass-filter-chrome);
+  backdrop-filter: var(--zx-glass-filter-chrome);
+  box-shadow: var(--zx-glass-chrome-shadow);
 }
 
 .zx-navigation-bar__brand {
@@ -113,9 +115,19 @@
 
 .zx-navigation-bar__panels {
   border: 1px solid var(--zx-color-border);
-  border-block-start: 0;
-  border-radius: 0 0 var(--zx-radius-lg) var(--zx-radius-lg);
+  border-radius: var(--zx-radius-lg);
   background: var(--zx-color-bg-surface);
+  margin-block-start: var(--zx-space-2);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .zx-navigation-bar__bar {
+    border-color: var(--zx-color-border);
+    background: var(--zx-color-bg-raised);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: var(--zx-overlay-shadow);
+  }
 }
 
 .zx-navigation-bar__panel {

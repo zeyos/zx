@@ -12,12 +12,13 @@ import { isCssColor } from '../../core/util.js';
  * @property {string|null} [label=null] Accessible image label; null makes the icon decorative.
  * @property {string|number|null} [badge=null] Optional corner badge.
  * @property {boolean} [selected=false] Whether the icon represents the active application.
+ * @property {'tile'|'circle'} [shape='tile'] Identity vessel geometry.
  * @property {false|'subtle'|'strong'} [glass='subtle'] CSS-first glass treatment.
  * @property {string|string[]} [class] Additional class names.
  */
 
 /**
- * Stable application-identity tile with progressive CSS glass treatment.
+ * Stable application-identity surface with progressive CSS glass treatment.
  * @extends {Component<AppIconOptions>}
  */
 export class AppIcon extends Component {
@@ -32,6 +33,7 @@ export class AppIcon extends Component {
     label: null,
     badge: null,
     selected: false,
+    shape: 'tile',
     glass: 'subtle',
     class: []
   };
@@ -42,6 +44,7 @@ export class AppIcon extends Component {
     const root = /** @type {HTMLElement} */ (this.el ?? h('span'));
     this.el = root;
     this._snapshot = this._createdRoot ? null : snapshotTarget(root);
+    this._interactiveRoot = root.matches('a[href], button, input, select, textarea, [role="button"], [role="link"]');
     this._state = { ...this.options };
     this._appliedClasses = [];
     this._sync();
@@ -78,10 +81,20 @@ export class AppIcon extends Component {
     if (isCssColor(state.color)) this.el.style.setProperty('--zx-app-icon-color', String(state.color));
     else this.el.style.removeProperty('--zx-app-icon-color');
     this.el.dataset.glass = normalizeGlass(state.glass);
+    this.el.dataset.shape = normalizeShape(state.shape);
     this.el.toggleAttribute('data-selected', Boolean(state.selected));
 
     const label = state.label == null ? '' : String(state.label).trim();
-    if (label) {
+    if (this._interactiveRoot) {
+      const originalRole = originalAttribute(this._snapshot, 'role');
+      const originalLabel = originalAttribute(this._snapshot, 'aria-label');
+      if (originalRole === null) this.el.removeAttribute('role');
+      else this.el.setAttribute('role', originalRole);
+      if (label) this.el.setAttribute('aria-label', label);
+      else if (originalLabel === null) this.el.removeAttribute('aria-label');
+      else this.el.setAttribute('aria-label', originalLabel);
+      this.el.removeAttribute('aria-hidden');
+    } else if (label) {
       this.el.setAttribute('role', 'img');
       this.el.setAttribute('aria-label', label);
       this.el.removeAttribute('aria-hidden');
@@ -95,10 +108,11 @@ export class AppIcon extends Component {
     const badge = state.badge == null || state.badge === '' ? null : h('span', {
       class: 'zx-app-icon__badge', ariaHidden: 'true'
     }, String(state.badge));
-    const children = [
+    const surface = h('span', { class: 'zx-app-icon__surface', ariaHidden: 'true' },
       h('span', { class: 'zx-app-icon__shine', ariaHidden: 'true' }),
       h('span', { class: 'zx-app-icon__glyph', ariaHidden: 'true' }, visual)
-    ];
+    );
+    const children = [surface];
     // Native replaceChildren() stringifies nullish arguments. Only append a badge when it exists,
     // otherwise the icon gets a visible "null" text node that can also disturb optical centring.
     if (badge) children.push(badge);
@@ -134,4 +148,14 @@ function cssLength(value, fallback) {
 function normalizeGlass(value) {
   if (value === false || value === 'none') return 'none';
   return value === 'strong' ? 'strong' : 'subtle';
+}
+
+/** @param {unknown} value @returns {'tile'|'circle'} */
+function normalizeShape(value) {
+  return value === 'circle' ? 'circle' : 'tile';
+}
+
+/** @param {{attributes: [string, string][]}|null} snapshot @param {string} name @returns {string|null} */
+function originalAttribute(snapshot, name) {
+  return snapshot?.attributes.find(([attribute]) => attribute === name)?.[1] ?? null;
 }

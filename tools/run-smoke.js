@@ -155,6 +155,75 @@ async function runDocumentationShell(instance) {
     const breadcrumb = await page.locator('.docs-global-search__meta').first().textContent();
     if (!String(breadcrumb).includes('Layout > Toolbar')) throw new Error(`search breadcrumb was ${breadcrumb}`);
 
+    await page.goto(`${base}/website/docs.html#components/app-icon`, { waitUntil: 'load' });
+    await page.waitForSelector('#section-zeyos-app-icon .zx-app-icon');
+    const appIcons = await page.evaluate(() => {
+      const icons = [...document.querySelectorAll('#section-zeyos-app-icon .zx-app-icon')];
+      const surfaces = icons.map((icon) => icon.querySelector('.zx-app-icon__surface'));
+      const centres = icons.map((icon, index) => {
+        const root = icon.getBoundingClientRect();
+        const glyph = icon.querySelector('.zx-app-icon__glyph').getBoundingClientRect();
+        return Math.max(
+          Math.abs(root.left + root.width / 2 - glyph.left - glyph.width / 2),
+          Math.abs(root.top + root.height / 2 - glyph.top - glyph.height / 2)
+        );
+      });
+      return {
+        count: icons.length,
+        colours: new Set(surfaces.map((surface) => getComputedStyle(surface).backgroundColor)).size,
+        circles: icons.every((icon) => icon.dataset.shape === 'circle'),
+        white: icons.every((icon) => {
+          const channels = getComputedStyle(icon).color.match(/[\d.]+/g)?.slice(0, 3).map(Number) ?? [];
+          return channels.length === 3 && channels.every((channel) => channel >= 240);
+        }),
+        centred: Math.max(...centres),
+        noBlur: surfaces.every((surface) => getComputedStyle(surface).backdropFilter === 'none')
+      };
+    });
+    if (appIcons.count < 20 || appIcons.colours < 20 || !appIcons.circles || !appIcons.white
+      || appIcons.centred >= 0.6 || !appIcons.noBlur) {
+      throw new Error(`AppIcon gallery failed visual contracts: ${JSON.stringify(appIcons)}`);
+    }
+
+    await page.evaluate(async () => {
+      const { AppIcon } = await import('/src/components/app-icon/app-icon.js');
+      const target = document.createElement('button');
+      target.id = 'qa-interactive-app-icon';
+      target.type = 'button';
+      target.style.position = 'fixed';
+      target.style.inset = '80px auto auto 300px';
+      document.body.append(target);
+      window.__qaAppIcon = new AppIcon(target, { icon: 'file', color: '#535494', label: 'QA icon' });
+    });
+    const interactiveIcon = page.locator('#qa-interactive-app-icon');
+    const materialOf = () => interactiveIcon.locator('.zx-app-icon__surface').evaluate((surface) => {
+      const style = getComputedStyle(surface);
+      return { filter: style.filter, shadow: style.boxShadow, transform: style.transform };
+    });
+    const restingMaterial = await materialOf();
+    await interactiveIcon.hover();
+    await page.waitForTimeout(180);
+    const hoverMaterial = await materialOf();
+    if (hoverMaterial.transform !== 'none'
+      || (hoverMaterial.filter === restingMaterial.filter && hoverMaterial.shadow === restingMaterial.shadow)) {
+      throw new Error(`AppIcon hover feedback is missing or moves geometry: ${JSON.stringify(hoverMaterial)}`);
+    }
+    await interactiveIcon.evaluate((button) => { button.disabled = true; });
+    await page.waitForTimeout(300);
+    const disabledMaterial = await materialOf();
+    const disabledState = await interactiveIcon.evaluate((button) => ({
+      attribute: button.hasAttribute('disabled'),
+      disabled: button.disabled,
+      pseudo: button.matches(':disabled'),
+      guardedHover: button.matches(':not(:disabled):not([aria-disabled="true"]):hover')
+    }));
+    if (disabledMaterial.filter !== restingMaterial.filter || disabledMaterial.shadow !== restingMaterial.shadow) {
+      throw new Error(`disabled AppIcon retained hover material: ${JSON.stringify({
+        restingMaterial, disabledMaterial, disabledState
+      })}`);
+    }
+    await page.evaluate(() => { window.__qaAppIcon?.destroy(); document.querySelector('#qa-interactive-app-icon')?.remove(); });
+
     await page.setViewportSize({ width: 390, height: 844 });
     const mobile = await page.evaluate(() => {
       const scrollers = [...document.querySelectorAll('.docs-api__scroller')];

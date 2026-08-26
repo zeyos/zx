@@ -37,7 +37,7 @@ test('both machine indexes keep the requested application-shell components in La
     const groups = [...source.matchAll(/^- ([^:\n]+):([\s\S]*?)(?=^- [^:\n]+:|^## |(?![\s\S]))/gm)]
       .map((match) => ({ name: match[1], body: match[2] }));
     const layout = groups.find((group) => group.name === 'Layout')?.body ?? '';
-    for (const component of ['AppSidebar', 'AccountMenu', 'Launcher', 'InlineLoading', 'skeleton()']) {
+    for (const component of ['AppSidebar', 'AccountMenu', 'Avatar', 'Launcher', 'InlineLoading', 'skeleton()']) {
       assert.ok(layout.includes(component), `${relative}: ${component} is not in Layout`);
       assert.equal(groups.some((group) => group.name !== 'Layout' && group.body.includes(component)), false,
         `${relative}: ${component} is duplicated outside Layout`);
@@ -59,4 +59,7 @@ test('documentation and theme headers expose their centered search mount', () =>
   const theme = readFileSync(fileURLToPath(new URL('../../website/theme.html', import.meta.url)), 'utf8');
   assert.match(docs, /class="site-docs-search docs-global-search"/);
   assert.match(theme, /class="site-docs-search theme-global-search"/);
+  const css = readFileSync(fileURLToPath(new URL('../../website/site.css', import.meta.url)), 'utf8');
+  assert.match(css, /\.site-docs-search\s*\{[\s\S]*?inline-size: min\(26rem, 30vw\)/,
+    'the centered documentation search can still collide with primary navigation');
 });

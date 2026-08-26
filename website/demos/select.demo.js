@@ -245,7 +245,7 @@ export default {
           noneLabel: 'No project',
           placeholder: 'Move to project…',
           filter: 'local',
-          renderIcon: (item) => demoZeyosAppIcon(item.module, { size: 20 }),
+          renderIcon: (item) => demoZeyosAppIcon(item.module, { size: 20, shape: 'tile' }),
           create: {
             label: 'Create new project…',
             group: 'NEW PROJECT',
