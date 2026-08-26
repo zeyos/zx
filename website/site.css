@@ -1053,8 +1053,17 @@ body.site-page > main {
   }
 }
 
-@media (max-width: 1260px) {
-  .site-header__inner {
+/*
+ * The documentation header carries the centred global search on top of the nav, so it runs out of
+ * room well before the marketing header does — the search is absolutely centred on the page line
+ * and cannot be pushed aside by a wider nav. Below this width it takes its own centred row
+ * instead of overlapping. `tools/run-smoke.js` asserts both: centred at 1440px, no overlap with
+ * the brand, version, nav, or actions at 1280px.
+ */
+@media (max-width: 1400px) {
+  /* Keyed off the search itself rather than a page class: the documentation and Theme Studio
+     shells both mount one, and the row below only works in a header that is allowed to wrap. */
+  .site-header__inner:has(.site-docs-search) {
     flex-wrap: wrap;
     padding-block: var(--zx-space-2);
   }
@@ -1063,10 +1072,22 @@ body.site-page > main {
     position: relative;
     order: 4;
     inset-inline-start: auto;
+    /* `flex-basis: 100%` gives the field its own line in both shells. It has to stay unclamped:
+       a max-inline-size here would shrink the hypothetical main size until the row no longer
+       forces a wrap, which left the Theme Studio search inline at the end of the header instead.
+       The `inline-size` below is therefore inert (basis wins), so the row runs full width — the
+       results popover is anchored to this element with `inset-inline: 0`, so it must. */
     flex: 1 0 100%;
     inline-size: min(100%, 34rem);
     margin-inline: auto;
     transform: none;
+  }
+}
+
+@media (max-width: 1260px) {
+  .site-header__inner {
+    flex-wrap: wrap;
+    padding-block: var(--zx-space-2);
   }
 }
 

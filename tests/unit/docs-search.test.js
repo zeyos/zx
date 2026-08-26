@@ -62,6 +62,11 @@ test('documentation and theme headers expose their centered search mount', () =>
   const css = readFileSync(fileURLToPath(new URL('../../website/site.css', import.meta.url)), 'utf8');
   assert.match(css, /\.site-docs-search\s*\{[\s\S]*?inline-size: min\(19rem, 24vw\)/,
     'the centered documentation search must leave room for primary navigation');
-  assert.match(css, /@media \(max-width: 1260px\)[\s\S]*?\.site-docs-search\s*\{[\s\S]*?flex: 1 0 100%/,
+  // The threshold has to clear the widest primary nav, not a fixed guess: the nav gained an entry
+  // in 4.3.1 and the centered search — which cannot be pushed aside — started overlapping it at
+  // 1280px. `tools/run-smoke.js` measures the actual overlap; this pins the rule that prevents it.
+  assert.match(css, /@media \(max-width: 1400px\)[\s\S]*?\.site-docs-search\s*\{[\s\S]*?flex: 1 0 100%/,
     'the documentation search must move to its own row before header chrome can collide');
+  assert.match(css, /@media \(max-width: 1400px\)[\s\S]*?\.site-header__inner:has\(\.site-docs-search\)[\s\S]*?flex-wrap: wrap/,
+    'a full-width search row needs a header that wraps, in every shell that mounts one');
 });

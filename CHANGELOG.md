@@ -49,6 +49,9 @@ and friends remain the complete record.
   collapse hides the card that had focus.
 - The four system-architecture cards on the landing page align their links again, and ~60 lines of
   dead `.release-band`/`.release-notes` site CSS with no remaining markup were removed.
+- The documentation and Theme Studio search no longer collides with the primary navigation. It is
+  centred on the page line and cannot be pushed aside, so the extra nav entry overlapped it by 48px
+  at 1280px; both shells now move it to its own row below 1400px rather than below 1260px.
 
 ## 4.3.0 — 2026-08-26
 
