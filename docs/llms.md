@@ -1252,6 +1252,12 @@ windowed loader.
   idempotent, version-guarded `detail.revert()` if persistence fails. With `optimistic: false`, the
   component stays controlled: it emits the proposal without changing data, and the application
   applies an accepted response through `updateEvent()` or `setEvents()`. Zx does not send requests.
+- **View layout** — agenda days keep every event in one vertically stacked content column. Month
+  uses a continuous seven-day grid with full-height day boundaries and event lanes overlaid below
+  the date labels; today is indicated with accent text instead of a decorative edge highlight.
+- **Pointer editing** — a timed move preserves the point where the event was grabbed and snaps the
+  resulting start to `slotDuration`. The lower grip stretches the event in its original day column,
+  while pointer capture keeps either interaction active if the pointer leaves the event surface.
 - **Keyboard** — time slots and date grids use arrow-key navigation, Home/End, PageUp/PageDown,
   Enter/Space activation, and roving focus. On an editable event, Space grabs it, arrows propose a
   slot/day move (or change the focused resize grip), Space drops, and Escape cancels. Live status

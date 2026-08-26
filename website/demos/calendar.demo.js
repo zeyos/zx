@@ -29,7 +29,7 @@ export default {
   examples: [
     {
       title: 'Editable business week',
-      blurb: 'Drag an event to another slot, use its lower resize grip, or focus it and press Space followed by the arrow keys. Optimistic edits update immediately; eventchange supplies an idempotent revert callback for failed persistence.',
+      blurb: 'Drag an event from any point to another snapped slot, stretch it with the lower resize grip, or focus it and press Space followed by the arrow keys. Optimistic edits update immediately; eventchange supplies an idempotent revert callback for failed persistence.',
       layout: 'stack',
       render: ({ cleanup, log }) => {
         const calendar = new Calendar(null, {

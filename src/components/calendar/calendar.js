@@ -452,7 +452,11 @@ export class Calendar extends Component {
         if (!calendarEventIntersects(event, day, next)) return false;
         return event.start >= day || index === 0;
       }).sort(compareEvents);
-      const row = h('section', { class: 'zx-calendar__agenda-day', role: 'row' },
+      const row = h('section', {
+        class: 'zx-calendar__agenda-day',
+        role: 'row',
+        dataset: { date: calendarDayKey(day) }
+      },
         h('button', {
           type: 'button',
           class: 'zx-calendar__agenda-heading',
@@ -461,11 +465,13 @@ export class Calendar extends Component {
           ariaCurrent: sameCalendarDay(day, this._now()) ? 'date' : null,
           disabled: this.options.disabled
         }, this._format(day, { weekday: 'long', day: 'numeric', month: 'long' })));
+      const entries = h('div', { class: 'zx-calendar__agenda-events', role: 'gridcell' });
       if (!events.length) {
-        row.append(h('p', { class: 'zx-calendar__agenda-empty', role: 'gridcell' }, this.msg('noEvents')));
+        entries.append(h('p', { class: 'zx-calendar__agenda-empty' }, this.msg('noEvents')));
       } else {
-        for (const event of events) row.append(this._eventElement(event, { variant: 'agenda', day }));
+        for (const event of events) entries.append(this._eventElement(event, { variant: 'agenda', day }));
       }
+      row.append(entries);
       grid.append(row);
     }
     return grid;
@@ -721,6 +727,7 @@ export class Calendar extends Component {
       dataset: {
         eventId: key,
         variant: context.variant,
+        allDay: event.allDay ? 'true' : null,
         draggable: this._canMove(event) ? 'true' : null
       },
       style: event.color ? { '--zx-calendar-event-color': event.color } : null
@@ -989,7 +996,9 @@ export class Calendar extends Component {
       const item = this._eventById(control.dataset.eventId);
       const action = control.dataset.eventAction === 'resize' ? 'resize' : 'move';
       if (!item || (action === 'move' ? !this._canMove(item) : !this._canResize(item))) return;
-      control.setPointerCapture?.(event.pointerId);
+      event.preventDefault();
+      this._capturePointer(event.pointerId);
+      const offset = action === 'move' ? this._dragOffsetForEvent(item, event.clientX, event.clientY) : null;
       this._pointer = {
         type: 'event',
         pointerId: event.pointerId,
@@ -999,6 +1008,8 @@ export class Calendar extends Component {
         event: cloneCalendarEvent(item),
         action,
         control,
+        timeOffsetMinutes: offset?.minutes ?? 0,
+        dayOffset: offset?.days ?? 0,
         moved: false
       };
       return;
@@ -1007,7 +1018,8 @@ export class Calendar extends Component {
     if (!slot || !this.options.selectable) return;
     const date = this._dateFromTarget(slot);
     if (!date) return;
-    slot.setPointerCapture?.(event.pointerId);
+    event.preventDefault();
+    this._capturePointer(event.pointerId);
     this._pointer = {
       type: 'selection',
       pointerId: event.pointerId,
@@ -1041,7 +1053,13 @@ export class Calendar extends Component {
     const wrapper = pointer.control.closest('.zx-calendar__event');
     if (wrapper) {
       wrapper.dataset.state = 'dragging';
-      wrapper.style.transform = `translate(${event.clientX - pointer.startX}px, ${event.clientY - pointer.startY}px)`;
+      if (pointer.action === 'resize') {
+        wrapper.style.transform = '';
+        const height = this._timedPreviewHeight(proposed);
+        if (height) wrapper.style.blockSize = height;
+      } else {
+        wrapper.style.transform = `translate(${event.clientX - pointer.startX}px, ${event.clientY - pointer.startY}px)`;
+      }
       wrapper.dataset.preview = this._eventTime(proposed, proposed.start);
     }
     this._announce(this.msg('editPreview', proposed.title,
@@ -1053,6 +1071,7 @@ export class Calendar extends Component {
     const pointer = this._pointer;
     if (!pointer || pointer.pointerId !== event.pointerId) return;
     this._pointer = null;
+    this._releasePointerCapture(pointer.pointerId);
     this._clearSelectionPreview();
     if (!pointer.moved) return;
     event.preventDefault();
@@ -1071,6 +1090,7 @@ export class Calendar extends Component {
   _cancelPointer(event) {
     if (!this._pointer || this._pointer.pointerId !== event.pointerId) return;
     const control = this._pointer.control;
+    this._releasePointerCapture(this._pointer.pointerId);
     this._pointer = null;
     this._clearSelectionPreview();
     control.closest?.('.zx-calendar__event')?.removeAttribute('data-state');
@@ -1079,13 +1099,14 @@ export class Calendar extends Component {
 
   /** @param {CalendarEvent} event @param {'move'|'resize'} action @param {number} x @param {number} y @returns {CalendarEvent|null} */
   _proposalAtPoint(event, action, x, y) {
-    const timed = this._timeAtPoint(x, y);
+    const resizeTimed = action === 'resize' && !calendarEventSpansDays(event);
+    const timed = this._timeAtPoint(x, y, resizeTimed ? event.start : null);
     if (timed && !calendarEventSpansDays(event)) {
       if (action === 'move') {
         const duration = event.end.getTime() - event.start.getTime();
         const next = cloneCalendarEvent(event);
-        next.start = timed;
-        next.end = new Date(timed.getTime() + duration);
+        next.start = addMinutes(timed, -Number(this._pointer?.timeOffsetMinutes ?? 0));
+        next.end = new Date(next.start.getTime() + duration);
         return next;
       }
       const next = cloneCalendarEvent(event);
@@ -1094,7 +1115,8 @@ export class Calendar extends Component {
     }
     const day = this._dayAtPoint(x, y);
     if (!day) return null;
-    const difference = calendarDayDifference(startOfCalendarDay(event.start), day);
+    const targetDay = addCalendarDays(day, -Number(this._pointer?.dayOffset ?? 0));
+    const difference = calendarDayDifference(startOfCalendarDay(event.start), targetDay);
     if (action === 'move') return shiftCalendarEvent(event, { days: difference, minutes: 0 });
     const next = cloneCalendarEvent(event);
     const endDay = addCalendarDays(day, 1);
@@ -1102,15 +1124,23 @@ export class Calendar extends Component {
     return next.end > next.start ? next : null;
   }
 
-  /** @param {number} x @param {number} y @returns {Date|null} */
-  _timeAtPoint(x, y) {
+  /** @param {number} x @param {number} y @param {Date|null} [fixedDay=null] @returns {Date|null} */
+  _timeAtPoint(x, y, fixedDay = null) {
     const slots = this.refs.body.querySelector('.zx-calendar__slots');
     if (!slots) return null;
     const rect = slots.getBoundingClientRect();
-    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom || rect.width <= 0 || rect.height <= 0) return null;
+    const scroller = slots.closest('.zx-calendar__time-scroller');
+    const viewport = scroller?.getBoundingClientRect();
+    const left = viewport ? Math.max(rect.left, viewport.left) : rect.left;
+    const right = viewport ? Math.min(rect.right, viewport.right) : rect.right;
+    const top = viewport ? Math.max(rect.top, viewport.top) : rect.top;
+    const bottom = viewport ? Math.min(rect.bottom, viewport.bottom) : rect.bottom;
+    if (x < left || x > right || y < top || y > bottom || rect.width <= 0 || rect.height <= 0) return null;
     const columns = Number(slots.closest('[role="grid"]')?.getAttribute('aria-colcount')) || 1;
     const rows = Number(slots.closest('[role="grid"]')?.getAttribute('aria-rowcount')) || 1;
-    const column = Math.max(0, Math.min(columns - 1, Math.floor((x - rect.left) / rect.width * columns)));
+    const fixedColumn = fixedDay ? this._timeGridDayIndex(fixedDay) : -1;
+    const column = fixedColumn >= 0 ? fixedColumn
+      : Math.max(0, Math.min(columns - 1, Math.floor((x - rect.left) / rect.width * columns)));
     const row = Math.max(0, Math.min(rows - 1, Math.floor((y - rect.top) / rect.height * rows)));
     const target = slots.querySelector(`[data-row-index="${row}"][data-day-index="${column}"]`);
     return target ? this._dateFromTarget(target) : null;
@@ -1118,11 +1148,6 @@ export class Calendar extends Component {
 
   /** @param {number} x @param {number} y @returns {Date|null} */
   _dayAtPoint(x, y) {
-    const elements = typeof document.elementsFromPoint === 'function' ? document.elementsFromPoint(x, y) : [];
-    for (const element of elements) {
-      const date = element instanceof HTMLElement ? element.dataset.date : null;
-      if (date) return parseDayKey(date);
-    }
     const allDay = this.refs.body.querySelector('.zx-calendar__all-day-grid');
     if (allDay) {
       const rect = allDay.getBoundingClientRect();
@@ -1132,7 +1157,77 @@ export class Calendar extends Component {
         return parseDayKey(cells[index]?.dataset.date);
       }
     }
+    for (const monthEvents of this.refs.body.querySelectorAll('.zx-calendar__month-events')) {
+      const rect = monthEvents.getBoundingClientRect();
+      if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom || rect.width <= 0) continue;
+      const start = parseDayKey(monthEvents.closest('.zx-calendar__month-week')?.dataset.weekStart);
+      if (!start) continue;
+      const index = Math.max(0, Math.min(6, Math.floor((x - rect.left) / rect.width * 7)));
+      return addCalendarDays(start, index);
+    }
+    for (const agendaDay of this.refs.body.querySelectorAll('.zx-calendar__agenda-day')) {
+      const rect = agendaDay.getBoundingClientRect();
+      if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) continue;
+      return parseDayKey(agendaDay.dataset.date);
+    }
+    const elements = typeof document.elementsFromPoint === 'function' ? document.elementsFromPoint(x, y) : [];
+    for (const element of elements) {
+      const dateTarget = element instanceof HTMLElement ? element.closest('[data-date]') : null;
+      const date = dateTarget instanceof HTMLElement ? dateTarget.dataset.date : null;
+      if (date) return parseDayKey(date);
+    }
     return null;
+  }
+
+  /** @param {CalendarEvent} event @param {number} x @param {number} y @returns {{minutes: number, days: number}} */
+  _dragOffsetForEvent(event, x, y) {
+    if (!calendarEventSpansDays(event)) {
+      const timed = this._timeAtPoint(x, y);
+      if (timed) {
+        const slot = normalizeSlot(this.options.slotDuration);
+        const duration = Math.max(0, Math.round((event.end.getTime() - event.start.getTime()) / 60_000));
+        const maxOffset = Math.max(0, duration - slot);
+        const minutes = Math.round((timed.getTime() - event.start.getTime()) / 60_000);
+        return { minutes: Math.max(0, Math.min(maxOffset, minutes)), days: 0 };
+      }
+    }
+    const day = this._dayAtPoint(x, y);
+    const days = day ? calendarDayDifference(startOfCalendarDay(event.start), day) : 0;
+    return { minutes: 0, days: Math.max(0, days) };
+  }
+
+  /** @param {Date} day @returns {number} */
+  _timeGridDayIndex(day) {
+    const key = calendarDayKey(day);
+    const headings = [...this.refs.body.querySelectorAll('.zx-calendar__day-heading')];
+    return headings.findIndex((heading) => heading.dataset.date === key);
+  }
+
+  /** @param {CalendarEvent} event @returns {string|null} */
+  _timedPreviewHeight(event) {
+    const grid = this.refs.body.querySelector('.zx-calendar__time-grid');
+    if (!grid || calendarEventSpansDays(event)) return null;
+    const min = normalizeMinute(this.options.slotMinTime, 0);
+    const max = normalizeMinute(this.options.slotMaxTime, 1440, true);
+    const slot = normalizeSlot(this.options.slotDuration);
+    const start = event.start.getHours() * 60 + event.start.getMinutes();
+    const end = event.end.getHours() * 60 + event.end.getMinutes();
+    const minutes = Math.max(slot, Math.min(max, end) - Math.max(min, start));
+    return `${(minutes / (max - min)) * 100}%`;
+  }
+
+  /** @param {number} pointerId @returns {void} */
+  _capturePointer(pointerId) {
+    try {
+      this.el.setPointerCapture?.(pointerId);
+    } catch {
+      // Synthetic PointerEvents used by smoke tests do not create an active pointer capture target.
+    }
+  }
+
+  /** @param {number} pointerId @returns {void} */
+  _releasePointerCapture(pointerId) {
+    if (this.el.hasPointerCapture?.(pointerId)) this.el.releasePointerCapture?.(pointerId);
   }
 
   /** @param {Date} start @param {Date} end @returns {void} */

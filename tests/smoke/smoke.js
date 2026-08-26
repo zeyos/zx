@@ -1527,6 +1527,9 @@ function calendarCase() {
           id: 'work', title: 'Project kickoff', location: 'Room 2', color: '#13795b',
           start: new Date(2026, 7, 25, 9), end: new Date(2026, 7, 25, 10)
         }, {
+          id: 'focus', title: 'Focus time', color: '#597087',
+          start: new Date(2026, 7, 25, 10, 30), end: new Date(2026, 7, 25, 11)
+        }, {
           id: 'span', title: 'Quarterly planning', allDay: true,
           start: new Date(2026, 7, 26), end: new Date(2026, 7, 28)
         }]
@@ -1541,6 +1544,21 @@ function calendarCase() {
         assert(component.getView() === view && component.el.dataset.view === view,
           `Calendar did not render ${view}`);
       }
+      component.setView('agenda');
+      assert(component.el.querySelectorAll('.zx-calendar__agenda-day[data-date="2026-08-25"] .zx-calendar__agenda-events > .zx-calendar__event').length === 2,
+        'Calendar agenda misplaced multiple events outside the agenda event column');
+      component.setView('month');
+      const monthWeek = component.el.querySelector('.zx-calendar__month-week');
+      const monthDay = monthWeek.querySelector('.zx-calendar__month-day');
+      const monthDays = monthWeek.querySelector('.zx-calendar__month-days');
+      const monthEvents = monthWeek.querySelector('.zx-calendar__month-events');
+      assert(getComputedStyle(monthDays).gridRowStart === getComputedStyle(monthEvents).gridRowStart,
+        'Calendar month split date cells and events into stacked grid rows');
+      assert(Math.abs(monthDay.getBoundingClientRect().height - monthWeek.getBoundingClientRect().height) <= 1,
+        'Calendar month day boundaries did not span the full week row');
+      assert(getComputedStyle(monthDay).borderRadius === '0px',
+        'Calendar month retained rounded structural day cells');
+      component.setView('week');
       views.expect();
       assert(component.el.querySelectorAll('.zx-calendar__view-button').length === 5,
         'Calendar omitted a configured view control');
@@ -1562,6 +1580,52 @@ function calendarCase() {
         'Calendar revert did not restore the old event');
       assert(change.revert() === false, 'Calendar revert was not idempotent');
       moves.expect();
+
+      const slots = component.el.querySelector('.zx-calendar__slots').getBoundingClientRect();
+      const dayWidth = slots.width / 7;
+      const slotHeight = slots.height / Number(component.el.querySelector('[role="grid"]').getAttribute('aria-rowcount'));
+      const pointerMove = observe(component, 'eventchange');
+      const dragControl = component.el.querySelector('[data-event-id="work"][data-event-action="activate"]');
+      const dragRect = dragControl.getBoundingClientRect();
+      const dragStart = { x: dragRect.left + dragRect.width / 2, y: dragRect.top + dragRect.height / 2 };
+      dragControl.dispatchEvent(new PointerEvent('pointerdown', {
+        bubbles: true, button: 0, pointerId: 41, clientX: dragStart.x, clientY: dragStart.y
+      }));
+      component.el.dispatchEvent(new PointerEvent('pointermove', {
+        bubbles: true, pointerId: 41, clientX: dragStart.x + dayWidth, clientY: dragStart.y + slotHeight * 2
+      }));
+      component.el.dispatchEvent(new PointerEvent('pointerup', {
+        bubbles: true, pointerId: 41, clientX: dragStart.x + dayWidth, clientY: dragStart.y + slotHeight * 2
+      }));
+      const dragged = component.getEvents().find((event) => event.id === 'work');
+      assert(dragged.start.getDate() === 26 && dragged.start.getHours() === 10,
+        `Calendar pointer move dropped at ${dragged.start}`);
+      pointerMove.expect();
+
+      component.updateEvent('work', {
+        start: new Date(2026, 7, 25, 9),
+        end: new Date(2026, 7, 25, 10)
+      }, { silent: true });
+      const pointerResize = observe(component, 'eventchange');
+      const resizeHandle = component.el.querySelector('[data-event-id="work"][data-event-action="resize"]');
+      const resizeWrapper = resizeHandle.closest('.zx-calendar__event');
+      const resizeRect = resizeHandle.getBoundingClientRect();
+      const resizeStart = { x: resizeRect.left + resizeRect.width / 2, y: resizeRect.top + resizeRect.height / 2 };
+      resizeHandle.dispatchEvent(new PointerEvent('pointerdown', {
+        bubbles: true, button: 0, pointerId: 42, clientX: resizeStart.x, clientY: resizeStart.y
+      }));
+      component.el.dispatchEvent(new PointerEvent('pointermove', {
+        bubbles: true, pointerId: 42, clientX: resizeStart.x + dayWidth, clientY: resizeStart.y + slotHeight * 2
+      }));
+      assert(resizeWrapper.style.transform === '' && resizeWrapper.style.blockSize,
+        'Calendar pointer resize translated the event instead of stretching it');
+      component.el.dispatchEvent(new PointerEvent('pointerup', {
+        bubbles: true, pointerId: 42, clientX: resizeStart.x + dayWidth, clientY: resizeStart.y + slotHeight * 2
+      }));
+      const resized = component.getEvents().find((event) => event.id === 'work');
+      assert(resized.end.getTime() - resized.start.getTime() === 7_200_000,
+        `Calendar pointer resize produced ${resized.start} to ${resized.end}`);
+      pointerResize.expect();
 
       component.setLoading(true);
       assert(component.el.getAttribute('aria-busy') === 'true' && !component.refs.loading.hidden,
