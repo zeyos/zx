@@ -8,6 +8,8 @@ and friends remain the complete record.
 
 ## Unreleased
 
+## 4.3.4 — 2026-08-31
+
 ### Added
 
 - **Kanban boards became workflow boards.** `KanbanView` now moves cards by pointer, touch,
