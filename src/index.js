@@ -149,6 +149,11 @@ export { Table, reorderTableRows } from './components/table/table.js';
 export { TableView } from './components/table-view/table-view.js';
 export { CardView } from './components/card-view/card-view.js';
 export { KanbanView } from './components/kanban-view/kanban-view.js';
+export {
+  absoluteKanbanIndex, allowsKanbanTransition, createKanbanHistory, evaluateKanbanMove,
+  kanbanSearchTerms, locateKanbanRecord, matchesKanbanSearch, normalizeKanbanRules,
+  reorderKanbanRecords, resolveKanbanRules
+} from './components/kanban-view/kanban-policy.js';
 export { Grid, billingColumns, isBillingLine } from './components/grid/grid.js';
 export {
   Chart, ChartJsAdapter, chartSummaryTable, cloneChartValue, isEmptyChartData

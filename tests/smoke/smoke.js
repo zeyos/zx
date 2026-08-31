@@ -955,7 +955,12 @@ const cases = [
       { id: 'won', label: 'Won' }
     ],
     swimlaneBy: 'team',
-    swimlanes: [{ id: 'north', label: 'North' }, { id: 'south', label: 'South' }]
+    swimlanes: [{ id: 'north', label: 'North' }, { id: 'south', label: 'South' }],
+    rules: [{ id: 'flagged', when: (record) => record.status === 'open', tone: 'success', label: 'In flight', description: 'Currently in flight' }],
+    searchControl: true,
+    historyControls: true,
+    allowAdd: true,
+    contextMenu: true
   }), async (component) => {
     const sourceRecord = component.options.data[0];
     const moves = observe(component, 'recordmove');
@@ -986,6 +991,129 @@ const cases = [
     component.setColumnCollapsed('won', true);
     const state = component.getViewState();
     assert(state.collapsedColumns.includes('won'), 'KanbanView did not persist collapsed columns');
+    assert(state.search === undefined, 'KanbanView serialized transient search state');
+    component.setColumnCollapsed('won', false);
+
+    // Undo restores the exact record order the board had before the committed local move.
+    assert(component.canUndo(), 'KanbanView did not record a local move in its history');
+    const afterMove = component.getData().map((record) => record.id).join(',');
+    component.undo();
+    assert(component.getRecord('opp-1').status === 'new', 'KanbanView undo did not restore the record');
+    component.redo();
+    assert(component.getData().map((record) => record.id).join(',') === afterMove,
+      'KanbanView redo did not reapply the move');
+    component.setData(recordViewData());
+    assert(!component.canUndo() && !component.canRedo(),
+      'KanbanView kept history describing records the host replaced');
+
+    // Search hides cards without removing the records behind them.
+    const totalCards = component.el.querySelectorAll('.zx-record-card').length;
+    component.setSearch('zzz-no-such-card');
+    assert(component.el.querySelectorAll('.zx-record-card').length === 0
+      && component.getData().length > 0, 'KanbanView search removed records rather than cards');
+    component.setSearch('');
+    assert(component.el.querySelectorAll('.zx-record-card').length === totalCards,
+      'KanbanView did not restore every card when the search cleared');
+
+    assert(component.el.querySelector('[data-rule-tone]'), 'KanbanView did not mark a matching rule');
+    assert(component.el.querySelector('[data-rule]').getAttribute('aria-description').includes('in flight'),
+      'KanbanView did not carry the rule description into the accessible description');
+    // A lane limit reports capacity the way a column limit does.
+    component.setSwimlanes([{ id: 'north', label: 'North', limit: 1 }, { id: 'south', label: 'South' }]);
+    assert(component.el.querySelector('.zx-kanban-view__lane[data-wip]'),
+      'KanbanView did not report lane capacity');
+    // The built-in search control coalesces keystrokes rather than rebuilding on every one.
+    const searchInput = component.el.querySelector('.zx-kanban-view__search-input');
+    searchInput.value = 'zzz-no-such-card';
+    searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+    assert(component.getSearch() === '', 'KanbanView search control did not coalesce keystrokes');
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    assert(component.getSearch() === 'zzz-no-such-card', 'KanbanView search control never applied');
+    component.setSearch('');
+    assert(component.el.querySelector('.zx-kanban-view__add'), 'KanbanView did not render its add control');
+    const adds = observe(component, 'recordadd');
+    component.el.querySelector('.zx-kanban-view__add').click();
+    adds.expect();
+
+    // One selected card picked up carries the whole selection through one atomic move.
+    const multi = new zx.KanbanView(null, {
+      fields: recordViewFields(), recordId: 'id', titleField: 'title', selectable: 'multi',
+      columnBy: 'status', columns: [{ id: 'new', label: 'New' }, { id: 'won', label: 'Won' }],
+      data: [
+        { id: 'm-1', title: 'One', status: 'new' },
+        { id: 'm-2', title: 'Two', status: 'new' },
+        { id: 'm-3', title: 'Three', status: 'new' }
+      ]
+    });
+    try {
+      component.el.append(multi.el);
+      multi.setSelection(['m-1', 'm-3']);
+      assert(multi._movingIds('m-1').join(',') === 'm-1,m-3',
+        'KanbanView did not pick up the whole selection');
+      assert(multi._movingIds('m-2').join(',') === 'm-2',
+        'KanbanView dragged the selection along with an unselected card');
+      const atomic = observe(multi, 'recordmove');
+      multi.moveRecords(['m-3', 'm-1'], { column: 'won', index: 0 });
+      atomic.expect();
+      assert(multi.getData().filter((record) => record.status === 'won')
+        .map((record) => record.id).join(',') === 'm-1,m-3',
+      'KanbanView multi-card move lost the relative order of its cards');
+      assert(multi.getRecord('m-1').status === 'won' && multi.getRecord('m-3').status === 'won',
+        'KanbanView multi-card move was not atomic');
+      multi.undo();
+      assert(multi.getData().every((record) => record.status === 'new'),
+        'KanbanView undo did not revert the whole multi-card move in one step');
+    } finally {
+      multi.destroy();
+    }
+
+    // A pointer drag must reach the same commit path as the keyboard and the public API.
+    const dragCard = component.el.querySelector('.zx-record-card');
+    const dragHandle = dragCard.querySelector('.zx-kanban-view__move-handle');
+    const targetList = [...component.el.querySelectorAll('.zx-kanban-view__cards')]
+      .find((list) => list !== dragCard.parentElement && !list.hidden);
+    if (dragHandle && targetList) {
+      const origin = dragHandle.getBoundingClientRect();
+      const destination = targetList.getBoundingClientRect();
+      const pointer = (type, x, y) => dragHandle.dispatchEvent(new PointerEvent(type, {
+        bubbles: true, cancelable: true, pointerId: 1, pointerType: 'mouse', button: 0,
+        clientX: x, clientY: y
+      }));
+      pointer('pointerdown', origin.left + 4, origin.top + 4);
+      pointer('pointermove', origin.left + 40, origin.top + 40);
+      assert(component.el.querySelector('.zx-kanban-view__drag-preview'),
+        'KanbanView pointer drag did not show a drag preview');
+      pointer('pointermove', destination.left + destination.width / 2, destination.bottom - 4);
+      pointer('pointerup', destination.left + destination.width / 2, destination.bottom - 4);
+      assert(!component.el.querySelector('.zx-kanban-view__drag-preview'),
+        'KanbanView left its drag preview behind');
+      assert(!component.el.querySelector('[data-dragging]'),
+        'KanbanView left a card marked as dragging');
+      assert(!component.el.querySelector('[data-drop]'),
+        'KanbanView left a drop marker behind');
+    }
+
+    // A blocked policy refuses the move outright instead of warning about it.
+    const blocking = new zx.KanbanView(null, {
+      fields: recordViewFields(), data: recordViewData(), recordId: 'id', titleField: 'title',
+      columnBy: 'status', wipPolicy: 'block',
+      columns: [{ id: 'new', label: 'New' }, { id: 'open', label: 'Open', limit: 0, from: ['new'] },
+        { id: 'won', label: 'Won', from: ['open'] }]
+    });
+    try {
+      component.el.append(blocking.el);
+      const rejections = observe(blocking, 'movereject');
+      const untouched = blocking.getRecord('opp-1').status;
+      blocking.moveRecord('opp-1', { column: 'open', index: 0 });
+      rejections.expect();
+      assert(blocking.getRecord('opp-1').status === untouched,
+        'A blocked KanbanView move mutated data anyway');
+      await Promise.resolve();
+      assert(blocking.el.querySelector('.zx-kanban-view__live').textContent.includes('rejected'),
+        'A blocked KanbanView move was not announced');
+    } finally {
+      blocking.destroy();
+    }
 
     const derived = new zx.KanbanView(null, {
       fields: recordViewFields(), data: [], recordId: 'id', titleField: 'title',

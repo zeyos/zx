@@ -8,6 +8,41 @@ and friends remain the complete record.
 
 ## Unreleased
 
+### Added
+
+- **Kanban boards became workflow boards.** `KanbanView` now moves cards by pointer, touch,
+  keyboard, context menu, and public API through one policy and one commit path.
+  - **Pointer and touch dragging.** Native HTML5 drag-and-drop is replaced by Pointer Events, so
+    the same code path serves mouse, pen, and touch. A drag from the card body needs a small
+    travel (or a long press on touch, so the board still scrolls); a drag from the move handle
+    starts immediately. A floating drag preview follows the pointer, the board and any scrollable
+    column auto-scroll near their edges, and Escape aborts without moving anything.
+    `dragFrom: 'card' | 'handle'` chooses the drag source.
+  - **Atomic multi-card moves.** Picking up a card that belongs to the current multi-selection
+    moves the whole selection as one step, preserving relative order — one `recordmove`, one
+    policy decision, one history entry. `moveRecords(ids, destination)` is the public form.
+  - **Enforceable workflow policy.** Columns gain `laneLimits`, `wipPolicy`, and a `from`
+    transition allow-list; lanes gain `limit` and `from`. The board-level `wipPolicy` still
+    defaults to `'warn'`, and `'block'` refuses a move before the cancelable event. Every refusal
+    announces its reason and emits the new cancel-free `movereject` event.
+  - **Ordered card rules.** `rules` marks cards with an inline tone marker, badges, and an
+    accessible description, so a rule is never communicated by colour alone.
+  - **Undo and redo** of committed local moves, with `undo()`, `redo()`, `canUndo()`, `canRedo()`,
+    `clearHistory()`, a bounded `historyLimit`, the `historychange` event, optional toolbar
+    controls, and Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z on the board.
+  - **Board search and filtering.** `search`, `searchFields`, `filter`, `setSearch`, `setFilter`,
+    an optional built-in search control, and the `searchchange` event. Hidden records keep their
+    position in the data, so a card dropped between two visible cards lands between them.
+  - **Replaceable presentation.** `renderCard`, `renderColumnHeader`, `renderSwimlaneHeader`,
+    `renderColumnEmpty`, and `renderDragPreview` replace content while the board keeps the managed
+    shell: list item, selection control, action group, move handle, drop targets, and collapse
+    control never change hands.
+  - **Card context menu, per-column scroll regions, and an add affordance.** `contextMenu` offers
+    move commands filtered by the same policy path, `columnHeight` turns each column into its own
+    scroll region, and `allowAdd` emits `recordadd` for the application to act on.
+  - **A complete `labels` map**, so every visible and announced string can be translated without
+    patching the component.
+
 ## 4.3.3 — 2026-08-26
 
 ### Changed

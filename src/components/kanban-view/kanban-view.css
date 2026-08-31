@@ -152,6 +152,17 @@
   font-weight: 600;
 }
 
+/* A lane limit reads the same way a column limit does, on the lane's own heading only. */
+.zx-kanban-view__lane[data-wip="limit"] > .zx-kanban-view__lane-heading .zx-kanban-view__count {
+  color: var(--zx-color-warning);
+  font-weight: 600;
+}
+
+.zx-kanban-view__lane[data-wip="exceeded"] > .zx-kanban-view__lane-heading .zx-kanban-view__count {
+  color: var(--zx-color-danger);
+  font-weight: 600;
+}
+
 .zx-kanban-view__cards {
   position: relative;
   display: flex;
@@ -466,5 +477,184 @@
       background var(--zx-dur-fast) var(--zx-ease),
       box-shadow var(--zx-dur-fast) var(--zx-ease),
       opacity var(--zx-dur-fast) var(--zx-ease);
+  }
+}
+
+/* ── Toolbar controls ─────────────────────────────────────────────────────────────────────── */
+
+.zx-kanban-view__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zx-space-2);
+}
+
+.zx-kanban-view__search {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-1);
+  min-inline-size: 0;
+}
+
+.zx-kanban-view__search > .zx-icon {
+  position: absolute;
+  inset-inline-start: var(--zx-control-pad-x);
+  color: var(--zx-color-text-muted);
+  pointer-events: none;
+}
+
+.zx-kanban-view__search-input {
+  min-inline-size: 12rem;
+  max-inline-size: 100%;
+  padding-inline-start: calc(var(--zx-control-pad-x) * 2 + 13px);
+}
+
+.zx-kanban-view__search-input::-webkit-search-cancel-button {
+  cursor: pointer;
+}
+
+.zx-kanban-view__history {
+  display: inline-flex;
+  gap: var(--zx-space-1);
+  margin-inline-start: auto;
+}
+
+/* ── Column scroll regions ────────────────────────────────────────────────────────────────── */
+
+/* A fixed column height turns each card list into its own scroll region, so a long column stops
+   stretching the board and the headers stay reachable. */
+.zx-kanban-view[data-column-scroll="true"] .zx-kanban-view__cards {
+  max-block-size: var(--zx-kanban-column-height);
+  overflow-y: auto;
+  overscroll-behavior-block: contain;
+  scrollbar-gutter: stable;
+}
+
+/* ── Add control ──────────────────────────────────────────────────────────────────────────── */
+
+.zx-kanban-view__add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--zx-space-1);
+  margin-block-start: var(--zx-space-2);
+  border: 1px dashed var(--zx-color-border);
+  border-radius: var(--zx-radius-md);
+  background: transparent;
+  padding-block: var(--zx-space-1);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  cursor: pointer;
+}
+
+.zx-kanban-view__add:hover {
+  border-color: var(--zx-color-border-strong);
+  background: var(--zx-color-bg-hover);
+  color: var(--zx-color-text);
+}
+
+.zx-kanban-view__add:focus-visible {
+  outline: none;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.zx-kanban-view__add[hidden] {
+  display: none;
+}
+
+/* ── Empty column placeholder ─────────────────────────────────────────────────────────────── */
+
+.zx-kanban-view__column-empty {
+  display: grid;
+  place-items: center;
+  min-block-size: 4rem;
+  padding: var(--zx-space-2);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  text-align: center;
+}
+
+/* ── Card rules ───────────────────────────────────────────────────────────────────────────── */
+
+/* The first matching rule paints an inline start marker. Rule badges and the card's accessible
+   description carry the same meaning, so the colour is never the only signal. */
+.zx-kanban-view .zx-record-card[data-rule-tone] {
+  position: relative;
+  overflow: hidden;
+}
+
+.zx-kanban-view .zx-record-card[data-rule-tone]::before {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  inline-size: 3px;
+  background: var(--zx-color-border-strong);
+  content: "";
+}
+
+.zx-kanban-view .zx-record-card[data-rule-tone="accent"]::before {
+  background: var(--zx-color-accent);
+}
+
+.zx-kanban-view .zx-record-card[data-rule-tone="success"]::before {
+  background: var(--zx-color-success);
+}
+
+.zx-kanban-view .zx-record-card[data-rule-tone="warning"]::before {
+  background: var(--zx-color-warning);
+}
+
+.zx-kanban-view .zx-record-card[data-rule-tone="danger"]::before {
+  background: var(--zx-color-danger);
+}
+
+.zx-kanban-view .zx-record-card[data-rule-tone="info"]::before {
+  background: var(--zx-color-info);
+}
+
+.zx-kanban-view__rules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zx-space-1);
+  margin: 0;
+}
+
+/* ── Pointer dragging ─────────────────────────────────────────────────────────────────────── */
+
+.zx-kanban-view__board[data-dragging="true"] {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.zx-kanban-view__board[data-dragging="true"] .zx-record-card {
+  cursor: grabbing;
+}
+
+/* The preview tracks the pointer in the viewport and must never be hit-tested: the drop target is
+   resolved from the element under the pointer. */
+.zx-kanban-view__drag-preview {
+  position: fixed;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  z-index: 2;
+  max-inline-size: var(--zx-kanban-column-width);
+  border: 1px solid var(--zx-color-border);
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-bg-raised);
+  box-shadow: var(--zx-shadow-2);
+  padding: var(--zx-space-1) var(--zx-space-2);
+  color: var(--zx-color-text);
+  font-size: var(--zx-text-xs);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  translate: var(--zx-space-3) var(--zx-space-3);
+}
+
+@media (pointer: coarse) {
+  .zx-kanban-view__add {
+    min-block-size: 2.75rem;
   }
 }

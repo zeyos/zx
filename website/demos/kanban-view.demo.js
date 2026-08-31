@@ -59,9 +59,50 @@ const STAGES = [
   { id: 'Won', label: 'Won' }
 ];
 
+// A workflow board adds the policy the pipeline actually runs on: `from` is the transition
+// allow-list of columns a card may arrive from, `limit` is capacity, and `laneLimits` refines that
+// capacity per lane. With `wipPolicy: 'block'` a violation refuses the move instead of warning.
+const WORKFLOW_STAGES = [
+  { id: 'Qualified', label: 'Qualified', limit: 3 },
+  { id: 'Proposal', label: 'Proposal', limit: 3, from: ['Qualified', 'Negotiation'] },
+  {
+    id: 'Negotiation', label: 'Negotiation', limit: 2, from: ['Proposal'],
+    laneLimits: { 'Ada Lovelace': 1, 'Grace Hopper': 1 },
+    accept: (record) => Number(record.value) >= 25000
+  },
+  { id: 'Won', label: 'Won', from: ['Negotiation'] }
+];
+
 const OWNERS = [
   { id: 'Ada Lovelace', label: 'Ada Lovelace' },
   { id: 'Grace Hopper', label: 'Grace Hopper' }
+];
+
+// Ordered card rules are pure presentation. The first match paints the card's inline marker; every
+// match with a label adds a badge, and each rule's description joins the card's accessible
+// description so the colour is never the only signal.
+const RULES = [
+  {
+    id: 'at-risk',
+    when: (record) => record.status === 'At risk',
+    tone: 'danger',
+    label: 'At risk',
+    description: 'Flagged at risk'
+  },
+  {
+    id: 'major',
+    when: (record) => Number(record.value) >= 90000,
+    tone: 'warning',
+    label: 'Major deal',
+    description: 'Above the ninety thousand euro review threshold'
+  },
+  {
+    id: 'review',
+    when: (record) => record.status === 'Needs review',
+    tone: 'info',
+    label: 'Needs review',
+    description: 'Waiting on review'
+  }
 ];
 
 function viewOptions(log, {
@@ -92,7 +133,8 @@ function viewOptions(log, {
     onrecordclick: ({ detail }) => log(`activate #${detail.id}: ${detail.record.opportunity}`),
     onrecordaction: ({ detail }) => log(`${detail.action.id} #${detail.id}`),
     onselectionchange: ({ detail }) => log(`selected: ${detail.ids.join(', ') || 'none'}`),
-    onrecordmove: ({ detail }) => log(`move #${detail.id}: ${detail.from.column}/${detail.from.lane} → ${detail.to.column}/${detail.to.lane} @ ${detail.to.index}${detail.limitExceeded ? ' (over WIP)' : ''}`),
+    onrecordmove: ({ detail }) => log(`move ${detail.ids.join(', ')}: ${detail.from.column}/${detail.from.lane} → ${detail.to.column}/${detail.to.lane} @ ${detail.to.index}${detail.limitExceeded ? ' (over WIP)' : ''}`),
+    onmovereject: ({ detail }) => log(`rejected (${detail.reason}): ${detail.message}`),
     onstatechange: ({ detail }) => log(`state (${detail.reason}): ${JSON.stringify(detail.state)}`)
   };
 }
@@ -102,14 +144,15 @@ export default {
   group: 'Data',
   api: ['KanbanView', 'RecordView'],
   blurb: 'A semantic opportunity board sharing fields, cards, sort, selection, and serializable '
-    + 'configuration with the other record views.',
+    + 'configuration with the other record views. Cards move by pointer, touch, keyboard, context '
+    + 'menu, or public API through one policy and one commit path.',
 
   examples: [
     {
       title: 'Compact opportunity pipeline',
       blurb: 'A quiet account/date eyebrow and status-led title keep the default board scannable. '
-        + 'Hover or focus a card to reveal its move and action controls; press Enter/Space on the '
-        + 'move handle to grab, arrows to choose a target, then Enter/Space to drop.',
+        + 'Drag a card with the mouse, press and hold on a touch screen, or press Enter/Space on '
+        + 'its move handle to grab, arrows to choose a target, then Enter/Space to drop.',
       layout: 'stack',
       render: ({ cleanup, log }) => {
         const view = new KanbanView(null, viewOptions(log));
@@ -118,9 +161,36 @@ export default {
       }
     },
     {
-      title: 'Advanced swim lanes and saved state',
-      blurb: 'Optional thumbnails, subtitles, metadata, selection, actions, swim lanes, and JSON-safe '
-        + 'configuration remain available without making every board card carry that weight.',
+      title: 'Workflow policy, rules, and history',
+      blurb: 'Transitions, capacity, and eligibility are checked before the cancelable move event, '
+        + 'so a refused move writes nothing and says why. Ordered card rules mark the cards a '
+        + 'reviewer should see first, and every committed local move is undoable. Try dragging '
+        + 'a card straight from Qualified to Won — the board will refuse it.',
+      layout: 'stack',
+      render: ({ cleanup, log }) => {
+        const view = new KanbanView(null, {
+          ...viewOptions(log, { showValue: true }),
+          columns: WORKFLOW_STAGES,
+          wipPolicy: 'block',
+          rules: RULES,
+          searchControl: true,
+          historyControls: true,
+          allowAdd: true,
+          contextMenu: true,
+          columnHeight: '22rem',
+          onrecordadd: ({ detail }) => log(`add to ${detail.columnId}`),
+          onsearchchange: ({ detail }) => log(`search: ${detail.search || '(none)'}`),
+          onhistorychange: ({ detail }) => log(`history: ${detail.depth.undo} undo, ${detail.depth.redo} redo`)
+        });
+        cleanup(() => view.destroy());
+        return view.toElement();
+      }
+    },
+    {
+      title: 'Swim lanes, multi-card moves, and saved state',
+      blurb: 'Optional thumbnails, subtitles, metadata, selection, actions, swim lanes, and '
+        + 'JSON-safe configuration remain available without making every board card carry that '
+        + 'weight. Selecting several cards and moving one moves them all as a single step.',
       layout: 'stack',
       render: ({ cleanup, log }) => {
         let saved = null;
@@ -152,8 +222,48 @@ export default {
             button({
               label: 'Restore state',
               onclick: () => saved ? view.setViewState(saved) : log('Save a state first')
-            }))
+            }),
+            button({
+              label: 'Move selection to Won',
+              onclick: () => {
+                const ids = view.getSelectionIds();
+                if (ids.length) view.moveRecords(ids, { column: 'Won' });
+                else log('Select one or more cards first');
+              }
+            }),
+            button({ label: 'Undo', onclick: () => view.undo() }),
+            button({ label: 'Redo', onclick: () => view.redo() }))
         ];
+      }
+    },
+    {
+      title: 'Replaced presentation',
+      blurb: 'Render hooks replace card content, workflow headers, lane headers, empty states, and '
+        + 'the drag preview while the board keeps the managed shell: the list item, its selection '
+        + 'control, action group, move handle, drop targets, and collapse control never change.',
+      layout: 'stack',
+      render: ({ cleanup, log }) => {
+        const money = new Intl.NumberFormat('en', {
+          style: 'currency', currency: 'EUR', maximumFractionDigits: 0
+        });
+        const view = new KanbanView(null, {
+          ...viewOptions(log),
+          fieldControls: false,
+          renderCard: ({ record }) => h('div', {},
+            h('p', { class: 'zx-record-card__title' }, record.opportunity),
+            h('p', { class: 'zx-record-card__subtitle' },
+              `${record.account} · ${money.format(record.value)}`)),
+          renderColumnHeader: ({ column, count }) => h('span', {
+            class: 'zx-kanban-view__column-label'
+          }, icon('list', { size: 12 }), ` ${column.label} `,
+          badge({ label: String(count), kind: 'neutral', size: 'sm' })),
+          renderColumnEmpty: ({ column }) => h('span', {}, `Nothing in ${column.label} yet`),
+          renderDragPreview: ({ records, count }) => h('span', {},
+            icon('drag', { size: 11 }),
+            count > 1 ? ` ${count} opportunities` : ` ${records[0].opportunity}`)
+        });
+        cleanup(() => view.destroy());
+        return view.toElement();
       }
     }
   ]

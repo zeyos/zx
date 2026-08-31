@@ -4331,6 +4331,132 @@
         "description": "Whether accepted moves update local data."
       },
       {
+        "name": "dragFrom",
+        "type": "'card'|'handle'",
+        "default": "'card'",
+        "description": "Whether the whole card or only its handle starts a pointer drag. Touch drags from the card body require a long press so the board still scrolls."
+      },
+      {
+        "name": "multiMove",
+        "type": "boolean",
+        "default": "true",
+        "description": "Move the whole selection when a selected card is picked up."
+      },
+      {
+        "name": "autoScroll",
+        "type": "boolean",
+        "default": "true",
+        "description": "Scroll the board and columns while dragging near an edge."
+      },
+      {
+        "name": "wipPolicy",
+        "type": "'warn'|'block'",
+        "default": "'warn'",
+        "description": "Whether exceeding a limit warns or refuses."
+      },
+      {
+        "name": "rules",
+        "type": "KanbanRule[]",
+        "default": "[]",
+        "description": "Ordered visual card rules."
+      },
+      {
+        "name": "search",
+        "type": "string",
+        "default": "''",
+        "description": "Board search text."
+      },
+      {
+        "name": "searchFields",
+        "type": "string[]|null",
+        "default": "null",
+        "description": "Field ids searched; null searches visible fields plus the title and subtitle sources."
+      },
+      {
+        "name": "filter",
+        "type": "((record:KanbanRecord,index:number)=>boolean)|null",
+        "default": "null",
+        "description": "Extra card predicate."
+      },
+      {
+        "name": "searchControl",
+        "type": "boolean",
+        "default": "false",
+        "description": "Render the built-in board search control."
+      },
+      {
+        "name": "history",
+        "type": "boolean",
+        "default": "true",
+        "description": "Record committed local moves for undo and redo."
+      },
+      {
+        "name": "historyLimit",
+        "type": "number",
+        "default": "50",
+        "description": "Maximum remembered move steps."
+      },
+      {
+        "name": "historyControls",
+        "type": "boolean",
+        "default": "false",
+        "description": "Render built-in undo and redo controls."
+      },
+      {
+        "name": "columnHeight",
+        "type": "string|null",
+        "default": "null",
+        "description": "CSS length turning each column into a scroll region."
+      },
+      {
+        "name": "allowAdd",
+        "type": "boolean|((column:KanbanColumn,swimlane:KanbanSwimlane|null)=>boolean)",
+        "default": "false",
+        "description": "Render a per-column add control that emits `recordadd`."
+      },
+      {
+        "name": "contextMenu",
+        "type": "boolean|MenuItem[]|((context:KanbanCardContext)=>MenuItem[])",
+        "default": "false",
+        "description": "Card context menu. `true` offers move commands; an array or function appends application items."
+      },
+      {
+        "name": "renderCard",
+        "type": "((context:KanbanCardContext)=>Node|null|undefined)|null",
+        "default": "null",
+        "description": "Replaces card content."
+      },
+      {
+        "name": "renderColumnHeader",
+        "type": "((context:KanbanHeaderContext)=>Node|null|undefined)|null",
+        "default": "null",
+        "description": "Replaces column header content."
+      },
+      {
+        "name": "renderSwimlaneHeader",
+        "type": "((context:KanbanHeaderContext)=>Node|null|undefined)|null",
+        "default": "null",
+        "description": "Replaces lane header content."
+      },
+      {
+        "name": "renderColumnEmpty",
+        "type": "((context:KanbanHeaderContext)=>Node|null|undefined)|null",
+        "default": "null",
+        "description": "Empty-column placeholder."
+      },
+      {
+        "name": "renderDragPreview",
+        "type": "((context:{records:KanbanRecord[],ids:unknown[],count:number})=>Node|null|undefined)|null",
+        "default": "null",
+        "description": "Replaces the floating drag preview."
+      },
+      {
+        "name": "labels",
+        "type": "Record<string,string>",
+        "default": "{}",
+        "description": "Overrides for every visible and announced string."
+      },
+      {
         "name": "columnOrder",
         "type": "string[]",
         "default": "[]",
@@ -4386,8 +4512,28 @@
         "description": ""
       },
       {
+        "name": "movereject",
+        "payload": "Record<string,unknown>",
+        "description": ""
+      },
+      {
         "name": "recordaction",
         "payload": "Record<string,unknown>",
+        "description": ""
+      },
+      {
+        "name": "recordadd",
+        "payload": "Record<string,unknown>",
+        "description": ""
+      },
+      {
+        "name": "searchchange",
+        "payload": "{search:string}",
+        "description": ""
+      },
+      {
+        "name": "historychange",
+        "payload": "{canUndo:boolean,canRedo:boolean,depth:{undo:number,redo:number}}",
         "description": ""
       }
     ],
@@ -4492,7 +4638,73 @@
         "name": "moveRecord",
         "signature": "moveRecord(id, destination)",
         "returns": "this",
-        "description": "Proposes and, in local mode, commits a record move. Destination acceptance is checked before a cancelable `recordmove` event. WIP limits are reported but remain advisory."
+        "description": "Proposes and, in local mode, commits a record move. Equivalent to `moveRecords([id], …)`."
+      },
+      {
+        "name": "moveRecords",
+        "signature": "moveRecords(ids, destination)",
+        "returns": "this",
+        "description": "Proposes and, in local mode, commits an atomic move of one or more records. Destination eligibility, transition rules, and work-in-progress policy are all checked before a single cancelable `recordmove` event; the move commits completely or not at all, and the moving records keep their relative order at the destination."
+      },
+      {
+        "name": "canUndo",
+        "signature": "canUndo()",
+        "returns": "boolean",
+        "description": "Whether a committed local move can be reverted."
+      },
+      {
+        "name": "canRedo",
+        "signature": "canRedo()",
+        "returns": "boolean",
+        "description": "Whether a reverted local move can be reapplied."
+      },
+      {
+        "name": "undo",
+        "signature": "undo()",
+        "returns": "this",
+        "description": "Reverts the last committed local move, restoring the exact record order and selection."
+      },
+      {
+        "name": "redo",
+        "signature": "redo()",
+        "returns": "this",
+        "description": "Reapplies the last reverted local move."
+      },
+      {
+        "name": "clearHistory",
+        "signature": "clearHistory()",
+        "returns": "this",
+        "description": "Empties both history stacks."
+      },
+      {
+        "name": "getSearch",
+        "signature": "getSearch()",
+        "returns": "string",
+        "description": "Returns the current board search text."
+      },
+      {
+        "name": "setSearch",
+        "signature": "setSearch(search, [options])",
+        "returns": "this",
+        "description": "Narrows visible cards to those matching a search. Hidden records keep their position in the data, so a card dropped between two visible cards still lands between them."
+      },
+      {
+        "name": "setFilter",
+        "signature": "setFilter(filter)",
+        "returns": "this",
+        "description": "Replaces the extra card predicate. Pass null to clear it."
+      },
+      {
+        "name": "getVisibleRecords",
+        "signature": "getVisibleRecords()",
+        "returns": "KanbanRecord[]",
+        "description": "Returns the records currently rendered, in board order."
+      },
+      {
+        "name": "setData",
+        "signature": "setData(records)",
+        "returns": "this",
+        "description": "Replaces every record. History is dropped because its snapshots describe records the host has just replaced, and reinstating them would resurrect data the application no longer owns."
       },
       {
         "name": "getViewState",
