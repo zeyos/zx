@@ -138,12 +138,87 @@
   box-shadow: inset var(--zx-focus-ring);
 }
 
+/*
+ * Overflow.
+ *
+ * Three modes, written by the component onto the root as `data-overflow`:
+ *
+ *   all      — every item collapses (the default, `minVisible: 0`): the row is taken out and the
+ *              More button replaces it, which is what a top app bar wants.
+ *   partial  — `minVisible` items stay in the row and the rest move into the menu. The row and
+ *              the button are then on screen together, which is the one case the navigation has
+ *              to lay them out side by side.
+ *   off      — `overflow: false` or `overflowBelow: false`: nothing ever collapses, and the
+ *              More button never appears at any width.
+ *
+ * The threshold is the awkward part, because a container query cannot read a custom property. So
+ * the default threshold lives here, in the query below, and any other one is measured by the
+ * component, which writes `data-overflow-below` (stand down, this bar has its own threshold) and
+ * `data-narrow`. The two blocks carry the same three declarations for that reason — a change to
+ * one belongs in the other.
+ */
+.zx-navigation-bar[data-overflow="partial"] .zx-navigation-bar__navigation {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-1);
+}
+
+/*
+ * `partial` and `off` are the two modes that keep items in the row at a width the row was never
+ * going to fit: `minVisible` is a promise that those items stay, not that they fit, and
+ * `overflow: false` is the same promise for all of them. They give way by truncating their own
+ * labels rather than by spilling out of the bar. The badge and the More button keep their size —
+ * a count that says "4" and a button that says "More" have nothing to give.
+ *
+ * The default `all` mode is deliberately not in this list: it takes the whole row out instead, and
+ * it never has both on screen at once.
+ */
+.zx-navigation-bar[data-overflow="partial"] .zx-navigation-bar__item,
+.zx-navigation-bar[data-overflow="partial"] .zx-navigation-bar__label,
+.zx-navigation-bar[data-overflow="off"] .zx-navigation-bar__item,
+.zx-navigation-bar[data-overflow="off"] .zx-navigation-bar__label {
+  min-inline-size: 0;
+}
+
+.zx-navigation-bar[data-overflow="partial"] .zx-navigation-bar__label,
+.zx-navigation-bar[data-overflow="off"] .zx-navigation-bar__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zx-navigation-bar[data-overflow="partial"] .zx-navigation-bar__badge,
+.zx-navigation-bar[data-overflow="partial"] .zx-navigation-bar__more,
+.zx-navigation-bar[data-overflow="off"] .zx-navigation-bar__badge {
+  flex: none;
+}
+
 @container (max-width: 44rem) {
-  .zx-navigation-bar__items {
+  .zx-navigation-bar[data-overflow="all"]:not([data-overflow-below]) .zx-navigation-bar__items {
     display: none;
   }
 
-  .zx-navigation-bar__more:not([data-empty="true"]) {
+  .zx-navigation-bar[data-overflow="partial"]:not([data-overflow-below])
+    .zx-navigation-bar__item[data-collapsed="true"] {
+    display: none;
+  }
+
+  .zx-navigation-bar:not([data-overflow="off"]):not([data-overflow-below])
+    .zx-navigation-bar__more:not([data-empty="true"]) {
     display: inline-flex;
   }
+}
+
+.zx-navigation-bar[data-overflow="all"][data-narrow="true"] .zx-navigation-bar__items {
+  display: none;
+}
+
+.zx-navigation-bar[data-overflow="partial"][data-narrow="true"]
+  .zx-navigation-bar__item[data-collapsed="true"] {
+  display: none;
+}
+
+.zx-navigation-bar[data-narrow="true"]:not([data-overflow="off"])
+  .zx-navigation-bar__more:not([data-empty="true"]) {
+  display: inline-flex;
 }

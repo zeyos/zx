@@ -1,0 +1,17 @@
+.zx-sort-control {
+  display: inline-grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--zx-space-1);
+  min-inline-size: 0;
+  inline-size: 100%;
+}
+
+.zx-sort-control__direction {
+  inline-size: var(--zx-control-height);
+  padding: 0;
+  border-radius: var(--zx-radius-full);
+}
+
+.zx-sort-control__direction:focus-visible { box-shadow: var(--zx-focus-ring); }
+.zx-sort-control .zx-select__control { background: var(--zx-color-bg-control); }

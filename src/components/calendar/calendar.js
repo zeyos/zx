@@ -1,6 +1,7 @@
 import { Component } from '../../core/component.js';
 import { h } from '../../core/dom.js';
 import { icon } from '../../core/icons.js';
+import { printf } from '../../core/i18n.js';
 import {
   CALENDAR_VIEWS, addCalendarDays, calendarDayDifference, calendarDayKey,
   calendarEventIntersects, calendarEventSpansDays, calendarPageDate, calendarRange,
@@ -189,7 +190,7 @@ export class Calendar extends Component {
       ref: 'views',
       class: 'zx-calendar__views',
       role: 'group',
-      ariaLabel: 'Calendar view'
+      ariaLabel: this._message('calendar.viewSwitch', 'Calendar view')
     }, this._views.map((view) => h('button', {
       type: 'button',
       class: 'zx-calendar__view-button',
@@ -643,7 +644,7 @@ export class Calendar extends Component {
             eventCount: String(count)
           },
           ariaCurrent: sameCalendarDay(day, this._now()) ? 'date' : null,
-          ariaLabel: `${this._format(day, { dateStyle: 'full' })}, ${count} ${count === 1 ? 'event' : 'events'}`,
+          ariaLabel: this._dayCountLabel(day, count),
           disabled: this.options.disabled
         }, this._format(day, { day: 'numeric' })));
       }
@@ -708,7 +709,7 @@ export class Calendar extends Component {
             activity: String(Math.min(3, count))
           },
           ariaCurrent: sameCalendarDay(day, this._now()) ? 'date' : null,
-          ariaLabel: `${this._format(day, { dateStyle: 'full' })}, ${count} ${count === 1 ? 'event' : 'events'}`,
+          ariaLabel: this._dayCountLabel(day, count),
           disabled: this.options.disabled
         }, String(day.getDate())));
       }
@@ -1472,6 +1473,35 @@ export class Calendar extends Component {
     requestAnimationFrame(() => {
       if (!this._destroyed) this.refs.status.textContent = message;
     });
+  }
+
+  /**
+   * Names a month or year cell by its date and how many events it holds. Singular and plural are
+   * separate keys because a language that inflects the noun cannot reach it from one template.
+   * @param {Date} day Day the cell stands for.
+   * @param {number} count Events on that day.
+   * @returns {string}
+   */
+  _dayCountLabel(day, count) {
+    const date = this._format(day, { dateStyle: 'full' });
+    return count === 1
+      ? this._message('calendar.dayEvent', '%1, %2 event', date, count)
+      : this._message('calendar.dayEvents', '%1, %2 events', date, count);
+  }
+
+  /**
+   * Resolves a message through the host translator, falling back to the built-in English text.
+   *
+   * Distinct from `msg()`: the built-in `msg` option answers the calendar's own vocabulary, so a
+   * dotted key falls past it to the host translator, which is what these strings never had.
+   * @param {string} key Message key.
+   * @param {string} fallback Built-in text, with `%1`-style placeholders.
+   * @param {...unknown} args Interpolation values.
+   * @returns {string}
+   */
+  _message(key, fallback, ...args) {
+    const message = this.msg(key, ...args);
+    return message === key ? printf(fallback, args) : message;
   }
 }
 

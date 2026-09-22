@@ -101,6 +101,13 @@ Define a product theme by overriding **semantic** tokens under a `[data-zx-theme
 `--zx-green-*`) or raw color literals in application/component CSS. Prefer the least-specific
 override that works (global token → then, if needed, a component style).
 
+**Print.** `zx.css` imports `styles/print.css` last. It releases sticky headers and scroll
+containers, drops fills, shadows, zebra striping and focus rings, hides overlays and navigation
+chrome, repeats table headers across pages, keeps cards and rows from breaking, and prints link
+URLs in prose but never inside a table cell or on a button. Status badges keep their colour,
+because there it carries meaning beside the word. An application that pins `data-zx-theme="dark"`
+still prints the dark token set; `auto` resolves to light under `@media print` and is unaffected.
+
 ## Talking to ZeyOS — use `@zeyos/client`
 
 For ZeyOS business data use the **dedicated client library** `@zeyos/client`
@@ -271,6 +278,9 @@ accept.
 
 - **`button(options)`** → `HTMLButtonElement`. Options: `label`, `icon` (an icon name), `kind:
   'default'|'primary'|'danger'|'ghost'`, `size: 'md'|'sm'`, `disabled`, `title`, `onclick`.
+- **Shortcut hints** — `shortcut: {label:'N', keys:'N'}` adds a visible key hint, hover text and
+  `aria-keyshortcuts`. The host binds the action and owns editing/modality/permission guards;
+  a hint never installs a global handler. Dialog and Sheet footer descriptors accept it too.
 - **`buttonGroup([button(…), …])`** → a container that joins the buttons into one control.
 <!-- /doc -->
 
@@ -521,6 +531,106 @@ announced twice.
   status, not the account's accessible name; supply `statusLabel` when it conveys information.
 <!-- /doc -->
 
+<!-- doc:entity-ref -->
+### EntityRef
+
+Dense record identity for table cells, feeds, selectors, and detail metadata. It owns presentation
+and safe native interaction semantics; the application injects routes, permissions, context menus,
+and record mutations.
+
+- **Options** — `id`, `title`, `subtitle` (text, Node, or Component), `icon` (name, Node,
+  Component, or lazy renderer), `metadata: [{label,value,icon?,showLabel?}]`, `link` (a URL or
+  `{href,target?,rel?,download?,onclick?}`), `actions`, `size: 'sm'|'md'|'lg'`, `wrap: false`, and
+  `actionsLabel`.
+- **Actions** — an action is a caller-owned Element or
+  `{id,label?,icon?,title?,href?,target?,rel?,kind?,disabled?,onselect?}`. Descriptors with `href`
+  remain native anchors; others are buttons. Executable destinations are discarded, `_blank`
+  gains `noopener`, and an icon-only action requires `title`.
+- **Methods** — `set(values)`, `setMetadata()`, `setActions()`, `setLink()`, `getEntity()`,
+  `focus()`, and `destroy()`.
+- **Events** — cancelable `activate {id,entity,href,event}` before a primary-link callback/native
+  navigation and `action {id,action,entity,event}` before an action callback/navigation. The
+  bubbling `zx-*` mirrors may cancel the same boundary.
+- **Accessibility** — metadata is a definition list; `showLabel:false` clips its label visually
+  while keeping it available to assistive technology. Identity links and secondary controls keep
+  native keyboard and modifier-click behavior.
+<!-- /doc -->
+
+<!-- doc:file-item -->
+### FileItem
+
+A durable or transient file row composed from `EntityRef`, MIME/byte-size metadata, lifecycle
+status, and accessible progress. It never starts a transfer, decides authorization, resolves a
+preview, or persists a file.
+
+- **Options** — `id`, `name`, `size` (bytes), `mime`, `subtitle`, `icon: 'file'`, additional
+  `metadata`, safe native `link`, `actions`, status (`ready` | `temporary` | `waiting` |
+  `uploading` | `processing` | `success` | `error`), `statusLabel`, `progress` (0–100), `indeterminate`,
+  `density: 'sm'|'md'|'lg'`, `wrap`, `actionsLabel`, and `locale`.
+- **Methods** — `set(values)`, `setStatus(status,label?)`,
+  `setProgress(percent|null,{indeterminate?})`, `getFile()`, `focus()`, and `destroy()`.
+- **Events** — cancelable `activate {id,file,href,event}` and
+  `action {id,fileId,action,file,event}`. Cancellation propagates to the composed EntityRef, so it
+  suppresses callbacks and navigation rather than merely observing them.
+- **Progress** — determinate work exposes min/max/now and percentage text. Indeterminate work
+  omits `aria-valuenow`; status changes are announced separately.
+<!-- /doc -->
+
+<!-- doc:file-list -->
+### FileList
+
+An accessible ordered collection of `FileItem` rows with loading and empty presentations.
+Explicit duplicate file IDs are rejected; source order is preserved.
+
+- **Options** — `items`, `label: 'Files'`, `loading`, `loadingCount: 3`,
+  `loadingText: 'Loading files'`, and `emptyText: 'No files'` (text, Node, or Component).
+- **Methods** — `setItems(items,{silent?})`, `getItems()`, `getItem(id)`,
+  `addItem(item,index?,{silent?})`, `updateItem(id,values,{silent?})`,
+  `removeItem(id,{silent?})`, `setLoading()`, and `destroy()`.
+- **Events** — cancelable `activate {id,index,file,href,event}` and
+  `action {id,fileId,index,action,file,event}`, plus `datachange {items}` after a collection
+  mutation. Returned items are defensive snapshots.
+<!-- /doc -->
+
+<!-- doc:activity-item -->
+### ActivityItem
+
+One chronological activity entry. It owns actor/avatar anatomy, semantic time, safe content slots,
+attachments, and actions; the application owns posting, reactions, permissions, routing,
+persistence, and sanitization before any rich content becomes a Node.
+
+- **Options** — `id`, `actor`, `avatar` (Avatar options or Element), `title`, `content`,
+  `timestamp`, `timeLabel`, `metadata`, `attachments`, `actions`, `kind`, and
+  `headingLevel: 1..6`. Content slots accept text, Nodes, or Components and never parse HTML.
+- **Actions** — Elements pass through; descriptors accept
+  `{id,label?,icon?,href?,target?,rel?,title?,disabled?,kind?,onselect?}`. Unsafe links and unnamed
+  icon-only controls are omitted.
+- **Methods** — `setActivity(values)`, `getActivity()`, and `destroy()`.
+- **Events** — cancelable `action {id,action,event}` before a callback or native navigation; its
+  bubbling `zx-action` mirror can cancel the same boundary.
+- **Accessibility** — an entry is a native list item containing an article and semantic heading;
+  valid timestamps use `<time datetime>`, while display-only labels remain ordinary text.
+<!-- /doc -->
+
+<!-- doc:activity-list -->
+### ActivityList
+
+An accessible chronological ordered collection with stable grouping, loading/empty states, and
+incremental host-controlled mutation. It deliberately preserves source order instead of guessing
+whether a feed is newest- or oldest-first.
+
+- **Options** — `items`, `groupBy` (property, resolver, or null), `groupLabel`,
+  `label: 'Activity'`, `loading`, `loadingCount: 3`, `loadingText`, `emptyText`,
+  `groupHeadingLevel`, and `itemHeadingLevel`.
+- **Methods** — `setItems(items,{silent?})`, `getItems()`, `getItem(id)`,
+  `appendItems(items,{silent?})`, `prependItems(items,{silent?})`,
+  `updateItem(id,values,{silent?})`, `removeItem(id,{silent?})`, `setLoading()`, and `destroy()`.
+- **Events** — `datachange {items}` after mutation. Each child's cancelable `zx-action` bubbles
+  naturally through the list for delegated application handling.
+- **Grouping** — groups keep first-seen group order and item source order. The exported pure
+  `groupActivityItems()` and `normalizeActivityItems()` helpers do not mutate caller arrays.
+<!-- /doc -->
+
 <!-- doc:account-menu -->
 ### AccountMenu
 
@@ -547,6 +657,7 @@ Unifies single-select, local filtering, and async loading.
 - **Options** — `items: []`, `fixedItems: []`, optional `fixedLabel`, `valueKey: 'ID'` (string key or `(item)=>id`),
   `labelKey: 'name'` (string or `(item)=>string`), `renderItem`, `renderValue`,
   `renderValueAdornment`, `renderNone`, `noneLabel`, `actions`, `value`, `disabled`, `placeholder`,
+  `label` (accessible combobox name; defaults to the placeholder or "Select"),
   `clearable: false`, `filter: false | 'local' | async (query)=>items`, `searchKeys`,
   `minQuery: 0`, `debounce: 200`, `listHeight: 280`, `groupKey`.
 - **Getters** — `.value`, `.selected`.
@@ -575,6 +686,25 @@ Unifies single-select, local filtering, and async loading.
 - **Keyboard** (APG combobox) — ArrowDown/Alt+ArrowDown open; arrows navigate and wrap; Home/End;
   Enter selects; Esc closes; Tab closes; printable characters filter (editable) or run a typeahead
   (readonly). `aria-activedescendant` tracks the active option.
+<!-- /doc -->
+
+<!-- doc:sort-control -->
+### SortControl
+
+A searchable field selector with an adjacent icon button to reverse the direction. Each field
+appears once. Changing fields preserves direction; toggling direction preserves the field. Built
+from `Select`, with its themed popover and keyboard behavior.
+
+- **Options** — `fields: [{id,label}]`, `value: {id,dir:'asc'|'desc'}` (null selects the first field
+  ascending), `label: 'Sort by'`, `labels: {asc,desc}` for localized direction text, `disabled`.
+- **Methods** — defensive `getValue()`, `setValue(value,{silent})`, `enable()`, `disable()`,
+  `focus()`, `destroy()`. Unknown fields or directions are rejected. An empty catalogue disables
+  selection and returns null.
+- **Keyboard** — Tab reaches the direction button and field selector; Space/Enter toggle the
+  focused direction button. The field retains Select’s combobox keyboard map. The button’s
+  accessible name includes the current direction; its hover title shows current → next direction.
+- **Events** — one `change {value:{id,dir}}` event per changed field or direction. Typed search text does
+  not change the sort. The application applies the resulting state to its table, data source or route.
 <!-- /doc -->
 
 <!-- doc:checklist -->
@@ -800,7 +930,7 @@ panel material; the backdrop uses `--zx-color-overlay-backdrop`, and focus retur
 Structured modal: a header with title and close button, a body, and footer buttons.
 
 - **Options** — `title`, `size: 'sm'|'md'|'lg'|number`,
-  `buttons: [{ label, kind, action: 'close'|'cancel'|fn(dialog), autofocus }]`, `closable: true`.
+  `buttons: [{ label, kind, action: 'close'|'cancel'|fn(dialog), autofocus, shortcut }]`, `closable: true`.
 - **Methods** — `setTitle()`, `setContent()`, `setButtons()`,
   `addView(key, { content, buttons? })`, `showView(key)`.
 - **Statics returning Promises** — `Dialog.alert({ title, message })`,
@@ -928,8 +1058,16 @@ DOM child of the anchor's nearest Zx theme scope while the browser lifts it into
 
 A button that opens a `role="menu"`.
 
-- **Options** — `label`, `icon`, `kind`,
-  `items: [{ label, icon?, value?, disabled?, danger?, onselect? } | '-']`, `placement`.
+- **Options** — `label`, `icon`, `kind`, `placement`, and a shared `items` entry model:
+  - `'-'` or `{type: 'separator'}` draws a separator; `{type: 'heading', label}` draws a visible,
+    non-interactive heading.
+  - Actions keep `label`, `icon`, `value`, `disabled`, `danger`, and `onselect`, and may add
+    `description`, `badge`, `shortcut`, or a text/Node `adornment`.
+  - `href`, `target`, and `rel` render a genuine safe native link, preserving modifier clicks and
+    targets. Executable URL schemes are rejected; `_blank` receives `noopener noreferrer` by
+    default.
+  - `role: 'menuitemcheckbox'|'menuitemradio'` with `checked` exposes an APG checked action. The
+    application owns state changes and calls `setItems()` with the new model.
 - **Methods** — `setItems()`, `open()`, `close()`, `setLabel()`, `getTrigger()`, `getPanel()`,
   `focusFirst()`, `focusLast()`.
 - **Events** — `select {value, item}`, `open`, `close`.
@@ -949,8 +1087,9 @@ parked at the pointer, so it flips near a viewport edge like every other floatin
 - **Constructor** — `new ContextMenu(target, options)` where `target` is an element or selector.
   Unlike most components the target is not enhanced or replaced; `destroy()` removes only the
   anchor the menu created.
-- **Options** — `items: []` — the same `{label, icon, value, disabled, danger, onselect}` shape
-  MenuButton takes, with `'-'` for a separator, **or a function** `(context) => items` called on
+- **Options** — `items: []` uses the same headings, separators, links, descriptions, trailing
+  metadata, checked roles, and ordinary action shape MenuButton takes, **or a function**
+  `(context) => items` called on
   every opening so a row menu can disable the actions that row does not allow; returning an empty
   array cancels the opening and leaves the platform menu alone. `selector: null` restricts the
   menu to matching descendants and reports the matched element as the context — a table passes
@@ -965,6 +1104,8 @@ parked at the pointer, so it flips near a viewport edge like every other floatin
   half most pointer-only context menus miss. Arrows move between items, typing jumps to one by its
   first letters, Enter and Space activate, Escape and Tab close — and closing returns focus to
   wherever it came from.
+- **Cancellation** — `select` is cancelable just like MenuButton. Preventing it suppresses the
+  item callback and native navigation and leaves the context menu open.
 <!-- /doc -->
 
 <!-- doc:tooltip -->
@@ -995,6 +1136,15 @@ Two panes with a divider the user owns. The layout is a three-track CSS grid dri
 
 <!-- doc:table -->
 ### Table
+
+**Group and section rows.** `rowKind` names the field (or a callback) that classifies a row, and
+`rowKinds` maps a kind to `{span, render, class}`. A `span: true` row renders one
+`<th scope="colgroup">` across every rendered cell — including the selection and reorder columns —
+and carries no others, which is what a heading row in a billing document actually is. Both
+default to null, so a table that sets neither renders exactly as before. While any spanning row is
+present the header sort controls are withheld and `setSort()` is a no-op: sorting a grouped table
+scatters its positions out of their sections, and silently doing so is worse than not offering it.
+The stacked presentation renders the heading alone rather than a row of labelled blanks.
 
 Sortable, selectable, sticky-header data table. `fr` widths fill the container while px/auto
 widths scroll horizontally, and multi-select adds a tri-state header checkbox plus Shift+click
@@ -1098,6 +1248,12 @@ range select.
 <!-- doc:table-view -->
 ### TableView and the shared RecordView contract
 
+**`fieldControls` takes an object.** `true` and `false` behave as they always have; a
+`{label, target}` object names the chooser's trigger and mounts the disclosure into a host
+element — a list toolbar, say — instead of the view's own. `label` omitted resolves
+`recordView.fields`. This is what lets a translated application use the chooser at all: the
+trigger used to be the literal `Fields`, with no way to change it or move it.
+
 `TableView` is the record-oriented entry point above the lower-level `Table`. It extends
 `RecordView` and composes one complete `Table`, so editing, hierarchy, growing, row movement,
 responsive stacking, loading, and advanced table events remain available through `getTable()`.
@@ -1130,6 +1286,10 @@ portable state as TableView and KanbanView.
 - **Options** — the shared RecordView options plus `titleField`, `subtitleField`, `preview`,
   `previewAlt`, `link`, `actions`, `groupBy`, `groupOrder`, `minCardWidth`, `maxColumns`,
   `variant: 'outlined'|'raised'|'filled'`, `loadingCount`, `headingLevel`, and `label`.
+- **Selection trigger** — `selectionTrigger:'checkbox'` preserves existing selection behavior.
+  With `'card'`, selectable backgrounds toggle on click, Enter or Space, Shift+click selects a range,
+  and the checkbox is omitted. Links, actions and text selection keep their native behavior. Selection
+  remains announced through the card's ARIA description. This option also works in KanbanView.
 - **Cards** — each record is a focusable `<li>` with a native title link, separate secondary
   actions, optional native multi-select checkbox, labelled metadata, and a global ARIA selection
   description that retains valid listitem semantics.
@@ -1145,7 +1305,8 @@ portable state as TableView and KanbanView.
   a stable fallback. Title/action links are normalized; `_blank` links receive `noopener`.
 - **Grouping and layout** — `groupBy` is a field ID or callback; `groupOrder` may deliberately show
   empty groups. Cards reflow through container queries and may cap columns without viewport logic.
-- **Interaction** — Enter activates a focused card; Space toggles selection. Links, actions,
+- **Interaction** — By default Enter activates a focused card; Space toggles selection. With
+  `selectionTrigger:'card'`, Enter also toggles selection. Links, actions,
   selection controls, and selected text do not also activate the card. `recordaction` adds the
   resolved action to the shared event set.
 <!-- /doc -->
@@ -1161,6 +1322,8 @@ cards, advisory work-in-progress limits, and equivalent pointer/programmatic/key
   `columnOrder`, `swimlaneOrder`, collapsed IDs, `showCounts`, `showEmptyColumns`, `variant`, and
   `label`. Column/lane descriptors use stable `id`, `label`, optional stored `value`, and `accept`;
   columns may also declare an advisory `limit`.
+- **Selection trigger** — `selectionTrigger:'card'` provides the same checkbox-free click and
+  keyboard selection as CardView. The default remains `'checkbox'`.
 - **Methods** — configure/get/move columns and swim lanes, collapse either axis, and
   `moveRecord(id,{column?,lane?,index?})`. Board-specific order/collapse joins the common view
   state; record order, movement history, and selection do not. Saved preferences for data-derived
@@ -1295,6 +1458,46 @@ Declarative client-side filter bar producing a filtered array, commonly wired to
 - **Events** — `filter {rows, state}`.
 <!-- /doc -->
 
+<!-- doc:filter-panel -->
+### FilterPanel — typed filters from server metadata
+
+The third filter component, and the one a data-driven application reaches for. `DataFilter`
+filters a client-side row set; `Filter` builds a backend-neutral AST with groups and operators.
+`FilterPanel` takes the `{key: {type, label, options, min, max}}` map a list endpoint already
+publishes and gives back a query object — so the shape the server describes is the shape the
+form renders, with no per-application translation layer in between.
+
+- **Options** — `fields: Record<string, {type, label?, options?, min?, max?, step?, search?}>`,
+  `order` (display order; omitted uses object order), `value` (the applied filters, drafted
+  from), `mode: 'draft'|'live'`, `serialize: 'seconds'|'ms'|'iso'|(date, edge) => unknown`,
+  `emptyText`, `msg`.
+- **Types** — `text`, `select`, `date`, `date:range`, `int`, `float`, `number`, and
+  `int:range` / `float:range` / `number:range`. An unrecognised type renders a visible,
+  labelled placeholder naming it and is excluded from the value — never dropped silently.
+- **Methods** — `getValue()`, `setValue()`, `apply()`, `reset()`, `clear()`.
+- **Events** — `apply {value}`, `change {value, field}`.
+
+Five behaviours are deliberate rather than incidental:
+
+- **A select is multi-valued.** "Open or waiting" is the common request, and single choice turns
+  it into two visits. It composes `Checklist`, which brings its own search past eight options,
+  and the group is named after the filter rather than after the component.
+- **Each end of a range carries its own accessible name.** One `<label for>` cannot name two
+  inputs, and a group label that names neither is worse than no group label.
+- **`clear()` commits; `reset()` does not.** Clear is "no filters" and applies immediately —
+  emptying the controls while the list stays filtered is a panel that lies about what is on
+  screen. Reset restores the constructed value without committing, which is a host sheet's
+  Cancel.
+- **An empty `fields` map is normal.** An instance that configures no filters for a settings
+  section is the ordinary case; the panel renders `emptyText`, never an error.
+- **`0` is a value.** `''`, `null`, `[]` and `{from: null, to: null}` are not, and only active
+  constraints reach the emitted value.
+
+`serialize` decides how a date leaves the component, because the answer is a wire-format
+decision rather than an application one. A range's upper bound takes the **end** of its day, or
+a one-day range matches nothing.
+<!-- /doc -->
+
 <!-- doc:filter -->
 ### Filter — dynamic backend-neutral expressions
 
@@ -1310,7 +1513,17 @@ adapter to compile into its own backend query language.
   priority/country/currency/unit/entity, and tags. Compatible operators and their arity come from
   the exported `filterOperators` matrix; applications may explicitly override/add operator IDs.
 - **Options** — `fields`, `value`, `operators`, `allowGroups: true`, `maxDepth: 3`,
-  `maxConditions: 50`, `autoApply: false`, `readonly`, `disabled`, `applyLabel`, `clearLabel`.
+  `maxConditions: 50`, `autoApply: false`, `readonly`, `disabled`, `applyLabel`, `clearLabel`,
+  `searchable: false`, `layout: 'standard'|'compact'`, `rootLogic: null|'and'|'or'`,
+  `showApply: true`, `showRootActions: true`.
+- **Searchable conditions** — opt in to local-search `Select` controls for fields, operators and
+  static single-choice/boolean values. Uncommitted search text never becomes a condition value.
+  Multi-choice, async and custom editors retain their existing contracts. Compact rows keep field,
+  operator, value and removal together, wrapping the value below on narrow containers.
+- **Embedding** — hide internal Apply and duplicate root Add controls when the parent drawer owns
+  submission. `rootLogic` fixes the authored root logic; incompatible saved expressions remain
+  visible and invalid until corrected, never silently rewritten. Removing the last condition
+  returns keyboard focus to Add filter.
 - **Methods** — `getValue()`, atomic `setValue()`, `addCondition()`, `addGroup()`, `update()`,
   `remove()`, `move()`, `validate()`, `apply()`, `clear()`, `focus()`, `setReadonly()`,
   `enable()`/`disable()`.
@@ -1412,6 +1625,26 @@ Beyond the built-in field types, these widget types wrap whole components, used 
 - `date`/`month`/`datetime` (Datebox/MonthPicker — pass a `Date` value), `time` (Timebox).
 - `valuelist` (ValueList), `multivalueeditor` (MultiValueEditor), `upload` (FieldUpload),
   `toggle` (Toggle).
+<!-- /doc -->
+
+<!-- doc:code-editor -->
+### CodeEditor — structured text without an editor dependency
+
+A textarea that behaves like a source editor, and deliberately not more than that: native undo,
+native IME, and no syntax engine. It never executes or injects the value, so it is the safe
+surface for structured text — templates, queries, configuration — while rich HTML authoring
+stays a separate policy decision.
+
+- **Options** — `value`, `name`, `language` (shown to the reader and exposed as data),
+  `label`, `placeholder`, `rows` (clamped 2–100), `indent` (inserted by Tab, removed by
+  Shift+Tab), `wrap: 'off'|'soft'|'hard'`, `spellcheck`, `readOnly`, `disabled`,
+  `status` (the line/column readout).
+- **Methods** — `setValue()`.
+- **Events** — `input {value}`, `change {value}`.
+
+Tab indents rather than moving focus, which is what a code surface has to do and what makes it a
+keyboard trap if nothing else is arranged — Escape then Tab leaves the field. A `code` Form field
+adapter is registered by `registerFieldAdapters()`.
 <!-- /doc -->
 
 <!-- doc:questionnaire -->
@@ -1583,6 +1816,34 @@ so buttons and links in its action, content, and footer regions remain valid sib
   should compose a native checkbox or radio.
 - **Layout** — horizontal media uses the public `--zx-card-media-size` hook and stacks through a
   container query when the card itself becomes narrow.
+<!-- /doc -->
+
+<!-- doc:stat-tile -->
+### StatTile — `statTile(options)` / `StatTile`
+
+A labelled number with optional delta, trend and icon: the most-copied snippet in any
+application UI, and the reason competing template products advertise a card count rather than a
+component count. `statTile()` is the convenience form of `new StatTile(null, options)` and
+returns the component, the way `tooltip()` does; call `.toElement()` for the node to place.
+
+- **Options** — `label`, `value`, `format: 'number'|'currency'|'percent'|'fileSize'|null|fn`,
+  `currency`, `locale`, `delta`, `deltaKind: 'positive'|'negative'|'neutral'`, `deltaFormat`,
+  `deltaLabel`, `trend: number[]`, `icon`, `kind`, `href`, `clickable`, `loading`, `msg`.
+- **Methods** — `update(options)`, `getAccessibleName()`.
+- **Events** — `click {event}`.
+
+- **A delta is never colour alone.** It carries its sign and a direction glyph, and `deltaKind`
+  decides the colour rather than the sign — rising ticket counts are not a success, and a
+  component that assumes "up is good" is wrong for half the metrics in any business.
+- **The accessible name is label + value + spoken delta** ("up 2 vs. last week"). The visible
+  `+2` row and the sparkline are `aria-hidden`, because a sparkline nobody can read is
+  decoration and saying the delta twice is worse than saying it once.
+- **The element follows the behaviour** — `href` renders an `<a>`, `onclick` without `href` a
+  `<button>`, neither a `<div>` with `role="group"`. Never a div with a click handler.
+- **`loading: true` renders a skeleton shaped like the tile**, not a spinner.
+
+Nothing in it assumes a fixed set of buckets or a fixed label: the content of a dashboard tile
+is the instance's, not the library's.
 <!-- /doc -->
 
 <!-- doc:aurora -->
@@ -1795,6 +2056,37 @@ first and last items.
   `aria-current="page"` and is deliberately not interactive; separators are `aria-hidden`.
 <!-- /doc -->
 
+<!-- doc:list-toolbar -->
+### ListToolbar — the bar above a record view
+
+Every list carries the same four questions — what am I searching for, which records, which
+columns, in what shape. The parts have always existed (`Search`, `SortControl`, `badge()`,
+`button()`); this is the composition, so that every consumer stops assembling it differently and
+forgetting the same thing.
+
+- **Options** — `search: {placeholder?, value?, debounce?, clearable?}|false`, `count`,
+  `countText`, `views: Array<string|{id, label?, icon?}>` (string presets `auto|cards|table|list`),
+  `view`, `tools: [{id, label?, icon?, badge?, badgeKind?, pressed?, disabled?, onclick?}]`,
+  `label`, `msg`.
+- **Methods** — `setCount()`, `setBadge()`, `setPressed()`, `setToolDisabled()`, `setTools()`,
+  `getTool()`, `getToolsElement()`, `addTool()`, `setView()`, `getView()`, `getSearch()`,
+  `setSearch()`, `focusSearch()`, `bind()`, `unbind()`.
+- **Events** — `search {value}`, `viewchange {view, previous}`, `action {id, pressed, tool}`.
+
+Three properties are the reason to use this rather than assemble your own:
+
+- **A tool's badge is part of its accessible name**, not a second thing beside it — a tool
+  showing `2` announces as "Filters (2)". Once filters live behind a panel, a list can show four
+  rows out of twenty with nothing on screen saying why, and the badge is what prevents that.
+- **The count line is a live region**, and `setCount(null)` clears it. The previous number
+  describes the previous filters; a stale count during a load is worse than none.
+- **Tool buttons meet the 44 px target** in both densities.
+
+`bind(view)` is optional sugar for a `TableView` or `CardView`: it feature-detects rather than
+importing them, adopts the view's shape, and mounts a field chooser built with
+`fieldControls: {target}` into the toolbar. The toolbar is fully functional without it.
+<!-- /doc -->
+
 <!-- doc:pagination -->
 ### Pagination
 
@@ -1824,9 +2116,16 @@ treated as one empty page rather than zero pages.
 Application navigation bar: brand, items, and right-aligned actions. Items overflow into a "More"
 menu on narrow widths.
 
-- **Options** — `title`, `items: [{ name, title, badge? }]`, `active`, `actions: []`.
+- **Options** — `title`, `items: [{ name, title, badge? }]`, `active`, `actions: []`,
+  `overflow: true`, `overflowBelow: '44rem'`, `minVisible: 0`.
 - **Methods** — `setTitle()`, `setItems()`, `setActive()`, `setBadge()`, `setActions()`.
 - **Events** — `change {name}`.
+
+**Overflow is a default, not a law.** Collapsing every item behind "More" is right for a top app
+bar and wrong for a phone bottom bar, where the navigation is the point. `overflow: false` keeps
+every item at every width; `overflowBelow` moves the threshold; `minVisible: n` pins the first `n`
+items and overflows the rest. At the default the collapse is a container query with no observer
+installed; any other threshold installs a `ResizeObserver`, which is the cost of asking for one.
 <!-- /doc -->
 
 <!-- doc:app-sidebar -->
@@ -1920,8 +2219,14 @@ built-in names are translated to their Font Awesome counterparts (`x` → `fa-xm
 `fa-magnifying-glass`, `warning` → `fa-triangle-exclamation`, …), so component code never changes.
 Prefixes override: `'fa:user'`, `'fas:user'`/`'regular:user'`/`'duotone:user'`/`'thin:user'`,
 `'kit:zeyos-notes'` (custom kit icons), `'builtin:check'` (force the inline SVG). A literal class
-list — `'fa-sharp fa-solid fa-user'` — is used verbatim. Unknown *built-in* names throw
-`RangeError`; unknown names under Font Awesome are passed through to the kit.
+list — `'fa-sharp fa-solid fa-user'` — is used verbatim. Unknown names under Font Awesome are
+passed through to the kit, which resolves them in the browser.
+
+**An unknown *built-in* name does not throw.** Icon names routinely arrive from a server, and one
+unconfigured name must not take down the screen it appears on, so it renders an empty `<svg>` of
+the requested size — layout does not shift — carrying `data-zx-icon-missing="<name>"`, and reports
+itself once per distinct name through `console.warn`. Pass `icon(name, { strict: true })` for the
+old `RangeError`, at a call site that can afford to fail: a test, or a build-time check.
 
 Font Awesome elements are sized with `font-size` and occupy 1em; bundled SVGs use width/height
 attributes. Both honour `label` (`null` ⇒ `aria-hidden`, otherwise `role="img"` + `aria-label`).

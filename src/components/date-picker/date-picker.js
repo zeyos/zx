@@ -2,6 +2,7 @@ import { Component } from '../../core/component.js';
 import { addDays, addMonths, formatDate, getWeekStart, isSameDay, parseDate } from '../../core/date.js';
 import { h } from '../../core/dom.js';
 import { icon } from '../../core/icons.js';
+import { printf } from '../../core/i18n.js';
 import { TimePicker } from './time-picker.js';
 
 /**
@@ -55,7 +56,7 @@ export class DatePicker extends Component {
           ref: 'previous',
           class: 'zx-date-picker__nav',
           type: 'button',
-          ariaLabel: 'Previous month'
+          ariaLabel: this._message('datePicker.previousMonth', 'Previous month')
         }, icon('chevron-left')),
         h('button', {
           ref: 'heading',
@@ -68,7 +69,7 @@ export class DatePicker extends Component {
           ref: 'next',
           class: 'zx-date-picker__nav',
           type: 'button',
-          ariaLabel: 'Next month'
+          ariaLabel: this._message('datePicker.nextMonth', 'Next month')
         }, icon('chevron-right'))
       ),
       h('div', {
@@ -81,14 +82,14 @@ export class DatePicker extends Component {
           ref: 'quickPrevious',
           class: 'zx-date-picker__nav',
           type: 'button',
-          ariaLabel: 'Previous year'
+          ariaLabel: this._message('datePicker.previousYear', 'Previous year')
         }, icon('chevron-left')),
         h('span', { ref: 'quickYear', class: 'zx-date-picker__quick-year', ariaLive: 'polite' }),
         h('button', {
           ref: 'quickNext',
           class: 'zx-date-picker__nav',
           type: 'button',
-          ariaLabel: 'Next year'
+          ariaLabel: this._message('datePicker.nextYear', 'Next year')
         }, icon('chevron-right'))
       ),
       h('div', { ref: 'quickGrid', class: 'zx-date-picker__quick-grid', role: 'grid' })),
@@ -96,7 +97,7 @@ export class DatePicker extends Component {
         ref: 'grid',
         class: 'zx-date-picker__grid',
         role: 'grid',
-        ariaLabel: 'Calendar'
+        ariaLabel: this._message('datePicker.calendar', 'Calendar')
       },
       h('thead', { ref: 'weekdays' }),
       h('tbody', { ref: 'days' }))
@@ -203,7 +204,7 @@ export class DatePicker extends Component {
       row.append(h('th', {
         class: 'zx-date-picker__week-heading',
         scope: 'col',
-        ariaLabel: 'Week number'
+        ariaLabel: this._message('datePicker.weekNumber', 'Week number')
       }, '#'));
     }
     const sunday = new Date(2023, 0, 1);
@@ -224,7 +225,8 @@ export class DatePicker extends Component {
     const offset = (first.getDay() - this._weekStart + 7) % 7;
     const start = addDays(first, -offset);
     this.refs.heading.textContent = formatDate(first, '%B %Y');
-    this.refs.heading.setAttribute('aria-label', `Choose month and year, ${formatDate(first, '%B %Y')}`);
+    this.refs.heading.setAttribute('aria-label',
+      this._message('datePicker.chooseMonthYear', 'Choose month and year, %1', formatDate(first, '%B %Y')));
     const rows = [];
 
     for (let week = 0; week < 6; week += 1) {
@@ -234,7 +236,7 @@ export class DatePicker extends Component {
         row.append(h('th', {
           class: 'zx-date-picker__week',
           scope: 'row',
-          ariaLabel: `Week ${isoWeekNumber(rowStart)}`
+          ariaLabel: this._message('datePicker.week', 'Week %1', isoWeekNumber(rowStart))
         }, String(isoWeekNumber(rowStart))));
       }
       for (let column = 0; column < 7; column += 1) {
@@ -449,6 +451,18 @@ export class DatePicker extends Component {
   /** @param {Date} date @returns {HTMLButtonElement|null} */
   _buttonForDate(date) {
     return this.refs.days.querySelector(`[data-date="${formatDate(date, '%Y-%m-%d')}"]`);
+  }
+
+  /**
+   * Resolves a message through the host translator, falling back to the built-in English text.
+   * @param {string} key Message key.
+   * @param {string} fallback Built-in text, with `%1`-style placeholders.
+   * @param {...unknown} args Interpolation values.
+   * @returns {string}
+   */
+  _message(key, fallback, ...args) {
+    const message = this.msg(key, ...args);
+    return message === key ? printf(fallback, args) : message;
   }
 }
 

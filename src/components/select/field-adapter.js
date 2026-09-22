@@ -9,7 +9,10 @@ export function registerSelectFieldAdapter() {
   Field.register('zxselect', (field, options) => {
     const props = options.props ?? {};
     const preset = props.preset;
-    const selectOptions = { ...props, value: options.value };
+    const selectOptions = { ...props, value: options.value, label: options.label || props.label, placeholder: props.placeholder ?? options.placeholder };
+    field.listen(field.el, 'click', (event) => {
+      if (event.target.closest?.('.zx-field__label')) field.adapter.focus();
+    });
     delete selectOptions.preset;
     const select = field.own(preset === 'priority'
       ? Select.priority(null, selectOptions)

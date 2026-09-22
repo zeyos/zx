@@ -1,5 +1,6 @@
 import { Component } from '../../core/component.js';
 import { h } from '../../core/dom.js';
+import { printf } from '../../core/i18n.js';
 import { icon } from '../../core/icons.js';
 import { uid } from '../../core/util.js';
 import {
@@ -99,8 +100,10 @@ export class AppSidebar extends Component {
   setItems(items) {
     this._items = normalizeAppItems(items);
     this._reconcileExpanded();
-    if (this._rail) this._rail.setItems(this._items);
-    else this._renderTree();
+    if (this._rail) {
+      this._rail.setItems(this._items);
+      this._decorateRail();
+    } else this._renderTree();
     return this;
   }
 
@@ -151,7 +154,10 @@ export class AppSidebar extends Component {
     const expanded = !this._expanded.has(key);
     if (expanded) this._expanded.add(key);
     else this._expanded.delete(key);
-    if (!this._rail) this._renderTree();
+    if (!this._rail) {
+      this._renderTree();
+      if (expanded) this._markBranchMotion(key);
+    }
     if (!silent) this.emit('branchchange', {
       item,
       id: item.id,
@@ -298,7 +304,7 @@ export class AppSidebar extends Component {
     const collapseButton = h('button', {
       class: 'zx-app-sidebar__collapse zx-icon-btn',
       type: 'button',
-      ariaLabel: 'Minimize application sidebar'
+      ariaLabel: this._message('appSidebar.minimize', 'Minimize application sidebar')
     }, icon(this._side === 'right' ? 'chevron-right' : 'chevron-left'));
     collapseButton.hidden = !this.options.collapsible;
     const footer = h('footer', { class: 'zx-app-sidebar__footer' });
@@ -330,7 +336,7 @@ export class AppSidebar extends Component {
       const expandButton = h('button', {
         class: 'zx-app-sidebar__rail-toggle zx-icon-btn',
         type: 'button',
-        ariaLabel: 'Expand application sidebar'
+        ariaLabel: this._message('appSidebar.expand', 'Expand application sidebar')
       }, icon(this._side === 'right' ? 'chevron-left' : 'chevron-right'));
       railHeader.append(expandButton);
       this._railExpandButton = expandButton;
@@ -356,6 +362,31 @@ export class AppSidebar extends Component {
     });
     this._listenMode(railHost, 'zx-select', (event) => event.stopPropagation());
     this._listenMode(railHost, 'zx-flyoutchange', (event) => event.stopPropagation());
+    this._decorateRail();
+  }
+
+  /**
+   * Keeps a minimized rail's counts readable and audible.
+   *
+   * A rail destination is icon-only, so its accessible name is the label alone and the badge the
+   * expanded tree showed as text is announced by nothing. Here the figure is folded back into the
+   * name, and `data-zx-badge` tells the stylesheet whether the count still fits the target or has
+   * to be drawn as a dot. Presentation only: no item, option, event, or listener is touched.
+   * @returns {void}
+   */
+  _decorateRail() {
+    const rail = this.refs.rail;
+    if (!rail) return;
+    for (const control of rail.querySelectorAll('.zx-app-rail__item[data-app-nav-value-id]')) {
+      const badge = control.querySelector(':scope > .zx-app-rail__item-badge');
+      if (!badge) continue;
+      const item = findItem(this._items, control.getAttribute('data-app-nav-value-id'));
+      if (!item || item.badge == null) continue;
+      const count = String(item.badge);
+      badge.dataset.zxBadge = count.length > 2 ? 'dot' : 'count';
+      control.setAttribute('aria-label',
+        this._message('appSidebar.itemBadge', '%1 (%2)', item.label, count));
+    }
   }
 
   /** @param {EventTarget} target @param {string} type @param {EventListener} listener @returns {void} */
@@ -492,6 +523,35 @@ export class AppSidebar extends Component {
       if (descendant) control.dataset.activeDescendant = 'true';
       else delete control.dataset.activeDescendant;
     }
+  }
+
+  /**
+   * Flags the sublist a branch toggle just opened so the stylesheet can animate that one branch.
+   *
+   * `_renderTree()` rebuilds every row on every toggle, so a transition declared on the sublist
+   * alone would replay on branches that never moved. The attribute is written after the rebuild
+   * and disappears with the element on the next one, which is why it needs no teardown.
+   * @param {string} key Branch id as a string.
+   * @returns {void}
+   */
+  _markBranchMotion(key) {
+    if (!this.refs.list) return;
+    const control = [...this.refs.list.querySelectorAll('[data-app-nav-id]')]
+      .find((candidate) => candidate.getAttribute('data-app-nav-id') === key) ?? null;
+    const sublist = control?.parentElement?.querySelector(':scope > .zx-app-sidebar__sublist');
+    if (sublist instanceof HTMLElement) sublist.dataset.branchMotion = 'expand';
+  }
+
+  /**
+   * Resolves a message through the host translator, falling back to the built-in English text.
+   * @param {string} key Message key.
+   * @param {string} fallback Built-in text, with `%1`-style placeholders.
+   * @param {...unknown} args Interpolation values.
+   * @returns {string}
+   */
+  _message(key, fallback, ...args) {
+    const message = this.msg(key, ...args);
+    return message === key ? printf(fallback, args) : message;
   }
 
   /** @returns {void} */

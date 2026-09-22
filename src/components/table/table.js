@@ -29,6 +29,24 @@ import { sortRows } from './sort.js';
  */
 
 /**
+ * How one resolved row kind is presented. `rowKinds` is keyed by the kind coerced to a string, so
+ * `{ 1: … }` and `{ '1': … }` name the same entry.
+ * @typedef {Object} TableRowKind
+ * @property {boolean} [span=false] Draw the row as a single cell across every rendered column — a
+ * section heading rather than a record. The cell is a `<th scope="colgroup">`, not a `<td>`,
+ * because it labels the columns of the rows beneath it and a screen reader walking the table
+ * should meet it as a heading rather than as a value. A spanning row carries no selection
+ * checkbox, is never editable, and is skipped by `rowReorder`; it still emits `rowclick` and still
+ * participates in `getData()` and `updateRow()`.
+ * @property {(row: TableRow, index: number) => Node|string|number|null|undefined} [render] Content
+ * of the spanning cell. Omitted, the cell falls back to the row's raw value for the first visible
+ * column, which is what a host otherwise writes by hand.
+ * @property {string} [class] Space-separated classes added to the row, on top of `rowClass`. Zx
+ * ships no section look: a billing section is not a kanban swimlane, so the tint, the weight and
+ * the rule above it are the host's to decide.
+ */
+
+/**
  * Editing handle handed to a custom `column.editor`.
  * @typedef {Object} TableEditorApi
  * @property {unknown} value Value the cell holds when the editor opens.
@@ -100,6 +118,15 @@ import { sortRows } from './sort.js';
  * placed as given, and a function is called on each render, which is what to use when the
  * placeholder holds live controls.
  * @property {((row: TableRow) => string)|null} [rowClass=null] Additional row class callback.
+ * @property {string|((row: TableRow) => unknown)|null} [rowKind=null] Row property or callback
+ * naming each row's kind — the `type` on a ZeyOS transaction line, where one value is a position
+ * carrying quantities and amounts and another is a section heading that groups the positions under
+ * it. `null`, the default, renders every row exactly as before.
+ * @property {Record<string, TableRowKind>|null} [rowKinds=null] Presentation per kind, keyed by the
+ * resolved kind coerced to a string. A kind with no entry here renders as an ordinary row. While
+ * any row in the current data resolves to a `span` kind the header sort controls are withheld and
+ * `setSort()` is inert: sorting a grouped table scatters the positions out of their sections, and
+ * doing that silently is worse than not offering it. `sortMode: 'server'` still owns its own order.
  * @property {boolean} [zebra=true] Whether alternate rows use the zebra background.
  * @property {TableEditMode} [editMode=false] Inline editing mode. `'cell'` edits one cell, `'row'`
  * opens every editable cell of the row together and commits them as a unit. Editing is completely
@@ -258,6 +285,8 @@ export class Table extends Component {
     height: null,
     emptyText: null,
     rowClass: null,
+    rowKind: null,
+    rowKinds: null,
     zebra: true,
     editMode: false,
     editTrigger: 'double',
@@ -288,6 +317,12 @@ export class Table extends Component {
     this._original = created ? null : snapshotTarget(root);
     this._columns = normalizeTableColumns(this.options.columns);
     this._data = Array.isArray(this.options.data) ? [...this.options.data] : [];
+    // Row kinds resolve before the first sort: `_sortData()` refuses to run while the data holds a
+    // spanning row, and the initial `sort` option reaches it before anything is rendered.
+    this._rowKind = normalizeRowKind(this.options.rowKind);
+    this._rowKinds = normalizeRowKinds(this.options.rowKinds);
+    this._spanning = this._hasSpanningRow();
+    this._sortWarned = false;
     this._selected = new Set();
     this._selectionAnchorId = null;
     this._sort = normalizeSort(this.options.sort, this._columns);
@@ -666,6 +701,8 @@ export class Table extends Component {
     const row = this.getRow(id);
     const target = this.getRow(targetId);
     if (!row || !target || Object.is(id, targetId)) return this;
+    // A section heading has no handle to grab; refuse the programmatic route for the same reason.
+    if (this._isSpanningRow(row)) return this;
     const next = reorderTableRows(this._data, this.options.rowId, id, targetId, position, this._hierarchy?.parentId);
     if (!next) return this;
     const event = this.emit('rowmove', { row, id, target, targetId, position });
@@ -704,6 +741,10 @@ export class Table extends Component {
   /**
    * Activates a column sort. Local mode stably reorders data; server mode only updates the
    * header state and emits the request event.
+   *
+   * Inert while the data holds a spanning row: a sort would scatter the positions out of the
+   * sections that group them, in either sort mode. The header withholds its controls for the same
+   * reason, so nothing on screen invites the call.
    * @param {string} id Column id.
    * @param {TableSortDirection} [dir] Direction; omitted toggles the current column.
    * @param {{silent?: boolean}} [options={}] Event options.
@@ -712,6 +753,14 @@ export class Table extends Component {
    * @fires Table#editcancel
    */
   setSort(id, dir, options = {}) {
+    if (this._spanning) {
+      if (!this._sortWarned) {
+        this._sortWarned = true;
+        console.warn('[zx.Table] setSort() is inert while the data contains spanning rowKinds rows: '
+          + 'sorting would scatter the rows out of the sections that group them.');
+      }
+      return this;
+    }
     // Server mode never re-renders the body, so the open editor is dropped here rather than in
     // `_renderBody()`.
     this._abortEdit({ focus: false });
@@ -769,7 +818,7 @@ export class Table extends Component {
    */
   setSelection(ids) {
     if (!Array.isArray(ids)) throw new TypeError('Table selection must be an array of row ids');
-    const valid = new Set(this._data.map((row) => this._idFor(row)));
+    const valid = this._selectableIds();
     const next = new Set();
     if (this.options.selectable !== false) {
       for (const id of ids) {
@@ -889,6 +938,8 @@ export class Table extends Component {
     if (!requested) return this;
     const current = this._data.find((candidate) => Object.is(this._idFor(candidate), rowId));
     if (current === undefined) return this;
+    // A spanning row renders no column cells at all, so there is nothing to open an editor over.
+    if (this._isSpanningRow(current)) return this;
     const column = this._editMode === 'row' && this._hiddenColumns.has(requested.id)
       ? this._visibleColumns().find((candidate) => resolveEditable(candidate, current) !== false) ?? null
       : requested;
@@ -1205,6 +1256,45 @@ export class Table extends Component {
     return this._columns.filter((column) => !this._hiddenColumns.has(column.id));
   }
 
+  /**
+   * Whether a row draws as one cell across the table instead of as a record.
+   * @param {TableRow} row Row to classify.
+   * @returns {boolean}
+   */
+  _isSpanningRow(row) {
+    if (this._rowKind === null || this._rowKinds === null) return false;
+    return isSpanningRow(row, this._rowKind, this._rowKinds);
+  }
+
+  /**
+   * Whether any row in the current data — not only the rendered prefix — spans. This is what
+   * withholds the sort controls, and the reader must not be offered a control that the next
+   * `growBy()` would have to take away again.
+   * @returns {boolean}
+   */
+  _hasSpanningRow() {
+    return hasSpanningRow(this._data, this._rowKind, this._rowKinds);
+  }
+
+  /**
+   * How many cells one row occupies: every visible column plus the structural columns the table
+   * renders beside them. Shared by the spanning cell and the empty-state cell so the two can never
+   * disagree about the table's width.
+   * @returns {number}
+   */
+  _spanColspan() {
+    return tableSpanColspan(this._visibleColumns().length, {
+      selectable: this.options.selectable,
+      rowReorder: this.options.rowReorder
+    });
+  }
+
+  /** @returns {TableRow[]} Rendered rows that can carry a selection; spanning rows cannot. */
+  _selectableData() {
+    const visible = this._visibleData();
+    return this._rowKind === null ? visible : visible.filter((row) => !this._isSpanningRow(row));
+  }
+
   /** @returns {HTMLElement} */
   _createColumnControls() {
     const list = h('div', { class: 'zx-table__column-list' });
@@ -1213,7 +1303,8 @@ export class Table extends Component {
       class: 'zx-table__column-status', role: 'status', ariaLive: 'polite'
     });
     const details = h('details', { class: 'zx-table__column-controls' },
-      h('summary', { class: 'zx-button zx-button--sm' }, icon('fields', { size: 13 }), 'Columns'),
+      h('summary', { class: 'zx-button zx-button--sm' }, icon('fields', { size: 13 }),
+        this._message('table.columns', 'Columns', [])),
       list);
     this._renderColumnControls();
     return details;
@@ -1243,7 +1334,8 @@ export class Table extends Component {
         ? h('label', { for: controlId }, toggle, h('span', {}, column.label))
         : h('span', { class: 'zx-table__column-label' }, column.label);
       const order = this.options.columnReorder ? h('span', {
-        class: 'zx-table__column-order', role: 'group', ariaLabel: `Move ${column.label}`
+        class: 'zx-table__column-order', role: 'group',
+        ariaLabel: this._message('table.moveColumn', 'Move %1', [column.label])
       },
       h('button', {
         class: 'zx-table__column-move', type: 'button', disabled: index === 0,
@@ -1494,9 +1586,9 @@ export class Table extends Component {
          * click is usually a bulk action. `showAll()` first if you mean all of them.
          */
         if (this._selectAll.checked) {
-          for (const dataRow of this._visibleData()) this._selected.add(this._idFor(dataRow));
+          for (const dataRow of this._selectableData()) this._selected.add(this._idFor(dataRow));
         } else {
-          for (const dataRow of this._visibleData()) this._selected.delete(this._idFor(dataRow));
+          for (const dataRow of this._selectableData()) this._selected.delete(this._idFor(dataRow));
         }
         this._selectionAnchorId = null;
         this._syncSelection();
@@ -1507,12 +1599,16 @@ export class Table extends Component {
     }
 
     this._headers = new Map();
+    // What this header was built from, so `_renderBody()` can tell whether it is still the right one.
+    this._headerSpanning = this._spanning;
     for (const column of this._visibleColumns()) {
       const th = h('th', { scope: 'col' });
       const align = column.align ?? (isNumericColumn(column) ? 'end' : null);
       if (align) th.dataset.align = align;
       if (column.headerTitle) th.title = column.headerTitle;
-      if (column.sortable) {
+      // Withheld, not disabled: a header that invites a sort the component will refuse is worse
+      // than a header that never offered one. The label still reads exactly the same.
+      if (column.sortable && !this._spanning) {
         const button = h('button', {
           class: 'zx-table__sort-button',
           type: 'button'
@@ -1537,6 +1633,18 @@ export class Table extends Component {
     // Every data mutation funnels through here, so this is the single place that guarantees no
     // editor component outlives the rows it was rendered into.
     this._abortEdit({ focus: false });
+    /*
+     * And the single place that notices the data gaining or losing its sections. The header owns
+     * the sort controls, so it has to be rebuilt when the answer flips — otherwise a table that was
+     * given grouped data after construction keeps offering a sort it will now refuse, and one whose
+     * sections were filtered away never gets its sort back.
+     *
+     * Compared against what the *header* was built from, not against `_spanning`: `_sortData()`
+     * runs first on every data mutation and has already brought `_spanning` up to date, so
+     * comparing against it would find no change and leave the stale header in place.
+     */
+    this._spanning = this._hasSpanningRow();
+    if (this._headers && this._spanning !== this._headerSpanning) this._renderHeader();
     const fragment = document.createDocumentFragment();
     this._rowMeta = new WeakMap();
     this._rowElements = new Map();
@@ -1546,11 +1654,7 @@ export class Table extends Component {
     this._hierarchyMeta = new Map(projected.map((entry) => [entry.id, entry]));
     if (this._data.length === 0) {
       fragment.append(h('tr', { class: 'zx-table__empty-row' },
-        h('td', {
-          class: 'zx-table__empty',
-          colspan: this._visibleColumns().length + (this.options.selectable === 'multi' ? 1 : 0)
-            + (this.options.rowReorder ? 1 : 0)
-        }, this._emptyContent())
+        h('td', { class: 'zx-table__empty', colspan: this._spanColspan() }, this._emptyContent())
       ));
     } else {
       // Indices stay absolute: a row's index is its place in the data, not in what is on screen.
@@ -1599,7 +1703,16 @@ export class Table extends Component {
     if (this._growStep) tr.setAttribute('aria-rowindex', String(tree.visibleIndex + 2));
     const rowClass = typeof this.options.rowClass === 'function' ? this.options.rowClass(row) : '';
     if (rowClass) tr.classList.add(...String(rowClass).split(/\s+/).filter(Boolean));
-    if (this.options.selectable !== false) tr.setAttribute('aria-selected', String(this._selected.has(id)));
+    const kind = this._rowKind === null ? null : resolveRowKind(row, this._rowKind);
+    const kindSpec = kind === null ? null : resolveRowKindSpec(this._rowKinds, kind);
+    const spanning = Boolean(kindSpec?.span);
+    if (kind !== null) tr.dataset.rowKind = kind;
+    if (kindSpec?.class) tr.classList.add(...String(kindSpec.class).split(/\s+/).filter(Boolean));
+    // A spanning row is a heading, not a record: `aria-selected="false"` would announce it as one
+    // more selectable row that simply is not selected.
+    if (this.options.selectable !== false && !spanning) {
+      tr.setAttribute('aria-selected', String(this._selected.has(id)));
+    }
     if (this._hierarchy) {
       tr.setAttribute('aria-level', String(tree.depth + 1));
       if (tree.hasChildren) tr.setAttribute('aria-expanded', String(this._expanded.has(id)));
@@ -1608,6 +1721,25 @@ export class Table extends Component {
     const elements = this._rowElements.get(id) ?? [];
     elements.push(tr);
     this._rowElements.set(id, elements);
+
+    if (spanning) {
+      tr.dataset.span = 'true';
+      /*
+       * One cell, `<th scope="colgroup">`, covering the reorder and selection columns as well as
+       * the data ones: the row labels the columns of the records beneath it, so it belongs in the
+       * accessibility tree as a heading and not as a value — and a second, narrower cell beside it
+       * would put a blank column back into exactly the layout this removes.
+       */
+      const cell = /** @type {HTMLTableCellElement} */ (h('th', {
+        class: 'zx-table__section-cell', scope: 'colgroup', colspan: this._spanColspan()
+      }));
+      const content = spanRowContent(row, kindSpec, this._visibleColumns(), index);
+      if (content && typeof content === 'object' && typeof content.nodeType === 'number') {
+        cell.append(content);
+      } else if (content != null) cell.append(document.createTextNode(String(content)));
+      tr.append(cell);
+      return tr;
+    }
 
     if (this.options.rowReorder) {
       const handle = h('button', {
@@ -1729,7 +1861,10 @@ export class Table extends Component {
     }
 
     this.emit('rowclick', { ...meta, event });
-    if (this.options.selectable === 'single' && !this._selected.has(meta.id)) {
+    // The click still reaches the host — collapsing a section is a reasonable thing to hang off it —
+    // but it does not select the heading, which carries no checkbox in `multi` either.
+    if (this.options.selectable === 'single' && !this._selected.has(meta.id)
+      && !this._isSpanningRow(meta.row)) {
       this._selected = new Set([meta.id]);
       this._selectionAnchorId = meta.id;
       this._syncSelection();
@@ -2093,6 +2228,8 @@ export class Table extends Component {
       if (row < 0 || row >= visible.length) return null;
       const candidateRow = visible[row];
       const candidateColumn = columns[column];
+      // Tab walks past a section heading rather than stopping on a row that has no cells to edit.
+      if (this._isSpanningRow(candidateRow)) continue;
       if (resolveEditable(candidateColumn, candidateRow) !== false) {
         return {
           id: this._idFor(candidateRow),
@@ -2172,6 +2309,9 @@ export class Table extends Component {
       const start = Math.min(anchorIndex, currentIndex);
       const end = Math.max(anchorIndex, currentIndex);
       for (let index = start; index <= end; index += 1) {
+        // Indices stay against the rendered rows so `visibleIndex` still lines up; a section caught
+        // inside the range is stepped over rather than selected.
+        if (this._isSpanningRow(visible[index])) continue;
         const id = this._idFor(visible[index]);
         if (checked) this._selected.add(id);
         else this._selected.delete(id);
@@ -2191,6 +2331,9 @@ export class Table extends Component {
     for (const [id, rows] of this._rowElements) {
       const selected = this._selected.has(id);
       for (const row of rows) {
+        // A spanning row never claimed `aria-selected`; writing it here would tell a screen reader
+        // the heading is a selectable record that happens to be unselected.
+        if (row.hasAttribute('data-span')) continue;
         row.setAttribute('aria-selected', String(selected));
         const checkbox = row.querySelector('.zx-table__row-checkbox');
         if (checkbox) checkbox.checked = selected;
@@ -2202,8 +2345,9 @@ export class Table extends Component {
   /** @returns {void} */
   _syncSelectAll() {
     if (!this._selectAll) return;
-    // Measured against what is rendered, so the box reflects the rows the reader can actually see.
-    const visible = this._visibleData();
+    // Measured against what is rendered, so the box reflects the rows the reader can actually see —
+    // and only the ones that can be ticked, so a section heading never holds the box indeterminate.
+    const visible = this._selectableData();
     const selectedRows = visible.reduce(
       (count, row) => count + Number(this._selected.has(this._idFor(row))),
       0
@@ -2217,14 +2361,20 @@ export class Table extends Component {
   _syncSortHeader() {
     if (!this._headers) return;
     for (const [id, header] of this._headers) {
-      if (this._sort?.id === id) header.setAttribute('aria-sort', this._sort.dir === 'asc' ? 'ascending' : 'descending');
-      else header.removeAttribute('aria-sort');
+      // A withheld control must not leave `aria-sort` behind: with the sort inert the attribute
+      // would announce an order the rows are not actually in.
+      if (!this._spanning && this._sort?.id === id) {
+        header.setAttribute('aria-sort', this._sort.dir === 'asc' ? 'ascending' : 'descending');
+      } else header.removeAttribute('aria-sort');
     }
   }
 
   /** @returns {void} */
   _sortData() {
-    if (!this._sort) return;
+    // Recomputed here and not only in `_renderBody()`: every data mutation sorts before it renders,
+    // so data that has just gained a section must be seen as grouped before the sort would run.
+    this._spanning = this._hasSpanningRow();
+    if (!this._sort || this._spanning) return;
     const column = this._columns.find((candidate) => candidate.id === this._sort.id);
     if (!column) return;
     const getValue = typeof column.sortValue === 'function' ? column.sortValue : (row) => row?.[column.id];
@@ -2263,9 +2413,18 @@ export class Table extends Component {
     for (const id of this._expanded) if (!valid.has(id)) this._expanded.delete(id);
   }
 
+  /** @returns {Set<unknown>} Ids of every row in the data that may hold a selection. */
+  _selectableIds() {
+    const ids = new Set();
+    for (const row of this._data) {
+      if (!this._isSpanningRow(row)) ids.add(this._idFor(row));
+    }
+    return ids;
+  }
+
   /** @returns {boolean} Whether selection changed. */
   _pruneSelection() {
-    const valid = new Set(this._data.map((row) => this._idFor(row)));
+    const valid = this._selectableIds();
     const previousSize = this._selected.size;
     for (const id of this._selected) if (!valid.has(id)) this._selected.delete(id);
     if (!valid.has(this._selectionAnchorId)) this._selectionAnchorId = null;
@@ -2336,6 +2495,104 @@ export class Table extends Component {
  * @event Table#editinvalid
  * @type {CustomEvent<TableEditInvalidDetail>}
  */
+
+/**
+ * Resolves a row's kind through the `rowKind` accessor and coerces it to the string `rowKinds` is
+ * keyed by.
+ *
+ * Only `null` and `undefined` mean "no kind". `0` and `''` are kinds like any other: a ZeyOS
+ * transaction line uses `0` for a position and `1` for a section, so a falsy test here would render
+ * every position as though the table had never been told about kinds at all.
+ * @param {TableRow} row Row to classify.
+ * @param {string|((row: TableRow) => unknown)|null|undefined} rowKind Field name or accessor.
+ * @returns {string|null} The kind as a string, or null when there is none.
+ */
+export function resolveRowKind(row, rowKind) {
+  if (rowKind == null || rowKind === '') return null;
+  const raw = typeof rowKind === 'function' ? rowKind(row) : row?.[rowKind];
+  return raw == null ? null : String(raw);
+}
+
+/**
+ * Looks one resolved kind up in the `rowKinds` map.
+ *
+ * Own properties only: a kind read out of server data could just as easily be `toString` or
+ * `constructor`, and inherited members of `Object.prototype` are not configuration.
+ * @param {Record<string, TableRowKind>|null|undefined} rowKinds Kind map.
+ * @param {string|null} kind Resolved kind.
+ * @returns {TableRowKind|null} Matching entry, or null.
+ */
+export function resolveRowKindSpec(rowKinds, kind) {
+  if (kind === null || rowKinds == null || typeof rowKinds !== 'object') return null;
+  if (!Object.prototype.hasOwnProperty.call(rowKinds, kind)) return null;
+  const spec = rowKinds[kind];
+  return spec && typeof spec === 'object' ? spec : null;
+}
+
+/**
+ * Whether a row draws as one spanning cell under the given configuration.
+ * @param {TableRow} row Row to classify.
+ * @param {string|((row: TableRow) => unknown)|null|undefined} rowKind Field name or accessor.
+ * @param {Record<string, TableRowKind>|null|undefined} rowKinds Kind map.
+ * @returns {boolean}
+ */
+export function isSpanningRow(row, rowKind, rowKinds) {
+  return Boolean(resolveRowKindSpec(rowKinds, resolveRowKind(row, rowKind))?.span);
+}
+
+/**
+ * Whether a data set holds a row that spans — the question that decides whether `Table` offers its
+ * sort controls at all.
+ *
+ * Asked of the whole data rather than of the rendered prefix: with `growing` on, a sort control
+ * that disappeared the moment the reader pressed "show 20 more" would be worse than one that was
+ * never there. Asked again on every data change, so a filter that removes the last section gives
+ * the sort back.
+ * @param {TableRow[]} rows Rows to scan.
+ * @param {string|((row: TableRow) => unknown)|null|undefined} rowKind Field name or accessor.
+ * @param {Record<string, TableRowKind>|null|undefined} rowKinds Kind map.
+ * @returns {boolean}
+ */
+export function hasSpanningRow(rows, rowKind, rowKinds) {
+  if (!Array.isArray(rows) || rowKind == null || rowKinds == null) return false;
+  return rows.some((row) => isSpanningRow(row, rowKind, rowKinds));
+}
+
+/**
+ * How many cells one table row occupies.
+ *
+ * `selectable: 'multi'` and `rowReorder` each render a `<col>` and a leading cell of their own, and
+ * a spanning cell that ignored them would leave the row one or two columns short — the table would
+ * still lay out, silently and wrongly. `selectable: 'single'` adds no column: the whole row is the
+ * control there.
+ * @param {number} columnCount Number of visible data columns.
+ * @param {{selectable?: TableSelectionMode, rowReorder?: boolean}} [structure={}] Structural columns.
+ * @returns {number} Colspan covering every rendered cell, never below 1.
+ */
+export function tableSpanColspan(columnCount, structure = {}) {
+  const columns = Number.isFinite(Number(columnCount)) ? Math.max(0, Math.trunc(Number(columnCount))) : 0;
+  const extras = (structure.selectable === 'multi' ? 1 : 0) + (structure.rowReorder ? 1 : 0);
+  return Math.max(1, columns + extras);
+}
+
+/**
+ * Content for a spanning row's single cell.
+ *
+ * Without a `render` the cell shows the row's raw value for the first visible column — the same
+ * thing a host writes by hand today. Deliberately raw rather than routed through the column's own
+ * renderer or display type: that renderer was written for a record, and running it against a
+ * heading that carries no quantities or amounts is how a section row ends up showing `0,00 €`.
+ * @param {TableRow} row Row being rendered.
+ * @param {TableRowKind|null|undefined} spec Resolved kind presentation.
+ * @param {TableColumn[]} visibleColumns Columns currently rendered, in display order.
+ * @param {number} [index=0] Flat row index.
+ * @returns {Node|string|number|null|undefined} Cell content.
+ */
+export function spanRowContent(row, spec, visibleColumns, index = 0) {
+  if (typeof spec?.render === 'function') return spec.render(row, index);
+  const first = visibleColumns?.[0];
+  return first ? row?.[first.id] : null;
+}
 
 /**
  * Applies a column's built-in display type. A custom renderer always wins and may still return a
@@ -2722,6 +2979,28 @@ function normalizeHierarchy(option, columns) {
     : columns[0]?.id;
   if (!column) return null;
   return { ...option, parentId, column };
+}
+
+/**
+ * Normalizes the `rowKind` accessor. Anything that is not a non-empty field name or a callback is
+ * `null`, which is the switch that keeps every existing table on exactly its old rendering path.
+ * @param {unknown} option Configured accessor.
+ * @returns {string|((row: TableRow) => unknown)|null}
+ */
+function normalizeRowKind(option) {
+  if (typeof option === 'function') return /** @type {(row: TableRow) => unknown} */ (option);
+  return typeof option === 'string' && option !== '' ? option : null;
+}
+
+/**
+ * Normalizes the `rowKinds` map. An array, a function or a primitive is not a keyed map and is
+ * discarded rather than half-read.
+ * @param {unknown} option Configured kind map.
+ * @returns {Record<string, TableRowKind>|null}
+ */
+function normalizeRowKinds(option) {
+  if (!option || typeof option !== 'object' || Array.isArray(option)) return null;
+  return /** @type {Record<string, TableRowKind>} */ (option);
 }
 
 /** @param {unknown} option @returns {Set<unknown>} */

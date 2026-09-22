@@ -1,6 +1,8 @@
 import { Component } from '../../core/component.js';
 import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
 import { icon } from '../../core/icons.js';
+import { printf } from '../../core/i18n.js';
+import { Select } from '../select/select.js';
 import {
   cloneFilterAst, cloneFilterValue, emptyFilterAst, filterCondition, filterGroup, filterOperators,
   parseFilterAst, validateFilterAst
@@ -28,11 +30,16 @@ import {
  * @property {boolean} [allowGroups=true] Whether nested groups may be authored.
  * @property {number} [maxDepth=3] Maximum nested group depth.
  * @property {number} [maxConditions=50] Maximum condition count.
+ * @property {boolean} [searchable=false] Searchable field, operator and single-choice controls.
+ * @property {'standard'|'compact'} [layout='standard'] Condition layout; compact rows adapt to container width.
+ * @property {'and'|'or'|null} [rootLogic=null] Restrict root logic without rewriting incompatible saved expressions.
+ * @property {boolean} [showApply=true] Show the internal Apply button.
+ * @property {boolean} [showRootActions=true] Show Add controls inside the root group as well as the footer.
  * @property {boolean} [autoApply=false] Emit apply after every valid mutation.
  * @property {boolean} [readonly=false] Prevent mutations while keeping values readable.
  * @property {boolean} [disabled=false] Disable all controls.
- * @property {string} [applyLabel='Apply filters'] Apply button label.
- * @property {string} [clearLabel='Clear'] Clear button label.
+ * @property {string} [applyLabel] Apply button label. Omitted resolves `filter.apply`, English `Apply filters`.
+ * @property {string} [clearLabel] Clear button label. Omitted resolves `filter.clear`, English `Clear`.
  * @property {(event:CustomEvent<Record<string,unknown>>)=>void} [onchange] Draft-change listener.
  * @property {(event:CustomEvent<Record<string,unknown>>)=>void} [onapply] Valid-apply listener.
  * @property {(event:CustomEvent<Record<string,unknown>>)=>void} [oninvalid] Invalid-apply listener.
@@ -40,6 +47,29 @@ import {
  * @property {(event:CustomEvent<Record<string,unknown>>)=>void} [onloaded] Async loaded listener.
  * @property {(event:CustomEvent<Record<string,unknown>>)=>void} [onerror] Async failure listener.
  */
+
+/**
+ * Words the value builders render, resolved by the component that owns them.
+ * @typedef {Object} FilterValueMessages
+ * @property {string} choose Empty-choice option label.
+ * @property {string} yes Boolean true label.
+ * @property {string} no Boolean false label.
+ * @property {string} commaSeparated Placeholder for a many-valued text input.
+ * @property {(label: string) => string} value Accessible name for a single value control.
+ * @property {(label: string, position: number) => string} valueAt Accessible name for one end of a pair.
+ */
+
+/** English text the value builders fall back to when they are called without a component. */
+const BUILT_IN_VALUE_MESSAGES = Object.freeze({
+  choose: 'Choose…',
+  yes: 'True',
+  no: 'False',
+  commaSeparated: 'Comma-separated values',
+  /** @param {string} label @returns {string} */
+  value: (label) => `${label} value`,
+  /** @param {string} label @param {number} position @returns {string} */
+  valueAt: (label, position) => `${label} value ${position}`
+});
 
 /**
  * Backend-neutral dynamic filter expression editor.
@@ -58,7 +88,8 @@ export class Filter extends Component {
   static defaults = {
     fields: [], value: null, operators: [], allowGroups: true, maxDepth: 3, maxConditions: 50,
     autoApply: false, readonly: false, disabled: false,
-    applyLabel: 'Apply filters', clearLabel: 'Clear'
+    searchable: false, layout: 'standard', rootLogic: null, showApply: true, showRootActions: true,
+    applyLabel: null, clearLabel: null
   };
 
   /** @returns {HTMLElement} */
@@ -73,6 +104,9 @@ export class Filter extends Component {
     this._disabled = Boolean(this.options.disabled);
     this._async = new Map();
     this._customEditors = [];
+    this._selectEditors = [];
+    this._disposed = false;
+    root.dataset.layout = this.options.layout === 'compact' ? 'compact' : 'standard';
     this._value = this.options.value == null ? emptyFilterAst()
       : parseFilterAst(this.options.value, this._limits());
 
@@ -157,8 +191,10 @@ export class Filter extends Component {
     if (!removed) return this;
     this._abortTree(removed);
     this._render();
-    const label = removed.kind === 'condition' ? this._field(removed.field)?.label ?? 'Filter' : 'Filter group';
-    this._announce(`${label} removed`);
+    const label = removed.kind === 'condition'
+      ? this._field(removed.field)?.label ?? this._message('filter.conditionNoun', 'Filter')
+      : this._message('filter.groupNoun', 'Filter group');
+    this._announce(this._message('filter.removed', '%1 removed', label));
     this._changed('remove', id);
     this.focus(focusId);
     return this;
@@ -185,7 +221,12 @@ export class Filter extends Component {
   }
 
   /** Returns semantic validity and errors. @returns {{valid:boolean,errors:Array<Record<string,string>>}} */
-  validate() { return validateFilterAst(this._value, this._fields, this._operators); }
+  validate() {
+    const result = validateFilterAst(this._value, this._fields, this._operators);
+    const error = rootLogicError(this._value, this.options.rootLogic);
+    if (error) { result.valid = false; result.errors.push(error); }
+    return result;
+  }
 
   /** Applies only a valid AST. @returns {FilterAst|null} */
   apply() {
@@ -215,9 +256,13 @@ export class Filter extends Component {
   /** Focuses a condition's field or the Add button. @param {string|null} [id=null] @returns {this} */
   focus(id = null) {
     const selector = id
-      ? `[data-node-id="${cssEscape(id)}"] :is([data-filter-field], [data-filter-logic], [data-filter-action="add"])`
+      ? `[data-node-id="${cssEscape(id)}"] :is([data-filter-field], [data-filter-focus="field"], [data-filter-logic], [data-filter-action="add"])`
       : '[data-filter-action="add"]';
-    queueMicrotask(() => /** @type {HTMLElement|null} */ (this.el.querySelector(selector))?.focus());
+    queueMicrotask(() => {
+      if (this._disposed) return;
+      const target = /** @type {HTMLElement|null} */ (this.el.querySelector(selector)) ?? this.refs.add;
+      target?.focus();
+    });
     return this;
   }
 
@@ -230,6 +275,8 @@ export class Filter extends Component {
 
   /** @returns {void} */
   destroy() {
+    this._disposed = true;
+    this._renderVersion += 1;
     this._abortAll();
     this._destroyEditors();
     const root = this.el;
@@ -245,10 +292,10 @@ export class Filter extends Component {
     const status = h('div', { ref: 'status', class: 'zx-filter__status', role: 'status', ariaLive: 'polite' });
     const tree = this._renderGroup(this._value.root, 0, true);
     const actions = h('div', { class: 'zx-filter__actions' },
-      actionButton('add', this._value.root.id, 'plus', 'Add filter', { ref: 'add', disabled: this._blocked() }),
-      this.options.allowGroups ? actionButton('add-group', this._value.root.id, 'folder', 'Add group', { disabled: this._blocked() }) : null,
-      actionButton('clear', '', 'x', String(this.options.clearLabel), { disabled: this._blocked() }),
-      actionButton('apply', '', 'check', String(this.options.applyLabel), { class: 'zx-button--primary', disabled: this._disabled })
+      actionButton('add', this._value.root.id, 'plus', this._message('filter.addFilter', 'Add filter'), { ref: 'add', disabled: this._blocked() }),
+      this.options.allowGroups ? actionButton('add-group', this._value.root.id, 'folder', this._message('filter.addGroup', 'Add group'), { disabled: this._blocked() }) : null,
+      actionButton('clear', '', 'x', String(this.options.clearLabel ?? this._message('filter.clear', 'Clear')), { disabled: this._blocked() }),
+      this.options.showApply ? actionButton('apply', '', 'check', String(this.options.applyLabel ?? this._message('filter.apply', 'Apply filters')), { class: 'zx-button--primary', disabled: this._disabled }) : null
     );
     this.el.replaceChildren(status, tree, actions);
     this.refs.status = status;
@@ -266,20 +313,28 @@ export class Filter extends Component {
       group.children.map((node) => node.kind === 'group' ? this._renderGroup(node, depth + 1, false) : this._renderCondition(node)));
     const logic = h('select', {
       class: 'zx-filter__logic', dataset: { filterLogic: '', nodeId: group.id },
-      ariaLabel: root ? 'Root filter logic' : 'Group filter logic', disabled: this._blocked()
+      ariaLabel: root ? this._message('filter.rootLogic', 'Root filter logic')
+        : this._message('filter.groupLogic', 'Group filter logic'),
+      disabled: this._blocked()
     },
-    h('option', { value: 'and', selected: group.logic === 'and' }, 'Match all'),
-    h('option', { value: 'or', selected: group.logic === 'or' }, 'Match any'));
-    const legend = h('legend', { class: 'zx-filter__legend' }, logic, h('span', {}, root ? 'conditions' : 'in this group'));
+    h('option', { value: 'and', selected: group.logic === 'and' }, this._message('filter.matchAll', 'Match all')),
+    h('option', { value: 'or', selected: group.logic === 'or' }, this._message('filter.matchAny', 'Match any')));
+    const legend = h('legend', { class: 'zx-filter__legend' },
+      root && this.options.rootLogic
+        ? (group.logic === 'or'
+          ? this._message('filter.matchAnyConditions', 'Match any conditions')
+          : this._message('filter.matchAllConditions', 'Match all conditions'))
+        : [logic, h('span', {}, root ? this._message('filter.conditions', 'conditions')
+          : this._message('filter.inThisGroup', 'in this group'))]);
     const controls = h('div', { class: 'zx-filter__group-actions' },
-      actionButton('add', group.id, 'plus', 'Add filter', { disabled: this._blocked() }),
+      actionButton('add', group.id, 'plus', this._message('filter.addFilter', 'Add filter'), { disabled: this._blocked() }),
       this.options.allowGroups && depth < Number(this.options.maxDepth)
-        ? actionButton('add-group', group.id, 'folder', 'Add subgroup', { disabled: this._blocked() }) : null,
-      root ? null : actionButton('remove', group.id, 'trash', 'Remove group', { disabled: this._blocked() })
+        ? actionButton('add-group', group.id, 'folder', this._message('filter.addSubgroup', 'Add subgroup'), { disabled: this._blocked() }) : null,
+      root ? null : actionButton('remove', group.id, 'trash', this._message('filter.removeGroup', 'Remove group'), { disabled: this._blocked() })
     );
     return h(root ? 'fieldset' : 'li', {
       class: 'zx-filter__group', dataset: { nodeId: group.id, depth: String(depth) }
-    }, root ? legend : h('fieldset', {}, legend, children, controls), root ? children : null, root ? controls : null);
+    }, root ? legend : h('fieldset', {}, legend, children, controls), root ? children : null, root && this.options.showRootActions ? controls : null);
   }
 
   /** @param {any} node @returns {HTMLElement} */
@@ -287,24 +342,35 @@ export class Filter extends Component {
     const field = this._field(node.field);
     const operators = this._operatorsFor(field);
     const operator = this._operator(node.operator);
-    const fieldSelect = h('select', {
+    const fieldChoices = this._fields.map((candidate) => ({value: candidate.id, label: candidate.label}));
+    if (node.field && !field) fieldChoices.push({value: node.field, label: this._unavailable(node.field)});
+    const operatorChoices = operators.map((candidate) => ({value: candidate.id, label: candidate.label}));
+    if (node.operator && !operators.some((candidate) => candidate.id === node.operator)) operatorChoices.push({value: node.operator, label: this._unavailable(node.operator)});
+    const fieldSelect = this.options.searchable ? this._searchSelect(fieldChoices, node.field, this._message('filter.field', 'Filter field'), node.id, 'field', (value) => {
+      const selectedField = this._field(String(value));
+      this.update(node.id, {field: String(value), operator: this._defaultOperator(selectedField) ?? '', value: null});
+      this.focus(node.id);
+    }) : h('select', {
       class: 'zx-filter__field', dataset: { filterField: '', nodeId: node.id },
-      ariaLabel: 'Filter field', disabled: this._blocked()
+      ariaLabel: this._message('filter.field', 'Filter field'), disabled: this._blocked()
     },
-    h('option', { value: '', selected: !node.field }, 'Choose a field…'),
+    h('option', { value: '', selected: !node.field }, this._message('filter.chooseField', 'Choose a field…')),
     this._fields.map((candidate) => h('option', { value: candidate.id, selected: candidate.id === node.field }, candidate.label)),
-    node.field && !field ? h('option', { value: node.field, selected: true }, `Unavailable: ${node.field}`) : null);
-    const operatorSelect = h('select', {
+    node.field && !field ? h('option', { value: node.field, selected: true }, this._unavailable(node.field)) : null);
+    const operatorSelect = this.options.searchable ? this._searchSelect(operatorChoices, node.operator, this._message('filter.operator', 'Filter operator'), node.id, 'operator', (value) => {
+      this.update(node.id, {operator: String(value), value: null});
+      queueMicrotask(() => this.el.querySelector(`[data-node-id="${cssEscape(node.id)}"] :is([data-filter-value], [data-filter-focus="value"])`)?.focus());
+    }) : h('select', {
       class: 'zx-filter__operator', dataset: { filterOperator: '', nodeId: node.id },
-      ariaLabel: 'Filter operator', disabled: this._blocked()
+      ariaLabel: this._message('filter.operator', 'Filter operator'), disabled: this._blocked()
     },
-    h('option', { value: '', selected: !node.operator }, 'Choose an operator…'),
+    h('option', { value: '', selected: !node.operator }, this._message('filter.chooseOperator', 'Choose an operator…')),
     operators.map((candidate) => h('option', { value: candidate.id, selected: candidate.id === node.operator }, candidate.label)),
     node.operator && !operators.some((candidate) => candidate.id === node.operator)
-      ? h('option', { value: node.operator, selected: true }, `Unavailable: ${node.operator}`) : null);
+      ? h('option', { value: node.operator, selected: true }, this._unavailable(node.operator)) : null);
     return h('li', { class: 'zx-filter__condition', dataset: { nodeId: node.id } },
       fieldSelect, operatorSelect, this._renderValue(node, field, operator),
-      actionButton('remove', node.id, 'trash', `Remove ${field?.label ?? 'filter'}`, { disabled: this._blocked() })
+      this._removeConditionButton(node, field)
     );
   }
 
@@ -312,7 +378,7 @@ export class Filter extends Component {
   _renderValue(node, field, operator) {
     const host = h('div', { class: 'zx-filter__value' });
     if (!field || !operator) return host;
-    if (operator.arity === 'none') return h('div', { class: 'zx-filter__value zx-filter__value--empty' }, 'No value');
+    if (operator.arity === 'none') return h('div', { class: 'zx-filter__value zx-filter__value--empty' }, this._message('filter.noValue', 'No value'));
     if (field.type === 'custom' && typeof field.editor === 'function') {
       const renderVersion = this._renderVersion;
       queueMicrotask(() => {
@@ -325,15 +391,48 @@ export class Filter extends Component {
       });
       return host;
     }
+    const messages = this._valueMessages();
     const values = operator.arity === 'pair' ? (Array.isArray(node.value) ? node.value : [null, null]) : [node.value];
     if (operator.arity === 'many') {
-      const control = choiceSelect(field, node, values[0], true, this._blocked());
+      const control = choiceSelect(field, node, values[0], true, this._blocked(), 0, messages);
       if (control) return h('div', { class: 'zx-filter__value' }, control);
-      return h('div', { class: 'zx-filter__value' }, valueInput(field, node.id, Array.isArray(node.value) ? node.value.join(', ') : '', 0, this._blocked(), true));
+      return h('div', { class: 'zx-filter__value' }, valueInput(field, node.id, Array.isArray(node.value) ? node.value.join(', ') : '', 0, this._blocked(), true, messages));
     }
-    const controls = values.map((value, index) => choiceSelect(field, node, value, false, this._blocked(), index)
-      ?? valueInput(field, node.id, value, index, this._blocked()));
+    const choices = field.choices?.length ? field.choices : field.type === 'boolean' ? [{value: true, label: messages.yes}, {value: false, label: messages.no}] : null;
+    const controls = values.map((value, index) => this.options.searchable && choices
+      ? this._searchSelect(choices, value, operator.arity === 'pair' ? messages.valueAt(field.label, index + 1) : messages.value(field.label), node.id, 'value', (selected) => {
+        const next = operator.arity === 'pair' ? (Array.isArray(node.value) ? [...node.value] : [null, null]) : null;
+        if (next) next[index] = selected;
+        this._setNodeValue(node.id, next ?? selected);
+      }) : choiceSelect(field, node, value, false, this._blocked(), index, messages)
+      ?? valueInput(field, node.id, value, index, this._blocked(), false, messages));
     return h('div', { class: 'zx-filter__value', dataset: { arity: operator.arity } }, controls);
+  }
+
+  /**
+   * Owns a themed picker and defers mutation until Select finishes its selection event.
+   * @param {Array<{value:unknown,label:string}>} items Choices.
+   * @param {unknown} value Selected value.
+   * @param {string} label Accessible name.
+   * @param {string} nodeId Condition ID.
+   * @param {string} part Focus target name.
+   * @param {(value:unknown)=>void} changed Selection handler.
+   * @returns {HTMLElement} Picker root.
+   */
+  _searchSelect(items, value, label, nodeId, part, changed) {
+    const version = this._renderVersion;
+    const select = new Select(null, {
+      items, valueKey: 'value', labelKey: 'label', value, label, filter: 'local',
+      disabled: this._blocked(), placeholder: this._message('filter.choosePart', 'Choose %1…', part),
+      onchange: ({detail}) => queueMicrotask(() => {
+        if (!this._disposed && version === this._renderVersion && this._canMutate()) changed(detail.value);
+      })
+    });
+    this._selectEditors.push(select);
+    select.el.classList.add('zx-filter__picker');
+    select.refs.input.dataset.filterFocus = part;
+    select.refs.input.dataset.nodeId = nodeId;
+    return /** @type {HTMLElement} */ (select.el);
   }
 
   /** @param {Event} event @returns {void} */
@@ -358,7 +457,7 @@ export class Filter extends Component {
       queueMicrotask(() => /** @type {HTMLElement|null} */ (this.el.querySelector(`[data-node-id="${cssEscape(id)}"] [data-filter-value]`))?.focus());
     } else if (target.dataset.filterLogic !== undefined) {
       const node = findNode(this._value.root, id);
-      if (node?.kind === 'group') node.logic = target.value === 'or' ? 'or' : 'and';
+      if (node?.kind === 'group' && !(node === this._value.root && this.options.rootLogic)) node.logic = target.value === 'or' ? 'or' : 'and';
       this._changed('update', id);
     } else if (target.dataset.filterValue !== undefined) this._valueInput(target);
   }
@@ -469,7 +568,10 @@ export class Filter extends Component {
   /** @returns {void} */
   _abortAll() { for (const id of [...this._async.keys()]) this._abort(id); }
   /** @returns {void} */
-  _destroyEditors() { for (const editor of this._customEditors ?? []) editor.destroy?.(); this._customEditors = []; }
+  _destroyEditors() {
+    for (const editor of [...(this._customEditors ?? []), ...(this._selectEditors ?? [])]) editor.destroy?.();
+    this._customEditors = []; this._selectEditors = [];
+  }
   /** @returns {boolean} */
   _blocked() { return this._readonly || this._disabled; }
   /** @returns {boolean} */
@@ -486,6 +588,47 @@ export class Filter extends Component {
   _defaultOperator(field) { return field?.defaultOperator && this._operatorsFor(field).some((operator) => operator.id === field.defaultOperator) ? field.defaultOperator : this._operatorsFor(field)[0]?.id ?? null; }
   /** @param {string} text @returns {void} */
   _announce(text) { if (this.refs.status) this.refs.status.textContent = text; }
+
+  /** Names a field or operator a saved expression refers to that this instance does not offer.
+   * @param {string} id Unknown field or operator ID. @returns {string} */
+  _unavailable(id) { return this._message('filter.unavailable', 'Unavailable: %1', id); }
+
+  /** @param {any} node Condition. @param {FilterField|null} field Resolved field. @returns {HTMLElement} */
+  _removeConditionButton(node, field) {
+    const label = this._message('filter.remove', 'Remove %1',
+      field?.label ?? this._message('filter.filterNoun', 'filter'));
+    return actionButton('remove', node.id, 'trash', label,
+      { disabled: this._blocked(), ariaLabel: label });
+  }
+
+  /**
+   * Resolves the strings the two value builders need. They are module functions so that the
+   * markup they produce stays testable without a component, which means the words have to be
+   * handed to them rather than looked up inside.
+   * @returns {FilterValueMessages}
+   */
+  _valueMessages() {
+    return {
+      choose: this._message('filter.choose', 'Choose…'),
+      yes: this._message('filter.booleanTrue', 'True'),
+      no: this._message('filter.booleanFalse', 'False'),
+      commaSeparated: this._message('filter.commaSeparated', 'Comma-separated values'),
+      value: (label) => this._message('filter.fieldValue', '%1 value', label),
+      valueAt: (label, position) => this._message('filter.fieldValueAt', '%1 value %2', label, position)
+    };
+  }
+
+  /**
+   * Resolves a message through the host translator, falling back to the built-in English text.
+   * @param {string} key Message key.
+   * @param {string} fallback Built-in text, with `%1`-style placeholders.
+   * @param {...unknown} args Interpolation values.
+   * @returns {string}
+   */
+  _message(key, fallback, ...args) {
+    const message = this.msg(key, ...args);
+    return message === key ? printf(fallback, args) : message;
+  }
 }
 
 /** @param {string} action @param {string} id @param {string} iconName @param {string} label @param {Record<string,any>} [props={}] @returns {HTMLElement} */
@@ -493,30 +636,30 @@ function actionButton(action, id, iconName, label, props = {}) {
   return h('button', { type: 'button', class: ['zx-button', 'zx-button--sm', props.class].filter(Boolean), ...props, dataset: { filterAction: action, nodeId: id } }, icon(iconName, { size: 13 }), h('span', {}, label));
 }
 
-/** @param {FilterField} field @param {any} node @param {any} value @param {boolean} multiple @param {boolean} disabled @param {number} [index=0] @returns {HTMLSelectElement|null} */
-function choiceSelect(field, node, value, multiple, disabled, index = 0) {
+/** @param {FilterField} field @param {any} node @param {any} value @param {boolean} multiple @param {boolean} disabled @param {number} [index=0] @param {FilterValueMessages} [messages=BUILT_IN_VALUE_MESSAGES] @returns {HTMLSelectElement|null} */
+function choiceSelect(field, node, value, multiple, disabled, index = 0, messages = BUILT_IN_VALUE_MESSAGES) {
   const choices = Array.isArray(field.choices) && field.choices.length
     ? field.choices
     : field.type === 'boolean'
-      ? [{ value: true, label: 'True' }, { value: false, label: 'False' }]
+      ? [{ value: true, label: messages.yes }, { value: false, label: messages.no }]
       : null;
   if (!choices) return null;
   const values = new Set(Array.isArray(value) ? value.map(String) : [String(value ?? '')]);
   return /** @type {HTMLSelectElement} */ (h('select', {
     dataset: { filterValue: '', nodeId: node.id, valueIndex: String(index) },
-    ariaLabel: `${field.label} value`, multiple, disabled
-  }, !multiple ? h('option', { value: '', selected: !values.has(String(value)) || value == null }, 'Choose…') : null,
+    ariaLabel: messages.value(field.label), multiple, disabled
+  }, !multiple ? h('option', { value: '', selected: !values.has(String(value)) || value == null }, messages.choose) : null,
   choices.map((choice) => h('option', { value: choice.value, selected: values.has(String(choice.value)) }, choice.label))));
 }
 
-/** @param {FilterField} field @param {string} id @param {any} value @param {number} index @param {boolean} disabled @param {boolean} [many=false] @returns {HTMLElement} */
-function valueInput(field, id, value, index, disabled, many = false) {
+/** @param {FilterField} field @param {string} id @param {any} value @param {number} index @param {boolean} disabled @param {boolean} [many=false] @param {FilterValueMessages} [messages=BUILT_IN_VALUE_MESSAGES] @returns {HTMLElement} */
+function valueInput(field, id, value, index, disabled, many = false, messages = BUILT_IN_VALUE_MESSAGES) {
   const type = many ? 'text' : ['number', 'money'].includes(field.type) ? 'number' : field.type === 'date' ? 'date' : field.type === 'datetime' ? 'datetime-local' : 'text';
   const listId = field.loadChoices ? `zx-filter-choices-${id}-${index}` : null;
   const input = /** @type {HTMLInputElement} */ (h('input', {
     type, value: value ?? '', dataset: { filterValue: '', nodeId: id, valueIndex: String(index) },
-    ariaLabel: `${field.label} value${index ? ` ${index + 1}` : ''}`, disabled,
-    placeholder: many ? 'Comma-separated values' : '', list: listId
+    ariaLabel: index ? messages.valueAt(field.label, index + 1) : messages.value(field.label), disabled,
+    placeholder: many ? messages.commaSeparated : '', list: listId
   }));
   return h('span', { class: 'zx-filter__value-control' },
     input, listId ? h('datalist', { id: listId }) : null);
@@ -552,3 +695,14 @@ function cssEscape(value) { return globalThis.CSS?.escape ? CSS.escape(value) : 
 /** @event Filter#query @type {CustomEvent<Record<string,unknown>>} */
 /** @event Filter#loaded @type {CustomEvent<Record<string,unknown>>} */
 /** @event Filter#error @type {CustomEvent<Record<string,unknown>>} */
+
+/**
+ * Reports a restricted root mismatch without mutating the supplied expression.
+ * @param {FilterAst} value Expression to validate.
+ * @param {'and'|'or'|null} logic Required root logic.
+ * @returns {Record<string,string>|null} Actionable validation error, or null.
+ */
+export function rootLogicError(value, logic) {
+  if (!logic || value.root.logic === logic) return null;
+  return {nodeId: value.root.id, code: 'root-logic', message: `This filter requires match ${logic === 'or' ? 'any' : 'all'} conditions.`};
+}

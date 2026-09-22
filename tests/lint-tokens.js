@@ -3,9 +3,16 @@ import { resolve } from 'node:path';
 
 const root = resolve(import.meta.dirname, '..');
 const componentRoot = resolve(root, 'src/components');
-const baseFile = resolve(root, 'styles/base.css');
+/*
+ * `styles/` is linted by file, not by directory, because `styles/tokens/` is where the palette
+ * is DEFINED — a hex literal there is the point, and scanning the tree would flag every one.
+ * Everything else under `styles/` consumes the semantic tier like a component does and is held
+ * to the same rule. A new stylesheet here has to be added deliberately, which is the tradeoff:
+ * `print.css` shipped without this line and nothing noticed.
+ */
+const styleFiles = ['base.css', 'print.css'].map((name) => resolve(root, 'styles', name));
 const componentFiles = findCssFiles(componentRoot);
-const files = [...componentFiles, baseFile].filter(existsSync);
+const files = [...componentFiles, ...styleFiles].filter(existsSync);
 const violations = [];
 const namedColors = (
   'aliceblue antiquewhite aqua aquamarine azure beige bisque black blanchedalmond blue blueviolet ' +

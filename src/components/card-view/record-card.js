@@ -62,6 +62,7 @@ import { readViewField, renderViewField } from '../view/record-view.js';
  * @property {RecordCardLink|((record:ViewRecord,index:number)=>RecordCardLink)} [link]
  * @property {RecordCardAction[]|((record:ViewRecord,index:number)=>RecordCardAction[])} [actions=[]]
  * @property {false|'single'|'multi'} [selectable=false] Selection presentation.
+ * @property {'checkbox'|'card'} [selectionTrigger='checkbox'] Selection affordance for owning views.
  * @property {boolean} [selected=false] Current selection state.
  * @property {'outlined'|'raised'|'filled'} [variant='outlined'] Surface treatment.
  * @property {1|2|3|4|5|6} [headingLevel=3] Card title heading level.
@@ -84,7 +85,8 @@ import { readViewField, renderViewField } from '../view/record-view.js';
  *
  * The returned `<li>` belongs in a semantic `<ul>`/`<ol>`. When selectable its global
  * `aria-description` announces selection without applying the unsupported `aria-selected` state
- * to a listitem; multi-selection also adds a native checkbox. It deliberately remains a listitem
+ * to a listitem; multi-selection adds a native checkbox unless the owner opts into card-surface
+ * selection. It deliberately remains a listitem
  * rather than becoming an ARIA option because cards may contain native links and buttons, which
  * the listbox pattern does not permit inside an option. Preview images are paired with a stable
  * fallback. The owning component listens for image `error` and marks the fallback.
@@ -129,7 +131,7 @@ export function createRecordCard(record, index, options = {}) {
   const titleRow = titlePrefix
     ? h('div', { class: 'zx-record-card__title-row' }, titlePrefix, heading)
     : heading;
-  const selection = selectable === 'multi' ? h('label', {
+  const selection = selectable === 'multi' && options.selectionTrigger !== 'card' ? h('label', {
     class: 'zx-record-card__selection'
   }, h('input', {
     type: 'checkbox',
@@ -154,10 +156,12 @@ export function createRecordCard(record, index, options = {}) {
     tabindex: 0,
     ariaDescription: selectable ? selected ? 'Selected' : 'Not selected' : undefined,
     ariaLabelledby: headingId,
+    ariaKeyshortcuts: selectable && options.selectionTrigger === 'card' ? 'Space Enter' : undefined,
     dataset: {
       recordIndex: String(index),
       variant: normalizeVariant(options.variant),
-      selected: String(selected)
+      selected: String(selected),
+      selectionTrigger: selectable && options.selectionTrigger === 'card' ? 'card' : 'checkbox'
     }
   }, preview ? createPreview(preview) : null, body));
   return card;

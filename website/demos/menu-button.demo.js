@@ -9,16 +9,22 @@ export default {
   examples: [
     {
       title: 'An action menu',
-      blurb: 'Items take a label, an icon, and a value. A "-" string draws a separator, disabled '
-        + 'keeps an item visible but inert, and danger marks the destructive one.',
+      blurb: 'The shared action model supports headings, native links, descriptions, badges, '
+        + 'shortcuts, checked items, separators, disabled actions, and destructive emphasis.',
       render: ({ cleanup, log }) => {
         const menu = new MenuButton(null, {
           label: 'Record actions',
           icon: 'dots',
           items: [
-            { label: 'View record', icon: 'eye', value: 'view' },
-            { label: 'Reload data', icon: 'reload', value: 'reload' },
+            { type: 'heading', label: 'Record' },
+            {
+              label: 'View record', icon: 'eye', value: 'view',
+              description: 'Open the full record workspace', shortcut: 'Enter'
+            },
+            { label: 'Reload data', icon: 'reload', value: 'reload', badge: 2 },
+            { label: 'Pinned', value: 'pinned', role: 'menuitemcheckbox', checked: true },
             '-',
+            { label: 'Open documentation', icon: 'link', href: '#menu-button' },
             { label: 'Export unavailable', icon: 'upload', value: 'export', disabled: true },
             '-',
             { label: 'Delete record', icon: 'trash', value: 'delete', danger: true }

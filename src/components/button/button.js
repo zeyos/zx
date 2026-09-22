@@ -1,6 +1,8 @@
 import { h } from '../../core/dom.js';
 import { icon as createIcon } from '../../core/icons.js';
 
+/** @typedef {{label:string,keys:string}} ButtonShortcut Visible hint and ARIA key combination; the host binds the action. */
+
 /**
  * @typedef {Object} ButtonOptions
  * @property {string} [label=''] Visible button label.
@@ -9,6 +11,7 @@ import { icon as createIcon } from '../../core/icons.js';
  * @property {'md'|'sm'} [size='md'] Control size.
  * @property {boolean} [disabled=false] Whether the button is disabled.
  * @property {string} [title] Native title text.
+ * @property {ButtonShortcut} [shortcut] Keyboard hint; does not register a keyboard handler.
  * @property {(event: MouseEvent) => void} [onclick] Click callback.
  */
 
@@ -32,7 +35,8 @@ export function button(opts = {}) {
     class: 'zx-btn',
     type: 'button',
     disabled: Boolean(options.disabled),
-    title: options.title,
+    title: options.title ?? (options.shortcut ? `${options.label} (${options.shortcut.label})` : undefined),
+    ariaKeyshortcuts: options.shortcut?.keys,
     dataset: {
       kind: normalizeKind(options.kind),
       size: normalizeSize(options.size)
@@ -45,6 +49,7 @@ export function button(opts = {}) {
   if (options.label !== '') {
     element.append(h('span', { class: 'zx-btn__label' }, String(options.label)));
   }
+  if (options.shortcut) element.append(h('kbd', { class: 'zx-btn__shortcut', ariaHidden: 'true' }, options.shortcut.label));
   if (!options.label && options.title) element.setAttribute('aria-label', options.title);
   if (typeof options.onclick === 'function') element.onclick = options.onclick;
   return element;

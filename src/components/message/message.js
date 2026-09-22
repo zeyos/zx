@@ -340,8 +340,8 @@ export class Message extends Component {
       const close = h('button', {
         class: 'zx-icon-btn zx-message__close',
         type: 'button',
-        ariaLabel: 'Close message',
-        title: 'Close'
+        ariaLabel: this._message('message.close', 'Close message'),
+        title: this._message('message.closeTitle', 'Close')
       }, icon('x', { size: 14 }));
       node.append(close);
       this.listen(close, 'click', () => this._close(entry));
@@ -415,6 +415,17 @@ export class Message extends Component {
     entry.node.remove();
     this._entries.delete(entry);
     this._queue.remove(entry);
+  }
+
+  /**
+   * Resolves a message through the host translator, falling back to the built-in English text.
+   * @param {string} key Message key.
+   * @param {string} fallback English default.
+   * @returns {string}
+   */
+  _message(key, fallback) {
+    const message = this.msg(key);
+    return message === key ? fallback : message;
   }
 
   /** @param {Element|string|null|undefined} scope @returns {Message} */

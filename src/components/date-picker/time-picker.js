@@ -48,15 +48,15 @@ export class TimePicker extends Component {
     const content = h('div', {
       class: 'zx-time-picker__segments',
       role: 'group',
-      ariaLabel: 'Time'
+      ariaLabel: this._message('timePicker.label', 'Time')
     });
     this._content = content;
-    this._addSpin(content, 'h', 'Hour', 23);
+    this._addSpin(content, 'h', this._message('timePicker.hour', 'Hour'), 23);
     content.append(h('span', { class: 'zx-time-picker__separator', ariaHidden: 'true' }, ':'));
-    this._addSpin(content, 'm', 'Minute', 59);
+    this._addSpin(content, 'm', this._message('timePicker.minute', 'Minute'), 59);
     if (this.options.seconds) {
       content.append(h('span', { class: 'zx-time-picker__separator', ariaHidden: 'true' }, ':'));
-      this._addSpin(content, 's', 'Second', 59);
+      this._addSpin(content, 's', this._message('timePicker.second', 'Second'), 59);
     }
     root.append(content);
 
@@ -66,7 +66,7 @@ export class TimePicker extends Component {
         ref: 'clockToggle',
         class: 'zx-icon-btn zx-time-picker__clock-toggle',
         type: 'button',
-        ariaLabel: 'Pick the time on a clock',
+        ariaLabel: this._message('timePicker.clock', 'Pick the time on a clock'),
         ariaExpanded: 'false',
         ariaControls: clockId
       }, icon('clock', { size: 15 })));
@@ -223,7 +223,7 @@ export class TimePicker extends Component {
           ref: 'headHour',
           class: 'zx-time-picker__clock-unit',
           type: 'button',
-          ariaLabel: 'Select the hour',
+          ariaLabel: this._message('timePicker.selectHour', 'Select the hour'),
           dataset: { unit: 'h' }
         }),
         h('span', { class: 'zx-time-picker__clock-colon', ariaHidden: 'true' }, ':'),
@@ -231,7 +231,7 @@ export class TimePicker extends Component {
           ref: 'headMinute',
           class: 'zx-time-picker__clock-unit',
           type: 'button',
-          ariaLabel: 'Select the minutes',
+          ariaLabel: this._message('timePicker.selectMinutes', 'Select the minutes'),
           dataset: { unit: 'm' }
         })),
       h('div', { ref: 'dial', class: 'zx-time-picker__dial', role: 'radiogroup' },
@@ -290,7 +290,8 @@ export class TimePicker extends Component {
     this.refs.headMinute.textContent = pad(this._display.m);
     this.refs.headHour.setAttribute('aria-pressed', String(hours));
     this.refs.headMinute.setAttribute('aria-pressed', String(!hours));
-    this.refs.dial.setAttribute('aria-label', hours ? 'Hour' : 'Minutes');
+    this.refs.dial.setAttribute('aria-label', hours
+      ? this._message('timePicker.hour', 'Hour') : this._message('timePicker.minutes', 'Minutes'));
     if (!this._clockOpen) return;
 
     const selected = hours ? this._display.h : this._display.m;
@@ -329,6 +330,17 @@ export class TimePicker extends Component {
     const checked = mark.value === selected;
     element.setAttribute('aria-checked', String(checked));
     element.tabIndex = checked ? 0 : -1;
+  }
+
+  /**
+   * Resolves a message through the host translator, falling back to the built-in English text.
+   * @param {string} key Message key.
+   * @param {string} fallback English default.
+   * @returns {string}
+   */
+  _message(key, fallback) {
+    const message = this.msg(key);
+    return message === key ? fallback : message;
   }
 }
 

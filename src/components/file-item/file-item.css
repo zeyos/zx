@@ -1,0 +1,88 @@
+.zx-file-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--zx-space-2) var(--zx-space-3);
+  align-items: center;
+  min-inline-size: 0;
+}
+
+.zx-file-item__entity {
+  min-inline-size: 0;
+}
+
+.zx-file-item__status {
+  justify-self: end;
+}
+
+.zx-file-item__status[hidden],
+.zx-file-item__progress[hidden] {
+  display: none;
+}
+
+.zx-file-item__progress {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--zx-space-2);
+  align-items: center;
+  padding-inline-start: calc(var(--zx-control-height) + var(--zx-space-2));
+}
+
+.zx-file-item__progress-head {
+  grid-column: 2;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+.zx-file-item__progress-track {
+  grid-column: 1 / -1;
+  block-size: 4px;
+  overflow: hidden;
+  border-radius: var(--zx-radius-pill);
+  background: var(--zx-color-bg-muted);
+}
+
+.zx-file-item__progress-fill {
+  inline-size: var(--zx-file-progress, 0%);
+  block-size: 100%;
+  border-radius: inherit;
+  background: var(--zx-color-accent);
+}
+
+.zx-file-item[data-status="success"] .zx-file-item__progress-fill {
+  background: var(--zx-color-success);
+}
+
+.zx-file-item[data-status="error"] .zx-file-item__progress-fill {
+  background: var(--zx-color-danger);
+}
+
+.zx-file-item__progress[data-indeterminate] .zx-file-item__progress-fill {
+  inline-size: 35%;
+  transform: translateX(-110%);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .zx-file-item__progress-fill {
+    transition: inline-size var(--zx-dur-fast) var(--zx-ease);
+  }
+
+  .zx-file-item__progress[data-indeterminate] .zx-file-item__progress-fill {
+    animation: zx-file-progress-slide 1200ms var(--zx-ease) infinite;
+  }
+}
+
+@keyframes zx-file-progress-slide {
+  to { transform: translateX(320%); }
+}
+
+@media (max-width: 36rem) {
+  .zx-file-item {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .zx-file-item__status {
+    justify-self: start;
+    padding-inline-start: calc(var(--zx-control-height) + var(--zx-space-2));
+  }
+}

@@ -1,7 +1,7 @@
 // @ts-check
 import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
 import { formatTableCell, Table } from '../table/table.js';
-import { RecordView, readViewField } from '../view/record-view.js';
+import { normalizeViewFieldControls, RecordView, readViewField } from '../view/record-view.js';
 
 /** @typedef {Record<string, any>} TableViewRecord */
 /** @typedef {import('../view/record-view.js').ViewField} ViewField */
@@ -20,7 +20,10 @@ import { RecordView, readViewField } from '../view/record-view.js';
  * @property {unknown[]} [selection=[]] Initially selected record ids.
  * @property {string[]} [fieldOrder=[]] Preferred stable field order.
  * @property {string[]} [hiddenFields=[]] Initially hidden field ids.
- * @property {boolean} [fieldControls=true] Show the accessible visibility and reorder disclosure.
+ * @property {boolean|import('../view/record-view.js').ViewFieldControlsConfig} [fieldControls=true]
+ * Show the accessible visibility and reorder disclosure. `true` keeps the composed Table's own
+ * column chooser and `false` omits it; an object renders the shared record-view chooser instead,
+ * with a translated `label` and, with `target`, mounted into a host element.
  * @property {string|Node|(()=>string|Node)|null} [emptyText=null] Empty-result content.
  * @property {TableOptions} [table={}] Advanced low-level Table options. Shared options win where
  * their contracts overlap; all other options and callbacks are forwarded unchanged.
@@ -74,9 +77,15 @@ export class TableView extends RecordView {
     this._tableViewDestroyed = false;
     this._tableHost = h('div', { class: 'zx-table-view__table' });
     this._initRecordView(root);
+    // Only a `fieldControls` object replaces Table's own chooser, and only an unresolved target
+    // keeps that replacement inside the view — so `true` and `false` render exactly as before.
+    const fieldControls = normalizeViewFieldControls(this.options.fieldControls);
+    this._tableViewToolbar = fieldControls.custom && !this._viewFieldControlsTarget
+      ? h('div', { class: 'zx-record-view__toolbar zx-table-view__toolbar' })
+      : null;
 
     try {
-      root.replaceChildren(this._tableHost);
+      root.replaceChildren(...[this._tableViewToolbar, this._tableHost].filter(Boolean));
       const viewOptions = /** @type {Readonly<TableViewOptions>} */ (this.options);
       const options = tableOptionsForView(viewOptions.table, {
         fields: this.getFields(),
@@ -93,9 +102,11 @@ export class TableView extends RecordView {
       // Seed selection before bridging events so construction stays silent like RecordView itself.
       this.table.setSelection(this.getSelectionIds());
       this._bridgeTableEvents();
+      if (fieldControls.custom) this._mountViewFieldControls(this._tableViewToolbar ?? root);
       return root;
     } catch (error) {
       this.table?.destroy();
+      this._removeViewFieldControls();
       if (!created) restoreTarget(root, this._tableViewOriginal);
       throw error;
     }
@@ -302,10 +313,14 @@ export function fieldsToTableColumns(fields) {
  * Builds the composed Table configuration. Shared options deliberately overwrite overlapping
  * low-level options; every advanced option remains untouched.
  * @param {TableOptions|undefined} table Advanced Table options.
- * @param {{fields:ViewField[],data:TableViewRecord[],recordId:string|((record:TableViewRecord)=>unknown),sort:ViewSort|null,sortMode:'local'|'server',selectable:false|'single'|'multi',hiddenFields:string[],fieldControls:boolean,emptyText:string|Node|(()=>string|Node)|null}} shared Shared state.
+ * @param {{fields:ViewField[],data:TableViewRecord[],recordId:string|((record:TableViewRecord)=>unknown),sort:ViewSort|null,sortMode:'local'|'server',selectable:false|'single'|'multi',hiddenFields:string[],fieldControls:boolean|import('../view/record-view.js').ViewFieldControlsConfig,emptyText:string|Node|(()=>string|Node)|null}} shared Shared state.
  * @returns {TableOptions} Table configuration.
  */
 export function tableOptionsForView(table, shared) {
+  // A customised chooser is rendered by TableView from the shared field state, so Table's own one
+  // stands down; `true`/`false` keep Table's chooser exactly as it has always been.
+  const controls = normalizeViewFieldControls(shared.fieldControls);
+  const tableChooser = controls.enabled && !controls.custom;
   return {
     ...(table && typeof table === 'object' ? table : {}),
     columns: fieldsToTableColumns(shared.fields),
@@ -315,8 +330,8 @@ export function tableOptionsForView(table, shared) {
     sortMode: shared.sortMode,
     selectable: shared.selectable,
     hiddenColumns: [...shared.hiddenFields],
-    columnVisibility: Boolean(shared.fieldControls),
-    columnReorder: Boolean(shared.fieldControls),
+    columnVisibility: tableChooser,
+    columnReorder: tableChooser,
     emptyText: shared.emptyText
   };
 }

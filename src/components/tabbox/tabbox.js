@@ -179,7 +179,7 @@ export class Tabbox extends Component {
       children.push(h('span', {
         class: 'zx-tabbox__close zx-icon-btn',
         ariaHidden: 'true',
-        title: 'Close'
+        title: this._message('tabbox.close', 'Close')
       }, icon('x', { size: 14 })));
     }
     const tab = /** @type {HTMLButtonElement} */ (h('button', {
@@ -466,6 +466,17 @@ export class Tabbox extends Component {
   /** @param {Element} tab @returns {TabRecord|null} */
   _recordForTab(tab) {
     return this._tabs.find((record) => record.tab === tab) ?? null;
+  }
+
+  /**
+   * Resolves a message through the host translator, falling back to the built-in English text.
+   * @param {string} key Message key.
+   * @param {string} fallback English default.
+   * @returns {string}
+   */
+  _message(key, fallback) {
+    const message = this.msg(key);
+    return message === key ? fallback : message;
   }
 }
 

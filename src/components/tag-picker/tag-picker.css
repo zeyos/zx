@@ -10,7 +10,9 @@
   align-items: center;
   gap: var(--zx-space-1);
   min-block-size: var(--zx-control-height);
-  padding: 3px 3px 3px var(--zx-space-2);
+  padding: 3px;
+  /* The tags sit further from the field's leading edge than from its other three. */
+  padding-inline-start: var(--zx-space-2);
   border: 1px solid var(--zx-color-border-control);
   border-radius: var(--zx-control-radius);
   background: var(--zx-color-bg-control);

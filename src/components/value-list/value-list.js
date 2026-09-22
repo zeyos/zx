@@ -1,5 +1,6 @@
 import { Component } from '../../core/component.js';
 import { h } from '../../core/dom.js';
+import { printf } from '../../core/i18n.js';
 import { uid } from '../../core/util.js';
 
 /**
@@ -49,14 +50,14 @@ export class ValueList extends Component {
     this._list = h('ul', {
       class: 'zx-value-list__list',
       role: 'listbox',
-      ariaLabel: 'Values',
+      ariaLabel: this._message('valueList.values', 'Values'),
       ariaOrientation: 'horizontal'
     });
     this._input = h('input', {
       class: 'zx-value-list__input',
       type: 'text',
       placeholder: String(this.options.placeholder ?? ''),
-      ariaLabel: 'Add value',
+      ariaLabel: this._message('valueList.add', 'Add value'),
       ariaDescribedby: instructionsId
     });
     this._status = h('div', {
@@ -67,7 +68,8 @@ export class ValueList extends Component {
     this._instructions = h('span', {
       class: 'zx-value-list__instructions',
       id: instructionsId
-    }, 'Press Enter to add. Focus a value and press Ctrl plus Left or Right to reorder.');
+    }, this._message('valueList.instructions',
+      'Press Enter to add. Focus a value and press Ctrl plus Left or Right to reorder.'));
     this._ownedNodes.push(this._list, this._input, this._status, this._instructions);
     root.append(this._list, this._input, this._status, this._instructions);
 
@@ -120,13 +122,14 @@ export class ValueList extends Component {
     const normalized = String(value ?? '').trim();
     if (!normalized) return false;
     if (this.options.unique && this._values.includes(normalized)) {
-      this._showError('This value already exists.');
+      this._showError(this._message('valueList.duplicate', 'This value already exists.'));
       return false;
     }
     if (typeof this.options.validate === 'function') {
       const result = this.options.validate(normalized);
       if (result !== true) {
-        this._showError(typeof result === 'string' ? result : 'This value is not valid.');
+        this._showError(typeof result === 'string' ? result
+          : this._message('valueList.invalid', 'This value is not valid.'));
         return false;
       }
     }
@@ -196,7 +199,8 @@ export class ValueList extends Component {
       draggable: Boolean(this.options.sortable) && !this._disabled,
       ariaSelected: 'false',
       ariaDisabled: String(this._disabled),
-      ariaLabel: this.options.deletable ? `${value}. Press Delete to remove.` : value,
+      ariaLabel: this.options.deletable
+        ? this._message('valueList.removable', '%1. Press Delete to remove.', value) : value,
       dataset: { index }
     }, h('span', { class: 'zx-value-list__value' }, value), this.options.deletable ? h('span', {
       class: 'zx-value-list__remove',
@@ -300,6 +304,18 @@ export class ValueList extends Component {
   _showError(message) {
     this._status.textContent = message;
     this._input.setAttribute('aria-invalid', 'true');
+  }
+
+  /**
+   * Resolves a message through the host translator, falling back to the built-in English text.
+   * @param {string} key Message key.
+   * @param {string} fallback Built-in text, with `%1`-style placeholders.
+   * @param {...unknown} args Interpolation values.
+   * @returns {string}
+   */
+  _message(key, fallback, ...args) {
+    const message = this.msg(key, ...args);
+    return message === key ? printf(fallback, args) : message;
   }
 
   /** @returns {void} */

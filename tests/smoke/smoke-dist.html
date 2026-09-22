@@ -59,6 +59,34 @@
         if (built.id !== 'built' || built.textContent !== 'Built') throw new Error('window.zx.__ did not build DOM');
       });
 
+      check('record primitives', function () {
+        var names = ['EntityRef', 'FileItem', 'FileList', 'ActivityItem', 'ActivityList', 'CodeEditor'];
+        names.forEach(function (name) {
+          if (typeof window.zx[name] !== 'function') throw new Error('window.zx.' + name + ' is missing');
+        });
+        var components = [
+          new window.zx.EntityRef(null, { title: 'Northwind', link: '#northwind', icon: 'folder' }),
+          new window.zx.FileItem(null, { name: 'contract.pdf', status: 'uploading', progress: 20 }),
+          new window.zx.FileList(null, { items: [{ id: 1, name: 'invoice.pdf' }] }),
+          new window.zx.ActivityItem(null, { actor: 'Ada', title: 'created a record' }),
+          new window.zx.ActivityList(null, { items: [{ id: 1, actor: 'Grace', title: 'added a note' }] }),
+          new window.zx.CodeEditor(null, { value: '{"ready":true}', language: 'json' })
+        ];
+        components.forEach(function (component) { document.body.append(component.toElement()); });
+        components[0].set({ title: 'Northwind Europe' });
+        components[1].setProgress(75);
+        components[2].addItem({ id: 2, name: 'scan.png' });
+        components[3].setActivity({ title: 'updated a record' });
+        components[4].appendItems({ id: 2, actor: 'Ada', title: 'reviewed the note' });
+        if (!document.querySelector('.zx-file-item [role="progressbar"]')) {
+          throw new Error('record primitive markup did not render');
+        }
+        components.forEach(function (component) { component.destroy(); });
+        if (names.some(function (name) { return document.querySelector('.zx-' + name.replace(/[A-Z]/g, function (letter, index) {
+          return (index ? '-' : '') + letter.toLowerCase();
+        })); })) throw new Error('record primitive roots survived destroy');
+      });
+
       var failed = results.filter(function (entry) { return !entry.passed; }).length;
       var passed = failed === 0;
       var output = document.getElementById('result');

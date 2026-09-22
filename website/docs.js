@@ -27,14 +27,15 @@ import { rankDocsSearch } from './docs-search.js';
 const COMPONENT_IDS = [
   'tokens', 'kernel', 'icons', 'helpers', 'truncate',
   'button', 'badge', 'check-button', 'toggle', 'search', 'launcher', 'app-icon', 'avatar', 'account-menu', 'number-field', 'rating', 'slider', 'copy',
-  'layout', 'groupbox', 'card', 'aurora', 'panel', 'tabbox', 'navigation-bar', 'toolbar', 'empty-state',
+  'layout', 'groupbox', 'card', 'stat-tile', 'aurora', 'panel', 'tabbox', 'navigation-bar', 'toolbar', 'empty-state',
   'stepper', 'breadcrumb', 'split-view', 'dock', 'app-sidebar',
   'loading', 'skeleton',
   'message', 'modal', 'dialog', 'sheet', 'sheet-stack', 'dropdown', 'menu-button', 'context-menu', 'tooltip',
   'select', 'checklist', 'tag-picker',
   'date-picker', 'datebox', 'date-range', 'timebox',
-  'table', 'table-view', 'card-view', 'kanban-view', 'grid', 'chart', 'calendar', 'data-filter', 'filter', 'pagination', 'tree', 'finder',
-  'form', 'form-widgets', 'questionnaire', 'elements',
+  'entity-ref', 'file-item', 'file-list', 'activity-item', 'activity-list',
+  'table', 'table-view', 'card-view', 'kanban-view', 'grid', 'chart', 'calendar', 'data-filter', 'filter', 'filter-panel', 'sort-control', 'list-toolbar', 'pagination', 'tree', 'finder',
+  'form', 'form-widgets', 'code-editor', 'questionnaire', 'elements',
   'value-list', 'multi-value-editor', 'field-upload'
 ];
 

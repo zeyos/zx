@@ -53,6 +53,20 @@ export default {
   blurb: 'A backend-neutral, nested filter authoring component. It emits a versioned JSON-safe expression AST; application adapters remain responsible for compiling and executing it.',
   examples: [
     {
+      title: 'Compact searchable conditions',
+      blurb: 'Search fields, operators and single-choice values. Rows adapt to the available container width. Root logic can be fixed for a backend that accepts only AND conditions.',
+      render: ({ cleanup, log }) => {
+        const filter = new Filter(null, {
+          fields: FIELDS, searchable: true, layout: 'compact', rootLogic: 'and',
+          allowGroups: false, showRootActions: false,
+          value: { version: 1, root: filterGroup('and', [filterCondition({field: 'reference', operator: 'contains', value: 'INV'})]) },
+          onapply: ({ detail }) => log(JSON.stringify(detail.value))
+        });
+        cleanup(() => filter.destroy());
+        return filter.el;
+      }
+    },
+    {
       title: 'Dynamic transaction filter',
       blurb: 'Choose typed fields and only compatible operators appear. Groups preserve explicit AND/OR logic, Apply emits only a valid defensive copy, and asynchronous entity suggestions receive an AbortSignal.',
       render: ({ cleanup, log }) => {

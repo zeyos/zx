@@ -1,0 +1,213 @@
+/*
+ * The tile is a size ladder, not a colour: the value is the loudest thing on it, the label is
+ * small above it, and the delta and sparkline are quieter than both. `kind` tints the icon and
+ * the sparkline only — never the value, which has to stay at full text contrast whatever intent
+ * a server assigns the metric.
+ */
+.zx-stat-tile {
+  --zx-stat-tile-value-size: var(--zx-text-2xl);
+  display: grid;
+  gap: var(--zx-space-2);
+  align-content: start;
+  min-inline-size: 0;
+  padding: var(--zx-space-4);
+  border: 1px solid var(--zx-color-border);
+  border-radius: var(--zx-radius-lg);
+  background: var(--zx-color-bg-surface);
+  color: var(--zx-color-text);
+}
+
+/* The link and button shapes are the same tile, so their native chrome is taken back off. */
+a.zx-stat-tile,
+button.zx-stat-tile {
+  appearance: none;
+  inline-size: 100%;
+  margin: 0;
+  font: inherit;
+  text-align: start;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+a.zx-stat-tile:hover,
+button.zx-stat-tile:hover {
+  border-color: var(--zx-color-border-strong);
+  background: var(--zx-color-bg-hover);
+}
+
+a.zx-stat-tile:focus-visible,
+button.zx-stat-tile:focus-visible {
+  outline: 0;
+  box-shadow: var(--zx-focus-ring);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a.zx-stat-tile,
+  button.zx-stat-tile {
+    transition: background var(--zx-dur-fast) var(--zx-ease), border-color var(--zx-dur-fast) var(--zx-ease);
+  }
+}
+
+.zx-stat-tile__header {
+  display: flex;
+  gap: var(--zx-space-2);
+  align-items: center;
+  justify-content: space-between;
+  min-inline-size: 0;
+}
+
+.zx-stat-tile__label {
+  min-inline-size: 0;
+  overflow: hidden;
+  font-size: var(--zx-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1.4;
+  text-transform: uppercase;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--zx-color-text-muted);
+}
+
+.zx-stat-tile__icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  border-radius: var(--zx-radius-full);
+  background: var(--zx-color-bg-muted);
+  color: var(--zx-color-text-muted);
+}
+
+/*
+ * Wrapping rather than truncating: a clipped label is still a label, but a clipped number is a
+ * different number, and a server-supplied metric can be any length at all.
+ */
+.zx-stat-tile__value {
+  min-inline-size: 0;
+  font-size: var(--zx-stat-tile-value-size);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+  overflow-wrap: break-word;
+  color: var(--zx-color-text);
+}
+
+.zx-stat-tile__delta {
+  display: flex;
+  gap: var(--zx-space-1);
+  align-items: baseline;
+  min-inline-size: 0;
+  font-size: var(--zx-text-xs);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
+  color: var(--zx-color-text-muted);
+}
+
+/*
+ * `deltaKind` decides this, not the direction: a metric that went up is not thereby good news.
+ * The colour is the last signal in the row, after the sign and the arrow, never the only one.
+ */
+.zx-stat-tile__delta[data-kind="positive"] {
+  color: var(--zx-color-success);
+}
+
+.zx-stat-tile__delta[data-kind="negative"] {
+  color: var(--zx-color-danger);
+}
+
+.zx-stat-tile__delta .zx-icon {
+  flex: none;
+  align-self: center;
+}
+
+.zx-stat-tile__delta-label {
+  min-inline-size: 0;
+  overflow: hidden;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  /* Reset: the comparison is not part of the change and must not inherit its intent colour. */
+  color: var(--zx-color-text-muted);
+}
+
+.zx-stat-tile__trend {
+  display: block;
+  inline-size: 100%;
+  block-size: 2rem;
+  margin-block-start: var(--zx-space-1);
+  color: var(--zx-color-text-placeholder);
+}
+
+.zx-stat-tile__loading {
+  display: grid;
+  gap: var(--zx-space-2);
+}
+
+/* Intent. The icon carries it as a tint, the sparkline as its stroke. */
+.zx-stat-tile[data-kind="accent"] .zx-stat-tile__icon {
+  background: var(--zx-color-accent-subtle);
+  color: var(--zx-color-accent);
+}
+
+.zx-stat-tile[data-kind="success"] .zx-stat-tile__icon {
+  background: var(--zx-color-success-bg);
+  color: var(--zx-color-success);
+}
+
+.zx-stat-tile[data-kind="warning"] .zx-stat-tile__icon {
+  background: var(--zx-color-warning-bg);
+  color: var(--zx-color-warning);
+}
+
+.zx-stat-tile[data-kind="danger"] .zx-stat-tile__icon {
+  background: var(--zx-color-danger-bg);
+  color: var(--zx-color-danger);
+}
+
+.zx-stat-tile[data-kind="info"] .zx-stat-tile__icon {
+  background: var(--zx-color-info-bg);
+  color: var(--zx-color-info);
+}
+
+.zx-stat-tile[data-kind="accent"] .zx-stat-tile__trend {
+  color: var(--zx-color-accent);
+}
+
+.zx-stat-tile[data-kind="success"] .zx-stat-tile__trend {
+  color: var(--zx-color-success);
+}
+
+.zx-stat-tile[data-kind="warning"] .zx-stat-tile__trend {
+  color: var(--zx-color-warning);
+}
+
+.zx-stat-tile[data-kind="danger"] .zx-stat-tile__trend {
+  color: var(--zx-color-danger);
+}
+
+.zx-stat-tile[data-kind="info"] .zx-stat-tile__trend {
+  color: var(--zx-color-info);
+}
+
+@media (forced-colors: active) {
+  .zx-stat-tile {
+    border-color: CanvasText;
+  }
+
+  a.zx-stat-tile:hover,
+  button.zx-stat-tile:hover {
+    border-color: Highlight;
+  }
+
+  /* Every intent resolves to the same system colour here, so the arrow and sign carry the change. */
+  .zx-stat-tile__delta,
+  .zx-stat-tile__delta-label,
+  .zx-stat-tile__icon,
+  .zx-stat-tile__trend {
+    color: CanvasText;
+  }
+}

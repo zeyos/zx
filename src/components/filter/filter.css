@@ -27,7 +27,9 @@
   border-inline-start: 3px solid var(--zx-color-border-strong);
   border-radius: 0;
   background: transparent;
-  padding: 0 0 0 var(--zx-space-3);
+  padding: 0;
+  /* The rule's own `border-inline-start` above says which edge this is. */
+  padding-inline-start: var(--zx-space-3);
 }
 
 .zx-filter__legend {
@@ -144,4 +146,28 @@
   .zx-filter__condition[data-invalid] {
     border-color: CanvasText;
   }
+}
+
+/* Container-based compact rows work in a drawer as well as a full-width page. */
+.zx-filter[data-layout="compact"] { container-type: inline-size; inline-size: 100%; }
+.zx-filter[data-layout="compact"] .zx-filter__condition {
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1.35fr) auto;
+  gap: var(--zx-space-2);
+  align-items: center;
+  padding: var(--zx-space-2);
+  border: 1px solid var(--zx-color-border);
+  background: var(--zx-color-bg-surface);
+}
+.zx-filter__picker { min-inline-size: 0; }
+.zx-filter[data-layout="compact"] .zx-filter__value { grid-column: auto; }
+.zx-filter[data-layout="compact"] [data-filter-action="remove"] {
+  inline-size: var(--zx-control-height);
+  min-block-size: var(--zx-control-height);
+  padding: 0;
+}
+.zx-filter[data-layout="compact"] [data-filter-action="remove"] > span { display: none; }
+@container (max-width: 420px) {
+  .zx-filter[data-layout="compact"] .zx-filter__condition { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; }
+  .zx-filter[data-layout="compact"] .zx-filter__value { grid-column: 1 / 3; grid-row: 2; }
+  .zx-filter[data-layout="compact"] .zx-filter__condition > [data-filter-action="remove"] { grid-column: 3; grid-row: 1 / 3; }
 }

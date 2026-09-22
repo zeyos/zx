@@ -42,12 +42,12 @@ import { uid } from '../../core/util.js';
  * @property {number} [debounce=250] Source-query delay in milliseconds.
  * @property {number} [minQuery=0] Global source minimum query length.
  * @property {number} [maxResults=100] Maximum combined results.
- * @property {string} [placeholder='Search applications and records'] Search-field placeholder.
- * @property {string} [label='Launcher'] Dialog and field label.
- * @property {string} [closeLabel='Close launcher'] Close-button accessible label.
- * @property {string} [resultsLabel='Launcher results'] Results-region accessible label.
- * @property {string} [emptyText='No results'] Empty-state text.
- * @property {string} [loadingText='Searching…'] Loading-state text.
+ * @property {string} [placeholder] Search-field placeholder. Omitted resolves `launcher.placeholder`, English `Search applications and records`.
+ * @property {string} [label] Dialog and field label. Omitted resolves `launcher.label`, English `Launcher`.
+ * @property {string} [closeLabel] Close-button accessible label. Omitted resolves `launcher.close`, English `Close launcher`.
+ * @property {string} [resultsLabel] Results-region accessible label. Omitted resolves `launcher.results`, English `Launcher results`.
+ * @property {string} [emptyText] Empty-state text. Omitted resolves `launcher.empty`, English `No results`.
+ * @property {string} [loadingText] Loading-state text. Omitted resolves `launcher.loading`, English `Searching…`.
  * @property {'mod+k'|false} [shortcut='mod+k'] Optional global keyboard shortcut.
  * @property {false|{move?: string, open?: string, close?: string}} [hints] Visible keyboard hints, or false.
  * @property {Element|string|null} [scope=null] Element whose nearest Zx theme scope owns an internally created launcher; defaults to the opener.
@@ -80,14 +80,20 @@ export class Launcher extends Component {
     debounce: 250,
     minQuery: 0,
     maxResults: 100,
-    placeholder: 'Search applications and records',
-    label: 'Launcher',
-    closeLabel: 'Close launcher',
-    resultsLabel: 'Launcher results',
-    emptyText: 'No results',
-    loadingText: 'Searching…',
+    /*
+     * The six labels default to null rather than to their English text so that an application
+     * which installs a translator and passes no labels still gets a translated launcher. The
+     * documented default is what `_message()` falls back to, so an untranslated application
+     * renders exactly the same words as before.
+     */
+    placeholder: null,
+    label: null,
+    closeLabel: null,
+    resultsLabel: null,
+    emptyText: null,
+    loadingText: null,
     shortcut: 'mod+k',
-    hints: { move: 'Move', open: 'Open', close: 'Close' },
+    hints: null,
     scope: null
   };
 
@@ -126,6 +132,7 @@ export class Launcher extends Component {
     this._destroyed = false;
 
     const listId = uid('zx-launcher-results');
+    const label = String(this.options.label ?? this._message('launcher.label', 'Launcher'));
     const input = h('input', {
       ref: 'input',
       class: 'zx-launcher__input',
@@ -136,15 +143,15 @@ export class Launcher extends Component {
       ariaAutocomplete: 'list',
       ariaControls: listId,
       ariaExpanded: 'false',
-      ariaLabel: this.options.label,
-      placeholder: this.options.placeholder,
+      ariaLabel: label,
+      placeholder: this.options.placeholder ?? this._message('launcher.placeholder', 'Search applications and records'),
       value: this._query
     });
     const close = h('button', {
       ref: 'close',
       class: 'zx-icon-btn zx-launcher__close',
       type: 'button',
-      ariaLabel: this.options.closeLabel
+      ariaLabel: this.options.closeLabel ?? this._message('launcher.close', 'Close launcher')
     }, icon('x'));
     const status = h('div', {
       ref: 'status',
@@ -157,14 +164,18 @@ export class Launcher extends Component {
       class: 'zx-launcher__results',
       id: listId,
       role: 'listbox',
-      ariaLabel: this.options.resultsLabel
+      ariaLabel: this.options.resultsLabel ?? this._message('launcher.results', 'Launcher results')
     });
     const shortcut = this.options.shortcut === 'mod+k' ? h('kbd', {
       class: 'zx-launcher__shortcut',
       ariaHidden: 'true'
     }, launcherShortcutLabel()) : null;
-    const footer = launcherHints(this.options.hints);
-    dialog.setAttribute('aria-label', String(this.options.label));
+    const footer = launcherHints(this.options.hints, {
+      move: this._message('launcher.hintMove', 'Move'),
+      open: this._message('launcher.hintOpen', 'Open'),
+      close: this._message('launcher.hintClose', 'Close')
+    });
+    dialog.setAttribute('aria-label', label);
     dialog.replaceChildren(
     h('div', { class: 'zx-launcher__surface' },
       h('div', {
@@ -458,9 +469,15 @@ export class Launcher extends Component {
 
   /** @returns {void} */
   _renderStatus() {
-    if (this._busy) this.refs.status.textContent = String(this.options.loadingText);
-    else if (this._results.length === 0) this.refs.status.textContent = String(this.options.emptyText);
-    else this.refs.status.textContent = '';
+    if (this._busy) {
+      this.refs.status.textContent = String(this.options.loadingText
+        ?? this._message('launcher.loading', 'Searching…'));
+    } else if (this._results.length === 0) {
+      this.refs.status.textContent = String(this.options.emptyText
+        ?? this._message('launcher.empty', 'No results'));
+    } else {
+      this.refs.status.textContent = '';
+    }
     this.refs.status.hidden = !this.refs.status.textContent;
   }
 
@@ -566,6 +583,17 @@ export class Launcher extends Component {
     event.preventDefault();
     this.open();
   }
+
+  /**
+   * Resolves a message through the host translator, falling back to the built-in English text.
+   * @param {string} key Message key.
+   * @param {string} fallback English default.
+   * @returns {string}
+   */
+  _message(key, fallback) {
+    const message = this.msg(key);
+    return message === key ? fallback : message;
+  }
 }
 
 /** @returns {string} */
@@ -575,14 +603,18 @@ function launcherShortcutLabel() {
   return /mac|iphone|ipad/i.test(platform) ? '⌘ K' : 'Ctrl K';
 }
 
-/** @param {LauncherOptions['hints']} hints @returns {HTMLElement|null} */
-function launcherHints(hints) {
+/**
+ * @param {LauncherOptions['hints']} hints Host-supplied hint labels, or false to omit the row.
+ * @param {{move: string, open: string, close: string}} defaults Resolved built-in labels.
+ * @returns {HTMLElement|null}
+ */
+function launcherHints(hints, defaults) {
   if (hints === false) return null;
   const labels = hints && typeof hints === 'object' ? hints : {};
   return h('footer', { class: 'zx-launcher__hints', ariaHidden: 'true' },
-    h('span', {}, h('kbd', {}, '↑↓←→'), labels.move ?? 'Move'),
-    h('span', {}, h('kbd', {}, '↵'), labels.open ?? 'Open'),
-    h('span', {}, h('kbd', {}, 'Esc'), labels.close ?? 'Close'));
+    h('span', {}, h('kbd', {}, '↑↓←→'), labels.move ?? defaults.move),
+    h('span', {}, h('kbd', {}, '↵'), labels.open ?? defaults.open),
+    h('span', {}, h('kbd', {}, 'Esc'), labels.close ?? defaults.close));
 }
 
 /** @param {LauncherItem} item @returns {Node|null} */

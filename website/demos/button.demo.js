@@ -7,6 +7,19 @@ export default {
 
   examples: [
     {
+      title: 'Shortcut hints',
+      blurb: 'A visible hint also supplies aria-keyshortcuts and hover text. The application owns keyboard dispatch and must bind only shortcuts it supports.',
+      render: ({ cleanup, log }) => {
+        const action = button({ label: 'Apply', kind: 'primary', shortcut: {label: 'Alt+Enter', keys: 'Alt+Enter'}, onclick: () => log('Applied') });
+        const handle = (event) => {
+          if (event.altKey && event.key === 'Enter' && !event.repeat) { event.preventDefault(); action.click(); }
+        };
+        action.addEventListener('keydown', handle);
+        cleanup(() => action.removeEventListener('keydown', handle));
+        return action;
+      }
+    },
+    {
       title: 'Kinds',
       blurb: 'Four weights for four jobs: the neutral default, one primary action per screen, '
         + 'danger for destructive work, and ghost for toolbars and dense rows.',

@@ -1,11 +1,15 @@
 import { Component } from '../../core/component.js';
 import { h, resolveElement } from '../../core/dom.js';
-import { icon } from '../../core/icons.js';
 import { rovingTabindex, typeahead } from '../../core/keyboard.js';
+import {
+  isMenuItem,
+  MENU_ITEM_SELECTOR,
+  renderMenuEntries
+} from '../../internal/menu-items.js';
 import { Dropdown } from '../dropdown/dropdown.js';
 
-/** @typedef {import('../menu-button/menu-button.js').MenuItem} MenuItem */
-/** @typedef {MenuItem|'-'} ContextMenuEntry */
+/** @typedef {import('../../internal/menu-items.js').MenuItem} MenuItem */
+/** @typedef {import('../../internal/menu-items.js').MenuEntry} ContextMenuEntry */
 
 /**
  * @typedef {Object} ContextMenuOptions
@@ -21,8 +25,6 @@ import { Dropdown } from '../dropdown/dropdown.js';
  * @property {(event: CustomEvent<{context: Element|null}>) => void} [onopen] Open listener.
  * @property {(event: CustomEvent<Record<string, never>>) => void} [onclose] Close listener.
  */
-
-const MENU_ITEM_SELECTOR = '[role="menuitem"]';
 
 /**
  * Right-click menu for a region, implementing the APG menu pattern.
@@ -107,7 +109,7 @@ export class ContextMenu extends Component {
     this.listen(this.#target, 'keydown', (event) => this.#onTargetKeydown(event));
     this.listen(this.#panel, 'click', (event) => {
       const item = event.target.closest?.(MENU_ITEM_SELECTOR);
-      if (item && this.#panel.contains(item)) this.#select(item);
+      if (item && this.#panel.contains(item)) this.#select(item, event);
     });
     this.listen(this.#panel, 'keydown', (event) => this.#onMenuKeydown(event));
   }
@@ -127,25 +129,7 @@ export class ContextMenu extends Component {
    */
   setItems(items) {
     this.#items = Array.isArray(items) ? items.slice() : [];
-    this.#panel.replaceChildren();
-    this.#items.forEach((item, index) => {
-      if (item === '-') {
-        this.#panel.append(h('div', { class: 'zx-context-menu__separator', role: 'separator' }));
-        return;
-      }
-      const children = [];
-      if (item.icon) children.push(h('span', { class: 'zx-context-menu__icon' }, icon(item.icon)));
-      children.push(h('span', { class: 'zx-context-menu__label' }, String(item.label ?? '')));
-      this.#panel.append(h('button', {
-        class: 'zx-context-menu__item',
-        type: 'button',
-        role: 'menuitem',
-        tabindex: '-1',
-        'data-menu-item': String(index),
-        'data-danger': item.danger ? 'true' : null,
-        ariaDisabled: item.disabled ? 'true' : null
-      }, children));
-    });
+    this.#panel.replaceChildren(...renderMenuEntries(this.#items, 'context-menu'));
     return this;
   }
 
@@ -292,20 +276,28 @@ export class ContextMenu extends Component {
     if (key.key === 'Enter' || key.key === ' ') {
       const item = /** @type {Element} */ (key.target).closest?.(MENU_ITEM_SELECTOR);
       if (!item || !this.#panel.contains(item)) return;
+      if (key.key === 'Enter' && item.tagName === 'A') return;
       event.preventDefault();
-      this.#select(item);
+      /** @type {HTMLElement} */ (item).click();
       return;
     }
     this.#typeahead(key);
   }
 
-  /** @param {Element} element @returns {void} */
-  #select(element) {
+  /** @param {Element} element @param {Event|null} [event=null] @returns {void} */
+  #select(element, event = null) {
     const index = Number(element.getAttribute('data-menu-item'));
     const item = this.#items[index];
-    if (!item || item === '-' || item.disabled) return;
+    if (!isMenuItem(item) || item.disabled) {
+      event?.preventDefault();
+      return;
+    }
     const context = this.#context;
-    this.emit('select', { value: item.value, item, context });
+    const selected = this.emit('select', { value: item.value, item, context });
+    if (selected.defaultPrevented) {
+      event?.preventDefault();
+      return;
+    }
     try {
       item.onselect?.(item.value, item, this);
     } finally {

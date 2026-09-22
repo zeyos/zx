@@ -33,6 +33,21 @@
 }
 
 /*
+ * The panel takes focus itself only as a fallback, when it holds nothing focusable at all. It is a
+ * surface rather than a control, so that programmatic focus paints no ring; a reader the browser
+ * reports as navigating by keyboard still gets one, because otherwise focus would be inside the
+ * overlay with nothing on screen saying so.
+ */
+.zx-modal:focus {
+  outline: none;
+}
+
+.zx-modal:focus-visible {
+  outline: 2px solid var(--zx-color-ring);
+  outline-offset: calc(-1 * var(--zx-space-1));
+}
+
+/*
  * `:modal` rather than `[open]`: only a dialog opened with `showModal()` blocks the page, and a
  * non-modal one (Sheet's `modal: false`) must leave the page scrollable behind it.
  */

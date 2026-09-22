@@ -91,9 +91,12 @@
 }
 
 /* Visual chrome comes from the shared .zx-icon-btn utility; only alignment is set here so
-   the close control sits flush with the top-right corner without stretching the toast. */
+   the close control sits flush with the trailing top corner without stretching the toast.
+   Trailing, not right: in an RTL document the close control belongs on the left, and a
+   four-value `margin` shorthand is the one place a logical property cannot be spelled. */
 .zx-message__close {
-  margin: calc(-1 * var(--zx-space-1)) calc(-1 * var(--zx-space-1)) 0 0;
+  margin-block: calc(-1 * var(--zx-space-1)) 0;
+  margin-inline: 0 calc(-1 * var(--zx-space-1));
 }
 
 .zx-message__progress {

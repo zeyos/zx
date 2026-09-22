@@ -70,6 +70,16 @@ export default {
 
   examples: [
     {
+      title: 'Select by clicking the card',
+      blurb: 'Click a card background to toggle selection; Shift+click selects a range. Enter and Space work on a focused card. Links, buttons and selected text keep their native behavior.',
+      layout: 'stack',
+      render: ({ cleanup, log }) => {
+        const view = new CardView(null, { ...viewOptions(log), selectionTrigger: 'card', groupBy: null, preview: null });
+        cleanup(() => view.destroy());
+        return view.el;
+      }
+    },
+    {
       title: 'Grouped opportunity cards',
       blurb: 'Two-line titles, thumbnail-scale previews, compact metadata chips, icon actions, an '
         + 'explicit empty group, and multi-selection remain separate interactive targets. Focus '
@@ -118,6 +128,33 @@ export default {
               onclick: () => saved ? view.setViewState(saved) : log('Save a state first')
             }))
         ];
+      }
+    },
+    {
+      title: 'A translated field chooser in a list toolbar',
+      blurb: 'fieldControls accepts an object as well as a boolean. Without a label the trigger '
+        + 'reads the recordView.fields message, so a translated application gets it for free, and '
+        + 'target mounts the disclosure into a toolbar the application owns rather than the view. '
+        + 'The sort control reads cardView.sort, cardView.unsorted and the two direction messages.',
+      layout: 'stack',
+      render: ({ cleanup, log }) => {
+        const toolbar = h('div', { class: 'demo-row' }, h('strong', {}, 'Verkaufschancen'));
+        const view = new CardView(null, {
+          ...viewOptions(log),
+          groupBy: null,
+          maxColumns: 3,
+          preview: null,
+          fieldControls: { target: toolbar },
+          msg: {
+            'recordView.fields': 'Felder',
+            'cardView.sort': 'Sortierung',
+            'cardView.unsorted': 'Unsortiert',
+            'cardView.sortAscending': '%1 (aufsteigend)',
+            'cardView.sortDescending': '%1 (absteigend)'
+          }
+        });
+        cleanup(() => view.destroy());
+        return [toolbar, view.toElement()];
       }
     },
     {

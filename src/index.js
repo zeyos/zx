@@ -4,6 +4,7 @@
  */
 
 import { registerChecklistFieldAdapter } from './components/checklist/field-adapter.js';
+import { registerCodeEditorFieldAdapter } from './components/code-editor/field-adapter.js';
 import { registerDatePickerFieldAdapters } from './components/date-picker/field-adapter.js';
 import { registerDateRangeFieldAdapter } from './components/date-picker/range-field-adapter.js';
 import { registerDateboxFieldAdapters } from './components/datebox/field-adapter.js';
@@ -25,6 +26,7 @@ import { registerValueListFieldAdapter } from './components/value-list/field-ada
 export function registerFieldAdapters() {
   registerSelectFieldAdapter();
   registerChecklistFieldAdapter();
+  registerCodeEditorFieldAdapter();
   registerDateboxFieldAdapters();
   registerDatePickerFieldAdapters();
   registerDateRangeFieldAdapter();
@@ -85,10 +87,12 @@ export { stack, grid, aspect } from './components/layout/layout.js';
 export { truncate, isTruncated } from './components/truncate/truncate.js';
 export { copyButton } from './components/copy/copy-button.js';
 export { CopyInput } from './components/copy/copy-input.js';
+export { CodeEditor, indentSelection, editorPosition } from './components/code-editor/code-editor.js';
 export { Toolbar } from './components/toolbar/toolbar.js';
 export { Toggle } from './components/toggle/toggle.js';
 export { Groupbox } from './components/groupbox/groupbox.js';
 export { Card } from './components/card/card.js';
+export { StatTile, statTile } from './components/stat-tile/stat-tile.js';
 export { Aurora } from './components/aurora/aurora.js';
 export { Panel } from './components/panel/panel.js';
 export { MasterPanel } from './components/master-panel/master-panel.js';
@@ -105,6 +109,18 @@ export { Search } from './components/search/search.js';
 export { AppIcon, appIcon } from './components/app-icon/app-icon.js';
 export { Launcher, rankLauncherItems } from './components/launcher/launcher.js';
 export { Avatar, avatarInitials } from './components/avatar/avatar.js';
+export {
+  EntityRef, normalizeEntityRef, normalizeEntityRefLink,
+  normalizeEntityRefMetadata, normalizeEntityRefActions
+} from './components/entity-ref/entity-ref.js';
+export { FileItem, normalizeFileItem } from './components/file-item/file-item.js';
+export { FileList, normalizeFileListItems } from './components/file-list/file-list.js';
+export {
+  ActivityItem, resolveActivityActions, normalizeActivityAction, normalizeActivityTimestamp
+} from './components/activity-item/activity-item.js';
+export {
+  ActivityList, groupActivityItems, normalizeActivityItems
+} from './components/activity-list/activity-list.js';
 export { AccountMenu } from './components/account-menu/account-menu.js';
 export { normalizeAppItems } from './internal/app-rail.js';
 export { AppSidebar } from './components/app-sidebar/app-sidebar.js';
@@ -154,6 +170,10 @@ export {
   kanbanSearchTerms, locateKanbanRecord, matchesKanbanSearch, normalizeKanbanRules,
   reorderKanbanRecords, resolveKanbanRules
 } from './components/kanban-view/kanban-policy.js';
+export {
+  createKanbanAvatars, createKanbanCardHead, createKanbanIndicator, createKanbanProgress,
+  kanbanAvatarLimit, resolveKanbanAssignees, resolveKanbanIndicator, resolveKanbanProgress
+} from './components/kanban-view/kanban-card.js';
 export { Grid, billingColumns, isBillingLine } from './components/grid/grid.js';
 export {
   Chart, ChartJsAdapter, chartSummaryTable, cloneChartValue, isEmptyChartData
@@ -161,6 +181,11 @@ export {
 export { TreeView } from './components/tree/tree.js';
 export { Finder } from './components/finder/finder.js';
 export { DataFilter } from './components/data-filter/data-filter.js';
+export {
+  FilterPanel, isActiveValue, pruneValue, serializeFilterValue
+} from './components/filter-panel/filter-panel.js';
+export { SortControl } from './components/sort-control/sort-control.js';
+export { ListToolbar } from './components/list-toolbar/list-toolbar.js';
 export { Filter } from './components/filter/filter.js';
 export {
   filterOperators, emptyFilterAst, filterCondition, filterGroup,

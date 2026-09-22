@@ -11,15 +11,19 @@
 }
 
 .zx-menu-button__item {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--zx-space-2);
   inline-size: 100%;
   min-block-size: var(--zx-control-height);
-  border-color: transparent;
+  border: 1px solid transparent;
   background: transparent;
   padding-inline: var(--zx-control-pad-x);
+  color: inherit;
+  font: inherit;
   text-align: start;
+  text-decoration: none;
 }
 
 .zx-menu-button__item:hover,
@@ -37,9 +41,82 @@
   opacity: .65;
 }
 
-.zx-menu-button__icon {
+.zx-menu-button__leading,
+.zx-menu-button__meta {
   display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-2);
   flex: none;
+}
+
+.zx-menu-button__meta {
+  justify-content: flex-end;
+}
+
+.zx-menu-button__leading {
+  justify-content: center;
+  inline-size: var(--zx-space-4);
+}
+
+.zx-menu-button__body {
+  display: flex;
+  min-inline-size: 0;
+  flex-direction: column;
+}
+
+.zx-menu-button__label,
+.zx-menu-button__description {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zx-menu-button__description,
+.zx-menu-button__shortcut,
+.zx-menu-button__adornment {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+}
+
+.zx-menu-button__badge {
+  min-inline-size: var(--zx-space-4);
+  border-radius: var(--zx-radius-full);
+  background: var(--zx-color-bg-muted);
+  padding-inline: var(--zx-space-1);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  text-align: center;
+}
+
+.zx-menu-button__shortcut {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font-family: var(--zx-font-mono);
+}
+
+.zx-menu-button__check {
+  inline-size: var(--zx-space-3);
+  block-size: var(--zx-space-3);
+  border: 1px solid var(--zx-color-border-strong);
+  border-radius: var(--zx-radius-sm);
+}
+
+.zx-menu-button__check[data-check-kind="radio"] {
+  border-radius: var(--zx-radius-full);
+}
+
+.zx-menu-button__item[aria-checked="true"] .zx-menu-button__check {
+  border-color: var(--zx-color-accent);
+  background: var(--zx-color-accent);
+  box-shadow: inset 0 0 0 2px var(--zx-color-bg-raised);
+}
+
+.zx-menu-button__heading {
+  padding: var(--zx-space-2) var(--zx-control-pad-x) var(--zx-space-1);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-weight: 600;
 }
 
 .zx-menu-button__separator {

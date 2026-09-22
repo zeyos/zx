@@ -1,0 +1,189 @@
+/*
+ * The bar above a record view. It wraps rather than collapsing: `Toolbar` moves what no longer
+ * fits into an overflow menu, and the first thing that menu would swallow is the tool whose badge
+ * explains why the list is showing four rows out of twenty.
+ */
+.zx-list-toolbar {
+  /* A size container so the labels answer to the width of the bar rather than of the window: the
+     same toolbar sits above a full-page list and inside a narrow master panel. The width it
+     cannot derive from its own contents is declared here, as size containment requires. */
+  container-type: inline-size;
+  inline-size: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zx-space-2);
+  min-inline-size: 0;
+}
+
+/*
+ * The search field takes the slack and gives it back first. Its hypothetical width is what decides
+ * whether the row fits on one line — flex breaks lines on base sizes, not on shrunk ones — so the
+ * field is declared narrow and allowed to grow into whatever the tools leave, up to a width past
+ * which a longer text box helps nobody.
+ */
+.zx-list-toolbar > .zx-list-toolbar__search {
+  flex: 1 1 12rem;
+  max-inline-size: 22rem;
+  min-inline-size: 0;
+}
+
+.zx-list-toolbar > .zx-list-toolbar__search .zx-search__input {
+  min-inline-size: 8rem;
+}
+
+/*
+ * The live count line. It is never hidden and never given `display: none`: a live region has to be
+ * in the accessibility tree before its text changes, and an empty inline element in a row that
+ * already ends in blank space costs nothing to leave in place.
+ */
+.zx-list-toolbar__count {
+  flex: 0 1 auto;
+  min-inline-size: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.zx-list-toolbar__spacer {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+.zx-list-toolbar__tools,
+.zx-list-toolbar__views {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zx-space-1);
+}
+
+.zx-list-toolbar__views {
+  gap: 0;
+  border: 1px solid var(--zx-color-border-control);
+  border-radius: var(--zx-control-radius);
+  padding: 2px;
+}
+
+/*
+ * WCAG 2.5.5 Target Size: 44 px, in both densities. Density tightens a layout; it does not make
+ * a finger smaller, so this floor is deliberately not expressed through --zx-control-height
+ * (32 px cozy, 28 px compact) the way the rest of the controls in this row are. The chrome is flat
+ * until the tool is hovered, focused, or pressed, so a target this size does not read as a slab.
+ */
+.zx-list-toolbar__tool {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--zx-space-2);
+  min-block-size: 44px;
+  min-inline-size: 44px;
+  padding-inline: var(--zx-space-2);
+  border: 1px solid transparent;
+  border-radius: var(--zx-control-radius);
+  background: none;
+  color: var(--zx-color-text);
+  font-size: var(--zx-control-font-size);
+  font-weight: var(--zx-control-font-weight);
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.zx-list-toolbar__tool:hover:not(:disabled) {
+  background: var(--zx-color-bg-hover);
+}
+
+.zx-list-toolbar__tool:focus-visible {
+  box-shadow: var(--zx-focus-ring);
+}
+
+/* A pressed tool is marked three ways — the state in `aria-pressed`, a filled ground, and a
+   border where the other states have none — so it never rests on colour alone. */
+.zx-list-toolbar__tool[aria-pressed="true"] {
+  border-color: var(--zx-color-border-strong);
+  background: var(--zx-color-bg-selected);
+}
+
+.zx-list-toolbar__tool:disabled {
+  color: var(--zx-color-text-placeholder);
+  cursor: default;
+}
+
+.zx-list-toolbar__tool-label {
+  white-space: nowrap;
+}
+
+/* The badge is decoration here: its number is already in the button's accessible name, so it must
+   not swallow the click that names it either. */
+.zx-list-toolbar__badge {
+  pointer-events: none;
+}
+
+.zx-list-toolbar__view {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--zx-space-1);
+  min-block-size: 44px;
+  min-inline-size: 44px;
+  padding-inline: var(--zx-space-2);
+  border: 0;
+  border-radius: calc(var(--zx-control-radius) - 2px);
+  background: none;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-control-font-size);
+  font-weight: var(--zx-control-font-weight);
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.zx-list-toolbar__view:hover {
+  color: var(--zx-color-text);
+  background: var(--zx-color-bg-hover);
+}
+
+.zx-list-toolbar__view:focus-visible {
+  box-shadow: var(--zx-focus-ring);
+}
+
+.zx-list-toolbar__view[aria-pressed="true"] {
+  background: var(--zx-color-bg-selected);
+  color: var(--zx-color-text);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .zx-list-toolbar__tool,
+  .zx-list-toolbar__view {
+    transition: background-color var(--zx-dur-fast) var(--zx-ease),
+      color var(--zx-dur-fast) var(--zx-ease),
+      border-color var(--zx-dur-fast) var(--zx-ease);
+  }
+}
+
+/*
+ * Below a phone-width bar the labels go and the row becomes: field, count, icons. The targets stay
+ * 44 px — a narrow viewport is where that matters most — and the names survive in `aria-label`,
+ * which is where a tool's badge already lives.
+ *
+ * Only a control that has an icon left to stand for it gives up its word: `:has()` keeps a
+ * label-only entry — the `auto` shape, which no glyph in the set honestly describes — readable
+ * instead of collapsing it into an empty button. The label is clipped rather than removed, so it
+ * stays the accessible name of a view button either way.
+ */
+@container (max-inline-size: 30rem) {
+  .zx-list-toolbar__tool:has(.zx-icon) .zx-list-toolbar__tool-label,
+  .zx-list-toolbar__view:has(.zx-icon) .zx-list-toolbar__view-label {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}

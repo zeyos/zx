@@ -13,13 +13,49 @@ function card(title, text, close) {
     button({ label: 'Close', onclick: close }));
 }
 
+/**
+ * Names whatever currently holds focus, for the focus example's log.
+ * @param {Element|null} element
+ * @returns {string}
+ */
+function describeFocus(element) {
+  if (!element || element === document.body) return 'the document — nothing';
+  return element.textContent?.trim() || element.tagName.toLowerCase();
+}
+
 export default {
   title: 'Modal',
   group: 'Overlays',
   blurb: 'A bare top-layer surface you fill yourself — Dialog’s unopinionated sibling, for '
-    + 'overlays that supply their own chrome.',
+    + 'overlays that supply their own chrome. It is accessible on its own: focus is contained, '
+    + 'placed and returned without a wrapper around it.',
 
   examples: [
+    {
+      title: 'Focus',
+      blurb: 'The panel is a native <dialog> shown with showModal(), so focus containment, the '
+        + 'inertness of the page behind it and the modal semantics are the browser’s — there is '
+        + 'no trap to install. Modal adds the two the platform leaves out: initial focus on the '
+        + 'first control rather than on the panel, and focus back on the element that opened it '
+        + 'however the overlay closes — button, Escape, backdrop, or close().',
+      render: ({ cleanup, log }) => {
+        const modal = new Modal(null, { width: 460, lightDismiss: true });
+        modal.setContent(h('div', { style: { display: 'grid', gap: 'var(--zx-space-4)' } },
+          h('h2', { style: { margin: '0' } }, 'Focus is contained'),
+          h('p', { style: { margin: '0' } },
+            'Tab cycles inside this panel. Close it any way you like — focus returns to the '
+            + 'button you opened it from.'),
+          h('label', { class: 'demo-field' },
+            h('span', {}, 'Reference'), h('input', { value: 'INV-2481' })),
+          button({ label: 'Close', onclick: () => modal.close('button') })));
+
+        // Registered after the component's own restore, so this reads the settled answer.
+        modal.on('close', () => log(`focus returned to: ${describeFocus(document.activeElement)}`));
+        cleanup(() => modal.destroy());
+        return ['Open from here', 'or from here'].map((label) =>
+          button({ label, onclick: () => modal.open() }));
+      }
+    },
     {
       title: 'Dismissal',
       blurb: 'Escape closes a modal by default. lightDismiss: true adds the backdrop click, and '

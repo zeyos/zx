@@ -5,7 +5,10 @@
 .zx-table__column-controls {
   position: relative;
   inline-size: max-content;
-  margin: 0 0 var(--zx-space-2) auto;
+  /* `auto` on the inline start, so the controls sit at the trailing edge of the table in either
+     direction. The four-value `margin` shorthand this replaces resolved to the physical left. */
+  margin-block: 0 var(--zx-space-2);
+  margin-inline: auto 0;
 }
 
 .zx-table__reorder-status {
@@ -261,9 +264,12 @@
   text-align: end;
 }
 
+/* `left` is the legacy spelling of `start`, exactly as `right` above is the legacy spelling of
+   `end`: the alignment follows the writing direction, so a column pinned to `left` sits on the
+   right of an RTL table. A caller that means the physical edge sets `text-align` itself. */
 .zx-table th[data-align="left"],
 .zx-table td[data-align="left"] {
-  text-align: left;
+  text-align: start;
 }
 
 .zx-table__sort-button {
@@ -377,6 +383,49 @@
 
 .zx-table__cell-content {
   min-inline-size: 0;
+}
+
+/* --- Group and section rows (Table rowKinds) ------------------------------------------------ */
+
+/*
+ * A `span` kind renders one `<th scope="colgroup">` across the whole row, because the cell labels
+ * the columns of the records beneath it rather than holding a value of its own. Using `<th>` for
+ * that reason means inheriting the header's look and its sticky positioning, neither of which
+ * belongs on a body cell — the sticky one would pin every section to the top of the scroller and
+ * pile them up there — so both are taken back off here.
+ *
+ * What is NOT here is a look. No tint, no weight, no rule above it: a billing section is not a
+ * kanban swimlane, a default would be the first thing every consumer overrides, and `rowKinds[kind]
+ * .class` is where the decision belongs.
+ */
+.zx-table .zx-table__body th.zx-table__section-cell {
+  position: static;
+  z-index: auto;
+  background: none;
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  text-align: start;
+}
+
+.zx-table__body tr:last-child > .zx-table__section-cell {
+  border-block-end: 0;
+}
+
+/*
+ * Stacked, a spanning row is its heading and nothing else. The labelled-line treatment is what the
+ * rest of the card is made of, and applying it here produces a heading followed by a column of
+ * empty labelled blanks — the exact artefact hosts are writing stylesheet workarounds for.
+ */
+.zx-table[data-stacked] .zx-table__body > tr[data-span] > * {
+  display: block;
+  inline-size: auto;
+  padding-inline: 0;
+  text-align: start;
+}
+
+.zx-table[data-stacked] .zx-table__body > tr[data-span] > *::before {
+  content: none;
 }
 
 /* --- Inline editing (Table editMode) -------------------------------------------------------- */

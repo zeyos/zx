@@ -26,16 +26,22 @@ exports and as `window.zx.*`.
   `copyButton()`/`CopyInput`, `DatePicker`, `MonthPicker`, `TimePicker`,
   `Datebox`/`DateTimeBox`, `DateRangePicker`/`DateRangeBox`, `Timebox`.
 - Overlays: `Message` (toasts/inline/progress), `Modal`, `Dialog` (+ `alert`/`confirm`/`prompt` Promises), `Sheet` (edge-anchored Dialog; `side`, `modal: true|'trap-focus'|false`, `backdrop`, `snap` detents, swipe-to-dismiss), `SheetStack` (drill-down; `stack`/`cascade`), `Dropdown`, `MenuButton`, `ContextMenu` (right-click; `selector` for per-row menus), `Tooltip`/`tooltip()`/`describe()`.
-- Data: `Table` (sortable, selectable, sticky header, opt-in inline cell/row editing, row reorder,
+- Data: `EntityRef` (dense linked/static identity), `FileItem`/`FileList` (durable and transient
+  file presentation), `ActivityItem`/`ActivityList` (chronological entries and grouped feeds),
+  `Table` (sortable, selectable, sticky header, opt-in inline cell/row editing, row reorder,
   column visibility), shared `RecordView` state through `TableView`, `CardView`, and `KanbanView`,
   `Grid` with single-click editing and `Grid.BillingItems()`, engine-neutral
   `Chart` with injected `ChartJsAdapter`, `Calendar` (agenda/day/week/month/year, pointer/keyboard
   drag and resize, `optimistic: true|false`), backend-neutral nested `Filter`, simple client-side
-  `DataFilter`, `Pagination` (+ pure `paginationRange()`), `TreeView` (APG tree),
-  `Finder` (Miller columns).
-- Forms: `Form`, `Fieldset`, `Questionnaire` (guided one-question-at-a-time flow with branching), `Field` (type registry), `ValueList`, `MultiValueEditor`, `FieldUpload`.
+  `DataFilter`, `FilterPanel` (typed filter form built from a server's own field metadata;
+  `mode: 'draft'|'live'`, `serialize`), `ListToolbar` (search, live result count, view switch, and
+  tools whose badge is part of the accessible name), `Pagination` (+ pure `paginationRange()`),
+  `SortControl` (searchable field selector with a direction toggle, one atomic `{id,dir}`),
+  `TreeView` (APG tree), `Finder` (Miller columns).
+- Forms: `Form`, `Fieldset`, `Questionnaire` (guided one-question-at-a-time flow with branching), `Field` (type registry), `CodeEditor` (structured text in a native textarea; never executes or injects the value), `ValueList`, `MultiValueEditor`, `FieldUpload`.
 - Layout: `stack()`/`grid()`/`aspect()` (spacing, an intrinsically reflowing grid, a fixed-ratio
-  box), `Groupbox`, `Card` (media/title link/actions/footer), `AppIcon` (generic tile geometry;
+  box), `Groupbox`, `Card` (media/title link/actions/footer), `StatTile`/`statTile()` (labelled
+  metric with optional delta, sparkline, and loading state), `AppIcon` (generic tile geometry;
   circular `zeyosAppIcon()` application presets and compact `moduleChip()` identities),
   `Aurora` (one- to four-colour ambient
   canvas light; shared material roles govern chrome and overlays), `Avatar`, `Panel` (header/footer action

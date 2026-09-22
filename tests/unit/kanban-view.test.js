@@ -21,6 +21,12 @@ import {
   reorderKanbanRecords,
   resolveKanbanRules
 } from '../../src/components/kanban-view/kanban-policy.js';
+import {
+  kanbanAvatarLimit,
+  resolveKanbanAssignees,
+  resolveKanbanIndicator,
+  resolveKanbanProgress
+} from '../../src/components/kanban-view/kanban-card.js';
 import { Component } from '../../src/core/component.js';
 import { RecordView } from '../../src/components/view/record-view.js';
 
@@ -79,6 +85,20 @@ test('board styling keeps rail hierarchy, progressive controls, and coarse targe
   assert.match(source, /\.zx-kanban-view__drag-preview\s*\{[^}]*pointer-events:\s*none/s);
   // A column height turns each card list into its own scroll region.
   assert.match(source, /\[data-column-scroll="true"\] \.zx-kanban-view__cards\s*\{[^}]*max-block-size:\s*var\(--zx-kanban-column-height\)/s);
+  // The card is the pointer drag source, so the handle is keyboard furniture: out of sight and
+  // out of the layout until it takes focus or holds a grabbed card.
+  assert.match(source, /\.zx-kanban-view__move-handle\[data-reveal="keyboard"\]\s*\{[^}]*position:\s*absolute/s);
+  assert.match(source, /\.zx-kanban-view__move-handle\[data-reveal="keyboard"\]\s*\{[^}]*clip-path:\s*inset\(50%\)/s);
+  // Reveal on :focus, not :focus-visible — a pointer drop focuses the handle programmatically,
+  // and :focus-visible does not match after pointer input.
+  assert.match(source, /\[data-reveal="keyboard"\]:focus,[\s\S]*\[aria-pressed="true"\]\s*\{[^}]*clip-path:\s*none/s);
+  assert.doesNotMatch(source, /\[data-reveal="keyboard"\]:focus-visible/);
+  // Head and footer are quiet rails around the shared card anatomy, not new boxes.
+  assert.match(source, /\.zx-kanban-view__identifier\s*\{[^}]*color:\s*var\(--zx-color-text-muted\)/s);
+  assert.match(source, /\.zx-kanban-view__progress-track\s*\{[^}]*background:\s*var\(--zx-color-bg-muted\)/s);
+  assert.match(source, /\.zx-kanban-view__progress-fill\s*\{[^}]*background:\s*var\(--zx-color-accent\)/s);
+  assert.match(source, /\.zx-kanban-view__avatar \+ \.zx-kanban-view__avatar\s*\{[^}]*margin-inline-start:\s*calc\(var\(--zx-space-2\) \* -1\)/s);
+  assert.match(source, /\.zx-kanban-view__column-empty\s*\{[^}]*border:\s*1px dashed/s);
   assert.match(source, /@media \(hover:\s*none\), \(pointer:\s*coarse\)[\s\S]*opacity:\s*1/s);
   assert.match(source, /@media \(pointer:\s*coarse\)[\s\S]*inline-size:\s*2\.75rem[\s\S]*min-block-size:\s*2\.75rem/s);
   // Coarse targets grow the control itself; none of the coarse blocks may fake a hit area with a
@@ -593,6 +613,133 @@ test('a multi-card move through a search lands where the visible cards say it wi
   view.undo();
   assert.deepEqual(view.getData().map((record) => record.ID), [1, 2, 3, 4, 5]);
   assert.deepEqual(view.getSelectionIds(), [1, 3]);
+});
+
+test('indicator values become badges, and a tone map beats guessing at vocabulary', () => {
+  const tones = { High: 'danger', Low: 'info' };
+  assert.deepEqual(resolveKanbanIndicator('High', tones),
+    { label: 'High', tone: 'danger', icon: null, dot: true });
+  // An unmapped value is shown, not hidden, and stays tone-neutral.
+  assert.deepEqual(resolveKanbanIndicator('Whenever', tones),
+    { label: 'Whenever', tone: 'neutral', icon: null, dot: true });
+  // An explicit descriptor wins over the map, and an icon replaces the status dot.
+  assert.deepEqual(resolveKanbanIndicator({ label: 'High', tone: 'success', icon: 'star' }, tones),
+    { label: 'High', tone: 'success', icon: 'star', dot: false });
+  assert.equal(resolveKanbanIndicator({ label: 'X', tone: 'nonsense' }).tone, 'neutral');
+  assert.equal(resolveKanbanIndicator(null), null);
+  assert.equal(resolveKanbanIndicator(''), null);
+  assert.equal(resolveKanbanIndicator({ label: '' }), null);
+});
+
+test('completion is measured against an explicit scale rather than a guessed one', () => {
+  assert.deepEqual(resolveKanbanProgress(20), { value: 20, max: 100, percent: 20, label: null });
+  assert.deepEqual(resolveKanbanProgress(0.72, 1), { value: 0.72, max: 1, percent: 72, label: null });
+  // Out-of-range amounts clamp rather than overflowing the track.
+  assert.equal(resolveKanbanProgress(180).percent, 100);
+  assert.equal(resolveKanbanProgress(-5).percent, 0);
+  assert.deepEqual(resolveKanbanProgress({ value: 3, max: 4, label: 'Subtasks' }),
+    { value: 3, max: 4, percent: 75, label: 'Subtasks' });
+  assert.equal(resolveKanbanProgress(null), null);
+  assert.equal(resolveKanbanProgress('not a number'), null);
+  assert.equal(resolveKanbanProgress(5, 0), null);
+});
+
+test('assignees accept a name, a list, or descriptors, and reject unsafe images', () => {
+  assert.deepEqual(resolveKanbanAssignees('Ada Lovelace'),
+    [{ name: 'Ada Lovelace', src: null, initials: 'AL' }]);
+  assert.deepEqual(resolveKanbanAssignees(['Ada Lovelace', '', null, 'Grace Hopper'])
+    .map((person) => person.initials), ['AL', 'GH']);
+  assert.deepEqual(resolveKanbanAssignees([{ name: 'Ada', src: 'https://example.test/a.png' }]),
+    [{ name: 'Ada', src: 'https://example.test/a.png', initials: 'A' }]);
+  // A script URL degrades to initials instead of reaching an img src.
+  assert.deepEqual(resolveKanbanAssignees([{ name: 'Ada', src: 'javascript:alert(1)' }]),
+    [{ name: 'Ada', src: null, initials: 'A' }]);
+  assert.deepEqual(resolveKanbanAssignees([{ name: 'Ada', initials: 'ADA' }])[0].initials, 'ADA');
+  assert.deepEqual(resolveKanbanAssignees(null), []);
+  // A face nobody can name would render as an unidentified person in a group labelled
+  // "Assigned to " — a picture without a person is worse than no picture.
+  assert.deepEqual(resolveKanbanAssignees([{ src: 'https://example.test/ada.png' }]), []);
+  assert.deepEqual(resolveKanbanAssignees([{ name: '   ' }]), []);
+});
+
+test('a blank meter label falls back to the localized default instead of naming nothing', () => {
+  // aria-label="" would leave the progressbar unnamed, which is worse than a generic name.
+  assert.equal(resolveKanbanProgress({ value: 1, max: 2, label: '' }).label, null);
+  assert.equal(resolveKanbanProgress({ value: 1, max: 2, label: '   ' }).label, null);
+  assert.equal(resolveKanbanProgress({ value: 1, max: 2, label: 'Subtasks' }).label, 'Subtasks');
+});
+
+test('the avatar limit is normalized once, so the overflow chip cannot disagree with the faces', () => {
+  assert.deepEqual(kanbanAvatarLimit(3, 5), { shown: 3, hidden: 2 });
+  assert.deepEqual(kanbanAvatarLimit(3, 2), { shown: 2, hidden: 0 });
+  // A fractional limit used to floor every face away while the chip still counted from the raw
+  // option, hiding all three people behind a "+2".
+  assert.deepEqual(kanbanAvatarLimit(0.5, 3), { shown: 1, hidden: 2 });
+  assert.deepEqual(kanbanAvatarLimit(0, 3), { shown: 1, hidden: 2 });
+  // An unusable limit shows everyone rather than nobody.
+  assert.deepEqual(kanbanAvatarLimit(Number.NaN, 3), { shown: 3, hidden: 0 });
+  // The helper is exported, so a malformed total is normalized here rather than trusted.
+  assert.deepEqual(kanbanAvatarLimit(3, -2), { shown: 0, hidden: 0 });
+  assert.deepEqual(kanbanAvatarLimit(3, 2.7), { shown: 2, hidden: 0 });
+  assert.deepEqual(kanbanAvatarLimit(3, Number.NaN), { shown: 0, hidden: 0 });
+});
+
+test('a literal indicator descriptor is content, not a property name', () => {
+  const view = kanbanMethodFixture({
+    data: [{ ID: 1, status: 'todo', title: 'Alpha' }]
+  });
+  view.emit = () => /** @type {any} */ ({ defaultPrevented: false });
+  view.options = { ...view.options, status: { label: 'Blocked', tone: 'danger' }, priority: 'nope' };
+  view._resolveCardSources();
+
+  // Reading the descriptor as a record key resolved undefined and rendered nothing.
+  assert.deepEqual(view._cardIndicator(view._cardSources.status, {}, view.getRecord(1), 0),
+    { label: 'Blocked', tone: 'danger', icon: null, dot: true });
+  // An unknown field id still falls back to a plain property read.
+  assert.equal(view._cardIndicator(view._cardSources.priority, {}, { nope: 'High' }, 0).label, 'High');
+  assert.equal(view._cardSources.any, true);
+});
+
+test('anatomy sources are resolved once per refresh and drop out of the metadata list', () => {
+  let reads = 0;
+  const view = kanbanMethodFixture({
+    data: [{ ID: 1, status: 'todo', title: 'Alpha', due: 'Tomorrow' }]
+  });
+  view.options = {
+    ...view.options,
+    fields: [
+      { id: 'title', label: 'Title' },
+      { id: 'due', label: 'Due' }
+    ],
+    identifier: () => { reads += 1; return 'KAN-1'; },
+    progress: 'due'
+  };
+  view._viewFields = view.options.fields;
+  view._viewFieldOrder = ['title', 'due'];
+  view._resolveCardSources();
+
+  // `due` feeds the meter, so repeating it as a labelled metadata row would show it twice.
+  assert.deepEqual(view._cardMetadataFields().map((field) => field.id), ['title']);
+  assert.deepEqual([...view._cardSources.fieldIds], ['due']);
+
+  view._cardSources.identifier(view.getRecord(1), 0);
+  assert.equal(reads, 1, 'the identifier reader runs once per card, not once per use');
+
+  // A field that opts back in is shown in both places deliberately.
+  view._viewFields = [{ id: 'title', label: 'Title' }, { id: 'due', label: 'Due', duplicate: true }];
+  assert.deepEqual(view._cardMetadataFields().map((field) => field.id), ['title', 'due']);
+});
+
+test('a handle-only drag source stays visible whatever moveHandle asks for', () => {
+  const view = kanbanMethodFixture({ data: [{ ID: 1, status: 'todo', title: 'Alpha' }] });
+  const reveal = (dragFrom, moveHandle) => {
+    const options = { ...view.options, dragFrom, moveHandle };
+    return options.moveHandle === 'always' || options.dragFrom === 'handle' ? 'always' : 'keyboard';
+  };
+  // Hiding the only thing a pointer user can grab would make the board unusable.
+  assert.equal(reveal('handle', 'keyboard'), 'always');
+  assert.equal(reveal('card', 'keyboard'), 'keyboard');
+  assert.equal(reveal('card', 'always'), 'always');
 });
 
 test('labels replace every announced string without changing behavior', () => {

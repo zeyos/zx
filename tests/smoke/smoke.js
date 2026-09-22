@@ -330,6 +330,95 @@ const cases = [
     assert(component.refs.fallback.textContent === 'GH' && !component.hasImage(), 'avatar update failed');
     assert(component.el.getAttribute('aria-label') === 'Grace Hopper, Away', 'setStatus did not update the avatar name');
   }),
+  componentCase('EntityRef', () => new zx.EntityRef(null, {
+    id: 'customer-7',
+    title: 'Northwind GmbH',
+    subtitle: 'Customer',
+    icon: 'folder',
+    metadata: [{ label: 'Owner', value: 'Ada Lovelace' }],
+    link: { href: '#northwind', target: '_blank' },
+    actions: [{ id: 'more', title: 'More actions', icon: 'dots' }]
+  }), (component) => {
+    assert(component.el.querySelector('.zx-entity-ref__primary')?.rel.includes('noopener'),
+      'EntityRef blank link omitted noopener');
+    const actions = observe(component, 'action');
+    component.el.querySelector('[data-entity-action]').click();
+    actions.expect();
+    component.set({ title: 'Northwind Europe', wrap: true, size: 'lg' })
+      .setMetadata([{ label: 'Region', value: 'Europe', showLabel: false }]);
+    assert(component.getEntity().title === 'Northwind Europe' && component.el.dataset.wrap === 'true',
+      'EntityRef update did not synchronize');
+  }),
+  componentCase('FileItem', () => new zx.FileItem(null, {
+    id: 'file-7',
+    name: "contract.pdf",
+    size: 245760,
+    mime: 'application/pdf',
+    status: 'uploading',
+    progress: 25,
+    link: { href: '#contract', download: 'contract.pdf' },
+    actions: [{ id: 'remove', label: 'Remove', icon: 'trash', kind: 'danger' }]
+  }), (component) => {
+    const actions = observe(component, 'action');
+    component.el.querySelector('[data-entity-action]').click();
+    actions.expect();
+    component.setProgress(60).setStatus('success');
+    assert(component.getFile().progress === 60 && component.el.dataset.status === 'success',
+      'FileItem state update failed');
+    assert(component.el.querySelector('[role="progressbar"]').getAttribute('aria-valuenow') === '60',
+      'FileItem progress semantics did not update');
+  }),
+  componentCase('FileList', () => new zx.FileList(null, {
+    items: [
+      { id: 'a', name: 'invoice.pdf', size: 4096, mime: 'application/pdf' },
+      { id: 'b', name: 'scan.png', status: 'processing', indeterminate: true }
+    ]
+  }), (component) => {
+    const changes = observe(component, 'datachange');
+    component.updateItem('a', { status: 'success' })
+      .addItem({ id: 'c', name: 'notes.txt', status: 'temporary' })
+      .removeItem('b');
+    changes.expect();
+    assert(component.getItems().map((file) => file.id).join(',') === 'a,c',
+      'FileList mutation order failed');
+    component.setLoading(true).setLoading(false);
+  }),
+  componentCase('ActivityItem', () => new zx.ActivityItem(null, {
+    id: 'activity-7',
+    actor: 'Ada Lovelace',
+    avatar: { name: 'Ada Lovelace', status: 'online' },
+    title: 'uploaded a contract',
+    content: 'The signed agreement is ready for review.',
+    timestamp: '2026-08-31T09:30:00Z',
+    metadata: ['Contracts', 'Customer'],
+    attachments: ['contract.pdf'],
+    actions: [{ id: 'like', label: 'Like', icon: 'heart' }]
+  }), (component) => {
+    const actions = observe(component, 'action');
+    component.el.querySelector('[data-activity-action]').click();
+    actions.expect();
+    component.setActivity({ title: 'updated the contract', timeLabel: 'Just now' });
+    assert(component.getActivity().title === 'updated the contract'
+      && component.el.querySelector('time')?.textContent === 'Just now',
+    'ActivityItem update did not synchronize');
+  }),
+  componentCase('ActivityList', () => new zx.ActivityList(null, {
+    groupBy: 'day',
+    groupLabel: (day) => `Day ${day}`,
+    items: [
+      { id: 'one', day: 'today', actor: 'Ada', title: 'created the record' },
+      { id: 'two', day: 'today', actor: 'Grace', title: 'added a note' }
+    ]
+  }), (component) => {
+    const changes = observe(component, 'datachange');
+    component.prependItems({ id: 'zero', day: 'today', actor: 'Linus', title: 'opened the record' })
+      .updateItem('two', { title: 'updated the note' })
+      .removeItem('one');
+    changes.expect();
+    assert(component.getItems().map((item) => item.id).join(',') === 'zero,two',
+      'ActivityList incremental order failed');
+    component.setLoading(true).setLoading(false);
+  }),
   componentCase('AccountMenu', () => new zx.AccountMenu(null, {
     account: { name: 'Ada Lovelace', secondary: 'ada@example.test', status: 'online', statusLabel: 'Online' },
     items: [{ label: 'Settings', value: 'settings', onselect: () => {
@@ -655,11 +744,25 @@ const cases = [
   sheetStackCase(),
   dropdownCase(),
   componentCase('MenuButton', () => new zx.MenuButton(null, {
-    label: 'Actions', items: [{ label: 'Run', value: 'run' }]
+    label: 'Actions',
+    items: [
+      { type: 'heading', label: 'Workspace' },
+      { label: 'Run', value: 'run', description: 'Run the workflow', badge: 3, shortcut: 'Ctrl+R' },
+      { label: 'Pinned', value: 'pinned', role: 'menuitemcheckbox', checked: true },
+      '-',
+      { label: 'Documentation', value: 'docs', href: '#menu-documentation' }
+    ]
   }), (component) => {
     const events = observe(component, 'open');
     component.open();
     assert(component.isOpen(), 'open failed');
+    const panel = component.getPanel();
+    assert(panel.querySelector('.zx-menu-button__heading'), 'heading missing');
+    assert(panel.querySelector('.zx-menu-button__description'), 'description missing');
+    assert(panel.querySelector('.zx-menu-button__badge')?.textContent === '3', 'badge missing');
+    assert(panel.querySelector('[role="menuitemcheckbox"]')?.getAttribute('aria-checked') === 'true',
+      'checked state missing');
+    assert(panel.querySelector('a[href="#menu-documentation"]'), 'native link missing');
     events.expect();
     component.close();
   }),
@@ -957,6 +1060,13 @@ const cases = [
     swimlaneBy: 'team',
     swimlanes: [{ id: 'north', label: 'North' }, { id: 'south', label: 'South' }],
     rules: [{ id: 'flagged', when: (record) => record.status === 'open', tone: 'success', label: 'In flight', description: 'Currently in flight' }],
+    entityIcon: 'tag',
+    identifier: 'id',
+    priority: (record) => (record.amount > 30000 ? 'High' : 'Low'),
+    priorityTones: { High: 'danger', Low: 'info' },
+    status: 'status',
+    progress: (record) => Math.min(100, Math.round(record.amount / 500)),
+    assignees: 'owner',
     searchControl: true,
     historyControls: true,
     allowAdd: true,
@@ -1016,6 +1126,76 @@ const cases = [
       'KanbanView did not restore every card when the search cleared');
 
     assert(component.el.querySelector('[data-rule-tone]'), 'KanbanView did not mark a matching rule');
+
+    // The card is the pointer drag source, so the handle is present and reachable but not drawn.
+    const keyboardHandle = component.el.querySelector('.zx-kanban-view__move-handle');
+    assert(keyboardHandle?.dataset.reveal === 'keyboard',
+      'KanbanView drew a move knob for pointer users by default');
+    assert(getComputedStyle(keyboardHandle).clipPath === 'inset(50%)',
+      'KanbanView did not clip the keyboard-only move handle');
+    // Clipping alone is not enough: native button padding used to floor the box at 20px, so the
+    // knob still occupied the card while claiming to be hidden.
+    const clipped = keyboardHandle.getBoundingClientRect();
+    assert(clipped.width <= 2 && clipped.height <= 2,
+      'KanbanView left the clipped move handle occupying card space');
+    // base.css floors native buttons through `:where()` — losing the cascade but still winning on
+    // `padding-inline` and `min-block-size`. Both icon buttons must stay the square they declare.
+    const collapseBox = component.el.querySelector('.zx-kanban-view__collapse').getBoundingClientRect();
+    assert(Math.round(collapseBox.width) === Math.round(collapseBox.height),
+      'KanbanView icon buttons were floored out of square by the base control styles');
+    // Programmatic focus is the case that matters: a pointer drop focuses the handle, and
+    // :focus-visible does not match after pointer input. Focus must make it visible anyway.
+    keyboardHandle.focus();
+    assert(document.activeElement === keyboardHandle,
+      'KanbanView clipped its move handle out of reach of the keyboard');
+    assert(getComputedStyle(keyboardHandle).clipPath === 'none'
+      && keyboardHandle.getBoundingClientRect().width > 8,
+    'KanbanView kept keyboard focus on an invisible move handle');
+    keyboardHandle.blur();
+
+    // A handle-only drag source must never be the clipped one.
+    const handleDrag = new zx.KanbanView(null, {
+      fields: recordViewFields(), data: recordViewData(), recordId: 'id', titleField: 'title',
+      columnBy: 'status', dragFrom: 'handle',
+      columns: [{ id: 'new', label: 'New' }, { id: 'open', label: 'Open' }]
+    });
+    try {
+      component.el.append(handleDrag.el);
+      const source = handleDrag.el.querySelector('.zx-kanban-view__move-handle');
+      assert(source.dataset.reveal === 'always' && getComputedStyle(source).clipPath === 'none',
+        'KanbanView clipped the only drag source a pointer user has');
+    } finally {
+      handleDrag.destroy();
+    }
+
+    // Card head and footer project the record without repeating it as metadata.
+    const anatomy = component.el.querySelector('.zx-record-card');
+    // The identifier now carries a clipped "Record" prefix, so the visible text is the tail.
+    const identifier = anatomy.querySelector('.zx-kanban-view__identifier');
+    assert(identifier?.lastChild?.textContent === 'opp-1',
+      'KanbanView did not render the record identifier');
+    assert(anatomy.querySelector('.zx-kanban-view__entity .zx-icon'),
+      'KanbanView did not render the entity icon');
+    assert(anatomy.querySelectorAll('.zx-kanban-view__card-flags .zx-badge').length === 2,
+      'KanbanView did not render both the status and the priority indicator');
+    // "High" alone does not say high what, and aria-label is prohibited on a generic span.
+    const hints = [...anatomy.querySelectorAll('.zx-kanban-view__hint')].map((hint) => hint.textContent.trim());
+    assert(hints.includes('Record') && hints.includes('Priority') && hints.includes('Status'),
+      'KanbanView did not name its terse card values for assistive technology');
+    assert(!anatomy.querySelector('.zx-kanban-view__identifier[aria-label]'),
+      'KanbanView named a generic span with a prohibited aria-label');
+    // A field the anatomy projects must not also appear as a labelled metadata row.
+    assert(![...anatomy.querySelectorAll('.zx-record-card__label')]
+      .some((label) => label.textContent.trim() === 'Status'),
+    'KanbanView repeated an anatomy field in the metadata list');
+    const meter = anatomy.querySelector('.zx-kanban-view__progress-track');
+    assert(meter?.getAttribute('role') === 'progressbar' && meter.getAttribute('aria-valuenow')
+      && meter.getAttribute('aria-label'), 'KanbanView progress meter is not an accessible progressbar');
+    const avatars = anatomy.querySelector('.zx-kanban-view__avatars');
+    assert(avatars?.getAttribute('aria-label')?.includes('Ada'),
+      'KanbanView avatar group does not name who is responsible');
+    assert([...avatars.children].every((face) => face.getAttribute('aria-hidden') === 'true'),
+      'KanbanView announced each avatar separately instead of once as a group');
     assert(component.el.querySelector('[data-rule]').getAttribute('aria-description').includes('in flight'),
       'KanbanView did not carry the rule description into the accessible description');
     // A lane limit reports capacity the way a column limit does.
@@ -1091,6 +1271,31 @@ const cases = [
         'KanbanView left a card marked as dragging');
       assert(!component.el.querySelector('[data-drop]'),
         'KanbanView left a drop marker behind');
+    }
+
+    // renderCard replaces the shared middle; the anatomy and rule badges answer to their own
+    // options and must survive it. The demo proves the opt-out, this proves the coexistence.
+    const layered = new zx.KanbanView(null, {
+      fields: recordViewFields(), data: recordViewData(), recordId: 'id', titleField: 'title',
+      columnBy: 'status', columns: [{ id: 'new', label: 'New' }, { id: 'open', label: 'Open' }],
+      identifier: 'id', status: 'status', progress: () => 40, assignees: 'owner',
+      rules: [{ id: 'all', when: () => true, tone: 'accent', label: 'Rule' }],
+      renderCard: ({ record }) => Object.assign(document.createElement('p'),
+        { className: 'smoke-custom-card', textContent: record.title })
+    });
+    try {
+      component.el.append(layered.el);
+      const custom = layered.el.querySelector('.zx-record-card[data-custom-card="true"]');
+      assert(custom?.querySelector('.smoke-custom-card'), 'renderCard content was not adopted');
+      assert(custom.querySelector('.zx-kanban-view__card-head')
+        && custom.querySelector('.zx-kanban-view__progress-track')
+        && custom.querySelector('.zx-kanban-view__avatars')
+        && custom.querySelector('.zx-kanban-view__rules'),
+      'renderCard dropped anatomy and rules the host explicitly configured');
+      assert(custom.getAttribute('aria-label') && !custom.getAttribute('aria-labelledby'),
+        'a replaced card body lost its accessible name');
+    } finally {
+      layered.destroy();
     }
 
     // A blocked policy refuses the move outright instead of warning about it.
@@ -1289,6 +1494,199 @@ const cases = [
     component.clear();
     assert(component.getValue().root.children.length === 0, 'Filter clear failed');
   }),
+  ...['CardView', 'KanbanView'].map((kind) => componentCase(`${kind} (card selection)`, () => new zx[kind](null, {
+    fields: [{id: 'name', label: 'Name'}], data: [{ID: 1, name: 'One'}, {ID: 2, name: 'Two'}],
+    titleField: 'name', selectable: 'multi', selectionTrigger: 'card', fieldControls: false,
+    columnBy: () => 'all', columns: [{id: 'all', label: 'All'}], dragFrom: 'handle', history: false,
+    link: () => '#record', actions: [{id: 'inspect', label: 'Inspect'}]
+  }), (component) => {
+    const cards = component.el.querySelectorAll('.zx-record-card');
+    assert(!component.el.querySelector('[data-record-selection]'), 'card mode rendered a checkbox');
+    cards[0].click();
+    assert(component.getSelectionIds().length === 1, 'card click did not select');
+    cards[1].dispatchEvent(new MouseEvent('click', {bubbles: true, shiftKey: true}));
+    assert(component.getSelectionIds().length === 2, 'card range selection failed');
+    cards[0].dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true}));
+    assert(component.getSelectionIds().length === 1, 'Enter did not toggle the focused card');
+    cards[0].dispatchEvent(new KeyboardEvent('keydown', {key: ' ', bubbles: true}));
+    assert(component.getSelectionIds().length === 2, 'Space did not toggle selection');
+    const link = cards[0].querySelector('a');
+    component.listen(link, 'click', event => event.preventDefault());
+    link.click(); cards[0].querySelector('[data-record-action]').click();
+    assert(component.getSelectionIds().length === 2, 'interactive descendants toggled selection');
+    assert(cards[0].getAttribute('aria-description')?.includes('Selected'), 'selection was not announced');
+    component.setSelection([]);
+    assert(cards[0].dataset.selected === 'false', 'clear selection did not update the card');
+  })),
+  artifactCase('button (shortcut hint)', () => {
+    const element = zx.button({label: 'New', shortcut: {label: 'N', keys: 'N'}});
+    return {element, exercise: () => {
+      assert(element.getAttribute('aria-keyshortcuts') === 'N', 'shortcut is not exposed to assistive technology');
+      assert(element.querySelector('kbd')?.textContent === 'N', 'visible shortcut missing');
+      assert(element.title === 'New (N)', 'hover shortcut missing');
+    }};
+  }),
+  componentCase('SortControl', () => new zx.SortControl(null, {
+    fields: [{id: 'name', label: 'Name'}, {id: 'created', label: 'Created'}],
+    value: {id: 'name', dir: 'asc'}, label: 'Sort records'
+  }), (component) => {
+    const changes = [], domChanges = [];
+    component.on('change', ({detail}) => changes.push(detail.value));
+    component.listen(component.el, 'zx-change', ({detail}) => domChanges.push(detail.value));
+    const input = component.el.querySelector('[role="combobox"]');
+    const direction = component.el.querySelector('.zx-sort-control__direction');
+    assert(input.value === 'Name' && input.getAttribute('aria-label') === 'Sort records', 'field label must omit direction');
+    assert(direction.getAttribute('aria-label') === 'Sort records: Ascending', 'current direction needs an accessible name');
+    direction.focus(); direction.click();
+    assert(document.activeElement === direction && component.getValue().dir === 'desc', 'direction toggle lost focus or state');
+    assert(direction.title === 'Descending → Ascending', 'direction hover hint is stale');
+    assert(changes.length === 1 && domChanges.length === 1, 'direction must emit exactly one atomic change');
+    input.click();
+    assert(component.el.querySelectorAll('[role="option"]').length === 2, 'fields should appear exactly once');
+    input.value = 'Created'; input.dispatchEvent(new InputEvent('input', {bubbles: true}));
+    assert(component.getValue().id === 'name' && changes.length === 1, 'uncommitted query changed sort');
+    const choices = component.el.querySelectorAll('[role="option"]');
+    assert(choices.length === 1, 'field search retained direction permutations');
+    choices[0].click();
+    assert(component.getValue().id === 'created' && component.getValue().dir === 'desc', 'field choice did not preserve direction');
+    assert(input.value === 'Created' && changes.length === 2 && domChanges.length === 2, 'field change duplicated the DOM event');
+    component.setValue({id: 'created', dir: 'desc'});
+    component.setValue({id: 'name', dir: 'asc'}, {silent: true});
+    assert(changes.length === 2 && domChanges.length === 2 && input.value === 'Name', 'silent or unchanged set emitted a change');
+    assert(direction.dataset.direction === 'asc', 'silent set did not update direction');
+    input.click(); component.disable();
+    assert(input.disabled && direction.disabled && input.getAttribute('aria-expanded') === 'false', 'disable must affect both controls and close choices');
+    direction.click(); assert(changes.length === 2, 'disabled toggle changed sort');
+    component.enable(); assert(!input.disabled && !direction.disabled, 'enable must affect both controls');
+    direction.click();
+    component.setValue(null);
+    assert(component.getValue().id === 'name' && component.getValue().dir === 'asc', 'reset failed');
+    const copy = component.getValue(); copy.dir = 'desc';
+    assert(component.getValue().dir === 'asc', 'getValue leaked state');
+    component.focus(); assert(document.activeElement === input, 'focus should reach the field');
+    input.click(); // generic lifecycle check disposes an open popover
+  }),
+  componentCase('SortControl (empty)', () => new zx.SortControl(null), (component) => {
+    component.enable();
+    assert(component.getValue() === null, 'empty catalogue should return null');
+    assert(component.el.querySelector('[role="combobox"]').disabled, 'empty field must stay disabled');
+    assert(component.el.querySelector('.zx-sort-control__direction').disabled, 'empty direction must stay disabled');
+  }),
+  {
+    name: 'SortControl (enhanced target)',
+    create(fixture) {
+      const target = document.createElement('div');
+      target.className = 'caller-sort'; target.dataset.keep = 'yes';
+      target.append(document.createTextNode('Original sort content')); fixture.append(target);
+      const before = target.outerHTML;
+      const component = new zx.SortControl(target, {
+        fields: [{id: 'name', label: 'Name'}], disabled: true,
+        value: {id: 'name', dir: 'desc'}, label: 'Sortieren', labels: {asc: 'Aufsteigend', desc: 'Absteigend'}
+      });
+      return {component, target, before};
+    },
+    exercise({component}) {
+      const direction = component.el.querySelector('.zx-sort-control__direction');
+      assert(direction.disabled, 'initial disabled state was ignored');
+      component.enable();
+      assert(direction.getAttribute('aria-label') === 'Sortieren: Absteigend', 'initial direction localization failed');
+      assert(direction.title === 'Absteigend → Aufsteigend', 'localized hover action is missing');
+      direction.click();
+    },
+    destroy({component, target, before}) {
+      const direction = component.el.querySelector('.zx-sort-control__direction');
+      const selectRoot = component.el.querySelector('.zx-select');
+      const value = JSON.stringify(component.getValue());
+      component.destroy(); direction.click();
+      assert(JSON.stringify(component.getValue()) === value, 'destroyed direction listener still runs');
+      assert(!zx.Component.from(selectRoot), 'owned Select was not disposed');
+      assert(target.outerHTML === before, 'SortControl did not restore its target');
+      const again = new zx.SortControl(target, {fields: [{id: 'name', label: 'Name'}]});
+      again.destroy();
+      assert(target.outerHTML === before, 'SortControl second enhancement did not restore target');
+      target.remove();
+    }
+  },
+  componentCase('Filter (searchable compact)', () => new zx.Filter(null, {
+    fields: [{id: 'name', label: 'Name', type: 'text'}, {id: 'type', label: 'Type', type: 'enum', choices: [{value: 0, label: 'Zero'}, {value: 1, label: 'One'}]}],
+    searchable: true, layout: 'compact', rootLogic: 'and', showApply: false, showRootActions: false, allowGroups: false
+  }), async (component) => {
+    const id = component.addCondition(null, {field: 'name', operator: 'contains', value: 'Example'});
+    assert(component.el.querySelectorAll('[data-filter-action="add"]').length === 1, 'embedded filter must have one Add control');
+    assert(!component.el.querySelector('[data-filter-action="apply"]'), 'external Apply must not leave a duplicate button');
+    const picker = component.el.querySelector('[data-filter-focus="field"]');
+    picker.click(); picker.value = 'Type'; picker.dispatchEvent(new InputEvent('input', {bubbles: true}));
+    const option = component.el.querySelector('[role="option"]');
+    assert(option.textContent.includes('Type'), 'field search did not find Type');
+    option.click(); await Promise.resolve(); await Promise.resolve();
+    assert(component.getValue().root.children[0].field === 'type', 'field selection did not reach the AST');
+    const value = component.el.querySelector('[data-filter-focus="value"]');
+    value.click();
+    component.el.querySelector('[data-filter-focus="value"]').closest('.zx-select').querySelector('[role="option"]').click();
+    await Promise.resolve();
+    assert(component.getValue().root.children[0].value === 0, 'searchable enum must preserve numeric zero');
+    const old = component.el.querySelector('.zx-select');
+    component.remove(id); await Promise.resolve();
+    assert(!old.isConnected && !zx.Component.from(old), 'removed filter leaked a Select instance');
+    assert(component.el.contains(document.activeElement), 'removal lost focus');
+  }),
+  componentCase('FilterPanel', () => new zx.FilterPanel(null, {
+    fields: {
+      status: {
+        type: 'select',
+        label: 'Status',
+        options: [{ value: 1, label: 'Open' }, { value: 2, label: 'Closed' }]
+      },
+      created: { type: 'date:range', label: 'Created' },
+      amount: { type: 'float:range', label: 'Amount', min: 0, max: 1000 }
+    },
+    value: { status: [1] }
+  }), (component) => {
+    const events = observe(component, 'apply');
+    // `0` is a constraint; the empty string beside it is not. The panel's whole
+    // contract is that it can tell those apart.
+    component.setValue({ status: [1], amount: { from: 0, to: '' } });
+    component.apply();
+    events.expect();
+    const value = component.getValue();
+    assert(Array.isArray(value.status) && value.status.length === 1, 'select value mismatch');
+    assert(value.amount && value.amount.from === 0, 'a zero range bound was pruned');
+    assert(!('created' in value), 'an untouched filter reached the value');
+    component.clear();
+    assert(Object.keys(component.getValue()).length === 0, 'clear left a constraint behind');
+  }),
+  componentCase('ListToolbar', () => new zx.ListToolbar(null, {
+    search: { placeholder: 'Search records' },
+    views: ['auto', 'cards', 'table'],
+    tools: [{ id: 'filters', icon: 'filter', label: 'Filters', badge: 2 }]
+  }), (component) => {
+    const events = observe(component, 'viewchange');
+    component.setView('cards');
+    assert(component.getView() === 'cards', 'view did not change');
+    events.expect();
+
+    // The badge is part of the button's NAME, not a second thing beside it — a tool
+    // that reads "Filters" while showing a 2 is the bug this component exists to stop.
+    const tool = component.getTool('filters');
+    assert(tool && /\(2\)/.test(tool.getAttribute('aria-label') || ''), 'badge missing from the accessible name');
+    component.setBadge('filters', null);
+    assert(!/\(/.test(tool.getAttribute('aria-label') || ''), 'badge survived its own removal');
+
+    component.setCount(20);
+    component.setCount(null);
+  }),
+  componentCase('StatTile', () => new zx.StatTile(null, {
+    label: 'Awaiting acceptance', value: 3, delta: 2, deltaLabel: 'vs. last week', kind: 'warning'
+  }), (component) => {
+    const name = component.getAccessibleName();
+    assert(name.includes('Awaiting acceptance') && name.includes('3'), 'accessible name is incomplete');
+    // Spoken, not glyphed: a screen reader must not be read a bare arrow.
+    assert(!name.includes('+') && !name.includes('\u2212'), 'the delta reached the name as a sign');
+    component.update({ loading: true });
+    assert(component.toElement().getAttribute('aria-busy') === 'true', 'loading did not set aria-busy');
+    component.update({ loading: false });
+    assert(component.toElement().getAttribute('aria-busy') !== 'true', 'aria-busy survived loading');
+  }),
   componentCase('Pagination', () => new zx.Pagination(null, { total: 100, page: 1, pageSize: 25 }), (component) => {
     const events = observe(component, 'change');
     component.setState({ page: 3 });
@@ -1374,6 +1772,17 @@ const cases = [
     const events = observe(component, 'change');
     component.setValues(['two']);
     assert(component.getValues()[0] === 'two', 'value list mismatch');
+    events.expect();
+  }),
+  componentCase('CodeEditor', () => new zx.CodeEditor(null, {
+    value: 'one\ntwo', language: 'text', indent: '  ', rows: 4
+  }), (component) => {
+    const events = observe(component, 'change');
+    component.setValue('alpha\nbeta').setLanguage('json').focus();
+    assert(component.getValue() === 'alpha\nbeta', 'CodeEditor set/get mismatch');
+    assert(component.el.dataset.language === 'json', 'CodeEditor language did not update');
+    component.setReadOnly(true);
+    assert(component.el.querySelector('textarea').readOnly, 'CodeEditor read-only state did not update');
     events.expect();
   }),
   componentCase('MultiValueEditor', () => new zx.MultiValueEditor(null, { values: ['one'] }), (component) => {
@@ -2014,18 +2423,28 @@ function dropdownCase() {
     create(fixture) {
       const anchor = zx.button({ label: 'Open' });
       fixture.append(anchor);
-      const component = new zx.Dropdown(anchor, { content: 'Menu', openOn: 'manual' });
+      const select = new zx.Select(null, { items: sampleItems(), value: 1, label: 'Nested choice' });
+      const component = new zx.Dropdown(anchor, { content: select.el, openOn: 'manual' });
       fixture.append(component.toElement());
-      return { component, anchor };
+      return { component, anchor, select };
     },
-    exercise({ component }) {
+    exercise({ component, anchor, select }) {
       const events = observe(component, 'open');
       component.open();
       assert(component.isOpen(), 'open failed');
       events.expect();
-      component.close();
+      select.focus();
+      select.open();
+      const input = select.el.querySelector('[role="combobox"]');
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+      assert(input.getAttribute('aria-expanded') === 'false', 'first Escape closes nested choices');
+      assert(component.isOpen(), 'handled Escape must not close the parent panel');
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+      assert(!component.isOpen(), 'second Escape closes the parent panel');
+      assert(document.activeElement === anchor, 'parent Escape restores trigger focus');
     },
-    destroy({ component, anchor }) {
+    destroy({ component, anchor, select }) {
+      select.destroy();
       component.destroy();
       anchor.remove();
     }
@@ -2345,7 +2764,13 @@ function contextMenuCase() {
       region.textContent = 'Right-click target';
       fixture.append(region);
       const component = new zx.ContextMenu(region, {
-        items: [{ label: 'Open', value: 'open' }, '-', { label: 'Delete', value: 'delete', danger: true }]
+        items: [
+          { type: 'heading', label: 'Record' },
+          { label: 'Open', value: 'open', description: 'Open details', shortcut: 'Enter' },
+          { label: 'Selected', value: 'selected', role: 'menuitemradio', checked: true },
+          '-',
+          { label: 'Delete', value: 'delete', danger: true }
+        ]
       });
       return { component, region };
     },
@@ -2354,11 +2779,20 @@ function contextMenuCase() {
       component.openAt(20, 20, region);
       assert(component.isOpen(), 'openAt failed');
       assert(component.getContext() === region, 'context mismatch');
+      const panel = document.querySelector('.zx-context-menu');
+      assert(panel?.querySelector('.zx-context-menu__heading'), 'context heading missing');
+      assert(panel?.querySelector('[role="menuitemradio"]')?.getAttribute('aria-checked') === 'true',
+        'context checked state missing');
       events.expect();
       component.close();
       component.setItems([{ label: 'Only one', value: 'one' }]);
       component.openAtElement(region);
       assert(component.isOpen(), 'openAtElement failed');
+      const cancel = (event) => event.preventDefault();
+      component.on('select', cancel);
+      document.querySelector('.zx-context-menu [role="menuitem"]')?.click();
+      assert(component.isOpen(), 'cancelled context selection closed the menu');
+      component.off('select', cancel);
       component.close();
     },
     destroy({ component, region }) {

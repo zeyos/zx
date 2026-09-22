@@ -1,11 +1,7 @@
 import { h } from '../../core/dom.js';
 import { uid } from '../../core/util.js';
 import { Modal } from '../modal/modal.js';
-
-const FOCUSABLE_SELECTOR = [
-  'a[href]', 'button:not([disabled])', 'input:not([disabled])', 'select:not([disabled])',
-  'textarea:not([disabled])', '[contenteditable="true"]', '[tabindex]:not([tabindex="-1"])'
-].join(',');
+import { button } from '../button/button.js';
 
 /** @typedef {'default'|'primary'|'danger'|'ghost'} DialogButtonKind */
 /**
@@ -14,6 +10,8 @@ const FOCUSABLE_SELECTOR = [
  * @property {DialogButtonKind} [kind='default'] Visual button kind.
  * @property {'close'|'cancel'|((dialog: Dialog) => void)} [action='close'] Button action.
  * @property {boolean} [autofocus=false] Whether this button receives initial focus.
+ * @property {boolean} [disabled=false] Whether the footer button is disabled.
+ * @property {import('../button/button.js').ButtonShortcut} [shortcut] Visible shortcut hint; the host binds the action.
  */
 /**
  * @typedef {Object} DialogOptions
@@ -86,8 +84,6 @@ export class Dialog extends Modal {
   /** @type {DialogButton[]} */
   #baseButtons = [];
   #baseTitle = '';
-  /** @type {Element|null} */
-  #opener = null;
 
   /**
    * Creates a structured dialog in the configured theme scope, or at document level when unscoped.
@@ -99,7 +95,7 @@ export class Dialog extends Modal {
     this._applySize(this.options.size);
     this.#baseTitle = String(this.options.title ?? '');
     this.#applyTitle(this.#baseTitle);
-    this.#baseButtons = copyButtons(this.options.buttons);
+    this.#baseButtons = normalizeDialogButtons(this.options.buttons);
     this.#renderButtons(this.#baseButtons);
     this.refs.close.hidden = !this.options.closable;
 
@@ -111,7 +107,6 @@ export class Dialog extends Modal {
       if (!definition) return;
       this.#runButton(definition);
     });
-    this.on('close', () => this.#restoreFocus());
   }
 
   /** @type {DialogButton[]} */
@@ -123,6 +118,7 @@ export class Dialog extends Modal {
    */
   render() {
     const titleId = uid('zx-dialog-title');
+    const close = this._message('dialog.close', 'Close');
     const dialog = /** @type {HTMLDialogElement} */ (h('dialog', {
       class: 'zx-modal zx-dialog',
       ariaLabelledby: titleId
@@ -134,8 +130,8 @@ export class Dialog extends Modal {
           ref: 'close',
           type: 'button',
           'data-kind': 'ghost',
-          ariaLabel: 'Close',
-          title: 'Close'
+          ariaLabel: close,
+          title: close
         }, '×')
       ),
       h('div', { class: 'zx-modal__content zx-dialog__body', ref: 'content' }),
@@ -151,16 +147,13 @@ export class Dialog extends Modal {
    * @returns {this}
    */
   open() {
-    if (this.isOpen()) return this;
-    this.#opener = document.activeElement instanceof Element ? document.activeElement : null;
-    super.open();
-    queueMicrotask(() => {
-      if (!this.isOpen()) return;
-      const autofocus = this.el.querySelector('[autofocus]:not([disabled])');
-      const first = autofocus ?? this.el.querySelector(FOCUSABLE_SELECTOR);
-      if (first instanceof HTMLElement) first.focus();
-    });
-    return this;
+    /*
+     * Capturing the opener, placing initial focus and restoring it afterwards are `Modal`'s, so
+     * that every overlay built on it is accessible rather than only the structured one. The
+     * override stays because the promise is the dialog's: the header close button is the first
+     * focusable descendant, and a footer button declared `autofocus` outranks it.
+     */
+    return super.open();
   }
 
   /**
@@ -192,7 +185,7 @@ export class Dialog extends Modal {
    * @returns {this}
    */
   setButtons(list) {
-    this.#baseButtons = copyButtons(list);
+    this.#baseButtons = normalizeDialogButtons(list);
     this.#renderButtons(this.#baseButtons);
     return this;
   }
@@ -216,7 +209,7 @@ export class Dialog extends Modal {
     const view = {
       key: normalizedKey,
       content,
-      buttons: options && Object.hasOwn(options, 'buttons') ? copyButtons(options.buttons ?? []) : null,
+      buttons: options && Object.hasOwn(options, 'buttons') ? normalizeDialogButtons(options.buttons ?? []) : null,
       title: options && Object.hasOwn(options, 'title') ? String(options.title ?? '') : null
     };
     this.#views.set(normalizedKey, view);
@@ -260,7 +253,7 @@ export class Dialog extends Modal {
    * @param {AlertOptions} [options={}] Alert options.
    * @returns {Promise<void>}
    */
-  static alert({ title = '', message = '', okLabel = 'OK' } = {}) {
+  static alert({ title = '', message = '', okLabel } = {}) {
     return new Promise((resolve) => {
       let settled = false;
       const finish = () => {
@@ -269,11 +262,13 @@ export class Dialog extends Modal {
         dialog.close();
         resolve();
       };
-      const dialog = new Dialog(null, {
-        title,
-        content: message,
-        buttons: [{ label: okLabel, kind: 'primary', action: finish, autofocus: true }]
-      });
+      const dialog = new Dialog(null, { title, content: message });
+      dialog.setButtons([{
+        label: okLabel ?? dialog._message('dialog.ok', 'OK'),
+        kind: 'primary',
+        action: finish,
+        autofocus: true
+      }]);
       dialog.once('close', () => {
         if (!settled) {
           settled = true;
@@ -291,7 +286,7 @@ export class Dialog extends Modal {
    * @returns {Promise<boolean>}
    */
   static confirm({
-    title = '', message = '', okLabel = 'OK', cancelLabel = 'Cancel', danger = false
+    title = '', message = '', okLabel, cancelLabel, danger = false
   } = {}) {
     return new Promise((resolve) => {
       let settled = false;
@@ -301,14 +296,16 @@ export class Dialog extends Modal {
         dialog.close(value);
         resolve(value);
       };
-      const dialog = new Dialog(null, {
-        title,
-        content: message,
-        buttons: [
-          { label: cancelLabel, action: () => finish(false) },
-          { label: okLabel, kind: danger ? 'danger' : 'primary', action: () => finish(true), autofocus: true }
-        ]
-      });
+      const dialog = new Dialog(null, { title, content: message });
+      dialog.setButtons([
+        { label: cancelLabel ?? dialog._message('dialog.cancel', 'Cancel'), action: () => finish(false) },
+        {
+          label: okLabel ?? dialog._message('dialog.ok', 'OK'),
+          kind: danger ? 'danger' : 'primary',
+          action: () => finish(true),
+          autofocus: true
+        }
+      ]);
       dialog.once('close', () => {
         if (!settled) {
           settled = true;
@@ -332,8 +329,7 @@ export class Dialog extends Modal {
         class: 'zx-dialog__prompt-input',
         value: String(value),
         placeholder: String(placeholder),
-        autofocus: true,
-        ariaLabel: String(title || 'Prompt value')
+        autofocus: true
       });
       const content = h('div', { class: 'zx-dialog__prompt' },
         h('div', { class: 'zx-dialog__prompt-message' }, message),
@@ -345,14 +341,12 @@ export class Dialog extends Modal {
         dialog.close(result);
         resolve(result);
       };
-      const dialog = new Dialog(null, {
-        title,
-        content,
-        buttons: [
-          { label: 'Cancel', action: () => finish(null) },
-          { label: 'OK', kind: 'primary', action: () => finish(input.value) }
-        ]
-      });
+      const dialog = new Dialog(null, { title, content });
+      input.setAttribute('aria-label', String(title || dialog._message('dialog.promptValue', 'Prompt value')));
+      dialog.setButtons([
+        { label: dialog._message('dialog.cancel', 'Cancel'), action: () => finish(null) },
+        { label: dialog._message('dialog.ok', 'OK'), kind: 'primary', action: () => finish(input.value) }
+      ]);
       dialog.listen(input, 'keydown', (event) => {
         if (event.key !== 'Enter') return;
         event.preventDefault();
@@ -383,6 +377,17 @@ export class Dialog extends Modal {
     this.el.style.inlineSize = `${Math.max(0, width)}px`;
   }
 
+  /**
+   * Resolves a component message, falling back to the built-in English text.
+   * @param {string} key Message key.
+   * @param {string} fallback English default.
+   * @returns {string}
+   */
+  _message(key, fallback) {
+    const message = this.msg(key);
+    return message === key ? fallback : message;
+  }
+
   /** @param {string} title @returns {void} */
   #applyTitle(title) {
     this.refs.title.textContent = title;
@@ -390,23 +395,27 @@ export class Dialog extends Modal {
 
   /** @param {DialogButton[]} list @returns {void} */
   #renderButtons(list) {
-    this.#renderedButtons = copyButtons(list);
+    this.#renderedButtons = normalizeDialogButtons(list);
     this.refs.footer.replaceChildren();
     this.refs.footer.hidden = this.#renderedButtons.length === 0;
     this.#renderedButtons.forEach((definition, index) => {
-      this.refs.footer.append(h('button', {
-        class: 'zx-btn',
-        type: 'button',
-        'data-kind': definition.kind ?? 'default',
-        'data-size': 'md',
-        'data-dialog-button': String(index),
-        autofocus: Boolean(definition.autofocus)
-      }, h('span', { class: 'zx-btn__label' }, definition.label)));
+      const control = button({
+        label: definition.label,
+        kind: definition.kind,
+        shortcut: definition.shortcut,
+        disabled: definition.disabled
+      });
+      control.dataset.dialogButton = String(index);
+      control.autofocus = definition.autofocus;
+      this.refs.footer.append(control);
     });
   }
 
   /** @param {DialogButton} definition @returns {void} */
   #runButton(definition) {
+    // A native disabled button swallows its own clicks, but the footer listener is delegated and
+    // a host may dispatch one at the row; the descriptor is the authority either way.
+    if (definition.disabled) return;
     const action = definition.action ?? 'close';
     if (action === 'close') {
       this.close();
@@ -417,17 +426,30 @@ export class Dialog extends Modal {
       action(this);
     }
   }
-
-  /** @returns {void} */
-  #restoreFocus() {
-    if (this.#opener?.isConnected && typeof this.#opener.focus === 'function') this.#opener.focus();
-    this.#opener = null;
-  }
 }
 
-/** @param {DialogButton[]|null|undefined} list @returns {DialogButton[]} */
-function copyButtons(list) {
-  return Array.isArray(list) ? list.map((button) => ({ ...button, label: String(button.label ?? '') })) : [];
+/**
+ * Copies footer-button descriptors without mutating the caller's array or objects, and settles
+ * the two booleans the footer renders from.
+ *
+ * `autofocus` and `disabled` are resolved together because they contradict each other: a control
+ * that refuses activation must not be the one initial focus lands on, and a host that writes both
+ * has said what it wants twice. Deciding it here rather than at render time keeps `Sheet` — which
+ * takes the same descriptors through the same footer — on one answer.
+ * @param {DialogButton[]|null|undefined} list Button descriptors.
+ * @returns {DialogButton[]} Normalized copies.
+ */
+export function normalizeDialogButtons(list) {
+  if (!Array.isArray(list)) return [];
+  return list.map((button) => {
+    const disabled = Boolean(button?.disabled);
+    return {
+      ...button,
+      label: String(button?.label ?? ''),
+      disabled,
+      autofocus: Boolean(button?.autofocus) && !disabled
+    };
+  });
 }
 
 /**

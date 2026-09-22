@@ -9,6 +9,16 @@ const items = [
   { name: 'settings', title: 'Settings' }
 ];
 
+/* A phone bottom bar earns its space with short titles: four of these fit at 375px. */
+const destinations = [
+  { name: 'home', title: 'Home' },
+  { name: 'inbox', title: 'Inbox', badge: '4' },
+  { name: 'tasks', title: 'Tasks' },
+  { name: 'more', title: 'Team' },
+  { name: 'reports', title: 'Reports' },
+  { name: 'settings', title: 'Settings' }
+];
+
 export default {
   title: 'Navigation bar',
   group: 'Layout',
@@ -59,6 +69,44 @@ export default {
         navigation.on('change', ({ detail }) => log(`change: ${detail.name}`));
         cleanup(() => navigation.destroy());
         return h('div', { style: { inlineSize: '360px', maxInlineSize: '100%' } }, navigation.toElement());
+      }
+    },
+    {
+      title: 'Keeping the first items in the bar',
+      blurb: 'minVisible says how many destinations never collapse, counted from the start. Here '
+        + 'the first four stay in the row at 420px and the rest move into the More menu — the '
+        + 'arrangement a phone bottom bar needs, where collapsing everything would leave the '
+        + 'application with one button. Narrower than the four of them fit, the labels truncate '
+        + 'rather than the row spilling out of the bar.',
+      layout: 'stack',
+      render: ({ cleanup, log }) => {
+        const navigation = new NavigationBar(null, {
+          items: destinations,
+          active: 'home',
+          minVisible: 4
+        });
+        navigation.on('change', ({ detail }) => log(`change: ${detail.name}`));
+        cleanup(() => navigation.destroy());
+        return h('div', { style: { inlineSize: '420px', maxInlineSize: '100%' } }, navigation.toElement());
+      }
+    },
+    {
+      title: 'Never collapsing',
+      blurb: 'overflow: false keeps every destination in the bar at every width and never shows '
+        + 'the More button — this stage is the same width as the one the first example collapses '
+        + 'in. Narrower than the destinations fit, their labels truncate. overflowBelow: false '
+        + 'says the same thing; give it a length to move the threshold rather than remove it, as '
+        + 'in overflowBelow: "30rem", which collapses later than the default 44rem.',
+      layout: 'stack',
+      render: ({ cleanup, log }) => {
+        const navigation = new NavigationBar(null, {
+          items: destinations,
+          active: 'inbox',
+          overflow: false
+        });
+        navigation.on('change', ({ detail }) => log(`change: ${detail.name}`));
+        cleanup(() => navigation.destroy());
+        return navigation.toElement();
       }
     }
   ]

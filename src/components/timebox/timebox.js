@@ -75,7 +75,9 @@ export class Timebox extends Component {
     const content = h('div', {
       class: 'zx-timebox__content',
       role: 'group',
-      ariaLabel: this.options.seconds ? 'Duration in hours, minutes, and seconds' : 'Duration in hours and minutes'
+      ariaLabel: this.options.seconds
+        ? this._message('timebox.durationWithSeconds', 'Duration in hours, minutes, and seconds')
+        : this._message('timebox.duration', 'Duration in hours and minutes')
     });
     this._content = content;
 
@@ -84,7 +86,7 @@ export class Timebox extends Component {
         ref: 'sign',
         class: 'zx-timebox__sign',
         type: 'button',
-        ariaLabel: 'Toggle duration sign',
+        ariaLabel: this._message('timebox.toggleSign', 'Toggle duration sign'),
         ariaPressed: 'false'
       }, '+'));
       this.listen(this.refs.sign, 'click', () => {
@@ -95,12 +97,12 @@ export class Timebox extends Component {
       });
     }
 
-    this._addSegment(content, 'hours', 'Hours', false);
+    this._addSegment(content, 'hours', this._message('timebox.hours', 'Hours'), false);
     content.append(h('span', { class: 'zx-timebox__separator', ariaHidden: 'true' }, ':'));
-    this._addSegment(content, 'minutes', 'Minutes', true);
+    this._addSegment(content, 'minutes', this._message('timebox.minutes', 'Minutes'), true);
     if (this.options.seconds) {
       content.append(h('span', { class: 'zx-timebox__separator', ariaHidden: 'true' }, ':'));
-      this._addSegment(content, 'seconds', 'Seconds', true);
+      this._addSegment(content, 'seconds', this._message('timebox.seconds', 'Seconds'), true);
     }
     root.append(content);
     this.set(this.options.value, this.options.unit, { silent: true });
@@ -236,6 +238,17 @@ export class Timebox extends Component {
   /** @returns {void} */
   _emitChange() {
     this.emit('change', { value: this.get(this.options.unit) });
+  }
+
+  /**
+   * Resolves a message through the host translator, falling back to the built-in English text.
+   * @param {string} key Message key.
+   * @param {string} fallback English default.
+   * @returns {string}
+   */
+  _message(key, fallback) {
+    const message = this.msg(key);
+    return message === key ? fallback : message;
   }
 }
 

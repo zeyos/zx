@@ -38,21 +38,26 @@ available as ESM named exports and as `window.zx.*`.
   `Checklist`, `TagPicker` (icon/color identity),
   `NumberField`, `Rating`, `Slider` (native range; marks, bounds, optional number box),
   `copyButton()`/`CopyInput`, `DatePicker`, `MonthPicker`, `TimePicker`, `Datebox`/`DateTimeBox`,
+  `DateRangePicker`/`DateRangeBox`,
   `Timebox`.
 - Overlays: `Tooltip`, `Message` (toasts/inline/progress), `Modal`, `Dialog` (+ `alert`/`confirm`/`prompt`
   Promises), `Sheet` (edge-anchored Dialog; `side`, `modal: true|'trap-focus'|false`, `backdrop`,
   `snap` detents, swipe-to-dismiss), `SheetStack` (drill-down; `stack`/`cascade`), `Dropdown`,
   `MenuButton`, `ContextMenu` (right-click and Shift+F10; `selector` gives per-row menus from one
   instance).
-- Data: `Table` (sortable, selectable, sticky header, opt-in inline editing, row reorder, column
+- Data: `EntityRef` (dense linked/static identity), `FileItem`/`FileList` (durable and transient
+  file presentation), `ActivityItem`/`ActivityList` (chronological entries and grouped feeds),
+  `Table` (sortable, selectable, sticky header, opt-in inline editing, row reorder, column
   visibility), shared `RecordView` state through `TableView`, `CardView`, and `KanbanView`, `Grid`
   with single-click editing and `Grid.BillingItems()`, engine-neutral `Chart`
   with injected `ChartJsAdapter`, `Calendar` (agenda/day/week/month/year, pointer/keyboard drag and
   resize, `optimistic: true|false`), backend-neutral nested `Filter`, simple client-side `DataFilter`,
-  `Pagination`, `TreeView` (APG tree), `Finder` (Miller columns).
-- Forms: `Form`, `Fieldset`, `Questionnaire` (guided one-question-at-a-time flow with branching), `Field` (type registry), `ValueList`, `MultiValueEditor`,
-  `FieldUpload`.
-- Layout: `stack()`/`grid()`/`aspect()`, `Groupbox`, `Card`, `AppIcon` (generic tile geometry;
+  `FilterPanel` (typed filters from server field metadata), `ListToolbar` (search, count, view
+  switch, badged tools), `Pagination`, `SortControl`, `TreeView` (APG tree),
+  `Finder` (Miller columns).
+- Forms: `Form`, `Fieldset`, `Questionnaire` (guided one-question-at-a-time flow with branching), `Field` (type registry), `CodeEditor` (structured text,
+  never executed or injected), `ValueList`, `MultiValueEditor`, `FieldUpload`.
+- Layout: `stack()`/`grid()`/`aspect()`, `Groupbox`, `Card`, `StatTile`/`statTile()`, `AppIcon` (generic tile geometry;
   circular `zeyosAppIcon()` application presets and compact `moduleChip()` identities),
   `Aurora` (one- to four-colour ambient
   canvas light; shared material roles govern chrome and overlays), `Avatar`, `Panel`, `MasterPanel`, `Tabbox`,

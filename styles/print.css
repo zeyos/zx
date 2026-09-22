@@ -1,0 +1,192 @@
+/*
+ * Paper.
+ *
+ * Imported last from `styles/zx.css`, and everything in it lives inside the one `@media print`
+ * block below — so on screen this file contributes nothing at all, and on paper it is the last
+ * word. Consumers print invoices, delivery notes and reports out of these components, and until
+ * this file existed a printed table took its sticky header, its zebra stripes and whatever row
+ * the pointer happened to be over along with it.
+ *
+ * Paper differs from a screen in four ways, and every rule here answers one of them:
+ *
+ *   - There is no viewport, so nothing may stick and nothing may scroll. A sticky header pins
+ *     itself to the top of a sheet of paper, and a scroller prints exactly one screenful.
+ *   - There is no pointer and no focus, so hover fills, focus rings and drag affordances are
+ *     noise that costs toner.
+ *   - There is no second page for the half of a card that did not fit, so blocks that read as one
+ *     thing say where they may be cut, and a table repeats its header on every page.
+ *   - Ink is not free and a fill is not a colour. Backgrounds come off; the one exception is a
+ *     status badge, whose fill carries meaning its text alone does not.
+ *
+ * Semantic tokens only, as everywhere else. The borders are the interesting case: the light
+ * theme's `--zx-color-border` is a very pale grey that a printer renders as nothing, so the
+ * border roles are repointed — once, at the top — to a mix of the text colour, which prints.
+ */
+@media print {
+  /*
+   * Hairlines. `--zx-color-text` rather than a fixed grey so the mix follows the theme it is
+   * printed from, and both selectors are single-class so this beats the theme block that sets the
+   * same roles on the same element: this file is imported last, and on a tie the last one wins.
+   */
+  .zx-scope,
+  [data-zx-theme] {
+    --zx-color-border: color-mix(in srgb, var(--zx-color-text) 45%, transparent);
+    --zx-color-border-strong: color-mix(in srgb, var(--zx-color-text) 65%, transparent);
+    --zx-color-border-control: color-mix(in srgb, var(--zx-color-text) 45%, transparent);
+    --zx-color-overlay-border: color-mix(in srgb, var(--zx-color-text) 45%, transparent);
+    --zx-color-overlay-divider: color-mix(in srgb, var(--zx-color-text) 45%, transparent);
+    /* The glass rim is a light tint of the page, which on white paper is the paper. */
+    --zx-color-glass-border: color-mix(in srgb, var(--zx-color-text) 45%, transparent);
+  }
+
+  /*
+   * A fill is a boundary too, and the filled variants drew theirs with one: their border is
+   * `transparent` because the surface underneath said where the card ended. With the fill gone
+   * they would arrive on paper as loose text, so they take the hairline instead.
+   */
+  .zx-scope .zx-card[data-variant="filled"],
+  .zx-scope .zx-record-card[data-variant="filled"] {
+    border-color: var(--zx-color-border);
+  }
+
+  /*
+   * Fills off. A badge is excluded by the selector rather than overridden afterwards, because its
+   * eleven kind/variant fills would otherwise have to be restated here one by one, and the copy
+   * would rot the first time badge.css gained a kind.
+   */
+  .zx-scope,
+  .zx-scope *:not(.zx-badge, .zx-badge *),
+  .zx-scope *:not(.zx-badge, .zx-badge *)::before,
+  .zx-scope *:not(.zx-badge, .zx-badge *)::after {
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  /* The exception: a badge's colour is half of what it says, so it is asked for explicitly. */
+  .zx-scope .zx-badge {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /*
+   * A solid button's label is the colour that reads on its fill — white on the accent. With the
+   * fill gone that label is white on white, so the two kinds that have one take the page's text
+   * colour and a hairline of their own. Buttons are not hidden: a printed form or an approval
+   * sheet is read by someone who needs to see what the screen offered.
+   */
+  .zx-scope .zx-btn[data-kind="primary"],
+  .zx-scope .zx-btn[data-kind="danger"] {
+    border-color: var(--zx-color-border);
+    color: var(--zx-color-text);
+  }
+
+  /* Nothing sticks to a sheet of paper. Everything below stacks where it was written instead. */
+  .zx-scope .zx-table th,
+  .zx-scope .zx-table__scroll[data-sticky-header="true"] th,
+  .zx-scope .zx-select__group,
+  .zx-scope .zx-calendar__agenda-heading,
+  .zx-scope .zx-toolbar,
+  .zx-scope .zx-list-toolbar {
+    position: static;
+  }
+
+  /*
+   * Nothing scrolls either: a scroller prints the rows that happen to be inside it and drops the
+   * rest, which on an invoice is a silently short invoice.
+   */
+  .zx-scope .zx-table__scroll,
+  .zx-scope .zx-tree,
+  .zx-scope .zx-card-view,
+  .zx-scope .zx-record-view {
+    overflow: visible;
+    max-block-size: none;
+  }
+
+  /* No pointer, no focus, no zebra — three states that only ever existed on a screen. */
+  .zx-scope .zx-table__scroll[data-zebra="true"] .zx-table__body tr:nth-child(even),
+  .zx-scope .zx-table__body tr[data-row]:hover,
+  .zx-scope .zx-table__body tr[aria-selected="true"] {
+    background: transparent;
+  }
+
+  .zx-scope :focus,
+  .zx-scope :focus-visible {
+    outline: none;
+    box-shadow: none;
+  }
+
+  /* Chrome and overlays: navigation a reader cannot follow, and panels floating over the page. */
+  .zx-scope .zx-navigation-bar,
+  .zx-scope .zx-app-rail,
+  .zx-scope .zx-app-sidebar,
+  .zx-modal,
+  .zx-dialog,
+  .zx-sheet,
+  .zx-dropdown,
+  .zx-context-menu,
+  .zx-tooltip,
+  .zx-launcher,
+  .zx-message-region,
+  [popover]:popover-open {
+    display: none !important;
+  }
+
+  ::backdrop {
+    display: none;
+  }
+
+  /* A table that runs over a page break reintroduces itself on the next one. */
+  .zx-scope .zx-table thead {
+    display: table-header-group;
+  }
+
+  .zx-scope .zx-table tfoot {
+    display: table-footer-group;
+  }
+
+  /* Things that read as one object are not cut in half if they can be moved whole. */
+  .zx-scope .zx-card,
+  .zx-scope .zx-record-card,
+  .zx-scope .zx-stat-tile,
+  .zx-scope .zx-table__body tr {
+    break-inside: avoid;
+  }
+
+  /*
+   * A link on paper is a dead end unless it says where it goes — in prose. Inside a table cell or
+   * on a button the appended URL is not information, it is a wrecked column, so those take it back
+   * off. Each of those selectors outranks the one above on specificity rather than on source
+   * order, so reordering the list cannot quietly turn one of them back on.
+   */
+  .zx-scope a[href^="http"]::after {
+    content: " (" attr(href) ")";
+    font-size: var(--zx-text-sm);
+    font-weight: 400;
+    word-break: break-all;
+  }
+
+  .zx-scope a[href]:empty::after,
+  .zx-scope a[href].zx-icon-btn::after,
+  .zx-scope a:has(> .zx-icon:only-child)::after,
+  .zx-scope th a[href]::after,
+  .zx-scope td a[href]::after,
+  .zx-scope button a[href]::after,
+  .zx-scope a[href].zx-btn::after,
+  .zx-scope .zx-btn a[href]::after,
+  .zx-scope .zx-table a[href]::after,
+  .zx-scope .zx-badge a[href]::after,
+  .zx-scope a[href].zx-badge::after,
+  .zx-scope a[href].zx-entity-ref::after,
+  .zx-scope .zx-entity-ref a[href]::after,
+  .zx-scope .zx-breadcrumb a[href]::after,
+  .zx-scope a[href].zx-stat-tile::after,
+  .zx-scope .zx-tabbox a[href]::after,
+  .zx-scope .zx-tree a[href]::after,
+  .zx-scope .zx-file-item a[href]::after {
+    content: none;
+  }
+}

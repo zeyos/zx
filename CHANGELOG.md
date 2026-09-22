@@ -8,6 +8,161 @@ and friends remain the complete record.
 
 ## Unreleased
 
+## 4.4.0 — 2026-09-22
+
+A large release in two halves. The first adds capability: a dependency-free code editor, the
+record primitives (`EntityRef`, `FileItem`/`FileList`, `ActivityItem`/`ActivityList`), kanban
+movement and workflow policy, and richer action menus. The second is what building a real
+application on the library found missing — group rows, list controls, a filter panel driven by
+server metadata, a metric tile, and the long tail of strings a translated product could not
+reach.
+
+Nothing here is a breaking change. Every new option defaults to the previous behaviour, and every
+English string a translator can now reach keeps its exact previous wording when no translator is
+installed.
+
+### Added
+
+- **Structured text no longer requires an editor dependency.** `CodeEditor` keeps source in a
+  native textarea with browser undo and IME behavior, adds Tab/Shift+Tab indentation, language
+  metadata, line/column feedback, read-only and disabled states, and a `code` Form field adapter.
+  It never executes or injects the value; rich HTML authoring remains a separate policy surface.
+- **Reusable record primitives cover dense identity, files, and activity.** `EntityRef` presents
+  linked or static identity with labelled metadata and injected actions; `FileItem`/`FileList`
+  cover durable, temporary, waiting, progress, MIME, size, download, loading, and empty states;
+  `ActivityItem`/`ActivityList` cover actor, time, content, attachments, actions, stable grouping,
+  and incremental feed updates. Zx owns safe presentation and cancelable interaction boundaries;
+  applications retain routing, authorization, transport, posting, reactions, and persistence.
+- **Action menus now carry business metadata without becoming free-form popovers.** MenuButton and
+  ContextMenu share headings, object separators, safe native links, descriptions, badges,
+  shortcuts, text/Node adornments, and checked/radio menu-item roles. Existing flat items and
+  `'-'` separators are unchanged.
+- **Kanban cards carry the anatomy an operational board needs.** New read-only projections put an
+  `entityIcon` and `identifier` on a card head beside `status` and `priority` indicators, and a
+  `progress` meter and `assignees` avatars on a card footer. `priorityTones` and `statusTones` map
+  a value to a semantic tone as data rather than through a renderer, `progressMax` sets the
+  completion scale explicitly, and `maxAvatars` bounds the avatar stack. A board that sets none of
+  them renders exactly the card it rendered in 4.3.4.
+
+- **`FilterPanel` — typed filters from server metadata.** Takes the `{key: {type, label,
+  options, min, max}}` map a list endpoint already publishes and returns a query object. Ten
+  field types including both range forms, multi-valued selects on `Checklist`, draft-then-apply
+  by default, and `serialize` for the Unix-seconds / ISO / epoch-ms question. `DataFilter`
+  filters a client-side row set and `Filter` builds an AST; this is the third shape, and the one
+  a data-driven application needs.
+- **`ListToolbar` — the bar above a record view.** Search, a live result count, a view switch and
+  badged tools. A tool's badge is part of its accessible name rather than a second thing beside
+  it, `setCount(null)` clears the live region during a load, and `bind()` feature-detects a
+  `TableView`/`CardView` instead of importing it.
+- **`StatTile` / `statTile()` — the labelled metric.** Formats through the core formatters, never
+  encodes "up is good" (`deltaKind` decides the colour, not the sign), marks its sparkline
+  `aria-hidden`, and picks `<a>` / `<button>` / `<div role="group">` from the behaviour it was
+  given rather than wrapping a click handler round a div.
+- **`Table` group and section rows.** `rowKind` and `rowKinds` render a `<th scope="colgroup">`
+  spanning every rendered cell, including the selection and reorder columns. `CardView` has had
+  `groupBy`; `Table` had nothing, while `Grid.BillingItems()` already modelled the row kind for
+  editability and simply never drew it. Sort controls are withheld while a spanning row is
+  present, because sorting a grouped table scatters its positions out of their sections.
+- **`ActivityItem.state`** — `pending` and `failed`, for an entry rendered optimistically before
+  its request resolves and for one whose send failed. An entry that disappears on failure tells
+  the reader their message was sent when nobody was told.
+
+### Changed
+
+- **The move handle is no longer pointer furniture.** Since 4.3.4 the card itself is the drag
+  source, so the knob is decoration that competes with the card's content. The new
+  `moveHandle: 'keyboard' | 'always'` defaults to `keyboard`: the button stays in the DOM, in tab
+  order, and fully announced, but is clipped out of sight and out of the layout until it takes
+  focus or holds a grabbed card. `always` restores the 4.3.4 presentation, and `dragFrom: 'handle'`
+  keeps the handle visible regardless, since it is then the only thing a pointer user can grab.
+- **An empty column now reads as a drop target.** `labels.columnEmpty` defaults to
+  "Drop a card here" in a dashed zone instead of an empty gap; `labels.columnEmpty: ''` restores
+  the previous blank column, and `renderColumnEmpty` still replaces it.
+- **A field the card head or footer projects no longer repeats itself as a metadata row.** Set
+  `duplicate: true` on the field descriptor to show it in both places.
+
+- **`fieldControls` accepts `{label, target}`** on `TableView`, `CardView` and `KanbanView`.
+  `true`/`false` are unchanged. The chooser's trigger can now be named, and mounted into a host
+  toolbar instead of the view's own — which is what made it usable in a translated product at
+  all.
+- **`DialogButton.disabled`**, honoured by the constructor, `setButtons()` and per-view buttons,
+  and skipped by `autofocus`. `Sheet` inherits it. A form a client cannot render completely must
+  not be submittable, and until now the only way to show that was to reach into the rendered
+  footer.
+- **Roughly ninety-six user-visible strings across sixteen components now route through
+  `_message()`**, which falls back to `translate()` — so installing a host translator is enough.
+  Most are `aria-label` and `title`, which is the half that does not show up in a screenshot: a
+  German application previously announced "Clear search", "Close message" and "Previous month" in
+  the middle of its own chrome, with no option to prevent it. Every English fallback is
+  byte-identical to the previous literal.
+- **`Launcher` and `Filter` label options default to `null`** and resolve through the translator,
+  so an application that installs one and passes no labels gets a translated component. The
+  rendered words are unchanged without a translator.
+- **`AppSidebar` visual pass.** A filled active pill with an edge marker and a weight change, so
+  nothing rests on colour alone; one spacing scale; a fixed icon gutter that collapses when no
+  item has an icon; labels that wrap and hyphenate rather than truncate; badges that survive
+  minimization as a dot with the number still in the accessible name. Options, events, methods,
+  DOM and the keyboard map are unchanged.
+- **`NavigationBar` overflow is configurable.** `overflow: false` keeps every item at every
+  width; `overflowBelow` moves the collapse threshold; `minVisible: n` pins the first `n` items.
+  Defaults are unchanged — every item still collapses below 44 rem through the same container
+  query, with no observer installed. Collapsing all of a navigation into one button is right for
+  a top app bar and wrong for a phone bottom bar, and there was no way to say so.
+- **A print stylesheet ships.** `styles/print.css`, imported last, releases sticky headers and
+  scroll containers, drops fills, shadows, zebra striping and focus rings, hides overlays and
+  navigation chrome, repeats table headers across pages, keeps cards and rows from breaking, and
+  prints link URLs in prose but never inside a table cell or on a button. Status badges keep
+  their colour, because there it carries meaning beside the word. An application that sets
+  `data-zx-theme="dark"` explicitly still prints dark text tokens; `auto` is unaffected.
+
+### Fixed
+
+- **Context-menu selection could not be cancelled.** Preventing its `select` event now suppresses
+  the item callback and native link navigation and leaves the menu open, matching MenuButton.
+- **The keyboard move handle could take focus while staying invisible.** It revealed itself on
+  `:focus-visible`, which does not match after pointer input — so the focus a committed pointer
+  drop moves onto the handle landed on a one-pixel control. It now reveals on `:focus`, and
+  `dragFrom: 'handle'` keeps the handle visible regardless of `moveHandle`.
+- **A literal indicator descriptor rendered nothing.** `priority: {label: 'Blocked'}` was read as
+  a record property name and resolved `undefined`.
+- **A blank progress label produced an unnamed progressbar.** An empty or whitespace label now
+  falls back to the localized default instead of becoming `aria-label=""`.
+- **A fractional `maxAvatars` hid every face** while the overflow chip still counted from the raw
+  option. The faces and the chip now come from one normalization.
+- **The card identifier named itself with `aria-label` on a `<span>`**, which the generic role
+  prohibits. Identifier and indicator prefixes are visually hidden text instead.
+- **An assignee with an image but no name rendered an unidentifiable face.** Entries without a
+  name are now dropped rather than announced as "Assigned to ".
+- **Board rendering rebuilt the whole field-descriptor array for every axis read.** A string
+  column or lane accessor was resolved through `getFields()` — which clones every descriptor —
+  once per record per column per lane. Descriptors are now indexed once per refresh.
+
+- **`Modal` and `Dialog` place and restore focus.** Both have always built a native `<dialog>`
+  and opened it with `showModal()`, so focus containment, page inertness, Escape and the top
+  layer were the platform's — a reading of the source that greps for a focus trap and finds
+  none draws the wrong conclusion, and one did. What was genuinely missing is now there:
+  initial focus lands on the first focusable control inside the panel rather than on the panel,
+  focus returns to the opener on every close path including the non-native presentation, and
+  `aria-modal` is set while modal. `Sheet` keeps its own trap for the non-modal case and is not
+  double-trapped. Candidates inside a `hidden`, `aria-hidden` or `inert` subtree are now skipped,
+  so a dialog whose close button is suppressed focuses its first real control instead of nothing.
+- **`icon()` no longer throws on a name it cannot resolve.** Icon names routinely arrive from a
+  server, and one unconfigured name should not take down the screen it appears on. An
+  unresolvable inline glyph renders an empty `<svg>` of the requested size — so layout does not
+  shift — carrying `data-zx-icon-missing="<name>"`, and reports itself once per distinct name.
+  `icon(name, { strict: true })` keeps the old `RangeError` for callers that can afford to fail.
+  Font Awesome paths are unaffected: a kit resolves names in the browser, so nothing under one
+  is "unknown" here and nothing warns.
+- **The minimized rail's flyout matches the expanded sidebar.** The visual pass in this release
+  could not reach it — the panel is portaled into a `Dropdown`, so the sidebar's descendant
+  selectors do not apply to it. It now carries the same spacing scale, icon gutter, wrapping
+  labels and active-item treatment, derived from the same tokens. Fixing it surfaced a cascade
+  bug: `app-rail.css` is imported before `dropdown.css`, so the popover's own padding had never
+  won and the panel had been rendering with the generic overlay's.
+- **One physical-direction declaration** remained in the component tree (`table.css`), plus four
+  asymmetric box shorthands that pin an edge physically. All are logical now, and a test scans
+  for both so the state is enforced rather than accidental.
+
 ## 4.3.4 — 2026-08-31
 
 ### Added

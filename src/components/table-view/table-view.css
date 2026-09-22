@@ -6,13 +6,19 @@
   min-inline-size: 0;
 }
 
-.zx-table-view[data-loading="true"] .zx-table__column-controls {
+.zx-table-view__toolbar {
+  min-inline-size: 0;
+}
+
+.zx-table-view[data-loading="true"] .zx-table__column-controls,
+.zx-table-view[data-loading="true"] .zx-record-view__field-controls {
   pointer-events: none;
   opacity: .62;
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .zx-table-view .zx-table__column-controls {
+  .zx-table-view .zx-table__column-controls,
+  .zx-table-view .zx-record-view__field-controls {
     transition: opacity var(--zx-dur-fast) var(--zx-ease);
   }
 }

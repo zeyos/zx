@@ -93,6 +93,14 @@
   display: inline-flex;
 }
 
+.zx-btn__shortcut {
+  font: inherit;
+  font-size: var(--zx-text-xs);
+  opacity: .7;
+  margin-inline-start: var(--zx-space-1);
+  white-space: nowrap;
+}
+
 .zx-btn-group > .zx-btn:not(:first-child) {
   margin-inline-start: -1px;
   border-start-start-radius: 0;

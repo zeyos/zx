@@ -21,9 +21,15 @@ export default {
 
         const menu = new ContextMenu(panel, {
           items: [
-            { label: 'Open', icon: 'folder-open', value: 'open' },
-            { label: 'Duplicate', icon: 'copy', value: 'duplicate' },
+            { type: 'heading', label: 'Record' },
+            {
+              label: 'Open', icon: 'folder-open', value: 'open',
+              description: 'Open the detail workspace', shortcut: 'Enter'
+            },
+            { label: 'Duplicate', icon: 'copy', value: 'duplicate', badge: 'New' },
+            { label: 'Pinned', value: 'pinned', role: 'menuitemcheckbox', checked: true },
             '-',
+            { label: 'Documentation', icon: 'link', href: '#context-menu' },
             { label: 'Export as CSV', icon: 'upload', value: 'export' },
             { label: 'Archived', value: 'archive', disabled: true },
             '-',

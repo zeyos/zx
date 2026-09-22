@@ -1,4 +1,5 @@
 import { Component } from '../core/component.js';
+import { printf } from '../core/i18n.js';
 import { h, safeHref } from '../core/dom.js';
 import { icon } from '../core/icons.js';
 import { Dropdown } from '../components/dropdown/dropdown.js';
@@ -292,8 +293,12 @@ export class AppRailPresenter extends Component {
     });
     const actualPanel = dropdown.getPanel();
     actualPanel.classList.add('zx-app-rail__popover');
+    // The panel is portaled out of the rail, so its stylesheet cannot ask which edge the rail
+    // occupies. Presentation only: it carries the active marker to the edge facing the screen
+    // on a right-hand rail, exactly as the expanded tree does.
+    actualPanel.dataset.side = this.el.dataset.side;
     actualPanel.setAttribute('role', 'region');
-    actualPanel.setAttribute('aria-label', `${item.label} sub-navigation`);
+    actualPanel.setAttribute('aria-label', this._message('appRail.subNavigation', '%1 sub-navigation', item.label));
     const flyout = { key, parentKey, item, trigger, panel: actualPanel, dropdown };
     this._flyouts.set(key, flyout);
     dropdown.on('open', () => {
@@ -572,6 +577,19 @@ export class AppRailPresenter extends Component {
     this._tooltipById = new Map();
     this._interaction = null;
     this._flyouts = new Map();
+  }
+  /**
+   * Resolves one message through `msg()`, which falls back to the host translator. Copied from
+   * `Pagination` rather than invented: the rail's flyout label was the last user-visible string
+   * in the navigation stack with no way to change it.
+   * @param {string} key Message key.
+   * @param {string} fallback English default.
+   * @param {...unknown} args Interpolation arguments.
+   * @returns {string}
+   */
+  _message(key, fallback, ...args) {
+    const message = this.msg(key, ...args);
+    return message === key ? printf(fallback, args) : message;
   }
 }
 

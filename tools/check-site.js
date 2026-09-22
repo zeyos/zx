@@ -140,9 +140,43 @@ for (const privatePath of [
   'src/compat',
   'src/compat-entry.js',
   'docs/DESIGN-NOTES.md',
-  'docs/RELEASING.md'
+  'docs/RELEASING.md',
+  // Work packages are the contributor contract's planning material: binding on whoever
+  // implements them, and meaningless to a consumer reading the site.
+  'specs'
 ]) {
   if (existsSync(join(site, privatePath))) problems.push(`private path published: ${privatePath}`);
+}
+
+/*
+ * The other half of the same rule, and the half a path check cannot see.
+ *
+ * Not publishing a file is not the same as not publishing its CONTENT. A release note that
+ * opens "Implements `specs/WP-35-…`" ships a dangling pointer into internal planning material
+ * even though `specs/` itself never leaves the repository — and the existing checks pass,
+ * because it is prose rather than a resolvable reference. That mistake has been made, which is
+ * why it is checked.
+ *
+ * Scoped to documentation output — `.md` and `.html` — and not to published source. A code
+ * comment saying "see AGENTS.md" is a pointer for a contributor reading a file that ships in the
+ * package anyway; a sentence in the release notes is the site telling a customer to read
+ * something they cannot have.
+ */
+const INTERNAL_MENTIONS = ['specs/', 'AGENTS.md', 'DESIGN-NOTES.md', 'RELEASING.md', 'DESIGN-SYSTEM.md'];
+const DOCUMENTATION = new Set(['.md', '.html']);
+
+for (const file of files) {
+  const relativePath = relative(site, file);
+  if (!DOCUMENTATION.has(extname(file))) continue;
+  // Published source carries its own contributor comments; only prose is in scope here.
+  if (relativePath.split(sep)[0] === 'src') continue;
+
+  const text = readFileSync(file, 'utf8');
+  for (const mention of INTERNAL_MENTIONS) {
+    if (text.includes(mention)) {
+      problems.push(`internal path named in published documentation: ${relativePath} mentions ${mention}`);
+    }
+  }
 }
 
 if (problems.length > 0) {

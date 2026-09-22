@@ -1,7 +1,8 @@
 // @ts-check
 import { Component } from '../../core/component.js';
-import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
+import { h, resolveElement, restoreTarget, snapshotTarget } from '../../core/dom.js';
 import { icon } from '../../core/icons.js';
+import { printf } from '../../core/i18n.js';
 import { sortRows } from '../table/sort.js';
 
 /** @typedef {Record<string, any>} ViewRecord */
@@ -32,6 +33,23 @@ import { sortRows } from '../table/sort.js';
  */
 
 /**
+ * Trigger customisation for the shared field chooser. Passing this object in place of `true` keeps
+ * the control and its state model exactly as they are; only its wording and mount point change.
+ * @typedef {Object} ViewFieldControlsConfig
+ * @property {string} [label] Trigger label. Omitted resolves `recordView.fields`, English `Fields`.
+ * @property {Element|string|null} [target=null] Element or selector the disclosure is mounted into
+ * instead of the view's own toolbar. An unresolvable target falls back to the view.
+ */
+
+/**
+ * @typedef {Object} ViewFieldControlsSettings
+ * @property {boolean} enabled Whether a concrete view renders the chooser at all.
+ * @property {boolean} custom Whether the option was given as a `ViewFieldControlsConfig` object.
+ * @property {string|null} label Configured trigger label, or null to resolve the message.
+ * @property {Element|string|null} target Configured mount point, before resolution.
+ */
+
+/**
  * @typedef {Object} RecordViewState
  * @property {1} version State schema version.
  * @property {string[]} fieldOrder Complete reconciled field order.
@@ -50,7 +68,10 @@ import { sortRows } from '../table/sort.js';
  * @property {unknown[]} [selection=[]] Initially selected record ids.
  * @property {string[]} [fieldOrder=[]] Field ids in preferred order.
  * @property {string[]} [hiddenFields=[]] Initially hidden field ids.
- * @property {boolean} [fieldControls=true] Whether concrete views show the shared field chooser.
+ * @property {boolean|ViewFieldControlsConfig} [fieldControls=true] Whether concrete views show the
+ * shared field chooser. `true` renders it in the view's own toolbar and `false` omits it; a
+ * `ViewFieldControlsConfig` object renders the same control with a translated `label` and, with
+ * `target`, mounts it into a host element such as a list toolbar.
  * @property {string|Node|(() => string|Node)|null} [emptyText=null] Empty-result content.
  * @property {(event: CustomEvent<Record<string, unknown>>) => void} [onrecordclick]
  * @property {(event: CustomEvent<Record<string, unknown>>) => void} [onrecorddblclick]
@@ -117,6 +138,7 @@ export class RecordView extends Component {
     this._recordViewDestroyed = true;
     const root = this.el;
     const snapshot = this._recordViewOriginal;
+    this._removeViewFieldControls();
     super.destroy();
     if (snapshot && root) restoreTarget(root, snapshot);
   }
@@ -139,6 +161,9 @@ export class RecordView extends Component {
     this._viewSelectionAnchor = null;
     this._viewFieldControls = null;
     this._viewFieldList = null;
+    this._viewFieldSettings = normalizeViewFieldControls(this.options.fieldControls);
+    // Resolved once, here, so the mount point cannot drift between render and destroy.
+    this._viewFieldControlsTarget = resolveElement(this._viewFieldSettings.target);
     this._viewInitialized = true;
     if (this._viewSort && this.options.sortMode === 'local') this._sortViewData();
     this._setInitialSelection(this.options.selection);
@@ -467,13 +492,15 @@ export class RecordView extends Component {
   /**
    * Builds the shared show/hide and ordering disclosure for a concrete view toolbar.
    * @protected
-   * @param {string} [label='Fields'] Trigger label.
+   * @param {string|null} [label=null] Explicit trigger label. Omitted resolves the configured
+   * `fieldControls.label` and then the `recordView.fields` message.
    * @returns {HTMLElement} Disclosure element.
    */
-  _createViewFieldControls(label = 'Fields') {
+  _createViewFieldControls(label = null) {
+    const text = label ?? this._viewFieldControlsLabel();
     const list = h('div', { class: 'zx-record-view__field-list' });
     const details = h('details', { class: 'zx-record-view__field-controls' },
-      h('summary', { class: 'zx-button zx-button--sm' }, icon('fields', { size: 13 }), label),
+      h('summary', { class: 'zx-button zx-button--sm' }, icon('fields', { size: 13 }), text),
       list);
     this._viewFieldControls = details;
     this._viewFieldList = list;
@@ -496,6 +523,58 @@ export class RecordView extends Component {
       }
     });
     return details;
+  }
+
+  /**
+   * Builds the shared field disclosure and mounts it where `fieldControls` asks for it: the host
+   * element named by `target`, or the view's own toolbar when no target resolves.
+   * @protected
+   * @param {Element} toolbar The view's own toolbar.
+   * @param {string|null} [label=null] Explicit trigger label, for views that own their wording.
+   * @returns {HTMLElement} The mounted disclosure.
+   */
+  _mountViewFieldControls(toolbar, label = null) {
+    const controls = this._createViewFieldControls(label);
+    const target = this._viewFieldControlsTarget;
+    if (target) controls.dataset.mounted = 'external';
+    (target ?? toolbar).append(controls);
+    return controls;
+  }
+
+  /**
+   * Removes the shared field disclosure from wherever it was mounted. An external `target` keeps
+   * every node it had before the view was created.
+   * @protected
+   * @returns {void}
+   */
+  _removeViewFieldControls() {
+    this._viewFieldControls?.remove?.();
+    this._viewFieldControls = null;
+    this._viewFieldList = null;
+    this._viewFieldControlsTarget = null;
+  }
+
+  /**
+   * Resolves the field-chooser trigger label: the configured one, else the translated message.
+   * @protected
+   * @returns {string} Trigger label.
+   */
+  _viewFieldControlsLabel() {
+    const settings = this._viewFieldSettings ?? normalizeViewFieldControls(this.options.fieldControls);
+    return settings.label ?? this._message('recordView.fields', 'Fields');
+  }
+
+  /**
+   * Resolves a message through the host translator, falling back to the built-in English text.
+   * @protected
+   * @param {string} key Message key.
+   * @param {string} fallback Built-in text, with `%1`-style placeholders.
+   * @param {...unknown} args Interpolation values.
+   * @returns {string} Translated or built-in text.
+   */
+  _message(key, fallback, ...args) {
+    const message = this.msg(key, ...args);
+    return message === key ? printf(fallback, args) : message;
   }
 
   /** Concrete renderers override this hook. @protected @param {string} _reason Refresh reason. @returns {void} */
@@ -567,14 +646,14 @@ export class RecordView extends Component {
       const up = h('button', {
         class: 'zx-record-view__field-move',
         type: 'button',
-        ariaLabel: `Move ${field.label} up`,
+        ariaLabel: this._message('recordView.moveFieldUp', 'Move %1 up', field.label),
         disabled: index === 0,
         dataset: { viewFieldAction: 'up', fieldId: field.id }
       }, icon('chevron-up', { size: 11 }));
       const down = h('button', {
         class: 'zx-record-view__field-move',
         type: 'button',
-        ariaLabel: `Move ${field.label} down`,
+        ariaLabel: this._message('recordView.moveFieldDown', 'Move %1 down', field.label),
         disabled: index === fields.length - 1,
         dataset: { viewFieldAction: 'down', fieldId: field.id }
       }, icon('chevron-down', { size: 11 }));
@@ -591,6 +670,20 @@ export class RecordView extends Component {
       });
     }
   }
+}
+
+/**
+ * Reads the `fieldControls` option in its three shapes. `true` and `false` keep their exact
+ * meaning; an object additionally carries the trigger label and the host element to mount into.
+ * @param {boolean|ViewFieldControlsConfig|null|undefined} value Raw option value.
+ * @returns {ViewFieldControlsSettings} Normalized settings.
+ */
+export function normalizeViewFieldControls(value) {
+  if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+    const label = value.label == null ? null : String(value.label);
+    return { enabled: true, custom: true, label, target: value.target ?? null };
+  }
+  return { enabled: Boolean(value), custom: false, label: null, target: null };
 }
 
 /**

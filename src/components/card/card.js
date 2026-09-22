@@ -86,7 +86,7 @@ export class Card extends Component {
         ref: 'actions',
         class: 'zx-card__actions',
         role: 'group',
-        ariaLabel: 'Card actions',
+        ariaLabel: this._message('card.actions', 'Card actions'),
         hidden: true
       });
       const content = h('div', { ref: 'content', class: 'zx-card__content', hidden: true });
@@ -224,6 +224,17 @@ export class Card extends Component {
   _syncHeader() {
     if (!this.refs.header) return;
     this.refs.header.hidden = this._title === '' && this.refs.actions.childElementCount === 0;
+  }
+
+  /**
+   * Resolves a message through the host translator, falling back to the built-in English text.
+   * @param {string} key Message key.
+   * @param {string} fallback English default.
+   * @returns {string}
+   */
+  _message(key, fallback) {
+    const message = this.msg(key);
+    return message === key ? fallback : message;
   }
 }
 

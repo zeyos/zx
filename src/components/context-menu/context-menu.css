@@ -16,15 +16,19 @@
 }
 
 .zx-context-menu__item {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--zx-space-2);
   inline-size: 100%;
   min-block-size: var(--zx-control-height);
-  border-color: transparent;
+  border: 1px solid transparent;
   background: transparent;
   padding-inline: var(--zx-control-pad-x);
+  color: inherit;
+  font: inherit;
   text-align: start;
+  text-decoration: none;
 }
 
 .zx-context-menu__item:hover,
@@ -42,9 +46,82 @@
   opacity: 0.65;
 }
 
-.zx-context-menu__icon {
+.zx-context-menu__leading,
+.zx-context-menu__meta {
   display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-2);
   flex: none;
+}
+
+.zx-context-menu__meta {
+  justify-content: flex-end;
+}
+
+.zx-context-menu__leading {
+  justify-content: center;
+  inline-size: var(--zx-space-4);
+}
+
+.zx-context-menu__body {
+  display: flex;
+  min-inline-size: 0;
+  flex-direction: column;
+}
+
+.zx-context-menu__label,
+.zx-context-menu__description {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zx-context-menu__description,
+.zx-context-menu__shortcut,
+.zx-context-menu__adornment {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+}
+
+.zx-context-menu__badge {
+  min-inline-size: var(--zx-space-4);
+  border-radius: var(--zx-radius-full);
+  background: var(--zx-color-bg-muted);
+  padding-inline: var(--zx-space-1);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  text-align: center;
+}
+
+.zx-context-menu__shortcut {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font-family: var(--zx-font-mono);
+}
+
+.zx-context-menu__check {
+  inline-size: var(--zx-space-3);
+  block-size: var(--zx-space-3);
+  border: 1px solid var(--zx-color-border-strong);
+  border-radius: var(--zx-radius-sm);
+}
+
+.zx-context-menu__check[data-check-kind="radio"] {
+  border-radius: var(--zx-radius-full);
+}
+
+.zx-context-menu__item[aria-checked="true"] .zx-context-menu__check {
+  border-color: var(--zx-color-accent);
+  background: var(--zx-color-accent);
+  box-shadow: inset 0 0 0 2px var(--zx-color-bg-raised);
+}
+
+.zx-context-menu__heading {
+  padding: var(--zx-space-2) var(--zx-control-pad-x) var(--zx-space-1);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-weight: 600;
 }
 
 .zx-context-menu__separator {

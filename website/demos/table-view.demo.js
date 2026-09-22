@@ -104,6 +104,31 @@ export default {
           h('p', { class: 'demo-caption' }, 'Click an editable cell to change it. On narrow containers the composed Table uses its responsive stacked presentation.')
         ];
       }
+    },
+    {
+      title: 'The field chooser in a toolbar you own',
+      blurb: 'fieldControls also takes an object: label names the trigger and target mounts the '
+        + 'disclosure into an element of yours instead of the view. It keeps driving this view, '
+        + 'and destroy() takes it back out and leaves the toolbar as it was found.',
+      layout: 'stack',
+      render: ({ cleanup, log }) => {
+        const toolbar = h('div', { class: 'demo-row' },
+          h('strong', {}, 'Open opportunities'),
+          button({ label: 'New', icon: 'plus', onclick: () => log('new opportunity') }));
+        const view = new TableView(null, {
+          fields: opportunityFields(),
+          data: opportunityRecords(),
+          recordId: 'id',
+          hiddenFields: ['progress'],
+          fieldControls: { label: 'Columns', target: toolbar },
+          table: { stickyHeader: true, height: 260, zebra: true },
+          onfieldvisibilitychange: ({ detail }) => log(`visible [${detail.visible.join(', ')}]`),
+          onfieldorderchange: ({ detail }) => log(`order [${detail.order.join(', ')}]`)
+        });
+        cleanup(() => view.destroy());
+
+        return [toolbar, view.toElement()];
+      }
     }
   ]
 };

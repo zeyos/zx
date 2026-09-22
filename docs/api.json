@@ -106,6 +106,248 @@
       }
     ]
   },
+  "ActivityItem": {
+    "options": [
+      {
+        "name": "id",
+        "type": "unknown",
+        "default": "null",
+        "description": "Host-owned activity identifier."
+      },
+      {
+        "name": "actor",
+        "type": "ActivityContent",
+        "default": "''",
+        "description": "Actor identity text or presentation slot."
+      },
+      {
+        "name": "avatar",
+        "type": "ActivityAvatar",
+        "default": "null",
+        "description": "Avatar descriptor or host-owned avatar element."
+      },
+      {
+        "name": "title",
+        "type": "ActivityContent",
+        "default": "''",
+        "description": "Activity summary."
+      },
+      {
+        "name": "content",
+        "type": "ActivityContent",
+        "default": "null",
+        "description": "Optional body slot."
+      },
+      {
+        "name": "timestamp",
+        "type": "Date|string|number|null",
+        "default": "null",
+        "description": "Date, parseable date string, or epoch milliseconds."
+      },
+      {
+        "name": "timeLabel",
+        "type": "string|null",
+        "default": "null",
+        "description": "Explicit human-readable timestamp."
+      },
+      {
+        "name": "metadata",
+        "type": "ActivityContent[]",
+        "default": "[]",
+        "description": "Compact metadata slots."
+      },
+      {
+        "name": "attachments",
+        "type": "ActivityContent[]",
+        "default": "[]",
+        "description": "Attachment presentation slots, commonly FileItem elements."
+      },
+      {
+        "name": "actions",
+        "type": "ActivityActionSlot[]",
+        "default": "[]",
+        "description": "Native action descriptors or host-owned controls."
+      },
+      {
+        "name": "kind",
+        "type": "string",
+        "default": "'default'",
+        "description": "Product-neutral activity kind exposed as `data-kind`."
+      },
+      {
+        "name": "state",
+        "type": "ActivityState",
+        "default": "'default'",
+        "description": "Delivery state exposed as `data-state`."
+      },
+      {
+        "name": "stateLabel",
+        "type": "string|null",
+        "default": "null",
+        "description": "Word shown in the state badge instead of the built-in one."
+      },
+      {
+        "name": "headingLevel",
+        "type": "1|2|3|4|5|6",
+        "default": "3",
+        "description": "Semantic heading level for the activity summary."
+      }
+    ],
+    "events": [
+      {
+        "name": "action",
+        "payload": "{id:string,action:NormalizedActivityAction,event:MouseEvent}",
+        "description": ""
+      }
+    ],
+    "methods": [
+      {
+        "name": "setActivity",
+        "signature": "setActivity(values)",
+        "returns": "this",
+        "description": "Replaces any subset of the activity presentation."
+      },
+      {
+        "name": "getActivity",
+        "signature": "getActivity()",
+        "returns": "ActivityItemOptions",
+        "description": "Returns a shallow, host-safe copy of the current descriptor."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Restores an enhanced target exactly, or removes an owned item."
+      }
+    ]
+  },
+  "ActivityList": {
+    "options": [
+      {
+        "name": "items",
+        "type": "ActivityItemOptions[]",
+        "default": "[]",
+        "description": "Initial activities in host-supplied chronological order."
+      },
+      {
+        "name": "groupBy",
+        "type": "ActivityGroupReader",
+        "default": "null",
+        "description": "Property or resolver used for stable grouping."
+      },
+      {
+        "name": "groupLabel",
+        "type": "ActivityGroupLabel|null",
+        "default": "null",
+        "description": "Group-heading renderer."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "default": "'Activity'",
+        "description": "Accessible collection name."
+      },
+      {
+        "name": "loading",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether initial or incremental activity is loading."
+      },
+      {
+        "name": "loadingCount",
+        "type": "number",
+        "default": "3",
+        "description": "Placeholder rows shown for an empty loading list."
+      },
+      {
+        "name": "loadingText",
+        "type": "string",
+        "default": "'Loading activity'",
+        "description": "Loading status text."
+      },
+      {
+        "name": "emptyText",
+        "type": "ActivityListContent",
+        "default": "'No activity yet'",
+        "description": "Empty-state content."
+      },
+      {
+        "name": "groupHeadingLevel",
+        "type": "1|2|3|4|5|6",
+        "default": "2",
+        "description": "Semantic group-heading level."
+      },
+      {
+        "name": "itemHeadingLevel",
+        "type": "1|2|3|4|5|6",
+        "default": "3",
+        "description": "Default item-heading level."
+      }
+    ],
+    "events": [
+      {
+        "name": "datachange",
+        "payload": "{items:ActivityItemOptions[]}",
+        "description": ""
+      }
+    ],
+    "methods": [
+      {
+        "name": "setItems",
+        "signature": "setItems(items, [options])",
+        "returns": "this",
+        "description": "Replaces all activities."
+      },
+      {
+        "name": "getItems",
+        "signature": "getItems()",
+        "returns": "ActivityItemOptions[]",
+        "description": "Returns shallow descriptor copies in current display order."
+      },
+      {
+        "name": "getItem",
+        "signature": "getItem(id)",
+        "returns": "ActivityItemOptions|null",
+        "description": "Returns a shallow descriptor copy by stable host ID."
+      },
+      {
+        "name": "appendItems",
+        "signature": "appendItems(items, [options])",
+        "returns": "this",
+        "description": "Adds activities after the current source order for older-page or forward-stream updates."
+      },
+      {
+        "name": "prependItems",
+        "signature": "prependItems(items, [options])",
+        "returns": "this",
+        "description": "Adds activities before the current source order for newest-first live updates."
+      },
+      {
+        "name": "updateItem",
+        "signature": "updateItem(id, values, [options])",
+        "returns": "this",
+        "description": "Patches the first activity whose ID is `Object.is`-equal to the requested ID."
+      },
+      {
+        "name": "removeItem",
+        "signature": "removeItem(id, [options])",
+        "returns": "this",
+        "description": "Removes the first activity whose ID is `Object.is`-equal to the requested ID."
+      },
+      {
+        "name": "setLoading",
+        "signature": "setLoading(loading)",
+        "returns": "this",
+        "description": "Sets initial/incremental loading presentation."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Restores an enhanced target exactly, or removes an owned list."
+      }
+    ]
+  },
   "Alert": {
     "options": [
       {
@@ -817,6 +1059,12 @@
         "type": "string",
         "default": null,
         "description": "Native title text."
+      },
+      {
+        "name": "shortcut",
+        "type": "ButtonShortcut",
+        "default": null,
+        "description": "Keyboard hint; does not register a keyboard handler."
       }
     ],
     "events": [
@@ -1388,6 +1636,12 @@
         "description": "Record selection behavior."
       },
       {
+        "name": "selectionTrigger",
+        "type": "'checkbox'|'card'",
+        "default": "'checkbox'",
+        "description": "Select through a checkbox or the non-interactive card surface."
+      },
+      {
         "name": "selection",
         "type": "unknown[]",
         "default": "[]",
@@ -1407,9 +1661,9 @@
       },
       {
         "name": "fieldControls",
-        "type": "boolean",
+        "type": "boolean|import('../view/record-view.js').ViewFieldControlsConfig",
         "default": "true",
-        "description": "Whether to expose shared field controls."
+        "description": "Whether to expose shared field controls. `true` renders the chooser in the card toolbar and `false` omits it; an object customises its `label` and mounts it into `target`."
       },
       {
         "name": "emptyText",
@@ -1898,6 +2152,102 @@
         "signature": "destroy()",
         "returns": "void",
         "description": "Restores an enhanced target and invalidates pending loads."
+      }
+    ]
+  },
+  "CodeEditor": {
+    "options": [
+      {
+        "name": "value",
+        "type": "unknown",
+        "default": "''",
+        "description": "Initial text."
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "default": "''",
+        "description": "Form field name."
+      },
+      {
+        "name": "language",
+        "type": "string",
+        "default": "'text'",
+        "description": "Language identifier shown to the user and exposed as data."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "default": "'Code editor'",
+        "description": "Accessible editor label."
+      },
+      {
+        "name": "placeholder",
+        "type": "string",
+        "default": "''",
+        "description": "Placeholder text."
+      },
+      {
+        "name": "rows",
+        "type": "number",
+        "default": "12",
+        "description": "Visible textarea rows."
+      },
+      {
+        "name": "indent",
+        "type": "string",
+        "default": "'\\t'",
+        "description": "Text inserted by Tab and removed by Shift+Tab."
+      },
+      {
+        "name": "wrap",
+        "type": "'off'|'soft'|'hard'",
+        "default": "'off'",
+        "description": "Textarea wrapping behavior."
+      },
+      {
+        "name": "spellcheck",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether browser spellcheck is enabled."
+      },
+      {
+        "name": "readOnly",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether content can be selected but not changed."
+      },
+      {
+        "name": "disabled",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether the editor is disabled."
+      },
+      {
+        "name": "status",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether the line/column status is visible."
+      }
+    ],
+    "events": [
+      {
+        "name": "input",
+        "payload": "{value:string}",
+        "description": "Input listener."
+      },
+      {
+        "name": "change",
+        "payload": "{value:string}",
+        "description": "Change listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "setValue",
+        "signature": "setValue(value, [options])",
+        "returns": "this",
+        "description": "Replaces the editor text."
       }
     ]
   },
@@ -3195,6 +3545,126 @@
     "events": [],
     "methods": []
   },
+  "EntityRef": {
+    "options": [
+      {
+        "name": "id",
+        "type": "unknown",
+        "default": "null",
+        "description": "Application-owned entity identifier included in events."
+      },
+      {
+        "name": "title",
+        "type": "string",
+        "default": "''",
+        "description": "Primary identity text."
+      },
+      {
+        "name": "subtitle",
+        "type": "EntityRefContent",
+        "default": "null",
+        "description": "Secondary identity text or safe caller-supplied content."
+      },
+      {
+        "name": "icon",
+        "type": "EntityRefIcon",
+        "default": "null",
+        "description": "Icon name, node, component, or lazy renderer."
+      },
+      {
+        "name": "metadata",
+        "type": "EntityRefMetadata[]",
+        "default": "[]",
+        "description": "Labelled dense metadata."
+      },
+      {
+        "name": "link",
+        "type": "EntityRefLinkValue",
+        "default": "null",
+        "description": "Optional native primary link."
+      },
+      {
+        "name": "actions",
+        "type": "EntityRefActionEntry[]",
+        "default": "[]",
+        "description": "Secondary controls; element actions keep their own behavior."
+      },
+      {
+        "name": "size",
+        "type": "'sm'|'md'|'lg'",
+        "default": "'md'",
+        "description": "Density-independent identity size."
+      },
+      {
+        "name": "wrap",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether long identity text may wrap instead of truncating."
+      },
+      {
+        "name": "actionsLabel",
+        "type": "string",
+        "default": "'Entity actions'",
+        "description": "Accessible name for secondary actions."
+      }
+    ],
+    "events": [
+      {
+        "name": "activate",
+        "payload": "{id: unknown, entity: Readonly<EntityRefState>, href: string, event: MouseEvent}",
+        "description": "Preventable primary-link listener."
+      },
+      {
+        "name": "action",
+        "payload": "{id: string, action: Readonly<EntityRefAction>, entity: Readonly<EntityRefState>, event: MouseEvent}",
+        "description": "Preventable delegated-action listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "set",
+        "signature": "set(values)",
+        "returns": "this",
+        "description": "Updates any subset of the identity without replacing the root."
+      },
+      {
+        "name": "setMetadata",
+        "signature": "setMetadata(metadata)",
+        "returns": "this",
+        "description": "Replaces the metadata collection."
+      },
+      {
+        "name": "setActions",
+        "signature": "setActions(actions)",
+        "returns": "this",
+        "description": "Replaces the secondary action controls."
+      },
+      {
+        "name": "setLink",
+        "signature": "setLink(link)",
+        "returns": "this",
+        "description": "Sets or clears the primary link."
+      },
+      {
+        "name": "getEntity",
+        "signature": "getEntity()",
+        "returns": "Readonly<EntityRefState>",
+        "description": "Returns a defensive presentation snapshot. Caller-supplied Nodes and Components retain their identity; arrays and descriptors are copied."
+      },
+      {
+        "name": "focus",
+        "signature": "focus()",
+        "returns": "this",
+        "description": "Focuses the primary link or the first enabled action."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Restores an enhanced target exactly, or removes an owned reference."
+      }
+    ]
+  },
   "EntitySelect": {
     "options": [
       {
@@ -3619,6 +4089,269 @@
       }
     ]
   },
+  "FileItem": {
+    "options": [
+      {
+        "name": "id",
+        "type": "unknown",
+        "default": "null",
+        "description": "Application-owned file identifier included in events."
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "default": "''",
+        "description": "File name."
+      },
+      {
+        "name": "size",
+        "type": "number|string|null",
+        "default": "null",
+        "description": "Byte count; invalid and negative values are omitted."
+      },
+      {
+        "name": "mime",
+        "type": "string",
+        "default": "''",
+        "description": "MIME type."
+      },
+      {
+        "name": "subtitle",
+        "type": "EntityRefContent",
+        "default": "null",
+        "description": "Optional supporting text before generated metadata."
+      },
+      {
+        "name": "icon",
+        "type": "EntityRefIcon",
+        "default": "'file'",
+        "description": "File icon name, node, component, or lazy renderer."
+      },
+      {
+        "name": "metadata",
+        "type": "EntityRefMetadata[]",
+        "default": "[]",
+        "description": "Additional labelled metadata."
+      },
+      {
+        "name": "link",
+        "type": "EntityRefLinkValue",
+        "default": "null",
+        "description": "Optional safe native file/download link."
+      },
+      {
+        "name": "actions",
+        "type": "EntityRefActionEntry[]",
+        "default": "[]",
+        "description": "File actions; application policy stays external."
+      },
+      {
+        "name": "status",
+        "type": "FileStatus",
+        "default": "'ready'",
+        "description": "Durable or transient presentation state."
+      },
+      {
+        "name": "statusLabel",
+        "type": "string|null",
+        "default": "null",
+        "description": "Overrides the generated state label; an empty string hides it."
+      },
+      {
+        "name": "progress",
+        "type": "number|null",
+        "default": "null",
+        "description": "Completed percentage, clamped to 0–100."
+      },
+      {
+        "name": "indeterminate",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether active progress has no known amount."
+      },
+      {
+        "name": "density",
+        "type": "'sm'|'md'|'lg'",
+        "default": "'md'",
+        "description": "File-identity presentation size."
+      },
+      {
+        "name": "wrap",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether long identity text may wrap."
+      },
+      {
+        "name": "actionsLabel",
+        "type": "string",
+        "default": "'File actions'",
+        "description": "Accessible name for secondary actions."
+      },
+      {
+        "name": "locale",
+        "type": "string",
+        "default": null,
+        "description": "Locale passed to `formatFileSize`."
+      }
+    ],
+    "events": [
+      {
+        "name": "activate",
+        "payload": "{id: unknown, file: Readonly<FileItemState>, href: string, event: MouseEvent}",
+        "description": "Preventable native-link listener."
+      },
+      {
+        "name": "action",
+        "payload": "{id: string, fileId: unknown, action: object, file: Readonly<FileItemState>, event: MouseEvent}",
+        "description": "Preventable file-action listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "set",
+        "signature": "set(values)",
+        "returns": "this",
+        "description": "Updates any subset of the file without replacing the row root."
+      },
+      {
+        "name": "setStatus",
+        "signature": "setStatus(status, [statusLabel])",
+        "returns": "this",
+        "description": "Updates the file lifecycle state and, optionally, its visible label."
+      },
+      {
+        "name": "setProgress",
+        "signature": "setProgress(progress, [options])",
+        "returns": "this",
+        "description": "Updates the progress meter."
+      },
+      {
+        "name": "getFile",
+        "signature": "getFile()",
+        "returns": "Readonly<FileItemState>",
+        "description": "Returns a defensive file snapshot."
+      },
+      {
+        "name": "focus",
+        "signature": "focus()",
+        "returns": "this",
+        "description": "Focuses the native destination or first enabled action."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Restores an enhanced target exactly, or removes an owned row."
+      }
+    ]
+  },
+  "FileList": {
+    "options": [
+      {
+        "name": "items",
+        "type": "FileItemOptions[]",
+        "default": "[]",
+        "description": "Initial files in host-supplied order."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "default": "'Files'",
+        "description": "Accessible collection name."
+      },
+      {
+        "name": "loading",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether initial or incremental files are loading."
+      },
+      {
+        "name": "loadingCount",
+        "type": "number",
+        "default": "3",
+        "description": "Placeholder rows shown for an empty loading list."
+      },
+      {
+        "name": "loadingText",
+        "type": "string",
+        "default": "'Loading files'",
+        "description": "Loading status text."
+      },
+      {
+        "name": "emptyText",
+        "type": "string|number|Node|Component|null",
+        "default": "'No files'",
+        "description": "Empty-state content."
+      }
+    ],
+    "events": [
+      {
+        "name": "activate",
+        "payload": "{id: unknown, index: number, file: Readonly<FileItemState>, href: string, event: MouseEvent}",
+        "description": "Preventable native-file-link listener."
+      },
+      {
+        "name": "action",
+        "payload": "{id: string, fileId: unknown, index: number, action: object, file: Readonly<FileItemState>, event: MouseEvent}",
+        "description": "Preventable file-action listener."
+      },
+      {
+        "name": "datachange",
+        "payload": "{items: Readonly<FileItemState>[]}",
+        "description": "Collection mutation listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "setItems",
+        "signature": "setItems(items, [options])",
+        "returns": "this",
+        "description": "Replaces every file."
+      },
+      {
+        "name": "getItems",
+        "signature": "getItems()",
+        "returns": "Readonly<FileItemState>[]",
+        "description": "Returns defensive snapshots in display order."
+      },
+      {
+        "name": "getItem",
+        "signature": "getItem(id)",
+        "returns": "Readonly<FileItemState>|null",
+        "description": "Returns a defensive snapshot by stable ID."
+      },
+      {
+        "name": "addItem",
+        "signature": "addItem(item, [index], [options])",
+        "returns": "this",
+        "description": "Adds one file at a bounded index."
+      },
+      {
+        "name": "updateItem",
+        "signature": "updateItem(id, values, [options])",
+        "returns": "this",
+        "description": "Patches the first file whose ID is `Object.is`-equal to `id`."
+      },
+      {
+        "name": "removeItem",
+        "signature": "removeItem(id, [options])",
+        "returns": "this",
+        "description": "Removes the first file whose ID is `Object.is`-equal to `id`."
+      },
+      {
+        "name": "setLoading",
+        "signature": "setLoading(loading)",
+        "returns": "this",
+        "description": "Sets initial/incremental loading presentation."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Restores an enhanced target exactly, or removes an owned collection."
+      }
+    ]
+  },
   "Filter": {
     "options": [
       {
@@ -3658,6 +4391,36 @@
         "description": "Maximum condition count."
       },
       {
+        "name": "searchable",
+        "type": "boolean",
+        "default": "false",
+        "description": "Searchable field, operator and single-choice controls."
+      },
+      {
+        "name": "layout",
+        "type": "'standard'|'compact'",
+        "default": "'standard'",
+        "description": "Condition layout; compact rows adapt to container width."
+      },
+      {
+        "name": "rootLogic",
+        "type": "'and'|'or'|null",
+        "default": "null",
+        "description": "Restrict root logic without rewriting incompatible saved expressions."
+      },
+      {
+        "name": "showApply",
+        "type": "boolean",
+        "default": "true",
+        "description": "Show the internal Apply button."
+      },
+      {
+        "name": "showRootActions",
+        "type": "boolean",
+        "default": "true",
+        "description": "Show Add controls inside the root group as well as the footer."
+      },
+      {
         "name": "autoApply",
         "type": "boolean",
         "default": "false",
@@ -3678,14 +4441,14 @@
       {
         "name": "applyLabel",
         "type": "string",
-        "default": "'Apply filters'",
-        "description": "Apply button label."
+        "default": null,
+        "description": "Apply button label. Omitted resolves `filter.apply`, English `Apply filters`."
       },
       {
         "name": "clearLabel",
         "type": "string",
-        "default": "'Clear'",
-        "description": "Clear button label."
+        "default": null,
+        "description": "Clear button label. Omitted resolves `filter.clear`, English `Clear`."
       }
     ],
     "events": [
@@ -3786,6 +4549,102 @@
         "signature": "focus([id])",
         "returns": "this",
         "description": "Focuses a condition's field or the Add button."
+      }
+    ]
+  },
+  "FilterPanel": {
+    "options": [
+      {
+        "name": "fields",
+        "type": "Record<string, FilterPanelField>",
+        "default": "{}",
+        "description": "Field metadata exactly as a list response publishes it. An empty map is the ordinary case, not an error: it renders `emptyText`."
+      },
+      {
+        "name": "order",
+        "type": "string[]|null",
+        "default": "null",
+        "description": "Display order by field key; omitted keeps object order. Keys the map does not declare are ignored, and fields the order omits follow in map order."
+      },
+      {
+        "name": "value",
+        "type": "Record<string, unknown>",
+        "default": "{}",
+        "description": "Applied filters. The draft starts as a copy."
+      },
+      {
+        "name": "mode",
+        "type": "FilterPanelMode",
+        "default": "'draft'",
+        "description": "`'draft'` collects edits until `apply()`; `'live'` applies every committed edit."
+      },
+      {
+        "name": "serialize",
+        "type": "FilterPanelSerialize",
+        "default": "'seconds'",
+        "description": "How a date leaves the component. A range's lower bound takes the start of its day and its upper bound the end, so a one-day range matches."
+      },
+      {
+        "name": "emptyText",
+        "type": "string|null",
+        "default": "null",
+        "description": "Text shown when `fields` is empty; null resolves `filterPanel.empty`."
+      },
+      {
+        "name": "msg",
+        "type": "Record<string, string>|Record<string, Record<string, string>>",
+        "default": null,
+        "description": "Localized messages."
+      }
+    ],
+    "events": [
+      {
+        "name": "apply",
+        "payload": "{value}",
+        "description": "Apply listener."
+      },
+      {
+        "name": "change",
+        "payload": "{value, field}",
+        "description": "Change listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "getValue",
+        "signature": "getValue()",
+        "returns": "Record<string, unknown>",
+        "description": "Returns the applied value: only the constraints that are set, with dates serialized through `serialize`. Unknown field types are never part of it."
+      },
+      {
+        "name": "setValue",
+        "signature": "setValue(value)",
+        "returns": "this",
+        "description": "Replaces both the applied value and the draft the controls show. Accepts what `getValue()` returns as well as raw input values, so a value that survived a URL round-trip goes back in."
+      },
+      {
+        "name": "apply",
+        "signature": "apply()",
+        "returns": "this",
+        "description": "Commits the draft. In live mode every committed edit already does this; calling it directly is how a host forces a reload with the values that are on screen."
+      },
+      {
+        "name": "reset",
+        "signature": "reset()",
+        "returns": "this",
+        "description": "Restores the controls to the `value` the panel was constructed with **without committing**, so the filters in force stay in force. This is the Cancel half of a sheet: the panel goes back to showing what is being filtered by. Contrast `clear()`, which commits. In live mode there is no uncommitted draft to hold back, so there it applies like any other edit."
+      },
+      {
+        "name": "clear",
+        "signature": "clear()",
+        "returns": "this",
+        "description": "Empties every control **and commits**, in both modes. \"Clear the filters\" has one meaning, and leaving a list filtered behind a panel showing no filters is not it — the records look missing and nothing on screen explains why. Contrast `reset()`, which restores the controls without committing. The price is one unfiltered load at the moment the button is pressed, which is also the feedback that says the filters are gone."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Destroys the composed controls and puts an enhanced target back as found."
       }
     ]
   },
@@ -4235,6 +5094,12 @@
         "description": "Shared selection mode."
       },
       {
+        "name": "selectionTrigger",
+        "type": "'checkbox'|'card'",
+        "default": "'checkbox'",
+        "description": "Select through a checkbox or the non-interactive card surface."
+      },
+      {
         "name": "selection",
         "type": "unknown[]",
         "default": "[]",
@@ -4254,9 +5119,9 @@
       },
       {
         "name": "fieldControls",
-        "type": "boolean",
+        "type": "boolean|import('../view/record-view.js').ViewFieldControlsConfig",
         "default": "true",
-        "description": "Show shared field controls."
+        "description": "Show shared field controls. Redeclared narrower than `RecordViewOptions` it fails declaration emit, because the two option types are intersected."
       },
       {
         "name": "emptyText",
@@ -4335,6 +5200,72 @@
         "type": "'card'|'handle'",
         "default": "'card'",
         "description": "Whether the whole card or only its handle starts a pointer drag. Touch drags from the card body require a long press so the board still scrolls."
+      },
+      {
+        "name": "moveHandle",
+        "type": "'keyboard'|'always'",
+        "default": "'keyboard'",
+        "description": "Move-handle presentation. `keyboard` keeps it announced and tabbable but out of sight until it takes focus, because the card itself is already the pointer drag source; `always` shows it alongside the card's other controls. `dragFrom:'handle'` overrides this — a drag source a pointer user cannot see is not a control."
+      },
+      {
+        "name": "entityIcon",
+        "type": "string|((record:KanbanRecord,index:number)=>string|null)|null",
+        "default": "null",
+        "description": "Icon naming what the record is, drawn before the identifier."
+      },
+      {
+        "name": "identifier",
+        "type": "KanbanCardField",
+        "default": "null",
+        "description": "Stable record key shown on the card head."
+      },
+      {
+        "name": "status",
+        "type": "KanbanIndicatorSource",
+        "default": "null",
+        "description": "Status indicator source."
+      },
+      {
+        "name": "statusTones",
+        "type": "Record<string,string>",
+        "default": "{}",
+        "description": "Maps a status value to a semantic tone."
+      },
+      {
+        "name": "priority",
+        "type": "KanbanIndicatorSource",
+        "default": "null",
+        "description": "Priority indicator source."
+      },
+      {
+        "name": "priorityTones",
+        "type": "Record<string,string>",
+        "default": "{}",
+        "description": "Maps a priority value to a semantic tone."
+      },
+      {
+        "name": "progress",
+        "type": "KanbanCardField",
+        "default": "null",
+        "description": "Completion source; a number or `{value,max,label}`."
+      },
+      {
+        "name": "progressMax",
+        "type": "number",
+        "default": "100",
+        "description": "Amount that counts as finished."
+      },
+      {
+        "name": "assignees",
+        "type": "KanbanCardField",
+        "default": "null",
+        "description": "Responsible people; a name, a list, or descriptors."
+      },
+      {
+        "name": "maxAvatars",
+        "type": "number",
+        "default": "3",
+        "description": "Faces drawn before the overflow chip."
       },
       {
         "name": "multiMove",
@@ -4424,7 +5355,7 @@
         "name": "renderCard",
         "type": "((context:KanbanCardContext)=>Node|null|undefined)|null",
         "default": "null",
-        "description": "Replaces card content."
+        "description": "Replaces the shared record-card content — eyebrow, titles, and metadata. The preview, selection control, action group, move handle, rule badges, and any configured card head and footer still render, because each of those answers to its own option; clear those options to remove them."
       },
       {
         "name": "renderColumnHeader",
@@ -4767,38 +5698,38 @@
       {
         "name": "placeholder",
         "type": "string",
-        "default": "'Search applications and records'",
-        "description": "Search-field placeholder."
+        "default": null,
+        "description": "Search-field placeholder. Omitted resolves `launcher.placeholder`, English `Search applications and records`."
       },
       {
         "name": "label",
         "type": "string",
-        "default": "'Launcher'",
-        "description": "Dialog and field label."
+        "default": null,
+        "description": "Dialog and field label. Omitted resolves `launcher.label`, English `Launcher`."
       },
       {
         "name": "closeLabel",
         "type": "string",
-        "default": "'Close launcher'",
-        "description": "Close-button accessible label."
+        "default": null,
+        "description": "Close-button accessible label. Omitted resolves `launcher.close`, English `Close launcher`."
       },
       {
         "name": "resultsLabel",
         "type": "string",
-        "default": "'Launcher results'",
-        "description": "Results-region accessible label."
+        "default": null,
+        "description": "Results-region accessible label. Omitted resolves `launcher.results`, English `Launcher results`."
       },
       {
         "name": "emptyText",
         "type": "string",
-        "default": "'No results'",
-        "description": "Empty-state text."
+        "default": null,
+        "description": "Empty-state text. Omitted resolves `launcher.empty`, English `No results`."
       },
       {
         "name": "loadingText",
         "type": "string",
-        "default": "'Searching…'",
-        "description": "Loading-state text."
+        "default": null,
+        "description": "Loading-state text. Omitted resolves `launcher.loading`, English `Searching…`."
       },
       {
         "name": "shortcut",
@@ -4950,6 +5881,179 @@
     ],
     "events": [],
     "methods": []
+  },
+  "ListToolbar": {
+    "options": [
+      {
+        "name": "search",
+        "type": "ListToolbarSearch|boolean",
+        "default": "{}",
+        "description": "Search field configuration; `false` omits it."
+      },
+      {
+        "name": "count",
+        "type": "number|null",
+        "default": "null",
+        "description": "Initial result count shown in the live status line."
+      },
+      {
+        "name": "countText",
+        "type": "((count: number) => string)|null",
+        "default": "null",
+        "description": "Formats the count line; omitted uses the `listToolbar.results` message (`'%1 results'`)."
+      },
+      {
+        "name": "views",
+        "type": "Array<string|ListToolbarView>",
+        "default": "[]",
+        "description": "Shape switch entries; `[]` omits the switch."
+      },
+      {
+        "name": "view",
+        "type": "string|null",
+        "default": "null",
+        "description": "Initially selected shape; omitted selects the first entry."
+      },
+      {
+        "name": "tools",
+        "type": "ListToolbarTool[]",
+        "default": "[]",
+        "description": "Tool buttons, in display order."
+      },
+      {
+        "name": "label",
+        "type": "string|null",
+        "default": "null",
+        "description": "Accessible name of the bar; omitted uses the `listToolbar.label` message."
+      },
+      {
+        "name": "msg",
+        "type": "Record<string, string>|Record<string, Record<string, string>>",
+        "default": null,
+        "description": "Localized messages."
+      }
+    ],
+    "events": [
+      {
+        "name": "search",
+        "payload": "{value: string}",
+        "description": "Search listener."
+      },
+      {
+        "name": "viewchange",
+        "payload": "{view: string, previous: string|null}",
+        "description": "Shape listener."
+      },
+      {
+        "name": "action",
+        "payload": "{id: string, pressed: boolean|null, tool: Element}",
+        "description": "Tool listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "setCount",
+        "signature": "setCount(count)",
+        "returns": "this",
+        "description": "Replaces the count line. `null` clears it, which is the right answer while a request is in flight: the number on screen describes the filters the reader has just changed."
+      },
+      {
+        "name": "getCount",
+        "signature": "getCount()",
+        "returns": "number|null",
+        "description": "Returns the count currently shown, or null when the line is empty."
+      },
+      {
+        "name": "setBadge",
+        "signature": "setBadge(id, value)",
+        "returns": "this",
+        "description": "Replaces a tool's badge and its accessible name with it. `null` removes the badge."
+      },
+      {
+        "name": "setPressed",
+        "signature": "setPressed(id, [pressed])",
+        "returns": "this",
+        "description": "Sets the pressed state of a toggle tool. A tool declared without `pressed` is a plain button and is left alone."
+      },
+      {
+        "name": "setToolDisabled",
+        "signature": "setToolDisabled(id, [disabled])",
+        "returns": "this",
+        "description": "Enables or disables a tool, for instance while its panel is loading."
+      },
+      {
+        "name": "setTools",
+        "signature": "setTools(tools)",
+        "returns": "this",
+        "description": "Replaces every tool. Elements adopted with `addTool()` and a chooser mounted by `bind()` stay where they are."
+      },
+      {
+        "name": "getTool",
+        "signature": "getTool(id)",
+        "returns": "HTMLButtonElement|null",
+        "description": "Returns a tool's button element."
+      },
+      {
+        "name": "getToolsElement",
+        "signature": "getToolsElement()",
+        "returns": "HTMLElement",
+        "description": "The element tools are mounted into. Hand it to a view as `fieldControls: {target}` to place that view's field chooser in this bar without calling `bind()`. A control mounted here by somebody else stays theirs: the toolbar puts back what it adopted through `addTool()` or `bind()`, and everything else goes wherever this slot goes. Use `addTool()` instead to hand the toolbar an element it should return on `destroy()`."
+      },
+      {
+        "name": "addTool",
+        "signature": "addTool(element)",
+        "returns": "this",
+        "description": "Adopts a ready-made control into the tools slot. The element's original position is recorded, and `destroy()` puts it back."
+      },
+      {
+        "name": "setView",
+        "signature": "setView(view, [options])",
+        "returns": "this",
+        "description": "Selects a view shape. A value outside `views` is ignored, so the switch can only ever report one of the shapes it was configured with."
+      },
+      {
+        "name": "getView",
+        "signature": "getView()",
+        "returns": "string|null",
+        "description": "Returns the selected view shape, or null when no shape switch is configured."
+      },
+      {
+        "name": "getSearch",
+        "signature": "getSearch()",
+        "returns": "string",
+        "description": "Returns the current query, or an empty string when the field is omitted."
+      },
+      {
+        "name": "setSearch",
+        "signature": "setSearch(value, [options])",
+        "returns": "this",
+        "description": "Sets the query."
+      },
+      {
+        "name": "focusSearch",
+        "signature": "focusSearch()",
+        "returns": "this",
+        "description": "Focuses the search field, for a host that binds a \"/\" shortcut."
+      },
+      {
+        "name": "bind",
+        "signature": "bind(view)",
+        "returns": "this",
+        "description": "Optional sugar for a `TableView` or `CardView`: it wires the shape switch to the view and mounts the view's field chooser into this bar. Nothing is imported and nothing is required — every capability is feature-detected, so a view that offers none of them still works and still gets `viewchange`, and the host swaps the view itself. See `recordViewCapabilities()` for what is looked for."
+      },
+      {
+        "name": "unbind",
+        "signature": "unbind()",
+        "returns": "this",
+        "description": "Releases a bound view and returns its field chooser to where it was found."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Destroys the search field, returns every adopted control to where it came from, and restores an enhanced target to the markup it had before the takeover."
+      }
+    ]
   },
   "MasterPanel": {
     "options": [
@@ -5422,6 +6526,24 @@
         "type": "NavigationAction[]",
         "default": "[]",
         "description": "Right-aligned action elements or descriptors."
+      },
+      {
+        "name": "overflow",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether items collapse into the overflow menu at all. `false` keeps every item in the bar at every width and never shows the More button."
+      },
+      {
+        "name": "overflowBelow",
+        "type": "string|number|false",
+        "default": "'44rem'",
+        "description": "Container inline size at or below which items collapse, as a `px` or `rem` length (a number is read as `px`); `false` disables collapsing exactly as `overflow: false` does. The default is the threshold the stylesheet's own container query carries, and a bar that keeps it collapses in CSS without measuring itself; any other value is watched with a `ResizeObserver`."
+      },
+      {
+        "name": "minVisible",
+        "type": "number",
+        "default": "0",
+        "description": "How many items, counted from the start, never collapse. The default collapses all of them, which is right for a top app bar and wrong for a phone bottom bar — `minVisible: 4` is what makes that bar usable."
       }
     ],
     "events": [
@@ -6502,6 +7624,12 @@
         "description": "Selection presentation."
       },
       {
+        "name": "selectionTrigger",
+        "type": "'checkbox'|'card'",
+        "default": "'checkbox'",
+        "description": "Selection affordance for owning views."
+      },
+      {
         "name": "selected",
         "type": "boolean",
         "default": "false",
@@ -6587,9 +7715,9 @@
       },
       {
         "name": "fieldControls",
-        "type": "boolean",
+        "type": "boolean|ViewFieldControlsConfig",
         "default": "true",
-        "description": "Whether concrete views show the shared field chooser."
+        "description": "Whether concrete views show the shared field chooser. `true` renders it in the view's own toolbar and `false` omits it; a `ViewFieldControlsConfig` object renders the same control with a translated `label` and, with `target`, mounts it into a host element such as a list toolbar."
       },
       {
         "name": "emptyText",
@@ -6955,6 +8083,12 @@
         "type": "string",
         "default": "''",
         "description": "Empty control text."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "default": "''",
+        "description": "Accessible combobox name; falls back to the placeholder."
       },
       {
         "name": "clearable",
@@ -7685,6 +8819,85 @@
       }
     ]
   },
+  "SortControl": {
+    "options": [
+      {
+        "name": "fields",
+        "type": "SortField[]",
+        "default": "[]",
+        "description": "Available sort fields, in display order."
+      },
+      {
+        "name": "value",
+        "type": "SortValue|null",
+        "default": "null",
+        "description": "Initial sort; null chooses the first field ascending."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "default": "'Sort by'",
+        "description": "Accessible field label and direction-name prefix."
+      },
+      {
+        "name": "labels",
+        "type": "{asc?:string,desc?:string}",
+        "default": "{}",
+        "description": "Current/next direction labels, defaulting to Ascending/Descending."
+      },
+      {
+        "name": "disabled",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether interaction is disabled."
+      }
+    ],
+    "events": [
+      {
+        "name": "change",
+        "payload": "{value:SortValue}",
+        "description": "Atomic field/direction change."
+      }
+    ],
+    "methods": [
+      {
+        "name": "getValue",
+        "signature": "getValue()",
+        "returns": "SortValue|null",
+        "description": "Returns a defensive copy of the current sort."
+      },
+      {
+        "name": "setValue",
+        "signature": "setValue(value, [options])",
+        "returns": "this",
+        "description": "Replaces the field and direction atomically; rejects unavailable fields and directions."
+      },
+      {
+        "name": "enable",
+        "signature": "enable()",
+        "returns": "this",
+        "description": "Enables both controls when fields are available."
+      },
+      {
+        "name": "disable",
+        "signature": "disable()",
+        "returns": "this",
+        "description": "Disables both controls and closes the option panel."
+      },
+      {
+        "name": "focus",
+        "signature": "focus()",
+        "returns": "this",
+        "description": "Focuses the searchable control."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Releases the owned Select and restores an enhanced target."
+      }
+    ]
+  },
   "Spinner": {
     "options": [
       {
@@ -7934,6 +9147,133 @@
     ],
     "events": [],
     "methods": []
+  },
+  "StatTile": {
+    "options": [
+      {
+        "name": "label",
+        "type": "string",
+        "default": "''",
+        "description": "The metric's name, set small above the value."
+      },
+      {
+        "name": "value",
+        "type": "number|string|null",
+        "default": "null",
+        "description": "The metric. A string is rendered as given."
+      },
+      {
+        "name": "format",
+        "type": "StatTileFormat",
+        "default": "'number'",
+        "description": "How a numeric value is rendered: a named mode, a callback receiving the raw value, or null to print the value unformatted."
+      },
+      {
+        "name": "currency",
+        "type": "string|null",
+        "default": "null",
+        "description": "ISO 4217 code used by `format: 'currency'`."
+      },
+      {
+        "name": "locale",
+        "type": "string",
+        "default": null,
+        "description": "BCP 47 tag for every formatter; defaults to the active language."
+      },
+      {
+        "name": "delta",
+        "type": "number|string|null",
+        "default": "null",
+        "description": "Change against the previous period. Rendered with its own sign and an arrow, never with colour alone."
+      },
+      {
+        "name": "deltaKind",
+        "type": "StatTileDeltaKind",
+        "default": "'neutral'",
+        "description": "Whether the change is good, bad, or merely a change. This — not the sign's direction — picks the delta colour: a rising ticket count is not a success, so \"up is good\" is never assumed."
+      },
+      {
+        "name": "deltaFormat",
+        "type": "StatTileFormat",
+        "default": null,
+        "description": "How the delta is rendered; defaults to `format`."
+      },
+      {
+        "name": "deltaLabel",
+        "type": "string",
+        "default": "''",
+        "description": "What the change is measured against, e.g. `'vs. last week'`."
+      },
+      {
+        "name": "trend",
+        "type": "number[]",
+        "default": "[]",
+        "description": "Values for a decorative sparkline. Fewer than two usable numbers render nothing."
+      },
+      {
+        "name": "icon",
+        "type": "string|null",
+        "default": "null",
+        "description": "Icon name from `icons.js`, shown beside the label."
+      },
+      {
+        "name": "kind",
+        "type": "StatTileKind",
+        "default": "'neutral'",
+        "description": "Semantic intent. It tints the icon and the sparkline and never the value, which stays at full text contrast whatever intent a record carries."
+      },
+      {
+        "name": "href",
+        "type": "string|null",
+        "default": "null",
+        "description": "Destination. A tile with an href is an `<a>`."
+      },
+      {
+        "name": "clickable",
+        "type": "boolean",
+        "default": "false",
+        "description": "Renders a `<button>` without an href. Passing `onclick` sets this implicitly; set it directly to subscribe with `on('click', …)` instead."
+      },
+      {
+        "name": "loading",
+        "type": "boolean",
+        "default": "false",
+        "description": "Renders a skeleton shaped like the tile."
+      },
+      {
+        "name": "msg",
+        "type": "Record<string, unknown>",
+        "default": null,
+        "description": "Message overrides, keyed as `statTile.*`."
+      }
+    ],
+    "events": [
+      {
+        "name": "click",
+        "payload": "{event: MouseEvent}",
+        "description": "Activation listener; its presence is what turns a tile with no href into a button. It is the tile's `click` event, as every Zx component's `on*` option is, so it receives the `CustomEvent` carrying the native event in `detail.event`."
+      }
+    ],
+    "methods": [
+      {
+        "name": "update",
+        "signature": "update(options)",
+        "returns": "this",
+        "description": "Replaces any subset of the tile's content and redraws it. This is how a tile leaves `loading: true` behind once the server answers."
+      },
+      {
+        "name": "getAccessibleName",
+        "signature": "getAccessibleName()",
+        "returns": "string",
+        "description": "Reports the tile's own accessible name, which is what assistive technology announces."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Aborts listeners and restores an adopted target to the state it was found in."
+      }
+    ]
   },
   "Stepper": {
     "options": [
@@ -8245,6 +9585,18 @@
         "description": "Additional row class callback."
       },
       {
+        "name": "rowKind",
+        "type": "string|((row: TableRow) => unknown)|null",
+        "default": "null",
+        "description": "Row property or callback naming each row's kind — the `type` on a ZeyOS transaction line, where one value is a position carrying quantities and amounts and another is a section heading that groups the positions under it. `null`, the default, renders every row exactly as before."
+      },
+      {
+        "name": "rowKinds",
+        "type": "Record<string, TableRowKind>|null",
+        "default": "null",
+        "description": "Presentation per kind, keyed by the resolved kind coerced to a string. A kind with no entry here renders as an ordinary row. While any row in the current data resolves to a `span` kind the header sort controls are withheld and `setSort()` is inert: sorting a grouped table scatters the positions out of their sections, and doing that silently is worse than not offering it. `sortMode: 'server'` still owns its own order."
+      },
+      {
         "name": "zebra",
         "type": "boolean",
         "default": "true",
@@ -8483,7 +9835,7 @@
         "name": "setSort",
         "signature": "setSort(id, [dir], [options])",
         "returns": "this",
-        "description": "Activates a column sort. Local mode stably reorders data; server mode only updates the header state and emits the request event."
+        "description": "Activates a column sort. Local mode stably reorders data; server mode only updates the header state and emits the request event. Inert while the data holds a spanning row: a sort would scatter the positions out of the sections that group them, in either sort mode. The header withholds its controls for the same reason, so nothing on screen invites the call."
       },
       {
         "name": "getSort",
@@ -8695,9 +10047,9 @@
       },
       {
         "name": "fieldControls",
-        "type": "boolean",
+        "type": "boolean|import('../view/record-view.js').ViewFieldControlsConfig",
         "default": "true",
-        "description": "Show the accessible visibility and reorder disclosure."
+        "description": "Show the accessible visibility and reorder disclosure. `true` keeps the composed Table's own column chooser and `false` omits it; an object renders the shared record-view chooser instead, with a translated `label` and, with `target`, mounted into a host element."
       },
       {
         "name": "emptyText",

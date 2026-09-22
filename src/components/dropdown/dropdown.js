@@ -182,7 +182,7 @@ export class Dropdown extends Component {
 
   /** @param {KeyboardEvent} event @returns {void} */
   [HANDLE_ESCAPE_DISMISS](event) {
-    if (event.key !== 'Escape' || !this.isOpen()) return;
+    if (event.defaultPrevented || event.key !== 'Escape' || !this.isOpen()) return;
     event.preventDefault();
     const restoreFocus = this.el.contains(document.activeElement);
     this.close();
@@ -205,7 +205,7 @@ class DropdownDismissManager extends Component {
       if (component instanceof Dropdown) component[HANDLE_POINTER_DISMISS](event);
     });
     this.listen(document, 'keydown', (event) => {
-      if (event.key !== 'Escape') return;
+      if (event.defaultPrevented || event.key !== 'Escape') return;
       const component = topmostOverlayComponent();
       if (component instanceof Dropdown) component[HANDLE_ESCAPE_DISMISS](event);
     });

@@ -22,6 +22,9 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
  * @property {string} [style] Font Awesome style for this icon only (`'solid'`, `'duotone'`, …).
  * @property {string} [family] Font Awesome family for this icon only (`'classic'`, `'sharp'`, …).
  * @property {boolean} [fixedWidth] Adds Font Awesome's `fa-fw` for column-aligned glyphs.
+ * @property {boolean} [strict=false] Throws `RangeError` on a name the bundled glyph set does not
+ *   carry, instead of returning the placeholder. For call sites that can afford to fail — a test,
+ *   a build-time check — rather than a screen rendering server data.
  */
 
 /**
@@ -34,6 +37,8 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
  * @type {Readonly<Record<string, [string, string]>>}
  */
 export const icons = Object.freeze({
+  'arrow-up-wide-short': ['0 0 576 512', 'M151.6 42.4C145.5 35.8 137 32 128 32s-17.5 3.8-23.6 10.4l-88 96c-11.9 13-11.1 33.3 2 45.2s33.3 11.1 45.2-2L96 146.3 96 448c0 17.7 14.3 32 32 32s32-14.3 32-32l0-301.7 32.4 35.4c11.9 13 32.2 13.9 45.2 2s13.9-32.2 2-45.2l-88-96zM320 480l32 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-32 0c-17.7 0-32 14.3-32 32s14.3 32 32 32zm0-128l96 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-96 0c-17.7 0-32 14.3-32 32s14.3 32 32 32zm0-128l160 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-160 0c-17.7 0-32 14.3-32 32s14.3 32 32 32zm0-128l224 0c17.7 0 32-14.3 32-32s-14.3-32-32-32L320 32c-17.7 0-32 14.3-32 32s14.3 32 32 32z'],
+  'arrow-down-wide-short': ['0 0 576 512', 'M151.6 469.6C145.5 476.2 137 480 128 480s-17.5-3.8-23.6-10.4l-88-96c-11.9-13-11.1-33.3 2-45.2s33.3-11.1 45.2 2L96 365.7 96 64c0-17.7 14.3-32 32-32s32 14.3 32 32l0 301.7 32.4-35.4c11.9-13 32.2-13.9 45.2-2s13.9 32.2 2 45.2l-88 96zM320 480c-17.7 0-32-14.3-32-32s14.3-32 32-32l32 0c17.7 0 32 14.3 32 32s-14.3 32-32 32l-32 0zm0-128c-17.7 0-32-14.3-32-32s14.3-32 32-32l96 0c17.7 0 32 14.3 32 32s-14.3 32-32 32l-96 0zm0-128c-17.7 0-32-14.3-32-32s14.3-32 32-32l160 0c17.7 0 32 14.3 32 32s-14.3 32-32 32l-160 0zm0-128c-17.7 0-32-14.3-32-32s14.3-32 32-32l224 0c17.7 0 32 14.3 32 32s-14.3 32-32 32L320 96z'],
   'chevron-down': ['0 0 512 512', 'M233.4 406.6c12.5 12.5 32.8 12.5 45.3 0l192-192c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L256 338.7 86.6 169.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l192 192z'],
   'chevron-up': ['0 0 512 512', 'M233.4 105.4c12.5-12.5 32.8-12.5 45.3 0l192 192c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L256 173.3 86.6 342.6c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3l192-192z'],
   'chevron-left': ['0 0 320 512', 'M9.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l192 192c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-192 192z'],
@@ -188,9 +193,17 @@ export function iconNames() {
  * its renderer itself — `'fa:user'`, `'duotone:user'`, `'kit:zeyos-notes'`, `'builtin:check'`, or
  * a literal Font Awesome class list such as `'fa-solid fa-user'`.
  *
+ * **A name this cannot resolve never throws.** Icon names routinely arrive from a server, and one
+ * unconfigured name must not take down the screen it appears on. An inline glyph the bundled set
+ * does not carry renders as the placeholder described in `missingIcon()` and is reported once per
+ * distinct name through `console.warn`; pass `{ strict: true }` to get a `RangeError` instead.
+ * Only the inline-SVG path can fail this way: Font Awesome resolves names in the browser at render
+ * time, so a name under a loaded kit or stylesheet is never "unknown" here and never warns.
+ *
  * @param {string} name Icon name or spec.
  * @param {IconOptions} [options={}] Display and accessibility options.
  * @returns {SVGSVGElement|HTMLElement} An `<svg>` for inline glyphs, an `<i>` for Font Awesome.
+ * @throws {RangeError} With `{ strict: true }` only, when the bundled set has no such glyph.
  */
 export function icon(name, options = {}) {
   const spec = parseIconSpec(name);
@@ -218,18 +231,37 @@ export function icon(name, options = {}) {
 }
 
 /**
- * Renders one of the bundled inline SVG glyphs.
+ * Renders one of the bundled inline SVG glyphs, or the placeholder when there is no such glyph.
  * @param {string} name Resolved glyph name.
  * @param {IconOptions} options Display and accessibility options.
  * @returns {SVGSVGElement}
+ * @throws {RangeError} With `options.strict`, when no glyph carries that name.
  */
 function builtinIcon(name, options) {
   const entry = extraGlyphs[name] ?? icons[name];
-  if (!entry) throw new RangeError(`Unknown icon: ${name}`);
+  if (!entry) {
+    if (options.strict) throw new RangeError(`Unknown icon: ${name}`);
+    warnMissingIcon(name);
+    return missingIcon(name, options);
+  }
   const [viewBox, pathData] = entry;
+  const svg = iconSvg(viewBox, options);
+  const path = document.createElementNS(SVG_NS, 'path');
+  path.setAttribute('d', pathData);
+  svg.append(path);
+  return svg;
+}
+
+/**
+ * Builds the `<svg>` root every inline glyph shares, so the placeholder is the same element in
+ * the same box as the icon it stands in for.
+ * @param {string} viewBox The glyph's view box.
+ * @param {IconOptions} options Display and accessibility options.
+ * @returns {SVGSVGElement}
+ */
+function iconSvg(viewBox, options) {
   const { size = 16 } = options;
   const svg = document.createElementNS(SVG_NS, 'svg');
-  const path = document.createElementNS(SVG_NS, 'path');
   svg.setAttribute('class', classList('zx-icon', options.class));
   svg.setAttribute('viewBox', viewBox);
   svg.setAttribute('width', String(size));
@@ -237,9 +269,46 @@ function builtinIcon(name, options) {
   svg.setAttribute('fill', 'currentColor');
   svg.setAttribute('focusable', 'false');
   applyLabel(svg, options.label ?? null);
-  path.setAttribute('d', pathData);
-  svg.append(path);
   return svg;
+}
+
+/** View box the placeholder reserves — the square most Font Awesome glyphs are drawn in. */
+const PLACEHOLDER_VIEW_BOX = '0 0 512 512';
+
+/**
+ * The element an unresolvable name renders as: the ordinary `zx-icon` root at the requested size,
+ * carrying no path.
+ *
+ * Empty rather than a fallback glyph on purpose. The box is what layout needs — a row of icons
+ * keeps its alignment and nothing reflows — while a question mark or an outlined square would
+ * read as an icon somebody chose, and would be the wrong one wherever colour or shape carries
+ * meaning. The gap is addressed to the developer instead, through the `console.warn` and through
+ * `data-zx-icon-missing`, which names it in devtools and lets a test or a page audit find every
+ * one of them with a single selector.
+ * @param {string} name Resolved glyph name that could not be found.
+ * @param {IconOptions} options Display and accessibility options.
+ * @returns {SVGSVGElement}
+ */
+function missingIcon(name, options) {
+  const svg = iconSvg(PLACEHOLDER_VIEW_BOX, options);
+  svg.setAttribute('data-zx-icon-missing', name);
+  return svg;
+}
+
+/** @type {Set<string>} Names already reported, so each gap is warned about exactly once. */
+const warnedMissing = new Set();
+
+/**
+ * Reports a missing glyph once per distinct name. A list of four hundred rows built from the same
+ * unconfigured name is one gap to fix, so it is one line in the console, not four hundred.
+ * @param {string} name Resolved glyph name that could not be found.
+ * @returns {void}
+ */
+function warnMissingIcon(name) {
+  if (warnedMissing.has(name)) return;
+  warnedMissing.add(name);
+  console.warn(`[zx.icon] Unknown icon "${name}" — rendered an empty placeholder. `
+    + 'Add it with registerIcons(), or render Font Awesome with useFontAwesome().');
 }
 
 /**

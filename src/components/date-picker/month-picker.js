@@ -47,21 +47,21 @@ export class MonthPicker extends DatePicker {
           ref: 'previousYear',
           class: 'zx-month-picker__nav',
           type: 'button',
-          ariaLabel: 'Previous year'
+          ariaLabel: this._message('monthPicker.previousYear', 'Previous year')
         }, icon('chevron-left')),
         h('span', { ref: 'year', class: 'zx-month-picker__year', ariaLive: 'polite' }),
         h('button', {
           ref: 'nextYear',
           class: 'zx-month-picker__nav',
           type: 'button',
-          ariaLabel: 'Next year'
+          ariaLabel: this._message('monthPicker.nextYear', 'Next year')
         }, icon('chevron-right'))
       ),
       h('div', {
         ref: 'grid',
         class: 'zx-month-picker__grid',
         role: 'grid',
-        ariaLabel: 'Choose month'
+        ariaLabel: this._message('monthPicker.chooseMonth', 'Choose month')
       })
     );
     this._content = content;

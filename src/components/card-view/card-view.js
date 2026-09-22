@@ -1,6 +1,6 @@
 // @ts-check
 import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
-import { RecordView, readViewField } from '../view/record-view.js';
+import { normalizeViewFieldControls, RecordView, readViewField } from '../view/record-view.js';
 import {
   createRecordCard, resolveRecordActions
 } from './record-card.js';
@@ -21,10 +21,13 @@ import {
  * @property {import('../view/record-view.js').ViewSort|null} [sort=null] Initial shared sort.
  * @property {'local'|'server'} [sortMode='local'] Local sorting or event-only server sorting.
  * @property {false|'single'|'multi'} [selectable=false] Record selection behavior.
+ * @property {'checkbox'|'card'} [selectionTrigger='checkbox'] Select through a checkbox or the non-interactive card surface.
  * @property {unknown[]} [selection=[]] Initially selected record ids.
  * @property {string[]} [fieldOrder=[]] Preferred shared field order.
  * @property {string[]} [hiddenFields=[]] Initially hidden metadata fields.
- * @property {boolean} [fieldControls=true] Whether to expose shared field controls.
+ * @property {boolean|import('../view/record-view.js').ViewFieldControlsConfig} [fieldControls=true]
+ * Whether to expose shared field controls. `true` renders the chooser in the card toolbar and
+ * `false` omits it; an object customises its `label` and mounts it into `target`.
  * @property {string|Node|(()=>string|Node)|null} [emptyText=null] Empty-result content.
  * @property {RecordCardValueSource} [titleField=null] Title field id or explicit resolver.
  * @property {RecordCardValueSource} [subtitleField=null] Subtitle field id or explicit resolver.
@@ -79,6 +82,7 @@ export class CardView extends RecordView {
   /** @type {Readonly<CardViewOptions & RecordViewOptions>} */
   static defaults = {
     ...RecordView.defaults,
+    selectionTrigger: 'checkbox',
     titleField: null,
     subtitleField: null,
     preview: undefined,
@@ -124,10 +128,12 @@ export class CardView extends RecordView {
       this._initRecordView(root);
       root.setAttribute('aria-label', String(options.label || 'Card view'));
       const sort = h('label', { ref: 'sortWrap', class: 'zx-card-view__sort' },
-        h('span', { class: 'zx-card-view__sort-label' }, 'Sort'),
-        h('select', { ref: 'sort', ariaLabel: 'Sort cards' }));
+        h('span', { class: 'zx-card-view__sort-label' }, this._message('cardView.sort', 'Sort')),
+        h('select', { ref: 'sort', ariaLabel: this._message('cardView.sortCards', 'Sort cards') }));
       const toolbar = h('div', { class: 'zx-record-view__toolbar zx-card-view__toolbar' }, sort);
-      if (this.options.fieldControls) toolbar.append(this._createViewFieldControls('Fields'));
+      if (normalizeViewFieldControls(this.options.fieldControls).enabled) {
+        this._mountViewFieldControls(toolbar);
+      }
       const content = h('div', { ref: 'content', class: 'zx-card-view__content' });
       root.replaceChildren(toolbar, content);
       this.listen(this.refs.sort, 'change', () => this._changeCardSort());
@@ -140,6 +146,7 @@ export class CardView extends RecordView {
       this._renderCards();
       return root;
     } catch (error) {
+      this._removeViewFieldControls();
       if (!created) restoreTarget(root, this._cardOriginal);
       throw error;
     }
@@ -212,16 +219,18 @@ export class CardView extends RecordView {
     if (!this.refs?.sort || !this.refs?.sortWrap) return;
     const select = /** @type {HTMLSelectElement} */ (this.refs.sort);
     const sort = this.getSort();
-    const options = [h('option', { value: '', selected: sort === null }, 'Unsorted')];
+    const options = [h('option', {
+      value: '', selected: sort === null
+    }, this._message('cardView.unsorted', 'Unsorted'))];
     for (const field of this.getFields().filter((candidate) => candidate.sortable)) {
       options.push(h('option', {
         selected: sort?.id === field.id && sort.dir === 'asc',
         dataset: { sortId: field.id, sortDir: 'asc' }
-      }, `${field.label} (ascending)`));
+      }, this._message('cardView.sortAscending', '%1 (ascending)', field.label)));
       options.push(h('option', {
         selected: sort?.id === field.id && sort.dir === 'desc',
         dataset: { sortId: field.id, sortDir: 'desc' }
-      }, `${field.label} (descending)`));
+      }, this._message('cardView.sortDescending', '%1 (descending)', field.label)));
     }
     select.replaceChildren(...options);
     /** @type {HTMLElement} */ (this.refs.sortWrap).hidden = options.length === 1;
@@ -286,6 +295,7 @@ export class CardView extends RecordView {
         link: options.link,
         actions: options.actions,
         selectable: this.options.selectable,
+        selectionTrigger: options.selectionTrigger,
         selected: this._isViewSelected(id),
         variant: this._cardVariant,
         headingLevel: this._cardHeadingLevel
@@ -355,6 +365,11 @@ export class CardView extends RecordView {
       return;
     }
     if (isInteractiveWithin(target, card) || hasCardTextSelection(card)) return;
+    if (this.options.selectable && this._cardOptions().selectionTrigger === 'card') {
+      this.toggleSelection(id, { range: event.shiftKey });
+      card.focus({ preventScroll: true });
+      return;
+    }
     this._activateCard(record, id, index, event);
     if (this.options.selectable === 'single') this.toggleSelection(id, { selected: true });
   }
@@ -381,7 +396,8 @@ export class CardView extends RecordView {
     const id = this._viewRecordId(record);
     if (event.key === 'Enter') {
       event.preventDefault();
-      this._activateCard(record, id, index, event);
+      if (this.options.selectable && this._cardOptions().selectionTrigger === 'card') this.toggleSelection(id);
+      else this._activateCard(record, id, index, event);
     } else if (event.key === ' ' && this.options.selectable) {
       event.preventDefault();
       this.toggleSelection(id);

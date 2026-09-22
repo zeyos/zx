@@ -1,0 +1,137 @@
+.zx-activity-item {
+  inline-size: 100%;
+  min-inline-size: 0;
+  color: var(--zx-color-text);
+  list-style: none;
+  container-type: inline-size;
+}
+
+.zx-activity-item__article {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--zx-space-3);
+  min-inline-size: 0;
+  padding-block: var(--zx-space-4);
+}
+
+.zx-activity-item__avatar {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: start;
+}
+
+.zx-activity-item__main {
+  display: grid;
+  gap: var(--zx-space-2);
+  min-inline-size: 0;
+}
+
+.zx-activity-item__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--zx-space-1) var(--zx-space-3);
+  min-inline-size: 0;
+}
+
+.zx-activity-item__heading {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zx-space-1);
+  min-inline-size: 0;
+  margin: 0;
+  font-size: var(--zx-text-md);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.zx-activity-item__actor {
+  font-weight: 700;
+}
+
+.zx-activity-item__title {
+  font-weight: 400;
+}
+
+/*
+ * The auto inline-start margin takes the header's free space before `justify-content` can
+ * distribute it, so the badge and the timestamp stay together on the trailing edge instead of
+ * being spread across the row as a third column.
+ */
+.zx-activity-item__state {
+  flex: none;
+  margin-inline-start: auto;
+  align-self: center;
+}
+
+.zx-activity-item__time {
+  flex: none;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  white-space: nowrap;
+}
+
+.zx-activity-item__body {
+  min-inline-size: 0;
+  color: var(--zx-color-text);
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.zx-activity-item__metadata {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zx-space-1) var(--zx-space-3);
+  margin: 0;
+  padding: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  list-style: none;
+}
+
+.zx-activity-item__metadata-item {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.zx-activity-item__metadata-item:not(:last-child)::after {
+  content: "\00b7";
+  margin-inline-start: var(--zx-space-3);
+  color: var(--zx-color-text-placeholder);
+}
+
+.zx-activity-item__attachments {
+  display: grid;
+  gap: var(--zx-space-2);
+  min-inline-size: 0;
+}
+
+.zx-activity-item__attachments-item {
+  min-inline-size: 0;
+}
+
+.zx-activity-item__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zx-space-1);
+}
+
+.zx-activity-item__action {
+  text-decoration: none;
+}
+
+@container (max-width: 30rem) {
+  .zx-activity-item__header {
+    display: grid;
+    justify-content: stretch;
+  }
+
+  /* Stacked, the header is one column, so the badge reads as its own line at the start edge. */
+  .zx-activity-item__state {
+    margin-inline-start: 0;
+    justify-self: start;
+  }
+}

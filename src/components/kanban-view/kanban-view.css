@@ -95,6 +95,12 @@
   border: 0;
   border-radius: var(--zx-radius-sm);
   background: transparent;
+  /* Both are icon-only squares with an explicit size. base.css styles native buttons through
+     zero-specificity `:where()`, which loses the cascade but still floors the box through
+     *different* properties — `padding-inline` and `min-block-size`. Without resetting those, these
+     buttons are neither square nor able to shrink when the keyboard handle clips itself away. */
+  padding: 0;
+  min-block-size: 0;
   color: var(--zx-color-text-muted);
   cursor: pointer;
 }
@@ -565,10 +571,13 @@
 
 /* ── Empty column placeholder ─────────────────────────────────────────────────────────────── */
 
+/* An empty column reads as somewhere a card can go, not as a rendering gap. */
 .zx-kanban-view__column-empty {
   display: grid;
   place-items: center;
   min-block-size: 4rem;
+  border: 1px dashed var(--zx-color-border);
+  border-radius: var(--zx-radius-md);
   padding: var(--zx-space-2);
   color: var(--zx-color-text-muted);
   font-size: var(--zx-text-xs);
@@ -658,3 +667,188 @@
     min-block-size: 2.75rem;
   }
 }
+
+/* ── Card head: what the record is, and how urgent it is ──────────────────────────────────── */
+
+.zx-kanban-view__card-head {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  min-block-size: 1.25rem;
+  min-inline-size: 0;
+}
+
+.zx-kanban-view__card-lead,
+.zx-kanban-view__card-flags {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-1);
+  min-inline-size: 0;
+}
+
+.zx-kanban-view__card-flags {
+  flex: none;
+  margin-inline-start: auto;
+}
+
+.zx-kanban-view__entity {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  color: var(--zx-color-text-muted);
+}
+
+.zx-kanban-view__identifier {
+  min-inline-size: 0;
+  overflow: hidden;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Card footer: completion, then the people responsible ─────────────────────────────────── */
+
+.zx-kanban-view__card-footer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zx-space-2);
+  min-inline-size: 0;
+}
+
+.zx-kanban-view__progress-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--zx-space-2);
+  margin-block-end: calc(var(--zx-space-1) / 2);
+}
+
+.zx-kanban-view__progress-label,
+.zx-kanban-view__progress-value {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.zx-kanban-view__progress-label {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.zx-kanban-view__progress-value {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.zx-kanban-view__progress-track {
+  block-size: 4px;
+  overflow: hidden;
+  border-radius: var(--zx-radius-full);
+  background: var(--zx-color-bg-muted);
+}
+
+.zx-kanban-view__progress-fill {
+  block-size: 100%;
+  border-radius: inherit;
+  background: var(--zx-color-accent);
+}
+
+/* ── Assignees ────────────────────────────────────────────────────────────────────────────── */
+
+/* Faces overlap into a stack; each one lifts its own left edge clear of the previous. */
+.zx-kanban-view__avatars {
+  display: inline-flex;
+  align-items: center;
+  min-inline-size: 0;
+}
+
+.zx-kanban-view__avatar {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  overflow: hidden;
+  border: 1px solid var(--zx-color-bg-surface);
+  border-radius: var(--zx-radius-full);
+  background: var(--zx-color-bg-muted);
+  color: var(--zx-color-text-muted);
+}
+
+.zx-kanban-view__avatar + .zx-kanban-view__avatar {
+  margin-inline-start: calc(var(--zx-space-2) * -1);
+}
+
+.zx-kanban-view__avatar[data-overflow="true"] {
+  background: var(--zx-color-accent-subtle);
+  color: var(--zx-color-accent);
+}
+
+.zx-kanban-view__avatar-image {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+}
+
+.zx-kanban-view__avatar-initials {
+  font-size: var(--zx-text-xs);
+  font-weight: 600;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+/* ── Move handle ──────────────────────────────────────────────────────────────────────────── */
+
+/* The card is the pointer drag source, so the handle is keyboard furniture: announced and in tab
+   order, but out of sight and out of the layout until it takes focus or holds a grabbed card. */
+.zx-kanban-view__move-handle[data-reveal="keyboard"] {
+  position: absolute;
+  /* base.css gives every native button a control-height floor; without resetting it the "hidden"
+     handle is still a full-height strip. */
+  inline-size: 1px;
+  block-size: 1px;
+  min-inline-size: 0;
+  min-block-size: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.zx-kanban-view__move-handle[data-reveal="keyboard"]:focus,
+.zx-kanban-view__move-handle[data-reveal="keyboard"][aria-pressed="true"] {
+  position: static;
+  inline-size: calc(var(--zx-control-height) - var(--zx-space-1));
+  block-size: calc(var(--zx-control-height) - var(--zx-space-1));
+  min-block-size: 0;
+  overflow: visible;
+  clip-path: none;
+}
+
+@media (pointer: coarse) {
+  .zx-kanban-view__move-handle[data-reveal="keyboard"]:focus,
+  .zx-kanban-view__move-handle[data-reveal="keyboard"][aria-pressed="true"] {
+    inline-size: 2.75rem;
+    block-size: 2.75rem;
+  }
+}
+
+/* Text that names what a terse card value measures — "Priority" before "High" — carried as real
+   content because `aria-label` is prohibited on the generic role a span reports. */
+.zx-kanban-view__hint {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.zx-kanban-view__flag {
+  display: inline-flex;
+  align-items: center;
+}
+.zx-kanban-view .zx-record-card[data-selection-trigger="card"] { cursor: pointer; }

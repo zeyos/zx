@@ -35,8 +35,28 @@ import { MenuButton } from '../menu-button/menu-button.js';
  * @property {NavigationItem[]} [items=[]] Navigation items.
  * @property {string|null} [active=null] Initially active item, or the first enabled item.
  * @property {NavigationAction[]} [actions=[]] Right-aligned action elements or descriptors.
+ * @property {boolean} [overflow=true] Whether items collapse into the overflow menu at all.
+ *   `false` keeps every item in the bar at every width and never shows the More button.
+ * @property {string|number|false} [overflowBelow='44rem'] Container inline size at or below which
+ *   items collapse, as a `px` or `rem` length (a number is read as `px`); `false` disables
+ *   collapsing exactly as `overflow: false` does. The default is the threshold the stylesheet's
+ *   own container query carries, and a bar that keeps it collapses in CSS without measuring
+ *   itself; any other value is watched with a `ResizeObserver`.
+ * @property {number} [minVisible=0] How many items, counted from the start, never collapse. The
+ *   default collapses all of them, which is right for a top app bar and wrong for a phone bottom
+ *   bar — `minVisible: 4` is what makes that bar usable.
  * @property {(event: CustomEvent<{name: string}>) => void} [onchange] Change callback.
  */
+
+/**
+ * The container width `navigation-bar.css` collapses at. A bar that keeps this exact threshold is
+ * served by the stylesheet's container query, so it needs no measurement and no script at all;
+ * anything else has to be watched. Keep it in step with the `@container` rule.
+ */
+export const OVERFLOW_BELOW = '44rem';
+
+/** The lengths a threshold may be written in — the two a `ResizeObserver` can resolve alone. */
+const OVERFLOW_LENGTH = /^\d+(?:\.\d+)?(?:px|rem)$/;
 
 /**
  * @typedef {Object} NavigationRecord
@@ -60,7 +80,10 @@ export class NavigationBar extends Component {
     title: '',
     items: [],
     active: null,
-    actions: []
+    actions: [],
+    overflow: true,
+    overflowBelow: OVERFLOW_BELOW,
+    minVisible: 0
   };
 
   /**
@@ -85,6 +108,7 @@ export class NavigationBar extends Component {
       if (record.definition.href) globalThis.location?.assign(record.definition.href);
     });
     this._syncOverflow();
+    this._observeWidth();
   }
 
   /** @returns {HTMLElement} */
@@ -100,6 +124,8 @@ export class NavigationBar extends Component {
     this._activeName = null;
     this._tabMode = false;
     this._overflow = null;
+    this._observer = null;
+    this._frame = 0;
 
     const bar = h('header', { class: 'zx-navigation-bar__bar' },
       h('div', { class: 'zx-navigation-bar__brand', ref: 'title' }),
@@ -257,6 +283,10 @@ export class NavigationBar extends Component {
   destroy() {
     if (this._cleaned) return;
     this._cleaned = true;
+    if (this._frame && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(this._frame);
+    this._frame = 0;
+    this._observer?.disconnect();
+    this._observer = null;
     this._overflow?.destroy();
     super.destroy();
     if (!this._createdRoot && this._original) restore(this.el, this._original);
@@ -382,16 +412,86 @@ export class NavigationBar extends Component {
     }
   }
 
-  /** @returns {void} */
+  /**
+   * Republishes the overflow state: which items may collapse, which mode the stylesheet should
+   * apply, and what the More menu contains. With the default `minVisible: 0` every item collapses
+   * and the menu lists them all, which is what it has always done.
+   * @returns {void}
+   */
   _syncOverflow() {
+    const below = resolveOverflowBelow(this.options);
+    const minVisible = below === null
+      ? this._items.length
+      : resolveMinVisible(this.options, this._items.length);
+    const collapsing = this._items.slice(minVisible);
+    const root = /** @type {HTMLElement} */ (this.el);
+
+    for (const [index, record] of this._items.entries()) {
+      record.item.dataset.collapsed = String(index >= minVisible);
+    }
+    root.dataset.overflow = below === null ? 'off' : (minVisible === 0 ? 'all' : 'partial');
+    /*
+     * The attribute is the stylesheet's own switch: present means "a threshold I do not know", so
+     * the container query stands down and the observer below drives `data-narrow` instead.
+     */
+    if (below === null || below === OVERFLOW_BELOW) delete root.dataset.overflowBelow;
+    else root.dataset.overflowBelow = below;
+
     if (!this._overflow) return;
-    this.refs.more.dataset.empty = this._items.length === 0 ? 'true' : 'false';
-    this._overflow.setItems(this._items.map((record) => ({
+    this.refs.more.dataset.empty = collapsing.length === 0 ? 'true' : 'false';
+    this._overflow.setItems(collapsing.map((record) => ({
       label: record.definition.badge === null ? record.definition.title :
         `${record.definition.title} (${record.definition.badge})`,
       value: record.definition.name,
       disabled: record.definition.disabled
     })));
+  }
+
+  /**
+   * Watches the bar's own inline size when `overflowBelow` names a threshold the stylesheet cannot
+   * express. A bar on the default threshold installs nothing: its container query has already
+   * decided before the first frame of script, which is why the default path stays exactly as it
+   * was.
+   * @returns {void}
+   */
+  _observeWidth() {
+    const below = resolveOverflowBelow(this.options);
+    if (below === null || below === OVERFLOW_BELOW) return;
+    if (typeof ResizeObserver !== 'function') return;
+    const root = /** @type {HTMLElement} */ (this.el);
+
+    const measure = () => {
+      const width = root.getBoundingClientRect().width;
+      /*
+       * Zero is not a narrow bar, it is no measurement at all — what an element reports before it
+       * has been laid out. Recording it would latch the collapsed state and never notice the real
+       * width, which is the failure `src/core/breakpoint.js` documents.
+       */
+      if (!width) return;
+      const rootElement = globalThis.document?.documentElement;
+      const rootFontSize = rootElement
+        ? Number.parseFloat(globalThis.getComputedStyle(rootElement).fontSize)
+        : Number.NaN;
+      // `<=`, because the container query this replaces is a `max-width` and that is inclusive.
+      root.dataset.narrow = String(width <= lengthToPixels(below, rootFontSize));
+    };
+
+    this._observer = new ResizeObserver(() => {
+      /*
+       * Answered on the next frame rather than inside the callback: collapsing the bar resizes the
+       * very element being observed, which the browser reports as an undelivered-notification loop.
+       */
+      if (this._frame || typeof requestAnimationFrame !== 'function') {
+        if (typeof requestAnimationFrame !== 'function') measure();
+        return;
+      }
+      this._frame = requestAnimationFrame(() => {
+        this._frame = 0;
+        measure();
+      });
+    });
+    this._observer.observe(root);
+    measure();
   }
 
   /** @param {NavigationRecord} record @returns {void} */
@@ -423,6 +523,73 @@ export class NavigationBar extends Component {
  * @event NavigationBar#change
  * @type {CustomEvent<{name: string}>}
  */
+
+/**
+ * Resolves the container inline size at or below which items collapse into the overflow menu.
+ *
+ * Two options can switch collapsing off, because they answer two different questions: `overflow`
+ * is whether the bar has an overflow menu at all, and `overflowBelow` is where it starts using it.
+ * Either being `false` means the same thing to the stylesheet — nothing ever collapses — so both
+ * resolve to `null` here and the caller has one state to handle rather than two.
+ * @param {NavigationBarOptions} [options={}] Navigation options, whole or partial.
+ * @returns {string|null} A `px` or `rem` length, or `null` when nothing ever collapses.
+ */
+export function resolveOverflowBelow(options = {}) {
+  const enabled = options.overflow ?? true;
+  if (typeof enabled !== 'boolean') {
+    throw new TypeError('NavigationBar overflow must be a boolean');
+  }
+  const below = options.overflowBelow ?? OVERFLOW_BELOW;
+  if (!enabled || below === false) return null;
+  if (typeof below === 'number') {
+    if (!Number.isFinite(below) || below < 0) {
+      throw new RangeError(`NavigationBar overflowBelow must not be negative: ${below}`);
+    }
+    return `${below}px`;
+  }
+  if (typeof below !== 'string' || !OVERFLOW_LENGTH.test(below.trim())) {
+    throw new TypeError(
+      `NavigationBar overflowBelow must be a px or rem length, a number of pixels, or false: ${String(below)}`
+    );
+  }
+  return below.trim();
+}
+
+/**
+ * How many items, counted from the start, stay in the bar when it collapses.
+ *
+ * Clamping to the item count is the whole arithmetic: `minVisible: 4` on a three-item bar keeps
+ * three, so the overflow menu is empty rather than holding a phantom fourth entry, and the bar
+ * hides its More button instead of opening onto nothing.
+ * @param {NavigationBarOptions} [options={}] Navigation options, whole or partial.
+ * @param {number} [count=0] How many items the bar currently has.
+ * @returns {number} A count between 0 and `count`.
+ */
+export function resolveMinVisible(options = {}, count = 0) {
+  const requested = options.minVisible ?? 0;
+  if (!Number.isInteger(requested) || requested < 0) {
+    throw new TypeError(`NavigationBar minVisible must be a non-negative integer: ${String(requested)}`);
+  }
+  const total = Number.isInteger(count) && count > 0 ? count : 0;
+  return Math.min(requested, total);
+}
+
+/**
+ * Converts an overflow threshold to pixels, so a measured width can be compared with it.
+ * @param {string|number} length A `px` or `rem` length, or a number of pixels.
+ * @param {number} [rootFontSize=16] Computed root font size; anything unusable falls back to 16.
+ * @returns {number} The threshold in pixels.
+ */
+export function lengthToPixels(length, rootFontSize = 16) {
+  const value = typeof length === 'number' ? `${length}px` : String(length).trim();
+  if (!OVERFLOW_LENGTH.test(value)) {
+    throw new TypeError(`NavigationBar cannot measure the length "${String(length)}"`);
+  }
+  const size = Number.parseFloat(value);
+  if (!value.endsWith('rem')) return size;
+  const root = Number(rootFontSize);
+  return size * (Number.isFinite(root) && root > 0 ? root : 16);
+}
 
 /** @param {unknown} content @returns {content is NavigationPanelContent} */
 function isPanelContent(content) {

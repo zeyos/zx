@@ -3,6 +3,15 @@ import { h } from '../../core/dom.js';
 import { overlayHost } from '../../core/overlay-host.js';
 
 /**
+ * Controls initial focus may be placed on: what a reader reaches with Tab, rather than everything
+ * the platform will focus programmatically.
+ */
+const FOCUSABLE_SELECTOR = [
+  'a[href]', 'button:not([disabled])', 'input:not([disabled])', 'select:not([disabled])',
+  'textarea:not([disabled])', '[contenteditable="true"]', '[tabindex]:not([tabindex="-1"])'
+].join(',');
+
+/**
  * @typedef {Object} ModalOptions
  * @property {Node|string|number|{toElement: () => Node|null}|null} [content=null] Modal content.
  * @property {string|number} [width='auto'] CSS width, or a pixel width when numeric.
@@ -18,6 +27,15 @@ import { overlayHost } from '../../core/overlay-host.js';
 /**
  * Thin native-dialog overlay with lifecycle-safe content and dismissal behavior.
  * The constructor always creates and appends a new dialog; its target argument is ignored.
+ *
+ * Accessibility is the platform's wherever the platform has an answer. The root is a real
+ * `<dialog>` and `_show()` presents it with `showModal()`, so focus containment, the inertness of
+ * everything behind it, Escape, the top layer and the implicit `dialog` role all come from the
+ * browser — there is no hand-written focus trap here, and adding one on top of `:modal` would be
+ * two traps fighting over the same Tab key. What the platform leaves undone is the rest of this
+ * class's accessibility work: it stops initial focus at the panel instead of the first control,
+ * and it restores focus to the opener only for its own native presentation, not for the popover
+ * one a non-modal subclass uses.
  * @fires Modal#open
  * @fires Modal#close
  * @fires Modal#cancel
@@ -42,6 +60,8 @@ export class Modal extends Component {
   #presentation = 0;
   /** @type {number[]} */
   #nativeClosingPresentations = [];
+  /** @type {Element|null} Element that had focus when the overlay was opened. */
+  #opener = null;
 
   /**
    * Creates a modal in the configured theme scope, or at document level when none is present.
@@ -64,6 +84,14 @@ export class Modal extends Component {
       if (!this.options.lightDismiss || event.target !== this.el || !isBackdropClick(this.el, event)) return;
       this.close();
     });
+    /*
+     * One listener for every close path, because `close` is the one event all four converge on:
+     * a footer button and a programmatic `close()` go through `_dismiss()`, Escape and a native
+     * dismissal arrive as the platform's own `close`, and light dismiss calls `close()` itself.
+     * A subclass that traps focus registers its own restore after this one and so wins, which is
+     * what keeps `Sheet`'s trap authoritative over its own capture.
+     */
+    this.on('close', () => this.#restoreFocus());
   }
 
   /**
@@ -112,6 +140,23 @@ export class Modal extends Component {
   _present() {
     this._show();
     this.#presentation += 1;
+    this.#syncModality();
+  }
+
+  /**
+   * Mirrors the presentation's real modality onto the panel as `aria-modal`.
+   *
+   * Asked of the platform (`:modal`) rather than of an option, so it stays true through every
+   * presentation a subclass chooses: `showModal()` is modal, a popover or an in-flow `show()` is
+   * not, and a sheet that moves between them is re-answered when it is presented again. The
+   * `<dialog>` element already carries the implicit `dialog` role and, while `:modal`, the
+   * implicit modal semantics — the attribute states them for assistive technology that reads the
+   * markup rather than the top-layer state.
+   * @returns {void}
+   */
+  #syncModality() {
+    if (this.el.matches(':modal')) this.el.setAttribute('aria-modal', 'true');
+    else if (this.el.getAttribute('aria-modal') === 'true') this.el.removeAttribute('aria-modal');
   }
 
   /**
@@ -158,6 +203,11 @@ export class Modal extends Component {
     }
     this.el.dataset.state = 'closed';
     delete this.el.dataset.zxOverlayOrder;
+    /*
+     * Only the flag this class raised. A subclass presenting non-modally writes
+     * `aria-modal="false"` and owns that value across its own presentations.
+     */
+    if (this.el.getAttribute('aria-modal') === 'true') this.el.removeAttribute('aria-modal');
     const pending = closingPresentation === undefined
       ? undefined
       : this.#pendingResults.get(closingPresentation);
@@ -166,6 +216,45 @@ export class Modal extends Component {
     this.emit('close', { result });
     if (this.options.destroyOnClose && !this.#destroying) this.destroy();
     return true;
+  }
+
+  /**
+   * Returns focus to whatever held it when the overlay opened.
+   *
+   * A closing `<dialog>` restores focus itself, but only for its own native presentation and only
+   * while the opener is still where it was; doing it here covers the popover presentation a
+   * non-modal subclass uses, and covers `destroyOnClose`, which takes the opener's document
+   * position out from under the platform's own restore.
+   * @returns {void}
+   */
+  #restoreFocus() {
+    const opener = /** @type {HTMLElement|null} */ (this.#opener);
+    this.#opener = null;
+    if (opener?.isConnected && typeof opener.focus === 'function') opener.focus();
+  }
+
+  /**
+   * Places initial focus inside the panel.
+   *
+   * `showModal()` focuses an `autofocus` control when the content declares one and otherwise stops
+   * at the dialog element, which leaves a reader one Tab short of the first control. This keeps
+   * that preference — so a `Dialog` footer button marked `autofocus` still wins — and then falls
+   * through to the first focusable descendant, with the panel itself as the last resort so focus
+   * is never left outside the overlay.
+   * @returns {void}
+   */
+  _focusInitial() {
+    if (!this.isOpen()) return;
+    const target = initialFocusTarget(this.el);
+    if (target) {
+      target.focus();
+      return;
+    }
+    // A panel holding nothing focusable has to take focus itself, and is made focusable only for
+    // that: `tabindex="-1"` is programmatic focus, so it adds nothing to the Tab order.
+    const panel = /** @type {HTMLElement} */ (this.el);
+    if (!panel.hasAttribute('tabindex')) panel.setAttribute('tabindex', '-1');
+    panel.focus();
   }
 
   /**
@@ -188,6 +277,12 @@ export class Modal extends Component {
    */
   open() {
     if (this.isOpen()) return this;
+    /*
+     * Captured before anything is presented, so it is the element the reader was actually on
+     * rather than whatever the overlay is about to focus. A subclass that traps focus before
+     * delegating here has already moved it and restores its own capture afterwards.
+     */
+    this.#opener = document.activeElement instanceof Element ? document.activeElement : null;
     const host = this.mountTarget();
     if (this.el.parentElement !== host) host.append(this.el);
     this.el.dataset.zxOverlayOrder = String(nextOverlayOrder());
@@ -196,10 +291,15 @@ export class Modal extends Component {
       this._present();
     } catch (error) {
       delete this.el.dataset.zxOverlayOrder;
+      // Nothing was presented, so nothing will close; a capture left behind would outlive its open.
+      this.#opener = null;
       throw error;
     }
     this.el.dataset.state = 'open';
     this.emit('open');
+    // Deferred by one microtask: the platform's own focusing step runs as part of presenting, and
+    // this has to be the one that settles, not the one it overwrites.
+    queueMicrotask(() => this._focusInitial());
     return this;
   }
 
@@ -277,6 +377,47 @@ export class Modal extends Component {
  * @event Modal#cancel
  * @type {CustomEvent<Record<string, never>>}
  */
+
+/**
+ * Picks the control initial focus belongs on inside an overlay panel: an `autofocus` control when
+ * the content named one, the first focusable descendant otherwise, and null when the panel holds
+ * neither and must take focus itself.
+ *
+ * Candidates in a hidden, `aria-hidden` or `inert` subtree are skipped, because `focus()` on one
+ * is a silent no-op: a `Dialog` whose header close button is hidden by `closable: false`, or whose
+ * other registered views sit hidden in the same body, would otherwise "focus" nothing at all and
+ * leave the reader with no way into the overlay.
+ * @param {Element} root Overlay panel.
+ * @returns {HTMLElement|null}
+ */
+export function initialFocusTarget(root) {
+  const declared = root.querySelector('[autofocus]:not([disabled])');
+  if (declared && isFocusable(declared, root)) return /** @type {HTMLElement} */ (declared);
+  for (const candidate of root.querySelectorAll(FOCUSABLE_SELECTOR)) {
+    if (isFocusable(candidate, root)) return /** @type {HTMLElement} */ (candidate);
+  }
+  return null;
+}
+
+/**
+ * Whether a candidate can take focus from where it sits inside the panel.
+ *
+ * Duck-typed on `focus` rather than tested against `HTMLElement`, so a focusable SVG or MathML
+ * element inside the panel is a candidate rather than a silently skipped one.
+ * @param {Element} element Candidate found by the focusable selector.
+ * @param {Element} root Panel the search is bounded by.
+ * @returns {boolean}
+ */
+function isFocusable(element, root) {
+  if (typeof (/** @type {HTMLElement} */ (element).focus) !== 'function') return false;
+  for (let node = /** @type {Element|null} */ (element); node; node = node.parentElement) {
+    if (/** @type {HTMLElement} */ (node).hidden) return false;
+    if (node.getAttribute('aria-hidden') === 'true') return false;
+    if (node.hasAttribute('inert')) return false;
+    if (node === root) break;
+  }
+  return true;
+}
 
 /**
  * @param {Element} target

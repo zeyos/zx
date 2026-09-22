@@ -92,3 +92,16 @@ test('AST factories create stable shapes without sharing caller values', () => {
   assert.equal(empty.version, 1);
   assert.equal(empty.root.children.length, 0);
 });
+
+
+test('restricted root logic rejects a mismatching saved expression without rewriting it', async () => {
+  const {rootLogicError} = await import('../../src/components/filter/filter.js');
+  const ast = sampleAst();
+  assert.equal(rootLogicError(ast, 'and'), null);
+  assert.equal(rootLogicError(ast, null), null);
+  const before = JSON.stringify(ast);
+  const mismatch = rootLogicError(ast, 'or');
+  assert.equal(mismatch.code, 'root-logic');
+  assert.equal(mismatch.nodeId, 'root');
+  assert.equal(JSON.stringify(ast), before);
+});

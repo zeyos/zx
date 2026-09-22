@@ -27,6 +27,7 @@ import { matchItems } from './filter.js';
  * @property {unknown} [value=null] Initially selected ID or item.
  * @property {boolean} [disabled=false] Whether interaction is disabled.
  * @property {string} [placeholder=''] Empty control text.
+ * @property {string} [label=''] Accessible combobox name; falls back to the placeholder.
  * @property {boolean} [clearable=false] Whether selection may be cleared.
  * @property {false|'local'|((query: string) => Promise<SelectItem[]>|SelectItem[])} [filter=false] Filtering mode.
  * @property {Array<SelectValueReader>|null} [searchKeys=null] Fields searched by local filtering.
@@ -109,6 +110,7 @@ export class Select extends Component {
     value: null,
     disabled: false,
     placeholder: '',
+    label: '',
     clearable: false,
     filter: false,
     searchKeys: null,
@@ -136,6 +138,7 @@ export class Select extends Component {
       class: 'zx-select__input',
       type: 'text',
       role: 'combobox',
+      ariaLabel: String(this.options.label || this.options.placeholder || 'Select'),
       autocomplete: 'off',
       spellcheck: false,
       ariaExpanded: 'false',

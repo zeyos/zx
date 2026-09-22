@@ -1,0 +1,182 @@
+.zx-entity-ref {
+  --zx-entity-ref-visual-size: var(--zx-control-height);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--zx-space-2);
+  align-items: center;
+  min-inline-size: 0;
+  color: var(--zx-color-text);
+}
+
+.zx-entity-ref[data-size="sm"] {
+  --zx-entity-ref-visual-size: calc(var(--zx-control-height) * .75);
+}
+
+.zx-entity-ref[data-size="lg"] {
+  --zx-entity-ref-visual-size: calc(var(--zx-control-height) * 1.25);
+}
+
+.zx-entity-ref__icon {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  inline-size: var(--zx-entity-ref-visual-size);
+  block-size: var(--zx-entity-ref-visual-size);
+  overflow: hidden;
+  border: 1px solid var(--zx-color-border);
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-bg-muted);
+  color: var(--zx-color-text-muted);
+}
+
+.zx-entity-ref__icon[hidden],
+.zx-entity-ref__title[hidden],
+.zx-entity-ref__subtitle[hidden],
+.zx-entity-ref__metadata[hidden],
+.zx-entity-ref__actions[hidden] {
+  display: none;
+}
+
+.zx-entity-ref__body,
+.zx-entity-ref__title,
+.zx-entity-ref__subtitle,
+.zx-entity-ref__primary,
+.zx-entity-ref__name {
+  min-inline-size: 0;
+}
+
+.zx-entity-ref__body {
+  display: grid;
+  gap: var(--zx-space-1);
+}
+
+.zx-entity-ref__title {
+  color: var(--zx-color-text);
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.zx-entity-ref__primary,
+.zx-entity-ref__name {
+  display: block;
+  color: inherit;
+}
+
+.zx-entity-ref__primary {
+  text-decoration-color: transparent;
+  text-underline-offset: .15em;
+}
+
+.zx-entity-ref__primary:hover {
+  color: var(--zx-color-accent-hover);
+  text-decoration-color: currentColor;
+}
+
+.zx-entity-ref__subtitle,
+.zx-entity-ref__metadata {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  line-height: 1.3;
+}
+
+.zx-entity-ref[data-wrap="false"] .zx-entity-ref__title,
+.zx-entity-ref[data-wrap="false"] .zx-entity-ref__subtitle,
+.zx-entity-ref[data-wrap="false"] .zx-entity-ref__primary,
+.zx-entity-ref[data-wrap="false"] .zx-entity-ref__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zx-entity-ref__metadata {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zx-space-1) var(--zx-space-3);
+  margin: 0;
+}
+
+.zx-entity-ref__field {
+  display: inline-flex;
+  gap: var(--zx-space-1);
+  align-items: center;
+  min-inline-size: 0;
+}
+
+.zx-entity-ref__label,
+.zx-entity-ref__value {
+  margin: 0;
+}
+
+.zx-entity-ref__label::after {
+  content: ":";
+}
+
+.zx-entity-ref__field[data-label-visible="false"] .zx-entity-ref__label {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.zx-entity-ref__value {
+  display: inline-flex;
+  gap: var(--zx-space-1);
+  align-items: center;
+  min-inline-size: 0;
+}
+
+.zx-entity-ref__actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--zx-space-1);
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.zx-entity-ref__action {
+  display: inline-flex;
+  gap: var(--zx-space-1);
+  align-items: center;
+  justify-content: center;
+  min-block-size: calc(var(--zx-control-height) * .75);
+  padding: var(--zx-space-1) var(--zx-space-2);
+  border: 1px solid transparent;
+  border-radius: var(--zx-radius-md);
+  background: transparent;
+  color: var(--zx-color-text-muted);
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.zx-entity-ref__action:hover:not(:disabled) {
+  background: var(--zx-color-bg-hover);
+  color: var(--zx-color-text);
+}
+
+.zx-entity-ref__action[data-kind="primary"] {
+  color: var(--zx-color-accent);
+}
+
+.zx-entity-ref__action[data-kind="danger"] {
+  color: var(--zx-color-danger);
+}
+
+.zx-entity-ref__action[data-kind="default"] {
+  border-color: var(--zx-color-border-control);
+  background: var(--zx-color-bg-control);
+  color: var(--zx-color-text);
+}
+
+.zx-entity-ref__action:disabled {
+  opacity: .55;
+  cursor: default;
+}
+
+@media (forced-colors: active) {
+  .zx-entity-ref__icon,
+  .zx-entity-ref__action[data-kind="default"] {
+    border-color: CanvasText;
+  }
+}

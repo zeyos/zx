@@ -103,7 +103,7 @@ export class Panel extends Component {
         class: 'zx-panel__buttons',
         ref: 'buttons',
         role: 'group',
-        ariaLabel: 'Panel actions'
+        ariaLabel: this._message('panel.actions', 'Panel actions')
       })
     );
     const content = h('div', {
@@ -125,7 +125,7 @@ export class Panel extends Component {
       class: 'zx-panel__footer-buttons',
       ref: 'footerButtons',
       role: 'group',
-      ariaLabel: 'Panel footer actions'
+      ariaLabel: this._message('panel.footerActions', 'Panel footer actions')
     }));
     root.replaceChildren(header, body, footer);
 
@@ -285,6 +285,17 @@ export class Panel extends Component {
       if (typeof onclick === 'function') this.listen(element, 'click', onclick);
       return element;
     });
+  }
+
+  /**
+   * Resolves a message through the host translator, falling back to the built-in English text.
+   * @param {string} key Message key.
+   * @param {string} fallback English default.
+   * @returns {string}
+   */
+  _message(key, fallback) {
+    const message = this.msg(key);
+    return message === key ? fallback : message;
   }
 }
 

@@ -17,6 +17,11 @@
   margin-inline-start: auto;
 }
 
+/* Mounted into a host toolbar the view does not own: the host decides where it sits. */
+.zx-record-view__field-controls[data-mounted="external"] {
+  margin-inline-start: 0;
+}
+
 .zx-record-view__field-controls > summary {
   display: inline-flex;
   align-items: center;

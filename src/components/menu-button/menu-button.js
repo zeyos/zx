@@ -2,20 +2,15 @@ import { Component } from '../../core/component.js';
 import { h, resolveElement } from '../../core/dom.js';
 import { icon } from '../../core/icons.js';
 import { rovingTabindex, typeahead } from '../../core/keyboard.js';
+import {
+  isMenuItem,
+  MENU_ITEM_SELECTOR,
+  renderMenuEntries
+} from '../../internal/menu-items.js';
 import { Dropdown } from '../dropdown/dropdown.js';
 
-const MENU_ITEM_SELECTOR = '[role="menuitem"]';
-
-/**
- * @typedef {Object} MenuItem
- * @property {string} label Item label.
- * @property {string} [icon] Kernel icon name.
- * @property {unknown} [value] Value emitted on selection.
- * @property {boolean} [disabled=false] Whether selection is disabled.
- * @property {boolean} [danger=false] Whether the action is dangerous.
- * @property {(value: unknown, item: MenuItem, menuButton: MenuButton) => void} [onselect] Selection callback.
- */
-/** @typedef {MenuItem|'-'} MenuButtonItem */
+/** @typedef {import('../../internal/menu-items.js').MenuItem} MenuItem */
+/** @typedef {import('../../internal/menu-items.js').MenuEntry} MenuButtonItem */
 /**
  * @typedef {Object} MenuButtonOptions
  * @property {string} [label=''] Trigger label.
@@ -116,7 +111,7 @@ export class MenuButton extends Component {
     this.listen(this.el, 'keydown', (event) => this.#onTriggerKeydown(event));
     this.listen(this.#panel, 'click', (event) => {
       const item = event.target.closest?.(MENU_ITEM_SELECTOR);
-      if (item && this.#panel.contains(item)) this.#selectElement(item);
+      if (item && this.#panel.contains(item)) this.#selectElement(item, event);
     });
     this.listen(this.#panel, 'keydown', (event) => this.#onMenuKeydown(event));
   }
@@ -142,25 +137,7 @@ export class MenuButton extends Component {
    */
   setItems(items) {
     this.#items = Array.isArray(items) ? items.slice() : [];
-    this.#panel.replaceChildren();
-    this.#items.forEach((item, index) => {
-      if (item === '-') {
-        this.#panel.append(h('div', { class: 'zx-menu-button__separator', role: 'separator' }));
-        return;
-      }
-      const children = [];
-      if (item.icon) children.push(h('span', { class: 'zx-menu-button__icon' }, icon(item.icon)));
-      children.push(h('span', { class: 'zx-menu-button__label' }, item.label));
-      this.#panel.append(h('button', {
-        class: 'zx-menu-button__item',
-        type: 'button',
-        role: 'menuitem',
-        tabindex: '-1',
-        'data-menu-item': String(index),
-        'data-danger': item.danger ? 'true' : null,
-        ariaDisabled: item.disabled ? 'true' : null
-      }, children));
-    });
+    this.#panel.replaceChildren(...renderMenuEntries(this.#items, 'menu-button'));
     return this;
   }
 
@@ -265,20 +242,27 @@ export class MenuButton extends Component {
     if (event.key === 'Enter' || event.key === ' ') {
       const item = event.target.closest?.(MENU_ITEM_SELECTOR);
       if (!item || !this.#panel.contains(item)) return;
+      if (event.key === 'Enter' && item.tagName === 'A') return;
       event.preventDefault();
-      this.#selectElement(item);
+      /** @type {HTMLElement} */ (item).click();
       return;
     }
     this.#typeahead(event);
   }
 
-  /** @param {Element} element @returns {void} */
-  #selectElement(element) {
+  /** @param {Element} element @param {Event|null} [event=null] @returns {void} */
+  #selectElement(element, event = null) {
     const index = Number(element.getAttribute('data-menu-item'));
     const item = this.#items[index];
-    if (!item || item === '-' || item.disabled) return;
+    if (!isMenuItem(item) || item.disabled) {
+      event?.preventDefault();
+      return;
+    }
     const selected = this.emit('select', { value: item.value, item });
-    if (selected.defaultPrevented) return;
+    if (selected.defaultPrevented) {
+      event?.preventDefault();
+      return;
+    }
     try {
       item.onselect?.(item.value, item, this);
     } finally {

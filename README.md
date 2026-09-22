@@ -127,6 +127,9 @@ ZeyOS binding — see `src/zeyos/modules.js`.
 
 | API | Description |
 | --- | --- |
+| `EntityRef` | Dense linked/static entity identity with labelled metadata and injected actions. |
+| `FileItem`, `FileList` | Durable and transient file presentation with MIME/size metadata, status, progress, downloads, and collection states. |
+| `ActivityItem`, `ActivityList` | Chronological activity entries and grouped collections with actor, time, attachment, action, loading, and empty slots. |
 | `Table` | Sortable/selectable table with typed transaction columns, flat-data hierarchy/treegrid projection, and opt-in cell/row editing. |
 | `TableView` | Record-oriented Table composition with shared fields, portable state, column visibility/order, sorting, and selection. |
 | `CardView` | Responsive record cards with configurable fields, safe preview media, grouping, actions, sorting, and selection. |
@@ -135,6 +138,8 @@ ZeyOS binding — see `src/zeyos/modules.js`.
 | `Chart`, `ChartJsAdapter` | Accessible engine-neutral chart host and explicitly injected Chart.js adapter. |
 | `Calendar` | Agenda/day/week/month/year scheduling with timed collisions, spanning events, range selection, and configurable optimistic drag/resize editing. |
 | `DataFilter` | Declarative select, text, and custom filters for client-side row sets. |
+| `FilterPanel` | Typed filter form built from a server's own field metadata, drafted then applied. |
+| `ListToolbar` | Search, result count, view switch, and badged tools above a record view. |
 | `TreeView` | APG tree with lazy children, filtering, and tri-state checkboxes. |
 | `Finder` | Miller-columns hierarchy browser with an optional preview pane. |
 | `Pagination` | Page, page-size, and load-more pager, with the pure `paginationRange()` helper. |
@@ -146,6 +151,7 @@ ZeyOS binding — see `src/zeyos/modules.js`.
 | `Field` | Label, description, validation state, and adapter-backed form control. |
 | `Fieldset` | Native fieldset that owns and coordinates fields. |
 | `Form` | Form composition, values, validation, highlighting, and actions. |
+| `CodeEditor` | Text-safe structured-text/source editor with native undo, Tab indentation, and position feedback. |
 | `Questionnaire` | Guided one-question-at-a-time flow: branching, path-aware progress, review. |
 | `ValueList` | Validated, sortable tag/chip editor. |
 | `MultiValueEditor` | Ordered editable rows with add, remove, and move controls. |
@@ -160,6 +166,7 @@ ZeyOS binding — see `src/zeyos/modules.js`.
 | `Avatar` | Fixed-size user image with initials fallback and optional presence. |
 | `Groupbox` | Collapsible section backed by native `<details>`. |
 | `Card` | Semantic content/record surface with media, native title link, actions, and footer. |
+| `StatTile`, `statTile()` | Labelled metric with optional delta, sparkline, and loading state. |
 | `Aurora` | One- to four-colour ambient canvas light; chrome, raised content, and overlays respond through shared material tokens. |
 | `Launcher` | Cmd/Ctrl+K application and record launcher with ranked local items and abortable grouped sources. |
 | `Panel` | Framed, optionally collapsible section with a footer. |

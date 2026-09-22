@@ -39,27 +39,28 @@ export class Search extends Component {
     this._original = created ? null : snapshot(root);
     this._inputTimer = null;
     root.setAttribute('role', 'search');
+    const clearLabel = this._message('search.clear', 'Clear search');
     const input = h('input', {
       class: 'zx-search__input',
       ref: 'input',
       type: 'search',
       placeholder: String(this.options.placeholder),
       value: String(this.options.value),
-      ariaLabel: String(this.options.placeholder || 'Search')
+      ariaLabel: String(this.options.placeholder || this._message('search.label', 'Search'))
     });
     const clear = this.options.clearable ? h('button', {
       class: 'zx-search__clear',
       ref: 'clear',
       type: 'button',
-      ariaLabel: 'Clear search',
-      title: 'Clear search'
+      ariaLabel: clearLabel,
+      title: clearLabel
     }, icon('x', { size: 15 })) : null;
     const submit = h('button', {
       class: 'zx-search__submit',
       ref: 'submit',
       type: root.localName === 'form' ? 'submit' : 'button',
-      ariaLabel: 'Submit search',
-      title: 'Search'
+      ariaLabel: this._message('search.submit', 'Submit search'),
+      title: this._message('search.submitTitle', 'Search')
     }, icon('search', { size: 16 }));
     root.replaceChildren(...[input, clear, submit].filter(Boolean));
     this._syncClear();
@@ -156,6 +157,17 @@ export class Search extends Component {
     if (this.refs.clear) {
       /** @type {HTMLButtonElement} */ (this.refs.clear).hidden = this.get() === '';
     }
+  }
+
+  /**
+   * Resolves a message through the host translator, falling back to the built-in English text.
+   * @param {string} key Message key.
+   * @param {string} fallback English default.
+   * @returns {string}
+   */
+  _message(key, fallback) {
+    const message = this.msg(key);
+    return message === key ? fallback : message;
   }
 }
 

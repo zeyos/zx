@@ -6,7 +6,11 @@ import { uid } from '../../core/util.js';
 import { badge } from '../badge/badge.js';
 import { createRecordCard, resolveRecordActions } from '../card-view/record-card.js';
 import { ContextMenu } from '../context-menu/context-menu.js';
-import { RecordView, readViewField, viewRecordId } from '../view/record-view.js';
+import {
+  createKanbanAvatars, createKanbanCardHead, createKanbanProgress, resolveKanbanAssignees,
+  resolveKanbanIndicator, resolveKanbanProgress
+} from './kanban-card.js';
+import { RecordView, normalizeViewFieldControls, readViewField, viewRecordId } from '../view/record-view.js';
 import {
   absoluteKanbanIndex, allowsKanbanTransition, clampKanbanIndex, createKanbanHistory,
   evaluateKanbanMove, kanbanSearchTerms, locateKanbanRecord, matchesKanbanSearch, normalizeAxisId,
@@ -20,6 +24,12 @@ import {
 /** @typedef {import('../card-view/record-card.js').RecordCardAction} RecordCardAction */
 /** @typedef {import('../menu-button/menu-button.js').MenuItem} MenuItem */
 /** @typedef {import('./kanban-policy.js').KanbanRule} KanbanRule */
+/** @typedef {import('./kanban-card.js').KanbanIndicator} KanbanIndicator */
+/**
+ * A card indicator source: a field id, a reader, or a literal descriptor used for every card.
+ * @typedef {string|KanbanIndicator|((record:KanbanRecord,index:number)=>KanbanIndicator|Node|unknown)|null} KanbanIndicatorSource
+ */
+/** @typedef {import('./kanban-card.js').KanbanAssignee} KanbanAssignee */
 /** @typedef {import('./kanban-policy.js').KanbanRejectReason} KanbanRejectReason */
 /** @typedef {import('./kanban-policy.js').KanbanMoveEvaluation} KanbanMoveEvaluation */
 /** @typedef {string|((record: KanbanRecord, index: number) => unknown)|null} KanbanAccessor */
@@ -116,10 +126,13 @@ import {
  * @property {{id:string,dir:'asc'|'desc'}|null} [sort=null] Shared initial sort.
  * @property {'local'|'server'} [sortMode='local'] Shared sort mode.
  * @property {false|'single'|'multi'} [selectable=false] Shared selection mode.
+ * @property {'checkbox'|'card'} [selectionTrigger='checkbox'] Select through a checkbox or the non-interactive card surface.
  * @property {unknown[]} [selection=[]] Initial record ids.
  * @property {string[]} [fieldOrder=[]] Shared field order.
  * @property {string[]} [hiddenFields=[]] Shared hidden fields.
- * @property {boolean} [fieldControls=true] Show shared field controls.
+ * @property {boolean|import('../view/record-view.js').ViewFieldControlsConfig} [fieldControls=true]
+ * Show shared field controls. Redeclared narrower than `RecordViewOptions` it fails declaration
+ * emit, because the two option types are intersected.
  * @property {string|Node|(() => string|Node)|null} [emptyText=null] Empty-board content.
  * @property {KanbanAccessor} [columnBy='status'] Column accessor.
  * @property {KanbanColumn[]|null} [columns=null] Explicit columns, or null to derive them.
@@ -134,6 +147,21 @@ import {
  * @property {'local'|'external'} [moveMode='local'] Whether accepted moves update local data.
  * @property {'card'|'handle'} [dragFrom='card'] Whether the whole card or only its handle starts a
  * pointer drag. Touch drags from the card body require a long press so the board still scrolls.
+ * @property {'keyboard'|'always'} [moveHandle='keyboard'] Move-handle presentation. `keyboard`
+ * keeps it announced and tabbable but out of sight until it takes focus, because the card itself
+ * is already the pointer drag source; `always` shows it alongside the card's other controls.
+ * `dragFrom:'handle'` overrides this — a drag source a pointer user cannot see is not a control.
+ * @property {string|((record:KanbanRecord,index:number)=>string|null)|null} [entityIcon=null] Icon
+ * naming what the record is, drawn before the identifier.
+ * @property {KanbanCardField} [identifier=null] Stable record key shown on the card head.
+ * @property {KanbanIndicatorSource} [status=null] Status indicator source.
+ * @property {Record<string,string>} [statusTones={}] Maps a status value to a semantic tone.
+ * @property {KanbanIndicatorSource} [priority=null] Priority indicator source.
+ * @property {Record<string,string>} [priorityTones={}] Maps a priority value to a semantic tone.
+ * @property {KanbanCardField} [progress=null] Completion source; a number or `{value,max,label}`.
+ * @property {number} [progressMax=100] Amount that counts as finished.
+ * @property {KanbanCardField} [assignees=null] Responsible people; a name, a list, or descriptors.
+ * @property {number} [maxAvatars=3] Faces drawn before the overflow chip.
  * @property {boolean} [multiMove=true] Move the whole selection when a selected card is picked up.
  * @property {boolean} [autoScroll=true] Scroll the board and columns while dragging near an edge.
  * @property {'warn'|'block'} [wipPolicy='warn'] Whether exceeding a limit warns or refuses.
@@ -151,7 +179,10 @@ import {
  * Render a per-column add control that emits `recordadd`.
  * @property {boolean|MenuItem[]|((context:KanbanCardContext)=>MenuItem[])} [contextMenu=false]
  * Card context menu. `true` offers move commands; an array or function appends application items.
- * @property {((context:KanbanCardContext)=>Node|null|undefined)|null} [renderCard=null] Replaces card content.
+ * @property {((context:KanbanCardContext)=>Node|null|undefined)|null} [renderCard=null] Replaces the
+ * shared record-card content — eyebrow, titles, and metadata. The preview, selection control,
+ * action group, move handle, rule badges, and any configured card head and footer still render,
+ * because each of those answers to its own option; clear those options to remove them.
  * @property {((context:KanbanHeaderContext)=>Node|null|undefined)|null} [renderColumnHeader=null] Replaces column header content.
  * @property {((context:KanbanHeaderContext)=>Node|null|undefined)|null} [renderSwimlaneHeader=null] Replaces lane header content.
  * @property {((context:KanbanHeaderContext)=>Node|null|undefined)|null} [renderColumnEmpty=null] Empty-column placeholder.
@@ -176,6 +207,18 @@ import {
 /** @typedef {{record:KanbanRecord,id:unknown,index:number,column:string,lane:string|null}} KanbanCardMeta */
 /** @typedef {{column:string,lane:string|null,list:HTMLElement}} KanbanSectionMeta */
 /** @typedef {{ids:unknown[],from:KanbanMovePoint,to:KanbanMovePoint}} KanbanKeyboardMove */
+/** @typedef {((record:KanbanRecord,index:number)=>unknown)|null} KanbanCardReader */
+/**
+ * @typedef {Object} KanbanCardSources
+ * @property {KanbanCardReader} identifier Record-key reader.
+ * @property {KanbanCardReader} status Status reader.
+ * @property {KanbanCardReader} priority Priority reader.
+ * @property {KanbanCardReader} progress Completion reader.
+ * @property {KanbanCardReader} assignees Responsible-people reader.
+ * @property {KanbanCardReader} entityIcon Entity-icon reader.
+ * @property {Set<string>} fieldIds Field ids the anatomy consumes.
+ * @property {boolean} any Whether any source is configured.
+ */
 
 const INTERACTIVE = 'a, button, input, select, textarea, summary, [contenteditable="true"]';
 
@@ -217,7 +260,14 @@ const DEFAULT_LABELS = Object.freeze({
   countLimit: '%count% records, work-in-progress limit %limit%',
   countLimitInLane: '%count% records in this lane, %total% of work-in-progress limit %limit% in the column',
   empty: 'No records',
-  columnEmpty: '',
+  columnEmpty: 'Drop a card here',
+  identifier: 'Record',
+  priorityLabel: 'Priority',
+  statusLabel: 'Status',
+  progress: 'Progress',
+  progressValue: '%percent%%',
+  assignees: 'Assigned to %names%',
+  assigneeOverflow: '+%count%',
   selected: 'Selected',
   notSelected: 'Not selected',
   noMatches: 'No cards match the current search.',
@@ -247,6 +297,11 @@ const DEFAULT_LABELS = Object.freeze({
 });
 
 /**
+ * A field consumed by the card head or footer — the `identifier`, `status`, `priority`,
+ * `progress`, or `assignees` source — is dropped from the shared metadata list so the same value
+ * is never shown twice. `field.duplicate === true` opts it back in, extending the rule the shared
+ * record card already applies to title and subtitle fields.
+ *
  * Configurable record board with semantic columns, optional swim lanes, and equivalent pointer,
  * touch, keyboard, context-menu, and programmatic movement. Local moves clone records; callback
  * grouping remains fully usable for display and external moves but cannot be written safely by
@@ -265,6 +320,7 @@ export class KanbanView extends RecordView {
   /** @type {Readonly<KanbanViewOptions & RecordViewOptions>} */
   static defaults = {
     ...RecordView.defaults,
+    selectionTrigger: 'checkbox',
     columnBy: 'status',
     columns: null,
     swimlaneBy: null,
@@ -277,6 +333,17 @@ export class KanbanView extends RecordView {
     actions: [],
     moveMode: 'local',
     dragFrom: 'card',
+    moveHandle: 'keyboard',
+    entityIcon: null,
+    identifier: null,
+    status: null,
+    statusTones: {},
+    priority: null,
+    priorityTones: {},
+    progress: null,
+    progressMax: 100,
+    assignees: null,
+    maxAvatars: 3,
     multiMove: true,
     autoScroll: true,
     wipPolicy: 'warn',
@@ -354,13 +421,24 @@ export class KanbanView extends RecordView {
       this._sectionMeta = new WeakMap();
       this._cardsById = new Map();
       this._visibleIds = new Set();
+      this._cardSources = /** @type {KanbanCardSources} */ ({
+        identifier: null, status: null, priority: null, progress: null, assignees: null,
+        entityIcon: null, fieldIds: new Set(), any: false
+      });
+      this._fieldIndex = /** @type {Map<string, any>|null} */ (null);
+      this._cardFields = /** @type {{all:any[],metadata:any[]}|null} */ (null);
       this._kanbanMenu = /** @type {ContextMenu|null} */ (null);
       this._searchInput = /** @type {HTMLInputElement|null} */ (null);
       this._undoButton = /** @type {HTMLButtonElement|null} */ (null);
       this._redoButton = /** @type {HTMLButtonElement|null} */ (null);
 
       this._toolbar = h('div', { class: 'zx-record-view__toolbar zx-kanban-view__toolbar' });
-      if (options.fieldControls) this._toolbar.append(this._createViewFieldControls(this._text('fields')));
+      // A label the host passed in the object form wins; otherwise Kanban's own
+      // message bag supplies it, which is where this label has always come from.
+      if (options.fieldControls) {
+        const configured = normalizeViewFieldControls(options.fieldControls).label;
+        this._toolbar.append(this._createViewFieldControls(configured ?? this._text('fields')));
+      }
       if (options.searchControl) this._toolbar.append(this._createSearchControl());
       if (options.historyControls) this._toolbar.append(this._createHistoryControls());
       this._board = h('div', {
@@ -881,8 +959,12 @@ export class KanbanView extends RecordView {
       id: String(/** @type {HTMLElement} */ (activeCollapse).dataset.kanbanId),
       lane: activeSection ? this._sectionMeta.get(activeSection)?.lane ?? null : null
     } : null;
+    // Any change that alters field descriptors also refreshes, so this is the invalidation point.
+    this._fieldIndex = null;
+    this._cardFields = null;
     const columns = this._resolvedColumns();
     const lanes = this._resolvedSwimlanes();
+    this._resolveCardSources();
     this._cardMeta = new WeakMap();
     this._sectionMeta = new WeakMap();
     this._cardsById = new Map();
@@ -1034,16 +1116,21 @@ export class KanbanView extends RecordView {
     const grabbed = Boolean(this._keyboardMove?.ids.some((candidate) => Object.is(candidate, id)));
     const rules = resolveKanbanRules(this._kanbanRules, record, { index, column, lane });
     const multiple = grabbed && this._keyboardMove ? this._keyboardMove.ids.length : 1;
+    // A handle that is the only drag source must be visible, whatever `moveHandle` asks for.
+    const reveal = options.moveHandle === 'always' || options.dragFrom === 'handle'
+      ? 'always' : 'keyboard';
     const handle = h('button', {
       class: 'zx-kanban-view__move-handle', type: 'button',
       ariaPressed: String(grabbed),
+      dataset: { reveal },
       ariaLabel: multiple > 1
         ? this._text('moveMultiple', { count: multiple })
         : this._text('move', { name: this._recordName(record, index) })
     }, icon('drag', { size: 13 }));
+    const cardFields = this._resolvedCardFields();
     const card = createRecordCard(record, index, {
-      fields: this.getFields(),
-      visibleFields: this.getVisibleFields(),
+      fields: cardFields.all,
+      visibleFields: cardFields.metadata,
       titleField: options.titleField,
       subtitleField: options.subtitleField,
       preview: options.preview ?? undefined,
@@ -1051,6 +1138,7 @@ export class KanbanView extends RecordView {
       link: options.link ?? undefined,
       actions: options.actions,
       selectable: options.selectable,
+      selectionTrigger: options.selectionTrigger,
       selected: this._isViewSelected(id),
       variant: options.variant,
       headingLevel: hasLanes ? 4 : 3,
@@ -1060,11 +1148,143 @@ export class KanbanView extends RecordView {
     if (grabbed) card.dataset.grabbed = 'true';
     this._applyCardContent(card, { record, id, index, column, lane, rules, selected: this._isViewSelected(id) });
     this._applyCardRules(card, rules);
+    this._applyCardAnatomy(card, record, index);
     this._applyCardDescription(card, id);
     const meta = { record, id, index, column, lane };
     this._cardMeta.set(card, meta);
     this._cardsById.set(id, card);
     return card;
+  }
+
+  /**
+   * Builds the two field arrays every card needs, once per refresh.
+   * @returns {{all:import('../view/record-view.js').ViewField[],metadata:import('../view/record-view.js').ViewField[]}}
+   */
+  _resolvedCardFields() {
+    if (!this._cardFields) {
+      this._cardFields = { all: this.getFields(), metadata: this._cardMetadataFields() };
+    }
+    return this._cardFields;
+  }
+
+  /**
+   * Returns the fields the shared metadata list may show. A field the card head or footer already
+   * projects is dropped, because repeating it as a labelled row is the same value twice; a field
+   * marked `duplicate` opts back in, matching how title and subtitle already behave.
+   * @returns {import('../view/record-view.js').ViewField[]} Metadata fields.
+   */
+  _cardMetadataFields() {
+    const consumed = this._cardSources?.fieldIds;
+    const visible = this.getVisibleFields();
+    if (!consumed?.size) return visible;
+    return visible.filter((field) => !consumed.has(field.id) || field.duplicate === true);
+  }
+
+  /**
+   * Resolves the card-anatomy readers once per refresh. A field id would otherwise be looked up
+   * through `getFields()` — which clones every descriptor — once per source per card, so a board
+   * with six anatomy sources rebuilt the whole field array six times for every card it drew.
+   * @returns {void}
+   */
+  _resolveCardSources() {
+    const options = this._kanbanOptions();
+    const fields = this.getFields();
+    /** @type {Set<string>} */
+    const fieldIds = new Set();
+    /** @param {unknown} source @returns {((record:KanbanRecord,index:number)=>unknown)|null} */
+    const reader = (source) => {
+      if (source == null) return null;
+      if (typeof source === 'function') return /** @type {any} */ (source);
+      // A literal descriptor is content, not an accessor: reading it as a property name would
+      // silently resolve undefined and render nothing.
+      if (typeof source === 'object') return () => source;
+      const id = String(source);
+      const field = fields.find((candidate) => candidate.id === id);
+      fieldIds.add(id);
+      return field
+        ? (record, index) => readViewField(field, record, index) : (record) => record?.[id];
+    };
+    const sources = {
+      identifier: reader(options.identifier),
+      status: reader(options.status),
+      priority: reader(options.priority),
+      progress: reader(options.progress),
+      assignees: reader(options.assignees),
+      entityIcon: typeof options.entityIcon === 'function' ? options.entityIcon
+        : options.entityIcon == null ? null : () => options.entityIcon
+    };
+    this._cardSources = /** @type {KanbanCardSources} */ ({
+      ...sources,
+      fieldIds,
+      any: Object.values(sources).some(Boolean)
+    });
+  }
+
+  /**
+   * Adds the two Kanban-owned regions that bracket the shared record-card anatomy: a head naming
+   * what the record is and how urgent it is, and a footer carrying completion and the people
+   * responsible. Each part is omitted when its option is unset, so a board that configures none of
+   * them renders exactly the card it rendered before.
+   * @param {HTMLElement} card Card element.
+   * @param {KanbanRecord} record Record.
+   * @param {number} index Display index.
+   * @returns {void}
+   */
+  _applyCardAnatomy(card, record, index) {
+    const options = this._kanbanOptions();
+    const sources = this._cardSources;
+    if (!sources?.any) return;
+    const body = card.querySelector('.zx-record-card__body');
+    if (!body) return;
+    const entityIcon = sources.entityIcon?.(record, index);
+    const identifier = sources.identifier?.(record, index);
+    const head = createKanbanCardHead({
+      entityIcon: entityIcon == null || entityIcon === '' ? null : String(entityIcon),
+      identifier: identifier == null ? '' : String(identifier),
+      identifierPrefix: this._text('identifier'),
+      flags: [
+        {
+          indicator: this._cardIndicator(sources.status, options.statusTones, record, index),
+          prefix: this._text('statusLabel')
+        },
+        {
+          indicator: this._cardIndicator(sources.priority, options.priorityTones, record, index),
+          prefix: this._text('priorityLabel')
+        }
+      ]
+    });
+    if (head) body.prepend(head);
+
+    const footer = [];
+    const progress = resolveKanbanProgress(
+      sources.progress?.(record, index), Number(options.progressMax));
+    if (progress) {
+      footer.push(createKanbanProgress(progress,
+        progress.label ?? this._text('progress'),
+        this._text('progressValue', { percent: progress.percent })));
+    }
+    const people = resolveKanbanAssignees(sources.assignees?.(record, index));
+    const avatars = createKanbanAvatars(people, Number(options.maxAvatars),
+      this._text('assignees', { names: people.map((person) => person.name).filter(Boolean).join(', ') }),
+      (count) => this._text('assigneeOverflow', { count }));
+    if (avatars) footer.push(avatars);
+    if (footer.length) body.append(h('div', { class: 'zx-kanban-view__card-footer' }, footer));
+  }
+
+  /**
+   * Resolves one indicator from an already-resolved reader. A reader may return a ready-made
+   * `Node`, which is adopted rather than described, so an application keeps full control.
+   * @param {((record:KanbanRecord,index:number)=>unknown)|null} source Resolved reader.
+   * @param {unknown} tones Value-to-tone map.
+   * @param {KanbanRecord} record Record.
+   * @param {number} index Display index.
+   * @returns {KanbanIndicator|Node|null} Indicator, node, or null.
+   */
+  _cardIndicator(source, tones, record, index) {
+    if (!source) return null;
+    const value = source(record, index);
+    if (value && typeof value === 'object' && 'nodeType' in value) return /** @type {Node} */ (value);
+    return resolveKanbanIndicator(value, /** @type {Record<string,string>} */ (tones ?? {}));
   }
 
   /**
@@ -1220,8 +1440,22 @@ export class KanbanView extends RecordView {
   _readAxis(accessor, record, index) {
     if (typeof accessor === 'function') return accessor(record, index);
     if (accessor == null) return null;
-    const field = this.getFields().find((candidate) => candidate.id === accessor);
+    const field = this._axisField(String(accessor));
     return field ? readViewField(field, record, index) : record?.[accessor];
+  }
+
+  /**
+   * Resolves one field descriptor by id through a per-refresh index. `getFields()` rebuilds a Map
+   * and clones every descriptor on each call, and a string column or lane accessor is read once
+   * per record per column per lane — which made this the most expensive line in a board render.
+   * @param {string} id Field id.
+   * @returns {import('../view/record-view.js').ViewField|undefined} Descriptor, if any.
+   */
+  _axisField(id) {
+    if (!this._fieldIndex) {
+      this._fieldIndex = new Map(this.getFields().map((field) => [field.id, field]));
+    }
+    return this._fieldIndex.get(id);
   }
 
   /** @param {string} column @param {string|null} lane @returns {{record:KanbanRecord,index:number}[]} */
@@ -1689,6 +1923,11 @@ export class KanbanView extends RecordView {
     }
     if (target?.closest('.zx-kanban-view__move-handle, .zx-record-card__selection, [data-record-select]')) return;
     if (target?.closest(INTERACTIVE) || hasTextSelection()) return;
+    if (this.options.selectable && this._kanbanOptions().selectionTrigger === 'card') {
+      this.toggleSelection(meta.id, { range: event.shiftKey });
+      /** @type {HTMLElement|null} */ (target?.closest('.zx-record-card'))?.focus({ preventScroll: true });
+      return;
+    }
     this.emit('recordclick', { ...meta, event });
     if (this.options.selectable === 'single' && !this._isViewSelected(meta.id)) {
       this.setSelection([meta.id]);
@@ -1724,6 +1963,10 @@ export class KanbanView extends RecordView {
     if (!cardMeta || target !== card) return;
     if (event.key === 'Enter') {
       event.preventDefault();
+      if (this.options.selectable && this._kanbanOptions().selectionTrigger === 'card') {
+        this.toggleSelection(cardMeta.id);
+        return;
+      }
       this.emit('recordclick', { ...cardMeta, event });
       if (this.options.selectable === 'single') this.setSelection([cardMeta.id]);
     } else if (event.key === ' ' && this.options.selectable !== false) {

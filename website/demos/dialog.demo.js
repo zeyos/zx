@@ -4,7 +4,9 @@ export default {
   title: 'Dialog',
   group: 'Overlays',
   blurb: 'A modal built on native <dialog>: focus trapping, Escape, and the top layer come from '
-    + 'the platform. Views swap a dialog’s contents in place; the static helpers return promises.',
+    + 'the platform, and Modal adds initial focus and the return to the opener on top of them. A '
+    + 'button declared autofocus takes focus ahead of the header close button. Views swap a '
+    + 'dialog’s contents in place; the static helpers return promises.',
 
   examples: [
     {

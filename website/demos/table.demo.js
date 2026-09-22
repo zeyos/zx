@@ -1,4 +1,4 @@
-import { button, emptyState, Table, badge, h } from '../../src/index.js';
+import { button, emptyState, icon, Table, badge, h } from '../../src/index.js';
 
 const amountFormatter = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR' });
 
@@ -111,6 +111,36 @@ function transactionRows() {
   ];
 }
 
+/**
+ * A ZeyOS transaction exactly as a list response sends it: `type` 0 is a position carrying
+ * quantities and amounts, `type` 1 is a section heading that groups the positions under it and
+ * holds no values of its own. It is how quotes and invoices are written.
+ * @returns {Array<Record<string, any>>}
+ */
+function quoteLines() {
+  return [
+    { ID: 10, type: 1, description: 'Hardware', quantity: null, unit: '', unitPrice: null, total: 1997.8 },
+    { ID: 11, type: 0, description: 'Standing desk controller', quantity: 4, unit: 'pcs', unitPrice: 288.2, total: 1152.8 },
+    { ID: 12, type: 0, description: 'Occupancy sensor', quantity: 10, unit: 'pcs', unitPrice: 84.5, total: 845 },
+    { ID: 20, type: 1, description: 'Installation services', quantity: null, unit: '', unitPrice: null, total: 1722.5 },
+    { ID: 21, type: 0, description: 'Planning and coordination', quantity: 6.5, unit: 'hours', unitPrice: 95, total: 617.5 },
+    { ID: 22, type: 0, description: 'On-site installation', quantity: 13, unit: 'hours', unitPrice: 85, total: 1105 }
+  ];
+}
+
+/** @returns {Array<Record<string, any>>} */
+function quoteColumns() {
+  return [
+    { id: 'description', label: 'Description', width: '2fr', sortable: true, popin: false },
+    {
+      id: 'quantity', label: 'Qty', width: '1fr', type: 'unit',
+      unit: (row) => row.unit, decimals: (row) => (row.unit === 'hours' ? 2 : 0)
+    },
+    { id: 'unitPrice', label: 'Unit price', width: '1fr', type: 'currency', currency: 'EUR', decimals: 2 },
+    { id: 'total', label: 'Line total', width: '1fr', type: 'currency', currency: 'EUR', decimals: 2, sortable: true }
+  ];
+}
+
 /** @param {Record<string, unknown>} changes @returns {string} */
 function describeChanges(changes) {
   const entries = Object.entries(changes);
@@ -208,6 +238,53 @@ export default {
           h('div', { class: 'demo-row' },
             h('button', { type: 'button', onclick: () => table.expandAll() }, 'expandAll()'),
             h('button', { type: 'button', onclick: () => table.collapseAll() }, 'collapseAll()'))
+        ];
+      }
+    },
+    {
+      title: 'Sections across the whole row',
+      blurb: 'rowKind names the field that says what a row is; rowKinds says how each kind is '
+        + 'drawn. A span kind becomes one <th scope="colgroup"> across every rendered column — the '
+        + 'selection column included — because it labels the records beneath it rather than '
+        + 'holding a value. A section takes no checkbox, is never editable and cannot be '
+        + 'reordered, but it still emits rowclick and still comes back from getData(). Sorting is '
+        + 'withheld while sections are present, since a sort would scatter the positions out of '
+        + 'them: press the two buttons and watch the header controls leave and come back. Drag the '
+        + 'frame narrower and the section renders as its heading alone rather than as a heading '
+        + 'followed by four empty labelled lines. Zx ships no look for the row on purpose — a '
+        + 'billing section is not a kanban swimlane — so `class` is where a product decides it.',
+      layout: 'stack',
+      render: ({ cleanup, log }) => {
+        const table = new Table(null, {
+          rowId: 'ID',
+          responsive: 'md',
+          selectable: 'multi',
+          columns: quoteColumns(),
+          data: quoteLines(),
+          rowKind: 'type',
+          rowKinds: {
+            1: {
+              span: true,
+              class: 'invoice__section',
+              render: (row) => h('span', { class: 'demo-row' },
+                icon('folder', { size: 14 }),
+                h('strong', {}, row.description),
+                h('span', { class: 'demo-caption' }, money(row.total)))
+            }
+          },
+          onrowclick: ({ detail }) =>
+            log(`rowclick #${detail.id} ${detail.row.type === 1 ? 'section' : 'position'}`),
+          onselectionchange: ({ detail }) => log(`selectionchange ids=[${detail.ids.join(', ')}]`)
+        });
+        cleanup(() => table.destroy());
+        return [
+          h('div', { class: 'demo-resizable' }, table.toElement()),
+          h('div', { class: 'demo-row' },
+            button({
+              label: 'Positions only',
+              onclick: () => table.setData(quoteLines().filter((line) => line.type === 0))
+            }),
+            button({ label: 'With sections', onclick: () => table.setData(quoteLines()) }))
         ];
       }
     },

@@ -589,3 +589,4 @@
     min-block-size: 44px;
   }
 }
+.zx-card-view .zx-record-card[data-selection-trigger="card"] { cursor: pointer; }

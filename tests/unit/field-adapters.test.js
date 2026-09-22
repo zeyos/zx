@@ -6,7 +6,7 @@ import { Field, registerFieldAdapters } from '../../src/index.js';
 test('public index registers every component-backed field adapter', () => {
   for (const type of [
     'zxselect', 'checklist', 'date', 'month', 'datetime', 'time', 'valuelist',
-    'multivalueeditor', 'upload', 'toggle'
+    'multivalueeditor', 'upload', 'toggle', 'code'
   ]) {
     assert.equal(Field.has(type), true, `${type} should be registered`);
   }
