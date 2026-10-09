@@ -1,6 +1,9 @@
 import { Form, Message, Select } from '../index.js';
-import { connect } from './connect.js';
-import { dateToUnixSeconds, unixSecondsToDate } from './query.js';
+import { overlayHost } from '../core/overlay-host.js';
+import { connect, errorMessage } from './connect.js';
+import {
+  calendarDayToUnixSeconds, dateToUnixSeconds, unixSecondsToCalendarDay, unixSecondsToDate
+} from './query.js';
 import { fieldToZxField, resolveFields } from './schema.js';
 import { buildZeyosSelectConfig } from './select.js';
 
@@ -9,11 +12,21 @@ import { buildZeyosSelectConfig } from './select.js';
  * @property {string[]} [fields] Curated ordered field allow-list.
  * @property {string[]} [exclude] Field ids to omit.
  * @property {Record<string, string>} [labels] Per-field label overrides.
+ * @property {Record<string, string>} [formats] Per-field semantic format overrides, such as
+ * `{ duedate: 'date' }` for a Unix-second field that holds a calendar day.
+ * @property {string} [timeZone] IANA time zone of the ZeyOS instance. A date-only field's stored
+ * midnight is read as the calendar day it names in this zone, and a picked day is saved as midnight
+ * in it; defaults to the runtime's own zone.
  * @property {string} [title=''] Fieldset legend.
  * @property {1|2|3} [columns=2] Fieldset column count.
  * @property {Record<string, unknown>} [value] Initial record using ZeyOS storage values.
  * @property {unknown} [id] Initial record id to load.
  * @property {(record: Record<string, unknown>) => unknown|Promise<unknown>} [onSaved] Success callback.
+ * @property {Element|string|null} [scope=null] Element or selector whose theme scope shows the
+ * binding's toasts — the save confirmation and the report of a failed request. Null uses the form's
+ * own element, so a form inside a scoped shell or dialog toasts inside that scope.
+ * @property {boolean} [notify=true] Whether the binding raises toasts. `false` keeps it silent:
+ * `save()`, `load()`, and `ready` still resolve or reject, and reporting is the caller's.
  */
 
 /**
@@ -22,8 +35,10 @@ import { buildZeyosSelectConfig } from './select.js';
  * @property {Record<string, Record<string, any>>} fields Field descriptors keyed by id.
  * @property {Array<{id: string, resource: string}>} entityFields Referenced-resource fields.
  * @property {Record<string, any>} formOptions Plain Zx Form options.
- * @property {(record: Record<string, unknown>) => Record<string, unknown>} mapFromRecord Maps Unix seconds to Date values.
- * @property {(values: Record<string, unknown>) => Record<string, unknown>} mapToRecord Maps Date and enum values to API storage values.
+ * @property {(record: Record<string, unknown>) => Record<string, unknown>} mapFromRecord Maps Unix
+ * seconds to Date values: a date-only field to local midnight of its calendar day in `timeZone`.
+ * @property {(values: Record<string, unknown>) => Record<string, unknown>} mapToRecord Maps Date and
+ * enum values to API storage values: a date-only field to midnight of its day in `timeZone`.
  */
 
 /**
@@ -31,7 +46,8 @@ import { buildZeyosSelectConfig } from './select.js';
  * @property {Form} form Generated Zx form.
  * @property {Promise<Record<string, unknown>|null>} ready Initial value/load readiness.
  * @property {(id: unknown) => Promise<Record<string, unknown>>} load Loads and maps one record.
- * @property {() => Promise<Record<string, unknown>|null>} save Validates and creates or updates the record.
+ * @property {() => Promise<Record<string, unknown>|null>} save Validates and creates or updates the
+ * record, then confirms with a toast in the form's scope unless `notify` is false.
  * @property {() => Form} getForm Returns the generated Zx Form.
  * @property {() => void} destroy Destroys the form and all owned fields/selects.
  */
@@ -39,7 +55,8 @@ import { buildZeyosSelectConfig } from './select.js';
 /**
  * Builds the DOM-free form configuration consumed by {@link zeyosForm}. Entity descriptors retain
  * the `zxselect` type and receive the same async options used by {@link zeyosSelect}; enum options
- * come from normalized schema metadata, and the returned mappers handle Unix-second dates.
+ * come from normalized schema metadata with readable labels, and the returned mappers handle
+ * Unix-second dates — date-only fields as calendar days in `opts.timeZone`.
  * @param {Record<string, any>} client Injected ZeyOS client instance.
  * @param {string} resource Resource name such as `transactions`.
  * @param {ZeyosFormOptions} [opts={}] Schema curation and layout options.
@@ -49,9 +66,14 @@ export function buildZeyosFormConfig(client, resource, opts = {}) {
   const fieldMeta = resolveFields(client, resource, opts);
   const fields = {};
   const entityFields = [];
+  /** @type {Map<string, 'date'|'datetime'>} */
+  const dateKinds = new Map();
 
   for (const meta of fieldMeta) {
     const descriptor = fieldToZxField(meta);
+    if (descriptor.type === 'date' || descriptor.type === 'datetime') {
+      dateKinds.set(String(meta.id), descriptor.type);
+    }
     const referencedResource = descriptor.type === 'zxselect' && typeof descriptor.props?.entity === 'string'
       ? descriptor.props.entity
       : null;
@@ -78,16 +100,18 @@ export function buildZeyosFormConfig(client, resource, opts = {}) {
         fields
       }]
     },
-    mapFromRecord: (record) => mapFromRecord(record, fieldMeta),
-    mapToRecord: (values) => mapToRecord(values, fieldMeta)
+    mapFromRecord: (record) => mapFromRecord(record, fieldMeta, dateKinds),
+    mapToRecord: (values) => mapToRecord(values, fieldMeta, dateKinds)
   };
 }
 
 /**
  * Generates a schema-driven Zx Form and a small async binding object. `load(id)` hydrates entity
  * labels and converts Unix seconds to Date objects. `save()` validates, maps values back to API
- * storage types, calls create/update through the WP14 connection facade, shows a success toast,
- * and invokes `onSaved(record)`. Await `ready` when `opts.id` or `opts.value` is supplied.
+ * storage types, calls create/update through the WP14 connection facade, invokes
+ * `onSaved(record)`, and shows a success toast. Its toasts — that confirmation and the report of a
+ * failed request — appear in the theme scope of `opts.scope` or of the form itself, and
+ * `notify: false` silences them. Await `ready` when `opts.id` or `opts.value` is supplied.
  * @param {Record<string, any>} client Injected ZeyOS client instance.
  * @param {string} resource Resource name such as `transactions`.
  * @param {ZeyosFormOptions} [opts={}] Schema, initial value, and save options.
@@ -97,8 +121,14 @@ export function zeyosForm(client, resource, opts = {}) {
   if (opts.onSaved != null && typeof opts.onSaved !== 'function') {
     throw new TypeError('zeyosForm onSaved must be a function');
   }
+  const notify = opts.notify !== false;
   const config = buildZeyosFormConfig(client, resource, opts);
-  const facade = connect(client);
+  // The caller's scope, or the form's own element, decides where a toast appears — never whatever
+  // element happens to hold focus when a request settles.
+  const toastScope = () => opts.scope ?? form.el;
+  const facade = connect(client, {
+    onError: (error) => notify ? Message.error(errorMessage(error), { scope: toastScope() }) : undefined
+  });
   const form = new Form(null, config.formOptions);
   let currentId = opts.value?.ID ?? opts.id ?? null;
   let destroyed = false;
@@ -133,6 +163,8 @@ export function zeyosForm(client, resource, opts = {}) {
     if (destroyed) return Promise.reject(new Error('Cannot save a destroyed ZeyOS form'));
     if (savePending) return savePending;
     if (!form.submit()) return Promise.resolve(null);
+    // Resolved now, while the form is in place: `onSaved` may close the dialog that holds it.
+    const host = notify ? overlayHost(toastScope()) : null;
 
     savePending = (async () => {
       let payload;
@@ -157,7 +189,7 @@ export function zeyosForm(client, resource, opts = {}) {
           throw error;
         }
       }
-      Message.success(`${recordLabel(record, resource)} saved successfully.`);
+      if (host) Message.success(`${recordLabel(record, resource)} saved successfully.`, { scope: host });
       return record;
     })().finally(() => {
       savePending = null;
@@ -183,27 +215,41 @@ export function zeyosForm(client, resource, opts = {}) {
   };
 }
 
-/** @param {Record<string, unknown>} record @param {Record<string, any>[]} meta @returns {Record<string, unknown>} */
-function mapFromRecord(record, meta) {
+/**
+ * @param {Record<string, unknown>} record
+ * @param {Record<string, any>[]} meta
+ * @param {Map<string, 'date'|'datetime'>} dateKinds
+ * @returns {Record<string, unknown>}
+ */
+function mapFromRecord(record, meta, dateKinds) {
   const values = {};
   for (const field of meta) {
     const id = String(field.id);
     const value = record[id];
-    values[id] = isDateField(field) && value != null && value !== ''
-      ? unixSecondsToDate(/** @type {number|string} */ (value))
-      : value;
+    const kind = dateKinds.get(id);
+    if (!kind || value == null || value === '') values[id] = value;
+    else if (kind === 'date') values[id] = unixSecondsToCalendarDay(/** @type {number|string} */ (value), field.timeZone);
+    else values[id] = unixSecondsToDate(/** @type {number|string} */ (value));
   }
   return values;
 }
 
-/** @param {Record<string, unknown>} values @param {Record<string, any>[]} meta @returns {Record<string, unknown>} */
-function mapToRecord(values, meta) {
+/**
+ * @param {Record<string, unknown>} values
+ * @param {Record<string, any>[]} meta
+ * @param {Map<string, 'date'|'datetime'>} dateKinds
+ * @returns {Record<string, unknown>}
+ */
+function mapToRecord(values, meta, dateKinds) {
   const record = {};
   for (const field of meta) {
     const id = String(field.id);
     let value = values[id];
-    if (isDateField(field)) {
-      value = value == null || value === '' ? null : dateToUnixSeconds(/** @type {Date} */ (value));
+    const kind = dateKinds.get(id);
+    if (kind) {
+      if (value == null || value === '') value = null;
+      else if (kind === 'date') value = calendarDayToUnixSeconds(/** @type {Date} */ (value), field.timeZone);
+      else value = dateToUnixSeconds(/** @type {Date} */ (value));
     } else if (hasEnum(field) && isNumericType(field.type) && value !== '' && value != null) {
       const numeric = Number(value);
       if (Number.isFinite(numeric)) value = numeric;
@@ -211,12 +257,6 @@ function mapToRecord(values, meta) {
     record[id] = value;
   }
   return record;
-}
-
-/** @param {Record<string, any>} meta @returns {boolean} */
-function isDateField(meta) {
-  const descriptor = fieldToZxField(meta);
-  return descriptor.type === 'date' || descriptor.type === 'datetime';
 }
 
 /** @param {Record<string, any>} meta @returns {boolean} */

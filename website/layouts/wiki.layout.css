@@ -1,0 +1,766 @@
+/* Knowledge base layout. Every selector is namespaced by the .wiki block. */
+
+/* ------------------------------------------------------------- navigation -- */
+
+.wiki__nav-body {
+  padding-block-end: var(--zx-space-4);
+}
+
+.wiki__space,
+.wiki__tree {
+  padding-inline: var(--zx-space-2);
+}
+
+/* The space switcher heads the column rather than sitting in it as a form field: a flat row of the
+   space's tile, its name, and a chevron. Hover and an open list bring a fill; the focus ring stays. */
+.wiki__space {
+  padding-block: var(--zx-space-1);
+}
+
+.wiki__space .zx-select__control {
+  border-color: transparent;
+  background: transparent;
+}
+
+.wiki__space .zx-select:is(:hover, [data-state="open"]) .zx-select__control {
+  background: var(--zx-color-bg-hover);
+}
+
+/* The tile centres on the item icons below it, so the space's name lines up with their labels. */
+.wiki__space .zx-select__value-adornment {
+  padding-inline-start: calc(var(--zx-space-2) - 1px);
+}
+
+.wiki__space .zx-select__input {
+  font-weight: var(--zx-weight-semibold);
+}
+
+.wiki__space .zx-select__toggle {
+  color: var(--zx-color-text-subtle);
+}
+
+/* A page with sub-pages carries the tree's chevron; any other page a small dot in its place, so
+   every title starts on the same line. */
+.wiki__tree .zx-tree__row:not([data-branch]) > .zx-tree__twisty::before {
+  content: "";
+  inline-size: 4px;
+  block-size: 4px;
+  border-radius: var(--zx-radius-full);
+  background: currentColor;
+}
+
+/* ------------------------------------------------------------------ header -- */
+
+/* The page header measures itself: the trail shortens as the pane narrows, whatever the columns
+   beside it are doing. */
+.wiki .shell__main > .shell__header {
+  container: wiki-header / inline-size;
+}
+
+.wiki .shell__header-leading {
+  flex: 0 1 auto;
+}
+
+.wiki .shell__header-leading > .zx-icon-btn {
+  flex: none;
+}
+
+/* The trail stays on one line; a level that runs short of room ends in an ellipsis. */
+.wiki .shell__header .zx-breadcrumb__list {
+  flex-wrap: nowrap;
+}
+
+.wiki .shell__header .zx-breadcrumb__separator {
+  flex: none;
+}
+
+.wiki__viewers {
+  margin-inline-end: var(--zx-space-2);
+}
+
+/* --------------------------------------------------------- reading column -- */
+
+/* The reading column and the preview size their page to their own width. */
+.wiki__read,
+.wiki__preview {
+  container: wiki-page / inline-size;
+}
+
+.wiki__article {
+  box-sizing: content-box;
+  max-inline-size: 62ch;
+  margin-inline: auto;
+  padding: calc(var(--zx-space-8) + var(--zx-space-4)) var(--zx-space-7) var(--zx-space-8);
+  color: var(--zx-color-text);
+  font-size: var(--zx-text-lg);
+  line-height: 1.7;
+}
+
+.wiki__head {
+  margin-block-end: var(--zx-space-7);
+}
+
+.wiki__byline,
+.wiki__lede {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zx-space-2);
+  margin: var(--zx-space-2) 0 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  line-height: 1.4;
+}
+
+.wiki__lede {
+  margin-block-start: var(--zx-space-3);
+  font-size: var(--zx-text-lg);
+}
+
+/* Prose rhythm: one gap between blocks, more above headings, less below them. */
+.wiki__prose > * {
+  margin-block: 0;
+}
+
+.wiki__prose > * + * {
+  margin-block-start: var(--zx-space-4);
+}
+
+.wiki__heading {
+  font-weight: 650;
+  line-height: 1.35;
+  letter-spacing: var(--zx-tracking-tight);
+  text-wrap: balance;
+  scroll-margin-block-start: var(--zx-space-4);
+}
+
+/* Heading sizes follow the 16px reading size: 22px, 18px, then the text size itself. */
+.wiki__prose > .wiki__heading[data-level="2"] {
+  margin-block-start: var(--zx-space-8);
+  font-size: 1.375em;
+  letter-spacing: var(--zx-tracking-title);
+}
+
+.wiki__prose > .wiki__heading[data-level="3"] {
+  margin-block-start: var(--zx-space-6);
+  font-size: var(--zx-text-xl);
+}
+
+.wiki__prose > .wiki__heading[data-level="4"] {
+  margin-block-start: var(--zx-space-5);
+  font-size: var(--zx-text-lg);
+}
+
+.wiki__prose > .wiki__heading + * {
+  margin-block-start: var(--zx-space-2);
+}
+
+.wiki__prose > .wiki__heading:first-child {
+  margin-block-start: 0;
+}
+
+.wiki__inline-code {
+  padding: 0.1em 0.35em;
+  border-radius: var(--zx-radius-sm);
+  background: var(--zx-color-bg-muted);
+  font-family: var(--zx-font-mono);
+  font-size: 0.9em;
+}
+
+/* Page links read as part of the sentence — the body colour over a quiet underline — and take the
+   accent on hover. The underline stays, so a link never relies on colour alone. */
+.wiki .wiki__link {
+  color: inherit;
+  text-decoration: underline 1px color-mix(in srgb, currentColor 35%, transparent);
+  text-underline-offset: 0.2em;
+}
+
+.wiki .wiki__link:hover {
+  color: var(--zx-color-accent);
+  text-decoration: underline 1px currentColor;
+}
+
+/* A mention is a name, set off by a neutral pill. */
+.wiki__mention {
+  padding: 0.1em 0.4em;
+  border-radius: var(--zx-radius-full);
+  background: var(--zx-color-bg-muted);
+  color: var(--zx-color-text);
+  font-weight: var(--zx-weight-medium);
+  white-space: nowrap;
+}
+
+.wiki__mention-at {
+  color: var(--zx-color-text-muted);
+}
+
+.wiki__list {
+  padding-inline-start: 1.4em;
+}
+
+.wiki__list-item + .wiki__list-item {
+  margin-block-start: var(--zx-space-1);
+}
+
+.wiki__list-item::marker {
+  color: var(--zx-color-text-muted);
+}
+
+.wiki__rule {
+  border: 0;
+  border-block-start: 1px solid var(--zx-color-border-subtle);
+}
+
+.wiki__quote {
+  padding-inline-start: var(--zx-space-4);
+  border-inline-start: 3px solid var(--zx-color-border-strong);
+  color: var(--zx-color-text-muted);
+}
+
+/* Callouts are a tinted fill in a status colour; the icon carries the tone, no frame. */
+.wiki__callout {
+  --wiki-tone: var(--zx-color-info);
+  --wiki-tone-bg: var(--zx-color-info-bg);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--zx-space-3);
+  padding: var(--zx-space-3) var(--zx-space-4);
+  border-radius: var(--zx-radius-lg);
+  background: var(--wiki-tone-bg);
+  font-size: var(--zx-text-md);
+  line-height: 1.6;
+}
+
+.wiki__callout[data-tone="success"] {
+  --wiki-tone: var(--zx-color-success);
+  --wiki-tone-bg: var(--zx-color-success-bg);
+}
+
+.wiki__callout[data-tone="warning"] {
+  --wiki-tone: var(--zx-color-warning);
+  --wiki-tone-bg: var(--zx-color-warning-bg);
+}
+
+.wiki__callout[data-tone="danger"] {
+  --wiki-tone: var(--zx-color-danger);
+  --wiki-tone-bg: var(--zx-color-danger-bg);
+}
+
+.wiki__callout-icon {
+  display: inline-grid;
+  block-size: 1.6em;
+  place-items: center;
+  color: var(--wiki-tone);
+}
+
+.wiki__callout-title,
+.wiki__callout-text {
+  margin: 0;
+}
+
+.wiki__callout-title {
+  font-weight: var(--zx-weight-semibold);
+}
+
+.wiki__callout-text + .wiki__callout-text {
+  margin-block-start: var(--zx-space-2);
+}
+
+.wiki__checklist {
+  display: grid;
+  gap: var(--zx-space-1);
+  padding: 0;
+  list-style: none;
+}
+
+.wiki__check-label {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--zx-space-3);
+  cursor: pointer;
+}
+
+.wiki__check {
+  flex: none;
+  inline-size: 1em;
+  block-size: 1em;
+  min-block-size: 0;
+  margin: 0.35em 0 0;
+  accent-color: var(--zx-color-accent);
+}
+
+.wiki__check-item:has(.wiki__check:checked) .wiki__check-text {
+  color: var(--zx-color-text-muted);
+  text-decoration: line-through;
+  text-decoration-color: var(--zx-color-border-strong);
+}
+
+/* Tables sit in the text without a frame: a quiet header over hairline rows, flush with the
+   paragraphs around them. */
+.wiki__table-wrap {
+  overflow-x: auto;
+}
+
+.wiki__table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  font-size: var(--zx-text-md);
+  line-height: 1.5;
+}
+
+.wiki__cell {
+  padding: var(--zx-space-2) var(--zx-space-3);
+  border-block-end: 1px solid var(--zx-color-border-subtle);
+  text-align: start;
+  vertical-align: top;
+}
+
+.wiki__cell:first-child {
+  padding-inline-start: 0;
+  white-space: nowrap;
+}
+
+.wiki__cell:last-child {
+  padding-inline-end: 0;
+}
+
+.wiki__cell[scope="col"] {
+  border-block-end-color: var(--zx-color-border);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  font-weight: var(--zx-weight-medium);
+}
+
+.wiki__cell[data-align="end"] {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.wiki__table > tbody > .wiki__row:last-child > .wiki__cell {
+  border-block-end: 0;
+}
+
+/* A code block: one muted fill, a slim row with the language and the copy button, then the code.
+   Positioned, so the copy button's hidden status line stays inside the scrolling pane. */
+.wiki__code {
+  position: relative;
+  margin-inline: 0;
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-bg-muted);
+}
+
+.wiki__code-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--zx-space-2);
+  padding: var(--zx-space-1) var(--zx-space-3);
+}
+
+.wiki__code-language {
+  color: var(--zx-color-text-muted);
+  font-family: var(--zx-font-mono);
+  font-size: var(--zx-text-xs);
+  text-transform: lowercase;
+}
+
+.wiki__pre {
+  overflow-x: auto;
+  margin: 0;
+  padding: 0 var(--zx-space-3) var(--zx-space-3);
+  border-end-start-radius: inherit;
+  border-end-end-radius: inherit;
+  font-family: var(--zx-font-mono);
+  font-size: var(--zx-text-sm);
+  line-height: 1.65;
+  overflow-wrap: normal;
+  tab-size: 2;
+}
+
+/* The ring of the scrollable code sits inside its rounded corners. */
+.wiki__pre:focus-visible {
+  outline: none;
+  box-shadow: inset var(--zx-focus-ring);
+}
+
+.wiki__figure {
+  display: grid;
+  gap: var(--zx-space-2);
+  margin-inline: 0;
+}
+
+.wiki__figure-frame {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 16 / 6;
+  border-radius: var(--zx-radius-lg);
+  background:
+    repeating-linear-gradient(135deg, transparent 0 10px, var(--zx-color-bg-hover) 10px 11px),
+    var(--zx-color-bg-muted);
+  color: var(--zx-color-text-placeholder);
+}
+
+.wiki__figure-caption {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  line-height: 1.5;
+  text-align: center;
+}
+
+/* Sub-pages of a section page, as cards under its text. */
+.wiki__children,
+.wiki__home-section {
+  display: grid;
+  gap: var(--zx-space-3);
+  margin-block-start: var(--zx-space-8);
+}
+
+.wiki__home-section {
+  margin-block-start: 0;
+}
+
+.wiki__child-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: var(--zx-space-3);
+}
+
+.wiki__child {
+  display: grid;
+  align-content: start;
+  gap: var(--zx-space-1);
+  min-block-size: 0;
+  padding: var(--zx-space-3) var(--zx-space-4);
+  border: 1px solid var(--zx-color-border-subtle);
+  border-radius: var(--zx-radius-lg);
+  background: var(--zx-color-bg-surface);
+  color: inherit;
+  font-size: var(--zx-text-md);
+  line-height: 1.5;
+  text-align: start;
+}
+
+.wiki__child:hover {
+  border-color: var(--zx-color-border);
+  background: var(--zx-color-bg-hover);
+}
+
+.wiki__child-title {
+  font-weight: var(--zx-weight-semibold);
+}
+
+.wiki__child-excerpt {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+.wiki__recent {
+  gap: 0;
+  padding: var(--zx-space-1) 0;
+}
+
+.wiki__recent-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  min-inline-size: 0;
+}
+
+/* ---------------------------------------------------------------- editing -- */
+
+.wiki__format {
+  flex-wrap: nowrap;
+}
+
+.wiki__format > .zx-toolbar {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+.wiki__format-hint {
+  flex: none;
+  white-space: nowrap;
+}
+
+.wiki__edit {
+  container: wiki-edit / inline-size;
+  display: flex;
+  flex: 1 1 auto;
+  min-block-size: 0;
+}
+
+.wiki__edit > .zx-split-view {
+  flex: 1 1 auto;
+}
+
+.wiki__compose {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zx-space-3);
+  block-size: 100%;
+  min-block-size: 0;
+  padding: var(--zx-space-5);
+}
+
+/* The title field is set like the title it edits. */
+.wiki__title-input {
+  flex: none;
+  min-block-size: 0;
+  padding: var(--zx-space-1) 0;
+  border-color: transparent;
+  border-radius: 0;
+  background: transparent;
+  font-size: var(--zx-text-3xl);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.wiki__title-input:focus-visible {
+  box-shadow: inset 0 -2px 0 var(--zx-color-accent);
+}
+
+.wiki__compose .zx-code-editor {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-block-size: 0;
+}
+
+.wiki__compose .zx-code-editor__input {
+  flex: 1 1 auto;
+  min-block-size: 0;
+  resize: none;
+}
+
+.wiki__preview {
+  overflow: auto;
+  block-size: 100%;
+}
+
+.wiki__preview > .wiki__article {
+  padding-block-start: var(--zx-space-6);
+}
+
+/* -------------------------------------------------------------- inspector -- */
+
+.wiki__outline-block {
+  padding-block-start: var(--zx-space-3);
+}
+
+.wiki__outline {
+  display: grid;
+}
+
+/* The outline is a slim list; the section being read is the accent text, nothing more. */
+.wiki__outline-link {
+  display: block;
+  inline-size: 100%;
+  min-block-size: 0;
+  padding: 3px var(--zx-space-2);
+  border: 0;
+  border-radius: var(--zx-radius-sm);
+  background: none;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  font-weight: 400;
+  line-height: 1.45;
+  text-align: start;
+}
+
+.wiki__outline-link[data-level="3"] {
+  padding-inline-start: calc(var(--zx-space-2) + var(--zx-space-3));
+}
+
+.wiki__outline-link:hover {
+  background: none;
+  color: var(--zx-color-text);
+}
+
+.wiki__outline-link[aria-current="location"] {
+  color: var(--zx-color-accent);
+  font-weight: var(--zx-weight-semibold);
+}
+
+/* Details fold away: a disclosure titled like the blocks around it, with no box of its own. */
+.wiki__details.zx-groupbox {
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+
+.wiki__details .zx-groupbox__summary {
+  min-block-size: var(--zx-space-6);
+  gap: var(--zx-space-1);
+  margin-inline: calc(-1 * var(--zx-space-1));
+  padding: 2px var(--zx-space-1);
+  border-radius: var(--zx-radius-sm);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  font-weight: var(--zx-weight-medium);
+}
+
+.wiki__details .zx-groupbox__summary:hover {
+  background: none;
+  color: var(--zx-color-text);
+}
+
+.wiki__details .zx-groupbox__content {
+  padding: var(--zx-space-3) 0 0;
+  border: 0;
+}
+
+/* Comment threads are cards on the chrome column: the comments, then a field to reply in. */
+.wiki__threads {
+  display: grid;
+  gap: var(--zx-space-2);
+}
+
+.wiki__thread {
+  display: grid;
+  gap: var(--zx-space-1);
+  padding: var(--zx-space-3);
+  border: 1px solid var(--zx-color-border-subtle);
+  border-radius: var(--zx-radius-lg);
+  background: var(--zx-color-bg-surface);
+}
+
+.wiki__thread .zx-activity-list__items > .zx-activity-item:not(:last-child) {
+  border-block-end: 0;
+}
+
+.wiki__thread .zx-activity-item__article {
+  padding-block: var(--zx-space-2);
+}
+
+.wiki__thread .zx-activity-item:first-child .zx-activity-item__article {
+  padding-block-start: 0;
+}
+
+.wiki__thread .zx-activity-item__main {
+  gap: var(--zx-space-1);
+}
+
+/* The reply field's text starts where the comments' text does, past the avatar column. */
+.wiki__reply {
+  padding-inline-start: calc(var(--zx-space-6) + var(--zx-space-3) - var(--zx-control-pad-x));
+}
+
+.wiki__reply-input {
+  inline-size: 100%;
+  font-size: var(--zx-text-sm);
+}
+
+.wiki__composer {
+  display: grid;
+  gap: var(--zx-space-2);
+}
+
+.wiki__composer-input {
+  inline-size: 100%;
+  padding-block: var(--zx-space-2);
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.wiki__composer-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* ------------------------------------------------------------- responsive -- */
+
+@container shell (max-width: 1180px) {
+  .wiki__article {
+    padding-inline: var(--zx-space-6);
+  }
+}
+
+/* A narrow header keeps the page and its parent, a phone's only the page; the levels above stay in
+   the page tree. The buttons close up, and "Saving…" keeps its icon (its words are announced). */
+@container wiki-header (max-width: 600px) {
+  .wiki .zx-breadcrumb__item:not(:nth-last-child(-n + 2)),
+  .wiki .zx-breadcrumb__item:nth-last-child(2) > .zx-breadcrumb__separator {
+    display: none;
+  }
+
+  .wiki .shell__main > .shell__header > .shell__header-actions {
+    gap: var(--zx-space-1);
+  }
+
+  .wiki .shell__header .zx-inline-loading__description {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+@container wiki-header (max-width: 440px) {
+  .wiki .zx-breadcrumb__item:not(:last-child),
+  .wiki .zx-breadcrumb__item:last-child > .zx-breadcrumb__separator {
+    display: none;
+  }
+}
+
+/* A phone-width page: the same reading size and measure, with less air above and beside it. */
+@container wiki-page (max-width: 600px) {
+  .wiki__article {
+    padding: var(--zx-space-6) var(--zx-space-5) var(--zx-space-8);
+  }
+
+  .wiki__preview > .wiki__article {
+    padding-block-start: var(--zx-space-5);
+  }
+
+  .wiki__head {
+    margin-block-end: var(--zx-space-6);
+  }
+
+  .wiki .document-title {
+    font-size: var(--zx-text-2xl);
+  }
+
+  .wiki__prose > .wiki__heading[data-level="2"] {
+    margin-block-start: var(--zx-space-7);
+  }
+}
+
+/* Too narrow for the editor and its preview side by side, they take turns (`SIDE_BY_SIDE` and
+   `fitSplit()` in the module): the divider goes, and a split left open shows the editor alone. */
+@container wiki-edit (max-width: 640px) {
+  /* Out of sight and out of the tab order, but still holding its grid track. */
+  .wiki__edit .zx-split-view {
+    --zx-split-view-divider-size: 0px;
+  }
+
+  .wiki__edit .zx-split-view__divider {
+    visibility: hidden;
+  }
+
+  .wiki__edit .zx-split-view:not([data-collapsed]) {
+    grid-template-columns: minmax(0, 1fr) auto 0;
+  }
+
+  .wiki__edit .zx-split-view:not([data-collapsed]) > .zx-split-view__pane[data-pane="end"] {
+    visibility: hidden;
+  }
+
+  .wiki__compose {
+    padding: var(--zx-space-4);
+  }
+
+  .wiki__title-input {
+    font-size: var(--zx-text-2xl);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .wiki__outline-link {
+    transition: color var(--zx-dur-fast) var(--zx-ease);
+  }
+}

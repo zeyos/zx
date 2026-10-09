@@ -1,0 +1,305 @@
+/*
+ * Checkout wizard: one focused column without navigation — the step rail across the top, the
+ * current step, and the order summary beside it, which carries the way forward.
+ */
+
+.checkout .checkout__secure {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-1);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  white-space: nowrap;
+}
+
+.checkout .checkout__secure > .zx-icon {
+  color: var(--zx-color-text-subtle);
+}
+
+/* The page is as wide as a form and its summary need, centred in whatever room the shell has. */
+.checkout .checkout__page {
+  display: grid;
+  gap: var(--zx-space-6);
+  max-inline-size: 66rem;
+  margin-inline: auto;
+}
+
+.checkout .checkout__columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 20rem;
+  gap: var(--zx-space-8);
+  align-items: start;
+}
+
+/* ---------------------------------------------------------------------- step -- */
+
+.checkout .checkout__step {
+  container: checkout-step / inline-size;
+  display: grid;
+  gap: var(--zx-space-5);
+  min-inline-size: 0;
+}
+
+.checkout .checkout__intro {
+  display: grid;
+  gap: var(--zx-space-1);
+}
+
+.checkout .checkout__intro > p {
+  margin: 0;
+}
+
+.checkout .checkout__step-nav {
+  display: flex;
+}
+
+.checkout .checkout__step-nav > .zx-btn {
+  margin-inline-start: calc(-1 * var(--zx-space-3));
+}
+
+/* ---------------------------------------------------------------------- cart -- */
+
+.checkout .checkout__lines {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.checkout .checkout__line {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 8.5rem 6.5rem auto;
+  gap: var(--zx-space-4);
+  align-items: center;
+  padding-block: var(--zx-space-4);
+  border-block-end: 1px solid var(--zx-color-border-subtle);
+}
+
+.checkout .checkout__line:first-child {
+  padding-block-start: 0;
+}
+
+.checkout .checkout__item {
+  display: grid;
+  gap: 2px;
+  min-inline-size: 0;
+}
+
+.checkout .checkout__item-name {
+  font-weight: var(--zx-weight-medium);
+}
+
+.checkout .checkout__qty > .zx-number-field {
+  display: flex;
+  inline-size: 100%;
+}
+
+.checkout .checkout__amount {
+  text-align: end;
+  font-weight: var(--zx-weight-medium);
+}
+
+/* A narrow step gives each line two rows: what it is (and the way to remove it), then how many
+   and what they cost. */
+@container checkout-step (max-width: 34rem) {
+  .checkout .checkout__line {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "tile item remove"
+      ". qty amount";
+    gap: var(--zx-space-2) var(--zx-space-3);
+    align-items: start;
+  }
+
+  .checkout .checkout__line > .icon-tile {
+    grid-area: tile;
+  }
+
+  .checkout .checkout__item {
+    grid-area: item;
+    align-self: center;
+  }
+
+  .checkout .checkout__qty {
+    grid-area: qty;
+    inline-size: 8.5rem;
+  }
+
+  .checkout .checkout__amount {
+    grid-area: amount;
+    align-self: center;
+  }
+
+  .checkout .checkout__line > .zx-icon-btn {
+    grid-area: remove;
+  }
+}
+
+/* -------------------------------------------------------------------- review -- */
+
+.checkout .checkout__review {
+  display: grid;
+  gap: var(--zx-space-4);
+}
+
+.checkout .checkout__review-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--zx-space-3);
+}
+
+.checkout .checkout__address {
+  display: grid;
+}
+
+.checkout .checkout__terms {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  font-size: var(--zx-text-sm);
+  cursor: pointer;
+}
+
+.checkout .checkout__terms-error {
+  margin: 0;
+  color: var(--zx-color-danger);
+  font-size: var(--zx-text-sm);
+}
+
+.checkout .checkout__terms-error:empty {
+  display: none;
+}
+
+/* ------------------------------------------------------------- confirmation -- */
+
+.checkout .checkout__done {
+  display: grid;
+  gap: var(--zx-space-5);
+  justify-items: start;
+}
+
+.checkout .checkout__done-head {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-3);
+}
+
+.checkout .checkout__done-head > p {
+  margin: 0;
+}
+
+.checkout .checkout__rating {
+  display: grid;
+  gap: var(--zx-space-2);
+}
+
+.checkout .checkout__done-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zx-space-2);
+}
+
+/* ------------------------------------------------------------------- summary -- */
+
+.checkout .checkout__summary {
+  position: sticky;
+  inset-block-start: 0;
+}
+
+.checkout .checkout__summary .surface__title {
+  justify-content: space-between;
+}
+
+.checkout .checkout__summary-lines {
+  display: grid;
+  gap: var(--zx-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--zx-text-sm);
+}
+
+.checkout .checkout__summary-lines > li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--zx-space-3);
+}
+
+.checkout .checkout__totals {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--zx-space-1) var(--zx-space-3);
+  margin: 0;
+  padding-block-start: var(--zx-space-3);
+  border-block-start: 1px solid var(--zx-color-border-subtle);
+  font-size: var(--zx-text-sm);
+}
+
+.checkout .checkout__totals > dt {
+  color: var(--zx-color-text-muted);
+}
+
+.checkout .checkout__totals > dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+.checkout .checkout__totals > [data-total] {
+  padding-block-start: var(--zx-space-2);
+  color: var(--zx-color-text);
+  font-size: var(--zx-text-lg);
+  font-weight: 650;
+}
+
+.checkout .checkout__summary > .zx-btn {
+  inline-size: 100%;
+}
+
+.checkout .checkout__summary .zx-btn__shortcut {
+  margin-inline-start: auto;
+}
+
+.checkout .checkout__arrival {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  margin: 0;
+}
+
+.checkout .checkout__arrival > .zx-icon {
+  flex: 0 0 auto;
+  color: var(--zx-color-text-subtle);
+}
+
+/* ---------------------------------------------------------------- responsive -- */
+
+/* A narrow shell stacks the summary under the step. */
+@container shell (max-width: 860px) {
+  .checkout .checkout__columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .checkout .checkout__summary {
+    position: static;
+  }
+}
+
+/* A phone: the header keeps the lock and says "Secure checkout" to assistive technology only, and
+   the rail names only the current step (the others keep their names for assistive technology). */
+@container shell (max-width: 640px) {
+  .checkout .checkout__secure-label,
+  .checkout .zx-stepper__step:not([aria-current="step"]) .zx-stepper__text {
+    position: absolute;
+    overflow: hidden;
+    inline-size: 1px;
+    block-size: 1px;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .checkout .checkout__page {
+    gap: var(--zx-space-5);
+  }
+}

@@ -158,6 +158,15 @@ test('missing pieces are dropped rather than left as stray punctuation', () => {
   assert.equal(statTileName(), '');
 });
 
+test('a caption is read with the value it qualifies', () => {
+  assert.equal(statTileName({ label: 'Active items', value: '2,184', caption: 'of 13,184' }),
+    'Active items, 2,184 of 13,184');
+  assert.equal(statTileName({
+    label: 'Active items', value: '2,184', caption: 'of 13,184', delta: 'up 12', deltaLabel: 'this week'
+  }), 'Active items, 2,184 of 13,184, up 12 this week');
+  assert.equal(statTileName({ label: 'Active items', value: '2,184', caption: '   ' }), 'Active items, 2,184');
+});
+
 test('the name is trimmed so host whitespace cannot double a separator', () => {
   assert.equal(statTileName({ label: '  Revenue  ', value: ' 3 ', delta: '   ' }), 'Revenue, 3');
 });

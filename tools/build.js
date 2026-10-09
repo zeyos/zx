@@ -31,7 +31,8 @@ await Promise.all(assets.flatMap((asset) => [false, true].map((minify) => {
     globalName: asset.globalName,
     platform: 'browser',
     target: 'es2022',
-    legalComments: 'none',
+    // Keep `@license` notices (the bundled Lucide glyphs are ISC) at the end of each bundle.
+    legalComments: 'eof',
     logLevel: 'silent'
   });
 })));

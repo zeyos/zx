@@ -1,7 +1,7 @@
 // @ts-check
 import { h, safeHref } from '../../core/dom.js';
 import { icon } from '../../core/icons.js';
-import { avatarInitials } from '../avatar/avatar.js';
+import { AVATAR_TONES, avatarInitials, avatarTone } from '../avatar/avatar.js';
 import { badge } from '../badge/badge.js';
 
 /** @typedef {Record<string, any>} KanbanRecord */
@@ -28,6 +28,9 @@ import { badge } from '../badge/badge.js';
  * @property {string} name Person's name, used as the accessible label.
  * @property {string|null} src Safe image URL, or null for the initials fallback.
  * @property {string} initials Fallback initials.
+ * @property {import('../avatar/avatar.js').AvatarTone} tone Fallback tint: a descriptor's own
+ * `tone` when it names one of `AVATAR_TONES`, otherwise `avatarTone(name)` — the colour the same
+ * person has in every Avatar.
  */
 
 /** Semantic intents an indicator may carry, in the order they are documented. */
@@ -132,6 +135,8 @@ export function createKanbanProgress(progress, label, valueText) {
 /**
  * Normalizes one or more responsible people. Names, name lists, and descriptor objects all
  * resolve to the same shape, and an unsafe image URL degrades to initials rather than failing.
+ * A descriptor may name its `tone`; otherwise the tone is derived from the name exactly as Avatar
+ * derives it.
  * @param {unknown} value Raw field value.
  * @returns {KanbanAssignee[]} Normalized people, in the order supplied.
  */
@@ -148,7 +153,8 @@ export function resolveKanbanAssignees(value) {
     if (!name) return null;
     const src = safeHref(source.src ?? source.image ?? null);
     const initials = source.initials == null ? avatarInitials(name) : String(source.initials);
-    return { name, src, initials };
+    const tone = AVATAR_TONES.includes(source.tone) ? source.tone : avatarTone(name);
+    return { name, src, initials, tone };
   }).filter(Boolean));
 }
 
@@ -185,8 +191,10 @@ export function createKanbanAvatars(people, max, groupLabel, overflowLabel) {
   const split = kanbanAvatarLimit(max, people.length);
   const shown = people.slice(0, split.shown);
   const hidden = split.hidden;
+  // Each face carries its tone, so the initials sit on the tint the person has in every Avatar.
   const faces = shown.map((person) => h('span', {
-    class: 'zx-kanban-view__avatar', ariaHidden: 'true', title: person.name || undefined
+    class: 'zx-kanban-view__avatar', ariaHidden: 'true', title: person.name || undefined,
+    dataset: { tone: person.tone ?? avatarTone(person.name) }
   }, person.src
     ? h('img', { class: 'zx-kanban-view__avatar-image', src: person.src, alt: '', draggable: false })
     : h('span', { class: 'zx-kanban-view__avatar-initials' }, person.initials)));

@@ -30,6 +30,13 @@
   clip-path: inset(0 calc(100% - var(--zx-rating-fill)) 0 0);
 }
 
+/* The icons are outlines; a chosen star is a solid one, so the two states differ in shape as well
+   as in colour. */
+.zx-rating__glyph[data-part="on"],
+.zx-rating__glyph[data-part="on"] .zx-icon {
+  fill: currentColor;
+}
+
 .zx-rating__symbol[data-preview] .zx-rating__glyph[data-part="on"] {
   color: var(--zx-color-warning);
   opacity: 0.75;

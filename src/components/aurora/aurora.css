@@ -1,8 +1,10 @@
 .zx-aurora {
+  /* The brand accent, then three chart series: decoration takes categorical colour, never the
+     status set, so the light behind a page never reads as a success or a warning. */
   --zx-aurora-color-1: var(--zx-color-accent);
-  --zx-aurora-color-2: var(--zx-color-info);
-  --zx-aurora-color-3: var(--zx-color-success);
-  --zx-aurora-color-4: var(--zx-color-warning);
+  --zx-aurora-color-2: var(--zx-color-chart-1);
+  --zx-aurora-color-3: var(--zx-color-chart-3);
+  --zx-aurora-color-4: var(--zx-color-chart-4);
   --zx-aurora-core: 7%;
   --zx-aurora-wash: 4%;
   --zx-aurora-faint: 2%;

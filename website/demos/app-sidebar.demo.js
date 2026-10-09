@@ -44,6 +44,18 @@ function applicationItems() {
   ];
 }
 
+// A settings column: a short tree the page lays out itself, so it never minimizes.
+function settingsItems() {
+  return [
+    { id: 'profile', label: 'Profile', icon: 'eye', href: '#profile' },
+    { id: 'security', label: 'Security', icon: 'lock', href: '#security' },
+    { id: 'workspace', label: 'Workspace', icon: 'gear', children: [
+      { id: 'members', label: 'Members', href: '#members' },
+      { id: 'billing-settings', label: 'Billing', href: '#billing-settings' }
+    ] }
+  ];
+}
+
 function renderModuleIcon(item, context = {}) {
   return moduleVisual(item.module ?? item.id, 24, context.location === 'root' ? 'circle' : 'tile');
 }
@@ -60,11 +72,11 @@ export default {
       title: 'Expanded and minimized vertical states',
       blurb: 'Use the header control to minimize the same component. Its active route and open '
         + 'branch state survive the transition. The module-colored icon renderer is injected by '
-        + 'the application, so Zx remains product-agnostic. The active route is a filled pill '
-        + 'with a marker docked to the sidebar edge, labels wrap to a second line instead of '
+        + 'the application, so Zx remains product-agnostic. The active route is a neutral fill '
+        + 'with a heavier label — where you are, not something you picked — labels wrap to a second line instead of '
         + 'truncating, and a count that cannot fit a minimized target becomes a dot while the '
         + 'number stays in the item’s accessible name. The rail presents those same rows in a '
-        + 'flyout — same icon gutter, same pill, same marker — so minimizing changes the width '
+        + 'flyout — same icon gutter, same fill — so minimizing changes the width '
         + 'and not the vocabulary.',
       render: ({ cleanup, log }) => {
         const account = new AccountMenu(null, {
@@ -100,8 +112,7 @@ export default {
         + 'Rechnungen, or Projects to open its child destinations; Down Arrow moves keyboard '
         + 'focus into a top rail flyout. Projects › Tasks carries a third level, which opens a '
         + 'second flyout beside the first — Right Arrow moves into it, Left Arrow or Escape back '
-        + 'out. The active marker follows the edge the rail occupies, so it runs under the item '
-        + 'here and beside it on a vertical rail.',
+        + 'out. A rail item whose flyout holds the active route takes the full text colour.',
       render: ({ cleanup, log }) => {
         const sidebar = new AppSidebar(null, {
           items: applicationItems(),
@@ -114,6 +125,29 @@ export default {
         cleanup(() => sidebar.destroy());
         return h('div', { style: 'display: grid; gap: var(--zx-space-3)' }, sidebar.toElement(),
           h('div', { class: 'demo-card', style: 'min-block-size: 180px' }, 'Horizontal workspace'));
+      }
+    },
+    {
+      title: 'A column that does not minimize',
+      blurb: 'collapsible: false removes the minimize control, for a navigation column the page '
+        + 'lays out itself. getItems() hands the tree back as it was written: a destination '
+        + 'without descendants has no children property.',
+      layout: 'stack',
+      render: ({ cleanup, log }) => {
+        const sidebar = new AppSidebar(null, {
+          label: 'Settings',
+          header: h('strong', {}, 'Settings'),
+          collapsible: false,
+          items: settingsItems(),
+          active: 'profile',
+          expanded: ['workspace'],
+          onselect: (event) => { event.preventDefault(); log(`select ${event.detail.id}`); }
+        });
+        cleanup(() => sidebar.destroy());
+        const branches = sidebar.getItems().filter((item) => item.children).map((item) => item.id);
+        log(`items with children: ${branches.join(', ')}`);
+        return h('div', { style: 'block-size: 320px; display: flex' }, sidebar.toElement(),
+          h('div', { class: 'demo-card', style: 'flex: 1; display: grid; place-items: center' }, 'Settings page'));
       }
     }
   ]

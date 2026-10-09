@@ -11,6 +11,7 @@
   padding-inline: var(--zx-control-pad-x);
   font: inherit;
   font-size: var(--zx-control-font-size);
+  font-weight: var(--zx-control-font-weight);
   cursor: pointer;
 }
 
@@ -18,9 +19,16 @@
   background: var(--zx-color-bg-hover);
 }
 
+/* Pressed is a state the button is in, so the button itself goes neutral — the current fill, a
+   stronger border, the full text colour — and only the check glyph, which is the mark, keeps the
+   accent, as a checkbox would. */
 .zx-check-button[aria-pressed="true"] {
-  border-color: var(--zx-color-accent);
-  background: var(--zx-color-bg-selected);
+  border-color: var(--zx-color-border-strong);
+  background: var(--zx-color-bg-current);
+  color: var(--zx-color-text);
+}
+
+.zx-check-button__on {
   color: var(--zx-color-accent);
 }
 

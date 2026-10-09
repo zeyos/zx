@@ -5,6 +5,10 @@
  */
 
 .zx-tooltip {
+  /* As wide as its text up to the maximum, never narrower: squeezed into too little room beside its
+     anchor, the bubble overflows instead of wrapping word by word, which is what makes the
+     position fall back to the other side, or above or below. */
+  inline-size: max-content;
   max-inline-size: var(--zx-tooltip-max-inline-size, 260px);
   border: 1px solid var(--zx-color-overlay-border);
   border-radius: var(--zx-radius-md);

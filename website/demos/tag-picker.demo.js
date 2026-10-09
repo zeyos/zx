@@ -26,6 +26,16 @@ const LABELS = [
   { ID: 'approved', name: 'Approved', icon: 'check', color: '#008853' }
 ];
 
+/** Labels are categories, so each takes a tone from the categorical palette, never a status colour. */
+const TOPICS = [
+  { ID: 'bug', name: 'Bug', tone: 'red' },
+  { ID: 'feature', name: 'Feature', tone: 'violet' },
+  { ID: 'improvement', name: 'Improvement', tone: 'blue' },
+  { ID: 'performance', name: 'Performance', tone: 'amber' },
+  { ID: 'customer', name: 'Customer', tone: 'teal' },
+  { ID: 'docs', name: 'Docs', tone: 'slate' }
+];
+
 export default {
   title: 'Tag picker',
   group: 'Inputs',
@@ -43,6 +53,24 @@ export default {
         const picker = new TagPicker(null, {
           items: LABELS,
           values: ['urgent', 'billing', 'approved'],
+          placeholder: 'Add a label',
+          onchange: ({ detail }) => log(`labels [${detail.values.join(', ')}]`)
+        });
+        cleanup(() => picker.destroy());
+        return picker.toElement();
+      }
+    },
+    {
+      title: 'Categorical tones',
+      blurb: 'toneKey (default "tone") names a tone from the Badge palette — blue, teal, green, '
+        + 'amber, orange, red, pink, violet, slate — and the tag takes its fill and ink, so a label '
+        + 'reads as the same colour here as in a Badge. A tone wins over a colour; colorKey also '
+        + 'takes a token reference such as var(--zx-color-tone-blue-fg).',
+      width: '460px',
+      render: ({ cleanup, log }) => {
+        const picker = new TagPicker(null, {
+          items: TOPICS,
+          values: ['bug', 'customer', 'docs'],
           placeholder: 'Add a label',
           onchange: ({ detail }) => log(`labels [${detail.values.join(', ')}]`)
         });
@@ -128,12 +156,14 @@ export default {
     },
     {
       title: 'Read-only and the API',
-      blurb: 'readonly keeps the tags visible but removes the input and the remove buttons. The '
-        + 'value methods work either way.',
+      blurb: 'readonly shows only the tags: no input, no chevron, no remove buttons, and no empty '
+        + 'row under a full line of tags. The value methods work either way.',
       layout: 'stack',
       width: '460px',
       render: ({ cleanup }) => {
-        const locked = new TagPicker(null, { items: SKILLS, values: ['ts', 'go'], readonly: true });
+        const locked = new TagPicker(null, {
+          items: TOPICS, values: ['bug', 'feature', 'improvement', 'performance', 'customer'], readonly: true
+        });
         const editable = new TagPicker(null, { items: SKILLS, values: ['js', 'css'] });
         cleanup(() => [locked, editable].forEach((picker) => picker.destroy()));
         return [

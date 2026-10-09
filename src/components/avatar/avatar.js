@@ -2,19 +2,43 @@ import { Component } from '../../core/component.js';
 import { h } from '../../core/dom.js';
 
 /**
+ * A categorical tone from the design system's tone palette (`--zx-color-tone-*`).
+ * @typedef {'blue'|'teal'|'green'|'amber'|'orange'|'red'|'pink'|'violet'|'slate'} AvatarTone
+ */
+
+/**
  * @typedef {Object} AvatarOptions
  * @property {string|null} [src=null] Image URL.
- * @property {string} [name=''] Name used to derive fallback initials.
+ * @property {string} [name=''] Name used to derive the fallback initials and tone.
  * @property {string|null} [initials=null] Explicit fallback initials.
  * @property {string|null} [label=null] Accessible label; null makes the avatar decorative.
- * @property {string|number} [size='md'] Preset (`sm`, `md`, `lg`) or pixel size.
+ * @property {string|number} [size='md'] Preset — `sm` 24px, `md` 32px, `lg` 40px at the default
+ * spacing unit — or a pixel size. Below 24px the fallback shows a single initial.
  * @property {'circle'|'rounded'|'square'} [shape='circle'] Avatar shape.
+ * @property {AvatarTone|null} [tone=null] Fallback colour from the tone palette. `null` derives a
+ * stable tone from the name (or the initials when there is no name), so the same person gets the
+ * same colour on every screen; see {@link avatarTone}.
  * @property {'online'|'away'|'busy'|'offline'|null} [status=null] Optional presence state.
  * @property {string|null} [statusLabel=null] Text alternative for the presence state.
  */
 
 /**
- * Stable-size user image with deterministic initials fallback and optional presence state.
+ * The tone palette, in hash order. Every entry is a valid `tone`; the hash picks among the
+ * chromatic ones and keeps `slate`, the neutral, for a fallback with no name behind it. Order is
+ * part of the contract: changing it moves every derived avatar to a different colour.
+ * @type {ReadonlyArray<AvatarTone>}
+ */
+export const AVATAR_TONES = Object.freeze(['blue', 'teal', 'green', 'amber', 'orange', 'red', 'pink', 'violet', 'slate']);
+
+/** The tones a name can hash to: the palette without its neutral. */
+const HASHED_TONES = Object.freeze(AVATAR_TONES.filter((tone) => tone !== 'slate'));
+
+/** Below this rendered size the fallback has room for one initial, not two. */
+const SINGLE_INITIAL_BELOW = 24;
+
+/**
+ * Stable-size user image with a deterministic fallback — initials on a tone picked from the name —
+ * and an optional presence state.
  * @extends {Component<AvatarOptions>}
  */
 export class Avatar extends Component {
@@ -28,6 +52,7 @@ export class Avatar extends Component {
     label: null,
     size: 'md',
     shape: 'circle',
+    tone: null,
     status: null,
     statusLabel: null
   };
@@ -48,6 +73,7 @@ export class Avatar extends Component {
       label: this.options.label,
       size: this.options.size,
       shape: this.options.shape,
+      tone: this.options.tone,
       status: this.options.status,
       statusLabel: this.options.statusLabel
     };
@@ -87,7 +113,7 @@ export class Avatar extends Component {
    */
   set(values = {}) {
     if (!values || typeof values !== 'object') return this;
-    for (const key of ['src', 'name', 'initials', 'label', 'size', 'shape', 'status', 'statusLabel']) {
+    for (const key of ['src', 'name', 'initials', 'label', 'size', 'shape', 'tone', 'status', 'statusLabel']) {
       if (Object.hasOwn(values, key)) this._state[key] = values[key];
     }
     this._sync();
@@ -130,7 +156,15 @@ export class Avatar extends Component {
       this.el.style.removeProperty('--zx-avatar-size');
     }
     this._syncLabel();
-    this.refs.fallback.textContent = String(this._state.initials || avatarInitials(this._state.name));
+    const name = String(this._state.name ?? '');
+    const limit = typeof size === 'number' && size < SINGLE_INITIAL_BELOW ? 1 : 2;
+    this.refs.fallback.textContent = this._state.initials
+      ? clipGraphemes(String(this._state.initials), limit)
+      : avatarInitials(name, limit);
+    const tone = AVATAR_TONES.includes(this._state.tone)
+      ? this._state.tone
+      : avatarTone(name.trim() ? name : this._state.initials);
+    this.el.dataset.tone = tone;
     const src = this._state.src == null ? '' : String(this._state.src).trim();
     if (src) {
       this.refs.image.setAttribute('src', src);
@@ -195,16 +229,46 @@ export class Avatar extends Component {
 }
 
 /**
- * Derives at most two uppercase initials from the first and last words of a name.
+ * Derives uppercase initials from the first and last words of a name.
  * @param {unknown} name Name-like value.
+ * @param {1|2} [limit=2] How many initials to return: two by default, one for an avatar too small
+ * to hold two legibly.
  * @returns {string}
  */
-export function avatarInitials(name) {
+export function avatarInitials(name, limit = 2) {
   const words = String(name ?? '').trim().split(/\s+/u).filter(Boolean);
   if (words.length === 0) return '?';
   const first = uppercaseInitial(words[0]);
-  const last = words.length > 1 ? uppercaseInitial(words[words.length - 1]) : '';
+  const last = limit > 1 && words.length > 1 ? uppercaseInitial(words[words.length - 1]) : '';
   return `${first}${last}`;
+}
+
+/**
+ * Picks a stable fallback tone for a name.
+ *
+ * The name is trimmed, NFC-normalised and lower-cased, then hashed with 32-bit FNV-1a over its
+ * UTF-16 code units, and the hash picks one of the eight chromatic tones of {@link AVATAR_TONES}.
+ * The result depends on nothing but the name — not the locale, the page, or the order avatars
+ * render in — so a person keeps their colour everywhere. An empty name is `slate`, the neutral
+ * tone, which no name hashes to.
+ * @param {unknown} name Name-like value.
+ * @returns {AvatarTone}
+ */
+export function avatarTone(name) {
+  const key = String(name ?? '').trim().normalize('NFC').toLowerCase();
+  if (!key) return 'slate';
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < key.length; index += 1) {
+    hash ^= key.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return HASHED_TONES[(hash >>> 0) % HASHED_TONES.length];
+}
+
+/** Keeps the first `limit` graphemes of explicit initials. @param {string} value @param {number} limit @returns {string} */
+function clipGraphemes(value, limit) {
+  if (limit > 1) return value;
+  return firstGrapheme(value.trim()) || value;
 }
 
 /** Returns one uppercased grapheme even when Unicode case expansion produces multiple letters. @param {string} word @returns {string} */

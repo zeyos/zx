@@ -13,6 +13,9 @@ import { matchItems } from '../select/filter.js';
  * @property {boolean} [search=true] Whether the search field is shown.
  * @property {number} [height=280] Maximum list height in pixels.
  * @property {boolean} [defaultChecked=false] Fallback initial checked state.
+ * @property {boolean} [hideLabel=false] Whether the heading is left out. The group keeps the
+ *   heading text as its accessible name (`aria-label`); a Field labelling the checklist names it
+ *   instead, which is why the `checklist` field type sets this.
  * @property {(() => Promise<ChecklistItem[]>|ChecklistItem[])|null} [load=null] Async item loader.
  * @property {Record<string, string>|Record<string, Record<string, string>>} [msg] Localized messages.
  * @property {(event: CustomEvent<ChecklistChangeDetail>) => void} [onchange] Change listener.
@@ -40,6 +43,7 @@ export class Checklist extends Component {
     search: true,
     height: 280,
     defaultChecked: false,
+    hideLabel: false,
     load: null
   };
 
@@ -53,15 +57,16 @@ export class Checklist extends Component {
     const root = /** @type {HTMLElement} */ (this.el ?? h('div'));
     this.el = root;
     if (!this._createdRoot) this._originalChildren = Array.from(root.childNodes);
-    for (const name of ['role', 'aria-labelledby', 'data-state']) {
+    for (const name of ['role', 'aria-label', 'aria-labelledby', 'data-state']) {
       this._originalAttributes.set(name, root.getAttribute(name));
     }
 
+    const labelText = this._message('checklist.label', 'Checklist');
     const labelId = uid('zx-checklist-label');
-    const title = h('div', {
+    const title = this.options.hideLabel ? null : h('div', {
       class: 'zx-checklist__label',
       id: labelId
-    }, this._message('checklist.label', 'Checklist'));
+    }, labelText);
     const search = h('input', {
       ref: 'search',
       class: 'zx-checklist__search',
@@ -76,9 +81,10 @@ export class Checklist extends Component {
       class: 'zx-checklist__list'
     });
     list.style.maxBlockSize = `${Math.max(0, Number(this.options.height) || 0)}px`;
-    root.replaceChildren(title, search, list);
+    root.replaceChildren(...[title, search, list].filter(Boolean));
     root.setAttribute('role', 'group');
-    root.setAttribute('aria-labelledby', labelId);
+    if (title) root.setAttribute('aria-labelledby', labelId);
+    else root.setAttribute('aria-label', labelText);
 
     this.listen(search, 'input', () => this.search(/** @type {HTMLInputElement} */ (search).value));
     this.listen(list, 'change', (event) => {

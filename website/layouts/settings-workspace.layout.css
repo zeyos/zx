@@ -1,0 +1,174 @@
+/*
+ * Settings workspace: each section is a column of groups — a heading and a sentence beside the
+ * group's controls — divided by hairlines. Switches sit at the end of their row, named by the
+ * text beside them.
+ */
+
+.settings .settings__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+}
+
+.settings .settings__page {
+  max-inline-size: 60rem;
+}
+
+.settings .settings__section {
+  display: grid;
+}
+
+.settings .settings__elsewhere {
+  display: grid;
+  min-block-size: 24rem;
+  place-items: center;
+}
+
+/* --------------------------------------------------------------------- group -- */
+
+.settings .settings__group {
+  display: grid;
+  grid-template-columns: minmax(0, 15rem) minmax(0, 1fr);
+  gap: var(--zx-space-4) var(--zx-space-8);
+  padding-block: var(--zx-space-6);
+  border-block-end: 1px solid var(--zx-color-border-subtle);
+}
+
+.settings .settings__group:first-child {
+  padding-block-start: var(--zx-space-2);
+}
+
+.settings .settings__group:last-child {
+  border-block-end: 0;
+}
+
+.settings .settings__group-head {
+  display: grid;
+  gap: var(--zx-space-1);
+  align-content: start;
+}
+
+.settings .settings__group-head > p {
+  margin: 0;
+}
+
+.settings .settings__group-title {
+  margin: 0;
+  font-size: var(--zx-text-md);
+  font-weight: var(--zx-weight-semibold);
+}
+
+.settings .settings__group-body {
+  display: grid;
+  gap: var(--zx-space-4);
+  align-content: start;
+  min-inline-size: 0;
+}
+
+/* Section titles here are quieter than the group title above them. */
+.settings .settings__group-body .zx-fieldset__legend {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  font-weight: var(--zx-weight-medium);
+}
+
+/* ----------------------------------------------------------------------- rows -- */
+
+.settings .settings__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--zx-space-6);
+}
+
+.settings .settings__row-text {
+  display: grid;
+  gap: 2px;
+  min-inline-size: 0;
+}
+
+.settings .settings__row-label {
+  font-weight: var(--zx-weight-medium);
+}
+
+.settings .settings__row > .zx-toggle {
+  flex: 0 0 auto;
+}
+
+.settings .settings__times {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zx-space-2) var(--zx-space-3);
+}
+
+/* -------------------------------------------------------------------- pieces -- */
+
+.settings .settings__photo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zx-space-3);
+}
+
+.settings .settings__photo > .zx-avatar {
+  margin-inline-end: var(--zx-space-2);
+}
+
+.settings .settings__field {
+  display: grid;
+  gap: var(--zx-space-2);
+  max-inline-size: 24rem;
+}
+
+.settings .settings__field > p,
+.settings .settings__token > p {
+  margin: 0;
+}
+
+.settings .settings__token {
+  display: grid;
+  gap: var(--zx-space-2);
+  justify-items: start;
+}
+
+.settings .settings__token > .zx-copy-input {
+  inline-size: 100%;
+}
+
+.settings .settings__token-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zx-space-3);
+}
+
+/* ---------------------------------------------------------------- responsive -- */
+
+/* Without room beside them, a group's heading goes above its controls. */
+@container shell (max-width: 1000px) {
+  .settings .settings__group {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* On a phone the header keeps the title and both buttons: the save state shows only its icon
+   (its words are still announced), and the key hint goes — there is no keyboard to press it on. */
+@container shell (max-width: 640px) {
+  .settings .settings__actions {
+    gap: var(--zx-space-1);
+  }
+
+  .settings .settings__actions .zx-inline-loading__description {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .settings .settings__actions .zx-btn__shortcut {
+    display: none;
+  }
+}

@@ -80,6 +80,10 @@ namespaced `storage()` view that degrades to memory when the browser refuses wri
 `toCsv`/`downloadBlob`/`copyToClipboard` for exporting what a table is showing.
 
 `icon()` renders the inline SVG glyphs Zx bundles — no webfont, stylesheet, or network request.
+They are outline icons from [Lucide](https://lucide.dev) (ISC licence; the notice ships in
+`src/core/icons.js`): `currentColor` strokes on a 24-unit grid, about 1.2px at the default 16px.
+`registerIcons()` adds more, either filled (`[viewBox, path]`, e.g. Font Awesome paths) or outlined
+(`[viewBox, path, 'stroke']`, e.g. further Lucide icons).
 Applications that want Font Awesome call `loadFontAwesome({ kit })` once, and every icon in the
 library follows, including names Zx maps to their Font Awesome counterparts. Names can also pick a
 renderer themselves: `'fa:user'`, `'duotone:user'`, `'kit:zeyos-notes'`, `'builtin:check'`, or a
@@ -233,13 +237,13 @@ moduleColor('invoices');                      // '#535494'
 name, identity colour, label, and a stock Font Awesome fallback. The `--zx-module-*` CSS custom
 properties are generated from that file, so CSS and JavaScript cannot disagree about a colour.
 
-## Themes and density
+## Themes
 
 Load `zx.css` once. Zx components consume semantic `--zx-*` tokens and inherit their values from
-the document. Select a built-in theme and density on any ancestor (normally `<html>`):
+the document. Select a built-in theme on any ancestor (normally `<html>`):
 
 ```html
-<html data-zx-theme="dark" data-zx-density="compact">
+<html data-zx-theme="dark">
 ```
 
 Top-layer menus, dialogs, tooltips, launchers, and toast regions stay under the nearest Zx theme
@@ -247,10 +251,22 @@ scope in the DOM, so a theme or product-token override on a nested application s
 to its overlays. Pass the optional `scope` context to Modal, Dialog, Sheet, Launcher, or static
 Message calls when the opener is not inside the intended scope.
 
-Theme values are `light`, `dark`, and `auto`; density values are `cozy` and `compact`. `auto`
-follows the operating-system color preference.
+Theme values are `light`, `dark`, and `auto`. `auto` follows the operating-system color
+preference.
 
-A third attribute picks the **accent**, orthogonally to the other two:
+There is one geometry. Spacing steps are multiples of `--zx-space-unit` (4px:
+4, 8, 12, 16, 20, 24, 32, 40), radius steps are fractions of `--zx-radius` (4px: 2, 3, 4, 6), and
+controls are `--zx-control-height` (30px) tall. To tighten or loosen an application — or one
+region of it — override those tokens rather than switching a mode:
+
+```css
+:root {
+  --zx-space-unit: 3.5px;
+  --zx-control-height: 28px;
+}
+```
+
+A second attribute picks the **accent**, orthogonally to the theme:
 
 ```html
 <html data-zx-theme="dark" data-zx-preset="ocean">
@@ -272,6 +288,8 @@ through, so a preset rethemes light, dark, and auto at once:
 
 Light surfaces take the 600 and 700 stops, dark ones take 300, 400, and 500 — so keep 600 legible
 against white and 400 against near-black, and `--zx-color-on-accent` stays correct in both. The
+primary button is the exception on purpose: `--zx-color-accent-solid` is the 600 stop with white
+ink in both themes, so the one solid accent on a screen never turns into a bright slab in dark. The
 [theme studio](https://zx.zeyos.com/theme.html) renders every component family under a live theme and
 exports the result.
 
@@ -292,7 +310,20 @@ Anything beyond the accent is a semantic token override, without reaching into c
 
 Prefer semantic tokens such as `--zx-color-*`, `--zx-control-*`, `--zx-space-*`,
 `--zx-radius-*`, and `--zx-text-*`. Palette tokens are implementation details and should not be
-used by application or component CSS.
+used by application or component CSS. A few roles carry most of the visual language:
+
+- `--zx-color-bg-chrome` for navigation and inspector columns beside the `--zx-color-bg-surface`
+  canvas, and `--zx-color-border-subtle` for dividers inside them — tone separates, lines only
+  where tone cannot.
+- `--zx-color-bg-current` (neutral) for where you are, `--zx-color-bg-selected` (accent tint) for
+  what you picked.
+- `--zx-color-text-muted` for secondary text and `--zx-color-text-subtle` for icons and meta.
+- `--zx-color-tone-<hue>-bg` / `-fg` (blue, teal, green, amber, orange, red, pink, violet, slate)
+  for categorical colour — tags, avatars, icon tiles — and `--zx-color-chart-1` … `-8` for chart
+  series. Neither is the accent or a status colour; `success` is a yellow-green of its own.
+
+Add `data-zx-fields="quiet"` to a property panel and its native fields show no border or fill until
+hovered or focused.
 
 ## Browser support
 
@@ -311,9 +342,10 @@ npm install
 npm run serve
 ```
 
-Open <http://127.0.0.1:8321/website/docs.html> for the documentation — getting started, every
-component with a live demo and its JavaScript source, and the application layouts. Also available: <http://127.0.0.1:8321/tests/smoke/smoke.html> for source-module smoke
-tests, or build first and open <http://127.0.0.1:8321/tests/smoke/smoke-dist.html> for
+Open <http://127.0.0.1:8321/website/docs.html> for the documentation — getting started, and every
+component with a live demo and its JavaScript source — and
+<http://127.0.0.1:8321/website/layouts.html> for the gallery of application layouts. Also
+available: <http://127.0.0.1:8321/tests/smoke/smoke.html> for source-module smoke tests, or build first and open <http://127.0.0.1:8321/tests/smoke/smoke-dist.html> for
 classic-script distribution tests.
 
 ```sh

@@ -25,6 +25,7 @@ import { skeleton } from '../skeleton/skeleton.js';
  * @typedef {Object} StatTileNameParts
  * @property {string} [label] The metric's name.
  * @property {string} [value] The formatted value.
+ * @property {string} [caption] The context line under the value, e.g. `'of 13,184'`.
  * @property {string} [delta] The change, already worded for speech (`'up 2'`, not `'+2'`).
  * @property {string} [deltaLabel] What the change is measured against.
  */
@@ -36,6 +37,8 @@ import { skeleton } from '../skeleton/skeleton.js';
  * @property {StatTileFormat} [format='number'] How a numeric value is rendered: a named mode, a
  *   callback receiving the raw value, or null to print the value unformatted.
  * @property {string|null} [currency=null] ISO 4217 code used by `format: 'currency'`.
+ * @property {string} [caption=''] A muted context line under the value — what the number is out
+ *   of or measured in, e.g. `'of 13,184'` or `'open tickets'`. Part of the accessible name.
  * @property {string} [locale] BCP 47 tag for every formatter; defaults to the active language.
  * @property {number|string|null} [delta=null] Change against the previous period. Rendered with
  *   its own sign and an arrow, never with colour alone.
@@ -46,9 +49,10 @@ import { skeleton } from '../skeleton/skeleton.js';
  * @property {string} [deltaLabel=''] What the change is measured against, e.g. `'vs. last week'`.
  * @property {number[]} [trend=[]] Values for a decorative sparkline. Fewer than two usable numbers
  *   render nothing.
- * @property {string|null} [icon=null] Icon name from `icons.js`, shown beside the label.
- * @property {StatTileKind} [kind='neutral'] Semantic intent. It tints the icon and the sparkline
- *   and never the value, which stays at full text contrast whatever intent a record carries.
+ * @property {string|null} [icon=null] Icon name from `icons.js`, shown muted beside the label —
+ *   a glyph, not a coloured chip.
+ * @property {StatTileKind} [kind='neutral'] Semantic intent. It tints the sparkline and never the
+ *   value, which stays at full text contrast whatever intent a record carries.
  * @property {string|null} [href=null] Destination. A tile with an href is an `<a>`.
  * @property {boolean} [clickable=false] Renders a `<button>` without an href. Passing `onclick`
  *   sets this implicitly; set it directly to subscribe with `on('click', …)` instead.
@@ -93,6 +97,7 @@ const defaults = Object.freeze({
   value: null,
   format: 'number',
   currency: null,
+  caption: '',
   delta: null,
   deltaKind: 'neutral',
   deltaLabel: '',
@@ -306,17 +311,19 @@ export function statTileTag(options = {}) {
 }
 
 /**
- * Composes the tile's accessible name: label, then value, then how it changed.
+ * Composes the tile's accessible name: label, then value with its caption, then how it changed.
  *
  * The sparkline is decoration and contributes nothing, and the delta arrives already worded —
- * `'up 2'` rather than `'+2'` — because a screen reader should not have to interpret a glyph.
+ * `'up 2'` rather than `'+2'` — because a screen reader should not have to interpret a glyph. The
+ * caption is read with the value it qualifies (`'2,184 of 13,184'`), not as a separate clause.
  *
  * @param {StatTileNameParts} [parts={}] The pieces, already formatted and translated.
  * @returns {string} The name, with empty pieces dropped rather than left as stray punctuation.
  */
 export function statTileName(parts = {}) {
+  const value = [parts.value, parts.caption].map(trimmed).filter(Boolean).join(' ');
   const change = [parts.delta, parts.deltaLabel].map(trimmed).filter(Boolean).join(' ');
-  return [trimmed(parts.label), trimmed(parts.value), change].filter(Boolean).join(', ');
+  return [trimmed(parts.label), value, change].filter(Boolean).join(', ');
 }
 
 /**
@@ -391,10 +398,12 @@ function fillStatTile(root, options, message) {
     currency: options.currency
   });
   const deltaLabel = asText(options.deltaLabel);
+  const caption = asText(options.caption).trim();
 
   applyName(root, statTileName({
     label,
     value,
+    caption,
     delta: delta === null ? '' : spokenDelta(delta, message),
     deltaLabel
   }));
@@ -407,6 +416,7 @@ function fillStatTile(root, options, message) {
   // `Element`, not `HTMLElement`: the sparkline is an SVG element and belongs in the same list.
   /** @type {Element[]} */
   const children = [header, h('div', { class: 'zx-stat-tile__value' }, value)];
+  if (caption) children.push(h('div', { class: 'zx-stat-tile__caption' }, caption));
   if (delta !== null) children.push(deltaBody(delta, deltaLabel, options.deltaKind));
   const trend = trendBody(options.trend);
   if (trend) children.push(trend);
@@ -481,6 +491,7 @@ function loadingBody(options) {
     h('div', { class: 'zx-stat-tile__header' }, skeleton({ width: '55%', height: '0.75rem' })),
     skeleton({ width: '70%', height: '1.75rem', radius: 'md' })
   ];
+  if (asText(options.caption).trim()) blocks.push(skeleton({ width: '35%', height: '0.75rem' }));
   if (options.delta !== null && options.delta !== undefined) {
     blocks.push(skeleton({ width: '40%', height: '0.75rem' }));
   }

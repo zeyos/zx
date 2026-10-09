@@ -1,4 +1,11 @@
-/* Documentation application chrome (website/docs.html + docs.js). */
+/*
+ * Documentation application chrome (website/docs.html + docs.js).
+ *
+ * The documentation is laid out like the applications it documents: the navigation column sits on
+ * the chrome tone, the reading canvas on the surface, and tone rather than lines separates them.
+ * Current is neutral (the current fill, the text colour, a heavier label), labels are sentence
+ * case and quieter than what they label, and dividers use the subtle border.
+ */
 
 #docs-app {
   flex: 1 0 auto;
@@ -28,16 +35,18 @@
 .docs-global-search .zx-search__input {
   flex: 1 1 auto;
   min-inline-size: 0;
-  background: var(--zx-color-glass-control);
 }
 
+/* The results are a menu: the library's compact overlay material, rows inset from its edge with
+   the smallest radius, and a neutral highlight that follows the keyboard and the pointer. */
 .docs-global-search__popover {
   position: absolute;
   z-index: 40;
-  inset-block-start: calc(100% + var(--zx-space-2));
+  inset-block-start: calc(100% + var(--zx-space-1));
   inset-inline: 0;
   max-block-size: min(70dvh, 32rem);
   overflow-y: auto;
+  padding: var(--zx-space-1);
   border: 1px solid var(--zx-color-overlay-border);
   border-radius: var(--zx-radius-lg);
   background-color: var(--zx-color-overlay-surface);
@@ -52,17 +61,23 @@
   display: none;
 }
 
+/* A caption above the rows, like a menu's section label. */
 .docs-global-search__status {
-  padding: var(--zx-space-2) var(--zx-space-3);
-  border-block-end: 1px solid var(--zx-color-overlay-divider);
+  padding: var(--zx-space-1) var(--zx-space-2);
   color: var(--zx-color-text-muted);
   font-size: var(--zx-text-xs);
+  font-weight: var(--zx-weight-medium);
+}
+
+.docs-global-search__status:empty {
+  display: none;
 }
 
 .docs-global-search__result {
   display: grid;
-  gap: 2px;
-  padding: var(--zx-space-3) var(--zx-space-4);
+  gap: 1px;
+  padding: var(--zx-space-2);
+  border-radius: var(--zx-radius-sm);
   color: var(--zx-color-text);
   text-decoration: none;
 }
@@ -71,8 +86,9 @@
   background: var(--zx-color-overlay-hover);
 }
 
+/* The active option is where the keyboard is, not something picked: the same neutral step. */
 .docs-global-search__result[data-active="true"] {
-  background: var(--zx-color-overlay-selected);
+  background: var(--zx-color-overlay-hover);
 }
 
 .docs-global-search__result:focus-visible {
@@ -81,7 +97,7 @@
 }
 
 .docs-global-search__label {
-  font-weight: 650;
+  font-weight: var(--zx-weight-medium);
 }
 
 .docs-global-search__meta,
@@ -94,18 +110,16 @@
   white-space: nowrap;
 }
 
-.docs-global-search mark {
-  background: transparent;
-  color: var(--zx-color-accent);
-  font-weight: inherit;
+.docs-global-search__description {
+  color: var(--zx-color-text-subtle);
 }
 
 .docs-shell {
-  --docs-header: 65px;
+  --docs-header: 57px;
   display: grid;
-  grid-template-columns: 268px minmax(0, 1fr) 232px;
+  grid-template-columns: 264px minmax(0, 1fr) 232px;
   min-block-size: calc(100dvh - var(--docs-header));
-  background: var(--zx-color-bg-page);
+  background: var(--zx-color-bg-surface);
 }
 
 /* ------------------------------------------------------------------ sidebar -- */
@@ -115,20 +129,21 @@
   inset-block-start: var(--docs-header);
   block-size: calc(100dvh - var(--docs-header));
   overflow-y: auto;
-  padding: var(--zx-space-6) var(--zx-space-5);
-  border-inline-end: 1px solid var(--zx-color-glass-border);
-  background: var(--zx-color-glass-chrome);
-  box-shadow: var(--zx-glass-chrome-shadow);
+  padding: var(--zx-space-4) var(--zx-space-3) var(--zx-space-7);
+  border-inline-end: 1px solid var(--zx-color-border-subtle);
+  background: var(--zx-color-bg-chrome);
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
 }
 
 .docs-filter {
   inline-size: 100%;
-  margin-block-end: var(--zx-space-5);
+  margin-block-end: var(--zx-space-4);
 }
 
 .docs-navigation__empty {
   margin: 0;
-  padding: var(--zx-space-2) var(--zx-space-3);
+  padding: var(--zx-space-2) var(--zx-space-2);
   color: var(--zx-color-text-muted);
   font-size: var(--zx-text-sm);
 }
@@ -140,40 +155,48 @@
   display: none;
 }
 
+/* Sections and groups are separated by space, never by rules. */
 .docs-navigation__section + .docs-navigation__section {
   margin-block-start: var(--zx-space-6);
-  padding-block-start: var(--zx-space-6);
-  border-block-start: 1px solid var(--zx-color-border);
 }
 
 .docs-navigation__section-title {
-  margin: 0 0 var(--zx-space-3);
-  font-size: var(--zx-text-md);
-  font-weight: 650;
-  letter-spacing: -0.01em;
+  margin: 0 0 var(--zx-space-1);
+  padding-inline: var(--zx-space-2);
+  color: var(--zx-color-text);
+  font-size: var(--zx-text-sm);
+  font-weight: var(--zx-weight-semibold);
+  line-height: 1.4;
 }
 
+/* A group label is a caption: sentence case, small, muted, quieter than the rows it heads. */
 .docs-navigation__group {
-  margin: var(--zx-space-5) 0 var(--zx-space-2);
+  margin: var(--zx-space-4) 0 var(--zx-space-1);
+  padding-inline: var(--zx-space-2);
   color: var(--zx-color-text-muted);
   font-size: var(--zx-text-xs);
-  font-weight: 600;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
+  font-weight: var(--zx-weight-medium);
+  line-height: 1.4;
 }
 
 .docs-navigation__list {
+  display: grid;
+  gap: 1px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .docs-navigation__item {
-  display: block;
-  padding: 5px var(--zx-space-3);
+  display: flex;
+  align-items: center;
+  min-block-size: calc(var(--zx-control-height) - 2px);
+  padding: var(--zx-space-1) var(--zx-space-2);
   border-radius: var(--zx-radius-md);
   color: var(--zx-color-text-muted);
   font-size: var(--zx-text-md);
+  font-weight: var(--zx-weight-medium);
+  line-height: 1.35;
   text-decoration: none;
 }
 
@@ -182,18 +205,35 @@
   color: var(--zx-color-text);
 }
 
+/* Where the reader is: the neutral current fill, the full text colour, a heavier label. */
 .docs-navigation__item[aria-current="page"] {
-  background: var(--zx-color-bg-selected);
-  color: var(--zx-color-accent);
-  font-weight: 600;
+  background: var(--zx-color-bg-current);
+  color: var(--zx-color-text);
+  font-weight: var(--zx-weight-semibold);
+}
+
+.docs-navigation__item:focus-visible {
+  outline: 0;
+  box-shadow: var(--zx-focus-ring);
+}
+
+@media (pointer: coarse) {
+  .docs-navigation__item {
+    min-block-size: 40px;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .docs-navigation__item {
+    transition: background-color var(--zx-dur-fast) var(--zx-ease), color var(--zx-dur-fast) var(--zx-ease);
+  }
 }
 
 /* --------------------------------------------------------------------- main -- */
 
 .docs-main {
   min-inline-size: 0;
-  padding: var(--zx-space-8) var(--zx-space-8) 96px;
-  background: transparent;
+  padding: var(--zx-space-7) var(--zx-space-8) 96px;
 }
 
 /* Code needs width — Zx examples routinely run past 80 columns — so the article is wider than the
@@ -208,25 +248,22 @@
 
 .docs-rail {
   min-inline-size: 0;
-  padding: var(--zx-space-8) var(--zx-space-5) var(--zx-space-8) 0;
+  padding: var(--zx-space-7) var(--zx-space-5) var(--zx-space-8) 0;
 }
 
 .docs-toc {
   position: sticky;
   inset-block-start: calc(var(--docs-header) + var(--zx-space-6));
-  max-block-size: calc(100dvh - var(--docs-header) - var(--zx-space-10));
+  max-block-size: calc(100dvh - var(--docs-header) - var(--zx-space-8));
   overflow-y: auto;
-  border-inline-start: 1px solid var(--zx-color-border);
-  padding-inline-start: var(--zx-space-4);
+  scrollbar-width: thin;
 }
 
 .docs-toc__title {
-  margin: 0 0 var(--zx-space-3);
-  color: var(--zx-color-text-muted);
-  font-size: var(--zx-text-xs);
-  font-weight: 600;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
+  margin: 0 0 var(--zx-space-2);
+  color: var(--zx-color-text);
+  font-size: var(--zx-text-sm);
+  font-weight: var(--zx-weight-semibold);
 }
 
 .docs-toc__list {
@@ -237,7 +274,8 @@
 
 .docs-toc__link {
   display: block;
-  padding: 4px 0;
+  padding: 3px 0;
+  border-radius: var(--zx-radius-sm);
   color: var(--zx-color-text-muted);
   font-size: var(--zx-text-sm);
   line-height: 1.45;
@@ -252,29 +290,30 @@
   color: var(--zx-color-text);
 }
 
+/* The section being read: the text colour and a heavier label — no bar, no accent. */
 .docs-toc__link--current {
-  color: var(--zx-color-accent);
-  font-weight: 600;
+  color: var(--zx-color-text);
+  font-weight: var(--zx-weight-semibold);
 }
 
 .docs-header {
   max-inline-size: 78ch;
-  margin-block-end: var(--zx-space-6);
+  margin-block-end: var(--zx-space-7);
 }
 
 .docs-title {
   margin: 0;
-  font-size: clamp(2rem, 4vw, 2.75rem);
-  font-weight: 750;
-  line-height: 1.08;
-  letter-spacing: -0.032em;
+  font-size: var(--zx-text-3xl);
+  font-weight: 650;
+  line-height: 1.15;
+  letter-spacing: var(--zx-tracking-title);
 }
 
 .docs-blurb {
-  margin: var(--zx-space-3) 0 0;
+  margin: var(--zx-space-2) 0 0;
   color: var(--zx-color-text-muted);
   font-size: var(--zx-text-lg);
-  line-height: 1.6;
+  line-height: 1.55;
 }
 
 .docs-blurb[hidden] {
@@ -295,10 +334,10 @@
 
 .docs-section__title {
   margin: 0 0 var(--zx-space-4);
-  font-size: clamp(1.35rem, 2.2vw, 1.65rem);
-  font-weight: 700;
-  line-height: 1.2;
-  letter-spacing: -0.022em;
+  font-size: 1.25rem;
+  font-weight: var(--zx-weight-semibold);
+  line-height: 1.3;
+  letter-spacing: var(--zx-tracking-title);
 }
 
 .docs-section__anchor {
@@ -311,10 +350,15 @@
 .docs-section__anchor::after {
   content: "#";
   margin-inline-start: var(--zx-space-2);
-  color: var(--zx-color-text-placeholder);
+  color: var(--zx-color-text-subtle);
   font-weight: 400;
   opacity: 0;
-  transition: opacity 120ms ease;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .docs-section__anchor::after {
+    transition: opacity var(--zx-dur-fast) var(--zx-ease);
+  }
 }
 
 .docs-section__anchor:hover::after,
@@ -324,6 +368,7 @@
 
 .docs-section__anchor:focus-visible {
   outline: 0;
+  box-shadow: none;
   text-decoration: underline;
   text-underline-offset: 3px;
 }
@@ -356,13 +401,12 @@
   max-inline-size: 78ch;
 }
 
+/* "Options", "Methods", "Events": a sub-heading in sentence case, not a letter-spaced label. */
 .docs-api__group {
   margin: var(--zx-space-6) 0 var(--zx-space-2);
-  color: var(--zx-color-text-muted);
-  font-size: var(--zx-text-xs);
-  font-weight: 600;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
+  color: var(--zx-color-text);
+  font-size: var(--zx-text-md);
+  font-weight: var(--zx-weight-semibold);
 }
 
 .docs-api > .docs-api__group:first-child {
@@ -392,15 +436,15 @@
   table-layout: fixed;
 }
 
+/* The header is the refined Table's: no band, the muted colour at a medium weight, the ordinary
+   border under it and the subtle one between rows. */
 .docs-api__head {
   padding: 0 var(--zx-space-5) var(--zx-space-2) 0;
   border-block-end: 1px solid var(--zx-color-border);
   color: var(--zx-color-text-muted);
-  font-size: var(--zx-text-xs);
-  font-weight: 600;
-  letter-spacing: 0.06em;
+  font-size: var(--zx-text-sm);
+  font-weight: var(--zx-weight-medium);
   text-align: start;
-  text-transform: uppercase;
   white-space: nowrap;
 }
 
@@ -421,9 +465,16 @@
 .docs-api__type {
   inline-size: 1%;
   padding: var(--zx-space-2) var(--zx-space-5) var(--zx-space-2) 0;
-  border-block-end: 1px solid var(--zx-color-border);
+  border-block-end: 1px solid var(--zx-color-border-subtle);
   vertical-align: baseline;
   white-space: nowrap;
+}
+
+/* Names, types, and defaults are code already; a chip around every cell only adds noise. */
+.docs-prose .docs-api__term code,
+.docs-prose .docs-api__type code {
+  padding: 0;
+  background: none;
 }
 
 .docs-api__type code {
@@ -438,8 +489,8 @@
 .docs-api__term {
   inline-size: 1%;
   padding: var(--zx-space-2) var(--zx-space-5) var(--zx-space-2) 0;
-  border-block-end: 1px solid var(--zx-color-border);
-  font-weight: 400;
+  border-block-end: 1px solid var(--zx-color-border-subtle);
+  font-weight: var(--zx-weight-medium);
   text-align: start;
   vertical-align: baseline;
   white-space: nowrap;
@@ -447,7 +498,7 @@
 
 .docs-api__note {
   padding: var(--zx-space-2) 0;
-  border-block-end: 1px solid var(--zx-color-border);
+  border-block-end: 1px solid var(--zx-color-border-subtle);
   color: var(--zx-color-text-muted);
   font-size: var(--zx-text-sm);
   line-height: 1.6;
@@ -482,52 +533,38 @@
   margin-block-start: var(--zx-space-8);
 }
 
-.docs-example-group__title {
-  display: flex;
-  align-items: center;
-  gap: var(--zx-space-3);
-  margin: 0 0 var(--zx-space-5);
-  color: var(--zx-color-accent);
-  font-size: var(--zx-text-sm);
-  font-weight: 700;
-  line-height: 1.3;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-}
-
-.docs-example-group__title::after {
-  content: "";
-  flex: 1;
-  block-size: 1px;
-  background: currentColor;
+/* "Presets" and "Examples" are page sections like the others, so they share the section title. */
+.docs-example-group > .docs-section__title {
+  margin-block-end: var(--zx-space-5);
 }
 
 /* One example: the heading and blurb sit on the page, the running component and its source share
-   a framed card below them. Keeping the prose outside the frame lets the card read as a specimen
-   rather than as a box of mixed content. */
+   one hairline-framed card below them — the stage, the event log when there is one, and the code
+   bar, stacked and divided by the subtle border. Keeping the prose outside the frame lets the card
+   read as a specimen rather than as a box of mixed content. */
 .docs-example + .docs-example {
   margin-block-start: var(--zx-space-8);
 }
 
 .docs-example .docs-section__title {
-  margin-block-end: var(--zx-space-2);
-  font-size: clamp(1.05rem, 1.8vw, 1.2rem);
-  font-weight: 650;
-  line-height: 1.35;
-  letter-spacing: -0.012em;
+  margin-block-end: var(--zx-space-1);
+  font-size: var(--zx-text-lg);
+  font-weight: var(--zx-weight-semibold);
+  line-height: 1.4;
+  letter-spacing: var(--zx-tracking-tight);
 }
 
 .docs-example__blurb {
   margin: 0 0 var(--zx-space-4);
   max-inline-size: 78ch;
   color: var(--zx-color-text-muted);
-  line-height: 1.65;
+  line-height: 1.6;
 }
 
 .docs-example__stage {
   padding: var(--zx-space-6);
   border: 1px solid var(--zx-color-border);
-  border-radius: var(--zx-radius-xl);
+  border-radius: var(--zx-radius-lg);
   background: var(--zx-color-bg-surface);
 }
 
@@ -546,19 +583,25 @@
   align-content: start;
 }
 
-/* Layout shells and anything else that supplies its own frame fill the card edge to edge. */
+/* Specimen galleries and anything else that supplies its own frame fill the card edge to edge. */
 .docs-example__stage--full {
   padding: 0;
   overflow: hidden;
 }
 
+/* An example that names a width keeps the full card: the trailing padding narrows what the stage
+   holds to that width instead (the stage is border-box, so the width includes its own padding,
+   exactly as a max-inline-size on the stage would). */
+.docs-example__stage--sized {
+  padding-inline-end: max(var(--zx-space-6), 100% - var(--docs-stage-width) + var(--zx-space-6));
+}
+
 /* Events a demo reports, directly under the thing that reported them. */
 .docs-example__log {
   display: block;
-  min-block-size: 46px;
+  min-block-size: 40px;
   padding: var(--zx-space-3) var(--zx-space-6);
-  margin-block-start: var(--zx-space-2);
-  border: 1px dashed var(--zx-color-border);
+  border: 1px solid var(--zx-color-border);
   border-radius: var(--zx-radius-lg);
   background: var(--zx-color-bg-surface);
   color: var(--zx-color-text-muted);
@@ -566,6 +609,22 @@
   font-size: var(--zx-text-xs);
   line-height: 1.6;
   white-space: pre-wrap;
+}
+
+/* The parts of one card join: whatever follows the stage hangs from it, and the seam between two
+   parts is the subtle divider rather than a second frame. */
+.docs-example__stage:has(+ :is(.docs-example__log, .docs-disclosure)),
+.docs-example__log:has(+ .docs-disclosure) {
+  border-block-end-color: var(--zx-color-border-subtle);
+  border-end-start-radius: 0;
+  border-end-end-radius: 0;
+}
+
+:is(.docs-example__stage, .docs-example__log) + :is(.docs-example__log, .docs-disclosure) {
+  margin-block-start: 0;
+  border-block-start: 0;
+  border-start-start-radius: 0;
+  border-start-end-radius: 0;
 }
 
 /* ------------------------------------------------- demo layout utilities -- */
@@ -656,12 +715,15 @@
 /* --------------------------------------------------------------- disclosure -- */
 
 /* The source lives under its demo, folded away. Disclosing it grows the card downward, so the
-   component stays on screen and the code is never a view the reader has to come back from. */
+   component stays on screen and the code is never a view the reader has to come back from. The
+   bar is the card's quiet footer; the code below it sits on the chrome tone, like every code
+   block on the page. */
 .docs-disclosure {
-  border: 1px solid var(--zx-color-border);
-  border-radius: var(--zx-radius-xl);
-  background: var(--zx-color-bg-surface);
+  overflow: hidden;
   margin-block-start: var(--zx-space-2);
+  border: 1px solid var(--zx-color-border);
+  border-radius: var(--zx-radius-lg);
+  background: var(--zx-color-bg-surface);
 }
 
 .docs-disclosure__bar {
@@ -669,21 +731,22 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--zx-space-3);
-  padding: var(--zx-space-2) var(--zx-space-2) var(--zx-space-2) var(--zx-space-3);
+  min-block-size: calc(var(--zx-control-height) + var(--zx-space-2));
+  padding: var(--zx-space-1) var(--zx-space-2);
 }
 
 .docs-disclosure__toggle {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-block-size: 26px;
+  min-block-size: calc(var(--zx-control-height) - 4px);
   padding-inline: var(--zx-space-2);
-  border: 1px solid transparent;
+  border: 0;
   border-radius: var(--zx-radius-md);
   background: none;
   color: var(--zx-color-text-muted);
-  font-size: var(--zx-text-xs);
-  font-weight: 550;
+  font-size: var(--zx-text-sm);
+  font-weight: var(--zx-weight-medium);
   cursor: pointer;
 }
 
@@ -694,14 +757,19 @@
 
 .docs-disclosure__toggle:focus-visible {
   outline: 0;
-  border-color: var(--zx-color-ring);
   box-shadow: var(--zx-focus-ring);
 }
 
 .docs-disclosure__toggle .zx-icon {
   display: block;
   flex: none;
-  transition: transform 140ms ease;
+  color: var(--zx-color-text-subtle);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .docs-disclosure__toggle .zx-icon {
+    transition: transform var(--zx-dur-fast) var(--zx-ease);
+  }
 }
 
 .docs-disclosure--open .docs-disclosure__toggle .zx-icon {
@@ -718,7 +786,7 @@
   overflow: hidden;
   min-inline-size: 0;
   margin-inline-end: auto;
-  color: var(--zx-color-text-placeholder);
+  color: var(--zx-color-text-subtle);
   font-family: var(--zx-font-mono);
   font-size: var(--zx-text-xs);
   text-overflow: ellipsis;
@@ -730,31 +798,33 @@
 }
 
 .docs-disclosure__body {
-  border-block-start: 1px solid var(--zx-color-border);
+  border-block-start: 1px solid var(--zx-color-border-subtle);
+  background: var(--zx-color-bg-chrome);
 }
 
 .docs-disclosure__body[hidden] {
   display: none;
 }
 
+/* File tabs over the code, drawn like a line Tabbox: the selected file in the text colour over a
+   text-coloured rule, the others muted — no folder tabs, no band. */
 .docs-disclosure__tabs {
   display: flex;
   gap: var(--zx-space-1);
   overflow-x: auto;
-  padding: var(--zx-space-2) var(--zx-space-2) 0;
-  border-block-end: 1px solid var(--zx-color-border);
-  background: var(--zx-color-bg-muted);
+  padding: 0 var(--zx-space-3);
+  border-block-end: 1px solid var(--zx-color-border-subtle);
   scrollbar-width: thin;
 }
 
 .docs-disclosure__tab {
   flex: none;
-  min-block-size: 28px;
-  margin-block-end: -1px;
-  padding-inline: var(--zx-space-3);
-  border: 1px solid transparent;
-  border-radius: var(--zx-radius-md) var(--zx-radius-md) 0 0;
+  min-block-size: calc(var(--zx-control-height) + 2px);
+  padding-inline: var(--zx-space-2);
+  border: 0;
+  border-radius: 0;
   background: none;
+  box-shadow: inset 0 -2px 0 transparent;
   color: var(--zx-color-text-muted);
   font-family: var(--zx-font-mono);
   font-size: var(--zx-text-xs);
@@ -762,21 +832,19 @@
   cursor: pointer;
 }
 
-.docs-disclosure__tab:hover {
+.zx-scope .docs-disclosure__tab:hover {
+  background: none;
   color: var(--zx-color-text);
 }
 
 .docs-disclosure__tab[aria-selected="true"] {
-  border-color: var(--zx-color-border);
-  border-block-end-color: var(--zx-color-bg-surface);
-  background: var(--zx-color-bg-surface);
+  box-shadow: inset 0 -2px 0 var(--zx-color-text);
   color: var(--zx-color-text);
 }
 
 .docs-disclosure__tab:focus-visible {
   outline: 0;
-  border-color: var(--zx-color-ring);
-  box-shadow: var(--zx-focus-ring);
+  box-shadow: inset var(--zx-focus-ring);
 }
 
 .docs-disclosure__body [role="tabpanel"]:focus-visible {
@@ -784,20 +852,16 @@
   box-shadow: inset var(--zx-focus-ring);
 }
 
-/* A section-level disclosure (the whole module, at the foot of the page) has no demo above it, so
-   it carries its own top corners. */
-.docs-section > .docs-disclosure {
-  border-radius: var(--zx-radius-xl);
-}
-
 /* --------------------------------------------------------------------- code -- */
 
+/* Code sits on the chrome tone inside a hairline: a recessed well in either theme. The filename
+   and the copy button share its first row instead of a header band of their own. */
 .docs-code {
   margin: 0 0 var(--zx-space-5);
   overflow: hidden;
-  border: 1px solid var(--zx-color-border);
-  border-radius: var(--zx-radius-xl);
-  background: var(--zx-color-bg-surface);
+  border: 1px solid var(--zx-color-border-subtle);
+  border-radius: var(--zx-radius-lg);
+  background: var(--zx-color-bg-chrome);
 }
 
 .docs-code__head {
@@ -805,9 +869,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--zx-space-3);
-  padding: var(--zx-space-2) var(--zx-space-2) var(--zx-space-2) var(--zx-space-4);
-  border-block-end: 1px solid var(--zx-color-border);
-  background: var(--zx-color-bg-muted);
+  padding: var(--zx-space-1) var(--zx-space-1) 0 var(--zx-space-4);
 }
 
 .docs-code__name {
@@ -819,14 +881,26 @@
   white-space: nowrap;
 }
 
+/* Copy is a quiet action: no frame until it is pointed at. */
 .docs-code__copy {
   flex: none;
-  min-block-size: 26px;
-  padding-inline: var(--zx-space-3);
+  min-block-size: calc(var(--zx-control-height) - 4px);
+  padding-inline: var(--zx-space-2);
+  border: 0;
+  border-radius: var(--zx-radius-md);
+  background: none;
+  color: var(--zx-color-text-muted);
   font-size: var(--zx-text-xs);
+  font-weight: var(--zx-weight-medium);
+  cursor: pointer;
 }
 
-/* Inside a disclosure the card already supplies the frame and the copy button. */
+.zx-scope .docs-code__copy:hover {
+  background: var(--zx-color-bg-hover);
+  color: var(--zx-color-text);
+}
+
+/* Inside a disclosure the card already supplies the frame, the tone, and the copy button. */
 .docs-code--bare {
   margin: 0;
   border: 0;
@@ -839,36 +913,43 @@
 }
 
 .docs-code--compact .docs-code__body {
-  padding: var(--zx-space-3) var(--zx-space-4);
+  padding: var(--zx-space-2) var(--zx-space-4) var(--zx-space-3);
 }
 
 .docs-code__body {
   max-block-size: 72vh;
   margin: 0;
   overflow: auto;
-  padding: var(--zx-space-5);
+  padding: var(--zx-space-2) var(--zx-space-4) var(--zx-space-4);
   color: var(--zx-color-text);
   font-family: var(--zx-font-mono);
   font-size: var(--zx-text-sm);
   line-height: 1.7;
+  letter-spacing: 0;
   tab-size: 2;
 }
 
+.docs-code--bare .docs-code__body {
+  padding-block-start: var(--zx-space-4);
+}
+
+/* Syntax colour is categorical, so it comes from the tone palette — never the accent, and never
+   the status colours, which mean something else on the same page. */
 .tok-comment {
-  color: var(--zx-color-text-placeholder);
+  color: var(--zx-color-text-subtle);
   font-style: italic;
 }
 
 .tok-string {
-  color: var(--zx-color-success);
+  color: var(--zx-color-tone-green-fg);
 }
 
 .tok-number {
-  color: var(--zx-color-warning);
+  color: var(--zx-color-tone-orange-fg);
 }
 
 .tok-keyword {
-  color: var(--zx-color-info);
+  color: var(--zx-color-tone-violet-fg);
 }
 
 /* -------------------------------------------------------------------- prose -- */
@@ -880,9 +961,9 @@
 
 .docs-guide h2 {
   margin: var(--zx-space-8) 0 var(--zx-space-3);
-  font-size: var(--zx-text-xl);
-  font-weight: 650;
-  letter-spacing: -0.015em;
+  font-size: 1.25rem;
+  font-weight: var(--zx-weight-semibold);
+  letter-spacing: var(--zx-tracking-title);
 }
 
 .docs-guide > h2:first-child {
@@ -893,7 +974,8 @@
 .docs-prose h3 {
   margin: var(--zx-space-6) 0 var(--zx-space-3);
   font-size: var(--zx-text-lg);
-  font-weight: 600;
+  font-weight: var(--zx-weight-semibold);
+  letter-spacing: var(--zx-tracking-tight);
 }
 
 .docs-prose h4,
@@ -901,8 +983,7 @@
   margin: var(--zx-space-6) 0 var(--zx-space-2);
   color: var(--zx-color-text);
   font-size: var(--zx-text-md);
-  font-weight: 650;
-  letter-spacing: -0.005em;
+  font-weight: var(--zx-weight-semibold);
 }
 
 .docs-prose > h3:first-child,
@@ -910,17 +991,15 @@
   margin-block-start: 0;
 }
 
-/* The reference lists are label/value pairs — a bold lead-in naming Options, Methods, Events, or
-   the keyboard map, then the detail. Give them room to breathe and drop the bullet glyph. */
+/* The reference lists are label/value pairs — a lead-in naming Options, Methods, Events, or the
+   keyboard map, then the detail. Space separates them; the bullet glyph and edge rules go. */
 .docs-prose > ul {
   padding-inline-start: 0;
   list-style: none;
 }
 
 .docs-prose > ul > li {
-  margin-block-end: var(--zx-space-3);
-  padding-inline-start: var(--zx-space-4);
-  border-inline-start: 2px solid var(--zx-color-border);
+  margin-block-end: var(--zx-space-4);
 }
 
 .docs-prose > ul > li > strong:first-child {
@@ -928,8 +1007,7 @@
   margin-block-end: 2px;
   color: var(--zx-color-text);
   font-size: var(--zx-text-sm);
-  font-weight: 650;
-  letter-spacing: 0.01em;
+  font-weight: var(--zx-weight-semibold);
 }
 
 .docs-prose ul ul {
@@ -978,9 +1056,10 @@
 .docs-blurb code {
   padding: 0.1em 0.35em;
   border-radius: var(--zx-radius-sm);
-  background: var(--zx-color-bg-muted);
+  background: var(--zx-color-bg-hover);
   font-family: var(--zx-font-mono);
   font-size: 0.88em;
+  letter-spacing: 0;
 }
 
 .docs-guide .docs-code code {
@@ -989,6 +1068,7 @@
   font-size: inherit;
 }
 
+/* Guide tables are the refined Table: no header band, a medium muted header, subtle row rules. */
 .docs-guide table {
   inline-size: 100%;
   margin-block-end: var(--zx-space-5);
@@ -999,323 +1079,43 @@
 .docs-guide th,
 .docs-guide td {
   padding: var(--zx-space-2) var(--zx-space-3);
-  border-block-end: 1px solid var(--zx-color-border);
+  border-block-end: 1px solid var(--zx-color-border-subtle);
   text-align: start;
   vertical-align: top;
 }
 
+.docs-guide th:first-child,
+.docs-guide td:first-child {
+  padding-inline-start: 0;
+}
+
 .docs-guide th {
+  border-block-end-color: var(--zx-color-border);
   color: var(--zx-color-text-muted);
-  font-weight: 600;
+  font-weight: var(--zx-weight-medium);
+}
+
+.docs-guide tbody tr:last-child td {
+  border-block-end: 0;
 }
 
 .docs-guide td code {
   white-space: nowrap;
 }
 
+/* A note set apart by tone, not by a frame. */
 .docs-callout {
   margin: 0 0 var(--zx-space-5);
   padding: var(--zx-space-4) var(--zx-space-5);
-  border: 1px solid var(--zx-color-border);
   border-radius: var(--zx-radius-lg);
-  background: var(--zx-color-bg-surface);
-  box-shadow: inset 0 0 0 1px var(--zx-color-accent-subtle);
+  background: var(--zx-color-bg-chrome);
 }
 
 .docs-callout p:last-child {
   margin-block-end: 0;
 }
 
-/* ------------------------------------------------------- layout examples -- */
-
-/* Each Layouts entry renders a whole application shell inside a bounded, framed viewport so it
-   reads as a screen rather than as page content. */
-.layout-frame {
-  overflow: hidden;
-  block-size: min(760px, calc(100dvh - 210px));
-  border: 1px solid var(--zx-color-border);
-  border-radius: var(--zx-radius-xl);
-  background: var(--zx-color-bg-page);
-  box-shadow: var(--zx-shadow-1);
-}
-
-.layout-frame .zx-master-panel {
-  block-size: 100%;
-}
-
-.layout-split {
-  display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
-  gap: var(--zx-space-4);
-  align-items: start;
-}
-
-.layout-stack {
-  display: grid;
-  gap: var(--zx-space-4);
-  align-content: start;
-}
-
-/* A plain flex row, deliberately NOT the Toolbar component: these rows mix inputs, selects and
-   labels, where one tab stop and arrow-key navigation would be wrong. Toolbar is for rows of
-   buttons. */
-.layout-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--zx-space-3);
-}
-
-.layout-toolbar__spacer {
-  flex: 1 1 auto;
-}
-
-.layout-hint {
-  margin: 0;
-  color: var(--zx-color-text-muted);
-  font-size: var(--zx-text-sm);
-}
-
-.layout-empty {
-  display: grid;
-  place-items: center;
-  min-block-size: 220px;
-  padding: var(--zx-space-6);
-  color: var(--zx-color-text-muted);
-  text-align: center;
-}
-
-.stat-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-  gap: var(--zx-space-3);
-}
-
-.stat-card {
-  display: grid;
-  gap: var(--zx-space-1);
-  padding: var(--zx-space-4);
-  border: 1px solid var(--zx-color-glass-border);
-  border-radius: var(--zx-radius-lg);
-  background: var(--zx-color-glass-surface);
-  -webkit-backdrop-filter: var(--zx-glass-filter-raised);
-  backdrop-filter: var(--zx-glass-filter-raised);
-  box-shadow: var(--zx-glass-control-shadow);
-}
-
-.stat-card__label {
-  color: var(--zx-color-text-muted);
-  font-size: var(--zx-text-xs);
-  font-weight: 600;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-}
-
-.stat-card__value {
-  font-size: var(--zx-text-2xl);
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
-}
-
-.stat-card__delta {
-  font-size: var(--zx-text-sm);
-  color: var(--zx-color-text-muted);
-}
-
-.stat-card__delta[data-trend="up"] {
-  color: var(--zx-color-success);
-}
-
-.stat-card__delta[data-trend="down"] {
-  color: var(--zx-color-danger);
-}
-
-.activity-list {
-  display: grid;
-  gap: var(--zx-space-1);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.activity-list li {
-  display: grid;
-  grid-template-columns: 8px minmax(0, 1fr) auto;
-  align-items: baseline;
-  gap: var(--zx-space-3);
-  padding: var(--zx-space-3) 0;
-  border-block-end: 1px solid var(--zx-color-border);
-}
-
-.activity-list li:last-child {
-  border-block-end: 0;
-}
-
-.activity-dot {
-  inline-size: 8px;
-  block-size: 8px;
-  border-radius: var(--zx-radius-full);
-  background: var(--zx-color-accent);
-}
-
-.activity-time {
-  color: var(--zx-color-text-muted);
-  font-size: var(--zx-text-sm);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.wizard-rail {
-  display: grid;
-  gap: var(--zx-space-1);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.wizard-rail li {
-  display: grid;
-  grid-template-columns: 26px minmax(0, 1fr);
-  align-items: center;
-  gap: var(--zx-space-3);
-  padding: var(--zx-space-2) var(--zx-space-3);
-  border-radius: var(--zx-radius-md);
-  color: var(--zx-color-text-muted);
-}
-
-.wizard-rail li[data-state="active"] {
-  background: var(--zx-color-bg-selected);
-  color: var(--zx-color-text);
-  font-weight: 600;
-}
-
-.wizard-rail li[data-state="done"] {
-  color: var(--zx-color-text);
-}
-
-.wizard-rail__index {
-  display: grid;
-  place-items: center;
-  inline-size: 26px;
-  block-size: 26px;
-  border: 1px solid var(--zx-color-border-strong);
-  border-radius: var(--zx-radius-full);
-  font-size: var(--zx-text-xs);
-  font-variant-numeric: tabular-nums;
-}
-
-.wizard-rail li[data-state="done"] .wizard-rail__index,
-.wizard-rail li[data-state="active"] .wizard-rail__index {
-  border-color: var(--zx-color-accent);
-  background: var(--zx-color-accent);
-  color: var(--zx-color-on-accent);
-}
-
-/* Three-pane inbox. */
-.inbox {
-  display: grid;
-  grid-template-columns: 210px minmax(0, 1.1fr) minmax(0, 1.3fr);
-  gap: var(--zx-space-4);
-  align-items: start;
-}
-
-.inbox__folders,
-.inbox__list,
-.inbox__reader {
-  min-inline-size: 0;
-}
-
-.inbox__folders {
-  padding: var(--zx-space-2);
-  border: 1px solid var(--zx-color-border);
-  border-radius: var(--zx-radius-lg);
-  background: var(--zx-color-bg-page);
-}
-
-.inbox__list {
-  display: grid;
-  gap: var(--zx-space-3);
-}
-
-.inbox__reader {
-  border: 1px solid var(--zx-color-border);
-  border-radius: var(--zx-radius-lg);
-  background: var(--zx-color-bg-page);
-}
-
-.reader {
-  display: grid;
-  gap: var(--zx-space-4);
-  align-content: start;
-  padding: var(--zx-space-5);
-}
-
-.reader__head {
-  display: grid;
-  gap: var(--zx-space-1);
-}
-
-.reader__subject {
-  margin: 0;
-  font-size: var(--zx-text-lg);
-}
-
-.reader__body {
-  margin: 0;
-  line-height: 1.7;
-}
-
-/* Record page header. */
-.record-header {
-  display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
-  gap: var(--zx-space-5);
-  padding: var(--zx-space-5);
-  border: 1px solid var(--zx-color-glass-border);
-  border-radius: var(--zx-radius-xl);
-  background: var(--zx-color-glass-surface);
-  -webkit-backdrop-filter: var(--zx-glass-filter-raised);
-  backdrop-filter: var(--zx-glass-filter-raised);
-  box-shadow: var(--zx-glass-control-shadow);
-}
-
-.record-header__main {
-  display: grid;
-  gap: var(--zx-space-2);
-  align-content: start;
-}
-
-.record-header__title {
-  margin: 0;
-  font-size: var(--zx-text-xl);
-  letter-spacing: -0.015em;
-}
-
-.record-header__pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--zx-space-2);
-}
-
-.record-header__facts {
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-  gap: var(--zx-space-3) var(--zx-space-4);
-  margin: 0;
-  align-content: start;
-}
-
-.record-header__facts dt {
-  color: var(--zx-color-text-muted);
-  font-size: var(--zx-text-sm);
-}
-
-.record-header__facts dd {
-  margin: 0;
-  min-inline-size: 0;
-}
-
+/* A label/value summary, used by the Finder demo's preview pane. */
 .summary-list {
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr);
@@ -1332,19 +1132,6 @@
   margin: 0;
 }
 
-.settings-body {
-  display: grid;
-  gap: var(--zx-space-4);
-  max-inline-size: 720px;
-  padding: var(--zx-space-5);
-}
-
-@media (max-width: 1100px) {
-  .layout-split {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
 /* The documentation app replaces this placeholder once its modules have loaded. */
 .loading-copy {
   margin: 0;
@@ -1353,111 +1140,29 @@
   text-align: center;
 }
 
-/* ------------------------------------------------- ZeyOS invoices layout -- */
+/* -------------------------------------------------------- material fallbacks -- */
 
-.invoice-workspace {
-  display: grid;
-  gap: var(--zx-space-4);
-}
-
-.invoice-source {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--zx-space-3);
-  margin: 0;
-  color: var(--zx-color-text-muted);
-  font-size: var(--zx-text-sm);
-}
-
-.invoice-source strong {
-  color: var(--zx-color-text);
-}
-
-.invoice-table-wrap[aria-busy="true"] {
-  opacity: 0.65;
-}
-
-.data-layer-note {
-  display: grid;
-  gap: var(--zx-space-2);
-  padding: var(--zx-space-5);
-  border: 1px solid var(--zx-color-border);
-  border-radius: var(--zx-radius-xl);
-  background: var(--zx-color-bg-surface);
-}
-
-.data-layer-note h2 {
-  margin: 0 0 var(--zx-space-1);
-  font-size: var(--zx-text-lg);
-}
-
-.data-layer-note p {
-  margin: 0;
-  color: var(--zx-color-text-muted);
-}
-
-.data-layer-note code {
-  padding: 0.1em 0.35em;
-  border-radius: var(--zx-radius-sm);
-  background: var(--zx-color-bg-muted);
-  font-family: var(--zx-font-mono);
-  font-size: 0.9em;
-}
-
-/* ------------------------------------------------------------------ toolbar -- */
-
-.docs-toolbar {
-  position: fixed;
-  z-index: 10;
-  inset-inline-end: var(--zx-space-4);
-  inset-block-end: var(--zx-space-4);
-  display: flex;
-  gap: var(--zx-space-3);
-  padding: var(--zx-space-2);
-  border: 1px solid var(--zx-color-glass-border);
-  border-radius: var(--zx-radius-xl);
-  background: var(--zx-color-glass-chrome);
-  -webkit-backdrop-filter: var(--zx-glass-filter-chrome);
-  backdrop-filter: var(--zx-glass-filter-chrome);
-  box-shadow: var(--zx-glass-chrome-shadow);
-}
-
+/* The search results are glass, like every menu; readers who ask for less transparency or more
+   contrast get an opaque panel instead. */
 @media (prefers-reduced-transparency: reduce) {
-  .docs-global-search__popover,
-  .docs-sidebar,
-  .docs-toolbar,
-  .stat-card,
-  .record-header {
+  .docs-global-search__popover {
     border-color: var(--zx-color-border);
-    background: var(--zx-color-bg-surface);
+    background: var(--zx-color-bg-raised);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
-    box-shadow: var(--zx-shadow-1);
+    box-shadow: var(--zx-overlay-shadow);
   }
 }
 
 @media (prefers-contrast: more) {
-  .docs-global-search__popover,
-  .docs-sidebar,
-  .docs-toolbar,
-  .stat-card,
-  .record-header {
+  .docs-global-search__popover {
     border-color: var(--zx-color-border-strong);
-    background: var(--zx-color-bg-surface);
+    background: var(--zx-color-bg-raised);
   }
-}
 
-.docs-switcher {
-  display: flex;
-  align-items: center;
-  gap: var(--zx-space-2);
-}
-
-.docs-switcher__label {
-  color: var(--zx-color-text-muted);
-  font-size: var(--zx-text-sm);
+  .docs-sidebar {
+    border-inline-end-color: var(--zx-color-border-strong);
+  }
 }
 
 /* ----------------------------------------------------- design-token specimens -- */
@@ -1469,6 +1174,7 @@
 .token-section__title {
   margin: 0 0 var(--zx-space-4);
   font-size: var(--zx-text-xl);
+  font-weight: var(--zx-weight-semibold);
 }
 
 .token-grid {
@@ -1486,7 +1192,7 @@
 
 .token-card__swatch {
   block-size: 72px;
-  border-block-end: 1px solid var(--zx-color-border);
+  border-block-end: 1px solid var(--zx-color-border-subtle);
 }
 
 .token-card__meta {
@@ -1549,7 +1255,7 @@
    comfortable content column it goes away, and every section it linked to is still in the page. */
 @media (max-width: 1180px) {
   .docs-shell {
-    grid-template-columns: 268px minmax(0, 1fr);
+    grid-template-columns: 264px minmax(0, 1fr);
   }
 
   .docs-rail {
@@ -1568,20 +1274,18 @@
     position: static;
     max-block-size: 210px;
     block-size: auto;
-    padding: var(--zx-space-4);
+    padding: var(--zx-space-3) var(--zx-space-3) var(--zx-space-4);
     border-inline-end: 0;
-    border-block-end: 1px solid var(--zx-color-border);
-    overscroll-behavior: contain;
+    border-block-end: 1px solid var(--zx-color-border-subtle);
   }
 
   .docs-filter {
     inline-size: 100%;
-    margin-block-end: var(--zx-space-5);
+    margin-block-end: var(--zx-space-3);
   }
 
   .docs-navigation__section + .docs-navigation__section {
     margin-block-start: var(--zx-space-4);
-    padding-block-start: var(--zx-space-4);
   }
 
   .docs-main {
@@ -1600,22 +1304,20 @@
     max-inline-size: none;
   }
 
+  .docs-title {
+    font-size: var(--zx-text-2xl);
+  }
+
   .docs-example__stage {
     padding: var(--zx-space-4);
   }
 
-  .layout-frame {
-    block-size: 640px;
+  .docs-example__stage--sized {
+    padding-inline-end: max(var(--zx-space-4), 100% - var(--docs-stage-width) + var(--zx-space-4));
   }
 
-  .inbox,
-  .record-header {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .docs-toolbar {
-    inset-inline: var(--zx-space-3);
-    justify-content: center;
+  .docs-example__stage--full {
+    padding: 0;
   }
 }
 

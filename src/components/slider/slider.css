@@ -147,17 +147,31 @@
   font-variant-numeric: tabular-nums;
 }
 
+/*
+ * A mark sits under the thumb's centre at its value — half a thumb in from either end of the rail
+ * — and centres its label there, except that a label is never pushed past either end of the
+ * track: the outermost ones end flush with it instead of spilling out of the component.
+ * `--zx-slider-mark` is the value's position on the scale, from 0 to 1.
+ */
 .zx-slider__marks {
   position: relative;
+  inline-size: 100%;
   block-size: var(--zx-space-5);
   margin-block-start: var(--zx-space-1);
+  container-type: inline-size;
 }
 
 .zx-slider__mark {
+  --zx-slider-mark-at: calc(var(--zx-slider-thumb) / 2
+    + (100cqi - var(--zx-slider-thumb)) * var(--zx-slider-mark, 0));
   position: absolute;
   inset-block-start: 0;
-  inset-inline-start: var(--zx-slider-mark, 0%);
-  transform: translateX(-50%);
+  inset-inline-start: var(--zx-slider-mark-at);
+  transform: translateX(clamp(
+    -1 * var(--zx-slider-mark-at),
+    -50%,
+    100cqi - var(--zx-slider-mark-at) - 100%
+  ));
   color: var(--zx-color-text-muted);
   font-size: var(--zx-text-xs);
   white-space: nowrap;

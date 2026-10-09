@@ -2,7 +2,9 @@ import { Component } from '../../core/component.js';
 import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
 import { icon } from '../../core/icons.js';
 import { position } from '../../core/position.js';
-import { isCssColor, uid } from '../../core/util.js';
+import { uid } from '../../core/util.js';
+import { normalizeBadgeTone } from '../badge/badge.js';
+import { itemColor } from '../select/color.js';
 import { matchItems } from '../select/filter.js';
 
 /** @typedef {Record<string, any>|string|number} TagItem */
@@ -15,7 +17,12 @@ import { matchItems } from '../select/filter.js';
  * @property {TagValueReader} [valueKey='ID'] Item ID property or reader.
  * @property {TagLabelReader} [labelKey='name'] Item label property or reader.
  * @property {TagValueReader} [iconKey='icon'] Optional item icon property or reader.
- * @property {TagValueReader} [colorKey='color'] Optional item colour property or reader.
+ * @property {TagValueReader} [colorKey='color'] Optional item colour property or reader: a CSS colour
+ * or a token reference such as `var(--zx-color-tone-blue-fg)`.
+ * @property {TagValueReader} [toneKey='tone'] Optional item tone property or reader: a categorical
+ * tone name from the Badge palette (`blue`, `teal`, `green`, `amber`, `orange`, `red`, `pink`,
+ * `violet`, `slate`). A toned tag takes the palette's fill and ink, as a Badge with that `tone`
+ * does; a tone wins over a colour, and unknown names are ignored.
  * @property {Array<TagValueReader>|null} [searchKeys=null] Fields searched by local filtering.
  * @property {'local'|((query: string) => Promise<TagItem[]>|TagItem[])} [filter='local'] Filtering mode.
  * @property {number} [minQuery=0] Minimum async query length.
@@ -26,7 +33,8 @@ import { matchItems } from '../select/filter.js';
  * @property {string} [placeholder=''] Empty-state input text.
  * @property {number} [listHeight=260] Maximum list height in pixels.
  * @property {boolean} [disabled=false] Whether interaction is disabled.
- * @property {boolean} [readonly=false] Whether tags may be added or removed.
+ * @property {boolean} [readonly=false] When true the picker shows only its tags — no input, chevron, or
+ * remove buttons.
  * @property {((item: TagItem) => Node|string)|null} [renderItem=null] Option renderer.
  * @property {((item: TagItem) => Node|string)|null} [renderTag=null] Tag-label renderer.
  * @property {Record<string, string>|Record<string, Record<string, string>>} [msg] Localized messages.
@@ -69,6 +77,7 @@ export class TagPicker extends Component {
     labelKey: 'name',
     iconKey: 'icon',
     colorKey: 'color',
+    toneKey: 'tone',
     searchKeys: null,
     filter: 'local',
     minQuery: 0,
@@ -415,12 +424,13 @@ export class TagPicker extends Component {
   _renderTags() {
     const tags = this._selected.map((item) => {
       const label = this._labelOf(item);
-      const color = this._colorOf(item);
+      const tone = this._toneOf(item);
+      const color = tone ? null : this._colorOf(item);
       const content = this.options.renderTag ? this.options.renderTag(item)
         : [this._iconOf(item), h('span', { class: 'zx-tag-picker__tag-label' }, label)];
       const tag = h('span', {
         class: 'zx-tag-picker__tag',
-        dataset: { colored: String(Boolean(color)) },
+        dataset: { colored: String(Boolean(color)), tone: tone ?? undefined },
         style: color ? { '--zx-tag-color': color } : null
       }, content);
       if (!this._readonly && !this._disabled) {
@@ -790,17 +800,24 @@ export class TagPicker extends Component {
       ? /** @type {Node} */ (value).cloneNode(true)
       : typeof value === 'string' && value.trim() ? icon(value, { size: 12 }) : null;
     if (!visual) return null;
+    const tone = this._toneOf(item);
+    const color = tone ? null : this._colorOf(item);
     return h('span', {
       class: 'zx-tag-picker__visual',
-      style: this._colorOf(item) ? { '--zx-tag-color': this._colorOf(item) } : null,
+      dataset: { tone: tone ?? undefined },
+      style: color ? { '--zx-tag-color': color } : null,
       ariaHidden: 'true'
     }, visual);
   }
 
   /** @param {unknown} item @returns {string|null} */
   _colorOf(item) {
-    const value = this._readItem(item, this.options.colorKey);
-    return isCssColor(value) ? value : null;
+    return itemColor(this._readItem(item, this.options.colorKey));
+  }
+
+  /** @param {unknown} item @returns {string|null} */
+  _toneOf(item) {
+    return normalizeBadgeTone(this._readItem(item, this.options.toneKey));
   }
 
   /** @param {unknown} item @param {unknown} reader @returns {unknown} */

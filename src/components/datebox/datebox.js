@@ -14,7 +14,8 @@ import { DatePicker } from '../date-picker/date-picker.js';
  * @property {Date|null} [min=null] Earliest selectable date.
  * @property {Date|null} [max=null] Latest selectable date.
  * @property {string|null} [placeholder=null] Input placeholder; null derives one from the format.
- * @property {boolean} [clearable=true] Show a clear button when a value is present.
+ * @property {boolean} [clearable=true] Show a clear button while a value is present and the box is
+ *   enabled; without it the input keeps no room for one.
  * @property {boolean} [disabled=false] Disable all controls.
  * @property {(event: CustomEvent<{date: Date|null}>) => void} [onchange] Change listener.
  * @property {(event: CustomEvent<{text: string}>) => void} [oninvalid] Invalid-input listener.
@@ -53,6 +54,8 @@ export class Datebox extends Component {
     this.el = root;
     this._originalState = root.getAttribute('data-state');
     this._originalAriaDisabled = root.getAttribute('aria-disabled');
+    this._originalClearable = root.getAttribute('data-clearable');
+    root.toggleAttribute('data-clearable', Boolean(this.options.clearable));
     this._format = effectiveFormat(this.options.format, this.options.time);
     this._disabled = Boolean(this.options.disabled);
     this._open = false;
@@ -230,6 +233,8 @@ export class Datebox extends Component {
     else this.el.setAttribute('data-state', this._originalState);
     if (this._originalAriaDisabled === null) this.el.removeAttribute('aria-disabled');
     else this.el.setAttribute('aria-disabled', this._originalAriaDisabled);
+    if (this._originalClearable === null) this.el.removeAttribute('data-clearable');
+    else this.el.setAttribute('data-clearable', this._originalClearable);
     super.destroy();
   }
 
@@ -278,7 +283,12 @@ export class Datebox extends Component {
   /** @returns {void} */
   _syncDisplay() {
     this.refs.input.value = this._value ? formatDate(this._value, this._format) : '';
-    this.refs.clear.hidden = !this.options.clearable || !this._value;
+    this._syncClear();
+  }
+
+  /** A disabled box offers no clear button: there is nothing it could do. @returns {void} */
+  _syncClear() {
+    this.refs.clear.hidden = !this.options.clearable || !this._value || this._disabled;
   }
 
   /** @returns {void} */
@@ -287,6 +297,7 @@ export class Datebox extends Component {
     this.refs.toggle.disabled = this._disabled;
     this.refs.clear.disabled = this._disabled;
     this.el.setAttribute('aria-disabled', String(this._disabled));
+    this._syncClear();
   }
 
   /** @returns {void} */

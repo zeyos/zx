@@ -48,13 +48,19 @@
   text-decoration: none;
 }
 
+/* Hover, an open flyout, and a branch over the active route are one light step; the current page
+   is the neutral current fill. Neither is the accent: where you are is not something you picked. */
 .zx-app-rail__item:hover,
 .zx-app-rail__item:focus-visible,
 .zx-app-rail__item[aria-expanded="true"],
-.zx-app-rail__item[data-active-descendant="true"],
-.zx-app-rail__item[aria-current="page"] {
+.zx-app-rail__item[data-active-descendant="true"] {
   background: var(--zx-color-bg-hover);
-  color: var(--zx-color-accent);
+  color: var(--zx-color-text);
+}
+
+.zx-app-rail__item[aria-current="page"] {
+  background: var(--zx-color-bg-current);
+  color: var(--zx-color-text);
 }
 
 .zx-app-rail__item[aria-disabled="true"] {
@@ -86,44 +92,44 @@
  * A minimized sidebar is the same navigation as an expanded one, so the panel a rail item opens
  * has to read as a slice of the tree rather than as a menu that happens to hang off it: the same
  * icon gutter, the same item height, labels that wrap instead of truncating, and the same active
- * recipe — filled pill, docked marker, heavier label.
+ * recipe — the neutral current fill and a heavier label.
  *
  * The panel is portaled to the overlay host, so `.zx-app-sidebar` descendant selectors and the
  * `--zx-app-sidebar-*` scale declared on that root cannot reach it. The scale is re-declared here
- * against the same density-aware tier-2 tokens the sidebar derives it from, so the two surfaces
- * move together when a token moves rather than agreeing on a number frozen twice.
+ * against the same tier-2 control and spacing tokens the sidebar derives it from, so the two
+ * surfaces move together when a token moves rather than agreeing on a number frozen twice.
  */
 .zx-app-rail__popover {
   --zx-app-rail-gutter: var(--zx-space-2);
   --zx-app-rail-icon: var(--zx-space-6);
-  --zx-app-rail-item-gap: var(--zx-space-3);
-  --zx-app-rail-item-height: calc(var(--zx-control-height) + var(--zx-space-2));
-  --zx-app-rail-pad-x: var(--zx-space-3);
-  --zx-app-rail-row-gap: var(--zx-space-1);
-  --zx-app-rail-radius: var(--zx-radius-xl);
-  --zx-app-rail-marker: 3px;
-  --zx-app-rail-hover: color-mix(in srgb, var(--zx-color-text) 7%, transparent);
-  --zx-app-rail-press: color-mix(in srgb, var(--zx-color-text) 14%, transparent);
+  --zx-app-rail-item-gap: var(--zx-space-2);
+  --zx-app-rail-item-height: var(--zx-control-height);
+  --zx-app-rail-pad-x: var(--zx-space-2);
+  --zx-app-rail-row-gap: 2px;
+  --zx-app-rail-radius: var(--zx-radius-md);
+  --zx-app-rail-hover: var(--zx-color-bg-hover);
+  --zx-app-rail-current: var(--zx-color-bg-current);
+  --zx-app-rail-press: color-mix(in srgb, var(--zx-color-text) 12%, transparent);
   min-inline-size: 240px;
 }
 
 /* `styles/zx.css` imports this file before `dropdown.css`, so the two properties the flyout has
-   to take back from the generic overlay surface — the padding, which is the gutter the marker
-   docks into, and the width the panel may grow to, which is the tree's own 280px — have to
+   to take back from the generic overlay surface — the padding, which is the tree's own gutter,
+   and the width the panel may grow to, which is the tree's own 280px — have to
    out-specify it instead of merely following it. The viewport clamp the dropdown guarantees is
    carried over rather than dropped. */
 .zx-dropdown.zx-app-rail__popover {
   max-inline-size: min(280px, calc(100vw - (2 * var(--zx-space-3))));
-  padding: var(--zx-space-2) var(--zx-app-rail-gutter);
+  padding: var(--zx-space-1) var(--zx-app-rail-gutter);
 }
 
 /* The branch's own label, naming what the panel is a slice of. It aligns with the row padding
    rather than with the labels under it: a caption for the list, not a row in it. */
 .zx-app-rail__flyout-title {
-  padding: var(--zx-space-1) var(--zx-app-rail-pad-x) var(--zx-space-2);
+  padding: var(--zx-space-1) var(--zx-app-rail-pad-x);
   color: var(--zx-color-text-muted);
   font-size: var(--zx-text-xs);
-  font-weight: 700;
+  font-weight: var(--zx-weight-semibold);
   line-height: 1.3;
 }
 
@@ -152,7 +158,9 @@
   border: 0;
   border-radius: var(--zx-app-rail-radius);
   background: transparent;
-  padding-block: var(--zx-space-1);
+  /* The icon column fills the row exactly; a row without one keeps a space-1 margin round its
+     label. Either way a single-line row is one control tall, and a wrapped one grows. */
+  padding-block: min(var(--zx-space-1), (var(--zx-app-rail-item-height) - var(--zx-app-rail-icon)) / 2);
   padding-inline: var(--zx-app-rail-pad-x);
   color: var(--zx-color-text);
   font-size: var(--zx-text-md);
@@ -164,39 +172,6 @@
 
 @media (pointer: coarse) {
   .zx-app-rail__flyout-item { min-block-size: 40px; }
-}
-
-/* The marker, docked to the panel's own leading edge exactly as the tree's is docked to the
-   sidebar's: it sits in the panel's gutter, so every row lines up however deep the flyout chain
-   runs. On a right-hand rail the panel opens toward the workspace and the marker moves to the
-   edge facing the screen, which is the rule `.zx-app-sidebar[data-side="right"]` states. */
-.zx-app-rail__flyout-item::before {
-  content: "";
-  position: absolute;
-  inset-block: 50%;
-  inset-inline-start: calc(-1 * var(--zx-app-rail-gutter));
-  inline-size: var(--zx-app-rail-marker);
-  border-start-end-radius: var(--zx-radius-full);
-  border-end-end-radius: var(--zx-radius-full);
-  background: var(--zx-color-accent);
-  opacity: 0;
-}
-
-.zx-app-rail__popover[data-side="right"] .zx-app-rail__flyout-item::before {
-  inset-inline: auto calc(-1 * var(--zx-app-rail-gutter));
-  border-radius: 0;
-  border-start-start-radius: var(--zx-radius-full);
-  border-end-start-radius: var(--zx-radius-full);
-}
-
-.zx-app-rail__flyout-item[aria-current="page"]::before {
-  inset-block: 25%;
-  opacity: 1;
-}
-
-.zx-app-rail__flyout-item[data-active-descendant="true"][aria-expanded="false"]::before {
-  inset-block: 38%;
-  opacity: .55;
 }
 
 .zx-app-rail__flyout-item-icon {
@@ -247,34 +222,28 @@
 }
 
 .zx-app-rail__flyout-item[data-active-descendant="true"][aria-expanded="false"] {
-  color: var(--zx-color-accent);
-  font-weight: 600;
+  font-weight: var(--zx-weight-semibold);
 }
 
+.zx-app-rail__flyout-item[data-active-descendant="true"][aria-expanded="false"] .zx-app-rail__flyout-item-icon {
+  color: var(--zx-color-text);
+}
+
+/* The current page, as in the tree: the neutral current fill, the full text colour and a heavier
+   label, with the shared focus ring drawn on top when a keyboard user arrives on it. */
 .zx-app-rail__flyout-item[aria-current="page"] {
-  background: var(--zx-color-accent);
-  color: var(--zx-color-on-accent);
-  font-weight: 600;
-}
-
-.zx-app-rail__flyout-item[aria-current="page"]:hover {
-  background: color-mix(in srgb, var(--zx-color-text) 8%, var(--zx-color-accent));
+  background: var(--zx-app-rail-current);
+  color: var(--zx-color-text);
+  font-weight: var(--zx-weight-semibold);
 }
 
 .zx-app-rail__flyout-item[aria-current="page"]:active {
-  background: color-mix(in srgb, var(--zx-color-text) 16%, var(--zx-color-accent));
-}
-
-/* An accent glow around an accent fill is a ring nobody can see, so the pill draws an inner line
-   in its own text colour first — the same repair the tree makes. */
-.zx-app-rail__flyout-item[aria-current="page"]:focus-visible {
-  box-shadow: inset 0 0 0 2px var(--zx-color-on-accent), var(--zx-focus-ring);
+  background: var(--zx-app-rail-press);
 }
 
 .zx-app-rail__flyout-item[aria-current="page"] .zx-app-rail__flyout-item-icon,
-.zx-app-rail__flyout-item[aria-current="page"] .zx-app-rail__flyout-item-badge,
 .zx-app-rail__flyout-item[aria-current="page"] .zx-app-rail__flyout-item-disclosure {
-  color: inherit;
+  color: var(--zx-color-text);
 }
 
 /* Unavailable, and still readable: the icon carries the dimming so the label can keep the muted
@@ -296,23 +265,15 @@
       box-shadow var(--zx-dur-fast) var(--zx-ease);
   }
 
-  .zx-app-rail__flyout-item::before {
-    transition: opacity var(--zx-dur-base) var(--zx-ease),
-      inset-block var(--zx-dur-base) var(--zx-ease);
-  }
-
   .zx-app-rail__flyout-item:active { transform: scale(.985); }
 }
 
-/* Forced colours drop the fill and the marker together; the system's selected pair carries the
-   state there instead. */
+/* Forced colours drop the fill; the system's selected pair carries the state there instead. */
 @media (forced-colors: active) {
   .zx-app-rail__flyout-item[aria-current="page"] {
     background: Highlight;
     color: HighlightText;
   }
-
-  .zx-app-rail__flyout-item::before { background: Highlight; }
 }
 
 @media (prefers-reduced-transparency: reduce) {

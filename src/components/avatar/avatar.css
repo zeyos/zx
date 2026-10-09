@@ -1,5 +1,11 @@
+/*
+ * The fallback is the avatar most people see, so it carries an identity of its own: initials on a
+ * tint from the categorical tone palette, picked by a stable hash of the name and written as
+ * `data-tone` by the component. No ring — the tint is the edge. The three presets are steps of the
+ * spacing scale: 24 / 32 / 40px at the default unit.
+ */
 .zx-avatar {
-  --zx-avatar-size: var(--zx-control-height);
+  --zx-avatar-size: var(--zx-space-7);
   position: relative;
   display: inline-grid;
   flex: none;
@@ -11,11 +17,21 @@
   vertical-align: middle;
 }
 
-.zx-avatar[data-size="sm"] { --zx-avatar-size: calc(var(--zx-control-height) * .75); }
-.zx-avatar[data-size="lg"] { --zx-avatar-size: calc(var(--zx-control-height) * 1.25); }
+.zx-avatar[data-size="sm"] { --zx-avatar-size: var(--zx-space-6); }
+.zx-avatar[data-size="lg"] { --zx-avatar-size: var(--zx-space-8); }
 .zx-avatar[data-shape="circle"] { border-radius: 50%; }
 .zx-avatar[data-shape="rounded"] { border-radius: var(--zx-radius-md); }
 .zx-avatar[data-shape="square"] { border-radius: 0; }
+
+.zx-avatar[data-tone="blue"] { --zx-avatar-bg: var(--zx-color-tone-blue-bg); --zx-avatar-fg: var(--zx-color-tone-blue-fg); }
+.zx-avatar[data-tone="teal"] { --zx-avatar-bg: var(--zx-color-tone-teal-bg); --zx-avatar-fg: var(--zx-color-tone-teal-fg); }
+.zx-avatar[data-tone="green"] { --zx-avatar-bg: var(--zx-color-tone-green-bg); --zx-avatar-fg: var(--zx-color-tone-green-fg); }
+.zx-avatar[data-tone="amber"] { --zx-avatar-bg: var(--zx-color-tone-amber-bg); --zx-avatar-fg: var(--zx-color-tone-amber-fg); }
+.zx-avatar[data-tone="orange"] { --zx-avatar-bg: var(--zx-color-tone-orange-bg); --zx-avatar-fg: var(--zx-color-tone-orange-fg); }
+.zx-avatar[data-tone="red"] { --zx-avatar-bg: var(--zx-color-tone-red-bg); --zx-avatar-fg: var(--zx-color-tone-red-fg); }
+.zx-avatar[data-tone="pink"] { --zx-avatar-bg: var(--zx-color-tone-pink-bg); --zx-avatar-fg: var(--zx-color-tone-pink-fg); }
+.zx-avatar[data-tone="violet"] { --zx-avatar-bg: var(--zx-color-tone-violet-bg); --zx-avatar-fg: var(--zx-color-tone-violet-fg); }
+.zx-avatar[data-tone="slate"] { --zx-avatar-bg: var(--zx-color-tone-slate-bg); --zx-avatar-fg: var(--zx-color-tone-slate-fg); }
 
 .zx-avatar__image,
 .zx-avatar__fallback {
@@ -35,14 +51,18 @@
   display: none;
 }
 
+/* Initials at 0.4 of the size, never under 10px; one of them below 24px (the component decides). */
 .zx-avatar__fallback {
   display: grid;
   place-items: center;
-  border: 1px solid var(--zx-color-border);
-  background: var(--zx-color-bg-muted);
-  font-size: calc(var(--zx-avatar-size) * .34);
-  font-weight: 700;
+  overflow: hidden;
+  background: var(--zx-avatar-bg, var(--zx-color-bg-muted));
+  color: var(--zx-avatar-fg, var(--zx-color-text-muted));
+  font-size: max(10px, calc(var(--zx-avatar-size) * .4));
+  font-weight: var(--zx-weight-semibold);
+  letter-spacing: 0;
   line-height: 1;
+  white-space: nowrap;
 }
 
 .zx-avatar__status {
@@ -59,3 +79,8 @@
 .zx-avatar__status[data-status="online"] { background: var(--zx-color-success); }
 .zx-avatar__status[data-status="away"] { background: var(--zx-color-warning); }
 .zx-avatar__status[data-status="busy"] { background: var(--zx-color-danger); }
+
+/* Forced colours drop the tint; a system-coloured edge keeps the fallback a shape. */
+@media (forced-colors: active) {
+  .zx-avatar__fallback { border: 1px solid CanvasText; }
+}

@@ -8,6 +8,289 @@ and friends remain the complete record.
 
 ## Unreleased
 
+## 5.0.0 — 2026-10-09
+
+Xenon now has one geometry and a quieter finish. The cozy and compact view modes are gone; in their
+place is a single, slightly tighter default whose spacing, corners, and control height are tokens a
+product sets once. On top of it the visual language was refined against how well-made business
+applications look today: "where you are" is a neutral fill rather than a block of accent colour,
+status colours no longer borrow the brand green, chrome and canvas separate by tone instead of by
+lines, labels are sentence case at medium weights, and icons are outlines.
+
+The other half is what building twenty complete screens on the library asked of it. A layout
+gallery of application templates and screen patterns — mail, an issue tracker, a knowledge base, AI
+chat, an agent workspace, invoicing, inventory, workflows, infrastructure, CRM, and the screens
+inside them — every one usable from a phone to a wide screen and clean under an accessibility
+audit. Fixing what those screens found: some forty component defects, status colours that read as
+text, nested dark themes, and focus that never falls to the page. And what they needed: motion as
+a reader's setting, a command palette with pages, toasts that carry their action, busy buttons,
+type-to-confirm, and public status and priority glyphs.
+
+### Breaking
+
+- **Form field keys are no longer element ids.** Control ids are generated per Form and Fieldset
+  instance (`<idPrefix>-<key>`; `idPrefix` makes them predictable), so a form mounted twice repeats
+  no id and a key such as `stage` never collides with `#stage` elsewhere. The key stays the field's
+  `name`, the native control's `name`, and its `data-field-id`; radio groups are named after the
+  control id. Code that looked a control up by `#<key>` reads `form.getField(key).controlId` (or
+  queries `[data-field-id="<key>"]`) instead. An explicit `id` that differs from the key is used as
+  given, and the legacy compatibility layer keeps key ids.
+- **Density modes are removed.** `data-zx-density` (`cozy` | `compact`) no longer has any effect,
+  `styles/tokens/density.css` no longer ships, and no component carries density-specific rules.
+  Migration: drop the attribute. To tighten an application — or one region of it — set
+  `--zx-space-unit` and `--zx-control-height` instead, for example
+  `:root { --zx-space-unit: 3.5px; --zx-control-height: 28px; }`, which is close to what compact
+  used to do without shrinking the type.
+- **`FileItem`'s `density` option is now `identitySize`** (`'sm'|'md'|'lg'`, the size of the
+  file's icon and name), and `FileList` items take the same name. The word now means one thing
+  nowhere in the library.
+
+### Changed
+
+- Every toast pauses while it holds focus as well as hover, resumes when neither applies, and
+  returns focus to where it came from if it closes while focused.
+- Sheet slides on `--zx-ease-drawer`; KanbanView's drag preview and grabbed card take
+  `--zx-drag-shadow`. A solid primary button's pressed step is darker than its hover step.
+- Launcher `select` and `error` details carry `page`; closing the launcher returns it to its root.
+  The status and priority glyph styles are `.zx-status-icon` and `.zx-priority-icon` (Select's
+  glyphs keep their old classes as well).
+- **`Select.priority()` reads by height, not hue**: levels are four grey signal bars filled to the
+  level in muted ink, and only the highest is coloured — a danger square with "!". It offers "No
+  priority" (value null, message `priority.none`) at the head of the list; `clearable: false`
+  restores the old list, a required priority field leaves it out, and the legacy compatibility
+  select keeps its old list unless it allows empty values. Values and message keys are unchanged.
+- **Quiet NumberField** start-aligns its value with the quiet values around it; both steppers sit
+  at the trailing end, shown on hover or focus.
+- **Field `type: 'html'`** draws no input frame; display content keeps a control's height.
+- **Toggle labels** start-align and wrap like text, the track level with the first line; a field
+  beside a taller one keeps its label and control at the top of its cell.
+- **FileItem** shows a readable type ("PDF", "Image") instead of the MIME type and picks its icon
+  from the MIME type when the icon set has one.
+- **AppSidebar** creates its own root as a `<div>` (the `<nav>` inside is the landmark), so it no
+  longer adds an unnamed complementary landmark; `getItems()` leaves out empty `children`.
+- **Table** puts `data-column` on every header and body cell in every mode; **KanbanView**
+  assignee faces take Avatar's tint from the name (or a descriptor `tone`); the neutral soft
+  **Badge** is a wash of the text colour, visible on raised dark surfaces, and a small dotted
+  Badge has 12px text and a 4px gap.
+- **ZeyOS enums read as labels** ("Invoiced", "Partly paid") in generated tables and forms; a
+  schema `{value, label}` is used as given. **ZeyOS date-only fields are calendar days** — indexed
+  `date`, `duedate`, `birthdate`, `datefrom`/`dateto` outside appointments and events, `datecancel`,
+  and `lastbilling` show no time and are stored as midnight in the instance's zone (`timeZone`,
+  default the browser's); `lastmodified` and the appointment, event, comment, record, and
+  document-version timestamps are date-times.
+- **Spacing derives from one unit.** `--zx-space-1` … `--zx-space-8` are multiples of the new
+  `--zx-space-unit` (4px by default, so the steps are unchanged at 4–40px).
+- **Corners are smaller and proportional.** `--zx-radius` is now `4px`, and `-sm`, `-md`, `-lg`,
+  and `-xl` are ×0.5, ×0.75, ×1, and ×1.5 of it — 2 / 3 / 4 / 6px, down from 3 / 5 / 7 / 11px — so a
+  theme that scales the base keeps every step in proportion. `--zx-control-radius` still follows
+  `-lg`. Panels that used `-xl` (Launcher, Sheet, the AppSidebar and AppRail items) use `-lg` or
+  `-md`; ValueList chips and record-card metadata chips are no longer pills, and the SortControl
+  direction button is a control rather than a circle.
+- **Controls are 30px tall** (`--zx-control-height`, from 32px). `--zx-control-pad-x` stays 10px
+  and text sizes are unchanged.
+- **Structured menus are tighter.** AppSidebar rows are one control tall (from control + 8px) with
+  2px between rows, 12px between groups, and a 3px corner. A text-only child starts under its
+  parent's label; a child with its own icon steps in 16px, just clear of the guide line, instead
+  of a whole icon column. The rail flyouts follow. TreeView indents 12px per level (from
+  18px) with a 4px block padding per row. MenuButton, ContextMenu, Select, TagPicker, Launcher,
+  Finder, Checklist, and the Table column menu share one row: 4px × 8px padding, the smallest
+  radius, panels at `--zx-radius-lg`, and section labels no taller than an item.
+- **"Current" is neutral, and nothing is docked to an edge.** Where you are — the active
+  navigation item (AppSidebar, its rails and flyouts), the open TreeView node, the current Finder
+  column entry, the active tab in every Tabbox variant, the pressed ListToolbar view, the current
+  Calendar view, Launcher app and Pagination page — is a neutral `--zx-color-bg-current` fill with
+  the text colour at weight 600; the edge marker beside the active item is gone. What you have
+  *picked* (checked rows, chosen options, a multi-selection) keeps the accent tint. A rail item
+  whose flyout holds the active route takes the accent colour. Forced colours still use the
+  system's selected pair.
+- **One solid accent per screen.** Solid accent is for the primary button; tab underlines, pressed
+  toggles, and decorative icons no longer use it. In dark, the primary button sits on the accent
+  600 step with white text (`--zx-color-accent-solid` / `--zx-color-on-accent-solid`) instead of
+  the bright 400 step.
+- **Status green is its own colour.** `--zx-green-*` is a yellow-green status ramp that no longer
+  matches the default ZeyOS accent, so a "success" badge or chart segment never reads as branding.
+  The brand values moved to `--zx-emerald-*`, which the default accent points at.
+- **Dark theme is layered.** Page, chrome, surface, raised, and overlay steps sit off near-black
+  (#1b1b1e → #313136), primary text is about 90% white, and borders are translucent white.
+- **Quieter type.** Decorative upper-case and letter-spaced labels are gone from every component
+  (menu and Select groups, Launcher groups, StatTile labels, Calendar weekdays, Table headers, …);
+  row and label weights moved from 600 to 500, titles to 600–650, and UI text is set with
+  `--zx-tracking-tight` and Inter's `cv11`. Field labels and Fieldset legends are small, medium, and
+  muted, so values lead.
+- **Tables** drop the header band (muted medium labels on the surface), divide rows with
+  `--zx-color-border-subtle`, and set numbers in tabular figures.
+- **Avatars** fall back to a colour picked from the name (one of eight tones) with no ring, at
+  24 / 32 / 40px, and show one initial below 24px.
+- **StatTile** labels are sentence case, values 24px tabular, the icon is a muted glyph without a
+  coloured chip, and tiles in a row line up whether or not they carry a sparkline.
+- **EmptyState** draws its icon in `--zx-color-text-subtle` and its title semibold.
+- **Danger is legible as text.** Light `--zx-color-danger` moves to the 600 step and the dark
+  danger tint is lighter, so danger ink keeps 4.5:1 on every surface and on its own tint, as the
+  other status colours do (now tested for all four in both themes and every preset).
+- **The dark selected tint is lighter** (13% of the accent instead of 18%), so muted text on a
+  checked row or chosen option keeps 4.5:1 under every preset (now tested, light and dark).
+- **Toasts lose their coloured leading-edge bar**; the kind shows in the icon and a tinted border,
+  as everywhere else nothing is docked to an edge.
+- **Button key hints** are quieter by colour and weight instead of opacity, which left them below
+  4.5:1 on a solid primary button.
+- **Select.entity** shows an entity without a colour as a neutral tile with a muted glyph; before,
+  the glyph was white on the pale accent tint and could not be seen.
+- **Icons are Lucide outlines.** The bundled set renders as strokes in `currentColor` (ISC; a
+  1.75-unit stroke per 24 that never thins below 1px), with every existing name kept. Bundles keep
+  the licence notice. A chosen Rating star is drawn solid.
+- **The theme studio's Density section is now Spacing**: a slider for `--zx-space-unit` (3–6px).
+  The radius slider sets `--zx-radius` in pixels (0–10px), the standard recipes carry a spacing
+  unit instead of a density, Copy CSS exports the unit, and a theme saved by an earlier studio
+  still loads.
+
+### Added
+
+- **Motion as a setting.** `data-zx-motion="reduced"` on any element stops motion inside it: the
+  duration tokens become `0ms` and a base rule stops CSS animations and transitions, while state
+  changes still apply; the system preference zeroes the tokens too. `prefersReducedMotion(element)`,
+  `watchMotion(element, fn, { signal, immediate })`, and `MOTION_ATTRIBUTE` let script follow it;
+  Chart passes `reducedMotion` to its adapter and `ChartJsAdapter` turns animation off under it.
+- `--zx-ease-spring` (a small overshoot) and `--zx-ease-drawer` (a decisive ease-out) beside
+  `--zx-ease`, and `--zx-drag-shadow` for an item being dragged.
+- **Launcher pages.** An item with `items` (an array, or a loader `(query, { signal })`) opens a
+  nested page: a scope chip in the input, Backspace, ArrowLeft, or × to go back, "⌫ Back" in the
+  footer, `open({ page })`, `back()`, `getPage()`, and a `page` event. Items take a `hint` (muted
+  text at the end of the row), `shortcut` key caps, and `keys` for `aria-keyshortcuts`.
+- **Message `action`** (`{ label, onclick, kind }`, a small button that runs and closes the toast;
+  a toast with an action stays at least 8 seconds) and **`leading`** (a node such as an Avatar in
+  place of the kind icon).
+- **`Dialog.confirm({ confirmText })`** — type-to-confirm: a labelled input that has focus, and a
+  confirm button and Enter that work only on an exact match.
+- **Busy buttons.** `button({ busy })` and `setButtonBusy(button, busy)` show a spinner in place of
+  the icon, set `aria-busy`, and ignore activation while the action runs — but keep the button
+  focusable, so focus does not fall to the page as it does from a disabled button.
+- **`statusIcon(status)` and `priorityIcon(level)`**, the glyphs `Select.status()` and
+  `Select.priority()` draw, for lists, boards, and filters; decorative unless given a `label`.
+- `idPrefix` on Form and Fieldset; Field `name`, `field.name`, and `field.controlId`.
+- Checklist `hideLabel`; TagPicker `toneKey` (default `'tone'`), colouring a tag the way a Badge
+  `tone` does; ActivityList `variant: 'compact'` for cards narrower than 30rem; Table column
+  `ariaLabel` for a blank or terse header; FileItem `typeLabel`; `Dialog.prompt` `okLabel` and
+  `cancelLabel`.
+- `MenuButton.open({ returnFocus })` (also on `focusFirst()` and `focusLast()`) and
+  `Message.disposeRegion(scope)`.
+- ZeyOS: `zeyosTable` passes Table options through (`variant`, `zebra`, `stickyHeader`,
+  `responsive`, `growing`, `emptyText`, `rowClass`, `rowKind(s)`, the column chooser, and the Table
+  listeners; editing, row reordering, and hierarchy stay out because the binding never persists
+  them); `timeZone` and per-field `formats` on `zeyosTable`, `zeyosForm`, `zeyosView`, and
+  `resolveFields`; `unixSecondsToCalendarDay()` and `calendarDayToUnixSeconds()`; `zeyosForm`
+  `scope` and `notify`.
+- **Colour roles:** `--zx-color-bg-current`, `--zx-color-bg-chrome`, `--zx-color-border-subtle`,
+  `--zx-color-text-subtle`, the categorical tones `--zx-color-tone-{blue,teal,green,amber,orange,
+  red,pink,violet,slate}-{bg,fg}`, and the chart series `--zx-color-chart-1` … `-8`, whose first
+  series is deliberately not the accent. Contrast is tested in both themes and all six presets.
+- **Type tokens:** `--zx-text-3xl` (30px), `--zx-weight-medium`, `--zx-weight-semibold`,
+  `--zx-tracking-tight`, `--zx-tracking-title`.
+- **Quiet fields:** inside any `[data-zx-fields="quiet"]` container, native fields and Select,
+  TagPicker, Datebox, DateRangeBox, NumberField, and Timebox show their frame only on hover and
+  focus — property panels read as data, not as a wall of boxes.
+- `Table` / `TableView` `variant: 'plain'` (no frame, no header band) for tables inside cards;
+  `badge({ tone })` with the categorical tones (and `BADGE_TONES`); `Avatar` `tone`, `avatarTone()`
+  and `AVATAR_TONES`; `StatTile` `caption`, read with the value.
+- `registerIcons()` accepts outline glyphs as `[viewBox, path, 'stroke']`; `[viewBox, path]` pairs
+  still render filled.
+- `Tabbox` `label`, the tab list's accessible name.
+
+### Fixed
+
+- A destructive `Dialog.confirm` started focus on the destructive button; it starts on Cancel, the
+  least destructive choice (type-to-confirm starts in its input).
+- On a phone, toasts covered the header's controls; they rise from the foot of the screen there.
+- A ghost Button showed no focus ring: its `box-shadow: none` outranked `:focus-visible`.
+- Select's loading spinner never turned (it read an undefined duration token).
+- The Launcher's search row could push its close button off a narrow screen.
+- A `[data-zx-theme="dark"]` region on a light page inherited light glass, overlays, hover and
+  current fills, tone tints, and focus ring: colours derived from other theme colours were resolved
+  on `:root` only. They are restated on every theme element now; geometry overrides on `:root`
+  still reach nested regions.
+- Overlays (Dropdown, Tooltip, MenuButton, ContextMenu, Modal, Dialog, Sheet, Launcher) created before their
+  anchor or scope was in the document parked their panel on `<body>`, outside the theme scope; they
+  find their host on first open.
+- Choosing a MenuButton item dropped focus to `<body>`; it returns to the trigger. CodeEditor
+  trapped the keyboard; Escape then Tab leaves it, as documented.
+- Floating Message regions kept sending toasts into an emptied host and were never removed.
+- Table and Grid number and date editors select their content on entry (typing "6" over "1.00"
+  gives 6); sortable headers use the same font as the others; no scrollbar gutter is reserved on a
+  table that does not scroll; a blank header has an accessible name. TreeView type-ahead calls
+  `preventDefault` and leaves text controls in rows alone.
+- Table's selection checkboxes and row-reorder handles sit in the middle of their cell. They rode a
+  few pixels high on the text baseline, and the cell padding pushed them off the centre of their
+  control-height column, in a fixed layout past its edge.
+- NumberField, Datebox, and DateRangeBox fill a Field's control column; clear-button padding is
+  reserved only when `clearable`, and a disabled Datebox or DateRangeBox shows no clear button.
+  Slider end labels stay inside the component. A Checklist inside a Field no longer repeats its
+  heading.
+- `colorKey` on `Select.entity()` and TagPicker accepts token references (`var(--zx-…)`). Clicking a
+  read-only Select no longer draws the keyboard focus ring; a disabled Select fades like a disabled
+  Field; a read-only TagPicker shows only its tags.
+- `collapsible: false` still showed AppSidebar's minimise button. copyButton's status line and
+  CopyInput's hidden label were positioned outside their control.
+- A Field whose adapter returns a wrapper (a `custom` field holding a component) named the
+  wrapper, which cannot carry a name; its label, description, and validity now reach the first
+  unnamed form control inside it, or the adapter's new `labelTarget`.
+- Launcher ran an item's command before closing, so closing put focus back on an element the
+  command had just redrawn or moved focus away from; it closes first now.
+- A MenuButton's menu had no accessible name; it is labelled by its trigger, as the APG pattern
+  has it. NumberField no longer swallows Mod+Enter (and other chords), so a form or dialog's submit
+  shortcut works from a number field. Datebox and DateRangeBox were 2px taller than the text input
+  beside them; every control is one control height.
+- A Tooltip placed beside an anchor near the edge of the screen squeezed to a word per line
+  instead of moving: it now takes the other side, or goes above or below when neither side fits.
+- A Chart in a narrow card overflowed it (its 220px minimum height became a 587px minimum width
+  through the aspect ratio); it grows taller instead. A StatTile delta keeps its figure on one line
+  in a narrow tile.
+- `zeyosTable` showed a due date as a date-time whose hour moved with daylight saving, and
+  `zeyosForm` edited it as one; `zeyosForm.save()` raised its toast wherever focus was.
+- The AccountMenu trigger rendered as a centred, boxed card because `menu-button.css` loaded after
+  `account-menu.css`; it is a flat row again.
+- CodeEditor referenced `--zx-color-bg-subtle`, which never existed.
+- The Marque Gold preset's accent text now reaches 4.5:1 on the light chrome tone.
+- A sortable end-aligned Table column put its header label at the start, away from its figures;
+  the label now sits at the end with the sort arrow before it.
+- ActivityItem's heading read the actor and title as one word ("Jonas Weberset…") to assistive
+  technology; a space now separates them.
+- Table's Columns chooser, RecordView's Fields chooser, KanbanView's undo and redo, and Filter's
+  actions used a `zx-button` class no stylesheet defines, so they rendered as bare browser buttons;
+  they are small Zx buttons now (ghost in toolbars, primary for Apply).
+
+### Website
+
+- The application layouts moved from the documentation sidebar to a gallery of their own
+  (`layouts.html`), with a live thumbnail per layout, a near-full-screen view with its source, and a
+  standalone page (`layout.html#<id>`) for opening one in its own tab. Nine complete application
+  templates join the eight screen patterns, which are rebuilt on the same application shell.
+- The documentation, gallery, and theme studio share the library's look: navigation on the chrome
+  tone, neutral current entries, sentence-case labels, hairline example cards, and code and API
+  tables drawn like the refined Table.
+- New in the gallery: an **agent workspace** template — agents with live presence, editor tabs, a
+  plan and execution log with hand-offs, approvals as toasts that carry their action, a command
+  palette with pages, a bottom panel, and a status bar — and two screen patterns, **agent chat**
+  (tool calls, an approval that blocks the run, sources, and the run beside the thread) and
+  **system states** (every empty, loading, error, validation, and confirmation state, with a
+  switch to go offline). The AI chat template shows its work: tool steps, sources, artifacts with
+  versions, regenerate and branch, and `@agent` mentions.
+- Every layout works from a phone to a wide screen: below 1180px the inspector and below 860px
+  the navigation become drawers, and on a phone a layout shows its list or its record with a way
+  back. All seventeen pass an accessibility audit — named controls and landmarks, text contrast,
+  visible focus, heading order — in both themes, wide and narrow.
+- The theme studio has a Motion setting (System or Reduced), kept across the whole site as a
+  reader's preference, and a Button states card showing every kind in every state.
+- The site self-hosts Inter as a variable font (SIL OFL), so every weight renders as designed and no
+  font request leaves the site.
+- The theme studio offers more to build from. Eleven neutral tints — Neutral, Zinc, Stone, Cool,
+  Mist, Sage, Olive, Warm, Taupe, Mauve, and Accent — are picked from swatches of the ramp each
+  would produce, and a strength control scales any of them from grey to twice its colour; every
+  tint keeps the text roles legible at full strength. The typeface list grows from six system
+  stacks to eleven, drawn in their own type, plus a custom stack for a brand font, and the code
+  font (`--zx-font-mono`) is a choice of its own.
+- Themes can be saved and loaded as JSON. Export writes a `zx-theme` file — the settings, plus the
+  custom properties they produce — to copy or download; Import takes one pasted, dropped, or chosen,
+  loads it even when a value is out of range or unknown, and says what it adjusted.
+
 ## 4.4.0 — 2026-09-22
 
 A large release in two halves. The first adds capability: a dependency-free code editor, the

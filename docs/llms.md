@@ -2,7 +2,7 @@
 
 > Xenon is a dependency-free design system for browser applications; Zx is its product-agnostic
 > vanilla-JavaScript implementation. ES2022 modules, WAI-ARIA-accessible native controls, semantic `--zx-*` design
-> tokens (light/dark + cozy/compact), and lifecycle-safe components. Zero runtime dependencies.
+> tokens (light/dark, one token-driven geometry), and lifecycle-safe components. Zero runtime dependencies.
 > This file is the single, complete reference a coding agent needs to build UI with Zx; each
 > component below is wrapped in `<!-- doc:<name> -->` markers so tools can extract a single
 > component's section (`website/docs.html` renders them as each component's Reference tab).
@@ -49,13 +49,23 @@ const t = new Table(target, options);
 
 ## Theming
 
-Load `zx.css`, then set theme/density on any ancestor (usually `<html>`):
+Load `zx.css`, then set the theme on any ancestor (usually `<html>`):
 
 ```html
-<html data-zx-theme="dark" data-zx-density="compact">
+<html data-zx-theme="dark">
 ```
 
-Themes: `light` | `dark` | `auto` (follows OS). Density: `cozy` | `compact`.
+Themes: `light` | `dark` | `auto` (follows OS).
+
+**One geometry.** Spacing steps are multiples of one unit
+(`--zx-space-unit`, 4px: `--zx-space-1…8` = 4/8/12/16/20/24/32/40px), radius steps are fractions of
+one base (`--zx-radius`, 4px: `-sm/-md/-lg/-xl` = 2/3/4/6px; `-full` only for shapes whose roundness
+is the meaning — badges, avatars, toggles), and controls are `--zx-control-height` (30px) tall.
+To tighten or loosen an application, override those tokens on `:root` or on any region:
+
+```css
+:root { --zx-space-unit: 3.5px; --zx-control-height: 28px; }
+```
 
 **Accent presets.** A second, orthogonal attribute picks the accent ramp:
 `data-zx-preset="zx" | "zeyos" | "ocean" | "violet" | "rose" | "slate"` (`zx` is the default and
@@ -76,7 +86,7 @@ Keep the 600 stop at 4.5:1 or better against white and the 400 stop at 4.5:1 aga
 — that is what makes `--zx-color-on-accent` legible without being restated per theme.
 
 The theme studio treats those stable IDs as complete recipes: selecting a preset also changes its
-density, neutral tint, radius, control height, base text size, font stack, and material strength.
+spacing unit, neutral tint, radius, control height, base text size, font stack, and material strength.
 Its **Material** control is CSS-first (`Flat`, `Glass`, or `Deep glass`). Aurora is the independent
 ambient canvas layer; material controls how surfaces respond to that light. The shared recipe
 applies to AppIcons, ordinary controls, persistent chrome, raised cards, and every transient overlay: Dropdown, ContextMenu,
@@ -92,14 +102,24 @@ Top-layer components remain DOM children of their nearest Zx theme scope, so a t
 set on an application region continues to inherit through its menus, dialogs, tooltips, and toasts.
 
 Define a product theme by overriding **semantic** tokens under a `[data-zx-theme="name"]` selector:
-`--zx-color-bg-page/surface/raised/control/hover/selected`, `--zx-color-glass-chrome/surface`,
+`--zx-color-bg-page/surface/raised/control/muted/hover/selected`, `--zx-color-bg-current` (the
+neutral "you are here" fill of the current nav item, row, tab, or pressed toggle — never the
+accent), `--zx-color-bg-chrome` (navigation and inspector columns, one tone off the canvas),
+`--zx-color-glass-chrome/surface`,
 `--zx-color-overlay-surface/panel/backdrop/border/hover/selected/divider/scrim`,
-`--zx-overlay-surface-image/toast-image/panel-image`, `--zx-color-border(-strong/-control)`,
-`--zx-color-text(-muted/-placeholder)`, `--zx-color-accent(-hover)/on-accent`,
-`--zx-color-danger/warning/success/info(+ -bg)`, `--zx-focus-ring`, `--zx-control-height/-radius`,
-`--zx-space-*`, `--zx-radius-*`, `--zx-text-*`. Never use tier-1 palette tokens (`--zx-gray-*`,
-`--zx-green-*`) or raw color literals in application/component CSS. Prefer the least-specific
-override that works (global token → then, if needed, a component style).
+`--zx-overlay-surface-image/toast-image/panel-image`,
+`--zx-color-border(-subtle/-strong/-control)` (subtle for row and grid dividers),
+`--zx-color-text(-muted/-subtle/-placeholder)` (subtle for icons and non-essential meta),
+`--zx-color-accent(-hover/-subtle)/on-accent`, `--zx-color-accent-solid(-hover/-active)` with
+`--zx-color-on-accent-solid` (the one filled primary button per screen),
+`--zx-color-danger/warning/success/info(+ -bg)`, the categorical tone palette
+`--zx-color-tone-{blue,teal,green,amber,orange,red,pink,violet,slate}-bg/-fg` (tags, chips, icon
+tiles, avatars — neither the accent nor a status), the chart series `--zx-color-chart-1…8`,
+`--zx-focus-ring`, `--zx-control-height/-radius`, `--zx-space-*`, `--zx-radius-*`, `--zx-text-*`
+(`-3xl` for document titles), `--zx-weight-medium/-semibold`, `--zx-tracking-tight/-title`. Never
+use tier-1 palette tokens (`--zx-gray-*`, `--zx-green-*`, `--zx-emerald-*`, `--zx-tone-*`) or raw
+color literals in application/component CSS. Prefer the least-specific override that works (global
+token → then, if needed, a component style).
 
 **Print.** `zx.css` imports `styles/print.css` last. It releases sticky headers and scroll
 containers, drops fills, shadows, zebra striping and focus rings, hides overlays and navigation
@@ -107,6 +127,20 @@ chrome, repeats table headers across pages, keeps cards and rows from breaking, 
 URLs in prose but never inside a table cell or on a button. Status badges keep their colour,
 because there it carries meaning beside the word. An application that pins `data-zx-theme="dark"`
 still prints the dark token set; `auto` resolves to light under `@media print` and is unaffected.
+
+**Motion.** Motion is a setting, beside the theme: put `data-zx-motion="reduced"` on `<html>` (or
+on any region) to stop movement inside it. There, every `--zx-dur-*` token is `0ms` and a base rule
+collapses CSS animations and transitions to their end state — menus still open, toasts still leave,
+a spinner stops turning. The operating system's reduced-motion preference does the same for the
+whole page. There is no value that turns motion back on: someone who asked their system for less
+motion gets less, whatever an application or region says. Apply the attribute before first paint
+(the documentation site stores it with the theme). Code that animates in script asks
+`prefersReducedMotion(element?)` — true under the system preference or inside a reduced region,
+across shadow roots — and subscribes with `watchMotion(element, (reduced) => …, {signal, immediate})`,
+which returns a disposer; Chart already does. Name motion with the curves rather than inventing
+them: `--zx-ease` for state changes, `--zx-ease-spring` (a small overshoot) for things that pop in,
+`--zx-ease-drawer` (a decisive ease-out) for panels that slide, as Sheet does; and lift an item
+being dragged with `--zx-drag-shadow`, as KanbanView's drag preview and keyboard-grabbed card do.
 
 ## Talking to ZeyOS — use `@zeyos/client`
 
@@ -182,13 +216,20 @@ await records.saveView({ name: 'My open invoices', setDefault: true });
   operation receives a query built by `buildListQuery`.
 - `zeyosForm(client, resource, opts)` returns
   `{form, ready, load(id), save(), getForm(), destroy()}`. `fields` is an ordered allow-list;
-  `exclude`, `labels`, `title`, `columns`, `value|id`, and `onSaved` curate behavior. `load` maps
-  stored timestamps to `Date`; `save` validates and creates/updates, maps back to Unix seconds,
-  calls `onSaved`, and shows a success toast.
+  `exclude`, `labels`, `formats`, `timeZone`, `title`, `columns`, `value|id`, and `onSaved` curate
+  behavior. `load` maps stored timestamps to `Date`; `save` validates and creates/updates, maps back
+  to Unix seconds, calls `onSaved`, and shows a success toast. Its toasts (that confirmation and a
+  failed request's report) appear in the theme scope of `scope` — default: the form's own element,
+  so a form in a scoped dialog toasts inside that scope; `notify: false` raises none, leaving the
+  promise's result or rejection to the caller.
 - `zeyosTable(client, resource, opts)` returns
   `{table, load(), setSearch(), setFilters(), loadMore(), count, page, hasMore, destroy()}`. Columns
   come from schema metadata, sorting uses `sortMode:'server'`, and page zero replaces rows while
-  later pages append them using server `limit`/`offset` and `count`.
+  later pages append them using server `limit`/`offset` and `count`. Table presentation options and
+  listeners pass through — `variant`, `zebra`, `stickyHeader`, `responsive`, `growing`, `emptyText`,
+  `rowClass`, `rowKind(s)`, `columnVisibility`, `columnReorder`, `hiddenColumns`, `on<event>`;
+  `onrowclick` runs beside `onRowClick`. The binding owns `columns`, `data`, and `sortMode`, and
+  leaves out editing, `rowReorder`, and `hierarchy`, which change rows it never persists.
 - `buildZeyosViewConfig(client, resource, opts)` resolves one schema to shared `ViewField[]`, a
   complete projection, and view options. `zeyosView(client, resource, CardView|TableView|KanbanView,
   opts)` returns `{view, load(), setSearch(), setFilters(), loadMore(), count, page, hasMore,
@@ -206,7 +247,11 @@ await records.saveView({ name: 'My open invoices', setDefault: true });
   scope's `userId` is intentionally not sent to the endpoint; the server session remains authority.
 
 Field mapping is schema-driven: entity/FK → async `zxselect`; enum/list → `optionlist` or native
-`select`; indexed `date` bigint → `date`; other date/time bigints → `datetime`; money/price/numeric
+`select` with readable labels (a schema `{value, label}` as given, a stored constant in sentence
+case — `INVOICED` → "Invoiced", `PARTLYPAID` → "Partly paid"); date-only bigints (indexed `date`,
+`duedate`, `birthdate`, `datefrom`/`dateto` outside appointments and events, `datecancel`,
+`lastbilling`) → `date`; other date/time bigints and `lastmodified` → `datetime`;
+`formats: { field: 'date' }` overrides the guess; money/price/numeric
 → right-aligned `float`/number columns (amount columns use the row currency); boolean/checked →
 `toggle` and a check column; percent/progress → numeric percent; email/tel/url → typed text; arrays
 → `valuelist`; long text/JSON → `textarea`; short scalar text → `text`.
@@ -214,8 +259,13 @@ Field mapping is schema-driven: entity/FK → async `zxselect`; enum/list → `o
 ZeyOS queries always use `filters` (plural), not `filter`. Full-text input becomes `query`; sort is
 sent as signed server fields (`+field`/`-field`); projection supports aliases and dot joins; and
 search/filter/sort/pagination remain server-side. ZeyOS timestamps are integer Unix seconds, so
-forms convert them to/from `Date`. Use `dataFilterStateToFilters(state, defs)` before
-`tableBinding.setFilters(...)` when wiring a `DataFilter`.
+forms convert them to/from `Date`. A date-only field stores midnight of a calendar day in the
+instance's zone — a day, not an instant: tables show it with no time, and forms edit it as that day,
+so neither the viewer's zone nor daylight saving moves it. Pass the instance's IANA zone as
+`timeZone` (table, form, view; default: the runtime's own); `unixSecondsToCalendarDay(seconds, tz)`
+and `calendarDayToUnixSeconds(date, tz)` do the same conversion for application code. Use
+`dataFilterStateToFilters(state, defs)` before `tableBinding.setFilters(...)` when wiring a
+`DataFilter`.
 
 ### Module icons and colours
 
@@ -282,19 +332,36 @@ accept.
   `aria-keyshortcuts`. The host binds the action and owns editing/modality/permission guards;
   a hint never installs a global handler. Dialog and Sheet footer descriptors accept it too.
 - **`buttonGroup([button(…), …])`** → a container that joins the buttons into one control.
+- **Appearance** — `primary` is the screen's one solid accent and reads the
+  `--zx-color-accent-solid*` roles, so in dark it keeps the deep stop with white ink rather than a
+  bright slab. A `ghost` button's icon is drawn in `--zx-color-text-subtle` until hovered. A button
+  with `aria-pressed="true"` (a Toolbar item with `active`, a view toggle) is a mode, not a pick:
+  it takes the neutral `--zx-color-bg-current` fill and the text colour, never the accent.
 <!-- /doc -->
 
 <!-- doc:badge -->
 ### Badge — `badge(options)` / `badgeGroup(badges)`
 
 Factories (not classes) returning a status pill: a small, non-interactive `<span>` carrying a
-semantic colour, used for stages, counts, tags, and record-header metadata. A badge with no label
-but a `title` is named for assistive technology through `role="img"`; everything else is plain text
-and needs no ARIA.
+semantic colour — or, with `tone`, a categorical one — used for stages, counts, tags, and
+record-header metadata. A badge with no label but a `title` is named for assistive technology
+through `role="img"`; everything else is plain text and needs no ARIA.
 
 - **Options** — `label`, `icon` (an icon name, rendered before the label), `kind:
-  'neutral'|'accent'|'success'|'warning'|'danger'|'info'`, `variant: 'soft'|'solid'|'outline'`,
-  `size: 'md'|'sm'`, `dot` (a leading status dot instead of an icon), `title`.
+  'neutral'|'accent'|'success'|'warning'|'danger'|'info'`, `tone:
+  'blue'|'teal'|'green'|'amber'|'orange'|'red'|'pink'|'violet'|'slate'|null`, `variant:
+  'soft'|'solid'|'outline'`, `size: 'md'|'sm'`, `dot` (a leading status dot instead of an icon),
+  `title`.
+- **`kind` vs `tone`** — `kind` says how something is doing (status); `tone` says what it is (a
+  project, a label, a module) and draws from the `--zx-color-tone-*` palette, which is neither the
+  accent nor the status set, so a project tagged red never reads as an error. When `tone` is set it
+  decides the colour and `kind` is ignored for it; every `variant` still applies (soft: tinted,
+  borderless; solid: filled with the tone's ink; outline). The badge carries `data-tone`. Badges
+  are medium weight and sentence case.
+- **Neutral and small** — the neutral soft fill is a wash of the text colour, not an opaque surface
+  step, so it stays visible on raised surfaces in the dark theme. `size: 'sm'` fits table cells
+  and board cards; a small badge with `dot` keeps the 12px text and a full spacing step between
+  dot and label.
 - **Methods** — none. `badge(options)` → `HTMLSpanElement`, `badgeGroup([badge(…), …])` → a wrapping
   inline row with its own spacing; you own both elements.
 - **Events** — none; a badge is not interactive.
@@ -319,6 +386,8 @@ a `MenuButton`, where choosing one activates the original control.
   `onclick`, from the row and from the overflow menu alike.
 - **Keyboard** — Tab reaches the toolbar once; ArrowLeft/ArrowRight move between controls and wrap;
   Home/End jump to the first and last control.
+- **Pressed items** — an item with `active` renders `aria-pressed="true"` and takes the neutral
+  `--zx-color-bg-current` fill, never the accent.
 <!-- /doc -->
 
 <!-- doc:empty-state -->
@@ -413,7 +482,8 @@ shape is genuinely known. All three are factories returning elements.
 
 Two-state pressed button on a native `<button aria-pressed>`. The check indicator has a glyph in
 both states — an empty box when off, a check when on — so an unpressed or disabled button still
-reads as a two-state control.
+reads as a two-state control. Pressed, the button goes neutral (the `--zx-color-bg-current` fill,
+a stronger border, the text colour); only the check glyph, the mark, keeps the accent.
 
 - **Options** — `label: '' | [onLabel, offLabel]`, `checked: false`, `icon: true`,
   `disabled: false`.
@@ -428,6 +498,8 @@ reads as a two-state control.
 Switch (`role="switch"`, `aria-checked`).
 
 - **Options** — `checked: false`, `value: true`, `label: null`, `disabled: false`.
+- **Label** — start-aligned and wrapping like text within the available width, the track level
+  with its first line.
 - **Methods** — `get()`, `set(checked, {silent})`, `toggle()`, `getValue()` (returns
   `options.value` when on, `false` when off), `enable()`/`disable()`.
 - **Events** — `change {checked, value}`.
@@ -456,17 +528,34 @@ permissions, recent-history/cache policy, and the route or command ultimately in
   `new Launcher(existingDialog, options)` enhances and later restores an existing `<dialog>`.
 - **Options** — `items`, abortable `sources: [{id, label?, minQuery?, when?, order?, load(query, {signal})}]`,
   `query`, `debounce: 250`, `minQuery: 0`, `maxResults: 100`, `placeholder`, `label`, `emptyText`,
-  `loadingText`, `shortcut: 'mod+k'|false`, visible `hints` labels (or `false`), and `scope` to
-  explicitly select an element whose nearest Zx theme scope owns the launcher.
-- **Items** — `{id, label, description?, keywords?, group?, icon?, badge?, value?, href?, target?,
-  invoke?, pinned?, disabled?, kind?, current?, when?, groupOrder?, itemOrder?}`. `icon` accepts a
-  bundled icon name, Node, or factory. Links stay native so modified and middle clicks work;
+  `loadingText`, `shortcut: 'mod+k'|false`, visible `hints` labels `{move, open, back, close}` (or
+  `false`), and `scope` to explicitly select an element whose nearest Zx theme scope owns the launcher.
+- **Items** — `{id, label, description?, keywords?, group?, icon?, badge?, hint?, shortcut?, keys?,
+  value?, href?, target?, invoke?, pinned?, disabled?, kind?, current?, when?, groupOrder?,
+  itemOrder?, items?, placeholder?, order?}`. `icon` accepts a bundled icon name, Node, or
+  factory. Links stay native so modified and middle clicks work;
   non-link commands may provide an application-owned `invoke` callback. Malformed and executable
-  URL schemes are stripped; a descriptor with no safe link or callback is disabled.
-- **Methods** — `open()`, `close()`, `toggle()`, `isOpen()`, `focus()`, `setQuery()`, `getQuery()`,
-  `setItems()`, `setCurrent()`, `setSources()`, `destroy()`.
-- **Events** — cancelable `select {item, value, source, query}`, `query {query}`, `open`, `close`,
-  and `error {source, error}`. Preventing `select` suppresses the supplied link or callback.
+  URL schemes are stripped; a descriptor with no safe link or callback is disabled. `hint` is muted
+  text at the end of the row (a current value, a project); `shortcut: ['⌘', 'K']` (or Button's
+  `{label, keys}`) draws key caps for display only, and `keys: 'Meta+K'` adds `aria-keyshortcuts`.
+- **Pages** — an item with `items` opens a page instead of being selected: an array, or a loader
+  `(query, {signal}) => items | Promise<items>` that runs when the page opens and, debounced, as
+  its query changes (the loading and empty states show meanwhile; `order: 'source'` keeps the
+  loader's order instead of ranking it). Opening a page clears the query, shows a scope chip with
+  the item's label before the input — part of the combobox's name, `Search <label>` — and adds
+  "⌫ Back" to the footer; `placeholder` sets the page's placeholder. Page rows show a chevron.
+  Backspace on an empty query, ArrowLeft on an empty query, or the chip's × goes back one page,
+  restoring the query and highlighted row beneath; Escape closes from any page, and the next
+  opening starts on the root. Pages nest. `open({page})` opens straight into a page — a local page
+  id (at any depth of array pages, the path becoming the back stack) or a page item. A polite
+  status line announces each change ("Agents, 7 results").
+- **Methods** — `open({page}?)`, `close()`, `toggle()`, `isOpen()`, `focus()`, `setQuery()`,
+  `getQuery()`, `back()`, `getPage()`, `setItems()` (the root's items), `setCurrent()`,
+  `setSources()`, `destroy()`.
+- **Events** — cancelable `select {item, value, source, query, page}`, `query {query}`,
+  `page {page, path}` (after every page change; `page` is null on the root), `open`, `close`, and
+  `error {source, error, page}` (a failing page loader reports as source `page:<id>`). Preventing
+  `select` suppresses the supplied link or callback.
 - **Ranking** — local results are case/diacritic-insensitive and deterministic: exact label,
   label prefix, word prefix, label substring, identifier substring, then acronym prefix. Pinned
   items retain an explicit order ahead of otherwise equal results. A new async query aborts and
@@ -474,13 +563,18 @@ permissions, recent-history/cache policy, and the route or command ultimately in
 - **Keyboard** — Cmd+K on macOS or Ctrl+K elsewhere opens by default; the shortcut is ignored in
   editable controls, composition, and modal contexts. Application tiles use spatial arrow-key
   movement; Up/Down may continue into record groups. Home/End, Page Up/Down, and Enter operate the
-  single listbox selection model; Escape closes and restores focus. `aria-current` marks the
-  active destination independently from the keyboard's `aria-selected` option.
+  single listbox selection model; Escape closes and restores focus. Enter, or ArrowRight with the
+  caret at the end of the query, opens a page row; Backspace or ArrowLeft on an empty query goes
+  back. `aria-current` marks the active destination independently from the keyboard's
+  `aria-selected` option.
 - **Optional ZeyOS adapter** — import `zeyosLauncher()` or `buildZeyosLauncherConfig()` from
   `@zeyos/zx/zeyos`. The adapter receives the permitted module/menu catalogue, pins, current
   identifier, recent loader or cache, abortable search, destination resolvers, and application/
   record icon renderers explicitly. It maps the complete shell payload without reading globals or
   taking over application routing.
+- **Appearance** — group labels are sentence-case captions. The application you are in
+  (`aria-current="page"`) takes the neutral `--zx-color-bg-current` fill and a semibold label; the
+  highlighted row is the lighter hover step. Neither uses the accent.
 <!-- /doc -->
 
 <!-- doc:app-icon -->
@@ -519,13 +613,20 @@ options rather than application globals.
 <!-- doc:avatar -->
 ### Avatar
 
-A fixed-geometry user image with deterministic initials fallback. Image loading or failure never
-changes layout, and the component is decorative by default so adjacent identity text is not
-announced twice.
+A fixed-geometry user image with a deterministic fallback: initials on a tint from the categorical
+tone palette, picked by a stable hash of the name. Image loading or failure never changes layout,
+and the component is decorative by default so adjacent identity text is not announced twice.
 
-- **Options** — `src`, `name`, `initials`, `label`, `size: 'sm'|'md'|'lg'|<pixels>`,
-  `shape: 'circle'|'rounded'|'square'`, `status: 'online'|'away'|'busy'|'offline'|null`, and
-  `statusLabel`.
+- **Options** — `src`, `name`, `initials`, `label`, `size: 'sm'|'md'|'lg'|<pixels>` (24 / 32 /
+  40px at the default spacing unit), `shape: 'circle'|'rounded'|'square'`, `tone:
+  'blue'|'teal'|'green'|'amber'|'orange'|'red'|'pink'|'violet'|'slate'|null`, `status:
+  'online'|'away'|'busy'|'offline'|null`, and `statusLabel`.
+- **Fallback** — no ring; the `--zx-color-tone-*-bg` fill with its `-fg` ink, initials at 0.4× the
+  size (never under 10px), weight 600, one initial below 24px. `tone: null` derives the tone with
+  `avatarTone(name)` (exported from the module): FNV-1a over the trimmed, NFC-normalised,
+  lower-cased name, mapped onto the eight chromatic tones, so a person keeps their colour on every
+  screen. `slate`, the neutral, is reserved for an avatar with no name and can be set explicitly.
+  The root carries `data-tone`. `avatarInitials(name, limit = 2)` returns the initials.
 - **Methods** — `set(values)`, `setStatus(status, label?)`, `hasImage()`, `destroy()`.
 - **Accessibility** — set `label` only when the avatar stands alone. Presence is supplementary
   status, not the account's accessible name; supply `statusLabel` when it conveys information.
@@ -563,10 +664,11 @@ A durable or transient file row composed from `EntityRef`, MIME/byte-size metada
 status, and accessible progress. It never starts a transfer, decides authorization, resolves a
 preview, or persists a file.
 
-- **Options** — `id`, `name`, `size` (bytes), `mime`, `subtitle`, `icon: 'file'`, additional
+- **Options** — `id`, `name`, `size` (bytes), `mime`, `typeLabel: null`, `subtitle`,
+  `icon: 'file'`, additional
   `metadata`, safe native `link`, `actions`, status (`ready` | `temporary` | `waiting` |
   `uploading` | `processing` | `success` | `error`), `statusLabel`, `progress` (0–100), `indeterminate`,
-  `density: 'sm'|'md'|'lg'`, `wrap`, `actionsLabel`, and `locale`.
+  `identitySize: 'sm'|'md'|'lg'`, `wrap`, `actionsLabel`, and `locale`.
 - **Methods** — `set(values)`, `setStatus(status,label?)`,
   `setProgress(percent|null,{indeterminate?})`, `getFile()`, `focus()`, and `destroy()`.
 - **Events** — cancelable `activate {id,file,href,event}` and
@@ -574,6 +676,11 @@ preview, or persists a file.
   suppresses callbacks and navigation rather than merely observing them.
 - **Progress** — determinate work exposes min/max/now and percentage text. Indeterminate work
   omits `aria-valuenow`; status changes are announced separately.
+- **Type** — the MIME type is shown as a readable type ("PDF", "CSV", "Image", "Spreadsheet"),
+  falling back to the name's extension ("EXE") when it is unfamiliar and never to the raw string;
+  `typeLabel` overrides it and `''` hides it. The default `icon: 'file'` gives way to a glyph for
+  the MIME type (`file-pdf`, `file-image`, …) when the active icon set has one — Font Awesome, or
+  a glyph added with `registerIcons()`; any other `icon` is used as given.
 <!-- /doc -->
 
 <!-- doc:file-list -->
@@ -620,8 +727,12 @@ incremental host-controlled mutation. It deliberately preserves source order ins
 whether a feed is newest- or oldest-first.
 
 - **Options** — `items`, `groupBy` (property, resolver, or null), `groupLabel`,
-  `label: 'Activity'`, `loading`, `loadingCount: 3`, `loadingText`, `emptyText`,
-  `groupHeadingLevel`, and `itemHeadingLevel`.
+  `label: 'Activity'`, `variant: 'default'|'compact'`, `loading`, `loadingCount: 3`,
+  `loadingText`, `emptyText`, `groupHeadingLevel`, and `itemHeadingLevel`.
+- **Compact** — `variant: 'compact'` (reflected as `data-variant`) keeps every entry on one line at
+  any width, for a summary card narrower than 30rem: actor and title read as one sentence that
+  wraps as text, the time keeps the trailing end instead of stacking under the title, an avatar
+  descriptor without a `size` is small, and metadata follows as a muted second line.
 - **Methods** — `setItems(items,{silent?})`, `getItems()`, `getItem(id)`,
   `appendItems(items,{silent?})`, `prependItems(items,{silent?})`,
   `updateItem(id,values,{silent?})`, `removeItem(id,{silent?})`, `setLoading()`, and `destroy()`.
@@ -647,6 +758,9 @@ out, or mutates the session.
   action without rebuilding the account surface.
 - **Accessibility** — compact mode is visually avatar-only but keeps the full account-menu name on
   its single native trigger; MenuButton retains focus return, typeahead, and arrow-key behavior.
+- **Appearance** — the trigger is a flat row (avatar, name, secondary line, chevron) with the hover
+  fill, not a button: it takes back the border, glass fill, blur and shadow MenuButton's `.zx-btn`
+  would give it, whatever order the stylesheets load in.
 <!-- /doc -->
 
 <!-- doc:select -->
@@ -671,13 +785,33 @@ Unifies single-select, local filtering, and async loading.
   entries are narrowed locally against the same query and stay resolvable by `set()`. They survive
   `setItems()` and are shown below `minQuery`. Use them for choices with no row in the source —
   "Unassigned", "Everyone", "Private".
-- **Presets** — `Select.priority(target, opts)` renders the five-level, five-square ZeyOS priority
-  scale; `Select.status(target, opts)` supplies shape- and semantic-color-distinct workflow states
-  and accepts replacement `items`; `Select.permission(target, {groups, value})` pins Private and
+- **Presets** — `Select.priority(target, opts)` renders the five-level ZeyOS priority scale (values
+  0–4) as grey signal bars filled to the level; only the highest is coloured, a danger square with
+  "!". A "No priority" row (value null, message `priority.none`) heads the list and is the empty
+  control's placeholder; `clearable: false` removes it, as does a `required` `zxselect` field with
+  `preset: 'priority'`. `Select.status(target, opts)` supplies shape- and semantic-color-distinct workflow states
+  and accepts replacement `items` (each `{ID, name, indicator, tone, description?, shortcut?}`);
+  `Select.permission(target, {groups, value})` pins Private and
   Public above record-access groups. Its value is the tri-state ZeyOS stores (`false` private,
   `true` public, or a group ID), and `groups` takes an array or loader `(query)=>items`.
+- **Glyphs** — `statusIcon(status, {tone?, indicator?, label?})` and `priorityIcon(level, {label?})`
+  return the exact glyphs the two presets draw (`.zx-status-icon`, `.zx-priority-icon`; inside a
+  Select they also carry `.zx-select__status-indicator` / `.zx-select__priority-icon`), for list
+  rows, board columns, filter chips, and headings. Status ids: `backlog` (dotted ring), `todo`
+  (empty ring), `in-progress` (ring with a centre dot), `in-review` or `review` (half filled),
+  `ready` (a third filled), `waiting` (two thirds filled), `done` (filled, check), `canceled` or
+  `cancelled` (filled, cross), `duplicate` (ring with a slash); a `Select.status` item object is
+  accepted too, and an unknown id draws a muted empty ring. Indicators: `dotted`, `ring`,
+  `progress`, `review`, `ready`, `waiting`, `done`, `canceled`, `duplicate`; tones: `muted`,
+  `neutral`, `warning`, `info`, `accent`, `success`, `danger`. Priority levels: `null` (no
+  priority, dashes), `0` lowest … `3` high (signal bars filled to the level), `4` highest (danger
+  square with "!"). Both are decorative (`aria-hidden`) — always pair them with the status or
+  priority as text, or a tooltip on the control holding them; `label` instead makes a standalone
+  glyph `role="img"` with that name.
 - **Entity preset** — `Select.entity(target, options)` renders icon/color, label, and secondary
-  text using `iconKey`, `colorKey`, and `subtitleKey` (or `renderIcon`). `recent` pins a deduplicated
+  text using `iconKey`, `colorKey`, and `subtitleKey` (or `renderIcon`). `colorKey` takes a CSS
+  colour or a token reference (`var(--zx-color-tone-blue-fg)`); without one the glyph is a neutral
+  tile in muted ink. `recent` pins a deduplicated
   **Recent** section above ordinary/local/async results; `create: true|actionDescriptor` appends an
   application-owned command at the bottom without changing the selected ID. `recentLabel` and the
   ordinary Select options remain overridable. For schema-driven ZeyOS loading,
@@ -686,6 +820,13 @@ Unifies single-select, local filtering, and async loading.
 - **Keyboard** (APG combobox) — ArrowDown/Alt+ArrowDown open; arrows navigate and wrap; Home/End;
   Enter selects; Esc closes; Tab closes; printable characters filter (editable) or run a typeahead
   (readonly). `aria-activedescendant` tracks the active option.
+- **Appearance** — the highlighted option is a neutral step; a chosen option is a pick and keeps
+  the accent tint and its check mark. Group labels are sentence-case captions. The focus ring
+  follows keyboard focus: a click on a read-only input (no `filter`) does not draw it
+  (`data-focus-origin="pointer"` on the root until the next key). Disabled, the whole control fades
+  as a disabled Field does, and not a second time inside one.
+- **Quiet fields** — inside `[data-zx-fields="quiet"]` the value reads as text: no border, fill,
+  chevron or clear button until hover; full field chrome while focused or open.
 <!-- /doc -->
 
 <!-- doc:sort-control -->
@@ -713,7 +854,10 @@ from `Select`, with its themed popover and keyboard behavior.
 Searchable multi-check list with optional async loading.
 
 - **Options** — `items`, `valueKey: 'ID'`, `labelKey: 'name'`, `checkedKey: 'on'`, `search: true`,
-  `height: 280`, `defaultChecked: false`, `load: async ()=>items`.
+  `height: 280`, `defaultChecked: false`, `hideLabel: false` (leaves out the heading; the group
+  keeps its text as `aria-label`), `load: async ()=>items`.
+- **In a Field** — field type `checklist` draws no heading of its own: the field's label names the
+  group (`aria-labelledby`).
 - **Methods** — `setItems()`, `getValues()`, `setValues(ids)`, `checkAll()`/`uncheckAll()`,
   `search(query)`, `reload()`.
 - **Events** — `change {values}`, `loaded`.
@@ -739,6 +883,11 @@ Field type: `number`.
   set (otherwise they keep their caret meaning), Enter commits, wheel steps while focused.
 - **Also exported** — `parseNumber(raw)` (accepts `.` and `,` as the decimal separator, ignores
   grouping, returns null for junk) and `snapNumber(value, {min, max, step, precision})`.
+- **In a Field** — field type `number` fills the control column like a text input and takes the
+  field key as its `name`.
+- **Quiet fields** — inside `[data-zx-fields="quiet"]` the number reads as text: no border, no
+  fill, the value start-aligned with the quiet values around it, both steppers at the trailing end
+  and hidden (kept in the layout so nothing moves) until hover or focus; full chrome on focus.
 <!-- /doc -->
 
 <!-- doc:rating -->
@@ -770,7 +919,9 @@ from; everything Zx adds is chrome around it. Field type: `slider`.
   `showValue: true`, `showBounds: false` (draws `min` and `max` either side of the track),
   `showInput: false` (adds a number box for entering a value precisely instead of aiming at it),
   `unit: ''`, `marks: null` (numbers, or `{value, label}` objects), `disabled: false`,
-  `readonly: false`, `size: 'md'|'sm'`, `formatValue: (value) => string`.
+  `readonly: false`, `size: 'md'|'sm'`, `formatValue: (value) => string`. Each mark sits under
+  the thumb's centre at its value; the outermost labels end flush with the track instead of
+  spilling out of the component.
 - **Methods** — `get()`, `set(value, {silent})`, `setRange(min, max, step?)`, `setLabel()`,
   `setReadonly()`, `focus()`, `enable()`/`disable()`. `value` is also a getter/setter.
 - **Events** — `input {value}` continuously while dragging, `change {value}` once the value is
@@ -805,7 +956,8 @@ to a hidden textarea when the async Clipboard API is unavailable or denied.
   that did not happen.
 - **Accessibility** — on success the glyph becomes a tick and a visually hidden `role="status"`
   speaks the confirmation, then both revert. The icon-only form carries the `title` as its
-  accessible name.
+  accessible name. The status line is positioned inside the button, so it never adds scrollable
+  overflow to the page or to a scrolling pane.
 
 #### CopyInput
 
@@ -856,10 +1008,16 @@ Text date input with a calendar popover. `DateTimeBox(target, opts)` is a Datebo
 tokens are the date-utility ones: `%d %m %Y %H %M`.
 
 - **Options** — `value: Date | number(unix) | string`, `format: '%d.%m.%Y'`, `time: false`, `min`,
-  `max`, `placeholder`, `clearable: true`, `disabled`.
+  `max`, `placeholder`, `clearable: true` (the clear button shows while there is a value and the
+  box is enabled; without `clearable` the input keeps no room for it), `disabled`.
+- **In a Field** — field types `date`/`datetime` (and `daterange`) fill the control column like a
+  text input and give way in a narrow two-column row; standalone, the box keeps its own width.
 - **Methods** — `get(unit='date')` (`'seconds'` → unix), `set(value, {silent})` (accepts a Date;
   pass Date objects, not display strings), `open()`/`close()`, `enable()`/`disable()`, `focus()`.
 - **Events** — `change {date}`, `invalid {text}`, `open`, `close`.
+- **Quiet fields** — inside `[data-zx-fields="quiet"]` the date reads as text: no border, no fill,
+  the calendar button hidden until hover; full chrome on focus. An invalid value keeps its danger
+  border. DateRangeBox behaves the same way.
 <!-- /doc -->
 
 <!-- doc:date-range -->
@@ -877,7 +1035,7 @@ An inline two-month calendar for picking a start and an end day, plus the form-u
 
 #### DateRangeBox
 
-- **Options** — everything DateRangePicker takes, plus `format: '%d.%m.%Y'`, `separator: ' – '`, `placeholder: null` (derived from the format when null), `clearable: true`. Typed text is parsed as `"<start><separator><end>"`; a lone date reads as a one-day range and a trailing separator keeps the range half open.
+- **Options** — everything DateRangePicker takes, plus `format: '%d.%m.%Y'`, `separator: ' – '`, `placeholder: null` (derived from the format when null), `clearable: true` (no clear button while disabled, and no room kept for one without it). Typed text is parsed as `"<start><separator><end>"`; a lone date reads as a one-day range and a trailing separator keeps the range half open.
 - **Methods** — `get(unit = 'date')` (`'seconds'` returns `{start, end}` as Unix seconds), `set(range, {silent})` accepting `{start, end}` of Dates, Unix-seconds numbers, or formatted strings, `clear({silent})`, `open()`, `close()`, `enable()`, `disable()`, `focus()`, `destroy()`.
 - **Events** — `change {start, end}`, `invalid {text}` when the typed value cannot be parsed (the text stays editable and the field takes `data-state="invalid"` plus `aria-invalid`), `open`, `close`.
 <!-- /doc -->
@@ -893,6 +1051,8 @@ use `TimePicker` or `DateTimeBox`.
 - **Methods** — `get(unit)`, `set(value, unit?, {silent})`, `enable()`/`disable()`.
 - **Events** — `change {value}`, in `options.unit`.
 - **Also exported** — the pure helpers `splitTime` and `joinTime`.
+- **Quiet fields** — inside `[data-zx-fields="quiet"]` the segments (native inputs) and the sign
+  button drop their border and fill until hover or focus; the sign keeps its colour.
 <!-- /doc -->
 
 <!-- doc:message -->
@@ -908,8 +1068,24 @@ messages rather than the page, and uses the translucent glass surface tokens wit
   `Message.progress(text, {scope?})` → `{ update(pct, text?), done(), fail(text?) }`. `scope` is
   an element or selector whose nearest Zx theme scope owns that floating region; without it the
   focused opener supplies the scope.
+- **Region lifecycle** — a floating region is created on the first toast for its scope and removed
+  when its last toast closes. One whose host was emptied or left the document is replaced on the
+  next toast rather than reused, and a scope that is itself detached falls back to the focused
+  element's scope. `Message.disposeRegion(scope)` → boolean removes a scope's region at once,
+  toasts and all, for a host torn down while toasts are still showing.
 - **Per-message options** — `kind: 'info'`, `timeout`, `closable: true`, `maxVisible: 5` (extras
   queue, and hovering pauses dismissal).
+- **Action** — `action: { label, onclick?, kind? }` renders one small button (`.zx-btn`,
+  `data-size="sm"`, secondary unless `kind` is `primary`/`danger`/`ghost`) in a toast or an inline
+  message; activating it runs `onclick(event)` and closes the message. A message with an action
+  stays at least 8000ms (`timeout: 0` still persists). Every message holds its timer while the
+  pointer is over it or focus is inside it (WCAG 2.2.1) and resumes once neither is; the region is
+  not modal, so Tab moves between the action and the close button, and closing a message that holds
+  focus returns focus to where it came from. The live region still announces the text.
+- **Leading** — `leading: Node | component` (an Avatar, say) replaces the kind icon. It is
+  decorative; the text must name what it shows.
+- **Handle** — every `show()` (static or inline) and `info/success/warning/error()` return
+  `{ close() }`; closing twice, or a queued message, is safe.
 <!-- /doc -->
 
 <!-- doc:modal -->
@@ -919,7 +1095,9 @@ Thin overlay on the native `<dialog>` element. The surface uses the shared, read
 panel material; the backdrop uses `--zx-color-overlay-backdrop`, and focus returns to the opener on close.
 
 - **Options** — `content`, `width: 'auto'`, `closable: true`, `lightDismiss: false`,
-  `destroyOnClose: false`, `scope: null` (the opener's nearest Zx theme scope by default).
+  `destroyOnClose: false`, `scope: null` (the opener's nearest Zx theme scope by default). The
+  scope is resolved again on every `open()`; a `scope` element not yet in the document leaves the
+  dialog detached until then, rather than parking it on `<body>` outside the theme.
 - **Methods** — `open()`, `close(result?)`, `setContent()`, `isOpen()`.
 - **Events** — `open`, `close {result}`, `cancel` (Esc; preventable with `event.preventDefault()`).
 <!-- /doc -->
@@ -933,9 +1111,17 @@ Structured modal: a header with title and close button, a body, and footer butto
   `buttons: [{ label, kind, action: 'close'|'cancel'|fn(dialog), autofocus, shortcut }]`, `closable: true`.
 - **Methods** — `setTitle()`, `setContent()`, `setButtons()`,
   `addView(key, { content, buttons? })`, `showView(key)`.
-- **Statics returning Promises** — `Dialog.alert({ title, message })`,
-  `Dialog.confirm({ title, message, danger })` → boolean,
-  `Dialog.prompt({ title, message, value })` → string|null.
+- **Statics returning Promises** — `Dialog.alert({ title, message, okLabel })`,
+  `Dialog.confirm({ title, message, okLabel, cancelLabel, danger })` → boolean,
+  `Dialog.prompt({ title, message, value, placeholder, okLabel, cancelLabel })` → string|null.
+  The labels default to the translated "OK" and "Cancel"; name the action instead where you can
+  ("Delete", "Rename").
+- **Type to confirm** — `Dialog.confirm({ ..., confirmText: 'Website Redesign' })` adds an input
+  labelled "Type **Website Redesign** to confirm" (a real `<label>`; message
+  `dialog.typeToConfirm`, `'Type %1 to confirm'`). Focus starts in the input; the confirm button
+  stays disabled, and Enter does nothing, until the value matches exactly (case-sensitive, ignoring
+  surrounding spaces). Escape, the close button, and Cancel resolve `false` as before. Use it for
+  deletes that cannot be undone, with `danger: true` and an `okLabel` that names the action.
 <!-- /doc -->
 
 <!-- doc:sheet -->
@@ -987,12 +1173,14 @@ When a Dock adopts it, the Sheet becomes an opaque layout surface instead.
   `aria-valuenow`/`aria-valuemin`/`aria-valuemax`: arrow keys along the axis step it by 16px, Shift
   by 64px. A docked sheet hides its handle — the dock's own divider resizes it there.
 - **Custom properties** — `--zx-sheet-size` (written by `size`; the per-side default otherwise)
-  and `--zx-sheet-radius` (inner corners of a top/bottom sheet, default `--zx-radius-xl`) are
+  and `--zx-sheet-radius` (inner corners of a top/bottom sheet, default `--zx-radius-lg`) are
   internal geometry, not published styling hooks — prefer the options. `--zx-overlay-blur` is a
   tier-2 semantic token and is public: it sets the `'blur'` backdrop's radius, default `8px`.
 - **Motion** — entry and exit both animate, via `@starting-style` and
   `transition-behavior: allow-discrete` on `display`/`overlay`; without them the sheet appears and
-  disappears instantly. All of it sits inside `prefers-reduced-motion: no-preference`.
+  disappears instantly. The slide (and a docked track's collapse, and a stack's shift) runs on
+  `--zx-ease-drawer`; the fade keeps `--zx-ease`. All of it sits inside
+  `prefers-reduced-motion: no-preference`, and stops inside a `data-zx-motion="reduced"` region.
 - **Keyboard and screen readers** — identical to Dialog: the native `<dialog>` supplies the role
   and `aria-labelledby` points at the title. Escape closes when `closable`, focus moves to the
   `[autofocus]` control or the first focusable descendant on open, and returns to the opener on
@@ -1049,6 +1237,10 @@ DOM child of the anchor's nearest Zx theme scope while the browser lifts it into
   `left*` and `right*` placements, `offset: 4`,
   `matchWidth: false`, `openOn: 'click'|'manual'`, `closeOnSelect: false`, `scope: null` (the
   anchor's nearest Zx theme scope by default).
+- **Hosting** — the host is resolved again on every `open()`. A dropdown created before its anchor
+  is in the document keeps its panel detached until the first open instead of parking it on
+  `<body>`, so an anchor inserted into a `[data-zx-theme]` region or a `.zx-scope` afterwards still
+  gets its theme. Tooltip, MenuButton, and ContextMenu panels follow the same rule.
 - **Methods** — `open()`, `close()`, `toggle()`, `isOpen()`, `setContent()`, `getPanel()`.
 - **Events** — `open`, `close`.
 <!-- /doc -->
@@ -1068,13 +1260,22 @@ A button that opens a `role="menu"`.
     default.
   - `role: 'menuitemcheckbox'|'menuitemradio'` with `checked` exposes an APG checked action. The
     application owns state changes and calls `setItems()` with the new model.
-- **Methods** — `setItems()`, `open()`, `close()`, `setLabel()`, `getTrigger()`, `getPanel()`,
-  `focusFirst()`, `focusLast()`.
+- **Methods** — `setItems()`, `open({returnFocus})`, `close()`, `setLabel()`, `getTrigger()`,
+  `getPanel()`, `focusFirst({returnFocus})`, `focusLast({returnFocus})`.
 - **Events** — `select {value, item}`, `open`, `close`.
+- **Focus return** — choosing an item closes the menu and returns focus to the trigger before the
+  `select` event and the item's `onselect` run, so a dialog they open returns to the trigger when
+  it closes, and focus they move themselves stays where they put it. Escape returns focus the same
+  way. `returnFocus` sets the destination for one opening: `true` (default) is the trigger, an
+  element is that element — the list row a keyboard shortcut opened the menu from — and `false`
+  leaves focus alone.
 - **Cancellation** — `select` is cancelable. Preventing it skips the item's `onselect` callback and
-  leaves the menu open, which is the composition seam used by `AccountMenu` and rail flyouts.
+  leaves the menu open with focus back on the item, which is the composition seam used by
+  `AccountMenu` and rail flyouts.
 - **Keyboard** — ArrowDown/Enter/Space open and focus the first item; ArrowUp opens and focuses the
   last; arrows cycle; Home/End; typeahead; Enter/Space select; Esc/Tab close.
+- **Appearance** — the highlighted item is a neutral step, a checked item keeps its accent check
+  mark, and section headings are sentence-case captions. ContextMenu shares the same rules.
 <!-- /doc -->
 
 <!-- doc:context-menu -->
@@ -1150,13 +1351,28 @@ Sortable, selectable, sticky-header data table. `fr` widths fill the container w
 widths scroll horizontally, and multi-select adds a tri-state header checkbox plus Shift+click
 range select.
 
-- **Options** — `columns: [{ id, label, sortable?, width ('120px'|'2fr'|'auto'), align,
+- **Options** — `columns: [{ id, label, ariaLabel?, sortable?, width ('120px'|'2fr'|'auto'), align,
   type?: 'text'|'number'|'currency'|'percent'|'unit', locale?, decimals?, currency?, unit?,
   render?: (row,i)=>Node|string, sortValue?, headerTitle? }]`, `data`, `rowId: 'ID'`,
   `sort: { id, dir }`, `sortMode: 'local'|'server'`, `selectable: false|'single'|'multi'`,
-  `stickyHeader: true`, `height`, `emptyText`, `rowClass`, `zebra: true`, and
-  `hierarchy: false|{parentId, column?, expanded?}`. Locale, currency, unit, and decimals may be
-  row callbacks; values remain numbers in row data while display formatting is locale-aware.
+  `stickyHeader: true`, `height`, `emptyText`, `rowClass`, `zebra: true`, `variant:
+  'default'|'plain'`, and `hierarchy: false|{parentId, column?, expanded?}`. Locale, currency,
+  unit, and decimals may be row callbacks; values remain numbers in row data while display
+  formatting is locale-aware.
+- **Appearance** — the header sits on the table's surface (no band) in the muted text colour at a
+  medium weight, sentence case; the sorted column's label takes the text colour beside its arrow.
+  Rows are divided by `--zx-color-border-subtle`, the header by the ordinary border, and every cell
+  uses tabular figures. Checked rows of a multi-selection keep the accent tint (`--zx-color-bg-selected`);
+  the selected row of a `selectable: 'single'` table is the current record of a master–detail list
+  and takes the neutral `--zx-color-bg-current` fill. Sortable and plain headers set the same type,
+  and the scroll region reserves no scrollbar gutter until the table actually scrolls.
+- **Columns in the DOM** — every header and body cell carries `data-column="<id>"` in every mode,
+  read-only included, so a table can be styled per column. A column with `label: ''` (icons,
+  actions) keeps a blank header named by `ariaLabel`, or by its id; `ariaLabel` also names the
+  column in the chooser and its cell editors.
+- **`variant: 'plain'`** — for a table inside a card or panel that already draws the box: no outer
+  frame, no header band, no zebra, hairline row dividers. Reflected as `data-variant="plain"` on the
+  root; TableView passes it through `table: { variant: 'plain' }`.
 - **Methods** — `setData()`, `addData()`, `updateRow(id,row)`, `removeRow(id)`, `getRow(id)`,
   `getData()`, `empty()`, `setSort(id,dir)`, `getSort()`, `clearSort()`, `getSelection()`, `setSelection(ids)`,
   `clearSelection()`, `setLoading(bool)` (busy/skeleton state — dims rows, shows an indeterminate
@@ -1174,6 +1390,8 @@ range select.
   `'cell'` edits one cell, `'row'` opens every editable cell of the row and commits them as a unit.
   Editors are sized into the cell without changing row height, and an editing cell carries
   `data-editing="true"` (`data-invalid="true"` plus an `aria-live` message when a validator rejects).
+  Text, number, and date editors select their content on entry, so typing replaces the value
+  ("6" over "1.00" gives 6); a textarea keeps its caret.
 - **Editable columns** — extra column keys: `editable: false|true|'text'|'number'|'select'|'date'|
   'checkbox'|'textarea'|((row)=>boolean)` (`true` infers `'number'` for number/currency/percent/unit
   columns and `'text'` otherwise; a function is evaluated per row, so individual rows stay
@@ -1309,6 +1527,8 @@ portable state as TableView and KanbanView.
   `selectionTrigger:'card'`, Enter also toggles selection. Links, actions,
   selection controls, and selected text do not also activate the card. `recordaction` adds the
   resolved action to the shared event set.
+- **Appearance** — a selected card is a pick and keeps the accent: the `--zx-color-bg-selected`
+  tint inside an accent outline. Metadata pairs are borderless tinted chips, not boxes in a box.
 <!-- /doc -->
 
 <!-- doc:kanban-view -->
@@ -1334,6 +1554,9 @@ cards, advisory work-in-progress limits, and equivalent pointer/programmatic/key
   `eyebrow-start`, `eyebrow-end`, and `title-prefix`. Unslotted metadata stays as quiet inline
   facts. Titles clamp visually to two lines while retaining their complete accessible text. Move
   and action controls reveal on hover/focus/selection/grab, and remain visible on touch devices.
+- **Assignees** — `assignees` faces (a name, names, or `{name, src?, initials?, tone?}`) are drawn
+  like a small Avatar: initials on the tint `avatarTone(name)` picks, so a person has the same
+  colour on the board as in every Avatar; a descriptor's own `tone` wins.
 - **Movement boundary** — `recordmove {record,id,from,to,column,swimlane,limitExceeded}` is
   cancelable and fires before a commit/request; either the component event or bubbling
   `zx-recordmove` mirror may veto it. `accept` is a hard eligibility gate; WIP is visual advice.
@@ -1344,7 +1567,8 @@ cards, advisory work-in-progress limits, and equivalent pointer/programmatic/key
   chooses a column, Up/Down chooses a bucket-relative position, and Alt+Up/Down chooses a swim
   lane. A polite live region announces every target, result, and reached/exceeded WIP limit.
   Collapse keeps focus on its control, including when a programmatic collapse hides the focused
-  card. Native drag is an enhancement.
+  card. Native drag is an enhancement. The pointer-drag preview and a keyboard-grabbed card lift
+  on `--zx-drag-shadow`.
 <!-- /doc -->
 
 <!-- doc:grid -->
@@ -1384,13 +1608,16 @@ code, so future adapters do not change the public `Chart` API.
   `setError()`, `clearError()`, `resize()`, `refreshTheme()`, `getInstance()`, `destroy()`.
 - **Events** — `ready {instance}`, `update {data, type}`, `select {datasetIndex, index, dataset,
   label, value, nativeEvent}`, and `error {error}`.
-- **Adapter contract** — `adapter.create(canvas, {type, data, options, onSelect})` returns
-  `{update(spec), resize(), destroy(), instance?}`. Implementations must destroy engine resources
-  and must not retain the component after teardown.
+- **Adapter contract** — `adapter.create(canvas, {type, data, options, reducedMotion, onSelect})`
+  returns `{update(spec), resize(), destroy(), instance?}`. Implementations must destroy engine
+  resources and must not retain the component after teardown. `reducedMotion` is true under the
+  system preference or inside a `data-zx-motion="reduced"` region, and an adapter must then turn its
+  engine's animation off; Chart watches for the answer changing and updates the mounted engine.
 - **`ChartJsAdapter`** — construct it with a Chart.js constructor or namespace:
   `new ChartJsAdapter(window.Chart)`. The documentation pins Chart.js 4.5.1 as a development-only
   asset; `package.json` has no runtime dependencies and application builds explicitly choose how
-  the engine is loaded.
+  the engine is loaded. Under reduced motion it sets `animation: false`, over any animation the
+  application configured.
 - **Accessibility** — the canvas always has a name and optional description, while synchronized
   labels and dataset values live in a semantic table. `summary: 'hidden'` keeps it visually hidden
   for assistive technology; `'visible'` makes exact values part of the interface.
@@ -1431,6 +1658,9 @@ windowed loader.
 - **View layout** — agenda days keep every event in one vertically stacked content column. Month
   uses a continuous seven-day grid with full-height day boundaries and event lanes overlaid below
   the date labels; today is indicated with accent text instead of a decorative edge highlight.
+- **Appearance** — the view switch is one framed control with the current view on the neutral
+  `--zx-color-bg-current` fill; weekday headings are sentence case; inner grid lines use
+  `--zx-color-border-subtle`; the New button is the solid primary (`--zx-color-accent-solid`).
 - **Pointer editing** — a timed move preserves the point where the event was grabbed and snaps the
   resulting start to `slotDuration`. The lower grip stretches the event in its original day column,
   while pointer capture keeps either interaction active if the pointer leaves the event surface.
@@ -1559,7 +1789,12 @@ mutate the caller's data.
   double-click), `check {ids, node}`.
 - **Keyboard** — ↑/↓ move, → expands then descends, ← collapses then ascends, Home/End, Enter
   activates, Space selects or toggles the checkbox, `*` expands every sibling, typing jumps to the
-  next match.
+  next match. A typed character's default action is prevented, so find-as-you-type and page
+  shortcuts do not act on it too; typing into a control inside a row is left to that control.
+- **Appearance** — the selected node of a single-selection tree is where you are: the neutral
+  `--zx-color-bg-current` fill, the text colour, a semibold label. A `selection: 'multi'` tree is a
+  set of picks and keeps the accent tint. Icons, folders included, are drawn in
+  `--zx-color-text-subtle`; badges are plain muted counts.
 <!-- /doc -->
 
 <!-- doc:finder -->
@@ -1580,6 +1815,9 @@ breadcrumb.
 - **Keyboard** — ↑/↓ move within the active column, → steps into the selected branch and lands on
   its first row, ← returns to the parent column and truncates the path, Home/End, Enter opens a
   leaf, typing jumps to the next match.
+- **Appearance** — the selected row of each column is the path you are on: the neutral
+  `--zx-color-bg-current` fill, the text colour and a semibold label, with subtle icons and
+  column dividers.
 <!-- /doc -->
 
 <!-- doc:form -->
@@ -1587,7 +1825,8 @@ breadcrumb.
 
 #### Form
 
-- **Options** — `fieldsets: []`, `actions: [button descriptors]`, `novalidate: true`.
+- **Options** — `fieldsets: []`, `actions: [button descriptors]`, `novalidate: true`,
+  `idPrefix: null` (handed to the fieldsets it builds; a fieldset's own wins).
 - **Methods** (proxied across the fieldsets) — `getValues()`, `setValues()`, `getField()`,
   `setValue()`, `getValue()`, `reset()`, `setHighlights()`, `clearHighlights()`, `addFieldset()`,
   `setActions()`, `submit()`.
@@ -1596,21 +1835,47 @@ breadcrumb.
 
 #### Fieldset
 
-- **Options** — `title`, `columns: 1|2|3`, `fields: { id: Field-options }`.
+- **Options** — `title` (the legend: a quiet sentence-case caption, small, medium weight, muted —
+  the fields are the content), `columns: 1|2|3`, `fields: { id: Field-options }`,
+  `idPrefix: null`.
+- **Keys and ids** — a field key names the value, not an element: it is the field's `name` (and
+  a native control's `name`) and its `data-field-id`, never a DOM id by itself. Control ids are
+  `<idPrefix>-<key>`, with a prefix generated per instance unless `idPrefix` is given, so a form
+  mounted twice repeats no id and a field `stage` never collides with a `#stage` elsewhere; the
+  label, description, and message ids derive from it (`<id>-label`). Radio groups are named after
+  the control id. An `id` in the field options that differs from the key is used as given.
 - **Methods** — `addField(id, opts)`, `getField`/`hasField`/`getFields`,
   `getValues`/`setValues`/`getValue`/`setValue`, `reset`, `clear`, `focus(id)`,
   `setHighlights`/`clearHighlights`.
 
 #### Field
 
-- **Options** — `id`, `type: 'text'`, `label`, `description`, `value`, `placeholder`, `required`,
-  `disabled`, `options`, `layout: 'stack'|'inline'`, `props: {}`.
+- **Options** — `id` (the control's DOM id; generated when omitted), `name` (the field name and
+  native control `name`; defaults to `id` on a standalone field), `type: 'text'`, `label`,
+  `description`, `value`, `placeholder`, `required`, `disabled`, `options`,
+  `layout: 'stack'|'inline'`, `props: {}`.
+- **Properties** — `controlId` (the control's DOM id), `name`.
 - **Built-in types** — `text`, `password`, `textarea`, `checkbox`, `int`, `float`, `select`,
-  `optionlist`, `hidden`, `html`.
+  `optionlist`, `hidden`, `html` (display content as text: no input frame, a control's height,
+  inset like the values around it in a quiet form).
 - **Methods** — `getValue`/`setValue`, `focus`, `reset`, `setDisabled`,
   `setHighlight(msg, kind)`, `clearHighlight`, `getInput`, `own(child)`, plus the statics
   `Field.register(type, adapter)` and `Field.has(type)`.
 - **Events** — `change {value}`, `invalid {message}`.
+- **Labels** — small, medium weight, in the muted text colour: quieter than the values they name.
+  With `layout: 'inline'` the label lines up with the control's first line.
+
+#### Quiet fields
+
+Inside any element with `data-zx-fields="quiet"` — an inspector, a property list, an inline record
+— fields read as values rather than a wall of boxes. Native inputs, selects and textareas, and the
+composite controls (`Select`, `TagPicker`, `NumberField`, `Datebox`, `DateRangeBox`, `Timebox`)
+show no border, fill, chevron, stepper or calendar button until hovered (the hover fill and the
+affordances come back) and their full field chrome and focus ring while focused or open. A
+NumberField's value starts where a quiet text input's text starts, and `html` display content is
+inset to match. Disabled
+and read-only controls never light up; an invalid Datebox keeps its danger border. It is a context
+attribute, not an option: set it on the container.
 <!-- /doc -->
 
 <!-- doc:form-widgets -->
@@ -1643,8 +1908,10 @@ stays a separate policy decision.
 - **Events** — `input {value}`, `change {value}`.
 
 Tab indents rather than moving focus, which is what a code surface has to do and what makes it a
-keyboard trap if nothing else is arranged — Escape then Tab leaves the field. A `code` Form field
-adapter is registered by `registerFieldAdapters()`.
+keyboard trap if nothing else is arranged — so Escape releases the capture until the next
+keystroke in the editor: Escape then Tab (or Shift+Tab) leaves the field, and any other key,
+or leaving the editor, restores indentation. A `code` Form field adapter is registered by
+`registerFieldAdapters()`.
 <!-- /doc -->
 
 <!-- doc:questionnaire -->
@@ -1768,12 +2035,18 @@ shows a fixed set, and `ValueList` takes free text with no catalogue. Unknown ID
 yet. Field type: `tagpicker`.
 
 - **Options** — `items`, `values: []`, `valueKey: 'ID'`, `labelKey: 'name'`, `iconKey: 'icon'`,
-  `colorKey: 'color'`, `searchKeys`,
+  `colorKey: 'color'`, `toneKey: 'tone'`, `searchKeys`,
   `filter: 'local'|(query)=>Promise<items>`, `minQuery: 0`, `debounce: 200`, `allowCreate: false`,
   `max` (maximum tags; further options become `aria-disabled`), `closeOnSelect: false`,
   `placeholder`, `listHeight: 260`, `disabled`, `readonly`, `renderItem`, `renderTag`.
-- **Tag identity** — icon values accept a bundled icon name or Node; colors are scoped to the tag
-  and its option through `--zx-tag-color`. Custom `renderItem`/`renderTag` remain authoritative.
+- **Tag identity** — icon values accept a bundled icon name or Node; colors (a CSS colour or a token
+  reference such as `var(--zx-color-tone-blue-fg)`) are scoped to the tag and its option through
+  `--zx-tag-color`. `toneKey` names a categorical tone from the Badge palette (`blue`, `teal`,
+  `green`, `amber`, `orange`, `red`, `pink`, `violet`, `slate`): the tag takes its fill and ink as a
+  toned Badge does (`data-tone`), and a tone wins over a colour. Custom `renderItem`/`renderTag`
+  remain authoritative.
+- **Read-only** — `readonly` (or `setReadonly(true)`) shows only the tags: no input, chevron, or
+  remove buttons, so a full row of tags never wraps onto an empty line.
 - **Methods** — `getValues()`, `getItems()`, `setValues(values, {silent})`, `addValue()`,
   `removeValue()`, `clear()`, `reset()`, `setItems()`, `isFull()`, `open()`/`close()`, `focus()`,
   `setReadonly()`, `enable()`/`disable()`.
@@ -1782,6 +2055,8 @@ yet. Field type: `tagpicker`.
 - **Keyboard** — ↓ opens and moves, ↑ moves, Enter toggles the active option (or creates one from
   the query), Escape closes, Backspace on an empty input removes the last tag, Home/End jump
   within the list.
+- **Quiet fields** — inside `[data-zx-fields="quiet"]` the tags read as the value: no border, fill
+  or chevron until hover; full field chrome while focused or open.
 <!-- /doc -->
 
 <!-- doc:groupbox -->
@@ -1827,15 +2102,22 @@ component count. `statTile()` is the convenience form of `new StatTile(null, opt
 returns the component, the way `tooltip()` does; call `.toElement()` for the node to place.
 
 - **Options** — `label`, `value`, `format: 'number'|'currency'|'percent'|'fileSize'|null|fn`,
-  `currency`, `locale`, `delta`, `deltaKind: 'positive'|'negative'|'neutral'`, `deltaFormat`,
-  `deltaLabel`, `trend: number[]`, `icon`, `kind`, `href`, `clickable`, `loading`, `msg`.
+  `currency`, `locale`, `caption`, `delta`, `deltaKind: 'positive'|'negative'|'neutral'`,
+  `deltaFormat`, `deltaLabel`, `trend: number[]`, `icon`, `kind`, `href`, `clickable`, `loading`,
+  `msg`.
+- **Appearance** — the label is a sentence-case muted line (13px, medium); the value is the loud
+  part (24px, weight 650, tabular figures); `caption` is one muted context line under it ("of
+  13,184"). `icon` is a muted glyph beside the label, never a coloured chip; `kind` tints only the
+  sparkline. The tile is a column with the sparkline at its foot, so tiles in a row are the same
+  height and line up whether or not each has a caption, a delta or a trend.
 - **Methods** — `update(options)`, `getAccessibleName()`.
 - **Events** — `click {event}`.
 
 - **A delta is never colour alone.** It carries its sign and a direction glyph, and `deltaKind`
   decides the colour rather than the sign — rising ticket counts are not a success, and a
   component that assumes "up is good" is wrong for half the metrics in any business.
-- **The accessible name is label + value + spoken delta** ("up 2 vs. last week"). The visible
+- **The accessible name is label + value (with its caption) + spoken delta** ("Active items,
+  2,184 of 13,184, up 2 vs. last week"). The visible
   `+2` row and the sparkline are `aria-hidden`, because a sparkline nobody can read is
   decoration and saying the delta twice is worse than saying it once.
 - **The element follows the behaviour** — `href` renders an `<a>`, `onclick` without `href` a
@@ -1990,10 +2272,12 @@ detail side of a master–detail screen. Give the root a size of its own (a grid
 
 Four appearances, all square-cornered. `divided` (the default) sets flat blocks on a muted track,
 split by hairline dividers, above a bordered panel, with the active block lifted onto the panel
-surface under an accent rule. `bracket` outlines folder tabs that fuse into that same panel, the
-active tab bridging the seam. `line` underlines the active tab across a full-width rule, for page-
-and section-level navigation. `segmented` renders a compact group on a muted fill with the active
-tab raised onto a control surface, so the row reads as one control inside a toolbar or card header.
+surface. `bracket` outlines folder tabs that fuse into that same panel, the active tab bridging
+the seam. `line` underlines the active tab in the text colour across a full-width rule, for page-
+and section-level navigation. `segmented` renders a compact framed group with the active tab on
+the neutral `--zx-color-bg-current` fill, so the row reads as one control inside a toolbar or card
+header. The active tab is where you are, not a pick: every variant gives it the text colour and a
+semibold label, and none uses the accent. Tab badges are neutral counts, not accent bubbles.
 
 `divided` and `bracket` draw the panel box themselves; `line` and `segmented` leave the panel bare
 for the surrounding layout to frame. The boxed variants read `--zx-tabbox-radius` (default `0px`)
@@ -2001,7 +2285,8 @@ from the component root, so `el.style.setProperty('--zx-tabbox-radius', 'var(--z
 restores rounded corners without forking the stylesheet.
 
 - **Options** — `tabs: [{ name, title, content, icon?, closable?, disabled? }]`, `active`,
-  `variant: 'divided'|'bracket'|'line'|'segmented'`, `keepAlive: true`.
+  `variant: 'divided'|'bracket'|'line'|'segmented'`, `keepAlive: true`, `label` (the tab list's
+  accessible name — give one whenever a page has more than one tab list).
 - **Methods** — `addTab()`, `removeTab()`, `openTab(name)`, `getActive()`, `setTitle()`,
   `setBadge(name, text|null)`, `enableTab()`/`disableTab()`.
 - **Events** — `change {name, previous}` (preventable), `close {name}`.
@@ -2080,7 +2365,10 @@ Three properties are the reason to use this rather than assemble your own:
   rows out of twenty with nothing on screen saying why, and the badge is what prevents that.
 - **The count line is a live region**, and `setCount(null)` clears it. The previous number
   describes the previous filters; a stale count during a load is worse than none.
-- **Tool buttons meet the 44 px target** in both densities.
+- **Tool buttons meet the 44 px target** at any spacing.
+
+The current view and a pressed tool take the neutral `--zx-color-bg-current` fill — a mode the
+list is in, not a pick — never the accent tint.
 
 `bind(view)` is optional sugar for a `TableView` or `CardView`: it feature-detects rather than
 importing them, adopts the view's shape, and mounts a field chooser built with
@@ -2108,6 +2396,8 @@ treated as one empty page rather than zero pages.
 - **Semantics** — `<nav aria-label="Pagination">`; the current page carries `aria-current="page"`;
   previous/next are labelled icon buttons that go `disabled` at the ends; the ellipses are
   `aria-hidden` spans, not buttons.
+- **Appearance** — the current page is the neutral `--zx-color-bg-current` fill with a semibold
+  figure: where you are, not a call to action.
 <!-- /doc -->
 
 <!-- doc:navigation-bar -->
@@ -2126,6 +2416,9 @@ bar and wrong for a phone bottom bar, where the navigation is the point. `overfl
 every item at every width; `overflowBelow` moves the threshold; `minVisible: n` pins the first `n`
 items and overflows the rest. At the default the collapse is a container query with no observer
 installed; any other threshold installs a `ResizeObserver`, which is the cost of asking for one.
+
+The current item is the neutral `--zx-color-bg-current` fill with the text colour and a semibold
+label; item badges are neutral counts. Only the brand mark keeps the accent.
 <!-- /doc -->
 
 <!-- doc:app-sidebar -->
@@ -2136,14 +2429,16 @@ vertical rail, and horizontal rail layouts. It mounts exactly one presentation a
 preserving active and expanded branch state. Only the expanded vertical state reveals descendants
 inline; every rail state opens descendants toward the workspace in anchored flyouts.
 
-- **Options** — `items`, `active`, `expanded`, `collapsed`, `collapsible`,
-  `orientation: 'vertical'|'horizontal'`, `side: 'left'|'right'|'top'|'bottom'`, `label`,
+- **Options** — `items`, `active`, `expanded`, `collapsed`, `collapsible` (`false` removes the
+  minimise and expand buttons), `orientation: 'vertical'|'horizontal'`,
+  `side: 'left'|'right'|'top'|'bottom'`, `label`,
   `header`, `footer`, `railHeader`, `railFooter`, `openDelay: 80`, `closeDelay: 160`, and
   `renderIcon(item, context)`. Icon values may also be names, nodes, components, or factories.
 - **Methods** — `setItems()`, `getItems()`, `setActive()`, `setExpanded()`, `getExpanded()`,
   `toggleBranch()`, `expand()`, `collapse()`, `setCollapsed()`, `isCollapsed()`,
   `setLayout({orientation, side})`, `openFlyout(id, {focus})`, `closeFlyout()`,
-  `closeAllFlyouts()`, `isFlyoutOpen()`, `focus()`, `destroy()`.
+  `closeAllFlyouts()`, `isFlyoutOpen()`, `focus()`, `destroy()`. `getItems()` returns copies of
+  the normalized tree; a leaf carries no `children` property.
 - **Events** — cancelable `select {item, id, value, href, event}`,
   `branchchange {item, id, expanded, ids}`, `collapsechange {collapsed}`, and
   `flyoutchange {item, id, open}`.
@@ -2151,11 +2446,17 @@ inline; every rail state opens descendants toward the workspace in anchored flyo
   an expand control. Switching layouts does not erase the saved vertical collapsed preference or
   expanded branch IDs. `AppSidebar` is the single public application-navigation component; use
   `collapsed: true` or `orientation: 'horizontal'` for its rail presentations.
+- **Current state** — the current page is neutral: the `--zx-color-bg-current` fill, the full
+  text colour and a semibold label, in the tree, the rail and every flyout; hover is a lighter
+  step of the same overlay. A closed branch (or a rail item) over the active route takes the
+  semibold label or the text colour, never the accent. Nothing is docked to an edge.
 - **Pointer and focus** — hover or focus reveals rail descendants without stealing focus. Click,
   Enter, Space, and the arrow toward the workspace also open a flyout; Escape, outside activation,
   or selection closes it. Expanded navigation supports arrows plus Home/End across visible rows.
 - **Semantics** — persistent navigation uses `<nav>` and nested lists with native links and
-  disclosure buttons, not menu or menubar roles. Icon-only destinations retain an accessible name
+  disclosure buttons, not menu or menubar roles. The `<nav>` is the only landmark: a root the
+  sidebar creates is a plain `<div>`, and a caller's own root keeps its element and attributes.
+  Icon-only destinations retain an accessible name
   and Tooltip. A parent with children is disclosure-only; add an Overview child when it also needs
   a destination. Malformed and executable URL schemes are stripped; an item with no remaining
   link or callback is disabled in every presentation.
@@ -2187,6 +2488,9 @@ inline; every rail state opens descendants toward the workspace in anchored flyo
   `%d %m %Y %y %H %M %S %a %A %b %B %s`), `clampDate`, `isSameDay`, `addDays`, `addMonths`,
   `getWeekStart`.
 - **Keyboard** — `focusTrap`, `rovingTabindex`, `typeahead`.
+- **Motion** — `prefersReducedMotion(element?)` → boolean, and
+  `watchMotion(element, fn, {signal?, immediate?})` → disposer, for code that animates in script;
+  see Theming.
 - **Utils** — `debounce`, `uid`, `deepMerge`, `isElement`, `clamp`, `toArray`.
 <!-- /doc -->
 
@@ -2203,7 +2507,8 @@ import { loadFontAwesome, useFontAwesome, registerIcons } from '/assets/zx.esm.j
 
 await loadFontAwesome({ kit: 'ae8320b210', style: 'duotone' });  // injects the kit, switches over
 useFontAwesome();                          // page already carries Font Awesome; no network
-registerIcons({ rocket: ['0 0 512 512', 'M…'] });   // extend the bundled inline set
+registerIcons({ rocket: ['0 0 512 512', 'M…'] });            // a filled glyph (Font Awesome paths)
+registerIcons({ anchor: ['0 0 24 24', 'M12 6v16…', 'stroke'] });  // an outline glyph (Lucide paths)
 ```
 
 - `loadFontAwesome(kit | {kit, style, family, fixedWidth, activate})` — injects the kit script once
@@ -2212,7 +2517,20 @@ registerIcons({ rocket: ['0 0 512 512', 'M…'] });   // extend the bundled inli
   domains configured in the Font Awesome account.
 - `useFontAwesome(opts)` / `useBuiltinIcons()` / `configureIcons(opts)` / `getIconConfig()` —
   switch or read the renderer without touching the network.
-- `iconNames()` lists every inline glyph; `registerIcons(map)` adds `[viewBox, path]` entries.
+- `iconNames()` lists every inline glyph, bundled and registered; `icons` is the bundled table.
+- `registerIcons(map)` adds or replaces inline glyphs. `[viewBox, path]` is a filled shape — the
+  form Font Awesome path data comes in. `[viewBox, path, 'stroke']` is an outline drawn with the
+  bundled pen; its stroke scales with the view box, so a 24-unit outline set such as Lucide renders
+  exactly like the bundled glyphs. Anything else throws `TypeError`.
+
+**The bundled set is outline.** The inline glyphs are Lucide icons (https://lucide.dev, ISC licence;
+the notice is in `src/core/icons.js`) on a 24-unit grid: `fill="none"`, `stroke="currentColor"`,
+round caps and joins, a stroke of 1.75 units — about 1.2px at the default 16px, the weight of
+13–14px interface text — and never thinner than one pixel, so 11–13px glyphs stay legible. The
+names are Zx's own (`gear`, `dots`, `warning`, `success`, `drag`, …), not Lucide's. Colour follows
+`currentColor`; muting an icon is the caller's choice. The paint sits on the `<svg>` as attributes,
+so CSS on `.zx-icon` overrides it — `fill: currentColor` turns an outline into its solid form, which
+is how a state such as a set star or a liked heart is shown without a second glyph.
 
 **Names decide their own renderer.** A bare name (`'check'`) follows the active provider, and the
 built-in names are translated to their Font Awesome counterparts (`x` → `fa-xmark`, `search` →
@@ -2229,7 +2547,8 @@ itself once per distinct name through `console.warn`. Pass `icon(name, { strict:
 old `RangeError`, at a call site that can afford to fail: a test, or a build-time check.
 
 Font Awesome elements are sized with `font-size` and occupy 1em; bundled SVGs use width/height
-attributes. Both honour `label` (`null` ⇒ `aria-hidden`, otherwise `role="img"` + `aria-label`).
+attributes (default 16). Both honour `label` (`null` ⇒ `aria-hidden`, otherwise `role="img"` +
+`aria-label`).
 <!-- /doc -->
 
 <!-- doc:helpers -->
@@ -2333,15 +2652,49 @@ Registered elements: `<zx-toggle>`, `<zx-check-button>`, `<zx-select items='[…
 <!-- doc:tokens -->
 ### Design tokens
 
-Two tiers of CSS custom properties. Dark mode and density are pure token/attribute swaps
-(`[data-zx-theme="dark"]`, `[data-zx-density="compact"]`), and `tests/lint-tokens.js` forbids raw
-colour literals and tier-1 references in component CSS.
+Two tiers of CSS custom properties. Dark mode is a pure token/attribute swap
+(`[data-zx-theme="dark"]`), there is one geometry derived from `--zx-space-unit` and
+`--zx-radius`, and `tests/lint-tokens.js` forbids raw colour literals and tier-1 colour references
+in component CSS.
 
-- **Tier 1** — the global palette in `styles/tokens/global.css`, never referenced by components:
-  `--zx-gray-0…950`, `--zx-green-*`, `--zx-red/amber/blue-*`, `--zx-space-1…8`,
-  `--zx-radius-sm/md/lg/full`, the type scale, shadows, and motion.
+- **Tier 1** — the global palette and primitives in `styles/tokens/global.css`: `--zx-gray-0…950`,
+  `--zx-emerald-*` (the brand ramp the default accent reads), the status ramps
+  `--zx-green/red/amber/blue-*` (green is a yellow-green, deliberately apart from the brand), the
+  tone ramps `--zx-tone-<hue>-300/500/700` — none of them referenced by components — plus the
+  spacing scale (`--zx-space-unit`, `--zx-space-1…8`), the radius scale (`--zx-radius`,
+  `--zx-radius-sm/md/lg/xl/full`), the type scale (`--zx-text-xs…3xl`, 12–30px), weights
+  (`--zx-weight-medium` 500, `--zx-weight-semibold` 600), tracking (`--zx-tracking-tight`
+  -0.01em, set on `.zx-scope`; `--zx-tracking-title` -0.015em), shadows, and motion
+  (`--zx-dur-fast` 120ms, `--zx-dur-base` 180ms — both 0ms in a reduced-motion region — and the
+  curves `--zx-ease`, `--zx-ease-spring`, `--zx-ease-drawer`).
 - **Tier 2** — the semantic set, the only tokens components may use: `--zx-color-*`,
-  `--zx-control-*`, `--zx-focus-ring`, `--zx-overlay-shadow`.
+  `--zx-control-*`, `--zx-focus-ring`, `--zx-overlay-shadow`, `--zx-drag-shadow` (an item being
+  dragged; its own value in dark, with a faint light rim). The roles that carry the visual
+  language:
+  - **Columns.** `--zx-color-bg-surface` is the working canvas; `--zx-color-bg-chrome` is the
+    navigation and inspector tone beside it (one step below the canvas in light, between page and
+    canvas in dark), so tone rather than a line separates them. Dividers inside a column use
+    `--zx-color-border-subtle`; `--zx-color-border` is for frames.
+  - **Current vs selected.** Where you *are* — the active navigation item, the current row, the
+    open node, the active view — is neutral: `--zx-color-bg-current` (translucent text, about 8%,
+    so it works on any column), text colour, weight 600. Hover is `--zx-color-bg-hover`, about half
+    as strong. What you have *picked* keeps the accent tint `--zx-color-bg-selected`.
+  - **Text.** `--zx-color-text`, `--zx-color-text-muted` (secondary text, 4.5:1 on every column and
+    on a current row), `--zx-color-text-subtle` (icons and non-essential meta, 3:1),
+    `--zx-color-text-placeholder`.
+  - **Solid accent.** `--zx-color-accent-solid` (`-hover`, `-active`) with
+    `--zx-color-on-accent-solid` is the one primary action per screen: the 600 stop with white ink in
+    both themes. `--zx-color-accent` is the accent as text, marks, and focus (600 in light, 400 in
+    dark) and pairs with `--zx-color-on-accent` when something is filled with it.
+  - **Status.** `--zx-color-success/warning/danger/info` and their `-bg` fills mean state and
+    nothing else; they ship with an icon or a word.
+  - **Tones.** `--zx-color-tone-{blue,teal,green,amber,orange,red,pink,violet,slate}-bg` and `-fg`:
+    categorical colour for tags, chips, icon tiles, and avatars — neither the accent nor a status. A
+    soft fill (13% of the tone over the surface in light, 20% in dark) with ink at 4.5:1 or better.
+  - **Chart series.** `--zx-color-chart-1…8`, assigned in order, never cycled: blue, orange, teal,
+    amber, pink, green, violet, red. Neighbours stay apart under red-green colour-vision deficiency
+    and every series clears 3:1 as a mark on the light and the dark surface; the list does not open
+    on the accent.
 - **Component styling hooks** — a short, deliberately small set of component-level custom
   properties for restyling one component without touching its internals. Each falls back to the
   semantic token it replaces, so setting none of them changes nothing:
@@ -2350,4 +2703,13 @@ colour literals and tier-1 references in component CSS.
   Reach for the least specific override that works: a global semantic token first, one of these
   second, an internal selector never. Component CSS declares many other `--zx-<component>-*`
   properties — those are internal geometry, not API, and will change without notice.
+
+**Base typography.** `.zx-scope` sets Inter with `--zx-tracking-tight` and the `cv11` feature (the
+single-storey a, chosen because it reads rounder and calmer at 13–14px; fonts without it ignore it).
+
+**Quiet fields.** Put `data-zx-fields="quiet"` on a property panel, an inspector, or an inline
+record: native inputs, selects, and textareas inside it drop their border and fill until hover
+(`--zx-color-bg-hover`) or focus (the normal border, the control fill, and the focus ring), so values
+read as text rather than as a wall of boxes. Read-only and disabled fields stay quiet. The rules have
+zero specificity, so a component's own input styling still wins.
 <!-- /doc -->

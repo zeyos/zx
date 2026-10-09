@@ -15,6 +15,15 @@ function rangeAdapter(_field, options) {
   };
 }
 
+/** The record an inspector edits, keyed by field. */
+const ISSUE = {
+  status: 'review',
+  estimate: 5,
+  due: new Date(2026, 10, 12),
+  logged: 210,
+  labels: ['frontend', 'a11y']
+};
+
 export default {
   title: 'Form system',
   group: 'Forms',
@@ -75,6 +84,52 @@ export default {
       }
     },
     {
+      title: 'Quiet fields in an inspector',
+      blurb: 'Inside an element with data-zx-fields="quiet" a property panel reads as values, not '
+        + 'as a wall of boxes: native inputs and the composite controls — Select, NumberField, '
+        + 'Datebox, DateRangeBox, Timebox, TagPicker — show no border, fill, chevron or stepper '
+        + 'until you hover one, and their full field chrome and focus ring once it has focus. '
+        + 'Labels are quieter than the values they name, in every form.',
+      width: '600px',
+      render: ({ cleanup, log }) => {
+        const form = new Form(null, {
+          fieldsets: [{
+            title: 'Properties',
+            fields: {
+              status: {
+                type: 'zxselect', label: 'Status', value: ISSUE.status, layout: 'inline',
+                props: {
+                  items: [
+                    { ID: 'todo', name: 'To do' },
+                    { ID: 'review', name: 'In review' },
+                    { ID: 'done', name: 'Done' }
+                  ],
+                  filter: 'local'
+                }
+              },
+              estimate: { type: 'number', label: 'Estimate', value: ISSUE.estimate, layout: 'inline', props: { unit: 'pt' } },
+              due: { type: 'date', label: 'Due date', value: ISSUE.due, layout: 'inline' },
+              logged: { type: 'time', label: 'Time logged', value: ISSUE.logged, layout: 'inline', props: { unit: 'minutes' } },
+              labels: {
+                type: 'tagpicker', label: 'Labels', value: ISSUE.labels, layout: 'inline',
+                props: {
+                  items: [
+                    { ID: 'frontend', name: 'frontend' },
+                    { ID: 'backend', name: 'backend' },
+                    { ID: 'a11y', name: 'a11y' }
+                  ]
+                }
+              },
+              summary: { type: 'text', label: 'Summary', value: 'Quiet property panels', layout: 'inline' }
+            }
+          }],
+          onchange: ({ detail }) => log(`change ${detail.id}: ${JSON.stringify(detail.value)}`)
+        });
+        cleanup(() => form.destroy());
+        return h('div', { dataset: { zxFields: 'quiet' }, style: { inlineSize: '100%' } }, form.toElement());
+      }
+    },
+    {
       title: 'Hidden, static, and custom fields',
       blurb: 'hidden carries a value through a submit without drawing anything, html renders '
         + 'display-only text (as text \u2014 never as markup), and custom takes an adapter, which is '
@@ -109,11 +164,14 @@ export default {
       title: 'Driving the form',
       blurb: 'getValues() and setValues() move the whole record at once, which is what makes a '
         + 'Form bindable to an API response. setHighlights() marks fields after a server-side '
-        + 'validation, separately from the required checks the form runs itself.',
+        + 'validation, separately from the required checks the form runs itself. Field keys are '
+        + 'names, not element ids: the ids are generated per form, and idPrefix makes them '
+        + 'predictable — contact-name, contact-visits — when something has to address them.',
       layout: 'stack',
       width: '640px',
       render: ({ cleanup, log }) => {
         const form = new Form(null, {
+          idPrefix: 'contact',
           fieldsets: [{
             title: 'Contact',
             columns: 2,
@@ -137,6 +195,10 @@ export default {
               onclick: () => log(JSON.stringify(form.getValues()))
             }, 'getValues()'),
             h('button', { type: 'button', onclick: () => form.reset() }, 'reset()'),
+            h('button', {
+              type: 'button',
+              onclick: () => log(`#${form.getField('name').controlId}`)
+            }, "getField('name').controlId"),
             h('button', {
               type: 'button',
               onclick: () => form.setHighlights({

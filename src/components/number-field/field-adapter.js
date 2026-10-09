@@ -11,6 +11,7 @@ export function registerNumberFieldAdapter() {
       label: options.label ? String(options.label) : undefined,
       placeholder: options.placeholder,
       required: options.required,
+      name: field.name || null,
       ...(options.props ?? {})
     }));
     let setting = false;

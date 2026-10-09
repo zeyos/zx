@@ -120,8 +120,8 @@
 }
 
 .zx-kanban-view__move-handle[aria-pressed="true"] {
-  background: var(--zx-color-accent-subtle);
-  color: var(--zx-color-accent);
+  background: var(--zx-color-bg-current);
+  color: var(--zx-color-text);
   cursor: grabbing;
 }
 
@@ -348,7 +348,7 @@
 }
 
 .zx-kanban-view .zx-record-card__eyebrow-group[data-card-slot="eyebrow-start"] .zx-record-card__field {
-  border-radius: var(--zx-radius-full);
+  border-radius: var(--zx-radius-sm);
   background: var(--zx-color-bg-muted);
   padding: calc(var(--zx-space-1) / 2) var(--zx-space-2);
 }
@@ -419,6 +419,12 @@
 .zx-kanban-view .zx-record-card[data-grabbed="true"] {
   outline: 2px solid var(--zx-color-accent);
   outline-offset: 2px;
+  /* A card picked up from the keyboard is the item being dragged, so it lifts like one. */
+  box-shadow: var(--zx-drag-shadow);
+}
+
+.zx-kanban-view .zx-record-card[data-grabbed="true"]:focus-visible {
+  box-shadow: var(--zx-focus-ring), var(--zx-drag-shadow);
 }
 
 .zx-kanban-view__empty {
@@ -468,10 +474,6 @@
     inline-size: 2.75rem;
     min-block-size: 2.75rem;
   }
-}
-
-[data-zx-density="compact"] .zx-kanban-view {
-  --zx-kanban-card-padding-inline: var(--zx-space-2);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -651,7 +653,8 @@
   border: 1px solid var(--zx-color-border);
   border-radius: var(--zx-radius-md);
   background: var(--zx-color-bg-raised);
-  box-shadow: var(--zx-shadow-2);
+  /* The item in flight: lifted above every resting card by the shared drag shadow. */
+  box-shadow: var(--zx-drag-shadow);
   padding: var(--zx-space-1) var(--zx-space-2);
   color: var(--zx-color-text);
   font-size: var(--zx-text-xs);
@@ -704,7 +707,6 @@
   color: var(--zx-color-text-muted);
   font-size: var(--zx-text-xs);
   font-variant-numeric: tabular-nums;
-  letter-spacing: .02em;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -767,6 +769,11 @@
   min-inline-size: 0;
 }
 
+/*
+ * A face is a small Avatar: the initials on the tint of the tone the component derives from the
+ * name with Avatar's own hash (`data-tone`), so a person has the same colour on the board as
+ * everywhere else. The surface-coloured edge is what separates overlapping faces.
+ */
 .zx-kanban-view__avatar {
   display: inline-grid;
   flex: none;
@@ -776,17 +783,27 @@
   overflow: hidden;
   border: 1px solid var(--zx-color-bg-surface);
   border-radius: var(--zx-radius-full);
-  background: var(--zx-color-bg-muted);
-  color: var(--zx-color-text-muted);
+  background: var(--zx-kanban-avatar-bg, var(--zx-color-bg-muted));
+  color: var(--zx-kanban-avatar-fg, var(--zx-color-text-muted));
 }
+
+.zx-kanban-view__avatar[data-tone="blue"] { --zx-kanban-avatar-bg: var(--zx-color-tone-blue-bg); --zx-kanban-avatar-fg: var(--zx-color-tone-blue-fg); }
+.zx-kanban-view__avatar[data-tone="teal"] { --zx-kanban-avatar-bg: var(--zx-color-tone-teal-bg); --zx-kanban-avatar-fg: var(--zx-color-tone-teal-fg); }
+.zx-kanban-view__avatar[data-tone="green"] { --zx-kanban-avatar-bg: var(--zx-color-tone-green-bg); --zx-kanban-avatar-fg: var(--zx-color-tone-green-fg); }
+.zx-kanban-view__avatar[data-tone="amber"] { --zx-kanban-avatar-bg: var(--zx-color-tone-amber-bg); --zx-kanban-avatar-fg: var(--zx-color-tone-amber-fg); }
+.zx-kanban-view__avatar[data-tone="orange"] { --zx-kanban-avatar-bg: var(--zx-color-tone-orange-bg); --zx-kanban-avatar-fg: var(--zx-color-tone-orange-fg); }
+.zx-kanban-view__avatar[data-tone="red"] { --zx-kanban-avatar-bg: var(--zx-color-tone-red-bg); --zx-kanban-avatar-fg: var(--zx-color-tone-red-fg); }
+.zx-kanban-view__avatar[data-tone="pink"] { --zx-kanban-avatar-bg: var(--zx-color-tone-pink-bg); --zx-kanban-avatar-fg: var(--zx-color-tone-pink-fg); }
+.zx-kanban-view__avatar[data-tone="violet"] { --zx-kanban-avatar-bg: var(--zx-color-tone-violet-bg); --zx-kanban-avatar-fg: var(--zx-color-tone-violet-fg); }
+.zx-kanban-view__avatar[data-tone="slate"] { --zx-kanban-avatar-bg: var(--zx-color-tone-slate-bg); --zx-kanban-avatar-fg: var(--zx-color-tone-slate-fg); }
 
 .zx-kanban-view__avatar + .zx-kanban-view__avatar {
   margin-inline-start: calc(var(--zx-space-2) * -1);
 }
 
 .zx-kanban-view__avatar[data-overflow="true"] {
-  background: var(--zx-color-accent-subtle);
-  color: var(--zx-color-accent);
+  background: var(--zx-color-bg-current);
+  color: var(--zx-color-text-muted);
 }
 
 .zx-kanban-view__avatar-image {
@@ -795,11 +812,18 @@
   object-fit: cover;
 }
 
+/* Avatar's initials at the small size: 0.4 of the face, never under 10px, semibold. */
 .zx-kanban-view__avatar-initials {
-  font-size: var(--zx-text-xs);
-  font-weight: 600;
+  font-size: max(10px, calc(1.5rem * .4));
+  font-weight: var(--zx-weight-semibold);
+  letter-spacing: 0;
   line-height: 1;
   text-transform: uppercase;
+}
+
+/* The overflow chip is a count, not a person: it keeps the text size it can be read at. */
+.zx-kanban-view__avatar[data-overflow="true"] .zx-kanban-view__avatar-initials {
+  font-size: var(--zx-text-xs);
 }
 
 /* ── Move handle ──────────────────────────────────────────────────────────────────────────── */

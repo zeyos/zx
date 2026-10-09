@@ -15,8 +15,7 @@
   margin: 0;
   color: var(--zx-color-text-muted);
   font-size: var(--zx-text-sm);
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  font-weight: var(--zx-weight-semibold);
 }
 
 .zx-activity-list__items {
@@ -28,7 +27,7 @@
 }
 
 .zx-activity-list__items > .zx-activity-item:not(:last-child) {
-  border-block-end: 1px solid var(--zx-color-border);
+  border-block-end: 1px solid var(--zx-color-border-subtle);
 }
 
 .zx-activity-list__empty,
@@ -61,4 +60,40 @@
 
 .zx-activity-list__skeleton > .zx-skeleton-text {
   padding-block-start: var(--zx-space-1);
+}
+
+/* ------------------------------------------------------------------ compact -- */
+
+/*
+ * `variant: 'compact'` — one line per entry at any width, for a summary card narrower than 30rem:
+ * who and what read as one sentence that wraps as text, the time keeps the trailing end of the
+ * first line instead of stacking under it, and metadata follows as a muted second line. These
+ * rules outrank the entry's own narrow-container layout, which would stack the header.
+ */
+.zx-activity-list[data-variant="compact"] .zx-activity-item__article {
+  gap: var(--zx-space-2);
+  padding-block: var(--zx-space-2);
+}
+
+.zx-activity-list[data-variant="compact"] .zx-activity-item__main {
+  gap: calc(var(--zx-space-1) / 2);
+}
+
+.zx-activity-list[data-variant="compact"] .zx-activity-item__header {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: baseline;
+  justify-content: flex-start;
+  gap: var(--zx-space-2);
+}
+
+.zx-activity-list[data-variant="compact"] .zx-activity-item__heading {
+  display: block;
+  flex: 1 1 auto;
+}
+
+/* The state badge sits on the first line with the time, not centred against a wrapped sentence. */
+.zx-activity-list[data-variant="compact"] .zx-activity-item__state {
+  align-self: baseline;
+  margin-inline-start: 0;
 }

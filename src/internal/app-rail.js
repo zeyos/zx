@@ -294,8 +294,7 @@ export class AppRailPresenter extends Component {
     const actualPanel = dropdown.getPanel();
     actualPanel.classList.add('zx-app-rail__popover');
     // The panel is portaled out of the rail, so its stylesheet cannot ask which edge the rail
-    // occupies. Presentation only: it carries the active marker to the edge facing the screen
-    // on a right-hand rail, exactly as the expanded tree does.
+    // occupies. Presentation only: it tells the panel's styles which side it opened from.
     actualPanel.dataset.side = this.el.dataset.side;
     actualPanel.setAttribute('role', 'region');
     actualPanel.setAttribute('aria-label', this._message('appRail.subNavigation', '%1 sub-navigation', item.label));

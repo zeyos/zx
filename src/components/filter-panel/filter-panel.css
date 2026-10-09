@@ -26,7 +26,7 @@
 .zx-filter-panel__label {
   color: var(--zx-color-text-muted);
   font-size: var(--zx-text-sm);
-  font-weight: 650;
+  font-weight: var(--zx-weight-medium);
 }
 
 .zx-filter-panel__input {

@@ -17,17 +17,18 @@
   min-block-size: var(--zx-control-height);
   padding-inline: var(--zx-space-3);
   border-block-end: 1px solid var(--zx-color-border);
-  background: var(--zx-color-bg-subtle);
+  background: var(--zx-color-bg-muted);
   color: var(--zx-color-text-muted);
   font-size: var(--zx-text-xs);
 }
 
+/* The language is an identifier (`json`, `sql`), so it is shown as one — in the mono face, as
+   written — rather than shouted in letter-spaced capitals. */
 .zx-code-editor__language {
   overflow: hidden;
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  font-family: var(--zx-font-mono);
+  font-weight: var(--zx-weight-medium);
   text-overflow: ellipsis;
-  text-transform: uppercase;
   text-wrap: nowrap;
 }
 
@@ -59,7 +60,7 @@
 }
 
 .zx-code-editor[data-readonly="true"] {
-  background: var(--zx-color-bg-subtle);
+  background: var(--zx-color-bg-muted);
 }
 
 .zx-code-editor[data-disabled="true"] {

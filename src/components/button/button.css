@@ -40,20 +40,22 @@
   cursor: not-allowed;
 }
 
+/* The screen's one solid accent. It reads the solid-accent roles, which keep the deep stop with
+   white ink in both themes — the dark theme's bright text accent would make it a glowing slab. */
 .zx-btn[data-kind="primary"] {
-  border-color: var(--zx-color-accent);
-  background: var(--zx-color-accent);
-  color: var(--zx-color-on-accent);
+  border-color: var(--zx-color-accent-solid);
+  background: var(--zx-color-accent-solid);
+  color: var(--zx-color-on-accent-solid);
 }
 
 .zx-btn[data-kind="primary"]:hover:not(:disabled) {
-  border-color: var(--zx-color-accent-hover);
-  background: var(--zx-color-accent-hover);
+  border-color: var(--zx-color-accent-solid-hover);
+  background: var(--zx-color-accent-solid-hover);
 }
 
 .zx-btn[data-kind="primary"]:active:not(:disabled) {
-  border-color: var(--zx-color-accent-active);
-  background: var(--zx-color-accent-active);
+  border-color: var(--zx-color-accent-solid-active);
+  background: var(--zx-color-accent-solid-active);
 }
 
 .zx-btn[data-kind="danger"] {
@@ -66,6 +68,8 @@
   background: color-mix(in srgb, var(--zx-color-danger) 88%, var(--zx-color-text));
 }
 
+/* Ghost: no chrome until hovered, and its glyph in the subtle text colour so a row of them reads
+   as quiet affordances rather than a second toolbar of buttons. */
 .zx-btn[data-kind="ghost"] {
   border-color: transparent;
   background: none;
@@ -74,9 +78,41 @@
   box-shadow: none;
 }
 
+.zx-btn[data-kind="ghost"]:focus-visible {
+  box-shadow: var(--zx-focus-ring);
+}
+
+.zx-btn[data-kind="ghost"] > .zx-icon {
+  color: var(--zx-color-text-subtle);
+}
+
 .zx-btn[data-kind="ghost"]:hover:not(:disabled) {
   border-color: transparent;
   background: var(--zx-color-bg-hover);
+}
+
+.zx-btn[data-kind="ghost"]:hover:not(:disabled) > .zx-icon {
+  color: var(--zx-color-text);
+}
+
+/* A pressed toggle (`aria-pressed="true"`, e.g. a Toolbar item with `active`) is a mode you are
+   in, not a pick: the neutral current fill and the full text colour, never the accent. */
+.zx-btn[aria-pressed="true"] {
+  border-color: var(--zx-color-border-control);
+  background: var(--zx-color-bg-current);
+  color: var(--zx-color-text);
+}
+
+.zx-btn[data-kind="ghost"][aria-pressed="true"] {
+  border-color: transparent;
+}
+
+.zx-btn[aria-pressed="true"] > .zx-icon {
+  color: var(--zx-color-text);
+}
+
+.zx-btn[aria-pressed="true"]:hover:not(:disabled) {
+  background: var(--zx-color-bg-current);
 }
 
 .zx-btn[data-size="sm"] {
@@ -93,12 +129,33 @@
   display: inline-flex;
 }
 
+/* Busy (setButtonBusy): the action is running. It keeps its look and its focus; a spinner leads
+   the label, and an icon it had steps aside for the spinner so the width holds. */
+.zx-btn[aria-busy="true"] {
+  cursor: progress;
+}
+
+.zx-btn[aria-busy="true"] > .zx-icon {
+  display: none;
+}
+
+.zx-btn__spinner {
+  flex: none;
+}
+
+/* The key hint is quieter than the label by colour and weight, not by opacity: faded white on a
+   solid fill falls below 4.5:1. On a solid button it keeps the button's ink at a lighter weight. */
 .zx-btn__shortcut {
   font: inherit;
   font-size: var(--zx-text-xs);
-  opacity: .7;
+  font-weight: 400;
+  color: var(--zx-color-text-muted);
   margin-inline-start: var(--zx-space-1);
   white-space: nowrap;
+}
+
+.zx-btn:is([data-kind="primary"], [data-kind="danger"]) .zx-btn__shortcut {
+  color: inherit;
 }
 
 .zx-btn-group > .zx-btn:not(:first-child) {
@@ -135,7 +192,8 @@
     backdrop-filter: none;
   }
 
-  .zx-btn[data-kind="primary"] {
+  .zx-btn[data-kind="primary"],
+  .zx-btn[aria-pressed="true"] {
     border-color: Highlight;
     background: Highlight;
     color: HighlightText;

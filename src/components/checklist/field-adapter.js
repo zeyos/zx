@@ -7,7 +7,9 @@ import { Checklist } from './checklist.js';
  */
 export function registerChecklistFieldAdapter() {
   Field.register('checklist', (field, options) => {
-    const checklist = field.own(new Checklist(null, { ...(options.props ?? {}) }));
+    // The Field's label names the list (`aria-labelledby`), so the checklist draws no heading of
+    // its own under it.
+    const checklist = field.own(new Checklist(null, { hideLabel: true, ...(options.props ?? {}) }));
     let disabled = false;
     let setting = false;
     const syncDisabled = () => {

@@ -1,5 +1,6 @@
 import { Component } from '../../core/component.js';
 import { h, resolveElement } from '../../core/dom.js';
+import { uid } from '../../core/util.js';
 import { icon } from '../../core/icons.js';
 import { rovingTabindex, typeahead } from '../../core/keyboard.js';
 import {
@@ -24,7 +25,18 @@ import { Dropdown } from '../dropdown/dropdown.js';
  */
 
 /**
+ * @typedef {Object} MenuButtonOpenOptions
+ * @property {boolean|HTMLElement} [returnFocus=true] Where focus goes when this opening ends with a
+ *   selection or Escape: `true` is the trigger, an element is that element (the trigger again if
+ *   it has left the document), and `false` leaves focus alone.
+ */
+
+/**
  * APG menu-button trigger backed by an anchored Dropdown.
+ *
+ * Choosing an item closes the menu and puts focus back on the trigger before the `select` event
+ * and the item's `onselect` run, so whatever they open — a dialog, a sheet — records the trigger
+ * as the place to return to, and focus they move themselves stays where they put it.
  * @fires MenuButton#select
  * @fires MenuButton#open
  * @fires MenuButton#close
@@ -54,6 +66,8 @@ export class MenuButton extends Component {
   #items = [];
   /** @type {{attributes: Array<[string, string]>, children: Node[]}|null} */
   #original = null;
+  /** @type {boolean|HTMLElement} Focus destination for the current opening. */
+  #returnFocus = true;
   #created = false;
   #destroyed = false;
 
@@ -89,6 +103,10 @@ export class MenuButton extends Component {
     this.#panel = this.#dropdown.getPanel();
     this.#panel.classList.add('zx-menu-button__menu');
     this.#panel.setAttribute('role', 'menu');
+    // The menu is named by its trigger, as the APG menu-button pattern has it. An id given here to
+    // an enhanced trigger goes again on destroy(), with the rest of the attributes it gained.
+    if (!this.el.id) this.el.id = uid('zx-menu-button');
+    this.#panel.setAttribute('aria-labelledby', this.el.id);
     this.el.setAttribute('aria-haspopup', 'menu');
     if (existing && hasExplicitLabel) this.setLabel(this.options.label);
 
@@ -100,7 +118,10 @@ export class MenuButton extends Component {
     );
 
     this.#dropdown.on('open', () => this.emit('open'));
-    this.#dropdown.on('close', () => this.emit('close'));
+    this.#dropdown.on('close', () => {
+      this.#returnFocus = true;
+      this.emit('close');
+    });
     this.listen(this.el, 'click', () => {
       if (this.isOpen()) this.close();
       else {
@@ -143,9 +164,12 @@ export class MenuButton extends Component {
 
   /**
    * Opens the menu.
+   * @param {MenuButtonOpenOptions} [options={}] Where focus returns when this opening ends; ignored
+   *   while the menu is already open.
    * @returns {this}
    */
-  open() {
+  open(options = {}) {
+    if (!this.isOpen()) this.#returnFocus = options?.returnFocus ?? true;
     this.#dropdown.open();
     return this;
   }
@@ -177,16 +201,24 @@ export class MenuButton extends Component {
     return this.#panel;
   }
 
-  /** Opens the menu and focuses its first enabled item. @returns {this} */
-  focusFirst() {
-    this.open();
+  /**
+   * Opens the menu and focuses its first enabled item.
+   * @param {MenuButtonOpenOptions} [options={}] Passed to `open()`.
+   * @returns {this}
+   */
+  focusFirst(options = {}) {
+    this.open(options);
     this.#roving.focusFirst();
     return this;
   }
 
-  /** Opens the menu and focuses its last enabled item. @returns {this} */
-  focusLast() {
-    this.open();
+  /**
+   * Opens the menu and focuses its last enabled item.
+   * @param {MenuButtonOpenOptions} [options={}] Passed to `open()`.
+   * @returns {this}
+   */
+  focusLast(options = {}) {
+    this.open(options);
     this.#roving.focusLast();
     return this;
   }
@@ -231,8 +263,9 @@ export class MenuButton extends Component {
   #onMenuKeydown(event) {
     if (event.key === 'Escape') {
       event.preventDefault();
+      const target = this.#returnTarget();
       this.close();
-      this.el.focus();
+      target?.focus();
       return;
     }
     if (event.key === 'Tab') {
@@ -258,9 +291,21 @@ export class MenuButton extends Component {
       event?.preventDefault();
       return;
     }
+    /*
+     * Focus goes back first, as the APG pattern has it, and only if it is still the menu's to give:
+     * inside the panel, or already lost to the body. A dialog opened by a listener below then
+     * records the trigger as its opener rather than an item that is about to be hidden, and focus
+     * a listener moves on purpose is left where it was put.
+     */
+    const target = this.#returnTarget();
+    const active = document.activeElement;
+    const reclaim = Boolean(target) && (!active || active === document.body || this.#panel.contains(active));
+    if (reclaim) target?.focus();
     const selected = this.emit('select', { value: item.value, item });
     if (selected.defaultPrevented) {
       event?.preventDefault();
+      // The menu stays open, so focus returns to the item, unless a listener has moved it again.
+      if (reclaim && document.activeElement === target && element instanceof HTMLElement) element.focus();
       return;
     }
     try {
@@ -268,6 +313,17 @@ export class MenuButton extends Component {
     } finally {
       this.close();
     }
+  }
+
+  /**
+   * The element focus returns to when the current opening ends, or null when it should stay put.
+   * @returns {HTMLElement|null}
+   */
+  #returnTarget() {
+    const target = this.#returnFocus;
+    if (target === false) return null;
+    if (target instanceof HTMLElement && target.isConnected) return target;
+    return /** @type {HTMLElement} */ (this.el);
   }
 
   /** @returns {HTMLElement[]} */

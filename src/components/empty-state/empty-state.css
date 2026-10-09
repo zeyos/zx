@@ -11,14 +11,14 @@
 
 .zx-empty-state__icon {
   display: flex;
-  color: var(--zx-color-text-placeholder);
+  color: var(--zx-color-text-subtle);
 }
 
 .zx-empty-state__title {
   margin: 0;
   color: var(--zx-color-text);
   font-size: var(--zx-text-lg);
-  font-weight: 600;
+  font-weight: var(--zx-weight-semibold);
   line-height: 1.4;
 }
 

@@ -19,10 +19,17 @@ import { h } from '../../core/dom.js';
  * @property {(event: CustomEvent<{value:string}>) => void} [onchange] Change listener.
  */
 
+/** Keys that only modify the next one: pressing them is not the keystroke that ends a Tab release. */
+const MODIFIER_KEYS = new Set(['Shift', 'Control', 'Alt', 'Meta', 'AltGraph', 'CapsLock', 'Fn', 'OS']);
+
 /**
  * Dependency-free source editor for structured text, Markdown, JSON and code. It deliberately uses
  * a native textarea: values remain text-safe, browser undo and IME behavior stay intact, and Tab /
  * Shift+Tab provide predictable indentation without a third-party editor runtime.
+ *
+ * Capturing Tab is what a code surface has to do, and it would be a keyboard trap if nothing undid
+ * it: Escape releases the capture until the next keystroke in the editor, so Escape then Tab (or
+ * Shift+Tab) moves focus out of the editor as it would leave any other field.
  * @fires CodeEditor#input
  * @fires CodeEditor#change
  * @extends {Component<CodeEditorOptions>}
@@ -81,8 +88,11 @@ export class CodeEditor extends Component {
     root.dataset.readonly = String(Boolean(this.options.readOnly));
     root.dataset.disabled = String(Boolean(this.options.disabled));
     root.replaceChildren(this._header, this._input);
+    /** Set by Escape: the next Tab moves focus instead of indenting. */
+    this._tabReleased = false;
 
     this.listen(this._input, 'keydown', (event) => this._handleKeydown(event));
+    this.listen(this._input, 'blur', () => { this._tabReleased = false; });
     this.listen(this._input, 'input', () => {
       this._updatePosition();
       this.emit('input', { value: this.getValue() });
@@ -139,7 +149,15 @@ export class CodeEditor extends Component {
 
   /** @param {KeyboardEvent} event @returns {void} */
   _handleKeydown(event) {
-    if (event.key !== 'Tab' || event.altKey || event.ctrlKey || event.metaKey ||
+    if (event.isComposing || MODIFIER_KEYS.has(event.key)) return;
+    if (event.key === 'Escape') {
+      this._tabReleased = true;
+      return;
+    }
+    // Any other keystroke ends the release, the Tab it was for included.
+    const released = this._tabReleased;
+    this._tabReleased = false;
+    if (released || event.key !== 'Tab' || event.altKey || event.ctrlKey || event.metaKey ||
         this._input.readOnly || this._input.disabled) return;
     const indent = String(this.options.indent ?? '\t');
     if (!indent) return;

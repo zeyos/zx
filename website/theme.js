@@ -11,16 +11,18 @@
  * is a deliberate risk: a reader can make the documentation look strange. Reset is one click, and
  * the alternative — a preview that survives its own bad ideas — teaches nothing.
  *
- * Density is the only control that rebuilds the canvas. Colour and geometry are custom properties
- * and re-render themselves; density changes metrics some components read while they build.
+ * Colour, spacing, and geometry are all custom properties, so the sliders repaint the canvas
+ * without rebuilding it. Picking a preset or resetting rebuilds it anyway: those move every token
+ * at once, and a fresh build is the honest picture of what an application would render.
  */
 
 import {
-  Dialog, Select, Slider, button, copyToClipboard, h, icon, rovingTabindex
+  Dialog, Message, Select, Slider, button, copyToClipboard, downloadBlob, h, icon, rovingTabindex
 } from '../src/index.js';
 import {
-  DEFAULTS, FONTS, PRESETS, STOPS, TINTS, accentRamp, contrast, presetById, resolvedAccent,
-  themeCss, themeVars
+  CUSTOM_FONT, DEFAULTS, FONTS, MATERIALS, MONO_FONTS, PRESETS, RANGES, STOPS, TINTS, accentRamp,
+  cleanFontStack, contrast, fontById, normalizeSettings, presetById, readThemeJson, resolvedAccent,
+  themeCss, themeJson, themeVars, tintById, tintRamp
 } from './theme-presets.js';
 import { CARDS, mountShowcase } from './theme-showcase.js';
 
@@ -32,15 +34,14 @@ const THEMES = [
   { id: 'dark', label: 'Dark' },
   { id: 'auto', label: 'Auto' }
 ];
-const DENSITIES = [
-  { id: 'cozy', label: 'Cozy' },
-  { id: 'compact', label: 'Compact' }
+/** Motion is a viewer preference like Appearance, never part of an exported theme. */
+const MOTIONS = [
+  { id: 'system', label: 'System' },
+  { id: 'reduced', label: 'Reduced' }
 ];
-const MATERIALS = [
-  { id: 'none', label: 'Flat' },
-  { id: 'subtle', label: 'Glass' },
-  { id: 'strong', label: 'Deep glass' }
-];
+
+/** The largest theme file the importer reads; an exported one is a few kilobytes. */
+const MAX_IMPORT_BYTES = 256 * 1024;
 
 const state = restore();
 
@@ -69,6 +70,7 @@ const sync = [];
 // says so". It is registered before the first apply() so that path is live from the first render.
 document.addEventListener('zx-theme-change', () => {
   state.theme = window.zxTheme.get().theme;
+  state.motion = window.zxTheme.get().motion ?? 'system';
   for (const update of sync) update();
 });
 
@@ -99,45 +101,50 @@ function buildRail() {
       state.theme = value;
       apply();
     })),
-    section('Density', segmented('Density', DENSITIES, () => state.density, (value) => {
-      state.density = value;
-      apply({ rebuild: true });
-    })),
+    section('Motion', segmented('Motion', MOTIONS, () => state.motion, (value) => {
+      state.motion = value;
+      apply();
+    }), 'System follows your operating system. Reduced stops animation and transitions on every '
+      + 'page of this site. Nothing here adds motion your system has turned off.'),
     section('Material', segmented('Material', MATERIALS, () => state.glass, (value) => {
       state.glass = value;
       apply();
     }), 'Aurora supplies ambient light; material controls how surfaces respond to it. Flat is opaque. Glass and Deep glass progressively increase translucency, blur, colour response, and specular light across AppIcons, controls, persistent chrome, raised cards, and every transient overlay. Menus, pickers, tooltips, column menus, and Toast use compact glass. Launcher, Modal, Dialog, and floating Sheet use a calmer reading panel. Docked Sheets and dense data surfaces stay opaque.'),
     accentSection(),
-    section('Neutral tint', choice(TINTS, () => state.tint, (value) => {
-      state.tint = value;
-      apply();
-    }), 'The grey ramp every surface and border is mixed from.'),
-    section('Typeface', choice(FONTS, () => state.font, (value) => {
-      state.font = value;
-      apply();
-    })),
+    tintSection(),
+    typefaceSection(),
+    section('Spacing', slider({
+      label: 'Spacing unit', ...RANGES.spacing, unit: 'px',
+      get: () => state.spacing,
+      set: (value) => { state.spacing = value; }
+    }), 'Every spacing step is a multiple of this unit, so padding, gaps, and indents move '
+      + 'together. Tighten an application here rather than shrinking its type.'),
     section('Radius', slider({
-      label: 'Corner radius', min: 0, max: 1.2, step: 0.05, unit: 'rem',
+      label: 'Corner radius', ...RANGES.radius, unit: 'px',
       get: () => state.radius,
       set: (value) => { state.radius = value; }
-    })),
+    }), 'The base radius. Menu items, controls, and panels take fixed fractions of it, so their '
+      + 'corners stay in proportion at any setting.'),
     section('Control height', slider({
-      label: 'Control height', min: 24, max: 44, step: 1, unit: 'px',
+      label: 'Control height', ...RANGES.controlHeight, unit: 'px',
       get: () => state.controlHeight,
       set: (value) => { state.controlHeight = value; }
     })),
     section('Text size', slider({
-      label: 'Base text size', min: 12, max: 17, step: 1, unit: 'px',
+      label: 'Base text size', ...RANGES.textSize, unit: 'px',
       get: () => state.textSize,
       set: (value) => { state.textSize = value; }
     })),
     h('p', { class: 'studio-rail__note' },
       'Preset accent ramps ship as ', h('code', {}, 'data-zx-preset'),
       ' in ', h('code', {}, 'styles/tokens/themes.css'), '. The studio also applies each preset’s '
-      + 'complete type, geometry, density, tint, and material recipe; Copy CSS exports those '
-      + 'choices for an application.'),
+      + 'complete type, geometry, spacing, tint, and material recipe; Copy CSS exports those '
+      + 'choices for an application. Export saves the settings as a JSON theme file, and Import '
+      + 'loads one back.'),
     // Last in the rail, and pinned to the bottom of it by the stylesheet.
     h('div', { class: 'studio-rail__actions' },
+      button({ label: 'Import', icon: 'upload', title: 'Load a JSON theme file', onclick: showImport }),
+      button({ label: 'Export', icon: 'file', title: 'Save the theme as a JSON file', onclick: showJson }),
       button({ label: 'Reset', icon: 'reload', onclick: reset }),
       button({ label: 'Copy CSS', icon: 'code', kind: 'primary', onclick: showCss })));
 
@@ -225,13 +232,18 @@ function accentSection() {
       'data-current': String(stop === (dark ? 400 : 600))
     })));
 
-    // The ink on an accent-filled button is white on light surfaces and near-black on dark ones.
-    // Reporting the ratio makes the guarantee checkable rather than merely claimed.
-    const ink = dark ? '#09090b' : '#ffffff';
-    const ratio = contrast(shown, ink);
+    // The primary button is the 600 stop with white ink in both themes. On dark surfaces the
+    // accent text and accent-filled marks take the 400 stop, with near-black ink on a fill.
+    // Reporting the ratios makes the guarantee checkable rather than merely claimed.
+    const grade = (ratio) => `${ratio.toFixed(2)}:1 (${ratio >= 4.5 ? 'AA' : 'below AA'})`;
+    const solid = contrast(stops[600], '#ffffff');
     readout.replaceChildren(
-      h('code', {}, dark ? '--zx-accent-400' : '--zx-accent-600'),
-      ` ${shown} · ${ratio.toFixed(2)}:1 against the label on it (${ratio >= 4.5 ? 'AA' : 'below AA'})`);
+      h('code', {}, '--zx-accent-600'),
+      ` ${stops[600]} · ${grade(solid)} against the primary button's label`,
+      ...(dark
+        ? [h('br'), h('code', {}, '--zx-accent-400'),
+          ` ${shown} · ${grade(contrast(shown, '#09090b'))} against the ink on an accent fill`]
+        : []));
   };
   sync.push(update);
   update();
@@ -240,6 +252,151 @@ function accentSection() {
     h('div', { class: 'studio-stack' }, h('div', { class: 'studio-row' }, well, clear), ramp, readout),
     'Any colour becomes a five-stop ramp: the hue and chroma are yours, the lightness is fixed so '
     + 'both themes stay legible.');
+}
+
+/**
+ * The neutral tint: a radiogroup of swatches, each drawn from the ramp it would produce, and the
+ * strength every tint is scaled by.
+ *
+ * Swatches rather than a list of names, because "Mist" and "Sage" mean nothing until they are
+ * seen — and they are drawn at the current strength and accent, so the picker shows what picking
+ * would do rather than what the tint looks like in the abstract.
+ * @returns {HTMLElement}
+ */
+function tintSection() {
+  const group = h('div', { class: 'studio-tints', role: 'radiogroup', 'aria-label': 'Neutral tint' });
+  const options = TINTS.map((tint) => {
+    const stops = [300, 500, 700].map(() => h('span', { class: 'studio-tint__stop' }));
+    const node = h('button', {
+      type: 'button',
+      class: 'studio-tint',
+      role: 'radio',
+      'data-tint': tint.id,
+      onclick: () => selectTint(tint.id)
+    },
+    h('span', { class: 'studio-tint__chip', 'aria-hidden': 'true' }, stops),
+    h('span', { class: 'studio-tint__name' }, tint.label));
+    group.append(node);
+    return { tint, node, stops };
+  });
+
+  // The APG radio group: one tab stop on the checked swatch, and the arrow keys move the choice
+  // through the list in reading order — left and up back, right and down on — so the grid can be
+  // walked either way without the reader having to know where it wraps.
+  group.addEventListener('keydown', (event) => {
+    const moves = { ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1 };
+    const index = TINTS.findIndex((tint) => tint.id === state.tint);
+    let next = null;
+    if (event.key in moves) next = (index + moves[event.key] + TINTS.length) % TINTS.length;
+    else if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = TINTS.length - 1;
+    if (next === null) return;
+    event.preventDefault();
+    selectTint(TINTS[next].id);
+    options[next].node.focus();
+  });
+
+  const strength = slider({
+    label: 'Tint strength', ...RANGES.tintStrength, unit: '%',
+    get: () => state.tintStrength,
+    set: (value) => { state.tintStrength = value; },
+    // A tint with no colour of its own has nothing to scale.
+    disabled: () => tintById(state.tint).chroma === 0
+  });
+
+  const update = () => {
+    for (const { tint, node, stops } of options) {
+      const checked = tint.id === state.tint;
+      node.setAttribute('aria-checked', String(checked));
+      node.tabIndex = checked ? 0 : -1;
+      const ramp = tintRamp(state, tint.id);
+      [300, 500, 700].forEach((stop, index) => {
+        stops[index].style.background = ramp[`--zx-gray-${stop}`];
+      });
+    }
+  };
+  sync.push(update);
+  update();
+
+  return section('Neutral tint',
+    h('div', { class: 'studio-stack' }, group, field('Strength', strength)),
+    'The grey ramp every surface and border is mixed from. The tint peaks in the mid greys and '
+    + 'fades out at both ends, so the page stays white and the text stays near-black.');
+}
+
+/** @param {string} id @returns {void} */
+function selectTint(id) {
+  state.tint = id;
+  apply();
+}
+
+/**
+ * The two type stacks: the interface typeface, with a stack of the reader's own, and the code
+ * font. Both lists draw each entry in its own stack, which shows at a glance which of them this
+ * machine actually has.
+ * @returns {HTMLElement}
+ */
+function typefaceSection() {
+  const fonts = [...FONTS, { id: CUSTOM_FONT, label: 'Custom stack…', stack: null }];
+  const sans = choice(fonts, () => state.font, (value) => {
+    // Starting a custom stack from the one just in use is easier than starting from nothing.
+    if (value === CUSTOM_FONT && !cleanFontStack(state.fontStack)) {
+      state.fontStack = fontById(state.font).stack;
+    }
+    state.font = value;
+    apply();
+  }, { label: 'Interface typeface', preview: true });
+
+  const hint = h('p', { class: 'studio-section__hint', id: 'studio-font-stack-hint' },
+    'Font names, separated by commas. Fonts this machine does not have are skipped.');
+  const custom = h('input', {
+    type: 'text',
+    class: 'studio-input',
+    'aria-label': 'Custom font stack',
+    'aria-describedby': 'studio-font-stack-hint',
+    placeholder: '"Brand Sans", system-ui, sans-serif',
+    spellcheck: 'false',
+    autocomplete: 'off',
+    oninput: () => {
+      state.fontStack = custom.value;
+      apply();
+    }
+  });
+  const customRow = h('div', { class: 'studio-stack studio-stack--tight' }, custom, hint);
+
+  const mono = choice(MONO_FONTS, () => state.monoFont, (value) => {
+    state.monoFont = value;
+    apply();
+  }, { label: 'Code typeface', preview: true });
+
+  sync.push(() => {
+    customRow.hidden = state.font !== CUSTOM_FONT;
+    // Never rewrite the field under the reader's caret: what they typed is the state, and the
+    // cleaned form is only what gets applied.
+    if (document.activeElement !== custom) custom.value = state.fontStack;
+    const usable = Boolean(cleanFontStack(state.fontStack));
+    custom.setAttribute('aria-invalid', String(!usable && state.fontStack.trim() !== ''));
+    hint.textContent = usable || state.fontStack.trim() === ''
+      ? 'Font names, separated by commas. Fonts this machine does not have are skipped.'
+      : 'Not usable yet: font names may hold letters, digits, spaces, dots, and hyphens. '
+        + 'The stock typeface is showing meanwhile.';
+  });
+
+  return section('Typeface',
+    h('div', { class: 'studio-stack' }, field('Interface', sans), customRow, field('Code', mono)),
+    'A custom stack is applied as typed, so it can name your brand font; the studio cannot load '
+    + 'one, but a page that already does will pick it up.');
+}
+
+/**
+ * A visible label above a control that names itself for assistive technology.
+ * @param {string} label
+ * @param {Node} control
+ * @returns {HTMLElement}
+ */
+function field(label, control) {
+  return h('div', { class: 'studio-field' },
+    h('span', { class: 'studio-field__label', 'aria-hidden': 'true' }, label), control);
 }
 
 /**
@@ -287,16 +444,22 @@ function segmented(label, options, get, set) {
 
 /**
  * A Select over a list of `{id, label}` records.
- * @param {{id: string, label: string}[]} options
+ * @param {{id: string, label: string, stack?: string|null}[]} options
  * @param {() => string} get
  * @param {(value: string) => void} set
+ * @param {{label?: string, preview?: boolean}} [settings] `label` names the control;
+ *   `preview` draws each option in its own `stack`.
  * @returns {Node}
  */
-function choice(options, get, set) {
+function choice(options, get, set, { label = '', preview = false } = {}) {
   const select = new Select(null, {
-    items: options.map((option) => ({ ID: option.id, name: option.label })),
+    items: options.map((option) => ({ ID: option.id, name: option.label, stack: option.stack ?? null })),
     value: get(),
     filter: false,
+    label,
+    renderItem: preview
+      ? (item) => h('span', { style: { fontFamily: item.stack ?? 'inherit' } }, item.name)
+      : null,
     onchange: (event) => set(String(event.detail.value))
   });
   sync.push(() => {
@@ -308,7 +471,7 @@ function choice(options, get, set) {
 /**
  * A Slider bound to one numeric field of the state.
  * @param {{label: string, min: number, max: number, step: number, unit: string,
- *   get: () => number, set: (value: number) => void}} spec
+ *   get: () => number, set: (value: number) => void, disabled?: () => boolean}} spec
  * @returns {Node}
  */
 function slider(spec) {
@@ -330,6 +493,10 @@ function slider(spec) {
   });
   sync.push(() => {
     if (control.get() !== spec.get()) control.set(spec.get());
+    if (spec.disabled) {
+      if (spec.disabled()) control.disable();
+      else control.enable();
+    }
   });
   return control.toElement();
 }
@@ -344,8 +511,8 @@ function slider(spec) {
 function apply({ rebuild = false } = {}) {
   window.zxTheme.set({
     theme: state.theme,
+    motion: state.motion,
     preset: state.accent ? 'zx' : state.preset,
-    density: state.density,
     vars: themeVars(state)
   });
   try {
@@ -365,16 +532,17 @@ function cyclePreset(step) {
 /** @param {string} id @returns {void} */
 function selectPreset(id) {
   const preset = presetById(id);
-  state.preset = preset.id;
-  Object.assign(state, preset.recipe);
-  // Picking a standard theme means picking its ramp, so a custom accent gets out of the way.
-  state.accent = null;
+  // A preset is a complete theme: whatever its recipe does not name — the custom accent, the tint
+  // strength, the code font — goes back to stock rather than leaking in from the last one.
+  Object.assign(state, DEFAULTS,
+    { theme: state.theme, motion: state.motion, fontStack: state.fontStack }, preset.recipe,
+    { preset: preset.id });
   apply({ rebuild: true });
 }
 
 /** @returns {void} */
 function reset() {
-  Object.assign(state, DEFAULTS, { theme: state.theme });
+  Object.assign(state, DEFAULTS, { theme: state.theme, motion: state.motion });
   apply({ rebuild: true });
 }
 
@@ -389,17 +557,22 @@ function rebuildCanvas() {
  *
  * Storage outlives the code that wrote it: an entry left by an older studio can name a preset that
  * no longer ships or a slider that has since been removed, and a value copied straight into the
- * state would come back out as `--zx-radius: undefinedrem`. Every field is therefore checked
- * against what the control can actually show, and anything else falls back to the default.
+ * state would come back out as `--zx-radius: undefinedpx`. Every field is therefore checked
+ * against what the control can actually show — by the same check a theme file goes through — and
+ * anything else falls back to the default.
+ *
+ * An entry from before the spacing setting has no `spacing` field. Its radius was in rem on the
+ * old scale and its control height was measured against a 32px default, so both are carried over
+ * to where they sit on the current scale rather than read as if they had always been pixels.
  * @returns {object}
  */
 function restore() {
   const applied = window.zxTheme.get();
-  const state = {
+  const base = {
     ...DEFAULTS,
     theme: applied.theme,
-    preset: PRESETS.some((preset) => preset.id === applied.preset) ? applied.preset : DEFAULTS.preset,
-    density: DENSITIES.some((density) => density.id === applied.density) ? applied.density : DEFAULTS.density
+    motion: applied.motion ?? 'system',
+    preset: PRESETS.some((preset) => preset.id === applied.preset) ? applied.preset : DEFAULTS.preset
   };
 
   let stored = null;
@@ -408,51 +581,186 @@ function restore() {
   } catch {
     // A malformed entry is no worse than no entry.
   }
-  if (!stored || typeof stored !== 'object') return state;
+  if (!stored || typeof stored !== 'object') return base;
 
-  if (PRESETS.some((preset) => preset.id === stored.preset)) state.preset = stored.preset;
-  if (DENSITIES.some((density) => density.id === stored.density)) state.density = stored.density;
-  if (TINTS.some((tint) => tint.id === stored.tint)) state.tint = stored.tint;
-  if (FONTS.some((font) => font.id === stored.font)) state.font = stored.font;
-  if (MATERIALS.some((material) => material.id === stored.glass)) state.glass = stored.glass;
-  if (typeof stored.accent === 'string' && /^#[\da-f]{6}$/i.test(stored.accent)) {
-    state.accent = stored.accent;
+  const values = { ...stored };
+  if (!('spacing' in stored)) {
+    // 0.45rem was the old default and 4px is the new one; the old control default was 32px.
+    if (Number.isFinite(stored.radius)) values.radius = (stored.radius / 0.45) * DEFAULTS.radius;
+    if (Number.isFinite(stored.controlHeight)) values.controlHeight = stored.controlHeight - 2;
   }
-  for (const [field, min, max] of [['radius', 0, 1.2], ['controlHeight', 24, 44], ['textSize', 12, 17]]) {
-    if (Number.isFinite(stored[field])) state[field] = Math.min(max, Math.max(min, stored[field]));
-  }
-  return state;
+  // A typed stack is kept as typed, half-finished or not; only what is applied gets cleaned.
+  const fontStack = typeof stored.fontStack === 'string' ? stored.fontStack.slice(0, 200) : '';
+  const { settings } = normalizeSettings(values, base);
+  return { ...base, ...settings, fontStack };
 }
 
 /* ----------------------------------------------------------------------- code -- */
 
+/** @type {Dialog|null} Shows exported CSS or JSON; built on first use and refilled on each open. */
+let codeDialog = null;
 /** @type {Dialog|null} Built on first use and refilled on each open. */
-let cssDialog = null;
+let importDialog = null;
 
 /** Shows the current theme as the stylesheet an application would paste in. @returns {void} */
 function showCss() {
-  const css = themeCss(state);
+  showCode({
+    title: 'Your theme, as CSS',
+    intro: ['Load this after ', h('code', {}, 'zx.css'), '. Only what you changed is listed — the '
+      + 'rest of the theme keeps the stock values.'],
+    code: themeCss(state)
+  });
+}
+
+/** Shows the current theme as a theme file, to copy or to save. @returns {void} */
+function showJson() {
+  const json = themeJson(state);
+  showCode({
+    title: 'Your theme, as JSON',
+    intro: ['A theme file: keep it, share it, or check it in, and bring it back with Import. ',
+      h('code', {}, 'settings'), ' is what Import reads; ', h('code', {}, 'tokens'), ' are the '
+      + 'custom properties those settings produce, for tools that want the values themselves.'],
+    code: json,
+    actions: [button({
+      label: 'Download',
+      icon: 'file',
+      onclick: () => downloadBlob(themeFileName(), json, { type: 'application/json' })
+    })]
+  });
+}
+
+/**
+ * Fills and opens the code dialog.
+ * @param {{title: string, intro: (Node|string)[], code: string, actions?: Node[]}} spec
+ * @returns {void}
+ */
+function showCode({ title, intro, code, actions = [] }) {
   const copy = button({
     label: 'Copy',
     icon: 'copy',
     kind: 'primary',
     onclick: async () => {
-      const done = await copyToClipboard(css);
+      const done = await copyToClipboard(code);
       copy.replaceChildren(icon(done ? 'check' : 'error'),
         h('span', { class: 'zx-btn__label' }, done ? 'Copied' : 'Copy failed'));
     }
   });
 
-  cssDialog ??= new Dialog(null, {
-    title: 'Your theme, as CSS',
+  codeDialog ??= new Dialog(null, {
     size: 'lg',
     buttons: [{ label: 'Close', action: 'close' }]
   });
-  cssDialog.setContent(h('div', { class: 'studio-stack' },
+  codeDialog.setTitle(title);
+  codeDialog.setContent(h('div', { class: 'studio-stack' },
+    h('p', { class: 'studio-prose' }, intro),
+    h('pre', { class: 'studio-code' }, h('code', {}, code)),
+    h('div', { class: 'studio-row' }, copy, actions)));
+  codeDialog.open();
+}
+
+/** @returns {string} A file name that says which theme it holds. */
+function themeFileName() {
+  const origin = state.accent ? `custom-${state.accent.slice(1)}` : presetById(state.preset).id;
+  return `zx-theme-${origin}.json`;
+}
+
+/**
+ * Asks for a theme file — pasted, chosen, or dropped — and applies it.
+ *
+ * The file is checked before anything changes: a file that cannot be read leaves the theme as it
+ * was and says why, in the dialog, next to the text that caused it. One that loads with values
+ * adjusted says what was adjusted once it has been applied.
+ * @returns {void}
+ */
+function showImport() {
+  const text = h('textarea', {
+    class: 'studio-import__text',
+    rows: 12,
+    spellcheck: 'false',
+    autocomplete: 'off',
+    'aria-label': 'Theme JSON',
+    'aria-describedby': 'studio-import-error',
+    placeholder: '{\n  "format": "zx-theme",\n  "version": 1,\n  "settings": { "accent": "#e11d48" }\n}'
+  });
+  const error = h('p', { class: 'studio-error', id: 'studio-import-error', role: 'alert', hidden: true });
+  const fail = (message) => {
+    error.textContent = message;
+    error.hidden = false;
+    text.setAttribute('aria-invalid', 'true');
+  };
+  const clear = () => {
+    error.hidden = true;
+    text.removeAttribute('aria-invalid');
+  };
+
+  /** @param {File|undefined} file @returns {Promise<void>} */
+  const load = async (file) => {
+    if (!file) return;
+    if (file.size > MAX_IMPORT_BYTES) {
+      fail(`${file.name} is ${Math.round(file.size / 1024)} KB — too large to be a theme file.`);
+      return;
+    }
+    try {
+      text.value = await file.text();
+      clear();
+      text.focus();
+    } catch {
+      fail(`${file.name} could not be read.`);
+    }
+  };
+
+  const picker = h('input', {
+    type: 'file',
+    accept: '.json,application/json',
+    hidden: true,
+    onchange: () => {
+      load(picker.files?.[0]);
+      picker.value = '';
+    }
+  });
+  text.addEventListener('input', clear);
+  text.addEventListener('dragover', (event) => {
+    if (event.dataTransfer?.types.includes('Files')) event.preventDefault();
+  });
+  text.addEventListener('drop', (event) => {
+    const file = event.dataTransfer?.files?.[0];
+    if (!file) return;
+    event.preventDefault();
+    load(file);
+  });
+
+  const run = (dialog) => {
+    let result;
+    try {
+      result = readThemeJson(text.value);
+    } catch (problem) {
+      fail(problem instanceof Error ? problem.message : String(problem));
+      text.focus();
+      return;
+    }
+    Object.assign(state, result.settings);
+    apply({ rebuild: true });
+    dialog.close();
+    if (result.warnings.length === 0) {
+      Message.success('Theme imported.');
+    } else {
+      Message.warning(`Theme imported with ${result.warnings.length === 1 ? 'one change' : `${result.warnings.length} changes`}: `
+        + result.warnings.join(' '), { timeout: 12000 });
+    }
+  };
+
+  importDialog ??= new Dialog(null, { title: 'Import a theme', size: 'lg' });
+  importDialog.setButtons([
+    { label: 'Cancel', action: 'cancel' },
+    { label: 'Import', kind: 'primary', action: run }
+  ]);
+  importDialog.setContent(h('div', { class: 'studio-stack' },
     h('p', { class: 'studio-prose' },
-      'Load this after ', h('code', {}, 'zx.css'), '. Only what you changed is listed — the rest '
-      + 'of the theme keeps the stock values.'),
-    h('pre', { class: 'studio-code' }, h('code', {}, css)),
-    h('div', { class: 'studio-row' }, copy)));
-  cssDialog.open();
+      'Paste a theme file exported from this studio, drop one on the field, or choose one. Every '
+      + 'setting it leaves out takes the stock value; your light or dark choice stays as it is.'),
+    h('div', { class: 'studio-row' },
+      button({ label: 'Choose file…', icon: 'folder-open', onclick: () => picker.click() }), picker),
+    text,
+    error));
+  importDialog.open();
 }

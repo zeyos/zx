@@ -1,3 +1,8 @@
+/*
+ * The neutral soft fill is a wash of the text colour rather than an opaque step of the surface
+ * scale: it darkens whatever it sits on by the same amount. In the dark theme the muted step is
+ * the raised one, so an opaque muted badge vanished on a raised card, a menu, or a dialog.
+ */
 .zx-badge {
   display: inline-flex;
   align-items: center;
@@ -5,12 +10,12 @@
   max-inline-size: 100%;
   border: 1px solid transparent;
   border-radius: var(--zx-radius-full);
-  background: var(--zx-color-bg-muted);
+  background: color-mix(in srgb, var(--zx-color-text) 7%, transparent);
   color: var(--zx-color-text-muted);
   padding-block: 2px;
   padding-inline: var(--zx-space-2);
   font-size: var(--zx-text-xs);
-  font-weight: 600;
+  font-weight: var(--zx-weight-medium);
   font-variant-numeric: tabular-nums;
   line-height: 1.35;
   white-space: nowrap;
@@ -127,6 +132,39 @@
   color: var(--zx-color-info);
 }
 
+/*
+ * Tone — categorical colour from the tone palette, for what a badge *is* (a project, a label, a
+ * module) rather than how it is doing. Declared after every `kind` rule so a tone wins at equal
+ * specificity: a badge has one colour, and a tone is the more specific request. Soft by default,
+ * borderless; solid fills with the tone's foreground; outline draws it.
+ */
+.zx-badge[data-tone] {
+  border-color: transparent;
+  background: var(--zx-badge-tone-bg);
+  color: var(--zx-badge-tone-fg);
+}
+
+.zx-badge[data-tone="blue"] { --zx-badge-tone-bg: var(--zx-color-tone-blue-bg); --zx-badge-tone-fg: var(--zx-color-tone-blue-fg); }
+.zx-badge[data-tone="teal"] { --zx-badge-tone-bg: var(--zx-color-tone-teal-bg); --zx-badge-tone-fg: var(--zx-color-tone-teal-fg); }
+.zx-badge[data-tone="green"] { --zx-badge-tone-bg: var(--zx-color-tone-green-bg); --zx-badge-tone-fg: var(--zx-color-tone-green-fg); }
+.zx-badge[data-tone="amber"] { --zx-badge-tone-bg: var(--zx-color-tone-amber-bg); --zx-badge-tone-fg: var(--zx-color-tone-amber-fg); }
+.zx-badge[data-tone="orange"] { --zx-badge-tone-bg: var(--zx-color-tone-orange-bg); --zx-badge-tone-fg: var(--zx-color-tone-orange-fg); }
+.zx-badge[data-tone="red"] { --zx-badge-tone-bg: var(--zx-color-tone-red-bg); --zx-badge-tone-fg: var(--zx-color-tone-red-fg); }
+.zx-badge[data-tone="pink"] { --zx-badge-tone-bg: var(--zx-color-tone-pink-bg); --zx-badge-tone-fg: var(--zx-color-tone-pink-fg); }
+.zx-badge[data-tone="violet"] { --zx-badge-tone-bg: var(--zx-color-tone-violet-bg); --zx-badge-tone-fg: var(--zx-color-tone-violet-fg); }
+.zx-badge[data-tone="slate"] { --zx-badge-tone-bg: var(--zx-color-tone-slate-bg); --zx-badge-tone-fg: var(--zx-color-tone-slate-fg); }
+
+.zx-badge[data-variant="solid"][data-tone] {
+  background: var(--zx-badge-tone-fg);
+  color: var(--zx-color-bg-surface);
+}
+
+.zx-badge[data-variant="outline"][data-tone] {
+  border-color: currentColor;
+  background: transparent;
+  color: var(--zx-badge-tone-fg);
+}
+
 .zx-badge[data-size="sm"] {
   gap: calc(var(--zx-space-1) / 2);
   padding-block: 1px;
@@ -137,6 +175,20 @@
 .zx-badge[data-size="sm"] .zx-badge__dot {
   inline-size: 5px;
   block-size: 5px;
+}
+
+/* A small badge with a dot keeps the medium badge's text size and a full step between dot and
+   label: at 11px with a 2px gap the dot ran into the first letter. The label's end gets a little
+   more room than the dot's start, which the pill's round end would otherwise crowd. */
+.zx-badge[data-size="sm"]:has(> .zx-badge__dot) {
+  gap: var(--zx-space-1);
+  padding-inline: var(--zx-space-1) calc(var(--zx-space-1) * 1.5);
+  font-size: var(--zx-text-xs);
+}
+
+.zx-badge[data-size="sm"]:has(> .zx-badge__dot) .zx-badge__dot {
+  inline-size: 6px;
+  block-size: 6px;
 }
 
 .zx-badge-group {

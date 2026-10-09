@@ -9,6 +9,15 @@ function activityRecords() {
   ];
 }
 
+// A dashboard card's feed: who did what, where, and when — no bodies, no actions.
+function recentChanges() {
+  return [
+    { id: 'c3', actor: 'Ada Lovelace', avatar: { name: 'Ada Lovelace' }, title: 'replaced the power supply in rack R03', timeLabel: '12 min', metadata: ['Frankfurt', 'Maintenance'] },
+    { id: 'c2', actor: 'Grace Hopper', avatar: { name: 'Grace Hopper' }, title: 'raised the uplink to 10 Gb/s', timeLabel: '1 h', metadata: ['Berlin'] },
+    { id: 'c1', actor: 'Linus Torvalds', avatar: { name: 'Linus Torvalds' }, title: 'retired two switches', timeLabel: 'Yesterday', state: 'pending', metadata: ['Amsterdam'] }
+  ];
+}
+
 export default {
   title: 'Activity list',
   group: 'Data',
@@ -41,6 +50,24 @@ export default {
             button({ label: 'Finish loading', onclick: () => list.setLoading(false) }),
             button({ label: 'Show empty', kind: 'danger', onclick: () => list.setItems([]) }))
         ];
+      }
+    },
+    {
+      title: 'Compact, in a narrow card',
+      blurb: 'The compact variant keeps every entry on one line at any width: who and what read as '
+        + 'one sentence, the time stays at the trailing end instead of dropping under the title, '
+        + 'the avatar is small, and metadata follows as a muted second line. Use it for a summary '
+        + 'card narrower than 30rem.',
+      layout: 'stack',
+      width: '360px',
+      render: ({ cleanup }) => {
+        const list = new ActivityList(null, {
+          items: recentChanges(),
+          variant: 'compact',
+          label: 'Recent changes'
+        });
+        cleanup(() => list.destroy());
+        return h('div', { class: 'demo-card' }, list.toElement());
       }
     }
   ]

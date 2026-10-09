@@ -2,10 +2,19 @@ import { h } from '../../core/dom.js';
 import { icon as createIcon } from '../../core/icons.js';
 
 /**
+ * A categorical tone from the design system's tone palette (`--zx-color-tone-*`).
+ * @typedef {'blue'|'teal'|'green'|'amber'|'orange'|'red'|'pink'|'violet'|'slate'} BadgeTone
+ */
+
+/**
  * @typedef {Object} BadgeOptions
  * @property {string} [label=''] Visible badge text.
  * @property {string|null} [icon=null] Icon name from `icons.js`, rendered before the label.
  * @property {'neutral'|'accent'|'success'|'warning'|'danger'|'info'} [kind='neutral'] Semantic intent.
+ * @property {BadgeTone|null} [tone=null] Categorical colour — a project, a label, a module — from
+ * the tone palette rather than the status set, so a tag never reads as a warning. When set it
+ * decides the colour and `kind` is ignored for it; `variant` still applies. Unknown names are
+ * ignored.
  * @property {'soft'|'solid'|'outline'} [variant='soft'] Fill treatment.
  * @property {'md'|'sm'} [size='md'] Badge size.
  * @property {boolean} [dot=false] Renders a small leading status dot instead of an icon.
@@ -18,18 +27,26 @@ const KINDS = Object.freeze(['neutral', 'accent', 'success', 'warning', 'danger'
 /** Fill treatments. */
 const VARIANTS = Object.freeze(['soft', 'solid', 'outline']);
 
+/**
+ * Categorical tones, in the order they are documented.
+ * @type {ReadonlyArray<BadgeTone>}
+ */
+export const BADGE_TONES = Object.freeze(['blue', 'teal', 'green', 'amber', 'orange', 'red', 'pink', 'violet', 'slate']);
+
 /** @type {Readonly<BadgeOptions>} */
 const defaults = Object.freeze({
   label: '',
   icon: null,
   kind: 'neutral',
+  tone: null,
   variant: 'soft',
   size: 'md',
   dot: false
 });
 
 /**
- * Creates a status pill: a small, non-interactive label carrying a semantic colour.
+ * Creates a status pill: a small, non-interactive label carrying a semantic colour — or, with
+ * `tone`, a categorical one.
  *
  * The badge is plain text content, so it needs no ARIA of its own. A badge without a label but
  * with a `title` is named for assistive technology through `role="img"`.
@@ -45,7 +62,8 @@ export function badge(opts = {}) {
     dataset: {
       kind: normalizeKind(options.kind),
       variant: normalizeVariant(options.variant),
-      size: normalizeSize(options.size)
+      size: normalizeSize(options.size),
+      tone: normalizeBadgeTone(options.tone) ?? undefined
     }
   }));
 
@@ -84,6 +102,15 @@ function normalizeKind(value) {
 function normalizeVariant(value) {
   return VARIANTS.includes(/** @type {string} */ (value)) ?
     /** @type {'soft'|'solid'|'outline'} */ (value) : 'soft';
+}
+
+/**
+ * Resolves a categorical tone name, or null for anything outside the palette.
+ * @param {unknown} value Requested tone.
+ * @returns {BadgeTone|null}
+ */
+export function normalizeBadgeTone(value) {
+  return BADGE_TONES.includes(/** @type {BadgeTone} */ (value)) ? /** @type {BadgeTone} */ (value) : null;
 }
 
 /** @param {unknown} value @returns {'md'|'sm'} */

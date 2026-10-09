@@ -1,12 +1,14 @@
 /*
  * The Zx documentation application.
  *
- * One page holds three kinds of entry, all reachable from the sidebar and addressable by URL hash
- * (`#components/select`, `#layouts/master-detail`, …):
+ * One page holds two kinds of entry, both reachable from the sidebar and addressable by URL hash
+ * (`#getting-started/theming`, `#components/select`, …):
  *
  *   guide      prose from a <template data-guide> in docs.html
  *   component  a demo module from website/demos/<id>.demo.js
- *   layout     a whole application shell from website/layouts/<id>.layout.js
+ *
+ * Whole application layouts have a page of their own, `layouts.html`; the header search still
+ * finds them, and the old `#layouts/<id>` addresses forward there.
  *
  * A component entry is a single scrolling document rather than a set of views: the API reference
  * first, then one card per example, then the behavioural notes. Each example card carries its own
@@ -18,10 +20,10 @@
 
 import { highlightMatch } from '../src/core/dom.js';
 import { icon } from '../src/core/icons.js';
-import { Aurora } from '../src/components/aurora/aurora.js';
 import { Search } from '../src/components/search/search.js';
 import { collectDependencies } from './demo-source.js';
 import { rankDocsSearch } from './docs-search.js';
+import { LAYOUT_IDS } from './layouts/index.js';
 
 /** Component demos, in sidebar order. The id is the `website/demos/<id>.demo.js` basename. */
 const COMPONENT_IDS = [
@@ -39,15 +41,8 @@ const COMPONENT_IDS = [
   'value-list', 'multi-value-editor', 'field-upload'
 ];
 
-/** Application layout examples. The id is the `website/layouts/<id>.layout.js` basename. */
-const LAYOUT_IDS = [
-  'master-detail', 'dashboard', 'inbox', 'record-page',
-  'record-wizard', 'checkout-wizard', 'settings-workspace', 'zeyos-invoices'
-];
-
 const DOCS_URL = '../docs/llms.md';
 const API_URL = '../docs/api.json';
-const DENSITIES = ['cozy', 'compact'];
 
 /**
  * Reference bullets whose lead-in label belongs in the API card at the top of the page. Everything
@@ -79,6 +74,11 @@ let apiData = {};
  * Module-level data belongs here, not beside the function that happens to use it.
  */
 
+// The layouts used to live here as `#layouts` and `#layouts/<id>`. Those links forward to the
+// gallery before anything is built; the await that follows never settles, so this page stops
+// here while the browser navigates away.
+if (forwardLayoutHash()) await new Promise(() => {});
+
 const root = document.querySelector('#docs-app');
 const shell = element('div', 'docs-shell');
 const sidebar = element('aside', 'docs-sidebar');
@@ -87,7 +87,6 @@ const filterField = element('input', 'docs-filter');
 const main = element('main', 'docs-main');
 const article = element('div', 'docs-article');
 const rail = element('aside', 'docs-rail');
-const toolbar = element('div', 'docs-toolbar');
 
 navigation.setAttribute('aria-label', 'Documentation');
 filterField.type = 'search';
@@ -96,9 +95,9 @@ filterField.setAttribute('aria-label', 'Filter the documentation');
 sidebar.append(filterField, navigation);
 main.append(article);
 shell.append(sidebar, main, rail);
-root.replaceChildren(shell, toolbar);
-const docsAurora = new Aurora(shell, { preset: 'source', intensity: 'subtle' });
-window.addEventListener('pagehide', () => docsAurora.destroy(), { once: true });
+// The shell is opaque — the navigation on the chrome tone, the reading canvas on the surface — so
+// the documentation carries no ambient light of its own; Aurora is documented on its own page.
+root.replaceChildren(shell);
 
 /** @type {Map<string, object>} Every entry, keyed by `<section>/<id>`. */
 const entries = new Map();
@@ -119,13 +118,14 @@ await buildRegistry();
 renderNavigation();
 buildGlobalSearch();
 observeHeaderHeight();
-buildDensitySwitcher();
-window.addEventListener('hashchange', route);
+window.addEventListener('hashchange', () => {
+  if (!forwardLayoutHash()) route();
+});
 route();
 
 /* ------------------------------------------------------------------- registry -- */
 
-/** Loads the guides, demo modules, and layout modules that make up the sidebar. */
+/** Loads the guides and demo modules that make up the sidebar. */
 async function buildRegistry() {
   const guides = [...document.querySelectorAll('template[data-guide]')].map((template) => ({
     section: 'getting-started',
@@ -137,9 +137,8 @@ async function buildRegistry() {
     template
   }));
 
-  const [demoModules, layoutModules, reference, api] = await Promise.all([
+  const [demoModules, reference, api] = await Promise.all([
     Promise.all(COMPONENT_IDS.map((id) => import(`./demos/${id}.demo.js`))),
-    Promise.all(LAYOUT_IDS.map((id) => import(`./layouts/${id}.layout.js`))),
     // Every component page opens with its reference, so the two files behind all of them are
     // fetched once here rather than on each navigation.
     fetch(moduleUrl(DOCS_URL)).then((response) => (response.ok ? response.text() : '')).catch(() => ''),
@@ -156,21 +155,12 @@ async function buildRegistry() {
     source: `./demos/${COMPONENT_IDS[index]}.demo.js`
   }));
 
-  const layouts = layoutModules.map((module, index) => describe(module.default, {
-    section: 'layouts',
-    id: LAYOUT_IDS[index],
-    kind: 'layout',
-    group: 'Applications',
-    source: `./layouts/${LAYOUT_IDS[index]}.layout.js`
-  }));
-
-  const all = [...guides, ...components, ...layouts];
+  const all = [...guides, ...components];
   for (const entry of all) entries.set(`${entry.section}/${entry.id}`, entry);
 
   for (const [id, label] of [
     ['getting-started', 'Getting started'],
-    ['components', 'Components'],
-    ['layouts', 'Layouts']
+    ['components', 'Components']
   ]) {
     const groups = new Map();
     for (const entry of all.filter((item) => item.section === id)) {
@@ -190,7 +180,7 @@ function compareEntriesByTitle(left, right) {
 }
 
 /**
- * Normalises one demo or layout module into a registry entry.
+ * Normalises one demo module into a registry entry.
  *
  * Modules come in two shapes. The current one exports `examples: [{title, render}]`, which gives
  * the page one card per example with its own extracted source. The older one exports a single
@@ -228,7 +218,7 @@ function renderNavigation() {
     block.append(title);
 
     for (const [group, items] of section.groups) {
-      // A single-group section (Layouts) needs no second-level label.
+      // A single-group section needs no second-level label.
       const heading = section.groups.size > 1
         ? element('h3', 'docs-navigation__group', group)
         : null;
@@ -312,9 +302,8 @@ function docsSearchIndex() {
 
   for (const entry of entries.values()) {
     const base = `#${entry.section}/${entry.id}`;
-    const category = `${entry.kind === 'guide' ? 'Guide' : entry.kind === 'layout' ? 'Layout' : 'Component'} · ${entry.group}`;
-    const rootPath = entry.kind === 'guide' ? 'Getting started'
-      : entry.kind === 'layout' ? 'Layouts' : entry.group;
+    const category = `${entry.kind === 'guide' ? 'Guide' : 'Component'} · ${entry.group}`;
+    const rootPath = entry.kind === 'guide' ? 'Getting started' : entry.group;
     const marker = new RegExp(`<!--\\s*doc:${entry.id}\\s*-->([\\s\\S]*?)<!--\\s*/doc\\s*-->`)
       .exec(referenceText ?? '');
     const generated = (entry.api ?? []).map((name) => apiData[name]).filter(Boolean);
@@ -395,6 +384,11 @@ function buildGlobalSearch() {
   if (!host || !form || !popover || !results || !status) return;
 
   const records = docsSearchIndex();
+  // The layouts live on their own page, so their records arrive once their modules have loaded,
+  // without holding up the documentation itself.
+  void layoutSearchRecords().then((layouts) => {
+    for (const record of layouts) records.push({ ...record, id: `docs-search-record-${records.length}` });
+  });
   const search = new Search(form, {
     placeholder: 'Search documentation',
     debounce: 60
@@ -475,6 +469,11 @@ function buildGlobalSearch() {
     const result = matches[index];
     if (!result) return;
     close();
+    // Layouts are on another page; everything else is a hash on this one.
+    if (!result.href.startsWith('#')) {
+      window.location.assign(result.href);
+      return;
+    }
     window.location.hash = result.href;
     queueMicrotask(focusSearchDestination);
   };
@@ -545,6 +544,49 @@ function buildGlobalSearch() {
       input.select();
     });
   }
+}
+
+/**
+ * Search records for the layout gallery: one per layout, pointing at `layouts.html#<id>`. A layout
+ * that fails to load is left out of the search rather than taking the documentation down with it.
+ * @returns {Promise<Array<Record<string, any>>>}
+ */
+async function layoutSearchRecords() {
+  const modules = await Promise.allSettled(LAYOUT_IDS.map((id) => import(`./layouts/${id}.layout.js`)));
+  return modules.flatMap((result, index) => {
+    if (result.status !== 'fulfilled') return [];
+    const layout = result.value.default ?? {};
+    const id = LAYOUT_IDS[index];
+    const components = Array.isArray(layout.components) ? layout.components : [];
+    return [{
+      label: String(layout.title ?? id),
+      parent: '',
+      category: `Layout${layout.category ? ` · ${layout.category}` : ''}`,
+      path: ['Layouts', String(layout.title ?? id)],
+      description: String(layout.blurb ?? ''),
+      aliases: [id, ...components],
+      keywords: `${layout.category ?? ''} ${components.join(' ')}`,
+      href: `layouts.html#${encodeURIComponent(id)}`
+    }];
+  });
+}
+
+/**
+ * Sends the retired `#layouts` and `#layouts/<id>` addresses to the gallery, replacing this history
+ * entry so Back does not return to a page that only forwards.
+ * @returns {boolean} Whether the page is navigating away.
+ */
+function forwardLayoutHash() {
+  const match = /^#layouts(?:\/([^/]*)(?:\/.*)?)?$/.exec(window.location.hash);
+  if (!match) return false;
+  let id = '';
+  try {
+    id = decodeURIComponent(match[1] ?? '');
+  } catch {
+    id = '';
+  }
+  window.location.replace(LAYOUT_IDS.includes(id) ? `layouts.html#${encodeURIComponent(id)}` : 'layouts.html');
+  return true;
 }
 
 /** Focuses the routed section heading after a search selection. @returns {void} */
@@ -642,7 +684,7 @@ function showEntry(key) {
 }
 
 /**
- * Composes a component or layout page: heading, API card, one card per example, then the
+ * Composes a component page: heading, API card, one card per example, then the
  * behavioural notes and keyboard contract that the examples have just demonstrated.
  * @param {object} entry
  * @returns {HTMLElement[]}
@@ -686,7 +728,6 @@ function exampleGroup(entry, title, examples, className) {
   const group = docsSection(slug(title), title, {
     className: `docs-example-group ${className}`
   });
-  group.querySelector('.docs-section__title')?.classList.add('docs-example-group__title');
   for (const example of examples) group.append(exampleCard(entry, example));
   return group;
 }
@@ -913,7 +954,12 @@ function exampleCard(entry, example) {
   // The stage supplies the arrangement — a wrapped row by default — so an example's own source
   // stays a list of Zx calls instead of the flex containers that would otherwise surround them.
   const stage = element('div', `docs-example__stage docs-example__stage--${example.layout ?? 'row'}`);
-  if (example.width) stage.style.maxInlineSize = example.width;
+  // A width narrows what the stage holds, not the card: every card keeps the column's width, so
+  // the code bar hangs from it edge to edge and the page keeps one rhythm.
+  if (example.width) {
+    stage.classList.add('docs-example__stage--sized');
+    stage.style.setProperty('--docs-stage-width', example.width);
+  }
   card.append(stage);
   mountExample(example, card, stage);
 
@@ -994,7 +1040,7 @@ function mountExample(example, card, stage) {
  * @returns {HTMLElement}
  */
 function legacyCard(entry) {
-  const title = entry.demoTitle || (entry.kind === 'layout' ? 'Preview' : 'Demo');
+  const title = entry.demoTitle || 'Demo';
   const card = docsSection('demo', title, {
     className: 'docs-example',
     href: `#${entry.section}/${entry.id}/demo`,
@@ -1003,15 +1049,6 @@ function legacyCard(entry) {
   const stage = element('div', 'docs-example__stage docs-example__stage--full');
   try {
     entry.mount(stage);
-    if (entry.kind === 'layout') {
-      const frame = stage.querySelector('.layout-frame');
-      if (frame) {
-        const previewAurora = new Aurora(frame, { preset: 'source', intensity: 'subtle' });
-        const module = frame.querySelector('.zx-master-panel[data-module]')?.dataset.module;
-        if (module) frame.style.setProperty('--zx-aurora-color-1', `var(--zx-module-${module})`);
-        pageCleanups.push(() => previewAurora.destroy());
-      }
-    }
   } catch (error) {
     stage.append(element('p', 'docs-note', `This demo failed to run: ${error.message}`));
     console.error(error);
@@ -1749,39 +1786,6 @@ function guidePage(entry) {
     else header.append(node);
   }
   return nodes.length ? [header, ...nodes] : [header, body];
-}
-
-/* ---------------------------------------------------------------------- chrome -- */
-
-/**
- * Adds the floating density switcher. Theme, preset, and density all belong to the shared site
- * chrome — this only offers density a control, and hands the change to `window.zxTheme` so the
- * theme studio and this switcher can never end up disagreeing about the same stored value.
- */
-function buildDensitySwitcher() {
-  const label = element('span', 'docs-switcher__label', 'Density');
-  const select = element('select', 'docs-switcher__select');
-  select.setAttribute('aria-label', 'Density');
-  for (const value of DENSITIES) {
-    const option = document.createElement('option');
-    option.value = value;
-    option.textContent = value.charAt(0).toUpperCase() + value.slice(1);
-    select.append(option);
-  }
-
-  const stored = window.zxTheme?.get().density;
-  const saved = DENSITIES.includes(stored) ? stored : DENSITIES[0];
-
-  select.value = saved;
-  select.addEventListener('change', () => {
-    window.zxTheme?.set({ density: select.value });
-    // Re-mount so components that read density at build time pick up the new metrics.
-    const key = activeKey;
-    activeKey = null;
-    showEntry(key);
-  });
-
-  toolbar.append(element('label', 'docs-switcher', undefined, label, select));
 }
 
 /* ---------------------------------------------------------------- markdown -- */

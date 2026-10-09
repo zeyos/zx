@@ -1,0 +1,210 @@
+/*
+ * Record wizard: a vertical step rail beside the current step, and a footer that moves between
+ * the steps. Everything else — the shell, the header, the property lists, the surfaces — is the
+ * kit's.
+ */
+
+.record-wizard .record-wizard__layout {
+  display: grid;
+  grid-template-columns: 13rem minmax(0, 46rem);
+  gap: var(--zx-space-8);
+  align-items: start;
+}
+
+/* The rail stays beside a long step while it scrolls. */
+.record-wizard .record-wizard__rail {
+  position: sticky;
+  inset-block-start: 0;
+}
+
+.record-wizard .record-wizard__stage {
+  display: grid;
+  gap: var(--zx-space-5);
+  min-inline-size: 0;
+}
+
+.record-wizard .record-wizard__intro {
+  display: grid;
+  gap: var(--zx-space-1);
+}
+
+.record-wizard .record-wizard__intro > p {
+  margin: 0;
+}
+
+/* The note takes the whole width of its section; the discount keeps a column's. */
+.record-wizard .record-wizard__content [data-field-id="note"] {
+  grid-column: 1 / -1;
+}
+
+/* -------------------------------------------------------------------- review -- */
+
+.record-wizard .record-wizard__review {
+  display: grid;
+  gap: var(--zx-space-4);
+}
+
+.record-wizard .record-wizard__review-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--zx-space-3);
+}
+
+.record-wizard .record-wizard__lines {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--zx-text-sm);
+}
+
+.record-wizard .record-wizard__lines > li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--zx-space-4);
+  padding-block: var(--zx-space-2);
+  border-block-end: 1px solid var(--zx-color-border-subtle);
+}
+
+.record-wizard .record-wizard__lines > li > span:first-child {
+  display: grid;
+  gap: 2px;
+}
+
+.record-wizard .record-wizard__sum {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--zx-space-1) var(--zx-space-4);
+  justify-self: end;
+  min-inline-size: min(100%, 18rem);
+  margin: 0;
+  font-size: var(--zx-text-sm);
+}
+
+.record-wizard .record-wizard__sum > dt {
+  color: var(--zx-color-text-muted);
+}
+
+.record-wizard .record-wizard__sum > dd {
+  margin: 0;
+  text-align: end;
+}
+
+.record-wizard .record-wizard__sum > [data-total] {
+  padding-block-start: var(--zx-space-2);
+  border-block-start: 1px solid var(--zx-color-border-subtle);
+  color: var(--zx-color-text);
+  font-size: var(--zx-text-md);
+  font-weight: var(--zx-weight-semibold);
+}
+
+.record-wizard .record-wizard__note {
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+/* -------------------------------------------------------------------- footer -- */
+
+.record-wizard .record-wizard__footer {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-3);
+  padding-inline: var(--zx-space-5);
+}
+
+.record-wizard .record-wizard__total {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* The trail stays on one line; short of room, the current page shortens rather than wraps. */
+.record-wizard .shell__main > .shell__header .zx-breadcrumb__list {
+  flex-wrap: nowrap;
+}
+
+/* The menu that holds the header's actions on a phone; wider, the buttons themselves show. */
+.record-wizard .record-wizard__menu {
+  display: none;
+}
+
+/* ---------------------------------------------------------------- responsive -- */
+
+/* Without room for a rail beside the step, the rail runs across the top, laid out the way a
+   horizontal Stepper is: the labels keep their width and the rules stretch between them. */
+@container shell (max-width: 860px) {
+  .record-wizard .record-wizard__layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--zx-space-5);
+  }
+
+  .record-wizard .record-wizard__rail {
+    position: static;
+  }
+
+  .record-wizard .record-wizard__rail .zx-stepper__list {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--zx-space-2);
+  }
+
+  .record-wizard .record-wizard__rail .zx-stepper__step {
+    flex: 1 1 auto;
+    gap: var(--zx-space-2);
+    padding-block-end: 0;
+  }
+
+  .record-wizard .record-wizard__rail .zx-stepper__step:last-child {
+    flex: 0 1 auto;
+  }
+
+  .record-wizard .record-wizard__rail .zx-stepper__control {
+    flex: 0 1 auto;
+  }
+
+  .record-wizard .record-wizard__rail .zx-stepper__step:not(:last-child)::after {
+    position: static;
+    flex: 1 1 var(--zx-space-6);
+    inline-size: auto;
+    min-inline-size: var(--zx-space-4);
+    block-size: 2px;
+  }
+}
+
+/* A phone: the trail keeps only the current page, the header's actions fold into a menu, the rail
+   names only the current step (the others keep their names for assistive technology), and the
+   footer keeps the amount and the way on. */
+@container shell (max-width: 640px) {
+  .record-wizard .shell__main > .shell__header .zx-breadcrumb__item:not(:last-child),
+  .record-wizard .shell__main > .shell__header .zx-breadcrumb__separator {
+    display: none;
+  }
+
+  .record-wizard .record-wizard__menu {
+    display: inline-flex;
+  }
+
+  .record-wizard .record-wizard__rail .zx-stepper__description,
+  .record-wizard .record-wizard__rail .zx-stepper__step:not([aria-current="step"]) .zx-stepper__text,
+  .record-wizard .record-wizard__count {
+    position: absolute;
+    overflow: hidden;
+    inline-size: 1px;
+    block-size: 1px;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .record-wizard .record-wizard__footer {
+    gap: var(--zx-space-2);
+    padding-inline: var(--zx-space-3);
+  }
+
+  .record-wizard .record-wizard__footer .zx-btn__shortcut {
+    display: none;
+  }
+}

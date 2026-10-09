@@ -1,0 +1,1405 @@
+/*
+ * Agent workspace. Every selector is scoped under .agents; `.agents__mark` also draws inside the
+ * command palette, which renders outside the layout's root.
+ */
+
+/* ------------------------------------------------------------------ editor -- */
+
+/* The editor: a row of tabs between the navigation toggle and the panel toggles, the open view
+   beneath. The Tabbox lends its tab list and its panels to this grid. */
+.agents .agents__editor {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-block-size: 0;
+}
+
+.agents .agents__tabs {
+  display: contents;
+}
+
+.agents .agents__lead,
+.agents .agents__tab-actions,
+.agents .agents__tabs > .zx-tabbox__tablist {
+  grid-row: 1;
+  background: var(--zx-color-bg-chrome);
+  box-shadow: inset 0 -1px 0 var(--zx-color-border-subtle);
+}
+
+.agents .agents__lead {
+  display: flex;
+  grid-column: 1;
+  align-items: center;
+}
+
+.agents .agents__lead > .shell__nav-toggle {
+  margin-inline: var(--zx-space-2) var(--zx-space-1);
+}
+
+.agents .agents__tab-actions {
+  display: flex;
+  grid-column: 3;
+  align-items: center;
+  gap: var(--zx-space-1);
+  padding-inline: var(--zx-space-2);
+}
+
+.agents .agents__tab-actions .zx-icon-btn {
+  color: var(--zx-color-text-muted);
+}
+
+.agents .agents__tabs[data-variant="divided"] > .zx-tabbox__tablist {
+  grid-column: 2;
+  border-block-end: 0;
+}
+
+/* Editor tabs: flat blocks on the chrome, split by hairlines; the open one on the canvas it opens,
+   fused to it. */
+.agents .agents__tabs[data-variant="divided"] > .zx-tabbox__tablist > .zx-tabbox__tab {
+  block-size: var(--shell-header-height);
+  gap: var(--zx-space-2);
+  padding-inline: var(--zx-space-3);
+  border-inline-end: 1px solid var(--zx-color-border-subtle);
+  font-size: var(--zx-text-sm);
+}
+
+.agents .agents__tabs[data-variant="divided"] > .zx-tabbox__tablist > .zx-tabbox__tab[aria-selected="true"] {
+  background: var(--zx-color-bg-surface);
+}
+
+.agents .agents__tabs .zx-tabbox__icon {
+  color: var(--zx-color-text-subtle);
+}
+
+.agents .agents__tabs .zx-tabbox__title {
+  overflow: hidden;
+  max-inline-size: 15rem;
+  text-overflow: ellipsis;
+}
+
+.agents .agents__tabs[data-variant="divided"] > .zx-tabbox__panels {
+  container: agents-view / inline-size;
+  display: flex;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  flex-direction: column;
+  min-block-size: 0;
+  border: 0;
+  background: var(--zx-color-bg-surface);
+}
+
+.agents .agents__tabs[data-variant="divided"] > .zx-tabbox__panels > .zx-tabbox__panel {
+  flex: 1 1 auto;
+  min-block-size: 0;
+  overflow: auto;
+  padding: 0;
+  overscroll-behavior: contain;
+}
+
+/* A view's heading takes focus from script when you arrive, so a screen reader says where you
+   are; it is not a control, so it draws no ring. */
+.agents .agents__view :is(h2, h3)[tabindex="-1"]:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+/* One reading column per view. */
+.agents .agents__view {
+  box-sizing: border-box;
+  inline-size: 100%;
+  max-inline-size: 62rem;
+  margin-inline: auto;
+  padding: var(--zx-space-6) var(--zx-space-6) var(--zx-space-8);
+}
+
+.agents .agents__section {
+  margin-block-start: var(--zx-space-6);
+}
+
+.agents .agents__section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--zx-space-1) var(--zx-space-3);
+  margin-block-end: var(--zx-space-2);
+}
+
+.agents .agents__section-title {
+  margin: 0;
+  font-size: var(--zx-text-md);
+  font-weight: var(--zx-weight-semibold);
+}
+
+.agents .agents__section-meta {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.agents .agents__strong {
+  color: var(--zx-color-text);
+  font-weight: var(--zx-weight-semibold);
+}
+
+.agents .agents__num {
+  font-variant-numeric: tabular-nums;
+}
+
+.agents .agents__none {
+  color: var(--zx-color-text-muted);
+}
+
+/* -------------------------------------------------------------- presence -- */
+
+/* The avatar's wrapper is what moves: a slow breath, a bob, a sway, a tilt and a blink. */
+.agents .agents__presence {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  transform-origin: 50% 75%;
+  will-change: transform;
+}
+
+.agents .agents__presence[data-presence="offline"] {
+  opacity: 0.55;
+}
+
+/* A presence is always a dot and a word; the dot's shape differs where its colour might not tell. */
+.agents .agents__state {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-weight: var(--zx-weight-medium);
+  white-space: nowrap;
+}
+
+.agents .agents__state:is([data-presence="needs-you"], [data-presence="blocked"]) {
+  color: var(--zx-color-text);
+  font-weight: var(--zx-weight-semibold);
+}
+
+.agents .agents__dot {
+  display: inline-block;
+  flex: none;
+  box-sizing: border-box;
+  inline-size: 8px;
+  block-size: 8px;
+  border-radius: 50%;
+  background: var(--zx-color-text-muted);
+}
+
+.agents .agents__dot[data-presence="working"] { background: var(--zx-color-success); }
+.agents .agents__dot[data-presence="thinking"] { background: var(--zx-color-info); }
+.agents .agents__dot[data-presence="needs-you"] { background: var(--zx-color-warning); }
+
+.agents .agents__dot[data-presence="blocked"] {
+  border-radius: 2px;
+  background: var(--zx-color-danger);
+}
+
+.agents .agents__dot[data-presence="idle"] {
+  border: 1.5px solid var(--zx-color-text-muted);
+  background: transparent;
+}
+
+.agents .agents__dot[data-presence="offline"] {
+  border: 1.5px dashed var(--zx-color-text-subtle);
+  background: transparent;
+}
+
+/* An agent's initial on its tone, where a full Avatar would be redrawn on every keystroke. */
+.agents__mark {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  inline-size: 20px;
+  block-size: 20px;
+  border-radius: var(--zx-radius-sm);
+  background: var(--zx-color-tone-slate-bg);
+  color: var(--zx-color-tone-slate-fg);
+  font-size: 10px;
+  font-weight: var(--zx-weight-semibold);
+  line-height: 1;
+}
+
+.agents__mark[data-tone="blue"] { background: var(--zx-color-tone-blue-bg); color: var(--zx-color-tone-blue-fg); }
+.agents__mark[data-tone="teal"] { background: var(--zx-color-tone-teal-bg); color: var(--zx-color-tone-teal-fg); }
+.agents__mark[data-tone="green"] { background: var(--zx-color-tone-green-bg); color: var(--zx-color-tone-green-fg); }
+.agents__mark[data-tone="amber"] { background: var(--zx-color-tone-amber-bg); color: var(--zx-color-tone-amber-fg); }
+.agents__mark[data-tone="orange"] { background: var(--zx-color-tone-orange-bg); color: var(--zx-color-tone-orange-fg); }
+.agents__mark[data-tone="pink"] { background: var(--zx-color-tone-pink-bg); color: var(--zx-color-tone-pink-fg); }
+.agents__mark[data-tone="violet"] { background: var(--zx-color-tone-violet-bg); color: var(--zx-color-tone-violet-fg); }
+
+/* ------------------------------------------------------------- navigation -- */
+
+.agents .agents__count {
+  color: var(--zx-color-text-muted);
+  font-variant-numeric: tabular-nums;
+  font-weight: 400;
+}
+
+.agents .agents__roster {
+  margin: 0;
+  padding: 0 0 var(--zx-space-3);
+  list-style: none;
+}
+
+.agents .agents__agent {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "avatar name state"
+    "avatar role role";
+  align-items: center;
+  gap: 0 var(--zx-space-2);
+  padding-block: 6px;
+}
+
+.agents .agents__agent > .agents__presence {
+  grid-area: avatar;
+}
+
+.agents .agents__agent-name {
+  overflow: hidden;
+  grid-area: name;
+  font-weight: var(--zx-weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agents .agents__agent > .agents__state {
+  grid-area: state;
+}
+
+.agents .agents__agent-role {
+  overflow: hidden;
+  grid-area: role;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agents .agents__agent[aria-current="true"] .agents__agent-name {
+  font-weight: var(--zx-weight-semibold);
+}
+
+/* -------------------------------------------------------------- inspector -- */
+
+.agents .agents__group-title {
+  margin: 0;
+}
+
+.agents .agents__members {
+  margin: 0;
+  padding: 0 var(--zx-space-2) var(--zx-space-2);
+  list-style: none;
+}
+
+.agents .agents__member {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--zx-space-3);
+  padding: var(--zx-space-2) var(--zx-space-3);
+}
+
+.agents .agents__member-main {
+  display: grid;
+  gap: 2px;
+  min-inline-size: 0;
+}
+
+.agents .agents__member-top {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  min-inline-size: 0;
+}
+
+.agents .agents__member-name {
+  overflow: hidden;
+  min-block-size: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--zx-radius-sm);
+  background: none;
+  color: var(--zx-color-text);
+  font: inherit;
+  font-weight: var(--zx-weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.agents .agents__member-name:hover {
+  background: none;
+  text-decoration: underline;
+}
+
+.agents .agents__member-name:focus-visible {
+  outline: none;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.agents .agents__member-time {
+  margin-inline-start: auto;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+}
+
+.agents .agents__member-doing {
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  line-height: 1.4;
+}
+
+.agents .agents__member .zx-btn {
+  justify-self: start;
+  margin-block-start: var(--zx-space-2);
+}
+
+.agents .agents__budget {
+  display: grid;
+  flex: 1 1 auto;
+  gap: var(--zx-space-1);
+}
+
+.agents .agents__run-task {
+  min-block-size: 24px;
+  text-align: start;
+}
+
+/* ------------------------------------------------------------------ Home -- */
+
+.agents .agents__home-head {
+  display: grid;
+  gap: var(--zx-space-1);
+  margin-block-end: var(--zx-space-5);
+}
+
+.agents .agents__summary {
+  margin: 0;
+  color: var(--zx-color-text-muted);
+}
+
+/* The composer: one quiet box; the frame shows the focus. */
+.agents .agents__composer {
+  display: grid;
+  gap: var(--zx-space-2);
+  padding: var(--zx-space-3);
+  border: 1px solid var(--zx-color-border);
+  border-radius: var(--zx-radius-lg);
+  background: var(--zx-color-bg-surface);
+}
+
+.agents .agents__composer:focus-within {
+  border-color: var(--zx-color-border-strong);
+  box-shadow: var(--zx-focus-ring);
+}
+
+.agents .agents__composer-input {
+  box-sizing: border-box;
+  inline-size: 100%;
+  min-block-size: 4.5rem;
+  padding: var(--zx-space-1);
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  font: inherit;
+  line-height: 1.5;
+  resize: none;
+}
+
+.agents .agents__composer-input:focus,
+.agents .agents__composer-input:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.agents .agents__composer-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zx-space-2);
+}
+
+.agents .agents__route {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  min-inline-size: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+.agents .agents__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zx-space-2);
+  margin-block-start: var(--zx-space-3);
+}
+
+.agents .agents__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  min-block-size: 30px;
+  padding: 0 var(--zx-space-3);
+  border: 1px solid var(--zx-color-border-subtle);
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-bg-surface);
+  color: var(--zx-color-text-muted);
+  font: inherit;
+  font-size: var(--zx-text-sm);
+  text-align: start;
+  cursor: pointer;
+}
+
+.agents .agents__chip:hover {
+  border-color: var(--zx-color-border);
+  background: var(--zx-color-bg-hover);
+  color: var(--zx-color-text);
+}
+
+.agents .agents__chip:focus-visible {
+  outline: none;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.agents .agents__chip .zx-icon {
+  color: var(--zx-color-text-subtle);
+}
+
+/* The task table. */
+.agents .agents__task-cell {
+  display: grid;
+  gap: 2px;
+  min-inline-size: 0;
+}
+
+.agents .agents__task-link {
+  overflow: hidden;
+  min-block-size: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--zx-radius-sm);
+  background: none;
+  color: var(--zx-color-text);
+  font: inherit;
+  font-weight: var(--zx-weight-medium);
+  text-align: start;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.agents .agents__task-link:hover {
+  background: none;
+  text-decoration: underline;
+}
+
+.agents .agents__task-link:focus-visible {
+  outline: none;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.agents .agents__task-project {
+  overflow: hidden;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agents .agents__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.agents .agents__steps {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  white-space: nowrap;
+}
+
+.agents .agents__steps-bar {
+  overflow: hidden;
+  inline-size: 40px;
+  block-size: 4px;
+  border-radius: var(--zx-radius-full);
+  background: var(--zx-color-bg-muted);
+}
+
+.agents .agents__steps-fill {
+  display: block;
+  block-size: 100%;
+  border-radius: inherit;
+  background: var(--zx-color-accent);
+}
+
+.agents .agents__activity {
+  display: grid;
+  gap: var(--zx-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agents .agents__activity-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--zx-space-3);
+  padding-block: var(--zx-space-1);
+}
+
+.agents .agents__activity-text {
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+.agents .agents__activity-actor {
+  color: var(--zx-color-text);
+  font-weight: var(--zx-weight-medium);
+}
+
+.agents .agents__activity-time {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------------ task -- */
+
+.agents .agents__task-head {
+  display: grid;
+  gap: var(--zx-space-2);
+  padding-block-end: var(--zx-space-5);
+  border-block-end: 1px solid var(--zx-color-border-subtle);
+}
+
+.agents .agents__eyebrow {
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+.agents .agents__title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zx-space-2) var(--zx-space-3);
+}
+
+.agents .agents__title-row > .agents__status {
+  padding: 2px var(--zx-space-2);
+  border-radius: var(--zx-radius-sm);
+  background: var(--zx-color-bg-muted);
+  font-size: var(--zx-text-sm);
+  font-weight: var(--zx-weight-medium);
+}
+
+.agents .agents__orchestrator {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zx-space-2);
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+.agents .agents__progress {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-3);
+  margin-block-start: var(--zx-space-1);
+}
+
+.agents .agents__progress > .zx-progress-bar {
+  flex: 1 1 auto;
+}
+
+.agents .agents__progress-text {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.agents .agents__task-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zx-space-2);
+  margin-block-start: var(--zx-space-1);
+}
+
+/* The plan: a checklist — state, step, owner, time. */
+.agents .agents__plan {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agents .agents__step {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) 9rem 5rem;
+  align-items: center;
+  gap: var(--zx-space-1) var(--zx-space-3);
+  min-block-size: 40px;
+  padding: var(--zx-space-2);
+  border-radius: var(--zx-radius-md);
+}
+
+.agents .agents__step:focus {
+  outline: none;
+}
+
+.agents .agents__step:focus-visible {
+  box-shadow: inset var(--zx-focus-ring);
+}
+
+.agents .agents__step:is([data-status="waiting"], [data-status="blocked"]) {
+  align-items: start;
+  background: var(--zx-color-bg-current);
+}
+
+.agents .agents__step-glyph {
+  display: inline-grid;
+  place-items: center;
+}
+
+.agents .agents__step-text {
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+  min-inline-size: 0;
+}
+
+.agents .agents__step[data-status="done"] .agents__step-text {
+  color: var(--zx-color-text-muted);
+}
+
+.agents .agents__step-note {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+.agents .agents__step-text > .zx-btn {
+  margin-block-start: var(--zx-space-2);
+}
+
+.agents .agents__step-owner {
+  min-inline-size: 0;
+  font-size: var(--zx-text-sm);
+}
+
+.agents .agents__step-time {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  text-align: end;
+}
+
+/* The execution log: time, who, what, the call, and its cost; each row opens to the detail. */
+.agents .agents__log {
+  display: grid;
+  /* One set of columns for every row (each row is a subgrid of it), so the calls line up. */
+  grid-template-columns: max-content max-content minmax(6rem, max-content) minmax(0, 1fr) max-content 16px;
+  column-gap: var(--zx-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agents .agents__event {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+}
+
+.agents .agents__event-row {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
+  row-gap: 2px;
+  inline-size: 100%;
+  min-block-size: 40px;
+  padding: var(--zx-space-1) var(--zx-space-2);
+  border: 0;
+  border-radius: var(--zx-radius-md);
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: var(--zx-text-sm);
+  text-align: start;
+  cursor: pointer;
+}
+
+.agents .agents__event-row:hover {
+  background: var(--zx-color-bg-hover);
+}
+
+.agents .agents__event-row:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--zx-color-ring);
+}
+
+.agents .agents__event-time {
+  color: var(--zx-color-text-muted);
+  font-family: var(--zx-font-mono);
+  font-size: var(--zx-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.agents .agents__event-who {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  min-inline-size: 0;
+}
+
+.agents .agents__event-actor {
+  overflow: hidden;
+  font-weight: var(--zx-weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agents .agents__event-action,
+.agents .agents__event-args {
+  overflow: hidden;
+  min-inline-size: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agents .agents__event-args {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+}
+
+.agents .agents__event-args--code {
+  font-family: var(--zx-font-mono);
+}
+
+.agents .agents__event-metrics {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+  white-space: nowrap;
+}
+
+.agents .agents__running {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-1);
+}
+
+.agents .agents__event-chevron {
+  display: inline-grid;
+  place-items: center;
+  color: var(--zx-color-text-subtle);
+}
+
+.agents .agents__event-row[aria-expanded="true"] .agents__event-chevron {
+  rotate: 180deg;
+}
+
+.agents .agents__event-detail {
+  display: grid;
+  grid-column: 2 / -1;
+  gap: var(--zx-space-2);
+  justify-items: start;
+  margin: 2px var(--zx-space-2) var(--zx-space-2) 0;
+  padding: var(--zx-space-3);
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-bg-chrome);
+  font-size: var(--zx-text-sm);
+}
+
+.agents .agents__event-output {
+  display: grid;
+  gap: 2px;
+}
+
+.agents .agents__event-output > p {
+  margin: 0;
+  font-family: var(--zx-font-mono);
+  font-size: var(--zx-text-xs);
+  line-height: 1.6;
+}
+
+.agents .agents__event-meta {
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+}
+
+/* A hand-off: two agents joined by a dotted line. */
+.agents .agents__handoff {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+}
+
+.agents .agents__handoff-line {
+  inline-size: 12px;
+  margin-inline: 2px;
+  border-block-start: 2px dotted var(--zx-color-border-strong);
+}
+
+/* ------------------------------------------------------------------ chat -- */
+
+.agents .agents__chat {
+  display: flex;
+  flex-direction: column;
+  min-block-size: 100%;
+  max-inline-size: 48rem;
+  padding-block-end: 0;
+}
+
+.agents .agents__chat-head {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-3);
+  padding-block-end: var(--zx-space-4);
+  border-block-end: 1px solid var(--zx-color-border-subtle);
+}
+
+.agents .agents__chat-who {
+  min-inline-size: 0;
+}
+
+.agents .agents__chat-name {
+  margin: 0;
+  font-size: var(--zx-text-lg);
+  font-weight: var(--zx-weight-semibold);
+}
+
+.agents .agents__chat-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px var(--zx-space-2);
+  margin: 2px 0 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+.agents .agents__thread {
+  display: grid;
+  flex: 1 1 auto;
+  align-content: start;
+  gap: var(--zx-space-5);
+  margin: 0;
+  padding: var(--zx-space-5) 0;
+  list-style: none;
+}
+
+.agents .agents__message {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--zx-space-3);
+}
+
+.agents .agents__message-body {
+  display: grid;
+  gap: var(--zx-space-1);
+  min-inline-size: 0;
+}
+
+.agents .agents__message-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--zx-space-2);
+  margin: 0;
+  font-size: var(--zx-text-sm);
+}
+
+.agents .agents__message-time {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+}
+
+.agents .agents__message-text {
+  margin: 0;
+  line-height: 1.55;
+}
+
+.agents .agents__message-tools,
+.agents .agents__message-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zx-space-1) var(--zx-space-2);
+  margin: 0;
+}
+
+.agents .agents__tool {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-1);
+  padding: 1px var(--zx-space-2);
+  border-radius: var(--zx-radius-sm);
+  background: var(--zx-color-bg-muted);
+  color: var(--zx-color-text-muted);
+  font-family: var(--zx-font-mono);
+  font-size: var(--zx-text-xs);
+}
+
+.agents .agents__file-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  min-block-size: 28px;
+  padding: 0 var(--zx-space-3);
+  border: 1px solid var(--zx-color-border-subtle);
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-bg-surface);
+  color: var(--zx-color-text);
+  font: inherit;
+  font-size: var(--zx-text-sm);
+  cursor: pointer;
+}
+
+.agents .agents__file-chip:hover {
+  border-color: var(--zx-color-border);
+  background: var(--zx-color-bg-hover);
+}
+
+.agents .agents__file-chip:focus-visible {
+  outline: none;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.agents .agents__file-chip .zx-icon {
+  color: var(--zx-color-text-subtle);
+}
+
+.agents .agents__typing-text {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  line-height: 24px;
+}
+
+.agents .agents__typing-dots {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.agents .agents__typing-dots > span {
+  inline-size: 4px;
+  block-size: 4px;
+  border-radius: 50%;
+  background: var(--zx-color-text-muted);
+}
+
+/* The composer stays at the foot of the chat while the thread scrolls. */
+.agents .agents__chat-dock {
+  position: sticky;
+  inset-block-end: 0;
+  padding-block: var(--zx-space-2) var(--zx-space-5);
+  background: var(--zx-color-bg-surface);
+}
+
+.agents .agents__chat-composer {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--zx-space-2);
+  padding: var(--zx-space-2);
+  border: 1px solid var(--zx-color-border);
+  border-radius: var(--zx-radius-lg);
+  background: var(--zx-color-bg-surface);
+}
+
+.agents .agents__chat-composer:focus-within {
+  border-color: var(--zx-color-border-strong);
+  box-shadow: var(--zx-focus-ring);
+}
+
+.agents .agents__chat-input {
+  flex: 1 1 auto;
+  box-sizing: border-box;
+  min-inline-size: 0;
+  min-block-size: var(--zx-control-height);
+  padding: 6px var(--zx-space-2);
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  font: inherit;
+  line-height: 1.4;
+  resize: none;
+}
+
+.agents .agents__chat-input:focus,
+.agents .agents__chat-input:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+/* ------------------------------------------------------------------ file -- */
+
+.agents .agents__file-head {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-3);
+  margin-block-end: var(--zx-space-5);
+  padding-block-end: var(--zx-space-4);
+  border-block-end: 1px solid var(--zx-color-border-subtle);
+}
+
+.agents .agents__file-who {
+  min-inline-size: 0;
+}
+
+.agents .agents__file-name {
+  margin: 0;
+  font-size: var(--zx-text-lg);
+  font-weight: var(--zx-weight-semibold);
+}
+
+.agents .agents__file-meta {
+  margin: 2px 0 0;
+  overflow-wrap: anywhere;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+.agents .agents__doc {
+  max-inline-size: 44rem;
+  line-height: 1.6;
+}
+
+.agents .agents__doc-title {
+  margin: 0 0 var(--zx-space-3);
+  font-size: var(--zx-text-2xl);
+  font-weight: 650;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+}
+
+.agents .agents__doc-heading {
+  margin: var(--zx-space-5) 0 var(--zx-space-2);
+  font-size: var(--zx-text-md);
+  font-weight: var(--zx-weight-semibold);
+}
+
+.agents .agents__doc-para {
+  margin: 0 0 var(--zx-space-3);
+}
+
+.agents .agents__doc-list {
+  margin: 0 0 var(--zx-space-3);
+  padding-inline-start: 1.25rem;
+}
+
+.agents .agents__doc-code,
+.agents .agents__code {
+  margin: 0 0 var(--zx-space-3);
+  padding: var(--zx-space-3);
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-bg-chrome);
+  font-family: var(--zx-font-mono);
+  font-size: var(--zx-text-xs);
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Source, numbered: the numbers come from a counter, so a copy never takes them along. */
+.agents .agents__code {
+  padding-inline-start: 0;
+  counter-reset: line;
+}
+
+.agents .agents__line {
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr);
+  counter-increment: line;
+}
+
+.agents .agents__line::before {
+  padding-inline-end: var(--zx-space-4);
+  color: var(--zx-color-text-muted);
+  content: counter(line);
+  text-align: end;
+  user-select: none;
+}
+
+/* ---------------------------------------------------------- bottom panel -- */
+
+.agents .agents__panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.agents .agents__panel-tabs {
+  display: contents;
+}
+
+.agents .agents__panel-tabs[data-variant="line"] > .zx-tabbox__tablist {
+  grid-column: 1;
+  grid-row: 1;
+  padding-inline: var(--zx-space-2);
+  border-block-end: 0;
+}
+
+.agents .agents__panel-tabs[data-variant="line"] > .zx-tabbox__tablist > .zx-tabbox__tab {
+  block-size: calc(var(--zx-control-height) + 4px);
+  padding-inline: var(--zx-space-3);
+  font-size: var(--zx-text-sm);
+}
+
+.agents .agents__panel-actions {
+  display: flex;
+  grid-column: 2;
+  grid-row: 1;
+  align-items: center;
+  padding-inline: var(--zx-space-2);
+}
+
+.agents .agents__panel-actions .zx-icon-btn {
+  color: var(--zx-color-text-muted);
+}
+
+.agents .agents__panel-tabs > .zx-tabbox__panels {
+  display: flex;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  flex-direction: column;
+  min-block-size: 0;
+}
+
+.agents .agents__panel-tabs > .zx-tabbox__panels > .zx-tabbox__panel {
+  flex: 1 1 auto;
+  min-block-size: 0;
+  overflow: auto;
+  padding: var(--zx-space-2) var(--zx-space-4) var(--zx-space-3);
+  overscroll-behavior: contain;
+}
+
+.agents .agents__terminal {
+  margin: 0;
+  font-family: var(--zx-font-mono);
+  font-size: var(--zx-text-xs);
+  line-height: 1.65;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.agents .agents__term-line {
+  display: block;
+  color: var(--zx-color-text-muted);
+}
+
+.agents .agents__term-line[data-kind="command"] {
+  color: var(--zx-color-text);
+}
+
+.agents .agents__term-prompt {
+  color: var(--zx-color-text-muted);
+}
+
+.agents .agents__output,
+.agents .agents__problems {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agents .agents__output-line {
+  display: grid;
+  grid-template-columns: 4.5rem 4.5rem minmax(0, 1fr);
+  gap: var(--zx-space-3);
+  font-family: var(--zx-font-mono);
+  font-size: var(--zx-text-xs);
+  line-height: 1.65;
+}
+
+.agents .agents__output-time,
+.agents .agents__output-actor {
+  color: var(--zx-color-text-muted);
+}
+
+.agents .agents__output-text {
+  overflow-wrap: anywhere;
+}
+
+.agents .agents__problem {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--zx-space-2);
+  min-block-size: 28px;
+  font-size: var(--zx-text-sm);
+}
+
+.agents .agents__problem[data-severity="warning"] > .zx-icon {
+  color: var(--zx-color-warning);
+}
+
+.agents .agents__problem[data-severity="info"] > .zx-icon {
+  color: var(--zx-color-info);
+}
+
+.agents .agents__problem-where {
+  min-block-size: 24px;
+  color: var(--zx-color-text-muted);
+  font-family: var(--zx-font-mono);
+  font-size: var(--zx-text-xs);
+}
+
+.agents .agents__problem-where.link-button {
+  color: var(--zx-color-accent);
+}
+
+/* ------------------------------------------------------------ status bar -- */
+
+.agents .agents__motion-glyph {
+  display: inline-grid;
+  place-items: center;
+  color: var(--zx-color-text-subtle);
+}
+
+.agents .agents__statusbar .agents__dot {
+  inline-size: 7px;
+  block-size: 7px;
+}
+
+/* ---------------------------------------------------------------- motion -- */
+
+@media (prefers-reduced-motion: no-preference) {
+  .agents .agents__event-chevron {
+    transition: rotate var(--zx-dur-fast) var(--zx-ease);
+  }
+
+  .agents .agents__typing-dots > span {
+    animation: agents-typing 1.2s var(--zx-ease) infinite;
+  }
+
+  .agents .agents__typing-dots > span:nth-child(2) {
+    animation-delay: 0.15s;
+  }
+
+  .agents .agents__typing-dots > span:nth-child(3) {
+    animation-delay: 0.3s;
+  }
+}
+
+@keyframes agents-typing {
+  0%, 60%, 100% {
+    transform: translateY(0);
+  }
+
+  30% {
+    transform: translateY(-3px);
+  }
+}
+
+/* ------------------------------------------------------------ narrow -- */
+
+/* Narrower views: less padding, and the plan and log rows fold onto two lines. */
+@container agents-view (max-width: 720px) {
+  .agents .agents__view {
+    padding: var(--zx-space-4) var(--zx-space-4) var(--zx-space-6);
+  }
+
+  .agents .agents__chat {
+    padding-block-end: 0;
+  }
+
+  .agents .agents__step {
+    grid-template-columns: 20px minmax(0, 1fr) auto;
+    grid-template-areas:
+      "glyph text text"
+      ". owner time";
+    align-items: start;
+  }
+
+  .agents .agents__step-glyph { grid-area: glyph; }
+  .agents .agents__step-text { grid-area: text; }
+  .agents .agents__step-owner { grid-area: owner; }
+  .agents .agents__step-time { grid-area: time; }
+
+  .agents .agents__log,
+  .agents .agents__event {
+    display: block;
+  }
+
+  .agents .agents__event-row {
+    grid-template-columns: auto minmax(0, 1fr) auto 16px;
+    grid-template-areas:
+      "time who metrics chevron"
+      ". action action ."
+      ". args args .";
+    align-items: center;
+    padding-block: var(--zx-space-2);
+  }
+
+  .agents .agents__event-time { grid-area: time; }
+  .agents .agents__event-who { grid-area: who; }
+  .agents .agents__event-action { grid-area: action; }
+  .agents .agents__event-args { grid-area: args; }
+  .agents .agents__event-metrics { grid-area: metrics; }
+  .agents .agents__event-chevron { grid-area: chevron; }
+
+  .agents .agents__event-args:empty {
+    display: none;
+  }
+
+  .agents .agents__event-detail {
+    margin-inline-start: var(--zx-space-2);
+  }
+
+  .agents .agents__event-row {
+    column-gap: var(--zx-space-3);
+  }
+
+  .agents .agents__activity-item {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .agents .agents__activity-time {
+    grid-column: 2;
+  }
+}
+
+/* On a phone the bottom panel opens over the whole pane, and closes back to the work. */
+@container shell (max-width: 640px) {
+  .agents .agents__main:has(> .agents__panel:not([hidden])) > .agents__editor {
+    display: none;
+  }
+
+  .agents .agents__main > .agents__panel {
+    flex: 1 1 auto;
+  }
+
+  .agents .agents__tabs .zx-tabbox__title {
+    max-inline-size: 9rem;
+  }
+
+  .agents .agents__tab-actions {
+    padding-inline: var(--zx-space-1);
+  }
+}

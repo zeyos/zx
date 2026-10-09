@@ -1,0 +1,151 @@
+/*
+ * Record page screen pattern. Every selector is scoped under .record.
+ *
+ * The record's name and figures head a padded body; tabs divide what belongs to it; the details
+ * column edits its attributes in place.
+ */
+
+.record .record__page {
+  display: grid;
+  gap: var(--zx-space-5);
+  align-content: start;
+}
+
+.record .record__head {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-4);
+  min-inline-size: 0;
+}
+
+.record .record__title {
+  display: grid;
+  gap: var(--zx-space-2);
+  min-inline-size: 0;
+}
+
+.record .record__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zx-space-1) var(--zx-space-4);
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+.record .record__tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--zx-space-4);
+}
+
+/* -------------------------------------------------------------------- tabs -- */
+
+.record .record__tab {
+  display: grid;
+  gap: var(--zx-space-4);
+  padding-block-start: var(--zx-space-2);
+}
+
+/* Net, VAT, and total under the positions, aligned with the totals column. */
+.record .record__totals {
+  display: grid;
+  grid-template-columns: auto minmax(8rem, auto);
+  justify-content: end;
+  row-gap: var(--zx-space-2);
+  margin: 0;
+  padding-inline-end: var(--zx-space-3);
+  font-size: var(--zx-text-sm);
+}
+
+.record .record__totals > dt {
+  color: var(--zx-color-text-muted);
+}
+
+.record .record__totals > dd {
+  margin: 0;
+  padding-inline-start: var(--zx-space-6);
+  text-align: end;
+}
+
+.record .record__totals > .record__grand {
+  padding-block-start: var(--zx-space-2);
+  border-block-start: 1px solid var(--zx-color-border-subtle);
+  color: var(--zx-color-text);
+  font-size: var(--zx-text-md);
+  font-weight: var(--zx-weight-semibold);
+}
+
+.record .record__file {
+  display: grid;
+  justify-items: start;
+  gap: var(--zx-space-2);
+}
+
+/* ----------------------------------------------------------------- details -- */
+
+/* The customer link is padded to a 24px target; the negative margin keeps its row's height. */
+.record .shell__aside .link-button {
+  padding-block: 3px;
+  margin-block: -3px;
+}
+
+.record .record__email {
+  overflow: hidden;
+  min-inline-size: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------ narrow -- */
+
+/* The figures follow the page's own width: three across, then two with the date beneath. */
+.record .record__body {
+  container: record-page / inline-size;
+}
+
+@container record-page (max-width: 520px) {
+  .record .record__tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .record .record__tiles > :last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+/* A narrow pane's header keeps every action: the secondary one first gives up its words, then on
+   a phone both keep only their icons and the trail stays on one line. */
+.record .shell__main {
+  container: record-main / inline-size;
+}
+
+@container record-main (max-width: 720px) {
+  .record .shell__header .zx-btn:not([data-kind="primary"]):has(.zx-icon) .zx-btn__label,
+  .record .shell__header .zx-btn__shortcut {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+/* On a phone the trail is the way up: the record's own number heads the page right beneath it,
+   so the trail's last item is left to screen readers. */
+@container shell (max-width: 640px) {
+  .record .shell__header .zx-breadcrumb__list {
+    flex-wrap: nowrap;
+  }
+
+  .record .shell__header .zx-breadcrumb__item:last-child:not(:first-child) {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}

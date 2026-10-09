@@ -8,7 +8,9 @@ import { Card } from '../../src/components/card/card.js';
 import { DatePicker } from '../../src/components/date-picker/date-picker.js';
 import { MonthPicker } from '../../src/components/date-picker/month-picker.js';
 import { TimePicker } from '../../src/components/date-picker/time-picker.js';
-import { Dialog, normalizeDialogButtons } from '../../src/components/dialog/dialog.js';
+import {
+  Dialog, normalizeDialogButtons, typeToConfirmParts, typedConfirmation
+} from '../../src/components/dialog/dialog.js';
 import { Filter } from '../../src/components/filter/filter.js';
 import { Launcher } from '../../src/components/launcher/launcher.js';
 import { Message } from '../../src/components/message/message.js';
@@ -69,6 +71,41 @@ test('a disabled footer button renders disabled, refuses activation, and is skip
   assert.doesNotMatch(dialogSource, /\[autofocus\]|FOCUSABLE_SELECTOR/);
 });
 
+test('type-to-confirm matches the text exactly, ignoring only surrounding spaces', () => {
+  assert.equal(typedConfirmation('Website Redesign', 'Website Redesign'), true);
+  assert.equal(typedConfirmation('  Website Redesign ', 'Website Redesign'), true);
+  assert.equal(typedConfirmation('Website Redesign', ' Website Redesign '), true);
+  assert.equal(typedConfirmation('website redesign', 'Website Redesign'), false);
+  assert.equal(typedConfirmation('Website  Redesign', 'Website Redesign'), false);
+  assert.equal(typedConfirmation('Website Redesig', 'Website Redesign'), false);
+  assert.equal(typedConfirmation('', 'Website Redesign'), false);
+  // Nothing to type is never a match: an empty confirmText must not enable the button by itself.
+  assert.equal(typedConfirmation('', ''), false);
+  assert.equal(typedConfirmation('   ', '  '), false);
+  assert.equal(typedConfirmation(null, null), false);
+});
+
+test('the type-to-confirm label puts the text to type where %1 stands', () => {
+  assert.deepEqual(typeToConfirmParts('Type %1 to confirm', 'Website Redesign'), ['Type ', ' to confirm']);
+  assert.deepEqual(typeToConfirmParts('%1 eingeben, um zu bestätigen', 'X'), ['', ' eingeben, um zu bestätigen']);
+  // A translation without the placeholder still names the text, after it.
+  assert.deepEqual(typeToConfirmParts('Type the project name', 'X'), ['Type the project name ', '']);
+  assert.deepEqual(typeToConfirmParts('%1 — type %1', 'X'), ['', ' — type X']);
+});
+
+test('Dialog.confirm with confirmText focuses the input, gates the button and Enter on a match', () => {
+  const confirm = /static confirm\(\{[\s\S]*?\n {2}\}\n/.exec(dialogSource)?.[0] ?? '';
+  assert.match(confirm, /confirmText = null/);
+  // The input is labelled by a real <label> whose text is the accessible name.
+  assert.match(confirm, /h\('label', \{ class: 'zx-dialog__confirm-label', for: input\.id \}/);
+  assert.match(confirm, /autofocus: true\s*\}\)\);/);
+  // The confirm button gives up autofocus and is disabled until the typed text matches.
+  assert.match(confirm, /\{ \.\.\.accept, autofocus: false, disabled: !matched \}/);
+  assert.match(confirm, /key\.key !== 'Enter'[\s\S]{0,120}?if \(typedConfirmation\(input\.value, expected\)\) finish\(true\);/);
+  // Escape, the close button, and Cancel still resolve false.
+  assert.match(confirm, /dialog\.once\('close', \(\) => \{\s*if \(!settled\) \{\s*settled = true;\s*resolve\(false\);/);
+});
+
 test('Sheet inherits the footer-button behaviour instead of restating it', () => {
   assert.equal(Object.getPrototypeOf(Sheet.prototype), Dialog.prototype);
   for (const method of ['setButtons', 'addView', 'showView']) {
@@ -94,6 +131,7 @@ const MESSAGES = [
   [Dialog, 'dialog/dialog.js', 'dialog.ok', 'OK'],
   [Dialog, 'dialog/dialog.js', 'dialog.cancel', 'Cancel'],
   [Dialog, 'dialog/dialog.js', 'dialog.promptValue', 'Prompt value'],
+  [Dialog, 'dialog/dialog.js', 'dialog.typeToConfirm', 'Type %1 to confirm'],
   [ActivityItem, 'activity-item/activity-item.js', 'activityItem.pending', 'Sending…'],
   [ActivityItem, 'activity-item/activity-item.js', 'activityItem.failed', 'Failed'],
   [ActivityItem, 'activity-item/activity-item.js', 'activityItem.label', 'Activity'],
@@ -254,4 +292,10 @@ test('interpolating fallbacks place their arguments where the English text does'
   } finally {
     setTranslator(null);
   }
+});
+
+test('a destructive Dialog.confirm starts on Cancel, the least destructive choice', () => {
+  const confirm = /static confirm\(\{[\s\S]*?\n {2}\}\n/.exec(dialogSource)?.[0] ?? '';
+  assert.match(confirm, /action: \(\) => finish\(false\),\s*autofocus: danger && !expected/);
+  assert.match(confirm, /action: \(\) => finish\(true\),\s*autofocus: !danger && !expected/);
 });

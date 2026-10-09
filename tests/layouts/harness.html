@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en" data-zx-theme="light">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Layout harness</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="../../styles/zx.css">
+    <link rel="stylesheet" href="../../website/layouts/kit.css">
+    <style>
+      html, body { block-size: 100%; margin: 0; }
+      #stage { block-size: 100dvh; }
+    </style>
+  </head>
+  <body class="zx-scope">
+    <!--
+      Mounts one application layout full-screen, outside the public site, for development and the
+      screenshot tool: ?id=mail&theme=dark&preset=ocean&preview=1
+    -->
+    <div id="stage" class="zx-scope"></div>
+    <script type="module">
+      const params = new URLSearchParams(location.search);
+      const id = params.get('id') ?? 'mail';
+      const root = document.documentElement;
+      root.dataset.zxTheme = params.get('theme') ?? 'light';
+      if (params.get('preset')) root.dataset.zxPreset = params.get('preset');
+
+      const sheet = document.createElement('link');
+      sheet.rel = 'stylesheet';
+      sheet.href = `../../website/layouts/${id}.layout.css`;
+      await new Promise((resolve) => {
+        sheet.onload = resolve;
+        sheet.onerror = resolve;
+        document.head.append(sheet);
+      });
+
+      // Like the gallery, the stage is a styling scope of its own: overlays opened from inside the
+      // layout (menus, dialogs, toasts) attach to it, and it is emptied on unmount.
+      const stage = document.querySelector('#stage');
+      const controller = new AbortController();
+      const cleanups = [];
+      const { default: layout } = await import(`../../website/layouts/${id}.layout.js`);
+      layout.mount(stage, {
+        preview: params.get('preview') === '1',
+        signal: controller.signal,
+        cleanup: (fn) => cleanups.push(fn)
+      });
+      window.__layout = {
+        meta: { title: layout.title, category: layout.category, blurb: layout.blurb, components: layout.components },
+        unmount() {
+          controller.abort();
+          for (const fn of cleanups.splice(0)) fn();
+          stage.replaceChildren();
+        }
+      };
+      document.title = `${layout.title} — layout harness`;
+      document.body.dataset.ready = 'true';
+    </script>
+  </body>
+</html>

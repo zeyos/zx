@@ -10,6 +10,12 @@
   align-items: stretch;
 }
 
+/* The box draws the frame, so the input and buttons inside it are one border shorter on each side:
+   the control as a whole is one control height, like a text input beside it. */
+.zx-datebox__control > :is(input, button) {
+  min-block-size: calc(var(--zx-control-height) - 2px);
+}
+
 .zx-datebox__control {
   position: relative;
   border: 1px solid var(--zx-color-border-control);
@@ -26,14 +32,38 @@
   background: var(--zx-color-danger-bg);
 }
 
-/* The input always reserves room for the clear button, which floats over its trailing edge —
-   showing or hiding the button must not change the control's total width. */
+/* A clearable input always reserves room for the clear button, which floats over its trailing
+   edge — showing or hiding the button must not change the control's total width. Without
+   `clearable` there is no button, and no room is kept for one. */
 .zx-datebox__input {
   min-inline-size: 10em;
   border: 0;
   border-radius: var(--zx-control-radius) 0 0 var(--zx-control-radius);
   background: inherit;
+}
+
+.zx-datebox[data-clearable] .zx-datebox__input {
   padding-inline-end: var(--zx-control-height);
+}
+
+/* In a Field the control fills its column, as a text input does, and gives way in a narrow one
+   instead of holding a minimum width that overflows a two-column row. */
+.zx-field__control > .zx-datebox {
+  display: block;
+}
+
+.zx-field__control > .zx-datebox :is(.zx-datebox__content, .zx-datebox__control) {
+  display: flex;
+}
+
+.zx-field__control > .zx-datebox .zx-datebox__control {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+.zx-field__control > .zx-datebox .zx-datebox__input {
+  flex: 1 1 auto;
+  min-inline-size: 0;
 }
 
 /* Focused controls lift above their siblings so the ring is never clipped. */
@@ -119,5 +149,52 @@
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
     box-shadow: var(--zx-overlay-shadow);
+  }
+}
+
+/*
+ * Quiet fields. Inside `[data-zx-fields="quiet"]` the date reads as text: no border, no fill, and
+ * the calendar button and its divider hidden. Hover brings the hover fill and the button back;
+ * focus brings back the border, the control fill and the focus ring. An invalid value keeps its
+ * danger border, quiet or not. A disabled control never lights up.
+ */
+[data-zx-fields="quiet"] .zx-datebox:not([data-state="invalid"]) .zx-datebox__control {
+  border-color: transparent;
+  background: transparent;
+}
+
+[data-zx-fields="quiet"] .zx-datebox__toggle {
+  border-inline-start-color: transparent;
+  opacity: 0;
+}
+
+[data-zx-fields="quiet"] .zx-datebox__clear {
+  opacity: 0;
+}
+
+[data-zx-fields="quiet"] .zx-datebox:not([aria-disabled="true"], [data-state="invalid"]):hover .zx-datebox__control {
+  background: var(--zx-color-bg-hover);
+}
+
+[data-zx-fields="quiet"] .zx-datebox:not([aria-disabled="true"]):is(:hover, :focus-within) :is(.zx-datebox__toggle, .zx-datebox__clear) {
+  opacity: 1;
+}
+
+[data-zx-fields="quiet"] .zx-datebox:not([aria-disabled="true"]):focus-within .zx-datebox__toggle {
+  border-inline-start-color: var(--zx-color-border-control);
+}
+
+[data-zx-fields="quiet"] .zx-datebox:not([aria-disabled="true"], [data-state="invalid"]):focus-within .zx-datebox__control {
+  border-color: var(--zx-color-border-control);
+  background: var(--zx-color-bg-control);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-zx-fields="quiet"] .zx-datebox__control {
+    transition: background-color var(--zx-dur-fast) var(--zx-ease), border-color var(--zx-dur-fast) var(--zx-ease);
+  }
+
+  [data-zx-fields="quiet"] :is(.zx-datebox__toggle, .zx-datebox__clear) {
+    transition: opacity var(--zx-dur-fast) var(--zx-ease), border-color var(--zx-dur-fast) var(--zx-ease);
   }
 }

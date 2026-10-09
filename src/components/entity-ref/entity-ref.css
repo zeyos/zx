@@ -52,7 +52,7 @@
 
 .zx-entity-ref__title {
   color: var(--zx-color-text);
-  font-weight: 600;
+  font-weight: var(--zx-weight-medium);
   line-height: 1.25;
 }
 

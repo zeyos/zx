@@ -29,7 +29,8 @@
   padding-inline: var(--zx-space-2);
   color: var(--zx-color-accent);
   font-size: var(--zx-text-xl);
-  font-weight: 750;
+  font-weight: 650;
+  letter-spacing: var(--zx-tracking-title);
 }
 
 .zx-navigation-bar__navigation {
@@ -51,10 +52,11 @@
   gap: var(--zx-space-2);
   border: 0;
   border-radius: var(--zx-control-radius);
-  background: var(--zx-color-bg-raised);
+  background: transparent;
   padding-inline: var(--zx-control-pad-x);
   color: var(--zx-color-text-muted);
   font: inherit;
+  font-weight: var(--zx-weight-medium);
   text-decoration: none;
   cursor: pointer;
 }
@@ -64,11 +66,12 @@
   color: var(--zx-color-text);
 }
 
+/* Where you are, not a pick: the neutral current fill, the full text colour, a heavier label. */
 .zx-navigation-bar__item[aria-current="page"],
 .zx-navigation-bar__item[aria-selected="true"] {
-  background: var(--zx-color-bg-selected);
-  color: var(--zx-color-accent);
-  font-weight: 650;
+  background: var(--zx-color-bg-current);
+  color: var(--zx-color-text);
+  font-weight: var(--zx-weight-semibold);
 }
 
 .zx-navigation-bar__item[aria-disabled="true"] {
@@ -81,16 +84,22 @@
   box-shadow: var(--zx-focus-ring);
 }
 
+/* A count beside a label, not a call to action: neutral, like the Tabbox count. */
 .zx-navigation-bar__badge {
   min-inline-size: var(--zx-space-4);
   border-radius: var(--zx-radius-full);
-  background: var(--zx-color-accent);
+  background: var(--zx-color-bg-current);
   padding-inline: var(--zx-space-1);
-  color: var(--zx-color-on-accent);
-  font-size: var(--zx-text-sm);
-  font-weight: 700;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--zx-weight-medium);
   line-height: var(--zx-space-4);
   text-align: center;
+}
+
+.zx-navigation-bar__item:is([aria-current="page"], [aria-selected="true"]) .zx-navigation-bar__badge {
+  color: var(--zx-color-text);
 }
 
 .zx-navigation-bar__more {

@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
-  groupActivityItems, normalizeActivityItems
+  groupActivityItems, normalizeActivityItems, normalizeActivityListVariant
 } from '../../src/components/activity-list/activity-list.js';
 
 test('activity grouping preserves first-seen group and source order without mutation', () => {
@@ -77,4 +77,27 @@ test('activity CSS consumes only semantic tokens and scopes dividers to list-own
   assert.match(listCss, /> \.zx-activity-item:not\(:last-child\)/);
   assert.doesNotMatch(`${itemCss}\n${listCss}`, /#[\da-f]{3,8}\b|rgba?\(|hsla?\(/i);
   assert.doesNotMatch(`${itemCss}\n${listCss}`, /var\(--zx-(?:gray|green|red|amber|blue)-/i);
+});
+
+test('the compact variant is opt-in and anything unknown is the default layout', () => {
+  assert.equal(normalizeActivityListVariant('compact'), 'compact');
+  for (const value of ['default', undefined, null, 'Compact', 'dense', 1]) {
+    assert.equal(normalizeActivityListVariant(value), 'default', String(value));
+  }
+});
+
+test('a compact list keeps every entry on one line with the time at the trailing end', () => {
+  const listCss = readFileSync(
+    new URL('../../src/components/activity-list/activity-list.css', import.meta.url), 'utf8'
+  );
+  const compact = (selector) => new RegExp(
+    `\\.zx-activity-list\\[data-variant="compact"\\] ${selector.replace(/[.]/g, '\\.')}\\s*\\{([^}]*)\\}`
+  ).exec(listCss)?.[1] ?? '';
+  // A flex row that never wraps: the time cannot drop under the heading at any card width, which
+  // is what the entry's own narrow-container layout does.
+  assert.match(compact('.zx-activity-item__header'), /display:\s*flex/);
+  assert.match(compact('.zx-activity-item__header'), /flex-wrap:\s*nowrap/);
+  // Actor and summary are one sentence that wraps as text and takes the free space.
+  assert.match(compact('.zx-activity-item__heading'), /display:\s*block/);
+  assert.match(compact('.zx-activity-item__heading'), /flex:\s*1 1 auto/);
 });

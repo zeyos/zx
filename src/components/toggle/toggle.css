@@ -1,7 +1,11 @@
+/* A label reads like text beside the switch: start-aligned, wrapping within the available width,
+   with the track level with its first line. A one-line toggle is still a control's height tall,
+   its track and its text centred in it. */
 .zx-toggle {
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--zx-space-2);
+  max-inline-size: 100%;
   min-block-size: var(--zx-control-height);
   border: 0;
   background: none;
@@ -9,6 +13,7 @@
   padding: 0;
   font: inherit;
   font-size: var(--zx-control-font-size);
+  text-align: start;
   cursor: pointer;
 }
 
@@ -31,10 +36,16 @@
   flex: none;
   inline-size: 34px;
   block-size: 20px;
+  margin-block-start: max(0px, (var(--zx-control-height) - 20px) / 2);
   border: 1px solid var(--zx-color-border-strong);
   border-radius: var(--zx-radius-full);
   background: var(--zx-color-bg-control);
   padding: 2px;
+}
+
+.zx-toggle__label {
+  min-inline-size: 0;
+  padding-block: max(0px, (var(--zx-control-height) - 1lh) / 2);
 }
 
 .zx-toggle__thumb {

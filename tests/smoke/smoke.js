@@ -652,6 +652,30 @@ const cases = [
     assert(component.el.querySelector('.zx-message__toast'), 'message was not rendered');
     handle.close();
   }),
+  componentCase('Message (action)', () => new zx.Message(null, { timeout: 0 }), (component) => {
+    const ran = [];
+    const avatar = new zx.Avatar(null, { name: 'Mara Lind', size: 'sm' });
+    const handle = component.show('Mara Lind asks you to approve the release.', {
+      leading: avatar,
+      action: { label: 'Approve', kind: 'primary', onclick: () => ran.push('approve') }
+    });
+    const toast = component.el.querySelector('.zx-message__toast');
+    const action = toast?.querySelector('.zx-message__action');
+    assert(action?.matches('button.zx-btn[data-size="sm"][data-kind="primary"]'),
+      'message action is not a small Zx button of the requested kind');
+    assert(toast.querySelector('.zx-message__icon[aria-hidden="true"] > .zx-avatar'),
+      'leading node did not take the kind icon\'s place');
+    assert(!toast.querySelector('.zx-message__icon > .zx-icon'), 'kind icon still shown beside the leading node');
+    action.click();
+    assert(ran.length === 1 && ran[0] === 'approve', 'message action did not run onclick');
+    assert(toast.dataset.state === 'closing' || !toast.isConnected, 'message action did not close the message');
+    handle.close();
+    const secondary = component.show('Saved.', { action: { label: 'Undo' } });
+    assert(component.el.querySelector('.zx-message__action[data-kind="default"]'),
+      'message action is not the secondary button by default');
+    secondary.close();
+    avatar.destroy();
+  }),
   componentCase('Message (floating geometry)', () => {
     const component = new zx.Message(null, { timeout: 0 });
     component.el.classList.add('zx-message-region');
@@ -700,6 +724,41 @@ const cases = [
     component.open();
     assert(component.isOpen(), 'open failed');
     component.close();
+  }),
+  artifactCase('Dialog (type to confirm)', () => {
+    const element = document.createElement('span');
+    return {
+      element,
+      async exercise() {
+        const result = zx.Dialog.confirm({
+          title: 'Delete project?', message: 'This cannot be undone.',
+          confirmText: 'Website Redesign', okLabel: 'Delete project', danger: true
+        });
+        await nextFrame();
+        const input = document.querySelector('dialog.zx-dialog[open] .zx-dialog__confirm-input');
+        assert(input && document.activeElement === input, 'type-to-confirm did not start in its input');
+        assert(input.labels?.[0]?.textContent === 'Type Website Redesign to confirm',
+          'type-to-confirm input is not labelled "Type Website Redesign to confirm"');
+        const dialog = input.closest('dialog');
+        const accept = () => [...dialog.querySelectorAll('.zx-dialog__footer button')]
+          .find((button) => button.textContent === 'Delete project');
+        const type = (value) => {
+          input.value = value;
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+        };
+        const enter = () => input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+        assert(accept().disabled, 'confirm button enabled before anything was typed');
+        type('website redesign');
+        assert(accept().disabled, 'confirm button enabled on a case mismatch');
+        enter();
+        assert(dialog.open, 'Enter confirmed without a match');
+        type('  Website Redesign ');
+        assert(!accept().disabled, 'confirm button stayed disabled on a match');
+        enter();
+        assert(await result === true, 'Enter on a match did not resolve true');
+        await delay(30);
+      }
+    };
   }),
   componentCase('Sheet', () => new zx.Sheet(null, {
     title: 'Invoice', content: 'Body', side: 'end', backdrop: 'blur'
@@ -836,9 +895,9 @@ const cases = [
   componentCase('Select (priority preset)', () => zx.Select.priority(null, { value: 2 }), (component) => {
     const indicator = component.refs.valueAdornment.querySelector('.zx-select__priority-icon');
     assert(indicator && !component.refs.valueAdornment.hidden, 'priority value adornment missing');
-    assert(indicator.children.length === 5, 'priority indicator does not contain five squares');
+    assert(indicator.children.length === 4, 'priority indicator does not contain four bars');
     assert(indicator.querySelectorAll('[data-filled="true"]').length === 3,
-      'priority level did not fill the expected number of squares');
+      'priority level did not fill the expected number of bars');
   }),
   componentCase('Select (status preset)', () => zx.Select.status(null, { value: 'in-progress' }), (component) => {
     const events = observe(component, 'change');
@@ -850,6 +909,48 @@ const cases = [
     component.refs.input.dispatchEvent(new KeyboardEvent('keydown', { key: '4', bubbles: true }));
     assert(component.value === 'in-review', 'status option did not update the value');
     events.expect();
+  }),
+  artifactCase('statusIcon()', () => {
+    const element = document.createElement('div');
+    for (const id of ['backlog', 'todo', 'in-progress', 'review', 'done', 'cancelled']) {
+      element.append(zx.statusIcon(id));
+    }
+    element.append(zx.statusIcon('done', { label: 'Done', tone: 'success' }));
+    return {
+      element,
+      exercise() {
+        const glyphs = [...element.querySelectorAll('.zx-status-icon')];
+        assert(glyphs.map((glyph) => glyph.dataset.indicator).join() === 'dotted,ring,progress,review,done,canceled,done',
+          'statusIcon drew the wrong shapes');
+        assert(glyphs.slice(0, 6).every((glyph) => glyph.getAttribute('aria-hidden') === 'true'),
+          'statusIcon is not decorative by default');
+        assert(glyphs[6].getAttribute('role') === 'img' && glyphs[6].getAttribute('aria-label') === 'Done'
+          && glyphs[6].dataset.tone === 'success', 'labelled statusIcon is not a named image');
+        const select = zx.Select.status(null, { value: 'in-progress' });
+        element.append(select.el);
+        const picked = select.refs.valueAdornment.querySelector('.zx-select__status-indicator');
+        const standalone = getComputedStyle(glyphs[2]);
+        const inSelect = getComputedStyle(picked);
+        assert(picked.classList.contains('zx-status-icon')
+          && ['width', 'height', 'borderTopStyle', 'borderTopColor'].every((key) => standalone[key] === inSelect[key]),
+          'standalone status glyph differs from the one Select.status() draws');
+        select.destroy();
+      }
+    };
+  }),
+  artifactCase('priorityIcon()', () => {
+    const element = document.createElement('div');
+    for (const level of [null, 0, 2, 4]) element.append(zx.priorityIcon(level));
+    return {
+      element,
+      exercise() {
+        const glyphs = [...element.querySelectorAll('.zx-priority-icon')];
+        assert(glyphs.map((glyph) => glyph.dataset.level).join() === 'none,0,2,4', 'priorityIcon levels wrong');
+        assert(glyphs[2].querySelectorAll('[data-filled="true"]').length === 3, 'priority bars not filled to the level');
+        assert(glyphs[3].children.length === 0, 'highest priority is not the square');
+        assert(glyphs.every((glyph) => glyph.getAttribute('aria-hidden') === 'true'), 'priorityIcon is not decorative');
+      }
+    };
   }),
   componentCase('Select (action rows)', () => new zx.Select(null, {
     items: sampleItems(),

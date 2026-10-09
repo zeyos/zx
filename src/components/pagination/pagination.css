@@ -3,7 +3,8 @@
  *
  * One row that wraps: the summary is pushed to the start, the page-size select and the pager sit
  * at the end. Page buttons are ordinary `.zx-btn` controls so they inherit the library's control
- * height, radius, and focus ring; only the current page repaints in the accent colour.
+ * height, radius, and focus ring; the current page takes the neutral current fill — it is where
+ * you are, not a call to action.
  */
 
 .zx-pagination {
@@ -70,15 +71,16 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* The page you are on: the neutral current fill and a heavier figure, not a solid accent. */
 .zx-pagination__page[aria-current="page"] {
-  border-color: var(--zx-color-accent);
-  background: var(--zx-color-accent);
-  color: var(--zx-color-on-accent);
+  border-color: transparent;
+  background: var(--zx-color-bg-current);
+  color: var(--zx-color-text);
+  font-weight: var(--zx-weight-semibold);
 }
 
 .zx-pagination__page[aria-current="page"]:hover:not(:disabled) {
-  border-color: var(--zx-color-accent-hover);
-  background: var(--zx-color-accent-hover);
+  background: var(--zx-color-bg-current);
 }
 
 /* Decorative gap marker: never focusable, never announced. */

@@ -107,8 +107,12 @@ function isRecord(value) {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
-/** @param {unknown} error @returns {string} */
-function errorMessage(error) {
+/**
+ * The text a failed request is reported with: the error's own message, or a generic sentence.
+ * @param {unknown} error Rejection reason.
+ * @returns {string}
+ */
+export function errorMessage(error) {
   if (error instanceof Error && error.message) return error.message;
   if (error && typeof error === 'object' && typeof error.message === 'string') return error.message;
   return String(error ?? 'ZeyOS request failed');

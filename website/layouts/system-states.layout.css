@@ -1,0 +1,346 @@
+/*
+ * System states screen pattern. Every selector is scoped under .states.
+ *
+ * One padded page body holds five groups of cards. Each card names a state, says when it happens,
+ * and shows the real component in it. The grid follows the page's own width, not the window's.
+ */
+
+.states .shell__main {
+  min-inline-size: 0;
+}
+
+.states .states__body {
+  container: states / inline-size;
+}
+
+.states .states__sections {
+  display: grid;
+  gap: var(--zx-space-8);
+  max-inline-size: 84rem;
+}
+
+/* ----------------------------------------------------------------- groups -- */
+
+.states .states__section {
+  display: grid;
+  gap: var(--zx-space-4);
+}
+
+.states .states__section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--zx-space-2) var(--zx-space-4);
+}
+
+.states .states__section-text {
+  display: grid;
+  gap: var(--zx-space-1);
+  min-inline-size: 0;
+}
+
+.states .states__section-text > .meta {
+  margin: 0;
+}
+
+.states .states__section-title {
+  justify-self: start;
+  margin: 0;
+  font-size: var(--zx-text-lg);
+  font-weight: var(--zx-weight-semibold);
+  letter-spacing: var(--zx-tracking-tight);
+  line-height: 1.3;
+}
+
+/* A heading reached from the navigation takes focus without drawing a ring around plain text. */
+.states .states__section-title:focus {
+  outline: none;
+}
+
+.states .states__section-title:focus-visible {
+  border-radius: var(--zx-radius-sm);
+  box-shadow: var(--zx-focus-ring);
+}
+
+.states .states__section-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zx-space-2);
+}
+
+.states .states__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--zx-space-4);
+}
+
+/* ------------------------------------------------------------------ cards -- */
+
+/* A card is a column: what the state is, the component in it, then what to press. The stage takes
+   the room left, so cards in one row line up whatever each one holds. */
+.states .states__card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zx-space-3);
+  min-inline-size: 0;
+}
+
+
+.states .states__card-head {
+  display: grid;
+  gap: 2px;
+}
+
+.states .states__when {
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+.states .states__stage {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--zx-space-3);
+  min-inline-size: 0;
+}
+
+/* A centred example — an empty state, a button — keeps some air around it however short. */
+.states .states__stage:not([data-fill]) {
+  min-block-size: 11rem;
+}
+
+.states .states__stage[data-fill] {
+  justify-content: flex-start;
+}
+
+/* Inside a card the empty state needs no frame of its own and less air: the card is the frame. */
+.states .states__stage > .zx-empty-state {
+  padding-block: var(--zx-space-4);
+  padding-inline: 0;
+}
+
+.states .states__stage > .zx-empty-state .zx-empty-state__actions {
+  gap: var(--zx-space-2) var(--zx-space-3);
+}
+
+.states .states__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zx-space-2) var(--zx-space-3);
+}
+
+.states .states__note {
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+}
+
+/* A row of a control and the line that reports on it. */
+.states .states__inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--zx-space-2) var(--zx-space-3);
+}
+
+.states .states__stage[data-fill] > .states__inline {
+  justify-content: flex-start;
+}
+
+.states .zx-inline-loading {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+/* Why an action is unavailable, beside it, while the page is offline. */
+.states .states__reason {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-1);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+.states .states__reason > .zx-icon {
+  color: var(--zx-color-text-subtle);
+}
+
+/* What a confirmation or a save is about: a kind tile, its name, and what goes with it. */
+.states .states__subject {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-3);
+  min-inline-size: 0;
+}
+
+.states .states__subject-text {
+  display: grid;
+  min-inline-size: 0;
+}
+
+.states .states__subject-title {
+  overflow: hidden;
+  font-weight: var(--zx-weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.states .states__subject-text > .meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------------ empty -- */
+
+.states .states__results {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.states .states__result-list {
+  display: grid;
+  gap: var(--zx-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.states .states__result {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-3);
+  min-inline-size: 0;
+}
+
+/* ---------------------------------------------------------------- loading -- */
+
+/* The placeholder of a board column takes the column's shape: a heading row, then cards with the
+   board card's padding, one line per row of the card it stands in for. */
+.states .states__column {
+  display: grid;
+  gap: var(--zx-space-2);
+  inline-size: min(100%, 18.5rem);
+}
+
+.states .states__column-head {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  min-block-size: 2rem;
+}
+
+.states .states__ghost-card {
+  display: grid;
+  gap: var(--zx-space-2);
+  padding: var(--zx-space-2) var(--zx-space-3);
+  border: 1px solid var(--zx-color-border);
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-bg-surface);
+}
+
+.states .states__ghost-line {
+  display: flex;
+  align-items: center;
+  min-block-size: 1.25rem;
+}
+
+.states .states__ghost-line:last-child {
+  min-block-size: 1.5rem;
+}
+
+.states .states__page {
+  display: grid;
+  gap: var(--zx-space-4);
+}
+
+.states .states__page-title {
+  margin: 0;
+  font-size: var(--zx-text-lg);
+  font-weight: var(--zx-weight-semibold);
+  line-height: 1.3;
+}
+
+.states .states__page .meta {
+  margin: 0;
+}
+
+.states .states__page-facts {
+  display: grid;
+  grid-template-columns: fit-content(9rem) minmax(0, 1fr);
+  grid-auto-rows: minmax(1.375rem, auto);
+  gap: var(--zx-space-2) var(--zx-space-3);
+  align-items: center;
+}
+
+.states .states__page-facts > .zx-skeleton:nth-child(odd) {
+  inline-size: 5rem;
+}
+
+.states .states__page-text {
+  margin: 0;
+  font-size: var(--zx-text-sm);
+  line-height: 1.6;
+}
+
+/* ----------------------------------------------------------------- errors -- */
+
+.states .states__inline-message:empty {
+  display: none;
+}
+
+/* ----------------------------------------------------------------- banner -- */
+
+.states .states__banner {
+  padding: var(--zx-space-3) var(--zx-space-5) 0;
+}
+
+/* ----------------------------------------------------------------- narrow -- */
+
+/* A wide card takes two columns wherever there are two or more. */
+@container states (width > 600px) {
+  .states .states__card[data-wide] {
+    grid-column: span 2;
+  }
+}
+
+@container states (width <= 1000px) {
+  .states .states__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Three cards in two columns: the third takes the row, so no row is left half empty. */
+@container states (600px < width <= 1000px) {
+  .states .states__grid:has(> :nth-child(3):last-child) > :last-child {
+    grid-column: span 2;
+  }
+}
+
+@container states (width <= 600px) {
+  .states .states__sections {
+    gap: var(--zx-space-7);
+  }
+
+  .states .states__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .states .states__stage:not([data-fill]) {
+    min-block-size: 0;
+  }
+}
+
+@container shell (max-width: 640px) {
+  .states .states__banner {
+    padding-inline: var(--zx-space-4);
+  }
+}

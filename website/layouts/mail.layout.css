@@ -1,0 +1,508 @@
+/*
+ * Mail layout. Every selector is scoped under the `.mail` block; the keyboard reference renders in
+ * the top layer and uses `.mail__*` element classes of the same block.
+ */
+
+.mail {
+  /* A row's triage buttons, shown in place of its time. */
+  --mail-row-action: calc(var(--zx-control-height) * 0.8);
+  /* The inline padding of a stream in the list header. */
+  --mail-split-pad: calc(var(--zx-space-1) * 1.5);
+}
+
+/* Reading mode: the list steps aside and the conversation takes the room. */
+.mail[data-mode="read"] .shell__list,
+.mail:not([data-mode="read"]) .mail__back {
+  display: none;
+}
+
+/* With the list beside it, the conversation's header needs no second navigation button. */
+.mail:not([data-mode="read"]) .shell__main .shell__nav-toggle {
+  display: none;
+}
+
+/* ------------------------------------------------------------ navigation -- */
+
+/* A label's colour beside its name: categorical tones, never status colours. */
+.mail__swatch {
+  display: inline-block;
+  flex: none;
+  inline-size: var(--zx-space-2);
+  block-size: var(--zx-space-2);
+  border-radius: var(--zx-radius-full);
+  background: var(--mail-swatch, var(--zx-color-text-muted));
+}
+
+.mail__swatch[data-tone="blue"] { --mail-swatch: var(--zx-color-tone-blue-fg); }
+.mail__swatch[data-tone="teal"] { --mail-swatch: var(--zx-color-tone-teal-fg); }
+.mail__swatch[data-tone="violet"] { --mail-swatch: var(--zx-color-tone-violet-fg); }
+.mail__swatch[data-tone="amber"] { --mail-swatch: var(--zx-color-tone-amber-fg); }
+
+/* ------------------------------------------------------------------ list -- */
+
+/* The inbox streams are the list's title: text only, the checked one in the text colour. The row
+   is pulled out by a stream's padding so the first name lines up with the other columns' titles. */
+.mail__splits {
+  display: flex;
+  align-items: center;
+  margin-inline-start: calc(-1 * var(--mail-split-pad));
+}
+
+/* Outside the inbox the header names the view, starting where the streams would. */
+.mail .shell__header-leading:has(> .mail__splits[hidden]) {
+  display: none;
+}
+
+.mail__split {
+  min-block-size: var(--zx-control-height);
+  padding-inline: var(--mail-split-pad);
+  border: 0;
+  border-radius: var(--zx-radius-sm);
+  background: none;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  font-weight: var(--zx-weight-medium);
+  white-space: nowrap;
+}
+
+.mail__split:hover,
+.mail__split[aria-checked="true"] {
+  background: none;
+  color: var(--zx-color-text);
+}
+
+.mail__split[aria-checked="true"] {
+  font-weight: var(--zx-weight-semibold);
+}
+
+.mail__split-count {
+  margin-inline-start: var(--zx-space-1);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.mail__split-count:empty {
+  display: none;
+}
+
+/* Once the navigation has given way, the list column is narrower than the four streams beside its
+   two buttons: the streams scroll sideways instead of running under the menu button (the arrow
+   keys bring the checked one into view), and fade out where they are cut off. The scroller's
+   padding keeps the focus ring inside it, and its end padding is the faded part, so the last
+   stream shows in full once scrolled to. */
+@container shell (max-width: 860px) {
+  .mail__splits {
+    overflow-x: auto;
+    min-inline-size: 0;
+    margin-block: calc(-1 * var(--zx-space-1));
+    margin-inline-start: calc(-1 * (var(--mail-split-pad) + var(--zx-space-1)));
+    padding: var(--zx-space-1) var(--zx-space-5) var(--zx-space-1) var(--zx-space-1);
+    scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(to left, transparent, currentColor var(--zx-space-5));
+    mask-image: linear-gradient(to left, transparent, currentColor var(--zx-space-5));
+  }
+}
+
+.mail__rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mail__item {
+  position: relative;
+}
+
+/* Two lines, about 56px: sender and time, then subject and preview. The gutter before them holds
+   the unread dot, so read and unread senders start at the same edge. */
+.mail__row {
+  grid-template-columns: var(--zx-space-4) minmax(0, 1fr);
+  gap: 2px 0;
+  padding-inline-start: var(--zx-space-1);
+  line-height: 1.4;
+}
+
+.mail__unread {
+  display: flex;
+  grid-row: 1;
+  grid-column: 1;
+  align-items: center;
+}
+
+.mail__row-top,
+.mail__row-line {
+  display: flex;
+  grid-column: 2;
+  gap: var(--zx-space-2);
+  min-inline-size: 0;
+}
+
+.mail__row-top {
+  align-items: baseline;
+}
+
+.mail__row-line {
+  align-items: center;
+  font-size: var(--zx-text-sm);
+}
+
+.mail__row .list-row__title {
+  flex: 0 1 auto;
+}
+
+.mail__row:not([data-unread]) .list-row__title {
+  font-weight: 400;
+}
+
+.mail__row-count {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.mail__star {
+  display: inline-flex;
+  align-self: center;
+  color: var(--zx-color-warning);
+}
+
+.mail__star .zx-icon {
+  fill: currentColor;
+}
+
+/* The time keeps room for the triage buttons that replace it, so they never cover the sender. */
+.mail__row-time {
+  min-inline-size: calc(3 * var(--mail-row-action));
+  margin-inline-start: auto;
+  text-align: end;
+}
+
+.mail__row-text,
+.mail__fold-snippet,
+.mail__reply-to,
+.mail__email-text,
+.mail__message-from {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mail__row-text {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+.mail__row[data-unread] .mail__row-subject {
+  font-weight: var(--zx-weight-medium);
+}
+
+.mail__row-snippet {
+  margin-inline-start: var(--zx-space-1);
+  color: var(--zx-color-text-muted);
+}
+
+.mail__row-line .zx-badge {
+  flex: none;
+}
+
+/* Triage actions take the time's place on the first line while the row is hovered or holds
+   keyboard focus: plain icons, no frame. A pointer selection leaves the time in view. */
+.mail__row-actions {
+  position: absolute;
+  inset-block-start: calc(1px + var(--zx-space-2));
+  inset-inline-end: calc(var(--zx-space-2) + var(--zx-space-3) - var(--zx-space-1));
+  display: flex;
+  align-items: center;
+  block-size: 1lh;
+  font-size: var(--zx-text-md);
+  line-height: 1.4;
+  visibility: hidden;
+}
+
+.mail__row-actions .zx-icon-btn {
+  inline-size: var(--mail-row-action);
+  block-size: var(--mail-row-action);
+}
+
+.mail__item:hover .mail__row-actions,
+.mail__item:has(:focus-visible) .mail__row-actions {
+  visibility: visible;
+}
+
+.mail__item:hover .mail__row-time,
+.mail__item:has(:focus-visible) .mail__row-time {
+  visibility: hidden;
+}
+
+/* -------------------------------------------------------------- conversation -- */
+
+.mail__position {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The conversation sits on the canvas itself, at a comfortable line length. */
+.mail__reader {
+  padding: var(--zx-space-6) var(--zx-space-7) var(--zx-space-7);
+}
+
+.mail__thread {
+  display: grid;
+  gap: var(--zx-space-5);
+  max-inline-size: 68ch;
+  margin-inline: auto;
+}
+
+.mail__thread-head {
+  display: grid;
+  gap: var(--zx-space-2);
+}
+
+.mail__thread-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zx-space-2);
+}
+
+/* Messages follow one another under hairlines; no card around them. */
+.mail__messages {
+  display: grid;
+}
+
+.mail__messages > :not(:first-child) {
+  border-block-start: 1px solid var(--zx-color-border-subtle);
+}
+
+.mail__fold {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--zx-space-3);
+  inline-size: 100%;
+  min-block-size: 0;
+  padding: var(--zx-space-3) 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+}
+
+.mail__fold:hover {
+  background: none;
+}
+
+.mail__fold:hover .mail__fold-snippet {
+  color: var(--zx-color-text);
+}
+
+.mail__fold:focus-visible {
+  border-radius: var(--zx-radius-sm);
+}
+
+.mail__fold-name,
+.mail__message-from {
+  font-weight: var(--zx-weight-semibold);
+  white-space: nowrap;
+}
+
+.mail__fold-snippet {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+.mail__message {
+  display: grid;
+  gap: var(--zx-space-3);
+  padding-block: var(--zx-space-4);
+}
+
+.mail__message-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--zx-space-3);
+}
+
+.mail__message-who {
+  display: grid;
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+.mail__message-time {
+  flex: none;
+  white-space: nowrap;
+}
+
+/* The text lines up with the author's name, past the 32px avatar. */
+.mail__message-body,
+.mail__files {
+  display: grid;
+  gap: var(--zx-space-3);
+  padding-inline-start: calc(var(--zx-space-7) + var(--zx-space-3));
+}
+
+.mail__files {
+  gap: var(--zx-space-2);
+}
+
+.mail__para {
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* In a narrow conversation pane, messages use the full width instead of indenting past the avatar. */
+.mail .shell__main {
+  container: mail-main / inline-size;
+}
+
+@container mail-main (max-width: 30rem) {
+  .mail__reader {
+    padding-inline: var(--zx-space-5);
+  }
+
+  .mail__message-body,
+  .mail__files {
+    padding-inline-start: 0;
+  }
+}
+
+/* ----------------------------------------------------------------- composer -- */
+
+/* One surface under a hairline. Its quiet buttons and text area are pulled out by their own
+   padding, so their words line up with the conversation above while their hover and focus
+   frames have room around them. */
+.mail__composer {
+  display: grid;
+  gap: var(--zx-space-2);
+  padding-block-start: var(--zx-space-4);
+  border-block-start: 1px solid var(--zx-color-border-subtle);
+}
+
+.mail__composer-top,
+.mail__composer-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-1);
+  min-inline-size: 0;
+}
+
+.mail__composer-top {
+  flex-wrap: wrap;
+  margin-inline-start: calc(-1 * var(--zx-space-2));
+}
+
+.mail__composer-top .zx-btn {
+  color: var(--zx-color-text-muted);
+  white-space: nowrap;
+}
+
+.mail__composer-top .zx-btn:hover {
+  color: var(--zx-color-text);
+}
+
+/* The reply mode you are in reads as current: the neutral fill and the text colour, no frame. */
+.mail .mail__composer-top .zx-btn[aria-pressed="true"] {
+  border-color: transparent;
+  color: var(--zx-color-text);
+}
+
+.mail__reply-to {
+  flex: 1 1 auto;
+  margin-inline-start: var(--zx-space-2);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+.mail__reply-input {
+  inline-size: calc(100% + 2 * var(--zx-control-pad-x));
+  min-block-size: calc(var(--zx-control-height) * 3);
+  margin-inline: calc(-1 * var(--zx-control-pad-x));
+  padding-block: var(--zx-space-2);
+  line-height: 1.5;
+  /* A frameless text area has no edge to drag; it grows with its text where the browser can. */
+  resize: none;
+  field-sizing: content;
+}
+
+.mail__composer-foot {
+  gap: var(--zx-space-3);
+}
+
+/* "Draft saved" is quiet confirmation, not a status to act on. */
+.mail__composer-foot .zx-inline-loading {
+  color: var(--zx-color-text-muted);
+}
+
+/* ------------------------------------------------------------------- contact -- */
+
+.mail__person {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+}
+
+.mail__person-name,
+.mail__person-role {
+  margin: 0;
+}
+
+.mail__person-name {
+  font-size: var(--zx-text-lg);
+  font-weight: var(--zx-weight-semibold);
+}
+
+.mail__email {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-1);
+  min-inline-size: 0;
+}
+
+.mail__recent {
+  gap: var(--zx-space-1);
+  padding-inline: 0;
+  padding-block-end: 0;
+}
+
+.mail__recent > .panel-block__title {
+  padding-inline: var(--zx-space-4);
+}
+
+.mail__recent-row {
+  padding-block: var(--zx-space-2);
+  font-size: var(--zx-text-sm);
+}
+
+.mail__recent-row .list-row__title {
+  font-weight: 400;
+}
+
+/* ------------------------------------------------------ keyboard reference -- */
+
+.mail__help {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  align-items: start;
+  gap: var(--zx-space-5) var(--zx-space-6);
+}
+
+.mail__help-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--zx-space-2) var(--zx-space-4);
+  margin: var(--zx-space-2) 0 0;
+}
+
+.mail__help-label,
+.mail__help-keys {
+  margin: 0;
+}
+
+.mail__help-keys {
+  justify-self: end;
+}

@@ -9,6 +9,31 @@
  * Site-only colours live in the `--site-*` namespace below and are deliberately fixed: the
  * marketing bands are always dark, exactly like zeyos.com.
  */
+
+/* Inter, self-hosted (SIL Open Font License, assets/fonts/inter/OFL.txt): the variable Latin and
+   Latin Extended subsets, so every weight from 100 to 900 renders as designed rather than as the
+   nearest installed weight, and no font request leaves this site. */
+@font-face {
+  font-family: "Inter";
+  src: url("assets/fonts/inter/inter-latin.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212,
+    U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Inter";
+  src: url("assets/fonts/inter/inter-latin-ext.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0100-02AF, U+0304, U+0308, U+0329, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
 :root {
   --site-content-width: 1200px;
   --site-night: #0f172a;
@@ -40,23 +65,23 @@ body.site-page > main {
 
 /* ---------------------------------------------------------------- header -- */
 
+/*
+ * On the documentation, the gallery, and the theme studio the header is application chrome: an
+ * opaque surface with the subtle divider under it, quiet ghost controls, and a neutral current
+ * page — the same language as the shell header of the layouts. It is a little shorter there than
+ * on the landing page, where it floats over the hero.
+ */
+.site-page--app,
+.site-page--studio {
+  --site-header-height: 56px;
+}
+
 .site-header {
   position: sticky;
   inset-block-start: 0;
   z-index: 30;
-  border-block-end: 1px solid var(--zx-color-border);
-  background: color-mix(in srgb, var(--zx-color-bg-surface) 85%, transparent);
-  backdrop-filter: blur(14px);
-}
-
-/* Documentation chrome responds to the same material recipe as Zx components. Marketing pages
-   keep their deliberately fixed bands and overlay header below. */
-.site-page--app .site-header {
-  border-block-end-color: var(--zx-color-glass-border);
-  background: var(--zx-color-glass-chrome);
-  -webkit-backdrop-filter: var(--zx-glass-filter-chrome);
-  backdrop-filter: var(--zx-glass-filter-chrome);
-  box-shadow: var(--zx-glass-chrome-shadow);
+  border-block-end: 1px solid var(--zx-color-border-subtle);
+  background: var(--zx-color-bg-surface);
 }
 
 /* Home page: the header starts as chrome-free content over the hero. Once the page moves, it
@@ -83,10 +108,10 @@ body.site-page > main {
 @media (prefers-reduced-motion: no-preference) {
   .site-header--overlay {
     transition:
-      background-color var(--zx-dur-normal) var(--zx-ease),
-      border-color var(--zx-dur-normal) var(--zx-ease),
-      box-shadow var(--zx-dur-normal) var(--zx-ease),
-      backdrop-filter var(--zx-dur-normal) var(--zx-ease);
+      background-color var(--zx-dur-base) var(--zx-ease),
+      border-color var(--zx-dur-base) var(--zx-ease),
+      box-shadow var(--zx-dur-base) var(--zx-ease),
+      backdrop-filter var(--zx-dur-base) var(--zx-ease);
   }
 }
 
@@ -118,6 +143,11 @@ body.site-page > main {
   inline-size: auto;
 }
 
+.site-page--app .site-brand img,
+.site-page--studio .site-brand img {
+  block-size: 28px;
+}
+
 .brand-logo--dark {
   display: none !important;
 }
@@ -132,28 +162,39 @@ body.site-page > main {
   display: block !important;
 }
 
+/* "Auto" follows the system, so the wordmark does too. */
+@media (prefers-color-scheme: dark) {
+  [data-zx-theme="auto"] .brand-logo--light {
+    display: none !important;
+  }
+
+  [data-zx-theme="auto"] .brand-logo--dark {
+    display: block !important;
+  }
+}
+
 /* Current version, next to the wordmark, linking to the newest release. `/releases/latest`
-   rather than a stamped tag, so the link can never go stale against the deployed site. */
+   rather than a stamped tag, so the link can never go stale against the deployed site. A quiet
+   tag: a neutral fill, the muted colour, a small corner. */
 .site-version {
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
-  margin-inline-start: var(--zx-space-2);
-  padding: 1px var(--zx-space-2);
-  border: 1px solid var(--zx-color-border);
-  border-radius: var(--zx-radius-full);
-  background: var(--zx-color-bg-muted);
+  margin-inline-start: calc(-1 * var(--zx-space-3));
+  padding: 0 var(--zx-space-2);
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-bg-hover);
   color: var(--zx-color-text-muted);
   font-size: var(--zx-text-xs);
-  font-weight: 600;
+  font-weight: var(--zx-weight-medium);
   font-variant-numeric: tabular-nums;
-  line-height: 1.7;
+  line-height: 1.8;
   text-decoration: none;
   white-space: nowrap;
 }
 
 .site-version:hover {
-  border-color: var(--zx-color-border-strong);
+  background: var(--zx-color-bg-current);
   color: var(--zx-color-text);
 }
 
@@ -164,39 +205,52 @@ body.site-page > main {
 
 /* The overlay header sits on the dark hero band in either theme, so it needs its own ink. */
 .site-header--overlay .site-version {
-  border-color: rgb(255 255 255 / 18%);
   background: rgb(255 255 255 / 8%);
   color: rgb(255 255 255 / 72%);
 }
 
 .site-header--overlay .site-version:hover {
-  border-color: rgb(255 255 255 / 32%);
+  background: rgb(255 255 255 / 14%);
   color: #fff;
 }
-
 
 .site-nav {
   display: flex;
   min-inline-size: 0;
   align-items: center;
-  gap: var(--zx-space-1);
+  gap: 2px;
   margin-inline-start: auto;
 }
 
 .site-nav a {
-  padding: var(--zx-space-2) var(--zx-space-3);
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--zx-control-height);
+  padding-inline: var(--zx-space-3);
   border-radius: var(--zx-radius-md);
   color: var(--zx-color-text-muted);
   font-size: var(--zx-text-md);
-  font-weight: 500;
+  font-weight: var(--zx-weight-medium);
   text-decoration: none;
   white-space: nowrap;
 }
 
-.site-nav a:hover,
-.site-nav a[aria-current="page"] {
+.site-nav a:hover {
   background: var(--zx-color-bg-hover);
   color: var(--zx-color-text);
+}
+
+/* The page you are on is where you are: the neutral current fill, the text colour, a heavier
+   label — never the accent. */
+.site-nav a[aria-current="page"] {
+  background: var(--zx-color-bg-current);
+  color: var(--zx-color-text);
+  font-weight: var(--zx-weight-semibold);
+}
+
+.site-nav a:focus-visible {
+  outline: 0;
+  box-shadow: var(--zx-focus-ring);
 }
 
 .site-header--overlay .site-nav a {
@@ -224,43 +278,42 @@ body.site-page > main {
   min-inline-size: 0;
 }
 
-/* Square, label-free chrome buttons. The glyph is an SVG mask filled with currentColor, so it
-   follows the theme and the overlay header without a second asset. */
+/* Square, label-free chrome buttons, drawn like the library's ghost icon button: no frame until
+   pointed at. The glyph is an SVG mask filled with currentColor, so it follows the theme and the
+   overlay header without a second asset. */
 .site-actions {
   display: flex;
   flex: 0 0 auto;
   align-items: center;
-  gap: var(--zx-space-2);
+  gap: var(--zx-space-1);
 }
 
 .site-icon-btn {
   display: inline-grid;
   place-items: center;
-  inline-size: 34px;
-  block-size: 34px;
+  inline-size: calc(var(--zx-control-height) + 2px);
+  block-size: calc(var(--zx-control-height) + 2px);
   min-block-size: 0;
   padding: 0;
-  border: 1px solid var(--zx-color-border);
-  border-radius: var(--zx-radius-full);
+  border: 0;
+  border-radius: var(--zx-radius-md);
   background: none;
   color: var(--zx-color-text-muted);
   cursor: pointer;
 }
 
 @media (prefers-reduced-transparency: reduce) {
-  .site-page--app .site-header {
-    border-block-end-color: var(--zx-color-border);
-    background: var(--zx-color-bg-surface);
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-    box-shadow: none;
-  }
-
   .site-header--overlay[data-scrolled] {
     background: var(--site-night);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
     box-shadow: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .site-header:not(.site-header--overlay) {
+    border-block-end-color: var(--zx-color-border-strong);
   }
 }
 
@@ -277,15 +330,20 @@ body.site-page > main {
 
 .site-icon-btn::before {
   content: "";
-  inline-size: 17px;
-  block-size: 17px;
+  inline-size: 16px;
+  block-size: 16px;
   background: currentColor;
   mask: var(--site-icon) center / contain no-repeat;
 }
 
-.site-icon-btn:hover {
+.zx-scope .site-icon-btn:hover {
   background: var(--zx-color-bg-hover);
   color: var(--zx-color-text);
+}
+
+.site-icon-btn:focus-visible {
+  outline: 0;
+  box-shadow: var(--zx-focus-ring);
 }
 
 .site-icon-btn[data-site-icon="github"] {
@@ -310,14 +368,18 @@ body.site-page > main {
   --site-icon: url("assets/sun.svg");
 }
 
+@media (prefers-color-scheme: dark) {
+  [data-zx-theme="auto"] .site-icon-btn[data-theme-toggle] {
+    --site-icon: url("assets/sun.svg");
+  }
+}
+
 .site-header--overlay .site-icon-btn {
-  border-color: rgb(255 255 255 / 22%);
-  background: rgb(255 255 255 / 6%);
   color: rgb(255 255 255 / 85%);
 }
 
-.site-header--overlay .site-icon-btn:hover {
-  background: rgb(255 255 255 / 14%);
+.zx-scope .site-header--overlay .site-icon-btn:hover {
+  background: rgb(255 255 255 / 12%);
   color: #fff;
 }
 
@@ -989,10 +1051,8 @@ body.site-page > main {
 .site-footer__group h2 {
   margin: 0 0 var(--zx-space-1);
   color: rgb(226 232 240 / 88%);
-  font-size: var(--zx-text-xs);
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  font-size: var(--zx-text-sm);
+  font-weight: var(--zx-weight-semibold);
 }
 
 .site-footer__group a {
@@ -1017,6 +1077,61 @@ body.site-page > main {
   border-block-start: 1px solid rgb(255 255 255 / 8%);
   color: rgb(226 232 240 / 45%);
   font-size: var(--zx-text-xs);
+}
+
+/*
+ * On the application pages the footer is chrome, not a marketing band: the chrome tone under a
+ * subtle divider, muted type, and the ZeyOS mark drawn in the text colour. The mark ships white
+ * only, so the light theme darkens it with a filter rather than needing a second asset.
+ */
+:is(.site-page--app, .site-page--studio) .site-footer {
+  border-block-start: 1px solid var(--zx-color-border-subtle);
+  background: var(--zx-color-bg-chrome);
+  color: var(--zx-color-text-muted);
+}
+
+:is(.site-page--app, .site-page--studio) .site-footer__inner {
+  padding-block: var(--zx-space-6);
+}
+
+:is(.site-page--app, .site-page--studio) .site-footer__brand img {
+  block-size: 22px;
+  filter: brightness(0);
+  opacity: .78;
+}
+
+[data-zx-theme="dark"] :is(.site-page--app, .site-page--studio) .site-footer__brand img {
+  filter: none;
+  opacity: .82;
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-zx-theme="auto"] :is(.site-page--app, .site-page--studio) .site-footer__brand img {
+    filter: none;
+    opacity: .82;
+  }
+}
+
+:is(.site-page--app, .site-page--studio) .site-footer__copyright {
+  color: var(--zx-color-text-muted);
+}
+
+:is(.site-page--app, .site-page--studio) .site-footer__copyright span {
+  color: var(--zx-color-text-subtle);
+}
+
+:is(.site-page--app, .site-page--studio) .site-footer a {
+  border-block-end-color: var(--zx-color-border);
+}
+
+:is(.site-page--app, .site-page--studio) .site-footer a:hover {
+  border-block-end-color: currentColor;
+  color: var(--zx-color-text);
+}
+
+:is(.site-page--app, .site-page--studio) .site-footer__stamp {
+  border-block-start-color: var(--zx-color-border-subtle);
+  color: var(--zx-color-text-subtle);
 }
 
 /* ------------------------------------------------------------ responsive -- */
@@ -1079,6 +1194,11 @@ body.site-page > main {
     padding-block: var(--zx-space-2);
   }
 
+  /* The header's gap shrinks here, so the version tag no longer pulls itself towards the mark. */
+  .site-version {
+    margin-inline-start: 0;
+  }
+
   .site-nav {
     order: 3;
     inline-size: 100%;
@@ -1125,10 +1245,6 @@ body.site-page > main {
   .site-section,
   .site-footer__inner {
     inline-size: min(100% - (2 * var(--zx-space-4)), var(--site-content-width));
-  }
-
-  .site-brand img {
-    inline-size: 84px;
   }
 
   .site-nav {

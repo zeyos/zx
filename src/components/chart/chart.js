@@ -1,5 +1,6 @@
 import { Component } from '../../core/component.js';
 import { h } from '../../core/dom.js';
+import { prefersReducedMotion, watchMotion } from '../../core/motion.js';
 import { uid } from '../../core/util.js';
 
 /** @typedef {{label?: string, data?: unknown[], [key: string]: unknown}} ChartDataset */
@@ -9,6 +10,9 @@ import { uid } from '../../core/util.js';
  * @property {string} type Chart type.
  * @property {ChartData} data Chart data.
  * @property {Record<string, unknown>} options Engine-specific options.
+ * @property {boolean} reducedMotion Whether the chart must not animate: the operating system asks
+ *   for reduced motion, or the host sits inside a `data-zx-motion="reduced"` region. An adapter turns
+ *   its engine's own animation off when this is true; `ChartJsAdapter` sets `animation: false`.
  * @property {(detail: ChartSelectDetail) => void} onSelect Point-selection callback.
  */
 /**
@@ -145,6 +149,9 @@ export class Chart extends Component {
 
     this._observer = typeof ResizeObserver === 'function' ? new ResizeObserver(() => this.resize()) : null;
     this._observer?.observe(viewport);
+    // The engine tweens in script, where no stylesheet can reach it: when motion is reduced, or
+    // stops being reduced, the mounted chart is updated with the new answer in its spec.
+    this._stopWatchingMotion = watchMotion(root, () => this._mountOrUpdate(false));
     return root;
   }
 
@@ -232,6 +239,7 @@ export class Chart extends Component {
     this._destroyed = true;
     const original = this._original;
     this._observer?.disconnect();
+    this._stopWatchingMotion?.();
     this._destroyHandle();
     super.destroy();
     if (!this._createdRoot && original) {
@@ -277,6 +285,7 @@ export class Chart extends Component {
         ...themeChartOptions(/** @type {HTMLElement} */ (this.el)),
         ...cloneChartValue(this._chartOptions)
       },
+      reducedMotion: prefersReducedMotion(this.el),
       onSelect: (detail) => this.emit('select', detail)
     };
   }
@@ -386,6 +395,9 @@ function chartJsConfig(spec, defaults, getInstance) {
     ...cloneChartValue(defaults),
     ...supplied
   };
+  // Reduced motion wins over any animation the application configured: a person who asked for
+  // less motion gets it from every chart, not only from the ones that remembered to ask.
+  if (spec.reducedMotion) options.animation = false;
   const originalClick = options.onClick;
   options.onClick = (event, elements, chart) => {
     if (typeof originalClick === 'function') originalClick(event, elements, chart);

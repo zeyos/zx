@@ -3,8 +3,12 @@ import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
 import { icon } from '../../core/icons.js';
 import { typeahead } from '../../core/keyboard.js';
 import { position } from '../../core/position.js';
-import { isCssColor, uid } from '../../core/util.js';
+import { uid } from '../../core/util.js';
+import { itemColor } from './color.js';
 import { matchItems } from './filter.js';
+import {
+  DEFAULT_STATUSES, STATUS_INDICATORS, STATUS_TONES, normalizePriorityLevel, priorityIcon, statusIcon
+} from './glyphs.js';
 
 /** @typedef {string|number|boolean|symbol|bigint|null|undefined} Primitive */
 /** @typedef {Record<string, any>|Primitive} SelectItem */
@@ -49,7 +53,9 @@ import { matchItems } from './filter.js';
  * @property {string} [recentLabel='Recent'] Heading above recent choices.
  * @property {boolean|SelectAction} [create=false] Optional create command at the bottom.
  * @property {string|((item: SelectItem)=>unknown)} [iconKey='icon'] Item icon reader.
- * @property {string|((item: SelectItem)=>unknown)} [colorKey='color'] Optional icon colour reader.
+ * @property {string|((item: SelectItem)=>unknown)} [colorKey='color'] Optional icon colour reader: a CSS
+ * colour or a token reference such as `var(--zx-color-tone-blue-fg)`. Without one the glyph is a
+ * neutral tile in muted ink.
  * @property {string|((item: SelectItem)=>unknown)} [subtitleKey='description'] Secondary-text reader.
  * @property {((item: SelectItem, context:{selected:boolean})=>Node|string|null)|null} [renderIcon=null] Entity icon renderer.
  */
@@ -68,18 +74,6 @@ const PRIORITY_KEYS = [
   'priority.highest'
 ];
 const PRIORITY_FALLBACKS = ['Lowest', 'Low', 'Medium', 'High', 'Highest'];
-
-const DEFAULT_STATUSES = Object.freeze([
-  ['backlog', 'status.backlog', 'Backlog', 'dotted', 'muted'],
-  ['todo', 'status.todo', 'Todo', 'ring', 'neutral'],
-  ['in-progress', 'status.inProgress', 'In Progress', 'progress', 'warning'],
-  ['in-review', 'status.inReview', 'In Review', 'review', 'info'],
-  ['ready', 'status.ready', 'Ready to Merge', 'ready', 'accent'],
-  ['waiting', 'status.waiting', 'Waiting for feedback', 'waiting', 'warning'],
-  ['done', 'status.done', 'Done', 'done', 'info'],
-  ['canceled', 'status.canceled', 'Canceled', 'canceled', 'muted'],
-  ['duplicate', 'status.duplicate', 'Duplicate', 'duplicate', 'muted']
-]);
 
 /**
  * APG editable combobox with optional local or asynchronous filtering.
@@ -125,7 +119,7 @@ export class Select extends Component {
   render() {
     // Instance state initialized here because render() runs inside the base
     // constructor, before class-field initializers would run (and clobber it).
-    this._items = []; this._visibleItems = []; this._fixedItems = []; this._visibleFixed = []; this._actions = []; this._selected = null; this._optionEntries = []; this._activeIndex = -1; this._open = false; this._disabled = false; this._loading = false; this._requestSequence = 0; this._queryTimer = null; this._position = null; this._createdRoot = false; this._root = null; this._snapshot = null;
+    this._items = []; this._visibleItems = []; this._fixedItems = []; this._visibleFixed = []; this._actions = []; this._selected = null; this._optionEntries = []; this._activeIndex = -1; this._open = false; this._disabled = false; this._loading = false; this._requestSequence = 0; this._queryTimer = null; this._position = null; this._createdRoot = false; this._root = null; this._snapshot = null; this._pointerModality = false;
     this._createdRoot = this.el === null;
     const root = /** @type {HTMLElement} */ (this.el ?? h('div'));
     this.el = root;
@@ -209,7 +203,22 @@ export class Select extends Component {
 
     this.listen(input, 'click', () => this.open());
     this.listen(input, 'input', () => this._onInput());
-    this.listen(input, 'keydown', (event) => this._onKeydown(/** @type {KeyboardEvent} */ (event)));
+    this.listen(input, 'keydown', (event) => {
+      if (!isModifierKey(/** @type {KeyboardEvent} */ (event))) root.removeAttribute('data-focus-origin');
+      this._onKeydown(/** @type {KeyboardEvent} */ (event));
+    });
+    // A text input matches :focus-visible however it was focused, read-only or not, so a click on
+    // a read-only Select would draw the keyboard ring. Track how the user last interacted and mark
+    // a pointer focus; the ring then follows keyboard focus only, and returns on the first key.
+    this.listen(input, 'focus', () => {
+      if (this._pointerModality && /** @type {HTMLInputElement} */ (input).readOnly) {
+        root.setAttribute('data-focus-origin', 'pointer');
+      } else root.removeAttribute('data-focus-origin');
+    });
+    this.listen(input, 'blur', () => root.removeAttribute('data-focus-origin'));
+    this.listen(document, 'keydown', (event) => {
+      if (!isModifierKey(/** @type {KeyboardEvent} */ (event))) this._pointerModality = false;
+    }, { capture: true });
     this.listen(toggle, 'click', () => {
       this.focus();
       if (this._open) this.close();
@@ -222,6 +231,7 @@ export class Select extends Component {
     this.listen(panel, 'pointerdown', (event) => event.preventDefault());
     this.listen(panel, 'click', (event) => this._onOptionClick(event));
     this.listen(document, 'pointerdown', (event) => {
+      this._pointerModality = true;
       if (this._open && !root.contains(/** @type {Node} */ (event.target))) this.close();
     }, { capture: true });
 
@@ -381,26 +391,44 @@ export class Select extends Component {
   }
 
   /**
-   * Creates the five-level priority preset.
+   * Creates the five-level priority preset: values 0 (lowest) to 4 (highest), each drawn as grey
+   * signal bars filled to its level, except the highest, which is the one coloured level — a
+   * danger square with an exclamation mark. A "No priority" row (value null, a row of dashes)
+   * heads the list and labels the empty control; `clearable: false` removes it.
    * @param {Element|string|null} target Component target.
-   * @param {SelectOptions} [options={}] Select overrides other than fixed items and renderer.
+   * @param {SelectOptions} [options={}] Select overrides other than items and renderers.
+   *   `clearable` defaults to true here; `noneLabel` and `placeholder` default to the
+   *   `priority.none` message ("No priority").
    * @returns {Select}
    */
   static priority(target, options = {}) {
     const requestedValue = options.value ?? null;
-    const select = new Select(target, {
+    const clearable = options.clearable ?? true;
+    /** @type {Select|null} */
+    let select = null;
+    // The constructor renders the list once before `select` is assigned; the label is settled by
+    // the setItems() below, which renders it again.
+    const noneLabel = () => options.noneLabel
+      ?? (select ? select._message('priority.none', 'No priority') : 'No priority');
+    select = new Select(target, {
       ...options,
+      clearable,
       value: null,
       items: [],
       renderItem(item) {
         return priorityContent(item, true);
       },
+      renderNone: options.renderNone ?? (() => priorityContent({ level: null, name: noneLabel() }, true)),
       renderValueAdornment(item) { return priorityIndicator(item.level); }
     });
+    if (clearable && !options.placeholder) {
+      /** @type {HTMLInputElement} */ (select.refs.input).placeholder = noneLabel();
+    }
+    const preset = select;
     select.setItems(PRIORITY_KEYS.map((key, level) => {
-      let name = level === 2 ? select.msg('priority.medium') : key;
-      if (name === 'priority.medium') name = select._message(key, PRIORITY_FALLBACKS[level]);
-      else if (level !== 2) name = select._message(key, PRIORITY_FALLBACKS[level]);
+      let name = level === 2 ? preset.msg('priority.medium') : key;
+      if (name === 'priority.medium') name = preset._message(key, PRIORITY_FALLBACKS[level]);
+      else if (level !== 2) name = preset._message(key, PRIORITY_FALLBACKS[level]);
       return { ID: level, name, level };
     }));
     select.set(requestedValue, { silent: true });
@@ -453,10 +481,10 @@ export class Select extends Component {
       const value = readSelectItem(item, iconKey);
       if (value && typeof value === 'object' && typeof value.nodeType === 'number') return value.cloneNode(true);
       if (typeof value !== 'string' || !value) return null;
-      const color = readSelectItem(item, colorKey);
+      const color = itemColor(readSelectItem(item, colorKey));
       return h('span', {
         class: 'zx-select__entity-glyph',
-        style: isCssColor(color) ? { '--zx-select-entity-color': String(color) } : null,
+        style: color ? { '--zx-select-entity-color': color } : null,
         ariaHidden: 'true'
       }, icon(value, { size: 14 }));
     };
@@ -992,28 +1020,26 @@ function priorityContent(item, label) {
     label ? h('span', {}, String(item.name)) : null);
 }
 
-/** @param {unknown} level @returns {Node} */
+/**
+ * The priority glyph `priorityIcon()` draws, carrying the Select's own class as well so styles
+ * written against it keep applying.
+ * @param {unknown} level Priority level 0–4, or null for none.
+ * @returns {Node}
+ */
 function priorityIndicator(level) {
-  const normalized = Math.max(0, Math.min(4, Math.trunc(Number(level) || 0)));
-  return h('span', {
-    class: 'zx-select__priority-icon',
-    dataset: { level: normalized },
-    ariaHidden: 'true'
-  }, Array.from({ length: 5 }, (_, index) => h('span', {
-    dataset: { filled: String(index <= normalized) }
-  })));
+  const glyph = priorityIcon(/** @type {number|null} */ (normalizePriorityLevel(level)));
+  glyph.classList.add('zx-select__priority-icon');
+  return glyph;
 }
 
 /** @param {unknown} input @returns {Record<string, any>|null} */
 function normalizeStatusItem(input) {
   if (!input || typeof input !== 'object' || input.ID == null || input.name == null) return null;
-  const indicators = ['dotted', 'ring', 'progress', 'review', 'ready', 'waiting', 'done', 'canceled', 'duplicate'];
-  const tones = ['muted', 'neutral', 'warning', 'info', 'accent', 'success', 'danger'];
   return {
     ...input,
     name: String(input.name),
-    indicator: indicators.includes(String(input.indicator)) ? String(input.indicator) : 'ring',
-    tone: tones.includes(String(input.tone)) ? String(input.tone) : 'muted',
+    indicator: STATUS_INDICATORS.includes(String(input.indicator)) ? String(input.indicator) : 'ring',
+    tone: STATUS_TONES.includes(String(input.tone)) ? String(input.tone) : 'muted',
     description: input.description == null ? '' : String(input.description),
     shortcut: input.shortcut == null ? '' : String(input.shortcut)
   };
@@ -1029,17 +1055,16 @@ function statusContent(item) {
     item.shortcut ? h('kbd', { class: 'zx-select__status-shortcut' }, item.shortcut) : null);
 }
 
-/** @param {Record<string, any>} item @returns {Node} */
+/**
+ * The status glyph `statusIcon()` draws for a settled status item, carrying the Select's own class
+ * as well so styles written against it keep applying.
+ * @param {Record<string, any>} item Normalized status item.
+ * @returns {Node}
+ */
 function statusIndicator(item) {
-  const indicator = String(item.indicator ?? 'ring');
-  const marker = h('span', {
-    class: 'zx-select__status-indicator',
-    dataset: { indicator, tone: String(item.tone ?? 'muted') },
-    ariaHidden: 'true'
-  });
-  if (indicator === 'done') marker.append(icon('check', { size: 8 }));
-  if (indicator === 'canceled') marker.append(icon('x', { size: 7 }));
-  return marker;
+  const glyph = statusIcon({ indicator: item.indicator ?? 'ring', tone: item.tone ?? 'muted' });
+  glyph.classList.add('zx-select__status-indicator');
+  return glyph;
 }
 
 /** Change emitted when the selected value changes. @event Select#change @type {CustomEvent<SelectChangeDetail>} */
@@ -1059,6 +1084,17 @@ function readItem(item, reader) {
   if (typeof reader === 'function') return reader(item);
   if (item === null || typeof item !== 'object') return item;
   return item[reader];
+}
+
+/**
+ * Reports a key press that says nothing about how the user is moving focus: a lone modifier, or a
+ * shortcut chord the page or the browser handles.
+ * @param {KeyboardEvent} event Key event.
+ * @returns {boolean}
+ */
+function isModifierKey(event) {
+  return ['Shift', 'Control', 'Alt', 'Meta', 'CapsLock'].includes(event.key)
+    || event.ctrlKey || event.metaKey;
 }
 
 /** @param {KeyboardEvent} event @returns {boolean} */

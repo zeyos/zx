@@ -1,4 +1,8 @@
+/* Positioned so the hidden status line below is placed inside the button. Without a positioned
+   ancestor it would hang off the page instead, adding scrollable overflow that focus() can scroll
+   into view. */
 .zx-copy-button {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: var(--zx-space-2);
@@ -19,6 +23,8 @@
  */
 .zx-copy-button__status {
   position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
   clip-path: inset(50%);
   inline-size: 1px;
   block-size: 1px;

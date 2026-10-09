@@ -2,50 +2,55 @@
  * AppSidebar — the surface an application is judged by before it is read.
  *
  * Everything here hangs off one spacing scale declared on the root. Item height, icon gutter,
- * row gap, group gap and indentation are derived from it rather than picked per rule, which is
- * what makes a density switch a real change of rhythm instead of a smaller font.
+ * row gap, group gap and indentation are derived from the tier-2 control and spacing tokens
+ * rather than picked per rule, so a theme that changes `--zx-space-unit` or
+ * `--zx-control-height` changes the rhythm of the whole nav instead of one row of it.
  *
- * Two deliberate choices worth stating:
+ * Three deliberate choices worth stating:
  *
  * - **Labels wrap, they never truncate.** German runs 20-35% longer than English and a nav is
  *   where that shows first: "Belege & Rechnungen" is two lines in a 16.5rem sidebar. An ellipsis
  *   there hides the word that distinguishes one destination from another, so the row grows
  *   instead and the fixed icon column keeps the second line aligned under the first.
- * - **The active state never rests on colour alone.** It is a filled pill, a marker docked to the
- *   sidebar's outer edge, and a heavier label — three signals, one of which survives greyscale,
- *   forced colours and a reduced-transparency page.
+ * - **The active state never rests on colour alone.** It is a neutral fill and a heavier label —
+ *   where you are, not something you picked, so it takes the `--zx-color-bg-current` role rather
+ *   than the accent. The weight survives greyscale and a reduced-transparency page, and forced
+ *   colours swap the fill for the system's own selected pair. Nothing is docked to the edge.
+ * - **A child never starts further in than its parent's label.** A text-only child lines up with
+ *   the words above it; a child with its own icon steps in only far enough for that icon to clear
+ *   the guide line. A parent list without icons indents its children by a short text step.
  */
 
 .zx-app-sidebar {
-  /* The scale. `--zx-control-height` and `--zx-space-1..4` are density-aware, so compact
-     tightens the item, the gaps and the padding together while `--zx-space-5/6` hold the icon
-     column and the indent steady — a narrower rhythm, not a smaller one. */
+  /* The scale. A row is exactly one control tall, the icon column is as wide as the 24px module
+     chips at the default unit, and every gap and inset is a step of the spacing scale. */
   --zx-app-sidebar-gutter: var(--zx-space-2);
   --zx-app-sidebar-icon: var(--zx-space-6);
-  --zx-app-sidebar-item-gap: var(--zx-space-3);
-  --zx-app-sidebar-item-height: calc(var(--zx-control-height) + var(--zx-space-2));
-  --zx-app-sidebar-pad-x: var(--zx-space-3);
-  --zx-app-sidebar-row-gap: var(--zx-space-1);
-  --zx-app-sidebar-group-gap: var(--zx-space-4);
-  --zx-app-sidebar-indent: var(--zx-space-5);
-  --zx-app-sidebar-marker: 3px;
-  --zx-app-sidebar-radius: var(--zx-radius-xl);
-  /* One overlay expression for hover and press. Mixing the *text* colour into the surface moves
-     the fill away from the page in whichever direction the theme runs, so a single declaration
-     is correct in light and in dark instead of needing a per-theme override. */
-  --zx-app-sidebar-hover: color-mix(in srgb, var(--zx-color-text) 7%, transparent);
-  --zx-app-sidebar-press: color-mix(in srgb, var(--zx-color-text) 14%, transparent);
+  --zx-app-sidebar-item-gap: var(--zx-space-2);
+  --zx-app-sidebar-item-height: var(--zx-control-height);
+  --zx-app-sidebar-pad-x: var(--zx-space-2);
+  --zx-app-sidebar-row-gap: 2px;
+  --zx-app-sidebar-group-gap: var(--zx-space-3);
+  /* The indent under a parent list that has no icon column to hand down. */
+  --zx-app-sidebar-indent: var(--zx-space-3);
+  /* The indent of a child list that brings icons of its own: enough for them to clear the guide,
+     not a whole icon column, so a deep branch never walks across the sidebar. */
+  --zx-app-sidebar-icon-indent: var(--zx-space-4);
+  --zx-app-sidebar-radius: var(--zx-radius-md);
+  /* Three steps of one overlay: hover, the current row, and press. The hover and current roles
+     mix the *text* colour into whatever sits behind, which moves the fill away from the page in
+     whichever direction the theme runs, so a sidebar on the grey chrome tone and one on a white
+     surface both read correctly. Hover stays below the current fill, so pointing at a row never
+     looks like being on it; press goes one step past it. */
+  --zx-app-sidebar-hover: var(--zx-color-bg-hover);
+  --zx-app-sidebar-current: var(--zx-color-bg-current);
+  --zx-app-sidebar-press: color-mix(in srgb, var(--zx-color-text) 12%, transparent);
   display: flex;
   min-block-size: 0;
   border: 1px solid var(--zx-color-glass-border);
   background: var(--zx-color-glass-chrome);
   box-shadow: var(--zx-glass-chrome-shadow);
   color: var(--zx-color-text);
-}
-
-[data-zx-density="compact"] .zx-app-sidebar,
-.zx-app-sidebar[data-zx-density="compact"] {
-  --zx-app-sidebar-group-gap: var(--zx-space-3);
 }
 
 .zx-app-sidebar[data-orientation="horizontal"] {
@@ -84,6 +89,9 @@
 
 .zx-app-sidebar__header-content { min-inline-size: 0; }
 
+/* `collapsible: false` hides the minimise button; the icon-button display rule must not show it. */
+.zx-app-sidebar .zx-app-sidebar__collapse[hidden] { display: none; }
+
 /* The block padding is not decoration: the focus ring is a 3px outer glow, and a nav that padded
    its scroll box by less would clip the ring off the first and last row. */
 .zx-app-sidebar__nav {
@@ -101,11 +109,40 @@
   list-style: none;
 }
 
-/* A sidebar whose items carry no icons should not pay for an empty gutter; one that has even a
-   single icon keeps the column on every row so the labels stay in one line down the list. */
-.zx-app-sidebar__list:not(:has(.zx-app-sidebar__item-icon)) {
+/* A list whose items carry no icons should not pay for an empty gutter; one that has even a
+   single icon keeps the column on every row so the labels stay in one line down the list. Each
+   list answers for its own rows only — a branch of plain labels under iconned parents drops the
+   column without taking it from the parents. */
+.zx-app-sidebar__list:not(:has(> .zx-app-sidebar__row > .zx-app-sidebar__item .zx-app-sidebar__item-icon)),
+.zx-app-sidebar__sublist:not(:has(> .zx-app-sidebar__row > .zx-app-sidebar__item .zx-app-sidebar__item-icon)) {
   --zx-app-sidebar-icon: 0px;
   --zx-app-sidebar-item-gap: 0px;
+}
+
+/* Where a branch's children start, measured from the row padding, and where the guide that scopes
+   them runs. Both are resolved on the parent row — where the parent's own icon column is still
+   the one in force — and inherited from there, so a child list that drops its column cannot pull
+   the indent or the guide back with it. A row's step is its icon column, or the text indent when
+   it has none; level 3 adds its own step to the one level 2 already sits at. */
+.zx-app-sidebar__row[data-level="1"] {
+  --zx-app-sidebar-step-1: max(var(--zx-app-sidebar-indent), var(--zx-app-sidebar-icon) + var(--zx-app-sidebar-item-gap));
+  --zx-app-sidebar-guide: calc(var(--zx-app-sidebar-pad-x) + max(var(--zx-app-sidebar-indent), var(--zx-app-sidebar-icon)) / 2);
+}
+
+.zx-app-sidebar__row[data-level="2"] {
+  --zx-app-sidebar-step-2: calc(var(--zx-app-sidebar-step-1) + max(var(--zx-app-sidebar-indent), var(--zx-app-sidebar-icon) + var(--zx-app-sidebar-item-gap)));
+  --zx-app-sidebar-guide: calc(var(--zx-app-sidebar-pad-x) + var(--zx-app-sidebar-step-1) + max(var(--zx-app-sidebar-indent), var(--zx-app-sidebar-icon)) / 2);
+}
+
+/* Children with icons of their own step in by the shorter icon indent instead: their icons sit
+   just past the guide rather than under the parent's label. Text-only children keep lining up
+   with the words above them. */
+.zx-app-sidebar__row[data-level="1"]:has(> .zx-app-sidebar__sublist > .zx-app-sidebar__row > .zx-app-sidebar__item .zx-app-sidebar__item-icon) {
+  --zx-app-sidebar-step-1: max(var(--zx-app-sidebar-indent), var(--zx-app-sidebar-icon-indent));
+}
+
+.zx-app-sidebar__row[data-level="2"]:has(> .zx-app-sidebar__sublist > .zx-app-sidebar__row > .zx-app-sidebar__item .zx-app-sidebar__item-icon) {
+  --zx-app-sidebar-step-2: calc(var(--zx-app-sidebar-step-1) + max(var(--zx-app-sidebar-indent), var(--zx-app-sidebar-icon-indent)));
 }
 
 .zx-app-sidebar__sublist { position: relative; margin-block-start: var(--zx-app-sidebar-row-gap); }
@@ -116,8 +153,8 @@
 .zx-app-sidebar__sublist::before {
   content: "";
   position: absolute;
-  inset-block: var(--zx-space-1);
-  inset-inline-start: calc(var(--zx-app-sidebar-pad-x) + var(--zx-app-sidebar-icon) / 2);
+  inset-block: 2px;
+  inset-inline-start: var(--zx-app-sidebar-guide);
   inline-size: 1px;
   border-radius: var(--zx-radius-full);
   background: var(--zx-color-border);
@@ -146,7 +183,9 @@
   border: 0;
   border-radius: var(--zx-app-sidebar-radius);
   background: transparent;
-  padding-block: var(--zx-space-1);
+  /* The icon column fills the row exactly; a row without one keeps a space-1 margin round its
+     label. Either way a single-line row is one control tall, and a wrapped one grows. */
+  padding-block: min(var(--zx-space-1), (var(--zx-app-sidebar-item-height) - var(--zx-app-sidebar-icon)) / 2);
   padding-inline: var(--zx-app-sidebar-pad-x);
   color: var(--zx-color-text);
   font-size: var(--zx-text-md);
@@ -156,49 +195,14 @@
   text-decoration: none;
 }
 
-/* A nav is a touch target before it is a dense list. Compact tightens the drawn row, and a
-   coarse pointer puts the hit area back to 40px whatever the density says. */
+/* A nav is a touch target before it is a dense list. The drawn row is one control tall, and a
+   coarse pointer puts the hit area back to 40px whatever the theme's control height says. */
 @media (pointer: coarse) {
   .zx-app-sidebar__item { min-block-size: 40px; }
 }
 
-.zx-app-sidebar__row[data-level="2"] > .zx-app-sidebar__item { padding-inline-start: calc(var(--zx-app-sidebar-pad-x) + var(--zx-app-sidebar-indent)); }
-.zx-app-sidebar__row[data-level="3"] > .zx-app-sidebar__item { padding-inline-start: calc(var(--zx-app-sidebar-pad-x) + 2 * var(--zx-app-sidebar-indent)); }
-
-/* The active marker. It is anchored to the control and not to the row, because a row is the
-   branch *and everything open under it* — a marker measured against that would grow into a
-   bracket down the whole group. It sits in the nav's own gutter, docked to the sidebar's outer
-   edge, so every marker lines up whatever the nesting depth, and it is the signal that survives
-   when colour does not. A collapsed branch that merely *contains* the active route gets a short
-   stub of the same marker: the same vocabulary, a quieter sentence. */
-.zx-app-sidebar__item::before {
-  content: "";
-  position: absolute;
-  inset-block: 50%;
-  inset-inline-start: calc(-1 * var(--zx-app-sidebar-gutter));
-  inline-size: var(--zx-app-sidebar-marker);
-  border-start-end-radius: var(--zx-radius-full);
-  border-end-end-radius: var(--zx-radius-full);
-  background: var(--zx-color-accent);
-  opacity: 0;
-}
-
-.zx-app-sidebar[data-side="right"] .zx-app-sidebar__item::before {
-  inset-inline: auto calc(-1 * var(--zx-app-sidebar-gutter));
-  border-radius: 0;
-  border-start-start-radius: var(--zx-radius-full);
-  border-end-start-radius: var(--zx-radius-full);
-}
-
-.zx-app-sidebar__item[aria-current="page"]::before {
-  inset-block: 25%;
-  opacity: 1;
-}
-
-.zx-app-sidebar__item[data-active-descendant="true"][aria-expanded="false"]::before {
-  inset-block: 38%;
-  opacity: .55;
-}
+.zx-app-sidebar__row[data-level="2"] > .zx-app-sidebar__item { padding-inline-start: calc(var(--zx-app-sidebar-pad-x) + var(--zx-app-sidebar-step-1)); }
+.zx-app-sidebar__row[data-level="3"] > .zx-app-sidebar__item { padding-inline-start: calc(var(--zx-app-sidebar-pad-x) + var(--zx-app-sidebar-step-2)); }
 
 .zx-app-sidebar__item-icon {
   grid-column: 1;
@@ -241,42 +245,34 @@
 .zx-app-sidebar__item:hover .zx-app-sidebar__item-disclosure { color: var(--zx-color-text); }
 .zx-app-sidebar__item:active { background: var(--zx-app-sidebar-press); }
 
-/* A branch that is closed over the active route keeps the accent in the label and the marker
-   stub outside it; a branch that is open says so with its chevron and needs neither. */
+/* A branch that is closed over the active route carries the heavier label, so the way back to
+   the current page is visible without opening it; a branch that is open says so with its chevron
+   and shows the active row itself. */
 .zx-app-sidebar__item[data-active-descendant="true"][aria-expanded="false"] {
-  color: var(--zx-color-accent);
-  font-weight: 600;
+  font-weight: var(--zx-weight-semibold);
 }
 
+.zx-app-sidebar__item[data-active-descendant="true"][aria-expanded="false"] .zx-app-sidebar__item-icon {
+  color: var(--zx-color-text);
+}
+
+/* The current page: a neutral fill, the full text colour, a heavier label. Focus is a ring on top
+   of it, never a replacement for it, so a keyboard user arrowing past the active route can still
+   tell which row is current — the shared `--zx-focus-ring` reads on a neutral fill as it does on
+   none. */
 .zx-app-sidebar__item[aria-current="page"] {
-  background: var(--zx-color-accent);
-  color: var(--zx-color-on-accent);
-  font-weight: 600;
-}
-
-/* Hover and press on the pill move the fill toward the text colour, which raises the contrast
-   with `--zx-color-on-accent` in both polarities instead of dropping it in one of them. */
-.zx-app-sidebar__item[aria-current="page"]:hover {
-  background: color-mix(in srgb, var(--zx-color-text) 8%, var(--zx-color-accent));
+  background: var(--zx-app-sidebar-current);
+  color: var(--zx-color-text);
+  font-weight: var(--zx-weight-semibold);
 }
 
 .zx-app-sidebar__item[aria-current="page"]:active {
-  background: color-mix(in srgb, var(--zx-color-text) 16%, var(--zx-color-accent));
-}
-
-/* Focus is a ring, never a fill: a keyboard user arrowing past the active route must still be
-   able to tell which row is current. Ordinary rows take the shared `--zx-focus-ring` from
-   `base.css` untouched; only the filled pill needs help, because an accent glow around an accent
-   fill is a ring nobody can see. The inner line is drawn in the pill's own text colour, which the
-   preset contract already guarantees against that fill. */
-.zx-app-sidebar__item[aria-current="page"]:focus-visible {
-  box-shadow: inset 0 0 0 2px var(--zx-color-on-accent), var(--zx-focus-ring);
+  background: var(--zx-app-sidebar-press);
 }
 
 .zx-app-sidebar__item[aria-current="page"] .zx-app-sidebar__item-icon,
-.zx-app-sidebar__item[aria-current="page"] .zx-app-sidebar__item-badge,
 .zx-app-sidebar__item[aria-current="page"] .zx-app-sidebar__item-disclosure {
-  color: inherit;
+  color: var(--zx-color-text);
 }
 
 /* Unavailable, and still readable. A blanket `opacity` on the row took the label under 3:1, which
@@ -301,16 +297,12 @@
 .zx-app-sidebar__rail-header { display: grid; gap: var(--zx-space-1); }
 
 /*
- * The minimized rail. Only the presentation changes; the same vocabulary applies — filled pill,
- * docked marker, badge that survives the loss of the label.
+ * The minimized rail. Only the presentation changes; the same vocabulary applies — the neutral
+ * current fill, the full text colour for a branch over the active route, a badge that survives
+ * the loss of the label.
  */
-.zx-app-sidebar__rail .zx-app-rail__item[aria-current="page"] {
-  background: var(--zx-color-accent);
-  color: var(--zx-color-on-accent);
-}
-
-.zx-app-sidebar__rail .zx-app-rail__item[aria-current="page"]:hover {
-  background: color-mix(in srgb, var(--zx-color-text) 8%, var(--zx-color-accent));
+.zx-app-sidebar__rail .zx-app-rail__item {
+  color: var(--zx-color-text-muted);
 }
 
 .zx-app-sidebar__rail .zx-app-rail__item:not([aria-current="page"]):hover,
@@ -319,65 +311,25 @@
   color: var(--zx-color-text);
 }
 
-.zx-app-sidebar__rail .zx-app-rail__item:not([aria-current="page"]):active {
+.zx-app-sidebar__rail .zx-app-rail__item:active {
   background: var(--zx-app-sidebar-press);
 }
 
-.zx-app-sidebar__rail .zx-app-rail__item[aria-current="page"]:focus-visible {
-  box-shadow: inset 0 0 0 2px var(--zx-color-on-accent), var(--zx-focus-ring);
+.zx-app-sidebar__rail .zx-app-rail__item[aria-current="page"] {
+  background: var(--zx-app-sidebar-current);
+  color: var(--zx-color-text);
 }
 
-.zx-app-sidebar__rail .zx-app-rail__item::after {
-  content: "";
-  position: absolute;
-  inset-block: 22%;
-  inset-inline-start: calc(-1 * var(--zx-space-1));
-  inline-size: var(--zx-app-sidebar-marker);
-  border-start-end-radius: var(--zx-radius-full);
-  border-end-end-radius: var(--zx-radius-full);
-  background: var(--zx-color-accent);
-  opacity: 0;
-}
-
-.zx-app-sidebar[data-side="right"] .zx-app-rail__item::after {
-  inset-inline: auto calc(-1 * var(--zx-space-1));
-  border-radius: 0;
-  border-start-start-radius: var(--zx-radius-full);
-  border-end-start-radius: var(--zx-radius-full);
-}
-
-.zx-app-sidebar[data-orientation="horizontal"] .zx-app-rail__item::after {
-  inset-block: auto calc(-1 * var(--zx-space-1));
-  inset-inline: 22%;
-  inline-size: auto;
-  block-size: var(--zx-app-sidebar-marker);
-  border-radius: 0;
-  border-start-start-radius: var(--zx-radius-full);
-  border-start-end-radius: var(--zx-radius-full);
-}
-
-.zx-app-sidebar[data-side="bottom"] .zx-app-rail__item::after {
-  inset-block: calc(-1 * var(--zx-space-1)) auto;
-  border-radius: 0;
-  border-end-start-radius: var(--zx-radius-full);
-  border-end-end-radius: var(--zx-radius-full);
-}
-
-.zx-app-sidebar__rail .zx-app-rail__item[aria-current="page"]::after { opacity: 1; }
-.zx-app-sidebar__rail .zx-app-rail__item[data-active-descendant="true"]:not([aria-current="page"])::after {
-  inset-block: 34%;
-  opacity: .55;
-}
-
-.zx-app-sidebar[data-orientation="horizontal"] .zx-app-rail__item[data-active-descendant="true"]:not([aria-current="page"])::after {
-  inset-block: auto calc(-1 * var(--zx-space-1));
-  inset-inline: 34%;
+/* A rail item whose flyout holds the active route says so the way a closed branch does in the
+   tree: in the full text colour, without a fill of its own. */
+.zx-app-sidebar__rail .zx-app-rail__item[data-active-descendant="true"]:not([aria-current="page"]) {
+  color: var(--zx-color-text);
 }
 
 /*
  * The count a minimized rail would otherwise lose. `data-zx-badge` is set by the component from
  * the item's own badge: a number that fits stays a number, and one that does not becomes a dot,
- * because a three-digit pill on a 32px target stops being a badge and starts being a label. The
+ * because a three-digit pill on a 30px target stops being a badge and starts being a label. The
  * figure itself moves into the control's accessible name either way, so nothing is dropped —
  * only redrawn.
  */
@@ -393,7 +345,7 @@
   color: var(--zx-color-on-accent);
   font-size: var(--zx-text-xs);
   font-variant-numeric: tabular-nums;
-  font-weight: 600;
+  font-weight: var(--zx-weight-semibold);
   line-height: var(--zx-space-4);
   text-align: center;
 }
@@ -405,14 +357,6 @@
   padding: 0;
   font-size: 0;
   line-height: 0;
-}
-
-/* On the filled pill the badge would be accent-on-accent. Invert it so the count keeps a fill
-   of its own without introducing a third colour. */
-.zx-app-sidebar__rail .zx-app-rail__item[aria-current="page"] .zx-app-rail__item-badge {
-  background: var(--zx-color-on-accent);
-  box-shadow: none;
-  color: var(--zx-color-accent);
 }
 
 /*
@@ -429,12 +373,6 @@
     transition: background-color var(--zx-dur-fast) var(--zx-ease),
       color var(--zx-dur-fast) var(--zx-ease),
       box-shadow var(--zx-dur-fast) var(--zx-ease);
-  }
-
-  .zx-app-sidebar__item::before,
-  .zx-app-sidebar__rail .zx-app-rail__item::after {
-    transition: opacity var(--zx-dur-base) var(--zx-ease),
-      inset-block var(--zx-dur-base) var(--zx-ease);
   }
 
   .zx-app-sidebar__item:active,
@@ -456,8 +394,8 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* Forced colours drop backgrounds and box-shadows, so the pill and the marker both disappear.
-   The system's own selected-item pair carries the state there instead. */
+/* Forced colours drop author backgrounds, so the current fill would disappear. The system's own
+   selected-item pair carries the state there instead. */
 @media (forced-colors: active) {
   .zx-app-sidebar__item[aria-current="page"],
   .zx-app-sidebar__rail .zx-app-rail__item[aria-current="page"],
@@ -465,9 +403,6 @@
     background: Highlight;
     color: HighlightText;
   }
-
-  .zx-app-sidebar__item::before,
-  .zx-app-sidebar__rail .zx-app-rail__item::after { background: Highlight; }
 }
 
 @media (prefers-reduced-transparency: reduce) {

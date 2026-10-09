@@ -11,7 +11,7 @@
   gap: var(--zx-space-2);
   min-block-size: var(--zx-control-height);
   padding: var(--zx-space-2) var(--zx-space-4);
-  font-weight: 650;
+  font-weight: var(--zx-weight-semibold);
   cursor: pointer;
   user-select: none;
 }

@@ -162,13 +162,18 @@ full-featured default.
 
 ## Theming
 
-Load `zx.css` once. Set theme/density on any ancestor (usually `<html>`):
+Load `zx.css` once. Set the theme on any ancestor (usually `<html>`):
 
 ```html
-<html data-zx-theme="dark" data-zx-density="compact">
+<html data-zx-theme="dark">
 ```
 
-Themes: `light` | `dark` | `auto`. Density: `cozy` | `compact`. Define a product theme by
+Themes: `light` | `dark` | `auto`. There is one geometry: spacing steps are
+multiples of `--zx-space-unit` (4px), radius steps are fractions of `--zx-radius` (4px: sm 2,
+md 3, lg 4, xl 6), and controls are `--zx-control-height` (30px) tall. Tighten an application (or a
+region) by overriding those tokens, never with an attribute. In component CSS, surfaces use
+`--zx-radius-lg`, menu/list items `--zx-radius-sm`, and `--zx-radius-full` only where roundness
+is the meaning (badges, avatars, toggles). Define a product theme by
 overriding **semantic** tokens only (`--zx-color-*`, `--zx-control-*`, `--zx-space-*`,
 `--zx-radius-*`, `--zx-text-*`) under a `[data-zx-theme="name"]` selector. Never reference tier-1
 palette tokens (`--zx-gray-*`, `--zx-green-*`) or raw color literals in component/app CSS —

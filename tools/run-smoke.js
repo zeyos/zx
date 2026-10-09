@@ -15,10 +15,14 @@ import { spawn } from 'node:child_process';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
+import { LAYOUT_IDS, PATTERN_IDS, TEMPLATE_IDS } from '../website/layouts/index.js';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const port = Number(process.env.SMOKE_PORT ?? 8399);
 const base = `http://127.0.0.1:${port}`;
+
+/** Where a mounted layout's root sits: inside the scope `website/layout-host.js` mounts it into. */
+const MOUNTED = '.layout-mount > .shell';
 
 /*
  * The two suites, the global each publishes its result on, and the element that says it has
@@ -46,6 +50,8 @@ try {
   browser = await chromium.launch({ channel: 'chrome' });
   for (const suite of suites) failed = (await run(browser, suite)) || failed;
   failed = (await runDocumentationShell(browser)) || failed;
+  failed = (await runLayoutGallery(browser)) || failed;
+  failed = (await runStandaloneLayout(browser)) || failed;
 } catch (error) {
   console.error(`\nSmoke run could not start: ${error.message}`);
   if (String(error.message).includes('chrome')) {
@@ -263,6 +269,236 @@ async function runDocumentationShell(instance) {
     return false;
   } catch (error) {
     console.error(`FAIL  documentation shell: ${error.message}`);
+    return true;
+  } finally {
+    await page.close();
+  }
+}
+
+/**
+ * Exercises the layout gallery: every tile renders without component chips and carries a named
+ * new-tab link of its own, every layout opens from its hash into the popup, closes on Escape with
+ * focus back on its tile, and leaves <body> as it found it — the page opens and closes layouts all
+ * session, so anything one leaves behind accumulates. Also covers the popup's "Open in new tab"
+ * link, deep links, Back, and the forwarding of the documentation's retired layout addresses.
+ * @param {import('playwright-core').Browser} instance Browser.
+ * @returns {Promise<boolean>} Whether the check failed.
+ */
+async function runLayoutGallery(instance) {
+  const page = await instance.newPage({ viewport: { width: 1440, height: 900 } });
+  const problems = [];
+  page.on('pageerror', (error) => problems.push(`uncaught: ${error.message}`));
+  page.on('console', (message) => {
+    if (message.type() === 'error') problems.push(`console: ${message.text()}`);
+  });
+  const popupOpen = () => page.evaluate(() => Boolean(document.querySelector('.gallery-popup')?.open));
+  const inPopup = `.gallery-popup__stage > ${MOUNTED}`;
+  try {
+    await page.goto(`${base}/website/layouts.html`, { waitUntil: 'load' });
+    await page.waitForSelector('.gallery-tile');
+    const tiles = await page.locator('.gallery-tile').count();
+    if (tiles !== LAYOUT_IDS.length) throw new Error(`gallery shows ${tiles} tiles, expected ${LAYOUT_IDS.length}`);
+
+    // A tile is its thumbnail, category, title, and blurb, plus a link to the layout's own page
+    // that is a control of its own rather than part of the tile's button.
+    const tileProblems = await page.$$eval('.gallery-tile', (nodes) => nodes.flatMap((node) => {
+      const id = node.dataset.layout;
+      const link = node.querySelector('a.gallery-tile__open');
+      const found = [];
+      if (node.querySelector('.gallery-tile__body .zx-badge, .gallery-tile__chips')) found.push(`${id} still shows chips`);
+      if (!link) return [...found, `${id} has no new-tab link`];
+      if (link.getAttribute('href') !== `layout.html#${encodeURIComponent(id)}`) found.push(`${id} links ${link.getAttribute('href')}`);
+      if (link.target !== '_blank' || link.rel !== 'noopener') found.push(`${id} link is not target=_blank rel=noopener`);
+      if (!link.getAttribute('aria-label')?.includes(node.querySelector('.gallery-tile__button').textContent)) {
+        found.push(`${id} link is not named after its layout`);
+      }
+      if (link.closest('button')) found.push(`${id} link is nested in a button`);
+      return found;
+    }));
+    if (tileProblems.length) throw new Error(tileProblems.slice(0, 5).join('; '));
+    await page.locator(`.gallery-tile[data-layout="${LAYOUT_IDS[0]}"] .gallery-tile__button`).focus();
+    await page.keyboard.press('Tab');
+    const tabbed = await page.evaluate(() => document.activeElement?.matches('.gallery-tile__open')
+      && document.activeElement.closest('.gallery-tile')?.dataset.layout);
+    if (tabbed !== LAYOUT_IDS[0]) throw new Error('Tab from a tile does not reach its new-tab link');
+    await page.evaluate(() => /** @type {HTMLElement} */ (document.activeElement)?.blur());
+
+    // Thumbnails mount as their tiles near the viewport; scroll past every one before counting.
+    const height = await page.evaluate(() => document.documentElement.scrollHeight);
+    for (let top = 0; top <= height; top += 450) {
+      await page.evaluate((y) => window.scrollTo(0, y), top);
+      await page.waitForTimeout(40);
+    }
+    await page.waitForFunction(() => !document.querySelector('.gallery-thumb[data-state="idle"]'),
+      null, { timeout: 15_000 });
+    const failedThumbs = await page.$$eval('.gallery-thumb[data-state="failed"]',
+      (nodes) => nodes.map((node) => node.closest('.gallery-tile').dataset.layout));
+    if (failedThumbs.length) throw new Error(`thumbnails failed to render: ${failedThumbs.join(', ')}`);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    const baseline = await page.evaluate(() => document.body.childElementCount);
+
+    for (const id of LAYOUT_IDS) {
+      await page.evaluate((value) => { window.location.hash = value; }, id);
+      await page.waitForSelector(inPopup, { timeout: 10_000 })
+        .catch(() => { throw new Error(`${id} rendered no .shell in the popup`); });
+      const standalone = await page.$eval('.gallery-popup__standalone',
+        (link) => ({ href: link.getAttribute('href'), target: link.target, rel: link.rel }));
+      if (standalone.href !== `layout.html#${encodeURIComponent(id)}` || standalone.target !== '_blank'
+        || standalone.rel !== 'noopener') {
+        throw new Error(`the popup's "Open in new tab" for ${id} is ${JSON.stringify(standalone)}`);
+      }
+      await page.keyboard.press('Escape');
+      // The dialog hides at once; its `close` event, which unmounts and restores focus, follows.
+      await page.waitForFunction(() => !document.querySelector('.gallery-popup')?.open
+        && document.querySelector('.gallery-popup__stage')?.childElementCount === 0, null, { timeout: 5_000 })
+        .catch(() => { throw new Error(`${id} did not close on Escape`); });
+      const after = await page.evaluate(() => ({
+        focus: document.activeElement?.closest('.gallery-tile')?.dataset.layout ?? null,
+        body: document.body.childElementCount,
+        stage: document.querySelector('.gallery-popup__stage')?.childElementCount,
+        hash: window.location.hash
+      }));
+      if (after.focus !== id) throw new Error(`closing ${id} left focus on ${after.focus ?? 'no tile'}`);
+      if (after.body > baseline) throw new Error(`${id} left ${after.body - baseline} element(s) on <body>`);
+      if (after.stage !== 0 || after.hash) throw new Error(`closing ${id} left ${JSON.stringify(after)}`);
+    }
+
+    // Opening a tile adds a history entry, so Back closes the popup again.
+    await page.locator(`.gallery-tile[data-layout="${LAYOUT_IDS[0]}"] .gallery-tile__button`).click();
+    await page.waitForFunction(() => document.querySelector('.gallery-popup')?.open);
+    await page.goBack();
+    await page.waitForFunction(() => !document.querySelector('.gallery-popup')?.open, null, { timeout: 5_000 })
+      .catch(() => { throw new Error('Back did not close the popup'); });
+
+    // A deep link opens its layout on load; an unknown one opens nothing.
+    const deep = LAYOUT_IDS.includes('crm') ? 'crm' : LAYOUT_IDS.at(-1);
+    await page.goto(`${base}/website/layouts.html#${deep}`, { waitUntil: 'load' });
+    await page.waitForSelector(inPopup);
+
+    // "Open in new tab" opens the same layout on its own page.
+    const [tab] = await Promise.all([
+      page.context().waitForEvent('page'),
+      page.locator('.gallery-popup__standalone').click()
+    ]);
+    tab.on('pageerror', (error) => problems.push(`new tab uncaught: ${error.message}`));
+    await tab.waitForSelector(`.layout-page__stage > ${MOUNTED}`, { timeout: 10_000 })
+      .catch(() => { throw new Error('"Open in new tab" did not open the layout on its own page'); });
+    if (!tab.url().endsWith(`/layout.html#${deep}`)) throw new Error(`"Open in new tab" opened ${tab.url()}`);
+    await tab.close();
+
+    await page.goto(`${base}/website/layouts.html#no-such-layout`, { waitUntil: 'load' });
+    await page.waitForSelector('.gallery-tile');
+    if (await popupOpen()) throw new Error('an unknown layout id opened the popup');
+
+    // The documentation's old layout addresses forward to the gallery.
+    await page.goto(`${base}/website/docs.html#layouts/${deep}`, { waitUntil: 'load' });
+    await page.waitForURL(`**/layouts.html#${deep}`, { timeout: 10_000 });
+    await page.waitForSelector(inPopup);
+
+    if (problems.length) throw new Error(problems.slice(0, 5).join(' / '));
+    console.log(`PASS  layout gallery — ${tiles} tiles, every layout opened, closed, and cleaned up`);
+    return false;
+  } catch (error) {
+    console.error(`FAIL  layout gallery: ${error.message}`);
+    for (const problem of problems.slice(0, 5)) console.error(`        ${problem}`);
+    return true;
+  } finally {
+    await page.close();
+  }
+}
+
+/**
+ * Exercises the standalone layout page, `layout.html#<id>`: an application template and a screen
+ * pattern each fill the window below the page's slim bar and title the document after themselves;
+ * changing the hash swaps one layout for another without leaving anything behind; an unknown id
+ * and an empty hash get a message rather than a mount; and the bar is reachable from the keyboard.
+ * @param {import('playwright-core').Browser} instance Browser.
+ * @returns {Promise<boolean>} Whether the check failed.
+ */
+async function runStandaloneLayout(instance) {
+  const page = await instance.newPage({ viewport: { width: 1440, height: 900 } });
+  const problems = [];
+  page.on('pageerror', (error) => problems.push(`uncaught: ${error.message}`));
+  page.on('console', (message) => {
+    if (message.type() === 'error') problems.push(`console: ${message.text()}`);
+  });
+  page.on('response', (response) => {
+    if (!response.ok() && new URL(response.url()).pathname !== '/favicon.ico') {
+      problems.push(`${response.status()} ${response.url()}`);
+    }
+  });
+  const mounted = (id) => `.layout-page__stage > .layout-mount[data-layout="${id}"] > .shell`;
+  const template = TEMPLATE_IDS.includes('issue-tracker') ? 'issue-tracker' : TEMPLATE_IDS[0];
+  const pattern = PATTERN_IDS.includes('master-detail') ? 'master-detail' : PATTERN_IDS[0];
+  try {
+    for (const id of [template, pattern]) {
+      await page.goto(`${base}/website/layout.html#${id}`, { waitUntil: 'load' });
+      await page.waitForSelector(mounted(id), { timeout: 10_000 })
+        .catch(() => { throw new Error(`${id} rendered no .shell on its own page`); });
+      const fit = await page.evaluate((selector) => {
+        const root = document.querySelector(selector).getBoundingClientRect();
+        const bar = document.querySelector('.layout-bar').getBoundingClientRect();
+        return {
+          left: root.left, top: root.top, width: root.width, bottom: root.bottom, bar: bar.bottom,
+          scroll: document.documentElement.scrollHeight - innerHeight, title: document.title,
+          heading: document.querySelector('.layout-bar__title')?.textContent
+        };
+      }, mounted(id));
+      if (Math.abs(fit.left) > 1 || Math.abs(fit.width - 1440) > 1 || Math.abs(fit.top - fit.bar) > 1
+        || Math.abs(fit.bottom - 900) > 1 || fit.scroll > 0) {
+        throw new Error(`${id} does not fill the window below the bar: ${JSON.stringify(fit)}`);
+      }
+      if (fit.title !== `${fit.heading} — Layouts — ZeyOS Xenon Design System`) {
+        throw new Error(`${id} is titled "${fit.title}"`);
+      }
+    }
+
+    // The bar comes first in the tab order: back to the gallery, Source, the theme.
+    const first = await page.evaluate(() => document.querySelector(
+      'a[href], button:not(:disabled), input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    )?.matches('.layout-bar__back'));
+    if (!first) throw new Error('"All layouts" is not the first stop in the tab order');
+    await page.locator('.layout-bar__back').focus();
+    const order = [];
+    for (let step = 0; step < 3; step += 1) {
+      order.push(await page.evaluate(() => document.activeElement?.closest('.layout-bar')
+        ? document.activeElement.getAttribute('aria-label') ?? document.activeElement.textContent.trim()
+        : null));
+      await page.keyboard.press('Tab');
+    }
+    if (order[0] !== 'All layouts' || order[1] !== 'Source' || !order[2]?.startsWith('Switch to')) {
+      throw new Error(`the bar's tab order is ${JSON.stringify(order)}`);
+    }
+
+    // A new hash unmounts the layout and mounts the next; coming back leaves <body> as it was.
+    const baseline = await page.evaluate(() => document.body.childElementCount);
+    for (const id of [template, pattern]) {
+      await page.evaluate((value) => { window.location.hash = value; }, id);
+      await page.waitForSelector(mounted(id), { timeout: 10_000 })
+        .catch(() => { throw new Error(`changing the hash to ${id} did not mount it`); });
+      const count = await page.locator('.layout-mount').count();
+      if (count !== 1) throw new Error(`after changing the hash to ${id} the page holds ${count} layouts`);
+    }
+    const body = await page.evaluate(() => document.body.childElementCount);
+    if (body > baseline) throw new Error(`re-mounting left ${body - baseline} element(s) on <body>`);
+
+    // An id the registry does not list, and no id at all, get a message rather than a layout.
+    await page.evaluate(() => { window.location.hash = 'no-such-layout'; });
+    await page.waitForSelector('.layout-page__missing');
+    if (await page.locator('.layout-mount').count()) throw new Error('an unknown id left a layout mounted');
+    if (!(await page.title()).startsWith('Layout not found')) throw new Error(`an unknown id is titled "${await page.title()}"`);
+    if (await page.evaluate(() => document.body.childElementCount) > baseline) {
+      throw new Error('unmounting for an unknown id left elements on <body>');
+    }
+    await page.goto(`${base}/website/layout.html`, { waitUntil: 'load' });
+    await page.waitForSelector('.layout-page__missing a[href="layouts.html"]');
+
+    if (problems.length) throw new Error(problems.slice(0, 5).join(' / '));
+    console.log(`PASS  standalone layout page — ${template} and ${pattern} fill the window, re-mount on hashchange, unknown ids handled`);
+    return false;
+  } catch (error) {
+    console.error(`FAIL  standalone layout page: ${error.message}`);
+    for (const problem of problems.slice(0, 5)) console.error(`        ${problem}`);
     return true;
   } finally {
     await page.close();

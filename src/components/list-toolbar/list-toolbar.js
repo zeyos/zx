@@ -88,7 +88,7 @@ const VIEW_PRESETS = Object.freeze({
  *   control, rather than found separately beside it.
  * - **The count line is a live region**, and `setCount(null)` clears it. The previous number
  *   describes the previous filters, and a stale count during a load is worse than none.
- * - **Tool buttons meet the 44 px target** in both densities. An icon button sized to its glyph is
+ * - **Tool buttons meet the 44 px target** at any spacing. An icon button sized to its glyph is
  *   the control people miss twice before hitting once.
  *
  * `bind()` is optional sugar; the toolbar is fully functional without it.

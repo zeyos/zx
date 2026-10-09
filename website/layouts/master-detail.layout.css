@@ -1,0 +1,129 @@
+/*
+ * Master–detail screen pattern. Every selector is scoped under .master-detail.
+ *
+ * The list column filters and groups the customers; the main pane edits the open one as a form of
+ * titled sections under the record's name.
+ */
+
+/* ------------------------------------------------------------------ list -- */
+
+.master-detail .master-detail__toolbar {
+  padding-block: var(--zx-space-3);
+}
+
+.master-detail .master-detail__filters {
+  inline-size: 100%;
+}
+
+.master-detail .master-detail__filters > .segmented__item {
+  flex: 1 1 0;
+  justify-content: center;
+}
+
+.master-detail .master-detail__list {
+  padding-block-end: var(--zx-space-2);
+}
+
+/* A customer: its mark beside two lines — name and volume, then contact and city. */
+.master-detail .master-detail__row {
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: var(--zx-space-3);
+  align-items: center;
+}
+
+.master-detail .master-detail__row > .zx-avatar {
+  grid-row: span 2;
+}
+
+/* ---------------------------------------------------------------- record -- */
+
+.master-detail .master-detail__position {
+  margin-inline-start: var(--zx-space-1);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.master-detail .master-detail__unsaved {
+  white-space: nowrap;
+}
+
+.master-detail .master-detail__record {
+  display: grid;
+  gap: var(--zx-space-6);
+  max-inline-size: 56rem;
+}
+
+.master-detail .master-detail__head {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-4);
+  min-inline-size: 0;
+}
+
+.master-detail .master-detail__title {
+  display: grid;
+  gap: var(--zx-space-2);
+  min-inline-size: 0;
+}
+
+.master-detail .master-detail__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zx-space-1) var(--zx-space-4);
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+.master-detail .master-detail__meta > span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-1);
+}
+
+.master-detail .master-detail__meta .zx-icon {
+  color: var(--zx-color-text-subtle);
+}
+
+/* Notes take the whole width of their section. */
+.master-detail .master-detail__form [data-field-id="notes"] {
+  grid-column: 1 / -1;
+}
+
+/* ---------------------------------------------------------- narrow shell -- */
+
+/* The list column answers to its own width: the kit narrows it once the navigation has gone. */
+.master-detail .shell__list {
+  container: master-detail-list / inline-size;
+}
+
+/* A narrow list keeps all four stages on one line: each takes its own width and less padding. */
+@container master-detail-list (max-width: 340px) {
+  .master-detail .master-detail__filters > .segmented__item {
+    flex: 1 1 auto;
+    padding-inline: var(--zx-space-2);
+  }
+}
+
+/* On a narrow shell the header's secondary button gives up its place to the state and Save. */
+@container shell (max-width: 980px) {
+  .master-detail .master-detail__unsaved {
+    display: none;
+  }
+}
+
+/* While the list shows beside the record, the list's header holds the way to the navigation. */
+@container shell (min-width: 641px) {
+  .master-detail .shell__main .shell__nav-toggle {
+    display: none;
+  }
+}
+
+/* On a phone the record's header keeps its controls and drops the key hint, which no touch screen
+   can use. */
+@container shell (max-width: 640px) {
+  .master-detail .shell__main .shell__header .zx-btn__shortcut {
+    display: none;
+  }
+}

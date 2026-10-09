@@ -153,7 +153,7 @@
   background: var(--zx-color-danger);
   color: var(--zx-color-text-invert);
   font-size: 9px;
-  font-weight: 700;
+  font-weight: var(--zx-weight-semibold);
   line-height: 1;
 }
 

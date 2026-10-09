@@ -8,7 +8,7 @@ export {
 } from './schema.js';
 export {
   buildListQuery, tableSortToQuery, dataFilterStateToFilters,
-  dateToUnixSeconds, unixSecondsToDate
+  dateToUnixSeconds, unixSecondsToDate, calendarDayToUnixSeconds, unixSecondsToCalendarDay
 } from './query.js';
 export { connect } from './connect.js';
 export {

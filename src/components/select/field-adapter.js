@@ -14,6 +14,8 @@ export function registerSelectFieldAdapter() {
       if (event.target.closest?.('.zx-field__label')) field.adapter.focus();
     });
     delete selectOptions.preset;
+    // The priority preset offers "No priority" (null) by default; a required field cannot hold it.
+    if (preset === 'priority' && props.clearable === undefined) selectOptions.clearable = !options.required;
     const select = field.own(preset === 'priority'
       ? Select.priority(null, selectOptions)
       : preset === 'status'

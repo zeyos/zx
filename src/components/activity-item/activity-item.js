@@ -200,6 +200,9 @@ export class ActivityItem extends Component {
       headingChildren.push(h('span', { class: 'zx-activity-item__actor' }, actor));
     }
     if (title !== null) {
+      // The flex gap separates the two on screen; the space separates them in the heading's text,
+      // which is what a screen reader reads ("Jonas Weber set…", not "Jonas Weberset…").
+      if (headingChildren.length) headingChildren.push(' ');
       headingChildren.push(h('span', { class: 'zx-activity-item__title' }, title));
     }
     const heading = headingChildren.length ? h(`h${normalizeHeadingLevel(activity.headingLevel)}`, {

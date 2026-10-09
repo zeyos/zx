@@ -28,14 +28,14 @@
 
 .zx-timebox__separator {
   color: var(--zx-color-text-muted);
-  font-weight: 700;
+  font-weight: var(--zx-weight-medium);
 }
 
 .zx-timebox__sign {
   min-inline-size: var(--zx-control-height);
   padding: 0;
   border-color: var(--zx-color-border-control);
-  font-weight: 750;
+  font-weight: var(--zx-weight-semibold);
 }
 
 .zx-timebox__sign[data-state="positive"] {
@@ -48,4 +48,24 @@
   border-color: var(--zx-color-danger);
   background: var(--zx-color-danger-bg);
   color: var(--zx-color-danger);
+}
+
+/*
+ * Quiet fields. The hour and minute segments are native inputs, which the base quiet-fields rule
+ * already quiets. The sign button follows them: no border and no fill until hover or focus, its
+ * glyph keeping the colour that says which way the duration runs.
+ */
+[data-zx-fields="quiet"] .zx-timebox__sign,
+[data-zx-fields="quiet"] .zx-timebox__sign[data-state] {
+  border-color: transparent;
+  background: transparent;
+}
+
+[data-zx-fields="quiet"] .zx-timebox:not([aria-disabled="true"]) .zx-timebox__sign:hover {
+  background: var(--zx-color-bg-hover);
+}
+
+[data-zx-fields="quiet"] .zx-timebox__sign:focus-visible {
+  border-color: var(--zx-color-border-control);
+  background: var(--zx-color-bg-control);
 }

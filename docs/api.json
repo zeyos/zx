@@ -248,6 +248,12 @@
         "description": "Accessible collection name."
       },
       {
+        "name": "variant",
+        "type": "ActivityListVariant",
+        "default": "'default'",
+        "description": "Entry layout, reflected as `data-variant` on the root. `'compact'` also makes an avatar descriptor without a `size` small."
+      },
+      {
         "name": "loading",
         "type": "boolean",
         "default": "false",
@@ -577,7 +583,7 @@
         "name": "getItems",
         "signature": "getItems()",
         "returns": "AppNavItem[]",
-        "description": "Returns a shallow copy of normalized items."
+        "description": "Returns a copy of the normalized items. A leaf has no `children` property, as it was written, rather than the empty list normalization gives it."
       },
       {
         "name": "setActive",
@@ -756,7 +762,7 @@
         "name": "name",
         "type": "string",
         "default": "''",
-        "description": "Name used to derive fallback initials."
+        "description": "Name used to derive the fallback initials and tone."
       },
       {
         "name": "initials",
@@ -774,13 +780,19 @@
         "name": "size",
         "type": "string|number",
         "default": "'md'",
-        "description": "Preset (`sm`, `md`, `lg`) or pixel size."
+        "description": "Preset — `sm` 24px, `md` 32px, `lg` 40px at the default spacing unit — or a pixel size. Below 24px the fallback shows a single initial."
       },
       {
         "name": "shape",
         "type": "'circle'|'rounded'|'square'",
         "default": "'circle'",
         "description": "Avatar shape."
+      },
+      {
+        "name": "tone",
+        "type": "AvatarTone|null",
+        "default": "null",
+        "description": "Fallback colour from the tone palette. `null` derives a stable tone from the name (or the initials when there is no name), so the same person gets the same colour on every screen; see {@link avatarTone}."
       },
       {
         "name": "status",
@@ -842,6 +854,12 @@
         "type": "'neutral'|'accent'|'success'|'warning'|'danger'|'info'",
         "default": "'neutral'",
         "description": "Semantic intent."
+      },
+      {
+        "name": "tone",
+        "type": "BadgeTone|null",
+        "default": "null",
+        "description": "Categorical colour — a project, a label, a module — from the tone palette rather than the status set, so a tag never reads as a warning. When set it decides the colour and `kind` is ignored for it; `variant` still applies. Unknown names are ignored."
       },
       {
         "name": "variant",
@@ -1053,6 +1071,12 @@
         "type": "boolean",
         "default": "false",
         "description": "Whether the button is disabled."
+      },
+      {
+        "name": "busy",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether the button is working on its action — see `setButtonBusy()`."
       },
       {
         "name": "title",
@@ -2080,6 +2104,12 @@
         "description": "Fallback initial checked state."
       },
       {
+        "name": "hideLabel",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether the heading is left out. The group keeps the heading text as its accessible name (`aria-label`); a Field labelling the checklist names it instead, which is why the `checklist` field type sets this."
+      },
+      {
         "name": "load",
         "type": "(() => Promise<ChecklistItem[]>|ChecklistItem[])|null",
         "default": "null",
@@ -2282,6 +2312,12 @@
         "type": "boolean",
         "default": "false",
         "description": "Whether the confirmation action is dangerous."
+      },
+      {
+        "name": "confirmText",
+        "type": "string|null",
+        "default": "null",
+        "description": "Text the reader must type before the confirm button enables — the name of what is about to be deleted, say. The dialog adds an input labelled \"Type <confirmText> to confirm\" (message `dialog.typeToConfirm`, `%1` standing for the text), focuses it, and enables the confirm button, and Enter, only while its value matches exactly, ignoring surrounding spaces."
       }
     ],
     "events": [],
@@ -2678,7 +2714,7 @@
         "name": "clearable",
         "type": "boolean",
         "default": "true",
-        "description": "Show a clear button while a range is present."
+        "description": "Show a clear button while a range is present and the box is enabled; without it the input keeps no room for one."
       },
       {
         "name": "min",
@@ -2987,7 +3023,7 @@
         "name": "clearable",
         "type": "boolean",
         "default": "true",
-        "description": "Show a clear button when a value is present."
+        "description": "Show a clear button while a value is present and the box is enabled; without it the input keeps no room for one."
       },
       {
         "name": "disabled",
@@ -3105,7 +3141,7 @@
         "name": "scope",
         "type": "Element|string|null",
         "default": "null",
-        "description": "Element whose nearest Zx theme scope owns the overlay; defaults to the opener."
+        "description": "Element whose nearest Zx theme scope owns the overlay; defaults to the opener. Resolved on every open, so a scope connected after construction still owns it."
       }
     ],
     "events": [
@@ -3178,7 +3214,7 @@
         "name": "confirm",
         "signature": "confirm([options])",
         "returns": "Promise<boolean>",
-        "description": "Opens a confirmation dialog."
+        "description": "Opens a confirmation dialog. With `confirmText` it becomes a type-to-confirm dialog: the confirm button stays disabled until the reader has typed that text."
       },
       {
         "name": "prompt",
@@ -3443,7 +3479,7 @@
         "name": "scope",
         "type": "Element|string|null",
         "default": "null",
-        "description": "Element whose nearest Zx theme scope owns the panel; defaults to the anchor."
+        "description": "Element whose nearest Zx theme scope owns the panel; defaults to the anchor. Resolved on every open, so an anchor connected after construction still gets its scope."
       }
     ],
     "events": [
@@ -3593,7 +3629,7 @@
         "name": "size",
         "type": "'sm'|'md'|'lg'",
         "default": "'md'",
-        "description": "Density-independent identity size."
+        "description": "Size of the icon and the identity text."
       },
       {
         "name": "wrap",
@@ -3695,7 +3731,7 @@
         "name": "colorKey",
         "type": "string|((item: SelectItem)=>unknown)",
         "default": "'color'",
-        "description": "Optional icon colour reader."
+        "description": "Optional icon colour reader: a CSS colour or a token reference such as `var(--zx-color-tone-blue-fg)`. Without one the glyph is a neutral tile in muted ink."
       },
       {
         "name": "subtitleKey",
@@ -3719,7 +3755,13 @@
         "name": "id",
         "type": "string|null",
         "default": "null",
-        "description": "Control ID and logical field identifier."
+        "description": "DOM id of the control. Generated when omitted; a Fieldset derives it from its `idPrefix` and the field key, so a key never becomes a DOM id by itself."
+      },
+      {
+        "name": "name",
+        "type": "string|null",
+        "default": "null",
+        "description": "Field name: the `name` of a native control and the key the field is filed under. A Fieldset sets it to the field key; a standalone field falls back to `id`."
       },
       {
         "name": "type",
@@ -4005,6 +4047,12 @@
         "type": "Record<string, FieldOptions|Field|Element|Component>",
         "default": "{}",
         "description": "Initial fields."
+      },
+      {
+        "name": "idPrefix",
+        "type": "string|null",
+        "default": "null",
+        "description": "Prefix of the DOM ids generated for the fields, as `<idPrefix>-<key>`. Null generates one per instance, so the same fieldset mounted twice never repeats an id and a field key never collides with an element id elsewhere on the page."
       }
     ],
     "events": [],
@@ -4013,7 +4061,7 @@
         "name": "addField",
         "signature": "addField(id, field)",
         "returns": "Field",
-        "description": "Adds a field from options, an existing field, an element, or a component."
+        "description": "Adds a field from options, an existing field, an element, or a component. The key becomes the field's `name` and its `data-field-id`; the control's DOM id is `<idPrefix>-<key>`, unless the field options give an `id` of their own that differs from the key."
       },
       {
         "name": "getField",
@@ -4113,7 +4161,13 @@
         "name": "mime",
         "type": "string",
         "default": "''",
-        "description": "MIME type."
+        "description": "MIME type. Shown as a readable type (\"PDF\", \"Image\"), never as the raw string, and used to pick the icon."
+      },
+      {
+        "name": "typeLabel",
+        "type": "string|null",
+        "default": "null",
+        "description": "Type shown beside the size; null derives it from the MIME type (or the name's extension when the MIME type is unfamiliar), an empty string hides it."
       },
       {
         "name": "subtitle",
@@ -4125,7 +4179,7 @@
         "name": "icon",
         "type": "EntityRefIcon",
         "default": "'file'",
-        "description": "File icon name, node, component, or lazy renderer."
+        "description": "File icon name, node, component, or lazy renderer. The generic `'file'` glyph gives way to one for the MIME type when the active icon set has it."
       },
       {
         "name": "metadata",
@@ -4170,10 +4224,10 @@
         "description": "Whether active progress has no known amount."
       },
       {
-        "name": "density",
+        "name": "identitySize",
         "type": "'sm'|'md'|'lg'",
         "default": "'md'",
-        "description": "File-identity presentation size."
+        "description": "Size of the file's icon and name."
       },
       {
         "name": "wrap",
@@ -4822,6 +4876,12 @@
         "type": "boolean",
         "default": "true",
         "description": "Native `novalidate` state."
+      },
+      {
+        "name": "idPrefix",
+        "type": "string|null",
+        "default": "null",
+        "description": "Prefix of the DOM ids generated for the fields of the fieldsets this form builds, as `<idPrefix>-<key>`. Null generates one per form instance, so a form mounted twice never repeats an id. A fieldset's own `idPrefix` wins."
       }
     ],
     "events": [
@@ -4846,7 +4906,7 @@
         "name": "addFieldset",
         "signature": "addFieldset(fieldset)",
         "returns": "Fieldset",
-        "description": "Adds an existing fieldset or constructs one from options."
+        "description": "Adds an existing fieldset or constructs one from options. A constructed fieldset generates its field ids from the form's `idPrefix` unless its options carry their own."
       },
       {
         "name": "setActions",
@@ -5739,7 +5799,7 @@
       },
       {
         "name": "hints",
-        "type": "false|{move?: string, open?: string, close?: string}",
+        "type": "false|{move?: string, open?: string, back?: string, close?: string}",
         "default": null,
         "description": "Visible keyboard hints, or false."
       },
@@ -5753,13 +5813,18 @@
     "events": [
       {
         "name": "select",
-        "payload": "{item, value, source, query}",
+        "payload": "{item, value, source, query, page}",
         "description": "Preventable selection listener."
       },
       {
         "name": "query",
         "payload": "{query: string}",
         "description": "Query-change listener."
+      },
+      {
+        "name": "page",
+        "payload": "{page, path}",
+        "description": "Page-navigation listener."
       },
       {
         "name": "open",
@@ -5773,16 +5838,28 @@
       },
       {
         "name": "error",
-        "payload": "{source: LauncherSource, error: unknown}",
+        "payload": "{source, error, page}",
         "description": "Source error listener."
       }
     ],
     "methods": [
       {
         "name": "open",
-        "signature": "open()",
+        "signature": "open([options])",
         "returns": "this",
-        "description": "Opens the launcher and focuses/selects its query."
+        "description": "Opens the launcher and focuses/selects its query. It opens on the root unless `page` names one; already open, `page` navigates there."
+      },
+      {
+        "name": "back",
+        "signature": "back()",
+        "returns": "this",
+        "description": "Goes back one page, restoring the level beneath with its query and highlighted option. Does nothing on the root."
+      },
+      {
+        "name": "getPage",
+        "signature": "getPage()",
+        "returns": "LauncherItem|null",
+        "description": "Returns the page shown, or null on the root."
       },
       {
         "name": "close",
@@ -5824,7 +5901,7 @@
         "name": "setItems",
         "signature": "setItems(items)",
         "returns": "this",
-        "description": "Replaces local catalogue items."
+        "description": "Replaces the root's local catalogue items; an open page keeps its own."
       },
       {
         "name": "setCurrent",
@@ -5836,7 +5913,7 @@
         "name": "setSources",
         "signature": "setSources(sources)",
         "returns": "this",
-        "description": "Replaces asynchronous sources and aborts work from the old set."
+        "description": "Replaces the root's asynchronous sources and aborts work from the old set; on a page they load once the root is back."
       },
       {
         "name": "destroy",
@@ -5845,6 +5922,18 @@
         "description": "Aborts sources and removes the owned dialog."
       }
     ]
+  },
+  "LauncherOpen": {
+    "options": [
+      {
+        "name": "page",
+        "type": "string|number|LauncherItem",
+        "default": null,
+        "description": "Opens straight into a page: the id of a local item with `items` (at any depth of array pages, whose path becomes the back stack), or a page item."
+      }
+    ],
+    "events": [],
+    "methods": []
   },
   "LayoutGrid": {
     "options": [
@@ -6175,7 +6264,7 @@
       },
       {
         "name": "open",
-        "signature": "open()",
+        "signature": "open([options])",
         "returns": "this",
         "description": "Opens the menu."
       },
@@ -6205,13 +6294,13 @@
       },
       {
         "name": "focusFirst",
-        "signature": "focusFirst()",
+        "signature": "focusFirst([options])",
         "returns": "this",
         "description": "Opens the menu and focuses its first enabled item."
       },
       {
         "name": "focusLast",
-        "signature": "focusLast()",
+        "signature": "focusLast([options])",
         "returns": "this",
         "description": "Opens the menu and focuses its last enabled item."
       },
@@ -6228,6 +6317,18 @@
         "description": "Destroys the menu, dropdown panel, and trigger enhancements."
       }
     ]
+  },
+  "MenuButtonOpen": {
+    "options": [
+      {
+        "name": "returnFocus",
+        "type": "boolean|HTMLElement",
+        "default": "true",
+        "description": "Where focus goes when this opening ends with a selection or Escape: `true` is the trigger, an element is that element (the trigger again if it has left the document), and `false` leaves focus alone."
+      }
+    ],
+    "events": [],
+    "methods": []
   },
   "Message": {
     "options": [
@@ -6296,13 +6397,25 @@
         "name": "timeout",
         "type": "number",
         "default": "4000",
-        "description": "Auto-dismiss delay in milliseconds; zero persists."
+        "description": "Auto-dismiss delay in milliseconds; zero persists. A message with an `action` stays at least 8000ms."
       },
       {
         "name": "closable",
         "type": "boolean",
         "default": "true",
         "description": "Whether to render a close button."
+      },
+      {
+        "name": "action",
+        "type": "MessageAction|null",
+        "default": "null",
+        "description": "A command button inside the message. The message never times out while the pointer is over it or focus is inside it."
+      },
+      {
+        "name": "leading",
+        "type": "Node|{toElement: () => Node|null}|null",
+        "default": "null",
+        "description": "Visual shown in place of the kind icon, such as an Avatar's element. It is decorative — the message text must say what it shows."
       },
       {
         "name": "scope",
@@ -6350,7 +6463,7 @@
         "name": "scope",
         "type": "Element|string|null",
         "default": "null",
-        "description": "Element whose nearest Zx theme scope owns the overlay; defaults to the opener."
+        "description": "Element whose nearest Zx theme scope owns the overlay; defaults to the opener. Resolved on every open, so a scope connected after construction still owns it."
       }
     ],
     "events": [
@@ -7049,6 +7162,18 @@
       }
     ]
   },
+  "PriorityIcon": {
+    "options": [
+      {
+        "name": "label",
+        "type": "string|null",
+        "default": "null",
+        "description": "Accessible name. Without one the glyph is decorative (`aria-hidden`) and must sit beside text, or inside a control with a tooltip, that says the priority."
+      }
+    ],
+    "events": [],
+    "methods": []
+  },
   "ProgressBar": {
     "options": [
       {
@@ -7206,6 +7331,18 @@
         "type": "string",
         "default": "''",
         "description": "Input placeholder."
+      },
+      {
+        "name": "okLabel",
+        "type": "string",
+        "default": "'OK'",
+        "description": "Confirmation label."
+      },
+      {
+        "name": "cancelLabel",
+        "type": "string",
+        "default": "'Cancel'",
+        "description": "Cancellation label."
       }
     ],
     "events": [],
@@ -8236,7 +8373,7 @@
         "name": "priority",
         "signature": "priority(target, [options])",
         "returns": "Select",
-        "description": "Creates the five-level priority preset."
+        "description": "Creates the five-level priority preset: values 0 (lowest) to 4 (highest), each drawn as grey signal bars filled to its level, except the highest, which is the one coloured level — a danger square with an exclamation mark. A \"No priority\" row (value null, a row of dashes) heads the list and labels the empty control; `clearable: false` removes it."
       },
       {
         "name": "status",
@@ -9175,6 +9312,12 @@
         "description": "ISO 4217 code used by `format: 'currency'`."
       },
       {
+        "name": "caption",
+        "type": "string",
+        "default": "''",
+        "description": "A muted context line under the value — what the number is out of or measured in, e.g. `'of 13,184'` or `'open tickets'`. Part of the accessible name."
+      },
+      {
         "name": "locale",
         "type": "string",
         "default": null,
@@ -9214,13 +9357,13 @@
         "name": "icon",
         "type": "string|null",
         "default": "null",
-        "description": "Icon name from `icons.js`, shown beside the label."
+        "description": "Icon name from `icons.js`, shown muted beside the label — a glyph, not a coloured chip."
       },
       {
         "name": "kind",
         "type": "StatTileKind",
         "default": "'neutral'",
-        "description": "Semantic intent. It tints the icon and the sparkline and never the value, which stays at full text contrast whatever intent a record carries."
+        "description": "Semantic intent. It tints the sparkline and never the value, which stays at full text contrast whatever intent a record carries."
       },
       {
         "name": "href",
@@ -9274,6 +9417,30 @@
         "description": "Aborts listeners and restores an adopted target to the state it was found in."
       }
     ]
+  },
+  "StatusIcon": {
+    "options": [
+      {
+        "name": "indicator",
+        "type": "StatusIndicator",
+        "default": null,
+        "description": "Shape, overriding the status's own."
+      },
+      {
+        "name": "tone",
+        "type": "StatusTone",
+        "default": null,
+        "description": "Colour, overriding the status's own."
+      },
+      {
+        "name": "label",
+        "type": "string|null",
+        "default": "null",
+        "description": "Accessible name. Without one the glyph is decorative (`aria-hidden`) and must sit beside text, or inside a control with a tooltip, that says the status."
+      }
+    ],
+    "events": [],
+    "methods": []
   },
   "Stepper": {
     "options": [
@@ -9439,6 +9606,12 @@
         "type": "boolean",
         "default": "true",
         "description": "Keep inactive panel elements mounted."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "default": null,
+        "description": "Accessible name of the tab list — what the tabs switch between (\"Record sections\"). A tab list needs one whenever the page has more than one, and screen readers announce it on entry."
       }
     ],
     "events": [
@@ -9601,6 +9774,12 @@
         "type": "boolean",
         "default": "true",
         "description": "Whether alternate rows use the zebra background."
+      },
+      {
+        "name": "variant",
+        "type": "TableVariant",
+        "default": "'default'",
+        "description": "Frame treatment. `'default'` draws the table's own bordered box; `'plain'` is for a table inside a card or panel that already draws one — no outer frame, no header band, no zebra, hairline row dividers. Reflected as `data-variant` on the root."
       },
       {
         "name": "editMode",
@@ -10157,7 +10336,13 @@
         "name": "colorKey",
         "type": "TagValueReader",
         "default": "'color'",
-        "description": "Optional item colour property or reader."
+        "description": "Optional item colour property or reader: a CSS colour or a token reference such as `var(--zx-color-tone-blue-fg)`."
+      },
+      {
+        "name": "toneKey",
+        "type": "TagValueReader",
+        "default": "'tone'",
+        "description": "Optional item tone property or reader: a categorical tone name from the Badge palette (`blue`, `teal`, `green`, `amber`, `orange`, `red`, `pink`, `violet`, `slate`). A toned tag takes the palette's fill and ink, as a Badge with that `tone` does; a tone wins over a colour, and unknown names are ignored."
       },
       {
         "name": "searchKeys",
@@ -10223,7 +10408,7 @@
         "name": "readonly",
         "type": "boolean",
         "default": "false",
-        "description": "Whether tags may be added or removed."
+        "description": "When true the picker shows only its tags — no input, chevron, or remove buttons."
       },
       {
         "name": "renderItem",

@@ -1,0 +1,1274 @@
+/* AI chat layout. Every selector is scoped under .chat. */
+
+.chat {
+  --chat-column: 46rem;
+}
+
+/* ------------------------------------------------------------- navigation -- */
+
+/* Date groups are plain labels on the column's own tone: no band, no count. */
+.chat .chat__group-title {
+  margin: 0;
+  padding-block-start: var(--zx-space-4);
+  background: var(--zx-color-bg-chrome);
+}
+
+.chat .chat__rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chat .chat__entry {
+  position: relative;
+}
+
+/* A row's menu button sits where its time is, on the title line, and only on hover; the time
+   keeps its room, so the title never reflows. */
+.chat .chat__row-menu {
+  position: absolute;
+  inset-block-start: calc(var(--zx-space-2) - 3px);
+  inset-inline-end: var(--zx-space-3);
+  inline-size: var(--zx-space-6);
+  block-size: var(--zx-space-6);
+  opacity: 0;
+}
+
+.chat .chat__entry:hover .chat__row-menu {
+  opacity: 1;
+}
+
+.chat .chat__entry:hover .list-row__meta {
+  visibility: hidden;
+}
+
+.chat .chat__writing {
+  color: var(--zx-color-text);
+}
+
+/* A branch carries the branch glyph before its title. */
+.chat .chat__branch-glyph {
+  display: inline-flex;
+  margin-inline-end: var(--zx-space-1);
+  color: var(--zx-color-text-subtle);
+  vertical-align: -1px;
+}
+
+/* ------------------------------------------------------------------- main -- */
+
+/* No rule under the headers: the fade at the top of the thread is the edge between the header
+   and the conversation, and a rule under the navigation header alone would stop short. */
+.chat :is(.shell__nav, .chat__main) > .shell__header {
+  border-block-end-color: transparent;
+}
+
+.chat .chat__title-block {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-1);
+  min-inline-size: 0;
+}
+
+/* Rename is there when the title is pointed at or reached with the keyboard. */
+.chat .chat__title-block .zx-icon-btn {
+  opacity: 0;
+}
+
+.chat .chat__title-block:is(:hover, :focus-within) .zx-icon-btn {
+  opacity: 1;
+}
+
+.chat .chat__title-input {
+  flex: 0 1 24rem;
+  min-inline-size: 0;
+  font-weight: var(--zx-weight-semibold);
+}
+
+/* While the inspector is open, the buttons that open it show the neutral "current" fill. */
+.chat .chat__aside-toggle[aria-expanded="true"] {
+  background: var(--zx-color-bg-current);
+  color: var(--zx-color-text);
+}
+
+.chat .chat__model {
+  flex: 0 1 11rem;
+  min-inline-size: 9rem;
+}
+
+.chat .chat__main .shell__header-actions {
+  gap: var(--zx-space-1);
+}
+
+.chat .chat__stage {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-block-size: 0;
+}
+
+/* Text scrolling under the header, or down towards the composer, fades out instead of being cut
+   off. */
+.chat .chat__thread {
+  -webkit-mask-image: linear-gradient(to bottom, transparent, currentColor var(--zx-space-5),
+    currentColor calc(100% - var(--zx-space-5)), transparent);
+  mask-image: linear-gradient(to bottom, transparent, currentColor var(--zx-space-5),
+    currentColor calc(100% - var(--zx-space-5)), transparent);
+}
+
+/* Every turn is the same distance from the next. */
+.chat .chat__column {
+  display: grid;
+  gap: var(--zx-space-7);
+  inline-size: min(100%, var(--chat-column));
+  margin-inline: auto;
+  padding: var(--zx-space-6) var(--zx-space-5) var(--zx-space-7);
+}
+
+.chat .chat__day {
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-weight: var(--zx-weight-medium);
+  text-align: center;
+}
+
+.chat .chat__jump {
+  position: absolute;
+  inset-block-end: var(--zx-space-3);
+  inset-inline-start: 50%;
+  translate: -50% 0;
+  box-shadow: var(--zx-overlay-shadow);
+}
+
+/* Messages. The user's turn is a bubble on the far side; the answer runs full width. */
+.chat .chat__message {
+  position: relative;
+  display: grid;
+  gap: var(--zx-space-2);
+  min-inline-size: 0;
+}
+
+.chat .chat__message[data-role="user"] {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+}
+
+.chat .chat__message[data-role="user"] .chat__actions {
+  order: -1;
+  margin: 0;
+}
+
+.chat .chat__bubble {
+  display: grid;
+  gap: var(--zx-space-2);
+  max-inline-size: 75%;
+  padding: var(--zx-space-2) var(--zx-space-4);
+  border-radius: var(--zx-radius-lg);
+  border-end-end-radius: var(--zx-radius-sm);
+  background: var(--zx-color-accent-subtle);
+}
+
+.chat .chat__bubble-text {
+  margin: 0;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.chat .chat__byline {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  font-size: var(--zx-text-sm);
+}
+
+.chat .chat__author {
+  font-weight: var(--zx-weight-semibold);
+}
+
+/* An agent's answer names the model it ran on, quietly. */
+.chat .chat__via {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+}
+
+.chat .chat__time {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.chat .chat__content {
+  display: grid;
+  gap: var(--zx-space-3);
+  min-inline-size: 0;
+  color: var(--zx-color-text);
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+/* While the steps run, the answer has no text yet and takes no room. */
+.chat .chat__content:empty {
+  display: none;
+}
+
+.chat .chat__p,
+.chat .chat__list,
+.chat .chat__quote,
+.chat .chat__heading {
+  margin: 0;
+}
+
+.chat .chat__heading {
+  margin-block-start: var(--zx-space-2);
+  font-size: var(--zx-text-xl);
+  font-weight: 650;
+  line-height: 1.35;
+  letter-spacing: var(--zx-tracking-title);
+}
+
+.chat .chat__heading[data-level="3"] {
+  font-size: var(--zx-text-lg);
+  letter-spacing: var(--zx-tracking-tight);
+}
+
+.chat .chat__content > .chat__heading:first-child {
+  margin-block-start: 0;
+}
+
+.chat .chat__list {
+  display: grid;
+  gap: var(--zx-space-1);
+  padding-inline-start: var(--zx-space-6);
+}
+
+.chat .chat__code-inline {
+  padding: 0.1em 0.35em;
+  border-radius: var(--zx-radius-sm);
+  background: var(--zx-color-bg-muted);
+  font-family: var(--zx-font-mono);
+  font-size: 0.9em;
+}
+
+/* A quoted draft is material to copy: a filled block, like code, in the text face. */
+.chat .chat__quote {
+  display: grid;
+  gap: var(--zx-space-2);
+  padding: var(--zx-space-3) var(--zx-space-4);
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-bg-muted);
+  white-space: pre-line;
+}
+
+/* A code block: one filled box with no frame. A slim row inside it carries the language, in small
+   mono type, and an icon-only Copy; the code starts below that row, never under it. Positioned, so
+   the Copy button's hidden status line stays inside the scrolling thread. */
+.chat .chat__code {
+  position: relative;
+  overflow: hidden;
+  margin: 0;
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-bg-muted);
+}
+
+.chat .chat__code-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--zx-space-2);
+  padding: var(--zx-space-1) var(--zx-space-3);
+}
+
+.chat .chat__code-language {
+  color: var(--zx-color-text-muted);
+  font-family: var(--zx-font-mono);
+  font-size: var(--zx-text-xs);
+}
+
+.chat .chat__pre {
+  overflow-x: auto;
+  margin: 0;
+  padding: 0 var(--zx-space-3) var(--zx-space-3);
+  font-family: var(--zx-font-mono);
+  font-size: var(--zx-text-sm);
+  line-height: 1.65;
+  overflow-wrap: normal;
+  tab-size: 2;
+}
+
+/* The block clips its corners, so the focus ring of the scrollable code sits inside it. */
+.chat .chat__pre:focus-visible {
+  box-shadow: inset var(--zx-focus-ring);
+}
+
+/* Syntax colours come from the categorical tones, never from the accent or the status set. */
+.chat .chat__token[data-token="keyword"] { color: var(--zx-color-tone-violet-fg); }
+.chat .chat__token[data-token="string"] { color: var(--zx-color-tone-green-fg); }
+.chat .chat__token[data-token="number"] { color: var(--zx-color-tone-orange-fg); }
+.chat .chat__token[data-token="comment"] { color: var(--zx-color-text-muted); }
+
+/* Tables in an answer have no frame: a rule under the header and hairlines between rows. */
+.chat .chat__table-wrap {
+  overflow-x: auto;
+}
+
+.chat .chat__table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  font-size: var(--zx-text-sm);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.45;
+}
+
+.chat .chat__th,
+.chat .chat__td {
+  padding: var(--zx-space-2) var(--zx-space-3);
+  text-align: start;
+  overflow-wrap: normal;
+}
+
+.chat .chat__th:first-child,
+.chat .chat__td:first-child {
+  padding-inline-start: 0;
+}
+
+.chat .chat__th:last-child,
+.chat .chat__td:last-child {
+  padding-inline-end: 0;
+}
+
+.chat .chat__th {
+  border-block-end: 1px solid var(--zx-color-border);
+  color: var(--zx-color-text-muted);
+  font-weight: var(--zx-weight-medium);
+  white-space: nowrap;
+}
+
+.chat .chat__td {
+  border-block-end: 1px solid var(--zx-color-border-subtle);
+}
+
+.chat .chat__table tr:last-child .chat__td {
+  border-block-end: 0;
+}
+
+.chat .chat__th[data-align="end"],
+.chat .chat__td[data-align="end"] {
+  text-align: end;
+}
+
+/* Actions under a message appear on hover or focus, and stay visible under the latest answer.
+   Under an earlier answer they float in the gap below it instead of holding a row of their own,
+   so a hidden row never makes one turn sit further from the next. */
+.chat .chat__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-1);
+  margin-inline-start: calc(-1 * var(--zx-space-2));
+  opacity: 0;
+}
+
+.chat .chat__message[data-role="assistant"]:not([data-latest]) .chat__actions {
+  position: absolute;
+  inset-block-start: 100%;
+  inset-inline-start: 0;
+}
+
+.chat .chat__message:hover .chat__actions,
+.chat .chat__message:focus-within .chat__actions,
+.chat .chat__message[data-latest] .chat__actions {
+  opacity: 1;
+}
+
+.chat .chat__actions .chat__time {
+  margin-inline-end: var(--zx-space-1);
+}
+
+.chat .chat__rate[aria-pressed="true"] {
+  color: var(--zx-color-text);
+}
+
+.chat .chat__typing {
+  display: inline-flex;
+  gap: var(--zx-space-1);
+  padding-block: var(--zx-space-2);
+}
+
+.chat .chat__typing > span {
+  inline-size: 6px;
+  block-size: 6px;
+  border-radius: var(--zx-radius-full);
+  background: var(--zx-color-text-muted);
+}
+
+/* The work an answer shows: a one-line summary above it — what it did and how long it took — that
+   opens into a timeline of its steps. Quiet type, no box: it is a note on the answer, not part of
+   it. */
+.chat .chat__work {
+  display: grid;
+  gap: var(--zx-space-1);
+  min-inline-size: 0;
+}
+
+.chat .chat__work-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  inline-size: fit-content;
+  max-inline-size: calc(100% + var(--zx-space-2));
+  min-block-size: var(--zx-space-6);
+  margin-inline-start: calc(-1 * var(--zx-space-2));
+  padding: 2px var(--zx-space-2);
+  border: 0;
+  border-radius: var(--zx-radius-md);
+  background: none;
+  color: var(--zx-color-text-muted);
+  font: inherit;
+  font-size: var(--zx-text-sm);
+  text-align: start;
+  cursor: pointer;
+}
+
+.chat .chat__work-toggle:hover {
+  background: var(--zx-color-bg-hover);
+  color: var(--zx-color-text);
+}
+
+.chat .chat__work-toggle:focus-visible {
+  outline: none;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.chat .chat__work-chevron {
+  flex: 0 0 auto;
+  color: var(--zx-color-text-subtle);
+}
+
+.chat .chat__work-toggle[aria-expanded="true"] > .chat__work-chevron {
+  rotate: 90deg;
+}
+
+/* On a narrow screen the summary wraps rather than lose its end. */
+.chat .chat__work-summary {
+  min-inline-size: 0;
+}
+
+.chat .chat__work-time,
+.chat .chat__step-time {
+  flex: 0 0 auto;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The timeline: a glyph per step on a hairline that joins them, the step and its detail, and its
+   duration at the end of the line. */
+.chat .chat__steps {
+  display: grid;
+  margin: 0 0 var(--zx-space-1);
+  padding: 0;
+  list-style: none;
+}
+
+.chat .chat__step {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--zx-space-6) minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--zx-space-3);
+  padding-block: var(--zx-space-1);
+}
+
+.chat .chat__step:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  inset-block: calc(var(--zx-space-1) + var(--zx-space-6) + 2px) calc(2px - var(--zx-space-1));
+  inset-inline-start: calc(var(--zx-space-6) / 2 - 0.5px);
+  inline-size: 1px;
+  background: var(--zx-color-border-subtle);
+}
+
+.chat .chat__step-icon {
+  display: inline-grid;
+  place-items: center;
+  inline-size: var(--zx-space-6);
+  block-size: var(--zx-space-6);
+  border-radius: var(--zx-radius-full);
+  background: var(--zx-color-bg-muted);
+  color: var(--zx-color-text-muted);
+}
+
+.chat .chat__step-text {
+  display: grid;
+  gap: 1px;
+  min-inline-size: 0;
+  padding-block-start: 2px;
+}
+
+.chat .chat__step-label {
+  font-size: var(--zx-text-sm);
+  font-weight: var(--zx-weight-medium);
+  line-height: 1.4;
+}
+
+.chat .chat__step[data-state="running"] .chat__step-label {
+  color: var(--zx-color-text-muted);
+}
+
+.chat .chat__step-detail {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  line-height: 1.45;
+}
+
+.chat .chat__step-time {
+  padding-block-start: 4px;
+}
+
+/* Sources: small chips under the answer, the site or file each one names, wrapping beside their
+   label. */
+.chat .chat__sources {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--zx-space-2);
+}
+
+.chat .chat__sources-label {
+  flex: 0 0 auto;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-weight: var(--zx-weight-medium);
+  line-height: var(--zx-space-6);
+}
+
+.chat .chat__source-list {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: var(--zx-space-1);
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chat .chat__source-list > li {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+
+.chat .chat__source {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-1);
+  max-inline-size: min(15rem, 100%);
+  min-block-size: var(--zx-space-6);
+  padding: 0 var(--zx-space-2);
+  border: 1px solid var(--zx-color-border-subtle);
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-bg-surface);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  text-decoration: none;
+}
+
+.chat .chat__source > .zx-icon {
+  flex: 0 0 auto;
+  color: var(--zx-color-text-subtle);
+}
+
+.chat .chat__source:hover {
+  border-color: var(--zx-color-border);
+  background: var(--zx-color-bg-hover);
+  color: var(--zx-color-text);
+}
+
+.chat .chat__source:focus-visible {
+  outline: none;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.chat .chat__source-name {
+  overflow: hidden;
+  min-inline-size: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The card a source chip shows: its title, its site, and the passage the answer used. It renders in
+   a tooltip, outside the layout's root. */
+.chat__source-card {
+  display: grid;
+  gap: 2px;
+  padding: var(--zx-space-1) 2px;
+}
+
+.chat__source-title {
+  font-weight: var(--zx-weight-semibold);
+}
+
+.chat__source-site {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-1);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+}
+
+.chat__source-snippet {
+  margin-block-start: var(--zx-space-1);
+  color: var(--zx-color-text);
+}
+
+/* An artifact the answer wrote: a card in the text that opens it in the inspector. The one showing
+   there is where you are, so it takes the neutral current fill. */
+.chat .chat__artifact-card {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-3);
+  inline-size: min(100%, 24rem);
+  padding: var(--zx-space-2) var(--zx-space-3);
+  padding-inline-start: var(--zx-space-2);
+  border: 1px solid var(--zx-color-border-subtle);
+  border-radius: var(--zx-radius-lg);
+  background: var(--zx-color-bg-surface);
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.chat .chat__artifact-card:hover {
+  border-color: var(--zx-color-border);
+  background: var(--zx-color-bg-hover);
+}
+
+.chat .chat__artifact-card[aria-expanded="true"] {
+  border-color: transparent;
+  background: var(--zx-color-bg-current);
+}
+
+.chat .chat__artifact-card:focus-visible {
+  outline: none;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.chat .chat__artifact-copy {
+  display: grid;
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  line-height: 1.4;
+}
+
+.chat .chat__artifact-name {
+  overflow: hidden;
+  font-weight: var(--zx-weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat .chat__artifact-meta {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+}
+
+.chat .chat__artifact-chevron {
+  flex: 0 0 auto;
+  color: var(--zx-color-text-subtle);
+}
+
+/* ‹ 1 / 2 › between the versions of a regenerated answer. */
+.chat .chat__pager {
+  display: inline-flex;
+  align-items: center;
+  margin-inline-end: var(--zx-space-1);
+}
+
+.chat .chat__pager-count {
+  min-inline-size: 2.75em;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+/* Where a branch left the chat it came from. */
+.chat .chat__branch-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--zx-space-2);
+}
+
+.chat .chat__branch-note > .zx-icon {
+  color: var(--zx-color-text-subtle);
+}
+
+.chat .chat__branch-note .link-button {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--zx-space-6);
+  vertical-align: middle;
+}
+
+/* "@agent" in a sent message, in that agent's tone. */
+.chat .chat__mention {
+  padding: 0 0.2em;
+  border-radius: var(--zx-radius-sm);
+  font-weight: var(--zx-weight-medium);
+}
+
+.chat .chat__mention[data-tone="blue"] { background: var(--zx-color-tone-blue-bg); color: var(--zx-color-tone-blue-fg); }
+.chat .chat__mention[data-tone="teal"] { background: var(--zx-color-tone-teal-bg); color: var(--zx-color-tone-teal-fg); }
+.chat .chat__mention[data-tone="violet"] { background: var(--zx-color-tone-violet-bg); color: var(--zx-color-tone-violet-fg); }
+.chat .chat__mention[data-tone="amber"] { background: var(--zx-color-tone-amber-bg); color: var(--zx-color-tone-amber-fg); }
+.chat .chat__mention[data-tone="pink"] { background: var(--zx-color-tone-pink-bg); color: var(--zx-color-tone-pink-fg); }
+
+/* Editing a sent message. */
+.chat .chat__editor {
+  display: grid;
+  gap: var(--zx-space-2);
+  inline-size: min(100%, 36rem);
+}
+
+.chat .chat__edit {
+  padding-block: var(--zx-space-2);
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.chat .chat__editor-bar {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--zx-space-2);
+}
+
+/* A new chat. */
+.chat .chat__welcome {
+  display: grid;
+  justify-items: center;
+  gap: var(--zx-space-3);
+  padding-block: var(--zx-space-8) var(--zx-space-4);
+  text-align: center;
+}
+
+.chat .chat__welcome-title {
+  margin: var(--zx-space-2) 0 0;
+  font-size: var(--zx-text-2xl);
+  font-weight: 650;
+  letter-spacing: var(--zx-tracking-title);
+}
+
+.chat .chat__suggestions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: var(--zx-space-3);
+  inline-size: 100%;
+  margin-block-start: var(--zx-space-5);
+}
+
+.chat .chat__suggestion {
+  display: grid;
+  gap: var(--zx-space-1);
+  padding: var(--zx-space-3) var(--zx-space-4);
+  border: 1px solid var(--zx-color-border-subtle);
+  border-radius: var(--zx-radius-lg);
+  background: var(--zx-color-bg-surface);
+  text-align: start;
+}
+
+.chat .chat__suggestion:hover {
+  border-color: var(--zx-color-border);
+  background: var(--zx-color-bg-hover);
+}
+
+.chat .chat__suggestion-title {
+  font-weight: var(--zx-weight-medium);
+}
+
+.chat .chat__suggestion-text {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  font-weight: 400;
+}
+
+/* --------------------------------------------------------------- composer -- */
+
+.chat .chat__dock {
+  flex: 0 0 auto;
+  padding: 0 var(--zx-space-5) var(--zx-space-3);
+}
+
+/* The composer is a filled box on the chrome tone — a step below the canvas in both themes —
+   with no frame; focus in the text adds the ring and nothing else. */
+/* The text area carries `--chat-input-pad` above and below its line, so it is a comfortable target
+   on its own; the box's top padding and its gap give that room back, so the text sits where a
+   bare line would. */
+.chat .chat__composer {
+  --chat-input-pad: var(--zx-space-1);
+
+  position: relative;
+  display: grid;
+  gap: calc(var(--zx-space-2) - var(--chat-input-pad));
+  inline-size: min(100%, calc(var(--chat-column) - 2 * var(--zx-space-5)));
+  margin-inline: auto;
+  padding: var(--zx-space-3);
+  padding-block-start: calc(var(--zx-space-3) - var(--chat-input-pad));
+  border-radius: var(--zx-radius-lg);
+  background: var(--zx-color-bg-chrome);
+}
+
+.chat .chat__composer:has(.chat__input:focus) {
+  box-shadow: var(--zx-focus-ring);
+}
+
+/* The "@" suggestions open above the composer, over the end of the thread. */
+.chat .chat__mentions {
+  position: absolute;
+  z-index: 5;
+  inset-block-end: calc(100% + var(--zx-space-2));
+  inset-inline-start: 0;
+  display: grid;
+  gap: 2px;
+  inline-size: min(100%, 22rem);
+  max-block-size: min(18rem, 45vh);
+  overflow: auto;
+  padding: var(--zx-space-1);
+  border: 1px solid var(--zx-color-overlay-border);
+  border-radius: var(--zx-radius-lg);
+  background: var(--zx-color-bg-surface);
+  box-shadow: var(--zx-overlay-shadow);
+}
+
+.chat .chat__mention-option {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-3);
+  padding: var(--zx-space-2);
+  border-radius: var(--zx-radius-md);
+  cursor: pointer;
+}
+
+/* The highlighted agent takes the same neutral step as a highlighted option in any Zx list. */
+.chat .chat__mention-option[aria-selected="true"] {
+  background: var(--zx-color-overlay-hover);
+}
+
+.chat .chat__mention-copy {
+  display: grid;
+  min-inline-size: 0;
+  line-height: 1.4;
+}
+
+.chat .chat__mention-name {
+  font-size: var(--zx-text-sm);
+  font-weight: var(--zx-weight-medium);
+}
+
+.chat .chat__mention-handle {
+  margin-inline-start: var(--zx-space-2);
+  color: var(--zx-color-text-muted);
+  font-weight: 400;
+}
+
+.chat .chat__mention-text {
+  overflow: hidden;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat .chat__input {
+  display: block;
+  inline-size: 100%;
+  min-block-size: 0;
+  max-block-size: calc(12lh + 2 * var(--chat-input-pad));
+  padding: var(--chat-input-pad) var(--zx-space-1);
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  font-size: var(--zx-text-md);
+  line-height: 1.5;
+  resize: none;
+}
+
+.chat .chat__input:focus-visible {
+  box-shadow: none;
+}
+
+.chat .chat__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-1);
+  min-inline-size: 0;
+  margin-inline-start: calc(-1 * var(--zx-space-1));
+}
+
+/* The composer's tools are quiet glyphs, whichever component drew them. */
+.chat .chat__bar > :is(.zx-icon-btn, .zx-btn):not(.chat__send) > .zx-icon {
+  color: var(--zx-color-text-subtle);
+}
+
+.chat .chat__bar > :is(.zx-icon-btn, .zx-btn):not(.chat__send):is(:hover, [aria-expanded="true"]) > .zx-icon {
+  color: var(--zx-color-text);
+}
+
+/* Send is the screen's one solid accent, once there is something to send; until then it is a
+   neutral button that plainly isn't ready. Stop takes its place while an answer is written. */
+.chat .chat__bar > .chat__send {
+  inline-size: var(--zx-space-7);
+  block-size: var(--zx-space-7);
+  border-radius: var(--zx-radius-lg);
+  background: var(--zx-color-accent-solid);
+}
+
+.chat .chat__bar > .chat__send > .zx-icon {
+  color: var(--zx-color-on-accent-solid);
+}
+
+.chat .chat__bar > .chat__send:hover {
+  background: var(--zx-color-accent-solid-hover);
+}
+
+.chat .chat__bar > .chat__send:focus-visible {
+  box-shadow: var(--zx-focus-ring);
+}
+
+.chat .chat__bar > .chat__send:is(:disabled, .chat__stop) {
+  background: var(--zx-color-bg-current);
+}
+
+.chat .chat__bar > .chat__send:disabled > .zx-icon {
+  color: var(--zx-color-text-placeholder);
+}
+
+.chat .chat__bar > .chat__stop > .zx-icon {
+  color: var(--zx-color-text);
+  fill: currentColor;
+}
+
+.chat .chat__bar > .chat__stop:hover {
+  background: var(--zx-color-bg-current);
+}
+
+.chat .chat__note {
+  margin: var(--zx-space-2) 0 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  text-align: center;
+}
+
+.chat .chat__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zx-space-2);
+}
+
+.chat .chat__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  max-inline-size: 18rem;
+  min-block-size: calc(var(--zx-control-height) - var(--zx-space-1));
+  padding-inline: var(--zx-space-2);
+  border: 1px solid var(--zx-color-border-subtle);
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-bg-surface);
+  font-size: var(--zx-text-sm);
+}
+
+.chat .chat__chip:has(.zx-icon-btn) {
+  padding-inline-end: 0;
+}
+
+.chat .chat__chip-icon {
+  display: inline-flex;
+  color: var(--zx-color-text-subtle);
+}
+
+.chat .chat__chip-name {
+  overflow: hidden;
+  min-inline-size: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat .chat__chip-size {
+  flex: 0 0 auto;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+}
+
+.chat .chat__chip .zx-icon-btn {
+  inline-size: calc(var(--zx-control-height) - var(--zx-space-1));
+  block-size: calc(var(--zx-control-height) - var(--zx-space-2));
+}
+
+/* ------------------------------------------------------------------ aside -- */
+
+/* The inspector holds one view at a time: the assistant settings, or an artifact. */
+.chat .chat__view {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-block-size: 0;
+}
+
+/* An artifact is work, not chrome: it sits on the canvas, wider than the settings, so a line of
+   code fits. */
+.chat .chat__aside[data-view="artifact"] {
+  --shell-aside-width: clamp(20rem, 32cqi, 32rem);
+  --shell-backdrop: var(--zx-color-bg-surface);
+
+  background: var(--shell-backdrop);
+}
+
+.chat .chat__artifact-glyph {
+  display: inline-flex;
+}
+
+.chat .chat__versions {
+  flex-wrap: nowrap;
+  min-inline-size: 0;
+}
+
+.chat .chat__version-note {
+  overflow: hidden;
+  min-inline-size: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Code wraps under a hanging indent — a step deeper than the line's own (`--chat-indent`, set per
+   line) — numbered in a quiet margin. */
+.chat .chat__artifact-code {
+  --chat-gutter: 3ch;
+  --chat-hang: 2ch;
+
+  margin: 0;
+  padding: var(--zx-space-4) var(--zx-space-4) var(--zx-space-4) var(--zx-space-2);
+  counter-reset: chat-line;
+  font-family: var(--zx-font-mono);
+  font-size: var(--zx-text-sm);
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+  tab-size: 2;
+  white-space: pre-wrap;
+}
+
+.chat .chat__line {
+  position: relative;
+  display: block;
+  min-block-size: 1lh;
+  padding-inline-start: calc(var(--chat-gutter) + var(--zx-space-4) + var(--chat-indent, 0ch) + var(--chat-hang));
+  text-indent: calc(-1 * (var(--chat-indent, 0ch) + var(--chat-hang)));
+}
+
+.chat .chat__line::before {
+  content: counter(chat-line);
+  counter-increment: chat-line;
+  position: absolute;
+  inset-inline-start: 0;
+  inline-size: var(--chat-gutter);
+  color: var(--zx-color-text-subtle);
+  text-align: end;
+  text-indent: 0;
+  user-select: none;
+}
+
+.chat .chat__artifact-doc {
+  display: grid;
+  gap: var(--zx-space-3);
+  max-inline-size: 40rem;
+  padding: var(--zx-space-5);
+  line-height: 1.65;
+  white-space: pre-line;
+}
+
+.chat .chat__system {
+  inline-size: 100%;
+  padding-block: var(--zx-space-2);
+  font-size: var(--zx-text-sm);
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.chat .chat__aside .zx-slider__mark:first-child {
+  transform: none;
+}
+
+.chat .chat__aside .zx-slider__mark:last-child {
+  transform: translateX(-100%);
+}
+
+.chat .chat__help {
+  margin: 0;
+  font-size: var(--zx-text-xs);
+}
+
+.chat .chat__field {
+  display: grid;
+  gap: var(--zx-space-1);
+}
+
+.chat .chat__field-label {
+  font-size: var(--zx-text-sm);
+  font-weight: var(--zx-weight-medium);
+}
+
+.chat .chat__tool {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--zx-space-3);
+}
+
+.chat .chat__tool-icon {
+  display: inline-flex;
+  color: var(--zx-color-text-subtle);
+}
+
+.chat .chat__tool-copy {
+  display: grid;
+}
+
+.chat .chat__tool-name {
+  font-size: var(--zx-text-sm);
+  font-weight: var(--zx-weight-medium);
+}
+
+.chat .chat__tool-text {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+}
+
+.chat .chat__block-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--zx-space-2);
+}
+
+/* ----------------------------------------------------------------- narrow -- */
+
+/* The inspector opens as the shell's drawer below 1180px (see `setInspector()`), the history with
+   the navigation below 860px. As a drawer an artifact takes the room it needs. On a phone the
+   header keeps the title, the model, and its buttons: the answer's status keeps its spinner or tick
+   and leaves its words to screen readers. */
+@container shell (max-width: 1180px) {
+  .chat .chat__aside[data-view="artifact"] {
+    --shell-aside-width: 34rem;
+  }
+}
+
+@container shell (max-width: 640px) {
+  .chat .chat__artifact-doc {
+    padding: var(--zx-space-4);
+  }
+
+  /* The sources' label goes above their chips, so two chips fit on a line. */
+  .chat .chat__sources {
+    flex-wrap: wrap;
+    gap: var(--zx-space-1) var(--zx-space-2);
+  }
+
+  .chat .chat__source-list {
+    flex-basis: 100%;
+  }
+
+  .chat .chat__main > .shell__header .zx-inline-loading__description {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .chat .chat__model {
+    flex-basis: 9rem;
+    min-inline-size: 0;
+  }
+
+  .chat .chat__column {
+    padding-inline: var(--zx-space-4);
+  }
+
+  .chat .chat__dock {
+    padding-inline: var(--zx-space-3);
+  }
+}
+
+/* ----------------------------------------------------------------- motion -- */
+
+@media (prefers-reduced-motion: no-preference) {
+  .chat .chat__actions,
+  .chat .chat__row-menu,
+  .chat .chat__title-block .zx-icon-btn {
+    transition: opacity var(--zx-dur-fast) var(--zx-ease);
+  }
+
+  .chat .chat__bar > .chat__send {
+    transition: background-color var(--zx-dur-fast) var(--zx-ease);
+  }
+
+  .chat .chat__work-chevron {
+    transition: rotate var(--zx-dur-fast) var(--zx-ease);
+  }
+
+  .chat .chat__work-toggle,
+  .chat .chat__source,
+  .chat .chat__artifact-card {
+    transition:
+      background-color var(--zx-dur-fast) var(--zx-ease),
+      border-color var(--zx-dur-fast) var(--zx-ease),
+      color var(--zx-dur-fast) var(--zx-ease);
+  }
+
+  /* A step that has just finished settles in. */
+  .chat .chat__message[data-streaming] .chat__step:last-child {
+    animation: chat-step var(--zx-dur-base) var(--zx-ease);
+  }
+
+  .chat .chat__typing > span {
+    animation: chat-typing 1.2s var(--zx-ease) infinite;
+  }
+
+  .chat .chat__typing > span:nth-child(2) { animation-delay: 0.15s; }
+  .chat .chat__typing > span:nth-child(3) { animation-delay: 0.3s; }
+
+  .chat .chat__message[data-streaming] .chat__content > .chat__p:last-child::after,
+  .chat .chat__message[data-streaming] .chat__content > .chat__list:last-child > .chat__li:last-child::after {
+    content: "";
+    display: inline-block;
+    inline-size: 0.5em;
+    block-size: 1em;
+    margin-inline-start: 2px;
+    border-radius: 1px;
+    background: var(--zx-color-text-muted);
+    vertical-align: text-bottom;
+    animation: chat-caret 1s steps(2, jump-none) infinite;
+  }
+}
+
+@keyframes chat-typing {
+  0%, 60%, 100% { opacity: 0.35; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-3px); }
+}
+
+@keyframes chat-step {
+  from {
+    opacity: 0;
+    translate: 0 -2px;
+  }
+}
+
+@keyframes chat-caret {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}

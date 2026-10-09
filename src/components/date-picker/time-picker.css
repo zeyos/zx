@@ -23,7 +23,7 @@
 
 .zx-time-picker__separator {
   color: var(--zx-color-text-muted);
-  font-weight: 700;
+  font-weight: var(--zx-weight-semibold);
 }
 
 .zx-time-picker__clock-toggle {

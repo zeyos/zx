@@ -27,8 +27,9 @@ class SelectBase extends GxWrapper {
     translated.filter = this.constructor.filterMode === 'local' ? 'local' :
       (['async', 'rest'].includes(this.constructor.filterMode) ? (query) => this._load(query) : false);
     translated.debounce = options.debounce ?? 200;
+    // The legacy priority list offered no empty choice unless the caller allowed one.
     const component = this.constructor.filterMode === 'priority'
-      ? ZxSelect.priority(display, translated)
+      ? ZxSelect.priority(display, { clearable: false, ...translated })
       : new ZxSelect(display, translated);
     this._attach(component, {
       events: {

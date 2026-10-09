@@ -1,7 +1,8 @@
 import { Component } from '../../core/component.js';
 import { h, safeHref } from '../../core/dom.js';
 import { icon } from '../../core/icons.js';
-import { overlayHost } from '../../core/overlay-host.js';
+import { printf } from '../../core/i18n.js';
+import { connectedOverlayHost, overlayHost } from '../../core/overlay-host.js';
 import { uid } from '../../core/util.js';
 
 /**
@@ -13,6 +14,11 @@ import { uid } from '../../core/util.js';
  * @property {string} [group] Result group.
  * @property {string|Node|((item: LauncherItem) => Node|null)} [icon] Decorative icon name, node, or factory.
  * @property {string|number} [badge] Compact metadata.
+ * @property {string|number} [hint] Muted text at the end of the row, such as a current value or a project.
+ * @property {string|string[]|{label: string|string[], keys?: string}} [shortcut] Key labels drawn as
+ *   key caps (`['⌘', 'K']`), or Button's `{label, keys}` shape. Display only: the Launcher binds nothing.
+ * @property {string} [keys] The same shortcut in `aria-keyshortcuts` syntax (`'Meta+K'`), exposed on
+ *   the option for assistive technology.
  * @property {'application'|'record'|'action'} [kind='action'] Tile or row presentation.
  * @property {boolean} [current=false] Whether this is the current application or destination.
  * @property {'always'|'empty'|'query'} [when='always'] Query state in which the item is visible.
@@ -24,6 +30,26 @@ import { uid } from '../../core/util.js';
  * @property {() => void} [invoke] Application-owned callback for non-link actions.
  * @property {boolean|number} [pinned] Pinned state or explicit pinned order.
  * @property {boolean} [disabled] Whether activation is unavailable.
+ * @property {LauncherItem[]|LauncherPageLoader} [items] Child items. An item with `items` opens them
+ *   as a page instead of being selected: an array, or a loader called with the page's query.
+ * @property {string} [placeholder] Search-field placeholder while this item's page is open.
+ * @property {'rank'|'source'} [order='rank'] For a page whose `items` is a loader: whether Zx ranks
+ *   the loaded items by the query, or keeps the loader's order.
+ */
+/**
+ * Loads a page's items for its current query. It runs when the page opens and again, debounced, as
+ * the query changes; a newer query aborts `signal`.
+ * @typedef {(query: string, context: {signal: AbortSignal}) => LauncherItem[]|Promise<LauncherItem[]>} LauncherPageLoader
+ */
+/**
+ * @typedef {Object} LauncherOpenOptions
+ * @property {string|number|LauncherItem} [page] Opens straight into a page: the id of a local item
+ *   with `items` (at any depth of array pages, whose path becomes the back stack), or a page item.
+ */
+/**
+ * @typedef {Object} LauncherPageDetail
+ * @property {LauncherItem|null} page The page now shown; null on the root.
+ * @property {LauncherItem[]} path Every open page from the root down, the shown one last.
  */
 /**
  * @typedef {Object} LauncherSource
@@ -49,21 +75,41 @@ import { uid } from '../../core/util.js';
  * @property {string} [emptyText] Empty-state text. Omitted resolves `launcher.empty`, English `No results`.
  * @property {string} [loadingText] Loading-state text. Omitted resolves `launcher.loading`, English `Searching…`.
  * @property {'mod+k'|false} [shortcut='mod+k'] Optional global keyboard shortcut.
- * @property {false|{move?: string, open?: string, close?: string}} [hints] Visible keyboard hints, or false.
+ * @property {false|{move?: string, open?: string, back?: string, close?: string}} [hints] Visible keyboard hints, or false.
  * @property {Element|string|null} [scope=null] Element whose nearest Zx theme scope owns an internally created launcher; defaults to the opener.
  * @property {(event: CustomEvent<LauncherSelectDetail>) => void} [onselect] Preventable selection listener.
  * @property {(event: CustomEvent<{query: string}>) => void} [onquery] Query-change listener.
+ * @property {(event: CustomEvent<LauncherPageDetail>) => void} [onpage] Page-navigation listener.
  * @property {(event: CustomEvent<Record<string, never>>) => void} [onopen] Open listener.
  * @property {(event: CustomEvent<Record<string, never>>) => void} [onclose] Close listener.
- * @property {(event: CustomEvent<{source: LauncherSource, error: unknown}>) => void} [onerror] Source error listener.
+ * @property {(event: CustomEvent<LauncherErrorDetail>) => void} [onerror] Source error listener.
  */
-/** @typedef {{item: LauncherItem, value: unknown, source: string|null, query: string}} LauncherSelectDetail */
+/**
+ * A selection. `page` is the page the item was chosen on, null on the root.
+ * @typedef {{item: LauncherItem, value: unknown, source: string|null, query: string, page: LauncherItem|null}} LauncherSelectDetail
+ */
+/**
+ * A failed load. A page loader reports as a source whose id is `page:<page id>`, with `page` set.
+ * @typedef {{source: LauncherSource, error: unknown, page: LauncherItem|null}} LauncherErrorDetail
+ */
 /** @typedef {LauncherItem & {_source?: string|null, _score?: number}} RankedLauncherItem */
+/** @typedef {LauncherSource & {_page?: boolean}} LevelSource */
+/**
+ * One open page and the level beneath it, kept so going back restores that level as it was.
+ * @typedef {Object} LauncherPageEntry
+ * @property {LauncherItem} page The page item.
+ * @property {LauncherItem[]} items Its normalized local items (an array page).
+ * @property {LevelSource[]} sources Its loader as a source (a loader page).
+ * @property {{query: string, activeId: string|null, sourceItems: Map<string, RankedLauncherItem[]>|null}} parent
+ *   The level beneath: its query, its highlighted option, and its loaded results when they were complete.
+ */
 
 /**
  * Abortable command/search dialog that emits application-owned actions without routing itself.
+ * Items with `items` open nested pages: an APG combobox whose listbox shows one page at a time.
  * @fires Launcher#select
  * @fires Launcher#query
+ * @fires Launcher#page
  * @fires Launcher#open
  * @fires Launcher#close
  * @fires Launcher#error
@@ -129,10 +175,22 @@ export class Launcher extends Component {
     this._requestSequence = 0;
     this._queryTimer = null;
     this._busy = false;
+    // Whether the current level's sources finished loading for its query: only complete results
+    // are worth keeping for the way back from a page.
+    this._settled = true;
+    /** @type {LauncherPageEntry[]} */
+    this._pages = [];
+    this._restoreActiveId = null;
+    this._announcePending = false;
+    this._announceToggle = false;
     this._destroyed = false;
 
     const listId = uid('zx-launcher-results');
     const label = String(this.options.label ?? this._message('launcher.label', 'Launcher'));
+    const placeholder = String(this.options.placeholder
+      ?? this._message('launcher.placeholder', 'Search applications and records'));
+    this._label = label;
+    this._placeholder = placeholder;
     const input = h('input', {
       ref: 'input',
       class: 'zx-launcher__input',
@@ -144,9 +202,18 @@ export class Launcher extends Component {
       ariaControls: listId,
       ariaExpanded: 'false',
       ariaLabel: label,
-      placeholder: this.options.placeholder ?? this._message('launcher.placeholder', 'Search applications and records'),
+      placeholder,
       value: this._query
     });
+    // The page you are on, before the query. Its × is one step back, like Backspace on an empty
+    // query; the label is also part of the combobox's accessible name (see `_syncPage()`).
+    const scopeBack = h('button', {
+      ref: 'scopeBack',
+      class: 'zx-icon-btn zx-launcher__scope-back',
+      type: 'button'
+    }, icon('x'));
+    const scope = h('span', { ref: 'scope', class: 'zx-launcher__scope', hidden: true },
+      h('span', { ref: 'scopeLabel', class: 'zx-launcher__scope-label' }), scopeBack);
     const close = h('button', {
       ref: 'close',
       class: 'zx-icon-btn zx-launcher__close',
@@ -158,6 +225,15 @@ export class Launcher extends Component {
       class: 'zx-launcher__status',
       role: 'status',
       ariaLive: 'polite'
+    });
+    // Says where a page change landed ("Agents, 7 results"). Kept apart from the visible status,
+    // which only ever shows the loading and empty states.
+    const announce = h('div', {
+      ref: 'announce',
+      class: 'zx-launcher__announce',
+      role: 'status',
+      ariaLive: 'polite',
+      ariaAtomic: 'true'
     });
     const results = h('div', {
       ref: 'results',
@@ -173,6 +249,7 @@ export class Launcher extends Component {
     const footer = launcherHints(this.options.hints, {
       move: this._message('launcher.hintMove', 'Move'),
       open: this._message('launcher.hintOpen', 'Open'),
+      back: this._message('launcher.hintBack', 'Back'),
       close: this._message('launcher.hintClose', 'Close')
     });
     dialog.setAttribute('aria-label', label);
@@ -181,19 +258,28 @@ export class Launcher extends Component {
       h('div', {
         class: 'zx-launcher__search',
         dataset: { shortcut: shortcut ? 'true' : 'false' }
-      }, icon('search'), input, shortcut, close),
+      }, icon('search'), scope, input, shortcut, close),
       status,
       results,
-      footer));
+      footer,
+      announce));
     dialog.dataset.state = 'closed';
-    if (this._createdRoot) overlayHost(this.options.scope).append(dialog);
+    // A scope that is not in the document yet cannot say which themed region owns the dialog; it
+    // stays detached until open() hosts it.
+    if (this._createdRoot) connectedOverlayHost(this.options.scope)?.append(dialog);
 
     this.listen(input, 'input', () => {
       this._query = /** @type {HTMLInputElement} */ (input).value;
+      // Typing answers a page change before its results do; the empty state speaks for itself.
+      this._announcePending = false;
       this.emit('query', { query: this._query.trim() });
       this._refresh();
     });
     this.listen(input, 'keydown', (event) => this._onKeydown(/** @type {KeyboardEvent} */ (event)));
+    this.listen(scopeBack, 'click', () => {
+      this.back();
+      /** @type {HTMLInputElement} */ (input).focus();
+    });
     this.listen(close, 'click', () => this.close());
     this.listen(results, 'click', (event) => {
       const option = /** @type {Element|null} */ (event.target)?.closest?.('[data-launcher-index]');
@@ -216,6 +302,16 @@ export class Launcher extends Component {
       dialog.dataset.state = 'closed';
       input.setAttribute('aria-expanded', 'false');
       this._abortRequest();
+      // The next opening starts on the root, so an application that sets the query or the items
+      // before opening sets them on the level that will show. Reopened in the meantime, the
+      // launcher keeps the page it was opened on.
+      if (this._pages.length && !dialog.open) {
+        this._unwind();
+        this._announcePending = false;
+        this._syncPage();
+        this._renderResults();
+        this._emitPage();
+      }
       this.emit('close');
     });
     this.listen(document, 'keydown', (event) => this._onDocumentKeydown(/** @type {KeyboardEvent} */ (event)));
@@ -223,24 +319,61 @@ export class Launcher extends Component {
     return dialog;
   }
 
-  /** Opens the launcher and focuses/selects its query. @returns {this} @fires Launcher#open */
-  open() {
-    if (this.isOpen() || this._destroyed) return this;
+  /**
+   * Opens the launcher and focuses/selects its query. It opens on the root unless `page` names one;
+   * already open, `page` navigates there.
+   * @param {LauncherOpenOptions} [options={}] Open options.
+   * @returns {this}
+   * @fires Launcher#open
+   * @fires Launcher#page
+   */
+  open(options = {}) {
+    if (this._destroyed) return this;
+    const target = options && typeof options === 'object' ? options.page : undefined;
+    if (this.isOpen()) {
+      const path = target == null ? [] : this._pagePath(target);
+      if (path.length) this._goTo(path);
+      return this;
+    }
     if (this._createdRoot) {
       const host = overlayHost(this.options.scope);
       if (this.el.parentElement !== host) host.append(this.el);
     }
+    const before = this._pages.map((entry) => entry.page);
     this.el.showModal();
     this.el.dataset.state = 'open';
     this.refs.input.setAttribute('aria-expanded', 'true');
-    this._refresh();
+    this._goTo(target == null ? [] : this._pagePath(target), { emit: false });
     queueMicrotask(() => {
       if (!this.isOpen()) return;
       /** @type {HTMLInputElement} */ (this.refs.input).focus();
       /** @type {HTMLInputElement} */ (this.refs.input).select();
     });
     this.emit('open');
+    if (!samePath(before, this._pages.map((entry) => entry.page))) this._emitPage();
     return this;
+  }
+
+  /**
+   * Goes back one page, restoring the level beneath with its query and highlighted option. Does
+   * nothing on the root.
+   * @returns {this}
+   * @fires Launcher#page
+   */
+  back() {
+    if (!this._pages.length) return this;
+    const settled = this._popPage();
+    this._syncPage();
+    this._announcePending = this.isOpen();
+    if (settled) this._renderResults();
+    else this._refresh(true);
+    this._emitPage();
+    return this;
+  }
+
+  /** Returns the page shown, or null on the root. @returns {LauncherItem|null} */
+  getPage() {
+    return this._pages.at(-1)?.page ?? null;
   }
 
   /** Closes the launcher. @returns {this} */
@@ -270,6 +403,7 @@ export class Launcher extends Component {
   setQuery(query) {
     this._query = String(query ?? '');
     /** @type {HTMLInputElement} */ (this.refs.input).value = this._query;
+    this._announcePending = false;
     this.emit('query', { query: this._query.trim() });
     this._refresh();
     return this;
@@ -280,7 +414,7 @@ export class Launcher extends Component {
     return this._query;
   }
 
-  /** Replaces local catalogue items. @param {LauncherItem[]} items @returns {this} */
+  /** Replaces the root's local catalogue items; an open page keeps its own. @param {LauncherItem[]} items @returns {this} */
   setItems(items) {
     this._items = normalizeItems(items);
     this._renderResults();
@@ -295,10 +429,15 @@ export class Launcher extends Component {
     return this;
   }
 
-  /** Replaces asynchronous sources and aborts work from the old set. @param {LauncherSource[]} sources @returns {this} */
+  /** Replaces the root's asynchronous sources and aborts work from the old set; on a page they load once the root is back. @param {LauncherSource[]} sources @returns {this} */
   setSources(sources) {
-    this._abortRequest();
     this._sources = normalizeSources(sources);
+    // The sources belong to the root. On a page they wait: the root reloads when it is back.
+    if (this._pages.length) {
+      this._pages[0].parent.sourceItems = null;
+      return this;
+    }
+    this._abortRequest();
     this._sourceItems.clear();
     this._refresh();
     return this;
@@ -319,12 +458,20 @@ export class Launcher extends Component {
     }
   }
 
-  /** @returns {void} */
-  _refresh() {
-    this._sourceItems.clear();
-    this._renderResults();
+  /**
+   * Re-renders the current level and reloads its sources: debounced while typing, at once when a
+   * page opens (so its loading state shows instead of a passing "No results").
+   * @param {boolean} [immediate=false] Load without the debounce.
+   * @returns {void}
+   */
+  _refresh(immediate = false) {
     this._abortRequest();
-    if (this._sources.length === 0) return;
+    this._sourceItems.clear();
+    const { sources } = this._level();
+    this._settled = sources.length === 0;
+    if (immediate && sources.length) void this._loadSources();
+    this._renderResults();
+    if (immediate || sources.length === 0) return;
     const delay = Math.max(0, Number(this.options.debounce) || 0);
     this._queryTimer = setTimeout(() => this._loadSources(), delay);
   }
@@ -333,9 +480,15 @@ export class Launcher extends Component {
   async _loadSources() {
     this._queryTimer = null;
     const query = this._query.trim();
-    const sources = this._sources.filter((source) => visibleForQuery(source.when, query)
-      && query.length >= Math.max(Number(this.options.minQuery) || 0, Number(source.minQuery) || 0));
-    if (sources.length === 0) return;
+    const page = this._pages?.at(-1)?.page ?? null;
+    // A page's own loader is its content, so it runs on the empty query whatever `minQuery` says.
+    const sources = this._level().sources.filter((source) => visibleForQuery(source.when, query)
+      && query.length >= Math.max(source._page ? 0 : Number(this.options.minQuery) || 0,
+        Number(source.minQuery) || 0));
+    if (sources.length === 0) {
+      this._settled = true;
+      return;
+    }
     const request = new AbortController();
     const sequence = ++this._requestSequence;
     this._request = request;
@@ -346,7 +499,7 @@ export class Launcher extends Component {
         if (request.signal.aborted || sequence !== this._requestSequence) return;
         this._sourceItems.set(source.id, normalizeItems(loaded).map((item, itemOrder) => ({
           ...item,
-          _source: source.id,
+          _source: source._page ? null : source.id,
           _sourceOrder: source.order === 'source',
           group: item.group ?? source.label ?? '',
           itemOrder: item.itemOrder ?? (source.order === 'source' ? itemOrder : undefined)
@@ -354,12 +507,163 @@ export class Launcher extends Component {
         this._renderResults();
       } catch (error) {
         if (request.signal.aborted || sequence !== this._requestSequence) return;
-        this.emit('error', { source, error });
+        this.emit('error', { source, error, page });
       }
     }));
     if (request.signal.aborted || sequence !== this._requestSequence) return;
     this._request = null;
+    this._settled = true;
     this._setBusy(false);
+  }
+
+  /**
+   * The level on screen: the root's items and sources, or the open page's.
+   * @returns {{items: LauncherItem[], sources: LevelSource[]}}
+   */
+  _level() {
+    return this._pages?.at(-1) ?? { items: this._items, sources: this._sources };
+  }
+
+  /**
+   * Opens a page on top of the current level: what the user activated, or ArrowRight on its row.
+   * @param {LauncherItem} item Page item.
+   * @returns {void}
+   */
+  _openPage(item) {
+    this._pushPage(item);
+    this._syncPage();
+    this._announcePending = this.isOpen();
+    this._refresh(true);
+    this._emitPage();
+  }
+
+  /**
+   * Replaces the whole stack with `path` (empty for the root) and refreshes what it lands on.
+   * @param {LauncherItem[]} path Pages from the root down.
+   * @param {{emit?: boolean}} [options={}] Whether to report a change through `page`.
+   * @returns {void}
+   */
+  _goTo(path, { emit = true } = {}) {
+    const before = this._pages.map((entry) => entry.page);
+    this._unwind();
+    if (path.length) {
+      // The root's results may be from an earlier opening; the way back loads them afresh.
+      this._abortRequest();
+      this._sourceItems.clear();
+      this._settled = false;
+      for (const item of path) this._pushPage(item);
+    }
+    this._syncPage();
+    this._announcePending = this.isOpen() && path.length > 0;
+    this._refresh(path.length > 0);
+    if (emit && !samePath(before, path)) this._emitPage();
+  }
+
+  /** Pops every page, restoring the root's query, without rendering. @returns {void} */
+  _unwind() {
+    while (this._pages.length) this._popPage();
+  }
+
+  /**
+   * Pushes a page, remembering the level beneath, and clears the query for it.
+   * @param {LauncherItem} item Page item.
+   * @returns {void}
+   */
+  _pushPage(item) {
+    const active = this._active >= 0 ? this._results[this._active] : null;
+    this._pages.push({
+      page: item,
+      items: Array.isArray(item.items) ? normalizeItems(item.items) : [],
+      sources: typeof item.items === 'function' ? [launcherPageSource(item)] : [],
+      parent: {
+        query: this._query,
+        activeId: active ? String(active.id) : null,
+        sourceItems: this._settled ? new Map(this._sourceItems) : null
+      }
+    });
+    this._setInputQuery('');
+  }
+
+  /**
+   * Pops the top page and restores the level beneath.
+   * @returns {boolean} Whether that level's results came back complete (no reload needed).
+   */
+  _popPage() {
+    const entry = this._pages.pop();
+    if (!entry) return true;
+    this._announcePending = false;
+    this._abortRequest();
+    const { parent } = entry;
+    this._setInputQuery(parent.query);
+    this._sourceItems = parent.sourceItems ? new Map(parent.sourceItems) : new Map();
+    this._settled = parent.sourceItems !== null;
+    this._restoreActiveId = parent.activeId;
+    return this._settled;
+  }
+
+  /** @param {string} query @returns {void} */
+  _setInputQuery(query) {
+    this._query = query;
+    /** @type {HTMLInputElement} */ (this.refs.input).value = query;
+    // A different level: nothing highlighted on the old one carries over by accident of its id.
+    this._renderedQuery = null;
+  }
+
+  /**
+   * Shows the open page in the search row: the chip, the combobox name and placeholder, and the
+   * footer's Back hint.
+   * @returns {void}
+   */
+  _syncPage() {
+    const page = this.getPage();
+    const { input, scope, scopeLabel, scopeBack, backHint } = this.refs;
+    /** @type {HTMLElement} */ (scope).hidden = page === null;
+    if (backHint) /** @type {HTMLElement} */ (backHint).hidden = page === null;
+    this.el.toggleAttribute('data-page', page !== null);
+    if (page === null) {
+      input.setAttribute('aria-label', this._label);
+      input.setAttribute('placeholder', this._placeholder);
+      scopeLabel.textContent = '';
+      return;
+    }
+    const parent = this._pages.at(-2)?.page.label ?? this._label;
+    scopeLabel.textContent = page.label;
+    scopeBack.setAttribute('aria-label', this._message('launcher.back', 'Back to %1', parent));
+    input.setAttribute('aria-label', this._message('launcher.pageLabel', 'Search %1', page.label));
+    input.setAttribute('placeholder', page.placeholder != null ? String(page.placeholder)
+      : this._message('launcher.pagePlaceholder', 'Search'));
+  }
+
+  /** @returns {void} @fires Launcher#page */
+  _emitPage() {
+    const path = this._pages.map((entry) => entry.page);
+    this.emit('page', { page: path.at(-1) ?? null, path });
+  }
+
+  /**
+   * Resolves `open({ page })`: a page item as given, or the path to a local page by id.
+   * @param {string|number|LauncherItem} target Page id or item.
+   * @returns {LauncherItem[]}
+   */
+  _pagePath(target) {
+    if (target && typeof target === 'object') {
+      const item = /** @type {Record<string, any>} */ (target);
+      if (!isLauncherPage(item) || item.label == null) return [];
+      return [normalizeLauncherItem({ ...item, id: item.id ?? item.label })];
+    }
+    return findLauncherPage(this._items, /** @type {string|number} */ (target));
+  }
+
+  /**
+   * The polite line a page change ends on: where the user is and how much is there.
+   * @returns {string}
+   */
+  _pageStatus() {
+    const label = this.getPage()?.label ?? this._label;
+    const count = this._results.length;
+    if (count === 0) return this._message('launcher.pageEmpty', '%1, no results', label);
+    if (count === 1) return this._message('launcher.pageResult', '%1, 1 result', label);
+    return this._message('launcher.pageResults', '%1, %2 results', label, count);
   }
 
   /** @param {boolean} busy @returns {void} */
@@ -382,12 +686,16 @@ export class Launcher extends Component {
   /** @returns {void} */
   _renderResults() {
     const queryKey = this._query;
-    const activeId = this._renderedQuery === queryKey && this._active >= 0 && this._results[this._active]
-      ? String(this._results[this._active].id) : null;
+    // Back from a page, the option that opened it is highlighted again.
+    const restored = this._restoreActiveId ?? null;
+    this._restoreActiveId = null;
+    const activeId = restored ?? (this._renderedQuery === queryKey && this._active >= 0 && this._results[this._active]
+      ? String(this._results[this._active].id) : null);
     const query = this._query.trim();
-    const local = this._items.filter((item) => visibleForQuery(item.when, query));
+    const level = this._level();
+    const local = level.items.filter((item) => visibleForQuery(item.when, query));
     const rankedLocal = rankLauncherItems(local, query, this.options.maxResults);
-    const remote = this._sources.flatMap((source) => {
+    const remote = level.sources.flatMap((source) => {
       const loaded = this._sourceItems.get(String(source.id)) ?? [];
       return source.order === 'source'
         ? loaded.filter((item) => visibleForQuery(item.when, query))
@@ -435,7 +743,9 @@ export class Launcher extends Component {
 
   /** @param {RankedLauncherItem} item @param {number} index @returns {HTMLElement} */
   _option(item, index) {
-    const href = safeHref(item.href);
+    // A page row navigates inside the launcher, so it is never a link.
+    const page = isLauncherPage(item);
+    const href = page ? null : safeHref(item.href);
     const tag = href ? 'a' : 'button';
     const children = [];
     const visual = launcherItemIcon(item);
@@ -447,6 +757,15 @@ export class Launcher extends Component {
       h('span', { class: 'zx-launcher__label' }, item.label),
       item.description ? h('span', { class: 'zx-launcher__description' }, item.description) : null));
     if (item.badge != null) children.push(h('span', { class: 'zx-launcher__badge' }, String(item.badge)));
+    if (item.hint != null && item.hint !== '') {
+      children.push(h('span', { class: 'zx-launcher__hint' }, String(item.hint)));
+    }
+    const keys = launcherShortcutKeys(item);
+    const caps = launcherShortcutCaps(item.shortcut);
+    // Drawn caps are part of the option's name unless `keys` already exposes the shortcut.
+    if (caps.length) children.push(h('span', { class: 'zx-launcher__keys', ariaHidden: keys ? 'true' : null },
+      caps.map((cap) => h('kbd', { class: 'zx-launcher__key' }, cap))));
+    if (page) children.push(h('span', { class: 'zx-launcher__chevron', ariaHidden: 'true' }, icon('chevron-right')));
     return /** @type {HTMLElement} */ (h(tag, {
       class: 'zx-launcher__option',
       type: tag === 'button' ? 'button' : null,
@@ -459,10 +778,12 @@ export class Launcher extends Component {
       ariaSelected: 'false',
       ariaDisabled: item.disabled ? 'true' : null,
       ariaCurrent: item.current ? 'page' : null,
+      ariaKeyShortcuts: keys,
       dataset: {
         launcherIndex: index,
         pinned: item.pinned !== undefined && item.pinned !== false ? 'true' : null,
-        kind: normalizeLauncherKind(item.kind)
+        kind: normalizeLauncherKind(item.kind),
+        page: page ? 'true' : null
       }
     }, children));
   }
@@ -479,6 +800,14 @@ export class Launcher extends Component {
       this.refs.status.textContent = '';
     }
     this.refs.status.hidden = !this.refs.status.textContent;
+    // A page change is announced once its level has rendered for its own query and finished
+    // loading, so the count is the one the user will find.
+    if (this._announcePending && !this._busy && this._renderedQuery === this._query) {
+      this._announcePending = false;
+      this._announceToggle = !this._announceToggle;
+      // The trailing space makes a repeated identical line a change the live region reports.
+      this.refs.announce.textContent = this._pageStatus() + (this._announceToggle ? '\u00a0' : '');
+    }
   }
 
   /** @returns {void} */
@@ -499,6 +828,14 @@ export class Launcher extends Component {
       this.close();
       return;
     }
+    const plain = !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey;
+    // Backspace on an empty query leaves the page. A held key stops at the empty query instead of
+    // running on through every page beneath it.
+    if (event.key === 'Backspace' && plain && !event.repeat && this._pages.length && this._query === '') {
+      event.preventDefault();
+      this.back();
+      return;
+    }
     if (event.key === 'Enter') {
       if (this._active < 0) return;
       event.preventDefault();
@@ -507,9 +844,8 @@ export class Launcher extends Component {
       return;
     }
     const enabled = this._results.map((item, index) => item.disabled ? -1 : index).filter((index) => index >= 0);
-    if (enabled.length === 0) return;
     if (/^Arrow(?:Left|Right|Up|Down)$/.test(event.key)) {
-      const next = this._spatialIndex(event.key, enabled);
+      const next = enabled.length ? this._spatialIndex(event.key, enabled) : null;
       if (next !== null) {
         event.preventDefault();
         this._active = next;
@@ -518,8 +854,12 @@ export class Launcher extends Component {
           ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
         return;
       }
-      if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') return;
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+        if (plain && !event.repeat && this._pageKey(event.key)) event.preventDefault();
+        return;
+      }
     }
+    if (enabled.length === 0) return;
     let position = enabled.indexOf(this._active);
     if (event.key === 'Home' || event.key === 'PageUp') position = 0;
     else if (event.key === 'End' || event.key === 'PageDown') position = enabled.length - 1;
@@ -530,6 +870,28 @@ export class Launcher extends Component {
     this._active = enabled[position];
     this._syncActive();
     this.refs.results.querySelector(`[data-launcher-index="${this._active}"]`)?.scrollIntoView({ block: 'nearest' });
+  }
+
+  /**
+   * ArrowRight on a page row opens it once the caret is at the end of the query (before that it
+   * moves the caret); ArrowLeft on an empty query goes back. Application tiles keep both arrows
+   * for moving through their grid, which the caller tries first.
+   * @param {string} key ArrowLeft or ArrowRight.
+   * @returns {boolean} Whether the key navigated.
+   */
+  _pageKey(key) {
+    if (key === 'ArrowLeft') {
+      if (!this._pages.length || this._query !== '') return false;
+      this.back();
+      return true;
+    }
+    const item = this._active >= 0 ? this._results[this._active] : null;
+    if (!item || item.disabled || !isLauncherPage(item) || item.kind === 'application') return false;
+    const input = /** @type {HTMLInputElement} */ (this.refs.input);
+    const end = input.value.length;
+    if (input.selectionStart !== end || input.selectionEnd !== end) return false;
+    this._openPage(item);
+    return true;
   }
 
   /** @param {string} direction @param {number[]} enabled @returns {number|null} */
@@ -553,21 +915,31 @@ export class Launcher extends Component {
       event.preventDefault();
       return;
     }
+    if (isLauncherPage(item)) {
+      event.preventDefault();
+      this._openPage(item);
+      // A pointer may have focused the option it pressed, which the new page just removed.
+      /** @type {HTMLInputElement} */ (this.refs.input).focus();
+      return;
+    }
     const selected = this.emit('select', {
       item,
       value: item.value ?? item.id,
       source: item._source ?? null,
-      query: this._query.trim()
+      query: this._query.trim(),
+      page: this.getPage()
     });
     if (selected.defaultPrevented) {
       event.preventDefault();
       return;
     }
+    // Close first: closing the dialog returns focus to where it was before the launcher opened, so
+    // a command that redraws that element, or moves focus on purpose, has to run after it.
+    this.close();
     if (!item.href) {
       event.preventDefault();
       item.invoke?.();
     }
-    this.close();
   }
 
   /** @param {KeyboardEvent} event @returns {void} */
@@ -588,11 +960,12 @@ export class Launcher extends Component {
    * Resolves a message through the host translator, falling back to the built-in English text.
    * @param {string} key Message key.
    * @param {string} fallback English default.
+   * @param {...unknown} args Positional `%1`, `%2` values.
    * @returns {string}
    */
-  _message(key, fallback) {
-    const message = this.msg(key);
-    return message === key ? fallback : message;
+  _message(key, fallback, ...args) {
+    const message = this.msg(key, ...args);
+    return message === key ? printf(fallback, args) : message;
   }
 }
 
@@ -605,7 +978,7 @@ function launcherShortcutLabel() {
 
 /**
  * @param {LauncherOptions['hints']} hints Host-supplied hint labels, or false to omit the row.
- * @param {{move: string, open: string, close: string}} defaults Resolved built-in labels.
+ * @param {{move: string, open: string, back: string, close: string}} defaults Resolved built-in labels.
  * @returns {HTMLElement|null}
  */
 function launcherHints(hints, defaults) {
@@ -614,7 +987,95 @@ function launcherHints(hints, defaults) {
   return h('footer', { class: 'zx-launcher__hints', ariaHidden: 'true' },
     h('span', {}, h('kbd', {}, '↑↓←→'), labels.move ?? defaults.move),
     h('span', {}, h('kbd', {}, '↵'), labels.open ?? defaults.open),
+    // Shown only on a page (`_syncPage()`).
+    h('span', { ref: 'backHint', hidden: true }, h('kbd', {}, '⌫'), labels.back ?? defaults.back),
     h('span', {}, h('kbd', {}, 'Esc'), labels.close ?? defaults.close));
+}
+
+/**
+ * Whether an item opens a page rather than being selected.
+ * @param {unknown} item Candidate item.
+ * @returns {boolean}
+ */
+export function isLauncherPage(item) {
+  const items = /** @type {Record<string, any>|null} */ (item)?.items;
+  return Boolean(item) && typeof item === 'object' && (Array.isArray(items) || typeof items === 'function');
+}
+
+/**
+ * Finds a page among local items by id, descending through array pages (a loader's items are not
+ * known until it runs).
+ * @param {LauncherItem[]} items Root items.
+ * @param {string|number} id Page item id.
+ * @returns {LauncherItem[]} The pages from the root down to the match, or an empty array.
+ */
+export function findLauncherPage(items, id) {
+  if (id == null) return [];
+  const key = String(id);
+  const seen = new Set();
+  /** @param {unknown} list @param {LauncherItem[]} trail @returns {LauncherItem[]|null} */
+  const visit = (list, trail) => {
+    if (!Array.isArray(list) || seen.has(list)) return null;
+    seen.add(list);
+    for (const item of normalizeItems(list)) {
+      if (!isLauncherPage(item)) continue;
+      const path = [...trail, item];
+      if (String(item.id) === key) return path;
+      const found = visit(item.items, path);
+      if (found) return found;
+    }
+    return null;
+  };
+  return visit(items, []) ?? [];
+}
+
+/**
+ * Normalizes an item's `shortcut` into the key labels drawn as caps.
+ * @param {unknown} shortcut `['⌘', 'K']`, one label, or `{label, keys}`.
+ * @returns {string[]}
+ */
+export function launcherShortcutCaps(shortcut) {
+  const labels = shortcut && typeof shortcut === 'object' && !Array.isArray(shortcut)
+    ? /** @type {{label?: unknown}} */ (shortcut).label : shortcut;
+  const caps = Array.isArray(labels) ? labels : labels == null ? [] : [labels];
+  return caps.filter((cap) => cap != null && String(cap).trim() !== '').map((cap) => String(cap).trim());
+}
+
+/**
+ * The `aria-keyshortcuts` value of an item: its `keys`, or the `keys` of a `{label, keys}` shortcut.
+ * @param {LauncherItem} item Item.
+ * @returns {string|null}
+ */
+function launcherShortcutKeys(item) {
+  const shortcut = /** @type {any} */ (item.shortcut);
+  const keys = item.keys ?? (shortcut && typeof shortcut === 'object' && !Array.isArray(shortcut) ? shortcut.keys : null);
+  return typeof keys === 'string' && keys.trim() ? keys.trim() : null;
+}
+
+/**
+ * A page loader as a source of its page, so it shares the debounce, abort, loading, and ranking
+ * of the root's sources.
+ * @param {LauncherItem} item Page item whose `items` is a loader.
+ * @returns {LevelSource}
+ */
+function launcherPageSource(item) {
+  return {
+    id: `page:${String(item.id)}`,
+    load: /** @type {LauncherPageLoader} */ (item.items),
+    order: item.order === 'source' ? 'source' : 'rank',
+    _page: true
+  };
+}
+
+/**
+ * Whether two page paths name the same pages.
+ * @param {LauncherItem[]} left Path.
+ * @param {LauncherItem[]} right Path.
+ * @returns {boolean}
+ */
+function samePath(left, right) {
+  return left.length === right.length
+    && left.every((item, index) => item === right[index] || String(item.id) === String(right[index].id));
 }
 
 /** @param {LauncherItem} item @returns {Node|null} */
@@ -774,7 +1235,7 @@ function normalizeLauncherItem(item) {
   if (href !== null) normalized.href = href;
   else {
     delete normalized.href;
-    if (typeof normalized.invoke !== 'function') normalized.disabled = true;
+    if (typeof normalized.invoke !== 'function' && !isLauncherPage(normalized)) normalized.disabled = true;
   }
   return normalized;
 }
@@ -799,6 +1260,7 @@ export function orderedLauncherSourceItems(sources, sourceItems) {
 
 /** Fired when a result is activated. @event Launcher#select @type {CustomEvent<LauncherSelectDetail>} */
 /** Fired when the query changes. @event Launcher#query @type {CustomEvent<{query: string}>} */
+/** Fired after a page opens or closes, or `open()` lands on a different page. @event Launcher#page @type {CustomEvent<LauncherPageDetail>} */
 /** Fired after the dialog opens. @event Launcher#open @type {CustomEvent<Record<string, never>>} */
 /** Fired after the dialog closes. @event Launcher#close @type {CustomEvent<Record<string, never>>} */
-/** Fired when one asynchronous source fails. @event Launcher#error @type {CustomEvent<{source: LauncherSource, error: unknown}>} */
+/** Fired when one asynchronous source or page loader fails. @event Launcher#error @type {CustomEvent<LauncherErrorDetail>} */

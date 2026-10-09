@@ -1,0 +1,99 @@
+/*
+ * ZeyOS invoices: the generated table fills the pane under a filter bar, and the inspector shows
+ * the connection and the query the binding last sent.
+ */
+
+.zinvoices .zinvoices__status {
+  overflow: hidden;
+  min-inline-size: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A header short of room shortens the status line before it gives up a button. */
+.zinvoices .shell__header-actions > .zinvoices__status {
+  flex-shrink: 1;
+}
+
+/* ------------------------------------------------------------------- filters -- */
+
+/* The filter bar is the toolbar itself: no frame of its own, and its labels are read out rather
+   than shown — the placeholder and the "All statuses" choice say what each control is. */
+.zinvoices .zinvoices__filters .zx-data-filter {
+  flex: 1 1 auto;
+  align-items: center;
+  gap: var(--zx-space-2);
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.zinvoices .zinvoices__filters .zx-data-filter__field {
+  flex: 0 1 12rem;
+  min-inline-size: 9rem;
+}
+
+.zinvoices .zinvoices__filters .zx-data-filter__field:first-child {
+  flex: 0 1 22rem;
+}
+
+.zinvoices .zinvoices__filters .zx-data-filter__label {
+  position: absolute;
+  overflow: hidden;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.zinvoices .zinvoices__filters .zx-data-filter__clear {
+  align-self: center;
+}
+
+/* A phone gives each filter a row of its own. */
+@container shell (max-width: 640px) {
+  .zinvoices .zinvoices__filters .zx-data-filter__field,
+  .zinvoices .zinvoices__filters .zx-data-filter__field:first-child {
+    flex: 1 1 12rem;
+  }
+}
+
+/* --------------------------------------------------------------------- table -- */
+
+/* The table scrolls with the pane body, so its sticky header sticks to the body's top edge, and
+   the pane is its frame. */
+.zinvoices .zinvoices__table .zx-table__scroll {
+  overflow: visible;
+}
+
+.zinvoices .zinvoices__table[aria-busy="true"] .zx-table {
+  opacity: 0.65;
+}
+
+.zinvoices .zinvoices__more {
+  display: flex;
+  justify-content: center;
+  padding: var(--zx-space-4);
+}
+
+.zinvoices .zinvoices__more:has(> [hidden]) {
+  display: none;
+}
+
+/* ----------------------------------------------------------------- inspector -- */
+
+.zinvoices .zinvoices__note {
+  margin: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .zinvoices .zinvoices__table .zx-table {
+    transition: opacity var(--zx-dur-fast) var(--zx-ease);
+  }
+}

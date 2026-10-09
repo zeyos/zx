@@ -29,11 +29,12 @@
 }
 
 .zx-form__actions .zx-btn[type="submit"] {
-  border-color: var(--zx-color-accent);
-  background: var(--zx-color-accent);
-  color: var(--zx-color-on-accent);
+  border-color: var(--zx-color-accent-solid);
+  background: var(--zx-color-accent-solid);
+  color: var(--zx-color-on-accent-solid);
 }
 
 .zx-form__actions .zx-btn[type="submit"]:hover {
-  background: var(--zx-color-accent-hover);
+  border-color: var(--zx-color-accent-solid-hover);
+  background: var(--zx-color-accent-solid-hover);
 }

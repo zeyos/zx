@@ -1,6 +1,7 @@
 import { Component } from '../../core/component.js';
 import { h } from '../../core/dom.js';
 import { icon as createIcon } from '../../core/icons.js';
+import { uid } from '../../core/util.js';
 import { Fieldset } from '../fieldset/fieldset.js';
 import { coerceFloat, coerceInteger } from '../field/field.js';
 
@@ -22,6 +23,9 @@ import { coerceFloat, coerceInteger } from '../field/field.js';
  * @property {Array<Fieldset|import('../fieldset/fieldset.js').FieldsetOptions>} [fieldsets=[]] Initial fieldsets.
  * @property {FormAction[]} [actions=[]] Form action descriptors.
  * @property {boolean} [novalidate=true] Native `novalidate` state.
+ * @property {string|null} [idPrefix=null] Prefix of the DOM ids generated for the fields of the
+ *   fieldsets this form builds, as `<idPrefix>-<key>`. Null generates one per form instance, so a
+ *   form mounted twice never repeats an id. A fieldset's own `idPrefix` wins.
  * @property {(event: CustomEvent<{values: Record<string, unknown>}>) => void} [onsubmit] Submit listener.
  * @property {(event: CustomEvent<{errors: Record<string, string>}>) => void} [oninvalid] Invalid listener.
  * @property {(event: CustomEvent<{id: string, value: unknown}>) => void} [onchange] Field change listener.
@@ -42,6 +46,7 @@ export class Form extends Component {
     fieldsets: [],
     actions: [],
     novalidate: true,
+    idPrefix: null,
     msg: {
       'form.required': 'This field is required.',
       'form.int': 'Enter a whole number.',
@@ -56,6 +61,7 @@ export class Form extends Component {
     this._ownedFieldsets = new Set();
     this._origins = new Map();
     this._ownedNodes = [];
+    this._idPrefix = this.options.idPrefix ? String(this.options.idPrefix) : uid('zx-form');
     this._novalidateAttribute = root.getAttribute('novalidate');
     root.toggleAttribute('novalidate', Boolean(this.options.novalidate));
 
@@ -81,13 +87,16 @@ export class Form extends Component {
   }
 
   /**
-   * Adds an existing fieldset or constructs one from options.
+   * Adds an existing fieldset or constructs one from options. A constructed fieldset generates its
+   * field ids from the form's `idPrefix` unless its options carry their own.
    * @param {Fieldset|import('../fieldset/fieldset.js').FieldsetOptions} fieldset Fieldset source.
    * @returns {Fieldset}
    */
   addFieldset(fieldset) {
     const owned = !(fieldset instanceof Fieldset);
-    const instance = owned ? new Fieldset(null, fieldset ?? {}) : fieldset;
+    const instance = owned
+      ? new Fieldset(null, { ...(fieldset ?? {}), idPrefix: fieldset?.idPrefix ?? this._idPrefix })
+      : fieldset;
     if (this._fieldsets.includes(instance)) return instance;
     if (owned) this._ownedFieldsets.add(instance);
     else this._origins.set(instance, { parent: instance.el.parentNode, next: instance.el.nextSibling });

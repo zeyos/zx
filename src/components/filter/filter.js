@@ -295,7 +295,7 @@ export class Filter extends Component {
       actionButton('add', this._value.root.id, 'plus', this._message('filter.addFilter', 'Add filter'), { ref: 'add', disabled: this._blocked() }),
       this.options.allowGroups ? actionButton('add-group', this._value.root.id, 'folder', this._message('filter.addGroup', 'Add group'), { disabled: this._blocked() }) : null,
       actionButton('clear', '', 'x', String(this.options.clearLabel ?? this._message('filter.clear', 'Clear')), { disabled: this._blocked() }),
-      this.options.showApply ? actionButton('apply', '', 'check', String(this.options.applyLabel ?? this._message('filter.apply', 'Apply filters')), { class: 'zx-button--primary', disabled: this._disabled }) : null
+      this.options.showApply ? actionButton('apply', '', 'check', String(this.options.applyLabel ?? this._message('filter.apply', 'Apply filters')), { kind: 'primary', disabled: this._disabled }) : null
     );
     this.el.replaceChildren(status, tree, actions);
     this.refs.status = status;
@@ -631,9 +631,13 @@ export class Filter extends Component {
   }
 }
 
-/** @param {string} action @param {string} id @param {string} iconName @param {string} label @param {Record<string,any>} [props={}] @returns {HTMLElement} */
+/** @param {string} action @param {string} id @param {string} iconName @param {string} label @param {Record<string,any>} [props={}] `kind` picks the Button kind; the rest are element properties. @returns {HTMLElement} */
 function actionButton(action, id, iconName, label, props = {}) {
-  return h('button', { type: 'button', class: ['zx-button', 'zx-button--sm', props.class].filter(Boolean), ...props, dataset: { filterAction: action, nodeId: id } }, icon(iconName, { size: 13 }), h('span', {}, label));
+  const { kind, ...rest } = props;
+  return h('button', {
+    type: 'button', class: 'zx-btn', ...rest,
+    dataset: { filterAction: action, nodeId: id, size: 'sm', ...(kind ? { kind } : {}) }
+  }, icon(iconName), h('span', {}, label));
 }
 
 /** @param {FilterField} field @param {any} node @param {any} value @param {boolean} multiple @param {boolean} disabled @param {number} [index=0] @param {FilterValueMessages} [messages=BUILT_IN_VALUE_MESSAGES] @returns {HTMLSelectElement|null} */

@@ -12,6 +12,11 @@
   color: var(--zx-color-text);
   font-family: var(--zx-font-sans);
   font-size: var(--zx-text-md);
+  /* Inter at 13–14px reads better a touch tight. `cv11` is Inter's single-storey a: at interface
+     sizes it is rounder and calmer than the double-storey form, and it tells a from o and e
+     apart at least as well. Fonts without the feature ignore it. */
+  font-feature-settings: "cv11";
+  letter-spacing: var(--zx-tracking-tight);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   scrollbar-gutter: stable;
@@ -65,6 +70,41 @@
 
 :where(.zx-scope button:not(.zx-icon-btn)):hover {
   background: var(--zx-color-bg-hover);
+}
+
+/* Quiet fields. Inside `[data-zx-fields="quiet"]` — a property panel, an inspector, an inline
+   record — native text inputs, selects, and textareas drop their border and fill so the values
+   read as text, and show that they are editable on hover (the hover fill) and on focus (the
+   normal border, the control fill, and the focus ring). Read-only and disabled fields never
+   light up. Zero specificity, like the defaults above: a component that styles its own inner
+   input keeps doing so. Composite controls opt in through their own stylesheets. */
+:where(.zx-scope[data-zx-fields="quiet"], .zx-scope [data-zx-fields="quiet"]) :where(
+  input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"],
+    [type="button"], [type="submit"], [type="reset"], [type="image"]),
+  select,
+  textarea
+) {
+  border-color: transparent;
+  background: transparent;
+}
+
+:where(.zx-scope[data-zx-fields="quiet"], .zx-scope [data-zx-fields="quiet"]) :where(
+  input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"],
+    [type="button"], [type="submit"], [type="reset"], [type="image"]),
+  select,
+  textarea
+):where(:hover:not(:focus, :disabled, [readonly])) {
+  background: var(--zx-color-bg-hover);
+}
+
+:where(.zx-scope[data-zx-fields="quiet"], .zx-scope [data-zx-fields="quiet"]) :where(
+  input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"],
+    [type="button"], [type="submit"], [type="reset"], [type="image"]),
+  select,
+  textarea
+):where(:focus:not([readonly])) {
+  border-color: var(--zx-color-border-control);
+  background: var(--zx-color-bg-control);
 }
 
 /* Ghost icon button: a borderless, transparent hit target for small glyph actions
@@ -121,4 +161,20 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Motion as a setting: the same stop inside any `data-zx-motion="reduced"` region, whatever the
+   operating system says (`tokens/global.css` zeroes the duration tokens there too). Only movement
+   stops — every transition and animation still runs to its end state, at once, and still fires its
+   end event, so a menu still opens and a toast still leaves; a spinner stops turning. There is no
+   value that re-enables motion inside a reduced region. */
+[data-zx-motion="reduced"],
+[data-zx-motion="reduced"] *,
+[data-zx-motion="reduced"] *::before,
+[data-zx-motion="reduced"] *::after,
+[data-zx-motion="reduced"] *::backdrop {
+  scroll-behavior: auto !important;
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
 }

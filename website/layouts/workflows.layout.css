@@ -1,0 +1,709 @@
+/* Workflows layout. Every selector is scoped under .flow. */
+
+/* ------------------------------------------------------------- main pane -- */
+
+.flow .flow__view {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-block-size: 0;
+}
+
+/* The page title, its subtitle, and the tab row are one header: the tab row draws the line. */
+.flow .flow__header {
+  border-block-end: 0;
+}
+
+/* The subtitle: facts set apart by space, so a narrow pane can wrap them anywhere. */
+.flow .flow__summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zx-space-1) var(--zx-space-4);
+  padding: 0 var(--zx-space-4) var(--zx-space-2);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+.flow .flow__fact {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+}
+
+/* "All changes saved" is reassurance, not news: muted, whatever its state. */
+.flow .flow__summary .zx-inline-loading {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+/* ---------------------------------------------------------------- builder -- */
+
+.flow .flow__canvas {
+  container: flow-canvas / inline-size;
+  background: var(--zx-color-bg-page);
+}
+
+.flow .flow__column {
+  --flow-card-width: 34rem;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-inline-size: 48rem;
+  margin-inline: auto;
+  padding: var(--zx-space-5);
+}
+
+.flow .flow__steps,
+.flow .flow__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  inline-size: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.flow .flow__step {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--zx-space-3);
+  inline-size: min(100%, var(--flow-card-width));
+  min-block-size: 0;
+  padding: calc(var(--zx-space-3) + 2px) var(--zx-space-4);
+  border: 1px solid var(--zx-color-border);
+  border-radius: var(--zx-radius-lg);
+  background: var(--zx-color-bg-raised);
+  color: var(--zx-color-text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.flow .flow__step:hover {
+  border-color: var(--zx-color-border-strong);
+}
+
+/* The selected step: an accent outline and a soft halo, nothing docked to an edge. */
+.flow .flow__step[aria-current="true"] {
+  border-color: var(--zx-color-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--zx-color-accent) 18%, transparent);
+}
+
+.flow .flow__step:focus-visible {
+  outline: none;
+  border-color: var(--zx-color-accent);
+  box-shadow: var(--zx-focus-ring);
+}
+
+.flow .flow__step-body {
+  display: grid;
+  gap: 2px;
+  min-inline-size: 0;
+}
+
+/* The kind, above the name, in the ink of its tone. */
+.flow .flow__step[data-tone="blue"] { --flow-tone: var(--zx-color-tone-blue-fg); }
+.flow .flow__step[data-tone="teal"] { --flow-tone: var(--zx-color-tone-teal-fg); }
+.flow .flow__step[data-tone="green"] { --flow-tone: var(--zx-color-tone-green-fg); }
+.flow .flow__step[data-tone="amber"] { --flow-tone: var(--zx-color-tone-amber-fg); }
+.flow .flow__step[data-tone="orange"] { --flow-tone: var(--zx-color-tone-orange-fg); }
+.flow .flow__step[data-tone="pink"] { --flow-tone: var(--zx-color-tone-pink-fg); }
+.flow .flow__step[data-tone="violet"] { --flow-tone: var(--zx-color-tone-violet-fg); }
+.flow .flow__step[data-tone="slate"] { --flow-tone: var(--zx-color-tone-slate-fg); }
+
+.flow .flow__step-kind {
+  color: var(--flow-tone, var(--zx-color-text-muted));
+  font-size: var(--zx-text-xs);
+  font-weight: var(--zx-weight-medium);
+  line-height: 1.4;
+}
+
+.flow .flow__step-name {
+  font-size: var(--zx-text-md);
+  font-weight: var(--zx-weight-semibold);
+  line-height: 1.35;
+}
+
+.flow .flow__step-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zx-space-1) var(--zx-space-2);
+  margin-block-start: 2px;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+/* Faces set into a line of text overlap less than the kit's larger stack. */
+.flow .flow__step-meta .avatar-stack > * {
+  box-shadow: 0 0 0 2px var(--zx-color-bg-raised);
+}
+
+.flow .flow__step-meta .avatar-stack > * + * {
+  margin-inline-start: -4px;
+}
+
+/* "+1" after the faces a card has room for, the same size as they are. Positioned, like the
+   avatars, so it stacks above the face before it. */
+.flow .flow__more {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  min-inline-size: 20px;
+  block-size: 20px;
+  padding-inline: 3px;
+  background: var(--zx-color-bg-muted);
+  color: var(--zx-color-text-muted);
+  font-size: 10px;
+  font-weight: var(--zx-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A connector is a hairline with the add button on it. The button stays out of sight until the
+   line is pointed at or focused, and is always there on a touch screen. */
+.flow .flow__connector {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  inline-size: 100%;
+  padding-block: var(--zx-space-2);
+}
+
+.flow .flow__connector::before,
+.flow .flow__lane::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 50%;
+  border-inline-start: 1px solid var(--zx-color-border);
+}
+
+/* The button is a 24px target around the 20px disc it draws, and gives the extra back to the
+   connector's padding, so the line between two steps keeps its length. */
+.flow .flow__add {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  inline-size: var(--zx-space-6);
+  block-size: var(--zx-space-6);
+  min-block-size: 0;
+  margin-block: calc((var(--zx-space-5) - var(--zx-space-6)) / 2);
+  padding: 0;
+  border: 0;
+  border-radius: var(--zx-radius-full);
+  background: none;
+  color: var(--zx-color-text-muted);
+  opacity: 0;
+}
+
+.flow .flow__add::before {
+  content: "";
+  position: absolute;
+  inset: calc((var(--zx-space-6) - var(--zx-space-5)) / 2);
+  border: 1px solid var(--zx-color-border-strong);
+  border-radius: inherit;
+  background: var(--zx-color-bg-raised);
+}
+
+.flow .flow__add > .zx-icon {
+  position: relative;
+}
+
+.flow .flow__connector:hover .flow__add,
+.flow .flow__connector:focus-within .flow__add,
+.flow .flow__add[aria-expanded="true"] {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .flow .flow__add {
+    opacity: 1;
+  }
+}
+
+.flow .flow__add:hover,
+.flow .flow__add[aria-expanded="true"] {
+  background: none;
+  color: var(--zx-color-text);
+}
+
+.flow .flow__add:is(:hover, [aria-expanded="true"])::before {
+  border-color: var(--zx-color-text-subtle);
+}
+
+.flow .flow__add:focus-visible {
+  outline: none;
+  box-shadow: var(--zx-focus-ring);
+}
+
+/* A condition splits into two lanes that meet again below. The lines joining them are drawn by
+   the container: a stub under the condition card (::before), a bar across the lane centres (its
+   background), and the bar that joins them again (::after). */
+.flow .flow__branches {
+  --flow-lane-gap: var(--zx-space-5);
+  --flow-stub: var(--zx-space-4);
+  --flow-bar-inset: calc((100% - var(--flow-lane-gap)) / 4);
+
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--flow-lane-gap);
+  inline-size: 100%;
+  padding-block-start: var(--flow-stub);
+  background: linear-gradient(var(--zx-color-border), var(--zx-color-border))
+    center var(--flow-stub) / calc(100% - 2 * var(--flow-bar-inset)) 1px no-repeat;
+}
+
+.flow .flow__branches::before {
+  content: "";
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 50%;
+  block-size: var(--flow-stub);
+  border-inline-start: 1px solid var(--zx-color-border);
+}
+
+.flow .flow__branches::after {
+  content: "";
+  position: absolute;
+  inset-block-end: 0;
+  inset-inline: var(--flow-bar-inset);
+  border-block-start: 1px solid var(--zx-color-border);
+}
+
+.flow .flow__lane {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-inline-size: 0;
+  padding-block: var(--zx-space-3) var(--zx-space-4);
+}
+
+.flow .flow__lane-label {
+  position: relative;
+  padding: 0 var(--zx-space-2);
+  border: 1px solid var(--zx-color-border);
+  border-radius: var(--zx-radius-full);
+  background: var(--zx-color-bg-raised);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-weight: var(--zx-weight-medium);
+  line-height: 1.6;
+}
+
+.flow .flow__end {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  margin: 0;
+  padding: var(--zx-space-1) var(--zx-space-3);
+  border: 1px solid var(--zx-color-border);
+  border-radius: var(--zx-radius-full);
+  background: var(--zx-color-bg-raised);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+.flow .flow__end .zx-icon {
+  color: var(--zx-color-text-subtle);
+}
+
+.flow .flow__keys {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--zx-space-2) var(--zx-space-5);
+  margin: var(--zx-space-6) 0 0;
+}
+
+.flow .flow__keys > span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-1);
+}
+
+/* The assistant's suggestion is docked above the flow in the assistant's tone, wider than a step
+   and set apart from the trigger, so it never reads as one. */
+.flow .flow__suggestion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zx-space-3) var(--zx-space-5);
+  inline-size: 100%;
+  margin-block-end: var(--zx-space-7);
+  padding: var(--zx-space-4);
+  border-radius: var(--zx-radius-lg);
+  background: var(--zx-color-tone-pink-bg);
+}
+
+.flow .flow__suggestion-body {
+  display: grid;
+  flex: 1 1 24rem;
+  gap: 2px;
+  min-inline-size: 0;
+}
+
+.flow .flow__suggestion-kicker {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-1);
+  margin: 0;
+  color: var(--zx-color-tone-pink-fg);
+  font-size: var(--zx-text-xs);
+  font-weight: var(--zx-weight-medium);
+  line-height: 1.4;
+}
+
+.flow .flow__suggestion-basis {
+  color: var(--zx-color-text-muted);
+  font-weight: 400;
+}
+
+.flow .flow__suggestion-basis::before {
+  content: "·";
+  margin-inline: var(--zx-space-1);
+}
+
+.flow .flow__suggestion-title {
+  margin: 0;
+  font-size: var(--zx-text-md);
+  font-weight: var(--zx-weight-semibold);
+  line-height: 1.35;
+}
+
+.flow .flow__suggestion-text {
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  line-height: 1.5;
+}
+
+.flow .flow__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zx-space-2);
+}
+
+/* In a narrow canvas the lanes keep their cards readable by dropping the secondary line. */
+@container flow-canvas (max-width: 560px) {
+  .flow .flow__lane .flow__step-meta {
+    display: none;
+  }
+
+  .flow .flow__lane .flow__step {
+    padding-inline: var(--zx-space-3);
+  }
+}
+
+/* -------------------------------------------------------------- inspector -- */
+
+.flow .shell__aside .panel-block > .zx-toggle {
+  justify-self: start;
+}
+
+.flow .flow__pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: end;
+  gap: var(--zx-space-3);
+}
+
+.flow .flow__block {
+  display: block;
+}
+
+/* A badge on its own in a property row keeps its size; only a control fills the row. */
+.flow .prop-list__value > .zx-badge {
+  flex: 0 0 auto;
+}
+
+/* ------------------------------------------------------------------- runs -- */
+
+.flow .flow__stack {
+  container: flow-tab / inline-size;
+  display: grid;
+  align-content: start;
+  gap: var(--zx-space-4);
+}
+
+.flow .flow__current {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  align-items: start;
+  gap: var(--zx-space-5);
+}
+
+/* A run lists every step, so its progress rail is set tighter than a wizard's. */
+.flow .flow__current .zx-stepper__step {
+  padding-block-end: var(--zx-space-2);
+}
+
+.flow .flow__current .zx-stepper__step:last-child {
+  padding-block-end: 0;
+}
+
+/* Who the run waits on, beside its steps: a column of the run's surface, not a box inside it. */
+.flow .flow__waiting {
+  display: grid;
+  gap: var(--zx-space-3);
+}
+
+.flow .flow__waiting > p {
+  margin: 0;
+}
+
+.flow .flow__waiting-step,
+.flow .flow__name {
+  font-weight: var(--zx-weight-semibold);
+}
+
+.flow .flow__run {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--zx-space-2);
+}
+
+.flow .flow__run-label {
+  font-weight: var(--zx-weight-medium);
+}
+
+/* --------------------------------------------------------------- insights -- */
+
+.flow .flow__tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: var(--zx-space-4);
+}
+
+/* The key numbers are what the tab is for: a size up, and coloured by what they mean. */
+.flow .flow__tiles .zx-stat-tile {
+  --zx-stat-tile-value-size: var(--zx-text-3xl);
+}
+
+.flow .flow__tiles .zx-stat-tile[data-kind="success"] .zx-stat-tile__value { color: var(--zx-color-success); }
+.flow .flow__tiles .zx-stat-tile[data-kind="warning"] .zx-stat-tile__value { color: var(--zx-color-warning); }
+.flow .flow__tiles .zx-stat-tile[data-kind="danger"] .zx-stat-tile__value { color: var(--zx-color-danger); }
+
+.flow .flow__bars,
+.flow .flow__tasks {
+  display: grid;
+  gap: var(--zx-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.flow .flow__bar {
+  display: grid;
+  grid-template-columns: minmax(0, 16rem) minmax(0, 1fr) 5rem;
+  align-items: center;
+  gap: var(--zx-space-3);
+  font-size: var(--zx-text-sm);
+}
+
+.flow .flow__bar-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.flow .flow__bar-track {
+  display: block;
+  overflow: hidden;
+  block-size: var(--zx-space-2);
+  border-radius: var(--zx-radius-full);
+  background: var(--zx-color-bg-muted);
+}
+
+/* The same two series as the chart: on time, and over the time a step is given. */
+.flow .flow__bar-fill {
+  display: block;
+  block-size: 100%;
+  border-radius: var(--zx-radius-full);
+  background: var(--zx-color-chart-1);
+}
+
+.flow .flow__bar-fill[data-slow="true"] {
+  background: var(--zx-color-chart-2);
+}
+
+.flow .flow__bar-value {
+  color: var(--zx-color-text-muted);
+  text-align: end;
+}
+
+/* The chart's key, drawn beside it rather than inside the canvas. */
+.flow .flow__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zx-space-2) var(--zx-space-4);
+  margin: 0;
+}
+
+.flow .flow__legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+}
+
+.flow .flow__swatch {
+  inline-size: 10px;
+  block-size: 10px;
+  border-radius: var(--zx-radius-sm);
+  background: var(--zx-color-chart-1);
+}
+
+.flow .flow__swatch[data-series="2"] {
+  background: var(--zx-color-chart-2);
+}
+
+.flow .flow__legend-target {
+  inline-size: var(--zx-space-4);
+  border-block-start: 2px dashed var(--zx-color-text-muted);
+}
+
+/* ------------------------------------------------------------------ pages -- */
+
+.flow .flow__greeting {
+  margin-block-end: var(--zx-space-5);
+}
+
+.flow .flow__section {
+  display: grid;
+  gap: var(--zx-space-3);
+  margin-block-end: var(--zx-space-6);
+}
+
+.flow .flow__section-title {
+  margin: 0;
+  font-size: var(--zx-text-md);
+  font-weight: var(--zx-weight-semibold);
+}
+
+.flow .flow__cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  gap: var(--zx-space-4);
+}
+
+.flow .flow__card {
+  align-content: start;
+  min-block-size: 0;
+  color: var(--zx-color-text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.flow .flow__card:hover {
+  border-color: var(--zx-color-border-strong);
+}
+
+.flow .flow__card:focus-visible {
+  outline: none;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.flow .flow__card-top,
+.flow .flow__card-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zx-space-2);
+}
+
+.flow .flow__card-name {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  font-weight: var(--zx-weight-semibold);
+}
+
+.flow .flow__task {
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+}
+
+.flow .flow__task-body {
+  display: grid;
+  gap: var(--zx-space-1);
+  min-inline-size: 0;
+}
+
+/* The pages measure their own width, so their cards reflow wherever the pane ends. */
+.flow .flow__page {
+  container: flow-page / inline-size;
+}
+
+/* ------------------------------------------------------------- responsive -- */
+
+@container shell (max-width: 1180px) {
+  .flow .flow__current {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* On a phone the header keeps the title and the controls' shapes: the Active switch shows its
+   track and Run now its icon (the words stay in their accessible names), and the key hint goes. */
+@container shell (max-width: 640px) {
+  .flow .flow__active > .zx-toggle__label {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .flow .flow__header .shell__header-actions {
+    gap: var(--zx-space-1);
+  }
+}
+
+/* Without room for all four figures in a row, two by two — never three and an orphan, and on a
+   phone never four cards in a column. */
+@container flow-tab (max-width: 760px) {
+  .flow .flow__tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container flow-tab (max-width: 400px) {
+  .flow .flow__tiles {
+    gap: var(--zx-space-3);
+  }
+
+  .flow .flow__tiles .zx-stat-tile {
+    --zx-stat-tile-value-size: var(--zx-text-2xl);
+  }
+}
+
+/* A narrow task: its kind and name on top, then its state and its actions beneath the name. */
+@container flow-page (max-width: 560px) {
+  .flow .flow__task {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .flow .flow__task > :nth-child(n + 3) {
+    grid-column: 2;
+    justify-self: start;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .flow .flow__step,
+  .flow .flow__add,
+  .flow .flow__card {
+    transition: border-color var(--zx-dur-fast) var(--zx-ease),
+      box-shadow var(--zx-dur-fast) var(--zx-ease),
+      color var(--zx-dur-fast) var(--zx-ease),
+      opacity var(--zx-dur-fast) var(--zx-ease);
+  }
+}

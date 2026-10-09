@@ -20,7 +20,7 @@ import { button } from '../button/button.js';
  * @property {DialogButton[]} [buttons=[]] Footer buttons.
  * @property {boolean} [closable=true] Whether Escape and the header button may close the dialog.
  * @property {Node|string|number|{toElement: () => Node|null}|null} [content=null] Body content.
- * @property {Element|string|null} [scope=null] Element whose nearest Zx theme scope owns the overlay; defaults to the opener.
+ * @property {Element|string|null} [scope=null] Element whose nearest Zx theme scope owns the overlay; defaults to the opener. Resolved on every open, so a scope connected after construction still owns it.
  * @property {(event: CustomEvent<Record<string, never>>) => void} [onopen] Open event listener.
  * @property {(event: CustomEvent<{result: unknown}>) => void} [onclose] Close event listener.
  * @property {(event: CustomEvent<Record<string, never>>) => void} [oncancel] Cancel event listener.
@@ -51,6 +51,11 @@ import { button } from '../button/button.js';
  * @property {string} [okLabel='OK'] Confirmation label.
  * @property {string} [cancelLabel='Cancel'] Cancellation label.
  * @property {boolean} [danger=false] Whether the confirmation action is dangerous.
+ * @property {string|null} [confirmText=null] Text the reader must type before the confirm button
+ *   enables — the name of what is about to be deleted, say. The dialog adds an input labelled
+ *   "Type <confirmText> to confirm" (message `dialog.typeToConfirm`, `%1` standing for the text),
+ *   focuses it, and enables the confirm button, and Enter, only while its value matches exactly,
+ *   ignoring surrounding spaces.
  */
 /**
  * @typedef {Object} PromptOptions
@@ -58,6 +63,8 @@ import { button } from '../button/button.js';
  * @property {Node|string|number|null} [message=''] Prompt message.
  * @property {string} [value=''] Initial input value.
  * @property {string} [placeholder=''] Input placeholder.
+ * @property {string} [okLabel='OK'] Confirmation label.
+ * @property {string} [cancelLabel='Cancel'] Cancellation label.
  */
 
 /**
@@ -138,7 +145,7 @@ export class Dialog extends Modal {
       h('footer', { class: 'zx-dialog__footer', ref: 'footer' })
     ));
     dialog.dataset.state = 'closed';
-    this.mountTarget().append(dialog);
+    this._mountInitial(dialog);
     return dialog;
   }
 
@@ -281,12 +288,13 @@ export class Dialog extends Modal {
   }
 
   /**
-   * Opens a confirmation dialog.
+   * Opens a confirmation dialog. With `confirmText` it becomes a type-to-confirm dialog: the
+   * confirm button stays disabled until the reader has typed that text.
    * @param {ConfirmOptions} [options={}] Confirmation options.
-   * @returns {Promise<boolean>}
+   * @returns {Promise<boolean>} True when confirmed; false on Cancel, Escape, or the close button.
    */
   static confirm({
-    title = '', message = '', okLabel, cancelLabel, danger = false
+    title = '', message = '', okLabel, cancelLabel, danger = false, confirmText = null
   } = {}) {
     return new Promise((resolve) => {
       let settled = false;
@@ -296,16 +304,58 @@ export class Dialog extends Modal {
         dialog.close(value);
         resolve(value);
       };
-      const dialog = new Dialog(null, { title, content: message });
-      dialog.setButtons([
-        { label: cancelLabel ?? dialog._message('dialog.cancel', 'Cancel'), action: () => finish(false) },
-        {
-          label: okLabel ?? dialog._message('dialog.ok', 'OK'),
-          kind: danger ? 'danger' : 'primary',
-          action: () => finish(true),
+      const expected = confirmText == null ? '' : String(confirmText).trim();
+      const dialog = new Dialog(null, { title, content: expected ? null : message });
+      // A destructive confirmation starts on the least destructive choice, as the APG alert dialog
+      // has it; type-to-confirm starts in its input.
+      const cancel = {
+        label: cancelLabel ?? dialog._message('dialog.cancel', 'Cancel'),
+        action: () => finish(false),
+        autofocus: danger && !expected
+      };
+      const accept = {
+        label: okLabel ?? dialog._message('dialog.ok', 'OK'),
+        kind: /** @type {DialogButtonKind} */ (danger ? 'danger' : 'primary'),
+        action: () => finish(true),
+        autofocus: !danger && !expected
+      };
+      if (expected) {
+        const input = /** @type {HTMLInputElement} */ (h('input', {
+          class: 'zx-dialog__confirm-input',
+          id: uid('zx-dialog-confirm'),
+          type: 'text',
+          autocomplete: 'off',
+          autocapitalize: 'off',
+          spellcheck: false,
           autofocus: true
-        }
-      ]);
+        }));
+        const [before, after] = typeToConfirmParts(
+          dialog._message('dialog.typeToConfirm', 'Type %1 to confirm'), expected);
+        const label = h('label', { class: 'zx-dialog__confirm-label', for: input.id },
+          before, h('b', {}, expected), after);
+        dialog.setContent(h('div', { class: 'zx-dialog__confirm' },
+          isEmptyContent(message) ? null : h('div', { class: 'zx-dialog__prompt-message' }, message),
+          label,
+          input));
+        let matched = false;
+        const settle = () => dialog.setButtons([cancel, { ...accept, autofocus: false, disabled: !matched }]);
+        settle();
+        dialog.listen(input, 'input', () => {
+          const next = typedConfirmation(input.value, expected);
+          if (next === matched) return;
+          matched = next;
+          settle();
+        });
+        // Enter confirms only a match; otherwise it does nothing, as the disabled button would.
+        dialog.listen(input, 'keydown', (event) => {
+          const key = /** @type {KeyboardEvent} */ (event);
+          if (key.key !== 'Enter' || key.isComposing) return;
+          key.preventDefault();
+          if (typedConfirmation(input.value, expected)) finish(true);
+        });
+      } else {
+        dialog.setButtons([cancel, accept]);
+      }
       dialog.once('close', () => {
         if (!settled) {
           settled = true;
@@ -322,7 +372,9 @@ export class Dialog extends Modal {
    * @param {PromptOptions} [options={}] Prompt options.
    * @returns {Promise<string|null>}
    */
-  static prompt({ title = '', message = '', value = '', placeholder = '' } = {}) {
+  static prompt({
+    title = '', message = '', value = '', placeholder = '', okLabel, cancelLabel
+  } = {}) {
     return new Promise((resolve) => {
       let settled = false;
       const input = h('input', {
@@ -344,8 +396,8 @@ export class Dialog extends Modal {
       const dialog = new Dialog(null, { title, content });
       input.setAttribute('aria-label', String(title || dialog._message('dialog.promptValue', 'Prompt value')));
       dialog.setButtons([
-        { label: dialog._message('dialog.cancel', 'Cancel'), action: () => finish(null) },
-        { label: dialog._message('dialog.ok', 'OK'), kind: 'primary', action: () => finish(input.value) }
+        { label: cancelLabel ?? dialog._message('dialog.cancel', 'Cancel'), action: () => finish(null) },
+        { label: okLabel ?? dialog._message('dialog.ok', 'OK'), kind: 'primary', action: () => finish(input.value) }
       ]);
       dialog.listen(input, 'keydown', (event) => {
         if (event.key !== 'Enter') return;
@@ -426,6 +478,36 @@ export class Dialog extends Modal {
       action(this);
     }
   }
+}
+
+/**
+ * Reports whether what the reader typed confirms a type-to-confirm dialog: the same text, exactly
+ * — case and inner spacing included — once surrounding spaces are ignored on both sides.
+ * @param {unknown} typed Input value.
+ * @param {unknown} expected Text the dialog asks for.
+ * @returns {boolean}
+ */
+export function typedConfirmation(typed, expected) {
+  const target = expected == null ? '' : String(expected).trim();
+  return target !== '' && String(typed ?? '').trim() === target;
+}
+
+/**
+ * Splits the type-to-confirm message around `%1`, where the text to type goes. A translation that
+ * leaves `%1` out gets the text after it, following a space; a second `%1` is filled in as text.
+ * @param {string} template Message such as "Type %1 to confirm".
+ * @param {string} expected Text to type.
+ * @returns {[string, string]} The text before and after the text to type.
+ */
+export function typeToConfirmParts(template, expected) {
+  const parts = String(template).split('%1');
+  if (parts.length === 1) return [`${parts[0]} `, ''];
+  return [parts[0], parts.slice(1).join(expected)];
+}
+
+/** @param {unknown} content @returns {boolean} */
+function isEmptyContent(content) {
+  return content == null || content === '';
 }
 
 /**

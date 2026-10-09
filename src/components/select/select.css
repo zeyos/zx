@@ -30,7 +30,10 @@
   padding-inline-start: var(--zx-space-2) !important;
 }
 
-.zx-select__control:has(.zx-select__input:focus-visible) {
+/* The ring follows keyboard focus. A text input matches :focus-visible on a click as well, so the
+   component marks a pointer focus on a read-only input (`data-focus-origin="pointer"`) and the ring
+   waits for the first key. An editable input keeps it on click, as any text field does. */
+.zx-select:not([data-focus-origin="pointer"]) .zx-select__control:has(.zx-select__input:focus-visible) {
   box-shadow: var(--zx-focus-ring);
 }
 
@@ -85,9 +88,17 @@
   border-radius: var(--zx-radius-full);
 }
 
+/* Disabled reads the way a disabled Field does: text and frame fade together, nothing else
+   changes. Inside a disabled Field the field has already faded, so the Select does not again. */
+.zx-select[aria-disabled="true"] {
+  opacity: 0.65;
+}
+
+.zx-field[data-disabled="true"] .zx-select[aria-disabled="true"] {
+  opacity: 1;
+}
+
 .zx-select[aria-disabled="true"] .zx-select__control {
-  background: var(--zx-color-bg-page);
-  color: var(--zx-color-text-muted);
   cursor: default;
 }
 
@@ -97,7 +108,7 @@
   max-inline-size: calc(100vw - var(--zx-space-4));
   overflow: hidden;
   border: 1px solid var(--zx-color-overlay-border);
-  border-radius: var(--zx-radius-md);
+  border-radius: var(--zx-radius-lg);
   background-color: var(--zx-color-overlay-surface);
   background-image: var(--zx-overlay-surface-image);
   background-clip: padding-box;
@@ -118,10 +129,12 @@
   display: flex;
   align-items: center;
   gap: var(--zx-space-2);
-  min-block-size: var(--zx-control-height);
+  /* The same row as a menu item: a little under a control, the smallest radius. */
+  min-block-size: calc(var(--zx-control-height) - 2px);
   border-radius: var(--zx-radius-sm);
   cursor: default;
-  padding: var(--zx-space-1) var(--zx-control-pad-x);
+  padding: var(--zx-space-1) var(--zx-space-2);
+  line-height: 1.35;
 }
 
 .zx-select__option-content {
@@ -137,6 +150,8 @@
   background: var(--zx-color-overlay-hover);
 }
 
+/* The highlighted option (keyboard or pointer) is a neutral step; a chosen option is a pick and
+   keeps the accent tint and its check mark. */
 .zx-select__option[aria-selected="true"] {
   background: var(--zx-color-overlay-selected);
 }
@@ -146,6 +161,7 @@
   color: var(--zx-color-accent);
 }
 
+/* A caption for the options under it, in sentence case: quieter than the options, never louder. */
 .zx-select__group {
   position: sticky;
   z-index: 1;
@@ -153,10 +169,8 @@
   background: var(--zx-color-overlay-scrim);
   color: var(--zx-color-text-muted);
   font-size: var(--zx-text-xs);
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  padding: var(--zx-space-2) var(--zx-control-pad-x) var(--zx-space-1);
-  text-transform: uppercase;
+  font-weight: var(--zx-weight-semibold);
+  padding: var(--zx-space-1) var(--zx-space-2);
 }
 
 @media (prefers-reduced-transparency: reduce) {
@@ -175,13 +189,13 @@
 
 .zx-select__separator {
   block-size: 1px;
-  margin: var(--zx-space-1) var(--zx-control-pad-x);
+  margin: var(--zx-space-1) var(--zx-space-2);
   background: var(--zx-color-overlay-divider);
 }
 
 .zx-select__empty {
   color: var(--zx-color-text-muted);
-  padding: var(--zx-space-3) var(--zx-control-pad-x);
+  padding: var(--zx-space-3) var(--zx-space-2);
   text-align: center;
 }
 
@@ -191,30 +205,59 @@
   gap: var(--zx-space-2);
 }
 
-.zx-select__priority-icon {
+/* The priority glyph — `priorityIcon()`, and the one Select.priority() draws, which also carries
+   `.zx-select__priority-icon`. Priority is read by height, not by hue: four signal bars, the filled
+   ones in muted ink and the rest a step quieter. Only the top level, the one that needs attention,
+   is coloured — a danger square with an exclamation mark. "No priority" is a row of dashes. Every
+   glyph takes the same box, so the labels after them line up. */
+.zx-priority-icon {
   display: inline-flex;
-  gap: 2px;
   flex: none;
-  color: var(--zx-color-warning);
+  vertical-align: middle;
+  align-items: flex-end;
+  gap: 1px;
+  box-sizing: border-box;
+  inline-size: 15px;
+  block-size: 14px;
+  padding-block: 1px;
+  color: var(--zx-color-text-muted);
 }
 
-.zx-select__priority-icon > span {
-  inline-size: 7px;
-  block-size: 7px;
-  border: 1px solid currentColor;
-  border-radius: 2px;
+.zx-priority-icon > span {
+  inline-size: 3px;
+  border-radius: 1px;
+  background: var(--zx-color-border-strong);
 }
 
-.zx-select__priority-icon > span[data-filled="true"] { background: currentColor; }
-.zx-select__priority-icon[data-level="0"] { color: var(--zx-color-success); }
-.zx-select__priority-icon[data-level="1"] {
-  color: color-mix(in srgb, var(--zx-color-success) 35%, var(--zx-color-warning));
+.zx-priority-icon > span:nth-child(1) { block-size: 25%; }
+.zx-priority-icon > span:nth-child(2) { block-size: 50%; }
+.zx-priority-icon > span:nth-child(3) { block-size: 75%; }
+.zx-priority-icon > span:nth-child(4) { block-size: 100%; }
+.zx-priority-icon > span[data-filled="true"] { background: currentColor; }
+
+.zx-priority-icon[data-level="none"] { align-items: center; }
+.zx-priority-icon[data-level="none"] > span {
+  block-size: 2px;
+  background: currentColor;
 }
-.zx-select__priority-icon[data-level="2"] { color: var(--zx-color-warning); }
-.zx-select__priority-icon[data-level="3"] {
-  color: color-mix(in srgb, var(--zx-color-warning) 35%, var(--zx-color-danger));
+
+.zx-priority-icon[data-level="4"] {
+  align-items: center;
+  justify-content: center;
+  inline-size: 14px;
+  margin-inline-end: 1px;
+  padding: 0;
+  border-radius: var(--zx-radius-sm);
+  background: var(--zx-color-danger);
+  color: var(--zx-color-on-accent);
+  font-size: 11px;
+  font-weight: var(--zx-weight-semibold);
+  line-height: 1;
 }
-.zx-select__priority-icon[data-level="4"] { color: var(--zx-color-danger); }
+
+.zx-priority-icon[data-level="4"]::before {
+  content: "!";
+}
 
 .zx-select__status {
   display: grid;
@@ -223,13 +266,20 @@
   gap: var(--zx-space-2);
 }
 
+/* An entity without a colour of its own is a neutral tile with muted ink; one with a colour is
+   filled with it and drawn in the inverse text colour. */
 .zx-select__entity-glyph {
   display: inline-grid;
   place-items: center;
   inline-size: 20px;
   block-size: 20px;
   border-radius: var(--zx-radius-sm);
-  background: var(--zx-select-entity-color, var(--zx-color-accent-subtle));
+  background: var(--zx-color-bg-muted);
+  color: var(--zx-color-text-muted);
+}
+
+.zx-select__entity-glyph[style*="--zx-select-entity-color"] {
+  background: var(--zx-select-entity-color);
   color: var(--zx-color-text-invert);
 }
 
@@ -256,10 +306,14 @@
   font-size: var(--zx-text-xs);
 }
 
-.zx-select__status-indicator {
+/* The workflow-status glyph — `statusIcon()`, and the one Select.status() draws, which also carries
+   `.zx-select__status-indicator`. Each status is a shape first and a colour second. */
+.zx-status-icon {
   position: relative;
   display: inline-grid;
   place-items: center;
+  box-sizing: border-box;
+  vertical-align: middle;
   inline-size: 14px;
   block-size: 14px;
   flex: none;
@@ -268,37 +322,37 @@
   color: var(--zx-color-text-muted);
 }
 
-.zx-select__status-indicator[data-tone="neutral"] { color: var(--zx-color-border-strong); }
-.zx-select__status-indicator[data-tone="warning"] { color: var(--zx-color-warning); }
-.zx-select__status-indicator[data-tone="info"] { color: var(--zx-color-info); }
-.zx-select__status-indicator[data-tone="accent"] { color: var(--zx-color-accent); }
-.zx-select__status-indicator[data-tone="success"] { color: var(--zx-color-success); }
-.zx-select__status-indicator[data-tone="danger"] { color: var(--zx-color-danger); }
+.zx-status-icon[data-tone="neutral"] { color: var(--zx-color-border-strong); }
+.zx-status-icon[data-tone="warning"] { color: var(--zx-color-warning); }
+.zx-status-icon[data-tone="info"] { color: var(--zx-color-info); }
+.zx-status-icon[data-tone="accent"] { color: var(--zx-color-accent); }
+.zx-status-icon[data-tone="success"] { color: var(--zx-color-success); }
+.zx-status-icon[data-tone="danger"] { color: var(--zx-color-danger); }
 
-.zx-select__status-indicator[data-indicator="dotted"] { border-style: dotted; }
-.zx-select__status-indicator[data-indicator="progress"]::after {
+.zx-status-icon[data-indicator="dotted"] { border-style: dotted; }
+.zx-status-icon[data-indicator="progress"]::after {
   content: "";
   inline-size: 4px;
   block-size: 4px;
   border-radius: inherit;
   background: currentColor;
 }
-.zx-select__status-indicator[data-indicator="review"] {
+.zx-status-icon[data-indicator="review"] {
   background: linear-gradient(90deg, currentColor 50%, transparent 50%);
 }
-.zx-select__status-indicator[data-indicator="ready"] {
+.zx-status-icon[data-indicator="ready"] {
   background: conic-gradient(currentColor 0 35%, transparent 35% 100%);
 }
-.zx-select__status-indicator[data-indicator="waiting"] {
+.zx-status-icon[data-indicator="waiting"] {
   background: conic-gradient(currentColor 0 70%, transparent 70% 100%);
 }
-.zx-select__status-indicator:is([data-indicator="done"], [data-indicator="canceled"]) {
+.zx-status-icon:is([data-indicator="done"], [data-indicator="canceled"]) {
   background: currentColor;
 }
-.zx-select__status-indicator:is([data-indicator="done"], [data-indicator="canceled"]) > .zx-icon {
+.zx-status-icon:is([data-indicator="done"], [data-indicator="canceled"]) > .zx-icon {
   color: var(--zx-color-bg-raised);
 }
-.zx-select__status-indicator[data-indicator="duplicate"]::after {
+.zx-status-icon[data-indicator="duplicate"]::after {
   content: "";
   inline-size: 8px;
   block-size: 2px;
@@ -343,12 +397,51 @@
 
 @media (prefers-reduced-motion: no-preference) {
   .zx-select__loading {
-    animation: zx-select-spin var(--zx-dur-slow) linear infinite;
+    animation: zx-select-spin 720ms linear infinite;
   }
 }
 
 @keyframes zx-select-spin {
   to {
     transform: rotate(1turn);
+  }
+}
+
+/*
+ * Quiet fields. Inside `[data-zx-fields="quiet"]` — a property panel, an inspector — the control
+ * reads as its value: no border, no fill, no chevron or clear button. Hover brings the hover fill
+ * and the chevron back; focus or an open list brings back the border, the control fill and the
+ * focus ring. A disabled control never lights up.
+ */
+[data-zx-fields="quiet"] .zx-select__control,
+[data-zx-fields="quiet"] .zx-select[aria-disabled="true"] .zx-select__control {
+  border-color: transparent;
+  background: transparent;
+}
+
+[data-zx-fields="quiet"] .zx-select :is(.zx-select__toggle, .zx-select__clear) {
+  opacity: 0;
+}
+
+[data-zx-fields="quiet"] .zx-select:not([aria-disabled="true"]):hover .zx-select__control {
+  background: var(--zx-color-bg-hover);
+}
+
+[data-zx-fields="quiet"] .zx-select:not([aria-disabled="true"]):is(:hover, :focus-within, [data-state="open"]) :is(.zx-select__toggle, .zx-select__clear) {
+  opacity: 1;
+}
+
+[data-zx-fields="quiet"] .zx-select:not([aria-disabled="true"]):is(:focus-within, [data-state="open"]) .zx-select__control {
+  border-color: var(--zx-color-border-control);
+  background: var(--zx-color-bg-control);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-zx-fields="quiet"] .zx-select__control {
+    transition: background-color var(--zx-dur-fast) var(--zx-ease), border-color var(--zx-dur-fast) var(--zx-ease);
+  }
+
+  [data-zx-fields="quiet"] .zx-select :is(.zx-select__toggle, .zx-select__clear) {
+    transition: opacity var(--zx-dur-fast) var(--zx-ease);
   }
 }

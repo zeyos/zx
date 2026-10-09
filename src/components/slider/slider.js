@@ -279,7 +279,7 @@ export class Slider extends Component {
       const label = typeof mark === 'number' ? this._format(value) : String(mark.label ?? this._format(value));
       element.append(h('span', {
         class: 'zx-slider__mark',
-        style: { '--zx-slider-mark': `${this._ratio(value) * 100}%` }
+        style: { '--zx-slider-mark': String(this._ratio(value)) }
       }, label));
     }
     return element;

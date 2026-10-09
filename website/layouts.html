@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en" data-zx-theme="light">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Xenon layout gallery — complete application templates and the screen patterns inside them, each running live and built only from Zx components.">
+    <title>Layouts — ZeyOS Xenon Design System</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="../styles/zx.css">
+    <link rel="stylesheet" href="site.css">
+    <link rel="stylesheet" href="layouts.css">
+    <script src="site.js"></script>
+  </head>
+  <body class="zx-scope site-page site-page--app site-page--gallery">
+    <header class="site-header">
+      <div class="site-header__inner">
+        <a class="site-brand" href="index.html" aria-label="Zx home">
+          <img class="brand-logo--light" src="assets/zx-logo.svg" alt="Zx">
+          <img class="brand-logo--dark" src="assets/zx-logo-dark.svg" alt="Zx">
+        </a>
+        <a class="site-version" href="https://github.com/zeyos/zx/releases/latest"
+          rel="noopener" title="Release notes">v<span data-site-version>4.3.3</span></a>
+        <nav class="site-nav" aria-label="Primary">
+          <a href="docs.html">Documentation</a>
+          <a href="layouts.html">Layouts</a>
+          <a href="theme.html">Theming</a>
+        </nav>
+        <div class="site-actions">
+          <a class="site-icon-btn" data-site-icon="zeyos" href="https://www.zeyos.com" rel="noopener"
+            title="ZeyOS" aria-label="ZeyOS website"></a>
+          <a class="site-icon-btn" data-site-icon="github" href="https://github.com/zeyos/zx" rel="noopener"
+            title="Repository" aria-label="Zx on GitHub"></a>
+          <button class="site-icon-btn" type="button" data-theme-toggle
+            aria-label="Switch theme"></button>
+        </div>
+      </div>
+    </header>
+
+    <main id="layouts-app" class="gallery">
+      <p class="loading-copy">Loading the layouts…</p>
+    </main>
+    <noscript>The layout gallery runs the real applications, so it requires JavaScript.</noscript>
+
+    <script type="module" src="layouts.js"></script>
+
+    <footer class="site-footer">
+      <div class="site-footer__inner">
+        <div class="site-footer__brand">
+          <img src="assets/zeyos-logo-light.svg" alt="ZeyOS">
+          <p class="site-footer__copyright">
+            Copyright © 2012–2026 ZeyOS GmbH &amp; Co. KG<br>
+            <span>All rights reserved.</span>
+          </p>
+        </div>
+        <nav class="site-footer__legal" aria-label="Legal">
+          <a href="https://www.zeyos.com/impressum/" rel="noopener">Imprint</a>
+          <a href="https://www.zeyos.com/privacy/" rel="noopener">Privacy Policy</a>
+          <a href="llms.txt">LLMs.txt</a>
+        </nav>
+      </div>
+    </footer>
+  </body>
+</html>

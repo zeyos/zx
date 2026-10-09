@@ -15,11 +15,13 @@
   inline-size: 100%;
 }
 
+/* A caption for the group, in sentence case and the same quiet voice as the field labels inside
+   it — the fields are the content. */
 .zx-fieldset__legend {
   padding-inline: var(--zx-space-2);
-  color: var(--zx-color-text);
-  font-size: var(--zx-text-lg);
-  font-weight: 600;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  font-weight: var(--zx-weight-medium);
 }
 
 .zx-fieldset__grid {

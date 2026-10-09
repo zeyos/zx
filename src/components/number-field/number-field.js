@@ -336,6 +336,8 @@ export class NumberField extends Component {
   /** @param {KeyboardEvent} event @returns {void} */
   _onKeydown(event) {
     if (this._disabled || this._readonly) return;
+    // Chords belong to the page — Mod+Enter submits the form or dialog the field is in.
+    if (event.altKey || event.ctrlKey || event.metaKey) return;
     const large = Math.max(1, Math.trunc(Number(this.options.largeStep) || 1));
     const actions = {
       ArrowUp: () => this._stepBy(1),

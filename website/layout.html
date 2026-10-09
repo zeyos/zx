@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en" data-zx-theme="light">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="One Xenon layout running in a page of its own — a complete application or screen built only from Zx components.">
+    <title>Layouts — ZeyOS Xenon Design System</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="../styles/zx.css">
+    <link rel="stylesheet" href="site.css">
+    <link rel="stylesheet" href="layouts.css">
+    <script src="site.js"></script>
+  </head>
+  <body class="zx-scope layout-page">
+    <!-- One layout, filling the window: layout.html#<id>, where the id is one the gallery lists. -->
+    <header class="layout-bar">
+      <a class="layout-bar__back" href="layouts.html">All layouts</a>
+      <span class="layout-bar__divider" aria-hidden="true"></span>
+      <h1 class="layout-bar__title">Layouts</h1>
+      <div class="layout-bar__actions">
+        <button class="site-icon-btn layout-bar__theme" type="button" data-theme-toggle
+          aria-label="Switch theme"></button>
+      </div>
+    </header>
+
+    <main id="layout-app" class="layout-page__body">
+      <p class="loading-copy">Loading the layout…</p>
+    </main>
+    <noscript>Layouts run as live applications, so this page requires JavaScript.</noscript>
+
+    <script type="module" src="layout.js"></script>
+  </body>
+</html>

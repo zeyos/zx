@@ -190,6 +190,34 @@ export default {
       }
     },
     {
+      title: 'Plain, inside a card',
+      blurb: 'variant: "plain" is for a table that sits inside a card or panel which already draws '
+        + 'the box: no outer frame, no header band, no zebra, hairline rows. The header is the '
+        + 'muted medium-weight label every table uses, and figures line up in tabular numerals. '
+        + 'The actions column has an empty label, so its header stays blank and is named by '
+        + 'ariaLabel; every header and cell carries data-column for per-column styling.',
+      render: ({ cleanup }) => {
+        const table = new Table(null, {
+          rowId: 'id',
+          data: makeRows(5),
+          variant: 'plain',
+          columns: [
+            { id: 'name', label: 'Customer', width: '2fr' },
+            { id: 'date', label: 'Date', width: '1fr', render: (row) => isoDate(row.date) },
+            { id: 'amount', label: 'Amount', width: '1fr', align: 'right', render: (row) => money(row.amount) },
+            {
+              id: 'actions', label: '', ariaLabel: 'Actions', width: '48px', align: 'end',
+              render: (row) => button({ icon: 'eye', kind: 'ghost', size: 'sm', title: `View the invoice for ${row.name}` })
+            }
+          ]
+        });
+        cleanup(() => table.destroy());
+        return h('div', { class: 'demo-card' },
+          h('h3', { style: { margin: '0 0 var(--zx-space-2)', fontSize: 'var(--zx-text-md)' } }, 'Recent invoices'),
+          table.toElement());
+      }
+    },
+    {
       title: 'Editable transaction lines',
       blurb: 'Typed columns keep values numeric in row data while formatting each row’s currency '
         + 'and unit. hierarchy projects the flat parent references as expandable line items; '

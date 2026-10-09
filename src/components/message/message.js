@@ -1,15 +1,32 @@
 import { Component } from '../../core/component.js';
-import { h } from '../../core/dom.js';
+import { h, resolveElement } from '../../core/dom.js';
 import { icon } from '../../core/icons.js';
 import { overlayHost } from '../../core/overlay-host.js';
+import { button } from '../button/button.js';
 
 /** @typedef {'info'|'success'|'warning'|'error'} MessageKind */
 
 /**
+ * The one command a message may carry, drawn as a small button beside its text.
+ * @typedef {Object} MessageAction
+ * @property {string} label Button text: a verb naming what happens ("Undo", "Approve", "Retry").
+ * @property {(event: MouseEvent) => void} [onclick] Runs when the button is activated, by pointer
+ *   or keyboard; the message closes right after it.
+ * @property {'default'|'primary'|'danger'|'ghost'} [kind='default'] Button kind; the default is the
+ *   secondary button.
+ */
+
+/**
  * @typedef {Object} MessageShowOptions
  * @property {MessageKind|'danger'} [kind='info'] Message intent (`danger` aliases `error`).
- * @property {number} [timeout=4000] Auto-dismiss delay in milliseconds; zero persists.
+ * @property {number} [timeout=4000] Auto-dismiss delay in milliseconds; zero persists. A message
+ *   with an `action` stays at least 8000ms.
  * @property {boolean} [closable=true] Whether to render a close button.
+ * @property {MessageAction|null} [action=null] A command button inside the message. The message
+ *   never times out while the pointer is over it or focus is inside it.
+ * @property {Node|{toElement: () => Node|null}|null} [leading=null] Visual shown in place of the
+ *   kind icon, such as an Avatar's element. It is decorative — the message text must say what it
+ *   shows.
  * @property {Element|string|null} [scope=null] Element whose nearest Zx theme scope owns a floating toast.
  */
 
@@ -21,7 +38,15 @@ import { overlayHost } from '../../core/overlay-host.js';
  * @property {number} [maxVisible=5] Maximum number of visible messages.
  */
 
-/** @typedef {{close: () => void}} MessageHandle */
+/**
+ * Returned by every `show()`: closes that message early. Closing one that already closed, or one
+ * still waiting in the queue, is safe.
+ * @typedef {Object} MessageHandle
+ * @property {() => void} close Closes the message.
+ */
+
+/** The shortest time a message that carries an action stays, in milliseconds. */
+export const MESSAGE_ACTION_MIN_TIMEOUT = 8000;
 
 /**
  * @typedef {Object} ProgressHandle
@@ -135,7 +160,7 @@ export class Message extends Component {
     maxVisible: 5
   };
 
-  /** @type {WeakMap<Element, Message>} */
+  /** @type {WeakMap<Element, Message>} Floating region per overlay host. */
   static #floating = new WeakMap();
 
   /** @returns {HTMLElement} */
@@ -145,6 +170,8 @@ export class Message extends Component {
     this._createdRoot = created;
     this._original = created ? null : snapshot(root);
     this._entries = new Set();
+    /** @type {Element|null} The overlay host this instance is the floating region of; null when inline. */
+    this._floatingHost = null;
     this._queue = new MessageQueue(normalizeLimit(this.options.maxVisible), (entry) => {
       this._activate(entry);
     });
@@ -161,10 +188,13 @@ export class Message extends Component {
    * @returns {MessageHandle}
    */
   show(msg, options = {}) {
+    const action = normalizeMessageAction(options.action);
     const settings = {
       kind: normalizeKind(options.kind ?? this.options.kind),
-      timeout: normalizeTimeout(options.timeout ?? this.options.timeout),
-      closable: options.closable ?? Boolean(this.options.closable)
+      timeout: messageTimeout(options.timeout ?? this.options.timeout, action !== null),
+      closable: options.closable ?? Boolean(this.options.closable),
+      action,
+      leading: resolveLeading(options.leading)
     };
     const entry = this._createEntry(msg, settings);
     this._entries.add(entry);
@@ -232,10 +262,33 @@ export class Message extends Component {
     return this.#floatingRegion(options.scope)._progress(text);
   }
 
+  /**
+   * Removes a floating region at once, toasts and all, without waiting for them to time out.
+   *
+   * A region already removes itself when its last toast closes, and one whose host has left the
+   * document is replaced on the next toast, so this is only for a host being torn down while
+   * toasts are still showing — an application view unmounting its themed shell, say.
+   * @param {Element|string} scope Element or selector whose nearest Zx theme scope owns the region,
+   *   as passed to `show()`.
+   * @returns {boolean} Whether there was a region to remove.
+   */
+  static disposeRegion(scope) {
+    if (scope == null) return false;
+    const context = resolveElement(scope);
+    if (!context) return false;
+    const host = overlayHost(context);
+    const region = Message.#floating.get(host);
+    if (!region) return false;
+    Message.#floating.delete(host);
+    region._disposeFloating();
+    return true;
+  }
+
   /** @returns {void} */
   destroy() {
     if (this._cleaned) return;
     this._cleaned = true;
+    this._floatingHost = null;
     for (const entry of this._entries) {
       clearEntryTimers(entry);
       entry.node.remove();
@@ -288,13 +341,13 @@ export class Message extends Component {
 
   /**
    * @param {string|Node} msg
-   * @param {{kind: MessageKind, timeout: number, closable: boolean}} settings
+   * @param {{kind: MessageKind, timeout: number, closable: boolean, action?: MessageAction|null, leading?: Node|null}} settings
    * @param {{pct: number, text: string}|null} [progress=null]
    * @returns {any}
    */
   _createEntry(msg, settings, progress = null) {
     const iconHost = h('span', { class: 'zx-message__icon', ariaHidden: 'true' },
-      icon(settings.kind, { size: 18 })
+      settings.leading ?? icon(settings.kind, { size: 18 })
     );
     const content = h('div', { class: 'zx-message__content' });
     if (isNode(msg)) content.append(msg);
@@ -315,9 +368,13 @@ export class Message extends Component {
       timer: null,
       exitTimer: null,
       closed: false,
+      hovered: false,
+      focused: false,
+      returnFocus: null,
       progressBar: null,
       progressFill: null
     };
+    if (settings.leading) node.dataset.leading = '';
 
     if (progress) {
       node.dataset.progress = '';
@@ -336,6 +393,21 @@ export class Message extends Component {
       syncProgress(entry, progress);
     }
 
+    if (settings.action) {
+      const { label, kind, onclick } = settings.action;
+      const control = button({ label, kind, size: 'sm' });
+      control.classList.add('zx-message__action');
+      node.append(control);
+      this.listen(control, 'click', (event) => {
+        if (entry.closed) return;
+        try {
+          onclick?.(/** @type {MouseEvent} */ (event));
+        } finally {
+          this._close(entry);
+        }
+      });
+    }
+
     if (settings.closable) {
       const close = h('button', {
         class: 'zx-icon-btn zx-message__close',
@@ -346,8 +418,31 @@ export class Message extends Component {
       node.append(close);
       this.listen(close, 'click', () => this._close(entry));
     }
-    this.listen(node, 'mouseenter', () => this._pause(entry));
-    this.listen(node, 'mouseleave', () => this._resume(entry));
+    // Hover and focus each hold the timer (WCAG 2.2.1): a reader moving to the action or the close
+    // button must not have the message vanish under them, and it counts down again only once
+    // neither holds it.
+    this.listen(node, 'mouseenter', () => {
+      entry.hovered = true;
+      this._pause(entry);
+    });
+    this.listen(node, 'mouseleave', () => {
+      entry.hovered = false;
+      this._resume(entry);
+    });
+    this.listen(node, 'focusin', (event) => {
+      if (!entry.focused) {
+        const from = /** @type {FocusEvent} */ (event).relatedTarget;
+        entry.returnFocus = isNode(from) && !node.contains(/** @type {Node} */ (from)) ? from : null;
+      }
+      entry.focused = true;
+      this._pause(entry);
+    });
+    this.listen(node, 'focusout', (event) => {
+      const to = /** @type {FocusEvent} */ (event).relatedTarget;
+      if (isNode(to) && node.contains(/** @type {Node} */ (to))) return;
+      entry.focused = false;
+      this._resume(entry);
+    });
     return entry;
   }
 
@@ -361,7 +456,7 @@ export class Message extends Component {
 
   /** @param {any} entry @returns {void} */
   _schedule(entry) {
-    if (entry.closed || entry.remaining <= 0) return;
+    if (entry.closed || entry.remaining <= 0 || entry.hovered || entry.focused) return;
     entry.startedAt = Date.now();
     entry.timer = setTimeout(() => this._close(entry), entry.remaining);
   }
@@ -376,7 +471,7 @@ export class Message extends Component {
 
   /** @param {any} entry @returns {void} */
   _resume(entry) {
-    if (entry.closed || entry.timer !== null) return;
+    if (entry.closed || entry.timer !== null || entry.hovered || entry.focused) return;
     if (entry.remaining <= 0) {
       this._close(entry);
       return;
@@ -389,10 +484,12 @@ export class Message extends Component {
     if (entry.closed) return;
     entry.closed = true;
     clearEntryTimers(entry);
+    returnFocus(entry);
     if (!this._queue.isActive(entry)) {
       this._queue.remove(entry);
       entry.node.remove();
       this._entries.delete(entry);
+      this._releaseIfEmpty();
       return;
     }
 
@@ -415,6 +512,27 @@ export class Message extends Component {
     entry.node.remove();
     this._entries.delete(entry);
     this._queue.remove(entry);
+    this._releaseIfEmpty();
+  }
+
+  /**
+   * Takes a floating region out of the document once its last toast has gone, so an emptied host
+   * is not left holding a region nobody uses. Inline areas stay: their element is the caller's.
+   * @returns {void}
+   */
+  _releaseIfEmpty() {
+    if (!this._floatingHost || this._entries.size > 0) return;
+    Message.#release(this);
+  }
+
+  /**
+   * Destroys a floating region and removes its element.
+   * @returns {void}
+   */
+  _disposeFloating() {
+    const region = this.el;
+    this.destroy();
+    region.remove();
   }
 
   /**
@@ -428,11 +546,23 @@ export class Message extends Component {
     return message === key ? fallback : message;
   }
 
-  /** @param {Element|string|null|undefined} scope @returns {Message} */
+  /**
+   * Finds or creates the floating region for a scope. A cached region is reused only while it is
+   * still where it was put: a host emptied by `replaceChildren()` would otherwise keep receiving
+   * toasts in a node nobody can see.
+   * @param {Element|string|null|undefined} scope
+   * @returns {Message}
+   */
   static #floatingRegion(scope) {
-    const host = overlayHost(scope ?? null);
+    let host = overlayHost(scope ?? null);
+    // A scope that has itself left the document cannot show anything; the toast still must be seen.
+    if (!host.isConnected) host = overlayHost(null);
     const existing = this.#floating.get(host);
-    if (existing) return existing;
+    if (existing && existing.el.isConnected && existing.el.parentElement === host) return existing;
+    if (existing) {
+      this.#floating.delete(host);
+      existing._disposeFloating();
+    }
     const region = h('div', {
       class: 'zx-message-region',
       popover: 'manual',
@@ -441,9 +571,17 @@ export class Message extends Component {
     });
     host.append(region);
     const floating = new Message(region);
+    floating._floatingHost = host;
     this.#floating.set(host, floating);
     if (typeof region.showPopover === 'function') region.showPopover();
     return floating;
+  }
+
+  /** @param {Message} region Floating region whose last toast closed. @returns {void} */
+  static #release(region) {
+    const host = region._floatingHost;
+    if (host && Message.#floating.get(host) === region) Message.#floating.delete(host);
+    region._disposeFloating();
   }
 }
 
@@ -458,6 +596,70 @@ function normalizeKind(value) {
 function normalizeTimeout(value) {
   const timeout = Number(value);
   return Number.isFinite(timeout) ? Math.max(0, timeout) : 4000;
+}
+
+/**
+ * Settles how long a message stays. A message that carries an action stays at least
+ * `MESSAGE_ACTION_MIN_TIMEOUT`, so there is time to reach it; zero still means it stays until
+ * closed, and anything that is not a finite number falls back to the 4000ms default.
+ * @param {unknown} timeout Requested auto-dismiss delay in milliseconds.
+ * @param {boolean} [hasAction=false] Whether the message carries an action.
+ * @returns {number}
+ */
+export function messageTimeout(timeout, hasAction = false) {
+  const settled = normalizeTimeout(timeout);
+  return hasAction && settled > 0 ? Math.max(settled, MESSAGE_ACTION_MIN_TIMEOUT) : settled;
+}
+
+/**
+ * Copies a message action into the shape the message renders, or returns null when there is
+ * nothing to render: no object, or no label. An unknown `kind` reads as the default, secondary
+ * button, and a missing `onclick` leaves a button that only closes the message.
+ * @param {unknown} value Action descriptor.
+ * @returns {{label: string, kind: 'default'|'primary'|'danger'|'ghost', onclick: ((event: MouseEvent) => void)|null}|null}
+ */
+export function normalizeMessageAction(value) {
+  if (!value || typeof value !== 'object') return null;
+  const action = /** @type {Record<string, unknown>} */ (value);
+  const label = action.label == null ? '' : String(action.label).trim();
+  if (!label) return null;
+  const kind = ['primary', 'danger', 'ghost'].includes(String(action.kind))
+    ? /** @type {'primary'|'danger'|'ghost'} */ (action.kind) : 'default';
+  return {
+    label,
+    kind,
+    onclick: typeof action.onclick === 'function'
+      ? /** @type {(event: MouseEvent) => void} */ (action.onclick) : null
+  };
+}
+
+/**
+ * Accepts a node, or a component such as an Avatar, for the leading slot.
+ * @param {any} value Leading content.
+ * @returns {Node|null}
+ */
+function resolveLeading(value) {
+  if (isNode(value)) return /** @type {Node} */ (value);
+  if (value && typeof value === 'object' && typeof value.toElement === 'function') {
+    const element = value.toElement();
+    return isNode(element) ? element : null;
+  }
+  return null;
+}
+
+/**
+ * Hands focus back to where it came from when a message closes with focus inside it, so a keyboard
+ * reader is not dropped on the page body with the element they were on gone.
+ * @param {any} entry Message entry.
+ * @returns {void}
+ */
+function returnFocus(entry) {
+  const root = entry.node.getRootNode?.();
+  const active = root?.activeElement ?? globalThis.document?.activeElement;
+  if (!active || !entry.node.contains(active)) return;
+  const target = entry.returnFocus;
+  entry.returnFocus = null;
+  if (target?.isConnected && typeof target.focus === 'function') target.focus({ preventScroll: true });
 }
 
 /** @param {unknown} value @returns {number} */

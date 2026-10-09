@@ -30,12 +30,12 @@ test('file normalization retains zero bytes and clamps progress without mutating
 
 test('file normalization omits unusable sizes and progress and falls back to a safe status', () => {
   const state = normalizeFileItem({
-    name: 'draft.txt', size: -3, progress: Number.NaN, status: 'invented', density: 'huge'
+    name: 'draft.txt', size: -3, progress: Number.NaN, status: 'invented', identitySize: 'huge'
   });
   assert.equal(state.size, null);
   assert.equal(state.progress, null);
   assert.equal(state.status, 'ready');
-  assert.equal(state.density, 'md');
+  assert.equal(state.identitySize, 'md');
   assert.equal(state.icon, 'file');
 });
 

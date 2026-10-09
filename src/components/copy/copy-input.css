@@ -1,18 +1,23 @@
 .zx-copy-input {
+  /* Holds the visually hidden label below, which would otherwise hang off the page. */
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--zx-space-1);
   inline-size: 100%;
 }
 
+/* The same quiet label a Field draws, so a copy field sits in a form without standing out. */
 .zx-copy-input__label {
-  color: var(--zx-color-text);
-  font-size: var(--zx-control-font-size);
-  font-weight: 500;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  font-weight: var(--zx-weight-medium);
 }
 
 .zx-copy-input[data-hide-label] .zx-copy-input__label {
   position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
   clip-path: inset(50%);
   inline-size: 1px;
   block-size: 1px;

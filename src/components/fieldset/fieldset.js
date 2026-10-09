@@ -1,6 +1,6 @@
 import { Component } from '../../core/component.js';
 import { h } from '../../core/dom.js';
-import { isElement } from '../../core/util.js';
+import { isElement, uid } from '../../core/util.js';
 import { Field } from '../field/field.js';
 
 /**
@@ -8,6 +8,9 @@ import { Field } from '../field/field.js';
  * @property {string} [title=''] Legend text.
  * @property {1|2|3} [columns=1] Grid column count.
  * @property {Record<string, FieldOptions|Field|Element|Component>} [fields={}] Initial fields.
+ * @property {string|null} [idPrefix=null] Prefix of the DOM ids generated for the fields, as
+ *   `<idPrefix>-<key>`. Null generates one per instance, so the same fieldset mounted twice
+ *   never repeats an id and a field key never collides with an element id elsewhere on the page.
  */
 
 /** @typedef {import('../field/field.js').FieldOptions} FieldOptions */
@@ -20,7 +23,7 @@ export class Fieldset extends Component {
   static cssName = 'fieldset';
 
   /** @type {FieldsetOptions} */
-  static defaults = { title: '', columns: 1, fields: {} };
+  static defaults = { title: '', columns: 1, fields: {}, idPrefix: null };
 
   /** @returns {HTMLElement} */
   render() {
@@ -30,6 +33,7 @@ export class Fieldset extends Component {
     this._origins = new Map();
     this._fieldIdAttributes = new Map();
     this._ownedNodes = [];
+    this._idPrefix = this.options.idPrefix ? String(this.options.idPrefix) : uid('zx-fieldset');
     this._columnAttribute = root.getAttribute('data-columns');
     const columns = [1, 2, 3].includes(Number(this.options.columns)) ? Number(this.options.columns) : 1;
     root.dataset.columns = String(columns);
@@ -49,7 +53,9 @@ export class Fieldset extends Component {
   }
 
   /**
-   * Adds a field from options, an existing field, an element, or a component.
+   * Adds a field from options, an existing field, an element, or a component. The key becomes the
+   * field's `name` and its `data-field-id`; the control's DOM id is `<idPrefix>-<key>`, unless the
+   * field options give an `id` of their own that differs from the key.
    * @param {string} id Logical field identifier.
    * @param {FieldOptions|Field|Element|Component} field Field source.
    * @returns {Field}
@@ -64,7 +70,8 @@ export class Fieldset extends Component {
     } else if (isElement(field) || field instanceof Component) {
       const source = field;
       instance = new Field(null, {
-        id: key,
+        id: this._controlId(key),
+        name: key,
         type: 'custom',
         label: key,
         value: readExternalValue(source),
@@ -74,7 +81,14 @@ export class Fieldset extends Component {
       owned = true;
     } else {
       const options = field && typeof field === 'object' ? field : {};
-      instance = new Field(null, { ...options, id: options.id ?? key });
+      // An `id` equal to the key is the key restated (schema descriptors carry both), not a
+      // request for that DOM id.
+      const explicit = options.id != null && String(options.id) !== '' && String(options.id) !== key;
+      instance = new Field(null, {
+        ...options,
+        id: explicit ? String(options.id) : this._controlId(key),
+        name: options.name ?? key
+      });
       owned = true;
     }
 
@@ -216,6 +230,15 @@ export class Fieldset extends Component {
   clearHighlights() {
     for (const field of this._fields.values()) field.clearHighlight();
     return this;
+  }
+
+  /**
+   * The DOM id generated for a field key: unique per instance unless `idPrefix` was given.
+   * @param {string} key Field key.
+   * @returns {string}
+   */
+  _controlId(key) {
+    return `${this._idPrefix}-${key.trim().replace(/\s+/g, '-')}`;
   }
 
   /** @param {Field} field @returns {void} */

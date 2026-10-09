@@ -1742,12 +1742,12 @@ export class KanbanView extends RecordView {
   /** @returns {HTMLElement} Built-in history controls. */
   _createHistoryControls() {
     this._undoButton = /** @type {HTMLButtonElement} */ (h('button', {
-      class: 'zx-button zx-button--sm', type: 'button', disabled: true,
-      dataset: { kanbanHistory: 'undo' }
+      class: 'zx-btn', type: 'button', disabled: true,
+      dataset: { kanbanHistory: 'undo', size: 'sm', kind: 'ghost' }
     }, this._text('undo')));
     this._redoButton = /** @type {HTMLButtonElement} */ (h('button', {
-      class: 'zx-button zx-button--sm', type: 'button', disabled: true,
-      dataset: { kanbanHistory: 'redo' }
+      class: 'zx-btn', type: 'button', disabled: true,
+      dataset: { kanbanHistory: 'redo', size: 'sm', kind: 'ghost' }
     }, this._text('redo')));
     const group = h('div', { class: 'zx-kanban-view__history', role: 'group' },
       this._undoButton, this._redoButton);

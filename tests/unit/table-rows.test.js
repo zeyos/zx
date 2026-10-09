@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-  hasSpanningRow, isSpanningRow, resolveRowKind, resolveRowKindSpec, spanRowContent,
-  tableSpanColspan
+  hasSpanningRow, isSpanningRow, normalizeTableVariant, resolveRowKind, resolveRowKindSpec,
+  spanRowContent, tableSpanColspan
 } from '../../src/components/table/table.js';
 
 /*
@@ -144,4 +144,14 @@ test('one section anywhere in the data is enough, including outside a growing pr
   assert.equal(hasSpanningRow(grown.slice(0, 2), 'type', sectionKinds), false);
   // Asked of the whole data, so a control cannot appear and then vanish on the next growBy().
   assert.equal(hasSpanningRow(grown, 'type', sectionKinds), true);
+});
+
+/* ---------------------------------------------------------------------- variant -- */
+
+test('variant resolves to plain or the default frame, nothing else', () => {
+  assert.equal(normalizeTableVariant('plain'), 'plain');
+  assert.equal(normalizeTableVariant('default'), 'default');
+  assert.equal(normalizeTableVariant(undefined), 'default');
+  assert.equal(normalizeTableVariant('Plain'), 'default');
+  assert.equal(normalizeTableVariant('card'), 'default');
 });

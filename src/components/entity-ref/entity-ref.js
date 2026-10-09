@@ -52,7 +52,7 @@ import { isElement } from '../../core/util.js';
  * @property {EntityRefMetadata[]} [metadata=[]] Labelled dense metadata.
  * @property {EntityRefLinkValue} [link=null] Optional native primary link.
  * @property {EntityRefActionEntry[]} [actions=[]] Secondary controls; element actions keep their own behavior.
- * @property {'sm'|'md'|'lg'} [size='md'] Density-independent identity size.
+ * @property {'sm'|'md'|'lg'} [size='md'] Size of the icon and the identity text.
  * @property {boolean} [wrap=false] Whether long identity text may wrap instead of truncating.
  * @property {string} [actionsLabel='Entity actions'] Accessible name for secondary actions.
  * @property {(event: CustomEvent<{id: unknown, entity: Readonly<EntityRefState>, href: string, event: MouseEvent}>) => void} [onactivate]

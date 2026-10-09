@@ -12,7 +12,13 @@ const componentRoot = resolve(root, 'src/components');
  */
 const styleFiles = ['base.css', 'print.css'].map((name) => resolve(root, 'styles', name));
 const componentFiles = findCssFiles(componentRoot);
-const files = [...componentFiles, ...styleFiles].filter(existsSync);
+/*
+ * The application layouts are public examples of how to style an application on Zx, so they are
+ * held to the component rule too: the shared shell (`kit.css`) and every template stylesheet.
+ */
+const layoutRoot = resolve(root, 'website/layouts');
+const layoutFiles = findCssFiles(layoutRoot);
+const files = [...componentFiles, ...styleFiles, ...layoutFiles].filter(existsSync);
 const violations = [];
 const namedColors = (
   'aliceblue antiquewhite aqua aquamarine azure beige bisque black blanchedalmond blue blueviolet ' +
@@ -43,7 +49,9 @@ const rawColorPatterns = [
 
 for (const file of files) {
   const source = readFileSync(file, 'utf8');
-  const css = stripComments(source);
+  // Quoted strings are attribute values and content, never colours: `[data-tone="blue"]` names a
+  // tone, it does not paint one. Blank them out (keeping offsets) before looking for literals.
+  const css = stripStrings(stripComments(source));
 
   for (const { label, pattern } of rawColorPatterns) {
     pattern.lastIndex = 0;
@@ -62,8 +70,8 @@ for (const file of files) {
     );
   }
 
-  if (file.startsWith(componentRoot)) {
-    const tierOnePattern = /var\(\s*(--zx-(?:gray|green|red|amber|blue)-[^\s,)]+)/gi;
+  if (file.startsWith(componentRoot) || file.startsWith(layoutRoot)) {
+    const tierOnePattern = /var\(\s*(--zx-(?:gray|green|red|amber|blue|emerald|tone)-[^\s,)]+)/gi;
     for (const match of css.matchAll(tierOnePattern)) {
       addViolation(file, css, match.index, 'tier-1 token reference "' + match[1] + '"');
     }
@@ -93,6 +101,15 @@ function findCssFiles(directory) {
     else if (entry.isFile() && entry.name.endsWith('.css')) found.push(path);
   }
   return found;
+}
+
+/**
+ * Replaces the contents of quoted strings with spaces while preserving offsets and line positions.
+ * @param {string} css
+ * @returns {string}
+ */
+function stripStrings(css) {
+  return css.replace(/(["'])(?:\\.|(?!\1)[^\\\n])*\1/g, (string) => string[0] + ' '.repeat(string.length - 2) + string[0]);
 }
 
 /**

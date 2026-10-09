@@ -32,7 +32,7 @@
 
 .zx-field-upload__prompt {
   color: var(--zx-color-text);
-  font-weight: 600;
+  font-weight: var(--zx-weight-medium);
 }
 
 .zx-field-upload__hint,

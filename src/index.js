@@ -52,6 +52,7 @@ export {
 } from './core/dom.js';
 export { position } from './core/position.js';
 export { breakpoints, breakpointOf, matchBreakpoint, onBreakpoint } from './core/breakpoint.js';
+export { MOTION_ATTRIBUTE, prefersReducedMotion, watchMotion } from './core/motion.js';
 export { Http, zeyosService, parseResult } from './core/http.js';
 export { setTranslator, setLanguage, getLanguage, translate, printf } from './core/i18n.js';
 export { focusTrap, rovingTabindex, typeahead } from './core/keyboard.js';
@@ -75,8 +76,8 @@ export {
 export { storage } from './core/storage.js';
 export { toCsv, downloadBlob, copyToClipboard } from './core/export.js';
 export { defineElements } from './elements/define.js';
-export { button, buttonGroup } from './components/button/button.js';
-export { badge, badgeGroup } from './components/badge/badge.js';
+export { button, buttonGroup, setButtonBusy } from './components/button/button.js';
+export { BADGE_TONES, badge, badgeGroup } from './components/badge/badge.js';
 export { CheckButton } from './components/check-button/check-button.js';
 export { emptyState } from './components/empty-state/empty-state.js';
 export { spinner } from './components/loading/spinner.js';
@@ -108,7 +109,7 @@ export { Pagination, paginationRange } from './components/pagination/pagination.
 export { Search } from './components/search/search.js';
 export { AppIcon, appIcon } from './components/app-icon/app-icon.js';
 export { Launcher, rankLauncherItems } from './components/launcher/launcher.js';
-export { Avatar, avatarInitials } from './components/avatar/avatar.js';
+export { AVATAR_TONES, Avatar, avatarInitials, avatarTone } from './components/avatar/avatar.js';
 export {
   EntityRef, normalizeEntityRef, normalizeEntityRefLink,
   normalizeEntityRefMetadata, normalizeEntityRefActions
@@ -134,6 +135,7 @@ export { Tooltip, tooltip, describe } from './components/tooltip/tooltip.js';
 export { MenuButton } from './components/menu-button/menu-button.js';
 export { ContextMenu } from './components/context-menu/context-menu.js';
 export { Select } from './components/select/select.js';
+export { statusIcon, priorityIcon } from './components/select/glyphs.js';
 export { Checklist } from './components/checklist/checklist.js';
 export { TagPicker } from './components/tag-picker/tag-picker.js';
 export { NumberField, parseNumber, snapNumber } from './components/number-field/number-field.js';

@@ -4,10 +4,16 @@ import { buildListQuery } from './query.js';
 import { fieldToZxColumn, resolveFields } from './schema.js';
 import { normalizeZeyosListResult } from './select.js';
 
+/** @typedef {import('../components/table/table.js').TableOptions} TableOptions */
+
 /**
  * @typedef {Object} ZeyosTableOptions
  * @property {string[]} [fields] Curated ordered field allow-list.
  * @property {Record<string, string>} [labels] Per-field label overrides.
+ * @property {Record<string, string>} [formats] Per-field semantic format overrides, such as
+ * `{ duedate: 'date' }` for a Unix-second field that holds a calendar day.
+ * @property {string} [timeZone] IANA time zone of the ZeyOS instance. Date-only columns show the
+ * calendar day their stored midnight names in this zone; defaults to the runtime's own zone.
  * @property {string|((row: Record<string, unknown>) => unknown)} [rowId='ID'] Row id accessor.
  * @property {number} [pageSize=50] Server page size.
  * @property {{id: string, dir: 'asc'|'desc'}|null} [sort=null] Initial server sort.
@@ -16,7 +22,41 @@ import { normalizeZeyosListResult } from './select.js';
  * @property {false|'single'|'multi'} [selectable=false] Row selection mode.
  * @property {number|string|null} [height=null] Table scroll-region height.
  * @property {(row: Record<string, unknown>, event: CustomEvent<Record<string, unknown>>) => void} [onRowClick] Row activation callback.
+ * @property {TableOptions['variant']} [variant='default'] Table frame treatment; `'plain'` for a
+ * table inside a pane or card that already draws the box.
+ * @property {boolean} [zebra=true] Whether alternate rows use the zebra background.
+ * @property {boolean} [stickyHeader=true] Whether column headers stick while scrolling.
+ * @property {TableOptions['responsive']} [responsive=false] Width below which rows stack.
+ * @property {TableOptions['growing']} [growing=false] Rows rendered at first from a loaded page.
+ * @property {TableOptions['emptyText']} [emptyText=null] What the table shows with no rows.
+ * @property {TableOptions['rowClass']} [rowClass=null] Additional row class callback.
+ * @property {TableOptions['rowKind']} [rowKind=null] Row property or callback naming each row's kind.
+ * @property {TableOptions['rowKinds']} [rowKinds=null] Presentation per row kind.
+ * @property {boolean} [columnVisibility=false] Whether a column visibility chooser is rendered.
+ * @property {boolean} [columnReorder=false] Whether the column chooser exposes reorder controls.
+ * @property {string[]} [hiddenColumns=[]] Initially hidden column ids.
+ * @property {TableOptions['onrowclick']} [onrowclick] Table `rowclick` listener, beside `onRowClick`.
+ * @property {TableOptions['onrowdblclick']} [onrowdblclick] Table `rowdblclick` listener.
+ * @property {TableOptions['onsort']} [onsort] Table `sort` listener; the binding reloads either way.
+ * @property {TableOptions['onselectionchange']} [onselectionchange] Table `selectionchange` listener.
+ * @property {TableOptions['ondatachange']} [ondatachange] Table `datachange` listener.
+ * @property {TableOptions['onstackedchange']} [onstackedchange] Table `stackedchange` listener.
+ * @property {TableOptions['ongrow']} [ongrow] Table `grow` listener.
+ * @property {TableOptions['oncolumnvisibilitychange']} [oncolumnvisibilitychange] Table `columnvisibilitychange` listener.
+ * @property {TableOptions['oncolumnorderchange']} [oncolumnorderchange] Table `columnorderchange` listener.
  */
+
+/**
+ * Table options a binding passes through unchanged: presentation and listeners. The binding owns
+ * `columns`, `data`, and `sortMode`; editing, row reordering, and `hierarchy` are left out because
+ * they rearrange or change rows the server pages and never persists.
+ */
+const TABLE_OPTION_KEYS = [
+  'variant', 'zebra', 'stickyHeader', 'responsive', 'growing', 'emptyText', 'rowClass', 'rowKind',
+  'rowKinds', 'columnVisibility', 'columnReorder', 'hiddenColumns', 'onrowdblclick', 'onsort',
+  'onselectionchange', 'ondatachange', 'onstackedchange', 'ongrow', 'oncolumnvisibilitychange',
+  'oncolumnorderchange'
+];
 
 /**
  * @typedef {Object} ZeyosTableConfig
@@ -59,7 +99,8 @@ import { normalizeZeyosListResult } from './select.js';
  * Builds the DOM-free schema-derived columns and Table options used by {@link zeyosTable}. Entity
  * projections include an `<field>_label` alias from a real label field on the referenced resource.
  * Amount fields use each row's real `currency` value for display while retaining the WP14 typed
- * column strategy and right alignment.
+ * column strategy and right alignment. Enum columns show labels, date-only columns calendar days in
+ * `timeZone`, and Table presentation options and listeners pass through to `tableOptions`.
  * @param {Record<string, any>} client Injected ZeyOS client instance.
  * @param {string} resource Resource name such as `transactions`.
  * @param {ZeyosTableOptions} [opts={}] Schema, table, and initial query options.
@@ -68,7 +109,9 @@ import { normalizeZeyosListResult } from './select.js';
 export function buildZeyosTableConfig(client, resource, opts = {}) {
   const fieldMeta = resolveFields(client, resource, {
     fields: opts.fields,
-    labels: opts.labels
+    labels: opts.labels,
+    formats: opts.formats,
+    timeZone: opts.timeZone
   });
   const projection = {};
   const columns = fieldMeta.map((sourceMeta) => {
@@ -94,11 +137,16 @@ export function buildZeyosTableConfig(client, resource, opts = {}) {
   if (typeof rowId === 'string' && !Object.prototype.hasOwnProperty.call(projection, rowId)) {
     projection[rowId] = rowId;
   }
+  const passed = {};
+  for (const key of TABLE_OPTION_KEYS) {
+    if (opts[key] !== undefined) passed[key] = opts[key];
+  }
   return {
     fieldMeta,
     columns,
     projection,
     tableOptions: {
+      ...passed,
       columns,
       data: [],
       rowId,
@@ -106,9 +154,7 @@ export function buildZeyosTableConfig(client, resource, opts = {}) {
       sortMode: 'server',
       selectable: opts.selectable ?? false,
       height: opts.height ?? null,
-      onrowclick: typeof opts.onRowClick === 'function'
-        ? (event) => opts.onRowClick(event.detail.row, event)
-        : undefined
+      onrowclick: rowClickListener(opts)
     }
   };
 }
@@ -117,6 +163,8 @@ export function buildZeyosTableConfig(client, resource, opts = {}) {
  * Generates a server-backed Zx Table. Sorting automatically reloads page zero. `load({page: 0})`
  * replaces data, higher pages append it, and `loadMore()` uses `limit`/`offset` plus the returned
  * count. DataFilter callers can map state with `dataFilterStateToFilters` before `setFilters()`.
+ * Table presentation options (`variant`, `zebra`, `stickyHeader`, `responsive`, `emptyText`, …) and
+ * listeners are passed through to the generated Table.
  * @param {Record<string, any>} client Injected ZeyOS client instance.
  * @param {string} resource Resource name such as `transactions`.
  * @param {ZeyosTableOptions} [opts={}] Schema, table, and initial query options.
@@ -202,6 +250,21 @@ export function zeyosTable(client, resource, opts = {}) {
     void load({ page: 0 }).catch(() => { /* The connection facade already reported the failure. */ });
   });
   return binding;
+}
+
+/**
+ * Combines the Table-style `onrowclick` listener with the binding's row-first `onRowClick`.
+ * @param {ZeyosTableOptions} opts
+ * @returns {((event: CustomEvent<Record<string, any>>) => void)|undefined}
+ */
+function rowClickListener(opts) {
+  const listener = typeof opts.onrowclick === 'function' ? opts.onrowclick : null;
+  const callback = typeof opts.onRowClick === 'function' ? opts.onRowClick : null;
+  if (!listener && !callback) return undefined;
+  return (event) => {
+    listener?.(event);
+    callback?.(event.detail.row, event);
+  };
 }
 
 /** @param {Record<string, any>} meta @returns {string|null} */

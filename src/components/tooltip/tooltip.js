@@ -1,6 +1,6 @@
 import { Component } from '../../core/component.js';
 import { h, resolveElement } from '../../core/dom.js';
-import { overlayHost } from '../../core/overlay-host.js';
+import { connectedOverlayHost, overlayHost } from '../../core/overlay-host.js';
 import { position } from '../../core/position.js';
 import { uid } from '../../core/util.js';
 
@@ -96,7 +96,8 @@ export class Tooltip extends Component {
     super(null, options);
 
     this.#anchor = resolved;
-    overlayHost(resolved).append(this.el);
+    // A detached anchor has no theme scope yet: the bubble waits and finds its host in show().
+    connectedOverlayHost(resolved)?.append(this.el);
     this.#content = this.options.content;
     this.#disabled = Boolean(this.options.disabled);
     this.#describedBy = resolved.getAttribute('aria-describedby');
@@ -174,11 +175,17 @@ export class Tooltip extends Component {
     if (node === null) return this;
 
     this.el.replaceChildren(node);
+    const placement = PLACEMENTS.has(this.options.placement) ? this.options.placement : 'top';
     this.#position = position(this.#anchor, /** @type {HTMLElement} */ (this.el), {
-      placement: PLACEMENTS.has(this.options.placement) ? this.options.placement : 'top',
+      placement,
       offset: Number(this.options.offset),
       flip: true
     });
+    // A bubble beside its anchor that fits on neither side goes above or below it instead. Only
+    // the anchor-positioned path sets fallbacks; the script fallback clamps into the viewport.
+    if (/^(left|right)/.test(placement) && this.el.style.getPropertyValue('position-try-fallbacks')) {
+      this.el.style.setProperty('position-try-fallbacks', 'flip-inline, top span-all, bottom span-all');
+    }
     this.el.dataset.state = 'open';
     this.#anchor.setAttribute('aria-describedby', appendToken(this.#describedBy, this.el.id));
     this.emit('open');

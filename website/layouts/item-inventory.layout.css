@@ -1,0 +1,457 @@
+/* Item & inventory layout. Every selector is scoped under .inventory. */
+
+/* ------------------------------------------------------------------ header -- */
+
+.inventory .inventory__state {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.inventory .inventory__pager {
+  display: inline-flex;
+  gap: var(--zx-space-1);
+}
+
+/* ------------------------------------------------------------------ record -- */
+
+/* The record's title and its tab row stay put; the open tab scrolls beneath them. */
+.inventory .inventory__record {
+  container: inventory-record / inline-size;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-block-size: 0;
+}
+
+.inventory .inventory__head {
+  display: grid;
+  gap: var(--zx-space-1);
+  padding: var(--zx-space-5) var(--zx-space-5) var(--zx-space-2);
+}
+
+.inventory .inventory__heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zx-space-3);
+}
+
+/* A record page's title: a step below a document title, with the kit's title weight and tracking. */
+.inventory .inventory__title {
+  font-size: 22px;
+}
+
+.inventory .inventory__subtitle {
+  margin: 0;
+}
+
+/* The tab row's first label lines up with the title above it. */
+.inventory .inventory__tabs > .zx-tabbox__tablist {
+  padding-inline: var(--zx-space-1);
+}
+
+/* The open panel is the record's scrolling region. It is the panel itself rather than a box
+   inside it, so the keyboard scrolls it as soon as the panel has focus. */
+.inventory .inventory__tabs > .zx-tabbox__panels > .zx-tabbox__panel {
+  position: relative;
+  overflow: auto;
+  padding: var(--zx-space-5);
+  overscroll-behavior: contain;
+}
+
+.inventory .inventory__tab {
+  display: grid;
+  align-content: start;
+  gap: var(--zx-space-5);
+}
+
+/* Sections are divided by a hairline, not boxed. The tiles above the first one are boxes already. */
+.inventory .inventory__tab > :not(.inventory__stats) + .inventory__section {
+  padding-block-start: var(--zx-space-5);
+  border-block-start: 1px solid var(--zx-color-border-subtle);
+}
+
+.inventory .inventory__section {
+  display: grid;
+  gap: var(--zx-space-3);
+}
+
+.inventory .inventory__section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zx-space-1) var(--zx-space-3);
+  min-block-size: var(--zx-control-height);
+}
+
+.inventory .inventory__section-title {
+  margin: 0;
+  font-size: var(--zx-text-md);
+  font-weight: var(--zx-weight-semibold);
+}
+
+.inventory .inventory__section-actions {
+  display: inline-flex;
+  gap: var(--zx-space-2);
+  margin-inline-start: auto;
+}
+
+.inventory .inventory__section-description {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+/* ----------------------------------------------------------------- figures -- */
+
+/* Four figures and four document groups: one row each, two rows of two on a narrow record. */
+.inventory .inventory__stats,
+.inventory .inventory__connections {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--zx-space-3);
+}
+
+.inventory .inventory__connections {
+  column-gap: var(--zx-space-5);
+}
+
+@container inventory-record (max-width: 800px) {
+  .inventory .inventory__stats,
+  .inventory .inventory__connections {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* A tile that needs attention says so in its caption. `kind` would otherwise only tint a
+   sparkline, and these tiles have none. */
+.inventory .inventory__stats .zx-stat-tile[data-kind="warning"] .zx-stat-tile__caption {
+  color: var(--zx-color-warning);
+}
+
+/* ------------------------------------------------------------ stock table -- */
+
+.inventory .inventory__warehouse {
+  display: flex;
+  align-items: baseline;
+  gap: var(--zx-space-2);
+  white-space: nowrap;
+}
+
+.inventory .inventory__projected {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: var(--zx-space-2);
+  white-space: nowrap;
+}
+
+.inventory .inventory__projected > .meta {
+  font-size: var(--zx-text-xs);
+}
+
+/* Not under .inventory: the linked-documents Sheet renders its table outside the layout's root. */
+.inventory__status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  white-space: nowrap;
+}
+
+/* One track per warehouse on a shared scale: available stock solid, the reserved part of the
+   stock lighter after it, the reorder level a tick across the track. The fill is neutral and
+   takes the status tone only on a row that needs reordering. */
+.inventory .inventory__bar {
+  --tone: var(--zx-color-text-subtle);
+  position: relative;
+  display: flex;
+  block-size: var(--zx-space-2);
+  min-inline-size: 6rem;
+  border-radius: var(--zx-radius-sm);
+  background: var(--zx-color-bg-muted);
+}
+
+.inventory .inventory__bar[data-tone="warning"] { --tone: var(--zx-color-warning); }
+.inventory .inventory__bar[data-tone="danger"] { --tone: var(--zx-color-danger); }
+
+.inventory .inventory__bar-available {
+  inline-size: var(--qty-available);
+  border-start-start-radius: inherit;
+  border-end-start-radius: inherit;
+  background: var(--tone);
+}
+
+.inventory .inventory__bar-reserved {
+  inline-size: var(--qty-reserved);
+  background: color-mix(in srgb, var(--tone) 40%, transparent);
+}
+
+.inventory .inventory__bar-reorder {
+  position: absolute;
+  inset-block: calc(var(--zx-space-1) * -1);
+  inset-inline-start: var(--qty-reorder);
+  inline-size: 2px;
+  margin-inline-start: -1px;
+  background: var(--zx-color-text);
+}
+
+.inventory .inventory__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zx-space-2) var(--zx-space-5);
+  font-size: var(--zx-text-xs);
+}
+
+.inventory .inventory__legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+}
+
+.inventory .inventory__swatch {
+  inline-size: var(--zx-space-4);
+  block-size: var(--zx-space-2);
+  border-radius: var(--zx-radius-sm);
+  background: var(--zx-color-text-subtle);
+}
+
+.inventory .inventory__swatch--reserved {
+  background: color-mix(in srgb, var(--zx-color-text-subtle) 40%, transparent);
+}
+
+.inventory .inventory__swatch--reorder {
+  inline-size: 2px;
+  block-size: var(--zx-space-4);
+  border-radius: 0;
+  background: var(--zx-color-text);
+}
+
+/* ------------------------------------------------------------ connections -- */
+
+.inventory .inventory__connection-group {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+}
+
+.inventory .inventory__connection-title {
+  margin: 0 0 var(--zx-space-1);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  font-weight: var(--zx-weight-medium);
+}
+
+/* A document type and how many the item has: a row that opens the list, its count at the end. */
+.inventory .inventory__connection {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  inline-size: calc(100% + 2 * var(--zx-space-2));
+  margin-inline: calc(var(--zx-space-2) * -1);
+  padding-inline: var(--zx-space-2);
+  border: 0;
+  border-radius: var(--zx-radius-md);
+  background: transparent;
+  color: var(--zx-color-text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.inventory .inventory__connection:hover {
+  background: var(--zx-color-bg-hover);
+}
+
+.inventory .inventory__connection:focus-visible {
+  outline: none;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.inventory .inventory__connection[data-empty] {
+  color: var(--zx-color-text-muted);
+}
+
+.inventory .inventory__connection-label {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inventory .inventory__connection-count {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --------------------------------------------------------------- activity -- */
+
+.inventory .inventory__composer {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--zx-space-3);
+}
+
+/* The avatar sits level with the first line of the comment field. */
+.inventory .inventory__composer > .zx-avatar {
+  margin-block-start: calc((var(--zx-control-height) - var(--zx-space-6)) / 2);
+}
+
+.inventory .inventory__comment-input {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  min-block-size: var(--zx-control-height);
+  padding-block: var(--zx-space-2);
+  resize: vertical;
+}
+
+/* ------------------------------------------------------------ side column -- */
+
+.inventory .inventory__photo {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--zx-space-1);
+  inline-size: 96px;
+  aspect-ratio: 1;
+  border: 1px dashed var(--zx-color-border);
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-bg-surface);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+}
+
+.inventory .inventory__photo > .zx-icon {
+  color: var(--zx-color-text-subtle);
+}
+
+/* A block's heading row: its icon and title, then the action that adds to it. The action is a
+   control-height ghost button, so the row gives back that height around the title. */
+.inventory .inventory__block-head {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  margin-block: calc(var(--zx-space-2) * -1);
+}
+
+.inventory .inventory__block-head > .panel-block__title {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: var(--zx-space-2);
+  min-block-size: var(--zx-control-height);
+}
+
+.inventory .inventory__block-head .panel-block__title > .zx-icon {
+  color: var(--zx-color-text-subtle);
+}
+
+/* "Following" is a quiet toggle in its block's heading: no frame until it is pointed at; the
+   check glyph and the label carry its state. */
+.inventory .inventory__follow:not(:hover, :focus-visible) {
+  border-color: transparent;
+  background: transparent;
+}
+
+.inventory .inventory__follow {
+  padding-inline: var(--zx-space-2);
+  font-size: var(--zx-text-sm);
+}
+
+/* Tags read as plain chips, level with the block's title; the field's frame, when it shows,
+   reaches into the gutter instead. */
+.inventory .shell__aside .zx-tag-picker {
+  margin-inline: calc(var(--zx-space-2) * -1);
+}
+
+/* Read-only, the picker is only its chips; a click on them starts the edit. */
+.inventory .shell__aside .zx-tag-picker[data-readonly] .zx-tag-picker__control {
+  cursor: pointer;
+}
+
+/* The stack's separating ring takes the column's tone. */
+.inventory .shell__aside .avatar-stack > * {
+  box-shadow: 0 0 0 2px var(--zx-color-bg-chrome);
+}
+
+.inventory .inventory__people {
+  display: grid;
+  gap: var(--zx-space-1);
+}
+
+.inventory .inventory__people:empty {
+  display: none;
+}
+
+.inventory .inventory__person {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--zx-space-2);
+}
+
+.inventory .inventory__followers {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-3);
+}
+
+/* ------------------------------------------------------------------ narrow -- */
+
+/* The stock table keeps its columns while they fit, scrolls inside its frame when they do not,
+   and on a phone (Table's own `responsive`) becomes a card per warehouse. */
+.inventory .inventory__levels:not([data-stacked]) .zx-table__table {
+  min-inline-size: 50rem;
+}
+
+/* The tables a settings tab edits in place scroll sideways rather than squeeze their cells. */
+.inventory .inventory__child-table .zx-table__table {
+  min-inline-size: 34rem;
+}
+
+/* A narrow pane's header takes two rows: where you are and the save state, then the pager and
+   the actions. The break keeps the visual order the order of the controls. */
+.inventory .shell__main {
+  container: inventory-main / inline-size;
+}
+
+@container inventory-main (max-width: 700px) {
+  .inventory .inventory__header {
+    flex-wrap: wrap;
+    padding-block: var(--zx-space-2);
+  }
+
+  .inventory .inventory__header > .shell__header-leading {
+    flex: 1 1 auto;
+  }
+
+  .inventory .inventory__header > .shell__header-actions {
+    display: contents;
+  }
+
+  .inventory .inventory__header::after {
+    content: "";
+    flex-basis: 100%;
+    order: 1;
+  }
+
+  .inventory .inventory__header > .shell__header-actions > :not(.inventory__state) {
+    order: 2;
+    margin-block-start: var(--zx-space-2);
+  }
+
+  .inventory .inventory__header .inventory__pager {
+    margin-inline-end: auto;
+  }
+}
+
+@container shell (max-width: 640px) {
+  .inventory .inventory__head {
+    padding: var(--zx-space-4) var(--zx-space-4) var(--zx-space-2);
+  }
+
+  .inventory .inventory__tabs > .zx-tabbox__panels > .zx-tabbox__panel {
+    padding: var(--zx-space-4);
+  }
+}

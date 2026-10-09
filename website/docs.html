@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en" data-zx-theme="light" data-zx-density="cozy">
+<html lang="en" data-zx-theme="light">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Xenon Design System documentation — foundations, components, patterns, and application layouts implemented by Zx.">
+    <meta name="description" content="Xenon Design System documentation — foundations, components, and patterns implemented by Zx, each with a live demo, its source, and the API reference.">
     <title>Documentation — ZeyOS Xenon Design System</title>
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="../styles/zx.css">
@@ -31,7 +31,7 @@
         </div>
         <nav class="site-nav" aria-label="Primary">
           <a href="docs.html">Documentation</a>
-          <a href="docs.html#layouts">Layouts</a>
+          <a href="layouts.html">Layouts</a>
           <a href="theme.html">Theming</a>
         </nav>
         <div class="site-actions">
@@ -79,10 +79,13 @@
         <li><strong>Components</strong> — every component with a live demo, its complete JavaScript
           source, and the API reference. It also covers the general-purpose
           <a href="#components/helpers">helper functions</a>.</li>
-        <li><strong>Layouts</strong> — eight complete application shells assembled from those
-          components, each with its full source, ending with a real ZeyOS invoices screen driven
-          by a live schema.</li>
       </ul>
+      <p>
+        The <a href="layouts.html">layout gallery</a> puts the components to work: complete
+        application templates — mail, an issue tracker, a knowledge base, invoicing, a CRM, and
+        more — and the screen patterns inside them, each running live with its full source, down
+        to a real ZeyOS invoices screen driven by a live schema.
+      </p>
 
       <div class="docs-callout">
         <p>
@@ -280,24 +283,40 @@ const toolbar = h('div', { class: 'toolbar' },
     <template
       data-guide="theming"
       data-title="Theming"
-      data-blurb="Three attributes switch light/dark, cozy/compact, and the accent. A product theme is a short list of semantic token overrides.">
+      data-blurb="Two attributes switch light/dark and the accent; spacing and geometry are tokens. A product theme is a short list of semantic token overrides.">
       <div class="docs-callout">
         <p>
           The <a href="theme.html">theme studio</a> puts every component family on one page under a live
-          theme: cycle the standard presets, change the accent, radius, density, and type, and copy
+          theme: cycle the standard presets, change the accent, spacing, radius, and type, and copy
           the result out as CSS. It is the fastest way to read the rest of this page.
         </p>
       </div>
 
-      <h2>Switching theme and density</h2>
+      <h2>Switching theme</h2>
       <p>
-        Set <code>data-zx-theme</code> (<code>light</code>, <code>dark</code>, <code>auto</code>)
-        and <code>data-zx-density</code> (<code>cozy</code>, <code>compact</code>) on any ancestor —
-        usually <code>&lt;html&gt;</code>. Both cascade, so a single dense panel inside a cozy
-        application is just another attribute.
+        Set <code>data-zx-theme</code> (<code>light</code>, <code>dark</code>, <code>auto</code>) on
+        any ancestor — usually <code>&lt;html&gt;</code>. It cascades, so a dark panel inside a
+        light application is just another attribute.
       </p>
       <pre data-code="theme.html">
-&lt;html data-zx-theme="dark" data-zx-density="compact"&gt;
+&lt;html data-zx-theme="dark"&gt;
+      </pre>
+
+      <h2>Spacing and geometry</h2>
+      <p>
+        Xenon has one geometry, and it is set by tokens rather than modes. Every spacing step is a
+        multiple of <code>--zx-space-unit</code> (4px: steps of 4, 8, 12, 16, 20, 24, 32, and
+        40px), every radius step is a fraction of <code>--zx-radius</code> (4px: 2, 3, 4, and 6px),
+        and controls are <code>--zx-control-height</code> tall (30px). Change those three and
+        padding, gaps, indents, corners, and rows all follow together — on the whole application,
+        or on one region of it.
+      </p>
+      <pre data-code="geometry.css">
+/* A tighter application: a smaller unit and shorter controls, type unchanged. */
+:root {
+  --zx-space-unit: 3.5px;
+  --zx-control-height: 28px;
+}
       </pre>
 
       <h2>Surface hierarchy and Aurora</h2>
@@ -328,7 +347,7 @@ const light = new Aurora('#application-canvas', {
 
       <h2>The standard themes</h2>
       <p>
-        <code>data-zx-preset</code> is the third attribute, and it is orthogonal to the first two:
+        <code>data-zx-preset</code> is the second attribute, and it is orthogonal to the first:
         it picks the <strong>accent ramp</strong>, while <code>data-zx-theme</code> decides which
         end of that ramp each surface uses. Six ship with the library:
       </p>
@@ -404,6 +423,8 @@ const light = new Aurora('#application-canvas', {
           <tr><td><code>--zx-color-accent</code></td><td>Primary actions and selection</td></tr>
           <tr><td><code>--zx-color-danger</code> / <code>-warning</code> / <code>-success</code> / <code>-info</code></td><td>Status colours, each with a matching <code>-bg</code></td></tr>
           <tr><td><code>--zx-control-height</code> / <code>-radius</code> / <code>-pad-x</code></td><td>Control geometry</td></tr>
+          <tr><td><code>--zx-space-unit</code> / <code>--zx-space-1</code> … <code>-8</code></td><td>Spacing, as multiples of one unit</td></tr>
+          <tr><td><code>--zx-radius</code> / <code>-sm</code> / <code>-md</code> / <code>-lg</code> / <code>-xl</code></td><td>Corner radius, as fractions of one base</td></tr>
           <tr><td><code>--zx-focus-ring</code></td><td>The <code>:focus-visible</code> box shadow</td></tr>
         </tbody>
       </table>
@@ -425,7 +446,7 @@ const light = new Aurora('#application-canvas', {
   --zx-color-accent-hover: #1d4c80;
   --zx-color-on-accent: #ffffff;
   --zx-color-bg-page: #f7f8fa;
-  --zx-radius: 0.25rem;
+  --zx-radius: 3px;
 }
       </pre>
 
@@ -450,8 +471,8 @@ const light = new Aurora('#application-canvas', {
 
       <h2>Where the current theme comes from</h2>
       <p>
-        The stock light and dark themes use a restrained neutral ramp, <code>0.45rem</code> corner
-        radius, Inter, 32px controls, and a three-pixel translucent focus ring. The accent is the
+        The stock light and dark themes use a restrained neutral ramp, a 4px spacing unit, a 4px
+        base radius, Inter, 30px controls, and a three-pixel translucent focus ring. The accent is the
         ZeyOS green, tuned across Xenon's emerald ramp so it stays legible on both surfaces.
       </p>
 
@@ -531,7 +552,7 @@ document.querySelector('#invoices').append(list.table);
 
       <div class="docs-callout">
         <p>
-          The <a href="#layouts/zeyos-invoices">ZeyOS invoices</a> layout is the reference integration: a
+          The <a href="layouts.html#zeyos-invoices">ZeyOS invoices</a> layout is the reference integration: a
           complete invoices screen generated from the real <code>transactions</code> and
           <code>accounts</code> schemas, with server-side filtering, sorting, and paging.
         </p>

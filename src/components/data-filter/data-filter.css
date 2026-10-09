@@ -28,18 +28,19 @@
 .zx-data-filter__label {
   color: var(--zx-color-text-muted);
   font-size: var(--zx-text-sm);
-  font-weight: 650;
+  font-weight: var(--zx-weight-medium);
 }
 
 .zx-data-filter__badge {
   align-self: center;
   min-inline-size: var(--zx-control-height);
   border-radius: var(--zx-radius-full);
-  background: var(--zx-color-bg-selected);
-  color: var(--zx-color-accent);
+  background: var(--zx-color-bg-current);
+  color: var(--zx-color-text);
   padding: var(--zx-space-1) var(--zx-space-2);
   font-size: var(--zx-text-sm);
-  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--zx-weight-medium);
   text-align: center;
 }
 

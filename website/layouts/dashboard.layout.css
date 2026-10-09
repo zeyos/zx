@@ -1,0 +1,198 @@
+/*
+ * Dashboard screen pattern. Every selector is scoped under .dashboard.
+ *
+ * One padded body holds a grid of surfaces: the figures across the top, the revenue chart beside
+ * the top customers, and the tabbed detail underneath.
+ */
+
+.dashboard .dashboard__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: var(--zx-space-4);
+  align-items: start;
+}
+
+.dashboard .dashboard__tiles,
+.dashboard .dashboard__details {
+  grid-column: 1 / -1;
+}
+
+.dashboard .dashboard__tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--zx-space-4);
+}
+
+/* The chart and the ranking beside it are one row: both surfaces take its height. */
+.dashboard .dashboard__revenue,
+.dashboard .dashboard__customers {
+  align-self: stretch;
+  align-content: start;
+}
+
+.dashboard .dashboard__widget-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zx-space-2) var(--zx-space-4);
+}
+
+.dashboard .dashboard__widget-head .surface__meta {
+  margin-inline-start: var(--zx-space-1);
+}
+
+.dashboard .dashboard__legend {
+  display: flex;
+  gap: var(--zx-space-4);
+  margin-inline-start: auto;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+.dashboard .dashboard__key {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+}
+
+.dashboard .dashboard__key::before {
+  content: "";
+  inline-size: 12px;
+  block-size: 2px;
+  border-radius: var(--zx-radius-full);
+  background: var(--zx-color-chart-1);
+}
+
+.dashboard .dashboard__key[data-series="2"]::before {
+  background: var(--zx-color-chart-2);
+}
+
+/* ---------------------------------------------------------- top customers -- */
+
+.dashboard .dashboard__ranking {
+  display: grid;
+  gap: var(--zx-space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A customer: name and amount on one line, its share as a bar and a percentage beneath. */
+.dashboard .dashboard__rank {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--zx-space-1) var(--zx-space-3);
+  font-size: var(--zx-text-sm);
+}
+
+.dashboard .dashboard__rank-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard .dashboard__rank-value {
+  font-weight: var(--zx-weight-semibold);
+}
+
+.dashboard .dashboard__bar {
+  position: relative;
+  overflow: hidden;
+  block-size: 6px;
+  border-radius: var(--zx-radius-full);
+  background: var(--zx-color-bg-muted);
+}
+
+.dashboard .dashboard__bar::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  inline-size: calc(var(--share, 0) * 100%);
+  border-radius: inherit;
+  background: var(--zx-color-chart-1);
+}
+
+.dashboard .dashboard__rank-share {
+  min-inline-size: 3ch;
+  font-size: var(--zx-text-xs);
+  text-align: end;
+}
+
+/* ----------------------------------------------------------------- details -- */
+
+.dashboard .dashboard__details {
+  padding-block-start: var(--zx-space-1);
+}
+
+.dashboard .dashboard__details .zx-tabbox__panel {
+  padding-inline: 0;
+  padding-block-end: 0;
+}
+
+.dashboard .dashboard__activity {
+  padding-block-start: var(--zx-space-2);
+}
+
+/* ------------------------------------------------------------ narrow -- */
+
+/* The grid follows the page's own width, not the window's: the ranking drops under the chart
+   first, then the figures go two by two. */
+.dashboard .dashboard__body {
+  container: dashboard / inline-size;
+}
+
+@container dashboard (max-width: 820px) {
+  .dashboard .dashboard__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@container dashboard (max-width: 700px) {
+  .dashboard .dashboard__tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* A narrow page's header takes two rows: the title with the refresh status, then the period and
+   the actions. The break keeps the visual order the order of the controls. */
+.dashboard .shell__main {
+  container: dashboard-main / inline-size;
+}
+
+@container dashboard-main (max-width: 720px) {
+  .dashboard .dashboard__header {
+    flex-wrap: wrap;
+    padding-block: var(--zx-space-2);
+  }
+
+  .dashboard .dashboard__header > .shell__title {
+    flex: 1 1 auto;
+  }
+
+  .dashboard .dashboard__header > .shell__header-actions {
+    display: contents;
+  }
+
+  .dashboard .dashboard__header::after {
+    content: "";
+    flex-basis: 100%;
+    order: 1;
+  }
+
+  .dashboard .dashboard__header > .shell__header-actions > :not(.zx-inline-loading) {
+    order: 2;
+    margin-block-start: var(--zx-space-2);
+  }
+
+  .dashboard .dashboard__header .segmented {
+    margin-inline-end: auto;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .dashboard .dashboard__bar::after {
+    transition: inline-size var(--zx-dur-base) var(--zx-ease);
+  }
+}

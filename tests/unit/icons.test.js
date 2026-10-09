@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import { readFile, readdir } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
 import {
@@ -116,7 +119,9 @@ test('the placeholder occupies exactly the box the real glyph would have', () =>
     const options = { size: 24, class: 'zx-button__icon' };
     const real = icon('check', options);
     const placeholder = quietly(() => icon('no-such-glyph-sized', options));
-    for (const attribute of ['class', 'width', 'height', 'fill', 'focusable']) {
+    for (const attribute of [
+      'class', 'viewBox', 'width', 'height', 'fill', 'stroke', 'stroke-width', 'focusable'
+    ]) {
       assert.equal(placeholder.getAttribute(attribute), real.getAttribute(attribute),
         `placeholder ${attribute} differs from a real glyph's`);
     }
@@ -193,7 +198,7 @@ test('builtin: routes to the bundled set and placeholders rather than throwing',
 
 /*
  * The important half of the change: a kit resolves names in the browser, so a name the bundled
- * 35 glyphs do not have is perfectly resolvable under one. Warning here would put a console line
+ * glyphs do not have is perfectly resolvable under one. Warning here would put a console line
  * on every icon in every application that loads a kit.
  */
 test('Font Awesome names are never unknown and never warn', () => {
@@ -225,6 +230,157 @@ test('a bare name under a loaded kit renders through it without warning', () => 
     useBuiltinIcons();
     configureIcons({ kit: null });
   });
+});
+
+/*
+ * The bundled set is an outline set (Lucide, 24-unit grid). These hold the rendering contract —
+ * stroke, not fill, on the root so the path inherits it — and the compatibility promise around it:
+ * every name the set has ever carried still resolves, and `[viewBox, path]` pairs an application
+ * registered (Font Awesome paths, typically) keep rendering filled.
+ */
+
+/** Every name the bundled set carried before it became an outline set. None may disappear. */
+const BUILTIN_NAMES = [
+  'arrow-up-wide-short', 'arrow-down-wide-short', 'chevron-down', 'chevron-up', 'chevron-left',
+  'chevron-right', 'check', 'x', 'plus', 'minus', 'search', 'calendar', 'clock', 'trash', 'gear',
+  'eye', 'lock', 'reload', 'list', 'filter', 'dots', 'info', 'warning', 'error', 'success',
+  'upload', 'drag', 'star', 'heart', 'tag', 'folder', 'folder-open', 'file', 'copy', 'square',
+  'code', 'book'
+];
+
+test('every historical built-in name is still bundled, as an outline in the 24-unit box', () => {
+  for (const name of BUILTIN_NAMES) {
+    assert.ok(Object.hasOwn(icons, name), `${name} is no longer bundled`);
+    const [viewBox, path, paint] = icons[name];
+    assert.equal(viewBox, '0 0 24 24', `${name} left the shared grid`);
+    assert.equal(paint, 'stroke', `${name} is not an outline glyph`);
+    // Each converted subpath opens with an absolute moveto; a leading relative one would be read
+    // from the previous subpath's end point once the elements are joined into one path.
+    assert.match(path, /^M/, `${name} does not open with an absolute moveto`);
+  }
+  assert.ok(Object.isFrozen(icons), 'the bundled table is shared and must stay frozen');
+});
+
+test('bundled glyphs render as strokes: no fill, currentColor, round caps and joins', () => {
+  withDocument(() => {
+    for (const name of BUILTIN_NAMES) {
+      const element = icon(name);
+      assert.equal(element.tagName, 'svg');
+      assert.equal(element.getAttribute('class'), 'zx-icon');
+      assert.equal(element.getAttribute('viewBox'), '0 0 24 24');
+      assert.equal(element.getAttribute('fill'), 'none', `${name} is filled`);
+      assert.equal(element.getAttribute('stroke'), 'currentColor', `${name} has no stroke`);
+      assert.equal(element.getAttribute('stroke-width'), '1.75', `${name} stroke width`);
+      assert.equal(element.getAttribute('stroke-linecap'), 'round');
+      assert.equal(element.getAttribute('stroke-linejoin'), 'round');
+      assert.equal(element.getAttribute('width'), '16', 'the default size stays 16px');
+      // The paint lives on the root alone, so CSS on .zx-icon restyles the whole glyph.
+      const [path] = element.children;
+      assert.equal(path.tagName, 'path');
+      assert.equal(path.getAttribute('d'), icons[name][1]);
+      assert.equal(path.getAttribute('fill'), null);
+      assert.equal(path.getAttribute('stroke'), null);
+    }
+  });
+});
+
+test('small outlines keep a one-pixel line instead of thinning with the box', () => {
+  withDocument(() => {
+    const width = (size) => Number(icon('check', { size }).getAttribute('stroke-width'));
+    assert.equal(width(16), 1.75);
+    assert.equal(width(24), 1.75, 'the width is proportional at and above the default');
+    assert.equal(width(48), 1.75);
+    assert.equal(width(12), 2, '12px: 2 of 24 units is one pixel');
+    assert.equal(width(8), 3, '8px: 3 of 24 units is one pixel');
+    assert.equal(width('12px'), 2, 'a pixel string is measured like a number');
+    assert.equal(width('1.25rem'), 1.75, 'a length that cannot be measured keeps the proportion');
+    for (const size of [7, 8, 11, 12, 13, 14, 15, 16, 18, 20, 24]) {
+      assert.ok(width(size) * size / 24 >= 0.999, `${size}px renders a line under one pixel`);
+    }
+  });
+});
+
+test('registered [viewBox, path] pairs keep rendering filled', () => {
+  withDocument(() => {
+    registerIcons({
+      'solid-rocket-pair': ['0 0 512 512', 'M156.6 384.9L125.7 354z'],
+      'solid-rocket-explicit': ['0 0 512 512', 'M156.6 384.9L125.7 354z', 'fill']
+    });
+    for (const name of ['solid-rocket-pair', 'solid-rocket-explicit']) {
+      const element = icon(name);
+      assert.equal(element.getAttribute('viewBox'), '0 0 512 512');
+      assert.equal(element.getAttribute('fill'), 'currentColor', `${name} lost its fill`);
+      assert.equal(element.getAttribute('stroke'), null, `${name} gained a stroke`);
+      assert.equal(element.getAttribute('stroke-width'), null);
+      assert.equal(element.children[0].getAttribute('d'), 'M156.6 384.9L125.7 354z');
+    }
+  });
+});
+
+test('registerIcons takes outline glyphs as [viewBox, path, \'stroke\']', () => {
+  withDocument(() => {
+    registerIcons({
+      'lucide-anchor': ['0 0 24 24', 'M12 6v16M5 12H2a10 10 0 0 0 20 0h-3', 'stroke'],
+      'outline-on-48': ['0 0 48 48', 'M8 8h32v32H8z', 'stroke']
+    });
+    const anchor = icon('lucide-anchor');
+    assert.equal(anchor.getAttribute('fill'), 'none');
+    assert.equal(anchor.getAttribute('stroke'), 'currentColor');
+    assert.equal(anchor.getAttribute('stroke-width'), '1.75',
+      'a 24-unit outline set renders exactly like the bundled glyphs');
+    assert.equal(anchor.getAttribute('stroke-linecap'), 'round');
+    assert.equal(icon('outline-on-48').getAttribute('stroke-width'), '3.5',
+      'another grid gets the same visual weight, scaled to its view box');
+    assert.ok(iconNames().includes('lucide-anchor'));
+    // A registered name replaces a bundled one, in either paint.
+    registerIcons({ 'star-replaced-test': icons.star });
+    assert.equal(icon('star-replaced-test').getAttribute('fill'), 'none',
+      'a bundled entry round-trips through registerIcons with its paint');
+  });
+});
+
+test('registerIcons rejects entries that are neither a pair nor a paint triple', () => {
+  assert.throws(() => registerIcons({ bad: ['0 0 24 24'] }), TypeError);
+  assert.throws(() => registerIcons({ bad: 'M0 0h24' }), TypeError);
+  assert.throws(() => registerIcons({ bad: ['0 0 24 24', 'M0 0h24', 'outline'] }), TypeError);
+  assert.throws(() => registerIcons({ bad: ['0 0 24 24', 'M0 0h24', 'stroke', 2] }), TypeError);
+  assert.equal(iconNames().includes('bad'), false, 'a rejected entry is not half-registered');
+});
+
+/*
+ * The application layouts were written against Font Awesome names. Their pack maps each to a Lucide
+ * outline under the same name, so every literal name a template asks for must still resolve —
+ * through the bundled set, a legacy alias, or the pack.
+ */
+test('every icon name the layout templates use resolves to an outline glyph', async () => {
+  const root = resolve(fileURLToPath(new URL('../..', import.meta.url)));
+  const { LAYOUT_ICONS } = await import('../../website/layouts/layout-icons.js');
+  for (const [name, entry] of Object.entries(LAYOUT_ICONS)) {
+    assert.equal(entry.length, 3, `${name} is not an outline triple`);
+    assert.equal(entry[0], '0 0 24 24', `${name} left the shared grid`);
+    assert.equal(entry[2], 'stroke', `${name} is not an outline glyph`);
+    assert.match(entry[1], /^M/, `${name} does not open with an absolute moveto`);
+    assert.equal(Object.hasOwn(icons, name), false, `${name} shadows a bundled glyph`);
+  }
+
+  const used = new Map();
+  const directory = join(root, 'website/layouts');
+  for (const file of await readdir(directory)) {
+    if (!file.endsWith('.js') || file === 'layout-icons.js') continue;
+    const source = await readFile(join(directory, file), 'utf8');
+    const patterns = [
+      /\b(?:icon|iconButton|iconTile)\(\s*'([a-z0-9-]+)'/g,
+      /\b(?:icon|glyph):\s*'([a-z0-9-]+)'/g
+    ];
+    for (const pattern of patterns) {
+      for (const match of source.matchAll(pattern)) used.set(match[1], file);
+    }
+  }
+  assert.ok(used.size > 80, `expected the templates to use many icons, found ${used.size}`);
+  const aliases = ['settings', 'clear', 'checked', 'question', 'range', 'fields'];
+  const unresolved = [...used].filter(([name]) => !Object.hasOwn(icons, name)
+    && !Object.hasOwn(LAYOUT_ICONS, name) && !aliases.includes(name));
+  assert.deepEqual(unresolved, [], 'template icon names without a glyph');
 });
 
 /** Swallows the placeholder warning of a call whose warning is not what is under test. */

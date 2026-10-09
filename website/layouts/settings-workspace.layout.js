@@ -1,224 +1,457 @@
 import {
-  Form, Groupbox, Message, NavigationBar, Panel, Select, Toggle, button, h
+  AccountMenu, AppSidebar, Avatar, CopyInput, Dialog, Form, InlineLoading, Select, TimePicker, Toggle,
+  button, formatDate, formatRelativeTime, h, uid
 } from '../../src/index.js';
+import {
+  DATE, adaptiveShell, disposer, later, layoutContext, modShortcut, paneHeader, renderScope, sectionLabel,
+  shortcuts, toaster, unavailable, unavailablePane, workspaceHeader
+} from './kit.js';
+import { ME, NOW, person } from './fixtures.js';
 
+/** The settings' sections: the signed-in user's own, then the workspace's. */
+const NAVIGATION = {
+  personal: [
+    { id: 'profile', label: 'Profile', icon: 'user' },
+    { id: 'notifications', label: 'Notifications', icon: 'bell' },
+    { id: 'sharing', label: 'Sharing', icon: 'share-nodes' },
+    { id: 'api', label: 'API access', icon: 'key' }
+  ],
+  workspace: [
+    { id: 'general', label: 'General', icon: 'building' },
+    { id: 'members', label: 'Members', icon: 'users' },
+    { id: 'billing', label: 'Billing', icon: 'credit-card' }
+  ]
+};
+
+/** E-mail notifications and whether each one is on. */
+const NOTIFICATIONS = [
+  { id: 'assigned', label: 'Assigned to me', text: 'A record or a task is assigned to you.', on: true },
+  { id: 'mentions', label: 'Mentions', text: 'Someone mentions you in a note or a comment.', on: true },
+  { id: 'overdue', label: 'Overdue invoices', text: 'An invoice you own passes its due date.', on: true },
+  { id: 'digest', label: 'Weekly summary', text: 'Your open items, every Monday morning.', on: false },
+  { id: 'product', label: 'Product news', text: 'New features and planned maintenance.', on: false }
+];
+
+/** The teams a record can be shared with. */
 const GROUPS = [
   { ID: 12, name: 'Sales' },
-  { ID: 13, name: 'Service' },
+  { ID: 13, name: 'Support' },
   { ID: 14, name: 'Finance' },
-  { ID: 15, name: 'Management' }
+  { ID: 15, name: 'Operations' },
+  { ID: 16, name: 'Engineering' }
 ];
 
-const SECTIONS = [
-  { name: 'profile', title: 'Profile' },
-  { name: 'notifications', title: 'Notifications' },
-  { name: 'sharing', title: 'Sharing' },
-  { name: 'api', title: 'API access' }
+/** What the personal access token may do. */
+const SCOPES = [
+  { id: 'records-read', label: 'Read records', text: 'Contacts, companies, and their activity.', on: true },
+  { id: 'records-write', label: 'Write records', text: 'Create and change contacts and companies.', on: true },
+  { id: 'invoices-read', label: 'Read invoices', text: 'Invoices, credit notes, and payments.', on: true },
+  { id: 'webhooks', label: 'Manage webhooks', text: 'Subscribe integrations to changes.', on: false }
 ];
 
-const NOTIFICATIONS = [
-  { id: 'assigned', label: 'A record is assigned to me', on: true },
-  { id: 'mention', label: 'Someone mentions me in a note', on: true },
-  { id: 'overdue', label: 'An invoice becomes overdue', on: true },
-  { id: 'digest', label: 'Weekly summary of my open items', on: false },
-  { id: 'product', label: 'Product announcements', on: false }
-];
+/** The token in use when the settings open: only its last characters are ever shown again. */
+const TOKEN = { last: '7f31', created: new Date(2026, 2, 12), used: new Date(2026, 9, 8, 8, 12) };
+
+/** The profile's fields, by fieldset. */
+const PROFILE = {
+  details: {
+    name: { type: 'text', label: 'Display name', required: true },
+    email: { type: 'text', label: 'E-mail', required: true },
+    phone: { type: 'text', label: 'Phone' },
+    role: { type: 'text', label: 'Job title' }
+  },
+  region: {
+    language: { type: 'select', label: 'Language', options: { en: 'English', de: 'Deutsch', fr: 'Français' } },
+    dateFormat: {
+      type: 'select', label: 'Date format',
+      options: { eu: '08.10.2026', iso: '2026-10-08', long: '8 October 2026' }
+    },
+    startPage: {
+      type: 'select', label: 'Start page',
+      options: { dashboard: 'Dashboard', inbox: 'Inbox', tasks: 'My tasks' }
+    },
+    weekStart: { type: 'select', label: 'Weeks start on', options: { 1: 'Monday', 0: 'Sunday' } }
+  }
+};
+
+/**
+ * A titled group of settings: a heading and a sentence on one side, its controls on the other.
+ * @param {string} title
+ * @param {string} text
+ * @param {...(Node|null)} content
+ * @returns {HTMLElement}
+ */
+function settingsGroup(title, text, ...content) {
+  return h('section', { class: 'settings__group', 'aria-label': title },
+    h('div', { class: 'settings__group-head' }, h('h3', { class: 'settings__group-title' }, title), h('p', { class: 'meta' }, text)),
+    h('div', { class: 'form-sections settings__group-body' }, content));
+}
+
+/**
+ * One setting: its name and what it does, and the switch that changes it. The switch is named and
+ * described by the text beside it.
+ * @param {string} prefix Unique per mount, for the ids that tie the text to the switch.
+ * @param {{id: string, label: string, text: string}} entry
+ * @param {Toggle} toggle
+ * @returns {HTMLElement}
+ */
+function settingsRow(prefix, entry, toggle) {
+  const id = `${prefix}-${entry.id}`;
+  toggle.el.setAttribute('aria-labelledby', `${id}-label`);
+  toggle.el.setAttribute('aria-describedby', `${id}-text`);
+  return h('div', { class: 'settings__row' },
+    h('span', { class: 'settings__row-text' },
+      h('span', { class: 'settings__row-label', id: `${id}-label` }, entry.label),
+      h('span', { class: 'meta', id: `${id}-text` }, entry.text)),
+    toggle.toElement());
+}
 
 export default {
   title: 'Settings workspace',
-  group: 'Applications',
-  blurb: 'A preferences screen: a navigation bar selects the section, and each section is a stack '
-    + 'of grouped controls with its own save action.',
+  category: 'Pattern',
+  blurb: 'Personal settings in sections — profile, notifications, sharing, an API token — saved together.',
+  components: ['Toggle', 'Form', 'Select', 'TimePicker', 'CopyInput', 'Avatar', 'InlineLoading', 'Dialog'],
 
   /**
-   * Mounts a settings screen driven by NavigationBar, Groupbox, Form, Toggle, and Select.permission().
-   * @param {HTMLElement} container Documentation stage.
+   * Mounts the settings: the sections in the navigation column and the open section's groups,
+   * with one save for everything changed.
+   * @param {HTMLElement} container Gallery stage.
+   * @param {Partial<import('./kit.js').LayoutContext>} [context]
    * @returns {void}
    */
-  mount(container) {
-    const body = h('div', { class: 'settings-body' });
+  mount(container, context) {
+    context = layoutContext(context);
+    const keep = disposer(context);
+    const prefix = uid('settings');
+    const me = person(ME);
+    const root = h('div', { class: 'settings shell' });
+    // Narrow, the sections become a drawer opened from the page header.
+    const shell = adaptiveShell(root, context, { navLabel: 'Open settings sections' });
+    const notify = toaster(context, root);
+    const state = { section: 'profile', dirty: new Set(), photo: /** @type {string|null} */ (null), token: { ...TOKEN } };
+    // The copy box exists only while a new token is on show.
+    const tokenParts = renderScope(context);
+    let cancelSave = () => {};
 
-    const navigation = new NavigationBar(null, {
-      title: 'Settings',
-      items: SECTIONS,
-      active: 'profile',
-      actions: [
-        { label: 'Help', icon: 'info', onclick: () => Message.info('Opening the settings guide.') }
-      ],
-      onchange: (event) => showSection(event.detail.name)
-    });
-
-    const panel = new Panel(null, {
-      title: 'Preferences',
-      content: body,
+    // ---------------------------------------------------------------- navigation column
+    const sidebars = Object.entries(NAVIGATION).map(([group, items]) => keep(new AppSidebar(null, {
+      label: group === 'personal' ? 'Personal settings' : 'Workspace settings',
       collapsible: false,
-      footer: 'Changes apply to your user account only.'
+      active: state.section,
+      items: items.map((item) => ({ ...item, invoke: () => open(item.id) }))
+    })));
+    const account = keep(new AccountMenu(null, {
+      account: { name: me.name, secondary: me.role, status: me.status },
+      placement: 'top-start',
+      items: [
+        { label: 'Profile', value: 'profile', icon: 'user' },
+        '-',
+        { label: 'Sign out', value: 'sign-out', icon: 'power-off' }
+      ],
+      onselect: (event) => (event.detail.item.value === 'profile'
+        ? open('profile')
+        : notify(unavailable(event.detail.item.label), 'info'))
+    }));
+    const nav = h('div', { class: 'shell__nav' },
+      workspaceHeader(),
+      h('div', { class: 'shell__body' },
+        sectionLabel('Personal'), sidebars[0].toElement(),
+        sectionLabel('Workspace'), sidebars[1].toElement()),
+      h('div', { class: 'shell__footer' }, account.toElement()));
+
+    // ------------------------------------------------------------------- header
+    const title = h('span');
+    const saveState = keep(new InlineLoading(null, { status: 'inactive', size: 'sm', description: '' }));
+    const discardButton = button({ label: 'Discard', disabled: true, onclick: discard });
+    const saveButton = button({ label: 'Save changes', kind: 'primary', disabled: true, shortcut: modShortcut('s'), onclick: save });
+    const actions = h('div', { class: 'settings__actions' }, saveState.toElement(), discardButton, saveButton);
+
+    // ------------------------------------------------------------------ profile
+    const profile = keep(new Form(null, {
+      fieldsets: [
+        { title: 'Personal details', columns: 2, fields: PROFILE.details },
+        { title: 'Language and region', columns: 2, fields: PROFILE.region }
+      ],
+      onchange: () => changed('profile')
+    }));
+    const avatar = keep(new Avatar(null, { name: me.name, size: 'lg', label: me.name }));
+    const photoInput = h('input', { type: 'file', accept: 'image/*', hidden: true, onchange: () => setPhoto(photoInput.files?.[0]) });
+    const removePhoto = button({ label: 'Remove', kind: 'ghost', size: 'sm', disabled: true, onclick: () => setPhoto(null) });
+    const profileSection = h('div', { class: 'settings__section' },
+      settingsGroup('Photo', 'Shown beside your name everywhere in Fieldstone.',
+        h('div', { class: 'settings__photo' }, avatar.toElement(),
+          button({ label: 'Upload photo', size: 'sm', icon: 'upload', onclick: () => photoInput.click() }),
+          removePhoto, photoInput)),
+      settingsGroup('Account', 'How colleagues see and reach you, and how dates and pages appear to you.',
+        h('div', { class: 'form-sheet' }, profile.toElement())));
+
+    // ------------------------------------------------------------ notifications
+    const toggle = (entry, section) => keep(new Toggle(null, { checked: entry.on, onchange: () => changed(section) }));
+    const notifications = NOTIFICATIONS.map((entry) => ({ entry, toggle: toggle(entry, 'notifications') }));
+    const quietHours = { id: 'quiet', label: 'Pause at night', text: 'Hold notifications back and deliver them in the morning.', on: true };
+    const quiet = keep(new Toggle(null, {
+      checked: true,
+      onchange: (event) => {
+        quietTimes.hidden = !event.detail.checked;
+        changed('notifications');
+      }
+    }));
+    const time = (label, value) => keep(new TimePicker(null, {
+      value, clock: false, step: 15, msg: { 'timePicker.label': label }, onchange: () => changed('notifications')
+    }));
+    const quietFrom = time('Pause from', { h: 19, m: 0 });
+    const quietTo = time('Pause until', { h: 7, m: 30 });
+    const quietTimes = h('div', { class: 'settings__times' },
+      h('span', { class: 'meta' }, 'From'), quietFrom.toElement(),
+      h('span', { class: 'meta' }, 'until'), quietTo.toElement());
+    const notificationsSection = h('div', { class: 'settings__section' },
+      settingsGroup('E-mail', `Sent to ${me.email}.`,
+        notifications.map(({ entry, toggle: control }) => settingsRow(prefix, entry, control))),
+      settingsGroup('Quiet hours', 'Nothing is lost: what arrives at night waits for you.',
+        settingsRow(prefix, quietHours, quiet), quietTimes));
+
+    // ------------------------------------------------------------------ sharing
+    const visibilityNote = h('p', { class: 'meta', 'aria-live': 'polite' });
+    const visibility = keep(Select.permission(null, {
+      label: 'Default visibility',
+      value: 15,
+      groups: GROUPS,
+      onchange: (event) => {
+        describeVisibility(event.detail.value);
+        changed('sharing');
+      }
+    }));
+    const calendar = { id: 'calendar', label: 'Share my calendar', text: 'Your team sees when you are busy.', on: true };
+    const details = { id: 'calendar-details', label: 'Show event details', text: 'Titles and places, not only the busy times.', on: false };
+    const sharingToggles = [calendar, details].map((entry) => ({ entry, toggle: toggle(entry, 'sharing') }));
+    const sharingSection = h('div', { class: 'settings__section' },
+      settingsGroup('New records', 'Who can see what you create. Every record can still be shared on its own.',
+        h('div', { class: 'settings__field' }, visibility.toElement(), visibilityNote)),
+      settingsGroup('Calendar', 'What your colleagues see when they plan a meeting with you.',
+        sharingToggles.map(({ entry, toggle: control }) => settingsRow(prefix, entry, control))));
+
+    // ---------------------------------------------------------------------- api
+    const tokenSlot = h('div', { class: 'settings__token' });
+    const scopes = SCOPES.map((entry) => ({ entry, toggle: toggle(entry, 'api') }));
+    const apiSection = h('div', { class: 'settings__section' },
+      settingsGroup('Personal access token', 'Scripts and integrations use it to call the API as you. Treat it like a password.',
+        tokenSlot),
+      settingsGroup('Scopes', 'What the token may do. Narrow scopes limit the damage a leaked token can do.',
+        scopes.map(({ entry, toggle: control }) => settingsRow(prefix, entry, control))));
+
+    // ---------------------------------------------------------------- the pane
+    const sections = { profile: profileSection, notifications: notificationsSection, sharing: sharingSection, api: apiSection };
+    const elsewhere = h('div', { class: 'settings__elsewhere' });
+    const header = paneHeader({ title, size: 'page', leading: shell.navToggle(), actions });
+    const heading = /** @type {HTMLElement} */ (header.querySelector('.shell__title'));
+    heading.tabIndex = -1;
+    const main = h('section', { class: 'shell__main', 'aria-label': 'Settings' },
+      header,
+      h('div', { class: 'shell__body shell__body--padded' },
+        h('div', { class: 'settings__page' }, Object.values(sections), elsewhere)));
+
+    root.append(nav, main);
+    container.append(root);
+
+    // What every section looked like when it was last saved, so Discard can put it back.
+    const saved = { profile: null, notifications: null, sharing: null, api: null };
+    profile.setValues({
+      name: me.name, email: me.email, phone: '+49 30 5557 1402', role: me.role,
+      language: 'en', dateFormat: 'long', startPage: 'dashboard', weekStart: '1'
+    }, { silent: true });
+    for (const name of Object.keys(saved)) saved[name] = read(name);
+
+    shortcuts(root, { 'Mod+s': save }, context);
+    describeVisibility(visibility.value);
+    renderToken();
+    show(state.section);
+    context.cleanup(() => {
+      for (const url of new Set([state.photo, saved.profile?.photo])) if (url) URL.revokeObjectURL(url);
     });
 
-    container.append(h('div', { class: 'layout-frame' },
-      h('div', { class: 'layout-stack', style: { padding: 'var(--zx-space-4)' } },
-        navigation.toElement(),
-        panel.toElement())));
-
-    showSection('profile');
+    // ---------------------------------------------------------------- functions
 
     /**
-     * Swaps the section body.
-     * @param {string} name Section name from `SECTIONS`.
+     * Opens a section chosen in the navigation. Chosen from the drawer, the drawer closes and the
+     * section's title takes the focus, so the keyboard and a screen reader land on the new page.
+     * @param {string} id
      * @returns {void}
      */
-    function showSection(name) {
-      panel.setTitle(SECTIONS.find((section) => section.name === name).title);
-      body.replaceChildren(...({
-        profile: profileSection,
-        notifications: notificationsSection,
-        sharing: sharingSection,
-        api: apiSection
-      }[name]()));
+    function open(id) {
+      show(id);
+      if (root.dataset.navOpen !== 'true') return;
+      shell.closeNav();
+      heading.focus({ preventScroll: true });
     }
 
-    /** @returns {Node[]} */
-    function profileSection() {
-      const form = new Form(null, {
-        fieldsets: [
-          {
-            title: 'Personal details',
-            columns: 2,
-            fields: {
-              name: { type: 'text', label: 'Display name', value: 'Nadine Roth', required: true },
-              email: { type: 'text', label: 'E-mail', value: 'nadine.roth@example.com', required: true },
-              phone: { type: 'text', label: 'Phone', value: '+43 512 990 12' },
-              role: { type: 'text', label: 'Job title', value: 'Account manager' }
-            }
-          },
-          {
-            title: 'Regional',
-            columns: 2,
-            fields: {
-              // A Field of type `select` takes a `{value: label}` map.
-              language: {
-                type: 'select',
-                label: 'Language',
-                value: 'en',
-                options: { en: 'English', de: 'Deutsch', fr: 'Français' }
-              },
-              dateFormat: {
-                type: 'select',
-                label: 'Date format',
-                value: 'iso',
-                options: { iso: '2026-08-14', eu: '14.08.2026', us: '08/14/2026' }
-              },
-              startPage: {
-                type: 'select',
-                label: 'Start page',
-                value: 'overview',
-                options: { overview: 'Overview', inbox: 'Inbox', tasks: 'My tasks' }
-              },
-              compact: { type: 'toggle', label: 'Compact density', value: false }
-            }
-          }
-        ],
-        actions: [
-          { label: 'Save profile', kind: 'primary', icon: 'check', onClick: () => form.submit() },
-          { label: 'Reset', kind: 'ghost', onClick: () => form.reset() }
-        ],
-        onsubmit: (event) => Message.success(`Profile saved for ${event.detail.values.name}.`)
+    /**
+     * Opens a section; the workspace's sections are not built here.
+     * @param {string} id
+     * @returns {void}
+     */
+    function show(id) {
+      state.section = id;
+      for (const sidebar of sidebars) sidebar.setActive(id);
+      const item = [...NAVIGATION.personal, ...NAVIGATION.workspace].find((entry) => entry.id === id);
+      title.textContent = item.label;
+      for (const [name, element] of Object.entries(sections)) element.hidden = name !== id;
+      const built = id in sections;
+      actions.hidden = !built;
+      elsewhere.hidden = built;
+      elsewhere.replaceChildren(...(built ? [] : [unavailablePane(item.label, { label: 'Back to your profile', onclick: () => show('profile') })]));
+    }
+
+    /**
+     * Reads a section's current values.
+     * @param {string} name
+     * @returns {Record<string, any>}
+     */
+    function read(name) {
+      const switches = (list) => Object.fromEntries(list.map(({ entry, toggle: control }) => [entry.id, control.get()]));
+      if (name === 'profile') return { form: profile.getValues(), photo: state.photo };
+      if (name === 'notifications') {
+        return { ...switches(notifications), quiet: quiet.get(), from: quietFrom.get(), to: quietTo.get() };
+      }
+      if (name === 'sharing') return { ...switches(sharingToggles), visibility: visibility.value };
+      return switches(scopes);
+    }
+
+    /**
+     * Puts a section back the way it was last saved.
+     * @param {string} name
+     * @param {Record<string, any>} values
+     * @returns {void}
+     */
+    function restore(name, values) {
+      const switches = (list) => list.forEach(({ entry, toggle: control }) => control.set(values[entry.id], { silent: true }));
+      if (name === 'profile') {
+        profile.setValues(values.form, { silent: true });
+        profile.clearHighlights();
+        setPhoto(values.photo, { silent: true });
+      } else if (name === 'notifications') {
+        switches(notifications);
+        quiet.set(values.quiet, { silent: true });
+        quietTimes.hidden = !values.quiet;
+        quietFrom.set(values.from, { silent: true });
+        quietTo.set(values.to, { silent: true });
+      } else if (name === 'sharing') {
+        switches(sharingToggles);
+        visibility.set(values.visibility, { silent: true });
+        describeVisibility(values.visibility);
+      } else {
+        switches(scopes);
+      }
+    }
+
+    /**
+     * Notes that a section has unsaved changes.
+     * @param {string} name
+     * @returns {void}
+     */
+    function changed(name) {
+      state.dirty.add(name);
+      cancelSave();
+      saveState.set('inactive', 'Unsaved changes');
+      saveButton.disabled = false;
+      discardButton.disabled = false;
+    }
+
+    /** Saves every changed section (a simulated round trip). @returns {void} */
+    function save() {
+      if (state.dirty.size === 0) return;
+      if (state.dirty.has('profile') && !profile.submit()) {
+        show('profile');
+        notify('Complete the highlighted fields to save.', 'warning');
+        return;
+      }
+      const replaced = saved.profile.photo;
+      for (const name of state.dirty) saved[name] = read(name);
+      if (replaced && replaced !== saved.profile.photo) URL.revokeObjectURL(replaced);
+      state.dirty.clear();
+      saveButton.disabled = true;
+      discardButton.disabled = true;
+      saveState.set('active', 'Saving…');
+      cancelSave();
+      cancelSave = later(context, () => saveState.set('success', 'All changes saved'), 600);
+    }
+
+    /** Puts every changed section back the way it was last saved. @returns {void} */
+    function discard() {
+      for (const name of state.dirty) restore(name, saved[name]);
+      state.dirty.clear();
+      saveButton.disabled = true;
+      discardButton.disabled = true;
+      saveState.set('inactive', '');
+      notify('Changes discarded.', 'info');
+    }
+
+    /**
+     * Shows a new profile photo, or the initials again.
+     * @param {File|string|null|undefined} source A picked file, a kept image URL, or nothing.
+     * @param {{silent?: boolean}} [options]
+     * @returns {void}
+     */
+    function setPhoto(source, { silent = false } = {}) {
+      const previous = state.photo;
+      const next = source instanceof File ? URL.createObjectURL(source) : source ?? null;
+      // An image URL lives until neither the screen nor the saved profile shows it.
+      if (previous && previous !== next && previous !== saved.profile?.photo) URL.revokeObjectURL(previous);
+      state.photo = next;
+      avatar.set({ src: next });
+      removePhoto.disabled = !next;
+      photoInput.value = '';
+      if (!silent) changed('profile');
+    }
+
+    /**
+     * Says in words who will see new records.
+     * @param {boolean|number|null} value Private, public, or a team.
+     * @returns {void}
+     */
+    function describeVisibility(value) {
+      visibilityNote.textContent = value === false ? 'Only you see new records until you share them.'
+        : value === true ? 'Everyone in Fieldstone sees new records.'
+          : `The ${GROUPS.find((group) => group.ID === value)?.name ?? 'chosen'} team sees new records.`;
+    }
+
+    /**
+     * Shows the token: masked, or once, right after it was created, in full and ready to copy.
+     * @param {string} [fresh] A token just created.
+     * @returns {void}
+     */
+    function renderToken(fresh) {
+      tokenParts.reset();
+      const rotate = button({ label: 'Rotate token', icon: 'reload', size: 'sm', onclick: confirmRotate });
+      if (fresh) {
+        const copy = tokenParts.own(new CopyInput(null, { value: fresh, label: 'New token', hideLabel: true, buttonTitle: 'Copy token' }));
+        tokenSlot.replaceChildren(copy.toElement(),
+          h('p', { class: 'meta' }, 'Copy it now: it is shown only once.'), h('div', {}, rotate));
+        // The button that asked for the new token is gone; the token itself takes the focus.
+        copy.focus();
+        return;
+      }
+      tokenSlot.replaceChildren(
+        h('div', { class: 'settings__token-line' },
+          h('span', { class: 'mono' }, `fs_pat_••••••••••••${state.token.last}`),
+          rotate),
+        h('p', { class: 'meta' }, state.token.used
+          ? `Created ${formatDate(state.token.created, DATE.year)} · last used ${formatRelativeTime(state.token.used, { now: NOW })}`
+          : `Created ${formatDate(state.token.created, DATE.year)} · not used yet`));
+    }
+
+    /** Asks before replacing the token, which cuts off every integration still using it. @returns {Promise<void>} */
+    async function confirmRotate() {
+      const confirmed = await Dialog.confirm({
+        title: 'Rotate the access token?',
+        message: 'The current token stops working at once. Every script and integration that uses it needs the new one.',
+        okLabel: 'Rotate token',
+        danger: true
       });
-      return [form.toElement()];
-    }
-
-    /** @returns {Node[]} */
-    function notificationsSection() {
-      const state = new Map(NOTIFICATIONS.map((entry) => [entry.id, entry.on]));
-      const toggles = NOTIFICATIONS.map((entry) => new Toggle(null, {
-        label: entry.label,
-        checked: entry.on,
-        onchange: (event) => state.set(entry.id, event.detail.checked)
-      }));
-
-      const emailGroup = new Groupbox(null, { title: 'E-mail notifications', open: true });
-      emailGroup.setContent(h('div', { class: 'layout-stack' },
-        toggles.map((toggle) => toggle.toElement())));
-
-      const quietGroup = new Groupbox(null, { title: 'Quiet hours', open: false });
-      quietGroup.setContent(h('div', { class: 'layout-stack' },
-        h('p', { class: 'layout-hint' },
-          'Notifications are held back during these hours and delivered afterwards.'),
-        h('div', { class: 'layout-toolbar' },
-          h('label', {}, 'From ', h('input', { type: 'time', value: '19:00' })),
-          h('label', {}, 'To ', h('input', { type: 'time', value: '07:30' })))
-      ));
-
-      return [
-        emailGroup.toElement(),
-        quietGroup.toElement(),
-        h('div', { class: 'layout-toolbar' },
-          button({
-            label: 'Save notifications',
-            kind: 'primary',
-            icon: 'check',
-            onclick: () => {
-              const active = [...state.values()].filter(Boolean).length;
-              Message.success(`${active} of ${state.size} notifications enabled.`);
-            }
-          }))
-      ];
-    }
-
-    /** @returns {Node[]} */
-    function sharingSection() {
-      const permission = Select.permission(null, {
-        value: 13,
-        groups: GROUPS,
-        onchange: (event) => {
-          const value = event.detail.value;
-          const label = value === false ? 'Private'
-            : value === true ? 'Everyone'
-              : GROUPS.find((group) => group.ID === value)?.name;
-          note.textContent = `New records default to: ${label}.`;
-        }
-      });
-      const note = h('p', { class: 'layout-hint' }, 'New records default to: Service.');
-
-      const group = new Groupbox(null, { title: 'Default record visibility', open: true });
-      group.setContent(h('div', { class: 'layout-stack' },
-        h('p', { class: 'layout-hint' },
-          'Applies to every record you create. Individual records can still be shared separately.'),
-        permission.toElement(),
-        note));
-
-      return [group.toElement()];
-    }
-
-    /** @returns {Node[]} */
-    function apiSection() {
-      const token = h('code', {}, 'zx_live_••••••••••••••••••••7f31');
-      const group = new Groupbox(null, { title: 'Personal access token', open: true });
-      group.setContent(h('div', { class: 'layout-stack' },
-        h('p', { class: 'layout-hint' },
-          'Used for @zeyos/client requests made on your behalf. Rotating invalidates the old token '
-          + 'immediately.'),
-        h('div', { class: 'layout-toolbar' },
-          token,
-          h('span', { class: 'layout-toolbar__spacer' }),
-          button({
-            label: 'Rotate token',
-            kind: 'danger',
-            icon: 'reload',
-            onclick: () => Message.warning('Rotating would invalidate every existing integration.')
-          }))
-      ));
-
-      const scopes = new Groupbox(null, { title: 'Scopes', open: true });
-      scopes.setContent(h('ul', { class: 'activity-list' },
-        ['transactions:read', 'transactions:write', 'accounts:read', 'schema:read']
-          .map((scope) => h('li', {},
-            h('span', { class: 'activity-dot', 'aria-hidden': 'true' }),
-            h('code', {}, scope),
-            h('span', { class: 'activity-time' }, 'granted')))
-      ));
-
-      return [group.toElement(), scopes.toElement()];
+      if (!confirmed || context.signal.aborted) return;
+      const secret = Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) => byte.toString(16).padStart(2, '0')).join('');
+      state.token = { last: secret.slice(-4), created: NOW, used: null };
+      renderToken(`fs_pat_${secret}`);
+      notify('Token rotated. The old one no longer works.');
     }
   }
 };

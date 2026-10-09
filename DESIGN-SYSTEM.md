@@ -9,7 +9,7 @@ logic.
 
 Xenon has four layers:
 
-1. **Foundations** — semantic tokens, typography, spacing, density, themes, icons, motion, i18n,
+1. **Foundations** — semantic tokens, typography, spacing, themes, icons, motion, i18n,
    accessibility rules, and the safe DOM kernel.
 2. **Components** — lifecycle-safe controls and containers with one options/events/destroy model.
 3. **Patterns** — repeatable business interactions such as global launch, account/preferences,

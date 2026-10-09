@@ -25,12 +25,30 @@
   align-content: start;
 }
 
+/* On a phone the toasts rise from the foot of the screen, full width, where they cover content
+   rather than the header's controls, and sit where a thumb can reach their action. */
+@media (max-width: 640px) {
+  .zx-message-region {
+    inset-block-start: auto;
+    inset-block-end: var(--zx-space-4);
+    inset-inline: var(--zx-space-4);
+    inline-size: auto;
+  }
+
+  .zx-message-region:popover-open {
+    align-content: end;
+  }
+}
+
 .zx-message__toast {
   --zx-message-kind: var(--zx-color-info);
   --zx-message-fallback-bg: var(--zx-color-info-bg);
   position: relative;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  /* Icon and text, then whatever follows — the action, the close button — in columns of their own. */
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-auto-columns: auto;
+  grid-auto-flow: column;
   align-items: start;
   gap: var(--zx-space-3);
   border: 1px solid var(--zx-color-overlay-border);
@@ -64,8 +82,8 @@
     background-clip: padding-box;
     -webkit-backdrop-filter: var(--zx-glass-filter-overlay);
     backdrop-filter: var(--zx-glass-filter-overlay);
-    box-shadow: inset 3px 0 0 color-mix(in srgb, var(--zx-message-kind) 72%,
-      var(--zx-color-glass-highlight-strong)), var(--zx-glass-overlay-shadow);
+    /* No bar on the leading edge: the kind shows in the icon and the tinted border. */
+    box-shadow: var(--zx-glass-overlay-shadow);
   }
 }
 
@@ -88,6 +106,18 @@
 .zx-message__content {
   min-inline-size: 0;
   overflow-wrap: anywhere;
+}
+
+/* A leading visual — an avatar, say — keeps its own size, centred on the first line of text. */
+.zx-message__toast[data-leading] > .zx-message__icon {
+  margin-block: calc(-0.5 * var(--zx-space-1)) 0;
+}
+
+/* The action sits level with the close button: both are pulled up the same step so their centres
+   meet the first line of text rather than hanging below it. */
+.zx-message__action {
+  margin-block: calc(-1 * var(--zx-space-1)) 0;
+  white-space: nowrap;
 }
 
 /* Visual chrome comes from the shared .zx-icon-btn utility; only alignment is set here so

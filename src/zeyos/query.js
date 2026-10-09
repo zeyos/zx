@@ -56,6 +56,159 @@ export function unixSecondsToDate(seconds) {
 }
 
 /**
+ * @typedef {Object} CalendarDay
+ * @property {number} year Full year.
+ * @property {number} month Zero-based month, as `Date` counts them.
+ * @property {number} day Day of the month.
+ */
+
+/**
+ * @typedef {Object} CalendarZone
+ * @property {string|undefined} timeZone Canonical IANA zone, or undefined for the runtime's own zone.
+ * @property {(milliseconds: number) => CalendarDay} dayOf Calendar day an instant falls on in the zone.
+ * @property {(year: number, month: number, day: number) => number} midnightOf Epoch milliseconds of
+ * the first moment of a calendar day in the zone (its midnight, or the first minute after a
+ * daylight-saving gap that swallows midnight).
+ */
+
+/**
+ * Reads a ZeyOS date-only value as the calendar day it names. Date-only fields — an invoice's
+ * `date` and `duedate`, a contact's `birthdate` — hold Unix seconds at midnight of a day in the
+ * instance's time zone: a calendar day, not an instant. The result is midnight of that same day in
+ * the runtime's own zone, which is what Datebox and DatePicker edit, so the day survives a viewer in
+ * another zone and a daylight-saving change.
+ * @param {number|string|null|undefined} seconds Unix seconds; numeric strings are accepted.
+ * @param {string} [timeZone] IANA zone of the instance, such as `Europe/Vienna`; the runtime's own
+ * zone when omitted.
+ * @returns {Date|null} Local midnight of the day, or null for a nullish or empty input.
+ */
+export function unixSecondsToCalendarDay(seconds, timeZone) {
+  if (seconds == null || seconds === '') return null;
+  const value = Number(seconds);
+  if (!Number.isFinite(value)) throw new TypeError('Expected finite Unix seconds');
+  const { year, month, day } = calendarZone(timeZone).dayOf(value * 1000);
+  return localMidnight(year, month, day);
+}
+
+/**
+ * Converts the calendar day of a Date to the Unix seconds a ZeyOS date-only field stores: midnight
+ * of that day in the instance's time zone. Only the Date's local year, month, and day count — its
+ * time of day is ignored — so a Datebox value round-trips through {@link unixSecondsToCalendarDay}.
+ * @param {Date|null|undefined} date Day to store.
+ * @param {string} [timeZone] IANA zone of the instance; the runtime's own zone when omitted.
+ * @returns {number|null} Unix seconds, or null for a nullish input.
+ */
+export function calendarDayToUnixSeconds(date, timeZone) {
+  if (date == null) return null;
+  if (!(date instanceof Date)) throw new TypeError('Expected a Date');
+  if (!Number.isFinite(date.getTime())) throw new RangeError('Invalid Date');
+  const midnight = calendarZone(timeZone).midnightOf(date.getFullYear(), date.getMonth(), date.getDate());
+  return Math.floor(midnight / 1000);
+}
+
+/**
+ * Validates an IANA time-zone name.
+ * @param {unknown} timeZone Zone name; nullish or empty selects the runtime's own zone.
+ * @returns {string|undefined} The canonical zone name, or undefined for the runtime's own zone.
+ * @throws {RangeError} When the runtime does not know the zone.
+ */
+export function normalizeTimeZone(timeZone) {
+  if (timeZone == null || timeZone === '') return undefined;
+  try {
+    return new Intl.DateTimeFormat('en-US', { timeZone: String(timeZone) }).resolvedOptions().timeZone;
+  } catch {
+    throw new RangeError(`Unknown time zone "${String(timeZone)}"`);
+  }
+}
+
+/**
+ * Calendar arithmetic for one time zone. The `Intl` formatter is built once, so a table column can
+ * hold one zone for all of its cells.
+ * @param {string} [timeZone] IANA zone; the runtime's own zone when omitted.
+ * @returns {CalendarZone} Day lookup and midnight construction for the zone.
+ */
+export function calendarZone(timeZone) {
+  const zone = normalizeTimeZone(timeZone);
+  if (!zone) {
+    return {
+      timeZone: undefined,
+      dayOf: (milliseconds) => {
+        const date = new Date(milliseconds);
+        return { year: date.getFullYear(), month: date.getMonth(), day: date.getDate() };
+      },
+      midnightOf: (year, month, day) => localMidnight(year, month, day).getTime()
+    };
+  }
+
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: zone,
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+    second: 'numeric'
+  });
+  /** @param {number} milliseconds @returns {CalendarDay & {seconds: number}} */
+  const wallClock = (milliseconds) => {
+    const parts = {};
+    for (const part of formatter.formatToParts(new Date(milliseconds))) parts[part.type] = Number(part.value);
+    return {
+      year: parts.year,
+      month: parts.month - 1,
+      day: parts.day,
+      seconds: (parts.hour % 24) * 3600 + parts.minute * 60 + parts.second
+    };
+  };
+  /** @param {number} milliseconds @returns {number} The zone's UTC offset at that instant, in milliseconds. */
+  const offsetAt = (milliseconds) => {
+    const wall = wallClock(milliseconds);
+    return utcMidnight(wall.year, wall.month, wall.day) + wall.seconds * 1000
+      - Math.floor(milliseconds / 1000) * 1000;
+  };
+
+  return {
+    timeZone: zone,
+    dayOf: (milliseconds) => {
+      const { year, month, day } = wallClock(milliseconds);
+      return { year, month, day };
+    },
+    midnightOf: (year, month, day) => {
+      // Midnight is the instant whose wall clock reads the target day at 00:00. Two offset
+      // corrections settle it on either side of a daylight-saving change; where a change skips
+      // midnight altogether, the earlier candidate lands on the previous evening and the later one
+      // on the first minute of the day, which is the one kept.
+      const target = utcMidnight(year, month, day);
+      const first = target - offsetAt(target);
+      const second = target - offsetAt(first);
+      let best = null;
+      for (const candidate of [second, first]) {
+        const wall = wallClock(candidate);
+        if (wall.year !== year || wall.month !== month || wall.day !== day) continue;
+        if (!best || wall.seconds < best.seconds) best = { candidate, seconds: wall.seconds };
+      }
+      return best ? best.candidate : second;
+    }
+  };
+}
+
+/** @param {number} year @param {number} month @param {number} day @returns {Date} */
+function localMidnight(year, month, day) {
+  const date = new Date(2000, 0, 1);
+  date.setFullYear(year, month, day);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+/** @param {number} year @param {number} month @param {number} day @returns {number} */
+function utcMidnight(year, month, day) {
+  const date = new Date(0);
+  date.setUTCFullYear(year, month, day);
+  return date.getTime();
+}
+
+/**
  * Converts one or more Zx Table sort records to the signed field notation used by ZeyOS.
  * A missing sort produces an empty array.
  * @param {ZxSort|ZxSort[]|null|undefined} sort Zx sort state.

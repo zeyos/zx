@@ -1,4 +1,4 @@
-import { h, Select } from '../../src/index.js';
+import { h, priorityIcon, Select, statusIcon } from '../../src/index.js';
 import { matchItems } from '../../src/components/select/filter.js';
 import { demoZeyosAppIcon } from '../zeyos-demo-icons.js';
 
@@ -11,6 +11,37 @@ function makeItems(count, prefix) {
 function initials(name) {
   return name.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase();
 }
+
+/** Spaces for the entity example: an icon each, and a colour that is a token or nothing at all. */
+const SPACES = [
+  { ID: 'eng', name: 'Engineering', description: '42 members', icon: 'code', color: 'var(--zx-color-tone-blue-fg)' },
+  { ID: 'sales', name: 'Sales', description: '18 members', icon: 'star', color: 'var(--zx-color-tone-green-fg)' },
+  { ID: 'support', name: 'Support', description: '11 members', icon: 'info', color: 'var(--zx-color-tone-violet-fg)' },
+  { ID: 'archive', name: 'Archive', description: 'Closed projects', icon: 'folder' }
+];
+
+/** The built-in status ids `statusIcon()` draws, each with the text that always goes beside it. */
+const STATUSES = [
+  { id: 'backlog', name: 'Backlog' },
+  { id: 'todo', name: 'Todo' },
+  { id: 'in-progress', name: 'In progress' },
+  { id: 'in-review', name: 'In review' },
+  { id: 'ready', name: 'Ready to merge' },
+  { id: 'waiting', name: 'Waiting for feedback' },
+  { id: 'done', name: 'Done' },
+  { id: 'canceled', name: 'Canceled' },
+  { id: 'duplicate', name: 'Duplicate' }
+];
+
+/** The priority levels `priorityIcon()` draws: null, then 0 (lowest) to 4 (highest). */
+const PRIORITIES = [
+  { level: null, name: 'No priority' },
+  { level: 0, name: 'Lowest' },
+  { level: 1, name: 'Low' },
+  { level: 2, name: 'Medium' },
+  { level: 3, name: 'High' },
+  { level: 4, name: 'Highest' }
+];
 
 const PROJECTS = [
   { ID: 1, name: 'Deploy', team: 'UniBack / Katayo', group: 'TEAM PROJECTS', module: 'projects' },
@@ -158,8 +189,8 @@ export default {
             style: {
               display: 'grid', placeItems: 'center', inlineSize: '28px', blockSize: '28px',
               flex: 'none', borderRadius: 'var(--zx-radius-full)',
-              background: 'var(--zx-color-bg-selected)', color: 'var(--zx-color-accent)',
-              fontWeight: '700'
+              background: 'var(--zx-color-bg-muted)', color: 'var(--zx-color-text-muted)',
+              fontWeight: '600'
             }
           }, initials(item.name)),
           h('span', { style: { display: 'grid' } },
@@ -189,19 +220,23 @@ export default {
       id: 'priority',
       title: 'Select.priority()',
       preset: true,
-      blurb: 'Select.priority() builds the five-step ZeyOS priority scale, with its labels taken '
-        + 'from the msg map you pass so the preset localises with the rest of the application.',
+      blurb: 'Select.priority() builds the five-step ZeyOS priority scale, values 0 to 4. Each level '
+        + 'is grey signal bars filled to its height; only the highest, the one that needs attention, '
+        + 'is coloured. "No priority" (null) heads the list — clearable: false removes it. The labels '
+        + 'come from the msg map you pass, so the preset localises with the rest of the application.',
       width: '360px',
-      render: ({ cleanup }) => {
+      render: ({ cleanup, log }) => {
         const select = Select.priority(null, {
           value: 2,
           msg: {
+            'priority.none': 'No priority',
             'priority.lowest': 'Lowest',
             'priority.low': 'Low',
             'priority.normal': 'Normal',
             'priority.high': 'High',
             'priority.highest': 'Highest'
-          }
+          },
+          onchange: ({ detail }) => log(`priority ${detail.value}`)
         });
         select.refs.input.setAttribute('aria-label', 'Priority preset');
         cleanup(() => select.destroy());
@@ -224,6 +259,28 @@ export default {
         select.refs.input.setAttribute('aria-label', 'Workflow status');
         cleanup(() => select.destroy());
         return select.toElement();
+      }
+    },
+    {
+      id: 'glyphs',
+      title: 'Status and priority glyphs',
+      blurb: 'statusIcon(status) and priorityIcon(level) return the glyphs the two presets draw, '
+        + 'so a list row, a board column, or a filter chip shows the same mark as the picker that '
+        + 'changes it. They are decorative (aria-hidden): always put the status or priority in text '
+        + 'beside them, or pass { label } for a glyph that stands alone. review and cancelled are '
+        + 'accepted for in-review and canceled; { tone } and { indicator } restyle one status.',
+      render: () => {
+        const row = (glyph, text) => h('li', {
+          style: { display: 'flex', alignItems: 'center', gap: 'var(--zx-space-2)' }
+        }, glyph, h('span', {}, text));
+        const list = (rows) => h('ul', {
+          style: { display: 'grid', gap: 'var(--zx-space-2)', margin: '0', padding: '0', listStyle: 'none' }
+        }, ...rows);
+        return h('div', {
+          style: { display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', gap: 'var(--zx-space-8)' }
+        },
+          list(STATUSES.map((status) => row(statusIcon(status.id), status.name))),
+          list(PRIORITIES.map((priority) => row(priorityIcon(priority.level), priority.name))));
       }
     },
     {
@@ -254,6 +311,25 @@ export default {
           onchange: ({ detail }) => log(`project ${detail.value}`)
         });
         select.refs.input.setAttribute('aria-label', 'Project');
+        cleanup(() => select.destroy());
+        return select.toElement();
+      }
+    },
+    {
+      id: 'entity-colors',
+      title: 'Entity icons and colours',
+      blurb: 'Without renderIcon, Select.entity() draws iconKey on a tile filled with colorKey — a '
+        + 'colour, or a token reference such as var(--zx-color-tone-blue-fg) so the tile follows '
+        + 'the theme. An entity without a colour gets a neutral tile. With no filter the input is '
+        + 'read-only, and a click opens it without the keyboard focus ring.',
+      width: '360px',
+      render: ({ cleanup, log }) => {
+        const select = Select.entity(null, {
+          items: SPACES,
+          value: 'eng',
+          label: 'Space',
+          onchange: ({ detail }) => log(`space ${detail.value}`)
+        });
         cleanup(() => select.destroy());
         return select.toElement();
       }
@@ -290,6 +366,8 @@ export default {
     },
     {
       title: 'Disabled',
+      blurb: 'A disabled Select fades as a whole — text, frame, and chevron — the way a disabled '
+        + 'Field does.',
       width: '360px',
       render: ({ cleanup }) => {
         const select = new Select(null, {

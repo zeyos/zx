@@ -64,9 +64,9 @@
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--zx-space-2);
-  min-block-size: var(--zx-control-height);
+  min-block-size: calc(var(--zx-control-height) - 2px);
   border-radius: var(--zx-radius-sm);
-  padding-inline: var(--zx-space-2);
+  padding: var(--zx-space-1) var(--zx-space-2);
 }
 
 .zx-table__column-option:hover { background: var(--zx-color-overlay-hover); }
@@ -132,16 +132,28 @@
   }
 }
 
+/*
+ * The reorder and selection columns are one control height wide, the control centred in the slot.
+ * Their cells drop the inline padding: a fixed layout holds the column to exactly that width, and
+ * the padding would push the control off its middle. The controls are blocks centred by their
+ * margins: inline, they would sit on the text baseline with the descender room left below them, a
+ * few pixels above the middle of the row.
+ */
 .zx-table__reorder-column,
-.zx-table__reorder-header,
-.zx-table__reorder-cell {
+.zx-table__selection-column {
   inline-size: var(--zx-control-height);
-  text-align: center;
+}
+
+.zx-table :is(.zx-table__reorder-header, .zx-table__reorder-cell,
+  .zx-table__selection-header, .zx-table__selection-cell) {
+  inline-size: var(--zx-control-height);
+  padding-inline: 0;
 }
 
 .zx-table__row-handle {
-  display: inline-grid;
+  display: grid;
   place-items: center;
+  margin-inline: auto;
   inline-size: 26px;
   block-size: 26px;
   min-block-size: 0;
@@ -171,7 +183,9 @@
   border: 1px solid var(--zx-color-border);
   border-radius: var(--zx-radius-md);
   background: var(--zx-color-bg-surface);
-  scrollbar-gutter: stable;
+  /* No reserved gutter: a table that does not scroll would carry a blank strip beside its last
+     column wherever scrollbars take up room. One that scrolls gets its scrollbar when it does. */
+  scrollbar-gutter: auto;
 }
 
 /* Loading state (Table.setLoading): dim rows and show an indeterminate top progress bar. */
@@ -214,6 +228,8 @@
   border-spacing: 0;
   background: var(--zx-color-bg-surface);
   color: var(--zx-color-text);
+  /* Figures line up down a column whatever the cell's alignment. Only digits change width. */
+  font-variant-numeric: tabular-nums;
 }
 
 /* Auto layout (intrinsic/px columns): let content set the width and scroll horizontally. */
@@ -227,23 +243,32 @@
   table-layout: fixed;
 }
 
-.zx-table__selection-column {
-  inline-size: var(--zx-control-height);
-}
-
+/*
+ * Rows are separated by the subtle divider, the header from the body by the ordinary one. The
+ * header has no band of its own: it sits on the table's surface in the muted text colour at a
+ * medium weight, so it labels the columns without competing with the values in them — and stays
+ * opaque, which a sticky header has to be.
+ */
 .zx-table th,
 .zx-table td {
-  border-block-end: 1px solid var(--zx-table-border-color, var(--zx-color-border));
+  border-block-end: 1px solid var(--zx-table-border-color, var(--zx-color-border-subtle));
   padding: var(--zx-space-2) var(--zx-space-3);
   text-align: start;
   vertical-align: middle;
 }
 
 .zx-table th {
-  background: var(--zx-table-header-bg, var(--zx-color-bg-raised));
+  border-block-end-color: var(--zx-table-border-color, var(--zx-color-border));
+  background: var(--zx-table-header-bg, var(--zx-color-bg-surface));
   color: var(--zx-color-text-muted);
   font-size: var(--zx-text-sm);
-  font-weight: 650;
+  font-weight: var(--zx-weight-medium);
+}
+
+/* The column the rows are ordered by says so in its label as well as its arrow. */
+.zx-table th[aria-sort="ascending"],
+.zx-table th[aria-sort="descending"] {
+  color: var(--zx-color-text);
 }
 
 .zx-table__scroll[data-sticky-header="true"] th {
@@ -284,7 +309,23 @@
   background: inherit;
   color: inherit;
   padding: 0;
+  /* The header's type, not a control's: base.css sets buttons in the control size and weight, and
+     the browser resets their tracking, so a sortable label would not match its unsortable
+     neighbours. */
+  font: inherit;
+  letter-spacing: inherit;
   text-align: inherit;
+}
+
+/* A sortable figure column keeps its label over the figures: label at the end edge, the direction
+   arrow before it. */
+.zx-table th:is([data-align="end"], [data-align="right"]) .zx-table__sort-button {
+  flex-direction: row-reverse;
+  justify-content: flex-start;
+}
+
+.zx-table th[data-align="center"] .zx-table__sort-button {
+  justify-content: center;
 }
 
 .zx-table__sort-button:hover {
@@ -298,12 +339,12 @@
 
 .zx-table th[aria-sort="ascending"] .zx-table__sort-button::after {
   content: "↑";
-  color: var(--zx-color-accent);
+  color: var(--zx-color-text-muted);
 }
 
 .zx-table th[aria-sort="descending"] .zx-table__sort-button::after {
   content: "↓";
-  color: var(--zx-color-accent);
+  color: var(--zx-color-text-muted);
 }
 
 .zx-table__body tr:last-child td {
@@ -314,26 +355,63 @@
   background: var(--zx-color-bg-page);
 }
 
+/* Checked rows of a multi-selection are picks and keep the accent tint. The selected row of a
+   single-selection table — no checkbox column — is the record you are on, the current row of a
+   master–detail list, and takes the neutral current fill instead. */
 .zx-table__body tr[aria-selected="true"] {
   background: var(--zx-table-row-selected-bg, var(--zx-color-bg-selected));
+}
+
+.zx-table__body tr[aria-selected="true"]:not(:has(> .zx-table__selection-cell)) {
+  background: var(--zx-table-row-selected-bg, var(--zx-color-bg-current));
 }
 
 .zx-table__body tr[data-row]:hover {
   background: var(--zx-color-bg-hover);
 }
 
+/* ------------------------------------------------------------------ plain -- */
+
+/*
+ * `variant: 'plain'` — for a table inside a card or panel that already draws the box: no outer
+ * frame, no header band, no zebra, hairline rows. The cells keep their padding, so the hover and
+ * selection fills never run up against the text.
+ */
+.zx-table[data-variant="plain"] .zx-table__scroll {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.zx-table[data-variant="plain"] .zx-table__table {
+  background: transparent;
+}
+
+.zx-table[data-variant="plain"] th {
+  background: var(--zx-table-header-bg, var(--zx-color-bg-surface));
+  border-block-end-color: var(--zx-table-border-color, var(--zx-color-border-subtle));
+}
+
+.zx-table[data-variant="plain"] .zx-table__scroll[data-sticky-header="false"] th {
+  background: transparent;
+}
+
+.zx-table[data-variant="plain"] .zx-table__scroll[data-zebra="true"] .zx-table__body tr:nth-child(even):not([aria-selected="true"]) {
+  background: transparent;
+}
+
+.zx-table[data-variant="plain"] .zx-table__body tr:last-child td {
+  border-block-end: 0;
+}
+
+
 .zx-table__checkbox {
+  display: block;
   inline-size: var(--zx-space-4);
   min-block-size: auto;
   block-size: var(--zx-space-4);
-  margin: 0;
+  margin: 0 auto;
   accent-color: var(--zx-color-accent);
-}
-
-.zx-table__selection-header,
-.zx-table__selection-cell {
-  inline-size: var(--zx-control-height);
-  text-align: center;
 }
 
 .zx-table__empty {
@@ -583,12 +661,9 @@
   content: none;
 }
 
-.zx-table[data-stacked] .zx-table__selection-cell {
-  justify-content: flex-start;
-}
-
-.zx-table[data-stacked] .zx-table__reorder-cell {
-  justify-content: flex-start;
+/* A card's checkbox and handle lead their line, where the auto margins would centre them. */
+.zx-table[data-stacked] :is(.zx-table__checkbox, .zx-table__row-handle) {
+  margin-inline: 0;
 }
 
 

@@ -48,8 +48,10 @@ its "Out of scope" section is binding. Do not modify files outside the spec's fi
   — states use attributes, see below).
 - CSS custom properties: `--zx-*`. Components may **only** consume tier-2 semantic tokens
   (`--zx-color-*`, `--zx-control-*`, `--zx-focus-ring`, `--zx-overlay-shadow`, `--zx-space-*`,
-  `--zx-radius-*`, `--zx-text-*`, `--zx-dur-*`, `--zx-ease`). Never tier-1 palette tokens
-  (`--zx-gray-500` etc.), never raw color literals (`#hex`, `rgb()`, `hsl()`, named colors).
+  `--zx-radius-*`, `--zx-text-*`, `--zx-weight-*`, `--zx-tracking-*`, `--zx-dur-*`, `--zx-ease`).
+  Never tier-1 palette tokens (`--zx-gray-500`, `--zx-emerald-*`, `--zx-tone-*` etc.) — categorical
+  colour comes through `--zx-color-tone-*` and `--zx-color-chart-*` — and never raw color literals
+  (`#hex`, `rgb()`, `hsl()`, named colors).
   `tests/lint-tokens.js` enforces this. One tier-1 name is public API for *applications* though
   still off limits to components: `--zx-accent-300`…`-700`, the ramp the accent roles resolve
   through, which is all a theme preset overrides. A new preset keeps the invariant the semantic
@@ -86,10 +88,12 @@ its "Out of scope" section is binding. Do not modify files outside the spec's fi
   including the full keyboard map. Focus styling uses `:focus-visible` with the
   `--zx-focus-ring` token. Wrap all non-essential animation in
   `@media (prefers-reduced-motion: no-preference)`.
-- Both themes and densities must work: verify light/dark (`data-zx-theme`) × cozy/compact
-  (`data-zx-density`) render correctly for every component you touch. `website/theme.html` renders
-  the whole library at once and is the fastest way to check a component against all of them,
-  including the six accent presets (`data-zx-preset`, `styles/tokens/themes.css`).
+- Both themes must work: verify light and dark (`data-zx-theme`) render correctly for every
+  component you touch. There is one geometry; spacing, radius, and control
+  height are theme settings (`--zx-space-unit`, `--zx-radius`, `--zx-control-height`), so never
+  hard-code a pixel size that should follow them. `website/theme.html` renders the whole library at
+  once and is the fastest way to check a component against both themes, the spacing and radius
+  settings, and the six accent presets (`data-zx-preset`, `styles/tokens/themes.css`).
 - `destroy()` must leave the DOM as found: remove created elements, abort listeners.
   Creating and destroying a component twice on the same target must not throw or leak nodes.
 
@@ -126,16 +130,48 @@ shape the component expects is documented by the demo itself.
 
 ## Layout examples
 
-`website/layouts/<name>.layout.js` holds whole application shells assembled from several
-components (master–detail, dashboard, inbox, record page, two wizards, settings, ZeyOS invoices).
-Same module shape as a demo plus a `blurb`, registered in the `LAYOUT_IDS` list in
-`website/docs.js`. Their shared classes (`.layout-frame`, `.layout-split`, `.stat-card`,
-`.stepper`, …) live in `website/docs.css`.
+`website/layouts.html` is the layout gallery: a tile per layout carrying a live thumbnail (the real
+module mounted in preview mode at 1440 × 900, scaled down), opening it in a near-full-screen Modal
+with its source. `layouts.html#<id>` opens one directly; `layout.html#<id>` shows one on its own,
+filling the window, for use in a separate tab.
+
+- **Registry** — `website/layouts/index.js`: `TEMPLATE_IDS` (complete applications) and
+  `PATTERN_IDS` (single screens), in gallery order. The gallery, the documentation search,
+  `tools/check-site.js`, and `tools/run-smoke.js` all read it; adding a layout means adding its id
+  there.
+- **Module** — `website/layouts/<id>.layout.js` exports only `default`:
+  `{ title, category, blurb, components, mount(container, context) }`. `context` is
+  `{ preview, signal, cleanup }`; normalise it with `layoutContext()` and wrap every component in
+  `disposer(context)` so closing the popup destroys it (menus, tooltips, dialogs, and sheets attach
+  outside the root). Listeners outside the root take `context.signal`; keys bind on the root via
+  `shortcuts(root, map, context)`, a `Launcher` gets `shortcut: false`. In preview render the first
+  state only — no timers, streaming, launchers, toasts, or `focus()`. `mount` appends one root,
+  `h('div', { class: '<block> shell' })`, that fills its container; no hard-coded element ids.
+- **Kit** — `website/layouts/kit.js` and `kit.css` are the shared application shell (`.shell` and
+  its columns, `paneHeader()`, `propList()`, `.list-row`, `.surface`, `shortcuts()`,
+  `loadChartJs()`, and `adaptiveShell()`, which keeps every column reachable at any width: the
+  inspector and the navigation become drawers below 1180px and 860px, and below 640px a shell with
+  a list column shows the list or the main pane; at full width it collapses columns and opens a
+  `.shell__panel` bottom panel, with Mod+B/I/J when asked), `.shell__statusbar`, key sequences in
+  `shortcuts()` (`'g h'`), and `shortcutSheet()` for the `?` reference; `fixtures.js` is the shared fictional world, `layout-icons.js` the extra icons.
+  A layout's styles live in `<id>.layout.css` — templates and screen patterns alike — every
+  selector under its block class, imported by `website/layouts.css`. `tests/lint-tokens.js` holds
+  all of them to the semantic-token rule.
+- **Checking one** — `node tools/shoot-layout.js <id> --out <dir>` mounts a layout through
+  `tests/layouts/harness.html` and screenshots it in light and dark (`--preview`, `--preset`,
+  `--width`/`--height`, `--steps <module>` to drive it first). It fails on page or console errors
+  and on anything left on `<body>` after unmount — the gallery opens and closes layouts all session.
+  `node tools/audit-layout.js <id>` takes the same options and fails on accessibility problems:
+  unnamed controls and landmarks, text contrast, missing focus indicators, skipped headings,
+  duplicate ids. A layout is done when both pass at 1440 and at 390 wide, in both themes.
+- Templates borrow information architecture, never identity: no reference product's name, logo,
+  colours, or copy anywhere under `website/`. `tools/check-site.js` and
+  `tests/unit/layout-templates.test.js` fail on the names.
 
 ## Definition of done (per WP)
 
 1. All files in the spec's scope exist and are complete; nothing outside the scope touched.
-2. `npm test` passes (`node --test tests/unit/` + `node tests/lint-tokens.js`).
+2. `npm test` passes (`node --test`, which finds `tests/unit/*.test.js`, + `node tests/lint-tokens.js`).
 3. Demo module(s) registered and rendering without console errors.
 4. Keyboard map from the spec fully implemented.
 5. JSDoc complete on public API.

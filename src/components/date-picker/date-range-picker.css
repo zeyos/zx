@@ -83,7 +83,7 @@
 
 .zx-date-range-picker__caption {
   overflow: hidden;
-  font-weight: 650;
+  font-weight: var(--zx-weight-semibold);
   text-align: center;
   text-overflow: ellipsis;
   text-wrap: nowrap;
@@ -147,7 +147,7 @@
   padding: 0;
   color: var(--zx-color-text-muted);
   font-size: var(--zx-text-xs);
-  font-weight: 600;
+  font-weight: var(--zx-weight-medium);
   text-align: center;
 }
 
@@ -223,7 +223,7 @@
   border-radius: var(--zx-radius-full);
   background: var(--zx-color-accent);
   color: var(--zx-color-on-accent);
-  font-weight: 700;
+  font-weight: var(--zx-weight-semibold);
 }
 
 .zx-date-range-picker__grid td[data-range="middle"] > .zx-date-range-picker__day,

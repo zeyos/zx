@@ -1,6 +1,6 @@
 import { Component } from '../../core/component.js';
 import { h, resolveElement } from '../../core/dom.js';
-import { overlayHost } from '../../core/overlay-host.js';
+import { connectedOverlayHost, overlayHost } from '../../core/overlay-host.js';
 import { position } from '../../core/position.js';
 import { uid } from '../../core/util.js';
 
@@ -15,7 +15,7 @@ const HANDLE_ESCAPE_DISMISS = Symbol('zxDropdownEscapeDismiss');
  * @property {boolean} [matchWidth=false] Whether the panel matches the anchor width.
  * @property {'click'|'manual'} [openOn='click'] Trigger behavior.
  * @property {boolean} [closeOnSelect=false] Whether a click within the panel closes it.
- * @property {Element|string|null} [scope=null] Element whose nearest Zx theme scope owns the panel; defaults to the anchor.
+ * @property {Element|string|null} [scope=null] Element whose nearest Zx theme scope owns the panel; defaults to the anchor. Resolved on every open, so an anchor connected after construction still gets its scope.
  * @property {(event: CustomEvent<Record<string, never>>) => void} [onopen] Open event listener.
  * @property {(event: CustomEvent<Record<string, never>>) => void} [onclose] Close event listener.
  */
@@ -58,7 +58,9 @@ export class Dropdown extends Component {
     if (!resolved) throw new TypeError('Dropdown anchor could not be resolved');
     super(null, options);
     this.#anchor = resolved;
-    overlayHost(this.options.scope ?? resolved).append(this.el);
+    // An anchor that is not in the document yet has no theme scope to read; the panel then waits
+    // detached and finds its host on the first open, instead of settling on <body>.
+    connectedOverlayHost(this.options.scope ?? resolved)?.append(this.el);
     this.#rememberAnchorAttribute('aria-expanded');
     this.#rememberAnchorAttribute('aria-controls');
     this.#anchor.setAttribute('aria-expanded', 'false');

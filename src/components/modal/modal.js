@@ -1,6 +1,6 @@
 import { Component } from '../../core/component.js';
 import { h } from '../../core/dom.js';
-import { overlayHost } from '../../core/overlay-host.js';
+import { connectedOverlayHost, overlayHost } from '../../core/overlay-host.js';
 
 /**
  * Controls initial focus may be placed on: what a reader reaches with Tab, rather than everything
@@ -18,7 +18,7 @@ const FOCUSABLE_SELECTOR = [
  * @property {boolean} [closable=true] Whether Escape may close the modal.
  * @property {boolean} [lightDismiss=false] Whether a backdrop click closes the modal.
  * @property {boolean} [destroyOnClose=false] Whether to destroy the modal after it closes.
- * @property {Element|string|null} [scope=null] Element whose nearest Zx theme scope owns the overlay; defaults to the opener.
+ * @property {Element|string|null} [scope=null] Element whose nearest Zx theme scope owns the overlay; defaults to the opener. Resolved on every open, so a scope connected after construction still owns it.
  * @property {(event: CustomEvent<Record<string, never>>) => void} [onopen] Open event listener.
  * @property {(event: CustomEvent<{result: unknown}>) => void} [onclose] Close event listener.
  * @property {(event: CustomEvent<Record<string, never>>) => void} [oncancel] Cancel event listener.
@@ -266,8 +266,23 @@ export class Modal extends Component {
       class: 'zx-modal'
     }, h('div', { class: 'zx-modal__content', ref: 'content' })));
     dialog.dataset.state = 'closed';
-    this.mountTarget().append(dialog);
+    this._mountInitial(dialog);
     return dialog;
+  }
+
+  /**
+   * Gives a freshly rendered dialog its first home.
+   *
+   * A `scope` that is not in the document yet cannot say which theme it belongs to, and the
+   * `<body>` that `mountTarget()` would answer is outside it. The dialog then stays detached and
+   * `open()` places it, by which time the scope is in place. Called from `render()`, so it may
+   * read `this.options` but no instance state.
+   * @param {HTMLDialogElement} dialog The rendered dialog.
+   * @returns {void}
+   */
+  _mountInitial(dialog) {
+    if (this.options.scope != null && !connectedOverlayHost(this.options.scope)) return;
+    this.mountTarget().append(dialog);
   }
 
   /**

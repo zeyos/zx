@@ -26,6 +26,8 @@
   margin: 0;
   flex: 1;
   font-size: var(--zx-text-xl);
+  font-weight: 650;
+  letter-spacing: var(--zx-tracking-title);
 }
 
 .zx-master-panel__buttons {

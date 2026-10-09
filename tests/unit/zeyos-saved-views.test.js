@@ -75,7 +75,7 @@ test('duplicate names reject by default and explicit replace preserves the stabl
   const transport = memoryTransport();
   const registry = new SavedViewRegistry(transport, BASE_SCOPE, deterministicOptions());
   const original = await registry.save({
-    id: 'queue', name: 'Queue', type: 'table', state: { version: 1, density: 'compact' }
+    id: 'queue', name: 'Queue', type: 'table', state: { version: 1, sort: 'name' }
   }, { setDefault: true });
 
   await assert.rejects(registry.save({

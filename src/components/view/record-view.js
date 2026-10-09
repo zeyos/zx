@@ -500,7 +500,7 @@ export class RecordView extends Component {
     const text = label ?? this._viewFieldControlsLabel();
     const list = h('div', { class: 'zx-record-view__field-list' });
     const details = h('details', { class: 'zx-record-view__field-controls' },
-      h('summary', { class: 'zx-button zx-button--sm' }, icon('fields', { size: 13 }), text),
+      h('summary', { class: 'zx-btn', dataset: { size: 'sm', kind: 'ghost' } }, icon('fields'), text),
       list);
     this._viewFieldControls = details;
     this._viewFieldList = list;

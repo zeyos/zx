@@ -26,7 +26,11 @@ const PALETTE = [
   ['Accent', '--zx-color-accent'],
   ['Accent hover', '--zx-color-accent-hover'],
   ['Accent subtle', '--zx-color-accent-subtle'],
+  ['Solid accent', '--zx-color-accent-solid'],
   ['Selected', '--zx-color-bg-selected'],
+  ['Current', '--zx-color-bg-current'],
+  ['Page', '--zx-color-bg-page'],
+  ['Chrome', '--zx-color-bg-chrome'],
   ['Surface', '--zx-color-bg-surface'],
   ['Raised', '--zx-color-bg-raised'],
   ['Glass chrome', '--zx-color-glass-chrome'],
@@ -34,15 +38,48 @@ const PALETTE = [
   ['Reading overlay', '--zx-color-overlay-panel'],
   ['Muted', '--zx-color-bg-muted'],
   ['Border', '--zx-color-border'],
+  ['Subtle border', '--zx-color-border-subtle'],
   ['Text', '--zx-color-text'],
   ['Muted text', '--zx-color-text-muted'],
+  ['Subtle text', '--zx-color-text-subtle'],
   ['Success', '--zx-color-success'],
   ['Warning', '--zx-color-warning'],
   ['Danger', '--zx-color-danger'],
   ['Info', '--zx-color-info']
 ];
 
+/** The categorical tones, in the order the theming guide lists them. */
+const TONES = ['blue', 'teal', 'green', 'amber', 'orange', 'red', 'pink', 'violet', 'slate'];
+
+/** How many chart series the palette defines (`--zx-color-chart-1` …). */
+const CHART_SERIES = 8;
+
 const BADGE_KINDS = ['neutral', 'accent', 'success', 'warning', 'danger', 'info'];
+
+/** The rows of the state matrix: every Button kind, the icon-only button among them. */
+const BUTTON_KINDS = [
+  { label: 'Primary', options: { label: 'Save', kind: 'primary' } },
+  { label: 'Secondary', options: { label: 'Cancel' } },
+  { label: 'Ghost', options: { label: 'Filter', icon: 'filter', kind: 'ghost' } },
+  { label: 'Danger', options: { label: 'Delete', kind: 'danger' } },
+  { label: 'Icon', options: { icon: 'reload', title: 'Reload' } }
+];
+
+/** The columns of the state matrix, in the order a button moves through them. */
+const BUTTON_STATES = [
+  { id: 'default', label: 'Default' },
+  { id: 'hover', label: 'Hover' },
+  { id: 'active', label: 'Active' },
+  { id: 'focus', label: 'Focus' },
+  { id: 'disabled', label: 'Disabled' },
+  { id: 'loading', label: 'Loading' }
+];
+
+/** The pseudo-classes the matrix mirrors; `:focus-within` and the like are left alone. */
+const STATE_PSEUDOS = /:(?:hover|active|focus(?:-visible)?)(?![\w-])/g;
+const STATE_PSEUDO = new RegExp(STATE_PSEUDOS.source);
+/** The matrix column each mirrored pseudo-class draws. */
+const STATE_OF = { ':hover': 'hover', ':active': 'active', ':focus': 'focus', ':focus-visible': 'focus' };
 
 const PEOPLE = [
   { ID: 1, name: 'Nadine Roth' },
@@ -79,13 +116,23 @@ const currency = new Intl.NumberFormat(undefined, {
 /**
  * Every card on the canvas, in reading order. Column-major flow puts roughly the first third in
  * the left column, so the loudest families come first.
- * @type {{id: string, title: string, hint: string, render: (teardown: (fn: () => void) => void) => Node}[]}
+ * A `wide` card spans every column: a matrix needs the whole width of the canvas.
+ * @type {{id: string, title: string, hint: string, wide?: boolean,
+ *   render: (teardown: (fn: () => void) => void) => Node}[]}
  */
 export const CARDS = [
   { id: 'palette', title: 'Semantic palette', hint: 'What every component resolves its colour through', render: paletteCard },
+  { id: 'tones', title: 'Tones and series', hint: 'Categorical colour, apart from the accent and status', render: tonesCard },
   { id: 'type', title: 'Type scale', hint: '--zx-font-sans and the text steps', render: typeCard },
   { id: 'material', title: 'Material', hint: 'Identity, controls, raised surfaces, and overlay tiers', render: materialCard },
   { id: 'buttons', title: 'Buttons', hint: 'Four kinds, two sizes, joined groups', render: buttonsCard },
+  {
+    id: 'button-states',
+    title: 'Button states',
+    hint: 'Every kind in every state, drawn by the library’s own state rules',
+    wide: true,
+    render: buttonStatesCard
+  },
   { id: 'badges', title: 'Badges', hint: 'Six intents in three weights', render: badgesCard },
   { id: 'inputs', title: 'Text input', hint: 'Search, copy, numbers, native controls', render: inputsCard },
   { id: 'selection', title: 'Selection', hint: 'Select, tags, checklist, permission', render: selectionCard },
@@ -127,7 +174,9 @@ export function mountShowcase(container) {
     }
   };
 
-  container.replaceChildren(...CARDS.map((card) => h('section', { class: 'studio-card', id: `card-${card.id}` },
+  container.replaceChildren(...CARDS.map((card) => h('section', {
+    class: card.wide ? 'studio-card studio-card--wide' : 'studio-card', id: `card-${card.id}`
+  },
     h('header', { class: 'studio-card__head' },
       h('h2', { class: 'studio-card__title' }, card.title),
       h('p', { class: 'studio-card__hint' }, card.hint)),
@@ -174,6 +223,29 @@ function paletteCard() {
       h('span', { class: 'studio-swatch__label' }, label))));
 }
 
+/**
+ * The tone palette as tag-sized chips (fill and ink together, since a tone is the pair), then the
+ * chart series in assignment order.
+ * @returns {Node}
+ */
+function tonesCard() {
+  return h('div', { class: 'studio-stack' },
+    h('div', { class: 'studio-swatches' }, TONES.map((tone) =>
+      h('div', { class: 'studio-swatch' },
+        h('span', {
+          class: 'studio-swatch__chip',
+          style: {
+            display: 'grid', placeItems: 'center', borderColor: 'transparent',
+            background: `var(--zx-color-tone-${tone}-bg)`, color: `var(--zx-color-tone-${tone}-fg)`
+          }
+        }, 'Aa'),
+        h('span', { class: 'studio-swatch__label' }, tone)))),
+    h('div', { class: 'studio-swatches' }, Array.from({ length: CHART_SERIES }, (_, index) =>
+      h('div', { class: 'studio-swatch' },
+        h('span', { class: 'studio-swatch__chip', style: { background: `var(--zx-color-chart-${index + 1})` } }),
+        h('span', { class: 'studio-swatch__label' }, `Series ${index + 1}`)))));
+}
+
 /** @returns {Node} */
 function typeCard() {
   return h('div', { class: 'studio-type' },
@@ -209,6 +281,9 @@ function materialCard() {
 
 /** @returns {Node} */
 function buttonsCard() {
+  // A segmented choice marks the current option as pressed, not as a primary action.
+  const grid = button({ label: 'Grid', size: 'sm' });
+  grid.setAttribute('aria-pressed', 'true');
   const canvas = h('div', { class: 'studio-overlay-canvas studio-stack' },
     row(
       button({ label: 'Default' }),
@@ -221,7 +296,7 @@ function buttonsCard() {
       button({ label: 'Disabled', disabled: true }),
       buttonGroup([
         button({ label: 'List', size: 'sm' }),
-        button({ label: 'Grid', size: 'sm', kind: 'primary' }),
+        grid,
         button({ label: 'Map', size: 'sm' })
       ])),
     row(
@@ -232,6 +307,176 @@ function buttonsCard() {
         items: [{ label: 'Duplicate', value: 'copy' }, { label: 'Archive', value: 'archive' }]
       }).toElement()));
   return canvas;
+}
+
+/**
+ * The state matrix: every Button kind in every state, side by side.
+ *
+ * Hover, active, and focus are pseudo-classes, which nothing can switch on for a specimen that is
+ * not really being pointed at. Rather than restyle them here — a second copy of the button's
+ * states that would drift from the first — the card copies the library's own rules at run time:
+ * every rule that uses `:hover`, `:active`, `:focus`, or `:focus-visible` and that, with the
+ * pseudo-class swapped for a studio-only `data-studio-state` attribute, matches one of the
+ * specimens, is inserted straight after its original in the same stylesheet and media block. The
+ * cascade order and the specificity are the original's, so the card shows whatever the real rules
+ * do — including anything they get wrong. The copies are removed when the canvas is torn down.
+ *
+ * The specimens are `inert`: they are pictures of buttons, not controls, and must not take focus,
+ * hover, or clicks of their own.
+ * @param {(fn: () => void) => void} teardown
+ * @returns {Node}
+ */
+function buttonStatesCard(teardown) {
+  const table = h('table', { class: 'studio-states__table' },
+    h('caption', { class: 'studio-states__caption' }, 'Button kinds by state'),
+    h('thead', {}, h('tr', {},
+      h('th', { scope: 'col' }, h('span', { class: 'studio-states__kind-head' }, 'Kind')),
+      BUTTON_STATES.map((state) => h('th', { scope: 'col' }, state.label)))),
+    h('tbody', {}, BUTTON_KINDS.map((kind) => h('tr', {},
+      h('th', { scope: 'row' }, kind.label),
+      BUTTON_STATES.map((state) => h('td', {}, stateSpecimen(kind.options, state.id)))))));
+  const scroller = h('div', {
+    class: 'studio-states', role: 'region', 'aria-label': 'Button states', tabindex: '0'
+  }, table);
+
+  let removeCopies = () => {};
+  let disposed = false;
+  // The copies are matched against the specimens where they will render, which needs the card in
+  // the document; the canvas inserts every card in one go straight after this returns.
+  queueMicrotask(() => {
+    if (disposed || !scroller.isConnected) return;
+    removeCopies = mirrorStateRules(scroller);
+  });
+  teardown(() => {
+    disposed = true;
+    removeCopies();
+  });
+
+  return h('div', { class: 'studio-stack' },
+    scroller,
+    h('p', { class: 'studio-prose' },
+      'Hover, active, and focus are drawn by copies of the live ', h('code', {}, ':hover'), ', ',
+      h('code', {}, ':active'), ', and ', h('code', {}, ':focus-visible'), ' rules made when this '
+      + 'page loads, so the matrix cannot drift from what an application renders. Loading is '
+      + 'the busy button (', h('code', {}, 'setButtonBusy()'), '): a spinner in the label’s colour '
+      + 'and activation ignored, while it keeps its focus.'));
+}
+
+/**
+ * One specimen: a real `button()` with its state applied.
+ * @param {import('../src/components/button/button.js').ButtonOptions} options
+ * @param {string} state One of `BUTTON_STATES`.
+ * @returns {HTMLButtonElement}
+ */
+function stateSpecimen(options, state) {
+  const specimen = button({
+    ...options,
+    busy: state === 'loading',
+    disabled: state === 'disabled'
+  });
+  // A pointer cannot press a button without also hovering it, so the pressed specimen is both.
+  if (state === 'active') specimen.dataset.studioState = 'hover active';
+  else if (['hover', 'focus'].includes(state)) specimen.dataset.studioState = state;
+  specimen.inert = true;
+  return specimen;
+}
+
+/**
+ * Copies every stylesheet rule that draws a mirrored pseudo-class on a specimen inside `scope`.
+ * @param {Element} scope The card's matrix; only its specimens carry `data-studio-state`.
+ * @returns {() => void} Removes the copies again.
+ */
+function mirrorStateRules(scope) {
+  const specimens = [...scope.querySelectorAll('[data-studio-state]')];
+  /** @type {{parent: CSSStyleSheet|CSSGroupingRule, rule: CSSRule}[]} */
+  const copies = [];
+
+  /** @param {CSSStyleSheet|CSSGroupingRule} parent */
+  const visit = (parent) => {
+    let rules;
+    try {
+      rules = parent.cssRules;
+    } catch {
+      return; // A cross-origin stylesheet cannot be read, and holds no library rules.
+    }
+    for (let index = 0; index < rules.length; index += 1) {
+      const rule = rules[index];
+      if (rule instanceof CSSImportRule) {
+        if (rule.styleSheet) visit(rule.styleSheet);
+      } else if (rule instanceof CSSStyleRule) {
+        const selector = mirroredSelector(rule.selectorText, specimens);
+        if (!selector) continue;
+        try {
+          parent.insertRule(`${selector} { ${rule.style.cssText} }`, index + 1);
+        } catch {
+          continue; // Unparseable as a copy: the matrix shows the default state for it instead.
+        }
+        copies.push({ parent, rule: rules[index + 1] });
+        index += 1;
+      } else if ('cssRules' in rule) {
+        visit(/** @type {CSSGroupingRule} */ (rule));
+      }
+    }
+  };
+  for (const sheet of document.styleSheets) visit(sheet);
+
+  return () => {
+    for (const { parent, rule } of copies.reverse()) {
+      const index = [...parent.cssRules].indexOf(rule);
+      if (index >= 0) parent.deleteRule(index);
+    }
+    copies.length = 0;
+  };
+}
+
+/**
+ * The selector list a rule would have with its state pseudo-classes swapped for the studio
+ * attribute, keeping only the selectors that then match a specimen.
+ *
+ * The swap keeps the specificity — an attribute selector weighs what a pseudo-class does — and a
+ * zero-specificity `:where(.studio-states *)` beside it confines the copy to the matrix.
+ * @param {string} selectorText
+ * @param {Element[]} specimens
+ * @returns {string} The mirrored list, or '' when nothing in it draws a specimen.
+ */
+function mirroredSelector(selectorText, specimens) {
+  if (!STATE_PSEUDO.test(selectorText)) return '';
+  const kept = [];
+  for (const part of splitSelectorList(selectorText)) {
+    const mirrored = part.replace(STATE_PSEUDOS, (pseudo) =>
+      `[data-studio-state~="${STATE_OF[pseudo]}"]:where(.studio-states *)`);
+    if (mirrored === part) continue;
+    // Pseudo-elements never match an element, so test the element the rule decorates.
+    const element = mirrored.replace(/::[\w-]+(?:\([^)]*\))?/g, '');
+    try {
+      if (specimens.some((specimen) => specimen.matches(element))) kept.push(mirrored);
+    } catch {
+      // A selector this browser cannot match is not one it renders either.
+    }
+  }
+  return kept.join(', ');
+}
+
+/**
+ * Splits a selector list at its top-level commas.
+ * @param {string} list
+ * @returns {string[]}
+ */
+function splitSelectorList(list) {
+  const parts = [];
+  let depth = 0;
+  let start = 0;
+  for (let index = 0; index < list.length; index += 1) {
+    const char = list[index];
+    if (char === '(' || char === '[') depth += 1;
+    else if (char === ')' || char === ']') depth -= 1;
+    else if (char === ',' && depth === 0) {
+      parts.push(list.slice(start, index).trim());
+      start = index + 1;
+    }
+  }
+  parts.push(list.slice(start).trim());
+  return parts;
 }
 
 /** @returns {Node} */
@@ -266,6 +511,7 @@ function selectionCard() {
     field('Recipients', new TagPicker(null, { items: PEOPLE, values: [1, 3] }).toElement()),
     field('Visibility', Select.permission(null, { groups: PEOPLE }).toElement()),
     field('Columns', new Checklist(null, {
+      hideLabel: true, msg: { 'checklist.label': 'Columns' },
       items: [{ ID: 'number', name: 'Number', on: true }, { ID: 'customer', name: 'Customer' },
         { ID: 'amount', name: 'Amount', on: true }],
       search: false

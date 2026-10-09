@@ -19,7 +19,8 @@ import { DateRangePicker, clampRange, normalizeRange } from '../date-picker/date
  * @property {string} [format='%d.%m.%Y'] Kernel date format used for both endpoints.
  * @property {string} [separator=' – '] Text placed between the two formatted dates.
  * @property {string|null} [placeholder=null] Input placeholder; null derives one from the format.
- * @property {boolean} [clearable=true] Show a clear button while a range is present.
+ * @property {boolean} [clearable=true] Show a clear button while a range is present and the box is
+ *   enabled; without it the input keeps no room for one.
  * @property {Date|null} [min=null] Earliest selectable local calendar day.
  * @property {Date|null} [max=null] Latest selectable local calendar day.
  * @property {number} [months=2] Month panels in the popover; narrow ones show only the first.
@@ -132,6 +133,8 @@ export class DateRangeBox extends Component {
     this.el = root;
     this._originalState = root.getAttribute('data-state');
     this._originalAriaDisabled = root.getAttribute('aria-disabled');
+    this._originalClearable = root.getAttribute('data-clearable');
+    root.toggleAttribute('data-clearable', Boolean(this.options.clearable));
     this._format = String(this.options.format || '%d.%m.%Y');
     this._separator = String(this.options.separator ?? ' – ');
     this._disabled = Boolean(this.options.disabled);
@@ -336,6 +339,7 @@ export class DateRangeBox extends Component {
     this._content?.remove();
     restoreAttribute(this.el, 'data-state', this._originalState);
     restoreAttribute(this.el, 'aria-disabled', this._originalAriaDisabled);
+    restoreAttribute(this.el, 'data-clearable', this._originalClearable);
     super.destroy();
   }
 
@@ -435,7 +439,13 @@ export class DateRangeBox extends Component {
   /** @returns {void} */
   _syncDisplay() {
     this.refs.input.value = formatRangeText(this._range, this._format, this._separator);
-    this.refs.clear.hidden = !this.options.clearable || !(this._range.start || this._range.end);
+    this._syncClear();
+  }
+
+  /** A disabled box offers no clear button: there is nothing it could do. @returns {void} */
+  _syncClear() {
+    this.refs.clear.hidden = !this.options.clearable || !(this._range.start || this._range.end)
+      || this._disabled;
   }
 
   /** @returns {void} */
@@ -444,6 +454,7 @@ export class DateRangeBox extends Component {
     this.refs.toggle.disabled = this._disabled;
     this.refs.clear.disabled = this._disabled;
     this.el.setAttribute('aria-disabled', String(this._disabled));
+    this._syncClear();
     if (this._disabled) this._picker?.disable();
     else this._picker?.enable();
   }

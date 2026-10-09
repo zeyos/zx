@@ -1,4 +1,4 @@
-import { dateToUnixSeconds, unixSecondsToDate } from './query.js';
+import { calendarZone, dateToUnixSeconds, normalizeTimeZone, unixSecondsToDate } from './query.js';
 
 /** @typedef {Record<string, unknown>} FieldMeta */
 /**
@@ -11,6 +11,13 @@ import { dateToUnixSeconds, unixSecondsToDate } from './query.js';
  * @property {string[]} [fields] Curated allow-list; its order becomes the output order.
  * @property {string[]} [exclude] Field ids to omit.
  * @property {Record<string, string>} [labels] Per-field label overrides.
+ * @property {Record<string, string>} [formats] Per-field semantic format overrides (`date`,
+ * `datetime`, `money`, or any registered key). The schema types a timestamp only by its storage,
+ * so this is how a Unix-second field the built-in rules misread is declared a calendar day
+ * (`date`) or an instant (`datetime`).
+ * @property {string} [timeZone] IANA time zone of the ZeyOS instance, such as `Europe/Vienna`.
+ * Date-only fields store midnight of a calendar day in this zone; it is copied onto every field's
+ * metadata as `timeZone`. Defaults to the runtime's own zone.
  */
 
 /**
@@ -21,6 +28,49 @@ import { dateToUnixSeconds, unixSecondsToDate } from './query.js';
  * @type {Record<string, FieldTypeStrategy>}
  */
 export const TYPE_MAP = Object.create(null);
+
+/**
+ * Unix-second fields ZeyOS stores as calendar days (midnight in the instance's zone) rather than
+ * instants: document and due dates, validity ranges, birthdays. `date` counts only when indexed —
+ * the unindexed ones (`imports`, `couponcodes`) record when something happened.
+ */
+const DATE_ONLY_FIELDS = new Set(['date', 'duedate', 'birthdate', 'datefrom', 'dateto', 'datecancel', 'lastbilling']);
+
+/**
+ * Fields with a date-only name that hold instants on their resource: appointment and event times,
+ * and when a stream record, comment, or document version was written.
+ */
+const INSTANT_FIELDS = new Set([
+  'appointments.datefrom', 'appointments.dateto', 'events.datefrom', 'events.dateto',
+  'comments.date', 'documentversions.date', 'records.date'
+]);
+
+/** Readable words for the ZeyOS enum constants that run several words together. */
+const ENUM_WORDS = Object.freeze({
+  AWAITINGACCEPTANCE: 'awaiting acceptance',
+  AWAITINGAPPROVAL: 'awaiting approval',
+  BILLINGONLY: 'billing only',
+  CUSTOMERANDSUPPLIER: 'customer and supplier',
+  FEEDBACKREQUIRED: 'feedback required',
+  INEVALUATION: 'in evaluation',
+  INNEGOTIATION: 'in negotiation',
+  INREVISION: 'in revision',
+  NOSTOCK: 'no stock',
+  NOTSTARTED: 'not started',
+  PARTLYDELIVERED: 'partly delivered',
+  PARTLYINVOICED: 'partly invoiced',
+  PARTLYORDERED: 'partly ordered',
+  PARTLYPAID: 'partly paid',
+  PROCUREMENTONLY: 'procurement only',
+  REMOTECALL: 'remote call',
+  SERIALSANDCHARGES: 'serials and charges'
+});
+
+/** Labels for a priority field whose schema carries no enum. */
+const PRIORITY_LABELS = Object.freeze({ 0: 'Lowest', 1: 'Low', 2: 'Medium', 3: 'High', 4: 'Highest' });
+
+/** An enum name in the constant style ZeyOS uses for stored values (`INVOICED`, `BILLING_QUOTE`). */
+const ENUM_CONSTANT = /^[A-Z][A-Z\d]*(?:_[A-Z\d]+)*$/;
 
 const warnedUnknownTypes = new Set();
 
@@ -74,7 +124,8 @@ export function fieldToZxField(meta) {
 /**
  * Converts normalized ZeyOS field metadata to a Zx Table column configuration. Renderers return
  * strings only (never DOM): references/enums show labels, numeric columns are right-aligned,
- * booleans show a check, and Unix seconds are formatted as dates.
+ * booleans show a check, and Unix seconds are formatted as dates — a date-only field as the
+ * calendar day it names in `meta.timeZone`, with no time; a date-time field with its time.
  * @param {FieldMeta} meta Normalized metadata containing at least `id` or `name`.
  * @returns {Record<string, unknown>} Plain Zx Table column descriptor.
  */
@@ -94,6 +145,8 @@ export function fieldToZxColumn(meta) {
  * client returns names from `schema.fields(resource)` and definitions from
  * `schema.describe(resource).fields`; embedded `enum` data is authoritative. A compatible
  * `schema.enums(resource, field)` is used when supplied by another client version/stub.
+ * `formats` overrides a field's semantic `format`, and `timeZone` is validated once and copied
+ * onto every field.
  * @param {Record<string, any>} client Injected `@zeyos/client` instance.
  * @param {string} resource Schema resource name such as `tickets`.
  * @param {ResolveFieldOptions} [opts={}] Curation options.
@@ -119,6 +172,8 @@ export function resolveFields(client, resource, opts = {}) {
   const requested = Array.isArray(opts.fields) ? opts.fields.map(String) : [...available.keys()];
   const excluded = new Set(Array.isArray(opts.exclude) ? opts.exclude.map(String) : []);
   const labels = opts.labels && typeof opts.labels === 'object' ? opts.labels : {};
+  const formats = opts.formats && typeof opts.formats === 'object' ? opts.formats : {};
+  const timeZone = normalizeTimeZone(opts.timeZone);
   const result = [];
 
   for (const id of requested) {
@@ -131,6 +186,8 @@ export function resolveFields(client, resource, opts = {}) {
       if (meta.enum == null) meta.enum = enumValues;
     }
     if (Object.prototype.hasOwnProperty.call(labels, id)) meta.label = String(labels[id]);
+    if (Object.prototype.hasOwnProperty.call(formats, id) && formats[id]) meta.format = String(formats[id]);
+    if (timeZone) meta.timeZone = timeZone;
     result.push(meta);
   }
   return result;
@@ -164,7 +221,7 @@ const enumColumn = {
 };
 const priorityColumn = {
   field: { type: 'zxselect', props: { preset: 'priority' } },
-  column: (meta) => ({ render: enumRenderer(meta, priorityOptions()) })
+  column: (meta) => ({ render: enumRenderer(meta, PRIORITY_LABELS) })
 };
 const percentColumn = {
   field: { type: 'float', props: { min: 0, max: 100 } },
@@ -212,10 +269,13 @@ for (const type of ['email', 'tel', 'url', 'uri']) {
 function dateStrategy(type) {
   return {
     field: { type },
-    column: (meta) => ({
-      render: (row) => formatUnixDate(rowValue(row, meta), type === 'datetime'),
-      sortValue: (row) => unixSortValue(rowValue(row, meta))
-    })
+    column: (meta) => {
+      const format = type === 'datetime' ? instantFormatter() : calendarDayFormatter(meta.timeZone);
+      return {
+        render: (row) => format(rowValue(row, meta)),
+        sortValue: (row) => unixSortValue(rowValue(row, meta))
+      };
+    }
   };
 }
 
@@ -241,9 +301,8 @@ function strategyKey(meta) {
 
   const raw = normalizeType(meta.type);
   if (raw === 'bigint' || raw === 'int64') {
-    const id = String(meta.id).toLowerCase();
-    if (id === 'date' && meta.indexed) return 'date';
-    if (/(?:date|time)$/.test(id)) return 'datetime';
+    const temporal = timestampKind(meta);
+    if (temporal) return temporal;
   }
   if (isLongText(meta, raw)) return 'longtext';
   if (raw && TYPE_MAP[raw]) return raw;
@@ -253,6 +312,22 @@ function strategyKey(meta) {
   // An unfamiliar semantic hint is not useful on its own; the runtime DB type is the
   // reliable fallback exposed by the current client.
   return raw || semantic;
+}
+
+/**
+ * Tells a calendar-day timestamp from an instant by the field's name and resource, since the schema
+ * types both as `bigint`.
+ * @param {FieldMeta} meta
+ * @returns {'date'|'datetime'|null}
+ */
+function timestampKind(meta) {
+  const id = String(meta.id).toLowerCase();
+  const resource = String(meta.resource ?? '').toLowerCase();
+  if (DATE_ONLY_FIELDS.has(id) && !INSTANT_FIELDS.has(`${resource}.${id}`)) {
+    if (id !== 'date' || meta.indexed) return 'date';
+  }
+  if (INSTANT_FIELDS.has(`${resource}.${id}`) || /(?:date|time)$|^lastmodified$/.test(id)) return 'datetime';
+  return null;
 }
 
 /** @param {FieldMeta} meta @returns {FieldMeta & {id: string}} */
@@ -362,29 +437,39 @@ function normalizeEnumOptions(values) {
     return Object.fromEntries(values.map((entry, index) => {
       if (Array.isArray(entry)) {
         const [value = index, label = value] = entry;
-        return [String(value), String(label)];
+        return [String(value), enumLabel(label)];
       }
       if (entry && typeof entry === 'object') {
         const value = entry.value ?? entry.id ?? index;
-        return [String(value), String(entry.label ?? entry.name ?? value)];
+        return [String(value), entry.label != null ? String(entry.label) : enumLabel(entry.name ?? value)];
       }
-      return [String(index), String(entry)];
+      return [String(index), enumLabel(entry)];
     }));
   }
   if (values && typeof values === 'object') {
-    return Object.fromEntries(Object.entries(values).map(([value, label]) => [value, String(label)]));
+    return Object.fromEntries(Object.entries(values).map(([value, label]) => [value, enumLabel(label)]));
   }
   return {};
+}
+
+/**
+ * Turns a stored enum name into its label. A label the schema gives (`{value, label}`) never reaches
+ * this; what does is usually a constant such as `INVOICED` or `PARTLYPAID_CANCELLED`, shown in
+ * sentence case with its words separated ("Invoiced", "Partly paid cancelled"). Anything else is
+ * already a label and is kept as it is.
+ * @param {unknown} name Stored enum name.
+ * @returns {string}
+ */
+function enumLabel(name) {
+  const text = String(name ?? '');
+  if (!ENUM_CONSTANT.test(text)) return text;
+  const words = text.split('_').map((part) => ENUM_WORDS[part] ?? part.toLowerCase()).join(' ');
+  return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
 /** @param {FieldMeta} meta @returns {'optionlist'|'select'} */
 function enumFieldType(meta) {
   return Object.keys(enumOptions(meta)).length <= 5 ? 'optionlist' : 'select';
-}
-
-/** @returns {Record<string, string>} */
-function priorityOptions() {
-  return { '0': 'LOWEST', '1': 'LOW', '2': 'MEDIUM', '3': 'HIGH', '4': 'HIGHEST' };
 }
 
 /** @param {FieldMeta} meta @param {Record<string, string>} [fallback] @returns {(row: Record<string, unknown>) => string} */
@@ -426,17 +511,49 @@ function formatPercent(value) {
   return number == null ? '' : `${new Intl.NumberFormat().format(number)}%`;
 }
 
-/** @param {unknown} value @param {boolean} includeTime @returns {string} */
-function formatUnixDate(value, includeTime) {
-  if (value == null || value === '') return '';
+/**
+ * Formats a date-time field: the instant, in the viewer's zone, with its time.
+ * @returns {(value: unknown) => string}
+ */
+function instantFormatter() {
+  const formatter = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  return (value) => {
+    const date = timestampDate(value);
+    return date ? formatter.format(date) : '';
+  };
+}
+
+/**
+ * Formats a date-only field: the calendar day the stored midnight names in the instance's zone,
+ * with no time, so neither the viewer's zone nor daylight saving can move it.
+ * @param {unknown} timeZone Instance zone from the field metadata; the runtime's own when absent.
+ * @returns {(value: unknown) => string}
+ */
+function calendarDayFormatter(timeZone) {
+  const zone = calendarZone(/** @type {string|undefined} */ (timeZone ?? undefined));
+  // The day is formatted as a UTC date so the formatter cannot shift it a second time.
+  const formatter = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeZone: 'UTC' });
+  return (value) => {
+    const date = timestampDate(value);
+    if (!date) return '';
+    // A Date value is already a local calendar day (a form's own value, say); seconds are stored.
+    const { year, month, day } = value instanceof Date
+      ? { year: date.getFullYear(), month: date.getMonth(), day: date.getDate() }
+      : zone.dayOf(date.getTime());
+    const utc = new Date(0);
+    utc.setUTCFullYear(year, month, day);
+    return formatter.format(utc);
+  };
+}
+
+/** @param {unknown} value Unix seconds or a Date. @returns {Date|null} */
+function timestampDate(value) {
+  if (value == null || value === '') return null;
   try {
     const date = value instanceof Date ? value : unixSecondsToDate(/** @type {number|string} */ (value));
-    if (!date || !Number.isFinite(date.getTime())) return '';
-    return new Intl.DateTimeFormat(undefined, includeTime
-      ? { dateStyle: 'medium', timeStyle: 'short' }
-      : { dateStyle: 'medium' }).format(date);
+    return date && Number.isFinite(date.getTime()) ? date : null;
   } catch {
-    return '';
+    return null;
   }
 }
 

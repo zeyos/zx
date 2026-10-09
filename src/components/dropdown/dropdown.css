@@ -3,7 +3,7 @@
   max-block-size: calc(100vh - (2 * var(--zx-space-3)));
   overflow: auto;
   border: 1px solid var(--zx-color-overlay-border);
-  border-radius: var(--zx-radius-md);
+  border-radius: var(--zx-radius-lg);
   background-color: var(--zx-color-overlay-surface);
   background-image: var(--zx-overlay-surface-image);
   background-clip: padding-box;

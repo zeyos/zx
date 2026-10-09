@@ -1,0 +1,787 @@
+/*
+ * Invoice editor: the editing form beside a live A4 page.
+ *
+ * The page is the one place in the layouts that looks like paper. It is a light-theme island
+ * (`data-zx-theme="light"` on the element), so the dark theme never reaches into it, and it is
+ * measured in millimetres because it is a physical document — DIN 5008 margins, a 45 mm address
+ * zone, fold and punch marks.
+ */
+
+.invoicing {
+  --invoicing-paper-width: 210mm;
+}
+
+/* ------------------------------------------------------------------ header -- */
+
+.invoicing .invoicing__status {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+/* The trail stays on one line; short of room, the invoice number shortens rather than wraps. */
+.invoicing .invoicing__main > .shell__header .zx-breadcrumb__list {
+  flex-wrap: nowrap;
+}
+
+/* The trail ends in the invoice number, which is the page's title. */
+.invoicing .invoicing__main > .shell__header .zx-breadcrumb__current {
+  font-size: var(--zx-text-lg);
+  font-weight: var(--zx-weight-semibold);
+  letter-spacing: var(--zx-tracking-title);
+}
+
+/* -------------------------------------------------------------------- main -- */
+
+/* The header condenses on the pane's own width, which the navigation column takes from. */
+.invoicing .invoicing__main {
+  container: invoicing-main / inline-size;
+}
+
+.invoicing .invoicing__split {
+  flex: 1 1 auto;
+  min-block-size: 0;
+}
+
+.invoicing .invoicing__deleted {
+  display: none;
+  flex: 1 1 auto;
+  place-items: center;
+}
+
+.invoicing .invoicing__main[data-state="deleted"] .invoicing__split {
+  display: none;
+}
+
+.invoicing .invoicing__main[data-state="deleted"] .invoicing__deleted {
+  display: grid;
+}
+
+/* ------------------------------------------------------------------ editor -- */
+
+/* A tighter gutter than other panes: the positions grid needs every column of its width. */
+.invoicing .invoicing__editor {
+  container: invoicing-editor / inline-size;
+  block-size: 100%;
+  padding: var(--zx-space-4);
+}
+
+/* Customer and details side by side, the details on the wider side: they hold two fields a row. */
+.invoicing .invoicing__cards {
+  display: grid;
+  gap: var(--zx-space-4);
+}
+
+@container invoicing-editor (min-width: 36rem) {
+  .invoicing .invoicing__cards {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  }
+}
+
+/* The editor's cards are form sections: more room inside, and titles a step above the labels. */
+.invoicing .invoicing__editor .surface {
+  gap: var(--zx-space-4);
+  padding: var(--zx-space-5);
+}
+
+.invoicing .invoicing__editor .surface__title {
+  font-size: var(--zx-text-lg);
+  letter-spacing: var(--zx-tracking-tight);
+}
+
+.invoicing .invoicing__locked {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-3);
+  padding: var(--zx-space-3) var(--zx-space-4);
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-info-bg);
+  font-size: var(--zx-text-sm);
+}
+
+.invoicing .invoicing__locked > span {
+  flex: 1 1 auto;
+}
+
+.invoicing .invoicing__locked > .zx-icon {
+  color: var(--zx-color-info);
+}
+
+.invoicing .invoicing__locked > .zx-btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.invoicing .invoicing__card {
+  align-content: start;
+}
+
+/* "Bill to": a small caption over the address, which sits in a tinted panel rather than a box. */
+.invoicing .invoicing__bill-to {
+  display: grid;
+  gap: var(--zx-space-1);
+}
+
+.invoicing .invoicing__caption,
+.invoicing .invoicing__fact > dt {
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  font-weight: var(--zx-weight-medium);
+}
+
+.invoicing .invoicing__address {
+  display: grid;
+  padding: var(--zx-space-3) var(--zx-space-4);
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-bg-muted);
+  font-size: var(--zx-text-sm);
+  font-style: normal;
+  line-height: 1.5;
+}
+
+.invoicing .invoicing__address-name {
+  font-weight: var(--zx-weight-medium);
+}
+
+.invoicing .invoicing__address-meta {
+  margin-block-start: var(--zx-space-2);
+  color: var(--zx-color-text-muted);
+}
+
+.invoicing .invoicing__wide {
+  grid-column: span 2;
+  min-inline-size: 0;
+}
+
+/* A derived value, read rather than typed: a label over plain text, no field frame. */
+.invoicing .invoicing__fact {
+  display: grid;
+  gap: var(--zx-space-1);
+  margin: 0;
+}
+
+.invoicing .invoicing__treatment {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zx-space-2);
+  margin: 0;
+}
+
+/* --------------------------------------------------------------- positions -- */
+
+.invoicing .invoicing__positions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--zx-space-2);
+}
+
+/* Figures are set a step smaller than the article names, with tight cells, so the article keeps
+   the room the figures leave — four tenths of the table or more. */
+.invoicing .invoicing__grid .zx-table {
+  font-size: var(--zx-text-sm);
+}
+
+.invoicing .invoicing__grid .zx-table th,
+.invoicing .invoicing__grid .zx-table td {
+  padding-inline: calc(var(--zx-space-1) * 1.5);
+}
+
+/* Figures share the first line's baseline with the article name, not the middle of its two lines. */
+.invoicing .invoicing__grid .zx-table td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: baseline;
+  white-space: nowrap;
+}
+
+.invoicing .invoicing__grid td[data-column="item"] {
+  position: relative;
+}
+
+.invoicing .invoicing__article {
+  display: grid;
+  min-inline-size: 0;
+  line-height: 1.4;
+}
+
+.invoicing .invoicing__article-name {
+  font-size: var(--zx-text-md);
+}
+
+.invoicing .invoicing__article > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.invoicing .invoicing__article-name {
+  font-weight: var(--zx-weight-medium);
+}
+
+/* A draft line's actions float at the end of its article cell, on the row's own hover fill. */
+.invoicing .invoicing__line-actions {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  display: flex;
+  align-items: center;
+  padding-inline: var(--zx-space-1);
+  background: linear-gradient(var(--zx-color-bg-hover), var(--zx-color-bg-hover)), var(--zx-color-bg-surface);
+}
+
+.invoicing .invoicing__line-actions .zx-icon-btn {
+  inline-size: max(24px, calc(var(--zx-control-height) - var(--zx-space-2)));
+  block-size: max(24px, calc(var(--zx-control-height) - var(--zx-space-2)));
+  color: var(--zx-color-text-muted);
+}
+
+.invoicing .invoicing__article-sku {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+}
+
+/* Quantity and unit are two editable cells that read as one value: "18 seats". */
+.invoicing .invoicing__grid td[data-column="quantity"] {
+  padding-inline-end: var(--zx-space-1);
+}
+
+.invoicing .invoicing__grid td[data-column="unit"] {
+  padding-inline-start: 0;
+}
+
+.invoicing .invoicing__position {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+}
+
+/* Line numbers: each line counts itself, and its drag handle shows the number until the line is
+   pointed at or holds the focus. The handle keeps its accessible name, "Move row 1". */
+.invoicing .invoicing__grid .zx-table__body {
+  counter-reset: position;
+}
+
+.invoicing .invoicing__grid .zx-table__body > tr[data-row] {
+  counter-increment: position;
+}
+
+.invoicing .invoicing__grid .zx-table__row-handle::before {
+  content: counter(position, decimal-leading-zero);
+  grid-area: 1 / 1;
+  color: var(--zx-color-text-subtle);
+  font-size: var(--zx-text-xs);
+}
+
+.invoicing .invoicing__grid .zx-table__row-handle > .zx-icon {
+  grid-area: 1 / 1;
+}
+
+/* The lines share the article's first baseline, which a handle centred in its cell would ignore,
+   and a button's own baseline differs between engines. Inline and middle-aligned, the handle
+   centres on the first line's x-height in every engine. */
+.invoicing .invoicing__grid .zx-table :is(.zx-table__reorder-header, .zx-table__reorder-cell) {
+  padding-inline: 0;
+  text-align: center;
+}
+
+.invoicing .invoicing__grid .zx-table__row-handle {
+  display: inline-grid;
+  vertical-align: middle;
+}
+
+
+/* Narrow numeric cells open their editor as an overlay that grows towards the article, the way a
+   spreadsheet does, so steppers and units never squeeze the value out of view. */
+.invoicing .invoicing__grid td[data-editing="true"] {
+  overflow: visible;
+}
+
+.invoicing .invoicing__grid .zx-table__editor {
+  text-align: start;
+}
+
+.invoicing .invoicing__grid td[data-editing="true"]:not([data-column="item"]) .zx-table__editor {
+  z-index: 2;
+  inset-inline-start: auto;
+  min-inline-size: 10rem;
+  border-radius: var(--zx-control-radius);
+  box-shadow: var(--zx-overlay-shadow);
+}
+
+/* Handles and line actions appear with the line on pointer devices, and stay put for touch. The
+   actions only fade, so they stay in the tab order and show themselves when focused. */
+@media (hover: hover) {
+  .invoicing .invoicing__grid tr:not(:hover, :focus-within) .zx-table__row-handle > .zx-icon,
+  .invoicing .invoicing__grid tr:is(:hover, :focus-within) .zx-table__row-handle::before {
+    visibility: hidden;
+  }
+
+  .invoicing .invoicing__grid tr:not(:hover, :focus-within) .invoicing__line-actions {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
+@media (hover: none) {
+  .invoicing .invoicing__grid .zx-table__row-handle::before {
+    content: none;
+  }
+}
+
+/* The row that adds positions: the catalogue search on a tint, a ghost "Blank line", and the
+   editing hint behind an info button. */
+.invoicing .invoicing__adder {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+}
+
+.invoicing .invoicing__adder > .zx-select {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+.invoicing .invoicing__adder > .zx-select:not(:focus-within, [data-state="open"]) .zx-select__control {
+  border-color: transparent;
+  background: var(--zx-color-bg-muted);
+}
+
+.invoicing .invoicing__adder > .zx-btn,
+.invoicing .invoicing__adder > .zx-icon-btn {
+  flex: 0 0 auto;
+}
+
+.invoicing .invoicing__adder > .zx-icon-btn {
+  color: var(--zx-color-text-muted);
+}
+
+/* A narrow card gives the catalogue search a row of its own. */
+@container invoicing-editor (max-width: 30rem) {
+  .invoicing .invoicing__adder {
+    flex-wrap: wrap;
+  }
+
+  .invoicing .invoicing__adder > .zx-select {
+    flex-basis: 100%;
+  }
+}
+
+/* The totals: a narrow block at the end of the card. Subtotals are small and quiet; the amount due
+   sits under a rule in the text colour, as the largest figure on the screen. */
+.invoicing .invoicing__summary {
+  display: grid;
+  gap: var(--zx-space-3);
+  inline-size: min(100%, 20rem);
+  margin-inline-start: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.invoicing .invoicing__totals,
+.invoicing .invoicing__total-due {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  column-gap: var(--zx-space-5);
+  margin: 0;
+}
+
+.invoicing .invoicing__totals {
+  row-gap: var(--zx-space-1);
+  font-size: var(--zx-text-sm);
+}
+
+.invoicing .invoicing__totals > dt {
+  color: var(--zx-color-text-muted);
+}
+
+.invoicing :is(.invoicing__totals, .invoicing__total-due) > dd {
+  margin: 0;
+  text-align: end;
+}
+
+.invoicing .invoicing__total-due {
+  padding-block-start: var(--zx-space-3);
+  border-block-start: 1.5px solid var(--zx-color-text);
+}
+
+.invoicing .invoicing__total-due > dt {
+  font-size: var(--zx-text-md);
+  font-weight: var(--zx-weight-semibold);
+}
+
+.invoicing .invoicing__total {
+  font-size: var(--zx-text-2xl);
+  font-weight: 650;
+  letter-spacing: var(--zx-tracking-title);
+  line-height: 1.2;
+}
+
+.invoicing .invoicing__total-due > .invoicing__due {
+  grid-column: 1;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  text-align: start;
+}
+
+/* The positions keep the width their figures need: a narrower card scrolls them sideways rather
+   than squeezing the article out, and every cell stays editable. */
+.invoicing .invoicing__grid .zx-table__table {
+  min-inline-size: 36rem;
+}
+
+/* ---------------------------------------------------------------- narrow -- */
+
+/* A narrower pane: the header keeps its actions and drops the save state. */
+@container invoicing-main (max-width: 900px) {
+  .invoicing .invoicing__main .zx-inline-loading {
+    display: none;
+  }
+}
+
+/* Where the editor and the page take turns (`fitView()`), nothing sits between them to drag. */
+.invoicing .invoicing__main[data-view="switch"] .invoicing__split {
+  --zx-split-view-divider-size: 0px;
+}
+
+.invoicing .invoicing__main[data-view="switch"] .zx-split-view__divider {
+  visibility: hidden;
+}
+
+/* Narrower still, the trail keeps only the invoice number (the navigation leads back to the list)
+   and Preview only its icon, its name staying in the button's accessible name; then the shortcut
+   chip on Finalize & send goes (the button keeps `aria-keyshortcuts`). */
+@container invoicing-main (max-width: 780px) {
+  .invoicing .invoicing__main > .shell__header .zx-breadcrumb__item:not(:last-child),
+  .invoicing .invoicing__main > .shell__header .zx-breadcrumb__separator {
+    display: none;
+  }
+
+  .invoicing .invoicing__preview-toggle > :not(.zx-icon) {
+    position: absolute;
+    overflow: hidden;
+    inline-size: 1px;
+    block-size: 1px;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+@container invoicing-main (max-width: 650px) {
+  .invoicing .invoicing__main > .shell__header .zx-btn__shortcut {
+    display: none;
+  }
+}
+
+/* A phone: a smaller title, and the cards give the positions a little more of the width. */
+@container shell (max-width: 640px) {
+  .invoicing .invoicing__main > .shell__header .zx-breadcrumb__current {
+    font-size: var(--zx-text-md);
+  }
+
+  .invoicing .invoicing__editor {
+    padding: var(--zx-space-3);
+  }
+
+  .invoicing .invoicing__editor .surface {
+    padding: var(--zx-space-4);
+  }
+
+  .invoicing .invoicing__viewport {
+    padding: var(--zx-space-3);
+  }
+}
+
+/* ----------------------------------------------------------------- preview -- */
+
+.invoicing .invoicing__preview {
+  position: relative;
+  display: grid;
+  block-size: 100%;
+  min-block-size: 0;
+}
+
+.invoicing .invoicing__viewport {
+  padding: var(--zx-space-4);
+  background: var(--zx-color-bg-muted);
+  scrollbar-gutter: stable;
+}
+
+.invoicing .invoicing__sheet {
+  inline-size: calc(var(--invoicing-paper-width) * var(--invoicing-zoom, 1));
+  block-size: calc(var(--invoicing-page-height, 297mm) * var(--invoicing-zoom, 1));
+  margin-inline: auto;
+  margin-block-end: calc(var(--zx-control-height) + var(--zx-space-6));
+}
+
+.invoicing .invoicing__zoom {
+  position: absolute;
+  inset-block-end: var(--zx-space-4);
+  inset-inline: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-1);
+  inline-size: max-content;
+  margin-inline: auto;
+  padding: var(--zx-space-1);
+  border: 1px solid var(--zx-color-overlay-border);
+  border-radius: var(--zx-radius-lg);
+  background: var(--zx-color-overlay-surface);
+  box-shadow: var(--zx-overlay-shadow);
+  -webkit-backdrop-filter: var(--zx-glass-filter-overlay);
+  backdrop-filter: var(--zx-glass-filter-overlay);
+}
+
+.invoicing .invoicing__zoom .zx-btn {
+  min-inline-size: 4.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------------- paper -- */
+
+.invoicing .invoicing__paper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  inline-size: var(--invoicing-paper-width);
+  min-block-size: 297mm;
+  padding: 10mm 20mm 10mm 25mm;
+  overflow: hidden;
+  background: var(--zx-color-bg-surface);
+  color: var(--zx-color-text);
+  font-family: var(--zx-font-sans);
+  font-size: var(--zx-text-sm);
+  line-height: 1.45;
+  /* A sheet lying on the desk: a hairline edge and a soft, close shadow. */
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--zx-color-text) 6%, transparent),
+    0 1px 2px color-mix(in srgb, var(--zx-color-text) 6%, transparent),
+    0 4px 16px -4px color-mix(in srgb, var(--zx-color-text) 10%, transparent);
+  transform: scale(var(--invoicing-zoom, 1));
+  transform-origin: 0 0;
+}
+
+.invoicing .invoicing__mark {
+  position: absolute;
+  inset-inline-start: 0;
+  inline-size: 6mm;
+  border-block-start: 1px solid var(--zx-color-border-strong);
+}
+
+.invoicing .invoicing__mark[data-mark="fold"] { inset-block-start: 105mm; }
+.invoicing .invoicing__mark[data-mark="punch"] { inset-block-start: 148.5mm; inline-size: 9mm; }
+.invoicing .invoicing__mark[data-mark="fold-lower"] { inset-block-start: 210mm; }
+
+.invoicing .invoicing__sheet[data-marks="hidden"] .invoicing__mark {
+  display: none;
+}
+
+.invoicing .invoicing__watermark {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.invoicing .invoicing__watermark > span {
+  color: color-mix(in srgb, var(--zx-color-text) 5%, transparent);
+  font-size: var(--zx-text-2xl);
+  font-weight: 700;
+  letter-spacing: var(--zx-tracking-title);
+  transform: rotate(-35deg) scale(6);
+}
+
+.invoicing .invoicing__letterhead {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3mm;
+  min-block-size: 35mm;
+}
+
+.invoicing .invoicing__brand-mark {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 11mm;
+  block-size: 11mm;
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-accent);
+  color: var(--zx-color-on-accent);
+  font-size: var(--zx-text-xl);
+  font-weight: 700;
+}
+
+.invoicing .invoicing__brand {
+  display: grid;
+  line-height: 1.15;
+}
+
+.invoicing .invoicing__brand-name {
+  font-size: var(--zx-text-xl);
+  font-weight: 700;
+}
+
+.invoicing .invoicing__brand-line {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+}
+
+.invoicing .invoicing__addressing {
+  display: grid;
+  grid-template-columns: 85mm minmax(0, 1fr);
+  column-gap: 10mm;
+  min-block-size: 45mm;
+}
+
+.invoicing .invoicing__return {
+  margin: 4mm 0 2mm;
+  padding-block-end: 1mm;
+  overflow: hidden;
+  border-block-end: 1px solid var(--zx-color-border-strong);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.invoicing .invoicing__recipient {
+  margin: 0;
+}
+
+.invoicing .invoicing__facts {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-content: start;
+  justify-content: end;
+  gap: 0.5mm 5mm;
+  margin: 4mm 0 0;
+  font-size: var(--zx-text-xs);
+}
+
+.invoicing .invoicing__facts > dt {
+  color: var(--zx-color-text-muted);
+}
+
+.invoicing .invoicing__facts > dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.invoicing .invoicing__subject {
+  margin: 6mm 0 4mm;
+  font-size: var(--zx-text-lg);
+  font-weight: 700;
+}
+
+.invoicing .invoicing__text {
+  margin: 0 0 3mm;
+  white-space: pre-line;
+}
+
+.invoicing .invoicing__legal {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+}
+
+.invoicing .invoicing__signature {
+  margin-block: 2mm 8mm;
+}
+
+.invoicing .invoicing__lines {
+  inline-size: 100%;
+  margin-block: 2mm 4mm;
+  border-collapse: collapse;
+}
+
+.invoicing .invoicing__lines th,
+.invoicing .invoicing__lines td {
+  padding: 1.6mm 1.6mm;
+  vertical-align: top;
+  text-align: start;
+}
+
+.invoicing .invoicing__lines th {
+  border-block-end: 1px solid var(--zx-color-text);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-weight: 600;
+}
+
+.invoicing .invoicing__lines td {
+  border-block-end: 1px solid var(--zx-color-border);
+}
+
+.invoicing .invoicing__lines th:first-child,
+.invoicing .invoicing__lines td:first-child {
+  padding-inline-start: 0;
+}
+
+.invoicing .invoicing__lines th:last-child,
+.invoicing .invoicing__lines td:last-child {
+  padding-inline-end: 0;
+}
+
+.invoicing .invoicing__lines [data-align="end"] {
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+  white-space: nowrap;
+}
+
+.invoicing .invoicing__sku {
+  display: block;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+}
+
+.invoicing .invoicing__sum {
+  min-inline-size: 85mm;
+  margin: 0 0 6mm auto;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.invoicing .invoicing__sum th,
+.invoicing .invoicing__sum td {
+  padding: 0.8mm 0;
+}
+
+.invoicing .invoicing__sum th {
+  padding-inline-end: 8mm;
+  color: var(--zx-color-text-muted);
+  font-weight: 400;
+  text-align: start;
+}
+
+.invoicing .invoicing__sum td {
+  text-align: end;
+}
+
+.invoicing .invoicing__sum [data-total] > * {
+  padding-block: 1.6mm;
+  border-block: 1px solid var(--zx-color-text);
+  border-block-end: 3px double var(--zx-color-text);
+  color: var(--zx-color-text);
+  font-weight: 700;
+}
+
+.invoicing .invoicing__imprint {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  justify-content: space-between;
+  gap: 6mm;
+  margin-block-start: auto;
+  padding-block-start: 4mm;
+  border-block-start: 1px solid var(--zx-color-border);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  line-height: 1.45;
+}
+
+.invoicing .invoicing__imprint > p {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.invoicing .invoicing__imprint strong {
+  color: var(--zx-color-text);
+  font-weight: 600;
+}

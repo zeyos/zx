@@ -10,8 +10,11 @@
 .zx-sort-control__direction {
   inline-size: var(--zx-control-height);
   padding: 0;
-  border-radius: var(--zx-radius-full);
+  border-radius: var(--zx-control-radius);
 }
 
 .zx-sort-control__direction:focus-visible { box-shadow: var(--zx-focus-ring); }
+/* The arrow is the current direction, not decoration, so it keeps the text colour a ghost glyph
+   would otherwise give up. */
+.zx-sort-control .zx-sort-control__direction > .zx-icon { color: var(--zx-color-text); }
 .zx-sort-control .zx-select__control { background: var(--zx-color-bg-control); }

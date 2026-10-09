@@ -1,7 +1,14 @@
 /* Icons.
    Every icon `icon()` builds carries `.zx-icon`, whether it is one of the bundled inline SVG
    glyphs or a Font Awesome element, so the rules below (and component rules) style both. Font
-   Awesome icons are sized by font-size and occupy exactly one em. */
+   Awesome icons are sized by font-size and occupy exactly one em.
+
+   The bundled glyphs are outlines: the `<svg>` carries `fill="none"`, `stroke="currentColor"`,
+   round caps and joins, and a stroke width in view-box units (1.75 of 24, never under one CSS
+   pixel), and the path inherits all of it. The width therefore scales with the box an icon is
+   drawn in and needs no `vector-effect`. Glyphs registered as `[viewBox, path]` pairs stay filled.
+   Paint is presentation attributes, so plain CSS on `.zx-icon` overrides it: `fill: currentColor`
+   turns an outline into its solid form (a set star, a liked heart). */
 
 .zx-icon {
   flex: none;
@@ -17,6 +24,9 @@ i.zx-icon {
 
 svg.zx-icon {
   vertical-align: middle;
+  /* A stroke centred on a path near the view-box edge reaches past it; small icons thicken the
+     line to stay at one pixel, so let it draw instead of clipping the outer half. */
+  overflow: visible;
 }
 
 /* ZeyOS identity hook. `moduleChip()` now delegates vessel geometry and material entirely to

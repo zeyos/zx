@@ -9,6 +9,13 @@ import { ActivityItem } from '../activity-item/activity-item.js';
 /** @typedef {string|number|Node|Component|null} ActivityListContent */
 /** @typedef {string|((item:ActivityItemOptions,index:number)=>unknown)|null} ActivityGroupReader */
 /** @typedef {(group:unknown,items:ActivityItemOptions[])=>ActivityListContent} ActivityGroupLabel */
+/**
+ * Entry layout. `'default'` gives each entry its avatar, a heading row, and room for content;
+ * below 30rem the time moves under the heading. `'compact'` is one line per entry at any width —
+ * actor and summary reading as one sentence, the time at the trailing end, a small avatar, and
+ * metadata as a muted second line — for a summary card narrower than 30rem.
+ * @typedef {'default'|'compact'} ActivityListVariant
+ */
 
 /**
  * @typedef {Object} ActivityGroup
@@ -22,6 +29,8 @@ import { ActivityItem } from '../activity-item/activity-item.js';
  * @property {ActivityGroupReader} [groupBy=null] Property or resolver used for stable grouping.
  * @property {ActivityGroupLabel|null} [groupLabel=null] Group-heading renderer.
  * @property {string} [label='Activity'] Accessible collection name.
+ * @property {ActivityListVariant} [variant='default'] Entry layout, reflected as `data-variant` on
+ * the root. `'compact'` also makes an avatar descriptor without a `size` small.
  * @property {boolean} [loading=false] Whether initial or incremental activity is loading.
  * @property {number} [loadingCount=3] Placeholder rows shown for an empty loading list.
  * @property {string} [loadingText='Loading activity'] Loading status text.
@@ -48,6 +57,7 @@ export class ActivityList extends Component {
     groupBy: null,
     groupLabel: null,
     label: 'Activity',
+    variant: 'default',
     loading: false,
     loadingCount: 3,
     loadingText: 'Loading activity',
@@ -78,6 +88,8 @@ export class ActivityList extends Component {
     this._itemComponents = [];
     this._groupSequence = 0;
     root.setAttribute('aria-label', String(this.options.label || 'Activity'));
+    this._variant = normalizeActivityListVariant(this.options.variant);
+    if (this._variant === 'compact') root.dataset.variant = 'compact';
     try {
       this._renderList();
       return root;
@@ -229,6 +241,7 @@ export class ActivityList extends Component {
     for (const item of group.items) {
       const component = new ActivityItem(null, {
         ...item,
+        avatar: this._variant === 'compact' ? compactAvatar(item.avatar) : item.avatar,
         headingLevel: item.headingLevel ?? this.options.itemHeadingLevel
       });
       this._itemComponents.push(component);
@@ -360,6 +373,27 @@ function isPlainObject(value) {
 function normalizeHeadingLevel(value, fallback) {
   const level = Math.trunc(Number(value));
   return /** @type {1|2|3|4|5|6} */ (level >= 1 && level <= 6 ? level : fallback);
+}
+
+/**
+ * Resolves the entry layout; anything but `'compact'` is the default layout.
+ * @param {unknown} value Requested variant.
+ * @returns {ActivityListVariant}
+ */
+export function normalizeActivityListVariant(value) {
+  return value === 'compact' ? 'compact' : 'default';
+}
+
+/**
+ * A compact entry is one line tall, so an avatar descriptor that leaves its size open gets the
+ * small one. An explicit size, an Element, or no avatar passes through untouched.
+ * @param {ActivityItemOptions['avatar']} avatar Avatar descriptor, Element, or null.
+ * @returns {ActivityItemOptions['avatar']}
+ */
+function compactAvatar(avatar) {
+  if (!isPlainObject(avatar)) return avatar;
+  const descriptor = /** @type {import('../avatar/avatar.js').AvatarOptions} */ (avatar);
+  return descriptor.size == null ? { ...descriptor, size: 'sm' } : descriptor;
 }
 
 /** @param {unknown} value @returns {number} */

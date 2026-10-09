@@ -5,6 +5,9 @@
  * not tidiness for its own sake — the studio changes those tokens live, so a hard-coded colour
  * anywhere in this file would be a patch of the old theme sitting inside the new one, and the one
  * page where that is impossible to miss is this one.
+ *
+ * The rail is an inspector column: the chrome tone beside the surface canvas, sentence-case section
+ * titles, and neutral current states — the same language as the layouts' inspectors.
  */
 
 /* The chrome goes full-bleed, so the rail lines up with the wordmark above it. */
@@ -16,7 +19,8 @@
 }
 
 .studio {
-  --studio-header: 65px;
+  /* The sticky offset: the site header and its divider. */
+  --studio-header: calc(var(--site-header-height) + 1px);
   display: grid;
   grid-template-columns: 300px minmax(0, 1fr);
   align-items: start;
@@ -34,8 +38,10 @@
   inset-block-start: var(--studio-header);
   block-size: calc(100dvh - var(--studio-header));
   overflow-y: auto;
-  border-inline-end: 1px solid var(--zx-color-border);
-  background: var(--zx-color-bg-surface);
+  border-inline-end: 1px solid var(--zx-color-border-subtle);
+  background: var(--zx-color-bg-chrome);
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
 }
 
 .studio-rail__inner {
@@ -59,13 +65,12 @@
   min-block-size: var(--zx-control-height);
 }
 
+/* A section title heads its controls: sentence case, the text colour, a semibold label. */
 .studio-section__title {
   margin: 0;
-  color: var(--zx-color-text-muted);
-  font-size: var(--zx-text-xs);
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  color: var(--zx-color-text);
+  font-size: var(--zx-text-sm);
+  font-weight: var(--zx-weight-semibold);
 }
 
 .studio-section__hint,
@@ -87,15 +92,15 @@
    sub-panel to find. The negative margins let the bar span the rail's padding. */
 .studio-rail__actions {
   position: sticky;
-  inset-block-end: calc(var(--zx-space-5) * -1);
+  inset-block-end: 0;
   z-index: 1;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--zx-space-2);
   margin: 0 calc(var(--zx-space-5) * -1) calc(var(--zx-space-5) * -1);
   padding: var(--zx-space-3) var(--zx-space-5);
-  border-block-start: 1px solid var(--zx-color-border);
-  background: var(--zx-color-bg-surface);
+  border-block-start: 1px solid var(--zx-color-border-subtle);
+  background: var(--zx-color-bg-chrome);
 }
 
 /* ------------------------------------------------------------------- presets -- */
@@ -111,7 +116,7 @@
   align-items: center;
   gap: var(--zx-space-3);
   padding: var(--zx-space-2);
-  border: 1px solid transparent;
+  border: 0;
   border-radius: var(--zx-radius-md);
   background: none;
   color: inherit;
@@ -129,9 +134,14 @@
   box-shadow: var(--zx-focus-ring);
 }
 
+/* The theme in force is where the page is: the neutral current fill and a heavier name. Its own
+   ramp beside the name already shows the colour, so the row needs no accent of its own. */
 .studio-preset[aria-checked="true"] {
-  border-color: var(--zx-color-accent);
-  background: var(--zx-color-bg-selected);
+  background: var(--zx-color-bg-current);
+}
+
+.studio-preset[aria-checked="true"] .studio-preset__name {
+  font-weight: var(--zx-weight-semibold);
 }
 
 .studio-preset__ramp {
@@ -155,7 +165,7 @@
 
 .studio-preset__name {
   font-size: var(--zx-text-sm);
-  font-weight: 600;
+  font-weight: var(--zx-weight-medium);
 }
 
 .studio-preset__note {
@@ -171,12 +181,15 @@
 
 /* ---------------------------------------------------------------- segmented -- */
 
+/* Drawn like the library's view switch: a framed control whose current segment takes the neutral
+   current fill, the text colour, and a heavier label — never a raised white chip. */
 .studio-segmented {
   display: flex;
+  gap: 2px;
   padding: 2px;
   border: 1px solid var(--zx-color-border-control);
   border-radius: var(--zx-control-radius);
-  background: var(--zx-color-bg-muted);
+  background: var(--zx-color-bg-control);
 }
 
 .studio-segment {
@@ -188,8 +201,13 @@
   color: var(--zx-color-text-muted);
   font: inherit;
   font-size: var(--zx-text-sm);
-  font-weight: 500;
+  font-weight: var(--zx-weight-medium);
   cursor: pointer;
+}
+
+.zx-scope .studio-segment:hover {
+  background: var(--zx-color-bg-hover);
+  color: var(--zx-color-text);
 }
 
 .studio-segment:focus-visible {
@@ -197,10 +215,10 @@
   box-shadow: var(--zx-focus-ring);
 }
 
-.studio-segment[aria-checked="true"] {
-  background: var(--zx-color-bg-surface);
+.zx-scope .studio-segment[aria-checked="true"] {
+  background: var(--zx-color-bg-current);
   color: var(--zx-color-text);
-  box-shadow: var(--zx-shadow-1);
+  font-weight: var(--zx-weight-semibold);
 }
 
 /* -------------------------------------------------------------------- accent -- */
@@ -218,7 +236,7 @@
 .studio-ramp {
   display: flex;
   overflow: hidden;
-  border: 1px solid var(--zx-color-border);
+  border: 1px solid var(--zx-color-border-subtle);
   border-radius: var(--zx-radius-md);
 }
 
@@ -233,11 +251,120 @@
   box-shadow: inset 0 0 0 2px var(--zx-color-bg-surface), inset 0 0 0 3px var(--zx-color-text);
 }
 
+/* ---------------------------------------------------------------------- tints -- */
+
+/* Eleven swatches in three columns: each a chip drawn from the ramp the tint would produce, with
+   its name under it. The current one takes the presets' neutral current fill. */
+.studio-tints {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 2px;
+}
+
+.studio-tint {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--zx-space-1);
+  padding: var(--zx-space-2);
+  border: 0;
+  border-radius: var(--zx-radius-md);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.studio-tint:hover {
+  background: var(--zx-color-bg-hover);
+}
+
+.studio-tint:focus-visible {
+  outline: none;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.studio-tint[aria-checked="true"] {
+  background: var(--zx-color-bg-current);
+}
+
+.studio-tint__chip {
+  display: flex;
+  overflow: hidden;
+  border: 1px solid var(--zx-color-border);
+  border-radius: var(--zx-radius-full);
+}
+
+.studio-tint__stop {
+  flex: 1;
+  block-size: 16px;
+}
+
+.studio-tint__name {
+  overflow: hidden;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.studio-tint[aria-checked="true"] .studio-tint__name {
+  color: var(--zx-color-text);
+  font-weight: var(--zx-weight-semibold);
+}
+
+/* ------------------------------------------------------------------- typeface -- */
+
+.studio-stack--tight {
+  gap: var(--zx-space-1);
+}
+
+.studio-stack[hidden] {
+  display: none;
+}
+
+.studio-input {
+  inline-size: 100%;
+  box-sizing: border-box;
+}
+
+.studio-input[aria-invalid="true"],
+.studio-import__text[aria-invalid="true"] {
+  border-color: var(--zx-color-danger);
+}
+
+/* --------------------------------------------------------------------- import -- */
+
+.studio-import__text {
+  inline-size: 100%;
+  min-block-size: 220px;
+  box-sizing: border-box;
+  padding-block: var(--zx-space-2);
+  font-family: var(--zx-font-mono);
+  font-size: var(--zx-text-sm);
+  line-height: 1.5;
+  resize: vertical;
+  tab-size: 2;
+}
+
+.studio-error {
+  margin: 0;
+  color: var(--zx-color-danger);
+  font-size: var(--zx-text-sm);
+  line-height: 1.5;
+}
+
+.studio-error[hidden] {
+  display: none;
+}
+
 /* --------------------------------------------------------------------- canvas -- */
 
 .studio-main {
   min-inline-size: 0;
-  padding: var(--zx-space-6) var(--zx-space-5) var(--zx-space-8);
+  padding: var(--zx-space-7) var(--zx-space-6) var(--zx-space-8);
+  background: var(--zx-color-bg-surface);
 }
 
 .studio-intro {
@@ -245,39 +372,48 @@
   margin-block-end: var(--zx-space-5);
 }
 
+/* The page title, at the documentation's document-title size. */
 .studio-intro__title {
   margin: 0 0 var(--zx-space-2);
-  font-size: var(--zx-text-2xl);
-  letter-spacing: -0.02em;
+  font-size: var(--zx-text-3xl);
+  font-weight: 650;
+  line-height: 1.15;
+  letter-spacing: var(--zx-tracking-title);
 }
 
 .studio-intro__blurb {
   margin: 0;
   color: var(--zx-color-text-muted);
-  line-height: 1.6;
+  font-size: var(--zx-text-lg);
+  line-height: 1.55;
 }
 
+/* A quiet index of the families below: plain links in the muted colour, a hover fill, no chips. */
 .studio-index {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--zx-space-1) var(--zx-space-2);
-  margin-block-end: var(--zx-space-6);
+  gap: 2px var(--zx-space-1);
+  margin: 0 calc(-1 * var(--zx-space-2)) var(--zx-space-6);
   padding-block-end: var(--zx-space-4);
-  border-block-end: 1px solid var(--zx-color-border);
+  border-block-end: 1px solid var(--zx-color-border-subtle);
 }
 
 .studio-index__link {
   padding: 2px var(--zx-space-2);
-  border-radius: var(--zx-radius-full);
-  background: var(--zx-color-bg-muted);
+  border-radius: var(--zx-radius-md);
   color: var(--zx-color-text-muted);
-  font-size: var(--zx-text-xs);
+  font-size: var(--zx-text-sm);
   text-decoration: none;
 }
 
 .studio-index__link:hover {
-  background: var(--zx-color-bg-selected);
-  color: var(--zx-color-accent);
+  background: var(--zx-color-bg-hover);
+  color: var(--zx-color-text);
+}
+
+.studio-index__link:focus-visible {
+  outline: 0;
+  box-shadow: var(--zx-focus-ring);
 }
 
 /* Multi-column rather than grid: the cards differ wildly in height, and columns pack them without
@@ -301,13 +437,13 @@
 
 .studio-card__head {
   padding: var(--zx-space-3) var(--zx-space-4);
-  border-block-end: 1px solid var(--zx-color-border);
+  border-block-end: 1px solid var(--zx-color-border-subtle);
 }
 
 .studio-card__title {
   margin: 0;
   font-size: var(--zx-text-md);
-  font-weight: 600;
+  font-weight: var(--zx-weight-semibold);
 }
 
 .studio-card__hint {
@@ -318,6 +454,78 @@
 
 .studio-card__body {
   padding: var(--zx-space-4);
+}
+
+/* A wide card spans every column: the cards before it balance above it, the rest flow below.
+   Spanning needs a block box, so it gives up the inline-block the column cards use. */
+.studio-card--wide {
+  display: block;
+  column-span: all;
+}
+
+/* ------------------------------------------------------------- button states -- */
+
+/* The matrix scrolls sideways on its own when the canvas is narrower than six states, so the page
+   never does; it is a focusable region so the keyboard can scroll it too. */
+.studio-states {
+  overflow-x: auto;
+  border-radius: var(--zx-radius-md);
+  scrollbar-width: thin;
+}
+
+.studio-states__table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  font-size: var(--zx-text-sm);
+}
+
+.studio-states__caption {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.studio-states__table th {
+  padding: var(--zx-space-2) var(--zx-space-3);
+  color: var(--zx-color-text-muted);
+  font-weight: var(--zx-weight-medium);
+  text-align: start;
+  white-space: nowrap;
+}
+
+.studio-states__table thead th {
+  border-block-end: 1px solid var(--zx-color-border-subtle);
+  font-size: var(--zx-text-xs);
+}
+
+.studio-states__table td {
+  padding: var(--zx-space-3);
+  white-space: nowrap;
+}
+
+.studio-states__table tbody tr + tr > * {
+  border-block-start: 1px solid var(--zx-color-border-subtle);
+}
+
+/* Narrow, the states scroll under the kind names rather than taking them along. */
+.studio-states__table th[scope="row"] {
+  position: sticky;
+  inset-inline-start: 0;
+  z-index: 1;
+  background: var(--zx-color-bg-surface);
+}
+
+/* The kind column needs no visible heading: the row labels say what they are. */
+.studio-states__kind-head {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /* ------------------------------------------------------- inside the cards -- */
@@ -472,17 +680,18 @@
 
 .studio-icons__cell:hover {
   background: var(--zx-color-bg-hover);
-  color: var(--zx-color-accent);
+  color: var(--zx-color-text);
 }
 
 .studio-code {
   max-block-size: 46vh;
   margin: 0;
   overflow: auto;
-  padding: var(--zx-space-3);
-  border: 1px solid var(--zx-color-border);
-  border-radius: var(--zx-radius-md);
-  background: var(--zx-color-bg-muted);
+  padding: var(--zx-space-3) var(--zx-space-4);
+  border: 1px solid var(--zx-color-border-subtle);
+  border-radius: var(--zx-radius-lg);
+  background: var(--zx-color-bg-chrome);
+  letter-spacing: 0;
   font-family: var(--zx-font-mono);
   font-size: var(--zx-text-sm);
   line-height: 1.55;
@@ -502,7 +711,7 @@
     position: static;
     block-size: auto;
     border-inline-end: none;
-    border-block-end: 1px solid var(--zx-color-border);
+    border-block-end: 1px solid var(--zx-color-border-subtle);
   }
 
   /* Columns rather than a grid: the sections differ by a factor of eight in height, and grid rows

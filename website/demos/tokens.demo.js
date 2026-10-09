@@ -8,9 +8,13 @@ const semanticColors = [
   'info', 'info-bg'
 ].map((name) => '--zx-color-' + name);
 
-const spacingTokens = Array.from({ length: 8 }, (_, index) => '--zx-space-' + (index + 1));
+// Spacing steps are multiples of one unit and radius steps are fractions of one base, so each
+// list starts with the value a theme actually sets.
+const spacingTokens = ['--zx-space-unit',
+  ...Array.from({ length: 8 }, (_, index) => '--zx-space-' + (index + 1))];
 const radiusTokens = [
-  '--zx-radius-sm', '--zx-radius-md', '--zx-radius-lg', '--zx-radius-xl', '--zx-radius-full'
+  '--zx-radius', '--zx-radius-sm', '--zx-radius-md', '--zx-radius-lg', '--zx-radius-xl',
+  '--zx-radius-full'
 ];
 const typeTokens = [
   '--zx-text-xs', '--zx-text-sm', '--zx-text-md', '--zx-text-lg', '--zx-text-xl', '--zx-text-2xl'
@@ -32,9 +36,9 @@ export default {
   mount(container) {
     container.append(
       colorSection('Semantic colors', semanticColors),
-      specimenSection('Spacing', spacingTokens, createSpaceSpecimen),
-      specimenSection('Radii', radiusTokens, createRadiusSpecimen),
-      specimenSection('Type scale', typeTokens, createTypeSpecimen),
+      specimenSection('Spacing', spacingTokens, createSpaceSpecimen, 'width'),
+      specimenSection('Radii', radiusTokens, createRadiusSpecimen, 'border-top-left-radius'),
+      specimenSection('Type scale', typeTokens, createTypeSpecimen, 'font-size'),
       colorSection('Module colors', moduleNames.map((name) => '--zx-module-' + name)),
       nativeSection()
     );
@@ -78,15 +82,17 @@ function colorCard(token) {
  * @param {string} title
  * @param {string[]} tokens
  * @param {(token: string) => HTMLElement} factory
+ * @param {string} property CSS property the token is measured through, so a derived step reads
+ *   as the pixels it resolves to rather than as the `calc()` that derives it.
  * @returns {HTMLElement}
  */
-function specimenSection(title, tokens, factory) {
+function specimenSection(title, tokens, factory, property) {
   const section = createSection(title);
   const specimens = element('div', 'token-specimens');
   for (const token of tokens) {
     const row = element('div', 'token-specimen');
     row.append(
-      element('span', 'token-specimen__label', token + ': ' + resolved(token)),
+      element('span', 'token-specimen__label', token + ': ' + measured(token, property)),
       factory(token)
     );
     specimens.append(row);
@@ -161,4 +167,21 @@ function element(tag, className, text) {
 /** @param {string} token @returns {string} */
 function resolved(token) {
   return getComputedStyle(document.documentElement).getPropertyValue(token).trim();
+}
+
+/**
+ * Resolves a length token to pixels by applying it to a detached-from-layout probe.
+ * @param {string} token
+ * @param {string} property
+ * @returns {string}
+ */
+function measured(token, property) {
+  const probe = element('span');
+  probe.style.position = 'absolute';
+  probe.style.visibility = 'hidden';
+  probe.style.setProperty(property, 'var(' + token + ')');
+  document.body.append(probe);
+  const value = getComputedStyle(probe).getPropertyValue(property);
+  probe.remove();
+  return value;
 }

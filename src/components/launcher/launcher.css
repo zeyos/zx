@@ -2,7 +2,7 @@
   inline-size: min(760px, calc(100vw - (2 * var(--zx-space-4))));
   max-block-size: min(720px, calc(100vh - (2 * var(--zx-space-6))));
   border: 1px solid var(--zx-color-overlay-border);
-  border-radius: var(--zx-radius-xl);
+  border-radius: var(--zx-radius-lg);
   background-color: var(--zx-color-overlay-panel);
   background-image: var(--zx-overlay-panel-image);
   background-clip: padding-box;
@@ -29,24 +29,60 @@
 
 .zx-launcher__surface {
   display: grid;
+  /* One column no wider than the dialog: a long page chip or a wide row shrinks inside it rather
+     than pushing the close button off a phone screen. */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto auto minmax(0, 1fr) auto;
   max-block-size: inherit;
 }
 
 .zx-launcher__search {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  display: flex;
   align-items: center;
   gap: var(--zx-space-3);
   border-block-end: 1px solid var(--zx-color-overlay-divider);
   padding: var(--zx-space-3) var(--zx-space-4);
 }
 
-.zx-launcher__search[data-shortcut="false"] {
-  grid-template-columns: auto minmax(0, 1fr) auto;
+.zx-launcher__search > .zx-icon {
+  flex: none;
+}
+
+/* The page you are on, before the query: where you are, so neutral rather than accent. Its × is
+   one step back. */
+.zx-launcher__scope {
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: var(--zx-space-1);
+  min-inline-size: 0;
+  max-inline-size: 50%;
+  border-radius: var(--zx-radius-sm);
+  background: var(--zx-color-bg-current);
+  padding-inline: var(--zx-space-2) 2px;
+  color: var(--zx-color-text);
+  font-size: var(--zx-text-sm);
+  font-weight: var(--zx-weight-medium);
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.zx-launcher__scope[hidden] { display: none; }
+
+.zx-launcher__scope-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* A 24px target (WCAG 2.5.8); the chip's own padding stays slim beside it. */
+.zx-launcher__scope .zx-launcher__scope-back {
+  inline-size: 24px;
+  block-size: 24px;
 }
 
 .zx-launcher__input {
+  /* The query yields its room first; the chip keeps its label until it reaches its cap. */
+  flex: 1 1 0;
   min-inline-size: 0;
   border: 0;
   outline: 0;
@@ -62,7 +98,8 @@
 .zx-launcher__input::-webkit-search-cancel-button { display: none; }
 
 .zx-launcher__shortcut,
-.zx-launcher__hints kbd {
+.zx-launcher__hints kbd,
+.zx-launcher__key {
   border: 1px solid var(--zx-color-border-control);
   border-radius: var(--zx-radius-sm);
   background: var(--zx-color-bg-muted);
@@ -74,6 +111,7 @@
 }
 
 .zx-launcher__shortcut {
+  flex: none;
   padding-inline: var(--zx-space-2);
   white-space: nowrap;
 }
@@ -90,16 +128,16 @@
 .zx-launcher__results {
   min-block-size: 0;
   overflow: auto;
-  padding: var(--zx-space-2);
+  padding: var(--zx-space-1);
 }
 
+/* A caption above its rows, never taller than one of them; inset like the rows so the label and
+   the labels under it start on one line. */
 .zx-launcher__group-label {
-  padding: var(--zx-space-3) var(--zx-space-3) var(--zx-space-1);
+  padding: var(--zx-space-2) var(--zx-space-3) var(--zx-space-1);
   color: var(--zx-color-text-muted);
   font-size: var(--zx-text-xs);
-  font-weight: 700;
-  letter-spacing: .04em;
-  text-transform: uppercase;
+  font-weight: var(--zx-weight-semibold);
 }
 
 .zx-launcher__group[data-layout="grid"] {
@@ -119,11 +157,11 @@
   align-items: center;
   gap: var(--zx-space-3);
   inline-size: 100%;
-  min-block-size: calc(var(--zx-control-height) + var(--zx-space-2));
+  min-block-size: var(--zx-control-height);
   border: 0;
-  border-radius: var(--zx-radius-md);
+  border-radius: var(--zx-radius-sm);
   background: transparent;
-  padding: var(--zx-space-2) var(--zx-space-3);
+  padding: var(--zx-space-1) var(--zx-space-3);
   color: inherit;
   text-align: start;
   text-decoration: none;
@@ -134,9 +172,15 @@
   background: var(--zx-color-overlay-hover);
 }
 
+/* The application you are in is where you are, not a pick: the neutral current fill and a
+   heavier label. The highlighted row stays the lighter hover step. */
 .zx-launcher__option[aria-current="page"] {
-  background: var(--zx-color-overlay-selected);
-  color: var(--zx-color-accent);
+  background: var(--zx-color-bg-current);
+  color: var(--zx-color-text);
+}
+
+.zx-launcher__option[aria-current="page"] .zx-launcher__label {
+  font-weight: var(--zx-weight-semibold);
 }
 
 .zx-launcher__option[data-kind="application"] {
@@ -145,12 +189,13 @@
   justify-items: center;
   align-content: center;
   min-block-size: 92px;
+  border-radius: var(--zx-radius-md);
   padding: var(--zx-space-3) var(--zx-space-2);
   text-align: center;
 }
 
 .zx-launcher__option[data-kind="application"][aria-current="page"] {
-  background: var(--zx-color-overlay-selected);
+  background: var(--zx-color-bg-current);
 }
 
 .zx-launcher__option[data-kind="application"] .zx-launcher__icon {
@@ -162,8 +207,9 @@
   inline-size: 100%;
 }
 
-.zx-launcher__option[data-kind="application"] .zx-launcher__description,
-.zx-launcher__option[data-kind="application"] .zx-launcher__badge {
+.zx-launcher__option[data-kind="application"] :is(
+  .zx-launcher__description, .zx-launcher__badge, .zx-launcher__hint, .zx-launcher__keys, .zx-launcher__chevron
+) {
   display: none;
 }
 
@@ -179,9 +225,46 @@
 
 .zx-launcher__icon { display: inline-flex; flex: none; }
 .zx-launcher__copy { display: grid; min-inline-size: 0; gap: 2px; }
-.zx-launcher__label { overflow: hidden; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.zx-launcher__label { overflow: hidden; font-weight: var(--zx-weight-medium); text-overflow: ellipsis; white-space: nowrap; }
 .zx-launcher__description { overflow: hidden; color: var(--zx-color-text-muted); font-size: var(--zx-text-sm); text-overflow: ellipsis; white-space: nowrap; }
 .zx-launcher__badge { margin-inline-start: auto; color: var(--zx-color-text-muted); font-size: var(--zx-text-xs); }
+
+/* A row's copy takes the room; what trails it (badge, hint, key caps, the page chevron) sits at
+   the end in that order. */
+.zx-launcher__option:not([data-kind="application"]) .zx-launcher__copy { flex: 1 1 auto; }
+
+.zx-launcher__hint {
+  flex: 0 1 auto;
+  min-inline-size: 0;
+  max-inline-size: 40%;
+  overflow: hidden;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zx-launcher__keys {
+  display: inline-flex;
+  flex: none;
+  gap: var(--zx-space-1);
+}
+
+.zx-launcher__chevron {
+  display: inline-flex;
+  flex: none;
+  color: var(--zx-color-text-subtle);
+}
+
+/* Spoken, not drawn: where a page change landed. */
+.zx-launcher__announce {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
 
 .zx-launcher__hints {
   display: flex;
@@ -200,7 +283,10 @@
   gap: var(--zx-space-1);
 }
 
-.zx-launcher__hints kbd {
+.zx-launcher__hints span[hidden] { display: none; }
+
+.zx-launcher__hints kbd,
+.zx-launcher__key {
   min-inline-size: 1.5rem;
   padding-inline: 4px;
   text-align: center;
@@ -213,10 +299,6 @@
 
   .zx-launcher__shortcut {
     display: none;
-  }
-
-  .zx-launcher__search {
-    grid-template-columns: auto minmax(0, 1fr) auto;
   }
 
   .zx-launcher__hints {

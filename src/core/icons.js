@@ -2,7 +2,8 @@
 /**
  * The icon layer. Two renderers sit behind one `icon()` call:
  *
- * - **built-in** (default) — the inline SVG glyphs below, no network, no stylesheet, no font.
+ * - **built-in** (default) — the inline SVG outline glyphs below (Lucide), no network, no
+ *   stylesheet, no font. Applications can add their own, filled or outlined, with `registerIcons()`.
  * - **Font Awesome** — `<i>` elements carrying Font Awesome classes, after an application opts in
  *   with `useFontAwesome()` or `loadFontAwesome(kit)`. Zx never loads a kit by itself.
  *
@@ -28,52 +29,139 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
  */
 
 /**
- * Icon glyphs from Font Awesome Free 6 (solid, plus `square` from regular), fontawesome.com,
- * licensed CC BY 4.0 (https://fontawesome.com/license/free). Path data is embedded unmodified so
- * the library carries no webfont, stylesheet, or package dependency. Each entry is
- * `[viewBox, path]`; Font Awesome glyphs are filled (not stroked) and use per-glyph 512-unit view
- * boxes — outlines such as `square` are a filled path with a counter-wound hole.
- * Extend the set with `registerIcons()`; read every available name with `iconNames()`.
- * @type {Readonly<Record<string, [string, string]>>}
+ * How a glyph's path is painted. `'fill'` fills the shape — the form Font Awesome and other solid
+ * sets ship in. `'stroke'` draws the outline with the icon pen: `currentColor`, round caps and
+ * joins, and a width of 1.75 units in a 24-unit view box — the form the bundled set uses.
+ * @typedef {'fill'|'stroke'} IconPaint
+ */
+
+/**
+ * One inline SVG glyph: `[viewBox, path]` for a filled shape, or `[viewBox, path, 'stroke']` for
+ * an outline. A path may hold any number of subpaths; the two-element form is the original format
+ * and always renders filled.
+ * @typedef {[string, string] | [string, string, IconPaint]} IconGlyph
+ */
+
+/** The view box every bundled glyph is drawn in: Lucide's 24-unit square. */
+const VIEW_BOX = '0 0 24 24';
+
+/**
+ * Stroke width of an outline glyph, in units of a 24-unit view box. At the default 16px it draws
+ * a line of about 1.2px — the stem weight of 13–14px interface text, so an icon sits beside a
+ * label without outweighing it.
+ */
+const STROKE_WIDTH = 1.75;
+
+/**
+ * Thinnest line an outline glyph is drawn with, in CSS pixels. Below 16px the proportional width
+ * would fall under a pixel and wash out (a 12px chevron, an 8px tick), so small glyphs keep one
+ * full pixel instead.
+ */
+const MIN_STROKE_PX = 1;
+
+/**
+ * Wraps bundled path data as an outline glyph in the shared view box.
+ * @param {string} path Path data.
+ * @returns {IconGlyph}
+ */
+const outline = (path) => [VIEW_BOX, path, 'stroke'];
+
+/*
+ * @license Lucide 1.53.0 (ISC), including icons derived from Feather (MIT) — notices below.
+ *
+ * The bundled glyphs are Lucide 1.53.0 (https://lucide.dev), outline icons drawn on a 24-unit grid.
+ * Each Lucide icon is stored as one path: its circles, rectangles, lines, and polylines are
+ * rewritten as equivalent path data, which renders identically because every part shares the same
+ * stroke. Where a Zx name differs from the Lucide one, the Lucide name is noted beside the glyph.
+ *
+ * ISC License
+ *
+ * Copyright (c) 2026 Lucide Icons and Contributors
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ *
+ * Lucide icons derived from the Feather project (Lucide's LICENSE lists them) are also covered by:
+ *
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2013-present Cole Bemis
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+/**
+ * The bundled glyph set: outline icons from Lucide (ISC; see the notice above), embedded as path
+ * data so the library carries no webfont, stylesheet, or package dependency. Every entry is
+ * `[viewBox, path, 'stroke']` in a 24-unit view box. Extend the set with `registerIcons()`; read
+ * every available name with `iconNames()`.
+ * @type {Readonly<Record<string, IconGlyph>>}
  */
 export const icons = Object.freeze({
-  'arrow-up-wide-short': ['0 0 576 512', 'M151.6 42.4C145.5 35.8 137 32 128 32s-17.5 3.8-23.6 10.4l-88 96c-11.9 13-11.1 33.3 2 45.2s33.3 11.1 45.2-2L96 146.3 96 448c0 17.7 14.3 32 32 32s32-14.3 32-32l0-301.7 32.4 35.4c11.9 13 32.2 13.9 45.2 2s13.9-32.2 2-45.2l-88-96zM320 480l32 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-32 0c-17.7 0-32 14.3-32 32s14.3 32 32 32zm0-128l96 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-96 0c-17.7 0-32 14.3-32 32s14.3 32 32 32zm0-128l160 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-160 0c-17.7 0-32 14.3-32 32s14.3 32 32 32zm0-128l224 0c17.7 0 32-14.3 32-32s-14.3-32-32-32L320 32c-17.7 0-32 14.3-32 32s14.3 32 32 32z'],
-  'arrow-down-wide-short': ['0 0 576 512', 'M151.6 469.6C145.5 476.2 137 480 128 480s-17.5-3.8-23.6-10.4l-88-96c-11.9-13-11.1-33.3 2-45.2s33.3-11.1 45.2 2L96 365.7 96 64c0-17.7 14.3-32 32-32s32 14.3 32 32l0 301.7 32.4-35.4c11.9-13 32.2-13.9 45.2-2s13.9 32.2 2 45.2l-88 96zM320 480c-17.7 0-32-14.3-32-32s14.3-32 32-32l32 0c17.7 0 32 14.3 32 32s-14.3 32-32 32l-32 0zm0-128c-17.7 0-32-14.3-32-32s14.3-32 32-32l96 0c17.7 0 32 14.3 32 32s-14.3 32-32 32l-96 0zm0-128c-17.7 0-32-14.3-32-32s14.3-32 32-32l160 0c17.7 0 32 14.3 32 32s-14.3 32-32 32l-160 0zm0-128c-17.7 0-32-14.3-32-32s14.3-32 32-32l224 0c17.7 0 32 14.3 32 32s-14.3 32-32 32L320 96z'],
-  'chevron-down': ['0 0 512 512', 'M233.4 406.6c12.5 12.5 32.8 12.5 45.3 0l192-192c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L256 338.7 86.6 169.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l192 192z'],
-  'chevron-up': ['0 0 512 512', 'M233.4 105.4c12.5-12.5 32.8-12.5 45.3 0l192 192c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L256 173.3 86.6 342.6c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3l192-192z'],
-  'chevron-left': ['0 0 320 512', 'M9.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l192 192c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-192 192z'],
-  'chevron-right': ['0 0 320 512', 'M310.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-192 192c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l192 192z'],
-  check: ['0 0 448 512', 'M438.6 105.4c12.5 12.5 12.5 32.8 0 45.3l-256 256c-12.5 12.5-32.8 12.5-45.3 0l-128-128c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0L160 338.7 393.4 105.4c12.5-12.5 32.8-12.5 45.3 0z'],
-  x: ['0 0 384 512', 'M342.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 210.7 86.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L146.7 256 41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 301.3 297.4 406.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.3 256 342.6 150.6z'],
-  plus: ['0 0 448 512', 'M256 80c0-17.7-14.3-32-32-32s-32 14.3-32 32V224H48c-17.7 0-32 14.3-32 32s14.3 32 32 32H192V432c0 17.7 14.3 32 32 32s32-14.3 32-32V288H400c17.7 0 32-14.3 32-32s-14.3-32-32-32H256V80z'],
-  minus: ['0 0 448 512', 'M432 256c0 17.7-14.3 32-32 32L48 288c-17.7 0-32-14.3-32-32s14.3-32 32-32l352 0c17.7 0 32 14.3 32 32z'],
-  search: ['0 0 512 512', 'M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352a144 144 0 1 0 0-288 144 144 0 1 0 0 288z'],
-  calendar: ['0 0 448 512', 'M128 0c17.7 0 32 14.3 32 32V64H288V32c0-17.7 14.3-32 32-32s32 14.3 32 32V64h48c26.5 0 48 21.5 48 48v48H0V112C0 85.5 21.5 64 48 64H96V32c0-17.7 14.3-32 32-32zM0 192H448V464c0 26.5-21.5 48-48 48H48c-26.5 0-48-21.5-48-48V192z'],
-  clock: ['0 0 512 512', 'M256 0a256 256 0 1 1 0 512A256 256 0 1 1 256 0zM232 120V256c0 8 4 15.5 10.7 20l96 64c11 7.4 25.9 4.4 33.3-6.7s4.4-25.9-6.7-33.3L280 243.2V120c0-13.3-10.7-24-24-24s-24 10.7-24 24z'],
-  trash: ['0 0 448 512', 'M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z'],
-  gear: ['0 0 512 512', 'M481.9 166.6c3.2 8.7 .5 18.4-6.4 24.6l-43.3 39.4c1.1 8.3 1.7 16.8 1.7 25.4s-.6 17.1-1.7 25.4l43.3 39.4c6.9 6.2 9.6 15.9 6.4 24.6c-4.4 11.9-9.7 23.3-15.8 34.3l-4.7 8.1c-6.6 11-14 21.4-22.1 31.2c-5.9 7.2-15.7 9.6-24.5 6.8l-55.7-17.7c-13.4 10.3-28.2 18.9-44 25.4l-12.5 57.1c-2 9.1-9 16.3-18.2 17.8c-13.8 2.3-28 3.5-42.5 3.5s-28.7-1.2-42.5-3.5c-9.2-1.5-16.2-8.7-18.2-17.8l-12.5-57.1c-15.8-6.5-30.6-15.1-44-25.4L83.1 425.9c-8.8 2.8-18.6 .3-24.5-6.8c-8.1-9.8-15.5-20.2-22.1-31.2l-4.7-8.1c-6.1-11-11.4-22.4-15.8-34.3c-3.2-8.7-.5-18.4 6.4-24.6l43.3-39.4C64.6 273.1 64 264.6 64 256s.6-17.1 1.7-25.4L22.4 191.2c-6.9-6.2-9.6-15.9-6.4-24.6c4.4-11.9 9.7-23.3 15.8-34.3l4.7-8.1c6.6-11 14-21.4 22.1-31.2c5.9-7.2 15.7-9.6 24.5-6.8l55.7 17.7c13.4-10.3 28.2-18.9 44-25.4l12.5-57.1c2-9.1 9-16.3 18.2-17.8C227.3 1.2 241.5 0 256 0s28.7 1.2 42.5 3.5c9.2 1.5 16.2 8.7 18.2 17.8l12.5 57.1c15.8 6.5 30.6 15.1 44 25.4l55.7-17.7c8.8-2.8 18.6-.3 24.5 6.8c8.1 9.8 15.5 20.2 22.1 31.2l4.7 8.1c6.1 11 11.4 22.4 15.8 34.3zM256 336a80 80 0 1 0 0-160 80 80 0 1 0 0 160z'],
-  eye: ['0 0 576 512', 'M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM144 256a144 144 0 1 1 288 0 144 144 0 1 1-288 0zm144-64c0 35.3-28.7 64-64 64c-7.1 0-13.9-1.2-20.3-3.3c-5.5-1.8-11.9 1.6-11.7 7.4c.3 6.9 1.3 13.8 3.2 20.7c13.7 51.2 66.4 81.6 117.6 67.9s81.6-66.4 67.9-117.6c-11.1-41.5-47.8-69.4-88.6-71.1c-5.8-.2-9.2 6.1-7.4 11.7c2.1 6.4 3.3 13.2 3.3 20.3z'],
-  lock: ['0 0 448 512', 'M144 144v48H304V144c0-44.2-35.8-80-80-80s-80 35.8-80 80zM80 192V144C80 64.5 144.5 0 224 0s144 64.5 144 144v48h16c35.3 0 64 28.7 64 64V448c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V256c0-35.3 28.7-64 64-64H80z'],
-  reload: ['0 0 512 512', 'M386.3 160H336c-17.7 0-32 14.3-32 32s14.3 32 32 32H464c17.7 0 32-14.3 32-32V64c0-17.7-14.3-32-32-32s-32 14.3-32 32v51.2L414.4 97.6c-87.5-87.5-229.3-87.5-316.8 0s-87.5 229.3 0 316.8s229.3 87.5 316.8 0c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0c-62.5 62.5-163.8 62.5-226.3 0s-62.5-163.8 0-226.3s163.8-62.5 226.3 0L386.3 160z'],
-  list: ['0 0 512 512', 'M40 48C26.7 48 16 58.7 16 72v48c0 13.3 10.7 24 24 24H88c13.3 0 24-10.7 24-24V72c0-13.3-10.7-24-24-24H40zM192 64c-17.7 0-32 14.3-32 32s14.3 32 32 32H480c17.7 0 32-14.3 32-32s-14.3-32-32-32H192zm0 160c-17.7 0-32 14.3-32 32s14.3 32 32 32H480c17.7 0 32-14.3 32-32s-14.3-32-32-32H192zm0 160c-17.7 0-32 14.3-32 32s14.3 32 32 32H480c17.7 0 32-14.3 32-32s-14.3-32-32-32H192zM16 232v48c0 13.3 10.7 24 24 24H88c13.3 0 24-10.7 24-24V232c0-13.3-10.7-24-24-24H40c-13.3 0-24 10.7-24 24zM40 368c-13.3 0-24 10.7-24 24v48c0 13.3 10.7 24 24 24H88c13.3 0 24-10.7 24-24V392c0-13.3-10.7-24-24-24H40z'],
-  filter: ['0 0 512 512', 'M3.9 54.9C10.5 40.9 24.5 32 40 32H472c15.5 0 29.5 8.9 36.1 22.9s4.6 30.5-5.2 42.5L320 320.9V448c0 12.1-6.8 23.2-17.7 28.6s-23.8 4.3-33.5-3l-64-48c-8.1-6-12.8-15.5-12.8-25.6V320.9L9 97.3C-.7 85.4-2.8 68.8 3.9 54.9z'],
-  dots: ['0 0 448 512', 'M8 256a56 56 0 1 1 112 0A56 56 0 1 1 8 256zm160 0a56 56 0 1 1 112 0 56 56 0 1 1-112 0zm216-56a56 56 0 1 1 0 112 56 56 0 1 1 0-112z'],
-  info: ['0 0 512 512', 'M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM216 336h24V272H216c-13.3 0-24-10.7-24-24s10.7-24 24-24h48c13.3 0 24 10.7 24 24v88h8c13.3 0 24 10.7 24 24s-10.7 24-24 24H216c-13.3 0-24-10.7-24-24s10.7-24 24-24zm40-208a32 32 0 1 1 0 64 32 32 0 1 1 0-64z'],
-  warning: ['0 0 512 512', 'M256 32c14.2 0 27.3 7.5 34.5 19.8l216 368c7.3 12.4 7.3 27.7 .2 40.1S486.3 480 472 480H40c-14.3 0-27.6-7.7-34.7-20.1s-7-27.8 .2-40.1l216-368C228.7 39.5 241.8 32 256 32zm0 128c-13.3 0-24 10.7-24 24V296c0 13.3 10.7 24 24 24s24-10.7 24-24V184c0-13.3-10.7-24-24-24zm32 224a32 32 0 1 0-64 0 32 32 0 1 0 64 0z'],
-  error: ['0 0 512 512', 'M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zm0-384c13.3 0 24 10.7 24 24V264c0 13.3-10.7 24-24 24s-24-10.7-24-24V152c0-13.3 10.7-24 24-24zM224 352a32 32 0 1 1 64 0 32 32 0 1 1-64 0z'],
-  success: ['0 0 512 512', 'M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM369 209L241 337c-9.4 9.4-24.6 9.4-33.9 0l-64-64c-9.4-9.4-9.4-24.6 0-33.9s24.6-9.4 33.9 0l47 47L335 175c9.4-9.4 24.6-9.4 33.9 0s9.4 24.6 0 33.9z'],
-  upload: ['0 0 512 512', 'M288 109.3V352c0 17.7-14.3 32-32 32s-32-14.3-32-32V109.3l-73.4 73.4c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3l128-128c12.5-12.5 32.8-12.5 45.3 0l128 128c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L288 109.3zM64 352H192c0 35.3 28.7 64 64 64s64-28.7 64-64H448c35.3 0 64 28.7 64 64v32c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V416c0-35.3 28.7-64 64-64z'],
-  drag: ['0 0 320 512', 'M40 352l48 0c22.1 0 40 17.9 40 40l0 48c0 22.1-17.9 40-40 40l-48 0c-22.1 0-40-17.9-40-40l0-48c0-22.1 17.9-40 40-40zm192 0l48 0c22.1 0 40 17.9 40 40l0 48c0 22.1-17.9 40-40 40l-48 0c-22.1 0-40-17.9-40-40l0-48c0-22.1 17.9-40 40-40zM40 176l48 0c22.1 0 40 17.9 40 40l0 48c0 22.1-17.9 40-40 40l-48 0c-22.1 0-40-17.9-40-40l0-48c0-22.1 17.9-40 40-40zm192 0l48 0c22.1 0 40 17.9 40 40l0 48c0 22.1-17.9 40-40 40l-48 0c-22.1 0-40-17.9-40-40l0-48c0-22.1 17.9-40 40-40zM40 0L88 0c22.1 0 40 17.9 40 40l0 48c0 22.1-17.9 40-40 40L40 128C17.9 128 0 110.1 0 88L0 40C0 17.9 17.9 0 40 0zM232 0l48 0c22.1 0 40 17.9 40 40l0 48c0 22.1-17.9 40-40 40l-48 0c-22.1 0-40-17.9-40-40l0-48c0-22.1 17.9-40 40-40z'],
-  star: ['0 0 576 512', 'M287.9 0c9.2 0 17.6 5.2 21.6 13.5l68.6 141.3 153.2 22.6c9 1.3 16.5 7.6 19.3 16.3s.5 18.1-5.9 24.5L433.6 328.4l26.2 155.6c1.5 9-2.2 18.1-9.7 23.5s-17.3 6-25.3 1.7l-137-73.2L151 509.1c-8.1 4.3-17.9 3.7-25.3-1.7s-11.2-14.5-9.7-23.5l26.2-155.6L31.1 218.2c-6.5-6.4-8.7-15.9-5.9-24.5s10.3-14.9 19.3-16.3l153.2-22.6L266.3 13.5C270.4 5.2 278.7 0 287.9 0z'],
-  heart: ['0 0 512 512', 'M47.6 300.4L228.3 469.1c7.5 7 17.4 10.9 27.7 10.9s20.2-3.9 27.7-10.9L464.4 300.4c30.4-28.3 47.6-68 47.6-109.5v-5.8c0-69.9-50.5-129.5-119.4-141C347 36.5 300.6 51.4 268 84L256 96 244 84c-32.6-32.6-79-47.5-124.6-39.9C50.5 55.6 0 115.2 0 185.1v5.8c0 41.5 17.2 81.2 47.6 109.5z'],
-  tag: ['0 0 448 512', 'M0 80V229.5c0 17 6.7 33.3 18.7 45.3l176 176c25 25 65.5 25 90.5 0L418.7 317.3c25-25 25-65.5 0-90.5l-176-176c-12-12-28.3-18.7-45.3-18.7H48C21.5 32 0 53.5 0 80zm112 32a32 32 0 1 1 0 64 32 32 0 1 1 0-64z'],
-  folder: ['0 0 512 512', 'M64 480H448c35.3 0 64-28.7 64-64V160c0-35.3-28.7-64-64-64H298.5c-17 0-33.3-6.7-45.3-18.7L226.7 50.7c-12-12-28.3-18.7-45.3-18.7H64C28.7 32 0 60.7 0 96V416c0 35.3 28.7 64 64 64z'],
-  'folder-open': ['0 0 576 512', 'M88.7 223.8L0 375.8V96C0 60.7 28.7 32 64 32H181.5c17 0 33.3 6.7 45.3 18.7l26.5 26.5c12 12 28.3 18.7 45.3 18.7H416c35.3 0 64 28.7 64 64v32H144c-22.8 0-43.8 12.1-55.3 31.8zm27.6 16.1C122.1 230 132.6 224 144 224H544c11.5 0 22 6.1 27.7 16.1s5.7 22.2-.1 32.1l-112 192C453.9 474 443.4 480 432 480H32c-11.5 0-22-6.1-27.7-16.1s-5.7-22.2 .1-32.1l112-192z'],
-  file: ['0 0 384 512', 'M0 64C0 28.7 28.7 0 64 0H224V128c0 17.7 14.3 32 32 32H384V448c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V64zm384 64H256V0L384 128z'],
-  copy: ['0 0 448 512', 'M208 0L332.1 0c12.7 0 24.9 5.1 33.9 14.1l67.9 67.9c9 9 14.1 21.2 14.1 33.9L448 336c0 26.5-21.5 48-48 48l-192 0c-26.5 0-48-21.5-48-48l0-288c0-26.5 21.5-48 48-48zM48 128l80 0 0 64-64 0 0 256 192 0 0-32 64 0 0 48c0 26.5-21.5 48-48 48L48 512c-26.5 0-48-21.5-48-48L0 176c0-26.5 21.5-48 48-48z'],
-  square: ['0 0 448 512', 'M384 80c8.8 0 16 7.2 16 16V416c0 8.8-7.2 16-16 16H64c-8.8 0-16-7.2-16-16V96c0-8.8 7.2-16 16-16H384zM64 32C28.7 32 0 60.7 0 96V416c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V96c0-35.3-28.7-64-64-64H64z'],
-  code: ['0 0 640 512', 'M392.8 1.2c-17-4.9-34.7 5-39.6 22l-128 448c-4.9 17 5 34.7 22 39.6s34.7-5 39.6-22l128-448c4.9-17-5-34.7-22-39.6zm80.6 120.1c-12.5 12.5-12.5 32.8 0 45.3L562.7 256l-89.4 89.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0l112-112c12.5-12.5 12.5-32.8 0-45.3l-112-112c-12.5-12.5-32.8-12.5-45.3 0zm-306.7 0c-12.5-12.5-32.8-12.5-45.3 0l-112 112c-12.5 12.5-12.5 32.8 0 45.3l112 112c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L77.3 256l89.4-89.4c12.5-12.5 12.5-32.8 0-45.3z'],
-  book: ['0 0 448 512', 'M96 0C43 0 0 43 0 96V416c0 53 43 96 96 96H384h32c17.7 0 32-14.3 32-32s-14.3-32-32-32V384c17.7 0 32-14.3 32-32V32c0-17.7-14.3-32-32-32H384 96zm0 384H352v64H96c-17.7 0-32-14.3-32-32s14.3-32 32-32zm32-240c0-8.8 7.2-16 16-16H336c8.8 0 16 7.2 16 16s-7.2 16-16 16H144c-8.8 0-16-7.2-16-16zm16 48H336c8.8 0 16 7.2 16 16s-7.2 16-16 16H144c-8.8 0-16-7.2-16-16s7.2-16 16-16z']
+  // <lucide-glyphs>
+  'arrow-up-wide-short': outline('M3 8l4-4 4 4M7 4v16M11 12h10M11 16h7M11 20h4'), // arrow-up-wide-narrow
+  'arrow-down-wide-short': outline('M3 16l4 4 4-4M7 20V4M11 4h10M11 8h7M11 12h4'), // arrow-down-wide-narrow
+  'chevron-down': outline('M6 9l6 6 6-6'),
+  'chevron-up': outline('M18 15l-6-6-6 6'),
+  'chevron-left': outline('M15 18l-6-6 6-6'),
+  'chevron-right': outline('M9 18l6-6-6-6'),
+  check: outline('M20 6 9 17l-5-5'),
+  x: outline('M18 6 6 18M6 6l12 12'),
+  plus: outline('M5 12h14M12 5v14'),
+  minus: outline('M5 12h14'),
+  search: outline('M21 21l-4.34-4.34M3 11a8 8 0 1 0 16 0a8 8 0 1 0-16 0z'),
+  calendar: outline('M8 2v3M16 2v3M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-14a2 2 0 0 1-2-2v-14a2 2 0 0 1 2-2zM3 9h18'),
+  clock: outline('M2 12a10 10 0 1 0 20 0a10 10 0 1 0-20 0zM12 6v6l4 2'),
+  trash: outline('M10 11v6M14 11v6M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2'),
+  gear: outline('M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915M9 12a3 3 0 1 0 6 0a3 3 0 1 0-6 0z'), // settings
+  eye: outline('M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0M9 12a3 3 0 1 0 6 0a3 3 0 1 0-6 0z'),
+  lock: outline('M5 11h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-14a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2zM7 11V7a5 5 0 0 1 10 0v4'),
+  reload: outline('M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8M21 3v5h-5'), // rotate-cw
+  list: outline('M3 5h.01M3 12h.01M3 19h.01M8 5h13M8 12h13M8 19h13'),
+  filter: outline('M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z'), // funnel
+  dots: outline('M11 12a1 1 0 1 0 2 0a1 1 0 1 0-2 0zM18 12a1 1 0 1 0 2 0a1 1 0 1 0-2 0zM4 12a1 1 0 1 0 2 0a1 1 0 1 0-2 0z'), // ellipsis
+  info: outline('M2 12a10 10 0 1 0 20 0a10 10 0 1 0-20 0zM12 16v-4M12 8h.01'),
+  warning: outline('M21.73 18l-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3M12 9v4M12 17h.01'), // triangle-alert
+  error: outline('M2 12a10 10 0 1 0 20 0a10 10 0 1 0-20 0zM12 8V12M12 16H12.01'), // circle-alert
+  success: outline('M2 12a10 10 0 1 0 20 0a10 10 0 1 0-20 0zM16 9l-5.5 5.5L8 12'), // circle-check
+  upload: outline('M12 3v12M17 8l-5-5-5 5M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'),
+  drag: outline('M8 12a1 1 0 1 0 2 0a1 1 0 1 0-2 0zM8 5a1 1 0 1 0 2 0a1 1 0 1 0-2 0zM8 19a1 1 0 1 0 2 0a1 1 0 1 0-2 0zM14 12a1 1 0 1 0 2 0a1 1 0 1 0-2 0zM14 5a1 1 0 1 0 2 0a1 1 0 1 0-2 0zM14 19a1 1 0 1 0 2 0a1 1 0 1 0-2 0z'), // grip-vertical
+  star: outline('M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z'),
+  heart: outline('M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5'),
+  tag: outline('M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42zM7 7.5a.5 .5 0 1 0 1 0a.5 .5 0 1 0-1 0z'),
+  folder: outline('M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z'),
+  'folder-open': outline('M6 14l1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2'),
+  file: outline('M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2zM14 2v5a1 1 0 0 0 1 1h5'),
+  copy: outline('M10 8h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-10a2 2 0 0 1-2-2v-10a2 2 0 0 1 2-2zM4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2'),
+  square: outline('M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-14a2 2 0 0 1-2-2v-14a2 2 0 0 1 2-2z'),
+  code: outline('M18 16l4-4-4-4M6 8l-4 4 4 4M14.5 4l-5 16'), // code-xml
+  book: outline('M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20')
+  // </lucide-glyphs>
 });
 
 /** Legacy gx Factory icon names mapped to their Zx equivalents. */
@@ -86,7 +174,7 @@ const aliases = Object.freeze({
   fields: 'list'
 });
 
-/** @type {Record<string, [string, string]>} Glyphs added at runtime by `registerIcons`. */
+/** @type {Record<string, IconGlyph>} Glyphs added at runtime by `registerIcons`. */
 const extraGlyphs = Object.create(null);
 
 /**
@@ -163,17 +251,31 @@ export async function loadFontAwesome(options) {
 }
 
 /**
- * Adds inline SVG glyphs to the built-in set, or replaces existing ones. Entries use the same
- * `[viewBox, path]` shape as `icons`.
- * @param {Record<string, [string, string]>} glyphs Glyphs keyed by icon name.
+ * Adds inline SVG glyphs to the built-in set, or replaces existing ones.
+ *
+ * An entry is `[viewBox, path]` — a filled shape, the format Font Awesome path data comes in, and
+ * how it always rendered — or `[viewBox, path, 'stroke']` — an outline drawn with the same pen as
+ * the bundled set: `currentColor`, round caps and joins, and a stroke scaled to the view box, so a
+ * glyph from a 24-unit outline set such as Lucide renders exactly like a bundled one.
+ *
+ *     registerIcons({ rocket: ['0 0 512 512', 'M…'] });           // filled
+ *     registerIcons({ anchor: ['0 0 24 24', 'M12 6v16…', 'stroke'] });  // outline
+ * @param {Record<string, IconGlyph>} glyphs Glyphs keyed by icon name.
  * @returns {void}
+ * @throws {TypeError} When an entry is neither a `[viewBox, path]` pair nor a
+ *   `[viewBox, path, 'fill'|'stroke']` triple.
  */
 export function registerIcons(glyphs) {
   for (const [name, entry] of Object.entries(glyphs)) {
-    if (!Array.isArray(entry) || entry.length !== 2) {
-      throw new TypeError(`Icon "${name}" must be a [viewBox, path] pair`);
+    if (!Array.isArray(entry) || (entry.length !== 2 && entry.length !== 3)
+      || (entry.length === 3 && entry[2] !== 'fill' && entry[2] !== 'stroke')) {
+      throw new TypeError(
+        `Icon "${name}" must be a [viewBox, path] pair or a [viewBox, path, 'stroke'] triple`
+      );
     }
-    extraGlyphs[name] = [String(entry[0]), String(entry[1])];
+    extraGlyphs[name] = entry[2] === 'stroke'
+      ? [String(entry[0]), String(entry[1]), 'stroke']
+      : [String(entry[0]), String(entry[1])];
   }
 }
 
@@ -244,8 +346,8 @@ function builtinIcon(name, options) {
     warnMissingIcon(name);
     return missingIcon(name, options);
   }
-  const [viewBox, pathData] = entry;
-  const svg = iconSvg(viewBox, options);
+  const [viewBox, pathData, paint = 'fill'] = entry;
+  const svg = iconSvg(viewBox, paint, options);
   const path = document.createElementNS(SVG_NS, 'path');
   path.setAttribute('d', pathData);
   svg.append(path);
@@ -254,26 +356,57 @@ function builtinIcon(name, options) {
 
 /**
  * Builds the `<svg>` root every inline glyph shares, so the placeholder is the same element in
- * the same box as the icon it stands in for.
+ * the same box as the icon it stands in for. The paint attributes sit on the root and the path
+ * inherits them, so component CSS can restyle a glyph with `fill`, `stroke`, or `color` on the
+ * `.zx-icon` element alone — `fill: currentColor` turns an outline into its solid form, for a set
+ * star or a liked heart.
  * @param {string} viewBox The glyph's view box.
+ * @param {IconPaint} paint Whether the glyph is filled or stroked.
  * @param {IconOptions} options Display and accessibility options.
  * @returns {SVGSVGElement}
  */
-function iconSvg(viewBox, options) {
+function iconSvg(viewBox, paint, options) {
   const { size = 16 } = options;
   const svg = document.createElementNS(SVG_NS, 'svg');
   svg.setAttribute('class', classList('zx-icon', options.class));
   svg.setAttribute('viewBox', viewBox);
   svg.setAttribute('width', String(size));
   svg.setAttribute('height', String(size));
-  svg.setAttribute('fill', 'currentColor');
+  if (paint === 'stroke') {
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor');
+    svg.setAttribute('stroke-width', strokeWidth(viewBox, size));
+    svg.setAttribute('stroke-linecap', 'round');
+    svg.setAttribute('stroke-linejoin', 'round');
+  } else {
+    svg.setAttribute('fill', 'currentColor');
+  }
   svg.setAttribute('focusable', 'false');
   applyLabel(svg, options.label ?? null);
   return svg;
 }
 
-/** View box the placeholder reserves — the square most Font Awesome glyphs are drawn in. */
-const PLACEHOLDER_VIEW_BOX = '0 0 512 512';
+/**
+ * The stroke width an outline glyph is drawn with, in its own view-box units: `STROKE_WIDTH` per
+ * 24 units, so outline sets drawn on another grid keep the same weight, and never thinner than
+ * `MIN_STROKE_PX` at the rendered size. A size given as a CSS length other than pixels (`'1em'`)
+ * cannot be measured here and keeps the proportional width.
+ * @param {string} viewBox The glyph's view box.
+ * @param {number|string} size The rendered size the caller asked for.
+ * @returns {string}
+ */
+function strokeWidth(viewBox, size) {
+  const [, , width, height] = viewBox.trim().split(/[\s,]+/).map(Number);
+  const extent = Math.max(width, height) || 24;
+  let units = STROKE_WIDTH * extent / 24;
+  const pixels = typeof size === 'number' ? size
+    : /^\d*\.?\d+(px)?$/.test(String(size).trim()) ? parseFloat(String(size)) : NaN;
+  if (pixels > 0) units = Math.max(units, MIN_STROKE_PX * extent / pixels);
+  return String(Math.round(units * 1000) / 1000);
+}
+
+/** View box the placeholder reserves — the square the bundled glyphs are drawn in. */
+const PLACEHOLDER_VIEW_BOX = VIEW_BOX;
 
 /**
  * The element an unresolvable name renders as: the ordinary `zx-icon` root at the requested size,
@@ -290,7 +423,7 @@ const PLACEHOLDER_VIEW_BOX = '0 0 512 512';
  * @returns {SVGSVGElement}
  */
 function missingIcon(name, options) {
-  const svg = iconSvg(PLACEHOLDER_VIEW_BOX, options);
+  const svg = iconSvg(PLACEHOLDER_VIEW_BOX, 'stroke', options);
   svg.setAttribute('data-zx-icon-missing', name);
   return svg;
 }

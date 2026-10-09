@@ -15,6 +15,7 @@ import { sortRows } from './sort.js';
 /** @typedef {'asc'|'desc'} TableSortDirection */
 /** @typedef {false|'single'|'multi'} TableSelectionMode */
 /** @typedef {false|'cell'|'row'} TableEditMode */
+/** @typedef {'default'|'plain'} TableVariant */
 /** @typedef {'text'|'number'|'select'|'date'|'checkbox'|'textarea'|'custom'} TableEditorType */
 /** @typedef {'text'|'number'|'currency'|'percent'|'unit'} TableColumnType */
 /** @typedef {{value: unknown, label: string}} TableEditorOption */
@@ -59,7 +60,11 @@ import { sortRows } from './sort.js';
 /**
  * @typedef {Object} TableColumn
  * @property {string} id Row property and stable column identifier.
- * @property {string} label Visible header label.
+ * @property {string} label Visible header label. An empty label leaves the header blank — an
+ * icon or actions column — and the header is then named by `ariaLabel`, or by the id.
+ * @property {string} [ariaLabel] Accessible name of the column header, and the name the column
+ * chooser and the cell editors use. Needed when `label` is empty or terse (`'#'`); include the
+ * visible label's words in it when there is one.
  * @property {boolean} [sortable=false] Whether the header changes the active sort.
  * @property {string} [width='auto'] CSS width, `auto`, or an `fr` proportion. `fr` values are
  * converted into proportional percentages on `<col>` elements and enable `table-layout: fixed`;
@@ -128,6 +133,9 @@ import { sortRows } from './sort.js';
  * `setSort()` is inert: sorting a grouped table scatters the positions out of their sections, and
  * doing that silently is worse than not offering it. `sortMode: 'server'` still owns its own order.
  * @property {boolean} [zebra=true] Whether alternate rows use the zebra background.
+ * @property {TableVariant} [variant='default'] Frame treatment. `'default'` draws the table's own
+ * bordered box; `'plain'` is for a table inside a card or panel that already draws one — no outer
+ * frame, no header band, no zebra, hairline row dividers. Reflected as `data-variant` on the root.
  * @property {TableEditMode} [editMode=false] Inline editing mode. `'cell'` edits one cell, `'row'`
  * opens every editable cell of the row together and commits them as a unit. Editing is completely
  * inert while this is `false`.
@@ -288,6 +296,7 @@ export class Table extends Component {
     rowKind: null,
     rowKinds: null,
     zebra: true,
+    variant: 'default',
     editMode: false,
     editTrigger: 'double',
     hierarchy: false,
@@ -360,6 +369,8 @@ export class Table extends Component {
       }
     }
     this._reconcileExpanded();
+
+    if (normalizeTableVariant(this.options.variant) === 'plain') root.dataset.variant = 'plain';
 
     this._table = h('table', { class: 'zx-table__table' });
     if (this._hierarchy) this._table.setAttribute('role', 'treegrid');
@@ -638,7 +649,7 @@ export class Table extends Component {
       const column = this._columns.find((candidate) => candidate.id === String(id));
       const index = this.getColumnOrder().indexOf(String(id));
       if (column && index >= 0) {
-        this._columnStatus.textContent = `Moved ${column.label} to position ${index + 1} of ${this._columns.length}.`;
+        this._columnStatus.textContent = `Moved ${tableColumnName(column)} to position ${index + 1} of ${this._columns.length}.`;
       }
     }
     return this;
@@ -1303,7 +1314,7 @@ export class Table extends Component {
       class: 'zx-table__column-status', role: 'status', ariaLive: 'polite'
     });
     const details = h('details', { class: 'zx-table__column-controls' },
-      h('summary', { class: 'zx-button zx-button--sm' }, icon('fields', { size: 13 }),
+      h('summary', { class: 'zx-btn', dataset: { size: 'sm' } }, icon('fields'),
         this._message('table.columns', 'Columns', [])),
       list);
     this._renderColumnControls();
@@ -1330,21 +1341,23 @@ export class Table extends Component {
         disabled: checked && visible.length === 1,
         dataset: { columnId: column.id, columnAction: 'toggle' }
       }) : null;
+      // The chooser lists every column by name, a blank-headed one included.
+      const name = tableColumnName(column);
       const label = toggle
-        ? h('label', { for: controlId }, toggle, h('span', {}, column.label))
-        : h('span', { class: 'zx-table__column-label' }, column.label);
+        ? h('label', { for: controlId }, toggle, h('span', {}, name))
+        : h('span', { class: 'zx-table__column-label' }, name);
       const order = this.options.columnReorder ? h('span', {
         class: 'zx-table__column-order', role: 'group',
-        ariaLabel: this._message('table.moveColumn', 'Move %1', [column.label])
+        ariaLabel: this._message('table.moveColumn', 'Move %1', [name])
       },
       h('button', {
         class: 'zx-table__column-move', type: 'button', disabled: index === 0,
-        ariaLabel: `Move ${column.label} earlier`,
+        ariaLabel: `Move ${name} earlier`,
         dataset: { columnId: column.id, columnAction: 'up' }
       }, icon('chevron-up', { size: 11 })),
       h('button', {
         class: 'zx-table__column-move', type: 'button', disabled: index === this._columns.length - 1,
-        ariaLabel: `Move ${column.label} later`,
+        ariaLabel: `Move ${name} later`,
         dataset: { columnId: column.id, columnAction: 'down' }
       }, icon('chevron-down', { size: 11 }))) : null;
       return h('div', { class: 'zx-table__column-option', dataset: { columnId: column.id } }, label, order);
@@ -1602,16 +1615,23 @@ export class Table extends Component {
     // What this header was built from, so `_renderBody()` can tell whether it is still the right one.
     this._headerSpanning = this._spanning;
     for (const column of this._visibleColumns()) {
-      const th = h('th', { scope: 'col' });
+      // `data-column` on the header and on every body cell, in every mode, so a read-only table
+      // can be styled per column as readily as an editable one.
+      const th = h('th', { scope: 'col', dataset: { column: column.id } });
       const align = column.align ?? (isNumericColumn(column) ? 'end' : null);
       if (align) th.dataset.align = align;
       if (column.headerTitle) th.title = column.headerTitle;
+      // A blank header (an icon or actions column) still needs a name, or every cell beneath it
+      // is announced with an empty column header.
+      const name = tableHeaderName(column);
+      if (name !== null) th.setAttribute('aria-label', name);
       // Withheld, not disabled: a header that invites a sort the component will refuse is worse
       // than a header that never offered one. The label still reads exactly the same.
       if (column.sortable && !this._spanning) {
         const button = h('button', {
           class: 'zx-table__sort-button',
-          type: 'button'
+          type: 'button',
+          ariaLabel: name ?? undefined
         }, h('span', { class: 'zx-table__header-label' }, column.label));
         this.listen(button, 'click', () => {
           const direction = this._sort?.id === column.id && this._sort.dir === 'asc' ? 'desc' : 'asc';
@@ -1769,9 +1789,9 @@ export class Table extends Component {
       // Written unconditionally: `responsive` can be switched on after the rows exist, and a
       // stacked cell has no column header above it to say what its value means.
       cell.dataset.label = column.label;
+      cell.dataset.column = column.id;
       if (column.popin === false) cell.dataset.popin = 'false';
       if (this._editMode !== false) {
-        cell.dataset.column = column.id;
         if (resolveEditable(column, row) !== false) {
           cell.dataset.editable = 'true';
           cell.tabIndex = -1;
@@ -1850,7 +1870,9 @@ export class Table extends Component {
       return;
     }
 
-    if (isInteractiveCellContent(target)) return;
+    // Only an editable table holds a click on a control inside a cell back from the row: there the
+    // click could otherwise open an editor. A read-only table activates the row as it always has.
+    if (this._editMode !== false && isInteractiveCellContent(target)) return;
 
     if (this._editMode !== false && this._editTrigger === 'single') {
       const cell = target?.closest('td[data-editable="true"]');
@@ -1881,7 +1903,7 @@ export class Table extends Component {
     if (!rowElement || !this._tbody.contains(rowElement)) return;
     const meta = this._rowMeta.get(rowElement);
     if (!meta) return;
-    if (isInteractiveCellContent(target)) return;
+    if (this._editMode !== false && isInteractiveCellContent(target)) return;
     if (this._editMode !== false && this._editTrigger === 'double') {
       const cell = target?.closest('td[data-editable="true"]');
       if (cell && this._tbody.contains(cell)) {
@@ -2027,7 +2049,7 @@ export class Table extends Component {
       ...props,
       class: textarea ? 'zx-table__editor-input zx-table__editor-textarea' : 'zx-table__editor-input',
       ...(textarea ? {} : { type: 'text' }),
-      ariaLabel: props.ariaLabel ?? `${column.label} row ${index + 1}`,
+      ariaLabel: props.ariaLabel ?? `${tableColumnName(column)} row ${index + 1}`,
       value: formatCellValue(column, value, row)
     }));
     host.append(input);
@@ -2046,8 +2068,10 @@ export class Table extends Component {
     const control = entry?.control;
     if (!control || typeof control.focus !== 'function') return;
     control.focus();
-    // Opening a text editor selects its content, so typing replaces the old value.
-    if (entry.type === 'text' && typeof control.select === 'function') control.select();
+    // Opening a text, number, or date editor selects its content, so typing replaces the old value
+    // ("6" over "1.00" gives 6, not 1.006). Selected after focus: NumberField rewrites its text on
+    // focus, from the grouped display to a plain re-parseable number.
+    if (editorSelectsOnEntry(entry.type) && typeof control.select === 'function') control.select();
   }
 
   /**
@@ -3008,6 +3032,15 @@ function initialExpanded(option) {
   return new Set(Array.isArray(option) ? option : []);
 }
 
+/**
+ * Resolves the `variant` option to one the stylesheet knows; anything else is the default frame.
+ * @param {unknown} value Requested variant.
+ * @returns {TableVariant}
+ */
+export function normalizeTableVariant(value) {
+  return value === 'plain' ? 'plain' : 'default';
+}
+
 /** @param {unknown} mode @returns {TableEditMode} */
 function normalizeEditMode(mode) {
   if (mode === 'cell' || mode === 'row') return mode;
@@ -3057,6 +3090,47 @@ export function normalizeTableColumns(columns) {
     seen.add(id);
     return { ...column, id, label: String(column.label ?? id) };
   });
+}
+
+/**
+ * The name a column goes by wherever it is named rather than shown: its `ariaLabel`, else its
+ * visible label, else its id. The column chooser lists columns by it and cell editors are labelled
+ * with it, so a column with a blank header still has a name in both.
+ * @param {Partial<TableColumn>|null|undefined} column Column descriptor.
+ * @returns {string} Non-empty name, unless the column has no id either.
+ */
+export function tableColumnName(column) {
+  for (const candidate of [column?.ariaLabel, column?.label]) {
+    const text = candidate == null ? '' : String(candidate).trim();
+    if (text) return text;
+  }
+  return String(column?.id ?? '');
+}
+
+/**
+ * The accessible name a column header needs on top of its content, or null when its visible label
+ * already names it. That is the `ariaLabel` when one is given, and the column id when the label is
+ * blank — an icon or actions column — so no header is announced as an empty column.
+ * @param {Partial<TableColumn>|null|undefined} column Column descriptor.
+ * @returns {string|null} Name to set as `aria-label`, or null.
+ */
+export function tableHeaderName(column) {
+  const label = column?.label == null ? '' : String(column.label).trim();
+  const explicit = column?.ariaLabel == null ? '' : String(column.ariaLabel).trim();
+  if (explicit) return explicit;
+  return label ? null : tableColumnName(column) || null;
+}
+
+/**
+ * Whether opening an editor of this type selects its content, so the first keystroke replaces the
+ * value instead of being appended to it. True for the single-line text, number, and date editors;
+ * a textarea keeps its caret, and a select, checkbox, or custom editor keeps its own focus
+ * behaviour.
+ * @param {TableEditorType|string} type Resolved editor type.
+ * @returns {boolean}
+ */
+export function editorSelectsOnEntry(type) {
+  return type === 'text' || type === 'number' || type === 'date';
 }
 
 /**

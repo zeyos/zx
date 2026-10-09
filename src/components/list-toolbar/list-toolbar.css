@@ -68,10 +68,11 @@
 }
 
 /*
- * WCAG 2.5.5 Target Size: 44 px, in both densities. Density tightens a layout; it does not make
- * a finger smaller, so this floor is deliberately not expressed through --zx-control-height
- * (32 px cozy, 28 px compact) the way the rest of the controls in this row are. The chrome is flat
- * until the tool is hovered, focused, or pressed, so a target this size does not read as a slab.
+ * WCAG 2.5.5 Target Size: 44 px, whatever the theme does to spacing. A tighter theme tightens a
+ * layout; it does not make a finger smaller, so this floor is deliberately not expressed through
+ * --zx-control-height (30 px by default) the way the rest of the controls in this row are. The
+ * chrome is flat until the tool is hovered, focused, or pressed, so a target this size does not
+ * read as a slab.
  */
 .zx-list-toolbar__tool {
   position: relative;
@@ -100,11 +101,12 @@
   box-shadow: var(--zx-focus-ring);
 }
 
-/* A pressed tool is marked three ways — the state in `aria-pressed`, a filled ground, and a
-   border where the other states have none — so it never rests on colour alone. */
+/* A pressed tool is marked three ways — the state in `aria-pressed`, the neutral current fill, and
+   a border where the other states have none — so it never rests on colour alone. A toggled filter
+   is a mode the list is in, not a pick, so the fill is neutral rather than the accent tint. */
 .zx-list-toolbar__tool[aria-pressed="true"] {
   border-color: var(--zx-color-border-strong);
-  background: var(--zx-color-bg-selected);
+  background: var(--zx-color-bg-current);
 }
 
 .zx-list-toolbar__tool:disabled {
@@ -150,9 +152,12 @@
   box-shadow: var(--zx-focus-ring);
 }
 
+/* The current view is where you are: the neutral current fill, the full text colour, a heavier
+   label. Hover stays a lighter step of the same fill. */
 .zx-list-toolbar__view[aria-pressed="true"] {
-  background: var(--zx-color-bg-selected);
+  background: var(--zx-color-bg-current);
   color: var(--zx-color-text);
+  font-weight: var(--zx-weight-semibold);
 }
 
 @media (prefers-reduced-motion: no-preference) {

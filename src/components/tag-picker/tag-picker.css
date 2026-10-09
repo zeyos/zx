@@ -32,6 +32,12 @@
   cursor: default;
 }
 
+/* Read-only, the picker is its tags: nothing to type into and no list to open, so no input and no
+   chevron — and a full row of tags does not wrap them onto an empty second line. */
+.zx-tag-picker[data-readonly] :is(.zx-tag-picker__input, .zx-tag-picker__toggle) {
+  display: none;
+}
+
 .zx-tag-picker__tags {
   display: contents;
 }
@@ -64,6 +70,38 @@
   background: color-mix(in srgb, var(--zx-tag-color, var(--zx-color-accent)) 16%, transparent);
   color: var(--zx-tag-color, var(--zx-color-accent));
 }
+
+/* A categorical tone: the tag takes the Badge tone palette — the tone's tint as fill, its ink as
+   text, no border — and an icon tile the same pair, so a label keeps one colour everywhere. */
+.zx-tag-picker__tag[data-tone] {
+  border-color: transparent;
+  background: var(--zx-tag-tone-bg);
+  color: var(--zx-tag-tone-fg);
+}
+
+.zx-tag-picker__visual[data-tone] {
+  background: var(--zx-tag-tone-bg);
+  color: var(--zx-tag-tone-fg);
+}
+
+.zx-tag-picker .zx-tag-picker__tag[data-tone] .zx-tag-picker__remove {
+  color: inherit;
+}
+
+.zx-tag-picker .zx-tag-picker__tag[data-tone] .zx-tag-picker__remove:hover {
+  background: color-mix(in srgb, currentColor 14%, transparent);
+  color: inherit;
+}
+
+:is(.zx-tag-picker__tag, .zx-tag-picker__visual)[data-tone="blue"] { --zx-tag-tone-bg: var(--zx-color-tone-blue-bg); --zx-tag-tone-fg: var(--zx-color-tone-blue-fg); }
+:is(.zx-tag-picker__tag, .zx-tag-picker__visual)[data-tone="teal"] { --zx-tag-tone-bg: var(--zx-color-tone-teal-bg); --zx-tag-tone-fg: var(--zx-color-tone-teal-fg); }
+:is(.zx-tag-picker__tag, .zx-tag-picker__visual)[data-tone="green"] { --zx-tag-tone-bg: var(--zx-color-tone-green-bg); --zx-tag-tone-fg: var(--zx-color-tone-green-fg); }
+:is(.zx-tag-picker__tag, .zx-tag-picker__visual)[data-tone="amber"] { --zx-tag-tone-bg: var(--zx-color-tone-amber-bg); --zx-tag-tone-fg: var(--zx-color-tone-amber-fg); }
+:is(.zx-tag-picker__tag, .zx-tag-picker__visual)[data-tone="orange"] { --zx-tag-tone-bg: var(--zx-color-tone-orange-bg); --zx-tag-tone-fg: var(--zx-color-tone-orange-fg); }
+:is(.zx-tag-picker__tag, .zx-tag-picker__visual)[data-tone="red"] { --zx-tag-tone-bg: var(--zx-color-tone-red-bg); --zx-tag-tone-fg: var(--zx-color-tone-red-fg); }
+:is(.zx-tag-picker__tag, .zx-tag-picker__visual)[data-tone="pink"] { --zx-tag-tone-bg: var(--zx-color-tone-pink-bg); --zx-tag-tone-fg: var(--zx-color-tone-pink-fg); }
+:is(.zx-tag-picker__tag, .zx-tag-picker__visual)[data-tone="violet"] { --zx-tag-tone-bg: var(--zx-color-tone-violet-bg); --zx-tag-tone-fg: var(--zx-color-tone-violet-fg); }
+:is(.zx-tag-picker__tag, .zx-tag-picker__visual)[data-tone="slate"] { --zx-tag-tone-bg: var(--zx-color-tone-slate-bg); --zx-tag-tone-fg: var(--zx-color-tone-slate-fg); }
 
 .zx-tag-picker__tag:not(:has(.zx-tag-picker__remove)) {
   padding-inline-end: var(--zx-space-2);
@@ -125,7 +163,7 @@
   max-inline-size: calc(100vw - var(--zx-space-4));
   overflow: hidden;
   border: 1px solid var(--zx-color-overlay-border);
-  border-radius: var(--zx-radius-md);
+  border-radius: var(--zx-radius-lg);
   background-color: var(--zx-color-overlay-surface);
   background-image: var(--zx-overlay-surface-image);
   background-clip: padding-box;
@@ -156,8 +194,11 @@
   display: flex;
   align-items: center;
   gap: var(--zx-space-2);
-  padding: var(--zx-space-2) var(--zx-space-2);
-  border-radius: var(--zx-radius-md);
+  /* The same row as a Select option and a menu item. */
+  min-block-size: calc(var(--zx-control-height) - 2px);
+  padding: var(--zx-space-1) var(--zx-space-2);
+  border-radius: var(--zx-radius-sm);
+  line-height: 1.35;
   cursor: pointer;
 }
 
@@ -165,9 +206,9 @@
   background: var(--zx-color-overlay-hover);
 }
 
+/* A chosen tag keeps its check mark; the row itself stays in the text colour. */
 .zx-tag-picker__option[aria-selected="true"] {
-  color: var(--zx-color-accent);
-  font-weight: 550;
+  color: var(--zx-color-text);
 }
 
 .zx-tag-picker__option[aria-disabled="true"] {
@@ -201,4 +242,41 @@
   color: var(--zx-color-text-muted);
   font-size: var(--zx-text-sm);
   text-align: center;
+}
+
+/*
+ * Quiet fields. Inside `[data-zx-fields="quiet"]` the tags read as the value: no border, no fill,
+ * no chevron. Hover brings the hover fill and the chevron back; focus or an open list brings back
+ * the border, the control fill and the focus ring. Disabled and read-only pickers never light up.
+ */
+[data-zx-fields="quiet"] .zx-tag-picker__control {
+  border-color: transparent;
+  background: transparent;
+}
+
+[data-zx-fields="quiet"] .zx-tag-picker__toggle {
+  opacity: 0;
+}
+
+[data-zx-fields="quiet"] .zx-tag-picker:not([data-disabled], [data-readonly]):hover .zx-tag-picker__control {
+  background: var(--zx-color-bg-hover);
+}
+
+[data-zx-fields="quiet"] .zx-tag-picker:not([data-disabled], [data-readonly]):is(:hover, [data-focus], [data-state="open"]) .zx-tag-picker__toggle {
+  opacity: 1;
+}
+
+[data-zx-fields="quiet"] .zx-tag-picker:not([data-disabled], [data-readonly]):is([data-focus], [data-state="open"]) .zx-tag-picker__control {
+  border-color: var(--zx-color-border-control);
+  background: var(--zx-color-bg-control);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-zx-fields="quiet"] .zx-tag-picker__control {
+    transition: background-color var(--zx-dur-fast) var(--zx-ease), border-color var(--zx-dur-fast) var(--zx-ease);
+  }
+
+  [data-zx-fields="quiet"] .zx-tag-picker__toggle {
+    transition: opacity var(--zx-dur-fast) var(--zx-ease);
+  }
 }

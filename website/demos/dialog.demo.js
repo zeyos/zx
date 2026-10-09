@@ -64,7 +64,8 @@ export default {
       title: 'Promise helpers',
       blurb: 'alert, confirm, and prompt replace the blocking browser primitives with awaitable '
         + 'dialogs that match the rest of the application. confirm resolves to a boolean, prompt '
-        + 'to the string or null when dismissed.',
+        + 'to the string or null when dismissed. okLabel and cancelLabel name the buttons after '
+        + 'the action instead of OK and Cancel.',
       render: ({ log }) => [
         button({
           label: 'alert',
@@ -96,10 +97,30 @@ export default {
             title: 'Name this view',
             message: 'Enter a short name.',
             value: 'Quarterly report',
-            placeholder: 'View name'
+            placeholder: 'View name',
+            okLabel: 'Save view'
           }))}`)
         })
       ]
+    },
+    {
+      title: 'Type to confirm',
+      blurb: 'For a delete that cannot be undone, confirmText asks the reader to type the name '
+        + 'first. Focus starts in the input, which is labelled "Type <name> to confirm"; the '
+        + 'confirm button, and Enter, work only once the typed text matches exactly — spaces '
+        + 'around it aside. Cancel and Escape resolve false as before.',
+      render: ({ log }) => button({
+        label: 'Delete project…',
+        kind: 'danger',
+        onclick: async () => log(`confirm → ${await Dialog.confirm({
+          title: 'Delete project?',
+          message: 'Website Redesign, its 48 tasks, and their files will be deleted for everyone. '
+            + 'This cannot be undone.',
+          confirmText: 'Website Redesign',
+          okLabel: 'Delete project',
+          danger: true
+        })}`)
+      })
     }
   ]
 };

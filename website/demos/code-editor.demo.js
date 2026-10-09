@@ -9,6 +9,7 @@ export default {
   examples: [{
     title: 'Structured text',
     blurb: 'Tab inserts two spaces and Shift+Tab outdents the current line or selected lines. '
+      + 'Escape then Tab leaves the editor, so the indentation key is never a keyboard trap. '
       + 'Language is metadata only: Zx never executes or injects the source.',
     layout: 'stack',
     width: '680px',

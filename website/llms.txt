@@ -2,8 +2,8 @@
 
 > Xenon is a dependency-free design system for browser applications; Zx is its product-agnostic
 > vanilla-JavaScript implementation. ES2022 modules, WAI-ARIA-accessible controls built on native platform features,
-> semantic `--zx-*` design tokens with light/dark and cozy/compact theming, and lifecycle-safe
-> components. Source modules run directly in the browser; a build step emits ESM, IIFE-global,
+> semantic `--zx-*` design tokens with light/dark theming and one token-driven geometry, and
+> lifecycle-safe components. Source modules run directly in the browser; a build step emits ESM, IIFE-global,
 > ZeyOS binding, and CSS bundles. Zero runtime dependencies.
 
 Instantiate every component as `new Component(target, options)`, where `target` is an Element, a
@@ -13,16 +13,18 @@ selector string, or `null` (the component creates and owns its root, retrieved v
 available as ESM named exports and as `window.zx.*`.
 
 ## Documentation site
-- [Documentation](docs.html): the single documentation surface — getting started, every component,
-  and the application layouts. Each entry shows a live demo, its complete
-  JavaScript source, and the API reference.
+- [Documentation](docs.html): the documentation surface — getting started and every component.
+  Each entry shows a live demo, its complete JavaScript source, and the API reference.
 - [Getting started](docs.html#getting-started): installation, the mental model, theming,
   accessibility, and talking to ZeyOS.
 - [Components](docs.html#components): components organized into task-based sections, with entries
   alphabetized inside each section.
-- [Layouts](docs.html#layouts): eight complete application shells — master–detail, dashboard,
-  inbox, record page, two wizards (vertical and horizontal steps), settings workspace, and a
-  schema-driven ZeyOS invoices screen.
+- [Layouts](layouts.html): the layout gallery, each layout running live with its full source.
+  Application templates — mail, an issue tracker, a knowledge base, an AI chat, an invoice editor,
+  an item and inventory record, a workflow tool, an infrastructure dashboard, and a CRM — built on
+  one shared application shell; and screen patterns — master–detail, dashboard, inbox, record page,
+  two wizards (vertical and horizontal steps), settings workspace, and a schema-driven ZeyOS
+  invoices screen. `layouts.html#<id>` opens one directly (`#crm`, `#zeyos-invoices`).
 
 ## Deeper references
 - [Agent reference](../docs/llms.md): per-component constructor options, methods, and events for
@@ -77,12 +79,14 @@ available as ESM named exports and as `window.zx.*`.
 
 ## Theming
 Load `zx.css` once and put `zx-scope` on the application root. Set `data-zx-theme`
-(`light`|`dark`|`auto`) and `data-zx-density` (`cozy`|`compact`) on any ancestor. Define a product
-theme by overriding semantic `--zx-color-*` / `--zx-control-*` tokens under
+(`light`|`dark`|`auto`) on any ancestor. There is one geometry: spacing steps are multiples of
+`--zx-space-unit` (4px), radius steps are fractions of `--zx-radius` (4px), and controls are
+`--zx-control-height` (30px) tall; override those to tighten or loosen an application. Define a
+product theme by overriding semantic `--zx-color-*` / `--zx-control-*` tokens under
 `[data-zx-theme="name"]`. Never use tier-1 palette tokens or raw colour literals in application
 CSS. The stock themes use a restrained neutral ramp with the ZeyOS green as the accent.
 Six stable accent IDs ship as `data-zx-preset` (zx, zeyos, ocean, violet, rose, slate). The theme
-studio applies complete recipes spanning accent, neutral tint, density, font, type size, radius,
+studio applies complete recipes spanning accent, neutral tint, spacing, font, type size, radius,
 control height, and CSS-first glass material, with the result exportable as CSS. Compact menus,
 pickers, tooltips, column menus, and toasts use responsive compact glass; Launcher, Modal,
 Dialog, and floating Sheets use a calmer reading panel. Both preserve scoped theme inheritance and

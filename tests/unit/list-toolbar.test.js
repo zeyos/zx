@@ -126,7 +126,7 @@ test('nothing later in the stylesheet shrinks a target below 44 px', () => {
     [...declarations.matchAll(/min-(?:block|inline)-size:\s*([^;]+)/g)]
       .map((match) => `${selector} → ${match[1].trim()}`));
   assert.deepEqual(sizes.filter((entry) => !entry.endsWith('44px')), [],
-    'density tightens a layout; it does not make a finger smaller');
+    'a tighter theme tightens a layout; it does not make a finger smaller');
 });
 
 /* ------------------------------------------------------------ the shape switch -- */

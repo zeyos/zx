@@ -37,6 +37,9 @@ const VARIANTS = new Set(['divided', 'bracket', 'line', 'segmented']);
  *   the active tab across a full-width rule; `segmented` renders a compact group that reads as one
  *   control, for a toolbar or card header.
  * @property {boolean} [keepAlive=true] Keep inactive panel elements mounted.
+ * @property {string} [label] Accessible name of the tab list — what the tabs switch between
+ *   ("Record sections"). A tab list needs one whenever the page has more than one, and screen
+ *   readers announce it on entry.
  * @property {(event: CustomEvent<{name: string, previous: string|null}>) => void} [onchange] Change callback.
  * @property {(event: CustomEvent<{name: string}>) => void} [onclose] Close callback, fired when the
  *   user dismisses a closable tab.
@@ -101,7 +104,8 @@ export class Tabbox extends Component {
       class: 'zx-tabbox__tablist',
       ref: 'tablist',
       role: 'tablist',
-      ariaOrientation: 'horizontal'
+      ariaOrientation: 'horizontal',
+      ariaLabel: this.options.label || null
     });
     const panels = h('div', {
       class: 'zx-tabbox__panels',

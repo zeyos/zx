@@ -1,5 +1,7 @@
 .zx-tree {
-  --zx-tree-indent: 18px;
+  /* One step per level: enough to read the nesting, not so much that a deep branch walks off the
+     edge of a sidebar. */
+  --zx-tree-indent: var(--zx-space-3);
   display: block;
   min-inline-size: 0;
   color: var(--zx-color-text);
@@ -10,10 +12,12 @@
   display: flex;
   align-items: center;
   gap: var(--zx-space-2);
-  min-block-size: calc(var(--zx-control-height) - 6px);
-  padding-inline: var(--zx-space-2);
+  /* The same row as a Finder column: a space-1 margin round one line of text. */
+  min-block-size: calc(var(--zx-control-height) - var(--zx-space-1));
+  padding: var(--zx-space-1) var(--zx-space-2);
   padding-inline-start: calc(var(--zx-space-2) + var(--zx-tree-level, 0) * var(--zx-tree-indent));
-  border-radius: var(--zx-radius-md);
+  border-radius: var(--zx-radius-sm);
+  line-height: 1.25;
   cursor: pointer;
 }
 
@@ -21,10 +25,18 @@
   background: var(--zx-color-bg-hover);
 }
 
+/* The selected node of a single-selection tree is where you are, not something you picked: the
+   neutral current fill, the full text colour and a heavier label. A multi-selection is a set of
+   picks and keeps the accent tint, so the two never read as the same thing. */
 .zx-tree__row[aria-selected="true"] {
+  background: var(--zx-color-bg-current);
+  color: var(--zx-color-text);
+  font-weight: var(--zx-weight-semibold);
+}
+
+.zx-tree[aria-multiselectable="true"] .zx-tree__row[aria-selected="true"] {
   background: var(--zx-color-bg-selected);
-  color: var(--zx-color-accent);
-  font-weight: 550;
+  font-weight: inherit;
 }
 
 .zx-tree__row:focus-visible {
@@ -38,7 +50,7 @@
   inline-size: 14px;
   block-size: 14px;
   flex: none;
-  color: var(--zx-color-text-muted);
+  color: var(--zx-color-text-subtle);
 }
 
 .zx-tree__row[aria-expanded="true"] .zx-tree__twisty {
@@ -60,19 +72,17 @@
   margin: 0;
 }
 
+/* Icons are quieter than labels, folders included: a branch is told apart by its glyph and its
+   twisty, not by borrowing a status colour. The current row's icon takes the text colour. */
 .zx-tree__icon {
   display: inline-grid;
   place-items: center;
   flex: none;
-  color: var(--zx-color-text-muted);
-}
-
-.zx-tree__row[data-branch] .zx-tree__icon {
-  color: var(--zx-color-warning);
+  color: var(--zx-color-text-subtle);
 }
 
 .zx-tree__row[aria-selected="true"] .zx-tree__icon {
-  color: inherit;
+  color: var(--zx-color-text);
 }
 
 .zx-tree__label {
@@ -83,11 +93,10 @@
 
 .zx-tree__badge {
   margin-inline-start: auto;
-  padding-inline: var(--zx-space-2);
-  border-radius: var(--zx-radius-full);
-  background: var(--zx-color-bg-muted);
+  padding-inline: var(--zx-space-1);
   color: var(--zx-color-text-muted);
   font-size: var(--zx-text-xs);
+  font-weight: var(--zx-weight-medium);
   font-variant-numeric: tabular-nums;
 }
 

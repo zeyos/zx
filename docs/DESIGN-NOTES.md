@@ -5,14 +5,17 @@ Internal design principles and completed follow-ups that guide future Zx work.
 ## Stable principles
 
 - **Design tokens are the theming contract.** The two-tier token model (global palette → semantic
-  `--zx-color-*` and `--zx-control-*` roles) separates structure from theme. Dark mode, density,
-  and product accents are attribute and token changes rather than component forks.
-- **Density is contextual.** `data-zx-density="cozy|compact"` lets the same component adapt to
-  spacious and information-dense interfaces.
+  `--zx-color-*` and `--zx-control-*` roles) separates structure from theme. Dark mode and product
+  accents are attribute and token changes rather than component forks.
+- **One geometry, set by tokens.** Spacing derives from
+  `--zx-space-unit`, radii from `--zx-radius`, and controls from `--zx-control-height`, so the
+  product designer — not the end user — chooses the rhythm, and a tighter region of an application
+  is a token override rather than a second mode every component has to be checked in.
 - **Accessibility starts with the interaction pattern.** Components implement native semantics or
   the relevant WAI-ARIA Authoring Practices pattern, visible focus, and reduced-motion behavior.
-- **Application content stays visually primary.** Small radii, hairline borders, limited shadows,
-  and neutral type keep component chrome quiet around dense workflows.
+- **Application content stays visually primary.** Small proportional radii (pills only where the
+  roundness is the meaning), hairline borders, limited shadows, short indents in structured
+  menus, and neutral type keep component chrome quiet around dense workflows.
 - **Composition is declarative.** The Form field registry, Table columns, shell navigation items,
   and component options turn application metadata into consistent controls without coupling Zx to
   a router, back end, or state store.

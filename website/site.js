@@ -2,10 +2,15 @@
  * Shared site chrome: theme persistence, the overlay-header scroll state, and nav highlighting.
  * Loaded as a classic script in <head> so the theme is applied before first paint.
  *
- * "The theme" here is four things, each in its own storage entry: the light/dark choice, the
- * standard preset, the density, and the custom property overrides the theme studio produced.
- * They are applied together on every page, which is what lets a reader build a theme in the
- * studio and then read the documentation in it.
+ * "The theme" here is three things, each in its own storage entry: the light/dark choice, the
+ * standard preset, and the custom property overrides the theme studio produced (spacing, radius,
+ * type, colour). They are applied together on every page, which is what lets a reader build a
+ * theme in the studio and then read the documentation in it.
+ *
+ * Motion is stored beside them: `reduced` sets `data-zx-motion="reduced"` on <html>, here, before
+ * first paint, so no page animates once before it learns the reader asked it not to. `system`
+ * leaves the attribute off and defers to the operating system — there is no value that asks for
+ * more motion than the system allows.
  *
  * The overrides come out of storage, so they are treated as untrusted: only `--zx-*` names get
  * through, and only values that cannot terminate the <style> element or start a rule of their
@@ -17,12 +22,11 @@
   const KEYS = {
     theme: 'zx-site-theme',
     preset: 'zx-site-preset',
-    // Shared with the documentation app's own density switcher, so the two never disagree.
-    density: 'zx-docs-density',
-    vars: 'zx-site-theme-vars'
+    vars: 'zx-site-theme-vars',
+    motion: 'zx-site-motion'
   };
   const THEMES = ['light', 'dark', 'auto'];
-  const DENSITIES = ['cozy', 'compact'];
+  const MOTIONS = ['system', 'reduced'];
   const root = document.documentElement;
   const preferredDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches;
 
@@ -32,8 +36,8 @@
   const state = {
     theme: readTheme(),
     preset: read(KEYS.preset) || 'zx',
-    density: DENSITIES.includes(read(KEYS.density)) ? read(KEYS.density) : 'cozy',
-    vars: readVars()
+    vars: readVars(),
+    motion: MOTIONS.includes(read(KEYS.motion)) ? read(KEYS.motion) : 'system'
   };
   applyState();
 
@@ -42,25 +46,26 @@
    * A classic-script global because this file has to run before the module graph does.
    */
   window.zxTheme = {
-    /** @returns {{theme: string, preset: string, density: string, vars: object}} */
+    /** @returns {{theme: string, preset: string, vars: object, motion: 'system'|'reduced'}} */
     get() {
       return { ...state, vars: { ...state.vars } };
     },
     /**
-     * Merges a change in, applies it, persists it, and announces it.
-     * @param {{theme?: string, preset?: string, density?: string, vars?: object}} patch
+     * Merges a change in, applies it, persists it, and announces it. Fields it does not know are
+     * ignored rather than rejected.
+     * @param {{theme?: string, preset?: string, vars?: object, motion?: 'system'|'reduced'}} patch
      * @returns {void}
      */
     set(patch) {
       if (THEMES.includes(patch.theme)) state.theme = patch.theme;
       if (typeof patch.preset === 'string') state.preset = patch.preset;
-      if (DENSITIES.includes(patch.density)) state.density = patch.density;
       if (patch.vars) state.vars = safeVars(patch.vars);
+      if (MOTIONS.includes(patch.motion)) state.motion = patch.motion;
       applyState();
       write(KEYS.theme, state.theme);
       write(KEYS.preset, state.preset);
-      write(KEYS.density, state.density);
       write(KEYS.vars, JSON.stringify(state.vars));
+      write(KEYS.motion, state.motion);
       document.dispatchEvent(new CustomEvent('zx-theme-change', { detail: window.zxTheme.get() }));
     },
     /** Returns the theme actually being rendered, resolving `auto`. @returns {'light'|'dark'} */
@@ -73,9 +78,10 @@
   /** @returns {void} */
   function applyState() {
     root.dataset.zxTheme = state.theme;
-    root.dataset.zxDensity = state.density;
     if (state.preset && state.preset !== 'zx') root.dataset.zxPreset = state.preset;
     else delete root.dataset.zxPreset;
+    if (state.motion === 'reduced') root.dataset.zxMotion = 'reduced';
+    else delete root.dataset.zxMotion;
     writeVars();
   }
 
@@ -83,7 +89,7 @@
    * Writes the overrides into a single stylesheet.
    *
    * A stylesheet rather than inline styles on <html>: inline styles are the highest-priority
-   * origin short of !important, so they would also beat the density attribute and any override a
+   * origin short of !important, so they would also beat a preset attribute and any override a
    * page sets for itself. A `:root` rule sits exactly where the stock tokens sit.
    * @returns {void}
    */
@@ -207,18 +213,20 @@
   }
 
   /**
-   * Flags one nav entry as the current page. Several entries can point at the same document with
-   * different hashes (Documentation / Components / Layouts all live in docs.html), so an exact
-   * path+hash match wins; otherwise the hash-less entry for this document does.
+   * Flags one nav entry as the current page: Documentation on docs.html, Layouts on the gallery in
+   * layouts.html, Theming on the studio. Entries may also point into a page by hash, so an exact
+   * page+hash match wins; otherwise the hash-less entry for this page does. Pages are compared
+   * without their `.html`, so a host that serves `/layouts` for `/layouts.html` still matches.
    */
   function markCurrentNavLink() {
     const links = [...document.querySelectorAll('.site-nav a[href]')]
       .filter((link) => !link.getAttribute('href').startsWith('#'));
     if (links.length === 0) return;
-    const page = window.location.pathname.split('/').pop() || 'index.html';
+    const pageName = (path) => (path.split('/').pop() || 'index').replace(/\.html$/, '');
+    const page = pageName(window.location.pathname);
     const parts = (link) => {
       const [path, hash = ''] = link.getAttribute('href').split('#');
-      return { page: path.split('/').pop() || 'index.html', hash };
+      return { page: pageName(path), hash };
     };
 
     const sync = () => {

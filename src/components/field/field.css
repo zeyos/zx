@@ -1,5 +1,8 @@
+/* Beside a taller field in a multi-column row the field's cell grows, but its label and control
+   stay at the top of it rather than spreading over the extra height. */
 .zx-field {
   display: grid;
+  align-content: start;
   gap: var(--zx-space-1);
   min-inline-size: 0;
 }
@@ -10,15 +13,24 @@
   align-items: start;
 }
 
+/* Beside its control, a label lines up with the control's first line rather than its top edge, so
+   "Status" and "In review" share a baseline — and still sits by the first row of a control that
+   grows taller. */
+.zx-field[data-layout="inline"] .zx-field__label {
+  padding-block-start: max(0px, (var(--zx-control-height) - 1lh) / 2);
+}
+
 .zx-field[data-field-type="hidden"] {
   display: none;
 }
 
+/* Labels are quieter than the values they name: the small size, a medium weight, the muted text
+   colour. The value is what a reader came for. */
 .zx-field__label {
   min-inline-size: 0;
-  color: var(--zx-color-text);
+  color: var(--zx-color-text-muted);
   font-size: var(--zx-text-sm);
-  font-weight: 600;
+  font-weight: var(--zx-weight-medium);
 }
 
 .zx-field__required,
@@ -101,17 +113,24 @@
   border-color: var(--zx-color-danger);
 }
 
-.zx-field__static,
-.zx-field__error-control {
+/* Display content is not an input, so it draws no frame and no fill. It keeps a control's height
+   and centres its first line in it, so it sits level with the fields beside it and with an inline
+   label; in a quiet form it is inset like the quiet values around it. */
+.zx-field__static {
   min-block-size: var(--zx-control-height);
-  padding: var(--zx-space-2) var(--zx-control-pad-x);
-  border: 1px solid var(--zx-color-border);
-  border-radius: var(--zx-control-radius);
-  background: var(--zx-color-bg-surface);
+  padding-block: max(0px, (var(--zx-control-height) - 1lh) / 2);
+  font-size: var(--zx-control-font-size);
+}
+
+[data-zx-fields="quiet"] .zx-field__static {
+  padding-inline: calc(var(--zx-control-pad-x) + 1px);
 }
 
 .zx-field__error-control {
-  border-color: var(--zx-color-danger);
+  min-block-size: var(--zx-control-height);
+  padding: var(--zx-space-2) var(--zx-control-pad-x);
+  border: 1px solid var(--zx-color-danger);
+  border-radius: var(--zx-control-radius);
   background: var(--zx-color-danger-bg);
   color: var(--zx-color-danger);
 }

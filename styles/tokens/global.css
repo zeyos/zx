@@ -2,8 +2,8 @@
  * Tier-1 palette and primitives.
  *
  * The neutral ramp uses Zinc-like values; the accent ramp uses an emerald progression anchored at
- * 400 to the ZeyOS brand green #21cc75. Inter and a compact radius scale support dense business
- * interfaces without coupling the token contract to another UI toolkit.
+ * 400 to the ZeyOS brand green #21cc75. Inter, one spacing unit, and small proportional radii
+ * support dense business interfaces without coupling the token contract to another UI toolkit.
  *
  * Only tier-2 semantic tokens (tokens/semantic.css, tokens/dark.css) may reference these.
  * Component CSS must never use them directly — tests/lint-tokens.js enforces that.
@@ -24,12 +24,12 @@
   --zx-gray-900: #18181b;
   --zx-gray-950: #09090b;
 
-  /* Accent — an emerald ramp with the ZeyOS brand green at 400 */
-  --zx-green-300: #5ee9b5;
-  --zx-green-400: #21cc75;
-  --zx-green-500: #009966;
-  --zx-green-600: #007a55;
-  --zx-green-700: #006045;
+  /* Brand — an emerald ramp with the ZeyOS brand green at 400. The accent, never a status. */
+  --zx-emerald-300: #5ee9b5;
+  --zx-emerald-400: #21cc75;
+  --zx-emerald-500: #009966;
+  --zx-emerald-600: #007a55;
+  --zx-emerald-700: #006045;
 
   /*
    * Accent ramp — the indirection the semantic tier reads. It defaults to the Emerald ramp
@@ -37,13 +37,21 @@
    * every semantic mapping: `tokens/themes.css` repoints these, and light, dark, and auto all
    * follow because each of them picks its own stop off the ramp.
    */
-  --zx-accent-300: var(--zx-green-300);
-  --zx-accent-400: var(--zx-green-400);
-  --zx-accent-500: var(--zx-green-500);
-  --zx-accent-600: var(--zx-green-600);
-  --zx-accent-700: var(--zx-green-700);
+  --zx-accent-300: var(--zx-emerald-300);
+  --zx-accent-400: var(--zx-emerald-400);
+  --zx-accent-500: var(--zx-emerald-500);
+  --zx-accent-600: var(--zx-emerald-600);
+  --zx-accent-700: var(--zx-emerald-700);
 
-  /* Status */
+  /*
+   * Status. Green is a yellow-green (OKLCH hue 130) so that "succeeded" never reads as the
+   * brand: the default accent sits at hue 155–165, and the two are told apart at a glance.
+   */
+  --zx-green-300: #b3e87a;
+  --zx-green-400: #90cd40;
+  --zx-green-500: #6ba211;
+  --zx-green-600: #4d7800;
+  --zx-green-700: #3d5e06;
   --zx-red-400: #ff6467;
   --zx-red-500: #e7000b;
   --zx-red-600: #c10007;
@@ -54,21 +62,67 @@
   --zx-blue-500: #2b7fff;
   --zx-blue-600: #155dfc;
 
-  --zx-space-1: 4px;
-  --zx-space-2: 8px;
-  --zx-space-3: 12px;
-  --zx-space-4: 16px;
-  --zx-space-5: 20px;
-  --zx-space-6: 24px;
-  --zx-space-7: 32px;
-  --zx-space-8: 40px;
+  /*
+   * Tone ramps — the categorical palette behind tags, chips, icon tiles, avatars, and chart
+   * series. It is deliberately neither the accent nor the status set: nine hues built on one
+   * recipe in OKLCH (300 at L 0.86, 500 at L 0.60, 700 at L 0.46, moderate chroma), so every
+   * tone carries the same visual weight and none of them shouts. The semantic tier mixes 500 into
+   * the surface for a tone's fill and takes 700 (light) or 300 (dark) for its ink.
+   */
+  --zx-tone-blue-300: #b3d4ff;
+  --zx-tone-blue-500: #3a81d7;
+  --zx-tone-blue-700: #1d589d;
+  --zx-tone-teal-300: #a8ddda;
+  --zx-tone-teal-500: #009390;
+  --zx-tone-teal-700: #006663;
+  --zx-tone-green-300: #b5deb5;
+  --zx-tone-green-500: #419547;
+  --zx-tone-green-700: #226929;
+  --zx-tone-amber-300: #eacc9b;
+  --zx-tone-amber-500: #a77600;
+  --zx-tone-amber-700: #745100;
+  --zx-tone-orange-300: #fbc3a7;
+  --zx-tone-orange-500: #c55f1d;
+  --zx-tone-orange-700: #8e3c00;
+  --zx-tone-red-300: #ffbfb8;
+  --zx-tone-red-500: #ca5551;
+  --zx-tone-red-700: #923432;
+  --zx-tone-pink-300: #f6bfd7;
+  --zx-tone-pink-500: #bc598c;
+  --zx-tone-pink-700: #873761;
+  --zx-tone-violet-300: #d4c8fe;
+  --zx-tone-violet-500: #886acf;
+  --zx-tone-violet-700: #5e4697;
+  --zx-tone-slate-300: #cad2dd;
+  --zx-tone-slate-500: #728295;
+  --zx-tone-slate-700: #4d5969;
 
-  /* Radius — a 0.45rem base with compact derived steps */
-  --zx-radius: 0.45rem;
-  --zx-radius-sm: calc(var(--zx-radius) - 4px);
-  --zx-radius-md: calc(var(--zx-radius) - 2px);
+  /*
+   * Spacing — one unit, eight steps. Every step is a multiple of `--zx-space-unit`, so an
+   * application tightens or loosens its whole rhythm with one declaration rather than eight.
+   * At the default unit the steps are 4 / 8 / 12 / 16 / 20 / 24 / 32 / 40px.
+   */
+  --zx-space-unit: 4px;
+  --zx-space-1: calc(var(--zx-space-unit) * 1);
+  --zx-space-2: calc(var(--zx-space-unit) * 2);
+  --zx-space-3: calc(var(--zx-space-unit) * 3);
+  --zx-space-4: calc(var(--zx-space-unit) * 4);
+  --zx-space-5: calc(var(--zx-space-unit) * 5);
+  --zx-space-6: calc(var(--zx-space-unit) * 6);
+  --zx-space-7: calc(var(--zx-space-unit) * 8);
+  --zx-space-8: calc(var(--zx-space-unit) * 10);
+
+  /*
+   * Radius — one base, proportional steps, so a theme that scales `--zx-radius` keeps the
+   * relationship between a menu item, a control, and the panel around them. At the default base
+   * the steps are 2 / 3 / 4 / 6px. `-full` is for shapes whose roundness is the meaning: badges,
+   * avatars, toggles, progress tracks.
+   */
+  --zx-radius: 4px;
+  --zx-radius-sm: calc(var(--zx-radius) * .5);
+  --zx-radius-md: calc(var(--zx-radius) * .75);
   --zx-radius-lg: var(--zx-radius);
-  --zx-radius-xl: calc(var(--zx-radius) + 4px);
+  --zx-radius-xl: calc(var(--zx-radius) * 1.5);
   --zx-radius-full: 999px;
 
   --zx-font-sans: Inter, "Inter Variable", ui-sans-serif, system-ui, -apple-system,
@@ -81,12 +135,52 @@
   --zx-text-lg: 16px;
   --zx-text-xl: 18px;
   --zx-text-2xl: 24px;
+  --zx-text-3xl: 30px;
+
+  /*
+   * Weight and tracking. Interface text sits at the mid weights — medium for labels and rows,
+   * semibold for headings and the current item; heavier is for titles and figures only. UI text
+   * runs slightly tight (the root sets it), titles a little tighter.
+   */
+  --zx-weight-medium: 500;
+  --zx-weight-semibold: 600;
+  --zx-tracking-tight: -0.01em;
+  --zx-tracking-title: -0.015em;
 
   --zx-shadow-1: 0 1px 2px 0 rgb(9 9 11 / 5%);
   --zx-shadow-2: 0 1px 3px 0 rgb(9 9 11 / 10%), 0 1px 2px -1px rgb(9 9 11 / 10%);
   --zx-shadow-3: 0 10px 15px -3px rgb(9 9 11 / 10%), 0 4px 6px -4px rgb(9 9 11 / 10%);
 
+  /*
+   * Motion. Two durations and three named curves: `--zx-ease` for state changes (hover, colour,
+   * a fade), `--zx-ease-spring` for things that pop in — a small overshoot of about 3%, never a
+   * bounce — and `--zx-ease-drawer` for panels that slide: a decisive ease-out that covers most of
+   * the distance at once and settles, so a drawer feels like it arrives rather than drifts.
+   */
   --zx-dur-fast: 120ms;
   --zx-dur-base: 180ms;
   --zx-ease: cubic-bezier(.2, .6, .3, 1);
+  --zx-ease-spring: cubic-bezier(.34, 1.32, .64, 1);
+  --zx-ease-drawer: cubic-bezier(.32, .72, 0, 1);
+}
+
+/*
+ * Motion as a setting. `data-zx-motion="reduced"` on any element — usually `<html>`, from an
+ * application's own preference — stops movement inside it: every duration becomes 0ms here, and
+ * `base.css` stops the CSS animations and transitions that do not read a token. The operating
+ * system's reduced-motion preference does the same for the whole page. There is deliberately no
+ * value that turns motion back on: a person who asked their system for less motion gets less,
+ * whatever an application or a region says. `src/core/motion.js` answers the same question for
+ * script (`prefersReducedMotion`, `watchMotion`).
+ */
+[data-zx-motion="reduced"] {
+  --zx-dur-fast: 0ms;
+  --zx-dur-base: 0ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --zx-dur-fast: 0ms;
+    --zx-dur-base: 0ms;
+  }
 }

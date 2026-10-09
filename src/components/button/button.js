@@ -1,5 +1,6 @@
 import { h } from '../../core/dom.js';
 import { icon as createIcon } from '../../core/icons.js';
+import { spinner } from '../loading/spinner.js';
 
 /** @typedef {{label:string,keys:string}} ButtonShortcut Visible hint and ARIA key combination; the host binds the action. */
 
@@ -10,6 +11,8 @@ import { icon as createIcon } from '../../core/icons.js';
  * @property {'default'|'primary'|'danger'|'ghost'} [kind='default'] Visual intent.
  * @property {'md'|'sm'} [size='md'] Control size.
  * @property {boolean} [disabled=false] Whether the button is disabled.
+ * @property {boolean} [busy=false] Whether the button is working on its action — see
+ *   `setButtonBusy()`.
  * @property {string} [title] Native title text.
  * @property {ButtonShortcut} [shortcut] Keyboard hint; does not register a keyboard handler.
  * @property {(event: MouseEvent) => void} [onclick] Click callback.
@@ -52,6 +55,7 @@ export function button(opts = {}) {
   if (options.shortcut) element.append(h('kbd', { class: 'zx-btn__shortcut', ariaHidden: 'true' }, options.shortcut.label));
   if (!options.label && options.title) element.setAttribute('aria-label', options.title);
   if (typeof options.onclick === 'function') element.onclick = options.onclick;
+  if (options.busy) setButtonBusy(element, true);
   return element;
 }
 
@@ -67,6 +71,40 @@ export function buttonGroup(buttons) {
   }));
   group.append(...buttons);
   return group;
+}
+
+/**
+ * Marks a button as working on its action, or done. A busy button shows a spinner before its
+ * label, announces `aria-busy`, and ignores activation — but stays focusable, unlike a disabled
+ * one, so focus does not fall to the page while the work runs and the reader hears it finish.
+ * Works on any `.zx-btn`, including one the application built itself.
+ * @param {HTMLButtonElement} element
+ * @param {boolean} busy
+ * @returns {HTMLButtonElement} The same button.
+ */
+export function setButtonBusy(element, busy) {
+  // One guard per button, installed on first use: a busy button swallows clicks — keyboard
+  // activation included — before any of the application's own listeners see them.
+  if (!element.hasAttribute('data-busy-guard')) {
+    element.setAttribute('data-busy-guard', '');
+    element.addEventListener('click', (event) => {
+      if (element.getAttribute('aria-busy') !== 'true') return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    }, { capture: true });
+  }
+  element.querySelector(':scope > .zx-btn__spinner')?.remove();
+  if (busy) {
+    element.setAttribute('aria-busy', 'true');
+    element.setAttribute('aria-disabled', 'true');
+    const ring = spinner({ size: 'sm', kind: 'current' });
+    ring.classList.add('zx-btn__spinner');
+    element.prepend(ring);
+  } else {
+    element.removeAttribute('aria-busy');
+    element.removeAttribute('aria-disabled');
+  }
+  return element;
 }
 
 /** @param {unknown} value @returns {'default'|'primary'|'danger'|'ghost'} */

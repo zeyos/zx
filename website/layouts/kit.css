@@ -1,0 +1,1208 @@
+/*
+ * The shared shell of the application layouts.
+ *
+ * One vocabulary for every application: a navigation column, an optional list column, the main
+ * pane, and an optional inspector, each topped by the same header bar. Layout-specific styles live
+ * in `<id>.layout.css` and build on these classes rather than restating them. Semantic tokens only.
+ */
+
+/* ------------------------------------------------------------------ shell -- */
+
+.shell {
+  --shell-nav-width: 248px;
+  --shell-list-width: 360px;
+  --shell-aside-width: 320px;
+  --shell-aside-wide-width: 352px;
+  --shell-header-height: calc(var(--zx-control-height) + var(--zx-space-4));
+  --shell-statusbar-height: calc(var(--zx-control-height) - var(--zx-space-1) - 2px);
+  --shell-panel-height: min(14rem, 32%);
+  /* The tone a column paints, for things that must match what is behind them: a sticky group
+     label, the ring that separates overlapping avatars. */
+  --shell-backdrop: var(--zx-color-bg-surface);
+
+  container: shell / inline-size;
+  position: relative;
+  display: flex;
+  /* clip, not hidden: content that overflows by accident can never be scrolled into view by a
+     focus() call, which would shift the whole application inside its frame. */
+  overflow: clip;
+  block-size: 100%;
+  min-block-size: 0;
+  background: var(--zx-color-bg-page);
+  color: var(--zx-color-text);
+  font-size: var(--zx-text-md);
+}
+
+.shell__nav,
+.shell__list,
+.shell__main,
+.shell__aside {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+  min-block-size: 0;
+}
+
+/* Tone separates the columns: the navigation and the inspector are chrome, one quiet step away
+   from the white canvas the work happens on. A hairline only where two tones meet. */
+.shell__nav {
+  --shell-backdrop: var(--zx-color-bg-chrome);
+
+  flex: 0 0 var(--shell-nav-width);
+  border-inline-end: 1px solid var(--zx-color-border-subtle);
+  background: var(--shell-backdrop);
+}
+
+.shell__list {
+  flex: 0 0 var(--shell-list-width);
+  border-inline-end: 1px solid var(--zx-color-border-subtle);
+  background: var(--zx-color-bg-surface);
+}
+
+.shell__main {
+  flex: 1 1 auto;
+  background: var(--zx-color-bg-surface);
+}
+
+.shell__aside {
+  --shell-backdrop: var(--zx-color-bg-chrome);
+
+  flex: 0 0 var(--shell-aside-width);
+  border-inline-start: 1px solid var(--zx-color-border-subtle);
+  background: var(--shell-backdrop);
+}
+
+/* A record's details: every property editable in place needs a little more room. */
+.shell__aside--wide {
+  flex-basis: var(--shell-aside-wide-width);
+}
+
+/* Anything hidden with the `hidden` attribute stays hidden, whatever display a layout rule gives
+   it. The doubled attribute outweighs a two-class layout selector. */
+.shell [hidden][hidden] {
+  display: none;
+}
+
+/* The scrolling region of a column. Exactly one per column, so headers and footers stay put. It is
+   a positioning context, so visually hidden text inside it can never make the page itself taller. */
+.shell__body {
+  position: relative;
+  flex: 1 1 auto;
+  overflow: auto;
+  min-block-size: 0;
+  overscroll-behavior: contain;
+}
+
+.shell__body--padded {
+  padding: var(--zx-space-5);
+}
+
+/* A scrolling pane that takes focus so the keyboard can scroll it. */
+.shell__body:focus {
+  outline: none;
+}
+
+.shell__body:focus-visible {
+  box-shadow: inset var(--zx-focus-ring);
+}
+
+/* A pane body holding a board: the columns sit on the page colour, like cards on a table. */
+.shell__body--board {
+  padding: var(--zx-space-4);
+  background: var(--zx-color-bg-page);
+}
+
+.shell__footer {
+  flex: 0 0 auto;
+  padding: var(--zx-space-3) var(--zx-space-4);
+  border-block-start: 1px solid var(--zx-color-border-subtle);
+}
+
+/* ----------------------------------------------------------------- header -- */
+
+.shell__header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--zx-space-2);
+  min-block-size: var(--shell-header-height);
+  padding-inline: var(--zx-space-4);
+  border-block-end: 1px solid var(--zx-color-border-subtle);
+}
+
+.shell__header-leading {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  min-inline-size: 0;
+}
+
+/* Leading content that is only the shell's own toggles takes no box of its own: while the toggles
+   are hidden (every column fits) nothing is left to push the title along by a gap. */
+.shell__header-leading:not(:has(> :not(.shell__nav-toggle, .shell__back, .shell__aside-toggle))) {
+  display: contents;
+}
+
+.shell__title {
+  flex: 0 1 auto;
+  overflow: hidden;
+  min-inline-size: 0;
+  margin: 0;
+  font-size: var(--zx-text-md);
+  font-weight: var(--zx-weight-semibold);
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The title of a whole page — a dashboard, a collection — outranks the cards beneath it. */
+.shell__title--page {
+  font-size: var(--zx-text-lg);
+  letter-spacing: var(--zx-tracking-tight);
+}
+
+.shell__header-actions {
+  display: flex;
+  /* It never shrinks below its buttons, which would push them back over the title: the title is
+     what gives way when a header runs short of room. */
+  flex: 1 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--zx-space-2);
+  min-inline-size: 0;
+}
+
+/* When a header runs short of room the title gives way, never a button's label. */
+.shell__header-actions > * {
+  flex-shrink: 0;
+}
+
+/* A second bar under a header: filters, view switches, display options. */
+.shell__toolbar {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zx-space-2);
+  padding: var(--zx-space-2) var(--zx-space-4);
+  border-block-end: 1px solid var(--zx-color-border-subtle);
+}
+
+.shell__spacer {
+  flex: 1 1 auto;
+}
+
+.shell__toolbar .zx-search {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+/* "Saving… → Saved" beside a header's actions. */
+.shell__header .zx-inline-loading {
+  color: var(--zx-color-text-muted);
+  white-space: nowrap;
+}
+
+/* Tabs that divide a pane: the tab row stays put and the active panel scrolls beneath it. */
+.shell__tabs,
+.shell__tabs > .zx-tabbox__panels,
+.shell__tabs > .zx-tabbox__panels > .zx-tabbox__panel:not([hidden]) {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-block-size: 0;
+}
+
+.shell__tabs > .zx-tabbox__tablist {
+  flex: 0 0 auto;
+  padding-inline: var(--zx-space-2);
+}
+
+/* A panel is focusable, so it is the scroller whenever its content is not a `.shell__body` of its
+   own: the keyboard then scrolls it as soon as the panel has focus. */
+.shell__tabs > .zx-tabbox__panels > .zx-tabbox__panel {
+  position: relative;
+  overflow: auto;
+  padding: 0;
+  overscroll-behavior: contain;
+}
+
+/* A count on a tab is quiet information, not a call to action. */
+.shell .zx-tabbox__badge {
+  min-inline-size: 0;
+  padding: 0;
+  background: none;
+  color: var(--zx-color-text-muted);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The layout root takes focus when plain content inside it is clicked, so its shortcuts keep
+   working; it is never a tab stop, so it needs no focus indicator of its own. */
+.shell:focus {
+  outline: none;
+}
+
+/* ------------------------------------------------------- navigation column -- */
+
+/* AppSidebar inside the navigation column. The column is the chrome, so the sidebar draws none of
+   its own, fills the column's width, and leaves the workspace identity to the column's header. */
+.shell__nav .zx-app-sidebar {
+  min-block-size: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.shell__nav .zx-app-sidebar__expanded {
+  /* Without its header the sidebar has two rows: the items, then the footer at the bottom. */
+  grid-template-rows: minmax(0, 1fr) auto;
+  inline-size: 100%;
+}
+
+.shell__nav .zx-app-sidebar__header {
+  display: none;
+}
+
+.shell__nav .zx-app-sidebar__nav {
+  overflow: visible;
+  padding-block: 0;
+}
+
+/* Section labels in the navigation column line up with the item icons below them. */
+.shell__nav .section-label {
+  margin-block: var(--zx-space-3) var(--zx-space-1);
+  padding-inline: calc(var(--zx-space-2) + var(--zx-space-3));
+}
+
+/* The column's one primary action, full width, with its key hint at the far end. */
+.nav-action {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--zx-space-2);
+  padding: var(--zx-space-3) var(--zx-space-2) var(--zx-space-2);
+}
+
+.nav-action > .zx-btn {
+  inline-size: 100%;
+  justify-content: flex-start;
+}
+
+.nav-action .zx-btn__shortcut {
+  margin-inline-start: auto;
+}
+
+/* A button drawn as a search field that opens the command palette. */
+.nav-search {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  inline-size: 100%;
+  min-block-size: var(--zx-control-height);
+  padding-inline: var(--zx-space-2);
+  border: 1px solid var(--zx-color-border-subtle);
+  border-radius: var(--zx-control-radius);
+  background: var(--zx-color-bg-surface);
+  color: var(--zx-color-text-muted);
+  font: inherit;
+  font-size: var(--zx-control-font-size);
+  font-weight: 400;
+  text-align: start;
+  cursor: pointer;
+}
+
+.nav-search:hover {
+  border-color: var(--zx-color-border);
+  background: var(--zx-color-bg-surface);
+  color: var(--zx-color-text);
+}
+
+.nav-search .zx-icon {
+  color: var(--zx-color-text-subtle);
+}
+
+.nav-search:focus-visible {
+  outline: none;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.nav-search__label {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The signed-in user at the foot of the column: a flat row, like the items above it. */
+.shell__footer .zx-account-menu .zx-account-menu__trigger {
+  display: grid;
+  inline-size: 100%;
+  justify-content: stretch;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.shell__footer .zx-account-menu .zx-account-menu__trigger:hover,
+.shell__footer .zx-account-menu .zx-account-menu__trigger[aria-expanded="true"] {
+  background: var(--zx-color-bg-hover);
+}
+
+.shell__nav > .shell__footer {
+  padding: var(--zx-space-2);
+}
+
+/* The workspace identity at the top of a navigation column. */
+.workspace {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  min-inline-size: 0;
+  font-weight: var(--zx-weight-semibold);
+}
+
+.workspace__mark {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  inline-size: 24px;
+  block-size: 24px;
+  border-radius: var(--zx-radius-sm);
+  background: var(--zx-color-accent);
+  color: var(--zx-color-on-accent);
+  font-size: var(--zx-text-xs);
+  font-weight: 700;
+}
+
+.workspace__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.section-label {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  min-block-size: 28px;
+  padding-inline: var(--zx-space-4);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-weight: var(--zx-weight-medium);
+}
+
+.section-label__text {
+  flex: 1 1 auto;
+}
+
+.section-label__actions {
+  display: inline-flex;
+  gap: var(--zx-space-1);
+}
+
+/* ----------------------------------------------------------------- lists -- */
+
+/* A dense, selectable row in a list column: a message, an issue, a chat, a record. Rows are
+   native buttons or links, or options inside a listbox. They sit inset from the column's edges and
+   are separated by space, not lines; the current row is a neutral fill (`aria-selected` in a
+   single-choice list, or `aria-current`) — nothing is docked to the edge. */
+.list-row {
+  display: grid;
+  gap: 2px;
+  inline-size: calc(100% - 2 * var(--zx-space-2));
+  min-block-size: auto;
+  margin: 1px var(--zx-space-2);
+  padding: var(--zx-space-2) var(--zx-space-3);
+  border: 0;
+  border-radius: var(--zx-radius-md);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  text-align: start;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.list-row:hover {
+  background: var(--zx-color-bg-hover);
+}
+
+.list-row[aria-selected="true"],
+.list-row[aria-current="true"],
+.list-row[aria-current="page"] {
+  background: var(--zx-color-bg-current);
+}
+
+.list-row:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--zx-color-ring);
+}
+
+.list-row[data-unread] .list-row__title {
+  font-weight: var(--zx-weight-semibold);
+}
+
+.list-row__top {
+  display: flex;
+  align-items: baseline;
+  gap: var(--zx-space-2);
+  min-inline-size: 0;
+}
+
+.list-row__title {
+  flex: 1 1 auto;
+  overflow: hidden;
+  min-inline-size: 0;
+  font-weight: var(--zx-weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.list-row__meta {
+  flex: 0 0 auto;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.list-row__snippet {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+/* A group heading inside a list (status groups, date buckets): a quiet label that stays at the
+   top while its group scrolls, with no band and no rule. */
+.list-group {
+  position: sticky;
+  z-index: 1;
+  inset-block-start: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  padding: var(--zx-space-3) var(--zx-space-5) var(--zx-space-1);
+  background: var(--shell-backdrop, var(--zx-color-bg-surface));
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-weight: var(--zx-weight-medium);
+}
+
+.list-group__count {
+  font-variant-numeric: tabular-nums;
+  font-weight: 400;
+}
+
+/* ------------------------------------------------------------- properties -- */
+
+.prop-list {
+  display: grid;
+  /* Labels take what they need, up to 9rem, so the values keep the room they need. */
+  grid-template-columns: fit-content(9rem) minmax(0, 1fr);
+  gap: var(--zx-space-2) var(--zx-space-3);
+  align-items: center;
+  margin: 0;
+  font-size: var(--zx-text-sm);
+}
+
+.prop-list__label {
+  overflow: hidden;
+  color: var(--zx-color-text-muted);
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prop-list__value {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zx-space-1);
+  min-inline-size: 0;
+  margin: 0;
+}
+
+/* An input on its own in a property row takes the whole width (inside a form field the inputs fill
+   their column themselves). Not scoped to the shell: dialogs and sheets render in the top layer,
+   outside it. */
+.prop-list__value > :only-child {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+/* Values that are not inputs — a badge, an avatar, a link — keep their own width. */
+.prop-list__value > :only-child:is(.zx-badge, .zx-avatar, .zx-entity-ref, .link-button, a, span) {
+  flex: 0 1 auto;
+}
+
+.prop-list__value > :is(.zx-datebox, .zx-date-range-box, .zx-number-field) {
+  display: flex;
+  inline-size: 100%;
+  min-inline-size: 0;
+}
+
+.prop-list__value :is(
+  .zx-datebox__content, .zx-datebox__control, .zx-date-range-box__content, .zx-date-range-box__control
+) {
+  display: flex;
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+.prop-list__value :is(
+  .zx-datebox__input, .zx-date-range-box__input, .zx-number-field__input
+) {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+/* A form inside a dialog, a sheet, or a tab panel: the overlay or panel is already the frame. */
+.form-sheet .zx-fieldset {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* A form that is one sheet: its fieldsets are sections of it, each titled and set off from the
+   one before by a hairline rather than boxed. */
+.form-sections .zx-form__body {
+  display: grid;
+  gap: var(--zx-space-5);
+}
+
+.form-sections .zx-fieldset + .zx-fieldset {
+  padding-block-start: var(--zx-space-5);
+  border-block-start: 1px solid var(--zx-color-border-subtle);
+  border-radius: 0;
+}
+
+.form-sections .zx-fieldset__legend {
+  float: inline-start;
+  inline-size: 100%;
+  margin-block-end: var(--zx-space-3);
+  padding: 0;
+  color: var(--zx-color-text);
+  font-size: var(--zx-text-md);
+  font-weight: var(--zx-weight-semibold);
+}
+
+.form-sections .zx-fieldset__grid {
+  clear: both;
+}
+
+/* A titled block inside an inspector or a record body, divided from the next by a hairline. */
+.panel-block {
+  display: grid;
+  gap: var(--zx-space-3);
+  padding: var(--zx-space-4);
+  border-block-end: 1px solid var(--zx-color-border-subtle);
+}
+
+.panel-block__title {
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  font-weight: var(--zx-weight-medium);
+}
+
+/* A content surface inside a pane body: a widget, a chart, a form section. On the white canvas a
+   hairline is enough; on a board or page-coloured body it lifts off the background. */
+.surface {
+  display: grid;
+  gap: var(--zx-space-3);
+  padding: var(--zx-space-4);
+  border: 1px solid var(--zx-color-border-subtle);
+  border-radius: var(--zx-radius-lg);
+  background: var(--zx-color-bg-surface);
+}
+
+.surface__title {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  margin: 0;
+  font-size: var(--zx-text-md);
+  font-weight: var(--zx-weight-semibold);
+}
+
+/* A count or note beside a surface's title. */
+.surface__meta {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  font-weight: 400;
+}
+
+/* ---------------------------------------------------------------- atoms -- */
+
+/* Text for screen readers only: a live status, a label a glyph stands in for. */
+.visually-hidden {
+  position: absolute;
+  overflow: hidden;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.meta {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+.mono {
+  font-family: var(--zx-font-mono);
+  font-size: 0.92em;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+.kbd-group {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.kbd {
+  display: inline-grid;
+  place-items: center;
+  min-inline-size: 1.6em;
+  padding: 0 0.35em;
+  border: 1px solid var(--zx-color-border-subtle);
+  border-radius: var(--zx-radius-sm);
+  background: var(--zx-color-bg-surface);
+  color: var(--zx-color-text-muted);
+  font-family: var(--zx-font-sans);
+  font-size: var(--zx-text-xs);
+  line-height: 1.5;
+}
+
+.dot {
+  display: inline-block;
+  flex: 0 0 auto;
+  inline-size: 8px;
+  block-size: 8px;
+  border-radius: var(--zx-radius-full);
+  background: var(--zx-color-text-muted);
+}
+
+.dot[data-tone="success"] { background: var(--zx-color-success); }
+.dot[data-tone="warning"] { background: var(--zx-color-warning); }
+.dot[data-tone="danger"] { background: var(--zx-color-danger); }
+.dot[data-tone="info"] { background: var(--zx-color-info); }
+.dot[data-tone="accent"] { background: var(--zx-color-accent); }
+
+/* Overlapping avatars for "who is on this". */
+.avatar-stack {
+  display: inline-flex;
+  align-items: center;
+}
+
+.avatar-stack > * + * {
+  margin-inline-start: -6px;
+}
+
+.avatar-stack > * {
+  border-radius: var(--zx-radius-full);
+  box-shadow: 0 0 0 2px var(--shell-backdrop, var(--zx-color-bg-surface));
+}
+
+/* An avatar beside a name. */
+.person {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+
+.person__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The name of the record a pane is about. */
+.record-title {
+  margin: 0;
+  font-size: var(--zx-text-2xl);
+  font-weight: 650;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+}
+
+.record-title--sm {
+  font-size: var(--zx-text-xl);
+  font-weight: var(--zx-weight-semibold);
+}
+
+/* The title of a long document: a wiki page, an article. */
+.document-title {
+  margin: 0;
+  font-size: var(--zx-text-3xl);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+/* A button that reads as a link: a record name in a row, "Show more", a person in a sentence. */
+.link-button {
+  display: inline;
+  min-block-size: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--zx-radius-sm);
+  background: none;
+  color: var(--zx-color-accent);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.link-button:hover {
+  background: none;
+  text-decoration: underline;
+}
+
+.link-button:focus-visible {
+  outline: none;
+  box-shadow: var(--zx-focus-ring);
+}
+
+/* Raised above the muted chrome-icon rule below, so a starred record reads as starred in a
+   pane header too. */
+.shell .star-toggle[aria-pressed="true"] {
+  color: var(--zx-color-warning);
+}
+
+/* Icons are outlines; a toggle that is on — a star, a thumbs-up — shows the solid form, so the
+   state reads from the shape and not from colour alone. */
+.star-toggle[aria-pressed="true"] .zx-icon,
+.icon-toggle[aria-pressed="true"] .zx-icon {
+  fill: currentColor;
+}
+
+/* The bar that floats over a list while rows are selected. */
+.bulk-bar {
+  position: absolute;
+  z-index: 2;
+  inset-block-end: var(--zx-space-5);
+  inset-inline-start: 50%;
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-1);
+  padding: var(--zx-space-1) var(--zx-space-1) var(--zx-space-1) var(--zx-space-4);
+  border: 1px solid var(--zx-color-border);
+  border-radius: var(--zx-radius-lg);
+  background: var(--zx-color-bg-raised);
+  box-shadow: var(--zx-overlay-shadow);
+  translate: -50% 0;
+}
+
+.bulk-bar__count {
+  margin-inline-end: var(--zx-space-2);
+  font-size: var(--zx-text-sm);
+  font-weight: var(--zx-weight-medium);
+  white-space: nowrap;
+}
+
+/* A radio group drawn as one segmented control: role="radiogroup" around role="radio" buttons. */
+.segmented {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 2px;
+  min-block-size: var(--zx-control-height);
+  padding: 3px;
+  border-radius: var(--zx-control-radius);
+  background: var(--zx-color-bg-muted);
+}
+
+.segmented__item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-1);
+  min-block-size: 0;
+  padding-inline: var(--zx-space-3);
+  border: 1px solid transparent;
+  border-radius: calc(var(--zx-control-radius) - 3px);
+  background: none;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  font-weight: var(--zx-weight-medium);
+  white-space: nowrap;
+}
+
+.segmented__item:hover:not([aria-checked="true"]) {
+  background: var(--zx-color-bg-hover);
+  color: var(--zx-color-text);
+}
+
+.segmented__item[aria-checked="true"] {
+  border-color: var(--zx-color-border-control);
+  background: var(--zx-color-bg-control);
+  color: var(--zx-color-text);
+}
+
+.segmented__count {
+  color: var(--zx-color-text-muted);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A toast that carries an action, such as Undo. */
+.toast-action {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zx-space-2);
+}
+
+/* A small tinted square holding an icon: the kind of thing a row or card is, readable before its
+   name. Tones come from the categorical palette, never from status or the accent. */
+.icon-tile {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  inline-size: 24px;
+  block-size: 24px;
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-tone-slate-bg);
+  color: var(--zx-color-tone-slate-fg);
+}
+
+.icon-tile[data-size="lg"] {
+  inline-size: 32px;
+  block-size: 32px;
+}
+
+.icon-tile[data-tone="blue"] { background: var(--zx-color-tone-blue-bg); color: var(--zx-color-tone-blue-fg); }
+.icon-tile[data-tone="teal"] { background: var(--zx-color-tone-teal-bg); color: var(--zx-color-tone-teal-fg); }
+.icon-tile[data-tone="green"] { background: var(--zx-color-tone-green-bg); color: var(--zx-color-tone-green-fg); }
+.icon-tile[data-tone="amber"] { background: var(--zx-color-tone-amber-bg); color: var(--zx-color-tone-amber-fg); }
+.icon-tile[data-tone="orange"] { background: var(--zx-color-tone-orange-bg); color: var(--zx-color-tone-orange-fg); }
+.icon-tile[data-tone="red"] { background: var(--zx-color-tone-red-bg); color: var(--zx-color-tone-red-fg); }
+.icon-tile[data-tone="pink"] { background: var(--zx-color-tone-pink-bg); color: var(--zx-color-tone-pink-fg); }
+.icon-tile[data-tone="violet"] { background: var(--zx-color-tone-violet-bg); color: var(--zx-color-tone-violet-fg); }
+
+/* Icons in chrome — navigation, headers, toolbars — are quieter than the words beside them. */
+.shell__header .zx-icon-btn,
+.shell__toolbar .zx-icon-btn {
+  color: var(--zx-color-text-muted);
+}
+
+/* ----------------------------------------------------------------- motion -- */
+
+/* State changes ease rather than snap — hover and current fills, the segmented choice — and the
+   selection bar rises in when it appears. Nothing moves on first paint, so a preview or a
+   screenshot is always the settled state. */
+@media (prefers-reduced-motion: no-preference) {
+  .list-row,
+  .nav-search,
+  .segmented__item,
+  .link-button {
+    transition:
+      background-color var(--zx-dur-fast) var(--zx-ease),
+      border-color var(--zx-dur-fast) var(--zx-ease),
+      color var(--zx-dur-fast) var(--zx-ease);
+  }
+
+  .bulk-bar:not([hidden]) {
+    animation: kit-rise var(--zx-dur-base) var(--zx-ease);
+  }
+}
+
+@keyframes kit-rise {
+  from {
+    opacity: 0;
+    translate: -50% var(--zx-space-2);
+  }
+}
+
+/* ---------------------------------------------------------- frame parts -- */
+
+/* A column collapsed at full width (adaptiveShell().collapse()); its toggle brings it back. */
+.shell[data-nav-collapsed] > .shell__nav,
+.shell[data-aside-collapsed] > .shell__aside {
+  display: none;
+}
+
+/* The status bar runs along the foot of the whole shell: quiet facts and a few toggles — a branch,
+   a run, the motion setting, a count. The columns stop above it. */
+.shell:has(> .shell__statusbar) {
+  padding-block-end: var(--shell-statusbar-height);
+}
+
+.shell__statusbar {
+  position: absolute;
+  z-index: 2;
+  inset-inline: 0;
+  inset-block-end: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-1);
+  block-size: var(--shell-statusbar-height);
+  padding-inline: var(--zx-space-2);
+  border-block-start: 1px solid var(--zx-color-border-subtle);
+  background: var(--zx-color-bg-chrome);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  white-space: nowrap;
+}
+
+.shell__statusbar > * {
+  flex: none;
+}
+
+.shell__status-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-1);
+  min-inline-size: 0;
+  block-size: 100%;
+  padding-inline: var(--zx-space-2);
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+}
+
+button.shell__status-item:hover {
+  background: var(--zx-color-bg-hover);
+  color: var(--zx-color-text);
+}
+
+button.shell__status-item:focus-visible {
+  outline: none;
+  box-shadow: inset var(--zx-focus-ring);
+}
+
+.shell__status-item > .zx-icon {
+  color: var(--zx-color-text-subtle);
+}
+
+/* The bottom panel of the main pane — a terminal, output, problems — under the work, at a fixed
+   share of the pane. Closed, it carries `hidden`. */
+.shell__panel {
+  display: flex;
+  flex: 0 0 var(--shell-panel-height);
+  flex-direction: column;
+  min-block-size: 0;
+  border-block-start: 1px solid var(--zx-color-border-subtle);
+  background: var(--zx-color-bg-chrome);
+}
+
+/* The keyboard reference (`shortcutSheet()`). */
+.shortcut-sheet {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  align-items: start;
+  gap: var(--zx-space-5) var(--zx-space-6);
+}
+
+.shortcut-sheet__group {
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  font-weight: var(--zx-weight-medium);
+}
+
+.shortcut-sheet__list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--zx-space-2) var(--zx-space-4);
+  margin: var(--zx-space-2) 0 0;
+}
+
+.shortcut-sheet__list > :is(dt, dd) {
+  margin: 0;
+}
+
+.shortcut-sheet__list > dd {
+  display: inline-flex;
+  align-items: center;
+  justify-self: end;
+  gap: var(--zx-space-1);
+}
+
+.shortcut-sheet__then {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+}
+
+/* ------------------------------------------------------------- responsive -- */
+
+/* The shell reflows on its own width, not the window's, so it behaves the same full-screen, in
+   a dialog, or as a thumbnail. The inspector gives way first (1180px), then the navigation column
+   (860px); each stays reachable as a drawer through `adaptiveShell()`. Below 640px a shell with a
+   list column shows the list or the main pane, never both. The widths are `SHELL_BREAKPOINTS` in
+   `kit.js`. */
+
+/* The buttons that reach a column that has given way, hidden while every column fits (scoped to
+   the shell to outrank the base icon-button display). */
+.shell .shell__nav-toggle,
+.shell .shell__back,
+.shell .shell__aside-toggle {
+  display: none;
+}
+
+/* A drawer with nothing focusable in it holds focus itself; it is a region, not a control. */
+.shell__nav:focus,
+.shell__aside:focus {
+  outline: none;
+}
+
+/* A collapsed column's toggle shows at any width, to bring it back. */
+.shell[data-nav-collapsed]:has(> .shell__nav) .shell__nav-toggle,
+.shell[data-aside-collapsed]:has(> .shell__aside:not([hidden])) .shell__aside-toggle {
+  display: inline-flex;
+}
+
+/* Behind an open drawer: the rest of the layout, dimmed and inert. */
+.shell__scrim {
+  position: absolute;
+  z-index: 30;
+  inset: 0;
+  background: var(--zx-color-overlay-backdrop);
+}
+
+@container shell (max-width: 1180px) {
+  .shell__aside:not([data-pinned]) {
+    display: none;
+  }
+
+  .shell:has(> .shell__aside:not([data-pinned], [hidden])) .shell__aside-toggle {
+    display: inline-flex;
+  }
+
+  .shell[data-aside-open] > .shell__aside:not([hidden]) {
+    position: absolute;
+    z-index: 31;
+    inset-block: 0;
+    inset-inline-end: 0;
+    display: flex;
+    inline-size: min(var(--shell-aside-width), calc(100% - var(--zx-space-8)));
+    box-shadow: var(--zx-overlay-shadow);
+  }
+
+  .shell[data-aside-open] > .shell__aside--wide:not([hidden]) {
+    inline-size: min(var(--shell-aside-wide-width), calc(100% - var(--zx-space-8)));
+  }
+}
+
+@container shell (max-width: 860px) {
+  .shell__nav {
+    display: none;
+  }
+
+  .shell__list {
+    flex-basis: 300px;
+  }
+
+  .shell:has(> .shell__nav) .shell__nav-toggle {
+    display: inline-flex;
+  }
+
+  .shell[data-nav-open] > .shell__nav {
+    position: absolute;
+    z-index: 31;
+    inset-block: 0;
+    inset-inline-start: 0;
+    display: flex;
+    inline-size: min(var(--shell-nav-width), calc(100% - var(--zx-space-8)));
+    border-inline-end: 0;
+    box-shadow: var(--zx-overlay-shadow);
+  }
+}
+
+@container shell (max-width: 640px) {
+  .shell__list {
+    flex: 1 1 auto;
+    border-inline-end: 0;
+  }
+
+  .shell:has(> .shell__list):not([data-pane="main"]) > .shell__main,
+  .shell[data-pane="main"] > .shell__list {
+    display: none;
+  }
+
+  .shell:has(> .shell__list)[data-pane="main"] .shell__back {
+    display: inline-flex;
+  }
+
+  .shell__header {
+    gap: var(--zx-space-1);
+    padding-inline: var(--zx-space-3);
+  }
+
+  .shell__toolbar {
+    padding-inline: var(--zx-space-3);
+  }
+
+  .shell__body--padded {
+    padding: var(--zx-space-4);
+  }
+
+  /* Header controls a layout marks as optional on a phone: `data-narrow="hide"` leaves, and
+     `data-narrow="icon"` keeps a labelled button's icon and moves its words out of sight but not
+     out of its accessible name. */
+  .shell [data-narrow="hide"] {
+    display: none;
+  }
+
+  .shell .zx-btn[data-narrow="icon"] > :is(.zx-btn__label, .zx-btn__shortcut) {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .shell[data-nav-open] > .shell__nav {
+    animation: kit-drawer-start var(--zx-dur-base) var(--zx-ease-drawer, var(--zx-ease));
+  }
+
+  .shell[data-aside-open] > .shell__aside {
+    animation: kit-drawer-end var(--zx-dur-base) var(--zx-ease-drawer, var(--zx-ease));
+  }
+
+  .shell__scrim {
+    animation: kit-fade var(--zx-dur-base) var(--zx-ease);
+  }
+}
+
+@keyframes kit-drawer-start {
+  from {
+    translate: -16px 0;
+    opacity: 0;
+  }
+}
+
+@keyframes kit-drawer-end {
+  from {
+    translate: 16px 0;
+    opacity: 0;
+  }
+}
+
+@keyframes kit-fade {
+  from {
+    opacity: 0;
+  }
+}

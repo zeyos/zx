@@ -17,7 +17,7 @@
   flex: none;
   min-inline-size: 0;
   flex-direction: column;
-  border-inline-end: 1px solid var(--zx-color-border);
+  border-inline-end: 1px solid var(--zx-color-border-subtle);
 }
 
 .zx-finder__list {
@@ -32,9 +32,12 @@
   display: flex;
   align-items: center;
   gap: var(--zx-space-2);
-  min-block-size: calc(var(--zx-control-height) - 6px);
-  padding-inline: var(--zx-space-2);
-  border-radius: var(--zx-radius-md);
+  /* A browsing row: a space-1 margin round one line of text, and the smallest radius, so a
+     column of them reads as a list rather than a stack of buttons. */
+  min-block-size: calc(var(--zx-control-height) - var(--zx-space-1));
+  padding: var(--zx-space-1) var(--zx-space-2);
+  border-radius: var(--zx-radius-sm);
+  line-height: 1.25;
   cursor: pointer;
 }
 
@@ -42,10 +45,12 @@
   background: var(--zx-color-bg-hover);
 }
 
+/* The selected row of each column is the path you are on, not a pick: the neutral current fill,
+   the full text colour and a heavier label. */
 .zx-finder__row[aria-selected="true"] {
-  background: var(--zx-color-bg-selected);
-  color: var(--zx-color-accent);
-  font-weight: 550;
+  background: var(--zx-color-bg-current);
+  color: var(--zx-color-text);
+  font-weight: var(--zx-weight-semibold);
 }
 
 .zx-finder__row:focus-visible {
@@ -53,19 +58,16 @@
   box-shadow: var(--zx-focus-ring);
 }
 
+/* Icons are quieter than labels, folders included; the current row's icon takes the text colour. */
 .zx-finder__icon {
   display: inline-grid;
   place-items: center;
   flex: none;
-  color: var(--zx-color-text-muted);
-}
-
-.zx-finder__row[data-branch] .zx-finder__icon {
-  color: var(--zx-color-warning);
+  color: var(--zx-color-text-subtle);
 }
 
 .zx-finder__row[aria-selected="true"] .zx-finder__icon {
-  color: inherit;
+  color: var(--zx-color-text);
 }
 
 .zx-finder__label {

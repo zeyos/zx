@@ -7,8 +7,8 @@ function fileStates() {
     { id: 'temporary', name: 'scan.tmp', size: 196204, mime: 'image/png', status: 'temporary' },
     { id: 'waiting', name: 'archive.zip', size: 5242880, mime: 'application/zip', status: 'waiting', indeterminate: true },
     { id: 'processing', name: 'invoice-import.csv', size: 72192, mime: 'text/csv', status: 'processing', progress: 68 },
-    { id: 'success', name: 'export.xlsx', size: 381952, status: 'success', progress: 100 },
-    { id: 'error', name: 'damaged-upload.bin', status: 'error', statusLabel: 'Checksum failed', progress: 43 }
+    { id: 'success', name: 'export.xlsx', size: 381952, mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', status: 'success', progress: 100 },
+    { id: 'error', name: 'damaged-upload.bin', mime: 'application/octet-stream', status: 'error', statusLabel: 'Checksum failed', progress: 43 }
   ];
 }
 
@@ -16,12 +16,14 @@ export default {
   title: 'File item',
   group: 'Data',
   api: ['FileItem'],
-  blurb: 'A durable or transient file row with MIME/size metadata, native downloads, actions, and accessible progress.',
+  blurb: 'A durable or transient file row with a readable type and size, native downloads, actions, and accessible progress.',
   examples: [
     {
       title: 'File lifecycle states',
       blurb: 'Ready, temporary, queued, processing, successful, and failed files share one stable '
-        + 'anatomy. Transport and retry behavior remain application code.',
+        + 'anatomy. The MIME type reads as PDF, Image, ZIP, or Spreadsheet — an unfamiliar one as '
+        + 'the file\'s extension — and picks the icon when the icon set has one for it. '
+        + 'Transport and retry behavior remain application code.',
       layout: 'stack',
       width: '680px',
       render: ({ cleanup, log }) => {

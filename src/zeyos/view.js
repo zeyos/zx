@@ -26,6 +26,10 @@ import { buildZeyosTableConfig } from './table.js';
  * @property {string[]} [fields] Curated ordered schema field allow-list.
  * @property {string[]} [exclude] Schema fields to omit.
  * @property {Record<string, string>} [labels] Per-field label overrides.
+ * @property {Record<string, string>} [formats] Per-field semantic format overrides, such as
+ * `{ duedate: 'date' }` for a Unix-second field that holds a calendar day.
+ * @property {string} [timeZone] IANA time zone of the ZeyOS instance; date-only fields show the
+ * calendar day their stored midnight names in it. Defaults to the runtime's own zone.
  * @property {Record<string, Partial<ViewField>>} [fieldOverrides] View descriptor overrides.
  * @property {string|((record:Record<string,unknown>)=>unknown)} [recordId='ID'] Record id accessor.
  * @property {number} [pageSize=50] Server page size.
@@ -134,6 +138,8 @@ export function buildZeyosViewConfig(client, resource, opts = {}) {
   const table = buildZeyosTableConfig(client, resource, {
     fields: requested,
     labels: opts.labels,
+    formats: opts.formats,
+    timeZone: opts.timeZone,
     rowId: opts.recordId ?? 'ID',
     sort: opts.sort ?? null
   });

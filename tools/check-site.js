@@ -4,7 +4,11 @@
  * `tools/build-site.js` rewrites the relative paths that used to escape `website/`. That rewrite
  * is mechanical, so the failure mode is silent: a page still loads, but one stylesheet, module,
  * or fetched document 404s. This check walks the output and resolves every import, `href`, `src`,
- * and `url()` against the site root, plus the demo and layout ids `docs.js` imports dynamically.
+ * and `url()` against the site root, plus the demo ids `docs.js` and the layout ids
+ * `layouts/index.js` name for dynamic import.
+ *
+ * It also holds the published site to the content rules: no private paths, no pointers into
+ * internal material, and no names of the products the layout templates took their patterns from.
  *
  * Absolute paths are skipped on purpose: the Getting started guides contain code samples with
  * paths like `/assets/zx.css`, which describe a consumer's deployment rather than this site.
@@ -105,21 +109,42 @@ for (const file of files) {
   }
 }
 
-// The documentation app imports its entries by id, which the patterns above cannot see.
+// The documentation app imports its demos by id, which the patterns above cannot see.
 const docsSource = readFileSync(join(site, 'docs.js'), 'utf8');
-for (const [listName, directory, suffix] of [
-  ['COMPONENT_IDS', 'demos', '.demo.js'],
-  ['LAYOUT_IDS', 'layouts', '.layout.js']
-]) {
-  const ids = readIdList(docsSource, listName);
-  if (ids.length === 0) problems.push(`docs.js → ${listName} is empty or unreadable`);
-  for (const id of ids) {
-    const target = join(site, directory, `${id}${suffix}`);
-    if (!existsSync(target)) problems.push(`docs.js ${listName} → ${directory}/${id}${suffix}`);
+const componentIds = readIdList(docsSource, 'COMPONENT_IDS');
+if (componentIds.length === 0) problems.push('docs.js → COMPONENT_IDS is empty or unreadable');
+for (const id of componentIds) {
+  if (!existsSync(join(site, 'demos', `${id}.demo.js`))) {
+    problems.push(`docs.js COMPONENT_IDS → demos/${id}.demo.js`);
   }
 }
 
-for (const required of ['index.html', 'docs.html', 'llms.txt', 'CNAME', 'docs/llms.md']) {
+// The gallery and the documentation search import the layouts by id from their registry. Every
+// layout needs its module and its stylesheet, which `layouts.css` imports.
+const registrySource = existsSync(join(site, 'layouts', 'index.js'))
+  ? readFileSync(join(site, 'layouts', 'index.js'), 'utf8') : '';
+for (const [listName, files] of [
+  ['TEMPLATE_IDS', ['.layout.js', '.layout.css']],
+  ['PATTERN_IDS', ['.layout.js', '.layout.css']]
+]) {
+  const ids = readIdList(registrySource, listName);
+  if (ids.length === 0) problems.push(`layouts/index.js → ${listName} is empty or unreadable`);
+  for (const id of ids) {
+    for (const suffix of files) {
+      if (!existsSync(join(site, 'layouts', `${id}${suffix}`))) {
+        problems.push(`layouts/index.js ${listName} → layouts/${id}${suffix}`);
+      }
+    }
+  }
+}
+
+// The pages and what they cannot work without — among them the standalone layout page
+// (`layout.html#<id>`), which every gallery tile and the gallery's popup link to.
+for (const required of [
+  'index.html', 'docs.html', 'layouts.html', 'layouts.js', 'layouts.css', 'layouts/kit.css',
+  'layout.html', 'layout.js', 'layout-host.js', 'llms.txt', 'CNAME',
+  'docs/llms.md'
+]) {
   if (!existsSync(join(site, required))) problems.push(`missing required file: ${required}`);
 }
 
@@ -143,7 +168,10 @@ for (const privatePath of [
   'docs/RELEASING.md',
   // Work packages are the contributor contract's planning material: binding on whoever
   // implements them, and meaningless to a consumer reading the site.
-  'specs'
+  'specs',
+  // Contributor tooling, including the layout harness and the screenshot tool.
+  'tests',
+  'tools'
 ]) {
   if (existsSync(join(site, privatePath))) problems.push(`private path published: ${privatePath}`);
 }
@@ -179,12 +207,31 @@ for (const file of files) {
   }
 }
 
+/*
+ * The application templates take their information architecture from well-known products, and
+ * the public website must never say which. Matched case-sensitively on the names as those
+ * products write them, across every published text file, the vendored bundles included.
+ */
+const REFERENCE_PRODUCTS = [
+  'Superhuman', 'linear.app', 'Docmost', 'TypingMind', 'easybill', 'ERPNext', 'Frappe',
+  'rhythms.ai', 'NetBox', 'Attio'
+];
+const TEXT = new Set(['.html', '.js', '.mjs', '.css', '.md', '.txt', '.json', '.svg', '.xml']);
+
+for (const file of files) {
+  if (!TEXT.has(extname(file).toLowerCase())) continue;
+  const text = readFileSync(file, 'utf8');
+  for (const name of REFERENCE_PRODUCTS) {
+    if (text.includes(name)) problems.push(`reference product named in published file: ${relative(site, file)} mentions ${name}`);
+  }
+}
+
 if (problems.length > 0) {
   console.error(`Broken references in the built site (${problems.length}):\n`);
   for (const problem of problems) console.error(`  - ${problem}`);
   process.exit(1);
 }
-console.log(`Site check passed (${files.length} files, no broken references or private paths).`);
+console.log(`Site check passed (${files.length} files, no broken references, private paths, or reference product names).`);
 
 /**
  * Reports whether a reference points at a file inside the site.
@@ -207,8 +254,9 @@ function isInternal(reference) {
 }
 
 /**
- * Reads a flat array of string literals assigned to a const in the documentation app.
- * @param {string} source `docs.js` contents.
+ * Reads a flat array of string literals assigned to a const: a list of ids in `docs.js` or in the
+ * layout registry.
+ * @param {string} source Module text.
  * @param {string} name Constant name.
  * @returns {string[]}
  */

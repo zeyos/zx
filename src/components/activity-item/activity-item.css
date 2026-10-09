@@ -48,7 +48,7 @@
 }
 
 .zx-activity-item__actor {
-  font-weight: 700;
+  font-weight: var(--zx-weight-semibold);
 }
 
 .zx-activity-item__title {

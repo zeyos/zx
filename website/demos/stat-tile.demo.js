@@ -32,6 +32,7 @@ const METRICS = [
   {
     label: 'Open tickets',
     value: 47,
+    caption: 'of 1,204 this quarter',
     icon: 'warning',
     kind: 'danger',
     delta: 6,
@@ -97,11 +98,23 @@ export default {
     {
       title: 'A dashboard row',
       blurb: 'Four metrics as a server would send them, each with its own label, intent colour and '
-        + 'icon. The second carries a sparkline, the fourth has not loaded yet. statTile() returns '
+        + 'icon. The second carries a sparkline, the third a caption, the fourth has not loaded yet. statTile() returns '
         + 'the component, as tooltip() does, so .toElement() gives you the node to place and '
         + 'destroy() takes it away again.',
       layout: 'stack',
       render: (context) => tileRow(...statTiles(context, METRICS))
+    },
+    {
+      title: 'A caption under the value',
+      blurb: 'caption is one muted line of context — what the number is out of, or what it counts. '
+        + 'It is read with the value in the accessible name ("Active items, 2,184 of 13,184"), and '
+        + 'tiles in a row stay the same height whether or not they carry one.',
+      layout: 'stack',
+      render: (context) => tileRow(...statTiles(context, [
+        { label: 'Active items', value: 2184, caption: 'of 13,184', icon: 'list' },
+        { label: 'Low stock', value: 37, caption: 'below reorder point', icon: 'warning', kind: 'warning', trend: WEEK },
+        { label: 'Stock value', value: 412880, format: 'currency', currency: 'EUR', locale: 'de-DE', icon: 'tag' }
+      ]))
     },
     {
       title: 'A delta is never colour alone',
@@ -135,8 +148,9 @@ export default {
     },
     {
       title: 'Intents',
-      blurb: 'kind tints the icon and the sparkline. It never touches the value, which stays at '
-        + 'full text contrast whatever intent a record carries.',
+      blurb: 'kind tints the sparkline. It never touches the value, which stays at full text '
+        + 'contrast whatever intent a record carries, and the icon stays a muted glyph rather than '
+        + 'a coloured chip.',
       layout: 'stack',
       render: (context) => tileRow(...statTiles(context, KINDS.map((kind) => ({
         label: kind, value: 128, kind, icon: 'star', trend: WEEK

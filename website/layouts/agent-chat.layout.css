@@ -1,0 +1,1346 @@
+/*
+ * Agent chat. Every selector is scoped under .agent-chat, or names one of its elements that a
+ * dialog renders outside the layout (`.agent-chat__edit`, `.agent-chat__reject`).
+ */
+
+.agent-chat {
+  --shell-nav-width: 240px;
+  --agent-chat-column: 44rem;
+  --agent-chat-indent: calc(24px + var(--zx-space-2));
+}
+
+/* -------------------------------------------------------- conversations -- */
+
+.agent-chat .agent-chat__history {
+  padding-block-end: var(--zx-space-3);
+}
+
+.agent-chat .agent-chat__group .list-group {
+  margin: 0;
+}
+
+.agent-chat .agent-chat__convs {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agent-chat .agent-chat__conv {
+  gap: var(--zx-space-1);
+}
+
+.agent-chat .agent-chat__conv .list-row__title {
+  font-size: var(--zx-text-sm);
+}
+
+/* Under the title: the state of the conversation's run, and when it last moved. */
+.agent-chat .agent-chat__conv-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-inline-size: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+}
+
+.agent-chat .agent-chat__conv-meta .zx-status-icon {
+  inline-size: 12px;
+  block-size: 12px;
+  border-width: 1.5px;
+}
+
+.agent-chat .agent-chat__conv-state {
+  overflow: hidden;
+  min-inline-size: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-chat .agent-chat__conv-time {
+  flex: none;
+  margin-inline-start: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------------ header -- */
+
+/* The run's state rides in the header only where the run column is not showing. */
+.agent-chat .agent-chat__pill {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  white-space: nowrap;
+}
+
+.agent-chat[data-aside-collapsed] .agent-chat__pill:not([hidden]) {
+  display: inline-flex;
+}
+
+/* ------------------------------------------------------------------ thread -- */
+
+.agent-chat .agent-chat__thread {
+  container: agent-chat-thread / inline-size;
+}
+
+/* One column of reading width; every turn is the same distance from the next. */
+.agent-chat .agent-chat__column {
+  display: grid;
+  gap: var(--zx-space-7);
+  inline-size: min(100%, var(--agent-chat-column));
+  margin-inline: auto;
+  padding: var(--zx-space-6) var(--zx-space-5);
+}
+
+.agent-chat .agent-chat__turn {
+  display: grid;
+  gap: var(--zx-space-2);
+  min-inline-size: 0;
+}
+
+.agent-chat .agent-chat__time {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The reader's message: a quiet filled bubble on the far side. */
+.agent-chat .agent-chat__turn[data-role="user"] {
+  justify-items: end;
+}
+
+.agent-chat .agent-chat__bubble {
+  display: grid;
+  gap: var(--zx-space-2);
+  max-inline-size: min(34rem, 88%);
+  padding: var(--zx-space-2) var(--zx-space-4);
+  border-radius: var(--zx-radius-lg);
+  background: var(--zx-color-bg-muted);
+}
+
+.agent-chat .agent-chat__bubble-text {
+  margin: 0;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.agent-chat .agent-chat__bubble .agent-chat__chips {
+  justify-content: flex-end;
+}
+
+/* The agent's turn: one byline, then everything it did, indented to the name. */
+.agent-chat .agent-chat__byline {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  font-size: var(--zx-text-sm);
+}
+
+.agent-chat .agent-chat__author {
+  font-weight: var(--zx-weight-semibold);
+}
+
+.agent-chat .agent-chat__flow {
+  display: grid;
+  gap: var(--zx-space-4);
+  min-inline-size: 0;
+  padding-inline-start: var(--agent-chat-indent);
+}
+
+.agent-chat .agent-chat__text,
+.agent-chat .agent-chat__p {
+  margin: 0;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+/* The plan: the steps the agent set itself, each with its state. */
+.agent-chat .agent-chat__plan {
+  display: grid;
+  gap: var(--zx-space-2);
+  padding: var(--zx-space-3) var(--zx-space-4);
+  border: 1px solid var(--zx-color-border-subtle);
+  border-radius: var(--zx-radius-lg);
+}
+
+.agent-chat .agent-chat__plan-title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--zx-space-2);
+  margin: 0;
+  font-size: var(--zx-text-sm);
+  font-weight: var(--zx-weight-semibold);
+}
+
+.agent-chat .agent-chat__plan-count {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.agent-chat .agent-chat__plan-steps {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agent-chat .agent-chat__plan-step {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  font-size: var(--zx-text-sm);
+}
+
+.agent-chat .agent-chat__plan-step[data-status="done"] .agent-chat__plan-label {
+  color: var(--zx-color-text-muted);
+}
+
+.agent-chat .agent-chat__plan-step:is([data-status="waiting"], [data-status="running"]) .agent-chat__plan-label {
+  font-weight: var(--zx-weight-medium);
+}
+
+.agent-chat .agent-chat__plan-note {
+  margin-inline-start: auto;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  white-space: nowrap;
+}
+
+/* Tool calls: one compact row each — state, what was done, how long — opening to the arguments
+   and the result in mono. The rows' hover fill reaches past the text, which stays in line. */
+.agent-chat .agent-chat__calls {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agent-chat .agent-chat__call-row {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  inline-size: calc(100% + 2 * var(--zx-space-2));
+  min-block-size: 30px;
+  margin-inline: calc(-1 * var(--zx-space-2));
+  padding: var(--zx-space-1) var(--zx-space-2);
+  border: 0;
+  border-radius: var(--zx-radius-md);
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: var(--zx-text-sm);
+  font-weight: 400;
+  text-align: start;
+  cursor: pointer;
+}
+
+.agent-chat .agent-chat__call-row:hover {
+  background: var(--zx-color-bg-hover);
+}
+
+.agent-chat .agent-chat__call-row:focus-visible {
+  outline: none;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.agent-chat .agent-chat__call-row > .zx-icon {
+  flex: none;
+  color: var(--zx-color-text-subtle);
+}
+
+.agent-chat .agent-chat__call-row[aria-expanded="true"] > .zx-icon {
+  rotate: 180deg;
+}
+
+.agent-chat .agent-chat__call-label {
+  flex: 1 1 auto;
+  overflow: hidden;
+  min-inline-size: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-chat .agent-chat__call-count {
+  color: var(--zx-color-text-muted);
+}
+
+.agent-chat .agent-chat__call-time {
+  flex: none;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.agent-chat .agent-chat__call-detail {
+  display: grid;
+  gap: var(--zx-space-1);
+  margin-block: var(--zx-space-1) var(--zx-space-3);
+  padding-inline-start: calc(14px + var(--zx-space-2));
+}
+
+.agent-chat .agent-chat__call-tool,
+.agent-chat .agent-chat__call-heading {
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+}
+
+.agent-chat .agent-chat__call-heading {
+  margin-block-start: var(--zx-space-1);
+  font-weight: var(--zx-weight-medium);
+}
+
+.agent-chat .agent-chat__code {
+  margin: 0;
+  padding: var(--zx-space-2) var(--zx-space-3);
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-bg-muted);
+  font-family: var(--zx-font-mono);
+  font-size: var(--zx-text-xs);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.agent-chat .agent-chat__code[data-tone="danger"] {
+  background: var(--zx-color-danger-bg);
+}
+
+/* --------------------------------------------------------------- approval -- */
+
+/* The request that holds the run. Pending, it carries the stronger frame and the actions;
+   answered, it stays as the record of what was decided. */
+.agent-chat .agent-chat__approval {
+  display: grid;
+  gap: var(--zx-space-3);
+  padding: var(--zx-space-4);
+  border: 1px solid var(--zx-color-border-subtle);
+  border-radius: var(--zx-radius-lg);
+  background: var(--zx-color-bg-surface);
+}
+
+.agent-chat .agent-chat__approval[data-state="pending"] {
+  border-color: var(--zx-color-border);
+}
+
+.agent-chat .agent-chat__approval:focus {
+  outline: none;
+}
+
+.agent-chat .agent-chat__approval:focus-visible {
+  box-shadow: var(--zx-focus-ring);
+}
+
+.agent-chat .agent-chat__approval-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--zx-space-3);
+}
+
+.agent-chat .agent-chat__approval-head > .icon-tile {
+  margin-block-start: 1px;
+}
+
+.agent-chat .agent-chat__approval-titles {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 2px;
+  min-inline-size: 0;
+}
+
+.agent-chat .agent-chat__approval-title {
+  margin: 0;
+  font-size: var(--zx-text-md);
+  font-weight: var(--zx-weight-semibold);
+  line-height: 1.4;
+}
+
+.agent-chat .agent-chat__approval-sub {
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+/* The verdict: a pill, because a state is what a pill means. */
+.agent-chat .agent-chat__verdict {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  padding: 2px var(--zx-space-2) 2px 6px;
+  border-radius: var(--zx-radius-full);
+  background: var(--zx-color-bg-muted);
+  font-size: var(--zx-text-xs);
+  font-weight: var(--zx-weight-medium);
+  white-space: nowrap;
+}
+
+.agent-chat .agent-chat__approval[data-state="pending"] .agent-chat__verdict {
+  background: var(--zx-color-warning-bg);
+}
+
+.agent-chat .agent-chat__verdict .zx-status-icon {
+  inline-size: 12px;
+  block-size: 12px;
+  border-width: 1.5px;
+}
+
+/* The recipients line up in columns across rows: one grid, each row a subgrid. */
+.agent-chat .agent-chat__recipients {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+  column-gap: var(--zx-space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agent-chat .agent-chat__recipient {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
+  padding-block: var(--zx-space-2);
+  border-block-start: 1px solid var(--zx-color-border-subtle);
+  font-size: var(--zx-text-sm);
+}
+
+.agent-chat .agent-chat__recipient:last-child {
+  border-block-end: 1px solid var(--zx-color-border-subtle);
+}
+
+.agent-chat .agent-chat__recipient-who {
+  display: grid;
+  min-inline-size: 0;
+}
+
+.agent-chat .agent-chat__recipient-name,
+.agent-chat .agent-chat__recipient-company {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-chat .agent-chat__recipient-name {
+  font-weight: var(--zx-weight-medium);
+}
+
+.agent-chat .agent-chat__recipient-company,
+.agent-chat .agent-chat__recipient-late,
+.agent-chat .agent-chat__recipient-invoice {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+}
+
+.agent-chat .agent-chat__recipient-facts {
+  display: contents;
+}
+
+.agent-chat .agent-chat__recipient-invoice {
+  font-family: var(--zx-font-mono);
+}
+
+.agent-chat .agent-chat__recipient-amount {
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+.agent-chat .agent-chat__recipient-late {
+  text-align: end;
+  white-space: nowrap;
+}
+
+.agent-chat .agent-chat__reason {
+  display: grid;
+  gap: var(--zx-space-1);
+}
+
+.agent-chat .agent-chat__reason-text {
+  margin: 0;
+  padding: var(--zx-space-2) var(--zx-space-3);
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-bg-muted);
+  font-size: var(--zx-text-sm);
+}
+
+/* The email itself, behind a disclosure. */
+.agent-chat .agent-chat__disclosure {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-1);
+  min-block-size: 24px;
+  margin-inline-start: calc(-1 * var(--zx-space-1));
+  padding: 0 var(--zx-space-2) 0 var(--zx-space-1);
+  border: 0;
+  border-radius: var(--zx-radius-sm);
+  background: none;
+  color: var(--zx-color-text-muted);
+  font: inherit;
+  font-size: var(--zx-text-sm);
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.agent-chat .agent-chat__disclosure:hover {
+  background: var(--zx-color-bg-hover);
+  color: var(--zx-color-text);
+}
+
+.agent-chat .agent-chat__disclosure:focus-visible {
+  outline: none;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.agent-chat .agent-chat__disclosure[aria-expanded="true"] > .zx-icon {
+  rotate: 90deg;
+}
+
+.agent-chat .agent-chat__email {
+  display: grid;
+  gap: var(--zx-space-2);
+  margin-block-start: var(--zx-space-2);
+  padding: var(--zx-space-3) var(--zx-space-4);
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-bg-muted);
+  font-size: var(--zx-text-sm);
+}
+
+.agent-chat .agent-chat__email-subject {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--zx-space-2);
+  margin: 0;
+  font-weight: var(--zx-weight-medium);
+}
+
+.agent-chat .agent-chat__email-label {
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-weight: 400;
+}
+
+.agent-chat .agent-chat__email-body {
+  margin: 0;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+.agent-chat .agent-chat__email-note {
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+}
+
+.agent-chat .agent-chat__approval-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zx-space-2);
+}
+
+.agent-chat .agent-chat__approval-from {
+  margin-inline-start: auto;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+}
+
+/* ----------------------------------------------------------------- answer -- */
+
+.agent-chat .agent-chat__answer {
+  display: grid;
+  gap: var(--zx-space-3);
+  min-inline-size: 0;
+}
+
+/* A citation: a small numbered tab, quieter than the sentence it supports, each one its own so
+   that 1 and 2 never read as 12. */
+.agent-chat .agent-chat__cite {
+  display: inline-block;
+  min-inline-size: 1.5em;
+  margin-inline-start: 2px;
+  padding-inline: 3px;
+  border-radius: var(--zx-radius-sm);
+  background: var(--zx-color-bg-muted);
+  color: var(--zx-color-text-muted);
+  font-size: 0.7em;
+  font-weight: var(--zx-weight-medium);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.5;
+  text-align: center;
+  vertical-align: 0.35em;
+}
+
+/* The figures the answer rests on: a frameless table, a hairline between rows. */
+/* The hairlines run the whole width: the cells are spaced by padding, not by a column gap. */
+.agent-chat .agent-chat__figures {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  margin: 0;
+  font-size: var(--zx-text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.agent-chat .agent-chat__figures > :is(dt, dd) {
+  margin: 0;
+  padding-block: 6px;
+  border-block-start: 1px solid var(--zx-color-border-subtle);
+}
+
+.agent-chat .agent-chat__figures > dd {
+  padding-inline-start: var(--zx-space-5);
+}
+
+.agent-chat .agent-chat__figures > :nth-child(-n + 3) {
+  border-block-start: 0;
+}
+
+.agent-chat .agent-chat__figure-what {
+  color: var(--zx-color-text-muted);
+  text-align: end;
+}
+
+.agent-chat .agent-chat__figure-value {
+  font-weight: var(--zx-weight-medium);
+  text-align: end;
+}
+
+.agent-chat .agent-chat__writing,
+.agent-chat .agent-chat__stopped {
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+.agent-chat .agent-chat__sources {
+  display: grid;
+  gap: var(--zx-space-2);
+}
+
+.agent-chat .agent-chat__sources-label {
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-weight: var(--zx-weight-medium);
+}
+
+.agent-chat .agent-chat__source-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zx-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agent-chat .agent-chat__source-list > li {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+
+.agent-chat .agent-chat__source {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  max-inline-size: 100%;
+  min-block-size: 28px;
+  padding: 3px var(--zx-space-3) 3px 3px;
+  border: 1px solid var(--zx-color-border-subtle);
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-bg-surface);
+  color: inherit;
+  font: inherit;
+  font-size: var(--zx-text-sm);
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.agent-chat .agent-chat__source:hover {
+  border-color: var(--zx-color-border);
+  background: var(--zx-color-bg-hover);
+}
+
+.agent-chat .agent-chat__source:focus-visible {
+  outline: none;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.agent-chat .agent-chat__source > .zx-icon,
+.agent-chat .agent-chat__run-source > .zx-icon {
+  flex: none;
+  color: var(--zx-color-text-subtle);
+}
+
+.agent-chat .agent-chat__source-n {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  min-inline-size: 20px;
+  block-size: 20px;
+  padding-inline: 4px;
+  border-radius: var(--zx-radius-sm);
+  background: var(--zx-color-bg-muted);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-weight: var(--zx-weight-medium);
+  font-variant-numeric: tabular-nums;
+}
+
+.agent-chat .agent-chat__source-label {
+  overflow: hidden;
+  min-inline-size: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* An empty conversation. */
+.agent-chat .agent-chat__welcome {
+  display: grid;
+  justify-items: center;
+  gap: var(--zx-space-2);
+  padding-block: var(--zx-space-8) var(--zx-space-4);
+  text-align: center;
+}
+
+.agent-chat .agent-chat__welcome-title {
+  margin: var(--zx-space-2) 0 0;
+  font-size: var(--zx-text-xl);
+  font-weight: 650;
+  letter-spacing: var(--zx-tracking-title);
+}
+
+.agent-chat .agent-chat__welcome-text {
+  max-inline-size: 30rem;
+  margin: 0;
+  color: var(--zx-color-text-muted);
+}
+
+.agent-chat .agent-chat__suggestions {
+  display: grid;
+  gap: var(--zx-space-2);
+  inline-size: min(100%, 26rem);
+  margin: var(--zx-space-4) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agent-chat .agent-chat__suggestion {
+  inline-size: 100%;
+  padding: var(--zx-space-2) var(--zx-space-3);
+  border: 1px solid var(--zx-color-border-subtle);
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-bg-surface);
+  font-size: var(--zx-text-sm);
+  font-weight: 400;
+  text-align: start;
+}
+
+.agent-chat .agent-chat__suggestion:hover {
+  border-color: var(--zx-color-border);
+  background: var(--zx-color-bg-hover);
+}
+
+/* ----------------------------------------------------------------- composer -- */
+
+.agent-chat .agent-chat__dock {
+  flex: none;
+  padding: 0 var(--zx-space-5) var(--zx-space-3);
+}
+
+/* A filled box on the chrome tone with no frame of its own; focus in the text rings the box. */
+.agent-chat .agent-chat__composer {
+  display: grid;
+  gap: var(--zx-space-1);
+  inline-size: min(100%, calc(var(--agent-chat-column) - 2 * var(--zx-space-5)));
+  margin-inline: auto;
+  padding: var(--zx-space-2) var(--zx-space-3);
+  border-radius: var(--zx-radius-lg);
+  background: var(--zx-color-bg-chrome);
+}
+
+.agent-chat .agent-chat__composer:has(.agent-chat__input:focus) {
+  box-shadow: var(--zx-focus-ring);
+}
+
+.agent-chat .agent-chat__composer > .agent-chat__chips {
+  padding-block-start: var(--zx-space-1);
+}
+
+.agent-chat .agent-chat__input {
+  display: block;
+  inline-size: 100%;
+  min-block-size: 0;
+  max-block-size: calc(8lh + 2 * var(--zx-space-1));
+  padding: var(--zx-space-1);
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  font-size: var(--zx-text-md);
+  line-height: 1.5;
+  resize: none;
+}
+
+.agent-chat .agent-chat__input:is(:focus, :focus-visible) {
+  outline: none;
+  box-shadow: none;
+}
+
+.agent-chat .agent-chat__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  min-inline-size: 0;
+  margin-inline-start: calc(-1 * var(--zx-space-1));
+}
+
+.agent-chat .agent-chat__bar > .zx-icon-btn:not(.agent-chat__send) > .zx-icon {
+  color: var(--zx-color-text-subtle);
+}
+
+.agent-chat .agent-chat__bar > .zx-icon-btn:not(.agent-chat__send):hover > .zx-icon {
+  color: var(--zx-color-text);
+}
+
+.agent-chat .agent-chat__hint {
+  overflow: hidden;
+  min-inline-size: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Send is a neutral square until there is something to send; then it takes the accent — unless
+   an approval is waiting, which keeps the screen's one solid accent for itself. Stop takes its
+   place while the agent works. */
+.agent-chat .agent-chat__send {
+  flex: none;
+  inline-size: 32px;
+  block-size: 32px;
+  border-radius: var(--zx-radius-lg);
+  background: var(--zx-color-bg-current);
+  color: var(--zx-color-text);
+}
+
+.agent-chat .agent-chat__send:hover {
+  background: var(--zx-color-bg-current);
+}
+
+.agent-chat .agent-chat__send[aria-disabled="true"] {
+  color: var(--zx-color-text-placeholder);
+  cursor: default;
+}
+
+.agent-chat:not([data-run="waiting"]) .agent-chat__send[data-mode="send"][aria-disabled="false"] {
+  background: var(--zx-color-accent-solid);
+  color: var(--zx-color-on-accent-solid);
+}
+
+.agent-chat:not([data-run="waiting"]) .agent-chat__send[data-mode="send"][aria-disabled="false"]:hover {
+  background: var(--zx-color-accent-solid-hover);
+}
+
+.agent-chat .agent-chat__send[data-mode="stop"] > .zx-icon {
+  fill: currentColor;
+}
+
+.agent-chat .agent-chat__send:focus-visible {
+  outline: none;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.agent-chat .agent-chat__note {
+  margin: var(--zx-space-2) 0 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  text-align: center;
+}
+
+/* Files, in a message and waiting in the composer. */
+.agent-chat .agent-chat__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zx-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agent-chat .agent-chat__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  max-inline-size: 100%;
+  min-block-size: 28px;
+  padding-inline: var(--zx-space-2);
+  border: 1px solid var(--zx-color-border-subtle);
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-bg-surface);
+  font-size: var(--zx-text-sm);
+}
+
+.agent-chat .agent-chat__chip > .zx-icon {
+  flex: none;
+  color: var(--zx-color-text-subtle);
+}
+
+.agent-chat .agent-chat__chip-name {
+  overflow: hidden;
+  min-inline-size: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-chat .agent-chat__chip-size {
+  flex: none;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+}
+
+.agent-chat .agent-chat__chip > .zx-icon-btn {
+  inline-size: 24px;
+  block-size: 24px;
+  margin-inline-end: -6px;
+}
+
+/* --------------------------------------------------------------------- run -- */
+
+.agent-chat .agent-chat__state {
+  gap: var(--zx-space-2);
+}
+
+.agent-chat .agent-chat__state-line {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  margin: 0;
+  font-size: var(--zx-text-lg);
+  font-weight: var(--zx-weight-semibold);
+  letter-spacing: var(--zx-tracking-tight);
+}
+
+.agent-chat .agent-chat__state-text {
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+.agent-chat .agent-chat__state > .zx-btn {
+  justify-self: start;
+}
+
+.agent-chat .agent-chat__state > .prop-list {
+  margin-block-start: var(--zx-space-1);
+}
+
+/* The steps done, as a thin meter. While the agent works a soft shine runs along it. */
+.agent-chat .agent-chat__meter-row {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-3);
+  margin-block: var(--zx-space-1);
+}
+
+.agent-chat .agent-chat__meter {
+  position: relative;
+  overflow: hidden;
+  flex: 1 1 auto;
+  block-size: 4px;
+  border-radius: var(--zx-radius-full);
+  background: var(--zx-color-border-subtle);
+}
+
+.agent-chat .agent-chat__meter-fill {
+  display: block;
+  block-size: 100%;
+  border-radius: inherit;
+  background: var(--zx-color-accent);
+}
+
+.agent-chat .agent-chat__meter[data-state="failed"] .agent-chat__meter-fill {
+  background: var(--zx-color-danger);
+}
+
+.agent-chat .agent-chat__meter[data-state="stopped"] .agent-chat__meter-fill {
+  background: var(--zx-color-text-muted);
+}
+
+.agent-chat .agent-chat__meter-text {
+  flex: none;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.agent-chat .agent-chat__steps,
+.agent-chat .agent-chat__run-sources,
+.agent-chat .agent-chat__scopes {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agent-chat .agent-chat__step,
+.agent-chat .agent-chat__run-source {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  inline-size: calc(100% + 2 * var(--zx-space-2));
+  min-block-size: 28px;
+  margin-inline: calc(-1 * var(--zx-space-2));
+  padding: 3px var(--zx-space-2);
+  border: 0;
+  border-radius: var(--zx-radius-md);
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: var(--zx-text-sm);
+  font-weight: 400;
+  line-height: 1.4;
+  text-align: start;
+}
+
+.agent-chat :is(button.agent-chat__step, .agent-chat__run-source) {
+  cursor: pointer;
+}
+
+.agent-chat :is(button.agent-chat__step, .agent-chat__run-source):hover {
+  background: var(--zx-color-bg-hover);
+}
+
+.agent-chat :is(button.agent-chat__step, .agent-chat__run-source):focus-visible {
+  outline: none;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.agent-chat .agent-chat__step-label {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+.agent-chat .agent-chat__step[data-status="todo"] .agent-chat__step-label {
+  color: var(--zx-color-text-muted);
+}
+
+.agent-chat .agent-chat__step-time {
+  flex: none;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.agent-chat .agent-chat__run-source .agent-chat__source-n {
+  min-inline-size: 18px;
+  block-size: 18px;
+}
+
+/* What the agent may touch: the system, then what it may do there. */
+.agent-chat .agent-chat__scope {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: var(--zx-space-2);
+  padding-block: 3px;
+  font-size: var(--zx-text-sm);
+  line-height: 1.4;
+}
+
+.agent-chat .agent-chat__scope > .zx-icon {
+  grid-row: span 2;
+  align-self: start;
+  margin-block-start: 2px;
+  color: var(--zx-color-text-subtle);
+}
+
+.agent-chat .agent-chat__scope-access {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+}
+
+.agent-chat .agent-chat__scope[data-access="none"] .agent-chat__scope-label {
+  color: var(--zx-color-text-muted);
+}
+
+/* ---------------------------------------------------------------- dialogs -- */
+
+.agent-chat__edit {
+  display: grid;
+  gap: var(--zx-space-4);
+}
+
+.agent-chat__pick {
+  display: grid;
+  gap: var(--zx-space-2);
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.agent-chat__pick-legend {
+  margin-block-end: var(--zx-space-2);
+  padding: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  font-weight: var(--zx-weight-medium);
+}
+
+.agent-chat__pick-rows {
+  display: grid;
+  gap: var(--zx-space-2);
+}
+
+.agent-chat__pick-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--zx-space-3);
+  padding: var(--zx-space-2) var(--zx-space-3);
+  border: 1px solid var(--zx-color-border-subtle);
+  border-radius: var(--zx-radius-md);
+  cursor: pointer;
+}
+
+.agent-chat__pick-row > input {
+  inline-size: 16px;
+  block-size: 16px;
+  margin: 0;
+}
+
+.agent-chat__pick-row:hover {
+  background: var(--zx-color-bg-hover);
+}
+
+.agent-chat__pick-row:has(input:checked) {
+  border-color: transparent;
+  background: var(--zx-color-bg-selected);
+}
+
+.agent-chat__pick-who {
+  display: grid;
+  min-inline-size: 0;
+}
+
+.agent-chat__pick-name {
+  font-weight: var(--zx-weight-medium);
+}
+
+.agent-chat__pick-meta {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+}
+
+.agent-chat__pick-amount {
+  font-size: var(--zx-text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.agent-chat__pick-error {
+  margin: 0;
+  color: var(--zx-color-danger);
+  font-size: var(--zx-text-sm);
+}
+
+.agent-chat__pick-error:empty {
+  display: none;
+}
+
+.agent-chat__reject {
+  display: grid;
+  gap: var(--zx-space-3);
+}
+
+.agent-chat__reject-text {
+  margin: 0;
+  color: var(--zx-color-text-muted);
+}
+
+/* ------------------------------------------------------------------ narrow -- */
+
+/* Below 1180px the run is a drawer, so its state rides in the header. */
+@container shell (max-width: 1180px) {
+  .agent-chat .agent-chat__pill:not([hidden]) {
+    display: inline-flex;
+  }
+}
+
+/* A narrow thread drops the indent under the byline, and each recipient takes two lines. */
+@container agent-chat-thread (max-width: 560px) {
+  .agent-chat .agent-chat__flow {
+    padding-inline-start: 0;
+  }
+
+  .agent-chat .agent-chat__recipients {
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: var(--zx-space-3);
+  }
+
+  .agent-chat .agent-chat__recipient > .zx-avatar {
+    grid-row: span 2;
+    align-self: start;
+  }
+
+  .agent-chat .agent-chat__recipient-facts {
+    display: flex;
+    flex-wrap: wrap;
+    grid-column: 2;
+    gap: 0 var(--zx-space-3);
+  }
+
+  .agent-chat .agent-chat__recipient-late {
+    text-align: start;
+  }
+
+  /* The title and the line under it already say where the request stands. */
+  .agent-chat .agent-chat__approval-head > .agent-chat__verdict {
+    display: none;
+  }
+
+  .agent-chat .agent-chat__approval-from {
+    flex-basis: 100%;
+    margin-inline-start: 0;
+  }
+
+  .agent-chat .agent-chat__call-label {
+    white-space: normal;
+  }
+
+  .agent-chat .agent-chat__figures {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .agent-chat .agent-chat__figure-what {
+    display: none;
+  }
+}
+
+@container shell (max-width: 640px) {
+  .agent-chat .agent-chat__pill-text {
+    position: absolute;
+    overflow: hidden;
+    inline-size: 1px;
+    block-size: 1px;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .agent-chat .agent-chat__column {
+    gap: var(--zx-space-6);
+    padding: var(--zx-space-5) var(--zx-space-4);
+  }
+
+  .agent-chat .agent-chat__dock {
+    padding-inline: var(--zx-space-3);
+  }
+
+  .agent-chat .agent-chat__approval {
+    padding: var(--zx-space-3);
+  }
+}
+
+/* A short window — a phone held sideways — keeps its height for the thread. */
+@media (max-height: 480px) {
+  .agent-chat .agent-chat__note {
+    display: none;
+  }
+
+  .agent-chat .agent-chat__dock {
+    padding-block-end: var(--zx-space-2);
+  }
+
+  .agent-chat .agent-chat__input {
+    max-block-size: calc(3lh + 2 * var(--zx-space-1));
+  }
+}
+
+/* ------------------------------------------------------------------ motion -- */
+
+/* Only what the agent is doing moves: a shine across the call that is running and the line
+   being written, a caret at the end of the answer, a shine along the meter. Under reduced motion
+   none of it runs — the words still say what is happening. */
+@media (prefers-reduced-motion: no-preference) {
+  .agent-chat .agent-chat__call[data-status="running"] .agent-chat__call-label,
+  .agent-chat .agent-chat__writing {
+    background: linear-gradient(90deg,
+      var(--zx-color-text-muted) 0%, var(--zx-color-text-muted) 40%,
+      var(--zx-color-text) 50%,
+      var(--zx-color-text-muted) 60%, var(--zx-color-text-muted) 100%) 0 0 / 300% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: agent-chat-shimmer 1.8s linear infinite;
+  }
+
+  .agent-chat .agent-chat__call[data-status="running"] .agent-chat__call-count {
+    color: inherit;
+  }
+
+  .agent-chat .agent-chat__answer[data-streaming] > .agent-chat__p:last-of-type::after {
+    content: "";
+    display: inline-block;
+    inline-size: 2px;
+    block-size: 1.15em;
+    margin-inline-start: 2px;
+    border-radius: 1px;
+    background: var(--zx-color-text);
+    vertical-align: text-bottom;
+    animation: agent-chat-caret 1s steps(2, jump-none) infinite;
+  }
+
+  .agent-chat .agent-chat__meter[data-active]::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, var(--zx-color-bg-surface), transparent);
+    opacity: 0.7;
+    translate: -100% 0;
+    animation: agent-chat-sweep 1.6s var(--zx-ease) infinite;
+  }
+
+  .agent-chat .agent-chat__call-row > .zx-icon,
+  .agent-chat .agent-chat__disclosure > .zx-icon {
+    transition: rotate var(--zx-dur-fast) var(--zx-ease);
+  }
+
+  .agent-chat .agent-chat__call-row,
+  .agent-chat .agent-chat__source,
+  .agent-chat .agent-chat__send {
+    transition: background-color var(--zx-dur-fast) var(--zx-ease);
+  }
+}
+
+@keyframes agent-chat-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+
+  to {
+    background-position: 0 0;
+  }
+}
+
+@keyframes agent-chat-caret {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes agent-chat-sweep {
+  to {
+    translate: 100% 0;
+  }
+}

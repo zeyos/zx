@@ -35,7 +35,7 @@
   padding: var(--zx-space-3) var(--zx-space-4);
   color: var(--zx-color-text);
   font: inherit;
-  font-weight: 650;
+  font-weight: var(--zx-weight-semibold);
   text-align: start;
 }
 

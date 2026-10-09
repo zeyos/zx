@@ -80,8 +80,8 @@ export class Toolbar extends Component {
   /** Inline size of the last completed measure pass; `-1` forces the next one. */
   #lastWidth = -1;
   /**
-   * Block size of the last completed measure pass. Switching density resizes the controls without
-   * changing the row width, so the height belongs in the cache key.
+   * Block size of the last completed measure pass. A theme change (control height, spacing unit)
+   * resizes the controls without changing the row width, so the height belongs in the cache key.
    */
   #lastHeight = -1;
   /** Handle of the frame a pending observer-driven measure pass is scheduled in; `0` if none. */

@@ -27,6 +27,7 @@ import {
   resolveKanbanIndicator,
   resolveKanbanProgress
 } from '../../src/components/kanban-view/kanban-card.js';
+import { AVATAR_TONES, avatarTone } from '../../src/components/avatar/avatar.js';
 import { Component } from '../../src/core/component.js';
 import { RecordView } from '../../src/components/view/record-view.js';
 
@@ -646,20 +647,39 @@ test('completion is measured against an explicit scale rather than a guessed one
 
 test('assignees accept a name, a list, or descriptors, and reject unsafe images', () => {
   assert.deepEqual(resolveKanbanAssignees('Ada Lovelace'),
-    [{ name: 'Ada Lovelace', src: null, initials: 'AL' }]);
+    [{ name: 'Ada Lovelace', src: null, initials: 'AL', tone: avatarTone('Ada Lovelace') }]);
   assert.deepEqual(resolveKanbanAssignees(['Ada Lovelace', '', null, 'Grace Hopper'])
     .map((person) => person.initials), ['AL', 'GH']);
   assert.deepEqual(resolveKanbanAssignees([{ name: 'Ada', src: 'https://example.test/a.png' }]),
-    [{ name: 'Ada', src: 'https://example.test/a.png', initials: 'A' }]);
+    [{ name: 'Ada', src: 'https://example.test/a.png', initials: 'A', tone: avatarTone('Ada') }]);
   // A script URL degrades to initials instead of reaching an img src.
   assert.deepEqual(resolveKanbanAssignees([{ name: 'Ada', src: 'javascript:alert(1)' }]),
-    [{ name: 'Ada', src: null, initials: 'A' }]);
+    [{ name: 'Ada', src: null, initials: 'A', tone: avatarTone('Ada') }]);
   assert.deepEqual(resolveKanbanAssignees([{ name: 'Ada', initials: 'ADA' }])[0].initials, 'ADA');
   assert.deepEqual(resolveKanbanAssignees(null), []);
   // A face nobody can name would render as an unidentified person in a group labelled
   // "Assigned to " — a picture without a person is worse than no picture.
   assert.deepEqual(resolveKanbanAssignees([{ src: 'https://example.test/ada.png' }]), []);
   assert.deepEqual(resolveKanbanAssignees([{ name: '   ' }]), []);
+});
+
+test('assignee faces take the tone Avatar derives from the name, or a descriptor tone', () => {
+  // The same person has the same colour on the board as in every Avatar elsewhere on the screen.
+  for (const name of ['Ada Lovelace', 'Grace Hopper', 'Jonas Weber', 'Mia Schulz']) {
+    const [person] = resolveKanbanAssignees(name);
+    assert.equal(person.tone, avatarTone(name));
+    assert.ok(AVATAR_TONES.includes(person.tone));
+    assert.notEqual(person.tone, 'slate', 'a named person never gets the neutral tone');
+  }
+  assert.equal(resolveKanbanAssignees([{ name: 'Ada', tone: 'violet' }])[0].tone, 'violet');
+  // An unknown tone name falls back to the derived one instead of reaching the markup.
+  assert.equal(resolveKanbanAssignees([{ name: 'Ada', tone: 'chartreuse' }])[0].tone, avatarTone('Ada'));
+  // The stylesheet maps every tone a face can carry onto the categorical tone roles.
+  const css = readFileSync(new URL('../../src/components/kanban-view/kanban-view.css', import.meta.url), 'utf8');
+  for (const tone of AVATAR_TONES) {
+    assert.match(css, new RegExp(`\\.zx-kanban-view__avatar\\[data-tone="${tone}"\\][^}]*--zx-color-tone-${tone}-bg`),
+      `kanban-view.css maps the ${tone} face tone`);
+  }
 });
 
 test('a blank meter label falls back to the localized default instead of naming nothing', () => {

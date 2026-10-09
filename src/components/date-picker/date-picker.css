@@ -39,7 +39,7 @@
   overflow: hidden;
   border-color: transparent;
   background: transparent;
-  font-weight: 650;
+  font-weight: var(--zx-weight-semibold);
   text-overflow: ellipsis;
   text-wrap: nowrap;
 }
@@ -47,7 +47,7 @@
 .zx-month-picker__year,
 .zx-date-picker__quick-year {
   text-align: center;
-  font-weight: 650;
+  font-weight: var(--zx-weight-semibold);
 }
 
 .zx-date-picker__grid {
@@ -62,7 +62,7 @@
   padding: 0;
   color: var(--zx-color-text-muted);
   font-size: var(--zx-text-xs);
-  font-weight: 600;
+  font-weight: var(--zx-weight-medium);
   text-align: center;
 }
 
@@ -94,7 +94,7 @@
   border-color: var(--zx-color-accent);
   background: var(--zx-color-accent);
   color: var(--zx-color-on-accent);
-  font-weight: 700;
+  font-weight: var(--zx-weight-semibold);
 }
 
 .zx-date-picker__day[aria-disabled="true"] {
@@ -166,13 +166,13 @@
 .zx-date-picker__quick-month[aria-selected="true"] {
   background: var(--zx-color-overlay-selected);
   color: var(--zx-color-accent);
-  font-weight: 700;
+  font-weight: var(--zx-weight-semibold);
 }
 
 .zx-month-picker__month[aria-selected="true"] {
   background: var(--zx-color-bg-selected);
   color: var(--zx-color-accent);
-  font-weight: 700;
+  font-weight: var(--zx-weight-semibold);
 }
 
 .zx-month-picker__month[aria-disabled="true"] {

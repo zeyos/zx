@@ -611,6 +611,11 @@ export class TreeView extends Component {
         this._expandSiblings(row);
         return;
       default:
+        // A printable key typed on a row belongs to the type-ahead: claimed, so the browser's
+        // find-as-you-type and the page's single-key shortcuts do not act on it as well. Typing
+        // into a control that `renderLabel` placed in a row stays that control's.
+        if (!isTreeTypeaheadKey(event) || isTextEntry(event.target)) return;
+        event.preventDefault();
         this._handleTypeahead(event);
     }
   }
@@ -781,4 +786,30 @@ function cloneNodes(nodes) {
 /** @param {unknown} value @returns {unknown[]} */
 function toIterable(value) {
   return Array.isArray(value) ? value : [];
+}
+
+/**
+ * Whether a key press is one the type-ahead consumes: a single printable character, not a space
+ * (Space selects), with no Ctrl, Meta, or Alt (those are shortcuts). Shift is allowed, since it
+ * only changes the letter's case.
+ * @param {{key?: string, ctrlKey?: boolean, metaKey?: boolean, altKey?: boolean}} event Key event.
+ * @returns {boolean}
+ */
+export function isTreeTypeaheadKey(event) {
+  if (!event || event.ctrlKey || event.metaKey || event.altKey) return false;
+  const key = typeof event.key === 'string' ? event.key : '';
+  // The same test the shared type-ahead applies, so a key is claimed exactly when it is used.
+  return key.length === 1 && !/\s/.test(key);
+}
+
+/** @param {EventTarget|null} target @returns {boolean} Whether typing into the target edits text. */
+function isTextEntry(target) {
+  const element = /** @type {HTMLElement|null} */ (target && /** @type {Node} */ (target).nodeType === 1
+    ? target : null);
+  if (!element) return false;
+  if (element.isContentEditable) return true;
+  if (element.localName === 'textarea' || element.localName === 'select') return true;
+  if (element.localName !== 'input') return false;
+  return !['checkbox', 'radio', 'button', 'submit', 'reset', 'image', 'range', 'color', 'file']
+    .includes(/** @type {HTMLInputElement} */ (element).type);
 }

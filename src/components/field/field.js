@@ -4,7 +4,10 @@ import { uid } from '../../core/util.js';
 
 /**
  * @typedef {Object} FieldOptions
- * @property {string|null} [id=null] Control ID and logical field identifier.
+ * @property {string|null} [id=null] DOM id of the control. Generated when omitted; a Fieldset
+ *   derives it from its `idPrefix` and the field key, so a key never becomes a DOM id by itself.
+ * @property {string|null} [name=null] Field name: the `name` of a native control and the key the
+ *   field is filed under. A Fieldset sets it to the field key; a standalone field falls back to `id`.
  * @property {string} [type='text'] Registered field type.
  * @property {string} [label=''] Visible label.
  * @property {string} [description=''] Supporting description.
@@ -28,6 +31,9 @@ import { uid } from '../../core/util.js';
  * @property {() => void} focus Focus the control.
  * @property {(disabled: boolean) => void} setDisabled Set disabled state.
  * @property {() => void} [destroy] Release adapter-owned resources.
+ * @property {Element} [labelTarget] The element the field's label, description, and validity
+ *   belong to when it is not `el` — the text input inside a composite control. Left out, a
+ *   wrapper that cannot be labelled hands them to the first unnamed form control inside it.
  */
 
 /** @typedef {(field: Field, options: Readonly<FieldOptions>) => FieldAdapter} FieldAdapterFactory */
@@ -45,6 +51,7 @@ export class Field extends Component {
   /** @type {FieldOptions & {msg: Record<string, string>}} */
   static defaults = {
     id: null,
+    name: null,
     type: 'text',
     label: '',
     description: '',
@@ -88,9 +95,10 @@ export class Field extends Component {
     return Field.#adapters.has(String(type).trim().toLowerCase());
   }
 
-  // `adapter` (FieldAdapter), `initialValue`, and `controlId` are assigned in render();
-  // declaring them as class fields would re-initialize them to undefined after the base
-  // constructor (which calls render()) returns — see AGENTS.md.
+  // `adapter` (FieldAdapter), `initialValue`, `controlId` (the control's DOM id), and `name` (the
+  // field name, '' when there is none) are assigned in render(); declaring them as class fields
+  // would re-initialize them to undefined after the base constructor (which calls render())
+  // returns — see AGENTS.md.
 
   /** @returns {HTMLElement} */
   render() {
@@ -104,7 +112,10 @@ export class Field extends Component {
     root.dataset.layout = layout;
     root.dataset.fieldType = type;
 
+    /** @type {string} The control's DOM id: `options.id`, or a generated one. */
     this.controlId = this.options.id ? String(this.options.id) : uid('zx-field');
+    /** @type {string} The field name (`options.name`, else `options.id`), '' when there is none. */
+    this.name = String(this.options.name ?? this.options.id ?? '');
     const labelId = `${this.controlId}-label`;
     const descriptionId = `${this.controlId}-description`;
     const highlightId = `${this.controlId}-highlight`;
@@ -148,9 +159,14 @@ export class Field extends Component {
 
     const control = this.adapter.el;
     if (!control.id) control.id = this.controlId;
-    label.htmlFor = control.id;
-    if (!isLabelable(control)) control.setAttribute('aria-labelledby', labelId);
-    this._baseDescribedBy = control.getAttribute('aria-describedby') ?? '';
+    // A wrapper (a `custom` adapter's box) cannot carry a name; the control inside it can.
+    const labelled = this.adapter.labelTarget
+      ?? (isLabelable(control) ? control : unnamedControlWithin(control)) ?? control;
+    this._labelled = labelled;
+    if (labelled !== control && isLabelable(labelled) && !labelled.id) labelled.id = `${this.controlId}-input`;
+    label.htmlFor = isLabelable(labelled) ? labelled.id : control.id;
+    if (!isLabelable(labelled)) labelled.setAttribute('aria-labelledby', labelId);
+    this._baseDescribedBy = labelled.getAttribute('aria-describedby') ?? '';
     controlSlot.append(control);
     this._descriptionId = String(this.options.description ?? '') ? descriptionId : '';
     this._highlightId = highlightId;
@@ -231,11 +247,11 @@ export class Field extends Component {
     this._highlight.hidden = !message;
     if (normalizedKind === 'danger' && message) {
       this._highlight.setAttribute('role', 'alert');
-      this.adapter.el.setAttribute('aria-invalid', 'true');
+      this._labelled.setAttribute('aria-invalid', 'true');
       this.emit('invalid', { message: String(message) });
     } else {
       this._highlight.removeAttribute('role');
-      this.adapter.el.removeAttribute('aria-invalid');
+      this._labelled.removeAttribute('aria-invalid');
     }
     this._syncDescription(Boolean(message));
     return this;
@@ -250,7 +266,7 @@ export class Field extends Component {
     this._highlight.textContent = '';
     this._highlight.hidden = true;
     this._highlight.removeAttribute('role');
-    this.adapter.el.removeAttribute('aria-invalid');
+    this._labelled.removeAttribute('aria-invalid');
     this._syncDescription(false);
     return this;
   }
@@ -279,8 +295,8 @@ export class Field extends Component {
   _syncDescription(highlighted = false) {
     const ids = [this._baseDescribedBy, this._descriptionId, highlighted ? this._highlightId : '']
       .flatMap((value) => value.split(/\s+/)).filter(Boolean);
-    if (ids.length) this.adapter.el.setAttribute('aria-describedby', [...new Set(ids)].join(' '));
-    else this.adapter.el.removeAttribute('aria-describedby');
+    if (ids.length) this._labelled.setAttribute('aria-describedby', [...new Set(ids)].join(' '));
+    else this._labelled.removeAttribute('aria-describedby');
   }
 
   /** @returns {void} */
@@ -400,6 +416,22 @@ function isLabelable(element) {
   return ['BUTTON', 'INPUT', 'METER', 'OUTPUT', 'PROGRESS', 'SELECT', 'TEXTAREA'].includes(element.tagName);
 }
 
+/**
+ * The first form control inside `root` that nothing names yet — no `aria-label`, no
+ * `aria-labelledby`, no `<label>` with any text — or null.
+ * @param {Element} root
+ * @returns {Element|null}
+ */
+function unnamedControlWithin(root) {
+  for (const candidate of root.querySelectorAll('input:not([type="hidden"]), select, textarea')) {
+    if (candidate.hasAttribute('aria-label') || candidate.hasAttribute('aria-labelledby')) continue;
+    const labels = [.../** @type {HTMLInputElement} */ (candidate).labels ?? []];
+    if (labels.some((label) => label.textContent?.trim())) continue;
+    return candidate;
+  }
+  return null;
+}
+
 /** @param {HTMLElement} element @param {string[]} names @returns {Map<string, string|null>} */
 function rememberAttributes(element, names) {
   return new Map(names.map((name) => [name, element.getAttribute(name)]));
@@ -413,19 +445,26 @@ function restoreAttributes(element, attributes) {
   }
 }
 
-/** @param {Readonly<FieldOptions>} options @param {Record<string, unknown>} base @returns {Record<string, unknown>} */
-function controlProps(options, base) {
+/**
+ * The properties a native control is built with: the adapter's own `base` over the caller's
+ * `props`, with the field name as the control's `name` unless `props` gives one.
+ * @param {Field} field Field the control belongs to.
+ * @param {Readonly<FieldOptions>} options Field options.
+ * @param {Record<string, unknown>} base Properties the adapter owns.
+ * @returns {Record<string, unknown>}
+ */
+function controlProps(field, options, base) {
   const props = { ...(options.props ?? {}) };
   for (const key of Object.keys(props)) {
     if (/^on[a-z]/i.test(key) || key === 'content') delete props[key];
   }
-  return { ...props, ...base };
+  return { name: field.name || undefined, ...props, ...base };
 }
 
 /** @param {'input'|'textarea'} tag @param {string} type @returns {FieldAdapterFactory} */
 function textAdapter(tag, type) {
-  return (_field, options) => {
-    const el = h(tag, controlProps(options, {
+  return (field, options) => {
+    const el = h(tag, controlProps(field, options, {
       type: tag === 'input' ? type : undefined,
       placeholder: options.placeholder,
       required: options.required,
@@ -450,7 +489,7 @@ function elementValueAdapter(el) {
 function numericAdapter(kind) {
   return (field, options) => {
     const coerce = kind === 'int' ? coerceInteger : coerceFloat;
-    const input = h('input', controlProps(options, {
+    const input = h('input', controlProps(field, options, {
       type: 'text',
       inputMode: kind === 'int' ? 'numeric' : 'decimal',
       placeholder: options.placeholder,
@@ -474,8 +513,8 @@ function numericAdapter(kind) {
 }
 
 /** @type {FieldAdapterFactory} */
-const checkboxAdapter = (_field, options) => {
-  const input = h('input', controlProps(options, {
+const checkboxAdapter = (field, options) => {
+  const input = h('input', controlProps(field, options, {
     type: 'checkbox',
     required: options.required,
     disabled: options.disabled
@@ -490,8 +529,8 @@ const checkboxAdapter = (_field, options) => {
 };
 
 /** @type {FieldAdapterFactory} */
-const selectAdapter = (_field, options) => {
-  const select = h('select', controlProps(options, {
+const selectAdapter = (field, options) => {
+  const select = h('select', controlProps(field, options, {
     required: options.required,
     disabled: options.disabled
   }));
@@ -502,12 +541,15 @@ const selectAdapter = (_field, options) => {
 };
 
 /** @type {FieldAdapterFactory} */
-const optionListAdapter = (_field, options) => {
+const optionListAdapter = (field, options) => {
   const root = h('div', {
     class: 'zx-field__option-list',
     role: 'radiogroup'
   });
-  const name = options.id ? String(options.id) : uid('zx-option-list');
+  // The radios are grouped by the control's id, not by the field key: radios outside a <form>
+  // share one group per name across the whole document, so the same fieldset mounted twice
+  // would otherwise check one copy's option by clicking the other's.
+  const name = field.controlId;
   const radios = normalizeOptions(options.options).map(([value, label], index) => {
     const input = h('input', {
       type: 'radio',
@@ -534,8 +576,8 @@ const optionListAdapter = (_field, options) => {
 };
 
 /** @type {FieldAdapterFactory} */
-const htmlAdapter = (_field, options) => {
-  const el = h('div', controlProps(options, { class: 'zx-field__static' }));
+const htmlAdapter = (field, options) => {
+  const el = h('div', controlProps(field, options, { class: 'zx-field__static', name: undefined }));
   let adopted = null;
   const set = (value) => {
     restoreAdopted(adopted);

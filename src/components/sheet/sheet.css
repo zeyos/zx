@@ -57,8 +57,8 @@
   inset-block-start: 0;
   inset-block-end: auto;
   border-block-end: 1px solid var(--zx-color-overlay-border);
-  border-end-start-radius: var(--zx-sheet-radius, var(--zx-radius-xl));
-  border-end-end-radius: var(--zx-sheet-radius, var(--zx-radius-xl));
+  border-end-start-radius: var(--zx-sheet-radius, var(--zx-radius-lg));
+  border-end-end-radius: var(--zx-sheet-radius, var(--zx-radius-lg));
   --zx-sheet-enter: 0 -100%;
 }
 
@@ -66,8 +66,8 @@
   inset-block-start: auto;
   inset-block-end: 0;
   border-block-start: 1px solid var(--zx-color-overlay-border);
-  border-start-start-radius: var(--zx-sheet-radius, var(--zx-radius-xl));
-  border-start-end-radius: var(--zx-sheet-radius, var(--zx-radius-xl));
+  border-start-start-radius: var(--zx-sheet-radius, var(--zx-radius-lg));
+  border-start-end-radius: var(--zx-sheet-radius, var(--zx-radius-lg));
   --zx-sheet-enter: 0 100%;
 }
 
@@ -105,11 +105,14 @@
  * `display: none` immediately — so `display` and `overlay` transition with `allow-discrete`, which
  * defers the discrete jump until the rest of the transition has finished. `@starting-style` gives
  * the entry its from-state. Where either is unsupported the sheet simply appears and disappears.
+ *
+ * The slide runs on the drawer curve — most of the distance at once, then a settle — while the
+ * fade keeps the ordinary ease, so the panel arrives decisively without flashing in.
  */
 @media (prefers-reduced-motion: no-preference) {
   .zx-sheet {
     transition:
-      translate var(--zx-dur-base) var(--zx-ease),
+      translate var(--zx-dur-base) var(--zx-ease-drawer),
       opacity var(--zx-dur-base) var(--zx-ease),
       display var(--zx-dur-base) allow-discrete,
       overlay var(--zx-dur-base) allow-discrete;
@@ -193,7 +196,7 @@
 @media (prefers-reduced-motion: no-preference) {
   .zx-sheet[data-docked] {
     transition:
-      flex-basis var(--zx-dur-base) var(--zx-ease),
+      flex-basis var(--zx-dur-base) var(--zx-ease-drawer),
       opacity var(--zx-dur-base) var(--zx-ease),
       display var(--zx-dur-base) allow-discrete,
       overlay var(--zx-dur-base) allow-discrete;
@@ -363,8 +366,8 @@
 @media (prefers-reduced-motion: no-preference) {
   .zx-sheet[data-stack] {
     transition:
-      transform var(--zx-dur-base) var(--zx-ease),
-      translate var(--zx-dur-base) var(--zx-ease),
+      transform var(--zx-dur-base) var(--zx-ease-drawer),
+      translate var(--zx-dur-base) var(--zx-ease-drawer),
       opacity var(--zx-dur-base) var(--zx-ease),
       display var(--zx-dur-base) allow-discrete,
       overlay var(--zx-dur-base) allow-discrete;

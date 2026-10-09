@@ -1,5 +1,5 @@
 import {
-  Search, Toggle, button, getIconConfig, h, icon, iconNames, useBuiltinIcons, useFontAwesome
+  Search, Toggle, button, getIconConfig, h, icon, icons, useBuiltinIcons, useFontAwesome
 } from '../../src/index.js';
 import {
   ZEYOS_ICON_KIT, moduleChip, moduleInfo, moduleKeys, useZeyosIcons
@@ -22,7 +22,7 @@ export default {
   title: 'Icons',
   group: 'Core',
   demoTitle: 'Icon gallery',
-  blurb: 'One icon() call, two renderers: the inline SVG glyphs Zx bundles, or Font Awesome once '
+  blurb: 'One icon() call, two renderers: the outline SVG glyphs Zx bundles, or Font Awesome once '
     + 'an application loads a kit. Plus the ZeyOS module icons and the colour each module is '
     + 'drawn in.',
 
@@ -199,24 +199,61 @@ function moduleSection() {
 
 /* ------------------------------------------------------------ bundled glyphs -- */
 
+/** Sizes the bundled outlines are shown at: the stroke keeps its weight down to a 1px line. */
+const SIZES = [12, 14, 16, 20, 24];
+
 /** @returns {HTMLElement} */
 function builtinSection() {
+  const names = Object.keys(icons).sort();
   const grid = h('div', { style: {
     display: 'grid', gap: 'var(--zx-space-3)',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(9rem, 1fr))'
-  } }, iconNames().map((name) => h('div', { style: {
-    display: 'flex', alignItems: 'center', gap: 'var(--zx-space-2)',
-    color: 'var(--zx-color-text-muted)', fontSize: 'var(--zx-text-xs)'
+    gridTemplateColumns: 'repeat(auto-fill, minmax(10rem, 1fr))'
+  } }, names.map((name) => h('div', { style: {
+    display: 'flex', alignItems: 'center', gap: 'var(--zx-space-3)',
+    fontSize: 'var(--zx-text-sm)'
   } },
-  icon(`builtin:${name}`, { size: 18 }),
-  h('code', null, name))));
+  icon(`builtin:${name}`, { size: 20 }),
+  h('code', { style: { color: 'var(--zx-color-text-muted)' } }, name))));
+
+  const sizes = h('div', { style: {
+    display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 'var(--zx-space-5)'
+  } }, SIZES.map((size) => h('span', { style: {
+    display: 'inline-flex', alignItems: 'center', gap: 'var(--zx-space-2)',
+    fontSize: 'var(--zx-text-sm)'
+  } },
+  ...['search', 'calendar', 'gear', 'check'].map((name) => icon(`builtin:${name}`, { size })),
+  h('span', { style: { color: 'var(--zx-color-text-muted)' } }, `${size}px`))));
+
+  const solid = icon('builtin:star', { size: 20 });
+  solid.style.fill = 'currentColor';
+  const states = row(
+    h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: 'var(--zx-space-2)' } },
+      icon('builtin:star', { size: 20 }), 'Outline'),
+    h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: 'var(--zx-space-2)' } },
+      solid, 'fill: currentColor')
+  );
 
   return section('The bundled set',
-    note(`The ${iconNames().length} inline SVG glyphs Zx ships, from Font Awesome Free 6 solid. `
-      + 'They cover what the components need, carry no webfont or stylesheet, and stay available '
-      + 'after Font Awesome is switched on — prefix a name with builtin: to force one. Add your '
-      + 'own with registerIcons({ name: [viewBox, path] }).'),
-    grid
+    note(`The ${names.length} outline glyphs Zx ships, drawn from Lucide (ISC licence) on a 24-unit `
+      + 'grid: currentColor strokes 1.75 units wide with round caps and joins — about 1.2px at '
+      + 'the default 16px, never thinner than a pixel. They cover what the components need, carry '
+      + 'no webfont or stylesheet, and stay available after Font Awesome is switched on — prefix a '
+      + 'name with builtin: to force one.'),
+    grid,
+    sizes,
+    note('Add your own with registerIcons(). A [viewBox, path] pair is a filled shape — the form '
+      + 'Font Awesome path data comes in. A [viewBox, path, \'stroke\'] triple is an outline drawn '
+      + 'with the same pen as the bundled set; an icon from Lucide drops in unchanged.'),
+    code('registerIcons({\n'
+      + '  // A filled shape, such as a Font Awesome path\n'
+      + "  rocket: ['0 0 512 512', 'M156.6 384.9…'],\n"
+      + '  // An outline drawn with the bundled pen, such as a Lucide icon\n'
+      + "  anchor: ['0 0 24 24', 'M12 6v16M19 13l2-1a9 9 0 0 1-18 0l2 1M9 11h6"
+      + "M10 4a2 2 0 1 0 4 0a2 2 0 1 0-4 0z', 'stroke']\n"
+      + '});'),
+    note('Paint is set on the <svg> itself, so CSS restyles it: fill: currentColor turns an '
+      + 'outline into its solid form, the usual way to show a state such as a set star.'),
+    states
   );
 }
 

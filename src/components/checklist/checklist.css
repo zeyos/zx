@@ -7,7 +7,9 @@
 }
 
 .zx-checklist__label {
-  font-weight: 650;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  font-weight: var(--zx-weight-medium);
 }
 
 .zx-checklist__search {
@@ -31,10 +33,12 @@
   display: flex;
   align-items: center;
   gap: var(--zx-space-2);
-  min-block-size: var(--zx-control-height);
+  /* The same row as a listbox option. */
+  min-block-size: calc(var(--zx-control-height) - 2px);
   border-radius: var(--zx-radius-sm);
   cursor: pointer;
   padding: var(--zx-space-1) var(--zx-space-2);
+  line-height: 1.35;
 }
 
 .zx-checklist__item:hover {
@@ -45,8 +49,11 @@
   background: var(--zx-color-bg-selected);
 }
 
+/* The base control height is for text fields; a checkbox that inherited it would make every row
+   a field tall. */
 .zx-checklist__item input {
   flex: none;
+  min-block-size: 0;
   accent-color: var(--zx-color-accent);
 }
 

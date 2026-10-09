@@ -75,3 +75,73 @@
   border-end-end-radius: var(--zx-control-radius);
   border-inline-start: 1px solid var(--zx-color-border-control);
 }
+
+/* In a Field the control fills its column, as a text input does, and gives way in a narrow one. */
+.zx-field__control > .zx-number-field {
+  display: flex;
+  inline-size: 100%;
+}
+
+.zx-field__control > .zx-number-field .zx-number-field__input {
+  min-inline-size: 0;
+}
+
+/*
+ * Quiet fields. Inside `[data-zx-fields="quiet"]` the number reads as text: no border, no fill,
+ * and the value at the start, where the text of the quiet fields around it starts. The steppers
+ * move after it, both at the trailing end, and stay hidden until hover or focus — kept in the
+ * layout, so nothing moves when they return. Focus brings back the border, the control fill and
+ * the focus ring. Disabled and read-only fields never light up.
+ */
+[data-zx-fields="quiet"] .zx-number-field {
+  border-color: transparent;
+  background: transparent;
+}
+
+[data-zx-fields="quiet"] .zx-number-field__input {
+  padding-inline-start: var(--zx-control-pad-x);
+  text-align: start;
+}
+
+[data-zx-fields="quiet"] .zx-number-field__step {
+  border-color: transparent;
+  opacity: 0;
+}
+
+[data-zx-fields="quiet"] .zx-number-field__step[data-step="down"] {
+  order: 1;
+  border-inline-end: 0;
+  border-inline-start: 1px solid transparent;
+  border-radius: 0;
+}
+
+[data-zx-fields="quiet"] .zx-number-field__step[data-step="up"] {
+  order: 2;
+}
+
+[data-zx-fields="quiet"] .zx-number-field:not([data-disabled], [data-readonly]):hover {
+  background: var(--zx-color-bg-hover);
+}
+
+[data-zx-fields="quiet"] .zx-number-field:not([data-disabled], [data-readonly]):is(:hover, :focus-within) .zx-number-field__step {
+  opacity: 1;
+}
+
+[data-zx-fields="quiet"] .zx-number-field:not([data-disabled], [data-readonly]):focus-within {
+  border-color: var(--zx-color-border-control);
+  background: var(--zx-color-bg-control);
+}
+
+[data-zx-fields="quiet"] .zx-number-field:not([data-disabled], [data-readonly]):focus-within .zx-number-field__step {
+  border-color: var(--zx-color-border-control);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-zx-fields="quiet"] .zx-number-field {
+    transition: background-color var(--zx-dur-fast) var(--zx-ease), border-color var(--zx-dur-fast) var(--zx-ease);
+  }
+
+  [data-zx-fields="quiet"] .zx-number-field__step {
+    transition: opacity var(--zx-dur-fast) var(--zx-ease), border-color var(--zx-dur-fast) var(--zx-ease);
+  }
+}

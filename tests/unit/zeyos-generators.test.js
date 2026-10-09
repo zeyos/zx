@@ -65,7 +65,67 @@ test('buildZeyosTableConfig assembles typed transaction columns and joined entit
   assert.notEqual(columns.date.render(row), String(row.date));
   assert.match(columns.netamount.render(row), /1.*234/);
   assert.match(columns.netamount.render(row), /€|EUR/);
-  assert.equal(columns.status.render(row), 'PAID');
+  assert.equal(columns.status.render(row), 'Paid');
+});
+
+test('buildZeyosTableConfig shows date-only columns as calendar days in the instance zone', () => {
+  const config = buildZeyosTableConfig(fakeClient(), 'transactions', {
+    fields: ['date', 'duedate'],
+    timeZone: 'UTC'
+  });
+  const [date, duedate] = config.columns;
+  const day = (month, dayOfMonth) => new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeZone: 'UTC' })
+    .format(new Date(Date.UTC(2026, month, dayOfMonth)));
+  // Midnight UTC of 20 July and of 19 August 2026: no time, and no hour that moves with summer time.
+  assert.equal(date.render({ date: 1_784_505_600 }), day(6, 20));
+  assert.equal(duedate.render({ duedate: 1_787_097_600 }), day(7, 19));
+  assert.ok(config.fieldMeta.every((meta) => meta.timeZone === 'UTC'));
+});
+
+test('buildZeyosTableConfig passes Table presentation options and listeners through', () => {
+  const clicks = [];
+  const emptyText = 'No invoices';
+  const config = buildZeyosTableConfig(fakeClient(), 'transactions', {
+    fields: ['transactionnum', 'status'],
+    variant: 'plain',
+    zebra: false,
+    stickyHeader: false,
+    responsive: 'md',
+    emptyText,
+    hiddenColumns: ['status'],
+    columnVisibility: true,
+    onRowClick: (row) => clicks.push(['callback', row.ID]),
+    onrowclick: (event) => clicks.push(['listener', event.detail.row.ID]),
+    // Owned by the binding, or never persisted by it: not passed on.
+    columns: [],
+    data: [{ ID: 1 }],
+    sortMode: 'local',
+    editMode: 'cell',
+    rowReorder: true,
+    hierarchy: { parentId: 'parent' }
+  });
+  const options = config.tableOptions;
+  assert.equal(options.variant, 'plain');
+  assert.equal(options.zebra, false);
+  assert.equal(options.stickyHeader, false);
+  assert.equal(options.responsive, 'md');
+  assert.equal(options.emptyText, emptyText);
+  assert.deepEqual(options.hiddenColumns, ['status']);
+  assert.equal(options.columnVisibility, true);
+  assert.equal(options.columns, config.columns);
+  assert.deepEqual(options.data, []);
+  assert.equal(options.sortMode, 'server');
+  for (const key of ['editMode', 'rowReorder', 'hierarchy']) {
+    assert.equal(Object.prototype.hasOwnProperty.call(options, key), false, `${key} is not passed through`);
+  }
+  options.onrowclick({ detail: { row: { ID: 7 } } });
+  assert.deepEqual(clicks, [['listener', 7], ['callback', 7]]);
+
+  const defaults = buildZeyosTableConfig(fakeClient(), 'transactions', { fields: ['status'] }).tableOptions;
+  for (const key of ['variant', 'zebra', 'emptyText']) {
+    assert.equal(Object.prototype.hasOwnProperty.call(defaults, key), false, `${key} keeps the Table default`);
+  }
+  assert.equal(defaults.onrowclick, undefined);
 });
 
 test('buildZeyosFormConfig assembles entity, enum, and Unix-second date descriptors', () => {
@@ -82,26 +142,50 @@ test('buildZeyosFormConfig assembles entity, enum, and Unix-second date descript
   assert.equal(config.fields.account.props.labelKey, 'lastname');
   assert.equal(typeof config.fields.account.props.filter, 'function');
   assert.equal(config.fields.date.type, 'date');
-  assert.equal(config.fields.duedate.type, 'datetime');
+  assert.equal(config.fields.duedate.type, 'date');
   assert.deepEqual(config.fields.status.options, {
-    0: 'DRAFT', 1: 'BOOKED', 16: 'INVOICED', 20: 'PAID', 21: 'OVERPAID'
+    0: 'Draft', 1: 'Booked', 16: 'Invoiced', 20: 'Paid', 21: 'Overpaid'
   });
 
+  // Runtime zone: a stored local midnight comes back as the same Date and is stored unchanged.
+  const issued = new Date(2026, 6, 21);
+  const due = new Date(2026, 7, 20);
   const source = {
     transactionnum: 'INV-2026-0001',
     account: 201,
-    date: 1_784_582_400,
-    duedate: 1_787_174_400,
+    date: issued.getTime() / 1000,
+    duedate: due.getTime() / 1000,
     netamount: 1234.5,
     status: 20
   };
   const values = config.mapFromRecord(source);
-  assert.ok(values.date instanceof Date);
-  assert.ok(values.duedate instanceof Date);
+  assert.equal(values.date.getTime(), issued.getTime());
+  assert.equal(values.duedate.getTime(), due.getTime());
   const payload = config.mapToRecord({ ...values, status: '20' });
   assert.equal(payload.date, source.date);
   assert.equal(payload.duedate, source.duedate);
   assert.equal(payload.status, 20);
+});
+
+test('buildZeyosFormConfig reads and writes date-only fields as days in the instance zone', () => {
+  const config = buildZeyosFormConfig(fakeClient(), 'transactions', {
+    fields: ['date', 'duedate'],
+    timeZone: 'UTC'
+  });
+  // Midnight UTC of 21 July and of 20 August 2026, as a UTC instance stores them.
+  const source = { date: 1_784_592_000, duedate: 1_787_184_000 };
+  const values = config.mapFromRecord(source);
+  assert.deepEqual([values.date.getFullYear(), values.date.getMonth(), values.date.getDate()], [2026, 6, 21]);
+  assert.deepEqual([values.duedate.getMonth(), values.duedate.getDate(), values.duedate.getHours()], [7, 20, 0]);
+  assert.deepEqual(config.mapToRecord(values), source);
+
+  // A day picked in the editor is stored as that day's midnight in the instance's zone.
+  assert.equal(config.mapToRecord({ date: new Date(2026, 9, 8, 14, 30), duedate: null }).date, Date.UTC(2026, 9, 8) / 1000);
+  assert.equal(config.mapToRecord({ date: '', duedate: null }).date, null);
+
+  const vienna = buildZeyosFormConfig(fakeClient(), 'transactions', { fields: ['duedate'], timeZone: 'Europe/Vienna' });
+  assert.equal(vienna.mapToRecord({ duedate: new Date(2026, 7, 19) }).duedate, Date.UTC(2026, 7, 18, 22) / 1000);
+  assert.equal(vienna.mapToRecord({ duedate: new Date(2026, 10, 7) }).duedate, Date.UTC(2026, 10, 6, 23) / 1000);
 });
 
 test('buildZeyosSelectConfig sends the buildListQuery shape to the generated list operation', async () => {

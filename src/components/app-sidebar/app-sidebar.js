@@ -78,7 +78,9 @@ export class AppSidebar extends Component {
   /** @returns {HTMLElement} */
   render() {
     this._createdRoot = this.el === null;
-    const root = /** @type {HTMLElement} */ (this.el ?? h('aside'));
+    // A plain box: the <nav> inside is the landmark. An <aside> here would add an unnamed
+    // complementary landmark around every navigation column.
+    const root = /** @type {HTMLElement} */ (this.el ?? h('div'));
     this.el = root;
     this._original = this._createdRoot ? null : {
       attributes: Array.from(root.attributes, (attribute) => [attribute.name, attribute.value]),
@@ -107,12 +109,13 @@ export class AppSidebar extends Component {
     return this;
   }
 
-  /** Returns a shallow copy of normalized items. @returns {AppNavItem[]} */
+  /**
+   * Returns a copy of the normalized items. A leaf has no `children` property, as it was written,
+   * rather than the empty list normalization gives it.
+   * @returns {AppNavItem[]}
+   */
   getItems() {
-    return this._items.map((item) => ({
-      ...item,
-      children: item.children?.map((child) => ({ ...child }))
-    }));
+    return copyItems(this._items);
   }
 
   /** Sets the active id without routing. @param {string|number|null} id @returns {this} */
@@ -644,5 +647,17 @@ function normalizeSide(orientation, side) {
 
 /** Fired when a destination/action is activated. @event AppSidebar#select @type {CustomEvent<AppNavSelectDetail>} */
 /** Fired when an inline branch changes. @event AppSidebar#branchchange @type {CustomEvent<{item: AppNavItem|null, id: string|number|null, expanded: boolean|null, ids: Array<string|number>}>} */
+/**
+ * Copies a navigation tree, leaving out the empty `children` lists normalization adds to leaves.
+ * @param {AppNavItem[]} items Normalized items.
+ * @returns {AppNavItem[]}
+ */
+function copyItems(items) {
+  return items.map((item) => {
+    const { children, ...rest } = item;
+    return children?.length ? { ...rest, children: copyItems(children) } : rest;
+  });
+}
+
 /** Fired when expanded/minimized presentation changes. @event AppSidebar#collapsechange @type {CustomEvent<{collapsed: boolean}>} */
 /** Fired when a minimized flyout changes. @event AppSidebar#flyoutchange @type {CustomEvent<{item: AppNavItem, id: string|number, open: boolean}>} */

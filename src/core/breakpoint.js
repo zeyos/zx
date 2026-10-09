@@ -6,7 +6,7 @@
  * used inside a media query, so a `--zx-bp-*` token would be a value no stylesheet could read.
  * Zx's own layout utilities avoid the problem entirely — `.zx-grid` reflows on intrinsic track
  * widths, not on breakpoints — which leaves this module for the cases only script can decide:
- * rendering a Table as cards below a width, collapsing a MasterPanel, choosing a chart density.
+ * rendering a Table as cards below a width, collapsing a MasterPanel, choosing how many labels a chart shows.
  * @module zx/core/breakpoint
  */
 
