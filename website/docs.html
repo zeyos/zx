@@ -105,7 +105,7 @@
     <template
       data-guide="installation"
       data-title="Installation"
-      data-blurb="Add the stylesheet and the modules — or drop the global bundle into a classic ZeyOS screen.">
+      data-blurb="Add the stylesheet and the modules from npm or a public CDN — or drop the global bundle into a classic ZeyOS screen.">
       <h2>Bundles</h2>
       <p>
         <code>npm run build</code> writes four asset families in regular and minified form, plus
@@ -138,6 +138,112 @@
           </tr>
         </tbody>
       </table>
+
+      <h2>From a CDN</h2>
+      <p>
+        Every release published to npm is served by public CDNs such as jsDelivr and unpkg, with no
+        download or build. The bundles are self-contained, so one stylesheet and one script are all a
+        page needs.
+      </p>
+      <table>
+        <thead>
+          <tr><th>Asset</th><th>jsDelivr URL</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Stylesheet</td>
+            <td><code>https://cdn.jsdelivr.net/npm/@zeyos/zx@latest/dist/zx.min.css</code></td>
+          </tr>
+          <tr>
+            <td>ES module</td>
+            <td><code>https://cdn.jsdelivr.net/npm/@zeyos/zx@latest/dist/zx.esm.min.js</code></td>
+          </tr>
+          <tr>
+            <td>Global script</td>
+            <td><code>https://cdn.jsdelivr.net/npm/@zeyos/zx@latest/dist/zx.global.min.js</code></td>
+          </tr>
+          <tr>
+            <td>ZeyOS binding</td>
+            <td><code>https://cdn.jsdelivr.net/npm/@zeyos/zx@latest/dist/zx-zeyos.esm.min.js</code></td>
+          </tr>
+        </tbody>
+      </table>
+      <p>
+        unpkg uses the same paths under <code>https://unpkg.com/@zeyos/zx@latest/</code>. Drop
+        <code>.min</code> from a file name for the readable build.
+      </p>
+      <p>
+        The part after <code>@</code> chooses the version. <code>@latest</code> always serves the
+        newest release, including the next major version, and CDN caches can take a few hours to
+        pick it up. <code>@5</code> follows every release of major version 5. An exact version such
+        as <code>@5.1.0</code> never changes, which is the right choice for production and the only
+        one that works with <code>integrity</code> hashes.
+      </p>
+      <pre data-code="cdn.html">
+&lt;link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@zeyos/zx@latest/dist/zx.min.css"&gt;
+&lt;script src="https://cdn.jsdelivr.net/npm/@zeyos/zx@latest/dist/zx.global.min.js"&gt;&lt;/script&gt;
+&lt;script&gt;
+  zx.Message.success('Zx is loaded');
+&lt;/script&gt;
+      </pre>
+
+      <h2>CDN boilerplate with the ZeyOS client</h2>
+      <p>
+        A complete page that loads Zx, the zx-zeyos binding, and
+        <a href="#getting-started/zeyos-data"><code>@zeyos/client</code></a> from the CDN and
+        renders a server-paged invoice list. The import map lets the module code use the same
+        package names as an npm project, so it moves into a bundled application unchanged.
+      </p>
+      <pre data-code="index.html">
+&lt;!doctype html&gt;
+&lt;html lang="en"&gt;
+&lt;head&gt;
+  &lt;meta charset="utf-8"&gt;
+  &lt;meta name="viewport" content="width=device-width, initial-scale=1"&gt;
+  &lt;title&gt;Invoices&lt;/title&gt;
+  &lt;link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@zeyos/zx@latest/dist/zx.min.css"&gt;
+  &lt;script type="importmap"&gt;
+    {
+      "imports": {
+        "@zeyos/zx": "https://cdn.jsdelivr.net/npm/@zeyos/zx@latest/dist/zx.esm.min.js",
+        "@zeyos/zx/zeyos": "https://cdn.jsdelivr.net/npm/@zeyos/zx@latest/dist/zx-zeyos.esm.min.js",
+        "@zeyos/client": "https://cdn.jsdelivr.net/npm/@zeyos/client@latest/src/index.js"
+      }
+    }
+  &lt;/script&gt;
+&lt;/head&gt;
+&lt;body class="zx-scope"&gt;
+  &lt;main id="invoices"&gt;&lt;/main&gt;
+
+  &lt;script type="module"&gt;
+    import { createZeyosClient } from '@zeyos/client';
+    import { connect, zeyosTable } from '@zeyos/zx/zeyos';
+
+    const client = createZeyosClient({
+      platform: 'https://cloud.zeyos.com/your-instance/',
+      auth: { mode: 'session', session: { enabled: true, credentials: 'include' } }
+    });
+    connect(client, { locale: 'en-GB' });
+
+    const list = zeyosTable(client, 'transactions', {
+      fields: ['transactionnum', 'account', 'date', 'netamount', 'status'],
+      pageSize: 25,
+      sort: { id: 'date', dir: 'desc' },
+      emptyText: 'No invoices yet'
+    });
+
+    document.querySelector('#invoices').append(list.table.toElement());
+    await list.load();
+  &lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+      </pre>
+      <p>
+        Session authentication sends the ZeyOS session cookie, so serve the page from the ZeyOS
+        instance itself or from an origin the instance allows. For anything else, use the OAuth
+        modes described in the <code>@zeyos/client</code> documentation. Pin exact versions of both
+        packages before the page goes to production.
+      </p>
 
       <h2>ES modules</h2>
       <pre data-code="index.html">
@@ -534,7 +640,7 @@ const list = zeyosTable(client, 'transactions', {
 });
 
 await list.load({ search: '', filters: {} });
-document.querySelector('#invoices').append(list.table);
+document.querySelector('#invoices').append(list.table.toElement());
       </pre>
       <p>
         The binding ships as a separate <code>dist/zx-zeyos.esm.js</code> bundle and is never
