@@ -4,15 +4,22 @@
  */
 
 .agent-chat {
-  --shell-nav-width: 240px;
   --agent-chat-column: 44rem;
   --agent-chat-indent: calc(24px + var(--zx-space-2));
 }
 
 /* -------------------------------------------------------- conversations -- */
 
-.agent-chat .agent-chat__history {
-  padding-block-end: var(--zx-space-3);
+/* The agent the conversations are with, above them in the navigation panel. */
+.agent-chat .agent-chat__agent {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  margin: var(--zx-space-3) 0 0;
+  padding-inline: var(--zx-space-2);
+  font-size: var(--zx-text-sm);
+  font-weight: var(--zx-weight-semibold);
+  line-height: 1.3;
 }
 
 .agent-chat .agent-chat__group .list-group {

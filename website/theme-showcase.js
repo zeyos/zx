@@ -13,9 +13,9 @@
  */
 
 import {
-  AppIcon, Aurora, Breadcrumb, Calendar, Card, Checklist, Component, ContextMenu, CopyInput, DataFilter, DateRangeBox, Datebox, DatePicker,
+  AppIcon, AppSidebar, Aurora, Breadcrumb, Calendar, Card, Checklist, Component, ContextMenu, CopyInput, DataFilter, DateRangeBox, Datebox, DatePicker,
   Dialog, Dropdown, Finder, Form, Groupbox, InlineLoading, MasterPanel, MenuButton, Message,
-  Modal, MultiValueEditor, NavigationBar, NumberField, Pagination, Panel, ProgressBar,
+  Modal, ModuleBar, MultiValueEditor, NavigationBar, NumberField, Pagination, Panel, ProgressBar,
   Rating, Search, Select, Sheet, Slider, Stepper, Table, Tabbox, TagPicker, Timebox, Toggle, Toolbar,
   TreeView, ValueList, badge, button, buttonGroup, CheckButton, emptyState, h, icon, iconNames,
   skeletonText, spinner, tooltip
@@ -145,6 +145,13 @@ export const CARDS = [
   { id: 'filter', title: 'Data filter', hint: 'The filter bar above a table', render: filterCard },
   { id: 'tabs', title: 'Tabs', hint: 'All four Tabbox variants', render: tabsCard },
   { id: 'navigation', title: 'Navigation', hint: 'App bar, breadcrumb, steps, toolbar', render: navigationCard },
+  {
+    id: 'modules',
+    title: 'Modules',
+    hint: 'Module bar in three appearances, and the modules layout of AppSidebar',
+    wide: true,
+    render: modulesCard
+  },
   { id: 'containers', title: 'Containers', hint: 'Card, panel, groupbox, master panel', render: containersCard },
   { id: 'overlays', title: 'Overlays', hint: 'Modal, dialog, Sheet, menus, tooltips, and toasts', render: overlaysCard },
   { id: 'hierarchy', title: 'Hierarchy', hint: 'Tree and finder', render: hierarchyCard },
@@ -660,6 +667,41 @@ function tabsCard() {
       ]
     }).toElement()));
   return h('div', { class: 'studio-stack studio-stack--wide' }, ...tabs);
+}
+
+/** The modules every module bar on the canvas draws: tones, a host colour, badges, and menus. */
+function studioModules() {
+  return [
+    // The studio draws with the bundled icon set alone, so each module is one it has a glyph for.
+    { id: 'favourites', label: 'Favourites', icon: 'star', tone: 'slate' },
+    { id: 'library', label: 'Library', icon: 'book', tone: 'blue', badge: 7, children: [
+      { id: 'articles', label: 'Articles', badge: 7 }, { id: 'drafts', label: 'Drafts' }
+    ] },
+    { id: 'billing', label: 'Billing', icon: 'file', color: '#535494', children: [
+      { id: 'invoices', label: 'Invoices' },
+      { section: true, label: 'Payments', children: [{ id: 'incoming', label: 'Incoming' }, { id: 'dunning', label: 'Dunning' }] }
+    ] },
+    { id: 'tasks', label: 'Tasks', icon: 'check', tone: 'amber', badge: 12 },
+    { id: 'calendar', label: 'Calendar', icon: 'calendar', tone: 'red' },
+    { id: 'documents', label: 'Documents', icon: 'folder', tone: 'green' },
+    { id: 'settings', label: 'Settings', icon: 'gear' }
+  ];
+}
+
+/** @returns {Node} */
+function modulesCard() {
+  const strip = (options) => new ModuleBar(null, { items: studioModules(), active: 'invoices', ...options }).toElement();
+  const sidebar = new AppSidebar(null, {
+    layout: 'modules', items: studioModules(), active: 'invoices', label: 'Studio navigation'
+  });
+  return h('div', { class: 'studio-stack studio-stack--wide' },
+    // The strips and the sidebar wrap onto two rows on a narrow screen, each keeping its height.
+    h('div', { style: 'display: flex; flex-wrap: wrap; gap: var(--zx-space-4)' },
+      h('div', { style: 'display: flex; gap: var(--zx-space-4); block-size: 360px' },
+        strip({ label: 'Tinted modules' }),
+        strip({ label: 'Plain modules', appearance: 'plain' })),
+      h('div', { style: 'display: flex; flex: 1 1 16rem; min-inline-size: 0; block-size: 360px' }, sidebar.toElement())),
+    strip({ label: 'Solid modules', appearance: 'solid', orientation: 'horizontal', side: 'top' }));
 }
 
 /** @returns {Node} */

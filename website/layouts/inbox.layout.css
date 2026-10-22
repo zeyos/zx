@@ -9,7 +9,6 @@
 
 .inbox .inbox__tree {
   padding-inline: var(--zx-space-2);
-  padding-block-end: var(--zx-space-4);
 }
 
 /* -------------------------------------------------------------------- list -- */

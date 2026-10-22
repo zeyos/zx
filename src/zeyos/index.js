@@ -21,6 +21,9 @@ export {
   normalizeZeyosLauncherApplications, normalizeZeyosLauncherRecords, zeyosActiveIdentifier
 } from './launcher.js';
 export {
+  zeyosModuleItems, buildZeyosModuleBarConfig, buildZeyosAppSidebarConfig, zeyosModuleBar
+} from './module-bar.js';
+export {
   zeyosSelect, buildZeyosSelectConfig, zeyosEntitySelect, buildZeyosEntitySelectConfig
 } from './select.js';
 export { zeyosForm } from './form.js';

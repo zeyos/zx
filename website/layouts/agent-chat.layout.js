@@ -4,14 +4,14 @@ import {
 } from '../../src/index.js';
 import {
   DATE, adaptiveShell, disposer, iconButton, iconTile, kbd, later, layoutContext, listTime, modShortcut,
-  paneHeader, panelBlock, propList, renderScope, shortcutSheet, shortcuts, toaster, unavailable
+  paneHeader, panelBlock, propList, renderScope, shortcutSheet, shortcuts, suiteNav, toaster, unavailable
 } from './kit.js';
 import { NOW, ORGANISATION, company } from './fixtures.js';
 
 /** The agent this screen talks to, and the mailbox it writes from. */
 const AGENT = {
   name: 'Finance agent',
-  description: 'Works on Fieldstone’s invoices, bank payments, and billing mail.'
+  description: 'Works on ACME’s invoices, bank payments, and billing mail.'
 };
 const MAILBOX = `billing@${ORGANISATION.domain}`;
 
@@ -38,7 +38,7 @@ const TEMPLATE = {
     'Dear {name},',
     'Our invoice {invoice} for {amount} was due on {due}, and we have not received your payment yet. If you have paid in the meantime, please ignore this reminder.',
     `You can transfer the amount to IBAN ${ORGANISATION.iban}, quoting the invoice number.`,
-    'Kind regards\nFieldstone Billing'
+    'Kind regards\nACME Billing'
   ].join('\n\n')
 };
 
@@ -237,7 +237,7 @@ function stateIcon(entry) {
 const SHORTCUTS = [
   ['Conversation', [['Send', 'Mod+Enter'], ['Stop the run', 'Esc'], ['Write a message', '/'], ['New conversation', 'N']]],
   ['Approval, when it has focus', [['Approve', 'A'], ['Edit', 'E'], ['Reject', 'R']]],
-  ['View', [['Conversations', 'Mod+B'], ['Run details', 'Mod+I'], ['Keyboard shortcuts', '?']]]
+  ['View', [['Navigation', 'Mod+B'], ['Run details', 'Mod+I'], ['Keyboard shortcuts', '?']]]
 ];
 
 /** @param {string} value `YYYY-MM-DDTHH:MM[:SS]`, local time. @returns {Date} */
@@ -351,7 +351,10 @@ export default {
   title: 'Agent chat',
   category: 'Pattern',
   blurb: 'One conversation with an agent that acts: its plan, every tool call, an approval that holds the run, a streamed answer with sources, and the run beside it.',
-  components: ['Avatar', 'Dialog', 'Field', 'Fieldset', 'MenuButton', 'Message', 'statusIcon'],
+  components: [
+    'Avatar', 'Dialog', 'Field', 'Fieldset', 'MenuButton', 'Message', 'statusIcon', 'AppSidebar', 'ModuleBar',
+    'AccountMenu'
+  ],
 
   /**
    * Mounts the agent conversation: the agent's other conversations, the thread with its plan,
@@ -364,8 +367,21 @@ export default {
     context = layoutContext(context);
     const keep = disposer(context);
     const { preview } = context;
-    const root = h('div', { class: 'agent-chat shell' });
-    // Narrow, the conversations and the run become drawers; Mod+B and Mod+I toggle them.
+
+    /* ------------------------------------------------------------ conversations -- */
+
+    const history = h('div', { class: 'agent-chat__history', role: 'region', 'aria-label': 'Conversations', tabindex: '-1' });
+    // The suite's navigation: the agent's conversations, under the way to start a new one.
+    const nav = suiteNav(context, {
+      module: 'assistant',
+      header: button({ label: 'New conversation', icon: 'pen-to-square', shortcut: { label: 'N', keys: 'N' }, onclick: () => newConversation() }),
+      content: h('div', { class: 'agent-chat__conversations' },
+        h('h2', { class: 'agent-chat__agent' }, iconTile('robot', 'violet'), AGENT.name),
+        history)
+    });
+    const root = h('div', { class: 'agent-chat shell' }, nav.column);
+    // Narrow, the conversations and the run become drawers; Mod+B minimizes the navigation and
+    // Mod+I toggles the run.
     const shell = adaptiveShell(root, context, {
       navLabel: 'Show conversations', asideLabel: 'Show run details', keys: true
     });
@@ -402,15 +418,6 @@ export default {
     });
 
     const threadParts = renderScope(context);
-
-    /* ------------------------------------------------------------ conversations -- */
-
-    const history = h('div', { class: 'shell__body agent-chat__history', tabindex: '-1' });
-    const nav = h('nav', { class: 'shell__nav agent-chat__nav', 'aria-label': 'Conversations' },
-      paneHeader({ leading: iconTile('robot', 'violet'), title: AGENT.name }),
-      h('div', { class: 'nav-action' },
-        button({ label: 'New conversation', icon: 'pen-to-square', shortcut: { label: 'N', keys: 'N' }, onclick: () => newConversation() })),
-      history);
 
     /* ------------------------------------------------------------------ thread -- */
 
@@ -460,7 +467,7 @@ export default {
     const aside = h('aside', { class: 'shell__aside agent-chat__aside', 'aria-label': 'Run' },
       paneHeader({ title: 'Run' }), runBody);
 
-    root.append(nav, main, aside);
+    root.append(main, aside);
     const notify = toaster(context, root);
     const openShortcuts = shortcutSheet(context, SHORTCUTS, { onclose: () => refocus() });
     /** @type {{dialog: Dialog, picks: HTMLElement, error: HTMLElement, form: Fieldset}|null} The edit dialog, once opened. */

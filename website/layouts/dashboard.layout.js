@@ -1,14 +1,12 @@
 import {
-  AccountMenu, ActivityList, AppSidebar, Avatar, Chart, ChartJsAdapter, InlineLoading, Tabbox, Table,
-  badge, button, downloadBlob, formatCurrency, formatDate, formatNumber, formatPercent,
-  formatRelativeTime, h, statTile, toCsv
+  ActivityList, Avatar, Chart, ChartJsAdapter, InlineLoading, Tabbox, Table, badge, button, downloadBlob,
+  formatCurrency, formatDate, formatNumber, formatPercent, formatRelativeTime, h, statTile, toCsv
 } from '../../src/index.js';
 import {
   DATE, adaptiveShell, allowsMotion, chartOptions, chartPalette, chartScales, disposer, iconButton, layoutContext,
-  later, loadChartJs, paneHeader, sectionLabel, shortcuts, toaster, unavailable, watchTheme,
-  workspaceHeader
+  later, loadChartJs, paneHeader, shortcuts, suiteNav, toaster, unavailable, watchTheme
 } from './kit.js';
-import { ME, NOW, company, person } from './fixtures.js';
+import { NOW, company, person } from './fixtures.js';
 
 /** The reporting windows the header switches between. Each one redraws the whole page. */
 const PERIODS = [
@@ -118,7 +116,7 @@ export default {
   title: 'Dashboard',
   category: 'Pattern',
   blurb: 'A reporting overview: figures, a revenue chart, and tabbed detail, all redrawn by one period switch.',
-  components: ['StatTile', 'Chart', 'Tabbox', 'Table', 'ActivityList', 'InlineLoading', 'ChartJsAdapter', 'Avatar', 'Message'],
+  components: ['StatTile', 'Chart', 'Tabbox', 'Table', 'ActivityList', 'InlineLoading', 'ChartJsAdapter', 'Avatar', 'Message', 'ModuleBar'],
 
   /**
    * Mounts the sales overview: navigation, the period switch, and every widget it drives.
@@ -132,43 +130,30 @@ export default {
     const state = { period: PERIODS[0], reminded: new Set() };
     // One avatar per table row, moved into each redraw of the row rather than drawn anew.
     const avatars = new Map();
-    // Narrow, the navigation becomes a drawer opened from the page header.
-    const root = h('div', { class: 'dashboard shell' });
-    const shell = adaptiveShell(root, context);
-    const notify = toaster(context, root);
 
     // ----------------------------------------------------------------- navigation --
 
-    const destinations = keep(new AppSidebar(null, {
-      label: 'Sales',
-      collapsible: false,
+    // The suite's navigation: the overview is the suite's home, and its menu the sales
+    // destinations and saved reports, beside every other module.
+    const nav = suiteNav(context, {
+      module: 'home',
       active: 'overview',
-      items: [
+      menu: [
         { id: 'overview', label: 'Overview', icon: 'gauge' },
         { id: 'deals', label: 'Opportunities', icon: 'handshake', badge: OPPORTUNITIES.length, invoke: () => notify(unavailable('Opportunities'), 'info') },
         { id: 'invoices', label: 'Invoices', icon: 'file-invoice', invoke: () => notify(unavailable('Invoices'), 'info') },
-        { id: 'customers', label: 'Customers', icon: 'building', invoke: () => notify(unavailable('Customers'), 'info') }
+        { id: 'customers', label: 'Customers', icon: 'building', invoke: () => notify(unavailable('Customers'), 'info') },
+        { section: true, label: 'Reports', children: [
+          { id: 'by-customer', label: 'Revenue by customer', icon: 'chart-column', invoke: () => notify(unavailable('Saved reports'), 'info') },
+          { id: 'by-owner', label: 'Win rate by owner', icon: 'chart-pie', invoke: () => notify(unavailable('Saved reports'), 'info') },
+          { id: 'ageing', label: 'Receivables ageing', icon: 'hourglass-half', invoke: () => notify(unavailable('Saved reports'), 'info') }
+        ] }
       ]
-    }));
-    const reports = keep(new AppSidebar(null, {
-      label: 'Reports',
-      collapsible: false,
-      items: [
-        { id: 'by-customer', label: 'Revenue by customer', icon: 'chart-column', invoke: () => notify(unavailable('Saved reports'), 'info') },
-        { id: 'by-owner', label: 'Win rate by owner', icon: 'chart-pie', invoke: () => notify(unavailable('Saved reports'), 'info') },
-        { id: 'ageing', label: 'Receivables ageing', icon: 'hourglass-half', invoke: () => notify(unavailable('Saved reports'), 'info') }
-      ]
-    }));
-    const account = keep(new AccountMenu(null, {
-      account: { name: person(ME).name, secondary: person(ME).role, status: 'online' },
-      items: [{ label: 'Preferences', value: 'prefs', icon: 'gear' }, '-', { label: 'Sign out', value: 'out' }],
-      placement: 'top-start',
-      onselect: ({ detail }) => notify(unavailable(detail.value === 'out' ? 'Signing out' : 'Preferences'), 'info')
-    }));
-    const nav = h('div', { class: 'shell__nav' },
-      workspaceHeader(),
-      h('div', { class: 'shell__body' }, destinations.toElement(), sectionLabel('Reports'), reports.toElement()),
-      h('div', { class: 'shell__footer' }, account.toElement()));
+    });
+    // Narrow, the navigation becomes a drawer opened from the page header.
+    const root = h('div', { class: 'dashboard shell' }, nav.column);
+    const shell = adaptiveShell(root, context);
+    const notify = toaster(context, root);
 
     // --------------------------------------------------------------------- header --
 
@@ -290,7 +275,7 @@ export default {
             customers),
           h('section', { class: 'surface dashboard__details', 'aria-label': 'Details' }, tabs.toElement()))));
 
-    root.append(nav, main);
+    root.append(main);
 
     shortcuts(root, {
       1: () => setPeriod('month'),

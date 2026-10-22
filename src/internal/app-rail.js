@@ -17,6 +17,9 @@ import { Tooltip } from '../components/tooltip/tooltip.js';
  * @property {() => void} [invoke] Application-owned non-link action.
  * @property {boolean} [disabled] Whether activation is unavailable.
  * @property {AppNavItem[]} [children] Child destinations/actions.
+ * @property {boolean} [section] Makes the item a section: a quiet heading over its `children`, which
+ *   render at the same level. A section is never focused, selected, or collapsed, and needs no `id`.
+ * @property {Node|{toElement: () => Node|null}} [actions] A section's trailing controls, such as an add button.
  */
 /**
  * @typedef {Object} AppRailPresenterOptions
@@ -44,6 +47,14 @@ import { Tooltip } from '../components/tooltip/tooltip.js';
  */
 export class AppRailPresenter extends Component {
   static cssName = 'app-rail';
+
+  /**
+   * BEM block of the rail's own parts (header, list, footer, row, item). A component built on the
+   * presenter names its parts after itself; flyout panels keep the `zx-app-rail__` vocabulary,
+   * because every rail portals the same panel.
+   * @type {string}
+   */
+  static partBlock = 'zx-app-rail';
 
   /** @type {Readonly<AppRailPresenterOptions>} */
   static defaults = {
@@ -93,13 +104,14 @@ export class AppRailPresenter extends Component {
     root.dataset.orientation = this.options.orientation === 'horizontal' ? 'horizontal' : 'vertical';
     const sides = root.dataset.orientation === 'horizontal' ? ['top', 'bottom'] : ['left', 'right'];
     root.dataset.side = sides.includes(this.options.side) ? this.options.side : sides[0];
-    const header = h('div', { class: 'zx-app-rail__header' });
-    const footer = h('div', { class: 'zx-app-rail__footer' });
+    const block = this._partBlock();
+    const header = h('div', { class: `${block}__header` });
+    const footer = h('div', { class: `${block}__footer` });
     appendSlot(header, this.options.header);
     appendSlot(footer, this.options.footer);
     header.hidden = !header.hasChildNodes();
     footer.hidden = !footer.hasChildNodes();
-    root.replaceChildren(header, h('ul', { ref: 'list', class: 'zx-app-rail__list' }), footer);
+    root.replaceChildren(header, h('ul', { ref: 'list', class: `${block}__list` }), footer);
     this.listen(root, 'keydown', (event) => this._onRailKeydown(/** @type {KeyboardEvent} */ (event)));
     return root;
   }
@@ -209,31 +221,28 @@ export class AppRailPresenter extends Component {
     this._clearArtifacts();
     this.refs.list.replaceChildren();
     this._interaction = new RailListenerScope(/** @type {HTMLElement} */ (this.el));
-    this._items.forEach((item) => {
-      const hasChildren = Array.isArray(item.children) && item.children.length > 0;
-      const control = navControl(item, {
-        className: 'zx-app-rail__item',
-        index: String(item.id),
-        iconOnly: true,
-        disclosure: hasChildren,
-        disclosureIcon: railDisclosureIcon(this.el.dataset.side),
-        visual: appNavIcon(item, this.options.renderIcon, {
-          orientation: this.el.dataset.orientation,
-          collapsed: true,
-          side: this.el.dataset.side,
-          level: 1,
-          location: 'root'
-        })
-      });
-      const row = h('li', { class: 'zx-app-rail__row' }, control);
+    let started = false;
+    for (const item of railEntries(this._items)) {
+      // A section has no rail control: the rail draws a rule between the groups instead.
+      if (item === SECTION_BREAK) {
+        if (started) this.refs.list.append(h('li', { class: `${this._partBlock()}__separator`, ariaHidden: 'true' }));
+        continue;
+      }
+      started = true;
+      const hasChildren = Array.isArray(item.children) && item.children.length > 0
+        && this._flyoutsFor(item);
+      const control = this._renderControl(item, hasChildren);
+      const row = h('li', { class: `${this._partBlock()}__row` }, control);
       this.refs.list.append(row);
-      const tooltip = new Tooltip(control, {
-        content: item.label,
-        placement: tooltipPlacement(this.el.dataset.side),
-        delay: 450
-      });
-      this._tooltips.push(tooltip);
-      this._tooltipById.set(String(item.id), tooltip);
+      if (this._tooltipFor(item)) {
+        const tooltip = new Tooltip(control, {
+          content: item.label,
+          placement: tooltipPlacement(this.el.dataset.side),
+          delay: 450
+        });
+        this._tooltips.push(tooltip);
+        this._tooltipById.set(String(item.id), tooltip);
+      }
       if (hasChildren) this._buildFlyout(item, control, String(item.id), null);
       else this._interaction.listen(control, 'click', (event) => {
         const selected = this._select(item, event);
@@ -243,7 +252,7 @@ export class AppRailPresenter extends Component {
           }
         }
       });
-    });
+    }
     this._interaction.listen(document, 'pointerdown', (event) => {
       const open = [...this._flyouts.values()].filter((flyout) => flyout.dropdown.isOpen());
       if (open.length === 0) return;
@@ -251,13 +260,62 @@ export class AppRailPresenter extends Component {
       if (open.some((flyout) => path.includes(flyout.panel) || path.includes(flyout.trigger))) return;
       for (const flyout of open) if (flyout.parentKey === null) this.closeFlyout(flyout.key);
     });
+    this._afterRebuild();
     this._syncActive();
   }
+
+  /** @returns {string} The BEM block of the rail's own parts. @protected */
+  _partBlock() {
+    return /** @type {typeof AppRailPresenter} */ (this.constructor).partBlock;
+  }
+
+  /**
+   * Builds one top-level rail control. The control must carry `data-app-nav-id` and
+   * `data-app-nav-value-id`, which keyboard handling, flyouts, and the active state read.
+   * @param {AppNavItem} item Top-level item.
+   * @param {boolean} hasFlyout Whether the control opens a flyout of the item's children.
+   * @returns {HTMLElement}
+   * @protected
+   */
+  _renderControl(item, hasFlyout) {
+    return navControl(item, {
+      className: 'zx-app-rail__item',
+      index: String(item.id),
+      iconOnly: true,
+      disclosure: hasFlyout,
+      disclosureIcon: railDisclosureIcon(this.el.dataset.side),
+      visual: appNavIcon(item, this.options.renderIcon, {
+        orientation: this.el.dataset.orientation,
+        collapsed: true,
+        side: this.el.dataset.side,
+        level: 1,
+        location: 'root'
+      })
+    });
+  }
+
+  /** Whether an item with children presents them in a flyout. @param {AppNavItem} item @returns {boolean} @protected */
+  _flyoutsFor(item) {
+    return true;
+  }
+
+  /** Whether a top-level control gets a hover/focus tooltip naming it. @param {AppNavItem} item @returns {boolean} @protected */
+  _tooltipFor(item) {
+    return true;
+  }
+
+  /** Runs after every rebuild, before the active state is applied. @returns {void} @protected */
+  _afterRebuild() {}
 
   /** @param {AppNavItem} item @param {HTMLElement} trigger @param {string} key @param {string|null} parentKey @returns {void} */
   _buildFlyout(item, trigger, key, parentKey) {
     const list = h('ul', { class: 'zx-app-rail__flyout-list' });
-    for (const child of item.children ?? []) {
+    for (const child of railEntries(item.children ?? [], true)) {
+      if (child.section) {
+        // A caption, not a destination: keyboard movement skips it with every other non-action.
+        list.append(h('li', { class: 'zx-app-rail__flyout-section' }, child.label));
+        continue;
+      }
       const childKey = `${key}/${child.id}`;
       const hasChildren = Boolean(child.children?.length);
       const control = navControl(child, {
@@ -300,10 +358,15 @@ export class AppRailPresenter extends Component {
     actualPanel.setAttribute('aria-label', this._message('appRail.subNavigation', '%1 sub-navigation', item.label));
     const flyout = { key, parentKey, item, trigger, panel: actualPanel, dropdown };
     this._flyouts.set(key, flyout);
+    // While a tile's own flyout is open its tooltip says nothing the flyout's title does not, and
+    // would take the first Escape meant for the flyout.
+    const tooltip = parentKey === null ? this._tooltipById.get(String(item.id)) : null;
     dropdown.on('open', () => {
+      tooltip?.disable();
       if (!this._silenceFlyoutEvents) this.emit('flyoutchange', { item, id: item.id, open: true });
     });
     dropdown.on('close', () => {
+      tooltip?.enable();
       if (!this._silenceFlyoutEvents) this.emit('flyoutchange', { item, id: item.id, open: false });
     });
 
@@ -416,7 +479,8 @@ export class AppRailPresenter extends Component {
       this.openFlyout(nested.key, { focus: true });
       return;
     }
-    if (flyout.parentKey !== null && event.key === out) {
+    // Out of a nested flyout, or out of a top-level one beside a vertical rail, back to its trigger.
+    if ((flyout.parentKey !== null || this.el.dataset.orientation === 'vertical') && event.key === out) {
       event.preventDefault();
       event.stopPropagation();
       this.closeFlyout(flyout.key);
@@ -606,6 +670,22 @@ class RailListenerScope extends Component {
   }
 }
 
+/** Marks the boundary of a section in a flattened rail. */
+const SECTION_BREAK = Object.freeze({});
+
+/**
+ * Flattens sections for a rail: a section's children take its place. With `labels`, each section
+ * leaves its own item ahead of its children, for a flyout to caption; otherwise a section break.
+ * @param {AppNavItem[]} items Normalized items.
+ * @param {boolean} [labels=false] Keep section items as captions.
+ * @returns {AppNavItem[]}
+ */
+function railEntries(items, labels = false) {
+  return items.flatMap((item) => (item.section
+    ? [labels ? item : /** @type {AppNavItem} */ (SECTION_BREAK), ...railEntries(item.children ?? [], labels)]
+    : [item]));
+}
+
 /**
  * Normalizes an application navigation tree without mutating caller data.
  * @param {unknown} items Candidate tree.
@@ -613,13 +693,21 @@ class RailListenerScope extends Component {
  */
 export function normalizeAppItems(items) {
   if (!Array.isArray(items)) return [];
-  return items.filter((item) => item && typeof item === 'object' && item.id != null && item.label != null)
-    .map((item) => {
+  return items.filter((item) => item && typeof item === 'object' && item.label != null
+    && (item.id != null || item.section === true))
+    .map((item, index) => {
       const normalized = {
         ...item,
+        // A section is addressed by nothing, so one written without an id gets a stable one.
+        id: item.id ?? `section:${index}:${item.label}`,
         label: String(item.label),
         children: Array.isArray(item.children) ? normalizeAppItems(item.children) : []
       };
+      if (item.section === true) {
+        normalized.section = true;
+        delete normalized.href;
+        return normalized;
+      }
       if (item.href == null) return normalized;
       const href = safeHref(item.href);
       if (href !== null) normalized.href = href;

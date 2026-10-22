@@ -162,3 +162,15 @@ test('menus and listboxes share one tight row inside a large-radius panel', () =
       'var(--zx-space-1) var(--zx-space-2)', `${selector} is taller than an item`);
   }
 });
+
+test('ModuleBar targets and tiles follow the control height, and a named column has a width of its own', () => {
+  const css = read('src/components/module-bar/module-bar.css');
+  const scale = rule(css, '.zx-module-bar');
+  assert.equal(value(scale, '--zx-module-bar-target'), 'calc(var(--zx-control-height) + var(--zx-space-2))');
+  assert.equal(value(scale, '--zx-module-bar-tile'), 'calc(var(--zx-control-height) - var(--zx-space-1))');
+  assert.equal(value(scale, '--zx-module-bar-column'), '12rem');
+  const item = rule(css, '.zx-module-bar__item');
+  assert.equal(value(item, 'inline-size'), 'var(--zx-module-bar-target)');
+  assert.equal(value(item, 'block-size'), 'var(--zx-module-bar-target)');
+  assert.equal(value(rule(css, '.zx-module-bar__tile'), 'inline-size'), 'var(--zx-module-bar-tile)');
+});

@@ -30,7 +30,7 @@ const COMPONENT_IDS = [
   'tokens', 'kernel', 'icons', 'helpers', 'truncate',
   'button', 'badge', 'check-button', 'toggle', 'search', 'launcher', 'app-icon', 'avatar', 'account-menu', 'number-field', 'rating', 'slider', 'copy',
   'layout', 'groupbox', 'card', 'stat-tile', 'aurora', 'panel', 'tabbox', 'navigation-bar', 'toolbar', 'empty-state',
-  'stepper', 'breadcrumb', 'split-view', 'dock', 'app-sidebar',
+  'stepper', 'breadcrumb', 'split-view', 'dock', 'app-sidebar', 'module-bar',
   'loading', 'skeleton',
   'message', 'modal', 'dialog', 'sheet', 'sheet-stack', 'dropdown', 'menu-button', 'context-menu', 'tooltip',
   'select', 'checklist', 'tag-picker',

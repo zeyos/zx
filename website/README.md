@@ -106,7 +106,10 @@ registry does not list — or no id at all — gets a message and a way back to 
 never imported. The document title is "<Layout> — Layouts — ZeyOS Xenon Design System".
 
 A layout module is `{title, category, blurb, components, mount(container, context)}`, with
-`context` = `{preview, signal, cleanup}`:
+`context` = `{preview, signal, cleanup, open, id}` — `open(id)` switches to another layout
+(the module bar's cross-layout navigation) and `id` is this layout's own. A layout with a navigation
+column builds it with `suiteNav(context, {menu, active, …})` from `kit.js`, which puts the suite's
+modules (`SUITE_MODULES` in `fixtures.js`) beside the layout's own menu:
 
 ```js
 import { Table, h } from '../../src/index.js';
@@ -130,7 +133,7 @@ export default {
   `.shell__list`, `.shell__main`, `.shell__aside`, `paneHeader()`, `sectionLabel()`, `propList()`,
   `.list-row`, `.surface`, `shortcuts()` (keys bound on the layout root, inert in preview), and
   `loadChartJs()`.
-- `layouts/fixtures.js` — the one fictional world every template shares (Fieldstone GmbH, its
+- `layouts/fixtures.js` — the one fictional world every template shares (ACME GmbH, its
   people, its customers, `TODAY`); `layouts/layout-icons.js` — icons beyond the built-in set.
 - `layouts/<id>.layout.css` — a template's own styles, every selector under its block class,
   imported by `layouts.css`. The screen patterns are built the same way as the templates.

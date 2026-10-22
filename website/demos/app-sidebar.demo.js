@@ -1,5 +1,7 @@
-import { AccountMenu, AppSidebar, h } from '../../src/index.js';
+import { AccountMenu, AppSidebar, button, h } from '../../src/index.js';
 import { moduleChip } from '../../src/zeyos/index.js';
+// The outline set the layout gallery uses, registered under Font Awesome names (envelope, building…).
+import '../layouts/layout-icons.js';
 
 const BUILTIN_MODULE_ICONS = {
   accounts: 'folder', billing: 'file', calendar: 'calendar', documents: 'file',
@@ -56,6 +58,41 @@ function settingsItems() {
   ];
 }
 
+// The modules layout: the top level is the modules, each with a tone and its own menu, under the
+// headings that group them. Sections group a menu without nesting it; a module's header and
+// content are its own panel content.
+function suiteModules({ compose, history }) {
+  return [
+    { id: 'home', label: 'Home', icon: 'house', tone: 'slate', href: '#home' },
+    { section: true, label: 'Communication', children: [
+      { id: 'mail', label: 'Mail', icon: 'envelope', tone: 'blue', badge: 7, header: compose, children: [
+        { id: 'inbox', label: 'Inbox', icon: 'inbox', href: '#inbox', badge: 7 },
+        { id: 'sent', label: 'Sent', icon: 'paper-plane', href: '#sent' },
+        { section: true, label: 'Labels', children: [
+          { id: 'label-clients', label: 'Clients', href: '#clients' },
+          { id: 'label-billing', label: 'Billing', href: '#label-billing' }
+        ] }
+      ] },
+      { id: 'assistant', label: 'Assistant', icon: 'robot', tone: 'violet', content: history }
+    ] },
+    { section: true, label: 'Business', children: [
+      { id: 'crm', label: 'Customers', icon: 'building', tone: 'pink', children: [
+        { id: 'notifications', label: 'Notifications', icon: 'bell', href: '#notifications', badge: 3 },
+        { section: true, label: 'Records', children: [
+          { id: 'companies', label: 'Companies', icon: 'building', href: '#companies' },
+          { id: 'people', label: 'People', icon: 'users', href: '#people' },
+          { id: 'deals', label: 'Deals', icon: 'handshake', href: '#deals' }
+        ] },
+        { section: true, label: 'Lists', children: [
+          { id: 'pipeline', label: 'Enterprise pipeline', href: '#pipeline' },
+          { id: 'renewals', label: 'Renewals Q4', href: '#renewals' }
+        ] }
+      ] },
+      { id: 'inventory', label: 'Inventory', icon: 'box', tone: 'teal', href: '#inventory' }
+    ] }
+  ];
+}
+
 function renderModuleIcon(item, context = {}) {
   return moduleVisual(item.module ?? item.id, 24, context.location === 'root' ? 'circle' : 'tile');
 }
@@ -68,6 +105,56 @@ export default {
     + 'children inline; every rail state presents descendants in hover-, focus-, and '
     + 'keyboard-accessible flyouts.',
   examples: [
+    {
+      title: 'Modules layout',
+      blurb: 'layout: \u2019modules\u2019 draws the top level as a ModuleBar beside a panel with one '
+        + 'module\u2019s menu. Choosing a module shows its menu (a preventable modulechange); a module '
+        + 'without a panel is a destination. The arrow toward the panel moves into the menu, and '
+        + 'Left Arrow on a top-level row comes back to the module. Sections group a menu without '
+        + 'nesting it, and sections of modules head them on the strip. Three presentations — both '
+        + 'menus expanded, the module menu collapsed to icons beside the side menu, and both '
+        + 'collapsed, where each menu opens beside its module — are chosen with a three-way switch '
+        + 'at the foot of the strip, or, as here, in the account menu: presentationSwitch: false '
+        + 'takes it off the strip and presentationChoice() hands it to the menu as a choice row. The account follows: name and role while the modules are '
+        + 'named, the avatar alone on icons.',
+      render: ({ cleanup, log }) => {
+        const compose = button({ label: 'Compose', kind: 'primary' });
+        const history = h('ol', { style: 'margin: 0; padding-inline: var(--zx-space-3); display: grid; gap: var(--zx-space-2); color: var(--zx-color-text-muted)' },
+          ['Quarterly report outline', 'Supplier email draft', 'Onboarding checklist'].map((title) => h('li', {}, title)));
+        const account = new AccountMenu(null, {
+          account: { name: 'Ada Lovelace', secondary: 'ada@example.test' },
+          items: [{ label: 'Settings', value: 'settings' }, '-', { label: 'Sign out', value: 'logout', danger: true }],
+          placement: 'top-start'
+        });
+        const sidebar = new AppSidebar(null, {
+          layout: 'modules',
+          label: 'ACME',
+          items: suiteModules({ compose, history }),
+          active: 'companies',
+          railFooter: account,
+          presentationSwitch: false,
+          onselect: (event) => { event.preventDefault(); log(`select ${event.detail.id}`); sidebar.setActive(event.detail.id); },
+          onmodulechange: ({ detail }) => log(`module ${detail.id}`),
+          onpresentationchange: ({ detail }) => {
+            account.setCompact(detail.presentation !== 'expanded');
+            account.setItems(accountItems());
+            log(`presentation ${detail.presentation}`);
+          }
+        });
+        // The layout choice, read fresh each time, ahead of the account's own actions. Choosing
+        // a layout closes the menu: the strip it sits on is redrawn.
+        const accountItems = () => [
+          { ...sidebar.presentationChoice({ label: 'Layout' }), onselect: (value, entry, menu) => { menu.close(); sidebar.setPresentation(value); } },
+          '-',
+          { label: 'Settings', value: 'settings' },
+          { label: 'Sign out', value: 'logout', danger: true }
+        ];
+        account.setItems(accountItems());
+        cleanup(() => { sidebar.destroy(); account.destroy(); });
+        return h('div', { style: 'display: flex; inline-size: 100%; block-size: 460px' }, sidebar.toElement(),
+          h('div', { class: 'demo-card', style: 'flex: 1; display: grid; place-items: center' }, 'Application workspace'));
+      }
+    },
     {
       title: 'Expanded and minimized vertical states',
       blurb: 'Use the header control to minimize the same component. Its active route and open '

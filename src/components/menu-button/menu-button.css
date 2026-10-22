@@ -129,3 +129,66 @@
   margin: var(--zx-space-1) var(--zx-space-2);
   background: var(--zx-color-overlay-divider);
 }
+
+/*
+ * A choice: a setting chosen in place — its label, then a small segmented control of options, the
+ * checked one lifted out of the track. Neutral, not the accent: it is a state, not an action.
+ */
+.zx-menu-button__choice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--zx-space-3);
+  min-block-size: var(--zx-control-height);
+  padding: var(--zx-space-1) var(--zx-space-2);
+}
+
+.zx-menu-button__choice-label {
+  color: var(--zx-color-text);
+  font-size: var(--zx-text-md);
+}
+
+.zx-menu-button__choice-options {
+  display: inline-flex;
+  flex: none;
+  gap: 2px;
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-bg-hover);
+  padding: 2px;
+}
+
+.zx-menu-button__choice-option {
+  display: grid;
+  place-items: center;
+  inline-size: var(--zx-space-6);
+  block-size: var(--zx-space-6);
+  border: 0;
+  border-radius: var(--zx-radius-sm);
+  background: transparent;
+  padding: 0;
+  color: var(--zx-color-text-muted);
+  cursor: pointer;
+}
+
+.zx-menu-button__choice-option:hover { color: var(--zx-color-text); }
+
+.zx-menu-button__choice-option[aria-checked="true"] {
+  background: var(--zx-color-bg-surface);
+  box-shadow: 0 0 0 1px var(--zx-color-border-subtle);
+  color: var(--zx-color-text);
+}
+
+.zx-menu-button__choice-option[aria-disabled="true"] { cursor: not-allowed; opacity: .55; }
+
+.zx-menu-button__choice-option:focus-visible {
+  outline: none;
+  box-shadow: var(--zx-focus-ring);
+}
+
+@media (forced-colors: active) {
+  .zx-menu-button__choice-option[aria-checked="true"] {
+    background: Highlight;
+    color: HighlightText;
+    forced-color-adjust: none;
+  }
+}

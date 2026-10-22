@@ -7,11 +7,15 @@
  * are styled by `kit.css`.
  *
  * A layout module is `{title, category, blurb, components, mount(container, context)}`, where
- * `context` is `{preview, signal, cleanup}` — see `layoutContext()`.
+ * `context` is `{preview, signal, cleanup, open, id}` — see `layoutContext()`. Every layout with a
+ * navigation column builds it with `suiteNav()`: the suite's modules (`SUITE_MODULES` in
+ * `fixtures.js`) beside the layout's own menu.
  */
 import './layout-icons.js';
-import { Dialog, Message, emptyState, formatDate, h, icon, prefersReducedMotion } from '../../src/index.js';
-import { NOW, ORGANISATION } from './fixtures.js';
+import {
+  AccountMenu, AppSidebar, Component, Dialog, Message, emptyState, formatDate, h, icon, prefersReducedMotion, storage
+} from '../../src/index.js';
+import { ME, NOW, ORGANISATION, SUITE_MODULES, person } from './fixtures.js';
 
 /**
  * @typedef {Object} LayoutContext
@@ -20,6 +24,9 @@ import { NOW, ORGANISATION } from './fixtures.js';
  * @property {AbortSignal} signal Aborted when the layout is unmounted. Pass it to any listener
  *   added outside the layout's own root.
  * @property {(fn: () => void) => void} cleanup Registers teardown that runs on unmount.
+ * @property {((id: string) => void)|null} open Opens another layout of the suite by its registry
+ *   id, where the host can (the gallery swaps the open layout, the standalone page its hash).
+ * @property {string|null} id The mounted layout's registry id, where the host knows it.
  */
 
 /**
@@ -31,7 +38,9 @@ function layoutContext(context = {}) {
   return {
     preview: Boolean(context.preview),
     signal: context.signal ?? new AbortController().signal,
-    cleanup: typeof context.cleanup === 'function' ? context.cleanup : () => {}
+    cleanup: typeof context.cleanup === 'function' ? context.cleanup : () => {},
+    open: typeof context.open === 'function' ? context.open : null,
+    id: typeof context.id === 'string' ? context.id : null
   };
 }
 
@@ -190,22 +199,240 @@ function workspaceHeader({ actions } = {}) {
 }
 
 /**
- * A button drawn as a search field, which opens the layout's command palette. Bind `Mod+k` to the
- * same handler with `shortcuts()`.
- * @param {{label?: string, onclick: (event: MouseEvent) => void}} options
- * @returns {HTMLButtonElement}
+ * @typedef {Object} SuiteNavOptions
+ * @property {string} module This layout's module in `SUITE_MODULES`.
+ * @property {Record<string, any>[]} [menu=[]] The module's menu: AppSidebar items, sections included.
+ *   Ids share one tree with the suite's modules and their menus, so they must not reuse a
+ *   `SUITE_MODULES` id (`billing`) or a catalogue entry id (`crm:companies`).
+ * @property {string|number|null} [active=null] The current destination.
+ * @property {Array<string|number>} [expanded=[]] Branches of the menu open from the start.
+ * @property {Node|null} [header=null] Above the menu: the module's primary action.
+ * @property {Node|null} [content=null] Under the menu: a tree, a history, anything the module lists.
+ * @property {() => void} [onsearch] Shows a search button on the strip that calls it (the launcher).
+ * @property {(event: CustomEvent) => void} [onselect] A choice in this layout's own menu.
+ * @property {Record<string, any>} [account] AccountMenu options merged over the signed-in user's defaults.
+ * @property {'tint'|'solid'|'plain'} [appearance='tint'] The module tiles.
  */
-function navSearch({ label = 'Search', onclick }) {
-  const shortcut = modShortcut('k');
-  return h('button', {
-    type: 'button',
-    class: 'nav-search',
-    'aria-keyshortcuts': shortcut.keys,
-    onclick
-  },
-  icon('magnifying-glass'),
-  h('span', { class: 'nav-search__label' }, label),
-  kbd(modifierLabel(), 'K'));
+/**
+ * @typedef {Object} SuiteNav
+ * @property {HTMLElement} column The `.shell__nav` column, for the layout's root.
+ * @property {AppSidebar} sidebar The navigation itself.
+ * @property {AccountMenu} account The signed-in user's menu at the foot of the strip.
+ * @property {(menu: Record<string, any>[]) => void} setMenu Replaces this layout's menu.
+ * @property {(id: string|number|null) => void} setActive Marks the current destination.
+ * @property {(id: string|number, badge: string|number|null) => void} setBadge Updates a count in place.
+ */
+
+/**
+ * The navigation column of every layout in the suite: one AppSidebar in the modules layout, the
+ * ACME modules on a strip beside a panel with this layout's own menu. Choosing a destination
+ * in another module opens that module's layout where the host can, and says it is not part of this
+ * example where it cannot.
+ * @param {LayoutContext} context
+ * @param {SuiteNavOptions} options
+ * @returns {SuiteNav}
+ */
+function suiteNav(context, {
+  module, menu = [], active = null, expanded = [], header = null, content = null, onsearch, onselect,
+  account = {}, appearance = 'tint'
+}) {
+  const keep = disposer(context);
+  let own = menu;
+  // One tree holds every module and menu: an id used twice would answer for the wrong row.
+  const taken = new Set(SUITE_MODULES.flatMap((entry) => [entry.id, ...(entry.menu ?? []).map((item) => item.id)]));
+  const clashes = [...menuIds(menu)].filter((id) => taken.has(id));
+  if (clashes.length) console.warn(`suiteNav(): menu ids ${clashes.join(', ')} are already used by the suite's modules.`);
+  const moduleItem = (entry) => {
+    const base = { id: entry.id, label: entry.label, icon: entry.icon, tone: entry.tone ?? undefined, layout: entry.layout };
+    if (entry.id === module) {
+      // The module's other screens follow its own menu, so sibling layouts reach each other.
+      const others = (entry.menu ?? []).filter((item) => item.layout !== context.id);
+      const children = others.length
+        ? [...own, { section: true, label: `More in ${entry.label}`, children: others.map((item) => ({ ...item })) }]
+        : own;
+      return { ...base, children, header, content };
+    }
+    return entry.menu ? { ...base, children: entry.menu.map((item) => ({ ...item })) } : base;
+  };
+  // Modules that share a heading become one section of the module menu.
+  const items = () => SUITE_MODULES.reduce((tree, entry) => {
+    const last = tree.at(-1);
+    if (!entry.section) tree.push(moduleItem(entry));
+    else if (last?.section && last.label === entry.section) last.children.push(moduleItem(entry));
+    else tree.push({ section: true, label: entry.section, children: [moduleItem(entry)] });
+    return tree;
+  }, []);
+  const me = person(ME);
+  // The account shows the name and role while the module menu is expanded, the avatar alone
+  // whenever the strip is icons.
+  const accountMenu = keep(new AccountMenu(null, {
+    compact: false,
+    account: { name: me.name, secondary: me.role, status: 'online', statusLabel: 'Online' },
+    items: [{ label: 'Profile', value: 'profile', icon: 'user' }, { label: 'Settings', value: 'settings', icon: 'gear' }, '-', { label: 'Sign out', value: 'signout' }],
+    placement: 'top-start',
+    onselect: ({ detail }) => toast(context, unavailable(detail.item.label), 'info', { scope: column }),
+    ...account
+  }));
+  const accountItems = account.items ?? [{ label: 'Profile', value: 'profile', icon: 'user' },
+    { label: 'Settings', value: 'settings', icon: 'gear' }, '-', { label: 'Sign out', value: 'signout' }];
+  const stripHeader = suiteStrip(onsearch ? iconButton('magnifying-glass', 'Search', () => onsearch(),
+    { shortcut: modShortcut('k') }) : null);
+  const sidebar = keep(new AppSidebar(null, {
+    layout: 'modules',
+    label: ORGANISATION.name,
+    items: items(),
+    active,
+    expanded,
+    // The panel opens on this layout's module even before anything in its menu is current.
+    module,
+    moduleBar: { appearance, label: `${ORGANISATION.name} modules` },
+    railHeader: stripHeader,
+    railFooter: accountMenu,
+    // The layout and the theme are chosen in the account menu, so the strip carries no switch.
+    presentationSwitch: false,
+    onselect: (event) => {
+      const { item } = event.detail;
+      // This layout's own menu is routed by the layout; everything else belongs to another module.
+      if (menuIds(own).has(String(item.id))) {
+        onselect?.(event);
+        return;
+      }
+      const owner = SUITE_MODULES.find((entry) => entry.id === item.id)
+        ?? SUITE_MODULES.find((entry) => entry.menu?.some((child) => child.id === item.id));
+      if (!owner || (owner.id === module && !item.layout)) {
+        onselect?.(event);
+        return;
+      }
+      event.preventDefault();
+      const target = item.layout ?? owner.layout;
+      if (context.preview) return;
+      if (context.open) context.open(target);
+      else toast(context, unavailable(item.label), 'info', { scope: column });
+    }
+  }));
+  const column = h('div', { class: 'shell__nav', dataset: { nav: 'modules' } }, sidebar.toElement());
+  const syncAccount = () => accountMenu.setCompact(sidebar.getPresentation() !== 'expanded');
+  sidebar.on('presentationchange', syncAccount);
+  syncAccount();
+  accountChoices(context, sidebar, accountMenu, accountItems);
+  return {
+    column,
+    sidebar,
+    account: accountMenu,
+    setMenu(next) {
+      own = next;
+      sidebar.setItems(items());
+    },
+    setActive: (id) => sidebar.setActive(id),
+    setBadge: (id, badge) => sidebar.setBadge(id, badge)
+  };
+}
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+/**
+ * The Zx mark: the two letters in the text colour and the bolt in the accent, so it reads on
+ * either theme and under every accent preset. Decorative; the workspace name beside it is the text.
+ * @returns {SVGSVGElement}
+ */
+function zxMark() {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 426.76 331.91');
+  svg.setAttribute('class', 'zx-mark');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('focusable', 'false');
+  const shape = (tag, attribute, value, className) => {
+    const node = document.createElementNS(SVG_NS, tag);
+    node.setAttribute(attribute, value);
+    node.setAttribute('class', className);
+    svg.append(node);
+  };
+  shape('path', 'd', 'M149.95,232.87l-149.95-.15,82.03-68.92,33.19-27.84-88.92-.11,35.67-28.19c5.91-3.79,11.94-6.03,19.27-5.45l137.05.2-116.69,96.68,67.7.36-19.35,33.42Z', 'zx-mark__letter');
+  shape('polygon', 'points', '282.98 231.85 220.75 231.9 288.06 170.11 257.13 136.37 277.09 107.76 292.13 107.69 320.83 139.62 360.32 102.24 426.76 102.36 349.66 170.41 407.03 231.86 343.39 231.98 315.67 201.3 282.98 231.85', 'zx-mark__letter');
+  shape('polygon', 'points', '110.11 331.91 138.48 282.05 192.53 187.41 147.47 187.01 246.06 91.71 340.22 0 223.79 161.57 263.51 164.04 154.14 282.69 110.11 331.91', 'zx-mark__bolt');
+  return svg;
+}
+
+/**
+ * The head of the module strip: the Zx mark, the workspace name — printed only while the strip
+ * prints module names — and trailing controls such as the search button.
+ * @param {...(Node|null)} actions
+ * @returns {HTMLElement}
+ */
+function suiteStrip(...actions) {
+  return h('div', { class: 'suite-strip' },
+    h('span', { class: 'suite-strip__brand', title: ORGANISATION.name },
+      zxMark(), h('span', { class: 'suite-strip__name' }, ORGANISATION.name)),
+    actions.filter(Boolean));
+}
+
+/** The site's theme setting: what `site.js` keeps, or the document's own attribute without it. */
+function themeSetting() {
+  return globalThis.zxTheme?.get?.().theme ?? document.documentElement.dataset.zxTheme ?? 'auto';
+}
+
+/**
+ * Puts the navigation layout and the theme at the top of an account menu, each a three-way choice,
+ * ahead of the menu's own items, and keeps both in step with changes made elsewhere — Mod+B, the
+ * site's theme toggle. Choosing a layout closes the menu, since the strip it sits on re-renders;
+ * choosing a theme leaves it open, so the change shows.
+ * @param {LayoutContext} context
+ * @param {AppSidebar} sidebar A modules-layout sidebar.
+ * @param {AccountMenu} accountMenu
+ * @param {any[]} items The account's own items.
+ * @returns {void}
+ */
+function accountChoices(context, sidebar, accountMenu, items) {
+  const entries = () => [
+    {
+      ...sidebar.presentationChoice({ label: 'Layout' }),
+      onselect: (value, entry, controller) => {
+        controller.close();
+        sidebar.setPresentation(value);
+      }
+    },
+    {
+      type: 'choice',
+      label: 'Theme',
+      value: themeSetting(),
+      options: [
+        { value: 'light', label: 'Light', icon: 'sun' },
+        { value: 'dark', label: 'Dark', icon: 'moon' },
+        { value: 'auto', label: 'System', icon: 'circle-half-stroke' }
+      ],
+      onselect: (value) => {
+        if (globalThis.zxTheme?.set) globalThis.zxTheme.set({ theme: value });
+        else document.documentElement.dataset.zxTheme = String(value);
+      }
+    },
+    '-',
+    ...items
+  ];
+  // An open menu has already drawn its own change; anything else redraws it.
+  const refresh = () => {
+    if (!accountMenu.isOpen()) accountMenu.setItems(entries());
+  };
+  refresh();
+  sidebar.on('presentationchange', refresh);
+  accountMenu.on('close', refresh);
+  document.addEventListener('zx-theme-change', refresh, { signal: context.signal });
+}
+
+/**
+ * Every id in a menu tree, sections' children included.
+ * @param {Record<string, any>[]} items
+ * @returns {Set<string>}
+ */
+function menuIds(items) {
+  const ids = new Set();
+  const walk = (list) => {
+    for (const item of list ?? []) {
+      if (item?.id != null) ids.add(String(item.id));
+      walk(item?.children);
+    }
+  };
+  walk(items);
+  return ids;
 }
 
 /**
@@ -579,8 +806,12 @@ function watchTheme(context, fn) {
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', fn, { signal: context.signal });
 }
 
-/** The widths at which the shell gives a column up — `kit.css` repeats them in its container queries. */
-const SHELL_BREAKPOINTS = Object.freeze({ aside: 1180, nav: 860, single: 640 });
+/**
+ * The widths at which the shell gives a column up — `kit.css` repeats them in its container
+ * queries — plus `named`, below which a modules sidebar drops its panel labels. That one is the
+ * controller's alone: the sidebar draws the narrower presentation itself.
+ */
+const SHELL_BREAKPOINTS = Object.freeze({ named: 1440, aside: 1180, nav: 860, single: 640 });
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), '
   + 'select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -658,7 +889,8 @@ function focusHeading(scope) {
  */
 
 /**
- * Makes a shell work at any width. Wide, every column shows. Below 1180px the inspector gives way
+ * Makes a shell work at any width. Wide, every column shows. A navigation column made by
+ * `suiteNav()` is found whenever it is in the root, before or after this is called. Below 1180px the inspector gives way
  * (unless it carries `data-pinned`) and `asideToggle()` opens it as a drawer from the end; below
  * 860px the navigation column gives way and `navToggle()` opens it as a drawer from the start; below
  * 640px a shell with a list column shows the list or the main pane, never both, and `backToggle()`
@@ -715,6 +947,66 @@ function adaptiveShell(root, context, {
 
   let width = Infinity;
   const fits = (name) => width > (name === 'nav' ? SHELL_BREAKPOINTS.nav : SHELL_BREAKPOINTS.aside);
+  // A navigation column holding a modules-layout sidebar never hides at full width: it minimizes
+  // to the module strip, as the reader last left it; between the inspector and navigation widths
+  // it starts minimized, and in the drawer it is always expanded.
+  const modulesSidebar = () => {
+    const element = root.querySelector(':scope > .shell__nav > .zx-app-sidebar[data-layout="modules"]');
+    return element ? /** @type {AppSidebar|null} */ (Component.from(element)) : null;
+  };
+  const preferences = storage('zx-layouts');
+  /** @type {'full'|'wide'|'mid'|'narrow'|null} */
+  let band = null;
+  /** True while the shell itself changes the presentation, which is not the reader's choice. */
+  let applying = false;
+  const remembered = () => {
+    const value = preferences.get('nav-presentation', null);
+    return ['expanded', 'compact', 'collapsed'].includes(value) ? value : 'expanded';
+  };
+  /** @type {WeakSet<AppSidebar>} Sidebars whose presentation is being remembered. */
+  const watched = new WeakSet();
+  const applyBand = () => {
+    const sidebar = modulesSidebar();
+    if (!sidebar) return;
+    // The reader's own choice at full width is remembered across the suite.
+    if (!watched.has(sidebar)) {
+      watched.add(sidebar);
+      sidebar.on('presentationchange', ({ detail }) => {
+        if (applying) return;
+        // The drawer always shows the side menu beside the module icons: it is put away by
+        // closing it, so a narrower or wider choice made inside it does not stick there.
+        if (band === 'narrow') {
+          if (detail.presentation !== 'compact') {
+            applying = true;
+            sidebar.setPresentation('compact');
+            applying = false;
+          }
+          return;
+        }
+        if (band === 'full' || band === 'wide') preferences.set('nav-presentation', detail.presentation);
+      });
+    }
+    const next = width >= SHELL_BREAKPOINTS.named ? 'full' : width > SHELL_BREAKPOINTS.aside ? 'wide'
+      : width > SHELL_BREAKPOINTS.nav ? 'mid' : 'narrow';
+    if (next === band) return;
+    // The column is about to become a closed drawer: focus inside it moves to what opens it.
+    const leaving = next === 'narrow' && band !== null && Boolean(column('nav')?.contains(document.activeElement));
+    band = next;
+    // From 1440 the reader's choice; below it module names would cost the work its room, so the
+    // choice stops at the module icons beside the side menu; between the inspector and navigation
+    // widths both menus collapse; in the drawer the side menu sits beside the module icons.
+    const choice = remembered();
+    applying = true;
+    sidebar.setPresentation(next === 'full' ? choice
+      : next === 'wide' ? (choice === 'expanded' ? 'compact' : choice)
+        : next === 'mid' ? 'collapsed' : 'compact');
+    applying = false;
+    if (leaving) {
+      const toggle = [...toggles.nav].find((button) => button.isConnected && button.checkVisibility());
+      if (toggle) toggle.focus({ preventScroll: true });
+      else if (!focusHeading(column('main'))) focusFirst(column('main'), FOCUSABLE);
+    }
+  };
   const bottomPanel = () => /** @type {HTMLElement|null} */ (root.querySelector('.shell__panel'));
   /** @param {'nav'|'aside'|'panel'} name @returns {boolean} Whether that part is showing now. */
   const shown = (name) => {
@@ -774,7 +1066,9 @@ function adaptiveShell(root, context, {
     if (open) {
       if (!panel || context.preview) return;
       drawer(name === 'nav' ? 'aside' : 'nav', false, { restore: false });
-      drawerFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      // Focus on the page itself is no place to come back to: the toggle is, when the drawer closes.
+      drawerFocus = document.activeElement instanceof HTMLElement && document.activeElement !== document.body
+        ? document.activeElement : null;
       root.dataset[key] = 'true';
       scrim = h('div', { class: 'shell__scrim', 'aria-hidden': 'true', onclick: () => closeAll() });
       root.append(scrim);
@@ -785,7 +1079,8 @@ function adaptiveShell(root, context, {
       // Not a text field first — on a phone that raises the keyboard over the drawer. A drawer with
       // nothing else focusable takes focus itself, so Escape still reaches the shell and focus is
       // never left on the inert opener behind the scrim.
-      if (!focusFirst(panel, CURRENT, NOT_TEXT_ENTRY)) {
+      // The current page first: in a modules sidebar the current module's tile comes before it.
+      if (!focusFirst(panel, '[aria-current="page"]', CURRENT, NOT_TEXT_ENTRY)) {
         if (!panel.hasAttribute('tabindex')) panel.tabIndex = -1;
         panel.focus({ preventScroll: true });
       }
@@ -834,8 +1129,16 @@ function adaptiveShell(root, context, {
     }
     return collapsed;
   }
-  /** Shows or hides the navigation the way the width allows: a drawer narrow, a column wide. */
-  const toggleNav = () => (fits('nav') ? collapse('nav') : drawer('nav', root.dataset.navOpen !== 'true'));
+  /**
+   * Shows or hides the navigation the way the width allows: a drawer narrow, a column wide — and a
+   * modules sidebar minimized to its strip rather than hidden.
+   */
+  const toggleNav = () => {
+    if (!fits('nav')) return drawer('nav', root.dataset.navOpen !== 'true');
+    const sidebar = modulesSidebar();
+    if (sidebar) return sidebar.togglePresentation();
+    return collapse('nav');
+  };
   /** Shows or hides the inspector the way the width allows: a drawer narrow, a column wide. */
   const toggleInspector = () => (fits('aside') ? collapse('aside') : toggleAside());
 
@@ -866,9 +1169,11 @@ function adaptiveShell(root, context, {
       if (event.key !== 'Escape' || event.defaultPrevented) return;
       if (root.dataset.navOpen !== 'true' && root.dataset.asideOpen !== 'true') return;
       // An open Select, menu, or listbox inside the drawer closes first; the drawer on the next one.
+      // A module tile beside its panel reports aria-expanded too, but that panel is not a popup.
       const target = event.composedPath()[0];
       if (target instanceof Element
-        && target.closest('[aria-expanded="true"], [role="listbox"], [role="menu"], [role="dialog"]')) return;
+        && target.closest('[aria-expanded="true"], [role="listbox"], [role="menu"], [role="dialog"]')
+        && !target.closest('.zx-module-bar[data-menus="none"] .zx-module-bar__item[data-app-nav-value-id]')) return;
       event.preventDefault();
       event.stopPropagation();
       closeAll();
@@ -910,24 +1215,25 @@ function adaptiveShell(root, context, {
         && !target.closest('[data-drawer-stay]')) closeAfterChoice();
     }, { signal: context.signal });
     // Mod+B the navigation, Mod+I the inspector, Mod+J the bottom panel — not while typing in rich
-    // text, where B and I are bold and italic.
-    if (keys) {
-      root.addEventListener('keydown', (event) => {
-        const mod = isMac() ? event.metaKey : event.ctrlKey;
-        if (!mod || event.altKey || event.shiftKey || event.defaultPrevented) return;
-        const key = event.key.toLowerCase();
-        const target = /** @type {HTMLElement} */ (event.target);
-        const rich = target?.isContentEditable || target instanceof HTMLTextAreaElement;
-        if (key === 'b' && !rich && column('nav')) toggleNav();
-        else if (key === 'i' && !rich && column('aside')) toggleInspector();
-        else if (key === 'j' && bottomPanel()) togglePanel();
-        else return;
-        event.preventDefault();
-      }, { signal: context.signal });
-    }
+    // text, where B and I are bold and italic. A modules sidebar always takes Mod+B: minimizing it
+    // is how the suite's navigation is put away.
+    root.addEventListener('keydown', (event) => {
+      const mod = isMac() ? event.metaKey : event.ctrlKey;
+      if (!mod || event.altKey || event.shiftKey || event.defaultPrevented) return;
+      const key = event.key.toLowerCase();
+      const target = /** @type {HTMLElement} */ (event.target);
+      const rich = target?.isContentEditable || target instanceof HTMLTextAreaElement;
+      if (key === 'b' && !rich && column('nav') && (keys || modulesSidebar())) toggleNav();
+      else if (keys && key === 'i' && !rich && column('aside')) toggleInspector();
+      else if (keys && key === 'j' && bottomPanel()) togglePanel();
+      else return;
+      event.preventDefault();
+    }, { signal: context.signal });
+    applyBand();
     // A drawer for a column that fits again closes by itself.
     const observer = new ResizeObserver(([entry]) => {
       width = entry.contentRect.width;
+      applyBand();
       if (width > SHELL_BREAKPOINTS.nav) drawer('nav', false, { restore: false });
       if (width > SHELL_BREAKPOINTS.aside) drawer('aside', false, { restore: false });
       sync('nav');
@@ -945,7 +1251,7 @@ function adaptiveShell(root, context, {
 
 export {
   DATE, SHELL_BREAKPOINTS, adaptiveShell, allowsMotion, chartOptions, chartPalette, chartScales, disposer, dot, iconButton, iconTile,
-  isEditable, kbd, later, layoutContext, listTime, loadChartJs, modShortcut, modifierLabel, navSearch,
-  paneHeader, panelBlock, propList, renderScope, sectionLabel, shortcutSheet, shortcuts, toast, toaster, unavailable,
+  isEditable, kbd, later, layoutContext, listTime, loadChartJs, modShortcut, modifierLabel,
+  accountChoices, paneHeader, panelBlock, propList, renderScope, sectionLabel, shortcutSheet, shortcuts, suiteNav, suiteStrip, toast, toaster, unavailable,
   unavailablePane, watchTheme, workspaceHeader
 };

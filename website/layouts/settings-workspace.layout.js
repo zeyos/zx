@@ -1,10 +1,10 @@
 import {
-  AccountMenu, AppSidebar, Avatar, CopyInput, Dialog, Form, InlineLoading, Select, TimePicker, Toggle,
+  Avatar, CopyInput, Dialog, Form, InlineLoading, Select, TimePicker, Toggle,
   button, formatDate, formatRelativeTime, h, uid
 } from '../../src/index.js';
 import {
-  DATE, adaptiveShell, disposer, later, layoutContext, modShortcut, paneHeader, renderScope, sectionLabel,
-  shortcuts, toaster, unavailable, unavailablePane, workspaceHeader
+  DATE, adaptiveShell, disposer, later, layoutContext, modShortcut, paneHeader, renderScope, shortcuts,
+  suiteNav, toaster, unavailable, unavailablePane
 } from './kit.js';
 import { ME, NOW, person } from './fixtures.js';
 
@@ -19,7 +19,8 @@ const NAVIGATION = {
   workspace: [
     { id: 'general', label: 'General', icon: 'building' },
     { id: 'members', label: 'Members', icon: 'users' },
-    { id: 'billing', label: 'Billing', icon: 'credit-card' }
+    // Not `billing`: the navigation also holds the suite's Billing module under that id.
+    { id: 'workspace-billing', label: 'Billing', icon: 'credit-card' }
   ]
 };
 
@@ -110,7 +111,10 @@ export default {
   title: 'Settings workspace',
   category: 'Pattern',
   blurb: 'Personal settings in sections — profile, notifications, sharing, an API token — saved together.',
-  components: ['Toggle', 'Form', 'Select', 'TimePicker', 'CopyInput', 'Avatar', 'InlineLoading', 'Dialog'],
+  components: [
+    'Toggle', 'Form', 'Select', 'TimePicker', 'CopyInput', 'Avatar', 'InlineLoading', 'Dialog', 'AppSidebar',
+    'ModuleBar', 'AccountMenu'
+  ],
 
   /**
    * Mounts the settings: the sections in the navigation column and the open section's groups,
@@ -124,40 +128,38 @@ export default {
     const keep = disposer(context);
     const prefix = uid('settings');
     const me = person(ME);
-    const root = h('div', { class: 'settings shell' });
-    // Narrow, the sections become a drawer opened from the page header.
-    const shell = adaptiveShell(root, context, { navLabel: 'Open settings sections' });
-    const notify = toaster(context, root);
     const state = { section: 'profile', dirty: new Set(), photo: /** @type {string|null} */ (null), token: { ...TOKEN } };
     // The copy box exists only while a new token is on show.
     const tokenParts = renderScope(context);
     let cancelSave = () => {};
 
     // ---------------------------------------------------------------- navigation column
-    const sidebars = Object.entries(NAVIGATION).map(([group, items]) => keep(new AppSidebar(null, {
-      label: group === 'personal' ? 'Personal settings' : 'Workspace settings',
-      collapsible: false,
-      active: state.section,
-      items: items.map((item) => ({ ...item, invoke: () => open(item.id) }))
-    })));
-    const account = keep(new AccountMenu(null, {
-      account: { name: me.name, secondary: me.role, status: me.status },
-      placement: 'top-start',
-      items: [
-        { label: 'Profile', value: 'profile', icon: 'user' },
-        '-',
-        { label: 'Sign out', value: 'sign-out', icon: 'power-off' }
+    const entry = (item) => ({ ...item, invoke: () => open(item.id) });
+    // The suite's navigation: the settings' sections as Settings' own menu, beside every other
+    // module of the suite. The account menu's Profile opens the Profile section.
+    const nav = suiteNav(context, {
+      module: 'settings',
+      menu: [
+        { section: true, label: 'Personal', children: NAVIGATION.personal.map(entry) },
+        { section: true, label: 'Workspace', children: NAVIGATION.workspace.map(entry) }
       ],
-      onselect: (event) => (event.detail.item.value === 'profile'
-        ? open('profile')
-        : notify(unavailable(event.detail.item.label), 'info'))
-    }));
-    const nav = h('div', { class: 'shell__nav' },
-      workspaceHeader(),
-      h('div', { class: 'shell__body' },
-        sectionLabel('Personal'), sidebars[0].toElement(),
-        sectionLabel('Workspace'), sidebars[1].toElement()),
-      h('div', { class: 'shell__footer' }, account.toElement()));
+      active: state.section,
+      account: {
+        items: [
+          { label: 'Profile', value: 'profile', icon: 'user' },
+          '-',
+          { label: 'Sign out', value: 'sign-out', icon: 'power-off' }
+        ],
+        onselect: (event) => (event.detail.item.value === 'profile'
+          ? open('profile')
+          : notify(unavailable(event.detail.item.label), 'info'))
+      }
+    });
+
+    const root = h('div', { class: 'settings shell' }, nav.column);
+    // Narrow, the sections become a drawer opened from the page header.
+    const shell = adaptiveShell(root, context, { navLabel: 'Open settings sections' });
+    const notify = toaster(context, root);
 
     // ------------------------------------------------------------------- header
     const title = h('span');
@@ -178,7 +180,7 @@ export default {
     const photoInput = h('input', { type: 'file', accept: 'image/*', hidden: true, onchange: () => setPhoto(photoInput.files?.[0]) });
     const removePhoto = button({ label: 'Remove', kind: 'ghost', size: 'sm', disabled: true, onclick: () => setPhoto(null) });
     const profileSection = h('div', { class: 'settings__section' },
-      settingsGroup('Photo', 'Shown beside your name everywhere in Fieldstone.',
+      settingsGroup('Photo', 'Shown beside your name everywhere in ACME.',
         h('div', { class: 'settings__photo' }, avatar.toElement(),
           button({ label: 'Upload photo', size: 'sm', icon: 'upload', onclick: () => photoInput.click() }),
           removePhoto, photoInput)),
@@ -250,7 +252,7 @@ export default {
       h('div', { class: 'shell__body shell__body--padded' },
         h('div', { class: 'settings__page' }, Object.values(sections), elsewhere)));
 
-    root.append(nav, main);
+    root.append(main);
     container.append(root);
 
     // What every section looked like when it was last saved, so Discard can put it back.
@@ -291,7 +293,7 @@ export default {
      */
     function show(id) {
       state.section = id;
-      for (const sidebar of sidebars) sidebar.setActive(id);
+      nav.setActive(id);
       const item = [...NAVIGATION.personal, ...NAVIGATION.workspace].find((entry) => entry.id === id);
       title.textContent = item.label;
       for (const [name, element] of Object.entries(sections)) element.hidden = name !== id;
@@ -410,7 +412,7 @@ export default {
      */
     function describeVisibility(value) {
       visibilityNote.textContent = value === false ? 'Only you see new records until you share them.'
-        : value === true ? 'Everyone in Fieldstone sees new records.'
+        : value === true ? 'Everyone in ACME sees new records.'
           : `The ${GROUPS.find((group) => group.ID === value)?.name ?? 'chosen'} team sees new records.`;
     }
 

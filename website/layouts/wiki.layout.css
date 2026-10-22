@@ -2,20 +2,8 @@
 
 /* ------------------------------------------------------------- navigation -- */
 
-.wiki__nav-body {
-  padding-block-end: var(--zx-space-4);
-}
-
-.wiki__space,
-.wiki__tree {
-  padding-inline: var(--zx-space-2);
-}
-
-/* The space switcher heads the column rather than sitting in it as a form field: a flat row of the
+/* The space switcher heads the panel rather than sitting in it as a form field: a flat row of the
    space's tile, its name, and a chevron. Hover and an open list bring a fill; the focus ring stays. */
-.wiki__space {
-  padding-block: var(--zx-space-1);
-}
 
 .wiki__space .zx-select__control {
   border-color: transparent;
@@ -39,9 +27,17 @@
   color: var(--zx-color-text-subtle);
 }
 
+/* The page tree and the favorites follow the menu under headings drawn like its sections. */
+.wiki .wiki__trees > .section-label {
+  min-block-size: calc(var(--zx-control-height) - var(--zx-space-1));
+  margin-block: var(--zx-space-3) 0;
+  padding-inline: var(--zx-space-2) var(--zx-space-1);
+  font-weight: var(--zx-weight-semibold);
+}
+
 /* A page with sub-pages carries the tree's chevron; any other page a small dot in its place, so
    every title starts on the same line. */
-.wiki__tree .zx-tree__row:not([data-branch]) > .zx-tree__twisty::before {
+.wiki__trees .zx-tree__row:not([data-branch]) > .zx-tree__twisty::before {
   content: "";
   inline-size: 4px;
   block-size: 4px;

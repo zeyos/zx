@@ -41,6 +41,16 @@ export default {
       }
     },
     {
+      title: 'Theme tones',
+      blurb: 'An application without a palette of its own can take identity from the theme: tone names one of the nine categorical tones and draws its solid fill, which keeps the white glyph readable in both themes. A literal color still wins when both are given.',
+      render: ({ cleanup }) => {
+        const tones = ['blue', 'teal', 'green', 'amber', 'orange', 'red', 'pink', 'violet', 'slate'];
+        const icons = tones.map((tone) => new AppIcon(null, { icon: 'folder', tone, size: 40, label: `${tone} tone` }));
+        cleanup(() => icons.forEach((item) => item.destroy()));
+        return h('div', { class: 'demo-row' }, icons.map((item) => item.toElement()));
+      }
+    },
+    {
       title: 'Host-provided identity',
       blurb: 'Forks, weblets, and other front ends can use the same component with their own colour and glyph. The adapter is a preset, not a restriction on the core AppIcon contract.',
       render: () => h('div', { class: 'demo-row' },

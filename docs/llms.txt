@@ -47,7 +47,8 @@ exports and as `window.zx.*`.
   canvas light; shared material roles govern chrome and overlays), `Avatar`, `Panel` (header/footer action
   buttons), `MasterPanel`, `Tabbox`
   (`variant: 'divided'|'bracket'|'line'|'segmented'`), `NavigationBar`, `AppSidebar` (expanded and
-  minimized vertical states plus horizontal rail layouts), `AccountMenu`, `Launcher`,
+  minimized vertical states plus horizontal rail layouts; sections; a modules layout), `ModuleBar`
+  (colour-coded module strip or bar with flyout menus and an "All modules" catalogue), `AccountMenu`, `Launcher`,
   `spinner()`/`ProgressBar`/`InlineLoading`, `skeleton()`/`skeletonText()`/`skeletonTable()`,
   `Toolbar` (APG toolbar with overflow menu), `SplitView`, `Dock`
   (collapsible resizable pane stack; tab groups, regions, adopts a `Sheet`), `Stepper`,

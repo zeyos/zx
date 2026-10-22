@@ -56,9 +56,9 @@
 
 /* ------------------------------------------------------------------- main -- */
 
-/* No rule under the headers: the fade at the top of the thread is the edge between the header
-   and the conversation, and a rule under the navigation header alone would stop short. */
-.chat :is(.shell__nav, .chat__main) > .shell__header {
+/* No rule under the conversation's header: the fade at the top of the thread is the edge between
+   the header and the conversation. */
+.chat .chat__main > .shell__header {
   border-block-end-color: transparent;
 }
 

@@ -1,13 +1,15 @@
 import {
-  AccountMenu, AppSidebar, DataFilter, Dialog, button, formatNumber, h
+  AccountMenu, AppSidebar, DataFilter, Dialog, button, formatNumber, h, icon
 } from '../../src/index.js';
-import { calendarDayToUnixSeconds, dataFilterStateToFilters, zeyosForm, zeyosTable } from '../../src/zeyos/index.js';
+import {
+  buildZeyosAppSidebarConfig, calendarDayToUnixSeconds, dataFilterStateToFilters, zeyosForm, zeyosTable
+} from '../../src/zeyos/index.js';
 // The dedicated ZeyOS client library (npm: @zeyos/client), bundled for the zero-build site.
 import { createZeyosClient } from '../vendor/zeyos-client.esm.js';
 import { installMockZeyosApi } from '../mock-zeyos-api.js';
 import {
-  adaptiveShell, disposer, iconButton, layoutContext, panelBlock, paneHeader, propList, renderScope,
-  sectionLabel, shortcuts, toaster, unavailable, workspaceHeader
+  accountChoices, adaptiveShell, disposer, iconButton, layoutContext, panelBlock, paneHeader, propList, renderScope,
+  shortcuts, suiteStrip, toaster, unavailable
 } from './kit.js';
 import { ME, NOW, person } from './fixtures.js';
 
@@ -30,25 +32,47 @@ const STATUS_OPTIONS = [
   { value: 21, label: 'Overpaid' }
 ];
 
-/** Destinations in the navigation column; the screen is the invoice list. */
-const NAVIGATION = {
-  billing: [
-    { id: 'invoices', label: 'Invoices', icon: 'file-invoice' },
-    { id: 'quotes', label: 'Quotes', icon: 'file-lines' },
-    { id: 'credit-notes', label: 'Credit notes', icon: 'receipt' },
-    { id: 'payments', label: 'Payments', icon: 'credit-card' }
-  ],
-  contacts: [
-    { id: 'accounts', label: 'Accounts', icon: 'building' },
-    { id: 'contacts', label: 'Contacts', icon: 'users' }
-  ]
+/**
+ * The ZeyOS shell state the navigation is built from: the modules this user may open, and the menus
+ * of the modules that have one, keyed by module identifier. The screen is the invoice list.
+ */
+const ZEYOS_SHELL = {
+  modules: ['billing', 'accounts', 'contacts', 'tickets', 'tasks', 'notes', 'calendar', 'messages', 'projects'],
+  menus: {
+    billing: [
+      { id: 'invoices', label: 'Invoices', icon: 'file-invoice' },
+      { id: 'quotes', label: 'Quotes', icon: 'file-lines' },
+      { id: 'credit-notes', label: 'Credit notes', icon: 'receipt' },
+      { id: 'payments', label: 'Payments', icon: 'credit-card' }
+    ],
+    accounts: [{ id: 'accounts:list', label: 'Accounts', icon: 'building' }],
+    contacts: [{ id: 'contacts:list', label: 'Contacts', icon: 'users' }]
+  },
+  activeIdentifier: 'billing',
+  active: 'invoices'
+};
+
+/**
+ * The glyph each module's tile draws. The ZeyOS icon kit is a web font this offline example does
+ * not load, so every module takes the closest outline from the bundled and the layouts' icon set.
+ */
+const MODULE_ICONS = {
+  billing: 'file-invoice',
+  accounts: 'building',
+  contacts: 'users',
+  tickets: 'clipboard-list',
+  tasks: 'list-check',
+  notes: 'file-lines',
+  calendar: 'calendar-days',
+  messages: 'message',
+  projects: 'diagram-project'
 };
 
 export default {
   title: 'ZeyOS invoices',
   category: 'Pattern',
-  blurb: 'Invoices listed, filtered, sorted, and edited through a table and a form generated from the ZeyOS schema.',
-  components: ['Table', 'DataFilter', 'Form', 'Dialog'],
+  blurb: 'Invoices listed, filtered, sorted, and edited through a table and a form generated from the ZeyOS schema, beside the ZeyOS module navigation.',
+  components: ['Table', 'DataFilter', 'Form', 'Dialog', 'AppSidebar', 'ModuleBar', 'AccountMenu'],
 
   /**
    * Mounts the invoice list driven by the ZeyOS OpenAPI client: the generated table under its
@@ -62,7 +86,44 @@ export default {
     context = layoutContext(context);
     const keep = disposer(context);
     const me = person(ME);
-    const root = h('div', { class: 'zinvoices shell' });
+
+    // ---------------------------------------------------------------- navigation column
+    // The ZeyOS navigation, built by the binding from the shell state: the module strip in the
+    // ZeyOS identity colours beside Billing's menu. Only the invoices are part of this example;
+    // every other entry and module says so.
+    const unavailableEntry = (label) => () => notify(unavailable(label), 'info');
+    const account = keep(new AccountMenu(null, {
+      account: { name: me.name, secondary: me.role, status: me.status },
+      placement: 'top-start',
+      items: [
+        { label: 'Preferences', value: 'preferences', icon: 'gear' },
+        '-',
+        { label: 'Sign out', value: 'sign-out', icon: 'power-off' }
+      ],
+      onselect: (event) => notify(unavailable(event.detail.item.label), 'info')
+    }));
+    const sidebar = keep(new AppSidebar(null, buildZeyosAppSidebarConfig({
+      ...ZEYOS_SHELL,
+      menus: Object.fromEntries(Object.entries(ZEYOS_SHELL.menus).map(([module, entries]) => [module,
+        entries.map((entry) => (entry.id === 'invoices' ? entry : { ...entry, invoke: unavailableEntry(entry.label) }))])),
+      // A module without a menu is a destination of its own: the host says what choosing it does.
+      resolveApplication: (app) => ({ invoke: unavailableEntry(Array.isArray(app) ? String(app[1]) : 'This module') }),
+      renderApplicationIcon: (app, normalized) => icon(MODULE_ICONS[normalized.module] ?? 'cube')
+    }, {
+      railHeader: suiteStrip(),
+      railFooter: account,
+      // The layout and the theme are chosen in the account menu.
+      presentationSwitch: false,
+      // The name and role while the modules are named, the avatar alone on the icon strip.
+      onpresentationchange: ({ detail }) => account.setCompact(detail.presentation !== 'expanded')
+    })));
+    accountChoices(context, sidebar, account, [
+      { label: 'Preferences', value: 'preferences', icon: 'gear' },
+      '-',
+      { label: 'Sign out', value: 'sign-out', icon: 'power-off' }
+    ]);
+    const nav = h('div', { class: 'shell__nav', dataset: { nav: 'modules' } }, sidebar.toElement());
+    const root = h('div', { class: 'zinvoices shell' }, nav);
     // Narrow, the data source and then the navigation become drawers.
     const shell = adaptiveShell(root, context, { asideLabel: 'Show data source' });
     const notify = toaster(context, root);
@@ -86,33 +147,6 @@ export default {
     let activeSearch = '';
     let activeFilters = {};
     let activeSort = { id: 'date', dir: 'desc' };
-
-    // ---------------------------------------------------------------- navigation column
-    const sidebar = (label, items) => keep(new AppSidebar(null, {
-      label,
-      collapsible: false,
-      active: 'invoices',
-      items: items.map((item) => ({
-        ...item,
-        invoke: () => (item.id === 'invoices' ? null : notify(unavailable(item.label), 'info'))
-      }))
-    })).toElement();
-    const account = keep(new AccountMenu(null, {
-      account: { name: me.name, secondary: me.role, status: me.status },
-      placement: 'top-start',
-      items: [
-        { label: 'Preferences', value: 'preferences', icon: 'gear' },
-        '-',
-        { label: 'Sign out', value: 'sign-out', icon: 'power-off' }
-      ],
-      onselect: (event) => notify(unavailable(event.detail.item.label), 'info')
-    }));
-    const nav = h('div', { class: 'shell__nav' },
-      workspaceHeader(),
-      h('div', { class: 'shell__body' },
-        sectionLabel('Billing'), sidebar('Billing', NAVIGATION.billing),
-        sectionLabel('Contacts'), sidebar('Contacts', NAVIGATION.contacts)),
-      h('div', { class: 'shell__footer' }, account.toElement()));
 
     // ----------------------------------------------------------------- the list
     const sourceStatus = h('span', { class: 'zinvoices__status', 'aria-live': 'polite' }, 'Waiting for zx-zeyos.');
@@ -205,7 +239,7 @@ export default {
             'Queries use ', h('span', { class: 'mono' }, 'filters'),
             ', Unix-second timestamps, and server-side sorting and paging: the table never sorts locally.'))));
 
-    root.append(nav, main, aside);
+    root.append(main, aside);
     container.append(root);
 
     list.table.on('datachange', () => {

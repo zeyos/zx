@@ -42,7 +42,7 @@ const STEPS = [
 const NEXT_LABELS = ['Continue to delivery', 'Continue to payment', 'Review order', 'Place order'];
 
 /** The number the order is placed under. */
-const ORDER_NUMBER = 'FS-26-10482';
+const ORDER_NUMBER = 'AC-26-10482';
 
 /** The customer placing the order, from the shared fixtures, with the address it ships to. */
 const CUSTOMER = { ...company('bruckner'), street: 'Landsberger Straße 302', postcode: '80687' };

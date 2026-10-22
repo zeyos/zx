@@ -1,11 +1,11 @@
 import {
-  AccountMenu, ActivityList, AppSidebar, Avatar, Breadcrumb, CheckButton, Dialog, FileList, Form,
+  ActivityList, Avatar, Breadcrumb, CheckButton, Dialog, FileList, Form,
   InlineLoading, MenuButton, Sheet, Tabbox, Table, TagPicker, badge, button, emptyState, formatCurrency,
   formatDate, formatNumber, formatPercent, formatRelativeTime, h, icon, stack, statTile, uid
 } from '../../src/index.js';
 import {
   DATE, adaptiveShell, disposer, dot, iconButton, later, layoutContext, modShortcut, paneHeader, propList,
-  renderScope, sectionLabel, shortcuts, toaster, unavailable, unavailablePane, workspaceHeader
+  renderScope, shortcuts, suiteNav, toaster, unavailable, unavailablePane
 } from './kit.js';
 import { ME, NOW, person } from './fixtures.js';
 
@@ -88,7 +88,7 @@ const ITEMS = [
   {
     code: 'SKU-2047',
     values: {
-      name: 'Charging cradle CC-4', group: 'accessories', brand: 'Fieldstone', unit: 'pcs',
+      name: 'Charging cradle CC-4', group: 'accessories', brand: 'ACME', unit: 'pcs',
       barcode: '4260748 120478', enabled: true, maintainStock: true, serialised: false,
       description: 'Four-slot charging cradle for HS-40 scanners, with a spare-battery bay and wall bracket.',
       valuation: 'moving', warehouse: 'BER', shelfLife: null, warranty: 24, weight: 0.9,
@@ -126,7 +126,7 @@ const ITEMS = [
   {
     code: 'SKU-2048',
     values: {
-      name: 'Handheld scanner HS-40', group: 'scanners', brand: 'Fieldstone', unit: 'pcs',
+      name: 'Handheld scanner HS-40', group: 'scanners', brand: 'ACME', unit: 'pcs',
       barcode: '4260748 120485', enabled: true, maintainStock: true, serialised: true,
       description: 'Rugged 2D barcode scanner for warehouse floors: IP65, 1.8 m drop rating, hot-swap '
         + 'battery, and Wi-Fi 6. Ships with a hand strap and a USB-C cable.',
@@ -189,7 +189,7 @@ const ITEMS = [
   {
     code: 'SKU-2049',
     values: {
-      name: 'Label printer LP-200', group: 'printers', brand: 'Fieldstone', unit: 'pcs',
+      name: 'Label printer LP-200', group: 'printers', brand: 'ACME', unit: 'pcs',
       barcode: '4260748 120492', enabled: true, maintainStock: true, serialised: true,
       description: 'Thermal-transfer label printer, 203 dpi, 100 mm print width, Ethernet and USB.',
       valuation: 'fifo', warehouse: 'HAM', shelfLife: null, warranty: 24, weight: 2.8,
@@ -282,7 +282,8 @@ export default {
   blurb: 'One stock item as a record: levels per warehouse, linked documents, tabbed settings, and a movement log.',
   components: [
     'StatTile', 'Table', 'Form', 'Tabbox', 'ActivityList', 'FileList', 'TagPicker', 'Select', 'NumberField',
-    'Toggle', 'Breadcrumb', 'MenuButton', 'InlineLoading', 'CheckButton', 'Dialog', 'Sheet', 'Avatar', 'Message'
+    'Toggle', 'Breadcrumb', 'MenuButton', 'InlineLoading', 'CheckButton', 'Dialog', 'Sheet', 'Avatar', 'Message',
+    'AppSidebar', 'ModuleBar', 'AccountMenu'
   ],
 
   /**
@@ -300,33 +301,23 @@ export default {
     const item = () => items[state.index];
     // The side column is redrawn per item; its avatars belong to one drawing.
     const asideParts = renderScope(context);
-    // Narrow, the navigation and then the side column become drawers opened from the header.
-    const root = h('div', { class: 'inventory shell' });
-    const shell = adaptiveShell(root, context, { asideLabel: 'Item details' });
-    const notify = toaster(context, root);
 
     // ------------------------------------------------------------- navigation column --
-    const navGroups = NAVIGATION.map((group) => keep(new AppSidebar(null, {
-      label: group.label,
-      collapsible: false,
-      items: group.items.map((entry) => ({ ...entry, invoke: () => show(entry.id) }))
-    })));
+    // The suite's navigation: Inventory's own menu, one section per group, beside every other
+    // module of the suite.
+    const nav = suiteNav(context, {
+      module: 'inventory',
+      menu: NAVIGATION.map((group) => ({
+        section: true,
+        label: group.label,
+        children: group.items.map((entry) => ({ ...entry, invoke: () => show(entry.id) }))
+      }))
+    });
     const me = person(ME);
-    const account = keep(new AccountMenu(null, {
-      account: { name: me.name, secondary: me.role, status: me.status },
-      placement: 'top-start',
-      items: [
-        { label: 'Preferences', value: 'prefs', icon: 'gear' },
-        '-',
-        { label: 'Sign out', value: 'out', icon: 'power-off' }
-      ],
-      onselect: (event) => notify(unavailable(event.detail.item.label), 'info')
-    }));
-    const navColumn = h('div', { class: 'shell__nav' },
-      workspaceHeader(),
-      h('div', { class: 'shell__body' },
-        NAVIGATION.map((group, index) => [sectionLabel(group.label), navGroups[index].toElement()])),
-      h('div', { class: 'shell__footer' }, account.toElement()));
+    // Narrow, the navigation and then the side column become drawers opened from the header.
+    const root = h('div', { class: 'inventory shell' }, nav.column);
+    const shell = adaptiveShell(root, context, { asideLabel: 'Item details' });
+    const notify = toaster(context, root);
 
     // ------------------------------------------------------------------ record header --
     const crumbs = keep(new Breadcrumb(null, {
@@ -629,7 +620,7 @@ export default {
         sideBlock({ title: 'Followers', icon: 'eye', action: follow.toElement() }, side.followers)));
     const main = h('section', { class: 'shell__main', 'aria-label': 'Inventory' },
       recordHeader, record, otherHeader, otherBody);
-    root.append(navColumn, main, aside);
+    root.append(main, aside);
 
     shortcuts(root, {
       'Mod+s': () => save(),
@@ -692,8 +683,7 @@ export default {
     function show(view) {
       const onRecord = view === 'record';
       state.view = view;
-      // Each group is its own list; the one holding the destination marks it, the others clear.
-      for (const group of navGroups) group.setActive(onRecord ? 'items' : view);
+      nav.setActive(onRecord ? 'items' : view);
       recordHeader.hidden = !onRecord;
       record.hidden = !onRecord;
       aside.hidden = !onRecord;

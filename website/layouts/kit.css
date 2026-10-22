@@ -262,8 +262,133 @@
   inline-size: 100%;
 }
 
-.shell__nav .zx-app-sidebar__header {
+.shell__nav .zx-app-sidebar[data-layout="tree"] .zx-app-sidebar__header {
   display: none;
+}
+
+/*
+ * The suite's navigation: a modules-layout AppSidebar is the whole column — the module strip and,
+ * expanded, a panel with this layout's menu — so the column takes the sidebar's width instead of a
+ * fixed one, and narrows to the strip when the sidebar is minimized.
+ */
+.shell__nav[data-nav="modules"] {
+  flex: 0 0 auto;
+}
+
+.shell__nav[data-nav="modules"] > .zx-app-sidebar {
+  flex: 1 1 auto;
+}
+
+/* The panel's header is the column's header: one shell header tall, with the same rule under it. */
+.shell__nav[data-nav="modules"] .zx-app-sidebar__panel > .zx-app-sidebar__header {
+  min-block-size: var(--shell-header-height);
+  padding-block: 0;
+  padding-inline: var(--zx-space-4) var(--zx-space-2);
+  border-block-end: 1px solid var(--zx-color-border-subtle);
+}
+
+.shell__nav[data-nav="modules"] .zx-app-sidebar__panel-lead {
+  padding: var(--zx-space-3) var(--zx-space-2) 0;
+}
+
+/* A module's primary action, full width with its key hint at the far end. */
+.shell__nav[data-nav="modules"] .zx-app-sidebar__panel-lead > .zx-btn {
+  inline-size: 100%;
+  justify-content: flex-start;
+}
+
+.shell__nav[data-nav="modules"] .zx-app-sidebar__panel-lead .zx-btn__shortcut {
+  margin-inline-start: auto;
+}
+
+.shell__nav[data-nav="modules"] .zx-app-sidebar__panel-body > .zx-app-sidebar__nav {
+  padding-block-start: var(--zx-space-2);
+}
+
+/* A module's own content under its menu — a folder tree, a history, a roster — lines up with the
+   menu: headings with the section headings, rows with the menu rows. */
+.shell__nav[data-nav="modules"] .zx-app-sidebar__panel-content .section-label {
+  min-block-size: calc(var(--zx-control-height) - var(--zx-space-1));
+  margin-block: var(--zx-space-3) 0;
+  padding-inline: var(--zx-space-2) var(--zx-space-1);
+  font-weight: var(--zx-weight-semibold);
+}
+
+.shell__nav[data-nav="modules"] .zx-app-sidebar__panel-content .list-row {
+  inline-size: 100%;
+  margin-inline: 0;
+}
+
+.shell__nav[data-nav="modules"] .zx-app-sidebar__panel-content .list-group {
+  padding-inline: var(--zx-space-2);
+}
+
+/* The strip's head lines up with the panel's: the workspace mark and the search, one header tall. */
+/* Collapsed, the mark sits over the search; with module names printed, the workspace's name
+   follows the mark and the search moves to the end of the row. */
+.suite-strip {
+  display: grid;
+  justify-items: center;
+  gap: var(--zx-space-2);
+}
+
+.suite-strip__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  min-inline-size: 0;
+  color: var(--zx-color-text);
+  font-weight: var(--zx-weight-semibold);
+}
+
+.suite-strip__name { display: none; }
+
+.zx-module-bar[data-labels="beside"] .suite-strip {
+  grid-template-columns: minmax(0, 1fr) auto;
+  justify-items: start;
+  align-items: center;
+  padding-inline: var(--zx-space-1) 0;
+}
+
+.zx-module-bar[data-labels="beside"] .suite-strip__name {
+  display: inline;
+  overflow-wrap: break-word;
+}
+
+/* The Zx mark: letters in the text colour, the bolt in the accent. */
+.zx-mark {
+  flex: none;
+  inline-size: calc(var(--zx-control-height) - 2px);
+  block-size: auto;
+}
+
+.zx-mark__letter { fill: currentColor; }
+.zx-mark__bolt { fill: var(--zx-color-accent); }
+
+.shell__nav[data-nav="modules"] .zx-module-bar__header {
+  min-block-size: var(--shell-header-height);
+  padding-block: calc((var(--shell-header-height) - var(--zx-space-6)) / 2) var(--zx-space-1);
+}
+
+/* The account sits at the foot of the strip: the avatar alone on the icon strip, a flat row with
+   the name and role while the module menu is expanded. */
+.shell__nav[data-nav="modules"] .zx-module-bar__footer .zx-account-menu__trigger {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.shell__nav[data-nav="modules"] .zx-module-bar[data-labels="beside"] .zx-account-menu__trigger {
+  display: grid;
+  inline-size: 100%;
+  justify-content: stretch;
+}
+
+.shell__nav[data-nav="modules"] .zx-module-bar__footer .zx-account-menu__trigger:hover,
+.shell__nav[data-nav="modules"] .zx-module-bar__footer .zx-account-menu__trigger[aria-expanded="true"] {
+  background: var(--zx-color-bg-hover);
 }
 
 .shell__nav .zx-app-sidebar__nav {
@@ -275,86 +400,6 @@
 .shell__nav .section-label {
   margin-block: var(--zx-space-3) var(--zx-space-1);
   padding-inline: calc(var(--zx-space-2) + var(--zx-space-3));
-}
-
-/* The column's one primary action, full width, with its key hint at the far end. */
-.nav-action {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--zx-space-2);
-  padding: var(--zx-space-3) var(--zx-space-2) var(--zx-space-2);
-}
-
-.nav-action > .zx-btn {
-  inline-size: 100%;
-  justify-content: flex-start;
-}
-
-.nav-action .zx-btn__shortcut {
-  margin-inline-start: auto;
-}
-
-/* A button drawn as a search field that opens the command palette. */
-.nav-search {
-  display: flex;
-  align-items: center;
-  gap: var(--zx-space-2);
-  inline-size: 100%;
-  min-block-size: var(--zx-control-height);
-  padding-inline: var(--zx-space-2);
-  border: 1px solid var(--zx-color-border-subtle);
-  border-radius: var(--zx-control-radius);
-  background: var(--zx-color-bg-surface);
-  color: var(--zx-color-text-muted);
-  font: inherit;
-  font-size: var(--zx-control-font-size);
-  font-weight: 400;
-  text-align: start;
-  cursor: pointer;
-}
-
-.nav-search:hover {
-  border-color: var(--zx-color-border);
-  background: var(--zx-color-bg-surface);
-  color: var(--zx-color-text);
-}
-
-.nav-search .zx-icon {
-  color: var(--zx-color-text-subtle);
-}
-
-.nav-search:focus-visible {
-  outline: none;
-  box-shadow: var(--zx-focus-ring);
-}
-
-.nav-search__label {
-  flex: 1 1 auto;
-  min-inline-size: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* The signed-in user at the foot of the column: a flat row, like the items above it. */
-.shell__footer .zx-account-menu .zx-account-menu__trigger {
-  display: grid;
-  inline-size: 100%;
-  justify-content: stretch;
-  border-color: transparent;
-  background: transparent;
-  box-shadow: none;
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-}
-
-.shell__footer .zx-account-menu .zx-account-menu__trigger:hover,
-.shell__footer .zx-account-menu .zx-account-menu__trigger[aria-expanded="true"] {
-  background: var(--zx-color-bg-hover);
-}
-
-.shell__nav > .shell__footer {
-  padding: var(--zx-space-2);
 }
 
 /* The workspace identity at the top of a navigation column. */
@@ -909,7 +954,6 @@
    screenshot is always the settled state. */
 @media (prefers-reduced-motion: no-preference) {
   .list-row,
-  .nav-search,
   .segmented__item,
   .link-button {
     transition:
@@ -1125,6 +1169,11 @@ button.shell__status-item:focus-visible {
     inline-size: min(var(--shell-nav-width), calc(100% - var(--zx-space-8)));
     border-inline-end: 0;
     box-shadow: var(--zx-overlay-shadow);
+  }
+
+  .shell[data-nav-open] > .shell__nav[data-nav="modules"] {
+    inline-size: auto;
+    max-inline-size: calc(100% - var(--zx-space-8));
   }
 }
 

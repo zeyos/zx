@@ -4,8 +4,9 @@
  * share it, so a layout behaves the same wherever it is opened.
  *
  * A layout module is `{title, category, blurb, components, mount(container, context)}`. Whoever
- * mounts it owns the context: an AbortSignal for listeners outside the layout's root, and a cleanup
- * list that destroys every component the layout registered. Unmounting aborts the one and runs the
+ * mounts it owns the context: an AbortSignal for listeners outside the layout's root, a cleanup
+ * list that destroys every component the layout registered, and `open(id)`, which moves to another
+ * layout of the suite. Unmounting aborts the one and runs the
  * other, so mounting layouts one after another in one page leaves the page as it was.
  */
 
@@ -125,9 +126,14 @@ function mountLayout(container, entry) {
   try {
     if (!entry.layout) throw new Error('The module did not load.');
     entry.layout.mount(scope, {
+      id: entry.id,
       preview: false,
       signal: controller.signal,
-      cleanup: (fn) => cleanups.push(fn)
+      cleanup: (fn) => cleanups.push(fn),
+      // Both hosts route by hash: the gallery swaps the open layout, the standalone page its own.
+      open: (id) => {
+        if (LAYOUT_IDS.includes(id) && id !== entry.id) window.location.hash = `#${encodeURIComponent(id)}`;
+      }
     });
   } catch (error) {
     console.error(`The "${entry.id}" layout failed to mount.`, error);

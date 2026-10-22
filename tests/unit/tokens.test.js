@@ -92,6 +92,29 @@ test('the palette defines the brand, status, and tone ramps the roles read', () 
   assert.equal(dark.get('--zx-color-success'), 'var(--zx-green-400)');
 });
 
+test('every tone has a solid identity fill the white icon glyph reads on, in both themes', () => {
+  // WCAG relative luminance of a six-digit hex colour.
+  const luminance = (hex) => {
+    const [red, green, blue] = [1, 3, 5].map((offset) => {
+      const channel = Number.parseInt(hex.slice(offset, offset + 2), 16) / 255;
+      return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+  };
+  assert.equal(light.get('--zx-color-app-icon-glyph'), 'var(--zx-gray-0)');
+  const glyph = luminance(global.get('--zx-gray-0'));
+  for (const tone of TONES) {
+    const role = `--zx-color-tone-${tone}-solid`;
+    const reference = /^var\((--zx-tone-[\w-]+)\)$/.exec(light.get(role) ?? '')?.[1];
+    assert.ok(reference, `${role} must read one tone stop`);
+    // A solid is identity, not ink: the same stop on both themes, like the chart series.
+    assert.ok(!dark.has(role), `${role} is overridden in dark`);
+    const fill = luminance(global.get(reference));
+    const ratio = (Math.max(glyph, fill) + 0.05) / (Math.min(glyph, fill) + 0.05);
+    assert.ok(ratio >= 3, `${role}: the glyph reaches ${ratio.toFixed(2)}:1, below 3:1`);
+  }
+});
+
 test('the type scale has a document-title step, weights, and tracking', () => {
   assert.equal(global.get('--zx-text-3xl'), '30px');
   assert.equal(global.get('--zx-weight-medium'), '500');

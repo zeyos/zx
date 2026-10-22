@@ -66,3 +66,17 @@ test('ZeyOS AppIcon and compact module chips keep separate shape defaults', () =
   assert.match(source, /moduleChip\(name, \{ shape: 'circle', \.\.\.options \}\)/);
   assert.match(source, /shape: options\.shape \?\? 'tile'/);
 });
+
+test('AppIcon tones resolve to the solid tone roles, and a literal colour still wins', () => {
+  assert.equal(AppIcon.defaults.tone, null);
+  const css = readFileSync(fileURLToPath(new URL(
+    '../../src/components/app-icon/app-icon.css', import.meta.url)), 'utf8');
+  for (const tone of ['blue', 'teal', 'green', 'amber', 'orange', 'red', 'pink', 'violet', 'slate']) {
+    assert.match(css, new RegExp(`\\[data-tone="${tone}"\\] \\{ --zx-app-icon-color: var\\(--zx-color-tone-${tone}-solid\\); \\}`));
+  }
+  const component = readFileSync(fileURLToPath(new URL(
+    '../../src/components/app-icon/app-icon.js', import.meta.url)), 'utf8');
+  // The colour goes inline, the tone through an attribute rule: inline outranks the rule.
+  assert.match(component, /style\.setProperty\('--zx-app-icon-color'/);
+  assert.match(component, /dataset\.tone = state\.tone/);
+});

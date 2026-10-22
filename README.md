@@ -177,7 +177,8 @@ ZeyOS binding — see `src/zeyos/modules.js`.
 | `MasterPanel` | Full-height application panel with fixed header actions and footer. |
 | `Tabbox` | APG tabs in four appearances, with lazy content, closing, badges, and disabled states. |
 | `NavigationBar` | Responsive application navigation with optional tab panels and overflow. |
-| `AppSidebar` | Expanded or minimized vertical application navigation plus horizontal rails; descendants are inline only while expanded. |
+| `AppSidebar` | Expanded or minimized vertical application navigation plus horizontal rails; descendants are inline only while expanded. Sections group a tree; `layout: 'modules'` puts a module strip beside one module's menu. |
+| `ModuleBar` | Colour-coded module tiles in a strip or bar: flyout menus, live badges, one Tab stop, and an "All modules" catalogue for what does not fit. |
 | `Toolbar` | APG toolbar: one tab stop, arrow-key movement, and overflow into a menu. |
 | `SplitView` | Resizable two-pane split with a keyboard-operable separator. |
 | `Stepper` | Linear multi-step progress with completed, active, and error states. |

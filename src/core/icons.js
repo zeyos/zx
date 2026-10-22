@@ -160,7 +160,8 @@ export const icons = Object.freeze({
   copy: outline('M10 8h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-10a2 2 0 0 1-2-2v-10a2 2 0 0 1 2-2zM4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2'),
   square: outline('M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-14a2 2 0 0 1-2-2v-14a2 2 0 0 1 2-2z'),
   code: outline('M18 16l4-4-4-4M6 8l-4 4 4 4M14.5 4l-5 16'), // code-xml
-  book: outline('M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20')
+  book: outline('M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20'),
+  'table-cells-large': outline('M4 3h5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1v-5a1 1 0 0 1 1-1zM15 3h5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1v-5a1 1 0 0 1 1-1zM15 14h5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1v-5a1 1 0 0 1 1-1zM4 14h5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1v-5a1 1 0 0 1 1-1z') // layout-grid
   // </lucide-glyphs>
 });
 
@@ -171,7 +172,8 @@ const aliases = Object.freeze({
   checked: 'check',
   question: 'info',
   range: 'filter',
-  fields: 'list'
+  fields: 'list',
+  grid: 'table-cells-large'
 });
 
 /** @type {Record<string, IconGlyph>} Glyphs added at runtime by `registerIcons`. */

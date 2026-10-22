@@ -1,14 +1,14 @@
 import {
-  AccountMenu, AppSidebar, Breadcrumb, Dialog, Form, InlineLoading, MenuButton, Stepper, addDays,
-  button, emptyState, formatCurrency, formatDate, formatPercent, h
+  Breadcrumb, Dialog, Form, InlineLoading, MenuButton, Stepper, addDays, button, emptyState,
+  formatCurrency, formatDate, formatPercent, h
 } from '../../src/index.js';
 import {
   DATE, adaptiveShell, disposer, iconButton, later, layoutContext, modShortcut, paneHeader, propList,
-  sectionLabel, shortcuts, toaster, unavailable, workspaceHeader
+  shortcuts, suiteNav, toaster, unavailable
 } from './kit.js';
-import { COMPANIES, ME, NOW, company, person } from './fixtures.js';
+import { COMPANIES, NOW, company } from './fixtures.js';
 
-/** Destinations in the navigation column; the wizard is opened from Quotes. */
+/** Billing's destinations in the navigation; the wizard is opened from Quotes. */
 const NAVIGATION = {
   overview: [
     { id: 'dashboard', label: 'Dashboard', icon: 'gauge' },
@@ -24,7 +24,7 @@ const NAVIGATION = {
 
 /** What a quotation can contain. Prices are net, in EUR. */
 const CATALOGUE = [
-  { ID: 'platform', name: 'Fieldstone Platform, Business plan', unit: '12 months', price: 17400 },
+  { ID: 'platform', name: 'ACME Platform, Business plan', unit: '12 months', price: 17400 },
   { ID: 'seats', name: 'Additional user seats', unit: '20 seats', price: 5760 },
   { ID: 'implementation', name: 'Implementation package', unit: 'Flat rate', price: 14800 },
   { ID: 'workshop', name: 'On-site workshop', unit: '2 days', price: 2560 },
@@ -135,7 +135,7 @@ export default {
   title: 'Record wizard',
   category: 'Pattern',
   blurb: 'A new quotation in three validated steps, with a running total and a review before it is created.',
-  components: ['Stepper', 'Form', 'Checklist', 'Breadcrumb', 'InlineLoading', 'Dialog'],
+  components: ['Stepper', 'Form', 'Checklist', 'Breadcrumb', 'InlineLoading', 'Dialog', 'ModuleBar'],
 
   /**
    * Mounts the wizard: the application's navigation, a vertical step rail beside the current
@@ -147,41 +147,28 @@ export default {
   mount(container, context) {
     context = layoutContext(context);
     const keep = disposer(context);
-    const me = person(ME);
-    const root = h('div', { class: 'record-wizard shell' });
-    // Narrow, the navigation becomes a drawer; on a phone the header's actions fold into a menu.
-    const shell = adaptiveShell(root, context);
-    const notify = toaster(context, root);
     const state = { step: 0, created: false };
     let cancelSave = () => {};
 
     // ---------------------------------------------------------------- navigation column
-    const sidebar = (label, items) => keep(new AppSidebar(null, {
-      label,
-      collapsible: false,
+    /** @param {{id: string, label: string, icon: string}} item @returns {Record<string, any>} */
+    const destination = (item) => ({
+      ...item,
+      invoke: () => notify(unavailable(item.id === 'quotes' ? 'The quote list' : item.label), 'info')
+    });
+    // The suite's navigation: a new quotation is Billing's, opened from its quotes.
+    const nav = suiteNav(context, {
+      module: 'billing',
       active: 'quotes',
-      items: items.map((item) => ({
-        ...item,
-        invoke: () => notify(unavailable(item.id === 'quotes' ? 'The quote list' : item.label), 'info')
-      }))
-    })).toElement();
-    const account = keep(new AccountMenu(null, {
-      account: { name: me.name, secondary: me.role, status: me.status },
-      placement: 'top-start',
-      items: [
-        { label: 'Preferences', value: 'preferences', icon: 'gear' },
-        '-',
-        { label: 'Sign out', value: 'sign-out', icon: 'power-off' }
-      ],
-      onselect: (event) => notify(unavailable(event.detail.item.label), 'info')
-    }));
-    const nav = h('div', { class: 'shell__nav' },
-      workspaceHeader(),
-      h('div', { class: 'shell__body' },
-        sidebar('Overview', NAVIGATION.overview),
-        sectionLabel('Sales'),
-        sidebar('Sales', NAVIGATION.sales)),
-      h('div', { class: 'shell__footer' }, account.toElement()));
+      menu: [
+        ...NAVIGATION.overview.map(destination),
+        { section: true, label: 'Sales', children: NAVIGATION.sales.map(destination) }
+      ]
+    });
+    const root = h('div', { class: 'record-wizard shell' }, nav.column);
+    // Narrow, the navigation becomes a drawer; on a phone the header's actions fold into a menu.
+    const shell = adaptiveShell(root, context);
+    const notify = toaster(context, root);
 
     // ------------------------------------------------------------------- header
     const crumbs = keep(new Breadcrumb(null, {
@@ -259,7 +246,7 @@ export default {
           stage)),
       footer);
 
-    root.append(nav, main);
+    root.append(main);
     container.append(root);
 
     shortcuts(root, { 'Mod+Enter': advance, 'Mod+s': saveDraft }, context);

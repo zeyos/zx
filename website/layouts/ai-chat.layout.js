@@ -1,12 +1,12 @@
 import {
-  AccountMenu, AppSidebar, ContextMenu, CopyInput, Dialog, FileList, InlineLoading, Launcher,
+  ContextMenu, CopyInput, Dialog, FileList, InlineLoading, Launcher,
   MenuButton, NumberField, ProgressBar, Select, Slider, Toggle, Tooltip, appIcon, badge, button,
   copyButton, downloadBlob, emptyState, formatDate, formatFileSize, formatNumber, formatPercent, h,
   icon, prefersReducedMotion, rovingTabindex, spinner, stack, uid, watchMotion
 } from '../../src/index.js';
 import {
   DATE, SHELL_BREAKPOINTS, adaptiveShell, disposer, iconButton, iconTile, later, layoutContext, listTime,
-  navSearch, paneHeader, renderScope, shortcutSheet, shortcuts, toaster, workspaceHeader
+  paneHeader, renderScope, shortcutSheet, shortcuts, suiteNav, toaster
 } from './kit.js';
 import { ME, NOW, ORGANISATION, person } from './fixtures.js';
 
@@ -110,7 +110,7 @@ const MODELS = [
   { ID: 'halden-3', name: 'Halden 3', description: 'Balanced for everyday work', icon: 'wand-magic-sparkles', context: 200_000 },
   { ID: 'halden-3-swift', name: 'Halden 3 Swift', description: 'Fastest answers', icon: 'bolt', context: 128_000 },
   { ID: 'halden-3-deep', name: 'Halden 3 Deep', description: 'Reasons step by step first', icon: 'lightbulb', context: 200_000 },
-  { ID: 'ferro-8b', name: 'Ferro 8B', description: 'Runs on Fieldstone servers', icon: 'server', context: 32_000 }
+  { ID: 'ferro-8b', name: 'Ferro 8B', description: 'Runs on ACME servers', icon: 'server', context: 32_000 }
 ];
 
 /**
@@ -185,7 +185,7 @@ const SUGGESTIONS = [
 
 /** Settings a new chat starts with. */
 const DEFAULT_SETTINGS = {
-  system: 'You are Fieldstone’s assistant. Answer concisely in British English, and say so when you are unsure.',
+  system: 'You are ACME’s assistant. Answer concisely in British English, and say so when you are unsure.',
   temperature: 0.7,
   maxTokens: 4096,
   tools: { web: true, code: false },
@@ -209,28 +209,28 @@ const SOURCES = {
     title: 'Backoff with jitter', site: 'systems-notes.example', url: 'https://systems-notes.example/backoff-with-jitter',
     snippet: 'A random spread on each wait stops a fleet of clients from retrying in lockstep and arriving at the server all at once.'
   },
-  'fieldstone-limits': {
-    title: 'Rate limits and quotas', site: 'docs.fieldstone.example', url: 'https://docs.fieldstone.example/api/rate-limits',
+  'acme-limits': {
+    title: 'Rate limits and quotas', site: 'docs.acme.example', url: 'https://docs.acme.example/api/rate-limits',
     snippet: 'Limits apply per API key and are shared by every integration that uses it. Each response reports what is left in X-RateLimit-Remaining.'
   },
   'limits-pdf': {
-    title: 'api-rate-limits.pdf', site: 'Knowledge file', url: 'https://chat.fieldstone.example/files/api-rate-limits.pdf',
+    title: 'api-rate-limits.pdf', site: 'Knowledge file', url: 'https://chat.acme.example/files/api-rate-limits.pdf',
     snippet: 'Team: 300 requests a minute per key, burst 50. Below Business, scheduled jobs share the key’s budget.', file: true
   },
   'export-log': {
-    title: 'kestrel-export-log.csv', site: 'Knowledge file', url: 'https://chat.fieldstone.example/files/kestrel-export-log.csv',
+    title: 'kestrel-export-log.csv', site: 'Knowledge file', url: 'https://chat.acme.example/files/kestrel-export-log.csv',
     snippet: '412 responses with status 429 between 02:00 and 02:14 on 7 October, and none outside the backup window.', file: true
   },
   'alpine-contract': {
-    title: 'alpine-works-contract-2025.pdf', site: 'Knowledge file', url: 'https://chat.fieldstone.example/files/alpine-works-contract-2025.pdf',
+    title: 'alpine-works-contract-2025.pdf', site: 'Knowledge file', url: 'https://chat.acme.example/files/alpine-works-contract-2025.pdf',
     snippet: 'Section 7: the extended SLA lists at €3,400 a year; customers on a multi-year agreement receive 15% off.', file: true
   },
   'q3-costs': {
-    title: 'q3-warehouse-costs.csv', site: 'Knowledge file', url: 'https://chat.fieldstone.example/files/q3-warehouse-costs.csv',
+    title: 'q3-warehouse-costs.csv', site: 'Knowledge file', url: 'https://chat.acme.example/files/q3-warehouse-costs.csv',
     snippet: 'Cost lines for Berlin, Munich, Hamburg, and Rotterdam, April to September, by category.', file: true
   },
   findings: {
-    title: 'findings.md', site: 'Attached by Camille Fournier', url: 'https://chat.fieldstone.example/files/findings.md',
+    title: 'findings.md', site: 'Attached by Camille Fournier', url: 'https://chat.acme.example/files/findings.md',
     snippet: 'The cursor was capped at a 10,000-row offset, so the next page started again from the first row. Fixed in 4.12.1.', file: true
   },
   'one-pager': {
@@ -337,7 +337,7 @@ const CHATS = [
     id: 'export-limits', title: 'Nightly export hits the rate limit', folder: 'engineering',
     model: 'halden-3', updated: '2026-10-08T09:41',
     settings: {
-      system: 'You are an integration engineer at Fieldstone. Prefer short answers with working code, and cite the API reference in the knowledge files.',
+      system: 'You are an integration engineer at ACME. Prefer short answers with working code, and cite the API reference in the knowledge files.',
       temperature: 0.3,
       tools: { web: true, code: true },
       files: [
@@ -354,7 +354,7 @@ const CHATS = [
           queried('kestrel-export-log.csv — 429 responses per minute, 01:50 to 02:20', 1400),
           searched('429 too many requests retry-after', 8, 1900)
         ],
-        sources: cite('limits-pdf', 'export-log', 'status-429', 'fieldstone-limits'),
+        sources: cite('limits-pdf', 'export-log', 'status-429', 'acme-limits'),
         blocks: [
           p('The export is running into the **per-key rate limit**, not a server fault. A 429 means the API refused the request before doing any work, so nothing is lost — the job just stops early.'),
           p('Three things make 02:00 the worst moment for Kestrel:'),
@@ -377,7 +377,7 @@ const CHATS = [
           wrote('Revised retry-helper.js', 'Revising retry-helper.js', 'v2 · retries 503 too, with jitter', 900),
           ran('the tests', '6 passed', 3100)
         ],
-        sources: cite('retry-after', 'jitter', 'limits-pdf', 'fieldstone-limits'),
+        sources: cite('retry-after', 'jitter', 'limits-pdf', 'acme-limits'),
         blocks: [
           p('Here is a small helper they can drop in. It retries only on 429 and 503, waits for `Retry-After` when the API sends it, and otherwise backs off exponentially with a little jitter. My first draft missed the 503 case; the tests caught it, so this is the second version:'),
           artifact('retry-helper', 'retry-helper.js'),
@@ -428,8 +428,8 @@ const CHATS = [
         p('To check the change from their network, time one page at 02:00:'),
         code('bash', [
           'curl -s -o /dev/null -w "%{http_code} %{time_total}s\\n" \\',
-          '  -H "Authorization: Bearer $FIELDSTONE_TOKEN" \\',
-          '  "https://api.fieldstone.example/v2/records?limit=500"'
+          '  -H "Authorization: Bearer $ACME_TOKEN" \\',
+          '  "https://api.acme.example/v2/records?limit=500"'
         ].join('\n')),
         p('A `200` in under a second means the fix worked.')
       ]
@@ -638,7 +638,8 @@ export default {
   blurb: 'Chat with an assistant that shows its work: tool steps, cited sources, artifacts with versions, agent mentions, and per-chat model settings.',
   components: [
     'Slider', 'FileList', 'CopyInput', 'Launcher', 'Select', 'InlineLoading', 'ContextMenu',
-    'MenuButton', 'NumberField', 'Toggle', 'ProgressBar', 'AppIcon', 'Tooltip', 'Dialog', 'Message'
+    'MenuButton', 'NumberField', 'Toggle', 'ProgressBar', 'AppIcon', 'Tooltip', 'Dialog', 'Message',
+    'AppSidebar', 'ModuleBar', 'AccountMenu'
   ],
 
   /**
@@ -697,7 +698,37 @@ export default {
      * @type {Map<string, ReturnType<typeof renderScope>>}
      */
     const owners = new Map();
-    const root = h('div', { class: 'chat shell' });
+
+    // ------------------------------------------------------------ navigation column --
+
+    const history = h('div', { class: 'chat__history', role: 'region', 'aria-label': 'Chat history' });
+    const roving = rovingTabindex(history, '.chat__row');
+    context.cleanup(() => roving.destroy());
+    // The suite's navigation: the chat views, then the history of the one chosen. Send is this
+    // screen's one solid accent, so starting a chat is an ordinary button.
+    const nav = suiteNav(context, {
+      module: 'assistant',
+      menu: navItems(),
+      active: state.view,
+      header: button({
+        label: 'New chat', icon: 'plus', shortcut: { label: 'C', keys: 'C' }, onclick: () => newChat()
+      }),
+      content: history,
+      onsearch: () => openSearch(),
+      account: {
+        account: { name: me.name, secondary: me.role, status: me.status },
+        items: [
+          { label: 'Assistant settings', icon: 'sliders', value: 'settings' },
+          { label: 'Keyboard shortcuts', icon: 'keyboard', value: 'shortcuts' }
+        ],
+        onselect: ({ detail }) => {
+          leaveNav();
+          if (detail.value === 'settings') toggleSettings(true);
+          else openShortcuts();
+        }
+      }
+    });
+    const root = h('div', { class: 'chat shell' }, nav.column);
     // Narrow, the navigation — with the chat history — becomes a drawer, and so does the inspector
     // once it no longer fits beside the conversation.
     // The shell closes the inspector drawer by itself — on Escape, the scrim, or the navigation
@@ -710,38 +741,6 @@ export default {
         else syncInspector();
       }
     });
-
-    // ------------------------------------------------------------ navigation column --
-
-    const sidebar = keep(new AppSidebar(null, {
-      label: 'Chats',
-      collapsible: false,
-      active: state.view,
-      items: navItems()
-    }));
-    const history = h('div', { class: 'chat__history', role: 'region', 'aria-label': 'Chat history' });
-    const roving = rovingTabindex(history, '.chat__row');
-    context.cleanup(() => roving.destroy());
-    const account = keep(new AccountMenu(null, {
-      account: { name: me.name, secondary: me.role, status: me.status },
-      placement: 'top-start',
-      items: [
-        { label: 'Assistant settings', icon: 'sliders', value: 'settings' },
-        { label: 'Keyboard shortcuts', icon: 'keyboard', value: 'shortcuts' }
-      ],
-      onselect: ({ detail }) => (detail.value === 'settings' ? toggleSettings(true) : openShortcuts())
-    }));
-
-    // Send is this screen's one solid accent, so starting a chat is an ordinary button.
-    const nav = h('div', { class: 'shell__nav' },
-      workspaceHeader(),
-      h('div', { class: 'nav-action' },
-        button({
-          label: 'New chat', icon: 'plus', shortcut: { label: 'C', keys: 'C' }, onclick: () => newChat()
-        }),
-        navSearch({ label: 'Search chats', onclick: () => openSearch() })),
-      h('div', { class: 'shell__body' }, sidebar.toElement(), history),
-      h('div', { class: 'shell__footer' }, account.toElement()));
 
     // ------------------------------------------------------------------ main pane --
 
@@ -1009,7 +1008,7 @@ export default {
       }
     }, settingsView, artifactView);
 
-    root.append(nav, main, aside);
+    root.append(main, aside);
     const notify = toaster(context, root);
     const openShortcuts = shortcutSheet(context, [
       ['Conversation', [
@@ -1036,7 +1035,7 @@ export default {
 
       // Choosing a view in the navigation — all chats, a folder, the archive — changes the history
       // beneath it, so the drawer stays open for the choice of a chat.
-      sidebar.toElement().dataset.drawerStay = '';
+      nav.sidebar.toElement().dataset.drawerStay = '';
 
       // A streaming answer is motion: asked for less of it mid-answer, the rest appears at once.
       watchMotion(root, (reduced) => {
@@ -1187,7 +1186,7 @@ export default {
       renderThread();
       state.stick = true;
       followOutput();
-      sidebar.setItems(navItems());
+      syncNavCounts();
       renderUsage();
       const { plan, agent } = planFor(chat, value);
       stream(chat, plan, { agent });
@@ -1795,7 +1794,7 @@ export default {
       };
       chats.unshift(branch);
       openChat(branch.id);
-      sidebar.setItems(navItems());
+      syncNavCounts();
       input.focus();
       notify('Branched into a new chat. The original stays as it was.', 'success', {
         action: {
@@ -2238,7 +2237,7 @@ export default {
         notify('Chat deleted.');
       }
       more.setItems(chatMenu(current()));
-      sidebar.setItems(navItems());
+      syncNavCounts();
       renderHistory();
     }
 
@@ -2265,10 +2264,21 @@ export default {
       ];
     }
 
+    /**
+     * Refreshes the counts in the navigation in place: redrawing its menu would take the history
+     * beneath it, and the focus inside it, along.
+     * @returns {void}
+     */
+    function syncNavCounts() {
+      for (const item of navItems().flatMap((entry) => [entry, ...(/** @type {any[]} */ (entry.children) ?? [])])) {
+        nav.setBadge(/** @type {string} */ (item.id), /** @type {any} */ (item.badge) ?? null);
+      }
+    }
+
     /** @param {string} view `all`, `archive`, or a folder id. @returns {void} */
     function showView(view) {
       state.view = view;
-      sidebar.setActive(view);
+      nav.setActive(view);
       renderHistory();
     }
 

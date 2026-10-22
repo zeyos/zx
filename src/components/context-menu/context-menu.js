@@ -9,7 +9,11 @@ import {
 import { Dropdown } from '../dropdown/dropdown.js';
 
 /** @typedef {import('../../internal/menu-items.js').MenuItem} MenuItem */
-/** @typedef {import('../../internal/menu-items.js').MenuEntry} ContextMenuEntry */
+/**
+ * A context menu's entries: the shared menu model without `choice` rows, which a menu that closes
+ * on every activation cannot hold.
+ * @typedef {import('../../internal/menu-items.js').MenuItem|import('../../internal/menu-items.js').MenuHeading|import('../../internal/menu-items.js').MenuSeparator|'-'} ContextMenuEntry
+ */
 
 /**
  * @typedef {Object} ContextMenuOptions

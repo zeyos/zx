@@ -1,14 +1,13 @@
 import {
-  AccountMenu, AppSidebar, Avatar, ContextMenu, DatePicker, Dialog, Fieldset, FileItem,
+  Avatar, ContextMenu, DatePicker, Dialog, Fieldset, FileItem,
   InlineLoading, Launcher, MenuButton, Search, Sheet, badge, button, buttonGroup, copyButton,
   emptyState, formatDate, formatNumber, formatRelativeTime, h, highlightMatch, icon
 } from '../../src/index.js';
 import {
   DATE, adaptiveShell, disposer, dot, iconButton, kbd, later, layoutContext, listTime, modShortcut, modifierLabel,
-  navSearch, paneHeader, panelBlock, propList, renderScope, sectionLabel, shortcuts, toaster,
-  unavailable, workspaceHeader
+  paneHeader, panelBlock, propList, renderScope, shortcuts, suiteNav, toaster, unavailable
 } from './kit.js';
-import { COMPANIES, ME, NOW, PEOPLE, person } from './fixtures.js';
+import { COMPANIES, ME, NOW, PEOPLE } from './fixtures.js';
 
 /** Mailboxes in the navigation, in order. `count` says which number the row shows. */
 const MAILBOXES = [
@@ -49,20 +48,20 @@ const CUSTOMER_ROLES = {
 };
 
 /**
- * Everyone this mailbox writes to or hears from: Fieldstone's staff, the customers' contacts, and
+ * Everyone this mailbox writes to or hears from: ACME's staff, the customers' contacts, and
  * a few senders from outside both. Customer contacts share their company's id.
  * @type {{id: string, name: string, email: string, role: string, company: string, city: string,
  *   status?: 'online'|'away'|'busy'|'offline'}[]}
  */
 const CONTACTS = [
-  ...PEOPLE.map((p) => ({ id: p.id, name: p.name, email: p.email, role: p.role, company: 'Fieldstone', city: 'Berlin, Germany', status: p.status })),
+  ...PEOPLE.map((p) => ({ id: p.id, name: p.name, email: p.email, role: p.role, company: 'ACME', city: 'Berlin, Germany', status: p.status })),
   ...COMPANIES.map((c) => ({ id: c.id, name: c.contact, email: c.email, role: CUSTOMER_ROLES[c.id], company: c.name, city: `${c.city}, ${c.country}` })),
   { id: 'amira', name: 'Amira Haddad', email: 'amira.haddad@post.example', role: 'Candidate', company: 'Support Engineer role', city: 'Leipzig, Germany' },
   { id: 'certa', name: 'Maren Koch', email: 'maren.koch@certa-audit.example', role: 'Lead Auditor', company: 'Certa Audit', city: 'Hanover, Germany' },
   { id: 'havel', name: 'Jan Petersen', email: 'j.petersen@havel-brokers.example', role: 'Insurance Broker', company: 'Havel Brokers', city: 'Potsdam, Germany' },
   { id: 'lindenhof', name: 'Lindenhof Properties', email: 'office@lindenhof.example', role: 'Building management', company: 'Lindenhof Properties', city: 'Berlin, Germany' },
   { id: 'ledgerline', name: 'Ledgerline', email: 'statements@ledgerline.example', role: 'Accounting platform', company: 'Ledgerline', city: 'Online' },
-  { id: 'status', name: 'Fieldstone Status', email: 'status@fieldstone.example', role: 'Service notifications', company: 'Fieldstone', city: 'Online' },
+  { id: 'status', name: 'ACME Status', email: 'status@acme.example', role: 'Service notifications', company: 'ACME', city: 'Online' },
   { id: 'opsnight', name: 'Ops Night Berlin', email: 'hello@opsnight.example', role: 'Meetup newsletter', company: 'Ops Night Berlin', city: 'Berlin, Germany' }
 ];
 
@@ -93,7 +92,7 @@ const THREADS = [
   { id: 'renewal', folder: 'inbox', split: 'customers', subject: 'Renewal terms for 2027', with: 'alpine', people: ['alpine', 'tobias'], labels: ['customers', 'finance'], unread: true, starred: true, messages: [
     { from: 'alpine', at: '2026-09-29T10:02', body: ['Hello Ines, our contract renews on 1 January. Before procurement starts, could you send us the terms for 2027, including the extended support SLA we discussed in the spring?'] },
     { from: 'ines', at: '2026-10-01T14:36', body: ['Hello Hannah, thanks for the heads-up. Tobias will send the full offer this week. In short: the licence rate stays, and the extended SLA adds 12% to the support line.'] },
-    { from: 'tobias', at: '2026-10-05T09:20', body: ['Hi Hannah, the offer is attached. It holds the 2026 rate for twelve months and lists the SLA as a separate line, so you can approve it on its own.'], files: [{ name: 'Fieldstone-Offer-AW-2027.pdf', size: 482_000, mime: 'application/pdf' }] },
+    { from: 'tobias', at: '2026-10-05T09:20', body: ['Hi Hannah, the offer is attached. It holds the 2026 rate for twelve months and lists the SLA as a separate line, so you can approve it on its own.'], files: [{ name: 'ACME-Offer-AW-2027.pdf', size: 482_000, mime: 'application/pdf' }] },
     { from: 'alpine', at: '2026-10-08T09:12', body: [
       'Hello Ines, hello Tobias, thank you for the offer — it reads well. Two questions before I take it to our board on 20 October:',
       'First, can the extended SLA start on 1 December rather than with the new term? Our peak season begins in December. Second, would you accept quarterly invoicing instead of annual in advance?',
@@ -108,7 +107,7 @@ const THREADS = [
     { from: 'atelier', at: '2026-10-08T09:40', body: ['Hi Ines, thanks again for the brief. Our proposal is attached: three phases over nine weeks, starting with a two-day workshop in your office.', 'The fixed fee is €38,500. If you sign by 16 October we can hold the workshop slot on 2 and 3 November.', 'Happy to walk you through it — would Monday at 15:00 work?'], files: [{ name: 'Atelier-West-Proposal.pdf', size: 2_480_000, mime: 'application/pdf' }] }
   ] },
   { id: 'audit', folder: 'inbox', split: 'important', subject: 'ISO 27001 surveillance audit — agenda', with: 'certa', people: ['certa', 'jonas'], labels: [], unread: true, messages: [
-    { from: 'certa', at: '2026-10-08T09:05', body: ['Dear Ms Bauer, attached is the agenda for the surveillance audit on 27 and 28 October. Day one covers access control and supplier management; day two, incident handling and backups.', 'Could you name a contact for each block by next Wednesday?'], files: [{ name: 'Audit-agenda-Fieldstone.pdf', size: 128_000, mime: 'application/pdf' }] }
+    { from: 'certa', at: '2026-10-08T09:05', body: ['Dear Ms Bauer, attached is the agenda for the surveillance audit on 27 and 28 October. Day one covers access control and supplier management; day two, incident handling and backups.', 'Could you name a contact for each block by next Wednesday?'], files: [{ name: 'Audit-agenda-ACME.pdf', size: 128_000, mime: 'application/pdf' }] }
   ] },
   { id: 'ratelimit', folder: 'inbox', split: 'customers', subject: 'API rate limits during the nightly export', with: 'danube', people: ['danube'], labels: ['customers', 'engineering'], unread: true, messages: [
     { from: 'danube', at: '2026-10-08T08:40', body: ['Hi Ines, since Monday our nightly export to the data warehouse fails at around 02:30 with HTTP 429. We run about 40,000 requests in that window.', 'Is there a way to raise the ceiling for scheduled jobs, or should we spread the load across the night?'] }
@@ -261,7 +260,8 @@ export default {
   blurb: 'A keyboard-first inbox: split streams, one-key triage, snooze, and an inline reply.',
   components: [
     'DatePicker', 'ContextMenu', 'Launcher', 'Sheet', 'TagPicker', 'MenuButton', 'Search',
-    'FileItem', 'InlineLoading', 'Fieldset', 'Dialog', 'Avatar', 'Badge', 'Message'
+    'FileItem', 'InlineLoading', 'Fieldset', 'Dialog', 'Avatar', 'Badge', 'Message', 'AppSidebar',
+    'ModuleBar', 'AccountMenu'
   ],
 
   /**
@@ -275,10 +275,6 @@ export default {
     context = layoutContext(context);
     const keep = disposer(context);
     const { preview } = context;
-    const root = h('div', { class: 'mail shell', 'data-mode': 'list' });
-    // Narrow, the navigation and the contact panel become drawers, and a phone shows the list or
-    // the conversation (the conversation's own back button returns to the list).
-    const shell = adaptiveShell(root, context, { asideLabel: 'Show contact' });
 
     // Mutable copies: triage moves threads between folders, so the fixtures stay untouched.
     const threads = structuredClone(THREADS);
@@ -297,29 +293,26 @@ export default {
 
     /* ------------------------------------------------------------ navigation column -- */
 
-    const mailboxes = keep(new AppSidebar(null, { label: 'Mailboxes', collapsible: false, items: mailboxItems() }));
-    const labels = keep(new AppSidebar(null, {
-      label: 'Labels', collapsible: false,
-      items: LABELS.map((entry) => ({ id: entry.id, label: entry.label, icon: () => swatch(entry.tone), invoke: () => go(null, entry.id) }))
-    }));
-    const account = keep(new AccountMenu(null, {
-      account: { name: person(ME)?.name ?? '', secondary: person(ME)?.role, status: 'online', statusLabel: PRESENCE.online },
-      placement: 'top-start',
-      items: [
-        { label: 'Keyboard shortcuts', icon: 'keyboard', adornment: kbd('?'), onselect: () => showHelp() },
-        { label: 'Settings', icon: 'gear', onselect: () => notify(unavailable('Mail settings'), 'info') }
-      ]
-    }));
-    const nav = h('div', { class: 'shell__nav' },
-      workspaceHeader(),
-      h('div', { class: 'nav-action' },
-        button({ label: 'Compose', icon: 'pen', kind: 'primary', shortcut: { label: 'C', keys: 'C' }, onclick: () => openCompose() }),
-        navSearch({ label: 'Search mail', onclick: () => openPalette() })),
-      h('div', { class: 'shell__body' },
-        mailboxes.toElement(),
-        sectionLabel('Labels'),
-        labels.toElement()),
-      h('div', { class: 'shell__footer' }, account.toElement()));
+    // The suite's navigation: the mailboxes and labels beside every other module of the suite.
+    const nav = suiteNav(context, {
+      module: 'mail',
+      menu: menuItems(),
+      active: state.folder,
+      header: button({ label: 'Compose', icon: 'pen', kind: 'primary', shortcut: { label: 'C', keys: 'C' }, onclick: () => openCompose() }),
+      onsearch: () => openPalette(),
+      account: {
+        items: [
+          { label: 'Keyboard shortcuts', icon: 'keyboard', adornment: kbd('?'), onselect: () => showHelp() },
+          { label: 'Settings', icon: 'gear', onselect: () => notify(unavailable('Mail settings'), 'info') }
+        ],
+        onselect: null,
+        onclose: () => refocus()
+      }
+    });
+    const root = h('div', { class: 'mail shell', 'data-mode': 'list' }, nav.column);
+    // Narrow, the navigation and the contact panel become drawers, and a phone shows the list or
+    // the conversation (the conversation's own back button returns to the list).
+    const shell = adaptiveShell(root, context, { asideLabel: 'Show contact' });
 
     /* ------------------------------------------------------------------ list column -- */
 
@@ -427,7 +420,7 @@ export default {
       paneHeader({ title: 'Contact', actions: writeTo }),
       asideBody);
 
-    root.append(nav, listColumn, main, aside);
+    root.append(listColumn, main, aside);
     const notify = toaster(context, root);
 
     /* ------------------------------------------------------------------ overlays -- */
@@ -470,7 +463,7 @@ export default {
     }));
     let palette = /** @type {Launcher|null} */ (null);
     let help = /** @type {Dialog|null} */ (null);
-    for (const overlay of [snooze, more, listMenu, sendLater, account, rowMenu, snoozeDialog, composeSheet]) overlay.on('close', refocus);
+    for (const overlay of [snooze, more, listMenu, sendLater, rowMenu, snoozeDialog, composeSheet]) overlay.on('close', refocus);
 
     /* ------------------------------------------------------------------- keyboard -- */
 
@@ -569,6 +562,16 @@ export default {
       renderAside();
     }
 
+    /** @returns {any[]} Mail's menu: the mailboxes, then the labels. */
+    function menuItems() {
+      return [
+        ...mailboxItems(),
+        { section: true, label: 'Labels', children: LABELS.map((entry) => ({
+          id: entry.id, label: entry.label, icon: () => swatch(entry.tone), invoke: () => go(null, entry.id)
+        })) }
+      ];
+    }
+
     /** @returns {any[]} The mailboxes, with live counts. */
     function mailboxItems() {
       return MAILBOXES.map((box) => {
@@ -582,10 +585,9 @@ export default {
     function renderNav() {
       const items = mailboxItems();
       const counts = items.map((item) => item.badge ?? '').join();
-      if (counts !== state.navCounts) mailboxes.setItems(items);
+      if (counts !== state.navCounts) for (const item of items) nav.setBadge(item.id, item.badge ?? null);
       state.navCounts = counts;
-      mailboxes.setActive(state.label ? null : state.folder);
-      labels.setActive(state.label);
+      nav.setActive(state.label ?? state.folder);
       const splitView = !state.label && state.folder === 'inbox';
       splitGroup.hidden = !splitView;
       listHeading.classList.toggle('visually-hidden', splitView);

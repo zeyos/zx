@@ -126,7 +126,7 @@ export class MenuButton extends Component {
       if (this.isOpen()) this.close();
       else {
         this.open();
-        this.#roving.focusFirst();
+        this.#focusFirstItem();
       }
     });
     this.listen(this.el, 'keydown', (event) => this.#onTriggerKeydown(event));
@@ -135,6 +135,9 @@ export class MenuButton extends Component {
       if (item && this.#panel.contains(item)) this.#selectElement(item, event);
     });
     this.listen(this.#panel, 'keydown', (event) => this.#onMenuKeydown(event));
+    // A choice row runs across, not down: Left and Right move within it, Up and Down leave it.
+    // Capture, so the menu's own roving focus never sees the keys this takes.
+    this.listen(this.#panel, 'keydown', (event) => this.#onChoiceKeydown(event), { capture: true });
   }
 
   /**
@@ -158,7 +161,7 @@ export class MenuButton extends Component {
    */
   setItems(items) {
     this.#items = Array.isArray(items) ? items.slice() : [];
-    this.#panel.replaceChildren(...renderMenuEntries(this.#items, 'menu-button'));
+    this.#panel.replaceChildren(...renderMenuEntries(this.#items, 'menu-button', { choices: true }));
     return this;
   }
 
@@ -208,7 +211,7 @@ export class MenuButton extends Component {
    */
   focusFirst(options = {}) {
     this.open(options);
-    this.#roving.focusFirst();
+    this.#focusFirstItem();
     return this;
   }
 
@@ -256,7 +259,7 @@ export class MenuButton extends Component {
     event.preventDefault();
     this.open();
     if (event.key === 'ArrowUp') this.#roving.focusLast();
-    else this.#roving.focusFirst();
+    else this.#focusFirstItem();
   }
 
   /** @param {KeyboardEvent} event @returns {void} */
@@ -283,10 +286,75 @@ export class MenuButton extends Component {
     this.#typeahead(event);
   }
 
+  /** Focuses the first item, or, when that is a choice row, its checked option. @returns {void} */
+  #focusFirstItem() {
+    this.#roving.focusFirst();
+    const first = this.#menuItems()[0];
+    const checked = first?.hasAttribute('data-menu-option')
+      ? first.parentElement?.querySelector('[aria-checked="true"]') : null;
+    if (checked instanceof HTMLElement) checked.focus();
+  }
+
+  /** @param {KeyboardEvent} event @returns {void} */
+  #onChoiceKeydown(event) {
+    const option = /** @type {Element|null} */ (event.target)?.closest?.('[data-menu-option]');
+    if (!(option instanceof HTMLElement) || !this.#panel.contains(option)) {
+      // Arriving at a choice row from another item lands on its checked option, not its nearest.
+      if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+      const items = this.#menuItems();
+      const index = items.indexOf(/** @type {HTMLElement} */ (event.target));
+      if (index < 0) return;
+      const next = items[(index + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length];
+      const row = next?.hasAttribute('data-menu-option') ? next.parentElement : null;
+      if (!row) return;
+      event.preventDefault();
+      event.stopPropagation();
+      /** @type {HTMLElement} */ (row.querySelector('[aria-checked="true"]') ?? next).focus();
+      return;
+    }
+    const row = /** @type {HTMLElement[]} */ ([...(option.parentElement?.children ?? [])]);
+    const items = this.#menuItems();
+    let target = null;
+    if (event.key === 'ArrowLeft') target = row[(row.indexOf(option) - 1 + row.length) % row.length];
+    else if (event.key === 'ArrowRight') target = row[(row.indexOf(option) + 1) % row.length];
+    else if (event.key === 'ArrowDown') target = items[(items.indexOf(row.at(-1)) + 1) % items.length];
+    else if (event.key === 'ArrowUp') target = items[(items.indexOf(row[0]) - 1 + items.length) % items.length];
+    else return;
+    event.preventDefault();
+    event.stopPropagation();
+    // Into another choice row, focus lands on its checked option.
+    const checked = target?.closest('[role="group"]')?.querySelector('[data-menu-option][aria-checked="true"]');
+    const next = event.key === 'ArrowDown' || event.key === 'ArrowUp' ? /** @type {HTMLElement} */ (checked ?? target) : target;
+    next?.focus();
+  }
+
+  /** @param {HTMLElement} element @param {Record<string, any>} entry @param {Event|null} event @returns {void} */
+  #selectChoice(element, entry, event) {
+    const option = entry.options?.[Number(element.getAttribute('data-menu-option'))];
+    if (!option || option.disabled) {
+      event?.preventDefault();
+      return;
+    }
+    // A setting changes in place and the menu stays open, so its effect shows.
+    for (const sibling of element.parentElement?.children ?? []) {
+      sibling.setAttribute('aria-checked', String(sibling === element));
+    }
+    element.focus();
+    entry.onselect?.(option.value, entry, this);
+    // A handler that closed the menu leaves focus on a hidden option: it goes where a close sends it.
+    if (!this.isOpen() && (element.contains(document.activeElement) || document.activeElement === document.body)) {
+      this.#returnTarget()?.focus();
+    }
+  }
+
   /** @param {Element} element @param {Event|null} [event=null] @returns {void} */
   #selectElement(element, event = null) {
     const index = Number(element.getAttribute('data-menu-item'));
     const item = this.#items[index];
+    if (item && typeof item === 'object' && item.type === 'choice') {
+      this.#selectChoice(/** @type {HTMLElement} */ (element), item, event);
+      return;
+    }
     if (!isMenuItem(item) || item.disabled) {
       event?.preventDefault();
       return;

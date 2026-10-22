@@ -155,8 +155,11 @@ test('the shell gives columns up at the widths its controller knows', () => {
   // and shows the columns. Both must name the same widths.
   const script = read('website/layouts/kit.js');
   const literal = /const SHELL_BREAKPOINTS = Object\.freeze\(\{([^}]*)\}\)/.exec(script)?.[1] ?? '';
-  const declared = [...literal.matchAll(/(\w+):\s*(\d+)/g)].map(([, , width]) => Number(width)).sort((a, b) => a - b);
-  assert.equal(declared.length, 3, 'SHELL_BREAKPOINTS names the aside, nav, and single-pane widths');
+  const entries = [...literal.matchAll(/(\w+):\s*(\d+)/g)].map(([, name, width]) => [name, Number(width)]);
+  assert.deepEqual(entries.map(([name]) => name).sort(), ['aside', 'named', 'nav', 'single'],
+    'SHELL_BREAKPOINTS names the aside, nav, and single-pane widths, and the modules-only named width');
+  // `named` changes the modules sidebar's presentation, not the grid, so the stylesheet never queries it.
+  const declared = entries.filter(([name]) => name !== 'named').map(([, width]) => width).sort((a, b) => a - b);
   const queried = [...new Set([...read('website/layouts/kit.css').matchAll(/@container shell \(max-width: (\d+)px\)/g)]
     .map(([, width]) => Number(width)))].sort((a, b) => a - b);
   assert.deepEqual(queried, declared);

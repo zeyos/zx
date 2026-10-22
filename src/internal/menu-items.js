@@ -1,5 +1,6 @@
 import { h, safeHref } from '../core/dom.js';
 import { icon } from '../core/icons.js';
+import { uid } from '../core/util.js';
 
 /** @typedef {'menuitem'|'menuitemcheckbox'|'menuitemradio'} MenuItemRole */
 /**
@@ -31,7 +32,27 @@ import { icon } from '../core/icons.js';
  * @property {string} label Visible heading.
  */
 /** @typedef {{type: 'separator'}} MenuSeparator */
-/** @typedef {MenuItem|MenuHeading|MenuSeparator|'-'} MenuEntry */
+/**
+ * One option of a menu choice.
+ * @typedef {Object} MenuChoiceOption
+ * @property {unknown} value Value the choice takes.
+ * @property {string} label Accessible name and tooltip; the option shows its glyph or icon.
+ * @property {string} [icon] Kernel icon name.
+ * @property {Node|(() => Node)} [glyph] A pictogram drawn instead of an icon.
+ * @property {boolean} [disabled=false] Whether the option is unavailable.
+ */
+/**
+ * A setting chosen in place: a labelled row of two to a few options, one checked — a theme, a
+ * layout. Choosing an option keeps the menu open, so its effect shows.
+ * @typedef {Object} MenuChoice
+ * @property {'choice'} type Entry kind.
+ * @property {string} label Visible row label.
+ * @property {unknown} [value] Value of the checked option.
+ * @property {MenuChoiceOption[]} options The options, in order.
+ * @property {(value: unknown, entry: MenuChoice, controller: MenuController) => void} [onselect]
+ *   Called with the chosen option's value.
+ */
+/** @typedef {MenuItem|MenuHeading|MenuSeparator|MenuChoice|'-'} MenuEntry */
 
 export const MENU_ITEM_SELECTOR = [
   '[role="menuitem"]',
@@ -46,7 +67,7 @@ export const MENU_ITEM_SELECTOR = [
  */
 export function isMenuItem(entry) {
   return Boolean(entry && entry !== '-' && typeof entry === 'object'
-    && !['heading', 'separator'].includes(String(/** @type {{type?: unknown}} */ (entry).type ?? '')));
+    && !['heading', 'separator', 'choice'].includes(String(/** @type {{type?: unknown}} */ (entry).type ?? '')));
 }
 
 /**
@@ -64,9 +85,11 @@ export function menuItemRole(item) {
  * Builds one menu's entries with shared structure and link safety.
  * @param {MenuEntry[]} entries Entry definitions.
  * @param {string} block CSS block name, without the `zx-` prefix.
+ * @param {{choices?: boolean}} [options={}] Whether the menu handles `choice` entries; a menu that
+ *   does not leaves them out rather than drawing a row that does nothing.
  * @returns {HTMLElement[]}
  */
-export function renderMenuEntries(entries, block) {
+export function renderMenuEntries(entries, block, { choices = false } = {}) {
   const nodes = [];
   entries.forEach((entry, index) => {
     if (entry === '-' || (entry && typeof entry === 'object' && entry.type === 'separator')) {
@@ -78,6 +101,10 @@ export function renderMenuEntries(entries, block) {
         class: `zx-${block}__heading`,
         role: 'presentation'
       }, String(entry.label ?? '')));
+      return;
+    }
+    if (entry && typeof entry === 'object' && entry.type === 'choice') {
+      if (choices) nodes.push(renderChoice(/** @type {MenuChoice} */ (entry), index, block));
       return;
     }
     if (!isMenuItem(entry)) return;
@@ -139,4 +166,35 @@ export function renderMenuEntries(entries, block) {
     }
   });
   return nodes;
+}
+
+/**
+ * A choice row: its label, then a segmented group of `menuitemradio` options. The group is named
+ * by the label, so a screen reader hears "Theme, Dark, radio, checked, 2 of 3".
+ * @param {MenuChoice} entry Choice definition.
+ * @param {number} index Entry index.
+ * @param {string} block CSS block name, without the `zx-` prefix.
+ * @returns {HTMLElement}
+ */
+function renderChoice(entry, index, block) {
+  const labelId = uid(`zx-${block}-choice`);
+  const options = Array.isArray(entry.options) ? entry.options : [];
+  return h('div', { class: `zx-${block}__choice`, role: 'group', ariaLabelledby: labelId },
+    h('span', { class: `zx-${block}__choice-label`, id: labelId }, String(entry.label ?? '')),
+    h('span', { class: `zx-${block}__choice-options` }, options.map((option, position) => {
+      const glyph = typeof option.glyph === 'function' ? option.glyph() : option.glyph;
+      return h('button', {
+        class: `zx-${block}__choice-option`,
+        type: 'button',
+        role: 'menuitemradio',
+        tabindex: '-1',
+        title: String(option.label ?? ''),
+        ariaLabel: String(option.label ?? ''),
+        ariaChecked: String(Object.is(option.value, entry.value)),
+        ariaDisabled: option.disabled ? 'true' : null,
+        'data-menu-item': String(index),
+        'data-menu-option': String(position)
+      }, glyph && typeof glyph === 'object' && 'nodeType' in glyph ? glyph
+        : option.icon ? icon(option.icon) : String(option.label ?? ''));
+    })));
 }

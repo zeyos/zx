@@ -1,13 +1,12 @@
 import {
-  AccountMenu, ActivityList, AppSidebar, Avatar, Breadcrumb, CodeEditor, CopyInput, Dialog, Fieldset,
+  ActivityList, Avatar, Breadcrumb, CodeEditor, CopyInput, Dialog, Fieldset,
   Groupbox, InlineLoading, Launcher, MenuButton, Select, Sheet, SplitView, Toolbar, TreeView, button,
   copyButton, debounce, downloadBlob, emptyState, formatDate, formatNumber, formatRelativeTime, h,
   icon
 } from '../../src/index.js';
 import {
   DATE, adaptiveShell, disposer, iconButton, iconTile, kbd, layoutContext, modShortcut, modifierLabel,
-  navSearch, paneHeader, propList, renderScope, sectionLabel, shortcuts, toaster, unavailable,
-  workspaceHeader
+  paneHeader, propList, renderScope, sectionLabel, shortcuts, suiteNav, toaster, unavailable
 } from './kit.js';
 import { ME, NOW, PEOPLE, person } from './fixtures.js';
 
@@ -15,7 +14,7 @@ import { ME, NOW, PEOPLE, person } from './fixtures.js';
 const SPACES = [
   { ID: 'engineering', name: 'Engineering', icon: 'code-branch', tone: 'blue', description: 'Architecture, runbooks, and how we ship.', owner: 'camille', created: '2024-02-12' },
   { ID: 'operations', name: 'Operations', icon: 'warehouse', tone: 'amber', description: 'Depots, vendors, and planning.', owner: 'ines', created: '2024-05-06' },
-  { ID: 'handbook', name: 'Handbook', icon: 'book-open', tone: 'violet', description: 'How Fieldstone works, for everyone.', owner: 'ines', created: '2023-11-20' }
+  { ID: 'handbook', name: 'Handbook', icon: 'book-open', tone: 'violet', description: 'How ACME works, for everyone.', owner: 'ines', created: '2023-11-20' }
 ];
 
 /** Pages the signed-in user has starred. */
@@ -56,7 +55,7 @@ const PAGES = [
   { ID: 'shipping', space: 'engineering', parent: null, title: 'How we ship', author: 'camille', editor: 'camille', created: '2024-03-01T14:00', updated: '2026-08-27T11:40', contributors: ['camille'], body: md`
     We release small changes often. These pages describe the path from a pull request to production, and the guard rails along the way.` },
   { ID: 'release', space: 'engineering', parent: 'shipping', title: 'Release process', author: 'camille', editor: 'jonas', created: '2025-11-03T10:00', updated: '2026-10-06T16:20', contributors: ['camille', 'jonas', 'owen', 'piet'], viewers: ['jonas', 'owen', 'camille'], history: [['owen', '2026-09-28T09:10', 'added the Monday review by Support'], ['camille', '2026-09-02T15:45', 'split the rollout into three waves']], body: md`
-    Fieldstone ships the platform every **Tuesday**. This page is the checklist the release captain works through, and the reference for everyone who wants to know what happens between merging a pull request and a customer seeing the change.
+    ACME ships the platform every **Tuesday**. This page is the checklist the release captain works through, and the reference for everyone who wants to know what happens between merging a pull request and a customer seeing the change.
 
     > [!note] Release captain this cycle
     > @jonas runs release 4.12. Questions go to the #releases channel rather than to direct messages, so the next captain can find the answer.
@@ -168,9 +167,9 @@ const PAGES = [
     ### Useful commands
 
     ~~~bash
-    fs-ctl status --env production
-    fs-ctl logs api --since 30m --level error
-    fs-ctl rollback api --to previous
+    acme-ctl status --env production
+    acme-ctl logs api --since 30m --level error
+    acme-ctl rollback api --to previous
     ~~~
 
     ## Afterwards
@@ -183,8 +182,8 @@ const PAGES = [
     > Confirm that the primary is really gone. A failover during a network partition can leave you with two primaries.
 
     ~~~bash
-    fs-ctl db status --cluster main
-    fs-ctl db promote --cluster main --replica ber2-db-1
+    acme-ctl db status --cluster main
+    acme-ctl db promote --cluster main --replica ber2-db-1
     ~~~
 
     - [ ] Replica lag below one second before promoting
@@ -209,7 +208,7 @@ const PAGES = [
     {
       "code": "invoice_locked",
       "message": "Finalised invoices cannot be edited.",
-      "docs": "https://developers.fieldstone.example/errors#invoice_locked"
+      "docs": "https://developers.acme.example/errors#invoice_locked"
     }
     ~~~` },
   { ID: 'rollout', space: 'operations', parent: null, title: 'Picking system rollout', author: 'lea', editor: 'ines', created: '2026-06-01T09:00', updated: '2026-10-07T07:40', contributors: ['lea', 'ines', 'tobias'], body: md`
@@ -242,7 +241,7 @@ const PAGES = [
     - Picking errors below **0.3 %** in every depot
     - Same-day dispatch for orders placed before 14:00
     - Warehouse costs per order down by 8 %` },
-  { ID: 'welcome', space: 'handbook', parent: null, title: 'Welcome to Fieldstone', author: 'ines', editor: 'marta', created: '2023-11-20T09:00', updated: '2026-09-30T11:55', contributors: ['ines', 'marta', 'nadine'], body: md`
+  { ID: 'welcome', space: 'handbook', parent: null, title: 'Welcome to ACME', author: 'ines', editor: 'marta', created: '2023-11-20T09:00', updated: '2026-09-30T11:55', contributors: ['ines', 'marta', 'nadine'], body: md`
     Good to have you here. This handbook explains how we work; the people mentioned below are happy to explain the rest.
 
     ## Your first week
@@ -259,7 +258,7 @@ const PAGES = [
     | Office and equipment | @ines |
     | Customer questions | @nadine |` },
   { ID: 'leave', space: 'handbook', parent: null, title: 'Time off and leave', author: 'ines', editor: 'ines', created: '2023-11-20T09:30', updated: '2026-01-08T10:00', contributors: ['ines'], body: md`
-    Everyone at Fieldstone has **28 days** of paid leave a year, plus public holidays in their state.
+    Everyone at ACME has **28 days** of paid leave a year, plus public holidays in their state.
 
     | Kind of leave | Days | Notice |
     | --- | ---: | --- |
@@ -496,7 +495,7 @@ export default {
   components: [
     'TreeView', 'CodeEditor', 'SplitView', 'Breadcrumb', 'Toolbar', 'ActivityList', 'Launcher',
     'Select', 'Avatar', 'MenuButton', 'InlineLoading', 'Sheet', 'Dialog', 'Fieldset', 'TagPicker',
-    'CopyInput'
+    'CopyInput', 'AppSidebar', 'ModuleBar', 'AccountMenu'
   ],
 
   /**
@@ -519,9 +518,6 @@ export default {
     const commentParts = renderScope(context);
     let created = 0;
     let commentId = COMMENTS.length;
-    const root = h('div', { class: 'wiki shell', dataset: { mode: 'read' } });
-    // Narrow, the page tree and then the outline and comments become drawers.
-    const shell = adaptiveShell(root, context, { asideLabel: 'Show outline and comments' });
 
     /** @param {string|null} id @returns {(typeof pages)[number] | undefined} */
     const pageById = (id) => pages.find((page) => page.ID === id);
@@ -547,15 +543,7 @@ export default {
 
     // ------------------------------------------------------------ navigation column --
 
-    const sidebar = keep(new AppSidebar(null, {
-      label: 'Knowledge base',
-      collapsible: false,
-      items: [
-        { id: 'home', label: 'Home', icon: 'house', invoke: () => showHome() },
-        { id: 'settings', label: 'Settings', icon: 'gear', invoke: () => openSettings() }
-      ]
-    }));
-    // The space switcher heads the column: the space's tile and name, with its pages beneath.
+    // The space switcher heads the module's panel: the space's tile and name, with its pages beneath.
     const spaceSelect = keep(Select.entity(null, {
       items: spaces,
       value: state.space,
@@ -581,29 +569,38 @@ export default {
       emptyText: 'Star a page to keep it here.',
       onselect: (event) => openPage(event.detail.id)
     }));
-    const account = keep(new AccountMenu(null, {
-      account: { name: person(ME).name, secondary: person(ME).role, status: 'online', statusLabel: 'Online' },
-      placement: 'top-start',
-      items: [
-        { label: 'Profile', value: 'profile', icon: 'user' },
-        { label: 'Notifications', value: 'notifications', icon: 'bell' },
-        '-',
-        { label: 'Sign out', value: 'sign-out', icon: 'power-off' }
-      ],
-      onselect: (event) => notify(unavailable(event.detail.item.label), 'info')
-    }));
 
-    const nav = h('div', { class: 'shell__nav' },
-      workspaceHeader(),
-      h('div', { class: 'nav-action' }, navSearch({ label: 'Search pages', onclick: () => openLauncher() })),
-      h('div', { class: 'shell__body wiki__nav-body' },
-        h('div', { class: 'wiki__space' }, spaceSelect.toElement()),
-        sidebar.toElement(),
+    // The suite's navigation, with the knowledge base's panel: the space switcher, the space's own
+    // destinations, and its page tree and favorites beneath them. The ids of the destinations stay
+    // clear of the suite's modules (Home, Settings), which share the navigation with them.
+    const nav = suiteNav(context, {
+      module: 'wiki',
+      menu: [
+        { id: 'wiki:home', label: 'Home', icon: 'house', invoke: () => showHome() },
+        { id: 'wiki:settings', label: 'Settings', icon: 'gear', invoke: () => openSettings() }
+      ],
+      // A page lives in the tree, not the menu: the module itself is where the reader is.
+      active: 'wiki',
+      header: h('div', { class: 'wiki__space' }, spaceSelect.toElement()),
+      content: h('div', { class: 'wiki__trees' },
         sectionLabel('Pages', iconButton('plus', 'New page', () => createPage(null))),
-        h('div', { class: 'wiki__tree' }, tree.toElement()),
+        tree.toElement(),
         sectionLabel('Favorites'),
-        h('div', { class: 'wiki__tree' }, favoriteTree.toElement())),
-      h('div', { class: 'shell__footer' }, account.toElement()));
+        favoriteTree.toElement()),
+      onsearch: () => openLauncher(),
+      account: {
+        items: [
+          { label: 'Profile', value: 'profile', icon: 'user' },
+          { label: 'Notifications', value: 'notifications', icon: 'bell' },
+          '-',
+          { label: 'Sign out', value: 'sign-out', icon: 'power-off' }
+        ],
+        onselect: (event) => notify(unavailable(event.detail.item.label), 'info')
+      }
+    });
+    const root = h('div', { class: 'wiki shell', dataset: { mode: 'read' } }, nav.column);
+    // Narrow, the page tree and then the outline and comments become drawers.
+    const shell = adaptiveShell(root, context, { asideLabel: 'Show outline and comments' });
 
     // ------------------------------------------------------------------ main pane --
 
@@ -731,7 +728,7 @@ export default {
       paneHeader({ title: asideTitle }),
       h('div', { class: 'shell__body' }, outlineBlock, detailsBlock, spaceBlock, commentsBlock));
 
-    root.append(nav, main, aside);
+    root.append(main, aside);
     const notify = toaster(context, root);
 
     // --------------------------------------------------------------------- render --
@@ -765,7 +762,7 @@ export default {
       const starred = pages.filter((page) => favorites.has(page.ID));
       favoriteTree.setItems(starred.map((page) => ({ ID: page.ID, name: page.title })));
       favoriteTree.setSelection(state.view === 'page' && favorites.has(state.page) ? [state.page] : []);
-      sidebar.setActive(state.view === 'home' ? 'home' : null);
+      nav.setActive(state.view === 'home' ? 'wiki:home' : 'wiki');
       if (state.view === 'page') focused?.focusNode(state.page);
     }
 
@@ -858,7 +855,7 @@ export default {
         ['Pages', formatNumber(inSpace.length)],
         ['Contributors', avatarStack([...new Set(inSpace.flatMap((page) => page.contributors))].slice(0, 6))],
         ['Created', formatDate(new Date(space.created), DATE.year)],
-        ['Visibility', space.private ? 'Space members' : 'Everyone at Fieldstone']
+        ['Visibility', space.private ? 'Space members' : 'Everyone at ACME']
       ]));
     }
 
@@ -1399,7 +1396,7 @@ export default {
             type: 'zxselect',
             label: 'General access',
             value: 'org',
-            props: { items: [{ ID: 'org', name: 'Everyone at Fieldstone can view' }, { ID: 'space', name: 'Only space members can view' }, { ID: 'invited', name: 'Only invited people' }] }
+            props: { items: [{ ID: 'org', name: 'Everyone at ACME can view' }, { ID: 'space', name: 'Only space members can view' }, { ID: 'invited', name: 'Only invited people' }] }
           },
           link: {
             type: 'custom',
@@ -1407,7 +1404,7 @@ export default {
             // Any component can sit in a Fieldset through a small adapter; the field owns it.
             adapter: (field) => {
               const copy = field.own(new CopyInput(null, {
-                value: `https://wiki.fieldstone.example/${state.space}/${onPage ? page.ID : ''}`
+                value: `https://wiki.acme.example/${state.space}/${onPage ? page.ID : ''}`
               }));
               return { el: copy.el, get: () => copy.get(), set: () => {}, focus: () => copy.focus(), setDisabled: () => {} };
             }
@@ -1463,7 +1460,7 @@ export default {
             type: 'zxselect',
             label: 'Who can view',
             value: space.private ? 'members' : 'org',
-            props: { items: [{ ID: 'org', name: 'Everyone at Fieldstone' }, { ID: 'members', name: 'Space members only' }] }
+            props: { items: [{ ID: 'org', name: 'Everyone at ACME' }, { ID: 'members', name: 'Space members only' }] }
           }
         },
         onsubmit: ({ name, description, access }) => {

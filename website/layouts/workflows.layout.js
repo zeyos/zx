@@ -1,12 +1,12 @@
 import {
-  AccountMenu, ActivityList, AppSidebar, Avatar, Chart, ChartJsAdapter, ContextMenu, Dialog, Field,
+  ActivityList, Avatar, Chart, ChartJsAdapter, ContextMenu, Dialog, Field,
   InlineLoading, MenuButton, ProgressBar, Stepper, Table, Tabbox, Toggle, badge, button, emptyState,
   formatCurrency, formatDate, formatNumber, formatPercent, formatRelativeTime, h, icon, statTile
 } from '../../src/index.js';
 import {
   DATE, adaptiveShell, allowsMotion, chartOptions, chartPalette, chartScales, disposer, iconButton, iconTile,
   kbd, later, layoutContext, loadChartJs, modShortcut, paneHeader, panelBlock, propList, renderScope,
-  sectionLabel, shortcuts, toaster, unavailable, unavailablePane, watchTheme, workspaceHeader
+  shortcuts, suiteNav, toaster, unavailable, unavailablePane, watchTheme
 } from './kit.js';
 import { ME, NOW, PEOPLE, person } from './fixtures.js';
 
@@ -357,7 +357,7 @@ export default {
   components: [
     'Stepper', 'MenuButton', 'ActivityList', 'ContextMenu', 'Tabbox', 'Toggle', 'Field', 'Select',
     'TagPicker', 'NumberField', 'Table', 'ProgressBar', 'StatTile', 'Chart', 'InlineLoading', 'Dialog',
-    'Avatar', 'Message'
+    'Avatar', 'Message', 'AppSidebar', 'ModuleBar', 'AccountMenu'
   ],
 
   /**
@@ -384,32 +384,31 @@ export default {
     let cancelSave = () => {};
     let chartVersion = 0;
     const [builderScope, tabScope, asideScope, pageScope] = [1, 2, 3, 4].map(() => renderScope(context));
-    const root = h('div', { class: 'flow shell' });
-    // Narrow, the navigation and the inspector become drawers; opening a step or a run opens the
-    // inspector's.
-    const shell = adaptiveShell(root, context, { asideLabel: 'Show step settings' });
 
     /* ------------------------------------------------------------ navigation */
 
-    const mainNav = keep(new AppSidebar(null, { label: 'Main', collapsible: false, items: mainItems() }));
-    const flowNav = keep(new AppSidebar(null, { label: 'Workflows', collapsible: false, items: workflowItems() }));
-    const account = keep(new AccountMenu(null, {
-      account: { name: person(ME).name, secondary: person(ME).role, status: 'online', statusLabel: 'Online' },
-      placement: 'top-start',
-      items: [
-        { label: 'Profile', icon: 'user', onselect: () => notify(unavailable('Your profile'), 'info') },
-        { label: 'Notification settings', icon: 'bell', onselect: () => notify(unavailable('Notification settings'), 'info') },
-        '-',
-        { label: 'Sign out', icon: 'power-off', onselect: () => notify(unavailable('Signing out'), 'info') }
-      ]
-    }));
-    const nav = h('div', { class: 'shell__nav' },
-      workspaceHeader(),
-      h('div', { class: 'shell__body' },
-        mainNav.toElement(),
-        sectionLabel('Workflows', iconButton('plus', 'New workflow', () => createWorkflow())),
-        flowNav.toElement()),
-      h('div', { class: 'shell__footer' }, account.toElement()));
+    // The suite's navigation, with this layout's menu in the Workflows module: the fixed
+    // destinations, then the workflows themselves, with a button that adds one.
+    const newWorkflow = iconButton('plus', 'New workflow', () => createWorkflow());
+    const nav = suiteNav(context, {
+      module: 'workflows',
+      menu: menuItems(),
+      active: state.workflow.id,
+      account: {
+        // Each item names what it would open, for the note that says it is not part of this example.
+        items: [
+          { label: 'Profile', value: 'Your profile', icon: 'user' },
+          { label: 'Notification settings', value: 'Notification settings', icon: 'bell' },
+          '-',
+          { label: 'Sign out', value: 'Signing out', icon: 'power-off' }
+        ],
+        onselect: ({ detail }) => notify(unavailable(String(detail.value)), 'info')
+      }
+    });
+    const root = h('div', { class: 'flow shell' }, nav.column);
+    // Narrow, the navigation and the inspector become drawers; opening a step or a run opens the
+    // inspector's.
+    const shell = adaptiveShell(root, context, { asideLabel: 'Show step settings' });
 
     /* ------------------------------------------------------------------ main */
 
@@ -498,7 +497,7 @@ export default {
     const pageView = h('div', { class: 'flow__view', hidden: true },
       paneHeader({ title: pageTitle, size: 'page', leading: shell.navToggle() }), pageBody);
     const aside = h('aside', { class: 'shell__aside', 'aria-label': 'Inspector' });
-    root.append(nav, h('main', { class: 'shell__main' }, workflowView, pageView), aside);
+    root.append(h('main', { class: 'shell__main' }, workflowView, pageView), aside);
     const notify = toaster(context, root);
     // Wide, the step settings stay beside the flow; narrower, they wait in a drawer.
     if (!preview) {
@@ -548,13 +547,32 @@ export default {
       return scope.own(new Avatar(null, { name: person(id ?? '')?.name ?? 'Unassigned', size })).toElement();
     }
 
-    /** @returns {object[]} The fixed destinations above the workflow list. */
+    /** @returns {object[]} The menu: the fixed destinations, then the workflows under their section. */
+    function menuItems() {
+      return [
+        ...mainItems(),
+        { section: true, label: 'Workflows', actions: newWorkflow, children: workflowItems() }
+      ];
+    }
+
+    /**
+     * The fixed destinations above the workflow list. Their ids stay clear of the suite's modules
+     * (Home, Settings), which share the navigation with them.
+     * @returns {object[]}
+     */
     function mainItems() {
       const count = myTasks().length || undefined;
       return [
         ['home', 'Home', 'house'], ['tasks', 'My tasks', 'square-check', count], ['checkins', 'Check-ins', 'comments'],
         ['insights', 'Insights', 'chart-simple'], ['settings', 'Settings', 'gear']
-      ].map(([id, label, glyph, badge]) => ({ id, label, icon: glyph, badge, invoke: () => fromNav(() => openPage(id)) }));
+      ].map(([page, label, glyph, badge]) => ({
+        id: pageId(page), label, icon: glyph, badge, invoke: () => fromNav(() => openPage(page))
+      }));
+    }
+
+    /** @param {string} page @returns {string} A fixed destination's id in the navigation. */
+    function pageId(page) {
+      return `page:${page}`;
     }
 
     /** @returns {object[]} One navigation item per workflow. */
@@ -571,10 +589,9 @@ export default {
         .filter((task) => task.step?.people?.includes(ME)));
     }
 
-    /** Re-reads both navigation lists after workflows or tasks change. @returns {void} */
+    /** Re-reads the navigation after workflows or tasks change. @returns {void} */
     function refreshNav() {
-      mainNav.setItems(mainItems());
-      flowNav.setItems(workflowItems());
+      nav.setMenu(menuItems());
     }
 
     /** @param {object} workflow @returns {string} When the workflow runs next. */
@@ -595,8 +612,7 @@ export default {
       state.view = 'workflow';
       state.step = remembered.get(state.workflow.id) ?? state.workflow.steps[0].id;
       state.run = runs[state.workflow.id][0]?.id ?? null;
-      mainNav.setActive(null);
-      flowNav.setActive(state.workflow.id);
+      nav.setActive(state.workflow.id);
       workflowView.hidden = false;
       pageView.hidden = true;
       title.textContent = state.workflow.name;
@@ -1375,13 +1391,12 @@ export default {
       const hadFocus = root.contains(document.activeElement);
       if (state.view === 'workflow') remembered.set(state.workflow.id, state.step);
       state.view = page;
-      mainNav.setActive(page);
-      flowNav.setActive(null);
+      nav.setActive(pageId(page));
       workflowView.hidden = true;
       pageView.hidden = false;
       renderAside();
       pageScope.reset();
-      pageTitle.textContent = mainItems().find((item) => item.id === page).label;
+      pageTitle.textContent = mainItems().find((item) => item.id === pageId(page)).label;
       const openInsights = () => {
         state.tab = 'insights';
         tabs.openTab('insights');

@@ -114,7 +114,9 @@ accent), `--zx-color-bg-chrome` (navigation and inspector columns, one tone off 
 `--zx-color-on-accent-solid` (the one filled primary button per screen),
 `--zx-color-danger/warning/success/info(+ -bg)`, the categorical tone palette
 `--zx-color-tone-{blue,teal,green,amber,orange,red,pink,violet,slate}-bg/-fg` (tags, chips, icon
-tiles, avatars — neither the accent nor a status), the chart series `--zx-color-chart-1…8`,
+tiles, avatars — neither the accent nor a status) and `-solid` (a solid identity fill, such as a
+module tile, that the white icon glyph reads on at 3:1 in both themes), the chart series
+`--zx-color-chart-1…8`,
 `--zx-focus-ring`, `--zx-control-height/-radius`, `--zx-space-*`, `--zx-radius-*`, `--zx-text-*`
 (`-3xl` for document titles), `--zx-weight-medium/-semibold`, `--zx-tracking-tight/-title`. Never
 use tier-1 palette tokens (`--zx-gray-*`, `--zx-green-*`, `--zx-emerald-*`, `--zx-tone-*`) or raw
@@ -303,6 +305,41 @@ registerModules({ tickets: '#f04639', 'my-fork': { label: 'My Fork', icon: 'zeyo
   throw.
 - `registerModules(map)` adds forks and weblets or overrides shipped entries (a bare string sets
   the colour only). Runtime ZeyOS menu data is authoritative: feed its colours in at startup.
+
+### Module bar from the ZeyOS menu
+
+The module bar and the module-layout sidebar read the same shell state the launcher does, plus
+each module's menu and its counts:
+
+```js
+import { buildZeyosAppSidebarConfig, buildZeyosModuleBarConfig } from '/assets/zx-zeyos.esm.js';
+import { AppSidebar, ModuleBar } from '/assets/zx.esm.js';
+
+const state = {
+  modules: ['messages', 'tasks', 'billing', 'contacts', 'calendar', 'tickets'],
+  pinned: ['messages', 'tasks', 'billing', 'tickets'],     // the rest are under "All modules"
+  activeIdentifier: 'tickets',
+  active: 'tickets-mine',                                     // a menu entry, when more precise
+  canUseModule: (module) => permissions.has(module),
+  menus: { tickets: [{ id: 'tickets-mine', label: 'My tickets' }, ['tickets-all', 'All tickets', '#tickets']] },
+  badges: { messages: 7, 'tickets-mine': 3 },
+  resolveApplication: (app) => ({ href: routeFor(app) })
+};
+new AppSidebar(nav, buildZeyosAppSidebarConfig(state, { onselect: route }));
+new ModuleBar(header, buildZeyosModuleBarConfig(state, { orientation: 'horizontal', side: 'top' }));
+```
+
+- `zeyosModuleItems(state, {standardIcons})` → `ModuleItem[]`: every permitted module, fork, and
+  weblet, with its kit icon (or `renderApplicationIcon(app, normalized)`), its colour — the
+  payload's, else the registry's, so `registerModules()` reaches the bar — its menu from
+  `menus[identifier]` (objects or `[id, label, href]` arrays, sections, nesting; unsafe hrefs are
+  disabled), its badge from `badges`, `pinned` from the pinned order, and forks and weblets in
+  their own catalogue group (`labels.forks`, `labels.weblets`). A module with a menu is a panel
+  module; one without is a destination.
+- `buildZeyosModuleBarConfig(state, options)` → ModuleBar options; `buildZeyosAppSidebarConfig()`
+  → AppSidebar options in `layout: 'modules'`. Both draw the classic ZeyOS identity tiles
+  (`appearance: 'solid'`) unless told otherwise. `zeyosModuleBar(target, state, options)` creates
+  the bar directly.
 <!-- /doc -->
 
 ## Custom elements
@@ -584,7 +621,9 @@ A fixed-size, product-agnostic application identity. It keeps glyph geometry sta
 sidebars, entity results, and recent-item rows while identity colour and material remain explicit
 options rather than application globals.
 
-- **Options** — `icon` (bundled name, Node, or lazy renderer), `color`, `size: 36`,
+- **Options** — `icon` (bundled name, Node, or lazy renderer), `color` (any CSS colour) or `tone`
+  (one of the nine categorical tones, drawn with its `--zx-color-tone-<tone>-solid` fill; `color`
+  wins when both are given), `size: 36`,
   `iconSize: '52%'`, `label`, `badge`, `selected: false`, `shape: 'tile'|'circle'`,
   `glass: false|'subtle'|'strong'`, and
   additional `class` names.
@@ -751,7 +790,9 @@ out, or mutates the session.
 
 - **Options** — `account: {name, secondary, src?, initials?, status?, statusLabel?}`, `items`,
   `compact: false`, `label`, and any top/bottom/left/right `placement`.
-- **Methods** — `open()`, `close()`, `toggle()`, `isOpen()`, `setAccount()`, `setItems()`, `focus()`,
+- **Methods** — `open()`, `close()`, `toggle()`, `isOpen()`, `setAccount()`, `setItems()`,
+  `setCompact(compact)` (the avatar alone, or with the name and secondary line — for a navigation
+  column that narrows and widens), `focus()`,
   `getPanel()`, `destroy()`.
 - **Events** — cancelable `select {value, item}`, `open`, and `close`. A canceled selection does
   not run the item's callback and leaves the menu open, so an application can reject or confirm an
@@ -1260,6 +1301,13 @@ A button that opens a `role="menu"`.
     default.
   - `role: 'menuitemcheckbox'|'menuitemradio'` with `checked` exposes an APG checked action. The
     application owns state changes and calls `setItems()` with the new model.
+  - `{type: 'choice', label, value, options: [{value, label, icon|glyph}], onselect(value, entry,
+    menu)}` draws a setting chosen in place — a theme, a layout: the label, then a small segmented
+    group of `menuitemradio` options named by it. Choosing an option checks it and calls
+    `onselect`; the menu stays open so the change shows, and `select` does not fire. Left and Right
+    move within the row; Up and Down leave it, landing on another row's checked option.
+    `AccountMenu` takes the same entries; `ContextMenu`, which closes on every activation, leaves
+    them out.
 - **Methods** — `setItems()`, `open({returnFocus})`, `close()`, `setLabel()`, `getTrigger()`,
   `getPanel()`, `focusFirst({returnFocus})`, `focusLast({returnFocus})`.
 - **Events** — `select {value, item}`, `open`, `close`.
@@ -2431,21 +2479,56 @@ inline; every rail state opens descendants toward the workspace in anchored flyo
 
 - **Options** — `items`, `active`, `expanded`, `collapsed`, `collapsible` (`false` removes the
   minimise and expand buttons), `orientation: 'vertical'|'horizontal'`,
-  `side: 'left'|'right'|'top'|'bottom'`, `label`,
+  `side: 'left'|'right'|'top'|'bottom'`, `layout: 'tree'|'modules'`, `module`, `moduleBar`
+  (`{appearance, labels: 'auto'|'beside'|'below'|'hidden', allModules, label}` for the module
+  strip), `label`,
   `header`, `footer`, `railHeader`, `railFooter`, `openDelay: 80`, `closeDelay: 160`, and
   `renderIcon(item, context)`. Icon values may also be names, nodes, components, or factories.
-- **Methods** — `setItems()`, `getItems()`, `setActive()`, `setExpanded()`, `getExpanded()`,
-  `toggleBranch()`, `expand()`, `collapse()`, `setCollapsed()`, `isCollapsed()`,
+- **Sections** — an item with `section: true` is a quiet heading over its `children`, which stay
+  at its own level: never indented, collapsed, focused, or selected, and it needs no `id`.
+  `actions` (a node) adds trailing controls such as an add button. Sections replace stacking
+  several sidebars: one `<nav>`, one keyboard sequence, one rail. On a rail a section becomes a
+  rule; in a flyout, a caption.
+- **Modules layout** — `layout: 'modules'` reads the top level as modules (`ModuleItem`s: `tone`
+  or `color`, `badge`, `pinned`, `group`) and draws them as a `ModuleBar` strip beside a panel
+  with one module's menu. A module with `children`, `header` (a node above its menu, such as its
+  primary action), or `content` (a node below it, such as a tree or a history) is a panel module:
+  choosing its tile shows its panel and fires a cancelable `modulechange`; any other module is a
+  destination and fires `select`. The panel starts on `module`, else the module holding `active`,
+  and follows `setActive()` into another module. A `section` at the top level heads its modules on
+  the strip.
+- **Presentations** — the modules layout shows `'expanded'` (both menus: the strip names its
+  modules beside their tiles, and the side menu shows), `'compact'` (the module menu collapsed to
+  icons beside the side menu), or `'collapsed'` (the icon strip alone; every module's menu opens as
+  a flyout beside its tile). A small three-way switch at the foot of the strip, above
+  `railFooter`, chooses between them: an APG radio group ("Navigation layout") of one pictogram per
+  presentation, in a row while the modules are named and a column on the icon strip; arrow keys
+  move and choose, Home and End jump. `presentationSwitch: false` leaves it out when the choice
+  lives in a menu instead: `presentationChoice({label})` returns the same choice as a menu
+  `choice` entry (`account.setItems([sidebar.presentationChoice(), …])`; rebuild it after
+  `presentationchange`), and `presentationGlyph(name)` is its pictogram. `presentations` (default all three) decides which it offers;
+  `presentation` sets the first one; `getPresentation()`, `setPresentation()`, and
+  `togglePresentation()` (the next one, wrapping — Mod+B in an application) drive it, and
+  `presentationchange {presentation, previous}` reports it. `moduleBar.labels: 'hidden'` never
+  names the modules. `railHeader`/`railFooter` are the strip's head and foot in every
+  presentation. The arrow toward the panel moves from a tile into its menu, and Left Arrow on a
+  top-level row of the menu returns to the tile.
+- **Methods** — `setItems()`, `getItems()`, `setActive()`, `setBadge(id, badge)`, `setExpanded()`,
+  `getExpanded()`, `toggleBranch()`, `expand()`, `collapse()`, `setCollapsed()`, `isCollapsed()`,
+  `setModule(id, {silent})`, `getModule()`, `setModuleLabels(labels)`, `getPresentation()`,
+  `setPresentation(presentation, {silent})`, `togglePresentation()`, `presentationChoice({label})`,
   `setLayout({orientation, side})`, `openFlyout(id, {focus})`, `closeFlyout()`,
   `closeAllFlyouts()`, `isFlyoutOpen()`, `focus()`, `destroy()`. `getItems()` returns copies of
   the normalized tree; a leaf carries no `children` property.
 - **Events** — cancelable `select {item, id, value, href, event}`,
-  `branchchange {item, id, expanded, ids}`, `collapsechange {collapsed}`, and
-  `flyoutchange {item, id, open}`.
+  `branchchange {item, id, expanded, ids}`, `collapsechange {collapsed}`,
+  `flyoutchange {item, id, open}`, cancelable `modulechange {item, id, previous}`, and
+  `presentationchange {presentation, previous}`.
 - **Presentation state** — horizontal navigation is always effectively minimized and never exposes
   an expand control. Switching layouts does not erase the saved vertical collapsed preference or
-  expanded branch IDs. `AppSidebar` is the single public application-navigation component; use
-  `collapsed: true` or `orientation: 'horizontal'` for its rail presentations.
+  expanded branch IDs. `AppSidebar` is the one component that owns an application's navigation
+  tree; use `collapsed: true` or `orientation: 'horizontal'` for its rail presentations, and
+  `layout: 'modules'` for the module strip it composes from `ModuleBar`.
 - **Current state** — the current page is neutral: the `--zx-color-bg-current` fill, the full
   text colour and a semibold label, in the tree, the rail and every flyout; hover is a lighter
   step of the same overlay. A closed branch (or a rail item) over the active route takes the
@@ -2460,6 +2543,73 @@ inline; every rail state opens descendants toward the workspace in anchored flyo
   and Tooltip. A parent with children is disclosure-only; add an Overview child when it also needs
   a destination. Malformed and executable URL schemes are stripped; an item with no remaining
   link or callback is disabled in every presentation.
+<!-- /doc -->
+
+<!-- doc:module-bar -->
+### ModuleBar — the module level of an application
+
+One colour-coded tile per module, in a vertical strip or a horizontal bar: the level above an
+application's menus. Use it on its own — the classic module bar in an application header, beside
+a tree-layout `AppSidebar` — or through `AppSidebar`'s `layout: 'modules'`, which composes it.
+
+```js
+import { ModuleBar } from '/assets/zx.esm.js';
+
+const bar = new ModuleBar(null, {
+  items: [
+    { id: 'mail', label: 'Mail', icon: 'envelope', tone: 'blue', badge: 7, children: [
+      { id: 'inbox', label: 'Inbox', href: '#inbox' }, { id: 'sent', label: 'Sent', href: '#sent' }
+    ] },
+    { id: 'billing', label: 'Billing', icon: 'file-invoice', color: '#535494', href: '#billing' }
+  ],
+  active: 'inbox',
+  onselect: (event) => { event.preventDefault(); route(event.detail.id); }
+});
+bar.setBadge('mail', 8);
+```
+
+- **Items** (`ModuleItem`) — the `AppNavItem` shape plus `tone` (a categorical tone that follows
+  the theme) or `color` (any CSS colour; it wins), `pinned: true|number` (when any module is
+  pinned, unpinned ones are under "All modules" only), `group` (the catalogue heading), and
+  `description`. Children are the module's menu. A `section` at the top level heads its modules:
+  a caption over them while names are printed beside the tiles, a short rule between groups on an
+  icon strip or bar, and their group in the catalogue.
+- **Options** — `items`, `active` (a module or anything in a module's menu),
+  `orientation: 'vertical'|'horizontal'`, `side`, `appearance: 'tint'|'solid'|'plain'` (the glyph
+  on a tint of the module colour; the solid identity tile; monochrome glyphs),
+  `labels: 'hidden'|'below'|'beside'` (names under the tiles of a vertical strip, or beside them —
+  a navigation column of its own, a row per module with its count at the end),
+  `menus: 'flyout'|'none'`, `expanded`, `controls`, `allModules: 'auto'|'always'|'never'`,
+  `header`, `footer`, `label` (default "Modules"), `openDelay`, `closeDelay`, `renderIcon`.
+- **Menus** — with `menus: 'flyout'` a module's children open beside its tile on hover, focus,
+  click, or the arrow toward the workspace, exactly like a rail. With `menus: 'none'` an adjacent
+  panel the application owns shows them: every module then fires `select`, `setExpanded(id)`
+  names the module the panel shows, and each tile with a menu reports `aria-expanded` and
+  `aria-controls` the `controls` id.
+- **Overflow** — modules that do not fit move behind the "All modules" button; the current module
+  (and the expanded one) always stays. The catalogue lists every module as a labelled tile,
+  grouped by `group`, with a filter field past twelve modules. `partitionModules(items, capacity,
+  keep, reserve)` is the pure function deciding what shows; `reserve` keeps the button's slot for
+  `allModules: 'always'`.
+- **Methods** — `setItems()`, `getItems()`, `setActive()`, `setBadge(id, badge)` (in place, on the
+  tile, in its menu, and in the catalogue), `setExpanded(id)`, `setLabels(labels)` (how a column
+  expands to names and collapses to icons), `setLayout({orientation, side})`,
+  `openFlyout()`, `closeFlyout()`, `closeAllFlyouts()`, `isFlyoutOpen()`, `openAllModules()`,
+  `closeAllModules()`, `isAllModulesOpen()`, `focus()`, `destroy()`.
+- **Events** — cancelable `select {item, id, value, href, event}`, `flyoutchange {item, id, open}`,
+  `overflowchange {visible, overflow}`, and `allmodules {open}`.
+- **Keyboard** — the bar is one Tab stop, on the current module. Arrow keys along the bar move
+  between tiles and wrap; Home and End go to the first and last control; typing jumps to the next
+  module whose name starts with the letters typed; the arrow toward the workspace opens a menu and
+  moves into it; Escape, or the arrow back toward the strip, closes a menu onto its tile; Escape
+  closes the catalogue onto its button, and so does tabbing out of it. In the catalogue, arrows
+  move across the grid, typing goes to the filter field (past twelve modules), and Enter chooses.
+- **Semantics** — a `<nav>` of native links and buttons, never a menu or menubar. The module that
+  is or holds the current page carries `aria-current` (`page` or `true`); an icon-only tile's
+  accessible name is its label, with its count ("Mail (7)"), and it has a tooltip. Current is
+  the neutral `--zx-color-bg-current` fill behind the tile, never the accent or an edge bar.
+- **Geometry** — a target is one control plus a space step, a tile one control less one, so
+  `--zx-control-height` resizes the bar; a coarse pointer keeps a 40px target.
 <!-- /doc -->
 
 <!-- doc:kernel -->

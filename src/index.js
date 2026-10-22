@@ -124,7 +124,8 @@ export {
 } from './components/activity-list/activity-list.js';
 export { AccountMenu } from './components/account-menu/account-menu.js';
 export { normalizeAppItems } from './internal/app-rail.js';
-export { AppSidebar } from './components/app-sidebar/app-sidebar.js';
+export { ModuleBar, partitionModules, resolveModuleColor } from './components/module-bar/module-bar.js';
+export { AppSidebar, presentationGlyph } from './components/app-sidebar/app-sidebar.js';
 export { Message } from './components/message/message.js';
 export { Modal } from './components/modal/modal.js';
 export { Dialog } from './components/dialog/dialog.js';

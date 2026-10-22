@@ -81,6 +81,12 @@
         "description": "Replaces account presentation without touching session state."
       },
       {
+        "name": "setCompact",
+        "signature": "setCompact(compact)",
+        "returns": "this",
+        "description": "Shows the avatar alone or the avatar with the name and secondary line — for a navigation column that narrows to icons and widens again. The trigger keeps its full accessible name either way."
+      },
+      {
         "name": "setItems",
         "signature": "setItems(items)",
         "returns": "this",
@@ -390,7 +396,13 @@
         "name": "color",
         "type": "string|null",
         "default": "null",
-        "description": "Identity colour; falls back to the accent colour."
+        "description": "Identity colour, any CSS colour; takes precedence over `tone`."
+      },
+      {
+        "name": "tone",
+        "type": "AppIconTone|null",
+        "default": "null",
+        "description": "Categorical identity colour from the theme's tone palette, drawn with its `--zx-color-tone-<tone>-solid` fill. Without `color` or `tone` the icon takes the accent."
       },
       {
         "name": "size",
@@ -461,9 +473,9 @@
     "options": [
       {
         "name": "items",
-        "type": "AppNavItem[]",
+        "type": "AppNavItem[]|AppSidebarModule[]",
         "default": "[]",
-        "description": "Application navigation tree."
+        "description": "Application navigation tree; in the modules layout its top level is the modules."
       },
       {
         "name": "active",
@@ -502,6 +514,42 @@
         "description": "Workspace edge occupied by navigation."
       },
       {
+        "name": "layout",
+        "type": "'tree'|'modules'",
+        "default": "'tree'",
+        "description": "`'modules'` draws the top level as a module strip beside a panel showing one module's menu; minimized, the strip remains and menus open as flyouts."
+      },
+      {
+        "name": "module",
+        "type": "string|number|null",
+        "default": "null",
+        "description": "Modules layout: the module the panel shows first. Defaults to the module containing `active`, else the first module with a panel."
+      },
+      {
+        "name": "moduleBar",
+        "type": "AppSidebarModuleBarOptions",
+        "default": "{}",
+        "description": "Modules layout: strip presentation."
+      },
+      {
+        "name": "presentation",
+        "type": "'expanded'|'compact'|'collapsed'|null",
+        "default": "null",
+        "description": "Modules layout: how much of the navigation shows — both menus expanded (module names beside the side menu), the module menu collapsed to icons beside the side menu, or both collapsed to the icon strip. Defaults to `collapsed` ? `'collapsed'` : `'expanded'`."
+      },
+      {
+        "name": "presentations",
+        "type": "Array<'expanded'|'compact'|'collapsed'>",
+        "default": "['expanded','compact','collapsed']",
+        "description": "Modules layout: the presentations offered, widest first."
+      },
+      {
+        "name": "presentationSwitch",
+        "type": "boolean",
+        "default": "true",
+        "description": "Modules layout: whether the strip's foot carries the switch between presentations. Turn it off when the choice lives elsewhere — an account menu, through `presentationChoice()`."
+      },
+      {
         "name": "label",
         "type": "string",
         "default": "'Applications'",
@@ -511,7 +559,7 @@
         "name": "header",
         "type": "Node|string|number|{toElement: () => Node|null}|null",
         "default": "null",
-        "description": "Expanded header content."
+        "description": "Expanded header content; in the modules layout, content above every module's menu."
       },
       {
         "name": "footer",
@@ -523,13 +571,13 @@
         "name": "railHeader",
         "type": "Node|string|number|{toElement: () => Node|null}|null",
         "default": "null",
-        "description": "Minimized leading content."
+        "description": "Minimized leading content; in the modules layout, the strip's leading content in both states."
       },
       {
         "name": "railFooter",
         "type": "Node|string|number|{toElement: () => Node|null}|null",
         "default": "null",
-        "description": "Minimized trailing content."
+        "description": "Minimized trailing content; in the modules layout, the strip's trailing content in both states."
       },
       {
         "name": "openDelay",
@@ -570,6 +618,16 @@
         "name": "flyoutchange",
         "payload": "{item: AppNavItem, id: string|number, open: boolean}",
         "description": "Minimized flyout-state listener."
+      },
+      {
+        "name": "modulechange",
+        "payload": "{item: AppNavItem, id: string|number, previous: string|number|null}",
+        "description": "Preventable module-switch listener."
+      },
+      {
+        "name": "presentationchange",
+        "payload": "{presentation: 'expanded'|'compact'|'collapsed', previous: 'expanded'|'compact'|'collapsed'}",
+        "description": "Presentation listener."
       }
     ],
     "methods": [
@@ -589,7 +647,49 @@
         "name": "setActive",
         "signature": "setActive(id)",
         "returns": "this",
-        "description": "Sets the active id without routing."
+        "description": "Sets the active id without routing. In the modules layout the panel follows the active route into its module."
+      },
+      {
+        "name": "setBadge",
+        "signature": "setBadge(id, badge)",
+        "returns": "this",
+        "description": "Updates one badge — a module's, or any destination's — without rebuilding the navigation."
+      },
+      {
+        "name": "setModule",
+        "signature": "setModule(id, [options])",
+        "returns": "this",
+        "description": "Modules layout: shows a module's menu in the panel. Fires a preventable `modulechange` unless silent."
+      },
+      {
+        "name": "getModule",
+        "signature": "getModule()",
+        "returns": "string|number|null",
+        "description": "Modules layout: the module whose menu the panel shows."
+      },
+      {
+        "name": "setModuleLabels",
+        "signature": "setModuleLabels(labels)",
+        "returns": "this",
+        "description": "Modules layout: whether the strip prints module names — `'auto'` (beside the tiles while expanded, none while collapsed), `'beside'`, `'below'`, or `'hidden'`. A narrow drawer that has no room for a labelled strip beside the panel sets `'hidden'`."
+      },
+      {
+        "name": "getPresentation",
+        "signature": "getPresentation()",
+        "returns": "'expanded'|'compact'|'collapsed'",
+        "description": "How much of the navigation shows: `'expanded'` (in the modules layout, both menus), `'compact'` (the module menu collapsed to icons beside the side menu), or `'collapsed'`."
+      },
+      {
+        "name": "setPresentation",
+        "signature": "setPresentation(presentation, [options])",
+        "returns": "this",
+        "description": "Shows the navigation as `'expanded'`, `'compact'` (modules layout), or `'collapsed'`."
+      },
+      {
+        "name": "togglePresentation",
+        "signature": "togglePresentation()",
+        "returns": "this",
+        "description": "Moves to the next presentation the strip's switch offers, wrapping (Mod+B in an application)."
       },
       {
         "name": "setExpanded",
@@ -667,15 +767,51 @@
         "name": "focus",
         "signature": "focus()",
         "returns": "this",
-        "description": "Focuses the first navigation action."
+        "description": "Focuses the first navigation action: the module strip's Tab stop in the modules layout."
       },
       {
         "name": "destroy",
         "signature": "destroy()",
         "returns": "void",
         "description": "Destroys flyouts and restores/removes the host."
+      },
+      {
+        "name": "presentationChoice",
+        "signature": "presentationChoice([options])",
+        "returns": "import('../../internal/menu-items.js').MenuChoice",
+        "description": "The choice between presentations as a menu entry, for an account or settings menu that holds it instead of the strip: `account.setItems([sidebar.presentationChoice(), …])`. It reads the current presentation when called, so rebuild it after `presentationchange`."
       }
     ]
+  },
+  "AppSidebarModuleBar": {
+    "options": [
+      {
+        "name": "appearance",
+        "type": "'tint'|'solid'|'plain'",
+        "default": "'tint'",
+        "description": "Tile treatment."
+      },
+      {
+        "name": "labels",
+        "type": "'auto'|'beside'|'below'|'hidden'",
+        "default": "'auto'",
+        "description": "Module names on the strip: `'auto'` prints them beside the tiles while expanded and leaves the icons alone while collapsed; `'hidden'` keeps the icon strip beside the panel; `'below'` prints them under the tiles."
+      },
+      {
+        "name": "allModules",
+        "type": "'auto'|'always'|'never'",
+        "default": "'auto'",
+        "description": "The \"All modules\" button."
+      },
+      {
+        "name": "label",
+        "type": "string|null",
+        "default": "null",
+        "description": "Strip accessible label; omitted resolves `moduleBar.label`."
+      }
+    ],
+    "events": [],
+    "methods": []
   },
   "Aspect": {
     "options": [
@@ -6519,6 +6655,226 @@
         "signature": "destroy()",
         "returns": "void",
         "description": "Closes and removes the owned dialog. Safe to call repeatedly."
+      }
+    ]
+  },
+  "ModuleBar": {
+    "options": [
+      {
+        "name": "items",
+        "type": "ModuleItem[]",
+        "default": "[]",
+        "description": "Modules, in bar order."
+      },
+      {
+        "name": "active",
+        "type": "string|number|null",
+        "default": "null",
+        "description": "Active destination id: a module, or any item in a module's menu."
+      },
+      {
+        "name": "orientation",
+        "type": "'vertical'|'horizontal'",
+        "default": "'vertical'",
+        "description": "Bar flow."
+      },
+      {
+        "name": "side",
+        "type": "'left'|'right'|'top'|'bottom'",
+        "default": "'left'",
+        "description": "Workspace edge the bar occupies."
+      },
+      {
+        "name": "appearance",
+        "type": "'tint'|'solid'|'plain'",
+        "default": "'tint'",
+        "description": "Tile treatment: the glyph in the module colour on a tint of it, the solid identity tile, or monochrome glyphs."
+      },
+      {
+        "name": "labels",
+        "type": "'hidden'|'below'|'beside'",
+        "default": "'hidden'",
+        "description": "Whether a vertical bar prints each module's name: under its tile (a narrow strip), beside it (a full navigation column, with the count at the end of the row), or not at all — the name then stays the accessible name and the tooltip. Horizontal bars never print names."
+      },
+      {
+        "name": "menus",
+        "type": "'flyout'|'none'",
+        "default": "'flyout'",
+        "description": "How a module's children are presented: in a flyout, or by an adjacent panel the application owns, in which case activating the module emits `select`."
+      },
+      {
+        "name": "expanded",
+        "type": "string|number|null",
+        "default": "null",
+        "description": "With `menus: 'none'`, the module whose menu the adjacent panel shows."
+      },
+      {
+        "name": "controls",
+        "type": "string|null",
+        "default": "null",
+        "description": "With `menus: 'none'`, the id of that panel."
+      },
+      {
+        "name": "allModules",
+        "type": "'auto'|'always'|'never'",
+        "default": "'auto'",
+        "description": "The \"All modules\" button: shown when a module does not fit or is unpinned, always, or never (the bar then scrolls)."
+      },
+      {
+        "name": "header",
+        "type": "Node|string|number|{toElement: () => Node|null}|null",
+        "default": "null",
+        "description": "Leading content, such as a product mark."
+      },
+      {
+        "name": "footer",
+        "type": "Node|string|number|{toElement: () => Node|null}|null",
+        "default": "null",
+        "description": "Trailing content, such as an account menu."
+      },
+      {
+        "name": "label",
+        "type": "string|null",
+        "default": "null",
+        "description": "Navigation accessible label. Omitted resolves `moduleBar.label`, English `Modules`."
+      },
+      {
+        "name": "openDelay",
+        "type": "number",
+        "default": "80",
+        "description": "Flyout hover-open delay in milliseconds."
+      },
+      {
+        "name": "closeDelay",
+        "type": "number",
+        "default": "160",
+        "description": "Flyout pointer and focus crossing grace in milliseconds."
+      },
+      {
+        "name": "renderIcon",
+        "type": "(item: AppNavItem, context: Record<string, any>) => Node|null",
+        "default": null,
+        "description": "Optional host icon renderer."
+      }
+    ],
+    "events": [
+      {
+        "name": "select",
+        "payload": "AppNavSelectDetail",
+        "description": "Preventable activation listener."
+      },
+      {
+        "name": "flyoutchange",
+        "payload": "{item: AppNavItem, id: string|number, open: boolean}",
+        "description": "Flyout-state listener."
+      },
+      {
+        "name": "overflowchange",
+        "payload": "{visible: Array<string|number>, overflow: Array<string|number>}",
+        "description": "Overflow listener."
+      },
+      {
+        "name": "allmodules",
+        "payload": "{open: boolean}",
+        "description": "\"All modules\" catalogue open-state listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "setItems",
+        "signature": "setItems(items)",
+        "returns": "this",
+        "description": "Replaces the modules and rebuilds the bar."
+      },
+      {
+        "name": "getItems",
+        "signature": "getItems()",
+        "returns": "ModuleItem[]",
+        "description": "Returns a copy of the normalized modules."
+      },
+      {
+        "name": "setActive",
+        "signature": "setActive(id)",
+        "returns": "this",
+        "description": "Marks the active destination — a module, or anything in a module's menu — without routing. The module holding it becomes current and stays on the bar."
+      },
+      {
+        "name": "openFlyout",
+        "signature": "openFlyout(id, [options])",
+        "returns": "this",
+        "description": "Opens a module's menu flyout."
+      },
+      {
+        "name": "closeFlyout",
+        "signature": "closeFlyout(id)",
+        "returns": "this",
+        "description": "Closes a module's menu flyout."
+      },
+      {
+        "name": "closeAllFlyouts",
+        "signature": "closeAllFlyouts()",
+        "returns": "this",
+        "description": "Closes every menu flyout."
+      },
+      {
+        "name": "isFlyoutOpen",
+        "signature": "isFlyoutOpen(id)",
+        "returns": "boolean",
+        "description": "Reports whether a module's menu flyout is open."
+      },
+      {
+        "name": "setExpanded",
+        "signature": "setExpanded(id)",
+        "returns": "this",
+        "description": "With `menus: 'none'`, names the module whose menu the adjacent panel now shows."
+      },
+      {
+        "name": "setBadge",
+        "signature": "setBadge(id, badge)",
+        "returns": "this",
+        "description": "Updates one badge in place — on the tile, in a flyout, and in the catalogue — without rebuilding the bar. `null` removes it."
+      },
+      {
+        "name": "setLayout",
+        "signature": "setLayout(layout)",
+        "returns": "this",
+        "description": "Changes flow or edge, keeping items, the active destination, and the expanded module."
+      },
+      {
+        "name": "setLabels",
+        "signature": "setLabels(labels)",
+        "returns": "this",
+        "description": "Changes whether module names are printed — the expanded and collapsed states of a vertical navigation column — keeping items, the active destination, and the expanded module."
+      },
+      {
+        "name": "openAllModules",
+        "signature": "openAllModules()",
+        "returns": "this",
+        "description": "Opens the \"All modules\" catalogue and focuses its filter or first entry."
+      },
+      {
+        "name": "closeAllModules",
+        "signature": "closeAllModules()",
+        "returns": "this",
+        "description": "Closes the \"All modules\" catalogue."
+      },
+      {
+        "name": "isAllModulesOpen",
+        "signature": "isAllModulesOpen()",
+        "returns": "boolean",
+        "description": "Reports whether the \"All modules\" catalogue is open."
+      },
+      {
+        "name": "focus",
+        "signature": "focus()",
+        "returns": "this",
+        "description": "Focuses the bar's Tab stop: the current module, else the first tile."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Destroys flyouts, tooltips, and the catalogue, and restores or removes the root."
       }
     ]
   },

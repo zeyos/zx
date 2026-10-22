@@ -113,7 +113,9 @@
    single icon keeps the column on every row so the labels stay in one line down the list. Each
    list answers for its own rows only — a branch of plain labels under iconned parents drops the
    column without taking it from the parents. */
-.zx-app-sidebar__list:not(:has(> .zx-app-sidebar__row > .zx-app-sidebar__item .zx-app-sidebar__item-icon)),
+.zx-app-sidebar__list:not(:has(> .zx-app-sidebar__row > .zx-app-sidebar__item .zx-app-sidebar__item-icon,
+  > .zx-app-sidebar__section > .zx-app-sidebar__section-list > .zx-app-sidebar__row > .zx-app-sidebar__item .zx-app-sidebar__item-icon)),
+.zx-app-sidebar__section-list:not(:has(> .zx-app-sidebar__row > .zx-app-sidebar__item .zx-app-sidebar__item-icon)),
 .zx-app-sidebar__sublist:not(:has(> .zx-app-sidebar__row > .zx-app-sidebar__item .zx-app-sidebar__item-icon)) {
   --zx-app-sidebar-icon: 0px;
   --zx-app-sidebar-item-gap: 0px;
@@ -168,6 +170,43 @@
 }
 
 .zx-app-sidebar__list > .zx-app-sidebar__row:first-child { margin-block-start: 0; }
+
+/*
+ * Sections. A heading over rows that stay at its own level: not a branch, never collapsed, never
+ * focused. Sections are separated by the group gap, like the groups a branch opens, and the
+ * heading is the same quiet sentence-case caption a flyout uses for its title.
+ */
+.zx-app-sidebar__section { list-style: none; }
+
+.zx-app-sidebar__section + .zx-app-sidebar__section,
+.zx-app-sidebar__section + .zx-app-sidebar__row,
+.zx-app-sidebar__row + .zx-app-sidebar__section {
+  margin-block-start: var(--zx-app-sidebar-group-gap);
+}
+
+.zx-app-sidebar__section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--zx-space-2);
+  min-block-size: calc(var(--zx-control-height) - var(--zx-space-1));
+  padding-inline: var(--zx-app-sidebar-pad-x) var(--zx-space-1);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-weight: var(--zx-weight-semibold);
+  line-height: 1.3;
+}
+
+.zx-app-sidebar__section-label { min-inline-size: 0; overflow-wrap: break-word; }
+.zx-app-sidebar__section-actions { display: inline-flex; flex: none; align-items: center; gap: var(--zx-space-1); }
+
+.zx-app-sidebar__section-list {
+  display: grid;
+  gap: var(--zx-app-sidebar-row-gap);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
 
 .zx-app-sidebar__item {
   position: relative;
@@ -294,7 +333,165 @@
 }
 .zx-app-sidebar__footer[hidden] { display: none; }
 
-.zx-app-sidebar__rail-header { display: grid; gap: var(--zx-space-1); }
+.zx-app-sidebar__rail-header { display: grid; gap: var(--zx-space-1); justify-items: center; }
+
+/*
+ * The modules layout: the module strip beside a panel of one module's menu. Both share the
+ * sidebar's chrome surface; the subtle rule between them is the one line tone cannot draw, since
+ * they are the same tone.
+ */
+.zx-app-sidebar__modules {
+  display: flex;
+  min-inline-size: 0;
+  min-block-size: 0;
+}
+
+.zx-app-sidebar[data-side="right"] .zx-app-sidebar__modules { flex-direction: row-reverse; }
+
+.zx-app-sidebar__strip.zx-module-bar { background: transparent; }
+.zx-app-sidebar__modules > .zx-app-sidebar__strip { border-inline-end: 1px solid var(--zx-color-border-subtle); }
+.zx-app-sidebar[data-side="right"] .zx-app-sidebar__modules > .zx-app-sidebar__strip {
+  border-inline-end: 0;
+  border-inline-start: 1px solid var(--zx-color-border-subtle);
+}
+
+.zx-app-sidebar[data-layout="modules"][data-orientation="horizontal"] > .zx-app-sidebar__strip { inline-size: 100%; }
+
+/* The foot of the strip: the one expand/collapse control, then what the application put there.
+   With names beside the tiles it lines up with their tiles rather than sitting centred. */
+.zx-app-sidebar__strip-foot {
+  display: grid;
+  justify-items: center;
+  gap: var(--zx-space-2);
+}
+
+.zx-app-sidebar__strip[data-labels="beside"] .zx-app-sidebar__strip-foot {
+  justify-items: stretch;
+  /* The toggle's centre on the tiles' centre: list inset + row inset, less the footer's own pad. */
+  padding-inline-start: calc(var(--zx-space-1) + var(--zx-space-2) - var(--zx-module-bar-pad)
+    + (var(--zx-module-bar-tile) - var(--zx-control-height)) / 2);
+}
+
+/* With names printed the strip's head spans the column, like the rows under it. */
+.zx-app-sidebar__strip[data-labels="beside"] .zx-app-sidebar__rail-header { justify-items: stretch; }
+
+.zx-app-sidebar__presentation {
+  display: inline-grid;
+  justify-self: center;
+  gap: 2px;
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-bg-hover);
+  padding: 2px;
+}
+
+/* Named strip: the three options in a row at the start of the foot; icon strip: a column. */
+.zx-app-sidebar__strip[data-labels="beside"] .zx-app-sidebar__presentation {
+  grid-auto-flow: column;
+  justify-self: start;
+}
+
+.zx-app-sidebar__presentation-option {
+  display: grid;
+  place-items: center;
+  inline-size: var(--zx-space-6);
+  block-size: var(--zx-space-6);
+  border: 0;
+  border-radius: var(--zx-radius-sm);
+  background: transparent;
+  padding: 0;
+  color: var(--zx-color-text-muted);
+  cursor: pointer;
+}
+
+.zx-app-sidebar__presentation-option:hover { color: var(--zx-color-text); }
+
+/* The chosen presentation is where you are: the surface lifted out of the track, full text colour. */
+.zx-app-sidebar__presentation-option[aria-checked="true"] {
+  background: var(--zx-color-bg-surface);
+  box-shadow: 0 0 0 1px var(--zx-color-border-subtle);
+  color: var(--zx-color-text);
+}
+
+.zx-app-sidebar__presentation-option:focus-visible {
+  outline: none;
+  box-shadow: var(--zx-focus-ring);
+}
+
+/*
+ * The pictogram: a window with its navigation drawn in it — a module strip, wide when it is named,
+ * and a side menu when it shows. Drawn from boxes in the text colour, so it needs no icon set and
+ * follows the theme, forced colours included.
+ */
+.zx-app-sidebar__presentation-glyph {
+  display: flex;
+  gap: 1px;
+  box-sizing: border-box;
+  inline-size: 16px;
+  block-size: 12px;
+  border: 1.5px solid currentColor;
+  border-radius: 2px;
+  padding: 1px;
+}
+
+.zx-app-sidebar__presentation-strip,
+.zx-app-sidebar__presentation-panel {
+  border-radius: 1px;
+  background: currentColor;
+}
+
+.zx-app-sidebar__presentation-strip { flex: 0 0 2px; }
+.zx-app-sidebar__presentation-panel { flex: 0 0 4px; opacity: .5; }
+.zx-app-sidebar__presentation-glyph[data-presentation="expanded"] > .zx-app-sidebar__presentation-strip { flex-basis: 4px; }
+.zx-app-sidebar__presentation-glyph[data-presentation="collapsed"] > .zx-app-sidebar__presentation-panel { display: none; }
+
+@media (forced-colors: active) {
+  .zx-app-sidebar__presentation-option[aria-checked="true"] {
+    background: Highlight;
+    color: HighlightText;
+    forced-color-adjust: none;
+  }
+}
+
+.zx-app-sidebar__panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  inline-size: min(14rem, 100vw - var(--zx-control-height) * 3);
+  min-block-size: 0;
+}
+
+.zx-app-sidebar__panel-title {
+  color: var(--zx-color-text);
+  font-size: var(--zx-text-md);
+  font-weight: var(--zx-weight-semibold);
+  line-height: 1.3;
+  overflow-wrap: break-word;
+}
+
+/* One scroller for the module's lead content, its menu, and its own content, so a long menu and
+   a long list under it read as one column. The nav loses its own scroll box inside it. */
+.zx-app-sidebar__panel-body {
+  display: grid;
+  /* Rows take their content's height and the body scrolls; a row the grid could shrink would
+     draw the menu under the content beneath it. */
+  grid-auto-rows: max-content;
+  align-content: start;
+  min-block-size: 0;
+  overflow: auto;
+}
+
+.zx-app-sidebar__panel-body > .zx-app-sidebar__nav { overflow: visible; min-block-size: auto; }
+.zx-app-sidebar__panel-body > [hidden] { display: none; }
+
+.zx-app-sidebar__panel-lead {
+  display: grid;
+  gap: var(--zx-space-2);
+  padding: var(--zx-space-1) var(--zx-space-3) 0;
+}
+
+.zx-app-sidebar__panel-content {
+  min-inline-size: 0;
+  padding: 0 var(--zx-app-sidebar-gutter) var(--zx-space-3);
+}
 
 /*
  * The minimized rail. Only the presentation changes; the same vocabulary applies — the neutral
@@ -379,9 +576,13 @@
   .zx-app-sidebar__rail .zx-app-rail__item:active { transform: scale(.985); }
 
   .zx-app-sidebar__expanded,
-  .zx-app-sidebar__rail { animation: zx-app-sidebar-mode var(--zx-dur-base) var(--zx-ease); }
+  .zx-app-sidebar__rail,
+  .zx-app-sidebar__panel { animation: zx-app-sidebar-mode var(--zx-dur-base) var(--zx-ease); }
 
   .zx-app-sidebar__sublist[data-branch-motion="expand"] { animation: zx-app-sidebar-branch var(--zx-dur-base) var(--zx-ease); }
+
+  /* The panel's content cross-fades when it switches module; the width never animates. */
+  .zx-app-sidebar__panel-body[data-module-motion="enter"] { animation: zx-app-sidebar-mode var(--zx-dur-base) var(--zx-ease); }
 }
 
 @keyframes zx-app-sidebar-mode {

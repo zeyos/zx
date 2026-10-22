@@ -26,6 +26,17 @@
   border-radius: var(--zx-radius-full);
 }
 
+/* A tone is identity from the theme's categorical palette. An inline `color` overrides it. */
+.zx-app-icon[data-tone="blue"] { --zx-app-icon-color: var(--zx-color-tone-blue-solid); }
+.zx-app-icon[data-tone="teal"] { --zx-app-icon-color: var(--zx-color-tone-teal-solid); }
+.zx-app-icon[data-tone="green"] { --zx-app-icon-color: var(--zx-color-tone-green-solid); }
+.zx-app-icon[data-tone="amber"] { --zx-app-icon-color: var(--zx-color-tone-amber-solid); }
+.zx-app-icon[data-tone="orange"] { --zx-app-icon-color: var(--zx-color-tone-orange-solid); }
+.zx-app-icon[data-tone="red"] { --zx-app-icon-color: var(--zx-color-tone-red-solid); }
+.zx-app-icon[data-tone="pink"] { --zx-app-icon-color: var(--zx-color-tone-pink-solid); }
+.zx-app-icon[data-tone="violet"] { --zx-app-icon-color: var(--zx-color-tone-violet-solid); }
+.zx-app-icon[data-tone="slate"] { --zx-app-icon-color: var(--zx-color-tone-slate-solid); }
+
 .zx-app-icon__surface {
   position: absolute;
   z-index: 0;

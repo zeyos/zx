@@ -1,12 +1,12 @@
 import {
-  AccountMenu, AppSidebar, Breadcrumb, DateRangeBox, Dialog, Field, FileItem, Grid, InlineLoading,
+  Breadcrumb, DateRangeBox, Dialog, Field, FileItem, Grid, InlineLoading,
   MenuButton, Select, SplitView, TagPicker, Toggle, Tooltip, addDays, badge, billingColumns, button,
   emptyState, formatCurrency, formatDate, formatNumber, formatPercent, grid, h, icon, isBillingLine,
   stack
 } from '../../src/index.js';
 import {
   DATE, SHELL_BREAKPOINTS, adaptiveShell, disposer, iconButton, later, layoutContext, modShortcut,
-  paneHeader, renderScope, sectionLabel, shortcuts, toaster, unavailable, workspaceHeader
+  paneHeader, renderScope, shortcuts, suiteNav, toaster, unavailable
 } from './kit.js';
 import { COMPANIES, ME, NOW, ORGANISATION, company, person } from './fixtures.js';
 
@@ -25,18 +25,18 @@ const CUSTOMER_DETAILS = {
 /** Countries whose business customers are invoiced under the EU reverse-charge rule. */
 const EU_COUNTRIES = ['Austria', 'France', 'Netherlands'];
 
-/** Fieldstone's register and tax details for the page footer. */
+/** ACME's register and tax details for the page footer. */
 const IMPRINT = {
   court: 'Charlottenburg local court',
   register: 'HRB 214553 B',
   taxNumber: '29/518/40263',
-  email: 'billing@fieldstone.example'
+  email: 'billing@acme.example'
 };
 
 /** The product catalogue the position search offers. Prices are net, in EUR. */
 const PRODUCTS = [
-  { ID: 'FS-PLT-BUS', name: 'Fieldstone Platform, Business plan', unit: 'month', price: 1450, vat: 19, icon: 'cloud' },
-  { ID: 'FS-SEAT', name: 'Additional user seats', unit: 'seat', price: 24, vat: 19, icon: 'users' },
+  { ID: 'AC-PLT-BUS', name: 'ACME Platform, Business plan', unit: 'month', price: 1450, vat: 19, icon: 'cloud' },
+  { ID: 'AC-SEAT', name: 'Additional user seats', unit: 'seat', price: 24, vat: 19, icon: 'users' },
   { ID: 'SV-IMPL', name: 'Implementation consulting', unit: 'hour', price: 145, vat: 19, icon: 'clock-regular' },
   { ID: 'SV-WS', name: 'On-site workshop, full day', unit: 'day', price: 1280, vat: 19, icon: 'users' },
   { ID: 'SV-SUP', name: 'Premium support, quarterly', unit: 'quarter', price: 2400, vat: 19, icon: 'shield-halved' },
@@ -89,13 +89,13 @@ const INVOICE = {
   terms: 'net14',
   reference: 'PO-55120',
   intro: 'Thank you for your order. As agreed, we invoice the following services for September 2026.',
-  closing: 'If you have any questions about this invoice, please contact us at billing@fieldstone.example.'
+  closing: 'If you have any questions about this invoice, please contact us at billing@acme.example.'
 };
 
 /** Its positions, as `Grid.BillingItems()` rows. */
 const LINES = [
-  { id: 'l1', kind: 'line', sku: 'FS-PLT-BUS', item: 'Fieldstone Platform, Business plan', quantity: 1, unit: 'month', unitPrice: 1450, vat: 19, discount: 0 },
-  { id: 'l2', kind: 'line', sku: 'FS-SEAT', item: 'Additional user seats', quantity: 18, unit: 'seat', unitPrice: 24, vat: 19, discount: 10 },
+  { id: 'l1', kind: 'line', sku: 'AC-PLT-BUS', item: 'ACME Platform, Business plan', quantity: 1, unit: 'month', unitPrice: 1450, vat: 19, discount: 0 },
+  { id: 'l2', kind: 'line', sku: 'AC-SEAT', item: 'Additional user seats', quantity: 18, unit: 'seat', unitPrice: 24, vat: 19, discount: 10 },
   { id: 'l3', kind: 'line', sku: 'SV-IMPL', item: 'Implementation consulting', quantity: 12.5, unit: 'hour', unitPrice: 145, vat: 19, discount: 0 },
   { id: 'l4', kind: 'line', sku: 'SV-WS', item: 'On-site workshop, Munich', quantity: 1, unit: 'day', unitPrice: 1280, vat: 19, discount: 0 },
   { id: 'l5', kind: 'line', sku: 'BK-ADM', item: 'Administrator handbook, printed', quantity: 6, unit: 'piece', unitPrice: 39.9, vat: 7, discount: 0 }
@@ -346,7 +346,8 @@ export default {
   blurb: 'A draft invoice beside its live A4 page, with VAT per rate and a send step that locks it.',
   components: [
     'Grid', 'SplitView', 'DateRangeBox', 'Select', 'Field', 'Datebox', 'TagPicker', 'FileItem',
-    'Dialog', 'Breadcrumb', 'InlineLoading', 'MenuButton', 'Toggle', 'Tooltip', 'Badge', 'Message'
+    'Dialog', 'Breadcrumb', 'InlineLoading', 'MenuButton', 'Toggle', 'Tooltip', 'Badge', 'Message',
+    'AppSidebar', 'ModuleBar', 'AccountMenu'
   ],
 
   /**
@@ -360,7 +361,12 @@ export default {
     context = layoutContext(context);
     const keep = disposer(context);
     const me = person(ME);
-    const root = h('div', { class: 'invoicing shell' });
+
+    // ---------------------------------------------------------------- navigation column
+    // The suite's navigation: Billing's own menu beside every other module of the suite. Only the
+    // invoices are part of this example; every other destination says so.
+    const nav = suiteNav(context, { module: 'billing', menu: navigationItems(), active: 'invoices' });
+    const root = h('div', { class: 'invoicing shell' }, nav.column);
     // Narrow, the navigation becomes a drawer; the editor and the page then take turns (see
     // `fitView()`), and a phone keeps only the header's icons.
     const shell = adaptiveShell(root, context);
@@ -393,36 +399,6 @@ export default {
     let cancelSave = () => {};
     /** @type {HTMLElement|null} What had focus in the editor when the page took its place. */
     let editorFocus = null;
-
-    // ---------------------------------------------------------------- navigation column
-    const sidebar = (label, items) => keep(new AppSidebar(null, {
-      label,
-      collapsible: false,
-      active: 'invoices',
-      items: items.map((item) => ({
-        ...item,
-        invoke: () => (item.id === 'invoices' ? null : notify(unavailable(item.label), 'info'))
-      }))
-    })).toElement();
-    const account = keep(new AccountMenu(null, {
-      account: { name: me.name, secondary: me.role, status: me.status },
-      placement: 'top-start',
-      items: [
-        { label: 'Preferences', value: 'preferences', icon: 'gear' },
-        '-',
-        { label: 'Sign out', value: 'sign-out', icon: 'power-off' }
-      ],
-      onselect: (event) => notify(unavailable(event.detail.item.label), 'info')
-    }));
-    const nav = h('div', { class: 'shell__nav' },
-      workspaceHeader(),
-      h('div', { class: 'shell__body' },
-        sidebar('Overview', NAVIGATION.home),
-        sectionLabel('Documents'),
-        sidebar('Documents', NAVIGATION.documents),
-        sectionLabel('Business'),
-        sidebar('Business', NAVIGATION.business)),
-      h('div', { class: 'shell__footer' }, account.toElement()));
 
     // ------------------------------------------------------------------- header
     // The trail's last item is the invoice number, which is also the page's title.
@@ -630,7 +606,7 @@ export default {
       split.toElement(),
       deletedView);
 
-    root.append(nav, main);
+    root.append(main);
     container.append(root);
 
     const resizer = new ResizeObserver(() => layoutSheet());
@@ -658,6 +634,19 @@ export default {
     fitView();
 
     // ---------------------------------------------------------------- functions
+
+    /** @returns {Record<string, any>[]} Billing's menu: the overview, then documents and business. */
+    function navigationItems() {
+      const entry = (item) => ({
+        ...item,
+        invoke: () => (item.id === 'invoices' ? null : notify(unavailable(item.label), 'info'))
+      });
+      return [
+        ...NAVIGATION.home.map(entry),
+        { section: true, label: 'Documents', children: NAVIGATION.documents.map(entry) },
+        { section: true, label: 'Business', children: NAVIGATION.business.map(entry) }
+      ];
+    }
 
     /** @returns {{name: string, label: string}[]} The breadcrumb trail for the current number. */
     function crumbItems() {

@@ -1,10 +1,10 @@
 import {
-  AccountMenu, AppSidebar, Avatar, Dialog, Form, InlineLoading, MenuButton, Search, badge, button,
-  emptyState, formatCurrency, formatNumber, formatRelativeTime, h, icon, uid
+  Avatar, Dialog, Form, InlineLoading, MenuButton, Search, badge, button, emptyState, formatCurrency,
+  formatNumber, formatRelativeTime, h, icon, uid
 } from '../../src/index.js';
 import {
-  adaptiveShell, disposer, iconButton, layoutContext, later, modShortcut, paneHeader, renderScope, sectionLabel,
-  shortcuts, toaster, unavailable, workspaceHeader
+  adaptiveShell, disposer, iconButton, layoutContext, later, modShortcut, paneHeader, renderScope, shortcuts,
+  suiteNav, toaster, unavailable
 } from './kit.js';
 import { COMPANIES, ME, NOW, PEOPLE, person } from './fixtures.js';
 
@@ -98,7 +98,7 @@ export default {
   title: 'Master–detail',
   category: 'Pattern',
   blurb: 'A filterable list of customers beside the one being edited, with save, revert, and unsaved-change checks.',
-  components: ['Form', 'Search', 'Select', 'NumberField', 'Datebox', 'InlineLoading', 'Dialog', 'MenuButton', 'Avatar', 'Message'],
+  components: ['Form', 'Search', 'Select', 'NumberField', 'Datebox', 'InlineLoading', 'Dialog', 'MenuButton', 'Avatar', 'Message', 'ModuleBar'],
 
   /**
    * Mounts the customers screen: navigation, the filtered list, and the open record's form.
@@ -114,9 +114,6 @@ export default {
     // The avatars drawn into the list and into the record header belong to that rendering.
     const listParts = renderScope(context);
     const headParts = renderScope(context);
-    // Narrow, the navigation becomes a drawer, and a phone shows the list or the record, never both.
-    const root = h('div', { class: 'master-detail shell' });
-    const shell = adaptiveShell(root, context);
 
     // ----------------------------------------------------------------- navigation --
 
@@ -131,37 +128,26 @@ export default {
       notify(unavailable(label), 'info');
     };
 
-    const destinations = keep(new AppSidebar(null, {
-      label: 'Sales',
-      collapsible: false,
+    // The suite's navigation: CRM's sales destinations and saved views beside every other module.
+    const nav = suiteNav(context, {
+      module: 'crm',
       active: 'customers',
-      items: [
+      menu: [
         { id: 'customers', label: 'Customers', icon: 'building', badge: records.length },
         { id: 'contacts', label: 'Contacts', icon: 'users', invoke: elsewhere('Contacts') },
         { id: 'deals', label: 'Opportunities', icon: 'handshake', invoke: elsewhere('Opportunities') },
         { id: 'quotes', label: 'Quotes', icon: 'file-lines', invoke: elsewhere('Quotes') },
-        { id: 'invoices', label: 'Invoices', icon: 'file-invoice', invoke: elsewhere('Invoices') }
+        { id: 'invoices', label: 'Invoices', icon: 'file-invoice', invoke: elsewhere('Invoices') },
+        { section: true, label: 'Views', children: [
+          { id: 'mine', label: 'My accounts', icon: 'circle-user', invoke: elsewhere('Saved views') },
+          { id: 'renewals', label: 'Renewals this quarter', icon: 'calendar-days', invoke: elsewhere('Saved views') }
+        ] }
       ]
-    }));
-    const views = keep(new AppSidebar(null, {
-      label: 'Views',
-      collapsible: false,
-      items: [
-        { id: 'mine', label: 'My accounts', icon: 'circle-user', invoke: elsewhere('Saved views') },
-        { id: 'renewals', label: 'Renewals this quarter', icon: 'calendar-days', invoke: elsewhere('Saved views') }
-      ]
-    }));
-    const account = keep(new AccountMenu(null, {
-      account: { name: person(ME).name, secondary: person(ME).role, status: 'online' },
-      items: [{ label: 'Preferences', value: 'prefs', icon: 'gear' }, '-', { label: 'Sign out', value: 'out' }],
-      placement: 'top-start',
-      onselect: ({ detail }) => notify(unavailable(detail.value === 'out' ? 'Signing out' : 'Preferences'), 'info')
-    }));
+    });
 
-    const nav = h('div', { class: 'shell__nav' },
-      workspaceHeader(),
-      h('div', { class: 'shell__body' }, destinations.toElement(), sectionLabel('Views'), views.toElement()),
-      h('div', { class: 'shell__footer' }, account.toElement()));
+    // Narrow, the navigation becomes a drawer, and a phone shows the list or the record, never both.
+    const root = h('div', { class: 'master-detail shell' }, nav.column);
+    const shell = adaptiveShell(root, context);
 
     // ----------------------------------------------------------------- list column --
 
@@ -254,7 +240,7 @@ export default {
       }),
       detailBody);
 
-    root.append(nav, list, main);
+    root.append(list, main);
     const notify = toaster(context, root);
 
     shortcuts(root, {
@@ -539,7 +525,7 @@ export default {
     /** Shows how many customers there are on their navigation item. @returns {void} */
     function countCustomers() {
       const count = records.filter((record) => !record.draft).length;
-      destinations.setItems(destinations.getItems().map((item) => (item.id === 'customers' ? { ...item, badge: count } : item)));
+      nav.setBadge('customers', count);
     }
 
     /** Deletes the open record once confirmed and opens its neighbour. @returns {Promise<void>} */

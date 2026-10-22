@@ -610,6 +610,284 @@ const cases = [
     assert(layoutChanges.join(',') === 'true,false',
       `layout changes emitted the wrong collapsed states: ${layoutChanges}`);
   }),
+  componentCase('ModuleBar', () => new zx.ModuleBar(null, {
+    items: [
+      { id: 'home', label: 'Home', icon: 'search', tone: 'slate', href: '#home' },
+      { id: 'mail', label: 'Mail', icon: 'search', tone: 'blue', badge: 7, children: [
+        { id: 'inbox', label: 'Inbox' }, { id: 'sent', label: 'Sent' }
+      ] },
+      { id: 'crm', label: 'Customers', icon: 'search', color: '#bc3885', children: [
+        { section: true, label: 'Records', children: [{ id: 'companies', label: 'Companies' }] }
+      ] },
+      { id: 'billing', label: 'Billing', icon: 'search', tone: 'violet' },
+      { id: 'off', label: 'Unavailable', icon: 'search', disabled: true }
+    ],
+    active: 'companies',
+    openDelay: 0,
+    closeDelay: 20
+  }), async (component) => {
+    const key = (target, name) => target.dispatchEvent(new KeyboardEvent('keydown', { key: name, bubbles: true, cancelable: true }));
+    const tile = (id) => component.el.querySelector(`.zx-module-bar__item[data-app-nav-value-id="${id}"]`);
+    const stops = () => [...component.el.querySelectorAll('.zx-module-bar__item')].filter((control) => control.tabIndex === 0);
+    assert(stops().length === 1 && stops()[0] === tile('crm'), 'the single Tab stop is not the current module');
+    assert(tile('crm').getAttribute('aria-current') === 'true', 'the module holding the active route is not current');
+    assert(tile('mail').getAttribute('aria-label') === 'Mail (7)', 'a badge is missing from the accessible name');
+    assert(tile('crm').querySelector('.zx-module-bar__tile').dataset.color === ''
+      && tile('mail').querySelector('.zx-module-bar__tile').dataset.tone === 'blue', 'module colour was not resolved');
+    tile('crm').focus();
+    key(tile('crm'), 'ArrowDown');
+    assert(document.activeElement === tile('billing') && stops()[0] === tile('billing'),
+      'ArrowDown did not move focus and the Tab stop together');
+    key(document.activeElement, 'h');
+    assert(document.activeElement === tile('home'), 'type-ahead did not reach Home');
+    key(document.activeElement, 'End');
+    assert(document.activeElement === tile('off'), 'End did not reach the last control');
+    key(document.activeElement, 'ArrowDown');
+    assert(document.activeElement === tile('home'), 'arrow movement did not wrap');
+    tile('mail').focus();
+    key(tile('mail'), 'ArrowRight');
+    assert(component.isFlyoutOpen('mail') && document.activeElement.textContent.includes('Inbox'),
+      'the arrow toward the workspace did not move into the module menu');
+    key(document.activeElement, 'Escape');
+    assert(!component.isFlyoutOpen('mail') && document.activeElement === tile('mail'),
+      'Escape did not close the menu back onto its module');
+    component.openFlyout('crm');
+    const flyout = document.querySelector('.zx-app-rail__popover[aria-label="Customers sub-navigation"]');
+    assert(flyout?.querySelector('.zx-app-rail__flyout-section')?.textContent === 'Records',
+      'a section in a module menu lost its heading');
+    component.closeAllFlyouts();
+    component.setBadge('mail', 12);
+    assert(tile('mail').getAttribute('aria-label') === 'Mail (12)'
+      && tile('mail').querySelector('.zx-module-bar__badge').textContent === '12', 'setBadge did not update the tile');
+    component.setBadge('mail', null);
+    assert(tile('mail').getAttribute('aria-label') === 'Mail' && !tile('mail').querySelector('.zx-module-bar__badge'),
+      'setBadge(null) did not remove the badge');
+    const selected = [];
+    component.on('select', (event) => { event.preventDefault(); selected.push(event.detail.id); });
+    tile('billing').click();
+    tile('off').click();
+    assert(selected.join(',') === 'billing', `module activation emitted ${selected}`);
+    component.setBadge('mail', 128);
+    assert(tile('mail').querySelector('.zx-module-bar__badge').dataset.zxBadge === 'dot', 'a long count fitted a bare tile');
+    component.setLabels('beside');
+    assert(component.el.dataset.labels === 'beside'
+      && tile('mail').querySelector('.zx-module-bar__label')?.textContent === 'Mail'
+      && tile('mail').querySelector('.zx-module-bar__badge').dataset.zxBadge === 'count',
+    'names beside the tiles, with the whole count, did not render');
+    assert(component.el.getBoundingClientRect().width > tile('mail').querySelector('.zx-module-bar__tile').getBoundingClientRect().width * 3,
+      'a bar with names beside its tiles did not widen');
+    component.setLabels('hidden');
+    assert(!tile('mail').querySelector('.zx-module-bar__label'), 'setLabels(hidden) kept the names');
+    component.setItems([{ id: 'only', label: 'Only', children: [{ id: 'child', label: 'Child' }] }]);
+    assert(document.querySelectorAll('.zx-app-rail__popover[aria-label="Customers sub-navigation"]').length === 0,
+      'setItems left an old flyout in the document');
+    assert(document.querySelectorAll('.zx-module-bar__popover').length === 1, 'setItems left an old catalogue behind');
+  }),
+  componentCase('ModuleBar (overflow and catalogue)', () => {
+    const bar = new zx.ModuleBar(null, {
+      label: 'Overflowing modules',
+      items: Array.from({ length: 20 }, (_, index) => ({
+        id: `m${index + 1}`, label: `Module ${index + 1}`, icon: 'search',
+        tone: ['blue', 'teal', 'pink'][index % 3], group: index < 10 ? 'First' : 'Second', href: `#m${index + 1}`
+      })),
+      active: 'm18'
+    });
+    bar.el.style.blockSize = '260px';
+    return bar;
+  }, async (component) => {
+    await nextFrame();
+    const rows = [...component.el.querySelectorAll('.zx-module-bar__row[data-module-id]')];
+    const visible = rows.filter((row) => !row.hidden).map((row) => row.dataset.moduleId);
+    assert(visible.length > 1 && visible.length < 20, `a 260px bar showed ${visible.length} of 20 modules`);
+    assert(visible.includes('m18'), 'the current module was pushed off the bar');
+    const more = component.el.querySelector('.zx-module-bar__row[data-module-bar-more]');
+    assert(!more.hidden, 'an overflowing bar has no All modules button');
+    const openings = [];
+    component.on('allmodules', (event) => openings.push(event.detail.open));
+    component.openAllModules();
+    const panel = document.querySelector('.zx-module-bar__popover[aria-label="All modules"]');
+    assert(component.isAllModulesOpen() && panel.querySelectorAll('.zx-module-bar__entry').length === 20,
+      'the catalogue does not list every module');
+    assert(panel.querySelectorAll('.zx-module-bar__group-label').length === 2, 'catalogue groups missing');
+    const filter = panel.querySelector('.zx-module-bar__filter');
+    assert(document.activeElement === filter, 'the catalogue did not focus its filter');
+    assert([...panel.querySelectorAll('.zx-module-bar__entry')].filter((entry) => entry.tabIndex === 0).length === 1,
+      'the catalogue entries are not one Tab stop');
+    filter.value = 'Module 7';
+    filter.dispatchEvent(new Event('input', { bubbles: true }));
+    const shown = [...panel.querySelectorAll('li[data-module-id]')].filter((row) => !row.hidden);
+    assert(shown.length === 1 && shown[0].dataset.moduleId === 'm7', 'the filter did not narrow the catalogue');
+    assert(shown[0].querySelector('.zx-module-bar__entry').tabIndex === 0, 'the filter hid the Tab stop without moving it');
+    filter.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+    assert(document.activeElement?.dataset.moduleId === 'm7', 'ArrowDown did not move from the filter into the grid');
+    document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    assert(!component.isAllModulesOpen() && document.activeElement === more.querySelector('button'),
+      'Escape did not close the catalogue back onto its button');
+    assert(filter.value === '', 'closing the catalogue kept the filter');
+    const selected = [];
+    component.on('select', (event) => { event.preventDefault(); selected.push(event.detail.id); });
+    component.openAllModules();
+    panel.querySelector('.zx-module-bar__entry[data-module-id="m3"]').click();
+    assert(selected.join(',') === 'm3' && !component.isAllModulesOpen(), 'a catalogue choice did not select and close');
+    assert(openings.join(',') === 'true,false,true,false', `catalogue events: ${openings}`);
+  }),
+  componentCase('AppSidebar (modules layout)', () => new zx.AppSidebar(null, {
+    layout: 'modules',
+    items: [
+      { id: 'home', label: 'Home', icon: 'search', href: '#home' },
+      { id: 'mail', label: 'Mail', icon: 'search', tone: 'blue', children: [
+        { id: 'inbox', label: 'Inbox' },
+        { section: true, label: 'Labels', children: [{ id: 'clients', label: 'Clients' }] }
+      ] },
+      { section: true, label: 'Sales', children: [
+        { id: 'crm', label: 'Customers', icon: 'search', tone: 'pink', children: [{ id: 'companies', label: 'Companies' }] }
+      ] }
+    ],
+    active: 'companies',
+    openDelay: 0,
+    closeDelay: 20
+  }), (component) => {
+    const key = (target, name) => target.dispatchEvent(new KeyboardEvent('keydown', { key: name, bubbles: true, cancelable: true }));
+    const tile = (id) => component.el.querySelector(`.zx-module-bar__item[data-app-nav-value-id="${id}"]`);
+    assert(component.getModule() === 'crm', 'the panel did not open on the active module');
+    const panel = component.el.querySelector('.zx-app-sidebar__panel');
+    const nav = panel.querySelector('nav');
+    assert(document.getElementById(nav.getAttribute('aria-labelledby'))?.textContent === 'Customers',
+      'the panel navigation is not named by its module');
+    assert(tile('mail').getAttribute('aria-expanded') === 'false' && tile('mail').getAttribute('aria-controls') === panel.id
+      && tile('crm').getAttribute('aria-expanded') === 'true', 'module tiles do not control the panel');
+    const changes = [];
+    component.on('modulechange', (event) => changes.push(event.detail.id));
+    tile('mail').click();
+    assert(component.getModule() === 'mail' && changes.join(',') === 'mail' && tile('mail').getAttribute('aria-expanded') === 'true',
+      'choosing a module did not show its menu');
+    assert(panel.querySelector('.zx-app-sidebar__section-label')?.textContent === 'Labels', 'a section heading is missing');
+    const veto = (event) => event.preventDefault();
+    component.on('modulechange', veto);
+    tile('crm').click();
+    assert(component.getModule() === 'mail', 'a prevented modulechange still switched the panel');
+    component.off('modulechange', veto);
+    tile('mail').focus();
+    key(tile('mail'), 'ArrowRight');
+    assert(document.activeElement?.dataset.appNavId === 'inbox', 'the arrow toward the panel did not move into the menu');
+    key(document.activeElement, 'ArrowLeft');
+    assert(document.activeElement === tile('mail'), 'Left Arrow on a top-level row did not return to its module');
+    const selected = [];
+    component.on('select', (event) => { event.preventDefault(); selected.push(event.detail.id); });
+    tile('home').click();
+    assert(selected.join(',') === 'home' && component.getModule() === 'mail', 'a destination module did not select');
+    component.setActive('companies');
+    assert(component.getModule() === 'crm', 'the panel did not follow the active route');
+    component.setBadge('mail', 5);
+    assert(tile('mail').getAttribute('aria-label') === 'Mail (5)', 'setBadge did not reach the strip');
+    const strip = () => component.el.querySelector('.zx-module-bar');
+    assert(strip().dataset.labels === 'beside' && tile('mail').querySelector('.zx-module-bar__label')?.textContent === 'Mail',
+      'the expanded strip does not name its modules');
+    const heading = strip().querySelector('.zx-module-bar__heading');
+    assert(heading?.textContent === 'Sales' && heading.nextElementSibling?.dataset.moduleId === 'crm',
+      'a section of modules did not head its module on the strip');
+    const option = (name) => component.el.querySelector(`.zx-module-bar__footer .zx-app-sidebar__presentation-option[data-presentation="${name}"]`);
+    const group = component.el.querySelector('.zx-module-bar__footer [role="radiogroup"]');
+    assert(group && group.querySelectorAll('[role="radio"]').length === 3
+      && option('expanded').getAttribute('aria-checked') === 'true' && option('expanded') === component.refs.collapse
+      && [...group.querySelectorAll('[role="radio"]')].filter((radio) => radio.tabIndex === 0).length === 1
+      && !component.el.querySelector('.zx-app-sidebar__panel .zx-app-sidebar__collapse'),
+    'the three-way switch is not at the foot of the strip, checked on the current presentation');
+    assert(component.getPresentation() === 'expanded', 'the modules layout did not start expanded');
+    const presentations = [];
+    component.on('presentationchange', (event) => presentations.push(event.detail.presentation));
+    option('compact').focus();
+    option('compact').click();
+    assert(component.getPresentation() === 'compact' && strip().dataset.labels === 'hidden'
+      && component.el.querySelector('.zx-app-sidebar__panel') && option('compact').getAttribute('aria-checked') === 'true',
+    'choosing the compact presentation did not collapse the module menu beside the side menu');
+    option('compact').focus();
+    key(option('compact'), 'ArrowDown');
+    assert(component.isCollapsed() && strip() && strip().dataset.labels === 'hidden'
+      && !component.el.querySelector('.zx-app-sidebar__panel'), 'ArrowDown on the switch did not collapse both menus');
+    assert(document.activeElement === option('collapsed') && option('collapsed').getAttribute('aria-checked') === 'true',
+      'collapsing from the switch lost focus');
+    key(option('collapsed'), 'Home');
+    assert(component.getPresentation() === 'expanded' && strip().dataset.labels === 'beside'
+      && document.activeElement === option('expanded'), 'Home on the switch did not expand both menus');
+    component.togglePresentation();
+    assert(component.getPresentation() === 'compact', 'togglePresentation() did not step to the next presentation');
+    assert(presentations.join(',') === 'compact,collapsed,expanded,compact', `presentations: ${presentations}`);
+    component.setPresentation('collapsed');
+    component.openFlyout('mail');
+    document.querySelector('.zx-app-rail__popover[aria-label="Mail sub-navigation"] [data-app-nav-value-id="inbox"]').click();
+    assert(selected.join(',') === 'home,inbox', 'a minimized module menu did not select');
+    component.expand();
+    assert(!component.isCollapsed() && document.activeElement === component.refs.collapse, 'expanding lost focus');
+  }),
+  componentCase('AppSidebar (layout in a menu)', () => new zx.AppSidebar(null, {
+    layout: 'modules',
+    presentationSwitch: false,
+    items: [
+      { id: 'mail', label: 'Mail', icon: 'search', children: [{ id: 'inbox', label: 'Inbox' }] },
+      { id: 'crm', label: 'Customers', icon: 'search', children: [{ id: 'companies', label: 'Companies' }] }
+    ],
+    active: 'inbox'
+  }), async (component) => {
+    assert(!component.el.querySelector('.zx-app-sidebar__presentation'), 'presentationSwitch: false left a switch on the strip');
+    const menu = new zx.MenuButton(null, { label: 'Account', items: [component.presentationChoice(), '-', { label: 'Sign out', value: 'out' }] });
+    component.el.append(menu.toElement());
+    try {
+      const selected = [];
+      menu.on('select', (event) => selected.push(event.detail.value));
+      menu.focusFirst();
+      const panel = menu.getPanel();
+      const group = panel.querySelector('[role="group"]');
+      const radios = [...group.querySelectorAll('[role="menuitemradio"]')];
+      assert(radios.length === 3 && radios[0].getAttribute('aria-checked') === 'true'
+        && document.getElementById(group.getAttribute('aria-labelledby'))?.textContent === 'Navigation layout'
+        && radios[1].querySelector('.zx-app-sidebar__presentation-glyph'),
+      'presentationChoice() did not render a labelled three-way row');
+      radios[1].click();
+      assert(menu.isOpen() && component.getPresentation() === 'compact' && radios[1].getAttribute('aria-checked') === 'true'
+        && radios[0].getAttribute('aria-checked') === 'false' && selected.length === 0,
+      'choosing an option did not apply it in place with the menu open');
+      radios[1].focus();
+      radios[1].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
+      assert(document.activeElement === radios[2], 'ArrowRight did not move within the choice row');
+      radios[2].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+      assert(document.activeElement?.textContent === 'Sign out', 'ArrowDown did not leave the choice row');
+      document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true }));
+      assert(document.activeElement === radios[1], 'ArrowUp did not return to the checked option of the row');
+      document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true }));
+      assert(menu.isOpen() && component.getPresentation() === 'compact', 'Space on the checked option changed the layout');
+      menu.close();
+      component.el.querySelector('.zx-module-bar__item[data-app-nav-value-id="mail"]').focus();
+      component.setPresentation('collapsed');
+      assert(component.el.contains(document.activeElement) && document.activeElement !== document.body,
+        'collapsing without a switch on the strip dropped focus to the page');
+      component.setPresentation('expanded');
+      assert(component.el.contains(document.activeElement), 'expanding without a switch on the strip dropped focus');
+    } finally {
+      menu.destroy();
+    }
+  }),
+  componentCase('AppSidebar (sections)', () => new zx.AppSidebar(null, {
+    items: [
+      { id: 'home', label: 'Home', icon: 'search' },
+      { section: true, label: 'Records', children: [
+        { id: 'companies', label: 'Companies', icon: 'search' }, { id: 'people', label: 'People', icon: 'search' }
+      ] }
+    ],
+    active: 'people'
+  }), (component) => {
+    const list = component.el.querySelector('.zx-app-sidebar__section-list');
+    assert(document.getElementById(list?.getAttribute('aria-labelledby'))?.textContent === 'Records',
+      'a section list is not named by its heading');
+    assert(component.el.querySelectorAll('nav').length === 1, 'a section added a landmark');
+    const home = component.el.querySelector('[data-app-nav-id="home"]');
+    home.focus();
+    home.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+    assert(document.activeElement?.dataset.appNavId === 'companies', 'arrow keys stopped at a section boundary');
+    component.collapse();
+    assert(component.el.querySelectorAll('.zx-app-rail__separator').length === 1
+      && component.el.querySelectorAll('.zx-app-rail__item').length === 3, 'a minimized section did not become a separator');
+  }),
   componentCase('AppSidebar (safe destinations)', () => new zx.AppSidebar(null, {
     items: [
       {

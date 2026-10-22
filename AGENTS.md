@@ -141,12 +141,15 @@ filling the window, for use in a separate tab.
   there.
 - **Module** — `website/layouts/<id>.layout.js` exports only `default`:
   `{ title, category, blurb, components, mount(container, context) }`. `context` is
-  `{ preview, signal, cleanup }`; normalise it with `layoutContext()` and wrap every component in
+  `{ preview, signal, cleanup, open, id }` (`open(id)` switches to another layout, `id` is this
+  one's); normalise it with `layoutContext()` and wrap every component in
   `disposer(context)` so closing the popup destroys it (menus, tooltips, dialogs, and sheets attach
   outside the root). Listeners outside the root take `context.signal`; keys bind on the root via
   `shortcuts(root, map, context)`, a `Launcher` gets `shortcut: false`. In preview render the first
   state only — no timers, streaming, launchers, toasts, or `focus()`. `mount` appends one root,
-  `h('div', { class: '<block> shell' })`, that fills its container; no hard-coded element ids.
+  `h('div', { class: '<block> shell' })`, that fills its container; no hard-coded element ids. A layout
+  with a navigation column builds it with `suiteNav(context, …)`: the suite's modules
+  (`SUITE_MODULES` in `fixtures.js`) beside the layout's own menu.
 - **Kit** — `website/layouts/kit.js` and `kit.css` are the shared application shell (`.shell` and
   its columns, `paneHeader()`, `propList()`, `.list-row`, `.surface`, `shortcuts()`,
   `loadChartJs()`, and `adaptiveShell()`, which keeps every column reachable at any width: the

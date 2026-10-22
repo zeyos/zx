@@ -1,13 +1,13 @@
 import {
-  AccountMenu, ActivityList, AppSidebar, Avatar, Breadcrumb, Datebox, Dialog, Dropdown, FileList,
+  ActivityList, Avatar, Breadcrumb, Datebox, Dialog, Dropdown, FileList,
   FilterPanel, Form, InlineLoading, KanbanView, Launcher, ListToolbar, MenuButton, NumberField,
   ProgressBar, Select, Sheet, SortControl, StatTile, Tabbox, TableView, TagPicker, badge, button,
   downloadBlob, emptyState, formatCurrency, formatDate, formatNumber, formatRelativeTime, h, icon,
   parseNumber, stack, toCsv
 } from '../../src/index.js';
 import {
-  DATE, adaptiveShell, disposer, iconButton, iconTile, layoutContext, later, listTime, navSearch, paneHeader, panelBlock,
-  propList, renderScope, sectionLabel, shortcuts, toaster, unavailable, workspaceHeader
+  DATE, adaptiveShell, disposer, iconButton, iconTile, layoutContext, later, listTime, paneHeader, panelBlock,
+  propList, renderScope, shortcuts, suiteNav, toaster, unavailable
 } from './kit.js';
 import { COMPANIES, ME, NOW, PEOPLE, TODAY, person } from './fixtures.js';
 
@@ -18,7 +18,7 @@ const RECORD_TYPES = {
   deals: { title: 'Deals', icon: 'handshake', tone: 'orange' }
 };
 
-/** Where a company stands with Fieldstone, in pipeline order. Shaped for `Select.status()`. */
+/** Where a company stands with ACME, in pipeline order. Shaped for `Select.status()`. */
 const STAGES = [
   { ID: 'lead', name: 'Lead', tone: 'neutral', indicator: 'dotted' },
   { ID: 'prospect', name: 'Prospect', tone: 'info', indicator: 'progress' },
@@ -383,7 +383,7 @@ export default {
     'TableView', 'KanbanView', 'FilterPanel', 'ListToolbar', 'SortControl', 'Tabbox', 'Select',
     'TagPicker', 'NumberField', 'Datebox', 'ActivityList', 'StatTile', 'FileList', 'Form', 'Avatar',
     'Launcher', 'MenuButton', 'Dropdown', 'Sheet', 'Dialog', 'InlineLoading', 'ProgressBar',
-    'Breadcrumb', 'Message', 'AppSidebar', 'AccountMenu'
+    'Breadcrumb', 'Message', 'AppSidebar', 'ModuleBar', 'AccountMenu'
   ],
 
   /**
@@ -408,40 +408,12 @@ export default {
     let createRecord = () => {};
 
     const go = (id) => () => navigate({ kind: 'collection', id });
-    const destinations = keep(new AppSidebar(null, { label: 'CRM', collapsible: false, items: destinationItems() }));
-    const records = keep(new AppSidebar(null, {
-      label: 'Records',
-      collapsible: false,
-      items: Object.entries(RECORD_TYPES).map(([id, type]) => ({
-        id, label: type.title, icon: iconTile(type.icon, type.tone), invoke: go(id)
-      }))
-    }));
-    const lists = keep(new AppSidebar(null, {
-      label: 'Lists',
-      collapsible: false,
-      items: LISTS.map((list) => ({ id: `list:${list.id}`, label: list.name, icon: 'table-list', invoke: go(`list:${list.id}`) }))
-    }));
-    const account = keep(new AccountMenu(null, {
-      account: { name: person(ME).name, secondary: person(ME).role, status: 'online', statusLabel: 'Online' },
-      items: [{ label: 'Profile', value: 'profile', icon: 'user' }, { label: 'Settings', value: 'settings', icon: 'gear' }, '-', { label: 'Sign out', value: 'signout' }],
-      placement: 'top-start',
-      onselect: ({ detail }) => notify(unavailable(detail.item.label), 'info')
-    }));
+    // The suite's navigation: CRM's own menu beside every other module of the suite.
+    const nav = suiteNav(context, { module: 'crm', menu: menuItems(), active: route.id, onsearch: () => openLauncher() });
 
     const main = h('section', { class: 'shell__main', ariaLabel: 'Workspace' });
     const aside = h('aside', { class: 'shell__aside shell__aside--wide', ariaLabel: 'Record details', hidden: true });
-    const root = h('div', { class: 'crm shell' },
-      h('div', { class: 'shell__nav' },
-        workspaceHeader(),
-        h('div', { class: 'nav-action' }, navSearch({ label: 'Search', onclick: () => openLauncher() })),
-        h('div', { class: 'shell__body' },
-          destinations.toElement(),
-          sectionLabel('Records'),
-          records.toElement(),
-          sectionLabel('Lists'),
-          lists.toElement()),
-        h('div', { class: 'shell__footer' }, account.toElement())),
-      main, aside);
+    const root = h('div', { class: 'crm shell' }, nav.column, main, aside);
     // Narrow, the navigation and a company's details become drawers; every page's header carries
     // the way to the navigation, and a company page the way to its details.
     const shell = adaptiveShell(root, context, { asideLabel: 'Show record details' });
@@ -456,6 +428,19 @@ export default {
     }, context);
     navigate(route);
     container.append(root);
+
+    /** @returns {Record<string, any>[]} CRM's menu: its destinations, then its records and lists. */
+    function menuItems() {
+      return [
+        ...destinationItems(),
+        { section: true, label: 'Records', children: Object.entries(RECORD_TYPES).map(([id, type]) => ({
+          id, label: type.title, icon: iconTile(type.icon, type.tone), invoke: go(id)
+        })) },
+        { section: true, label: 'Lists', children: LISTS.map((list) => ({
+          id: `list:${list.id}`, label: list.name, icon: 'table-list', invoke: go(`list:${list.id}`)
+        })) }
+      ];
+    }
 
     /** @returns {Record<string, any>[]} The workspace-wide destinations, with the open-task count. */
     function destinationItems() {
@@ -492,7 +477,7 @@ export default {
       createRecord = () => {};
       aside.hidden = next.kind !== 'company';
       aside.replaceChildren();
-      for (const sidebar of [destinations, records, lists]) sidebar.setActive(next.kind === 'company' ? next.from.id : next.id);
+      nav.setActive(next.kind === 'company' ? next.from.id : next.id);
       if (next.kind === 'company') showCompany(next.id);
       else if (collection(next.id)) showCollection(collection(next.id));
       else showFeed(next.id);
@@ -1550,7 +1535,7 @@ export default {
           type: 'checkbox', checked: task.done, dataset: { task: String(task.ID) }, onchange: (event) => {
             task.done = event.target.checked;
             sync();
-            destinations.setItems(destinationItems());
+            nav.setMenu(menuItems());
             onchange();
           }
         }),

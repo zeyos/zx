@@ -1,5 +1,5 @@
 /*
- * Agent workspace — a team of AI agents working through Fieldstone's tasks, and the person who
+ * Agent workspace — a team of AI agents working through ACME's tasks, and the person who
  * directs them. The navigation column holds the workspace's sections and the agent roster with
  * live presence; the main pane is a row of editor tabs (Home, a task, a chat, a file) above a
  * bottom panel (terminal, output, problems); the inspector groups the agents by state beside the
@@ -11,13 +11,13 @@
  * Presence is never told by motion alone: it is always a dot and a word as well.
  */
 import {
-  AccountMenu, AppSidebar, Avatar, Launcher, ProgressBar, Tabbox, Table, button, formatNumber, h, icon,
+  Avatar, Launcher, ProgressBar, Tabbox, Table, button, formatNumber, h, icon,
   spinner, statusIcon, watchMotion
 } from '../../src/index.js';
 import {
   SHELL_BREAKPOINTS, adaptiveShell, disposer, iconButton, iconTile, kbd, later, layoutContext, modShortcut,
-  modifierLabel, navSearch, paneHeader, panelBlock, propList, renderScope, sectionLabel, shortcutSheet, shortcuts,
-  toaster, unavailable, workspaceHeader
+  modifierLabel, paneHeader, panelBlock, propList, renderScope, sectionLabel, shortcutSheet, shortcuts,
+  suiteNav, toaster, unavailable
 } from './kit.js';
 import { ME, NOW, person } from './fixtures.js';
 
@@ -346,7 +346,7 @@ const FILES = [
     ['p', 'Hello Priya,'],
     ['p', 'thank you for flagging this. Tuesday’s export skipped one row wherever a page ended on a deleted invoice — 31 rows in all. Nothing was exposed; the rows were simply left out of the file.'],
     ['p', 'The fix is being tested now. Once it is live we will regenerate every export since 22 September and send you the corrected files.'],
-    ['p', 'Best regards, Ines Bauer, Fieldstone']
+    ['p', 'Best regards, Ines Bauer, ACME']
   ] },
   { id: 'cursor', name: 'cursor.ts', path: 'api/reporting/cursor.ts', by: 'kiln', edited: '10:21', kind: 'code', lines: [
     'import { encode } from \'./codec\';',
@@ -527,7 +527,8 @@ function presencePose(presence, t) {
 /**
  * The one animation loop every presence avatar in a layout shares. An avatar joins with `track()`
  * (a `.agents__presence` element carrying `data-presence` and `data-presence-key`) and leaves when
- * it is taken out of the document. The loop moves only avatars on screen, eases between states,
+ * a redraw tracks another under its key; one taken out of the document only rests, since the
+ * navigation puts the roster back when it is shown again. The loop moves only avatars on screen, eases between states,
  * clamps its frame step, sleeps while the page is hidden or nothing is moving, and stops — with
  * every avatar back at rest — under reduced motion, the system's or the layout's own. It animates
  * `transform` only, and never runs in a thumbnail.
@@ -576,6 +577,7 @@ function presenceLoop(root, context) {
     const ease = 1 - Math.exp(-dt * 8);
     let moving = false;
     for (const [element, phase] of tracked) {
+      // An avatar removed without a replacement is forgotten here.
       if (!element.isConnected) {
         tracked.delete(element);
         visible.delete(element);
@@ -622,7 +624,15 @@ function presenceLoop(root, context) {
   return {
     track(element) {
       if (!tracked.has(element)) {
-        tracked.set(element, phaseOf(element.dataset.presenceKey ?? ''));
+        // A redrawn avatar replaces the one drawn before it under the same key.
+        const key = element.dataset.presenceKey ?? '';
+        for (const other of tracked.keys()) {
+          if (other.dataset.presenceKey !== key) continue;
+          tracked.delete(other);
+          visible.delete(other);
+          observer.unobserve(other);
+        }
+        tracked.set(element, phaseOf(key));
         observer.observe(element);
       }
       start();
@@ -635,7 +645,8 @@ export default {
   category: 'AI',
   blurb: 'A team of AI agents working through tasks: a roster with live presence, plans and execution logs, approvals as they arrive, a command palette, and a terminal.',
   components: [
-    'Tabbox', 'Launcher', 'Avatar', 'Table', 'AppSidebar', 'AccountMenu', 'ProgressBar', 'Message', 'Dialog', 'statusIcon'
+    'Tabbox', 'Launcher', 'Avatar', 'Table', 'AppSidebar', 'ModuleBar', 'AccountMenu', 'ProgressBar', 'Message',
+    'Dialog', 'statusIcon'
   ],
 
   /**
@@ -651,11 +662,6 @@ export default {
     const { preview } = context;
     const root = h('div', { class: 'agents shell' });
     const statusbar = h('div', { class: 'shell__statusbar agents__statusbar', role: 'group', 'aria-label': 'Status' });
-    // Narrow, the inspector and then the navigation become drawers; Mod+B, Mod+I, and Mod+J show
-    // and hide the columns and the bottom panel at any width.
-    const shell = adaptiveShell(root, context, {
-      asideLabel: 'Show agents and run', panelLabel: 'Toggle bottom panel', keys: true
-    });
     const motion = presenceLoop(root, context);
     const notify = toaster(context, root);
     const me = person(ME) ?? { name: 'Ines Bauer', role: 'Head of Operations' };
@@ -700,47 +706,44 @@ export default {
 
     /* ------------------------------------------------------------ navigation column -- */
 
-    const sections = keep(new AppSidebar(null, {
-      label: 'Sections', collapsible: false,
-      items: [
-        { id: 'home', label: 'Home', icon: 'house', invoke: () => openHome() },
-        { id: 'projects', label: 'Projects', icon: 'folder-regular', invoke: () => notify(unavailable('Projects'), 'info') },
-        { id: 'tasks', label: 'Tasks', icon: 'list-check', invoke: () => openTasks() },
-        { id: 'workflows', label: 'Workflows', icon: 'diagram-project', invoke: () => openPalette('workflows') }
-      ]
-    }));
-    const resources = keep(new AppSidebar(null, {
-      label: 'Resources', collapsible: false,
-      items: [
-        { id: 'files', label: 'Files', icon: 'file-lines', invoke: () => openPalette('files') },
-        { id: 'conversations', label: 'Conversations', icon: 'comments', invoke: () => openChat(state.chat) },
-        { id: 'runs', label: 'Runs', icon: 'timeline', invoke: () => openTask(state.task) },
-        { id: 'activity', label: 'Activity', icon: 'bolt', invoke: () => openActivity() }
-      ]
-    }));
+    // The workspace's menu ids carry a prefix: the suite's module ids (Home, Projects, Workflows)
+    // share the navigation with them.
     const rosterCount = h('span', { class: 'agents__count' });
     const roster = h('ul', { class: 'agents__roster', role: 'list', 'aria-label': 'Agents' });
     const showHelp = shortcutSheet(context, SHORTCUTS, { onclose: () => refocus() });
-    const account = keep(new AccountMenu(null, {
-      account: { name: me.name, secondary: me.role, status: 'online', statusLabel: 'Online' },
-      placement: 'top-start',
-      items: [
-        { label: 'Keyboard shortcuts', icon: 'keyboard', adornment: kbd('?'), onselect: () => showHelp() },
-        { label: 'Workspace settings', icon: 'gear', onselect: () => notify(unavailable('Workspace settings'), 'info') }
-      ]
-    }));
-    const nav = h('div', { class: 'shell__nav' },
-      workspaceHeader({
-        actions: iconButton('pen-to-square', 'New task', () => newTask(), { shortcut: { label: 'N', keys: 'N' } })
-      }),
-      h('div', { class: 'nav-action' }, navSearch({ label: 'Search or run…', onclick: () => openPalette() })),
-      h('div', { class: 'shell__body' },
-        sections.toElement(),
-        sectionLabel('Resources'),
-        resources.toElement(),
-        sectionLabel('Agents', rosterCount),
-        roster),
-      h('div', { class: 'shell__footer' }, account.toElement()));
+    // The suite's navigation: the workspace's sections and resources, then the agent roster.
+    const nav = suiteNav(context, {
+      module: 'assistant',
+      menu: [
+        { id: 'agents:home', label: 'Home', icon: 'house', invoke: () => openHome() },
+        { id: 'agents:projects', label: 'Projects', icon: 'folder-regular', invoke: () => notify(unavailable('Projects'), 'info') },
+        { id: 'agents:tasks', label: 'Tasks', icon: 'list-check', invoke: () => openTasks() },
+        { id: 'agents:workflows', label: 'Workflows', icon: 'diagram-project', invoke: () => openPalette('workflows') },
+        { section: true, label: 'Resources', children: [
+          { id: 'agents:files', label: 'Files', icon: 'file-lines', invoke: () => openPalette('files') },
+          { id: 'agents:conversations', label: 'Conversations', icon: 'comments', invoke: () => openChat(state.chat) },
+          { id: 'agents:runs', label: 'Runs', icon: 'timeline', invoke: () => openTask(state.task) },
+          { id: 'agents:activity', label: 'Activity', icon: 'bolt', invoke: () => openActivity() }
+        ] }
+      ],
+      header: button({ label: 'New task', icon: 'pen-to-square', shortcut: { label: 'N', keys: 'N' }, onclick: () => newTask() }),
+      content: h('div', { class: 'agents__agents' }, sectionLabel('Agents', rosterCount), roster),
+      onsearch: () => openPalette(),
+      account: {
+        items: [
+          { label: 'Keyboard shortcuts', icon: 'keyboard', adornment: kbd('?'), onselect: () => showHelp() },
+          { label: 'Workspace settings', icon: 'gear', onselect: () => notify(unavailable('Workspace settings'), 'info') }
+        ],
+        onselect: null,
+        onclose: () => refocus()
+      }
+    });
+    root.append(nav.column);
+    // Narrow, the inspector and then the navigation become drawers; Mod+B, Mod+I, and Mod+J show
+    // and hide the columns and the bottom panel at any width.
+    const shell = adaptiveShell(root, context, {
+      asideLabel: 'Show agents and run', panelLabel: 'Toggle bottom panel', keys: true
+    });
 
     /* ------------------------------------------------------------------ main column -- */
 
@@ -832,7 +835,7 @@ export default {
       h('span', { class: 'shell__status-item', 'data-narrow': 'hide' }, icon('coins'), tokensLabel));
 
     const live = h('div', { class: 'visually-hidden', role: 'status', 'aria-live': 'polite' });
-    root.append(nav, main, aside, live, statusbar);
+    root.append(main, aside, live, statusbar);
 
     /* ------------------------------------------------------------------- Home view -- */
 
@@ -920,7 +923,6 @@ export default {
         onclose: () => refocus()
       }));
     }
-    account.on('close', () => refocus());
 
     /* --------------------------------------------------------------------- keyboard -- */
 
@@ -1593,8 +1595,7 @@ export default {
 
     /** Marks where you are in the navigation and the roster. @returns {void} */
     function syncNav() {
-      sections.setActive({ home: 'home', task: 'tasks' }[state.tab] ?? null);
-      resources.setActive({ chat: 'conversations', file: 'files' }[state.tab] ?? null);
+      nav.setActive({ home: 'agents:home', task: 'agents:tasks', chat: 'agents:conversations', file: 'agents:files' }[state.tab] ?? null);
       for (const row of roster.querySelectorAll('.agents__agent')) {
         const current = state.tab === 'chat' && row.getAttribute('data-key') === `roster:${state.chat}`;
         if (current) row.setAttribute('aria-current', 'true');
@@ -1688,10 +1689,15 @@ export default {
       composerInput.scrollIntoView({ block: 'nearest' });
     }
 
-    /** G A: the roster, opening the navigation wherever it is hidden. @returns {void} */
+    /**
+     * G A: the roster, opening the navigation wherever it is hidden — the drawer narrow, the
+     * minimized sidebar expanded wide — on this module's panel.
+     * @returns {void}
+     */
     function goToRoster() {
       if (root.clientWidth <= SHELL_BREAKPOINTS.nav) shell.openNav();
-      else if (root.dataset.navCollapsed === 'true') shell.collapse('nav', false);
+      else if (nav.sidebar.isCollapsed()) nav.sidebar.expand();
+      nav.sidebar.setModule('assistant');
       const row = roster.querySelector('[aria-current="true"]') ?? roster.querySelector('button');
       if (row instanceof HTMLElement) row.focus();
     }

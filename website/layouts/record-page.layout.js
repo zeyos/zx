@@ -1,11 +1,11 @@
 import {
-  AccountMenu, ActivityList, AppSidebar, Avatar, Breadcrumb, Datebox, Dialog, Finder, InlineLoading,
-  MenuButton, NumberField, Rating, Select, Tabbox, Table, TagPicker, badge, button, formatCurrency,
-  formatDate, formatFileSize, formatPercent, formatRelativeTime, h, statTile
+  ActivityList, Avatar, Breadcrumb, Datebox, Dialog, Finder, InlineLoading, MenuButton, NumberField,
+  Rating, Select, Tabbox, Table, TagPicker, badge, button, formatCurrency, formatDate, formatFileSize,
+  formatPercent, formatRelativeTime, h, statTile
 } from '../../src/index.js';
 import {
   DATE, adaptiveShell, disposer, iconButton, layoutContext, later, panelBlock, paneHeader, propList, renderScope,
-  sectionLabel, shortcuts, toaster, unavailable, workspaceHeader
+  shortcuts, suiteNav, toaster, unavailable
 } from './kit.js';
 import { ME, NOW, PEOPLE, company, person } from './fixtures.js';
 
@@ -89,7 +89,7 @@ export default {
   title: 'Record page',
   category: 'Pattern',
   blurb: 'One opportunity on its own page: a summary header, tabs for positions, files, and history, and editable details.',
-  components: ['Tabbox', 'Finder', 'Rating', 'Select', 'TagPicker', 'Datebox', 'NumberField', 'StatTile', 'Table', 'ActivityList', 'Breadcrumb', 'InlineLoading'],
+  components: ['Tabbox', 'Finder', 'Rating', 'Select', 'TagPicker', 'Datebox', 'NumberField', 'StatTile', 'Table', 'ActivityList', 'Breadcrumb', 'InlineLoading', 'ModuleBar'],
 
   /**
    * Mounts the opportunity page: navigation, the record with its tabs, and its details.
@@ -107,43 +107,30 @@ export default {
     // The header's avatars and the Finder are redrawn; their components go with each rendering.
     const headParts = renderScope(context);
     const docParts = renderScope(context);
-    // Narrow, the navigation and then the details column become drawers opened from the header.
-    const root = h('div', { class: 'record shell' });
-    const shell = adaptiveShell(root, context, { asideLabel: 'Opportunity details' });
-    const notify = toaster(context, root);
 
     // ----------------------------------------------------------------- navigation --
 
-    const destinations = keep(new AppSidebar(null, {
-      label: 'Sales',
-      collapsible: false,
+    // The suite's navigation: CRM's sales destinations and the opportunities seen last, beside
+    // every other module.
+    const nav = suiteNav(context, {
+      module: 'crm',
       active: 'opportunities',
-      items: [
+      menu: [
         { id: 'overview', label: 'Overview', icon: 'gauge', invoke: () => notify(unavailable('The overview'), 'info') },
         { id: 'opportunities', label: 'Opportunities', icon: 'handshake', badge: 7 },
         { id: 'quotes', label: 'Quotes', icon: 'file-lines', invoke: () => notify(unavailable('Quotes'), 'info') },
-        { id: 'customers', label: 'Customers', icon: 'building', invoke: () => notify(unavailable('Customers'), 'info') }
+        { id: 'customers', label: 'Customers', icon: 'building', invoke: () => notify(unavailable('Customers'), 'info') },
+        { section: true, label: 'Recently viewed', children: [
+          { id: 'plant', label: 'Plant rollout, phase 2', icon: 'handshake' },
+          { id: 'portal', label: 'Patient portal integration', icon: 'handshake' },
+          { id: 'fleet', label: 'Fleet tracking pilot', icon: 'handshake' }
+        ].map((item) => ({ ...item, invoke: () => notify(unavailable('Other opportunities'), 'info') })) }
       ]
-    }));
-    const recent = keep(new AppSidebar(null, {
-      label: 'Recently viewed',
-      collapsible: false,
-      items: [
-        { id: 'plant', label: 'Plant rollout, phase 2', icon: 'handshake' },
-        { id: 'portal', label: 'Patient portal integration', icon: 'handshake' },
-        { id: 'fleet', label: 'Fleet tracking pilot', icon: 'handshake' }
-      ].map((item) => ({ ...item, invoke: () => notify(unavailable('Other opportunities'), 'info') }))
-    }));
-    const account = keep(new AccountMenu(null, {
-      account: { name: person(ME).name, secondary: person(ME).role, status: 'online' },
-      items: [{ label: 'Preferences', value: 'prefs', icon: 'gear' }, '-', { label: 'Sign out', value: 'out' }],
-      placement: 'top-start',
-      onselect: ({ detail }) => notify(unavailable(detail.value === 'out' ? 'Signing out' : 'Preferences'), 'info')
-    }));
-    const nav = h('div', { class: 'shell__nav' },
-      workspaceHeader(),
-      h('div', { class: 'shell__body' }, destinations.toElement(), sectionLabel('Recently viewed'), recent.toElement()),
-      h('div', { class: 'shell__footer' }, account.toElement()));
+    });
+    // Narrow, the navigation and then the details column become drawers opened from the header.
+    const root = h('div', { class: 'record shell' }, nav.column);
+    const shell = adaptiveShell(root, context, { asideLabel: 'Opportunity details' });
+    const notify = toaster(context, root);
 
     // --------------------------------------------------------------------- header --
 
@@ -283,7 +270,7 @@ export default {
           h('div', { class: 'record__tiles' }, Object.values(tiles).map((tile) => tile.toElement())),
           tabs.toElement())));
 
-    root.append(nav, main, aside);
+    root.append(main, aside);
 
     shortcuts(root, {
       w: () => markWon(),

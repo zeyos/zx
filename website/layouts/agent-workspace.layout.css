@@ -244,7 +244,7 @@
 
 .agents .agents__roster {
   margin: 0;
-  padding: 0 0 var(--zx-space-3);
+  padding: 0;
   list-style: none;
 }
 

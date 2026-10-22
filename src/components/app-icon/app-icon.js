@@ -3,10 +3,16 @@ import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
 import { icon as renderIcon } from '../../core/icons.js';
 import { isCssColor } from '../../core/util.js';
 
+/** @typedef {'blue'|'teal'|'green'|'amber'|'orange'|'red'|'pink'|'violet'|'slate'} AppIconTone */
+/** The categorical tones a `tone` option accepts. @type {ReadonlyArray<AppIconTone>} */
+export const APP_ICON_TONES = Object.freeze(['blue', 'teal', 'green', 'amber', 'orange', 'red', 'pink', 'violet', 'slate']);
+
 /**
  * @typedef {Object} AppIconOptions
  * @property {string|Node|(()=>string|Node)|null} [icon=null] Icon name, node, or lazy renderer.
- * @property {string|null} [color=null] Identity colour; falls back to the accent colour.
+ * @property {string|null} [color=null] Identity colour, any CSS colour; takes precedence over `tone`.
+ * @property {AppIconTone|null} [tone=null] Categorical identity colour from the theme's tone palette,
+ *   drawn with its `--zx-color-tone-<tone>-solid` fill. Without `color` or `tone` the icon takes the accent.
  * @property {number|string} [size=36] Edge length in pixels or any CSS length.
  * @property {number|string} [iconSize='52%'] Glyph size.
  * @property {string|null} [label=null] Accessible image label; null makes the icon decorative.
@@ -28,6 +34,7 @@ export class AppIcon extends Component {
   static defaults = {
     icon: null,
     color: null,
+    tone: null,
     size: 36,
     iconSize: '52%',
     label: null,
@@ -80,6 +87,9 @@ export class AppIcon extends Component {
     this.el.style.setProperty('--zx-app-icon-glyph-size', glyphSize);
     if (isCssColor(state.color)) this.el.style.setProperty('--zx-app-icon-color', String(state.color));
     else this.el.style.removeProperty('--zx-app-icon-color');
+    // An inline colour outranks the tone rule in the stylesheet, which is what makes `color` win.
+    if (APP_ICON_TONES.includes(state.tone)) this.el.dataset.tone = state.tone;
+    else delete this.el.dataset.tone;
     this.el.dataset.glass = normalizeGlass(state.glass);
     this.el.dataset.shape = normalizeShape(state.shape);
     this.el.toggleAttribute('data-selected', Boolean(state.selected));

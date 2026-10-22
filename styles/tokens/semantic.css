@@ -80,6 +80,18 @@
   --zx-color-chart-6: var(--zx-tone-green-500);
   --zx-color-chart-7: var(--zx-tone-violet-500);
   --zx-color-chart-8: var(--zx-tone-red-500);
+  /* Solid identity fills — a module tile, an application icon — carrying the white icon glyph.
+     The 500 stops keep that glyph at 3:1 or better and read as the same tone on either theme,
+     so, like the chart series, the dark theme keeps this list. */
+  --zx-color-tone-blue-solid: var(--zx-tone-blue-500);
+  --zx-color-tone-teal-solid: var(--zx-tone-teal-500);
+  --zx-color-tone-green-solid: var(--zx-tone-green-500);
+  --zx-color-tone-amber-solid: var(--zx-tone-amber-500);
+  --zx-color-tone-orange-solid: var(--zx-tone-orange-500);
+  --zx-color-tone-red-solid: var(--zx-tone-red-500);
+  --zx-color-tone-pink-solid: var(--zx-tone-pink-500);
+  --zx-color-tone-violet-solid: var(--zx-tone-violet-500);
+  --zx-color-tone-slate-solid: var(--zx-tone-slate-500);
   --zx-control-height: 30px;
   --zx-control-pad-x: 10px;
   --zx-control-radius: var(--zx-radius-lg);

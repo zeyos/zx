@@ -8,6 +8,65 @@ and friends remain the complete record.
 
 ## Unreleased
 
+## 5.1.0 — 2026-10-22
+
+### Added
+
+- **`ModuleBar`** — the module level of an application: one colour-coded tile per module in a
+  vertical strip or a horizontal bar. Modules take a theme `tone` or any CSS `color`, and draw as
+  `tint` (default), `solid` (the classic identity tile), or `plain`; `labels: 'below'` prints names
+  under the tiles, `labels: 'beside'` beside them as a navigation column of its own, and
+  `setLabels()` switches between the two; a section of modules is a heading over them, or a rule
+  between groups on an icon strip. A module's children open as a flyout menu, or (`menus: 'none'`) are left to a
+  panel the application owns, with `setExpanded()`, `aria-expanded`, and `aria-controls`. Modules
+  that do not fit, or are not `pinned`, are under an "All modules" catalogue — grouped, filterable,
+  arrow-navigable — while the current module stays on the bar. One Tab stop, arrow keys, Home/End,
+  and type-ahead; `setBadge()` updates a count in place; `partitionModules()` and
+  `resolveModuleColor()` are exported.
+- **`AppSidebar` sections** — `{ section: true, label, actions, children }` is a quiet heading over
+  rows at its own level, so one sidebar replaces several stacked ones: one landmark, one keyboard
+  sequence, and on a rail a separator.
+- **`AppSidebar` `layout: 'modules'`** — the top level becomes a `ModuleBar` strip beside a panel
+  with one module's menu, plus that module's own `header` and `content`. Choosing a module fires a
+  cancelable `modulechange`; `setModule()`, `getModule()`, `setBadge()`, `setModuleLabels()`, and
+  `moduleBar` presentation options. Three presentations — both menus expanded, the module menu
+  collapsed to icons beside the side menu, or both collapsed with every menu as a flyout — and a
+  small three-way switch at the foot of the strip to choose between them (`presentations`,
+  `presentation`, `getPresentation()`, `setPresentation()`, `togglePresentation()`,
+  `presentationchange`).
+- **ZeyOS module bar** — `zeyosModuleItems()`, `buildZeyosModuleBarConfig()`,
+  `buildZeyosAppSidebarConfig()`, and `zeyosModuleBar()` build both from the launcher's shell
+  state plus each module's menu and badges, in the ZeyOS identity colours.
+- `AccountMenu.setCompact()` switches between the avatar alone and the avatar with name and role.
+- **Menu choices** — a `{type: 'choice', label, value, options, onselect}` entry in `MenuButton`
+  and `AccountMenu` items: a setting chosen in place as a small segmented group of
+  `menuitemradio` options, the menu staying open. `AppSidebar`'s `presentationChoice()` returns
+  its layout switch as one, `presentationGlyph()` draws its pictograms, and
+  `presentationSwitch: false` takes the switch off the strip.
+- `--zx-color-tone-{blue,…,slate}-solid`, solid identity fills the white icon glyph reads on in
+  both themes, and `AppIcon`'s `tone` option that uses them.
+- A `grid` (`table-cells-large`) icon in the bundled set.
+
+### Fixed
+
+- `position()` adds its name to the anchor's `anchor-name` list and removes only its own, so a
+  tooltip and a menu on one trigger no longer overwrite each other — a keyboard-opened rail flyout
+  appeared at the page origin.
+- `AppRail`: a tile's tooltip stays quiet while its flyout is open, so the first Escape closes the
+  flyout, and on a vertical rail ArrowLeft leaves a top-level flyout for its tile.
+
+### Website
+
+- Every layout with a navigation column now shares one suite navigation: the Zx mark, the ACME
+  modules under their headings, the signed-in user, and the layout's own menu. The account menu
+  opens above the account and holds the layout — both menus expanded, the module menu collapsed,
+  or both collapsed — and the theme — light, dark, or system — each a three-way choice; Mod+B
+  steps through the layouts, and the choice is remembered. Below 1440px the module menu keeps
+  its labels off, between 860 and 1180px both menus start collapsed, and below that the navigation
+  is a drawer; choosing another module's screen opens that layout, and each layout's menu ends with
+  a "More in <module>" section leading to its sibling layouts.
+- The fictional company the layouts share is now called ACME.
+
 ## 5.0.0 — 2026-10-09
 
 Xenon now has one geometry and a quieter finish. The cozy and compact view modes are gone; in their

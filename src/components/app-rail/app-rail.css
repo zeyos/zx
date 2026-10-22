@@ -34,6 +34,16 @@
 .zx-app-rail[data-orientation="horizontal"] .zx-app-rail__list { flex-direction: row; }
 .zx-app-rail__row { display: flex; }
 
+/* Where a section of the tree ends on a rail: a short rule, since a rail has no room for a heading. */
+.zx-app-rail__separator {
+  flex: none;
+  align-self: center;
+  background: var(--zx-color-border-subtle);
+}
+
+.zx-app-rail[data-orientation="vertical"] .zx-app-rail__separator { inline-size: var(--zx-space-4); block-size: 1px; margin-block: var(--zx-space-1); }
+.zx-app-rail[data-orientation="horizontal"] .zx-app-rail__separator { inline-size: 1px; block-size: var(--zx-space-4); margin-inline: var(--zx-space-1); }
+
 .zx-app-rail__item {
   position: relative;
   display: inline-grid;
@@ -127,6 +137,15 @@
    rather than with the labels under it: a caption for the list, not a row in it. */
 .zx-app-rail__flyout-title {
   padding: var(--zx-space-1) var(--zx-app-rail-pad-x);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-weight: var(--zx-weight-semibold);
+  line-height: 1.3;
+}
+
+/* A section inside a flyout keeps its heading, in the same quiet caption as the panel's title. */
+.zx-app-rail__flyout-section {
+  padding: var(--zx-space-2) var(--zx-app-rail-pad-x) var(--zx-space-1);
   color: var(--zx-color-text-muted);
   font-size: var(--zx-text-xs);
   font-weight: var(--zx-weight-semibold);

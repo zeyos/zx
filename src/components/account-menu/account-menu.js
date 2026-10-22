@@ -124,6 +124,18 @@ export class AccountMenu extends Component {
     return this;
   }
 
+  /**
+   * Shows the avatar alone or the avatar with the name and secondary line — for a navigation
+   * column that narrows to icons and widens again. The trigger keeps its full accessible name
+   * either way.
+   * @param {boolean} compact
+   * @returns {this}
+   */
+  setCompact(compact) {
+    this.el.dataset.compact = String(Boolean(compact));
+    return this;
+  }
+
   /** Replaces account actions. @param {MenuButtonItem[]} items @returns {this} */
   setItems(items) {
     this._menu.setItems(items);

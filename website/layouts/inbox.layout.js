@@ -1,10 +1,10 @@
 import {
-  AccountMenu, AppSidebar, Avatar, Dialog, FileItem, Form, MenuButton, Search, TreeView, badge, button,
+  Avatar, Dialog, FileItem, Form, MenuButton, Search, TreeView, badge, button,
   emptyState, formatDate, formatRelativeTime, h, uid
 } from '../../src/index.js';
 import {
   DATE, adaptiveShell, disposer, dot, iconButton, layoutContext, listTime, modShortcut, paneHeader, renderScope,
-  sectionLabel, shortcuts, toaster, unavailable, workspaceHeader
+  sectionLabel, shortcuts, suiteNav, toaster, unavailable
 } from './kit.js';
 import { ME, NOW, company, person } from './fixtures.js';
 
@@ -118,7 +118,10 @@ export default {
   title: 'Inbox',
   category: 'Pattern',
   blurb: 'Three panes for triage: mailboxes and folders, the conversations in one, and the open thread with a reply.',
-  components: ['TreeView', 'Search', 'Form', 'Dialog', 'FileItem', 'MenuButton', 'Avatar', 'Message'],
+  components: [
+    'TreeView', 'Search', 'Form', 'Dialog', 'FileItem', 'MenuButton', 'Avatar', 'Message', 'AppSidebar',
+    'ModuleBar', 'AccountMenu'
+  ],
 
   /**
    * Mounts the shared inbox: mailboxes and folders, the message list, and the reading pane.
@@ -135,18 +138,9 @@ export default {
     const listParts = renderScope(context);
     const readerParts = renderScope(context);
     const dialogParts = renderScope(context);
-    const root = h('div', { class: 'inbox shell' });
-    // Narrow, the navigation becomes a drawer, and a phone shows the list or the open conversation.
-    const shell = adaptiveShell(root, context, { backLabel: 'Back to messages' });
 
     // ----------------------------------------------------------------- navigation --
 
-    const mailboxes = keep(new AppSidebar(null, {
-      label: 'Mailboxes',
-      collapsible: false,
-      active: state.scope,
-      items: mailboxItems()
-    }));
     const folders = keep(new TreeView(null, {
       label: 'Folders',
       items: folderItems(),
@@ -154,26 +148,29 @@ export default {
       icons: false,
       onselect: ({ detail }) => setScope(`folder:${detail.id}`)
     }));
-    const account = keep(new AccountMenu(null, {
-      account: { name: person(ME).name, secondary: person(ME).role, status: 'online' },
-      items: [{ label: 'Preferences', value: 'prefs', icon: 'gear' }, '-', { label: 'Sign out', value: 'out' }],
-      placement: 'top-start',
-      onselect: ({ detail }) => notify(unavailable(detail.value === 'out' ? 'Signing out' : 'Preferences'), 'info')
-    }));
-    const nav = h('div', { class: 'shell__nav' },
-      workspaceHeader(),
-      h('div', { class: 'nav-action' }, button({
+    // The suite's navigation: the mailboxes, then the shared folders as a tree beneath them.
+    const nav = suiteNav(context, {
+      module: 'mail',
+      menu: mailboxItems(),
+      active: state.scope,
+      header: button({
         label: 'New message', icon: 'pen-to-square', kind: 'primary', shortcut: { label: 'C', keys: 'C' },
         onclick: () => compose()
-      })),
-      h('div', { class: 'shell__body' },
-        mailboxes.toElement(),
+      }),
+      content: h('div', { class: 'inbox__folders' },
         sectionLabel('Folders', iconButton('folder-plus', 'New folder', () => {
           leaveNav();
           notify(unavailable('Creating folders'), 'info');
         })),
         h('div', { class: 'inbox__tree' }, folders.toElement())),
-      h('div', { class: 'shell__footer' }, account.toElement()));
+      account: {
+        items: [{ label: 'Preferences', value: 'prefs', icon: 'gear' }, '-', { label: 'Sign out', value: 'out' }],
+        onselect: ({ detail }) => notify(unavailable(detail.value === 'out' ? 'Signing out' : 'Preferences'), 'info')
+      }
+    });
+    const root = h('div', { class: 'inbox shell' }, nav.column);
+    // Narrow, the navigation becomes a drawer, and a phone shows the list or the open conversation.
+    const shell = adaptiveShell(root, context, { backLabel: 'Back to messages' });
 
     // ----------------------------------------------------------------- list column --
 
@@ -265,7 +262,7 @@ export default {
       }),
       readerBody);
 
-    root.append(nav, list, main);
+    root.append(list, main);
     const notify = toaster(context, root);
 
     shortcuts(root, {
@@ -310,7 +307,7 @@ export default {
 
     /** Refreshes every unread count in the navigation. @returns {void} */
     function updateCounts() {
-      mailboxes.setItems(mailboxItems());
+      for (const item of mailboxItems()) nav.setBadge(item.id, item.badge ?? null);
       folders.setItems(folderItems());
       if (state.scope.startsWith('folder:')) folders.setSelection([state.scope.slice(7)]);
     }
@@ -324,7 +321,7 @@ export default {
       const fromDrawer = leaveNav();
       state.scope = scope;
       const inFolder = scope.startsWith('folder:');
-      mailboxes.setActive(inFolder ? null : scope);
+      nav.setActive(inFolder ? null : scope);
       if (!inFolder) folders.clearSelection();
       renderList();
       const first = visible()[0];

@@ -1,20 +1,22 @@
 import {
-  AccountMenu, AppSidebar, Avatar, CardView, Dialog, Field, InlineLoading, KanbanView, Message, Search, Table,
+  Avatar, CardView, Dialog, Field, InlineLoading, KanbanView, Message, Search, Table,
   Toggle, badge, button, emptyState, formatDate, h, icon, setButtonBusy, skeleton, skeletonTable, skeletonText, uid
 } from '../../src/index.js';
 import {
   DATE, adaptiveShell, allowsMotion, disposer, iconButton, iconTile, later, layoutContext, paneHeader, propList,
-  sectionLabel, shortcutSheet, shortcuts, toaster, unavailable, workspaceHeader
+  shortcutSheet, shortcuts, suiteNav, toaster, unavailable
 } from './kit.js';
 import { ME, company, person } from './fixtures.js';
 
-/** The workspace's own sections. None of them is built here: this page is about states. */
+/**
+ * The project module's own sections. None of them is built here: this page is about states. Home
+ * and the project list are the strip's Home and Projects tiles, so they are not repeated here, and
+ * the ids stay clear of the suite's module ids, which share the navigation with them.
+ */
 const WORKSPACE = [
-  { id: 'home', label: 'Home', icon: 'house' },
-  { id: 'projects', label: 'Projects', icon: 'folder' },
-  { id: 'tasks', label: 'My tasks', icon: 'square-check-regular' },
-  { id: 'inbox', label: 'Inbox', icon: 'inbox' },
-  { id: 'reports', label: 'Reports', icon: 'chart-column' }
+  { id: 'workspace:tasks', label: 'My tasks', icon: 'square-check-regular' },
+  { id: 'workspace:inbox', label: 'Inbox', icon: 'inbox' },
+  { id: 'workspace:reports', label: 'Reports', icon: 'chart-column' }
 ];
 
 /** The groups of states on this page, in order. The navigation and the number keys jump to them. */
@@ -52,7 +54,7 @@ const DELAY = { load: 1600, save: 900, check: 600, retry: 900 };
 const SHORTCUTS = [
   ['Page', [['Simulate offline', 'O'], ['Replay loading', 'R'], ['Keyboard shortcuts', '?']]],
   ['Go to', GROUPS.map((group, index) => [group.label, String(index + 1)])],
-  ['Layout', [['Show or hide navigation', 'Mod+B']]]
+  ['Layout', [['Minimize or expand navigation', 'Mod+B']]]
 ];
 
 /** @param {string} iso Local date. @returns {Date} Noon that day, so no time zone moves it. */
@@ -71,7 +73,7 @@ export default {
   blurb: 'Every empty, loading, error, and confirmation state an application needs, side by side, with a switch to go offline.',
   components: [
     'EmptyState', 'Skeleton', 'Table', 'CardView', 'KanbanView', 'InlineLoading', 'Spinner', 'Message', 'Dialog',
-    'Field', 'Toggle', 'Search', 'AppSidebar', 'AccountMenu', 'Avatar', 'Badge'
+    'Field', 'Toggle', 'Search', 'AppSidebar', 'ModuleBar', 'AccountMenu', 'Avatar', 'Badge'
   ],
 
   /**
@@ -85,13 +87,39 @@ export default {
     context = layoutContext(context);
     const keep = disposer(context);
     const { preview } = context;
-    const root = h('div', { class: 'states shell' });
+    const openHelp = shortcutSheet(context, SHORTCUTS);
+    const state = { offline: false };
+
+    /* ------------------------------------------------------------ navigation column -- */
+
+    // The suite's navigation, with this page in the Projects module: the workspace's sections, then
+    // the groups on this page. The account menu keeps the way to the keyboard reference.
+    const nav = suiteNav(context, {
+      module: 'projects',
+      menu: [
+        ...WORKSPACE.map((item) => ({ ...item, invoke: () => notify(unavailable(item.label), 'info') })),
+        { section: true, label: 'On this page', children: GROUPS.map((group) => ({
+          id: group.id, label: group.label, icon: group.icon, invoke: () => jump(group.id)
+        })) }
+      ],
+      active: GROUPS[0].id,
+      account: {
+        account: accountIdentity(),
+        items: [
+          { label: 'Keyboard shortcuts', value: 'help', icon: 'keyboard' },
+          '-',
+          { label: 'Sign out', value: 'signout', icon: 'power-off' }
+        ],
+        onselect: ({ detail }) => (detail.value === 'help' ? openHelp() : notify(unavailable('Signing out'), 'info'))
+      }
+    });
+    /** The group the navigation marks current. */
+    let shownGroup = GROUPS[0].id;
+    const root = h('div', { class: 'states shell' }, nav.column);
     // Narrow, the navigation becomes a drawer opened from the page header.
     const shell = adaptiveShell(root, context, { keys: true });
     const notify = toaster(context, root);
-    const openHelp = shortcutSheet(context, SHORTCUTS);
 
-    const state = { offline: false };
     /** @type {{control: HTMLButtonElement, reason: HTMLElement}[]} Actions that need the network. */
     const networked = [];
     /** @type {Map<HTMLButtonElement, () => void>} Pending work behind each busy button. */
@@ -99,33 +127,6 @@ export default {
     /** @type {((loaded: boolean) => void)[]} Each loading example, drawn loading or loaded. */
     const loaders = [];
     let cancelLoad = () => {};
-
-    /* ------------------------------------------------------------ navigation column -- */
-
-    const workspace = keep(new AppSidebar(null, {
-      label: 'Workspace', collapsible: false,
-      items: WORKSPACE.map((item) => ({ ...item, invoke: () => notify(unavailable(item.label), 'info') }))
-    }));
-    const contents = keep(new AppSidebar(null, {
-      label: 'On this page', collapsible: false, active: GROUPS[0].id,
-      items: GROUPS.map((group) => ({ id: group.id, label: group.label, icon: group.icon, invoke: () => jump(group.id) }))
-    }));
-    const account = keep(new AccountMenu(null, {
-      account: accountIdentity(),
-      placement: 'top-start',
-      items: [
-        { label: 'Keyboard shortcuts', icon: 'keyboard', onselect: () => openHelp() },
-        '-',
-        { label: 'Sign out', icon: 'power-off', onselect: () => notify(unavailable('Signing out'), 'info') }
-      ]
-    }));
-    const nav = h('div', { class: 'shell__nav' },
-      workspaceHeader(),
-      h('div', { class: 'shell__body' },
-        workspace.toElement(),
-        sectionLabel('On this page'),
-        contents.toElement()),
-      h('div', { class: 'shell__footer' }, account.toElement()));
 
     /* ----------------------------------------------------------------------- header -- */
 
@@ -554,7 +555,7 @@ export default {
       bannerHost,
       body);
 
-    root.append(nav, main);
+    root.append(main);
     container.append(root);
 
     shortcuts(root, {
@@ -585,7 +586,7 @@ export default {
         if (frame || jumping) return;
         frame = requestAnimationFrame(() => {
           frame = 0;
-          contents.setActive(currentGroup());
+          showCurrent(currentGroup());
         });
       }, { passive: true, signal: context.signal });
       context.cleanup(() => cancelAnimationFrame(frame));
@@ -913,7 +914,8 @@ export default {
     function setOffline(on) {
       state.offline = on;
       root.dataset.offline = on ? 'true' : 'false';
-      account.setAccount(accountIdentity());
+      // The account menu sits at the foot of the suite's strip; its presence follows the connection.
+      nav.account.setAccount(accountIdentity());
       for (const { control, reason } of networked) {
         reason.hidden = !on;
         if (on) control.setAttribute('aria-describedby', reason.id);
@@ -959,12 +961,24 @@ export default {
       if (!target) return;
       // From the drawer: close it first, so the page is no longer inert when the heading takes focus.
       if (root.dataset.navOpen === 'true') shell.closeNav();
-      contents.setActive(id);
+      showCurrent(id);
       const top = Math.min(Math.max(0, target.section.offsetTop - parseFloat(getComputedStyle(body).paddingTop)),
         body.scrollHeight - body.clientHeight);
       jumping = Math.abs(body.scrollTop - top) >= 1;
       body.scrollTo({ top, behavior: allowsMotion(context, root) ? 'smooth' : 'auto' });
       target.heading.focus({ preventScroll: true });
+    }
+
+    /**
+     * Marks a group current in the navigation. Only a change reaches the sidebar, which brings its
+     * panel back to this module, so scrolling leaves another module's menu, opened to look at, open.
+     * @param {string} id
+     * @returns {void}
+     */
+    function showCurrent(id) {
+      if (id === shownGroup) return;
+      shownGroup = id;
+      nav.setActive(id);
     }
 
     /** @returns {string} The group whose heading is at or above the top of the page body. */

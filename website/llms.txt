@@ -63,7 +63,9 @@ available as ESM named exports and as `window.zx.*`.
   circular `zeyosAppIcon()` application presets and compact `moduleChip()` identities),
   `Aurora` (one- to four-colour ambient
   canvas light; shared material roles govern chrome and overlays), `Avatar`, `Panel`, `MasterPanel`, `Tabbox`,
-  `NavigationBar`, `AppSidebar` (expanded/minimized vertical and horizontal rail states),
+  `NavigationBar`, `AppSidebar` (expanded/minimized vertical and horizontal rail states; sections; a
+  modules layout), `ModuleBar` (colour-coded module strip or bar with flyout menus and an "All
+  modules" catalogue),
   `AccountMenu`, `Launcher`, `spinner()`/`ProgressBar`/`InlineLoading`,
   `skeleton()`/`skeletonText()`/`skeletonTable()`, `Toolbar`, `SplitView`, `Dock` (collapsible
   resizable pane stack; tab groups,

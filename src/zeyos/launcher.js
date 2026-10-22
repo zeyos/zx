@@ -224,8 +224,13 @@ export function zeyosActiveIdentifier(state = {}) {
   return String(state.module ?? '');
 }
 
-/** @param {unknown} raw @param {string|null} fallbackId @param {unknown} fallbackLabel @returns {Record<string, any>|null} */
-function normalizeApplication(raw, fallbackId, fallbackLabel) {
+/**
+ * Normalizes one application of the ZeyOS shell catalogue: a `[module, label]` pair, a
+ * `[ID, name, module, color]` fork, a weblet row, or an object. Shared with the module bar.
+ * @param {unknown} raw @param {string|null} fallbackId @param {unknown} fallbackLabel
+ * @returns {Record<string, any>|null}
+ */
+export function normalizeApplication(raw, fallbackId, fallbackLabel) {
   if (Array.isArray(raw)) {
     if (raw.length < 2) return null;
     if (raw.length === 2) {
@@ -305,7 +310,7 @@ function normalizeRecord(raw, group, query) {
 }
 
 /** @param {unknown} raw @param {unknown} resolver @returns {Record<string, any>} */
-function mergeDestination(raw, resolver) {
+export function mergeDestination(raw, resolver) {
   const direct = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
   const resolved = typeof resolver === 'function' ? resolver(raw) : null;
   const destination = resolved && typeof resolved === 'object' ? resolved : {};

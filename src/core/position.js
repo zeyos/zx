@@ -46,9 +46,12 @@ export function position(anchor, floating, options = {}) {
 
   floating.setAttribute('popover', 'manual');
   const supportsAnchors = typeof CSS !== 'undefined' && CSS.supports?.('anchor-name: --zx-a');
+  const anchorName = `--${uid('zx-a')}`;
   if (supportsAnchors) {
-    const anchorName = `--${uid('zx-a')}`;
-    /** @type {HTMLElement} */ (anchor).style.setProperty('anchor-name', anchorName);
+    // One element can anchor several floating elements at once — a tooltip and a menu on the same
+    // trigger — so the name joins the anchor's list rather than replacing it.
+    const names = anchorNames(anchor);
+    /** @type {HTMLElement} */ (anchor).style.setProperty('anchor-name', [...names, anchorName].join(', '));
     floating.style.position = 'fixed';
     floating.style.inset = 'auto';
     floating.style.margin = '0';
@@ -104,11 +107,27 @@ export function position(anchor, floating, options = {}) {
       observer?.disconnect();
       cleanupMode();
       hidePopover(floating);
-      restoreAttribute(anchor, 'style', anchorStyle);
+      if (supportsAnchors) {
+        // Only this name leaves: another floating element may still be anchored to the same one.
+        const rest = anchorNames(anchor).filter((name) => name !== anchorName);
+        if (rest.length) /** @type {HTMLElement} */ (anchor).style.setProperty('anchor-name', rest.join(', '));
+        else /** @type {HTMLElement} */ (anchor).style.removeProperty('anchor-name');
+        if (anchorStyle === null && anchor.getAttribute('style') === '') anchor.removeAttribute('style');
+      }
       restoreAttribute(floating, 'style', floatingStyle);
       restoreAttribute(floating, 'popover', popover);
     }
   };
+}
+
+/**
+ * The anchor names set inline on an element.
+ * @param {Element} anchor
+ * @returns {string[]}
+ */
+function anchorNames(anchor) {
+  return String(/** @type {HTMLElement} */ (anchor).style?.getPropertyValue('anchor-name') ?? '')
+    .split(',').map((name) => name.trim()).filter((name) => name && name !== 'none');
 }
 
 /** @param {string} placement @param {boolean} rtl @returns {string} */

@@ -1,0 +1,486 @@
+/*
+ * ModuleBar — the module level of an application, one tile per module.
+ *
+ * The bar is a target per module, and inside each target a tile carrying the module's identity:
+ *
+ * - **The size follows the control height.** A target is one control plus a space-2 margin, and a
+ *   tile one control less a space-1 inset, so a theme that changes `--zx-control-height` resizes
+ *   the bar with every other control instead of leaving a fixed strip beside it.
+ * - **Identity is the tile; where you are is the target.** The tile keeps its colour in every
+ *   state. The current module puts the neutral current fill behind it, the same fill a current row
+ *   takes in the navigation, never a coloured ring or an edge bar.
+ * - **Colour arrives as data.** A tone resolves through the theme's categorical palette; a host
+ *   colour arrives as `--zx-module-bar-color` on the tile, and the stylesheet only mixes it. The
+ *   appearance is an attribute of the tile, not of the bar, because the "All modules" catalogue
+ *   is portaled out of the bar and draws the same tiles.
+ */
+
+.zx-module-bar {
+  --zx-module-bar-target: calc(var(--zx-control-height) + var(--zx-space-2));
+  --zx-module-bar-tile: calc(var(--zx-control-height) - var(--zx-space-1));
+  --zx-module-bar-gap: var(--zx-space-1);
+  --zx-module-bar-pad: var(--zx-space-2);
+  --zx-module-bar-radius: var(--zx-radius-lg);
+  /* The bar with names beside its tiles: wide enough for "Knowledge base" and a count. */
+  --zx-module-bar-column: 12rem;
+  display: flex;
+  box-sizing: border-box;
+  min-inline-size: 0;
+  min-block-size: 0;
+  background: var(--zx-color-bg-chrome);
+  color: var(--zx-color-text);
+}
+
+.zx-module-bar[data-orientation="vertical"] {
+  flex-direction: column;
+  inline-size: calc(var(--zx-module-bar-target) + 2 * var(--zx-module-bar-pad));
+  block-size: 100%;
+}
+
+/* Names beside the tiles make the bar a navigation column of its own: a row per module, the count
+   at the end of the row, as wide as a sidebar needs for a two-word module name. */
+.zx-module-bar[data-orientation="vertical"][data-labels="beside"] {
+  inline-size: var(--zx-module-bar-column);
+}
+
+.zx-module-bar[data-orientation="vertical"][data-labels="beside"] > .zx-module-bar__list { align-items: stretch; }
+.zx-module-bar[data-orientation="vertical"][data-labels="beside"] > .zx-module-bar__header { align-items: stretch; }
+.zx-module-bar[data-orientation="vertical"][data-labels="beside"] > .zx-module-bar__footer { align-items: stretch; }
+
+.zx-module-bar[data-labels="beside"] .zx-module-bar__item {
+  grid-template-columns: var(--zx-module-bar-tile) minmax(0, 1fr) auto;
+  place-content: normal;
+  align-items: center;
+  justify-items: start;
+  column-gap: var(--zx-space-2);
+  inline-size: 100%;
+  block-size: auto;
+  min-block-size: var(--zx-module-bar-target);
+  padding: var(--zx-space-1) var(--zx-space-2);
+  color: var(--zx-color-text);
+  font-size: var(--zx-text-md);
+  font-weight: 500;
+  line-height: 1.3;
+  text-align: start;
+}
+
+.zx-module-bar[data-labels="beside"] .zx-module-bar__label { text-align: start; }
+
+.zx-module-bar[data-labels="beside"] .zx-module-bar__badge {
+  position: static;
+  justify-self: end;
+  box-shadow: none;
+}
+
+/* Printed names need a wider target: two short lines of extra-small text under the tile. */
+.zx-module-bar[data-orientation="vertical"][data-labels="below"] {
+  --zx-module-bar-target: calc(var(--zx-control-height) + var(--zx-space-8));
+}
+
+.zx-module-bar[data-orientation="horizontal"] {
+  flex-direction: row;
+  align-items: center;
+  inline-size: 100%;
+  block-size: calc(var(--zx-module-bar-target) + 2 * var(--zx-space-1));
+}
+
+/* A coarse pointer keeps a 40px target whatever the theme's control height says. */
+@media (pointer: coarse) {
+  .zx-module-bar { --zx-module-bar-target: max(40px, calc(var(--zx-control-height) + var(--zx-space-2))); }
+}
+
+.zx-module-bar__header,
+.zx-module-bar__footer {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: var(--zx-module-bar-gap);
+  padding: var(--zx-module-bar-pad);
+}
+
+.zx-module-bar[data-orientation="vertical"] > .zx-module-bar__header,
+.zx-module-bar[data-orientation="vertical"] > .zx-module-bar__footer { flex-direction: column; }
+.zx-module-bar[data-orientation="horizontal"] > .zx-module-bar__header,
+.zx-module-bar[data-orientation="horizontal"] > .zx-module-bar__footer { padding-block: 0; }
+.zx-module-bar__header[hidden],
+.zx-module-bar__footer[hidden] { display: none; }
+
+/* The list takes the space between header and footer and never asks for more: what does not fit
+   moves behind "All modules". Its padding is not decoration — the focus ring is a 3px glow and a
+   tighter box would clip it off the first and last tile. */
+.zx-module-bar__list {
+  display: flex;
+  flex: 1;
+  gap: var(--zx-module-bar-gap);
+  min-inline-size: 0;
+  min-block-size: 0;
+  margin: 0;
+  padding: var(--zx-space-1);
+  overflow: hidden;
+  list-style: none;
+}
+
+.zx-module-bar[data-orientation="vertical"] > .zx-module-bar__list { flex-direction: column; align-items: center; }
+.zx-module-bar[data-orientation="horizontal"] > .zx-module-bar__list { flex-direction: row; align-items: center; }
+.zx-module-bar[data-all-modules="never"] > .zx-module-bar__list { overflow: auto; scrollbar-width: none; }
+
+.zx-module-bar__row { display: flex; flex: none; }
+.zx-module-bar__row[hidden],
+.zx-module-bar__heading[hidden] { display: none; }
+
+/*
+ * A section of modules. With names printed it is a quiet caption over its modules, like the
+ * section headings of a menu; on an icon strip or bar it is a short rule between the groups, its
+ * caption kept for screen readers, and left out above the very first module.
+ */
+.zx-module-bar__heading {
+  position: relative;
+  flex: none;
+  align-self: center;
+  background: var(--zx-color-border-subtle);
+}
+
+.zx-module-bar[data-orientation="vertical"] .zx-module-bar__heading { inline-size: var(--zx-space-4); block-size: 1px; margin-block: var(--zx-space-1); }
+.zx-module-bar[data-orientation="horizontal"] .zx-module-bar__heading { inline-size: 1px; block-size: var(--zx-space-4); margin-inline: var(--zx-space-1); }
+.zx-module-bar:not([data-labels="beside"]) .zx-module-bar__heading[data-leading] { display: none; }
+
+.zx-module-bar__heading-label {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.zx-module-bar[data-orientation="vertical"][data-labels="beside"] .zx-module-bar__heading {
+  align-self: stretch;
+  inline-size: auto;
+  block-size: auto;
+  margin-block: var(--zx-space-2) 0;
+  padding: var(--zx-space-1) var(--zx-space-2);
+  background: none;
+}
+
+.zx-module-bar[data-orientation="vertical"][data-labels="beside"] .zx-module-bar__heading[data-leading] { margin-block-start: 0; }
+
+.zx-module-bar[data-labels="beside"] .zx-module-bar__heading-label {
+  position: static;
+  inline-size: auto;
+  block-size: auto;
+  overflow: visible;
+  clip-path: none;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-weight: var(--zx-weight-semibold);
+  line-height: 1.3;
+  white-space: normal;
+}
+
+.zx-module-bar__item {
+  position: relative;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  box-sizing: border-box;
+  inline-size: var(--zx-module-bar-target);
+  block-size: var(--zx-module-bar-target);
+  border: 0;
+  border-radius: var(--zx-module-bar-radius);
+  background: transparent;
+  padding: 0;
+  color: var(--zx-color-text-muted);
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.zx-module-bar[data-labels="below"] .zx-module-bar__item {
+  align-content: start;
+  gap: var(--zx-space-1);
+  block-size: auto;
+  min-block-size: calc(var(--zx-module-bar-tile) + 2lh + var(--zx-space-3));
+  padding: var(--zx-space-1) 2px;
+  font-size: var(--zx-text-xs);
+  line-height: 1.2;
+}
+
+.zx-module-bar__item:hover {
+  background: var(--zx-color-bg-hover);
+  color: var(--zx-color-text);
+}
+
+.zx-module-bar__item:focus-visible {
+  outline: none;
+  box-shadow: var(--zx-focus-ring);
+}
+
+/*
+ * Where you are. With flyouts the current module takes the fill and an open flyout the hover
+ * step, as on a rail. With an adjacent panel the fill marks the module whose menu the panel
+ * shows; when that is not the current one, the current module keeps the full text colour and a
+ * heavier name, the way a closed branch over the active route does in the tree.
+ */
+.zx-module-bar[data-menus="flyout"] .zx-module-bar__item[aria-current],
+.zx-module-bar[data-menus="none"] .zx-module-bar__item[aria-expanded="true"],
+.zx-module-bar[data-menus="none"]:not(:has(.zx-module-bar__item[aria-expanded="true"])) .zx-module-bar__item[aria-current] {
+  background: var(--zx-color-bg-current);
+  color: var(--zx-color-text);
+}
+
+.zx-module-bar__item[aria-current],
+.zx-module-bar__item[data-module-bar-more][aria-expanded="true"],
+.zx-module-bar[data-menus="flyout"] .zx-module-bar__item[aria-expanded="true"] {
+  color: var(--zx-color-text);
+}
+
+.zx-module-bar[data-menus="flyout"] .zx-module-bar__item[aria-expanded="true"]:not([aria-current]),
+.zx-module-bar__item[data-module-bar-more][aria-expanded="true"] {
+  background: var(--zx-color-bg-hover);
+}
+
+.zx-module-bar__item[aria-current] .zx-module-bar__label,
+.zx-module-bar[data-menus="none"] .zx-module-bar__item[aria-expanded="true"] .zx-module-bar__label {
+  font-weight: var(--zx-weight-semibold);
+}
+
+/* Unavailable, and still readable: the tile carries the dimming, the name keeps the muted role. */
+.zx-module-bar__item[aria-disabled="true"],
+.zx-module-bar__entry[aria-disabled="true"] {
+  color: var(--zx-color-text-muted);
+  cursor: not-allowed;
+}
+
+.zx-module-bar__item[aria-disabled="true"] .zx-module-bar__tile,
+.zx-module-bar__entry[aria-disabled="true"] .zx-module-bar__tile { opacity: .55; }
+.zx-module-bar__item[aria-disabled="true"]:hover,
+.zx-module-bar__entry[aria-disabled="true"]:hover { background: transparent; }
+
+.zx-module-bar__label {
+  max-inline-size: 100%;
+  hyphens: auto;
+  overflow-wrap: break-word;
+  text-align: center;
+}
+
+/* ---------------------------------------------------------------- the tile and its appearances */
+
+.zx-module-bar__tile {
+  --zx-module-bar-fill: transparent;
+  --zx-module-bar-ink: currentColor;
+  display: grid;
+  flex: none;
+  place-items: center;
+  inline-size: var(--zx-module-bar-tile);
+  block-size: var(--zx-module-bar-tile);
+  border-radius: var(--zx-radius-lg);
+  background: var(--zx-module-bar-fill);
+  color: var(--zx-module-bar-ink);
+  font-size: calc(var(--zx-module-bar-tile) * .58);
+  line-height: 1;
+}
+
+.zx-module-bar__initial {
+  font-size: .9em;
+  font-weight: var(--zx-weight-semibold);
+}
+
+/* Tint: the glyph in the module's colour on a soft fill of it. A tone takes the palette's own
+   pair, which holds 4.5:1; a host colour is mixed toward the text colour for its ink, so it reads
+   in whichever direction the theme runs. */
+.zx-module-bar__tile[data-appearance="tint"][data-color] {
+  --zx-module-bar-fill: color-mix(in srgb, var(--zx-module-bar-color) 16%, var(--zx-color-bg-surface));
+  --zx-module-bar-ink: color-mix(in srgb, var(--zx-module-bar-color) 70%, var(--zx-color-text));
+}
+
+.zx-module-bar__tile[data-appearance="tint"][data-tone="blue"] { --zx-module-bar-fill: var(--zx-color-tone-blue-bg); --zx-module-bar-ink: var(--zx-color-tone-blue-fg); }
+.zx-module-bar__tile[data-appearance="tint"][data-tone="teal"] { --zx-module-bar-fill: var(--zx-color-tone-teal-bg); --zx-module-bar-ink: var(--zx-color-tone-teal-fg); }
+.zx-module-bar__tile[data-appearance="tint"][data-tone="green"] { --zx-module-bar-fill: var(--zx-color-tone-green-bg); --zx-module-bar-ink: var(--zx-color-tone-green-fg); }
+.zx-module-bar__tile[data-appearance="tint"][data-tone="amber"] { --zx-module-bar-fill: var(--zx-color-tone-amber-bg); --zx-module-bar-ink: var(--zx-color-tone-amber-fg); }
+.zx-module-bar__tile[data-appearance="tint"][data-tone="orange"] { --zx-module-bar-fill: var(--zx-color-tone-orange-bg); --zx-module-bar-ink: var(--zx-color-tone-orange-fg); }
+.zx-module-bar__tile[data-appearance="tint"][data-tone="red"] { --zx-module-bar-fill: var(--zx-color-tone-red-bg); --zx-module-bar-ink: var(--zx-color-tone-red-fg); }
+.zx-module-bar__tile[data-appearance="tint"][data-tone="pink"] { --zx-module-bar-fill: var(--zx-color-tone-pink-bg); --zx-module-bar-ink: var(--zx-color-tone-pink-fg); }
+.zx-module-bar__tile[data-appearance="tint"][data-tone="violet"] { --zx-module-bar-fill: var(--zx-color-tone-violet-bg); --zx-module-bar-ink: var(--zx-color-tone-violet-fg); }
+.zx-module-bar__tile[data-appearance="tint"][data-tone="slate"] { --zx-module-bar-fill: var(--zx-color-tone-slate-bg); --zx-module-bar-ink: var(--zx-color-tone-slate-fg); }
+
+/* Solid: the identity tile itself, an AppIcon sized by the bar. Its material is AppIcon's. */
+.zx-module-bar__tile[data-appearance="solid"] { font-size: inherit; }
+
+/* Plain: monochrome glyphs in the item's own colour; identity colour is not drawn. */
+.zx-module-bar__tile[data-appearance="plain"] { --zx-module-bar-ink: currentColor; }
+
+/* The count a tile carries. A number that fits stays a number; past two characters it is a dot,
+   and the figure is in the control's accessible name either way. */
+.zx-module-bar__badge {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-end: 0;
+  min-inline-size: var(--zx-space-4);
+  block-size: var(--zx-space-4);
+  border-radius: var(--zx-radius-full);
+  background: var(--zx-color-accent);
+  box-shadow: 0 0 0 2px var(--zx-color-bg-chrome);
+  box-sizing: border-box;
+  padding-inline: var(--zx-space-1);
+  color: var(--zx-color-on-accent);
+  font-size: var(--zx-text-xs);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--zx-weight-semibold);
+  line-height: var(--zx-space-4);
+  text-align: center;
+}
+
+.zx-module-bar__badge[data-zx-badge="dot"] {
+  min-inline-size: 0;
+  inline-size: var(--zx-space-2);
+  block-size: var(--zx-space-2);
+  padding: 0;
+  font-size: 0;
+  line-height: 0;
+}
+
+/* -------------------------------------------------------------------- the "All modules" catalogue */
+
+/* The panel is portaled to the overlay host, so the bar's scale is restated here against the same
+   tokens; the catalogue's tiles are a step larger than the bar's, because each sits over a name. */
+.zx-module-bar__popover {
+  --zx-module-bar-tile: calc(var(--zx-control-height) + var(--zx-space-1));
+}
+
+/* `styles/zx.css` imports this file before `dropdown.css`, so the size the panel takes back from
+   the generic overlay surface has to out-specify it. */
+.zx-dropdown.zx-module-bar__popover {
+  inline-size: min(26rem, calc(100vw - 2 * var(--zx-space-3)));
+  max-block-size: min(34rem, calc(100vh - 2 * var(--zx-space-6)));
+  overflow: auto;
+  padding: var(--zx-space-2);
+}
+
+.zx-module-bar__catalogue { display: grid; gap: var(--zx-space-1); }
+
+.zx-module-bar__filter {
+  box-sizing: border-box;
+  inline-size: 100%;
+  block-size: var(--zx-control-height);
+  margin-block-end: var(--zx-space-1);
+  border: 1px solid var(--zx-color-border-control);
+  border-radius: var(--zx-control-radius);
+  background: var(--zx-color-bg-control);
+  padding-inline: var(--zx-control-pad-x);
+  color: var(--zx-color-text);
+  font: inherit;
+  font-size: var(--zx-control-font-size);
+}
+
+.zx-module-bar__filter::placeholder { color: var(--zx-color-text-placeholder); }
+
+.zx-module-bar__filter:focus-visible {
+  outline: none;
+  border-color: var(--zx-color-accent);
+  box-shadow: var(--zx-focus-ring);
+}
+
+.zx-module-bar__group[hidden] { display: none; }
+
+.zx-module-bar__group-label {
+  padding: var(--zx-space-2) var(--zx-space-2) var(--zx-space-1);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-weight: var(--zx-weight-semibold);
+}
+
+.zx-module-bar__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr));
+  gap: var(--zx-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.zx-module-bar__grid > li { display: flex; }
+.zx-module-bar__grid > li[hidden] { display: none; }
+
+.zx-module-bar__entry {
+  position: relative;
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  gap: var(--zx-space-1);
+  box-sizing: border-box;
+  inline-size: 100%;
+  border: 0;
+  border-radius: var(--zx-radius-md);
+  background: transparent;
+  padding: var(--zx-space-2) var(--zx-space-1);
+  color: var(--zx-color-text);
+  font: inherit;
+  font-size: var(--zx-text-sm);
+  line-height: 1.25;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.zx-module-bar__entry:hover { background: var(--zx-color-bg-hover); }
+
+.zx-module-bar__entry:focus-visible {
+  outline: none;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.zx-module-bar__entry[aria-current] {
+  background: var(--zx-color-bg-current);
+  font-weight: var(--zx-weight-semibold);
+}
+
+.zx-module-bar__entry-label {
+  max-inline-size: 100%;
+  hyphens: auto;
+  overflow-wrap: break-word;
+}
+
+.zx-module-bar__entry-badge {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.zx-module-bar__empty {
+  margin: 0;
+  padding: var(--zx-space-4) var(--zx-space-2);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  text-align: center;
+}
+
+.zx-module-bar__empty[hidden] { display: none; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .zx-module-bar__item,
+  .zx-module-bar__entry {
+    transition: background-color var(--zx-dur-fast) var(--zx-ease),
+      color var(--zx-dur-fast) var(--zx-ease),
+      box-shadow var(--zx-dur-fast) var(--zx-ease);
+  }
+
+  .zx-module-bar__item:active,
+  .zx-module-bar__entry:active { transform: scale(.96); }
+}
+
+/* Forced colours drop author backgrounds: the system's selected pair marks where you are, and
+   every tile keeps an outline so its shape survives the loss of its fill. */
+@media (forced-colors: active) {
+  .zx-module-bar__item[aria-current],
+  .zx-module-bar[data-menus="none"] .zx-module-bar__item[aria-expanded="true"],
+  .zx-module-bar__entry[aria-current] {
+    background: Highlight;
+    color: HighlightText;
+    forced-color-adjust: none;
+  }
+
+  .zx-module-bar__tile { outline: 1px solid CanvasText; }
+  .zx-module-bar__badge { border: 1px solid CanvasText; }
+}

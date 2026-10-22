@@ -1,18 +1,18 @@
 import {
-  AccountMenu, ActivityList, AppSidebar, Chart, ChartJsAdapter, Dialog, InlineLoading, MenuButton,
+  ActivityList, Chart, ChartJsAdapter, Dialog, InlineLoading, MenuButton,
   Search, Select, TableView, Tooltip, badge, button, copyButton, downloadBlob, emptyState, formatDate,
   formatNumber, formatPercent, formatRelativeTime, h, icon, rovingTabindex, statTile, toCsv
 } from '../../src/index.js';
 import {
   DATE, SHELL_BREAKPOINTS, adaptiveShell, allowsMotion, chartOptions, chartPalette, chartScales, disposer, dot,
   iconButton, iconTile, later,
-  layoutContext, listTime, loadChartJs, paneHeader, panelBlock, propList, renderScope, shortcuts, toaster, unavailable,
-  unavailablePane, watchTheme, workspaceHeader
+  layoutContext, listTime, loadChartJs, paneHeader, panelBlock, propList, renderScope, shortcuts, suiteNav, toaster,
+  unavailablePane, watchTheme
 } from './kit.js';
-import { COMPANIES, ME, NOW, person } from './fixtures.js';
+import { COMPANIES, NOW, person } from './fixtures.js';
 
 /**
- * Fieldstone's three data centres, and the counts the inventory below does not itemise. `peak` is
+ * ACME's three data centres, and the counts the inventory below does not itemise. `peak` is
  * the busiest hour's inbound traffic and `uplink` the transit capacity, both in Gb/s.
  */
 const SITES = [
@@ -213,7 +213,7 @@ function deviceRecords() {
         ip: hosted ? `10.${site.octet}.${rackNumber}.${10 + position}`
           : `10.${site.octet}.240.${rackNumber * 20 + index + 1}`,
         serial: `${type.maker.slice(0, 2).toUpperCase()}${7_300_000 + site.octet * 997 + rackNumber * 4_517 + position * 131}`,
-        tenant: hosted ? COMPANIES[(rackNumber + position) % COMPANIES.length].name : 'Fieldstone'
+        tenant: hosted ? COMPANIES[(rackNumber + position) % COMPANIES.length].name : 'ACME'
       };
     });
   });
@@ -370,7 +370,7 @@ export default {
   blurb: 'Three data centres at a glance: device health, alerts, and traffic, down to each unit of every rack.',
   components: [
     'Chart', 'StatTile', 'TableView', 'Tooltip', 'ActivityList', 'Select', 'Search', 'MenuButton',
-    'InlineLoading', 'Dialog', 'ChartJsAdapter', 'Message'
+    'InlineLoading', 'Dialog', 'ChartJsAdapter', 'Message', 'AppSidebar', 'ModuleBar', 'AccountMenu'
   ],
 
   /**
@@ -392,34 +392,32 @@ export default {
       /** @type {HTMLElement|null} What opened the inspector, for focus to return to. */
       opener: null
     };
-    const root = h('div', { class: 'infra shell' });
-    // Narrow, the navigation becomes a drawer, and the device inspector opens as one.
-    const shell = adaptiveShell(root, context, { asideLabel: 'Device details' });
-    const notify = toaster(context, root);
 
     /* ---------------------------------------------------------- navigation -- */
 
-    const me = person(ME);
-    const sidebar = keep(new AppSidebar(null, {
-      items: NAVIGATION, active: 'dashboard', expanded: ['devices'], collapsible: false, label: 'Infrastructure',
+    // The suite's navigation: Infrastructure's own tree beside every other module of the suite.
+    // The layout routes its own destinations itself.
+    const nav = suiteNav(context, {
+      module: 'infrastructure',
+      menu: NAVIGATION,
+      active: 'dashboard',
+      expanded: ['devices'],
       onselect: (event) => {
         event.preventDefault();
         go(String(event.detail.id));
+      },
+      account: {
+        items: [
+          { label: 'Profile', value: 'profile', icon: 'user' }, { label: 'API tokens', value: 'tokens', icon: 'key' }, '-',
+          { label: 'Sign out', value: 'sign-out' }
+        ]
       }
-    }));
-    const account = keep(new AccountMenu(null, {
-      account: { name: me.name, secondary: me.role, status: me.status },
-      items: [
-        { label: 'Profile', value: 'profile' }, { label: 'API tokens', value: 'tokens' }, '-',
-        { label: 'Sign out', value: 'sign-out' }
-      ],
-      placement: 'top-start',
-      onselect: (event) => notify(unavailable(event.detail.item.label), 'info')
-    }));
-    const nav = h('div', { class: 'shell__nav' },
-      workspaceHeader(),
-      h('div', { class: 'shell__body' }, sidebar.toElement()),
-      h('div', { class: 'shell__footer' }, account.toElement()));
+    });
+
+    const root = h('div', { class: 'infra shell' }, nav.column);
+    // Narrow, the navigation becomes a drawer, and the device inspector opens as one.
+    const shell = adaptiveShell(root, context, { asideLabel: 'Device details' });
+    const notify = toaster(context, root);
 
     /**
      * Opens a navigation destination.
@@ -428,9 +426,9 @@ export default {
      */
     function go(id) {
       state.view = VIEWS[id] ?? 'placeholder';
-      sidebar.setActive(id);
+      nav.setActive(id);
       const branch = NAVIGATION.find((item) => item.children?.some((child) => child.id === id));
-      if (branch) sidebar.setExpanded([branch.id], { silent: true });
+      if (branch) nav.sidebar.setExpanded([branch.id], { silent: true });
       for (const [name, pane] of Object.entries(views)) pane.hidden = name !== state.view;
       if (state.view === 'placeholder') showPlaceholder(id);
       if (state.view === 'elevations' || state.view === 'placeholder') closeInspector();
@@ -1325,7 +1323,7 @@ export default {
     /* ------------------------------------------------------------- assembly -- */
 
     const views = { dashboard, devices: devicesView, elevations, placeholder };
-    root.append(nav, dashboard, devicesView, elevations, placeholder, inspector);
+    root.append(dashboard, devicesView, elevations, placeholder, inspector);
     container.append(root);
     renderDashboard();
 

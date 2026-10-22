@@ -1,11 +1,11 @@
 import {
-  AccountMenu, ActivityList, AppSidebar, Avatar, Breadcrumb, ContextMenu, Datebox, Dialog, Dropdown,
+  ActivityList, Avatar, Breadcrumb, ContextMenu, Datebox, Dialog, Dropdown,
   FilterPanel, InlineLoading, KanbanView, Launcher, MenuButton, Search, Select, TagPicker, badge,
   button, copyToClipboard, emptyState, formatDate, formatRelativeTime, h, icon
 } from '../../src/index.js';
 import {
-  DATE, adaptiveShell, disposer, iconButton, kbd, later, layoutContext, modShortcut, modifierLabel, navSearch,
-  paneHeader, panelBlock, renderScope, sectionLabel, shortcuts, toaster, unavailable, workspaceHeader
+  DATE, adaptiveShell, disposer, iconButton, kbd, later, layoutContext, modShortcut, modifierLabel,
+  paneHeader, panelBlock, renderScope, shortcuts, suiteNav, toaster, unavailable
 } from './kit.js';
 import { ME, NOW, PEOPLE, TODAY, person } from './fixtures.js';
 
@@ -130,7 +130,7 @@ const HISTORY = {
 const SCOPES = {
   inbox: { crumbs: ['Inbox'], test: (issue) => issue.inbox },
   mine: { crumbs: ['My issues'], test: (issue) => issue.assignee === ME },
-  projects: { crumbs: ['Projects'], test: () => true, group: 'project' },
+  'all-projects': { crumbs: ['Projects'], test: () => true, group: 'project' },
   'view-due': { crumbs: ['Views', 'Due this week'], test: (issue) => isDueWithin(issue, 7), group: 'assignee' },
   'view-customer': { crumbs: ['Views', 'Customer issues'], test: (issue) => issue.labels.includes('customer') },
   ...Object.fromEntries(TEAMS.flatMap((team) => [
@@ -315,7 +315,7 @@ export default {
   components: [
     'KanbanView', 'ContextMenu', 'FilterPanel', 'Search', 'Select', 'TagPicker', 'ActivityList',
     'Launcher', 'Breadcrumb', 'Datebox', 'Dialog', 'MenuButton', 'Dropdown', 'InlineLoading',
-    'Avatar', 'Badge', 'Message'
+    'Avatar', 'Badge', 'Message', 'AppSidebar', 'ModuleBar', 'AccountMenu'
   ],
 
   /**
@@ -328,10 +328,6 @@ export default {
   mount(container, context) {
     context = layoutContext(context);
     const keep = disposer(context);
-    // Narrow, the navigation becomes a drawer, and so do the properties: below 1180px the open
-    // issue keeps the whole width and its properties wait behind a button (or S, P, A, L).
-    const root = h('div', { class: 'tracker shell' });
-    const shell = adaptiveShell(root, context, { asideLabel: 'Show properties' });
 
     // A private, mutable copy of the data, so every mount starts from the same state.
     const issues = ISSUES.map((issue) => ({
@@ -395,28 +391,48 @@ export default {
 
     // ------------------------------------------------------------------ navigation --
 
-    // Three AppSidebars — personal, workspace, and teams — each under its own section label.
-    const navGroups = [
-      [{ id: 'inbox', label: 'Inbox', icon: 'inbox' }, { id: 'mine', label: 'My issues', icon: 'circle-user' }],
-      [{ id: 'projects', label: 'Projects', icon: 'cube' }, {
-        id: 'views', label: 'Views', icon: 'layer-group', children: [
-          { id: 'view-due', label: 'Due this week' }, { id: 'view-customer', label: 'Customer issues' }
-        ]
-      }],
-      TEAMS.map((team) => ({
-        id: team.id, label: team.name, icon: team.icon, children: [
-          { id: `${team.id}-issues`, label: 'Issues' }, { id: `${team.id}-cycle`, label: 'Cycles' },
-          { id: `${team.id}-projects`, label: 'Projects' }
-        ]
-      }))
-    ].map((items, index) => keep(new AppSidebar(null, {
-      items: withInvoke(items),
-      label: ['Personal', 'Workspace', 'Your teams'][index],
+    // The suite's navigation, with the tracker's menu in the Projects module: the personal
+    // destinations, then the workspace's and the teams' under their own sections.
+    const nav = suiteNav(context, {
+      module: 'projects',
+      menu: menuItems(),
       active: state.scope,
-      expanded: index === 2 ? ['ENG'] : [],
-      collapsible: false
-    })));
-    updateInboxBadge();
+      expanded: ['ENG'],
+      header: button({
+        label: 'New issue', icon: 'pen-to-square', kind: 'primary',
+        shortcut: { label: 'C', keys: 'C' }, onclick: () => openCreate()
+      }),
+      onsearch: () => openLauncher(),
+      account: {
+        items: [{ label: 'Preferences', value: 'prefs', icon: 'gear' }, '-', { label: 'Sign out', value: 'out' }],
+        onselect: ({ detail }) => notify(unavailable(detail.value === 'out' ? 'Signing out' : 'Preferences'), 'info')
+      }
+    });
+    // Narrow, the navigation becomes a drawer, and so do the properties: below 1180px the open
+    // issue keeps the whole width and its properties wait behind a button (or S, P, A, L).
+    const root = h('div', { class: 'tracker shell' }, nav.column);
+    const shell = adaptiveShell(root, context, { asideLabel: 'Show properties' });
+
+    /** @returns {Array<Record<string, any>>} The tracker's menu, with the unread count on Inbox. */
+    function menuItems() {
+      const unread = issues.filter((issue) => issue.inbox).length;
+      return withInvoke([
+        { id: 'inbox', label: 'Inbox', icon: 'inbox', badge: unread || undefined },
+        { id: 'mine', label: 'My issues', icon: 'circle-user' },
+        { section: true, label: 'Workspace', children: [
+          { id: 'all-projects', label: 'Projects', icon: 'cube' },
+          { id: 'views', label: 'Views', icon: 'layer-group', children: [
+            { id: 'view-due', label: 'Due this week' }, { id: 'view-customer', label: 'Customer issues' }
+          ] }
+        ] },
+        { section: true, label: 'Your teams', children: TEAMS.map((team) => ({
+          id: team.id, label: team.name, icon: team.icon, children: [
+            { id: `${team.id}-issues`, label: 'Issues' }, { id: `${team.id}-cycle`, label: 'Cycles' },
+            { id: `${team.id}-projects`, label: 'Projects' }
+          ]
+        })) }
+      ]);
+    }
 
     /**
      * Gives every leaf destination an `invoke` that switches the list to its scope.
@@ -431,32 +447,8 @@ export default {
 
     /** Shows the number of unread notifications on Inbox. @returns {void} */
     function updateInboxBadge() {
-      const unread = issues.filter((issue) => issue.inbox).length;
-      const items = navGroups[0].getItems();
-      items[0] = { ...items[0], badge: unread || undefined };
-      navGroups[0].setItems(withInvoke(items.map(({ invoke, ...item }) => item)));
+      nav.setBadge('inbox', issues.filter((issue) => issue.inbox).length || null);
     }
-
-    const account = keep(new AccountMenu(null, {
-      account: { name: person(ME).name, secondary: person(ME).role, status: 'online' },
-      items: [{ label: 'Preferences', value: 'prefs', icon: 'gear' }, '-', { label: 'Sign out', value: 'out' }],
-      placement: 'top-start',
-      onselect: ({ detail }) => notify(unavailable(detail.value === 'out' ? 'Signing out' : 'Preferences'), 'info')
-    }));
-
-    const nav = h('div', { class: 'shell__nav' },
-      workspaceHeader(),
-      h('div', { class: 'nav-action' },
-        button({
-          label: 'New issue', icon: 'pen-to-square', kind: 'primary',
-          shortcut: { label: 'C', keys: 'C' }, onclick: () => openCreate()
-        }),
-        navSearch({ label: 'Search issues', onclick: () => openLauncher() })),
-      h('div', { class: 'shell__body' },
-        navGroups[0].toElement(),
-        sectionLabel('Workspace'), navGroups[1].toElement(),
-        sectionLabel('Your teams'), navGroups[2].toElement()),
-      h('div', { class: 'shell__footer' }, account.toElement()));
 
     // ------------------------------------------------------------------- main pane --
 
@@ -665,7 +657,7 @@ export default {
         panelBlock('Project', h('div', { class: 'tracker__fields' }, projectPick.toElement(), cyclePick.toElement())),
         recentBlock));
 
-    root.append(nav, main, aside);
+    root.append(main, aside);
     const notify = toaster(context, root);
 
     // --------------------------------------------------------------------- the list --
@@ -1137,7 +1129,7 @@ export default {
     function setScope(scope) {
       // A scope chosen in the navigation drawer or the palette takes the focus on to its list.
       const fromDrawer = root.dataset.navOpen === 'true';
-      navGroups.forEach((group) => group.setActive(scope));
+      nav.setActive(scope);
       state.scope = scope;
       state.group = SCOPES[scope].group ?? 'status';
       display.setItems(displayItems());

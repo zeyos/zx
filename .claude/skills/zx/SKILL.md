@@ -72,7 +72,9 @@ Groups (matching the demo sidebar):
 - **Layout**: `Groupbox`, `Card` (semantic record/content surface), `Panel` (header/footer action
   buttons), `MasterPanel`,
   `Tabbox` (`variant: 'divided'|'bracket'|'line'|'segmented'`, all square-cornered; boxed variants
-  read `--zx-tabbox-radius`), `NavigationBar`, `Toolbar` (APG toolbar with an overflow menu),
+  read `--zx-tabbox-radius`), `NavigationBar`, `AppSidebar` (the one navigation tree; `section: true`
+  items group it, `layout: 'modules'` puts a module strip beside the current module's menu),
+  `ModuleBar` (colour-coded module tiles with flyout menus and an "All modules" catalogue), `Toolbar` (APG toolbar with an overflow menu),
   `SplitView`, `Dock` (a stack of collapsible, resizable panes — the inspector column of a design
   tool; panes may be tab groups, a `content` turns it into a region with panes on either side, and
   `adopt(sheet)` hands it a `Sheet` to position), `Stepper`, `Breadcrumb`, `emptyState()`, and the

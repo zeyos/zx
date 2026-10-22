@@ -1,3 +1,4 @@
+import { icon } from '../src/index.js';
 import { normalizeModuleName, zeyosAppIcon } from '../src/zeyos/index.js';
 
 /* Built-in glyphs keep the documentation useful offline. Applications can omit this override after
@@ -19,4 +20,9 @@ export function demoZeyosAppIcon(name, options = {}) {
     ...options,
     icon: options.icon ?? BUILTIN_GLYPHS[key] ?? 'square'
   });
+}
+
+/** Creates a module's built-in glyph, for a renderer that needs the glyph alone (a module bar tile). */
+export function demoZeyosGlyph(name) {
+  return icon(BUILTIN_GLYPHS[normalizeModuleName(name)] ?? 'square', { size: '1em' });
 }
