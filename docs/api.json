@@ -11776,5 +11776,153 @@
         "description": "Disables editing, removal, and reordering."
       }
     ]
+  },
+  "WorkspaceSwitcher": {
+    "options": [
+      {
+        "name": "workspaces",
+        "type": "WorkspaceItem[]",
+        "default": "[]",
+        "description": "Workspaces in menu order. Entries without an id are skipped, and a repeated id keeps its first entry."
+      },
+      {
+        "name": "active",
+        "type": "string|number|null",
+        "default": "null",
+        "description": "Active workspace id. Defaults to the first enabled workspace, which also stands in for an id that is not listed or is disabled."
+      },
+      {
+        "name": "items",
+        "type": "MenuButtonItem[]",
+        "default": "[]",
+        "description": "Extra actions listed after the workspaces — \"Create workspace\", \"Workspace settings\", `'-'` separators, \"Sign out\". A separator is inserted between the workspaces and the actions automatically."
+      },
+      {
+        "name": "compact",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether the trigger shows the tile alone."
+      },
+      {
+        "name": "heading",
+        "type": "string|null",
+        "default": "null",
+        "description": "Group label above the workspaces; null resolves message `workspaceSwitcher.heading` (\"Workspaces\"), and an empty string leaves the label out."
+      },
+      {
+        "name": "label",
+        "type": "string|null",
+        "default": "null",
+        "description": "Trigger accessible name, in which `%1` is the active workspace's name and is filled in again after every switch. Null resolves message `workspaceSwitcher.label` (\"Switch workspace: %1\"), or `workspaceSwitcher.labelEmpty` (\"Switch workspace\") while no workspace is active."
+      },
+      {
+        "name": "placement",
+        "type": "'bottom-start'|'bottom-end'|'top-start'|'top-end'|'bottom'|'top'|'right-start'|'right-end'|'left-start'|'left-end'|'right'|'left'",
+        "default": "'bottom-start'",
+        "description": "Popup placement."
+      },
+      {
+        "name": "msg",
+        "type": "Record<string, unknown>",
+        "default": null,
+        "description": "Component-local message overrides, by key: `workspaceSwitcher.heading` (\"Workspaces\"), `workspaceSwitcher.label` (\"Switch workspace: %1\", `%1` the active workspace's name), and `workspaceSwitcher.labelEmpty` (\"Switch workspace\", the trigger's name while no workspace is active)."
+      }
+    ],
+    "events": [
+      {
+        "name": "select",
+        "payload": "{workspace, id, previous}",
+        "description": "Preventable workspace switch; `preventDefault()` keeps the previous workspace active and the menu open."
+      },
+      {
+        "name": "action",
+        "payload": "{value: unknown, item: object}",
+        "description": "Preventable extra action; `preventDefault()` skips the item's own callback and keeps the menu open."
+      },
+      {
+        "name": "open",
+        "payload": "Record<string, never>",
+        "description": "Open listener."
+      },
+      {
+        "name": "close",
+        "payload": "Record<string, never>",
+        "description": "Close listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "getActive",
+        "signature": "getActive()",
+        "returns": "WorkspaceItem|null",
+        "description": "Returns the active workspace, or null when no workspace is enabled."
+      },
+      {
+        "name": "setActive",
+        "signature": "setActive(id, [options])",
+        "returns": "this",
+        "description": "Makes another workspace active. An unknown or disabled id changes nothing."
+      },
+      {
+        "name": "setWorkspaces",
+        "signature": "setWorkspaces(workspaces)",
+        "returns": "this",
+        "description": "Replaces the workspaces. The active workspace stays active while it is still listed and enabled; otherwise the first enabled workspace becomes active, silently."
+      },
+      {
+        "name": "setItems",
+        "signature": "setItems(items)",
+        "returns": "this",
+        "description": "Replaces the extra actions after the workspaces."
+      },
+      {
+        "name": "setCompact",
+        "signature": "setCompact(compact)",
+        "returns": "this",
+        "description": "Shows the tile alone, or the tile with the name, secondary line, and chevron — for a navigation column that narrows to icons and widens again. The trigger keeps its full accessible name and gains the workspace name as a tooltip while compact."
+      },
+      {
+        "name": "open",
+        "signature": "open()",
+        "returns": "this",
+        "description": "Opens the menu."
+      },
+      {
+        "name": "close",
+        "signature": "close()",
+        "returns": "this",
+        "description": "Closes the menu."
+      },
+      {
+        "name": "toggle",
+        "signature": "toggle()",
+        "returns": "this",
+        "description": "Toggles the menu."
+      },
+      {
+        "name": "isOpen",
+        "signature": "isOpen()",
+        "returns": "boolean",
+        "description": "Reports whether the menu is open."
+      },
+      {
+        "name": "focus",
+        "signature": "focus()",
+        "returns": "this",
+        "description": "Focuses the trigger."
+      },
+      {
+        "name": "getPanel",
+        "signature": "getPanel()",
+        "returns": "HTMLElement",
+        "description": "Returns the menu panel for shell hover and focus coordination."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Destroys the menu and restores or removes the host."
+      }
+    ]
   }
 }

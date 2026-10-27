@@ -11,7 +11,7 @@ const TEMPLATE_IDS = [
 
 /** Single screens that recur inside every application. */
 const PATTERN_IDS = [
-  'master-detail', 'dashboard', 'inbox', 'record-page', 'agent-chat',
+  'master-detail', 'record-collection', 'dashboard', 'inbox', 'record-page', 'agent-chat',
   'record-wizard', 'checkout-wizard', 'settings-workspace', 'system-states', 'zeyos-invoices'
 ];
 

@@ -343,6 +343,14 @@
 
 .suite-strip__name { display: none; }
 
+/* With a workspace switcher at its head, the strip gives the switcher the width and keeps the
+   search button beside it only while the modules are named; on the icon strip the two stack. */
+.suite-strip[data-workspace] > .zx-workspace-switcher { min-inline-size: 0; }
+
+.zx-module-bar[data-labels="beside"] .suite-strip[data-workspace] {
+  padding-inline-start: 0;
+}
+
 .zx-module-bar[data-labels="beside"] .suite-strip {
   grid-template-columns: minmax(0, 1fr) auto;
   justify-items: start;

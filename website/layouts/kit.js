@@ -13,7 +13,7 @@
  */
 import './layout-icons.js';
 import {
-  AccountMenu, AppSidebar, Component, Dialog, Message, emptyState, formatDate, h, icon, prefersReducedMotion, storage
+  AccountMenu, AppSidebar, Component, Dialog, Message, WorkspaceSwitcher, emptyState, formatDate, h, icon, prefersReducedMotion, storage
 } from '../../src/index.js';
 import { ME, NOW, ORGANISATION, SUITE_MODULES, person } from './fixtures.js';
 
@@ -211,6 +211,10 @@ function workspaceHeader({ actions } = {}) {
  * @property {() => void} [onsearch] Shows a search button on the strip that calls it (the launcher).
  * @property {(event: CustomEvent) => void} [onselect] A choice in this layout's own menu.
  * @property {Record<string, any>} [account] AccountMenu options merged over the signed-in user's defaults.
+ * @property {Record<string, any>|null} [workspace=null] WorkspaceSwitcher options. Given, the switcher
+ *   takes the brand's place at the head of the strip: the current workspace's tile, name and plan
+ *   while the modules are named, the tile alone on the icon strip. Its menu lists the workspaces
+ *   the user belongs to and, after them, the workspace-level actions.
  * @property {'tint'|'solid'|'plain'} [appearance='tint'] The module tiles.
  */
 /**
@@ -218,6 +222,7 @@ function workspaceHeader({ actions } = {}) {
  * @property {HTMLElement} column The `.shell__nav` column, for the layout's root.
  * @property {AppSidebar} sidebar The navigation itself.
  * @property {AccountMenu} account The signed-in user's menu at the foot of the strip.
+ * @property {WorkspaceSwitcher|null} workspace The switcher at the head of the strip, when asked for.
  * @property {(menu: Record<string, any>[]) => void} setMenu Replaces this layout's menu.
  * @property {(id: string|number|null) => void} setActive Marks the current destination.
  * @property {(id: string|number, badge: string|number|null) => void} setBadge Updates a count in place.
@@ -234,7 +239,7 @@ function workspaceHeader({ actions } = {}) {
  */
 function suiteNav(context, {
   module, menu = [], active = null, expanded = [], header = null, content = null, onsearch, onselect,
-  account = {}, appearance = 'tint'
+  account = {}, workspace = null, appearance = 'tint'
 }) {
   const keep = disposer(context);
   let own = menu;
@@ -275,8 +280,23 @@ function suiteNav(context, {
   }));
   const accountItems = account.items ?? [{ label: 'Profile', value: 'profile', icon: 'user' },
     { label: 'Settings', value: 'settings', icon: 'gear' }, '-', { label: 'Sign out', value: 'signout' }];
-  const stripHeader = suiteStrip(onsearch ? iconButton('magnifying-glass', 'Search', () => onsearch(),
-    { shortcut: modShortcut('k') }) : null);
+  const searchButton = onsearch ? iconButton('magnifying-glass', 'Search', () => onsearch(),
+    { shortcut: modShortcut('k') }) : null;
+  // The head of the strip is the brand, or — in an application where the user belongs to several
+  // workspaces — the switcher between them, which stands for the brand of the one that is open.
+  const switcher = workspace ? keep(new WorkspaceSwitcher(null, {
+    placement: 'bottom-start',
+    // Cancelled, so the trigger keeps naming the workspace that is open: the example has one.
+    onselect: (event) => {
+      event.preventDefault();
+      toast(context, unavailable(`Switching to ${event.detail.workspace.label}`), 'info', { scope: column });
+    },
+    onaction: ({ detail }) => toast(context, unavailable(detail.item.label), 'info', { scope: column }),
+    ...workspace
+  })) : null;
+  const stripHeader = switcher
+    ? h('div', { class: 'suite-strip', dataset: { workspace: '' } }, switcher.toElement(), searchButton)
+    : suiteStrip(searchButton);
   const sidebar = keep(new AppSidebar(null, {
     layout: 'modules',
     label: ORGANISATION.name,
@@ -311,7 +331,11 @@ function suiteNav(context, {
     }
   }));
   const column = h('div', { class: 'shell__nav', dataset: { nav: 'modules' } }, sidebar.toElement());
-  const syncAccount = () => accountMenu.setCompact(sidebar.getPresentation() !== 'expanded');
+  const syncAccount = () => {
+    const compact = sidebar.getPresentation() !== 'expanded';
+    accountMenu.setCompact(compact);
+    switcher?.setCompact(compact);
+  };
   sidebar.on('presentationchange', syncAccount);
   syncAccount();
   accountChoices(context, sidebar, accountMenu, accountItems);
@@ -319,6 +343,7 @@ function suiteNav(context, {
     column,
     sidebar,
     account: accountMenu,
+    workspace: switcher,
     setMenu(next) {
       own = next;
       sidebar.setItems(items());

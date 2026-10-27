@@ -30,6 +30,7 @@ const BLOCKS = {
   crm: 'crm',
   'agent-workspace': 'agents',
   'master-detail': 'master-detail',
+  'record-collection': 'collection',
   'agent-chat': 'agent-chat',
   'system-states': 'states',
   dashboard: 'dashboard',

@@ -14,6 +14,7 @@
 @import url('layouts/infrastructure.layout.css');
 @import url('layouts/crm.layout.css');
 @import url('layouts/master-detail.layout.css');
+@import url('layouts/record-collection.layout.css');
 @import url('layouts/dashboard.layout.css');
 @import url('layouts/inbox.layout.css');
 @import url('layouts/record-page.layout.css');
@@ -329,7 +330,9 @@
   border-radius: var(--zx-radius-lg);
 }
 
-.gallery-popup .zx-modal__content {
+/* The popup's own content only: a layout's dialogs open inside the popup (the overlay host is the
+   focused element's scope), and their bodies keep the Modal's padding. */
+.gallery-popup > .zx-modal__content {
   block-size: 100%;
   padding: 0;
 }
