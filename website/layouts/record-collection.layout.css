@@ -28,11 +28,36 @@
   min-inline-size: 0;
 }
 
+/*
+ * A denser bar than the toolbar's default. ListToolbar gives every tool a 44px target; here the
+ * row is a crowded one — search, four tools, five shapes — and the pointer precision of a desktop
+ * list screen does not need it, so the tools follow the control height like the search field
+ * beside them, with the gaps and padding of a button. The 24px minimum WCAG asks of every target
+ * is kept with room to spare.
+ */
+.collection .collection__toolbar.zx-list-toolbar {
+  gap: var(--zx-space-1);
+}
+
+.collection .collection__toolbar .zx-list-toolbar__tools {
+  gap: 0;
+}
+
+.collection .collection__toolbar .zx-list-toolbar__tool,
+.collection .collection__toolbar .zx-list-toolbar__view,
+.collection .collection__toolbar .zx-record-view__field-controls > summary {
+  min-block-size: var(--zx-control-height);
+  min-inline-size: var(--zx-control-height);
+  padding-inline: var(--zx-space-2);
+}
+
+.collection .collection__toolbar .zx-list-toolbar__view {
+  padding-inline: var(--zx-space-1);
+}
+
 /* The view's field chooser sits among the tools: their target size and their quiet hover. */
 .collection .collection__toolbar .zx-record-view__field-controls > summary {
   gap: var(--zx-space-2);
-  min-block-size: 44px;
-  padding-inline: var(--zx-space-2);
   border-radius: var(--zx-control-radius);
   font-size: var(--zx-control-font-size);
   font-weight: var(--zx-control-font-weight);
