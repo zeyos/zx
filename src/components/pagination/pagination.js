@@ -163,8 +163,10 @@ export class Pagination extends Component {
     if (this.options.showSummary) {
       children.push(h('span', { class: 'zx-pagination__summary', ref: 'summary', ariaLive: 'polite' }));
     }
-    children.push(h('span', { class: 'zx-pagination__spacer' }));
+    // The summary and the page size describe the slice and sit together at the start; the pager
+    // walks the slice and sits alone at the end, where the next-page action is reached last.
     if (this.options.showPageSize) children.push(this._renderPageSize());
+    children.push(h('span', { class: 'zx-pagination__spacer' }));
     children.push(this.options.mode === 'pages' ? this._renderPages() : this._renderLoadMore());
     root.replaceChildren(...children);
 

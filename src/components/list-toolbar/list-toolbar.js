@@ -7,8 +7,10 @@ import { badge } from '../badge/badge.js';
 import { Search } from '../search/search.js';
 
 /**
- * Built-in view shapes, so `views: ['auto', 'cards', 'table']` needs no labels of its own. A host
- * that wants other words hands descriptors instead.
+ * Built-in view shapes, so `views: ['table', 'list', 'cards', 'gallery', 'board']` needs no labels
+ * of its own. A host that wants other words hands descriptors instead. Each shape has the glyph
+ * the overview tools people already use give it: a ruled grid for the table, lines for the list,
+ * tiles for cards, a picture for the gallery, and columns for the board.
  *
  * `auto` deliberately carries no icon: no glyph in the set says "whatever fits", and an icon that
  * has to be explained is worse than the word.
@@ -16,9 +18,11 @@ import { Search } from '../search/search.js';
  */
 const VIEW_PRESETS = Object.freeze({
   auto: { icon: null, key: 'listToolbar.viewAuto', fallback: 'Auto' },
-  cards: { icon: 'copy', key: 'listToolbar.viewCards', fallback: 'Cards' },
-  table: { icon: 'list', key: 'listToolbar.viewTable', fallback: 'Table' },
-  list: { icon: 'list', key: 'listToolbar.viewList', fallback: 'List' }
+  table: { icon: 'table', key: 'listToolbar.viewTable', fallback: 'Table' },
+  list: { icon: 'list', key: 'listToolbar.viewList', fallback: 'List' },
+  cards: { icon: 'grid', key: 'listToolbar.viewCards', fallback: 'Cards' },
+  gallery: { icon: 'image', key: 'listToolbar.viewGallery', fallback: 'Gallery' },
+  board: { icon: 'columns', key: 'listToolbar.viewBoard', fallback: 'Board' }
 });
 
 /**

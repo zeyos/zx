@@ -1,8 +1,8 @@
 /*
  * Pagination — the footer bar of a server-backed list.
  *
- * One row that wraps: the summary is pushed to the start, the page-size select and the pager sit
- * at the end. Page buttons are ordinary `.zx-btn` controls so they inherit the library's control
+ * One row that wraps: the summary and the page-size select describe the slice and sit at the
+ * start, the pager sits alone at the end. Page buttons are ordinary `.zx-btn` controls so they inherit the library's control
  * height, radius, and focus ring; the current page takes the neutral current fill — it is where
  * you are, not a call to action.
  */
@@ -22,8 +22,8 @@
   white-space: nowrap;
 }
 
-/* Absorbs the slack, so summary and controls end up at opposite ends of a wide bar and simply
-   stack when there is no room. */
+/* Absorbs the slack, so the summary and page size end up at the start and the pager at the end of
+   a wide bar, and they simply stack when there is no room. */
 .zx-pagination__spacer {
   flex: 1 1 var(--zx-space-4);
 }

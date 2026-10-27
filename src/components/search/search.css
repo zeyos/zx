@@ -13,8 +13,11 @@
 }
 
 /* The input reserves room for the clear button, which floats over its trailing edge, so showing
-   or hiding the button never changes the control's total width. */
+   or hiding the button never changes the control's total width. It takes every bit of width the
+   field is given — a toolbar stretches the field, and the submit glyph must stay on its trailing
+   edge rather than stopping where the input's own width ran out. */
 .zx-search__input {
+  flex: 1 1 auto;
   min-inline-size: 12rem;
   min-block-size: 0;
   border: 0;
