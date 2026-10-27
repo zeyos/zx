@@ -139,18 +139,18 @@ const VISIBLE = {
  */
 const FILTER_FIELDS = [
   {
-    id: 'stage', label: 'Stage', type: 'enum', icon: 'circle-half-stroke', operators: ['eq', 'neq', 'anyOf', 'noneOf'],
+    id: 'stage', label: 'Stage', type: 'enum', icon: 'circle-dot', operators: ['eq', 'neq', 'anyOf', 'noneOf'],
     choices: STAGES.map((stage) => ({ value: stage.id, label: stage.label }))
   },
   {
-    id: 'owner', label: 'Owner', type: 'enum', icon: 'circle-user', operators: ['anyOf', 'noneOf', 'eq', 'neq'],
+    id: 'owner', label: 'Owner', type: 'enum', icon: 'user', operators: ['anyOf', 'noneOf', 'eq', 'neq'],
     defaultOperator: 'anyOf',
     choices: OWNERS.map((id) => ({ value: id, label: person(id).name, short: person(id).name.split(' ')[0] }))
   },
-  { id: 'value', label: 'Value', type: 'money', icon: 'euro-sign', operators: ['gte', 'lte', 'gt', 'lt', 'between'] },
+  { id: 'value', label: 'Value', type: 'money', icon: 'coins', operators: ['gte', 'lte', 'gt', 'lt', 'between'] },
   { id: 'probability', label: 'Probability', type: 'number', icon: 'percent', operators: ['gte', 'lte', 'between'] },
   {
-    id: 'close', label: 'Close date', type: 'date', icon: 'calendar-days',
+    id: 'close', label: 'Close date', type: 'date', icon: 'calendar',
     operators: ['before', 'after', 'onOrBefore', 'onOrAfter', 'on', 'between']
   },
   { id: 'company', label: 'Company', type: 'text', icon: 'building', operators: ['contains', 'notContains', 'eq', 'startsWith'] },
@@ -440,9 +440,9 @@ export default {
         { id: 'recent', label: 'Recently viewed', icon: 'clock-regular', invoke: () => applyPreset('recent') },
         { id: 'deleted', label: 'Deleted', icon: 'trash-can', invoke: () => notify(unavailable('The deleted opportunities'), 'info') },
         { section: true, label: 'Saved views', children: [
-          { id: 'view:pipeline', label: 'Pipeline board', icon: 'table-columns', badge: 'Shared', invoke: () => applyPreset('pipeline') },
-          { id: 'view:closing', label: 'This month', icon: 'calendar-days', badge: 'Shared', invoke: () => applyPreset('closing') },
-          { id: 'view:mine', label: 'My pipeline', icon: 'bookmark-regular', badge: 'Personal', invoke: () => applyPreset('mine') }
+          { id: 'view:pipeline', label: 'Pipeline board', icon: 'columns', badge: 'Shared', invoke: () => applyPreset('pipeline') },
+          { id: 'view:closing', label: 'This month', icon: 'table', badge: 'Shared', invoke: () => applyPreset('closing') },
+          { id: 'view:mine', label: 'My pipeline', icon: 'table-cells-large', badge: 'Personal', invoke: () => applyPreset('mine') }
         ] },
         { section: true, label: 'Stage', children: [
           { id: 'stage:any', label: 'All stages', icon: 'circle-half-stroke', invoke: () => applyStage(null) },
@@ -663,6 +663,7 @@ export default {
         dataset: { index: index === null ? 'draft' : String(index) },
         onclick: (event) => toggleEditor(/** @type {HTMLElement} */ (event.currentTarget), index)
       },
+      icon(field.icon, { size: 13 }),
       h('span', { class: 'collection__chip-field' }, field.label),
       h('span', { class: 'collection__chip-operator' }, symbol === words ? words
         : [h('span', { ariaHidden: 'true' }, symbol), h('span', { class: 'visually-hidden' }, words)]),
@@ -1049,12 +1050,20 @@ export default {
         h('span', { class: 'collection__mark', ariaHidden: 'true', dataset: { tone: avatarTone(record.company) } }, avatarInitials(record.company)),
         h('span', { class: 'collection__company-name' }, record.company)),
       stage: (record) => badge({ label: stageOf(record.stage).label, kind: stageOf(record.stage).kind, dot: true, size: 'sm' }),
-      value: (record) => money(record.value),
+      // The amount, and under it in the table a thin bar for the probability of winning it. The
+      // bar is decoration: the Probability field says the number.
+      value: (record) => {
+        const fill = h('span', { class: 'collection__odds-fill' });
+        fill.style.inlineSize = `${record.probability}%`;
+        return h('span', { class: 'collection__value' },
+          h('span', { class: 'collection__amount' }, money(record.value)),
+          h('span', { class: 'collection__odds', ariaHidden: 'true', title: `${record.probability}% probability` }, fill));
+      },
       probability: (record) => `${record.probability}%`,
       owner: (record) => h('span', { class: 'person collection__owner' },
         rowParts.own(new Avatar(null, { name: person(record.owner).name, size: 20 })).toElement(),
         h('span', { class: 'person__name' }, person(record.owner).name)),
-      close: (record) => day(record.close),
+      close: (record) => h('span', { class: 'collection__date' }, day(record.close)),
       tags: (record) => (record.tags.length
         ? h('span', { class: 'collection__tags' }, record.tags.map((id) => {
           const tag = TAGS.find((entry) => entry.id === id);
@@ -1143,6 +1152,7 @@ export default {
           label: 'Opportunities by stage',
           // Each column, in each owner's lane when grouped, says what it holds and what it is worth.
           renderColumnHeader: ({ column, swimlane, count }) => h('span', { class: 'collection__column-head' },
+            dot(stageOf(column.id).dot),
             h('span', { class: 'collection__column-label' }, column.label),
             h('span', { class: 'collection__count' }, String(count)),
             h('span', { class: 'collection__column-total' }, money(filtered
@@ -1168,9 +1178,10 @@ export default {
         selectable: shape === 'gallery' ? false : 'multi',
         fieldControls,
         titleField: 'name',
-        subtitleField: 'company',
+        // Plain text: the list leads with the company's tile and the gallery's cover carries it.
+        subtitleField: (record) => record.company,
         groupBy,
-        preview: shape === 'gallery' ? (record) => cover(record) : undefined,
+        preview: shape === 'gallery' ? (record) => cover(record) : shape === 'list' ? (record) => tile(record) : undefined,
         minCardWidth: shape === 'list' ? '100%' : shape === 'gallery' ? '13rem' : '16rem',
         variant: 'outlined',
         label: `Opportunities as ${shape}`
@@ -1178,15 +1189,25 @@ export default {
     }
 
     /**
-     * A gallery card's picture: the company's initials on its categorical tone. Decorative — the
-     * card's subtitle names the company.
+     * A gallery card's picture: a wash of the company's tone with its initials, quiet, in the top
+     * corner — the card's subtitle names the company — and the amount as a pill in the bottom one.
      * @param {Record<string, any>} record
      * @returns {HTMLElement}
      */
     function cover(record) {
-      return h('div', { class: 'collection__cover', ariaHidden: 'true', dataset: { tone: avatarTone(record.company) } },
-        h('span', { class: 'collection__cover-mark' }, avatarInitials(record.company)),
-        h('span', { class: 'collection__cover-value' }, money(record.value)));
+      return h('div', { class: 'collection__cover', dataset: { tone: avatarTone(record.company) } },
+        h('span', { class: 'collection__cover-mark', ariaHidden: 'true' }, avatarInitials(record.company)),
+        h('span', { class: 'collection__cover-pill' }, h('span', { class: 'visually-hidden' }, 'Value '), money(record.value)));
+    }
+
+    /**
+     * A list row's leading tile: the company's initials on its tone, avatar-sized. Decorative.
+     * @param {Record<string, any>} record
+     * @returns {HTMLElement}
+     */
+    function tile(record) {
+      return h('span', { class: 'collection__tile', ariaHidden: 'true', dataset: { tone: avatarTone(record.company) } },
+        avatarInitials(record.company));
     }
 
     /** @param {Record<string, any>} row A group row. @returns {HTMLElement} Its label and count. */

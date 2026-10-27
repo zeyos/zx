@@ -47,6 +47,20 @@
   box-shadow: var(--zx-focus-ring);
 }
 
+/* While filters are active the Filter tool takes the accent tint, so the list says it is filtered
+   from the toolbar too. The badge still carries the count; the tint is never the only cue. */
+.collection .collection__toolbar .zx-list-toolbar__tool[data-tool-id="filter"]:has(.zx-badge) {
+  border-color: transparent;
+  background: var(--zx-color-accent-subtle);
+  color: var(--zx-color-accent);
+}
+
+/* The current presentation in the accent tint: the view you are on is a pick, not a mode. */
+.collection .collection__toolbar .zx-list-toolbar__view[aria-pressed="true"] {
+  background: var(--zx-color-accent-subtle);
+  color: var(--zx-color-accent);
+}
+
 /* The presentations name themselves by their icons; each word stays its button's name. */
 .collection .collection__toolbar .zx-list-toolbar__view-label {
   position: absolute;
@@ -59,7 +73,8 @@
 
 /* ---------------------------------------------------------------- filters -- */
 
-/* One row of chips under the toolbar; it wraps rather than scrolls, so every chip stays reachable. */
+/* A faint band of chips under the toolbar, across the full width; it wraps rather than scrolls,
+   so every chip stays reachable. */
 .collection .collection__filters {
   display: flex;
   flex: 0 0 auto;
@@ -68,6 +83,7 @@
   gap: var(--zx-space-2);
   padding: var(--zx-space-2) var(--zx-space-4);
   border-block-end: 1px solid var(--zx-color-border-subtle);
+  background: var(--zx-color-bg-chrome);
 }
 
 .collection .collection__match {
@@ -140,14 +156,15 @@
 }
 
 .collection .collection__chip-operator {
-  font-weight: var(--zx-weight-semibold);
+  color: var(--zx-color-text-muted);
   white-space: nowrap;
 }
 
 .collection .collection__chip-value {
   overflow: hidden;
   min-inline-size: 0;
-  font-weight: var(--zx-weight-medium);
+  color: var(--zx-color-text);
+  font-weight: var(--zx-weight-semibold);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -296,16 +313,100 @@
   display: none;
 }
 
-/* The table scrolls with the body, so its sticky header sticks to the body's top edge. */
+/* A new presentation fades in rather than snapping into place. */
+@media (prefers-reduced-motion: no-preference) {
+  .collection .collection__body > * {
+    animation: collection-view-in var(--zx-dur-fast) var(--zx-ease);
+  }
+}
+
+@keyframes collection-view-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* The table scrolls with the body, so its sticky header sticks to the body's top edge. Its
+   hairlines are the subtle border throughout, the header's included. */
 .collection .collection__body .zx-table__scroll {
   overflow: visible;
+}
+
+.collection .collection__body .zx-table {
+  --zx-table-border-color: var(--zx-color-border-subtle);
+}
+
+/* The amount over a thin bar of its probability. The bar shows in the table only. */
+.collection .collection__value {
+  display: inline-grid;
+  justify-items: end;
+  gap: 3px;
+}
+
+.collection .collection__amount {
+  font-variant-numeric: tabular-nums;
+}
+
+.collection .collection__odds {
+  display: none;
+}
+
+.collection .collection__body[data-shape="table"] .collection__odds {
+  display: block;
+  inline-size: 100%;
+  min-inline-size: var(--zx-space-8);
+  block-size: 3px;
+  overflow: hidden;
+  border-radius: var(--zx-radius-full);
+  background: var(--zx-color-bg-muted);
+}
+
+.collection .collection__odds-fill {
+  display: block;
+  block-size: 100%;
+  border-radius: inherit;
+  background: var(--zx-color-accent);
+}
+
+.collection .collection__body[data-shape="table"] .zx-table:not([data-stacked]) td:has(.collection__value) {
+  padding-block: var(--zx-space-1);
+}
+
+/* Dates line up by their digits. */
+.collection .collection__date {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Where the table may run wider than the pane, the selection and the opportunity's name stay put
+   while the rest scrolls under them. */
+@container shell (max-width: 1180px) {
+  .collection .collection__body .zx-table:not([data-stacked]) :is(.zx-table__selection-header, .zx-table__selection-cell),
+  .collection .collection__body .zx-table:not([data-stacked]) tr > :is(th, td):nth-child(2) {
+    position: sticky;
+    z-index: 1;
+    inset-inline-start: 0;
+    background: var(--zx-color-bg-surface);
+  }
+
+  .collection .collection__body .zx-table:not([data-stacked]) tr > :is(th, td):nth-child(2) {
+    inset-inline-start: var(--zx-control-height);
+    box-shadow: inset -1px 0 0 var(--zx-color-border-subtle);
+  }
+
+  .collection .collection__body .zx-table:not([data-stacked]) thead :is(th, td) {
+    z-index: 3;
+  }
+
+  .collection .collection__body .zx-table:not([data-stacked]) tr[aria-selected="true"] > :is(td, th) {
+    background: linear-gradient(var(--zx-color-bg-selected), var(--zx-color-bg-selected)), var(--zx-color-bg-surface);
+  }
 }
 
 .collection .collection__body .zx-table:not([data-stacked]) td {
   white-space: nowrap;
 }
 
-.collection .collection__body .zx-table:not([data-stacked]) :is(th, td):first-child {
+.collection .collection__body .zx-table:not([data-stacked]) :is(th, td):first-child:not(.zx-table__selection-header, .zx-table__selection-cell) {
   padding-inline-start: var(--zx-space-4);
 }
 
@@ -369,12 +470,33 @@
   white-space: nowrap;
 }
 
-/* The list: one dense row per record — the title and company, then the values at the end. */
+/* The tones a company tile, a mark, and a gallery cover draw in: categorical, from the tone roles. */
+.collection [data-tone="blue"] { --collection-tone: var(--zx-color-tone-blue-bg); --collection-ink: var(--zx-color-tone-blue-fg); }
+.collection [data-tone="teal"] { --collection-tone: var(--zx-color-tone-teal-bg); --collection-ink: var(--zx-color-tone-teal-fg); }
+.collection [data-tone="green"] { --collection-tone: var(--zx-color-tone-green-bg); --collection-ink: var(--zx-color-tone-green-fg); }
+.collection [data-tone="amber"] { --collection-tone: var(--zx-color-tone-amber-bg); --collection-ink: var(--zx-color-tone-amber-fg); }
+.collection [data-tone="orange"] { --collection-tone: var(--zx-color-tone-orange-bg); --collection-ink: var(--zx-color-tone-orange-fg); }
+.collection [data-tone="red"] { --collection-tone: var(--zx-color-tone-red-bg); --collection-ink: var(--zx-color-tone-red-fg); }
+.collection [data-tone="pink"] { --collection-tone: var(--zx-color-tone-pink-bg); --collection-ink: var(--zx-color-tone-pink-fg); }
+.collection [data-tone="violet"] { --collection-tone: var(--zx-color-tone-violet-bg); --collection-ink: var(--zx-color-tone-violet-fg); }
+.collection [data-tone="slate"] { --collection-tone: var(--zx-color-tone-slate-bg); --collection-ink: var(--zx-color-tone-slate-fg); }
+
+.collection .collection__mark,
+.collection .collection__tile {
+  background: var(--collection-tone);
+  color: var(--collection-ink);
+}
+
+/* ---------------------------------------------------------------- list -- */
+
+/* The list: one two-line row per record on a fixed grid — the selection, the company tile, the
+   title over the company, then stage, value, owner, and close date in columns that line up from
+   row to row. The card's own wrappers step aside (display: contents) so every part is a cell. */
 .collection .collection__body[data-shape="list"] .zx-card-view__list {
   gap: 0;
-  border: 1px solid var(--zx-color-border);
-  border-radius: var(--zx-radius-lg);
   overflow: hidden;
+  border: 1px solid var(--zx-color-border-subtle);
+  border-radius: var(--zx-radius-lg);
 }
 
 .collection .collection__body[data-shape="list"] .zx-card-view__group + .zx-card-view__group {
@@ -382,6 +504,10 @@
 }
 
 .collection .collection__body[data-shape="list"] .zx-record-card {
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--zx-space-1) var(--zx-space-3);
+  padding: var(--zx-space-2) var(--zx-space-4);
   border: 0;
   border-radius: 0;
 }
@@ -390,7 +516,12 @@
   border-block-start: 1px solid var(--zx-color-border-subtle);
 }
 
+.collection .collection__body[data-shape="list"] .zx-record-card:hover {
+  background: var(--zx-color-bg-hover);
+}
+
 .collection .collection__body[data-shape="list"] .zx-record-card[data-selected="true"] {
+  background: var(--zx-color-bg-selected);
   box-shadow: inset 2px 0 0 var(--zx-color-accent);
 }
 
@@ -398,30 +529,34 @@
   box-shadow: inset var(--zx-focus-ring);
 }
 
-.collection .collection__body[data-shape="list"] .zx-record-card__body {
-  display: flex;
-  align-items: center;
-  gap: var(--zx-space-4);
-  padding: var(--zx-space-2) var(--zx-space-4);
+.collection .collection__body[data-shape="list"] :is(.zx-record-card__body, .zx-record-card__header) {
+  display: contents;
 }
 
-.collection .collection__body[data-shape="list"] .zx-record-card__header {
-  flex: 1 1 14rem;
-  align-items: center;
+.collection .collection__body[data-shape="list"] .zx-record-card__selection {
+  grid-row: 1;
+  grid-column: 1;
+}
+
+.collection .collection__body[data-shape="list"] .zx-record-card__preview {
+  grid-row: 1;
+  grid-column: 2;
+  inline-size: var(--zx-space-7);
+  block-size: var(--zx-space-7);
+  margin: 0;
+  border-radius: var(--zx-radius-md);
 }
 
 .collection .collection__body[data-shape="list"] .zx-record-card__titles {
-  display: flex;
-  align-items: baseline;
-  gap: var(--zx-space-2);
-  overflow: hidden;
+  grid-row: 1;
+  grid-column: 3;
+  min-inline-size: 0;
 }
 
 .collection .collection__body[data-shape="list"] .zx-record-card__heading {
-  flex: 0 1 auto;
   overflow: hidden;
   font-size: var(--zx-text-md);
-  font-weight: var(--zx-weight-medium);
+  font-weight: var(--zx-weight-semibold);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -429,19 +564,25 @@
 .collection .collection__body[data-shape="list"] .zx-record-card__subtitle {
   overflow: hidden;
   margin: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+/* Narrow, the values run under the title as one wrapping line. */
 .collection .collection__body[data-shape="list"] .zx-record-card__metadata {
   display: flex;
-  flex: 0 1 auto;
-  align-items: center;
-  gap: var(--zx-space-4);
+  flex-wrap: wrap;
+  grid-row: 2;
+  grid-column: 3;
+  gap: var(--zx-space-1) var(--zx-space-3);
 }
 
 .collection .collection__body[data-shape="list"] .zx-record-card__field {
   display: block;
+  padding: 0;
+  background: none;
 }
 
 /* A row's values speak for themselves; their labels stay for screen readers. */
@@ -455,17 +596,47 @@
 }
 
 .collection .collection__body[data-shape="list"] .zx-record-card__value {
+  overflow: hidden;
   overflow-wrap: normal;
+  font-size: var(--zx-text-sm);
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* A row's values are plain text, not the tinted pairs a card draws. */
-.collection .collection__body[data-shape="list"] .zx-record-card__field {
-  padding: 0;
-  background: none;
+.collection .collection__body[data-shape="list"] :is([data-field-id="value"], [data-field-id="close"]) .zx-record-card__value {
+  font-variant-numeric: tabular-nums;
 }
 
-/* The gallery: a picture across the top of every card, the titles and two values under it. */
+/* Wide, every value takes its column. A field shown from the Fields menu beyond the four runs on
+   in a line of its own under the title. */
+@container collection (min-width: 46rem) {
+  .collection .collection__body[data-shape="list"] .zx-record-card {
+    grid-template-columns: auto auto minmax(0, 1fr) 8.5rem 7rem 11rem 7.5rem;
+    column-gap: var(--zx-space-4);
+  }
+
+  .collection .collection__body[data-shape="list"] .zx-record-card__metadata {
+    display: contents;
+  }
+
+  .collection .collection__body[data-shape="list"] .zx-record-card__field {
+    grid-row: 1;
+  }
+
+  .collection .collection__body[data-shape="list"] [data-field-id="stage"] { grid-column: 4; }
+  .collection .collection__body[data-shape="list"] [data-field-id="value"] { grid-column: 5; text-align: end; }
+  .collection .collection__body[data-shape="list"] [data-field-id="owner"] { grid-column: 6; }
+  .collection .collection__body[data-shape="list"] [data-field-id="close"] { grid-column: 7; text-align: end; }
+
+  .collection .collection__body[data-shape="list"] .zx-record-card__field:not([data-field-id="stage"], [data-field-id="value"], [data-field-id="owner"], [data-field-id="close"]) {
+    grid-row: 2;
+    grid-column: 3;
+  }
+}
+
+/* --------------------------------------------------------------- gallery -- */
+
+/* The gallery: a 16:10 cover across the top of every card, the titles and two values under it. */
 .collection .collection__body[data-shape="gallery"] .zx-record-card:has(> .zx-record-card__preview) {
   grid-template-columns: minmax(0, 1fr);
   align-content: start;
@@ -477,55 +648,104 @@
   margin: 0;
   border-block-end: 1px solid var(--zx-color-border-subtle);
   border-radius: 0;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: 16 / 10;
 }
 
 .collection .collection__body[data-shape="gallery"] .zx-record-card:has(> .zx-record-card__preview) .zx-record-card__body {
   padding-inline-start: var(--zx-card-view-card-padding);
 }
 
-/* The gallery's picture: the company's initials and the amount on its categorical tone. */
+.collection .collection__body[data-shape="gallery"] .zx-record-card:is(:hover, :focus-within) {
+  box-shadow: var(--zx-overlay-shadow);
+}
+
+.collection .collection__body[data-shape="gallery"] .zx-record-card:focus-visible {
+  box-shadow: var(--zx-focus-ring), var(--zx-overlay-shadow);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .collection .collection__body[data-shape="gallery"] .zx-record-card {
+    transition:
+      transform var(--zx-dur-fast) var(--zx-ease),
+      box-shadow var(--zx-dur-fast) var(--zx-ease),
+      border-color var(--zx-dur-fast) var(--zx-ease);
+  }
+
+  .collection .collection__body[data-shape="gallery"] .zx-record-card:is(:hover, :focus-within) {
+    transform: translateY(-2px);
+  }
+}
+
+/* The cover: a wash from the company's tone into the surface, its initials small in the top
+   corner, and the amount as a raised pill in the bottom one. */
 .collection .collection__cover {
-  display: grid;
-  place-content: center;
-  justify-items: center;
-  gap: var(--zx-space-1);
+  position: relative;
+  display: block;
+  background: linear-gradient(150deg, var(--collection-tone) 0%, var(--zx-color-bg-surface) 115%);
+  color: var(--collection-ink);
 }
 
 .collection .collection__cover-mark {
-  font-size: var(--zx-text-2xl);
+  position: absolute;
+  inset-block-start: var(--zx-space-3);
+  inset-inline-start: var(--zx-space-3);
+  font-size: var(--zx-text-sm);
   font-weight: var(--zx-weight-semibold);
   letter-spacing: var(--zx-tracking-tight);
+  opacity: 0.8;
 }
 
-.collection .collection__cover-value {
-  font-size: var(--zx-text-sm);
+.collection .collection__cover-pill {
+  position: absolute;
+  inset-block-end: var(--zx-space-3);
+  inset-inline-end: var(--zx-space-3);
+  padding: var(--zx-space-1) var(--zx-space-2);
+  border: 1px solid var(--zx-color-border-subtle);
+  border-radius: var(--zx-radius-full);
+  background: var(--zx-color-bg-raised);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--zx-color-text) 12%, transparent);
+  color: var(--zx-color-text);
+  font-size: var(--zx-text-xs);
+  font-weight: var(--zx-weight-semibold);
   font-variant-numeric: tabular-nums;
+  line-height: 1.2;
 }
 
-.collection .collection__mark[data-tone="blue"],
-.collection .collection__cover[data-tone="blue"] { background: var(--zx-color-tone-blue-bg); color: var(--zx-color-tone-blue-fg); }
-.collection .collection__mark[data-tone="teal"],
-.collection .collection__cover[data-tone="teal"] { background: var(--zx-color-tone-teal-bg); color: var(--zx-color-tone-teal-fg); }
-.collection .collection__mark[data-tone="green"],
-.collection .collection__cover[data-tone="green"] { background: var(--zx-color-tone-green-bg); color: var(--zx-color-tone-green-fg); }
-.collection .collection__mark[data-tone="amber"],
-.collection .collection__cover[data-tone="amber"] { background: var(--zx-color-tone-amber-bg); color: var(--zx-color-tone-amber-fg); }
-.collection .collection__mark[data-tone="orange"],
-.collection .collection__cover[data-tone="orange"] { background: var(--zx-color-tone-orange-bg); color: var(--zx-color-tone-orange-fg); }
-.collection .collection__mark[data-tone="red"],
-.collection .collection__cover[data-tone="red"] { background: var(--zx-color-tone-red-bg); color: var(--zx-color-tone-red-fg); }
-.collection .collection__mark[data-tone="pink"],
-.collection .collection__cover[data-tone="pink"] { background: var(--zx-color-tone-pink-bg); color: var(--zx-color-tone-pink-fg); }
-.collection .collection__mark[data-tone="violet"],
-.collection .collection__cover[data-tone="violet"] { background: var(--zx-color-tone-violet-bg); color: var(--zx-color-tone-violet-fg); }
-.collection .collection__mark[data-tone="slate"],
-.collection .collection__cover[data-tone="slate"] { background: var(--zx-color-tone-slate-bg); color: var(--zx-color-tone-slate-fg); }
+/* A list row's company tile: avatar-sized, the initials centred. */
+.collection .collection__tile {
+  display: grid;
+  place-items: center;
+  font-size: var(--zx-text-xs);
+  font-weight: var(--zx-weight-semibold);
+}
+
+/* ----------------------------------------------------------------- board -- */
+
+/* Each stage's column carries a faint wash of its tone; Won settles on the success tint. */
+.collection .collection__body .zx-kanban-view__column {
+  --collection-stage: var(--zx-color-tone-slate-bg);
+
+  padding: var(--zx-space-2);
+  border-radius: var(--zx-radius-lg);
+  background: color-mix(in srgb, var(--collection-stage) 40%, transparent);
+}
+
+.collection .collection__body .zx-kanban-view__column[data-column="proposal"] { --collection-stage: var(--zx-color-tone-blue-bg); }
+.collection .collection__body .zx-kanban-view__column[data-column="negotiation"] { --collection-stage: var(--zx-color-tone-amber-bg); }
+.collection .collection__body .zx-kanban-view__column[data-column="won"] { --collection-stage: var(--zx-color-success-bg); }
+.collection .collection__body .zx-kanban-view__column[data-column="lost"] { --collection-stage: var(--zx-color-tone-red-bg); }
+
+/* A card in flight is lifted well above the resting ones, and so is the preview that follows the
+   pointer. */
+.collection .collection__body .zx-kanban-view .zx-record-card[data-dragging="true"],
+.collection .collection__body .zx-kanban-view__drag-preview {
+  box-shadow: var(--zx-drag-shadow), var(--zx-overlay-shadow);
+}
 
 /* The board's column heads: the stage, its count, and what it is worth. */
 .collection .collection__column-head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: var(--zx-space-2);
   min-inline-size: 0;
 }
@@ -539,6 +759,13 @@
   color: var(--zx-color-text-muted);
   font-size: var(--zx-text-sm);
   font-variant-numeric: tabular-nums;
+}
+
+/* The module menu's counts read as one right-aligned column of tabular figures. */
+.collection .shell__nav .zx-app-sidebar__item-badge {
+  min-inline-size: 3ch;
+  font-variant-numeric: tabular-nums;
+  text-align: end;
 }
 
 /* ----------------------------------------------------------------- footer -- */
@@ -556,21 +783,6 @@
 /* A narrow collection: the list keeps the title and moves the values under it; the clear button
    follows the chips instead of pushing to the far end. */
 @container collection (max-width: 40rem) {
-  .collection .collection__body[data-shape="list"] .zx-record-card__body {
-    flex-wrap: wrap;
-    gap: var(--zx-space-1) var(--zx-space-3);
-  }
-
-  .collection .collection__body[data-shape="list"] .zx-record-card__header {
-    flex-basis: 100%;
-  }
-
-  .collection .collection__body[data-shape="list"] .zx-record-card__metadata {
-    flex-wrap: wrap;
-    gap: var(--zx-space-1) var(--zx-space-3);
-    padding-inline-start: calc(1rem + var(--zx-space-3));
-  }
-
   .collection .collection__clear {
     margin-inline-start: 0;
   }
