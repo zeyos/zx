@@ -28,7 +28,7 @@ import { LAYOUT_IDS } from './layouts/index.js';
 /** Component demos, in sidebar order. The id is the `website/demos/<id>.demo.js` basename. */
 const COMPONENT_IDS = [
   'tokens', 'kernel', 'icons', 'helpers', 'truncate',
-  'button', 'badge', 'check-button', 'toggle', 'search', 'launcher', 'app-icon', 'avatar', 'account-menu', 'number-field', 'rating', 'slider', 'copy',
+  'button', 'badge', 'check-button', 'toggle', 'search', 'launcher', 'app-icon', 'avatar', 'account-menu', 'workspace-switcher', 'number-field', 'rating', 'slider', 'copy',
   'layout', 'groupbox', 'card', 'stat-tile', 'aurora', 'panel', 'tabbox', 'navigation-bar', 'toolbar', 'empty-state',
   'stepper', 'breadcrumb', 'split-view', 'dock', 'app-sidebar', 'module-bar',
   'loading', 'skeleton',

@@ -123,6 +123,7 @@ export {
   ActivityList, groupActivityItems, normalizeActivityItems
 } from './components/activity-list/activity-list.js';
 export { AccountMenu } from './components/account-menu/account-menu.js';
+export { WorkspaceSwitcher } from './components/workspace-switcher/workspace-switcher.js';
 export { normalizeAppItems } from './internal/app-rail.js';
 export { ModuleBar, partitionModules, resolveModuleColor } from './components/module-bar/module-bar.js';
 export { AppSidebar, presentationGlyph } from './components/app-sidebar/app-sidebar.js';

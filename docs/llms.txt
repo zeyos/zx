@@ -48,7 +48,8 @@ exports and as `window.zx.*`.
   buttons), `MasterPanel`, `Tabbox`
   (`variant: 'divided'|'bracket'|'line'|'segmented'`), `NavigationBar`, `AppSidebar` (expanded and
   minimized vertical states plus horizontal rail layouts; sections; a modules layout), `ModuleBar`
-  (colour-coded module strip or bar with flyout menus and an "All modules" catalogue), `AccountMenu`, `Launcher`,
+  (colour-coded module strip or bar with flyout menus and an "All modules" catalogue), `AccountMenu`,
+  `WorkspaceSwitcher` (workspace tile, name and menu at the head of a navigation column), `Launcher`,
   `spinner()`/`ProgressBar`/`InlineLoading`, `skeleton()`/`skeletonText()`/`skeletonTable()`,
   `Toolbar` (APG toolbar with overflow menu), `SplitView`, `Dock`
   (collapsible resizable pane stack; tab groups, regions, adopts a `Sheet`), `Stepper`,

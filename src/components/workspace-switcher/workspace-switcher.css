@@ -1,0 +1,188 @@
+/*
+ * WorkspaceSwitcher — the current workspace at the head of a navigation column.
+ *
+ * The tile is the module bar's tile: one control less a space-1 inset, so a switcher above a
+ * module strip lines its tile up with the module tiles under it, at every control height.
+ */
+.zx-workspace-switcher {
+  --zx-workspace-switcher-tile: calc(var(--zx-control-height) - var(--zx-space-1));
+  display: block;
+  box-sizing: border-box;
+  /* Full width of whatever holds it, so it fills a sidebar header even inside a flex row. */
+  inline-size: 100%;
+  min-inline-size: 0;
+}
+
+/*
+ * The trigger is a flat row, not a button. MenuButton makes it a `.zx-btn.zx-menu-button`, and
+ * both of those stylesheets load after this one, so every rule here is scoped under the root to
+ * out-specify them, and takes back each property they set: the border, the glass fill, the blur,
+ * the shadow, the centred inline-flex pill.
+ */
+.zx-workspace-switcher .zx-workspace-switcher__trigger {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  justify-content: stretch;
+  gap: var(--zx-space-2);
+  box-sizing: border-box;
+  inline-size: 100%;
+  min-block-size: calc(var(--zx-control-height) + var(--zx-space-2));
+  border: 0;
+  border-radius: var(--zx-radius-md);
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: none;
+  /* A space-1 start inset puts the tile where a module-bar row puts its tile, list inset and row
+     padding together, so the switcher heads a module strip in line with the tiles under it. */
+  padding-block: var(--zx-space-1);
+  padding-inline: var(--zx-space-1) var(--zx-space-2);
+  color: var(--zx-color-text);
+  font-weight: var(--zx-weight-medium);
+  line-height: 1.3;
+  text-align: start;
+}
+
+.zx-workspace-switcher .zx-workspace-switcher__trigger:is(:hover, [aria-expanded="true"]):not(:disabled) {
+  background: var(--zx-color-bg-hover);
+}
+
+.zx-workspace-switcher .zx-workspace-switcher__trigger:active:not(:disabled) {
+  background: var(--zx-color-bg-current);
+}
+
+.zx-workspace-switcher .zx-workspace-switcher__trigger:focus-visible {
+  outline: none;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.zx-workspace-switcher__tile {
+  display: inline-grid;
+  place-items: center;
+  inline-size: var(--zx-workspace-switcher-tile);
+  block-size: var(--zx-workspace-switcher-tile);
+}
+
+.zx-workspace-switcher__tile[hidden] { display: none; }
+
+.zx-workspace-switcher__text {
+  display: grid;
+  min-inline-size: 0;
+  gap: 1px;
+}
+
+.zx-workspace-switcher__name,
+.zx-workspace-switcher__secondary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zx-workspace-switcher__name {
+  font-size: var(--zx-text-md);
+  font-weight: var(--zx-weight-semibold);
+}
+
+.zx-workspace-switcher__secondary {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-weight: 400;
+}
+
+.zx-workspace-switcher__secondary[hidden] { display: none; }
+
+.zx-workspace-switcher__chevron {
+  display: inline-flex;
+  color: var(--zx-color-text-subtle);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .zx-workspace-switcher .zx-workspace-switcher__trigger {
+    transition: background-color var(--zx-dur-fast) var(--zx-ease);
+  }
+
+  .zx-workspace-switcher__chevron {
+    transition: transform var(--zx-dur-fast) var(--zx-ease);
+  }
+}
+
+.zx-workspace-switcher__trigger[aria-expanded="true"] .zx-workspace-switcher__chevron {
+  transform: rotate(180deg);
+}
+
+/* Compact: the tile alone, in a square target the size of a module-bar target. */
+.zx-workspace-switcher[data-compact="true"] {
+  inline-size: fit-content;
+}
+
+.zx-workspace-switcher[data-compact="true"] .zx-workspace-switcher__trigger {
+  display: inline-grid;
+  grid-template-columns: auto;
+  place-content: center;
+  inline-size: calc(var(--zx-control-height) + var(--zx-space-2));
+  block-size: calc(var(--zx-control-height) + var(--zx-space-2));
+  padding: 0;
+}
+
+.zx-workspace-switcher[data-compact="true"] .zx-workspace-switcher__text,
+.zx-workspace-switcher[data-compact="true"] .zx-workspace-switcher__chevron {
+  display: none;
+}
+
+/* An image tile: the same box and corner as an AppIcon tile. */
+.zx-workspace-switcher__image {
+  display: block;
+  overflow: hidden;
+  inline-size: var(--zx-workspace-switcher-tile);
+  block-size: var(--zx-workspace-switcher-tile);
+  border-radius: var(--zx-radius-sm);
+  background: var(--zx-color-bg-muted);
+}
+
+.zx-workspace-switcher__image > img {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+}
+
+.zx-workspace-switcher__initials {
+  font-weight: var(--zx-weight-semibold);
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+/* The menu: a workspace row leads with its tile and ends with a check on the current one. */
+.zx-workspace-switcher__menu {
+  --zx-workspace-switcher-tile: calc(var(--zx-control-height) - var(--zx-space-2));
+  min-inline-size: 240px;
+}
+
+/* Every row's leading column is a tile wide, so action labels line up with workspace names. */
+.zx-workspace-switcher__menu .zx-menu-button__leading {
+  inline-size: var(--zx-workspace-switcher-tile);
+}
+
+.zx-workspace-switcher__menu .zx-workspace-switcher__option[aria-checked="true"] {
+  background: var(--zx-color-bg-current);
+}
+
+.zx-workspace-switcher__menu .zx-workspace-switcher__option[aria-checked="true"]:is(:hover, :focus-visible) {
+  background: var(--zx-color-overlay-hover);
+}
+
+.zx-workspace-switcher__check {
+  display: inline-flex;
+  color: var(--zx-color-accent);
+}
+
+.zx-workspace-switcher__option[aria-checked="false"] .zx-workspace-switcher__check {
+  visibility: hidden;
+}
+
+@media (forced-colors: active) {
+  .zx-workspace-switcher .zx-workspace-switcher__trigger:focus-visible {
+    outline: 2px solid Highlight;
+  }
+}

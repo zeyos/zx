@@ -442,6 +442,51 @@ const cases = [
       `account menu ancestor received ${ancestorSelects} bubbling select events instead of one`);
     component.close().setAccount({ name: 'Grace Hopper' });
   }),
+  componentCase('WorkspaceSwitcher', () => new zx.WorkspaceSwitcher(null, {
+    workspaces: [
+      { id: 'north', label: 'Northwind', secondary: 'Business plan', tone: 'blue' },
+      { id: 'acme', label: 'Acme Labs', secondary: 'Member', icon: 'star' },
+      { id: 'old', label: 'Archive', disabled: true }
+    ],
+    items: [{ label: 'Workspace settings', value: 'settings', onselect: () => {
+      throw new Error('canceled workspace action invoked its item callback');
+    } }],
+    onaction: (event) => event.preventDefault()
+  }), (component) => {
+    let rootSelects = 0;
+    let ancestorSelects = 0;
+    component.el.addEventListener('zx-select', () => { rootSelects += 1; });
+    component.el.parentElement.addEventListener('zx-select', () => { ancestorSelects += 1; });
+    assert(component.getActive()?.id === 'north', 'first workspace was not active by default');
+    assert(component.refs.trigger.getAttribute('aria-haspopup') === 'menu', 'trigger is not a menu button');
+    assert(component.refs.trigger.getAttribute('aria-label').includes('Northwind'),
+      'trigger label omitted the workspace name');
+    component.open();
+    assert(component.isOpen(), 'workspace menu did not open');
+    const panel = component.getPanel();
+    assert(panel.querySelectorAll('[role="menuitemradio"]').length === 3, 'workspaces are not radio items');
+    assert(panel.querySelector('[role="menuitemradio"][aria-checked="true"]')?.textContent.includes('Northwind'),
+      'current workspace not checked');
+    assert(panel.querySelector('[role="separator"]'), 'no separator between workspaces and actions');
+    const action = /** @type {HTMLElement} */ (panel.querySelector('[role="menuitem"]'));
+    action.click();
+    assert(component.isOpen(), 'canceled workspace action closed the menu');
+    const acme = /** @type {HTMLElement} */ ([...panel.querySelectorAll('[role="menuitemradio"]')]
+      .find((row) => row.textContent.includes('Acme')));
+    acme.click();
+    assert(!component.isOpen(), 'choosing a workspace left the menu open');
+    assert(component.getActive()?.id === 'acme', 'choosing a workspace did not switch to it');
+    assert(rootSelects === 1, `workspace switcher emitted ${rootSelects} bubbling select events instead of one`);
+    assert(ancestorSelects === 1,
+      `workspace switcher ancestor received ${ancestorSelects} bubbling select events instead of one`);
+    component.on('select', (event) => event.preventDefault());
+    component.setActive('north', { silent: false });
+    assert(component.getActive()?.id === 'acme', 'a canceled select still switched workspace');
+    component.setCompact(true);
+    assert(component.refs.trigger.getAttribute('title') === 'Acme Labs', 'compact trigger has no tooltip');
+    component.setWorkspaces([{ id: 'solo', label: 'Solo' }]);
+    assert(component.getActive()?.id === 'solo', 'replaced workspaces did not fall back to the first');
+  }),
   componentCase('AppSidebar (horizontal rail)', () => new zx.AppSidebar(null, {
     items: [{ id: 'sales', label: 'Sales', icon: 'search', children: [
       { id: 'blocked', label: 'Unavailable', disabled: true },

@@ -66,7 +66,8 @@ available as ESM named exports and as `window.zx.*`.
   `NavigationBar`, `AppSidebar` (expanded/minimized vertical and horizontal rail states; sections; a
   modules layout), `ModuleBar` (colour-coded module strip or bar with flyout menus and an "All
   modules" catalogue),
-  `AccountMenu`, `Launcher`, `spinner()`/`ProgressBar`/`InlineLoading`,
+  `AccountMenu`, `WorkspaceSwitcher` (workspace tile, name and menu at the head of a navigation
+  column), `Launcher`, `spinner()`/`ProgressBar`/`InlineLoading`,
   `skeleton()`/`skeletonText()`/`skeletonTable()`, `Toolbar`, `SplitView`, `Dock` (collapsible
   resizable pane stack; tab groups,
   regions, adopts a `Sheet`), `Stepper`, `Breadcrumb`, `emptyState()`.
