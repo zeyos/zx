@@ -1,7 +1,8 @@
 import { Component } from '../../core/component.js';
 import { h, resolveElement } from '../../core/dom.js';
 import { icon } from '../../core/icons.js';
-import { overlayHost } from '../../core/overlay-host.js';
+import { overlayScope } from '../../core/overlay-host.js';
+import { overlayStack } from '../../core/overlay-stack.js';
 import { button } from '../button/button.js';
 
 /** @typedef {'info'|'success'|'warning'|'error'} MessageKind */
@@ -160,9 +161,6 @@ export class Message extends Component {
     maxVisible: 5
   };
 
-  /** @type {WeakMap<Element, Message>} Floating region per overlay host. */
-  static #floating = new WeakMap();
-
   /** @returns {HTMLElement} */
   render() {
     const created = !this.el;
@@ -170,8 +168,14 @@ export class Message extends Component {
     this._createdRoot = created;
     this._original = created ? null : snapshot(root);
     this._entries = new Set();
-    /** @type {Element|null} The overlay host this instance is the floating region of; null when inline. */
+    /** @type {Element|null} The theme scope this instance is the floating region of; null when inline. */
     this._floatingHost = null;
+    /** @type {Element|null} Where the floating region was last put: its scope, or the topmost modal. */
+    this._placedIn = null;
+    /** @type {import('../../core/overlay-stack.js').OverlayHandle|null} The region's toast entry. */
+    this._overlay = null;
+    /** @type {(() => void)|null} Stops following the overlay stack. */
+    this._unfollow = null;
     this._queue = new MessageQueue(normalizeLimit(this.options.maxVisible), (entry) => {
       this._activate(entry);
     });
@@ -276,10 +280,8 @@ export class Message extends Component {
     if (scope == null) return false;
     const context = resolveElement(scope);
     if (!context) return false;
-    const host = overlayHost(context);
-    const region = Message.#floating.get(host);
+    const region = Message.#regionFor(overlayScope(context));
     if (!region) return false;
-    Message.#floating.delete(host);
     region._disposeFloating();
     return true;
   }
@@ -288,7 +290,13 @@ export class Message extends Component {
   destroy() {
     if (this._cleaned) return;
     this._cleaned = true;
+    this._unfollow?.();
+    this._unfollow = null;
+    const overlay = this._overlay;
+    this._overlay = null;
+    overlay?.release();
     this._floatingHost = null;
+    this._placedIn = null;
     for (const entry of this._entries) {
       clearEntryTimers(entry);
       entry.node.remove();
@@ -526,6 +534,23 @@ export class Message extends Component {
   }
 
   /**
+   * Puts a floating region where it can be seen and used: inside the topmost open modal dialog
+   * while one is open — outside it, `showModal()` would leave every toast unclickable — and in its
+   * own theme scope otherwise. Re-showing it after a move puts it back on top of the top layer.
+   * @returns {void}
+   */
+  _rehome() {
+    const host = this._floatingHost;
+    if (!host) return;
+    const target = overlayStack.topmostModal() ?? host;
+    if (this.el.parentElement === target && this._placedIn === target) return;
+    target.append(this.el);
+    this._placedIn = target;
+    const region = /** @type {HTMLElement} */ (this.el);
+    if (typeof region.showPopover === 'function' && !region.matches(':popover-open')) region.showPopover();
+  }
+
+  /**
    * Destroys a floating region and removes its element.
    * @returns {void}
    */
@@ -554,33 +579,48 @@ export class Message extends Component {
    * @returns {Message}
    */
   static #floatingRegion(scope) {
-    let host = overlayHost(scope ?? null);
+    let host = overlayScope(scope ?? null);
     // A scope that has itself left the document cannot show anything; the toast still must be seen.
-    if (!host.isConnected) host = overlayHost(null);
-    const existing = this.#floating.get(host);
-    if (existing && existing.el.isConnected && existing.el.parentElement === host) return existing;
-    if (existing) {
-      this.#floating.delete(host);
-      existing._disposeFloating();
+    if (!host.isConnected) host = overlayScope(null);
+    const existing = this.#regionFor(host);
+    if (existing && existing.el.isConnected && existing.el.parentElement === existing._placedIn) {
+      existing._rehome();
+      return existing;
     }
+    existing?._disposeFloating();
     const region = h('div', {
       class: 'zx-message-region',
       popover: 'manual',
       role: 'status',
       ariaLive: 'polite'
     });
-    host.append(region);
     const floating = new Message(region);
     floating._floatingHost = host;
-    this.#floating.set(host, floating);
-    if (typeof region.showPopover === 'function') region.showPopover();
+    // A toast entry on the overlay stack: the registry of regions, and the reason a press on a
+    // toast dismisses no drawer or menu. Following the stack moves the region into a modal dialog
+    // when one opens and back out when it closes.
+    floating._overlay = overlayStack.push({ kind: 'toast', root: region, owner: floating });
+    floating._unfollow = overlayStack.subscribe(() => floating._rehome());
+    floating._rehome();
     return floating;
+  }
+
+  /**
+   * The live floating region of a theme scope, from the overlay stack's toast entries.
+   * @param {Element} host Theme scope.
+   * @returns {Message|null}
+   */
+  static #regionFor(host) {
+    for (const entry of overlayStack.entries()) {
+      if (entry.kind === 'toast' && entry.owner instanceof Message && entry.owner._floatingHost === host) {
+        return entry.owner;
+      }
+    }
+    return null;
   }
 
   /** @param {Message} region Floating region whose last toast closed. @returns {void} */
   static #release(region) {
-    const host = region._floatingHost;
-    if (host && Message.#floating.get(host) === region) Message.#floating.delete(host);
     region._disposeFloating();
   }
 }

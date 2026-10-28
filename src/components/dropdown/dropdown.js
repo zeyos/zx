@@ -1,11 +1,16 @@
 import { Component } from '../../core/component.js';
 import { h, resolveElement } from '../../core/dom.js';
-import { connectedOverlayHost, overlayHost } from '../../core/overlay-host.js';
+import { connectedOverlayHost, openDialogOf, overlayHost, overlayScope } from '../../core/overlay-host.js';
+import { pushOverlay } from '../../core/overlay-stack.js';
 import { position } from '../../core/position.js';
 import { uid } from '../../core/util.js';
 
-const HANDLE_POINTER_DISMISS = Symbol('zxDropdownPointerDismiss');
-const HANDLE_ESCAPE_DISMISS = Symbol('zxDropdownEscapeDismiss');
+/** What Tab may land on inside a panel: the controls a reader reaches in sequence. */
+const TABBABLE_SELECTOR = [
+  'a[href]', 'button:not([disabled])', 'input:not([disabled]):not([type="hidden"])',
+  'select:not([disabled])', 'textarea:not([disabled])', 'iframe', '[contenteditable="true"]',
+  '[tabindex]:not([tabindex="-1"])'
+].join(',');
 
 /**
  * @typedef {Object} DropdownOptions
@@ -22,6 +27,16 @@ const HANDLE_ESCAPE_DISMISS = Symbol('zxDropdownEscapeDismiss');
 
 /**
  * Generic anchored floating panel using the browser popover top layer.
+ *
+ * Open, the panel is one entry on the overlay stack (`core/overlay-stack.js`): Escape closes it
+ * only while it is the topmost layer that takes Escape, a press outside it and every overlay opened
+ * from it closes it, and it closes with the overlay its anchor sits in. Inside an open dialog the
+ * panel is hosted by that dialog, so `showModal()` does not make it inert.
+ *
+ * The panel follows its trigger in the Tab order: Tab on the anchor of an open panel moves into
+ * the panel's first focusable control (or onto the panel itself when it carries a `tabindex`),
+ * Tab past the panel's last control continues after the anchor, and Shift+Tab from the first goes
+ * back to the anchor. Closing while focus is inside returns it to the anchor.
  * @fires Dropdown#open
  * @fires Dropdown#close
  * @extends {Component<DropdownOptions>}
@@ -46,6 +61,12 @@ export class Dropdown extends Component {
   #position = null;
   /** @type {Map<string, string|null>} */
   #anchorAttributes = new Map();
+  /** @type {import('../../core/overlay-stack.js').OverlayHandle|null} */
+  #overlay = null;
+  /** @type {((event: KeyboardEvent) => void)|null} Escape behaviour a composing component supplies. */
+  #escapeHandler = null;
+  /** Whether the panel joins the Tab order after its anchor; menus and rail flyouts opt out. */
+  #tabReach = true;
   #destroyed = false;
 
   /**
@@ -59,8 +80,9 @@ export class Dropdown extends Component {
     super(null, options);
     this.#anchor = resolved;
     // An anchor that is not in the document yet has no theme scope to read; the panel then waits
-    // detached and finds its host on the first open, instead of settling on <body>.
-    connectedOverlayHost(this.options.scope ?? resolved)?.append(this.el);
+    // detached and finds its host on the first open, instead of settling on <body>. A closed panel
+    // rests in the theme scope even when the anchor is in a dialog; it moves in only while open.
+    connectedOverlayHost(this.options.scope ?? resolved, { dialog: false })?.append(this.el);
     this.#rememberAnchorAttribute('aria-expanded');
     this.#rememberAnchorAttribute('aria-controls');
     this.#anchor.setAttribute('aria-expanded', 'false');
@@ -73,6 +95,8 @@ export class Dropdown extends Component {
     this.listen(this.el, 'click', () => {
       if (this.options.closeOnSelect) this.close();
     });
+    this.listen(this.#anchor, 'keydown', (event) => this.#onAnchorKeydown(/** @type {KeyboardEvent} */ (event)));
+    this.listen(this.el, 'keydown', (event) => this.#onPanelKeydown(/** @type {KeyboardEvent} */ (event)));
   }
 
   /**
@@ -95,7 +119,7 @@ export class Dropdown extends Component {
    */
   open() {
     if (this.isOpen() || this.#destroyed) return this;
-    const host = overlayHost(this.options.scope ?? this.#anchor);
+    const host = this.#host();
     if (this.el.parentElement !== host) host.append(this.el);
     this.#position = position(this.#anchor, this.el, {
       placement: this.options.placement,
@@ -103,9 +127,18 @@ export class Dropdown extends Component {
       matchWidth: Boolean(this.options.matchWidth)
     });
     this.el.dataset.state = 'open';
-    this.el.dataset.zxOverlayOrder = String(nextOverlayOrder());
+    this.#overlay = pushOverlay({
+      kind: 'popup',
+      root: this.el,
+      owner: this,
+      anchor: [this.#anchor, resolveElement(this.options.scope)],
+      inside: [this.#anchor],
+      onEscape: (event) => this.#onEscape(event),
+      onOutsidePointer: () => this.close(),
+      onParentClose: () => this.close()
+    });
+    this.el.dataset.zxOverlayOrder = String(this.#overlay.order);
     this.#anchor.setAttribute('aria-expanded', 'true');
-    ensureDismissManager();
     this.emit('open');
     return this;
   }
@@ -117,13 +150,24 @@ export class Dropdown extends Component {
    */
   close() {
     if (!this.isOpen()) return this;
+    const hadFocus = this.el.contains(document.activeElement);
     this.#position?.destroy();
     this.#position = null;
     this.el.dataset.state = 'closed';
     delete this.el.dataset.zxOverlayOrder;
+    const overlay = this.#overlay;
+    this.#overlay = null;
     this.#anchor.setAttribute('aria-expanded', 'false');
+    // A panel that took the Tab order hands focus back rather than dropping it on <body>. Menus and
+    // flyouts decide where their own focus goes.
+    if (hadFocus && this.#tabReach && this.#anchor instanceof HTMLElement) this.#anchor.focus();
+    // Back to the theme scope: a closed panel left inside a dialog would sit in that dialog's
+    // focus search and go with it when the dialog is removed.
+    if (openDialogOf(this.el.parentElement) && this.el.parentElement?.isConnected) {
+      overlayScope(this.options.scope ?? this.#anchor).append(this.el);
+    }
+    overlay?.release();
     this.emit('close');
-    destroyUnusedDismissManager();
     return this;
   }
 
@@ -174,50 +218,68 @@ export class Dropdown extends Component {
     super.destroy();
   }
 
-  /** @param {PointerEvent} event @returns {void} */
-  [HANDLE_POINTER_DISMISS](event) {
-    if (!this.isOpen()) return;
-    const path = event.composedPath();
-    if (path.includes(this.el) || path.includes(this.#anchor)) return;
-    this.close();
+  /**
+   * Internal seam for components built on a Dropdown (MenuButton, ContextMenu, the app rail):
+   * replaces what Escape does when the overlay stack routes it to this panel, and takes the panel
+   * out of the anchor's Tab order — a menu is reached with the arrow keys, not Tab.
+   * @param {{onEscape?: ((event: KeyboardEvent) => void)|null, tabReach?: boolean}} settings
+   * @returns {this}
+   * @internal
+   */
+  _configure(settings) {
+    if ('onEscape' in settings) this.#escapeHandler = settings.onEscape ?? null;
+    if ('tabReach' in settings) this.#tabReach = Boolean(settings.tabReach);
+    return this;
+  }
+
+  /** @returns {Element} Where the panel lives while open. */
+  #host() {
+    const dialog = openDialogOf(this.#anchor) ?? openDialogOf(resolveElement(this.options.scope));
+    return dialog ?? overlayHost(this.options.scope ?? this.#anchor);
   }
 
   /** @param {KeyboardEvent} event @returns {void} */
-  [HANDLE_ESCAPE_DISMISS](event) {
-    if (event.defaultPrevented || event.key !== 'Escape' || !this.isOpen()) return;
-    event.preventDefault();
+  #onEscape(event) {
+    if (this.#escapeHandler) {
+      this.#escapeHandler(event);
+      return;
+    }
     const restoreFocus = this.el.contains(document.activeElement);
     this.close();
     if (restoreFocus && this.#anchor instanceof HTMLElement) this.#anchor.focus();
   }
 
+  /** @param {KeyboardEvent} event @returns {void} */
+  #onAnchorKeydown(event) {
+    if (event.key !== 'Tab' || event.shiftKey || event.defaultPrevented || !this.#tabReach || !this.isOpen()) return;
+    const target = tabbables(this.el)[0] ?? (this.el.hasAttribute('tabindex') ? this.el : null);
+    if (!(target instanceof HTMLElement)) return;
+    event.preventDefault();
+    target.focus();
+  }
+
+  /** @param {KeyboardEvent} event @returns {void} */
+  #onPanelKeydown(event) {
+    if (event.key !== 'Tab' || event.defaultPrevented || !this.#tabReach || !this.isOpen()) return;
+    const items = tabbables(this.el);
+    const active = document.activeElement;
+    if (event.shiftKey) {
+      if (active !== this.el && active !== items[0]) return;
+      if (!(this.#anchor instanceof HTMLElement)) return;
+      event.preventDefault();
+      this.#anchor.focus();
+      return;
+    }
+    if (items.length > 0 && active !== items[items.length - 1]) return;
+    const next = followingTabbable(this.#anchor, this.el);
+    if (!next) return;
+    event.preventDefault();
+    next.focus();
+  }
+
   /** @param {string} name @returns {void} */
   #rememberAnchorAttribute(name) {
     this.#anchorAttributes.set(name, this.#anchor.getAttribute(name));
-  }
-}
-
-/** Shared document-level light-dismiss listener owned only while a dropdown is open. */
-class DropdownDismissManager extends Component {
-  /** Creates the transient listener owner. */
-  constructor() {
-    super(null);
-    this.listen(document, 'pointerdown', (event) => {
-      const component = topmostOverlayComponent();
-      if (component instanceof Dropdown) component[HANDLE_POINTER_DISMISS](event);
-    });
-    this.listen(document, 'keydown', (event) => {
-      if (event.defaultPrevented || event.key !== 'Escape') return;
-      const component = topmostOverlayComponent();
-      if (component instanceof Dropdown) component[HANDLE_ESCAPE_DISMISS](event);
-    });
-  }
-
-  /** @returns {HTMLElement} */
-  render() {
-    const marker = h('span', { hidden: true, 'data-zx-dropdown-dismiss-manager': '' });
-    document.body.append(marker);
-    return marker;
   }
 }
 
@@ -251,41 +313,40 @@ function replaceContent(target, content) {
   }
 }
 
-/** @returns {Component|null} */
-function topmostOverlayComponent() {
-  let topmost = null;
-  let highest = -1;
-  for (const candidate of document.querySelectorAll('[data-zx-overlay-order]')) {
-    const order = Number(candidate.getAttribute('data-zx-overlay-order')) || 0;
-    if (order > highest) {
-      highest = order;
-      topmost = candidate;
-    }
-  }
-  return topmost ? Component.from(topmost) : null;
+/**
+ * The controls inside a container Tab would visit, in document order.
+ * @param {Element} container
+ * @returns {HTMLElement[]}
+ */
+function tabbables(container) {
+  return /** @type {HTMLElement[]} */ (Array.from(container.querySelectorAll(TABBABLE_SELECTOR))
+    .filter((element) => isTabbable(element)));
 }
 
-/** @returns {number} */
-function nextOverlayOrder() {
-  const orders = Array.from(document.querySelectorAll('[data-zx-overlay-order]'), (element) =>
-    Number(element.getAttribute('data-zx-overlay-order')) || 0
-  );
-  return Math.max(0, ...orders) + 1;
+/**
+ * The control Tab reaches after `anchor`, skipping the panel that follows it.
+ * @param {Element} anchor
+ * @param {Element} panel
+ * @returns {HTMLElement|null}
+ */
+function followingTabbable(anchor, panel) {
+  // Inside a modal dialog nothing beyond it can take focus, so the search stays within it.
+  const scope = openDialogOf(anchor) ?? anchor.ownerDocument.body ?? anchor.ownerDocument.documentElement;
+  const all = tabbables(scope).filter((element) => !panel.contains(element));
+  const index = all.findIndex((element) => element === anchor || anchor.contains(element));
+  if (index < 0) return null;
+  let next = index + 1;
+  while (next < all.length && anchor.contains(all[next])) next += 1;
+  return all[next] ?? null;
 }
 
-/** @returns {DropdownDismissManager} */
-function ensureDismissManager() {
-  const marker = document.querySelector('[data-zx-dropdown-dismiss-manager]');
-  const existing = marker ? Component.from(marker) : null;
-  return existing instanceof DropdownDismissManager ? existing : new DropdownDismissManager();
-}
-
-/** @returns {void} */
-function destroyUnusedDismissManager() {
-  if (document.querySelector('.zx-dropdown[data-state="open"]')) return;
-  const marker = document.querySelector('[data-zx-dropdown-dismiss-manager]');
-  const manager = marker ? Component.from(marker) : null;
-  if (manager instanceof DropdownDismissManager) manager.destroy();
+/** @param {Element} element @returns {boolean} */
+function isTabbable(element) {
+  if (typeof (/** @type {HTMLElement} */ (element).focus) !== 'function') return false;
+  if (element.closest('[inert], [hidden]')) return false;
+  const html = /** @type {HTMLElement} */ (element);
+  if (typeof html.checkVisibility === 'function') return html.checkVisibility({ visibilityProperty: true });
+  return html.getClientRects().length > 0;
 }
 
 /** @param {Element} element @param {string} name @param {string|null} value @returns {void} */

@@ -1,6 +1,7 @@
 import { Component } from '../../core/component.js';
 import { h } from '../../core/dom.js';
-import { connectedOverlayHost, overlayHost } from '../../core/overlay-host.js';
+import { connectedOverlayHost, overlayScope } from '../../core/overlay-host.js';
+import { pushOverlay } from '../../core/overlay-stack.js';
 
 /**
  * Controls initial focus may be placed on: what a reader reaches with Tab, rather than everything
@@ -62,6 +63,8 @@ export class Modal extends Component {
   #nativeClosingPresentations = [];
   /** @type {Element|null} Element that had focus when the overlay was opened. */
   #opener = null;
+  /** @type {import('../../core/overlay-stack.js').OverlayHandle|null} Entry on the overlay stack while shown. */
+  #overlay = null;
 
   /**
    * Creates a modal in the configured theme scope, or at document level when none is present.
@@ -103,7 +106,9 @@ export class Modal extends Component {
    * @returns {Element}
    */
   mountTarget() {
-    return overlayHost(this.options.scope);
+    // The theme scope, never an open dialog: a dialog opened from inside another stacks above it in
+    // the top layer wherever it lives, and nesting it would tie its rendering to the outer one.
+    return overlayScope(this.options.scope);
   }
 
   /**
@@ -160,6 +165,61 @@ export class Modal extends Component {
   }
 
   /**
+   * Describes the current presentation for the overlay stack, or returns null to stay off it.
+   *
+   * The kind is read from the platform like `aria-modal` is: a `showModal()` dialog is `modal`,
+   * and its Escape and backdrop stay the browser's; anything else is `non-modal`, and a subclass
+   * presenting that way adds the Escape and outside-press handling it wants.
+   * @returns {import('../../core/overlay-stack.js').OverlayEntryOptions|null}
+   * @protected
+   */
+  _overlayEntry() {
+    return {
+      kind: this.el.matches(':modal') ? 'modal' : 'non-modal',
+      root: this.el,
+      owner: this,
+      anchor: this.#opener
+    };
+  }
+
+  /**
+   * Re-registers the current presentation on the overlay stack: called after every presentation,
+   * including a subclass's change of address that bypasses `open()`.
+   * @returns {void}
+   * @protected
+   */
+  _syncOverlay() {
+    this._releaseOverlay();
+    if (!this._isShown()) return;
+    const entry = this._overlayEntry();
+    if (!entry) return;
+    this.#overlay = pushOverlay(entry);
+    this.el.dataset.zxOverlayOrder = String(this.#overlay.order);
+  }
+
+  /**
+   * Takes the overlay off the stack. Safe to call repeatedly.
+   * @returns {void}
+   * @protected
+   */
+  _releaseOverlay() {
+    const overlay = this.#overlay;
+    this.#overlay = null;
+    delete (/** @type {HTMLElement} */ (this.el)).dataset.zxOverlayOrder;
+    overlay?.release();
+  }
+
+  /**
+   * Whether a node is inside this overlay or anything opened from it, as the overlay stack sees it.
+   * @param {Node|null|undefined} node Candidate.
+   * @returns {boolean}
+   * @protected
+   */
+  _overlayContains(node) {
+    return this.#overlay ? this.#overlay.contains(node) : this.el.contains(node ?? null);
+  }
+
+  /**
    * Hides the current presentation and records which generation its queued close event belongs to.
    * @param {string} [result=''] Native string return value.
    * @returns {void}
@@ -202,7 +262,7 @@ export class Modal extends Component {
       return false;
     }
     this.el.dataset.state = 'closed';
-    delete this.el.dataset.zxOverlayOrder;
+    this._releaseOverlay();
     /*
      * Only the flag this class raised. A subclass presenting non-modally writes
      * `aria-modal="false"` and owns that value across its own presentations.
@@ -300,16 +360,15 @@ export class Modal extends Component {
     this.#opener = document.activeElement instanceof Element ? document.activeElement : null;
     const host = this.mountTarget();
     if (this.el.parentElement !== host) host.append(this.el);
-    this.el.dataset.zxOverlayOrder = String(nextOverlayOrder());
     this.el.returnValue = '';
     try {
       this._present();
     } catch (error) {
-      delete this.el.dataset.zxOverlayOrder;
       // Nothing was presented, so nothing will close; a capture left behind would outlive its open.
       this.#opener = null;
       throw error;
     }
+    this._syncOverlay();
     this.el.dataset.state = 'open';
     this.emit('open');
     // Deferred by one microtask: the platform's own focusing step runs as part of presenting, and
@@ -362,6 +421,8 @@ export class Modal extends Component {
     if (this.#destroying) return;
     this.#destroying = true;
     if (this.isOpen()) this._dismiss();
+    // The queued close that would settle it never arrives once listeners are aborted.
+    this._releaseOverlay();
     super.destroy();
   }
 
@@ -457,12 +518,4 @@ function isBackdropClick(dialog, event) {
   const rect = dialog.getBoundingClientRect();
   return event.clientX < rect.left || event.clientX > rect.right ||
     event.clientY < rect.top || event.clientY > rect.bottom;
-}
-
-/** @returns {number} */
-function nextOverlayOrder() {
-  const orders = Array.from(document.querySelectorAll('[data-zx-overlay-order]'), (element) =>
-    Number(element.getAttribute('data-zx-overlay-order')) || 0
-  );
-  return Math.max(0, ...orders) + 1;
 }

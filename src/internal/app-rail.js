@@ -253,13 +253,9 @@ export class AppRailPresenter extends Component {
         }
       });
     }
-    this._interaction.listen(document, 'pointerdown', (event) => {
-      const open = [...this._flyouts.values()].filter((flyout) => flyout.dropdown.isOpen());
-      if (open.length === 0) return;
-      const path = event.composedPath();
-      if (open.some((flyout) => path.includes(flyout.panel) || path.includes(flyout.trigger))) return;
-      for (const flyout of open) if (flyout.parentKey === null) this.closeFlyout(flyout.key);
-    });
+    // Outside presses need no listener here: each open flyout is a Dropdown on the overlay stack,
+    // which closes it on a press outside it and every flyout opened from it, and a nested flyout,
+    // anchored inside its parent's panel, counts as part of that parent.
     this._afterRebuild();
     this._syncActive();
   }
@@ -350,6 +346,17 @@ export class AppRailPresenter extends Component {
       offset: 6
     });
     const actualPanel = dropdown.getPanel();
+    // Escape arrives through the overlay stack, which offers it to the topmost flyout only. The
+    // rail returns focus itself, so the trigger's focus does not reopen what Escape just closed,
+    // and a flyout is reached with the arrow keys rather than Tab: every tile is its own Tab stop.
+    dropdown._configure({
+      tabReach: false,
+      onEscape: () => {
+        const hadFocus = actualPanel.contains(document.activeElement);
+        this.closeFlyout(key);
+        if (hadFocus) this._restoreFocus(trigger);
+      }
+    });
     actualPanel.classList.add('zx-app-rail__popover');
     // The panel is portaled out of the rail, so its stylesheet cannot ask which edge the rail
     // occupies. Presentation only: it tells the panel's styles which side it opened from.
@@ -456,20 +463,6 @@ export class AppRailPresenter extends Component {
     const controls = actions(flyout.panel);
     const current = /** @type {Element|null} */ (event.target)?.closest?.('a, button');
     const index = controls.indexOf(current);
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      event.stopPropagation();
-      const nested = [...this._flyouts.values()].find((candidate) =>
-        candidate.trigger === current && candidate.dropdown.isOpen());
-      if (nested) {
-        this.closeFlyout(nested.key);
-        this._restoreFocus(nested.trigger);
-        return;
-      }
-      this.closeFlyout(flyout.key);
-      this._restoreFocus(flyout.trigger);
-      return;
-    }
     const nested = [...this._flyouts.values()].find((candidate) => candidate.trigger === current);
     const into = this.el.dataset.side === 'right' ? 'ArrowLeft' : 'ArrowRight';
     const out = into === 'ArrowRight' ? 'ArrowLeft' : 'ArrowRight';

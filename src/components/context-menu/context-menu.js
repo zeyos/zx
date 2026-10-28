@@ -94,6 +94,8 @@ export class ContextMenu extends Component {
       scope: resolved
     });
     this.#panel = this.#dropdown.getPanel();
+    // Escape arrives through the overlay stack; closing returns focus where the menu came from.
+    this.#dropdown._configure({ onEscape: () => this.close(), tabReach: false });
     this.#panel.classList.add('zx-context-menu');
     this.#panel.setAttribute('role', 'menu');
 
@@ -272,7 +274,7 @@ export class ContextMenu extends Component {
   /** @param {Event} event @returns {void} */
   #onMenuKeydown(event) {
     const key = /** @type {KeyboardEvent} */ (event);
-    if (key.key === 'Escape' || key.key === 'Tab') {
+    if (key.key === 'Tab') {
       event.preventDefault();
       this.close();
       return;

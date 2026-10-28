@@ -1,6 +1,7 @@
 import { Component } from '../../core/component.js';
 import { h, resolveElement } from '../../core/dom.js';
 import { connectedOverlayHost, overlayHost } from '../../core/overlay-host.js';
+import { pushOverlay } from '../../core/overlay-stack.js';
 import { position } from '../../core/position.js';
 import { uid } from '../../core/util.js';
 
@@ -82,6 +83,10 @@ export class Tooltip extends Component {
   #closeTimer = 0;
   /** True between `pointerdown` and `pointerup`, so a click-induced focus cannot re-open. */
   #pointerActive = false;
+  /** Whether the tooltip dismisses itself (every trigger but `manual`). */
+  #dismissible = false;
+  /** @type {import('../../core/overlay-stack.js').OverlayHandle|null} */
+  #overlay = null;
   #disabled = false;
   #destroyed = false;
 
@@ -97,7 +102,7 @@ export class Tooltip extends Component {
 
     this.#anchor = resolved;
     // A detached anchor has no theme scope yet: the bubble waits and finds its host in show().
-    connectedOverlayHost(resolved)?.append(this.el);
+    connectedOverlayHost(resolved, { dialog: false })?.append(this.el);
     this.#content = this.options.content;
     this.#disabled = Boolean(this.options.disabled);
     this.#describedBy = resolved.getAttribute('aria-describedby');
@@ -105,6 +110,7 @@ export class Tooltip extends Component {
 
     const trigger = TRIGGERS.has(this.options.trigger) ? this.options.trigger : 'both';
     if (trigger === 'manual') return;
+    this.#dismissible = true;
 
     if (trigger === 'hover' || trigger === 'both') {
       this.listen(this.#anchor, 'pointerenter', (event) => {
@@ -124,26 +130,18 @@ export class Tooltip extends Component {
       this.listen(this.#anchor, 'focusout', () => this.#scheduleHide(Number(this.options.hideDelay)));
     }
 
-    // Dismissal. Escape satisfies WCAG 1.4.13; the pointer and focus rules also keep two tooltips
-    // from ever being visible at once without a module-level registry to coordinate them.
-    this.listen(document, 'keydown', (event) => {
-      if (/** @type {KeyboardEvent} */ (event).key !== 'Escape' || !this.isOpen()) return;
-      event.preventDefault();
-      this.hide();
-    });
-    this.listen(document, 'pointerdown', () => {
+    // A press on the anchor closes the bubble and cancels a pending open, and the focus that
+    // arrives with it is not a request for one. Presses elsewhere, Escape, and focus moving away
+    // reach an open bubble through the overlay stack, so a closed tooltip listens to nothing
+    // outside its own anchor.
+    this.listen(this.#anchor, 'pointerdown', () => {
       this.#pointerActive = true;
       this.#cancelTimers();
       this.hide();
-    }, { capture: true });
-    this.listen(document, 'pointerup', () => { this.#pointerActive = false; }, { capture: true });
-    this.listen(document, 'pointercancel', () => { this.#pointerActive = false; }, { capture: true });
-    this.listen(document, 'focusin', (event) => {
-      if (!this.isOpen()) return;
-      const path = event.composedPath();
-      if (path.includes(this.#anchor)) return;
-      this.hide();
     });
+    for (const type of ['pointerup', 'pointercancel', 'pointerleave']) {
+      this.listen(this.#anchor, type, () => { this.#pointerActive = false; });
+    }
   }
 
   /**
@@ -188,6 +186,23 @@ export class Tooltip extends Component {
     }
     this.el.dataset.state = 'open';
     this.#anchor.setAttribute('aria-describedby', appendToken(this.#describedBy, this.el.id));
+    /*
+     * On the stack even when manual, so the order is shared and a closing parent takes the bubble
+     * with it; only a dismissible tooltip takes Escape (WCAG 1.4.13), presses, and focus. Escape
+     * reaches it only while it is the topmost layer that takes Escape, so one press never closes
+     * both a tooltip and the menu beneath it.
+     */
+    this.#overlay = pushOverlay({
+      kind: 'tooltip',
+      root: this.el,
+      owner: this,
+      anchor: this.#anchor,
+      inside: [this.#anchor],
+      onEscape: this.#dismissible ? () => { this.hide(); } : undefined,
+      onOutsidePointer: this.#dismissible ? () => this.hide() : undefined,
+      onFocusOutside: this.#dismissible ? () => this.hide() : undefined,
+      onParentClose: () => this.hide()
+    });
     this.emit('open');
     return this;
   }
@@ -205,6 +220,9 @@ export class Tooltip extends Component {
     this.el.dataset.state = 'closed';
     this.el.replaceChildren();
     this.#restoreDescribedBy();
+    const overlay = this.#overlay;
+    this.#overlay = null;
+    overlay?.release();
     this.emit('close');
     return this;
   }

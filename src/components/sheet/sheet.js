@@ -117,26 +117,6 @@ export class Sheet extends Dialog {
     this.el.dataset.modality = modality(this.options.modal);
     this.refs.close.hidden = !this.options.closeButton;
 
-    if (this.options.modal !== true) {
-      /*
-       * Escape and outside-click are free for a modal dialog and absent for a non-modal one: the
-       * browser only wires `cancel` for `showModal()`, and there is no `::backdrop` to click.
-       */
-      this.listen(this.el, 'keydown', (event) => {
-        const keyboardEvent = /** @type {KeyboardEvent} */ (event);
-        if (keyboardEvent.key !== 'Escape' || !this.options.closable || this._dock) return;
-        keyboardEvent.preventDefault();
-        if (!this.emit('cancel').defaultPrevented) this.close();
-      });
-      if (this.options.lightDismiss) {
-        this.listen(document, 'pointerdown', (event) => {
-          const target = /** @type {Node} */ (event.target);
-          if (!this.isOpen() || this._dock || this.el.contains(target)) return;
-          this.close();
-        });
-      }
-    }
-
     /*
      * Registered after Dialog's own restore listener, so focus lands on the opener either way:
      * the trap captured the same element, because `open()` activates it before the sheet shows.
@@ -362,10 +342,37 @@ export class Sheet extends Dialog {
     this.el.returnValue = '';
     this._present();
     this.el.dataset.state = 'open';
-    if (this._dock) delete /** @type {HTMLElement} */ (this.el).dataset.zxOverlayOrder;
-    else this.el.dataset.zxOverlayOrder = String(nextOverlayOrder());
+    this._syncOverlay();
   }
 
+
+  /**
+   * Describes the presentation for the overlay stack. A docked sheet is part of the layout and
+   * stays off it.
+   *
+   * Escape and outside-click are free for a modal dialog and absent for a non-modal one — the
+   * browser only wires `cancel` for `showModal()`, and there is no `::backdrop` to click — so a
+   * floating non-modal sheet takes both from the stack. That is what makes it aware of what it
+   * opened: Escape reaches it only once no popup above it takes the key, and a press inside a menu
+   * anchored in the sheet counts as inside the sheet, wherever the menu's panel lives.
+   * @returns {import('../../core/overlay-stack.js').OverlayEntryOptions|null}
+   * @protected
+   */
+  _overlayEntry() {
+    if (this._dock) return null;
+    const entry = super._overlayEntry();
+    if (!entry || this.options.modal === true) return entry;
+    return {
+      ...entry,
+      // An Escape pressed outside the sheet and everything it opened is not addressed to it.
+      onEscape: (event) => {
+        if (!this.options.closable || !this._overlayContains(/** @type {Node|null} */ (event.target))) return false;
+        if (!this.emit('cancel').defaultPrevented) this.close();
+        return undefined;
+      },
+      onOutsidePointer: this.options.lightDismiss ? () => { this.close(); } : undefined
+    };
+  }
 
   /**
    * Opens the sheet, trapping focus first where the modality asks for it.
@@ -504,17 +511,6 @@ export class Sheet extends Dialog {
     this._dock = null;
     super.destroy();
   }
-}
-
-/**
- * Next free overlay order. Same bookkeeping `Modal` and `Dropdown` each carry a copy of; the three
- * should converge on one kernel helper.
- * @returns {number}
- */
-function nextOverlayOrder() {
-  const orders = Array.from(document.querySelectorAll('[data-zx-overlay-order]'), (element) =>
-    Number(element.getAttribute('data-zx-overlay-order')) || 0);
-  return Math.max(0, ...orders) + 1;
 }
 
 /**

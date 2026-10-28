@@ -101,6 +101,9 @@ export class MenuButton extends Component {
       content: null
     });
     this.#panel = this.#dropdown.getPanel();
+    // Escape reaches the menu through the overlay stack, which offers it only to the topmost layer;
+    // the menu decides where focus goes. Items are reached with the arrow keys, not Tab.
+    this.#dropdown._configure({ onEscape: () => this.#dismiss(), tabReach: false });
     this.#panel.classList.add('zx-menu-button__menu');
     this.#panel.setAttribute('role', 'menu');
     // The menu is named by its trigger, as the APG menu-button pattern has it. An id given here to
@@ -187,6 +190,15 @@ export class MenuButton extends Component {
   }
 
   /**
+   * Opens the menu when it is closed, and closes it when it is open. Opening this way moves no
+   * focus; `focusFirst()` opens with focus on the first item.
+   * @returns {this}
+   */
+  toggle() {
+    return this.isOpen() ? this.close() : this.open();
+  }
+
+  /**
    * Reports whether the menu is open.
    * @returns {boolean}
    */
@@ -264,13 +276,6 @@ export class MenuButton extends Component {
 
   /** @param {KeyboardEvent} event @returns {void} */
   #onMenuKeydown(event) {
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      const target = this.#returnTarget();
-      this.close();
-      target?.focus();
-      return;
-    }
     if (event.key === 'Tab') {
       this.close();
       return;
@@ -284,6 +289,19 @@ export class MenuButton extends Component {
       return;
     }
     this.#typeahead(event);
+  }
+
+  /**
+   * Escape, as the overlay stack routes it here: closes the menu, and returns focus when the menu
+   * held it (or it had already fallen to the body).
+   * @returns {void}
+   */
+  #dismiss() {
+    const active = document.activeElement;
+    const reclaim = !active || active === document.body || this.#panel.contains(active);
+    const target = this.#returnTarget();
+    this.close();
+    if (reclaim) target?.focus();
   }
 
   /** Focuses the first item, or, when that is a choice row, its checked option. @returns {void} */
