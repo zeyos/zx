@@ -1,6 +1,6 @@
 // @ts-check
 import { h, resolveElement } from './dom.js';
-import { getLanguage, printf, translate } from './i18n.js';
+import { defaultMessage, getLanguage, hostMessage, legacyMessageKey, printf } from './i18n.js';
 import { deepMerge, isElement } from './util.js';
 
 /** @typedef {Record<string, any>} ComponentOptions */
@@ -8,6 +8,13 @@ import { deepMerge, isElement } from './util.js';
 
 /** @type {WeakMap<Element, Component>} */
 const registry = new WeakMap();
+
+/**
+ * Each instance's `msg` tables, kept apart so the host translator can sit between them: the
+ * option the instance was given, and the defaults its class chain declares.
+ * @type {WeakMap<object, {own: Record<string, any>|null, inherited: Record<string, any>|null}>}
+ */
+const messageTables = new WeakMap();
 
 /**
  * Base class for lifecycle-safe Zx components.
@@ -62,6 +69,10 @@ export class Component extends EventTarget {
     this.refs = {};
 
     const merged = /** @type {TOptions} */ (mergeOptions(self, options));
+    messageTables.set(this, {
+      own: isMessageTable(options?.msg) ? Object.freeze(deepMerge({}, options.msg)) : null,
+      inherited: inheritedMessages(self)
+    });
     const eventOptions = [];
     for (const [key, value] of Object.entries(merged)) {
       if (/^on[a-z]/.test(key) && typeof value === 'function') {
@@ -204,19 +215,38 @@ export class Component extends EventTarget {
   }
 
   /**
-   * Resolves and interpolates a component-local or global translation.
+   * Resolves and interpolates one of the component's messages. The first answer wins:
+   *
+   * 1. the `msg` option this instance was given — a `{[lang]: {key: text}}` table for the active
+   *    language (the `lang` option, else `getLanguage()`), then a flat `{key: text}` entry;
+   * 2. the host translator installed with `setTranslator()`;
+   * 3. the `msg` defaults the component class declares;
+   * 4. the default English catalogue (`defaultMessages`);
+   * 5. the key itself.
+   *
+   * A renamed key (`calendar.today`, formerly `today`) is also looked up under its former name,
+   * right after the new one, in steps 1 and 2.
    * @param {string} key Message key.
-   * @param {...unknown} args Positional interpolation values.
+   * @param {...unknown} args Positional interpolation values (`%1`, `%2`, …).
    * @returns {string}
    */
   msg(key, ...args) {
-    const messages = this.options.msg;
-    const lang = this.options.lang ?? this.options.language ?? getLanguage();
-    const localized = messages?.[lang]?.[key];
-    if (localized != null) return printf(String(localized), args);
-    const direct = messages?.[key];
-    if (direct != null) return printf(String(direct), args);
-    return translate(key, args);
+    const lang = this.options?.lang ?? this.options?.language ?? getLanguage();
+    const legacy = legacyMessageKey(key);
+    // An object that borrows this method without running the constructor reads its options' `msg`.
+    const tables = messageTables.get(this) ?? {
+      own: isMessageTable(this.options?.msg) ? this.options.msg : null,
+      inherited: null
+    };
+    const own = tables.own;
+    const text = pickMessage(own, lang, key)
+      ?? (legacy ? pickMessage(own, lang, legacy) : null)
+      ?? hostMessage(key)
+      ?? (legacy ? hostMessage(legacy) : null)
+      ?? pickMessage(tables.inherited, lang, key)
+      ?? defaultMessage(key)
+      ?? key;
+    return printf(text, args);
   }
 
   /**
@@ -254,13 +284,7 @@ export class Component extends EventTarget {
 
 /** @param {typeof Component} constructor @param {ComponentOptions} options @returns {ComponentOptions} */
 function mergeOptions(constructor, options) {
-  const chain = [];
-  let current = constructor;
-  while (current && current !== Function.prototype) {
-    if (Object.prototype.hasOwnProperty.call(current, 'defaults')) chain.unshift(current.defaults);
-    current = Object.getPrototypeOf(current);
-  }
-
+  const chain = defaultsChain(constructor);
   const result = {};
   let messages = {};
   let hasMessages = false;
@@ -279,6 +303,53 @@ function mergeOptions(constructor, options) {
   }
   if (hasMessages) result.msg = messages;
   return result;
+}
+
+/**
+ * The `defaults` objects a class and its ancestors declare, base class first.
+ * @param {typeof Component} constructor
+ * @returns {ComponentOptions[]}
+ */
+function defaultsChain(constructor) {
+  const chain = [];
+  let current = constructor;
+  while (current && current !== Function.prototype) {
+    if (Object.prototype.hasOwnProperty.call(current, 'defaults')) chain.unshift(current.defaults);
+    current = Object.getPrototypeOf(current);
+  }
+  return chain;
+}
+
+/** @param {unknown} value @returns {value is Record<string, any>} */
+function isMessageTable(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+/** @param {typeof Component} constructor @returns {Record<string, any>|null} */
+function inheritedMessages(constructor) {
+  let messages = null;
+  for (const defaults of defaultsChain(constructor)) {
+    if (defaults && typeof defaults === 'object' && isMessageTable(defaults.msg)) {
+      messages = deepMerge(messages ?? {}, defaults.msg);
+    }
+  }
+  return messages ? Object.freeze(messages) : null;
+}
+
+/**
+ * Reads one key from a `msg` table: the active language's sub-table first, then a flat entry.
+ * @param {Record<string, any>|null} table Message table.
+ * @param {string} lang Active language.
+ * @param {string} key Message key.
+ * @returns {string|null}
+ */
+function pickMessage(table, lang, key) {
+  if (!table) return null;
+  const localized = table[lang]?.[key];
+  if (localized != null && typeof localized !== 'object') return String(localized);
+  const direct = Object.prototype.hasOwnProperty.call(table, key) ? table[key] : null;
+  if (direct != null && typeof direct !== 'object') return String(direct);
+  return null;
 }
 
 /**

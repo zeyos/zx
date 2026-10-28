@@ -1,6 +1,7 @@
 // @ts-check
 import { h, safeHref } from '../../core/dom.js';
 import { icon } from '../../core/icons.js';
+import { translate } from '../../core/i18n.js';
 import { uid } from '../../core/util.js';
 import { readViewField, renderViewField } from '../view/record-view.js';
 
@@ -67,6 +68,10 @@ import { readViewField, renderViewField } from '../view/record-view.js';
  * @property {'outlined'|'raised'|'filled'} [variant='outlined'] Surface treatment.
  * @property {1|2|3|4|5|6} [headingLevel=3] Card title heading level.
  * @property {Node[]} [controls=[]] Listener-free, owner-created controls such as a move handle.
+ * @property {(key: string, ...args: unknown[]) => string} [message] Resolves the card's built-in strings
+ *   (`recordCard.select`, `recordCard.actions`, `recordCard.untitled`, `recordCard.selected`,
+ *   `recordCard.notSelected`). An owning component passes its own `msg()`; omitted, the host
+ *   translator and then the default English catalogue answer.
  */
 
 /**
@@ -111,6 +116,11 @@ export function createRecordCard(record, index, options = {}) {
   const selected = Boolean(options.selected);
   const headingId = uid('zx-record-card-title');
   const headingLevel = normalizeHeadingLevel(options.headingLevel);
+  /** @type {(key: string, ...args: unknown[]) => string} */
+  const message = typeof options.message === 'function'
+    ? options.message
+    : (key, ...args) => translate(key, args);
+  const name = textAlternative(title) || message('recordCard.untitled');
 
   const headingContent = link
     ? h('a', {
@@ -137,13 +147,13 @@ export function createRecordCard(record, index, options = {}) {
     type: 'checkbox',
     checked: selected,
     dataset: { recordSelection: '' },
-    ariaLabel: `Select ${textAlternative(title) || 'record'}`
+    ariaLabel: message('recordCard.select', name)
   })) : null;
   const actionNodes = actions.map(createAction);
   const actionArea = actionNodes.length || controls.length ? h('div', {
     class: 'zx-record-card__actions',
     role: 'group',
-    ariaLabel: `Actions for ${textAlternative(title) || 'record'}`
+    ariaLabel: message('recordCard.actions', name)
   }, controls, actionNodes) : null;
   const header = h('header', { class: 'zx-record-card__header' }, selection,
     h('div', { class: 'zx-record-card__titles' }, titleRow,
@@ -154,7 +164,8 @@ export function createRecordCard(record, index, options = {}) {
   const card = /** @type {HTMLLIElement} */ (h('li', {
     class: 'zx-record-card',
     tabindex: 0,
-    ariaDescription: selectable ? selected ? 'Selected' : 'Not selected' : undefined,
+    ariaDescription: selectable
+      ? message(selected ? 'recordCard.selected' : 'recordCard.notSelected') : undefined,
     ariaLabelledby: headingId,
     ariaKeyshortcuts: selectable && options.selectionTrigger === 'card' ? 'Space Enter' : undefined,
     dataset: {

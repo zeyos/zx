@@ -47,7 +47,8 @@ import {
  * @property {'outlined'|'raised'|'filled'} [variant='outlined'] Card surface treatment.
  * @property {number} [loadingCount=6] Skeleton cards shown while loading.
  * @property {1|2|3|4|5|6} [headingLevel=3] Per-card title heading level.
- * @property {string} [label='Card view'] Accessible collection label.
+ * @property {string|null} [label=null] Accessible collection label; null resolves message
+ *   `cardView.label`, "Card view".
  * @property {(event:CustomEvent<Record<string,unknown>>)=>void} [onrecordaction]
  */
 
@@ -96,7 +97,7 @@ export class CardView extends RecordView {
     variant: 'outlined',
     loadingCount: 6,
     headingLevel: 3,
-    label: 'Card view'
+    label: null
   };
 
   /**
@@ -126,7 +127,7 @@ export class CardView extends RecordView {
     this._cardHeadingLevel = normalizeHeadingLevel(options.headingLevel);
     try {
       this._initRecordView(root);
-      root.setAttribute('aria-label', String(options.label || 'Card view'));
+      root.setAttribute('aria-label', String(options.label || this.msg('cardView.label')));
       const sort = h('label', { ref: 'sortWrap', class: 'zx-card-view__sort' },
         h('span', { class: 'zx-card-view__sort-label' }, this._message('cardView.sort', 'Sort')),
         h('select', { ref: 'sort', ariaLabel: this._message('cardView.sortCards', 'Sort cards') }));
@@ -258,7 +259,7 @@ export class CardView extends RecordView {
       return;
     }
     const groups = groupCardRecords(this._viewData, this._cardOptions().groupBy,
-      this._cardGroupOrder, this._viewFields);
+      this._cardGroupOrder, this._viewFields, this.msg('cardView.ungrouped'));
     if (this._viewData.length === 0 && groups.length === 0) {
       content.replaceChildren(this._createCardEmpty());
       return;
@@ -298,13 +299,14 @@ export class CardView extends RecordView {
         selectionTrigger: options.selectionTrigger,
         selected: this._isViewSelected(id),
         variant: this._cardVariant,
-        headingLevel: this._cardHeadingLevel
+        headingLevel: this._cardHeadingLevel,
+        message: (key, ...args) => this.msg(key, ...args)
       });
       this._cardNodesById.set(id, card);
       list.append(card);
     }
     if (group.records.length === 0) {
-      list.append(h('li', { class: 'zx-card-view__group-empty' }, 'No records in this group.'));
+      list.append(h('li', { class: 'zx-card-view__group-empty' }, this.msg('cardView.groupEmpty')));
     }
     if (group.id === null) return list;
     return h('section', { class: 'zx-card-view__group', ariaLabelledby: headingId },
@@ -339,7 +341,8 @@ export class CardView extends RecordView {
     for (const [id, card] of this._cardNodesById) {
       const selected = this._isViewSelected(id);
       card.dataset.selected = String(selected);
-      if (this.options.selectable) card.setAttribute('aria-description', selected ? 'Selected' : 'Not selected');
+      if (this.options.selectable) card.setAttribute('aria-description',
+        this.msg(selected ? 'recordCard.selected' : 'recordCard.notSelected'));
       const checkbox = /** @type {HTMLInputElement|null} */ (card.querySelector('[data-record-selection]'));
       if (checkbox) checkbox.checked = selected;
     }
@@ -444,9 +447,10 @@ export class CardView extends RecordView {
  * @param {CardViewOptions['groupBy']} groupBy Group field or resolver.
  * @param {unknown[]} [groupOrder=[]] Preferred group ids.
  * @param {ViewField[]} [fields=[]] Complete fields for accessor-aware grouping.
+ * @param {string} [ungroupedLabel='Ungrouped'] Label of the group collecting records without a value.
  * @returns {CardRecordGroup[]} Deterministic groups.
  */
-export function groupCardRecords(records, groupBy, groupOrder = [], fields = []) {
+export function groupCardRecords(records, groupBy, groupOrder = [], fields = [], ungroupedLabel = 'Ungrouped') {
   if (!Array.isArray(records)) throw new TypeError('Card view records must be an array');
   if (groupBy == null) return records.length ? [{ id: null, label: '', records: [...records] }] : [];
   const preferred = normalizeGroupOrder(groupOrder);
@@ -461,7 +465,7 @@ export function groupCardRecords(records, groupBy, groupOrder = [], fields = [])
   }
   return [...groups].map(([id, grouped]) => ({
     id,
-    label: id || 'Ungrouped',
+    label: id || ungroupedLabel,
     records: grouped
   }));
 }

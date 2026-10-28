@@ -54,7 +54,7 @@ export { position } from './core/position.js';
 export { breakpoints, breakpointOf, matchBreakpoint, onBreakpoint } from './core/breakpoint.js';
 export { MOTION_ATTRIBUTE, prefersReducedMotion, watchMotion } from './core/motion.js';
 export { Http, zeyosService, parseResult } from './core/http.js';
-export { setTranslator, setLanguage, getLanguage, translate, printf } from './core/i18n.js';
+export { setTranslator, setLanguage, getLanguage, translate, printf, defaultMessages } from './core/i18n.js';
 export { focusTrap, rovingTabindex, typeahead } from './core/keyboard.js';
 export {
   formatDate, parseDate, clampDate, isSameDay, addDays, addMonths, getWeekStart

@@ -47,7 +47,9 @@ import {
  * @property {CalendarReader} [eventEditable='editable'] Per-event move reader.
  * @property {CalendarReader} [eventDurationEditable='durationEditable'] Per-event resize reader.
  * @property {'milliseconds'|'seconds'} [dateUnit='milliseconds'] Unit for numeric event dates.
- * @property {Record<string, string>} [msg] Localized component messages.
+ * @property {Record<string, string>} [msg] Per-instance messages, keyed `calendar.*` (`calendar.today`,
+ *   `calendar.next`, …). The bare keys of earlier versions (`today`, `next`) are still read, after the
+ *   namespaced key, until the next major version.
  * @property {(event: CalendarEvent) => Node|string|null} [renderEvent] Optional safe event-content renderer.
  * @property {(event: CustomEvent<{events: CalendarEvent[]}>) => void} [oneventschange] Programmatic event-data listener.
  * @property {(event: CustomEvent<{view: CalendarView, oldView: CalendarView}>) => void} [onviewchange] View listener.
@@ -72,31 +74,6 @@ import {
  */
 
 /** @typedef {{silent?: boolean}} CalendarSetOptions */
-
-const DEFAULT_MESSAGES = {
-  today: 'Today',
-  new: 'New',
-  agenda: 'Agenda',
-  day: 'Day',
-  week: 'Week',
-  month: 'Month',
-  year: 'Year',
-  previous: 'Previous period',
-  next: 'Next period',
-  allDay: 'All day',
-  noEvents: 'No events',
-  more: '+%1 more',
-  loading: 'Loading calendar…',
-  move: 'Move %1',
-  resize: 'Resize %1',
-  moveStarted: 'Moving %1. Use arrow keys, Space to drop, or Escape to cancel.',
-  resizeStarted: 'Resizing %1. Use arrow keys, Space to drop, or Escape to cancel.',
-  editPreview: '%1, %2 to %3',
-  editCancelled: 'Calendar edit cancelled.',
-  editCommitted: '%1 updated.',
-  calendar: 'Calendar',
-  weekNumber: 'Week %1'
-};
 
 /**
  * Accessible, dependency-free agenda/day/week/month/year scheduling surface.
@@ -147,8 +124,7 @@ export class Calendar extends Component {
     eventLocation: 'location',
     eventEditable: 'editable',
     eventDurationEditable: 'durationEditable',
-    dateUnit: 'milliseconds',
-    msg: DEFAULT_MESSAGES
+    dateUnit: 'milliseconds'
   };
 
   /** @returns {HTMLElement} */
@@ -178,9 +154,9 @@ export class Calendar extends Component {
     this._nowTimer = null;
 
     const navigation = h('div', { class: 'zx-calendar__navigation' },
-      this._toolbarButton('previous', this.msg('previous'), 'chevron-left'),
-      this._toolbarButton('today', this.msg('today')),
-      this._toolbarButton('next', this.msg('next'), 'chevron-right'));
+      this._toolbarButton('previous', this.msg('calendar.previous'), 'chevron-left'),
+      this._toolbarButton('today', this.msg('calendar.today')),
+      this._toolbarButton('next', this.msg('calendar.next'), 'chevron-right'));
     const heading = h('h2', {
       ref: 'heading',
       class: 'zx-calendar__heading',
@@ -196,14 +172,14 @@ export class Calendar extends Component {
       class: 'zx-calendar__view-button',
       dataset: { calendarAction: 'view', view },
       disabled: this.options.disabled
-    }, this.msg(view))));
+    }, this.msg(`calendar.${view}`))));
     const commands = h('div', { class: 'zx-calendar__commands' }, views,
       h('button', {
         type: 'button',
         class: 'zx-calendar__new',
         dataset: { calendarAction: 'new' },
         disabled: this.options.disabled
-      }, icon('plus'), h('span', {}, this.msg('new'))));
+      }, icon('plus'), h('span', {}, this.msg('calendar.new'))));
     const toolbar = h('header', { class: 'zx-calendar__toolbar' }, navigation, heading, commands);
     const body = h('div', { ref: 'body', class: 'zx-calendar__body' });
     const loading = h('div', {
@@ -211,7 +187,7 @@ export class Calendar extends Component {
       class: 'zx-calendar__loading',
       role: 'status',
       hidden: true
-    }, this.msg('loading'));
+    }, this.msg('calendar.loading'));
     const status = h('div', {
       ref: 'status',
       class: 'zx-calendar__status',
@@ -220,7 +196,7 @@ export class Calendar extends Component {
       ariaAtomic: 'true'
     });
     root.replaceChildren(toolbar, body, loading, status);
-    root.setAttribute('aria-label', this.msg('calendar'));
+    root.setAttribute('aria-label', this.msg('calendar.label'));
     root.dataset.view = this._view;
     root.dataset.state = 'ready';
 
@@ -470,7 +446,7 @@ export class Calendar extends Component {
         }, this._format(day, { weekday: 'long', day: 'numeric', month: 'long' })));
       const entries = h('div', { class: 'zx-calendar__agenda-events', role: 'gridcell' });
       if (!events.length) {
-        entries.append(h('p', { class: 'zx-calendar__agenda-empty' }, this.msg('noEvents')));
+        entries.append(h('p', { class: 'zx-calendar__agenda-empty' }, this.msg('calendar.noEvents')));
       } else {
         for (const event of events) entries.append(this._eventElement(event, { variant: 'agenda', day }));
       }
@@ -576,7 +552,7 @@ export class Calendar extends Component {
   /** @param {Date[]} days @returns {HTMLElement} */
   _renderAllDayRail(days) {
     const rail = h('div', { class: 'zx-calendar__all-day' },
-      h('span', { class: 'zx-calendar__all-day-label' }, this.msg('allDay')));
+      h('span', { class: 'zx-calendar__all-day-label' }, this.msg('calendar.allDay')));
     const layer = h('div', {
       class: 'zx-calendar__all-day-grid',
       role: 'row',
@@ -625,7 +601,7 @@ export class Calendar extends Component {
         type: 'button',
         class: 'zx-calendar__month-week-number',
         dataset: { calendarAction: 'week', date: calendarDayKey(start) },
-        ariaLabel: this.msg('weekNumber', isoWeek(start)),
+        ariaLabel: this.msg('calendar.weekNumber', isoWeek(start)),
         disabled: this.options.disabled
       }, String(isoWeek(start))));
       const days = h('div', { class: 'zx-calendar__month-days' });
@@ -666,7 +642,7 @@ export class Calendar extends Component {
           dataset: { calendarAction: 'more', date: calendarDayKey(day), count: String(count) },
           style: { gridColumn: String(index + 1), gridRow: String(eventLimit + 1) },
           disabled: this.options.disabled
-        }, this.msg('more', count)));
+        }, this.msg('calendar.more', count)));
       }
       row.append(days, lanes);
       wrapper.append(row);
@@ -758,7 +734,7 @@ export class Calendar extends Component {
         type: 'button',
         class: 'zx-calendar__event-resize',
         dataset: { eventAction: 'resize', eventId: key },
-        ariaLabel: this.msg('resize', event.title),
+        ariaLabel: this.msg('calendar.resize', event.title),
         disabled: this.options.disabled
       }, h('span', { ariaHidden: 'true' })));
     }
@@ -886,7 +862,7 @@ export class Calendar extends Component {
       };
       control.setAttribute('aria-grabbed', 'true');
       control.closest('.zx-calendar__event')?.setAttribute('data-state', 'grabbed');
-      this._announce(this.msg(resize ? 'resizeStarted' : 'moveStarted', item.title));
+      this._announce(this.msg(resize ? 'calendar.resizeStarted' : 'calendar.moveStarted', item.title));
       return;
     }
     if (!this._keyboardEdit || String(this._keyboardEdit.event.id) !== String(item.id)) return;
@@ -919,7 +895,7 @@ export class Calendar extends Component {
       if (proposed.end > proposed.start) edit.event = proposed;
     }
     edit.control.closest('.zx-calendar__event')?.setAttribute('data-preview', this._eventTime(edit.event, edit.event.start));
-    this._announce(this.msg('editPreview', edit.event.title,
+    this._announce(this.msg('calendar.editPreview', edit.event.title,
       this._dateTimeLabel(edit.event.start), this._dateTimeLabel(edit.event.end)));
   }
 
@@ -1065,7 +1041,7 @@ export class Calendar extends Component {
       }
       wrapper.dataset.preview = this._eventTime(proposed, proposed.start);
     }
-    this._announce(this.msg('editPreview', proposed.title,
+    this._announce(this.msg('calendar.editPreview', proposed.title,
       this._dateTimeLabel(proposed.start), this._dateTimeLabel(proposed.end)));
   }
 
@@ -1255,7 +1231,7 @@ export class Calendar extends Component {
     edit.control.removeAttribute('aria-grabbed');
     edit.control.closest('.zx-calendar__event')?.removeAttribute('data-state');
     this._keyboardEdit = null;
-    this._announce(this.msg('editCancelled'));
+    this._announce(this.msg('calendar.editCancelled'));
     this._renderView({ preserveFocus: true });
   }
 
@@ -1286,7 +1262,7 @@ export class Calendar extends Component {
       this._replaceNormalizedEvent(oldEvent);
       this._mutationVersions.delete(key);
       this._renderView({ preserveFocus: true });
-      this._announce(this.msg('editCancelled'));
+      this._announce(this.msg('calendar.editCancelled'));
       return true;
     };
     const detail = {
@@ -1299,7 +1275,7 @@ export class Calendar extends Component {
     };
     const emitted = this.emit('eventchange', detail);
     if (emitted.defaultPrevented) revert();
-    else this._announce(this.msg('editCommitted', proposed.title));
+    else this._announce(this.msg('calendar.editCommitted', proposed.title));
   }
 
   /** @param {CalendarEvent} event @returns {void} */
@@ -1364,11 +1340,11 @@ export class Calendar extends Component {
 
   /** @param {CalendarEvent} event @param {Date} day @returns {string} */
   _eventTime(event, day) {
-    if (event.allDay) return this.msg('allDay');
+    if (event.allDay) return this.msg('calendar.allDay');
     if (calendarEventSpansDays(event)) {
       if (sameCalendarDay(event.start, day)) return `${formatDateTime(event.start, this.options.locale)} →`;
       if (sameCalendarDay(event.end, day)) return `→ ${formatDateTime(event.end, this.options.locale)}`;
-      return this.msg('allDay');
+      return this.msg('calendar.allDay');
     }
     const start = formatTimeDate(event.start, this.options.locale);
     if (event.end <= event.start) return start;
@@ -1490,10 +1466,8 @@ export class Calendar extends Component {
   }
 
   /**
-   * Resolves a message through the host translator, falling back to the built-in English text.
-   *
-   * Distinct from `msg()`: the built-in `msg` option answers the calendar's own vocabulary, so a
-   * dotted key falls past it to the host translator, which is what these strings never had.
+   * Resolves a message through `msg()`, falling back to the built-in English text. Redundant now
+   * that `msg()` ends in the default catalogue; kept until the private copies are removed.
    * @param {string} key Message key.
    * @param {string} fallback Built-in text, with `%1`-style placeholders.
    * @param {...unknown} args Interpolation values.

@@ -20,7 +20,7 @@ import {
  * @property {Array<string|((row: DataFilterRow) => unknown)>} [fields] Row fields combined with OR.
  * @property {(row: DataFilterRow) => unknown} [get] Custom value accessor.
  * @property {Array<unknown|DataFilterOption>} [options] Explicit options; omitted derives distinct values.
- * @property {string} [emptyLabel] Empty option label.
+ * @property {string} [emptyLabel] Empty option label; omitted resolves message `dataFilter.all`, "All".
  */
 
 /**
@@ -48,7 +48,7 @@ import {
  * @property {FilterDefinition[]} [filters=[]] Declarative filters.
  * @property {DataFilterRow[]} [data=[]] Rows to filter.
  * @property {boolean} [autoApply=true] Apply and emit whenever a control changes.
- * @property {string|null} [clearLabel=null] Clear button label; null resolves `dataFilter.clear`.
+ * @property {string|null} [clearLabel=null] Clear button label; null resolves message `dataFilter.clear`, "Clear".
  * @property {(event: CustomEvent<DataFilterEventDetail>) => void} [onfilter]
  */
 

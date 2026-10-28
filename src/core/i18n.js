@@ -1,4 +1,8 @@
 // @ts-check
+import { defaultMessages, legacyMessageKeys } from './messages.js';
+
+export { defaultMessages };
+
 /** @typedef {(key: string) => string|null|undefined} Translator */
 
 /** @type {Translator|null} */
@@ -6,7 +10,9 @@ let translator = null;
 let language = 'en';
 
 /**
- * Installs the host application's translation function, or clears it with null.
+ * Installs the host application's translation function, or clears it with null. The function
+ * answers one key at a time; returning null, undefined, or the key itself means "no translation",
+ * and resolution moves on to the default English catalogue (`defaultMessages`).
  * @param {Translator|null} fn Translator function.
  * @returns {void}
  */
@@ -35,14 +41,51 @@ export function getLanguage() {
 }
 
 /**
- * Translates a key through the injected host translator and interpolates arguments.
+ * Asks the host translator for one key, without interpolating. A translator that returns null,
+ * undefined, or the key itself has no answer.
+ * @param {string} key Message key.
+ * @returns {string|null} The translation, or null when there is none.
+ */
+export function hostMessage(key) {
+  if (!translator) return null;
+  const translated = translator(key);
+  if (translated == null) return null;
+  const text = String(translated);
+  return text === key ? null : text;
+}
+
+/**
+ * Looks one key up in the default English catalogue.
+ * @param {string} key Message key.
+ * @returns {string|null} The English text, or null when the catalogue has no entry.
+ */
+export function defaultMessage(key) {
+  return Object.prototype.hasOwnProperty.call(defaultMessages, key)
+    ? /** @type {Record<string, string>} */ (defaultMessages)[key] : null;
+}
+
+/**
+ * The key a renamed message key replaced, which is still honoured for one major version.
+ * @param {string} key Current message key.
+ * @returns {string|null} The former key, or null when the key was never renamed.
+ */
+export function legacyMessageKey(key) {
+  return Object.prototype.hasOwnProperty.call(legacyMessageKeys, key)
+    ? /** @type {Record<string, string>} */ (legacyMessageKeys)[key] : null;
+}
+
+/**
+ * Translates a key and interpolates arguments. The host translator answers first (then, for a
+ * renamed key, the translator again under its former name), then the default English catalogue;
+ * a key neither knows comes back unchanged.
  * @param {string} key Translation key.
  * @param {unknown[]|Record<string, unknown>|string|number} [args] Interpolation arguments.
  * @returns {string}
  */
 export function translate(key, args) {
-  const translated = translator ? translator(key) : key;
-  return printf(translated == null ? key : String(translated), args);
+  const legacy = legacyMessageKey(key);
+  const text = hostMessage(key) ?? (legacy ? hostMessage(legacy) : null) ?? defaultMessage(key) ?? key;
+  return printf(text, args);
 }
 
 /**
