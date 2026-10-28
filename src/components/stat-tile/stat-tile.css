@@ -41,7 +41,7 @@ button.zx-stat-tile:hover {
 
 a.zx-stat-tile:focus-visible,
 button.zx-stat-tile:focus-visible {
-  outline: 0;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
 }
 

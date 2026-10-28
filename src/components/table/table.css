@@ -108,7 +108,7 @@
 }
 
 .zx-table__column-move:focus-visible {
-  outline: none;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
 }
 
@@ -298,17 +298,21 @@
 }
 
 .zx-table__sort-button {
+  /* At least 24px tall (WCAG 2.5.8 target size) without making the header any taller: the height
+     the label's line lacks is padding, handed back by a negative margin of the same size. */
+  --zx-table-sort-slack: max(0px, (24px - 1lh) / 2);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--zx-space-2);
   inline-size: 100%;
-  min-block-size: auto;
+  min-block-size: 24px;
   border: 0;
   border-radius: var(--zx-radius-sm);
   background: inherit;
   color: inherit;
-  padding: 0;
+  margin-block: calc(-1 * var(--zx-table-sort-slack));
+  padding: var(--zx-table-sort-slack) 0;
   /* The header's type, not a control's: base.css sets buttons in the control size and weight, and
      the browser resets their tracking, so a sortable label would not match its unsortable
      neighbours. */
@@ -405,13 +409,77 @@
 }
 
 
+/*
+ * The selection checkboxes are drawn rather than native. A native checkbox paints its glyph across
+ * its whole box, so the only way to give it a 24px target (WCAG 2.5.8) would be a 24px glyph. Here
+ * the box stays the --zx-space-4 square it always was and a transparent border around it makes up
+ * the rest of the target — the inset shadow that draws the box's edge sits inside that border.
+ * Forced colours get the native control back, which the system paints in its own colours.
+ */
 .zx-table__checkbox {
-  display: block;
+  --zx-table-checkbox-slack: max(0px, (24px - var(--zx-space-4)) / 2);
+  appearance: none;
+  display: grid;
+  place-content: center;
+  box-sizing: content-box;
   inline-size: var(--zx-space-4);
-  min-block-size: auto;
   block-size: var(--zx-space-4);
+  min-block-size: auto;
   margin: 0 auto;
-  accent-color: var(--zx-color-accent);
+  border: var(--zx-table-checkbox-slack) solid transparent;
+  border-radius: calc(var(--zx-radius-sm) + var(--zx-table-checkbox-slack));
+  padding: 0;
+  background: var(--zx-color-bg-control) padding-box;
+  box-shadow: inset 0 0 0 1px var(--zx-color-text-subtle);
+  color: var(--zx-color-on-accent);
+  cursor: pointer;
+}
+
+.zx-table__checkbox::before {
+  content: "";
+  inline-size: calc(var(--zx-space-4) * .625);
+  block-size: calc(var(--zx-space-4) * .625);
+  background: currentColor;
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0, 43% 62%);
+  visibility: hidden;
+}
+
+.zx-table__checkbox:hover:not(:disabled) {
+  box-shadow: inset 0 0 0 1px var(--zx-color-text-muted);
+}
+
+.zx-table__checkbox:is(:checked, :indeterminate) {
+  background-color: var(--zx-color-accent);
+  box-shadow: inset 0 0 0 1px var(--zx-color-accent);
+}
+
+.zx-table__checkbox:is(:checked, :indeterminate)::before {
+  visibility: visible;
+}
+
+.zx-table__checkbox:indeterminate::before {
+  clip-path: inset(40% 5%);
+}
+
+.zx-table__checkbox:focus-visible {
+  outline-color: transparent;
+  outline-offset: calc(-1 * var(--zx-table-checkbox-slack));
+  box-shadow: inset 0 0 0 1px var(--zx-color-accent), var(--zx-focus-ring);
+}
+
+.zx-table__checkbox:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+@media (forced-colors: active) {
+  .zx-table__checkbox {
+    appearance: auto;
+  }
+
+  .zx-table__checkbox::before {
+    content: none;
+  }
 }
 
 .zx-table__empty {
@@ -455,7 +523,7 @@
 }
 
 .zx-table__tree-toggle:focus-visible {
-  outline: 0;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
 }
 
@@ -519,11 +587,18 @@
   cursor: cell;
 }
 
-/* Cells carry a roving tabindex, so their ring must sit inside the cell box — an outer ring would
-   be painted over by the neighbouring cell. */
-.zx-table__body td[data-editable="true"]:focus-visible {
-  outline: 0;
+/* Rows and cells carry the grid's roving tabindex, so their ring sits inside the box — an outer
+   ring would be painted over by the neighbouring row or cell, or clipped by the scroll region. The
+   outline stays, transparent, for forced colours to paint. */
+.zx-table__body :is(tr[data-row], td, th)[tabindex]:focus-visible {
+  outline-color: transparent;
+  outline-offset: -2px;
   box-shadow: inset var(--zx-focus-ring);
+}
+
+/* A row moved to by keyboard scrolls clear of the sticky header rather than behind it. */
+.zx-table__body > tr[data-row] {
+  scroll-margin-block: calc(var(--zx-control-height) + var(--zx-space-2)) var(--zx-space-2);
 }
 
 .zx-table__body td[data-editing="true"] {

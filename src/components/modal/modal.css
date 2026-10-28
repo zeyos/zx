@@ -39,7 +39,7 @@
  * overlay with nothing on screen saying so.
  */
 .zx-modal:focus {
-  outline: none;
+  outline-color: transparent;
 }
 
 .zx-modal:focus-visible {

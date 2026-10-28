@@ -375,7 +375,8 @@
 
 /* The ring of the scrollable code sits inside its rounded corners. */
 .wiki__pre:focus-visible {
-  outline: none;
+  outline-color: transparent;
+  outline-offset: -2px;
   box-shadow: inset var(--zx-focus-ring);
 }
 

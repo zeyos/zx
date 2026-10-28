@@ -84,7 +84,7 @@
 }
 
 .zx-time-picker__clock-unit:focus-visible {
-  outline: 0;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
 }
 
@@ -146,7 +146,7 @@
 }
 
 .zx-time-picker__mark:focus-visible {
-  outline: 0;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
 }
 

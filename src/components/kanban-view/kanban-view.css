@@ -134,7 +134,7 @@
 .zx-kanban-view__collapse:focus-visible,
 .zx-kanban-view__move-handle:focus-visible,
 .zx-kanban-view .zx-record-card:focus-visible {
-  outline: none;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
 }
 
@@ -188,7 +188,7 @@
 }
 
 .zx-kanban-view :where(.zx-record-card[data-variant="outlined"]) {
-  box-shadow: var(--zx-shadow-1);
+  box-shadow: var(--zx-surface-shadow);
 }
 
 /* The shared card anatomy stays intact; Kanban constrains media to a compact thumbnail. */
@@ -563,7 +563,7 @@
 }
 
 .zx-kanban-view__add:focus-visible {
-  outline: none;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
 }
 

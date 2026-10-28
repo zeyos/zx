@@ -100,7 +100,7 @@
 /* A view's heading takes focus from script when you arrive, so a screen reader says where you
    are; it is not a control, so it draws no ring. */
 .agents .agents__view :is(h2, h3)[tabindex="-1"]:focus {
-  outline: none;
+  outline-color: transparent;
   box-shadow: none;
 }
 
@@ -341,7 +341,7 @@
 }
 
 .agents .agents__member-name:focus-visible {
-  outline: none;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
 }
 
@@ -418,7 +418,7 @@
 
 .agents .agents__composer-input:focus,
 .agents .agents__composer-input:focus-visible {
-  outline: none;
+  outline-color: transparent;
   box-shadow: none;
 }
 
@@ -468,7 +468,7 @@
 }
 
 .agents .agents__chip:focus-visible {
-  outline: none;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
 }
 
@@ -505,7 +505,7 @@
 }
 
 .agents .agents__task-link:focus-visible {
-  outline: none;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
 }
 
@@ -663,7 +663,7 @@
 }
 
 .agents .agents__step:focus {
-  outline: none;
+  outline-color: transparent;
 }
 
 .agents .agents__step:focus-visible {
@@ -752,7 +752,8 @@
 }
 
 .agents .agents__event-row:focus-visible {
-  outline: none;
+  outline-color: transparent;
+  outline-offset: -2px;
   box-shadow: inset 0 0 0 2px var(--zx-color-ring);
 }
 
@@ -981,7 +982,7 @@
 }
 
 .agents .agents__file-chip:focus-visible {
-  outline: none;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
 }
 
@@ -1051,7 +1052,7 @@
 
 .agents .agents__chat-input:focus,
 .agents .agents__chat-input:focus-visible {
-  outline: none;
+  outline-color: transparent;
   box-shadow: none;
 }
 

@@ -118,7 +118,7 @@
 .zx-calendar__more:focus-visible,
 .zx-calendar__month-week-number:focus-visible {
   z-index: 4;
-  outline: none;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
 }
 

@@ -252,7 +252,7 @@
 }
 
 .agent-chat .agent-chat__call-row:focus-visible {
-  outline: none;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
 }
 
@@ -337,7 +337,7 @@
 }
 
 .agent-chat .agent-chat__approval:focus {
-  outline: none;
+  outline-color: transparent;
 }
 
 .agent-chat .agent-chat__approval:focus-visible {
@@ -500,7 +500,7 @@
 }
 
 .agent-chat .agent-chat__disclosure:focus-visible {
-  outline: none;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
 }
 
@@ -676,7 +676,7 @@
 }
 
 .agent-chat .agent-chat__source:focus-visible {
-  outline: none;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
 }
 
@@ -796,7 +796,7 @@
 }
 
 .agent-chat .agent-chat__input:is(:focus, :focus-visible) {
-  outline: none;
+  outline-color: transparent;
   box-shadow: none;
 }
 
@@ -860,7 +860,7 @@
 }
 
 .agent-chat .agent-chat__send:focus-visible {
-  outline: none;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
 }
 
@@ -1026,7 +1026,7 @@
 }
 
 .agent-chat :is(button.agent-chat__step, .agent-chat__run-source):focus-visible {
-  outline: none;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
 }
 

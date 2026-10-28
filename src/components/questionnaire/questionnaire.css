@@ -51,11 +51,11 @@
 }
 
 .zx-questionnaire__item:focus {
-  outline: none;
+  outline-color: transparent;
 }
 
 .zx-questionnaire__item:focus-visible {
-  outline: none;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
   border-radius: var(--zx-questionnaire-radius);
 }
@@ -275,7 +275,7 @@
 }
 
 .zx-questionnaire__freeform-input:focus-visible {
-  outline: none;
+  outline-color: transparent;
   border-color: var(--zx-color-accent);
   box-shadow: var(--zx-focus-ring);
 }
@@ -301,7 +301,7 @@
 }
 
 .zx-questionnaire__review:focus {
-  outline: none;
+  outline-color: transparent;
 }
 
 

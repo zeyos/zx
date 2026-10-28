@@ -437,7 +437,7 @@
 }
 
 .chat .chat__work-toggle:focus-visible {
-  outline: none;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
 }
 
@@ -586,7 +586,7 @@
 }
 
 .chat .chat__source:focus-visible {
-  outline: none;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
 }
 
@@ -651,7 +651,7 @@
 }
 
 .chat .chat__artifact-card:focus-visible {
-  outline: none;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
 }
 

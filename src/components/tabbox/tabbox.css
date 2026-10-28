@@ -113,7 +113,8 @@
 
 .zx-tabbox[data-variant="divided"] .zx-tabbox__tab:focus-visible {
   z-index: 1;
-  outline: 0;
+  outline-color: transparent;
+  outline-offset: -2px;
   box-shadow: inset var(--zx-focus-ring);
 }
 
@@ -155,7 +156,8 @@
 
 .zx-tabbox[data-variant="bracket"] .zx-tabbox__tab:focus-visible {
   z-index: 1;
-  outline: 0;
+  outline-color: transparent;
+  outline-offset: -2px;
   box-shadow: inset var(--zx-focus-ring);
 }
 
@@ -183,7 +185,8 @@
 
 .zx-tabbox[data-variant="line"] .zx-tabbox__tab:focus-visible {
   z-index: 1;
-  outline: 0;
+  outline-color: transparent;
+  outline-offset: -2px;
   box-shadow: inset var(--zx-focus-ring);
 }
 
@@ -220,7 +223,7 @@
 
 .zx-tabbox[data-variant="segmented"] .zx-tabbox__tab:focus-visible {
   z-index: 1;
-  outline: 0;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
 }
 
@@ -291,6 +294,7 @@
 }
 
 .zx-tabbox__panel:focus-visible {
-  outline: 0;
+  outline-color: transparent;
+  outline-offset: -2px;
   box-shadow: inset var(--zx-focus-ring);
 }

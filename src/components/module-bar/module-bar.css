@@ -212,7 +212,7 @@
 }
 
 .zx-module-bar__item:focus-visible {
-  outline: none;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
 }
 
@@ -376,7 +376,7 @@
 .zx-module-bar__filter::placeholder { color: var(--zx-color-text-placeholder); }
 
 .zx-module-bar__filter:focus-visible {
-  outline: none;
+  outline-color: transparent;
   border-color: var(--zx-color-accent);
   box-shadow: var(--zx-focus-ring);
 }
@@ -426,7 +426,7 @@
 .zx-module-bar__entry:hover { background: var(--zx-color-bg-hover); }
 
 .zx-module-bar__entry:focus-visible {
-  outline: none;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
 }
 

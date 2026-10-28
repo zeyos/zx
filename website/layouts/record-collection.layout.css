@@ -207,7 +207,7 @@
 .collection .collection__chip-main:focus-visible,
 .collection .collection__chip-remove:focus-visible {
   position: relative;
-  outline: 0;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
 }
 

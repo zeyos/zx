@@ -3,7 +3,7 @@
   border: 1px solid var(--zx-color-border);
   border-radius: var(--zx-radius-lg);
   background: var(--zx-color-bg-surface);
-  box-shadow: var(--zx-shadow-1);
+  box-shadow: var(--zx-surface-shadow);
 }
 
 /* The header is a row, not one big button: the collapse control takes the title area and the
@@ -49,7 +49,8 @@ button.zx-panel__toggle:hover {
 
 /* Inset, because the panel clips its own overflow and would cut an outside ring. */
 button.zx-panel__toggle:focus-visible {
-  outline: 0;
+  outline-color: transparent;
+  outline-offset: -2px;
   box-shadow: inset var(--zx-focus-ring);
 }
 

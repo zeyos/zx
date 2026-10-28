@@ -84,6 +84,9 @@
   --zx-color-tone-slate-fg: var(--zx-tone-slate-300);
   --zx-color-ring: var(--zx-color-accent);
   --zx-focus-ring: 0 0 0 3px color-mix(in srgb, var(--zx-color-ring) 45%, transparent);
+  /* The surface contact shadow keeps the light value: on a dark canvas the border, not the shadow,
+     separates a resting surface, and a heavier shadow would read as a lifted one. */
+  --zx-surface-shadow: var(--zx-shadow-1);
   --zx-overlay-shadow: 0 12px 36px rgb(0 0 0 / 45%);
   /* A shadow alone barely reads on a dark canvas, so the lifted item also gets a faint light rim. */
   --zx-drag-shadow: 0 0 0 1px color-mix(in srgb, var(--zx-gray-0) 7%, transparent), 0 2px 6px -1px rgb(0 0 0 / 40%), 0 14px 32px -6px rgb(0 0 0 / 60%);
@@ -158,6 +161,7 @@
     --zx-color-tone-slate-fg: var(--zx-tone-slate-300);
     --zx-color-ring: var(--zx-color-accent);
     --zx-focus-ring: 0 0 0 3px color-mix(in srgb, var(--zx-color-ring) 45%, transparent);
+    --zx-surface-shadow: var(--zx-shadow-1);
     --zx-overlay-shadow: 0 12px 36px rgb(0 0 0 / 45%);
     --zx-drag-shadow: 0 0 0 1px color-mix(in srgb, var(--zx-gray-0) 7%, transparent), 0 2px 6px -1px rgb(0 0 0 / 40%), 0 14px 32px -6px rgb(0 0 0 / 60%);
     --zx-header-bg: var(--zx-gray-900);

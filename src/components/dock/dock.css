@@ -83,7 +83,7 @@
 .zx-dock__toggle:disabled .zx-dock__chevron { visibility: hidden; }
 
 .zx-dock__toggle:focus-visible {
-  outline: none;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
 }
 
@@ -141,7 +141,7 @@
 }
 
 .zx-dock__tab:focus-visible {
-  outline: none;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
 }
 
@@ -172,7 +172,8 @@
 }
 
 .zx-dock__panel:focus-visible {
-  outline: none;
+  outline-color: transparent;
+  outline-offset: -2px;
   box-shadow: inset var(--zx-focus-ring);
 }
 
@@ -222,7 +223,7 @@
 }
 
 .zx-dock__divider:focus-visible {
-  outline: none;
+  outline-color: transparent;
   z-index: 1;
   box-shadow: var(--zx-focus-ring);
 }

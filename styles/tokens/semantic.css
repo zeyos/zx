@@ -12,6 +12,44 @@
  * `tokens/themes.css` retheme them. Status colours keep their own ramps on purpose — see the note
  * in that file.
  */
+/*
+ * Geometry and material settings — every token here is theme-independent, so it is declared on
+ * :root ONLY and never restated on a `[data-zx-theme]` block. A custom property declared on a
+ * theme element shadows the inherited one, so a nested `[data-zx-theme="light"]` region would
+ * otherwise reset an application's own `:root { --zx-control-height: 40px }` back to the default
+ * while a dark region kept it. There is one geometry; the theme blocks below carry colours only,
+ * and `tests/unit/geometry-tokens.test.js` fails if a non-colour token moves back into one.
+ */
+:root {
+  --zx-control-height: 30px;
+  --zx-control-pad-x: 10px;
+  --zx-control-radius: var(--zx-radius-lg);
+  --zx-control-font-size: var(--zx-text-md);
+  --zx-control-font-weight: 500;
+  /* Blur applied behind a backdrop that asked for it. */
+  --zx-overlay-blur: 8px;
+  /* AppIcon is a dark chromatic lens: colour lives in its rim and low bloom, not a glossy fill.
+     Its strengths remain inherited, while each AppIcon mixes them with its own module colour. */
+  --zx-app-icon-core-strength: 52%;
+  --zx-app-icon-rim-strength: 58%;
+  --zx-app-icon-bloom-strength: 64%;
+  --zx-app-icon-specular-strength: 72%;
+  --zx-app-icon-halo-size: 14px;
+  --zx-app-icon-halo-strength: 22%;
+  --zx-overlay-specular-strength: 48%;
+  --zx-glass-blur: 8px;
+  --zx-glass-saturation: 130%;
+  --zx-glass-color-strength: 82%;
+  /* Material filters are roles, not component recipes. Aurora remains a separate canvas layer. */
+  --zx-glass-filter-icon: blur(4px) saturate(118%);
+  --zx-glass-filter-control: blur(6px) saturate(116%);
+  --zx-glass-filter-raised: blur(8px) saturate(120%);
+  --zx-glass-filter-chrome: blur(10px) saturate(122%);
+  --zx-glass-filter-overlay: blur(16px) saturate(140%);
+  --zx-glass-filter-panel: blur(14px) saturate(132%);
+}
+
+/* The light theme — colours only. */
 :root,
 [data-zx-theme="light"] {
   color-scheme: light;
@@ -92,41 +130,18 @@
   --zx-color-tone-pink-solid: var(--zx-tone-pink-500);
   --zx-color-tone-violet-solid: var(--zx-tone-violet-500);
   --zx-color-tone-slate-solid: var(--zx-tone-slate-500);
-  --zx-control-height: 30px;
-  --zx-control-pad-x: 10px;
-  --zx-control-radius: var(--zx-radius-lg);
-  --zx-control-font-size: var(--zx-text-md);
-  --zx-control-font-weight: 500;
+  /* A resting surface one hair off what it sits on — a panel, an outlined card in a lane, a slider
+     thumb: a contact shadow only, far below an overlay or a dragged item. */
+  --zx-surface-shadow: var(--zx-shadow-1);
   --zx-overlay-shadow: var(--zx-shadow-3);
   /* An item being dragged — a lifted card, a row in flight, a drag preview: a tight contact
      shadow and a wide soft one, clearly higher than a resting card and lower than an overlay. */
   --zx-drag-shadow: 0 2px 4px -1px color-mix(in srgb, var(--zx-gray-950) 10%, transparent),
     0 12px 28px -6px color-mix(in srgb, var(--zx-gray-950) 22%, transparent);
-  /* Blur applied behind a backdrop that asked for it. Theme-independent, so light defines it once. */
-  --zx-overlay-blur: 8px;
   --zx-color-glass-border: color-mix(in srgb, var(--zx-gray-0) 24%, transparent);
   --zx-color-glass-highlight: color-mix(in srgb, var(--zx-gray-0) 24%, transparent);
   --zx-color-glass-highlight-strong: color-mix(in srgb, var(--zx-gray-0) 38%, transparent);
-  /* AppIcon is a dark chromatic lens: colour lives in its rim and low bloom, not a glossy fill. */
-  /* Strengths remain inherited, while each AppIcon mixes them with its own module colour. */
-  --zx-app-icon-core-strength: 52%;
-  --zx-app-icon-rim-strength: 58%;
-  --zx-app-icon-bloom-strength: 64%;
-  --zx-app-icon-specular-strength: 72%;
-  --zx-app-icon-halo-size: 14px;
-  --zx-app-icon-halo-strength: 22%;
   --zx-color-overlay-backdrop: color-mix(in srgb, var(--zx-gray-950) 28%, transparent);
-  --zx-overlay-specular-strength: 48%;
-  --zx-glass-blur: 8px;
-  --zx-glass-saturation: 130%;
-  --zx-glass-color-strength: 82%;
-  /* Material filters are roles, not component recipes. Aurora remains a separate canvas layer. */
-  --zx-glass-filter-icon: blur(4px) saturate(118%);
-  --zx-glass-filter-control: blur(6px) saturate(116%);
-  --zx-glass-filter-raised: blur(8px) saturate(120%);
-  --zx-glass-filter-chrome: blur(10px) saturate(122%);
-  --zx-glass-filter-overlay: blur(16px) saturate(140%);
-  --zx-glass-filter-panel: blur(14px) saturate(132%);
   --zx-glass-control-shadow: inset 0 1px 0 color-mix(in srgb, var(--zx-gray-0) 18%, transparent), var(--zx-shadow-1);
   --zx-glass-chrome-shadow: inset 0 1px 0 color-mix(in srgb, var(--zx-gray-0) 16%, transparent), var(--zx-shadow-1);
   --zx-header-bg: var(--zx-gray-900);
@@ -138,8 +153,9 @@
  * tone tints — are restated on every theme element, not only on :root. A custom property is
  * resolved where it is declared and inherited as a finished value, so a dark region on a light
  * page would otherwise inherit light glass and light overlays. The dark theme, which loads later,
- * overrides the ones it derives differently. Geometry and the base palette stay on :root, so an
- * application's own overrides there still reach nested regions.
+ * overrides the ones it derives differently. Geometry and the base palette stay on :root (the block
+ * at the top of this file and tokens/global.css), so an application's own overrides there still
+ * reach nested regions.
  */
 :root,
 [data-zx-theme] {

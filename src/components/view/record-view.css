@@ -93,7 +93,7 @@
 }
 
 .zx-record-view__field-move:focus-visible {
-  outline: none;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
 }
 

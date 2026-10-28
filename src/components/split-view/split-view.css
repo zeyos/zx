@@ -99,7 +99,7 @@
 }
 
 .zx-split-view__divider:focus-visible {
-  outline: 0;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
   /* The ring sits outside an 8px-wide element, so it must draw over both panes. */
   z-index: 1;

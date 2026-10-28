@@ -45,7 +45,7 @@
   padding: var(--zx-space-3);
   border: 0;
   border-radius: 0;
-  outline: 0;
+  outline-color: transparent;
   background: transparent;
   box-shadow: none;
   color: var(--zx-color-text);

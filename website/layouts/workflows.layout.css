@@ -95,7 +95,7 @@
 }
 
 .flow .flow__step:focus-visible {
-  outline: none;
+  outline-color: transparent;
   border-color: var(--zx-color-accent);
   box-shadow: var(--zx-focus-ring);
 }
@@ -237,7 +237,7 @@
 }
 
 .flow .flow__add:focus-visible {
-  outline: none;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
 }
 
@@ -607,7 +607,7 @@
 }
 
 .flow .flow__card:focus-visible {
-  outline: none;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
 }
 

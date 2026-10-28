@@ -413,7 +413,7 @@
 }
 
 .zx-app-sidebar__presentation-option:focus-visible {
-  outline: none;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
 }
 

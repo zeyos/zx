@@ -73,7 +73,7 @@
 .zx-app-icon[data-glass="none"] .zx-app-icon__surface::after { display: none; }
 
 .zx-app-icon[data-selected] .zx-app-icon__surface {
-  outline: none;
+  outline-color: transparent;
   box-shadow: 0 0 0 1px var(--zx-color-bg-page),
     0 0 0 3px var(--zx-app-icon-selected-ring),
     var(--zx-app-icon-shadow-hover),
@@ -177,7 +177,7 @@
 
 .zx-app-icon:is(a, button, [role="button"]):not(:disabled):not([aria-disabled="true"]):focus-visible .zx-app-icon__surface,
 :is(a, button, [role="button"]):not(:disabled):not([aria-disabled="true"]):focus-visible .zx-app-icon__surface {
-  outline: none;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring), var(--zx-app-icon-shadow-hover), var(--zx-app-icon-halo);
 }
 

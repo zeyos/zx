@@ -8,9 +8,11 @@ const componentRoot = resolve(root, 'src/components');
  * is DEFINED — a hex literal there is the point, and scanning the tree would flag every one.
  * Everything else under `styles/` consumes the semantic tier like a component does and is held
  * to the same rule. A new stylesheet here has to be added deliberately, which is the tradeoff:
- * `print.css` shipped without this line and nothing noticed.
+ * `print.css` and `icons.css` both shipped without this line and nothing noticed — so the list is
+ * also checked against the directory below, and a stylesheet missing from it fails the lint.
  */
-const styleFiles = ['base.css', 'print.css'].map((name) => resolve(root, 'styles', name));
+const styleNames = ['base.css', 'print.css', 'icons.css'];
+const styleFiles = styleNames.map((name) => resolve(root, 'styles', name));
 const componentFiles = findCssFiles(componentRoot);
 /*
  * The application layouts are public examples of how to style an application on Zx, so they are
@@ -20,6 +22,12 @@ const layoutRoot = resolve(root, 'website/layouts');
 const layoutFiles = findCssFiles(layoutRoot);
 const files = [...componentFiles, ...styleFiles, ...layoutFiles].filter(existsSync);
 const violations = [];
+for (const entry of readdirSync(resolve(root, 'styles'), { withFileTypes: true })) {
+  // `zx.css` is only the @import list; everything else is a stylesheet that must be linted.
+  if (entry.isFile() && entry.name.endsWith('.css') && entry.name !== 'zx.css' && !styleNames.includes(entry.name)) {
+    violations.push('styles/' + entry.name + ' is not in the lint\'s style file list');
+  }
+}
 const namedColors = (
   'aliceblue antiquewhite aqua aquamarine azure beige bisque black blanchedalmond blue blueviolet ' +
   'brown burlywood cadetblue chartreuse chocolate coral cornflowerblue cornsilk crimson cyan darkblue ' +
@@ -44,8 +52,31 @@ const rawColorPatterns = [
   { label: 'hex color', pattern: /#[\da-f]{3,8}\b/gi },
   { label: 'rgb() color', pattern: /\brgba?\s*\(/gi },
   { label: 'hsl() color', pattern: /\bhsla?\s*\(/gi },
+  // The CSS Color 4 functions paint as surely as rgb(). `color-mix()` is not one of them: it
+  // only mixes the colours it is given, which the other patterns already check.
+  { label: 'colour function', pattern: /(?<![\w-])(?:oklch|oklab|lab|lch|hwb|color)\s*\(/gi },
   { label: 'named color', pattern: namedColorPattern }
 ];
+/*
+ * Tier-1 tokens a component or layout must not read. The accent ramp (`--zx-accent-300…700`) is
+ * public API for applications, but components take the accent through the `--zx-color-accent*`
+ * roles; the module palette is ZeyOS product data; the raw shadow steps sit behind
+ * `--zx-surface-shadow` and `--zx-overlay-shadow`. `--zx-module-bar-*` is ModuleBar's own
+ * component-local geometry, not the palette.
+ */
+const tierOnePattern = new RegExp(
+  String.raw`var\(\s*(--zx-(?:(?:gray|green|red|amber|blue|emerald|tone)-|accent-\d|shadow-\d|module-(?!bar-))[^\s,)]*)`,
+  'gi'
+);
+/*
+ * Outline suppression. Forced-colors mode drops box-shadow, so a focus ring drawn with one
+ * vanishes and the outline is all that is left; `outline: 0` or `outline: none` on a focusable
+ * element removes that last indicator. Make the outline transparent instead (`outline-color:
+ * transparent`), which forced colors repaints in a system colour. A rule that genuinely has no
+ * focus to show (print) carries `/* lint: outline-ok *\/` on the same line.
+ */
+const outlinePattern = /\boutline(?:-style)?\s*:\s*(?:none|0(?:px)?)(?![\w.])|\boutline-width\s*:\s*0(?:px)?(?![\w.])/gi;
+const outlineAllowMarker = /lint:\s*outline-ok/;
 
 for (const file of files) {
   const source = readFileSync(file, 'utf8');
@@ -53,25 +84,29 @@ for (const file of files) {
   // tone, it does not paint one. Blank them out (keeping offsets) before looking for literals.
   const css = stripStrings(stripComments(source));
 
+  const fallbacks = varFallbackRanges(css);
   for (const { label, pattern } of rawColorPatterns) {
     pattern.lastIndex = 0;
     for (const match of css.matchAll(pattern)) {
-      addViolation(file, css, match.index, label + ' "' + match[0] + '"');
+      // A raw colour as a `var()` fallback still paints whenever the token is missing — and it
+      // is the one place a reviewer reads past, so say so.
+      const where = fallbacks.some(([start, end]) => match.index >= start && match.index < end)
+        ? ' in a var() fallback'
+        : '';
+      addViolation(file, css, match.index, label + ' "' + match[0] + '"' + where);
     }
   }
 
-  const unsafeOutline = /outline\s*:\s*(?:none|0(?:\s*!important)?)\s*;?/i.exec(css);
-  if (unsafeOutline && !/:focus-visible\b/i.test(css)) {
-    addViolation(
-      file,
-      css,
-      unsafeOutline.index,
-      'outline suppression without a :focus-visible rule in the same file'
-    );
+  const sourceLines = source.split('\n');
+  for (const match of css.matchAll(outlinePattern)) {
+    const line = css.slice(0, match.index).split('\n').length;
+    if (outlineAllowMarker.test(sourceLines[line - 1] ?? '')) continue;
+    addViolation(file, css, match.index,
+      'outline suppression "' + match[0] + '" (use outline-color: transparent; see base.css)');
   }
 
   if (file.startsWith(componentRoot) || file.startsWith(layoutRoot)) {
-    const tierOnePattern = /var\(\s*(--zx-(?:gray|green|red|amber|blue|emerald|tone)-[^\s,)]+)/gi;
+    tierOnePattern.lastIndex = 0;
     for (const match of css.matchAll(tierOnePattern)) {
       addViolation(file, css, match.index, 'tier-1 token reference "' + match[1] + '"');
     }
@@ -85,6 +120,32 @@ if (violations.length > 0) {
 } else {
   const suffix = files.length === 1 ? '' : 's';
   console.log('Token lint passed (' + files.length + ' CSS file' + suffix + ' checked).');
+}
+
+/**
+ * The source ranges of every `var()` fallback (from after the first top-level comma to the closing
+ * parenthesis), nested ones included.
+ * @param {string} css
+ * @returns {Array<[number, number]>}
+ */
+function varFallbackRanges(css) {
+  const ranges = [];
+  for (const match of css.matchAll(/\bvar\(/g)) {
+    let depth = 0;
+    let comma = -1;
+    for (let index = match.index + 3; index < css.length; index += 1) {
+      const char = css[index];
+      if (char === '(') depth += 1;
+      else if (char === ')') {
+        depth -= 1;
+        if (depth === 0) {
+          if (comma >= 0) ranges.push([comma + 1, index]);
+          break;
+        }
+      } else if (char === ',' && depth === 1 && comma < 0) comma = index;
+    }
+  }
+  return ranges;
 }
 
 /**

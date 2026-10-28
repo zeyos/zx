@@ -54,7 +54,7 @@
 }
 
 .zx-copy-input__field:focus-visible {
-  outline: 0;
+  outline-color: transparent;
   box-shadow: none;
 }
 

@@ -67,7 +67,7 @@ test('board styling keeps rail hierarchy, progressive controls, and coarse targe
   // Cards remain the primary surfaces with a restrained radius and subtle shadow.
   assert.match(source, /\.zx-kanban-view__cards > \.zx-record-card\s*\{[^}]*border-radius:\s*var\(--zx-radius-md\)/s);
   assert.match(source, /\.zx-kanban-view \.zx-record-card:has\(> \.zx-record-card__preview\)/);
-  assert.match(source, /\.zx-kanban-view :where\(\.zx-record-card\[data-variant="outlined"\]\)\s*\{[^}]*box-shadow:\s*var\(--zx-shadow-1\)/s);
+  assert.match(source, /\.zx-kanban-view :where\(\.zx-record-card\[data-variant="outlined"\]\)\s*\{[^}]*box-shadow:\s*var\(--zx-surface-shadow\)/s);
   assert.match(source, /\.zx-kanban-view \.zx-record-card__eyebrow-group\[data-card-slot="eyebrow-start"\]/);
   assert.match(source, /\.zx-kanban-view \.zx-record-card__title-prefix \.zx-icon/);
   assert.match(source, /\.zx-kanban-view \.zx-record-card__actions\s*\{[^}]*opacity:\s*0[^}]*pointer-events:\s*none/s);

@@ -32,6 +32,20 @@
   box-shadow: var(--zx-focus-ring);
 }
 
+/* Forced colours (Windows high contrast) drop every box-shadow, so the accent ring disappears and
+   the outline is the only focus indicator left. Components therefore never set `outline: 0` or
+   `outline: none` on a focusable element — they make it transparent (`outline-color:
+   transparent`, plus `outline-offset: -2px` where the ring is inset) and this rule paints it in a
+   system colour. `tests/lint-tokens.js` rejects outline suppression outside a marked exception.
+   `!important` because a component's own, more specific `outline-color: transparent` would
+   otherwise survive on an element that opts out with `forced-color-adjust: none` (a current item
+   filled with Highlight). Offsets are left to the component, so inset rings stay inset. */
+@media (forced-colors: active) {
+  .zx-scope :focus-visible {
+    outline: 2px solid Highlight !important;
+  }
+}
+
 .zx-scope ::selection {
   background: var(--zx-color-accent);
   color: var(--zx-color-on-accent);
@@ -129,7 +143,8 @@
 }
 
 .zx-scope .zx-icon-btn:focus-visible {
-  outline: 0;
+  outline-color: transparent;
+  outline-offset: -2px;
   box-shadow: inset var(--zx-focus-ring);
 }
 

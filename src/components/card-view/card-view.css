@@ -38,7 +38,7 @@
 }
 
 .zx-card-view__sort select:focus-visible {
-  outline: none;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
 }
 
@@ -103,7 +103,7 @@
 }
 
 .zx-record-card:focus-visible {
-  outline: none;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
 }
 
@@ -179,7 +179,7 @@
 }
 
 .zx-record-card__selection input:focus-visible {
-  outline: none;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
 }
 
@@ -246,7 +246,7 @@
 
 .zx-record-card__primary:focus-visible {
   border-radius: var(--zx-radius-sm);
-  outline: none;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
 }
 
@@ -291,7 +291,7 @@
 }
 
 .zx-record-card__action:focus-visible {
-  outline: none;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
 }
 

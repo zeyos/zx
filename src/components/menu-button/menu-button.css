@@ -181,7 +181,7 @@
 .zx-menu-button__choice-option[aria-disabled="true"] { cursor: not-allowed; opacity: .55; }
 
 .zx-menu-button__choice-option:focus-visible {
-  outline: none;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
 }
 

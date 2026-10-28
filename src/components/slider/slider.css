@@ -119,7 +119,7 @@
   border: 2px solid var(--zx-color-bg-surface);
   border-radius: var(--zx-radius-full);
   background: var(--zx-color-accent);
-  box-shadow: var(--zx-shadow-1);
+  box-shadow: var(--zx-surface-shadow);
 }
 
 .zx-slider__input::-moz-range-thumb {
@@ -128,7 +128,7 @@
   border: 2px solid var(--zx-color-bg-surface);
   border-radius: var(--zx-radius-full);
   background: var(--zx-color-accent);
-  box-shadow: var(--zx-shadow-1);
+  box-shadow: var(--zx-surface-shadow);
 }
 
 .zx-slider__input:focus-visible {

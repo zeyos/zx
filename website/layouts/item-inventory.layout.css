@@ -263,7 +263,7 @@
 }
 
 .inventory .inventory__connection:focus-visible {
-  outline: none;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
 }
 

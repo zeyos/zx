@@ -240,7 +240,7 @@ button.zx-filter__connector:hover {
 }
 
 button.zx-filter__connector:focus-visible {
-  outline: 0;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
 }
 

@@ -115,7 +115,7 @@
 
   .zx-scope :focus,
   .zx-scope :focus-visible {
-    outline: none;
+    outline: none; /* lint: outline-ok — printed pages have no focus to show */
     box-shadow: none;
   }
 

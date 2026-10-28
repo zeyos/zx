@@ -55,7 +55,7 @@
 }
 
 .crm .crm__record-link:focus-visible {
-  outline: 0;
+  outline-color: transparent;
   border-radius: var(--zx-radius-sm);
   box-shadow: var(--zx-focus-ring);
 }
@@ -206,7 +206,7 @@
 }
 
 .crm .crm__viewbar .zx-record-view__field-controls > summary:focus-visible {
-  outline: 0;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
 }
 
@@ -249,7 +249,8 @@
 
 /* Inset, because the row clips what overflows it. */
 .crm .crm__view:focus-visible {
-  outline: 0;
+  outline-color: transparent;
+  outline-offset: -2px;
   box-shadow: inset var(--zx-focus-ring);
 }
 

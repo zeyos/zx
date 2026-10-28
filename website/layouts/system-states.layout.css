@@ -55,7 +55,7 @@
 
 /* A heading reached from the navigation takes focus without drawing a ring around plain text. */
 .states .states__section-title:focus {
-  outline: none;
+  outline-color: transparent;
 }
 
 .states .states__section-title:focus-visible {

@@ -58,7 +58,7 @@
 }
 
 .zx-breadcrumb__link:focus-visible {
-  outline: 0;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
 }
 

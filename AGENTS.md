@@ -47,7 +47,7 @@ its "Out of scope" section is binding. Do not modify files outside the spec's fi
 - CSS classes: `.zx-<component>` block, `.zx-<component>__<part>` elements (BEM-ish, no modifiers
   — states use attributes, see below).
 - CSS custom properties: `--zx-*`. Components may **only** consume tier-2 semantic tokens
-  (`--zx-color-*`, `--zx-control-*`, `--zx-focus-ring`, `--zx-overlay-shadow`, `--zx-space-*`,
+  (`--zx-color-*`, `--zx-control-*`, `--zx-focus-ring`, `--zx-overlay-shadow`, `--zx-surface-shadow`, `--zx-space-*`,
   `--zx-radius-*`, `--zx-text-*`, `--zx-weight-*`, `--zx-tracking-*`, `--zx-dur-*`, `--zx-ease`).
   Never tier-1 palette tokens (`--zx-gray-500`, `--zx-emerald-*`, `--zx-tone-*` etc.) — categorical
   colour comes through `--zx-color-tone-*` and `--zx-color-chart-*` — and never raw color literals

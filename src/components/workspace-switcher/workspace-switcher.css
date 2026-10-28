@@ -53,7 +53,7 @@
 }
 
 .zx-workspace-switcher .zx-workspace-switcher__trigger:focus-visible {
-  outline: none;
+  outline-color: transparent;
   box-shadow: var(--zx-focus-ring);
 }
 
