@@ -147,6 +147,10 @@ import { sortRows } from './sort.js';
  * @property {string[]} [hiddenColumns=[]] Initially hidden column IDs; at least one stays visible.
  * @property {false|TableHierarchyOptions} [hierarchy=false] Flat parent references projected as an
  * expandable treegrid. Row data and mutation APIs remain flat.
+ * @property {string|null} [label=null] Accessible name of the grid. A grid must have one; null
+ * resolves the `table.label` message (English "Table"), so name it after what it lists.
+ * @property {string|null} [labelledBy=null] Id of an element that names the grid — the heading
+ * above it, say. Wins over `label`.
  * @property {(event: CustomEvent<TableRowClickDetail>) => void} [onrowclick]
  * @property {(event: CustomEvent<TableRowClickDetail>) => void} [onrowdblclick]
  * @property {(event: CustomEvent<TableSortDetail>) => void} [onsort]
@@ -259,6 +263,17 @@ const FOCUSABLE = 'input, textarea, select, button, [tabindex]:not([tabindex="-1
 /**
  * Semantic, sortable data table with optional single or checkbox-based multi-selection and
  * opt-in inline cell or row editing.
+ *
+ * The body follows the WAI-ARIA APG Grid pattern (`role="grid"`), or the Treegrid pattern
+ * (`role="treegrid"`) with `hierarchy`: the rows are one Tab stop with a roving `tabindex`. Rows
+ * take focus by default; a table with `editMode` moves focus between cells instead, which the root
+ * reflects as `data-focus="row"|"cell"`. ArrowUp/ArrowDown move between rows, ArrowLeft/ArrowRight
+ * between cells (cell focus) or expand, collapse, and walk the tree (treegrid), Home/End and
+ * Ctrl+Home/End jump to the ends, PageUp/PageDown move by a visible page (10 rows when the table
+ * does not scroll). Enter activates the row exactly as a click does (`rowclick`), Space toggles the
+ * row's selection when `selectable` (and activates otherwise), Shift+Arrow extends a `multi`
+ * selection, and Ctrl/Cmd+A selects every rendered row. The focused row survives `setData`, sorting,
+ * expansion, and `updateRow`. Column headers keep their sort buttons in the Tab order.
  * @fires Table#rowclick
  * @fires Table#rowdblclick
  * @fires Table#sort
@@ -300,6 +315,8 @@ export class Table extends Component {
     editMode: false,
     editTrigger: 'double',
     hierarchy: false,
+    label: null,
+    labelledBy: null,
     rowReorder: false,
     columnVisibility: false,
     columnReorder: false,
@@ -336,6 +353,7 @@ export class Table extends Component {
     this._selectionAnchorId = null;
     this._sort = normalizeSort(this.options.sort, this._columns);
     this._rowMeta = new WeakMap();
+    this._rowNames = new WeakMap();
     this._rowElements = new Map();
     this._restored = false;
     // Editing state. `_edit` is null unless a cell or row is currently open for editing; every
@@ -349,9 +367,12 @@ export class Table extends Component {
     this._growStep = growStep(this.options.growing);
     this._rendered = this._growStep ?? Infinity;
     this._more = null;
-    this._rovingKey = null;
-    this._rovingCell = null;
-    this._rovingMatched = false;
+    // Keyboard focus. `_current` is the row (and, with cell focus, the column) holding the grid's
+    // single Tab stop; it is kept by id so the stop survives every re-render of the body.
+    this._focusMode = this._editMode === false ? 'row' : 'cell';
+    this._current = null;
+    this._rovingEl = null;
+    this._extendBase = null;
     this._hierarchy = normalizeHierarchy(this.options.hierarchy, this._columns);
     this._hiddenColumns = new Set((Array.isArray(this.options.hiddenColumns) ? this.options.hiddenColumns : [])
       .map(String).filter((id) => this._columns.some((column) => column.id === id)));
@@ -373,7 +394,11 @@ export class Table extends Component {
     if (normalizeTableVariant(this.options.variant) === 'plain') root.dataset.variant = 'plain';
 
     this._table = h('table', { class: 'zx-table__table' });
-    if (this._hierarchy) this._table.setAttribute('role', 'treegrid');
+    this._table.setAttribute('role', this._gridRole());
+    if (this.options.labelledBy) this._table.setAttribute('aria-labelledby', String(this.options.labelledBy));
+    else this._table.setAttribute('aria-label', this.options.label ?? this._message('table.label', 'Table', []));
+    if (this.options.selectable === 'multi') this._table.setAttribute('aria-multiselectable', 'true');
+    root.dataset.focus = this._focusMode;
     this._colgroup = h('colgroup', { class: 'zx-table__columns' });
     this._thead = h('thead', { class: 'zx-table__head' });
     this._tbody = h('tbody', { class: 'zx-table__body' });
@@ -434,9 +459,12 @@ export class Table extends Component {
     }
     if (this._editMode !== false) {
       this.listen(this._tbody, 'keydown', (event) => this._handleEditKeydown(/** @type {KeyboardEvent} */ (event)));
-      this.listen(this._tbody, 'focusin', (event) => this._handleEditFocusIn(event));
       this.listen(document, 'pointerdown', (event) => this._handleDocumentPointerDown(event), { capture: true });
     }
+    // Registered after the editing and reorder handlers, which claim their keys first and mark them
+    // with preventDefault().
+    this.listen(this._tbody, 'keydown', (event) => this._handleGridKeydown(/** @type {KeyboardEvent} */ (event)));
+    this.listen(this._tbody, 'focusin', (event) => this._handleFocusIn(event));
     return root;
   }
 
@@ -530,6 +558,7 @@ export class Table extends Component {
     this._reconcileExpanded();
     const selectionChanged = this._selected.delete(id);
     if (Object.is(this._selectionAnchorId, id)) this._selectionAnchorId = null;
+    this._extendBase = null;
     this._renderBody();
     if (selectionChanged) this._emitSelectionChange();
     this._emitDataChange();
@@ -743,6 +772,7 @@ export class Table extends Component {
     this._expanded.clear();
     this._selected.clear();
     this._selectionAnchorId = null;
+    this._extendBase = null;
     this._renderBody();
     if (selectionChanged) this._emitSelectionChange();
     this._emitDataChange();
@@ -837,6 +867,7 @@ export class Table extends Component {
         if (this.options.selectable === 'single' && next.size > 0) break;
       }
     }
+    this._extendBase = null;
     if (sameSet(this._selected, next)) return this;
     this._selected = next;
     this._syncSelection();
@@ -853,6 +884,7 @@ export class Table extends Component {
     if (this._selected.size === 0) return this;
     this._selected.clear();
     this._selectionAnchorId = null;
+    this._extendBase = null;
     this._syncSelection();
     this._emitSelectionChange();
     return this;
@@ -1216,25 +1248,28 @@ export class Table extends Component {
     this.emit('stackedchange', { stacked });
   }
 
+  /** @returns {'grid'|'treegrid'} Role of the `<table>`: the APG pattern its keyboard model follows. */
+  _gridRole() {
+    return this._hierarchy ? 'treegrid' : 'grid';
+  }
+
   /**
    * States the table roles explicitly while stacked, and removes them again on the way out.
    *
    * Stacking works by changing `display` on the table elements, and a table whose display is not
    * `table` loses its implicit ARIA roles — leaving a screen reader with a pile of generic blocks
-   * where a table used to be. The roles are only asserted while the layout has taken them away.
+   * where a table used to be. The roles are only asserted while the layout has taken them away;
+   * the `<table>` keeps its explicit grid or treegrid role in either mode.
    * @param {boolean} stacked Whether the roles should be present.
    * @returns {void}
    */
   _applyStackedRoles(stacked) {
-    /** @type {Array<[Element|null, string]>} */
-    const parts = [[this._table, this._hierarchy ? 'treegrid' : 'table'], [this._thead, 'rowgroup'], [this._tbody, 'rowgroup']];
-    for (const [element, role] of parts) {
-      if (!element) continue;
-      if (stacked) element.setAttribute('role', role);
-      else if (element === this._table && this._hierarchy) element.setAttribute('role', 'treegrid');
+    this._table.setAttribute('role', this._gridRole());
+    for (const element of [this._thead, this._tbody]) {
+      if (stacked) element.setAttribute('role', 'rowgroup');
       else element.removeAttribute('role');
     }
-    for (const [selector, role] of [['tr', 'row'], ['td', 'cell'], ['th', 'columnheader']]) {
+    for (const [selector, role] of [['tr', 'row'], ['td', 'gridcell'], ['th', 'columnheader']]) {
       for (const element of this._table.querySelectorAll(selector)) {
         if (stacked) element.setAttribute('role', role);
         else element.removeAttribute('role');
@@ -1585,7 +1620,7 @@ export class Table extends Component {
       this._selectAll = h('input', {
         class: 'zx-table__checkbox zx-table__select-all',
         type: 'checkbox',
-        ariaLabel: 'Select all rows'
+        ariaLabel: this._message('table.selectAll', 'Select all rows', [])
       });
       const selectionHeader = h('th', {
         class: 'zx-table__selection-header',
@@ -1604,6 +1639,7 @@ export class Table extends Component {
           for (const dataRow of this._selectableData()) this._selected.delete(this._idFor(dataRow));
         }
         this._selectionAnchorId = null;
+        this._extendBase = null;
         this._syncSelection();
         this._emitSelectionChange();
       });
@@ -1650,6 +1686,9 @@ export class Table extends Component {
 
   /** @returns {void} @fires Table#editcancel */
   _renderBody() {
+    // Read before anything is torn down: whether focus is in the body, and on which part of a row,
+    // decides where it lands again once the rows are rebuilt.
+    const focus = this._captureFocus();
     // Every data mutation funnels through here, so this is the single place that guarantees no
     // editor component outlives the rows it was rendered into.
     this._abortEdit({ focus: false });
@@ -1667,9 +1706,9 @@ export class Table extends Component {
     if (this._headers && this._spanning !== this._headerSpanning) this._renderHeader();
     const fragment = document.createDocumentFragment();
     this._rowMeta = new WeakMap();
+    this._rowNames = new WeakMap();
     this._rowElements = new Map();
-    this._rovingCell = null;
-    this._rovingMatched = false;
+    this._rovingEl = null;
     const projected = this._projectedData();
     this._hierarchyMeta = new Map(projected.map((entry) => [entry.id, entry]));
     if (this._data.length === 0) {
@@ -1693,6 +1732,7 @@ export class Table extends Component {
     this._syncSelectAll();
     this._syncGrowing();
     if (this._stacked) this._applyStackedRoles(true);
+    this._syncRoving(focus);
   }
 
   /**
@@ -1737,6 +1777,9 @@ export class Table extends Component {
       tr.setAttribute('aria-level', String(tree.depth + 1));
       if (tree.hasChildren) tr.setAttribute('aria-expanded', String(this._expanded.has(id)));
     }
+    // Rows take the roving focus in row mode, and in a cell-focus treegrid too, where ArrowLeft
+    // from the first cell lands on the row so the branch can be expanded or collapsed.
+    if (this._focusMode === 'row' || this._hierarchy) tr.tabIndex = -1;
     this._rowMeta.set(tr, { row, id, index, visibleIndex: tree.visibleIndex });
     const elements = this._rowElements.get(id) ?? [];
     elements.push(tr);
@@ -1757,6 +1800,7 @@ export class Table extends Component {
       if (content && typeof content === 'object' && typeof content.nodeType === 'number') {
         cell.append(content);
       } else if (content != null) cell.append(document.createTextNode(String(content)));
+      if (this._focusMode === 'cell') cell.tabIndex = -1;
       tr.append(cell);
       return tr;
     }
@@ -1764,7 +1808,7 @@ export class Table extends Component {
     if (this.options.rowReorder) {
       const handle = h('button', {
         class: 'zx-table__row-handle', type: 'button', draggable: true,
-        dataset: { rowHandle: '' }, ariaLabel: `Move row ${index + 1}`,
+        dataset: { rowHandle: '' },
         ariaPressed: String(Object.is(this._grabbedId, id)),
         disabled: Boolean(this._sort && this.options.sortMode === 'local'),
         title: this._sort && this.options.sortMode === 'local' ? 'Clear sorting to reorder rows' : null
@@ -1773,11 +1817,13 @@ export class Table extends Component {
     }
 
     if (this.options.selectable === 'multi') {
+      // Out of the Tab order: Space on the focused row does what the checkbox does, and thirty
+      // checkboxes would otherwise be thirty Tab stops in front of whatever follows the table.
       const checkbox = h('input', {
         class: 'zx-table__checkbox zx-table__row-checkbox',
         type: 'checkbox',
-        checked: this._selected.has(id),
-        ariaLabel: `Select row ${index + 1}`
+        tabIndex: -1,
+        checked: this._selected.has(id)
       });
       tr.append(h('td', { class: 'zx-table__selection-cell' }, checkbox));
     }
@@ -1791,17 +1837,38 @@ export class Table extends Component {
       cell.dataset.label = column.label;
       cell.dataset.column = column.id;
       if (column.popin === false) cell.dataset.popin = 'false';
-      if (this._editMode !== false) {
-        if (resolveEditable(column, row) !== false) {
-          cell.dataset.editable = 'true';
-          cell.tabIndex = -1;
-          this._offerRovingCell(cell, id, column.id);
-        }
-      }
+      if (this._focusMode === 'cell') cell.tabIndex = -1;
+      if (this._editMode !== false && resolveEditable(column, row) !== false) cell.dataset.editable = 'true';
       this._renderCellContent(cell, column, row, index, tree);
       tr.append(cell);
     });
+    this._rowNames.set(tr, tableRowLabel([...tr.cells].map((cell) => cell.textContent)));
+    this._labelRowControls(tr);
     return tr;
+  }
+
+  /**
+   * Names a row's own controls after the row's content rather than its position: "Select Acme
+   * GmbH", not "Select row 3", which tells a screen reader user nothing and changes on every sort.
+   * The position is the fallback for a row without any text.
+   * @param {HTMLTableRowElement} tr Rendered row.
+   * @returns {void}
+   */
+  _labelRowControls(tr) {
+    const meta = this._rowMeta.get(tr);
+    if (!meta) return;
+    const name = this._rowNames.get(tr) ?? this._message('table.row', 'row %1', [meta.index + 1]);
+    const checkbox = tr.querySelector('.zx-table__row-checkbox');
+    checkbox?.setAttribute('aria-label', this._message('table.selectRow', 'Select %1', [name]));
+    tr.querySelector('.zx-table__row-handle')
+      ?.setAttribute('aria-label', this._message('table.moveRow', 'Move %1', [name]));
+    const toggle = tr.querySelector('.zx-table__tree-toggle');
+    if (toggle) {
+      const expanded = toggle.getAttribute('aria-expanded') === 'true';
+      toggle.setAttribute('aria-label', expanded
+        ? this._message('table.collapseRow', 'Collapse %1', [name])
+        : this._message('table.expandRow', 'Expand %1', [name]));
+    }
   }
 
   /**
@@ -1828,17 +1895,21 @@ export class Table extends Component {
     branch.style.setProperty('--zx-table-depth', String(tree.depth));
     if (tree.hasChildren) {
       const expanded = this._expanded.has(tree.id);
+      // Out of the Tab order like the row checkbox: ArrowRight and ArrowLeft on the row expand
+      // and collapse it. The pointer still has the button.
       branch.append(h('button', {
         class: 'zx-table__tree-toggle',
         type: 'button',
-        ariaExpanded: String(expanded),
-        ariaLabel: `${expanded ? 'Collapse' : 'Expand'} row ${index + 1}`
+        tabIndex: -1,
+        ariaExpanded: String(expanded)
       }, icon(expanded ? 'chevron-down' : 'chevron-right', { size: 14 })));
     } else {
       branch.append(h('span', { class: 'zx-table__tree-spacer', ariaHidden: 'true' }));
     }
     branch.append(content);
     cell.replaceChildren(branch);
+    // A cell re-rendered after an edit rebuilds its disclosure, which needs its name again.
+    if (cell.parentElement) this._labelRowControls(/** @type {HTMLTableRowElement} */ (cell.parentElement));
   }
 
   /** @param {MouseEvent} event @returns {void} */
@@ -1882,6 +1953,18 @@ export class Table extends Component {
       }
     }
 
+    this._activateRow(meta, event);
+  }
+
+  /**
+   * Activates a row: the click path, shared by Enter on a focused row or cell.
+   * @param {{row: TableRow, id: unknown, index: number, visibleIndex?: number}} meta Row metadata.
+   * @param {Event} event Originating click or keydown.
+   * @returns {void}
+   * @fires Table#rowclick
+   * @fires Table#selectionchange
+   */
+  _activateRow(meta, event) {
     this.emit('rowclick', { ...meta, event });
     // The click still reaches the host — collapsing a section is a reasonable thing to hang off it —
     // but it does not select the heading, which carries no checkbox in `multi` either.
@@ -1889,6 +1972,7 @@ export class Table extends Component {
       && !this._isSpanningRow(meta.row)) {
       this._selected = new Set([meta.id]);
       this._selectionAnchorId = meta.id;
+      this._extendBase = null;
       this._syncSelection();
       this._emitSelectionChange();
     }
@@ -2265,16 +2349,6 @@ export class Table extends Component {
     return null;
   }
 
-  /** @param {Event} event @returns {void} */
-  _handleEditFocusIn(event) {
-    const target = /** @type {Element|null} */ (event.target?.nodeType === 1 ? event.target : null);
-    const cell = target?.closest('td[data-editable="true"]');
-    if (!cell || !this._tbody.contains(cell)) return;
-    const meta = this._rowMeta.get(cell.parentElement);
-    if (!meta) return;
-    this._setRovingCell(/** @type {HTMLTableCellElement} */ (cell), meta.id, String(cell.dataset.column));
-  }
-
   /** @param {Event} event @returns {void} @fires Table#editcommit */
   _handleDocumentPointerDown(event) {
     if (!this._edit) return;
@@ -2286,31 +2360,311 @@ export class Table extends Component {
     this.commitEdit();
   }
 
-  /**
-   * Keeps exactly one editable cell in the tab order, preferring the last focused one.
-   * @param {HTMLTableCellElement} cell Newly rendered editable cell.
-   * @param {unknown} id Row id.
-   * @param {string} columnId Column id.
-   * @returns {void}
-   */
-  _offerRovingCell(cell, id, columnId) {
-    if (this._rovingMatched) return;
-    const preferred = this._rovingKey !== null
-      && Object.is(this._rovingKey.id, id) && this._rovingKey.columnId === columnId;
-    if (!preferred && this._rovingCell) return;
-    if (preferred && this._rovingCell) this._rovingCell.tabIndex = -1;
-    cell.tabIndex = 0;
-    this._rovingCell = cell;
-    this._rovingMatched = preferred;
+  /** @returns {HTMLTableRowElement[]} Rendered body rows in display order, section rows included. */
+  _navRows() {
+    return /** @type {HTMLTableRowElement[]} */ ([...this._tbody.children]
+      .filter((row) => row.hasAttribute('data-row')));
   }
 
-  /** @param {HTMLTableCellElement} cell @param {unknown} id @param {string} columnId @returns {void} */
-  _setRovingCell(cell, id, columnId) {
-    if (this._rovingCell && this._rovingCell !== cell) this._rovingCell.tabIndex = -1;
-    cell.tabIndex = 0;
-    this._rovingCell = cell;
-    this._rovingMatched = true;
-    this._rovingKey = { id, columnId };
+  /**
+   * Cells that take focus while the table moves focus by cell: the data cells, or the single cell of
+   * a section row. The selection and reorder cells are not among them; their controls have keys of
+   * their own on the row.
+   * @param {HTMLTableRowElement} tr Body row.
+   * @returns {HTMLTableCellElement[]}
+   */
+  _navCells(tr) {
+    return /** @type {HTMLTableCellElement[]} */ ([...tr.cells].filter((cell) =>
+      cell.hasAttribute('data-column') || cell.classList.contains('zx-table__section-cell')));
+  }
+
+  /**
+   * The cell of a row that matches the current column: by id, else by position, so a section row
+   * (one cell) or a hidden column still lands somewhere sensible.
+   * @param {HTMLTableRowElement} tr Body row.
+   * @returns {HTMLElement}
+   */
+  _cellFor(tr) {
+    const cells = this._navCells(tr);
+    if (cells.length === 0) return tr;
+    const columnId = this._current?.columnId;
+    const byId = columnId == null ? null : cells.find((cell) => cell.dataset.column === columnId);
+    return byId ?? cells[Math.min(Math.max(this._current?.columnIndex ?? 0, 0), cells.length - 1)];
+  }
+
+  /** @param {HTMLTableRowElement} tr @returns {HTMLElement} Element of a row that holds the Tab stop. */
+  _rovingTarget(tr) {
+    if (this._focusMode === 'row' || this._hierarchy && this._current?.onRow) return tr;
+    return this._cellFor(tr);
+  }
+
+  /** @param {HTMLElement} element New roving Tab stop. @returns {void} */
+  _setRoving(element) {
+    if (this._rovingEl && this._rovingEl !== element) this._rovingEl.tabIndex = -1;
+    element.tabIndex = 0;
+    this._rovingEl = element;
+  }
+
+  /**
+   * Records which part of a row holds focus before the body is rebuilt.
+   * @returns {{part: 'row'|'cell'|'checkbox'|'toggle'|'handle'}|null} Null when focus is elsewhere.
+   */
+  _captureFocus() {
+    const active = typeof document === 'undefined' ? null : document.activeElement;
+    if (!active || !this._tbody?.contains(active)) return null;
+    const tr = active.closest('tr[data-row]');
+    if (!tr) return null;
+    if (active === tr) return { part: 'row' };
+    if (active.closest('.zx-table__row-checkbox')) return { part: 'checkbox' };
+    if (active.closest('.zx-table__tree-toggle')) return { part: 'toggle' };
+    if (active.closest('.zx-table__row-handle')) return { part: 'handle' };
+    return { part: this._focusMode === 'cell' ? 'cell' : 'row' };
+  }
+
+  /**
+   * Puts the Tab stop back on the current row after a render — the same row by id, else the row
+   * now at its old position — and gives it focus again when the body had focus before.
+   * @param {{part: string}|null} focus What `_captureFocus()` found before the render.
+   * @returns {void}
+   */
+  _syncRoving(focus) {
+    const rows = this._navRows();
+    if (rows.length === 0) return;
+    let tr = this._current ? this._rowElements.get(this._current.id)?.[0] : undefined;
+    if (!tr) {
+      tr = rows[Math.min(Math.max(this._current?.visibleIndex ?? 0, 0), rows.length - 1)];
+      if (this._current) {
+        const meta = this._rowMeta.get(tr);
+        this._current = { ...this._current, id: meta.id, visibleIndex: meta.visibleIndex };
+      }
+    }
+    const element = this._rovingTarget(tr);
+    this._setRoving(element);
+    if (!focus) return;
+    const control = {
+      checkbox: '.zx-table__row-checkbox', toggle: '.zx-table__tree-toggle', handle: '.zx-table__row-handle:not(:disabled)'
+    }[focus.part];
+    const target = control ? /** @type {HTMLElement|null} */ (tr.querySelector(control)) ?? element : element;
+    target.focus();
+  }
+
+  /** @param {Event} event @returns {void} */
+  _handleFocusIn(event) {
+    const target = /** @type {Element|null} */ (event.target?.nodeType === 1 ? event.target : null);
+    const tr = /** @type {HTMLTableRowElement|null} */ (target?.closest('tr[data-row]') ?? null);
+    if (!tr || tr.parentElement !== this._tbody) return;
+    const meta = this._rowMeta.get(tr);
+    if (!meta) return;
+    const current = {
+      id: meta.id,
+      visibleIndex: meta.visibleIndex,
+      columnId: this._current?.columnId ?? null,
+      columnIndex: this._current?.columnIndex ?? 0,
+      onRow: false
+    };
+    let element = /** @type {HTMLElement} */ (tr);
+    if (this._focusMode === 'cell') {
+      const cells = this._navCells(tr);
+      const cell = cells.find((candidate) => candidate === target || candidate.contains(target)) ?? null;
+      if (target === tr && this._hierarchy) {
+        current.onRow = true;
+      } else if (cell) {
+        element = cell;
+        // A section's single cell keeps the column the reader came from, so moving on past the
+        // section returns to it.
+        if (cell.dataset.column) {
+          current.columnId = cell.dataset.column;
+          current.columnIndex = cells.indexOf(cell);
+        }
+      } else {
+        this._current = current;
+        element = this._cellFor(tr);
+      }
+    }
+    this._current = current;
+    this._setRoving(element);
+  }
+
+  /**
+   * The APG grid and treegrid keyboard model on the focused row or cell. The row's own checkbox and
+   * disclosure answer the navigation keys too, so a pointer user who clicked one can carry on by
+   * keyboard; anything else inside a cell — a link, a button, an open editor — keeps its keys.
+   * @param {KeyboardEvent} event Keydown event.
+   * @returns {void}
+   * @fires Table#rowclick
+   * @fires Table#selectionchange
+   * @fires Table#rowtoggle
+   */
+  _handleGridKeydown(event) {
+    if (event.defaultPrevented || event.altKey) return;
+    const target = /** @type {HTMLElement|null} */ (event.target?.nodeType === 1 ? event.target : null);
+    if (!target || this._edit && isInsideEditor(target)) return;
+    const tr = /** @type {HTMLTableRowElement|null} */ (target.closest('tr[data-row]'));
+    if (!tr || tr.parentElement !== this._tbody) return;
+    const meta = this._rowMeta.get(tr);
+    if (!meta) return;
+    const cellMode = this._focusMode === 'cell';
+    const cells = cellMode ? this._navCells(tr) : [];
+    const onRow = target === tr;
+    const onCell = cells.includes(/** @type {HTMLTableCellElement} */ (target));
+    const ownControl = target.matches('.zx-table__row-checkbox, .zx-table__tree-toggle');
+    if (!onRow && !onCell && !ownControl) return;
+    const key = event.key;
+    const mod = event.ctrlKey || event.metaKey;
+
+    if (mod && (key === 'a' || key === 'A')) {
+      if (this.options.selectable !== 'multi') return;
+      event.preventDefault();
+      this._selectAllRendered();
+      return;
+    }
+    if ((key === 'Enter' || key === ' ') && !ownControl) {
+      if (mod) return;
+      event.preventDefault();
+      if (key === ' ' && this.options.selectable !== false && !this._isSpanningRow(meta.row)) {
+        this._toggleRowSelection(meta);
+      } else {
+        this._activateRow(meta, event);
+      }
+      return;
+    }
+    if (this._hierarchy && (key === 'ArrowLeft' || key === 'ArrowRight') && !mod) {
+      const entry = this._hierarchyMeta?.get(meta.id);
+      if (!entry) return;
+      event.preventDefault();
+      const action = treegridArrowAction(key, {
+        focus: onCell ? 'cell' : 'row',
+        cells: cellMode,
+        column: onCell ? cells.indexOf(/** @type {HTMLTableCellElement} */ (target)) : 0,
+        columns: cells.length,
+        hasChildren: entry.hasChildren,
+        expanded: this._expanded.has(meta.id),
+        hasParent: entry.parentId != null
+      });
+      if (action) this._applyTreeAction(action, tr, meta, entry.parentId);
+      return;
+    }
+
+    const rows = this._navRows();
+    const rowIndex = rows.indexOf(tr);
+    const byCell = cellMode && !onRow;
+    const column = onCell ? cells.indexOf(/** @type {HTMLTableCellElement} */ (target))
+      : Math.max(0, cells.indexOf(/** @type {HTMLTableCellElement} */ (this._cellFor(tr))));
+    const next = tableGridTarget({ row: rowIndex, column }, key, {
+      rows: rows.length, columns: byCell ? cells.length : 1, page: this._pageSize(rows), ctrl: mod, cells: byCell
+    });
+    if (!next) return;
+    event.preventDefault();
+    const targetRow = rows[next.row];
+    if (!byCell) {
+      targetRow.focus();
+    } else if (next.row === rowIndex || key === 'Home' || key === 'End') {
+      // A horizontal move, or a jump to a corner: pick the cell by position in the target row.
+      const targetCells = this._navCells(targetRow);
+      const last = next.column >= cells.length - 1 && key !== 'Home';
+      targetCells[last ? targetCells.length - 1 : Math.min(next.column, targetCells.length - 1)]?.focus();
+    } else {
+      this._cellFor(targetRow).focus();
+    }
+    if (event.shiftKey && this.options.selectable === 'multi' && next.row !== rowIndex) {
+      this._extendSelection(meta, this._rowMeta.get(targetRow));
+    }
+  }
+
+  /**
+   * Carries out one treegrid arrow-key action on a row.
+   * @param {{action: string, column?: number}} action What `treegridArrowAction()` decided.
+   * @param {HTMLTableRowElement} tr Focused row.
+   * @param {{id: unknown}} meta Row metadata.
+   * @param {unknown} parentId Parent row id, or null at the root.
+   * @returns {void}
+   * @fires Table#rowtoggle
+   */
+  _applyTreeAction(action, tr, meta, parentId) {
+    if (action.action === 'expand') this.expandRow(meta.id);
+    else if (action.action === 'collapse') this.collapseRow(meta.id);
+    else if (action.action === 'parent') this._rowElements.get(parentId)?.[0]?.focus();
+    else if (action.action === 'child') {
+      const rows = this._navRows();
+      rows[rows.indexOf(tr) + 1]?.focus();
+    } else if (action.action === 'row') tr.focus();
+    else if (action.action === 'cell') this._navCells(tr)[action.column ?? 0]?.focus();
+  }
+
+  /**
+   * How many rows PageUp and PageDown move: what fits in the scroll region when the table scrolls
+   * on its own, else ten.
+   * @param {HTMLTableRowElement[]} rows Rendered rows.
+   * @returns {number}
+   */
+  _pageSize(rows) {
+    const scroller = this._scroll;
+    if (!scroller || !rows[0] || scroller.scrollHeight <= scroller.clientHeight + 1) return 10;
+    const header = this.options.stickyHeader ? this._thead.getBoundingClientRect().height : 0;
+    return tablePageSize(scroller.clientHeight - header, rows[0].getBoundingClientRect().height);
+  }
+
+  /**
+   * Space on a row: toggles it in `multi`, and in `single` selects it or clears the selection.
+   * @param {{row: TableRow, id: unknown, index: number, visibleIndex?: number}} meta Row metadata.
+   * @returns {void}
+   * @fires Table#selectionchange
+   */
+  _toggleRowSelection(meta) {
+    const selected = this._selected.has(meta.id);
+    if (this.options.selectable === 'multi') {
+      this._toggleMultiSelection(meta, !selected, false);
+      return;
+    }
+    this._selected = selected ? new Set() : new Set([meta.id]);
+    this._selectionAnchorId = meta.id;
+    this._extendBase = null;
+    this._syncSelection();
+    this._emitSelectionChange();
+  }
+
+  /**
+   * Ctrl/Cmd+A: selects every rendered row that can hold a selection, as the header checkbox does.
+   * @returns {void}
+   * @fires Table#selectionchange
+   */
+  _selectAllRendered() {
+    const next = new Set(this._selected);
+    for (const row of this._selectableData()) next.add(this._idFor(row));
+    this._extendBase = null;
+    if (sameSet(next, this._selected)) return;
+    this._selected = next;
+    this._syncSelection();
+    this._emitSelectionChange();
+  }
+
+  /**
+   * Shift+Arrow: selects the rows between the anchor and the row focus moved to, on top of what was
+   * selected before the extension began — moving back shrinks the range again.
+   * @param {{id: unknown}} from Row focus moved from.
+   * @param {{id: unknown}|undefined} to Row focus moved to.
+   * @returns {void}
+   * @fires Table#selectionchange
+   */
+  _extendSelection(from, to) {
+    if (!to) return;
+    const visible = this._visibleData();
+    const indexOf = (id) => visible.findIndex((row) => Object.is(this._idFor(row), id));
+    if (this._extendBase === null) {
+      this._extendBase = new Set(this._selected);
+      if (indexOf(this._selectionAnchorId) < 0) this._selectionAnchorId = from.id;
+    }
+    const anchor = indexOf(this._selectionAnchorId);
+    const end = indexOf(to.id);
+    if (anchor < 0 || end < 0) return;
+    const next = new Set(this._extendBase);
+    for (let index = Math.min(anchor, end); index <= Math.max(anchor, end); index += 1) {
+      if (!this._isSpanningRow(visible[index])) next.add(this._idFor(visible[index]));
+    }
+    if (sameSet(next, this._selected)) return;
+    this._selected = next;
+    this._syncSelection();
+    this._emitSelectionChange();
   }
 
   /**
@@ -2346,6 +2700,7 @@ export class Table extends Component {
       this._selected.delete(meta.id);
     }
     this._selectionAnchorId = meta.id;
+    this._extendBase = null;
     this._syncSelection();
     this._emitSelectionChange();
   }
@@ -2452,6 +2807,7 @@ export class Table extends Component {
     const previousSize = this._selected.size;
     for (const id of this._selected) if (!valid.has(id)) this._selected.delete(id);
     if (!valid.has(this._selectionAnchorId)) this._selectionAnchorId = null;
+    this._extendBase = null;
     return previousSize !== this._selected.size;
   }
 
@@ -2519,6 +2875,113 @@ export class Table extends Component {
  * @event Table#editinvalid
  * @type {CustomEvent<TableEditInvalidDetail>}
  */
+
+/**
+ * Where a navigation key moves focus in the table body: the arithmetic of the APG grid keyboard
+ * model, kept apart from the DOM. Positions are zero-based and every move is clamped — focus never
+ * wraps, as the APG asks of a grid.
+ *
+ * With `cells` false (row focus) only the vertical keys move: ArrowUp/ArrowDown by one row,
+ * PageUp/PageDown by `page`, Home/End (with or without Ctrl) to the first or last row. With `cells`
+ * true ArrowLeft/ArrowRight move one cell, Home/End go to the first or last cell of the row, and
+ * Ctrl+Home/Ctrl+End to the first cell of the first row or the last cell of the last row.
+ * @param {{row: number, column?: number}} position Current position.
+ * @param {string} key `KeyboardEvent.key`.
+ * @param {{rows: number, columns?: number, page?: number, ctrl?: boolean, cells?: boolean}} grid
+ * Row and column counts, the page size, whether Ctrl/Cmd is held, and whether focus is on cells.
+ * @returns {{row: number, column: number}|null} New position, or null when the key is not a move.
+ */
+export function tableGridTarget(position, key, grid) {
+  const rows = Math.trunc(Number(grid?.rows) || 0);
+  if (rows <= 0) return null;
+  const columns = Math.max(1, Math.trunc(Number(grid?.columns) || 1));
+  const page = Math.max(1, Math.trunc(Number(grid?.page) || 10));
+  const clamp = (value, max) => Math.min(Math.max(Math.trunc(Number(value) || 0), 0), max);
+  const row = clamp(position?.row, rows - 1);
+  const column = clamp(position?.column, columns - 1);
+  const cells = Boolean(grid?.cells);
+  const ctrl = Boolean(grid?.ctrl);
+  switch (key) {
+    case 'ArrowUp': return { row: Math.max(0, row - 1), column };
+    case 'ArrowDown': return { row: Math.min(rows - 1, row + 1), column };
+    case 'PageUp': return { row: Math.max(0, row - page), column };
+    case 'PageDown': return { row: Math.min(rows - 1, row + page), column };
+    case 'ArrowLeft': return cells ? { row, column: Math.max(0, column - 1) } : null;
+    case 'ArrowRight': return cells ? { row, column: Math.min(columns - 1, column + 1) } : null;
+    case 'Home':
+      if (!cells) return { row: 0, column };
+      return ctrl ? { row: 0, column: 0 } : { row, column: 0 };
+    case 'End':
+      if (!cells) return { row: rows - 1, column };
+      return ctrl ? { row: rows - 1, column: columns - 1 } : { row, column: columns - 1 };
+    default: return null;
+  }
+}
+
+/**
+ * How many rows a PageUp or PageDown moves: the rows that fit in the visible height, less one so
+ * the row focus leaves stays in view as context. Falls back when either height is unknown.
+ * @param {number} viewport Visible height of the scroll region, below any sticky header.
+ * @param {number} rowHeight Height of one row.
+ * @param {number} [fallback=10] Rows to move when the heights are unusable.
+ * @returns {number} At least 1.
+ */
+export function tablePageSize(viewport, rowHeight, fallback = 10) {
+  const visible = Number(viewport);
+  const height = Number(rowHeight);
+  if (!(visible > 0) || !(height > 0)) return Math.max(1, Math.trunc(fallback) || 10);
+  return Math.max(1, Math.floor(visible / height) - 1);
+}
+
+/**
+ * ArrowLeft and ArrowRight in a treegrid, after the APG Treegrid pattern.
+ *
+ * Row focus (`focus: 'row'`): ArrowRight expands a collapsed branch; on an expanded branch it moves
+ * into the first child — or, when cells take focus too (`cells`), onto the row's first cell, which
+ * is also where it goes from a leaf. ArrowLeft collapses an expanded branch and otherwise moves to
+ * the parent row. Cell focus: ArrowRight moves one cell right; ArrowLeft one cell left, and from the
+ * first cell onto the row itself, where the branch can be expanded or collapsed.
+ * @param {'ArrowLeft'|'ArrowRight'|string} key `KeyboardEvent.key`.
+ * @param {{focus: 'row'|'cell', cells?: boolean, column?: number, columns?: number,
+ *   hasChildren?: boolean, expanded?: boolean, hasParent?: boolean}} state Focused row and cell.
+ * @returns {{action: 'expand'|'collapse'|'child'|'parent'|'row'|'cell', column?: number}|null}
+ * What to do, or null when focus stays where it is.
+ */
+export function treegridArrowAction(key, state) {
+  const right = key === 'ArrowRight';
+  if (!right && key !== 'ArrowLeft') return null;
+  if (state?.focus === 'cell') {
+    const column = Math.max(0, Math.trunc(Number(state.column) || 0));
+    const columns = Math.max(1, Math.trunc(Number(state.columns) || 1));
+    if (right) return column < columns - 1 ? { action: 'cell', column: column + 1 } : null;
+    return column > 0 ? { action: 'cell', column: column - 1 } : { action: 'row' };
+  }
+  const branch = Boolean(state?.hasChildren);
+  const expanded = branch && Boolean(state?.expanded);
+  if (right) {
+    if (branch && !expanded) return { action: 'expand' };
+    if (state?.cells) return { action: 'cell', column: 0 };
+    return expanded ? { action: 'child' } : null;
+  }
+  if (expanded) return { action: 'collapse' };
+  return state?.hasParent ? { action: 'parent' } : null;
+}
+
+/**
+ * The name a row goes by in the labels of its own controls ("Select …", "Expand …"): the text of
+ * its first cell that has any, whitespace collapsed and long text cut short. Null when no cell has
+ * text, which is when the caller falls back to the row's position.
+ * @param {Array<string|null|undefined>} texts Text of the row's cells, in display order.
+ * @param {number} [max=80] Longest name returned before it is cut with an ellipsis.
+ * @returns {string|null}
+ */
+export function tableRowLabel(texts, max = 80) {
+  for (const text of Array.isArray(texts) ? texts : []) {
+    const name = String(text ?? '').replace(/\s+/g, ' ').trim();
+    if (name) return name.length > max ? `${name.slice(0, Math.max(1, max - 1)).trimEnd()}…` : name;
+  }
+  return null;
+}
 
 /**
  * Resolves a row's kind through the `rowKind` accessor and coerces it to the string `rowKinds` is

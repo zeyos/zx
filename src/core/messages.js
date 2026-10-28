@@ -306,6 +306,7 @@ export const defaultMessages = Object.freeze({
   'table.collapseRow': 'Collapse %1',
   'table.columns': 'Columns',
   'table.empty': 'No records',
+  'table.label': 'Table',
   'table.expandRow': 'Expand %1',
   'table.invalid': 'Invalid value',
   'table.more': 'Show %1 more',

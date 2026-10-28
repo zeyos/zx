@@ -160,11 +160,14 @@ export default {
       title: 'Sorting, custom cells, and multi-select',
       blurb: 'Column widths take fr units to fill the container or px to scroll horizontally. '
         + 'render draws a cell from the row, selectable: "multi" adds the tri-state header '
-        + 'checkbox, and Shift+click on a second checkbox selects the range between them.',
+        + 'checkbox, and Shift+click on a second checkbox selects the range between them. The rows '
+        + 'are one Tab stop: arrow keys move between them, Enter fires rowclick, Space selects, '
+        + 'Shift+ArrowDown extends the selection and Ctrl+A selects every row. label names the grid.',
       layout: 'stack',
       render: ({ cleanup, log }) => {
         const table = new Table(null, {
           rowId: 'id',
+          label: 'Customers',
           data: makeRows(30),
           selectable: 'multi',
           sort: { id: 'name', dir: 'asc' },
@@ -221,11 +224,14 @@ export default {
       title: 'Editable transaction lines',
       blurb: 'Typed columns keep values numeric in row data while formatting each row’s currency '
         + 'and unit. hierarchy projects the flat parent references as expandable line items; '
-        + 'double-click Quantity or Unit price to edit, then commit with Enter or Tab.',
+        + 'double-click Quantity or Unit price to edit, then commit with Enter or Tab. With editMode '
+        + 'focus moves by cell: ArrowLeft from the first cell lands on the row, where ArrowLeft and '
+        + 'ArrowRight collapse and expand the branch or walk to its parent and children.',
       layout: 'stack',
       render: ({ cleanup, log }) => {
         const table = new Table(null, {
           rowId: 'id',
+          label: 'Transaction lines',
           data: transactionRows(),
           hierarchy: { parentId: 'parent', column: 'item', expanded: true },
           editMode: 'cell',

@@ -1432,6 +1432,7 @@ export default {
           selectable: 'multi',
           fieldControls,
           table: {
+            label: 'Opportunities',
             variant: 'plain',
             stickyHeader: true,
             responsive: 'sm',
