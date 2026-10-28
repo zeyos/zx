@@ -105,3 +105,78 @@ test('restricted root logic rejects a mismatching saved expression without rewri
   assert.equal(mismatch.nodeId, 'root');
   assert.equal(JSON.stringify(ast), before);
 });
+
+test('a TagPicker value round-trips through the AST with its raw values', async () => {
+  const { filterTagItems, filterTagValue } = await import('../../src/components/filter/filter.js');
+  const glyph = { nodeType: 1, cloneNode: () => glyph };
+  const items = filterTagItems([
+    { value: 1, label: 'Open', icon: 'circle' },
+    { value: 'won', label: 'Won', icon: glyph, color: 'var(--zx-color-success)' },
+    { value: true, label: 'Flagged' }
+  ]);
+  // Raw values, the icon as given (a name or a node), no icon key where none was given.
+  assert.deepEqual(items.map((item) => item.value), [1, 'won', true]);
+  assert.equal(items[0].icon, 'circle');
+  assert.equal(items[1].icon, glyph);
+  assert.equal(items[1].color, 'var(--zx-color-success)');
+  assert.equal(Object.hasOwn(items[2], 'icon'), false);
+  assert.deepEqual(filterTagItems(undefined), []);
+
+  const picked = [2, 'won'];
+  const value = filterTagValue(picked);
+  assert.deepEqual(value, [2, 'won']);
+  assert.notEqual(value, picked, 'the condition gets a copy, not the picker array');
+  assert.deepEqual(filterTagValue(null), []);
+
+  const statusFields = [{ id: 'status', label: 'Status', type: 'status', choices: [{ value: 2, label: 'Paid' }, { value: 'won', label: 'Won' }] }];
+  const ast = { version: 1, root: { kind: 'group', id: 'root', logic: 'and', children: [
+    { kind: 'condition', id: 'c', field: 'status', operator: 'anyOf', value }
+  ] } };
+  const parsed = parseFilterAst(JSON.parse(stringifyFilterAst(ast)));
+  assert.deepEqual(parsed.root.children[0].value, [2, 'won'], 'anyOf keeps a number a number');
+  assert.equal(validateFilterAst(parsed, statusFields).valid, true);
+  assert.equal(validateFilterAst({ ...parsed, root: { ...parsed.root, children: [{ ...parsed.root.children[0], value: filterTagValue([]) }] } }, statusFields).valid, false,
+    'an empty pick is not applied');
+});
+
+test('the connector switches its group, names itself by its word, and agrees with the select', async () => {
+  const { filterConnectorText, nextFilterGroupLogic } = await import('../../src/components/filter/filter.js');
+  const ast = sampleAst();
+  // The nested group is "or": its connector reads "or" and switches it to "and"; the root the reverse.
+  assert.equal(nextFilterGroupLogic(ast, 'amount-or-date'), 'and');
+  assert.equal(nextFilterGroupLogic(ast, 'root'), 'or');
+  assert.equal(nextFilterGroupLogic(ast, 'missing'), null);
+  assert.equal(nextFilterGroupLogic(ast, 'paid'), null, 'a condition is not a group');
+  assert.equal(nextFilterGroupLogic(ast, 'root', 'and'), null, 'a restricted root does not switch');
+  assert.equal(nextFilterGroupLogic(ast, 'amount-or-date', 'and'), 'and', 'the restriction is the root only');
+
+  // Applying the switch is what the select would set: the two name one state, both ways.
+  const group = ast.root.children[1];
+  for (let round = 0; round < 2; round += 1) {
+    const before = group.logic;
+    group.logic = nextFilterGroupLogic(ast, group.id);
+    assert.notEqual(group.logic, before);
+    assert.ok(['and', 'or'].includes(group.logic), 'a value the group select offers');
+    const { word, name } = filterConnectorText(group.logic);
+    assert.equal(word, group.logic);
+    assert.ok(name.startsWith(word), `label in name: "${name}" starts with "${word}"`);
+  }
+  assert.deepEqual(filterConnectorText('and'), { word: 'and', name: 'and — switch to any' });
+  assert.deepEqual(filterConnectorText('or'), { word: 'or', name: 'or — switch to all' });
+  const german = { 'filter.and': 'und', 'filter.switchToAny': '%1 – zu „beliebig“ wechseln' };
+  const translated = filterConnectorText('and', (key, fallback, ...args) =>
+    (german[key] ?? fallback).replace('%1', String(args[0])));
+  assert.deepEqual(translated, { word: 'und', name: 'und – zu „beliebig“ wechseln' });
+});
+
+test('host messages reach the TagPicker with the field-named input added', async () => {
+  const { withFilterMessage } = await import('../../src/components/filter/filter.js');
+  assert.deepEqual(withFilterMessage(null, 'tagPicker.input', 'Owner value'), { 'tagPicker.input': 'Owner value' });
+  const host = { 'tagPicker.remove': 'Entfernen %1', de: { 'tagPicker.empty': 'Keine Treffer', 'tagPicker.input': 'x' } };
+  const merged = withFilterMessage(host, 'tagPicker.input', 'Besitzer Wert');
+  assert.equal(merged['tagPicker.remove'], 'Entfernen %1');
+  assert.equal(merged.de['tagPicker.empty'], 'Keine Treffer');
+  assert.equal(merged.de['tagPicker.input'], 'Besitzer Wert', 'the locale table cannot shadow the field name');
+  assert.equal(merged['tagPicker.input'], 'Besitzer Wert');
+  assert.equal(host.de['tagPicker.input'], 'x', 'the host object is left as it was');
+});

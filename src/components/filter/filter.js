@@ -3,6 +3,7 @@ import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
 import { icon } from '../../core/icons.js';
 import { printf } from '../../core/i18n.js';
 import { Select } from '../select/select.js';
+import { TagPicker } from '../tag-picker/tag-picker.js';
 import {
   cloneFilterAst, cloneFilterValue, emptyFilterAst, filterCondition, filterGroup, filterOperators,
   parseFilterAst, validateFilterAst
@@ -16,7 +17,10 @@ import {
  * @property {'text'|'number'|'money'|'date'|'datetime'|'boolean'|'enum'|'status'|'priority'|'country'|'currency'|'unit'|'entity'|'tags'|'custom'} type Editor/operator type.
  * @property {string[]} [operators] Explicit allowlisted operator IDs.
  * @property {string} [defaultOperator] Initial operator ID.
- * @property {Array<{value:string|number|boolean,label:string,icon?:Node|string,color?:string}>} [choices] Static choices.
+ * @property {string|Node} [icon] Glyph beside the field's name in a `searchable` field picker, an
+ *   icon name or a node; a native `<select>` cannot show one.
+ * @property {Array<{value:string|number|boolean,label:string,icon?:Node|string,color?:string}>} [choices] Static choices; a
+ *   choice's `icon` shows beside it in a `searchable` value picker.
  * @property {(context:{query:string,signal:AbortSignal,conditionId:string,field:FilterField})=>Promise<Array<{value:string|number|boolean,label:string}>>|Array<{value:string|number|boolean,label:string}>} [loadChoices] Async choices.
  * @property {(target:Element, context:{value:unknown,setValue:(value:unknown)=>void,field:FilterField,conditionId:string})=>({destroy?:()=>void}|void)} [editor] Custom editor.
  * @property {number} [minQuery=0] Async minimum query length.
@@ -30,8 +34,10 @@ import {
  * @property {boolean} [allowGroups=true] Whether nested groups may be authored.
  * @property {number} [maxDepth=3] Maximum nested group depth.
  * @property {number} [maxConditions=50] Maximum condition count.
- * @property {boolean} [searchable=false] Searchable field, operator and single-choice controls.
- * @property {'standard'|'compact'} [layout='standard'] Condition layout; compact rows adapt to container width.
+ * @property {boolean} [searchable=false] Searchable field, operator and single-choice controls; a many-valued
+ *   operator on a field with static choices gets a `TagPicker`.
+ * @property {'standard'|'compact'} [layout='standard'] Condition layout; compact rows adapt to container width and
+ *   show the group's "and"/"or" between them, a click on it switching the group's logic.
  * @property {'and'|'or'|null} [rootLogic=null] Restrict root logic without rewriting incompatible saved expressions.
  * @property {boolean} [showApply=true] Show the internal Apply button.
  * @property {boolean} [showRootActions=true] Show Add controls inside the root group as well as the footer.
@@ -310,7 +316,11 @@ export class Filter extends Component {
   /** @param {any} group @param {number} depth @param {boolean} root @returns {HTMLElement} */
   _renderGroup(group, depth, root) {
     const children = h('ol', { class: 'zx-filter__children' },
-      group.children.map((node) => node.kind === 'group' ? this._renderGroup(node, depth + 1, false) : this._renderCondition(node)));
+      group.children.map((node, index) => {
+        const item = node.kind === 'group' ? this._renderGroup(node, depth + 1, false) : this._renderCondition(node);
+        if (index > 0 && this.options.layout === 'compact') item.prepend(this._connector(group, root));
+        return item;
+      }));
     const logic = h('select', {
       class: 'zx-filter__logic', dataset: { filterLogic: '', nodeId: group.id },
       ariaLabel: root ? this._message('filter.rootLogic', 'Root filter logic')
@@ -330,11 +340,48 @@ export class Filter extends Component {
       actionButton('add', group.id, 'plus', this._message('filter.addFilter', 'Add filter'), { disabled: this._blocked() }),
       this.options.allowGroups && depth < Number(this.options.maxDepth)
         ? actionButton('add-group', group.id, 'folder', this._message('filter.addSubgroup', 'Add subgroup'), { disabled: this._blocked() }) : null,
-      root ? null : actionButton('remove', group.id, 'trash', this._message('filter.removeGroup', 'Remove group'), { disabled: this._blocked() })
+      // Named on the button too: the compact layout hides the word and leaves the glyph.
+      root ? null : actionButton('remove', group.id, 'trash', this._message('filter.removeGroup', 'Remove group'),
+        { disabled: this._blocked(), ariaLabel: this._message('filter.removeGroup', 'Remove group') })
     );
     return h(root ? 'fieldset' : 'li', {
       class: 'zx-filter__group', dataset: { nodeId: group.id, depth: String(depth) }
     }, root ? legend : h('fieldset', {}, legend, children, controls), root ? children : null, root && this.options.showRootActions ? controls : null);
+  }
+
+  /**
+   * The word between two rows of a compact group — "and" or "or" — so the logic reads down the
+   * list rather than only from the group's legend. A click switches the group's logic. It is a
+   * pointer shortcut kept out of the Tab order: the legend's select is the same control, reached
+   * once per group rather than once per row. A restricted root shows the word without the switch.
+   * @param {any} group Group the rows belong to.
+   * @param {boolean} root Whether it is the root group.
+   * @returns {HTMLElement}
+   */
+  _connector(group, root) {
+    const { word, name } = filterConnectorText(group.logic, (key, fallback, ...args) => this._message(key, fallback, ...args));
+    if (this._blocked() || (root && this.options.rootLogic)) {
+      return h('span', { class: 'zx-filter__connector', ariaHidden: 'true', dataset: { connector: group.id } }, word);
+    }
+    return h('button', {
+      type: 'button', class: 'zx-filter__connector', tabindex: '-1',
+      dataset: { filterAction: 'toggle-logic', nodeId: group.id, connector: group.id },
+      ariaLabel: name
+    }, word);
+  }
+
+  /**
+   * Rewrites a group's connectors after its logic changed through the legend's select, which is
+   * not redrawn — the reader's focus is on it.
+   * @param {any} group
+   * @returns {void}
+   */
+  _syncConnectors(group) {
+    const { word, name } = filterConnectorText(group.logic, (key, fallback, ...args) => this._message(key, fallback, ...args));
+    for (const connector of this.el.querySelectorAll(`[data-connector="${cssEscape(group.id)}"]`)) {
+      connector.textContent = word;
+      if (connector.tagName === 'BUTTON') connector.setAttribute('aria-label', name);
+    }
   }
 
   /** @param {any} node @returns {HTMLElement} */
@@ -342,7 +389,7 @@ export class Filter extends Component {
     const field = this._field(node.field);
     const operators = this._operatorsFor(field);
     const operator = this._operator(node.operator);
-    const fieldChoices = this._fields.map((candidate) => ({value: candidate.id, label: candidate.label}));
+    const fieldChoices = this._fields.map((candidate) => ({value: candidate.id, label: candidate.label, icon: candidate.icon}));
     if (node.field && !field) fieldChoices.push({value: node.field, label: this._unavailable(node.field)});
     const operatorChoices = operators.map((candidate) => ({value: candidate.id, label: candidate.label}));
     if (node.operator && !operators.some((candidate) => candidate.id === node.operator)) operatorChoices.push({value: node.operator, label: this._unavailable(node.operator)});
@@ -394,6 +441,9 @@ export class Filter extends Component {
     const messages = this._valueMessages();
     const values = operator.arity === 'pair' ? (Array.isArray(node.value) ? node.value : [null, null]) : [node.value];
     if (operator.arity === 'many') {
+      if (this.options.searchable && Array.isArray(field.choices) && field.choices.length) {
+        return h('div', { class: 'zx-filter__value', dataset: { arity: 'many' } }, this._tagPicker(field, node, messages));
+      }
       const control = choiceSelect(field, node, values[0], true, this._blocked(), 0, messages);
       if (control) return h('div', { class: 'zx-filter__value' }, control);
       return h('div', { class: 'zx-filter__value' }, valueInput(field, node.id, Array.isArray(node.value) ? node.value.join(', ') : '', 0, this._blocked(), true, messages));
@@ -421,9 +471,17 @@ export class Filter extends Component {
    */
   _searchSelect(items, value, label, nodeId, part, changed) {
     const version = this._renderVersion;
+    // Choices with a glyph show it in the list and before the chosen value; without, plain text.
+    const glyphs = items.some((item) => choiceGlyph(item) !== null) ? {
+      renderItem: (item) => h('span', { class: 'zx-filter__choice' },
+        choiceGlyph(item) ?? h('span', { class: 'zx-filter__choice-icon' }),
+        h('span', { class: 'zx-filter__choice-label' }, String(item.label ?? ''))),
+      renderValueAdornment: (item) => choiceGlyph(item)
+    } : {};
     const select = new Select(null, {
       items, valueKey: 'value', labelKey: 'label', value, label, filter: 'local',
       disabled: this._blocked(), placeholder: this._message('filter.choosePart', 'Choose %1…', part),
+      ...glyphs,
       onchange: ({detail}) => queueMicrotask(() => {
         if (!this._disposed && version === this._renderVersion && this._canMutate()) changed(detail.value);
       })
@@ -433,6 +491,40 @@ export class Filter extends Component {
     select.refs.input.dataset.filterFocus = part;
     select.refs.input.dataset.nodeId = nodeId;
     return /** @type {HTMLElement} */ (select.el);
+  }
+
+  /**
+   * Owns a themed multi-value picker for a many-valued operator on a field with static choices:
+   * the chosen values as removable tags, the rest in a searchable list. It writes the value without
+   * redrawing the editor, so the list stays open while the reader picks several.
+   * @param {FilterField} field Field with `choices`.
+   * @param {any} node Condition.
+   * @param {FilterValueMessages} messages Resolved value-builder text.
+   * @returns {HTMLElement} Picker root.
+   */
+  _tagPicker(field, node, messages) {
+    // A language the host set on this editor applies to the picker too.
+    const own = /** @type {Record<string, any>} */ (this.options);
+    const lang = own.lang ?? own.language;
+    const picker = new TagPicker(null, {
+      items: filterTagItems(field.choices),
+      valueKey: 'value', labelKey: 'label',
+      values: Array.isArray(node.value) ? node.value : [],
+      disabled: this._blocked(), placeholder: messages.choose,
+      // The host's messages reach the picker's own strings; its input is named after the field.
+      msg: withFilterMessage(this.options.msg, 'tagPicker.input', messages.value(field.label)),
+      ...(lang ? { lang } : {}),
+      onchange: ({ detail }) => {
+        if (!this._disposed && this._canMutate()) this._setNodeValue(node.id, filterTagValue(detail.values));
+      }
+    });
+    this._selectEditors.push(picker);
+    picker.el.classList.add('zx-filter__picker');
+    if (picker.refs.input) {
+      picker.refs.input.dataset.filterFocus = 'value';
+      picker.refs.input.dataset.nodeId = node.id;
+    }
+    return /** @type {HTMLElement} */ (picker.el);
   }
 
   /** @param {Event} event @returns {void} */
@@ -458,6 +550,7 @@ export class Filter extends Component {
     } else if (target.dataset.filterLogic !== undefined) {
       const node = findNode(this._value.root, id);
       if (node?.kind === 'group' && !(node === this._value.root && this.options.rootLogic)) node.logic = target.value === 'or' ? 'or' : 'and';
+      if (node?.kind === 'group') this._syncConnectors(node);
       this._changed('update', id);
     } else if (target.dataset.filterValue !== undefined) this._valueInput(target);
   }
@@ -504,6 +597,13 @@ export class Filter extends Component {
     else if (action === 'add-group') this.addGroup(id);
     else if (action === 'remove' && id) this.remove(id);
     else if (action === 'clear') this.clear();
+    else if (action === 'toggle-logic' && id) {
+      const logic = nextFilterGroupLogic(this._value, id, this.options.rootLogic);
+      if (!logic) return;
+      this.update(id, { logic });
+      // The connector was redrawn under the pointer; the group's own select keeps the focus.
+      this.focus(id);
+    }
     else if (action === 'apply') this.apply();
   }
 
@@ -640,6 +740,91 @@ function actionButton(action, id, iconName, label, props = {}) {
   }, icon(iconName), h('span', {}, label));
 }
 
+/**
+ * The word a compact row's connector shows for a group's logic, and the name it is read by. The
+ * name starts with the visible word (WCAG 2.5.3, label in name) and says what a click does.
+ * @param {'and'|'or'} logic Group logic.
+ * @param {(key: string, fallback: string, ...args: unknown[]) => string} [message] Message
+ *   resolver; omitted uses the built-in English text.
+ * @returns {{word: string, name: string}}
+ */
+export function filterConnectorText(logic, message = (_key, fallback, ...args) => printf(fallback, args)) {
+  const word = logic === 'or' ? message('filter.or', 'or') : message('filter.and', 'and');
+  const name = logic === 'or'
+    ? message('filter.switchToAll', '%1 — switch to all', word)
+    : message('filter.switchToAny', '%1 — switch to any', word);
+  return { word, name };
+}
+
+/**
+ * The logic a group's connector switches it to: the other one, or null when there is no such
+ * group or it is the root and `rootLogic` restricts it. The group's select offers the same two
+ * values, so the connector and the select always name one state.
+ * @param {FilterAst} value Expression.
+ * @param {string} groupId Group to switch.
+ * @param {'and'|'or'|null} [rootLogic=null] Root restriction, as the `rootLogic` option.
+ * @returns {'and'|'or'|null}
+ */
+export function nextFilterGroupLogic(value, groupId, rootLogic = null) {
+  const group = findGroup(value?.root, groupId);
+  if (!group || (group === value.root && rootLogic)) return null;
+  return group.logic === 'or' ? 'and' : 'or';
+}
+
+/**
+ * Static choices as `TagPicker` items: the raw value — a number stays a number — the label, and
+ * the icon as given, a name or a node (the picker copies a node).
+ * @param {FilterField['choices']} choices
+ * @returns {Array<{value: string|number|boolean, label: string, icon?: Node|string, color?: string}>}
+ */
+export function filterTagItems(choices) {
+  return (Array.isArray(choices) ? choices : []).map((choice) => ({
+    value: choice.value, label: choice.label,
+    ...(choice.icon ? { icon: choice.icon } : {}),
+    ...(choice.color ? { color: choice.color } : {})
+  }));
+}
+
+/**
+ * The value a `TagPicker` change writes into a many-valued condition: a JSON-safe copy of the
+ * chosen raw values, in the order chosen.
+ * @param {unknown} values Picker values.
+ * @returns {import('./filter-model.js').FilterJson}
+ */
+export function filterTagValue(values) {
+  return cloneFilterValue(Array.isArray(values) ? [...values] : []);
+}
+
+/**
+ * A host's `msg` option with one more message: added as a plain key and to every locale table,
+ * since a locale entry is looked up first and would otherwise win.
+ * @param {Record<string, any>|null|undefined} msg Host messages, flat or by locale.
+ * @param {string} key Message key.
+ * @param {string} value Message text.
+ * @returns {Record<string, any>}
+ */
+export function withFilterMessage(msg, key, value) {
+  const result = {};
+  for (const [name, entry] of Object.entries(msg && typeof msg === 'object' ? msg : {})) {
+    result[name] = entry && typeof entry === 'object' ? { ...entry, [key]: value } : entry;
+  }
+  result[key] = value;
+  return result;
+}
+
+/**
+ * A choice's glyph for a themed picker: an icon name drawn through `icon()`, or a copy of a node.
+ * @param {{icon?: unknown}} item Field or value choice.
+ * @returns {HTMLElement|null}
+ */
+function choiceGlyph(item) {
+  const glyph = item?.icon;
+  const content = typeof glyph === 'string' && glyph ? icon(glyph, { size: 14 })
+    : glyph && typeof glyph === 'object' && typeof /** @type {Node} */ (glyph).nodeType === 'number'
+      ? /** @type {Node} */ (glyph).cloneNode(true) : null;
+  return content ? h('span', { class: 'zx-filter__choice-icon', ariaHidden: 'true' }, content) : null;
+}
+
 /** @param {FilterField} field @param {any} node @param {any} value @param {boolean} multiple @param {boolean} disabled @param {number} [index=0] @param {FilterValueMessages} [messages=BUILT_IN_VALUE_MESSAGES] @returns {HTMLSelectElement|null} */
 function choiceSelect(field, node, value, multiple, disabled, index = 0, messages = BUILT_IN_VALUE_MESSAGES) {
   const choices = Array.isArray(field.choices) && field.choices.length
@@ -676,7 +861,7 @@ function parseValueJson(value) { return cloneFilterValue(value === undefined ? n
 /** @param {any} root @param {string} id @returns {any|null} */
 function findNode(root, id) { if (!root || root.id === id) return root ?? null; if (root.kind === 'group') for (const child of root.children) { const match = findNode(child, id); if (match) return match; } return null; }
 /** @param {any} root @param {string} id @returns {any|null} */
-function findGroup(root, id) { const node = findNode(root, id); return node?.kind === 'group' ? node : null; }
+function findGroup(root, id) { if (!root) return null; const node = findNode(root, id); return node?.kind === 'group' ? node : null; }
 /** @param {any} root @param {string} id @returns {any|null} */
 function findParent(root, id) { if (root?.kind !== 'group') return null; if (root.children.some((child) => child.id === id)) return root; for (const child of root.children) { const parent = findParent(child, id); if (parent) return parent; } return null; }
 /** @param {any} root @param {string} id @returns {any|null} */

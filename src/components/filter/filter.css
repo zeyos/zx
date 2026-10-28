@@ -41,11 +41,12 @@
   font-size: var(--zx-text-sm);
 }
 
+/* The native controls only: a themed picker in a value cell (Select, TagPicker) brings its own. */
 .zx-filter__logic,
 .zx-filter__field,
 .zx-filter__operator,
-.zx-filter__value input,
-.zx-filter__value select {
+.zx-filter__value-control > input,
+.zx-filter__value > select {
   min-block-size: var(--zx-control-height);
   border: 1px solid var(--zx-color-border-control);
   border-radius: var(--zx-control-radius);
@@ -170,4 +171,87 @@
   .zx-filter[data-layout="compact"] .zx-filter__condition { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; }
   .zx-filter[data-layout="compact"] .zx-filter__value { grid-column: 1 / 3; grid-row: 2; }
   .zx-filter[data-layout="compact"] .zx-filter__condition > [data-filter-action="remove"] { grid-column: 3; grid-row: 1 / 3; }
+}
+
+/* A choice's glyph in a themed picker: the field's type, or a value's mark, in the muted ink. */
+.zx-filter__choice {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  min-inline-size: 0;
+}
+
+.zx-filter__choice-icon {
+  display: inline-flex;
+  flex: none;
+  justify-content: center;
+  min-inline-size: var(--zx-space-4);
+  color: var(--zx-color-text-muted);
+}
+
+.zx-filter__choice-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * Compact rows say how they combine: the group's "and" or "or" sits in the gap above every row
+ * after the first, on the row's leading edge, so the logic reads down the list. The gap grows to
+ * hold it; the word is positioned out of the row's grid, so the row's own columns are untouched.
+ */
+.zx-filter[data-layout="compact"] .zx-filter__children {
+  gap: var(--zx-space-4);
+}
+
+.zx-filter[data-layout="compact"] .zx-filter__children > li {
+  position: relative;
+}
+
+.zx-filter__connector {
+  position: absolute;
+  inset-block-start: calc(var(--zx-space-4) / -2);
+  inset-inline-start: var(--zx-space-3);
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  /* A step taller than the gap it sits in, so it overlaps both rows' edges a little. */
+  block-size: calc(var(--zx-space-4) + var(--zx-space-1));
+  translate: 0 -50%;
+  margin: 0;
+  border: 1px solid var(--zx-color-border);
+  border-radius: var(--zx-radius-full);
+  background: var(--zx-color-bg-chrome);
+  padding: 0 var(--zx-space-2);
+  color: var(--zx-color-text-muted);
+  font: inherit;
+  font-size: var(--zx-text-xs);
+  font-weight: var(--zx-weight-medium);
+  line-height: 1;
+}
+
+button.zx-filter__connector {
+  cursor: pointer;
+}
+
+button.zx-filter__connector:hover {
+  border-color: var(--zx-color-border-strong);
+  color: var(--zx-color-text);
+}
+
+button.zx-filter__connector:focus-visible {
+  outline: 0;
+  box-shadow: var(--zx-focus-ring);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  button.zx-filter__connector {
+    transition: border-color var(--zx-dur-fast) var(--zx-ease), color var(--zx-dur-fast) var(--zx-ease);
+  }
+}
+
+@media (forced-colors: active) {
+  .zx-filter__connector {
+    border-color: CanvasText;
+  }
 }
