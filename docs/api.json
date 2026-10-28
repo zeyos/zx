@@ -4584,13 +4584,13 @@
         "name": "searchable",
         "type": "boolean",
         "default": "false",
-        "description": "Searchable field, operator and single-choice controls."
+        "description": "Searchable field, operator and single-choice controls; a many-valued operator on a field with static choices gets a `TagPicker`."
       },
       {
         "name": "layout",
         "type": "'standard'|'compact'",
         "default": "'standard'",
-        "description": "Condition layout; compact rows adapt to container width."
+        "description": "Condition layout; compact rows adapt to container width and show the group's \"and\"/\"or\" between them, a click on it switching the group's logic."
       },
       {
         "name": "rootLogic",
@@ -11776,6 +11776,207 @@
         "description": "Disables editing, removal, and reordering."
       }
     ]
+  },
+  "ViewSettings": {
+    "options": [
+      {
+        "name": "fields",
+        "type": "ViewSettingsField[]",
+        "default": "[]",
+        "description": "Field descriptors, in their default order. Bound to a view, a non-empty list is also the allow-list: the view's other fields are neither listed nor touched. An empty list takes every field the view has."
+      },
+      {
+        "name": "fieldOrder",
+        "type": "string[]",
+        "default": "[]",
+        "description": "Preferred field order; missing fields append."
+      },
+      {
+        "name": "hiddenFields",
+        "type": "string[]",
+        "default": "[]",
+        "description": "Hidden field ids. A field with `visible: false` starts hidden too; a locked field never does."
+      },
+      {
+        "name": "groupBy",
+        "type": "string|null",
+        "default": "null",
+        "description": "Initial grouping field."
+      },
+      {
+        "name": "grouping",
+        "type": "boolean|ViewSettingsGrouping",
+        "default": "true",
+        "description": "The Group section. `false` omits it; an object restricts the fields it offers."
+      },
+      {
+        "name": "board",
+        "type": "ViewSettingsBoardOptions|false",
+        "default": "false",
+        "description": "The Board section (column field, swim-lane field, show empty columns) with its initial values and, in `fields`, the fields it offers; `false` omits it."
+      },
+      {
+        "name": "sections",
+        "type": "ViewSettingsSection[]",
+        "default": null,
+        "description": "Order and presence of the sections. Defaults to `['fields', 'grouping', 'board']`; a section whose option is `false` is always left out."
+      },
+      {
+        "name": "types",
+        "type": "Record<string, {icon?: string, label?: string}>",
+        "default": "{}",
+        "description": "Extends or overrides the built-in type map, keyed by type name."
+      },
+      {
+        "name": "searchThreshold",
+        "type": "number",
+        "default": "8",
+        "description": "Field count above which the field search is shown."
+      },
+      {
+        "name": "headingLevel",
+        "type": "2|3|4|5|6",
+        "default": "3",
+        "description": "Heading level of the section headings."
+      },
+      {
+        "name": "label",
+        "type": "string|null",
+        "default": "null",
+        "description": "Accessible name of the region; omitted uses the `viewSettings.label` message (\"View settings\")."
+      },
+      {
+        "name": "msg",
+        "type": "Record<string, string>|Record<string, Record<string, string>>",
+        "default": null,
+        "description": "Localized messages."
+      }
+    ],
+    "events": [
+      {
+        "name": "change",
+        "payload": "{state: ViewSettingsState, reason: ViewSettingsChangeReason}",
+        "description": "Any change the reader made."
+      },
+      {
+        "name": "fieldorderchange",
+        "payload": "{order: string[]}",
+        "description": "Field order changed."
+      },
+      {
+        "name": "fieldvisibilitychange",
+        "payload": "{visible: string[], hidden: string[]}",
+        "description": "A field was added or hidden."
+      },
+      {
+        "name": "groupchange",
+        "payload": "{field: string|null}",
+        "description": "Grouping field changed."
+      },
+      {
+        "name": "boardchange",
+        "payload": "{board: ViewSettingsBoard}",
+        "description": "Board settings changed."
+      }
+    ],
+    "methods": [
+      {
+        "name": "getState",
+        "signature": "getState()",
+        "returns": "ViewSettingsState",
+        "description": "Returns the current settings as a JSON-safe snapshot."
+      },
+      {
+        "name": "setState",
+        "signature": "setState(partial, [options])",
+        "returns": "this",
+        "description": "Applies part of a state. Unknown field ids are ignored, missing ones append, and a locked field stays shown. Each part that actually changes emits its own event unless `silent`. A keyboard pick-up or pointer drag in progress is canceled first."
+      },
+      {
+        "name": "setFields",
+        "signature": "setFields(fields)",
+        "returns": "this",
+        "description": "Replaces the field descriptors, keeping order, visibility, grouping, and board settings for every id that still exists. While a view is bound, the view owns the field list: change it with the view's own `setFields()` and the panel follows through `statechange`. A `setFields()` here is not pushed to the view and lasts only until the view's next change."
+      },
+      {
+        "name": "getFields",
+        "signature": "getFields()",
+        "returns": "ViewSettingsField[]",
+        "description": "Returns the field descriptors in their current order."
+      },
+      {
+        "name": "showField",
+        "signature": "showField(id)",
+        "returns": "this",
+        "description": "Shows a hidden field at the end of the shown list."
+      },
+      {
+        "name": "hideField",
+        "signature": "hideField(id)",
+        "returns": "this",
+        "description": "Hides a shown field. A locked field and the last shown field cannot be hidden."
+      },
+      {
+        "name": "moveField",
+        "signature": "moveField(id, index)",
+        "returns": "this",
+        "description": "Moves a shown field to a position among the movable shown fields (locked ones keep theirs)."
+      },
+      {
+        "name": "bind",
+        "signature": "bind(view, [options])",
+        "returns": "this",
+        "description": "Connects a record view (`TableView`, `CardView`, `KanbanView`, or anything exposing the `RecordView` state surface). The view's fields and state are read now; order and visibility changes made here are pushed through `setFieldOrder()` and `setFieldVisible()`; and the view's own `statechange` is followed, so a column hidden from a table header disappears here too. The view's labels and types win over the panel's own descriptors, which supply only what the view lacks (`locked`, `groupable`, a type the view leaves at its `'text'` default). While bound, the view owns the field list; see `setFields()`. Grouping and board settings are never applied to the view — they are emitted, and the host decides (a `CardView` is re-created or given a new `groupBy`, a `KanbanView` its axes). A view's own `groupBy`, `columnBy`, and `swimlaneBy` options are adopted when they name fields."
+      },
+      {
+        "name": "unbind",
+        "signature": "unbind()",
+        "returns": "this",
+        "description": "Releases a bound view. The settings keep their current state."
+      },
+      {
+        "name": "focus",
+        "signature": "focus()",
+        "returns": "this",
+        "description": "Focuses the field search, or the first control of the shown list when there is no search."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Destroys the nested controls, releases a bound view, and restores an enhanced target."
+      }
+    ]
+  },
+  "ViewSettingsBoard": {
+    "options": [
+      {
+        "name": "columnBy",
+        "type": "string|null",
+        "default": "null",
+        "description": "Initial column field."
+      },
+      {
+        "name": "swimlaneBy",
+        "type": "string|null",
+        "default": "null",
+        "description": "Initial swim-lane field, or null for none."
+      },
+      {
+        "name": "showEmptyColumns",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether columns without cards stay visible."
+      },
+      {
+        "name": "fields",
+        "type": "string[]",
+        "default": null,
+        "description": "The field ids offered for columns and swim lanes, in this order. Omitted offers the same fields as the Group section."
+      }
+    ],
+    "events": [],
+    "methods": []
   },
   "WorkspaceSwitcher": {
     "options": [

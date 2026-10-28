@@ -1,7 +1,7 @@
 /*
  * Record collection: the overview of one record type. The header with its breadcrumb, one toolbar,
  * the filter chips under it, one of five presentations of the same records, and the pager. Every
- * selector sits under `.collection`; the chip editor and the advanced filter open in overlays
+ * selector sits under `.collection`; the chip editor and the filter drawer open in overlays
  * outside the root and use block-namespaced classes. Semantic tokens only.
  */
 
@@ -44,8 +44,7 @@
 }
 
 .collection .collection__toolbar .zx-list-toolbar__tool,
-.collection .collection__toolbar .zx-list-toolbar__view,
-.collection .collection__toolbar .zx-record-view__field-controls > summary {
+.collection .collection__toolbar .zx-list-toolbar__view {
   min-block-size: var(--zx-control-height);
   min-inline-size: var(--zx-control-height);
   padding-inline: var(--zx-space-2);
@@ -55,21 +54,11 @@
   padding-inline: var(--zx-space-1);
 }
 
-/* The view's field chooser sits among the tools: their target size and their quiet hover. */
-.collection .collection__toolbar .zx-record-view__field-controls > summary {
-  gap: var(--zx-space-2);
-  border-radius: var(--zx-control-radius);
-  font-size: var(--zx-control-font-size);
-  font-weight: var(--zx-control-font-weight);
-}
-
-.collection .collection__toolbar .zx-record-view__field-controls > summary:hover {
-  background: var(--zx-color-bg-hover);
-}
-
-.collection .collection__toolbar .zx-record-view__field-controls > summary:focus-visible {
-  outline: 0;
-  box-shadow: var(--zx-focus-ring);
+/* A drawer tool while its drawer is open: the toolbar's own pressed look, on the disclosure state
+   the tool carries instead of a pressed one. */
+.collection .collection__toolbar .zx-list-toolbar__tool[aria-expanded="true"] {
+  border-color: var(--zx-color-border-strong);
+  background: var(--zx-color-bg-current);
 }
 
 /* While filters are active the Filter tool takes the accent tint, so the list says it is filtered
@@ -78,6 +67,11 @@
   border-color: transparent;
   background: var(--zx-color-accent-subtle);
   color: var(--zx-color-accent);
+}
+
+/* Filtered and open: the tint stays, and the open drawer shows as the accent outline. */
+.collection .collection__toolbar .zx-list-toolbar__tool[data-tool-id="filter"][aria-expanded="true"]:has(.zx-badge) {
+  border-color: var(--zx-color-accent);
 }
 
 /* The current presentation in the accent tint: the view you are on is a pick, not a mode. */
@@ -297,7 +291,7 @@
   flex: 1 1 auto;
 }
 
-/* The sort and group menus: a small padded panel. */
+/* The sort menu: a small padded panel. */
 .collection__menu {
   display: grid;
   gap: var(--zx-space-2);
@@ -305,19 +299,55 @@
   padding: var(--zx-space-3);
 }
 
-.collection__menu-label {
-  color: var(--zx-color-text-muted);
-  font-size: var(--zx-text-xs);
-  font-weight: var(--zx-weight-medium);
-}
+/* ----------------------------------------------------------------- drawers -- */
 
-.collection__advanced {
+/*
+ * The filter drawer, a non-modal end Sheet outside the root: a hint, then the expression editor
+ * without its outer frame — the drawer is the frame — and with its add actions leading. Its own
+ * Clear goes; the drawer's footer has "Clear all" beside "Done".
+ */
+.collection__drawer-body {
   display: grid;
-  gap: var(--zx-space-3);
+  gap: var(--zx-space-4);
 }
 
-.collection__advanced > .meta {
+.collection__drawer-hint {
   margin: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+.collection__drawer .zx-filter > .zx-filter__group {
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.collection__drawer .zx-filter > .zx-filter__group > .zx-filter__legend {
+  padding-inline: 0;
+}
+
+.collection__drawer .zx-filter__actions {
+  justify-content: flex-start;
+}
+
+.collection__drawer .zx-filter__actions [data-filter-action="clear"] {
+  display: none;
+}
+
+/* A phone-width window gives a drawer all of its width. */
+@media (max-width: 30rem) {
+  .collection__drawer {
+    --collection-drawer-narrow: 100vw;
+  }
+}
+
+/* Wide, the collection makes room for an open drawer instead of sliding under it, so the list
+   beside the filters shows every column while it updates. Narrower, the drawer covers it. */
+@container shell (min-width: 1180px) {
+  .collection[data-drawer-open] .collection__main {
+    margin-inline-end: min(var(--collection-drawer-size, 400px), 100vw);
+  }
 }
 
 /* ------------------------------------------------------------------ views -- */

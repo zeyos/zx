@@ -1,14 +1,15 @@
 import {
   Avatar, Breadcrumb, CardView, Checklist, Dialog, Dropdown, Filter, KanbanView, ListToolbar, MenuButton,
-  NumberField, Pagination, Select, SortControl, TableView, avatarInitials, avatarTone, badge, button,
+  NumberField, Pagination, Select, Sheet, SortControl, TableView, ViewSettings, avatarInitials, avatarTone, badge, button,
   downloadBlob, emptyState, filterOperators, formatCurrency, formatDate, formatNumber, formatRelativeTime, h,
-  icon, toCsv
+  icon, toCsv, uid
 } from '../../src/index.js';
 import {
   DATE, adaptiveShell, disposer, dot, iconButton, layoutContext, later, paneHeader, renderScope,
   shortcutSheet, shortcuts, suiteNav, toaster, unavailable
 } from './kit.js';
 import { COMPANIES, ME, NOW, TODAY, person } from './fixtures.js';
+import { astToFilters, filtersToAst, mergeDrafts, resolveBoardAxes, withoutDrafts } from './record-collection-filters.js';
 
 /**
  * The workspaces this user belongs to, for the switcher at the head of the module strip. ACME is
@@ -124,7 +125,7 @@ const FIELDS = [
   { id: 'updated', label: 'Updated', sortable: true, view: { table: { width: '120px' } } }
 ];
 
-/** Which fields each presentation shows at first; the Fields menu changes it per presentation. */
+/** Which fields each presentation shows at first; View settings changes it per presentation. */
 const VISIBLE = {
   table: ['name', 'company', 'stage', 'value', 'owner', 'close'],
   list: ['stage', 'value', 'owner', 'close'],
@@ -134,8 +135,37 @@ const VISIBLE = {
 };
 
 /**
+ * What View settings knows about each field beyond the views' own descriptor: its type in the
+ * ViewSettings vocabulary — the glyph and the type name a row shows — and whether it may group.
+ * The opportunity's name is the record's title, so it is locked: always shown, always first. The
+ * company is text, which would otherwise be offered for grouping; this collection does not.
+ */
+const FIELD_SETTINGS = {
+  name: { type: 'text', locked: true, groupable: false },
+  company: { type: 'text', groupable: false },
+  stage: { type: 'status' },
+  value: { type: 'money' },
+  probability: { type: 'number' },
+  owner: { type: 'entity' },
+  close: { type: 'date' },
+  tags: { type: 'tags' },
+  updated: { type: 'datetime' }
+};
+
+/**
+ * The fields the records can be grouped by, and laid out by on the board — as columns or as swim
+ * lanes: each one's buckets in order, with the status dot a stage is drawn with.
+ * @type {Record<string, {label: string, buckets: Array<{id: string, label: string, dot: string|null}>}>}
+ */
+const AXES = {
+  stage: { label: 'Stage', buckets: STAGES.map(({ id, label, dot: tone }) => ({ id, label, dot: tone })) },
+  owner: { label: 'Owner', buckets: OWNERS.map((id) => ({ id, label: person(id).name, dot: null })) }
+};
+
+/**
  * What the filter bar can filter on, in the shape the `Filter` expression editor takes, so the
- * chips and the advanced editor share one vocabulary. Operators are the core `filterOperators` ids.
+ * chips and the filter drawer share one vocabulary. Operators are the core `filterOperators` ids;
+ * the icon is the field's glyph on its chip and in the drawer's field picker.
  */
 const FILTER_FIELDS = [
   {
@@ -178,8 +208,8 @@ const SHAPES = ['table', 'list', 'cards', 'gallery', 'board'];
 
 /** The keyboard reference `?` opens. */
 const SHORTCUTS = [
-  ['Views', [['Table', '1'], ['List', '2'], ['Cards', '3'], ['Gallery', '4'], ['Board', '5']]],
-  ['Filters', [['Add a filter', 'F'], ['Search', '/']]],
+  ['Views', [['Table', '1'], ['List', '2'], ['Cards', '3'], ['Gallery', '4'], ['Board', '5'], ['View settings', 'V']]],
+  ['Filters', [['Open the filters', 'F'], ['Add a filter chip', 'Shift+F'], ['Close the filters', 'Escape'], ['Search', '/']]],
   ['General', [['New opportunity', 'N'], ['Navigation', 'Mod+B'], ['Keyboard shortcuts', '?']]]
 ];
 
@@ -336,9 +366,9 @@ function describeCondition(condition) {
 export default {
   title: 'Record collection',
   category: 'Pattern',
-  blurb: 'One record type five ways — table, list, cards, gallery, and board — under one toolbar, with filters as editable chips.',
+  blurb: 'One record type five ways — table, list, cards, gallery, and board — under one toolbar, with filters as editable chips and a filter drawer.',
   components: [
-    'ListToolbar', 'TableView', 'CardView', 'KanbanView', 'Pagination', 'Filter', 'Dropdown', 'MenuButton',
+    'ListToolbar', 'TableView', 'CardView', 'KanbanView', 'Pagination', 'Filter', 'ViewSettings', 'Sheet', 'Dropdown', 'MenuButton',
     'Select', 'Checklist', 'NumberField', 'SortControl', 'Breadcrumb', 'Dialog', 'Avatar', 'Message',
     'AppSidebar', 'ModuleBar', 'AccountMenu', 'WorkspaceSwitcher'
   ],
@@ -355,23 +385,26 @@ export default {
     const keep = disposer(context);
     let records = createOpportunities();
     // Components drawn for one presentation, its rows (redrawn on every refresh), one chip editor,
-    // one value control, and one dialog.
+    // and one value control.
     const viewParts = renderScope(context);
     const rowParts = renderScope(context);
     const editorParts = renderScope(context);
     const valueParts = renderScope(context);
-    const dialogParts = renderScope(context);
+    // The View settings in its drawer, rebuilt when the board comes or goes.
+    const settingsParts = renderScope(context);
 
     /**
      * Everything that decides what the collection shows. `filters.conditions` is the chip model —
      * a plain `[{field, operator, value}]` joined by `filters.logic` — and `filters.advanced`, when
-     * set, a nested expression from the advanced editor that replaces the chips.
+     * set, a nested expression from the filter drawer that replaces the chips.
      */
     const state = {
       shape: 'table',
       query: '',
       sort: { id: 'value', dir: 'desc' },
       group: 'none',
+      // The board's columns and whether empty ones stay; its swim lanes are the grouping.
+      board: { columnBy: 'stage', showEmptyColumns: true },
       page: 1,
       pageSize: 25,
       filtersOpen: false,
@@ -399,6 +432,22 @@ export default {
     let view = null;
     /** The presentation `view` was built for. */
     let viewShape = state.shape;
+    /** @type {{sheet: Sheet, editor: Filter}|null} The filter drawer, built when it first opens. */
+    let filterDrawer = null;
+    /**
+     * The View settings drawer, built when it first opens. `settings` is rebuilt when the board
+     * comes or goes, since its Board section is there only for the board.
+     * @type {{sheet: Sheet, host: HTMLElement, settings: ViewSettings|null, board: boolean}|null}
+     */
+    let viewDrawer = null;
+    /** @type {Map<Sheet, number>} Every drawer built so far, with its width; one is open at a time. */
+    const drawers = new Map();
+    /**
+     * Where each open drawer was opened from, and the tool it belongs to: closing returns the focus
+     * to the opener, or to the tool when the opener is gone.
+     * @type {Map<Sheet, {opener: Element|null, tool: HTMLElement}>}
+     */
+    const openers = new Map();
 
     /* -------------------------------------------------------------- navigation -- */
 
@@ -540,16 +589,33 @@ export default {
       label: 'Opportunity controls',
       search: { placeholder: 'Search opportunities…', debounce: 150 },
       tools: [
-        { id: 'filter', icon: 'filter', label: 'Filter', pressed: false },
+        { id: 'filter', icon: 'filter', label: 'Filter' },
         { id: 'sort', icon: 'arrow-down-wide-short', label: 'Sort' },
-        { id: 'group', icon: 'layer-group', label: 'Group' }
+        // "View", not "Fields": the drawer arranges the fields, groups the records, and lays out
+        // the board — everything about how this view shows them.
+        { id: 'view', icon: 'sliders', label: 'View' }
       ],
       views: SHAPES,
       view: state.shape,
+      countText: (count) => `${formatNumber(count)} ${count === 1 ? 'opportunity' : 'opportunities'}`,
       onsearch: ({ detail }) => { state.query = detail.value; refresh({ resetPage: true }); },
-      onaction: ({ detail }) => { if (detail.id === 'filter') toggleFilters(); },
+      onaction: ({ detail }) => {
+        if (detail.id === 'filter') toggleFilterDrawer();
+        else if (detail.id === 'view') toggleViewDrawer();
+      },
       onviewchange: ({ detail }) => { state.shape = detail.view; mountView(); }
     }));
+    const filterTool = /** @type {HTMLButtonElement} */ (toolbar.getTool('filter'));
+    filterTool.setAttribute('aria-keyshortcuts', 'F');
+    // The two drawer tools are disclosures: they say they open a dialog, whether it is open, and,
+    // once it exists, which one it is (see `syncDrawerState()`).
+    filterTool.setAttribute('aria-haspopup', 'dialog');
+    filterTool.setAttribute('aria-expanded', 'false');
+    toolbar.toElement().querySelector('[role="search"]')?.setAttribute('aria-label', 'Opportunities');
+    const viewTool = /** @type {HTMLButtonElement} */ (toolbar.getTool('view'));
+    viewTool.setAttribute('aria-keyshortcuts', 'V');
+    viewTool.setAttribute('aria-haspopup', 'dialog');
+    viewTool.setAttribute('aria-expanded', 'false');
     const sortFields = FIELDS.filter((field) => field.sortable).map(({ id, label }) => ({ id, label }));
     const sorter = keep(new SortControl(null, {
       fields: sortFields,
@@ -559,29 +625,9 @@ export default {
     keep(new Dropdown(toolbar.getTool('sort'), {
       content: h('div', { class: 'collection__menu' }, sorter.toElement()), placement: 'bottom-end'
     }));
-    const grouping = keep(new Select(null, {
-      label: 'Group by',
-      items: [{ ID: 'none', name: 'No grouping' }, { ID: 'stage', name: 'Stage' }, { ID: 'owner', name: 'Owner' }],
-      value: state.group,
-      onchange: ({ detail }) => {
-        state.group = String(detail.value ?? 'none');
-        state.page = 1;
-        groupMenu.close();
-        toolbar.getTool('group')?.focus();
-        syncGroup();
-        mountView();
-      }
-    }));
-    const groupMenu = keep(new Dropdown(toolbar.getTool('group'), {
-      content: h('div', { class: 'collection__menu' },
-        h('span', { class: 'collection__menu-label', ariaHidden: 'true' }, 'Group by'), grouping.toElement()),
-      placement: 'bottom-end'
-    }));
-
-    /** Mirrors the grouping in the Group tool's badge and menu. @returns {void} */
+    /** Mirrors the grouping in the View tool's badge: "Stage", "Owner", or none. @returns {void} */
     function syncGroup() {
-      toolbar.setBadge('group', state.group === 'none' ? null : state.group === 'stage' ? 'Stage' : 'Owner');
-      grouping.set(state.group, { silent: true });
+      toolbar.setBadge('view', AXES[state.group]?.label ?? null);
     }
 
     /* --------------------------------------------------------------- filter bar -- */
@@ -601,19 +647,19 @@ export default {
       items: addItems(),
       onselect: ({ detail }) => {
         // The menu hands focus back to its button as it closes; the editor opens after that.
-        if (detail.value === 'advanced') later(context, () => openAdvanced(), 0);
+        if (detail.value === 'advanced') later(context, () => openFilterDrawer(), 0);
         else later(context, () => startDraft(String(detail.value)), 0);
       }
     }));
     const addButton = /** @type {HTMLButtonElement} */ (addMenu.getTrigger());
     addButton.classList.add('collection__add');
-    addButton.setAttribute('aria-keyshortcuts', 'F');
+    addButton.setAttribute('aria-keyshortcuts', 'Shift+F');
     const clearButton = button({ label: 'Clear all', kind: 'ghost', size: 'sm', onclick: () => clearFilters() });
     clearButton.classList.add('collection__clear');
     const filterBar = h('div', { class: 'collection__filters', role: 'group', ariaLabel: 'Filters' },
       conjunction, chipList, addMenu.toElement(), clearButton);
 
-    /** @returns {Record<string, any>[]} The add menu: every field, then the advanced editor. */
+    /** @returns {Record<string, any>[]} The add menu: every field, then the filter drawer. */
     function addItems() {
       if (state.filters.advanced) return [{ label: 'Edit advanced filter…', value: 'advanced', icon: 'sliders' }];
       return [
@@ -642,8 +688,9 @@ export default {
       }
       clearButton.hidden = active === 0;
       filterBar.hidden = active === 0 && !state.filtersOpen && !draft;
-      toolbar.setBadge('filter', active || null);
-      toolbar.setPressed('filter', !filterBar.hidden);
+      // The badge counts conditions, nested ones included: "Advanced filter (3 conditions)" is 3.
+      toolbar.setBadge('filter', (advanced ? conditionCount(advanced.root) : conditions.length) || null);
+      syncDrawerState();
       addMenu.setItems(addItems());
     }
 
@@ -681,7 +728,8 @@ export default {
       const count = conditionCount(ast.root);
       return /** @type {HTMLLIElement} */ (h('li', { class: 'collection__chip' },
         h('button', {
-          type: 'button', class: 'collection__chip-main', ariaHaspopup: 'dialog', ariaExpanded: 'false', onclick: () => openAdvanced()
+          type: 'button', class: 'collection__chip-main', ariaHaspopup: 'dialog', dataset: { advanced: 'true' },
+          ariaExpanded: String(isDrawerOpen(filterDrawer)), onclick: () => toggleFilterDrawer()
         },
           icon('sliders', { size: 13 }),
           h('span', { class: 'collection__chip-field' }, 'Advanced filter'),
@@ -692,20 +740,7 @@ export default {
         }, icon('xmark', { size: 12 }))));
     }
 
-    /** Shows the bar, or hides it when nothing is filtered; F and the Filter tool. @returns {void} */
-    function toggleFilters() {
-      const active = state.filters.advanced || state.filters.conditions.length > 0;
-      if (filterBar.hidden || active) {
-        state.filtersOpen = true;
-        renderChips();
-        focusAdd();
-      } else {
-        state.filtersOpen = false;
-        renderChips();
-      }
-    }
-
-    /** Opens the bar and puts the focus on "Add filter". @returns {void} */
+    /** Opens the bar and puts the focus on "Add filter"; Shift+F. @returns {void} */
     function openFilters() {
       state.filtersOpen = true;
       renderChips();
@@ -743,22 +778,41 @@ export default {
       else focusAdd();
     }
 
-    /** Removes every condition; the bar stays open on "Add filter". @returns {void} */
-    function clearFilters() {
+    /**
+     * Removes every condition and the search. From the bar, the bar stays open on "Add filter";
+     * from the drawer, the focus stays in the drawer, on its own "Add filter".
+     * @param {{from?: 'bar'|'drawer'}} [options]
+     * @returns {void}
+     */
+    function clearFilters({ from = 'bar' } = {}) {
       state.filters.conditions = [];
       state.filters.advanced = null;
       state.filtersOpen = true;
       state.query = '';
       toolbar.setSearch('', { silent: true });
       nav.setActive('opportunities');
-      applyFilters();
-      focusAdd();
+      applyFilters({ keepDrafts: false });
+      if (from === 'drawer') filterDrawer?.editor.focus();
+      else focusAdd();
     }
 
-    /** Redraws the chips and re-reads the records from the first page. @returns {void} */
-    function applyFilters() {
+    /**
+     * Redraws the chips and re-reads the records from the first page. A change made anywhere but
+     * the drawer is handed to the drawer too, while it is open, so it never shows a stale filter —
+     * keeping the rows it holds unfinished, so a chip removed in the bar does not take a row the
+     * reader is still writing with it. Clearing everything drops those too. The drawer's own
+     * changes are not handed back, which would redraw it under the reader's cursor.
+     * @param {{fromDrawer?: boolean, keepDrafts?: boolean}} [options]
+     * @returns {void}
+     */
+    function applyFilters({ fromDrawer = false, keepDrafts = true } = {}) {
       renderChips();
       refresh({ resetPage: true });
+      if (!fromDrawer && filterDrawer && isDrawerOpen(filterDrawer)) {
+        const committed = filtersToAst(state.filters);
+        filterDrawer.editor.setValue(keepDrafts ? mergeDrafts(committed, filterDrawer.editor.getValue()) : committed,
+          { silent: true });
+      }
     }
 
     /* ------------------------------------------------------------- chip editor -- */
@@ -870,7 +924,8 @@ export default {
         // The condition is found by identity: chips added or removed meanwhile do not shift it.
         const conditions = state.filters.conditions;
         let position = target ? conditions.indexOf(target) : -1;
-        if (position >= 0) conditions[position] = next;
+        // It keeps the id the drawer knows it by, so an open drawer redraws the same row.
+        if (position >= 0) conditions[position] = target?.id ? { id: target.id, ...next } : next;
         else position = conditions.push(next) - 1;
         if (index === null) draft = null;
         dropdown.close();
@@ -955,56 +1010,299 @@ export default {
       });
     }
 
-    /* ---------------------------------------------------------- advanced filter -- */
+    /* ---------------------------------------------------------------- drawers -- */
 
     /**
-     * Opens the expression editor with the current filter. On apply, an expression the chips can
-     * show — one level of complete conditions — becomes chips again; anything nested becomes one
-     * "Advanced filter" chip.
+     * A drawer on the end edge that leaves the collection usable beside it: non-modal, so the list
+     * keeps scrolling, selecting, and updating while it is open, and without light dismiss, so
+     * working in the list does not close it. It has a title, the close button, and Dialog-style
+     * footer buttons. Only one drawer is open at a time; the one opening closes the others.
+     * Closing it — Escape, the close button, "Done", or the tool again — returns the focus to the
+     * toolbar tool it belongs to.
+     * @param {{title: string, content: Node, size?: number,
+     *   buttons: import('../../src/components/dialog/dialog.js').DialogButton[]}} options
+     *   `size` is the width; a phone-width window gives the drawer all of it.
+     * @returns {Sheet}
+     */
+    function sideDrawer({ title, content, buttons, size = 400 }) {
+      const sheet = keep(new Sheet(null, {
+        // On a phone the drawer takes the whole width (see the stylesheet), not all but a sliver.
+        side: 'end', size: `var(--collection-drawer-narrow, ${size}px)`, modal: false, lightDismiss: false, closeButton: true,
+        title, content, buttons, scope: root,
+        onopen: () => syncDrawerState(),
+        onclose: () => { syncDrawerState(); returnFocus(sheet); }
+      }));
+      sheet.el.classList.add('collection__drawer');
+      sheet.el.id ||= uid('collection-drawer');
+      // Non-modal, the page stays in the accessibility tree beside the drawer, and the dialog's
+      // <header> would read as a second banner next to the page's own; it is only a title row.
+      sheet.el.querySelector('.zx-dialog__header')?.setAttribute('role', 'none');
+      // Escape that a picker inside spent closing its own list is not the drawer's: the picker
+      // marks it handled, but the sheet's own Escape does not look, so it stops at the content.
+      content.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && event.defaultPrevented) event.stopPropagation();
+      }, { signal: context.signal });
+      drawers.set(sheet, size);
+      return sheet;
+    }
+
+    /**
+     * Opens a drawer built by `sideDrawer()`, closing any other, with the focus on its first
+     * control. The element that had the focus is remembered as the opener.
+     * @param {Sheet} sheet
+     * @param {HTMLElement} tool The toolbar tool it belongs to, where the focus goes back to when
+     *   the opener is gone.
+     * @param {() => void} focusFirst Puts the focus on the control the drawer starts on.
      * @returns {void}
      */
-    function openAdvanced() {
-      if (context.preview) return;
-      dialogParts.reset();
-      const { advanced, conditions, logic } = state.filters;
-      const value = advanced ?? {
-        version: 1,
-        root: {
-          kind: 'group', id: 'filter-root', logic,
-          children: conditions.map((condition, index) => ({ kind: 'condition', id: `condition-${index}`, ...structuredClone(condition) }))
-        }
-      };
-      const editor = dialogParts.own(new Filter(null, {
-        fields: FILTER_FIELDS.map(({ id, label, type, operators, defaultOperator, choices }) => ({ id, label, type, operators, defaultOperator, choices })),
-        value,
+    function showDrawer(sheet, tool, focusFirst) {
+      for (const other of drawers.keys()) if (other !== sheet && other.isOpen()) other.close();
+      if (!sheet.isOpen()) {
+        const active = document.activeElement;
+        openers.set(sheet, { opener: active && active !== document.body ? active : null, tool });
+        sheet.open();
+      }
+      // After the sheet's own initial focus, which lands on its first focusable — the close button.
+      queueMicrotask(() => focusFirst());
+    }
+
+    /**
+     * Puts the focus back after a drawer closed. Where the reader is outside the drawer — in the
+     * list, or on the tool that closed it — the focus stays there. From inside the drawer it goes
+     * to the opener: the tool, the advanced chip (found again: the chips are redrawn as filters
+     * apply), "Add filter", or the list a shortcut was pressed in; when that is gone, to the tool.
+     * Runs from the close event, before the sheet's own restore, so it reads where the focus was.
+     * @param {Sheet} sheet
+     * @returns {void}
+     */
+    function returnFocus(sheet) {
+      const record = openers.get(sheet);
+      openers.delete(sheet);
+      if (!record || context.signal.aborted) return;
+      const here = document.activeElement;
+      const outside = here && here !== document.body && here.isConnected && !sheet.el.contains(here)
+        && here !== record.opener;
+      const advanced = record.opener instanceof HTMLElement && record.opener.dataset.advanced
+        ? chipList.querySelector('[data-advanced]') : null;
+      const target = outside ? here
+        : record.opener?.isConnected ? record.opener : advanced ?? record.tool;
+      // After the sheet's own restore, which would otherwise have the last word.
+      queueMicrotask(() => {
+        if (target instanceof HTMLElement && target.isConnected) target.focus({ preventScroll: true });
+      });
+    }
+
+    /** @param {{sheet: Sheet}|null} drawer @returns {boolean} Whether it exists and is open. */
+    function isDrawerOpen(drawer) {
+      return Boolean(drawer?.sheet.isOpen());
+    }
+
+    /** Mirrors the open drawer on the tools that open it and on the advanced chip. @returns {void} */
+    function syncDrawerState() {
+      const open = isDrawerOpen(filterDrawer);
+      const shown = [...drawers.keys()].find((sheet) => sheet.isOpen());
+      root.toggleAttribute('data-drawer-open', Boolean(shown));
+      // The room the collection makes for it, wide (see the stylesheet).
+      if (shown) root.style.setProperty('--collection-drawer-size', `${drawers.get(shown)}px`);
+      for (const [tool, drawer] of /** @type {Array<[HTMLElement, {sheet: Sheet}|null]>} */ ([[filterTool, filterDrawer], [viewTool, viewDrawer]])) {
+        tool.setAttribute('aria-expanded', String(isDrawerOpen(drawer)));
+        if (drawer) tool.setAttribute('aria-controls', drawer.sheet.el.id);
+      }
+      const advanced = chipList.querySelector('[data-advanced]');
+      advanced?.setAttribute('aria-expanded', String(open));
+      if (advanced && filterDrawer) advanced.setAttribute('aria-controls', filterDrawer.sheet.el.id);
+    }
+
+    /**
+     * The filter drawer: the `Filter` expression editor on the same model as the chips. It applies
+     * live — every valid state of the expression filters the list as it is made; an incomplete row
+     * leaves the list on the last valid filter — and a root group of plain conditions becomes chips.
+     * @returns {{sheet: Sheet, editor: Filter}}
+     */
+    function ensureFilterDrawer() {
+      if (filterDrawer) return filterDrawer;
+      const editor = keep(new Filter(null, {
+        // A new row starts on the operator a new chip starts on.
+        fields: FILTER_FIELDS.map(({ id, label, type, icon: glyph, operators, defaultOperator, choices }) => ({
+          id, label, type, icon: glyph, operators, defaultOperator: defaultOperator ?? operators[0], choices
+        })),
+        value: filtersToAst(state.filters),
         layout: 'compact',
+        searchable: true,
         maxDepth: 2,
+        autoApply: true,
         showApply: false,
         showRootActions: false,
-        onapply: ({ detail }) => {
-          const root = /** @type {any} */ (detail.value).root;
-          const flat = root.children.every((child) => child.kind === 'condition' && isComplete(child));
-          state.filters.advanced = flat ? null : detail.value;
-          if (flat) {
-            state.filters.logic = root.logic;
-            state.filters.conditions = root.children.map(({ field, operator, value: entry }) => ({ field, operator, value: entry }));
-          }
-          dialog.close();
-          nav.setActive(null);
-          applyFilters();
-          focusAdd();
+        onapply: ({ detail }) => applyFromDrawer(detail.value),
+        // An unfinished row makes the whole expression invalid, so no apply arrives; the rows
+        // around it still filter, and the unfinished one waits in the drawer.
+        onchange: ({ detail }) => { if (!detail.valid) applyFromDrawer(withoutDrafts(detail.value)); }
+      }));
+
+      /** @param {any} ast The drawer's expression, finished rows only. @returns {void} */
+      function applyFromDrawer(ast) {
+        const next = astToFilters(ast);
+        // A field's change event repeats the value its input events already applied — on the
+        // way out of the drawer, to a chip — and redrawing the chips then would move the chip
+        // from under the pointer before the click lands.
+        if (JSON.stringify(filtersToAst(next)) === JSON.stringify(filtersToAst(state.filters))) return;
+        Object.assign(state.filters, next);
+        draft = null;
+        nav.setActive(state.filters.advanced || state.filters.conditions.length ? null : 'opportunities');
+        applyFilters({ fromDrawer: true });
+      }
+      const sheet = sideDrawer({
+        title: 'Filters',
+        content: h('div', { class: 'collection__drawer-body' },
+          h('p', { class: 'collection__drawer-hint' },
+            'Changes apply as you make them. Use groups to mix “all” and “any”; a filter without groups shows as chips.'),
+          editor.toElement()),
+        buttons: [
+          { label: 'Clear all', kind: 'ghost', action: () => clearFilters({ from: 'drawer' }) },
+          { label: 'Done', kind: 'primary', action: 'close' }
+        ]
+      });
+      filterDrawer = { sheet, editor };
+      return filterDrawer;
+    }
+
+    /**
+     * Opens the filter drawer on the current filter, the focus on its first control. F, the Filter
+     * tool, the advanced chip, and "Advanced…" in the add menu.
+     * @returns {void}
+     */
+    function openFilterDrawer() {
+      if (context.preview) return;
+      const drawer = ensureFilterDrawer();
+      if (!drawer.sheet.isOpen()) drawer.editor.setValue(filtersToAst(state.filters), { silent: true });
+      showDrawer(drawer.sheet, filterTool, () => /** @type {HTMLElement|null} */ (drawer.editor.el.querySelector(
+        'select:not([disabled]), input:not([disabled]), button:not([disabled])'))?.focus());
+    }
+
+    /** The Filter tool: opens the drawer, or closes it when it is open. @returns {void} */
+    function toggleFilterDrawer() {
+      if (isDrawerOpen(filterDrawer)) filterDrawer?.sheet.close();
+      else openFilterDrawer();
+      syncDrawerState();
+    }
+
+    /**
+     * Applies a change of grouping or columns made on the board, by the rule in
+     * `resolveBoardAxes()`: the lanes are the grouping, and the axes swap rather than collide.
+     * @param {{group?: string, columnBy?: string}} change
+     * @returns {void}
+     */
+    function applyBoardAxes(change) {
+      const next = resolveBoardAxes({ columnBy: state.board.columnBy, group: state.group }, change, Object.keys(AXES));
+      state.board.columnBy = next.columnBy;
+      state.group = next.group;
+    }
+
+    /**
+     * The swim lanes the board shows: the grouping. The board keeps the two apart (see
+     * `applyBoardAxes()`), so this only guards against a state that was never resolved.
+     * @returns {string|null}
+     */
+    function laneOf() {
+      return state.group !== 'none' && state.group !== state.board.columnBy ? state.group : null;
+    }
+
+    /** @returns {{columnBy: string, swimlaneBy: string|null, showEmptyColumns: boolean}} The board as View settings shows it. */
+    function boardSettings() {
+      return { columnBy: state.board.columnBy, swimlaneBy: laneOf(), showEmptyColumns: state.board.showEmptyColumns };
+    }
+
+    /**
+     * Builds the View settings for the current presentation into the drawer: the fields with
+     * their types, Group by, and — on the board only — the board's columns, swim lanes, and empty
+     * columns. Order and visibility go straight to the bound view; grouping and the board are
+     * applied here, by rebuilding the presentation.
+     * @returns {ViewSettings}
+     */
+    function buildViewSettings() {
+      const board = state.shape === 'board';
+      settingsParts.reset();
+      // The table lists the name as its first, locked column. Every other presentation draws the
+      // name as the record's title rather than as a field, so it is not a field to show or hide
+      // there and stays out of the list.
+      const fields = FIELDS.filter(({ id }) => state.shape === 'table' || id !== 'name');
+      const settings = settingsParts.own(new ViewSettings(null, {
+        fields: fields.map(({ id, label }) => ({ id, label, ...FIELD_SETTINGS[id] })),
+        groupBy: state.group === 'none' ? null : state.group,
+        grouping: { fields: Object.keys(AXES) },
+        board: board ? boardSettings() : false,
+        sections: board ? ['fields', 'grouping', 'board'] : ['fields', 'grouping'],
+        label: 'View settings',
+        // On the board, swim lanes ARE the grouping, and columns never use the grouping's field:
+        // `resolveBoardAxes()` (record-collection-filters.js) states the rule for every case.
+        ongroupchange: ({ detail }) => {
+          const group = detail.field ?? 'none';
+          if (state.shape === 'board') applyBoardAxes({ group });
+          else state.group = group;
+          state.page = 1;
+          syncGroup();
+          mountView();
+        },
+        onboardchange: ({ detail }) => {
+          const { columnBy, swimlaneBy, showEmptyColumns } = detail.board;
+          state.board.showEmptyColumns = showEmptyColumns !== false;
+          if (columnBy && columnBy !== state.board.columnBy) applyBoardAxes({ columnBy });
+          else if ((swimlaneBy ?? 'none') !== state.group) applyBoardAxes({ group: swimlaneBy ?? 'none' });
+          syncGroup();
+          mountView();
         }
       }));
-      const dialog = dialogParts.own(new Dialog(null, {
-        title: 'Advanced filter',
-        size: 'lg',
-        content: h('div', { class: 'collection__advanced' },
-          h('p', { class: 'meta' }, 'Group conditions to combine “all” and “any”. A filter without groups shows as chips again.'),
-          editor.toElement()),
-        buttons: [{ label: 'Cancel', action: 'cancel' }, { label: 'Apply filter', kind: 'primary', action: () => editor.apply() }]
-      }));
-      dialog.on('close', () => later(context, () => dialogParts.reset(), 0));
-      dialog.open();
+      return settings;
+    }
+
+    /**
+     * Points View settings at the presentation just built: a new one when the board came or went,
+     * the same one otherwise, given the grouping and board and bound to the new view.
+     * @returns {void}
+     */
+    function syncViewSettings() {
+      if (!viewDrawer || !view) return;
+      const board = state.shape === 'board';
+      if (!viewDrawer.settings || viewDrawer.board !== board) {
+        viewDrawer.settings = buildViewSettings();
+        viewDrawer.board = board;
+        viewDrawer.host.replaceChildren(viewDrawer.settings.toElement());
+      } else {
+        viewDrawer.settings.setState({ groupBy: state.group === 'none' ? null : state.group,
+          ...(board ? { board: boardSettings() } : {}) }, { silent: true });
+      }
+      viewDrawer.settings.bind(view, board ? { board: boardSettings() } : {});
+      // Search draws an unnamed search landmark; beside the toolbar's, each needs its own name.
+      viewDrawer.settings.el.querySelector('[role="search"]')?.setAttribute('aria-label', 'Fields');
+    }
+
+    /** @returns {{sheet: Sheet, host: HTMLElement, settings: ViewSettings|null, board: boolean}} */
+    function ensureViewDrawer() {
+      if (viewDrawer) return viewDrawer;
+      const host = h('div', { class: 'collection__drawer-body' });
+      const sheet = sideDrawer({
+        title: 'View settings',
+        content: host,
+        size: 380,
+        buttons: [{ label: 'Done', kind: 'primary', action: 'close' }]
+      });
+      viewDrawer = { sheet, host, settings: null, board: false };
+      syncViewSettings();
+      return viewDrawer;
+    }
+
+    /** Opens View settings for the current presentation; V and the View tool. @returns {void} */
+    function openViewDrawer() {
+      if (context.preview) return;
+      const drawer = ensureViewDrawer();
+      showDrawer(drawer.sheet, viewTool, () => drawer.settings?.focus());
+    }
+
+    /** The View tool: opens View settings, or closes it when it is open. @returns {void} */
+    function toggleViewDrawer() {
+      if (isDrawerOpen(viewDrawer)) viewDrawer?.sheet.close();
+      else openViewDrawer();
+      syncDrawerState();
     }
 
     /* -------------------------------------------------------------------- body -- */
@@ -1084,17 +1382,23 @@ export default {
      * @returns {void}
      */
     function mountView() {
-      if (view && !(view instanceof KanbanView)) fieldStates[viewShape] = view.getViewState();
+      if (view) fieldStates[viewShape] = { fieldOrder: view.getFieldOrder(), hiddenFields: view.getHiddenFields() };
       editing?.dropdown.close();
+      // View settings lets go of the view before it is destroyed, and takes the new one below.
+      viewDrawer?.settings?.unbind();
       viewParts.reset();
+      // Entering the board with the grouping on the column field resolves like choosing it there.
+      if (state.shape === 'board') applyBoardAxes({});
+      syncGroup();
       viewShape = state.shape;
       view = viewParts.own(createView(state.shape));
       const kept = fieldStates[state.shape];
-      if (kept && !(view instanceof KanbanView)) view.setViewState({ fieldOrder: kept.fieldOrder, hiddenFields: kept.hiddenFields }, { silent: true });
+      if (kept) view.setViewState({ fieldOrder: kept.fieldOrder, hiddenFields: kept.hiddenFields }, { silent: true });
       body.dataset.shape = state.shape;
       body.replaceChildren(view.toElement());
       footer.hidden = state.shape === 'board';
       refresh();
+      syncViewSettings();
     }
 
     /**
@@ -1120,7 +1424,8 @@ export default {
         onselectionchange: () => syncBulk(),
         onrecordclick: ({ detail }) => openRecord(detail.record)
       };
-      const fieldControls = { label: 'Fields', target: toolbar.getToolsElement() };
+      // Fields are arranged in View settings, not in a chooser of each view's own.
+      const fieldControls = false;
       if (shape === 'table') {
         return new TableView(null, {
           ...shared,
@@ -1137,33 +1442,40 @@ export default {
         });
       }
       if (shape === 'board') {
+        const columns = state.board.columnBy;
+        const lanes = laneOf();
+        /** @param {string} id @returns {string|null} The status dot of a column, for stages. */
+        const toneOf = (id) => AXES[columns].buckets.find((bucket) => bucket.id === id)?.dot ?? null;
         return new KanbanView(null, {
           ...shared,
           sortMode: 'local',
           fieldControls: false,
-          columnBy: 'stage',
-          columns: STAGES.map(({ id, label }) => ({ id, label })),
-          swimlaneBy: state.group === 'owner' ? 'owner' : null,
-          swimlanes: state.group === 'owner' ? OWNERS.map((id) => ({ id, label: person(id).name })) : null,
+          columnBy: columns,
+          columns: AXES[columns].buckets.map(({ id, label }) => ({ id, label })),
+          swimlaneBy: lanes,
+          swimlanes: lanes ? AXES[lanes].buckets.map(({ id, label }) => ({ id, label })) : null,
+          showEmptyColumns: state.board.showEmptyColumns,
           titleField: 'name',
           subtitleField: 'company',
           assignees: (record) => person(record.owner).name,
           moveMode: 'external',
-          label: 'Opportunities by stage',
-          // Each column, in each owner's lane when grouped, says what it holds and what it is worth.
+          label: `Opportunities by ${AXES[columns].label.toLowerCase()}`,
+          // Each column, in each lane when there are lanes, says what it holds and what it is worth.
           renderColumnHeader: ({ column, swimlane, count }) => h('span', { class: 'collection__column-head' },
-            dot(stageOf(column.id).dot),
+            toneOf(column.id) ? dot(/** @type {string} */ (toneOf(column.id))) : null,
             h('span', { class: 'collection__column-label' }, column.label),
+            // Each lane repeats the columns; the lane's name tells their regions apart.
+            swimlane ? h('span', { class: 'visually-hidden' }, `, ${swimlane.label}`) : null,
             h('span', { class: 'collection__count' }, String(count)),
             h('span', { class: 'collection__column-total' }, money(filtered
-              .filter((record) => record.stage === column.id && (!swimlane || record.owner === swimlane.id))
+              .filter((record) => record[columns] === column.id && (!swimlane || !lanes || record[lanes] === swimlane.id))
               .reduce((sum, record) => sum + record.value, 0)))),
           onrecordmove: ({ detail }) => {
             for (const id of detail.ids) {
               const record = records.find((entry) => entry.ID === id);
               if (!record) continue;
-              record.stage = detail.to.column;
-              if (detail.to.lane && state.group === 'owner') record.owner = detail.to.lane;
+              record[columns] = detail.to.column;
+              if (detail.to.lane && lanes) record[lanes] = detail.to.lane;
             }
             updateCounts();
             refresh();
@@ -1234,6 +1546,7 @@ export default {
       ].join(' ').toLowerCase().includes(needle)));
       filtered = sortRecords(filtered);
       if (resetPage) state.page = 1;
+      toolbar.setCount(filtered.length);
       pager.setState({ total: filtered.length, pageSize: state.pageSize, page: state.page }, { silent: true });
       const { page, offset } = pager.getState();
       state.page = page;
@@ -1399,7 +1712,15 @@ export default {
     /* ---------------------------------------------------------------- keyboard -- */
 
     shortcuts(root, {
-      f: () => openFilters(),
+      // F opens the drawer; Shift+F the chip bar's "Add filter" menu button.
+      f: (event) => (event.shiftKey ? openFilters() : openFilterDrawer()),
+      v: () => openViewDrawer(),
+      // The drawer is non-modal, so Escape also closes it from the list beside it.
+      Escape: () => {
+        const open = [...drawers.keys()].find((sheet) => sheet.isOpen());
+        if (!open) return false;
+        open.close();
+      },
       '/': () => toolbar.focusSearch(),
       n: () => newOpportunity(),
       '?': () => openShortcuts(),
