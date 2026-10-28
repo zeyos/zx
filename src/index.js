@@ -190,6 +190,7 @@ export {
 } from './components/filter-panel/filter-panel.js';
 export { SortControl } from './components/sort-control/sort-control.js';
 export { ListToolbar } from './components/list-toolbar/list-toolbar.js';
+export { ViewSettings } from './components/view-settings/view-settings.js';
 export { Filter } from './components/filter/filter.js';
 export {
   filterOperators, emptyFilterAst, filterCondition, filterGroup,

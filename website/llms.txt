@@ -55,7 +55,8 @@ available as ESM named exports and as `window.zx.*`.
   with injected `ChartJsAdapter`, `Calendar` (agenda/day/week/month/year, pointer/keyboard drag and
   resize, `optimistic: true|false`), backend-neutral nested `Filter`, simple client-side `DataFilter`,
   `FilterPanel` (typed filters from server field metadata), `ListToolbar` (search, count, view
-  switch, badged tools), `Pagination`, `SortControl`, `TreeView` (APG tree),
+  switch, badged tools), `ViewSettings` (field order, visibility, grouping, board axes),
+  `Pagination`, `SortControl`, `TreeView` (APG tree),
   `Finder` (Miller columns).
 - Forms: `Form`, `Fieldset`, `Questionnaire` (guided one-question-at-a-time flow with branching), `Field` (type registry), `CodeEditor` (structured text,
   never executed or injected), `ValueList`, `MultiValueEditor`, `FieldUpload`.

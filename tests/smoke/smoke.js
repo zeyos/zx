@@ -2099,6 +2099,52 @@ const cases = [
     component.setCount(20);
     component.setCount(null);
   }),
+  componentCase('ViewSettings', () => new zx.ViewSettings(null, {
+    fields: [
+      { id: 'name', label: 'Name', type: 'text', locked: true },
+      { id: 'stage', label: 'Stage', type: 'status' },
+      { id: 'value', label: 'Value', type: 'money' },
+      { id: 'owner', label: 'Owner', type: 'select' },
+      { id: 'close', label: 'Close date', type: 'date', visible: false }
+    ],
+    board: { columnBy: 'stage', swimlaneBy: null }
+  }), (component) => {
+    const root = component.toElement();
+    assert(root.getAttribute('role') === 'region' && root.getAttribute('aria-label'), 'region is unnamed');
+    assert(root.querySelectorAll('.zx-view-settings__list > li').length === 4, 'shown list mismatch');
+    assert(!root.querySelector('[data-field-id="name"] [data-action="handle"]'), 'a locked field has a handle');
+
+    const order = observe(component, 'fieldorderchange');
+    component.moveField('owner', 0);
+    assert(component.getState().fieldOrder.indexOf('owner') === 1, 'owner did not move behind the locked title');
+    order.expect();
+
+    const visibility = observe(component, 'fieldvisibilitychange');
+    component.showField('close');
+    assert(!component.getState().hiddenFields.includes('close'), 'close was not shown');
+    component.hideField('name');
+    assert(!component.getState().hiddenFields.includes('name'), 'a locked field was hidden');
+    visibility.expect();
+
+    const group = observe(component, 'groupchange');
+    component.setState({ groupBy: 'stage' });
+    assert(component.getState().groupBy === 'stage', 'groupBy not applied');
+    group.expect();
+
+    // Bound to a record view, a column hidden here disappears there, and back.
+    const view = new zx.TableView(null, {
+      fields: [{ id: 'name', label: 'Name' }, { id: 'stage', label: 'Stage' }, { id: 'owner', label: 'Owner' }],
+      data: [{ ID: 1, name: 'A', stage: 'won', owner: 'x' }],
+      fieldControls: false
+    });
+    component.bind(view);
+    component.hideField('stage');
+    assert(view.getHiddenFields().includes('stage'), 'bound view did not follow a hide');
+    view.setFieldVisible('stage', true);
+    assert(!component.getState().hiddenFields.includes('stage'), 'settings did not follow the view');
+    component.unbind();
+    view.destroy();
+  }),
   componentCase('StatTile', () => new zx.StatTile(null, {
     label: 'Awaiting acceptance', value: 3, delta: 2, deltaLabel: 'vs. last week', kind: 'warning'
   }), (component) => {

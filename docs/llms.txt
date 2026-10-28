@@ -35,7 +35,9 @@ exports and as `window.zx.*`.
   drag and resize, `optimistic: true|false`), backend-neutral nested `Filter`, simple client-side
   `DataFilter`, `FilterPanel` (typed filter form built from a server's own field metadata;
   `mode: 'draft'|'live'`, `serialize`), `ListToolbar` (search, live result count, view switch, and
-  tools whose badge is part of the accessible name), `Pagination` (+ pure `paginationRange()`),
+  tools whose badge is part of the accessible name), `ViewSettings` (view-settings drawer content:
+  reorder, hide, and add fields, grouping, board axes; `bind()` to a record view),
+  `Pagination` (+ pure `paginationRange()`),
   `SortControl` (searchable field selector with a direction toggle, one atomic `{id,dir}`),
   `TreeView` (APG tree), `Finder` (Miller columns).
 - Forms: `Form`, `Fieldset`, `Questionnaire` (guided one-question-at-a-time flow with branching), `Field` (type registry), `CodeEditor` (structured text in a native textarea; never executes or injects the value), `ValueList`, `MultiValueEditor`, `FieldUpload`.

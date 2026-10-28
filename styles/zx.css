@@ -70,6 +70,7 @@
 @import url("../src/components/stat-tile/stat-tile.css");
 @import url("../src/components/card-view/card-view.css");
 @import url("../src/components/kanban-view/kanban-view.css");
+@import url("../src/components/view-settings/view-settings.css");
 @import url("../src/components/grid/grid.css");
 @import url("../src/components/chart/chart.css");
 @import url("../src/components/tree/tree.css");

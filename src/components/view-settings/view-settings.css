@@ -1,0 +1,285 @@
+/*
+ * The content of a "View settings" panel: the shown fields in order, the hidden ones to bring
+ * back, grouping, and the board's axes. It fills whatever the host gives it — a sheet body, a
+ * dropdown, a settings page — and draws no frame of its own.
+ */
+.zx-view-settings {
+  /* A size container, so the board settings stack when the panel is narrow rather than the window.
+     Size containment ignores the contents' width, so the width is declared: the host's, with a
+     floor for a host such as a dropdown that sizes itself to its contents. */
+  container-type: inline-size;
+  inline-size: 100%;
+  min-inline-size: 15rem;
+  display: grid;
+  gap: var(--zx-space-5);
+  color: var(--zx-color-text);
+  font-size: var(--zx-control-font-size);
+}
+
+.zx-view-settings__section {
+  display: grid;
+  gap: var(--zx-space-2);
+  min-inline-size: 0;
+}
+
+.zx-view-settings__heading {
+  margin: 0;
+  color: var(--zx-color-text);
+  font-size: var(--zx-text-md);
+  font-weight: var(--zx-weight-semibold);
+  line-height: 1.3;
+}
+
+.zx-view-settings__subheading {
+  margin: var(--zx-space-1) 0 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  font-weight: var(--zx-weight-medium);
+  line-height: 1.3;
+}
+
+.zx-view-settings__search-slot:empty {
+  display: none;
+}
+
+.zx-view-settings__search {
+  inline-size: 100%;
+}
+
+/* The shown list and its insertion line share a positioned frame; the line is not a list item. */
+.zx-view-settings__frame {
+  position: relative;
+}
+
+.zx-view-settings__list,
+.zx-view-settings__hidden {
+  display: grid;
+  gap: calc(var(--zx-space-1) / 2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A long hidden list scrolls on its own, so the shown fields above never leave the screen. */
+.zx-view-settings__hidden {
+  max-block-size: calc(var(--zx-control-height) * 8);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.zx-view-settings__hidden[hidden] {
+  display: none;
+}
+
+/*
+ * One row: handle, type glyph, label, action. The type glyph follows the label in the source, so
+ * a screen reader hears "Owner, Text", and is placed before it here, where the eye expects it.
+ */
+.zx-view-settings__row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  min-block-size: var(--zx-control-height);
+  padding-inline: var(--zx-space-1);
+  border-radius: var(--zx-control-radius);
+  background: var(--zx-color-bg-surface);
+}
+
+.zx-view-settings__row:hover {
+  background: var(--zx-color-bg-hover);
+}
+
+.zx-view-settings__handle {
+  order: -2;
+  flex: none;
+}
+
+.zx-view-settings__type {
+  order: -1;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  inline-size: 1.25rem;
+  color: var(--zx-color-text-subtle);
+}
+
+.zx-view-settings__label {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Handle and hide buttons: flat until hovered or focused, square at the control height. */
+.zx-view-settings__handle,
+.zx-view-settings__hide {
+  display: inline-grid;
+  place-items: center;
+  inline-size: var(--zx-control-height);
+  block-size: var(--zx-control-height);
+  min-block-size: 0;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--zx-control-radius);
+  background: none;
+  color: var(--zx-color-text-subtle);
+}
+
+.zx-view-settings__handle[data-placeholder] {
+  visibility: hidden;
+}
+
+button.zx-view-settings__handle {
+  cursor: grab;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.zx-view-settings__handle:hover,
+.zx-view-settings__hide:hover:not(:disabled) {
+  background: var(--zx-color-bg-hover);
+  color: var(--zx-color-text);
+}
+
+.zx-view-settings__handle:focus-visible,
+.zx-view-settings__hide:focus-visible {
+  box-shadow: var(--zx-focus-ring);
+}
+
+.zx-view-settings__hide:disabled {
+  color: var(--zx-color-text-placeholder);
+  cursor: default;
+}
+
+.zx-view-settings__lock {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  inline-size: var(--zx-control-height);
+  color: var(--zx-color-text-placeholder);
+}
+
+.zx-view-settings__add {
+  flex: none;
+}
+
+/* Picked up from the keyboard: marked by the border as well as the fill, never by colour alone. */
+.zx-view-settings__row[data-state="grabbed"] {
+  outline: 2px solid var(--zx-color-ring);
+  outline-offset: -2px;
+  background: var(--zx-color-bg-selected);
+}
+
+.zx-view-settings[data-dragging="true"],
+.zx-view-settings[data-dragging="true"] .zx-view-settings__handle {
+  cursor: grabbing;
+}
+
+.zx-view-settings__row[data-dragging="true"] {
+  z-index: 1;
+  background: var(--zx-color-bg-raised);
+  box-shadow: var(--zx-overlay-shadow);
+}
+
+.zx-view-settings__drop-indicator {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: 0;
+  z-index: 2;
+  block-size: 2px;
+  margin-block-start: -1px;
+  border-radius: var(--zx-radius-full);
+  background: var(--zx-color-accent);
+  pointer-events: none;
+}
+
+.zx-view-settings__drop-indicator[hidden] {
+  display: none;
+}
+
+.zx-view-settings__empty {
+  margin: 0;
+  padding-block: var(--zx-space-1);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+.zx-view-settings__empty[hidden] {
+  display: none;
+}
+
+.zx-view-settings__option {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  min-inline-size: 0;
+}
+
+.zx-view-settings__option > .zx-icon,
+.zx-view-settings .zx-select__value-adornment > .zx-icon {
+  flex: none;
+  color: var(--zx-color-text-subtle);
+}
+
+.zx-view-settings__group {
+  inline-size: 100%;
+}
+
+/* Board settings: label beside its select where there is room, above it where there is not. */
+.zx-view-settings__setting {
+  display: grid;
+  grid-template-columns: minmax(6rem, auto) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--zx-space-2);
+}
+
+.zx-view-settings__setting-label {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+@container (max-width: 18rem) {
+  .zx-view-settings__setting {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--zx-space-1);
+  }
+}
+
+.zx-view-settings__toggle {
+  justify-self: start;
+}
+
+.zx-view-settings__instructions[hidden] {
+  display: none;
+}
+
+.zx-view-settings__sr,
+.zx-view-settings__status {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .zx-view-settings__row,
+  .zx-view-settings__handle,
+  .zx-view-settings__hide {
+    transition: background var(--zx-dur-fast) var(--zx-ease),
+      color var(--zx-dur-fast) var(--zx-ease),
+      box-shadow var(--zx-dur-fast) var(--zx-ease);
+  }
+
+  .zx-view-settings__drop-indicator {
+    transition: inset-block-start var(--zx-dur-fast) var(--zx-ease);
+  }
+}

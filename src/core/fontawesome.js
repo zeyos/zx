@@ -55,7 +55,11 @@ export const faNames = Object.freeze({
   warning: 'triangle-exclamation',
   error: 'circle-exclamation',
   success: 'circle-check',
-  drag: 'grip-vertical'
+  drag: 'grip-vertical',
+  type: 'font',
+  hash: 'hashtag',
+  mail: 'envelope',
+  'link-2': 'link'
 });
 
 /** @type {Map<string, Promise<void>>} In-flight and settled kit loads, keyed by URL. */
