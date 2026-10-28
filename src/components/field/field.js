@@ -15,6 +15,9 @@ import { uid } from '../../core/util.js';
  * @property {string} [placeholder=''] Control placeholder.
  * @property {boolean} [required=false] Whether a value is required.
  * @property {boolean} [disabled=false] Whether the control is disabled.
+ * @property {boolean} [readonly=false] Whether the value is read-only: shown and focusable, not
+ *   editable. Types whose control has no read-only state (`checkbox`, `select`, `optionlist`,
+ *   `zxselect`, `date`, `time`, …) ignore it.
  * @property {string[]|Record<string, string>|null} [options=null] Select or option-list values.
  * @property {'stack'|'inline'} [layout='stack'] Label/control layout.
  * @property {Record<string, unknown>} [props={}] Adapter-specific control properties.
@@ -30,6 +33,8 @@ import { uid } from '../../core/util.js';
  * @property {(value: unknown, options?: {silent?: boolean}) => void} set Set the current value.
  * @property {() => void} focus Focus the control.
  * @property {(disabled: boolean) => void} setDisabled Set disabled state.
+ * @property {(readonly: boolean) => void} [setReadonly] Set read-only state; left out when the
+ *   control has none.
  * @property {() => void} [destroy] Release adapter-owned resources.
  * @property {Element} [labelTarget] The element the field's label, description, and validity
  *   belong to when it is not `el` — the text input inside a composite control. Left out, a
@@ -42,6 +47,7 @@ import { uid } from '../../core/util.js';
 /**
  * One labelled form control backed by a registered adapter.
  * @fires Field#change
+ * @fires Field#input
  * @fires Field#invalid
  * @extends {Component<FieldOptions>}
  */
@@ -59,6 +65,7 @@ export class Field extends Component {
     placeholder: '',
     required: false,
     disabled: false,
+    readonly: false,
     options: null,
     layout: 'stack',
     props: {},
@@ -108,7 +115,7 @@ export class Field extends Component {
     const layout = this.options.layout === 'inline' ? 'inline' : 'stack';
     this._ownedComponents = new Set();
     this._ownedNodes = [];
-    this._rootAttributes = rememberAttributes(root, ['data-layout', 'data-field-type', 'data-disabled', 'data-state']);
+    this._rootAttributes = rememberAttributes(root, ['data-layout', 'data-field-type', 'data-disabled', 'data-readonly', 'data-state']);
     root.dataset.layout = layout;
     root.dataset.fieldType = type;
 
@@ -175,6 +182,8 @@ export class Field extends Component {
     this.initialValue = initialValue(type, this.options.value);
     this.adapter.set(this.initialValue, { silent: true });
     this.setDisabled(Boolean(this.options.disabled));
+    if (this.options.readonly) this.setReadonly(true);
+    // Adapters whose widget reports its own commits stop the native `change` before this sees it.
     this.listen(control, 'change', () => {
       this.emit('change', { value: this.getValue() });
     });
@@ -230,6 +239,19 @@ export class Field extends Component {
     const value = Boolean(disabled);
     this.adapter.setDisabled(value);
     this.el.dataset.disabled = String(value);
+    return this;
+  }
+
+  /**
+   * Makes the value read-only or editable again, where the control has a read-only state (see
+   * the `readonly` option); reflected as `data-readonly` on the root either way.
+   * @param {boolean} readonly Read-only state.
+   * @returns {this}
+   */
+  setReadonly(readonly) {
+    const value = Boolean(readonly);
+    this.adapter.setReadonly?.(value);
+    this.el.dataset.readonly = String(value);
     return this;
   }
 
@@ -470,7 +492,7 @@ function textAdapter(tag, type) {
       required: options.required,
       disabled: options.disabled
     }));
-    return elementValueAdapter(el);
+    return { ...elementValueAdapter(el), setReadonly: (readonly) => { el.readOnly = readonly; } };
   };
 }
 
@@ -507,7 +529,8 @@ function numericAdapter(kind) {
     });
     return {
       ...elementValueAdapter(input),
-      get: () => coerce(input.value).value
+      get: () => coerce(input.value).value,
+      setReadonly: (readonly) => { input.readOnly = readonly; }
     };
   };
 }
@@ -639,6 +662,13 @@ Field.register('custom', customAdapter);
 /**
  * Field value change event.
  * @event Field#change
+ * @type {CustomEvent<{value: unknown}>}
+ */
+
+/**
+ * Live edit before it is committed, from the types whose widget tells the two apart (`code`,
+ * `slider`): every keystroke or drag step, where `change` follows only on commit.
+ * @event Field#input
  * @type {CustomEvent<{value: unknown}>}
  */
 

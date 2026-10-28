@@ -16,9 +16,15 @@ export function registerCodeEditorFieldAdapter() {
       value: options.value
     }));
     let setting = false;
-    editor.on('input', (event) => {
+    // The textarea's native `change` bubbles out of the editor after the editor has reported the
+    // same commit; without this the Field would emit `change` twice per edit.
+    field.listen(editor.el, 'change', (event) => event.stopImmediatePropagation());
+    // `change` on commit (the editor's own, when the textarea loses focus after an edit); every
+    // keystroke as `input`.
+    editor.on('change', (event) => {
       if (!setting) field.emit('change', { value: event.detail.value });
     });
+    editor.on('input', (event) => field.emit('input', { value: event.detail.value }));
     return {
       el: editor.el,
       get: () => editor.getValue(),
@@ -28,7 +34,8 @@ export function registerCodeEditorFieldAdapter() {
         finally { setting = false; }
       },
       focus: () => editor.focus(),
-      setDisabled: (value) => (value ? editor.disable() : editor.enable())
+      setDisabled: (value) => (value ? editor.disable() : editor.enable()),
+      setReadonly: (value) => { editor.setReadOnly(value); }
     };
   });
 }

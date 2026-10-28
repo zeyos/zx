@@ -2,6 +2,7 @@ import { Component } from '../../core/component.js';
 import { h } from '../../core/dom.js';
 import { isElement, uid } from '../../core/util.js';
 import { Field } from '../field/field.js';
+import { externalAdapter, readExternalDisabled, readExternalReadonly, readExternalValue } from './external-adapter.js';
 
 /**
  * @typedef {Object} FieldsetOptions
@@ -56,6 +57,13 @@ export class Fieldset extends Component {
    * Adds a field from options, an existing field, an element, or a component. The key becomes the
    * field's `name` and its `data-field-id`; the control's DOM id is `<idPrefix>-<key>`, unless the
    * field options give an `id` of their own that differs from the key.
+   *
+   * An element or a component that is not a registered field type is wrapped in a `custom` field
+   * that reads and writes it through its own API — `getValue`/`setValue`, `get`/`set`,
+   * `getValues`/`setValues`, `isChecked`/`setChecked`, or a `value` property — disables it
+   * through `setDisabled(bool)` or `enable()`/`disable()`, and makes it read-only through
+   * `setReadonly(bool)`, falling back to the element's native properties only when the component
+   * has none of these. The component's own `change` becomes the field's `change`, once per edit.
    * @param {string} id Logical field identifier.
    * @param {FieldOptions|Field|Element|Component} field Field source.
    * @returns {Field}
@@ -76,7 +84,8 @@ export class Fieldset extends Component {
         label: key,
         value: readExternalValue(source),
         disabled: readExternalDisabled(source),
-        adapter: () => externalAdapter(source)
+        readonly: readExternalReadonly(source),
+        adapter: (owner) => externalAdapter(source, owner)
       });
       owned = true;
     } else {
@@ -269,62 +278,4 @@ export class Fieldset extends Component {
     else this.el.setAttribute('data-columns', this._columnAttribute);
     super.destroy();
   }
-}
-
-/** @param {Element|Component} source @returns {import('../field/field.js').FieldAdapter} */
-function externalAdapter(source) {
-  const el = isElement(source) ? source : source.toElement();
-  const parent = el.parentNode;
-  const next = el.nextSibling;
-  const attributes = new Map(['id', 'aria-labelledby', 'aria-describedby', 'aria-disabled', 'aria-invalid']
-    .map((name) => [name, el.getAttribute(name)]));
-  const originalDisabled = 'disabled' in el ? el.disabled : undefined;
-  const originalValue = 'value' in el ? el.value : undefined;
-  return {
-    el,
-    get: () => {
-      if (typeof source.getValue === 'function') return source.getValue();
-      if (typeof source.getValues === 'function') return source.getValues();
-      if ('value' in el) return el.value;
-      return null;
-    },
-    set: (value, options) => {
-      if (typeof source.setValue === 'function') source.setValue(value, options);
-      else if (typeof source.setValues === 'function' && value && typeof value === 'object') source.setValues(value, options);
-      else if ('value' in el) el.value = value == null ? '' : value;
-    },
-    focus: () => {
-      if (typeof source.focus === 'function') source.focus();
-      else if (typeof el.focus === 'function') el.focus();
-    },
-    setDisabled: (disabled) => {
-      if (typeof source.setDisabled === 'function') source.setDisabled(disabled);
-      else if ('disabled' in el) el.disabled = disabled;
-      else el.setAttribute('aria-disabled', String(disabled));
-    },
-    destroy: () => {
-      for (const [name, value] of attributes) {
-        if (value === null) el.removeAttribute(name);
-        else el.setAttribute(name, value);
-      }
-      if (originalDisabled !== undefined) el.disabled = originalDisabled;
-      if (originalValue !== undefined) el.value = originalValue;
-      if (parent) parent.insertBefore(el, next?.parentNode === parent ? next : null);
-      else el.remove();
-    }
-  };
-}
-
-/** @param {Element|Component} source @returns {unknown} */
-function readExternalValue(source) {
-  const el = isElement(source) ? source : source.toElement();
-  if (typeof source.getValue === 'function') return source.getValue();
-  if (typeof source.getValues === 'function') return source.getValues();
-  return 'value' in el ? el.value : null;
-}
-
-/** @param {Element|Component} source @returns {boolean} */
-function readExternalDisabled(source) {
-  const el = isElement(source) ? source : source.toElement();
-  return 'disabled' in el ? Boolean(el.disabled) : el.getAttribute('aria-disabled') === 'true';
 }

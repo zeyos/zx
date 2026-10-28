@@ -28,7 +28,8 @@ export function registerRatingFieldAdapter() {
         }
       },
       focus: () => rating.focus(),
-      setDisabled: (value) => (value ? rating.disable() : rating.enable())
+      setDisabled: (value) => (value ? rating.disable() : rating.enable()),
+      setReadonly: (value) => { rating.setReadonly(value); }
     };
   });
 }

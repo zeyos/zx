@@ -15,9 +15,13 @@ export function registerSliderFieldAdapter() {
       ...(options.props ?? {})
     }));
     let setting = false;
+    // The range input's native `change` bubbles out of the slider after the slider has reported
+    // the same commit; without this the Field would emit `change` twice per edit.
+    field.listen(slider.el, 'change', (event) => event.stopImmediatePropagation());
     slider.on('change', (event) => {
       if (!setting) field.emit('change', { value: event.detail.value });
     });
+    slider.on('input', (event) => field.emit('input', { value: event.detail.value }));
     return {
       el: slider.el,
       get: () => slider.get(),
@@ -30,7 +34,8 @@ export function registerSliderFieldAdapter() {
         }
       },
       focus: () => slider.focus(),
-      setDisabled: (value) => (value ? slider.disable() : slider.enable())
+      setDisabled: (value) => (value ? slider.disable() : slider.enable()),
+      setReadonly: (value) => { slider.setReadonly(value); }
     };
   });
 }

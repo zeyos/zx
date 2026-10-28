@@ -35,7 +35,8 @@ export function registerNumberFieldAdapter() {
         }
       },
       focus: () => numberField.focus(),
-      setDisabled: (value) => (value ? numberField.disable() : numberField.enable())
+      setDisabled: (value) => (value ? numberField.disable() : numberField.enable()),
+      setReadonly: (value) => { numberField.setReadonly(value); }
     };
   });
 }

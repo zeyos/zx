@@ -251,6 +251,15 @@ export class Select extends Component {
     this.set(id);
   }
 
+  /**
+   * Returns the selected item ID, or null: the same as reading `value`, under the `get()`/`set()`
+   * pair the other value components share.
+   * @returns {unknown}
+   */
+  get() {
+    return this.value;
+  }
+
   /** Selected item, or null. @returns {SelectItem|null} */
   get selected() {
     return this._selected;

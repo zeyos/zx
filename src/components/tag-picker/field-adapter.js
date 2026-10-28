@@ -29,7 +29,8 @@ export function registerTagPickerFieldAdapter() {
         }
       },
       focus: () => picker.focus(),
-      setDisabled: (value) => (value ? picker.disable() : picker.enable())
+      setDisabled: (value) => (value ? picker.disable() : picker.enable()),
+      setReadonly: (value) => { picker.setReadonly(value); }
     };
   });
 }
