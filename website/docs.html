@@ -446,9 +446,14 @@ const light = new Aurora('#application-canvas', {
 // They never need their own Aurora instance.
       </pre>
       <p>
-        The Theme Studio's Flat, Glass, and Deep Glass modes change the response of those
-        materials without changing Aurora itself. Reduced-transparency and forced-colour modes
-        suppress ambient illumination and return every material to an opaque semantic surface.
+        The Theme Studio's <strong>Material</strong> changes the response of those surfaces without
+        changing Aurora itself: Glass (the default) is a thin pane lit on its edge, Deep glass a
+        thick one with an inner glow and a fine grain, Frost milk glass that diffuses, Smoke tinted
+        glass that darkens the scene, Paper and Satin opaque surfaces that never blur, and Flat the
+        plain semantic surfaces. Each is a set of token overrides built from six per-theme
+        ingredients (the pane's rim, ring, lift, shade, edge, and tint), so one recipe serves light
+        and dark. Reduced-transparency and forced-colour modes suppress ambient illumination and
+        return every material to an opaque semantic surface.
       </p>
 
       <h2>The standard themes</h2>

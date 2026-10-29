@@ -189,8 +189,11 @@ the library already reads — never as component CSS:
 3. **Geometry** — the rhythm is three tokens on `:root` (or on a dense region): `--zx-space-unit`,
    `--zx-control-height`, `--zx-radius`. Dense data tools sit around 3.5px / 28px; comfortable
    products around 4.5px / 32–34px. Never a per-component size.
-4. **Material** — `Flat`, `Glass`, or `Deep glass`, exported from the studio as token overrides
-   (there is no attribute); `Aurora` supplies the light glass responds to. Reduced-transparency,
+4. **Material** — how surfaces answer light, exported from the studio as token overrides (there
+   is no attribute). `Glass` (the default: a thin lit pane), `Deep glass` (a thick one), `Frost`
+   (milk glass for reading surfaces), `Smoke` (tinted glass that darkens the scene; dark-first
+   products), `Paper` and `Satin` (opaque, matte or brushed; no blur, so they cost nothing to
+   render), or `Flat`. `Aurora` supplies the light glass responds to. Reduced-transparency,
    high-contrast, forced-colour and unsupported-filter environments fall back to solid surfaces on
    their own.
 5. **Motion** — `data-zx-motion="reduced"` is the only switch; own transitions use `--zx-dur-*`,
@@ -261,16 +264,27 @@ Keep the 600 stop at 4.5:1 or better against white and the 400 stop at 4.5:1 aga
 
 The theme studio treats those stable IDs as complete recipes: selecting a preset also changes its
 spacing unit, neutral tint, radius, control height, base text size, font stack, and material strength.
-Its **Material** control is CSS-first (`Flat`, `Glass`, or `Deep glass`). Aurora is the independent
-ambient canvas layer; material controls how surfaces respond to that light. The shared recipe
-applies to AppIcons, ordinary controls, persistent chrome, raised cards, and every transient overlay: Dropdown, ContextMenu,
-MenuButton, AccountMenu, AppRail flyouts, Select, TagPicker, date pickers, tooltips, column menus,
-and toasts use `--zx-color-overlay-surface`; Launcher, Modal, Dialog, and overlay Sheets use the
-calmer `--zx-color-overlay-panel`. Both tiers combine a translucent base, responsive specular and
-Aurora tint layers, backdrop filtering, and dedicated state/divider roles; the modal backdrop is a
+Its **Material** control is CSS-first: seven materials, each a set of token overrides (there is no
+attribute), composed from six per-theme *ingredients* the stylesheet declares —
+`--zx-color-glass-rim` and `-ring` (the lit top edge and the hairline inner ring), `-lift` (white
+laid on a pane from the top, which makes it read as lit rather than tinted), `-shade` (what a dark
+theme's pane does to the scene behind it), `-edge` (the cut outer line a pane needs against a dark
+scene) and `-tint` (smoked glass) — plus `--zx-glass-grain`, a grey tooth. One recipe therefore
+serves light and dark alike. **Glass**, the stylesheet default, is a thin lit pane: its light sits
+on the edge, never as a wash on its face, and the filter saturates so colour behind survives the
+blur. **Deep glass** is a thick pane — a double rim with an inner glow, one narrow specular band,
+more refraction, a fine grain. **Frost** is milk glass: heavy diffusion, almost no reflection, text
+as on paper. **Smoke** is tinted glass that darkens what is behind it (sunglass glass in dark).
+**Paper** is opaque and matte, depth from layered soft shadows and the tooth; **Satin** is opaque
+and brushed, a sheen on controls and chrome; neither filters anything, so both cost nothing to
+render and survive every fallback unchanged. **Flat** is the opaque semantic surfaces. Aurora is
+the independent ambient canvas layer; material is how surfaces respond to that light. The shared
+recipe applies to AppIcons, ordinary controls, persistent chrome, raised cards, and every transient
+overlay: Dropdown, ContextMenu, MenuButton, AccountMenu, AppRail flyouts, Select, TagPicker, date
+pickers, tooltips, column menus, and toasts use `--zx-color-overlay-surface`; Launcher, Modal,
+Dialog, and overlay Sheets use the calmer `--zx-color-overlay-panel`. The modal backdrop is a
 separate material token so it does not erase the light the panel should refract. A docked Sheet is
-layout rather than an overlay and becomes opaque, as do dense data surfaces. Glass and Deep glass
-progressively raise translucency, blur, highlights, and elevation; reduced-transparency,
+layout rather than an overlay and becomes opaque, as do dense data surfaces. Reduced-transparency,
 increased-contrast, forced-colour, and unsupported-filter environments restore solid surfaces.
 Top-layer components remain DOM children of their nearest Zx theme scope, so a theme or material
 set on an application region continues to inherit through its menus, dialogs, tooltips, and toasts.

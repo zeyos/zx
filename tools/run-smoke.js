@@ -531,7 +531,7 @@ async function assertOverlayMaterials(page) {
   }
 
   const appearances = ['Light', 'Dark'];
-  const materials = ['Flat', 'Glass', 'Deep glass'];
+  const materials = ['Flat', 'Glass', 'Deep glass', 'Frost', 'Smoke', 'Paper', 'Satin'];
   const samples = {};
 
   for (const appearance of appearances) {
@@ -553,10 +553,12 @@ async function assertOverlayMaterials(page) {
       throw new Error(`${appearance} Flat retained glass effects: ${JSON.stringify(flat)}`);
     }
 
-    assertRange(glass.compact.alpha, .62, .80, `${appearance} Glass compact alpha`);
-    assertRange(glass.panel.alpha, .74, .88, `${appearance} Glass panel alpha`);
-    assertRange(deep.compact.alpha, .42, .62, `${appearance} Deep Glass compact alpha`);
-    assertRange(deep.panel.alpha, .58, .76, `${appearance} Deep Glass panel alpha`);
+    // Glass is a thin pane lit from its edge: the base stays thin and the lift gradient does the
+    // lightening, so the bands sit lower than an opaque-leaning tint would.
+    assertRange(glass.compact.alpha, .50, .66, `${appearance} Glass compact alpha`);
+    assertRange(glass.panel.alpha, .58, .72, `${appearance} Glass panel alpha`);
+    assertRange(deep.compact.alpha, .36, .52, `${appearance} Deep Glass compact alpha`);
+    assertRange(deep.panel.alpha, .42, .58, `${appearance} Deep Glass panel alpha`);
     if (glass.compact.image === 'none' || glass.panel.image === 'none'
       || deep.compact.image === 'none' || deep.panel.image === 'none') {
       throw new Error(`${appearance} glass lost its reflection layers`);
@@ -581,6 +583,26 @@ async function assertOverlayMaterials(page) {
     }
     if (deep.toast.alpha > .70) {
       throw new Error(`${appearance} Deep Glass toast is effectively opaque (${deep.toast.alpha})`);
+    }
+
+    // Frost diffuses more than glass and reflects less; Smoke is a tinted pane that still filters;
+    // Paper and Satin are opaque and filter nothing, which is what lets them cost nothing.
+    const frost = samples[appearance].Frost;
+    const smoke = samples[appearance].Smoke;
+    assertRange(frost.compact.alpha, .64, .82, `${appearance} Frost compact alpha`);
+    if (blurRadius(frost.compact.filter) < blurRadius(glass.compact.filter) + 9.9) {
+      throw new Error(`${appearance} Frost does not diffuse more than Glass`);
+    }
+    if (blurRadius(smoke.compact.filter) < 15.9 || smoke.compact.image === 'none') {
+      throw new Error(`${appearance} Smoke is not a filtering pane: ${JSON.stringify(smoke.compact)}`);
+    }
+    for (const name of ['Paper', 'Satin']) {
+      const solid = samples[appearance][name];
+      assertRange(solid.compact.alpha, .995, 1, `${appearance} ${name} compact alpha`);
+      assertRange(solid.panel.alpha, .995, 1, `${appearance} ${name} panel alpha`);
+      if (solid.compact.filter !== 'none' || solid.panel.filter !== 'none' || solid.toast.filter !== 'none') {
+        throw new Error(`${appearance} ${name} still filters: ${JSON.stringify(solid)}`);
+      }
     }
   }
 

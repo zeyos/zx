@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
 import {
-  CUSTOM_FONT, DEFAULTS, FONTS, MONO_FONTS, PRESETS, RANGES, SETTING_FIELDS, STOPS, THEME_FORMAT, TINTS,
+  CUSTOM_FONT, DEFAULTS, FONTS, MATERIALS, MATERIAL_RECIPES, MONO_FONTS, PRESETS, RANGES, SETTING_FIELDS, STOPS, THEME_FORMAT, TINTS,
   accentRamp, cleanFontStack, contrast, neutralRamp, presetById, readThemeJson, themeCss, themeJson,
   themeTokens, themeVars, tintRamp, toHex, toOklch
 } from '../../website/theme-presets.js';
@@ -18,6 +18,11 @@ import {
 const themesCss = readFileSync(
   fileURLToPath(new URL('../../styles/tokens/themes.css', import.meta.url)), 'utf8'
 );
+
+/** @param {string} relative Path from this test. @returns {string} */
+function read(relative) {
+  return readFileSync(fileURLToPath(new URL(relative, import.meta.url)), 'utf8');
+}
 
 /** @param {string} path @returns {string} */
 function componentCss(path) {
@@ -493,10 +498,10 @@ test('theme geometry, type, tint, and material controls each produce a token', (
   assert.equal(vars['--zx-glass-color-strength'], '68%');
   assert.ok(Object.hasOwn(vars, '--zx-color-glass-control'), 'material controls did not change');
   assert.ok(Object.hasOwn(vars, '--zx-color-glass-chrome'), 'persistent chrome did not change');
-  assert.equal(vars['--zx-glass-filter-overlay'], 'blur(22px) saturate(165%)');
+  assert.equal(vars['--zx-glass-filter-overlay'], 'blur(32px) saturate(185%)');
   assert.equal(vars['--zx-color-app-icon-depth'], 'color-mix(in srgb, var(--zx-color-app-icon-shade) 34%, transparent)');
-  assert.equal(vars['--zx-app-icon-core-strength'], '48%');
-  assert.equal(vars['--zx-app-icon-bloom-strength'], '78%');
+  assert.equal(vars['--zx-app-icon-core-strength'], '46%');
+  assert.equal(vars['--zx-app-icon-bloom-strength'], '80%');
   assert.ok(Object.hasOwn(vars, '--zx-glass-raised-shadow'), 'raised material did not change');
   assert.ok(Object.hasOwn(vars, '--zx-gray-500'), 'neutral tint did not produce a ramp');
 });
@@ -526,11 +531,76 @@ test('flat and deep-glass recipes change every shared material consumer', () => 
   assert.equal(flat['--zx-overlay-toast-image'], 'none');
   assert.equal(flat['--zx-color-overlay-surface'], 'var(--zx-color-bg-raised)');
   assert.equal(flat['--zx-color-overlay-panel'], 'var(--zx-color-bg-raised)');
-  assert.match(deep['--zx-color-overlay-surface'], /62%/);
-  assert.match(deep['--zx-color-overlay-panel'], /68%/);
-  assert.match(deep['--zx-color-overlay-backdrop'], /18%/);
-  assert.equal(deep['--zx-glass-filter-overlay'], 'blur(22px) saturate(165%)');
-  assert.equal(deep['--zx-glass-filter-panel'], 'blur(20px) saturate(152%)');
+  assert.match(deep['--zx-color-overlay-surface'], /44%/);
+  assert.match(deep['--zx-color-overlay-panel'], /50%/);
+  assert.match(deep['--zx-color-overlay-backdrop'], /36%/);
+  assert.equal(deep['--zx-glass-filter-overlay'], 'blur(32px) saturate(185%)');
+  assert.equal(deep['--zx-glass-filter-panel'], 'blur(36px) saturate(170%)');
+  // Thickness is drawn, not merely dialled up: a double rim, an inner glow, a grain.
+  assert.match(deep['--zx-glass-overlay-shadow'], /inset 0 0 28px/);
+  assert.match(deep['--zx-overlay-surface-image'], /^var\(--zx-glass-grain\)/);
+});
+
+/*
+ * Every material is a complete recipe over the same consumers, so switching never leaves a role
+ * on the previous material, and each is composed from the theme's glass ingredients rather than
+ * from a lightness of its own, which is what lets one recipe serve light and dark.
+ */
+const MATERIAL_CONSUMERS = [
+  '--zx-color-glass-border', '--zx-color-glass-surface', '--zx-color-glass-chrome',
+  '--zx-color-glass-control', '--zx-color-glass-control-hover', '--zx-color-overlay-surface',
+  '--zx-color-overlay-panel', '--zx-color-overlay-backdrop', '--zx-color-overlay-border',
+  '--zx-overlay-surface-image', '--zx-overlay-toast-image', '--zx-overlay-panel-image',
+  '--zx-glass-filter-icon', '--zx-glass-filter-control', '--zx-glass-filter-raised',
+  '--zx-glass-filter-chrome', '--zx-glass-filter-overlay', '--zx-glass-filter-panel',
+  '--zx-glass-control-shadow', '--zx-glass-chrome-shadow', '--zx-glass-raised-shadow',
+  '--zx-glass-overlay-shadow', '--zx-glass-panel-shadow'
+];
+
+test('every material other than the stylesheet glass is a complete, theme-neutral recipe', () => {
+  assert.deepEqual(MATERIALS.map((material) => material.id),
+    ['none', 'subtle', 'strong', 'frost', 'smoke', 'paper', 'satin']);
+  assert.deepEqual(MATERIAL_RECIPES.subtle, {}, 'Glass is the stylesheet, not an override');
+  for (const material of MATERIALS) {
+    assert.ok(material.note, `${material.id} has no note for the studio`);
+    if (material.id === 'subtle') continue;
+    const recipe = MATERIAL_RECIPES[material.id];
+    for (const name of MATERIAL_CONSUMERS) {
+      assert.ok(Object.hasOwn(recipe, name), `${material.id} leaves ${name} on the previous material`);
+    }
+    for (const [name, value] of Object.entries(recipe)) {
+      // Theme-neutral: a recipe may name the ink and the ingredients, never a theme's own stop.
+      assert.doesNotMatch(value, /--zx-gray-(?!950\b)\d+/, `${material.id} ${name} pins a grey stop`);
+      assert.doesNotMatch(value, /#[0-9a-f]{3,8}\b|rgb\(|hsl\(/i, `${material.id} ${name} paints a literal`);
+    }
+    assert.equal(themeVars({ ...DEFAULTS, glass: material.id })['--zx-glass-filter-overlay'],
+      recipe['--zx-glass-filter-overlay']);
+  }
+  // The opaque materials filter nothing, so they render at no cost and survive every fallback.
+  for (const id of ['none', 'paper', 'satin']) {
+    for (const name of MATERIAL_CONSUMERS.filter((token) => token.includes('filter'))) {
+      assert.equal(MATERIAL_RECIPES[id][name], 'none', `${id} still filters through ${name}`);
+    }
+  }
+  // Glass panes are lit on their edge: the rim and ring come from the theme, never a wash.
+  for (const id of ['strong', 'frost', 'smoke']) {
+    assert.match(MATERIAL_RECIPES[id]['--zx-glass-overlay-shadow'], /inset 0 1px 0 (?:var\(--zx-color-glass-rim\)|color-mix\(in srgb, var\(--zx-color-glass-rim\))/);
+    assert.equal(MATERIAL_RECIPES[id]['--zx-overlay-specular-strength'], '0%');
+  }
+});
+
+test('the stylesheet declares the glass ingredients for both themes', () => {
+  const semantic = read('../../styles/tokens/semantic.css');
+  const dark = read('../../styles/tokens/dark.css');
+  for (const name of ['rim', 'ring', 'lift', 'shade', 'edge', 'tint']) {
+    assert.match(semantic, new RegExp(`--zx-color-glass-${name}:`), `semantic.css lacks the ${name}`);
+    assert.equal((dark.match(new RegExp(`--zx-color-glass-${name}:`, 'g')) ?? []).length, 2,
+      `dark.css must restate the ${name} on the dark and the auto block`);
+  }
+  assert.match(semantic, /--zx-glass-grain: url\("data:image\/svg\+xml/);
+  // The pane's light is on its edge, not a wash on its face.
+  assert.match(semantic, /--zx-glass-overlay-shadow: inset 0 1px 0 var\(--zx-color-glass-rim\), inset 0 0 0 1px var\(--zx-color-glass-ring\), 0 0 0 1px var\(--zx-color-glass-edge\)/);
+  assert.doesNotMatch(semantic, /--zx-overlay-surface-image: linear-gradient\(145deg/, 'the corner wash is back');
 });
 
 test('persistent application chrome consumes the shared material role', () => {
@@ -584,8 +654,9 @@ test('overlay tokens include accessibility and unsupported-filter fallbacks at t
   const css = readFileSync(
     fileURLToPath(new URL('../../styles/tokens/semantic.css', import.meta.url)), 'utf8'
   );
-  assert.match(css, /--zx-overlay-surface-image:\s*linear-gradient/);
-  assert.match(css, /--zx-overlay-panel-image:\s*radial-gradient/);
+  // Both tiers are lit from the top edge (the lift) with an accent caustic at the far corner.
+  assert.match(css, /--zx-overlay-surface-image:\s*linear-gradient\(180deg, var\(--zx-color-glass-lift\)/);
+  assert.match(css, /--zx-overlay-panel-image:\s*linear-gradient\(180deg, var\(--zx-color-glass-lift\)[\s\S]*?radial-gradient\([^;]*var\(--zx-color-accent\)/);
   assert.match(css, /@supports not \(\(backdrop-filter:[\s\S]*-webkit-backdrop-filter/);
   assert.match(css, /@media \(forced-colors: active\)[\s\S]*--zx-glass-filter-overlay: none !important/);
   assert.match(css, /@media \(forced-colors: active\)[\s\S]*--zx-glass-filter-panel: none !important/);

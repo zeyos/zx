@@ -192,6 +192,27 @@
   background: var(--zx-color-bg-control);
 }
 
+.studio-segmented[data-wrap] {
+  flex-wrap: wrap;
+}
+
+.studio-segmented[data-wrap] .studio-segment {
+  flex: 1 1 auto;
+  padding-inline: var(--zx-space-3);
+  white-space: nowrap;
+}
+
+.studio-stack-tight {
+  display: grid;
+  gap: var(--zx-space-2);
+}
+
+.studio-note {
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
 .studio-segment {
   flex: 1;
   min-block-size: calc(var(--zx-control-height) - 6px);

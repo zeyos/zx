@@ -220,11 +220,19 @@ export const MONO_FONTS = [
   }
 ];
 
-/** Surface materials, from opaque to the most translucent. */
+/**
+ * Surface materials. `subtle` is the stylesheet's own recipe; every other id is a complete set of
+ * material-token overrides (`MATERIAL_RECIPES`). The recipes are written against the theme's glass
+ * ingredients — rim, ring, lift, shade, edge, tint — so one recipe serves light and dark alike.
+ */
 export const MATERIALS = [
-  { id: 'none', label: 'Flat' },
-  { id: 'subtle', label: 'Glass' },
-  { id: 'strong', label: 'Deep glass' }
+  { id: 'none', label: 'Flat', note: 'Opaque surfaces, no filters.' },
+  { id: 'subtle', label: 'Glass', note: 'A thin lit pane: light on its edge, colour through it.' },
+  { id: 'strong', label: 'Deep glass', note: 'A thick pane: double rim, inner glow, grain, more refraction.' },
+  { id: 'frost', label: 'Frost', note: 'Milk glass: heavy diffusion, almost no reflection.' },
+  { id: 'smoke', label: 'Smoke', note: 'Tinted glass that darkens what is behind it.' },
+  { id: 'paper', label: 'Paper', note: 'Opaque and matte: layered soft shadows, a fine tooth, no blur.' },
+  { id: 'satin', label: 'Satin', note: 'Brushed and opaque: a sheen on controls and chrome.' }
 ];
 
 /**
@@ -444,7 +452,7 @@ export function tintById(id) {
  * @property {string} font Font stack id, or `CUSTOM_FONT` to use `fontStack`.
  * @property {string} fontStack A typed `font-family` list, used when `font` is `CUSTOM_FONT`.
  * @property {string} monoFont Monospace stack id.
- * @property {'none'|'subtle'|'strong'} glass Surface material strength.
+ * @property {'none'|'subtle'|'strong'|'frost'|'smoke'|'paper'|'satin'} glass Surface material.
  */
 
 /**
@@ -476,94 +484,298 @@ export function themeVars(state) {
   if (sans !== fontById(DEFAULTS.font).stack) vars['--zx-font-sans'] = sans;
   const mono = MONO_FONTS.find((entry) => entry.id === state.monoFont) ?? MONO_FONTS[0];
   if (mono.id !== DEFAULTS.monoFont) vars['--zx-font-mono'] = mono.stack;
-  if (state.glass === 'none') {
-    vars['--zx-glass-blur'] = '0px';
-    vars['--zx-glass-saturation'] = '100%';
-    vars['--zx-glass-color-strength'] = '100%';
-    vars['--zx-color-glass-border'] = 'var(--zx-color-border)';
-    vars['--zx-color-glass-highlight'] = 'transparent';
-    vars['--zx-color-glass-highlight-strong'] = 'transparent';
-    vars['--zx-color-app-icon-depth'] = 'transparent';
-    vars['--zx-app-icon-core-strength'] = '72%';
-    vars['--zx-app-icon-rim-strength'] = '62%';
-    vars['--zx-app-icon-bloom-strength'] = '0%';
-    vars['--zx-app-icon-specular-strength'] = '0%';
-    vars['--zx-app-icon-rim-base'] = 'var(--zx-color-border)';
-    vars['--zx-app-icon-halo-size'] = '0px';
-    vars['--zx-app-icon-halo-strength'] = '0%';
-    vars['--zx-color-glass-surface'] = 'var(--zx-color-bg-raised)';
-    vars['--zx-color-glass-chrome'] = 'var(--zx-color-bg-surface)';
-    vars['--zx-color-glass-control'] = 'var(--zx-color-bg-control)';
-    vars['--zx-color-glass-control-hover'] = 'var(--zx-color-bg-hover)';
-    vars['--zx-color-overlay-surface'] = 'var(--zx-color-bg-raised)';
-    vars['--zx-color-overlay-panel'] = 'var(--zx-color-bg-raised)';
-    vars['--zx-color-overlay-backdrop'] = 'var(--zx-color-bg-backdrop)';
-    vars['--zx-color-overlay-border'] = 'var(--zx-color-border)';
-    vars['--zx-color-overlay-hover'] = 'var(--zx-color-bg-hover)';
-    vars['--zx-color-overlay-selected'] = 'var(--zx-color-bg-selected)';
-    vars['--zx-color-overlay-divider'] = 'var(--zx-color-border)';
-    vars['--zx-color-overlay-scrim'] = 'var(--zx-color-bg-raised)';
-    vars['--zx-overlay-specular-strength'] = '0%';
-    vars['--zx-overlay-surface-image'] = 'none';
-    vars['--zx-overlay-toast-image'] = 'none';
-    vars['--zx-overlay-panel-image'] = 'none';
-    vars['--zx-glass-filter-icon'] = 'none';
-    vars['--zx-glass-filter-control'] = 'none';
-    vars['--zx-glass-filter-raised'] = 'none';
-    vars['--zx-glass-filter-chrome'] = 'none';
-    vars['--zx-glass-filter-overlay'] = 'none';
-    vars['--zx-glass-filter-panel'] = 'none';
-    vars['--zx-app-icon-shadow'] = 'none';
-    vars['--zx-app-icon-shadow-hover'] = '0 0 0 transparent';
-    vars['--zx-glass-control-shadow'] = 'none';
-    vars['--zx-glass-chrome-shadow'] = 'none';
-    vars['--zx-glass-raised-shadow'] = 'var(--zx-overlay-shadow)';
-    vars['--zx-glass-overlay-shadow'] = 'var(--zx-overlay-shadow)';
-    vars['--zx-glass-panel-shadow'] = 'var(--zx-overlay-shadow)';
-  } else if (state.glass === 'strong') {
-    vars['--zx-glass-blur'] = '18px';
-    vars['--zx-glass-saturation'] = '165%';
-    vars['--zx-glass-color-strength'] = '68%';
-    vars['--zx-color-glass-border'] = 'color-mix(in srgb, var(--zx-color-app-icon-glyph) 34%, transparent)';
-    vars['--zx-color-glass-highlight'] = 'color-mix(in srgb, var(--zx-color-app-icon-glyph) 32%, transparent)';
-    vars['--zx-color-glass-highlight-strong'] = 'color-mix(in srgb, var(--zx-color-app-icon-glyph) 54%, transparent)';
-    vars['--zx-color-app-icon-depth'] = 'color-mix(in srgb, var(--zx-color-app-icon-shade) 34%, transparent)';
-    vars['--zx-app-icon-core-strength'] = '48%';
-    vars['--zx-app-icon-rim-strength'] = '70%';
-    vars['--zx-app-icon-bloom-strength'] = '78%';
-    vars['--zx-app-icon-specular-strength'] = '82%';
-    vars['--zx-app-icon-rim-base'] = 'var(--zx-color-glass-highlight-strong)';
-    vars['--zx-app-icon-halo-size'] = '18px';
-    vars['--zx-app-icon-halo-strength'] = '28%';
-    vars['--zx-color-glass-surface'] = 'color-mix(in srgb, var(--zx-color-bg-raised) 62%, transparent)';
-    vars['--zx-color-glass-chrome'] = 'color-mix(in srgb, var(--zx-color-bg-surface) 74%, transparent)';
-    vars['--zx-color-glass-control'] = 'color-mix(in srgb, var(--zx-color-bg-control) 62%, transparent)';
-    vars['--zx-color-glass-control-hover'] = 'color-mix(in srgb, var(--zx-color-bg-hover) 52%, var(--zx-color-glass-surface))';
-    vars['--zx-color-overlay-surface'] = 'color-mix(in srgb, var(--zx-color-overlay-base) 62%, transparent)';
-    vars['--zx-color-overlay-panel'] = 'color-mix(in srgb, var(--zx-color-overlay-base) 68%, transparent)';
-    vars['--zx-color-overlay-backdrop'] = 'color-mix(in srgb, var(--zx-gray-950) 18%, transparent)';
-    vars['--zx-color-overlay-border'] = 'color-mix(in srgb, var(--zx-color-text) 18%, transparent)';
-    vars['--zx-color-overlay-hover'] = 'color-mix(in srgb, var(--zx-color-text) 10%, transparent)';
-    vars['--zx-color-overlay-selected'] = 'color-mix(in srgb, var(--zx-color-accent) 22%, transparent)';
-    vars['--zx-color-overlay-divider'] = 'color-mix(in srgb, var(--zx-color-text) 13%, transparent)';
-    vars['--zx-color-overlay-scrim'] = 'color-mix(in srgb, var(--zx-color-overlay-base) 24%, transparent)';
-    vars['--zx-overlay-specular-strength'] = '58%';
-    vars['--zx-glass-filter-icon'] = 'blur(9px) saturate(148%)';
-    vars['--zx-glass-filter-control'] = 'blur(12px) saturate(146%)';
-    vars['--zx-glass-filter-raised'] = 'blur(15px) saturate(152%)';
-    vars['--zx-glass-filter-chrome'] = 'blur(18px) saturate(158%)';
-    vars['--zx-glass-filter-overlay'] = 'blur(22px) saturate(165%)';
-    vars['--zx-glass-filter-panel'] = 'blur(20px) saturate(152%)';
-    vars['--zx-app-icon-shadow'] = 'inset 0 1px 0 color-mix(in srgb, var(--zx-color-app-icon-glyph) 20%, transparent), inset 0 -1px 0 color-mix(in srgb, var(--zx-color-app-icon-shade) 34%, transparent), 0 3px 9px color-mix(in srgb, var(--zx-color-app-icon-shade) 30%, transparent)';
-    vars['--zx-app-icon-shadow-hover'] = 'inset 0 1px 0 color-mix(in srgb, var(--zx-color-app-icon-glyph) 26%, transparent), inset 0 -1px 0 color-mix(in srgb, var(--zx-color-app-icon-shade) 38%, transparent), 0 5px 13px color-mix(in srgb, var(--zx-color-app-icon-shade) 36%, transparent)';
-    vars['--zx-glass-control-shadow'] = 'inset 0 1px 0 var(--zx-color-glass-highlight), var(--zx-shadow-1)';
-    vars['--zx-glass-chrome-shadow'] = 'inset 0 1px 0 var(--zx-color-glass-highlight-strong), var(--zx-shadow-2)';
-    vars['--zx-glass-raised-shadow'] = 'inset 0 1px 0 var(--zx-color-glass-highlight-strong), var(--zx-overlay-shadow)';
-    vars['--zx-glass-overlay-shadow'] = 'inset 0 1px 0 color-mix(in srgb, var(--zx-color-glass-highlight-strong) 44%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--zx-color-glass-highlight) 22%, transparent), var(--zx-overlay-shadow)';
-    vars['--zx-glass-panel-shadow'] = 'inset 0 1px 0 color-mix(in srgb, var(--zx-color-glass-highlight-strong) 36%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--zx-color-glass-highlight) 16%, transparent), var(--zx-overlay-shadow)';
-  }
+  Object.assign(vars, MATERIAL_RECIPES[state.glass] ?? {});
   return vars;
 }
+
+/* ------------------------------------------------------------------ materials -- */
+
+/** The ingredient roles every recipe composes; the stylesheet restates them per theme. */
+const RIM = 'var(--zx-color-glass-rim)';
+const RING = 'var(--zx-color-glass-ring)';
+const LIFT = 'var(--zx-color-glass-lift)';
+const SHADE = 'var(--zx-color-glass-shade)';
+const EDGE = 'var(--zx-color-glass-edge)';
+const TINT = 'var(--zx-color-glass-tint)';
+const INK = 'var(--zx-gray-950)';
+const GRAIN = 'var(--zx-glass-grain)';
+
+/** @param {string} colour @param {number} share @returns {string} */
+const mix = (colour, share) => `color-mix(in srgb, ${colour} ${share}%, transparent)`;
+/** The shade layer: a flat fill the dark theme darkens the scene with, nothing in light. */
+const shade = `linear-gradient(${SHADE}, ${SHADE})`;
+/** A faint accent caustic at the far corner of a pane. */
+const caustic = (share, extent = '120% 70%') =>
+  `radial-gradient(${extent} at 100% 100%, ${mix('var(--zx-color-accent)', share)}, transparent 62%)`;
+/** A lift from the top edge: `top` of the lift colour, fading out by `fade`. */
+const lift = (top, mid, fade) =>
+  `linear-gradient(180deg, ${top === 100 ? LIFT : mix(LIFT, top)} 0%, ${mix(LIFT, mid)} ${Math.round(fade * 0.55)}%, transparent ${fade}%)`;
+/** The status tint a toast adds over the surface image. */
+const toast = (share, surface) => `radial-gradient(120% 160% at 0% 0%, `
+  + `color-mix(in srgb, var(--zx-message-kind, var(--zx-color-info)) ${share}%, transparent), transparent 62%), ${surface}`;
+/** The status tint, expressed against the surface token (the stylesheet's own surface image). */
+const TOAST_OVER_SURFACE = toast(16, 'var(--zx-overlay-surface-image)');
+
+/** AppIcon with no glass at all. */
+const ICON_FLAT = {
+  '--zx-color-app-icon-depth': 'transparent',
+  '--zx-app-icon-core-strength': '72%',
+  '--zx-app-icon-rim-strength': '62%',
+  '--zx-app-icon-bloom-strength': '0%',
+  '--zx-app-icon-specular-strength': '0%',
+  '--zx-app-icon-rim-base': 'var(--zx-color-border)',
+  '--zx-app-icon-halo-size': '0px',
+  '--zx-app-icon-halo-strength': '0%',
+  '--zx-app-icon-shadow': 'none',
+  '--zx-app-icon-shadow-hover': '0 0 0 transparent'
+};
+
+/** No backdrop filtering anywhere. */
+const FILTERS_OFF = {
+  '--zx-glass-blur': '0px',
+  '--zx-glass-saturation': '100%',
+  '--zx-glass-color-strength': '100%',
+  '--zx-glass-filter-icon': 'none',
+  '--zx-glass-filter-control': 'none',
+  '--zx-glass-filter-raised': 'none',
+  '--zx-glass-filter-chrome': 'none',
+  '--zx-glass-filter-overlay': 'none',
+  '--zx-glass-filter-panel': 'none'
+};
+
+/** The opaque overlay roles every solid material shares. */
+const OPAQUE_OVERLAYS = {
+  '--zx-color-overlay-surface': 'var(--zx-color-bg-raised)',
+  '--zx-color-overlay-panel': 'var(--zx-color-bg-raised)',
+  '--zx-color-overlay-backdrop': 'var(--zx-color-bg-backdrop)',
+  '--zx-color-overlay-hover': 'var(--zx-color-bg-hover)',
+  '--zx-color-overlay-selected': 'var(--zx-color-bg-selected)',
+  '--zx-color-overlay-divider': 'var(--zx-color-border)',
+  '--zx-color-overlay-scrim': 'var(--zx-color-bg-raised)',
+  '--zx-overlay-specular-strength': '0%'
+};
+
+/**
+ * Every material other than the stylesheet's own Glass, as the token overrides that express it.
+ * A recipe names every shared material consumer — the ingredients, the surfaces, the overlay
+ * tiers, the filters, the shadows, and AppIcon — so switching materials never leaves a role on
+ * the previous one.
+ * @type {Record<string, Record<string, string>>}
+ */
+export const MATERIAL_RECIPES = {
+  /* Flat: the opaque semantic surfaces, exactly as the preference fallbacks paint them. */
+  none: {
+    ...FILTERS_OFF,
+    ...ICON_FLAT,
+    ...OPAQUE_OVERLAYS,
+    '--zx-color-glass-border': 'var(--zx-color-border)',
+    '--zx-color-glass-highlight': 'transparent',
+    '--zx-color-glass-highlight-strong': 'transparent',
+    '--zx-color-glass-rim': 'transparent',
+    '--zx-color-glass-ring': 'transparent',
+    '--zx-color-glass-lift': 'transparent',
+    '--zx-color-glass-shade': 'transparent',
+    '--zx-color-glass-edge': 'transparent',
+    '--zx-color-glass-surface': 'var(--zx-color-bg-raised)',
+    '--zx-color-glass-chrome': 'var(--zx-color-bg-surface)',
+    '--zx-color-glass-control': 'var(--zx-color-bg-control)',
+    '--zx-color-glass-control-hover': 'var(--zx-color-bg-hover)',
+    '--zx-color-overlay-border': 'var(--zx-color-border)',
+    '--zx-overlay-surface-image': 'none',
+    '--zx-overlay-toast-image': 'none',
+    '--zx-overlay-panel-image': 'none',
+    '--zx-glass-control-shadow': 'none',
+    '--zx-glass-chrome-shadow': 'none',
+    '--zx-glass-raised-shadow': 'var(--zx-overlay-shadow)',
+    '--zx-glass-overlay-shadow': 'var(--zx-overlay-shadow)',
+    '--zx-glass-panel-shadow': 'var(--zx-overlay-shadow)'
+  },
+
+  /* Glass is the stylesheet: nothing to override. */
+  subtle: {},
+
+  /*
+   * Deep glass: a thick pane, drawn by what thickness does to light. Thinner base, wider blur
+   * and more saturation so more of the scene comes through; a double rim (the top line plus a
+   * soft inner glow along every edge); one narrow diagonal specular band; a stronger caustic;
+   * and a fine grain so the diffusion stops looking like a plastic sheet.
+   */
+  strong: {
+    '--zx-glass-blur': '18px',
+    '--zx-glass-saturation': '170%',
+    '--zx-glass-color-strength': '68%',
+    '--zx-color-glass-border': mix(RIM, 80),
+    '--zx-color-glass-highlight': 'color-mix(in srgb, var(--zx-color-app-icon-glyph) 32%, transparent)',
+    '--zx-color-glass-highlight-strong': 'color-mix(in srgb, var(--zx-color-app-icon-glyph) 54%, transparent)',
+    '--zx-color-app-icon-depth': 'color-mix(in srgb, var(--zx-color-app-icon-shade) 34%, transparent)',
+    '--zx-app-icon-core-strength': '46%',
+    '--zx-app-icon-rim-strength': '72%',
+    '--zx-app-icon-bloom-strength': '80%',
+    '--zx-app-icon-specular-strength': '84%',
+    '--zx-app-icon-rim-base': 'var(--zx-color-glass-highlight-strong)',
+    '--zx-app-icon-halo-size': '18px',
+    '--zx-app-icon-halo-strength': '30%',
+    '--zx-color-glass-surface': 'color-mix(in srgb, var(--zx-color-bg-raised) 42%, transparent)',
+    '--zx-color-glass-chrome': 'color-mix(in srgb, var(--zx-color-bg-surface) 58%, transparent)',
+    '--zx-color-glass-control': 'color-mix(in srgb, var(--zx-color-glass-lift) 60%, var(--zx-color-glass-surface))',
+    '--zx-color-glass-control-hover': 'color-mix(in srgb, var(--zx-color-bg-hover) 50%, var(--zx-color-glass-surface))',
+    '--zx-color-overlay-surface': 'color-mix(in srgb, var(--zx-color-overlay-base) 44%, transparent)',
+    '--zx-color-overlay-panel': 'color-mix(in srgb, var(--zx-color-overlay-base) 50%, transparent)',
+    '--zx-color-overlay-backdrop': 'color-mix(in srgb, var(--zx-color-bg-backdrop) 36%, transparent)',
+    '--zx-color-overlay-border': 'color-mix(in srgb, var(--zx-color-text) 14%, transparent)',
+    '--zx-color-overlay-hover': 'color-mix(in srgb, var(--zx-color-text) 10%, transparent)',
+    '--zx-color-overlay-selected': 'color-mix(in srgb, var(--zx-color-accent) 22%, transparent)',
+    '--zx-color-overlay-divider': 'color-mix(in srgb, var(--zx-color-text) 13%, transparent)',
+    '--zx-color-overlay-scrim': 'color-mix(in srgb, var(--zx-color-overlay-base) 24%, transparent)',
+    '--zx-overlay-specular-strength': '0%',
+    '--zx-overlay-surface-image': `${GRAIN}, linear-gradient(112deg, transparent 42%, ${mix(RIM, 22)} 47%, ${mix(RIM, 5)} 50%, transparent 55%), ${lift(95, 24, 72)}, ${caustic(11, '120% 80%')}, ${shade}`,
+    '--zx-overlay-panel-image': `${GRAIN}, linear-gradient(112deg, transparent 44%, ${mix(RIM, 19)} 48%, ${mix(RIM, 4)} 51%, transparent 55%), ${lift(100, 26, 66)}, ${caustic(10, '90% 70%')}, ${shade}`,
+    '--zx-overlay-toast-image': toast(18, `${GRAIN}, ${lift(95, 24, 72)}, ${caustic(11, '120% 80%')}, ${shade}`),
+    '--zx-glass-filter-icon': 'blur(10px) saturate(160%)',
+    '--zx-glass-filter-control': 'blur(14px) saturate(160%)',
+    '--zx-glass-filter-raised': 'blur(22px) saturate(175%)',
+    '--zx-glass-filter-chrome': 'blur(24px) saturate(170%)',
+    '--zx-glass-filter-overlay': 'blur(32px) saturate(185%)',
+    '--zx-glass-filter-panel': 'blur(36px) saturate(170%)',
+    '--zx-app-icon-shadow': 'inset 0 1px 0 color-mix(in srgb, var(--zx-color-app-icon-glyph) 20%, transparent), inset 0 -1px 0 color-mix(in srgb, var(--zx-color-app-icon-shade) 34%, transparent), 0 3px 9px color-mix(in srgb, var(--zx-color-app-icon-shade) 30%, transparent)',
+    '--zx-app-icon-shadow-hover': 'inset 0 1px 0 color-mix(in srgb, var(--zx-color-app-icon-glyph) 26%, transparent), inset 0 -1px 0 color-mix(in srgb, var(--zx-color-app-icon-shade) 38%, transparent), 0 5px 13px color-mix(in srgb, var(--zx-color-app-icon-shade) 36%, transparent)',
+    '--zx-glass-control-shadow': `inset 0 1px 0 ${RIM}, inset 0 -1px 0 ${mix(INK, 8)}, 0 1px 2px ${mix(INK, 8)}`,
+    '--zx-glass-chrome-shadow': `inset -1px 0 0 ${mix(RIM, 70)}, inset 0 1px 0 ${RIM}`,
+    '--zx-glass-raised-shadow': `inset 0 1px 0 ${RIM}, inset 0 0 0 1px ${RING}, inset 0 0 24px ${mix(RIM, 30)}, 0 0 0 1px ${EDGE}, 0 2px 4px ${mix(INK, 5)}, 0 16px 40px -14px ${mix(INK, 18)}`,
+    '--zx-glass-overlay-shadow': `inset 0 1px 0 ${RIM}, inset 0 0 0 1px ${RING}, inset 0 0 28px ${mix(RIM, 28)}, 0 0 0 1px ${EDGE}, 0 2px 4px ${mix(INK, 6)}, var(--zx-overlay-shadow)`,
+    '--zx-glass-panel-shadow': `inset 0 1px 0 ${RIM}, inset 0 0 0 1px ${RING}, inset 0 0 36px ${mix(RIM, 26)}, 0 0 0 1px ${EDGE}, 0 4px 8px ${mix(INK, 6)}, var(--zx-overlay-shadow)`
+  },
+
+  /*
+   * Frost: milk glass. Heavy diffusion and almost no reflection — colour behind becomes a soft
+   * wash and text on the pane reads as on paper. Depth without sparkle.
+   */
+  frost: {
+    '--zx-glass-blur': '24px',
+    '--zx-glass-saturation': '115%',
+    '--zx-glass-color-strength': '80%',
+    '--zx-color-glass-border': 'color-mix(in srgb, var(--zx-color-text) 8%, transparent)',
+    '--zx-app-icon-bloom-strength': '30%',
+    '--zx-app-icon-specular-strength': '30%',
+    '--zx-color-glass-surface': 'color-mix(in srgb, var(--zx-color-bg-raised) 70%, transparent)',
+    '--zx-color-glass-chrome': 'color-mix(in srgb, var(--zx-color-bg-surface) 80%, transparent)',
+    '--zx-color-glass-control': 'color-mix(in srgb, var(--zx-color-glass-lift) 50%, var(--zx-color-glass-surface))',
+    '--zx-color-glass-control-hover': 'color-mix(in srgb, var(--zx-color-bg-hover) 60%, var(--zx-color-glass-surface))',
+    '--zx-color-overlay-surface': 'color-mix(in srgb, var(--zx-color-overlay-base) 72%, transparent)',
+    '--zx-color-overlay-panel': 'color-mix(in srgb, var(--zx-color-overlay-base) 78%, transparent)',
+    '--zx-color-overlay-backdrop': 'color-mix(in srgb, var(--zx-color-bg-backdrop) 50%, transparent)',
+    '--zx-color-overlay-border': 'color-mix(in srgb, var(--zx-color-text) 9%, transparent)',
+    '--zx-overlay-specular-strength': '0%',
+    '--zx-overlay-surface-image': `${GRAIN}, ${lift(50, 15, 60)}, ${shade}`,
+    '--zx-overlay-panel-image': `${GRAIN}, ${lift(50, 15, 50)}, ${shade}`,
+    '--zx-overlay-toast-image': toast(14, `${GRAIN}, ${lift(50, 15, 60)}, ${shade}`),
+    '--zx-glass-filter-icon': 'blur(8px) saturate(110%)',
+    '--zx-glass-filter-control': 'blur(10px) saturate(110%)',
+    '--zx-glass-filter-raised': 'blur(24px) saturate(115%)',
+    '--zx-glass-filter-chrome': 'blur(28px) saturate(112%)',
+    '--zx-glass-filter-overlay': 'blur(34px) saturate(120%)',
+    '--zx-glass-filter-panel': 'blur(40px) saturate(115%)',
+    '--zx-glass-control-shadow': `inset 0 1px 0 ${mix(RIM, 75)}, 0 1px 2px ${mix(INK, 5)}`,
+    '--zx-glass-chrome-shadow': 'none',
+    '--zx-glass-raised-shadow': `inset 0 1px 0 ${mix(RIM, 85)}, 0 0 0 1px ${EDGE}, 0 1px 2px ${mix(INK, 4)}, 0 12px 32px -12px ${mix(INK, 14)}`,
+    '--zx-glass-overlay-shadow': `inset 0 1px 0 ${mix(RIM, 90)}, 0 0 0 1px ${EDGE}, 0 1px 2px ${mix(INK, 5)}, var(--zx-overlay-shadow)`,
+    '--zx-glass-panel-shadow': `inset 0 1px 0 ${mix(RIM, 90)}, 0 0 0 1px ${EDGE}, 0 2px 4px ${mix(INK, 5)}, var(--zx-overlay-shadow)`
+  },
+
+  /*
+   * Smoke: tinted glass that darkens the scene behind it rather than whitening it — sunglass
+   * glass in dark, a grey-smoked pane in light — with a thin cold rim.
+   */
+  smoke: {
+    '--zx-glass-blur': '16px',
+    '--zx-glass-saturation': '150%',
+    '--zx-glass-color-strength': '70%',
+    '--zx-color-glass-border': mix(RING, 90),
+    '--zx-color-glass-surface': `color-mix(in srgb, ${TINT} 85%, transparent)`,
+    '--zx-color-glass-chrome': TINT,
+    '--zx-color-glass-control': `color-mix(in srgb, ${TINT} 65%, transparent)`,
+    '--zx-color-glass-control-hover': `color-mix(in srgb, var(--zx-color-glass-lift) 40%, ${TINT})`,
+    '--zx-color-overlay-surface': `color-mix(in srgb, ${TINT} 95%, transparent)`,
+    '--zx-color-overlay-panel': TINT,
+    '--zx-color-overlay-backdrop': 'color-mix(in srgb, var(--zx-color-bg-backdrop) 40%, transparent)',
+    '--zx-color-overlay-border': 'color-mix(in srgb, var(--zx-color-text) 16%, transparent)',
+    '--zx-color-overlay-hover': 'color-mix(in srgb, var(--zx-color-text) 10%, transparent)',
+    '--zx-color-overlay-selected': 'color-mix(in srgb, var(--zx-color-accent) 22%, transparent)',
+    '--zx-color-overlay-divider': 'color-mix(in srgb, var(--zx-color-text) 13%, transparent)',
+    '--zx-overlay-specular-strength': '0%',
+    '--zx-overlay-surface-image': `${lift(45, 10, 45)}, ${caustic(9, '120% 80%')}, ${shade}`,
+    '--zx-overlay-panel-image': `${lift(45, 10, 40)}, ${caustic(8, '90% 70%')}, ${shade}`,
+    '--zx-overlay-toast-image': toast(18, `${lift(45, 10, 45)}, ${shade}`),
+    '--zx-glass-filter-icon': 'blur(8px) saturate(130%)',
+    '--zx-glass-filter-control': 'blur(10px) saturate(130%)',
+    '--zx-glass-filter-raised': 'blur(16px) saturate(145%)',
+    '--zx-glass-filter-chrome': 'blur(18px) saturate(140%)',
+    '--zx-glass-filter-overlay': 'blur(20px) saturate(155%) contrast(1.06)',
+    '--zx-glass-filter-panel': 'blur(24px) saturate(145%) contrast(1.06)',
+    '--zx-glass-control-shadow': `inset 0 1px 0 ${mix(RIM, 70)}, 0 1px 2px ${mix(INK, 10)}`,
+    '--zx-glass-chrome-shadow': `inset -1px 0 0 ${mix(INK, 8)}`,
+    '--zx-glass-raised-shadow': `inset 0 1px 0 ${mix(RIM, 80)}, 0 0 0 1px ${EDGE}, 0 1px 2px ${mix(INK, 8)}, 0 12px 32px -12px ${mix(INK, 22)}`,
+    '--zx-glass-overlay-shadow': `inset 0 1px 0 ${mix(RIM, 85)}, inset 0 0 0 1px ${mix(RING, 70)}, 0 0 0 1px ${EDGE}, 0 1px 2px ${mix(INK, 10)}, var(--zx-overlay-shadow)`,
+    '--zx-glass-panel-shadow': `inset 0 1px 0 ${mix(RIM, 85)}, inset 0 0 0 1px ${mix(RING, 60)}, 0 0 0 1px ${EDGE}, 0 2px 4px ${mix(INK, 10)}, var(--zx-overlay-shadow)`
+  },
+
+  /*
+   * Paper: opaque, matte, layered. No blur anywhere, depth from stacked soft shadows instead of
+   * edges, a fine tooth on raised surfaces. The cheapest material to render.
+   */
+  paper: {
+    ...FILTERS_OFF,
+    ...ICON_FLAT,
+    ...OPAQUE_OVERLAYS,
+    '--zx-color-glass-border': 'color-mix(in srgb, var(--zx-color-text) 7%, transparent)',
+    '--zx-color-glass-highlight': 'transparent',
+    '--zx-color-glass-highlight-strong': 'transparent',
+    '--zx-app-icon-rim-strength': '50%',
+    '--zx-app-icon-shadow': `0 1px 2px ${mix(INK, 14)}`,
+    '--zx-app-icon-shadow-hover': `0 2px 6px ${mix(INK, 18)}`,
+    '--zx-color-glass-surface': 'var(--zx-color-bg-raised)',
+    '--zx-color-glass-chrome': 'var(--zx-color-bg-chrome)',
+    '--zx-color-glass-control': 'var(--zx-color-bg-control)',
+    '--zx-color-glass-control-hover': 'var(--zx-color-bg-hover)',
+    '--zx-color-overlay-backdrop': 'color-mix(in srgb, var(--zx-color-bg-backdrop) 60%, transparent)',
+    '--zx-color-overlay-border': 'color-mix(in srgb, var(--zx-color-text) 8%, transparent)',
+    '--zx-overlay-surface-image': GRAIN,
+    '--zx-overlay-panel-image': GRAIN,
+    '--zx-overlay-toast-image': toast(12, GRAIN),
+    '--zx-glass-control-shadow': `0 1px 1px ${mix(INK, 6)}, 0 1px 3px ${mix(INK, 4)}`,
+    '--zx-glass-chrome-shadow': 'none',
+    '--zx-glass-raised-shadow': `0 0 0 1px ${EDGE}, 0 1px 1px ${mix(INK, 5)}, 0 2px 6px ${mix(INK, 5)}, 0 12px 32px -10px ${mix(INK, 12)}`,
+    '--zx-glass-overlay-shadow': `0 0 0 1px ${EDGE}, 0 1px 1px ${mix(INK, 6)}, 0 4px 10px ${mix(INK, 7)}, 0 18px 44px -12px ${mix(INK, 20)}`,
+    '--zx-glass-panel-shadow': `0 0 0 1px ${EDGE}, 0 1px 2px ${mix(INK, 6)}, 0 8px 20px ${mix(INK, 8)}, 0 32px 72px -16px ${mix(INK, 26)}`
+  },
+
+  /*
+   * Satin: brushed, opaque. No blur; a vertical sheen on controls and chrome, a diagonal one on
+   * overlays, a bright top rim and a darker foot — anodised metal, which makes controls read as
+   * pressable on dense screens without any transparency.
+   */
+  satin: {
+    ...FILTERS_OFF,
+    ...OPAQUE_OVERLAYS,
+    '--zx-color-glass-border': 'color-mix(in srgb, var(--zx-color-text) 12%, transparent)',
+    '--zx-app-icon-bloom-strength': '20%',
+    '--zx-app-icon-specular-strength': '90%',
+    '--zx-color-glass-surface': 'var(--zx-color-bg-raised)',
+    '--zx-color-glass-chrome': 'var(--zx-color-bg-chrome)',
+    '--zx-color-glass-control': `color-mix(in srgb, var(--zx-color-bg-control) 96%, ${INK})`,
+    '--zx-color-glass-control-hover': 'var(--zx-color-bg-hover)',
+    '--zx-color-overlay-backdrop': 'color-mix(in srgb, var(--zx-color-bg-backdrop) 64%, transparent)',
+    '--zx-color-overlay-border': 'color-mix(in srgb, var(--zx-color-text) 14%, transparent)',
+    '--zx-overlay-surface-image': `linear-gradient(135deg, ${mix(RIM, 55)}, transparent 42%), linear-gradient(180deg, transparent 70%, ${mix(INK, 3)})`,
+    '--zx-overlay-panel-image': `linear-gradient(135deg, ${mix(RIM, 55)}, transparent 36%), linear-gradient(180deg, transparent 70%, ${mix(INK, 3)})`,
+    '--zx-overlay-toast-image': toast(14, `linear-gradient(135deg, ${mix(RIM, 55)}, transparent 42%)`),
+    '--zx-glass-control-shadow': `inset 0 1px 0 ${RIM}, inset 0 -1px 0 ${mix(INK, 8)}, inset 0 -14px 14px -12px ${mix(INK, 14)}, inset 0 14px 14px -12px ${mix(RIM, 90)}, 0 1px 1px ${mix(INK, 10)}`,
+    '--zx-glass-chrome-shadow': `inset -1px 0 0 ${mix(INK, 5)}, inset 1px 0 0 ${mix(RIM, 60)}`,
+    '--zx-glass-raised-shadow': `inset 0 1px 0 ${RIM}, inset 0 -1px 0 ${mix(INK, 5)}, 0 0 0 1px ${EDGE}, 0 1px 2px ${mix(INK, 6)}, 0 8px 20px -10px ${mix(INK, 14)}`,
+    '--zx-glass-overlay-shadow': `inset 0 1px 0 ${RIM}, inset 0 -1px 0 ${mix(INK, 6)}, 0 0 0 1px ${EDGE}, 0 1px 2px ${mix(INK, 8)}, var(--zx-overlay-shadow)`,
+    '--zx-glass-panel-shadow': `inset 0 1px 0 ${RIM}, inset 0 -1px 0 ${mix(INK, 6)}, 0 0 0 1px ${EDGE}, 0 2px 4px ${mix(INK, 8)}, var(--zx-overlay-shadow)`
+  }
+};
 
 /**
  * The accent the reader is actually looking at, which is the stop the current theme uses.

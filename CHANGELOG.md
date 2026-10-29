@@ -8,6 +8,34 @@ and friends remain the complete record.
 
 ## Unreleased
 
+### Added
+
+- Four materials in the theme studio beside Flat, Glass and Deep glass: **Frost** (milk glass —
+  heavy diffusion, almost no reflection), **Smoke** (tinted glass that darkens the scene behind
+  it), **Paper** (opaque and matte: layered soft shadows and a fine tooth) and **Satin** (opaque
+  and brushed: a sheen on controls and chrome). Paper and Satin filter nothing, so they cost
+  nothing to render and survive every fallback unchanged. Every material is a complete recipe
+  over the same roles, exported as token overrides.
+- Six glass ingredients the stylesheet declares per theme and every recipe composes —
+  `--zx-color-glass-rim`, `-ring`, `-lift`, `-shade`, `-edge`, `-tint` — and `--zx-glass-grain`,
+  a grey tooth; one material recipe therefore serves light and dark alike.
+- The agent reference opens with "Choosing what to build with": every screen mapped to the layout
+  to start from, every job to its component, the theming decisions an application makes, and
+  what never to build by hand; both `llms.txt` indexes and the README carry the layout-first rule.
+
+### Changed
+
+- **Glass is a lit pane, not a grey tint.** The stylesheet's own material (the studio's Glass) is
+  rebuilt: a thinner base under a white lift from the top edge instead of a grey wash, the light
+  on the pane's edge — a near-white top rim, a hairline inner ring and, in dark, a cut outer line —
+  rather than a corner specular on its face, a filter that saturates so the colour behind survives
+  the blur, and a faint accent caustic at the far corner. In dark the pane also shades what is
+  behind it, so text keeps its contrast while the base stays thin. **Deep glass** is a genuinely
+  thick pane rather than the same numbers turned up: a double rim with an inner glow, one narrow
+  specular band, more refraction and a fine grain. Applications that override
+  `--zx-overlay-surface-image`, `--zx-glass-overlay-shadow` or the glass filters keep their
+  values; everything else follows.
+
 ## 5.3.0 — 2026-10-29
 
 The record collection's toolbar, chips, drawers and pager become one shared composition in the

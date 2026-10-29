@@ -37,16 +37,21 @@
   --zx-app-icon-halo-size: 14px;
   --zx-app-icon-halo-strength: 22%;
   --zx-overlay-specular-strength: 48%;
-  --zx-glass-blur: 8px;
-  --zx-glass-saturation: 130%;
+  --zx-glass-blur: 10px;
+  --zx-glass-saturation: 140%;
   --zx-glass-color-strength: 82%;
-  /* Material filters are roles, not component recipes. Aurora remains a separate canvas layer. */
-  --zx-glass-filter-icon: blur(4px) saturate(118%);
-  --zx-glass-filter-control: blur(6px) saturate(116%);
-  --zx-glass-filter-raised: blur(8px) saturate(120%);
-  --zx-glass-filter-chrome: blur(10px) saturate(122%);
-  --zx-glass-filter-overlay: blur(16px) saturate(140%);
-  --zx-glass-filter-panel: blur(14px) saturate(132%);
+  /* Material filters are roles, not component recipes. Aurora remains a separate canvas layer.
+     Saturation keeps the colour behind a pane alive through the blur; the pane's own lightness is
+     a colour role (the lift and shade ingredients below), so the filters are the same in both
+     themes. */
+  --zx-glass-filter-icon: blur(6px) saturate(135%);
+  --zx-glass-filter-control: blur(8px) saturate(130%);
+  --zx-glass-filter-raised: blur(14px) saturate(145%);
+  --zx-glass-filter-chrome: blur(16px) saturate(140%);
+  --zx-glass-filter-overlay: blur(20px) saturate(165%);
+  --zx-glass-filter-panel: blur(24px) saturate(150%);
+  /* A fine grey tooth for frosted and paper surfaces: grey noise at about 7% alpha, no colour. */
+  --zx-glass-grain: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.55 0 0 0 0 0.55 0 0 0 0 0.55 0 0 0 0.07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 /* The light theme — colours only. */
@@ -138,12 +143,24 @@
      shadow and a wide soft one, clearly higher than a resting card and lower than an overlay. */
   --zx-drag-shadow: 0 2px 4px -1px color-mix(in srgb, var(--zx-gray-950) 10%, transparent),
     0 12px 28px -6px color-mix(in srgb, var(--zx-gray-950) 22%, transparent);
-  --zx-color-glass-border: color-mix(in srgb, var(--zx-gray-0) 24%, transparent);
+  --zx-color-glass-border: color-mix(in srgb, var(--zx-gray-0) 70%, transparent);
+  /* AppIcon's rim and specular read these two; the pane ingredients below are separate. */
   --zx-color-glass-highlight: color-mix(in srgb, var(--zx-gray-0) 24%, transparent);
   --zx-color-glass-highlight-strong: color-mix(in srgb, var(--zx-gray-0) 38%, transparent);
-  --zx-color-overlay-backdrop: color-mix(in srgb, var(--zx-gray-950) 28%, transparent);
-  --zx-glass-control-shadow: inset 0 1px 0 color-mix(in srgb, var(--zx-gray-0) 18%, transparent), var(--zx-shadow-1);
-  --zx-glass-chrome-shadow: inset 0 1px 0 color-mix(in srgb, var(--zx-gray-0) 16%, transparent), var(--zx-shadow-1);
+  /* A pane of glass, in six ingredients the material recipes compose and the dark theme restates:
+     the lit top edge (rim) and the hairline inner ring; the lift — white laid on the pane from
+     the top, which is what makes it read as lit rather than tinted; the shade — the darkening a
+     dark theme's pane applies to what is behind it (nothing in light); the cut outer edge a pane
+     needs against a dark scene (nothing in light); and the tint of smoked glass. */
+  --zx-color-glass-rim: color-mix(in srgb, var(--zx-gray-0) 95%, transparent);
+  --zx-color-glass-ring: color-mix(in srgb, var(--zx-gray-0) 45%, transparent);
+  --zx-color-glass-lift: color-mix(in srgb, var(--zx-gray-0) 62%, transparent);
+  --zx-color-glass-shade: transparent;
+  --zx-color-glass-edge: transparent;
+  --zx-color-glass-tint: color-mix(in srgb, var(--zx-gray-950) 12%, transparent);
+  --zx-color-overlay-backdrop: color-mix(in srgb, var(--zx-gray-950) 22%, transparent);
+  --zx-glass-control-shadow: inset 0 1px 0 color-mix(in srgb, var(--zx-gray-0) 80%, transparent), 0 1px 2px color-mix(in srgb, var(--zx-gray-950) 6%, transparent);
+  --zx-glass-chrome-shadow: inset -1px 0 0 color-mix(in srgb, var(--zx-gray-0) 60%, transparent), inset 0 1px 0 color-mix(in srgb, var(--zx-gray-0) 80%, transparent);
   --zx-header-bg: var(--zx-gray-900);
   --zx-header-text: var(--zx-gray-50);
 }
@@ -181,41 +198,40 @@
   --zx-focus-ring: 0 0 0 3px color-mix(in srgb, var(--zx-color-ring) 45%, transparent);
   --zx-color-app-icon-depth: color-mix(in srgb, var(--zx-color-app-icon-shade) 26%, transparent);
   --zx-app-icon-rim-base: var(--zx-color-glass-highlight);
-  --zx-color-glass-surface: color-mix(in srgb, var(--zx-color-bg-raised) 78%, transparent);
+  --zx-color-glass-surface: color-mix(in srgb, var(--zx-color-bg-raised) 58%, transparent);
   /* Persistent application chrome is quieter and more opaque than a raised feature card. */
-  --zx-color-glass-chrome: color-mix(in srgb, var(--zx-color-bg-surface) 90%, transparent);
-  --zx-color-glass-control: color-mix(in srgb, var(--zx-color-bg-control) 88%, transparent);
-  --zx-color-glass-control-hover: color-mix(in srgb, var(--zx-color-bg-hover) 76%, var(--zx-color-glass-surface));
-  /* Overlay glass is composed from four roles: a neutral base, translucent colour, a restrained
-     reflection, and the backdrop behind modal panels. Keeping them separate makes the material
-     visibly react to Aurora/content without baking decoration into each component. */
+  --zx-color-glass-chrome: color-mix(in srgb, var(--zx-color-bg-surface) 76%, transparent);
+  --zx-color-glass-control: color-mix(in srgb, var(--zx-color-bg-control) 66%, transparent);
+  --zx-color-glass-control-hover: color-mix(in srgb, var(--zx-color-bg-hover) 60%, var(--zx-color-glass-surface));
+  /* Overlay glass is a thin neutral base under a lift from the top, a shade over what is behind
+     it, an accent caustic at the far corner, and the backdrop behind modal panels. The pane's
+     light sits on its edge — the rim and ring in the shadows — never as a wash on its face.
+     Keeping the roles separate makes the material visibly react to Aurora/content without baking
+     decoration into each component. */
   --zx-color-overlay-base: var(--zx-color-bg-raised);
-  --zx-color-overlay-surface: color-mix(in srgb, var(--zx-color-overlay-base) 72%, transparent);
-  --zx-color-overlay-panel: color-mix(in srgb, var(--zx-color-overlay-base) 80%, transparent);
-  --zx-color-overlay-border: color-mix(in srgb, var(--zx-color-text) 14%, transparent);
+  --zx-color-overlay-surface: color-mix(in srgb, var(--zx-color-overlay-base) 58%, transparent);
+  --zx-color-overlay-panel: color-mix(in srgb, var(--zx-color-overlay-base) 64%, transparent);
+  --zx-color-overlay-border: color-mix(in srgb, var(--zx-color-text) 12%, transparent);
   --zx-color-overlay-hover: color-mix(in srgb, var(--zx-color-text) 8%, transparent);
   --zx-color-overlay-selected: color-mix(in srgb, var(--zx-color-accent) 18%, transparent);
   --zx-color-overlay-divider: color-mix(in srgb, var(--zx-color-text) 11%, transparent);
   --zx-color-overlay-scrim: color-mix(in srgb, var(--zx-color-overlay-base) 28%, transparent);
-  --zx-overlay-surface-image: linear-gradient(145deg,
-    color-mix(in srgb, var(--zx-color-glass-highlight-strong) var(--zx-overlay-specular-strength), transparent) 0%,
-    color-mix(in srgb, var(--zx-color-glass-highlight) 16%, transparent) 28%,
-    transparent 54%), radial-gradient(120% 100% at 8% -12%,
-    color-mix(in srgb, var(--zx-color-accent) 8%, transparent), transparent 58%);
+  --zx-overlay-surface-image: linear-gradient(180deg, var(--zx-color-glass-lift) 0%,
+    color-mix(in srgb, var(--zx-color-glass-lift) 30%, transparent) 38%, transparent 70%),
+    radial-gradient(120% 70% at 100% 100%, color-mix(in srgb, var(--zx-color-accent) 7%, transparent), transparent 62%),
+    linear-gradient(var(--zx-color-glass-shade), var(--zx-color-glass-shade));
   --zx-overlay-toast-image: radial-gradient(120% 160% at 0% 0%,
-    color-mix(in srgb, var(--zx-message-kind, var(--zx-color-info)) 18%, transparent), transparent 62%),
+    color-mix(in srgb, var(--zx-message-kind, var(--zx-color-info)) 16%, transparent), transparent 62%),
     var(--zx-overlay-surface-image);
-  --zx-overlay-panel-image: radial-gradient(140% 100% at 0% 0%,
-    color-mix(in srgb, var(--zx-color-glass-highlight-strong) var(--zx-overlay-specular-strength), transparent) 0%,
-    transparent 58%), radial-gradient(100% 70% at 100% 0%,
-    color-mix(in srgb, var(--zx-color-accent) 5%, transparent), transparent 64%),
-    linear-gradient(180deg, color-mix(in srgb, var(--zx-color-glass-highlight) 16%, transparent) 0%,
-    transparent 28%);
+  --zx-overlay-panel-image: linear-gradient(180deg, var(--zx-color-glass-lift) 0%,
+    color-mix(in srgb, var(--zx-color-glass-lift) 34%, transparent) 30%, transparent 64%),
+    radial-gradient(90% 60% at 100% 100%, color-mix(in srgb, var(--zx-color-accent) 6%, transparent), transparent 60%),
+    linear-gradient(var(--zx-color-glass-shade), var(--zx-color-glass-shade));
   --zx-app-icon-shadow: inset 0 1px 0 color-mix(in srgb, var(--zx-gray-0) 14%, transparent), inset 0 -1px 0 color-mix(in srgb, var(--zx-gray-950) 28%, transparent), 0 2px 6px color-mix(in srgb, var(--zx-color-app-icon-shade) 24%, transparent);
   --zx-app-icon-shadow-hover: inset 0 1px 0 color-mix(in srgb, var(--zx-gray-0) 20%, transparent), inset 0 -1px 0 color-mix(in srgb, var(--zx-gray-950) 32%, transparent), 0 4px 10px color-mix(in srgb, var(--zx-color-app-icon-shade) 30%, transparent);
-  --zx-glass-raised-shadow: inset 0 1px 0 color-mix(in srgb, var(--zx-gray-0) 18%, transparent), var(--zx-overlay-shadow);
-  --zx-glass-overlay-shadow: inset 0 1px 0 color-mix(in srgb, var(--zx-color-glass-highlight-strong) 42%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--zx-color-glass-highlight) 20%, transparent), var(--zx-overlay-shadow);
-  --zx-glass-panel-shadow: inset 0 1px 0 color-mix(in srgb, var(--zx-color-glass-highlight-strong) 34%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--zx-color-glass-highlight) 14%, transparent), var(--zx-overlay-shadow);
+  --zx-glass-raised-shadow: inset 0 1px 0 var(--zx-color-glass-rim), inset 0 0 0 1px color-mix(in srgb, var(--zx-color-glass-ring) 90%, transparent), 0 0 0 1px var(--zx-color-glass-edge), 0 1px 2px color-mix(in srgb, var(--zx-gray-950) 5%, transparent), 0 10px 28px -10px color-mix(in srgb, var(--zx-gray-950) 14%, transparent);
+  --zx-glass-overlay-shadow: inset 0 1px 0 var(--zx-color-glass-rim), inset 0 0 0 1px var(--zx-color-glass-ring), 0 0 0 1px var(--zx-color-glass-edge), 0 1px 2px color-mix(in srgb, var(--zx-gray-950) 6%, transparent), var(--zx-overlay-shadow);
+  --zx-glass-panel-shadow: inset 0 1px 0 var(--zx-color-glass-rim), inset 0 0 0 1px color-mix(in srgb, var(--zx-color-glass-ring) 90%, transparent), 0 0 0 1px var(--zx-color-glass-edge), 0 2px 4px color-mix(in srgb, var(--zx-gray-950) 6%, transparent), var(--zx-overlay-shadow);
 }
 
 /* Preferences are resolved at the token seam so every material consumer, including application
@@ -240,6 +256,12 @@
     --zx-overlay-surface-image: none !important;
     --zx-overlay-toast-image: none !important;
     --zx-overlay-panel-image: none !important;
+    --zx-color-glass-rim: transparent !important;
+    --zx-color-glass-ring: transparent !important;
+    --zx-color-glass-lift: transparent !important;
+    --zx-color-glass-shade: transparent !important;
+    --zx-color-glass-edge: transparent !important;
+    --zx-color-glass-tint: var(--zx-color-bg-raised) !important;
     --zx-app-icon-core-strength: 68% !important;
     --zx-app-icon-rim-strength: 62% !important;
     --zx-app-icon-bloom-strength: 0% !important;
@@ -274,6 +296,12 @@
     --zx-color-overlay-selected: Highlight !important;
     --zx-color-overlay-divider: CanvasText !important;
     --zx-color-overlay-scrim: Canvas !important;
+    --zx-color-glass-rim: transparent !important;
+    --zx-color-glass-ring: transparent !important;
+    --zx-color-glass-lift: transparent !important;
+    --zx-color-glass-shade: transparent !important;
+    --zx-color-glass-edge: transparent !important;
+    --zx-color-glass-tint: Canvas !important;
     --zx-overlay-specular-strength: 0% !important;
     --zx-overlay-surface-image: none !important;
     --zx-overlay-toast-image: none !important;

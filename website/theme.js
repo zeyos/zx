@@ -106,10 +106,12 @@ function buildRail() {
       apply();
     }), 'System follows your operating system. Reduced stops animation and transitions on every '
       + 'page of this site. Nothing here adds motion your system has turned off.'),
-    section('Material', segmented('Material', MATERIALS, () => state.glass, (value) => {
-      state.glass = value;
-      apply();
-    }), 'Aurora supplies ambient light; material controls how surfaces respond to it. Flat is opaque. Glass and Deep glass progressively increase translucency, blur, colour response, and specular light across AppIcons, controls, persistent chrome, raised cards, and every transient overlay. Menus, pickers, tooltips, column menus, and Toast use compact glass. Launcher, Modal, Dialog, and floating Sheet use a calmer reading panel. Docked Sheets and dense data surfaces stay opaque.'),
+    section('Material', materialControl(), 'Aurora supplies ambient light; material is how surfaces '
+      + 'answer it, across AppIcons, controls, persistent chrome, raised cards, and every transient '
+      + 'overlay. Glass is a thin lit pane and Deep glass a thick one; Frost diffuses, Smoke darkens, '
+      + 'Paper and Satin are opaque and cost nothing to render. Menus, pickers, tooltips, column '
+      + 'menus, and Toast use the compact tier; Launcher, Modal, Dialog, and floating Sheet the '
+      + 'calmer reading panel. Docked Sheets and dense data surfaces stay opaque in every material.'),
     accentSection(),
     tintSection(),
     typefaceSection(),
@@ -440,6 +442,21 @@ function segmented(label, options, get, set) {
   sync.push(update);
   update();
   return group;
+}
+
+/** The material choice: seven segments on two rows, the current one's note under them. */
+function materialControl() {
+  const group = segmented('Material', MATERIALS, () => state.glass, (value) => {
+    state.glass = value;
+    apply();
+  });
+  group.dataset.wrap = '';
+  const note = h('p', { class: 'studio-note' });
+  sync.push(() => {
+    note.textContent = MATERIALS.find((material) => material.id === state.glass)?.note ?? '';
+  });
+  note.textContent = MATERIALS.find((material) => material.id === state.glass)?.note ?? '';
+  return h('div', { class: 'studio-stack-tight' }, group, note);
 }
 
 /**

@@ -1,5 +1,10 @@
 # Materials — exploration, October 2026
 
+> Lifted into the product on 2026-10-29: the stylesheet defaults are the proposed Glass, and the
+> studio's `MATERIAL_RECIPES` in `website/theme-presets.js` carry Deep glass, Frost, Smoke, Paper
+> and Satin, composed from the per-theme glass ingredients (`--zx-color-glass-rim/-ring/-lift/
+> -shade/-edge/-tint`). The prototype below keeps the exploration's own copies.
+
 Repository-only. `specs/` never reaches the site or the package; nothing here is approved for
 publication until it is lifted into `website/theme-presets.js` and the stylesheet defaults.
 
