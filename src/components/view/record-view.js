@@ -164,6 +164,7 @@ export class RecordView extends Component {
     this._viewFieldStatus = null;
     this._viewFieldHome = null;
     this._viewNativeMounted = null;
+    /** @type {{id: string, action: 'toggle'|'up'|'down'}|null} */
     this._viewFieldFocus = null;
     this._viewFieldSettings = normalizeViewFieldControls(this.options.fieldControls);
     // Resolved once, here, so the mount point cannot drift between render and destroy.
@@ -564,7 +565,7 @@ export class RecordView extends Component {
       }
     });
     const summary = h('summary', { class: 'zx-btn', dataset: { size: 'sm', kind: 'ghost' } }, icon('fields'), text);
-    const details = h('details', { class: 'zx-record-view__field-controls' }, summary, list, status);
+    const details = /** @type {HTMLDetailsElement} */ (h('details', { class: 'zx-record-view__field-controls' }, summary, list, status));
     this._viewFieldControls = details;
     this._viewFieldList = list;
     this._viewFieldStatus = status;
@@ -661,7 +662,7 @@ export class RecordView extends Component {
     const index = order.indexOf(id);
     if (index < 0) return;
     const neighbour = order[index + delta];
-    const action = delta < 0 ? 'up' : 'down';
+    const action = /** @type {'up'|'down'} */ (delta < 0 ? 'up' : 'down');
     if (neighbour === undefined) {
       this._renderViewFieldControls({ id, action });
       return;
