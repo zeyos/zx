@@ -1,8 +1,9 @@
 /*
- * The layout gallery: the shared application shell, one stylesheet per layout (templates, then
- * screen patterns), and then the gallery's own chrome below.
+ * The layout gallery: the shared application shell, the shared overview composition, one
+ * stylesheet per layout (templates, then screen patterns), and then the gallery's own chrome below.
  */
 @import url('layouts/kit.css');
+@import url('layouts/overview.css');
 @import url('layouts/mail.layout.css');
 @import url('layouts/issue-tracker.layout.css');
 @import url('layouts/wiki.layout.css');

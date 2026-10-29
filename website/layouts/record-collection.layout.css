@@ -1,395 +1,23 @@
 /*
- * Record collection: the overview of one record type. The header with its breadcrumb, one toolbar,
- * the filter chips under it, one of five presentations of the same records, and the pager. Every
- * selector sits under `.collection`; the chip editor and the filter drawer open in overlays
- * outside the root and use block-namespaced classes. Semantic tokens only.
+ * Record collection: the overview of one record type, on the kit's overview composition
+ * (overview.css styles the toolbar, the filter strip, the drawers, the body, and the pager). What
+ * is here is this screen's own: its cells — the amount over its probability bar, the company mark,
+ * tags — the list's column grid, the gallery's covers, the board's stage tints, the bulk bar, and
+ * the room the main pane makes for an open drawer. Every selector sits under `.collection`.
+ * Semantic tokens only.
  */
 
 /* ------------------------------------------------------------------ frame -- */
 
-/* The toolbar, the filters, the body, and the footer; the bulk bar floats over them. */
-.collection .collection__frame {
-  container: collection / inline-size;
-  position: relative;
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  min-block-size: 0;
-}
-
-.collection .collection__toolbar {
-  flex: 0 0 auto;
-  padding: var(--zx-space-1) var(--zx-space-2) var(--zx-space-1) var(--zx-space-4);
-  border-block-end: 1px solid var(--zx-color-border-subtle);
-}
-
-.collection .collection__toolbar .zx-list-toolbar__search {
-  flex: 0 1 18rem;
-  min-inline-size: 0;
-}
-
-/*
- * A denser bar than the toolbar's default. ListToolbar gives every tool a 44px target; here the
- * row is a crowded one — search, four tools, five shapes — and the pointer precision of a desktop
- * list screen does not need it, so the tools follow the control height like the search field
- * beside them, with the gaps and padding of a button. The 24px minimum WCAG asks of every target
- * is kept with room to spare.
- */
-.collection .collection__toolbar.zx-list-toolbar {
-  gap: var(--zx-space-1);
-}
-
-.collection .collection__toolbar .zx-list-toolbar__tools {
-  gap: 0;
-}
-
-.collection .collection__toolbar .zx-list-toolbar__tool,
-.collection .collection__toolbar .zx-list-toolbar__view {
-  min-block-size: var(--zx-control-height);
-  min-inline-size: var(--zx-control-height);
-  padding-inline: var(--zx-space-2);
-}
-
-.collection .collection__toolbar .zx-list-toolbar__view {
-  padding-inline: var(--zx-space-1);
-}
-
-/* A drawer tool while its drawer is open: the toolbar's own pressed look, on the disclosure state
-   the tool carries instead of a pressed one. */
-.collection .collection__toolbar .zx-list-toolbar__tool[aria-expanded="true"] {
-  border-color: var(--zx-color-border-strong);
-  background: var(--zx-color-bg-current);
-}
-
-/* While filters are active the Filter tool takes the accent tint, so the list says it is filtered
-   from the toolbar too. The badge still carries the count; the tint is never the only cue. */
-.collection .collection__toolbar .zx-list-toolbar__tool[data-tool-id="filter"]:has(.zx-badge) {
-  border-color: transparent;
-  background: var(--zx-color-accent-subtle);
-  color: var(--zx-color-accent);
-}
-
-/* Filtered and open: the tint stays, and the open drawer shows as the accent outline. */
-.collection .collection__toolbar .zx-list-toolbar__tool[data-tool-id="filter"][aria-expanded="true"]:has(.zx-badge) {
-  border-color: var(--zx-color-accent);
-}
-
-/* The current presentation in the accent tint: the view you are on is a pick, not a mode. */
-.collection .collection__toolbar .zx-list-toolbar__view[aria-pressed="true"] {
-  background: var(--zx-color-accent-subtle);
-  color: var(--zx-color-accent);
-}
-
-/* The presentations name themselves by their icons; each word stays its button's name. */
-.collection .collection__toolbar .zx-list-toolbar__view-label {
-  position: absolute;
-  overflow: hidden;
-  inline-size: 1px;
-  block-size: 1px;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
-/* ---------------------------------------------------------------- filters -- */
-
-/* A faint band of chips under the toolbar, across the full width; it wraps rather than scrolls,
-   so every chip stays reachable. */
-.collection .collection__filters {
-  display: flex;
-  flex: 0 0 auto;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--zx-space-2);
-  padding: var(--zx-space-2) var(--zx-space-4);
-  border-block-end: 1px solid var(--zx-color-border-subtle);
-  background: var(--zx-color-bg-chrome);
-}
-
-.collection .collection__match {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--zx-space-2);
-  color: var(--zx-color-text-muted);
-  font-size: var(--zx-text-sm);
-}
-
-.collection .collection__match .segmented__item {
-  min-block-size: calc(var(--zx-control-height) - var(--zx-space-2));
-}
-
-.collection .collection__chips {
-  display: contents;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-/* A chip: one control-height pill holding the condition and its remove button. */
-.collection .collection__chip {
-  display: inline-flex;
-  align-items: stretch;
-  min-inline-size: 0;
-  max-inline-size: 100%;
-  border: 1px solid var(--zx-color-border);
-  border-radius: var(--zx-radius-md);
-  background: var(--zx-color-bg-surface);
-  font-size: var(--zx-text-sm);
-}
-
-.collection .collection__chip[data-draft] {
-  border-style: dashed;
-}
-
-.collection .collection__chip-main,
-.collection .collection__chip-remove {
-  display: inline-flex;
-  align-items: center;
-  min-block-size: calc(var(--zx-control-height) - var(--zx-space-1));
-  border: 0;
-  background: none;
-  color: var(--zx-color-text);
-  font: inherit;
-  cursor: pointer;
-}
-
-.collection .collection__chip-main {
-  gap: var(--zx-space-1);
-  min-inline-size: 0;
-  padding-inline: var(--zx-space-2);
-  border-radius: var(--zx-radius-md);
-}
-
-.collection .collection__chip:has(.collection__chip-remove) .collection__chip-main {
-  padding-inline-end: var(--zx-space-1);
-  border-start-end-radius: 0;
-  border-end-end-radius: 0;
-}
-
-.collection .collection__chip-main > .zx-icon {
-  color: var(--zx-color-text-subtle);
-}
-
-.collection .collection__chip-field {
-  color: var(--zx-color-text-muted);
-  white-space: nowrap;
-}
-
-.collection .collection__chip-operator {
-  color: var(--zx-color-text-muted);
-  white-space: nowrap;
-}
-
-.collection .collection__chip-value {
-  overflow: hidden;
-  min-inline-size: 0;
-  color: var(--zx-color-text);
-  font-weight: var(--zx-weight-semibold);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.collection .collection__chip-remove {
-  justify-content: center;
-  inline-size: max(24px, calc(var(--zx-control-height) - var(--zx-space-1)));
-  border-inline-start: 1px solid var(--zx-color-border-subtle);
-  border-start-end-radius: var(--zx-radius-md);
-  border-end-end-radius: var(--zx-radius-md);
-  color: var(--zx-color-text-muted);
-}
-
-.collection .collection__chip-main:hover,
-.collection .collection__chip-remove:hover,
-.collection .collection__chip-main[aria-expanded="true"] {
-  background: var(--zx-color-bg-hover);
-  color: var(--zx-color-text);
-}
-
-.collection .collection__chip-main:focus-visible,
-.collection .collection__chip-remove:focus-visible {
-  position: relative;
-  outline-color: transparent;
-  box-shadow: var(--zx-focus-ring);
-}
-
-/* "Add filter" reads as the place the next chip goes. */
-.collection .collection__add {
-  min-block-size: calc(var(--zx-control-height) - var(--zx-space-1));
-  border: 1px dashed var(--zx-color-border);
-  color: var(--zx-color-text-muted);
-  font-size: var(--zx-text-sm);
-}
-
-.collection .collection__add:hover {
-  border-color: var(--zx-color-border-strong);
-  color: var(--zx-color-text);
-}
-
-.collection .collection__clear {
-  margin-inline-start: auto;
-  color: var(--zx-color-text-muted);
-}
-
-/* -------------------------------------------------------------- chip editor -- */
-
-/* The editor opens in an overlay outside the layout, so its classes carry the block name. */
-.collection__editor {
-  display: grid;
-  gap: var(--zx-space-3);
-  inline-size: min(20rem, calc(100vw - 2 * var(--zx-space-4)));
-  margin: 0;
-  padding: var(--zx-space-3);
-}
-
-.collection__editor-title {
-  display: flex;
-  align-items: center;
-  gap: var(--zx-space-2);
-  margin: 0;
-  color: var(--zx-color-text-muted);
-  font-size: var(--zx-text-sm);
-  font-weight: var(--zx-weight-medium);
-}
-
-.collection__editor-value {
-  display: grid;
-  gap: var(--zx-space-2);
-  min-inline-size: 0;
-}
-
-.collection__editor-value > .zx-number-field,
-.collection__editor-value > .zx-select,
-.collection__editor-input {
-  inline-size: 100%;
-}
-
-.collection__editor-pair {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: center;
-  gap: var(--zx-space-2);
-}
-
-.collection__editor-note {
-  margin: 0;
-  color: var(--zx-color-text-muted);
-  font-size: var(--zx-text-sm);
-}
-
-.collection__editor-error {
-  margin: 0;
-  color: var(--zx-color-danger);
-  font-size: var(--zx-text-sm);
-}
-
-.collection__editor-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--zx-space-2);
-}
-
-.collection__editor-actions > .shell__spacer {
-  flex: 1 1 auto;
-}
-
-/* The sort menu: a small padded panel. */
-.collection__menu {
-  display: grid;
-  gap: var(--zx-space-2);
-  min-inline-size: 14rem;
-  padding: var(--zx-space-3);
-}
-
-/* ----------------------------------------------------------------- drawers -- */
-
-/*
- * The filter drawer, a non-modal end Sheet outside the root: a hint, then the expression editor
- * without its outer frame — the drawer is the frame — and with its add actions leading. Its own
- * Clear goes; the drawer's footer has "Clear all" beside "Done".
- */
-.collection__drawer-body {
-  display: grid;
-  gap: var(--zx-space-4);
-}
-
-.collection__drawer-hint {
-  margin: 0;
-  color: var(--zx-color-text-muted);
-  font-size: var(--zx-text-sm);
-}
-
-.collection__drawer .zx-filter > .zx-filter__group {
-  border: 0;
-  background: transparent;
-  padding: 0;
-}
-
-.collection__drawer .zx-filter > .zx-filter__group > .zx-filter__legend {
-  padding-inline: 0;
-}
-
-.collection__drawer .zx-filter__actions {
-  justify-content: flex-start;
-}
-
-.collection__drawer .zx-filter__actions [data-filter-action="clear"] {
-  display: none;
-}
-
-/* A phone-width window gives a drawer all of its width. */
-@media (max-width: 30rem) {
-  .collection__drawer {
-    --collection-drawer-narrow: 100vw;
-  }
-}
-
-/* Wide, the collection makes room for an open drawer instead of sliding under it, so the list
+/* Wide, the main pane makes room for an open drawer instead of sliding under it, so the list
    beside the filters shows every column while it updates. Narrower, the drawer covers it. */
 @container shell (min-width: 1180px) {
-  .collection[data-drawer-open] .collection__main {
-    margin-inline-end: min(var(--collection-drawer-size, 400px), 100vw);
+  .collection[data-overview-drawer] .collection__main {
+    margin-inline-end: min(var(--overview-drawer-size, 400px), 100vw);
   }
 }
 
-/* ------------------------------------------------------------------ views -- */
-
-.collection .collection__body[data-shape="list"],
-.collection .collection__body[data-shape="cards"],
-.collection .collection__body[data-shape="gallery"] {
-  padding: var(--zx-space-4);
-}
-
-.collection .collection__body[data-shape="board"] {
-  padding: var(--zx-space-4);
-  background: var(--zx-color-bg-page);
-}
-
-/* The sort and the fields live in the toolbar, so a card view's own toolbar has nothing left. */
-.collection .collection__body .zx-card-view__toolbar {
-  display: none;
-}
-
-/* A new presentation fades in rather than snapping into place. */
-@media (prefers-reduced-motion: no-preference) {
-  .collection .collection__body > * {
-    animation: collection-view-in var(--zx-dur-fast) var(--zx-ease);
-  }
-}
-
-@keyframes collection-view-in {
-  from {
-    opacity: 0;
-  }
-}
-
-/* The table scrolls with the body, so its sticky header sticks to the body's top edge. Its
-   hairlines are the subtle border throughout, the header's included. */
-.collection .collection__body .zx-table__scroll {
-  overflow: visible;
-}
-
-.collection .collection__body .zx-table {
-  --zx-table-border-color: var(--zx-color-border-subtle);
-}
+/* ------------------------------------------------------------------ cells -- */
 
 /* The amount over a thin bar of its probability. The bar shows in the table only. */
 .collection .collection__value {
@@ -406,7 +34,7 @@
   display: none;
 }
 
-.collection .collection__body[data-shape="table"] .collection__odds {
+.collection .overview__body[data-shape="table"] .collection__odds {
   display: block;
   inline-size: 100%;
   min-inline-size: var(--zx-space-8);
@@ -423,66 +51,12 @@
   background: var(--zx-color-accent);
 }
 
-.collection .collection__body[data-shape="table"] .zx-table:not([data-stacked]) td:has(.collection__value) {
+.collection .overview__body[data-shape="table"] .zx-table:not([data-stacked]) td:has(.collection__value) {
   padding-block: var(--zx-space-1);
 }
 
 /* Dates line up by their digits. */
 .collection .collection__date {
-  font-variant-numeric: tabular-nums;
-}
-
-/* Where the table may run wider than the pane, the selection and the opportunity's name stay put
-   while the rest scrolls under them. */
-@container shell (max-width: 1180px) {
-  .collection .collection__body .zx-table:not([data-stacked]) :is(.zx-table__selection-header, .zx-table__selection-cell),
-  .collection .collection__body .zx-table:not([data-stacked]) tr > :is(th, td):nth-child(2) {
-    position: sticky;
-    z-index: 1;
-    inset-inline-start: 0;
-    background: var(--zx-color-bg-surface);
-  }
-
-  .collection .collection__body .zx-table:not([data-stacked]) tr > :is(th, td):nth-child(2) {
-    inset-inline-start: var(--zx-control-height);
-    box-shadow: inset -1px 0 0 var(--zx-color-border-subtle);
-  }
-
-  .collection .collection__body .zx-table:not([data-stacked]) thead :is(th, td) {
-    z-index: 3;
-  }
-
-  .collection .collection__body .zx-table:not([data-stacked]) tr[aria-selected="true"] > :is(td, th) {
-    background: linear-gradient(var(--zx-color-bg-selected), var(--zx-color-bg-selected)), var(--zx-color-bg-surface);
-  }
-}
-
-.collection .collection__body .zx-table:not([data-stacked]) td {
-  white-space: nowrap;
-}
-
-.collection .collection__body .zx-table:not([data-stacked]) :is(th, td):first-child:not(.zx-table__selection-header, .zx-table__selection-cell) {
-  padding-inline-start: var(--zx-space-4);
-}
-
-/* A group heading row: the group's name and its count on the chrome tone. */
-.collection .collection__body .collection__group-row > th {
-  padding-block: var(--zx-space-2);
-  background: var(--zx-color-bg-chrome);
-  text-align: start;
-}
-
-.collection .collection__group {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--zx-space-2);
-  font-size: var(--zx-text-sm);
-  font-weight: var(--zx-weight-semibold);
-}
-
-.collection .collection__count {
-  color: var(--zx-color-text-muted);
-  font-weight: 400;
   font-variant-numeric: tabular-nums;
 }
 
@@ -547,18 +121,18 @@
 /* The list: one two-line row per record on a fixed grid — the selection, the company tile, the
    title over the company, then stage, value, owner, and close date in columns that line up from
    row to row. The card's own wrappers step aside (display: contents) so every part is a cell. */
-.collection .collection__body[data-shape="list"] .zx-card-view__list {
+.collection .overview__body[data-shape="list"] .zx-card-view__list {
   gap: 0;
   overflow: hidden;
   border: 1px solid var(--zx-color-border-subtle);
   border-radius: var(--zx-radius-lg);
 }
 
-.collection .collection__body[data-shape="list"] .zx-card-view__group + .zx-card-view__group {
+.collection .overview__body[data-shape="list"] .zx-card-view__group + .zx-card-view__group {
   margin-block-start: var(--zx-space-5);
 }
 
-.collection .collection__body[data-shape="list"] .zx-record-card {
+.collection .overview__body[data-shape="list"] .zx-record-card {
   grid-template-columns: auto auto minmax(0, 1fr);
   align-items: center;
   gap: var(--zx-space-1) var(--zx-space-3);
@@ -567,33 +141,33 @@
   border-radius: 0;
 }
 
-.collection .collection__body[data-shape="list"] .zx-record-card + .zx-record-card {
+.collection .overview__body[data-shape="list"] .zx-record-card + .zx-record-card {
   border-block-start: 1px solid var(--zx-color-border-subtle);
 }
 
-.collection .collection__body[data-shape="list"] .zx-record-card:hover {
+.collection .overview__body[data-shape="list"] .zx-record-card:hover {
   background: var(--zx-color-bg-hover);
 }
 
-.collection .collection__body[data-shape="list"] .zx-record-card[data-selected="true"] {
+.collection .overview__body[data-shape="list"] .zx-record-card[data-selected="true"] {
   background: var(--zx-color-bg-selected);
   box-shadow: inset 2px 0 0 var(--zx-color-accent);
 }
 
-.collection .collection__body[data-shape="list"] .zx-record-card:focus-visible {
+.collection .overview__body[data-shape="list"] .zx-record-card:focus-visible {
   box-shadow: inset var(--zx-focus-ring);
 }
 
-.collection .collection__body[data-shape="list"] :is(.zx-record-card__body, .zx-record-card__header) {
+.collection .overview__body[data-shape="list"] :is(.zx-record-card__body, .zx-record-card__header) {
   display: contents;
 }
 
-.collection .collection__body[data-shape="list"] .zx-record-card__selection {
+.collection .overview__body[data-shape="list"] .zx-record-card__selection {
   grid-row: 1;
   grid-column: 1;
 }
 
-.collection .collection__body[data-shape="list"] .zx-record-card__preview {
+.collection .overview__body[data-shape="list"] .zx-record-card__preview {
   grid-row: 1;
   grid-column: 2;
   inline-size: var(--zx-space-7);
@@ -602,13 +176,13 @@
   border-radius: var(--zx-radius-md);
 }
 
-.collection .collection__body[data-shape="list"] .zx-record-card__titles {
+.collection .overview__body[data-shape="list"] .zx-record-card__titles {
   grid-row: 1;
   grid-column: 3;
   min-inline-size: 0;
 }
 
-.collection .collection__body[data-shape="list"] .zx-record-card__heading {
+.collection .overview__body[data-shape="list"] .zx-record-card__heading {
   overflow: hidden;
   font-size: var(--zx-text-md);
   font-weight: var(--zx-weight-semibold);
@@ -616,7 +190,7 @@
   white-space: nowrap;
 }
 
-.collection .collection__body[data-shape="list"] .zx-record-card__subtitle {
+.collection .overview__body[data-shape="list"] .zx-record-card__subtitle {
   overflow: hidden;
   margin: 0;
   color: var(--zx-color-text-muted);
@@ -626,7 +200,7 @@
 }
 
 /* Narrow, the values run under the title as one wrapping line. */
-.collection .collection__body[data-shape="list"] .zx-record-card__metadata {
+.collection .overview__body[data-shape="list"] .zx-record-card__metadata {
   display: flex;
   flex-wrap: wrap;
   grid-row: 2;
@@ -634,14 +208,14 @@
   gap: var(--zx-space-1) var(--zx-space-3);
 }
 
-.collection .collection__body[data-shape="list"] .zx-record-card__field {
+.collection .overview__body[data-shape="list"] .zx-record-card__field {
   display: block;
   padding: 0;
   background: none;
 }
 
 /* A row's values speak for themselves; their labels stay for screen readers. */
-.collection .collection__body[data-shape="list"] .zx-record-card__label {
+.collection .overview__body[data-shape="list"] .zx-record-card__label {
   position: absolute;
   overflow: hidden;
   inline-size: 1px;
@@ -650,7 +224,7 @@
   white-space: nowrap;
 }
 
-.collection .collection__body[data-shape="list"] .zx-record-card__value {
+.collection .overview__body[data-shape="list"] .zx-record-card__value {
   overflow: hidden;
   overflow-wrap: normal;
   font-size: var(--zx-text-sm);
@@ -658,32 +232,32 @@
   white-space: nowrap;
 }
 
-.collection .collection__body[data-shape="list"] :is([data-field-id="value"], [data-field-id="close"]) .zx-record-card__value {
+.collection .overview__body[data-shape="list"] :is([data-field-id="value"], [data-field-id="close"]) .zx-record-card__value {
   font-variant-numeric: tabular-nums;
 }
 
 /* Wide, every value takes its column. A field shown from the Fields menu beyond the four runs on
    in a line of its own under the title. */
-@container collection (min-width: 46rem) {
-  .collection .collection__body[data-shape="list"] .zx-record-card {
+@container overview (min-width: 46rem) {
+  .collection .overview__body[data-shape="list"] .zx-record-card {
     grid-template-columns: auto auto minmax(0, 1fr) 8.5rem 7rem 11rem 7.5rem;
     column-gap: var(--zx-space-4);
   }
 
-  .collection .collection__body[data-shape="list"] .zx-record-card__metadata {
+  .collection .overview__body[data-shape="list"] .zx-record-card__metadata {
     display: contents;
   }
 
-  .collection .collection__body[data-shape="list"] .zx-record-card__field {
+  .collection .overview__body[data-shape="list"] .zx-record-card__field {
     grid-row: 1;
   }
 
-  .collection .collection__body[data-shape="list"] [data-field-id="stage"] { grid-column: 4; }
-  .collection .collection__body[data-shape="list"] [data-field-id="value"] { grid-column: 5; text-align: end; }
-  .collection .collection__body[data-shape="list"] [data-field-id="owner"] { grid-column: 6; }
-  .collection .collection__body[data-shape="list"] [data-field-id="close"] { grid-column: 7; text-align: end; }
+  .collection .overview__body[data-shape="list"] [data-field-id="stage"] { grid-column: 4; }
+  .collection .overview__body[data-shape="list"] [data-field-id="value"] { grid-column: 5; text-align: end; }
+  .collection .overview__body[data-shape="list"] [data-field-id="owner"] { grid-column: 6; }
+  .collection .overview__body[data-shape="list"] [data-field-id="close"] { grid-column: 7; text-align: end; }
 
-  .collection .collection__body[data-shape="list"] .zx-record-card__field:not([data-field-id="stage"], [data-field-id="value"], [data-field-id="owner"], [data-field-id="close"]) {
+  .collection .overview__body[data-shape="list"] .zx-record-card__field:not([data-field-id="stage"], [data-field-id="value"], [data-field-id="owner"], [data-field-id="close"]) {
     grid-row: 2;
     grid-column: 3;
   }
@@ -692,12 +266,12 @@
 /* --------------------------------------------------------------- gallery -- */
 
 /* The gallery: a 16:10 cover across the top of every card, the titles and two values under it. */
-.collection .collection__body[data-shape="gallery"] .zx-record-card:has(> .zx-record-card__preview) {
+.collection .overview__body[data-shape="gallery"] .zx-record-card:has(> .zx-record-card__preview) {
   grid-template-columns: minmax(0, 1fr);
   align-content: start;
 }
 
-.collection .collection__body[data-shape="gallery"] .zx-record-card__preview {
+.collection .overview__body[data-shape="gallery"] .zx-record-card__preview {
   inline-size: auto;
   block-size: auto;
   margin: 0;
@@ -706,27 +280,27 @@
   aspect-ratio: 16 / 10;
 }
 
-.collection .collection__body[data-shape="gallery"] .zx-record-card:has(> .zx-record-card__preview) .zx-record-card__body {
+.collection .overview__body[data-shape="gallery"] .zx-record-card:has(> .zx-record-card__preview) .zx-record-card__body {
   padding-inline-start: var(--zx-card-view-card-padding);
 }
 
-.collection .collection__body[data-shape="gallery"] .zx-record-card:is(:hover, :focus-within) {
+.collection .overview__body[data-shape="gallery"] .zx-record-card:is(:hover, :focus-within) {
   box-shadow: var(--zx-overlay-shadow);
 }
 
-.collection .collection__body[data-shape="gallery"] .zx-record-card:focus-visible {
+.collection .overview__body[data-shape="gallery"] .zx-record-card:focus-visible {
   box-shadow: var(--zx-focus-ring), var(--zx-overlay-shadow);
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .collection .collection__body[data-shape="gallery"] .zx-record-card {
+  .collection .overview__body[data-shape="gallery"] .zx-record-card {
     transition:
       transform var(--zx-dur-fast) var(--zx-ease),
       box-shadow var(--zx-dur-fast) var(--zx-ease),
       border-color var(--zx-dur-fast) var(--zx-ease);
   }
 
-  .collection .collection__body[data-shape="gallery"] .zx-record-card:is(:hover, :focus-within) {
+  .collection .overview__body[data-shape="gallery"] .zx-record-card:is(:hover, :focus-within) {
     transform: translateY(-2px);
   }
 }
@@ -777,7 +351,7 @@
 /* ----------------------------------------------------------------- board -- */
 
 /* Each stage's column carries a faint wash of its tone; Won settles on the success tint. */
-.collection .collection__body .zx-kanban-view__column {
+.collection .overview__body .zx-kanban-view__column {
   --collection-stage: var(--zx-color-tone-slate-bg);
 
   padding: var(--zx-space-2);
@@ -785,36 +359,10 @@
   background: color-mix(in srgb, var(--collection-stage) 40%, transparent);
 }
 
-.collection .collection__body .zx-kanban-view__column[data-column="proposal"] { --collection-stage: var(--zx-color-tone-blue-bg); }
-.collection .collection__body .zx-kanban-view__column[data-column="negotiation"] { --collection-stage: var(--zx-color-tone-amber-bg); }
-.collection .collection__body .zx-kanban-view__column[data-column="won"] { --collection-stage: var(--zx-color-success-bg); }
-.collection .collection__body .zx-kanban-view__column[data-column="lost"] { --collection-stage: var(--zx-color-tone-red-bg); }
-
-/* A card in flight is lifted well above the resting ones, and so is the preview that follows the
-   pointer. */
-.collection .collection__body .zx-kanban-view .zx-record-card[data-dragging="true"],
-.collection .collection__body .zx-kanban-view__drag-preview {
-  box-shadow: var(--zx-drag-shadow), var(--zx-overlay-shadow);
-}
-
-/* The board's column heads: the stage, its count, and what it is worth. */
-.collection .collection__column-head {
-  display: flex;
-  align-items: center;
-  gap: var(--zx-space-2);
-  min-inline-size: 0;
-}
-
-.collection .collection__column-label {
-  font-weight: var(--zx-weight-semibold);
-}
-
-.collection .collection__column-total {
-  margin-inline-start: auto;
-  color: var(--zx-color-text-muted);
-  font-size: var(--zx-text-sm);
-  font-variant-numeric: tabular-nums;
-}
+.collection .overview__body .zx-kanban-view__column[data-column="proposal"] { --collection-stage: var(--zx-color-tone-blue-bg); }
+.collection .overview__body .zx-kanban-view__column[data-column="negotiation"] { --collection-stage: var(--zx-color-tone-amber-bg); }
+.collection .overview__body .zx-kanban-view__column[data-column="won"] { --collection-stage: var(--zx-color-success-bg); }
+.collection .overview__body .zx-kanban-view__column[data-column="lost"] { --collection-stage: var(--zx-color-tone-red-bg); }
 
 /* The module menu's counts read as one right-aligned column of tabular figures. */
 .collection .shell__nav .zx-app-sidebar__item-badge {
@@ -823,11 +371,7 @@
   text-align: end;
 }
 
-/* ----------------------------------------------------------------- footer -- */
-
-.collection .collection__footer {
-  padding-block: var(--zx-space-2);
-}
+/* --------------------------------------------------------------- bulk bar -- */
 
 .collection .collection__bulk {
   inset-block-end: calc(var(--zx-space-5) + var(--zx-control-height) + var(--zx-space-4));
@@ -835,21 +379,8 @@
 
 /* ------------------------------------------------------------- responsive -- */
 
-/* A narrow collection: the list keeps the title and moves the values under it; the clear button
-   follows the chips instead of pushing to the far end. */
-@container collection (max-width: 40rem) {
-  .collection .collection__clear {
-    margin-inline-start: 0;
-  }
-
-  .collection .collection__toolbar {
-    padding-inline-start: var(--zx-space-2);
-  }
-
-  .collection .collection__filters {
-    padding-inline: var(--zx-space-3);
-  }
-
+/* A narrow collection: the bulk bar spans the pane and wraps. */
+@container overview (max-width: 40rem) {
   .collection .collection__bulk {
     inset-inline: var(--zx-space-3);
     flex-wrap: wrap;

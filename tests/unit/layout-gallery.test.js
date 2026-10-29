@@ -43,7 +43,8 @@ test('the gallery page loads its own stylesheet and script, and imports every la
   assert.match(page, /<script src="site\.js"><\/script>/);
 
   const imports = [...read('website/layouts.css').matchAll(/^@import url\('([^']+)'\);/gm)].map(([, url]) => url);
-  assert.deepEqual(imports, ['layouts/kit.css', ...LAYOUT_IDS.map((id) => `layouts/${id}.layout.css`)]);
+  // The shell, then the overview composition the record screens share, then one sheet per layout.
+  assert.deepEqual(imports, ['layouts/kit.css', 'layouts/overview.css', ...LAYOUT_IDS.map((id) => `layouts/${id}.layout.css`)]);
 });
 
 test('the documentation reads the layouts from the registry and has no layout section', () => {

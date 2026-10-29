@@ -1,0 +1,482 @@
+/*
+ * The overview composition (overview.js): one toolbar, the filter strip under it, the body that
+ * holds one presentation of the records, and the pager — the column a record overview is made of.
+ * Every selector sits under `.overview`; the chip editor, the Sort menu, and the two drawers open in
+ * overlays outside the layout and use block-namespaced classes. Semantic tokens only.
+ *
+ * A layout keeps what only it draws: its cells, card previews, board tints, and the room its main
+ * pane makes for an open drawer (`[data-overview-drawer]` on its root, see overview.js).
+ */
+
+/* ------------------------------------------------------------------ frame -- */
+
+/* The toolbar, the filters, the body, and the footer; a layout's bulk bar floats over them. */
+.overview {
+  container: overview / inline-size;
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-block-size: 0;
+}
+
+.overview .overview__toolbar {
+  flex: 0 0 auto;
+  padding: var(--zx-space-1) var(--zx-space-2) var(--zx-space-1) var(--zx-space-4);
+  border-block-end: 1px solid var(--zx-color-border-subtle);
+}
+
+.overview .overview__toolbar .zx-list-toolbar__search {
+  flex: 0 1 18rem;
+  min-inline-size: 0;
+}
+
+/*
+ * A denser bar than the toolbar's default. ListToolbar gives every tool a 44px target; here the
+ * row is a crowded one — search, three tools, up to five shapes — and the pointer precision of a
+ * desktop list screen does not need it, so the tools follow the control height like the search
+ * field beside them, with the gaps and padding of a button. The 24px minimum WCAG asks of every
+ * target is kept with room to spare.
+ */
+.overview .overview__toolbar .zx-list-toolbar__tools {
+  gap: 0;
+}
+
+.overview .overview__toolbar .zx-list-toolbar__tool,
+.overview .overview__toolbar .zx-list-toolbar__view {
+  min-block-size: var(--zx-control-height);
+  min-inline-size: var(--zx-control-height);
+  padding-inline: var(--zx-space-2);
+}
+
+.overview .overview__toolbar .zx-list-toolbar__view {
+  padding-inline: var(--zx-space-1);
+}
+
+/* A drawer tool while its drawer is open: the toolbar's own pressed look, on the disclosure state
+   the tool carries instead of a pressed one. */
+.overview .overview__toolbar .zx-list-toolbar__tool[aria-expanded="true"] {
+  border-color: var(--zx-color-border-strong);
+  background: var(--zx-color-bg-current);
+}
+
+/* While filters are active the Filter tool takes the accent tint, so the list says it is filtered
+   from the toolbar too. The badge still carries the count; the tint is never the only cue. */
+.overview .overview__toolbar .zx-list-toolbar__tool[data-tool-id="filter"]:has(.zx-badge) {
+  border-color: transparent;
+  background: var(--zx-color-accent-subtle);
+  color: var(--zx-color-accent);
+}
+
+/* Filtered and open: the tint stays, and the open drawer shows as the accent outline. */
+.overview .overview__toolbar .zx-list-toolbar__tool[data-tool-id="filter"][aria-expanded="true"]:has(.zx-badge) {
+  border-color: var(--zx-color-accent);
+}
+
+/* The current presentation in the accent tint: the view you are on is a pick, not a mode. */
+.overview .overview__toolbar .zx-list-toolbar__view[aria-pressed="true"] {
+  background: var(--zx-color-accent-subtle);
+  color: var(--zx-color-accent);
+}
+
+/* The presentations name themselves by their icons; each word stays its button's name. */
+.overview .overview__toolbar .zx-list-toolbar__view-label {
+  position: absolute;
+  overflow: hidden;
+  inline-size: 1px;
+  block-size: 1px;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------- filters -- */
+
+/* A faint band of chips under the toolbar, across the full width; it wraps rather than scrolls,
+   so every chip stays reachable. */
+.overview .overview__filters {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zx-space-2);
+  padding: var(--zx-space-2) var(--zx-space-4);
+  border-block-end: 1px solid var(--zx-color-border-subtle);
+  background: var(--zx-color-bg-chrome);
+}
+
+.overview .overview__match {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+.overview .overview__match .segmented__item {
+  min-block-size: calc(var(--zx-control-height) - var(--zx-space-2));
+}
+
+.overview .overview__chips {
+  display: contents;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A chip: one control-height pill holding the condition and its remove button. */
+.overview .overview__chip {
+  display: inline-flex;
+  align-items: stretch;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  border: 1px solid var(--zx-color-border);
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-bg-surface);
+  font-size: var(--zx-text-sm);
+}
+
+.overview .overview__chip[data-draft] {
+  border-style: dashed;
+}
+
+.overview .overview__chip-main,
+.overview .overview__chip-remove {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: calc(var(--zx-control-height) - var(--zx-space-1));
+  border: 0;
+  background: none;
+  color: var(--zx-color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.overview .overview__chip-main {
+  gap: var(--zx-space-1);
+  min-inline-size: 0;
+  padding-inline: var(--zx-space-2);
+  border-radius: var(--zx-radius-md);
+}
+
+.overview .overview__chip:has(.overview__chip-remove) .overview__chip-main {
+  padding-inline-end: var(--zx-space-1);
+  border-start-end-radius: 0;
+  border-end-end-radius: 0;
+}
+
+.overview .overview__chip-main > .zx-icon {
+  color: var(--zx-color-text-subtle);
+}
+
+.overview .overview__chip-field,
+.overview .overview__chip-operator {
+  color: var(--zx-color-text-muted);
+  white-space: nowrap;
+}
+
+.overview .overview__chip-value {
+  overflow: hidden;
+  min-inline-size: 0;
+  color: var(--zx-color-text);
+  font-weight: var(--zx-weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.overview .overview__chip-remove {
+  justify-content: center;
+  inline-size: max(24px, calc(var(--zx-control-height) - var(--zx-space-1)));
+  border-inline-start: 1px solid var(--zx-color-border-subtle);
+  border-start-end-radius: var(--zx-radius-md);
+  border-end-end-radius: var(--zx-radius-md);
+  color: var(--zx-color-text-muted);
+}
+
+.overview .overview__chip-main:hover,
+.overview .overview__chip-remove:hover,
+.overview .overview__chip-main[aria-expanded="true"] {
+  background: var(--zx-color-bg-hover);
+  color: var(--zx-color-text);
+}
+
+.overview .overview__chip-main:focus-visible,
+.overview .overview__chip-remove:focus-visible {
+  position: relative;
+  outline-color: transparent;
+  box-shadow: var(--zx-focus-ring);
+}
+
+/* "Add filter" reads as the place the next chip goes. */
+.overview .overview__add {
+  min-block-size: calc(var(--zx-control-height) - var(--zx-space-1));
+  border: 1px dashed var(--zx-color-border);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+.overview .overview__add:hover {
+  border-color: var(--zx-color-border-strong);
+  color: var(--zx-color-text);
+}
+
+.overview .overview__clear {
+  margin-inline-start: auto;
+  color: var(--zx-color-text-muted);
+}
+
+/* -------------------------------------------------------------- chip editor -- */
+
+/* The editor opens in an overlay outside the layout, so its classes carry the block name. */
+.overview__editor {
+  display: grid;
+  gap: var(--zx-space-3);
+  inline-size: min(20rem, calc(100vw - 2 * var(--zx-space-4)));
+  margin: 0;
+  padding: var(--zx-space-3);
+}
+
+.overview__editor-title {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  font-weight: var(--zx-weight-medium);
+}
+
+.overview__editor-value {
+  display: grid;
+  gap: var(--zx-space-2);
+  min-inline-size: 0;
+}
+
+.overview__editor-value > .zx-number-field,
+.overview__editor-value > .zx-select,
+.overview__editor-input {
+  inline-size: 100%;
+}
+
+.overview__editor-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--zx-space-2);
+}
+
+.overview__editor-note {
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+.overview__editor-error {
+  margin: 0;
+  color: var(--zx-color-danger);
+  font-size: var(--zx-text-sm);
+}
+
+.overview__editor-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+}
+
+.overview__editor-actions > .shell__spacer {
+  flex: 1 1 auto;
+}
+
+/* The Sort menu: a small padded panel. */
+.overview__menu {
+  display: grid;
+  gap: var(--zx-space-2);
+  min-inline-size: 14rem;
+  padding: var(--zx-space-3);
+}
+
+/* ----------------------------------------------------------------- drawers -- */
+
+/*
+ * The two drawers, non-modal end Sheets outside the layout. The filter drawer: a hint, then the
+ * expression editor without its outer frame — the drawer is the frame — and with its add actions
+ * leading. Its own Clear goes; the drawer's footer has "Clear all" beside "Done".
+ */
+.overview__drawer-body {
+  display: grid;
+  gap: var(--zx-space-4);
+}
+
+.overview__drawer-hint {
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+.overview__drawer .zx-filter > .zx-filter__group {
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.overview__drawer .zx-filter > .zx-filter__group > .zx-filter__legend {
+  padding-inline: 0;
+}
+
+.overview__drawer .zx-filter__actions {
+  justify-content: flex-start;
+}
+
+.overview__drawer .zx-filter__actions [data-filter-action="clear"] {
+  display: none;
+}
+
+/* A phone-width window gives a drawer all of its width. */
+@media (max-width: 30rem) {
+  .overview__drawer {
+    --overview-drawer-narrow: 100vw;
+  }
+}
+
+/* ------------------------------------------------------------------ views -- */
+
+.overview .overview__body[data-shape="list"],
+.overview .overview__body[data-shape="cards"],
+.overview .overview__body[data-shape="gallery"] {
+  padding: var(--zx-space-4);
+}
+
+.overview .overview__body[data-shape="board"] {
+  padding: var(--zx-space-4);
+  background: var(--zx-color-bg-page);
+}
+
+/* The sort and the fields live in the toolbar, so a card view's own toolbar has nothing left. */
+.overview .overview__body .zx-card-view__toolbar {
+  display: none;
+}
+
+/* A new presentation fades in rather than snapping into place. */
+@media (prefers-reduced-motion: no-preference) {
+  .overview .overview__body > * {
+    animation: overview-view-in var(--zx-dur-fast) var(--zx-ease);
+  }
+}
+
+@keyframes overview-view-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* The table scrolls with the body, so its sticky header sticks to the body's top edge. Its
+   hairlines are the subtle border throughout, the header's included. */
+.overview .overview__body .zx-table__scroll {
+  overflow: visible;
+}
+
+.overview .overview__body .zx-table {
+  --zx-table-border-color: var(--zx-color-border-subtle);
+}
+
+/* Where the table may run wider than the pane, the selection and the first column — the record's
+   name — stay put while the rest scrolls under them. */
+@container shell (max-width: 1180px) {
+  .overview .overview__body .zx-table:not([data-stacked]) :is(.zx-table__selection-header, .zx-table__selection-cell),
+  .overview .overview__body .zx-table:not([data-stacked]) tr > :is(th, td):nth-child(2) {
+    position: sticky;
+    z-index: 1;
+    inset-inline-start: 0;
+    background: var(--zx-color-bg-surface);
+  }
+
+  .overview .overview__body .zx-table:not([data-stacked]) tr > :is(th, td):nth-child(2) {
+    inset-inline-start: var(--zx-control-height);
+    box-shadow: inset -1px 0 0 var(--zx-color-border-subtle);
+  }
+
+  .overview .overview__body .zx-table:not([data-stacked]) thead :is(th, td) {
+    z-index: 3;
+  }
+
+  .overview .overview__body .zx-table:not([data-stacked]) tr[aria-selected="true"] > :is(td, th) {
+    background: linear-gradient(var(--zx-color-bg-selected), var(--zx-color-bg-selected)), var(--zx-color-bg-surface);
+  }
+}
+
+.overview .overview__body .zx-table:not([data-stacked]) td {
+  white-space: nowrap;
+}
+
+.overview .overview__body .zx-table:not([data-stacked]) :is(th, td):first-child:not(.zx-table__selection-header, .zx-table__selection-cell) {
+  padding-inline-start: var(--zx-space-4);
+}
+
+/* A group heading row: the group's name and its count on the chrome tone. */
+.overview .overview__body .overview__group-row > th {
+  padding-block: var(--zx-space-2);
+  background: var(--zx-color-bg-chrome);
+  text-align: start;
+}
+
+.overview .overview__group {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  font-size: var(--zx-text-sm);
+  font-weight: var(--zx-weight-semibold);
+}
+
+.overview .overview__count {
+  color: var(--zx-color-text-muted);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A card in flight is lifted well above the resting ones, and so is the preview that follows the
+   pointer. */
+.overview .overview__body .zx-kanban-view .zx-record-card[data-dragging="true"],
+.overview .overview__body .zx-kanban-view__drag-preview {
+  box-shadow: var(--zx-drag-shadow), var(--zx-overlay-shadow);
+}
+
+/* A board column's head (`columnHeader()`): its dot, its name, its count, and a total at the end. */
+.overview .overview__column-head {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  min-inline-size: 0;
+}
+
+.overview .overview__column-label {
+  font-weight: var(--zx-weight-semibold);
+}
+
+.overview .overview__column-total {
+  margin-inline-start: auto;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ----------------------------------------------------------------- footer -- */
+
+.overview .overview__footer {
+  padding-block: var(--zx-space-2);
+}
+
+/* ------------------------------------------------------------- responsive -- */
+
+/* A narrow overview: the clear button follows the chips instead of pushing to the far end. */
+@container overview (max-width: 40rem) {
+  .overview .overview__clear {
+    margin-inline-start: 0;
+  }
+
+  .overview .overview__toolbar {
+    padding-inline-start: var(--zx-space-2);
+  }
+
+  .overview .overview__filters {
+    padding-inline: var(--zx-space-3);
+  }
+}

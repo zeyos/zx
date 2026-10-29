@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import {
   astToFilters, filtersToAst, isDraftNode, mergeDrafts, resolveBoardAxes, withoutDrafts
-} from '../../website/layouts/record-collection-filters.js';
+} from '../../website/layouts/overview-filters.js';
 
 const condition = (id, field, operator, value) => ({ kind: 'condition', id, field, operator, value });
 
@@ -126,4 +126,69 @@ test('on the board the swim lanes are the grouping, and the axes swap rather tha
       }
     }
   }
+});
+
+test('a record is matched through the field reader, text "is" ignoring case', async () => {
+  const { conditionMatches, nodeMatches, filterExpression } = await import('../../website/layouts/overview-filters.js');
+  const record = { ID: 1, company: 'Helios Energie', owner: { id: 'nadine' }, tags: ['pilot'], value: 50000, close: '2026-10-12' };
+  const read = (entry, field) => (field === 'owner' ? entry.owner.id : entry[field]);
+  const type = (field) => (field === 'company' ? 'text' : undefined);
+  const is = (field, operator, value) => conditionMatches(record, { field, operator, value }, { read, type });
+  assert.equal(is('owner', 'anyOf', ['nadine', 'tobias']), true, 'read through the reader');
+  assert.equal(is('owner', 'noneOf', ['nadine']), false);
+  assert.equal(is('company', 'eq', 'helios energie'), true, 'text is case-blind');
+  assert.equal(conditionMatches(record, { field: 'company', operator: 'eq', value: 'helios energie' }), false,
+    'without a type, "is" is exact');
+  assert.equal(is('company', 'contains', 'ENERG'), true);
+  assert.equal(is('value', 'between', [40000, 60000]), true);
+  assert.equal(is('value', 'notBetween', [40000, 60000]), false);
+  assert.equal(is('close', 'before', '2026-11-01'), true, 'ISO dates compare as text');
+  assert.equal(is('tags', 'containsAny', ['pilot', 'upsell']), true);
+  assert.equal(is('tags', 'containsAll', ['pilot', 'upsell']), false);
+  assert.equal(is('tags', 'isEmpty', null), false);
+
+  const chips = { logic: 'or', conditions: [{ field: 'value', operator: 'gt', value: 90000 }, { field: 'tags', operator: 'containsAny', value: ['pilot'] }], advanced: null };
+  assert.equal(nodeMatches(record, filterExpression(chips), { read, type }), true, 'any of the chips');
+  assert.equal(nodeMatches(record, filterExpression({ ...chips, logic: 'and' }), { read, type }), false, 'all of the chips');
+  assert.equal(nodeMatches(record, filterExpression({ logic: 'and', conditions: [], advanced: null })), true, 'no filter matches all');
+  const advanced = { version: 1, root: { kind: 'group', id: 'r', logic: 'and', children: [{ kind: 'condition', id: 'a', field: 'value', operator: 'lt', value: 1 }] } };
+  assert.equal(nodeMatches(record, filterExpression({ ...chips, advanced })), false, 'the advanced expression replaces the chips');
+});
+
+test('a fresh condition value follows its operator, carrying the previous one where it fits', async () => {
+  const { valueFor, conditionCount } = await import('../../website/layouts/overview-filters.js');
+  assert.equal(valueFor('eq'), null);
+  assert.deepEqual(valueFor('anyOf', 'proposal'), ['proposal'], '"is" to "is any of" keeps the stage');
+  assert.deepEqual(valueFor('anyOf', ['a', 'b']), ['a', 'b']);
+  assert.equal(valueFor('eq', ['a', 'b']), 'a');
+  assert.deepEqual(valueFor('between', 5), [5, null]);
+  assert.equal(valueFor('isEmpty', 'x'), null);
+  const nested = { kind: 'group', children: [{ kind: 'condition' }, { kind: 'group', children: [{ kind: 'condition' }, { kind: 'condition' }] }] };
+  assert.equal(conditionCount(nested), 3);
+});
+
+test('records sort within their groups, and a page heads each group with its count', async () => {
+  const { groupsOf, sortRecords, groupCount, withGroupRows } = await import('../../website/layouts/overview-filters.js');
+  const axes = { stage: { label: 'Stage', buckets: [{ id: 'open', label: 'Open', tone: 'info' }, { id: 'won', label: 'Won' }] } };
+  const rows = [
+    { ID: 'a', stage: 'won', value: 3 }, { ID: 'b', stage: 'open', value: 1 }, { ID: 'c', stage: 'open', value: 9 },
+    { ID: 'd', stage: 'won', value: 3 }, { ID: 'e', stage: 'open', value: 5 }
+  ];
+  assert.deepEqual(groupsOf(null, axes), []);
+  const groups = groupsOf('stage', axes);
+  assert.deepEqual(groups.map(({ id, label, tone }) => [id, label, tone]), [['open', 'Open', 'info'], ['won', 'Won', null]]);
+
+  const sorted = sortRecords(rows, { id: 'value', dir: 'desc' }, { groups });
+  assert.deepEqual(sorted.map((row) => row.ID), ['c', 'e', 'b', 'a', 'd'], 'group order first, ties keep their order');
+  assert.deepEqual(sortRecords(rows, { id: 'value', dir: 'asc' }).map((row) => row.ID), ['b', 'a', 'd', 'e', 'c']);
+  const byName = sortRecords([{ n: 'b' }, { n: 'a' }], { id: 'x', dir: 'asc' }, { value: (row) => row.n });
+  assert.deepEqual(byName.map((row) => row.n), ['a', 'b'], 'the sort value reader decides');
+
+  const page = sorted.slice(0, 2);
+  assert.equal(groupCount(groups[0], page, sorted), '2 of 3', 'a group running on to the next page');
+  assert.equal(groupCount(groups[1], sorted, sorted), '2');
+  const table = withGroupRows(page, groups, sorted);
+  assert.deepEqual(table.map((row) => row.ID), ['group:open', 'c', 'e'], 'only groups on the page get a heading');
+  assert.deepEqual(table[0], { ID: 'group:open', kind: 'group', label: 'Open', tone: 'info', count: '2 of 3' });
+  assert.equal(withGroupRows(page, [], sorted), page, 'ungrouped, the page as it is');
 });
