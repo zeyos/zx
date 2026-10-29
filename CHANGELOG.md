@@ -110,8 +110,8 @@ with it, and the sixteen defects a library-wide consistency audit found, fixed.
   never share a field; grouping, saved views, a stage facet, bulk actions, a workspace switcher at
   the head of the module strip, and the pager. Keys: 1–5 views, F and V for the drawers, / for
   search, N for a new record, ? for the sheet.
-- `specs/audit-2026-10/` holds a library consistency audit (repository-only) with the defects
-  above and a staged programme for the remaining redundancies and inconsistencies.
+- The contributor notes gain a library consistency review, repository-only, with the defects above
+  and a staged programme for the remaining redundancies and inconsistencies.
 
 ## 5.1.0 — 2026-10-22
 
