@@ -3,7 +3,9 @@
 > Xenon is a dependency-free design system for browser applications; Zx is its product-agnostic
 > vanilla-JavaScript implementation. ES2022 modules, WAI-ARIA-accessible native controls, semantic `--zx-*` design
 > tokens (light/dark, one token-driven geometry), and lifecycle-safe components. Zero runtime dependencies.
-> This file is the single, complete reference a coding agent needs to build UI with Zx; each
+> This file is the single, complete reference a coding agent needs to build UI with Zx. Read
+> "Choosing what to build with" first: it maps every screen to a layout to start from, every job to
+> its component, and lists the theme settings to decide. Each
 > component below is wrapped in `<!-- doc:<name> -->` markers so tools can extract a single
 > component's section (`website/docs.html` renders them as each component's Reference tab).
 
@@ -46,6 +48,175 @@ const t = new Table(target, options);
 - Global: `<script src="/assets/zx.global.js">` → `window.zx.*`.
 - Styles: load `/assets/zx.css` once.
 - Build bundles with `npm run build` (esbuild). No build is needed to develop against `src/`.
+
+## Choosing what to build with
+
+Three decisions come before any code: which **layout** the screen is, which **component** does
+each job, and which **theme settings** the application pins. The library already answers most of
+them. A screen that invents its own shell, table, menu, or colour is the exception to justify,
+never the default — it costs the accessibility, keyboard map, theming, and print behaviour the
+standard parts already have.
+
+### Start from a layout, not a blank page
+
+Every layout in the gallery (<https://zx.zeyos.com/layouts>, `layouts.html#<id>` opens one,
+`layout.html#<id>` shows it alone) is a complete, working screen on one shared application shell,
+and its source is public: `https://zx.zeyos.com/layouts/<id>.layout.js` with `<id>.layout.css`
+(in the repository, `website/layouts/`). Open the closest one, keep its anatomy — the columns,
+the pane headers, the toolbar, the drawers, the states, the keyboard map — and change the data,
+the fields, and the copy.
+
+The helpers a layout imports are public too, and meant to be copied beside application code
+(they are documentation-site modules, not package exports; import them relatively):
+
+- `layouts/kit.js` + `kit.css` — the shell: `.shell` and its columns, `paneHeader()`,
+  `propList()`, `.list-row`, `.surface`, `suiteNav()` (module strip + module menu, with a
+  `workspace` switcher), `adaptiveShell()` (every column stays reachable at any width),
+  `shortcuts()` and `shortcutSheet()` (`?`), `toast()`, `loadChartJs()`.
+- `layouts/overview.js` + `overview.css` — `createOverview()`: one toolbar over one record set
+  shown as table, list, cards, gallery, or board; search; filters as editable chips with a Filters
+  drawer; a View settings drawer; grouping, sorting, paging, selection and bulk actions; a base
+  filter for tabs and scopes; split empty states. The record collection, CRM, and issue tracker
+  are all this one composition.
+
+Which layout a screen is:
+
+| The screen | Start from | Not from |
+| --- | --- | --- |
+| A list of records of one type (companies, tickets, orders, files) | **Record collection** (`record-collection`) — the toolbar, chips, drawers and pager come with it | a bare `Table` under a heading |
+| A list beside the record being edited | **Master–detail** (`master-detail`) | two unrelated panes |
+| One record on its own page | **Record page** (`record-page`) | a form |
+| Figures, charts, a period switch | **Dashboard** (`dashboard`) | cards of big numbers |
+| Settings in sections | **Settings workspace** (`settings-workspace`) | one long form |
+| Creating something in steps | **Record wizard** (`record-wizard`, vertical steps) or **Checkout wizard** (`checkout-wizard`, horizontal) | tabs |
+| Conversations, triage | **Inbox** (`inbox`) or the **Mail** template | — |
+| An assistant | **Agent chat** (`agent-chat`, one run with tools and approvals) or the **AI chat** template | a chat bubble list |
+| Empty, loading, error, offline, confirmation | **System states** (`system-states`) — every screen needs these; copy them | ad-hoc messages |
+| A whole application | the closest **template** below; they share one shell | a new shell |
+
+Templates — complete applications with navigation, lists, records, and editors together:
+
+| id | Screen | Use it for |
+| --- | --- | --- |
+| `mail` | Mail | a keyboard-first inbox: split streams, one-key triage, snooze, inline reply |
+| `issue-tracker` | Issue tracker | work items grouped by status or on a board, chips, sub-items, activity, properties edited in place |
+| `wiki` | Knowledge base | nested pages in spaces, a reading column with a live outline, comments, Markdown editing |
+| `ai-chat` | AI chat | chat with an assistant: tool steps, sources, artifacts with versions, per-chat settings |
+| `agent-workspace` | Agent workspace | a team of agents: roster with presence, plans and logs, approvals, a palette, a terminal |
+| `invoice-editor` | Invoice editor | a document edited beside its live page, totals per rate, a send step that locks it |
+| `item-inventory` | Item & inventory | one master-data record: levels per location, linked documents, tabbed settings, a log |
+| `workflows` | Workflows | recurring processes as step flows: built, run, measured |
+| `infrastructure` | Infrastructure | monitoring: health, alerts, traffic, drill-down to the unit |
+| `crm` | CRM | companies, people, deals: editable collections with saved views, record pages, a stage board |
+
+Patterns — single screens that recur in every application:
+
+| id | Screen | What it shows |
+| --- | --- | --- |
+| `master-detail` | Master–detail | a filterable list beside the record being edited; save, revert, unsaved-change checks |
+| `record-collection` | Record collection | one record type as table, list, cards, gallery, and board under one toolbar; filter chips and drawers |
+| `dashboard` | Dashboard | figures, a chart, tabbed detail, one period switch redrawing all of it |
+| `inbox` | Inbox | three panes: folders, conversations, the open thread with a reply |
+| `record-page` | Record page | one record: summary header, tabs for lines, files and history, editable details |
+| `agent-chat` | Agent chat | one agent run: plan, tool calls, an approval that holds it, a streamed answer with sources |
+| `record-wizard` | Record wizard | creation in validated vertical steps with a running total and a review |
+| `checkout-wizard` | Checkout wizard | a focused horizontal flow beside a live summary |
+| `settings-workspace` | Settings workspace | personal settings in sections, saved together |
+| `system-states` | System states | every empty, loading, error, and confirmation state, with an offline switch |
+| `zeyos-invoices` | ZeyOS invoices | a table and a form generated from the ZeyOS schema, beside the ZeyOS module navigation |
+
+Every application shares one shell: `AppSidebar` (or `ModuleBar` for the module level) with
+`AccountMenu`, a `WorkspaceSwitcher` where users have several workspaces, a `Launcher` as the
+command palette, `?` for the shortcut sheet, and `data-zx-theme` honoured throughout. Do not design
+a second navigation.
+
+### The component for the job
+
+| Job | Use | Rather than |
+| --- | --- | --- |
+| Records the user scans, sorts, selects | `Table`; `TableView` when the same records also appear as cards or a board | a styled `<table>`, a list of `<div>`s |
+| Records as cards or a gallery | `CardView` (`keyboard: 'roving'`, `groupBy`, `collapsibleGroups`) | `Card`s in a CSS grid |
+| Records by stage, dragged between columns | `KanbanView` | — |
+| One record set, several presentations, one state | `RecordView` family + `ListToolbar` + `ViewSettings` + `Pagination` — `createOverview()` wires them | three components with three states |
+| The bar above a record view | `ListToolbar` (search, live count, view switch, badged tools) | a row of buttons |
+| Sorting outside a header | `SortControl` | two selects |
+| Paging | `Pagination` (`paginationRange()` for the numbers) | — |
+| Filters, quick and client-side | `DataFilter` | — |
+| Filters typed from a server's field metadata | `FilterPanel` (`mode: 'draft'|'live'`) | — |
+| Filters the user composes, nested, serialisable | `Filter` (an AST; `parseFilterAst()`/`stringifyFilterAst()`) | — |
+| A spreadsheet-like editable grid (lines, positions) | `Grid` (`Grid.BillingItems()`) | `Table` with `editMode` — that is for occasional cell edits |
+| A tree | `TreeView` (one column) or `Finder` (Miller columns) | nested `<ul>`s |
+| Events over time | `Calendar` (agenda, day, week, month, year) | — |
+| One number with context | `StatTile` (delta, sparkline, loading) | a card with a big figure |
+| A chart | `Chart` with `ChartJsAdapter` (Chart.js injected, never bundled) | — |
+| A linked record inline | `EntityRef` | a link |
+| Files | `FileItem` / `FileList`; uploading: `FieldUpload` | — |
+| History, comments, a feed | `ActivityItem` / `ActivityList` | — |
+| Choose one of many | `Select` (`filter: 'local'` or async for long lists; `Select.entity()` for records; `Select.priority()` / `Select.status()` presets); native radios for a handful of visible options | a custom dropdown |
+| Choose many | `TagPicker` (identity, colour, icons), `Checklist` (a plain list) | — |
+| On or off | `Toggle` (takes effect at once), `CheckButton` (a mode in a toolbar), a native checkbox inside a form | — |
+| Search | `Search` | an input with an icon |
+| Number, date, time, range | `NumberField`, `Datebox` / `DateTimeBox`, `Timebox`, `DateRangeBox`, `Slider`, `Rating` | plain inputs |
+| A form | `Form` → `Fieldset` → `Field` (the type registry); `Questionnaire` for one question at a time | hand-laid inputs |
+| Structured text, code | `CodeEditor` | a textarea |
+| Repeating values | `ValueList`, `MultiValueEditor` | — |
+| Confirm, alert, prompt | `Dialog.confirm()` / `Dialog.alert()` / `Dialog.prompt()` (Promises) | `window.confirm` |
+| A task in a window | `Dialog` (header, footer, buttons); `Modal` is the bare surface | — |
+| Edit without leaving the list | `Sheet` (`side: 'end'`); drill-down: `SheetStack`; a persistent pane: `Dock` | a dialog |
+| Transient status | `Message.success()` / `.info()` / `.warning()` / `.error()` (toasts); inline `Message` for a region | an alert bar built by hand |
+| Actions on a thing | `MenuButton`; `ContextMenu` (right-click and Shift+F10; one instance per table via `selector`) | a floating `<div>` |
+| Anchored content, hints | `Dropdown`; `tooltip()` / `describe()` | `title` attributes alone |
+| A row of actions | `Toolbar` (overflow menu, one Tab stop) | a flex row of buttons |
+| Navigation | `AppSidebar` (tree, sections, `layout: 'modules'`), `ModuleBar`, `NavigationBar`, `Tabbox` (in-page), `Breadcrumb` (where am I), `Stepper` (a sequence) | — |
+| Commands by keyboard | `Launcher` | — |
+| Account and workspace | `AccountMenu`, `WorkspaceSwitcher` | — |
+| Grouping content | `Card`, `Panel` (actions in the header or footer), `Groupbox`, `MasterPanel`, `SplitView`, `stack()` / `grid()` / `aspect()` | ad-hoc wrappers |
+| Identity and status marks | `Avatar`, `AppIcon`, `badge()` (`kind` says how it is doing, `tone` what it is) | coloured spans |
+| Nothing yet, loading, failed | `emptyState()`, `skeleton()` / `skeletonText()` / `skeletonTable()`, `InlineLoading`, `spinner()`, `ProgressBar` | a blank area |
+| Ambient colour behind a hero, a login, a launcher | `Aurora` | CSS gradients |
+| Icons | `icon(name)` — the bundled set or Font Awesome, whichever the application opted into | inline SVG |
+
+### Theming decisions
+
+Decide these once per application, in this order, and express each as the attribute or token
+the library already reads — never as component CSS:
+
+1. **Theme** — `data-zx-theme="auto"` unless the product pins `light` or `dark`. Both must work; a
+   region may differ from the page.
+2. **Accent** — a preset (`data-zx-preset="zx|zeyos|ocean|violet|rose|slate"`) or a five-stop
+   `--zx-accent-300…700` ramp built in the theme studio (<https://zx.zeyos.com/theme.html>), which
+   exports the CSS. Never a one-off colour on a button.
+3. **Geometry** — the rhythm is three tokens on `:root` (or on a dense region): `--zx-space-unit`,
+   `--zx-control-height`, `--zx-radius`. Dense data tools sit around 3.5px / 28px; comfortable
+   products around 4.5px / 32–34px. Never a per-component size.
+4. **Material** — `Flat`, `Glass`, or `Deep glass`, exported from the studio as token overrides
+   (there is no attribute); `Aurora` supplies the light glass responds to. Reduced-transparency,
+   high-contrast, forced-colour and unsupported-filter environments fall back to solid surfaces on
+   their own.
+5. **Motion** — `data-zx-motion="reduced"` is the only switch; own transitions use `--zx-dur-*`,
+   `--zx-ease`, `--zx-ease-spring`, `--zx-ease-drawer`.
+6. **Colour roles** — `--zx-color-tone-*` for categories (tags, modules, avatars),
+   `--zx-color-danger|warning|success|info` for status, `--zx-color-bg-current` for "you are here"
+   and `--zx-color-bg-selected` for "what you picked", `--zx-color-bg-chrome` for navigation and
+   inspector columns. A module's colour is its `tone` on `ModuleBar`.
+7. **Type** — `--zx-font-sans`, `--zx-font-mono`, `--zx-text-md` (the control size); the steps
+   follow.
+8. **Fields** — `data-zx-fields="quiet"` on property panels (no border or fill until hovered or
+   focused).
+9. **Print** — works without work; keep status badges, hide chrome. Nothing to add.
+10. **Markup-first pages** — `defineElements()` for `<zx-*>` custom elements where templates are
+    authored as HTML.
+
+### Never
+
+- No raw colours (`#hex`, `rgb()`, named), no tier-1 tokens (`--zx-gray-*`, `--zx-emerald-*`,
+  `--zx-tone-*`), no hard-coded sizes the geometry tokens cover.
+- No application CSS on component internals (`.zx-<component>__<part>` selectors); override a
+  token, or use a published hook.
+- No hand-built dropdowns, menus, dialogs, tooltips, tables, date pickers, or toasts.
+- No `innerHTML` with data; `h()` and text nodes.
+- No state classes; state is ARIA and `data-state`, which the stylesheets already match.
+- No second shell, second navigation, or second keyboard convention inside one application.
 
 ## Theming
 

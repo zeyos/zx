@@ -16,6 +16,32 @@ Use it whenever you create or modify Zx UI: instantiating components, composing 
 opening dialogs and toasts, theming, adding a `<zx-*>` custom element, or wiring the optional
 ZeyOS data binding.
 
+## Start from a layout, not a blank page
+
+Before composing components, pick the layout the screen is and start from its source. Every
+layout in `website/layouts/` (gallery: `website/layouts.html#<id>`) is a complete, working screen
+on one shared shell: keep its anatomy — columns, pane headers, toolbar, drawers, states, keyboard
+map — and change the data, the fields, and the copy. The shell lives in `website/layouts/kit.js`
+and `kit.css`; the toolbar-chips-drawers-pager composition every record screen uses is
+`createOverview()` in `website/layouts/overview.js` and `overview.css`.
+
+| The screen | Start from |
+| --- | --- |
+| a list of records of one type | `record-collection` — never a bare `Table` under a heading |
+| a list beside the record being edited | `master-detail` |
+| one record on its own page | `record-page` |
+| figures, charts, a period switch | `dashboard` |
+| settings in sections | `settings-workspace` |
+| creation in steps | `record-wizard` (vertical) or `checkout-wizard` (horizontal) |
+| conversations, triage | `inbox`, or the `mail` template |
+| an assistant | `agent-chat`, or the `ai-chat` / `agent-workspace` templates |
+| empty, loading, error, offline, confirmation | `system-states` — every screen needs these |
+| a schema-driven ZeyOS screen | `zeyos-invoices` |
+| a whole application | the closest template: `mail`, `issue-tracker`, `wiki`, `ai-chat`, `agent-workspace`, `invoice-editor`, `item-inventory`, `workflows`, `infrastructure`, `crm` |
+
+The full map — screen → layout, job → component, and the theming decisions — is the
+"Choosing what to build with" section at the top of `docs/llms.md`. Read it before building.
+
 ## Core mental model
 
 Every visual component is an ES class extending `Component`, instantiated the same way:
@@ -64,7 +90,13 @@ Groups (matching the demo sidebar):
   Note its root is a zero-sized anchor on `<body>`, so listen with `on('select')`/`onselect` —
   the bubbling `zx-select` does not pass through the target's tree.
 - **Data**: `Table` (sortable, selectable, sticky header, local/server sort, opt-in inline
-  cell/row editing via `editMode`), `DataFilter`, `Pagination` (+ pure `paginationRange()`).
+  cell/row editing via `editMode`, APG grid keyboard when interactive), the `RecordView` family —
+  `TableView`, `CardView` (`keyboard: 'roving'`, collapsible groups), `KanbanView` — sharing one
+  state, with `ListToolbar` (search, count, view switch), `ViewSettings` (field order, visibility,
+  grouping, board axes), `SortControl`, `Pagination`; filters: `DataFilter` (quick, client-side),
+  `FilterPanel` (typed from server field metadata), `Filter` (nested expression, serialisable);
+  `Grid` (`Grid.BillingItems()`), `Chart` + `ChartJsAdapter`, `Calendar`, `StatTile`,
+  `EntityRef`, `FileList`/`FileItem`, `ActivityList`/`ActivityItem`, `TreeView`, `Finder`.
 - **Forms**: `Form` → `Fieldset` → `Field` (type registry: text/password/int/float/textarea/
   checkbox/select/optionlist/hidden/html/custom + widget types zxselect/checklist/date/month/
   datetime/daterange/time/valuelist/multivalueeditor/upload/toggle/number/rating/tagpicker/
@@ -180,6 +212,16 @@ overriding **semantic** tokens only (`--zx-color-*`, `--zx-control-*`, `--zx-spa
 `--zx-radius-*`, `--zx-text-*`) under a `[data-zx-theme="name"]` selector. Never reference tier-1
 palette tokens (`--zx-gray-*`, `--zx-green-*`) or raw color literals in component/app CSS —
 `tests/lint-tokens.js` enforces this.
+
+**Decide these once per application**, as the attribute or token the library reads — never as
+component CSS: the theme (`auto` unless pinned; both must work), the accent (a
+`data-zx-preset` or a five-stop ramp from `website/theme.html`, which exports the CSS), the
+geometry (`--zx-space-unit`, `--zx-control-height`, `--zx-radius` on `:root` or a dense region),
+the material (Flat, Glass, Deep glass — studio-exported token overrides; `Aurora` for the light
+glass responds to), motion (`data-zx-motion="reduced"`; own transitions use `--zx-dur-*` and the
+`--zx-ease*` curves), colour roles (`--zx-color-tone-*` for categories, status tokens for status,
+`bg-current` for "you are here" vs `bg-selected` for "what you picked"), type
+(`--zx-font-sans`, `--zx-text-md`), and `data-zx-fields="quiet"` on property panels.
 
 ## Custom elements (declarative)
 

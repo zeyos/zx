@@ -18,6 +18,24 @@ exports and as `window.zx.*`.
 - [API reference](llms.md): per-component constructor options, methods, and events for all public components plus the core helpers.
 - [Changelog](../CHANGELOG.md): what changed in each release, including behaviour changes an upgrade has to account for.
 
+## Start here: choosing
+- Start every screen from the closest **layout**, never from a blank page. Gallery:
+  https://zx.zeyos.com/layouts (`layouts.html#<id>` opens one); source
+  `https://zx.zeyos.com/layouts/<id>.layout.js` + `<id>.layout.css`; the shell helpers
+  `layouts/kit.js` + `kit.css`, and `layouts/overview.js` + `overview.css` (`createOverview()`,
+  the toolbar-chips-drawers-pager composition every record screen uses). They are site modules,
+  not package exports: copy them beside the application.
+- Templates (complete applications on one shell): `mail`, `issue-tracker`, `wiki`, `ai-chat`,
+  `agent-workspace`, `invoice-editor`, `item-inventory`, `workflows`, `infrastructure`, `crm`.
+  Patterns (single screens): `master-detail`, `record-collection` (any list of records),
+  `dashboard`, `inbox`, `record-page`, `agent-chat`, `record-wizard`, `checkout-wizard`,
+  `settings-workspace`, `system-states` (every empty, loading, error, and confirmation state),
+  `zeyos-invoices`.
+- The agent reference's **"Choosing what to build with"** section maps each screen to its layout
+  and each job to its component, lists the theming decisions (theme, accent preset, geometry
+  tokens, material, motion, colour roles), and what never to build by hand. Read it before
+  building anything.
+
 ## Components
 - Inputs: `button()`, `buttonGroup()`, `badge()`/`badgeGroup()`, `CheckButton`,
   `Toggle`, `Search`,

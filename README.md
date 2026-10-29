@@ -191,6 +191,25 @@ ZeyOS binding — see `src/zeyos/modules.js`.
 | `skeleton()`, `skeletonText()`, `skeletonTable()` | Placeholders shaped like the content that is coming. |
 | `truncate()` | Clamps text to a number of lines, with the full value on hover. |
 
+## Start from a layout
+
+The [layout gallery](https://zx.zeyos.com/layouts) holds complete, working screens on one shared
+application shell, each with its source. Start a new screen from the closest one and change the
+data and the copy, rather than composing components on a blank page: the columns, toolbar,
+drawers, states, and keyboard map come with it.
+
+- **Templates** — complete applications: `mail`, `issue-tracker`, `wiki`, `ai-chat`,
+  `agent-workspace`, `invoice-editor`, `item-inventory`, `workflows`, `infrastructure`, `crm`.
+- **Patterns** — single screens: `master-detail`, `record-collection` (any list of records as a
+  table, list, cards, gallery, or board), `dashboard`, `inbox`, `record-page`, `agent-chat`,
+  `record-wizard`, `checkout-wizard`, `settings-workspace`, `system-states`, `zeyos-invoices`.
+
+`layouts.html#<id>` opens one; `layout.html#<id>` shows it alone. The shell helpers
+(`layouts/kit.js`, `kit.css`) and the record-screen composition (`createOverview()` in
+`layouts/overview.js`, `overview.css`) are served beside the layouts and are meant to be copied into an application.
+The agent reference ([docs/llms.md](docs/llms.md), "Choosing what to build with") maps every
+screen to a layout and every job to a component.
+
 ## Talking to ZeyOS
 
 Use `@zeyos/client` for ZeyOS authentication, transport, generated resource operations, and runtime
