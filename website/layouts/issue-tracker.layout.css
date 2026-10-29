@@ -1,6 +1,20 @@
-/* Issue tracker layout. Every selector is scoped under .tracker, or carries the block's own prefix
-   (.tracker__create, .tracker__filters, the glyphs) for dialog and dropdown content rendered
-   outside it. */
+/* Issue tracker layout, on the kit's overview composition (overview.css styles the toolbar, the
+   filter strip, the drawers, and the pager). What is here is the tracker's own: the header and its
+   tabs, the list's dense rows, the glyphs, the board's cards, the open issue, and the aside. Every
+   selector is scoped under .tracker, or carries the block's own prefix (.tracker__create, the
+   glyphs) for dialog content rendered outside it. */
+
+/* ------------------------------------------------------------------ frame -- */
+
+/* Wide, the main pane makes room for an open overview drawer instead of sliding under it. Beside
+   the properties aside, the drawer lies over the aside and the pane gives up only the rest. */
+@container shell (min-width: 1180px) {
+  .tracker[data-overview-drawer] .tracker__main { margin-inline-end: min(var(--overview-drawer-size, 400px), 100vw); }
+
+  .tracker[data-overview-drawer]:has(> .shell__aside:not([hidden])) .tracker__main {
+    margin-inline-end: max(0px, var(--overview-drawer-size, 400px) - var(--shell-aside-wide-width));
+  }
+}
 
 /* ---------------------------------------------------------------- header -- */
 
@@ -20,70 +34,62 @@
   gap: var(--zx-space-1);
 }
 
-/* The list/board switch shows icons only, so its items are square. */
-.tracker .tracker__actions .segmented__item {
-  padding-inline: var(--zx-space-2);
+/* ------------------------------------------------------------- the list -- */
+
+/* The list: one dense row per issue — priority (or, while selecting, the check), key, status, the
+   title with its sub-issue count, then labels, due date, assignee, and filing date at the end. The
+   row is a CardView card whose own wrappers step aside (display: contents), so its parts sit on one
+   grid: the leading glyphs, the title, and the trailing values. */
+.tracker .overview__body[data-shape="list"] {
+  padding: var(--zx-space-2) var(--zx-space-2) var(--zx-space-8);
 }
 
-.tracker__filters {
-  inline-size: 18rem;
-  max-block-size: min(32rem, 70vh);
-  overflow: auto;
-  padding: var(--zx-space-3);
+.tracker .overview__body[data-shape="list"] .zx-card-view__list {
+  gap: 2px;
 }
 
-/* ------------------------------------------------------------ the list -- */
-
-.tracker .tracker__list {
-  padding-block-end: var(--zx-space-8);
+.tracker .overview__body[data-shape="list"] .zx-card-view__group + .zx-card-view__group {
+  margin-block-start: var(--zx-space-2);
 }
 
-/* A group heading is an inset strip one tint above the canvas, with no rules around it. It stays at
-   the top while its group scrolls, so it is opaque. */
-.tracker .tracker__group-head {
+/* A group heading row is an inset strip one tint above the canvas, with no rules around it: the
+   collapse toggle with the group's glyph, name, and count, and "New issue in" at the end. It stays
+   at the top while its group scrolls, so it is opaque. */
+.tracker .overview__body[data-shape="list"] .zx-card-view__group-header {
   position: sticky;
-  z-index: 1;
-  inset-block-start: 0;
+  z-index: 2;
+  inset-block-start: calc(-1 * var(--zx-space-2));
   display: flex;
   align-items: center;
   gap: var(--zx-space-1);
   min-block-size: calc(var(--zx-space-unit) * 9);
-  margin: var(--zx-space-2) var(--zx-space-2) 2px;
-  padding-inline: var(--zx-space-1);
+  margin: 0 0 2px;
+  padding-inline: var(--zx-space-2) var(--zx-space-1);
   border-radius: var(--zx-radius-md);
   background: color-mix(in srgb, var(--zx-color-text) 3%, var(--zx-color-bg-surface));
-  font-size: var(--zx-text-sm);
 }
 
-.tracker .tracker__group-toggle {
-  display: inline-flex;
+.tracker .overview__body[data-shape="list"] .zx-card-view__group-cell {
   flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+.tracker .overview__body[data-shape="list"] .zx-card-view__group-heading {
+  margin: 0;
+  font-size: var(--zx-text-sm);
+  font-weight: var(--zx-weight-medium);
+}
+
+.tracker .overview__body[data-shape="list"] .zx-card-view__group-toggle {
+  gap: var(--zx-space-2);
+  margin-inline-start: 0;
+  padding: var(--zx-space-1) var(--zx-space-2);
+}
+
+.tracker .tracker__group {
+  display: inline-flex;
   align-items: center;
   gap: var(--zx-space-2);
-  min-inline-size: 0;
-  min-block-size: 0;
-  padding: var(--zx-space-1) var(--zx-space-2);
-  border: 0;
-  border-radius: var(--zx-radius-sm);
-  background: none;
-  color: var(--zx-color-text);
-  font: inherit;
-  font-weight: var(--zx-weight-medium);
-  text-align: start;
-  cursor: pointer;
-}
-
-.tracker .tracker__group-toggle:focus-visible {
-  outline-color: transparent;
-  box-shadow: var(--zx-focus-ring);
-}
-
-.tracker .tracker__group-toggle > .zx-icon:first-child {
-  color: var(--zx-color-text-subtle);
-}
-
-.tracker .tracker__group-toggle:hover > .zx-icon:first-child {
-  color: var(--zx-color-text);
 }
 
 .tracker .tracker__group-count {
@@ -92,27 +98,204 @@
   font-variant-numeric: tabular-nums;
 }
 
-.tracker .tracker__row {
-  grid-template-columns: 16px 6.5ch 14px minmax(0, 1fr) auto 6ch;
+.tracker .tracker__group-actions {
+  display: flex;
+  flex: none;
+}
+
+.tracker .overview__body[data-shape="list"] .zx-record-card {
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   column-gap: var(--zx-space-3);
+  min-block-size: calc(var(--zx-space-unit) * 10);
+  overflow: visible;
+  padding: var(--zx-space-1) var(--zx-space-3);
+  border: 0;
+  border-radius: var(--zx-radius-md);
+  background: transparent;
   font-size: var(--zx-text-sm);
+  cursor: default;
 }
 
-.tracker .tracker__row[data-brief] {
-  grid-template-columns: 16px 6.5ch 14px minmax(0, 1fr) auto;
+.tracker .overview__body[data-shape="list"] .zx-record-card:hover {
+  background: var(--zx-color-bg-hover);
 }
 
-/* The row the keyboard is on keeps the shell's neutral current fill; rows picked with X are a
-   selection, so they take the accent tint and show a check where the priority was. */
-.tracker .tracker__row[aria-selected="true"] {
+/* The row the keyboard is on takes the neutral current fill; rows picked for the bulk bar are a
+   selection, so they take the accent tint. */
+.tracker .overview__body[data-shape="list"] .zx-record-card[aria-current="true"] {
+  background: var(--zx-color-bg-current);
+}
+
+.tracker .overview__body[data-shape="list"] .zx-record-card[data-selected="true"] {
   background: var(--zx-color-bg-selected);
 }
 
-.tracker .tracker__check {
-  display: inline-grid;
-  place-items: center;
-  color: var(--zx-color-accent);
+.tracker .overview__body[data-shape="list"] .zx-record-card:focus-visible {
+  outline-color: transparent;
+  box-shadow: inset 0 0 0 2px var(--zx-color-ring);
+}
+
+.tracker .overview__body[data-shape="list"] :is(.zx-record-card__body, .zx-record-card__header,
+  .zx-record-card__titles, .zx-record-card__title-row) {
+  display: contents;
+}
+
+/* The leading glyphs: priority, key, status. The selection check shares the priority's place. */
+.tracker .overview__body[data-shape="list"] .zx-record-card__title-prefix {
+  display: flex;
+  flex-wrap: nowrap;
+  grid-row: 1;
+  grid-column: 1;
+  align-items: center;
+  gap: var(--zx-space-3);
+}
+
+.tracker .overview__body[data-shape="list"] .zx-record-card__selection {
+  --tracker-check-slack: max(0px, (24px - var(--zx-space-4)) / 2);
+
+  z-index: 1;
+  grid-row: 1;
+  grid-column: 1;
+  align-self: center;
+  justify-self: start;
+  min-block-size: 0;
+  margin-inline-start: calc(-1 * var(--tracker-check-slack));
+  opacity: 0;
+}
+
+/* The check is drawn, as the table draws its own: a --zx-space-4 box inside a transparent border
+   that makes up a 24px target, in the accent once checked. Forced colours get the native control. */
+.tracker .overview__body[data-shape="list"] .zx-record-card__selection input {
+  appearance: none;
+  display: grid;
+  place-content: center;
+  box-sizing: content-box;
+  inline-size: var(--zx-space-4);
+  block-size: var(--zx-space-4);
+  min-block-size: auto;
+  margin: 0;
+  border: var(--tracker-check-slack) solid transparent;
+  border-radius: calc(var(--zx-radius-sm) + var(--tracker-check-slack));
+  padding: 0;
+  background: var(--zx-color-bg-control) padding-box;
+  box-shadow: inset 0 0 0 1px var(--zx-color-text-subtle);
+  color: var(--zx-color-on-accent);
+  cursor: pointer;
+}
+
+.tracker .overview__body[data-shape="list"] .zx-record-card__selection input::before {
+  content: "";
+  inline-size: calc(var(--zx-space-4) * .625);
+  block-size: calc(var(--zx-space-4) * .625);
+  background: currentColor;
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0, 43% 62%);
+  visibility: hidden;
+}
+
+.tracker .overview__body[data-shape="list"] .zx-record-card__selection input:checked {
+  background-color: var(--zx-color-accent);
+  box-shadow: inset 0 0 0 1px var(--zx-color-accent);
+}
+
+.tracker .overview__body[data-shape="list"] .zx-record-card__selection input:checked::before {
+  visibility: visible;
+}
+
+.tracker .overview__body[data-shape="list"] .zx-record-card__selection input:focus-visible {
+  outline-color: transparent;
+  outline-offset: calc(-1 * var(--tracker-check-slack));
+  box-shadow: inset 0 0 0 1px var(--zx-color-accent), var(--zx-focus-ring);
+}
+
+@media (forced-colors: active) {
+  .tracker .overview__body[data-shape="list"] .zx-record-card__selection input {
+    appearance: auto;
+  }
+}
+
+/* The check shows where the pointer or the focus is, on selected rows, and on every row once any is
+   selected; the priority steps aside for it. */
+.tracker .overview__body[data-shape="list"] .zx-record-card:is(:hover, :focus-within, [data-selected="true"]) .zx-record-card__selection,
+.tracker .overview__body[data-shape="list"]:has([data-selected="true"]) .zx-record-card__selection {
+  opacity: 1;
+}
+
+.tracker .overview__body[data-shape="list"] .zx-record-card:is(:hover, :focus-within, [data-selected="true"]) [data-field-id="priority"],
+.tracker .overview__body[data-shape="list"]:has([data-selected="true"]) [data-field-id="priority"] {
+  visibility: hidden;
+}
+
+.tracker .overview__body[data-shape="list"] .zx-record-card__heading {
+  grid-row: 1;
+  grid-column: 2;
+  min-inline-size: 0;
+  font-size: var(--zx-text-sm);
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.tracker .overview__body[data-shape="list"] .zx-record-card__metadata {
+  display: flex;
+  grid-row: 1;
+  grid-column: 3;
+  align-items: center;
+  gap: var(--zx-space-3);
+}
+
+.tracker .overview__body[data-shape="list"] .zx-record-card__field {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+}
+
+/* A row's values speak for themselves; their labels stay for screen readers. */
+.tracker .overview__body[data-shape="list"] .zx-record-card__label {
+  position: absolute;
+  overflow: hidden;
+  inline-size: 1px;
+  block-size: 1px;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.tracker .overview__body[data-shape="list"] .zx-record-card__value {
+  display: flex;
+  align-items: center;
+  overflow: visible;
+  overflow-wrap: normal;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.tracker .overview__body[data-shape="list"] [data-field-id="priority"] {
+  inline-size: 16px;
+}
+
+/* The key column is as wide as the longest key, so the status glyphs line up from row to row. */
+.tracker .overview__body[data-shape="list"] [data-field-id="key"] {
+  min-inline-size: 7.5ch;
+  font-size: var(--zx-text-xs);
+}
+
+.tracker .overview__body[data-shape="list"] [data-field-id="created"] {
+  justify-content: flex-end;
+  min-inline-size: 6ch;
+}
+
+.tracker .tracker__cell {
+  display: inline-flex;
+  align-items: center;
+}
+
+.tracker .tracker__row {
+  grid-template-columns: 16px 6.5ch 14px minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--zx-space-3);
+  font-size: var(--zx-text-sm);
 }
 
 .tracker .tracker__key {
@@ -142,11 +325,11 @@
   flex: none;
   flex-wrap: wrap;
   gap: var(--zx-space-1);
-  margin-inline-start: auto;
 }
 
 .tracker .tracker__subcount,
-.tracker .tracker__due {
+.tracker .tracker__due,
+.tracker .tracker__project {
   display: inline-flex;
   flex: none;
   align-items: center;
@@ -157,9 +340,10 @@
   white-space: nowrap;
 }
 
-.tracker .tracker__subcount + .tracker__due,
-.tracker .tracker__title-text + .tracker__due {
-  margin-inline-start: auto;
+.tracker .tracker__subcount > [aria-hidden] {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-1);
 }
 
 .tracker .tracker__due[data-overdue] {
@@ -279,9 +463,9 @@
 
 /* ----------------------------------------------------- selection and board -- */
 
-/* The bulk bar floats over the bottom of the list. */
-.tracker .tracker__main {
-  position: relative;
+/* The bulk bar floats over the bottom of the list, above the pager. */
+.tracker .tracker__bulk {
+  inset-block-end: calc(var(--overview-footer-size, 0px) + var(--zx-space-4));
 }
 
 .tracker .tracker__card {
@@ -302,19 +486,21 @@
   gap: var(--zx-space-1);
 }
 
+.tracker .tracker__card-meta:empty {
+  display: none;
+}
+
 .tracker .tracker__card-meta > .tracker__due {
   margin-inline-start: var(--zx-space-1);
 }
 
-.tracker .tracker__column-head {
+/* A column or lane head leads with the glyph of its value: the status ring, the priority bars, the
+   assignee's face. */
+.tracker .overview__column-head,
+.tracker .tracker__lane-head {
   display: inline-flex;
   align-items: center;
   gap: var(--zx-space-2);
-  font-weight: var(--zx-weight-medium);
-}
-
-.tracker .tracker__column-head > .tracker__group-count {
-  font-weight: 400;
 }
 
 /* --------------------------------------------------------- the open issue -- */
@@ -509,23 +695,13 @@
 /* ------------------------------------------------------- narrow panes -- */
 
 /* The list, the board, and the open issue answer to the width of their own pane, which the
-   navigation and the properties leave to them. The bulk bar floats over the bottom of it. */
+   navigation and the properties leave to them. */
 .tracker .tracker__main {
   container: tracker-main / inline-size;
 }
 
-/* A medium pane: Filter and Display keep their icons (and their names, for assistive technology),
-   and the trail starts at the list — the team is one step away in the navigation. */
+/* A medium pane: the trail starts at the list — the team is one step away in the navigation. */
 @container tracker-main (max-width: 800px) {
-  .tracker .tracker__actions .zx-btn:has(.zx-icon) .zx-btn__label {
-    position: absolute;
-    inline-size: 1px;
-    block-size: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-
   .tracker .shell__header .zx-breadcrumb__item:has(> .zx-breadcrumb__link:not([data-crumb="list"])),
   .tracker .shell__header .zx-breadcrumb__item:has(> .zx-breadcrumb__link:not([data-crumb="list"]))
     + .zx-breadcrumb__item > .zx-breadcrumb__separator {
@@ -533,48 +709,54 @@
   }
 }
 
-/* A narrow pane: an issue row becomes two lines — the title, then its sub-issue count, labels, and
-   due date — and the filing date steps back. */
-@container tracker-main (max-width: 640px) {
-  .tracker .tracker__row:not([data-brief]) {
-    grid-template-columns: 16px 6.5ch 14px minmax(0, 1fr) auto;
+/* A narrow list: a row becomes two lines — the title, then its labels, due date, and assignee —
+   and the filing date steps back. */
+@container overview (max-width: 36rem) {
+  .tracker .overview__body[data-shape="list"] .zx-record-card {
     align-items: start;
+    row-gap: var(--zx-space-1);
     padding-block: var(--zx-space-2);
   }
 
-  .tracker .tracker__row:not([data-brief]) > .tracker__date {
-    display: none;
+  .tracker .overview__body[data-shape="list"] .zx-record-card__title-prefix {
+    margin-block-start: 2px;
   }
 
-  /* The glyphs and the key sit on the title's line; the face stays centred on the row. */
-  .tracker .tracker__row:not([data-brief]) > :is(.tracker__priority, .tracker__check, .tracker__status) {
-    margin-block-start: 3px;
+  /* The check's 24px target centres on the glyphs' line. */
+  .tracker .overview__body[data-shape="list"] .zx-record-card__selection {
+    align-self: start;
   }
 
-  .tracker .tracker__row:not([data-brief]) > .tracker__key {
-    margin-block-start: 1px;
-  }
-
-  .tracker .tracker__row:not([data-brief]) > :is(.zx-avatar, .tracker__nobody) {
-    align-self: center;
-  }
-
-  .tracker .tracker__row:not([data-brief]) .tracker__title {
+  .tracker .overview__body[data-shape="list"] .zx-record-card__metadata {
     flex-wrap: wrap;
+    grid-row: 2;
+    grid-column: 2 / -1;
     row-gap: var(--zx-space-1);
   }
 
-  .tracker .tracker__row:not([data-brief]) .tracker__title-text {
-    flex: 1 0 100%;
+  .tracker .overview__body[data-shape="list"] [data-field-id="assignee"] {
+    margin-inline-start: auto;
   }
 
-  .tracker .tracker__row:not([data-brief]) :is(.tracker__labels, .tracker__due) {
-    margin-inline-start: 0;
+  .tracker .overview__body[data-shape="list"] [data-field-id="created"] {
+    display: none;
+  }
+
+  .tracker .tracker__bulk {
+    inset-inline: var(--zx-space-3);
+    flex-wrap: wrap;
+    translate: none;
   }
 }
 
-/* A phone-width pane: the view tabs take a row of their own under the header, and the key steps
-   back from the rows too — it stays in each row's accessible name and on the open issue. */
+/* A phone-width list: the key steps back from the rows — it stays on the open issue. */
+@container overview (max-width: 32rem) {
+  .tracker .overview__body[data-shape="list"] [data-field-id="key"] {
+    display: none;
+  }
+}
+
+/* A phone-width pane: the tabs take a row of their own under the header. */
 @container tracker-main (max-width: 560px) {
   .tracker .tracker__header {
     flex-wrap: wrap;
@@ -594,14 +776,5 @@
   .tracker .tracker__header > .segmented > .segmented__item {
     flex: 1 1 auto;
     justify-content: center;
-  }
-
-  .tracker .tracker__row:not([data-brief]) {
-    grid-template-columns: 16px 14px minmax(0, 1fr) auto;
-    column-gap: var(--zx-space-2);
-  }
-
-  .tracker .tracker__row:not([data-brief]) > .tracker__key {
-    display: none;
   }
 }

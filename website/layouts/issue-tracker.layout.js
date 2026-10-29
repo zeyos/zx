@@ -1,13 +1,14 @@
 import {
-  ActivityList, Avatar, Breadcrumb, ContextMenu, Datebox, Dialog, Dropdown,
-  FilterPanel, InlineLoading, KanbanView, Launcher, MenuButton, Search, Select, TagPicker, badge,
-  button, copyToClipboard, emptyState, formatDate, formatRelativeTime, h, icon
+  ActivityList, Avatar, Breadcrumb, CardView, ContextMenu, Datebox, Dialog, InlineLoading, KanbanView,
+  Launcher, MenuButton, Select, TagPicker, badge, button, copyToClipboard, formatDate, formatRelativeTime,
+  h, icon
 } from '../../src/index.js';
 import {
   DATE, adaptiveShell, disposer, iconButton, kbd, later, layoutContext, modShortcut, modifierLabel,
   paneHeader, panelBlock, renderScope, shortcuts, suiteNav, toaster, unavailable
 } from './kit.js';
 import { ME, NOW, PEOPLE, TODAY, person } from './fixtures.js';
+import { axisChoices, columnHeader, createOverview } from './overview.js';
 
 /** The teams that own issues; the key prefixes every issue number. */
 const TEAMS = [
@@ -140,22 +141,112 @@ const SCOPES = {
   ]))
 };
 
-/** The view tabs above the list. */
+/** The fixed tabs above the overview: which part of the scope it lists, each with its count. */
 const TABS = [
   { id: 'all', label: 'All issues', test: () => true },
   { id: 'active', label: 'Active', test: (issue) => ['in-progress', 'todo'].includes(issue.status) },
   { id: 'backlog', label: 'Backlog', test: (issue) => issue.status === 'backlog' }
 ];
 
-const GROUPINGS = [
-  { id: 'status', label: 'Status' }, { id: 'assignee', label: 'Assignee' },
-  { id: 'priority', label: 'Priority' }, { id: 'project', label: 'Project' },
-  { id: 'none', label: 'No grouping' }
+/**
+ * The fields of an issue, in the order a row shows them. Priority, ID, and status lead the row
+ * before the title (`view.card.slot`); the rest follow it. The renderers are added in `mount`,
+ * where they can own the avatars they draw. Priority, due date, and created are what the Sort
+ * tool offers, as the former Ordering menu did.
+ */
+const FIELDS = [
+  { id: 'priority', label: 'Priority', type: 'select', sortable: true, view: { card: { slot: 'title-prefix' } } },
+  { id: 'key', label: 'ID', type: 'text', groupable: false, view: { card: { slot: 'title-prefix' } } },
+  {
+    id: 'status', label: 'Status', type: 'status',
+    sortValue: (issue) => STATUSES.findIndex((status) => status.ID === issue.status), view: { card: { slot: 'title-prefix' } }
+  },
+  { id: 'title', label: 'Title', type: 'text', locked: true, groupable: false },
+  { id: 'project', label: 'Project', type: 'select' },
+  { id: 'labels', label: 'Labels', type: 'tags' },
+  // Issues without a due date sort after every dated one.
+  { id: 'due', label: 'Due date', type: 'date', sortable: true, sortValue: (issue) => issue.due ?? '9999-12-31' },
+  { id: 'assignee', label: 'Assignee', type: 'entity' },
+  { id: 'created', label: 'Created', type: 'datetime', sortable: true }
 ];
 
-const ORDERINGS = [
-  { id: 'priority', label: 'Priority' }, { id: 'due', label: 'Due date' }, { id: 'created', label: 'Created' }
+/** What each shape shows at first; View settings changes it per shape. */
+const VISIBLE = {
+  list: ['priority', 'key', 'status', 'labels', 'due', 'assignee', 'created'],
+  board: ['priority', 'key', 'labels', 'due', 'assignee']
+};
+
+/**
+ * What the issues group by, in each grouping's order — also the board's columns and swim lanes.
+ * Status groups the list in workflow order, most active first; the board lays its columns out in
+ * `BOARD_ORDER` instead (see `createBoard`). Priority groups urgent first. An issue without an
+ * assignee or a project falls in the axis's `other` bucket, which the filter offers too.
+ * @type {Record<string, import('./overview.js').OverviewGroupAxis>}
+ */
+const AXES = {
+  status: { label: 'Status', buckets: STATUSES.map((status) => ({ id: status.ID, label: status.name })) },
+  assignee: {
+    label: 'Assignee', buckets: PEOPLE.map((p) => ({ id: p.id, label: p.name })),
+    other: { id: 'none', label: 'Unassigned' }
+  },
+  priority: { label: 'Priority', buckets: PRIORITIES.map((label, level) => ({ id: level, label })).reverse() },
+  project: {
+    label: 'Project', buckets: PROJECTS.map((project) => ({ id: project.ID, label: project.name })),
+    other: { id: 'none', label: 'No project' }
+  }
+};
+
+/**
+ * What the filter chips and the Filters drawer can test; the grouped fields offer exactly the
+ * buckets their groups show.
+ * @type {import('./overview.js').OverviewFilterField[]}
+ */
+const FILTER_FIELDS = [
+  {
+    id: 'status', label: 'Status', type: 'enum', icon: 'circle-half-stroke', operators: ['anyOf', 'noneOf', 'eq', 'neq'],
+    choices: axisChoices(AXES.status)
+  },
+  {
+    id: 'assignee', label: 'Assignee', type: 'enum', icon: 'user', operators: ['anyOf', 'noneOf', 'eq', 'neq'],
+    choices: axisChoices(AXES.assignee).map((choice) => ({ ...choice, short: choice.label.split(' ')[0] }))
+  },
+  {
+    id: 'priority', label: 'Priority', type: 'enum', icon: 'signal', operators: ['anyOf', 'noneOf', 'eq', 'neq'],
+    choices: axisChoices(AXES.priority)
+  },
+  {
+    id: 'labels', label: 'Labels', type: 'tags', icon: 'tags', operators: ['containsAny', 'containsAll', 'containsNone', 'isEmpty'],
+    choices: LABELS.map((label) => ({ value: label.ID, label: label.name }))
+  },
+  {
+    id: 'project', label: 'Project', type: 'enum', icon: 'cube', operators: ['anyOf', 'noneOf', 'eq', 'neq'],
+    choices: axisChoices(AXES.project)
+  }
 ];
+
+/**
+ * A group, column, or lane id — as a board reports it, text — written back as the issue property
+ * it stands for.
+ * @param {string} field Grouping field.
+ * @param {string|number|null} id Bucket id.
+ * @returns {unknown}
+ */
+function fromBucket(field, id) {
+  if (field === 'priority') return Number(id);
+  if (field === 'assignee' || field === 'project') return id == null || id === 'none' || id === '' ? null : String(id);
+  return String(id);
+}
+
+/**
+ * The bucket an issue falls in on a grouping, as text: its group's stable id.
+ * @param {string} field Grouping field.
+ * @param {Record<string, any>} issue
+ * @returns {string}
+ */
+function bucketKey(field, issue) {
+  const value = issue[field];
+  return value == null ? 'none' : String(value);
+}
 
 /**
  * Finds an entry of one of the lookup lists above by its `ID`.
@@ -230,7 +321,16 @@ function priorityGlyph(level) {
 
 /** @returns {HTMLElement} The dashed circle that stands where an assignee's avatar would be. */
 function unassignedGlyph() {
-  return h('span', { class: 'tracker__nobody', title: 'Unassigned' }, icon('user', { size: 12 }));
+  return h('span', { class: 'tracker__nobody', title: 'Unassigned', 'aria-hidden': 'true' }, icon('user', { size: 12 }));
+}
+
+/**
+ * Text for screen readers only, beside a glyph that says the same thing to the eye.
+ * @param {string} text
+ * @returns {HTMLElement}
+ */
+function hidden(text) {
+  return h('span', { class: 'visually-hidden' }, text);
 }
 
 /**
@@ -270,18 +370,16 @@ function labelPicker() {
 
 /**
  * A segmented control: a radio group whose checked option is its one tab stop and whose arrow keys
- * move the choice, as the APG radio group pattern has it. An option with an icon shows only the
- * icon and carries its label as accessible name and tooltip; `counts` adds a number after each label.
- * @param {{label: string, options: Array<{id: string, label: string, icon?: string}>,
+ * move the choice, as the APG radio group pattern has it; `counts` adds a number after each label.
+ * @param {{label: string, options: Array<{id: string, label: string}>,
  *   counts?: boolean, onchange: (id: string) => void, signal: AbortSignal}} config
  * @returns {{element: HTMLElement, set: (id: string) => void, setCount: (id: string, count: number) => void}}
  */
 function segmented({ label, options, counts = false, onchange, signal }) {
   const buttons = options.map((option) => h('button', {
     type: 'button', class: 'segmented__item', role: 'radio', dataset: { id: option.id },
-    'aria-label': option.icon ? option.label : null, title: option.icon ? option.label : null,
     onclick: () => onchange(option.id)
-  }, option.icon ? icon(option.icon) : option.label, counts ? h('span', { class: 'segmented__count' }) : null));
+  }, option.label, counts ? h('span', { class: 'segmented__count' }) : null));
   const element = h('div', { class: 'segmented', role: 'radiogroup', 'aria-label': label }, buttons);
   element.addEventListener('keydown', (event) => {
     const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key];
@@ -310,16 +408,17 @@ function segmented({ label, options, counts = false, onchange, signal }) {
 export default {
   title: 'Issue tracker',
   category: 'Product',
-  blurb: 'Issues grouped by status or on a board, each with sub-issues, activity, and properties '
-    + 'edited in place.',
+  blurb: 'Issues grouped by status or on a board, filtered with editable chips, each with sub-issues, '
+    + 'activity, and properties edited in place.',
   components: [
-    'KanbanView', 'ContextMenu', 'FilterPanel', 'Search', 'Select', 'TagPicker', 'ActivityList',
-    'Launcher', 'Breadcrumb', 'Datebox', 'Dialog', 'MenuButton', 'Dropdown', 'InlineLoading',
-    'Avatar', 'Badge', 'Message', 'AppSidebar', 'ModuleBar', 'AccountMenu'
+    'ListToolbar', 'CardView', 'KanbanView', 'Pagination', 'Filter', 'ViewSettings', 'SortControl', 'Sheet',
+    'ContextMenu', 'Select', 'TagPicker', 'ActivityList', 'Launcher', 'Breadcrumb', 'Datebox', 'Dialog',
+    'MenuButton', 'Dropdown', 'InlineLoading', 'Avatar', 'Badge', 'Message', 'AppSidebar', 'ModuleBar', 'AccountMenu'
   ],
 
   /**
-   * Mounts the tracker: navigation, the grouped list or the board, the open issue, and the
+   * Mounts the tracker: navigation, the kit's overview of the issues — toolbar, filter chips, the
+   * grouped list or the board, and the pager — under fixed tabs, the open issue, and the
    * properties of the issue in focus.
    * @param {HTMLElement} container Gallery stage.
    * @param {import('./kit.js').LayoutContext} [context]
@@ -334,25 +433,26 @@ export default {
       ...issue, key: `${issue.team}-${issue.n}`, labels: [...issue.labels],
       due: issue.due ?? null, cycle: issue.cycle ?? null, estimate: issue.estimate ?? null,
       parent: issue.parent ?? null, inbox: Boolean(issue.inbox)
-    }));
+    })).sort((a, b) => b.created.localeCompare(a.created));
+    // Newest first, so issues of one priority — the default sort — list the newest on top; a new
+    // issue joins at the front.
     const descriptions = new Map(Object.entries(DESCRIPTIONS));
     const activity = new Map(issues.map((issue) => [issue.key, [
       { actor: issue.by, at: issue.created, change: 'created the issue' },
       ...(HISTORY[issue.key] ?? [])
     ]]));
-    const state = {
-      scope: 'ENG-issues', tab: 'all', group: 'status', order: 'priority', query: '',
-      filters: /** @type {Record<string, unknown[]>} */ ({}), view: 'list', mode: 'list',
-      current: 'ENG-142', selected: new Set(), collapsed: new Set(), subscribed: true, searching: false
-    };
+    // The search, the filters, the grouping, the sort, and the shape are the overview's state.
+    const state = { scope: 'ENG-issues', tab: 'all', mode: 'list', current: 'ENG-142', subscribed: true };
     /** Where the focus goes back to once a property picked from the keyboard closes its menu. */
     let returnFocus = /** @type {false|'list'|'issue'} */ (false);
     // Whether the properties drawer was opened for one key-picked property, and closes after it.
     let closeAside = false;
 
-    // The list, the open issue, and the aside are redrawn as a whole; the avatars drawn into each
-    // belong to that rendering and are released by the next one.
-    const listParts = renderScope(context);
+    // The list's rows, the open issue, and the aside are redrawn as a whole; the avatars drawn into
+    // each belong to that rendering and are released by the next one.
+    const rowParts = renderScope(context);
+    // The list's collapsed groups, by id ("status:done"), across redraws and regroupings.
+    const collapsedGroups = new Set();
     const issueParts = renderScope(context);
     const asideParts = renderScope(context);
 
@@ -457,44 +557,12 @@ export default {
       onselect: ({ detail }) => (detail.name === 'list' ? backToList() : setScope(detail.name))
     }));
 
-    // Which issues the list shows, beside the trail: All, Active, Backlog, each with its count.
+    // Which part of the scope the overview lists, beside the trail: All, Active, Backlog, each
+    // with its count, which ignores the search and the filters.
     const tabs = segmented({
-      label: 'View', options: TABS, counts: true, signal: context.signal,
-      onchange: (id) => { state.tab = id; renderList(); }
+      label: 'Which issues', options: TABS, counts: true, signal: context.signal,
+      onchange: (id) => { state.tab = id; overview.setBaseFilter(inScope); renderCounts(); }
     });
-    // How it shows them, at the far end of the header: as a list or as a board.
-    const layoutSwitch = segmented({
-      label: 'Layout', signal: context.signal, onchange: (view) => showView(view),
-      options: [{ id: 'list', label: 'List', icon: 'list-ul' }, { id: 'board', label: 'Board', icon: 'table-columns' }]
-    });
-    layoutSwitch.set(state.view);
-
-    const display = keep(new MenuButton(null, {
-      label: 'Display', icon: 'sliders', kind: 'ghost', placement: 'bottom-end',
-      onselect: ({ detail }) => {
-        const [axis, value] = String(detail.value).split(':');
-        state[axis] = value;
-        display.setItems(displayItems());
-        renderList();
-        listBody.scrollTop = 0;
-      }
-    }));
-    display.setItems(displayItems());
-
-    /** @returns {Array<Record<string, any>|string>} The grouping and ordering radio items. */
-    function displayItems() {
-      return [
-        { type: 'heading', label: 'Grouping' },
-        ...GROUPINGS.map((entry) => ({
-          label: entry.label, value: `group:${entry.id}`, role: 'menuitemradio', checked: state.group === entry.id
-        })),
-        '-',
-        { type: 'heading', label: 'Ordering' },
-        ...ORDERINGS.map((entry) => ({
-          label: entry.label, value: `order:${entry.id}`, role: 'menuitemradio', checked: state.order === entry.id
-        }))
-      ];
-    }
 
     const more = keep(new MenuButton(iconButton('ellipsis', 'More actions'), {
       kind: 'ghost', placement: 'bottom-end',
@@ -506,37 +574,6 @@ export default {
       onselect: ({ detail }) => (detail.value === 'copy' ? copyKey(state.current) : deleteIssue(state.current))
     }));
 
-    const filterPanel = keep(new FilterPanel(null, {
-      fields: {
-        assignee: {
-          type: 'select', label: 'Assignee',
-          options: [{ value: 'none', label: 'Unassigned' }, ...PEOPLE.map((p) => ({ value: p.id, label: p.name }))]
-        },
-        priority: { type: 'select', label: 'Priority', options: PRIORITIES.map((label, value) => ({ value, label })).reverse() },
-        labels: { type: 'select', label: 'Label', options: LABELS },
-        project: { type: 'select', label: 'Project', options: PROJECTS }
-      },
-      mode: 'live',
-      onapply: ({ detail }) => { state.filters = detail.value; renderList(); }
-    }));
-
-    const filterButton = button({ label: 'Filter', icon: 'filter', kind: 'ghost' });
-    keep(new Dropdown(filterButton, {
-      content: h('div', { class: 'tracker__filters' }, filterPanel.toElement()), placement: 'bottom-end'
-    }));
-
-    // The text filter waits behind an icon (or /) and opens as a bar under the header.
-    const search = keep(new Search(null, {
-      placeholder: 'Find by title or ID', debounce: 150,
-      oninput: ({ detail }) => { state.query = detail.value; renderList(); }
-    }));
-    const searchButton = iconButton('magnifying-glass', 'Find in this list', () => openSearch(),
-      { shortcut: { label: '/', keys: '/' } });
-    searchButton.setAttribute('aria-expanded', 'false');
-    const searchBar = h('div', { class: 'shell__toolbar', hidden: true }, search.toElement());
-
-    const listActions = h('div', { class: 'tracker__actions' },
-      searchButton, filterButton, display.toElement(), layoutSwitch.element);
     // On a phone the More menu's "Copy issue ID" stands in for the link button.
     const copyButton = iconButton('link', 'Copy issue ID', () => copyKey(state.current));
     copyButton.dataset.narrow = 'hide';
@@ -545,52 +582,127 @@ export default {
       iconButton('angle-down', 'Next issue', () => move(1), { shortcut: { label: 'J', keys: 'J' } }),
       copyButton, more.toElement(), shell.asideToggle());
 
-    const listBody = h('div', { class: 'shell__body tracker__list' });
-    const boardHost = h('div', { class: 'shell__body shell__body--board', hidden: true });
     const issueBody = h('div', {
       class: 'shell__body shell__body--padded', tabindex: '-1', 'aria-label': 'Issue', hidden: true
     });
-    const bulk = h('div', { class: 'bulk-bar', role: 'region', 'aria-label': 'Selection', hidden: true });
-    // The tab counts show how many issues there are; this line says it to a screen reader when a
-    // search or a filter changes the number.
-    const resultCount = h('p', { class: 'visually-hidden', role: 'status' });
 
     const header = paneHeader({
-      className: 'tracker__header', leading: [shell.navToggle(), crumbs.toElement()], actions: [listActions, issueActions]
+      className: 'tracker__header', leading: [shell.navToggle(), crumbs.toElement()], actions: [issueActions]
     });
-    // The view tabs follow the trail as a header item of their own, so a narrow pane can give them
-    // a row of their own beneath it.
+    // The trail names the page; the heading is there for the outline, above the list's groups.
+    header.prepend(h('h2', { class: 'visually-hidden' }, 'Issues'));
+    // The tabs follow the trail as a header item of their own, so a narrow pane can give them a
+    // row of their own beneath it.
     header.querySelector('.shell__header-leading').after(tabs.element);
-    const main = h('section', { class: 'shell__main tracker__main', 'aria-label': 'Issues' },
-      header, searchBar, listBody, boardHost, issueBody, bulk, resultCount);
 
-    const board = keep(new KanbanView(null, {
-      fields: [{ id: 'title', label: 'Title' }],
-      recordId: 'key',
-      columnBy: 'status',
-      columns: BOARD_ORDER.map((id) => ({ id, label: byId(STATUSES, id).name })),
-      collapsedColumns: ['canceled'],
+    // The tracker's own keys, bound before the overview's so that they come first: Escape leaves
+    // an open issue or drops the selection before the overview closes a drawer with it, and / in
+    // an open issue returns to the list's search.
+    shortcuts(root, {
+      // J and K are the list's down and up arrows; in an open issue they open the next and the
+      // previous one.
+      j: () => rowKey('ArrowDown'), k: () => rowKey('ArrowUp'), x: toggleSelect,
+      // On a group's heading, C creates the issue in that group.
+      c: () => openCreate(focusedGroupPreset()),
+      s: () => editProperty('status'), p: () => editProperty('priority'),
+      a: () => editProperty('assignee'), l: () => editProperty('labels'),
+      Escape: () => {
+        if (state.mode === 'issue') return backToList();
+        if (root.hasAttribute('data-overview-drawer') || !overview.getSelection().length) return false;
+        overview.clearSelection();
+        focusRow();
+      },
+      '/': () => {
+        if (state.mode !== 'issue') return false;
+        backToList();
+        overview.toolbar.focusSearch();
+      },
+      'Mod+k': () => openLauncher()
+    }, context);
+
+    /** How each field is drawn in a list row. */
+    const renderers = {
+      priority: (issue) => h('span', { class: 'tracker__cell' }, priorityGlyph(issue.priority), hidden(PRIORITIES[issue.priority])),
+      key: (issue) => h('span', { class: 'tracker__key' }, issue.key),
+      status: (issue) => h('span', { class: 'tracker__cell' }, statusGlyph(issue.status), hidden(byId(STATUSES, issue.status)?.name ?? '')),
+      // The title carries the issue's key, so the layout finds the row of an issue.
+      title: (issue) => {
+        const children = issues.filter((child) => child.parent === issue.key);
+        const done = children.filter((child) => child.status === 'done').length;
+        return h('span', { class: 'tracker__title', dataset: { key: issue.key } },
+          h('span', { class: 'tracker__title-text' }, issue.title),
+          children.length ? h('span', { class: 'tracker__subcount meta' },
+            h('span', { 'aria-hidden': 'true' }, icon('sitemap', { size: 11 }), `${done}/${children.length}`),
+            hidden(`, ${done} of ${children.length} sub-issues done`)) : null);
+      },
+      project: (issue) => (issue.project
+        ? h('span', { class: 'tracker__project meta' }, icon('cube', { size: 12 }), byId(PROJECTS, issue.project)?.name ?? '')
+        : hidden('None')),
+      labels: (issue) => (issue.labels.length ? h('span', { class: 'tracker__labels' }, issue.labels.map(labelChip)) : hidden('None')),
+      due: (issue) => (issue.due ? dueChip(issue) : hidden('None')),
+      assignee: (issue) => (issue.assignee ? face(issue.assignee, rowParts)
+        : h('span', { class: 'tracker__cell' }, unassignedGlyph(), hidden('Unassigned'))),
+      created: (issue) => h('span', { class: 'tracker__date meta' }, shortDate(issue.created))
+    };
+
+    const overview = createOverview(context, {
+      root,
+      label: 'Issue controls',
+      fields: FIELDS.map((field) => ({ ...field, render: renderers[field.id] })),
+      visible: VISIBLE,
       titleField: 'title',
-      identifier: 'key',
-      priority: (issue) => priorityGlyph(issue.priority),
-      assignees: (issue) => person(issue.assignee)?.name ?? null,
-      fieldControls: false,
-      allowAdd: true,
-      contextMenu: true,
-      label: 'Issues by status',
-      renderCard: ({ record: issue }) => h('div', { class: 'tracker__card', dataset: { key: issue.key } },
-        h('p', { class: 'tracker__card-title' }, issue.title),
-        h('div', { class: 'tracker__card-meta' }, issue.labels.map(labelChip),
-          issue.due ? dueChip(issue) : null)),
-      renderColumnHeader: ({ column, count }) => h('span', { class: 'tracker__column-head' },
-        statusGlyph(column.id), h('span', {}, column.label), h('span', { class: 'tracker__group-count' }, count)),
-      onrecordclick: ({ detail }) => openIssue(String(detail.id)),
-      onrecordadd: ({ detail }) => openCreate({ status: detail.columnId }),
-      onrecordmove: ({ detail }) => detail.ids.forEach((key) => {
-        update(find(String(key)), { status: detail.to.column }, { board: true });
-      })
+      filterFields: FILTER_FIELDS,
+      // Moving a card on the board writes, and logs, through the tracker's own update.
+      groups: Object.fromEntries(Object.entries(AXES).map(([field, axis]) => [field, {
+        ...axis, set: (issue, bucket) => update(issue, { [field]: fromBucket(field, bucket) }, { quiet: true })
+      }])),
+      group: SCOPES[state.scope].group ?? 'status',
+      // On the board, status is the columns: grouping by it shows the plain status board, and the
+      // grouping returns on the way back to the list.
+      boardCollision: 'drop',
+      records: issues,
+      baseFilter: inScope,
+      recordId: 'key',
+      views: ['list', 'board'],
+      view: 'list',
+      sort: { id: 'priority', dir: 'desc' },
+      pageSize: 50,
+      pageSizes: [25, 50, 100],
+      search: {
+        placeholder: 'Find issues…',
+        label: 'Issues',
+        text: (issue) => `${issue.key} ${issue.title}`
+      },
+      countText: (count) => `${count} issue${count === 1 ? '' : 's'}`,
+      empty: {
+        filtered: { title: 'No issues match' },
+        none: {
+          icon: 'list-check', title: 'No issues here', description: 'Create an issue to get started.',
+          actions: [{ label: 'New issue', onclick: () => openCreate() }]
+        }
+      },
+      shortcuts: true,
+      createView
+    });
+
+    const selectedCount = h('span', { class: 'bulk-bar__count' });
+    const bulkStatus = keep(new MenuButton(null, {
+      label: 'Status', icon: 'circle-half-stroke', kind: 'ghost', placement: 'top-start',
+      items: STATUSES.map((s) => ({ label: s.name, value: s.ID })),
+      onselect: ({ detail }) => bulkUpdate({ status: detail.value })
     }));
-    boardHost.append(board.toElement());
+    const bulkAssignee = keep(new MenuButton(null, {
+      label: 'Assignee', icon: 'user', kind: 'ghost', placement: 'top-start',
+      items: [...PEOPLE.map((p) => ({ label: p.name, value: p.id })), '-', { label: 'Unassigned', value: '' }],
+      onselect: ({ detail }) => bulkUpdate({ assignee: detail.value || null })
+    }));
+    const bulk = h('div', { class: 'bulk-bar tracker__bulk', role: 'region', 'aria-label': 'Bulk actions', hidden: true },
+      selectedCount, bulkStatus.toElement(), bulkAssignee.toElement(),
+      iconButton('xmark', 'Clear selection', () => overview.clearSelection()));
+    overview.element.append(bulk);
+
+    const main = h('section', { class: 'shell__main tracker__main', 'aria-label': 'Issues' },
+      header, overview.element, issueBody);
 
     // ------------------------------------------------------------- properties aside --
 
@@ -662,66 +774,34 @@ export default {
 
     // --------------------------------------------------------------------- the list --
 
-    /** @returns {typeof issues} The issues in scope, filtered and ordered. */
-    function visibleIssues() {
-      const scope = SCOPES[state.scope];
-      const tab = TABS.find((entry) => entry.id === state.tab);
-      const needle = state.query.trim().toLowerCase();
-      const { assignee = [], priority = [], labels = [], project = [] } = state.filters;
-      return issues.filter((issue) => scope.test(issue) && tab.test(issue)
-        && (!needle || `${issue.key} ${issue.title}`.toLowerCase().includes(needle))
-        && (!assignee.length || assignee.includes(issue.assignee ?? 'none'))
-        && (!priority.length || priority.includes(issue.priority))
-        && (!labels.length || labels.some((label) => issue.labels.includes(label)))
-        && (!project.length || project.includes(issue.project)))
-        .sort(compare);
-    }
-
-    /** @param {(typeof issues)[number]} a @param {(typeof issues)[number]} b @returns {number} */
-    function compare(a, b) {
-      if (state.order === 'due') return (a.due ?? '9999').localeCompare(b.due ?? '9999') || b.priority - a.priority;
-      if (state.order === 'created') return b.created.localeCompare(a.created);
-      return b.priority - a.priority || b.created.localeCompare(a.created);
+    /**
+     * The overview's base filter: whether an issue is in the scope of the navigation and the tab.
+     * @param {(typeof issues)[number]} issue
+     * @returns {boolean}
+     */
+    function inScope(issue) {
+      return SCOPES[state.scope].test(issue) && TABS.find((entry) => entry.id === state.tab).test(issue);
     }
 
     /**
-     * Splits issues into the groups of the current grouping, in that grouping's order.
-     * @param {typeof issues} list
-     * @returns {{id: string, name: string, glyph: Node|null, preset: Record<string, unknown>, items: typeof issues}[]}
+     * Re-reads the issues after they changed — an issue may leave the scope or the tab — and
+     * updates the tabs and the trail.
+     * @returns {void}
      */
-    function groupIssues(list) {
-      const make = (id, name, glyph, preset, test) => ({ id, name, glyph, preset, items: list.filter(test) });
-      const groups = {
-        status: () => STATUSES.map((s) => make(s.ID, s.name, statusGlyph(s.ID), { status: s.ID }, (i) => i.status === s.ID)),
-        assignee: () => [
-          ...PEOPLE.map((p) => make(p.id, p.name, face(p.id, listParts), { assignee: p.id }, (i) => i.assignee === p.id)),
-          make('none', 'Unassigned', unassignedGlyph(), { assignee: null }, (i) => !i.assignee)
-        ],
-        priority: () => PRIORITIES.map((name, level) => make(String(level), name, priorityGlyph(level),
-          { priority: level }, (i) => i.priority === level)).reverse(),
-        project: () => [
-          ...PROJECTS.map((p) => make(p.ID, p.name, icon('cube'), { project: p.ID }, (i) => i.project === p.ID)),
-          make('none', 'No project', icon('cube'), { project: null }, (i) => !i.project)
-        ],
-        none: () => [make('all', 'All issues', null, {}, () => true)]
-      };
-      return groups[state.group]().filter((group) => group.items.length > 0);
+    function syncList() {
+      overview.refresh();
+      renderCounts();
     }
 
     /**
-     * Updates what describes the list without rebuilding it: the tabs and their counts, the result
-     * count, the filter count, and the breadcrumb.
-     * @param {typeof issues} list The visible issues.
-     * @returns {number} How many filter values are active.
+     * Updates what describes the list: the tabs and their counts, and the breadcrumb.
+     * @returns {void}
      */
-    function renderCounts(list) {
+    function renderCounts() {
       tabs.set(state.tab);
       for (const tab of TABS) {
         tabs.setCount(tab.id, issues.filter((issue) => SCOPES[state.scope].test(issue) && tab.test(issue)).length);
       }
-      resultCount.textContent = `${list.length} issue${list.length === 1 ? '' : 's'}`;
-      const active = Object.values(state.filters).reduce((sum, values) => sum + (values?.length ?? 0), 0);
-      setFilterCount(active);
       const trail = SCOPES[state.scope].crumbs;
       const home = TEAMS.find((team) => team.name === trail[0]);
       crumbs.setItems([
@@ -729,91 +809,193 @@ export default {
         { name: 'list', label: trail.at(-1) },
         ...(state.mode === 'issue' ? [{ name: 'issue', label: state.current }] : [])
       ]);
-      return active;
     }
 
-    /** Re-renders whichever collection view is showing, plus the counts around it. @returns {void} */
-    function renderList() {
-      listParts.reset();
-      const list = visibleIssues();
-      const active = renderCounts(list);
-      if (state.mode === 'list' && !list.some((issue) => issue.key === state.current)) {
-        state.current = list[0]?.key ?? state.current;
+    /**
+     * After the overview drew a page: the issue in focus stays one the list shows, its row is
+     * marked, and the aside follows it.
+     * @returns {void}
+     */
+    function afterRender() {
+      if (state.mode === 'list') {
+        const shown = overview.getFiltered();
+        if (!shown.some((issue) => issue.key === state.current)) state.current = shown[0]?.key ?? state.current;
       }
-
-      listBody.hidden = state.mode !== 'list' || state.view !== 'list';
-      boardHost.hidden = state.mode !== 'list' || state.view !== 'board';
-      if (state.view === 'board') board.setData(list);
-      const groups = groupIssues(list);
-      listBody.replaceChildren(...(groups.length ? groups.map(renderGroup) : [emptyState({
-        icon: 'list-check', title: 'No issues here',
-        description: state.query || active ? 'Nothing matches the search and filters.' : 'Create an issue to get started.',
-        actions: [state.query || active
-          ? { label: 'Clear filters', onclick: clearFilters }
-          : { label: 'New issue', icon: 'plus', onclick: () => openCreate() }]
-      })]));
-      // Keep one row in the tab order even when the issue in focus sits in a collapsed group.
-      const rows = listBody.querySelectorAll('.tracker__row');
-      if (rows.length && ![...rows].some((row) => row.tabIndex === 0)) rows[0].tabIndex = 0;
-      renderBulk();
+      markCurrent();
       renderAside();
     }
 
     /**
-     * One group: a sticky heading that collapses it, and a listbox of its rows.
-     * @param {ReturnType<typeof groupIssues>[number]} group
-     * @returns {HTMLElement}
+     * Draws one presentation of the issues for the overview: the list as rows, or the board.
+     * @param {string} shape
+     * @param {import('./overview.js').OverviewViewContext} view
+     * @returns {CardView|KanbanView}
      */
-    function renderGroup(group) {
-      const collapsed = state.collapsed.has(`${state.group}:${group.id}`);
-      const heading = state.group === 'none' ? null : h('div', { class: 'tracker__group-head' },
-        h('button', {
-          type: 'button', class: 'tracker__group-toggle', 'aria-expanded': String(!collapsed),
-          onclick: () => {
-            state.collapsed[collapsed ? 'delete' : 'add'](`${state.group}:${group.id}`);
-            renderList();
-          }
-        }, icon(collapsed ? 'chevron-right' : 'chevron-down', { size: 12 }), group.glyph,
-        h('span', { class: 'tracker__group-name' }, group.name),
-        h('span', { class: 'tracker__group-count' }, group.items.length)),
-        iconButton('plus', `New issue in ${group.name}`, () => openCreate(group.preset)));
-      return h('section', { class: 'tracker__group', 'aria-label': group.name }, heading, collapsed ? null
-        : h('div', { role: 'listbox', 'aria-label': group.name, 'aria-multiselectable': 'true', class: 'tracker__rows' },
-          group.items.map((issue) => issueRow(issue, listParts))));
+    function createView(shape, view) {
+      if (shape === 'board' && view.board) return createBoard(view);
+      // One row per issue: a CardView whose cards the stylesheet lays out as the tracker's dense
+      // rows — one Tab stop, the arrow keys between rows — under collapsible group headings. The
+      // groups take ids of their own ("status:todo"), so a collapsed group stays collapsed as its
+      // count changes.
+      const field = view.state.group;
+      return new CardView(null, {
+        ...view.options,
+        selectable: 'multi',
+        keyboard: 'roving',
+        titleField: 'title',
+        groupBy: field ? (issue) => `${field}:${bucketKey(field, issue)}` : null,
+        collapsibleGroups: true,
+        collapsedGroups: [...collapsedGroups],
+        renderGroupHeading: ({ id, count }) => groupHeading(id, count, view),
+        ongroupcollapse: ({ detail }) => collapsedGroups[detail.collapsed ? 'add' : 'delete'](detail.id),
+        minCardWidth: '100%',
+        label: 'Issue list'
+      });
     }
 
     /**
-     * One dense issue row: priority, key, status, title with sub-issue count and labels, due
-     * date, assignee, and when it was filed.
-     * @param {(typeof issues)[number]} issue
-     * @param {ReturnType<typeof renderScope>} scope The rendering the row belongs to.
-     * @param {boolean} [brief=false] Leave out the labels and dates, as in the sub-issue list.
+     * A group heading's content, inside its collapse toggle: the glyph of its value, its name, and
+     * how many issues it holds ("4", or "2 of 9" where the group runs on to another page).
+     * @param {string} id Group id, `<field>:<bucket>`.
+     * @param {number} count Issues of the group on this page.
+     * @param {import('./overview.js').OverviewViewContext} view
      * @returns {HTMLElement}
      */
-    function issueRow(issue, scope, brief = false) {
+    function groupHeading(id, count, view) {
+      const [field, bucket] = id.split(':');
+      const axis = AXES[field];
+      const label = [...axis.buckets, axis.other].find((entry) => entry && String(entry.id) === bucket)?.label ?? bucket;
+      const total = view.records().filter((issue) => bucketKey(field, issue) === bucket).length;
+      return h('span', { class: 'tracker__group', dataset: { group: id } },
+        bucketGlyph(field, bucket), h('span', { class: 'tracker__group-name' }, label),
+        h('span', { class: 'tracker__group-count' }, count === total ? String(total) : `${count} of ${total}`));
+    }
+
+    /**
+     * Gives each group heading its "New issue in <group>" button, beside the collapse toggle —
+     * not inside it, where a button may not go. The heading rows are redrawn with the list, so
+     * this runs whenever the list changes and skips the rows that have one.
+     * @returns {void}
+     */
+    function decorateGroups() {
+      for (const header of overview.body.querySelectorAll('.zx-card-view__group-header:not(:has(.tracker__group-add))')) {
+        const group = header.querySelector('.tracker__group[data-group]');
+        if (!group) continue;
+        const name = group.querySelector('.tracker__group-name')?.textContent ?? '';
+        const add = iconButton('plus', `New issue in ${name}`, () => openCreate(groupPreset(group.dataset.group)));
+        add.classList.add('tracker__group-add');
+        add.setAttribute('aria-keyshortcuts', 'C');
+        // A control inside a grid row is a pointer target; from the keyboard, C on the heading.
+        add.tabIndex = -1;
+        header.append(h('div', { class: 'tracker__group-actions', role: 'gridcell' }, add));
+      }
+    }
+
+    /** @param {string} id Group id. @returns {Record<string, unknown>} What a new issue in it starts with. */
+    function groupPreset(id) {
+      const [field, bucket] = id.split(':');
+      return { [field]: fromBucket(field, bucket) };
+    }
+
+    /** @returns {Record<string, unknown>} The preset of the group whose heading has the focus, if any. */
+    function focusedGroupPreset() {
+      const group = document.activeElement?.closest?.('.zx-card-view__group-header')?.querySelector('.tracker__group[data-group]');
+      return group && overview.body.contains(group) ? groupPreset(/** @type {HTMLElement} */ (group).dataset.group) : {};
+    }
+
+    /**
+     * The board: columns and lanes from the overview — status columns in the order work flows,
+     * swim lanes by the grouping — with the tracker's cards and column heads. A card moved goes
+     * through the overview, which writes it with the axes' `set` (the tracker's update, logged);
+     * adding in a column opens the create dialog for it.
+     * @param {import('./overview.js').OverviewViewContext} view
+     * @returns {KanbanView}
+     */
+    function createBoard(view) {
+      const { columnBy, swimlaneBy, columnAxis } = view.board;
+      /** @type {KanbanView|null} */
+      let board = null;
+      // The card head honours View settings too: a field hidden there leaves the cards.
+      const shown = (id) => !(board?.getHiddenFields() ?? view.options.hiddenFields).includes(id);
+      const columns = columnBy === 'status'
+        ? BOARD_ORDER.map((id) => view.board.options.columns.find((column) => column.id === id))
+        : view.board.options.columns;
+      // Lanes nobody's issues are in start collapsed, out of the way.
+      const used = new Set(swimlaneBy ? view.api.getRecords().map((issue) => String(view.board.bucketOf(issue, swimlaneBy))) : []);
+      const preset = (field, id) => (field && id != null ? { [field]: fromBucket(field, id) } : {});
+      board = new KanbanView(null, {
+        ...view.options,
+        ...view.board.options,
+        columns,
+        collapsedColumns: columnBy === 'status' ? ['canceled'] : [],
+        collapsedSwimlanes: swimlaneBy
+          ? axisChoices(AXES[swimlaneBy]).map((lane) => String(lane.value)).filter((id) => !used.has(id)) : [],
+        titleField: 'title',
+        identifier: (issue) => (shown('key') ? issue.key : null),
+        priority: (issue) => (shown('priority') ? priorityGlyph(issue.priority) : null),
+        assignees: (issue) => (shown('assignee') ? person(issue.assignee)?.name ?? null : null),
+        allowAdd: true,
+        contextMenu: true,
+        label: `Issues by ${columnAxis.label.toLowerCase()}`,
+        renderCard: ({ record: issue }) => h('div', { class: 'tracker__card', dataset: { key: issue.key } },
+          h('p', { class: 'tracker__card-title' }, issue.title),
+          h('div', { class: 'tracker__card-meta' }, shown('labels') ? issue.labels.map(labelChip) : null,
+            shown('due') && issue.due ? dueChip(issue) : null)),
+        renderColumnHeader: ({ column, swimlane, count }) => {
+          const head = columnHeader({ label: column.label, count, lane: swimlane?.label ?? null });
+          head.prepend(bucketGlyph(columnBy, column.id));
+          return head;
+        },
+        renderSwimlaneHeader: ({ swimlane, count }) => h('span', { class: 'tracker__lane-head' },
+          bucketGlyph(swimlaneBy, swimlane.id), h('span', {}, swimlane.label),
+          h('span', { class: 'overview__count' }, String(count))),
+        onrecordadd: ({ detail }) => openCreate({
+          ...preset(columnBy, detail.columnId), ...preset(swimlaneBy, detail.laneId)
+        })
+      });
+      return board;
+    }
+
+    /**
+     * The glyph of a column or lane: the status ring, the priority bars, the assignee's face, or
+     * the project's cube. Decorative: the name follows it.
+     * @param {string} field Grouping field.
+     * @param {string} id Bucket id.
+     * @returns {HTMLElement}
+     */
+    function bucketGlyph(field, id) {
+      if (field === 'status') return statusGlyph(id);
+      if (field === 'priority') return priorityGlyph(Number(id));
+      if (field === 'assignee') {
+        return id === 'none' ? unassignedGlyph() : h('span', { class: 'tracker__cell', 'aria-hidden': 'true' }, face(id, rowParts));
+      }
+      return h('span', { class: 'tracker__cell', 'aria-hidden': 'true' }, icon('cube', { size: 12 }));
+    }
+
+    /**
+     * One dense row of a sub-issue on the open issue: priority, key, status, title with its own
+     * sub-issue count, and assignee.
+     * @param {(typeof issues)[number]} issue
+     * @param {ReturnType<typeof renderScope>} scope The rendering the row belongs to.
+     * @returns {HTMLElement}
+     */
+    function issueRow(issue, scope) {
       const children = issues.filter((child) => child.parent === issue.key);
       return h('div', {
-        class: 'list-row tracker__row', role: 'option', tabindex: issue.key === state.current ? '0' : '-1',
-        'aria-selected': String(state.selected.has(issue.key)),
-        'aria-current': issue.key === state.current ? 'true' : null,
+        class: 'list-row tracker__row', role: 'option', tabindex: '-1', 'aria-selected': 'false',
         'aria-label': `${issue.key} ${issue.title}, ${byId(STATUSES, issue.status).name}, `
           + `${PRIORITIES[issue.priority]} priority, ${person(issue.assignee)?.name ?? 'unassigned'}`,
-        dataset: { key: issue.key, brief: brief ? 'true' : null },
+        dataset: { key: issue.key },
         onclick: () => openIssue(issue.key)
       },
-      state.selected.has(issue.key)
-        ? h('span', { class: 'tracker__check', 'aria-hidden': 'true' }, icon('square-check', { size: 14 }))
-        : priorityGlyph(issue.priority),
+      priorityGlyph(issue.priority),
       h('span', { class: 'tracker__key' }, issue.key),
       statusGlyph(issue.status),
       h('span', { class: 'tracker__title' },
         h('span', { class: 'tracker__title-text' }, issue.title),
         children.length ? h('span', { class: 'tracker__subcount meta' }, icon('sitemap', { size: 11 }),
-          `${children.filter((child) => child.status === 'done').length}/${children.length}`) : null,
-        brief ? null : h('span', { class: 'tracker__labels' }, issue.labels.map(labelChip)),
-        brief || !issue.due ? null : dueChip(issue)),
-      issue.assignee ? face(issue.assignee, scope) : unassignedGlyph(),
-      brief ? null : h('span', { class: 'tracker__date meta' }, shortDate(issue.created)));
+          `${children.filter((child) => child.status === 'done').length}/${children.length}`) : null),
+      issue.assignee ? face(issue.assignee, scope) : unassignedGlyph());
     }
 
     /**
@@ -827,75 +1009,40 @@ export default {
         icon('calendar-regular', { size: 11 }), shortDate(issue.due));
     }
 
-    /** Clears the search and every filter, which applies at once. @returns {void} */
-    function clearFilters() {
-      search.set('', { silent: true });
-      state.query = '';
-      filterPanel.clear();
+    /** @param {string[]} keys Selected issues. @returns {void} Shows the bulk bar while issues are selected. */
+    function syncBulk(keys) {
+      bulk.hidden = keys.length === 0;
+      selectedCount.textContent = `${keys.length} selected`;
     }
-
-    /**
-     * Shows how many filter values are active on the Filter button, and in its accessible name.
-     * @param {number} active
-     * @returns {void}
-     */
-    function setFilterCount(active) {
-      filterButton.querySelector('.zx-badge')?.remove();
-      if (!active) {
-        filterButton.removeAttribute('aria-label');
-        return;
-      }
-      const count = badge({ label: String(active), size: 'sm' });
-      count.setAttribute('aria-hidden', 'true');
-      filterButton.append(count);
-      filterButton.setAttribute('aria-label', `Filter (${active} active)`);
-    }
-
-    /** Opens the bar with the text filter under the header. @returns {void} */
-    function openSearch() {
-      state.searching = true;
-      if (state.mode === 'issue') backToList();
-      else showMode();
-      search.focus();
-    }
-
-    /** Closes the text filter, drops its query, and returns to the list. @returns {void} */
-    function closeSearch() {
-      state.searching = false;
-      search.set('', { silent: true });
-      state.query = '';
-      showMode();
-      focusRow();
-    }
-
-    /** Shows or hides the bar for the issues selected with X. @returns {void} */
-    function renderBulk() {
-      const count = state.selected.size;
-      bulk.hidden = count === 0 || state.mode !== 'list';
-      bulk.replaceChildren(h('span', { class: 'bulk-bar__count' }, `${count} selected`),
-        bulkStatus.toElement(), bulkAssignee.toElement(),
-        iconButton('xmark', 'Clear selection', () => { state.selected.clear(); renderList(); }));
-    }
-
-    const bulkStatus = keep(new MenuButton(null, {
-      label: 'Status', icon: 'circle-half-stroke', kind: 'ghost', placement: 'top-start',
-      items: STATUSES.map((s) => ({ label: s.name, value: s.ID })),
-      onselect: ({ detail }) => bulkUpdate({ status: detail.value })
-    }));
-    const bulkAssignee = keep(new MenuButton(null, {
-      label: 'Assignee', icon: 'user', kind: 'ghost', placement: 'top-start',
-      items: [...PEOPLE.map((p) => ({ label: p.name, value: p.id })), '-', { label: 'Unassigned', value: '' }],
-      onselect: ({ detail }) => bulkUpdate({ assignee: detail.value || null })
-    }));
 
     /** @param {Record<string, unknown>} changes @returns {void} */
     function bulkUpdate(changes) {
-      const keys = [...state.selected];
+      const keys = overview.getSelection();
       keys.forEach((key) => update(find(key), changes, { quiet: true }));
-      state.selected.clear();
-      renderList();
+      overview.clearSelection();
+      syncList();
       notify(`Updated ${keys.length} issue${keys.length === 1 ? '' : 's'}.`);
     }
+
+    overview.on('render', () => rowParts.reset());
+    overview.on('rendered', () => afterRender());
+    overview.on('selectionchange', ({ detail }) => syncBulk(detail.ids));
+    overview.on('recordclick', ({ detail }) => openIssue(detail.record.key));
+    // The axes' `set` has written and logged the move; what describes the list follows it.
+    overview.on('recordmove', () => {
+      renderCounts();
+      if (state.mode === 'issue') renderIssue();
+      showSaved();
+    });
+    overview.on('viewchange', () => {
+      if (state.mode !== 'issue') return;
+      state.mode = 'list';
+      showMode();
+    });
+    // The list redraws its group headings as it changes; each gets its "New issue in" button back.
+    const headings = new MutationObserver(() => decorateGroups());
+    headings.observe(overview.body, { childList: true, subtree: true });
+    context.cleanup(() => headings.disconnect());
 
     // ---------------------------------------------------------------- the open issue --
 
@@ -952,7 +1099,7 @@ export default {
             })),
           children.length
             ? h('div', { class: 'tracker__subissues', role: 'listbox', 'aria-label': 'Sub-issues' },
-              children.map((child) => issueRow(child, issueParts, true)))
+              children.map((child) => issueRow(child, issueParts)))
             : h('p', { class: 'meta' }, 'Break the work down by adding sub-issues.')),
         // Not a named region: the ActivityList inside is already the "Activity" region.
         h('section', { class: 'tracker__section' },
@@ -988,7 +1135,7 @@ export default {
     function renderAside() {
       asideParts.reset();
       const issue = find(state.current);
-      aside.hidden = !issue || (state.mode === 'list' && state.view === 'board');
+      aside.hidden = !issue || (state.mode === 'list' && overview.getState().view === 'board');
       if (aside.hidden) shell.toggleAside(false);
       if (!issue) return;
       asideTitle.replaceChildren(statusGlyph(issue.status), issue.key);
@@ -1025,8 +1172,7 @@ export default {
      * moves the row to its new group at once.
      * @param {(typeof issues)[number]|undefined} issue
      * @param {Record<string, any>} changes
-     * @param {{board?: boolean, quiet?: boolean}} [how] `board` when the board already moved the
-     *   card itself; `quiet` when the caller re-renders once for a batch.
+     * @param {{quiet?: boolean}} [how] `quiet` when the caller re-renders once for a batch.
      * @returns {void}
      */
     function update(issue, changes, how = {}) {
@@ -1038,11 +1184,8 @@ export default {
         log(issue, { change: describe(field, before, value) }, true);
       }
       if (how.quiet) return;
-      if (how.board) {
-        // The board has already moved the card; only what describes the list needs refreshing.
-        renderCounts(visibleIssues());
-        renderAside();
-      } else renderList();
+      // The scope or the tab may no longer hold it, so the overview is handed them again.
+      syncList();
       if (state.mode === 'issue') renderIssue();
       showSaved();
     }
@@ -1116,8 +1259,8 @@ export default {
       const index = issues.findIndex((issue) => issue.key === key);
       issues.splice(index, 1);
       issues.forEach((issue) => { if (issue.parent === key) issue.parent = null; });
-      state.selected.delete(key);
-      state.current = visibleIssues()[0]?.key ?? '';
+      // The list picks the first issue it shows as the one in focus.
+      state.current = '';
       backToList();
       later(context, focusRow, 0);
       notify(`${key} deleted.`);
@@ -1131,11 +1274,11 @@ export default {
       const fromDrawer = root.dataset.navOpen === 'true';
       nav.setActive(scope);
       state.scope = scope;
-      state.group = SCOPES[scope].group ?? 'status';
-      display.setItems(displayItems());
       state.mode = 'list';
-      state.selected.clear();
-      state.current = visibleIssues()[0]?.key ?? '';
+      state.current = '';
+      overview.clearSelection();
+      overview.setBaseFilter(inScope);
+      overview.setState({ group: SCOPES[scope].group ?? 'status' });
       showMode();
       if (fromDrawer) shell.closeNav();
       if (fromDrawer || !root.contains(document.activeElement)) focusRow();
@@ -1167,49 +1310,82 @@ export default {
     }
 
     /**
-     * Switches between the grouped list and the board, leaving an open issue for it.
+     * Switches between the list and the board, as the palette does, leaving an open issue for it.
      * @param {'list'|'board'} view
      * @returns {void}
      */
     function showView(view) {
-      state.view = view;
-      state.mode = 'list';
-      layoutSwitch.set(view);
-      showMode();
+      if (state.mode === 'issue') {
+        state.mode = 'list';
+        showMode();
+      }
+      overview.setView(view);
       focusRow();
     }
 
-    /** Shows the list, the board, or the issue, and the header actions that belong to it. @returns {void} */
+    /** Shows the overview or the issue, and the header items that belong to it. @returns {void} */
     function showMode() {
       const issue = state.mode === 'issue';
       issueBody.hidden = !issue;
+      overview.element.hidden = issue;
       tabs.element.hidden = issue;
-      listActions.hidden = issue;
       issueActions.hidden = !issue;
-      searchBar.hidden = issue || !state.searching;
-      searchButton.setAttribute('aria-expanded', String(state.searching));
-      renderList();
+      syncList();
       if (issue) renderIssue();
     }
 
+    /** @returns {HTMLElement[]} The list's rows on the current page, in order. */
+    function rows() {
+      return [...overview.body.querySelectorAll('.zx-card-view .zx-record-card')];
+    }
+
+    /** @param {Element} row @returns {string|null} The key of the issue a row shows. */
+    function keyOf(row) {
+      return row.querySelector('.tracker__title[data-key]')?.getAttribute('data-key') ?? null;
+    }
+
+    /** Marks the row of the issue in focus as current. @returns {void} */
+    function markCurrent() {
+      for (const row of rows()) {
+        if (keyOf(row) === state.current) row.setAttribute('aria-current', 'true');
+        else row.removeAttribute('aria-current');
+      }
+    }
+
+    /** @param {string} key @returns {void} Makes an issue the one in focus, without moving the focus. */
+    function setCurrent(key) {
+      state.current = key;
+      markCurrent();
+      renderAside();
+    }
+
     /**
-     * Moves the focus to the next or previous issue; in the open issue, opens it.
+     * J and K: in the list, the down and up arrows of its grid, from the row in focus (or, with
+     * the focus elsewhere, the issue in focus); in the open issue, the next and previous issue.
+     * @param {'ArrowDown'|'ArrowUp'} key
+     * @returns {void}
+     */
+    function rowKey(key) {
+      if (state.mode === 'issue') return move(key === 'ArrowDown' ? 1 : -1);
+      if (overview.getState().view === 'board') return;
+      const item = document.activeElement?.closest?.('[data-card-item]');
+      if (!item || !overview.body.contains(item)) return focusRow();
+      item.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+    }
+
+    /**
+     * Opens the next or previous issue of the list from the open issue (J, K, and the header's
+     * arrows); in the list, moves the focus to that row.
      * @param {number} delta
      * @returns {void}
      */
     function move(delta) {
-      if (state.mode === 'list' && state.view === 'board') return;
-      const keys = [...listBody.querySelectorAll('.tracker__row')].map((row) => row.dataset.key);
+      if (state.mode === 'list' && overview.getState().view === 'board') return;
+      const keys = rows().map(keyOf).filter(Boolean);
       const next = keys[Math.max(0, Math.min(keys.length - 1, keys.indexOf(state.current) + delta))];
       if (!next) return;
       if (state.mode === 'issue') return openIssue(next);
-      state.current = next;
-      for (const row of listBody.querySelectorAll('.tracker__row')) {
-        row.tabIndex = row.dataset.key === next ? 0 : -1;
-        if (row.dataset.key === next) row.setAttribute('aria-current', 'true');
-        else row.removeAttribute('aria-current');
-      }
-      renderAside();
+      setCurrent(next);
       focusRow();
     }
 
@@ -1220,18 +1396,18 @@ export default {
      */
     function focusRow() {
       if (context.preview) return;
-      const target = state.view === 'board'
-        ? boardHost.querySelector(`.tracker__card[data-key="${state.current}"]`)?.closest('[tabindex]')
-        : listBody.querySelector(`.tracker__row[data-key="${state.current}"]`);
+      const board = overview.getState().view === 'board';
+      const target = board
+        ? overview.body.querySelector(`.tracker__card[data-key="${state.current}"]`)?.closest('[tabindex]')
+        : rows().find((row) => keyOf(row) === state.current);
       (target ?? root).focus();
       target?.scrollIntoView({ block: 'nearest' });
     }
 
-    /** Adds or removes the issue in focus from the selection. @returns {void} */
+    /** Adds or removes the issue in focus from the list's selection. @returns {void} */
     function toggleSelect() {
-      if (state.mode !== 'list' || !state.current) return;
-      state.selected[state.selected.has(state.current) ? 'delete' : 'add'](state.current);
-      renderList();
+      if (state.mode !== 'list' || !state.current || overview.getState().view === 'board') return;
+      overview.getView().toggleSelection(state.current);
       focusRow();
     }
 
@@ -1244,6 +1420,8 @@ export default {
      */
     function editProperty(field) {
       if (!state.current) return;
+      // Wide, an open overview drawer takes the aside's place; the property needs the aside.
+      overview.closeDrawers();
       if (aside.hidden) openIssue(state.current);
       closeAside = !aside.checkVisibility();
       if (closeAside) shell.toggleAside(true);
@@ -1265,30 +1443,22 @@ export default {
       later(context, () => (back === 'issue' ? issueBody.focus({ preventScroll: true }) : focusRow()), 0);
     }));
 
-    listBody.addEventListener('keydown', (event) => {
-      const keys = { ArrowDown: 1, ArrowUp: -1, Home: -Infinity, End: Infinity };
-      if (event.key in keys && event.target.closest('.tracker__row')) {
-        event.preventDefault();
-        move(keys[event.key]);
-      } else if (event.key === 'Enter' && event.target.classList.contains('tracker__row')) {
-        event.preventDefault();
-        openIssue(event.target.dataset.key);
-      } else if (event.key === ' ' && event.target.classList.contains('tracker__row')) {
-        event.preventDefault();
-        toggleSelect();
-      }
+    // The list's grid moves the focus between rows itself; the row in focus is the issue in focus.
+    overview.body.addEventListener('focusin', (event) => {
+      const row = event.target instanceof Element ? event.target.closest('.zx-card-view .zx-record-card') : null;
+      const key = row ? keyOf(row) : null;
+      if (key && key !== state.current) setCurrent(key);
     }, { signal: context.signal });
-    listBody.addEventListener('focusin', (event) => {
-      const key = event.target.dataset?.key;
-      if (key && key !== state.current) {
-        state.current = key;
-        move(0);
-      }
+    // In the search field, the down arrow moves on to the list.
+    overview.toolbar.toElement().addEventListener('keydown', (event) => {
+      if (event.key !== 'ArrowDown' || !(event.target instanceof HTMLInputElement)) return;
+      event.preventDefault();
+      focusRow();
     }, { signal: context.signal });
     shortcuts(comment, { 'Mod+Enter': postComment }, context);
 
-    keep(new ContextMenu(listBody, {
-      selector: '.tracker__row',
+    keep(new ContextMenu(overview.body, {
+      selector: '.zx-card-view .zx-record-card',
       items: (row) => [
         { label: 'Open', value: 'open', icon: 'arrow-up-right-from-square', shortcut: '↵' },
         '-',
@@ -1297,7 +1467,7 @@ export default {
         { label: 'Assignee…', value: 'assignee', icon: 'user', shortcut: 'A' },
         { label: 'Labels…', value: 'labels', icon: 'tag', shortcut: 'L' },
         {
-          label: state.selected.has(row.dataset.key) ? 'Deselect' : 'Select', value: 'select',
+          label: overview.getSelection().includes(keyOf(row)) ? 'Deselect' : 'Select', value: 'select',
           icon: 'square-check', shortcut: 'X'
         },
         '-',
@@ -1305,9 +1475,9 @@ export default {
         { label: 'Delete…', value: 'delete', icon: 'trash', danger: true }
       ],
       onselect: ({ detail }) => {
-        const key = detail.context.dataset.key;
-        state.current = key;
-        move(0);
+        const key = keyOf(detail.context);
+        if (!key) return;
+        setCurrent(key);
         const actions = {
           open: () => openIssue(key), select: toggleSelect,
           copy: () => copyKey(key), delete: () => deleteIssue(key)
@@ -1396,7 +1566,7 @@ export default {
         due: due ? formatDate(due, '%Y-%m-%d') : null, by: ME, created: formatDate(NOW, '%Y-%m-%dT%H:%M'),
         parent: createPreset.parent ?? null, inbox: false
       };
-      issues.push(issue);
+      issues.unshift(issue);
       activity.set(issue.key, [{ actor: ME, at: NOW, change: 'created the issue' }]);
       const text = createText.value.trim();
       if (text) descriptions.set(issue.key, text.split(/\n\s*\n/));
@@ -1404,7 +1574,7 @@ export default {
       notify(`${issue.key} created.`);
       if (issue.parent) return openIssue(issue.parent);
       state.current = issue.key;
-      renderList();
+      syncList();
       // After the dialog has handed focus back, so the new row keeps it.
       later(context, focusRow, 0);
     }
@@ -1418,11 +1588,12 @@ export default {
     /** Opens the command palette with commands, in this order, above every issue. @returns {void} */
     function openLauncher() {
       if (!launcher) return;
+      const board = overview.getState().view === 'board';
       const commands = [
         { id: 'new', label: 'New issue', icon: 'pen-to-square', invoke: () => openCreate() },
         {
-          id: 'view', label: state.view === 'list' ? 'Show as board' : 'Show as list', icon: 'table-columns',
-          invoke: () => showView(state.view === 'list' ? 'board' : 'list')
+          id: 'view', label: board ? 'Show as list' : 'Show as board', icon: 'table-columns',
+          invoke: () => showView(board ? 'list' : 'board')
         },
         { id: 'inbox', label: 'Go to Inbox', icon: 'inbox', invoke: () => setScope('inbox') },
         { id: 'mine', label: 'Go to My issues', icon: 'circle-user', invoke: () => setScope('mine') }
@@ -1442,29 +1613,6 @@ export default {
       launcher.setQuery('');
       launcher.open();
     }
-
-    shortcuts(root, {
-      j: () => move(1), k: () => move(-1), x: toggleSelect, c: () => openCreate(),
-      s: () => editProperty('status'), p: () => editProperty('priority'),
-      a: () => editProperty('assignee'), l: () => editProperty('labels'),
-      Escape: () => {
-        if (state.mode === 'issue') backToList();
-        else if (state.selected.size) {
-          state.selected.clear();
-          renderList();
-          focusRow();
-        } else if (state.searching) closeSearch();
-        else return false;
-      },
-      '/': openSearch, 'Mod+k': openLauncher
-    }, context);
-    // In the text filter, Escape closes it and the down arrow moves on to the list.
-    search.toElement().addEventListener('keydown', (event) => {
-      if (event.key !== 'Escape' && event.key !== 'ArrowDown') return;
-      event.preventDefault();
-      if (event.key === 'Escape') closeSearch();
-      else focusRow();
-    }, { signal: context.signal });
 
     container.append(root);
     showMode();
