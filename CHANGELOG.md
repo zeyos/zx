@@ -8,6 +8,111 @@ and friends remain the complete record.
 
 ## Unreleased
 
+## 5.2.0 — 2026-10-29
+
+A record collection pattern with a five-way view switch and filter chips, two components to go
+with it, and the sixteen defects a library-wide consistency audit found, fixed.
+
+### Added
+
+- **`WorkspaceSwitcher`** — the account or workspace switcher at the head of a module menu: the
+  open workspace's tile, name and secondary line with a chevron, opening a menu of the user's
+  workspaces as `menuitemradio` rows followed by workspace actions; `compact` shows the tile
+  alone. `select` is cancelable, `setActive()`, `setWorkspaces()`, `setCompact()`. The layout
+  kit's `suiteNav()` takes a `workspace` option that puts it in place of the brand.
+- **`ViewSettings`** — the content of a "View settings" drawer: search the hidden fields and add
+  one with an explicit button, see every field's type glyph, arrange the shown fields by pointer
+  or keyboard (announced, auto-scrolling), hide them, choose the grouping, and set a board's
+  columns, swim lanes and empty-column rule. `bind(view)` keeps it in step with a record view; a
+  `locked` field is offered neither to hide nor to move; the panel's own `fields` act as the
+  allow-list when bound.
+- `ListToolbar` view presets `table | list | cards | gallery | board`, with bundled glyphs
+  `table`, `image`, `columns`, and `type`, `hash`, `mail`, `link-2`, `circle-chevron-down` for
+  field types.
+- `Filter`: fields take an `icon` shown in the searchable picker; choice icons are drawn; a
+  many-valued operator on fixed choices uses a `TagPicker`; compact rows show their group's
+  and/or as a pill that switches the logic; `withinLast` / `withinNext` take an amount and a unit.
+- A default English message catalogue in core (`defaultMessages`): `msg(key)` resolves the
+  instance table, the host translator, the class defaults, then the catalogue, so no raw key
+  reaches the screen without a translator. A test keeps it complete against every key in `src/`.
+- `src/core/overlay-stack.js` — one registry of open overlays with the z-order, Escape routing
+  to the topmost layer, and the outside-press test along the opener chain; `Modal`, `Sheet`,
+  `Dropdown`, `MenuButton`, `ContextMenu`, `Tooltip`, `Message`, `Launcher` and the rail flyouts
+  use it.
+- `Table`: the APG grid and treegrid keyboard model — arrows, Home/End, Page keys, Enter to
+  activate, Space and Shift+Arrow to select, Ctrl/Cmd+A — on tables that are `selectable`,
+  editable, hierarchical, listen for `rowclick`, or set `interactive: true`; focus kept by row id
+  across data changes; `label` / `labelledBy` for the grid's name; row controls named by the row's
+  first text cell; 24px targets on checkboxes and sort buttons.
+- `RecordView.getFieldControls()` and `mountFieldControls(target)`; `KanbanView` honours
+  `fieldControls.target`; `ListToolbar.bind()` mounts the chooser through them.
+- `MenuButton.toggle()`; `Select.get()`; `Field` `readonly` and `setReadonly()`;
+  `FilterPanel` `timeZone`; `dataFilterStateToFilters(state, defs, { timeZone })`; the ZeyOS
+  bindings' `load({ replace, pageSize })` and `pageSize` getter; `rovingTabindex` `rtl: 'auto'`;
+  `--zx-surface-shadow`.
+- `Pagination` and `Search`: the summary and page size sit at the start of the bar, the pager at
+  the end; the search input fills a stretched field so the submit glyph stays on its trailing
+  edge.
+
+### Changed
+
+- Geometry tokens (control sizes, blur, filters) are declared on `:root` only; the theme blocks
+  carry colours. A nested light region no longer resets an application's `--zx-control-height`.
+- Every `outline: 0` in the stylesheets became `outline-color: transparent`, and `base.css` draws a
+  solid `Highlight` outline on `:focus-visible` under forced colors.
+- The token lint covers `icons.css`, flags tier-1 accent, module and shadow names in component and
+  layout CSS, modern colour functions, raw colours in `var()` fallbacks, and outline suppression.
+- A host translator now takes precedence over a class's own `defaults.msg`, which makes `Field`,
+  `Form` and `Questionnaire` translatable; a translator that returns the key counts as no answer.
+- `Calendar` message keys are namespaced (`calendar.next`, `calendar.today`, …); the bare keys are
+  still honoured for one version.
+- Light dismiss stops at the first overlay that contains the press: a press in the upper of two
+  light-dismiss sheets no longer closes the lower one. Anchored popups and toast regions are hosted
+  inside the open dialog their anchor sits in.
+- The ZeyOS `zeyosTable` / `zeyosView` bindings share one loader; an invalid page or page size
+  throws a `RangeError` and non-object filters a `TypeError` where they used to clamp, and a
+  rejected call changes nothing. `Pagination`'s documentation shows the real mapping
+  (`offset = (page - 1) * pageSize`, `load({ page: page - 1, replace: true })`).
+- `Field`'s `code` type reports `change` on commit and `input` on every keystroke.
+- `Fieldset.addField()` writes with the caller's options; a component's own `change` listeners
+  hear a non-silent `setValues()`.
+
+### Fixed
+
+- Menus, dropdowns, context menus, rail flyouts and toasts were inert while a modal `Dialog` or
+  `Sheet` was open; a non-modal `Sheet` closed itself when an item was chosen in a menu inside it,
+  and Escape closed the sheet while leaving its dropdown open; an Escape another control handled is
+  ignored; a `Dropdown` panel is reachable with Tab, and Tab out of a panel holding a `Select` or a
+  roving toolbar lands after the trigger.
+- `AccountMenu.toggle()` threw.
+- `Table`, `CardView` and `DataFilter` showed raw message keys without a translator.
+- `Table` rows were not focusable, so `rowclick` and single selection were mouse-only; re-rendering
+  a table scrolled the page back to it.
+- `Fieldset.addField()` could not read, write or disable `get()/set()` components.
+- `Field` emitted `change` twice for `slider` and `code`.
+- Focus dropped to `<body>` after moving a field in the record-view chooser and after every
+  `FileList.updateItem()`; `ActivityList` had the same fault. The move is announced and Escape
+  closes the chooser.
+- `rovingTabindex` took ArrowLeft/Right/Home/End from text fields inside a `Toolbar`, and missed a
+  disabled `<fieldset>` around its items.
+- `FilterPanel` and the ZeyOS query conversion used the browser's local midnight for dates; both
+  take the instance time zone.
+- `--zx-shadow-1`, a tier-1 token, was used by three components; `MasterPanel` wrote a module
+  accent property nothing read.
+- The layout icon pack no longer shadows bundled glyphs.
+
+### Website
+
+- **Record collection**, a new screen pattern: one toolbar over the same records as a table, a
+  list, cards, a gallery and a board; dynamic filters as editable chips with all/any matching and
+  a Filters drawer holding the expression editor, kept in step both ways; a View settings drawer
+  bound to the current presentation, with the board's axes resolved so columns and swim lanes
+  never share a field; grouping, saved views, a stage facet, bulk actions, a workspace switcher at
+  the head of the module strip, and the pager. Keys: 1–5 views, F and V for the drawers, / for
+  search, N for a new record, ? for the sheet.
+- `specs/audit-2026-10/` holds a library consistency audit (repository-only) with the defects
+  above and a staged programme for the remaining redundancies and inconsistencies.
+
 ## 5.1.0 — 2026-10-22
 
 ### Added
