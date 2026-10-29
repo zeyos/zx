@@ -1150,6 +1150,18 @@ const cases = [
   }),
   tooltipCase(),
   contextMenuCase(),
+  menuInDialogCase(),
+  toastOverDialogCase(),
+  sheetChildOverlaysCase(),
+  dropdownTabReachCase(),
+  componentCase('AccountMenu (toggle)', () => new zx.AccountMenu(null, {
+    account: { name: 'Ada Lovelace' },
+    items: [{ label: 'Sign out', value: 'logout' }]
+  }), (component) => {
+    assert(component.toggle() === component && component.isOpen(), 'AccountMenu.toggle() did not open the menu');
+    component.toggle();
+    assert(!component.isOpen(), 'AccountMenu.toggle() did not close the menu');
+  }),
   componentCase('Select', () => new zx.Select(null, { items: sampleItems(), value: 1 }), (component) => {
     const events = observe(component, 'change');
     component.set(2).open().close();
@@ -2194,6 +2206,8 @@ const cases = [
     component.setValue('name', 'Ada');
     assert(component.getValue('name') === 'Ada', 'fieldset value mismatch');
   }),
+  fieldChangeCountCase(),
+  fieldsetExternalCase(),
   componentCase('Form', () => new zx.Form(null, {
     fieldsets: [{ fields: { name: { type: 'text', label: 'Name' } } }]
   }), (component) => {
@@ -2328,6 +2342,14 @@ const cases = [
   tableStackingCase(),
   tableGrowingCase(),
   tableHierarchyCase(),
+  tableKeyboardCase(),
+  tableTreegridKeyboardCase(),
+  toolbarRovingInputCase(),
+  recordViewChooserFocusCase(),
+  fileListFocusCase(),
+  activityListFocusCase(),
+  recordViewFieldTargetCase(),
+  filterRelativeDateCase(),
   truncateCase(),
   sizeContainerCase(),
   positionRtlCase(),
@@ -2345,6 +2367,232 @@ if (runtimeErrors.length) {
   });
 }
 render(results);
+
+/*
+ * One user edit is one field `change`, whatever widget the field type wraps: the widgets that
+ * report their own commits must not also let their inner control's native `change` reach the
+ * Field. Each edit drives the control the way a person does (typing then leaving the input,
+ * clicking an option), with the events a browser fires for it.
+ */
+/** @returns {SmokeDefinition} */
+function fieldChangeCountCase() {
+  /** @type {Record<string, {field: Record<string, unknown>, edit: (field: any) => unknown, value: unknown, inputs?: boolean}>} */
+  const edits = {
+    text: { field: { type: 'text' }, edit: (field) => typeAndLeave(field.getInput(), 'Ada'), value: 'Ada' },
+    password: { field: { type: 'password' }, edit: (field) => typeAndLeave(field.getInput(), 'pw'), value: 'pw' },
+    textarea: { field: { type: 'textarea' }, edit: (field) => typeAndLeave(field.getInput(), 'Notes'), value: 'Notes' },
+    int: { field: { type: 'int' }, edit: (field) => typeAndLeave(field.getInput(), '42'), value: 42 },
+    float: { field: { type: 'float' }, edit: (field) => typeAndLeave(field.getInput(), '1,5'), value: 1.5 },
+    checkbox: { field: { type: 'checkbox' }, edit: (field) => field.getInput().click(), value: true },
+    select: {
+      field: { type: 'select', options: ['a', 'b'], value: 'a' },
+      edit: (field) => { field.getInput().value = 'b'; fire(field.getInput(), 'input'); fire(field.getInput(), 'change'); },
+      value: 'b'
+    },
+    optionlist: {
+      field: { type: 'optionlist', options: ['a', 'b'], value: 'a' },
+      edit: (field) => field.getInput().querySelectorAll('input')[1].click(),
+      value: 'b'
+    },
+    number: {
+      field: { type: 'number', value: 1 },
+      edit: (field) => typeAndLeave(field.getInput().querySelector('input'), '7'),
+      value: 7
+    },
+    slider: {
+      field: { type: 'slider', value: 10 },
+      edit: (field) => {
+        const range = field.getInput().querySelector('input[type="range"]');
+        for (const step of ['20', '30', '40']) { range.value = step; fire(range, 'input'); }
+        fire(range, 'change');
+      },
+      value: 40,
+      inputs: true
+    },
+    rating: {
+      field: { type: 'rating', value: 2 },
+      edit: (field) => field.getInput().querySelector('[role="radio"][data-value="4"]').click(),
+      value: 4
+    },
+    code: {
+      field: { type: 'code', value: '' },
+      edit: (field) => {
+        const textarea = field.getInput().querySelector('textarea');
+        for (const text of ['a', 'ab', 'abc']) { textarea.value = text; fire(textarea, 'input'); }
+        fire(textarea, 'change');
+        textarea.dispatchEvent(new FocusEvent('blur'));
+      },
+      value: 'abc',
+      inputs: true
+    },
+    toggle: { field: { type: 'toggle', props: { value: 'yes' } }, edit: (field) => field.getInput().click(), value: 'yes' },
+    zxselect: {
+      field: { type: 'zxselect', props: { items: sampleItems() }, value: 1 },
+      edit: (field) => {
+        const select = field.getInput();
+        select.querySelector('input[role="combobox"], input').click();
+        const option = [...document.querySelectorAll('[role="option"]')]
+          .find((candidate) => candidate.textContent.trim() === 'Two' && select.contains(candidate));
+        assert(option, 'zxselect option not found');
+        option.click();
+      },
+      value: 2
+    },
+    time: {
+      field: { type: 'time', value: 60 },
+      edit: (field) => typeAndLeave(field.getInput().querySelector('input'), '2'),
+      value: null
+    },
+    checklist: {
+      field: { type: 'checklist', props: { items: sampleItems(), search: false } },
+      edit: (field) => field.getInput().querySelector('input[type="checkbox"]').click(),
+      value: [1]
+    }
+  };
+  return {
+    name: 'Field (one change per edit)',
+    create(fixture) {
+      const fields = Object.entries(edits).map(([type, { field }]) => {
+        const instance = new zx.Field(null, { label: type, ...field });
+        fixture.append(instance.toElement());
+        return [type, instance];
+      });
+      return { fields };
+    },
+    exercise({ fields }) {
+      const failures = [];
+      for (const [type, field] of fields) {
+        const definition = edits[type];
+        let changes = 0;
+        let domChanges = 0;
+        let inputs = 0;
+        const before = JSON.stringify(field.getValue());
+        field.on('change', () => { changes += 1; });
+        field.on('input', () => { inputs += 1; });
+        field.el.addEventListener('zx-change', (event) => { if (event.target === field.el) domChanges += 1; });
+        definition.edit(field);
+        const value = field.getValue();
+        if (changes !== 1 || domChanges !== 1) failures.push(`${type}: ${changes} change event(s)`);
+        if (definition.value !== null && JSON.stringify(value) !== JSON.stringify(definition.value)) {
+          failures.push(`${type}: value ${JSON.stringify(value)}, expected ${JSON.stringify(definition.value)}`);
+        }
+        if (definition.value === null && JSON.stringify(value) === before) failures.push(`${type}: value did not change`);
+        if (definition.inputs && inputs < 1) failures.push(`${type}: no input event`);
+      }
+      assert(failures.length === 0, failures.join('; '));
+    },
+    destroy: ({ fields }) => { for (const [, field] of fields) field.destroy(); }
+  };
+}
+
+/*
+ * `Fieldset.addField(id, component)` adopts a component that is not a registered field type and
+ * must drive it through the component's own API: value, disabled state, read-only state where it
+ * has one, and one `change` per user edit.
+ */
+/** @returns {SmokeDefinition} */
+function fieldsetExternalCase() {
+  const sources = () => ({
+    count: [new zx.NumberField(null, { value: 1, min: 0, max: 10 }), 4, 4],
+    owner: [new zx.Select(null, { items: sampleItems(), value: 1 }), 2, 2],
+    share: [new zx.Slider(null, { label: 'Share', value: 10 }), 30, 30],
+    score: [new zx.Rating(null, { value: 1 }), 3, 3],
+    active: [new zx.Toggle(null, { label: 'Active', value: 'yes' }), true, 'yes'],
+    pinned: [new zx.CheckButton(null, { label: 'Pinned' }), true, true],
+    due: [new zx.Datebox(null, { value: date(20) }), date(22), date(22)],
+    spent: [new zx.Timebox(null, { value: 60 }), 90, 90],
+    email: [Object.assign(document.createElement('input'), { value: 'a@example.com' }), 'b@example.com', 'b@example.com'],
+    agree: [Object.assign(document.createElement('input'), { type: 'checkbox' }), true, true]
+  });
+  return {
+    name: 'Fieldset (external components)',
+    create(fixture) {
+      const entries = sources();
+      const fieldset = new zx.Fieldset(null, { columns: 2 });
+      for (const [key, [source]] of Object.entries(entries)) fieldset.addField(key, source);
+      fixture.append(fieldset.toElement());
+      return { component: fieldset, entries };
+    },
+    exercise({ component, entries }) {
+      const failures = [];
+      const initial = component.getValues();
+      const expected = { count: 1, owner: 1, share: 10, score: 1, active: false, pinned: false, spent: 60, email: 'a@example.com', agree: false };
+      for (const [key, value] of Object.entries(expected)) {
+        if (JSON.stringify(initial[key]) !== JSON.stringify(value)) failures.push(`${key} read ${JSON.stringify(initial[key])}`);
+      }
+      if (!(initial.due instanceof Date) || initial.due.getDate() !== 20) failures.push('due did not read its date');
+
+      for (const [key, [, next, read]] of Object.entries(entries)) {
+        component.setValue(key, next);
+        const value = component.getValue(key);
+        const same = read instanceof Date ? value instanceof Date && value.getTime() === read.getTime() : value === read;
+        if (!same) failures.push(`${key} set ${JSON.stringify(next)} read ${JSON.stringify(value)}`);
+      }
+
+      for (const [key, [source]] of Object.entries(entries)) {
+        const field = component.getField(key);
+        field.setDisabled(true);
+        const controls = [...(source instanceof Element ? [source] : source.el.querySelectorAll('input, button'))]
+          .filter((control) => !(control.closest('[popover]')) && control.type !== 'hidden');
+        const element = source instanceof Element ? source : source.el;
+        const disabled = (element.matches('button, input') && element.disabled) || controls.some((control) => control.disabled)
+          || element.getAttribute('aria-disabled') === 'true';
+        if (!disabled) failures.push(`${key} was not disabled`);
+        field.setDisabled(false);
+        const enabled = !(element.matches('button, input') && element.disabled) && element.getAttribute('aria-disabled') !== 'true';
+        if (!enabled) failures.push(`${key} was not enabled again`);
+      }
+
+      component.getField('count').setReadonly(true);
+      if (!entries.count[0].el.querySelector('input').readOnly) failures.push('count was not made read-only');
+      component.getField('count').setReadonly(false);
+
+      // One user edit, one change: a component that reports the edit and whose input also fires.
+      let changes = 0;
+      component.getField('count').on('change', () => { changes += 1; });
+      typeAndLeave(entries.count[0].el.querySelector('input'), '6');
+      if (changes !== 1) failures.push(`NumberField edit emitted ${changes} change(s)`);
+      changes = 0;
+      component.getField('share').on('change', () => { changes += 1; });
+      const range = entries.share[0].el.querySelector('input[type="range"]');
+      range.value = '50';
+      fire(range, 'input');
+      fire(range, 'change');
+      if (changes !== 1) failures.push(`Slider edit emitted ${changes} change(s)`);
+      changes = 0;
+      component.getField('active').on('change', () => { changes += 1; });
+      entries.active[0].el.click();
+      if (changes !== 1) failures.push(`Toggle click emitted ${changes} change(s)`);
+      changes = 0;
+      component.getField('email').on('change', () => { changes += 1; });
+      typeAndLeave(entries.email[0], 'c@example.com');
+      if (changes !== 1) failures.push(`input edit emitted ${changes} change(s)`);
+
+      assert(failures.length === 0, failures.join('; '));
+    },
+    destroy({ component, entries }) {
+      component.destroy();
+      for (const [source] of Object.values(entries)) {
+        if (source instanceof Element) source.remove();
+        else source.destroy();
+      }
+    }
+  };
+}
+
+/** Types into a text control and leaves it, firing what a browser fires. @param {HTMLInputElement|HTMLTextAreaElement} input @param {string} value @returns {void} */
+function typeAndLeave(input, value) {
+  input.value = value;
+  fire(input, 'input');
+  fire(input, 'change');
+  input.dispatchEvent(new FocusEvent('blur'));
+  input.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+}
+
+/** @param {EventTarget} target @param {string} type @returns {void} */
+function fire(target, type) {
+  target.dispatchEvent(new Event(type, { bubbles: true }));
+}
 
 /** @param {string} name @param {() => zx.Component} create @param {(component: any) => unknown} exercise @returns {SmokeDefinition} */
 function componentCase(name, create, exercise) {
@@ -3273,6 +3521,193 @@ function contextMenuCase() {
 }
 
 /**
+ * The point under an element's centre, as the hit test sees it: inert content is skipped there, so
+ * an item `showModal()` made inert reports the dialog behind it instead of itself.
+ * @param {Element} element
+ * @returns {Element|null}
+ */
+function hitAt(element) {
+  const box = element.getBoundingClientRect();
+  return document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+}
+
+/** A menu opened inside a modal Dialog is clickable and reachable from the keyboard. @returns {SmokeDefinition} */
+function menuInDialogCase() {
+  return {
+    name: 'MenuButton (inside a Dialog)',
+    create() {
+      const body = document.createElement('div');
+      const menu = new zx.MenuButton(null, {
+        label: 'More',
+        items: [{ label: 'Rename', value: 'rename' }, { label: 'Archive', value: 'archive' }]
+      });
+      body.append(menu.el);
+      const dialog = new zx.Dialog(null, { title: 'Project', content: body });
+      return { dialog, menu };
+    },
+    async exercise({ dialog, menu }) {
+      const chosen = [];
+      menu.on('select', (event) => chosen.push(event.detail.value));
+      dialog.open();
+      await nextFrame();
+      menu.getTrigger().click();
+      await nextFrame();
+      const panel = menu.getPanel();
+      const items = [...panel.querySelectorAll('[role="menuitem"]')];
+      assert(panel.parentElement === dialog.el, 'the menu panel is not hosted inside the open dialog');
+      assert(document.activeElement === items[0], 'opening the menu did not focus its first item');
+      items[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+      assert(document.activeElement === items[1], 'ArrowDown did not reach the second item');
+      assert(items[1].contains(hitAt(items[1])), 'the menu item is not hit-testable above the dialog');
+      items[1].dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+      assert(!menu.isOpen() && dialog.isOpen(), 'Escape in the menu must close the menu only');
+      assert(document.activeElement === menu.getTrigger(), 'Escape did not return focus to the trigger');
+      menu.focusFirst();
+      [...panel.querySelectorAll('[role="menuitem"]')][1].click();
+      assert(chosen.join() === 'archive' && !menu.isOpen(), 'choosing an item inside the dialog failed');
+      assert(panel.parentElement !== dialog.el, 'a closed panel stayed inside the dialog');
+      const closed = new Promise((resolve) => dialog.once('close', resolve));
+      dialog.close();
+      await closed;
+    },
+    destroy({ dialog, menu }) {
+      menu.destroy();
+      dialog.destroy();
+    }
+  };
+}
+
+/** A toast's action is clickable while a modal Dialog is open, and the region leaves with it. @returns {SmokeDefinition} */
+function toastOverDialogCase() {
+  return {
+    name: 'Message (over a Dialog)',
+    create() {
+      return { dialog: new zx.Dialog(null, { title: 'Editing', content: 'Body' }) };
+    },
+    async exercise({ dialog }) {
+      const ran = [];
+      dialog.open();
+      await nextFrame();
+      const handle = zx.Message.show('Row deleted.', { timeout: 0, action: { label: 'Undo', onclick: () => ran.push('undo') } });
+      await nextFrame();
+      const region = document.querySelector('.zx-message-region');
+      const action = region?.querySelector('.zx-message__action');
+      assert(region?.parentElement === dialog.el, 'the toast region did not move into the open dialog');
+      assert(action && action.contains(hitAt(action)), 'the toast action is not hit-testable over the dialog');
+      action.click();
+      assert(ran.join() === 'undo', 'the toast action did not run');
+      handle.close();
+      const kept = zx.Message.show('Still here.', { timeout: 0 });
+      const closed = new Promise((resolve) => dialog.once('close', resolve));
+      dialog.close();
+      await closed;
+      const after = document.querySelector('.zx-message-region');
+      assert(after && !dialog.el.contains(after) && after.matches(':popover-open'),
+        'the toast region did not return to its scope when the dialog closed');
+      kept.close();
+      zx.Message.disposeRegion(after);
+    },
+    destroy({ dialog }) {
+      dialog.destroy();
+    }
+  };
+}
+
+/** A non-modal Sheet knows the popups it opened: they neither dismiss it nor outlive its Escape. @returns {SmokeDefinition} */
+function sheetChildOverlaysCase() {
+  return {
+    name: 'Sheet (child overlays)',
+    create() {
+      const body = document.createElement('div');
+      const menu = new zx.MenuButton(null, { label: 'Actions', items: [{ label: 'Duplicate', value: 'duplicate' }] });
+      const anchor = zx.button({ label: 'Details' });
+      body.append(menu.el, anchor);
+      const dropdown = new zx.Dropdown(anchor, { content: 'Panel text', openOn: 'manual' });
+      const sheet = new zx.Sheet(null, { title: 'Filters', content: body, modal: false });
+      return { sheet, menu, dropdown, anchor, body };
+    },
+    async exercise({ sheet, menu, dropdown, anchor, body }) {
+      const events = [];
+      menu.on('select', (event) => events.push(`select:${event.detail.value}`));
+      sheet.on('close', () => events.push('sheet-close'));
+      sheet.open();
+      await nextFrame();
+      menu.getTrigger().click();
+      const item = menu.getPanel().querySelector('[role="menuitem"]');
+      item.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, composed: true }));
+      item.click();
+      await Promise.resolve();
+      assert(sheet.isOpen(), `choosing a menu item closed the sheet (${events.join()})`);
+      assert(events.join() === 'select:duplicate', `unexpected events: ${events.join()}`);
+
+      dropdown.open();
+      anchor.focus();
+      anchor.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+      assert(!dropdown.isOpen() && sheet.isOpen(), 'Escape closed the sheet instead of its dropdown');
+      const spend = (event) => event.preventDefault();
+      body.addEventListener('keydown', spend, { once: true });
+      anchor.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+      assert(sheet.isOpen(), 'an Escape already handled inside the sheet still closed it');
+      dropdown.open();
+      document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, composed: true }));
+      assert(!dropdown.isOpen() && !sheet.isOpen(), 'a press outside left the sheet or its dropdown open');
+      sheet.open();
+      dropdown.open();
+      sheet.close();
+      await Promise.resolve();
+      assert(!dropdown.isOpen(), 'closing the sheet stranded its dropdown');
+    },
+    destroy({ sheet, menu, dropdown }) {
+      dropdown.destroy();
+      menu.destroy();
+      sheet.destroy();
+    }
+  };
+}
+
+/** A generic Dropdown panel follows its trigger in the Tab order. @returns {SmokeDefinition} */
+function dropdownTabReachCase() {
+  return {
+    name: 'Dropdown (Tab reach)',
+    create(fixture) {
+      const anchor = zx.button({ label: 'Filter' });
+      const after = zx.button({ label: 'After' });
+      fixture.append(anchor, after);
+      const field = document.createElement('input');
+      field.setAttribute('aria-label', 'Search');
+      const apply = zx.button({ label: 'Apply' });
+      const content = document.createElement('div');
+      content.append(field, apply);
+      const component = new zx.Dropdown(anchor, { content });
+      return { component, anchor, after, field, apply };
+    },
+    exercise({ component, anchor, after, field, apply }) {
+      const tab = (target, shiftKey = false) => target.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'Tab', shiftKey, bubbles: true, cancelable: true
+      }));
+      anchor.click();
+      assert(component.isOpen(), 'the trigger did not open the panel');
+      anchor.focus();
+      tab(anchor);
+      assert(document.activeElement === field, 'Tab from the trigger did not enter the panel');
+      tab(field, true);
+      assert(document.activeElement === anchor, 'Shift+Tab from the first control did not return to the trigger');
+      apply.focus();
+      tab(apply);
+      assert(document.activeElement === after, 'Tab past the panel did not continue after the trigger');
+      field.focus();
+      component.close();
+      assert(document.activeElement === anchor, 'closing with focus inside did not return it to the trigger');
+    },
+    destroy({ component, anchor, after }) {
+      component.destroy();
+      anchor.remove();
+      after.remove();
+    }
+  };
+}
+
+/**
  * Responsive stacking, which only a laid-out browser can prove: it is driven by a ResizeObserver,
  * and RO delivers during rendering steps — so this reports nothing at all in a hidden tab and has
  * to be verified here rather than in a devtools console.
@@ -3308,13 +3743,16 @@ function tableStackingCase() {
       events.expect();
 
       const cell = component.el.querySelector('tbody td[data-label="Customer"]');
-      assert(cell.getAttribute('role') === 'cell', 'stacked cells lost their table role');
-      assert(component.el.querySelector('table').getAttribute('role') === 'table', 'stacked table lost its role');
+      assert(cell.getAttribute('role') === 'gridcell', 'stacked cells lost their grid role');
+      assert(component.el.querySelector('table').getAttribute('role') === 'grid', 'stacked table lost its role');
 
       host.style.inlineSize = '900px';
       await settle();
       assert(!component.isStacked(), 'did not unstack when the room came back');
-      assert(!component.el.querySelector('table').hasAttribute('role'), 'roles outlived stacked mode');
+      assert(!component.el.querySelector('tbody td').hasAttribute('role')
+        && !component.el.querySelector('tbody').hasAttribute('role'), 'roles outlived stacked mode');
+      assert(component.el.querySelector('table').getAttribute('role') === 'grid',
+        'unstacking took the grid role off the table');
     },
     destroy({ component, host }) {
       component.destroy();
@@ -3427,6 +3865,158 @@ function tableHierarchyCase() {
     },
     destroy({ component }) {
       component.destroy();
+    }
+  };
+}
+
+/**
+ * Sends one keydown to whatever has focus, the way the browser would.
+ * @param {string} key `KeyboardEvent.key`.
+ * @param {KeyboardEventInit} [init] Modifiers.
+ * @returns {KeyboardEvent}
+ */
+function pressKey(key, init = {}) {
+  const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init });
+  (document.activeElement ?? document.body).dispatchEvent(event);
+  return event;
+}
+
+/** The APG grid keyboard model on a flat table: one Tab stop, activation, selection, focus kept. @returns {SmokeDefinition} */
+function tableKeyboardCase() {
+  return {
+    name: 'Table (grid keyboard)',
+    create(fixture) {
+      const component = new zx.Table(null, {
+        rowId: 'id',
+        selectable: 'multi',
+        columns: [{ id: 'name', label: 'Name', sortable: true }, { id: 'city', label: 'City' }],
+        data: [
+          { id: 1, name: 'Acme GmbH', city: 'Berlin' },
+          { id: 2, name: 'Borealis AB', city: 'Malmö' },
+          { id: 3, name: 'Kestrel Ltd', city: 'Leeds' },
+          { id: 4, name: 'Nordwind AG', city: 'Basel' }
+        ]
+      });
+      fixture.append(component.toElement());
+      return { component };
+    },
+    exercise({ component }) {
+      const body = component.el.querySelector('tbody');
+      const stops = () => [...body.querySelectorAll('[tabindex="0"]')];
+      const focusedName = () => document.activeElement?.closest('tr')?.querySelector('[data-column="name"]')?.textContent;
+      const clicks = [];
+      component.on('rowclick', (event) => clicks.push(event.detail.id));
+
+      assert(component.el.querySelector('table').getAttribute('role') === 'grid', 'table is not a grid');
+      assert(component.el.querySelector('table').getAttribute('aria-multiselectable') === 'true',
+        'multi-select grid did not say so');
+      assert(component.el.dataset.focus === 'row', 'a read-only table should move focus by row');
+      assert(stops().length === 1 && stops()[0].localName === 'tr', 'the body is not exactly one row Tab stop');
+      assert([...body.querySelectorAll('.zx-table__row-checkbox')].every((box) => box.tabIndex === -1),
+        'row checkboxes are still Tab stops');
+      const checkbox = body.querySelector('.zx-table__row-checkbox');
+      assert(checkbox.getAttribute('aria-label') === 'Select Acme GmbH',
+        `row checkbox is named "${checkbox.getAttribute('aria-label')}"`);
+
+      stops()[0].focus();
+      assert(pressKey('ArrowDown').defaultPrevented && focusedName() === 'Borealis AB', 'ArrowDown did not move to the next row');
+      pressKey('Enter');
+      assert(clicks.length === 1 && clicks[0] === 2, 'Enter did not fire rowclick for the focused row');
+      pressKey(' ');
+      assert(component.getSelection().map((row) => row.id).join() === '2', 'Space did not select the focused row');
+      assert(clicks.length === 1, 'Space fired rowclick in a selectable table');
+      pressKey('ArrowDown', { shiftKey: true });
+      assert(component.getSelection().map((row) => row.id).join() === '2,3', 'Shift+ArrowDown did not extend the selection');
+      pressKey('ArrowUp', { shiftKey: true });
+      assert(component.getSelection().map((row) => row.id).join() === '2', 'Shift+ArrowUp did not shrink the extension');
+      pressKey('End');
+      assert(focusedName() === 'Nordwind AG', 'End did not reach the last row');
+      pressKey('Home');
+      assert(focusedName() === 'Acme GmbH', 'Home did not reach the first row');
+      pressKey('PageDown');
+      assert(focusedName() === 'Nordwind AG', 'PageDown did not move by a page');
+      pressKey('a', { ctrlKey: true });
+      assert(component.getSelection().length === 4, 'Ctrl+A did not select every row');
+      pressKey(' ');
+      assert(component.getSelection().length === 3, 'Space did not toggle a selected row off');
+
+      // Focus and the Tab stop follow the row through a sort, a row update, and new data.
+      pressKey('ArrowUp');
+      assert(focusedName() === 'Kestrel Ltd', 'ArrowUp did not move to the previous row');
+      component.setSort('name', 'desc');
+      assert(focusedName() === 'Kestrel Ltd' && stops().length === 1, 'sorting lost the focused row');
+      component.updateRow(3, { id: 3, name: 'Kestrel plc', city: 'Leeds' });
+      assert(focusedName() === 'Kestrel plc', 'updateRow lost the focused row');
+      component.setData(component.getData().filter((row) => row.id !== 3));
+      assert(document.activeElement?.closest('tbody') === body && stops().length === 1,
+        'removing the focused row did not move focus to its neighbour');
+    },
+    destroy({ component }) { component.destroy(); }
+  };
+}
+
+/** The APG treegrid keys, and cell focus in an editable table. @returns {SmokeDefinition} */
+function tableTreegridKeyboardCase() {
+  return {
+    name: 'Table (treegrid keyboard)',
+    create(fixture) {
+      const data = [
+        { id: 'a', parent: null, item: 'Alpha', amount: 1 },
+        { id: 'a1', parent: 'a', item: 'Alpha one', amount: 2 },
+        { id: 'b', parent: null, item: 'Beta', amount: 3 }
+      ];
+      const tree = new zx.Table(null, {
+        rowId: 'id', hierarchy: { parentId: 'parent', column: 'item' },
+        columns: [{ id: 'item', label: 'Item' }, { id: 'amount', label: 'Amount' }], data
+      });
+      const cells = new zx.Table(null, {
+        rowId: 'id', editMode: 'cell',
+        columns: [{ id: 'item', label: 'Item' }, { id: 'amount', label: 'Amount', editable: 'number' }],
+        data: data.map((row) => ({ ...row, parent: null }))
+      });
+      fixture.append(tree.toElement(), cells.toElement());
+      return { tree, cells };
+    },
+    exercise({ tree, cells }) {
+      const focused = () => document.activeElement?.closest('tr')?.querySelector('[data-column="item"]')?.textContent;
+      const toggles = [];
+      tree.on('rowtoggle', (event) => toggles.push(`${event.detail.id}:${event.detail.expanded}`));
+      const toggle = tree.el.querySelector('.zx-table__tree-toggle');
+      assert(toggle.tabIndex === -1 && toggle.getAttribute('aria-label') === 'Expand Alpha',
+        `disclosure is "${toggle.getAttribute('aria-label')}" with tabindex ${toggle.tabIndex}`);
+
+      tree.el.querySelector('tbody tr').focus();
+      pressKey('ArrowRight');
+      assert(toggles.join() === 'a:true' && focused() === 'Alpha', 'ArrowRight did not expand in place');
+      assert(tree.el.querySelector('tbody tr').getAttribute('aria-expanded') === 'true', 'aria-expanded did not follow');
+      pressKey('ArrowRight');
+      assert(focused() === 'Alpha one', 'ArrowRight on an expanded row did not move to its first child');
+      assert(document.activeElement.getAttribute('aria-level') === '2', 'child row lost aria-level');
+      pressKey('ArrowLeft');
+      assert(focused() === 'Alpha', 'ArrowLeft on a leaf did not move to its parent');
+      pressKey('ArrowLeft');
+      assert(toggles.join() === 'a:true,a:false' && focused() === 'Alpha', 'ArrowLeft did not collapse in place');
+
+      // Cell focus: editable tables move between cells, and Enter still opens the editor.
+      assert(cells.el.dataset.focus === 'cell', 'an editable table should move focus by cell');
+      const first = cells.el.querySelector('tbody td[tabindex="0"]');
+      assert(first?.dataset.column === 'item', 'the cell Tab stop is not on the first cell');
+      first.focus();
+      pressKey('ArrowRight');
+      assert(document.activeElement.dataset.column === 'amount', 'ArrowRight did not move to the next cell');
+      pressKey('ArrowDown');
+      assert(focused() === 'Alpha one' && document.activeElement.dataset.column === 'amount',
+        'ArrowDown did not keep the column');
+      pressKey('Enter');
+      assert(cells.isEditing(), 'Enter on an editable cell did not open its editor');
+      cells.cancelEdit();
+      assert(document.activeElement.dataset.column === 'amount', 'cancelling did not return focus to the cell');
+      pressKey('Home', { ctrlKey: true });
+      assert(focused() === 'Alpha' && document.activeElement.dataset.column === 'item', 'Ctrl+Home did not reach the first cell');
+    },
+    destroy({ tree, cells }) {
+      tree.destroy();
+      cells.destroy();
     }
   };
 }
@@ -3845,3 +4435,277 @@ function date(day) {
  * @property {boolean} recreate
  * @property {string} error
  */
+
+/* ------------------------------------------------ audit 2026-10, defects 10–13 -- */
+
+/** Dispatches a cancelable keydown and reports whether a handler claimed it. */
+function pressOn(target, key, init = {}) {
+  const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init });
+  target.dispatchEvent(event);
+  return event.defaultPrevented;
+}
+
+/**
+ * A text field inside a Toolbar keeps its caret keys (defect 13): the roving tabindex only takes
+ * an arrow once the caret sits at the edge, never Home/End, and follows `dir="rtl"`.
+ * @returns {SmokeDefinition}
+ */
+function toolbarRovingInputCase() {
+  return {
+    name: 'Toolbar (text field and RTL)',
+    create(fixture) {
+      const host = document.createElement('div');
+      fixture.append(host);
+      const field = document.createElement('input');
+      field.setAttribute('aria-label', 'Quick find');
+      field.value = 'invoice';
+      const component = new zx.Toolbar(null, {
+        items: [{ name: 'first', label: 'First' }, field, { name: 'last', label: 'Last' }]
+      });
+      host.append(component.toElement());
+      return { component, host, field };
+    },
+    async exercise({ component, host, field }) {
+      const first = component.getItem('first');
+      const last = component.getItem('last');
+      field.focus();
+      field.setSelectionRange(3, 3);
+      assert(!pressOn(field, 'ArrowLeft'), 'ArrowLeft inside the text was taken from the caret');
+      assert(!pressOn(field, 'ArrowRight'), 'ArrowRight inside the text was taken from the caret');
+      assert(!pressOn(field, 'Home') && !pressOn(field, 'End'), 'Home/End were taken from the text field');
+      assert(document.activeElement === field, 'focus left the text field mid-text');
+      field.setSelectionRange(0, 0);
+      assert(pressOn(field, 'ArrowLeft') && document.activeElement === first,
+        'ArrowLeft at the start of the text did not move on to the previous item');
+      assert(pressOn(first, 'ArrowRight') && document.activeElement === field, 'ArrowRight did not reach the field');
+      field.setSelectionRange(field.value.length, field.value.length);
+      assert(pressOn(field, 'ArrowRight') && document.activeElement === last,
+        'ArrowRight at the end of the text did not move on');
+
+      host.dir = 'rtl';
+      first.focus();
+      assert(pressOn(first, 'ArrowLeft') && document.activeElement === field,
+        'under dir="rtl" ArrowLeft did not move to the visually next item');
+      field.setSelectionRange(0, 0);
+      assert(pressOn(field, 'ArrowRight') && document.activeElement === first,
+        'under dir="rtl" ArrowRight at the start of the text did not move back');
+      host.dir = '';
+
+      // Availability changes still reach the group; content churn does not need to.
+      last.hidden = true;
+      await Promise.resolve();
+      field.setSelectionRange(field.value.length, field.value.length);
+      pressOn(field, 'ArrowRight');
+      assert(document.activeElement === first, 'a hidden item was not skipped (the group missed the change)');
+      last.hidden = false;
+    },
+    destroy({ component, host }) {
+      component.destroy();
+      host.remove();
+    }
+  };
+}
+
+/**
+ * Moving a field in the RecordView chooser keeps focus on that field's control, announces the
+ * move, and Escape closes the disclosure (defect 11).
+ * @returns {SmokeDefinition}
+ */
+function recordViewChooserFocusCase() {
+  return {
+    name: 'CardView (field chooser focus)',
+    create(fixture) {
+      const component = new zx.CardView(null, {
+        fields: recordViewFields(), data: recordViewData(), recordId: 'id', titleField: 'title'
+      });
+      fixture.append(component.toElement());
+      return { component };
+    },
+    async exercise({ component }) {
+      const controls = component.getFieldControls();
+      controls.open = true;
+      const button = (id, action) => controls.querySelector(
+        `[data-field-id="${id}"][data-view-field-action="${action}"]`);
+      const order = component.getFieldOrder();
+      const id = order[1];
+      button(id, 'down').focus();
+      button(id, 'down').click();
+      await Promise.resolve();
+      assert(component.getFieldOrder()[2] === id, 'the field did not move');
+      const active = document.activeElement;
+      assert(active?.dataset.fieldId === id && active.dataset.viewFieldAction === 'down',
+        `focus did not stay on the moved field's button (it is on ${active?.outerHTML.slice(0, 80)})`);
+      const status = controls.querySelector('.zx-record-view__field-status');
+      assert(status?.getAttribute('role') === 'status' && /position 3 of/.test(status.textContent),
+        'the move was not announced');
+      // Moved to the end, the down button disables and focus moves to the same field's up button.
+      const last = order.length - 1;
+      for (let index = 2; index < last; index += 1) button(id, 'down').click();
+      await Promise.resolve();
+      assert(document.activeElement === button(id, 'up'), 'focus was lost when the down button disabled');
+      assert(pressOn(document.activeElement, 'Escape'), 'Escape was not handled by the chooser');
+      assert(controls.open === false, 'Escape did not close the chooser');
+      assert(document.activeElement === controls.querySelector('summary'), 'focus did not return to the trigger');
+    },
+    destroy: ({ component }) => component.destroy()
+  };
+}
+
+/**
+ * Upload progress ticks through updateItem() without moving focus or scroll (defect 11), and
+ * unchanged rows are left untouched.
+ * @returns {SmokeDefinition}
+ */
+function fileListFocusCase() {
+  return {
+    name: 'FileList (progress keeps focus)',
+    create(fixture) {
+      const files = Array.from({ length: 12 }, (_, index) => ({
+        id: `f${index}`, name: `scan-${index}.pdf`, status: 'uploading', progress: 10,
+        actions: [{ id: 'cancel', label: 'Cancel' }]
+      }));
+      const component = new zx.FileList(null, { items: files });
+      const scroller = document.createElement('div');
+      scroller.style.cssText = 'block-size: 160px; overflow: auto';
+      scroller.append(component.toElement());
+      fixture.append(scroller);
+      return { component, scroller };
+    },
+    async exercise({ component, scroller }) {
+      const row = (id) => [...component.el.querySelectorAll('.zx-file-list__item')]
+        .find((item) => item.textContent.includes(`scan-${id.slice(1)}.pdf`));
+      const cancel = row('f8').querySelector('button');
+      cancel.focus();
+      scroller.scrollTop = scroller.scrollHeight;
+      const scrollTop = scroller.scrollTop;
+      const untouched = row('f2');
+      for (const progress of [25, 50, 75]) {
+        component.updateItem('f8', { progress });
+        assert(document.activeElement !== document.body && row('f8').contains(document.activeElement),
+          `focus dropped out of the file at ${progress}%`);
+      }
+      assert(document.activeElement.textContent.includes('Cancel'), 'focus is not on the Cancel action');
+      assert(scroller.scrollTop === scrollTop, 'the list scrolled while progress ticked');
+      assert(row('f2') === untouched, 'an unchanged file row was rebuilt');
+      assert(component.getItem('f8').progress === 75, 'the update did not apply');
+      component.removeItem('f8');
+      await Promise.resolve();
+      assert(component.el.contains(document.activeElement), 'removing the focused file dropped focus to <body>');
+    },
+    destroy: ({ component, scroller }) => {
+      component.destroy();
+      scroller.remove();
+    }
+  };
+}
+
+/** A live feed prepending entries keeps focus on the entry's action. @returns {SmokeDefinition} */
+function activityListFocusCase() {
+  return {
+    name: 'ActivityList (prepend keeps focus)',
+    create(fixture) {
+      const component = new zx.ActivityList(null, {
+        items: [
+          { id: 'one', actor: 'Ada', title: 'created the record', actions: [{ id: 'like', label: 'Like' }] },
+          { id: 'two', actor: 'Grace', title: 'added a note', actions: [{ id: 'like', label: 'Like' }] }
+        ]
+      });
+      fixture.append(component.toElement());
+      return { component };
+    },
+    exercise({ component }) {
+      const action = () => [...component.el.querySelectorAll('[data-activity-action]')]
+        .find((button) => button.closest('li, article')?.textContent.includes('added a note'));
+      action().focus();
+      component.prependItems({ id: 'zero', actor: 'Linus', title: 'opened the record' });
+      assert(document.activeElement === action(), 'prepending an entry moved focus off the focused action');
+    },
+    destroy: ({ component }) => component.destroy()
+  };
+}
+
+/**
+ * KanbanView honours `fieldControls.target`, and ListToolbar.bind() mounts the field chooser of
+ * every record view through its public API (defect 10).
+ * @returns {SmokeDefinition}
+ */
+function recordViewFieldTargetCase() {
+  return {
+    name: 'ListToolbar (field chooser mount)',
+    create(fixture) {
+      const host = document.createElement('div');
+      fixture.append(host);
+      const kanban = new zx.KanbanView(null, {
+        fields: recordViewFields(), data: recordViewData(), recordId: 'id', titleField: 'title',
+        columnBy: 'status', fieldControls: { target: host }
+      });
+      const table = new zx.TableView(null, { fields: recordViewFields(), data: recordViewData(), recordId: 'id' });
+      const toolbar = new zx.ListToolbar(null, { views: ['table', 'cards'] });
+      fixture.append(kanban.toElement(), toolbar.toElement(), table.toElement());
+      return { host, kanban, table, toolbar };
+    },
+    exercise({ host, kanban, table, toolbar }) {
+      const chooser = host.querySelector('.zx-record-view__field-controls');
+      assert(chooser && chooser === kanban.getFieldControls(), 'Kanban ignored fieldControls.target');
+      assert(!kanban.el.querySelector('.zx-record-view__field-controls'), 'Kanban also kept one in its toolbar');
+
+      const columns = table.getFieldControls();
+      assert(columns?.classList.contains('zx-table__column-controls'), 'TableView offers no field chooser');
+      toolbar.bind(table);
+      assert(toolbar.getToolsElement().contains(columns), 'bind() did not mount the TableView chooser');
+      columns.querySelector('input[type="checkbox"]').click();
+      assert(table.getHiddenFields().length === 1, 'the mounted chooser no longer drives its view');
+      toolbar.unbind();
+      assert(table.el.contains(columns), 'unbind() did not hand the chooser back');
+      toolbar.bind(table);
+      kanban.destroy();
+      assert(!host.querySelector('.zx-record-view__field-controls'), 'Kanban left its chooser in the host');
+    },
+    destroy({ host, kanban, table, toolbar }) {
+      kanban.destroy();
+      table.destroy();
+      assert(!toolbar.el.querySelector('.zx-table__column-controls'), 'a destroyed view left its chooser in the bar');
+      toolbar.destroy();
+      host.remove();
+    }
+  };
+}
+
+/** withinLast is an amount and a unit, not two dates (defect 12). @returns {SmokeDefinition} */
+function filterRelativeDateCase() {
+  return {
+    name: 'Filter (relative date)',
+    create(fixture) {
+      const component = new zx.Filter(null, {
+        fields: [{ id: 'due', label: 'Due date', type: 'date' }],
+        value: { version: 1, root: { kind: 'group', id: 'root', logic: 'and', children: [
+          { kind: 'condition', id: 'c1', field: 'due', operator: 'withinLast', value: null }
+        ] } }
+      });
+      fixture.append(component.toElement());
+      return { component };
+    },
+    async exercise({ component }) {
+      await Promise.resolve();
+      const row = component.el.querySelector('[data-node-id="c1"]');
+      assert(!row.querySelector('input[type="date"]'), 'the relative operator still renders date pickers');
+      const amount = row.querySelector('input[type="number"][data-filter-relative="amount"]');
+      const unit = row.querySelector('select[data-filter-relative="unit"]');
+      assert(amount && unit && amount.getAttribute('aria-label') && unit.getAttribute('aria-label'),
+        'amount and unit controls are missing or unnamed');
+      assert(!component.validate().valid, 'an empty span validated');
+      amount.value = '7';
+      amount.dispatchEvent(new Event('input', { bubbles: true }));
+      const condition = () => component.getValue().root.children[0];
+      assert(JSON.stringify(condition().value) === '[7,"days"]', `amount wrote ${JSON.stringify(condition().value)}`);
+      unit.value = 'weeks';
+      unit.dispatchEvent(new Event('change', { bubbles: true }));
+      assert(JSON.stringify(condition().value) === '[7,"weeks"]', 'the unit did not write');
+      assert(component.validate().valid, 'a complete span did not validate');
+      amount.value = '0';
+      amount.dispatchEvent(new Event('input', { bubbles: true }));
+      assert(!component.validate().valid, 'a zero span validated');
+    },
+    destroy: ({ component }) => component.destroy()
+  };
+}

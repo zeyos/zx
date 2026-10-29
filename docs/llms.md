@@ -61,7 +61,10 @@ Themes: `light` | `dark` | `auto` (follows OS).
 (`--zx-space-unit`, 4px: `--zx-space-1…8` = 4/8/12/16/20/24/32/40px), radius steps are fractions of
 one base (`--zx-radius`, 4px: `-sm/-md/-lg/-xl` = 2/3/4/6px; `-full` only for shapes whose roundness
 is the meaning — badges, avatars, toggles), and controls are `--zx-control-height` (30px) tall.
-To tighten or loosen an application, override those tokens on `:root` or on any region:
+To tighten or loosen an application, override those tokens on `:root` or on any region. The
+geometry and material tokens (control size, radius, spacing, blur and glass filters, durations,
+easings, the type scale) are declared on `:root` only, never on a `[data-zx-theme]` block, so an
+override on `:root` reaches nested light and dark regions alike; theme blocks carry colours only:
 
 ```css
 :root { --zx-space-unit: 3.5px; --zx-control-height: 28px; }
@@ -225,9 +228,14 @@ await records.saveView({ name: 'My open invoices', setDefault: true });
   so a form in a scoped dialog toasts inside that scope; `notify: false` raises none, leaving the
   promise's result or rejection to the caller.
 - `zeyosTable(client, resource, opts)` returns
-  `{table, load(), setSearch(), setFilters(), loadMore(), count, page, hasMore, destroy()}`. Columns
-  come from schema metadata, sorting uses `sortMode:'server'`, and page zero replaces rows while
-  later pages append them using server `limit`/`offset` and `count`. Table presentation options and
+  `{table, load(), setSearch(), setFilters(), loadMore(), count, page, pageSize, hasMore, destroy()}`.
+  Columns come from schema metadata, sorting uses `sortMode:'server'`, and paging is zero-based with
+  `pageSize: 50` by default: page zero replaces rows while later pages append them using server
+  `limit`/`offset` and `count`; `load({page, pageSize, replace: true})` replaces at any page. A
+  one-based `Pagination` maps onto it as `load({page: detail.page - 1, pageSize: detail.pageSize,
+  replace: true})` (offset `(page - 1) * pageSize`), feeding `result.count` back through
+  `setTotal()`. A response that resolves after `destroy()` is ignored and later loads reject; page
+  must be a non-negative integer and page size a positive integer (`RangeError`). Table presentation options and
   listeners pass through — `variant`, `zebra`, `stickyHeader`, `responsive`, `growing`, `emptyText`,
   `rowClass`, `rowKind(s)`, `columnVisibility`, `columnReorder`, `hiddenColumns`, `on<event>`;
   `onrowclick` runs beside `onRowClick`. The binding owns `columns`, `data`, and `sortMode`, and
@@ -236,7 +244,8 @@ await records.saveView({ name: 'My open invoices', setDefault: true });
   complete projection, and view options. `zeyosView(client, resource, CardView|TableView|KanbanView,
   opts)` returns `{view, load(), setSearch(), setFilters(), loadMore(), count, page, hasMore,
   savedViews, ready, restoreDefault(), captureView(), saveView(), applyView(), destroy()}` with
-  paging and server sort. Title, preview, group, column, and swim-lane fields stay in the projection
+  paging and server sort. Paging is the same loader as `zeyosTable()` — same `pageSize: 50` default,
+  validation, `replace`/`pageSize` load options, and destroy guard. Title, preview, group, column, and swim-lane fields stay in the projection
   even when hidden. Without `savedViews`, the host may persist `view.getViewState()` directly.
 - `createSavedViewRegistry(transport, {userId,workspaceId,resource})` coordinates private named
   Table/Card/Kanban configurations as one versioned, atomically replaced document. Entries capture
@@ -266,8 +275,10 @@ instance's zone — a day, not an instant: tables show it with no time, and form
 so neither the viewer's zone nor daylight saving moves it. Pass the instance's IANA zone as
 `timeZone` (table, form, view; default: the runtime's own); `unixSecondsToCalendarDay(seconds, tz)`
 and `calendarDayToUnixSeconds(date, tz)` do the same conversion for application code. Use
-`dataFilterStateToFilters(state, defs)` before `tableBinding.setFilters(...)` when wiring a
-`DataFilter`.
+`dataFilterStateToFilters(state, defs, {timeZone})` before `tableBinding.setFilters(...)` when wiring
+a `DataFilter`: with `timeZone`, a `format: 'date'` value (`Date` or `YYYY-MM-DD`) becomes that
+day's midnight in the zone, as forms store it, while `datetime` values stay instants; without it,
+dates convert as exact instants. `FilterPanel` takes the same `timeZone` option.
 
 ### Module icons and colours
 
@@ -421,8 +432,10 @@ a `MenuButton`, where choosing one activates the original control.
   `setActive(name, active?)`, `destroy()`.
 - **Events** — `action {name, item}`, emitted for descriptor-built items in addition to their own
   `onclick`, from the row and from the overflow menu alike.
-- **Keyboard** — Tab reaches the toolbar once; ArrowLeft/ArrowRight move between controls and wrap;
-  Home/End jump to the first and last control.
+- **Keyboard** — Tab reaches the toolbar once; ArrowLeft/ArrowRight move between controls and wrap,
+  in visual order under `dir="rtl"`; Home/End jump to the first and last control. A text field, select,
+  or contenteditable item keeps its own keys: Home/End and the arrows move its caret, and an arrow
+  moves on to the neighbouring control only once the caret is at that edge of the text.
 - **Pressed items** — an item with `active` renders `aria-pressed="true"` and takes the neutral
   `--zx-color-bg-current` fill, never the accent.
 <!-- /doc -->
@@ -736,6 +749,11 @@ Explicit duplicate file IDs are rejected; source order is preserved.
 - **Events** — cancelable `activate {id,index,file,href,event}` and
   `action {id,fileId,index,action,file,event}`, plus `datachange {items}` after a collection
   mutation. Returned items are defensive snapshots.
+- **Updates in place** — mutations are reconciled by file `id`: unchanged rows are left alone and a
+  changed one is updated through `FileItem.set()`, so upload progress can tick through
+  `updateItem(id, {progress})` while focus (say, on that file's Cancel action) and the scroll
+  position stay put. Removing the focused file moves focus to the file that takes its place. Files
+  without an `id` are rebuilt on every mutation.
 <!-- /doc -->
 
 <!-- doc:activity-item -->
@@ -777,6 +795,9 @@ whether a feed is newest- or oldest-first.
   `updateItem(id,values,{silent?})`, `removeItem(id,{silent?})`, `setLoading()`, and `destroy()`.
 - **Events** — `datachange {items}` after mutation. Each child's cancelable `zx-action` bubbles
   naturally through the list for delegated application handling.
+- **Focus** — entries are regrouped on every mutation; focus on an entry's control returns to the
+  same control of the same activity (matched by `id`, else position), so a feed prepending live
+  entries does not drop the reader to `<body>`.
 - **Grouping** — groups keep first-seen group order and item source order. The exported pure
   `groupActivityItems()` and `normalizeActivityItems()` helpers do not mutate caller arrays.
 <!-- /doc -->
@@ -857,8 +878,9 @@ Unifies single-select, local filtering, and async loading.
   `clearable: false`, `filter: false | 'local' | async (query)=>items`, `searchKeys`,
   `minQuery: 0`, `debounce: 200`, `listHeight: 280`, `groupKey`.
 - **Getters** — `.value`, `.selected`.
-- **Methods** — `set(id, {silent})`, `setItems()`, `setFixedItems()`, `setActions()`, `reset()`,
-  `open()`/`close()`, `enable()`/`disable()`, `focus()`.
+- **Methods** — `get()` (the same as `.value`), `set(id, {silent})`, `setItems()`,
+  `setFixedItems()`, `setActions()`, `reset()`, `open()`/`close()`, `enable()`/`disable()`,
+  `focus()`.
 - **Events** — `change {value, item}` (`item` is null on clear), preventable
   `action {id, action, query, select}`, `open`, `close`, `query {query}`, `loaded {items}`.
 - **Fixed choices** — `fixedItems` pins entries to the top of the list, separated by a rule (the
@@ -1154,7 +1176,10 @@ messages rather than the page, and uses the translucent glass surface tokens wit
   when its last toast closes. One whose host was emptied or left the document is replaced on the
   next toast rather than reused, and a scope that is itself detached falls back to the focused
   element's scope. `Message.disposeRegion(scope)` → boolean removes a scope's region at once,
-  toasts and all, for a host torn down while toasts are still showing.
+  toasts and all, for a host torn down while toasts are still showing. While a modal Dialog or
+  Sheet is open the region moves into the topmost one, so toasts and their actions stay visible
+  and clickable above it, and moves back when it closes. A press on a toast dismisses no open menu
+  or drawer.
 - **Per-message options** — `kind: 'info'`, `timeout`, `closable: true`, `maxVisible: 5` (extras
   queue, and hovering pauses dismissal).
 - **Action** — `action: { label, onclick?, kind? }` renders one small button (`.zx-btn`,
@@ -1236,7 +1261,11 @@ When a Dock adopts it, the Sheet becomes an opaque layout surface instead.
   the browser through `showModal()`. Floating `'trap-focus'` and `false` sheets use a manual
   Popover top layer, so they stay viewport-anchored even inside a transformed or clipped theme
   scope while the page keeps scrolling and stays interactive. Escape and outside-click are
-  re-implemented, and `'trap-focus'` adds `focusTrap()` on top. Their top-layer backdrop is
+  re-implemented through the overlay stack, and `'trap-focus'` adds `focusTrap()` on top: Esc
+  closes the sheet when focus is in it (or in a popup it opened) and no popup above it takes the
+  key first, an Esc already handled inside (`defaultPrevented`) is ignored, and a press inside a
+  menu or dropdown anchored in the sheet counts as inside the sheet. Closing the sheet closes the
+  popups it opened. Their top-layer backdrop is
   explicitly transparent and non-filtering; `backdrop` is meaningful only when `modal` is `true`.
   A docked Sheet remains a native non-modal dialog in its Dock's flow.
 - **Resizing and detents** — `resizable` makes the inner edge draggable between `min` and `max`.
@@ -1322,7 +1351,21 @@ DOM child of the anchor's nearest Zx theme scope while the browser lifts it into
 - **Hosting** — the host is resolved again on every `open()`. A dropdown created before its anchor
   is in the document keeps its panel detached until the first open instead of parking it on
   `<body>`, so an anchor inserted into a `[data-zx-theme]` region or a `.zx-scope` afterwards still
-  gets its theme. Tooltip, MenuButton, and ContextMenu panels follow the same rule.
+  gets its theme. Tooltip, MenuButton, and ContextMenu panels follow the same rule. While open, a
+  panel whose anchor sits in an open `<dialog>` (a modal Dialog or Sheet, a focus-trapping or
+  non-modal Sheet) is hosted by that dialog instead, so `showModal()` does not make it inert and a
+  focus trap still reaches it; it returns to the theme scope when it closes.
+- **Overlay stack** — an open panel is one entry on the shared overlay stack
+  (`src/core/overlay-stack.js`). Esc closes only the topmost layer that takes it, and an Esc that
+  something inside already handled (`defaultPrevented`) closes nothing. A press outside the panel
+  and every overlay opened from it closes it; a press on the anchor does not. A panel opened from
+  inside another overlay closes with that overlay.
+- **Keyboard** — the panel follows its trigger in the Tab order: Tab on the anchor of an open panel
+  moves to the panel's first focusable control, or onto the panel itself when it has a `tabindex`;
+  Tab past the last control continues with whatever follows the anchor; Shift+Tab from the first
+  control returns to the anchor. A panel with nothing focusable is skipped. Esc and `close()` with
+  focus inside return focus to the anchor. Opening moves no focus — give the panel `role` and
+  `aria-*` semantics yourself if it is more than a disclosure.
 - **Methods** — `open()`, `close()`, `toggle()`, `isOpen()`, `setContent()`, `getPanel()`.
 - **Events** — `open`, `close`.
 <!-- /doc -->
@@ -1349,8 +1392,9 @@ A button that opens a `role="menu"`.
     move within the row; Up and Down leave it, landing on another row's checked option.
     `AccountMenu` takes the same entries; `ContextMenu`, which closes on every activation, leaves
     them out.
-- **Methods** — `setItems()`, `open({returnFocus})`, `close()`, `setLabel()`, `getTrigger()`,
-  `getPanel()`, `focusFirst({returnFocus})`, `focusLast({returnFocus})`.
+- **Methods** — `setItems()`, `open({returnFocus})`, `close()`, `toggle()` (opens when closed,
+  closes when open, moves no focus), `isOpen()`, `setLabel()`, `getTrigger()`, `getPanel()`,
+  `focusFirst({returnFocus})`, `focusLast({returnFocus})`.
 - **Events** — `select {value, item}`, `open`, `close`.
 - **Focus return** — choosing an item closes the menu and returns focus to the trigger before the
   `select` event and the item's `onselect` run, so a dialog they open returns to the trigger when
@@ -1362,7 +1406,9 @@ A button that opens a `role="menu"`.
   leaves the menu open with focus back on the item, which is the composition seam used by
   `AccountMenu` and rail flyouts.
 - **Keyboard** — ArrowDown/Enter/Space open and focus the first item; ArrowUp opens and focuses the
-  last; arrows cycle; Home/End; typeahead; Enter/Space select; Esc/Tab close.
+  last; arrows cycle; Home/End; typeahead; Enter/Space select; Esc/Tab close. Esc reaches the menu
+  through the overlay stack, so inside a Sheet or Dialog it closes the menu and leaves the sheet
+  open; a menu opened inside a modal Dialog is hosted by it and stays usable.
 - **Appearance** — the highlighted item is a neutral step, a checked item keeps its accent check
   mark, and section headings are sentence-case captions. ContextMenu shares the same rules.
 <!-- /doc -->
@@ -1410,7 +1456,7 @@ A description bubble anchored to another element. The panel is a manual popover 
   at all and leaves everything to the methods), `disabled` (false).
 - **Methods** — `show()`, `hide()`, `toggle()`, `isOpen()`, `setContent(content)`, `enable()`, `disable()`, `isDisabled()`, `getAnchor()`, `destroy()`. Convenience factories: `tooltip(anchor, contentOrOptions)` takes either a content value or a full option object, and `describe(anchor, text)` is the one-liner replacement for a `title` attribute. Both return the instance.
 - **Events** — `open`, `close`. Both fire only on a real transition, so a `show()` on an open tooltip is silent.
-- **Keyboard** — Focusing the anchor opens the tooltip at once; moving focus away closes it. `Escape` closes it without moving focus, satisfying WCAG 1.4.13. A `pointerdown` anywhere closes it, and focus that arrives with a click does not re-open it.
+- **Keyboard** — Focusing the anchor opens the tooltip at once; moving focus away closes it. `Escape` closes it without moving focus (WCAG 1.4.13 "dismissible") — and only it, when it is the topmost open overlay, so one press never closes a tooltip and the menu beneath it. A `pointerdown` anywhere closes it, and focus that arrives with a click does not re-open it. A closed tooltip listens to nothing outside its anchor; an open one is an entry on the shared overlay stack.
 <!-- /doc -->
 
 <!-- doc:split-view -->
@@ -1445,7 +1491,7 @@ range select.
   render?: (row,i)=>Node|string, sortValue?, headerTitle? }]`, `data`, `rowId: 'ID'`,
   `sort: { id, dir }`, `sortMode: 'local'|'server'`, `selectable: false|'single'|'multi'`,
   `stickyHeader: true`, `height`, `emptyText`, `rowClass`, `zebra: true`, `variant:
-  'default'|'plain'`, and `hierarchy: false|{parentId, column?, expanded?}`. Locale, currency,
+  'default'|'plain'`, `hierarchy: false|{parentId, column?, expanded?}`, and `label`/`labelledBy`. Locale, currency,
   unit, and decimals may be row callbacks; values remain numbers in row data while display
   formatting is locale-aware.
 - **Appearance** — the header sits on the table's surface (no band) in the muted text colour at a
@@ -1468,6 +1514,32 @@ range select.
   top bar, sets `aria-busy`, and is cleared by the next `setData`).
 - **Events** — `rowclick {row, id, index, event}`, `rowdblclick`, `sort {id, dir}`,
   `selectionchange {rows, ids}`, `datachange {rows}`, and `rowtoggle {row, id, expanded}`.
+  `rowclick` fires for Enter on a focused row as well as for a click; `event` is then the keydown.
+- **Keyboard** — the body implements the WAI-ARIA APG **Grid** pattern (`role="grid"`, with
+  `aria-multiselectable` for `selectable: 'multi'`), or the **Treegrid** pattern with `hierarchy`.
+  The rows are one Tab stop with a roving `tabindex`; the row checkboxes and disclosure buttons
+  leave the Tab order because the row keys cover them. Focus is on rows by default and on cells
+  when `editMode` is set — reflected as `data-focus="row"|"cell"` on the root. ArrowUp/ArrowDown
+  move a row, ArrowLeft/ArrowRight a cell (cell focus), Home/End go to the first/last row (cell
+  focus: first/last cell of the row) and Ctrl+Home/End to the first/last row's corner cell,
+  PageUp/PageDown move by the rows visible in the scroll region (10 when the table does not scroll
+  itself). Enter activates exactly like a click (`rowclick`; selects in `single`), Enter/F2 on an
+  editable cell opens its editor, Space toggles the row's selection when `selectable` (activates
+  otherwise), Shift+ArrowUp/Down extends a `multi` selection from its anchor, and Ctrl/Cmd+A
+  selects every rendered row. Treegrid: ArrowRight expands a collapsed row, then moves into its
+  first child; ArrowLeft collapses an expanded row, then moves to its parent. With cell focus,
+  ArrowLeft from the first cell lands on the row and ArrowRight from the row goes back to its first
+  cell. The focused row (and column) is kept by id across `setData`, sorting, expansion, growing,
+  and `updateRow`; when the row is gone, its neighbour takes focus. Column headers keep their sort
+  buttons in the Tab order rather than joining arrow navigation — the one deliberate departure from
+  the APG grid, which puts the header row inside it. Rows and cells show an inset
+  `--zx-focus-ring` with a transparent outline that forced colours paint.
+- **Naming** — `label` (default: the `table.label` message, English "Table") or `labelledBy` (an
+  element id) names the grid. Row controls are named after the row's first cell with text through
+  `table.selectRow` (`Select %1`), `table.expandRow`, `table.collapseRow`, and `table.moveRow`;
+  `table.row` (`row %1`) stands in for a row without text, and `table.selectAll` names the header
+  checkbox. Sort buttons and selection checkboxes are at least 24×24 px targets; the checkbox is
+  drawn so the glyph stays `--zx-space-4` while a transparent border makes up the target.
 - **Hierarchy** — flat parent references are projected as an ARIA `treegrid`; `getData()` and all
   editing/mutation APIs stay flat and ID-based. Orphans become roots, cycles render once, local
   sort reorders siblings without mixing levels, and growing counts visible rows. Use
@@ -1559,7 +1631,16 @@ range select.
 `{label, target}` object names the chooser's trigger and mounts the disclosure into a host
 element — a list toolbar, say — instead of the view's own. `label` omitted resolves
 `recordView.fields`. This is what lets a translated application use the chooser at all: the
-trigger used to be the literal `Fields`, with no way to change it or move it.
+trigger used to be the literal `Fields`, with no way to change it or move it. `TableView`,
+`CardView`, and `KanbanView` all honour `target`.
+
+**The chooser is public.** `getFieldControls()` returns the view's field chooser — the shared
+disclosure, or for a `TableView` with `fieldControls: true` its Table's column chooser — and
+`mountFieldControls(target)` moves it into a host element (`null` hands it back). The view keeps
+owning it wherever it sits and removes it on `destroy()`; `ListToolbar.bind()` uses exactly this.
+In the shared chooser the move buttons keep focus on the field they moved (or its other button once
+one end disables), a polite live region announces "Name moved to position 2 of 5"
+(`recordView.fieldMoved`), and Escape closes the disclosure and returns focus to its trigger.
 
 `TableView` is the record-oriented entry point above the lower-level `Table`. It extends
 `RecordView` and composes one complete `Table`, so editing, hierarchy, growing, row movement,
@@ -1573,7 +1654,8 @@ responsive stacking, loading, and advanced table events remain available through
   `fieldControls: true`, and `emptyText`. At least one field remains visible.
 - **Shared methods** — `setData()`, `addData()`, `updateRecord()`, `removeRecord()`, `getRecord()`,
   `getData()`, field getters/order/visibility methods, `setSort()`/`getSort()`, selection methods,
-  `setLoading()`, `getViewState()`, and `setViewState()`.
+  `setLoading()`, `getViewState()`, `setViewState()`, `getFieldControls()`, and
+  `mountFieldControls(target)`.
 - **Portable state** — `{version:1,fieldOrder,hiddenFields,sort}` is JSON-safe configuration only.
   Records, selection, DOM nodes, rendered values, and callbacks are never serialized. A state from
   one record view may seed another; unknown fields are ignored and new fields append.
@@ -1592,7 +1674,15 @@ portable state as TableView and KanbanView.
 
 - **Options** — the shared RecordView options plus `titleField`, `subtitleField`, `preview`,
   `previewAlt`, `link`, `actions`, `groupBy`, `groupOrder`, `minCardWidth`, `maxColumns`,
-  `variant: 'outlined'|'raised'|'filled'`, `loadingCount`, `headingLevel`, and `label`.
+  `variant: 'outlined'|'raised'|'filled'`, `loadingCount`, `headingLevel`, and `label` (null
+  resolves message `cardView.label`, "Card view").
+- **Messages** — `cardView.label`, `cardView.sort`, `cardView.sortCards`, `cardView.unsorted`,
+  `cardView.sortAscending`/`cardView.sortDescending` (`%1` the field), `cardView.ungrouped`
+  ("Ungrouped"), `cardView.groupEmpty` ("No records in this group."), `table.empty` for the empty
+  collection ("No records", shared with Table), and the card's own `recordCard.select`,
+  `recordCard.actions` (`%1` the title), `recordCard.untitled`, `recordCard.selected`,
+  `recordCard.notSelected`. English comes from the default catalogue; override per instance
+  through `msg`, or for every instance through `setTranslator()`.
 - **Selection trigger** — `selectionTrigger:'checkbox'` preserves existing selection behavior.
   With `'card'`, selectable backgrounds toggle on click, Enter or Space, Shift+click selects a range,
   and the checkbox is omitted. Links, actions and text selection keep their native behavior. Selection
@@ -1725,7 +1815,18 @@ windowed loader.
   `locale`, `weekStart: 1`, `weekNumbers: true`, `workweek: false`, `agendaDays: 14`,
   `slotDuration: 30`, `slotMinTime: 0`, `slotMaxTime: 1440`, `scrollTime: 480`, `eventLimit: 3`,
   `selectable: false`, `editable: false`, `eventStartEditable`, `eventDurationEditable`,
-  `optimistic: true`, `nowIndicator: true`, `now`, `disabled`, and `renderEvent(event)`.
+  `optimistic: true`, `nowIndicator: true`, `now`, `disabled`, `msg`, and `renderEvent(event)`.
+- **Messages** — every key is namespaced `calendar.*`: `calendar.today`, `calendar.previous`,
+  `calendar.next`, `calendar.new`, `calendar.agenda`/`day`/`week`/`month`/`year` (the view
+  switch), `calendar.viewSwitch`, `calendar.label` (the root's name), `calendar.loading`,
+  `calendar.noEvents`, `calendar.allDay`, `calendar.more` and `calendar.weekNumber` (`%1`),
+  `calendar.dayEvent`/`calendar.dayEvents`, `calendar.resize`, `calendar.moveStarted`,
+  `calendar.resizeStarted`, `calendar.editPreview` (`%1` title, `%2`–`%3` the times),
+  `calendar.editCancelled`, `calendar.editCommitted`. Until 6.0 the bare keys of earlier versions
+  (`today`, `next`, `loading`, …, and `calendar` for `calendar.label`) are still honoured, read
+  right after the namespaced key in the `msg` option and in the host translator; rename them.
+  The built-in English now lives in the default catalogue rather than in `Calendar.defaults.msg`,
+  so a host translator reaches every calendar string.
 - **Event input** — generic records default to `{id,title,start,end,allDay,color,location,editable,
   durationEditable}`. Every field has a string-or-function reader (`eventId`, `eventTitle`,
   `eventStart`, …); numeric dates use `dateUnit: 'milliseconds'|'seconds'`. Inputs are normalized
@@ -1772,6 +1873,8 @@ Declarative client-side filter bar producing a filtered array, commonly wired to
 
 - **Options** — `filters: [{ type: 'select'|'text'|'custom', id, label, field(s)|get, options?,
   predicate?, emptyLabel?, placeholder? }]`, `data`, `autoApply: true`, `clearLabel`.
+- **Messages** — `dataFilter.clear` ("Clear", unless `clearLabel` is given) and `dataFilter.all`
+  ("All", a select filter's empty option unless it sets `emptyLabel`).
 - **Methods** — `setData()`, `apply()` → rows, `clear()`, `getState()`, `setState()`,
   `addFilter()`.
 - **Events** — `filter {rows, state}`.
@@ -1789,7 +1892,7 @@ form renders, with no per-application translation layer in between.
 - **Options** — `fields: Record<string, {type, label?, options?, min?, max?, step?, search?}>`,
   `order` (display order; omitted uses object order), `value` (the applied filters, drafted
   from), `mode: 'draft'|'live'`, `serialize: 'seconds'|'ms'|'iso'|(date, edge) => unknown`,
-  `emptyText`, `msg`.
+  `timeZone` (IANA zone the days are counted in; null = the runtime's own), `emptyText`, `msg`.
 - **Types** — `text`, `select`, `date`, `date:range`, `int`, `float`, `number`, and
   `int:range` / `float:range` / `number:range`. An unrecognised type renders a visible,
   labelled placeholder naming it and is excluded from the value — never dropped silently.
@@ -1814,7 +1917,10 @@ Five behaviours are deliberate rather than incidental:
 
 `serialize` decides how a date leaves the component, because the answer is a wire-format
 decision rather than an application one. A range's upper bound takes the **end** of its day, or
-a one-day range matches nothing.
+a one-day range matches nothing. `timeZone` decides *which* day: with the ZeyOS instance's zone
+(`'Europe/Vienna'`), 15 January serializes from 23:00 UTC on the 14th wherever the browser is, and
+an incoming Unix timestamp shows as the day it falls on there — the rule `zeyosForm()` and
+`zeyosTable()` apply to date-only fields. An unknown zone throws a `RangeError`.
 <!-- /doc -->
 
 <!-- doc:filter -->
@@ -1831,6 +1937,11 @@ adapter to compile into its own backend query language.
   debounce?}`. Built-in types cover text, number/money, date/datetime, boolean, enum/status/
   priority/country/currency/unit/entity, and tags. Compatible operators and their arity come from
   the exported `filterOperators` matrix; applications may explicitly override/add operator IDs.
+- **Relative dates** — `withinLast` and `withinNext` take a span, not two dates: the editor is a
+  whole-number amount and a unit select, and the value is the pair `[amount, unit]` with `unit` one
+  of `RELATIVE_DATE_UNITS` (`'days'|'weeks'|'months'`), e.g. `[7, 'days']`. `validate()` requires a
+  positive whole amount and a known unit; `relativeDateValueError(value)` is the same check for an
+  adapter. A value that is not such a pair (two dates) shows as an empty amount.
 - **Options** — `fields`, `value`, `operators`, `allowGroups: true`, `maxDepth: 3`,
   `maxConditions: 50`, `autoApply: false`, `readonly`, `disabled`, `applyLabel`, `clearLabel`,
   `searchable: false`, `layout: 'standard'|'compact'`, `rootLogic: null|'and'|'or'`,
@@ -1933,24 +2044,42 @@ breadcrumb.
   mounted twice repeats no id and a field `stage` never collides with a `#stage` elsewhere; the
   label, description, and message ids derive from it (`<id>-label`). Radio groups are named after
   the control id. An `id` in the field options that differs from the key is used as given.
-- **Methods** — `addField(id, opts)`, `getField`/`hasField`/`getFields`,
+- **Methods** — `addField(id, opts|Field|element|component)`, `getField`/`hasField`/`getFields`,
   `getValues`/`setValues`/`getValue`/`setValue`, `reset`, `clear`, `focus(id)`,
   `setHighlights`/`clearHighlights`.
+- **Adopting a component** — `addField(id, component)` wraps any component (or element) that is
+  not a registered field type and drives it through its own API. Values: `getValue`/`setValue`,
+  `get`/`set`, `getValues`/`setValues`, `isChecked`/`setChecked`, or a `value` property, tried in
+  that order (a Toggle reads its on-value, as the `toggle` type does); an element is read through
+  `value`, or `checked` for a checkbox or radio. Disabled: `setDisabled(bool)`, then
+  `enable()`/`disable()`, then a `disabled` property; a plain wrapper gets `aria-disabled` and its
+  form controls disabled. Read-only: `setReadonly`/`setReadOnly` or the element's `readOnly`. The
+  component's own `change` becomes the field's `change`, once per edit. Removing the field puts
+  the component back and undoes the disabled and read-only state the field set.
 
 #### Field
 
 - **Options** — `id` (the control's DOM id; generated when omitted), `name` (the field name and
   native control `name`; defaults to `id` on a standalone field), `type: 'text'`, `label`,
-  `description`, `value`, `placeholder`, `required`, `disabled`, `options`,
-  `layout: 'stack'|'inline'`, `props: {}`.
+  `description`, `value`, `placeholder`, `required`, `disabled`, `readonly` (shown and focusable,
+  not editable; ignored by types whose control has no read-only state, such as `checkbox`,
+  `select`, `zxselect`, `date`, `time`), `options`, `layout: 'stack'|'inline'`, `props: {}`.
 - **Properties** — `controlId` (the control's DOM id), `name`.
 - **Built-in types** — `text`, `password`, `textarea`, `checkbox`, `int`, `float`, `select`,
   `optionlist`, `hidden`, `html` (display content as text: no input frame, a control's height,
   inset like the values around it in a quiet form).
-- **Methods** — `getValue`/`setValue`, `focus`, `reset`, `setDisabled`,
+- **Methods** — `getValue`/`setValue`, `focus`, `reset`, `setDisabled`, `setReadonly`,
   `setHighlight(msg, kind)`, `clearHighlight`, `getInput`, `own(child)`, plus the statics
   `Field.register(type, adapter)` and `Field.has(type)`.
-- **Events** — `change {value}`, `invalid {message}`.
+- **Events** — `change {value}`, once per committed edit whatever the type (a typed value on
+  leaving the input, a slider on release, `code` when the editor loses focus after an edit);
+  `input {value}` for every keystroke or drag step from the types that tell the two apart
+  (`code`, `slider`); `invalid {message}`.
+- **Adapters** — `Field.register(type, (field, options) => ({el, get, set, focus, setDisabled,
+  setReadonly?, destroy?, labelTarget?}))`. An adapter whose widget reports its own commits
+  forwards them with `field.emit('change', {value})` and stops the native `change` its inner
+  control bubbles (`field.listen(widget.el, 'change', (e) => e.stopImmediatePropagation())`), so
+  the Field does not report the same edit twice.
 - **Labels** — small, medium weight, in the muted text colour: quieter than the values they name.
   With `layout: 'inline'` the label lines up with the control's first line.
 
@@ -2459,9 +2588,12 @@ Three properties are the reason to use this rather than assemble your own:
 The current view and a pressed tool take the neutral `--zx-color-bg-current` fill — a mode the
 list is in, not a pick — never the accent tint.
 
-`bind(view)` is optional sugar for a `TableView` or `CardView`: it feature-detects rather than
-importing them, adopts the view's shape, and mounts a field chooser built with
-`fieldControls: {target}` into the toolbar. The toolbar is fully functional without it.
+`bind(view)` is optional sugar for a `TableView`, `CardView`, or `KanbanView`: it feature-detects
+rather than importing them, adopts the view's shape, and mounts the view's field chooser into the
+tools slot through the view's public `mountFieldControls()` — for a default `TableView` that is its
+Table's column chooser. `unbind()` hands it back to the view, and a view destroyed first takes it
+with it. A chooser already mounted here with `fieldControls: {target: toolbar.getToolsElement()}`
+is left where it is. The toolbar is fully functional without `bind()`.
 <!-- /doc -->
 
 <!-- doc:view-settings -->
@@ -2522,10 +2654,24 @@ changes are only emitted — the host applies them.
 <!-- doc:pagination -->
 ### Pagination
 
-The pager for a server-backed list, shaped to drop straight onto `Table` with
-`sortMode: 'server'` or onto the `zeyosTable` binding — `getState()` hands back the `offset` and
-`pageSize` a query needs. `page` is 1-based and always clamped into `[1, pages]`; a `total` of 0 is
-treated as one empty page rather than zero pages.
+The pager for a server-backed list. It owns no data: `getState()` and every `change` hand back
+the `page`, `pageSize`, and zero-based `offset = (page - 1) * pageSize` a query needs. `page` is
+1-based and always clamped into `[1, pages]`; a `total` of 0 is treated as one empty page rather
+than zero pages.
+
+The ZeyOS bindings page differently — zero-based, `pageSize: 50`, appending pages above zero — so
+driving `zeyosTable()` (or `zeyosView()`) takes one mapping in the `change` listener:
+
+```js
+const binding = zeyosTable(client, 'contacts', { pageSize: 25 });
+const pager = new Pagination(host, { pageSize: binding.pageSize });
+pager.on('change', async ({ detail }) => {
+  const result = await binding.load({ page: detail.page - 1, pageSize: detail.pageSize, replace: true });
+  pager.setTotal(result.count ?? 0); // silent, so it cannot loop
+});
+```
+
+In `mode: 'loadmore'` each `change` is one `binding.loadMore()`, which appends.
 
 - **Options** — `page: 1`, `pageSize: 25`, `total: 0`, `pageSizes: [25, 50, 100]`, `siblings: 1`,
   `boundaries: 1`, `showPageSize: true`, `showSummary: true` (renders "26–50 of 312"),
@@ -2713,7 +2859,10 @@ bar.setBadge('mail', 8);
 ### Core helpers
 
 - **Component** — the base class: `on`/`off`/`once`/`emit`, `listen`, `toElement`, `msg`,
-  `destroy`, and the static `Component.from(el)`.
+  `destroy`, and the static `Component.from(el)`. `msg(key, ...args)` always returns text: the
+  instance's `msg` option (a `{[lang]: {…}}` table for the active language, then flat keys), else
+  the host translator, else the class's built-in `msg` defaults, else the default English
+  catalogue, and only then the key itself; `%1`, `%2`, … are filled from `args`.
 - **DOM** — `h(tag, props, ...children)`, `h.raw(html)`, `htmlEscape`, `resolveElement`.
   `__(tag#id.class, properties, content)` is Zx's compact DOM builder and public alias for
   `compactElement()`. It preserves `D*` data, `S*` style, boolean/built-in property, attribute,
@@ -2730,7 +2879,9 @@ bar.setBadge('mail', 8);
   `{update, destroy}`. It anchors a manual popover with CSS anchor positioning where the browser
   supports it and a scroll/resize-tracked fallback where it does not. Options are resolved once,
   so changing a placement means `destroy()` and a fresh `position()` call.
-- **i18n** — `setTranslator`, `setLanguage`, `getLanguage`, `translate`, `printf`.
+- **i18n** — `setTranslator`, `setLanguage`, `getLanguage`, `translate`, `printf`, and
+  `defaultMessages`, the frozen English catalogue of every component key (`table.empty` → "No
+  records") that a host copies as the starting point for a locale.
 - **Dates** — `formatDate(d, fmt)`, `parseDate(s, fmt)` (tokens
   `%d %m %Y %y %H %M %S %a %A %b %B %s`), `clampDate`, `isSameDay`, `addDays`, `addMonths`,
   `getWeekStart`.
@@ -2853,12 +3004,19 @@ entry point as the components. See also the Kernel section for `Component`, `h`,
   `copyToClipboard(text)` → `Promise<boolean>` uses the async Clipboard API and falls back to a
   hidden textarea, never rejecting.
 - **Translation** — `setTranslator(fn)`, `setLanguage(lang)`, `getLanguage()`,
-  `translate(key, args)`, `printf(str, args)` (`%s` placeholders). Every component routes its
-  built-in strings through `translate()`, so one translator covers the library, and
-  `setLanguage()` also drives locale-dependent behaviour such as the first day of the week.
+  `translate(key, args)`, `printf(str, args)` (`%1`, `%2`, … placeholders), `defaultMessages`.
+  Every component resolves its built-in strings through `msg()`, so one translator covers the
+  library: per-instance `msg` option → `setTranslator()` function → the component's built-in
+  defaults → the default English catalogue → the key. The translator answers one key at a time;
+  null, undefined, or the key itself means "not translated" and English shows, so an application
+  without a translator never sees a raw key. `defaultMessages` is that catalogue — copy it to
+  start a locale (`setTranslator((key) => de[key])`). `setLanguage()` also selects the language
+  table of a `msg` option and drives locale-dependent behaviour such as the first day of the week.
 - **Keyboard** — `focusTrap(container)` → `{activate, release}` confines Tab to a container;
-  `rovingTabindex(container, itemSelector, {orientation, wrap})` → `{focusFirst, focusLast,
-  destroy}` keeps one tab stop in a group; `typeahead(getItems, onMatch)` →
+  `rovingTabindex(container, itemSelector, {orientation, wrap, rtl: 'auto'})` → `{focusFirst,
+  focusLast, destroy}` keeps one tab stop in a group — horizontal arrows follow `dir="rtl"`, and a
+  text field, select, or contenteditable item keeps Home/End and its arrows (an arrow leaves a text
+  field only from the edge of its text); `typeahead(getItems, onMatch)` →
   `(event|string) => void` resolves buffered printable keystrokes to an item (500 ms buffer,
   repeated-letter cycling).
 <!-- /doc -->
@@ -2915,8 +3073,13 @@ in component CSS.
   (`--zx-dur-fast` 120ms, `--zx-dur-base` 180ms — both 0ms in a reduced-motion region — and the
   curves `--zx-ease`, `--zx-ease-spring`, `--zx-ease-drawer`).
 - **Tier 2** — the semantic set, the only tokens components may use: `--zx-color-*`,
-  `--zx-control-*`, `--zx-focus-ring`, `--zx-overlay-shadow`, `--zx-drag-shadow` (an item being
-  dragged; its own value in dark, with a faint light rim). The roles that carry the visual
+  `--zx-control-*`, `--zx-focus-ring`, `--zx-surface-shadow` (the contact shadow of a resting
+  surface: a panel, an outlined card in a lane, a slider thumb), `--zx-overlay-shadow`,
+  `--zx-drag-shadow` (an item being dragged; its own value in dark, with a faint light rim). The
+  lint also rejects the accent ramp `--zx-accent-*`, the module palette `--zx-module-*`, and the
+  raw `--zx-shadow-*` steps in component and layout CSS, and any `outline: 0`/`outline: none`:
+  forced-colors mode drops the box-shadow focus ring, so components make the outline transparent
+  and `styles/base.css` repaints it in a system colour there. The roles that carry the visual
   language:
   - **Columns.** `--zx-color-bg-surface` is the working canvas; `--zx-color-bg-chrome` is the
     navigation and inspector tone beside it (one step below the canvas in light, between page and

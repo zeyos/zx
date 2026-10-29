@@ -1434,7 +1434,7 @@
         "name": "msg",
         "type": "Record<string, string>",
         "default": null,
-        "description": "Localized component messages."
+        "description": "Per-instance messages, keyed `calendar.*` (`calendar.today`, `calendar.next`, …). The bare keys of earlier versions (`today`, `next`) are still read, after the namespaced key, until the next major version."
       },
       {
         "name": "renderEvent",
@@ -1911,9 +1911,9 @@
       },
       {
         "name": "label",
-        "type": "string",
-        "default": "'Card view'",
-        "description": "Accessible collection label."
+        "type": "string|null",
+        "default": "null",
+        "description": "Accessible collection label; null resolves message `cardView.label`, \"Card view\"."
       }
     ],
     "events": [
@@ -2687,7 +2687,7 @@
         "name": "clearLabel",
         "type": "string|null",
         "default": "null",
-        "description": "Clear button label; null resolves `dataFilter.clear`."
+        "description": "Clear button label; null resolves message `dataFilter.clear`, \"Clear\"."
       }
     ],
     "events": [
@@ -3942,6 +3942,12 @@
         "description": "Whether the control is disabled."
       },
       {
+        "name": "readonly",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether the value is read-only: shown and focusable, not editable. Types whose control has no read-only state (`checkbox`, `select`, `optionlist`, `zxselect`, `date`, `time`, …) ignore it."
+      },
+      {
         "name": "options",
         "type": "string[]|Record<string, string>|null",
         "default": "null",
@@ -4020,6 +4026,12 @@
         "signature": "setDisabled(disabled)",
         "returns": "this",
         "description": "Enables or disables the adapter control."
+      },
+      {
+        "name": "setReadonly",
+        "signature": "setReadonly(readonly)",
+        "returns": "this",
+        "description": "Makes the value read-only or editable again, where the control has a read-only state (see the `readonly` option); reflected as `data-readonly` on the root either way."
       },
       {
         "name": "setHighlight",
@@ -4197,7 +4209,7 @@
         "name": "addField",
         "signature": "addField(id, field)",
         "returns": "Field",
-        "description": "Adds a field from options, an existing field, an element, or a component. The key becomes the field's `name` and its `data-field-id`; the control's DOM id is `<idPrefix>-<key>`, unless the field options give an `id` of their own that differs from the key."
+        "description": "Adds a field from options, an existing field, an element, or a component. The key becomes the field's `name` and its `data-field-id`; the control's DOM id is `<idPrefix>-<key>`, unless the field options give an `id` of their own that differs from the key. An element or a component that is not a registered field type is wrapped in a `custom` field that reads and writes it through its own API — `getValue`/`setValue`, `get`/`set`, `getValues`/`setValues`, `isChecked`/`setChecked`, or a `value` property — disables it through `setDisabled(bool)` or `enable()`/`disable()`, and makes it read-only through `setReadonly(bool)`, falling back to the element's native properties only when the component has none of these. The component's own `change` becomes the field's `change`, once per edit."
       },
       {
         "name": "getField",
@@ -4773,6 +4785,12 @@
         "type": "FilterPanelSerialize",
         "default": "'seconds'",
         "description": "How a date leaves the component. A range's lower bound takes the start of its day and its upper bound the end, so a one-day range matches."
+      },
+      {
+        "name": "timeZone",
+        "type": "string|null",
+        "default": "null",
+        "description": "IANA zone the calendar days are counted in, such as the ZeyOS instance's `Europe/Vienna`. A day serializes as the first (or last) instant of that day in this zone, and an incoming instant shows as the day it falls on there — the same rule `zeyosForm()` and `zeyosTable()` apply to date-only fields. Null uses the runtime's own zone. An unknown zone throws a `RangeError`."
       },
       {
         "name": "emptyText",
@@ -6264,7 +6282,7 @@
         "name": "bind",
         "signature": "bind(view)",
         "returns": "this",
-        "description": "Optional sugar for a `TableView` or `CardView`: it wires the shape switch to the view and mounts the view's field chooser into this bar. Nothing is imported and nothing is required — every capability is feature-detected, so a view that offers none of them still works and still gets `viewchange`, and the host swaps the view itself. See `recordViewCapabilities()` for what is looked for."
+        "description": "Optional sugar for a `TableView`, `CardView`, or `KanbanView`: it wires the shape switch to the view and mounts the view's field chooser into this bar — through the view's public `mountFieldControls()` when it has one, which every `RecordView` does. A `TableView` with the default `fieldControls: true` contributes its Table's column chooser. Nothing is imported and nothing is required — every capability is feature-detected, so a view that offers none of them still works and still gets `viewchange`, and the host swaps the view itself. See `recordViewCapabilities()` for what is looked for."
       },
       {
         "name": "unbind",
@@ -6409,6 +6427,12 @@
         "signature": "close()",
         "returns": "this",
         "description": "Closes the menu."
+      },
+      {
+        "name": "toggle",
+        "signature": "toggle()",
+        "returns": "this",
+        "description": "Opens the menu when it is closed, and closes it when it is open. Opening this way moves no focus; `focusFirst()` opens with focus on the first item."
       },
       {
         "name": "isOpen",
@@ -8145,6 +8169,12 @@
         "type": "Node[]",
         "default": "[]",
         "description": "Listener-free, owner-created controls such as a move handle."
+      },
+      {
+        "name": "message",
+        "type": "(key: string, ...args: unknown[]) => string",
+        "default": null,
+        "description": "Resolves the card's built-in strings (`recordCard.select`, `recordCard.actions`, `recordCard.untitled`, `recordCard.selected`, `recordCard.notSelected`). An owning component passes its own `msg()`; omitted, the host translator and then the default English catalogue answer."
       }
     ],
     "events": [],
@@ -8333,6 +8363,18 @@
         "signature": "getFieldOrder()",
         "returns": "string[]",
         "description": "Returns the complete field id order."
+      },
+      {
+        "name": "getFieldControls",
+        "signature": "getFieldControls()",
+        "returns": "HTMLElement|null",
+        "description": "Returns the element that lets a reader show, hide, and reorder this view's fields: the shared field chooser, or — for a `TableView` with `fieldControls: true` — the column chooser of its composed `Table`. Null when the view renders none (`fieldControls: false`). The element stays owned by the view: move it with {@link RecordView#mountFieldControls} rather than appending it elsewhere yourself, so `destroy()` can still find and remove it."
+      },
+      {
+        "name": "mountFieldControls",
+        "signature": "mountFieldControls(target)",
+        "returns": "HTMLElement|null",
+        "description": "Moves the view's field chooser into a host element — a list toolbar, a pane header — or, with `null`, back to where the view first rendered it. It keeps driving this view wherever it sits, and `destroy()` removes it from the host. `ListToolbar.bind()` calls this for every record view, which is how its field chooser ends up in the bar."
       },
       {
         "name": "setFieldVisible",
@@ -8665,6 +8707,12 @@
       }
     ],
     "methods": [
+      {
+        "name": "get",
+        "signature": "get()",
+        "returns": "unknown",
+        "description": "Returns the selected item ID, or null: the same as reading `value`, under the `get()`/`set()` pair the other value components share."
+      },
       {
         "name": "set",
         "signature": "set(idOrItem, [options])",
@@ -10178,6 +10226,18 @@
         "type": "false|TableHierarchyOptions",
         "default": "false",
         "description": "Flat parent references projected as an expandable treegrid. Row data and mutation APIs remain flat."
+      },
+      {
+        "name": "label",
+        "type": "string|null",
+        "default": "null",
+        "description": "Accessible name of the grid. A grid must have one; null resolves the `table.label` message (English \"Table\"), so name it after what it lists."
+      },
+      {
+        "name": "labelledBy",
+        "type": "string|null",
+        "default": "null",
+        "description": "Id of an element that names the grid — the heading above it, say. Wins over `label`."
       }
     ],
     "events": [
