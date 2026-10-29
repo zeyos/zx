@@ -498,7 +498,7 @@ test('theme geometry, type, tint, and material controls each produce a token', (
   assert.equal(vars['--zx-glass-color-strength'], '68%');
   assert.ok(Object.hasOwn(vars, '--zx-color-glass-control'), 'material controls did not change');
   assert.ok(Object.hasOwn(vars, '--zx-color-glass-chrome'), 'persistent chrome did not change');
-  assert.equal(vars['--zx-glass-filter-overlay'], 'blur(32px) saturate(185%)');
+  assert.equal(vars['--zx-glass-filter-overlay'], 'blur(32px) saturate(150%)');
   assert.equal(vars['--zx-color-app-icon-depth'], 'color-mix(in srgb, var(--zx-color-app-icon-shade) 34%, transparent)');
   assert.equal(vars['--zx-app-icon-core-strength'], '46%');
   assert.equal(vars['--zx-app-icon-bloom-strength'], '80%');
@@ -532,13 +532,15 @@ test('flat and deep-glass recipes change every shared material consumer', () => 
   assert.equal(flat['--zx-color-overlay-surface'], 'var(--zx-color-bg-raised)');
   assert.equal(flat['--zx-color-overlay-panel'], 'var(--zx-color-bg-raised)');
   assert.match(deep['--zx-color-overlay-surface'], /44%/);
-  assert.match(deep['--zx-color-overlay-panel'], /50%/);
+  assert.match(deep['--zx-color-overlay-panel'], /52%/);
   assert.match(deep['--zx-color-overlay-backdrop'], /36%/);
-  assert.equal(deep['--zx-glass-filter-overlay'], 'blur(32px) saturate(185%)');
-  assert.equal(deep['--zx-glass-filter-panel'], 'blur(36px) saturate(170%)');
-  // Thickness is drawn, not merely dialled up: a double rim, an inner glow, a grain.
-  assert.match(deep['--zx-glass-overlay-shadow'], /inset 0 0 28px/);
-  assert.match(deep['--zx-overlay-surface-image'], /^var\(--zx-glass-grain\)/);
+  assert.equal(deep['--zx-glass-filter-overlay'], 'blur(32px) saturate(150%)');
+  assert.equal(deep['--zx-glass-filter-panel'], 'blur(36px) saturate(140%)');
+  // Thickness is drawn, not merely dialled up: a lit top line, a darker foot, a narrow inner
+  // glow — never a luminous bevel — and a grain under the reflection, not over it.
+  assert.match(deep['--zx-glass-overlay-shadow'], /inset 0 -2px 0 .*inset 0 0 8px/);
+  assert.doesNotMatch(deep['--zx-glass-overlay-shadow'], /inset 0 0 (?:[2-9]\d)px/);
+  assert.ok(deep['--zx-overlay-surface-image'].indexOf('var(--zx-glass-grain)') > deep['--zx-overlay-surface-image'].indexOf('112deg'));
 });
 
 /*
@@ -559,7 +561,7 @@ const MATERIAL_CONSUMERS = [
 
 test('every material other than the stylesheet glass is a complete, theme-neutral recipe', () => {
   assert.deepEqual(MATERIALS.map((material) => material.id),
-    ['none', 'subtle', 'strong', 'frost', 'smoke', 'paper', 'satin']);
+    ['none', 'subtle', 'strong', 'frost', 'smoke', 'paper', 'satin', 'enamel']);
   assert.deepEqual(MATERIAL_RECIPES.subtle, {}, 'Glass is the stylesheet, not an override');
   for (const material of MATERIALS) {
     assert.ok(material.note, `${material.id} has no note for the studio`);
@@ -576,8 +578,8 @@ test('every material other than the stylesheet glass is a complete, theme-neutra
     assert.equal(themeVars({ ...DEFAULTS, glass: material.id })['--zx-glass-filter-overlay'],
       recipe['--zx-glass-filter-overlay']);
   }
-  // The opaque materials filter nothing, so they render at no cost and survive every fallback.
-  for (const id of ['none', 'paper', 'satin']) {
+  // The opaque materials filter nothing, so they render cheaply and survive every fallback.
+  for (const id of ['none', 'paper', 'satin', 'enamel']) {
     for (const name of MATERIAL_CONSUMERS.filter((token) => token.includes('filter'))) {
       assert.equal(MATERIAL_RECIPES[id][name], 'none', `${id} still filters through ${name}`);
     }
@@ -586,6 +588,27 @@ test('every material other than the stylesheet glass is a complete, theme-neutra
   for (const id of ['strong', 'frost', 'smoke']) {
     assert.match(MATERIAL_RECIPES[id]['--zx-glass-overlay-shadow'], /inset 0 1px 0 (?:var\(--zx-color-glass-rim\)|color-mix\(in srgb, var\(--zx-color-glass-rim\))/);
     assert.equal(MATERIAL_RECIPES[id]['--zx-overlay-specular-strength'], '0%');
+    // Every translucent pane keeps its body: the shade is a layer of its surface image.
+    assert.match(MATERIAL_RECIPES[id]['--zx-overlay-surface-image'], /linear-gradient\(var\(--zx-color-glass-shade\), var\(--zx-color-glass-shade\)\)$/);
+  }
+  // A translucent tint on its own is no backing: Smoke's body is the tint mixed into a surface.
+  assert.match(MATERIAL_RECIPES.smoke['--zx-color-overlay-surface'], /var\(--zx-color-glass-tint\) \d+%, var\(--zx-color-overlay-base\)/);
+  // No recipe bakes a status tint into the toast image: the toast composes its own.
+  for (const [id, recipe] of Object.entries(MATERIAL_RECIPES)) {
+    assert.doesNotMatch(recipe['--zx-overlay-toast-image'] ?? '', /message-kind/, `${id} bakes the toast kind in`);
+  }
+  // A hover never thins a pane's body: it is a step on the control's own colour.
+  for (const id of ['smoke', 'enamel']) {
+    assert.match(MATERIAL_RECIPES[id]['--zx-color-glass-control-hover'], /var\(--zx-color-glass-control\)\)$/, `${id} hover discards the control body`);
+  }
+  // The capability fallback precedes the preference fallbacks, so a preference wins where both apply.
+  const semanticCss = read('../../styles/tokens/semantic.css');
+  assert.ok(semanticCss.indexOf('@supports not ((backdrop-filter') < semanticCss.indexOf('@media (prefers-reduced-transparency'),
+    'the no-backdrop-filter block must come before the preference blocks');
+  // Resting cards keep a resting shadow on the opaque materials; only panes float.
+  for (const id of ['none', 'paper', 'satin', 'enamel']) {
+    assert.doesNotMatch(MATERIAL_RECIPES[id]['--zx-glass-raised-shadow'], /overlay-shadow/, `${id} lifts a card to overlay elevation`);
+    assert.equal(MATERIAL_RECIPES[id]['--zx-color-glass-chrome'], 'var(--zx-color-bg-surface)', `${id} moves the chrome tone`);
   }
 });
 
@@ -597,7 +620,16 @@ test('the stylesheet declares the glass ingredients for both themes', () => {
     assert.equal((dark.match(new RegExp(`--zx-color-glass-${name}:`, 'g')) ?? []).length, 2,
       `dark.css must restate the ${name} on the dark and the auto block`);
   }
-  assert.match(semantic, /--zx-glass-grain: url\("data:image\/svg\+xml/);
+  assert.match(semantic, /--zx-glass-grain: url\("data:image\/svg\+xml[^"]*color-interpolation-filters='sRGB'/);
+  // The shade is the pane's body in both themes, and the toast image carries no status tint.
+  assert.match(semantic, /--zx-color-glass-shade: color-mix\(in srgb, var\(--zx-gray-0\) \d+%, transparent\);/);
+  assert.match(semantic, /--zx-overlay-toast-image: var\(--zx-overlay-surface-image\);/);
+  assert.match(read('../../src/components/message/message.css'), /radial-gradient\([^;]*var\(--zx-message-kind\)[^;]*var\(--zx-overlay-toast-image\)/);
+  // Without backdrop filtering every glass role is opaque, cards and chrome included.
+  const unsupported = /@supports not \(\(backdrop-filter[\s\S]*?\n\}/.exec(semantic)?.[0] ?? '';
+  for (const name of ['--zx-color-glass-surface', '--zx-color-glass-chrome', '--zx-color-glass-control', '--zx-glass-filter-raised', '--zx-glass-filter-chrome']) {
+    assert.match(unsupported, new RegExp(`${name}: [^;]+ !important;`), `${name} stays translucent without backdrop-filter`);
+  }
   // The pane's light is on its edge, not a wash on its face.
   assert.match(semantic, /--zx-glass-overlay-shadow: inset 0 1px 0 var\(--zx-color-glass-rim\), inset 0 0 0 1px var\(--zx-color-glass-ring\), 0 0 0 1px var\(--zx-color-glass-edge\)/);
   assert.doesNotMatch(semantic, /--zx-overlay-surface-image: linear-gradient\(145deg/, 'the corner wash is back');

@@ -110,7 +110,7 @@ CSS. The stock themes use a restrained neutral ramp with the ZeyOS green as the 
 Six stable accent IDs ship as `data-zx-preset` (zx, zeyos, ocean, violet, rose, slate). The theme
 studio applies complete recipes spanning accent, neutral tint, spacing, font, type size, radius,
 control height, and the CSS-first material — Glass (the default, a thin lit pane), Deep glass,
-Frost (milk glass), Smoke (tinted), Paper and Satin (opaque, no blur), or Flat, each a
+Frost (milk glass), Smoke (tinted), Paper, Satin and Enamel (opaque, no blur), or Flat, each a
 token-override recipe composed from the theme's glass ingredients — with the result exportable
 as CSS. Compact menus,
 pickers, tooltips, column menus, and toasts use responsive compact glass; Launcher, Modal,

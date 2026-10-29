@@ -531,7 +531,7 @@ async function assertOverlayMaterials(page) {
   }
 
   const appearances = ['Light', 'Dark'];
-  const materials = ['Flat', 'Glass', 'Deep glass', 'Frost', 'Smoke', 'Paper', 'Satin'];
+  const materials = ['Flat', 'Glass', 'Deep glass', 'Frost', 'Smoke', 'Paper', 'Satin', 'Enamel'];
   const samples = {};
 
   for (const appearance of appearances) {
@@ -549,7 +549,8 @@ async function assertOverlayMaterials(page) {
     assertRange(flat.panel.alpha, .995, 1, `${appearance} Flat panel alpha`);
     if (flat.compact.filter !== 'none' || flat.panel.filter !== 'none'
       || flat.compact.image !== 'none' || flat.panel.image !== 'none'
-      || flat.toast.filter !== 'none' || flat.toast.image !== 'none') {
+      // A toast composes its own status tint over the material image, which is `none` on Flat.
+      || flat.toast.filter !== 'none' || !/(?:^|, )none$/.test(flat.toast.image)) {
       throw new Error(`${appearance} Flat retained glass effects: ${JSON.stringify(flat)}`);
     }
 
@@ -585,18 +586,28 @@ async function assertOverlayMaterials(page) {
       throw new Error(`${appearance} Deep Glass toast is effectively opaque (${deep.toast.alpha})`);
     }
 
-    // Frost diffuses more than glass and reflects less; Smoke is a tinted pane that still filters;
-    // Paper and Satin are opaque and filter nothing, which is what lets them cost nothing.
+    // Every translucent pane keeps a body — base over shade — under which the scene cannot drag
+    // text contrast: a floor, not a contrast measurement, but one the alpha bands alone lack.
+    for (const name of ['Glass', 'Deep glass', 'Frost', 'Smoke']) {
+      const pane = samples[appearance][name];
+      assertRange(pane.compact.coverage, .55, 1, `${appearance} ${name} compact body coverage`);
+      assertRange(pane.panel.coverage, .60, 1, `${appearance} ${name} panel body coverage`);
+    }
+
+    // Frost diffuses more than glass and reflects less; Smoke is a tinted pane with a real
+    // backing that still filters; Paper, Satin and Enamel are opaque and filter nothing, which is
+    // what lets them cost nothing.
     const frost = samples[appearance].Frost;
     const smoke = samples[appearance].Smoke;
     assertRange(frost.compact.alpha, .64, .82, `${appearance} Frost compact alpha`);
     if (blurRadius(frost.compact.filter) < blurRadius(glass.compact.filter) + 9.9) {
       throw new Error(`${appearance} Frost does not diffuse more than Glass`);
     }
+    assertRange(smoke.compact.alpha, .50, .74, `${appearance} Smoke compact alpha`);
     if (blurRadius(smoke.compact.filter) < 15.9 || smoke.compact.image === 'none') {
       throw new Error(`${appearance} Smoke is not a filtering pane: ${JSON.stringify(smoke.compact)}`);
     }
-    for (const name of ['Paper', 'Satin']) {
+    for (const name of ['Paper', 'Satin', 'Enamel']) {
       const solid = samples[appearance][name];
       assertRange(solid.compact.alpha, .995, 1, `${appearance} ${name} compact alpha`);
       assertRange(solid.panel.alpha, .995, 1, `${appearance} ${name} panel alpha`);
@@ -834,8 +845,19 @@ async function materialStyle(locator) {
     const colour = style.backgroundColor;
     const slash = colour.match(/\/\s*([\d.]+)\s*\)$/);
     const rgba = colour.match(/^rgba\([^,]+,[^,]+,[^,]+,\s*([\d.]+)\)$/);
+    // The pane's body is its base colour under the shade ingredient, which every translucent
+    // material paints as a flat two-stop gradient in its image layers. Their combined coverage is
+    // the floor under which the scene can drag text contrast. The computed image resolves the
+    // ingredient to a colour, so the layer is found by its shape, not by the token's text.
+    const alpha = slash ? Number(slash[1]) : rgba ? Number(rgba[1]) : 1;
+    const flat = /linear-gradient\((rgba?\([^)]+\)|color\([^)]+\)), \1\)/.exec(style.backgroundImage);
+    const shadeColour = flat?.[1] ?? '';
+    const shadeSlash = shadeColour.match(/\/\s*([\d.]+)\s*\)$/);
+    const shadeRgba = shadeColour.match(/^rgba\([^,]+,[^,]+,[^,]+,\s*([\d.]+)\)$/);
+    const shadeAlpha = !shadeColour ? 0 : shadeSlash ? Number(shadeSlash[1]) : shadeRgba ? Number(shadeRgba[1]) : 1;
     return {
-      alpha: slash ? Number(slash[1]) : rgba ? Number(rgba[1]) : 1,
+      alpha,
+      coverage: 1 - (1 - alpha) * (1 - shadeAlpha),
       colour,
       image: style.backgroundImage,
       filter: style.backdropFilter || style.webkitBackdropFilter || 'none'

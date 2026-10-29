@@ -314,8 +314,8 @@ ink in both themes, so the one solid accent on a screen never turns into a brigh
 exports the result.
 
 The studio's **Material** is how surfaces answer light — Glass (the default, a thin lit pane),
-Deep glass, Frost (milk glass), Smoke (tinted glass), Paper and Satin (opaque, matte or brushed,
-no blur), or Flat. Each is a set of token overrides composed from six per-theme ingredients
+Deep glass, Frost (milk glass), Smoke (tinted glass), Paper, Satin and Enamel (opaque: matte,
+brushed or glazed, no blur), or Flat. Each is a set of token overrides composed from six per-theme ingredients
 (`--zx-color-glass-rim`, `-ring`, `-lift`, `-shade`, `-edge`, `-tint`), so one recipe serves
 light and dark, and reduced-transparency, high-contrast and forced-colour settings restore solid
 surfaces on their own.

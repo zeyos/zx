@@ -78,7 +78,11 @@
   .zx-message__toast {
     border-color: color-mix(in srgb, var(--zx-message-kind) 28%, var(--zx-color-overlay-border));
     background-color: var(--zx-color-overlay-surface);
-    background-image: var(--zx-overlay-toast-image);
+    /* The status tint is composed here, not in the token: a token resolves where it is declared,
+       so a tint written into it at the theme root would be the info colour for every kind. */
+    background-image: radial-gradient(120% 160% at 0% 0%,
+      color-mix(in srgb, var(--zx-message-kind) 16%, transparent), transparent 62%),
+      var(--zx-overlay-toast-image);
     background-clip: padding-box;
     -webkit-backdrop-filter: var(--zx-glass-filter-overlay);
     backdrop-filter: var(--zx-glass-filter-overlay);
@@ -87,7 +91,7 @@
   }
 }
 
-@media (prefers-reduced-transparency: reduce) {
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
   .zx-message__toast {
     border-color: var(--zx-color-border);
     background: var(--zx-message-fallback-bg);

@@ -50,8 +50,10 @@
   --zx-glass-filter-chrome: blur(16px) saturate(140%);
   --zx-glass-filter-overlay: blur(20px) saturate(165%);
   --zx-glass-filter-panel: blur(24px) saturate(150%);
-  /* A fine grey tooth for frosted and paper surfaces: grey noise at about 7% alpha, no colour. */
-  --zx-glass-grain: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.55 0 0 0 0 0.55 0 0 0 0 0.55 0 0 0 0.07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  /* A fine grey tooth for frosted and paper surfaces: mid-grey noise in sRGB at 3% alpha, one
+     octave, no colour. It is a texture, not a dither: too faint to hide banding, faint enough not
+     to veil a dark pane. */
+  --zx-glass-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n' color-interpolation-filters='sRGB'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='1' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0.03 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 /* The light theme — colours only. */
@@ -149,13 +151,15 @@
   --zx-color-glass-highlight-strong: color-mix(in srgb, var(--zx-gray-0) 38%, transparent);
   /* A pane of glass, in six ingredients the material recipes compose and the dark theme restates:
      the lit top edge (rim) and the hairline inner ring; the lift — white laid on the pane from
-     the top, which is what makes it read as lit rather than tinted; the shade — the darkening a
-     dark theme's pane applies to what is behind it (nothing in light); the cut outer edge a pane
-     needs against a dark scene (nothing in light); and the tint of smoked glass. */
+     the top edge, which is what makes it read as lit rather than tinted; the shade — the pane's
+     own body, a veil over the scene that bounds text contrast; the cut outer edge a pane needs
+     against a dark scene (nothing in light); and the tint of smoked glass. */
   --zx-color-glass-rim: color-mix(in srgb, var(--zx-gray-0) 95%, transparent);
   --zx-color-glass-ring: color-mix(in srgb, var(--zx-gray-0) 45%, transparent);
   --zx-color-glass-lift: color-mix(in srgb, var(--zx-gray-0) 62%, transparent);
-  --zx-color-glass-shade: transparent;
+  /* The shade is the pane's own body: a flat veil painted over the base colour and under the
+     lift, which bounds what the scene can do to text contrast. White in light, black in dark. */
+  --zx-color-glass-shade: color-mix(in srgb, var(--zx-gray-0) 22%, transparent);
   --zx-color-glass-edge: transparent;
   --zx-color-glass-tint: color-mix(in srgb, var(--zx-gray-950) 12%, transparent);
   --zx-color-overlay-backdrop: color-mix(in srgb, var(--zx-gray-950) 22%, transparent);
@@ -203,9 +207,11 @@
   --zx-color-glass-chrome: color-mix(in srgb, var(--zx-color-bg-surface) 76%, transparent);
   --zx-color-glass-control: color-mix(in srgb, var(--zx-color-bg-control) 66%, transparent);
   --zx-color-glass-control-hover: color-mix(in srgb, var(--zx-color-bg-hover) 60%, var(--zx-color-glass-surface));
-  /* Overlay glass is a thin neutral base under a lift from the top, a shade over what is behind
-     it, an accent caustic at the far corner, and the backdrop behind modal panels. The pane's
-     light sits on its edge — the rim and ring in the shadows — never as a wash on its face.
+  /* Overlay glass is a thin neutral base, the shade (the pane's body) painted over it, a short
+     lift from the top edge, a faint accent caustic at the far corner, and the backdrop behind
+     modal panels.
+     The pane's light sits on its edge — the rim and ring in the shadows — never as a wash on its
+     face.
      Keeping the roles separate makes the material visibly react to Aurora/content without baking
      decoration into each component. */
   --zx-color-overlay-base: var(--zx-color-bg-raised);
@@ -217,21 +223,48 @@
   --zx-color-overlay-divider: color-mix(in srgb, var(--zx-color-text) 11%, transparent);
   --zx-color-overlay-scrim: color-mix(in srgb, var(--zx-color-overlay-base) 28%, transparent);
   --zx-overlay-surface-image: linear-gradient(180deg, var(--zx-color-glass-lift) 0%,
-    color-mix(in srgb, var(--zx-color-glass-lift) 30%, transparent) 38%, transparent 70%),
-    radial-gradient(120% 70% at 100% 100%, color-mix(in srgb, var(--zx-color-accent) 7%, transparent), transparent 62%),
+    color-mix(in srgb, var(--zx-color-glass-lift) 15%, transparent) 18%, transparent 45%),
+    radial-gradient(120% 70% at 100% 100%, color-mix(in srgb, var(--zx-color-accent) 4%, transparent), transparent 62%),
     linear-gradient(var(--zx-color-glass-shade), var(--zx-color-glass-shade));
-  --zx-overlay-toast-image: radial-gradient(120% 160% at 0% 0%,
-    color-mix(in srgb, var(--zx-message-kind, var(--zx-color-info)) 16%, transparent), transparent 62%),
-    var(--zx-overlay-surface-image);
+  /* A toast adds its status tint itself, over this, so the kind set on the element reaches it. */
+  --zx-overlay-toast-image: var(--zx-overlay-surface-image);
   --zx-overlay-panel-image: linear-gradient(180deg, var(--zx-color-glass-lift) 0%,
-    color-mix(in srgb, var(--zx-color-glass-lift) 34%, transparent) 30%, transparent 64%),
-    radial-gradient(90% 60% at 100% 100%, color-mix(in srgb, var(--zx-color-accent) 6%, transparent), transparent 60%),
+    color-mix(in srgb, var(--zx-color-glass-lift) 15%, transparent) 16%, transparent 40%),
+    radial-gradient(90% 60% at 100% 100%, color-mix(in srgb, var(--zx-color-accent) 4%, transparent), transparent 60%),
     linear-gradient(var(--zx-color-glass-shade), var(--zx-color-glass-shade));
   --zx-app-icon-shadow: inset 0 1px 0 color-mix(in srgb, var(--zx-gray-0) 14%, transparent), inset 0 -1px 0 color-mix(in srgb, var(--zx-gray-950) 28%, transparent), 0 2px 6px color-mix(in srgb, var(--zx-color-app-icon-shade) 24%, transparent);
   --zx-app-icon-shadow-hover: inset 0 1px 0 color-mix(in srgb, var(--zx-gray-0) 20%, transparent), inset 0 -1px 0 color-mix(in srgb, var(--zx-gray-950) 32%, transparent), 0 4px 10px color-mix(in srgb, var(--zx-color-app-icon-shade) 30%, transparent);
   --zx-glass-raised-shadow: inset 0 1px 0 var(--zx-color-glass-rim), inset 0 0 0 1px color-mix(in srgb, var(--zx-color-glass-ring) 90%, transparent), 0 0 0 1px var(--zx-color-glass-edge), 0 1px 2px color-mix(in srgb, var(--zx-gray-950) 5%, transparent), 0 10px 28px -10px color-mix(in srgb, var(--zx-gray-950) 14%, transparent);
   --zx-glass-overlay-shadow: inset 0 1px 0 var(--zx-color-glass-rim), inset 0 0 0 1px var(--zx-color-glass-ring), 0 0 0 1px var(--zx-color-glass-edge), 0 1px 2px color-mix(in srgb, var(--zx-gray-950) 6%, transparent), var(--zx-overlay-shadow);
   --zx-glass-panel-shadow: inset 0 1px 0 var(--zx-color-glass-rim), inset 0 0 0 1px color-mix(in srgb, var(--zx-color-glass-ring) 90%, transparent), 0 0 0 1px var(--zx-color-glass-edge), 0 2px 4px color-mix(in srgb, var(--zx-gray-950) 6%, transparent), var(--zx-overlay-shadow);
+}
+
+/* Browsers without backdrop filtering get an intentionally opaque material instead of a washed
+   translucent colour. This is a capability fallback, independent of user preference fallbacks,
+   and it comes first so that a preference below still wins where both apply. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root,
+  .zx-scope,
+  [data-zx-theme],
+  [data-zx-preset] {
+    --zx-color-glass-surface: var(--zx-color-bg-raised) !important;
+    --zx-color-glass-chrome: var(--zx-color-bg-surface) !important;
+    --zx-color-glass-control: var(--zx-color-bg-control) !important;
+    --zx-color-glass-control-hover: var(--zx-color-bg-hover) !important;
+    --zx-color-overlay-surface: var(--zx-color-bg-raised) !important;
+    --zx-color-overlay-panel: var(--zx-color-bg-raised) !important;
+    --zx-color-overlay-backdrop: var(--zx-color-bg-backdrop) !important;
+    --zx-overlay-specular-strength: 0% !important;
+    --zx-overlay-surface-image: none !important;
+    --zx-overlay-toast-image: none !important;
+    --zx-overlay-panel-image: none !important;
+    --zx-glass-filter-icon: none !important;
+    --zx-glass-filter-control: none !important;
+    --zx-glass-filter-raised: none !important;
+    --zx-glass-filter-chrome: none !important;
+    --zx-glass-filter-overlay: none !important;
+    --zx-glass-filter-panel: none !important;
+  }
 }
 
 /* Preferences are resolved at the token seam so every material consumer, including application
@@ -313,24 +346,5 @@
     --zx-glass-filter-panel: none !important;
     --zx-glass-overlay-shadow: none !important;
     --zx-glass-panel-shadow: none !important;
-  }
-}
-
-/* Browsers without backdrop filtering get an intentionally opaque material instead of a washed
-   translucent colour. This is a capability fallback, independent of user preference fallbacks. */
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  :root,
-  .zx-scope,
-  [data-zx-theme],
-  [data-zx-preset] {
-    --zx-color-overlay-surface: var(--zx-color-bg-raised) !important;
-    --zx-color-overlay-panel: var(--zx-color-bg-raised) !important;
-    --zx-color-overlay-backdrop: var(--zx-color-bg-backdrop) !important;
-    --zx-overlay-specular-strength: 0% !important;
-    --zx-overlay-surface-image: none !important;
-    --zx-overlay-toast-image: none !important;
-    --zx-overlay-panel-image: none !important;
-    --zx-glass-filter-overlay: none !important;
-    --zx-glass-filter-panel: none !important;
   }
 }

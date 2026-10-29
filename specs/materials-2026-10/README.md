@@ -4,6 +4,17 @@
 > studio's `MATERIAL_RECIPES` in `website/theme-presets.js` carry Deep glass, Frost, Smoke, Paper
 > and Satin, composed from the per-theme glass ingredients (`--zx-color-glass-rim/-ring/-lift/
 > -shade/-edge/-tint`). The prototype below keeps the exploration's own copies.
+>
+> Reviewed the same day in two rounds by two external models (GPT-6.1 Terra and Sol, read-only,
+> transcripts kept outside the repository). Their consensus, applied: the shade became the pane's
+> body in both themes with a coverage floor in the smoke contract; the lift stops short of the
+> face; Deep glass lost its luminous bevel; Frost lost its polished rim; Smoke's body was a 95%
+> share of a 12%/38%-alpha tint (11%/36% opaque) and is now the tint mixed into the overlay base;
+> Paper's shadows tightened; Satin's card got its sheen through its shadow; resting cards on
+> opaque materials take the surface shadow; the grain interpolates in sRGB at 3%; the toast
+> composes its own status tint; the no-backdrop-filter fallback covers cards, chrome and
+> controls and precedes the preference fallbacks; hovers never thin a pane's body; and Enamel,
+> which both proposed, is the eighth material.
 
 Repository-only. `specs/` never reaches the site or the package; nothing here is approved for
 publication until it is lifted into `website/theme-presets.js` and the stylesheet defaults.

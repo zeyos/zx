@@ -217,7 +217,7 @@ palette tokens (`--zx-gray-*`, `--zx-green-*`) or raw color literals in componen
 component CSS: the theme (`auto` unless pinned; both must work), the accent (a
 `data-zx-preset` or a five-stop ramp from `website/theme.html`, which exports the CSS), the
 geometry (`--zx-space-unit`, `--zx-control-height`, `--zx-radius` on `:root` or a dense region),
-the material (Glass, Deep glass, Frost, Smoke, Paper, Satin or Flat — studio-exported token
+the material (Glass, Deep glass, Frost, Smoke, Paper, Satin, Enamel or Flat — studio-exported token
 overrides built from the theme's glass ingredients; `Aurora` for the light glass responds to), motion (`data-zx-motion="reduced"`; own transitions use `--zx-dur-*` and the
 `--zx-ease*` curves), colour roles (`--zx-color-tone-*` for categories, status tokens for status,
 `bg-current` for "you are here" vs `bg-selected` for "what you picked"), type

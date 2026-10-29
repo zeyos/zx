@@ -10,15 +10,19 @@ and friends remain the complete record.
 
 ### Added
 
-- Four materials in the theme studio beside Flat, Glass and Deep glass: **Frost** (milk glass —
-  heavy diffusion, almost no reflection), **Smoke** (tinted glass that darkens the scene behind
-  it), **Paper** (opaque and matte: layered soft shadows and a fine tooth) and **Satin** (opaque
-  and brushed: a sheen on controls and chrome). Paper and Satin filter nothing, so they cost
-  nothing to render and survive every fallback unchanged. Every material is a complete recipe
-  over the same roles, exported as token overrides.
+- Five materials in the theme studio beside Flat, Glass and Deep glass: **Frost** (milk glass —
+  heavy diffusion, no coherent reflection), **Smoke** (tinted glass with a real body that darkens
+  the scene behind it), **Paper** (opaque and matte: a contact shadow, a modest cast and a fine
+  tooth), **Satin** (opaque and brushed: a soft sheen across raised surfaces, a bright rim on
+  controls) and **Enamel** (an opaque body under a glossy coat: a narrow highlight along the top
+  edge and a darker foot). The opaque three filter nothing, so they render cheaply and survive
+  every fallback unchanged. Every material is a complete recipe over the same roles, exported as
+  token overrides.
 - Six glass ingredients the stylesheet declares per theme and every recipe composes —
   `--zx-color-glass-rim`, `-ring`, `-lift`, `-shade`, `-edge`, `-tint` — and `--zx-glass-grain`,
-  a grey tooth; one material recipe therefore serves light and dark alike.
+  a faint grey tooth; one material recipe therefore serves light and dark alike. The shade is a
+  pane's own body — white in light, black in dark — so every translucent material keeps a floor
+  under which the scene cannot drag text contrast, and the browser smoke suite asserts that floor.
 - The agent reference opens with "Choosing what to build with": every screen mapped to the layout
   to start from, every job to its component, the theming decisions an application makes, and
   what never to build by hand; both `llms.txt` indexes and the README carry the layout-first rule.
@@ -29,12 +33,20 @@ and friends remain the complete record.
   rebuilt: a thinner base under a white lift from the top edge instead of a grey wash, the light
   on the pane's edge — a near-white top rim, a hairline inner ring and, in dark, a cut outer line —
   rather than a corner specular on its face, a filter that saturates so the colour behind survives
-  the blur, and a faint accent caustic at the far corner. In dark the pane also shades what is
-  behind it, so text keeps its contrast while the base stays thin. **Deep glass** is a genuinely
-  thick pane rather than the same numbers turned up: a double rim with an inner glow, one narrow
-  specular band, more refraction and a fine grain. Applications that override
+  the blur, and a faint accent caustic at the far corner. The lift stops short of the pane's
+  middle, so the face stays optically quiet. **Deep glass** is a genuinely thick pane rather than
+  the same numbers turned up: a lit top line, a darker foot, a narrow inner glow, one faint
+  diagonal band, more refraction and a fine grain under the reflection. Applications that override
   `--zx-overlay-surface-image`, `--zx-glass-overlay-shadow` or the glass filters keep their
   values; everything else follows.
+
+### Fixed
+
+- A toast's status tint reached only the info colour: the tint was written into the toast image
+  token, which resolves at the theme root. The toast composes its own tint over the shared image.
+- Without `backdrop-filter` support, cards, navigation chrome and controls kept their translucent
+  glass colours; the fallback now makes every glass role opaque, as the overlays already were.
+- A resting card on an opaque material took the overlay's elevation.
 
 ## 5.3.0 — 2026-10-29
 
