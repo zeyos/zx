@@ -192,3 +192,37 @@ test('records sort within their groups, and a page heads each group with its cou
   assert.deepEqual(table[0], { ID: 'group:open', kind: 'group', label: 'Open', tone: 'info', count: '2 of 3' });
   assert.equal(withGroupRows(page, [], sorted), page, 'ungrouped, the page as it is');
 });
+
+test('an axis can collect strays in an other bucket, and moves write the declared id back', async () => {
+  const { axisChoices, bucketOf, bucketValue, groupsOf } = await import('../../website/layouts/overview-filters.js');
+  const axis = { buckets: [{ id: 1, label: 'Low' }, { id: 4, label: 'Urgent', tone: 'danger' }], other: { id: 'none', label: 'No priority' } };
+  assert.equal(bucketOf(4, axis), 4);
+  assert.equal(bucketOf('4', axis), 4, 'a board reports a column id as a string');
+  assert.equal(bucketOf(null, axis), 'none');
+  assert.equal(bucketOf(7, axis), 'none', 'a value in no bucket falls in other');
+  assert.equal(bucketOf(7, { buckets: axis.buckets }), 7, 'without other, the value stays itself');
+  assert.equal(bucketValue('4', axis), 4, 'the declared id, not the string a board reports');
+  assert.equal(bucketValue('none', axis), null, 'other stores no value');
+  assert.deepEqual(axisChoices(axis), [{ value: 1, label: 'Low' }, { value: 4, label: 'Urgent' }, { value: 'none', label: 'No priority' }]);
+
+  const groups = groupsOf('priority', { priority: axis });
+  assert.deepEqual(groups.map((group) => group.id), ['1', '4', 'none']);
+  const records = [{ priority: 4 }, { priority: null }, { priority: 1 }, { priority: 9 }];
+  assert.deepEqual(groups.map((group) => records.filter(group.match).length), [1, 1, 2], 'nothing drops out');
+});
+
+test('the drop rule keeps a colliding grouping off the lanes and gives it back off the board', async () => {
+  const { resolveBoardAxes, boardLane } = await import('../../website/layouts/overview-filters.js');
+  const axes = ['status', 'assignee'];
+  const chosen = resolveBoardAxes({ columnBy: 'status', group: 'none' }, { group: 'status' }, axes, 'drop');
+  assert.deepEqual(chosen, { columnBy: 'status', group: 'status' }, 'nothing moves');
+  assert.equal(boardLane(chosen), null, 'no lanes on the board');
+  assert.deepEqual(resolveBoardAxes({ columnBy: 'status', group: 'assignee' }, { columnBy: 'assignee' }, axes, 'drop'),
+    { columnBy: 'assignee', group: 'assignee' }, 'columns onto the grouping keep it, laneless');
+  assert.deepEqual(resolveBoardAxes({ columnBy: 'status', group: 'status' }, {}, axes, 'drop'), { columnBy: 'status', group: 'status' },
+    'entering the board changes nothing');
+  assert.equal(boardLane({ columnBy: 'status', group: 'assignee' }), 'assignee');
+  assert.equal(boardLane({ columnBy: 'status', group: 'none' }), null);
+  // Swap stays the default.
+  assert.deepEqual(resolveBoardAxes({ columnBy: 'status', group: 'none' }, { group: 'status' }, axes), { columnBy: 'assignee', group: 'status' });
+});

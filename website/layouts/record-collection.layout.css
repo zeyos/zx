@@ -373,14 +373,15 @@
 
 /* --------------------------------------------------------------- bulk bar -- */
 
+/* The bulk bar floats above the pager row, however tall a narrow column wraps it. */
 .collection .collection__bulk {
-  inset-block-end: calc(var(--zx-space-5) + var(--zx-control-height) + var(--zx-space-4));
+  inset-block-end: calc(var(--overview-footer-size, 0px) + var(--zx-space-5));
 }
 
 /* ------------------------------------------------------------- responsive -- */
 
 /* A narrow collection: the bulk bar spans the pane and wraps. */
-@container overview (max-width: 40rem) {
+@container overview (max-width: 36rem) {
   .collection .collection__bulk {
     inset-inline: var(--zx-space-3);
     flex-wrap: wrap;

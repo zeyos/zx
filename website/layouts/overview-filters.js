@@ -13,7 +13,10 @@ import { filterOperators } from '../../src/components/filter/filter-model.js';
  * @typedef {{logic: 'and'|'or', conditions: ChipCondition[], advanced: any}} OverviewFilters
  * @typedef {(record: Record<string, any>, field: string) => any} ValueReader
  *   Reads a field's value from a record; the overview's reads `get(record)` where a field has one.
- * @typedef {{id: string, label: string, tone?: string|null}} OverviewBucket
+ * @typedef {{id: string|number, label: string, tone?: string|null}} OverviewBucket
+ * @typedef {{buckets: OverviewBucket[], other?: OverviewBucket|null}} OverviewAxis
+ *   A groupable field's buckets in order; `other`, when given, collects the records whose value is
+ *   in none of them, so nothing drops out of a grouped view or a board.
  * @typedef {{id: string, label: string, tone: string|null, match: (record: Record<string, any>) => boolean}} OverviewGroup
  */
 
@@ -132,12 +135,17 @@ function mergeDrafts(committed, drawer) {
  *   field, so the grouping changes with them rather than disappearing.
  * - Entering the board with a grouping equal to the columns resolves the same way as choosing it.
  *
+ * With `collision: 'drop'` nothing moves: a grouping equal to the column field is kept but shows no
+ * lanes on the board (see `boardLane()`), and comes back as the grouping off the board.
+ *
  * @param {{columnBy: string, group: string}} board Current column field and grouping (`'none'`).
  * @param {{group?: string, columnBy?: string}} change What the reader chose.
  * @param {string[]} axes The fields the board can use, in preference order.
+ * @param {'swap'|'drop'} [collision='swap'] What a collision does.
  * @returns {{columnBy: string, group: string}}
  */
-function resolveBoardAxes({ columnBy, group }, change, axes) {
+function resolveBoardAxes({ columnBy, group }, change, axes, collision = 'swap') {
+  if (collision === 'drop') return { columnBy: change.columnBy ?? columnBy, group: change.group ?? group };
   if (change.columnBy !== undefined && change.columnBy !== columnBy) {
     const nextColumns = change.columnBy;
     return { columnBy: nextColumns, group: group === nextColumns ? columnBy : group };
@@ -148,6 +156,52 @@ function resolveBoardAxes({ columnBy, group }, change, axes) {
     return { columnBy: other, group: other === columnBy ? 'none' : nextGroup };
   }
   return { columnBy, group: nextGroup };
+}
+
+/**
+ * The swim lanes a board shows: the grouping, unless it is the column field — which the 'swap'
+ * rule never leaves, and the 'drop' rule shows as no lanes.
+ * @param {{columnBy: string|null, group: string}} board
+ * @returns {string|null}
+ */
+function boardLane({ columnBy, group }) {
+  return group !== 'none' && group !== columnBy ? group : null;
+}
+
+/**
+ * The bucket a value falls in: the bucket whose id it is (a number and its string match, as a
+ * board column id is a string), the axis's `other` bucket for anything else, or the value itself
+ * on an axis without one.
+ * @param {unknown} value
+ * @param {OverviewAxis} axis
+ * @returns {unknown} A bucket id, or the value.
+ */
+function bucketOf(value, axis) {
+  const bucket = axis.buckets.find((entry) => entry.id === value || (value != null && String(entry.id) === String(value)));
+  if (bucket) return bucket.id;
+  return axis.other ? axis.other.id : value;
+}
+
+/**
+ * The value to store when a record is moved into a bucket by its id as a board reports it (a
+ * string): the bucket's own id, typed as declared, or null for the `other` bucket.
+ * @param {string|number|null} id
+ * @param {OverviewAxis} axis
+ * @returns {unknown}
+ */
+function bucketValue(id, axis) {
+  if (axis.other && String(axis.other.id) === String(id)) return null;
+  return axis.buckets.find((entry) => String(entry.id) === String(id))?.id ?? id;
+}
+
+/**
+ * An axis's buckets as filter choices — its `other` bucket last — so a filter on the field can
+ * pick exactly what a grouping or a board shows.
+ * @param {OverviewAxis} axis
+ * @returns {Array<{value: string|number, label: string}>}
+ */
+function axisChoices(axis) {
+  return [...axis.buckets, ...(axis.other ? [axis.other] : [])].map(({ id, label }) => ({ value: id, label }));
 }
 
 /** @param {string} id Operator id. @returns {'none'|'single'|'pair'|'many'} */
@@ -250,17 +304,18 @@ function conditionCount(node) {
 }
 
 /**
- * A grouping's groups, in bucket order, each matching the records whose field holds its id.
+ * A grouping's groups, in bucket order — the `other` bucket last — each matching the records
+ * whose value falls in it (`bucketOf()`).
  * @param {string|null} field Grouping field, or null for none.
- * @param {Record<string, {buckets: OverviewBucket[]}>} axes The groupable fields' buckets.
+ * @param {Record<string, OverviewAxis>} axes The groupable fields' buckets.
  * @param {ValueReader} [read]
  * @returns {OverviewGroup[]}
  */
 function groupsOf(field, axes, read = readProperty) {
   const axis = field ? axes[field] : null;
   if (!axis) return [];
-  return axis.buckets.map(({ id, label, tone = null }) => ({
-    id, label, tone: tone ?? null, match: (record) => read(record, field) === id
+  return [...axis.buckets, ...(axis.other ? [axis.other] : [])].map(({ id, label, tone = null }) => ({
+    id: String(id), label, tone: tone ?? null, match: (record) => bucketOf(read(record, field), axis) === id
   }));
 }
 
@@ -317,6 +372,6 @@ function withGroupRows(slice, groups, all) {
 }
 
 export {
-  arityOf, astToFilters, conditionCount, conditionMatches, filterExpression, filtersToAst, groupCount, groupsOf,
+  arityOf, astToFilters, axisChoices, boardLane, bucketOf, bucketValue, conditionCount, conditionMatches, filterExpression, filtersToAst, groupCount, groupsOf,
   isDraftNode, mergeDrafts, nodeMatches, resolveBoardAxes, sortRecords, valueFor, withGroupRows, withoutDrafts
 };

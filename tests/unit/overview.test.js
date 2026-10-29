@@ -73,3 +73,30 @@ test('a layout on the composition keeps only its own styles', () => {
   }
   assert.match(css, /\.collection\[data-overview-drawer\] \.collection__main/, 'the screen makes room for an open drawer');
 });
+
+test('the search shares the row and its buttons keep the control height', () => {
+  const css = read('website/layouts/overview.css');
+  assert.match(css, /\.zx-list-toolbar__search \{\s*flex: 1 1 10rem;\s*min-inline-size: 0;\s*max-inline-size: 18rem;/);
+  assert.match(css, /\.overview\[hidden\] \{\s*display: none;/, 'hidden hides the column');
+  assert.match(css, /@container overview \(max-width: 36rem\)/, 'the narrow rules start at 36rem');
+  assert.doesNotMatch(css, /@container overview \(max-width: 40rem\) \{\s*\.overview \.overview__clear/, 'not at a phone\'s 40rem');
+  const search = read('src/components/search/search.css');
+  assert.match(search, /\.zx-search__clear,\n\.zx-search__submit \{\n(?:\s*\/\*[^*]*\*\/\n)?\s*flex: none;/);
+});
+
+test('every option this round added is documented', () => {
+  const source = read('website/layouts/overview.js');
+  for (const option of ['boardCollision', 'baseFilter', 'empty']) {
+    assert.match(source, new RegExp(`@property \\{[^\\n]*\\} \\[${option}(?:=[^\\]]*)?\\]`), `${option} is documented`);
+  }
+  assert.match(source, /@property \{[^\n]*\} \[other\]/, 'an axis documents its other bucket');
+  assert.match(source, /@property \{[^\n]*\} \[set\]/, 'an axis documents its write-back');
+  assert.match(source, /@property \{[^\n]*\} setBaseFilter/);
+  assert.match(source, /'rendered'/, 'the rendered event');
+  assert.match(source, /--overview-footer-size/);
+});
+
+test('the record collection floats its bulk bar above the measured pager', () => {
+  const css = read('website/layouts/record-collection.layout.css');
+  assert.match(css, /\.collection__bulk \{\s*inset-block-end: calc\(var\(--overview-footer-size, 0px\) \+ var\(--zx-space-5\)\);/);
+});

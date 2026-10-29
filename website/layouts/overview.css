@@ -5,7 +5,8 @@
  * overlays outside the layout and use block-namespaced classes. Semantic tokens only.
  *
  * A layout keeps what only it draws: its cells, card previews, board tints, and the room its main
- * pane makes for an open drawer (`[data-overview-drawer]` on its root, see overview.js).
+ * pane makes for an open drawer (`[data-overview-drawer]` on its root, see overview.js). Overlays
+ * it floats over the body sit above `--overview-footer-size`, the pager row's height.
  */
 
 /* ------------------------------------------------------------------ frame -- */
@@ -20,15 +21,22 @@
   min-block-size: 0;
 }
 
+/* A layout hides the column with `hidden` (a detail page over it); `display: flex` must not win. */
+.overview[hidden] {
+  display: none;
+}
+
 .overview .overview__toolbar {
   flex: 0 0 auto;
   padding: var(--zx-space-1) var(--zx-space-2) var(--zx-space-1) var(--zx-space-4);
   border-block-end: 1px solid var(--zx-color-border-subtle);
 }
 
+/* The search takes what the row has to spare up to 18rem, and gives it back before the row wraps. */
 .overview .overview__toolbar .zx-list-toolbar__search {
-  flex: 0 1 18rem;
+  flex: 1 1 10rem;
   min-inline-size: 0;
+  max-inline-size: 18rem;
 }
 
 /*
@@ -87,6 +95,28 @@
   block-size: 1px;
   clip-path: inset(50%);
   white-space: nowrap;
+}
+
+/*
+ * A column too narrow for the labelled tools on one row — a drawer open beside a 1440 window — keeps
+ * them as icons, as the toolbar itself does on a phone, rather than wrapping the shapes onto a row
+ * of their own. Each word stays its tool's name; a badge stays beside its icon.
+ */
+@container overview (max-width: 40rem) {
+  .overview .overview__toolbar .zx-list-toolbar__tool:has(.zx-icon) .zx-list-toolbar__tool-label {
+    position: absolute;
+    overflow: hidden;
+    inline-size: 1px;
+    block-size: 1px;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* A long count line ("18 companies · Total ARR …") ends in an ellipsis rather than taking the
+     row; the live region still announces it whole. */
+  .overview .overview__toolbar .zx-list-toolbar__count {
+    max-inline-size: 12rem;
+  }
 }
 
 /* ---------------------------------------------------------------- filters -- */
@@ -466,8 +496,12 @@
 
 /* ------------------------------------------------------------- responsive -- */
 
-/* A narrow overview: the clear button follows the chips instead of pushing to the far end. */
-@container overview (max-width: 40rem) {
+/*
+ * A narrow overview: the clear button follows the chips instead of pushing to the far end. 36rem
+ * rather than a phone's 40: a 1440 window with the navigation and a 400px drawer open leaves the
+ * column about 39rem, which is still a desktop row, not a phone.
+ */
+@container overview (max-width: 36rem) {
   .overview .overview__clear {
     margin-inline-start: 0;
   }

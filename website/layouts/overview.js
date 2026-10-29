@@ -26,7 +26,9 @@
  * Styles: `overview.css`, under the `.overview` block (the drawers and the chip editor open outside
  * the layout and carry `overview__` classes). Wide, a layout lets its main pane make room for an
  * open drawer with one rule of its own, since only it knows which element that is: the overview
- * sets `data-overview-drawer` and `--overview-drawer-size` on `root` while a drawer is open.
+ * sets `data-overview-drawer` and `--overview-drawer-size` on `root` while a drawer is open. It
+ * also keeps `--overview-footer-size` on `element` — the pager row's height, 0 on the board — for
+ * whatever a layout floats above it (a bulk bar). The narrow rules apply below a 36rem column.
  *
  *     @container shell (min-width: 1180px) {
  *       .crm[data-overview-drawer] .crm__main { margin-inline-end: min(var(--overview-drawer-size), 100vw); }
@@ -38,8 +40,8 @@ import {
 } from '../../src/index.js';
 import { DATE, disposer, dot, later, layoutContext, renderScope, shortcuts } from './kit.js';
 import {
-  arityOf, astToFilters, conditionCount, filterExpression, filtersToAst, groupCount, groupsOf, mergeDrafts,
-  nodeMatches, resolveBoardAxes, sortRecords, valueFor, withGroupRows, withoutDrafts
+  arityOf, astToFilters, axisChoices, boardLane, bucketOf, bucketValue, conditionCount, filterExpression, filtersToAst,
+  groupCount, groupsOf, mergeDrafts, nodeMatches, resolveBoardAxes, sortRecords, valueFor, withGroupRows, withoutDrafts
 } from './overview-filters.js';
 
 /**
@@ -47,9 +49,9 @@ import {
  */
 
 /**
- * One field of the records: what the views show, what View settings arranges, and what sorts. Any
- * other `ViewField` property (`render`, `align`, `view: {table: {width}}`, …) is handed to the views
- * as given; `type`, `groupable`, `locked`, and `visible` are the overview's and are not.
+ * One field of the records: what the views show, what View settings arranges, and what sorts. Every
+ * `ViewField` property (`render`, `get`, `sortValue`, `type`, `align`, `view: {table: {width}}`, …)
+ * is handed to the views as given; only `groupable`, `locked`, and `visible` are the overview's.
  * @typedef {Object} OverviewField
  * @property {string} id Field id; also the record property unless `get` is given.
  * @property {string} label Field name.
@@ -89,8 +91,15 @@ import {
  * A field the records group by, which is also an axis the board can use for its columns or lanes.
  * @typedef {Object} OverviewGroupAxis
  * @property {string} label Name on the View tool's badge ("Stage").
- * @property {Array<{id: string, label: string, tone?: string|null}>} buckets Its values in order;
- *   `tone` is a status dot kind (`neutral`, `info`, `success`, …) for group headings and columns.
+ * @property {Array<{id: string|number, label: string, tone?: string|null}>} buckets Its values in
+ *   order; `tone` is a status dot kind (`neutral`, `info`, `success`, …) for group headings and
+ *   columns. A number id matches its string, as a board reports columns.
+ * @property {{id: string|number, label: string, tone?: string|null}} [other] A last bucket for the
+ *   records whose value is in none of the others ("Unassigned"), so nothing drops out of a grouped
+ *   view or a board. A filter on the field matches it too: build the choices with `axisChoices()`.
+ * @property {(record: Record<string, any>, bucket: string|number|null) => void} [set] Writes a card's
+ *   move on the board into the record. Omitted: the field's property takes the bucket's declared id,
+ *   or null for `other`.
  */
 
 /**
@@ -127,9 +136,12 @@ import {
  * @property {boolean} showEmptyColumns Whether columns without cards stay.
  * @property {OverviewGroupAxis} columnAxis The column field's axis.
  * @property {OverviewGroupAxis|null} laneAxis The lane field's axis.
- * @property {Record<string, any>} options For `KanbanView`: `columnBy`, `columns`, `swimlaneBy`,
- *   `swimlanes`, `showEmptyColumns`, `moveMode: 'external'`, and an `onrecordmove` that writes the
- *   move into the records (through the field's own property), refreshes, and fires `recordmove`.
+ * @property {(record: Record<string, any>, field: string) => string|number|null} bucketOf The bucket a
+ *   record falls in on an axis — what a column head's total filters by.
+ * @property {Record<string, any>} options For `KanbanView`: `columnBy` and `swimlaneBy` (the field,
+ *   or a reader where the axis has `other` or the field a `get`), `columns`, `swimlanes`,
+ *   `showEmptyColumns`, `moveMode: 'external'`, and an `onrecordmove` that writes the move through
+ *   each axis's `set`, refreshes, and fires `recordmove`.
  */
 
 /**
@@ -173,8 +185,19 @@ import {
  * @property {{placeholder?: string, label?: string, text?: (record: Record<string, any>) => string}} [search]
  *   The search field: placeholder, the name of its search landmark, and the text a record is found
  *   by (its filter fields' values and choice labels by default).
- * @property {(count: number) => string} [countText] The toolbar's live count line ("12 records").
- * @property {{title?: string, description?: string}} [empty] The empty state's words.
+ * @property {(count: number) => string} [countText] The toolbar's live count line ("12 records"),
+ *   counting what the chips, the search, and `baseFilter` leave.
+ * @property {OverviewEmpty|((state: {filtered: boolean}) => OverviewEmptyState)} [empty] The empty
+ *   states: `filtered` while a chip, the advanced filter, or a search is active ("No records match",
+ *   with Clear filters), `none` otherwise ("No records yet"). A single `{title, description}` is
+ *   the filtered state, as before; a function decides itself.
+ * @property {(record: Record<string, any>) => boolean} [baseFilter] A scope applied before the
+ *   chips — a tab, "My issues" — so switching it needs no `setData()`. Not an active filter for
+ *   the empty state. See `setBaseFilter()`.
+ * @property {'swap'|'drop'} [boardCollision='swap'] On the board, a grouping on the column field:
+ *   `swap` moves the columns to another axis (`resolveBoardAxes()`); `drop` shows the board without
+ *   lanes and an empty View badge, and the grouping returns off the board. The same from every
+ *   path: View settings, `setGroup()`, `setState()`, switching to the board.
  * @property {import('../../src/components/list-toolbar/list-toolbar.js').ListToolbarTool[]} [tools]
  *   More toolbar tools, after Filter, Sort, and View; each handles its own `onclick`.
  * @property {{size?: number, viewSize?: number}} [drawers] Widths of the Filters (400) and View
@@ -183,6 +206,11 @@ import {
  *   `data-overview-drawer` goes, and where the shortcuts bind.
  * @property {boolean} [shortcuts=false] Binds 1–n (shapes), F (Filters), Shift+F (Add filter),
  *   V (View settings), / (search), and Escape (close a drawer) on `root`. Not in preview.
+ */
+
+/**
+ * @typedef {{title?: string, description?: string, icon?: string, actions?: Array<{label: string, onclick: () => void}>}} OverviewEmptyState
+ * @typedef {{filtered?: OverviewEmptyState, none?: OverviewEmptyState}} OverviewEmpty
  */
 
 /**
@@ -197,7 +225,10 @@ import {
  *   A layout that changes records in place calls `refresh()` instead.
  * @property {() => void} refresh Re-reads the records into the current page.
  * @property {() => OverviewState} getState The current state, JSON-safe: what a saved view stores.
- * @property {(partial: Partial<OverviewState>) => void} setState Applies a saved view or preset.
+ * @property {(partial: Partial<OverviewState>) => void} setState Applies a saved view or preset; only
+ *   what differs from the current state, so a value set again rebuilds nothing.
+ * @property {(filter: ((record: Record<string, any>) => boolean)|null) => void} setBaseFilter
+ *   Replaces the scope applied before the chips, and refreshes from the first page.
  * @property {(shape: OverviewShape) => void} setView Switches the shape, as the switch does (`viewchange`).
  * @property {(field: string|null) => void} setGroup On the board, by the axis rule.
  * @property {(model: OverviewFilters) => void} setFilters Replaces the filter (`filterschange`, reason `set`).
@@ -221,9 +252,13 @@ import {
  * `chip`, `remove`, `logic`, `drawer`, `clear`, or `set`), `groupchange {group}`, `pagechange
  * {page, pageSize}`, `selectionchange {ids}` (also after every refresh, as a page change can drop a
  * selection), `recordclick {record}` (never a group heading), `recordmove {ids, to}` after a card
- * moved on the board, and `render {records}` just before the view is handed a page — the moment to
- * destroy components a renderer made for the previous one (a `renderScope().reset()`).
- * @typedef {'viewchange'|'filterschange'|'groupchange'|'pagechange'|'selectionchange'|'recordclick'|'recordmove'|'render'} OverviewEvent
+ * moved on the board, `render {records}` just before the view is handed a page — the moment to
+ * destroy components a renderer made for the previous one (a `renderScope().reset()`) — and
+ * `rendered {records, view}` once it has drawn it and restored its focus.
+ *
+ * The overview's shortcuts (the shapes, F, Shift+F, V, /) stand down while `element` is not
+ * rendered — a detail page covering it — and hiding it closes an open drawer.
+ * @typedef {'viewchange'|'filterschange'|'groupchange'|'pagechange'|'selectionchange'|'recordclick'|'recordmove'|'render'|'rendered'} OverviewEvent
  */
 
 /** Every shape, in the switch's default order. */
@@ -305,6 +340,9 @@ function createOverview(context, options) {
     sizes: { filters: options.drawers?.size ?? 400, view: options.drawers?.viewSize ?? 380 },
     recordId: options.recordId ?? 'ID',
     root: options.root ?? null,
+    collision: options.boardCollision === 'drop' ? 'drop' : 'swap',
+    /** @type {((record: Record<string, any>) => boolean)|null} The scope applied before the chips. */
+    baseFilter: typeof options.baseFilter === 'function' ? options.baseFilter : null,
     fieldById: new Map(fields.map((field) => [field.id, field])),
     filterFieldById: new Map(filterFields.map((field) => [field.id, field])),
     // Components drawn for one presentation, one chip editor, one value control, and View settings.
@@ -392,34 +430,56 @@ function createOverview(context, options) {
 
   /**
    * Applies part of a state — a saved view, a preset: the search, sort, grouping, board, page
-   * size, shape, and filter, each where given.
+   * size, shape, and filter, each where given and different from now. A value set again changes
+   * nothing, so a layout echoing the state back (on `viewchange`) rebuilds nothing twice.
    * @param {Partial<OverviewState>} partial
    * @returns {void}
    */
   function setState(partial) {
     const next = partial ?? {};
     const previousGroup = state.group;
-    if (typeof next.query === 'string') { state.query = next.query; core.toolbar.setSearch(next.query, { silent: true }); }
-    if (next.sort) { state.sort = { ...next.sort }; core.sorter.setValue(state.sort, { silent: true }); }
-    if (Object.hasOwn(next, 'group')) state.group = next.group && axes[next.group] ? next.group : 'none';
-    if (next.board) {
-      if (next.board.columnBy && axes[next.board.columnBy]) state.board.columnBy = next.board.columnBy;
-      if (typeof next.board.showEmptyColumns === 'boolean') state.board.showEmptyColumns = next.board.showEmptyColumns;
+    let rebuild = false;
+    let reread = false;
+    if (typeof next.query === 'string' && next.query !== state.query) {
+      state.query = next.query;
+      core.toolbar.setSearch(next.query, { silent: true });
+      reread = true;
     }
-    if (next.pageSize) state.pageSize = next.pageSize;
-    if (next.page) state.page = next.page;
-    core.syncGroup();
+    if (next.sort && (next.sort.id !== state.sort.id || next.sort.dir !== state.sort.dir)) {
+      state.sort = { ...next.sort };
+      core.sorter.setValue(state.sort, { silent: true });
+      reread = true;
+    }
+    if (Object.hasOwn(next, 'group')) {
+      const group = next.group && axes[next.group] ? next.group : 'none';
+      if (group !== state.group) { state.group = group; rebuild = true; }
+    }
+    if (next.board) {
+      const columnBy = next.board.columnBy && axes[next.board.columnBy] ? next.board.columnBy : state.board.columnBy;
+      const empty = typeof next.board.showEmptyColumns === 'boolean' ? next.board.showEmptyColumns : state.board.showEmptyColumns;
+      if (columnBy !== state.board.columnBy || empty !== state.board.showEmptyColumns) {
+        state.board.columnBy = columnBy;
+        state.board.showEmptyColumns = empty;
+        rebuild = rebuild || state.view === 'board' || next.view === 'board';
+      }
+    }
+    if (next.pageSize && next.pageSize !== state.pageSize) { state.pageSize = next.pageSize; reread = true; }
+    if (next.page && next.page !== state.page) { state.page = next.page; reread = true; }
+    const filters = next.filters ? normalizeFilters(next.filters) : null;
+    const refilter = Boolean(filters) && JSON.stringify(filters) !== JSON.stringify(state.filters);
     const shape = next.view && shapes.includes(next.view) && next.view !== state.view ? next.view : null;
+    if (!rebuild && !reread && !refilter && !shape) return;
+    core.syncGroup();
     // The switch announces the new shape and rebuilds it; otherwise the grouping or the board may
     // still have changed under the current one.
     if (shape) core.toolbar.setView(shape);
-    else if (Object.hasOwn(next, 'group') || next.board) core.mountView();
+    else if (rebuild) core.mountView();
     if (state.group !== previousGroup) core.emit('groupchange', { group: state.group === 'none' ? null : state.group });
-    if (next.filters) {
-      state.filters = normalizeFilters(next.filters);
+    if (refilter) {
+      state.filters = /** @type {OverviewFilters} */ (filters);
       core.draft = null;
       core.applyFilters({ reason: 'set' });
-    } else core.refresh({ resetPage: Boolean(next.query !== undefined || next.sort) });
+    } else if (reread && !shape && !rebuild) core.refresh({ resetPage: next.query !== undefined || Boolean(next.sort) });
   }
 
   /** @type {Overview} */
@@ -440,6 +500,10 @@ function createOverview(context, options) {
       if (shapes.includes(shape)) core.toolbar.setView(shape);
     },
     setGroup: (field) => core.setGroup(field),
+    setBaseFilter(filter) {
+      core.baseFilter = typeof filter === 'function' ? filter : null;
+      core.refresh({ resetPage: true });
+    },
     setFilters(model) {
       state.filters = normalizeFilters(model);
       core.draft = null;
@@ -464,14 +528,24 @@ function createOverview(context, options) {
   core.api = api;
 
   if (options.shortcuts && core.root) {
+    /**
+     * A key of the overview's own, which stands down — declines the key — while the overview is
+     * not on screen: a detail page covering it must not switch its shape or open its drawers.
+     * @param {(event: KeyboardEvent) => unknown} handler
+     * @returns {(event: KeyboardEvent) => boolean|void}
+     */
+    const shown = (handler) => (event) => {
+      if (!core.isShown()) return false;
+      handler(event);
+    };
     shortcuts(core.root, {
       // F opens the drawer; Shift+F the strip's "Add filter" menu button.
-      f: (event) => (event.shiftKey ? core.focusAddFilter() : core.openFilterDrawer()),
-      v: () => core.openViewDrawer(),
+      f: shown((event) => (event.shiftKey ? core.focusAddFilter() : core.openFilterDrawer())),
+      v: shown(() => core.openViewDrawer()),
       // The drawers are non-modal, so Escape also closes one from the list beside it.
       Escape: () => (core.closeDrawers() ? undefined : false),
-      '/': () => core.toolbar.focusSearch(),
-      ...Object.fromEntries(shapes.map((shape, index) => [String(index + 1), () => core.toolbar.setView(shape)]))
+      '/': shown(() => core.toolbar.focusSearch()),
+      ...Object.fromEntries(shapes.map((shape, index) => [String(index + 1), shown(() => core.toolbar.setView(shape))]))
     }, context);
   }
 
@@ -494,6 +568,19 @@ function overviewReaders(core) {
   core.valueOf = (record, id) => {
     const get = filterFieldById.get(id)?.get ?? fieldById.get(id)?.get;
     return get ? get(record) : record[id];
+  };
+
+  /**
+   * A field's value as the filter and the grouping see it: on an axis with an `other` bucket, a
+   * value in none of its buckets reads as that bucket's id, so "Unassigned" can be filtered on.
+   * @param {Record<string, any>} record
+   * @param {string} id
+   * @returns {any}
+   */
+  core.matchValue = (record, id) => {
+    const axis = core.axes[id];
+    const value = core.valueOf(record, id);
+    return axis?.other ? bucketOf(value, axis) : value;
   };
 
   /** @param {Record<string, any>} record @param {string} id @returns {any} What a field sorts by. */
@@ -617,9 +704,14 @@ function overviewToolbar(core) {
     content: h('div', { class: 'overview__menu' }, core.sorter.toElement()), placement: 'bottom-end'
   }));
 
-  /** Mirrors the grouping in the View tool's badge: the grouping's name, or none. @returns {void} */
+  /**
+   * Mirrors the grouping in the View tool's badge: the grouping's name, or none. On the board it is
+   * the lanes, which a dropped collision leaves empty.
+   * @returns {void}
+   */
   core.syncGroup = () => {
-    toolbar.setBadge('view', core.axes[state.group]?.label ?? null);
+    const group = state.view === 'board' ? core.laneOf() : state.group;
+    toolbar.setBadge('view', core.axes[group]?.label ?? null);
   };
 }
 
@@ -1231,7 +1323,7 @@ function overviewViewSettings(core) {
    */
   core.applyBoardAxes = (change) => {
     if (!state.board.columnBy) return;
-    const next = resolveBoardAxes({ columnBy: state.board.columnBy, group: state.group }, change, axisIds);
+    const next = resolveBoardAxes({ columnBy: state.board.columnBy, group: state.group }, change, axisIds, core.collision);
     state.board.columnBy = next.columnBy;
     state.group = next.group;
   };
@@ -1241,7 +1333,10 @@ function overviewViewSettings(core) {
    * `applyBoardAxes()`), so this only guards against a state that was never resolved.
    * @returns {string|null}
    */
-  core.laneOf = () => (state.group !== 'none' && state.group !== state.board.columnBy ? state.group : null);
+  core.laneOf = () => boardLane({ columnBy: state.board.columnBy, group: state.group });
+
+  /** @returns {string|null} The grouping as View settings shows it: on the board, the lanes. */
+  const shownGroup = () => (state.view === 'board' ? core.laneOf() : state.group === 'none' ? null : state.group);
 
   /** @returns {{columnBy: string|null, swimlaneBy: string|null, showEmptyColumns: boolean}} The board as View settings shows it. */
   const boardSettings = () => ({ columnBy: state.board.columnBy, swimlaneBy: core.laneOf(), showEmptyColumns: state.board.showEmptyColumns });
@@ -1253,8 +1348,10 @@ function overviewViewSettings(core) {
    */
   core.setGroup = (field) => {
     const group = field && axes[field] ? field : 'none';
+    const before = `${state.group} ${state.board.columnBy}`;
     if (state.view === 'board') core.applyBoardAxes({ group });
     else state.group = group;
+    if (`${state.group} ${state.board.columnBy}` === before) return;
     state.page = 1;
     core.syncGroup();
     core.mountView();
@@ -1293,7 +1390,7 @@ function overviewViewSettings(core) {
       fields: listed.map(({ id, label, type, groupable, locked }) => ({
         id, label, type: type ?? 'text', ...(groupable === undefined ? {} : { groupable }), ...(locked ? { locked } : {})
       })),
-      groupBy: state.group === 'none' ? null : state.group,
+      groupBy: shownGroup(),
       grouping: axisIds.length ? { fields: axisIds } : false,
       board: board ? boardSettings() : false,
       sections: board ? ['fields', 'grouping', 'board'] : ['fields', 'grouping'],
@@ -1305,7 +1402,8 @@ function overviewViewSettings(core) {
         const { columnBy, swimlaneBy, showEmptyColumns } = detail.board;
         core.setBoardAxes({
           showEmptyColumns,
-          ...(columnBy && columnBy !== state.board.columnBy ? { columnBy } : { group: swimlaneBy ?? null })
+          ...(columnBy && columnBy !== state.board.columnBy ? { columnBy }
+            : (swimlaneBy ?? null) !== core.laneOf() ? { group: swimlaneBy ?? null } : {})
         });
       }
     }));
@@ -1325,8 +1423,7 @@ function overviewViewSettings(core) {
       drawer.board = board;
       drawer.host.replaceChildren(drawer.settings.toElement());
     } else {
-      drawer.settings.setState({ groupBy: state.group === 'none' ? null : state.group,
-        ...(board ? { board: boardSettings() } : {}) }, { silent: true });
+      drawer.settings.setState({ groupBy: shownGroup(), ...(board ? { board: boardSettings() } : {}) }, { silent: true });
     }
     drawer.settings.bind(core.view, board ? { board: boardSettings() } : {});
     // Search draws an unnamed search landmark; beside the toolbar's, each needs its own name.
@@ -1389,14 +1486,54 @@ function overviewBody(core) {
     h('div', { class: 'overview__toolbar' }, core.toolbar.toElement()), core.filterBar, body, footer);
   Object.assign(core, { body, footer, element, pager });
 
-  /** The fields as the views take them: the overview's own properties left out. */
-  const viewFields = fields.map(({ type, groupable, locked, visible, get, ...rest }) => rest);
+  /** The fields as the views take them: only the overview's own properties left out. */
+  const viewFields = fields.map(({ groupable, locked, visible, ...rest }) => rest);
 
   /** @param {OverviewShape} shape @returns {string[]} The fields a shape shows at first. */
   const visibleFor = (shape) => (options.visibleBy ? options.visibleBy(shape) : options.visible?.[shape] ?? fields.map((field) => field.id));
 
   /** @returns {import('./overview-filters.js').OverviewGroup[]} The grouping's groups in order; none while ungrouped. */
   const groups = () => groupsOf(state.group === 'none' ? null : state.group, axes, core.valueOf);
+
+  /** @param {Record<string, any>} record @param {string} field @returns {string|number|null} Its bucket on an axis. */
+  const bucketIn = (record, field) => /** @type {any} */ (bucketOf(core.valueOf(record, field), axes[field]));
+
+  /**
+   * What a board reads an axis by: the field's property, or — where the axis collects strays in an
+   * `other` bucket or the field is read through `get` — a reader of the record's bucket.
+   * @param {string|null} field
+   * @returns {string|((record: Record<string, any>) => string|number|null)|null}
+   */
+  const boardReader = (field) => {
+    if (!field) return null;
+    return axes[field]?.other || core.fieldById.get(field)?.get || core.filterFieldById.get(field)?.get
+      ? (record) => bucketIn(record, field) : field;
+  };
+
+  /**
+   * The empty state for the current filter: "No records match" while a chip, the advanced
+   * filter, or a search narrows the records; the layout's "nothing here" otherwise.
+   * @returns {HTMLElement}
+   */
+  function emptyFor() {
+    const narrowed = Boolean(state.filters.advanced || state.filters.conditions.length || state.query.trim());
+    const empty = options.empty;
+    const split = empty && typeof empty === 'object' && ('filtered' in empty || 'none' in empty);
+    const words = typeof empty === 'function' ? empty({ filtered: narrowed })
+      : narrowed ? (split ? empty.filtered : empty) : (split ? empty.none : null);
+    if (narrowed) {
+      return emptyState({
+        icon: words?.icon ?? 'filter', size: 'sm', title: words?.title ?? 'No records match',
+        description: words?.description ?? 'Change the search or the filters to see more.',
+        actions: words?.actions ?? [{ label: 'Clear filters', onclick: () => core.clearFilters() }]
+      });
+    }
+    return emptyState({
+      icon: words?.icon ?? 'inbox', size: 'sm', title: words?.title ?? 'No records yet',
+      ...(words?.description ? { description: words.description } : {}),
+      ...(words?.actions ? { actions: words.actions } : {})
+    });
+  }
 
   /** @param {Record<string, any>} record @returns {ReturnType<typeof groups>[number]|undefined} Its group. */
   const groupOf = (record) => groups().find((group) => group.match(record));
@@ -1411,17 +1548,13 @@ function overviewBody(core) {
     const hiddenFields = fields.map((field) => field.id).filter((id) => !visible.includes(id));
     const columnBy = state.board.columnBy;
     const lanes = core.laneOf();
-    const bucketsOf = (axis) => axis.buckets.map(({ id, label }) => ({ id, label }));
+    const bucketsOf = (axis) => axisChoices(axis).map(({ value, label }) => ({ id: value, label }));
     return {
       shape,
       options: {
         fields: viewFields, data: [], recordId: core.recordId, sort: state.sort, sortMode: 'server', hiddenFields,
         fieldControls: false,
-        emptyText: () => emptyState({
-          icon: 'filter', size: 'sm', title: options.empty?.title ?? 'No records match',
-          description: options.empty?.description ?? 'Change the search or the filters to see more.',
-          actions: [{ label: 'Clear filters', onclick: () => core.clearFilters() }]
-        }),
+        emptyText: () => emptyFor(),
         onsortchange: ({ detail }) => {
           if (!detail.id) return;
           state.sort = { id: detail.id, dir: detail.dir ?? 'asc' };
@@ -1446,10 +1579,11 @@ function overviewBody(core) {
         showEmptyColumns: state.board.showEmptyColumns,
         columnAxis: axes[columnBy],
         laneAxis: lanes ? axes[lanes] : null,
+        bucketOf: bucketIn,
         options: {
-          columnBy,
+          columnBy: boardReader(columnBy),
           columns: bucketsOf(axes[columnBy]),
-          swimlaneBy: lanes,
+          swimlaneBy: boardReader(lanes),
           swimlanes: lanes ? bucketsOf(axes[lanes]) : null,
           showEmptyColumns: state.board.showEmptyColumns,
           moveMode: 'external',
@@ -1464,18 +1598,24 @@ function overviewBody(core) {
 
   /**
    * A card moved on the board: its column's field, and its lane's when there are lanes, take the
-   * place it was dropped in.
+   * place it was dropped in — through each axis's `set`, or as the bucket's declared id.
    * @param {{ids: string[], to: {column: string, lane?: string|null}}} detail
    * @param {string} columnBy
    * @param {string|null} lanes
    * @returns {void}
    */
   function moveRecords(detail, columnBy, lanes) {
+    /** @param {Record<string, any>} record @param {string} field @param {string|number|null} bucket @returns {void} */
+    const write = (record, field, bucket) => {
+      const axis = axes[field];
+      if (axis?.set) axis.set(record, bucket);
+      else record[field] = axis ? bucketValue(bucket, axis) : bucket;
+    };
     for (const id of detail.ids) {
       const record = core.records.find((entry) => String(entry[core.recordId]) === String(id));
       if (!record) continue;
-      record[columnBy] = detail.to.column;
-      if (detail.to.lane && lanes) record[lanes] = detail.to.lane;
+      write(record, columnBy, detail.to.column);
+      if (detail.to.lane && lanes) write(record, lanes, detail.to.lane);
     }
     core.refresh();
     core.emit('recordmove', { ids: [...detail.ids], to: { ...detail.to } });
@@ -1503,9 +1643,31 @@ function overviewBody(core) {
     body.dataset.shape = state.view;
     body.replaceChildren(core.view.toElement());
     footer.hidden = state.view === 'board';
+    syncFooterSize();
     core.refresh();
     core.syncViewSettings();
   };
+
+  /** Keeps `--overview-footer-size` on the element: the pager row's height, 0 while hidden. @returns {void} */
+  function syncFooterSize() {
+    element.style.setProperty('--overview-footer-size', `${footer.hidden ? 0 : footer.offsetHeight}px`);
+  }
+
+  /** @returns {boolean} Whether the overview is on screen — not hidden, nor inside something hidden. */
+  core.isShown = () => element.isConnected
+    && (typeof element.checkVisibility === 'function' ? element.checkVisibility() : element.offsetParent !== null);
+
+  // The pager wraps on a narrow column and comes and goes with the board; hiding the overview —
+  // a detail page over it — closes an open drawer, which would otherwise float over that page.
+  if (typeof ResizeObserver === 'function') {
+    const observer = new ResizeObserver(() => {
+      syncFooterSize();
+      if (!core.isShown()) core.closeDrawers();
+    });
+    observer.observe(element);
+    observer.observe(footer);
+    context.cleanup(() => observer.disconnect());
+  }
 
   /**
    * Re-reads the records: filter, search, sort, then the page the pager points at. The board gets
@@ -1516,9 +1678,10 @@ function overviewBody(core) {
   core.refresh = ({ resetPage = false } = {}) => {
     const needle = state.query.trim().toLowerCase();
     const expression = filterExpression(state.filters);
-    const match = { read: core.valueOf, type: (id) => core.filterFieldById.get(id)?.type };
+    const match = { read: core.matchValue, type: (id) => core.filterFieldById.get(id)?.type };
     const grouped = groups();
-    const found = core.records.filter((record) => nodeMatches(record, expression, match)
+    const scope = core.baseFilter;
+    const found = core.records.filter((record) => (!scope || scope(record)) && nodeMatches(record, expression, match)
       && (!needle || core.searchText(record).toLowerCase().includes(needle)));
     // The board groups by its own columns.
     core.filtered = sortRecords(found, state.sort, { groups: state.view === 'board' ? [] : grouped, value: core.sortValueOf });
@@ -1532,9 +1695,14 @@ function overviewBody(core) {
     core.groupTitles = new Map(grouped.map((group) => [group.id, `${group.label} · ${groupCount(group, slice, core.filtered)}`]));
     // Before the view draws the page: a layout drops the components its renderers made for the last.
     core.emit('render', { records: slice });
-    core.view.setData(state.view === 'table' ? withGroupRows(slice, grouped, core.filtered) : slice);
+    const drawn = core.view;
+    drawn.setData(state.view === 'table' ? withGroupRows(slice, grouped, core.filtered) : slice);
     core.syncViewSort();
     core.emit('selectionchange', { ids: getSelection() });
+    // A card view puts the focus back on the next microtask; this follows it.
+    queueMicrotask(() => {
+      if (!context.signal.aborted && core.view === drawn) core.emit('rendered', { records: slice, view: drawn });
+    });
   };
 
   /** Points the table header's sort indicator at the current sort. @returns {void} */
@@ -1565,4 +1733,4 @@ function normalizeFilters(model) {
   };
 }
 
-export { OPERATOR_TEXT, SHAPES, columnHeader, createOverview, groupHeading };
+export { OPERATOR_TEXT, SHAPES, axisChoices, columnHeader, createOverview, groupHeading };

@@ -45,6 +45,8 @@
 
 .zx-search__clear,
 .zx-search__submit {
+  /* Never squeezed below the control height by a narrow field. */
+  flex: none;
   display: inline-grid;
   place-items: center;
   min-block-size: 0;

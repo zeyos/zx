@@ -436,7 +436,10 @@ export default {
         ].join(' ')
       },
       countText: (count) => `${formatNumber(count)} ${count === 1 ? 'opportunity' : 'opportunities'}`,
-      empty: { title: 'No opportunities match' },
+      empty: {
+        filtered: { title: 'No opportunities match' },
+        none: { title: 'No opportunities yet', description: 'New opportunities show up here.' }
+      },
       shortcuts: true,
       createView
     });
