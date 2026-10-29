@@ -1,5 +1,7 @@
 // @ts-check
 import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
+import { icon } from '../../core/icons.js';
+import { uid } from '../../core/util.js';
 import { normalizeViewFieldControls, RecordView, readViewField } from '../view/record-view.js';
 import {
   createRecordCard, resolveRecordActions
@@ -49,7 +51,30 @@ import {
  * @property {1|2|3|4|5|6} [headingLevel=3] Per-card title heading level.
  * @property {string|null} [label=null] Accessible collection label; null resolves message
  *   `cardView.label`, "Card view".
+ * @property {'tabs'|'roving'} [keyboard='tabs'] Keyboard model. `'tabs'` makes every card, title
+ *   link, checkbox, and action its own Tab stop. `'roving'` — recommended for lists — follows the
+ *   APG Grid pattern with row focus: the collection is one Tab stop, the arrow keys, Home/End, and
+ *   PageUp/PageDown move between cards, Enter activates, Space selects, and the controls inside a
+ *   card stay pointer targets with `tabindex="-1"`.
+ * @property {boolean} [collapsibleGroups=false] Whether group headings carry a toggle that hides
+ *   and shows the group's cards.
+ * @property {unknown[]} [collapsedGroups=[]] Group ids that start collapsed.
+ * @property {((context:CardGroupHeadingContext)=>Node|string|null|undefined)|null} [renderGroupHeading=null]
+ *   Content of a group heading in place of its label. With `collapsibleGroups` it is placed inside
+ *   the toggle button, so it must not contain interactive elements.
  * @property {(event:CustomEvent<Record<string,unknown>>)=>void} [onrecordaction]
+ * @property {(event:CustomEvent<{id:string,collapsed:boolean,collapsedGroups:string[]}>)=>void} [ongroupcollapse]
+ */
+
+/**
+ * What `renderGroupHeading` is given for one group.
+ * @typedef {Object} CardGroupHeadingContext
+ * @property {string} id Normalized group id (`''` for records without a value).
+ * @property {string} label Default label.
+ * @property {number} count Records in the group.
+ * @property {ViewRecord[]} records The group's records in display order.
+ * @property {boolean} collapsed Whether the group is collapsed.
+ * @property {() => void} toggle Collapses or expands the group.
  */
 
 /**
@@ -62,6 +87,7 @@ import {
  * @property {string} minCardWidth Responsive minimum card width.
  * @property {number|null} maxColumns Maximum cards per row.
  * @property {'outlined'|'raised'|'filled'} variant Surface treatment.
+ * @property {string[]} collapsedGroups Collapsed group ids.
  */
 
 /**
@@ -74,7 +100,20 @@ import {
 /**
  * Responsive, schema-friendly record cards with shared fields, sorting, selection, state, groups,
  * safe preview media, native title links, and delegated actions.
+ *
+ * With `keyboard: 'roving'` the collection follows the WAI-ARIA APG Grid pattern with row focus,
+ * the model `Table` uses: the content is a `grid`, each card a focusable `row` (`aria-selected`
+ * when selectable, `aria-multiselectable` on the grid for `multi`), and the collection is a single
+ * Tab stop. ArrowUp/ArrowDown move to the card above or below — columns are measured from where the
+ * cards actually are, so a multi-column layout moves by visual row — ArrowLeft/ArrowRight within a
+ * row, Home/End to the first or last card, PageUp/PageDown by a visible page. Enter activates
+ * (`recordclick`), Space toggles selection in `selectable` modes (and activates otherwise),
+ * Shift+movement extends a `multi` selection, and Ctrl/Cmd+A selects every rendered card. A
+ * collapsible group heading is part of the same order: Enter or Space toggles it, ArrowLeft
+ * collapses, ArrowRight expands. The current card is kept by record id across `setData`, sorting,
+ * grouping, and collapsing, and focus is restored without scrolling.
  * @fires CardView#recordaction
+ * @fires CardView#groupcollapse
  * @extends {RecordView}
  */
 export class CardView extends RecordView {
@@ -97,7 +136,11 @@ export class CardView extends RecordView {
     variant: 'outlined',
     loadingCount: 6,
     headingLevel: 3,
-    label: null
+    label: null,
+    keyboard: 'tabs',
+    collapsibleGroups: false,
+    collapsedGroups: [],
+    renderGroupHeading: null
   };
 
   /**
@@ -125,6 +168,27 @@ export class CardView extends RecordView {
     this._cardVariant = normalizeCardVariant(options.variant);
     this._cardLoadingCount = normalizeLoadingCount(options.loadingCount);
     this._cardHeadingLevel = normalizeHeadingLevel(options.headingLevel);
+    this._cardRoving = options.keyboard === 'roving';
+    // Per instance, so two grouped views on one page never share heading or list ids.
+    this._cardIdPrefix = uid('zx-card-view');
+    this._cardCollapsed = new Set(normalizeGroupOrder(options.collapsedGroups));
+    /** @type {{kind:'card'|'group', id:unknown}|null} */
+    this._cardCurrent = null;
+    this._cardCurrentIndex = 0;
+    /** @type {HTMLElement|null} */
+    this._cardTabStop = null;
+    /** @type {number|null} */
+    this._cardStickyX = null;
+    this._cardMoving = false;
+    /** @type {Map<string, HTMLElement>} */
+    this._cardHeadersById = new Map();
+    /** @type {Map<unknown, string>} */
+    this._cardGroupOfId = new Map();
+    /** @type {Map<Element, string>} */
+    this._cardSectionIds = new Map();
+    /** @type {WeakMap<Element, unknown>} */
+    this._cardIdOfNode = new WeakMap();
+    if (this._cardRoving) root.dataset.keyboard = 'roving';
     try {
       this._initRecordView(root);
       root.setAttribute('aria-label', String(options.label || this.msg('cardView.label')));
@@ -140,7 +204,13 @@ export class CardView extends RecordView {
       this.listen(this.refs.sort, 'change', () => this._changeCardSort());
       this.listen(content, 'click', (event) => this._cardClick(/** @type {MouseEvent} */ (event)));
       this.listen(content, 'dblclick', (event) => this._cardDoubleClick(/** @type {MouseEvent} */ (event)));
-      this.listen(content, 'keydown', (event) => this._cardKeydown(/** @type {KeyboardEvent} */ (event)));
+      this.listen(content, 'keydown', (event) => {
+        if (this._cardRoving) this._cardRovingKeydown(/** @type {KeyboardEvent} */ (event));
+        else this._cardKeydown(/** @type {KeyboardEvent} */ (event));
+      });
+      if (this._cardRoving) {
+        this.listen(content, 'focusin', (event) => this._cardFocusIn(/** @type {FocusEvent} */ (event)));
+      }
       this.listen(content, 'error', (event) => this._cardPreviewError(event), true);
       this._applyCardLayout();
       this._renderCardSort();
@@ -160,7 +230,8 @@ export class CardView extends RecordView {
       groupOrder: [...this._cardGroupOrder],
       minCardWidth: this._cardMinWidth,
       maxColumns: this._cardMaxColumns,
-      variant: this._cardVariant
+      variant: this._cardVariant,
+      collapsedGroups: [...this._cardCollapsed]
     };
   }
 
@@ -184,8 +255,37 @@ export class CardView extends RecordView {
     if (Object.prototype.hasOwnProperty.call(source, 'variant')) {
       this._cardVariant = normalizeCardVariant(source.variant);
     }
+    if (Object.prototype.hasOwnProperty.call(source, 'collapsedGroups')) {
+      this._cardCollapsed = new Set(normalizeGroupOrder(source.collapsedGroups));
+    }
     this._applyCardLayout();
     return super.setViewState(source, options);
+  }
+
+  /**
+   * Collapses or expands one group. A collapsed group keeps its heading and hides its cards.
+   * @param {unknown} id Group id, as `groupBy` produces it.
+   * @param {boolean} [collapsed=true] Next state.
+   * @param {{silent?:boolean}} [options={}] Set `silent` to suppress `groupcollapse` and `statechange`.
+   * @returns {this}
+   * @fires CardView#groupcollapse
+   */
+  setGroupCollapsed(id, collapsed = true, options = {}) {
+    const groupId = normalizeGroupId(id);
+    if (this._cardCollapsed.has(groupId) === Boolean(collapsed)) return this;
+    if (collapsed) this._cardCollapsed.add(groupId);
+    else this._cardCollapsed.delete(groupId);
+    this._renderCards();
+    if (!options.silent) {
+      this.emit('groupcollapse', { id: groupId, collapsed: Boolean(collapsed), collapsedGroups: [...this._cardCollapsed] });
+      this.emit('statechange', { state: this.getViewState(), reason: 'groupcollapse' });
+    }
+    return this;
+  }
+
+  /** Returns the collapsed group ids. @returns {string[]} */
+  getCollapsedGroups() {
+    return [...this._cardCollapsed];
   }
 
   /** Restores an enhanced target exactly, or removes an owned root. @returns {void} */
@@ -249,19 +349,33 @@ export class CardView extends RecordView {
   /** @private @returns {void} */
   _renderCards() {
     const content = /** @type {HTMLElement} */ (this.refs.content);
+    const documentRef = content.ownerDocument;
+    const activeElement = documentRef?.activeElement ?? null;
+    const hadFocus = Boolean(activeElement && activeElement !== documentRef.body && content.contains(activeElement));
+    // Read by node, not by `data-record-index`: `setData()` has already replaced the records the
+    // index pointed into.
     const active = /** @type {Element|null} */ (content.querySelector('.zx-record-card:focus'));
-    const activeIndex = active ? Number(/** @type {HTMLElement} */ (active).dataset.recordIndex) : -1;
-    const activeRecord = activeIndex >= 0 ? this._viewData[activeIndex] : null;
-    const activeId = activeRecord ? this._viewRecordId(activeRecord) : null;
+    const activeId = active && this._cardIdOfNode.has(active) ? this._cardIdOfNode.get(active) : null;
     this._cardNodesById = new Map();
+    this._cardHeadersById = new Map();
+    this._cardGroupOfId = new Map();
+    this._cardSectionIds = new Map();
+    this._cardTabStop = null;
+    if (this._cardRoving) {
+      content.removeAttribute('role');
+      content.removeAttribute('aria-label');
+      content.removeAttribute('aria-multiselectable');
+    }
     if (/** @type {HTMLElement} */ (this.el).dataset.loading === 'true') {
       content.replaceChildren(this._createCardSkeletons());
+      this._syncCardEmptyFocus(hadFocus);
       return;
     }
     const groups = groupCardRecords(this._viewData, this._cardOptions().groupBy,
       this._cardGroupOrder, this._viewFields, this.msg('cardView.ungrouped'));
     if (this._viewData.length === 0 && groups.length === 0) {
       content.replaceChildren(this._createCardEmpty());
+      this._syncCardEmptyFocus(hadFocus);
       return;
     }
     const fields = this.getFields();
@@ -269,6 +383,14 @@ export class CardView extends RecordView {
     const sections = groups.map((group, groupIndex) =>
       this._createCardGroup(group, fields, visibleFields, groupIndex));
     content.replaceChildren(...sections);
+    if (this._cardRoving) {
+      content.setAttribute('role', 'grid');
+      content.setAttribute('aria-label', /** @type {HTMLElement} */ (this.el).getAttribute('aria-label') ?? '');
+      if (this.options.selectable === 'multi') content.setAttribute('aria-multiselectable', 'true');
+      this._syncCardEmptyFocus(false);
+      this._syncCardRoving(hadFocus);
+      return;
+    }
     if (activeId !== null) {
       const next = this._cardNodesById.get(activeId);
       if (next) queueMicrotask(() => next.isConnected && next.focus());
@@ -278,14 +400,22 @@ export class CardView extends RecordView {
   /** @private @param {CardRecordGroup} group @param {ViewField[]} fields @param {ViewField[]} visibleFields @param {number} groupIndex @returns {HTMLElement} */
   _createCardGroup(group, fields, visibleFields, groupIndex) {
     const options = this._cardOptions();
-    const headingId = group.id === null ? null : `zx-card-view-group-${safeDomPart(group.id)}-${groupIndex}`;
+    const roving = this._cardRoving;
+    const headingId = group.id === null ? null : `${this._cardIdPrefix}-group-${safeDomPart(group.id)}-${groupIndex}`;
+    const collapsible = group.id !== null && Boolean(options.collapsibleGroups);
+    const collapsed = collapsible && this._cardCollapsed.has(/** @type {string} */ (group.id));
     const list = h('ul', {
       class: 'zx-card-view__list',
-      ariaLabelledby: headingId ?? undefined
+      id: headingId ? `${headingId}-list` : undefined,
+      role: roving ? (group.id === null ? 'rowgroup' : 'none') : undefined,
+      ariaLabelledby: headingId ?? undefined,
+      hidden: collapsed
     });
     for (const record of group.records) {
-      const index = this._viewData.indexOf(record);
       const id = this._viewRecordId(record);
+      if (group.id !== null) this._cardGroupOfId.set(id, group.id);
+      if (collapsed) continue;
+      const index = this._viewData.indexOf(record);
       const card = createRecordCard(record, index, {
         fields,
         visibleFields,
@@ -302,15 +432,264 @@ export class CardView extends RecordView {
         headingLevel: this._cardHeadingLevel,
         message: (key, ...args) => this.msg(key, ...args)
       });
+      if (roving) this._makeCardRow(card, id);
       this._cardNodesById.set(id, card);
+      this._cardIdOfNode.set(card, id);
       list.append(card);
     }
-    if (group.records.length === 0) {
-      list.append(h('li', { class: 'zx-card-view__group-empty' }, this.msg('cardView.groupEmpty')));
+    if (group.records.length === 0 && !collapsed) {
+      const text = this.msg('cardView.groupEmpty');
+      list.append(roving
+        ? h('li', { class: 'zx-card-view__group-empty', role: 'row' }, h('span', { role: 'gridcell' }, text))
+        : h('li', { class: 'zx-card-view__group-empty' }, text));
     }
     if (group.id === null) return list;
-    return h('section', { class: 'zx-card-view__group', ariaLabelledby: headingId },
-      h('h2', { class: 'zx-card-view__group-heading', id: headingId }, group.label), list);
+    const header = this._createGroupHeader(group, /** @type {string} */ (headingId), collapsible, collapsed);
+    const section = h('section', {
+      class: 'zx-card-view__group',
+      role: roving ? 'rowgroup' : undefined,
+      ariaLabelledby: headingId,
+      dataset: { collapsed: collapsible ? String(collapsed) : null }
+    }, header, list);
+    this._cardSectionIds.set(section, group.id);
+    return section;
+  }
+
+  /**
+   * Builds a group heading: the label (or `renderGroupHeading` content), inside an APG
+   * disclosure button when the group can collapse.
+   * @private
+   * @param {CardRecordGroup} group Group.
+   * @param {string} headingId Heading id.
+   * @param {boolean} collapsible Whether the group can collapse.
+   * @param {boolean} collapsed Whether it is collapsed.
+   * @returns {HTMLElement}
+   */
+  _createGroupHeader(group, headingId, collapsible, collapsed) {
+    const id = /** @type {string} */ (group.id);
+    const render = this._cardOptions().renderGroupHeading;
+    const custom = typeof render === 'function' ? render({
+      id,
+      label: group.label,
+      count: group.records.length,
+      records: [...group.records],
+      collapsed,
+      toggle: () => this.setGroupCollapsed(id, !this._cardCollapsed.has(id))
+    }) : null;
+    const label = custom == null ? group.label : isNode(custom) ? custom : String(custom);
+    const labelNode = h('span', { class: 'zx-card-view__group-label' }, label);
+    const roving = this._cardRoving;
+    const content = collapsible ? h('button', {
+      class: 'zx-card-view__group-toggle',
+      type: 'button',
+      tabindex: roving ? -1 : undefined,
+      ariaExpanded: String(!collapsed),
+      ariaControls: `${headingId}-list`,
+      dataset: { groupToggle: '' }
+    }, icon('chevron-down', { size: 14 }), labelNode) : labelNode;
+    const heading = h('h2', { class: 'zx-card-view__group-heading', id: headingId }, content);
+    const header = h('div', {
+      class: 'zx-card-view__group-header',
+      role: roving ? 'row' : undefined,
+      ariaExpanded: roving && collapsible ? String(!collapsed) : undefined,
+      ariaLabelledby: roving ? headingId : undefined,
+      tabindex: roving && collapsible ? -1 : undefined,
+      dataset: { cardItem: roving && collapsible ? 'group' : null }
+    }, h('div', { class: 'zx-card-view__group-cell', role: roving ? 'rowheader' : undefined }, heading));
+    if (roving && collapsible) this._cardHeadersById.set(id, header);
+    return header;
+  }
+
+  /**
+   * Turns a rendered card into a grid row for the roving model: row focus, `aria-selected` when
+   * selectable, and the controls inside it out of the Tab order.
+   * @private
+   * @param {HTMLElement} card Card element.
+   * @param {unknown} id Record id.
+   * @returns {void}
+   */
+  _makeCardRow(card, id) {
+    card.setAttribute('role', 'row');
+    card.tabIndex = -1;
+    card.dataset.cardItem = 'card';
+    card.removeAttribute('aria-description');
+    card.removeAttribute('aria-keyshortcuts');
+    if (this.options.selectable) card.setAttribute('aria-selected', String(this._isViewSelected(id)));
+    for (const child of card.children) child.setAttribute('role', 'gridcell');
+    for (const control of card.querySelectorAll(FOCUSABLE)) {
+      if (control !== card) /** @type {HTMLElement} */ (control).tabIndex = -1;
+    }
+  }
+
+  /**
+   * Moves the single Tab stop to the current item after a render — the same record or group by
+   * id; else the heading of the collapsed group that now hides the card; else the item now at its
+   * old position — and focuses it again, without scrolling, when the collection had focus.
+   * @private
+   * @param {boolean} hadFocus Whether focus was inside the collection before the render.
+   * @returns {void}
+   */
+  _syncCardRoving(hadFocus) {
+    const items = this._cardItems();
+    if (items.length === 0) {
+      this._syncCardEmptyFocus(hadFocus);
+      return;
+    }
+    let item = this._cardItemFor(this._cardCurrent);
+    if (!item && this._cardCurrent?.kind === 'card') {
+      const groupId = this._cardGroupOfId.get(this._cardCurrent.id);
+      item = groupId === undefined ? null : this._cardHeadersById.get(groupId) ?? null;
+    }
+    if (!item) item = items[Math.min(Math.max(this._cardCurrentIndex, 0), items.length - 1)];
+    this._setCardTabStop(item, items);
+    if (hadFocus) item.focus({ preventScroll: true });
+  }
+
+  /**
+   * @private
+   * @param {HTMLElement} item New Tab stop.
+   * @param {HTMLElement[]} [items] Every item, when already collected.
+   * @returns {void}
+   */
+  _setCardTabStop(item, items = this._cardItems()) {
+    for (const candidate of items) if (candidate !== item) candidate.tabIndex = -1;
+    item.tabIndex = 0;
+    this._cardTabStop = item;
+    const key = this._cardItemKey(item);
+    if (key) this._cardCurrent = key;
+    this._cardCurrentIndex = Math.max(0, items.indexOf(item));
+  }
+
+  /**
+   * While loading or empty there is no card to hold focus: the content takes it rather than
+   * letting it fall to the document, and gives the Tab order its old shape back afterwards.
+   * @private
+   * @param {boolean} hold Whether focus was inside and there is nothing to put it on.
+   * @returns {void}
+   */
+  _syncCardEmptyFocus(hold) {
+    if (!this._cardRoving) return;
+    const content = /** @type {HTMLElement} */ (this.refs.content);
+    if (hold) {
+      if (!content.hasAttribute('tabindex')) {
+        content.tabIndex = -1;
+        content.setAttribute('data-empty-focus', '');
+      }
+      content.focus({ preventScroll: true });
+    } else if (content.hasAttribute('data-empty-focus')) {
+      content.removeAttribute('tabindex');
+      content.removeAttribute('data-empty-focus');
+    }
+  }
+
+  /** @private @returns {HTMLElement[]} Roving items in display order. */
+  _cardItems() {
+    return /** @type {HTMLElement[]} */ ([...this.refs.content.querySelectorAll('[data-card-item]')]);
+  }
+
+  /** @private @param {HTMLElement} item @returns {{kind:'card'|'group', id:unknown}|null} */
+  _cardItemKey(item) {
+    if (item.dataset.cardItem === 'group') {
+      for (const [id, header] of this._cardHeadersById) if (header === item) return { kind: 'group', id };
+      return null;
+    }
+    return this._cardIdOfNode.has(item) ? { kind: 'card', id: this._cardIdOfNode.get(item) } : null;
+  }
+
+  /** @private @param {{kind:'card'|'group', id:unknown}|null} key @returns {HTMLElement|null} */
+  _cardItemFor(key) {
+    if (!key) return null;
+    if (key.kind === 'group') return this._cardHeadersById.get(/** @type {string} */ (key.id)) ?? null;
+    return /** @type {HTMLElement|undefined} */ (this._cardNodesById.get(key.id)) ?? null;
+  }
+
+  /** @private @param {FocusEvent} event @returns {void} */
+  _cardFocusIn(event) {
+    const target = /** @type {Element|null} */ (event.target);
+    const item = /** @type {HTMLElement|null} */ (target?.closest?.('[data-card-item]') ?? null);
+    if (!item || !this.refs.content.contains(item)) return;
+    if (this._cardTabStop !== item) this._setCardTabStop(item);
+    if (!this._cardMoving) this._cardStickyX = item.getBoundingClientRect().left;
+  }
+
+  /**
+   * The roving keyboard model; see the class description.
+   * @private
+   * @param {KeyboardEvent} event Key event.
+   * @returns {void}
+   */
+  _cardRovingKeydown(event) {
+    const target = /** @type {Element|null} */ (event.target);
+    const item = /** @type {HTMLElement|null} */ (target?.closest?.('[data-card-item]') ?? null);
+    if (!item || !this.refs.content.contains(item)) return;
+    const onItem = target === item;
+    if (!onItem && target?.matches?.(TEXT_ENTRY)) return;
+    const items = this._cardItems();
+    const index = items.indexOf(item);
+    const kind = item.dataset.cardItem;
+    const key = event.key;
+    const multi = this.options.selectable === 'multi';
+    if ((event.ctrlKey || event.metaKey) && (key === 'a' || key === 'A')) {
+      if (!multi) return;
+      event.preventDefault();
+      this.setSelection(this._cardIdsOf(items));
+      return;
+    }
+    if (onItem && (key === 'Enter' || key === ' ')) {
+      event.preventDefault();
+      if (kind === 'group') {
+        const groupId = /** @type {string} */ (this._cardItemKey(item)?.id);
+        this.setGroupCollapsed(groupId, !this._cardCollapsed.has(groupId));
+        return;
+      }
+      const record = this._viewData[Number(item.dataset.recordIndex)];
+      if (!record) return;
+      const id = this._viewRecordId(record);
+      if (key === ' ' && this.options.selectable) {
+        this.toggleSelection(id);
+        return;
+      }
+      this._activateCard(record, id, Number(item.dataset.recordIndex), event);
+      if (this.options.selectable === 'single') this.toggleSelection(id, { selected: true });
+      return;
+    }
+    if (kind === 'group' && onItem && (key === 'ArrowLeft' || key === 'ArrowRight')) {
+      event.preventDefault();
+      const groupId = /** @type {string} */ (this._cardItemKey(item)?.id);
+      this.setGroupCollapsed(groupId, key === 'ArrowLeft');
+      return;
+    }
+    if (!NAVIGATION_KEYS.has(key)) return;
+    const rects = items.map((candidate) => candidate.getBoundingClientRect());
+    const vertical = key === 'ArrowUp' || key === 'ArrowDown' || key === 'PageUp' || key === 'PageDown';
+    const x = vertical ? this._cardStickyX ?? rects[index].left : rects[index].left;
+    const page = cardPageSize(viewportHeight(this.refs.content), rects[index].height);
+    const next = cardGridTarget(rects, index, key, { page, x });
+    if (next === null) return;
+    event.preventDefault();
+    if (next === index) return;
+    const destination = items[next];
+    if (!vertical) this._cardStickyX = rects[next].left;
+    this._cardMoving = true;
+    try {
+      this._setCardTabStop(destination, items);
+      destination.focus({ preventScroll: true });
+      destination.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+    } finally {
+      this._cardMoving = false;
+    }
+    if (event.shiftKey && multi) {
+      const span = items.slice(Math.min(index, next), Math.max(index, next) + 1);
+      this.setSelection([...this.getSelectionIds(), ...this._cardIdsOf(span)]);
+    }
+  }
+
+  /** @private @param {HTMLElement[]} items @returns {unknown[]} Record ids of the card items. */
+  _cardIdsOf(items) {
+    return items.filter((item) => item.dataset.cardItem === 'card')
+      .map((item) => this._viewData[Number(item.dataset.recordIndex)])
+      .filter(Boolean)
+      .map((record) => this._viewRecordId(record));
   }
 
   /** @private @returns {HTMLElement} */
@@ -341,8 +720,12 @@ export class CardView extends RecordView {
     for (const [id, card] of this._cardNodesById) {
       const selected = this._isViewSelected(id);
       card.dataset.selected = String(selected);
-      if (this.options.selectable) card.setAttribute('aria-description',
-        this.msg(selected ? 'recordCard.selected' : 'recordCard.notSelected'));
+      if (this._cardRoving) {
+        if (this.options.selectable) card.setAttribute('aria-selected', String(selected));
+      } else if (this.options.selectable) {
+        card.setAttribute('aria-description',
+          this.msg(selected ? 'recordCard.selected' : 'recordCard.notSelected'));
+      }
       const checkbox = /** @type {HTMLInputElement|null} */ (card.querySelector('[data-record-selection]'));
       if (checkbox) checkbox.checked = selected;
     }
@@ -351,6 +734,13 @@ export class CardView extends RecordView {
   /** @private @param {MouseEvent} event @returns {void} */
   _cardClick(event) {
     const target = /** @type {Element|null} */ (event.target);
+    const toggle = /** @type {HTMLElement|null} */ (target?.closest?.('[data-group-toggle]'));
+    if (toggle && this.refs.content.contains(toggle)) {
+      const section = toggle.closest('.zx-card-view__group');
+      const id = section ? this._cardSectionIds.get(section) : undefined;
+      if (id !== undefined) this.setGroupCollapsed(id, !this._cardCollapsed.has(id));
+      return;
+    }
     const card = /** @type {HTMLElement|null} */ (target?.closest?.('.zx-record-card'));
     if (!card || !this.refs.content.contains(card)) return;
     const index = Number(card.dataset.recordIndex);
@@ -438,6 +828,106 @@ export class CardView extends RecordView {
   _cardOptions() {
     return /** @type {Readonly<CardViewOptions & RecordViewOptions>} */ (this.options);
   }
+}
+
+/** Controls inside a card that would otherwise be Tab stops. */
+const FOCUSABLE = 'a[href],button,input,select,textarea,summary,[tabindex]:not([tabindex="-1"]),[contenteditable="true"]';
+
+/** Targets inside a card where the arrow keys belong to the control. */
+const TEXT_ENTRY = 'input:not([type="checkbox"]):not([type="radio"]),select,textarea,[contenteditable="true"]';
+
+/** Keys the roving model moves on. */
+const NAVIGATION_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown']);
+
+/**
+ * Sorts item rectangles into visual rows: items whose tops are within `tolerance` pixels share a
+ * row, rows run top to bottom, and items within a row left to right.
+ * @param {Array<{top:number,left:number}>} rects Item rectangles in display order.
+ * @param {number} [tolerance=4] Pixels two tops may differ by and still share a row.
+ * @returns {number[][]} Item indexes per row.
+ */
+export function cardGridRows(rects, tolerance = 4) {
+  const order = rects.map((rect, index) => ({ index, top: Number(rect.top) || 0, left: Number(rect.left) || 0 }))
+    .sort((a, b) => a.top - b.top || a.left - b.left);
+  /** @type {{top:number, items:{index:number,left:number}[]}[]} */
+  const rows = [];
+  for (const entry of order) {
+    const row = rows.at(-1);
+    if (row && Math.abs(entry.top - row.top) <= tolerance) row.items.push(entry);
+    else rows.push({ top: entry.top, items: [entry] });
+  }
+  return rows.map((row) => row.items.sort((a, b) => a.left - b.left).map((entry) => entry.index));
+}
+
+/**
+ * How many columns the cards are laid out in: the length of the longest visual row.
+ * @param {Array<{top:number,left:number}>} rects Item rectangles.
+ * @returns {number} At least 1 for a non-empty list, 0 for an empty one.
+ */
+export function cardColumnCount(rects) {
+  return cardGridRows(rects).reduce((max, row) => Math.max(max, row.length), 0);
+}
+
+/**
+ * Where a navigation key moves in a laid-out card grid. ArrowUp/ArrowDown go to the previous or
+ * next visual row and PageUp/PageDown `page` rows, landing on the item nearest to `x` (the column
+ * the reader is travelling in); ArrowLeft/ArrowRight move within the row and stop at its ends;
+ * Home/End go to the first or last item.
+ * @param {Array<{top:number,left:number}>} rects Item rectangles in display order.
+ * @param {number} index Current item.
+ * @param {string} key `KeyboardEvent.key`.
+ * @param {{page?:number, x?:number}} [options={}] Rows per page (default 10) and preferred x.
+ * @returns {number|null} Next item index, or null when the key is not a move.
+ */
+export function cardGridTarget(rects, index, key, options = {}) {
+  if (rects.length === 0) return null;
+  const current = Math.min(Math.max(Math.trunc(Number(index) || 0), 0), rects.length - 1);
+  if (key === 'Home') return 0;
+  if (key === 'End') return rects.length - 1;
+  const rows = cardGridRows(rects);
+  const rowIndex = rows.findIndex((row) => row.includes(current));
+  const row = rows[rowIndex];
+  if (key === 'ArrowLeft' || key === 'ArrowRight') {
+    const position = row.indexOf(current) + (key === 'ArrowLeft' ? -1 : 1);
+    return position < 0 || position >= row.length ? current : row[position];
+  }
+  const page = Math.max(1, Math.trunc(Number(options.page) || 10));
+  const step = { ArrowUp: -1, ArrowDown: 1, PageUp: -page, PageDown: page }[key];
+  if (step === undefined) return null;
+  const targetRow = rows[Math.min(Math.max(rowIndex + step, 0), rows.length - 1)];
+  if (targetRow === row) return current;
+  const x = Number.isFinite(Number(options.x)) ? Number(options.x) : Number(rects[current].left) || 0;
+  let best = targetRow[0];
+  for (const candidate of targetRow) {
+    if (Math.abs((Number(rects[candidate].left) || 0) - x) < Math.abs((Number(rects[best].left) || 0) - x)) best = candidate;
+  }
+  return best;
+}
+
+/**
+ * How many rows a PageUp or PageDown moves: the rows that fit in the visible height, less one so
+ * the row focus leaves stays in view. Falls back when either height is unknown.
+ * @param {number} viewport Visible height of the scroll region.
+ * @param {number} rowHeight Height of one row of cards.
+ * @param {number} [fallback=10] Rows to move when the heights are unusable.
+ * @returns {number} At least 1.
+ */
+export function cardPageSize(viewport, rowHeight, fallback = 10) {
+  const visible = Number(viewport);
+  const height = Number(rowHeight);
+  if (!(visible > 0) || !(height > 0)) return Math.max(1, Math.trunc(fallback) || 10);
+  return Math.max(1, Math.floor(visible / height) - 1);
+}
+
+/** @param {Element} element @returns {number} Visible height of its nearest vertical scroll container. */
+function viewportHeight(element) {
+  let node = element.parentElement;
+  while (node && node !== element.ownerDocument.body) {
+    const overflow = getComputedStyle(node).overflowY;
+    if (/(auto|scroll|overlay)/.test(overflow) && node.scrollHeight > node.clientHeight) return node.clientHeight;
+    node = node.parentElement;
+  }
+  return element.ownerDocument.defaultView?.innerHeight ?? 0;
 }
 
 /**

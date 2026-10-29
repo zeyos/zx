@@ -1,4 +1,4 @@
-import { CardView, button, h } from '../../src/index.js';
+import { CardView, badge, button, h } from '../../src/index.js';
 
 // One projection can feed TableView, CardView, or KanbanView. Presentation-only preview fields may
 // stay hidden while title, group, and board fields remain available to their resolvers.
@@ -89,6 +89,53 @@ export default {
         const view = new CardView(null, viewOptions(log));
         cleanup(() => view.destroy());
         return view.toElement();
+      }
+    },
+    {
+      title: 'One Tab stop: the roving keyboard model',
+      blurb: 'keyboard: \'roving\' is the recommended setting for lists. The collection is a '
+        + 'single Tab stop; ArrowUp/ArrowDown move by visual row and ArrowLeft/ArrowRight within it, '
+        + 'Home/End and PageUp/PageDown jump, Enter activates, Space selects, Shift+arrow extends '
+        + 'the selection, and Ctrl/Cmd+A selects every card. Checkboxes and actions still work with '
+        + 'the pointer.',
+      layout: 'stack',
+      render: ({ cleanup, log }) => {
+        const view = new CardView(null, {
+          ...viewOptions(log),
+          keyboard: 'roving',
+          groupBy: null,
+          preview: null,
+          maxColumns: 3
+        });
+        cleanup(() => view.destroy());
+        return view.toElement();
+      }
+    },
+    {
+      title: 'Collapsible groups with custom headings',
+      blurb: 'collapsibleGroups puts a disclosure button in every group heading; collapsedGroups '
+        + 'chooses which start closed, and setGroupCollapsed() and the groupcollapse event do the '
+        + 'same from code. renderGroupHeading replaces the label — here with a record count. In the '
+        + 'roving model a heading is part of the arrow-key order: Enter or Space toggles it, '
+        + 'ArrowLeft collapses, ArrowRight expands.',
+      layout: 'stack',
+      render: ({ cleanup, log }) => {
+        const view = new CardView(null, {
+          ...viewOptions(log),
+          keyboard: 'roving',
+          preview: null,
+          collapsibleGroups: true,
+          collapsedGroups: ['Won'],
+          renderGroupHeading: ({ label, count }) => h('span', {}, `${label} `, badge({ label: count, kind: 'neutral', size: 'sm' })),
+          ongroupcollapse: ({ detail }) => log(`groupcollapse ${detail.id}: ${detail.collapsed ? 'collapsed' : 'expanded'}`)
+        });
+        cleanup(() => view.destroy());
+        return [
+          view.toElement(),
+          h('div', { class: 'demo-row' },
+            button({ label: 'Collapse all', onclick: () => ['Qualified', 'Proposal', 'Negotiation', 'Won', 'On hold'].forEach((id) => view.setGroupCollapsed(id, true)) }),
+            button({ label: 'Expand all', onclick: () => view.getCollapsedGroups().forEach((id) => view.setGroupCollapsed(id, false)) }))
+        ];
       }
     },
     {

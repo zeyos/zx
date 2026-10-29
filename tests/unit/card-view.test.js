@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
-  groupCardRecords, normalizeCardWidth
+  cardColumnCount, cardGridRows, cardGridTarget, cardPageSize, groupCardRecords, normalizeCardWidth
 } from '../../src/components/card-view/card-view.js';
 import {
   createRecordCard, partitionRecordCardFields, resolveRecordActions, resolveRecordLink,
@@ -328,3 +328,53 @@ class FakeDocument {
     return new FakeText(value);
   }
 }
+
+/**
+ * A grouped three-column layout as the browser reports it: a full-width heading row, then cards
+ * in rows of three (the last row short), then a second heading and one card.
+ * Index: 0 heading A · 1 2 3 · 4 5 · 6 heading B · 7
+ */
+const LAYOUT = [
+  { top: 0, left: 0 },
+  { top: 30, left: 0 }, { top: 30, left: 200 }, { top: 30, left: 400 },
+  { top: 130, left: 0 }, { top: 130, left: 200 },
+  { top: 240, left: 0 },
+  { top: 270, left: 0 }
+];
+
+test('visual rows and columns are measured from where the cards are', () => {
+  assert.deepEqual(cardGridRows(LAYOUT), [[0], [1, 2, 3], [4, 5], [6], [7]]);
+  assert.equal(cardColumnCount(LAYOUT), 3);
+  assert.equal(cardColumnCount([{ top: 0, left: 0 }, { top: 50, left: 0 }]), 1, 'a list is one column');
+  assert.equal(cardColumnCount([]), 0);
+  // Sub-pixel layout differences inside one row do not split it.
+  assert.deepEqual(cardGridRows([{ top: 10.4, left: 300 }, { top: 10, left: 0 }, { top: 11.5, left: 150 }]), [[1, 2, 0]]);
+});
+
+test('arrow keys move by visual row and within a row', () => {
+  assert.equal(cardGridTarget(LAYOUT, 2, 'ArrowDown'), 5, 'down keeps the column');
+  assert.equal(cardGridTarget(LAYOUT, 3, 'ArrowDown'), 5, 'a short row takes the nearest card');
+  assert.equal(cardGridTarget(LAYOUT, 3, 'ArrowDown', { x: 400 }), 5);
+  assert.equal(cardGridTarget(LAYOUT, 5, 'ArrowUp', { x: 400 }), 3, 'the remembered column comes back');
+  assert.equal(cardGridTarget(LAYOUT, 1, 'ArrowUp'), 0, 'up from the first row reaches the heading');
+  assert.equal(cardGridTarget(LAYOUT, 0, 'ArrowDown'), 1);
+  assert.equal(cardGridTarget(LAYOUT, 0, 'ArrowUp'), 0, 'the top stays put');
+  assert.equal(cardGridTarget(LAYOUT, 7, 'ArrowDown'), 7, 'the bottom stays put');
+  assert.equal(cardGridTarget(LAYOUT, 2, 'ArrowRight'), 3);
+  assert.equal(cardGridTarget(LAYOUT, 3, 'ArrowRight'), 3, 'right stops at the end of the row');
+  assert.equal(cardGridTarget(LAYOUT, 4, 'ArrowLeft'), 4, 'left stops at the start of the row');
+  assert.equal(cardGridTarget(LAYOUT, 4, 'Enter'), null, 'not a movement key');
+});
+
+test('Home, End, and page jumps', () => {
+  assert.equal(cardGridTarget(LAYOUT, 4, 'Home'), 0);
+  assert.equal(cardGridTarget(LAYOUT, 4, 'End'), 7);
+  assert.equal(cardGridTarget(LAYOUT, 1, 'PageDown', { page: 2 }), 6);
+  assert.equal(cardGridTarget(LAYOUT, 2, 'PageDown', { page: 99 }), 7, 'clamped to the last row');
+  assert.equal(cardGridTarget(LAYOUT, 7, 'PageUp', { page: 3 }), 1, 'three rows up, nearest to x');
+  assert.equal(cardGridTarget([], 0, 'ArrowDown'), null);
+  assert.equal(cardPageSize(600, 100), 5, 'rows that fit, less one');
+  assert.equal(cardPageSize(80, 100), 1);
+  assert.equal(cardPageSize(0, 100), 10, 'unknown viewport falls back');
+  assert.equal(cardPageSize(600, 0, 4), 4);
+});

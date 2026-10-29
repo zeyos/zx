@@ -59,6 +59,77 @@
   line-height: 1.3;
 }
 
+/* The heading row: a plain wrapper in the tab model, a grid row in the roving one. */
+.zx-card-view__group-header {
+  border-radius: var(--zx-radius-sm);
+}
+
+.zx-card-view__group-header:focus-visible {
+  outline: 2px solid transparent;
+  box-shadow: inset var(--zx-focus-ring);
+}
+
+/* A collapsible heading is an APG disclosure: the button carries the label, the chevron turns. */
+.zx-card-view__group-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-1);
+  min-block-size: 0;
+  margin-inline-start: calc(-1 * var(--zx-space-1));
+  padding: var(--zx-space-1);
+  border: 0;
+  border-radius: var(--zx-radius-sm);
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.zx-card-view__group-toggle:hover {
+  background: var(--zx-color-bg-hover);
+}
+
+.zx-card-view__group-toggle:focus-visible {
+  outline: 2px solid transparent;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.zx-card-view__group-toggle > .zx-icon {
+  flex: none;
+  color: var(--zx-color-text-subtle);
+}
+
+.zx-card-view__group-toggle[aria-expanded="false"] > .zx-icon {
+  transform: rotate(-90deg);
+}
+
+.zx-card-view__group[data-collapsed="true"] .zx-card-view__group-heading {
+  margin-block-end: 0;
+}
+
+.zx-card-view__list[hidden] {
+  display: none;
+}
+
+/* Roving focus sits inside the card, so a host that restyles cards into flush rows still shows
+   it; the transparent outline is what forced-colors mode paints. */
+.zx-card-view[data-keyboard="roving"] .zx-record-card:focus-visible {
+  outline: 2px solid transparent;
+  outline-offset: -2px;
+  box-shadow: inset var(--zx-focus-ring);
+}
+
+.zx-card-view__content[data-empty-focus]:focus-visible {
+  outline: 2px solid transparent;
+  box-shadow: inset var(--zx-focus-ring);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .zx-card-view__group-toggle > .zx-icon {
+    transition: transform var(--zx-dur-fast) var(--zx-ease);
+  }
+}
+
 .zx-card-view__list {
   display: grid;
   grid-template-columns: repeat(auto-fill,
