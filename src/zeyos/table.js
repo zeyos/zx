@@ -130,6 +130,8 @@ const TABLE_OPTION_KEYS = [
 /**
  * @typedef {Object} ServerPager
  * @property {(options?: ZeyosTableLoadOptions) => Promise<ZeyosTableLoadResult>} load Loads a page.
+ * @property {(options?: ZeyosTableLoadOptions) => {page: number, pageSize: number, filters: Record<string, unknown>, search: string}} check
+ * Validates load options without applying them; throws what `load()` would reject with.
  * @property {() => Promise<ZeyosTableLoadResult>} loadMore Appends the next page when available,
  * else resolves without a request.
  * @property {(sort: {id: string, dir: 'asc'|'desc'}|null) => void} setSort Replaces the sort used
@@ -282,7 +284,8 @@ export function zeyosTable(client, resource, opts = {}) {
  * afterwards is ignored, the loading state is left alone — and further loads reject.
  *
  * Validation is strict and the same for both bindings: a page must be a non-negative integer and a
- * page size a positive integer (`RangeError`), filters a plain object (`TypeError`).
+ * page size a positive integer (`RangeError`), filters a plain object (`TypeError`). Every argument
+ * of a call is checked before any of it is applied, so a rejected call changes nothing.
  * @param {ServerPagerOptions} options Pager configuration.
  * @returns {ServerPager}
  */
@@ -304,14 +307,33 @@ export function createServerPager(options) {
     limit: pageSize, offset: forPage * pageSize, count: true
   });
 
+  /**
+   * Validates a load request without applying any of it.
+   * @param {ZeyosTableLoadOptions} [request={}] Load options.
+   * @returns {{page: number, pageSize: number, filters: Record<string, unknown>, search: string}}
+   */
+  const check = (request = {}) => {
+    const source = request && typeof request === 'object' ? request : {};
+    const has = (key) => Object.prototype.hasOwnProperty.call(source, key);
+    return {
+      page: normalizePage(source.page ?? 0, label),
+      pageSize: has('pageSize') && source.pageSize !== undefined
+        ? normalizePageSize(source.pageSize, label) : pageSize,
+      filters: has('filters') ? copyFilters(source.filters ?? {}, label) : filters,
+      search: has('search') ? String(source.search ?? '') : search
+    };
+  };
+
   /** @param {ZeyosTableLoadOptions} [request={}] @returns {Promise<ZeyosTableLoadResult>} */
   const load = async (request = {}) => {
     if (destroyed) throw new Error(`${label} binding has been destroyed`);
-    const has = (key) => Object.prototype.hasOwnProperty.call(request, key);
-    const nextPage = normalizePage(request.page ?? 0, label);
-    if (has('pageSize') && request.pageSize !== undefined) pageSize = normalizePageSize(request.pageSize, label);
-    if (has('search')) search = String(request.search ?? '');
-    if (has('filters')) filters = copyFilters(request.filters ?? {}, label);
+    // Every argument is validated before any state changes, so a call that rejects leaves the
+    // binding exactly as it was: no page size or search half-applied ahead of a bad filter.
+    const next = check(request);
+    const nextPage = next.page;
+    pageSize = next.pageSize;
+    filters = next.filters;
+    search = next.search;
     const replace = nextPage === 0 || request.replace === true;
     const sent = query(nextPage);
     const mine = ++sequence;
@@ -337,13 +359,16 @@ export function createServerPager(options) {
 
   return {
     load,
+    check,
     loadMore: () => more ? load({ page: page + 1 }) : (destroyed
       ? Promise.reject(new Error(`${label} binding has been destroyed`))
       : Promise.resolve({ data: [], count, page, hasMore: false, query: query(page) })),
     setSort: (next) => { sort = next ?? null; },
     setQuery: (state = {}) => {
-      if (Object.prototype.hasOwnProperty.call(state, 'filters')) filters = copyFilters(state.filters ?? {}, label);
+      const nextFilters = Object.prototype.hasOwnProperty.call(state, 'filters')
+        ? copyFilters(state.filters ?? {}, label) : filters;
       if (Object.prototype.hasOwnProperty.call(state, 'search')) search = String(state.search ?? '');
+      filters = nextFilters;
     },
     reset: () => { page = 0; count = null; more = false; },
     destroy: () => {

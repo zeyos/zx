@@ -1,6 +1,6 @@
 import { STEP, STEP_LARGE, dragAxis, resolveSize } from '../../core/drag-axis.js';
 import { focusTrap } from '../../core/keyboard.js';
-import { h } from '../../core/dom.js';
+import { h, resolveElement } from '../../core/dom.js';
 import { clamp } from '../../core/util.js';
 import { Dialog } from '../dialog/dialog.js';
 
@@ -112,6 +112,8 @@ export class Sheet extends Dialog {
      * field would be undefined at best and a private one would throw.
      */
     this._dock = null;
+    /** @type {Element|null} The element focus was on when the current `open()` began. */
+    this._openedFrom = null;
     this.setSide(this.options.side);
     this.el.dataset.backdrop = BACKDROPS.has(this.options.backdrop) ? this.options.backdrop : 'dim';
     this.el.dataset.modality = modality(this.options.modal);
@@ -122,6 +124,12 @@ export class Sheet extends Dialog {
      * the trap captured the same element, because `open()` activates it before the sheet shows.
      */
     this.on('close', () => this.#trap?.deactivate());
+    // A sheet that was hosted inside a modal it was opened from goes home once it closes, so it
+    // neither sits in that dialog's focus search nor goes with the dialog when it is removed.
+    this.on('close', () => {
+      const home = super.mountTarget();
+      if (!this._dock && this.el.parentElement !== home && this.el.parentElement?.closest('dialog')) home.append(this.el);
+    });
 
     if (this.#wantsHandle()) this.#buildHandle();
   }
@@ -300,7 +308,19 @@ export class Sheet extends Dialog {
    * @returns {Element}
    */
   mountTarget() {
-    return this._dock?.el ?? super.mountTarget();
+    if (this._dock) return this._dock.el;
+    /*
+     * A floating non-modal sheet opened from inside a modal dialog lives inside that dialog: its
+     * popover still rises above it, but outside the dialog's subtree `showModal()` would leave it
+     * inert. Only asked while opening — `this.el` is unset during `render()` — so a sheet at rest
+     * stays in its theme scope. A modal sheet stacks above any dialog wherever it lives.
+     */
+    if (this.el && this.options.modal !== true) {
+      const opener = this._openedFrom ?? resolveElement(this.options.scope);
+      const modal = modalAround(opener, this.el);
+      if (modal) return modal;
+    }
+    return super.mountTarget();
   }
 
   /**
@@ -370,7 +390,12 @@ export class Sheet extends Dialog {
         if (!this.emit('cancel').defaultPrevented) this.close();
         return undefined;
       },
-      onOutsidePointer: this.options.lightDismiss ? () => { this.close(); } : undefined
+      onOutsidePointer: this.options.lightDismiss ? () => { this.close(); } : undefined,
+      // Hosted inside a modal that has now closed, the sheet would stay open but never be seen.
+      onParentClose: () => {
+        const holder = this.el.parentElement?.closest('dialog');
+        if (holder && !holder.open && !holder.matches(':popover-open')) this.close();
+      }
     };
   }
 
@@ -381,11 +406,17 @@ export class Sheet extends Dialog {
    */
   open() {
     if (this.isOpen()) return this;
+    // Read before the trap moves focus: the element the reader was on decides where the sheet lives.
+    this._openedFrom = document.activeElement;
     if (this.options.modal === 'trap-focus') {
       this.#trap ??= focusTrap(this.el);
       this.#trap.activate();
     }
-    super.open();
+    try {
+      super.open();
+    } finally {
+      this._openedFrom = null;
+    }
     // The handle is built while the sheet is still closed, where it measures zero; only now is
     // there a real size to report to a screen reader.
     this.#syncHandleAria();
@@ -510,6 +541,21 @@ export class Sheet extends Dialog {
     this._dock?._forget(this);
     this._dock = null;
     super.destroy();
+  }
+}
+
+/**
+ * The open modal dialog around an element, other than the sheet itself, or null.
+ * @param {Element|null|undefined} element
+ * @param {Element} self
+ * @returns {Element|null}
+ */
+function modalAround(element, self) {
+  if (!element || typeof element.closest !== 'function' || self.contains(element)) return null;
+  try {
+    return element.closest('dialog:modal');
+  } catch {
+    return null;
   }
 }
 

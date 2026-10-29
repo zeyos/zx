@@ -112,3 +112,17 @@ function deferred() {
   const promise = new Promise((done) => { resolve = done; });
   return { promise, resolve };
 }
+
+test('a rejected load changes nothing: every argument is checked before any is applied', async () => {
+  const { pager, calls } = setup({ pageSize: 10 });
+  await pager.load({ search: 'printer', filters: { status: 1 } });
+  await assert.rejects(() => pager.load({ pageSize: 25, search: 'other', filters: 'x' }), TypeError);
+  await assert.rejects(() => pager.load({ pageSize: 25, filters: { status: 2 }, page: -1 }), RangeError);
+  await assert.rejects(() => pager.load({ search: 'other', pageSize: 0 }), RangeError);
+  assert.equal(pager.pageSize, 10);
+  assert.equal(pager.search, 'printer');
+  assert.deepEqual(pager.filters, { status: 1 });
+  assert.equal(calls.length, 1, 'no request was sent for a rejected call');
+  assert.throws(() => pager.setQuery({ search: 'other', filters: [] }), TypeError);
+  assert.equal(pager.search, 'printer', 'setQuery() is all-or-nothing as well');
+});

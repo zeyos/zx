@@ -198,7 +198,8 @@ export default {
         + 'the box: no outer frame, no header band, no zebra, hairline rows. The header is the '
         + 'muted medium-weight label every table uses, and figures line up in tabular numerals. '
         + 'The actions column has an empty label, so its header stays blank and is named by '
-        + 'ariaLabel; every header and cell carries data-column for per-column styling.',
+        + 'ariaLabel; every header and cell carries data-column for per-column styling. With no '
+        + 'selection and no row listener it stays a plain table — no grid role, no row Tab stop.',
       render: ({ cleanup }) => {
         const table = new Table(null, {
           rowId: 'id',

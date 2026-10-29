@@ -89,7 +89,6 @@ export class MasterPanel extends Component {
 
     const moduleName = normalizeModule(this.options.module);
     root.dataset.module = moduleName;
-    root.style.setProperty('--zx-master-panel-accent', `var(--zx-module-${moduleName})`);
     this.setTitle(this.options.title);
     if (this.options.content !== null) this.setContent(this.options.content);
     else content.append(...originalContent);

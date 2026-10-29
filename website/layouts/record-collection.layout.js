@@ -1037,11 +1037,6 @@ export default {
       // Non-modal, the page stays in the accessibility tree beside the drawer, and the dialog's
       // <header> would read as a second banner next to the page's own; it is only a title row.
       sheet.el.querySelector('.zx-dialog__header')?.setAttribute('role', 'none');
-      // Escape that a picker inside spent closing its own list is not the drawer's: the picker
-      // marks it handled, but the sheet's own Escape does not look, so it stops at the content.
-      content.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape' && event.defaultPrevented) event.stopPropagation();
-      }, { signal: context.signal });
       drawers.set(sheet, size);
       return sheet;
     }

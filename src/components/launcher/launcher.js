@@ -2,7 +2,8 @@ import { Component } from '../../core/component.js';
 import { h, safeHref } from '../../core/dom.js';
 import { icon } from '../../core/icons.js';
 import { printf } from '../../core/i18n.js';
-import { connectedOverlayHost, overlayHost } from '../../core/overlay-host.js';
+import { connectedOverlayHost, overlayScope } from '../../core/overlay-host.js';
+import { pushOverlay } from '../../core/overlay-stack.js';
 import { uid } from '../../core/util.js';
 
 /**
@@ -158,6 +159,8 @@ export class Launcher extends Component {
       throw new TypeError('Launcher target must be a <dialog> element');
     }
     this._createdRoot = this.el === null;
+    /** @type {import('../../core/overlay-stack.js').OverlayHandle|null} Entry on the overlay stack while open. */
+    this._overlay = null;
     const dialog = /** @type {HTMLDialogElement} */ (this.el ?? h('dialog'));
     this.el = dialog;
     this._original = this._createdRoot ? null : {
@@ -266,7 +269,9 @@ export class Launcher extends Component {
     dialog.dataset.state = 'closed';
     // A scope that is not in the document yet cannot say which themed region owns the dialog; it
     // stays detached until open() hosts it.
-    if (this._createdRoot) connectedOverlayHost(this.options.scope)?.append(dialog);
+    // The theme scope, never an open dialog: a modal opened from inside another stacks above it in
+    // the top layer wherever it lives, and nested it would vanish if the outer one closed first.
+    if (this._createdRoot) connectedOverlayHost(this.options.scope, { dialog: false })?.append(dialog);
 
     this.listen(input, 'input', () => {
       this._query = /** @type {HTMLInputElement} */ (input).value;
@@ -299,6 +304,7 @@ export class Launcher extends Component {
       this.close();
     });
     this.listen(dialog, 'close', () => {
+      if (!dialog.open) this._releaseOverlay();
       dialog.dataset.state = 'closed';
       input.setAttribute('aria-expanded', 'false');
       this._abortRequest();
@@ -336,11 +342,18 @@ export class Launcher extends Component {
       return this;
     }
     if (this._createdRoot) {
-      const host = overlayHost(this.options.scope);
+      const host = overlayScope(this.options.scope);
       if (this.el.parentElement !== host) host.append(this.el);
     }
     const before = this._pages.map((entry) => entry.page);
+    const opener = document.activeElement;
     this.el.showModal();
+    /*
+     * A modal on the overlay stack, like every Modal: Escape and presses inside it then reach no
+     * popup left open behind it, and toast regions move into it while it is open.
+     */
+    this._releaseOverlay();
+    this._overlay = pushOverlay({ kind: 'modal', root: this.el, owner: this, anchor: opener });
     this.el.dataset.state = 'open';
     this.refs.input.setAttribute('aria-expanded', 'true');
     this._goTo(target == null ? [] : this._pagePath(target), { emit: false });
@@ -443,6 +456,17 @@ export class Launcher extends Component {
     return this;
   }
 
+  /**
+   * Takes the launcher off the overlay stack. Safe to call repeatedly.
+   * @returns {void}
+   * @private
+   */
+  _releaseOverlay() {
+    const overlay = this._overlay;
+    this._overlay = null;
+    overlay?.release();
+  }
+
   /** Aborts sources and removes the owned dialog. @returns {void} */
   destroy() {
     if (this._destroyed) return;
@@ -450,6 +474,8 @@ export class Launcher extends Component {
     const original = this._original;
     this._abortRequest();
     if (this.isOpen()) this.el.close();
+    // The queued close that would release it never arrives once listeners are aborted.
+    this._releaseOverlay();
     super.destroy();
     if (!this._createdRoot && original) {
       for (const attribute of Array.from(this.el.attributes)) this.el.removeAttribute(attribute.name);

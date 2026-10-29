@@ -1,5 +1,5 @@
 import { Form, Message, Select } from '../index.js';
-import { overlayHost } from '../core/overlay-host.js';
+import { overlayScope } from '../core/overlay-host.js';
 import { connect, errorMessage } from './connect.js';
 import {
   calendarDayToUnixSeconds, dateToUnixSeconds, unixSecondsToCalendarDay, unixSecondsToDate
@@ -163,8 +163,10 @@ export function zeyosForm(client, resource, opts = {}) {
     if (destroyed) return Promise.reject(new Error('Cannot save a destroyed ZeyOS form'));
     if (savePending) return savePending;
     if (!form.submit()) return Promise.resolve(null);
-    // Resolved now, while the form is in place: `onSaved` may close the dialog that holds it.
-    const host = notify ? overlayHost(toastScope()) : null;
+    // Resolved now, while the form is in place, and to the theme scope rather than the open
+    // dialog the overlay host would be: `onSaved` may close and destroy that dialog, and a toast
+    // parked inside it would fall back to an unstyled <body>.
+    const host = notify ? overlayScope(toastScope()) : null;
 
     savePending = (async () => {
       let payload;

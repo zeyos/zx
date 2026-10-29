@@ -147,8 +147,13 @@ import { sortRows } from './sort.js';
  * @property {string[]} [hiddenColumns=[]] Initially hidden column IDs; at least one stays visible.
  * @property {false|TableHierarchyOptions} [hierarchy=false] Flat parent references projected as an
  * expandable treegrid. Row data and mutation APIs remain flat.
- * @property {string|null} [label=null] Accessible name of the grid. A grid must have one; null
- * resolves the `table.label` message (English "Table"), so name it after what it lists.
+ * @property {boolean} [interactive=false] Makes the table an APG grid — row focus, Enter firing
+ * `rowclick` — even without selection, editing, or hierarchy, which already imply it. Attaching a
+ * `rowclick` or `rowdblclick` listener through `on()` or an `on…` option sets it too; pass it when
+ * the host listens for the bubbling `zx-rowclick` DOM event instead.
+ * @property {string|null} [label=null] Accessible name of the table. A grid must have one; null
+ * resolves the `table.label` message (English "Table") for a grid and leaves a plain table unnamed,
+ * so name it after what it lists.
  * @property {string|null} [labelledBy=null] Id of an element that names the grid — the heading
  * above it, say. Wins over `label`.
  * @property {(event: CustomEvent<TableRowClickDetail>) => void} [onrowclick]
@@ -264,8 +269,11 @@ const FOCUSABLE = 'input, textarea, select, button, [tabindex]:not([tabindex="-1
  * Semantic, sortable data table with optional single or checkbox-based multi-selection and
  * opt-in inline cell or row editing.
  *
- * The body follows the WAI-ARIA APG Grid pattern (`role="grid"`), or the Treegrid pattern
- * (`role="treegrid"`) with `hierarchy`: the rows are one Tab stop with a roving `tabindex`. Rows
+ * An interactive table — one that is `selectable`, has `editMode` or `hierarchy`, sets
+ * `interactive: true`, or has a `rowclick`/`rowdblclick` listener attached through `on()` or an
+ * `on…` option — follows the WAI-ARIA APG Grid pattern (`role="grid"`), or the Treegrid pattern
+ * (`role="treegrid"`) with `hierarchy`. Any other table keeps plain `<table>` semantics and no
+ * keyboard model of its own. In a grid the rows are one Tab stop with a roving `tabindex`. Rows
  * take focus by default; a table with `editMode` moves focus between cells instead, which the root
  * reflects as `data-focus="row"|"cell"`. ArrowUp/ArrowDown move between rows, ArrowLeft/ArrowRight
  * between cells (cell focus) or expand, collapse, and walk the tree (treegrid), Home/End and
@@ -315,6 +323,7 @@ export class Table extends Component {
     editMode: false,
     editTrigger: 'double',
     hierarchy: false,
+    interactive: false,
     label: null,
     labelledBy: null,
     rowReorder: false,
@@ -370,6 +379,11 @@ export class Table extends Component {
     // Keyboard focus. `_current` is the row (and, with cell focus, the column) holding the grid's
     // single Tab stop; it is kept by id so the stop survives every re-render of the body.
     this._focusMode = this._editMode === false ? 'row' : 'cell';
+    // `_clickListened` is set by `addEventListener()`, which the base constructor runs for `on…`
+    // options before this method; it is deliberately not reset here.
+    this._interactive = Boolean(this.options.interactive || this.options.selectable
+      || this._editMode !== false || normalizeHierarchy(this.options.hierarchy, this._columns)
+      || this._clickListened);
     this._current = null;
     this._rovingEl = null;
     this._extendBase = null;
@@ -394,11 +408,7 @@ export class Table extends Component {
     if (normalizeTableVariant(this.options.variant) === 'plain') root.dataset.variant = 'plain';
 
     this._table = h('table', { class: 'zx-table__table' });
-    this._table.setAttribute('role', this._gridRole());
-    if (this.options.labelledBy) this._table.setAttribute('aria-labelledby', String(this.options.labelledBy));
-    else this._table.setAttribute('aria-label', this.options.label ?? this._message('table.label', 'Table', []));
-    if (this.options.selectable === 'multi') this._table.setAttribute('aria-multiselectable', 'true');
-    root.dataset.focus = this._focusMode;
+    this._syncGridRole();
     this._colgroup = h('colgroup', { class: 'zx-table__columns' });
     this._thead = h('thead', { class: 'zx-table__head' });
     this._tbody = h('tbody', { class: 'zx-table__body' });
@@ -1248,9 +1258,45 @@ export class Table extends Component {
     this.emit('stackedchange', { stacked });
   }
 
-  /** @returns {'grid'|'treegrid'} Role of the `<table>`: the APG pattern its keyboard model follows. */
+  /**
+   * Registers a listener, and turns the table into a grid when the listener is for a row click:
+   * a host that reacts to the row needs the row reachable by keyboard.
+   * @param {string} type Event name.
+   * @param {EventListenerOrEventListenerObject|null} listener Listener.
+   * @param {boolean|AddEventListenerOptions} [options] Listener options.
+   * @returns {void}
+   */
+  addEventListener(type, listener, options) {
+    super.addEventListener(type, listener, options);
+    if (!listener || type !== 'rowclick' && type !== 'rowdblclick') return;
+    this._clickListened = true;
+    if (this._table && !this._interactive) {
+      this._interactive = true;
+      this._syncGridRole();
+      this._renderBody();
+    }
+  }
+
+  /** @returns {'grid'|'treegrid'|null} Role of the `<table>`, or null for plain table semantics. */
   _gridRole() {
+    if (!this._interactive) return null;
     return this._hierarchy ? 'treegrid' : 'grid';
+  }
+
+  /** Writes the grid role, name, and focus mode — or their absence — onto the table. @returns {void} */
+  _syncGridRole() {
+    const table = this._table;
+    const role = this._gridRole();
+    if (role) table.setAttribute('role', role);
+    else table.removeAttribute('role');
+    if (this.options.labelledBy) {
+      table.setAttribute('aria-labelledby', String(this.options.labelledBy));
+    } else if (this.options.label != null || role) {
+      table.setAttribute('aria-label', this.options.label ?? this._message('table.label', 'Table', []));
+    }
+    if (role && this.options.selectable === 'multi') table.setAttribute('aria-multiselectable', 'true');
+    if (role) this.el.dataset.focus = this._focusMode;
+    else delete this.el.dataset.focus;
   }
 
   /**
@@ -1259,17 +1305,20 @@ export class Table extends Component {
    * Stacking works by changing `display` on the table elements, and a table whose display is not
    * `table` loses its implicit ARIA roles — leaving a screen reader with a pile of generic blocks
    * where a table used to be. The roles are only asserted while the layout has taken them away;
-   * the `<table>` keeps its explicit grid or treegrid role in either mode.
+   * a grid keeps its explicit grid or treegrid role in either mode.
    * @param {boolean} stacked Whether the roles should be present.
    * @returns {void}
    */
   _applyStackedRoles(stacked) {
-    this._table.setAttribute('role', this._gridRole());
+    const grid = this._gridRole();
+    if (grid) this._table.setAttribute('role', grid);
+    else if (stacked) this._table.setAttribute('role', 'table');
+    else this._table.removeAttribute('role');
     for (const element of [this._thead, this._tbody]) {
       if (stacked) element.setAttribute('role', 'rowgroup');
       else element.removeAttribute('role');
     }
-    for (const [selector, role] of [['tr', 'row'], ['td', 'gridcell'], ['th', 'columnheader']]) {
+    for (const [selector, role] of [['tr', 'row'], ['td', grid ? 'gridcell' : 'cell'], ['th', 'columnheader']]) {
       for (const element of this._table.querySelectorAll(selector)) {
         if (stacked) element.setAttribute('role', role);
         else element.removeAttribute('role');
@@ -1692,6 +1741,10 @@ export class Table extends Component {
     // Every data mutation funnels through here, so this is the single place that guarantees no
     // editor component outlives the rows it was rendered into.
     this._abortEdit({ focus: false });
+    // A range anchored on the old order would select the wrong rows in the new one: Shift+Arrow and
+    // Shift+click start over after a sort, new data, or a change in what is expanded.
+    this._extendBase = null;
+    this._selectionAnchorId = null;
     /*
      * And the single place that notices the data gaining or losing its sections. The header owns
      * the sort controls, so it has to be rebuilt when the answer flips — otherwise a table that was
@@ -1779,7 +1832,7 @@ export class Table extends Component {
     }
     // Rows take the roving focus in row mode, and in a cell-focus treegrid too, where ArrowLeft
     // from the first cell lands on the row so the branch can be expanded or collapsed.
-    if (this._focusMode === 'row' || this._hierarchy) tr.tabIndex = -1;
+    if (this._interactive && (this._focusMode === 'row' || this._hierarchy)) tr.tabIndex = -1;
     this._rowMeta.set(tr, { row, id, index, visibleIndex: tree.visibleIndex });
     const elements = this._rowElements.get(id) ?? [];
     elements.push(tr);
@@ -2411,6 +2464,8 @@ export class Table extends Component {
    */
   _captureFocus() {
     const active = typeof document === 'undefined' ? null : document.activeElement;
+    // The frame holds focus while the table is empty; the first row takes it back.
+    if (active && active === this._scroll && this._scroll.hasAttribute('data-empty-focus')) return { part: 'row' };
     if (!active || !this._tbody?.contains(active)) return null;
     const tr = active.closest('tr[data-row]');
     if (!tr) return null;
@@ -2422,15 +2477,26 @@ export class Table extends Component {
   }
 
   /**
-   * Puts the Tab stop back on the current row after a render — the same row by id, else the row
-   * now at its old position — and gives it focus again when the body had focus before.
+   * Puts the Tab stop back on the current row after a render — the same row by id; else, when a
+   * collapsed ancestor hid it, that ancestor; else the row now at its old position — and gives it
+   * focus again only when the body had focus before. The focus is restored without scrolling: a
+   * table refreshed by polling must not pull the page back to itself.
    * @param {{part: string}|null} focus What `_captureFocus()` found before the render.
    * @returns {void}
    */
   _syncRoving(focus) {
+    if (!this._interactive) return;
     const rows = this._navRows();
+    this._syncEmptyFocus(rows.length === 0 && focus !== null);
     if (rows.length === 0) return;
     let tr = this._current ? this._rowElements.get(this._current.id)?.[0] : undefined;
+    if (!tr && this._current && this._hierarchy) {
+      tr = this._renderedAncestor(this._current.id);
+      if (tr) {
+        const meta = this._rowMeta.get(tr);
+        this._current = { ...this._current, id: meta.id, visibleIndex: meta.visibleIndex, onRow: true };
+      }
+    }
     if (!tr) {
       tr = rows[Math.min(Math.max(this._current?.visibleIndex ?? 0, 0), rows.length - 1)];
       if (this._current) {
@@ -2445,11 +2511,53 @@ export class Table extends Component {
       checkbox: '.zx-table__row-checkbox', toggle: '.zx-table__tree-toggle', handle: '.zx-table__row-handle:not(:disabled)'
     }[focus.part];
     const target = control ? /** @type {HTMLElement|null} */ (tr.querySelector(control)) ?? element : element;
-    target.focus();
+    target.focus({ preventScroll: true });
+  }
+
+  /**
+   * The nearest ancestor of a row that is rendered — where focus goes when collapsing a branch
+   * hid the focused row.
+   * @param {unknown} id Row id.
+   * @returns {HTMLTableRowElement|undefined}
+   */
+  _renderedAncestor(id) {
+    if (!this._hierarchy) return undefined;
+    const seen = new Set();
+    let row = this.getRow(id);
+    while (row) {
+      const parentId = readRowValue(this._hierarchy.parentId, row);
+      if (parentId == null || seen.has(parentId)) return undefined;
+      seen.add(parentId);
+      const element = this._rowElements.get(parentId)?.[0];
+      if (element) return element;
+      row = this.getRow(parentId);
+    }
+    return undefined;
+  }
+
+  /**
+   * While the table has no rows to focus, its frame takes focus instead of letting it fall to the
+   * document — and gives the Tab order its old shape back once rows return.
+   * @param {boolean} hold Whether focus was in the body and there is now no row for it.
+   * @returns {void}
+   */
+  _syncEmptyFocus(hold) {
+    const frame = this._scroll;
+    if (hold) {
+      if (!frame.hasAttribute('tabindex')) {
+        frame.tabIndex = -1;
+        frame.setAttribute('data-empty-focus', '');
+      }
+      frame.focus({ preventScroll: true });
+    } else if (frame.hasAttribute('data-empty-focus')) {
+      frame.removeAttribute('tabindex');
+      frame.removeAttribute('data-empty-focus');
+    }
   }
 
   /** @param {Event} event @returns {void} */
   _handleFocusIn(event) {
+    if (!this._interactive) return;
     const target = /** @type {Element|null} */ (event.target?.nodeType === 1 ? event.target : null);
     const tr = /** @type {HTMLTableRowElement|null} */ (target?.closest('tr[data-row]') ?? null);
     if (!tr || tr.parentElement !== this._tbody) return;
@@ -2496,7 +2604,7 @@ export class Table extends Component {
    * @fires Table#rowtoggle
    */
   _handleGridKeydown(event) {
-    if (event.defaultPrevented || event.altKey) return;
+    if (!this._interactive || event.defaultPrevented || event.altKey) return;
     const target = /** @type {HTMLElement|null} */ (event.target?.nodeType === 1 ? event.target : null);
     if (!target || this._edit && isInsideEditor(target)) return;
     const tr = /** @type {HTMLTableRowElement|null} */ (target.closest('tr[data-row]'));

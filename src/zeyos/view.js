@@ -300,6 +300,8 @@ export function zeyosView(client, resource, View, opts = {}) {
   };
 
   const load = async (options = {}) => {
+    // Rejected before saved-view initialization runs, so an invalid call has no side effect.
+    pager.check(options);
     await ensureInitialized({ load: false });
     return performLoad(options);
   };

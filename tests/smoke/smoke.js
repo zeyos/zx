@@ -1154,6 +1154,8 @@ const cases = [
   toastOverDialogCase(),
   sheetChildOverlaysCase(),
   dropdownTabReachCase(),
+  launcherLayeringCase(),
+  sheetInDialogCase(),
   componentCase('AccountMenu (toggle)', () => new zx.AccountMenu(null, {
     account: { name: 'Ada Lovelace' },
     items: [{ label: 'Sign out', value: 'logout' }]
@@ -2344,12 +2346,15 @@ const cases = [
   tableHierarchyCase(),
   tableKeyboardCase(),
   tableTreegridKeyboardCase(),
+  tableInteractivityCase(),
   toolbarRovingInputCase(),
+  toolbarFieldsetDisabledCase(),
   recordViewChooserFocusCase(),
   fileListFocusCase(),
   activityListFocusCase(),
   recordViewFieldTargetCase(),
   filterRelativeDateCase(),
+  zeyosFormToastScopeCase(),
   truncateCase(),
   sizeContainerCase(),
   positionRtlCase(),
@@ -3559,8 +3564,19 @@ function menuInDialogCase() {
       items[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
       assert(document.activeElement === items[1], 'ArrowDown did not reach the second item');
       assert(items[1].contains(hitAt(items[1])), 'the menu item is not hit-testable above the dialog');
-      items[1].dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
-      assert(!menu.isOpen() && dialog.isOpen(), 'Escape in the menu must close the menu only');
+      /*
+       * A page cannot press a real key: a dispatched keydown is untrusted, and the browser never
+       * turns an untrusted Escape into the dialog's close request, so whether the dialog closes is
+       * out of reach here. What the overlay stack controls is the keydown itself. It must route
+       * the key to the menu and cancel it, because a cancelled keydown is what keeps a real Escape
+       * from going on to fire the dialog's `cancel` — so assert exactly that.
+       */
+      let cancels = 0;
+      dialog.on('cancel', () => { cancels += 1; });
+      const escape = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+      items[1].dispatchEvent(escape);
+      assert(escape.defaultPrevented, 'the overlay stack did not consume the Escape it gave the menu');
+      assert(!menu.isOpen() && dialog.isOpen() && cancels === 0, 'Escape in the menu must close the menu only');
       assert(document.activeElement === menu.getTrigger(), 'Escape did not return focus to the trigger');
       menu.focusFirst();
       [...panel.querySelectorAll('[role="menuitem"]')][1].click();
@@ -3665,26 +3681,36 @@ function sheetChildOverlaysCase() {
   };
 }
 
-/** A generic Dropdown panel follows its trigger in the Tab order. @returns {SmokeDefinition} */
+/**
+ * A generic Dropdown panel follows its trigger in the Tab order — including a panel whose controls
+ * are composites with `tabindex="-1"` parts (a Select's toggle) and a roving toolbar.
+ * @returns {SmokeDefinition}
+ */
 function dropdownTabReachCase() {
   return {
     name: 'Dropdown (Tab reach)',
     create(fixture) {
-      const anchor = zx.button({ label: 'Filter' });
+      const anchor = zx.button({ label: 'Sort' });
       const after = zx.button({ label: 'After' });
       fixture.append(anchor, after);
       const field = document.createElement('input');
       field.setAttribute('aria-label', 'Search');
-      const apply = zx.button({ label: 'Apply' });
+      const toolbar = new zx.Toolbar(null, {
+        label: 'Direction', overflow: false,
+        items: [{ name: 'asc', label: 'Ascending' }, { name: 'desc', label: 'Descending' }]
+      });
+      const select = new zx.Select(null, { items: sampleItems(), value: 1, label: 'Sort by' });
       const content = document.createElement('div');
-      content.append(field, apply);
+      content.append(field, toolbar.el, select.el);
       const component = new zx.Dropdown(anchor, { content });
-      return { component, anchor, after, field, apply };
+      return { component, anchor, after, field, toolbar, select };
     },
-    exercise({ component, anchor, after, field, apply }) {
-      const tab = (target, shiftKey = false) => target.dispatchEvent(new KeyboardEvent('keydown', {
-        key: 'Tab', shiftKey, bubbles: true, cancelable: true
-      }));
+    exercise({ component, anchor, after, field, toolbar, select }) {
+      const tab = (target, shiftKey = false) => {
+        const event = new KeyboardEvent('keydown', { key: 'Tab', shiftKey, bubbles: true, cancelable: true });
+        target.dispatchEvent(event);
+        return event;
+      };
       anchor.click();
       assert(component.isOpen(), 'the trigger did not open the panel');
       anchor.focus();
@@ -3692,17 +3718,128 @@ function dropdownTabReachCase() {
       assert(document.activeElement === field, 'Tab from the trigger did not enter the panel');
       tab(field, true);
       assert(document.activeElement === anchor, 'Shift+Tab from the first control did not return to the trigger');
-      apply.focus();
-      tab(apply);
-      assert(document.activeElement === after, 'Tab past the panel did not continue after the trigger');
+
+      // The toolbar's roving stop has a real stop after it, the Select: Tab stays native there.
+      const stop = [...toolbar.el.querySelectorAll('button')].find((button) => button.tabIndex >= 0);
+      assert(stop, 'the toolbar exposes no roving Tab stop');
+      stop.focus();
+      assert(!tab(stop).defaultPrevented, 'Tab was taken from a control with a stop after it in the panel');
+
+      // The Select's input is the last real stop; its tabindex="-1" toggle after it is not one.
+      const input = select.el.querySelector('[role="combobox"]');
+      const parts = [...select.el.querySelectorAll('button, [tabindex]')].filter((part) => part !== input);
+      assert(parts.every((part) => part.tabIndex < 0), 'the Select gained a second Tab stop');
+      input.focus();
+      tab(input);
+      assert(document.activeElement === after, `Tab from the last real stop went to ${document.activeElement?.outerHTML.slice(0, 60)}`);
+      const toggle = parts[0];
+      if (toggle) {
+        toggle.focus();
+        tab(toggle);
+        assert(document.activeElement === after, 'Tab from a composite part after the last stop did not leave the panel');
+      }
       field.focus();
       component.close();
       assert(document.activeElement === anchor, 'closing with focus inside did not return it to the trigger');
     },
-    destroy({ component, anchor, after }) {
+    destroy({ component, anchor, after, toolbar, select }) {
+      select.destroy();
+      toolbar.destroy();
       component.destroy();
       anchor.remove();
       after.remove();
+    }
+  };
+}
+
+/**
+ * The Launcher is a modal on the overlay stack: never nested in the dialog it was opened from,
+ * Escape inside it reaches no popup behind it, and toasts move into it.
+ * @returns {SmokeDefinition}
+ */
+function launcherLayeringCase() {
+  return {
+    name: 'Launcher (layering)',
+    create(fixture) {
+      const anchor = zx.button({ label: 'Behind' });
+      fixture.append(anchor);
+      const dropdown = new zx.Dropdown(anchor, { content: 'Panel text', openOn: 'manual' });
+      const inside = zx.button({ label: 'Search' });
+      const dialog = new zx.Dialog(null, { title: 'Records', content: inside });
+      const launcher = new zx.Launcher(null, { debounce: 0, scope: inside, items: [{ id: 'one', label: 'One' }] });
+      return { anchor, dropdown, inside, dialog, launcher };
+    },
+    async exercise({ dropdown, inside, dialog, launcher }) {
+      dropdown.open();
+      dialog.open();
+      await nextFrame();
+      inside.focus();
+      launcher.open();
+      await nextFrame();
+      assert(!dialog.el.contains(launcher.el), 'the launcher was nested inside the dialog it was opened from');
+      const handle = zx.Message.show('Indexed.', { timeout: 0 });
+      const region = document.querySelector('.zx-message-region');
+      assert(region?.parentElement === launcher.el, 'the toast region did not move into the open launcher');
+      handle.close();
+      zx.Message.disposeRegion(region);
+      const escape = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+      launcher.refs.input.dispatchEvent(escape);
+      assert(dropdown.isOpen(), 'Escape inside the launcher closed a dropdown behind it');
+      const closed = new Promise((resolve) => launcher.once('close', resolve));
+      launcher.close();
+      await closed;
+      const dialogClosed = new Promise((resolve) => dialog.once('close', resolve));
+      dialog.close();
+      await dialogClosed;
+      dropdown.close();
+    },
+    destroy({ anchor, dropdown, dialog, launcher }) {
+      launcher.destroy();
+      dialog.destroy();
+      dropdown.destroy();
+      anchor.remove();
+    }
+  };
+}
+
+/** A non-modal Sheet opened from inside a modal Dialog is hosted by it and usable. @returns {SmokeDefinition} */
+function sheetInDialogCase() {
+  return {
+    name: 'Sheet (non-modal inside a Dialog)',
+    create() {
+      const opener = zx.button({ label: 'Details' });
+      const dialog = new zx.Dialog(null, { title: 'Order', content: opener });
+      const field = document.createElement('input');
+      field.setAttribute('aria-label', 'Note');
+      const sheet = new zx.Sheet(null, { title: 'Details', content: field, modal: false, lightDismiss: false });
+      return { opener, dialog, sheet, field };
+    },
+    async exercise({ opener, dialog, sheet, field }) {
+      dialog.open();
+      await nextFrame();
+      opener.focus();
+      sheet.open();
+      // Let the slide-in settle: mid-transition the field can still be outside the viewport.
+      await delay(500);
+      assert(dialog.el.contains(sheet.el), 'the sheet was mounted outside the modal it was opened from');
+      assert(field.contains(hitAt(field)), 'the sheet is not hit-testable above the dialog');
+      field.focus();
+      assert(document.activeElement === field, 'the sheet\'s field cannot take focus under the modal');
+      sheet.close();
+      await Promise.resolve();
+      await nextFrame();
+      assert(!dialog.el.contains(sheet.el), 'a closed sheet stayed inside the dialog');
+      opener.focus();
+      sheet.open();
+      const closed = new Promise((resolve) => dialog.once('close', resolve));
+      dialog.close();
+      await closed;
+      await Promise.resolve();
+      assert(!sheet.isOpen(), 'closing the dialog left the sheet it hosted open and unseen');
+    },
+    destroy({ dialog, sheet }) {
+      sheet.destroy();
+      dialog.destroy();
     }
   };
 }
@@ -3743,16 +3880,13 @@ function tableStackingCase() {
       events.expect();
 
       const cell = component.el.querySelector('tbody td[data-label="Customer"]');
-      assert(cell.getAttribute('role') === 'gridcell', 'stacked cells lost their grid role');
-      assert(component.el.querySelector('table').getAttribute('role') === 'grid', 'stacked table lost its role');
+      assert(cell.getAttribute('role') === 'cell', 'stacked cells lost their table role');
+      assert(component.el.querySelector('table').getAttribute('role') === 'table', 'stacked table lost its role');
 
       host.style.inlineSize = '900px';
       await settle();
       assert(!component.isStacked(), 'did not unstack when the room came back');
-      assert(!component.el.querySelector('tbody td').hasAttribute('role')
-        && !component.el.querySelector('tbody').hasAttribute('role'), 'roles outlived stacked mode');
-      assert(component.el.querySelector('table').getAttribute('role') === 'grid',
-        'unstacking took the grid role off the table');
+      assert(!component.el.querySelector('table').hasAttribute('role'), 'roles outlived stacked mode');
     },
     destroy({ component, host }) {
       component.destroy();
@@ -3950,8 +4084,81 @@ function tableKeyboardCase() {
       component.setData(component.getData().filter((row) => row.id !== 3));
       assert(document.activeElement?.closest('tbody') === body && stops().length === 1,
         'removing the focused row did not move focus to its neighbour');
+
+      // A range anchored before a sort must not be applied to the new order.
+      component.clearSelection();
+      component.setSort('name', 'asc');
+      body.querySelector('tr[data-row]').focus();
+      pressKey(' ');
+      pressKey('ArrowDown');
+      // Acme is the anchor; after the sort, Borealis is focused with Acme below it. Extending must
+      // start from the focused row, not from an anchor taken in the old order.
+      component.setSort('name', 'desc');
+      pressKey('ArrowDown', { shiftKey: true });
+      const picked = component.getSelection().map((row) => row.name).sort().join();
+      assert(picked === 'Acme GmbH,Borealis AB',
+        `Shift+ArrowDown after a sort selected ${picked}`);
+
+      // Emptied while focused: focus stays in the table instead of falling to <body>.
+      component.setData([]);
+      assert(component.el.contains(document.activeElement), 'emptying the table dropped focus to the document');
+      component.setData([{ id: 9, name: 'Zephyr SA', city: 'Lyon' }]);
+      assert(focusedName() === 'Zephyr SA', 'new rows did not take focus back from the empty table');
     },
     destroy({ component }) { component.destroy(); }
+  };
+}
+
+/** Grid only when interactive, and re-renders that never scroll the page. @returns {SmokeDefinition} */
+function tableInteractivityCase() {
+  return {
+    name: 'Table (interactive opt-in)',
+    create(fixture) {
+      const scroller = document.createElement('div');
+      scroller.style.cssText = 'block-size: 200px; overflow: auto';
+      const spacer = document.createElement('div');
+      spacer.style.blockSize = '2000px';
+      const rows = (count, offset = 0) => Array.from({ length: count }, (_, index) =>
+        ({ ID: index + offset, name: `Row ${index + offset}` }));
+      const plain = new zx.Table(null, { columns: [{ id: 'name', label: 'Name' }], data: rows(3) });
+      const growing = new zx.Table(null, {
+        selectable: 'multi', growing: 5, columns: [{ id: 'name', label: 'Name' }], data: rows(12)
+      });
+      scroller.append(plain.toElement(), growing.toElement(), spacer);
+      fixture.append(scroller);
+      return { plain, growing, scroller, rows };
+    },
+    exercise({ plain, growing, scroller, rows }) {
+      const table = plain.el.querySelector('table');
+      assert(!table.hasAttribute('role') && !table.hasAttribute('aria-label'),
+        'a read-only display table became a named grid');
+      assert(!plain.el.querySelector('tbody [tabindex]'), 'a read-only display table has row Tab stops');
+
+      let clicks = 0;
+      plain.on('rowclick', () => { clicks += 1; });
+      assert(table.getAttribute('role') === 'grid' && plain.el.querySelector('tbody tr[tabindex="0"]'),
+        'a rowclick listener did not make the table a grid');
+      plain.el.querySelector('tbody tr').focus();
+      pressKey('Enter');
+      assert(clicks === 1, 'Enter did not reach the late rowclick listener');
+
+      // A polling refresh must not scroll the page back to a table that still holds focus.
+      scroller.scrollTop = 1500;
+      plain.setData(rows(3, 10));
+      assert(scroller.scrollTop === 1500, `re-rendering scrolled the container to ${scroller.scrollTop}`);
+      assert(plain.el.contains(document.activeElement), 'the re-render lost focus');
+
+      // Ctrl+A takes the rendered rows — what growing holds back stays unselected.
+      growing.el.querySelector('tbody tr').focus();
+      pressKey('a', { ctrlKey: true });
+      assert(growing.getSelection().length === 5,
+        `Ctrl+A selected ${growing.getSelection().length} rows with 5 rendered`);
+    },
+    destroy({ plain, growing, scroller }) {
+      plain.destroy();
+      growing.destroy();
+      scroller.remove();
+    }
   };
 }
 
@@ -3996,6 +4203,14 @@ function tableTreegridKeyboardCase() {
       assert(focused() === 'Alpha', 'ArrowLeft on a leaf did not move to its parent');
       pressKey('ArrowLeft');
       assert(toggles.join() === 'a:true,a:false' && focused() === 'Alpha', 'ArrowLeft did not collapse in place');
+
+      // Collapsing through the API while a child has focus hands focus to that child's parent,
+      // not to whatever row now sits where the child was.
+      tree.expandRow('a');
+      tree.el.querySelectorAll('tbody tr')[1].focus();
+      assert(focused() === 'Alpha one', 'could not focus the child row');
+      tree.collapseRow('a');
+      assert(focused() === 'Alpha', `collapsing the parent moved focus to ${focused()}`);
 
       // Cell focus: editable tables move between cells, and Enter still opens the editor.
       assert(cells.el.dataset.focus === 'cell', 'an editable table should move focus by cell');
@@ -4705,6 +4920,92 @@ function filterRelativeDateCase() {
       amount.value = '0';
       amount.dispatchEvent(new Event('input', { bubbles: true }));
       assert(!component.validate().valid, 'a zero span validated');
+    },
+    destroy: ({ component }) => component.destroy()
+  };
+}
+
+/**
+ * zeyosForm's success toast belongs to the theme scope, not to the dialog the form sat in: an
+ * `onSaved` that destroys the dialog must not leave the toast on an unstyled <body>.
+ * @returns {SmokeDefinition}
+ */
+function zeyosFormToastScopeCase() {
+  return {
+    name: 'Dialog (zeyosForm toast after onSaved closes it)',
+    create(fixture) {
+      const scope = document.createElement('div');
+      scope.className = 'zx-scope';
+      scope.dataset.zxTheme = 'dark';
+      fixture.append(scope);
+      const client = {
+        schema: {
+          describe: () => ({ fields: { ID: { type: 'integer' }, name: { type: 'text' } } }),
+          fields: () => ['ID', 'name'],
+          operations: () => ['createTickets']
+        },
+        api: { createTickets: async (record) => ({ ID: 7, ...record }) }
+      };
+      const anchor = document.createElement('span');
+      scope.append(anchor);
+      const dialog = new zx.Dialog(null, { title: 'New ticket', scope: anchor });
+      return { scope, client, dialog };
+    },
+    async exercise(state) {
+      const { scope, client, dialog } = state;
+      dialog.open();
+      await nextFrame();
+      assert(scope.contains(dialog.el), 'the dialog did not open in the theme scope it was given');
+      const binding = zeyos.zeyosForm(client, 'tickets', {
+        fields: ['name'], value: { name: 'Printer jam' },
+        onSaved: () => { dialog.destroy(); state.dialog = null; }
+      });
+      dialog.setContent(binding.form.toElement());
+      await binding.ready;
+      await binding.save();
+      await nextFrame();
+      const region = [...document.querySelectorAll('.zx-message-region')]
+        .find((candidate) => candidate.textContent.includes('saved successfully'));
+      assert(region, 'no saved toast was shown');
+      assert(scope.contains(region), 'the saved toast left the theme scope once its dialog was destroyed');
+      binding.destroy();
+      zx.Message.disposeRegion(region);
+    },
+    destroy({ scope, dialog }) {
+      dialog?.destroy();
+      scope.remove();
+    }
+  };
+}
+
+/**
+ * A roving group notices an inherited disabled state: toggling a `<fieldset disabled>` around the
+ * current tab stop hands the stop to a control that can still take focus.
+ * @returns {SmokeDefinition}
+ */
+function toolbarFieldsetDisabledCase() {
+  return {
+    name: 'Toolbar (fieldset disabled)',
+    create(fixture) {
+      const group = document.createElement('fieldset');
+      group.setAttribute('role', 'group');
+      const first = zx.button({ label: 'Bold' });
+      group.append(first);
+      const component = new zx.Toolbar(null, { items: [group, { name: 'save', label: 'Save' }] });
+      fixture.append(component.toElement());
+      return { component, group, first };
+    },
+    async exercise({ component, group, first }) {
+      await nextFrame();
+      const save = component.getItem('save');
+      assert(first.tabIndex === 0 && save.tabIndex === -1, 'the first control is not the initial tab stop');
+      group.disabled = true;
+      await Promise.resolve();
+      assert(save.tabIndex === 0, 'the tab stop stayed on a control its fieldset disabled');
+      group.disabled = false;
+      await Promise.resolve();
+      first.focus();
+      assert(first.tabIndex === 0, 'the re-enabled control could not take the tab stop back');
     },
     destroy: ({ component }) => component.destroy()
   };

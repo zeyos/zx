@@ -88,9 +88,10 @@ export function focusTrap(container) {
  * the neighbouring item, so a reader is never trapped in it. Under `dir="rtl"` the horizontal
  * arrows follow the visual order.
  *
- * The group re-reads its items when children are added or removed and when an item's
- * availability attributes (`hidden`, `disabled`, `aria-disabled`, `aria-hidden`) change; its own
- * `tabindex` writes and unrelated attribute churn inside the items are not observed.
+ * The group re-reads its items when children are added or removed and when an availability
+ * attribute (`hidden`, `disabled`, `aria-disabled`, `aria-hidden`) changes on an item or on an
+ * element inside the container that holds items — a `<fieldset disabled>` toggled around them; its
+ * own `tabindex` writes and unrelated attribute churn are not observed.
  * @param {Element} container Event and query container.
  * @param {string} itemSelector Selector for roving items.
  * @param {RovingOptions} [options={}] Behavior options.
@@ -176,7 +177,10 @@ export function rovingTabindex(container, itemSelector, { orientation = 'vertica
    */
   function concernsItems(record) {
     if (record.type === 'attributes') {
-      return record.target instanceof Element && record.target.matches(itemSelector);
+      // An item's own attribute, or one on an element that holds items: a `<fieldset disabled>`
+      // disables every control inside it without touching their attributes.
+      return record.target instanceof Element
+        && (record.target.matches(itemSelector) || record.target.querySelector(itemSelector) !== null);
     }
     for (const node of record.addedNodes) {
       if (node instanceof Element && (node.matches(itemSelector) || node.querySelector(itemSelector))) return true;

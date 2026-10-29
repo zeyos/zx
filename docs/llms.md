@@ -225,7 +225,8 @@ await records.saveView({ name: 'My open invoices', setDefault: true });
   behavior. `load` maps stored timestamps to `Date`; `save` validates and creates/updates, maps back
   to Unix seconds, calls `onSaved`, and shows a success toast. Its toasts (that confirmation and a
   failed request's report) appear in the theme scope of `scope` — default: the form's own element,
-  so a form in a scoped dialog toasts inside that scope; `notify: false` raises none, leaving the
+  so a form in a scoped dialog toasts inside that scope, and the confirmation stays there when
+  `onSaved` closes and destroys the dialog; `notify: false` raises none, leaving the
   promise's result or rejection to the caller.
 - `zeyosTable(client, resource, opts)` returns
   `{table, load(), setSearch(), setFilters(), loadMore(), count, page, pageSize, hasMore, destroy()}`.
@@ -235,7 +236,9 @@ await records.saveView({ name: 'My open invoices', setDefault: true });
   one-based `Pagination` maps onto it as `load({page: detail.page - 1, pageSize: detail.pageSize,
   replace: true})` (offset `(page - 1) * pageSize`), feeding `result.count` back through
   `setTotal()`. A response that resolves after `destroy()` is ignored and later loads reject; page
-  must be a non-negative integer and page size a positive integer (`RangeError`). Table presentation options and
+  must be a non-negative integer and page size a positive integer (`RangeError`), filters an object
+  (`TypeError`), and every argument is checked before any is applied, so a rejected call changes
+  nothing. Table presentation options and
   listeners pass through — `variant`, `zebra`, `stickyHeader`, `responsive`, `growing`, `emptyText`,
   `rowClass`, `rowKind(s)`, `columnVisibility`, `columnReorder`, `hiddenColumns`, `on<event>`;
   `onrowclick` runs beside `onRowClick`. The binding owns `columns`, `data`, and `sortMode`, and
@@ -574,7 +577,9 @@ Zx owns ranking, focus, request cancellation, and presentation; ZeyOS owns the c
 permissions, recent-history/cache policy, and the route or command ultimately invoked.
 
 - **Constructor** — `new Launcher(null, options)` owns a top-layer dialog in the opener's nearest
-  Zx theme scope;
+  Zx theme scope — never inside another open dialog, which it stacks above in the top layer. Open,
+  it is a modal on the shared overlay stack: Esc and presses inside it reach no popup left open
+  behind it, and toasts move into it while it is open;
   `new Launcher(existingDialog, options)` enhances and later restores an existing `<dialog>`.
 - **Options** — `items`, abortable `sources: [{id, label?, minQuery?, when?, order?, load(query, {signal})}]`,
   `query`, `debounce: 250`, `minQuery: 0`, `maxResults: 100`, `placeholder`, `label`, `emptyText`,
@@ -1265,7 +1270,12 @@ When a Dock adopts it, the Sheet becomes an opaque layout surface instead.
   closes the sheet when focus is in it (or in a popup it opened) and no popup above it takes the
   key first, an Esc already handled inside (`defaultPrevented`) is ignored, and a press inside a
   menu or dropdown anchored in the sheet counts as inside the sheet. Closing the sheet closes the
-  popups it opened. Their top-layer backdrop is
+  popups it opened. Light dismiss stops at the first layer that contains the press: a press inside
+  the upper of two light-dismiss sheets (or inside any overlay above this one) closes neither the
+  lower sheet nor anything beneath it; a press outside every layer closes each one that
+  light-dismisses. A floating non-modal sheet opened from inside a modal Dialog is hosted by that
+  dialog while open, so it stays usable above it, closes when the dialog closes, and goes back to
+  its theme scope when it closes. Their top-layer backdrop is
   explicitly transparent and non-filtering; `backdrop` is meaningful only when `modal` is `true`.
   A docked Sheet remains a native non-modal dialog in its Dock's flow.
 - **Resizing and detents** — `resizable` makes the inner edge draggable between `min` and `max`.
@@ -1358,12 +1368,16 @@ DOM child of the anchor's nearest Zx theme scope while the browser lifts it into
 - **Overlay stack** — an open panel is one entry on the shared overlay stack
   (`src/core/overlay-stack.js`). Esc closes only the topmost layer that takes it, and an Esc that
   something inside already handled (`defaultPrevented`) closes nothing. A press outside the panel
-  and every overlay opened from it closes it; a press on the anchor does not. A panel opened from
-  inside another overlay closes with that overlay.
+  and every overlay opened from it closes it; a press on the anchor does not. Light dismiss stops
+  at the first layer that contains the press, so a press inside an overlay above the panel (one
+  not opened from it) leaves the panel open; nothing below an open modal reacts at all. A panel
+  opened from inside another overlay closes with that overlay.
 - **Keyboard** — the panel follows its trigger in the Tab order: Tab on the anchor of an open panel
-  moves to the panel's first focusable control, or onto the panel itself when it has a `tabindex`;
-  Tab past the last control continues with whatever follows the anchor; Shift+Tab from the first
-  control returns to the anchor. A panel with nothing focusable is skipped. Esc and `close()` with
+  moves to the panel's first Tab stop, or onto the panel itself when it has a `tabindex`; Tab past
+  the last stop continues with whatever follows the anchor; Shift+Tab from the first
+  stop returns to the anchor. A Tab stop is what the browser itself stops at: a `tabindex="-1"` part
+  of a composite (a Select's toggle), a roving toolbar's inactive items, disabled, hidden and inert
+  controls, and all but one radio of a group are not. A panel with no Tab stop is skipped. Esc and `close()` with
   focus inside return focus to the anchor. Opening moves no focus — give the panel `role` and
   `aria-*` semantics yourself if it is more than a disclosure.
 - **Methods** — `open()`, `close()`, `toggle()`, `isOpen()`, `setContent()`, `getPanel()`.
@@ -1491,9 +1505,9 @@ range select.
   render?: (row,i)=>Node|string, sortValue?, headerTitle? }]`, `data`, `rowId: 'ID'`,
   `sort: { id, dir }`, `sortMode: 'local'|'server'`, `selectable: false|'single'|'multi'`,
   `stickyHeader: true`, `height`, `emptyText`, `rowClass`, `zebra: true`, `variant:
-  'default'|'plain'`, `hierarchy: false|{parentId, column?, expanded?}`, and `label`/`labelledBy`. Locale, currency,
-  unit, and decimals may be row callbacks; values remain numbers in row data while display
-  formatting is locale-aware.
+  'default'|'plain'`, `hierarchy: false|{parentId, column?, expanded?}`, `interactive: false`,
+  and `label`/`labelledBy`. Locale, currency, unit, and decimals may be row callbacks; values
+  remain numbers in row data while display formatting is locale-aware.
 - **Appearance** — the header sits on the table's surface (no band) in the muted text colour at a
   medium weight, sentence case; the sorted column's label takes the text colour beside its arrow.
   Rows are divided by `--zx-color-border-subtle`, the header by the ordinary border, and every cell
@@ -1515,31 +1529,43 @@ range select.
 - **Events** — `rowclick {row, id, index, event}`, `rowdblclick`, `sort {id, dir}`,
   `selectionchange {rows, ids}`, `datachange {rows}`, and `rowtoggle {row, id, expanded}`.
   `rowclick` fires for Enter on a focused row as well as for a click; `event` is then the keydown.
-- **Keyboard** — the body implements the WAI-ARIA APG **Grid** pattern (`role="grid"`, with
-  `aria-multiselectable` for `selectable: 'multi'`), or the **Treegrid** pattern with `hierarchy`.
-  The rows are one Tab stop with a roving `tabindex`; the row checkboxes and disclosure buttons
-  leave the Tab order because the row keys cover them. Focus is on rows by default and on cells
-  when `editMode` is set — reflected as `data-focus="row"|"cell"` on the root. ArrowUp/ArrowDown
-  move a row, ArrowLeft/ArrowRight a cell (cell focus), Home/End go to the first/last row (cell
-  focus: first/last cell of the row) and Ctrl+Home/End to the first/last row's corner cell,
+- **Keyboard** — an *interactive* table implements the WAI-ARIA APG **Grid** pattern
+  (`role="grid"`, with `aria-multiselectable` for `selectable: 'multi'`), or the **Treegrid**
+  pattern with `hierarchy`. A table is interactive when it is `selectable`, has `editMode` or
+  `hierarchy`, sets `interactive: true`, or has a `rowclick`/`rowdblclick` listener attached through
+  `on()` or an `onrowclick`/`onrowdblclick` option (attaching one later turns the grid on). A host
+  that listens only for the bubbling `zx-rowclick` DOM event passes `interactive: true`. TableView
+  always bridges `rowclick` to `recordclick`, so its table is always a grid. Any other table keeps
+  plain `<table>` semantics, no grid role, no name unless `label` is given, and no row Tab stop.
+  In a grid the rows are one Tab stop with a roving `tabindex`; the row checkboxes and disclosure
+  buttons leave the Tab order because the row keys cover them (links and buttons a host renders
+  in cells keep theirs). Focus is on rows by default and on cells when `editMode` is set —
+  reflected as `data-focus="row"|"cell"` on the root. ArrowUp/ArrowDown move a row,
+  ArrowLeft/ArrowRight a cell (cell focus), Home/End go to the first/last row (cell focus:
+  first/last cell of the row) and Ctrl+Home/End to the first/last row's corner cell,
   PageUp/PageDown move by the rows visible in the scroll region (10 when the table does not scroll
   itself). Enter activates exactly like a click (`rowclick`; selects in `single`), Enter/F2 on an
   editable cell opens its editor, Space toggles the row's selection when `selectable` (activates
   otherwise), Shift+ArrowUp/Down extends a `multi` selection from its anchor, and Ctrl/Cmd+A
-  selects every rendered row. Treegrid: ArrowRight expands a collapsed row, then moves into its
-  first child; ArrowLeft collapses an expanded row, then moves to its parent. With cell focus,
-  ArrowLeft from the first cell lands on the row and ArrowRight from the row goes back to its first
-  cell. The focused row (and column) is kept by id across `setData`, sorting, expansion, growing,
-  and `updateRow`; when the row is gone, its neighbour takes focus. Column headers keep their sort
-  buttons in the Tab order rather than joining arrow navigation — the one deliberate departure from
-  the APG grid, which puts the header row inside it. Rows and cells show an inset
-  `--zx-focus-ring` with a transparent outline that forced colours paint.
-- **Naming** — `label` (default: the `table.label` message, English "Table") or `labelledBy` (an
-  element id) names the grid. Row controls are named after the row's first cell with text through
-  `table.selectRow` (`Select %1`), `table.expandRow`, `table.collapseRow`, and `table.moveRow`;
-  `table.row` (`row %1`) stands in for a row without text, and `table.selectAll` names the header
-  checkbox. Sort buttons and selection checkboxes are at least 24×24 px targets; the checkbox is
-  drawn so the glyph stays `--zx-space-4` while a transparent border makes up the target.
+  selects the rows in the DOM — like the header checkbox, not the rows `growing` holds back nor the
+  children of collapsed branches. A sort, new data, or a change in expansion starts the anchor
+  over. Treegrid: ArrowRight expands a collapsed row, then moves into its first child; ArrowLeft
+  collapses an expanded row, then moves to its parent. With cell focus, ArrowLeft from the first
+  cell lands on the row and ArrowRight from the row goes back to its first cell. The focused row
+  (and column) is kept by id across `setData`, sorting, expansion, growing, and `updateRow`; when
+  a collapsed ancestor hides it, the ancestor takes focus, and when it is gone, its neighbour does.
+  Focus is only restored when the body had it, and without scrolling, so a polling refresh never
+  pulls the page back to the table. An emptied table keeps focus on its frame until rows return.
+  Column headers keep their sort buttons in the Tab order rather than joining arrow navigation —
+  the one deliberate departure from the APG grid, which puts the header row inside it. Rows and
+  cells show an inset `--zx-focus-ring` with a transparent outline that forced colours paint.
+- **Naming** — `label` or `labelledBy` (an element id) names the table; a grid without either is
+  named by the `table.label` message (English "Table"), so pass a real name. Row controls are named
+  after the row's first cell with text through `table.selectRow` (`Select %1`), `table.expandRow`,
+  `table.collapseRow`, and `table.moveRow`; `table.row` (`row %1`) stands in for a row without
+  text, and `table.selectAll` names the header checkbox. Sort buttons and selection checkboxes are
+  at least 24×24 px targets; the checkbox is drawn so the glyph stays `--zx-space-4` while a
+  transparent border makes up the target.
 - **Hierarchy** — flat parent references are projected as an ARIA `treegrid`; `getData()` and all
   editing/mutation APIs stay flat and ID-based. Orphans become roots, cycles render once, local
   sort reorders siblings without mixing levels, and growing counts visible rows. Use
@@ -2054,8 +2080,11 @@ breadcrumb.
   `value`, or `checked` for a checkbox or radio. Disabled: `setDisabled(bool)`, then
   `enable()`/`disable()`, then a `disabled` property; a plain wrapper gets `aria-disabled` and its
   form controls disabled. Read-only: `setReadonly`/`setReadOnly` or the element's `readOnly`. The
-  component's own `change` becomes the field's `change`, once per edit. Removing the field puts
-  the component back and undoes the disabled and read-only state the field set.
+  component's own `change` becomes the field's `change`, once per edit. Writes keep the caller's
+  `silent`: `setValues(values)` lets the component emit its own `change` to its own listeners and
+  the field emit one `change`; `setValues(values, {silent: true})` and `reset()` stay quiet.
+  Removing the field puts the component back, unsubscribes from it, and undoes the disabled and
+  read-only state the field set.
 
 #### Field
 
@@ -3016,7 +3045,8 @@ entry point as the components. See also the Kernel section for `Component`, `h`,
   `rovingTabindex(container, itemSelector, {orientation, wrap, rtl: 'auto'})` → `{focusFirst,
   focusLast, destroy}` keeps one tab stop in a group — horizontal arrows follow `dir="rtl"`, and a
   text field, select, or contenteditable item keeps Home/End and its arrows (an arrow leaves a text
-  field only from the edge of its text); `typeahead(getItems, onMatch)` →
+  field only from the edge of its text); toggling a `<fieldset disabled>` around items inside the
+  container moves the tab stop off them; `typeahead(getItems, onMatch)` →
   `(event|string) => void` resolves buffered printable keystrokes to an item (500 ms buffer,
   repeated-letter cycling).
 <!-- /doc -->

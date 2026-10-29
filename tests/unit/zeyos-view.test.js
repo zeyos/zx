@@ -337,3 +337,15 @@ test('a zeyosView response resolving after destroy() leaves the destroyed view a
   assert.deepEqual(binding.view.data, []);
   assert.equal(binding.view.loading, true, 'loading:false is not written to a destroyed view either');
 });
+
+test('a rejected zeyosView load leaves page size, search, and filters untouched', async () => {
+  const client = fakeClient();
+  const binding = zeyosView(client, 'tickets', FakeView, { fields: ['name'], pageSize: 1, search: 'a', filters: { status: 0 } });
+  await assert.rejects(() => binding.load({ pageSize: 25, search: 'b', filters: 'x' }), TypeError);
+  assert.equal(binding.pageSize, 1);
+  assert.equal(client.calls.length, 0);
+  await binding.load();
+  assert.equal(client.calls.at(-1).query, 'a');
+  assert.deepEqual([client.calls.at(-1).limit, client.calls.at(-1).filters.status], [1, 0]);
+  binding.destroy();
+});

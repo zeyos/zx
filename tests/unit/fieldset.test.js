@@ -29,7 +29,7 @@ test('the adapter knows the four value method pairs, in order', () => {
     ['getValue/setValue', 'get/set', 'getValues/setValues', 'isChecked/setChecked']);
 });
 
-test('get/set components are read and written silently', () => {
+test('get/set components are read and written with the caller\'s silent option', () => {
   const calls = [];
   let value = 3;
   const source = fake({ get: () => value, set(next, options) { calls.push(options); value = next; } });
@@ -37,7 +37,10 @@ test('get/set components are read and written silently', () => {
   assert.equal(readExternalValue(source), 3);
   adapter.set(5, { silent: false });
   assert.equal(adapter.get(), 5);
-  assert.deepEqual(calls, [{ silent: true }], 'the Field reports the change, never the component');
+  adapter.set(6);
+  adapter.set(7, { silent: true });
+  assert.deepEqual(calls, [{ silent: false }, { silent: false }, { silent: true }],
+    'a write is silent only when the caller asks for it');
 });
 
 test('getValue/setValue, getValues/setValues and isChecked/setChecked are each understood', () => {
@@ -215,9 +218,11 @@ test('a component change becomes one field change; the native change it already 
     source.el.append(input);
     const emitted = [];
     let generic = 0;
+    // Field.listen(): every listener is tied to the field's signal, aborted by Field.destroy().
+    const lifetime = new AbortController();
     const field = {
       emit: (type, detail) => emitted.push([type, detail]),
-      listen: (element, type, fn) => element.addEventListener(type, fn)
+      listen: (element, type, fn) => element.addEventListener(type, fn, { signal: lifetime.signal })
     };
     const adapter = externalAdapter(source, /** @type {any} */ (field));
     // What Field registers after the adapter: its own listener for native changes.
@@ -240,8 +245,9 @@ test('a component change becomes one field change; the native change it already 
     source.dispatchEvent(new CustomEvent('change', { detail: { value: 4 } }));
     assert.equal(emitted.length, 2, 'a change after set is a new edit');
     adapter.destroy();
+    lifetime.abort();
     source.dispatchEvent(new CustomEvent('change', { detail: { value: 5 } }));
-    assert.equal(emitted.length, 2, 'destroy unsubscribes from the component');
+    assert.equal(emitted.length, 2, 'destroying the field unsubscribes from the component');
   });
 });
 
@@ -330,8 +336,40 @@ test('an adopted component reports one field change per edit', () => {
     fieldset.setValue('count', 5);
     assert.deepEqual(changes, { count: [2, 5], active: [true] });
     fieldset.destroy();
+    active.toggle();
+    assert.deepEqual(changes.active, [true], 'a released component still reported to the field');
     count.destroy();
     active.destroy();
+  });
+});
+
+test('an adopted Select hears its own change when the fieldset sets it, unless silent', () => {
+  withDocument(() => {
+    const owner = new Select(null, { items: [{ ID: 1, name: 'One' }, { ID: 2, name: 'Two' }, { ID: 3, name: 'Three' }], value: 1 });
+    const own = [];
+    owner.on('change', (event) => own.push(event.detail.value));
+    const fieldset = new Fieldset(null, { fields: { owner } });
+    const field = [];
+    fieldset.getField('owner').on('change', (event) => field.push(event.detail.value));
+
+    fieldset.setValues({ owner: 2 });
+    assert.deepEqual(own, [2], 'the Select\'s own listener missed the write');
+    assert.deepEqual(field, [2], 'one field change per write');
+
+    fieldset.setValues({ owner: 3 }, { silent: true });
+    assert.equal(owner.get(), 3);
+    assert.deepEqual(own, [2], 'a silent write reached the Select\'s listeners');
+    assert.deepEqual(field, [2], 'a silent write emitted a field change');
+
+    fieldset.setValue('owner', 1);
+    assert.deepEqual(own, [2, 1]);
+    assert.deepEqual(field, [2, 1]);
+
+    fieldset.reset();
+    assert.deepEqual(own, [2, 1], 'reset restores silently');
+    assert.equal(owner.get(), 1);
+    fieldset.destroy();
+    owner.destroy();
   });
 });
 

@@ -300,3 +300,18 @@ test('topmostModal answers the topmost registered modal', () => {
   top.release();
   assert.equal(stack.topmostModal(), lower);
 });
+
+test('inside a modal the stack does not know, Escape and presses reach only what lives in it', () => {
+  const { body, host, outside } = page();
+  const dialog = node('dialog', body);
+  const field = node('field', dialog);
+  const inner = node('inner', dialog);
+  const stack = new OverlayStack({ target: null });
+  const log = [];
+  stack.push({ kind: 'popup', root: node('behind', host), onEscape: () => { log.push('behind'); }, onOutsidePointer: () => log.push('behind-press') });
+  stack.push({ kind: 'popup', root: inner, onEscape: () => { log.push('inner'); }, onOutsidePointer: () => log.push('inner-press') });
+  assert.deepEqual(escapeCandidates(stack.entries(), dialog).map((entry) => entry.root.name), ['inner']);
+  assert.deepEqual(escapeCandidates(stack.entries()).map((entry) => entry.root.name), ['inner', 'behind']);
+  assert.deepEqual(outsideTargets(stack.entries(), field, dialog).map((entry) => entry.root.name), ['inner']);
+  assert.deepEqual(outsideTargets(stack.entries(), outside).map((entry) => entry.root.name), ['inner', 'behind']);
+});

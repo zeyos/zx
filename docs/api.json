@@ -10228,10 +10228,16 @@
         "description": "Flat parent references projected as an expandable treegrid. Row data and mutation APIs remain flat."
       },
       {
+        "name": "interactive",
+        "type": "boolean",
+        "default": "false",
+        "description": "Makes the table an APG grid — row focus, Enter firing `rowclick` — even without selection, editing, or hierarchy, which already imply it. Attaching a `rowclick` or `rowdblclick` listener through `on()` or an `on…` option sets it too; pass it when the host listens for the bubbling `zx-rowclick` DOM event instead."
+      },
+      {
         "name": "label",
         "type": "string|null",
         "default": "null",
-        "description": "Accessible name of the grid. A grid must have one; null resolves the `table.label` message (English \"Table\"), so name it after what it lists."
+        "description": "Accessible name of the table. A grid must have one; null resolves the `table.label` message (English \"Table\") for a grid and leaves a plain table unnamed, so name it after what it lists."
       },
       {
         "name": "labelledBy",
@@ -10545,6 +10551,12 @@
         "signature": "getRenderedCount()",
         "returns": "number",
         "description": "How many rows are currently rendered."
+      },
+      {
+        "name": "addEventListener",
+        "signature": "addEventListener(type, listener, [options])",
+        "returns": "void",
+        "description": "Registers a listener, and turns the table into a grid when the listener is for a row click: a host that reacts to the row needs the row reachable by keyboard."
       },
       {
         "name": "isStacked",

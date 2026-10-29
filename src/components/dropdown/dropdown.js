@@ -9,8 +9,8 @@ import { uid } from '../../core/util.js';
 const TABBABLE_SELECTOR = [
   'a[href]', 'button:not([disabled])', 'input:not([disabled]):not([type="hidden"])',
   'select:not([disabled])', 'textarea:not([disabled])', 'iframe', '[contenteditable="true"]',
-  '[tabindex]:not([tabindex="-1"])'
-].join(',');
+  '[tabindex]'
+].map((selector) => `${selector}:not([tabindex^="-"])`).join(',');
 
 /**
  * @typedef {Object} DropdownOptions
@@ -263,14 +263,24 @@ export class Dropdown extends Component {
     if (event.key !== 'Tab' || event.defaultPrevented || !this.#tabReach || !this.isOpen()) return;
     const items = tabbables(this.el);
     const active = document.activeElement;
+    /*
+     * Judged by position, not identity: focus may rest on something Tab itself would never stop
+     * at — a composite's `tabindex="-1"` part, a roving item — and what matters is whether any
+     * real stop is left in the panel on the side Tab is moving to.
+     */
+    const ahead = active && active !== this.el
+      ? items.filter((item) => !item.contains(active) && (event.shiftKey
+        ? Boolean(active.compareDocumentPosition(item) & Node.DOCUMENT_POSITION_PRECEDING)
+        : Boolean(active.compareDocumentPosition(item) & Node.DOCUMENT_POSITION_FOLLOWING)
+          && !active.contains(item)))
+      : (event.shiftKey ? [] : items);
+    if (ahead.length > 0) return;
     if (event.shiftKey) {
-      if (active !== this.el && active !== items[0]) return;
       if (!(this.#anchor instanceof HTMLElement)) return;
       event.preventDefault();
       this.#anchor.focus();
       return;
     }
-    if (items.length > 0 && active !== items[items.length - 1]) return;
     const next = followingTabbable(this.#anchor, this.el);
     if (!next) return;
     event.preventDefault();
@@ -340,11 +350,25 @@ function followingTabbable(anchor, panel) {
   return all[next] ?? null;
 }
 
-/** @param {Element} element @returns {boolean} */
+/**
+ * Whether sequential navigation stops at an element: focusable, a non-negative tab index, not
+ * disabled, hidden, inert or `aria-hidden`, rendered, and — for a radio — the one stop its group
+ * offers (the checked radio, or the first when none is checked).
+ * @param {Element} element
+ * @returns {boolean}
+ */
 function isTabbable(element) {
-  if (typeof (/** @type {HTMLElement} */ (element).focus) !== 'function') return false;
-  if (element.closest('[inert], [hidden]')) return false;
   const html = /** @type {HTMLElement} */ (element);
+  if (typeof html.focus !== 'function' || html.tabIndex < 0) return false;
+  if (/** @type {HTMLButtonElement} */ (html).disabled) return false;
+  if (element.closest('[inert], [hidden], [aria-hidden="true"], fieldset[disabled]')) return false;
+  if (html instanceof HTMLInputElement && html.type === 'radio' && html.name && !html.checked) {
+    const scope = html.form ?? html.getRootNode();
+    const group = /** @type {HTMLInputElement[]} */ (Array.from(
+      /** @type {ParentNode} */ (scope).querySelectorAll?.('input[type="radio"]') ?? []
+    )).filter((radio) => radio.name === html.name && (radio.form ?? radio.getRootNode()) === scope);
+    if (group.some((radio) => radio.checked) || group[0] !== html) return false;
+  }
   if (typeof html.checkVisibility === 'function') return html.checkVisibility({ visibilityProperty: true });
   return html.getClientRects().length > 0;
 }

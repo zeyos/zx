@@ -152,14 +152,21 @@ export function topmostEntry(entries, filter = () => true) {
 /**
  * The entries an Escape may be offered to, in the order they are asked: from the top down, those
  * with an Escape handler, stopping at the first modal (whose Escape is the browser's).
+ *
+ * `within` is the open modal dialog the key was pressed in, when there is one. Everything outside
+ * it is inert, so an entry whose root lies outside it is never offered the key — which keeps a
+ * modal the stack does not know about (a `<dialog>` an application opened with `showModal()`)
+ * from losing its Escape to a popup left open behind it.
  * @param {readonly OverlayEntry[]} entries Registered entries, bottom to top.
+ * @param {Node|null} [within=null] Open modal dialog containing the key's target.
  * @returns {OverlayEntry[]}
  */
-export function escapeCandidates(entries) {
+export function escapeCandidates(entries, within = null) {
   const candidates = [];
   for (let index = entries.length - 1; index >= 0; index -= 1) {
     const entry = entries[index];
     if (entry.kind === 'modal') break;
+    if (within && !containsNode(within, entry.root)) continue;
     if (typeof entry.onEscape === 'function') candidates.push(entry);
   }
   return candidates;
@@ -172,12 +179,13 @@ export function escapeCandidates(entries) {
  * the walk runs from the top down and stops at the first entry whose chain contains the press — it
  * landed on that layer, and the layers beneath are covered by it or own it — or at a modal, below
  * which everything is inert. Every entry passed on the way that handles outside presses is
- * dismissed.
+ * dismissed. As for Escape, a press inside an open modal dialog dismisses nothing outside it.
  * @param {readonly OverlayEntry[]} entries Registered entries, bottom to top.
  * @param {Node|null|undefined} node Press target.
+ * @param {Node|null} [within=null] Open modal dialog containing the press.
  * @returns {OverlayEntry[]}
  */
-export function outsideTargets(entries, node) {
+export function outsideTargets(entries, node, within = null) {
   if (entries.some((entry) => entry.kind === 'toast' && containsNode(entry.root, node))) return [];
   const targets = [];
   for (let index = entries.length - 1; index >= 0; index -= 1) {
@@ -191,6 +199,7 @@ export function outsideTargets(entries, node) {
     if (LEAF_KINDS.has(entry.kind)) continue;
     if (insideChain(entries, entry, node)) break;
     if (entry.kind === 'modal') break;
+    if (within && !containsNode(within, entry.root)) continue;
     if (entry.onOutsidePointer) targets.push(entry);
   }
   return targets;
@@ -326,7 +335,7 @@ export class OverlayStack {
    */
   handleKeydown(event) {
     if (event.key !== 'Escape' || event.defaultPrevented || event.isComposing) return null;
-    for (const entry of escapeCandidates(this.#entries)) {
+    for (const entry of escapeCandidates(this.#entries, modalAround(eventNode(event)))) {
       const handle = this.#handles.get(entry);
       if (!handle || !this.#entries.includes(entry)) continue;
       if (entry.onEscape?.(event, handle) === false) continue;
@@ -343,7 +352,8 @@ export class OverlayStack {
    * @returns {OverlayEntry[]} The entries asked to dismiss, topmost first.
    */
   handlePointerdown(event) {
-    const targets = outsideTargets(this.#entries, eventNode(event));
+    const node = eventNode(event);
+    const targets = outsideTargets(this.#entries, node, modalAround(node));
     for (const entry of targets) {
       const handle = this.#handles.get(entry);
       if (handle && this.#entries.includes(entry)) entry.onOutsidePointer?.(event, handle);
@@ -434,6 +444,24 @@ export function pushOverlay(options) {
 function toList(value) {
   const list = Array.isArray(value) ? value : [value];
   return /** @type {Element[]} */ (list.filter((item, index) => item != null && list.indexOf(item) === index));
+}
+
+/**
+ * The innermost open modal dialog around a node, or null.
+ * @param {Node|null} node
+ * @returns {Element|null}
+ */
+function modalAround(node) {
+  for (let current = /** @type {any} */ (node); current; current = current.parentNode ?? current.host ?? null) {
+    if (current.localName === 'dialog' && typeof current.matches === 'function') {
+      try {
+        if (current.matches(':modal')) return current;
+      } catch {
+        return null;
+      }
+    }
+  }
+  return null;
 }
 
 /** @param {Event} event @returns {Node|null} */

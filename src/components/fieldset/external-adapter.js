@@ -108,6 +108,10 @@ export function readExternalReadonly(source) {
  * form control inside it. Read-only goes through `setReadonly(bool)`/`setReadOnly(bool)`, a
  * `readonly`/`readOnly` property, or the element's own `readOnly`.
  *
+ * Writes pass the caller's options to the component: `Field.setValue(v)` or
+ * `Fieldset.setValues(values)` without `silent` lets the component emit its own `change` to its
+ * own listeners, while the field emits one `change` for the write; with `silent` neither does.
+ *
  * Given the field, a component's own `change` event becomes the field's `change`, and the native
  * `change` its inner controls bubble is dropped unless it carries a value the component did not
  * already report — so one edit is one field `change`, whether the component reports it, its
@@ -116,7 +120,8 @@ export function readExternalReadonly(source) {
  * `destroy()` puts the element back where it was found and undoes what the adapter changed:
  * attributes, the native value, disabled and read-only state.
  * @param {ExternalSource} source Element or component to adopt.
- * @param {Field|null} [field=null] The field the adapter serves; needed to forward events.
+ * @param {Field|null} [field=null] The field the adapter serves; needed to forward events. Its
+ *   `listen()` owns every listener the adapter adds, so destroying the field removes them.
  * @returns {FieldAdapter}
  */
 export function externalAdapter(source, field = null) {
@@ -141,15 +146,14 @@ export function externalAdapter(source, field = null) {
   let setting = false;
   let reported = value.get();
 
-  /** @type {((event: Event) => void)|null} */
-  let onComponentChange = null;
   if (field && component && typeof component.addEventListener === 'function') {
-    onComponentChange = () => {
+    // Through the field's `listen()`, so destroying the field unsubscribes. A write through
+    // `set()` is not forwarded: the Field reports that one itself.
+    field.listen(/** @type {any} */ (component), 'change', () => {
       if (setting) return;
       reported = value.get();
       field.emit('change', { value: reported });
-    };
-    component.addEventListener('change', onComponentChange);
+    });
     // Registered before the Field's own `change` listener on the same element, so a native
     // change the component already reported never reaches it.
     field.listen(el, 'change', (event) => {
@@ -178,7 +182,6 @@ export function externalAdapter(source, field = null) {
       disabled(lastDisabled);
     },
     destroy: () => {
-      if (onComponentChange) component?.removeEventListener('change', onComponentChange);
       if (lastReadonly !== originalReadonly && readonly) readonly(originalReadonly);
       if (lastDisabled !== originalDisabled) disabled(originalDisabled);
       for (const [control, state] of poked) {
@@ -225,9 +228,10 @@ function valueAccess(source, el) {
     if (pair) {
       return {
         get: () => component[pair[0]](),
-        set: (next) => {
-          // The Field reports the change itself, so the component never does.
-          if (writer) component[writer](next, { silent: true });
+        // The caller's options pass through: a write that is not silent reaches the component's
+        // own `change` listeners too, and the adapter does not forward it a second time.
+        set: (next, options = {}) => {
+          if (writer) component[writer](next, { ...options, silent: Boolean(options.silent) });
         }
       };
     }
