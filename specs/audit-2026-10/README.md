@@ -19,24 +19,30 @@ allowlist. Working-tree line numbers were taken on branch `feat/record-collectio
 
 These are bugs, not style. All are non-breaking to fix.
 
+**Status, 2026-10-29:** all sixteen are fixed on `feat/record-collection-layout` in the commits
+`fix(styles)`, `fix(i18n)`, `fix(field, fieldset)`, `fix(table)`, `fix(overlays)` and
+`fix(views, lists, filter, zeyos)`, each with unit and smoke tests. Two consequences for
+consumers: every Table is now `role="grid"` with one Tab stop for its rows, and the ZeyOS
+bindings throw on an invalid page or page size where they used to clamp.
+
 | # | Defect | Where | Status |
 | --- | --- | --- | --- |
-| 1 | **[verified]** Menus, dropdowns, context menus, rail flyouts and toasts are inert while a modal Dialog or Sheet is open: `overlayHost()` parks their panels outside the open `<dialog>`. | `core/overlay-host.js`, every anchored overlay | high |
-| 2 | **[verified]** A non-modal Sheet closes itself when an item is chosen in a menu opened inside it; Escape closes the sheet and strands its open dropdown. No overlay stack exists. | `sheet.js`, `dropdown.js`, `menu-button.js` | high |
-| 3 | **[verified]** Raw message keys reach the screen without a translator: `table.empty`, `dataFilter.clear`, `dataFilter.all`. The library ships no default English catalogue; each component carries its own `_message()` fallback helper (15 copies, 4 signatures) or none. | `table.js`, `card-view.js`, `data-filter.js` | high |
-| 4 | **[verified]** Table rows are never focusable: `rowclick`, `recordclick` and single selection are mouse-only; `hierarchy` sets `role="treegrid"` without its keyboard model. | `table.js` | high |
-| 5 | **[verified]** Geometry tokens (`--zx-control-height` and friends) are declared inside the light-theme block, so a nested light region resets an application's override while a dark one keeps it. | `styles/tokens/*.css` | high |
-| 6 | Keyboard focus is invisible in forced-colors mode: `base.css` keeps a transparent outline on purpose, then 22+ component rules set `outline: 0` and rely on a box-shadow that forced colors removes. | `styles/base.css`, overlays and navigation CSS | high |
-| 7 | `AccountMenu.toggle()` throws: it calls `MenuButton.toggle()`, which does not exist. | `account-menu.js:109` | medium |
-| 8 | `Fieldset.addField(id, component)` only understands `getValue/setValue/setDisabled`, so NumberField, Select, Slider, Rating, Datebox and Timebox read back `null` and are never disabled. | `fieldset.js:275-330` | medium |
-| 9 | `Field` emits `change` twice for `slider` and `code` types; `code` also emits on every keystroke. | `field.js:178`, adapters | medium |
-| 10 | **[verified]** `KanbanView` ignores `fieldControls.target`; `ListToolbar.bind(tableView)` mounts no field chooser although its demo says so, and reads a private field. | `kanban-view.js`, `list-toolbar.js` | medium |
-| 11 | **[verified]** Focus drops to `<body>` after moving a field in the RecordView chooser and after every `FileList.updateItem` (each upload progress tick). | `record-view.js`, `file-list.js` | medium |
-| 12 | **[verified]** Filter's `withinLast` / `withinNext` operators render two date pickers; neither can be filled in. | `filter.js` | medium |
-| 13 | **[verified]** Toolbar's roving tabindex steals ArrowLeft/Right/Home/End from text inputs inside it; a generic Dropdown panel cannot be reached with Tab. | `core/keyboard.js`, `dropdown.js` | medium |
-| 14 | `Pagination`'s JSDoc claims it matches `zeyosTable()`; the bindings are zero-based with 50 per page and append, the pager one-based with 25 and replace. `zeyosTable` has no guard against a load resolving after `destroy()`. | `pagination.js`, `zeyos/table.js`, `zeyos/view.js` | medium |
-| 15 | ZeyOS filter date serialisation ignores the instance `timeZone` that forms and tables honour. | `filter-panel.js`, `zeyos/query.js` | medium |
-| 16 | A tier-1 token (`--zx-shadow-1`) in `kanban-view.css:191` passes the lint, which also skips `icons.css`, `--zx-accent-*`, `oklch()` and JS-set properties. | `tests/lint-tokens.js` | low |
+| 1 | **[verified]** Menus, dropdowns, context menus, rail flyouts and toasts are inert while a modal Dialog or Sheet is open: `overlayHost()` parks their panels outside the open `<dialog>`. | `core/overlay-host.js`, every anchored overlay | fixed (high) |
+| 2 | **[verified]** A non-modal Sheet closes itself when an item is chosen in a menu opened inside it; Escape closes the sheet and strands its open dropdown. No overlay stack exists. | `sheet.js`, `dropdown.js`, `menu-button.js` | fixed (high) |
+| 3 | **[verified]** Raw message keys reach the screen without a translator: `table.empty`, `dataFilter.clear`, `dataFilter.all`. The library ships no default English catalogue; each component carries its own `_message()` fallback helper (15 copies, 4 signatures) or none. | `table.js`, `card-view.js`, `data-filter.js` | fixed (high) |
+| 4 | **[verified]** Table rows are never focusable: `rowclick`, `recordclick` and single selection are mouse-only; `hierarchy` sets `role="treegrid"` without its keyboard model. | `table.js` | fixed (high) |
+| 5 | **[verified]** Geometry tokens (`--zx-control-height` and friends) are declared inside the light-theme block, so a nested light region resets an application's override while a dark one keeps it. | `styles/tokens/*.css` | fixed (high) |
+| 6 | Keyboard focus is invisible in forced-colors mode: `base.css` keeps a transparent outline on purpose, then 22+ component rules set `outline: 0` and rely on a box-shadow that forced colors removes. | `styles/base.css`, overlays and navigation CSS | fixed (high) |
+| 7 | `AccountMenu.toggle()` throws: it calls `MenuButton.toggle()`, which does not exist. | `account-menu.js:109` | fixed (medium) |
+| 8 | `Fieldset.addField(id, component)` only understands `getValue/setValue/setDisabled`, so NumberField, Select, Slider, Rating, Datebox and Timebox read back `null` and are never disabled. | `fieldset.js:275-330` | fixed (medium) |
+| 9 | `Field` emits `change` twice for `slider` and `code` types; `code` also emits on every keystroke. | `field.js:178`, adapters | fixed (medium) |
+| 10 | **[verified]** `KanbanView` ignores `fieldControls.target`; `ListToolbar.bind(tableView)` mounts no field chooser although its demo says so, and reads a private field. | `kanban-view.js`, `list-toolbar.js` | fixed (medium) |
+| 11 | **[verified]** Focus drops to `<body>` after moving a field in the RecordView chooser and after every `FileList.updateItem` (each upload progress tick). | `record-view.js`, `file-list.js` | fixed (medium) |
+| 12 | **[verified]** Filter's `withinLast` / `withinNext` operators render two date pickers; neither can be filled in. | `filter.js` | fixed (medium) |
+| 13 | **[verified]** Toolbar's roving tabindex steals ArrowLeft/Right/Home/End from text inputs inside it; a generic Dropdown panel cannot be reached with Tab. | `core/keyboard.js`, `dropdown.js` | fixed (medium) |
+| 14 | `Pagination`'s JSDoc claims it matches `zeyosTable()`; the bindings are zero-based with 50 per page and append, the pager one-based with 25 and replace. `zeyosTable` has no guard against a load resolving after `destroy()`. | `pagination.js`, `zeyos/table.js`, `zeyos/view.js` | fixed (medium) |
+| 15 | ZeyOS filter date serialisation ignores the instance `timeZone` that forms and tables honour. | `filter-panel.js`, `zeyos/query.js` | fixed (medium) |
+| 16 | A tier-1 token (`--zx-shadow-1`) in `kanban-view.css:191` passes the lint, which also skips `icons.css`, `--zx-accent-*`, `oklch()` and JS-set properties. | `tests/lint-tokens.js` | fixed (low) |
 
 ## Cross-cutting themes
 
