@@ -1914,12 +1914,41 @@
         "type": "string|null",
         "default": "null",
         "description": "Accessible collection label; null resolves message `cardView.label`, \"Card view\"."
+      },
+      {
+        "name": "keyboard",
+        "type": "'tabs'|'roving'",
+        "default": "'tabs'",
+        "description": "Keyboard model. `'tabs'` makes every card, title link, checkbox, and action its own Tab stop. `'roving'` — recommended for lists — follows the APG Grid pattern with row focus: the collection is one Tab stop, the arrow keys, Home/End, and PageUp/PageDown move between cards, Enter activates, Space selects, and the controls inside a card stay pointer targets with `tabindex=\"-1\"`."
+      },
+      {
+        "name": "collapsibleGroups",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether group headings carry a toggle that hides and shows the group's cards."
+      },
+      {
+        "name": "collapsedGroups",
+        "type": "unknown[]",
+        "default": "[]",
+        "description": "Group ids that start collapsed."
+      },
+      {
+        "name": "renderGroupHeading",
+        "type": "((context:CardGroupHeadingContext)=>Node|string|null|undefined)|null",
+        "default": "null",
+        "description": "Content of a group heading in place of its label. With `collapsibleGroups` it is placed inside the toggle button, so it must not contain interactive elements."
       }
     ],
     "events": [
       {
         "name": "recordaction",
         "payload": "Record<string,unknown>",
+        "description": ""
+      },
+      {
+        "name": "groupcollapse",
+        "payload": "{id:string,collapsed:boolean,collapsedGroups:string[]}",
         "description": ""
       }
     ],
@@ -1935,6 +1964,18 @@
         "signature": "setViewState(state, [options])",
         "returns": "this",
         "description": "Restores shared and CardView configuration. Unknown shared fields reconcile in RecordView."
+      },
+      {
+        "name": "setGroupCollapsed",
+        "signature": "setGroupCollapsed(id, [collapsed], [options])",
+        "returns": "this",
+        "description": "Collapses or expands one group. A collapsed group keeps its heading and hides its cards."
+      },
+      {
+        "name": "getCollapsedGroups",
+        "signature": "getCollapsedGroups()",
+        "returns": "string[]",
+        "description": "Returns the collapsed group ids."
       },
       {
         "name": "destroy",

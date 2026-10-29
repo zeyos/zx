@@ -1482,6 +1482,83 @@ const cases = [
     const rejectedPreview = component.el.querySelector('.zx-record-card__preview[data-failed="true"]');
     assert(rejectedPreview, 'CardView did not render a safe fallback for an unsafe preview');
   }),
+  componentCase('CardView (roving keyboard)', () => new zx.CardView(null, {
+    fields: [{ id: 'name', label: 'Name' }],
+    data: ['One', 'Two', 'Three', 'Four', 'Five'].map((name, index) => ({ ID: index + 1, name })),
+    titleField: 'name', selectable: 'multi', keyboard: 'roving', fieldControls: false, maxColumns: 1,
+    link: () => '#record', actions: [{ id: 'open', label: 'Open' }]
+  }), (component) => {
+    const root = component.el;
+    const content = root.querySelector('.zx-card-view__content');
+    const grid = root.querySelector('[role="grid"]');
+    assert(grid && grid.getAttribute('aria-multiselectable') === 'true', 'roving collection is not a multiselectable grid');
+    const tabStops = [...content.querySelectorAll('a[href],button,input,[tabindex]')].filter((element) => element.tabIndex >= 0);
+    assert(tabStops.length === 1, `roving collection has ${tabStops.length} Tab stops instead of one`);
+    const cards = () => [...root.querySelectorAll('.zx-record-card')];
+    assert(cards().every((card) => card.getAttribute('role') === 'row' && card.getAttribute('aria-selected') === 'false'),
+      'cards are not unselected grid rows');
+    const key = (name, extra = {}) => document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {
+      key: name, bubbles: true, cancelable: true, ...extra
+    }));
+    cards()[0].focus();
+    key('ArrowDown');
+    assert(document.activeElement === cards()[1], 'ArrowDown did not move to the next card');
+    assert(cards()[1].tabIndex === 0 && cards()[0].tabIndex === -1, 'the Tab stop did not follow focus');
+    key('End');
+    assert(document.activeElement === cards()[4], 'End did not reach the last card');
+    key('Home');
+    assert(document.activeElement === cards()[0], 'Home did not reach the first card');
+    const clicks = observe(component, 'recordclick');
+    key('Enter');
+    clicks.expect();
+    key(' ');
+    assert(component.getSelectionIds().join() === '1' && cards()[0].getAttribute('aria-selected') === 'true',
+      'Space did not select the focused card');
+    key('ArrowDown', { shiftKey: true });
+    assert(component.getSelectionIds().length === 2, 'Shift+ArrowDown did not extend the selection');
+    key('a', { ctrlKey: true });
+    assert(component.getSelectionIds().length === 5, 'Ctrl+A did not select every card');
+    // The current card survives a re-render by record id.
+    component.setData([...component.getData()].reverse());
+    assert(document.activeElement?.textContent.includes('Two') && document.activeElement.getAttribute('role') === 'row',
+      'focus did not stay on the same record after setData');
+  }),
+  componentCase('CardView (collapsible groups)', () => new zx.CardView(null, {
+    fields: [{ id: 'name', label: 'Name' }, { id: 'status', label: 'Status' }],
+    data: [{ ID: 1, name: 'Alpha', status: 'open' }, { ID: 2, name: 'Beta', status: 'open' }, { ID: 3, name: 'Gamma', status: 'won' }],
+    titleField: 'name', groupBy: 'status', collapsibleGroups: true, collapsedGroups: ['won'], keyboard: 'roving',
+    fieldControls: false, renderGroupHeading: ({ label, count }) => `${label} · ${count}`
+  }), (component) => {
+    const root = component.el;
+    const toggles = () => [...root.querySelectorAll('[data-group-toggle]')];
+    assert(toggles().length === 2, 'collapsible groups did not render toggles');
+    const won = toggles()[1];
+    const wonList = document.getElementById(won.getAttribute('aria-controls'));
+    assert(won.getAttribute('aria-expanded') === 'false' && wonList?.hidden && !wonList.querySelector('.zx-record-card'),
+      'an initially collapsed group shows its cards');
+    assert(won.textContent.includes('won · 1'), 'renderGroupHeading content missing');
+    const events = observe(component, 'groupcollapse');
+    toggles()[0].click();
+    events.expect();
+    assert(component.getCollapsedGroups().includes('open') && !root.querySelector('.zx-record-card'),
+      'clicking a toggle did not collapse its group');
+    assert(component.getViewState().collapsedGroups.length === 2, 'collapsed groups are not in the view state');
+    const key = (name) => document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: name, bubbles: true, cancelable: true }));
+    const headers = () => [...root.querySelectorAll('[data-card-item="group"]')];
+    assert(headers().length === 2, 'collapsed headings left the roving order');
+    headers()[0].focus();
+    key('Enter');
+    assert(!component.getCollapsedGroups().includes('open'), 'Enter on a heading did not expand it');
+    assert(document.activeElement?.dataset.cardItem === 'group' && document.activeElement.textContent.includes('open'),
+      'focus did not stay on the heading after toggling');
+    key('ArrowDown');
+    assert(document.activeElement?.textContent.includes('Alpha'), 'ArrowDown from a heading did not reach its first card');
+    component.setGroupCollapsed('open', true);
+    assert(document.activeElement?.dataset.cardItem === 'group' && document.activeElement.textContent.includes('open'),
+      'collapsing the focused card\'s group did not move focus to its heading');
+    component.setViewState({ collapsedGroups: [] });
+    assert(root.querySelectorAll('.zx-record-card').length === 3, 'restoring an empty collapse state did not expand');
+  }),
   componentCase('KanbanView', () => new zx.KanbanView(null, {
     fields: recordViewFields(),
     data: recordViewData(),

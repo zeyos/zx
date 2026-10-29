@@ -1700,8 +1700,13 @@ portable state as TableView and KanbanView.
 
 - **Options** — the shared RecordView options plus `titleField`, `subtitleField`, `preview`,
   `previewAlt`, `link`, `actions`, `groupBy`, `groupOrder`, `minCardWidth`, `maxColumns`,
-  `variant: 'outlined'|'raised'|'filled'`, `loadingCount`, `headingLevel`, and `label` (null
-  resolves message `cardView.label`, "Card view").
+  `variant: 'outlined'|'raised'|'filled'`, `loadingCount`, `headingLevel`, `label` (null
+  resolves message `cardView.label`, "Card view"), `keyboard: 'tabs'|'roving'` (default `'tabs'`),
+  `collapsibleGroups`, `collapsedGroups`, and `renderGroupHeading`.
+- **Methods** — the shared RecordView methods plus `setGroupCollapsed(id, collapsed, {silent})` and
+  `getCollapsedGroups()`. **Events** — the shared set plus `recordaction` and
+  `groupcollapse {id, collapsed, collapsedGroups}` (also a `statechange` with reason
+  `'groupcollapse'`). The view state carries `collapsedGroups`.
 - **Messages** — `cardView.label`, `cardView.sort`, `cardView.sortCards`, `cardView.unsorted`,
   `cardView.sortAscending`/`cardView.sortDescending` (`%1` the field), `cardView.ungrouped`
   ("Ungrouped"), `cardView.groupEmpty` ("No records in this group."), `table.empty` for the empty
@@ -1728,6 +1733,29 @@ portable state as TableView and KanbanView.
   a stable fallback. Title/action links are normalized; `_blank` links receive `noopener`.
 - **Grouping and layout** — `groupBy` is a field ID or callback; `groupOrder` may deliberately show
   empty groups. Cards reflow through container queries and may cap columns without viewport logic.
+- **Keyboard model** — `keyboard: 'roving'` is the recommended setting for lists; `'tabs'` stays the
+  default for compatibility, and makes every card, title link, checkbox, and action its own Tab
+  stop (44 stops for 22 selectable cards). `'roving'` follows the WAI-ARIA APG **Grid** pattern with
+  row focus, the same model as `Table`: the content is `role="grid"` (`aria-multiselectable` for
+  `multi`), each card a `row` with `aria-selected` when selectable, and the collection is one Tab
+  stop. Grid rather than listbox because a card holds a link and buttons, which a listbox option
+  would flatten. ArrowUp/ArrowDown move to the card above or below — columns are measured from the
+  rendered positions, and the column you travel in is remembered — ArrowLeft/ArrowRight within a
+  row, Home/End to the first or last card, PageUp/PageDown by a visible page. Enter activates
+  (`recordclick`), Space toggles selection in `selectable` modes (activates otherwise),
+  Shift+movement extends a `multi` selection, Ctrl/Cmd+A selects every rendered card. Title links,
+  checkboxes, and actions get `tabindex="-1"`: they still work with the pointer, and Enter on the
+  card is the keyboard route. The current card is kept by record id across `setData`, sorting,
+  grouping, and collapsing, and focus is restored with `preventScroll`. Focus shows as an inset
+  `--zx-focus-ring` with a transparent outline for forced-colors mode.
+- **Group headings** — `renderGroupHeading({id, label, count, records, collapsed, toggle})` returns
+  the heading content in place of the label. `collapsibleGroups: true` makes each heading an APG
+  disclosure: a button with `aria-expanded` and `aria-controls` pointing at the group's list, which
+  holds the label (and so the custom content, which must then not contain interactive elements).
+  A collapsed group keeps its heading and renders no cards; `collapsedGroups` sets the initial
+  ones. In the roving model a collapsible heading is a row in the arrow-key order: Enter or Space
+  toggles it, ArrowLeft collapses, ArrowRight expands, and collapsing the group of the focused card
+  moves focus to its heading.
 - **Interaction** — By default Enter activates a focused card; Space toggles selection. With
   `selectionTrigger:'card'`, Enter also toggles selection. Links, actions,
   selection controls, and selected text do not also activate the card. `recordaction` adds the
