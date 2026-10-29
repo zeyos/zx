@@ -1,15 +1,16 @@
 import {
-  ActivityList, Avatar, Breadcrumb, Datebox, Dialog, Dropdown, FileList,
-  FilterPanel, Form, InlineLoading, KanbanView, Launcher, ListToolbar, MenuButton, NumberField,
-  ProgressBar, Select, Sheet, SortControl, StatTile, Tabbox, TableView, TagPicker, badge, button,
+  ActivityList, Avatar, Breadcrumb, CardView, Datebox, Dialog, FileList, Form, InlineLoading, KanbanView,
+  Launcher, MenuButton, NumberField, ProgressBar, Select, StatTile, Tabbox, TableView, TagPicker, badge, button,
   downloadBlob, emptyState, formatCurrency, formatDate, formatNumber, formatRelativeTime, h, icon,
-  parseNumber, stack, toCsv
+  parseNumber, toCsv
 } from '../../src/index.js';
 import {
   DATE, adaptiveShell, disposer, iconButton, iconTile, layoutContext, later, listTime, paneHeader, panelBlock,
   propList, renderScope, shortcuts, suiteNav, toaster, unavailable
 } from './kit.js';
 import { COMPANIES, ME, NOW, PEOPLE, TODAY, person } from './fixtures.js';
+import { columnHeader, createOverview } from './overview.js';
+import { filterExpression, nodeMatches } from './overview-filters.js';
 
 /** The kinds of record, each recognised by its tinted tile in the navigation and on its page. */
 const RECORD_TYPES = {
@@ -325,6 +326,56 @@ function staffOptions() {
 }
 
 /**
+ * The value a record without one groups, filters, and lays out on the board under — an owner
+ * nobody holds, a company without a tier — so that no record drops out of a grouping.
+ */
+const NONE = 'none';
+
+/**
+ * @param {string} [label]
+ * @returns {import('./overview.js').OverviewGroupAxis} Every member of staff, then Unassigned: the
+ *   owners as a grouping, and as board columns or lanes.
+ */
+function ownerAxis(label = 'Owner') {
+  return { label, buckets: [...PEOPLE.map((member) => ({ id: member.id, label: member.name })), { id: NONE, label: 'Unassigned' }] };
+}
+
+/**
+ * @param {string} label Field name on the chip.
+ * @returns {import('./overview.js').OverviewFilterField} The owner as the filter tests it — any
+ *   member of staff, or nobody; a chip lists first names.
+ */
+function ownerFilter(label) {
+  return {
+    id: 'owner', label, type: 'enum', icon: 'circle-user', operators: ['anyOf', 'noneOf', 'eq', 'neq'], defaultOperator: 'anyOf',
+    choices: [
+      ...PEOPLE.map((member) => ({ value: member.id, label: member.name, short: member.name.split(' ')[0] })),
+      { value: NONE, label: 'Unassigned' }
+    ]
+  };
+}
+
+/**
+ * @param {{value: string, label: string}[]} stages
+ * @returns {import('./overview.js').OverviewFilterField} A stage as the filter tests it.
+ */
+function stageFilter(stages) {
+  return { id: 'stage', label: 'Stage', type: 'enum', icon: 'circle-half-stroke', operators: ['eq', 'neq', 'anyOf', 'noneOf'], choices: stages };
+}
+
+/**
+ * @param {string} id A whole-euro field.
+ * @param {string} label
+ * @returns {import('./overview.js').OverviewFilterField} An amount as the filter tests it.
+ */
+function amountFilter(id, label) {
+  return {
+    id, label, type: 'money', icon: 'euro-sign', operators: ['gte', 'lte', 'between'],
+    input: { unit: '€', min: 0, step: 1000, group: true }
+  };
+}
+
+/**
  * Table settings for a whole-euro amount, edited as plain text so the editor fits a narrow cell.
  * @param {string} width
  * @returns {Record<string, unknown>}
@@ -336,25 +387,6 @@ function amountColumn(width) {
     parse: (raw) => parseNumber(raw) ?? 0,
     validate: (value) => value >= 0 || 'Enter an amount in euros.'
   };
-}
-
-/**
- * Keeps records whose values satisfy a `FilterPanel` value: option lists, ranges, and text.
- * @param {Record<string, any>} record
- * @param {Record<string, any>} filters
- * @returns {boolean}
- */
-function matchesFilters(record, filters) {
-  return Object.entries(filters).every(([key, wanted]) => {
-    const actual = record[key];
-    if (Array.isArray(wanted)) {
-      return Array.isArray(actual) ? actual.some((value) => wanted.includes(value)) : wanted.includes(actual);
-    }
-    if (wanted && typeof wanted === 'object') {
-      return (wanted.from == null || actual >= wanted.from) && (wanted.to == null || actual <= wanted.to);
-    }
-    return String(actual ?? '').toLowerCase().includes(String(wanted).toLowerCase());
-  });
 }
 
 /**
@@ -380,9 +412,9 @@ export default {
   category: 'Sales',
   blurb: 'Companies in an editable spreadsheet with saved views, live record pages, and deals on a board by stage.',
   components: [
-    'TableView', 'KanbanView', 'FilterPanel', 'ListToolbar', 'SortControl', 'Tabbox', 'Select',
-    'TagPicker', 'NumberField', 'Datebox', 'ActivityList', 'StatTile', 'FileList', 'Form', 'Avatar',
-    'Launcher', 'MenuButton', 'Dropdown', 'Sheet', 'Dialog', 'InlineLoading', 'ProgressBar',
+    'TableView', 'CardView', 'KanbanView', 'ListToolbar', 'Filter', 'ViewSettings', 'Pagination', 'SortControl',
+    'Tabbox', 'Select', 'TagPicker', 'NumberField', 'Datebox', 'ActivityList', 'StatTile', 'FileList', 'Form',
+    'Avatar', 'Launcher', 'MenuButton', 'Dropdown', 'Sheet', 'Dialog', 'InlineLoading', 'ProgressBar',
     'Breadcrumb', 'Message', 'AppSidebar', 'ModuleBar', 'AccountMenu'
   ],
 
@@ -411,7 +443,7 @@ export default {
     // The suite's navigation: CRM's own menu beside every other module of the suite.
     const nav = suiteNav(context, { module: 'crm', menu: menuItems(), active: route.id, onsearch: () => openLauncher() });
 
-    const main = h('section', { class: 'shell__main', ariaLabel: 'Workspace' });
+    const main = h('section', { class: 'shell__main crm__main', ariaLabel: 'Workspace' });
     const aside = h('aside', { class: 'shell__aside shell__aside--wide', ariaLabel: 'Record details', hidden: true });
     const root = h('div', { class: 'crm shell' }, nav.column, main, aside);
     // Narrow, the navigation and a company's details become drawers; every page's header carries
@@ -577,9 +609,11 @@ export default {
     /* ------------------------------------------------------------- collections -- */
 
     /**
-     * Describes a record collection: its fields, saved views, filters, the total its footer sums,
-     * and how it draws as a board — `card` lists the icon, label, and value of each line on a card,
-     * and a line without a value is left out.
+     * Describes a record collection: its fields, saved views, what the filter can test and the
+     * records group by, the shapes it offers, the total it sums, and how it draws as cards and as
+     * a board. A field's `text` is how it reads in plain words (search, CSV, a board card where
+     * its cell is a link, which `link` marks); a board card shows every field View settings shows
+     * there, `lines` overriding how one reads.
      * @param {string} id
      * @returns {Record<string, any>|null}
      */
@@ -587,17 +621,24 @@ export default {
       const companyLink = (entry) => (entry ? h('span', { class: 'crm__company' }, logo(viewParts, entry),
         h('button', { type: 'button', class: 'crm__record-link', onclick: () => openCompany(entry.ID) }, entry.name)) : '—');
       const owner = {
-        id: 'owner', label: 'Owner', glyph: 'circle-user', sortable: true, render: (record) => ownerPill(viewParts, record.owner),
+        id: 'owner', label: 'Owner', type: 'entity', glyph: 'circle-user', sortable: true, render: (record) => ownerPill(viewParts, record.owner),
+        text: (record) => person(record.owner)?.name ?? '',
         sortValue: (record) => person(record.owner)?.name ?? '', view: { table: { width: '136px', editable: 'select', options: staffOptions() } }
       };
       const last = {
-        id: 'last', label: 'Last contact', glyph: 'clock-regular', sortable: true, render: (record) => ago(record.last),
+        id: 'last', label: 'Last contact', type: 'datetime', glyph: 'clock-regular', sortable: true, render: (record) => ago(record.last),
         view: { table: { width: '120px' } }
       };
-      const arrLine = (record) => ['euro-sign', 'ARR', record.arr ? money(record.arr) : null];
+      // On a card a company without ARR leaves the line out rather than showing a dash.
+      const arrLine = (record) => (record.arr ? money(record.arr) : null);
       const readOnly = (field) => ({ ...field, view: { table: { ...field.view.table, editable: false } } });
-      const byId = (records) => (recordId, changes) => Object.assign(records().find((entry) => entry.ID === recordId), changes);
-      const removeFrom = (key) => (ids) => { store[key] = store[key].filter((entry) => !ids.includes(entry.ID)); };
+      // Membership ids are numbers and the views hand ids back as text, so ids compare as text.
+      const same = (entry, recordId) => String(entry.ID) === String(recordId);
+      const byId = (records) => (recordId, changes) => Object.assign(records().find((entry) => same(entry, recordId)) ?? {}, changes);
+      const removeFrom = (key) => (ids) => { store[key] = store[key].filter((entry) => !ids.some((recordId) => same(entry, recordId))); };
+      const statusAxis = (entries) => ({
+        label: 'Stage', buckets: entries.map(({ id: bucket, label, tone = null }) => ({ id: bucket, label, tone }))
+      });
 
       if (id === 'companies') {
         return {
@@ -613,15 +654,23 @@ export default {
               sort: { id: 'last', dir: 'desc' }
             }
           ],
-          hidden: ['stage'],
+          // A company is a natural card — its logo tile, its name, and a few facts — so the
+          // spreadsheet comes with cards and with the pipeline board by stage.
+          shapes: ['table', 'cards', 'board'],
+          sort: { id: 'name', dir: 'asc' },
+          visible: {
+            table: ['name', 'domain', 'tier', 'categories', 'team', 'strength', 'arr', 'last', 'owner'],
+            cards: ['stage', 'tier', 'arr', 'owner'],
+            board: ['arr', 'tier', 'owner']
+          },
           fields: [
             {
-              id: 'name', label: 'Company', glyph: 'building', sortable: true,
+              id: 'name', label: 'Company', type: 'text', locked: true, glyph: 'building', sortable: true, link: true,
               render: companyLink,
               view: { table: { width: '184px', popin: false } }
             },
             {
-              id: 'domain', label: 'Domain', glyph: 'globe', sortable: true,
+              id: 'domain', label: 'Domain', type: 'url', groupable: false, glyph: 'globe', sortable: true,
               view: {
                 table: {
                   width: '154px', editable: 'text',
@@ -630,48 +679,68 @@ export default {
               }
             },
             {
-              id: 'tier', label: 'Tier', glyph: 'layer-group', sortable: true,
+              id: 'tier', label: 'Tier', type: 'select', glyph: 'layer-group', sortable: true,
+              render: (record) => (record.tier && record.tier !== NONE ? record.tier : '—'),
+              text: (record) => (record.tier && record.tier !== NONE ? record.tier : ''),
               sortValue: (record) => TIERS.indexOf(record.tier),
               view: { table: { width: '100px', editable: 'select', options: choices(TIERS) } }
             },
             {
-              id: 'categories', label: 'Categories', glyph: 'tags',
+              id: 'categories', label: 'Categories', type: 'tags', glyph: 'tags', text: (record) => record.categories.join(', '),
               render: (record) => chips(record.categories, { limit: 1 }),
               view: { table: { width: '130px', editor: categoryEditor } }
             },
             {
-              id: 'stage', label: 'Stage', glyph: 'circle-half-stroke', sortable: true, render: (record) => stageBadge(record.stage),
+              id: 'stage', label: 'Stage', type: 'status', glyph: 'circle-half-stroke', sortable: true, render: (record) => stageBadge(record.stage),
+              text: (record) => STAGES.find((stage) => stage.ID === record.stage)?.name ?? '',
               sortValue: (record) => STAGES.findIndex((stage) => stage.ID === record.stage),
               view: { table: { width: '130px', editable: 'select', options: choices(STAGES) } }
             },
             {
-              id: 'team', label: 'Team', glyph: 'user-group',
+              id: 'team', label: 'Team', type: 'entity', groupable: false, glyph: 'user-group',
+              text: (record) => record.team.map((member) => person(member)?.name ?? member).join(', '),
               render: (record) => avatarStack(viewParts, record.team),
               view: { table: { width: '84px' } }
             },
             {
-              id: 'strength', label: 'Connection', glyph: 'signal', sortable: true, render: (record) => strengthMeter(record.strength),
+              id: 'strength', label: 'Connection', type: 'rating', glyph: 'signal', sortable: true, render: (record) => strengthMeter(record.strength),
+              text: (record) => STRENGTH[record.strength - 1] ?? '',
               view: { table: { width: '120px', editable: 'select', options: STRENGTH.map((label, index) => ({ value: index + 1, label })) } }
             },
             {
-              id: 'arr', label: 'ARR', glyph: 'euro-sign', sortable: true,
+              id: 'arr', label: 'ARR', type: 'money', glyph: 'euro-sign', sortable: true,
               render: (record) => (record.arr ? money(record.arr) : '—'),
               view: { table: amountColumn('92px') }
             },
             last,
             owner
           ],
-          filters: {
-            stage: { type: 'select', label: 'Stage', options: choices(STAGES) },
-            owner: { type: 'select', label: 'Owner', options: staffOptions() },
-            tier: { type: 'select', label: 'Tier', options: TIERS },
-            categories: { type: 'select', label: 'Categories', options: Object.keys(CATEGORIES) },
-            arr: { type: 'float:range', label: 'ARR (€)', min: 0 }
+          filterFields: [
+            stageFilter(choices(STAGES)),
+            ownerFilter('Owner'),
+            {
+              id: 'tier', label: 'Tier', type: 'enum', icon: 'layer-group', operators: ['eq', 'neq', 'anyOf', 'noneOf'],
+              choices: [...choices(TIERS), { value: NONE, label: 'No tier' }]
+            },
+            {
+              id: 'categories', label: 'Categories', type: 'tags', icon: 'tags',
+              operators: ['containsAny', 'containsAll', 'containsNone', 'isEmpty'], choices: choices(Object.keys(CATEGORIES))
+            },
+            amountFilter('arr', 'ARR')
+          ],
+          groups: {
+            stage: statusAxis(STAGES.map((stage) => ({ id: stage.ID, label: stage.name, tone: stage.tone }))),
+            owner: ownerAxis(),
+            tier: { label: 'Tier', buckets: [...TIERS.map((tier) => ({ id: tier, label: tier })), { id: NONE, label: 'No tier' }] }
+          },
+          cards: {
+            subtitle: (record) => record.domain,
+            preview: (record) => logo(viewParts, record, 'sm')
           },
           board: {
-            columnBy: 'stage', columns: choices(STAGES).map(({ value, label }) => ({ id: value, label })),
+            columnBy: 'stage',
             title: (record) => record.name, subtitle: (record) => record.domain,
-            card: (record) => [arrLine(record), ['layer-group', 'Tier', record.tier]]
+            lines: { arr: arrLine }
           },
           create: newCompany,
           open: (record) => openCompany(record.ID),
@@ -692,31 +761,43 @@ export default {
             { id: 'all', label: 'All people', match: () => true },
             { id: 'customers', label: 'At customers', match: (record) => companyById(record.company)?.stage === 'customer' }
           ],
-          hidden: [],
+          // A contact reads as a card too — a face, a role, a company — but there is no pipeline
+          // to lay out, so no board.
+          shapes: ['table', 'cards'],
+          sort: { id: 'name', dir: 'asc' },
+          visible: { table: ['name', 'email', 'company', 'role', 'strength', 'owner'], cards: ['company', 'email', 'owner'] },
           fields: [
             {
-              id: 'name', label: 'Name', glyph: 'user', sortable: true, view: { table: { width: '190px', popin: false } },
+              id: 'name', label: 'Name', type: 'text', locked: true, glyph: 'user', sortable: true, view: { table: { width: '190px', popin: false } },
               render: (record) => personLabel(viewParts, record.name)
             },
             {
-              id: 'email', label: 'Email', glyph: 'envelope-regular', sortable: true,
+              id: 'email', label: 'Email', type: 'email', groupable: false, glyph: 'envelope-regular', sortable: true,
               view: { table: { width: '230px', editable: 'text' } }
             },
             {
-              id: 'company', label: 'Company', glyph: 'building', sortable: true,
-              render: (record) => companyLink(companyById(record.company)),
+              id: 'company', label: 'Company', type: 'entity', glyph: 'building', sortable: true, link: true,
+              render: (record) => companyLink(companyById(record.company)), text: (record) => companyById(record.company)?.name ?? '',
               sortValue: (record) => record.companyName,
               view: { table: { width: '200px' } }
             },
-            { id: 'role', label: 'Role', glyph: 'briefcase', sortable: true, view: { table: { width: '170px', editable: 'text' } } },
             {
-              id: 'strength', label: 'Connection', glyph: 'signal', sortable: true,
-              render: (record) => strengthMeter(record.strength),
+              id: 'role', label: 'Role', type: 'text', groupable: false, glyph: 'briefcase', sortable: true,
+              view: { table: { width: '170px', editable: 'text' } }
+            },
+            {
+              id: 'strength', label: 'Connection', type: 'rating', glyph: 'signal', sortable: true,
+              render: (record) => strengthMeter(record.strength), text: (record) => STRENGTH[record.strength - 1] ?? '',
               view: { table: { width: '130px' } }
             },
             readOnly(owner)
           ],
-          filters: { owner: { type: 'select', label: 'Account owner', options: staffOptions() } },
+          filterFields: [ownerFilter('Account owner')],
+          groups: { owner: ownerAxis('Account owner') },
+          cards: {
+            subtitle: (record) => record.role,
+            preview: (record) => viewParts.own(new Avatar(null, { name: record.name, size: 'sm' })).toElement()
+          },
           board: null,
           create: () => notify('People are added from an email or from a company page.', 'info'),
           open: (record) => openCompany(record.company),
@@ -726,7 +807,7 @@ export default {
       }
       if (id === 'deals') {
         return {
-          id, ...RECORD_TYPES.deals, noun: ['deal', 'deals'], newLabel: 'New deal', shape: 'kanban',
+          id, ...RECORD_TYPES.deals, noun: ['deal', 'deals'], newLabel: 'New deal',
           records: () => store.deals,
           sum: { id: 'value', label: 'Total value' },
           views: [
@@ -734,44 +815,46 @@ export default {
             { id: 'mine', label: 'My deals', match: (record) => record.owner === ME },
             { id: 'closing', label: 'Closing this month', match: (record) => record.close.startsWith(TODAY.slice(0, 7)) }
           ],
-          hidden: [],
+          // A pipeline: it opens on the board; the table is there to edit many deals at once.
+          shapes: ['table', 'board'],
+          view: 'board',
+          sort: { id: 'close', dir: 'asc' },
+          visible: { table: ['name', 'company', 'stage', 'value', 'close', 'owner'], board: ['value', 'close', 'owner'] },
           fields: [
             {
-              id: 'name', label: 'Deal', glyph: 'handshake', sortable: true,
+              id: 'name', label: 'Deal', type: 'text', locked: true, glyph: 'handshake', sortable: true,
               view: { table: { width: '240px', popin: false, editable: 'text' } }
             },
             {
-              id: 'company', label: 'Company', glyph: 'building', sortable: true,
-              render: (record) => companyLink(companyById(record.company)),
+              id: 'company', label: 'Company', type: 'entity', groupable: false, glyph: 'building', sortable: true, link: true,
+              render: (record) => companyLink(companyById(record.company)), text: (record) => companyById(record.company)?.name ?? '',
               sortValue: (record) => companyById(record.company)?.name,
               view: { table: { width: '220px' } }
             },
             {
-              id: 'stage', label: 'Stage', glyph: 'circle-half-stroke', sortable: true,
+              id: 'stage', label: 'Stage', type: 'status', glyph: 'circle-half-stroke', sortable: true,
               render: (record) => dealBadge(record.stage),
+              text: (record) => DEAL_STAGES.find((stage) => stage.id === record.stage)?.label ?? '',
               sortValue: (record) => DEAL_STAGES.findIndex((stage) => stage.id === record.stage),
               view: { table: { width: '140px', editable: 'select', options: choices(DEAL_STAGES) } }
             },
             {
-              id: 'value', label: 'Value', glyph: 'euro-sign', sortable: true,
+              id: 'value', label: 'Value', type: 'money', glyph: 'euro-sign', sortable: true,
               render: (record) => money(record.value),
               view: { table: amountColumn('120px') }
             },
             {
-              id: 'close', label: 'Close date', glyph: 'calendar-days', sortable: true,
+              id: 'close', label: 'Close date', type: 'date', glyph: 'calendar-days', sortable: true,
               render: (record) => day(record.close),
               view: { table: { width: '130px' } }
             },
             owner
           ],
-          filters: {
-            stage: { type: 'select', label: 'Stage', options: choices(DEAL_STAGES) },
-            owner: { type: 'select', label: 'Owner', options: staffOptions() },
-            value: { type: 'float:range', label: 'Value (€)', min: 0 }
-          },
+          filterFields: [stageFilter(choices(DEAL_STAGES)), ownerFilter('Owner'), amountFilter('value', 'Value')],
+          groups: { stage: statusAxis(DEAL_STAGES), owner: ownerAxis() },
+          cards: null,
           board: {
-            columnBy: 'stage', columns: DEAL_STAGES, title: (record) => record.name, subtitle: (record) => companyById(record.company)?.name,
-            card: (record) => [['euro-sign', 'Value', money(record.value)], ['calendar-days', 'Close date', day(record.close)]],
+            columnBy: 'stage', title: (record) => record.name, subtitle: (record) => companyById(record.company)?.name,
             preview: (record) => logo(viewParts, companyById(record.company) ?? { name: '?' }, 'sm')
           },
           create: () => notify('Deals start from a company page, with its contacts filled in.', 'info'),
@@ -787,35 +870,43 @@ export default {
         return company && { ...entry, name: company.name, arr: company.arr, owner: company.owner, last: company.last };
       }).filter(Boolean);
       return {
-        id, title: list.name, icon: 'table-list', tone: 'slate', noun: ['entry', 'entries'], newLabel: 'Add company', shape: 'kanban',
+        id, title: list.name, icon: 'table-list', tone: 'slate', noun: ['entry', 'entries'], newLabel: 'Add company',
         records: entries,
         sum: { id: 'arr', label: 'Total ARR' },
         views: [{ id: 'all', label: 'All entries', match: () => true }],
-        hidden: [],
+        // A list is worked stage by stage, so it opens on its board. Its entries borrow their
+        // owner from the company, so they group by the list's own stages only.
+        shapes: ['table', 'board'],
+        view: 'board',
+        sort: { id: 'name', dir: 'asc' },
+        visible: { table: ['name', 'stage', 'arr', 'last', 'owner'], board: ['arr', 'last', 'owner'] },
         fields: [
           {
-            id: 'name', label: 'Company', glyph: 'building', sortable: true,
+            id: 'name', label: 'Company', type: 'text', locked: true, glyph: 'building', sortable: true, link: true,
             render: (record) => companyLink(companyById(record.company)),
             view: { table: { width: '240px', popin: false } }
           },
           {
-            id: 'stage', label: 'Stage', glyph: 'circle-half-stroke', sortable: true,
+            id: 'stage', label: 'Stage', type: 'status', glyph: 'circle-half-stroke', sortable: true,
             render: (record) => badge({ label: record.stage, size: 'sm' }),
+            sortValue: (record) => list.stages.indexOf(record.stage),
             view: { table: { width: '150px', editable: 'select', options: choices(list.stages) } }
           },
           {
-            id: 'arr', label: 'ARR', glyph: 'euro-sign', sortable: true,
+            id: 'arr', label: 'ARR', type: 'money', glyph: 'euro-sign', sortable: true,
             render: (record) => (record.arr ? money(record.arr) : '—'),
             view: { table: { width: '120px', type: 'currency' } }
           },
           last,
           readOnly(owner)
         ],
-        filters: { owner: { type: 'select', label: 'Account owner', options: staffOptions() } },
+        filterFields: [ownerFilter('Account owner')],
+        groups: { stage: statusAxis(list.stages.map((stage) => ({ id: stage, label: stage }))) },
+        cards: null,
         board: {
-          columnBy: 'stage', columns: choices(list.stages).map(({ value, label }) => ({ id: value, label })), title: (record) => record.name,
+          columnBy: 'stage', title: (record) => record.name,
           subtitle: (record) => companyById(record.company)?.domain,
-          card: (record) => [arrLine(record), ['clock-regular', 'Last contact', ago(record.last)]],
+          lines: { arr: arrLine },
           preview: (record) => logo(viewParts, record, 'sm')
         },
         create: () => notify('Select companies in the table and use Add to list.', 'info'),
@@ -844,94 +935,128 @@ export default {
     }
 
     /**
-     * Renders a collection under one view bar — the saved views on the left; search, sort, filters,
-     * fields, and the table or board switch on the right — above a table or board, a footer that
-     * counts and sums what is shown, and a bulk bar while rows are selected.
+     * A context for one screen, inside the layout's: the overview binds its keys and builds its
+     * drawers on it, and all of that goes when the screen does — on the next `screen.reset()`.
+     * @returns {import('./kit.js').LayoutContext}
+     */
+    function screenContext() {
+      const controller = new AbortController();
+      /** @type {Array<() => void>} */
+      const tasks = [];
+      screen.own({
+        destroy: () => {
+          controller.abort();
+          for (const task of tasks.splice(0).reverse()) task();
+        }
+      });
+      return { ...context, signal: controller.signal, cleanup: (task) => { tasks.push(task); } };
+    }
+
+    /**
+     * Renders a collection: the page header, the saved views, and the kit's overview — search,
+     * Filter, Sort, View, the shape switch, the filter chips, the table, cards, or board, and the
+     * pager — with the CRM's own cells, card and board drawing, and bulk bar.
      * @param {Record<string, any>} definition From `collection()`.
      * @returns {void}
      */
     function showCollection(definition) {
       const [singular, plural] = definition.noun;
       const glyphs = Object.fromEntries(definition.fields.map((field) => [field.id, field.glyph]));
-      let shape = definition.shape ?? 'table';
+      const filterTypes = Object.fromEntries(definition.filterFields.map((field) => [field.id, field.type]));
+      const fieldById = new Map(definition.fields.map((field) => [field.id, field]));
+      /** @param {Record<string, any>} field @param {Record<string, any>} record @returns {string} A field in plain words. */
+      const textOf = (field, record) => (field.text ? field.text(record) : [record[field.id]].flat().filter((value) => value != null && value !== NONE).join(', '));
+      // A record is found by its words and numbers — its fields as they read, and the address
+      // and contact behind them — never by a flag or the placeholder of an empty value.
+      const searchText = (record) => [
+        ...Object.values(record).flat().filter((value) => (typeof value === 'string' && value !== NONE) || typeof value === 'number'),
+        ...definition.fields.map((field) => textOf(field, record))
+      ].join(' ');
+      // The fields a record can leave empty and still group, filter, and lay out by.
+      const optional = [...new Set([...Object.keys(definition.groups), 'owner'])];
+      const noFilters = { logic: 'and', conditions: [], advanced: null };
       let views = [...definition.views];
       let viewId = views[0].id;
-      let query = '';
-      let filters = {};
-      let rows = [];
-      /** @type {TableView|KanbanView|null} */
-      let view = null;
-      let tableState = null;
+      /** @type {Set<string>} Shapes still to be given a built-in view's default columns when they next show. */
+      let pendingDefaults = new Set();
+      const scoped = screenContext();
 
-      const host = h('div', { class: 'shell__body crm__grid' });
-      const toolbar = screen.own(new ListToolbar(null, {
-        search: { placeholder: `Search ${plural}` },
-        tools: [
-          { id: 'search', icon: 'magnifying-glass', title: `Search ${plural}` },
-          { id: 'sort', icon: 'arrow-down-wide-short', label: 'Sort' },
-          { id: 'filter', icon: 'filter', label: 'Filter' }
-        ],
-        views: definition.board ? [{ id: 'table', label: 'Table', icon: 'table' }, { id: 'kanban', label: 'Board', icon: 'table-columns' }] : [],
-        view: shape,
-        onsearch: ({ detail }) => { query = detail.value; refresh(); },
-        onaction: ({ detail }) => {
-          if (detail.id === 'search') openSearch();
-          if (detail.id === 'filter') filterSheet.open();
+      /** @type {import('./overview.js').Overview|null} Null only while it builds itself. */
+      let overview = null;
+      overview = createOverview(scoped, {
+        root,
+        label: `${definition.title} controls`,
+        fields: definition.fields,
+        visible: definition.visible,
+        titleField: 'name',
+        filterFields: definition.filterFields,
+        groups: definition.groups,
+        records: baseRecords(),
+        views: definition.shapes,
+        view: definition.view ?? definition.shapes[0],
+        board: definition.board ? { columnBy: definition.board.columnBy } : undefined,
+        sort: views[0].sort ?? definition.sort,
+        // A sales team's collections are short; ten a page is there for reading on a phone.
+        pageSize: 25,
+        pageSizes: [10, 25, 50],
+        search: { placeholder: `Search ${plural}…`, label: definition.title, text: searchText },
+        // The count, and what it adds up to: the sum shows beside the count in every shape.
+        countText: (count) => {
+          const text = `${formatNumber(count)} ${count === 1 ? singular : plural}`;
+          return definition.sum ? `${text} · ${definition.sum.label} ${money(sumOf(shown(), definition.sum.id))}` : text;
         },
-        onviewchange: ({ detail }) => { shape = detail.view; mountView(); }
-      }));
-      const sorter = screen.own(new SortControl(null, {
-        fields: definition.fields.filter((field) => field.sortable).map(({ id, label }) => ({ id, label })),
-        onchange: ({ detail }) => view?.setSort(detail.value.id, detail.value.dir)
-      }));
-      screen.own(new Dropdown(toolbar.getTool('sort'), { content: stack({ gap: 2 }, sorter.toElement()), placement: 'bottom-end' }));
-      const filterPanel = screen.own(new FilterPanel(null, {
-        fields: definition.filters,
-        mode: 'live',
-        onapply: ({ detail }) => {
-          filters = detail.value;
-          toolbar.setBadge('filter', Object.keys(filters).length || null);
-          refresh();
-        }
-      }));
-      const filterSheet = screen.own(new Sheet(null, {
-        side: 'end', size: 360, title: `Filter ${plural}`, content: filterPanel.toElement(),
-        buttons: [{ label: 'Clear all', action: () => filterPanel.clear() }, { label: 'Done', kind: 'primary', action: 'close' }]
-      }));
+        empty: { title: `No ${plural} match` },
+        shortcuts: true,
+        createView
+      });
+      overview.toolbar.setCount(overview.getFiltered().length);
+      // Leaving the screen closes an open drawer, so the main pane gives its room back.
+      scoped.cleanup(() => {
+        overview.closeDrawers();
+        root.removeAttribute('data-overview-drawer');
+        root.style.removeProperty('--overview-drawer-size');
+      });
+      // Cells draw avatars; a new page destroys the last page's, and the headings get their glyphs.
+      overview.on('render', () => {
+        viewParts.reset();
+        queueMicrotask(() => decorate());
+      });
+      overview.on('selectionchange', ({ detail }) => syncBulk(detail.ids));
+      overview.on('recordclick', ({ detail }) => definition.open(detail.record));
+      // A card moved to another stage can leave the saved view, and changes its counts.
+      overview.on('recordmove', () => syncData());
+      // A built-in view arranges every shape its own way; a shape not showing gets it when it does.
+      overview.on('viewchange', ({ detail }) => {
+        if (pendingDefaults.delete(detail.view)) applyDefaults();
+      });
 
-      const selected = h('span', { class: 'bulk-bar__count' });
-      const bulk = h('div', { class: 'bulk-bar', role: 'region', ariaLabel: 'Bulk actions', hidden: true },
-        selected,
-        definition.id === 'companies' ? screen.own(new MenuButton(null, {
-          label: 'Add to list', icon: 'list-ul', items: LISTS.map((list) => ({ label: list.name, value: list.id })),
-          onselect: ({ detail }) => addToList(detail.value)
-        })).toElement() : null,
-        definition.fields.find((field) => field.id === 'owner')?.view.table.editable ? screen.own(new MenuButton(null, {
-          label: 'Assign owner', icon: 'circle-user', items: staffOptions().map(({ value, label }) => ({ label, value })),
-          onselect: ({ detail }) => assignOwner(detail.value)
-        })).toElement() : null,
-        button({ label: 'Export', icon: 'file-export', onclick: exportSelection }),
-        button({ label: 'Delete', icon: 'trash-can', kind: 'danger', onclick: deleteSelection }),
-        iconButton('xmark', 'Clear selection', () => view?.clearSelection()));
+      /** @returns {Record<string, any>[]} The filtered records, or none while the overview builds. */
+      function shown() {
+        return overview?.getFiltered() ?? [];
+      }
 
       // The saved views are one radio group: Tab reaches the current view, the arrow keys move
       // between views, and Delete removes one saved here.
       const viewGroup = h('div', { class: 'crm__views', role: 'radiogroup', ariaLabel: 'Saved views', onkeydown: viewKeys });
-      const isSearchField = (target) => target instanceof HTMLInputElement && target.type === 'search';
-      // The search field waits behind its icon (or /), and folds back into it once it is left empty.
-      const viewbar = h('div', {
-        class: 'crm__viewbar',
-        dataset: { search: 'closed' },
-        onfocusout: ({ target }) => { if (isSearchField(target) && !toolbar.getSearch()) viewbar.dataset.search = 'closed'; },
-        onkeydown: (event) => {
-          if (event.key !== 'Escape' || !isSearchField(event.target) || toolbar.getSearch()) return;
-          event.preventDefault();
-          viewbar.dataset.search = 'closed';
-          toolbar.getTool('search').focus();
-        }
-      }, viewGroup, iconButton('plus', 'Save as new view', saveView), toolbar.toElement());
-      // The footer is also the live region that tells a screen reader what a search left.
-      const footer = h('div', { class: 'shell__footer crm__footer', role: 'status' });
+      const tabs = h('div', { class: 'crm__tabs' }, viewGroup, iconButton('plus', 'Save as new view', saveView));
+
+      const selected = h('span', { class: 'bulk-bar__count' });
+      const bulk = h('div', { class: 'bulk-bar crm__bulk', role: 'region', ariaLabel: 'Bulk actions', hidden: true },
+        selected,
+        definition.id === 'companies' ? screen.own(new MenuButton(null, {
+          label: 'Add to list', icon: 'list-ul', kind: 'ghost', placement: 'top-start',
+          items: LISTS.map((list) => ({ label: list.name, value: list.id })),
+          onselect: ({ detail }) => addToList(detail.value)
+        })).toElement() : null,
+        definition.fields.find((field) => field.id === 'owner')?.view.table.editable ? screen.own(new MenuButton(null, {
+          label: 'Assign', icon: 'circle-user', kind: 'ghost', placement: 'top-start',
+          items: staffOptions().map(({ value, label }) => ({ label, value })),
+          onselect: ({ detail }) => assignOwner(detail.value)
+        })).toElement() : null,
+        button({ label: 'Export', icon: 'file-export', kind: 'ghost', onclick: exportSelection }),
+        button({ label: 'Delete', icon: 'trash-can', kind: 'ghost', onclick: deleteSelection }),
+        iconButton('xmark', 'Clear selection', () => overview.clearSelection()));
+      overview.element.append(bulk);
 
       main.replaceChildren(
         paneHeader({
@@ -947,146 +1072,215 @@ export default {
             })
           ]
         }),
-        h('div', { class: 'crm__collection' }, viewbar, host, footer, bulk));
-      focusSearch = openSearch;
+        tabs,
+        overview.element);
+      focusSearch = () => overview.toolbar.focusSearch();
       createRecord = () => definition.create();
-      mountView();
+      renderViews();
+      decorate();
 
-      /** @returns {Record<string, any>[]} The records the active view, search, and filters let through. */
-      function visible() {
-        const saved = views.find((entry) => entry.id === viewId);
-        const needle = query.trim().toLowerCase();
-        return definition.records().filter((record) => saved.match(record) && matchesFilters(record, filters)
-          && (!needle || Object.values(record).join(' ').toLowerCase().includes(needle)));
+      /** @returns {Record<string, any>} The saved view showing. */
+      function currentView() {
+        return views.find((entry) => entry.id === viewId) ?? views[0];
       }
 
       /**
-       * Builds the table or the board. The table's columns and sort are kept aside while the
-       * board shows, so switching back restores them.
-       * @returns {void}
+       * A record as the overview gets it: a copy whose empty owner or grouping value reads as
+       * `NONE`, so it groups under Unassigned or No tier instead of dropping out. The store keeps
+       * the empty value; edits and moves are written to both.
+       * @param {Record<string, any>} record
+       * @returns {Record<string, any>}
        */
-      function mountView() {
-        if (view instanceof TableView) tableState = view.getViewState();
-        viewParts.reset();
-        rows = visible();
-        view = viewParts.own(shape === 'kanban' ? createBoard() : createTable());
-        if (view instanceof TableView && tableState) view.setViewState(tableState);
-        host.replaceChildren(view.toElement());
-        host.dataset.shape = shape;
-        syncBulk([]);
-        updateCounts();
-        syncSorter();
-        afterColumnsChange();
+      function normalize(record) {
+        const copy = { ...record };
+        for (const field of optional) if (copy[field] == null || copy[field] === '') copy[field] = NONE;
+        return copy;
       }
 
-      /** @returns {TableView} The spreadsheet: inline cell editing, row checkboxes, sticky header. */
-      function createTable() {
+      /** @returns {Record<string, any>[]} Every record of the collection, as the overview gets them. */
+      function allRecords() {
+        return definition.records().map(normalize);
+      }
+
+      /** @returns {Record<string, any>[]} The records the saved view lets through, before search and filters. */
+      function baseRecords() {
+        return allRecords().filter(currentView().match);
+      }
+
+      /** Hands the overview the saved view's records again and recounts the views. @returns {void} */
+      function syncData() {
+        overview.setData(baseRecords());
+        renderViews();
+      }
+
+      /**
+       * Whether a record shows in a view: its own match, then the search and filters it saved.
+       * @param {Record<string, any>} record
+       * @param {{match: (record: Record<string, any>) => boolean, state?: {query: string, filters: any}|null}} view
+       * @returns {boolean}
+       */
+      function passes(record, view) {
+        if (!view.match(record)) return false;
+        if (!view.state) return true;
+        const needle = view.state.query.trim().toLowerCase();
+        return nodeMatches(record, filterExpression(view.state.filters), { type: (field) => filterTypes[field] })
+          && (!needle || searchText(record).toLowerCase().includes(needle));
+      }
+
+      /**
+       * Draws one presentation. The overview supplies the shared options, the group rows, and the
+       * board's axes; this adds the spreadsheet's editing, the cards' logo tiles, and the board's
+       * cards and column heads.
+       * @param {string} shape
+       * @param {import('./overview.js').OverviewViewContext} view
+       * @returns {TableView|CardView|KanbanView}
+       */
+      function createView(shape, view) {
+        if (shape === 'board' && view.board) return createBoard(view);
+        if (shape === 'cards' && definition.cards) {
+          return new CardView(null, {
+            ...view.options,
+            selectable: 'multi',
+            titleField: (record) => record.name,
+            subtitleField: definition.cards.subtitle,
+            preview: definition.cards.preview,
+            groupBy: view.groupBy,
+            minCardWidth: '16rem',
+            variant: 'outlined',
+            label: `${definition.title} as cards`
+          });
+        }
         return new TableView(null, {
-          fields: definition.fields,
-          data: rows,
-          recordId: 'ID',
+          ...view.options,
           selectable: 'multi',
-          hiddenFields: definition.hidden,
-          sort: views.find((entry) => entry.id === viewId).sort ?? null,
-          fieldControls: { label: 'Fields', target: toolbar.getToolsElement() },
-          emptyText: () => emptyState({
-            icon: 'filter', size: 'sm', title: `No ${plural} match`, description: 'Change the search or the filters to see more.',
-            actions: [{ label: 'Clear filters', onclick: clearFilters }]
-          }),
+          // A click in the spreadsheet edits a cell; the record's name is the link that opens it.
+          onrecordclick: null,
+          onstatechange: () => decorate(),
           table: {
+            ...view.table,
+            label: definition.title,
             // The pane is the frame: no box round the table, hairlines between its rows.
             variant: 'plain',
             stickyHeader: true,
             responsive: 'sm',
             zebra: false,
             editMode: 'cell',
-            oneditcommit: ({ detail }) => {
-              definition.update(detail.id, detail.changes);
-              // A record the edit moved out of this view leaves it; anything else the table drew.
-              queueMicrotask(() => (visible().length === rows.length ? updateCounts() : refresh()));
-            }
-          },
-          onselectionchange: ({ detail }) => syncBulk(detail.ids),
-          onsortchange: () => syncSorter(),
-          onstatechange: () => afterColumnsChange()
+            oneditcommit: ({ detail }) => commitEdit(detail.id, detail.changes)
+          }
         });
-      }
-
-      /** @returns {KanbanView} The board: one tray per stage, headed by its count and total. */
-      function createBoard() {
-        const board = definition.board;
-        return new KanbanView(null, {
-          fields: definition.fields,
-          data: rows,
-          recordId: 'ID',
-          columnBy: board.columnBy,
-          columns: board.columns,
-          titleField: board.title,
-          preview: board.preview ?? ((record) => logo(viewParts, record, 'sm')),
-          moveMode: 'external',
-          fieldControls: false,
-          renderCard: ({ record }) => boardCard(record),
-          renderColumnHeader: ({ column, count }) => h('span', { class: 'crm__column-head' },
-            h('span', { class: 'crm__column-label' }, column.label),
-            h('span', { class: 'crm__count' }, String(count)),
-            columnTotal(column.id)),
-          onrecordmove: ({ detail }) => {
-            for (const recordId of detail.ids) definition.update(recordId, { [board.columnBy]: detail.to.column });
-            refresh();
-          },
-          onrecordclick: ({ detail }) => definition.open(detail.record)
-        });
-      }
-
-      /** @param {string} columnId @returns {HTMLElement|null} A tray's total, left out while it is nothing. */
-      function columnTotal(columnId) {
-        const total = sumOf(rows.filter((record) => String(record[definition.board.columnBy]) === columnId), definition.sum.id);
-        return total ? h('span', { class: 'crm__column-total' }, money(total)) : null;
       }
 
       /**
-       * A card on the board: its title, a quiet subtitle, and one line per value — an icon, then
-       * the value, its label kept for screen readers. A line with nothing to say is left out.
+       * The board: one tray per column, headed by its count and total. Cards move by drag or
+       * keyboard; the move is written into the store, and into the overview's copy.
+       * @param {import('./overview.js').OverviewViewContext} view
+       * @returns {KanbanView}
+       */
+      function createBoard(view) {
+        const { columnBy, swimlaneBy, columnAxis } = view.board;
+        const { board: draw, sum } = definition;
+        const kanban = new KanbanView(null, {
+          ...view.options,
+          ...view.board.options,
+          titleField: draw.title,
+          preview: draw.preview ?? ((record) => logo(viewParts, record, 'sm')),
+          label: `${definition.title} by ${columnAxis.label.toLowerCase()}`,
+          renderCard: ({ record }) => boardCard(record, kanban),
+          renderColumnHeader: ({ column, swimlane, count }) => {
+            const inColumn = (record) => String(record[columnBy]) === String(column.id)
+              && (!swimlane || !swimlaneBy || String(record[swimlaneBy]) === String(swimlane.id));
+            const total = sum ? sumOf(view.records().filter(inColumn), sum.id) : 0;
+            return columnHeader({
+              label: column.label,
+              tone: columnAxis.buckets.find((bucket) => String(bucket.id) === String(column.id))?.tone ?? null,
+              lane: swimlane?.label ?? null,
+              count,
+              total: total ? money(total) : null
+            });
+          },
+          // The store first, with No tier or Unassigned written back as empty; then the overview,
+          // which moves its copy and refreshes.
+          onrecordmove: (event) => {
+            const { ids, to } = event.detail;
+            const stored = (value) => (value === NONE ? null : value);
+            const changes = { [columnBy]: stored(to.column), ...(to.lane && swimlaneBy ? { [swimlaneBy]: stored(to.lane) } : {}) };
+            for (const recordId of ids) definition.update(recordId, changes);
+            view.board.options.onrecordmove(event);
+          }
+        });
+        return kanban;
+      }
+
+      /**
+       * A card on the board: its title, a quiet subtitle, and one line for each field View settings
+       * shows there, in its order — an icon, then the value, its label kept for screen readers; the
+       * owner with a face. A line with nothing to say is left out; a field whose cell is a link
+       * reads as plain words, since the whole card opens the record.
        * @param {Record<string, any>} record
+       * @param {KanbanView} kanban
        * @returns {HTMLElement}
        */
-      function boardCard(record) {
-        const { title, subtitle, card } = definition.board;
-        const owner = person(record.owner);
+      function boardCard(record, kanban) {
+        const { title, subtitle, lines = {} } = definition.board;
+        const hidden = kanban.getHiddenFields();
         const line = (mark, label, value) => h('li', {}, mark, h('span', { class: 'visually-hidden' }, `${label}: `), value);
+        const entry = (id) => {
+          const field = fieldById.get(id);
+          if (!field || id === 'name' || hidden.includes(id)) return null;
+          if (id === 'owner') {
+            const owner = person(record.owner);
+            return owner ? line(viewParts.own(new Avatar(null, { name: owner.name, size: 16 })).toElement(), field.label, owner.name) : null;
+          }
+          const value = lines[id] ? lines[id](record) : field.link ? textOf(field, record) : field.render ? field.render(record) : textOf(field, record);
+          return value == null || value === '' || value === '—' ? null : line(icon(field.glyph, { size: 14 }), field.label, value);
+        };
         return h('div', { class: 'crm__card' },
           h('h3', { class: 'crm__card-title' }, title(record)),
           h('p', { class: 'crm__card-subtitle' }, subtitle(record)),
-          h('ul', { class: 'crm__card-lines' },
-            card(record).filter(([, , value]) => value).map(([glyph, label, value]) => line(icon(glyph, { size: 14 }), label, value)),
-            owner ? line(viewParts.own(new Avatar(null, { name: owner.name, size: 16 })).toElement(), 'Owner', owner.name) : null));
+          h('ul', { class: 'crm__card-lines' }, kanban.getFieldOrder().map(entry)));
       }
 
-      /** Re-reads the records into the current view and updates every count. @returns {void} */
-      function refresh() {
-        rows = visible();
-        view?.setData(rows);
-        updateCounts();
+      /** Puts the type glyphs in the table's headings, whenever the table has drawn them. @returns {void} */
+      function decorate() {
+        const view = overview?.getView();
+        if (view instanceof TableView) decorateHeadings(view, glyphs);
       }
 
-      /** Counts every saved view, and counts and sums what the current one shows. @returns {void} */
-      function updateCounts() {
-        renderViews();
-        const { sum } = definition;
-        footer.replaceChildren(h('span', {}, `${formatNumber(rows.length)} ${rows.length === 1 ? singular : plural}`),
-          ...(sum ? [h('span', { class: 'crm__footer-sum' }, h('span', { class: 'meta' }, sum.label), money(sumOf(rows, sum.id)))] : []));
+      /**
+       * A cell edit: written into the store and into the overview's copy of the record. A record
+       * the edit moved out of the view leaves it; anything else the table drew itself.
+       * @param {string|number} recordId
+       * @param {Record<string, any>} changes
+       * @returns {void}
+       */
+      function commitEdit(recordId, changes) {
+        definition.update(recordId, changes);
+        const copy = overview.getRecords().find((entry) => String(entry.ID) === String(recordId));
+        if (copy) Object.assign(copy, normalize({ ...copy, ...changes }));
+        queueMicrotask(() => {
+          const record = allRecords().find((entry) => String(entry.ID) === String(recordId));
+          const { group, sort } = overview.getState();
+          // A change to the grouping or the sort moves the row, so the page is drawn again.
+          const moved = (group && Object.hasOwn(changes, group)) || Object.hasOwn(changes, sort.id);
+          if (moved || !record || !passes(record, { match: currentView().match, state: overview.getState() })) syncData();
+          else {
+            renderViews();
+            overview.toolbar.setCount(shown().length);
+          }
+        });
       }
 
       /** Draws the saved views and their counts; the focus stays on the current one. @returns {void} */
       function renderViews() {
         const focused = viewGroup.contains(document.activeElement);
+        const records = allRecords();
         viewGroup.replaceChildren(...views.map((entry) => h('button', {
           type: 'button', role: 'radio', class: 'crm__view',
           ariaChecked: String(entry.id === viewId), tabindex: entry.id === viewId ? '0' : '-1',
           onclick: (event) => (event.target.closest('.crm__view-remove') ? removeView(entry.id) : selectView(entry.id))
         },
         entry.label,
-        h('span', { class: 'crm__view-count' }, formatNumber(definition.records().filter(entry.match).length)),
+        h('span', { class: 'crm__view-count' }, formatNumber(records.filter((record) => passes(record, entry)).length)),
         // A span rather than a button inside the button; Delete is its keyboard equivalent.
         entry.removable ? h('span', { class: 'crm__view-remove', ariaHidden: 'true', title: 'Remove view' }, icon('xmark', { size: 12 })) : null)));
         if (focused) viewGroup.querySelector('[aria-checked="true"]')?.focus();
@@ -1102,15 +1296,54 @@ export default {
         event.preventDefault();
       }
 
-      /** @param {string} id @returns {void} Shows a saved view: its records, and its columns or sort. */
+      /**
+       * Shows a saved view. Each is a whole view: its records, then the search, filters, sort,
+       * shape, grouping, and columns it saved. A built-in view brings its sort and otherwise the
+       * collection's defaults — no search, no filter, no grouping, the default board, and each
+       * shape's default columns — in whichever shape is showing.
+       * @param {string} id
+       * @returns {void}
+       */
       function selectView(id) {
         viewId = id;
-        const saved = views.find((entry) => entry.id === id);
-        refresh();
-        if (saved.state && view instanceof TableView) view.setViewState(saved.state);
-        else if (saved.sort) view.setSort(saved.sort.id, saved.sort.dir);
-        syncSorter();
-        afterColumnsChange();
+        const saved = currentView();
+        overview.clearSelection();
+        overview.setData(baseRecords());
+        if (saved.state) {
+          pendingDefaults = new Set();
+          overview.setState(saved.state);
+          const columns = saved.columns;
+          if (columns && overview.getState().view === columns.shape) applyColumns(columns.fieldOrder, columns.hiddenFields);
+        } else {
+          overview.setState({
+            query: '', filters: noFilters, sort: saved.sort ?? definition.sort, group: null,
+            ...(definition.board ? { board: { columnBy: definition.board.columnBy, showEmptyColumns: true } } : {})
+          });
+          pendingDefaults = new Set(definition.shapes);
+          pendingDefaults.delete(overview.getState().view);
+          applyDefaults();
+        }
+        renderViews();
+        decorate();
+      }
+
+      /**
+       * Arranges the presentation's fields, keeping the sort it shows: the header's arrow follows
+       * the overview's sort, except in a grouped table, which has none.
+       * @param {string[]} fieldOrder
+       * @param {string[]} hiddenFields
+       * @returns {void}
+       */
+      function applyColumns(fieldOrder, hiddenFields) {
+        const { sort, group, view: shape } = overview.getState();
+        overview.getView()?.setViewState({ fieldOrder, hiddenFields, sort: group && shape === 'table' ? null : sort });
+      }
+
+      /** Gives the presentation showing its shape's default columns. @returns {void} */
+      function applyDefaults() {
+        const ids = definition.fields.map((field) => field.id);
+        const shown = definition.visible[overview.getState().view] ?? ids;
+        applyColumns(ids, ids.filter((field) => !shown.includes(field)));
       }
 
       /** @param {string} id @returns {void} Removes a saved view; the one before it shows if it was showing. */
@@ -1121,78 +1354,96 @@ export default {
         else renderViews();
       }
 
-      /** Unfolds the search field in place of its icon and puts the caret in it. @returns {void} */
-      function openSearch() {
-        viewbar.dataset.search = 'open';
-        toolbar.focusSearch();
-      }
-
-      /** Keeps the sort menu showing the view's current sort. @returns {void} */
-      function syncSorter() {
-        const sort = view?.getSort();
-        if (sort) sorter.setValue(sort, { silent: true });
-      }
-
-      /** Redraws the heading glyphs once the table has rebuilt its columns. @returns {void} */
-      function afterColumnsChange() {
-        if (view instanceof TableView) decorateHeadings(view, glyphs);
-      }
-
-      /** @param {unknown[]} ids @returns {void} Shows the bulk bar while anything is selected. */
+      /** @param {string[]} ids @returns {void} Shows the bulk bar while anything is selected. */
       function syncBulk(ids) {
+        if (ids.length === 0 && bulk.contains(document.activeElement)) focusList();
         bulk.hidden = ids.length === 0;
         selected.textContent = `${ids.length} selected`;
       }
 
-      /** Clears search and filters. @returns {void} */
-      function clearFilters() {
-        query = '';
-        toolbar.setSearch('', { silent: true });
-        viewbar.dataset.search = 'closed';
-        filterPanel.clear();
+      /**
+       * Puts the focus on the list — its first row's checkbox, or the body — so it is not lost
+       * with the bulk bar, once an action has cleared the selection.
+       * @returns {void}
+       */
+      function focusList() {
+        if (context.preview) return;
+        const first = overview.body.querySelector('tbody input[type="checkbox"]:not([disabled]), .zx-record-card input[type="checkbox"]')
+          ?? overview.body.querySelector('input[type="checkbox"]:not([disabled]), [tabindex="0"]');
+        (first instanceof HTMLElement ? first : overview.body).focus({ preventScroll: true });
+      }
+
+      /**
+       * After a bulk action, which hides the bar its button was in: a menu or the confirmation
+       * hands the focus back to that button as it closes, so the focus moves on once they have.
+       * @returns {void}
+       */
+      function afterBulkAction() {
+        later(scoped, () => {
+          const active = document.activeElement;
+          if (!active || active === document.body || !active.isConnected || bulk.contains(active)) focusList();
+        }, 0);
       }
 
       /** @param {string} listId @returns {void} Adds the selected companies to a list. */
       function addToList(listId) {
         const list = LISTS.find((entry) => entry.id === listId);
         const inList = (company) => store.memberships.some((entry) => entry.list === listId && entry.company === company);
-        const ids = view.getSelectionIds().filter((company) => !inList(company));
+        const ids = overview.getSelection().filter((company) => !inList(company));
         for (const company of ids) {
           store.memberships.push({ ID: Date.now() + store.memberships.length, list: listId, company, stage: list.stages[0] });
         }
         notify(`${ids.length} ${ids.length === 1 ? singular : plural} added to ${list.name}.`);
-        view.clearSelection();
+        overview.clearSelection();
+        afterBulkAction();
       }
 
       /** @param {string} staff Staff id. @returns {void} Assigns the selection to one owner. */
       function assignOwner(staff) {
-        const ids = view.getSelectionIds();
+        const ids = overview.getSelection();
         for (const recordId of ids) definition.update(recordId, { owner: staff });
-        refresh();
+        overview.clearSelection();
+        syncData();
+        afterBulkAction();
         notify(`${ids.length} ${ids.length === 1 ? singular : plural} assigned to ${person(staff).name}.`);
       }
 
-      /** Downloads the selected records as CSV. @returns {void} */
+      /**
+       * Downloads the selected records as CSV: the fields the view shows, in its order, as they
+       * read — names for owners and teams, labels for stages.
+       * @returns {void}
+       */
       function exportSelection() {
-        const columns = definition.fields.map(({ id, label }) => ({ id, label, value: (record) => [record[id]].flat().join(', ') }));
-        downloadBlob(`${definition.title.toLowerCase().replace(/\s+/g, '-')}.csv`, toCsv(view.getSelection(), columns), { type: 'text/csv' });
+        const ids = overview.getSelection();
+        const records = overview.getRecords().filter((record) => ids.includes(String(record.ID)));
+        const view = overview.getView();
+        const hidden = view.getHiddenFields();
+        const columns = view.getFieldOrder().filter((id) => !hidden.includes(id)).map((id) => fieldById.get(id)).filter(Boolean)
+          .map((field) => ({ id: field.id, label: field.label, value: (record) => textOf(field, record) }));
+        downloadBlob(`${definition.title.toLowerCase().replace(/\s+/g, '-')}.csv`, toCsv(records, columns), { type: 'text/csv' });
       }
 
       /** Deletes the selected records once confirmed. @returns {Promise<void>} */
       async function deleteSelection() {
-        const ids = view.getSelectionIds();
+        const ids = overview.getSelection();
         const noun = ids.length === 1 ? singular : plural;
         const confirmed = await Dialog.confirm({
           title: `Delete ${ids.length} ${noun}?`, message: 'Their activity, notes, and files go with them. This cannot be undone.',
           okLabel: 'Delete', danger: true
         });
-        if (!confirmed) return;
+        if (!confirmed || scoped.signal.aborted) return;
         definition.remove(ids);
-        refresh();
+        overview.clearSelection();
+        syncData();
+        afterBulkAction();
         notify(`${ids.length} ${noun} deleted.`);
       }
 
-      /** Saves the current search, filters, columns, and sort as a new view. @returns {void} */
+      /**
+       * Saves what shows as a new view: the records of the view it was made in, the search, the
+       * filters, the sort, the shape and grouping, and the columns as they are arranged.
+       * @returns {void}
+       */
       function saveView() {
         formDialog({
           title: 'Save view',
@@ -1200,15 +1451,14 @@ export default {
           fields: { name: { type: 'text', label: 'Name', value: 'My view', required: true } },
           onsubmit: ({ name }) => {
             const label = name.trim();
-            const snapshot = { needle: query.trim().toLowerCase(), filters: { ...filters } };
-            const saved = {
-              id: `view-${Date.now()}`, label, removable: true, state: view instanceof TableView ? view.getViewState() : null,
-              match: (record) => matchesFilters(record, snapshot.filters)
-                && (!snapshot.needle || Object.values(record).join(' ').toLowerCase().includes(snapshot.needle))
-            };
-            views.push(saved);
-            clearFilters();
-            selectView(saved.id);
+            const state = { ...overview.getState(), page: 1 };
+            const view = overview.getView();
+            views.push({
+              id: `view-${Date.now()}`, label, removable: true, match: currentView().match, state,
+              columns: { shape: state.view, fieldOrder: view.getFieldOrder(), hiddenFields: view.getHiddenFields() }
+            });
+            viewId = views.at(-1).id;
+            renderViews();
             notify(`View “${label}” saved.`);
           }
         });

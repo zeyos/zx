@@ -1,8 +1,10 @@
 /*
  * CRM layout. Every selector is scoped under .crm.
  *
- * A collection is the page header, one view bar, the table or board in the scrolling body, and a
- * footer that counts and sums what is shown. A company page is a padded body beside its details.
+ * A collection is the page header, the saved views, and the kit's overview (overview.css styles its
+ * toolbar, filter chips, drawers, body, and pager); what is here is the CRM's own: the spreadsheet's
+ * hairlines and heading glyphs, the board's trays and cards, the bulk bar, and the room the main
+ * pane makes for an open drawer. A company page is a padded body beside its details.
  */
 
 /* --------------------------------------------------------- shared atoms -- */
@@ -138,86 +140,32 @@
 
 /* ------------------------------------------------------------ collection -- */
 
-/* The view bar, the table or board, and the footer; the bulk bar floats over them. The view bar
-   answers to the collection's width. */
-.crm .crm__collection {
-  container: crm-collection / inline-size;
-  position: relative;
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  min-block-size: 0;
+/* Wide, the main pane makes room for an open overview drawer instead of sliding under it, so the
+   list beside the filters shows every column while it updates. Narrower, the drawer covers it. */
+@container shell (min-width: 1180px) {
+  .crm[data-overview-drawer] .crm__main {
+    margin-inline-end: min(var(--overview-drawer-size, 400px), 100vw);
+  }
 }
 
-/* One bar under the header: the saved views on the left, the list tools on the right. When the
-   pane is too narrow for both, the tools move to a line of their own — before they would have to
-   wrap among themselves, which is what their basis (their width with the words hidden) says. */
-.crm .crm__viewbar {
+/* The saved views, above the overview's toolbar: a row of plain items, the current one on the
+   neutral current fill, and the button that saves the view showing as a new one. Where the row
+   runs out of room the views wrap onto another line beside that button, so none is cut off. */
+.crm .crm__tabs {
   display: flex;
   flex: 0 0 auto;
-  flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--zx-space-1);
-  padding-inline: var(--zx-space-3) var(--zx-space-2);
+  padding: var(--zx-space-1) var(--zx-space-2);
   border-block-end: 1px solid var(--zx-color-border-subtle);
 }
 
-.crm .crm__viewbar > .zx-list-toolbar {
-  flex: 1 1 23rem;
-}
-
-/* The search field takes the place of its icon, next to the other tools, while it is open. */
-.crm .crm__viewbar .zx-list-toolbar__spacer {
-  order: -1;
-}
-
-.crm .crm__viewbar[data-search="closed"] .zx-list-toolbar__search,
-.crm .crm__viewbar[data-search="open"] .zx-list-toolbar__tool[data-tool-id="search"] {
-  display: none;
-}
-
-/* The table or board switch is a compact pair of ghost icons; each word stays its button's name. */
-.crm .crm__viewbar .zx-list-toolbar__views {
-  padding: 0;
-  border-color: transparent;
-}
-
-.crm .crm__viewbar .zx-list-toolbar__view-label {
-  position: absolute;
-  overflow: hidden;
-  inline-size: 1px;
-  block-size: 1px;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
-/* The table's field chooser sits among the tools, so it takes their target size and quiet hover. */
-.crm .crm__viewbar .zx-record-view__field-controls > summary {
-  gap: var(--zx-space-2);
-  min-block-size: 44px;
-  padding-inline: var(--zx-space-2);
-  border-radius: var(--zx-control-radius);
-  font-size: var(--zx-control-font-size);
-  font-weight: var(--zx-control-font-weight);
-}
-
-.crm .crm__viewbar .zx-record-view__field-controls > summary:hover {
-  background: var(--zx-color-bg-hover);
-}
-
-.crm .crm__viewbar .zx-record-view__field-controls > summary:focus-visible {
-  outline-color: transparent;
-  box-shadow: var(--zx-focus-ring);
-}
-
-/* The saved views: plain items, the current one on the neutral current fill. */
 .crm .crm__views {
   display: flex;
   flex: 0 1 auto;
+  flex-wrap: wrap;
   gap: 2px;
   min-inline-size: 0;
-  overflow-x: auto;
-  scrollbar-width: none;
 }
 
 .crm .crm__view {
@@ -247,7 +195,7 @@
   font-weight: var(--zx-weight-semibold);
 }
 
-/* Inset, because the row clips what overflows it. */
+/* Inset, so the ring stays inside the item and never overlaps its neighbours. */
 .crm .crm__view:focus-visible {
   outline-color: transparent;
   outline-offset: -2px;
@@ -275,36 +223,31 @@
   color: var(--zx-color-text);
 }
 
-/* The table scrolls with the pane body, so its sticky header sticks to the body's top edge. */
-.crm .crm__grid .zx-table__scroll {
-  overflow: visible;
-}
-
 /* A spreadsheet: hairlines between the columns as well as the rows, one line per row. A table
    stacked into cards on a narrow pane keeps its own layout. */
-.crm .crm__grid .zx-table:not([data-stacked]) :is(th, td) {
+.crm .overview__body .zx-table:not([data-stacked]) :is(th, td) {
   padding-inline: var(--zx-space-2);
   white-space: nowrap;
 }
 
-.crm .crm__grid .zx-table:not([data-stacked]) :is(td + td, th + th) {
+.crm .overview__body .zx-table:not([data-stacked]) :is(td + td, th + th) {
   border-inline-start: 1px solid var(--zx-color-border-subtle);
 }
 
-.crm .crm__grid .zx-table:not([data-stacked]) td {
+.crm .overview__body .zx-table:not([data-stacked]) td {
   padding-block: var(--zx-space-1);
 }
 
-.crm .crm__grid .zx-table:not([data-stacked]) .zx-table__body tr {
+.crm .overview__body .zx-table:not([data-stacked]) .zx-table__body tr {
   block-size: calc(var(--zx-control-height) + var(--zx-space-1) + 2px);
 }
 
 /* Headings in the text colour; their type icons carry the quiet. */
-.crm .crm__grid .zx-table th {
+.crm .overview__body .zx-table th {
   color: var(--zx-color-text);
 }
 
-.crm .crm__grid .zx-table__header-label {
+.crm .overview__body .zx-table__header-label {
   display: inline-flex;
   align-items: center;
   gap: var(--zx-space-2);
@@ -315,105 +258,51 @@
   color: var(--zx-color-text-subtle);
 }
 
-.crm .crm__grid .zx-table:not([data-stacked]) .crm__chips {
+.crm .overview__body .zx-table:not([data-stacked]) .crm__chips {
   flex-wrap: nowrap;
 }
 
 /* A tag picker editing a cell keeps to the row: its tags clip instead of wrapping. */
-.crm .crm__grid .zx-table__editor .zx-tag-picker {
+.crm .overview__body .zx-table__editor .zx-tag-picker {
   flex: 1 1 auto;
   min-inline-size: 0;
 }
 
-.crm .crm__grid .zx-table__editor .zx-tag-picker__control {
+.crm .overview__body .zx-table__editor .zx-tag-picker__control {
   flex-wrap: nowrap;
   overflow: hidden;
 }
 
-/* What the view shows, counted and summed. */
-.crm .crm__footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--zx-space-4);
-  padding-block: var(--zx-space-2);
-  color: var(--zx-color-text-muted);
-  font-size: var(--zx-text-sm);
-  font-variant-numeric: tabular-nums;
-}
-
-.crm .crm__footer-sum {
-  display: inline-flex;
-  gap: var(--zx-space-2);
-  color: var(--zx-color-text);
-  font-weight: var(--zx-weight-medium);
+/* The bulk bar floats over the list, clear of the pager, as wide as its actions: centred from the
+   middle of the pane, it would otherwise get only the half after it and wrap their words. */
+.crm .crm__bulk {
+  inset-block-end: calc(var(--zx-space-5) + var(--zx-control-height) + var(--zx-space-4));
+  inline-size: max-content;
 }
 
 /* --------------------------------------------------------------- board -- */
 
-.crm .crm__grid[data-shape="kanban"] {
-  padding: var(--zx-space-4);
-}
-
 /* The board only scrolls sideways here — the pane body scrolls it vertically — so it needs no
    gutter for a vertical scrollbar. */
-.crm .crm__grid .zx-kanban-view__board {
+.crm .overview__body .zx-kanban-view__board {
   scrollbar-gutter: auto;
 }
 
 /* Each stage is a grey tray holding white cards. The tray takes the chrome tone, one step below
    the canvas in both themes, so the cards stand up from it in dark as well as in light. */
-.crm .crm__grid .zx-kanban-view__column {
+.crm .overview__body .zx-kanban-view__column {
   padding: var(--zx-space-2);
   border-radius: var(--zx-radius-lg);
   background: var(--zx-color-bg-chrome);
 }
 
-.crm .crm__grid .zx-kanban-view__column-heading {
+.crm .overview__body .zx-kanban-view__column-heading {
   padding-inline: var(--zx-space-1);
 }
 
-.crm .crm__grid .zx-kanban-view .zx-record-card {
+.crm .overview__body .zx-kanban-view .zx-record-card {
   border-color: var(--zx-color-border-subtle);
   background: var(--zx-color-bg-raised);
-}
-
-.crm .crm__column-head {
-  display: flex;
-  flex: 1 1 auto;
-  order: 1;
-  align-items: center;
-  gap: var(--zx-space-2);
-  min-inline-size: 0;
-}
-
-.crm .crm__column-label {
-  overflow: hidden;
-  min-inline-size: 0;
-  font-weight: var(--zx-weight-semibold);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* The number of cards in a tray: a quiet pill, not a call to action. */
-.crm .crm__count {
-  min-inline-size: 1.25rem;
-  padding-inline: var(--zx-space-1);
-  border-radius: var(--zx-radius-full);
-  background: var(--zx-color-bg-current);
-  color: var(--zx-color-text-muted);
-  font-size: var(--zx-text-xs);
-  font-weight: var(--zx-weight-medium);
-  font-variant-numeric: tabular-nums;
-  line-height: 1.25rem;
-  text-align: center;
-}
-
-.crm .crm__column-total {
-  margin-inline-start: auto;
-  color: var(--zx-color-text-muted);
-  font-size: var(--zx-text-sm);
-  font-variant-numeric: tabular-nums;
 }
 
 .crm .crm__card {
@@ -696,19 +585,20 @@
   }
 }
 
-/* A narrow collection: the saved views and their add button share the first line, the views
-   scrolling sideways if they must, and the tools take the second. */
-@container crm-collection (max-width: 640px) {
-  .crm .crm__views {
-    flex: 1 1 0;
+/* A narrow collection: the bulk bar spans the pane and wraps its actions. */
+@container overview (max-width: 40rem) {
+  .crm .crm__bulk {
+    inset-inline: var(--zx-space-3);
+    inline-size: auto;
+    flex-wrap: wrap;
+    translate: none;
   }
+}
 
+/* A narrow shell: the saved views tighten. */
+@container shell (max-width: 640px) {
   .crm .crm__view {
     padding-inline: var(--zx-space-2);
-  }
-
-  .crm .crm__viewbar > .zx-list-toolbar {
-    flex-basis: 100%;
   }
 }
 
