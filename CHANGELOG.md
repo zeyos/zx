@@ -8,6 +8,11 @@ and friends remain the complete record.
 
 ## Unreleased
 
+## 5.4.0 — 2026-10-29
+
+Glass rebuilt as a lit pane with a body under it, five more materials in the theme studio, and a
+choosing guide at the head of the agent reference.
+
 ### Added
 
 - Five materials in the theme studio beside Flat, Glass and Deep glass: **Frost** (milk glass —
