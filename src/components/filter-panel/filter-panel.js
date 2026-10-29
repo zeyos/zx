@@ -74,6 +74,11 @@ const FLOAT_STEP = 0.01;
  *   applies every committed edit.
  * @property {FilterPanelSerialize} [serialize='seconds'] How a date leaves the component. A range's
  *   lower bound takes the start of its day and its upper bound the end, so a one-day range matches.
+ * @property {string|null} [timeZone=null] IANA zone the calendar days are counted in, such as the
+ *   ZeyOS instance's `Europe/Vienna`. A day serializes as the first (or last) instant of that day
+ *   in this zone, and an incoming instant shows as the day it falls on there — the same rule
+ *   `zeyosForm()` and `zeyosTable()` apply to date-only fields. Null uses the runtime's own zone.
+ *   An unknown zone throws a `RangeError`.
  * @property {string|null} [emptyText=null] Text shown when `fields` is empty; null resolves
  *   `filterPanel.empty`.
  * @property {Record<string, string>|Record<string, Record<string, string>>} [msg] Localized messages.
@@ -111,6 +116,7 @@ export class FilterPanel extends Component {
     value: {},
     mode: 'draft',
     serialize: 'seconds',
+    timeZone: null,
     emptyText: null
   };
 
@@ -130,9 +136,10 @@ export class FilterPanel extends Component {
     const root = /** @type {HTMLElement} */ (this.el ?? h('div'));
     this.el = root;
 
+    this._timeZone = normalizePanelTimeZone(this.options.timeZone);
     this._fields = orderFields(this.options.fields, this.options.order);
-    this._draft = toDraft(this.options.value, this.options.fields);
-    this._applied = serializeFilterValue(this._draft, this.options.fields, this.options.serialize);
+    this._draft = toDraft(this.options.value, this.options.fields, this._timeZone);
+    this._applied = serializeFilterValue(this._draft, this.options.fields, this.options.serialize, this._timeZone);
     this._appliedDraft = draftKey(this._draft);
 
     const children = [];
@@ -187,7 +194,7 @@ export class FilterPanel extends Component {
    * @fires FilterPanel#change
    */
   setValue(value) {
-    this._draft = toDraft(value, this.options.fields);
+    this._draft = toDraft(value, this.options.fields, this._timeZone);
     this._commit(this._draftValue());
     this._writeControls();
     this._syncActions();
@@ -219,7 +226,7 @@ export class FilterPanel extends Component {
    * @fires FilterPanel#apply
    */
   reset() {
-    return this._replaceDraft(toDraft(this.options.value, this.options.fields));
+    return this._replaceDraft(toDraft(this.options.value, this.options.fields, this._timeZone));
   }
 
   /**
@@ -233,7 +240,7 @@ export class FilterPanel extends Component {
    * @fires FilterPanel#apply
    */
   clear() {
-    return this._replaceDraft(toDraft({}, this.options.fields), { commit: true });
+    return this._replaceDraft(toDraft({}, this.options.fields, this._timeZone), { commit: true });
   }
 
   /** Destroys the composed controls and puts an enhanced target back as found. @returns {void} */
@@ -584,7 +591,7 @@ export class FilterPanel extends Component {
 
   /** @returns {Record<string, unknown>} The draft, serialized and pruned. */
   _draftValue() {
-    return serializeFilterValue(this._draft, this.options.fields, this.options.serialize);
+    return serializeFilterValue(this._draft, this.options.fields, this.options.serialize, this._timeZone);
   }
 
   /** Pushes the draft back into the controls without re-entering the edit path. @returns {void} */
@@ -703,42 +710,48 @@ export function pruneValue(value) {
 
 /**
  * Converts anything a calendar day can arrive as — a `YYYY-MM-DD` string, an ISO timestamp, a
- * `Date`, Unix seconds or milliseconds — into the local calendar day a native date input holds.
+ * `Date`, Unix seconds or milliseconds — into the calendar day a native date input holds.
  * Numbers below 1e11 are read as seconds, which is the boundary between the two epochs in use.
+ * An instant — Unix seconds or milliseconds, an ISO timestamp — names the day it falls on in
+ * `timeZone`. A `Date` is read as a picked day and keeps its local calendar day, matching
+ * `calendarDayToUnixSeconds()` in the ZeyOS binding.
  * @param {unknown} value Candidate day.
+ * @param {string|null} [timeZone=null] IANA zone instants are read in; null for the runtime's own.
  * @returns {string} `YYYY-MM-DD`, or an empty string when there is no day in it.
  */
-export function toDateInput(value) {
+export function toDateInput(value, timeZone = null) {
   if (value === null || value === undefined || value === '') return '';
-  if (value instanceof Date) return Number.isNaN(value.getTime()) ? '' : localDay(value);
+  // A Date is a picked day — what Datebox and DatePicker hold — so its local day counts, as in
+  // `calendarDayToUnixSeconds()`; numbers and timestamps are instants, read in the zone.
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? '' : zoneDay(value.getTime(), null);
   if (typeof value === 'number') {
     if (!Number.isFinite(value)) return '';
-    return localDay(new Date(Math.abs(value) < SECONDS_CUTOFF ? value * 1000 : value));
+    return zoneDay(Math.abs(value) < SECONDS_CUTOFF ? value * 1000 : value, timeZone);
   }
   const text = String(value).trim();
   if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
-  if (/^-?\d+(\.\d+)?$/.test(text)) return toDateInput(Number(text));
+  if (/^-?\d+(\.\d+)?$/.test(text)) return toDateInput(Number(text), timeZone);
   const parsed = new Date(text);
-  return Number.isNaN(parsed.getTime()) ? '' : localDay(parsed);
+  return Number.isNaN(parsed.getTime()) ? '' : zoneDay(parsed.getTime(), timeZone);
 }
 
 /**
  * Serializes one calendar day at one edge of a range. The `from` edge takes the first instant of
- * its local day and the `to` edge the last, so a range whose ends name the same day still matches
- * everything recorded on it.
+ * its day and the `to` edge the last, so a range whose ends name the same day still matches
+ * everything recorded on it. The day is counted in `timeZone`: with `Europe/Vienna`, 2026-03-10
+ * starts at 23:00 UTC on the 9th whatever zone the browser is in.
  * @param {unknown} day Calendar day in any form `toDateInput()` accepts.
  * @param {FilterPanelEdge} edge Which end of the range the day is.
  * @param {FilterPanelSerialize} [serialize='seconds'] Output format, or a function receiving the
  *   edge instant as a `Date`.
+ * @param {string|null} [timeZone=null] IANA zone the day is counted in; null for the runtime's own.
  * @returns {unknown} The serialized day, or null when there is no day.
  */
-export function serializeDate(day, edge, serialize = 'seconds') {
-  const text = toDateInput(day);
+export function serializeDate(day, edge, serialize = 'seconds', timeZone = null) {
+  const text = toDateInput(day, timeZone);
   if (!text) return null;
   const [year, month, date] = text.split('-').map(Number);
-  const instant = edge === 'to'
-    ? new Date(year, month - 1, date, 23, 59, 59, 999)
-    : new Date(year, month - 1, date, 0, 0, 0, 0);
+  const instant = new Date(dayEdge(year, month - 1, date, edge, timeZone));
   if (typeof serialize === 'function') return serialize(instant, edge);
   if (serialize === 'ms') return instant.getTime();
   if (serialize === 'iso') return instant.toISOString();
@@ -775,9 +788,10 @@ export function normalizeOptions(options) {
  * Running it on a draft returns the same draft, so it is safe on either shape.
  * @param {Record<string, unknown>|null|undefined} value Incoming values keyed by field.
  * @param {Record<string, FilterPanelField>} fields Field metadata.
+ * @param {string|null} [timeZone=null] IANA zone incoming instants are read in.
  * @returns {Record<string, unknown>}
  */
-export function toDraft(value, fields) {
+export function toDraft(value, fields, timeZone = null) {
   const source = isPlainObject(value) ? value : {};
   /** @type {Record<string, unknown>} */
   const draft = {};
@@ -792,8 +806,8 @@ export function toDraft(value, fields) {
       draft[key] = selectionOf(raw, normalizeOptions(field.options));
     } else if (spec.kind === 'date') {
       draft[key] = spec.range
-        ? { from: toDateInput(readEdge(raw, 'from')), to: toDateInput(readEdge(raw, 'to')) }
-        : toDateInput(raw);
+        ? { from: toDateInput(readEdge(raw, 'from'), timeZone), to: toDateInput(readEdge(raw, 'to'), timeZone) }
+        : toDateInput(raw, timeZone);
     } else {
       draft[key] = spec.range
         ? { from: toNumberValue(readEdge(raw, 'from'), spec), to: toNumberValue(readEdge(raw, 'to'), spec) }
@@ -809,10 +823,11 @@ export function toDraft(value, fields) {
  * @param {Record<string, unknown>|null|undefined} value Values keyed by field, raw or drafted.
  * @param {Record<string, FilterPanelField>} fields Field metadata.
  * @param {FilterPanelSerialize} [serialize='seconds'] Date output format.
+ * @param {string|null} [timeZone=null] IANA zone calendar days are counted in.
  * @returns {Record<string, unknown>}
  */
-export function serializeFilterValue(value, fields, serialize = 'seconds') {
-  const draft = toDraft(value, fields);
+export function serializeFilterValue(value, fields, serialize = 'seconds', timeZone = null) {
+  const draft = toDraft(value, fields, timeZone);
   /** @type {Record<string, unknown>} */
   const result = {};
   for (const [key, declared] of Object.entries(fields ?? {})) {
@@ -832,14 +847,14 @@ export function serializeFilterValue(value, fields, serialize = 'seconds') {
     if (spec.kind === 'date') {
       if (!spec.range) {
         // A single date names a day, so it serializes as that day's first instant.
-        if (raw) result[key] = serializeDate(raw, 'from', serialize);
+        if (raw) result[key] = serializeDate(raw, 'from', serialize, timeZone);
         continue;
       }
       const days = /** @type {{from: string, to: string}} */ (raw);
       /** @type {Record<string, unknown>} */
       const range = {};
-      if (days.from) range.from = serializeDate(days.from, 'from', serialize);
-      if (days.to) range.to = serializeDate(days.to, 'to', serialize);
+      if (days.from) range.from = serializeDate(days.from, 'from', serialize, timeZone);
+      if (days.to) range.to = serializeDate(days.to, 'to', serialize, timeZone);
       if (Object.keys(range).length > 0) result[key] = range;
       continue;
     }
@@ -917,11 +932,113 @@ function toNumberValue(raw, spec) {
   return spec.integer ? Math.trunc(parsed) : parsed;
 }
 
-/** @param {Date} date Instant. @returns {string} Local `YYYY-MM-DD`. */
-function localDay(date) {
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${date.getFullYear()}-${month}-${day}`;
+/**
+ * Validates the `timeZone` option.
+ * @param {unknown} timeZone IANA zone name; nullish or empty means the runtime's own zone.
+ * @returns {string|null} Canonical zone name, or null for the runtime's own zone.
+ * @throws {RangeError} When the runtime does not know the zone.
+ */
+export function normalizePanelTimeZone(timeZone) {
+  if (timeZone === null || timeZone === undefined || timeZone === '') return null;
+  try {
+    return new Intl.DateTimeFormat('en-US', { timeZone: String(timeZone) }).resolvedOptions().timeZone;
+  } catch {
+    throw new RangeError(`Unknown time zone "${String(timeZone)}"`);
+  }
+}
+
+/**
+ * The calendar day an instant falls on, as `YYYY-MM-DD`, in a zone or the runtime's own.
+ * @param {number} milliseconds Epoch milliseconds.
+ * @param {string|null} timeZone IANA zone, or null.
+ * @returns {string}
+ */
+function zoneDay(milliseconds, timeZone) {
+  if (!timeZone) {
+    const date = new Date(milliseconds);
+    return isoDay(date.getFullYear(), date.getMonth(), date.getDate());
+  }
+  const wall = wallClock(milliseconds, timeZone);
+  return isoDay(wall.year, wall.month, wall.day);
+}
+
+/**
+ * Epoch milliseconds of the first (`from`) or last (`to`) instant of a calendar day in a zone.
+ * The last instant is one millisecond before the next day starts, which keeps a day that a
+ * daylight-saving change shortens or lengthens whole.
+ * @param {number} year Full year.
+ * @param {number} month Zero-based month.
+ * @param {number} day Day of the month.
+ * @param {FilterPanelEdge} edge Edge of the day.
+ * @param {string|null} timeZone IANA zone, or null for the runtime's own.
+ * @returns {number}
+ */
+function dayEdge(year, month, day, edge, timeZone) {
+  if (!timeZone) {
+    return (edge === 'to'
+      ? new Date(year, month, day, 23, 59, 59, 999)
+      : new Date(year, month, day, 0, 0, 0, 0)).getTime();
+  }
+  if (edge !== 'to') return zoneMidnight(year, month, day, timeZone);
+  const next = new Date(Date.UTC(year, month, day + 1));
+  return zoneMidnight(next.getUTCFullYear(), next.getUTCMonth(), next.getUTCDate(), timeZone) - 1;
+}
+
+/**
+ * The first instant of a calendar day in a zone: its midnight, or the first minute after a
+ * daylight-saving gap that swallows midnight. Two offset corrections settle it on either side of
+ * a change. This is the rule `zeyos/query.js` `calendarZone().midnightOf()` follows, so a day the
+ * panel serializes is the day a ZeyOS form stores.
+ * @param {number} year Full year.
+ * @param {number} month Zero-based month.
+ * @param {number} day Day of the month.
+ * @param {string} timeZone IANA zone.
+ * @returns {number} Epoch milliseconds.
+ */
+function zoneMidnight(year, month, day, timeZone) {
+  const target = Date.UTC(year, month, day);
+  const offsetAt = (milliseconds) => {
+    const wall = wallClock(milliseconds, timeZone);
+    return Date.UTC(wall.year, wall.month, wall.day) + wall.seconds * 1000
+      - Math.floor(milliseconds / 1000) * 1000;
+  };
+  const first = target - offsetAt(target);
+  const second = target - offsetAt(first);
+  let best = null;
+  for (const candidate of [second, first]) {
+    const wall = wallClock(candidate, timeZone);
+    if (wall.year !== year || wall.month !== month || wall.day !== day) continue;
+    if (!best || wall.seconds < best.seconds) best = { candidate, seconds: wall.seconds };
+  }
+  return best ? best.candidate : second;
+}
+
+/**
+ * The wall clock of an instant in a zone.
+ * @param {number} milliseconds Epoch milliseconds.
+ * @param {string} timeZone IANA zone.
+ * @returns {{year: number, month: number, day: number, seconds: number}} Zero-based month and
+ *   seconds since the zone's midnight.
+ */
+function wallClock(milliseconds, timeZone) {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric',
+    hour: 'numeric', minute: 'numeric', second: 'numeric'
+  });
+  /** @type {Record<string, number>} */
+  const parts = {};
+  for (const part of formatter.formatToParts(new Date(milliseconds))) parts[part.type] = Number(part.value);
+  return {
+    year: parts.year,
+    month: parts.month - 1,
+    day: parts.day,
+    seconds: (parts.hour % 24) * 3600 + parts.minute * 60 + parts.second
+  };
+}
+
+/** @param {number} year @param {number} month Zero-based. @param {number} day @returns {string} `YYYY-MM-DD`. */
+function isoDay(year, month, day) {
+  return `${String(year).padStart(4, '0')}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
 /**

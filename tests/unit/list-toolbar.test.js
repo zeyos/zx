@@ -274,3 +274,12 @@ test('destroy() puts back what the toolbar borrowed before its own root goes awa
     'an adopted control has to leave before the root it was moved into is removed');
   assert.match(body, /restoreTarget\(root, this\._snapshot\)/);
 });
+
+test('bind() mounts the chooser through the view’s public API and never reads a private field', () => {
+  assert.doesNotMatch(source, /\._viewFieldControls/, 'an underscore field of the view is not API');
+  const mount = methodSource('  _mountFieldControls(view) {');
+  assert.match(mount, /view\.mountFieldControls\(this\.refs\.tools\)/,
+    'a RecordView moves its own chooser, so it can still remove it on destroy()');
+  const unbind = methodSource('  unbind() {');
+  assert.match(unbind, /view\.mountFieldControls\(null\)/, 'unbind() hands it back through the view');
+});

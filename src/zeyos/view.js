@@ -1,8 +1,6 @@
-import { buildListQuery } from './query.js';
 import { connect } from './connect.js';
-import { normalizeZeyosListResult } from './select.js';
 import { createSavedViewRegistry } from './saved-views.js';
-import { buildZeyosTableConfig } from './table.js';
+import { buildZeyosTableConfig, createServerPager } from './table.js';
 
 /** @typedef {import('../components/view/record-view.js').ViewField} ViewField */
 /** @typedef {import('../components/view/record-view.js').ViewSort} ViewSort */
@@ -32,7 +30,8 @@ import { buildZeyosTableConfig } from './table.js';
  * calendar day their stored midnight names in it. Defaults to the runtime's own zone.
  * @property {Record<string, Partial<ViewField>>} [fieldOverrides] View descriptor overrides.
  * @property {string|((record:Record<string,unknown>)=>unknown)} [recordId='ID'] Record id accessor.
- * @property {number} [pageSize=50] Server page size.
+ * @property {number} [pageSize=50] Server page size, a positive integer — the same default and
+ * validation as `zeyosTable()`, because both bindings page through one shared loader.
  * @property {ViewSort|null} [sort=null] Initial server sort.
  * @property {Record<string, unknown>} [filters] Initial ZeyOS predicates.
  * @property {string} [search=''] Initial full-text query.
@@ -62,7 +61,10 @@ import { buildZeyosTableConfig } from './table.js';
  * @typedef {Object} ZeyosViewLoadOptions
  * @property {string} [search] Replacement full-text query.
  * @property {Record<string, unknown>} [filters] Replacement predicates.
- * @property {number} [page=0] Zero-based page; pages above zero append.
+ * @property {number} [page=0] Zero-based page, a non-negative integer; pages above zero append
+ * unless `replace` is set.
+ * @property {boolean} [replace] Replace the records with this page instead of appending it.
+ * @property {number} [pageSize] New page size for this and every later load.
  */
 
 /**
@@ -106,6 +108,7 @@ import { buildZeyosTableConfig } from './table.js';
  * @property {()=>Promise<ZeyosViewLoadResult>} loadMore Loads the next page when available.
  * @property {number|null} count Current server count.
  * @property {number} page Current zero-based page.
+ * @property {number} pageSize Current server page size.
  * @property {boolean} hasMore Whether another page is available.
  * @property {Record<string,any>|null} savedViews Saved-view registry when configured.
  * @property {Promise<SavedViewApplyResult|null>} ready Default restoration completed before loads.
@@ -198,7 +201,17 @@ export function zeyosView(client, resource, View, opts = {}) {
     }
   }
   const facade = connect(client);
-  const pageSize = normalizePageSize(opts.pageSize);
+  let pager;
+  try {
+    pager = createServerPager({
+      client, facade, resource, projection: config.projection, target: view,
+      pageSize: opts.pageSize, sort: opts.sort ?? null, filters: opts.filters ?? {}, search: opts.search,
+      searchFields: opts.searchFields, label: 'ZeyOS view'
+    });
+  } catch (error) {
+    view.destroy();
+    throw error;
+  }
   let saved;
   try {
     saved = resolveSavedViews(opts.savedViews, View, resource);
@@ -217,50 +230,8 @@ export function zeyosView(client, resource, View, opts = {}) {
       }
     }
   }
-  let currentSort = opts.sort ?? null;
-  let currentFilters = copyFilters(opts.filters ?? {});
-  let currentSearch = String(opts.search ?? '');
-  let currentPage = 0;
-  let totalCount = null;
-  let more = false;
-  let requestSequence = 0;
   let destroyed = false;
-
-  const performLoad = async (options = {}) => {
-    if (destroyed) throw new Error('ZeyOS view binding has been destroyed');
-    if (Object.prototype.hasOwnProperty.call(options, 'search')) currentSearch = String(options.search ?? '');
-    if (Object.prototype.hasOwnProperty.call(options, 'filters')) currentFilters = copyFilters(options.filters ?? {});
-    const page = normalizePage(options.page ?? 0);
-    const query = buildListQuery({
-      fields: config.projection,
-      sort: currentSort,
-      filters: currentFilters,
-      search: currentSearch,
-      searchFields: opts.searchFields,
-      limit: pageSize,
-      offset: page * pageSize,
-      count: true
-    });
-    const sequence = ++requestSequence;
-    view.setLoading(true);
-    try {
-      const normalized = normalizeZeyosListResult(client, await facade.list(resource, query));
-      const count = normalized.count ?? null;
-      const hasMore = count == null
-        ? normalized.data.length === pageSize
-        : page * pageSize + normalized.data.length < count;
-      if (!destroyed && sequence === requestSequence) {
-        currentPage = page;
-        totalCount = count;
-        more = hasMore;
-        if (page === 0) view.setData(normalized.data);
-        else view.addData(normalized.data);
-      }
-      return { data: normalized.data, count, page, hasMore, query };
-    } finally {
-      if (!destroyed && sequence === requestSequence) view.setLoading(false);
-    }
-  };
+  const performLoad = pager.load;
 
   /** @param {string} idOrName @param {{load?:boolean}} [options={}] @returns {Promise<SavedViewApplyResult>} */
   const applySaved = async (idOrName, options = {}) => {
@@ -270,15 +241,12 @@ export function zeyosView(client, resource, View, opts = {}) {
       type: presentation,
       onQuery: async ({ filters, search }) => {
         if (destroyed) return;
-        currentFilters = copyFilters(filters ?? {});
-        currentSearch = String(search ?? '');
+        pager.setQuery({ filters: savedFilters(filters), search });
       }
     });
     if (!result.applied || destroyed) return result;
-    currentSort = appliedViewSort(view, result.entry);
-    currentPage = 0;
-    totalCount = null;
-    more = false;
+    pager.setSort(appliedViewSort(view, result.entry));
+    pager.reset();
     if (options.load !== false) await performLoad({ page: 0 });
     return result;
   };
@@ -346,8 +314,8 @@ export function zeyosView(client, resource, View, opts = {}) {
       name: String(source.name ?? ''),
       type: presentation,
       state: view.getViewState(),
-      filters: copyFilters(currentFilters),
-      search: currentSearch
+      filters: pager.filters,
+      search: pager.search
     };
   };
 
@@ -377,8 +345,9 @@ export function zeyosView(client, resource, View, opts = {}) {
   };
 
   const sortHandler = (event) => {
+    if (destroyed) return;
     const id = event.detail?.id;
-    currentSort = id == null ? null : { id: String(id), dir: event.detail.dir === 'desc' ? 'desc' : 'asc' };
+    pager.setSort(id == null ? null : { id: String(id), dir: event.detail.dir === 'desc' ? 'desc' : 'asc' });
     void load({ page: 0 }).catch(() => { /* connect() already reported the API failure. */ });
   };
 
@@ -389,26 +358,12 @@ export function zeyosView(client, resource, View, opts = {}) {
     setFilters: (filters) => load({ filters, page: 0 }),
     loadMore: async () => {
       await ensureInitialized({ load: false });
-      return more ? performLoad({ page: currentPage + 1 }) : {
-        data: [],
-        count: totalCount,
-        page: currentPage,
-        hasMore: false,
-        query: buildListQuery({
-          fields: config.projection,
-          sort: currentSort,
-          filters: currentFilters,
-          search: currentSearch,
-          searchFields: opts.searchFields,
-          limit: pageSize,
-          offset: currentPage * pageSize,
-          count: true
-        })
-      };
+      return pager.loadMore();
     },
-    get count() { return totalCount; },
-    get page() { return currentPage; },
-    get hasMore() { return more; },
+    get count() { return pager.count; },
+    get page() { return pager.page; },
+    get pageSize() { return pager.pageSize; },
+    get hasMore() { return pager.hasMore; },
     savedViews,
     ready,
     restoreDefault,
@@ -418,7 +373,7 @@ export function zeyosView(client, resource, View, opts = {}) {
     destroy: () => {
       if (destroyed) return;
       destroyed = true;
-      requestSequence += 1;
+      pager.destroy();
       if (typeof view.off === 'function') view.off('sortchange', sortHandler);
       else view.removeEventListener?.('sortchange', sortHandler);
       if (saved?.owned) savedViews?.destroy?.();
@@ -456,21 +411,14 @@ function supplementalFieldIds(opts) {
   return [...new Set(ids)];
 }
 
-/** @param {unknown} value @returns {number} */
-function normalizePageSize(value) {
-  const number = Number(value ?? 50);
-  return Number.isFinite(number) ? Math.max(1, Math.floor(number)) : 50;
-}
-
-/** @param {unknown} value @returns {number} */
-function normalizePage(value) {
-  const number = Number(value);
-  return Number.isFinite(number) ? Math.max(0, Math.floor(number)) : 0;
-}
-
-/** @param {unknown} value @returns {Record<string, unknown>} */
-function copyFilters(value) {
-  return value && typeof value === 'object' && !Array.isArray(value) ? { ...value } : {};
+/**
+ * Filters restored from a saved view are persisted data, not a caller's argument: a malformed
+ * entry reads as no filters rather than failing the restore.
+ * @param {unknown} value Stored filters.
+ * @returns {Record<string, unknown>}
+ */
+function savedFilters(value) {
+  return value && typeof value === 'object' && !Array.isArray(value) ? { .../** @type {Record<string, unknown>} */ (value) } : {};
 }
 
 /**

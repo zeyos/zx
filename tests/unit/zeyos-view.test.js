@@ -301,3 +301,39 @@ function fakeClient() {
     }
   };
 }
+
+test('zeyosView shares zeyosTable paging: default page size, strict validation, replace mode', async () => {
+  const client = fakeClient();
+  const binding = zeyosView(client, 'tickets', FakeView, { fields: ['name'] });
+  assert.equal(binding.pageSize, 50, 'the same default as zeyosTable()');
+  await binding.load({ page: 1, pageSize: 1, replace: true });
+  assert.deepEqual([client.calls.at(-1).limit, client.calls.at(-1).offset], [1, 1]);
+  assert.deepEqual(binding.view.data.map((record) => record.name), ['Keyboard']);
+  await assert.rejects(() => binding.load({ page: -1 }), RangeError);
+  binding.destroy();
+
+  let created = null;
+  class Spy extends FakeView {
+    constructor(target, options) { super(target, options); created = this; }
+  }
+  assert.throws(() => zeyosView(client, 'tickets', Spy, { pageSize: 0 }), RangeError);
+  assert.equal(created.destroyed, true, 'a rejected configuration does not leave the view behind');
+});
+
+test('a zeyosView response resolving after destroy() leaves the destroyed view alone', async () => {
+  const client = fakeClient();
+  let release;
+  const original = client.api.listTickets;
+  client.api.listTickets = async (query) => {
+    await new Promise((resolve) => { release = resolve; });
+    return original(query);
+  };
+  const binding = zeyosView(client, 'tickets', FakeView, { fields: ['name'] });
+  const pending = binding.load();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  binding.destroy();
+  release();
+  await pending;
+  assert.deepEqual(binding.view.data, []);
+  assert.equal(binding.view.loading, true, 'loading:false is not written to a destroyed view either');
+});

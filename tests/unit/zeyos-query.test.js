@@ -127,3 +127,32 @@ test('a zone midnight is the first moment of its day across every daylight-savin
   assert.equal(local.midnightOf(2026, 2, 29), new Date(2026, 2, 29).getTime());
   assert.deepEqual(local.dayOf(new Date(2026, 9, 8, 23, 59).getTime()), { year: 2026, month: 9, day: 8 });
 });
+
+test('dataFilterStateToFilters counts date-only values in the instance zone when given one', async () => {
+  const { dataFilterStateToFilters: convert, calendarDayToUnixSeconds: day } = await import('../../src/zeyos/query.js');
+  const picked = new Date(2026, 0, 15);
+  const defs = [
+    { id: 'due', field: 'duedate', format: 'date', operator: '>=' },
+    { id: 'range', field: 'date', format: 'date' },
+    { id: 'changed', field: 'lastmodified', format: 'datetime', operator: '>=' }
+  ];
+  const state = { due: picked, range: [picked, '2026-01-31'], changed: picked };
+  const viennaMidnight = Date.UTC(2026, 0, 14, 23) / 1000;
+
+  const zoned = convert(state, defs, { timeZone: 'Europe/Vienna' });
+  assert.deepEqual(zoned.duedate, { '>=': viennaMidnight }, 'the picked day, at Vienna midnight');
+  assert.deepEqual(zoned.date, [viennaMidnight, Date.UTC(2026, 0, 30, 23) / 1000],
+    'a YYYY-MM-DD string is a calendar day as well');
+  assert.deepEqual(zoned.lastmodified, { '>=': Math.floor(picked.getTime() / 1000) },
+    'a datetime stays an exact instant');
+  assert.equal(zoned.duedate['>='], day(picked, 'Europe/Vienna'), 'the same rule forms store with');
+
+  // Without the option nothing changes: instants, and strings passed through.
+  const plain = convert(state, defs);
+  assert.deepEqual(plain.duedate, { '>=': Math.floor(picked.getTime() / 1000) });
+  assert.deepEqual(plain.date, [Math.floor(picked.getTime() / 1000), '2026-01-31']);
+  // `timeZone: null` names the runtime zone: local midnight of the picked day.
+  assert.deepEqual(convert({ due: new Date(2026, 0, 15, 15, 30) }, defs, { timeZone: null }).duedate,
+    { '>=': Math.floor(picked.getTime() / 1000) });
+  assert.throws(() => convert(state, defs, { timeZone: 'Nowhere/Special' }), RangeError);
+});

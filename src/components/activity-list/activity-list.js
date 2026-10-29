@@ -1,6 +1,7 @@
 // @ts-check
 import { Component } from '../../core/component.js';
 import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
+import { captureItemFocus, restoreItemFocus } from '../../core/keyboard.js';
 import { uid } from '../../core/util.js';
 import { skeleton, skeletonText } from '../skeleton/skeleton.js';
 import { ActivityItem } from '../activity-item/activity-item.js';
@@ -208,8 +209,33 @@ export class ActivityList extends Component {
     if (!this._createdRoot) restoreTarget(this.el, this._original);
   }
 
-  /** @private @returns {void} */
+  /**
+   * Rebuilds the list. Items are regrouped on every mutation, so the rows are new; focus that sat
+   * on an item's control is put back on the same control of the same activity (matched by `id`,
+   * else by position), so a live feed prepending entries does not throw the reader to `<body>`.
+   * @private
+   * @returns {void}
+   */
   _renderList() {
+    const root = /** @type {HTMLElement} */ (this.el);
+    const focus = captureItemFocus(root, (element) => {
+      const index = this._itemComponents.findIndex((item) => item.el?.contains(element));
+      if (index < 0) return null;
+      const component = this._itemComponents[index];
+      return { key: { id: component.getActivity().id ?? null, index }, element: component.el };
+    });
+    this._renderItems();
+    restoreItemFocus(root, focus, (key) => {
+      const memo = /** @type {{id: unknown, index: number}} */ (key);
+      const match = memo.id === null ? undefined
+        : this._itemComponents.find((item) => Object.is(item.getActivity().id ?? null, memo.id));
+      const fallback = match ?? this._itemComponents[Math.min(memo.index, this._itemComponents.length - 1)];
+      return fallback?.el ?? null;
+    });
+  }
+
+  /** @private @returns {void} */
+  _renderItems() {
     this._destroyItems();
     this._groupSequence = 0;
     const root = /** @type {HTMLElement} */ (this.el);

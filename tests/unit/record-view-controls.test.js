@@ -190,6 +190,43 @@ test('only a fieldControls object stands Table down from rendering its own choos
   assert.equal(custom.columnReorder, false);
 });
 
+test('getFieldControls() and mountFieldControls() move the chooser and keep it owned by the view', () => {
+  withDocument(() => {
+    const view = new CardView(null, { fields: FIELDS, data: [] });
+    const toolbar = findClass(view.el, 'zx-card-view__toolbar');
+    const controls = view.getFieldControls();
+    assert.equal(controls, findClass(view.el, 'zx-record-view__field-controls'));
+    const status = findClass(controls, 'zx-record-view__field-status');
+    assert.equal(status?.getAttribute('role') ?? status?.role, 'status', 'a live region announces moves');
+
+    const host = document.createElement('div');
+    const keep = document.createElement('button');
+    host.append(keep);
+    assert.equal(view.mountFieldControls(host), controls);
+    assert.equal(controls.parentNode, host);
+    assert.equal(controls.dataset.mounted, 'external');
+    assert.equal(view.mountFieldControls(host), controls, 'mounting where it already is is a no-op');
+    assert.equal(host.children.length, 2);
+
+    assert.equal(view.mountFieldControls(null), controls, 'null hands it back');
+    assert.equal(controls.parentNode, toolbar);
+    assert.equal('mounted' in controls.dataset, false);
+
+    view.mountFieldControls(host);
+    view.destroy();
+    assert.deepEqual(host.children, [keep], 'destroy() takes the chooser out of the host');
+  });
+});
+
+test('a view without a chooser offers none to mount', () => {
+  withDocument(() => {
+    const view = new CardView(null, { fields: FIELDS, data: [], fieldControls: false });
+    assert.equal(view.getFieldControls(), null);
+    assert.equal(view.mountFieldControls(document.createElement('div')), null);
+    view.destroy();
+  });
+});
+
 /** @param {CardView} view @returns {string[]} */
 function optionTexts(view) {
   return /** @type {any} */ (view.refs.sort).children.map((option) => textOf(option));
@@ -293,6 +330,29 @@ class FakeNode {
     child.parentNode = this;
     this.children.push(child);
     return child;
+  }
+
+  /** @param {FakeNode} child @param {FakeNode|null} reference @returns {FakeNode} */
+  insertBefore(child, reference) {
+    if (!reference) return this.appendChild(child);
+    child.remove();
+    const index = this.children.indexOf(reference);
+    if (index < 0) throw new Error('insertBefore reference is not a child');
+    child.parentNode = this;
+    this.children.splice(index, 0, child);
+    return child;
+  }
+
+  /** @returns {FakeNode|null} */
+  get nextSibling() {
+    const siblings = this.parentNode?.children ?? [];
+    return siblings[siblings.indexOf(this) + 1] ?? null;
+  }
+
+  /** @param {FakeNode} node @returns {boolean} */
+  contains(node) {
+    for (let current = node; current; current = current.parentNode) if (current === this) return true;
+    return false;
   }
 
   /** @param {...FakeNode} children @returns {void} */

@@ -382,8 +382,10 @@ export class ListToolbar extends Component {
   }
 
   /**
-   * Optional sugar for a `TableView` or `CardView`: it wires the shape switch to the view and
-   * mounts the view's field chooser into this bar.
+   * Optional sugar for a `TableView`, `CardView`, or `KanbanView`: it wires the shape switch to
+   * the view and mounts the view's field chooser into this bar — through the view's public
+   * `mountFieldControls()` when it has one, which every `RecordView` does. A `TableView` with the
+   * default `fieldControls: true` contributes its Table's column chooser.
    *
    * Nothing is imported and nothing is required — every capability is feature-detected, so a view
    * that offers none of them still works and still gets `viewchange`, and the host swaps the view
@@ -413,10 +415,19 @@ export class ListToolbar extends Component {
    * @returns {this}
    */
   unbind() {
+    const bound = this._bound;
     this._bound = null;
     if (this._chooser) {
-      restorePosition(this._chooser, this.el);
+      const chooser = this._chooser;
       this._chooser = null;
+      const view = bound?.view;
+      // The view put it here and knows where it came from; hand it back only while it is still
+      // ours, since a destroyed view has already taken it away.
+      if (chooser.viaView && view && typeof view.mountFieldControls === 'function') {
+        if (this.el.contains(chooser.element)) view.mountFieldControls(null);
+      } else {
+        restorePosition(chooser, this.el);
+      }
     }
     return this;
   }
@@ -601,21 +612,28 @@ export class ListToolbar extends Component {
     if (view.options?.fieldControls === false) return;
     const element = this._findFieldControls(view);
     if (!element || this.el.contains(element)) return;
+    if (typeof view.mountFieldControls === 'function') {
+      const mounted = view.mountFieldControls(this.refs.tools);
+      if (isElement(mounted) && this.el.contains(mounted)) {
+        this._chooser = { element: mounted, parent: null, next: null, viaView: true };
+      }
+      return;
+    }
     this._chooser = capturePosition(element);
     this.refs.tools.append(element);
   }
 
   /**
-   * Finds a view's field chooser without importing the view, newest accessor first.
+   * Finds a view's field chooser without importing the view: its public `getFieldControls()`,
+   * else — for an object that only looks like a record view — the shared chooser's class.
    * @param {Record<string, any>} view Bound view.
    * @returns {Element|null}
    */
   _findFieldControls(view) {
     if (typeof view.getFieldControls === 'function') {
       const element = view.getFieldControls();
-      if (isElement(element)) return element;
+      return isElement(element) ? element : null;
     }
-    if (isElement(view._viewFieldControls)) return view._viewFieldControls;
     const root = typeof view.toElement === 'function' ? view.toElement() : null;
     return isElement(root) ? root.querySelector('.zx-record-view__field-controls') : null;
   }
@@ -665,7 +683,10 @@ export class ListToolbar extends Component {
  * @property {((event: MouseEvent) => void)|null} onclick Descriptor callback.
  */
 
-/** @typedef {{element: Element, parent: Node|null, next: Node|null}} AdoptedElement */
+/**
+ * @typedef {{element: Element, parent: Node|null, next: Node|null, viaView?: boolean}} AdoptedElement
+ * `viaView` marks a field chooser the bound view moved here itself and takes back on `unbind()`.
+ */
 
 /**
  * @typedef {Object} RecordViewCapabilities
@@ -673,7 +694,8 @@ export class ListToolbar extends Component {
  * @property {string|null} setShape Method that changes the view shape, if any.
  * @property {string|null} getShape Method that reads the view shape, if any.
  * @property {boolean} events Whether the object emits component events.
- * @property {boolean} fieldControls Whether the object offers its field chooser through a method.
+ * @property {boolean} fieldControls Whether the object offers its field chooser through a method
+ *   (`getFieldControls()`, which every `RecordView` has).
  */
 
 /**

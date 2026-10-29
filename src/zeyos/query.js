@@ -20,8 +20,10 @@
  * @property {string} [rawField] Raw ZeyOS field when the UI id is an alias.
  * @property {string[]} [fields] Raw fields combined as an OR group.
  * @property {string} [operator] ZeyOS comparison operator such as `>=` or `IN`.
- * @property {string} [format] Semantic value format; date/datetime values become Unix seconds.
- * @property {string} [type] Semantic value type; date/datetime values become Unix seconds.
+ * @property {string} [format] Semantic value format; date/datetime values become Unix seconds. With
+ * a `timeZone` conversion option, a `date` (date-only) value is a calendar day and becomes that
+ * day's midnight in the zone, like a ZeyOS form stores it; `datetime` values stay instants.
+ * @property {string} [type] Semantic value type, read like `format`.
  * @property {boolean} [includeEmpty=false] Preserve an empty-string value instead of treating it as inactive UI state.
  * @property {boolean} [includeNull=false] Preserve null instead of treating it as inactive UI state.
  * @property {(value: unknown, state: Record<string, unknown>) => unknown} [transform] Value transform.
@@ -226,18 +228,33 @@ export function tableSortToQuery(sort) {
 }
 
 /**
+ * @typedef {Object} FilterConversionOptions
+ * @property {string|null} [timeZone] IANA zone of the ZeyOS instance. When given, values of
+ * `date` (date-only) definitions are calendar days: a `Date` counts by its local year, month, and
+ * day, a `YYYY-MM-DD` string by its digits, and either becomes midnight of that day in the zone —
+ * exactly what `calendarDayToUnixSeconds()` and `zeyosForm()` store, so a viewer in another zone
+ * filters `duedate` by the day they picked. `null` names the runtime's own zone. Omitted, dates
+ * convert as exact instants, as they always have.
+ */
+
+/**
  * Converts DataFilter state to ZeyOS field predicates. Definitions may rename UI ids,
  * add comparison operators, combine several fields with OR, or transform values. Blank/null
  * values are DataFilter's inactive sentinels by default; `includeEmpty`/`includeNull` opt in to
  * the distinct ZeyOS meanings. Zero and false are always retained.
  * @param {Record<string, unknown>} state DataFilter state keyed by definition id.
  * @param {ServerFilterDefinition[]|Record<string, string|ServerFilterDefinition>} [defs=[]] Server mappings.
+ * @param {FilterConversionOptions} [options={}] Conversion options, such as the instance zone.
  * @returns {Record<string, unknown>} ZeyOS `filters` object (plural at the call site).
+ * @throws {RangeError} When `options.timeZone` names a zone the runtime does not know.
  */
-export function dataFilterStateToFilters(state, defs = []) {
+export function dataFilterStateToFilters(state, defs = [], options = {}) {
   if (!state || typeof state !== 'object' || Array.isArray(state)) {
     throw new TypeError('DataFilter state must be an object');
   }
+  const calendarDays = Boolean(options) && typeof options === 'object'
+    && Object.prototype.hasOwnProperty.call(options, 'timeZone');
+  const zone = calendarDays ? normalizeTimeZone(options.timeZone) : undefined;
   const definitions = normalizeDefinitions(state, defs);
   const filters = {};
   let groupIndex = 0;
@@ -259,7 +276,7 @@ export function dataFilterStateToFilters(state, defs = []) {
 
     let value = typeof definition.transform === 'function'
       ? definition.transform(original, state)
-      : normalizeFilterValue(original, definition);
+      : normalizeFilterValue(original, definition, calendarDays ? { timeZone: zone } : null);
     if (value === undefined) continue;
     if (definition.operator) value = { [definition.operator]: value };
 
@@ -327,16 +344,30 @@ function normalizeDefinitions(state, defs) {
   return Object.keys(state).map((id) => ({ id, field: id }));
 }
 
-/** @param {unknown} value @param {ServerFilterDefinition} definition @returns {unknown} */
-function normalizeFilterValue(value, definition) {
+/**
+ * @param {unknown} value Filter value.
+ * @param {ServerFilterDefinition} definition Server mapping.
+ * @param {{timeZone: string|undefined}|null} calendar Zone for date-only values, or null to convert
+ * every date as an instant.
+ * @returns {unknown}
+ */
+function normalizeFilterValue(value, definition, calendar = null) {
   const semantic = String(definition.format ?? definition.type ?? '').toLowerCase();
-  if (value instanceof Date && ['date', 'datetime', 'date-time'].includes(semantic)) {
-    return dateToUnixSeconds(value);
-  }
-  if (Array.isArray(value) && ['date', 'datetime', 'date-time'].includes(semantic)) {
-    return value.map((entry) => entry instanceof Date ? dateToUnixSeconds(entry) : entry);
-  }
-  return value;
+  if (!['date', 'datetime', 'date-time'].includes(semantic)) return value;
+  /** @param {unknown} entry @returns {unknown} */
+  const convert = (entry) => {
+    if (calendar && semantic === 'date') {
+      if (entry instanceof Date) return calendarDayToUnixSeconds(entry, calendar.timeZone);
+      const day = typeof entry === 'string' ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(entry.trim()) : null;
+      if (day) {
+        const midnight = calendarZone(calendar.timeZone).midnightOf(Number(day[1]), Number(day[2]) - 1, Number(day[3]));
+        return Math.floor(midnight / 1000);
+      }
+      return entry;
+    }
+    return entry instanceof Date ? dateToUnixSeconds(entry) : entry;
+  };
+  return Array.isArray(value) ? value.map(convert) : convert(value);
 }
 
 /** @param {ZxSort|ZxSort[]|undefined} sort @param {string[]|Record<string, string>|undefined} fields @returns {ZxSort|ZxSort[]|undefined} */

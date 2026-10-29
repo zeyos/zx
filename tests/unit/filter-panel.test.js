@@ -458,3 +458,47 @@ class FakeDocument {
     return new FakeText(value);
   }
 }
+
+/* ----------------------------------------------------------- the instance zone -- */
+
+test('a timeZone counts calendar days in that zone, wherever the runtime is', () => {
+  // Vienna is UTC+1 in winter: 15 January starts at 23:00 UTC on the 14th.
+  assert.equal(serializeDate('2026-01-15', 'from', 'iso', 'Europe/Vienna'), '2026-01-14T23:00:00.000Z');
+  assert.equal(serializeDate('2026-01-15', 'to', 'iso', 'Europe/Vienna'), '2026-01-15T22:59:59.999Z');
+  assert.equal(serializeDate('2026-01-15', 'from', 'seconds', 'Europe/Vienna'),
+    Date.UTC(2026, 0, 14, 23) / 1000);
+  // The spring change makes 29 March 2026 a 23-hour day in Vienna; it still spans all of it.
+  assert.equal(serializeDate('2026-03-29', 'from', 'iso', 'Europe/Vienna'), '2026-03-28T23:00:00.000Z');
+  assert.equal(serializeDate('2026-03-29', 'to', 'iso', 'Europe/Vienna'), '2026-03-29T21:59:59.999Z');
+  // West of UTC the day starts later in UTC terms.
+  assert.equal(serializeDate('2026-01-15', 'from', 'iso', 'America/Los_Angeles'), '2026-01-15T08:00:00.000Z');
+  assert.equal(serializeDate('2026-01-15', 'from', 'iso', 'UTC'), '2026-01-15T00:00:00.000Z');
+});
+
+test('an instant reads back as the day it falls on in the zone, so a value round-trips', () => {
+  const viennaMidnight = Date.UTC(2026, 0, 14, 23) / 1000;
+  assert.equal(toDateInput(viennaMidnight, 'Europe/Vienna'), '2026-01-15');
+  assert.equal(toDateInput(viennaMidnight, 'UTC'), '2026-01-14');
+  assert.equal(toDateInput('2026-01-14T23:00:00Z', 'Europe/Vienna'), '2026-01-15');
+  // A Date is a picked day, read by its local calendar day as calendarDayToUnixSeconds() does.
+  assert.equal(toDateInput(new Date(2026, 0, 15), 'Pacific/Kiritimati'), '2026-01-15');
+  assert.equal(toDateInput('2026-01-15', 'Asia/Tokyo'), '2026-01-15', 'a bare day has no zone to shift');
+
+  const zoned = serializeFilterValue({ due: '2026-01-15', created: { from: '2026-01-15', to: '2026-01-15' } },
+    fields(), 'seconds', 'Europe/Vienna');
+  assert.equal(zoned.due, viennaMidnight);
+  assert.deepEqual(zoned.created, { from: viennaMidnight, to: viennaMidnight + 86399 });
+  assert.deepEqual(toDraft(zoned, fields(), 'Europe/Vienna').created,
+    { from: '2026-01-15', to: '2026-01-15' }, 'the serialized value drafts back to the same days');
+});
+
+test('the timeZone option is validated and defaults to the runtime zone', async () => {
+  const { normalizePanelTimeZone } = await import('../../src/components/filter-panel/filter-panel.js');
+  assert.equal(FilterPanel.defaults.timeZone, null);
+  assert.equal(normalizePanelTimeZone(null), null);
+  assert.equal(normalizePanelTimeZone(''), null);
+  assert.equal(normalizePanelTimeZone('Europe/Vienna'), 'Europe/Vienna');
+  assert.throws(() => normalizePanelTimeZone('Mars/Olympus'), RangeError);
+  // Without a zone nothing changes: local midnight, as before.
+  assert.equal(serializeDate('2026-01-15', 'from', 'seconds', null), Math.floor(DAY_START.getTime() / 1000));
+});

@@ -15,7 +15,8 @@ import { normalizeZeyosListResult } from './select.js';
  * @property {string} [timeZone] IANA time zone of the ZeyOS instance. Date-only columns show the
  * calendar day their stored midnight names in this zone; defaults to the runtime's own zone.
  * @property {string|((row: Record<string, unknown>) => unknown)} [rowId='ID'] Row id accessor.
- * @property {number} [pageSize=50] Server page size.
+ * @property {number} [pageSize=50] Server page size, a positive integer. `load({pageSize})` changes
+ * it later — what a `Pagination` page-size select does.
  * @property {{id: string, dir: 'asc'|'desc'}|null} [sort=null] Initial server sort.
  * @property {Record<string, unknown>} [filters] Initial ZeyOS predicates.
  * @property {string} [search=''] Initial full-text query.
@@ -70,7 +71,12 @@ const TABLE_OPTION_KEYS = [
  * @typedef {Object} ZeyosTableLoadOptions
  * @property {string} [search] Replacement full-text query.
  * @property {Record<string, unknown>} [filters] Replacement ZeyOS predicates.
- * @property {number} [page=0] Zero-based page; pages above zero append rows.
+ * @property {number} [page=0] Zero-based page, a non-negative integer. Pages above zero append
+ * rows unless `replace` is set.
+ * @property {boolean} [replace] Replace the rows with this page instead of appending it — what a
+ * numbered pager needs. Page zero always replaces.
+ * @property {number} [pageSize] New page size for this and every later load; the request offset is
+ * `page * pageSize`.
  */
 
 /**
@@ -91,8 +97,55 @@ const TABLE_OPTION_KEYS = [
  * @property {() => Promise<ZeyosTableLoadResult>} loadMore Appends the next page when available.
  * @property {number|null} count Current server count.
  * @property {number} page Current zero-based page.
+ * @property {number} pageSize Current server page size.
  * @property {boolean} hasMore Whether another page is available.
- * @property {() => void} destroy Destroys the generated table.
+ * @property {() => void} destroy Destroys the generated table. A request still in flight is
+ * ignored when it resolves, and later loads reject.
+ */
+
+/**
+ * The surface a server pager renders into: a Zx `Table`, or any RecordView.
+ * @typedef {Object} ServerPagerTarget
+ * @property {(rows: Record<string, unknown>[]) => unknown} setData Replaces the rows.
+ * @property {(rows: Record<string, unknown>[]) => unknown} addData Appends rows.
+ * @property {(loading: boolean) => unknown} setLoading Shows or hides the loading state.
+ */
+
+/**
+ * @typedef {Object} ServerPagerOptions
+ * @property {Record<string, any>} client Injected ZeyOS client (for result normalization).
+ * @property {{list: (resource: string, query: Record<string, unknown>) => Promise<unknown>}} facade
+ * Connection facade from `connect(client)`.
+ * @property {string} resource Resource name.
+ * @property {Record<string, string>} projection API projection.
+ * @property {ServerPagerTarget} target Component the rows go to.
+ * @property {unknown} [pageSize=50] Initial page size; must be a positive integer.
+ * @property {{id: string, dir: 'asc'|'desc'}|null} [sort=null] Initial sort.
+ * @property {unknown} [filters={}] Initial predicates; must be a plain object.
+ * @property {unknown} [search=''] Initial full-text query.
+ * @property {string[]} [searchFields] UI search-field metadata passed to `buildListQuery`.
+ * @property {string} [label='ZeyOS binding'] Name used in error messages.
+ */
+
+/**
+ * @typedef {Object} ServerPager
+ * @property {(options?: ZeyosTableLoadOptions) => Promise<ZeyosTableLoadResult>} load Loads a page.
+ * @property {() => Promise<ZeyosTableLoadResult>} loadMore Appends the next page when available,
+ * else resolves without a request.
+ * @property {(sort: {id: string, dir: 'asc'|'desc'}|null) => void} setSort Replaces the sort used
+ * by the next load.
+ * @property {(state: {filters?: unknown, search?: unknown}) => void} setQuery Replaces filters and
+ * search without loading.
+ * @property {() => void} reset Forgets the loaded page, count, and `hasMore`.
+ * @property {() => void} destroy Stops rendering: in-flight responses are ignored, later loads reject.
+ * @property {boolean} destroyed Whether `destroy()` ran.
+ * @property {number|null} count Current server count.
+ * @property {number} page Current zero-based page.
+ * @property {number} pageSize Current page size.
+ * @property {boolean} hasMore Whether another page is available.
+ * @property {{id: string, dir: 'asc'|'desc'}|null} sort Current sort.
+ * @property {Record<string, unknown>} filters Copy of the current predicates.
+ * @property {string} search Current full-text query.
  */
 
 /**
@@ -160,9 +213,15 @@ export function buildZeyosTableConfig(client, resource, opts = {}) {
 }
 
 /**
- * Generates a server-backed Zx Table. Sorting automatically reloads page zero. `load({page: 0})`
- * replaces data, higher pages append it, and `loadMore()` uses `limit`/`offset` plus the returned
- * count. DataFilter callers can map state with `dataFilterStateToFilters` before `setFilters()`.
+ * Generates a server-backed Zx Table. Sorting automatically reloads page zero. Paging is
+ * zero-based: `load({page: 0})` replaces data, higher pages append it — load-more paging, which
+ * `loadMore()` drives from `limit`/`offset` plus the returned count — and `replace: true` replaces
+ * at any page, which is what a numbered `Pagination` needs. `Pagination` is one-based, so its
+ * `change` maps as `load({page: detail.page - 1, pageSize: detail.pageSize, replace: true})`, the
+ * request offset being `(page - 1) * pageSize`; feed `result.count` back with `setTotal()`.
+ * DataFilter callers can map state with `dataFilterStateToFilters` before `setFilters()`.
+ * Paging is shared with `zeyosView()` through {@link createServerPager}: the same validation, and
+ * a response that resolves after `destroy()` never touches the destroyed table.
  * Table presentation options (`variant`, `zebra`, `stickyHeader`, `responsive`, `emptyText`, …) and
  * listeners are passed through to the generated Table.
  * @param {Record<string, any>} client Injected ZeyOS client instance.
@@ -174,82 +233,133 @@ export function zeyosTable(client, resource, opts = {}) {
   const config = buildZeyosTableConfig(client, resource, opts);
   const facade = connect(client);
   const table = new Table(null, config.tableOptions);
-  const pageSize = normalizePageSize(opts.pageSize);
-  let currentSort = opts.sort ?? null;
-  let currentFilters = copyFilters(opts.filters ?? {});
-  let currentSearch = String(opts.search ?? '');
-  let currentPage = 0;
-  let totalCount = null;
-  let more = false;
-  let requestSequence = 0;
-
-  const load = async (options = {}) => {
-    if (Object.prototype.hasOwnProperty.call(options, 'search')) currentSearch = String(options.search ?? '');
-    if (Object.prototype.hasOwnProperty.call(options, 'filters')) currentFilters = copyFilters(options.filters ?? {});
-    const page = normalizePage(options.page ?? 0);
-    const query = buildListQuery({
-      fields: config.projection,
-      sort: currentSort,
-      filters: currentFilters,
-      search: currentSearch,
-      limit: pageSize,
-      offset: page * pageSize,
-      count: true
+  let pager;
+  try {
+    pager = createServerPager({
+      client, facade, resource, projection: config.projection, target: table,
+      pageSize: opts.pageSize, sort: opts.sort ?? null, filters: opts.filters ?? {}, search: opts.search,
+      label: 'ZeyOS table'
     });
-    const sequence = ++requestSequence;
-    table.setLoading(true);
-    try {
-      const normalized = normalizeZeyosListResult(client, await facade.list(resource, query));
-      const count = normalized.count ?? null;
-      const hasMore = count == null
-        ? normalized.data.length === pageSize
-        : (page * pageSize + normalized.data.length) < count;
-      if (sequence === requestSequence) {
-        currentPage = page;
-        totalCount = count;
-        more = hasMore;
-        if (page === 0) table.setData(normalized.data);
-        else table.addData(normalized.data);
-      }
-      return { data: normalized.data, count, page, hasMore, query };
-    } finally {
-      if (sequence === requestSequence) table.setLoading(false);
-    }
-  };
+  } catch (error) {
+    table.destroy();
+    throw error;
+  }
 
   const binding = {
     table,
-    load,
-    setSearch: (search) => load({ search, page: 0 }),
-    setFilters: (filters) => load({ filters, page: 0 }),
-    loadMore: () => more ? load({ page: currentPage + 1 }) : Promise.resolve({
-      data: [],
-      count: totalCount,
-      page: currentPage,
-      hasMore: false,
-      query: buildListQuery({
-        fields: config.projection,
-        sort: currentSort,
-        filters: currentFilters,
-        search: currentSearch,
-        limit: pageSize,
-        offset: currentPage * pageSize,
-        count: true
-      })
-    }),
-    get count() { return totalCount; },
-    get page() { return currentPage; },
-    get hasMore() { return more; },
-    destroy: () => table.destroy()
+    load: pager.load,
+    setSearch: (search) => pager.load({ search, page: 0 }),
+    setFilters: (filters) => pager.load({ filters, page: 0 }),
+    loadMore: pager.loadMore,
+    get count() { return pager.count; },
+    get page() { return pager.page; },
+    get pageSize() { return pager.pageSize; },
+    get hasMore() { return pager.hasMore; },
+    destroy: () => {
+      if (pager.destroyed) return;
+      pager.destroy();
+      table.destroy();
+    }
   };
 
   table.on('sort', (event) => {
+    if (pager.destroyed) return;
     const id = event.detail?.id;
-    currentSort = id == null ? null
-      : { id: String(id), dir: event.detail.dir === 'desc' ? 'desc' : 'asc' };
-    void load({ page: 0 }).catch(() => { /* The connection facade already reported the failure. */ });
+    pager.setSort(id == null ? null : { id: String(id), dir: event.detail.dir === 'desc' ? 'desc' : 'asc' });
+    void pager.load({ page: 0 }).catch(() => { /* The connection facade already reported the failure. */ });
   });
   return binding;
+}
+
+/**
+ * The one server-paging loader behind {@link zeyosTable} and `zeyosView`, so the two bindings
+ * cannot drift apart. It builds the list request (`limit = pageSize`, `offset = page * pageSize`,
+ * always with `count`), renders the response into its target — page zero or `replace` replaces
+ * the rows, a higher page appends them — and keeps `count`, `page`, and `hasMore`.
+ *
+ * Only the newest request may render: an older one that resolves late is returned to its caller
+ * but never touches the target. After `destroy()` nothing renders at all — a response that arrives
+ * afterwards is ignored, the loading state is left alone — and further loads reject.
+ *
+ * Validation is strict and the same for both bindings: a page must be a non-negative integer and a
+ * page size a positive integer (`RangeError`), filters a plain object (`TypeError`).
+ * @param {ServerPagerOptions} options Pager configuration.
+ * @returns {ServerPager}
+ */
+export function createServerPager(options) {
+  const { client, facade, resource, projection, target, searchFields } = options;
+  const label = String(options.label ?? 'ZeyOS binding');
+  let pageSize = normalizePageSize(options.pageSize, label);
+  let sort = options.sort ?? null;
+  let filters = copyFilters(options.filters ?? {}, label);
+  let search = String(options.search ?? '');
+  let page = 0;
+  let count = null;
+  let more = false;
+  let sequence = 0;
+  let destroyed = false;
+
+  const query = (forPage) => buildListQuery({
+    fields: projection, sort, filters, search, searchFields,
+    limit: pageSize, offset: forPage * pageSize, count: true
+  });
+
+  /** @param {ZeyosTableLoadOptions} [request={}] @returns {Promise<ZeyosTableLoadResult>} */
+  const load = async (request = {}) => {
+    if (destroyed) throw new Error(`${label} binding has been destroyed`);
+    const has = (key) => Object.prototype.hasOwnProperty.call(request, key);
+    const nextPage = normalizePage(request.page ?? 0, label);
+    if (has('pageSize') && request.pageSize !== undefined) pageSize = normalizePageSize(request.pageSize, label);
+    if (has('search')) search = String(request.search ?? '');
+    if (has('filters')) filters = copyFilters(request.filters ?? {}, label);
+    const replace = nextPage === 0 || request.replace === true;
+    const sent = query(nextPage);
+    const mine = ++sequence;
+    target.setLoading(true);
+    try {
+      const normalized = normalizeZeyosListResult(client, await facade.list(resource, sent));
+      const total = normalized.count ?? null;
+      const hasMore = total == null
+        ? normalized.data.length === pageSize
+        : nextPage * pageSize + normalized.data.length < total;
+      if (!destroyed && mine === sequence) {
+        page = nextPage;
+        count = total;
+        more = hasMore;
+        if (replace) target.setData(normalized.data);
+        else target.addData(normalized.data);
+      }
+      return { data: normalized.data, count: total, page: nextPage, hasMore, query: sent };
+    } finally {
+      if (!destroyed && mine === sequence) target.setLoading(false);
+    }
+  };
+
+  return {
+    load,
+    loadMore: () => more ? load({ page: page + 1 }) : (destroyed
+      ? Promise.reject(new Error(`${label} binding has been destroyed`))
+      : Promise.resolve({ data: [], count, page, hasMore: false, query: query(page) })),
+    setSort: (next) => { sort = next ?? null; },
+    setQuery: (state = {}) => {
+      if (Object.prototype.hasOwnProperty.call(state, 'filters')) filters = copyFilters(state.filters ?? {}, label);
+      if (Object.prototype.hasOwnProperty.call(state, 'search')) search = String(state.search ?? '');
+    },
+    reset: () => { page = 0; count = null; more = false; },
+    destroy: () => {
+      if (destroyed) return;
+      destroyed = true;
+      sequence += 1;
+    },
+    get destroyed() { return destroyed; },
+    get count() { return count; },
+    get page() { return page; },
+    get pageSize() { return pageSize; },
+    get hasMore() { return more; },
+    get sort() { return sort; },
+    get filters() { return { ...filters }; },
+    get search() { return search; }
+  };
 }
 
 /**
@@ -315,23 +425,28 @@ function schemaHasField(client, resource, id) {
   return Boolean(fields && typeof fields === 'object' && Object.prototype.hasOwnProperty.call(fields, id));
 }
 
-/** @param {unknown} value @returns {number} */
-function normalizePageSize(value) {
-  const number = Number(value ?? 50);
-  return Number.isInteger(number) && number > 0 ? number : 50;
-}
+/** Default server page size shared by `zeyosTable()` and `zeyosView()`. */
+export const DEFAULT_SERVER_PAGE_SIZE = 50;
 
-/** @param {unknown} value @returns {number} */
-function normalizePage(value) {
+/** @param {unknown} value @param {string} [label='ZeyOS table'] @returns {number} */
+function normalizePageSize(value, label = 'ZeyOS table') {
+  if (value === undefined || value === null) return DEFAULT_SERVER_PAGE_SIZE;
   const number = Number(value);
-  if (!Number.isInteger(number) || number < 0) throw new RangeError('ZeyOS table page must be a non-negative integer');
+  if (!Number.isInteger(number) || number < 1) throw new RangeError(`${label} page size must be a positive integer`);
   return number;
 }
 
-/** @param {Record<string, unknown>} filters @returns {Record<string, unknown>} */
-function copyFilters(filters) {
+/** @param {unknown} value @param {string} [label='ZeyOS table'] @returns {number} */
+function normalizePage(value, label = 'ZeyOS table') {
+  const number = Number(value);
+  if (!Number.isInteger(number) || number < 0) throw new RangeError(`${label} page must be a non-negative integer`);
+  return number;
+}
+
+/** @param {unknown} filters @param {string} [label='ZeyOS table'] @returns {Record<string, unknown>} */
+function copyFilters(filters, label = 'ZeyOS table') {
   if (!filters || typeof filters !== 'object' || Array.isArray(filters)) {
-    throw new TypeError('ZeyOS table filters must be an object');
+    throw new TypeError(`${label} filters must be an object`);
   }
-  return { ...filters };
+  return { .../** @type {Record<string, unknown>} */ (filters) };
 }

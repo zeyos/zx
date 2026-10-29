@@ -434,10 +434,11 @@ export class KanbanView extends RecordView {
 
       this._toolbar = h('div', { class: 'zx-record-view__toolbar zx-kanban-view__toolbar' });
       // A label the host passed in the object form wins; otherwise Kanban's own
-      // message bag supplies it, which is where this label has always come from.
+      // message bag supplies it, which is where this label has always come from. Mounted through
+      // the shared path so `fieldControls.target` places it in a host element, as in every view.
       if (options.fieldControls) {
         const configured = normalizeViewFieldControls(options.fieldControls).label;
-        this._toolbar.append(this._createViewFieldControls(configured ?? this._text('fields')));
+        this._mountViewFieldControls(this._toolbar, configured ?? this._text('fields'));
       }
       if (options.searchControl) this._toolbar.append(this._createSearchControl());
       if (options.historyControls) this._toolbar.append(this._createHistoryControls());
@@ -468,6 +469,8 @@ export class KanbanView extends RecordView {
       if (options.contextMenu) this._createContextMenu();
       return root;
     } catch (error) {
+      // An external `fieldControls.target` must not keep a chooser whose view never came to be.
+      this._removeViewFieldControls();
       if (this._kanbanSnapshot) restoreTarget(root, this._kanbanSnapshot);
       throw error;
     }

@@ -95,9 +95,23 @@ export function paginationRange({ page = 1, pages = 1, siblings = 1, boundaries 
 
 /**
  * The pager for a server-backed list. It owns no data: it reports which slice the user asked for
- * and lets the application fetch it, which is exactly the shape `zeyosTable()` expects —
- * `offset`/`pageSize` for `load()` in `pages` mode, or one `change` per `loadMore()` in
- * `loadmore` mode.
+ * — `page`, `pageSize`, and the zero-based row `offset = (page - 1) * pageSize` — and lets the
+ * application fetch it.
+ *
+ * The pager is one-based and defaults to 25 rows per page. The ZeyOS bindings are zero-based,
+ * default to 50 rows, and append pages above zero unless told to replace, so connecting the two
+ * takes a small mapping rather than a direct hand-off:
+ *
+ * ```js
+ * const binding = zeyosTable(client, 'contacts', { pageSize: 25 });
+ * const pager = new Pagination(host, { pageSize: binding.pageSize });
+ * pager.on('change', async ({ detail }) => {
+ *   const result = await binding.load({ page: detail.page - 1, pageSize: detail.pageSize, replace: true });
+ *   pager.setTotal(result.count ?? 0);
+ * });
+ * ```
+ *
+ * In `loadmore` mode each `change` stands for one `binding.loadMore()`, which appends.
  *
  * `page` is clamped into `[1, pages]` after every state change, so shrinking `total` under the
  * user's feet can never leave the pager pointing past the end of the data.

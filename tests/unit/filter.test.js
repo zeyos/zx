@@ -180,3 +180,62 @@ test('host messages reach the TagPicker with the field-named input added', async
   assert.equal(merged['tagPicker.input'], 'Besitzer Wert');
   assert.equal(host.de['tagPicker.input'], 'x', 'the host object is left as it was');
 });
+
+test('withinLast/withinNext take an [amount, unit] pair, which the model and the editor agree on', async () => {
+  const {
+    RELATIVE_DATE_UNITS, readRelativeDateValue, relativeDateValue, relativeDateValueError
+  } = await import('../../src/components/filter/filter.js');
+  assert.deepEqual(RELATIVE_DATE_UNITS, ['days', 'weeks', 'months']);
+
+  // What the two controls write.
+  assert.deepEqual(relativeDateValue('7', 'days'), [7, 'days']);
+  assert.deepEqual(relativeDateValue(' 2 ', 'weeks'), [2, 'weeks']);
+  assert.deepEqual(relativeDateValue('', 'months'), [null, 'months'], 'an empty amount stays incomplete, not zero');
+  assert.deepEqual(relativeDateValue('x', 'fortnights'), [null, 'days'], 'an unknown unit falls back to days');
+
+  // What the editor shows for a stored value, including the two dates the old editor wrote.
+  assert.deepEqual(readRelativeDateValue([3, 'months']), { amount: 3, unit: 'months' });
+  assert.deepEqual(readRelativeDateValue(['2026-01-01', '2026-02-01']), { amount: null, unit: 'days' });
+  assert.deepEqual(readRelativeDateValue(null), { amount: null, unit: 'days' });
+
+  // Shape validation beyond the model's "both halves are filled".
+  assert.equal(relativeDateValueError([7, 'days']), null);
+  assert.equal(relativeDateValueError([0, 'days']), 'amount');
+  assert.equal(relativeDateValueError([1.5, 'weeks']), 'amount');
+  assert.equal(relativeDateValueError(['7', 'days']), 'amount');
+  assert.equal(relativeDateValueError([7, 'years']), 'unit');
+  assert.equal(relativeDateValueError(['2026-01-01', '2026-02-01']), 'unit');
+  assert.equal(relativeDateValueError(null), 'shape');
+
+  // The model gives these operators pair arity, so a complete span passes model validation as is.
+  const ast = { version: 1, root: { kind: 'group', id: 'root', logic: 'and', children: [
+    { kind: 'condition', id: 'c', field: 'date', operator: 'withinLast', value: [7, 'days'] }
+  ] } };
+  assert.equal(validateFilterAst(parseFilterAst(ast), fields).valid, true);
+  const incomplete = structuredClone(ast);
+  incomplete.root.children[0].value = [null, 'days'];
+  assert.equal(validateFilterAst(parseFilterAst(incomplete), fields).valid, false);
+});
+
+test('Filter.validate() rejects a malformed span with one message that describes it', async () => {
+  const { Filter } = await import('../../src/components/filter/filter.js');
+  const { filterOperators } = await import('../../src/components/filter/filter-model.js');
+  const validate = (value) => Filter.prototype.validate.call({
+    _value: { version: 1, root: { kind: 'group', id: 'root', logic: 'and', children: [
+      { kind: 'condition', id: 'c', field: 'date', operator: 'withinNext', value }
+    ] } },
+    _fields: fields,
+    _operators: filterOperators,
+    _operator: (id) => filterOperators.find((operator) => operator.id === id) ?? null,
+    _message: (_key, fallback) => fallback,
+    options: { rootLogic: null }
+  });
+  assert.equal(validate([2, 'weeks']).valid, true);
+  for (const bad of [[0, 'days'], [2, 'years'], ['2026-01-01', '2026-02-01'], [null, 'days'], null]) {
+    const result = validate(bad);
+    assert.equal(result.valid, false, JSON.stringify(bad));
+    const errors = result.errors.filter((error) => error.nodeId === 'c' && error.code === 'value');
+    assert.equal(errors.length, 1, 'one value error, not the model one plus another');
+    assert.match(errors[0].message, /days, weeks or months/);
+  }
+});

@@ -65,6 +65,19 @@ import {
  * @property {(label: string, position: number) => string} valueAt Accessible name for one end of a pair.
  */
 
+/**
+ * Operators whose value is a relative span rather than a pair of dates. The model gives them
+ * `pair` arity, so their value is the pair `[amount, unit]` — a positive whole number and one of
+ * {@link RELATIVE_DATE_UNITS} — never two dates.
+ */
+const RELATIVE_DATE_OPERATORS = new Set(['withinLast', 'withinNext']);
+
+/** Units a relative date span may be counted in, in the order the editor offers them. */
+export const RELATIVE_DATE_UNITS = Object.freeze(['days', 'weeks', 'months']);
+
+/** English unit words the relative-date editor falls back to. */
+const RELATIVE_UNIT_WORDS = Object.freeze({ days: 'days', weeks: 'weeks', months: 'months' });
+
 /** English text the value builders fall back to when they are called without a component. */
 const BUILT_IN_VALUE_MESSAGES = Object.freeze({
   choose: 'Choose…',
@@ -229,6 +242,17 @@ export class Filter extends Component {
   /** Returns semantic validity and errors. @returns {{valid:boolean,errors:Array<Record<string,string>>}} */
   validate() {
     const result = validateFilterAst(this._value, this._fields, this._operators);
+    for (const node of conditionNodes(this._value.root)) {
+      if (!isRelativeDateOperator(this._operator(node.operator))) continue;
+      // The model only checks that both halves of the pair are filled; a span also needs a
+      // positive whole amount and a known unit, and "Enter both values" would misdescribe it.
+      if (relativeDateValueError(node.value) === null) continue;
+      const message = this._message('filter.relativeInvalid', 'Enter a whole number of days, weeks or months');
+      const existing = result.errors.find((candidate) => candidate.nodeId === node.id && candidate.code === 'value');
+      if (existing) existing.message = message;
+      else result.errors.push({ nodeId: node.id, code: 'value', message });
+      result.valid = false;
+    }
     const error = rootLogicError(this._value, this.options.rootLogic);
     if (error) { result.valid = false; result.errors.push(error); }
     return result;
@@ -439,6 +463,7 @@ export class Filter extends Component {
       return host;
     }
     const messages = this._valueMessages();
+    if (isRelativeDateOperator(operator)) return this._relativeDateEditor(node, field);
     const values = operator.arity === 'pair' ? (Array.isArray(node.value) ? node.value : [null, null]) : [node.value];
     if (operator.arity === 'many') {
       if (this.options.searchable && Array.isArray(field.choices) && field.choices.length) {
@@ -457,6 +482,34 @@ export class Filter extends Component {
       }) : choiceSelect(field, node, value, false, this._blocked(), index, messages)
       ?? valueInput(field, node.id, value, index, this._blocked(), false, messages));
     return h('div', { class: 'zx-filter__value', dataset: { arity: operator.arity } }, controls);
+  }
+
+  /**
+   * The editor for a relative date span (`withinLast`, `withinNext`): a whole-number amount and a
+   * unit select. Both controls write the pair `[amount, unit]`; a value that is not such a pair —
+   * two dates saved by an older editor, say — shows as an empty amount in days.
+   * @param {any} node Condition.
+   * @param {FilterField} field Date field.
+   * @returns {HTMLElement}
+   */
+  _relativeDateEditor(node, field) {
+    const span = readRelativeDateValue(node.value);
+    const amount = h('input', {
+      type: 'number', min: '1', step: '1', inputMode: 'numeric',
+      value: span.amount === null ? '' : String(span.amount),
+      dataset: { filterValue: '', filterRelative: 'amount', nodeId: node.id, valueIndex: '0' },
+      ariaLabel: this._message('filter.relativeAmount', '%1: number of units', field.label),
+      disabled: this._blocked()
+    });
+    const unit = h('select', {
+      dataset: { filterValue: '', filterRelative: 'unit', nodeId: node.id, valueIndex: '1' },
+      ariaLabel: this._message('filter.relativeUnit', '%1: unit', field.label),
+      disabled: this._blocked()
+    }, RELATIVE_DATE_UNITS.map((id) => h('option', { value: id, selected: id === span.unit },
+      this._message(`filter.unit.${id}`, RELATIVE_UNIT_WORDS[id]))));
+    return h('div', { class: 'zx-filter__value', dataset: { arity: 'relative' } },
+      h('span', { class: 'zx-filter__value-control' }, amount),
+      h('span', { class: 'zx-filter__value-control' }, unit));
   }
 
   /**
@@ -575,7 +628,12 @@ export class Filter extends Component {
     const field = this._field(node.field);
     if (!operator || !field) return;
     let value;
-    if (target instanceof HTMLSelectElement && target.multiple) {
+    if (isRelativeDateOperator(operator)) {
+      const row = target.closest('.zx-filter__value');
+      const amount = /** @type {HTMLInputElement|null} */ (row?.querySelector('[data-filter-relative="amount"]') ?? null);
+      const unit = /** @type {HTMLSelectElement|null} */ (row?.querySelector('[data-filter-relative="unit"]') ?? null);
+      value = relativeDateValue(amount?.value ?? '', unit?.value ?? RELATIVE_DATE_UNITS[0]);
+    } else if (target instanceof HTMLSelectElement && target.multiple) {
       value = Array.from(target.selectedOptions, (option) => parseScalar(option.value, field.type));
     } else if (operator.arity === 'many') {
       value = target.value.split(',').map((item) => item.trim()).filter(Boolean).map((item) => parseScalar(item, field.type));
@@ -772,6 +830,49 @@ export function nextFilterGroupLogic(value, groupId, rootLogic = null) {
 }
 
 /**
+ * Builds the value of a relative date condition from what its two controls hold: the pair
+ * `[amount, unit]`. An empty or non-numeric amount is kept as null — the condition is then
+ * incomplete rather than silently zero — and an unknown unit falls back to days.
+ * @param {unknown} amount Amount control value.
+ * @param {unknown} unit Unit control value.
+ * @returns {[number|null, 'days'|'weeks'|'months']}
+ */
+export function relativeDateValue(amount, unit) {
+  const text = String(amount ?? '').trim();
+  const number = text === '' ? NaN : Number(text);
+  const unitId = RELATIVE_DATE_UNITS.includes(String(unit)) ? String(unit) : RELATIVE_DATE_UNITS[0];
+  return [Number.isFinite(number) ? number : null, /** @type {'days'|'weeks'|'months'} */ (unitId)];
+}
+
+/**
+ * Reads a stored relative date value for display. Anything that is not `[amount, unit]` — null,
+ * or two dates written by the date-pair editor these operators used to get — reads as an empty
+ * amount in days.
+ * @param {unknown} value Stored condition value.
+ * @returns {{amount: number|null, unit: 'days'|'weeks'|'months'}}
+ */
+export function readRelativeDateValue(value) {
+  if (!Array.isArray(value) || value.length !== 2 || !RELATIVE_DATE_UNITS.includes(String(value[1]))) {
+    return { amount: null, unit: 'days' };
+  }
+  const amount = typeof value[0] === 'number' && Number.isFinite(value[0]) ? value[0] : null;
+  return { amount, unit: /** @type {'days'|'weeks'|'months'} */ (String(value[1])) };
+}
+
+/**
+ * Why a relative date value is unusable, or null when it is a positive whole number of a known
+ * unit: `[7, 'days']`, `[2, 'weeks']`, `[3, 'months']`.
+ * @param {unknown} value Condition value.
+ * @returns {'shape'|'amount'|'unit'|null}
+ */
+export function relativeDateValueError(value) {
+  if (!Array.isArray(value) || value.length !== 2) return 'shape';
+  if (!RELATIVE_DATE_UNITS.includes(String(value[1])) || typeof value[1] !== 'string') return 'unit';
+  if (typeof value[0] !== 'number' || !Number.isInteger(value[0]) || value[0] < 1) return 'amount';
+  return null;
+}
+
+/**
  * Static choices as `TagPicker` items: the raw value — a number stays a number — the label, and
  * the icon as given, a name or a node (the picker copies a node).
  * @param {FilterField['choices']} choices
@@ -854,6 +955,12 @@ function valueInput(field, id, value, index, disabled, many = false, messages = 
     input, listId ? h('datalist', { id: listId }) : null);
 }
 
+/** @param {{id?: string, arity?: string}|null|undefined} operator @returns {boolean} */
+function isRelativeDateOperator(operator) {
+  return Boolean(operator) && (RELATIVE_DATE_OPERATORS.has(String(operator.id)) || operator.arity === 'relative');
+}
+/** @param {any} node @returns {any[]} Every condition under a node, in document order. */
+function conditionNodes(node) { if (!node) return []; if (node.kind === 'condition') return [node]; return node.children.flatMap((child) => conditionNodes(child)); }
 /** @param {unknown} value @param {string} type @returns {any} */
 function parseScalar(value, type) { if (value === '') return null; if (['number', 'money'].includes(type)) { const number = Number(value); return Number.isFinite(number) ? number : null; } if (type === 'boolean') return value === 'true'; return value; }
 /** @param {unknown} value @returns {any} */

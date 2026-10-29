@@ -161,6 +161,10 @@ export class RecordView extends Component {
     this._viewSelectionAnchor = null;
     this._viewFieldControls = null;
     this._viewFieldList = null;
+    this._viewFieldStatus = null;
+    this._viewFieldHome = null;
+    this._viewNativeMounted = null;
+    this._viewFieldFocus = null;
     this._viewFieldSettings = normalizeViewFieldControls(this.options.fieldControls);
     // Resolved once, here, so the mount point cannot drift between render and destroy.
     this._viewFieldControlsTarget = resolveElement(this._viewFieldSettings.target);
@@ -287,6 +291,57 @@ export class RecordView extends Component {
   }
 
   /**
+   * Returns the element that lets a reader show, hide, and reorder this view's fields: the shared
+   * field chooser, or — for a `TableView` with `fieldControls: true` — the column chooser of its
+   * composed `Table`. Null when the view renders none (`fieldControls: false`).
+   *
+   * The element stays owned by the view: move it with {@link RecordView#mountFieldControls}
+   * rather than appending it elsewhere yourself, so `destroy()` can still find and remove it.
+   * @returns {HTMLElement|null}
+   */
+  getFieldControls() {
+    if (this._viewFieldControls) return this._viewFieldControls;
+    return this._nativeFieldControls();
+  }
+
+  /**
+   * Moves the view's field chooser into a host element — a list toolbar, a pane header — or, with
+   * `null`, back to where the view first rendered it. It keeps driving this view wherever it
+   * sits, and `destroy()` removes it from the host. `ListToolbar.bind()` calls this for every
+   * record view, which is how its field chooser ends up in the bar.
+   * @param {Element|string|null} target Host element or selector; null returns the chooser home.
+   * @returns {HTMLElement|null} The chooser, or null when the view renders none or the target
+   * does not resolve.
+   */
+  mountFieldControls(target) {
+    const controls = this.getFieldControls();
+    if (!controls) return null;
+    if (target === null || target === undefined) {
+      const home = this._viewFieldHome;
+      if (!home) return controls;
+      this._viewFieldHome = null;
+      if (controls === this._viewNativeMounted) this._viewNativeMounted = null;
+      if (home.parent) home.parent.insertBefore(controls, home.next?.parentNode === home.parent ? home.next : null);
+      else controls.remove();
+      if (home.mounted === undefined) delete controls.dataset.mounted;
+      else controls.dataset.mounted = home.mounted;
+      return controls;
+    }
+    const host = resolveElement(target);
+    if (!host) return null;
+    if (controls.parentNode === host) return controls;
+    if (!this._viewFieldHome) {
+      this._viewFieldHome = {
+        parent: controls.parentNode, next: controls.nextSibling, mounted: controls.dataset.mounted
+      };
+    }
+    if (controls !== this._viewFieldControls) this._viewNativeMounted = controls;
+    controls.dataset.mounted = 'external';
+    host.append(controls);
+    return controls;
+  }
+
+  /**
    * Shows or hides one field. The final visible field cannot be hidden.
    * @param {string} id Field id.
    * @param {boolean} [visible=true] Desired visibility.
@@ -347,7 +402,7 @@ export class RecordView extends Component {
     if (arraysEqual(next, this._viewFieldOrder)) return this;
     this._viewFieldOrder = next;
     this._refreshView('fields');
-    this._renderViewFieldControls();
+    this._renderViewFieldControls(this._viewFieldFocus ?? null);
     if (!options.silent) {
       this.emit('fieldorderchange', { order: this.getFieldOrder() });
       this._emitViewState('fieldorder');
@@ -499,12 +554,30 @@ export class RecordView extends Component {
   _createViewFieldControls(label = null) {
     const text = label ?? this._viewFieldControlsLabel();
     const list = h('div', { class: 'zx-record-view__field-list' });
-    const details = h('details', { class: 'zx-record-view__field-controls' },
-      h('summary', { class: 'zx-btn', dataset: { size: 'sm', kind: 'ghost' } }, icon('fields'), text),
-      list);
+    // Present from the start and only ever re-worded: a live region inserted together with its
+    // text is frequently missed. Clipped inline because it has no visual role at all.
+    const status = h('div', {
+      class: 'zx-record-view__field-status', role: 'status', ariaLive: 'polite',
+      style: {
+        position: 'absolute', inlineSize: '1px', blockSize: '1px', overflow: 'hidden',
+        clipPath: 'inset(50%)', whiteSpace: 'nowrap'
+      }
+    });
+    const summary = h('summary', { class: 'zx-btn', dataset: { size: 'sm', kind: 'ghost' } }, icon('fields'), text);
+    const details = h('details', { class: 'zx-record-view__field-controls' }, summary, list, status);
     this._viewFieldControls = details;
     this._viewFieldList = list;
+    this._viewFieldStatus = status;
     this._renderViewFieldControls();
+    this.listen(details, 'keydown', (event) => {
+      const key = /** @type {KeyboardEvent} */ (event);
+      if (key.key !== 'Escape' || !details.open) return;
+      // Handled here so an enclosing sheet or dialog does not close along with the disclosure.
+      key.preventDefault();
+      key.stopPropagation();
+      details.open = false;
+      summary.focus();
+    });
     this.listen(list, 'change', (event) => {
       const input = /** @type {HTMLInputElement|null} */ (event.target);
       if (input?.classList.contains('zx-record-view__field-toggle')) {
@@ -516,11 +589,7 @@ export class RecordView extends Component {
       if (!button) return;
       const id = /** @type {HTMLElement} */ (button).dataset.fieldId;
       const action = /** @type {HTMLElement} */ (button).dataset.viewFieldAction;
-      const index = this._viewFieldOrder.indexOf(String(id));
-      if (action === 'up' && index > 0) this.moveField(String(id), this._viewFieldOrder[index - 1], 'before');
-      if (action === 'down' && index >= 0 && index < this._viewFieldOrder.length - 1) {
-        this.moveField(String(id), this._viewFieldOrder[index + 1], 'after');
-      }
+      this._moveViewFieldFromChooser(String(id), action === 'up' ? -1 : 1);
     });
     return details;
   }
@@ -549,9 +618,66 @@ export class RecordView extends Component {
    */
   _removeViewFieldControls() {
     this._viewFieldControls?.remove?.();
+    // A native chooser moved out by mountFieldControls() would outlive its owner in the host.
+    if (this._viewNativeMounted && !this.el?.contains(this._viewNativeMounted)) {
+      this._viewNativeMounted.remove();
+    }
+    this._viewNativeMounted = null;
+    this._viewFieldHome = null;
     this._viewFieldControls = null;
     this._viewFieldList = null;
+    this._viewFieldStatus = null;
     this._viewFieldControlsTarget = null;
+  }
+
+  /**
+   * A field chooser the concrete view renders natively instead of the shared one. The base class
+   * recognises a composed `Table` exposed through `getTable()` — `TableView` with
+   * `fieldControls: true` keeps Table's own column chooser — and any other subclass may override
+   * this to publish its own.
+   * @protected
+   * @returns {HTMLElement|null}
+   */
+  _nativeFieldControls() {
+    if (!this._viewFieldSettings?.enabled) return null;
+    const self = /** @type {{getTable?: () => unknown}} */ (/** @type {unknown} */ (this));
+    const table = typeof self.getTable === 'function' ? /** @type {{el?: Element|null}|null} */ (self.getTable()) : null;
+    const root = table?.el;
+    if (!root || typeof root.querySelector !== 'function') return null;
+    const own = /** @type {HTMLElement|null} */ (root.querySelector('.zx-table__column-controls'));
+    return own ?? this._viewNativeMounted;
+  }
+
+  /**
+   * Moves a field one place through the chooser's buttons, keeps focus on that field's control
+   * across the re-render, and announces where it landed.
+   * @private
+   * @param {string} id Field id.
+   * @param {-1|1} delta Direction.
+   * @returns {void}
+   */
+  _moveViewFieldFromChooser(id, delta) {
+    const order = this._viewFieldOrder;
+    const index = order.indexOf(id);
+    if (index < 0) return;
+    const neighbour = order[index + delta];
+    const action = delta < 0 ? 'up' : 'down';
+    if (neighbour === undefined) {
+      this._renderViewFieldControls({ id, action });
+      return;
+    }
+    this._viewFieldFocus = { id, action };
+    try {
+      this.moveField(id, neighbour, delta < 0 ? 'before' : 'after');
+    } finally {
+      this._viewFieldFocus = null;
+    }
+    const field = this._viewFields.find((candidate) => candidate.id === id);
+    const position = this._viewFieldOrder.indexOf(id) + 1;
+    if (this._viewFieldStatus && field) {
+      this._viewFieldStatus.textContent = this._message('recordView.fieldMoved',
+        '%1 moved to position %2 of %3', field.label, position, this._viewFieldOrder.length);
+    }
   }
 
   /**
@@ -629,8 +755,15 @@ export class RecordView extends Component {
     this.emit('statechange', { state: this.getViewState(), reason });
   }
 
-  /** @private @param {string|null} [focusId=null] @returns {void} */
-  _renderViewFieldControls(focusId = null) {
+  /**
+   * Re-renders the chooser list. A focus request names the field and the control that should
+   * hold focus afterwards — a bare id means its checkbox — and falls back to the field's other
+   * enabled control when the requested one became disabled (a move button at either end).
+   * @private
+   * @param {string|{id:string,action:'toggle'|'up'|'down'}|null} [focus=null] Control to focus.
+   * @returns {void}
+   */
+  _renderViewFieldControls(focus = null) {
     if (!this._viewFieldList) return;
     const fields = this.getFields();
     const visible = fields.filter((field) => !this._viewHidden.has(field.id));
@@ -641,7 +774,8 @@ export class RecordView extends Component {
         type: 'checkbox',
         value: field.id,
         checked: !this._viewHidden.has(field.id),
-        disabled: !this._viewHidden.has(field.id) && visible.length === 1
+        disabled: !this._viewHidden.has(field.id) && visible.length === 1,
+        dataset: { viewFieldAction: 'toggle', fieldId: field.id }
       });
       const up = h('button', {
         class: 'zx-record-view__field-move',
@@ -662,14 +796,39 @@ export class RecordView extends Component {
         h('span', { class: 'zx-record-view__field-order' }, up, down));
     });
     this._viewFieldList.replaceChildren(...controls);
-    if (focusId != null) {
-      const match = [...this._viewFieldList.querySelectorAll('.zx-record-view__field-toggle')]
-        .find((control) => /** @type {HTMLInputElement} */ (control).value === focusId);
-      queueMicrotask(() => {
-        if (match?.isConnected) /** @type {HTMLElement} */ (match).focus();
-      });
+    if (focus == null) return;
+    const request = typeof focus === 'string' ? { id: focus, action: 'toggle' } : focus;
+    const match = chooserFocusTarget(controls, request);
+    if (!match) return;
+    // Synchronously, so focus never passes through <body> between the removal and the restore.
+    match.focus();
+    queueMicrotask(() => {
+      if (match.isConnected && match.ownerDocument?.activeElement !== match) match.focus();
+    });
+  }
+}
+
+/**
+ * Picks the chooser control that should hold focus after a re-render: the requested control of
+ * the field, else that field's other enabled move button, else any enabled control of the field.
+ * @param {HTMLElement[]} options Rendered `.zx-record-view__field-option` rows.
+ * @param {{id:string,action:string}} request Field id and control kind.
+ * @returns {HTMLElement|null}
+ */
+function chooserFocusTarget(options, request) {
+  /** @type {HTMLElement[]} */
+  const controls = [];
+  for (const option of options) {
+    for (const control of option.querySelectorAll?.('[data-view-field-action]') ?? []) {
+      if (/** @type {HTMLElement} */ (control).dataset.fieldId === request.id) controls.push(/** @type {HTMLElement} */ (control));
     }
   }
+  const enabled = (control) => !(/** @type {HTMLButtonElement} */ (control).disabled);
+  const exact = controls.find((control) => control.dataset.viewFieldAction === request.action);
+  if (exact && enabled(exact)) return exact;
+  const move = controls.find((control) => control.dataset.viewFieldAction !== 'toggle' && enabled(control));
+  if (request.action !== 'toggle' && move) return move;
+  return controls.find(enabled) ?? null;
 }
 
 /**

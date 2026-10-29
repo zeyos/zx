@@ -1,6 +1,7 @@
 // @ts-check
 import { Component } from '../../core/component.js';
 import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
+import { captureItemFocus, restoreItemFocus } from '../../core/keyboard.js';
 import { skeleton, skeletonText } from '../skeleton/skeleton.js';
 import { FileItem, normalizeFileItem } from '../file-item/file-item.js';
 
@@ -26,6 +27,12 @@ import { FileItem, normalizeFileItem } from '../file-item/file-item.js';
 /**
  * Accessible collection for durable and transient files. Ordering and mutation are local
  * presentation concerns only; transport, authorization, and persistence remain host-owned.
+ *
+ * Mutations are reconciled by file `id`: a file whose descriptor did not change keeps its row
+ * untouched, a changed one is updated in place through `FileItem.set()`, and only added or removed
+ * files create or drop rows. Upload progress can therefore tick through `updateItem()` while the
+ * reader's focus — on that file's Cancel button, say — and the list's scroll position stay put.
+ * Files without an `id` cannot be matched and are rebuilt on every mutation.
  * @fires FileList#activate
  * @fires FileList#action
  * @fires FileList#datachange
@@ -63,6 +70,12 @@ export class FileList extends Component {
     this._items = normalizeFileListItems(this.options.items);
     this._loading = Boolean(this.options.loading);
     this._itemComponents = [];
+    /** @type {Map<FileItem, {row: HTMLElement, state: FileItemState}>} */
+    this._itemRecords = new Map();
+    this._itemList = /** @type {HTMLElement|null} */ (null);
+    this._emptyRegion = /** @type {HTMLElement|null} */ (null);
+    this._loadingRegion = /** @type {HTMLElement|null} */ (null);
+    this._loadingPlaceholders = false;
 
     root.setAttribute('aria-label', String(this.options.label || 'Files'));
     this.listen(root, 'zx-activate', (event) => this._forwardActivate(/** @type {CustomEvent} */ (event)));
@@ -166,37 +179,104 @@ export class FileList extends Component {
     if (!this._createdRoot && root) restoreTarget(root, this._snapshot);
   }
 
-  /** @returns {void} */
+  /**
+   * Brings the rendered rows in line with `_items`, keyed by file id, and keeps focus on the
+   * control that held it when that control's row was updated or removed.
+   * @returns {void}
+   */
   _renderList() {
-    this._destroyItems();
     const root = /** @type {HTMLElement} */ (this.el);
+    const focus = captureItemFocus(root, (element) => {
+      const index = this._itemComponents.findIndex((item) => item.el?.contains(element));
+      return index < 0 ? null : { key: { component: this._itemComponents[index], index }, element: this._itemComponents[index].el };
+    });
     root.setAttribute('aria-busy', String(this._loading));
-    /** @type {HTMLElement[]} */
-    const content = [];
     try {
-      if (this._items.length) {
-        const list = h('ol', { class: 'zx-file-list__items' });
-        for (const descriptor of this._items) {
-          const component = new FileItem(null, descriptor);
-          this._itemComponents.push(component);
-          list.append(h('li', { class: 'zx-file-list__item' }, component));
-        }
-        content.push(list);
-      } else if (!this._loading) {
-        content.push(h('div', {
-          class: 'zx-file-list__empty', role: 'status'
-        }, listContent(this.options.emptyText, 'FileList emptyText')));
-      }
-      if (this._loading) content.push(this._createLoading(this._items.length === 0));
-      root.replaceChildren(...content);
+      this._reconcileItems();
     } catch (error) {
       this._destroyItems();
       throw error;
     }
+    /** @type {HTMLElement[]} */
+    const content = [];
+    if (this._items.length) content.push(/** @type {HTMLElement} */ (this._itemList));
+    else if (!this._loading) {
+      this._emptyRegion ??= h('div', {
+        class: 'zx-file-list__empty', role: 'status'
+      }, listContent(this.options.emptyText, 'FileList emptyText'));
+      content.push(this._emptyRegion);
+    }
+    if (this._loading) content.push(this._createLoading(this._items.length === 0));
+    syncChildren(root, content);
+    restoreItemFocus(root, focus, (key) => {
+      const memo = /** @type {{component: FileItem, index: number}} */ (key);
+      if (this._itemComponents.includes(memo.component)) return memo.component.el;
+      // The focused file went away: its successor — or the new last file — takes over.
+      const fallback = this._itemComponents[Math.min(memo.index, this._itemComponents.length - 1)];
+      return fallback?.el ?? null;
+    });
+  }
+
+  /**
+   * Keyed reconciliation of `FileItem` children. Rows are only moved when out of place, because
+   * detaching a row — even to re-insert it a moment later — takes focus out of it.
+   * @returns {void}
+   */
+  _reconcileItems() {
+    const previous = this._itemComponents;
+    /** @type {Map<unknown, FileItem>} */
+    const byId = new Map();
+    for (const component of previous) {
+      const id = this._itemRecords.get(component)?.state.id ?? null;
+      if (id !== null) byId.set(id, component);
+    }
+    /** @type {FileItem[]} */
+    const next = [];
+    for (const descriptor of this._items) {
+      const existing = descriptor.id === null ? undefined : byId.get(descriptor.id);
+      if (existing) {
+        byId.delete(descriptor.id);
+        const record = /** @type {{row: HTMLElement, state: FileItemState}} */ (this._itemRecords.get(existing));
+        if (!sameDescriptor(record.state, descriptor)) existing.set(descriptor);
+        record.state = descriptor;
+        next.push(existing);
+        continue;
+      }
+      const component = new FileItem(null, descriptor);
+      this._itemRecords.set(component, {
+        row: h('li', { class: 'zx-file-list__item' }, component),
+        state: descriptor
+      });
+      next.push(component);
+    }
+    const kept = new Set(next);
+    for (const component of previous) {
+      if (kept.has(component)) continue;
+      this._itemRecords.get(component)?.row.remove();
+      this._itemRecords.delete(component);
+      component.destroy();
+    }
+    this._itemComponents = next;
+    if (next.length === 0) return;
+    const list = this._itemList ??= h('ol', { class: 'zx-file-list__items' });
+    syncChildren(list, next.map((component) => /** @type {{row: HTMLElement}} */ (this._itemRecords.get(component)).row));
+  }
+
+  /**
+   * The loading region, kept across renders while its shape stays the same so that its live
+   * status is not re-announced by every mutation that happens during a load.
+   * @param {boolean} placeholders Whether skeleton rows stand in for an empty list.
+   * @returns {HTMLElement}
+   */
+  _createLoading(placeholders) {
+    if (this._loadingRegion && this._loadingPlaceholders === placeholders) return this._loadingRegion;
+    this._loadingPlaceholders = placeholders;
+    this._loadingRegion = this._buildLoading(placeholders);
+    return this._loadingRegion;
   }
 
   /** @param {boolean} placeholders @returns {HTMLElement} */
-  _createLoading(placeholders) {
+  _buildLoading(placeholders) {
     const region = h('div', {
       class: 'zx-file-list__loading', role: 'status', ariaLive: 'polite'
     }, h('span', { class: 'zx-file-list__loading-label' }, String(this.options.loadingText)));
@@ -214,7 +294,9 @@ export class FileList extends Component {
   /** @returns {void} */
   _destroyItems() {
     for (const item of this._itemComponents) item.destroy();
-    this._itemComponents.length = 0;
+    this._itemComponents = [];
+    this._itemRecords?.clear();
+    this._itemList?.replaceChildren();
   }
 
   /** @param {CustomEvent} event @returns {void} */
@@ -295,6 +377,47 @@ function cloneFileDescriptor(item) {
     actions: [...item.actions],
     locale: item.locale
   };
+}
+
+/**
+ * Makes `parent`'s children exactly `children`, in order, moving only the nodes that are out of
+ * place so that an untouched node — and the focus inside it — never leaves the document.
+ * @param {Element} parent Container.
+ * @param {Node[]} children Desired children.
+ * @returns {void}
+ */
+function syncChildren(parent, children) {
+  const wanted = new Set(children);
+  for (const node of [...parent.childNodes]) if (!wanted.has(node)) node.remove();
+  children.forEach((node, index) => {
+    const current = parent.childNodes[index] ?? null;
+    if (current !== node) parent.insertBefore(node, current);
+  });
+}
+
+/**
+ * Structural equality for normalized file descriptors: primitives by value, arrays and plain
+ * objects member by member, and Nodes, Components, or functions by identity.
+ * @param {unknown} left Previous value.
+ * @param {unknown} right Next value.
+ * @returns {boolean}
+ */
+function sameDescriptor(left, right) {
+  if (Object.is(left, right)) return true;
+  if (Array.isArray(left) && Array.isArray(right)) {
+    return left.length === right.length && left.every((value, index) => sameDescriptor(value, right[index]));
+  }
+  if (!isPlainRecord(left) || !isPlainRecord(right)) return false;
+  const keys = Object.keys(left);
+  return keys.length === Object.keys(right).length
+    && keys.every((key) => Object.prototype.hasOwnProperty.call(right, key) && sameDescriptor(left[key], right[key]));
+}
+
+/** @param {unknown} value @returns {value is Record<string, unknown>} */
+function isPlainRecord(value) {
+  if (!value || typeof value !== 'object') return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
 }
 
 /** @param {unknown} value @param {string} label @returns {Node|string} */
