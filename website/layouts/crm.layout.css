@@ -273,10 +273,11 @@
   overflow: hidden;
 }
 
-/* The bulk bar floats over the list, clear of the pager, as wide as its actions: centred from the
-   middle of the pane, it would otherwise get only the half after it and wrap their words. */
+/* The bulk bar floats over the list, above the pager (`--overview-footer-size`, 0 on the board),
+   as wide as its actions: centred from the middle of the pane, it would otherwise get only the
+   half after it and wrap their words. */
 .crm .crm__bulk {
-  inset-block-end: calc(var(--zx-space-5) + var(--zx-control-height) + var(--zx-space-4));
+  inset-block-end: calc(var(--overview-footer-size, 0px) + var(--zx-space-5));
   inline-size: max-content;
 }
 
@@ -586,7 +587,7 @@
 }
 
 /* A narrow collection: the bulk bar spans the pane and wraps its actions. */
-@container overview (max-width: 40rem) {
+@container overview (max-width: 36rem) {
   .crm .crm__bulk {
     inset-inline: var(--zx-space-3);
     inline-size: auto;

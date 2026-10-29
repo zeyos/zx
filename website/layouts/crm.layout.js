@@ -9,8 +9,8 @@ import {
   propList, renderScope, shortcuts, suiteNav, toaster, unavailable
 } from './kit.js';
 import { COMPANIES, ME, NOW, PEOPLE, TODAY, person } from './fixtures.js';
-import { columnHeader, createOverview } from './overview.js';
-import { filterExpression, nodeMatches } from './overview-filters.js';
+import { axisChoices, columnHeader, createOverview } from './overview.js';
+import { bucketOf, filterExpression, nodeMatches } from './overview-filters.js';
 
 /** The kinds of record, each recognised by its tinted tile in the navigation and on its page. */
 const RECORD_TYPES = {
@@ -326,8 +326,10 @@ function staffOptions() {
 }
 
 /**
- * The value a record without one groups, filters, and lays out on the board under — an owner
- * nobody holds, a company without a tier — so that no record drops out of a grouping.
+ * The id of the bucket a record without a value groups, filters, and lays out on the board under
+ * — an owner nobody holds, a company without a tier — so that no record drops out of a grouping.
+ * The record keeps its empty value; the overview reads it into this bucket and writes a move into
+ * it back as null.
  */
 const NONE = 'none';
 
@@ -337,21 +339,23 @@ const NONE = 'none';
  *   owners as a grouping, and as board columns or lanes.
  */
 function ownerAxis(label = 'Owner') {
-  return { label, buckets: [...PEOPLE.map((member) => ({ id: member.id, label: member.name })), { id: NONE, label: 'Unassigned' }] };
+  return { label, buckets: PEOPLE.map((member) => ({ id: member.id, label: member.name })), other: { id: NONE, label: 'Unassigned' } };
+}
+
+/** @returns {import('./overview.js').OverviewGroupAxis} The tiers, then No tier. */
+function tierAxis() {
+  return { label: 'Tier', buckets: TIERS.map((tier) => ({ id: tier, label: tier })), other: { id: NONE, label: 'No tier' } };
 }
 
 /**
  * @param {string} label Field name on the chip.
  * @returns {import('./overview.js').OverviewFilterField} The owner as the filter tests it — any
- *   member of staff, or nobody; a chip lists first names.
+ *   member of staff, or nobody, as the grouping shows them; a chip lists first names.
  */
 function ownerFilter(label) {
   return {
     id: 'owner', label, type: 'enum', icon: 'circle-user', operators: ['anyOf', 'noneOf', 'eq', 'neq'], defaultOperator: 'anyOf',
-    choices: [
-      ...PEOPLE.map((member) => ({ value: member.id, label: member.name, short: member.name.split(' ')[0] })),
-      { value: NONE, label: 'Unassigned' }
-    ]
+    choices: axisChoices(ownerAxis(label)).map((choice) => ({ ...choice, short: person(String(choice.value))?.name.split(' ')[0] }))
   };
 }
 
@@ -610,7 +614,7 @@ export default {
 
     /**
      * Describes a record collection: its fields, saved views, what the filter can test and the
-     * records group by, the shapes it offers, the total it sums, and how it draws as cards and as
+     * records group by, the shapes it offers, the total it sums (`sum.text` words it after the count), and how it draws as cards and as
      * a board. A field's `text` is how it reads in plain words (search, CSV, a board card where
      * its cell is a link, which `link` marks); a board card shows every field View settings shows
      * there, `lines` overriding how one reads.
@@ -644,7 +648,11 @@ export default {
         return {
           id, ...RECORD_TYPES.companies, noun: ['company', 'companies'], newLabel: 'New company',
           records: () => store.companies,
-          sum: { id: 'arr', label: 'Total ARR' },
+          none: {
+            title: 'No companies yet', description: 'Add your first company, or import them from a spreadsheet.',
+            actions: [{ label: 'New company', onclick: () => newCompany() }]
+          },
+          sum: { id: 'arr', text: (total) => ` · ${money(total)} ARR` },
           views: [
             { id: 'all', label: 'All companies', match: () => true },
             { id: 'customers', label: 'Customers', match: (record) => record.stage === 'customer', sort: { id: 'arr', dir: 'desc' } },
@@ -680,8 +688,8 @@ export default {
             },
             {
               id: 'tier', label: 'Tier', type: 'select', glyph: 'layer-group', sortable: true,
-              render: (record) => (record.tier && record.tier !== NONE ? record.tier : '—'),
-              text: (record) => (record.tier && record.tier !== NONE ? record.tier : ''),
+              render: (record) => record.tier || '—',
+              text: (record) => record.tier || '',
               sortValue: (record) => TIERS.indexOf(record.tier),
               view: { table: { width: '100px', editable: 'select', options: choices(TIERS) } }
             },
@@ -720,7 +728,7 @@ export default {
             ownerFilter('Owner'),
             {
               id: 'tier', label: 'Tier', type: 'enum', icon: 'layer-group', operators: ['eq', 'neq', 'anyOf', 'noneOf'],
-              choices: [...choices(TIERS), { value: NONE, label: 'No tier' }]
+              choices: axisChoices(tierAxis())
             },
             {
               id: 'categories', label: 'Categories', type: 'tags', icon: 'tags',
@@ -731,7 +739,7 @@ export default {
           groups: {
             stage: statusAxis(STAGES.map((stage) => ({ id: stage.ID, label: stage.name, tone: stage.tone }))),
             owner: ownerAxis(),
-            tier: { label: 'Tier', buckets: [...TIERS.map((tier) => ({ id: tier, label: tier })), { id: NONE, label: 'No tier' }] }
+            tier: tierAxis()
           },
           cards: {
             subtitle: (record) => record.domain,
@@ -756,6 +764,7 @@ export default {
         return {
           id, ...RECORD_TYPES.people, noun: ['person', 'people'], newLabel: 'New person',
           records: rows,
+          none: { title: 'No people yet', description: 'People are added from an email or from a company page.' },
           sum: null,
           views: [
             { id: 'all', label: 'All people', match: () => true },
@@ -809,7 +818,8 @@ export default {
         return {
           id, ...RECORD_TYPES.deals, noun: ['deal', 'deals'], newLabel: 'New deal',
           records: () => store.deals,
-          sum: { id: 'value', label: 'Total value' },
+          none: { title: 'No deals yet', description: 'Deals start from a company page, with its contacts filled in.' },
+          sum: { id: 'value', text: (total) => ` worth ${money(total)}` },
           views: [
             { id: 'all', label: 'All deals', match: () => true },
             { id: 'mine', label: 'My deals', match: (record) => record.owner === ME },
@@ -872,7 +882,8 @@ export default {
       return {
         id, title: list.name, icon: 'table-list', tone: 'slate', noun: ['entry', 'entries'], newLabel: 'Add company',
         records: entries,
-        sum: { id: 'arr', label: 'Total ARR' },
+        none: { title: 'No entries yet', description: 'Select companies in the table and use Add to list.' },
+        sum: { id: 'arr', text: (total) => ` · ${money(total)} ARR` },
         views: [{ id: 'all', label: 'All entries', match: () => true }],
         // A list is worked stage by stage, so it opens on its board. Its entries borrow their
         // owner from the company, so they group by the list's own stages only.
@@ -901,7 +912,13 @@ export default {
           readOnly(owner)
         ],
         filterFields: [ownerFilter('Account owner')],
-        groups: { stage: statusAxis(list.stages.map((stage) => ({ id: stage, label: stage }))) },
+        // An entry is a copy joined from its membership; a move on the board is written to both.
+        groups: {
+          stage: {
+            ...statusAxis(list.stages.map((stage) => ({ id: stage, label: stage }))),
+            set: (record, stage) => { record.stage = stage; byId(() => store.memberships)(record.ID, { stage }); }
+          }
+        },
         cards: null,
         board: {
           columnBy: 'stage', title: (record) => record.name,
@@ -965,15 +982,18 @@ export default {
       const filterTypes = Object.fromEntries(definition.filterFields.map((field) => [field.id, field.type]));
       const fieldById = new Map(definition.fields.map((field) => [field.id, field]));
       /** @param {Record<string, any>} field @param {Record<string, any>} record @returns {string} A field in plain words. */
-      const textOf = (field, record) => (field.text ? field.text(record) : [record[field.id]].flat().filter((value) => value != null && value !== NONE).join(', '));
+      const textOf = (field, record) => (field.text ? field.text(record) : [record[field.id]].flat().filter((value) => value != null).join(', '));
       // A record is found by its words and numbers — its fields as they read, and the address
-      // and contact behind them — never by a flag or the placeholder of an empty value.
+      // and contact behind them — never by a flag.
       const searchText = (record) => [
-        ...Object.values(record).flat().filter((value) => (typeof value === 'string' && value !== NONE) || typeof value === 'number'),
+        ...Object.values(record).flat().filter((value) => typeof value === 'string' || typeof value === 'number'),
         ...definition.fields.map((field) => textOf(field, record))
       ].join(' ');
-      // The fields a record can leave empty and still group, filter, and lay out by.
-      const optional = [...new Set([...Object.keys(definition.groups), 'owner'])];
+      // A filter reads an empty owner or tier as its Unassigned or No tier bucket, as the overview does.
+      const matchRead = (record, field) => {
+        const axis = definition.groups[field];
+        return axis?.other ? bucketOf(record[field], axis) : record[field];
+      };
       const noFilters = { logic: 'and', conditions: [], advanced: null };
       let views = [...definition.views];
       let viewId = views[0].id;
@@ -991,7 +1011,9 @@ export default {
         titleField: 'name',
         filterFields: definition.filterFields,
         groups: definition.groups,
-        records: baseRecords(),
+        records: definition.records(),
+        // The saved view's own records: a scope before the chips, which its count follows.
+        baseFilter: currentView().match,
         views: definition.shapes,
         view: definition.view ?? definition.shapes[0],
         board: definition.board ? { columnBy: definition.board.columnBy } : undefined,
@@ -1000,12 +1022,17 @@ export default {
         pageSize: 25,
         pageSizes: [10, 25, 50],
         search: { placeholder: `Search ${plural}…`, label: definition.title, text: searchText },
-        // The count, and what it adds up to: the sum shows beside the count in every shape.
+        // The count, and what it adds up to, in every shape — short, so that the count still fits
+        // beside an open drawer; past that the line ends in an ellipsis and its title holds it all.
         countText: (count) => {
           const text = `${formatNumber(count)} ${count === 1 ? singular : plural}`;
-          return definition.sum ? `${text} · ${definition.sum.label} ${money(sumOf(shown(), definition.sum.id))}` : text;
+          return definition.sum ? text + definition.sum.text(sumOf(shown(), definition.sum.id)) : text;
         },
-        empty: { title: `No ${plural} match` },
+        // Nothing in the collection at all, or nothing in this saved view, or nothing the filter
+        // leaves, each says so.
+        empty: ({ filtered }) => (filtered ? { title: `No ${plural} match` }
+          : currentView() === views[0] ? { icon: definition.icon, ...definition.none }
+            : { icon: definition.icon, title: `No ${plural} in this view`, description: 'Records appear here once they match it.' }),
         shortcuts: true,
         createView
       });
@@ -1017,9 +1044,11 @@ export default {
         root.style.removeProperty('--overview-drawer-size');
       });
       // Cells draw avatars; a new page destroys the last page's, and the headings get their glyphs.
-      overview.on('render', () => {
-        viewParts.reset();
-        queueMicrotask(() => decorate());
+      overview.on('render', () => viewParts.reset());
+      overview.on('rendered', () => {
+        decorate();
+        const line = overview.toolbar.toElement().querySelector('.zx-list-toolbar__count');
+        if (line) line.title = line.textContent ?? '';
       });
       overview.on('selectionchange', ({ detail }) => syncBulk(detail.ids));
       overview.on('recordclick', ({ detail }) => definition.open(detail.record));
@@ -1084,32 +1113,9 @@ export default {
         return views.find((entry) => entry.id === viewId) ?? views[0];
       }
 
-      /**
-       * A record as the overview gets it: a copy whose empty owner or grouping value reads as
-       * `NONE`, so it groups under Unassigned or No tier instead of dropping out. The store keeps
-       * the empty value; edits and moves are written to both.
-       * @param {Record<string, any>} record
-       * @returns {Record<string, any>}
-       */
-      function normalize(record) {
-        const copy = { ...record };
-        for (const field of optional) if (copy[field] == null || copy[field] === '') copy[field] = NONE;
-        return copy;
-      }
-
-      /** @returns {Record<string, any>[]} Every record of the collection, as the overview gets them. */
-      function allRecords() {
-        return definition.records().map(normalize);
-      }
-
-      /** @returns {Record<string, any>[]} The records the saved view lets through, before search and filters. */
-      function baseRecords() {
-        return allRecords().filter(currentView().match);
-      }
-
-      /** Hands the overview the saved view's records again and recounts the views. @returns {void} */
+      /** Hands the overview the records again, after the store changed, and recounts the views. @returns {void} */
       function syncData() {
-        overview.setData(baseRecords());
+        overview.setData(definition.records());
         renderViews();
       }
 
@@ -1123,7 +1129,7 @@ export default {
         if (!view.match(record)) return false;
         if (!view.state) return true;
         const needle = view.state.query.trim().toLowerCase();
-        return nodeMatches(record, filterExpression(view.state.filters), { type: (field) => filterTypes[field] })
+        return nodeMatches(record, filterExpression(view.state.filters), { read: matchRead, type: (field) => filterTypes[field] })
           && (!needle || searchText(record).toLowerCase().includes(needle));
       }
 
@@ -1172,7 +1178,8 @@ export default {
 
       /**
        * The board: one tray per column, headed by its count and total. Cards move by drag or
-       * keyboard; the move is written into the store, and into the overview's copy.
+       * keyboard; the overview writes the move into the record, through the axis's `set` where the
+       * record is a copy (a list's entry).
        * @param {import('./overview.js').OverviewViewContext} view
        * @returns {KanbanView}
        */
@@ -1187,8 +1194,9 @@ export default {
           label: `${definition.title} by ${columnAxis.label.toLowerCase()}`,
           renderCard: ({ record }) => boardCard(record, kanban),
           renderColumnHeader: ({ column, swimlane, count }) => {
-            const inColumn = (record) => String(record[columnBy]) === String(column.id)
-              && (!swimlane || !swimlaneBy || String(record[swimlaneBy]) === String(swimlane.id));
+            const { bucketOf: bucketIn } = view.board;
+            const inColumn = (record) => String(bucketIn(record, columnBy)) === String(column.id)
+              && (!swimlane || !swimlaneBy || String(bucketIn(record, swimlaneBy)) === String(swimlane.id));
             const total = sum ? sumOf(view.records().filter(inColumn), sum.id) : 0;
             return columnHeader({
               label: column.label,
@@ -1197,15 +1205,6 @@ export default {
               count,
               total: total ? money(total) : null
             });
-          },
-          // The store first, with No tier or Unassigned written back as empty; then the overview,
-          // which moves its copy and refreshes.
-          onrecordmove: (event) => {
-            const { ids, to } = event.detail;
-            const stored = (value) => (value === NONE ? null : value);
-            const changes = { [columnBy]: stored(to.column), ...(to.lane && swimlaneBy ? { [swimlaneBy]: stored(to.lane) } : {}) };
-            for (const recordId of ids) definition.update(recordId, changes);
-            view.board.options.onrecordmove(event);
           }
         });
         return kanban;
@@ -1256,9 +1255,9 @@ export default {
       function commitEdit(recordId, changes) {
         definition.update(recordId, changes);
         const copy = overview.getRecords().find((entry) => String(entry.ID) === String(recordId));
-        if (copy) Object.assign(copy, normalize({ ...copy, ...changes }));
+        if (copy) Object.assign(copy, changes);
         queueMicrotask(() => {
-          const record = allRecords().find((entry) => String(entry.ID) === String(recordId));
+          const record = definition.records().find((entry) => String(entry.ID) === String(recordId));
           const { group, sort } = overview.getState();
           // A change to the grouping or the sort moves the row, so the page is drawn again.
           const moved = (group && Object.hasOwn(changes, group)) || Object.hasOwn(changes, sort.id);
@@ -1273,7 +1272,7 @@ export default {
       /** Draws the saved views and their counts; the focus stays on the current one. @returns {void} */
       function renderViews() {
         const focused = viewGroup.contains(document.activeElement);
-        const records = allRecords();
+        const records = definition.records();
         viewGroup.replaceChildren(...views.map((entry) => h('button', {
           type: 'button', role: 'radio', class: 'crm__view',
           ariaChecked: String(entry.id === viewId), tabindex: entry.id === viewId ? '0' : '-1',
@@ -1308,7 +1307,7 @@ export default {
         viewId = id;
         const saved = currentView();
         overview.clearSelection();
-        overview.setData(baseRecords());
+        overview.setBaseFilter(saved.match);
         if (saved.state) {
           pendingDefaults = new Set();
           overview.setState(saved.state);
