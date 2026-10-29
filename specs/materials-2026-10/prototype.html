@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en" data-zx-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Materials — internal prototype</title>
+  <link rel="stylesheet" href="../../styles/zx.css">
+  <link rel="stylesheet" href="materials.css">
+  <style>
+    /* Internal exploration page. Served from the repository only (specs/ is never published). */
+    body { margin: 0; padding: var(--zx-space-6); background: var(--zx-color-bg-page); color: var(--zx-color-text); font-family: var(--zx-font-sans); }
+    .p-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--zx-space-4); margin-block-end: var(--zx-space-5); }
+    .p-head h1 { margin: 0; font-size: var(--zx-text-xl); }
+    .p-head p { margin: 0; color: var(--zx-color-text-muted); max-inline-size: 60ch; }
+    .p-head label { display: inline-flex; gap: var(--zx-space-2); align-items: center; }
+    .p-grid { display: grid; grid-template-columns: 14rem repeat(2, 600px); gap: var(--zx-space-4) var(--zx-space-4); align-items: start; }
+    .p-grid > h2 { margin: 0; font-size: var(--zx-text-sm); font-weight: var(--zx-weight-semibold); color: var(--zx-color-text-muted); text-transform: uppercase; letter-spacing: var(--zx-tracking-title); }
+    .p-row { display: contents; }
+    .p-label { padding-block-start: var(--zx-space-2); }
+    .p-label h3 { margin: 0 0 var(--zx-space-1); font-size: var(--zx-text-md); }
+    .p-label p { margin: 0; font-size: var(--zx-text-sm); color: var(--zx-color-text-muted); }
+    .p-label code { font-family: var(--zx-font-mono); font-size: var(--zx-text-xs); color: var(--zx-color-text-subtle); }
+
+    /* One cell: a themed, materialised region holding a page behind overlays. */
+    .p-cell { position: relative; block-size: 400px; overflow: hidden; border-radius: var(--zx-radius-lg); border: 1px solid var(--zx-color-border); background: var(--zx-color-bg-page); color: var(--zx-color-text); font-size: var(--zx-text-md); }
+    .p-scene { position: absolute; inset: 0; display: grid; grid-template-columns: 64px 1fr; }
+    .no-aurora .zx-aurora::before { display: none; }
+    .p-chrome { border: 0; border-inline-end: 1px solid var(--zx-color-glass-border); background: var(--zx-color-glass-chrome); box-shadow: var(--zx-glass-chrome-shadow); -webkit-backdrop-filter: var(--zx-glass-filter-chrome); backdrop-filter: var(--zx-glass-filter-chrome); display: grid; align-content: start; gap: var(--zx-space-3); padding: var(--zx-space-3) var(--zx-space-2); z-index: 1; }
+    .p-chrome .zx-icon { inline-size: 20px; block-size: 20px; color: var(--zx-color-text-subtle); margin: 0 auto; }
+    .p-chrome .p-current { background: var(--zx-color-bg-current); border-radius: var(--zx-radius-md); padding: var(--zx-space-1); }
+    .p-chrome .p-current .zx-icon { color: var(--zx-color-text); }
+    .p-page { padding: var(--zx-space-4); display: grid; gap: var(--zx-space-3); align-content: start; }
+    .p-page h4 { margin: 0; font-size: var(--zx-text-lg); }
+    .p-page p { margin: 0; color: var(--zx-color-text-muted); max-inline-size: 46ch; }
+    .p-tones { display: flex; gap: var(--zx-space-2); }
+    .p-tones span { inline-size: 44px; block-size: 28px; border-radius: var(--zx-radius-md); }
+    .p-page .zx-table { font-size: var(--zx-text-sm); }
+
+    /* Overlays over the page, drawn with the same roles the components read. */
+    .p-over { position: absolute; z-index: 2; }
+    .p-card { inset-inline-start: 84px; inset-block-start: 20px; inline-size: 270px; }
+    .p-icons { inset-inline-start: 372px; inset-block-start: 18px; display: flex; gap: var(--zx-space-3); }
+    .p-buttons { inset-inline-start: 84px; inset-block-start: 176px; display: flex; gap: var(--zx-space-2); align-items: center; }
+    .p-menu { inset-inline-start: 190px; inset-block-start: 222px; inline-size: 196px; border: 1px solid var(--zx-color-overlay-border); border-radius: var(--zx-radius-lg); background-color: var(--zx-color-overlay-surface); background-image: var(--zx-overlay-surface-image); background-clip: padding-box; -webkit-backdrop-filter: var(--zx-glass-filter-overlay); backdrop-filter: var(--zx-glass-filter-overlay); box-shadow: var(--zx-glass-overlay-shadow); padding: var(--zx-space-2); font-size: var(--zx-text-sm); }
+    .p-menu div { display: flex; align-items: center; gap: var(--zx-space-2); padding: var(--zx-space-2) var(--zx-space-3); border-radius: var(--zx-radius-sm); }
+    .p-menu div .zx-icon { inline-size: 16px; block-size: 16px; color: var(--zx-color-text-subtle); }
+    .p-menu [data-hover] { background: var(--zx-color-overlay-hover); }
+    .p-menu [data-selected] { background: var(--zx-color-overlay-selected); }
+    .p-menu hr { border: 0; border-block-start: 1px solid var(--zx-color-overlay-divider); margin: var(--zx-space-1) 0; }
+    .p-menu [data-danger] { color: var(--zx-color-danger); }
+    .p-dialog { inset-inline-start: 372px; inset-block-start: 112px; inline-size: 210px; border: 1px solid var(--zx-color-overlay-border); border-radius: var(--zx-radius-lg); background-color: var(--zx-color-overlay-panel); background-image: var(--zx-overlay-panel-image); background-clip: padding-box; -webkit-backdrop-filter: var(--zx-glass-filter-panel); backdrop-filter: var(--zx-glass-filter-panel); box-shadow: var(--zx-glass-panel-shadow); display: grid; }
+    .p-dialog header { display: flex; justify-content: space-between; align-items: center; padding: var(--zx-space-3) var(--zx-space-4); border-block-end: 1px solid var(--zx-color-overlay-divider); font-weight: var(--zx-weight-semibold); }
+    .p-dialog header .zx-icon { inline-size: 16px; block-size: 16px; color: var(--zx-color-text-subtle); }
+    .p-dialog .p-body { padding: var(--zx-space-3) var(--zx-space-4); font-size: var(--zx-text-sm); color: var(--zx-color-text-muted); }
+    .p-dialog footer { display: flex; justify-content: flex-end; gap: var(--zx-space-2); padding: var(--zx-space-3) var(--zx-space-4); border-block-start: 1px solid var(--zx-color-overlay-divider); }
+    .p-toast { --zx-message-kind: var(--zx-color-success); inset-inline-start: 372px; inset-block-end: 16px; inline-size: 210px; display: flex; gap: var(--zx-space-2); align-items: center; padding: var(--zx-space-2) var(--zx-space-3); border: 1px solid var(--zx-color-overlay-border); border-radius: var(--zx-radius-lg); background-color: var(--zx-color-overlay-surface); background-image: var(--zx-overlay-toast-image); background-clip: padding-box; -webkit-backdrop-filter: var(--zx-glass-filter-overlay); backdrop-filter: var(--zx-glass-filter-overlay); box-shadow: inset 0 0 0 1px var(--zx-message-kind), var(--zx-glass-overlay-shadow); font-size: var(--zx-text-sm); }
+    .p-toast .zx-icon { inline-size: 16px; block-size: 16px; color: var(--zx-message-kind); flex: none; }
+  </style>
+</head>
+<body>
+  <div class="p-head">
+    <h1>Materials</h1>
+    <p>Each cell is one material in one theme: the shell chrome at the left, a raised card, app icons, controls, a menu, a dialog and a toast over a page with a table and categorical colour, lit by an Aurora. Every surface reads the same tokens the components read.</p>
+    <label><input type="checkbox" id="aurora" checked> Aurora</label>
+    <label><input type="checkbox" id="busy" checked> Busy page behind</label>
+  </div>
+  <div class="p-grid" id="grid"></div>
+  <script type="module" src="prototype.js"></script>
+</body>
+</html>
