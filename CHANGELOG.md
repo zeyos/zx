@@ -8,6 +8,40 @@ and friends remain the complete record.
 
 ## Unreleased
 
+## 5.3.0 — 2026-10-29
+
+The record collection's toolbar, chips, drawers and pager become one shared composition in the
+layout kit, and the CRM and the issue tracker are rebuilt on it.
+
+### Added
+
+- `CardView` `keyboard: 'roving'` — the APG grid keyboard model the `Table` already has: the
+  collection is one Tab stop, arrows move between cards and group headings by the rendered rows,
+  Home/End and Page keys, Enter activates, Space and Shift+Arrow select, Ctrl/Cmd+A selects all;
+  focus is kept by record id across re-renders. `'tabs'`, the default, is unchanged.
+- `CardView` `collapsibleGroups`, `collapsedGroups`, `setGroupCollapsed()`, `getCollapsedGroups()`
+  and the `groupcollapse` event; `renderGroupHeading(context)` renders a group's heading with the
+  id, label, count, records, collapsed state and a `toggle()`.
+
+### Fixed
+
+- A narrow `Search` field squeezed its submit and clear buttons below the control height.
+
+### Website
+
+- The record collection's composition — toolbar, chip strip and chip editors, the Filters and View
+  settings drawers, page slicing, grouping, pagination, board axes and the keyboard map — is one
+  shared layout-kit module, with `other` buckets that write back, a base filter for tabs and
+  scopes, a split empty state, a `rendered` event and one-line toolbars beside an open drawer.
+- **CRM**: companies, people, deals and the curated lists use the shared overview: inline search,
+  the Filter, Sort and View drawers, the five-way shape switch, chips and the pager under the saved
+  view tabs. Companies gain cards and a stage board, people gain cards; owner and tier have
+  Unassigned and No tier buckets so no record drops out of a grouped view; the ARR total rides the
+  count line and the board columns keep their totals.
+- **Issue tracker**: the list is a roving `CardView` in the tracker's dense row anatomy with
+  collapsible group headings carrying status glyphs and counts and "New issue in <group>" on each;
+  the board takes its swim lanes from the grouping; the fixed tabs stay in the header.
+
 ## 5.2.0 — 2026-10-29
 
 A record collection pattern with a five-way view switch and filter chips, two components to go
