@@ -1,6 +1,6 @@
 import { Component } from '../../core/component.js';
 import { h } from '../../core/dom.js';
-import { icon } from '../../core/icons.js';
+import { ICON_SIZE, icon } from '../../core/icons.js';
 
 /**
  * @typedef {Object} SearchOptions
@@ -54,7 +54,7 @@ export class Search extends Component {
       type: 'button',
       ariaLabel: clearLabel,
       title: clearLabel
-    }, icon('x', { size: 15 })) : null;
+    }, icon('x', { size: ICON_SIZE.dismiss })) : null;
     const submit = h('button', {
       class: 'zx-search__submit',
       ref: 'submit',

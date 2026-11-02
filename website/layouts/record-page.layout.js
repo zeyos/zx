@@ -221,7 +221,7 @@ export default {
       onchange: ({ detail }) => save({ owner: detail.value }, `handed the opportunity to ${person(detail.value)?.name}`)
     }));
     const closePick = keep(new Datebox(null, {
-      value: noon(record.close), clearable: false,
+      value: noon(record.close), displayFormat: DATE.year, clearable: false,
       onchange: ({ detail }) => { if (detail.date) save({ close: formatDate(detail.date, '%Y-%m-%d') }); }
     }));
     const probabilityPick = keep(new NumberField(null, {

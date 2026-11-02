@@ -1,6 +1,6 @@
 import { Component } from '../../core/component.js';
 import { h } from '../../core/dom.js';
-import { icon } from '../../core/icons.js';
+import { ICON_SIZE, icon } from '../../core/icons.js';
 import { Avatar } from '../avatar/avatar.js';
 import { MenuButton } from '../menu-button/menu-button.js';
 
@@ -89,7 +89,7 @@ export class AccountMenu extends Component {
     h('span', { class: 'zx-account-menu__identity' },
       h('span', { ref: 'name', class: 'zx-account-menu__name' }),
       h('span', { ref: 'secondary', class: 'zx-account-menu__secondary' })),
-    h('span', { class: 'zx-account-menu__chevron', ariaHidden: 'true' }, icon('chevron-down'))));
+    h('span', { class: 'zx-account-menu__chevron', ariaHidden: 'true' }, icon('chevron-down', { size: ICON_SIZE.chevron }))));
     return root;
   }
 

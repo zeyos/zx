@@ -1,6 +1,6 @@
 import { Component } from '../../core/component.js';
 import { h } from '../../core/dom.js';
-import { icon } from '../../core/icons.js';
+import { ICON_SIZE, icon } from '../../core/icons.js';
 import { uid } from '../../core/util.js';
 
 /** @typedef {Node|Component|(() => Node|Component)} TabContent */
@@ -184,7 +184,7 @@ export class Tabbox extends Component {
         class: 'zx-tabbox__close zx-icon-btn',
         ariaHidden: 'true',
         title: this._message('tabbox.close', 'Close')
-      }, icon('x', { size: 14 })));
+      }, icon('x', { size: ICON_SIZE.dismiss })));
     }
     const tab = /** @type {HTMLButtonElement} */ (h('button', {
       class: 'zx-tabbox__tab',

@@ -2,7 +2,7 @@ import { Component } from '../../core/component.js';
 import { breakpoints, onBreakpoint } from '../../core/breakpoint.js';
 import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
 import { formatCurrency, formatNumber, formatPercent } from '../../core/format.js';
-import { icon } from '../../core/icons.js';
+import { ICON_SIZE, icon } from '../../core/icons.js';
 import { printf } from '../../core/i18n.js';
 import { uid } from '../../core/util.js';
 import { Datebox } from '../datebox/datebox.js';
@@ -1438,12 +1438,12 @@ export class Table extends Component {
         class: 'zx-table__column-move', type: 'button', disabled: index === 0,
         ariaLabel: `Move ${name} earlier`,
         dataset: { columnId: column.id, columnAction: 'up' }
-      }, icon('chevron-up', { size: 11 })),
+      }, icon('chevron-up', { size: ICON_SIZE.chevron })),
       h('button', {
         class: 'zx-table__column-move', type: 'button', disabled: index === this._columns.length - 1,
         ariaLabel: `Move ${name} later`,
         dataset: { columnId: column.id, columnAction: 'down' }
-      }, icon('chevron-down', { size: 11 }))) : null;
+      }, icon('chevron-down', { size: ICON_SIZE.chevron }))) : null;
       return h('div', { class: 'zx-table__column-option', dataset: { columnId: column.id } }, label, order);
     });
     this._columnList.replaceChildren(...controls, this._columnStatus);
@@ -1717,7 +1717,9 @@ export class Table extends Component {
           class: 'zx-table__sort-button',
           type: 'button',
           ariaLabel: name ?? undefined
-        }, h('span', { class: 'zx-table__header-label' }, column.label));
+        }, h('span', { class: 'zx-table__header-label' }, column.label),
+        // One arrow per sortable header; `aria-sort` on the header shows it and says which way.
+        h('span', { class: 'zx-table__sort-icon', ariaHidden: 'true' }, icon('arrow-up', { size: ICON_SIZE.sort })));
         this.listen(button, 'click', () => {
           const direction = this._sort?.id === column.id && this._sort.dir === 'asc' ? 'desc' : 'asc';
           this.setSort(column.id, direction);
@@ -1955,7 +1957,7 @@ export class Table extends Component {
         type: 'button',
         tabIndex: -1,
         ariaExpanded: String(expanded)
-      }, icon(expanded ? 'chevron-down' : 'chevron-right', { size: 14 })));
+      }, icon(expanded ? 'chevron-down' : 'chevron-right', { size: ICON_SIZE.chevron })));
     } else {
       branch.append(h('span', { class: 'zx-table__tree-spacer', ariaHidden: 'true' }));
     }

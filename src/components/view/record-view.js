@@ -1,7 +1,7 @@
 // @ts-check
 import { Component } from '../../core/component.js';
 import { h, resolveElement, restoreTarget, snapshotTarget } from '../../core/dom.js';
-import { icon } from '../../core/icons.js';
+import { ICON_SIZE, icon } from '../../core/icons.js';
 import { printf } from '../../core/i18n.js';
 import { sortRows } from '../table/sort.js';
 
@@ -784,14 +784,14 @@ export class RecordView extends Component {
         ariaLabel: this._message('recordView.moveFieldUp', 'Move %1 up', field.label),
         disabled: index === 0,
         dataset: { viewFieldAction: 'up', fieldId: field.id }
-      }, icon('chevron-up', { size: 11 }));
+      }, icon('chevron-up', { size: ICON_SIZE.chevron }));
       const down = h('button', {
         class: 'zx-record-view__field-move',
         type: 'button',
         ariaLabel: this._message('recordView.moveFieldDown', 'Move %1 down', field.label),
         disabled: index === fields.length - 1,
         dataset: { viewFieldAction: 'down', fieldId: field.id }
-      }, icon('chevron-down', { size: 11 }));
+      }, icon('chevron-down', { size: ICON_SIZE.chevron }));
       return h('div', { class: 'zx-record-view__field-option' },
         h('label', {}, toggle, h('span', {}, field.label)),
         h('span', { class: 'zx-record-view__field-order' }, up, down));

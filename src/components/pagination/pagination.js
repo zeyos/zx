@@ -1,7 +1,7 @@
 import { Component } from '../../core/component.js';
 import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
 import { printf } from '../../core/i18n.js';
-import { icon } from '../../core/icons.js';
+import { ICON_SIZE, icon } from '../../core/icons.js';
 
 /** @typedef {'pages'|'loadmore'} PaginationMode */
 
@@ -336,7 +336,7 @@ export class Pagination extends Component {
       ref,
       ariaLabel: label,
       dataset: { kind: 'default', size: 'sm' }
-    }, icon(glyph, { size: 14 }));
+    }, icon(glyph, { size: ICON_SIZE.chevron }));
   }
 
   /** @returns {HTMLElement} The append-style trigger. */

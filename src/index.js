@@ -60,7 +60,7 @@ export {
   formatDate, parseDate, clampDate, isSameDay, addDays, addMonths, getWeekStart
 } from './core/date.js';
 export {
-  icon, icons, iconNames, registerIcons,
+  icon, icons, iconNames, registerIcons, ICON_SIZE,
   configureIcons, getIconConfig, useFontAwesome, useBuiltinIcons, loadFontAwesome
 } from './core/icons.js';
 export {
@@ -147,7 +147,7 @@ export { Slider, stepPrecision } from './components/slider/slider.js';
 export { DatePicker } from './components/date-picker/date-picker.js';
 export { MonthPicker } from './components/date-picker/month-picker.js';
 export { TimePicker } from './components/date-picker/time-picker.js';
-export { Datebox, DateTimeBox } from './components/datebox/datebox.js';
+export { Datebox, DateTimeBox, dateboxFormats } from './components/datebox/datebox.js';
 export {
   DateRangePicker, clampRange, defaultDateRangePresets, normalizeRange, rangeNights, rangeStateOf
 } from './components/date-picker/date-range-picker.js';

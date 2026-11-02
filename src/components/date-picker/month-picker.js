@@ -1,6 +1,6 @@
 import { formatDate } from '../../core/date.js';
 import { h } from '../../core/dom.js';
-import { icon } from '../../core/icons.js';
+import { ICON_SIZE, icon } from '../../core/icons.js';
 import { DatePicker } from './date-picker.js';
 
 /**
@@ -48,14 +48,14 @@ export class MonthPicker extends DatePicker {
           class: 'zx-month-picker__nav',
           type: 'button',
           ariaLabel: this._message('monthPicker.previousYear', 'Previous year')
-        }, icon('chevron-left')),
+        }, icon('chevron-left', { size: ICON_SIZE.chevron })),
         h('span', { ref: 'year', class: 'zx-month-picker__year', ariaLive: 'polite' }),
         h('button', {
           ref: 'nextYear',
           class: 'zx-month-picker__nav',
           type: 'button',
           ariaLabel: this._message('monthPicker.nextYear', 'Next year')
-        }, icon('chevron-right'))
+        }, icon('chevron-right', { size: ICON_SIZE.chevron }))
       ),
       h('div', {
         ref: 'grid',

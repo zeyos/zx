@@ -61,14 +61,12 @@ const LAYOUT_ICONS = {
   'angle-up': ['0 0 24 24', 'M18 15l-6-6-6 6', 'stroke'], // chevron-up
   'angles-left': ['0 0 24 24', 'M11 17l-5-5 5-5M18 17l-5-5 5-5', 'stroke'], // chevrons-left
   'angles-right': ['0 0 24 24', 'M6 17l5-5-5-5M13 17l5-5-5-5', 'stroke'], // chevrons-right
-  'arrow-down': ['0 0 24 24', 'M12 5v14M19 12l-7 7-7-7', 'stroke'],
   'arrow-down-a-z': ['0 0 24 24', 'M3 16l4 4 4-4M7 20V4M20 8h-5M15 10V6.5a2.5 2.5 0 0 1 5 0V10M15 14h5l-5 6h5', 'stroke'],
   'arrow-left': ['0 0 24 24', 'M12 19l-7-7 7-7M19 12H5', 'stroke'],
   'arrow-right': ['0 0 24 24', 'M5 12h14M12 5l7 7-7 7', 'stroke'],
   'arrow-right-arrow-left': ['0 0 24 24', 'M16 3l4 4-4 4M20 7H4M8 21l-4-4 4-4M4 17h16', 'stroke'], // arrow-right-left
   'arrow-trend-down': ['0 0 24 24', 'M16 17h6v-6M22 17l-8.5-8.5-5 5L2 7', 'stroke'], // trending-down
   'arrow-trend-up': ['0 0 24 24', 'M16 7h6v6M22 7l-8.5 8.5-5-5L2 17', 'stroke'], // trending-up
-  'arrow-up': ['0 0 24 24', 'M5 12l7-7 7 7M12 19V5', 'stroke'],
   'arrow-up-right-from-square': ['0 0 24 24', 'M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6', 'stroke'], // external-link
   'arrows-rotate': ['0 0 24 24', 'M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8M21 3v5h-5M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16M8 16H3v5', 'stroke'], // refresh-cw
   'at': ['0 0 24 24', 'M8 12a4 4 0 1 0 8 0a4 4 0 1 0-8 0zM16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8', 'stroke'], // at-sign

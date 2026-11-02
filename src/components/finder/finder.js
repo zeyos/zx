@@ -1,6 +1,6 @@
 import { Component } from '../../core/component.js';
 import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
-import { icon } from '../../core/icons.js';
+import { ICON_SIZE, icon } from '../../core/icons.js';
 import { typeahead } from '../../core/keyboard.js';
 import { uid } from '../../core/util.js';
 import { createReaders, isBranch, pathTo } from '../tree/hierarchy.js';
@@ -276,7 +276,7 @@ export class Finder extends Component {
         this.options.renderItem ? this.options.renderItem(node) : this._readers.label(node)));
       if (branch) {
         row.append(h('span', { class: 'zx-finder__chevron', ariaHidden: 'true' },
-          icon('chevron-right', { size: 11 })));
+          icon('chevron-right', { size: ICON_SIZE.chevron })));
       }
       row.toggleAttribute('data-branch', branch);
       list.append(row);

@@ -51,14 +51,16 @@ export default {
     },
     {
       title: 'DateRangeBox in a form row',
-      blurb: 'The same picker behind a typed text field with an anchored popover. Type '
-        + '\u201c01.08.2026 \u2013 14.08.2026\u201d, or open the calendar with the button or ArrowDown. '
+      blurb: 'The same picker behind a typed text field with an anchored popover. At rest the range '
+        + 'reads in displayFormat; focus the field and it switches to format, the one you type: '
+        + '\u201c01.08.2026 \u2013 14.08.2026\u201d. Open the calendar with the button or ArrowDown. '
         + 'Unparseable text keeps the field editable and marks it invalid.',
       width: '420px',
       render: ({ cleanup, log }) => {
         const box = new DateRangeBox(null, {
           start: new Date(2026, 7, 3),
           end: new Date(2026, 7, 9),
+          displayFormat: '%e %b %Y',
           presets: true
         });
         box.on('change', ({ detail }) => log(`change ${stamp(detail.start)} \u2192 ${stamp(detail.end)}`));

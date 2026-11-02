@@ -16,8 +16,37 @@ import { faIconClasses, kitUrl, loadFontAwesomeKit, parseIconSpec } from './font
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 /**
+ * Icon sizes in CSS pixels, named by the role an icon plays rather than by its measure, so a call
+ * site says what a glyph is for and every glyph in that role renders at one size:
+ *
+ *     icon('chevron-down', { size: ICON_SIZE.chevron });
+ *
+ * Several roles share a value; they are named apart so one can change without a sweep. At 14px and
+ * below an outline glyph is drawn with a one-pixel line, so the roles that share 14 also share a
+ * stroke weight.
+ * @type {Readonly<{control: number, chevron: number, dismiss: number, check: number, sort: number,
+ *   chip: number, marker: number}>}
+ */
+export const ICON_SIZE = Object.freeze({
+  /** The default: an icon that is a control's content or leads its label. */
+  control: 16,
+  /** Dropdown, disclosure, and reorder chevrons; calendar and pager arrows; breadcrumb separators. */
+  chevron: 14,
+  /** The × that clears a field, closes a tab, dialog, or message, or removes a row. */
+  dismiss: 14,
+  /** The check of a selected option, a pressed toggle button, or a completed step. */
+  check: 14,
+  /** The sort-direction arrow beside a column heading. */
+  sort: 14,
+  /** Any glyph inside a chip or token, its remove × included. */
+  chip: 12,
+  /** A glyph drawn inside a small status marker. */
+  marker: 8
+});
+
+/**
  * @typedef {Object} IconOptions
- * @property {number|string} [size=16] Rendered width and height.
+ * @property {number|string} [size=16] Rendered width and height; `ICON_SIZE` names one per role.
  * @property {string|null} [label=null] Accessible label; null marks the icon decorative.
  * @property {string|string[]} [class] Extra class names added to the element.
  * @property {string} [style] Font Awesome style for this icon only (`'solid'`, `'duotone'`, …).
@@ -126,6 +155,8 @@ export const icons = Object.freeze({
   // <lucide-glyphs>
   'arrow-up-wide-short': outline('M3 8l4-4 4 4M7 4v16M11 12h10M11 16h7M11 20h4'), // arrow-up-wide-narrow
   'arrow-down-wide-short': outline('M3 16l4 4 4-4M7 20V4M11 4h10M11 8h7M11 12h4'), // arrow-down-wide-narrow
+  'arrow-up': outline('M5 12l7-7 7 7M12 19V5'),
+  'arrow-down': outline('M12 5v14M19 12l-7 7-7-7'),
   'chevron-down': outline('M6 9l6 6 6-6'),
   'chevron-up': outline('M18 15l-6-6-6 6'),
   'chevron-left': outline('M15 18l-6-6 6-6'),
@@ -376,7 +407,7 @@ function builtinIcon(name, options) {
  * @returns {SVGSVGElement}
  */
 function iconSvg(viewBox, paint, options) {
-  const { size = 16 } = options;
+  const { size = ICON_SIZE.control } = options;
   const svg = document.createElementNS(SVG_NS, 'svg');
   svg.setAttribute('class', classList('zx-icon', options.class));
   svg.setAttribute('viewBox', viewBox);
@@ -462,7 +493,7 @@ function warnMissingIcon(name) {
  * @returns {HTMLElement}
  */
 function faIcon(classes, options) {
-  const { size = 16 } = options;
+  const { size = ICON_SIZE.control } = options;
   const element = document.createElement('i');
   element.className = classList('zx-icon', ...classes, options.class);
   element.style.fontSize = typeof size === 'number' ? `${size}px` : String(size);

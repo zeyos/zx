@@ -1,5 +1,6 @@
 import { Component } from '../../core/component.js';
 import { h } from '../../core/dom.js';
+import { ICON_SIZE, icon } from '../../core/icons.js';
 import { printf } from '../../core/i18n.js';
 import { uid } from '../../core/util.js';
 
@@ -206,7 +207,7 @@ export class ValueList extends Component {
       class: 'zx-value-list__remove',
       dataset: { remove: '' },
       ariaHidden: 'true'
-    }, '×') : null));
+    }, icon('x', { size: ICON_SIZE.chip })) : null));
     this._list.replaceChildren(...chips);
     if (focusIndex >= 0) chips[Math.min(focusIndex, chips.length - 1)]?.focus();
   }

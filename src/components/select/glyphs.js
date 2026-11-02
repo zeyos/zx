@@ -1,5 +1,5 @@
 import { h } from '../../core/dom.js';
-import { icon } from '../../core/icons.js';
+import { ICON_SIZE, icon } from '../../core/icons.js';
 
 /**
  * The shapes a workflow-status glyph can take. Each status reads by shape first and colour
@@ -123,8 +123,8 @@ export function statusIcon(status, options = {}) {
     class: 'zx-status-icon',
     dataset: { indicator, tone }
   }));
-  if (indicator === 'done') marker.append(icon('check', { size: 8 }));
-  if (indicator === 'canceled') marker.append(icon('x', { size: 7 }));
+  if (indicator === 'done') marker.append(icon('check', { size: ICON_SIZE.marker }));
+  if (indicator === 'canceled') marker.append(icon('x', { size: ICON_SIZE.marker }));
   return name(marker, options?.label);
 }
 

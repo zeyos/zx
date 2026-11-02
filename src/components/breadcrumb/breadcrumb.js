@@ -1,7 +1,7 @@
 import { Component } from '../../core/component.js';
 import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
 import { printf } from '../../core/i18n.js';
-import { icon } from '../../core/icons.js';
+import { ICON_SIZE, icon } from '../../core/icons.js';
 import { MenuButton } from '../menu-button/menu-button.js';
 
 /** @typedef {'chevron'|'slash'} BreadcrumbSeparator */
@@ -296,7 +296,7 @@ export class Breadcrumb extends Component {
   /** @returns {HTMLElement} */
   _renderSeparator() {
     return h('span', { class: 'zx-breadcrumb__separator', ariaHidden: 'true' },
-      this.options.separator === 'slash' ? '/' : icon('chevron-right', { size: 11 }));
+      this.options.separator === 'slash' ? '/' : icon('chevron-right', { size: ICON_SIZE.chevron }));
   }
 
   /**

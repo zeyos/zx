@@ -2,7 +2,7 @@ import { Component } from '../../core/component.js';
 import { addDays, addMonths, formatDate, getWeekStart, isSameDay } from '../../core/date.js';
 import { h } from '../../core/dom.js';
 import { printf, translate } from '../../core/i18n.js';
-import { icon } from '../../core/icons.js';
+import { ICON_SIZE, icon } from '../../core/icons.js';
 
 /** @typedef {{start: Date|null, end: Date|null}} DateRange */
 /** @typedef {'start'|'middle'|'end'} DateRangeState */
@@ -617,14 +617,14 @@ export class DateRangePicker extends Component {
           type: 'button',
           dataset: { nav: 'previous' },
           ariaLabel: text('daterange.previousMonth', 'Previous month')
-        }, icon('chevron-left')),
+        }, icon('chevron-left', { size: ICON_SIZE.chevron })),
         h('div', { class: 'zx-date-range-picker__caption', ariaHidden: 'true' }, caption),
         h('button', {
           class: 'zx-date-range-picker__nav',
           type: 'button',
           dataset: { nav: 'next' },
           ariaLabel: text('daterange.nextMonth', 'Next month')
-        }, icon('chevron-right'))),
+        }, icon('chevron-right', { size: ICON_SIZE.chevron }))),
       h('table', {
         class: 'zx-date-range-picker__grid',
         role: 'grid',

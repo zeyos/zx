@@ -1,7 +1,7 @@
 import { Component } from '../../core/component.js';
 import { clampDate, formatDate, parseDate } from '../../core/date.js';
 import { h } from '../../core/dom.js';
-import { icon } from '../../core/icons.js';
+import { ICON_SIZE, icon } from '../../core/icons.js';
 import { position } from '../../core/position.js';
 import { uid } from '../../core/util.js';
 import { DatePicker } from '../date-picker/date-picker.js';
@@ -9,7 +9,11 @@ import { DatePicker } from '../date-picker/date-picker.js';
 /**
  * @typedef {Object} DateboxOptions
  * @property {Date|number|string|null} [value=null] Date, Unix seconds, or formatted string.
- * @property {string} [format='%d.%m.%Y'] Kernel date format.
+ * @property {string} [format='%d.%m.%Y'] Kernel date format the reader types, shown while the
+ *   field has focus. Numeric tokens only (`%d %e %m %Y %y %H %M %S`), since it is parsed.
+ * @property {string|null} [displayFormat=null] Format the field shows while it does not have focus,
+ *   so a date reads as the rest of the screen writes dates. It is never parsed, so it may use any
+ *   `formatDate()` token, month and weekday names included. Null shows `format`.
  * @property {boolean} [time=false] Append `%H:%M` and show time controls.
  * @property {Date|null} [min=null] Earliest selectable date.
  * @property {Date|null} [max=null] Latest selectable date.
@@ -40,6 +44,7 @@ export class Datebox extends Component {
   static defaults = {
     value: null,
     format: '%d.%m.%Y',
+    displayFormat: null,
     time: false,
     min: null,
     max: null,
@@ -56,9 +61,12 @@ export class Datebox extends Component {
     this._originalAriaDisabled = root.getAttribute('aria-disabled');
     this._originalClearable = root.getAttribute('data-clearable');
     root.toggleAttribute('data-clearable', Boolean(this.options.clearable));
-    this._format = effectiveFormat(this.options.format, this.options.time);
+    const formats = dateboxFormats(this.options);
+    this._format = formats.format;
+    this._displayFormat = formats.display;
     this._disabled = Boolean(this.options.disabled);
     this._open = false;
+    this._focused = false;
     this._position = null;
     this._min = validDate(this.options.min);
     this._max = validDate(this.options.max);
@@ -82,7 +90,7 @@ export class Datebox extends Component {
           class: 'zx-icon-btn zx-datebox__clear',
           type: 'button',
           ariaLabel: 'Clear date'
-        }, icon('x', { size: 13 })),
+        }, icon('x', { size: ICON_SIZE.dismiss })),
         h('button', {
           ref: 'toggle',
           class: 'zx-datebox__toggle',
@@ -116,7 +124,15 @@ export class Datebox extends Component {
       if (!this.options.time) this._close(true);
     });
 
-    this.listen(this.refs.input, 'blur', () => this._commitText());
+    // Focus swaps the resting text for the typing text; a valid commit on blur swaps it back.
+    this.listen(this.refs.input, 'focus', () => {
+      this._focused = true;
+      if (this.el.dataset.state !== 'invalid') this._syncDisplay();
+    });
+    this.listen(this.refs.input, 'blur', () => {
+      this._focused = false;
+      this._commitText();
+    });
     this.listen(this.refs.input, 'keydown', (event) => this._onInputKeydown(event));
     this.listen(this.refs.toggle, 'click', () => this._open ? this.close() : this.open());
     this.listen(this.refs.toggle, 'keydown', (event) => {
@@ -280,9 +296,16 @@ export class Datebox extends Component {
     return clampDate(date, this._min, this._max);
   }
 
-  /** @returns {void} */
+  /**
+   * Writes the value into the input: in the typing format while the input has focus, in the
+   * display format otherwise. Text that is already there is left alone, so the caret stays put.
+   * @returns {void}
+   */
   _syncDisplay() {
-    this.refs.input.value = this._value ? formatDate(this._value, this._format) : '';
+    const input = this.refs.input;
+    const format = this._focused ? this._format : this._displayFormat;
+    const text = this._value ? formatDate(this._value, format) : '';
+    if (input.value !== text) input.value = text;
     this._syncClear();
   }
 
@@ -346,6 +369,20 @@ export const DateTimeBox = function DateTimeBox(target, options = {}) {
 /** @param {unknown} value @returns {Date|null} */
 function validDate(value) {
   return value instanceof Date && !Number.isNaN(value.getTime()) ? new Date(value.getTime()) : null;
+}
+
+/**
+ * Resolves the two formats a Datebox works with: `format`, which the reader types and the field
+ * shows while focused, and `display`, which the field shows at rest. A missing format is
+ * `'%d.%m.%Y'`, a missing display format is the typing format, and with `time` either one that
+ * names no hour or minute gets `' %H:%M'` appended, so the time is never hidden.
+ * @param {{format?: string|null, displayFormat?: string|null, time?: boolean}} [options={}]
+ *   The Datebox options that decide them.
+ * @returns {{format: string, display: string}}
+ */
+export function dateboxFormats({ format = null, displayFormat = null, time = false } = {}) {
+  const typing = effectiveFormat(format, time);
+  return { format: typing, display: displayFormat ? effectiveFormat(displayFormat, time) : typing };
 }
 
 /** @param {unknown} format @param {unknown} time @returns {string} */

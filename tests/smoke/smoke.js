@@ -1412,6 +1412,60 @@ const cases = [
     component.open();
     component.close();
   }),
+  componentCase('Datebox (display format)', () => new zx.Datebox(null, {
+    value: new Date(2026, 10, 2), displayFormat: '%e %b %Y'
+  }), (component) => {
+    const input = component.el.querySelector('input');
+    let changes = 0;
+    component.on('change', () => { changes += 1; });
+    assert(input.value === '2 Nov 2026', `datebox did not rest in its display format: ${input.value}`);
+    input.focus();
+    assert(input.value === '02.11.2026', `datebox focus did not show the typing format: ${input.value}`);
+    input.value = '05.11.2026';
+    input.blur();
+    assert(input.value === '5 Nov 2026' && component.get().getDate() === 5,
+      `a typed date did not commit and redraw in the display format: ${input.value}`);
+    assert(changes === 1, `typing a date and leaving emitted ${changes} change events`);
+    input.focus();
+    input.value = '31.02.2026';
+    input.blur();
+    assert(input.value === '31.02.2026' && component.el.dataset.state === 'invalid',
+      'invalid text was replaced on blur');
+    input.focus();
+    assert(input.value === '31.02.2026', 'refocusing replaced the invalid text');
+    input.blur();
+    component.set(new Date(2026, 11, 24));
+    assert(input.value === '24 Dec 2026' && component.el.dataset.state !== 'invalid',
+      `set() at rest did not redraw in the display format: ${input.value}`);
+  }),
+  componentCase('DateRangeBox (display format)', () => new zx.DateRangeBox(null, {
+    start: new Date(2026, 7, 3), end: new Date(2026, 7, 9), displayFormat: '%e %b %Y'
+  }), (component) => {
+    const input = component.el.querySelector('input');
+    let changes = 0;
+    component.on('change', () => { changes += 1; });
+    assert(input.value === '3 Aug 2026 – 9 Aug 2026', `range did not rest in its display format: ${input.value}`);
+    input.focus();
+    assert(input.value === '03.08.2026 – 09.08.2026', `range focus did not show the typing format: ${input.value}`);
+    input.value = '10.08.2026 – 14.08.2026';
+    input.blur();
+    assert(input.value === '10 Aug 2026 – 14 Aug 2026' && component.get().end.getDate() === 14,
+      `a typed range did not commit and redraw in the display format: ${input.value}`);
+    assert(changes === 1, `typing a range and leaving emitted ${changes} change events`);
+    input.focus();
+    component.open();
+    assert(input.value === '10 Aug 2026 – 14 Aug 2026',
+      `untouched text stayed in the typing format while the calendar held focus: ${input.value}`);
+    component.close();
+    input.focus();
+    input.value = 'not a range';
+    input.blur();
+    assert(input.value === 'not a range' && component.el.dataset.state === 'invalid',
+      'invalid range text was replaced on blur');
+    input.focus();
+    assert(input.value === 'not a range', 'refocusing replaced the invalid range text');
+    input.blur();
+  }),
   componentCase('RecordView', () => new zx.RecordView(null, {
     fields: recordViewFields(),
     data: recordViewData(),

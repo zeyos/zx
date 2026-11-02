@@ -1,6 +1,6 @@
 import { Component } from '../../core/component.js';
 import { h, resolveElement } from '../../core/dom.js';
-import { icon } from '../../core/icons.js';
+import { ICON_SIZE, icon } from '../../core/icons.js';
 
 /**
  * @typedef {Object} GroupboxOptions
@@ -69,7 +69,7 @@ export class Groupbox extends Component {
     );
     const summary = h('summary', { class: 'zx-groupbox__summary', ref: 'summary' },
       h('span', { class: 'zx-groupbox__chevron', ariaHidden: 'true' },
-        icon('chevron-right', { size: 16 })
+        icon('chevron-right', { size: ICON_SIZE.chevron })
       ),
       h('span', { class: 'zx-groupbox__title', ref: 'title' }, String(this.options.title))
     );

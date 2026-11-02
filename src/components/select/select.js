@@ -1,6 +1,6 @@
 import { Component } from '../../core/component.js';
 import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
-import { icon } from '../../core/icons.js';
+import { ICON_SIZE, icon } from '../../core/icons.js';
 import { typeahead } from '../../core/keyboard.js';
 import { position } from '../../core/position.js';
 import { uid } from '../../core/util.js';
@@ -154,7 +154,7 @@ export class Select extends Component {
       tabIndex: -1,
       ariaLabel: this._message('select.clear', 'Clear selection'),
       hidden: true
-    }, icon('x', { size: 13 }));
+    }, icon('x', { size: ICON_SIZE.dismiss }));
     const loading = h('span', {
       ref: 'loading',
       class: 'zx-select__loading',
@@ -168,7 +168,7 @@ export class Select extends Component {
       type: 'button',
       tabIndex: -1,
       ariaLabel: this._message('select.toggle', 'Toggle options')
-    }, icon('chevron-down', { size: 16 }));
+    }, icon('chevron-down', { size: ICON_SIZE.chevron }));
     const control = h('div', { ref: 'control', class: 'zx-select__control' },
       valueAdornment, input, clear, loading, toggle
     );
@@ -766,7 +766,7 @@ export class Select extends Component {
       ariaSelected: String(selected),
       dataset: { index }
     }, h('span', { class: 'zx-select__option-content' }, content));
-    if (selected) option.append(icon('check', { size: 15 }));
+    if (selected) option.append(icon('check', { size: ICON_SIZE.check }));
     this.refs.list.append(option);
     this._optionEntries.push({ item, clear, action: null, element: option });
   }

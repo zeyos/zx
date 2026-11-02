@@ -1,6 +1,6 @@
 // @ts-check
 import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
-import { icon } from '../../core/icons.js';
+import { ICON_SIZE, icon } from '../../core/icons.js';
 import { uid } from '../../core/util.js';
 import { normalizeViewFieldControls, RecordView, readViewField } from '../view/record-view.js';
 import {
@@ -486,7 +486,7 @@ export class CardView extends RecordView {
       ariaExpanded: String(!collapsed),
       ariaControls: `${headingId}-list`,
       dataset: { groupToggle: '' }
-    }, icon('chevron-down', { size: 14 }), labelNode) : labelNode;
+    }, icon('chevron-down', { size: ICON_SIZE.chevron }), labelNode) : labelNode;
     const heading = h('h2', { class: 'zx-card-view__group-heading', id: headingId }, content);
     const header = h('div', {
       class: 'zx-card-view__group-header',

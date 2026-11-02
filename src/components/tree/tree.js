@@ -1,6 +1,6 @@
 import { Component } from '../../core/component.js';
 import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
-import { icon } from '../../core/icons.js';
+import { ICON_SIZE, icon } from '../../core/icons.js';
 import { typeahead } from '../../core/keyboard.js';
 import { uid } from '../../core/util.js';
 import {
@@ -439,7 +439,7 @@ export class TreeView extends Component {
     element.style.setProperty('--zx-tree-level', String(row.level - 1));
 
     const twisty = h('span', { class: 'zx-tree__twisty', ariaHidden: 'true' },
-      branch ? icon('chevron-right', { size: 12 }) : null);
+      branch ? icon('chevron-right', { size: ICON_SIZE.chevron }) : null);
     twisty.dataset.action = 'twisty';
     element.append(twisty);
 

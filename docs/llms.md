@@ -1388,9 +1388,19 @@ Text date input with a calendar popover. `DateTimeBox(target, opts)` is a Datebo
 `time: true`, which also brings the TimePicker (and its clock face) into the popover. Format
 tokens are the date-utility ones: `%d %m %Y %H %M`.
 
-- **Options** — `value: Date | number(unix) | string`, `format: '%d.%m.%Y'`, `time: false`, `min`,
-  `max`, `placeholder`, `clearable: true` (the clear button shows while there is a value and the
-  box is enabled; without `clearable` the input keeps no room for it), `disabled`.
+- **Options** — `value: Date | number(unix) | string`, `format: '%d.%m.%Y'`, `displayFormat: null`,
+  `time: false`, `min`, `max`, `placeholder`, `clearable: true` (the clear button shows while
+  there is a value and the box is enabled; without `clearable` the input keeps no room for it),
+  `disabled`.
+- **Two formats** — `format` is what the reader types, and what the field shows while it has
+  focus; it is parsed, so it takes numeric tokens only. `displayFormat` is what the field shows at
+  rest, so a date field reads the way the rest of the screen writes dates (`'%e %b %Y'` → "2 Nov
+  2026" beside a header that says "Created 19 Jul 2026"). It is never parsed, so month and weekday
+  names (`%b %B %a %A`) are fine; `null` shows `format`. Focus switches the text to the typing
+  format, a valid commit on blur or Enter switches it back, and text that failed to parse stays as
+  typed. With `time`, a format without `%H`/`%M` gets ` %H:%M` appended, the display format too.
+  The placeholder still describes `format`, and string values passed to `set()` are parsed with it.
+  `dateboxFormats({format, displayFormat, time})` → `{format, display}` resolves both the same way.
 - **In a Field** — field types `date`/`datetime` (and `daterange`) fill the control column like a
   text input and give way in a narrow two-column row; standalone, the box keeps its own width.
 - **Methods** — `get(unit='date')` (`'seconds'` → unix), `set(value, {silent})` (accepts a Date;
@@ -1416,7 +1426,7 @@ An inline two-month calendar for picking a start and an end day, plus the form-u
 
 #### DateRangeBox
 
-- **Options** — everything DateRangePicker takes, plus `format: '%d.%m.%Y'`, `separator: ' – '`, `placeholder: null` (derived from the format when null), `clearable: true` (no clear button while disabled, and no room kept for one without it). Typed text is parsed as `"<start><separator><end>"`; a lone date reads as a one-day range and a trailing separator keeps the range half open.
+- **Options** — everything DateRangePicker takes, plus `format: '%d.%m.%Y'`, `displayFormat: null`, `separator: ' – '`, `placeholder: null` (derived from the format when null), `clearable: true` (no clear button while disabled, and no room kept for one without it). Typed text is parsed as `"<start><separator><end>"`; a lone date reads as a one-day range and a trailing separator keeps the range half open. `displayFormat` is the endpoints' format at rest, as on Datebox (`'%e %b %Y'` → "3 Aug 2026 – 9 Aug 2026"); focus switches to `format`, and text left untouched while the calendar holds focus goes back to the display format.
 - **Methods** — `get(unit = 'date')` (`'seconds'` returns `{start, end}` as Unix seconds), `set(range, {silent})` accepting `{start, end}` of Dates, Unix-seconds numbers, or formatted strings, `clear({silent})`, `open()`, `close()`, `enable()`, `disable()`, `focus()`, `destroy()`.
 - **Events** — `change {start, end}`, `invalid {text}` when the typed value cannot be parsed (the text stays editable and the field takes `data-state="invalid"` plus `aria-invalid`), `open`, `close`.
 <!-- /doc -->
@@ -3202,8 +3212,8 @@ bar.setBadge('mail', 8);
   newest-first handler registry. Existing `DOM.on/remEvt/fireEvt` methods can delegate to this
   triad. Zx never installs globals or alters DOM prototypes; applications decide whether to expose
   these functions globally or compose them into their own UI and routing layer.
-- **Icons** — `icon(name, {size, label})` and `icons`; see the Icons section — bundled inline SVG
-  by default, Font Awesome after an opt-in.
+- **Icons** — `icon(name, {size, label})`, `icons`, and `ICON_SIZE` (one size per role); see the
+  Icons section — bundled inline SVG by default, Font Awesome after an opt-in.
 - **Positioning** — `position(anchor, floating, {placement, offset, flip, matchWidth})` →
   `{update, destroy}`. It anchors a manual popover with CSS anchor positioning where the browser
   supports it and a scroll/resize-tracked fallback where it does not. Options are resolved once,
@@ -3276,6 +3286,26 @@ old `RangeError`, at a call site that can afford to fail: a test, or a build-tim
 Font Awesome elements are sized with `font-size` and occupy 1em; bundled SVGs use width/height
 attributes (default 16). Both honour `label` (`null` ⇒ `aria-hidden`, otherwise `role="img"` +
 `aria-label`).
+
+**Size an icon by its role.** `ICON_SIZE` names one pixel size per role, so every chevron, every
+dismiss ×, and every check renders alike wherever it appears, and a call site says what a glyph is
+for rather than how big it is: `icon('chevron-down', { size: ICON_SIZE.chevron })`. The components
+use it throughout; use it in application code too, and never write a number for one of these roles.
+
+- `ICON_SIZE.control` (16) — the default: an icon that is a control's content or leads its label.
+- `ICON_SIZE.chevron` (14) — dropdown, disclosure, and reorder chevrons; calendar and pager
+  arrows; breadcrumb separators.
+- `ICON_SIZE.dismiss` (14) — the × that clears a field, closes a tab, dialog, or message, or
+  removes a row.
+- `ICON_SIZE.check` (14) — the check of a selected option, a pressed toggle button, or a completed
+  step.
+- `ICON_SIZE.sort` (14) — the sort-direction arrow beside a column heading.
+- `ICON_SIZE.chip` (12) — any glyph inside a chip or token, its remove × included.
+- `ICON_SIZE.marker` (8) — a glyph drawn inside a small status marker.
+
+Several roles share a value and are named apart so one can change on its own. At 14px and below an
+outline is drawn with a one-pixel line, so the indicator roles also share a stroke weight. A text
+character is never a stand-in for an icon: draw "×", "✓", or an arrow with `icon()`.
 <!-- /doc -->
 
 <!-- doc:helpers -->
@@ -3381,7 +3411,8 @@ destroys its component.
 
 Registered elements: `<zx-toggle>`, `<zx-check-button>`, `<zx-select items='[…]' required>`,
 `<zx-checklist>`, `<zx-datebox>`, `<zx-timebox>`, `<zx-search>`, `<zx-groupbox>`, `<zx-tabbox>`,
-`<zx-table>`, `<zx-dialog>`.
+`<zx-table>`, `<zx-dialog>`. `<zx-datebox>` takes `display-format` beside `format`, as the
+Datebox options `displayFormat` and `format`.
 <!-- /doc -->
 
 <!-- doc:tokens -->

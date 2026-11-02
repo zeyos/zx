@@ -1,7 +1,7 @@
 import { Component } from '../../core/component.js';
 import { h } from '../../core/dom.js';
 import { printf } from '../../core/i18n.js';
-import { icon } from '../../core/icons.js';
+import { ICON_SIZE, icon } from '../../core/icons.js';
 import { uid } from '../../core/util.js';
 import {
   AppRailPresenter as MinimizedPresenter, appNavIcon, normalizeAppItems
@@ -515,7 +515,7 @@ export class AppSidebar extends Component {
       class: 'zx-app-sidebar__collapse zx-icon-btn',
       type: 'button',
       ariaLabel: this._message('appSidebar.minimize', 'Minimize application sidebar')
-    }, icon(this._side === 'right' ? 'chevron-right' : 'chevron-left')));
+    }, icon(this._side === 'right' ? 'chevron-right' : 'chevron-left', { size: ICON_SIZE.chevron })));
     button.hidden = !this.options.collapsible;
     this._listenMode(button, 'click', () => this.collapse());
     return button;
@@ -527,7 +527,7 @@ export class AppSidebar extends Component {
       class: 'zx-app-sidebar__rail-toggle zx-icon-btn',
       type: 'button',
       ariaLabel: this._message('appSidebar.expand', 'Expand application sidebar')
-    }, icon(this._side === 'right' ? 'chevron-left' : 'chevron-right')));
+    }, icon(this._side === 'right' ? 'chevron-left' : 'chevron-right', { size: ICON_SIZE.chevron })));
     this._railExpandButton = button;
     this._listenMode(button, 'click', () => this.expand());
     return button;
@@ -1162,7 +1162,7 @@ function navControl(item, disclosure, expanded, controls, visual) {
   h('span', { class: 'zx-app-sidebar__item-label' }, item.label),
   item.badge != null ? h('span', { class: 'zx-app-sidebar__item-badge' }, String(item.badge)) : null,
   disclosure ? h('span', { class: 'zx-app-sidebar__item-disclosure', ariaHidden: 'true' },
-    icon(expanded ? 'chevron-down' : 'chevron-right')) : null));
+    icon(expanded ? 'chevron-down' : 'chevron-right', { size: ICON_SIZE.chevron })) : null));
 }
 
 /** @param {Element|null|undefined} root @returns {HTMLElement[]} */

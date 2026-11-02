@@ -1,4 +1,5 @@
 import { h } from '../../core/dom.js';
+import { ICON_SIZE, icon } from '../../core/icons.js';
 import { uid } from '../../core/util.js';
 import { Modal } from '../modal/modal.js';
 import { button } from '../button/button.js';
@@ -139,7 +140,7 @@ export class Dialog extends Modal {
           'data-kind': 'ghost',
           ariaLabel: close,
           title: close
-        }, '×')
+        }, icon('x', { size: ICON_SIZE.dismiss }))
       ),
       h('div', { class: 'zx-modal__content zx-dialog__body', ref: 'content' }),
       h('footer', { class: 'zx-dialog__footer', ref: 'footer' })

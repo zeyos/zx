@@ -1,6 +1,6 @@
 import { Component } from '../../core/component.js';
 import { h } from '../../core/dom.js';
-import { icon } from '../../core/icons.js';
+import { ICON_SIZE, icon } from '../../core/icons.js';
 import { isElement, uid } from '../../core/util.js';
 import { button } from '../button/button.js';
 
@@ -83,7 +83,7 @@ export class Panel extends Component {
       toggleChildren.push(h('span', {
         class: 'zx-panel__chevron',
         ariaHidden: 'true'
-      }, icon('chevron-right', { size: 16 })));
+      }, icon('chevron-right', { size: ICON_SIZE.chevron })));
     }
     toggleChildren.push(title);
 

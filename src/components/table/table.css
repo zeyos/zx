@@ -357,14 +357,20 @@
   box-shadow: var(--zx-focus-ring);
 }
 
-.zx-table th[aria-sort="ascending"] .zx-table__sort-button::after {
-  content: "↑";
+/* The direction arrow: shown on the sorted column only, and turned to point down for a descending
+   sort. */
+.zx-table__sort-icon {
+  display: none;
+  flex: none;
   color: var(--zx-color-text-muted);
 }
 
-.zx-table th[aria-sort="descending"] .zx-table__sort-button::after {
-  content: "↓";
-  color: var(--zx-color-text-muted);
+.zx-table th[aria-sort] .zx-table__sort-icon {
+  display: inline-flex;
+}
+
+.zx-table th[aria-sort="descending"] .zx-table__sort-icon {
+  transform: rotate(180deg);
 }
 
 .zx-table__body tr:last-child td {

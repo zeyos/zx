@@ -1,6 +1,6 @@
 import { Component } from '../../core/component.js';
 import { h } from '../../core/dom.js';
-import { icon } from '../../core/icons.js';
+import { ICON_SIZE, icon } from '../../core/icons.js';
 
 /**
  * @typedef {Object} CheckButtonOptions
@@ -47,8 +47,8 @@ export class CheckButton extends Component {
       // Both states carry a glyph — an empty box when off, a check when on — so the control still
       // reads as a two-state control while pressed, unpressed, or disabled.
       children.push(h('span', { class: 'zx-check-button__icon', ariaHidden: 'true' },
-        h('span', { class: 'zx-check-button__off' }, icon('square', { size: 15 })),
-        h('span', { class: 'zx-check-button__on' }, icon('check', { size: 15 }))));
+        h('span', { class: 'zx-check-button__off' }, icon('square', { size: ICON_SIZE.check })),
+        h('span', { class: 'zx-check-button__on' }, icon('check', { size: ICON_SIZE.check }))));
     }
     children.push(h('span', { class: 'zx-check-button__label', ref: 'label' }));
     root.replaceChildren(...children);

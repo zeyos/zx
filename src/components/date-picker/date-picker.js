@@ -1,7 +1,7 @@
 import { Component } from '../../core/component.js';
 import { addDays, addMonths, formatDate, getWeekStart, isSameDay, parseDate } from '../../core/date.js';
 import { h } from '../../core/dom.js';
-import { icon } from '../../core/icons.js';
+import { ICON_SIZE, icon } from '../../core/icons.js';
 import { printf } from '../../core/i18n.js';
 import { TimePicker } from './time-picker.js';
 
@@ -57,7 +57,7 @@ export class DatePicker extends Component {
           class: 'zx-date-picker__nav',
           type: 'button',
           ariaLabel: this._message('datePicker.previousMonth', 'Previous month')
-        }, icon('chevron-left')),
+        }, icon('chevron-left', { size: ICON_SIZE.chevron })),
         h('button', {
           ref: 'heading',
           class: 'zx-date-picker__heading',
@@ -70,7 +70,7 @@ export class DatePicker extends Component {
           class: 'zx-date-picker__nav',
           type: 'button',
           ariaLabel: this._message('datePicker.nextMonth', 'Next month')
-        }, icon('chevron-right'))
+        }, icon('chevron-right', { size: ICON_SIZE.chevron }))
       ),
       h('div', {
         ref: 'quickPanel',
@@ -83,14 +83,14 @@ export class DatePicker extends Component {
           class: 'zx-date-picker__nav',
           type: 'button',
           ariaLabel: this._message('datePicker.previousYear', 'Previous year')
-        }, icon('chevron-left')),
+        }, icon('chevron-left', { size: ICON_SIZE.chevron })),
         h('span', { ref: 'quickYear', class: 'zx-date-picker__quick-year', ariaLive: 'polite' }),
         h('button', {
           ref: 'quickNext',
           class: 'zx-date-picker__nav',
           type: 'button',
           ariaLabel: this._message('datePicker.nextYear', 'Next year')
-        }, icon('chevron-right'))
+        }, icon('chevron-right', { size: ICON_SIZE.chevron }))
       ),
       h('div', { ref: 'quickGrid', class: 'zx-date-picker__quick-grid', role: 'grid' })),
       h('table', {

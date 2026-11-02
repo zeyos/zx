@@ -1,6 +1,6 @@
 import { Component } from '../../core/component.js';
 import { h, safeHref } from '../../core/dom.js';
-import { icon } from '../../core/icons.js';
+import { ICON_SIZE, icon } from '../../core/icons.js';
 import { printf } from '../../core/i18n.js';
 import { connectedOverlayHost, overlayScope } from '../../core/overlay-host.js';
 import { pushOverlay } from '../../core/overlay-stack.js';
@@ -216,7 +216,7 @@ export class Launcher extends Component {
       ref: 'scopeBack',
       class: 'zx-icon-btn zx-launcher__scope-back',
       type: 'button'
-    }, icon('x'));
+    }, icon('x', { size: ICON_SIZE.dismiss }));
     const scope = h('span', { ref: 'scope', class: 'zx-launcher__scope', hidden: true },
       h('span', { ref: 'scopeLabel', class: 'zx-launcher__scope-label' }), scopeBack);
     const close = h('button', {
@@ -224,7 +224,7 @@ export class Launcher extends Component {
       class: 'zx-icon-btn zx-launcher__close',
       type: 'button',
       ariaLabel: this.options.closeLabel ?? this._message('launcher.close', 'Close launcher')
-    }, icon('x'));
+    }, icon('x', { size: ICON_SIZE.dismiss }));
     const status = h('div', {
       ref: 'status',
       class: 'zx-launcher__status',
@@ -792,7 +792,7 @@ export class Launcher extends Component {
     // Drawn caps are part of the option's name unless `keys` already exposes the shortcut.
     if (caps.length) children.push(h('span', { class: 'zx-launcher__keys', ariaHidden: keys ? 'true' : null },
       kbd(caps, { size: 'sm' })));
-    if (page) children.push(h('span', { class: 'zx-launcher__chevron', ariaHidden: 'true' }, icon('chevron-right')));
+    if (page) children.push(h('span', { class: 'zx-launcher__chevron', ariaHidden: 'true' }, icon('chevron-right', { size: ICON_SIZE.chevron })));
     return /** @type {HTMLElement} */ (h(tag, {
       class: 'zx-launcher__option',
       type: tag === 'button' ? 'button' : null,

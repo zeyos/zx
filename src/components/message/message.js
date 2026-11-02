@@ -1,6 +1,6 @@
 import { Component } from '../../core/component.js';
 import { h, resolveElement } from '../../core/dom.js';
-import { icon } from '../../core/icons.js';
+import { ICON_SIZE, icon } from '../../core/icons.js';
 import { overlayScope } from '../../core/overlay-host.js';
 import { overlayStack } from '../../core/overlay-stack.js';
 import { button } from '../button/button.js';
@@ -422,7 +422,7 @@ export class Message extends Component {
         type: 'button',
         ariaLabel: this._message('message.close', 'Close message'),
         title: this._message('message.closeTitle', 'Close')
-      }, icon('x', { size: 14 }));
+      }, icon('x', { size: ICON_SIZE.dismiss }));
       node.append(close);
       this.listen(close, 'click', () => this._close(entry));
     }

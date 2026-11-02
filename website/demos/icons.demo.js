@@ -1,5 +1,5 @@
 import {
-  Search, Toggle, button, getIconConfig, h, icon, icons, useBuiltinIcons, useFontAwesome
+  ICON_SIZE, Search, Toggle, button, getIconConfig, h, icon, icons, useBuiltinIcons, useFontAwesome
 } from '../../src/index.js';
 import {
   ZEYOS_ICON_KIT, moduleChip, moduleInfo, moduleKeys, useZeyosIcons
@@ -202,6 +202,12 @@ function moduleSection() {
 /** Sizes the bundled outlines are shown at: the stroke keeps its weight down to a 1px line. */
 const SIZES = [12, 14, 16, 20, 24];
 
+/** A glyph that typically plays each `ICON_SIZE` role. */
+const ROLE_SAMPLES = {
+  control: 'search', chevron: 'chevron-down', dismiss: 'x', check: 'check', sort: 'arrow-up',
+  chip: 'x', marker: 'check'
+};
+
 /** @returns {HTMLElement} */
 function builtinSection() {
   const names = Object.keys(icons).sort();
@@ -224,6 +230,16 @@ function builtinSection() {
   ...['search', 'calendar', 'gear', 'check'].map((name) => icon(`builtin:${name}`, { size })),
   h('span', { style: { color: 'var(--zx-color-text-muted)' } }, `${size}px`))));
 
+  const roles = h('div', { style: {
+    display: 'grid', gap: 'var(--zx-space-2) var(--zx-space-4)',
+    gridTemplateColumns: 'auto auto 1fr', alignItems: 'center', fontSize: 'var(--zx-text-sm)'
+  } }, Object.entries(ICON_SIZE).flatMap(([role, size]) => [
+    h('span', { style: { display: 'inline-grid', placeItems: 'center', inlineSize: '1.5rem' } },
+      icon(`builtin:${ROLE_SAMPLES[role] ?? 'square'}`, { size })),
+    h('code', {}, `ICON_SIZE.${role}`),
+    h('span', { style: { color: 'var(--zx-color-text-muted)' } }, `${size}px`)
+  ]));
+
   const solid = icon('builtin:star', { size: 20 });
   solid.style.fill = 'currentColor';
   const states = row(
@@ -241,6 +257,11 @@ function builtinSection() {
       + 'name with builtin: to force one.'),
     grid,
     sizes,
+    note('Components size an icon by the role it plays, not by measure: ICON_SIZE names one size '
+      + 'per role, so every chevron, every dismiss \u00d7, and every check renders alike wherever it '
+      + 'appears. icon() defaults to ICON_SIZE.control.'),
+    code("icon('chevron-down', { size: ICON_SIZE.chevron });"),
+    roles,
     note('Add your own with registerIcons(). A [viewBox, path] pair is a filled shape — the form '
       + 'Font Awesome path data comes in. A [viewBox, path, \'stroke\'] triple is an outline drawn '
       + 'with the same pen as the bundled set; an icon from Lucide drops in unchanged.'),

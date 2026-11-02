@@ -1,6 +1,6 @@
 // @ts-check
 import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
-import { icon } from '../../core/icons.js';
+import { ICON_SIZE, icon } from '../../core/icons.js';
 import { printf } from '../../core/i18n.js';
 import { uid } from '../../core/util.js';
 import { badge } from '../badge/badge.js';
@@ -1021,7 +1021,7 @@ export class KanbanView extends RecordView {
       class: 'zx-kanban-view__collapse', type: 'button', ariaExpanded: String(!collapsed),
       ariaControls: bodyId, ariaLabel: this._text(collapsed ? 'expandLane' : 'collapseLane', { label: lane.label }),
       dataset: { kanbanCollapse: 'swimlane', kanbanId: lane.id }
-    }, icon(collapsed ? 'chevron-right' : 'chevron-down', { size: 13 }));
+    }, icon(collapsed ? 'chevron-right' : 'chevron-down', { size: ICON_SIZE.chevron }));
     const limit = lane.limit ?? null;
     const wip = wipState(total, limit);
     const custom = this._renderHook('renderSwimlaneHeader', {
@@ -1074,7 +1074,7 @@ export class KanbanView extends RecordView {
       class: 'zx-kanban-view__collapse', type: 'button', ariaExpanded: String(!collapsed),
       ariaControls: listId, ariaLabel: this._text(collapsed ? 'expandColumn' : 'collapseColumn', { label: column.label }),
       dataset: { kanbanCollapse: 'column', kanbanId: column.id }
-    }, icon(collapsed ? 'chevron-right' : 'chevron-down', { size: 13 }));
+    }, icon(collapsed ? 'chevron-right' : 'chevron-down', { size: ICON_SIZE.chevron }));
     const custom = this._renderHook('renderColumnHeader', {
       column: { ...column }, swimlane: lane ? { ...lane } : null,
       count: visible.length, total: entries.length, columnTotal, limit, wip, collapsed

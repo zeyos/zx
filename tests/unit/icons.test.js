@@ -8,7 +8,7 @@ import {
   faIconClasses, faNames, faStyles, kitUrl, parseIconSpec
 } from '../../src/core/fontawesome.js';
 import {
-  configureIcons, icon, iconNames, icons, registerIcons, useBuiltinIcons, useFontAwesome
+  ICON_SIZE, configureIcons, icon, iconNames, icons, registerIcons, useBuiltinIcons, useFontAwesome
 } from '../../src/core/icons.js';
 
 test('bare names are left for the active provider to interpret', () => {
@@ -298,6 +298,53 @@ test('small outlines keep a one-pixel line instead of thinning with the box', ()
       assert.ok(width(size) * size / 24 >= 0.999, `${size}px renders a line under one pixel`);
     }
   });
+});
+
+/*
+ * Named sizes: one size per role, so a chevron, a dismiss ×, or a check renders the same wherever
+ * it appears. The values may move; the relations below are what the components rely on.
+ */
+test('ICON_SIZE names one pixel size per role, and the default is the control size', () => {
+  assert.ok(Object.isFrozen(ICON_SIZE), 'the size table is shared and must stay frozen');
+  assert.deepEqual(Object.keys(ICON_SIZE).sort(),
+    ['check', 'chevron', 'chip', 'control', 'dismiss', 'marker', 'sort']);
+  for (const [role, size] of Object.entries(ICON_SIZE)) {
+    assert.ok(Number.isInteger(size) && size > 0, `${role} is not a whole pixel size`);
+  }
+  for (const role of ['chevron', 'dismiss', 'check', 'sort']) {
+    assert.ok(ICON_SIZE[role] <= ICON_SIZE.control, `a ${role} outgrows the control icon beside it`);
+    assert.ok(ICON_SIZE[role] > ICON_SIZE.chip, `a ${role} is no larger than a chip glyph`);
+  }
+  assert.ok(ICON_SIZE.marker < ICON_SIZE.chip, 'a marker glyph must fit inside a chip-sized marker');
+  withDocument(() => {
+    assert.equal(icon('check').getAttribute('width'), String(ICON_SIZE.control));
+    useFontAwesome();
+    try {
+      assert.equal(/** @type {any} */ (icon('check')).style.fontSize, `${ICON_SIZE.control}px`);
+    } finally {
+      useBuiltinIcons();
+    }
+  });
+});
+
+test('every named size renders at its width with at least a one-pixel line', () => {
+  withDocument(() => {
+    for (const [role, size] of Object.entries(ICON_SIZE)) {
+      const element = icon('x', { size });
+      assert.equal(element.getAttribute('width'), String(size), `${role} width`);
+      assert.equal(element.getAttribute('height'), String(size), `${role} height`);
+      assert.ok(Number(element.getAttribute('stroke-width')) * size / 24 >= 0.999,
+        `${role} at ${size}px draws a line under one pixel`);
+    }
+  });
+});
+
+test('the sort arrows are bundled outlines that Font Awesome names the same', () => {
+  for (const name of ['arrow-up', 'arrow-down']) {
+    assert.ok(Object.hasOwn(icons, name), `${name} is not bundled`);
+    assert.equal(icons[name][2], 'stroke');
+    assert.deepEqual(faIconClasses(name), ['fa-solid', `fa-${name}`]);
+  }
 });
 
 test('registered [viewBox, path] pairs keep rendering filled', () => {

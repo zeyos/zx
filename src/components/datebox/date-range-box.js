@@ -2,7 +2,7 @@ import { Component } from '../../core/component.js';
 import { formatDate, parseDate } from '../../core/date.js';
 import { h } from '../../core/dom.js';
 import { printf, translate } from '../../core/i18n.js';
-import { icon } from '../../core/icons.js';
+import { ICON_SIZE, icon } from '../../core/icons.js';
 import { position } from '../../core/position.js';
 import { escapeRegExp, uid } from '../../core/util.js';
 import { DateRangePicker, clampRange, normalizeRange } from '../date-picker/date-range-picker.js';
@@ -16,7 +16,11 @@ import { DateRangePicker, clampRange, normalizeRange } from '../date-picker/date
  * @typedef {Object} DateRangeBoxOptions
  * @property {Date|number|string|null} [start=null] Initial start: Date, Unix seconds, or formatted text.
  * @property {Date|number|string|null} [end=null] Initial end: Date, Unix seconds, or formatted text.
- * @property {string} [format='%d.%m.%Y'] Kernel date format used for both endpoints.
+ * @property {string} [format='%d.%m.%Y'] Kernel date format the reader types for both endpoints,
+ *   shown while the field has focus. Numeric tokens only, since it is parsed.
+ * @property {string|null} [displayFormat=null] Format both endpoints are shown in while the field
+ *   does not have focus. It is never parsed, so it may use any `formatDate()` token, month and
+ *   weekday names included. Null shows `format`.
  * @property {string} [separator=' – '] Text placed between the two formatted dates.
  * @property {string|null} [placeholder=null] Input placeholder; null derives one from the format.
  * @property {boolean} [clearable=true] Show a clear button while a range is present and the box is
@@ -110,6 +114,7 @@ export class DateRangeBox extends Component {
     start: null,
     end: null,
     format: '%d.%m.%Y',
+    displayFormat: null,
     separator: ' – ',
     placeholder: null,
     clearable: true,
@@ -136,9 +141,11 @@ export class DateRangeBox extends Component {
     this._originalClearable = root.getAttribute('data-clearable');
     root.toggleAttribute('data-clearable', Boolean(this.options.clearable));
     this._format = String(this.options.format || '%d.%m.%Y');
+    this._displayFormat = this.options.displayFormat ? String(this.options.displayFormat) : this._format;
     this._separator = String(this.options.separator ?? ' – ');
     this._disabled = Boolean(this.options.disabled);
     this._open = false;
+    this._focused = false;
     this._position = null;
     this._range = this._coerce({ start: this.options.start, end: this.options.end });
     const popoverId = uid('zx-date-range-box-popover');
@@ -160,7 +167,7 @@ export class DateRangeBox extends Component {
           class: 'zx-icon-btn zx-date-range-box__clear',
           type: 'button',
           ariaLabel: text('daterange.clear', 'Clear date range')
-        }, icon('x', { size: 13 })),
+        }, icon('x', { size: ICON_SIZE.dismiss })),
         h('button', {
           ref: 'toggle',
           class: 'zx-date-range-box__toggle',
@@ -206,10 +213,20 @@ export class DateRangeBox extends Component {
       if (event.detail.start && event.detail.end) this._close(true);
     });
 
+    // Focus swaps the resting text for the typing text; a valid commit on blur swaps it back.
+    this.listen(this.refs.input, 'focus', () => {
+      this._focused = true;
+      if (this.el.dataset.state !== 'invalid') this._syncDisplay();
+    });
     // Moving focus into the open calendar blurs the input; committing then would turn a
-    // half-picked range into a one-day range behind the user's back.
+    // half-picked range into a one-day range behind the user's back. Untouched text still goes
+    // back to the display format.
     this.listen(this.refs.input, 'blur', () => {
+      this._focused = false;
       if (!this._open) this._commitText();
+      else if (this.refs.input.value === formatRangeText(this._range, this._format, this._separator)) {
+        this._syncDisplay();
+      }
     });
     this.listen(this.refs.input, 'keydown', (event) => this._onInputKeydown(event));
     this.listen(this.refs.toggle, 'click', () => this._open ? this.close() : this.open());
@@ -436,9 +453,16 @@ export class DateRangeBox extends Component {
     return `${one}${this._separator}${one}`;
   }
 
-  /** @returns {void} */
+  /**
+   * Writes the range into the input: in the typing format while the input has focus, in the
+   * display format otherwise. Text that is already there is left alone, so the caret stays put.
+   * @returns {void}
+   */
   _syncDisplay() {
-    this.refs.input.value = formatRangeText(this._range, this._format, this._separator);
+    const input = this.refs.input;
+    const format = this._focused ? this._format : this._displayFormat;
+    const text = formatRangeText(this._range, format, this._separator);
+    if (input.value !== text) input.value = text;
     this._syncClear();
   }
 

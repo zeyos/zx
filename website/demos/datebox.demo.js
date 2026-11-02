@@ -28,6 +28,24 @@ export default {
       }
     },
     {
+      title: 'Display format',
+      blurb: 'format is what the reader types; displayFormat is what the field shows while it does '
+        + 'not have focus, so a date reads the way the rest of the screen writes dates. Focus the '
+        + 'field to see 17.07.2026, type another date, and leave it: the new date reads as 17 Jul 2026 '
+        + 'again. The display format is never parsed, so month and weekday names are fine.',
+      width: '240px',
+      render: ({ cleanup, log }) => {
+        const box = new Datebox(null, {
+          value: new Date(2026, 6, 17),
+          format: '%d.%m.%Y',
+          displayFormat: '%e %b %Y'
+        });
+        box.on('change', ({ detail }) => log(`change \u2192 ${detail.date?.toDateString() ?? 'null'}`));
+        cleanup(() => box.destroy());
+        return box.el;
+      }
+    },
+    {
       title: 'Invalid input',
       blurb: 'Type an impossible date \u2014 31.02.2026 \u2014 then blur or press Enter. The field emits '
         + 'invalid and leaves the text editable, because throwing away what someone typed is the '

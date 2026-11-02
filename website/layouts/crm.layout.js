@@ -1747,7 +1747,8 @@ export default {
                 onchange: ({ detail }) => save({ employees: detail.value })
               })).toElement()],
               ['Renewal', screen.own(new Datebox(null, {
-                value: record.renewal ? new Date(`${record.renewal}T12:00:00`) : null, placeholder: 'None',
+                value: record.renewal ? new Date(`${record.renewal}T12:00:00`) : null, displayFormat: DATE.year,
+                placeholder: 'None',
                 onchange: ({ detail }) => save({ renewal: detail.date ? formatDate(detail.date, '%Y-%m-%d') : null })
               })).toElement()],
               // Read-only; the quiet fields above give back their inset, so its text shares their edge.

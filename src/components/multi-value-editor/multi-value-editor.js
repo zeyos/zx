@@ -1,6 +1,6 @@
 import { Component } from '../../core/component.js';
 import { h } from '../../core/dom.js';
-import { icon } from '../../core/icons.js';
+import { ICON_SIZE, icon } from '../../core/icons.js';
 
 /**
  * @typedef {Object} MultiValueEditorOptions
@@ -153,20 +153,20 @@ export class MultiValueEditor extends Component {
             ariaDisabled: String(index === 0),
             ariaLabel: `Move value ${index + 1} up`,
             dataset: { action: 'up', index }
-          }, icon('chevron-up', { size: 12 })) : null,
+          }, icon('chevron-up', { size: ICON_SIZE.chevron })) : null,
           buttons ? h('button', {
             class: 'zx-btn',
             type: 'button',
             ariaDisabled: String(index === last),
             ariaLabel: `Move value ${index + 1} down`,
             dataset: { action: 'down', index }
-          }, icon('chevron-down', { size: 12 })) : null,
+          }, icon('chevron-down', { size: ICON_SIZE.chevron })) : null,
           h('button', {
             class: 'zx-btn',
             type: 'button',
             ariaLabel: `Remove value ${index + 1}`,
             dataset: { action: 'remove', index }
-          }, icon('x', { size: 12 }))
+          }, icon('x', { size: ICON_SIZE.dismiss }))
         )
       );
     });

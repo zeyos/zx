@@ -2873,7 +2873,13 @@
         "name": "format",
         "type": "string",
         "default": "'%d.%m.%Y'",
-        "description": "Kernel date format used for both endpoints."
+        "description": "Kernel date format the reader types for both endpoints, shown while the field has focus. Numeric tokens only, since it is parsed."
+      },
+      {
+        "name": "displayFormat",
+        "type": "string|null",
+        "default": "null",
+        "description": "Format both endpoints are shown in while the field does not have focus. It is never parsed, so it may use any `formatDate()` token, month and weekday names included. Null shows `format`."
       },
       {
         "name": "separator",
@@ -3170,7 +3176,13 @@
         "name": "format",
         "type": "string",
         "default": "'%d.%m.%Y'",
-        "description": "Kernel date format."
+        "description": "Kernel date format the reader types, shown while the field has focus. Numeric tokens only (`%d %e %m %Y %y %H %M %S`), since it is parsed."
+      },
+      {
+        "name": "displayFormat",
+        "type": "string|null",
+        "default": "null",
+        "description": "Format the field shows while it does not have focus, so a date reads as the rest of the screen writes dates. It is never parsed, so it may use any `formatDate()` token, month and weekday names included. Null shows `format`."
       },
       {
         "name": "time",

@@ -1,6 +1,6 @@
 import { Component } from '../../core/component.js';
 import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
-import { icon } from '../../core/icons.js';
+import { ICON_SIZE, icon } from '../../core/icons.js';
 import { position } from '../../core/position.js';
 import { uid } from '../../core/util.js';
 import { normalizeBadgeTone } from '../badge/badge.js';
@@ -136,7 +136,7 @@ export class TagPicker extends Component {
       type: 'button',
       tabIndex: -1,
       ariaLabel: this._message('tagPicker.toggle', 'Toggle options')
-    }, icon('chevron-down', { size: 15 }));
+    }, icon('chevron-down', { size: ICON_SIZE.chevron }));
     const control = h('div', { ref: 'control', class: 'zx-tag-picker__control' },
       tags, input, toggle);
 
@@ -438,7 +438,7 @@ export class TagPicker extends Component {
           class: 'zx-icon-btn zx-tag-picker__remove',
           type: 'button',
           ariaLabel: this._message('tagPicker.remove', 'Remove %1', [label])
-        }, icon('x', { size: 11 })));
+        }, icon('x', { size: ICON_SIZE.chip })));
       }
       return tag;
     });
@@ -463,7 +463,7 @@ export class TagPicker extends Component {
         ariaSelected: String(selected)
       },
       h('span', { class: 'zx-tag-picker__check', ariaHidden: 'true' },
-        selected ? icon('check', { size: 13 }) : null),
+        selected ? icon('check', { size: ICON_SIZE.check }) : null),
       h('span', { class: 'zx-tag-picker__option-label' },
         this.options.renderItem ? this.options.renderItem(item)
           : [this._iconOf(item), h('span', {}, this._labelOf(item))]));
@@ -481,7 +481,7 @@ export class TagPicker extends Component {
         ariaSelected: 'false',
         dataset: { create: 'true' }
       },
-      h('span', { class: 'zx-tag-picker__check', ariaHidden: 'true' }, icon('plus', { size: 13 })),
+      h('span', { class: 'zx-tag-picker__check', ariaHidden: 'true' }, icon('plus', { size: ICON_SIZE.check })),
       h('span', { class: 'zx-tag-picker__option-label' },
         this._message('tagPicker.create', 'Create “%1”', [query])));
       this._entries.push({ item: null, element: option, create: true });

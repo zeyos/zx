@@ -2,7 +2,7 @@ import { Component } from '../../core/component.js';
 import { STEP, STEP_LARGE, dragAxis } from '../../core/drag-axis.js';
 import { matchBreakpoint, onBreakpoint } from '../../core/breakpoint.js';
 import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
-import { icon } from '../../core/icons.js';
+import { ICON_SIZE, icon } from '../../core/icons.js';
 import { rovingTabindex } from '../../core/keyboard.js';
 import { storage } from '../../core/storage.js';
 import { clamp, uid } from '../../core/util.js';
@@ -444,7 +444,7 @@ export class Dock extends Component {
     const hasTabs = Array.isArray(definition.tabs) && definition.tabs.length > 0;
 
     const chevron = h('span', { class: 'zx-dock__chevron', ariaHidden: 'true' },
-      icon('chevron-right', { size: 14 }));
+      icon('chevron-right', { size: ICON_SIZE.chevron }));
     const toggle = h('button', {
       class: 'zx-dock__toggle',
       type: 'button',

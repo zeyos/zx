@@ -1,7 +1,7 @@
 import { Component } from '../../core/component.js';
 import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
 import { printf } from '../../core/i18n.js';
-import { icon } from '../../core/icons.js';
+import { ICON_SIZE, icon } from '../../core/icons.js';
 import { APP_ICON_TONES, appIcon } from '../app-icon/app-icon.js';
 import { avatarInitials, avatarTone } from '../avatar/avatar.js';
 import { MenuButton } from '../menu-button/menu-button.js';
@@ -124,7 +124,7 @@ export class WorkspaceSwitcher extends Component {
     h('span', { class: 'zx-workspace-switcher__text' },
       h('span', { ref: 'name', class: 'zx-workspace-switcher__name' }),
       h('span', { ref: 'secondary', class: 'zx-workspace-switcher__secondary' })),
-    h('span', { class: 'zx-workspace-switcher__chevron', ariaHidden: 'true' }, icon('chevron-down'))));
+    h('span', { class: 'zx-workspace-switcher__chevron', ariaHidden: 'true' }, icon('chevron-down', { size: ICON_SIZE.chevron }))));
     return root;
   }
 
@@ -269,7 +269,7 @@ export class WorkspaceSwitcher extends Component {
         description: workspace.secondary || undefined,
         badge: workspace.badge ?? undefined,
         disabled: workspace.disabled,
-        adornment: h('span', { class: 'zx-workspace-switcher__check', ariaHidden: 'true' }, icon('check'))
+        adornment: h('span', { class: 'zx-workspace-switcher__check', ariaHidden: 'true' }, icon('check', { size: ICON_SIZE.check }))
       };
       this._entries.set(entry, workspace);
       rows.push([entries.length, workspace]);

@@ -1,7 +1,7 @@
 import { Component } from '../../core/component.js';
 import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
 import { printf } from '../../core/i18n.js';
-import { icon } from '../../core/icons.js';
+import { ICON_SIZE, icon } from '../../core/icons.js';
 import { completedByAdvance, normalizeSteps, resolveStepIndex, stepIndex, stepState } from './steps.js';
 
 /** @typedef {import('./steps.js').StepDefinition} StepDefinition */
@@ -387,8 +387,8 @@ export class Stepper extends Component {
    * @returns {Array<Node|string>}
    */
   _markerContent(state, index) {
-    if (state === 'complete') return [icon('check', { size: 12 })];
-    if (state === 'error') return [icon('warning', { size: 12 })];
+    if (state === 'complete') return [icon('check', { size: ICON_SIZE.check })];
+    if (state === 'error') return [icon('warning', { size: ICON_SIZE.check })];
     return this.options.showNumbers ? [String(index + 1)] : [];
   }
 

@@ -724,7 +724,7 @@ export default {
       onchange: ({ detail }) => edit({ estimate: detail.value ?? null })
     }));
     const duePick = keep(new Datebox(null, {
-      placeholder: 'Due date', clearable: true,
+      placeholder: 'Due date', displayFormat: DATE.year, clearable: true,
       onchange: ({ detail }) => edit({ due: detail.date ? formatDate(detail.date, '%Y-%m-%d') : null })
     }));
     const labelPick = keep(new TagPicker(null, {
@@ -1157,7 +1157,7 @@ export default {
       estimatePick.set(issue.estimate, { silent: true });
       duePick.set(issue.due ? toDate(issue.due) : null, { silent: true });
       asideMeta.replaceChildren(face(issue.by, asideParts),
-        `Filed by ${person(issue.by)?.name ?? 'someone'} on ${formatDate(toDate(issue.created), DATE.long)}`);
+        `Filed by ${person(issue.by)?.name ?? 'someone'} on ${formatDate(toDate(issue.created), DATE.year)}`);
     }
 
     // -------------------------------------------------------------- changing issues --
@@ -1508,7 +1508,7 @@ export default {
       priority: keep(priorityPicker({ label: 'Priority', value: 2 })),
       assignee: keep(new Select(null, { ...personPicker(), label: 'Assignee', placeholder: 'Assignee' })),
       labels: keep(new TagPicker(null, { ...labelPicker(), placeholder: 'Labels' })),
-      due: keep(new Datebox(null, { placeholder: 'Due date', clearable: true }))
+      due: keep(new Datebox(null, { placeholder: 'Due date', displayFormat: DATE.year, clearable: true }))
     };
     let createPreset = {};
 

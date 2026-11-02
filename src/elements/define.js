@@ -88,6 +88,7 @@ const CHECKLIST_ATTRS = attributes({
 
 const DATEBOX_ATTRS = attributes({
   format: text({ default: '%d.%m.%Y', rebuild: true }),
+  'display-format': text({ property: 'displayFormat', default: null, rebuild: true }),
   time: bool({ always: true, rebuild: true }),
   value: text({ option: null, default: null, normalize: normalizeDateValue, set: (component, value) => component.set(value, { silent: true }), get: (component, host) => dateValue(component.get(), Boolean(host.time)), serialize: serializeDateValue }),
   placeholder: text({ default: null, rebuild: true }),

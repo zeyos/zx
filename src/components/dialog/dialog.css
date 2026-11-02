@@ -33,7 +33,6 @@
   flex: none;
   inline-size: var(--zx-control-height);
   padding-inline: 0;
-  font-size: var(--zx-text-xl);
 }
 
 .zx-dialog__body {
