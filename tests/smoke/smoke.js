@@ -2041,6 +2041,16 @@ const cases = [
       assert(element.title === 'New (N)', 'hover shortcut missing');
     }};
   }),
+  artifactCase('kbd()', () => {
+    const element = zx.kbd('Mod+Shift+K');
+    return {element, exercise: () => {
+      const keys = [...element.querySelectorAll(':scope > kbd.zx-kbd__key')];
+      assert(element.matches('kbd.zx-kbd') && keys.length === 3, 'a chord is not one kbd of nested keycaps');
+      assert(keys[2].textContent === 'K', 'the letter is not upper-cased');
+      const square = keys[2].getBoundingClientRect();
+      assert(Math.abs(square.width - square.height) < 1, 'a single-character keycap is not square');
+    }};
+  }),
   componentCase('SortControl', () => new zx.SortControl(null, {
     fields: [{id: 'name', label: 'Name'}, {id: 'created', label: 'Created'}],
     value: {id: 'name', dir: 'asc'}, label: 'Sort records'

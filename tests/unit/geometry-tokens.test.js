@@ -122,7 +122,9 @@ test('the geometry and material tokens are declared on :root, never on a theme b
   for (const name of [
     '--zx-control-height', '--zx-control-pad-x', '--zx-control-radius', '--zx-control-font-size',
     '--zx-control-font-weight', '--zx-overlay-blur', '--zx-glass-blur', '--zx-glass-filter-overlay',
-    '--zx-space-unit', '--zx-radius', '--zx-text-md', '--zx-dur-base', '--zx-ease'
+    '--zx-space-unit', '--zx-radius', '--zx-text-md', '--zx-dur-base', '--zx-ease',
+    '--zx-text-base', '--zx-radius-panel', '--zx-row-height', '--zx-font-prose', '--zx-prose-size',
+    '--zx-prose-leading', '--zx-prose-measure'
   ]) {
     const selectors = declaredOn.get(name) ?? [];
     assert.ok(selectors.includes(':root'), `${name} is not declared on :root`);

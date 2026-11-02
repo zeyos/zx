@@ -47,8 +47,10 @@ its "Out of scope" section is binding. Do not modify files outside the spec's fi
 - CSS classes: `.zx-<component>` block, `.zx-<component>__<part>` elements (BEM-ish, no modifiers
   — states use attributes, see below).
 - CSS custom properties: `--zx-*`. Components may **only** consume tier-2 semantic tokens
-  (`--zx-color-*`, `--zx-control-*`, `--zx-focus-ring`, `--zx-overlay-shadow`, `--zx-surface-shadow`, `--zx-space-*`,
-  `--zx-radius-*`, `--zx-text-*`, `--zx-weight-*`, `--zx-tracking-*`, `--zx-dur-*`, `--zx-ease`).
+  (`--zx-color-*`, `--zx-control-*`, `--zx-row-height`, `--zx-focus-ring`, `--zx-overlay-shadow`, `--zx-surface-shadow`, `--zx-space-*`,
+  `--zx-radius-*`, `--zx-text-*`, `--zx-weight-*`, `--zx-tracking-*`, `--zx-font-*`, `--zx-prose-*`, `--zx-dur-*`, `--zx-ease`).
+  Interface type and reading type are separate: controls and rows read `--zx-text-*`; authored
+  content reads the `--zx-prose-*` tokens through `.zx-prose` (`styles/prose.css`).
   Never tier-1 palette tokens (`--zx-gray-500`, `--zx-emerald-*`, `--zx-tone-*` etc.) — categorical
   colour comes through `--zx-color-tone-*` and `--zx-color-chart-*` — and never raw color literals
   (`#hex`, `rgb()`, `hsl()`, named colors).

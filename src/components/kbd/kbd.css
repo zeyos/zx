@@ -1,0 +1,64 @@
+/*
+ * Keycaps. One construction for every key hint: a surface fill, one hairline, and a 1px foot, the
+ * label at the small size and medium weight, centred on its capital height. A single key is square,
+ * so a column of hints lines up. Three hooks retint it for a host that is not a plain surface —
+ * `--zx-kbd-ink`, `--zx-kbd-fill`, `--zx-kbd-line` — and `data-tone="inherit"` sets all three from
+ * the surrounding text colour, which is what a keycap on a solid button wants.
+ */
+.zx-kbd {
+  --zx-kbd-size: calc(var(--zx-text-xs) + 6px);
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+  font-family: var(--zx-font-sans);
+  font-size: var(--zx-text-xs);
+  font-weight: var(--zx-weight-medium);
+  font-feature-settings: "case", "tnum";
+  font-style: normal;
+  letter-spacing: 0;
+  line-height: 1;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.zx-kbd[data-size="sm"] {
+  --zx-kbd-size: calc(var(--zx-text-xs) + 4px);
+  font-size: calc(var(--zx-text-xs) - 1px);
+}
+
+.zx-kbd[data-tone="inherit"] {
+  --zx-kbd-ink: currentColor;
+  --zx-kbd-fill: color-mix(in srgb, currentColor 14%, transparent);
+  --zx-kbd-line: color-mix(in srgb, currentColor 32%, transparent);
+}
+
+.zx-kbd__key {
+  display: inline-grid;
+  box-sizing: border-box;
+  min-inline-size: var(--zx-kbd-size);
+  block-size: var(--zx-kbd-size);
+  place-items: center;
+  padding: 0 0.25em;
+  border: 1px solid var(--zx-kbd-line, var(--zx-color-border));
+  border-radius: var(--zx-radius-sm);
+  background: var(--zx-kbd-fill, var(--zx-color-bg-surface));
+  box-shadow: 0 1px 0 var(--zx-kbd-line, var(--zx-color-border));
+  color: var(--zx-kbd-ink, var(--zx-color-text-muted));
+  font: inherit;
+  font-feature-settings: inherit;
+}
+
+/* Centre the label on its capital height rather than its line box, where capitals sit low. */
+@supports (text-box: trim-both cap alphabetic) {
+  .zx-kbd__key {
+    text-box: trim-both cap alphabetic;
+  }
+}
+
+@media (forced-colors: active) {
+  .zx-kbd__key {
+    border-color: CanvasText;
+    box-shadow: none;
+  }
+}

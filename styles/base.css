@@ -82,8 +82,33 @@
   cursor: pointer;
 }
 
+/* The hover fill is laid over the control fill rather than replacing it: in dark both are about 5%
+   white, and a swap would leave the pointer with nothing to show. */
 :where(.zx-scope button:not(.zx-icon-btn)):hover {
-  background: var(--zx-color-bg-hover);
+  background: linear-gradient(var(--zx-color-bg-hover), var(--zx-color-bg-hover)), var(--zx-color-bg-control);
+}
+
+/* Revealed affordances. Inside a `[data-zx-reveal-host]` — a row, a section heading — an element
+   marked `[data-zx-reveal]` rests invisible and appears while the host is pointed at, holds focus,
+   is current or selected, or has a menu open. It keeps its space (opacity, never display), so
+   nothing shifts, and it stays in the tab order, so focusing it is enough to show it. Only
+   repeated, secondary per-row actions that are reachable another way belong here. Hosts do not
+   nest. Zero specificity, so a component can still decide for itself. */
+:where(.zx-scope [data-zx-reveal-host]) :where([data-zx-reveal]) {
+  opacity: 0;
+  transition: opacity var(--zx-dur-fast) var(--zx-ease);
+}
+
+:where(.zx-scope [data-zx-reveal-host]):where(:hover, :focus-within, [aria-current]:not([aria-current="false"]),
+  [aria-selected="true"], :has([aria-expanded="true"])) :where([data-zx-reveal]) {
+  opacity: 1;
+}
+
+/* No pointer to hover with, or a request for more contrast: nothing hides. */
+@media (hover: none), (prefers-contrast: more), (forced-colors: active) {
+  :where(.zx-scope [data-zx-reveal-host]) :where([data-zx-reveal]) {
+    opacity: 1;
+  }
 }
 
 /* Quiet fields. Inside `[data-zx-fields="quiet"]` — a property panel, an inspector, an inline

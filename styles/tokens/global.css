@@ -124,26 +124,41 @@
   --zx-radius-lg: var(--zx-radius);
   --zx-radius-xl: calc(var(--zx-radius) * 1.5);
   --zx-radius-full: 999px;
+  /*
+   * A panel that holds rounded items — a menu, a listbox, a launcher — is concentric with them:
+   * its corner is the item's corner plus the inset between them (4px of padding and the 1px
+   * border), capped at the base so a small-cornered theme stays small. 6px at the default base,
+   * square when the base is 0, exactly concentric from a 10px base up.
+   */
+  --zx-radius-panel: calc(var(--zx-radius-sm) + min(var(--zx-radius), var(--zx-space-1) + 1px));
 
   --zx-font-sans: Inter, "Inter Variable", ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --zx-font-mono: "Geist Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco,
     Consolas, monospace;
-  --zx-text-xs: 12px;
-  --zx-text-sm: 13px;
-  --zx-text-md: 14px;
-  --zx-text-lg: 16px;
-  --zx-text-xl: 18px;
-  --zx-text-2xl: 24px;
-  --zx-text-3xl: 30px;
+  /*
+   * Type scale — one base, derived steps, so a theme that changes the base keeps the hierarchy:
+   * the small steps sit a fixed 1–2px under it and the large ones in proportion above it. At the
+   * default base the steps are 12 / 13 / 14 / 16 / 18 / 24 / 30px. An application that sets
+   * `--zx-text-md` directly still moves the control size alone, as before.
+   */
+  --zx-text-base: 14px;
+  --zx-text-xs: calc(var(--zx-text-base) - 2px);
+  --zx-text-sm: calc(var(--zx-text-base) - 1px);
+  --zx-text-md: var(--zx-text-base);
+  --zx-text-lg: calc(var(--zx-text-base) * 8 / 7);
+  --zx-text-xl: calc(var(--zx-text-base) * 9 / 7);
+  --zx-text-2xl: calc(var(--zx-text-base) * 12 / 7);
+  --zx-text-3xl: calc(var(--zx-text-base) * 15 / 7);
 
   /*
    * Weight and tracking. Interface text sits at the mid weights — medium for labels and rows,
-   * semibold for headings and the current item; heavier is for titles and figures only. UI text
-   * runs slightly tight (the root sets it), titles a little tighter.
+   * semibold for headings and the current item; `title` is for page titles and figures only. UI
+   * text runs slightly tight (the root sets it), titles a little tighter.
    */
   --zx-weight-medium: 500;
   --zx-weight-semibold: 600;
+  --zx-weight-title: 650;
   --zx-tracking-tight: -0.01em;
   --zx-tracking-title: -0.015em;
 

@@ -115,10 +115,41 @@ test('every tone has a solid identity fill the white icon glyph reads on, in bot
   }
 });
 
+/**
+ * Resolves a type step at a given base: the steps are `calc()` expressions over `--zx-text-base`
+ * with one subtraction or one multiplication and division, which is all this evaluates.
+ * @param {string} name
+ * @param {number} base
+ * @returns {number} Pixels.
+ */
+function textStep(name, base) {
+  let expression = global.get(name);
+  while (/var\(--zx-text-(?!base)/.test(expression)) {
+    expression = expression.replace(/var\((--zx-text-[\w-]+)\)/, (_, inner) => global.get(inner));
+  }
+  const source = expression.replace(/^calc\((.*)\)$/, '$1').replace(/var\(--zx-text-base\)/g, String(base)).replace(/px/g, '');
+  assert.match(source, /^[\d\s.*/+-]+$/, `${name} is not a simple expression: ${expression}`);
+  return Function(`return (${source});`)();
+}
+
+test('the type scale is one base with derived steps, in order at either end of the range', () => {
+  assert.equal(global.get('--zx-text-base'), '14px');
+  const steps = ['xs', 'sm', 'md', 'lg', 'xl', '2xl', '3xl'].map((step) => `--zx-text-${step}`);
+  assert.deepEqual(steps.map((step) => textStep(step, 14)), [12, 13, 14, 16, 18, 24, 30]);
+  for (const base of [12, 13, 15, 16, 17]) {
+    const sizes = steps.map((step) => textStep(step, base));
+    for (let index = 1; index < sizes.length; index += 1) {
+      assert.ok(sizes[index] > sizes[index - 1], `at ${base}px, ${steps[index]} is not above ${steps[index - 1]}`);
+    }
+    assert.ok(sizes[0] >= 10, `at ${base}px the smallest step is ${sizes[0]}px`);
+  }
+});
+
 test('the type scale has a document-title step, weights, and tracking', () => {
-  assert.equal(global.get('--zx-text-3xl'), '30px');
+  assert.equal(textStep('--zx-text-3xl', 14), 30);
   assert.equal(global.get('--zx-weight-medium'), '500');
   assert.equal(global.get('--zx-weight-semibold'), '600');
+  assert.equal(global.get('--zx-weight-title'), '650');
   assert.equal(global.get('--zx-tracking-tight'), '-0.01em');
   assert.equal(global.get('--zx-tracking-title'), '-0.015em');
 });

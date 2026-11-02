@@ -52,6 +52,8 @@
   --zx-color-border: color-mix(in srgb, var(--zx-gray-0) 9%, transparent);
   --zx-color-border-subtle: color-mix(in srgb, var(--zx-gray-0) 6%, transparent);
   --zx-color-border-strong: color-mix(in srgb, var(--zx-gray-0) 24%, transparent);
+  /* Less tone to separate columns with than in light, so the chrome keeps its hairline. */
+  --zx-color-border-chrome: var(--zx-color-border-subtle);
   --zx-color-border-control: color-mix(in srgb, var(--zx-gray-0) 14%, transparent);
   /* Text is softened off pure white (about 90%), secondary text sits near 63%. */
   --zx-color-text: var(--zx-gray-200);
@@ -98,9 +100,9 @@
   --zx-color-tone-slate-fg: var(--zx-tone-slate-300);
   --zx-color-ring: var(--zx-color-accent);
   --zx-focus-ring: 0 0 0 3px color-mix(in srgb, var(--zx-color-ring) 45%, transparent);
-  /* The surface contact shadow keeps the light value: on a dark canvas the border, not the shadow,
-     separates a resting surface, and a heavier shadow would read as a lifted one. */
-  --zx-surface-shadow: var(--zx-shadow-1);
+  /* Depth on a dark canvas comes from light, not shadow: a resting surface gets a faintly lit top
+     edge and only a short contact shadow under it. A heavier shadow would read as a lifted one. */
+  --zx-surface-shadow: inset 0 1px 0 color-mix(in srgb, var(--zx-gray-0) 5%, transparent), 0 1px 2px color-mix(in srgb, var(--zx-gray-950) 30%, transparent);
   --zx-overlay-shadow: 0 12px 36px rgb(0 0 0 / 45%);
   /* A shadow alone barely reads on a dark canvas, so the lifted item also gets a faint light rim. */
   --zx-drag-shadow: 0 0 0 1px color-mix(in srgb, var(--zx-gray-0) 7%, transparent), 0 2px 6px -1px rgb(0 0 0 / 40%), 0 14px 32px -6px rgb(0 0 0 / 60%);
@@ -144,6 +146,7 @@
     --zx-color-border: color-mix(in srgb, var(--zx-gray-0) 9%, transparent);
     --zx-color-border-subtle: color-mix(in srgb, var(--zx-gray-0) 6%, transparent);
     --zx-color-border-strong: color-mix(in srgb, var(--zx-gray-0) 24%, transparent);
+    --zx-color-border-chrome: var(--zx-color-border-subtle);
     --zx-color-border-control: color-mix(in srgb, var(--zx-gray-0) 14%, transparent);
     /* Text is softened off pure white (about 90%), secondary text sits near 63%. */
     --zx-color-text: var(--zx-gray-200);
@@ -189,7 +192,7 @@
     --zx-color-tone-slate-fg: var(--zx-tone-slate-300);
     --zx-color-ring: var(--zx-color-accent);
     --zx-focus-ring: 0 0 0 3px color-mix(in srgb, var(--zx-color-ring) 45%, transparent);
-    --zx-surface-shadow: var(--zx-shadow-1);
+    --zx-surface-shadow: inset 0 1px 0 color-mix(in srgb, var(--zx-gray-0) 5%, transparent), 0 1px 2px color-mix(in srgb, var(--zx-gray-950) 30%, transparent);
     --zx-overlay-shadow: 0 12px 36px rgb(0 0 0 / 45%);
     --zx-drag-shadow: 0 0 0 1px color-mix(in srgb, var(--zx-gray-0) 7%, transparent), 0 2px 6px -1px rgb(0 0 0 / 40%), 0 14px 32px -6px rgb(0 0 0 / 60%);
     --zx-header-bg: var(--zx-gray-900);

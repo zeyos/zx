@@ -78,6 +78,7 @@ export { toCsv, downloadBlob, copyToClipboard } from './core/export.js';
 export { defineElements } from './elements/define.js';
 export { button, buttonGroup, setButtonBusy } from './components/button/button.js';
 export { BADGE_TONES, badge, badgeGroup } from './components/badge/badge.js';
+export { kbd, keyLabels } from './components/kbd/kbd.js';
 export { CheckButton } from './components/check-button/check-button.js';
 export { emptyState } from './components/empty-state/empty-state.js';
 export { spinner } from './components/loading/spinner.js';

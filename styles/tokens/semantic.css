@@ -26,6 +26,17 @@
   --zx-control-radius: var(--zx-radius-lg);
   --zx-control-font-size: var(--zx-text-md);
   --zx-control-font-weight: 500;
+  /* A data row — a table row, a single-line list row: one rhythm for every list on a screen,
+     following the control height, so a tighter or looser product is still one decision. 36px at
+     the default. */
+  --zx-row-height: calc(var(--zx-control-height) + var(--zx-space-1) + 2px);
+  /* Reading type — the second register, for authored content in `.zx-prose`: its own family
+     (the interface stack until a theme says otherwise), size, line height, and measure, so a
+     product can set its documents in a serif without setting its interface in one. */
+  --zx-font-prose: var(--zx-font-sans);
+  --zx-prose-size: var(--zx-text-lg);
+  --zx-prose-leading: 1.7;
+  --zx-prose-measure: 62ch;
   /* Blur applied behind a backdrop that asked for it. */
   --zx-overlay-blur: 8px;
   /* AppIcon is a dark chromatic lens: colour lives in its rim and low bloom, not a glossy fill.
@@ -73,6 +84,10 @@
   --zx-color-border: var(--zx-gray-200);
   --zx-color-border-strong: var(--zx-gray-300);
   --zx-color-border-control: var(--zx-gray-200);
+  /* Where a chrome column meets the canvas. In light the tone step alone separates them, so no
+     line is drawn; the dark theme, which has less tone to work with, and the contrast preferences
+     put the line back. */
+  --zx-color-border-chrome: transparent;
   --zx-color-text: var(--zx-gray-950);
   /* Between the 500 and 600 stops, so secondary text holds 4.5:1 on the chrome tone and on a
      current row there, not only on white. */
@@ -185,6 +200,10 @@
      picked) keeps the accent tint. */
   --zx-color-bg-hover: color-mix(in srgb, var(--zx-color-text) 4.5%, transparent);
   --zx-color-bg-current: color-mix(in srgb, var(--zx-color-text) 8%, transparent);
+  /* Navigation at rest: one ink step under the content, so the eye lands on the page and the
+     columns beside it read as places rather than as a second document. Hover, focus, and the
+     current item take the full text colour. Above 7:1 on the chrome tone in both themes. */
+  --zx-color-text-chrome: color-mix(in srgb, var(--zx-color-text-muted) 70%, var(--zx-color-text));
   /* Row and grid dividers, lighter than a frame. */
   --zx-color-border-subtle: color-mix(in srgb, var(--zx-color-text) 7%, transparent);
   /* Categorical tones — identity, not state: tags, chips, icon tiles, avatars. A soft fill (13%
@@ -312,11 +331,22 @@
   }
 }
 
+/* Someone who asked for more contrast gets the column lines back, whatever the tone step does. */
+@media (prefers-contrast: more) {
+  :root,
+  .zx-scope,
+  [data-zx-theme],
+  [data-zx-preset] {
+    --zx-color-border-chrome: var(--zx-color-border) !important;
+  }
+}
+
 @media (forced-colors: active) {
   :root,
   .zx-scope,
   [data-zx-theme],
   [data-zx-preset] {
+    --zx-color-border-chrome: CanvasText !important;
     --zx-color-glass-chrome: Canvas !important;
     --zx-color-glass-surface: Canvas !important;
     --zx-color-glass-control: ButtonFace !important;
