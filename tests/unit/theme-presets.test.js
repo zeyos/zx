@@ -4,13 +4,13 @@ import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
 import {
-  CUSTOM_FONT, DEFAULTS, FONTS, MATERIALS, MATERIAL_RECIPES, MONO_FONTS, PRESETS, RANGES, SETTING_FIELDS, STOPS, THEME_FORMAT, TINTS,
-  accentRamp, cleanFontStack, contrast, neutralRamp, presetById, readThemeJson, themeCss, themeJson,
-  themeTokens, themeVars, tintRamp, toHex, toOklch
+  CUSTOM_FONT, DEFAULTS, FONTS, INTERFACE_FONT, MATERIALS, MATERIAL_RECIPES, MONO_FONTS, PRESETS, RANGES, ROWS,
+  SETTING_FIELDS, STOPS, THEME_FORMAT, TINTS, TINT_PROFILES, accentRamp, cleanFontStack, contrast, neutralRamp,
+  normalizeSettings, presetById, readThemeJson, themeCss, themeJson, themeTokens, themeVars, tintRamp, toHex, toOklch
 } from '../../website/theme-presets.js';
 
 /*
- * The theme studio's preset table and `styles/tokens/themes.css` describe the same six themes: one
+ * The theme studio's preset table and `styles/tokens/themes.css` describe the same themes: one
  * is what the studio draws swatches from and exports, the other is what an application actually
  * loads. Only the stylesheet ships, so a drift between them is invisible in the library and wrong
  * everywhere the studio claims to be showing a preset.
@@ -342,7 +342,8 @@ test('a custom font stack is normalised into valid CSS, or not used at all', () 
 const EVERYTHING = {
   ...DEFAULTS, preset: 'violet', accent: '#e11d48', tint: 'sage', tintStrength: 140,
   font: CUSTOM_FONT, fontStack: '"Brand Sans", sans-serif', monoFont: 'editor', textSize: 15,
-  spacing: 4.5, radius: 7, controlHeight: 34, glass: 'strong'
+  readingFont: 'serif', readingSize: 18, measure: 70, spacing: 4.5, radius: 7, controlHeight: 34,
+  rows: 'relaxed', glass: 'strong'
 };
 
 test('a theme file round-trips every setting', () => {
@@ -468,8 +469,9 @@ test('standard recipes carry a spacing unit instead of a density', () => {
   for (const id of ['zeyos', 'violet', 'rose']) assert.equal(presetById(id).recipe.spacing, 4.5);
   assert.deepEqual(presetById('zx').recipe, {
     spacing: DEFAULTS.spacing, tint: DEFAULTS.tint, radius: DEFAULTS.radius,
-    controlHeight: DEFAULTS.controlHeight, textSize: DEFAULTS.textSize, font: DEFAULTS.font,
-    glass: DEFAULTS.glass
+    controlHeight: DEFAULTS.controlHeight, rows: DEFAULTS.rows, textSize: DEFAULTS.textSize,
+    font: DEFAULTS.font, readingFont: DEFAULTS.readingFont, readingSize: DEFAULTS.readingSize,
+    measure: DEFAULTS.measure, glass: DEFAULTS.glass
   }, 'the default preset is not the stock theme');
 });
 
@@ -492,7 +494,9 @@ test('theme geometry, type, tint, and material controls each produce a token', (
   assert.equal(vars['--zx-space-unit'], '4.5px');
   assert.equal(vars['--zx-radius'], '7px');
   assert.equal(vars['--zx-control-height'], '38px');
-  assert.equal(vars['--zx-text-md'], '16px');
+  // The base, not the control step: the whole ladder follows it.
+  assert.equal(vars['--zx-text-base'], '16px');
+  assert.ok(!Object.hasOwn(vars, '--zx-text-md'), 'the text size still moves only the control step');
   assert.match(vars['--zx-font-sans'], /Iowan Old Style/);
   assert.equal(vars['--zx-glass-blur'], '18px');
   assert.equal(vars['--zx-glass-color-strength'], '68%');
@@ -722,7 +726,7 @@ test('documentation search uses the same compact overlay material as library pop
 /*
  * The roles WP40 added — chrome, current, subtle border and text, the tone palette, the chart
  * series, the solid accent — and the retuned status green, checked as painted in both themes and
- * under every preset. Neutral roles do not depend on the preset; checking them under all six
+ * under every preset. Neutral roles do not depend on the preset; checking them under all of them
  * costs nothing and catches a preset that ever starts touching them.
  */
 
@@ -966,5 +970,179 @@ test('the solid accent carries white ink in both themes; accent text stays on it
     }
     assert.equal(paint(tokens, '--zx-color-accent'), presetById(name.split('/')[1]).ramp[theme === 'dark' ? 400 : 600],
       `${name} accent text left its stop`);
+  }
+});
+
+/* ----------------------------------------------------------- rows and reading -- */
+
+test('rows are three heights on the control height, and the default is the stylesheet own', () => {
+  assert.deepEqual(ROWS.map((entry) => entry.id), ['compact', 'default', 'relaxed']);
+  assert.equal(DEFAULTS.rows, 'default');
+  // The default is never written, so it has to be exactly what the stylesheet already declares.
+  const declared = /--zx-row-height:\s*([^;]+);/.exec(tokenCss('semantic.css'))?.[1].trim();
+  assert.equal(ROWS.find((entry) => entry.id === 'default').height, declared);
+  for (const entry of ROWS) {
+    // Derived, never a pixel value, so rows keep following the control height and spacing.
+    assert.match(entry.height, /^calc\(var\(--zx-control-height\)( \+ var\(--zx-space-\d\))? \+ 2px\)$/);
+  }
+
+  assert.deepEqual(themeVars({ ...DEFAULTS, rows: 'default' }), {});
+  assert.deepEqual(themeVars({ ...DEFAULTS, rows: 'compact' }),
+    { '--zx-row-height': 'calc(var(--zx-control-height) + 2px)' });
+  assert.deepEqual(themeVars({ ...DEFAULTS, rows: 'relaxed' }),
+    { '--zx-row-height': 'calc(var(--zx-control-height) + var(--zx-space-3) + 2px)' });
+  // A state written before rows existed renders the stock rows.
+  const { rows, ...older } = DEFAULTS;
+  assert.equal(rows, 'default');
+  assert.deepEqual(themeVars(older), {});
+
+  assert.equal(presetById('ocean').recipe.rows, 'compact', 'the utility preset is not compact');
+  for (const preset of PRESETS) {
+    assert.ok(ROWS.some((entry) => entry.id === preset.recipe.rows), `${preset.label} has no row height`);
+  }
+});
+
+test('reading type is its own register: typeface, size, and measure', () => {
+  assert.equal(DEFAULTS.readingFont, INTERFACE_FONT);
+  assert.ok(!FONTS.some((font) => font.id === INTERFACE_FONT), 'the interface id collides with a stack');
+  // The defaults are what the stylesheet renders: the interface stack, the large step at the
+  // stock base (14 × 8/7), and the declared measure.
+  const semantic = tokenCss('semantic.css');
+  assert.match(semantic, /--zx-font-prose:\s*var\(--zx-font-sans\);/);
+  assert.match(semantic, /--zx-prose-size:\s*var\(--zx-text-lg\);/);
+  assert.equal(DEFAULTS.readingSize, (DEFAULTS.textSize * 8) / 7);
+  assert.equal(`${DEFAULTS.measure}ch`, /--zx-prose-measure:\s*([^;]+);/.exec(semantic)?.[1].trim());
+  assert.deepEqual(RANGES.readingSize, { min: 14, max: 20, step: 1 });
+  assert.deepEqual(RANGES.measure, { min: 52, max: 84, step: 2 });
+
+  for (const font of FONTS) {
+    assert.deepEqual(themeVars({ ...DEFAULTS, readingFont: font.id }), { '--zx-font-prose': font.stack });
+  }
+  // A serif for documents leaves the interface alone, and the interface choice leaves prose
+  // following it rather than pinning a copy of the stack.
+  assert.ok(!Object.hasOwn(themeVars({ ...DEFAULTS, readingFont: 'transitional' }), '--zx-font-sans'));
+  assert.ok(!Object.hasOwn(themeVars({ ...DEFAULTS, font: 'serif' }), '--zx-font-prose'));
+
+  assert.deepEqual(themeVars({ ...DEFAULTS, readingSize: 18 }), { '--zx-prose-size': '18px' });
+  assert.deepEqual(themeVars({ ...DEFAULTS, measure: 70 }), { '--zx-prose-measure': '70ch' });
+  // Moving the interface scale keeps the prose at the size the studio shows.
+  assert.deepEqual(themeVars({ ...DEFAULTS, textSize: 15 }),
+    { '--zx-text-base': '15px', '--zx-prose-size': '16px' });
+
+  const css = themeCss({ ...DEFAULTS, readingFont: 'transitional', readingSize: 17, measure: 66, rows: 'compact' });
+  for (const line of [/--zx-font-prose: Charter/, /--zx-prose-size: 17px;/, /--zx-prose-measure: 66ch;/,
+    /--zx-row-height: calc\(var\(--zx-control-height\) \+ 2px\);/]) {
+    assert.match(css, line);
+  }
+});
+
+test('every preset recipe names every studio dimension, inside what the controls offer', () => {
+  const keys = Object.keys(presetById('zx').recipe).sort();
+  for (const key of ['rows', 'readingFont', 'readingSize', 'measure']) assert.ok(keys.includes(key), key);
+  for (const preset of PRESETS) {
+    assert.deepEqual(Object.keys(preset.recipe).sort(), keys, `${preset.label} leaves a dimension to chance`);
+    const { settings, warnings } = normalizeSettings(preset.recipe);
+    assert.deepEqual(warnings, [], `${preset.label} carries a value no control can show`);
+    for (const [key, value] of Object.entries(preset.recipe)) assert.equal(settings[key], value, `${preset.label} ${key}`);
+  }
+});
+
+test('a theme file from before rows and reading loads them at their defaults', () => {
+  const { settings, warnings } = readThemeJson(JSON.stringify({
+    format: THEME_FORMAT, version: 1, settings: { preset: 'ocean', textSize: 15, radius: 3 }
+  }));
+  assert.deepEqual(warnings, []);
+  for (const field of ['rows', 'readingFont', 'readingSize', 'measure']) {
+    assert.equal(settings[field], DEFAULTS[field], field);
+  }
+
+  const bad = readThemeJson(JSON.stringify({ rows: 'cosy', readingFont: 'comic', readingSize: 13.6, measure: 90 }));
+  assert.equal(bad.settings.rows, DEFAULTS.rows);
+  assert.equal(bad.settings.readingFont, DEFAULTS.readingFont);
+  assert.equal(bad.settings.readingSize, RANGES.readingSize.min);
+  assert.equal(bad.settings.measure, RANGES.measure.max);
+  const text = bad.warnings.join('\n');
+  for (const expected of [/row height "cosy"/, /reading typeface "comic"/, /measure 90 is outside 52–84/]) {
+    assert.match(text, expected);
+  }
+  assert.doesNotMatch(text, /reading size/, 'snapping to the step is reported as a problem');
+});
+
+/* ------------------------------------------------------------- paper and Folio -- */
+
+/** @param {Map<string, string>} tokens @param {string} column @returns {string} A current row there. */
+function currentRow(tokens, column) {
+  return hex(over(resolve(tokens.get('--zx-color-bg-current'), tokens), resolve(paint(tokens, column), tokens)));
+}
+
+test('tint profiles: arched tints fade at both ends, the flat paper tint keeps its warmth', () => {
+  for (const tint of TINTS) assert.ok(Object.hasOwn(TINT_PROFILES, tint.profile), `${tint.id} has no profile`);
+  const paper = TINTS.find((tint) => tint.id === 'paper');
+  assert.equal(paper.profile, 'flat');
+  assert.ok(Math.abs(paper.hue - 75) <= 10, 'paper is not a warm hue');
+
+  // The shape: a floor at the near-whites, rising gently towards the darks, tapered below 0.25.
+  const flat = TINT_PROFILES.flat;
+  assert.ok(flat(0.985) >= 0.5, 'the near-whites lost their warmth');
+  assert.ok(flat(0.985) < flat(0.6) && flat(0.6) < flat(0.3) && flat(0.3) <= 1, 'the flat profile does not rise');
+  assert.ok(flat(0.14) < flat(0.21) && flat(0.21) < flat(0.25), 'the flat profile does not taper in the darks');
+
+  const ramp = tintRamp({ ...DEFAULTS, tint: 'paper' });
+  const chroma = (stop) => toOklch(ramp[`--zx-gray-${stop}`]).c;
+  for (const stop of [500, 600]) assert.ok(chroma(stop) <= 0.008, `paper ${stop} carries ${chroma(stop).toFixed(4)}`);
+  assert.ok(chroma(50) > 0.003, 'the paper page is not warm');
+  assert.ok(toOklch(tintRamp({ ...DEFAULTS, tint: 'stone' })['--zx-gray-50']).c < 0.001, 'an arched tint warms the page');
+  assert.ok(chroma(950) < chroma(900) && chroma(900) < chroma(800), 'the dark end of paper does not taper');
+  // Tapered, the dark theme's surfaces stay a warm grey — no more colour than stock Zinc's cool one.
+  const dark = new Map([...tokensFor('dark', 'folio'), ...Object.entries(ramp)]);
+  for (const surface of ['page', 'chrome', 'surface', 'raised']) {
+    const painted = toOklch(paint(dark, `--zx-color-bg-${surface}`)).c;
+    assert.ok(painted <= 0.008, `the dark ${surface} on paper carries ${painted.toFixed(4)} chroma`);
+  }
+
+  // Muted text keeps its floor on the chrome and on a current row, in both themes, at the
+  // tint's own strength and at twice it.
+  for (const theme of THEMES) {
+    for (const tintStrength of [100, RANGES.tintStrength.max]) {
+      const tokens = new Map([...tokensFor(theme, 'folio'),
+        ...Object.entries(tintRamp({ ...DEFAULTS, tint: 'paper', tintStrength }))]);
+      const name = `paper at ${tintStrength}% in ${theme}`;
+      const muted = paint(tokens, '--zx-color-text-muted');
+      atLeast(contrast(muted, paint(tokens, '--zx-color-bg-chrome')), 4.5, `${name}: muted text on the chrome`);
+      for (const column of ['--zx-color-bg-chrome', '--zx-color-bg-surface']) {
+        atLeast(contrast(muted, currentRow(tokens, column)), 4.5, `${name}: muted text on a current row in ${column}`);
+      }
+    }
+  }
+});
+
+test('Folio is an ink blue derived like a custom accent, well apart from Ocean', () => {
+  const folio = presetById('folio');
+  assert.equal(folio.id, 'folio');
+  assert.deepEqual(folio.ramp, accentRamp('#1f3a5f'), 'the Folio ramp is not the derived ink blue');
+  const [ink, ocean] = [folio.ramp[600], presetById('ocean').ramp[600]].map(toOklch);
+  assert.ok(ink.h > 240 && ink.h < 275, 'Folio is not a blue');
+  assert.ok(ink.c < ocean.c / 2, `Folio carries ${ink.c.toFixed(3)} chroma beside Ocean's ${ocean.c.toFixed(3)}`);
+  atLeast(deltaE(folio.ramp[600], presetById('ocean').ramp[600]), 12, 'Folio 600 against Ocean 600 (OKLab ΔE)');
+  atLeast(deltaE(folio.ramp[600], presetById('slate').ramp[600]), 8, 'Folio 600 against Slate 600 (OKLab ΔE)');
+
+  assert.deepEqual(
+    { tint: folio.recipe.tint, glass: folio.recipe.glass, font: folio.recipe.font, readingFont: folio.recipe.readingFont, rows: folio.recipe.rows },
+    { tint: 'paper', glass: 'paper', font: 'system', readingFont: 'transitional', rows: 'default' });
+  assert.ok(folio.recipe.radius <= 4, 'Folio corners are not small');
+});
+
+test('navigation ink rests at 7:1 on the chrome and the canvas, under every preset and tint', () => {
+  for (const { theme, preset, tokens: base } of SCOPES) {
+    for (const tint of TINTS) {
+      for (const tintStrength of [100, RANGES.tintStrength.max]) {
+        const tokens = new Map([...base, ...Object.entries(tintRamp({ ...DEFAULTS, preset, tint: tint.id, tintStrength }))]);
+        const ink = paint(tokens, '--zx-color-text-chrome');
+        for (const surface of ['chrome', 'surface']) {
+          atLeast(contrast(ink, paint(tokens, `--zx-color-bg-${surface}`)), 7,
+            `${theme}/${preset} ${tint.id} at ${tintStrength}%: navigation ink on ${surface}`);
+        }
+      }
+    }
   }
 });

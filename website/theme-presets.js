@@ -52,42 +52,72 @@ export const PRESETS = [
     label: 'ZeyOS',
     note: 'The ZeyOS green with balanced type, geometry, spacing, and glass. The default.',
     ramp: { 300: '#5ee9b5', 400: '#21cc75', 500: '#009966', 600: '#007a55', 700: '#006045' },
-    recipe: { spacing: 4, tint: 'zinc', radius: 4, controlHeight: 30, textSize: 14, font: 'inter', glass: 'subtle' }
+    recipe: {
+      spacing: 4, tint: 'zinc', radius: 4, controlHeight: 30, rows: 'default', textSize: 14, font: 'inter',
+      readingFont: 'interface', readingSize: 16, measure: 62, glass: 'subtle'
+    }
   },
   {
     id: 'zeyos',
     label: 'Marque Gold',
     note: 'The gold of the ZeyOS product marque, anchored at 400.',
     ramp: { 300: '#ffd9a8', 400: '#f7bc60', 500: '#d0952f', 600: '#916510', 700: '#6f4e0b' },
-    recipe: { spacing: 4.5, tint: 'warm', radius: 6, controlHeight: 32, textSize: 14, font: 'humanist', glass: 'strong' }
+    recipe: {
+      spacing: 4.5, tint: 'warm', radius: 6, controlHeight: 32, rows: 'default', textSize: 14, font: 'humanist',
+      readingFont: 'interface', readingSize: 16, measure: 64, glass: 'strong'
+    }
   },
   {
     id: 'ocean',
     label: 'Ocean',
     note: 'A utility blue, for tools that should read as infrastructure.',
     ramp: { 300: '#8ec5ff', 400: '#51a2ff', 500: '#2b7fff', 600: '#155dfc', 700: '#1447e6' },
-    recipe: { spacing: 3.5, tint: 'cool', radius: 3, controlHeight: 28, textSize: 14, font: 'system', glass: 'subtle' }
+    recipe: {
+      spacing: 3.5, tint: 'cool', radius: 3, controlHeight: 28, rows: 'compact', textSize: 14, font: 'system',
+      readingFont: 'interface', readingSize: 15, measure: 72, glass: 'subtle'
+    }
   },
   {
     id: 'violet',
     label: 'Violet',
-    note: 'The most saturated of the six — it carries a small accent a long way.',
+    note: 'The most saturated of the standard themes — it carries a small accent a long way.',
     ramp: { 300: '#c4b4ff', 400: '#a684ff', 500: '#8e51ff', 600: '#7f22fe', 700: '#7008e7' },
-    recipe: { spacing: 4.5, tint: 'accent', radius: 7, controlHeight: 34, textSize: 15, font: 'geometric', glass: 'strong' }
+    recipe: {
+      spacing: 4.5, tint: 'accent', radius: 7, controlHeight: 34, rows: 'relaxed', textSize: 15, font: 'geometric',
+      readingFont: 'interface', readingSize: 17, measure: 62, glass: 'strong'
+    }
   },
   {
     id: 'rose',
     label: 'Rose',
     note: 'Warm and loud. Watch how it sits beside the danger colour.',
     ramp: { 300: '#ffa1ad', 400: '#ff637e', 500: '#ff2056', 600: '#dc0039', 700: '#a80030' },
-    recipe: { spacing: 4.5, tint: 'warm', radius: 8, controlHeight: 32, textSize: 15, font: 'humanist', glass: 'strong' }
+    recipe: {
+      spacing: 4.5, tint: 'warm', radius: 8, controlHeight: 32, rows: 'default', textSize: 15, font: 'humanist',
+      readingFont: 'interface', readingSize: 17, measure: 60, glass: 'strong'
+    }
   },
   {
     id: 'slate',
     label: 'Slate',
     note: 'A near-neutral accent, for screens where the data carries the colour.',
     ramp: { 300: '#cad5e2', 400: '#90a1b9', 500: '#62748e', 600: '#45556c', 700: '#314158' },
-    recipe: { spacing: 3.5, tint: 'zinc', radius: 2, controlHeight: 26, textSize: 13, font: 'mono', glass: 'none' }
+    recipe: {
+      spacing: 3.5, tint: 'zinc', radius: 2, controlHeight: 26, rows: 'compact', textSize: 13, font: 'mono',
+      readingFont: 'grotesque', readingSize: 15, measure: 72, glass: 'none'
+    }
+  },
+  {
+    id: 'folio',
+    label: 'Folio',
+    note: 'Ink blue on paper, with a serif to read in. For documents.',
+    // `accentRamp('#1f3a5f')`, a blue-black ink: the hue of a utility blue at well under half its
+    // chroma, so it reads as ink rather than as a link.
+    ramp: { 300: '#b7ceee', 400: '#8fafdb', 500: '#688bbc', 600: '#4c71a5', 700: '#385a8a' },
+    recipe: {
+      spacing: 4.5, tint: 'paper', radius: 3, controlHeight: 32, rows: 'default', textSize: 14, font: 'system',
+      readingFont: 'transitional', readingSize: 17, measure: 64, glass: 'paper'
+    }
   }
 ];
 
@@ -98,27 +128,55 @@ const NEUTRAL_STOPS = {
 };
 
 /**
- * Tints for the neutral ramp. `chroma` is the peak, reached in the middle of the ramp and faded
- * out towards both ends — which is how Zinc itself is built, and why a tinted ramp still reads as
- * grey rather than as a pale colour. A null hue follows the accent.
+ * Tints for the neutral ramp. `chroma` is the strength of the colour and `profile` how it is spread
+ * along the ramp (`TINT_PROFILES`). A null hue follows the accent.
  *
- * The order runs from the two near-greys round the hue circle, so neighbours in the picker are
- * neighbours in colour. Every entry is a peak low enough that, even at twice its strength, the
+ * Most tints are arched: the colour peaks in the middle of the ramp and fades out towards both
+ * ends — which is how Zinc itself is built, and why a tinted ramp still reads as grey rather than
+ * as a pale colour. Paper is flat: a little warmth all the way up to the near-whites, so the page
+ * itself reads as paper rather than only its greys.
+ *
+ * The order runs from the near-greys round the hue circle, so neighbours in the picker are
+ * neighbours in colour. Every entry is a strength low enough that, even at twice its strength, the
  * text roles keep their contrast on every surface; `theme-presets.test.js` checks that.
  */
 export const TINTS = [
-  { id: 'neutral', label: 'Neutral', hue: 0, chroma: 0 },
-  { id: 'zinc', label: 'Zinc', hue: 286, chroma: 0.017 },
-  { id: 'stone', label: 'Stone', hue: 62, chroma: 0.014 },
-  { id: 'cool', label: 'Cool', hue: 255, chroma: 0.038 },
-  { id: 'mist', label: 'Mist', hue: 215, chroma: 0.030 },
-  { id: 'sage', label: 'Sage', hue: 155, chroma: 0.028 },
-  { id: 'olive', label: 'Olive', hue: 112, chroma: 0.030 },
-  { id: 'warm', label: 'Warm', hue: 75, chroma: 0.030 },
-  { id: 'taupe', label: 'Taupe', hue: 42, chroma: 0.024 },
-  { id: 'mauve', label: 'Mauve', hue: 325, chroma: 0.030 },
-  { id: 'accent', label: 'Accent', hue: null, chroma: 0.030 }
+  { id: 'neutral', label: 'Neutral', hue: 0, chroma: 0, profile: 'arch' },
+  { id: 'zinc', label: 'Zinc', hue: 286, chroma: 0.017, profile: 'arch' },
+  { id: 'stone', label: 'Stone', hue: 62, chroma: 0.014, profile: 'arch' },
+  { id: 'paper', label: 'Paper', hue: 75, chroma: 0.008, profile: 'flat' },
+  { id: 'cool', label: 'Cool', hue: 255, chroma: 0.038, profile: 'arch' },
+  { id: 'mist', label: 'Mist', hue: 215, chroma: 0.030, profile: 'arch' },
+  { id: 'sage', label: 'Sage', hue: 155, chroma: 0.028, profile: 'arch' },
+  { id: 'olive', label: 'Olive', hue: 112, chroma: 0.030, profile: 'arch' },
+  { id: 'warm', label: 'Warm', hue: 75, chroma: 0.030, profile: 'arch' },
+  { id: 'taupe', label: 'Taupe', hue: 42, chroma: 0.024, profile: 'arch' },
+  { id: 'mauve', label: 'Mauve', hue: 325, chroma: 0.030, profile: 'arch' },
+  { id: 'accent', label: 'Accent', hue: null, chroma: 0.030, profile: 'arch' }
 ];
+
+/** Where a flat tint stops rising: below this lightness it tapers off towards black. */
+const FLAT_KNEE = 0.25;
+/** The share of a flat tint's chroma the near-whites keep. */
+const FLAT_FLOOR = 0.6;
+
+/**
+ * How a tint's chroma is spread along the ramp: a factor of its `chroma` for a stop at a given
+ * OKLab lightness.
+ *
+ * `arch` peaks at mid-grey and fades to nothing at both ends, so the near-white and near-black
+ * stops stay neutral and only the greys that carry area pick up the colour. `flat` keeps a floor of
+ * the colour at the near-whites and rises gently towards the darks, then tapers below lightness
+ * 0.25 — the dark theme's surfaces sit there, and a warm tint at full strength on them would read
+ * as brown rather than as a warm grey.
+ * @type {Record<'arch'|'flat', (lightness: number) => number>}
+ */
+export const TINT_PROFILES = {
+  arch: (lightness) => 1 - Math.abs(2 * lightness - 1),
+  flat: (lightness) => (lightness >= FLAT_KNEE
+    ? FLAT_FLOOR + ((1 - FLAT_FLOOR) * (1 - lightness)) / (1 - FLAT_KNEE)
+    : (lightness / FLAT_KNEE) ** 2)
+};
 
 /**
  * Type stacks offered as `--zx-font-sans`. Each keeps a full fallback chain.
@@ -193,6 +251,23 @@ export const FONTS = [
 export const CUSTOM_FONT = 'custom';
 
 /**
+ * The `readingFont` value that means "the interface typeface": prose follows `--zx-font-sans`,
+ * custom stack included, and nothing is written. Any other value is an id from `FONTS`.
+ */
+export const INTERFACE_FONT = 'interface';
+
+/**
+ * Row heights: the single-line height of a data row (a table row, a list row), always derived from
+ * the control height so rows keep following it and the spacing unit. `default` is the
+ * stylesheet's own `--zx-row-height` and is never written; the other two replace it.
+ */
+export const ROWS = [
+  { id: 'compact', label: 'Compact', height: 'calc(var(--zx-control-height) + 2px)' },
+  { id: 'default', label: 'Default', height: 'calc(var(--zx-control-height) + var(--zx-space-1) + 2px)' },
+  { id: 'relaxed', label: 'Relaxed', height: 'calc(var(--zx-control-height) + var(--zx-space-3) + 2px)' }
+];
+
+/**
  * Type stacks offered as `--zx-font-mono`: code, keyboard hints, and figures that must align.
  * The first is the stock stack from `tokens/global.css`.
  */
@@ -237,17 +312,20 @@ export const MATERIALS = [
 ];
 
 /**
- * The range each geometry control offers, and the step it moves in. The studio's sliders and its
+ * The range each numeric control offers, and the step it moves in. The studio's sliders and its
  * restore path both read these, so a stored value can never land somewhere a slider cannot show.
  * `spacing` is `--zx-space-unit` and `radius` is `--zx-radius`, both in pixels; `tintStrength` is
- * a percentage of the tint's own chroma.
+ * a percentage of the tint's own chroma; `textSize` is `--zx-text-base` and `readingSize`
+ * `--zx-prose-size`, in pixels; `measure` is `--zx-prose-measure`, in `ch`.
  */
 export const RANGES = {
   tintStrength: { min: 0, max: 200, step: 10 },
   spacing: { min: 3, max: 6, step: 0.5 },
   radius: { min: 0, max: 10, step: 0.5 },
   controlHeight: { min: 24, max: 44, step: 1 },
-  textSize: { min: 12, max: 17, step: 1 }
+  textSize: { min: 12, max: 17, step: 1 },
+  readingSize: { min: 14, max: 20, step: 1 },
+  measure: { min: 52, max: 84, step: 2 }
 };
 
 /** The studio's starting point, and what Reset returns to. */
@@ -260,10 +338,14 @@ export const DEFAULTS = {
   spacing: 4,
   radius: 4,
   controlHeight: 30,
+  rows: 'default',
   textSize: 14,
   font: 'inter',
   fontStack: '',
   monoFont: 'geist',
+  readingFont: INTERFACE_FONT,
+  readingSize: 16,
+  measure: 62,
   glass: 'subtle'
 };
 
@@ -336,18 +418,17 @@ export function accentRamp(hex) {
 
 /**
  * Builds a tinted neutral ramp at Zinc's lightness steps.
- * @param {{hue: number|null, chroma: number}} tint
+ * @param {{hue: number|null, chroma: number, profile?: 'arch'|'flat'}} tint A tint without a
+ *   profile is arched.
  * @param {string} accent Accent colour, used when the tint follows the accent's hue.
  * @returns {Record<string, string>} Custom property name to hex, `--zx-gray-50` upwards.
  */
 export function neutralRamp(tint, accent) {
   const hue = tint.hue ?? toOklch(accent).h;
+  const shape = TINT_PROFILES[tint.profile] ?? TINT_PROFILES.arch;
   const ramp = {};
   for (const [stop, lightness] of Object.entries(NEUTRAL_STOPS)) {
-    // The tint peaks in the middle of the ramp and fades to nothing at both ends, so the near-white
-    // and near-black stops stay neutral and only the greys that carry area pick up the colour.
-    const chroma = tint.chroma * (1 - Math.abs(2 * lightness - 1));
-    ramp[`--zx-gray-${stop}`] = toHex({ l: lightness, c: chroma, h: hue });
+    ramp[`--zx-gray-${stop}`] = toHex({ l: lightness, c: tint.chroma * shape(lightness), h: hue });
   }
   return ramp;
 }
@@ -361,7 +442,7 @@ export function neutralRamp(tint, accent) {
 export function tintRamp(state, id = state.tint) {
   const tint = tintById(id);
   const strength = (state.tintStrength ?? DEFAULTS.tintStrength) / 100;
-  return neutralRamp({ hue: tint.hue, chroma: tint.chroma * strength },
+  return neutralRamp({ hue: tint.hue, chroma: tint.chroma * strength, profile: tint.profile },
     state.accent ?? presetById(state.preset).ramp[500]);
 }
 
@@ -431,7 +512,8 @@ export function fontById(id) {
 
 /**
  * @param {string} id
- * @returns {{id: string, label: string, hue: number|null, chroma: number}} The tint, or Zinc.
+ * @returns {{id: string, label: string, hue: number|null, chroma: number, profile: 'arch'|'flat'}}
+ *   The tint, or Zinc.
  */
 export function tintById(id) {
   return TINTS.find((tint) => tint.id === id) ?? TINTS.find((tint) => tint.id === DEFAULTS.tint);
@@ -449,10 +531,15 @@ export function tintById(id) {
  * @property {number} spacing Spacing unit in pixels — every `--zx-space-*` step is a multiple.
  * @property {number} radius Base corner radius in pixels — the radius steps scale from it.
  * @property {number} controlHeight Control height in pixels.
- * @property {number} textSize Base control text size in pixels.
+ * @property {'compact'|'default'|'relaxed'} rows Data row height, derived from the control height.
+ * @property {number} textSize Base text size in pixels — every `--zx-text-*` step derives from it.
  * @property {string} font Font stack id, or `CUSTOM_FONT` to use `fontStack`.
  * @property {string} fontStack A typed `font-family` list, used when `font` is `CUSTOM_FONT`.
  * @property {string} monoFont Monospace stack id.
+ * @property {string} readingFont Prose typeface: a `FONTS` id, or `INTERFACE_FONT` to follow the
+ *   interface typeface.
+ * @property {number} readingSize Prose text size in pixels.
+ * @property {number} measure Prose line length in `ch`.
  * @property {'none'|'subtle'|'strong'|'frost'|'smoke'|'paper'|'satin'|'enamel'} glass Surface material.
  */
 
@@ -462,6 +549,10 @@ export function tintById(id) {
  * Only what differs from the stock theme is returned. That keeps the exported CSS to the lines
  * that matter, and it means a reader who changed nothing gets an empty override rather than a
  * verbose restatement of the defaults.
+ *
+ * Reading type is its own register: the stylesheet derives the prose size from the interface
+ * scale, so once the text size moves, the reading size is written out even at its default — the
+ * prose stays at the size the studio shows rather than following the interface.
  * @param {ThemeState} state
  * @returns {Record<string, string>}
  */
@@ -480,11 +571,23 @@ export function themeVars(state) {
   if (state.controlHeight !== DEFAULTS.controlHeight) {
     vars['--zx-control-height'] = `${state.controlHeight}px`;
   }
-  if (state.textSize !== DEFAULTS.textSize) vars['--zx-text-md'] = `${state.textSize}px`;
+  const rows = ROWS.find((entry) => entry.id === (state.rows ?? DEFAULTS.rows));
+  if (rows && rows.id !== DEFAULTS.rows) vars['--zx-row-height'] = rows.height;
+  if (state.textSize !== DEFAULTS.textSize) vars['--zx-text-base'] = `${state.textSize}px`;
   const sans = fontStackOf(state);
   if (sans !== fontById(DEFAULTS.font).stack) vars['--zx-font-sans'] = sans;
   const mono = MONO_FONTS.find((entry) => entry.id === state.monoFont) ?? MONO_FONTS[0];
   if (mono.id !== DEFAULTS.monoFont) vars['--zx-font-mono'] = mono.stack;
+  const reading = state.readingFont ?? DEFAULTS.readingFont;
+  if (reading !== INTERFACE_FONT && FONTS.some((font) => font.id === reading)) {
+    vars['--zx-font-prose'] = fontById(reading).stack;
+  }
+  const readingSize = state.readingSize ?? DEFAULTS.readingSize;
+  if (readingSize !== DEFAULTS.readingSize || state.textSize !== DEFAULTS.textSize) {
+    vars['--zx-prose-size'] = `${readingSize}px`;
+  }
+  const measure = state.measure ?? DEFAULTS.measure;
+  if (measure !== DEFAULTS.measure) vars['--zx-prose-measure'] = `${measure}ch`;
   Object.assign(vars, MATERIAL_RECIPES[state.glass] ?? {});
   return vars;
 }
@@ -892,14 +995,16 @@ export const THEME_VERSION = 1;
  */
 export const SETTING_FIELDS = [
   'preset', 'accent', 'tint', 'tintStrength', 'font', 'fontStack', 'monoFont', 'textSize',
-  'spacing', 'radius', 'controlHeight', 'glass'
+  'readingFont', 'readingSize', 'measure', 'spacing', 'radius', 'controlHeight', 'rows', 'glass'
 ];
 
 /** What a setting is called in a warning. */
 const SETTING_NAMES = {
   preset: 'preset', accent: 'accent', tint: 'tint', tintStrength: 'tint strength',
   font: 'typeface', fontStack: 'custom font stack', monoFont: 'code font', textSize: 'text size',
-  spacing: 'spacing unit', radius: 'corner radius', controlHeight: 'control height', glass: 'material'
+  readingFont: 'reading typeface', readingSize: 'reading size', measure: 'measure',
+  spacing: 'spacing unit', radius: 'corner radius', controlHeight: 'control height', rows: 'row height',
+  glass: 'material'
 };
 
 /** Envelope fields a flat theme file may carry beside its settings. */
@@ -1012,7 +1117,8 @@ export function normalizeSettings(input, base = DEFAULTS) {
 
   const choices = {
     preset: PRESETS, tint: TINTS, font: [...FONTS, { id: CUSTOM_FONT, label: 'Custom' }],
-    monoFont: MONO_FONTS, glass: MATERIALS
+    monoFont: MONO_FONTS, readingFont: [{ id: INTERFACE_FONT, label: 'Interface' }, ...FONTS],
+    rows: ROWS, glass: MATERIALS
   };
   for (const [field, options] of Object.entries(choices)) {
     settings[field] = base[field];

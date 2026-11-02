@@ -274,7 +274,7 @@
 
 /* ---------------------------------------------------------------------- tints -- */
 
-/* Eleven swatches in three columns: each a chip drawn from the ramp the tint would produce, with
+/* Twelve swatches in three columns: each a chip drawn from the ramp the tint would produce, with
    its name under it. The current one takes the presets' neutral current fill. */
 .studio-tints {
   display: grid;

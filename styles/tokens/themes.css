@@ -71,3 +71,12 @@
   --zx-accent-600: #45556c;
   --zx-accent-700: #314158;
 }
+
+/* Folio — an ink blue derived from #1f3a5f, for document workspaces: calm beside paper-toned greys. */
+[data-zx-preset="folio"] {
+  --zx-accent-300: #b7ceee;
+  --zx-accent-400: #8fafdb;
+  --zx-accent-500: #688bbc;
+  --zx-accent-600: #4c71a5;
+  --zx-accent-700: #385a8a;
+}

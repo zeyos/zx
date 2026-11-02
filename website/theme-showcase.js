@@ -109,6 +109,28 @@ const TREE = [
   { ID: 'products', name: 'Products', children: [{ ID: 'seats', name: 'Seat licences' }] }
 ];
 
+/** The reading specimen: a short field report, as a team would write one. */
+const REPORT = {
+  title: 'Notes from the spring stock count',
+  lede: 'Every bin in the warehouse was counted twice this quarter. Most differences were rounding, '
+    + 'but three shelves in aisle 14 showed ',
+  marked: 'the same shortfall of four units',
+  tail: ' on both passes, so the ',
+  link: 'counting procedure',
+  close: ' now asks for a second scan before a bin is closed.',
+  actions: [
+    'Recount aisle 14 before the next delivery arrives.',
+    'Label the returns shelf so it is not counted as stock.',
+    'Move the scanner chargers beside the packing tables.'
+  ],
+  note: ['Before Friday', 'Send the corrected counts to purchasing so the reorder points can follow.'],
+  counts: [
+    ['Aisle 12', '1,240', '1,240', '0'],
+    ['Aisle 14', '856', '868', '−12'],
+    ['Aisle 17', '2,015', '2,011', '+4']
+  ]
+};
+
 const currency = new Intl.NumberFormat(undefined, {
   style: 'currency', currency: 'EUR', maximumFractionDigits: 0
 });
@@ -124,6 +146,13 @@ export const CARDS = [
   { id: 'palette', title: 'Semantic palette', hint: 'What every component resolves its colour through', render: paletteCard },
   { id: 'tones', title: 'Tones and series', hint: 'Categorical colour, apart from the accent and status', render: tonesCard },
   { id: 'type', title: 'Type scale', hint: '--zx-font-sans and the text steps', render: typeCard },
+  {
+    id: 'reading',
+    title: 'Reading',
+    hint: '.zx-prose: the reading typeface, size, and measure, apart from the interface',
+    wide: true,
+    render: readingCard
+  },
   { id: 'material', title: 'Material', hint: 'Identity, controls, raised surfaces, and overlay tiers', render: materialCard },
   { id: 'buttons', title: 'Buttons', hint: 'Four kinds, two sizes, joined groups', render: buttonsCard },
   {
@@ -263,6 +292,31 @@ function typeCard() {
       'Body copy at --zx-text-md, the size every control inherits. Numerals matter in business '
       + 'software: 1 234,56 · 0 987 · 2026-08-21.'),
     h('p', { class: 'studio-type__muted' }, 'Secondary text at --zx-color-text-muted.'));
+}
+
+/**
+ * A short document in `.zx-prose`, wide enough that the measure — not the card — ends its lines.
+ * @returns {Node}
+ */
+function readingCard() {
+  return h('article', { class: 'zx-prose' },
+    h('h3', {}, REPORT.title),
+    h('p', {}, REPORT.lede, h('mark', {}, REPORT.marked), REPORT.tail,
+      h('a', { href: '#card-reading' }, REPORT.link), REPORT.close),
+    h('ul', {}, REPORT.actions.map((action) => h('li', {}, action))),
+    h('aside', { class: 'zx-callout' },
+      h('span', { class: 'zx-callout__icon' }, icon('info')),
+      h('div', { class: 'zx-callout__body' },
+        h('p', { class: 'zx-callout__title' }, REPORT.note[0]),
+        h('p', {}, REPORT.note[1]))),
+    h('table', {},
+      h('thead', {}, h('tr', {},
+        h('th', { scope: 'col' }, 'Shelf'),
+        h('th', { scope: 'col', 'data-align': 'end' }, 'Counted'),
+        h('th', { scope: 'col', 'data-align': 'end' }, 'Expected'),
+        h('th', { scope: 'col', 'data-align': 'end' }, 'Difference'))),
+      h('tbody', {}, REPORT.counts.map(([shelf, ...figures]) => h('tr', {},
+        h('td', {}, shelf), figures.map((figure) => h('td', { 'data-align': 'end' }, figure)))))));
 }
 
 /** @returns {Node} */

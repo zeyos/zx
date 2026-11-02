@@ -20,9 +20,9 @@ import {
   Dialog, Message, Select, Slider, button, copyToClipboard, downloadBlob, h, icon, rovingTabindex
 } from '../src/index.js';
 import {
-  CUSTOM_FONT, DEFAULTS, FONTS, MATERIALS, MONO_FONTS, PRESETS, RANGES, STOPS, TINTS, accentRamp,
-  cleanFontStack, contrast, fontById, normalizeSettings, presetById, readThemeJson, resolvedAccent,
-  themeCss, themeJson, themeVars, tintById, tintRamp
+  CUSTOM_FONT, DEFAULTS, FONTS, INTERFACE_FONT, MATERIALS, MONO_FONTS, PRESETS, RANGES, ROWS, STOPS, TINTS,
+  accentRamp, cleanFontStack, contrast, fontById, normalizeSettings, presetById, readThemeJson,
+  resolvedAccent, themeCss, themeJson, themeVars, tintById, tintRamp
 } from './theme-presets.js';
 import { CARDS, mountShowcase } from './theme-showcase.js';
 
@@ -115,6 +115,7 @@ function buildRail() {
     accentSection(),
     tintSection(),
     typefaceSection(),
+    readingSection(),
     section('Spacing', slider({
       label: 'Spacing unit', ...RANGES.spacing, unit: 'px',
       get: () => state.spacing,
@@ -132,17 +133,23 @@ function buildRail() {
       get: () => state.controlHeight,
       set: (value) => { state.controlHeight = value; }
     })),
+    section('Rows', segmented('Row height', ROWS, () => state.rows, (value) => {
+      state.rows = value;
+      apply();
+    }), 'The height of a single-line row in tables and lists. It is drawn from the control height, '
+      + 'so rows keep following it: Compact fits a row to its controls, Relaxed gives it more air.'),
     section('Text size', slider({
       label: 'Base text size', ...RANGES.textSize, unit: 'px',
       get: () => state.textSize,
       set: (value) => { state.textSize = value; }
-    })),
+    }), 'Every interface text step is drawn from this base, so captions, labels, and headings keep '
+      + 'their proportions at any setting. Reading type has its own size.'),
     h('p', { class: 'studio-rail__note' },
       'Preset accent ramps ship as ', h('code', {}, 'data-zx-preset'),
       ' in ', h('code', {}, 'styles/tokens/themes.css'), '. The studio also applies each preset’s '
-      + 'complete type, geometry, spacing, tint, and material recipe; Copy CSS exports those '
-      + 'choices for an application. Export saves the settings as a JSON theme file, and Import '
-      + 'loads one back.'),
+      + 'complete type, reading, geometry, row, spacing, tint, and material recipe; Copy CSS exports '
+      + 'those choices for an application. Export saves the settings as a JSON theme file, and '
+      + 'Import loads one back.'),
     // Last in the rail, and pinned to the bottom of it by the stylesheet.
     h('div', { class: 'studio-rail__actions' },
       button({ label: 'Import', icon: 'upload', title: 'Load a JSON theme file', onclick: showImport }),
@@ -322,8 +329,9 @@ function tintSection() {
 
   return section('Neutral tint',
     h('div', { class: 'studio-stack' }, group, field('Strength', strength)),
-    'The grey ramp every surface and border is mixed from. The tint peaks in the mid greys and '
-    + 'fades out at both ends, so the page stays white and the text stays near-black.');
+    'The grey ramp every surface and border is mixed from. Most tints peak in the mid greys and '
+    + 'fade out at both ends, so the page stays white and the text near-black; Paper keeps a '
+    + 'little warmth all the way up to the page.');
 }
 
 /** @param {string} id @returns {void} */
@@ -388,6 +396,34 @@ function typefaceSection() {
     h('div', { class: 'studio-stack' }, field('Interface', sans), customRow, field('Code', mono)),
     'A custom stack is applied as typed, so it can name your brand font; the studio cannot load '
     + 'one, but a page that already does will pick it up.');
+}
+
+/**
+ * Reading type: the typeface, size, and measure of authored text in `.zx-prose`, apart from the
+ * interface. "Interface" follows the interface typeface, custom stack included.
+ * @returns {HTMLElement}
+ */
+function readingSection() {
+  const fonts = [{ id: INTERFACE_FONT, label: 'Interface', stack: null }, ...FONTS];
+  const typeface = choice(fonts, () => state.readingFont, (value) => {
+    state.readingFont = value;
+    apply();
+  }, { label: 'Reading typeface', preview: true });
+  const size = slider({
+    label: 'Reading size', ...RANGES.readingSize, unit: 'px',
+    get: () => state.readingSize,
+    set: (value) => { state.readingSize = value; }
+  });
+  const measure = slider({
+    label: 'Measure', ...RANGES.measure, unit: 'ch',
+    get: () => state.measure,
+    set: (value) => { state.measure = value; }
+  });
+
+  return section('Reading',
+    h('div', { class: 'studio-stack' }, field('Typeface', typeface), field('Size', size), field('Measure', measure)),
+    'The second register, for authored text — documents, notes, messages. A serif here leaves '
+    + 'every control as it is. The measure is the longest line, in characters.');
 }
 
 /**

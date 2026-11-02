@@ -134,13 +134,24 @@
     return preferredDark ? 'dark' : 'light';
   }
 
-  /** @returns {object} */
+  /**
+   * The stored overrides. The studio once wrote its text size as `--zx-text-md`, which moved the
+   * control step alone; it now writes the base every step derives from, so an older entry is
+   * carried over to that and renders as the studio would render it today.
+   * @returns {object}
+   */
   function readVars() {
+    let vars;
     try {
-      return safeVars(JSON.parse(read(KEYS.vars) || '{}'));
+      vars = safeVars(JSON.parse(read(KEYS.vars) || '{}'));
     } catch {
       return {};
     }
+    if ('--zx-text-md' in vars && !('--zx-text-base' in vars)) {
+      vars['--zx-text-base'] = vars['--zx-text-md'];
+      delete vars['--zx-text-md'];
+    }
+    return vars;
   }
 
   /** @param {string} key @returns {string|null} */
