@@ -2,7 +2,8 @@
   inline-size: min(760px, calc(100vw - (2 * var(--zx-space-4))));
   max-block-size: min(720px, calc(100vh - (2 * var(--zx-space-6))));
   border: 1px solid var(--zx-color-overlay-border);
-  border-radius: var(--zx-radius-lg);
+  /* Concentric with the rows inside it: their corner plus the inset around them. */
+  border-radius: var(--zx-radius-panel);
   background-color: var(--zx-color-overlay-panel);
   background-image: var(--zx-overlay-panel-image);
   background-clip: padding-box;
@@ -97,23 +98,9 @@
 
 .zx-launcher__input::-webkit-search-cancel-button { display: none; }
 
-.zx-launcher__shortcut,
-.zx-launcher__hints kbd,
-.zx-launcher__key {
-  border: 1px solid var(--zx-color-border-control);
-  border-radius: var(--zx-radius-sm);
-  background: var(--zx-color-bg-muted);
-  color: var(--zx-color-text-muted);
-  font-family: var(--zx-font-mono);
-  font-size: var(--zx-text-xs);
-  font-weight: 600;
-  line-height: 1.5;
-}
-
+/* The ⌘K reminder beside the query. Its keycaps are `kbd()`'s. */
 .zx-launcher__shortcut {
   flex: none;
-  padding-inline: var(--zx-space-2);
-  white-space: nowrap;
 }
 
 .zx-launcher__status {
@@ -179,6 +166,13 @@
   color: var(--zx-color-text);
 }
 
+/* The row you are in, under the cursor or the pointer, is both: the current fill one step
+   stronger than either, still neutral. */
+.zx-launcher__option[aria-current="page"][aria-selected="true"],
+.zx-launcher__option[aria-current="page"]:hover {
+  background: color-mix(in srgb, var(--zx-color-text) 14%, transparent);
+}
+
 .zx-launcher__option[aria-current="page"] .zx-launcher__label {
   font-weight: var(--zx-weight-semibold);
 }
@@ -196,6 +190,20 @@
 
 .zx-launcher__option[data-kind="application"][aria-current="page"] {
   background: var(--zx-color-bg-current);
+}
+
+.zx-launcher__option[data-kind="application"][aria-current="page"][aria-selected="true"],
+.zx-launcher__option[data-kind="application"][aria-current="page"]:hover {
+  background: color-mix(in srgb, var(--zx-color-text) 14%, transparent);
+}
+
+@media (forced-colors: active) {
+  .zx-launcher__option[aria-current="page"][aria-selected="true"],
+  .zx-launcher__option[aria-current="page"]:hover,
+  .zx-launcher__option[data-kind="application"][aria-current="page"][aria-selected="true"],
+  .zx-launcher__option[data-kind="application"][aria-current="page"]:hover {
+    background: var(--zx-color-overlay-hover);
+  }
 }
 
 .zx-launcher__option[data-kind="application"] .zx-launcher__icon {
@@ -227,7 +235,12 @@
 .zx-launcher__copy { display: grid; min-inline-size: 0; gap: 2px; }
 .zx-launcher__label { overflow: hidden; font-weight: var(--zx-weight-medium); text-overflow: ellipsis; white-space: nowrap; }
 .zx-launcher__description { overflow: hidden; color: var(--zx-color-text-muted); font-size: var(--zx-text-sm); text-overflow: ellipsis; white-space: nowrap; }
-.zx-launcher__badge { margin-inline-start: auto; color: var(--zx-color-text-muted); font-size: var(--zx-text-xs); }
+.zx-launcher__badge {
+  margin-inline-start: auto;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-variant-numeric: tabular-nums;
+}
 
 /* A row's copy takes the room; what trails it (badge, hint, key caps, the page chevron) sits at
    the end in that order. */
@@ -247,7 +260,6 @@
 .zx-launcher__keys {
   display: inline-flex;
   flex: none;
-  gap: var(--zx-space-1);
 }
 
 .zx-launcher__chevron {
@@ -284,13 +296,6 @@
 }
 
 .zx-launcher__hints span[hidden] { display: none; }
-
-.zx-launcher__hints kbd,
-.zx-launcher__key {
-  min-inline-size: 1.5rem;
-  padding-inline: 4px;
-  text-align: center;
-}
 
 @media (max-width: 520px) {
   .zx-launcher__group[data-layout="grid"] {

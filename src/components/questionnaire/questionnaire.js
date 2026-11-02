@@ -5,6 +5,7 @@ import { icon as createIcon } from '../../core/icons.js';
 import { uid } from '../../core/util.js';
 import { button } from '../button/button.js';
 import { Field } from '../field/field.js';
+import { kbd } from '../kbd/kbd.js';
 import { ProgressBar } from '../loading/progress-bar.js';
 import {
   applyExclusive, isEmptyAnswer, normalizeItems, progressOf, resolveFlow, resolveNext, validateAnswer
@@ -60,6 +61,20 @@ const AUTO_ADVANCE_DELAY = 260;
 /** @typedef {{name: string, message: string}} QuestionnaireInvalidDetail */
 /** @typedef {{answers: Record<string, unknown>, path: string[]}} QuestionnaireSubmitDetail */
 /** @typedef {{answers: Record<string, unknown>, path: string[]}} QuestionnaireCompleteDetail */
+
+/**
+ * The keycap that advertises a choice's shortcut, drawn by `kbd()` like every other key hint. It
+ * is `aria-hidden`: a screen-reader user moves through the group with the arrow keys, and hearing
+ * the key before every answer would only be noise.
+ * @param {string} key The single character that picks the choice.
+ * @returns {HTMLElement}
+ */
+function keyHint(key) {
+  const hint = kbd([key]);
+  hint.classList.add('zx-questionnaire__key');
+  hint.setAttribute('aria-hidden', 'true');
+  return hint;
+}
 
 /**
  * A guided, one-question-at-a-time flow: onboarding intake, a service-call checklist, an audit
@@ -741,7 +756,7 @@ export class Questionnaire extends Component {
     h('span', { class: 'zx-questionnaire__text' },
       h('span', { class: 'zx-questionnaire__label' }, choice.label),
       choice.description ? h('span', { class: 'zx-questionnaire__hint' }, choice.description) : null),
-    choice.key ? h('kbd', { class: 'zx-questionnaire__key', ariaHidden: 'true' }, choice.key) : null)));
+    choice.key ? keyHint(choice.key) : null)));
 
     if (item.input) {
       const inputId = `${this._uid}-freeform`;

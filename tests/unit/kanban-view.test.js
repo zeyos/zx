@@ -98,7 +98,12 @@ test('board styling keeps rail hierarchy, progressive controls, and coarse targe
   assert.match(source, /\.zx-kanban-view__identifier\s*\{[^}]*color:\s*var\(--zx-color-text-muted\)/s);
   assert.match(source, /\.zx-kanban-view__progress-track\s*\{[^}]*background:\s*var\(--zx-color-bg-muted\)/s);
   assert.match(source, /\.zx-kanban-view__progress-fill\s*\{[^}]*background:\s*var\(--zx-color-accent\)/s);
-  assert.match(source, /\.zx-kanban-view__avatar \+ \.zx-kanban-view__avatar\s*\{[^}]*margin-inline-start:\s*calc\(var\(--zx-space-2\) \* -1\)/s);
+  // Faces overlap by at most a small step, ringed in the surface; the overflow count over the last
+  // face is opaque, never a translucent fill the face shows through.
+  assert.match(source, /\.zx-kanban-view__avatar \+ \.zx-kanban-view__avatar\s*\{[^}]*margin-inline-start:\s*calc\(-1 \* var\(--zx-space-1\)\)/s);
+  assert.match(source, /\.zx-kanban-view__avatar\s*\{[^}]*box-shadow:\s*0 0 0 2px var\(--zx-color-bg-surface\)/s);
+  assert.match(source, /\.zx-kanban-view__avatar\[data-overflow="true"\]\s*\{[^}]*background:\s*color-mix\(in srgb, var\(--zx-color-text\) 8%, var\(--zx-color-bg-surface\)\)/s);
+  assert.match(source, /\.zx-kanban-view__count\s*\{[^}]*font-variant-numeric:\s*tabular-nums/s);
   assert.match(source, /\.zx-kanban-view__column-empty\s*\{[^}]*border:\s*1px dashed/s);
   assert.match(source, /@media \(hover:\s*none\), \(pointer:\s*coarse\)[\s\S]*opacity:\s*1/s);
   assert.match(source, /@media \(pointer:\s*coarse\)[\s\S]*inline-size:\s*2\.75rem[\s\S]*min-block-size:\s*2\.75rem/s);

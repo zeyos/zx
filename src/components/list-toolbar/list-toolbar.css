@@ -109,6 +109,11 @@
   background: var(--zx-color-bg-current);
 }
 
+/* Pointed at, a pressed tool keeps its fill and takes the hover step on top of it. */
+.zx-list-toolbar__tool[aria-pressed="true"]:hover:not(:disabled) {
+  background: linear-gradient(var(--zx-color-bg-hover), var(--zx-color-bg-hover)), var(--zx-color-bg-current);
+}
+
 .zx-list-toolbar__tool:disabled {
   color: var(--zx-color-text-placeholder);
   cursor: default;
@@ -134,7 +139,8 @@
   min-inline-size: 44px;
   padding-inline: var(--zx-space-2);
   border: 0;
-  border-radius: calc(var(--zx-control-radius) - 2px);
+  /* Concentric with the frame: its corner less the 1px border and the 2px padding between them. */
+  border-radius: max(0px, calc(var(--zx-control-radius) - 3px));
   background: none;
   color: var(--zx-color-text-muted);
   font-size: var(--zx-control-font-size);

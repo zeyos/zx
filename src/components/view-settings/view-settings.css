@@ -160,7 +160,8 @@ button.zx-view-settings__handle {
   flex: none;
   place-items: center;
   inline-size: var(--zx-control-height);
-  color: var(--zx-color-text-placeholder);
+  /* An icon that says something (the field cannot be hidden): the subtle icon role, at 3:1. */
+  color: var(--zx-color-text-subtle);
 }
 
 .zx-view-settings__add {

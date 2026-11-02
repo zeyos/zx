@@ -23,7 +23,8 @@
   inline-size: var(--zx-entity-ref-visual-size);
   block-size: var(--zx-entity-ref-visual-size);
   overflow: hidden;
-  border: 1px solid var(--zx-color-border);
+  /* One fill, not a fill and a line: the edge stays, transparent, to keep the tile's size. */
+  border: 1px solid transparent;
   border-radius: var(--zx-radius-md);
   background: var(--zx-color-bg-muted);
   color: var(--zx-color-text-muted);
@@ -172,6 +173,12 @@
 .zx-entity-ref__action:disabled {
   opacity: .55;
   cursor: default;
+}
+
+@media (prefers-contrast: more) {
+  .zx-entity-ref__icon {
+    border-color: var(--zx-color-border-strong);
+  }
 }
 
 @media (forced-colors: active) {

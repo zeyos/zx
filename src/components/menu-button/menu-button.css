@@ -89,14 +89,20 @@
   padding-inline: var(--zx-space-1);
   color: var(--zx-color-text-muted);
   font-size: var(--zx-text-xs);
+  font-variant-numeric: tabular-nums;
   text-align: center;
 }
 
+/* A shortcut is text at the right edge, no box — set the way a keycap's label is, so every key
+   hint in the library shares one type treatment. */
 .zx-menu-button__shortcut {
   border: 0;
   background: transparent;
   padding: 0;
-  font-family: var(--zx-font-mono);
+  font-family: var(--zx-font-sans);
+  font-weight: var(--zx-weight-medium);
+  font-feature-settings: "case", "tnum";
+  white-space: nowrap;
 }
 
 .zx-menu-button__check {
@@ -152,7 +158,8 @@
   display: inline-flex;
   flex: none;
   gap: 2px;
-  border-radius: var(--zx-radius-md);
+  /* The thumb's corner plus the 2px of track around it. */
+  border-radius: calc(var(--zx-radius-sm) + 2px);
   background: var(--zx-color-bg-hover);
   padding: 2px;
 }

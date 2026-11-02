@@ -53,7 +53,8 @@
   border-color: transparent;
   border-radius: var(--zx-radius-md);
   background: transparent;
-  color: inherit;
+  /* Navigation rests one ink step under the content and comes up to the full text colour below. */
+  color: var(--zx-color-text-chrome);
   padding: 0;
   text-decoration: none;
 }
@@ -91,6 +92,7 @@
   padding-inline: 3px;
   color: var(--zx-color-on-accent);
   font-size: 10px;
+  font-variant-numeric: tabular-nums;
   line-height: 15px;
   text-align: center;
 }
@@ -181,7 +183,8 @@
      label. Either way a single-line row is one control tall, and a wrapped one grows. */
   padding-block: min(var(--zx-space-1), (var(--zx-app-rail-item-height) - var(--zx-app-rail-icon)) / 2);
   padding-inline: var(--zx-app-rail-pad-x);
-  color: var(--zx-color-text);
+  /* A slice of the navigation, so it rests in the navigation's ink as the tree does. */
+  color: var(--zx-color-text-chrome);
   font-size: var(--zx-text-md);
   font-weight: 500;
   line-height: 1.35;
@@ -193,13 +196,14 @@
   .zx-app-rail__flyout-item { min-block-size: 40px; }
 }
 
+/* The icon follows the label's ink. */
 .zx-app-rail__flyout-item-icon {
   grid-column: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   inline-size: var(--zx-app-rail-icon);
-  color: var(--zx-color-text-muted);
+  color: inherit;
 }
 
 .zx-app-rail__flyout-item-label {
@@ -226,26 +230,23 @@
 }
 
 .zx-app-rail__flyout-item:hover { background: var(--zx-app-rail-hover); }
-.zx-app-rail__flyout-item:hover .zx-app-rail__flyout-item-icon,
-.zx-app-rail__flyout-item:hover .zx-app-rail__flyout-item-disclosure { color: var(--zx-color-text); }
+.zx-app-rail__flyout-item:is(:hover, :focus-visible) { color: var(--zx-color-text); }
+.zx-app-rail__flyout-item:is(:hover, :focus-visible) .zx-app-rail__flyout-item-disclosure { color: var(--zx-color-text); }
 .zx-app-rail__flyout-item:active { background: var(--zx-app-rail-press); }
 
 /* An open nested branch holds the hover fill: the chain that leads to the panel in front stays
    readable while the pointer is two panels away. The rail item does the same thing. */
 .zx-app-rail__flyout-item[aria-expanded="true"]:not([aria-current="page"]) {
   background: var(--zx-app-rail-hover);
+  color: var(--zx-color-text);
 }
-.zx-app-rail__flyout-item[aria-expanded="true"]:not([aria-current="page"]) .zx-app-rail__flyout-item-icon,
 .zx-app-rail__flyout-item[aria-expanded="true"]:not([aria-current="page"]) .zx-app-rail__flyout-item-disclosure {
   color: var(--zx-color-text);
 }
 
 .zx-app-rail__flyout-item[data-active-descendant="true"][aria-expanded="false"] {
-  font-weight: var(--zx-weight-semibold);
-}
-
-.zx-app-rail__flyout-item[data-active-descendant="true"][aria-expanded="false"] .zx-app-rail__flyout-item-icon {
   color: var(--zx-color-text);
+  font-weight: var(--zx-weight-semibold);
 }
 
 /* The current page, as in the tree: the neutral current fill, the full text colour and a heavier
@@ -260,7 +261,6 @@
   background: var(--zx-app-rail-press);
 }
 
-.zx-app-rail__flyout-item[aria-current="page"] .zx-app-rail__flyout-item-icon,
 .zx-app-rail__flyout-item[aria-current="page"] .zx-app-rail__flyout-item-disclosure {
   color: var(--zx-color-text);
 }

@@ -28,9 +28,12 @@
   min-block-size: calc(var(--zx-control-height) - var(--zx-space-2));
   max-inline-size: 100%;
   padding-inline: var(--zx-space-2);
-  border: 1px solid var(--zx-color-border);
+  /* One fill, not a fill and a line: the edge stays, transparent, to keep the chip's size. */
+  border: 1px solid transparent;
   border-radius: var(--zx-radius-md);
-  background: var(--zx-color-bg-muted);
+  /* A text-colour step, not the muted surface: it reads on the control's own fill in both themes,
+     where the hairline used to do the separating. */
+  background: color-mix(in srgb, var(--zx-color-text) 8%, transparent);
   color: var(--zx-color-text);
   cursor: grab;
 }
@@ -45,12 +48,16 @@
   text-wrap: nowrap;
 }
 
+/* Stretched to the chip's line and held 1px in from it, so the hover fill sits 2px inside the chip
+   at top and bottom, however tall the control makes the chip. */
 .zx-value-list__remove {
   display: inline-grid;
+  align-self: stretch;
   place-items: center;
   min-inline-size: 1.25rem;
-  min-block-size: 1.25rem;
+  margin-block: 1px;
   border-radius: var(--zx-radius-sm);
+  line-height: 1;
   color: var(--zx-color-text-muted);
   cursor: pointer;
 }
@@ -64,7 +71,9 @@
   flex: 1 1 8rem;
   min-inline-size: 6rem;
   border: 0;
-  background: inherit;
+  /* Nothing of its own: the control's fill is translucent in dark, and an inherited copy of it
+     would be painted over the original as a second, lighter box. */
+  background: none;
   box-shadow: none;
 }
 
@@ -105,4 +114,17 @@
 
 .zx-value-list[data-disabled="true"] .zx-value-list__remove {
   display: none;
+}
+
+/* Someone who asked for more contrast, or whose colours are forced, gets the chip's edge back. */
+@media (prefers-contrast: more) {
+  .zx-value-list__chip {
+    border-color: var(--zx-color-border-strong);
+  }
+}
+
+@media (forced-colors: active) {
+  .zx-value-list__chip {
+    border-color: CanvasText;
+  }
 }

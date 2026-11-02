@@ -223,27 +223,17 @@
   line-height: 1.45;
 }
 
-/* The key cap advertises the shortcut. It is `aria-hidden`: a screen-reader user navigates the
-   group with the arrow keys, and reading "one" before every answer would only be noise. */
+/* The keycap advertises the shortcut (`kbd()`, the one key-hint construction); it is
+   `aria-hidden`, since a screen-reader user moves through the group with the arrow keys. A chosen
+   answer draws its cap in the accent, through the keycap's own hooks. */
 .zx-questionnaire__key {
-  flex: none;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--zx-color-border);
-  border-radius: var(--zx-radius-sm);
-  background: var(--zx-color-bg-muted);
-  padding-inline: var(--zx-space-2);
-  min-inline-size: 22px;
-  block-size: 22px;
-  color: var(--zx-color-text-muted);
-  font-family: inherit;
-  font-size: var(--zx-text-xs);
-  text-transform: uppercase;
+  /* Centred on the label's first line, as the marker is. */
+  margin-block-start: calc((var(--zx-control-font-size) * 1.4 - var(--zx-kbd-size)) / 2);
 }
 
 .zx-questionnaire__choice:has(.zx-questionnaire__control:checked) .zx-questionnaire__key {
-  border-color: var(--zx-color-accent);
-  color: var(--zx-color-accent);
+  --zx-kbd-ink: var(--zx-color-accent);
+  --zx-kbd-line: var(--zx-color-accent);
 }
 
 /* -------------------------------------------------------------- freeform */

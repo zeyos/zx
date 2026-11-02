@@ -21,15 +21,31 @@
   font-size: var(--zx-text-sm);
 }
 
+/*
+ * When the trail runs short of room — a host that keeps it on one line — the ancestors give way
+ * first: each shortens to an ellipsis, down to its separator and a letter or two, before the page
+ * you are on gives anything. The folded levels behind "…" and the separators never shrink. An
+ * item's floor is its own minimum width (see the label below), so a shortened level never spills
+ * over its neighbour.
+ */
 .zx-breadcrumb__item {
   display: inline-flex;
+  flex: 0 1000 auto;
   align-items: center;
   gap: var(--zx-space-1);
-  min-inline-size: 0;
+}
+
+.zx-breadcrumb__item:has(> .zx-breadcrumb__current) {
+  flex-shrink: 1;
+}
+
+.zx-breadcrumb__item:has(> .zx-breadcrumb__more) {
+  flex-shrink: 0;
 }
 
 .zx-breadcrumb__separator {
   display: inline-flex;
+  flex: none;
   align-items: center;
   color: var(--zx-color-text-placeholder);
 }
@@ -72,10 +88,19 @@
   font-weight: 600;
 }
 
+/* One line, ending in an ellipsis when it is cut. Clamped rather than kept from wrapping: a label
+   that may break between any two letters fills its line before the ellipsis, and is narrow at its
+   narrowest — a letter and the ellipsis — which is what lets an item shrink to a stub instead of
+   holding its full width or collapsing to nothing. Start-aligned, since a crumb without an href is
+   a button, which centres its text. */
 .zx-breadcrumb__label {
+  display: -webkit-box;
+  min-inline-size: 1.5em;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  text-align: start;
+  word-break: break-all;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
 }
 
 .zx-breadcrumb__icon {

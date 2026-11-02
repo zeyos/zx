@@ -144,8 +144,9 @@ button.zx-stepper__control:disabled {
   overflow-wrap: anywhere;
 }
 
+/* Real text, so it takes the muted text role: placeholder ink is for empty fields only. */
 .zx-stepper__optional {
-  color: var(--zx-color-text-placeholder);
+  color: var(--zx-color-text-muted);
   font-size: var(--zx-text-xs);
   font-style: italic;
 }

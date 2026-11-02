@@ -132,7 +132,7 @@ test('TreeView indents one short step per level', () => {
   assert.equal(value(row, 'padding'), 'var(--zx-space-1) var(--zx-space-2)');
 });
 
-test('menus and listboxes share one tight row inside a large-radius panel', () => {
+test('menus and listboxes share one tight row inside a concentric panel', () => {
   const rows = [
     ['menu-button/menu-button.css', '.zx-menu-button__item'],
     ['context-menu/context-menu.css', '.zx-context-menu__item'],
@@ -152,7 +152,7 @@ test('menus and listboxes share one tight row inside a large-radius panel', () =
     ['launcher/launcher.css', '.zx-launcher']
   ]) {
     assert.equal(value(rule(read(`src/components/${path}`), selector), 'border-radius'),
-      'var(--zx-radius-lg)', `${selector} panel radius`);
+      'var(--zx-radius-panel)', `${selector} panel radius`);
   }
   for (const [path, selector] of [
     ['menu-button/menu-button.css', '.zx-menu-button__heading'],

@@ -57,11 +57,21 @@
   block-size: auto;
   min-block-size: var(--zx-module-bar-target);
   padding: var(--zx-space-1) var(--zx-space-2);
-  color: var(--zx-color-text);
+  /* The names rest one ink step under the content, as navigation does, and come up to the full
+     text colour when pointed at, focused, current, or open. */
+  color: var(--zx-color-text-chrome);
   font-size: var(--zx-text-md);
   font-weight: 500;
   line-height: 1.3;
   text-align: start;
+}
+
+.zx-module-bar[data-labels="beside"] .zx-module-bar__item:is(:hover, :focus-visible, [aria-current], [aria-expanded="true"]):not([aria-disabled="true"]) {
+  color: var(--zx-color-text);
+}
+
+.zx-module-bar[data-labels="beside"] .zx-module-bar__item[aria-disabled="true"] {
+  color: var(--zx-color-text-muted);
 }
 
 .zx-module-bar[data-labels="beside"] .zx-module-bar__label { text-align: start; }

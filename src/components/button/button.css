@@ -23,7 +23,10 @@
     box-shadow var(--zx-dur-fast) var(--zx-ease);
 }
 
-.zx-btn:hover:not(:disabled) {
+/* A trigger whose menu or popover is open holds its hover fill for as long as the panel is open,
+   in every kind, so the panel in front always points back to what opened it. */
+.zx-btn:hover:not(:disabled),
+.zx-btn[aria-expanded="true"]:not(:disabled) {
   background: var(--zx-color-glass-control-hover);
 }
 
@@ -48,7 +51,8 @@
   color: var(--zx-color-on-accent-solid);
 }
 
-.zx-btn[data-kind="primary"]:hover:not(:disabled) {
+.zx-btn[data-kind="primary"]:hover:not(:disabled),
+.zx-btn[data-kind="primary"][aria-expanded="true"]:not(:disabled) {
   border-color: var(--zx-color-accent-solid-hover);
   background: var(--zx-color-accent-solid-hover);
 }
@@ -64,7 +68,8 @@
   color: var(--zx-color-on-accent);
 }
 
-.zx-btn[data-kind="danger"]:hover:not(:disabled) {
+.zx-btn[data-kind="danger"]:hover:not(:disabled),
+.zx-btn[data-kind="danger"][aria-expanded="true"]:not(:disabled) {
   background: color-mix(in srgb, var(--zx-color-danger) 88%, var(--zx-color-text));
 }
 
@@ -86,12 +91,14 @@
   color: var(--zx-color-text-subtle);
 }
 
-.zx-btn[data-kind="ghost"]:hover:not(:disabled) {
+.zx-btn[data-kind="ghost"]:hover:not(:disabled),
+.zx-btn[data-kind="ghost"][aria-expanded="true"]:not(:disabled) {
   border-color: transparent;
   background: var(--zx-color-bg-hover);
 }
 
-.zx-btn[data-kind="ghost"]:hover:not(:disabled) > .zx-icon {
+.zx-btn[data-kind="ghost"]:hover:not(:disabled) > .zx-icon,
+.zx-btn[data-kind="ghost"][aria-expanded="true"]:not(:disabled) > .zx-icon {
   color: var(--zx-color-text);
 }
 
@@ -143,19 +150,17 @@
   flex: none;
 }
 
-/* The key hint is quieter than the label by colour and weight, not by opacity: faded white on a
-   solid fill falls below 4.5:1. On a solid button it keeps the button's ink at a lighter weight. */
+/* The key hint is a keycap (`kbd()`), so "New company N" reads as a label and a key, not as a
+   typo. On a solid button the cap is drawn in the button's own ink — a tint of it for the fill,
+   a stronger one for the edge — never a faded white, which falls below 4.5:1. */
 .zx-btn__shortcut {
-  font: inherit;
-  font-size: var(--zx-text-xs);
-  font-weight: 400;
-  color: var(--zx-color-text-muted);
   margin-inline-start: var(--zx-space-1);
-  white-space: nowrap;
 }
 
 .zx-btn:is([data-kind="primary"], [data-kind="danger"]) .zx-btn__shortcut {
-  color: inherit;
+  --zx-kbd-ink: currentColor;
+  --zx-kbd-fill: color-mix(in srgb, currentColor 14%, transparent);
+  --zx-kbd-line: color-mix(in srgb, currentColor 32%, transparent);
 }
 
 .zx-btn-group > .zx-btn:not(:first-child) {

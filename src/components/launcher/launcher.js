@@ -5,6 +5,7 @@ import { printf } from '../../core/i18n.js';
 import { connectedOverlayHost, overlayScope } from '../../core/overlay-host.js';
 import { pushOverlay } from '../../core/overlay-stack.js';
 import { uid } from '../../core/util.js';
+import { kbd } from '../kbd/kbd.js';
 
 /**
  * @typedef {Object} LauncherItem
@@ -17,7 +18,8 @@ import { uid } from '../../core/util.js';
  * @property {string|number} [badge] Compact metadata.
  * @property {string|number} [hint] Muted text at the end of the row, such as a current value or a project.
  * @property {string|string[]|{label: string|string[], keys?: string}} [shortcut] Key labels drawn as
- *   key caps (`['⌘', 'K']`), or Button's `{label, keys}` shape. Display only: the Launcher binds nothing.
+ *   key caps with `kbd()` (`['⌘', 'K']`; a name such as `'Mod'` or `'Shift'` takes the platform's
+ *   glyph), or Button's `{label, keys}` shape. Display only: the Launcher binds nothing.
  * @property {string} [keys] The same shortcut in `aria-keyshortcuts` syntax (`'Meta+K'`), exposed on
  *   the option for assistive technology.
  * @property {'application'|'record'|'action'} [kind='action'] Tile or row presentation.
@@ -245,10 +247,9 @@ export class Launcher extends Component {
       role: 'listbox',
       ariaLabel: this.options.resultsLabel ?? this._message('launcher.results', 'Launcher results')
     });
-    const shortcut = this.options.shortcut === 'mod+k' ? h('kbd', {
-      class: 'zx-launcher__shortcut',
-      ariaHidden: 'true'
-    }, launcherShortcutLabel()) : null;
+    const shortcut = this.options.shortcut === 'mod+k'
+      ? h('span', { class: 'zx-launcher__shortcut', ariaHidden: 'true' }, kbd('Mod+K'))
+      : null;
     const footer = launcherHints(this.options.hints, {
       move: this._message('launcher.hintMove', 'Move'),
       open: this._message('launcher.hintOpen', 'Open'),
@@ -790,7 +791,7 @@ export class Launcher extends Component {
     const caps = launcherShortcutCaps(item.shortcut);
     // Drawn caps are part of the option's name unless `keys` already exposes the shortcut.
     if (caps.length) children.push(h('span', { class: 'zx-launcher__keys', ariaHidden: keys ? 'true' : null },
-      caps.map((cap) => h('kbd', { class: 'zx-launcher__key' }, cap))));
+      kbd(caps, { size: 'sm' })));
     if (page) children.push(h('span', { class: 'zx-launcher__chevron', ariaHidden: 'true' }, icon('chevron-right')));
     return /** @type {HTMLElement} */ (h(tag, {
       class: 'zx-launcher__option',
@@ -995,13 +996,6 @@ export class Launcher extends Component {
   }
 }
 
-/** @returns {string} */
-function launcherShortcutLabel() {
-  const platform = String((/** @type {any} */ (navigator)).userAgentData?.platform
-    ?? navigator.platform ?? '');
-  return /mac|iphone|ipad/i.test(platform) ? '⌘ K' : 'Ctrl K';
-}
-
 /**
  * @param {LauncherOptions['hints']} hints Host-supplied hint labels, or false to omit the row.
  * @param {{move: string, open: string, back: string, close: string}} defaults Resolved built-in labels.
@@ -1011,11 +1005,11 @@ function launcherHints(hints, defaults) {
   if (hints === false) return null;
   const labels = hints && typeof hints === 'object' ? hints : {};
   return h('footer', { class: 'zx-launcher__hints', ariaHidden: 'true' },
-    h('span', {}, h('kbd', {}, '↑↓←→'), labels.move ?? defaults.move),
-    h('span', {}, h('kbd', {}, '↵'), labels.open ?? defaults.open),
+    h('span', {}, kbd(['↑↓←→']), labels.move ?? defaults.move),
+    h('span', {}, kbd('Enter'), labels.open ?? defaults.open),
     // Shown only on a page (`_syncPage()`).
-    h('span', { ref: 'backHint', hidden: true }, h('kbd', {}, '⌫'), labels.back ?? defaults.back),
-    h('span', {}, h('kbd', {}, 'Esc'), labels.close ?? defaults.close));
+    h('span', { ref: 'backHint', hidden: true }, kbd('Backspace'), labels.back ?? defaults.back),
+    h('span', {}, kbd('Escape'), labels.close ?? defaults.close));
 }
 
 /**

@@ -15,17 +15,25 @@
   cursor: pointer;
 }
 
+/* The hover fill is laid over the button's own fill rather than swapped in for it: in dark both
+   the control fill and the hover step are a few percent of white, and a swap would show nothing. */
 .zx-check-button:hover:not(:disabled) {
-  background: var(--zx-color-bg-hover);
+  background: linear-gradient(var(--zx-color-bg-hover), var(--zx-color-bg-hover)), var(--zx-color-bg-control);
 }
 
 /* Pressed is a state the button is in, so the button itself goes neutral — the current fill, a
    stronger border, the full text colour — and only the check glyph, which is the mark, keeps the
-   accent, as a checkbox would. */
+   accent, as a checkbox would. The current fill is laid over the control fill too, so pressed
+   stays a step above hover in dark; pointed at, it keeps that fill and takes the hover on top. */
 .zx-check-button[aria-pressed="true"] {
   border-color: var(--zx-color-border-strong);
-  background: var(--zx-color-bg-current);
+  background: linear-gradient(var(--zx-color-bg-current), var(--zx-color-bg-current)), var(--zx-color-bg-control);
   color: var(--zx-color-text);
+}
+
+.zx-check-button[aria-pressed="true"]:hover:not(:disabled) {
+  background: linear-gradient(var(--zx-color-bg-hover), var(--zx-color-bg-hover)),
+    linear-gradient(var(--zx-color-bg-current), var(--zx-color-bg-current)), var(--zx-color-bg-control);
 }
 
 .zx-check-button__on {

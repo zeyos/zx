@@ -207,8 +207,8 @@
 
 .zx-tabbox[data-variant="segmented"] .zx-tabbox__tab {
   block-size: 100%;
-  /* Nested inside the frame's 2px padding, so the inner corner is one step tighter. */
-  border-radius: max(0px, calc(var(--zx-tabbox-radius) - 2px));
+  /* Concentric with the frame: its corner less the 1px border and the 2px padding between them. */
+  border-radius: max(0px, calc(var(--zx-tabbox-radius) - 3px));
   padding-inline: var(--zx-space-3);
   font-size: var(--zx-text-sm);
 }

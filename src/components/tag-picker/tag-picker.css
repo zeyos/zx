@@ -42,21 +42,24 @@
   display: contents;
 }
 
+/* A chip is one fill, not a fill and a line. The border stays, transparent, so the chip keeps its
+   size and a forced-colours reader gets an outline back. */
 .zx-tag-picker__tag {
   display: inline-flex;
   align-items: center;
   gap: var(--zx-space-1);
   max-inline-size: 100%;
   padding-inline-start: var(--zx-space-2);
-  border: 1px solid var(--zx-color-border);
+  border: 1px solid transparent;
   border-radius: var(--zx-radius-md);
-  background: var(--zx-color-bg-muted);
+  /* A text-colour step, not the muted surface: it reads on the control's own fill in both themes,
+     where the hairline used to do the separating. */
+  background: color-mix(in srgb, var(--zx-color-text) 8%, transparent);
   font-size: var(--zx-text-sm);
   line-height: 1.5;
 }
 
 .zx-tag-picker__tag[data-colored="true"] {
-  border-color: color-mix(in srgb, var(--zx-tag-color) 48%, var(--zx-color-border));
   background: color-mix(in srgb, var(--zx-tag-color) 14%, var(--zx-color-bg-muted));
 }
 
@@ -74,7 +77,6 @@
 /* A categorical tone: the tag takes the Badge tone palette — the tone's tint as fill, its ink as
    text, no border — and an icon tile the same pair, so a label keeps one colour everywhere. */
 .zx-tag-picker__tag[data-tone] {
-  border-color: transparent;
   background: var(--zx-tag-tone-bg);
   color: var(--zx-tag-tone-fg);
 }
@@ -113,10 +115,29 @@
   white-space: nowrap;
 }
 
+/* The × is stretched to the chip's line and held 1px in from it, so with the chip's own 1px edge
+   its hover fill sits 2px inside the chip on every side and never touches the chip's edge. (A
+   percentage height would not resolve here: the chip is as tall as its content.) */
 .zx-tag-picker .zx-tag-picker__remove {
-  inline-size: 20px;
-  block-size: 20px;
+  inline-size: 18px;
+  block-size: auto;
+  align-self: stretch;
+  margin-block: 1px;
+  margin-inline-end: 1px;
   border-radius: var(--zx-radius-sm);
+}
+
+/* Someone who asked for more contrast, or whose colours are forced, gets the chip's edge back. */
+@media (prefers-contrast: more) {
+  .zx-tag-picker__tag {
+    border-color: var(--zx-color-border-strong);
+  }
+}
+
+@media (forced-colors: active) {
+  .zx-tag-picker__tag {
+    border-color: CanvasText;
+  }
 }
 
 .zx-tag-picker__input {
@@ -163,7 +184,8 @@
   max-inline-size: calc(100vw - var(--zx-space-4));
   overflow: hidden;
   border: 1px solid var(--zx-color-overlay-border);
-  border-radius: var(--zx-radius-lg);
+  /* Concentric with the options inside it: their corner plus the inset around them. */
+  border-radius: var(--zx-radius-panel);
   background-color: var(--zx-color-overlay-surface);
   background-image: var(--zx-overlay-surface-image);
   background-clip: padding-box;

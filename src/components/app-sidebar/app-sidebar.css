@@ -226,7 +226,9 @@
      label. Either way a single-line row is one control tall, and a wrapped one grows. */
   padding-block: min(var(--zx-space-1), (var(--zx-app-sidebar-item-height) - var(--zx-app-sidebar-icon)) / 2);
   padding-inline: var(--zx-app-sidebar-pad-x);
-  color: var(--zx-color-text);
+  /* Navigation rests one ink step under the content, so the eye lands on the page beside it; the
+     row comes up to the full text colour when pointed at, focused, or current. */
+  color: var(--zx-color-text-chrome);
   font-size: var(--zx-text-md);
   font-weight: 500;
   line-height: 1.35;
@@ -243,13 +245,14 @@
 .zx-app-sidebar__row[data-level="2"] > .zx-app-sidebar__item { padding-inline-start: calc(var(--zx-app-sidebar-pad-x) + var(--zx-app-sidebar-step-1)); }
 .zx-app-sidebar__row[data-level="3"] > .zx-app-sidebar__item { padding-inline-start: calc(var(--zx-app-sidebar-pad-x) + var(--zx-app-sidebar-step-2)); }
 
+/* The icon is drawn in the label's ink, so the row reads as one thing at rest and comes up as one. */
 .zx-app-sidebar__item-icon {
   grid-column: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   inline-size: var(--zx-app-sidebar-icon);
-  color: var(--zx-color-text-muted);
+  color: inherit;
 }
 
 /* No nowrap and no ellipsis: the row grows instead. `hyphens` is what makes that bearable for a
@@ -280,19 +283,16 @@
 }
 
 .zx-app-sidebar__item:hover { background: var(--zx-app-sidebar-hover); }
-.zx-app-sidebar__item:hover .zx-app-sidebar__item-icon,
-.zx-app-sidebar__item:hover .zx-app-sidebar__item-disclosure { color: var(--zx-color-text); }
+.zx-app-sidebar__item:is(:hover, :focus-visible) { color: var(--zx-color-text); }
+.zx-app-sidebar__item:is(:hover, :focus-visible) .zx-app-sidebar__item-disclosure { color: var(--zx-color-text); }
 .zx-app-sidebar__item:active { background: var(--zx-app-sidebar-press); }
 
 /* A branch that is closed over the active route carries the heavier label, so the way back to
    the current page is visible without opening it; a branch that is open says so with its chevron
    and shows the active row itself. */
 .zx-app-sidebar__item[data-active-descendant="true"][aria-expanded="false"] {
-  font-weight: var(--zx-weight-semibold);
-}
-
-.zx-app-sidebar__item[data-active-descendant="true"][aria-expanded="false"] .zx-app-sidebar__item-icon {
   color: var(--zx-color-text);
+  font-weight: var(--zx-weight-semibold);
 }
 
 /* The current page: a neutral fill, the full text colour, a heavier label. Focus is a ring on top
@@ -309,7 +309,6 @@
   background: var(--zx-app-sidebar-press);
 }
 
-.zx-app-sidebar__item[aria-current="page"] .zx-app-sidebar__item-icon,
 .zx-app-sidebar__item[aria-current="page"] .zx-app-sidebar__item-disclosure {
   color: var(--zx-color-text);
 }
@@ -379,7 +378,8 @@
   display: inline-grid;
   justify-self: center;
   gap: 2px;
-  border-radius: var(--zx-radius-md);
+  /* Concentric with the options inside it: their corner plus the 2px between them. */
+  border-radius: calc(var(--zx-radius-sm) + 2px);
   background: var(--zx-color-bg-hover);
   padding: 2px;
 }
@@ -499,7 +499,11 @@
  * the loss of the label.
  */
 .zx-app-sidebar__rail .zx-app-rail__item {
-  color: var(--zx-color-text-muted);
+  color: var(--zx-color-text-chrome);
+}
+
+.zx-app-sidebar__rail .zx-app-rail__item:focus-visible {
+  color: var(--zx-color-text);
 }
 
 .zx-app-sidebar__rail .zx-app-rail__item:not([aria-current="page"]):hover,

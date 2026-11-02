@@ -1,8 +1,13 @@
 import { h } from '../../core/dom.js';
 import { icon as createIcon } from '../../core/icons.js';
+import { kbd } from '../kbd/kbd.js';
 import { spinner } from '../loading/spinner.js';
 
-/** @typedef {{label:string,keys:string}} ButtonShortcut Visible hint and ARIA key combination; the host binds the action. */
+/**
+ * @typedef {{label:string,keys:string}} ButtonShortcut Visible hint and ARIA key combination; the
+ *   host binds the action. `label` is drawn as keycaps by `kbd()` — a chord such as `'Mod+K'`
+ *   shows the platform's glyphs — and `keys` goes to `aria-keyshortcuts` as written.
+ */
 
 /**
  * @typedef {Object} ButtonOptions
@@ -52,7 +57,7 @@ export function button(opts = {}) {
   if (options.label !== '') {
     element.append(h('span', { class: 'zx-btn__label' }, String(options.label)));
   }
-  if (options.shortcut) element.append(h('kbd', { class: 'zx-btn__shortcut', ariaHidden: 'true' }, options.shortcut.label));
+  if (options.shortcut) element.append(shortcutHint(options.shortcut.label));
   if (!options.label && options.title) element.setAttribute('aria-label', options.title);
   if (typeof options.onclick === 'function') element.onclick = options.onclick;
   if (options.busy) setButtonBusy(element, true);
@@ -105,6 +110,19 @@ export function setButtonBusy(element, busy) {
     element.removeAttribute('aria-disabled');
   }
   return element;
+}
+
+/**
+ * The visible key hint: small keycaps, hidden from assistive technology because the button
+ * already announces its shortcut through `aria-keyshortcuts` and its title.
+ * @param {string} label Key or chord to draw.
+ * @returns {HTMLElement}
+ */
+function shortcutHint(label) {
+  const hint = kbd(String(label), { size: 'sm' });
+  hint.classList.add('zx-btn__shortcut');
+  hint.setAttribute('aria-hidden', 'true');
+  return hint;
 }
 
 /** @param {unknown} value @returns {'default'|'primary'|'danger'|'ghost'} */

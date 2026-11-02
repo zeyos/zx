@@ -277,6 +277,19 @@
   inset-block-start: 0;
 }
 
+/*
+ * Body rows keep one rhythm: a single-line row is exactly `--zx-row-height`, its divider included,
+ * whatever the cells hold. On a table cell `block-size` is a minimum, so wrapped text or a taller
+ * control still grows its row; the slim block padding leaves a content box large enough for a
+ * checkbox, an avatar or a badge, which the middle alignment centres. Sized as a border box here
+ * rather than by the scope, so the height holds in any host.
+ */
+.zx-table__body > tr:not(.zx-table__empty-row) > :is(td, th) {
+  box-sizing: border-box;
+  block-size: var(--zx-row-height);
+  padding-block: var(--zx-space-1);
+}
+
 .zx-table th[data-align="center"],
 .zx-table td[data-align="center"] {
   text-align: center;
@@ -305,14 +318,17 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--zx-space-2);
-  inline-size: 100%;
+  /* Wider than the cell by an inset on each side, handed back by the margins, so the hover fill
+     clears the label instead of hugging it while the label stays on the column's text edge. */
+  inline-size: calc(100% + 2 * var(--zx-space-2));
   min-block-size: 24px;
   border: 0;
   border-radius: var(--zx-radius-sm);
   background: inherit;
   color: inherit;
   margin-block: calc(-1 * var(--zx-table-sort-slack));
-  padding: var(--zx-table-sort-slack) 0;
+  margin-inline: calc(-1 * var(--zx-space-2));
+  padding: var(--zx-table-sort-slack) var(--zx-space-2);
   /* The header's type, not a control's: base.css sets buttons in the control size and weight, and
      the browser resets their tracking, so a sortable label would not match its unsortable
      neighbours. */
@@ -356,22 +372,32 @@
 }
 
 .zx-table__scroll[data-zebra="true"] .zx-table__body tr:nth-child(even):not([aria-selected="true"]) {
-  background: var(--zx-color-bg-page);
+  --zx-table-row-fill: var(--zx-color-bg-page);
+  background: var(--zx-table-row-fill);
 }
 
 /* Checked rows of a multi-selection are picks and keep the accent tint. The selected row of a
    single-selection table — no checkbox column — is the record you are on, the current row of a
    master–detail list, and takes the neutral current fill instead. */
 .zx-table__body tr[aria-selected="true"] {
-  background: var(--zx-table-row-selected-bg, var(--zx-color-bg-selected));
+  --zx-table-row-fill: var(--zx-table-row-selected-bg, var(--zx-color-bg-selected));
+  background: var(--zx-table-row-fill);
 }
 
 .zx-table__body tr[aria-selected="true"]:not(:has(> .zx-table__selection-cell)) {
-  background: var(--zx-table-row-selected-bg, var(--zx-color-bg-current));
+  --zx-table-row-fill: var(--zx-table-row-selected-bg, var(--zx-color-bg-current));
 }
 
 .zx-table__body tr[data-row]:hover {
-  background: var(--zx-color-bg-hover);
+  background: var(--zx-table-row-hover-bg, var(--zx-color-bg-hover));
+}
+
+/* State is never lost under the pointer: a selected, current or striped row lays the hover step
+   over its own fill instead of trading it for the hover fill. */
+.zx-table__body tr[data-row][aria-selected="true"]:hover,
+.zx-table__scroll[data-zebra="true"] .zx-table__body tr[data-row]:nth-child(even):not([aria-selected="true"]):hover {
+  background: linear-gradient(var(--zx-table-row-hover-bg, var(--zx-color-bg-hover)),
+    var(--zx-table-row-hover-bg, var(--zx-color-bg-hover))), var(--zx-table-row-fill);
 }
 
 /* ------------------------------------------------------------------ plain -- */
@@ -400,8 +426,9 @@
   background: transparent;
 }
 
+/* The stripe's own rule paints this fill, and the hover step lays over it, so nothing more. */
 .zx-table[data-variant="plain"] .zx-table__scroll[data-zebra="true"] .zx-table__body tr:nth-child(even):not([aria-selected="true"]) {
-  background: transparent;
+  --zx-table-row-fill: transparent;
 }
 
 .zx-table[data-variant="plain"] .zx-table__body tr:last-child td {
@@ -566,6 +593,7 @@
 .zx-table[data-stacked] .zx-table__body > tr[data-span] > * {
   display: block;
   inline-size: auto;
+  block-size: auto;
   padding-inline: 0;
   text-align: start;
 }
@@ -576,11 +604,12 @@
 
 /* --- Inline editing (Table editMode) -------------------------------------------------------- */
 
-/* Reserve a control-sized content box in every body cell as soon as the table is editable, so
-   opening an editor never changes a row's height. On a table cell `block-size` is a minimum, which
-   is exactly the wanted behaviour: taller content still grows the row. */
+/* Every body cell of an editable table holds an editor's height above its divider — the row
+   height already does, unless a theme sets rows tighter than a control — so opening an editor
+   never changes a row's height. On a table cell `block-size` is a minimum, which is exactly the
+   wanted behaviour: taller content still grows the row. */
 .zx-table[data-edit-mode] .zx-table__body td {
-  block-size: var(--zx-control-height);
+  block-size: max(var(--zx-row-height), calc(var(--zx-control-height) + 1px));
 }
 
 .zx-table__body td[data-editable="true"] {
@@ -704,6 +733,7 @@
   justify-content: space-between;
   gap: var(--zx-space-4);
   inline-size: auto;
+  block-size: auto;
   padding-block: var(--zx-space-1);
   padding-inline: 0;
   border: 0;

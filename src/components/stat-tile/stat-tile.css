@@ -86,7 +86,7 @@ button.zx-stat-tile:focus-visible {
   min-inline-size: 0;
   margin-block-start: var(--zx-space-1);
   font-size: var(--zx-stat-tile-value-size);
-  font-weight: 650;
+  font-weight: var(--zx-weight-title);
   font-variant-numeric: tabular-nums;
   letter-spacing: var(--zx-tracking-title);
   line-height: 1.15;
@@ -159,7 +159,8 @@ button.zx-stat-tile:focus-visible {
   block-size: 2rem;
   margin-block-start: auto;
   padding-block-start: var(--zx-space-2);
-  color: var(--zx-color-text-placeholder);
+  /* The sparkline is the tile's only data mark, so it needs a mark's 3:1, not placeholder ink. */
+  color: var(--zx-color-text-subtle);
 }
 
 .zx-stat-tile__loading {

@@ -29,7 +29,7 @@
   padding-inline: var(--zx-space-2);
   color: var(--zx-color-accent);
   font-size: var(--zx-text-xl);
-  font-weight: 650;
+  font-weight: var(--zx-weight-title);
   letter-spacing: var(--zx-tracking-title);
 }
 
@@ -61,7 +61,8 @@
   cursor: pointer;
 }
 
-.zx-navigation-bar__item:hover:not([aria-disabled="true"]) {
+/* The current item is left out, so pointing at it never trades its fill for the lighter hover. */
+.zx-navigation-bar__item:hover:not([aria-disabled="true"], [aria-current="page"], [aria-selected="true"]) {
   background: var(--zx-color-bg-hover);
   color: var(--zx-color-text);
 }
