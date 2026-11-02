@@ -326,11 +326,28 @@ hairline in dark, under `prefers-contrast: more`, and in forced colours),
 tiles, avatars — neither the accent nor a status) and `-solid` (a solid identity fill, such as a
 module tile, that the white icon glyph reads on at 3:1 in both themes), the chart series
 `--zx-color-chart-1…8`,
-`--zx-focus-ring`, `--zx-control-height/-radius`, `--zx-space-*`, `--zx-radius-*`, `--zx-text-*`
+`--zx-color-ring` with `--zx-focus-ring` (keyboard focus; see **Focus** below),
+`--zx-control-height/-radius`, `--zx-space-*`, `--zx-radius-*`, `--zx-text-*`
 (`-3xl` for document titles), `--zx-weight-medium/-semibold`, `--zx-tracking-tight/-title`. Never
 use tier-1 palette tokens (`--zx-gray-*`, `--zx-green-*`, `--zx-emerald-*`, `--zx-tone-*`) or raw
 color literals in application/component CSS. Prefer the least-specific override that works (global
 token → then, if needed, a component style).
+
+**Focus.** Keyboard focus is one quiet line: `--zx-focus-ring` is a single 2px spread shadow in
+`--zx-color-ring` (the accent, at the stop each theme reads as text), opaque, so it clears the 3:1
+a focus indicator needs against everything it sits on — the page, the chrome, a card, a raised
+panel, a current row and a selected row — in both themes, under every preset and tint, and for any
+custom ramp that keeps the promise above. Being one shadow, it works both ways round:
+`box-shadow: var(--zx-focus-ring)` draws it around a control, `box-shadow: inset
+var(--zx-focus-ring)` inside a row, a tab, or a cell. Combine it by listing it after the
+element's own shadows (`var(--zx-focus-ring), var(--zx-drag-shadow)`), with any `inset` layer
+first, since `inset` belongs to one shadow of a list rather than to the list. Where the focused
+element is itself an accent fill — a primary button, a chosen day — the ring would only make it
+look larger, so lead with a 1px line in the fill's ink: `box-shadow: inset 0 0 0 1px
+var(--zx-color-on-accent-solid), var(--zx-focus-ring)` (`--zx-color-on-accent` on a
+`--zx-color-accent` fill). Leave the outline transparent rather than removing it: forced colours
+drop every shadow and paint that outline in the system highlight instead. A product that restyles
+the ring keeps it one shadow, at least 2px, and at 3:1; to recolour it, set `--zx-color-ring`.
 
 **Print.** `zx.css` imports `styles/print.css` last. It releases sticky headers and scroll
 containers, drops fills, shadows, zebra striping and focus rings, hides overlays and navigation

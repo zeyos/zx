@@ -99,7 +99,7 @@
   --zx-color-tone-slate-bg: color-mix(in srgb, var(--zx-tone-slate-500) 20%, var(--zx-color-bg-surface));
   --zx-color-tone-slate-fg: var(--zx-tone-slate-300);
   --zx-color-ring: var(--zx-color-accent);
-  --zx-focus-ring: 0 0 0 3px color-mix(in srgb, var(--zx-color-ring) 45%, transparent);
+  --zx-focus-ring: 0 0 0 2px var(--zx-color-ring);
   /* Depth on a dark canvas comes from light, not shadow: a resting surface gets a faintly lit top
      edge and only a short contact shadow under it. A heavier shadow would read as a lifted one. */
   --zx-surface-shadow: inset 0 1px 0 color-mix(in srgb, var(--zx-gray-0) 5%, transparent), 0 1px 2px color-mix(in srgb, var(--zx-gray-950) 30%, transparent);
@@ -191,7 +191,7 @@
     --zx-color-tone-slate-bg: color-mix(in srgb, var(--zx-tone-slate-500) 20%, var(--zx-color-bg-surface));
     --zx-color-tone-slate-fg: var(--zx-tone-slate-300);
     --zx-color-ring: var(--zx-color-accent);
-    --zx-focus-ring: 0 0 0 3px color-mix(in srgb, var(--zx-color-ring) 45%, transparent);
+    --zx-focus-ring: 0 0 0 2px var(--zx-color-ring);
     --zx-surface-shadow: inset 0 1px 0 color-mix(in srgb, var(--zx-gray-0) 5%, transparent), 0 1px 2px color-mix(in srgb, var(--zx-gray-950) 30%, transparent);
     --zx-overlay-shadow: 0 12px 36px rgb(0 0 0 / 45%);
     --zx-drag-shadow: 0 0 0 1px color-mix(in srgb, var(--zx-gray-0) 7%, transparent), 0 2px 6px -1px rgb(0 0 0 / 40%), 0 14px 32px -6px rgb(0 0 0 / 60%);

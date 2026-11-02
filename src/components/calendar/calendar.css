@@ -127,6 +127,11 @@
   box-shadow: var(--zx-focus-ring);
 }
 
+/* A solid accent under the accent ring: an inner line in its own ink keeps them apart. */
+.zx-calendar__new:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--zx-color-on-accent-solid), var(--zx-focus-ring);
+}
+
 .zx-calendar__heading {
   min-inline-size: 0;
   margin: 0;

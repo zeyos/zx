@@ -1146,3 +1146,93 @@ test('navigation ink rests at 7:1 on the chrome and the canvas, under every pres
     }
   }
 });
+
+/* ---------------------------------------------------------------- focus ring -- */
+
+/**
+ * `--zx-focus-ring` read apart: it must stay one outer shadow (no list, no `inset`), because
+ * components draw it both around a control and, as `inset var(--zx-focus-ring)`, inside a row or a
+ * tab, and `inset` applies only to the first shadow of a list.
+ * @param {Map<string, string>} tokens
+ * @returns {{width: number, colour: string}}
+ */
+function focusRing(tokens) {
+  const value = tokens.get('--zx-focus-ring');
+  assert.equal(splitArgs(value).length, 1, `the focus ring is a list of shadows: ${value}`);
+  const match = /^0 0 0 ([\d.]+)px (.+)$/s.exec(value);
+  assert.ok(match, `the focus ring is not one spread shadow: ${value}`);
+  return { width: Number(match[1]), colour: match[2] };
+}
+
+/**
+ * Everything a focused element sits on: the four surface tones, a current row in either column, and
+ * a picked row.
+ * @param {Map<string, string>} tokens
+ * @returns {Record<string, string>}
+ */
+function ringBackgrounds(tokens) {
+  return {
+    page: paint(tokens, '--zx-color-bg-page'),
+    chrome: paint(tokens, '--zx-color-bg-chrome'),
+    surface: paint(tokens, '--zx-color-bg-surface'),
+    raised: paint(tokens, '--zx-color-bg-raised'),
+    'a current row in the chrome': currentRow(tokens, '--zx-color-bg-chrome'),
+    'a current row on the canvas': currentRow(tokens, '--zx-color-bg-surface'),
+    'a selected row': paint(tokens, '--zx-color-bg-selected')
+  };
+}
+
+/**
+ * The focus indicator is non-text contrast: the ring as painted over what it sits on, against that
+ * same background, at 3:1 or better.
+ * @param {Map<string, string>} tokens
+ * @param {string} name
+ */
+function assertRingReads(tokens, name) {
+  const { width, colour } = focusRing(tokens);
+  atLeast(width, 2, `${name}: the focus ring is thinner than 2px`);
+  for (const [where, background] of Object.entries(ringBackgrounds(tokens))) {
+    const ring = hex(over(resolve(colour, tokens), resolve(background, tokens)));
+    atLeast(contrast(ring, background), 3, `${name}: the focus ring on ${where}`);
+  }
+}
+
+test('the focus ring clears 3:1 on every surface and row, under every preset and tint, in both themes', () => {
+  for (const { theme, preset, tokens: base, name } of SCOPES) {
+    assertRingReads(base, name);
+    for (const tint of TINTS) {
+      for (const tintStrength of [100, RANGES.tintStrength.max]) {
+        const tokens = new Map([...base, ...Object.entries(tintRamp({ ...DEFAULTS, preset, tint: tint.id, tintStrength }))]);
+        assertRingReads(tokens, `${theme}/${preset} ${tint.id} at ${tintStrength}%`);
+      }
+    }
+  }
+});
+
+test('the focus ring reads for a custom accent of any hue, as the ramp promise does', () => {
+  for (const theme of THEMES) {
+    for (let hue = 0; hue < 360; hue += 15) {
+      const ramp = accentRamp(toHex({ l: 0.7, c: 0.37, h: hue }));
+      const tokens = new Map([...tokensFor(theme), ...Object.entries(ramp).map(([stop, value]) => [`--zx-accent-${stop}`, value])]);
+      assertRingReads(tokens, `${theme} hue ${hue}`);
+    }
+  }
+});
+
+test('a focused accent fill keeps a line of its own ink between it and the ring', () => {
+  // The ring is the accent, so around a control that is itself an accent fill it would only make
+  // the control look larger. Each of these composes a 1px inner line in the fill's ink first.
+  const filled = [
+    ['button/button.css', /\.zx-btn\[data-kind="primary"\]:focus-visible\s*\{[^}]*/, 'on-accent-solid'],
+    ['calendar/calendar.css', /\.zx-calendar__new:focus-visible\s*\{[^}]*/, 'on-accent-solid'],
+    ['date-picker/date-picker.css', /\.zx-date-picker__day\[aria-selected="true"\]:focus-visible\s*\{[^}]*/, 'on-accent'],
+    ['date-picker/date-range-picker.css', /\[data-range="end"\]\) > \.zx-date-range-picker__day:focus-visible\s*\{[^}]*/, 'on-accent'],
+    ['date-picker/time-picker.css', /\.zx-time-picker__mark\[aria-checked="true"\]:focus-visible\s*\{[^}]*/, 'on-accent']
+  ];
+  for (const [path, rule, ink] of filled) {
+    const body = rule.exec(componentCss(path))?.[0];
+    assert.ok(body, `${path} has no focus rule for its accent fill`);
+    assert.match(body, new RegExp(`box-shadow:\\s*inset 0 0 0 1px var\\(--zx-color-${ink}\\),\\s*var\\(--zx-focus-ring\\);`),
+      `${path} draws the ring straight onto its accent fill`);
+  }
+});

@@ -856,6 +856,11 @@
   box-shadow: var(--zx-focus-ring);
 }
 
+/* A solid accent under the accent ring: an inner line in its own ink keeps them apart. */
+.chat .chat__bar > .chat__send:not(:disabled, .chat__stop):focus-visible {
+  box-shadow: inset 0 0 0 1px var(--zx-color-on-accent-solid), var(--zx-focus-ring);
+}
+
 .chat .chat__bar > .chat__send:is(:disabled, .chat__stop) {
   background: var(--zx-color-bg-current);
 }

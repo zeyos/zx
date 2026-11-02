@@ -241,6 +241,12 @@
   box-shadow: var(--zx-focus-ring);
 }
 
+/* The range ends are accent fills under the accent ring: an inner line in their own ink keeps the
+   two apart. */
+.zx-date-range-picker__grid td:is([data-range="start"], [data-range="end"]) > .zx-date-range-picker__day:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--zx-color-on-accent), var(--zx-focus-ring);
+}
+
 .zx-date-range-picker[aria-disabled="true"] .zx-date-range-picker__surface {
   background: var(--zx-color-bg-page);
   opacity: 0.65;

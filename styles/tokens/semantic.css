@@ -4,7 +4,7 @@
  * The mapping uses a white canvas with a grey chrome tone beside it, translucent neutral
  * hover/current fills, quiet borders and inputs, strong body text, a categorical tone palette
  * apart from both the accent and the status colours, and one tight control geometry (30px
- * controls, `--zx-radius` corners, a 3px translucent focus ring). There is a single geometry: an
+ * controls, `--zx-radius` corners, a 2px accent focus ring). There is a single geometry: an
  * application that wants a different rhythm sets `--zx-space-unit` and `--zx-control-height`
  * rather than switching a mode.
  *
@@ -217,8 +217,13 @@
   --zx-color-tone-pink-bg: color-mix(in srgb, var(--zx-tone-pink-500) 13%, var(--zx-color-bg-surface));
   --zx-color-tone-violet-bg: color-mix(in srgb, var(--zx-tone-violet-500) 13%, var(--zx-color-bg-surface));
   --zx-color-tone-slate-bg: color-mix(in srgb, var(--zx-tone-slate-500) 13%, var(--zx-color-bg-surface));
+  /* Keyboard focus: one 2px line in the accent, opaque, so it clears 3:1 against every surface it
+     sits on (the page, the chrome, a card, a current or selected row) under any accent ramp that
+     keeps the ramp promise. One shadow, never a list, so `inset var(--zx-focus-ring)` draws the
+     same line inside a row or a tab. Where the focused element is itself an accent fill, the
+     component adds a 1px inner line in its own ink so ring and fill stay apart. */
   --zx-color-ring: var(--zx-color-accent);
-  --zx-focus-ring: 0 0 0 3px color-mix(in srgb, var(--zx-color-ring) 45%, transparent);
+  --zx-focus-ring: 0 0 0 2px var(--zx-color-ring);
   --zx-color-app-icon-depth: color-mix(in srgb, var(--zx-color-app-icon-shade) 26%, transparent);
   --zx-app-icon-rim-base: var(--zx-color-glass-highlight);
   --zx-color-glass-surface: color-mix(in srgb, var(--zx-color-bg-raised) 58%, transparent);
