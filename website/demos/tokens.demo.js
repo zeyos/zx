@@ -16,8 +16,10 @@ const radiusTokens = [
   '--zx-radius', '--zx-radius-sm', '--zx-radius-md', '--zx-radius-lg', '--zx-radius-xl',
   '--zx-radius-full'
 ];
+// Every step derives from `--zx-text-base`, so the list starts with the value a theme sets.
 const typeTokens = [
-  '--zx-text-xs', '--zx-text-sm', '--zx-text-md', '--zx-text-lg', '--zx-text-xl', '--zx-text-2xl'
+  '--zx-text-base', '--zx-text-xs', '--zx-text-sm', '--zx-text-md', '--zx-text-lg', '--zx-text-xl',
+  '--zx-text-2xl', '--zx-text-3xl'
 ];
 // Every ZeyOS module, from the configuration the tokens themselves are generated from. Entity and
 // legacy names (`--zx-module-invoices`, `--zx-module-settings`) resolve too; see the Icons entry.

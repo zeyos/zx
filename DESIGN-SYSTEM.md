@@ -80,7 +80,7 @@ a Zx component or a documented composition are not counted as gaps.
 | P1 | **ColorPicker** | The reusable swatch picker is [`newCl`](../zeyos/ext/global.orig/4-ui.orig.js#L3753). A dependency-free accessible swatch/custom-color picker belongs in core and would also serve the Theme Studio. |
 | P2 | **Metric / Summary** | [`newSummary`](../zeyos/ext/global.orig/4-ui.orig.js#L7312) repeatedly formats counts, money, timing, size, stock, and relative values. These can currently be composed from Card and format helpers, but a small semantic Metric/DescriptionList pair would remove repeated markup without importing business formulas. |
 | P2 | **RecordPreview** | Typed preview builders for appointments, contacts, links, messages, tasks, and tickets start at [`newPreviewForm`](../zeyos/ext/global.orig/4-ui.orig.js#L9589). Core should offer a generic preview anatomy or engine-neutral preview host, not one component per ZeyOS entity. |
-| P2 | **Shortcut / Kbd** | Launcher and menus expose shortcuts but Zx has no reusable semantic `<kbd>` treatment. A tiny factory is justified once shortcuts appear outside those components. |
+| Done | **Shortcut / Kbd** | Covered by `kbd()`: one keycap construction for button shortcuts, the launcher's hints, and shortcut references, with platform glyphs for `Mod` and the named keys. |
 
 ### Adapter work, not new core components
 

@@ -5912,6 +5912,24 @@
       }
     ]
   },
+  "Kbd": {
+    "options": [
+      {
+        "name": "size",
+        "type": "'md'|'sm'",
+        "default": "'md'",
+        "description": "Keycap size; `sm` sits inside a button or a menu row."
+      },
+      {
+        "name": "tone",
+        "type": "'neutral'|'inherit'",
+        "default": "'neutral'",
+        "description": "`inherit` draws the keycaps in the surrounding ink — on a solid primary button, a dark toast — instead of the neutral surface keycap."
+      }
+    ],
+    "events": [],
+    "methods": []
+  },
   "Launcher": {
     "options": [
       {

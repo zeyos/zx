@@ -206,8 +206,10 @@ Themes: `light` | `dark` | `auto`. There is one geometry: spacing steps are
 multiples of `--zx-space-unit` (4px), radius steps are fractions of `--zx-radius` (4px: sm 2,
 md 3, lg 4, xl 6), and controls are `--zx-control-height` (30px) tall. Tighten an application (or a
 region) by overriding those tokens, never with an attribute. In component CSS, surfaces use
-`--zx-radius-lg`, menu/list items `--zx-radius-sm`, and `--zx-radius-full` only where roundness
-is the meaning (badges, avatars, toggles). Define a product theme by
+`--zx-radius-lg`, menu/list items `--zx-radius-sm`, a panel holding rounded items
+`--zx-radius-panel` (concentric with them), and `--zx-radius-full` only where roundness is the
+meaning (badges, avatars, toggles). Data rows are `--zx-row-height`; type is one base,
+`--zx-text-base`, with every `--zx-text-*` step derived from it. Define a product theme by
 overriding **semantic** tokens only (`--zx-color-*`, `--zx-control-*`, `--zx-space-*`,
 `--zx-radius-*`, `--zx-text-*`) under a `[data-zx-theme="name"]` selector. Never reference tier-1
 palette tokens (`--zx-gray-*`, `--zx-green-*`) or raw color literals in component/app CSS —
@@ -220,8 +222,10 @@ geometry (`--zx-space-unit`, `--zx-control-height`, `--zx-radius` on `:root` or 
 the material (Glass, Deep glass, Frost, Smoke, Paper, Satin, Enamel or Flat — studio-exported token
 overrides built from the theme's glass ingredients; `Aurora` for the light glass responds to), motion (`data-zx-motion="reduced"`; own transitions use `--zx-dur-*` and the
 `--zx-ease*` curves), colour roles (`--zx-color-tone-*` for categories, status tokens for status,
-`bg-current` for "you are here" vs `bg-selected` for "what you picked"), type
-(`--zx-font-sans`, `--zx-text-md`), and `data-zx-fields="quiet"` on property panels.
+`bg-current` for "you are here" vs `bg-selected` for "what you picked"), interface type
+(`--zx-font-sans`, `--zx-text-base`), reading type for authored content (`.zx-prose`, which reads
+`--zx-font-prose`, `--zx-prose-size`, `--zx-prose-measure`; `.zx-callout` to set a paragraph
+apart), `kbd()` for every shortcut hint, and `data-zx-fields="quiet"` on property panels.
 
 ## Custom elements (declarative)
 

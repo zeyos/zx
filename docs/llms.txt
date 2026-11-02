@@ -37,6 +37,8 @@ exports and as `window.zx.*`.
   building anything.
 
 ## Components
+- Foundations: `.zx-prose` (the reading register for authored content) and `.zx-callout`;
+  `kbd()` (keycaps for every shortcut hint).
 - Inputs: `button()`, `buttonGroup()`, `badge()`/`badgeGroup()`, `CheckButton`,
   `Toggle`, `Search`,
   `Select` (APG combobox; `filter: false|'local'|async`; priority, status, permission, and

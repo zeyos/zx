@@ -286,14 +286,21 @@ region of it — override those tokens rather than switching a mode:
 }
 ```
 
+Data rows follow the control height through `--zx-row-height` (36px by default), and type is one
+base, `--zx-text-base` (14px), with every `--zx-text-*` step derived from it. Authored content —
+a document, a record's notes, a message — takes a second, separate register: wrap it in
+`.zx-prose` and it reads `--zx-font-prose`, `--zx-prose-size`, `--zx-prose-leading` and
+`--zx-prose-measure`, so a product can set its documents in a serif without touching a control.
+`.zx-callout` sets a paragraph apart, neutral unless it is a status or a category.
+
 A second attribute picks the **accent**, orthogonally to the theme:
 
 ```html
 <html data-zx-theme="dark" data-zx-preset="ocean">
 ```
 
-Six presets ship — `zx` (the ZeyOS green, and the default), `zeyos`, `ocean`, `violet`, `rose`,
-`slate`. Each is five declarations of the tier-1 accent ramp that the semantic tier resolves
+Seven presets ship — `zx` (the ZeyOS green, and the default), `zeyos`, `ocean`, `violet`, `rose`,
+`slate`, `folio`. Each is five declarations of the tier-1 accent ramp that the semantic tier resolves
 through, so a preset rethemes light, dark, and auto at once:
 
 ```css

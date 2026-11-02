@@ -424,6 +424,40 @@ const toolbar = h('div', { class: 'toolbar' },
   --zx-control-height: 28px;
 }
       </pre>
+      <p>
+        A data row — a table row, a single-line list row — is <code>--zx-row-height</code>, which
+        follows the control height (36px at the default), so every list on a screen keeps one
+        rhythm. Set it on its own only to make rows tighter or more relaxed than the controls. Type
+        works the same way: <code>--zx-text-base</code> (14px) is the one size a theme sets, and
+        every <code>--zx-text-*</code> step derives from it, so the hierarchy holds at any base.
+      </p>
+
+      <h2>Two registers: interface and reading</h2>
+      <p>
+        Controls, rows, and navigation are interface type. Authored content — a document, a
+        record's notes, a message, an assistant's answer — is reading type, and it is a separate
+        decision. Wrap it in <code>.zx-prose</code> and it reads <code>--zx-font-prose</code>,
+        <code>--zx-prose-size</code>, <code>--zx-prose-leading</code>, and
+        <code>--zx-prose-measure</code>, so a product can set its documents in a serif, a size
+        larger, or a narrower column without touching a single control. The theme studio's
+        Reading group sets all three.
+      </p>
+      <pre data-code="reading.css">
+/* Documents in a serif, a little larger; the interface keeps its own typeface. */
+:root {
+  --zx-font-prose: Charter, "Bitstream Charter", "Sitka Text", Cambria, Georgia, serif;
+  --zx-prose-size: 17px;
+  --zx-prose-measure: 64ch;
+}
+      </pre>
+      <p>
+        Navigation recedes on its own: labels in a chrome column rest at
+        <code>--zx-color-text-chrome</code>, one ink step under the content, and come up to the
+        full text colour on hover and when current. Where a chrome column meets the canvas, the
+        tone step separates them in light, and <code>--zx-color-border-chrome</code> draws a
+        hairline only where tone cannot — in dark, under a request for more contrast, and in forced
+        colours.
+      </p>
 
       <h2>Surface hierarchy and Aurora</h2>
       <p>
@@ -460,7 +494,7 @@ const light = new Aurora('#application-canvas', {
       <p>
         <code>data-zx-preset</code> is the second attribute, and it is orthogonal to the first:
         it picks the <strong>accent ramp</strong>, while <code>data-zx-theme</code> decides which
-        end of that ramp each surface uses. Six ship with the library:
+        end of that ramp each surface uses. Seven ship with the library:
       </p>
       <table>
         <thead><tr><th>Preset</th><th>Accent</th><th>For</th></tr></thead>
@@ -468,9 +502,10 @@ const light = new Aurora('#application-canvas', {
           <tr><td><code>zx</code></td><td>ZeyOS green</td><td>The default. Set nothing to get it.</td></tr>
           <tr><td><code>zeyos</code></td><td>ZeyOS gold</td><td>Screens that sit inside the ZeyOS product marque.</td></tr>
           <tr><td><code>ocean</code></td><td>Blue</td><td>Tools meant to read as infrastructure.</td></tr>
-          <tr><td><code>violet</code></td><td>Violet</td><td>The most saturated of the six.</td></tr>
+          <tr><td><code>violet</code></td><td>Violet</td><td>The most saturated of the seven.</td></tr>
           <tr><td><code>rose</code></td><td>Rose</td><td>Warm and loud; check it against the danger colour.</td></tr>
           <tr><td><code>slate</code></td><td>Near-neutral</td><td>Data-heavy screens that should carry their own colour.</td></tr>
+          <tr><td><code>folio</code></td><td>Ink blue</td><td>Calm, document-first products: a quiet accent beside long-form reading.</td></tr>
         </tbody>
       </table>
       <pre data-code="preset.html">

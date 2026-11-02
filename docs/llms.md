@@ -183,12 +183,13 @@ the library already reads — never as component CSS:
 
 1. **Theme** — `data-zx-theme="auto"` unless the product pins `light` or `dark`. Both must work; a
    region may differ from the page.
-2. **Accent** — a preset (`data-zx-preset="zx|zeyos|ocean|violet|rose|slate"`) or a five-stop
+2. **Accent** — a preset (`data-zx-preset="zx|zeyos|ocean|violet|rose|slate|folio"`) or a five-stop
    `--zx-accent-300…700` ramp built in the theme studio (<https://zx.zeyos.com/theme.html>), which
    exports the CSS. Never a one-off colour on a button.
 3. **Geometry** — the rhythm is three tokens on `:root` (or on a dense region): `--zx-space-unit`,
    `--zx-control-height`, `--zx-radius`. Dense data tools sit around 3.5px / 28px; comfortable
-   products around 4.5px / 32–34px. Never a per-component size.
+   products around 4.5px / 32–34px. Never a per-component size. Data rows follow the control
+   height through `--zx-row-height`; set it only to make rows tighter or more relaxed than that.
 4. **Material** — how surfaces answer light, exported from the studio as token overrides (there
    is no attribute). `Glass` (the default: a thin lit pane), `Deep glass` (a thick one), `Frost`
    (milk glass for reading surfaces), `Smoke` (tinted glass that darkens the scene; dark-first
@@ -202,12 +203,17 @@ the library already reads — never as component CSS:
    `--zx-color-danger|warning|success|info` for status, `--zx-color-bg-current` for "you are here"
    and `--zx-color-bg-selected` for "what you picked", `--zx-color-bg-chrome` for navigation and
    inspector columns. A module's colour is its `tone` on `ModuleBar`.
-7. **Type** — `--zx-font-sans`, `--zx-font-mono`, `--zx-text-md` (the control size); the steps
-   follow.
-8. **Fields** — `data-zx-fields="quiet"` on property panels (no border or fill until hovered or
+7. **Type** — two registers. Interface type is `--zx-font-sans`, `--zx-font-mono` and
+   `--zx-text-base` (every `--zx-text-*` step derives from it). Reading type is a second, separate
+   decision for authored content in `.zx-prose`: `--zx-font-prose` (a serif here leaves the
+   interface alone), `--zx-prose-size`, `--zx-prose-measure`.
+8. **Content** — wrap authored text (a document, notes, a message body, an assistant's answer) in
+   `.zx-prose`; set emphasis apart with `.zx-callout` (neutral unless it is a status or a
+   category). Never style headings and paragraphs per screen.
+9. **Fields** — `data-zx-fields="quiet"` on property panels (no border or fill until hovered or
    focused).
-9. **Print** — works without work; keep status badges, hide chrome. Nothing to add.
-10. **Markup-first pages** — `defineElements()` for `<zx-*>` custom elements where templates are
+10. **Print** — works without work; keep status badges, hide chrome. Nothing to add.
+11. **Markup-first pages** — `defineElements()` for `<zx-*>` custom elements where templates are
     authored as HTML.
 
 ### Never
@@ -234,7 +240,14 @@ Themes: `light` | `dark` | `auto` (follows OS).
 **One geometry.** Spacing steps are multiples of one unit
 (`--zx-space-unit`, 4px: `--zx-space-1…8` = 4/8/12/16/20/24/32/40px), radius steps are fractions of
 one base (`--zx-radius`, 4px: `-sm/-md/-lg/-xl` = 2/3/4/6px; `-full` only for shapes whose roundness
-is the meaning — badges, avatars, toggles), and controls are `--zx-control-height` (30px) tall.
+is the meaning — badges, avatars, toggles; `-panel` is the corner of a panel that holds rounded
+items, a menu or a listbox, concentric with them: the item corner plus the inset between them, 6px
+at the default and square when the base is 0), and controls are `--zx-control-height` (30px) tall.
+A data row — a table row, a single-line list row — is `--zx-row-height`, derived from the control
+height (36px at the default), so every list on a screen shares one rhythm and a tighter product is
+still one decision. Type is one base: `--zx-text-base` (14px) with every `--zx-text-*` step derived
+from it (12 / 13 / 14 / 16 / 18 / 24 / 30px at the default), so changing the base keeps the
+hierarchy; setting `--zx-text-md` alone still moves only the control size.
 To tighten or loosen an application, override those tokens on `:root` or on any region. The
 geometry and material tokens (control size, radius, spacing, blur and glass filters, durations,
 easings, the type scale) are declared on `:root` only, never on a `[data-zx-theme]` block, so an
@@ -245,7 +258,7 @@ override on `:root` reaches nested light and dark regions alike; theme blocks ca
 ```
 
 **Accent presets.** A second, orthogonal attribute picks the accent ramp:
-`data-zx-preset="zx" | "zeyos" | "ocean" | "violet" | "rose" | "slate"` (`zx` is the default and
+`data-zx-preset="zx" | "zeyos" | "ocean" | "violet" | "rose" | "slate" | "folio"` (`zx` is the default and
 need not be set). A preset repoints five tier-1 tokens — `--zx-accent-300` … `--zx-accent-700` —
 and the semantic tier takes its own stop per polarity (600/700 on light surfaces, 300/400/500 on
 dark), so one five-line block rethemes light, dark, and auto together. Status colours are not part
@@ -297,6 +310,10 @@ Define a product theme by overriding **semantic** tokens under a `[data-zx-theme
 `--zx-color-bg-page/surface/raised/control/muted/hover/selected`, `--zx-color-bg-current` (the
 neutral "you are here" fill of the current nav item, row, tab, or pressed toggle — never the
 accent), `--zx-color-bg-chrome` (navigation and inspector columns, one tone off the canvas),
+`--zx-color-text-chrome` (navigation labels at rest, one ink step under the content and above 7:1;
+hover, focus and the current item take the full text colour), `--zx-color-border-chrome` (the line
+where a chrome column meets the canvas: none in light, where the tone step separates them; a
+hairline in dark, under `prefers-contrast: more`, and in forced colours),
 `--zx-color-glass-chrome/surface`,
 `--zx-color-overlay-surface/panel/backdrop/border/hover/selected/divider/scrim`,
 `--zx-overlay-surface-image/toast-image/panel-image`,
@@ -558,6 +575,55 @@ reflection and ElementInternals form association: `<zx-toggle>`, `<zx-check-butt
 
 Each component is `new Component(target, options)`. Events are the component-level names (also
 dispatched as bubbling `zx-<name>` on the root). Detail is always an object.
+
+<!-- doc:prose -->
+### Prose — `.zx-prose` and `.zx-callout`
+
+The reading register: a class, not a component, that sets authored content — a document, a
+record's notes, a message body, an assistant's answer — in the reading tokens rather than the
+interface ones. Write plain HTML inside it: `h1`–`h4`, `p`, `ul`/`ol`, `blockquote`, `hr`, links,
+inline `code`, `pre`, `kbd`, `mark`, tables, `figure`/`figcaption`, `img`.
+
+- **Tokens** — `--zx-font-prose` (the interface stack by default; a serif here leaves the interface
+  alone), `--zx-prose-size` (16px, `--zx-text-lg`), `--zx-prose-leading` (1.7), `--zx-prose-measure`
+  (62ch, the reading width). Headings scale with the reading size and read `--zx-weight-title`.
+- **Attributes** — `data-size="sm"` sets prose at the interface size, for comments, previews, and
+  panels; `data-zx-measure="full"` drops the measure where the column already sets the width.
+- **Rhythm** — one gap between blocks, more above a heading and less below it; links in the body
+  colour over a quiet underline, accent on hover; tables without a frame, a muted header over
+  hairline rows, `data-align="end"` cells in tabular figures.
+- **Content colour** — a bare `mark` highlights in the amber tone; `mark[data-tone]` in any of the
+  nine tones; a bare `span[data-tone]` colours its text, and `data-fill` highlights it as well.
+- **Callout** — `.zx-callout` with an optional `.zx-callout__icon` and a `.zx-callout__body`
+  (`.zx-callout__title` for a bold first line): a tinted fill, no frame, at the interface size.
+  Neutral by default, because most callouts are emphasis; `data-kind="info|success|warning|danger"`
+  makes it a status and `data-tone` a category. Works inside or outside prose.
+- **Specificity** — every rule is `.zx-prose` plus `:where()`, and the stylesheet loads before the
+  components, so a badge, an entity reference, or a table placed in prose keeps its own styles,
+  while an application's bare element reset cannot undo the rhythm.
+<!-- /doc -->
+
+<!-- doc:kbd -->
+### Kbd — `kbd(keys, options)`
+
+A factory (not a class) returning keycaps: one `<kbd class="zx-kbd">` holding a nested
+`<kbd class="zx-kbd__key">` per key, which is how HTML marks up a combination. Button shortcuts,
+the launcher's hints, and shortcut references all use it, so a key looks the same everywhere.
+
+- **Signature** — `kbd(keys, { size, tone })` → `HTMLElement`. `keys` is a chord written like
+  `aria-keyshortcuts` (`'Mod+Shift+K'`; a literal plus as `'Mod++'`) or an array of keys for a
+  sequence (`['g', 'i']`). `size: 'md'|'sm'` (`sm` inside buttons and menu rows); `tone:
+  'neutral'|'inherit'` (`inherit` draws the caps in the surrounding ink, for a solid button or a
+  dark toast). `keyLabels(keys, { apple })` returns the labels without building DOM.
+- **Labels** — `Mod` is ⌘ on Apple platforms and Ctrl elsewhere; `Alt`, `Shift`, `Ctrl`,
+  `Backspace`, `Delete`, `Tab` become ⌥ ⇧ ⌃ ⌫ ⌦ ⇥ on Apple platforms and words elsewhere; `Enter`,
+  `Escape` and the arrows become ↵, Esc, ↑ ↓ ← →; single letters are upper-cased.
+- **Look** — a surface fill, one hairline and a 1px foot, the label at the small size and medium
+  weight, centred on its capital height; a single key is square. Retint it with `--zx-kbd-ink`,
+  `--zx-kbd-fill` and `--zx-kbd-line` on any ancestor.
+- **Accessibility** — the caps are presentation. Announce a control's shortcut with
+  `aria-keyshortcuts` on the control and mark a hint that repeats it `aria-hidden`.
+<!-- /doc -->
 
 <!-- doc:button -->
 ### Button — `button(options)` / `buttonGroup(buttons)`
@@ -3369,4 +3435,12 @@ record: native inputs, selects, and textareas inside it drop their border and fi
 (`--zx-color-bg-hover`) or focus (the normal border, the control fill, and the focus ring), so values
 read as text rather than as a wall of boxes. Read-only and disabled fields stay quiet. The rules have
 zero specificity, so a component's own input styling still wins.
+
+**Revealed actions.** Mark a row or a section heading `data-zx-reveal-host` and a secondary action
+inside it `data-zx-reveal`: the action rests invisible and appears while the host is pointed at,
+holds focus, is current or selected, or has a menu open. It keeps its space, so nothing shifts, and
+stays in the tab order, so focusing it shows it. On touch screens, under `prefers-contrast: more`
+and in forced colours it is always visible. Use it only for repeated, secondary per-row actions
+that are reachable another way (a context menu, a keyboard shortcut); a primary action stays
+visible. Hosts do not nest.
 <!-- /doc -->
