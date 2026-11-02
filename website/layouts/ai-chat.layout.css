@@ -200,12 +200,9 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* The answer is `.zx-prose`; only the chat's own blocks are styled here. */
 .chat .chat__content {
-  display: grid;
-  gap: var(--zx-space-3);
   min-inline-size: 0;
-  color: var(--zx-color-text);
-  line-height: 1.65;
   overflow-wrap: anywhere;
 }
 
@@ -214,52 +211,21 @@
   display: none;
 }
 
-.chat .chat__p,
-.chat .chat__list,
-.chat .chat__quote,
-.chat .chat__heading {
-  margin: 0;
-}
-
-.chat .chat__heading {
-  margin-block-start: var(--zx-space-2);
-  font-size: var(--zx-text-xl);
-  font-weight: 650;
-  line-height: 1.35;
-  letter-spacing: var(--zx-tracking-title);
-}
-
-.chat .chat__heading[data-level="3"] {
-  font-size: var(--zx-text-lg);
-  letter-spacing: var(--zx-tracking-tight);
-}
-
-.chat .chat__content > .chat__heading:first-child {
-  margin-block-start: 0;
-}
-
-.chat .chat__list {
-  display: grid;
-  gap: var(--zx-space-1);
-  padding-inline-start: var(--zx-space-6);
-}
-
-.chat .chat__code-inline {
-  padding: 0.1em 0.35em;
-  border-radius: var(--zx-radius-sm);
-  background: var(--zx-color-bg-muted);
-  font-family: var(--zx-font-mono);
-  font-size: 0.9em;
-}
-
-/* A quoted draft is material to copy: a filled block, like code, in the text face. */
+/* A quoted draft is material to copy: a filled block, like code, in the text face — not a quote
+   rule in the margin. */
 .chat .chat__quote {
   display: grid;
   gap: var(--zx-space-2);
   padding: var(--zx-space-3) var(--zx-space-4);
+  border: 0;
   border-radius: var(--zx-radius-md);
   background: var(--zx-color-bg-muted);
+  color: inherit;
   white-space: pre-line;
+}
+
+.chat .chat__quote > p {
+  margin: 0;
 }
 
 /* A code block: one filled box with no frame. A slim row inside it carries the language, in small
@@ -267,6 +233,7 @@
    the Copy button's hidden status line stays inside the scrolling thread. */
 .chat .chat__code {
   position: relative;
+  display: block;
   overflow: hidden;
   margin: 0;
   border-radius: var(--zx-radius-md);
@@ -288,14 +255,10 @@
 }
 
 .chat .chat__pre {
-  overflow-x: auto;
   margin: 0;
   padding: 0 var(--zx-space-3) var(--zx-space-3);
-  font-family: var(--zx-font-mono);
-  font-size: var(--zx-text-sm);
-  line-height: 1.65;
-  overflow-wrap: normal;
-  tab-size: 2;
+  border-radius: 0;
+  background: none;
 }
 
 /* The block clips its corners, so the focus ring of the scrollable code sits inside it. */
@@ -309,54 +272,10 @@
 .chat .chat__token[data-token="number"] { color: var(--zx-color-tone-orange-fg); }
 .chat .chat__token[data-token="comment"] { color: var(--zx-color-text-muted); }
 
-/* Tables in an answer have no frame: a rule under the header and hairlines between rows. */
+/* A wide table in an answer scrolls inside it; its cells keep their words whole. */
 .chat .chat__table-wrap {
   overflow-x: auto;
-}
-
-.chat .chat__table {
-  inline-size: 100%;
-  border-collapse: collapse;
-  font-size: var(--zx-text-sm);
-  font-variant-numeric: tabular-nums;
-  line-height: 1.45;
-}
-
-.chat .chat__th,
-.chat .chat__td {
-  padding: var(--zx-space-2) var(--zx-space-3);
-  text-align: start;
   overflow-wrap: normal;
-}
-
-.chat .chat__th:first-child,
-.chat .chat__td:first-child {
-  padding-inline-start: 0;
-}
-
-.chat .chat__th:last-child,
-.chat .chat__td:last-child {
-  padding-inline-end: 0;
-}
-
-.chat .chat__th {
-  border-block-end: 1px solid var(--zx-color-border);
-  color: var(--zx-color-text-muted);
-  font-weight: var(--zx-weight-medium);
-  white-space: nowrap;
-}
-
-.chat .chat__td {
-  border-block-end: 1px solid var(--zx-color-border-subtle);
-}
-
-.chat .chat__table tr:last-child .chat__td {
-  border-block-end: 0;
-}
-
-.chat .chat__th[data-align="end"],
-.chat .chat__td[data-align="end"] {
-  text-align: end;
 }
 
 /* Actions under a message appear on hover or focus, and stay visible under the latest answer.
@@ -1082,11 +1001,8 @@
 }
 
 .chat .chat__artifact-doc {
-  display: grid;
-  gap: var(--zx-space-3);
-  max-inline-size: 40rem;
+  box-sizing: content-box;
   padding: var(--zx-space-5);
-  line-height: 1.65;
   white-space: pre-line;
 }
 
@@ -1242,8 +1158,8 @@
   .chat .chat__typing > span:nth-child(2) { animation-delay: 0.15s; }
   .chat .chat__typing > span:nth-child(3) { animation-delay: 0.3s; }
 
-  .chat .chat__message[data-streaming] .chat__content > .chat__p:last-child::after,
-  .chat .chat__message[data-streaming] .chat__content > .chat__list:last-child > .chat__li:last-child::after {
+  .chat .chat__message[data-streaming] .chat__content > p:last-child::after,
+  .chat .chat__message[data-streaming] .chat__content > :is(ul, ol):last-child > li:last-child::after {
     content: "";
     display: inline-block;
     inline-size: 0.5em;

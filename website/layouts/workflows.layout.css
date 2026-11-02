@@ -139,17 +139,13 @@
   font-size: var(--zx-text-sm);
 }
 
-/* Faces set into a line of text overlap less than the kit's larger stack. */
+/* Faces on a step card: the ring takes the card's tone. */
 .flow .flow__step-meta .avatar-stack > * {
   box-shadow: 0 0 0 2px var(--zx-color-bg-raised);
 }
 
-.flow .flow__step-meta .avatar-stack > * + * {
-  margin-inline-start: -4px;
-}
-
 /* "+1" after the faces a card has room for, the same size as they are. Positioned, like the
-   avatars, so it stacks above the face before it. */
+   avatars, so it stacks above the face before it, and opaque, so the face never shows through. */
 .flow .flow__more {
   position: relative;
   display: inline-grid;
@@ -157,7 +153,7 @@
   min-inline-size: 20px;
   block-size: 20px;
   padding-inline: 3px;
-  background: var(--zx-color-bg-muted);
+  background: color-mix(in srgb, var(--zx-color-text) 9%, var(--zx-color-bg-raised));
   color: var(--zx-color-text-muted);
   font-size: 10px;
   font-weight: var(--zx-weight-semibold);

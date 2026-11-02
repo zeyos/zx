@@ -1541,7 +1541,7 @@ export default {
       let content;
       if (run) content = run.phase === 'steps' ? [] : [typing(author)];
       else if (blocks.length) content = renderBlocks(blocks, artifactCard);
-      else content = [h('p', { class: 'chat__p meta' }, 'You stopped this answer before it began.')];
+      else content = [h('p', { class: 'meta' }, 'You stopped this answer before it began.')];
       return h('article', {
         class: 'chat__message',
         dataset: {
@@ -1557,7 +1557,8 @@ export default {
         h('span', { class: 'chat__time' }, time),
         message.stopped ? badge({ label: 'Stopped', kind: 'warning', size: 'sm' }) : null),
       workView(message, run),
-      h('div', { class: 'chat__content' }, content),
+      // An answer is authored text: prose at the interface size, as wide as the conversation.
+      h('div', { class: 'zx-prose chat__content', dataset: { size: 'sm', zxMeasure: 'full' } }, content),
       run ? null : sourcesView(message, owner),
       run ? null : h('div', { class: 'chat__actions' },
         (message.versions?.length ?? 0) > 1 ? versionPager(chat, message) : null,
@@ -1668,7 +1669,7 @@ export default {
      */
     function artifactCard(block) {
       const item = artifactById(block.id);
-      if (!item) return h('p', { class: 'chat__p meta' }, block.title);
+      if (!item) return h('p', { class: 'meta' }, block.title);
       const showing = inspectorShown() && aside.dataset.view === 'artifact' && state.artifact?.id === item.id;
       const versions = item.versions.length;
       return h('button', {
@@ -2500,7 +2501,7 @@ export default {
       artifactBody.setAttribute('aria-label', `${item.title}, version ${entry.version + 1}`);
       artifactBody.replaceChildren(typeof version.content === 'string'
         ? codeLines(item.language ?? '', version.content)
-        : h('div', { class: 'chat__artifact-doc' }, renderBlocks(version.content)));
+        : h('div', { class: 'zx-prose chat__artifact-doc', dataset: { size: 'sm' } }, renderBlocks(version.content)));
       artifactBody.scrollTop = 0;
     }
 
@@ -2602,7 +2603,7 @@ function segments(text) {
  */
 function inline(text) {
   return segments(text).map((segment) => (segment.kind === 'strong' ? h('strong', {}, segment.text)
-    : segment.kind === 'code' ? h('code', { class: 'chat__code-inline' }, segment.text) : segment.text));
+    : segment.kind === 'code' ? h('code', {}, segment.text) : segment.text));
 }
 
 /** A string in single, double, or back quotes; unterminated while it is still being streamed. */
@@ -2678,6 +2679,8 @@ function codeLines(language, source) {
 }
 
 /**
+ * Draws an answer's blocks as plain semantic elements, which the `.zx-prose` they are placed in
+ * sets; code blocks, quoted drafts, and artifact cards are the chat's own.
  * @param {Block[]} blocks
  * @param {(block: Extract<Block, {type: 'artifact'}>) => HTMLElement} [artifactCard] Draws an
  *   artifact block; without it the artifact is named in a line of its own.
@@ -2686,21 +2689,18 @@ function codeLines(language, source) {
 function renderBlocks(blocks, artifactCard) {
   return blocks.map((block) => {
     if (block.type === 'artifact') {
-      return artifactCard ? artifactCard(block) : h('p', { class: 'chat__p meta' }, block.title);
+      return artifactCard ? artifactCard(block) : h('p', { class: 'meta' }, block.title);
     }
     if (block.type === 'heading') {
       // One level below the chat's own title, whichever level the answer starts at.
-      return h(block.level === 3 ? 'h4' : 'h3', {
-        class: 'chat__heading', dataset: { level: String(block.level) }
-      }, inline(block.text));
+      return h(block.level === 3 ? 'h4' : 'h3', {}, inline(block.text));
     }
     if (block.type === 'quote') {
       return h('blockquote', { class: 'chat__quote' },
-        block.text.split('\n\n').map((paragraph) => h('p', { class: 'chat__p' }, inline(paragraph))));
+        block.text.split('\n\n').map((paragraph) => h('p', {}, inline(paragraph))));
     }
     if (block.type === 'list') {
-      return h(block.ordered ? 'ol' : 'ul', { class: 'chat__list' },
-        block.items.map((item) => h('li', { class: 'chat__li' }, inline(item))));
+      return h(block.ordered ? 'ol' : 'ul', {}, block.items.map((item) => h('li', {}, inline(item))));
     }
     if (block.type === 'code') {
       return h('figure', { class: 'chat__code' },
@@ -2710,16 +2710,12 @@ function renderBlocks(blocks, artifactCard) {
         h('pre', { class: 'chat__pre', tabindex: '0' }, h('code', {}, highlight(block.language, block.code))));
     }
     if (block.type === 'table') {
-      const align = (/** @type {number} */ index) => ({ align: block.align?.[index] ?? 'start' });
-      return h('div', { class: 'chat__table-wrap' }, h('table', { class: 'chat__table' },
-        h('thead', {}, h('tr', {}, block.columns.map((column, index) => h('th', {
-          class: 'chat__th', scope: 'col', dataset: align(index)
-        }, column)))),
-        h('tbody', {}, block.rows.map((row) => h('tr', {}, row.map((cell, index) => h('td', {
-          class: 'chat__td', dataset: align(index)
-        }, inline(cell))))))));
+      const align = (/** @type {number} */ index) => ({ align: block.align?.[index] === 'end' ? 'end' : undefined });
+      return h('div', { class: 'chat__table-wrap' }, h('table', {},
+        h('thead', {}, h('tr', {}, block.columns.map((column, index) => h('th', { scope: 'col', dataset: align(index) }, column)))),
+        h('tbody', {}, block.rows.map((row) => h('tr', {}, row.map((cell, index) => h('td', { dataset: align(index) }, inline(cell))))))));
     }
-    return h('p', { class: 'chat__p' }, inline(block.text));
+    return h('p', {}, inline(block.text));
   });
 }
 

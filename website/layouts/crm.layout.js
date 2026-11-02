@@ -1639,7 +1639,7 @@ export default {
         notes.replaceChildren(
           h('div', {}, button({ label: 'New note', icon: 'pen-to-square', onclick: addNote })),
           ...timeline().filter((entry) => entry.kind === 'note').map((entry) => h('article', { class: 'surface' },
-            h('p', { class: 'crm__note' }, entry.content), h('span', { class: 'meta' }, `${person(entry.actor)?.name} · ${ago(entry.at)}`))));
+            h('div', { class: 'zx-prose', dataset: { size: 'sm' } }, h('p', {}, entry.content)), h('span', { class: 'meta' }, `${person(entry.actor)?.name} · ${ago(entry.at)}`))));
         const counts = { activity: entries.length, emails: emails.length, notes: entries.filter((entry) => entry.kind === 'note').length, files: files.length };
         for (const [name, count] of Object.entries(counts)) tabs.setBadge(name, String(count));
       }
@@ -1750,8 +1750,8 @@ export default {
                 value: record.renewal ? new Date(`${record.renewal}T12:00:00`) : null, placeholder: 'None',
                 onchange: ({ detail }) => save({ renewal: detail.date ? formatDate(detail.date, '%Y-%m-%d') : null })
               })).toElement()],
-              // Read-only, so it lines up with the text inside the quiet fields above it.
-              ['Last contact', h('span', { class: 'crm__prop-text' }, ago(record.last))]
+              // Read-only; the quiet fields above give back their inset, so its text shares their edge.
+              ['Last contact', ago(record.last)]
             ])),
             panelBlock('Lists', memberships)));
         renderMemberships();

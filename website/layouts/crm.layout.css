@@ -238,15 +238,6 @@
   padding-block: var(--zx-space-1);
 }
 
-.crm .overview__body .zx-table:not([data-stacked]) .zx-table__body tr {
-  block-size: calc(var(--zx-control-height) + var(--zx-space-1) + 2px);
-}
-
-/* Headings in the text colour; their type icons carry the quiet. */
-.crm .overview__body .zx-table th {
-  color: var(--zx-color-text);
-}
-
 .crm .overview__body .zx-table__header-label {
   display: inline-flex;
   align-items: center;
@@ -439,7 +430,7 @@
 
 .crm .crm__highlight-value {
   font-size: var(--zx-text-2xl);
-  font-weight: 650;
+  font-weight: var(--zx-weight-title);
   font-variant-numeric: tabular-nums;
   letter-spacing: var(--zx-tracking-title);
   line-height: 1.15;
@@ -475,10 +466,6 @@
   min-inline-size: 0;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.crm .crm__note {
-  margin: 0;
 }
 
 .crm .crm__rows {
@@ -540,11 +527,6 @@
 }
 
 /* ------------------------------------------------------------ details aside -- */
-
-/* A read-only value lines up with the text inside the quiet fields above and below it. */
-.crm .crm__prop-text {
-  padding-inline: calc(var(--zx-control-pad-x) + 1px);
-}
 
 .crm .crm__membership {
   display: flex;

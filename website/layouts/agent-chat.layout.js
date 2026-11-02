@@ -900,7 +900,7 @@ export default {
         const words = block.text.split(' ');
         const visible = words.slice(0, Math.min(words.length, budget)).join(' ');
         budget -= words.length;
-        parts.push(h('p', { class: 'agent-chat__p' }, citations(visible).map((part) => (typeof part === 'number'
+        parts.push(h('p', {}, citations(visible).map((part) => (typeof part === 'number'
           ? h('sup', { class: 'agent-chat__cite' }, h('span', { class: 'visually-hidden' }, 'source '), String(part))
           : part))));
       }
@@ -908,7 +908,9 @@ export default {
       const complete = !answer.streaming && !answer.stopped;
       const sources = complete && answer.cites ? conv.sources : [];
       return h('div', { class: 'agent-chat__answer', dataset: { answer: answer.id, streaming: answer.streaming ? '' : null } },
-        writing ? h('p', { class: 'agent-chat__writing' }, 'Writing the answer…') : parts,
+        // The answer's text and figures are prose at the interface size, as wide as the conversation.
+        writing ? h('p', { class: 'agent-chat__writing' }, 'Writing the answer…')
+          : h('div', { class: 'zx-prose agent-chat__prose', dataset: { size: 'sm', zxMeasure: 'full' } }, parts),
         answer.stopped ? h('p', { class: 'agent-chat__stopped' }, 'You stopped the answer here.') : null,
         sources.length ? h('div', { class: 'agent-chat__sources' },
           h('p', { class: 'agent-chat__sources-label' }, 'Sources'),

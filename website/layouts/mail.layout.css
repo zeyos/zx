@@ -338,21 +338,20 @@
   white-space: nowrap;
 }
 
-/* The text lines up with the author's name, past the 32px avatar. */
+/* The text lines up with the author's name, past the 32px avatar; the reading measure is counted
+   from there. */
 .mail__message-body,
 .mail__files {
-  display: grid;
-  gap: var(--zx-space-3);
   padding-inline-start: calc(var(--zx-space-7) + var(--zx-space-3));
 }
 
-.mail__files {
-  gap: var(--zx-space-2);
+.mail__message-body {
+  box-sizing: content-box;
 }
 
-.mail__para {
-  margin: 0;
-  line-height: 1.6;
+.mail__files {
+  display: grid;
+  gap: var(--zx-space-2);
 }
 
 /* In a narrow conversation pane, messages use the full width instead of indenting past the avatar. */

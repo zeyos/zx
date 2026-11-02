@@ -4,7 +4,7 @@ import {
   emptyState, formatDate, formatNumber, formatRelativeTime, h, highlightMatch, icon
 } from '../../src/index.js';
 import {
-  DATE, adaptiveShell, disposer, dot, iconButton, kbd, later, layoutContext, listTime, modShortcut, modifierLabel,
+  DATE, adaptiveShell, disposer, dot, iconButton, kbd, later, layoutContext, listTime, modShortcut,
   paneHeader, panelBlock, propList, renderScope, shortcuts, suiteNav, toaster, unavailable
 } from './kit.js';
 import { COMPANIES, ME, NOW, PEOPLE } from './fixtures.js';
@@ -748,7 +748,7 @@ export default {
             h('span', { class: 'meta' }, `to ${to.join(', ')}`)),
           h('time', { class: 'meta mail__message-time', dateTime: message.at }, `${longTime(sent)} · ${formatRelativeTime(sent, { now: NOW })}`),
           fold),
-        h('div', { class: 'mail__message-body' }, message.body.map((text) => h('p', { class: 'mail__para' }, text))),
+        h('div', { class: 'zx-prose mail__message-body', dataset: { size: 'sm' } }, message.body.map((text) => h('p', {}, text))),
         message.files ? h('div', { class: 'mail__files' }, message.files.map((file) => threadParts.own(attachment(file)))) : null);
     }
 
@@ -1182,7 +1182,7 @@ export default {
           h('h3', { class: 'panel-block__title' }, group),
           h('dl', { class: 'mail__help-list' }, entries.flatMap(([label, ...keys]) => [
             h('dt', { class: 'mail__help-label' }, label),
-            h('dd', { class: 'mail__help-keys' }, kbd(...keys.map((name) => name === 'Mod' ? modifierLabel() : name)))
+            h('dd', { class: 'mail__help-keys' }, kbd(...keys))
           ]))))),
         buttons: [{ label: 'Close', action: 'close', autofocus: true }],
         onclose: refocus

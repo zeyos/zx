@@ -4,7 +4,7 @@ import {
   h, icon
 } from '../../src/index.js';
 import {
-  DATE, adaptiveShell, disposer, iconButton, kbd, later, layoutContext, modShortcut, modifierLabel,
+  DATE, adaptiveShell, disposer, iconButton, kbd, later, layoutContext, modShortcut,
   paneHeader, panelBlock, renderScope, shortcuts, suiteNav, toaster, unavailable
 } from './kit.js';
 import { ME, NOW, PEOPLE, TODAY, person } from './fixtures.js';
@@ -1085,8 +1085,12 @@ export default {
             type: 'button', class: 'link-button', onclick: () => openIssue(parent.key)
           }, `${parent.key} ${parent.title}`)] : null),
         h('h2', { class: 'record-title' }, issue.title),
-        h('div', { class: 'tracker__description' }, descriptions.get(issue.key)?.map((text) => h('p', {}, text))
-          ?? h('p', { class: 'meta' }, 'No description yet.')),
+        // The description is authored text, so it is set as prose — at the interface size, beside the
+        // fields and the activity around it.
+        descriptions.has(issue.key)
+          ? h('div', { class: 'zx-prose tracker__description', dataset: { size: 'sm' } },
+            descriptions.get(issue.key).map((text) => h('p', {}, text)))
+          : h('p', { class: 'meta' }, 'No description yet.'),
         h('section', { class: 'tracker__section', 'aria-label': 'Sub-issues' },
           h('header', { class: 'tracker__section-head' },
             h('h3', { class: 'tracker__section-title' }, 'Sub-issues'),
@@ -1108,7 +1112,7 @@ export default {
           activityList.toElement(),
           h('form', { class: 'surface tracker__composer', onsubmit: (event) => { event.preventDefault(); postComment(); } },
             comment,
-            h('div', { class: 'tracker__composer-foot' }, h('span', { class: 'meta' }, kbd(modifierLabel(), '↵'), ' to send'),
+            h('div', { class: 'tracker__composer-foot' }, h('span', { class: 'meta' }, kbd('Mod', 'Enter'), ' to send'),
               h('span', { class: 'shell__spacer' }),
               // "New issue" is this screen's one solid button; sending a comment is a plain one.
               button({ label: 'Comment', size: 'sm', onclick: postComment }))))));

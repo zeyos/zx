@@ -5,7 +5,7 @@ import {
   icon
 } from '../../src/index.js';
 import {
-  DATE, adaptiveShell, disposer, iconButton, iconTile, kbd, layoutContext, modShortcut, modifierLabel,
+  DATE, adaptiveShell, disposer, iconButton, iconTile, kbd, layoutContext, modShortcut,
   paneHeader, propList, renderScope, sectionLabel, shortcuts, suiteNav, toaster, unavailable
 } from './kit.js';
 import { ME, NOW, PEOPLE, person } from './fixtures.js';
@@ -281,12 +281,15 @@ const COMMENTS = [
   { ID: 5, page: 'rollout', author: 'lea', at: '2026-10-07T07:55', text: 'Munich passed the dry run on both shifts.' }
 ];
 
-/** Callout kinds, keyed by their Markdown marker: `> [!warning] Title`. */
+/**
+ * Callout kinds, keyed by their Markdown marker: `> [!warning] Title`. A note or a tip is emphasis,
+ * not a status, so it stays neutral; only a warning and a danger take a status colour.
+ */
 const CALLOUTS = {
-  note: { tone: 'info', icon: 'circle-info' },
-  tip: { tone: 'success', icon: 'lightbulb' },
-  warning: { tone: 'warning', icon: 'triangle-exclamation' },
-  danger: { tone: 'danger', icon: 'circle-exclamation' }
+  note: { kind: null, icon: 'circle-info' },
+  tip: { kind: null, icon: 'lightbulb' },
+  warning: { kind: 'warning', icon: 'triangle-exclamation' },
+  danger: { kind: 'danger', icon: 'circle-exclamation' }
 };
 
 /** Inline spans: bold, italic, code, links, and mentions. One capture group, so `split` keeps them. */
@@ -303,8 +306,10 @@ const BLOCK_START = /^(#{2,4}\s|~~~|>|\||[-*] |\d+\. |!\[|-{3,}$)/;
  */
 
 /**
- * Turns page Markdown into DOM nodes. Everything goes through `h()` and text nodes, so a page can
- * never inject markup, and external links are limited to http(s) and mailto.
+ * Turns page Markdown into DOM nodes: plain semantic elements, set by the `.zx-prose` they are
+ * placed in, plus the wiki's own pieces (code blocks, checklists, mentions, figure placeholders).
+ * Everything goes through `h()` and text nodes, so a page can never inject markup, and external
+ * links are limited to http(s) and mailto.
  * @param {string} source
  * @param {MarkdownHooks} hooks
  * @returns {{nodes: HTMLElement[], headings: Array<{level: number, text: string, el: HTMLElement}>}}
@@ -326,7 +331,7 @@ function renderMarkdown(source, hooks) {
     if (!line.trim()) index += 1;
     else if ((match = /^(#{2,4})\s+(.+)$/.exec(line))) {
       const level = match[1].length;
-      const el = h(`h${level}`, { class: 'wiki__heading', tabIndex: -1, dataset: { level } }, inline(match[2], hooks));
+      const el = h(`h${level}`, { tabIndex: -1 }, inline(match[2], hooks));
       headings.push({ level, text: el.textContent ?? '', el });
       nodes.push(el);
       index += 1;
@@ -344,18 +349,18 @@ function renderMarkdown(source, hooks) {
     } else if (/^([-*]|\d+\.) /.test(line)) {
       const ordered = /^\d/.test(line);
       const items = take((text) => (ordered ? /^\d+\. / : /^[-*] /).test(text));
-      nodes.push(h(ordered ? 'ol' : 'ul', { class: 'wiki__list' }, items.map((row) =>
-        h('li', { class: 'wiki__list-item' }, inline(row.text.replace(/^([-*]|\d+\.) /, ''), hooks)))));
+      nodes.push(h(ordered ? 'ol' : 'ul', {}, items.map((row) =>
+        h('li', {}, inline(row.text.replace(/^([-*]|\d+\.) /, ''), hooks)))));
     } else if ((match = /^!\[([^\]]*)\]\(([^)]*)\)$/.exec(line))) {
       nodes.push(figure(match[1]));
       index += 1;
     } else if (/^-{3,}$/.test(line)) {
-      nodes.push(h('hr', { class: 'wiki__rule' }));
+      nodes.push(h('hr'));
       index += 1;
     } else {
       index += 1;
       const rest = take((text) => text.trim() !== '' && !BLOCK_START.test(text));
-      nodes.push(h('p', { class: 'wiki__paragraph' }, inline([line, ...rest.map((row) => row.text)].join(' '), hooks)));
+      nodes.push(h('p', {}, inline([line, ...rest.map((row) => row.text)].join(' '), hooks)));
     }
   }
   return { nodes, headings };
@@ -370,16 +375,14 @@ function inline(text, hooks) {
   return text.split(INLINE).filter((part) => part !== '').map((part) => {
     if (!INLINE.test(part) || part.length < 2) return part;
     if (part.startsWith('**')) return h('strong', {}, inline(part.slice(2, -2), hooks));
-    if (part.startsWith('`')) return h('code', { class: 'wiki__inline-code' }, part.slice(1, -1));
+    if (part.startsWith('`')) return h('code', {}, part.slice(1, -1));
     if (part.startsWith('*')) return h('em', {}, inline(part.slice(1, -1), hooks));
     if (part.startsWith('@')) return hooks.mention(part.slice(1)) ?? part;
     const [, label, target] = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(part) ?? [];
     if (target?.startsWith('page:')) {
       return h('button', { type: 'button', class: 'link-button wiki__link', onclick: () => hooks.openPage(target.slice(5)) }, label);
     }
-    if (/^(https?:|mailto:)/.test(target ?? '')) {
-      return h('a', { class: 'link-button wiki__link', href: target, target: '_blank', rel: 'noopener' }, label);
-    }
+    if (/^(https?:|mailto:)/.test(target ?? '')) return h('a', { href: target, target: '_blank', rel: 'noopener' }, label);
     return label ?? part;
   });
 }
@@ -400,7 +403,7 @@ function codeBlock(code, language) {
 }
 
 /**
- * A `> [!kind] Title` block becomes a callout; any other quote stays a blockquote.
+ * A `> [!kind] Title` block becomes a Zx callout; any other quote stays a blockquote.
  * @param {string[]} lines Quote lines without their `>` marker.
  * @param {MarkdownHooks} hooks
  * @returns {HTMLElement}
@@ -410,12 +413,12 @@ function callout(lines, hooks) {
   const kind = marker ? CALLOUTS[marker[1].toLowerCase()] : undefined;
   const paragraphs = (kind ? lines.slice(1) : lines).join('\n').split(/\n\s*\n/)
     .filter((text) => text.trim())
-    .map((text) => h('p', { class: 'wiki__callout-text' }, inline(text.replace(/\n/g, ' '), hooks)));
-  if (!kind) return h('blockquote', { class: 'wiki__quote' }, paragraphs);
-  return h('div', { class: 'wiki__callout', role: 'note', dataset: { tone: kind.tone } },
-    h('span', { class: 'wiki__callout-icon' }, icon(kind.icon, { size: 16 })),
-    h('div', { class: 'wiki__callout-body' },
-      marker[2] ? h('p', { class: 'wiki__callout-title' }, inline(marker[2], hooks)) : null,
+    .map((text) => h('p', {}, inline(text.replace(/\n/g, ' '), hooks)));
+  if (!kind) return h('blockquote', {}, paragraphs);
+  return h('div', { class: 'zx-callout', role: 'note', dataset: { kind: kind.kind ?? undefined } },
+    h('span', { class: 'zx-callout__icon' }, icon(kind.icon, { size: 16 })),
+    h('div', { class: 'zx-callout__body' },
+      marker[2] ? h('p', { class: 'zx-callout__title' }, inline(marker[2], hooks)) : null,
       paragraphs));
 }
 
@@ -431,11 +434,11 @@ function table(rows, hooks) {
   const ruled = /^[\s|:-]+$/.test(rows[1] ?? '');
   const align = ruled ? cells(rows[1]).map((rule) => (rule.endsWith(':') ? 'end' : 'start')) : [];
   /** @param {string} text @param {'th'|'td'} tag @returns {HTMLElement} */
-  const row = (text, tag) => h('tr', { class: 'wiki__row' }, cells(text).map((value, column) =>
-    h(tag, { class: 'wiki__cell', scope: tag === 'th' ? 'col' : null, dataset: { align: align[column] ?? 'start' } },
+  const row = (text, tag) => h('tr', {}, cells(text).map((value, column) =>
+    h(tag, { scope: tag === 'th' ? 'col' : null, dataset: { align: align[column] === 'end' ? 'end' : undefined } },
       inline(value, hooks))));
   return h('div', { class: 'wiki__table-wrap' },
-    h('table', { class: 'wiki__table' },
+    h('table', {},
       h('thead', {}, row(rows[0], 'th')),
       h('tbody', {}, rows.slice(ruled ? 2 : 1).map((text) => row(text, 'td')))));
 }
@@ -461,9 +464,9 @@ function checklist(rows, hooks) {
 
 /** @param {string} caption @returns {HTMLElement} An image placeholder with its caption. */
 function figure(caption) {
-  return h('figure', { class: 'wiki__figure' },
+  return h('figure', {},
     h('div', { class: 'wiki__figure-frame', role: 'img', 'aria-label': caption || 'Image' }, icon('image', { size: 28 })),
-    caption ? h('figcaption', { class: 'wiki__figure-caption' }, caption) : null);
+    caption ? h('figcaption', {}, caption) : null);
 }
 
 /**
@@ -583,7 +586,8 @@ export default {
       active: 'wiki',
       header: h('div', { class: 'wiki__space' }, spaceSelect.toElement()),
       content: h('div', { class: 'wiki__trees' },
-        sectionLabel('Pages', iconButton('plus', 'New page', () => createPage(null))),
+        // "New page" is also a command in the launcher, so the button waits for the pointer or focus.
+        sectionLabel('Pages', iconButton('plus', 'New page', () => createPage(null)), { reveal: true }),
         tree.toElement(),
         sectionLabel('Favorites'),
         favoriteTree.toElement()),
@@ -721,7 +725,7 @@ export default {
       threads,
       h('div', { class: 'wiki__composer' }, composer,
         h('div', { class: 'wiki__composer-bar' },
-          h('span', { class: 'meta' }, kbd(modifierLabel(), '↵')),
+          h('span', { class: 'meta' }, kbd('Mod', 'Enter')),
           button({ label: 'Comment', size: 'sm', onclick: () => postFromComposer() }))));
     const asideTitle = h('span', {}, 'On this page');
     const aside = h('aside', { class: 'shell__aside', 'aria-label': 'Page details' },
@@ -792,7 +796,7 @@ export default {
             h('span', { 'aria-hidden': 'true' }, '·'),
             h('time', { dateTime: page.updated ?? NOW.toISOString() }, since(page.updated)))),
         nodes.length
-          ? h('div', { class: 'wiki__prose' }, nodes)
+          ? h('div', { class: 'zx-prose wiki__prose' }, nodes)
           : emptyState({
             icon: 'pen-to-square',
             title: 'This page is empty',
@@ -1132,7 +1136,7 @@ export default {
       const { nodes } = renderMarkdown(editor.getValue(), markdownHooks);
       preview.replaceChildren(
         h('header', { class: 'wiki__head' }, h('h1', { class: 'document-title' }, titleInput.value.trim() || 'Untitled')),
-        h('div', { class: 'wiki__prose' }, nodes));
+        h('div', { class: 'zx-prose wiki__prose' }, nodes));
     }
 
     /** @returns {boolean} Whether the editor is too narrow to share its width with the preview. */

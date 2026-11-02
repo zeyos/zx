@@ -370,11 +370,6 @@
   cursor: pointer;
 }
 
-/* The stack's separating ring takes the column's tone. */
-.inventory .shell__aside .avatar-stack > * {
-  box-shadow: 0 0 0 2px var(--zx-color-bg-chrome);
-}
-
 .inventory .inventory__people {
   display: grid;
   gap: var(--zx-space-1);

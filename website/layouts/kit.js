@@ -13,7 +13,8 @@
  */
 import './layout-icons.js';
 import {
-  AccountMenu, AppSidebar, Component, Dialog, Message, WorkspaceSwitcher, emptyState, formatDate, h, icon, prefersReducedMotion, storage
+  AccountMenu, AppSidebar, Component, Dialog, Message, WorkspaceSwitcher, emptyState, formatDate, h, icon,
+  kbd as keycaps, prefersReducedMotion, storage
 } from '../../src/index.js';
 import { ME, NOW, ORGANISATION, SUITE_MODULES, person } from './fixtures.js';
 
@@ -471,24 +472,33 @@ function panelBlock(title, ...children) {
 }
 
 /**
- * A small upper-case label above a group of navigation items, properties, or cards.
+ * A quiet label above a group of navigation items, properties, or cards.
+ *
+ * With `reveal`, the trailing controls rest out of sight and appear while the label is pointed at
+ * or holds focus (`data-zx-reveal`) — only for a secondary action that can also be reached another
+ * way, such as "New page" beside a page tree. They keep their room and their place in the tab order,
+ * and show at all times on a touch screen and under a contrast preference.
  * @param {string} text
- * @param {Node|Node[]} [actions] Trailing controls, such as an add button.
+ * @param {Node|Node[]} [actions] Trailing controls, such as an add button, or a count.
+ * @param {{reveal?: boolean}} [options]
  * @returns {HTMLElement}
  */
-function sectionLabel(text, actions) {
-  return h('div', { class: 'section-label' },
+function sectionLabel(text, actions, { reveal = false } = {}) {
+  const hidden = Boolean(actions) && reveal;
+  return h('div', { class: 'section-label', 'data-zx-reveal-host': hidden ? '' : null },
     h('span', { class: 'section-label__text' }, text),
-    actions ? h('span', { class: 'section-label__actions' }, actions) : null);
+    actions ? h('span', { class: 'section-label__actions', 'data-zx-reveal': hidden ? '' : null }, actions) : null);
 }
 
 /**
- * A key or key chord as it appears in hints and tooltips.
- * @param {...string} keys `kbd('⌘', 'K')` renders two caps.
+ * A key or key chord as keycaps, in hints and the shortcut reference: Zx `kbd()` with the keys
+ * given one by one. `Mod`, `Alt`, `Shift`, `Enter` and the other named keys become the platform's
+ * glyphs or words; anything else is shown as written.
+ * @param {...string} keys `kbd('Mod', 'K')` renders ⌘ K on macOS and Ctrl K elsewhere.
  * @returns {HTMLElement}
  */
 function kbd(...keys) {
-  return h('span', { class: 'kbd-group' }, keys.map((key) => h('kbd', { class: 'kbd' }, key)));
+  return keycaps(keys);
 }
 
 /**
@@ -638,7 +648,7 @@ function shortcutSheet(context, groups, { title = 'Keyboard shortcuts', onclose 
   /** @type {Dialog|null} */
   let dialog = null;
   const caps = (keys) => {
-    const steps = keys.split(' ').map((step) => kbd(...step.split('+').map((name) => (name === 'Mod' ? modifierLabel() : name))));
+    const steps = keys.split(' ').map((step) => keycaps(step));
     return steps.flatMap((step, index) => (index ? [h('span', { class: 'shortcut-sheet__then' }, 'then'), step] : [step]));
   };
   return () => {
@@ -840,6 +850,10 @@ const SHELL_BREAKPOINTS = Object.freeze({ named: 1440, aside: 1180, nav: 860, si
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), '
   + 'select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+/** The columns of a shell. */
+const PANES = '.shell__nav, .shell__list, .shell__main, .shell__aside';
+/** A column's scrolling region: what scrolls under its header. */
+const PANE_SCROLLERS = '.shell__body, .zx-app-sidebar__panel-body';
 /** Where you are in a column: its current or chosen item. */
 const CURRENT = '[aria-current="page"], [aria-current="true"], [aria-selected="true"]';
 /** Focusable controls that do not raise a phone's keyboard. */
@@ -878,6 +892,41 @@ function focusHeading(scope) {
   if (!heading.hasAttribute('tabindex')) heading.tabIndex = -1;
   heading.focus({ preventScroll: true });
   return document.activeElement === heading;
+}
+
+/**
+ * Marks a column `data-scrolled` while its scrolling region is away from the top, which is when
+ * `kit.css` draws the rule under the column's header: at rest the header and the content share one
+ * plane, and the line comes up only once something has scrolled beneath it. One passive listener on
+ * the root serves every column, those drawn later included; a region that is replaced or hidden while
+ * scrolled clears the mark. Does nothing in preview mode, where every column is at rest.
+ * @param {HTMLElement} root The layout's `.shell` root.
+ * @param {LayoutContext} context
+ * @returns {void}
+ */
+function watchPaneScroll(root, context) {
+  if (context.preview) return;
+  /** @param {Element} pane @returns {void} */
+  const sync = (pane) => {
+    const scrolled = [...pane.querySelectorAll(PANE_SCROLLERS)].some((region) => region.scrollTop > 0
+      && region.closest(PANES) === pane && region.checkVisibility());
+    if (scrolled) /** @type {HTMLElement} */ (pane).dataset.scrolled = '';
+    else delete /** @type {HTMLElement} */ (pane).dataset.scrolled;
+  };
+  root.addEventListener('scroll', (event) => {
+    const region = event.target;
+    if (!(region instanceof Element) || !region.matches(PANE_SCROLLERS)) return;
+    const pane = region.closest(PANES);
+    if (!pane || !root.contains(pane)) return;
+    if (region.scrollTop > 0) /** @type {HTMLElement} */ (pane).dataset.scrolled = '';
+    else if (pane.hasAttribute('data-scrolled')) sync(pane);
+  }, { capture: true, passive: true, signal: context.signal });
+  // A redraw that swaps or hides a scrolled region fires no scroll event of its own.
+  const observer = new MutationObserver(() => {
+    for (const pane of root.querySelectorAll('[data-scrolled]')) sync(pane);
+  });
+  observer.observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden'] });
+  context.cleanup(() => observer.disconnect());
 }
 
 /**
@@ -933,7 +982,8 @@ function focusHeading(scope) {
  * At full width a column can also be collapsed (`collapse()`); its toggle then shows there too, to
  * bring it back. A bottom panel — `.shell__panel` inside the main pane, `hidden` while closed — is
  * opened and closed by `togglePanel()`. With `keys`, Mod+B, Mod+I, and Mod+J toggle the navigation,
- * the inspector, and the panel.
+ * the inspector, and the panel. Every column's header rule follows its content's scroll
+ * (`data-scrolled`).
  * @param {{navLabel?: string, backLabel?: string, asideLabel?: string, panelLabel?: string,
  *   keys?: boolean, ondrawer?: (name: 'nav'|'aside', open: boolean) => void}} [options] Accessible
  *   names — `backLabel` names where the button goes ("Back to inbox"), `asideLabel` what the
@@ -1188,6 +1238,7 @@ function adaptiveShell(root, context, {
     return open;
   }
 
+  watchPaneScroll(root, context);
   if (!context.preview) {
     // Escape closes an open drawer before the layout's own Escape handling sees it.
     root.addEventListener('keydown', (event) => {

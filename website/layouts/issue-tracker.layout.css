@@ -520,16 +520,6 @@
   margin: 0 0 calc(-1 * var(--zx-space-3));
 }
 
-.tracker .tracker__description {
-  display: grid;
-  gap: var(--zx-space-3);
-  line-height: 1.6;
-}
-
-.tracker .tracker__description > p {
-  margin: 0;
-}
-
 .tracker .tracker__section {
   display: grid;
   gap: var(--zx-space-3);

@@ -44,12 +44,15 @@
 }
 
 /* Tone separates the columns: the navigation and the inspector are chrome, one quiet step away
-   from the white canvas the work happens on. A hairline only where two tones meet. */
+   from the white canvas the work happens on. Where chrome meets the canvas the edge is
+   `--zx-color-border-chrome` — no line in light, where the tone step is enough, a hairline in dark,
+   under a contrast preference, and in forced colours. Two columns of one tone (a list beside the
+   main pane) keep a subtle hairline, since nothing else tells them apart. */
 .shell__nav {
   --shell-backdrop: var(--zx-color-bg-chrome);
 
   flex: 0 0 var(--shell-nav-width);
-  border-inline-end: 1px solid var(--zx-color-border-subtle);
+  border-inline-end: 1px solid var(--zx-color-border-chrome);
   background: var(--shell-backdrop);
 }
 
@@ -66,9 +69,12 @@
 
 .shell__aside {
   --shell-backdrop: var(--zx-color-bg-chrome);
+  /* The label column of every property list in the inspector, so all their values start on one
+     edge. */
+  --shell-label-width: min(7rem, 38%);
 
   flex: 0 0 var(--shell-aside-width);
-  border-inline-start: 1px solid var(--zx-color-border-subtle);
+  border-inline-start: 1px solid var(--zx-color-border-chrome);
   background: var(--shell-backdrop);
 }
 
@@ -127,7 +133,7 @@
   gap: var(--zx-space-2);
   min-block-size: var(--shell-header-height);
   padding-inline: var(--zx-space-4);
-  border-block-end: 1px solid var(--zx-color-border-subtle);
+  border-block-end: 1px solid transparent;
 }
 
 .shell__header-leading {
@@ -185,7 +191,17 @@
   align-items: center;
   gap: var(--zx-space-2);
   padding: var(--zx-space-2) var(--zx-space-4);
-  border-block-end: 1px solid var(--zx-color-border-subtle);
+  border-block-end: 1px solid transparent;
+}
+
+/* A header's rule is drawn only once content has scrolled beneath it (`data-scrolled` on the
+   column, set by the kit while the column's `.shell__body` is away from the top); at rest the
+   header and the content share one plane. A header with a toolbar right under it leaves the line to
+   the toolbar, which follows the same rule, and one with tabs under it leaves it to the tab row.
+   Two classes of weight, so a layout that draws its own edge (a fade) can still say no line. */
+:where(.shell__nav, .shell__list, .shell__main, .shell__aside)[data-scrolled]
+  > :is(.shell__header, .shell__toolbar):where(:not(:has(+ :is(.shell__toolbar, .shell__tabs, .zx-tabbox):not([hidden])))) {
+  border-block-end-color: var(--zx-color-border-subtle);
 }
 
 .shell__spacer {
@@ -279,12 +295,17 @@
   flex: 1 1 auto;
 }
 
-/* The panel's header is the column's header: one shell header tall, with the same rule under it. */
+/* The panel's header is the column's header: one shell header tall, with the same rule under it,
+   drawn once the menu has scrolled beneath it. */
 .shell__nav[data-nav="modules"] .zx-app-sidebar__panel > .zx-app-sidebar__header {
   min-block-size: var(--shell-header-height);
   padding-block: 0;
   padding-inline: var(--zx-space-4) var(--zx-space-2);
-  border-block-end: 1px solid var(--zx-color-border-subtle);
+  border-block-end: 1px solid transparent;
+}
+
+.shell__nav[data-nav="modules"][data-scrolled] .zx-app-sidebar__panel > .zx-app-sidebar__header {
+  border-block-end-color: var(--zx-color-border-subtle);
 }
 
 .shell__nav[data-nav="modules"] .zx-app-sidebar__panel-lead {
@@ -402,6 +423,17 @@
 .shell__nav .zx-app-sidebar__nav {
   overflow: visible;
   padding-block: 0;
+}
+
+/* Navigation recedes: rows in the column rest one ink step below the content and come up to the
+   full text colour when pointed at, focused, or current. */
+.shell__nav :is(.list-row, .zx-tree) {
+  color: var(--zx-color-text-chrome);
+}
+
+.shell__nav .list-row:is(:hover, :focus-visible, [aria-selected="true"], [aria-current="true"], [aria-current="page"]),
+.shell__nav .zx-tree__row:is(:hover, :focus-visible) {
+  color: var(--zx-color-text);
 }
 
 /* Section labels in the navigation column line up with the item icons below them. */
@@ -559,10 +591,14 @@
 
 .prop-list {
   display: grid;
-  /* Labels take what they need, up to 9rem, so the values keep the room they need. */
-  grid-template-columns: fit-content(9rem) minmax(0, 1fr);
-  gap: var(--zx-space-2) var(--zx-space-3);
-  align-items: center;
+  /* One label column for every list in an inspector (`--shell-label-width`, set on the aside);
+     anywhere else — a dialog, a sheet, a pane — the labels take what they need, up to 9rem. */
+  grid-template-columns: var(--shell-label-width, fit-content(9rem)) minmax(0, 1fr);
+  /* Every row is at least one control tall, and the gap brings the pitch to a data row's height,
+     so a list of facts and a list of fields keep one rhythm. A value that wraps grows its row; its
+     label stays on the first line. */
+  gap: calc(var(--zx-row-height) - var(--zx-control-height)) var(--zx-space-3);
+  align-items: start;
   margin: 0;
   font-size: var(--zx-text-sm);
 }
@@ -571,17 +607,36 @@
   overflow: hidden;
   color: var(--zx-color-text-muted);
   font-weight: 400;
+  line-height: var(--zx-control-height);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+/* Values read at the size of the controls beside them, so a static value and an editable one are
+   the same kind of text; figures are tabular, so they line up from row to row. */
 .prop-list__value {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--zx-space-1);
   min-inline-size: 0;
+  min-block-size: var(--zx-control-height);
   margin: 0;
+  font-size: var(--zx-control-font-size);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Quiet controls give back their inset — the padding and the frame they show on hover — so their
+   text starts on the same edge as a static value's, and their hover fill reaches into the gap
+   instead. A tag picker gives back its own, smaller inset, so its first tag sits on that edge. */
+.prop-list[data-zx-fields="quiet"] .prop-list__value > :is(
+  input, select, textarea, .zx-select, .zx-datebox, .zx-date-range-box, .zx-number-field, .zx-timebox
+) {
+  margin-inline-start: calc(-1 * (var(--zx-control-pad-x) + 1px));
+}
+
+.prop-list[data-zx-fields="quiet"] .prop-list__value > .zx-tag-picker {
+  margin-inline-start: calc(-1 * (var(--zx-space-2) + 1px));
 }
 
 /* An input on its own in a property row takes the whole width (inside a form field the inputs fill
@@ -616,6 +671,21 @@
 ) {
   flex: 1 1 auto;
   min-inline-size: 0;
+}
+
+/* A quiet number reads as text: the field hugs the figure, so its unit follows it ("60 %", not
+   "60 …… %"), and the steppers wait at the far end until the field is pointed at or focused. */
+@supports (field-sizing: content) {
+  .prop-list[data-zx-fields="quiet"] .prop-list__value .zx-number-field__input {
+    flex: 0 1 auto;
+    min-inline-size: 1ch;
+    padding-inline-end: var(--zx-space-1);
+    field-sizing: content;
+  }
+
+  .prop-list[data-zx-fields="quiet"] .prop-list__value .zx-number-field__step[data-step="down"] {
+    margin-inline-start: auto;
+  }
 }
 
 /* A form inside a dialog, a sheet, or a tab panel: the overlay or panel is already the frame. */
@@ -724,25 +794,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-.kbd-group {
-  display: inline-flex;
-  gap: 2px;
-}
-
-.kbd {
-  display: inline-grid;
-  place-items: center;
-  min-inline-size: 1.6em;
-  padding: 0 0.35em;
-  border: 1px solid var(--zx-color-border-subtle);
-  border-radius: var(--zx-radius-sm);
-  background: var(--zx-color-bg-surface);
-  color: var(--zx-color-text-muted);
-  font-family: var(--zx-font-sans);
-  font-size: var(--zx-text-xs);
-  line-height: 1.5;
-}
-
 .dot {
   display: inline-block;
   flex: 0 0 auto;
@@ -758,14 +809,16 @@
 .dot[data-tone="info"] { background: var(--zx-color-info); }
 .dot[data-tone="accent"] { background: var(--zx-color-accent); }
 
-/* Overlapping avatars for "who is on this". */
+/* Overlapping avatars for "who is on this". They overlap by no more than a space step, and each
+   is set off from the one beneath by a 2px ring in the tone behind the stack, so no initial is cut
+   short. */
 .avatar-stack {
   display: inline-flex;
   align-items: center;
 }
 
 .avatar-stack > * + * {
-  margin-inline-start: -6px;
+  margin-inline-start: calc(-1 * var(--zx-space-1));
 }
 
 .avatar-stack > * {
@@ -792,7 +845,7 @@
 .record-title {
   margin: 0;
   font-size: var(--zx-text-2xl);
-  font-weight: 650;
+  font-weight: var(--zx-weight-title);
   line-height: 1.25;
   letter-spacing: -0.015em;
 }
@@ -806,7 +859,7 @@
 .document-title {
   margin: 0;
   font-size: var(--zx-text-3xl);
-  font-weight: 700;
+  font-weight: var(--zx-weight-title);
   line-height: 1.2;
   letter-spacing: -0.02em;
 }
@@ -962,6 +1015,12 @@
    selection bar rises in when it appears. Nothing moves on first paint, so a preview or a
    screenshot is always the settled state. */
 @media (prefers-reduced-motion: no-preference) {
+  .shell__header,
+  .shell__toolbar,
+  .shell__nav[data-nav="modules"] .zx-app-sidebar__panel > .zx-app-sidebar__header {
+    transition: border-color var(--zx-dur-base) var(--zx-ease);
+  }
+
   .list-row,
   .segmented__item,
   .link-button {
@@ -1054,7 +1113,7 @@ button.shell__status-item:focus-visible {
   flex: 0 0 var(--shell-panel-height);
   flex-direction: column;
   min-block-size: 0;
-  border-block-start: 1px solid var(--zx-color-border-subtle);
+  border-block-start: 1px solid var(--zx-color-border-chrome);
   background: var(--zx-color-bg-chrome);
 }
 

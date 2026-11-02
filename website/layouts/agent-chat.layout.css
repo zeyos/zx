@@ -156,10 +156,16 @@
   padding-inline-start: var(--agent-chat-indent);
 }
 
-.agent-chat .agent-chat__text,
-.agent-chat .agent-chat__p {
+.agent-chat .agent-chat__text {
   margin: 0;
   line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+/* The answer itself is `.zx-prose`; its words may break anywhere so a long identifier never
+   widens the conversation. */
+.agent-chat .agent-chat__prose {
+  min-inline-size: 0;
   overflow-wrap: anywhere;
 }
 
@@ -591,7 +597,6 @@
 .agent-chat .agent-chat__figures {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
-  margin: 0;
   font-size: var(--zx-text-sm);
   font-variant-numeric: tabular-nums;
 }
@@ -1292,7 +1297,7 @@
     color: inherit;
   }
 
-  .agent-chat .agent-chat__answer[data-streaming] > .agent-chat__p:last-of-type::after {
+  .agent-chat .agent-chat__answer[data-streaming] > .agent-chat__prose > p:last-of-type::after {
     content: "";
     display: inline-block;
     inline-size: 2px;
