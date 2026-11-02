@@ -1,5 +1,6 @@
 /*
- * Shared site chrome: theme persistence, the overlay-header scroll state, and nav highlighting.
+ * Shared site chrome: theme persistence, the overlay-header scroll state, nav highlighting, and
+ * the version in the header when a page is served from source.
  * Loaded as a classic script in <head> so the theme is applied before first paint.
  *
  * "The theme" here is three things, each in its own storage entry: the light/dark choice, the
@@ -177,6 +178,26 @@
     setUpThemeToggles();
     setUpOverlayHeader();
     markCurrentNavLink();
+    showSourceVersion();
+  }
+
+  /**
+   * The version in the header. The site build writes package.json's version into every
+   * `[data-site-version]` element and marks it `data-site-stamped`, so a deployed page needs
+   * nothing from here. Served straight from the repository, a page has only the checked-in literal,
+   * which falls behind at every release — so the version is read from the package.json beside the
+   * website folder instead. A page that cannot reach it keeps the literal.
+   */
+  function showSourceVersion() {
+    const labels = document.querySelectorAll('[data-site-version]:not([data-site-stamped])');
+    if (labels.length === 0) return;
+    fetch(new URL('../package.json', document.baseURI))
+      .then((response) => (response.ok ? response.json() : null))
+      .then((manifest) => {
+        if (typeof manifest?.version !== 'string') return;
+        labels.forEach((label) => { label.textContent = manifest.version; });
+      })
+      .catch(() => {});
   }
 
   /**

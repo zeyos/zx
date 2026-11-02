@@ -129,9 +129,10 @@ for (const file of await walk(outDir)) {
   }
 }
 
-// 4. Stamp the published version into the markup. The website carries a literal so development
-//    shows something sensible, but package.json is the source of truth: whatever `npm version`
-//    set is what the deployed site says, with no second place to remember to bump.
+// 4. Stamp the published version into the markup. The website carries a literal for a page that
+//    cannot run its script, and site.js reads package.json when a page is served from source, but
+//    package.json is the source of truth: whatever `npm version` set is what the deployed site
+//    says, with no second place to remember to bump.
 const { version } = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
 // A documentation site that cannot say when it was last built is one nobody trusts, so the date
 // is stamped in beside the version rather than left to whoever remembers to edit the footer.
@@ -147,7 +148,10 @@ for (const file of await walk(outDir)) {
       /(<([a-z]+)[^>]*\sdata-site-version[^>]*>)[^<]*(<\/\2>)/gi,
       (...match) => {
         stamped += 1;
-        return `${match[1]}${version}${match[3]}`;
+        // `data-site-stamped` tells site.js the version is already right, so a deployed page never
+        // asks for the package.json it does not ship.
+        const open = /\sdata-site-stamped\b/.test(match[1]) ? match[1] : match[1].replace(/>$/, ' data-site-stamped>');
+        return `${open}${version}${match[3]}`;
       }
     )
     .replace(
