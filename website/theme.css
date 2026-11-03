@@ -1,5 +1,5 @@
 /*
- * The theme studio: a sticky control rail beside a column of component cards.
+ * The theme studio: a sticky control rail beside the component library, set out as sections.
  *
  * Everything here is written in semantic tokens, exactly like the components it frames. That is
  * not tidiness for its own sake — the studio changes those tokens live, so a hard-coded colour
@@ -383,14 +383,17 @@
 /* --------------------------------------------------------------------- canvas -- */
 
 .studio-main {
+  --studio-gutter: var(--zx-space-6);
+  /* The pinned section nav. Anchors stop below it, so it is a measure shared with the groups. */
+  --studio-nav: calc(var(--zx-control-height) + var(--zx-space-4));
   min-inline-size: 0;
-  padding: var(--zx-space-7) var(--zx-space-6) var(--zx-space-8);
+  padding: var(--zx-space-7) var(--studio-gutter) var(--zx-space-8);
   background: var(--zx-color-bg-surface);
 }
 
 .studio-intro {
   max-inline-size: 62ch;
-  margin-block-end: var(--zx-space-5);
+  margin-block-end: var(--zx-space-6);
 }
 
 /* The page title, at the documentation's document-title size. */
@@ -409,17 +412,28 @@
   line-height: 1.55;
 }
 
-/* A quiet index of the families below: plain links in the muted colour, a hover fill, no chips. */
-.studio-index {
+/* The sections of the page, pinned under the site header: plain links in the muted colour with a
+   hover fill, and the section in view taking the neutral current fill, as the rail's choices do.
+   It runs edge to edge across the canvas, so what scrolls under it is cut off cleanly. */
+.studio-sections {
+  position: sticky;
+  inset-block-start: var(--studio-header);
+  z-index: 5;
   display: flex;
-  flex-wrap: wrap;
-  gap: 2px var(--zx-space-1);
-  margin: 0 calc(-1 * var(--zx-space-2)) var(--zx-space-6);
-  padding-block-end: var(--zx-space-4);
-  border-block-end: 1px solid var(--zx-color-border-subtle);
+  align-items: center;
+  gap: var(--zx-space-1);
+  block-size: var(--studio-nav);
+  margin: 0 calc(var(--studio-gutter) * -1) var(--zx-space-7);
+  padding-inline: calc(var(--studio-gutter) - var(--zx-space-2));
+  border-block: 1px solid var(--zx-color-border-subtle);
+  background: var(--zx-color-bg-surface);
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 
-.studio-index__link {
+.studio-sections__link,
+.studio-group__link {
+  flex: none;
   padding: 2px var(--zx-space-2);
   border-radius: var(--zx-radius-md);
   color: var(--zx-color-text-muted);
@@ -427,33 +441,132 @@
   text-decoration: none;
 }
 
-.studio-index__link:hover {
+.studio-sections__link {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: calc(var(--zx-control-height) - 6px);
+  padding-inline: var(--zx-space-3);
+  font-weight: var(--zx-weight-medium);
+}
+
+.studio-sections__link:hover,
+.studio-group__link:hover {
   background: var(--zx-color-bg-hover);
   color: var(--zx-color-text);
 }
 
-.studio-index__link:focus-visible {
+.studio-sections__link[aria-current="true"] {
+  background: var(--zx-color-bg-current);
+  color: var(--zx-color-text);
+  font-weight: var(--zx-weight-semibold);
+}
+
+.studio-sections__link:focus-visible,
+.studio-group__link:focus-visible {
   outline: 0;
   box-shadow: var(--zx-focus-ring);
 }
 
-/* Multi-column rather than grid: the cards differ wildly in height, and columns pack them without
-   the gaps a row-aligned grid leaves. `break-inside` is what keeps a card whole. */
+/* The grid answers the width of the canvas rather than the window: the control rail takes 300px
+   of it on a wide screen and none on a narrow one, so the same window width means different things
+   either side of that, and what the cards need is room. */
 .studio-canvas {
-  column-width: 380px;
-  column-gap: var(--zx-space-4);
+  container: studio / inline-size;
 }
 
+/* ------------------------------------------------------------------- sections -- */
+
+.studio-group {
+  scroll-margin-block-start: calc(var(--studio-nav) + var(--zx-space-3));
+}
+
+.studio-group + .studio-group {
+  margin-block-start: var(--zx-space-7);
+  padding-block-start: var(--zx-space-7);
+  border-block-start: 1px solid var(--zx-color-border-subtle);
+}
+
+.studio-group__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--zx-space-2) var(--zx-space-6);
+  margin-block-end: var(--zx-space-5);
+}
+
+.studio-group__title {
+  margin: 0;
+  font-size: var(--zx-text-2xl);
+  font-weight: 650;
+  line-height: 1.2;
+  letter-spacing: var(--zx-tracking-title);
+}
+
+.studio-group__blurb {
+  margin: var(--zx-space-1) 0 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-md);
+}
+
+/* The families in the section, pushed to the far side of the heading: a quiet index that fills
+   the space beside a short title instead of leaving it empty. */
+.studio-group__families {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 2px var(--zx-space-1);
+  margin-inline: calc(var(--zx-space-2) * -1);
+}
+
+/* Twelve columns on a wide canvas, six on a middling one, one on a narrow one. A cell says how
+   many of the twelve it wants and how many of the six; the breakpoints are in the canvas's own
+   width, not the window's. A cell holds one card or a few stacked, and stretches to its row. */
+.studio-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: var(--zx-space-4);
+}
+
+.studio-cell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zx-space-4);
+  grid-column: span var(--span, 12);
+  min-inline-size: 0;
+}
+
+@container studio (max-width: 1399px) {
+  .studio-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .studio-cell {
+    grid-column: span var(--span-mid, 6);
+  }
+}
+
+@container studio (max-width: 759px) {
+  .studio-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .studio-cell {
+    grid-column: auto;
+  }
+}
+
+/* A card fills its cell, and the cards stacked in one share what the neighbouring cell has over —
+   so a row ends on one edge. The specimens that can use the extra room (the canvases, the frames)
+   take it, so it shows up as more backdrop rather than as an empty card. */
 .studio-card {
-  break-inside: avoid;
-  margin-block-end: var(--zx-space-4);
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-inline-size: 0;
   border: 1px solid var(--zx-color-border);
   border-radius: var(--zx-radius-lg);
   background: var(--zx-color-bg-surface);
-  /* A column box is a fragmentation context, and an inline-block establishes a new one, which is
-     what stops a tall card from being sliced across two columns in Safari. */
-  display: inline-block;
-  inline-size: 100%;
 }
 
 .studio-card__head {
@@ -474,14 +587,19 @@
 }
 
 .studio-card__body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
   padding: var(--zx-space-4);
 }
 
-/* A wide card spans every column: the cards before it balance above it, the rest flow below.
-   Spanning needs a block box, so it gives up the inline-block the column cards use. */
-.studio-card--wide {
-  display: block;
-  column-span: all;
+.studio-card__body > .studio-stack,
+.studio-grow {
+  flex: 1 1 auto;
+}
+
+.studio-card {
+  scroll-margin-block-start: calc(var(--studio-nav) + var(--zx-space-3));
 }
 
 /* ------------------------------------------------------------- button states -- */
@@ -620,6 +738,13 @@
   overflow-y: auto;
 }
 
+/* Given spare height it takes it, never less than it had. */
+.studio-frame--short.studio-grow {
+  block-size: auto;
+  min-block-size: 190px;
+  flex: 1 1 190px;
+}
+
 .studio-menu {
   display: flex;
   flex-direction: column;
@@ -641,6 +766,64 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
   gap: var(--zx-space-2);
+}
+
+.studio-swatches--compact {
+  grid-template-columns: repeat(auto-fill, minmax(4.25rem, 1fr));
+}
+
+/* The roles side by side, as many to a row as fit, each as wide as the next so the chips line up
+   from one role to the next. */
+.studio-palette {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: var(--zx-space-5) var(--zx-space-6);
+}
+
+.studio-palette__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--zx-space-2);
+}
+
+.studio-palette__role {
+  margin: 0;
+  color: var(--zx-color-text);
+  font-size: var(--zx-text-sm);
+  font-weight: var(--zx-weight-semibold);
+}
+
+/* The module navigation specimens: the two vertical strips and the sidebar on one line, the sidebar
+   taking what the strips leave. Each is a column of its own, so they all stretch to the line. */
+.studio-modules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zx-space-4);
+}
+
+.studio-modules__strips {
+  display: flex;
+  gap: var(--zx-space-4);
+  min-block-size: 360px;
+}
+
+/* The sidebar is 26rem wide whatever it is given, so that is where it wraps beneath the strips;
+   narrower than that — a phone — it scrolls in its own box rather than pushing the page wide. */
+.studio-modules__sidebar {
+  display: flex;
+  flex: 1 1 27rem;
+  min-inline-size: 0;
+  min-block-size: 360px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+/* Two Tabbox variants to a row where the card is wide enough, one beneath another where it is not. */
+.studio-tabs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+  gap: var(--zx-space-5) var(--zx-space-5);
+  align-content: start;
 }
 
 .studio-swatch {
@@ -765,10 +948,13 @@
     margin-block-end: var(--zx-space-3);
   }
 
+  .studio-main {
+    --studio-gutter: var(--zx-space-4);
+  }
+
   .site-page--studio .site-header__inner,
   .site-page--studio .site-footer__inner,
-  .site-page--studio .site-footer__stamp,
-  .studio-main {
+  .site-page--studio .site-footer__stamp {
     padding-inline: var(--zx-space-4);
   }
 }

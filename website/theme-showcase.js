@@ -21,31 +21,60 @@ import {
   skeletonText, spinner, tooltip
 } from '../src/index.js';
 
-/** Semantic colours the palette card shows, in the order the theming guide lists them. */
+/**
+ * Semantic colours the palette card shows, by the role they play, in the order the theming guide
+ * lists them. A flat list of twenty-three chips says nothing about which of them a surface, a
+ * border, or a status reads; the roles do.
+ */
 const PALETTE = [
-  ['Accent', '--zx-color-accent'],
-  ['Accent hover', '--zx-color-accent-hover'],
-  ['Accent subtle', '--zx-color-accent-subtle'],
-  ['Solid accent', '--zx-color-accent-solid'],
-  ['Selected', '--zx-color-bg-selected'],
-  ['Current', '--zx-color-bg-current'],
-  ['Page', '--zx-color-bg-page'],
-  ['Chrome', '--zx-color-bg-chrome'],
-  ['Surface', '--zx-color-bg-surface'],
-  ['Raised', '--zx-color-bg-raised'],
-  ['Glass chrome', '--zx-color-glass-chrome'],
-  ['Floating overlay', '--zx-color-overlay-surface'],
-  ['Reading overlay', '--zx-color-overlay-panel'],
-  ['Muted', '--zx-color-bg-muted'],
-  ['Border', '--zx-color-border'],
-  ['Subtle border', '--zx-color-border-subtle'],
-  ['Text', '--zx-color-text'],
-  ['Muted text', '--zx-color-text-muted'],
-  ['Subtle text', '--zx-color-text-subtle'],
-  ['Success', '--zx-color-success'],
-  ['Warning', '--zx-color-warning'],
-  ['Danger', '--zx-color-danger'],
-  ['Info', '--zx-color-info']
+  {
+    role: 'Accent and selection',
+    colours: [
+      ['Accent', '--zx-color-accent'],
+      ['Accent hover', '--zx-color-accent-hover'],
+      ['Accent subtle', '--zx-color-accent-subtle'],
+      ['Solid accent', '--zx-color-accent-solid'],
+      ['Selected', '--zx-color-bg-selected'],
+      ['Current', '--zx-color-bg-current']
+    ]
+  },
+  {
+    role: 'Surfaces',
+    colours: [
+      ['Page', '--zx-color-bg-page'],
+      ['Chrome', '--zx-color-bg-chrome'],
+      ['Surface', '--zx-color-bg-surface'],
+      ['Raised', '--zx-color-bg-raised'],
+      ['Muted', '--zx-color-bg-muted']
+    ]
+  },
+  {
+    role: 'Overlay material',
+    colours: [
+      ['Glass chrome', '--zx-color-glass-chrome'],
+      ['Floating overlay', '--zx-color-overlay-surface'],
+      ['Reading overlay', '--zx-color-overlay-panel']
+    ]
+  },
+  {
+    role: 'Lines and text',
+    colours: [
+      ['Border', '--zx-color-border'],
+      ['Subtle border', '--zx-color-border-subtle'],
+      ['Text', '--zx-color-text'],
+      ['Muted text', '--zx-color-text-muted'],
+      ['Subtle text', '--zx-color-text-subtle']
+    ]
+  },
+  {
+    role: 'Status',
+    colours: [
+      ['Success', '--zx-color-success'],
+      ['Warning', '--zx-color-warning'],
+      ['Danger', '--zx-color-danger'],
+      ['Info', '--zx-color-info']
+    ]
+  }
 ];
 
 /** The categorical tones, in the order the theming guide lists them. */
@@ -136,10 +165,9 @@ const currency = new Intl.NumberFormat(undefined, {
 });
 
 /**
- * Every card on the canvas, in reading order. Column-major flow puts roughly the first third in
- * the left column, so the loudest families come first.
- * A `wide` card spans every column: a matrix needs the whole width of the canvas.
- * @type {{id: string, title: string, hint: string, wide?: boolean,
+ * Every card the studio knows, by id. What a card *is* lives here; where it sits lives in
+ * `GROUPS`, so rearranging the page never touches a specimen.
+ * @type {{id: string, title: string, hint: string,
  *   render: (teardown: (fn: () => void) => void) => Node}[]}
  */
 export const CARDS = [
@@ -150,7 +178,6 @@ export const CARDS = [
     id: 'reading',
     title: 'Reading',
     hint: '.zx-prose: the reading typeface, size, and measure, apart from the interface',
-    wide: true,
     render: readingCard
   },
   { id: 'material', title: 'Material', hint: 'Identity, controls, raised surfaces, and overlay tiers', render: materialCard },
@@ -159,7 +186,6 @@ export const CARDS = [
     id: 'button-states',
     title: 'Button states',
     hint: 'Every kind in every state, drawn by the library’s own state rules',
-    wide: true,
     render: buttonStatesCard
   },
   { id: 'badges', title: 'Badges', hint: 'Six intents in three weights', render: badgesCard },
@@ -178,7 +204,6 @@ export const CARDS = [
     id: 'modules',
     title: 'Modules',
     hint: 'Module bar in three appearances, and the modules layout of AppSidebar',
-    wide: true,
     render: modulesCard
   },
   { id: 'containers', title: 'Containers', hint: 'Card, panel, groupbox, master panel', render: containersCard },
@@ -188,6 +213,112 @@ export const CARDS = [
   { id: 'states', title: 'Empty and loading', hint: 'What a screen shows before it has data', render: statesCard },
   { id: 'icons', title: 'Icons', hint: 'The bundled set, at control size', render: iconsCard }
 ];
+
+/**
+ * @typedef {object} StudioCell One column of a group's grid: a card, or a few stacked in one.
+ * @property {number} span Columns of 12 it takes on a wide canvas.
+ * @property {number} [mid] Columns of 6 it takes on a middling canvas; half the row for a `span`
+ *   up to 7, the whole row beyond that. Anything narrower runs one column wide.
+ * @property {string[]} cards Card ids, top to bottom. The cell stretches to the row, and the
+ *   cards in it share what the neighbouring cell has over.
+ */
+
+/**
+ * The canvas as a document: a titled section per theme concern, each a 12-column grid whose cells
+ * were chosen so that a row's neighbours are about as tall as one another — a short card beside a
+ * tall one leaves a hole, so a tall card is paired with two short ones stacked instead. Reading
+ * order is the order here, left to right, then down.
+ * @type {{id: string, title: string, blurb: string, cells: StudioCell[]}[]}
+ */
+const LAYOUT = [
+  {
+    id: 'foundations',
+    title: 'Foundations',
+    blurb: 'Colour, type, reading, and icons: what every component below resolves through.',
+    cells: [
+      { span: 12, cards: ['palette'] },
+      { span: 6, cards: ['tones', 'type'] },
+      { span: 6, cards: ['reading'] },
+      { span: 12, cards: ['icons'] }
+    ]
+  },
+  {
+    id: 'surfaces',
+    title: 'Surfaces',
+    blurb: 'Material, containers, and everything that opens above the page.',
+    cells: [
+      { span: 5, cards: ['containers'] },
+      { span: 7, cards: ['material', 'overlays'] }
+    ]
+  },
+  {
+    id: 'actions',
+    title: 'Actions',
+    blurb: 'Buttons in every kind and state, and the badges beside them.',
+    cells: [
+      { span: 6, cards: ['buttons'] },
+      { span: 6, cards: ['badges'] },
+      { span: 12, cards: ['button-states'] }
+    ]
+  },
+  {
+    id: 'inputs',
+    title: 'Inputs and forms',
+    blurb: 'Text, selection, ranges, and dates, then the same controls in a form.',
+    cells: [
+      { span: 4, cards: ['inputs', 'ranges'] },
+      { span: 4, cards: ['selection', 'dates'] },
+      { span: 4, mid: 6, cards: ['form'] }
+    ]
+  },
+  {
+    id: 'calendar',
+    title: 'Calendar',
+    blurb: 'The inline date picker and the schedule: the densest use of the accent.',
+    cells: [
+      { span: 5, cards: ['calendar'] },
+      { span: 7, cards: ['schedule'] }
+    ]
+  },
+  {
+    id: 'data',
+    title: 'Data',
+    blurb: 'Tables and the filters above them, hierarchies, value editors, and empty states.',
+    cells: [
+      { span: 7, cards: ['filter', 'table'] },
+      { span: 5, cards: ['hierarchy'] },
+      { span: 6, cards: ['lists'] },
+      { span: 6, cards: ['states'] }
+    ]
+  },
+  {
+    id: 'navigation',
+    title: 'Navigation',
+    blurb: 'App bars, tabs, steps, and the module navigation of an application.',
+    cells: [
+      { span: 6, cards: ['modules'] },
+      { span: 6, cards: ['navigation', 'tabs'] }
+    ]
+  }
+];
+
+/**
+ * `LAYOUT`, plus a closing section for any card it does not place. A card added to `CARDS` and
+ * forgotten here would otherwise vanish from the page without a sound.
+ * @type {{id: string, title: string, blurb: string, cells: StudioCell[]}[]}
+ */
+export const GROUPS = (() => {
+  const placed = new Set(LAYOUT.flatMap((group) => group.cells.flatMap((cell) => cell.cards)));
+  const rest = CARDS.filter((card) => !placed.has(card.id));
+  return rest.length === 0
+    ? LAYOUT
+    : [...LAYOUT, {
+      id: 'more',
+      title: 'More',
+      blurb: 'The rest of the families.',
+      cells: rest.map((card) => ({ span: 6, cards: [card.id] }))
+    }];
+})();
 
 /**
  * Builds the whole canvas.
@@ -210,13 +341,32 @@ export function mountShowcase(container) {
     }
   };
 
-  container.replaceChildren(...CARDS.map((card) => h('section', {
-    class: card.wide ? 'studio-card studio-card--wide' : 'studio-card', id: `card-${card.id}`
+  const cardById = new Map(CARDS.map((card) => [card.id, card]));
+  const mountCard = (id) => {
+    const card = cardById.get(id);
+    return h('section', { class: 'studio-card', id: `card-${card.id}` },
+      h('header', { class: 'studio-card__head' },
+        h('h3', { class: 'studio-card__title' }, card.title),
+        h('p', { class: 'studio-card__hint' }, card.hint)),
+      h('div', { class: 'studio-card__body' }, body(card, collect, collectComponents)));
+  };
+
+  container.replaceChildren(...GROUPS.map((group) => h('section', {
+    class: 'studio-group', id: `group-${group.id}`, 'aria-labelledby': `group-${group.id}-title`
   },
-    h('header', { class: 'studio-card__head' },
-      h('h2', { class: 'studio-card__title' }, card.title),
-      h('p', { class: 'studio-card__hint' }, card.hint)),
-    h('div', { class: 'studio-card__body' }, body(card, collect, collectComponents)))));
+  h('header', { class: 'studio-group__head' },
+    h('div', { class: 'studio-group__text' },
+      h('h2', { class: 'studio-group__title', id: `group-${group.id}-title` }, group.title),
+      h('p', { class: 'studio-group__blurb' }, group.blurb)),
+    // The families in the section, as links: the old flat index, now where each one lives.
+    h('div', { class: 'studio-group__families', role: 'group', 'aria-label': `${group.title} families` },
+      group.cells.flatMap((cell) => cell.cards).map((id) =>
+        h('a', { class: 'studio-group__link', href: `#card-${id}` }, cardById.get(id).title)))),
+  h('div', { class: 'studio-grid' }, group.cells.map((cell) => h('div', {
+    class: 'studio-cell',
+    style: { '--span': cell.span, '--span-mid': cell.mid ?? (cell.span > 7 ? 6 : 3) }
+  }, cell.cards.map(mountCard))))
+  )));
 
   return () => {
     for (const component of [...components].reverse()) {
@@ -251,12 +401,20 @@ function body(card, collect, collectComponents) {
 
 /* ---------------------------------------------------------------------- cards -- */
 
-/** @returns {Node} */
+/**
+ * The semantic colours, one cluster per role. Each cluster is as wide as it has swatches, so on a
+ * wide canvas the roles sit side by side in one band rather than in a single grid that reads as
+ * twenty-three equals.
+ * @returns {Node}
+ */
 function paletteCard() {
-  return h('div', { class: 'studio-swatches' }, PALETTE.map(([label, token]) =>
-    h('div', { class: 'studio-swatch' },
-      h('span', { class: 'studio-swatch__chip', style: { background: `var(${token})` } }),
-      h('span', { class: 'studio-swatch__label' }, label))));
+  return h('div', { class: 'studio-palette' }, PALETTE.map(({ role, colours }) =>
+    h('div', { class: 'studio-palette__group', role: 'group', 'aria-label': role },
+      h('p', { class: 'studio-palette__role' }, role),
+      h('div', { class: 'studio-swatches studio-swatches--compact' }, colours.map(([label, token]) =>
+        h('div', { class: 'studio-swatch' },
+          h('span', { class: 'studio-swatch__chip', style: { background: `var(${token})` } }),
+          h('span', { class: 'studio-swatch__label' }, label)))))));
 }
 
 /**
@@ -266,7 +424,7 @@ function paletteCard() {
  */
 function tonesCard() {
   return h('div', { class: 'studio-stack' },
-    h('div', { class: 'studio-swatches' }, TONES.map((tone) =>
+    h('div', { class: 'studio-swatches studio-swatches--compact' }, TONES.map((tone) =>
       h('div', { class: 'studio-swatch' },
         h('span', {
           class: 'studio-swatch__chip',
@@ -276,7 +434,7 @@ function tonesCard() {
           }
         }, 'Aa'),
         h('span', { class: 'studio-swatch__label' }, tone)))),
-    h('div', { class: 'studio-swatches' }, Array.from({ length: CHART_SERIES }, (_, index) =>
+    h('div', { class: 'studio-swatches studio-swatches--compact' }, Array.from({ length: CHART_SERIES }, (_, index) =>
       h('div', { class: 'studio-swatch' },
         h('span', { class: 'studio-swatch__chip', style: { background: `var(--zx-color-chart-${index + 1})` } }),
         h('span', { class: 'studio-swatch__label' }, `Series ${index + 1}`)))));
@@ -321,7 +479,7 @@ function readingCard() {
 
 /** @returns {Node} */
 function materialCard() {
-  const canvas = h('div', { class: 'studio-material-canvas studio-stack' },
+  const canvas = h('div', { class: 'studio-material-canvas studio-stack studio-grow' },
     row(
       new AppIcon(null, { icon: 'folder', color: '#bc3885', size: 52, label: 'Accounts', shape: 'circle' }).toElement(),
       new AppIcon(null, { icon: 'file', color: '#535494', size: 52, label: 'Billing', glass: 'strong', shape: 'circle' }).toElement(),
@@ -345,7 +503,7 @@ function buttonsCard() {
   // A segmented choice marks the current option as pressed, not as a primary action.
   const grid = button({ label: 'Grid', size: 'sm' });
   grid.setAttribute('aria-pressed', 'true');
-  const canvas = h('div', { class: 'studio-overlay-canvas studio-stack' },
+  const canvas = h('div', { class: 'studio-overlay-canvas studio-stack studio-grow' },
     row(
       button({ label: 'Default' }),
       button({ label: 'Primary', kind: 'primary', icon: 'plus' }),
@@ -720,7 +878,8 @@ function tabsCard() {
         { name: 'history', title: 'History', content: tabBody('History') }
       ]
     }).toElement()));
-  return h('div', { class: 'studio-stack studio-stack--wide' }, ...tabs);
+  // Two to a row where the card is wide enough for it; one beneath another where it is not.
+  return h('div', { class: 'studio-tabs' }, ...tabs);
 }
 
 /** The modules every module bar on the canvas draws: tones, a host colour, badges, and menus. */
@@ -749,12 +908,13 @@ function modulesCard() {
     layout: 'modules', items: studioModules(), active: 'invoices', label: 'Studio navigation'
   });
   return h('div', { class: 'studio-stack studio-stack--wide' },
-    // The strips and the sidebar wrap onto two rows on a narrow screen, each keeping its height.
-    h('div', { style: 'display: flex; flex-wrap: wrap; gap: var(--zx-space-4)' },
-      h('div', { style: 'display: flex; gap: var(--zx-space-4); block-size: 360px' },
+    // The strips and the sidebar wrap onto two rows on a narrow card, each keeping its height; on
+    // a tall one they take the extra, so the card fills its cell rather than leaving a gap.
+    h('div', { class: 'studio-modules studio-grow' },
+      h('div', { class: 'studio-modules__strips' },
         strip({ label: 'Tinted modules' }),
         strip({ label: 'Plain modules', appearance: 'plain' })),
-      h('div', { style: 'display: flex; flex: 1 1 16rem; min-inline-size: 0; block-size: 360px' }, sidebar.toElement())),
+      h('div', { class: 'studio-modules__sidebar' }, sidebar.toElement())),
     strip({ label: 'Solid modules', appearance: 'solid', orientation: 'horizontal', side: 'top' }));
 }
 
@@ -885,7 +1045,7 @@ function overlaysCard(teardown) {
 
   const toast = (kind) => toasts.add(Message[kind](`A ${kind} toast, themed like everything else.`));
 
-  const canvas = h('div', { class: 'studio-overlay-canvas studio-stack' },
+  const canvas = h('div', { class: 'studio-overlay-canvas studio-stack studio-grow' },
     row(
       button({ label: 'Modal', onclick: () => modal.open() }),
       button({ label: 'Dialog', onclick: () => dialog.open() }),
@@ -910,8 +1070,8 @@ function overlaysCard(teardown) {
 function hierarchyCard() {
   const tree = new TreeView(null, { items: TREE, expanded: ['accounts'], selected: ['alpine'] });
   return h('div', { class: 'studio-stack' },
-    h('div', { class: 'studio-frame studio-frame--short' }, tree.toElement()),
-    h('div', { class: 'studio-frame studio-frame--short' },
+    h('div', { class: 'studio-frame studio-frame--short studio-grow' }, tree.toElement()),
+    h('div', { class: 'studio-frame studio-frame--short studio-grow' },
       new Finder(null, { items: TREE }).toElement()));
 }
 
@@ -934,7 +1094,7 @@ function statesCard() {
       actions: [{ label: 'New credit note', kind: 'primary', icon: 'plus' }],
       size: 'sm'
     }),
-    h('div', { class: 'studio-frame studio-frame--short' }, skeletonText({ lines: 3 })));
+    h('div', { class: 'studio-frame studio-frame--short studio-grow' }, skeletonText({ lines: 3 })));
 }
 
 /** @returns {Node} */

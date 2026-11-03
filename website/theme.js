@@ -24,7 +24,7 @@ import {
   accentRamp, cleanFontStack, contrast, fontById, normalizeSettings, presetById, readThemeJson,
   resolvedAccent, themeCss, themeJson, themeVars, tintById, tintRamp
 } from './theme-presets.js';
-import { CARDS, mountShowcase } from './theme-showcase.js';
+import { GROUPS, mountShowcase } from './theme-showcase.js';
 
 /** Where the studio's own control positions live. The applied theme is site.js's business. */
 const STORAGE_KEY = 'zx-theme-studio';
@@ -48,6 +48,12 @@ const state = restore();
 const app = document.querySelector('#theme-app');
 const rail = h('aside', { class: 'studio-rail' });
 const canvas = h('div', { class: 'studio-canvas' });
+// The sections of the page, pinned under the site header: the way to a family far down a very long
+// page, and a map of where the reader is on it.
+const sections = h('nav', { class: 'studio-sections', 'aria-label': 'Sections of this page' },
+  GROUPS.map((group) => h('a', {
+    class: 'studio-sections__link', href: `#group-${group.id}`, 'data-group': group.id
+  }, group.title)));
 const main = h('main', { class: 'studio-main' },
   h('div', { class: 'studio-intro' },
     h('h1', { class: 'studio-intro__title' }, 'Theme studio'),
@@ -55,13 +61,13 @@ const main = h('main', { class: 'studio-main' },
       'Every Xenon component family on one page. Pick one of the standard themes, or change a few '
       + 'properties to build your own — then copy the result as CSS. Whatever you choose applies '
       + 'to the whole site until you reset it.')),
-  // A short index, so the rail is not the only way to reach a family far down a very long page.
-  h('nav', { class: 'studio-index', 'aria-label': 'Components on this page' },
-    CARDS.map((card) => h('a', { class: 'studio-index__link', href: `#card-${card.id}` }, card.title))),
+  sections,
   canvas);
 
 /** @type {(() => void)|null} Teardown for whatever the canvas last mounted. */
 let disposeCanvas = null;
+/** @type {IntersectionObserver|null} Reports which section is under the pinned nav. */
+let sectionWatch = null;
 /** Controls that have to follow changes made outside their own widget. */
 const sync = [];
 
@@ -74,7 +80,9 @@ document.addEventListener('zx-theme-change', () => {
   for (const update of sync) update();
 });
 
-app.replaceChildren(h('div', { class: 'studio' }, rail, main));
+const studio = h('div', { class: 'studio' }, rail, main);
+app.replaceChildren(studio);
+trackHeader();
 buildRail();
 rebuildCanvas();
 apply();
@@ -599,10 +607,55 @@ function reset() {
   apply({ rebuild: true });
 }
 
+/**
+ * Keeps `--studio-header` equal to the site header's real height. The stylesheet assumes one row,
+ * which is true until the header wraps on a phone; the pinned rail and section nav both sit
+ * directly beneath it and would otherwise start underneath.
+ * @returns {void}
+ */
+function trackHeader() {
+  const header = document.querySelector('.site-header');
+  if (!header) return;
+  const measure = () => studio.style.setProperty('--studio-header', `${header.offsetHeight}px`);
+  new ResizeObserver(measure).observe(header);
+  measure();
+}
+
 /** @returns {void} */
 function rebuildCanvas() {
   disposeCanvas?.();
   disposeCanvas = mountShowcase(canvas);
+  watchSections();
+}
+
+/**
+ * Marks the section nearest the top of the page as current in the nav above it. The band the
+ * observer watches is a strip just under the pinned nav, so a section becomes current when its
+ * heading reaches it rather than when its last pixel leaves — the same moment a reader would say
+ * they had arrived. Rebuilt with the canvas, because a rebuild replaces every section.
+ * @returns {void}
+ */
+function watchSections() {
+  sectionWatch?.disconnect();
+  const inBand = new Set();
+  // Just under the pinned nav, which itself sits under the header.
+  const top = Math.round(parseFloat(studio.style.getPropertyValue('--studio-header')) + sections.offsetHeight + 16);
+  const mark = () => {
+    // The first section in page order that is in the band; none while between two of them.
+    const current = GROUPS.find((group) => inBand.has(`group-${group.id}`));
+    for (const link of sections.children) {
+      if (current && link.dataset.group === current.id) link.setAttribute('aria-current', 'true');
+      else link.removeAttribute('aria-current');
+    }
+  };
+  sectionWatch = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (entry.isIntersecting) inBand.add(entry.target.id);
+      else inBand.delete(entry.target.id);
+    }
+    mark();
+  }, { rootMargin: `-${top}px 0px -70% 0px` });
+  for (const group of canvas.querySelectorAll('.studio-group')) sectionWatch.observe(group);
 }
 
 /**
