@@ -42,27 +42,29 @@
   display: contents;
 }
 
-/* A chip is one fill, not a fill and a line. The border stays, transparent, so the chip keeps its
-   size and a forced-colours reader gets an outline back. */
-.zx-tag-picker__tag {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--zx-space-1);
-  max-inline-size: 100%;
-  padding-inline-start: var(--zx-space-2);
-  border: 1px solid transparent;
+/*
+ * A tag is a Badge — `badge()` with the item's tone, and this class added — so its height (from
+ * the row), its 12px medium type, its padding, its one fill and its tone pairs are the Badge's, and
+ * a label reads the same in the field as in a list row or a record header. What follows is the
+ * picker's own.
+ *
+ * An untoned tag is still a tag, so it keeps the tag's small corners rather than the status pill's;
+ * and it is the field's value, so it keeps the text ink rather than a status's muted one.
+ */
+.zx-tag-picker .zx-tag-picker__tag {
   border-radius: var(--zx-radius-md);
-  /* A text-colour step, not the muted surface: it reads on the control's own fill in both themes,
-     where the hairline used to do the separating. */
-  background: color-mix(in srgb, var(--zx-color-text) 8%, transparent);
-  font-size: var(--zx-text-sm);
-  line-height: 1.5;
 }
 
+.zx-tag-picker .zx-tag-picker__tag:not([data-tone]) {
+  color: var(--zx-color-text);
+}
+
+/* A host colour (`colorKey`) tints the tag's one fill. */
 .zx-tag-picker__tag[data-colored="true"] {
   background: color-mix(in srgb, var(--zx-tag-color) 14%, var(--zx-color-bg-muted));
 }
 
+/* An option's icon sits on a tile of its colour, beside a label that has no fill of its own. */
 .zx-tag-picker__visual {
   display: inline-grid;
   place-items: center;
@@ -74,16 +76,50 @@
   color: var(--zx-tag-color, var(--zx-color-accent));
 }
 
-/* A categorical tone: the tag takes the Badge tone palette — the tone's tint as fill, its ink as
-   text, no border — and an icon tile the same pair, so a label keeps one colour everywhere. */
-.zx-tag-picker__tag[data-tone] {
+/* A categorical tone gives an option's tile the Badge tone pair, so it matches the tag it becomes. */
+.zx-tag-picker__visual[data-tone] {
   background: var(--zx-tag-tone-bg);
   color: var(--zx-tag-tone-fg);
 }
 
-.zx-tag-picker__visual[data-tone] {
-  background: var(--zx-tag-tone-bg);
-  color: var(--zx-tag-tone-fg);
+.zx-tag-picker__visual[data-tone="blue"] { --zx-tag-tone-bg: var(--zx-color-tone-blue-bg); --zx-tag-tone-fg: var(--zx-color-tone-blue-fg); }
+.zx-tag-picker__visual[data-tone="teal"] { --zx-tag-tone-bg: var(--zx-color-tone-teal-bg); --zx-tag-tone-fg: var(--zx-color-tone-teal-fg); }
+.zx-tag-picker__visual[data-tone="green"] { --zx-tag-tone-bg: var(--zx-color-tone-green-bg); --zx-tag-tone-fg: var(--zx-color-tone-green-fg); }
+.zx-tag-picker__visual[data-tone="amber"] { --zx-tag-tone-bg: var(--zx-color-tone-amber-bg); --zx-tag-tone-fg: var(--zx-color-tone-amber-fg); }
+.zx-tag-picker__visual[data-tone="orange"] { --zx-tag-tone-bg: var(--zx-color-tone-orange-bg); --zx-tag-tone-fg: var(--zx-color-tone-orange-fg); }
+.zx-tag-picker__visual[data-tone="red"] { --zx-tag-tone-bg: var(--zx-color-tone-red-bg); --zx-tag-tone-fg: var(--zx-color-tone-red-fg); }
+.zx-tag-picker__visual[data-tone="pink"] { --zx-tag-tone-bg: var(--zx-color-tone-pink-bg); --zx-tag-tone-fg: var(--zx-color-tone-pink-fg); }
+.zx-tag-picker__visual[data-tone="violet"] { --zx-tag-tone-bg: var(--zx-color-tone-violet-bg); --zx-tag-tone-fg: var(--zx-color-tone-violet-fg); }
+.zx-tag-picker__visual[data-tone="slate"] { --zx-tag-tone-bg: var(--zx-color-tone-slate-bg); --zx-tag-tone-fg: var(--zx-color-tone-slate-fg); }
+
+/* Inside a tag the icon is a bare glyph in the tag's ink: the tag is already the fill, and a tile
+   on top of it would be a second one. A host colour still marks the glyph. */
+.zx-tag-picker .zx-tag-picker__tag .zx-tag-picker__visual {
+  inline-size: auto;
+  block-size: auto;
+  background: none;
+  color: inherit;
+}
+
+.zx-tag-picker .zx-tag-picker__tag[data-colored="true"] .zx-tag-picker__visual {
+  color: var(--zx-tag-color);
+}
+
+/* The remove button replaces the tag's end padding. */
+.zx-tag-picker .zx-tag-picker__tag:has(> .zx-tag-picker__remove) {
+  padding-inline-end: 0;
+}
+
+/* The × is stretched to the tag's height and held 1px in from it, so with the tag's own 1px edge
+   its hover fill sits 2px inside the tag on every side and never touches the tag's edge. */
+.zx-tag-picker .zx-tag-picker__remove {
+  inline-size: 18px;
+  block-size: auto;
+  min-block-size: 0;
+  align-self: stretch;
+  margin-block: 1px;
+  margin-inline-end: 1px;
+  border-radius: var(--zx-radius-sm);
 }
 
 .zx-tag-picker .zx-tag-picker__tag[data-tone] .zx-tag-picker__remove {
@@ -93,51 +129,6 @@
 .zx-tag-picker .zx-tag-picker__tag[data-tone] .zx-tag-picker__remove:hover {
   background: color-mix(in srgb, currentColor 14%, transparent);
   color: inherit;
-}
-
-:is(.zx-tag-picker__tag, .zx-tag-picker__visual)[data-tone="blue"] { --zx-tag-tone-bg: var(--zx-color-tone-blue-bg); --zx-tag-tone-fg: var(--zx-color-tone-blue-fg); }
-:is(.zx-tag-picker__tag, .zx-tag-picker__visual)[data-tone="teal"] { --zx-tag-tone-bg: var(--zx-color-tone-teal-bg); --zx-tag-tone-fg: var(--zx-color-tone-teal-fg); }
-:is(.zx-tag-picker__tag, .zx-tag-picker__visual)[data-tone="green"] { --zx-tag-tone-bg: var(--zx-color-tone-green-bg); --zx-tag-tone-fg: var(--zx-color-tone-green-fg); }
-:is(.zx-tag-picker__tag, .zx-tag-picker__visual)[data-tone="amber"] { --zx-tag-tone-bg: var(--zx-color-tone-amber-bg); --zx-tag-tone-fg: var(--zx-color-tone-amber-fg); }
-:is(.zx-tag-picker__tag, .zx-tag-picker__visual)[data-tone="orange"] { --zx-tag-tone-bg: var(--zx-color-tone-orange-bg); --zx-tag-tone-fg: var(--zx-color-tone-orange-fg); }
-:is(.zx-tag-picker__tag, .zx-tag-picker__visual)[data-tone="red"] { --zx-tag-tone-bg: var(--zx-color-tone-red-bg); --zx-tag-tone-fg: var(--zx-color-tone-red-fg); }
-:is(.zx-tag-picker__tag, .zx-tag-picker__visual)[data-tone="pink"] { --zx-tag-tone-bg: var(--zx-color-tone-pink-bg); --zx-tag-tone-fg: var(--zx-color-tone-pink-fg); }
-:is(.zx-tag-picker__tag, .zx-tag-picker__visual)[data-tone="violet"] { --zx-tag-tone-bg: var(--zx-color-tone-violet-bg); --zx-tag-tone-fg: var(--zx-color-tone-violet-fg); }
-:is(.zx-tag-picker__tag, .zx-tag-picker__visual)[data-tone="slate"] { --zx-tag-tone-bg: var(--zx-color-tone-slate-bg); --zx-tag-tone-fg: var(--zx-color-tone-slate-fg); }
-
-.zx-tag-picker__tag:not(:has(.zx-tag-picker__remove)) {
-  padding-inline-end: var(--zx-space-2);
-}
-
-.zx-tag-picker__tag-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* The × is stretched to the chip's line and held 1px in from it, so with the chip's own 1px edge
-   its hover fill sits 2px inside the chip on every side and never touches the chip's edge. (A
-   percentage height would not resolve here: the chip is as tall as its content.) */
-.zx-tag-picker .zx-tag-picker__remove {
-  inline-size: 18px;
-  block-size: auto;
-  align-self: stretch;
-  margin-block: 1px;
-  margin-inline-end: 1px;
-  border-radius: var(--zx-radius-sm);
-}
-
-/* Someone who asked for more contrast, or whose colours are forced, gets the chip's edge back. */
-@media (prefers-contrast: more) {
-  .zx-tag-picker__tag {
-    border-color: var(--zx-color-border-strong);
-  }
-}
-
-@media (forced-colors: active) {
-  .zx-tag-picker__tag {
-    border-color: CanvasText;
-  }
 }
 
 .zx-tag-picker__input {

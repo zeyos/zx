@@ -112,17 +112,32 @@ test('counts and badges use tabular figures', () => {
 
 test('a chip is one fill: its edge is kept for size and drawn only in forced colours', () => {
   for (const [path, selector] of [
-    ['tag-picker/tag-picker.css', '.zx-tag-picker__tag'],
+    ['badge/badge.css', '.zx-badge'],
     ['value-list/value-list.css', '.zx-value-list__chip'],
     ['entity-ref/entity-ref.css', '.zx-entity-ref__icon']
   ]) {
     assert.equal(value(rule(read(path), selector), 'border'), '1px solid transparent', selector);
   }
+  // A tag in a picker is a Badge, so it draws no edge of its own — coloured or not.
   const tags = read('tag-picker/tag-picker.css');
+  assert.doesNotMatch(rule(tags, '.zx-tag-picker .zx-tag-picker__tag'), /border(?!-radius)/, 'a tag draws a line again');
   assert.doesNotMatch(rule(tags, '.zx-tag-picker__tag[data-colored="true"]'), /border/, 'a coloured tag draws a line again');
-  assert.match(tags, /@media \(forced-colors: active\)\s*\{\s*\.zx-tag-picker__tag\s*\{\s*border-color: CanvasText;/);
+  assert.match(read('badge/badge.css'),
+    /@media \(forced-colors: active\)\s*\{\s*\.zx-badge,\s*\.zx-badge\[data-tone\]\s*\{\s*border-color: CanvasText;/);
   assert.match(read('value-list/value-list.css'),
     /@media \(forced-colors: active\)\s*\{\s*\.zx-value-list__chip\s*\{\s*border-color: CanvasText;/);
+});
+
+test('a tag in a picker is built as a Badge, not drawn a second way', () => {
+  const source = read('tag-picker/tag-picker.js');
+  assert.match(source, /const tag = badge\(\{ tone \}\);\s*tag\.classList\.add\('zx-tag-picker__tag'\)/);
+  // The Badge owns the chip's size, type and fill; the picker's stylesheet must not restate them.
+  const tags = read('tag-picker/tag-picker.css');
+  for (const property of ['font-size', 'font-weight', 'line-height', 'block-size', 'padding-inline-start', 'background']) {
+    assert.equal(value(rule(tags, '.zx-tag-picker .zx-tag-picker__tag'), property), undefined, property);
+  }
+  assert.equal(value(rule(tags, '.zx-tag-picker .zx-tag-picker__tag'), 'border-radius'), 'var(--zx-radius-md)',
+    'an untoned tag is still a tag, not a status pill');
 });
 
 test('a remove button is held inside its chip so its hover fill never reaches the chip edge', () => {

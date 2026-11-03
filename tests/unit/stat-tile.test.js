@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
   formatStatValue,
+  normalizeStatTileVariant,
   statDelta,
   statTileName,
   statTileTag,
@@ -205,4 +207,56 @@ test('a gap is not a delta either', () => {
 
 test('the box is the caller\'s to change', () => {
   assert.equal(statTrendPoints([0, 1], { width: 10, height: 10, inset: 0 }), '0,10 10,0');
+});
+
+/* ------------------------------------------------------------ plain figures -- */
+
+const CSS = readFileSync(new URL('../../src/components/stat-tile/stat-tile.css', import.meta.url), 'utf8');
+
+/** @param {string} selector @returns {string} The declarations of the rule with exactly that selector. */
+function rule(selector) {
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(?:^|\\n)${escaped}\\s*\\{([^}]*)\\}`).exec(CSS)?.[1] ?? '';
+}
+
+/** @param {string} body @param {string} property @returns {string|undefined} */
+function value(body, property) {
+  return new RegExp(`(?:^|[;\\s])${property}:\\s*([^;]+);`).exec(body)?.[1].trim();
+}
+
+test('a variant the stylesheet does not know is the framed tile', () => {
+  assert.equal(normalizeStatTileVariant('plain'), 'plain');
+  assert.equal(normalizeStatTileVariant('default'), 'default');
+  assert.equal(normalizeStatTileVariant(undefined), 'default');
+  assert.equal(normalizeStatTileVariant('Plain'), 'default');
+  assert.equal(normalizeStatTileVariant('outlined'), 'default');
+});
+
+test('a plain figure has no frame, no fill, and no padding', () => {
+  const plain = rule('.zx-stat-tile[data-variant="plain"]');
+  assert.equal(value(plain, 'border'), '0');
+  assert.equal(value(plain, 'background'), 'none');
+  assert.equal(value(plain, 'padding'), '0');
+});
+
+test('one figure leads: the emphasised plain figure is the display size, the others a step down', () => {
+  const ladder = ['--zx-text-md', '--zx-text-lg', '--zx-text-xl', '--zx-text-2xl', '--zx-text-3xl'];
+  const step = (/** @type {string} */ selector) =>
+    ladder.indexOf(/var\((--zx-text-[a-z0-9]+)\)/.exec(value(rule(selector), '--zx-stat-tile-value-size') ?? '')?.[1] ?? '');
+  const framed = step('.zx-stat-tile');
+  const plain = step('.zx-stat-tile[data-variant="plain"]');
+  const lead = step('.zx-stat-tile[data-variant="plain"][data-emphasis="true"]');
+  const framedLead = step('.zx-stat-tile[data-emphasis="true"]');
+  assert.ok(plain >= 0 && lead >= 0 && framed >= 0 && framedLead >= 0, 'every figure size is a step of the type ladder');
+  assert.ok(lead > plain, 'the emphasised plain figure is larger than the others in its row');
+  // The record title is set at 2xl; a plain lead never outranks the page it sits on.
+  assert.equal(ladder[lead], '--zx-text-2xl');
+  assert.equal(framedLead, framed + 1, 'a framed tile leads one step above its own figure');
+});
+
+test('the figure keeps its weight and tabular digits whatever its size', () => {
+  const figure = rule('.zx-stat-tile__value');
+  assert.equal(value(figure, 'font-weight'), 'var(--zx-weight-title)');
+  assert.equal(value(figure, 'font-variant-numeric'), 'tabular-nums');
+  assert.equal(value(figure, 'font-size'), 'var(--zx-stat-tile-value-size)');
 });

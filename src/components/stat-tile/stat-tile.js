@@ -12,6 +12,7 @@ import { skeleton } from '../skeleton/skeleton.js';
 /** @typedef {'neutral'|'accent'|'success'|'warning'|'danger'|'info'} StatTileKind */
 /** @typedef {'positive'|'negative'|'neutral'} StatTileDeltaKind */
 /** @typedef {'up'|'down'|'flat'} StatTileDirection */
+/** @typedef {'default'|'plain'} StatTileVariant */
 
 /**
  * @typedef {Object} StatTileDelta
@@ -53,6 +54,13 @@ import { skeleton } from '../skeleton/skeleton.js';
  *   a glyph, not a coloured chip.
  * @property {StatTileKind} [kind='neutral'] Semantic intent. It tints the sparkline and never the
  *   value, which stays at full text contrast whatever intent a record carries.
+ * @property {StatTileVariant} [variant='default'] `'default'` is a framed tile on its own surface,
+ *   for a figure that stands among other content (a dashboard). `'plain'` drops the frame, the fill
+ *   and the padding and sets the figure a size smaller, for a row of figures on a page (a record's
+ *   amounts under its title). Reflected as `data-variant` on the root.
+ * @property {boolean} [emphasis=false] The figure leads its row: in a plain row it is set at the
+ *   display size while the others stay smaller, on a framed tile one step above the display size.
+ *   Give it to one tile per row. Reflected as `data-emphasis="true"`.
  * @property {string|null} [href=null] Destination. A tile with an href is an `<a>`.
  * @property {boolean} [clickable=false] Renders a `<button>` without an href. Passing `onclick`
  *   sets this implicitly; set it directly to subscribe with `on('click', …)` instead.
@@ -104,6 +112,8 @@ const defaults = Object.freeze({
   trend: [],
   icon: null,
   kind: 'neutral',
+  variant: 'default',
+  emphasis: false,
   href: null,
   clickable: false,
   loading: false
@@ -294,6 +304,15 @@ export function statDelta(delta, options = {}) {
 }
 
 /**
+ * Resolves the `variant` option to one the stylesheet knows; anything else is the framed tile.
+ * @param {unknown} value Requested variant.
+ * @returns {StatTileVariant}
+ */
+export function normalizeStatTileVariant(value) {
+  return value === 'plain' ? 'plain' : 'default';
+}
+
+/**
  * Chooses the element a tile must be, from what the tile does.
  *
  * A destination is a link, an action is a button, and a tile that does neither is a plain
@@ -374,6 +393,9 @@ function fillStatTile(root, options, message) {
   // put on it, and a redraw through `update()` does not quietly strip them.
   root.classList.add('zx-stat-tile');
   root.dataset.kind = kind;
+  root.dataset.variant = normalizeStatTileVariant(options.variant);
+  if (options.emphasis === true) root.dataset.emphasis = 'true';
+  else delete root.dataset.emphasis;
   root.dataset.loading = String(loading);
   if (root.tagName.toLowerCase() === 'a') {
     // `setAttribute` rather than the reflected property, so `update()` can also take a destination
@@ -482,14 +504,15 @@ function trendBody(values) {
 
 /**
  * Builds the placeholder: the tile's own shape in grey, not a spinner, so nothing moves when the
- * numbers arrive.
+ * numbers arrive. The figure's block reads the same size property as the figure, so a plain or an
+ * emphasised tile's placeholder is as tall as the number that replaces it.
  * @param {StatTileOptions} options Fully merged options.
  * @returns {HTMLElement}
  */
 function loadingBody(options) {
   const blocks = [
     h('div', { class: 'zx-stat-tile__header' }, skeleton({ width: '55%', height: '0.75rem' })),
-    skeleton({ width: '70%', height: '1.75rem', radius: 'md' })
+    skeleton({ width: '70%', height: 'calc(var(--zx-stat-tile-value-size) * 1.15)', radius: 'md' })
   ];
   if (asText(options.caption).trim()) blocks.push(skeleton({ width: '35%', height: '0.75rem' }));
   if (options.delta !== null && options.delta !== undefined) {

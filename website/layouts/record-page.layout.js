@@ -162,10 +162,11 @@ export default {
     // ------------------------------------------------------------------ the record --
 
     const head = h('div', { class: 'record__head' });
+    // The record's figures sit on the page rather than in boxes, and the amount leads them.
     const tiles = {
-      amount: keep(statTile({ label: 'Amount', format: money })),
-      weighted: keep(statTile({ label: 'Weighted', format: money })),
-      close: keep(statTile({ label: 'Expected close', format: null }))
+      amount: keep(statTile({ label: 'Amount', format: money, variant: 'plain', emphasis: true })),
+      weighted: keep(statTile({ label: 'Weighted', format: money, variant: 'plain' })),
+      close: keep(statTile({ label: 'Expected close', format: null, variant: 'plain' }))
     };
 
     const positions = keep(new Table(null, {

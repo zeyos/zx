@@ -273,30 +273,39 @@ function avatarStack(scope, ids) {
 
 /**
  * A company's categories as tone chips. A table cell shows the first and counts the rest, so every
- * row keeps one line; the record page shows them all.
+ * row keeps one line; the record page shows them all, at the size of the picker that edits them.
  * @param {string[]} values
- * @param {{limit?: number}} [options]
+ * @param {{limit?: number, size?: 'sm'|'md'}} [options]
  * @returns {HTMLElement}
  */
-function chips(values, { limit = Infinity } = {}) {
+function chips(values, { limit = Infinity, size = 'sm' } = {}) {
   const shown = values.slice(0, limit);
   const rest = values.length - shown.length;
   return h('span', { class: 'crm__chips', title: rest ? values.join(', ') : null },
-    shown.map((label) => badge({ label, tone: CATEGORIES[label] ?? 'slate', size: 'sm' })),
+    shown.map((label) => badge({ label, tone: CATEGORIES[label] ?? 'slate', size })),
     rest ? h('span', { class: 'crm__more' }, `+${rest}`,
       h('span', { class: 'visually-hidden' }, ` (${values.slice(limit).join(', ')})`)) : null);
 }
 
-/** @param {string} id Stage id. @returns {HTMLElement} The company's stage as a status badge. */
-function stageBadge(id) {
+/**
+ * @param {string} id Stage id.
+ * @param {'sm'|'md'} [size]
+ * @returns {HTMLElement} The company's stage as a status badge.
+ */
+function stageBadge(id, size = 'sm') {
   const stage = STAGES.find((entry) => entry.ID === id) ?? STAGES[0];
-  return badge({ label: stage.name, kind: stage.tone, dot: true, size: 'sm' });
+  return badge({ label: stage.name, kind: stage.tone, dot: true, size });
 }
 
-/** @param {string} id Deal stage id. @returns {HTMLElement} */
+/** @param {string} id Deal stage id. @returns {HTMLElement} The deal's stage as a status badge. */
 function dealBadge(id) {
   const stage = DEAL_STAGES.find((entry) => entry.id === id) ?? DEAL_STAGES[0];
-  return badge({ label: stage.label, kind: stage.tone, size: 'sm' });
+  return badge({ label: stage.label, kind: stage.tone, dot: true, size: 'sm' });
+}
+
+/** @returns {{ID: string, name: string, tone: string}[]} Categories as picker items, in their tones. */
+function categoryItems() {
+  return Object.entries(CATEGORIES).map(([label, tone]) => ({ ID: label, name: label, tone }));
 }
 
 /**
@@ -899,7 +908,7 @@ export default {
           },
           {
             id: 'stage', label: 'Stage', type: 'status', glyph: 'circle-half-stroke', sortable: true,
-            render: (record) => badge({ label: record.stage, size: 'sm' }),
+            render: (record) => badge({ label: record.stage, dot: true, size: 'sm' }),
             sortValue: (record) => list.stages.indexOf(record.stage),
             view: { table: { width: '150px', editable: 'select', options: choices(list.stages) } }
           },
@@ -941,7 +950,7 @@ export default {
      */
     function categoryEditor(record, api) {
       const picker = new TagPicker(null, {
-        items: Object.keys(CATEGORIES).map((label) => ({ ID: label, name: label })),
+        items: categoryItems(),
         values: record.categories,
         placeholder: 'Add',
         onchange: ({ detail }) => api.commit([...detail.values])
@@ -1517,6 +1526,7 @@ export default {
       }));
 
       const hero = h('div', { class: 'crm__hero' });
+      const figures = h('div', { class: 'crm__figures' });
       const highlights = h('div', { class: 'crm__highlights' });
       const notes = h('div', { class: 'crm__stack' });
       const taskList = h('div', { class: 'crm__stack' });
@@ -1532,7 +1542,8 @@ export default {
         tabs: [
           {
             name: 'overview', title: 'Overview',
-            content: tab(highlights, h('section', { class: 'surface' }, h('h3', { class: 'surface__title' }, 'Recent activity'), recent.toElement()))
+            content: h('div', { class: 'crm__tab crm__overview' }, figures, highlights,
+              h('section', { class: 'surface' }, h('h3', { class: 'surface__title' }, 'Recent activity'), recent.toElement()))
           },
           { name: 'activity', title: 'Activity', content: tab(activity.toElement()) },
           {
@@ -1586,16 +1597,34 @@ export default {
             h('span', { class: 'crm__fact' }, icon('globe', { size: 14 }), record.domain),
             record.city ? h('span', { class: 'crm__fact' }, icon('location-dot', { size: 14 }), `${record.city}, ${record.country}`) : null,
             record.tier ? h('span', { class: 'crm__fact' }, icon('layer-group', { size: 14 }), record.tier) : null,
-            stageBadge(record.stage),
-            record.categories.length ? chips(record.categories) : null)));
+            stageBadge(record.stage, 'md'),
+            record.categories.length ? chips(record.categories, { size: 'md' }) : null)));
         crumbs.setItems([{ name: 'back', label: backTitle }, { name: id, label: record.name }]);
       }
 
-      /** The four facts a seller checks first. @returns {void} */
+      /**
+       * The facts a seller checks first: three figures on the page, the open pipeline leading, then
+       * the next meeting and the deals behind the pipeline. @returns {void}
+       */
       function renderHighlights() {
         const meeting = MEETINGS[id];
         const open = store.deals.filter((deal) => deal.company === id && deal.stage !== 'won');
-        // The anatomy of the StatTile beside them: a quiet sentence-case label, its icon at the end.
+        const strongest = record.team.length ? person(record.team[0])?.name : null;
+        figures.replaceChildren(...[
+          {
+            label: 'Open pipeline', value: sumOf(open, 'value'), format: money, emphasis: true,
+            caption: open.length === 1 ? '1 open deal' : `${open.length || 'No'} open deals`
+          },
+          {
+            label: 'Annual recurring revenue', value: record.arr, format: money,
+            delta: record.arr ? 0.12 : null, deltaFormat: 'percent', deltaKind: 'positive', deltaLabel: 'vs. last year'
+          },
+          {
+            label: 'Connection strength', value: STRENGTH[record.strength - 1] ?? '—',
+            caption: strongest ? `Strongest through ${strongest}` : 'Nobody has met them yet'
+          }
+        ].map((figure) => summary.own(new StatTile(null, { ...figure, variant: 'plain' })).toElement()));
+        // A quiet sentence-case label with its icon at the far end, as a framed StatTile has it.
         const card = (glyph, label, ...body) => h('section', { class: 'surface crm__highlight' },
           h('div', { class: 'crm__highlight-head' },
             h('h3', { class: 'crm__highlight-label' }, label), icon(glyph, { class: 'crm__highlight-icon' })),
@@ -1610,18 +1639,10 @@ export default {
               h('p', { class: 'meta' }, 'Nothing scheduled.'),
               button({ label: 'Schedule', size: 'sm', icon: 'calendar-days', onclick: () => notify('A scheduling link was copied.', 'info') })),
           card('handshake', 'Open deals',
-            h('p', { class: 'crm__highlight-value' }, money(sumOf(open, 'value'))),
             open.length
               ? h('ul', { class: 'crm__deals' }, open.map((deal) => h('li', {},
                 h('span', { class: 'crm__deal-name' }, deal.name), dealBadge(deal.stage), h('span', { class: 'num' }, money(deal.value)))))
-              : h('p', { class: 'meta' }, 'No open deals.')),
-          card('signal', 'Connection strength',
-            h('p', { class: 'crm__highlight-value' }, strengthMeter(record.strength)),
-            h('p', { class: 'meta' }, record.team.length ? `Strongest through ${person(record.team[0])?.name}` : 'Nobody has met them yet.')),
-          summary.own(new StatTile(null, {
-            label: 'Annual recurring revenue', value: record.arr, format: money, icon: 'euro-sign',
-            delta: record.arr ? 0.12 : null, deltaFormat: 'percent', deltaKind: 'positive', deltaLabel: 'vs. last year'
-          })).toElement());
+              : h('p', { class: 'meta' }, 'No open deals.')));
       }
 
       /** Activity, recent activity, notes, and every tab count. @returns {void} */
@@ -1727,7 +1748,7 @@ export default {
                 items: choices(TIERS), valueKey: 'value', labelKey: 'label', value: record.tier, label: 'Tier', placeholder: 'None',
                 onchange: ({ detail }) => save({ tier: detail.value })
               })).toElement()],
-              ['Categories', tags('categories', Object.keys(CATEGORIES).map((label) => ({ ID: label, name: label })), 'Add category')],
+              ['Categories', tags('categories', categoryItems(), 'Add category')],
               ['Owner', screen.own(new Select(null, {
                 items: staffOptions(), valueKey: 'value', labelKey: 'label', value: record.owner, label: 'Owner', filter: 'local',
                 renderValueAdornment: (item) => screen.own(new Avatar(null, { name: item.label, size: 20 })).toElement(),
@@ -1766,7 +1787,7 @@ export default {
           return h('div', { class: 'crm__membership' },
             h('button', { type: 'button', class: 'crm__record-link', onclick: () => navigate({ kind: 'collection', id: `list:${list.id}` }) },
               icon('table-list', { size: 13, class: 'crm__title-icon' }), list.name),
-            badge({ label: entry.stage, size: 'sm', kind: entry.stage === list.stages.at(-1) ? 'success' : 'neutral' }));
+            badge({ label: entry.stage, size: 'sm', dot: true, kind: entry.stage === list.stages.at(-1) ? 'success' : 'neutral' }));
         }) : [h('span', { class: 'meta' }, 'Not in any list yet.')]));
       }
     }

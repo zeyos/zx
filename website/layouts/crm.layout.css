@@ -389,15 +389,31 @@
   padding-block-end: var(--zx-space-4);
 }
 
+.crm .crm__overview {
+  container: crm-overview / inline-size;
+}
+
+/* The record's figures sit on the page, not in boxes: the open pipeline leads, and space alone
+   separates it from the two beside it. */
+.crm .crm__figures {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--zx-space-4) var(--zx-space-6);
+  padding-block: var(--zx-space-1) var(--zx-space-2);
+}
+
 .crm .crm__highlights {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
   gap: var(--zx-space-4);
 }
 
-/* A highlight reads like the StatTile beside it: a quiet label with its icon at the far end, then
-   the value. */
+/* A highlight reads like a framed StatTile: a quiet label with its icon at the far end, then what
+   it holds. */
 .crm .crm__highlight {
+  /* One column no wider than the card, here and in the deal list: a deal name gives way to its
+     stage and amount instead of pushing them past the card's edge. */
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
   justify-items: start;
   gap: var(--zx-space-2);
@@ -428,24 +444,13 @@
   color: var(--zx-color-text-subtle);
 }
 
-.crm .crm__highlight-value {
-  font-size: var(--zx-text-2xl);
-  font-weight: var(--zx-weight-title);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: var(--zx-tracking-title);
-  line-height: 1.15;
-}
-
 .crm .crm__highlight-title {
   font-weight: var(--zx-weight-semibold);
 }
 
-.crm .crm__highlights > .zx-stat-tile {
-  border-color: var(--zx-color-border-subtle);
-}
-
 .crm .crm__deals {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   justify-self: stretch;
   gap: var(--zx-space-2);
   margin: 0;
@@ -565,6 +570,17 @@
 
   .crm .crm__highlights {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* A narrow record: the lead figure takes its own line, the other two share the next. */
+@container crm-overview (max-width: 520px) {
+  .crm .crm__figures {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .crm .crm__figures > :first-child {
+    grid-column: 1 / -1;
   }
 }
 

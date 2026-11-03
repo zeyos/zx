@@ -1,4 +1,4 @@
-import { TagPicker, h } from '../../src/index.js';
+import { TagPicker, badge, h } from '../../src/index.js';
 
 const SKILLS = [
   { ID: 'js', name: 'JavaScript' }, { ID: 'ts', name: 'TypeScript' },
@@ -45,9 +45,10 @@ export default {
   examples: [
     {
       title: 'Colored tags with icons',
-      blurb: 'iconKey and colorKey apply the same identity to selected tags and option rows. '
-        + 'Custom renderTag or renderItem callbacks still take precedence when a product needs '
-        + 'a different visual vocabulary.',
+      blurb: 'iconKey and colorKey apply the same identity to selected tags and option rows: an '
+        + 'option shows its icon on a tile of its colour, a tag tints its one fill and keeps the '
+        + 'bare glyph. Custom renderTag or renderItem callbacks still take precedence when a '
+        + 'product needs a different visual vocabulary.',
       width: '460px',
       render: ({ cleanup, log }) => {
         const picker = new TagPicker(null, {
@@ -62,20 +63,30 @@ export default {
     },
     {
       title: 'Categorical tones',
-      blurb: 'toneKey (default "tone") names a tone from the Badge palette — blue, teal, green, '
-        + 'amber, orange, red, pink, violet, slate — and the tag takes its fill and ink, so a label '
-        + 'reads as the same colour here as in a Badge. A tone wins over a colour; colorKey also '
-        + 'takes a token reference such as var(--zx-color-tone-blue-fg).',
+      blurb: 'Every tag is a Badge, built by badge(). toneKey (default "tone") names a tone from the '
+        + 'Badge palette — blue, teal, green, amber, orange, red, pink, violet, slate — so a label in '
+        + 'the field is the same chip, in shape, size and colour, as the badge a list row shows for '
+        + 'it (below). A tone wins over a colour; colorKey also takes a token reference such as '
+        + 'var(--zx-color-tone-blue-fg).',
+      layout: 'stack',
       width: '460px',
       render: ({ cleanup, log }) => {
+        const row = h('div', { class: 'demo-row' });
+        const showRow = (items) => row.replaceChildren(
+          h('span', { class: 'demo-caption' }, 'list row'),
+          ...items.map((item) => badge({ label: item.name, tone: item.tone })));
         const picker = new TagPicker(null, {
           items: TOPICS,
           values: ['bug', 'customer', 'docs'],
           placeholder: 'Add a label',
-          onchange: ({ detail }) => log(`labels [${detail.values.join(', ')}]`)
+          onchange: ({ detail }) => {
+            showRow(detail.items);
+            log(`labels [${detail.values.join(', ')}]`);
+          }
         });
+        showRow(picker.getItems());
         cleanup(() => picker.destroy());
-        return picker.toElement();
+        return [picker.toElement(), row];
       }
     },
     {

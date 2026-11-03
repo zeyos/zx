@@ -147,7 +147,7 @@ a second navigation.
 | A spreadsheet-like editable grid (lines, positions) | `Grid` (`Grid.BillingItems()`) | `Table` with `editMode` — that is for occasional cell edits |
 | A tree | `TreeView` (one column) or `Finder` (Miller columns) | nested `<ul>`s |
 | Events over time | `Calendar` (agenda, day, week, month, year) | — |
-| One number with context | `StatTile` (delta, sparkline, loading) | a card with a big figure |
+| One number with context | `StatTile` (delta, sparkline, loading; plain and one leading for a record's figures) | a card with a big figure |
 | A chart | `Chart` with `ChartJsAdapter` (Chart.js injected, never bundled) | — |
 | A linked record inline | `EntityRef` | a link |
 | Files | `FileItem` / `FileList`; uploading: `FieldUpload` | — |
@@ -242,7 +242,7 @@ Themes: `light` | `dark` | `auto` (follows OS).
 **One geometry.** Spacing steps are multiples of one unit
 (`--zx-space-unit`, 4px: `--zx-space-1…8` = 4/8/12/16/20/24/32/40px), radius steps are fractions of
 one base (`--zx-radius`, 4px: `-sm/-md/-lg/-xl` = 2/3/4/6px; `-full` only for shapes whose roundness
-is the meaning — badges, avatars, toggles; `-panel` is the corner of a panel that holds rounded
+is the meaning — status pills, avatars, toggles; a tag takes `-md`; `-panel` is the corner of a panel that holds rounded
 items, a menu or a listbox, concentric with them: the item corner plus the inset between them, 6px
 at the default and square when the base is 0), and controls are `--zx-control-height` (30px) tall.
 A data row — a table row, a single-line list row — is `--zx-row-height`, derived from the control
@@ -707,9 +707,9 @@ accept.
 <!-- doc:badge -->
 ### Badge — `badge(options)` / `badgeGroup(badges)`
 
-Factories (not classes) returning a status pill: a small, non-interactive `<span>` carrying a
-semantic colour — or, with `tone`, a categorical one — used for stages, counts, tags, and
-record-header metadata. A badge with no label but a `title` is named for assistive technology
+Factories (not classes) returning a chip: a small, non-interactive `<span>` carrying a semantic
+colour — a status — or, with `tone`, a categorical one — a tag — used for stages, counts, labels,
+and record-header metadata. A badge with no label but a `title` is named for assistive technology
 through `role="img"`; everything else is plain text and needs no ARIA.
 
 - **Options** — `label`, `icon` (an icon name, rendered before the label), `kind:
@@ -722,11 +722,18 @@ through `role="img"`; everything else is plain text and needs no ARIA.
   accent nor the status set, so a project tagged red never reads as an error. When `tone` is set it
   decides the colour and `kind` is ignored for it; every `variant` still applies (soft: tinted,
   borderless; solid: filled with the tone's ink; outline). The badge carries `data-tone`. Badges
-  are medium weight and sentence case.
+  are sentence case.
+- **Two shapes, one construction** — a status is a pill (`--zx-radius-full`); give a workflow state
+  `dot: true`, a 6px dot centred in the pill's round end. A tag (any badge with a `tone`) has small
+  corners (`--zx-radius-md`). Both are one fill and no line, 12px at weight 500 at either size,
+  and their height follows the row they sit in: about five ninths of `--zx-row-height` for `md`
+  and half of it for `sm` (20px and 18px in the default row), never below a line of their own text,
+  so a chip follows the row height setting without making a row taller. `TagPicker` builds its tags with
+  `badge()`, so a label reads the same in a list row, a record header and the field that edits it.
 - **Neutral and small** — the neutral soft fill is a wash of the text colour, not an opaque surface
   step, so it stays visible on raised surfaces in the dark theme. `size: 'sm'` fits table cells
-  and board cards; a small badge with `dot` keeps the 12px text and a full spacing step between
-  dot and label.
+  and board cards; it is shorter and tighter, never smaller type. Under `prefers-contrast: more` a
+  soft badge gets its edge back, and under forced colours every badge does.
 - **Methods** — none. `badge(options)` → `HTMLSpanElement`, `badgeGroup([badge(…), …])` → a wrapping
   inline row with its own spacing; you own both elements.
 - **Events** — none; a badge is not interactive.
@@ -2651,12 +2658,16 @@ yet. Field type: `tagpicker`.
   `filter: 'local'|(query)=>Promise<items>`, `minQuery: 0`, `debounce: 200`, `allowCreate: false`,
   `max` (maximum tags; further options become `aria-disabled`), `closeOnSelect: false`,
   `placeholder`, `listHeight: 260`, `disabled`, `readonly`, `renderItem`, `renderTag`.
+- **Tags are Badges** — every selected tag is built by `badge()` (`.zx-badge.zx-tag-picker__tag`):
+  the Badge's height from the row, 12px medium type, padding and one fill, with the tag shape's
+  small corners. `toneKey` names a categorical tone from the Badge palette (`blue`, `teal`,
+  `green`, `amber`, `orange`, `red`, `pink`, `violet`, `slate`), so a toned tag is exactly the
+  `badge({ tone })` a list row or record header shows for the same item; a tone wins over a colour.
+  An untoned tag keeps the text ink, because in a field it is the value.
 - **Tag identity** — icon values accept a bundled icon name or Node; colors (a CSS colour or a token
   reference such as `var(--zx-color-tone-blue-fg)`) are scoped to the tag and its option through
-  `--zx-tag-color`. `toneKey` names a categorical tone from the Badge palette (`blue`, `teal`,
-  `green`, `amber`, `orange`, `red`, `pink`, `violet`, `slate`): the tag takes its fill and ink as a
-  toned Badge does (`data-tone`), and a tone wins over a colour. Custom `renderItem`/`renderTag`
-  remain authoritative.
+  `--zx-tag-color`. An option shows its icon on a tile of its colour; inside a tag the icon is a bare
+  glyph, since the tag is already the fill. Custom `renderItem`/`renderTag` remain authoritative.
 - **Read-only** — `readonly` (or `setReadonly(true)`) shows only the tags: no input, chevron, or
   remove buttons, so a full row of tags never wraps onto an empty line.
 - **Methods** — `getValues()`, `getItems()`, `setValues(values, {silent})`, `addValue()`,
@@ -2715,13 +2726,21 @@ returns the component, the way `tooltip()` does; call `.toElement()` for the nod
 
 - **Options** — `label`, `value`, `format: 'number'|'currency'|'percent'|'fileSize'|null|fn`,
   `currency`, `locale`, `caption`, `delta`, `deltaKind: 'positive'|'negative'|'neutral'`,
-  `deltaFormat`, `deltaLabel`, `trend: number[]`, `icon`, `kind`, `href`, `clickable`, `loading`,
-  `msg`.
+  `deltaFormat`, `deltaLabel`, `trend: number[]`, `icon`, `kind`, `variant: 'default'|'plain'`,
+  `emphasis`, `href`, `clickable`, `loading`, `msg`.
 - **Appearance** — the label is a sentence-case muted line (13px, medium); the value is the loud
   part (24px, weight 650, tabular figures); `caption` is one muted context line under it ("of
   13,184"). `icon` is a muted glyph beside the label, never a coloured chip; `kind` tints only the
   sparkline. The tile is a column with the sparkline at its foot, so tiles in a row are the same
   height and line up whether or not each has a caption, a delta or a trend.
+- **Framed or plain** — the default is a framed tile on its own surface: use it where a figure
+  stands among other content, as on a dashboard. `variant: 'plain'` drops the frame, the fill and
+  the padding, for a record's own figures under its title: its text sits on the content edge,
+  space alone separates it from the next, and the figure steps down to 16px. Do not draw boxes
+  around plain figures in the layout either. Reflected as `data-variant`.
+- **One figure leads** — `emphasis: true` sets one figure per row above the others: 24px in a
+  plain row (the record title's size, never above it), 30px on a framed tile. Reflected as
+  `data-emphasis`. The size is `--zx-stat-tile-value-size`, which the loading skeleton reads too.
 - **Methods** — `update(options)`, `getAccessibleName()`.
 - **Events** — `click {event}`.
 

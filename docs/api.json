@@ -1001,7 +1001,7 @@
         "name": "tone",
         "type": "BadgeTone|null",
         "default": "null",
-        "description": "Categorical colour — a project, a label, a module — from the tone palette rather than the status set, so a tag never reads as a warning. When set it decides the colour and `kind` is ignored for it; `variant` still applies. Unknown names are ignored."
+        "description": "Categorical colour — a project, a label, a module — from the tone palette rather than the status set, so a tag never reads as a warning. When set it decides the colour and the shape — a tag's small corners instead of a status pill — and `kind` is ignored for it; `variant` still applies. Unknown names are ignored."
       },
       {
         "name": "variant",
@@ -9895,6 +9895,18 @@
         "description": "Semantic intent. It tints the sparkline and never the value, which stays at full text contrast whatever intent a record carries."
       },
       {
+        "name": "variant",
+        "type": "StatTileVariant",
+        "default": "'default'",
+        "description": "`'default'` is a framed tile on its own surface, for a figure that stands among other content (a dashboard). `'plain'` drops the frame, the fill and the padding and sets the figure a size smaller, for a row of figures on a page (a record's amounts under its title). Reflected as `data-variant` on the root."
+      },
+      {
+        "name": "emphasis",
+        "type": "boolean",
+        "default": "false",
+        "description": "The figure leads its row: in a plain row it is set at the display size while the others stay smaller, on a framed tile one step above the display size. Give it to one tile per row. Reflected as `data-emphasis=\"true\"`."
+      },
+      {
         "name": "href",
         "type": "string|null",
         "default": "null",
@@ -10895,7 +10907,7 @@
         "name": "toneKey",
         "type": "TagValueReader",
         "default": "'tone'",
-        "description": "Optional item tone property or reader: a categorical tone name from the Badge palette (`blue`, `teal`, `green`, `amber`, `orange`, `red`, `pink`, `violet`, `slate`). A toned tag takes the palette's fill and ink, as a Badge with that `tone` does; a tone wins over a colour, and unknown names are ignored."
+        "description": "Optional item tone property or reader: a categorical tone name from the Badge palette (`blue`, `teal`, `green`, `amber`, `orange`, `red`, `pink`, `violet`, `slate`). Every tag is built by `badge()`, so a toned tag is the Badge with that `tone` — the same shape, size, fill and ink it has in a list row or a record header; a tone wins over a colour, and unknown names are ignored."
       },
       {
         "name": "searchKeys",

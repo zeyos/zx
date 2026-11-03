@@ -48,6 +48,22 @@ const METRICS = [
   }
 ];
 
+/**
+ * A record's own figures, as a record page shows them under its title: plain, on the page, and
+ * the amount leading. One figure per row gets `emphasis`.
+ */
+const RECORD_FIGURES = [
+  {
+    label: 'Amount', value: 42200, format: 'currency', currency: 'EUR', caption: '4 positions, net',
+    variant: 'plain', emphasis: true
+  },
+  {
+    label: 'Weighted', value: 25320, format: 'currency', currency: 'EUR', caption: 'at 60% probability',
+    variant: 'plain'
+  },
+  { label: 'Expected close', value: '2 Nov 2026', caption: 'in 4 weeks', variant: 'plain' }
+];
+
 /** Every intent, in documentation order. */
 const KINDS = ['neutral', 'accent', 'success', 'warning', 'danger', 'info'];
 
@@ -87,6 +103,22 @@ function tileRow(...tiles) {
   }, tiles.map((tile) => tile.toElement()));
 }
 
+/**
+ * Lays plain figures out the way a record page does: on the page edge, space alone between them.
+ * @param {...{toElement: () => Element}} tiles Tiles to place.
+ * @returns {HTMLElement}
+ */
+function figureRow(...tiles) {
+  return h('div', {
+    style: {
+      display: 'grid',
+      'grid-template-columns': 'repeat(auto-fit, minmax(10rem, 1fr))',
+      gap: 'var(--zx-space-4) var(--zx-space-6)',
+      'inline-size': '100%'
+    }
+  }, tiles.map((tile) => tile.toElement()));
+}
+
 export default {
   title: 'Stat Tile',
   group: 'Data',
@@ -103,6 +135,16 @@ export default {
         + 'destroy() takes it away again.',
       layout: 'stack',
       render: (context) => tileRow(...statTiles(context, METRICS))
+    },
+    {
+      title: 'Figures on a page',
+      blurb: 'variant: \'plain\' drops the frame, the fill and the padding, for a record\'s own '
+        + 'figures under its title: the label and caption stay muted, the figure keeps its weight '
+        + 'and tabular digits, and space alone separates one from the next. emphasis lets one '
+        + 'figure lead the row at the display size while the others step down. Keep the framed '
+        + 'default for a dashboard, where each tile stands among other content.',
+      layout: 'stack',
+      render: (context) => figureRow(...statTiles(context, RECORD_FIGURES))
     },
     {
       title: 'A caption under the value',

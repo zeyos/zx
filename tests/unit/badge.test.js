@@ -35,9 +35,48 @@ test('the neutral soft fill is a wash of the text colour, visible on any surface
   assert.doesNotMatch(base, /background:\s*var\(--zx-color-bg-(?:muted|raised)\)/);
 });
 
-test('a small badge with a dot has room between the dot and a readable label', () => {
-  const css = readFileSync(new URL('../../src/components/badge/badge.css', import.meta.url), 'utf8');
-  const dotted = /\.zx-badge\[data-size="sm"\]:has\(> \.zx-badge__dot\)\s*\{([^}]*)\}/.exec(css)?.[1] ?? '';
-  assert.match(dotted, /gap:\s*var\(--zx-space-1\)/);
-  assert.match(dotted, /font-size:\s*var\(--zx-text-xs\)/);
+const CSS = readFileSync(new URL('../../src/components/badge/badge.css', import.meta.url), 'utf8');
+
+/** @param {string} selector @returns {string} The declarations of the rule with exactly that selector. */
+function rule(selector) {
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(?:^|\\n)${escaped}\\s*\\{([^}]*)\\}`).exec(CSS)?.[1] ?? '';
+}
+
+/** @param {string} body @param {string} property @returns {string|undefined} */
+function value(body, property) {
+  return new RegExp(`(?:^|[;\\s])${property}:\\s*([^;]+);`).exec(body)?.[1].trim();
+}
+
+test('a small badge is shorter, never smaller type', () => {
+  assert.equal(value(rule('.zx-badge'), 'font-size'), 'var(--zx-text-xs)');
+  assert.equal(value(rule('.zx-badge'), 'font-weight'), 'var(--zx-weight-medium)');
+  // No rule anywhere in the stylesheet sets a badge below the 12px step.
+  assert.doesNotMatch(CSS, /font-size:\s*calc\(var\(--zx-text-xs\)\s*-/);
+  assert.equal(value(rule('.zx-badge[data-size="sm"]'), 'font-size'), undefined);
+});
+
+test('a chip\'s height follows the row it sits in, bounded by its own text', () => {
+  for (const selector of ['.zx-badge', '.zx-badge[data-size="sm"]']) {
+    const height = value(rule(selector), '--zx-badge-height') ?? '';
+    assert.match(height, /^clamp\(calc\(var\(--zx-text-xs\) \* [\d.]+\), calc\(var\(--zx-row-height\) [^)]+\), calc\(var\(--zx-text-xs\) \* [\d.]+\)\)$/,
+      selector);
+  }
+  assert.equal(value(rule('.zx-badge'), 'block-size'), 'var(--zx-badge-height)');
+  assert.equal(value(rule('.zx-badge'), 'padding-block'), '0');
+});
+
+test('a status is a pill and a tag has small corners', () => {
+  assert.equal(value(rule('.zx-badge'), 'border-radius'), 'var(--zx-radius-full)');
+  assert.equal(value(rule('.zx-badge[data-tone]'), 'border-radius'), 'var(--zx-radius-md)');
+});
+
+test('a status dot is 6px at every size and sits in the centre of the pill\'s round end', () => {
+  const dot = rule('.zx-badge__dot');
+  assert.equal(value(dot, 'inline-size'), '6px');
+  assert.equal(value(dot, 'block-size'), '6px');
+  assert.doesNotMatch(CSS, /\.zx-badge\[data-size="sm"\][^{]*\.zx-badge__dot\s*\{/, 'a size restates the dot');
+  // The 1px edge plus half the dot: its centre lands at half the height, the round end's centre.
+  assert.equal(value(rule('.zx-badge:has(> .zx-badge__dot)'), 'padding-inline-start'), 'calc(var(--zx-badge-height) / 2 - 4px)');
+  assert.equal(value(rule('.zx-badge'), 'gap'), 'var(--zx-space-1)');
 });

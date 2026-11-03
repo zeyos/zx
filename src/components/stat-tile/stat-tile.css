@@ -20,6 +20,53 @@
   color: var(--zx-color-text);
 }
 
+/* One figure leads a row: a framed tile steps past the display size, and a plain row sets its
+   figures a size down so the emphasised one can lead at the display size. */
+.zx-stat-tile[data-emphasis="true"] {
+  --zx-stat-tile-value-size: var(--zx-text-3xl);
+}
+
+/*
+ * Plain: a figure on the page rather than a tile on it. No frame, no fill, no padding — its text
+ * sits on the content edge beside the title above it, and space alone separates it from the next.
+ * The label and caption stay muted and the figure keeps its weight and tabular digits; only its
+ * size steps down, so the emphasised figure in the row is the one that reads first.
+ */
+.zx-stat-tile[data-variant="plain"] {
+  --zx-stat-tile-value-size: var(--zx-text-lg);
+  padding: 0;
+  border: 0;
+  border-radius: var(--zx-radius-md);
+  background: none;
+}
+
+.zx-stat-tile[data-variant="plain"][data-emphasis="true"] {
+  --zx-stat-tile-value-size: var(--zx-text-2xl);
+}
+
+/* Without a frame there is no corner to hold the icon, so it leads the label instead. */
+.zx-stat-tile[data-variant="plain"] .zx-stat-tile__header {
+  justify-content: start;
+  gap: var(--zx-space-1);
+}
+
+.zx-stat-tile[data-variant="plain"] .zx-stat-tile__icon {
+  order: -1;
+}
+
+.zx-stat-tile[data-variant="plain"] .zx-stat-tile__value {
+  margin-block-start: 0;
+}
+
+/* A plain tile you can activate keeps its text on the edge; its hover fill and focus ring bleed
+   past it instead of pushing the figure inwards. */
+a.zx-stat-tile[data-variant="plain"],
+button.zx-stat-tile[data-variant="plain"] {
+  margin: calc(var(--zx-space-2) * -1);
+  inline-size: calc(100% + var(--zx-space-2) * 2);
+  padding: var(--zx-space-2);
+}
+
 /* The link and button shapes are the same tile, so their native chrome is taken back off. */
 a.zx-stat-tile,
 button.zx-stat-tile {
@@ -192,6 +239,12 @@ button.zx-stat-tile:focus-visible {
 @media (forced-colors: active) {
   .zx-stat-tile {
     border-color: CanvasText;
+  }
+
+  /* A plain figure has no frame to restore; its hover outline is the one a linked tile draws. */
+  a.zx-stat-tile[data-variant="plain"]:hover,
+  button.zx-stat-tile[data-variant="plain"]:hover {
+    outline: 1px solid Highlight;
   }
 
   a.zx-stat-tile:hover,

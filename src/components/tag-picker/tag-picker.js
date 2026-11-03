@@ -3,7 +3,7 @@ import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
 import { ICON_SIZE, icon } from '../../core/icons.js';
 import { position } from '../../core/position.js';
 import { uid } from '../../core/util.js';
-import { normalizeBadgeTone } from '../badge/badge.js';
+import { badge, normalizeBadgeTone } from '../badge/badge.js';
 import { itemColor } from '../select/color.js';
 import { matchItems } from '../select/filter.js';
 
@@ -21,8 +21,9 @@ import { matchItems } from '../select/filter.js';
  * or a token reference such as `var(--zx-color-tone-blue-fg)`.
  * @property {TagValueReader} [toneKey='tone'] Optional item tone property or reader: a categorical
  * tone name from the Badge palette (`blue`, `teal`, `green`, `amber`, `orange`, `red`, `pink`,
- * `violet`, `slate`). A toned tag takes the palette's fill and ink, as a Badge with that `tone`
- * does; a tone wins over a colour, and unknown names are ignored.
+ * `violet`, `slate`). Every tag is built by `badge()`, so a toned tag is the Badge with that `tone`
+ * — the same shape, size, fill and ink it has in a list row or a record header; a tone wins over a
+ * colour, and unknown names are ignored.
  * @property {Array<TagValueReader>|null} [searchKeys=null] Fields searched by local filtering.
  * @property {'local'|((query: string) => Promise<TagItem[]>|TagItem[])} [filter='local'] Filtering mode.
  * @property {number} [minQuery=0] Minimum async query length.
@@ -420,19 +421,23 @@ export class TagPicker extends Component {
 
   /* ------------------------------------------------------------------ rendering -- */
 
-  /** @returns {void} */
+  /**
+   * Draws the selection. A tag is a Badge — `badge({ tone })` with the picker's own class — so it
+   * has one construction wherever a label appears, and only the remove button is the picker's.
+   * @returns {void}
+   */
   _renderTags() {
     const tags = this._selected.map((item) => {
       const label = this._labelOf(item);
       const tone = this._toneOf(item);
       const color = tone ? null : this._colorOf(item);
-      const content = this.options.renderTag ? this.options.renderTag(item)
-        : [this._iconOf(item), h('span', { class: 'zx-tag-picker__tag-label' }, label)];
-      const tag = h('span', {
-        class: 'zx-tag-picker__tag',
-        dataset: { colored: String(Boolean(color)), tone: tone ?? undefined },
-        style: color ? { '--zx-tag-color': color } : null
-      }, content);
+      const content = this.options.renderTag ? [this.options.renderTag(item)]
+        : [this._iconOf(item), h('span', { class: 'zx-badge__label zx-tag-picker__tag-label' }, label)];
+      const tag = badge({ tone });
+      tag.classList.add('zx-tag-picker__tag');
+      tag.dataset.colored = String(Boolean(color));
+      if (color) tag.style.setProperty('--zx-tag-color', color);
+      tag.append(...content.filter((node) => node !== null && node !== undefined));
       if (!this._readonly && !this._disabled) {
         tag.append(h('button', {
           class: 'zx-icon-btn zx-tag-picker__remove',

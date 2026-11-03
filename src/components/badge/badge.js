@@ -13,8 +13,8 @@ import { icon as createIcon } from '../../core/icons.js';
  * @property {'neutral'|'accent'|'success'|'warning'|'danger'|'info'} [kind='neutral'] Semantic intent.
  * @property {BadgeTone|null} [tone=null] Categorical colour — a project, a label, a module — from
  * the tone palette rather than the status set, so a tag never reads as a warning. When set it
- * decides the colour and `kind` is ignored for it; `variant` still applies. Unknown names are
- * ignored.
+ * decides the colour and the shape — a tag's small corners instead of a status pill — and `kind`
+ * is ignored for it; `variant` still applies. Unknown names are ignored.
  * @property {'soft'|'solid'|'outline'} [variant='soft'] Fill treatment.
  * @property {'md'|'sm'} [size='md'] Badge size.
  * @property {boolean} [dot=false] Renders a small leading status dot instead of an icon.
@@ -45,8 +45,9 @@ const defaults = Object.freeze({
 });
 
 /**
- * Creates a status pill: a small, non-interactive label carrying a semantic colour — or, with
- * `tone`, a categorical one.
+ * Creates a chip: a small, non-interactive label carrying a semantic colour as a status pill — or,
+ * with `tone`, a categorical one as a tag. `TagPicker` builds its tags with it, so a label has one
+ * construction wherever it appears.
  *
  * The badge is plain text content, so it needs no ARIA of its own. A badge without a label but
  * with a `title` is named for assistive technology through `role="img"`.

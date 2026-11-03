@@ -34,10 +34,12 @@
   font-size: var(--zx-text-sm);
 }
 
+/* Figures on the page: no frames, the lead on the content edge, space alone between them. The
+   labels share one line across the row, whatever size the figure under each one is. */
 .record .record__tiles {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--zx-space-4);
+  gap: var(--zx-space-4) var(--zx-space-6);
 }
 
 /* -------------------------------------------------------------------- tabs -- */
@@ -100,7 +102,8 @@
 
 /* ------------------------------------------------------------ narrow -- */
 
-/* The figures follow the page's own width: three across, then two with the date beneath. */
+/* The figures follow the page's own width: three across, then the lead on its own line with the
+   other two beneath it. */
 .record .record__body {
   container: record-page / inline-size;
 }
@@ -110,7 +113,7 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .record .record__tiles > :last-child {
+  .record .record__tiles > :first-child {
     grid-column: 1 / -1;
   }
 }
