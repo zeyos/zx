@@ -8,6 +8,62 @@ and friends remain the complete record.
 
 ## Unreleased
 
+## 5.6.0 — 2026-11-03
+
+Agents: a conversation with AI agents drawn from plain JSON — streamed answers, the steps a run
+took, the approvals that hold it, the message box, and where the run stands — as library
+components instead of layout code. The application owns the transport and the state; model text is
+never HTML; whether an action needs confirmation is always the application's decision.
+
+### Added
+
+- **AgentThread** — a conversation as an APG feed (PageDown/PageUp between items, Ctrl+End and
+  Ctrl+Home out of it): the person's messages, agents' answers as they stream, run traces,
+  approvals and one-line notices, from items `{id, type, author, …}` an agent can produce and an
+  application can store. `upsert()`, `patch()`, `appendText()` and `appendBlock()` feed it;
+  finished text is never redrawn. Answers carry sources, inline steps, versions with a pager, and
+  copy, regenerate, branch and rate actions; the person's messages can offer edit and copy;
+  notices can carry an action; any item can link to the application's records (`refs`, `open`
+  event); `@name` mentions are marked. One polite status says when an agent starts, answers, needs
+  approval or is stopped — streamed text is never read aloud as it arrives. While the reader is at
+  the end, new output keeps it in view; scrolled up, "Jump to latest" appears.
+  `AgentThread.register(type, render)` draws an application's own item types.
+- **BlockView** / **`renderBlocks()`** — an answer drawn block by block inside `.zx-prose`:
+  paragraphs, headings, lists, quotes, code (coloured for js, ts, json, sql, python, shell and css;
+  `lines: true` numbers and wraps it), tables, figures, callouts and artifact cards. The inline
+  grammar is `**bold**`, `` `code` `` and `[n]` citations, nothing else. `appendText()` streams
+  into the last paragraph; a marker split across two chunks resolves when its close arrives.
+  `blocksToMarkdown()` and `blocksToText()` export an answer.
+- **RunTrace** — what a run did: tool calls with their arguments and results, retries under the
+  call they repeat, hand-offs between agents, plan tasks, a person's requests and decisions,
+  per-step links, a live clock on the running step, and a one-line summary ("Worked for 41 s ·
+  5 tool calls · 1 retry") that a plan can replace with its own title.
+- **ApprovalCard** — a request that holds a run until a person answers: details and a preview,
+  Approve, Edit (a form from `fields`) and Reject (with a reason) on A, E and R while it has
+  focus, an optional typed confirmation, and an answered state that stays as the record. Only the
+  values the person changed are listed as edited; `update()` changes a waiting request in place.
+- **SourceList** — the sources an answer cites, each with a card of its title, place and passage; a
+  source that names a tool call reveals it. Nothing remote is ever loaded to draw one.
+- **Composer** — the message box: Enter or Mod+Enter sends, `@` mentions, `/` commands through the
+  Launcher, attachments by button, paste or drop, context chips, extra tool buttons (plain,
+  toggles or disclosures), a draft that survives a reload, and a Send button that becomes Stop
+  while the agent works. `update()` changes its label, placeholder, hint and note in place.
+- **RunStatus** — where a run stands: state as glyph and word, a summary, a steps progressbar,
+  started / working time / waiting or blocked since / finished, and token and cost meters that warn
+  from 80% of a budget. `compact` draws the state alone as a pill for a narrow header.
+- **Avatar** `activity` (idle, thinking, working, needs you, blocked, offline) — a dot that differs
+  in shape as well as tone, named in the accessible name — with `animate` joining one shared
+  presence animation that runs only on screen, sleeps while the page is hidden and rests under
+  reduced motion, and `phase` to keep two avatars of one agent out of step.
+- The run states gain `blocked`; documentation gains an **Agents** chapter and component group.
+
+### Changed
+
+- The **ai-chat**, **agent-chat** and **agent-workspace** layouts are built from these components,
+  so each is a reference for wiring them; their own stylesheets shrank from about 4,000 lines to
+  under 1,500.
+- Documentation site: navigation levels are told apart by size, weight and colour together.
+
 ## 5.5.0 — 2026-11-03
 
 Calm and precise: a reading register beside the interface one, one row rhythm, navigation that
