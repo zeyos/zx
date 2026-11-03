@@ -160,22 +160,25 @@
   margin-block-start: var(--zx-space-6);
 }
 
+/* Three levels, told apart by size, weight and colour together: the section title is the largest,
+   a group label is bold in the full text colour, and the rows it heads are regular-size muted text.
+   A label that differs from the rows by size alone reads as one of them. */
 .docs-navigation__section-title {
   margin: 0 0 var(--zx-space-1);
   padding-inline: var(--zx-space-2);
   color: var(--zx-color-text);
-  font-size: var(--zx-text-sm);
+  font-size: var(--zx-text-lg);
   font-weight: var(--zx-weight-semibold);
+  letter-spacing: var(--zx-tracking-title);
   line-height: 1.4;
 }
 
-/* A group label is a caption: sentence case, small, muted, quieter than the rows it heads. */
 .docs-navigation__group {
-  margin: var(--zx-space-4) 0 var(--zx-space-1);
+  margin: var(--zx-space-5) 0 var(--zx-space-1);
   padding-inline: var(--zx-space-2);
-  color: var(--zx-color-text-muted);
-  font-size: var(--zx-text-xs);
-  font-weight: var(--zx-weight-medium);
+  color: var(--zx-color-text);
+  font-size: var(--zx-text-sm);
+  font-weight: var(--zx-weight-semibold);
   line-height: 1.4;
 }
 
