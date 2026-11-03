@@ -8,6 +8,86 @@ and friends remain the complete record.
 
 ## Unreleased
 
+## 5.5.0 — 2026-11-03
+
+Calm and precise: a reading register beside the interface one, one row rhythm, navigation that
+recedes, figures without boxes, one chip shape, keycaps everywhere, and colour overrides that reach
+every theme region.
+
+### Added
+
+- **Reading type.** `.zx-prose` sets authored content — a document, a record's notes, a message
+  body, an assistant's answer — in its own register: `--zx-font-prose`, `--zx-prose-size`,
+  `--zx-prose-leading` and `--zx-prose-measure`, so a product can set its documents in a serif
+  without touching a control. Headings, lists, quotes, code, marks, frameless tables and figures
+  are covered; `data-size="sm"` sets prose at the interface size and `data-zx-measure="full"` drops
+  the measure. `.zx-callout` sets a paragraph apart: neutral by default, `data-kind` for a status,
+  `data-tone` for a category. `proseAnchors(root)` adds a revealed copy-link to every heading with
+  an id.
+- **`kbd()`** — keycaps for every shortcut hint, with platform glyphs for `Mod` and the named keys
+  (`keyLabels()` returns the labels without DOM). Button shortcuts, the Launcher's hints and the
+  Questionnaire's keys use it; menu shortcuts share its type.
+- **Row rhythm and one type base.** `--zx-row-height` (36px by default) follows the control height,
+  and Table body rows are exactly that tall. `--zx-text-base` drives every `--zx-text-*` step, so
+  changing the base keeps the hierarchy; setting `--zx-text-md` alone still moves only the control
+  size.
+- **Revealed affordances.** `data-zx-reveal-host` / `data-zx-reveal` show a secondary action while
+  its row is pointed at, focused, current, selected or has a menu open — keeping its space and its
+  tab order, and always visible on touch screens and under contrast preferences. TreeView
+  `rowActions(node)` and AppSidebar item `actions` build on it: up to two icon buttons per row, the
+  rest in an overflow menu, every label naming its row, the same actions in a context menu, and the
+  APG keyboard maps unchanged.
+- **StatTile** `variant: 'plain'` (no frame or fill; the figure at the title weight in tabular
+  figures) and `emphasis` (one figure leads its row).
+- **Datebox, DateTimeBox and DateRangeBox** take `displayFormat`, shown while the field is not
+  focused, so a screen reads one date format; `format` stays the typing format.
+- **Named icon sizes** per role (`ICON_SIZE`) in the icon module; every chevron, dismiss and check in
+  the components uses them, and the text glyphs that stood in for icons are icons.
+- New roles: `--zx-color-text-chrome` (navigation at rest, above 7:1 on the chrome),
+  `--zx-color-border-chrome` (the line where a chrome column meets the canvas: none in light, a
+  hairline in dark, under `prefers-contrast: more` and in forced colours), `--zx-radius-panel` (a
+  panel's corner, concentric with the rounded items it holds) and `--zx-weight-title`.
+- Theme studio: text size moves the whole type scale; **Rows** (Compact, Default, Relaxed) and
+  **Reading** (typeface, size, measure) controls with a prose specimen; a **Paper** neutral tint
+  whose warmth reaches the page and tapers away in dark; and the **Folio** preset
+  (`data-zx-preset="folio"`): ink blue on paper with a serif for reading. Ocean takes compact rows.
+
+### Changed
+
+- **Colour overrides on `:root` reach every theme region.** Every colour role is declared once on
+  `:root`, as `light-dark(<light>, <dark>)` where the themes differ, and a theme element sets only
+  `color-scheme`; an application's or the theme studio's override now reaches light, dark, auto and
+  nested regions alike. Browsers without `light-dark()` keep the per-theme blocks. Script that reads
+  a colour token as text receives the `light-dark()` expression — resolve it through a probe's
+  computed colour, as Chart now does. Rendering is unchanged.
+- **Focus is one opaque 2px accent line** that reaches 3.5:1 or better on every surface and row,
+  for every preset and tint, in both themes.
+- **State is never lost under the pointer:** selected, current and striped table rows, pressed
+  CheckButtons, the current navigation item and pressed list tools keep their fill on hover, and a
+  trigger stays pressed while its menu is open. Hover now shows in dark on default buttons and
+  CheckButtons.
+- Menus, listboxes, the tag picker and the Launcher use the concentric panel corner (6px at the
+  default base); segmented thumbs are concentric with their tracks.
+- Navigation labels rest one ink step under the content and come up to the full text colour on
+  hover, focus and when current. Breadcrumb ancestors shorten before the current page does.
+- **One chip shape.** Badge takes its height from the row and keeps 12px text at both sizes; a
+  status is a pill with a 6px dot, a toned tag a small rectangle. TagPicker draws its tags with the
+  same construction (they now carry `zx-badge`). Chips use one fill and no border; their remove
+  buttons sit inset.
+- Placeholder and border inks used as text or data marks (Stepper's "Optional", StatTile's
+  sparkline, Rating's empty stars, ViewSettings' lock, Select's neutral status icon) moved to the
+  muted and subtle text roles. Counts and badges use tabular figures; avatar stacks overlap less
+  and their overflow chip is opaque. In dark, a resting surface gets a lit top edge instead of a
+  shadow.
+- Layouts: reading surfaces (wiki article, issue description, mail body, assistant answers, record
+  notes) use `.zx-prose`; property lists share one label column per inspector and one value edge;
+  header rules appear once content scrolls under them; record pages set their figures on the page.
+
+### Fixed
+
+- FileItem's progress track used `--zx-radius-pill`, which nothing declares.
+- The documentation site's header showed a stale version when served from source.
+
 ## 5.4.0 — 2026-10-29
 
 Glass rebuilt as a lit pane with a body under it, five more materials in the theme studio, and a
