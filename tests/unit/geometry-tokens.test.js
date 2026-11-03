@@ -67,9 +67,10 @@ function rules(css) {
  * Blocks whose overrides apply equally to every theme — a user preference or a missing capability
  * forcing filters off — are not theme blocks in the sense that matters here: they set the same
  * value on `:root` and on every scope, so they cannot make one theme's geometry differ from
- * another's.
+ * another's. The `light-dark()` support check is not one of them: both the single colour mapping
+ * and its per-theme fallback sit behind it, and both are checked.
  */
-const PREFERENCE_AT_RULE = /prefers-reduced-transparency|prefers-contrast|forced-colors|prefers-reduced-motion|^@supports/;
+const PREFERENCE_AT_RULE = /prefers-reduced-transparency|prefers-contrast|forced-colors|prefers-reduced-motion|^@supports not \(\(backdrop-filter/;
 /** A rule that targets a theme or preset scope. */
 const THEMED_SELECTOR = /\[data-zx-(?:theme|preset)\b/;
 /** Names that are geometry or material whatever their value looks like. */
@@ -104,7 +105,8 @@ test('no non-colour token is declared inside a theme or preset block', () => {
       }
     }
   }
-  assert.ok(themedRules >= 4, `expected the light, every-theme, dark, and auto blocks; found ${themedRules}`);
+  // The fallback's light, every-theme, dark and auto blocks, the preset block, and the presets.
+  assert.ok(themedRules >= 12, `expected the theme, preset, and fallback blocks; found ${themedRules}`);
   assert.deepEqual(offenders, [], 'non-colour tokens belong on :root only:\n' + offenders.join('\n'));
 });
 

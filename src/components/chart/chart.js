@@ -514,13 +514,28 @@ function summaryValue(value) {
 /** @param {HTMLElement} root @returns {Record<string, unknown>} */
 function themeChartOptions(root) {
   if (typeof getComputedStyle !== 'function') return {};
-  const style = getComputedStyle(root);
-  const color = style.getPropertyValue('--zx-color-text').trim();
-  const borderColor = style.getPropertyValue('--zx-color-border').trim();
   return {
-    color: color || undefined,
-    borderColor: borderColor || undefined
+    color: themeColour(root, '--zx-color-text'),
+    borderColor: themeColour(root, '--zx-color-border')
   };
+}
+
+/**
+ * A colour token as the chart root paints it. The token's text may be a `light-dark()` pair, which
+ * only an element can resolve (it takes that element's colour scheme) and a canvas cannot parse, so
+ * the colour is read back from a hidden probe inside the root.
+ * @param {HTMLElement} root
+ * @param {string} token
+ * @returns {string | undefined} The computed colour, or undefined where the token is not defined.
+ */
+function themeColour(root, token) {
+  if (!getComputedStyle(root).getPropertyValue(token).trim()) return undefined;
+  const probe = h('span', { hidden: true });
+  probe.style.color = `var(${token})`;
+  root.append(probe);
+  const colour = getComputedStyle(probe).color;
+  probe.remove();
+  return colour || undefined;
 }
 
 /** @param {unknown} error @param {unknown} fallback @returns {string} */

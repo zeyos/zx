@@ -3,12 +3,16 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
+import {
+  LIGHT_DARK, NO_LIGHT_DARK, branch, fallbackMapping, presetMapping, rules, schemeTokens, singleMapping, tokenCss
+} from './theme-tokens.js';
+
 /*
  * The token contract WP40 added: the role names components and layouts consume, the tier-1 ramps
  * behind them, the type tokens, and the base typography and quiet-field rules in `styles/base.css`.
  * Contrast is checked against the resolved values in `theme-presets.test.js`; this file holds the
- * names and the structure in place, so a rename or a dark list that drifts from its auto twin fails
- * here with a readable message.
+ * names and the structure in place, so a rename, a role restated on a theme element, or a fallback
+ * list that drifts from the single mapping fails here with a readable message.
  */
 
 /** @param {string} path Repository-relative. @returns {string} The file without comments. */
@@ -30,14 +34,11 @@ function block(source, selector) {
 }
 
 const global = block(css('styles/tokens/global.css'), /:root/);
-// The light theme is its base block plus the derived colours restated on every theme element.
-const light = new Map([
-  ...block(css('styles/tokens/semantic.css'), /:root,\s*\[data-zx-theme="light"\]/),
-  ...block(css('styles/tokens/semantic.css'), /:root,\s*\[data-zx-theme\]/)
-]);
-const darkCss = css('styles/tokens/dark.css');
-const dark = block(darkCss, /\[data-zx-theme="dark"\]/);
-const auto = block(darkCss, /@media \(prefers-color-scheme: dark\)\s*\{\s*\[data-zx-theme="auto"\]/);
+// Each theme is one half of the single mapping; the fallback states the same values per theme.
+const single = singleMapping();
+const light = schemeTokens('light');
+const dark = schemeTokens('dark');
+const fallback = fallbackMapping();
 
 const TONES = ['blue', 'teal', 'green', 'amber', 'orange', 'red', 'pink', 'violet', 'slate'];
 
@@ -50,28 +51,29 @@ const ROLES = [
   ...Array.from({ length: 8 }, (_, index) => `--zx-color-chart-${index + 1}`)
 ];
 
-/** Roles that read another theme-dependent role, and so must be restated by the dark theme. */
+/** Roles that read another theme-dependent role, and so must be restated by the fallback's dark list. */
 const THEMED = ROLES.filter((role) => !/^--zx-color-chart-/.test(role));
 
-test('every new colour role is defined for light, and restated for dark and auto', () => {
-  for (const role of ROLES) assert.ok(light.has(role), `${role} is missing from the light theme`);
+test('every new colour role is declared once, and restated by the fallback for dark and auto', () => {
+  for (const role of ROLES) assert.ok(single.has(role), `${role} is missing from the single mapping`);
   for (const role of THEMED) {
-    assert.ok(dark.has(role), `${role} is missing from the dark theme`);
-    assert.ok(auto.has(role), `${role} is missing from the auto theme`);
+    assert.ok(fallback.dark.has(role), `${role} is missing from the fallback dark theme`);
+    assert.ok(fallback.auto.has(role), `${role} is missing from the fallback auto theme`);
   }
 });
 
-test('the dark and auto lists are the same list', () => {
+test('the fallback\'s dark and auto lists are the same list', () => {
   // CSS cannot share one declaration block across a media boundary, so dark.css states the dark
   // mapping twice. Any drift means `auto` renders a different theme from `dark` on a dark OS.
-  assert.deepEqual([...auto], [...dark]);
+  assert.deepEqual([...fallback.auto], [...fallback.dark]);
 });
 
 test('the chart series are one list for both themes', () => {
-  // The 500 tone stops clear 3:1 on the light and the dark surface alike; a dark override would
-  // be a second ordering to keep CVD-safe.
+  // The 500 tone stops clear 3:1 on the light and the dark surface alike; a dark value would be a
+  // second ordering to keep CVD-safe.
   for (let index = 1; index <= 8; index += 1) {
-    assert.ok(!dark.has(`--zx-color-chart-${index}`), `--zx-color-chart-${index} is overridden in dark`);
+    assert.doesNotMatch(single.get(`--zx-color-chart-${index}`), /light-dark\(/, `--zx-color-chart-${index} differs in dark`);
+    assert.ok(!fallback.dark.has(`--zx-color-chart-${index}`), `--zx-color-chart-${index} is overridden in the fallback's dark`);
   }
 });
 
@@ -108,7 +110,8 @@ test('every tone has a solid identity fill the white icon glyph reads on, in bot
     const reference = /^var\((--zx-tone-[\w-]+)\)$/.exec(light.get(role) ?? '')?.[1];
     assert.ok(reference, `${role} must read one tone stop`);
     // A solid is identity, not ink: the same stop on both themes, like the chart series.
-    assert.ok(!dark.has(role), `${role} is overridden in dark`);
+    assert.equal(dark.get(role), light.get(role), `${role} differs in dark`);
+    assert.ok(!fallback.dark.has(role), `${role} is overridden in the fallback's dark`);
     const fill = luminance(global.get(reference));
     const ratio = (Math.max(glyph, fill) + 0.05) / (Math.min(glyph, fill) + 0.05);
     assert.ok(ratio >= 3, `${role}: the glyph reaches ${ratio.toFixed(2)}:1, below 3:1`);
@@ -186,17 +189,126 @@ test('quiet fields drop their chrome until hover or focus, at zero specificity',
     'the quiet rules come before the defaults they override');
 });
 
-test('colours derived from other theme colours are restated on every theme element', () => {
-  // A custom property resolves where it is declared; one declared on :root alone reaches a nested
-  // `[data-zx-theme="dark"]` region as a finished light value.
-  const semantic = css('styles/tokens/semantic.css');
-  const base = block(semantic, /:root,\s*\[data-zx-theme="light"\]/);
-  const everyTheme = block(semantic, /:root,\s*\[data-zx-theme\]/);
+test('the fallback restates colours derived from other theme colours on every theme element', () => {
+  // Without light-dark() a custom property resolves where it is declared; one declared on :root
+  // alone reaches a nested `[data-zx-theme="dark"]` region as a finished light value.
   const derived = /var\(\s*--zx-(?:color|glass|overlay|app-icon|message)-/;
-  for (const [name, value] of base) {
+  for (const [name, value] of fallback.light) {
     assert.ok(!derived.test(value), `${name} reads another theme colour but is declared on :root only`);
   }
-  assert.ok(everyTheme.has('--zx-color-overlay-surface') && everyTheme.has('--zx-focus-ring'));
+  assert.ok(fallback.everyTheme.has('--zx-color-overlay-surface') && fallback.everyTheme.has('--zx-focus-ring'));
+});
+
+/**
+ * A shadow list as painted: layers in order, lengths padded to four, transparent layers dropped,
+ * and the palette's `--zx-shadow-*` expanded.
+ * @param {string} value
+ * @returns {string[]}
+ */
+function shadowLayers(value) {
+  const expanded = value.replace(/var\((--zx-shadow-\d)\)/g, (_, name) => global.get(name));
+  const layers = [];
+  let depth = 0;
+  let start = 0;
+  for (let index = 0; index <= expanded.length; index += 1) {
+    const char = expanded[index];
+    if (char === '(') depth += 1;
+    else if (char === ')') depth -= 1;
+    else if ((char === ',' && depth === 0) || index === expanded.length) {
+      layers.push(expanded.slice(start, index).trim());
+      start = index + 1;
+    }
+  }
+  return layers.filter((layer) => !/\btransparent$/.test(layer)).map((layer) => {
+    const inset = /^inset\b/.test(layer);
+    const rest = layer.replace(/^inset\s+/, '');
+    const lengths = /^((?:-?[\d.]+(?:px)?\s+){2,4})/.exec(`${rest} `)?.[1].trim().split(/\s+/) ?? [];
+    const colour = rest.slice(lengths.join(' ').length).trim();
+    while (lengths.length < 4) lengths.push('0');
+    return `${inset ? 'inset ' : ''}${lengths.map((length) => length.replace(/^0px$/, '0')).join(' ')} ${colour}`;
+  });
+}
+
+test('the single mapping and the fallback state the same values', () => {
+  // The fallback is only ever read by a browser without light-dark(), so nothing else would notice
+  // it drifting. tests/unit/colour-overrides.test.js compares the two as painted; this compares
+  // them as written, and runs without a browser.
+  const expected = {
+    light: new Map([...fallback.light, ...fallback.everyTheme]),
+    dark: new Map([...fallback.light, ...fallback.everyTheme, ...fallback.dark])
+  };
+  assert.deepEqual([...single.keys()].sort(), [...expected.light.keys()].sort(),
+    'the single mapping and the fallback declare different roles');
+  for (const scheme of /** @type {const} */ (['light', 'dark'])) {
+    const tokens = schemeTokens(scheme);
+    for (const [name, value] of expected[scheme]) {
+      if (/shadow$/.test(name)) {
+        assert.deepEqual(shadowLayers(tokens.get(name)), shadowLayers(value), `${name} paints differently in ${scheme}`);
+      } else {
+        assert.equal(tokens.get(name), value, `${name} differs in ${scheme}`);
+      }
+    }
+  }
+});
+
+test('a theme element declares no colour role where light-dark() is supported', () => {
+  // Anything declared on a theme element shadows the inherited value, which is how a :root
+  // override used to stop at the first nested region. Only `color-scheme` belongs there.
+  const themed = [];
+  for (const file of ['semantic.css', 'dark.css', 'themes.css', 'global.css', 'modules.css']) {
+    for (const rule of rules(tokenCss(file))) {
+      if (!/\[data-zx-theme\b/.test(rule.selector) || rule.atRules.includes(NO_LIGHT_DARK)) continue;
+      // The capability and preference fallbacks force one value on every scope, whatever the theme.
+      if (rule.atRules.some((prelude) => /backdrop-filter|prefers-reduced-transparency|prefers-contrast|forced-colors/.test(prelude))) continue;
+      if (rule.declarations.size) themed.push(`${file}: ${rule.selector} declares ${[...rule.declarations.keys()].join(', ')}`);
+    }
+  }
+  assert.deepEqual(themed, []);
+  // Each theme element says which half it reads, under the conditions the fallback uses: `auto`
+  // turns dark with the system and otherwise keeps what surrounds it.
+  const semantic = css('styles/tokens/semantic.css');
+  assert.match(semantic, /\n:root,\s*\[data-zx-theme="light"\]\s*\{\s*color-scheme:\s*light;\s*\}/);
+  assert.match(semantic, /\n\[data-zx-theme="dark"\]\s*\{\s*color-scheme:\s*dark;\s*\}/);
+  assert.match(semantic,
+    /\n@media \(prefers-color-scheme: dark\)\s*\{\s*\[data-zx-theme="auto"\]\s*\{\s*color-scheme:\s*dark;\s*\}\s*\}/);
+});
+
+test('a preset element restates exactly the roles that read the accent ramp', () => {
+  // A preset repoints `--zx-accent-*` on its own element; a role substituted on :root would carry
+  // the page's ramp into a nested preset region. The closure is computed from the stylesheet, so a
+  // new accent-derived role that is not in the preset block fails here — and so does a role in the
+  // block that does not need it, since everything there shadows an application's :root override.
+  const reads = (value) => [...value.matchAll(/var\((--[\w-]+)\)/g)].map(([, name]) => name);
+  const closure = new Set();
+  for (let grew = true; grew;) {
+    grew = false;
+    for (const [name, value] of single) {
+      if (closure.has(name)) continue;
+      if (/var\(--zx-accent-/.test(value) || reads(value).some((reference) => closure.has(reference))) {
+        closure.add(name);
+        grew = true;
+      }
+    }
+  }
+  assert.deepEqual([...presetMapping().keys()].sort(), [...closure].sort());
+});
+
+test('no colour role is registered with @property', () => {
+  // A registered <color> is computed where it is declared — on :root, in light — which would send
+  // light values into every dark region again.
+  for (const file of ['semantic.css', 'dark.css', 'themes.css', 'global.css', 'modules.css']) {
+    assert.doesNotMatch(tokenCss(file), /@property\s+--zx-/, `${file} registers a token`);
+  }
+});
+
+test('the single mapping sits behind a light-dark() support check, the fallback behind its negation', () => {
+  const semantic = css('styles/tokens/semantic.css');
+  assert.ok(semantic.includes(`${LIGHT_DARK} {`) && semantic.includes(`${NO_LIGHT_DARK} {`));
+  assert.ok(css('styles/tokens/dark.css').trimStart().startsWith(`${NO_LIGHT_DARK} {`),
+    'dark.css declares something outside the fallback');
+  // The preference fallbacks follow both paths, so they win on either.
+  assert.ok(semantic.indexOf(NO_LIGHT_DARK) < semantic.indexOf('@media (prefers-reduced-transparency'));
+  assert.equal(branch('light-dark(a, light-dark(b, c))', 'dark'), 'c');
 });
 
 /* -------------------------------------------------------------------- motion -- */
@@ -249,8 +361,8 @@ test('the named curves: a small spring and a decisive drawer beside the standard
 
 test('the drag shadow is a tier-2 role in light, dark, and auto', () => {
   assert.ok(light.has('--zx-drag-shadow'), '--zx-drag-shadow is missing from the light theme');
-  assert.ok(dark.has('--zx-drag-shadow'), '--zx-drag-shadow is missing from the dark theme');
-  assert.equal(auto.get('--zx-drag-shadow'), dark.get('--zx-drag-shadow'));
+  assert.ok(fallback.dark.has('--zx-drag-shadow'), '--zx-drag-shadow is missing from the fallback dark theme');
+  assert.equal(fallback.auto.get('--zx-drag-shadow'), fallback.dark.get('--zx-drag-shadow'));
   // A dark canvas swallows a plain shadow; the dark value has to be its own.
   assert.notEqual(dark.get('--zx-drag-shadow'), light.get('--zx-drag-shadow'));
   // Lifted, not floating: it reads the palette, never another theme colour.

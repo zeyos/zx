@@ -202,7 +202,9 @@ the library already reads — never as component CSS:
 6. **Colour roles** — `--zx-color-tone-*` for categories (tags, modules, avatars),
    `--zx-color-danger|warning|success|info` for status, `--zx-color-bg-current` for "you are here"
    and `--zx-color-bg-selected` for "what you picked", `--zx-color-bg-chrome` for navigation and
-   inspector columns. A module's colour is its `tone` on `ModuleBar`.
+   inspector columns. A module's colour is its `tone` on `ModuleBar`. A product's own colour is a
+   role overridden once on `:root`, `light-dark(<light>, <dark>)` where the appearances differ —
+   never per theme attribute (see **Override once**).
 7. **Type** — two registers. Interface type is `--zx-font-sans`, `--zx-font-mono` and
    `--zx-text-base` (every `--zx-text-*` step derives from it). Reading type is a second, separate
    decision for authored content in `.zx-prose`: `--zx-font-prose` (a serif here leaves the
@@ -250,12 +252,40 @@ from it (12 / 13 / 14 / 16 / 18 / 24 / 30px at the default), so changing the bas
 hierarchy; setting `--zx-text-md` alone still moves only the control size.
 To tighten or loosen an application, override those tokens on `:root` or on any region. The
 geometry and material tokens (control size, radius, spacing, blur and glass filters, durations,
-easings, the type scale) are declared on `:root` only, never on a `[data-zx-theme]` block, so an
-override on `:root` reaches nested light and dark regions alike; theme blocks carry colours only:
+easings, the type scale) are declared on `:root` only, never on a `[data-zx-theme]` element, so an
+override on `:root` reaches nested light and dark regions alike — and colours work the same way
+(see **Override once**):
 
 ```css
 :root { --zx-space-unit: 3.5px; --zx-control-height: 28px; }
 ```
+
+**Override once.** Every colour role is declared once, on `:root`; a theme element sets only
+`color-scheme`, which picks the half of each `light-dark()` pair it reads. So a colour override
+belongs on `:root` as well, written as `light-dark(<light>, <dark>)` where the two appearances
+differ, and it reaches light, dark, auto and every nested region alike — together with everything
+derived from it (hover, current, the glass and overlay tiers, and the tone tints follow
+`--zx-color-text` and `--zx-color-bg-surface`) and every material the theme studio exports:
+
+```css
+:root {
+  --zx-color-bg-page: light-dark(#f7f8fa, #14161b);
+  --zx-color-text-muted: light-dark(#5b6170, #a3a9b6);
+}
+```
+
+A value without `light-dark()` applies to both appearances. The accent is a ramp, not a role: set
+`--zx-accent-300…700` (or use a preset) and each appearance takes its own stop. A nested
+`data-zx-preset` region restates the roles that read that ramp (`--zx-color-accent*`,
+`--zx-color-bg-selected`, `--zx-color-ring`, `--zx-focus-ring`, `--zx-color-overlay-selected`, the
+overlay images), so an override of one of those meant to reach such a region too is written
+`:root, [data-zx-preset] { … }`. Never register a colour role with `@property`: a registered colour
+resolves where it is declared and stops following the region. Script that needs a role's value
+reads a probe element's computed `color`, not the property's text, which may be a `light-dark()`
+pair that a canvas cannot parse. `light-dark()` needs a 2024 browser; older ones read Xenon's own
+per-theme fallback, where a `:root` override stops at a nested theme region, so an application that
+supports them puts its own `light-dark()` overrides inside `@supports (color: light-dark(#000,
+#fff))`.
 
 **Accent presets.** A second, orthogonal attribute picks the accent ramp:
 `data-zx-preset="zx" | "zeyos" | "ocean" | "violet" | "rose" | "slate" | "folio"` (`zx` is the default and
@@ -306,7 +336,9 @@ increased-contrast, forced-colour, and unsupported-filter environments restore s
 Top-layer components remain DOM children of their nearest Zx theme scope, so a theme or material
 set on an application region continues to inherit through its menus, dialogs, tooltips, and toasts.
 
-Define a product theme by overriding **semantic** tokens under a `[data-zx-theme="name"]` selector:
+Define a product theme as an accent ramp (a preset) plus **semantic** token overrides, each declared
+once on `:root` as above — not under a `[data-zx-theme="name"]` selector, which would stop at the
+first nested region:
 `--zx-color-bg-page/surface/raised/control/muted/hover/selected`, `--zx-color-bg-current` (the
 neutral "you are here" fill of the current nav item, row, tab, or pressed toggle — never the
 accent), `--zx-color-bg-chrome` (navigation and inspector columns, one tone off the canvas),

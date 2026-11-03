@@ -327,18 +327,17 @@ brushed or glazed, no blur), or Flat. Each is a set of token overrides composed 
 light and dark, and reduced-transparency, high-contrast and forced-colour settings restore solid
 surfaces on their own.
 
-Anything beyond the accent is a semantic token override, without reaching into component CSS:
+Anything beyond the accent is a semantic token override, without reaching into component CSS.
+Declare it once on `:root`, as `light-dark(<light>, <dark>)` where the two appearances differ: a
+theme attribute only picks which half a region reads, so the override reaches light, dark, auto,
+and nested regions alike, and the roles derived from it follow.
 
 ```css
-:root[data-zx-theme="acme"] {
-  --zx-color-bg-page: #f4f1eb;
-  --zx-color-bg-surface: #fffdf8;
-  --zx-color-bg-control: #ffffff;
-  --zx-color-border-control: #978e80;
-  --zx-color-text: #26221d;
-  --zx-color-text-muted: #655e54;
-  --zx-color-accent: #176b52;
-  --zx-color-on-accent: #ffffff;
+:root {
+  --zx-color-bg-page: light-dark(#f4f1eb, #1a1815);
+  --zx-color-bg-surface: light-dark(#fffdf8, #22201c);
+  --zx-color-text: light-dark(#26221d, #ece6dc);
+  --zx-color-text-muted: light-dark(#655e54, #a89f92);
 }
 ```
 

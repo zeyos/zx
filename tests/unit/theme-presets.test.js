@@ -8,6 +8,7 @@ import {
   SETTING_FIELDS, STOPS, THEME_FORMAT, TINTS, TINT_PROFILES, accentRamp, cleanFontStack, contrast, neutralRamp,
   normalizeSettings, presetById, readThemeJson, themeCss, themeJson, themeTokens, themeVars, tintRamp, toHex, toOklch
 } from '../../website/theme-presets.js';
+import { schemeTokens } from './theme-tokens.js';
 
 /*
  * The theme studio's preset table and `styles/tokens/themes.css` describe the same themes: one
@@ -59,8 +60,8 @@ test('every preset ships as CSS with the same ramp the studio shows', () => {
 
 /*
  * The contrast checks below read the stylesheets an application loads rather than a copy of their
- * values: the tier-1 palette, a preset, the light mapping, and — for dark — the dark mapping on
- * top, exactly as they cascade onto `<html data-zx-theme="dark" data-zx-preset="…">`. Values are
+ * values: the tier-1 palette, a preset, and one half of the colour mapping — the half
+ * `<html data-zx-theme="dark" data-zx-preset="…">` reads for dark, the other for light. Values are
  * resolved through `var()` and `color-mix(in srgb, …)` the way CSS Color 5 defines the mix
  * (premultiplied alpha), and a translucent role is composited over the surface it sits on.
  */
@@ -79,12 +80,8 @@ function declarationsOf(css, selector) {
 }
 
 const TIER_ONE = declarationsOf(tokenCss('global.css'), /:root/);
-// The light theme is its base block plus the derived colours restated on every theme element.
-const LIGHT = new Map([
-  ...declarationsOf(tokenCss('semantic.css'), /:root,\s*\[data-zx-theme="light"\]/),
-  ...declarationsOf(tokenCss('semantic.css'), /:root,\s*\[data-zx-theme\]/)
-]);
-const DARK = declarationsOf(tokenCss('dark.css'), /\[data-zx-theme="dark"\]/);
+const LIGHT = schemeTokens('light');
+const DARK = schemeTokens('dark');
 
 /**
  * Every custom property in effect for one theme and preset.
@@ -94,7 +91,7 @@ const DARK = declarationsOf(tokenCss('dark.css'), /\[data-zx-theme="dark"\]/);
  */
 function tokensFor(theme, preset = 'zx') {
   const ramp = Object.entries(presetById(preset).ramp).map(([stop, hex]) => [`--zx-accent-${stop}`, hex]);
-  return new Map([...TIER_ONE, ...ramp, ...LIGHT, ...(theme === 'dark' ? DARK : [])]);
+  return new Map([...TIER_ONE, ...ramp, ...(theme === 'dark' ? DARK : LIGHT)]);
 }
 
 /** @typedef {{r: number, g: number, b: number, a: number}} Rgba Channels 0–255, alpha 0–1. */
@@ -620,13 +617,16 @@ test('the stylesheet declares the glass ingredients for both themes', () => {
   const semantic = read('../../styles/tokens/semantic.css');
   const dark = read('../../styles/tokens/dark.css');
   for (const name of ['rim', 'ring', 'lift', 'shade', 'edge', 'tint']) {
-    assert.match(semantic, new RegExp(`--zx-color-glass-${name}:`), `semantic.css lacks the ${name}`);
+    assert.notEqual(LIGHT.get(`--zx-color-glass-${name}`), DARK.get(`--zx-color-glass-${name}`),
+      `the ${name} is not stated for each theme`);
     assert.equal((dark.match(new RegExp(`--zx-color-glass-${name}:`, 'g')) ?? []).length, 2,
-      `dark.css must restate the ${name} on the dark and the auto block`);
+      `the fallback in dark.css must restate the ${name} on the dark and the auto block`);
   }
   assert.match(semantic, /--zx-glass-grain: url\("data:image\/svg\+xml[^"]*color-interpolation-filters='sRGB'/);
-  // The shade is the pane's body in both themes, and the toast image carries no status tint.
-  assert.match(semantic, /--zx-color-glass-shade: color-mix\(in srgb, var\(--zx-gray-0\) \d+%, transparent\);/);
+  // The shade is the pane's body in both themes — white in light, black in dark — and the toast
+  // image carries no status tint.
+  assert.match(LIGHT.get('--zx-color-glass-shade'), /^color-mix\(in srgb, var\(--zx-gray-0\) \d+%, transparent\)$/);
+  assert.match(DARK.get('--zx-color-glass-shade'), /^color-mix\(in srgb, var\(--zx-gray-950\) \d+%, transparent\)$/);
   assert.match(semantic, /--zx-overlay-toast-image: var\(--zx-overlay-surface-image\);/);
   assert.match(read('../../src/components/message/message.css'), /radial-gradient\([^;]*var\(--zx-message-kind\)[^;]*var\(--zx-overlay-toast-image\)/);
   // Without backdrop filtering every glass role is opaque, cards and chrome included.

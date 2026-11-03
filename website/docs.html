@@ -408,6 +408,37 @@ const toolbar = h('div', { class: 'toolbar' },
 &lt;html data-zx-theme="dark"&gt;
       </pre>
 
+      <h2>Overriding a colour once</h2>
+      <p>
+        Every colour role is declared once, on <code>:root</code>. A theme attribute only sets
+        <code>color-scheme</code>, which picks the half of each <code>light-dark()</code> pair the
+        region reads. So override a colour on <code>:root</code> as well — as
+        <code>light-dark(&lt;light&gt;, &lt;dark&gt;)</code> where the two appearances differ, as a
+        single value where they do not — and it reaches light, dark, and auto regions, nested ones
+        included. Roles derived from it follow: hover, current, the glass and overlay surfaces, and
+        the tone tints read <code>--zx-color-text</code> and <code>--zx-color-bg-surface</code>. A
+        material exported from the theme studio works the same way.
+      </p>
+      <pre data-code="override.css">
+:root {
+  --zx-color-bg-page: light-dark(#f7f8fa, #14161b);
+  --zx-color-text-muted: light-dark(#5b6170, #a3a9b6);
+}
+      </pre>
+      <p>
+        The accent is the exception, because it is a ramp rather than a role: set the five
+        <code>--zx-accent-*</code> stops (below) and each appearance takes its own. A nested
+        <code>data-zx-preset</code> region restates the roles that read the ramp — the accent
+        family, the selected fill, the focus ring, and the overlay selection and images — so an
+        override of one of those meant to reach such a region too is written
+        <code>:root, [data-zx-preset] { … }</code>. Script that needs a colour reads it from an
+        element's computed style rather than from the property's text, which may be a
+        <code>light-dark()</code> pair. Browsers from before 2024 lack <code>light-dark()</code> and
+        get per-theme tokens instead, where a <code>:root</code> override stops at a nested region;
+        an application that supports them wraps its own <code>light-dark()</code> overrides in
+        <code>@supports (color: light-dark(#000, #fff))</code>.
+      </p>
+
       <h2>Spacing and geometry</h2>
       <p>
         Xenon has one geometry, and it is set by tokens rather than modes. Every spacing step is a
@@ -582,16 +613,25 @@ const light = new Aurora('#application-canvas', {
 
       <h2>Defining a product theme</h2>
       <p>
-        Override semantic tokens under a named theme attribute. Nothing else changes — every
-        component picks the new values up.
+        A product theme is an accent preset and a few semantic overrides, each declared once on
+        <code>:root</code>. Nothing else changes — every component, in every theme and region,
+        picks the new values up. Set <code>data-zx-preset="acme"</code> on
+        <code>&lt;html&gt;</code> beside the theme.
       </p>
       <pre data-code="product-theme.css">
-[data-zx-theme="acme"] {
-  color-scheme: light;
-  --zx-color-accent: #2a66ab;
-  --zx-color-accent-hover: #1d4c80;
-  --zx-color-on-accent: #ffffff;
-  --zx-color-bg-page: #f7f8fa;
+/* The accent: a ramp, as in "Defining your own accent" above. */
+[data-zx-preset="acme"] {
+  --zx-accent-300: #a9cfff;
+  --zx-accent-400: #72b0fa;
+  --zx-accent-500: #448bde;
+  --zx-accent-600: #1c70c9;
+  --zx-accent-700: #0058aa;
+}
+
+/* Everything else: roles, once, for both appearances. */
+:root {
+  --zx-color-bg-page: light-dark(#f7f8fa, #14161b);
+  --zx-color-text: light-dark(#1d2129, #e3e6eb);
   --zx-radius: 3px;
 }
       </pre>

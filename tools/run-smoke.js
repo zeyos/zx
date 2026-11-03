@@ -265,7 +265,7 @@ async function runDocumentationShell(instance) {
     await page.goto(`${base}/website/theme.html`, { waitUntil: 'load' });
     await assertOverlayMaterials(page);
     if (problems.length) throw new Error(problems.slice(0, 5).join(' / '));
-    console.log('PASS  documentation shell — search, mobile API tables, and computed overlay materials');
+    console.log('PASS  documentation shell — search, mobile API tables, and computed overlay materials, nested regions included');
     return false;
   } catch (error) {
     console.error(`FAIL  documentation shell: ${error.message}`);
@@ -622,6 +622,8 @@ async function assertOverlayMaterials(page) {
     if (delta > .02) throw new Error(`${role} alpha changes across light/dark by ${delta}`);
   }
 
+  await assertNestedMaterial(page, 'Smoke');
+
   const cdp = await page.context().newCDPSession(page);
   try {
     await chooseStudioRadio(page, 'Appearance', 'Dark');
@@ -739,6 +741,49 @@ async function assertOverlayMaterials(page) {
   ].includes(key) && !value)
     || Math.abs(scoped.compactAlpha - .41) > .01 || Math.abs(scoped.panelAlpha - .43) > .01) {
     throw new Error(`top-layer components lost their nearest theme scope: ${JSON.stringify(scoped)}`);
+  }
+}
+
+/**
+ * The studio writes a material to `:root`; a region of the other theme nested in the page has to
+ * paint it exactly as a page of that theme does, colours and filters alike.
+ * @param {import('playwright-core').Page} page
+ * @param {string} material
+ * @returns {Promise<void>}
+ */
+async function assertNestedMaterial(page, material) {
+  const sample = (theme) => page.evaluate((nested) => {
+    const host = nested ? document.body.appendChild(document.createElement('section')) : document.body;
+    if (nested) host.dataset.zxTheme = nested;
+    const probe = host.appendChild(document.createElement('div'));
+    Object.assign(probe.style, {
+      backgroundColor: 'var(--zx-color-overlay-surface)', backgroundImage: 'var(--zx-overlay-surface-image)',
+      backdropFilter: 'var(--zx-glass-filter-overlay)', boxShadow: 'var(--zx-glass-overlay-shadow)',
+      color: 'var(--zx-color-glass-chrome)'
+    });
+    const style = getComputedStyle(probe);
+    const result = {
+      surface: style.backgroundColor, image: style.backgroundImage, filter: style.backdropFilter,
+      shadow: style.boxShadow, chrome: style.color
+    };
+    (nested ? host : probe).remove();
+    return result;
+  }, theme);
+  await chooseStudioRadio(page, 'Material', material);
+  const pages = {};
+  for (const appearance of ['Light', 'Dark']) {
+    await chooseStudioRadio(page, 'Appearance', appearance);
+    pages[appearance] = await sample(null);
+  }
+  const inDark = await sample('light');
+  await chooseStudioRadio(page, 'Appearance', 'Light');
+  const inLight = await sample('dark');
+  for (const [where, nested, expected] of [['dark in a light page', inLight, pages.Dark], ['light in a dark page', inDark, pages.Light]]) {
+    const differs = Object.keys(expected).filter((key) => nested[key] !== expected[key]);
+    if (differs.length) {
+      throw new Error(`${material} in a nested ${where} differs from the page in ${differs.join(', ')}: `
+        + JSON.stringify({ nested, expected }));
+    }
   }
 }
 

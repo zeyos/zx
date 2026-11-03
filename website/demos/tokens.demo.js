@@ -168,7 +168,9 @@ function element(tag, className, text) {
 
 /** @param {string} token @returns {string} */
 function resolved(token) {
-  return getComputedStyle(document.documentElement).getPropertyValue(token).trim();
+  const value = getComputedStyle(document.documentElement).getPropertyValue(token).trim();
+  // A role that differs between the themes is a `light-dark()` pair: show the half this page paints.
+  return value.includes('light-dark(') ? measured(token, 'color') : value;
 }
 
 /**
