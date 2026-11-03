@@ -124,6 +124,14 @@ export {
 export {
   ActivityList, groupActivityItems, normalizeActivityItems
 } from './components/activity-list/activity-list.js';
+export { BlockView, renderBlocks } from './components/block-view/block-view.js';
+export { blocksToMarkdown, blocksToText } from './internal/agent-model.js';
+export { RunStatus } from './components/run-status/run-status.js';
+export { Composer } from './components/composer/composer.js';
+export { ApprovalCard } from './components/approval-card/approval-card.js';
+export { RunTrace } from './components/run-trace/run-trace.js';
+export { SourceList } from './components/source-list/source-list.js';
+export { AgentThread } from './components/agent-thread/agent-thread.js';
 export { AccountMenu } from './components/account-menu/account-menu.js';
 export { WorkspaceSwitcher } from './components/workspace-switcher/workspace-switcher.js';
 export { normalizeAppItems } from './internal/app-rail.js';

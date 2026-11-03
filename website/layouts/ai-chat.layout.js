@@ -1,8 +1,8 @@
 import {
-  ContextMenu, CopyInput, Dialog, FileList, InlineLoading, Launcher,
-  MenuButton, NumberField, ProgressBar, Select, Slider, Toggle, Tooltip, appIcon, badge, button,
-  copyButton, downloadBlob, emptyState, formatDate, formatFileSize, formatNumber, formatPercent, h,
-  icon, prefersReducedMotion, rovingTabindex, spinner, stack, uid, watchMotion
+  AgentThread, BlockView, Composer, ContextMenu, CopyInput, Dialog, FileList, InlineLoading, Launcher,
+  MenuButton, NumberField, ProgressBar, Select, Slider, Toggle, appIcon, blocksToMarkdown, blocksToText,
+  button, copyButton, downloadBlob, emptyState, formatDate, formatNumber, formatPercent, h, icon,
+  prefersReducedMotion, rovingTabindex, stack, uid, watchMotion
 } from '../../src/index.js';
 import {
   DATE, SHELL_BREAKPOINTS, adaptiveShell, disposer, iconButton, iconTile, later, layoutContext, listTime,
@@ -11,24 +11,30 @@ import {
 import { ME, NOW, ORGANISATION, person } from './fixtures.js';
 
 /**
- * An assistant answer is a small document model, not HTML. Model output is untrusted text, so it is
- * rendered block by block with `h()` and never reaches `innerHTML`. Inside a text run, `**bold**`
- * and `` `code` `` are the only markup. An `artifact` block is a card that opens a document or a
- * piece of code the assistant wrote in the inspector.
+ * An assistant answer is a list of blocks in the agent kit's model, which `AgentThread` draws: model
+ * output is untrusted text, and inside a text run `**bold**` and `` `code` `` are the only markup.
+ * An `artifact` block is a card that opens a document or a piece of code the assistant wrote in the
+ * inspector; the thread is given its kind and number of versions to show.
  * @typedef {{type: 'p'|'quote', text: string}
  *   | {type: 'heading', level: 2|3, text: string}
  *   | {type: 'list', ordered: boolean, items: string[]}
  *   | {type: 'code', language: string, code: string}
  *   | {type: 'table', columns: string[], rows: string[][], align?: Array<'start'|'end'>}
- *   | {type: 'artifact', id: string, title: string}} Block
+ *   | {type: 'artifact', id: string, title: string, kind?: 'code'|'document', versions?: number}} Block
  * @typedef {{name: string, size: number, mime: string}} Attachment
  * One thing the assistant did before it answered: what it was (`label`, and `doing` while it runs),
  * a muted detail, how long it took, and for a web search how many sources it looked at.
  * @typedef {'search'|'read'|'query'|'write'|'run'} StepKind
  * @typedef {{kind: StepKind, label: string, doing: string, detail?: string, ms: number,
- *   sources?: number, target?: string, stopped?: boolean}} Step
+ *   sources?: number, stopped?: boolean}} Step
  * A source an answer drew on: a web page, or a file the chat knows.
  * @typedef {{title: string, site: string, url: string, snippet: string, file?: boolean}} Source
+ * What the thread is given: plain JSON items (`user`, `answer`, `trace`, `notice`) and sources.
+ * @typedef {{id: string, type: string, [key: string]: unknown}} ThreadItem
+ * @typedef {{id: string, title: string, kind: 'web'|'file', site: string, snippet: string,
+ *   href: string}} ThreadSource
+ * One piece of a streamed answer: text for its last paragraph, or a block that arrives whole.
+ * @typedef {{text: string}|{block: Block}} Feed
  * What the assistant will do for one answer: its steps, the answer, and the sources it cites.
  * @typedef {{blocks: Block[], steps?: Step[], sources?: Source[]}} Plan
  * One version of an answer; regenerating keeps the earlier ones.
@@ -100,9 +106,9 @@ function queried(detail, ms) { return step('query', 'Ran a query', 'Running a qu
  */
 function wrote(label, doing, detail, ms) { return step('write', label, doing, detail, ms); }
 /** @param {string} what @param {string} detail @param {number} ms @returns {Step} Code or tests run. */
-function ran(what, detail, ms) { return step('run', `Ran ${what}`, `Running ${what}`, detail, ms, { target: what }); }
+function ran(what, detail, ms) { return step('run', `Ran ${what}`, `Running ${what}`, detail, ms); }
 
-/** The glyph each kind of step is drawn with. */
+/** The glyph each kind of step carries in the trace: a web search is a globe, a query a database. */
 const STEP_ICONS = { search: 'globe', read: 'file-lines', query: 'database', write: 'pen-to-square', run: 'terminal' };
 
 /** The models the workspace can talk to. Every name is fictional. */
@@ -167,7 +173,7 @@ const TOOLS = [
   { id: 'code', label: 'Code execution', description: 'Run Python in a sandbox', icon: 'terminal' }
 ];
 
-/** Saved prompts, offered by the composer's Prompts menu and by typing "/". */
+/** Saved prompts: the composer's commands, from its button or "/" in an empty composer. */
 const PROMPTS = [
   { value: 'summary', label: 'Summarise for a manager', description: 'Five bullets with owners and dates', text: 'Summarise the following for a manager in five bullets, with owners and due dates:\n\n' },
   { value: 'reply', label: 'Draft a customer reply', description: 'Friendly, short, one next step', text: 'Draft a short, friendly reply to this customer with one clear next step:\n\n' },
@@ -626,20 +632,26 @@ const CHATS = [
   }
 ];
 
-/** How a streamed answer appears: characters per tick, tick length, and the pause before it. */
-const STREAM = { step: 6, tick: 28, think: 650 };
+/**
+ * How a streamed answer appears: characters per tick, tick length, the pause before it, and the
+ * pause after a block that arrives whole — a list, a table, code, or an artifact's card.
+ */
+const STREAM = { step: 6, tick: 28, think: 650, block: 240 };
 
 /** The chat whose artifact the screen opens with, wherever the inspector fits beside the thread. */
 const FIRST_ARTIFACT = 'retry-helper';
+
+/** The composer's context chip while a sent message is being edited. */
+const EDIT_CHIP = 'editing';
 
 export default {
   title: 'AI chat',
   category: 'Communication',
   blurb: 'Chat with an assistant that shows its work: tool steps, cited sources, artifacts with versions, agent mentions, and per-chat model settings.',
   components: [
-    'Slider', 'FileList', 'CopyInput', 'Launcher', 'Select', 'InlineLoading', 'ContextMenu',
-    'MenuButton', 'NumberField', 'Toggle', 'ProgressBar', 'AppIcon', 'Tooltip', 'Dialog', 'Message',
-    'AppSidebar', 'ModuleBar', 'AccountMenu'
+    'AgentThread', 'Composer', 'BlockView', 'RunTrace', 'SourceList', 'Slider', 'FileList', 'CopyInput',
+    'Launcher', 'Select', 'InlineLoading', 'ContextMenu', 'MenuButton', 'NumberField', 'Toggle',
+    'ProgressBar', 'AppIcon', 'Dialog', 'Message', 'AppSidebar', 'ModuleBar', 'AccountMenu'
   ],
 
   /**
@@ -663,41 +675,28 @@ export default {
     }
     /** @type {Artifact[]} */
     const artifacts = structuredClone(ARTIFACTS);
+    const authors = threadAuthors(me.name);
     const state = {
       chatId: 'export-limits',
       view: 'all',
-      stick: true,
       minutes: 0,
-      /** @type {Attachment[]} */ attachments: [],
       /**
-       * The answer being written: its plan, how far it has got — the step running, then the
-       * characters shown — and the timer of its next step.
+       * The answer being written: its plan, how far it has got — the step running, then what is
+       * still to be fed to the answer — and the timer of its next step.
        * @type {{chat: Chat, message: ChatMessage, plan: Plan, phase: 'steps'|'answer', step: number,
-       *   shown: number, timer: number, view: HTMLElement, work: HTMLElement|null,
-       *   content: HTMLElement}|null}
+       *   feed: Feed[], timer: number}|null}
        */
       run: null,
-      /** @type {Set<string>} Answers whose steps are expanded. */
-      openWork: new Set(),
       /** @type {{id: string, version: number}|null} The artifact in the inspector. */
       artifact: null,
-      /** @type {HTMLElement|null} The card that opened it, where the focus returns. */
-      artifactOpener: null,
-      /**
-       * The open "@" suggestion list: where the mention starts in the text, the agents that match,
-       * and the highlighted one.
-       * @type {{start: number, end: number, matches: Agent[], index: number}|null}
-       */
-      mention: null
+      /** @type {HTMLElement|null} What opened the inspector — a card, a button — where the focus returns. */
+      opener: null,
+      /** @type {string|null} The sent message the composer is editing. */
+      editing: null
     };
     context.cleanup(() => clearTimeout(state.run?.timer));
     /** @type {Launcher|null} */ let launcher = null;
     /** @type {{dialog: Dialog, link: CopyInput, text: HTMLElement}|null} */ let sharing = null;
-    /**
-     * Each rendered answer owns its source cards, which live outside the thread until it is redrawn.
-     * @type {Map<string, ReturnType<typeof renderScope>>}
-     */
-    const owners = new Map();
 
     // ------------------------------------------------------------ navigation column --
 
@@ -753,7 +752,7 @@ export default {
       onchange: ({ detail }) => {
         if (detail.value == null) return;
         current().model = String(detail.value);
-        refreshComposer();
+        syncComposer();
         renderUsage();
       }
     }));
@@ -770,85 +769,70 @@ export default {
     const settingsButton = iconButton('gear', 'Assistant settings', () => toggleSettings());
     // On a phone the composer's Parameters button opens the same panel, so the header lets this go.
     settingsButton.dataset.narrow = 'hide';
-    const column = h('div', { class: 'chat__column' });
-    const thread = h('div', {
-      class: 'shell__body chat__thread', role: 'region', 'aria-label': 'Conversation', tabindex: '0',
-      onscroll: () => {
-        state.stick = thread.scrollHeight - thread.scrollTop - thread.clientHeight < 48;
-        jump.hidden = state.stick;
-      }
-    }, column);
-    const jump = button({
-      label: 'Jump to latest', icon: 'arrow-down', size: 'sm',
-      onclick: () => {
-        state.stick = true;
-        followOutput();
-        input.focus();
-      }
-    });
-    jump.classList.add('chat__jump');
-    jump.hidden = true;
+    settingsButton.classList.add('chat__aside-toggle');
+    settingsButton.setAttribute('aria-controls', asideId);
+    settingsButton.setAttribute('aria-expanded', 'false');
+    const status = keep(new InlineLoading(null, { status: 'inactive', size: 'sm' }));
 
-    // The "@" suggestions: a listbox the text area controls as a combobox (APG), so the focus
-    // stays in the text while the arrow keys move through the agents.
-    const mentionList = h('div', {
-      class: 'chat__mentions', role: 'listbox', id: uid('chat-agents'), 'aria-label': 'Agents', hidden: true
-    });
-    const input = h('textarea', {
-      class: 'chat__input', rows: 1, 'aria-label': 'Message', 'aria-keyshortcuts': '/',
-      role: 'combobox', 'aria-autocomplete': 'list', 'aria-haspopup': 'listbox', 'aria-expanded': 'false',
-      'aria-controls': mentionList.id,
+    // The conversation is the kit's thread, centred in a scroller of the layout's own whose ends
+    // fade under the header and the composer. A new chat shows a welcome in its place. Your own
+    // messages offer Edit and Copy on hover or focus; each step kind carries the layout's glyph.
+    const column = h('div', { class: 'chat__column' });
+    const scroller = h('div', { class: 'shell__body chat__thread' }, column);
+    const thread = keep(new AgentThread(null, {
+      authors,
+      scroller,
+      answerActions: ['copy', 'regenerate', 'branch', 'rate'],
+      userActions: ['edit', 'copy'],
+      icons: { regenerate: 'rotate-right', branch: 'code-branch', rateUp: 'thumbs-up', rateDown: 'thumbs-down', edit: 'pen' },
+      traceIcons: STEP_ICONS,
+      formatTime: (at) => formatDate(new Date(at), DATE.time),
+      onaction: (event) => threadAction(event),
+      onartifact: ({ detail }) => toggleArtifact(detail.id)
+    }));
+    // A knowledge file an answer cites opens like a web page does: the thread's sources leave
+    // every kind but `web` to the application.
+    thread.toElement().addEventListener('zx-select', (event) => {
+      const source = /** @type {CustomEvent<{source?: ThreadSource}>} */ (event).detail?.source;
+      if (source?.kind === 'file' && source.href?.startsWith('https://')) window.open(source.href, '_blank', 'noopener,noreferrer');
+    }, { signal: context.signal });
+
+    // The composer is the kit's. Its placeholder and note name the chat's model and follow the
+    // model picker (see `syncComposer()`); beside Attach and the saved prompts its bar has @, which
+    // starts a mention, and Parameters, which opens the assistant settings. Esc while editing a sent
+    // message gives up the edit.
+    const composer = keep(new Composer(null, {
+      attachments: true,
+      icons: { attach: 'paperclip', commands: 'book-open' },
+      mentions: {
+        trigger: '@',
+        items: AGENTS.map((agent) => ({ id: agent.id, label: agent.name, description: agent.description, icon: agent.icon }))
+      },
+      commands: PROMPTS.map(({ value, label, description }) => ({ id: value, label, description, icon: 'book-open' })),
+      tools: [
+        { id: 'mention', label: 'Mention an agent', icon: 'at' },
+        { id: 'parameters', label: 'Parameters', icon: 'sliders', pressed: false }
+      ],
+      onsend: (event) => onSend(event),
+      onstop: () => stop(),
       oninput: () => {
-        autosize();
-        refreshComposer();
-        updateMention();
         if (!state.run) status.set('inactive', '');
       },
-      onkeydown: onComposerKey,
-      onkeyup: (/** @type {KeyboardEvent} */ event) => {
-        if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) updateMention();
-      },
-      onclick: () => updateMention(),
-      onblur: () => closeMention()
-    });
-    const fileInput = h('input', {
-      type: 'file', multiple: true, hidden: true, tabindex: '-1',
-      onchange: () => {
-        for (const file of fileInput.files ?? []) {
-          state.attachments.push({ name: file.name, size: file.size, mime: file.type });
-        }
-        fileInput.value = '';
-        renderAttachments();
-        refreshComposer();
-        input.focus();
+      oncommand: ({ detail }) => usePrompt(String(detail.item.id)),
+      ontool: ({ detail }) => (detail.id === 'mention' ? startMention() : toggleSettings()),
+      onhistoryprevious: () => editMessage(current().messages.findLast((message) => message.role === 'user')),
+      onremove: ({ detail }) => {
+        if (detail.kind === 'context' && detail.id === EDIT_CHIP) cancelEdit();
       }
-    });
-    const attachments = h('div', { class: 'chat__chips', hidden: true });
-    const prompts = keep(new MenuButton(iconButton('book-open', 'Saved prompts'), {
-      kind: 'ghost',
-      placement: 'top-start',
-      items: [
-        { type: 'heading', label: 'Saved prompts' },
-        ...PROMPTS.map(({ value, label, description }) => ({ value, label, description }))
-      ],
-      onselect: ({ detail }) => usePrompt(String(detail.value))
     }));
-    const mentionButton = iconButton('at', 'Mention an agent', () => startMention());
-    const parameters = iconButton('sliders', 'Parameters', () => toggleSettings());
-    const asideToggles = [settingsButton, parameters];
-    for (const toggle of asideToggles) {
-      toggle.classList.add('chat__aside-toggle');
-      toggle.setAttribute('aria-controls', asideId);
-      toggle.setAttribute('aria-expanded', 'false');
-    }
-    const status = keep(new InlineLoading(null, { status: 'inactive', size: 'sm' }));
-    // Send and Stop share one place: Send while the assistant waits, Stop while it writes.
-    const sendButton = iconButton('arrow-up', 'Send', () => send(), { shortcut: { label: '↵', keys: 'Enter' } });
-    sendButton.classList.add('chat__send');
-    const stopButton = iconButton('stop', 'Stop', () => stop(), { shortcut: { label: 'Esc', keys: 'Escape' } });
-    stopButton.classList.add('chat__send', 'chat__stop');
-    stopButton.hidden = true;
-    const modelNote = h('p', { class: 'chat__note' });
+    const dock = h('div', {
+      class: 'chat__dock',
+      onkeydown: (/** @type {KeyboardEvent} */ event) => {
+        if (event.key !== 'Escape' || event.defaultPrevented || !state.editing) return;
+        event.preventDefault();
+        cancelEdit();
+      }
+    }, h('div', { class: 'chat__composer' }, composer.toElement()));
 
     const main = h('section', { class: 'shell__main chat__main', 'aria-label': 'Chat' },
       paneHeader({
@@ -861,22 +845,8 @@ export default {
           more.toElement()
         ]
       }),
-      h('div', { class: 'chat__stage' }, thread, jump),
-      h('div', { class: 'chat__dock' },
-        h('div', { class: 'chat__composer' },
-          mentionList,
-          attachments,
-          input,
-          h('div', { class: 'chat__bar' },
-            iconButton('paperclip', 'Attach files', () => fileInput.click()),
-            prompts.toElement(),
-            mentionButton,
-            parameters,
-            h('span', { class: 'shell__spacer' }),
-            sendButton,
-            stopButton),
-          fileInput),
-        modelNote));
+      h('div', { class: 'chat__stage' }, scroller),
+      dock);
 
     // ---------------------------------------------------------------- inspector --
 
@@ -969,7 +939,8 @@ export default {
           knowledgeInput),
         h('section', { class: 'panel-block' }, usage.toElement())));
 
-    // An artifact: what it is, its versions, Copy and Download, and its content on the canvas.
+    // An artifact: what it is, its versions, Copy and Download, and its content on the canvas —
+    // drawn by a BlockView of its own, made again for each version shown.
     const artifactGlyph = h('span', { class: 'chat__artifact-glyph' });
     const artifactName = h('span');
     const artifactVersions = h('div', { class: 'chat__version-switch' });
@@ -977,6 +948,7 @@ export default {
     const artifactBody = h('div', {
       class: 'shell__body chat__artifact-body', role: 'region', tabindex: '0', 'aria-label': 'Artifact'
     });
+    const artifactCanvas = renderScope(context);
     const artifactHeader = paneHeader({
       leading: artifactGlyph,
       title: artifactName,
@@ -1013,7 +985,8 @@ export default {
     const openShortcuts = shortcutSheet(context, [
       ['Conversation', [
         ['Send', '↵'], ['New line', 'Shift+↵'], ['Stop the answer', 'Esc'], ['Mention an agent', '@'],
-        ['Saved prompts, in an empty composer', '/'], ['Edit your last message, in an empty composer', '↑']
+        ['Saved prompts, in an empty composer', '/'], ['Edit your last message, in an empty composer', '↑'],
+        ['Next message, from a message', 'PageDown'], ['Previous message, from a message', 'PageUp']
       ]],
       ['Agent suggestions', [
         ['Next agent', '↓'], ['Previous agent', '↑'], ['Choose the agent', '↵'], ['Close the list', 'Esc']
@@ -1054,7 +1027,7 @@ export default {
     shortcuts(root, {
       'Mod+k': () => openSearch(),
       c: () => newChat(),
-      '/': () => input.focus(),
+      '/': () => composer.focus(),
       '?': () => openShortcuts(),
       // Esc stops a running answer; with nothing running it is left to whatever holds the layout.
       Escape: () => (state.run ? stop() : false)
@@ -1065,7 +1038,7 @@ export default {
     // Where the inspector fits beside the conversation, the screen opens with the code the latest
     // answer wrote; on a narrower screen its card in the answer opens it.
     if (preview || !asDrawer()) openArtifact(FIRST_ARTIFACT, { focus: false });
-    followOutput();
+    thread.scrollToEnd();
 
     // ---------------------------------------------------------------- chat state --
 
@@ -1109,35 +1082,31 @@ export default {
      */
     function openChat(id) {
       if (state.run && state.run.chat.id !== id) finishRun();
+      cancelEdit();
       for (let index = chats.length - 1; index >= 0; index -= 1) {
         if (chats[index].messages.length === 0 && chats[index].id !== id) chats.splice(index, 1);
       }
       state.chatId = id;
-      state.attachments = [];
-      closeMention();
       const chat = current();
       if (chat.archived && state.view !== 'archive') showView('archive');
       modelSelect.set(chat.model, { silent: true });
       more.setItems(chatMenu(chat));
-      if (state.artifact && !aside.hidden && aside.dataset.view === 'artifact' && !mentions(chat, state.artifact.id)) {
+      if (state.artifact && !aside.hidden && aside.dataset.view === 'artifact' && !carries(chat, state.artifact.id)) {
         setInspector(null, { focus: false });
       }
+      syncComposer();
       renderTitle();
       renderThread();
-      renderAttachments();
       renderHistory();
       renderSettings();
-      refreshComposer();
       status.set('inactive', '');
-      state.stick = true;
-      followOutput();
     }
 
     /**
      * @param {Chat} chat @param {string} artifactId
      * @returns {boolean} Whether an answer in the chat carries the artifact's card.
      */
-    function mentions(chat, artifactId) {
+    function carries(chat, artifactId) {
       return chat.messages.some((message) => message.blocks?.some((block) => block.type === 'artifact' && block.id === artifactId));
     }
 
@@ -1157,35 +1126,40 @@ export default {
         });
       }
       openChat((draft ?? chats[0]).id);
-      input.focus();
+      composer.focus();
     }
 
     /**
-     * Sends the composer's text (or a suggestion) and streams the answer. A message that mentions an
-     * agent is answered by that agent.
-     * @param {string} [text]
+     * What the composer sends: a new message, or the edit of the last one.
+     * @param {CustomEvent<{text: string, files: File[], context: Array<{id: string}>}>} event
      * @returns {void}
      */
-    function send(text = input.value) {
+    function onSend({ detail }) {
+      if (detail.context.some((chip) => chip.id === EDIT_CHIP)) resend(detail.text);
+      else send(detail.text, detail.files.map((file) => ({ name: file.name, size: file.size, mime: file.type })));
+    }
+
+    /**
+     * Sends a message (or a suggestion) and streams the answer. A message that mentions an agent
+     * is answered by that agent.
+     * @param {string} text
+     * @param {Attachment[]} [files]
+     * @returns {void}
+     */
+    function send(text, files = []) {
       const chat = current();
       const value = text.trim();
-      if (state.run || (!value && state.attachments.length === 0)) return;
-      closeMention();
+      if (state.run || (!value && files.length === 0)) return;
       const at = clock();
-      const files = state.attachments;
       chat.messages.push({ id: uid('message'), role: 'user', at, text: value, files });
       if (chat.messages.length === 1) {
         chat.title = value.length > 48 ? `${value.slice(0, 46).trimEnd()}…` : value || files[0].name;
       }
       chat.updated = at;
-      state.attachments = [];
-      input.value = '';
-      autosize();
-      renderAttachments();
       renderTitle();
-      renderThread();
-      state.stick = true;
-      followOutput();
+      if (chat.messages.length === 1) renderThread();
+      else for (const item of messageItems(chat, chat.messages.length - 1)) thread.upsert(item);
+      thread.scrollToEnd();
       syncNavCounts();
       renderUsage();
       const { plan, agent } = planFor(chat, value);
@@ -1225,10 +1199,12 @@ export default {
     }
 
     /**
-     * Writes an answer: first its steps, one at a time, then the text a few characters at a time.
-     * Under reduced motion the whole answer appears at once. The run owns its timer, so Stop,
-     * switching chats, and unmounting all cancel the next step. Given a `message`, the answer is
-     * written into it as a new version.
+     * Writes an answer into the thread: first its steps, one at a time, in an open timeline, then
+     * the answer — text a few characters at a time, every other block whole. Once it is written the
+     * steps fold into the answer's own summary, and follow it from version to version. Under
+     * reduced motion, and in a preview, the whole answer appears at once. The run owns its timer,
+     * so Stop, switching chats, and unmounting all cancel the next step. Given a `message`, the
+     * answer is written into it as a new version.
      * @param {Chat} chat
      * @param {Plan} plan
      * @param {{message?: ChatMessage, agent?: Agent}} [options]
@@ -1245,57 +1221,83 @@ export default {
       if (preview || prefersReducedMotion(root)) {
         complete(message, plan);
         if (message.versions) message.versions[message.version ?? 0] = snapshot(message);
-        renderThread();
-        followOutput();
+        clearTurn(chat, message);
+        for (const item of messageItems(chat, chat.messages.indexOf(message))) thread.upsert(item);
+        syncInspector();
         renderHistory();
         renderUsage();
         status.set('success', 'Answer ready');
         return;
       }
-      state.openWork.add(String(message.id));
-      const run = {
-        chat, message, plan, phase: /** @type {'steps'|'answer'} */ (steps.length ? 'steps' : 'answer'),
-        step: 0, shown: 0, timer: 0,
-        view: /** @type {HTMLElement} */ (/** @type {unknown} */ (null)), work: null,
-        content: /** @type {HTMLElement} */ (/** @type {unknown} */ (null))
-      };
-      run.view = assistantMessage(chat, message, run);
-      const existing = messageNode(String(message.id));
-      if (existing) existing.replaceWith(run.view);
-      else column.append(run.view);
-      run.work = run.view.querySelector('.chat__work');
-      run.content = /** @type {HTMLElement} */ (run.view.querySelector('.chat__content'));
+      /** @type {NonNullable<typeof state.run>} */
+      const run = { chat, message, plan, phase: steps.length ? 'steps' : 'answer', step: 0, feed: [], timer: 0 };
       state.run = run;
-      setBusy(true);
+      composer.setBusy(true);
+      clearTurn(chat, message);
+      const day = dayItem(chat, chat.messages.indexOf(message));
+      if (day) thread.upsert(day);
+      if (steps.length) {
+        thread.upsert({
+          id: traceId(message), type: 'trace', author: authorOf(chat, message), at: message.at, open: true,
+          steps: traceSteps(message.id, steps.slice(0, 1), 0)
+        });
+      } else startAnswer(run);
       renderHistory();
-      followOutput();
-      const author = agent?.name ?? modelById(chat.model).name;
-      const total = blocksLength(plan.blocks);
+      const author = authors[authorOf(chat, message)].name;
       const tick = () => {
         if (state.run !== run) return;
         if (run.phase === 'steps') {
           run.step += 1;
-          if (run.step >= steps.length) run.phase = 'answer';
-          refreshWork(run);
-          if (run.phase === 'steps') {
-            status.set('active', `${steps[run.step].doing}…`);
-            run.timer = window.setTimeout(tick, stepDelay(steps[run.step]));
+          const running = run.step < steps.length ? run.step : -1;
+          thread.patch(traceId(message), { steps: traceSteps(message.id, steps.slice(0, run.step + 1), running) });
+          if (running >= 0) {
+            status.set('active', `${steps[running].doing}…`);
+            run.timer = window.setTimeout(tick, stepDelay(steps[running]));
           } else {
+            run.phase = 'answer';
+            startAnswer(run);
             status.set('active', `${author} is writing…`);
-            run.content.replaceChildren(typing(author));
             run.timer = window.setTimeout(tick, STREAM.think);
           }
-          followOutput();
           return;
         }
-        run.shown = Math.min(total, run.shown + STREAM.step);
-        run.content.replaceChildren(...renderBlocks(sliceBlocks(plan.blocks, run.shown), artifactCard));
-        followOutput();
-        if (run.shown >= total) finishRun();
-        else run.timer = window.setTimeout(tick, STREAM.tick);
+        const next = run.feed.shift();
+        if (!next) {
+          finishRun();
+          return;
+        }
+        feed(message, next);
+        run.timer = window.setTimeout(tick, 'block' in next ? STREAM.block : STREAM.tick);
       };
       status.set('active', steps.length ? `${steps[0].doing}…` : `${author} is writing…`);
       run.timer = window.setTimeout(tick, steps.length ? stepDelay(steps[0]) : STREAM.think);
+    }
+
+    /**
+     * Opens the running answer in the thread, empty and streaming, with what is to be fed into it.
+     * @param {NonNullable<typeof state.run>} run
+     * @returns {void}
+     */
+    function startAnswer(run) {
+      run.message.sources = run.plan.sources ?? [];
+      putAnswer(run.chat, run.message, { streaming: true });
+      run.feed = feedOf(run.plan.blocks);
+    }
+
+    /**
+     * Feeds the running answer: text into its last paragraph, any other block whole. Only the end
+     * of the answer changes, and the end stays in view while the reader is there.
+     * @param {ChatMessage} message
+     * @param {Feed} next
+     * @returns {void}
+     */
+    function feed(message, next) {
+      if ('text' in next) {
+        thread.appendText(message.id, next.text);
+        return;
+      }
+      thread.appendBlock(message.id, answerBlocks([next.block])[0]);
+      if (next.block.type === 'artifact') syncInspector();
     }
 
     /**
@@ -1310,22 +1312,8 @@ export default {
     }
 
     /**
-     * Redraws the running answer's steps, keeping the focus on their toggle if it was there.
-     * @param {NonNullable<typeof state.run>} run
-     * @returns {void}
-     */
-    function refreshWork(run) {
-      const next = workView(run.message, run);
-      const hadFocus = Boolean(run.work?.contains(document.activeElement));
-      if (run.work && next) run.work.replaceWith(next);
-      else if (next) run.view.querySelector('.chat__byline')?.after(next);
-      run.work = next;
-      if (hadFocus) next?.querySelector('button')?.focus();
-    }
-
-    /**
-     * Ends the running answer — completed, or stopped where it was. Its steps fold away into their
-     * one-line summary.
+     * Ends the running answer — completed, the rest appearing at once, or stopped where it was. The
+     * timeline of its steps gives way to the answer's own, folded into their one-line summary.
      * @param {{stopped?: boolean}} [options]
      * @returns {void}
      */
@@ -1334,25 +1322,26 @@ export default {
       if (!run) return;
       clearTimeout(run.timer);
       state.run = null;
-      const { message, plan } = run;
+      const { chat, message, plan } = run;
       const steps = plan.steps ?? [];
+      const answering = run.phase === 'answer';
+      if (!stopped && !answering) startAnswer(run);
+      if (!stopped) for (const next of run.feed.splice(0)) feed(message, next);
       if (stopped) {
-        message.steps = run.phase === 'steps'
-          ? [...steps.slice(0, run.step), { ...steps[run.step], stopped: true }]
-          : steps;
-        message.blocks = sliceBlocks(plan.blocks, run.shown);
-        message.sources = run.phase === 'steps' ? [] : plan.sources ?? [];
+        message.steps = answering ? steps : [...steps.slice(0, run.step), { ...steps[run.step], stopped: true }];
+        message.blocks = answering ? /** @type {{blocks?: Block[]}|null} */ (thread.get(message.id))?.blocks ?? [] : [];
+        message.sources = answering ? plan.sources ?? [] : [];
       } else complete(message, plan);
       message.stopped = stopped;
       if (message.versions) message.versions[message.version ?? 0] = snapshot(message);
-      state.openWork.delete(String(message.id));
-      setBusy(false);
+      composer.setBusy(false);
       status.set(stopped ? 'inactive' : 'success', stopped ? 'Stopped' : 'Answer ready');
-      if (run.chat === current()) {
-        renderThread();
-        followOutput();
-        renderUsage();
-      }
+      thread.remove(traceId(message));
+      const written = Boolean(thread.get(message.id));
+      if (written) thread.patch(message.id, { streaming: false, stopped });
+      // Drawn again with its steps, and with every version complete for the thread to page through.
+      if (!written || message.steps?.length || message.versions) putAnswer(chat, message);
+      renderUsage();
       renderHistory();
     }
 
@@ -1361,10 +1350,194 @@ export default {
       if (state.run) finishRun({ stopped: true });
     }
 
-    /** Keeps the newest output in view unless the reader has scrolled up. @returns {void} */
-    function followOutput() {
-      if (state.stick) thread.scrollTop = thread.scrollHeight;
-      jump.hidden = state.stick;
+    // ----------------------------------------------------------------- the thread --
+
+    /**
+     * What one message is in the thread: the day it starts, if the one before it was sent on
+     * another; the message itself — your text with the agents it calls on, or an answer with the
+     * steps it took — and, after the message a branch was cut at, where it came from.
+     * @param {Chat} chat
+     * @param {number} index
+     * @returns {ThreadItem[]}
+     */
+    function messageItems(chat, index) {
+      const message = chat.messages[index];
+      return [
+        dayItem(chat, index),
+        message.role === 'user' ? {
+          id: message.id, type: 'user', author: 'me', at: message.at, text: message.text ?? '',
+          mentions: mentionsIn(message.text ?? ''),
+          files: (message.files ?? []).map(({ name, size }) => ({ name, size }))
+        } : answerItem(chat, message),
+        branchItem(chat, index)
+      ].filter((item) => item !== null);
+    }
+
+    /**
+     * @param {Chat} chat @param {number} index
+     * @returns {ThreadItem|null} The day a message starts, when the message before it was sent on another.
+     */
+    function dayItem(chat, index) {
+      const at = chat.messages[index].at;
+      const previous = chat.messages[index - 1];
+      const day = formatDate(new Date(at), DATE.day);
+      if (previous && formatDate(new Date(previous.at), DATE.day) === day) return null;
+      return { id: `day:${at.slice(0, 10)}`, type: 'notice', text: day };
+    }
+
+    /**
+     * @param {Chat} chat @param {number} index
+     * @returns {ThreadItem|null} Where a branch left the chat it came from, under the message it was
+     *   cut after, with the way back while that chat is still there.
+     */
+    function branchItem(chat, index) {
+      if (!chat.branchOf || index !== chat.branchOf.after - 1) return null;
+      const source = chats.find((entry) => entry.id === chat.branchOf?.id);
+      return {
+        id: 'branch', type: 'notice', text: `Branched from “${source?.title ?? chat.branchOf.title}”`,
+        ...(source ? { action: { id: 'back', label: 'Back to original' } } : {})
+      };
+    }
+
+    /**
+     * An answer as the thread draws it: its steps, blocks and sources, its rating, and — once it was
+     * regenerated — every version with its own steps, the one showing taken from the message itself.
+     * @param {Chat} chat
+     * @param {ChatMessage} message
+     * @returns {ThreadItem}
+     */
+    function answerItem(chat, message) {
+      const versions = (message.versions?.length ?? 0) > 1 ? /** @type {AnswerVersion[]} */ (message.versions) : null;
+      const showing = message.version ?? 0;
+      const content = (/** @type {AnswerVersion|ChatMessage} */ shown) => ({
+        blocks: answerBlocks(shown.blocks ?? []), sources: (shown.sources ?? []).map(sourceOf),
+        steps: traceSteps(message.id, shown.steps ?? [])
+      });
+      return {
+        id: message.id, type: 'answer', author: authorOf(chat, message), at: message.at, ...content(message),
+        stopped: Boolean(message.stopped), rating: message.rating ?? null,
+        ...(versions ? {
+          version: showing,
+          versions: versions.map((version, index) => {
+            const shown = index === showing ? message : version;
+            return { ...content(shown), at: shown.at };
+          })
+        } : {})
+      };
+    }
+
+    /**
+     * Adds an answer at the end of the thread, with the note of a branch cut after it.
+     * @param {Chat} chat
+     * @param {ChatMessage} message
+     * @param {Record<string, unknown>} [extra] Fields over the answer's own: `streaming`.
+     * @returns {void}
+     */
+    function putAnswer(chat, message, extra = {}) {
+      thread.upsert({ ...answerItem(chat, message), ...extra });
+      const note = branchItem(chat, chat.messages.indexOf(message));
+      if (note) thread.upsert(note);
+      syncInspector();
+    }
+
+    /**
+     * Takes an answer that is written again out of the thread, its steps with it, and the note of
+     * a branch cut after it.
+     * @param {Chat} chat
+     * @param {ChatMessage} message
+     * @returns {void}
+     */
+    function clearTurn(chat, message) {
+      thread.remove(message.id);
+      if (branchItem(chat, chat.messages.indexOf(message))) thread.remove('branch');
+    }
+
+    /**
+     * An answer's blocks with each artifact's kind and number of versions, which its card shows.
+     * @param {Block[]} blocks
+     * @returns {Block[]}
+     */
+    function answerBlocks(blocks) {
+      return blocks.map((block) => {
+        const item = block.type === 'artifact' ? artifactById(block.id) : undefined;
+        return item ? { ...block, kind: item.kind, versions: item.versions.length } : block;
+      });
+    }
+
+    /**
+     * @param {Chat} chat @param {ChatMessage} message
+     * @returns {string} The thread author of an answer: its agent on its model, or the model.
+     */
+    function authorOf(chat, message) {
+      const model = message.model ?? chat.model;
+      return message.agent ? `${message.agent}@${model}` : model;
+    }
+
+    /**
+     * What the thread asks of a message: edit your own; regenerate, branch, rate, or page through
+     * the versions of an answer; or, from the note where a branch began, go back to the original.
+     * @param {CustomEvent<{item: ThreadItem, action: string, value?: unknown}>} event
+     * @returns {void}
+     */
+    function threadAction(event) {
+      const { item, action, value } = event.detail;
+      const chat = current();
+      if (item.type === 'notice') {
+        const source = chats.find((entry) => entry.id === chat.branchOf?.id);
+        if (action !== 'back' || !source) return;
+        openChat(source.id);
+        focusTitle();
+        return;
+      }
+      const message = chat.messages.find((entry) => entry.id === item.id);
+      if (!message) return;
+      if (action === 'edit') editMessage(message);
+      else if (action === 'regenerate') regenerate();
+      else if (action === 'branch') branchFrom(message);
+      else if (action === 'rate') {
+        message.rating = value === 'up' || value === 'down' ? value : null;
+        if (message.rating) notify('Thanks — your feedback helps tune the assistant.');
+      } else if (action === 'version') pageVersion(event, chat, message, Number(value));
+    }
+
+    /**
+     * The thread pages to another version of an answer, its steps with it, and keeps the focus on
+     * the pager; the chat follows, so its preview, its export, and the inspector's cards agree. A
+     * version also keeps its own rating and whether it was stopped, which the thread holds for the
+     * answer as a whole: where those differ, the answer is drawn again from the chat.
+     * @param {CustomEvent} event The thread's `version` action, cancelled while an answer is written.
+     * @param {Chat} chat
+     * @param {ChatMessage} message
+     * @param {number} index
+     * @returns {void}
+     */
+    function pageVersion(event, chat, message, index) {
+      const versions = message.versions;
+      if (!versions?.[index] || state.run) {
+        event.preventDefault();
+        return;
+      }
+      versions[message.version ?? 0] = snapshot(message);
+      const before = { rating: message.rating ?? null, stopped: Boolean(message.stopped) };
+      Object.assign(message, versions[index]);
+      message.version = index;
+      if ((message.rating ?? null) !== before.rating || Boolean(message.stopped) !== before.stopped) {
+        event.preventDefault();
+        thread.upsert(answerItem(chat, message));
+      }
+      // The thread draws the version once this event is over; its artifact cards then take their state.
+      queueMicrotask(syncInspector);
+      renderHistory();
+      renderUsage();
+    }
+
+    /** Keeps the newest output in view, as the chat opens. @returns {void} */
+    function renderThread() {
+      const chat = current();
+      thread.setItems(chat.messages.flatMap((_, index) => messageItems(chat, index)));
+      column.replaceChildren(chat.messages.length ? thread.toElement() : welcome(chat));
+      syncInspector();
+      thread.scrollToEnd();
     }
 
     // ----------------------------------------------------------------- rendering --
@@ -1430,46 +1603,6 @@ export default {
       field.select();
     }
 
-    /** @returns {void} */
-    function renderThread() {
-      const chat = current();
-      for (const owner of owners.values()) owner.reset();
-      if (chat.messages.length === 0) {
-        column.replaceChildren(welcome(chat));
-        return;
-      }
-      const branchAt = chat.branchOf ? chat.branchOf.after - 1 : -1;
-      column.replaceChildren(...chat.messages.flatMap((message, index) => {
-        const day = formatDate(new Date(message.at), DATE.day);
-        const previous = chat.messages[index - 1];
-        return [
-          !previous || formatDate(new Date(previous.at), DATE.day) !== day ? h('p', { class: 'chat__day' }, day) : null,
-          message.role === 'user' ? userMessage(message) : assistantMessage(chat, message),
-          index === branchAt ? branchNote(chat) : null
-        ].filter((node) => node !== null);
-      }));
-    }
-
-    /**
-     * Where a branch left the chat it came from, with the way back to it.
-     * @param {Chat} chat
-     * @returns {HTMLElement}
-     */
-    function branchNote(chat) {
-      const origin = /** @type {BranchOrigin} */ (chat.branchOf);
-      const source = chats.find((entry) => entry.id === origin.id);
-      return h('p', { class: 'chat__day chat__branch-note' },
-        icon('code-branch', { size: 14 }),
-        h('span', {}, 'Branched from ',
-          source ? h('button', {
-            type: 'button', class: 'link-button',
-            onclick: () => {
-              openChat(source.id);
-              focusTitle();
-            }
-          }, source.title) : origin.title));
-    }
-
     /**
      * The empty state of a new chat: a greeting and a few conversation starters.
      * @param {Chat} chat
@@ -1489,272 +1622,6 @@ export default {
     }
 
     /**
-     * A message from the signed-in user: a bubble, attached files, edit and copy.
-     * @param {ChatMessage} message
-     * @returns {HTMLElement}
-     */
-    function userMessage(message) {
-      const files = message.files ?? [];
-      const time = timeOf(message);
-      return h('article', {
-        class: 'chat__message', dataset: { role: 'user', id: message.id }, 'aria-label': `You, ${time}`
-      },
-        h('div', { class: 'chat__bubble' },
-          files.length ? h('div', { class: 'chat__chips' }, files.map((file) => fileChip(file))) : null,
-          message.text ? h('p', { class: 'chat__bubble-text' }, withMentions(message.text)) : null),
-        h('div', { class: 'chat__actions' },
-          h('span', { class: 'chat__time' }, time),
-          iconButton('pen', 'Edit message', () => editMessage(message)),
-          copyButton({ text: message.text ?? '', title: 'Copy message' })));
-    }
-
-    /**
-     * A message's text with each `@agent` it mentions drawn in that agent's tone.
-     * @param {string} text
-     * @returns {Array<Node|string>}
-     */
-    function withMentions(text) {
-      return text.split(/((?<=^|\s)@[a-z][\w-]*)/i).filter(Boolean).map((part) => {
-        const agent = part.startsWith('@') ? agentById(part.slice(1).toLowerCase()) : undefined;
-        return agent ? h('span', { class: 'chat__mention', dataset: { tone: agent.tone } }, part) : part;
-      });
-    }
-
-    /**
-     * An answer: who wrote it, the steps it took, its content and sources, and copy / regenerate /
-     * branch / rating actions. While it is being written (`run`) it shows its progress instead.
-     * @param {Chat} chat
-     * @param {ChatMessage} message
-     * @param {NonNullable<typeof state.run>|null} [run]
-     * @returns {HTMLElement}
-     */
-    function assistantMessage(chat, message, run = null) {
-      const model = modelById(message.model ?? chat.model);
-      const agent = agentById(message.agent);
-      const latest = chat.messages.at(-1) === message;
-      const blocks = message.blocks ?? [];
-      const time = timeOf(message);
-      const author = agent?.name ?? model.name;
-      const owner = ownerFor(String(message.id));
-      owner.reset();
-      /** @type {Array<Node|string>} */
-      let content;
-      if (run) content = run.phase === 'steps' ? [] : [typing(author)];
-      else if (blocks.length) content = renderBlocks(blocks, artifactCard);
-      else content = [h('p', { class: 'meta' }, 'You stopped this answer before it began.')];
-      return h('article', {
-        class: 'chat__message',
-        dataset: {
-          role: 'assistant', id: message.id, streaming: run ? 'true' : null, latest: latest ? 'true' : null
-        },
-        'aria-label': `${author}, ${time}`,
-        'aria-busy': run ? 'true' : null
-      },
-      h('div', { class: 'chat__byline' },
-        agent ? iconTile(agent.icon, agent.tone) : appIcon({ icon: model.icon, size: 24, shape: 'circle' }),
-        h('span', { class: 'chat__author' }, author),
-        agent ? h('span', { class: 'chat__via' }, `via ${model.name}`) : null,
-        h('span', { class: 'chat__time' }, time),
-        message.stopped ? badge({ label: 'Stopped', kind: 'warning', size: 'sm' }) : null),
-      workView(message, run),
-      // An answer is authored text: prose at the interface size, as wide as the conversation.
-      h('div', { class: 'zx-prose chat__content', dataset: { size: 'sm', zxMeasure: 'full' } }, content),
-      run ? null : sourcesView(message, owner),
-      run ? null : h('div', { class: 'chat__actions' },
-        (message.versions?.length ?? 0) > 1 ? versionPager(chat, message) : null,
-        copyButton({ text: () => blocksToMarkdown(blocks), title: 'Copy answer' }),
-        latest ? iconButton('rotate-right', 'Regenerate answer', () => regenerate()) : null,
-        iconButton('code-branch', 'Branch into a new chat', () => branchFrom(message)),
-        ...rateButtons(message)));
-    }
-
-    /**
-     * The steps an answer took: a one-line summary that opens into a timeline — each step with its
-     * glyph, a muted detail, and how long it took. While the answer is written the timeline is open
-     * and the running step turns.
-     * @param {ChatMessage} message
-     * @param {NonNullable<typeof state.run>|null} run
-     * @returns {HTMLElement|null}
-     */
-    function workView(message, run) {
-      const planned = run ? run.plan.steps ?? [] : message.steps ?? [];
-      const steps = run && run.phase === 'steps' ? planned.slice(0, run.step + 1) : planned;
-      if (!steps.length) return null;
-      const running = run && run.phase === 'steps' ? run.step : -1;
-      const id = String(message.id);
-      const open = state.openWork.has(id);
-      const done = steps.filter((entry, index) => index !== running && !entry.stopped);
-      const time = seconds(done.reduce((sum, entry) => sum + entry.ms, 0));
-      const listId = uid('chat-steps');
-      const stepList = h('ol', { class: 'chat__steps', id: listId, 'aria-label': 'Steps', hidden: !open },
-        steps.map((entry, index) => stepRow(entry, index === running)));
-      const toggle = h('button', {
-        type: 'button', class: 'chat__work-toggle', 'aria-expanded': String(open), 'aria-controls': listId,
-        onclick: () => {
-          const expand = toggle.getAttribute('aria-expanded') !== 'true';
-          toggle.setAttribute('aria-expanded', String(expand));
-          stepList.hidden = !expand;
-          if (expand) state.openWork.add(id);
-          else state.openWork.delete(id);
-        }
-      },
-      icon('chevron-right', { size: 14, class: 'chat__work-chevron' }),
-      running >= 0 ? h('span', { class: 'chat__work-summary' }, 'Working…') : h('span', { class: 'chat__work-summary' }, workSummary(steps)),
-      done.length ? h('span', { class: 'chat__work-time' }, time) : null);
-      return h('div', { class: 'chat__work', dataset: { state: running >= 0 ? 'running' : 'done' } }, toggle, stepList);
-    }
-
-    /**
-     * One step in the timeline.
-     * @param {Step} entry
-     * @param {boolean} running
-     * @returns {HTMLLIElement}
-     */
-    function stepRow(entry, running) {
-      const detail = [entry.detail, entry.sources ? `${entry.sources} sources` : null].filter(Boolean).join(' · ');
-      return h('li', {
-        class: 'chat__step', dataset: { kind: entry.kind, state: running ? 'running' : entry.stopped ? 'stopped' : 'done' }
-      },
-      h('span', { class: 'chat__step-icon', 'aria-hidden': 'true' },
-        running ? spinner({ size: 'sm', kind: 'current' }) : icon(STEP_ICONS[entry.kind], { size: 14 })),
-      h('span', { class: 'chat__step-text' },
-        h('span', { class: 'chat__step-label' }, running ? `${entry.doing}…` : entry.label),
-        detail ? h('span', { class: 'chat__step-detail' }, detail) : null),
-      h('span', { class: 'chat__step-time' }, running ? '' : entry.stopped ? 'Stopped' : seconds(entry.ms)));
-    }
-
-    /**
-     * The sources an answer cites, as chips; pointing at one or focusing it shows a card with its
-     * title, site, and the passage used.
-     * @param {ChatMessage} message
-     * @param {ReturnType<typeof renderScope>} owner Destroys the cards when the answer is redrawn.
-     * @returns {HTMLElement|null}
-     */
-    function sourcesView(message, owner) {
-      const sources = message.sources ?? [];
-      if (!sources.length) return null;
-      const labelId = uid('chat-sources');
-      return h('div', { class: 'chat__sources' },
-        h('span', { class: 'chat__sources-label', id: labelId }, 'Sources'),
-        h('ul', { class: 'chat__source-list', 'aria-labelledby': labelId }, sources.map((source) => {
-          const link = h('a', {
-            class: 'chat__source', href: source.url, target: '_blank', rel: 'noopener noreferrer'
-          },
-          icon(source.file ? 'file-lines' : 'globe', { size: 14 }),
-          h('span', { class: 'chat__source-name' }, source.file ? source.title : source.site));
-          owner.own(new Tooltip(link, {
-            content: () => sourceCard(source), placement: 'top-start', maxWidth: 320
-          }));
-          return h('li', {}, link);
-        })));
-    }
-
-    /**
-     * The card for a source chip.
-     * @param {Source} source
-     * @returns {HTMLElement}
-     */
-    function sourceCard(source) {
-      return h('span', { class: 'chat__source-card' },
-        h('span', { class: 'chat__source-title' }, source.title),
-        h('span', { class: 'chat__source-site' },
-          icon(source.file ? 'file-lines' : 'globe', { size: 12 }), source.site),
-        h('span', { class: 'chat__source-snippet' }, source.snippet));
-    }
-
-    /**
-     * The card an answer shows for an artifact it wrote; it opens the artifact in the inspector.
-     * @param {Extract<Block, {type: 'artifact'}>} block
-     * @returns {HTMLElement}
-     */
-    function artifactCard(block) {
-      const item = artifactById(block.id);
-      if (!item) return h('p', { class: 'meta' }, block.title);
-      const showing = inspectorShown() && aside.dataset.view === 'artifact' && state.artifact?.id === item.id;
-      const versions = item.versions.length;
-      return h('button', {
-        type: 'button', class: 'chat__artifact-card', dataset: { artifact: item.id },
-        'aria-controls': asideId, 'aria-expanded': String(showing),
-        onclick: (/** @type {MouseEvent} */ event) => toggleArtifact(item.id, /** @type {HTMLElement} */ (event.currentTarget))
-      },
-      iconTile(item.kind === 'code' ? 'code' : 'file-lines', item.kind === 'code' ? 'violet' : 'amber', { size: 'lg' }),
-      h('span', { class: 'chat__artifact-copy' },
-        h('span', { class: 'chat__artifact-name' }, item.title),
-        h('span', { class: 'chat__artifact-meta' },
-          `${item.kind === 'code' ? 'Code' : 'Document'} · ${versions} ${versions === 1 ? 'version' : 'versions'}`)),
-      icon('chevron-right', { size: 14, class: 'chat__artifact-chevron' }));
-    }
-
-    /**
-     * ‹ 2 / 2 › — the versions of a regenerated answer.
-     * @param {Chat} chat
-     * @param {ChatMessage} message
-     * @returns {HTMLElement}
-     */
-    function versionPager(chat, message) {
-      const total = message.versions?.length ?? 1;
-      const index = message.version ?? 0;
-      const previous = iconButton('chevron-left', 'Previous version', () => showVersion(chat, message, index - 1, -1));
-      const next = iconButton('chevron-right', 'Next version', () => showVersion(chat, message, index + 1, 1));
-      previous.disabled = index === 0;
-      next.disabled = index === total - 1;
-      return h('span', { class: 'chat__pager', role: 'group', 'aria-label': 'Answer versions' },
-        previous,
-        h('span', { class: 'chat__pager-count' },
-          h('span', { class: 'visually-hidden' }, 'Version '), String(index + 1),
-          h('span', { 'aria-hidden': 'true' }, ' / '),
-          h('span', { class: 'visually-hidden' }, ' of '), String(total)),
-        next);
-    }
-
-    /**
-     * Shows another version of an answer in its place, keeping the focus on the pager.
-     * @param {Chat} chat
-     * @param {ChatMessage} message
-     * @param {number} index
-     * @param {-1|1} direction
-     * @returns {void}
-     */
-    function showVersion(chat, message, index, direction) {
-      const versions = message.versions;
-      if (!versions?.[index] || state.run) return;
-      versions[message.version ?? 0] = snapshot(message);
-      Object.assign(message, versions[index]);
-      message.version = index;
-      const view = assistantMessage(chat, message);
-      messageNode(String(message.id))?.replaceWith(view);
-      const [previous, next] = /** @type {HTMLButtonElement[]} */ ([...view.querySelectorAll('.chat__pager .zx-icon-btn')]);
-      const preferred = direction < 0 ? previous : next;
-      (preferred && !preferred.disabled ? preferred : direction < 0 ? next : previous)?.focus();
-      renderHistory();
-      renderUsage();
-    }
-
-    /**
-     * Thumbs up and down as one pair of toggle buttons.
-     * @param {ChatMessage} message
-     * @returns {HTMLButtonElement[]}
-     */
-    function rateButtons(message) {
-      const buttons = /** @type {const} */ (['up', 'down']).map((direction) => {
-        const rate = iconButton(`thumbs-${direction}`, direction === 'up' ? 'Good answer' : 'Poor answer', () => {
-          message.rating = message.rating === direction ? null : direction;
-          sync();
-          if (message.rating) notify('Thanks — your feedback helps tune the assistant.');
-        });
-        rate.classList.add('icon-toggle', 'chat__rate');
-        rate.dataset.direction = direction;
-        return rate;
-      });
-      // A rating that is on shows the solid thumb (`.icon-toggle`), so it reads without colour.
-      const sync = () => buttons.forEach((rate) => {
-        rate.setAttribute('aria-pressed', String(message.rating === rate.dataset.direction));
-      });
-      sync();
-      return buttons;
-    }
-
-    /**
      * Writes a fresh version of the latest answer beside the one there; ‹ › switches between them.
      * @returns {void}
      */
@@ -1769,10 +1636,11 @@ export default {
       message.version = message.versions.length;
       message.versions.push(snapshot(message));
       stream(chat, message.retry ?? plan, { message, agent: agentById(message.agent) ?? agent });
-      // The button that asked has gone with the old answer: Stop, or the new answer's pager.
+      // The button that asked has gone with the old answer: to the composer, where Esc stops the
+      // new one, or to the new answer.
       if (document.activeElement && document.activeElement !== document.body && root.contains(document.activeElement)) return;
-      if (state.run) stopButton.focus();
-      else messageNode(String(message.id))?.querySelector('.chat__pager .zx-icon-btn')?.focus();
+      if (state.run) composer.focus();
+      else thread.reveal(`item:${message.id}`);
     }
 
     /**
@@ -1784,7 +1652,7 @@ export default {
     function branchFrom(message) {
       const chat = current();
       const index = chat.messages.indexOf(message);
-      if (index < 0) return;
+      if (index < 0 || state.run) return;
       const messages = structuredClone(chat.messages.slice(0, index + 1));
       for (const entry of messages) entry.id = uid('message');
       /** @type {Chat} */
@@ -1796,7 +1664,7 @@ export default {
       chats.unshift(branch);
       openChat(branch.id);
       syncNavCounts();
-      input.focus();
+      composer.focus();
       notify('Branched into a new chat. The original stays as it was.', 'success', {
         action: {
           label: 'Back to original',
@@ -1810,42 +1678,47 @@ export default {
     }
 
     /**
-     * Turns a sent message back into a field. Saving drops everything after it and asks again.
-     * @param {ChatMessage} message
+     * A message's Edit, or ↑ in an empty composer for the last one: the message goes back into the
+     * composer, marked by a chip, and sending it drops everything after it and asks again. Removing
+     * the chip, or Esc, gives up the edit.
+     * @param {ChatMessage|undefined} message One of yours.
      * @returns {void}
      */
     function editMessage(message) {
-      stop();
       const chat = current();
-      const view = messageNode(String(message.id));
-      if (!view) return;
-      const field = h('textarea', {
-        class: 'chat__edit', rows: 3, 'aria-label': 'Edit message', value: message.text ?? ''
-      });
-      const save = () => {
-        if (!field.value.trim()) return;
-        message.text = field.value.trim();
-        chat.messages.splice(chat.messages.indexOf(message) + 1);
-        renderThread();
-        const { plan, agent } = planFor(chat, message.text);
-        stream(chat, plan, { agent });
-      };
-      field.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
-          event.preventDefault();
-          save();
-        } else if (event.key === 'Escape') {
-          event.stopPropagation();
-          renderThread();
-          input.focus();
-        }
-      });
-      view.replaceChildren(h('div', { class: 'chat__editor' }, field,
-        h('div', { class: 'chat__editor-bar' },
-          button({ label: 'Cancel', kind: 'ghost', size: 'sm', onclick: () => renderThread() }),
-          button({ label: 'Save and send', size: 'sm', onclick: save }))));
-      field.focus();
-      field.setSelectionRange(field.value.length, field.value.length);
+      if (!message?.id) return;
+      stop();
+      const last = chat.messages.findLast((entry) => entry.role === 'user') === message;
+      state.editing = message.id;
+      composer.addContext({ id: EDIT_CHIP, label: last ? 'Editing your last message' : 'Editing your message', icon: 'pen' });
+      composer.setValue(message.text ?? '');
+      composer.focus();
+    }
+
+    /** Gives up editing a sent message. @returns {void} */
+    function cancelEdit() {
+      if (!state.editing) return;
+      state.editing = null;
+      composer.removeContext(EDIT_CHIP);
+      composer.clear();
+    }
+
+    /**
+     * Saves the edit of a sent message and asks again.
+     * @param {string} text
+     * @returns {void}
+     */
+    function resend(text) {
+      const chat = current();
+      const message = chat.messages.find((entry) => entry.id === state.editing);
+      state.editing = null;
+      composer.removeContext(EDIT_CHIP);
+      if (!message || !text) return;
+      message.text = text;
+      chat.messages.splice(chat.messages.indexOf(message) + 1);
+      renderThread();
+      const { plan, agent } = planFor(chat, text);
+      stream(chat, plan, { agent });
     }
 
     /** Lists the chats in the current view: pinned first, then by day. @returns {void} */
@@ -1933,17 +1806,6 @@ export default {
         ?? blocksToText((last?.blocks ?? []).filter((block) => block.type === 'p').slice(0, 1))));
     }
 
-    /** @returns {void} */
-    function renderAttachments() {
-      attachments.hidden = state.attachments.length === 0;
-      attachments.replaceChildren(...state.attachments.map((file, index) => fileChip(file, () => {
-        state.attachments.splice(index, 1);
-        renderAttachments();
-        refreshComposer();
-        input.focus();
-      })));
-    }
-
     /** Loads the open chat's settings into the inspector. @returns {void} */
     function renderSettings() {
       const settings = current().settings;
@@ -1974,7 +1836,7 @@ export default {
     function knowledgeItem(file) {
       return {
         id: file.id, name: file.name, size: file.size, mime: file.mime, identitySize: 'sm',
-        // A table, like the composer's chips, rather than the generic glyph FileItem has for CSV.
+        // A table rather than the generic glyph FileItem has for CSV.
         ...(/csv|sheet|excel/.test(file.mime) ? { icon: 'table' } : {}),
         metadata: [{ label: 'Tokens', value: `${formatNumber(file.tokens)} tokens`, showLabel: false }],
         actions: [{ id: 'remove', icon: 'trash', title: `Remove ${file.name}` }]
@@ -2010,177 +1872,41 @@ export default {
       notify('Assistant settings reset to the defaults.');
     }
 
-    /** Updates the placeholder, the model note, and whether Send is available. @returns {void} */
-    function refreshComposer() {
+    // ------------------------------------------------------------------ composer --
+
+    /**
+     * Names the open chat's model in the composer's placeholder and note. The composer changes in
+     * place: what was written, attached, and the edit chip all stay, and so does the focus.
+     * @returns {void}
+     */
+    function syncComposer() {
       const model = modelById(current().model);
-      input.placeholder = `Message ${model.name} — / for prompts, @ for agents`;
-      modelNote.textContent = `${model.name} can make mistakes. Check figures before you share them.`;
-      sendButton.disabled = !input.value.trim() && state.attachments.length === 0;
-    }
-
-    /** Grows the composer with its text, up to the height its stylesheet allows. @returns {void} */
-    function autosize() {
-      input.style.blockSize = 'auto';
-      input.style.blockSize = `${input.scrollHeight}px`;
+      composer.update({
+        placeholder: `Message ${model.name} — / for prompts, @ for agents`,
+        note: `${model.name} can make mistakes. Check figures before you share them.`
+      });
     }
 
     /**
-     * Swaps Send for Stop while an answer is being written, keeping the focus on the swapped button.
-     * @param {boolean} busy
+     * The composer's @: starts a mention at the caret, after a space when the caret ends a word, and
+     * the composer opens its list of agents.
      * @returns {void}
      */
-    function setBusy(busy) {
-      const refocus = document.activeElement === (busy ? sendButton : stopButton);
-      sendButton.hidden = busy;
-      stopButton.hidden = !busy;
-      if (refocus) (busy ? stopButton : input).focus();
-      refreshComposer();
-    }
-
-    // ------------------------------------------------------------------ mentions --
-
-    /**
-     * Opens, filters, or closes the agent suggestions from the word the caret is in: a word that
-     * starts with "@" lists the agents whose handle or name matches what follows it.
-     * @returns {void}
-     */
-    function updateMention() {
-      const caret = input.selectionStart;
-      if (caret !== input.selectionEnd) return closeMention();
-      const match = /(?:^|\s)@([\w-]*)$/.exec(input.value.slice(0, caret));
-      if (!match) return closeMention();
-      const query = match[1].toLowerCase();
-      const matches = AGENTS.filter((agent) => agent.id.startsWith(query) || agent.name.toLowerCase().includes(query));
-      if (!matches.length) return closeMention();
-      const highlighted = state.mention?.matches[state.mention.index];
-      const index = Math.max(0, highlighted ? matches.indexOf(highlighted) : 0);
-      state.mention = { start: caret - match[1].length - 1, end: caret, matches, index };
-      mentionList.replaceChildren(...matches.map((agent, position) => h('div', {
-        class: 'chat__mention-option', role: 'option', id: `${mentionList.id}-${agent.id}`,
-        'aria-selected': 'false', dataset: { agent: agent.id },
-        // The text keeps the focus; a click picks without blurring it.
-        onmousedown: (/** @type {MouseEvent} */ event) => event.preventDefault(),
-        onclick: () => pickMention(agent),
-        onpointermove: () => highlightMention(position)
-      },
-      iconTile(agent.icon, agent.tone),
-      h('span', { class: 'chat__mention-copy' },
-        h('span', { class: 'chat__mention-name' }, agent.name,
-          h('span', { class: 'chat__mention-handle' }, `@${agent.id}`)),
-        h('span', { class: 'chat__mention-text' }, agent.description)))));
-      mentionList.hidden = false;
-      input.setAttribute('aria-expanded', 'true');
-      highlightMention(index);
-    }
-
-    /** @param {number} index The agent to highlight. @returns {void} */
-    function highlightMention(index) {
-      if (!state.mention) return;
-      state.mention.index = index;
-      const options = /** @type {HTMLElement[]} */ ([...mentionList.children]);
-      options.forEach((option, position) => option.setAttribute('aria-selected', String(position === index)));
-      input.setAttribute('aria-activedescendant', options[index].id);
-      options[index].scrollIntoView({ block: 'nearest' });
-    }
-
-    /** @returns {void} */
-    function closeMention() {
-      if (!state.mention && mentionList.hidden) return;
-      state.mention = null;
-      mentionList.hidden = true;
-      mentionList.replaceChildren();
-      input.setAttribute('aria-expanded', 'false');
-      input.removeAttribute('aria-activedescendant');
-    }
-
-    /**
-     * Puts the agent's handle where the "@" word was, followed by a space.
-     * @param {Agent} agent
-     * @returns {void}
-     */
-    function pickMention(agent) {
-      if (!state.mention) return;
-      const { start, end } = state.mention;
-      const text = `@${agent.id} `;
-      const rest = input.value.slice(end).replace(/^ /, '');
-      input.value = `${input.value.slice(0, start)}${text}${rest}`;
-      const caret = start + text.length;
-      input.setSelectionRange(caret, caret);
-      closeMention();
-      autosize();
-      refreshComposer();
-    }
-
-    /** The composer's @ button: starts a mention at the caret and opens the list. @returns {void} */
     function startMention() {
-      const caret = input.selectionStart;
-      const before = input.value.slice(0, caret);
-      input.focus();
-      input.setRangeText(before && !/\s$/.test(before) ? ' @' : '@', caret, input.selectionEnd, 'end');
-      autosize();
-      refreshComposer();
-      updateMention();
-    }
-
-    // ------------------------------------------------------------------- actions --
-
-    /**
-     * Enter sends, Shift+Enter breaks the line, Esc stops an answer, ↑ edits the last message, and
-     * "/" at the start opens the saved prompts. While the agent suggestions are open, ↑ and ↓ move
-     * through them, Enter or Tab picks one, and Esc closes them.
-     * @param {KeyboardEvent} event
-     * @returns {void}
-     */
-    function onComposerKey(event) {
-      if (event.isComposing) return;
-      if (state.mention) {
-        const { matches, index } = state.mention;
-        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-          event.preventDefault();
-          highlightMention((index + (event.key === 'ArrowDown' ? 1 : -1) + matches.length) % matches.length);
-          return;
-        }
-        if ((event.key === 'Enter' && !event.shiftKey) || (event.key === 'Tab' && !event.shiftKey)) {
-          event.preventDefault();
-          pickMention(matches[index]);
-          return;
-        }
-        if (event.key === 'Escape') {
-          event.preventDefault();
-          event.stopPropagation();
-          closeMention();
-          return;
-        }
-      }
-      if (event.key === 'Enter' && !event.shiftKey) {
-        event.preventDefault();
-        send();
-      } else if (event.key === 'Escape' && state.run) {
-        event.preventDefault();
-        stop();
-      } else if (event.key === 'ArrowUp' && input.value === '') {
-        const last = current().messages.findLast((message) => message.role === 'user');
-        if (last) {
-          event.preventDefault();
-          editMessage(last);
-        }
-      } else if (event.key === '/' && input.value === '') {
-        event.preventDefault();
-        // Opened from the text, the menu hands the focus back to it rather than to its button.
-        prompts.focusFirst({ returnFocus: input });
-      }
+      composer.insertText(/\S$/.test(composer.getValue()) ? ' @' : '@');
     }
 
     /** @param {string} value Saved prompt id. @returns {void} */
     function usePrompt(value) {
       const prompt = PROMPTS.find((entry) => entry.value === value);
       if (!prompt) return;
-      input.value = input.value ? `${input.value.trimEnd()}\n\n${prompt.text}` : prompt.text;
-      autosize();
-      refreshComposer();
-      input.focus();
-      input.setSelectionRange(input.value.length, input.value.length);
+      const text = composer.getValue();
+      composer.setValue(text ? `${text.trimEnd()}\n\n${prompt.text}` : prompt.text);
+      // After the prompt list has handed the focus back.
+      later(context, () => composer.focus(), 0);
     }
+
+    // ------------------------------------------------------------------- actions --
 
     /**
      * The per-chat actions, shared by the header's overflow menu and the history's context menu.
@@ -2350,19 +2076,15 @@ export default {
     }
 
     /**
-     * Where the focus goes when the inspector closes with the focus in it: the card that opened an
-     * artifact, or a button that opens the settings again.
-     * @returns {HTMLElement|undefined}
+     * Where the focus goes when the inspector closes with the focus in it: what opened it — an
+     * artifact's card, the header's settings button, the composer's Parameters — while it is still
+     * there, else a button that opens the settings again, else the composer.
+     * @returns {{focus: () => void}}
      */
     function returnTarget() {
-      if (aside.dataset.view === 'artifact') {
-        const opener = state.artifactOpener;
-        if (opener?.isConnected && opener.checkVisibility()) return opener;
-        const card = /** @type {HTMLElement[]} */ ([...column.querySelectorAll('.chat__artifact-card')])
-          .find((element) => element.dataset.artifact === state.artifact?.id && element.checkVisibility());
-        return card ?? input;
-      }
-      return asideToggles.find((toggle) => toggle.checkVisibility()) ?? input;
+      const opener = state.opener;
+      if (opener?.isConnected && opener.checkVisibility()) return opener;
+      return aside.dataset.view === 'settings' && settingsButton.checkVisibility() ? settingsButton : composer;
     }
 
     /**
@@ -2376,16 +2098,24 @@ export default {
       const target = returnTarget();
       aside.hidden = true;
       syncInspector();
-      if (hadFocus) target?.focus();
+      if (hadFocus) target.focus();
     }
 
-    /** Keeps the buttons and cards that open the inspector in step with it. @returns {void} */
+    /**
+     * Keeps what opens the inspector in step with it: the settings button and Parameters show the
+     * settings are open, and an answer's artifact card is a disclosure of the inspector, expanded
+     * while its artifact shows there. Called again whenever the thread draws an answer.
+     * @returns {void}
+     */
     function syncInspector() {
       const shown = inspectorShown();
       const view = aside.dataset.view;
-      for (const toggle of asideToggles) toggle.setAttribute('aria-expanded', String(shown && view === 'settings'));
-      for (const card of /** @type {NodeListOf<HTMLElement>} */ (column.querySelectorAll('.chat__artifact-card'))) {
-        card.setAttribute('aria-expanded', String(shown && view === 'artifact' && card.dataset.artifact === state.artifact?.id));
+      settingsButton.setAttribute('aria-expanded', String(shown && view === 'settings'));
+      composer.setToolPressed('parameters', shown && view === 'settings');
+      for (const item of artifacts) {
+        thread.setArtifactState(item.id, {
+          expanded: shown && view === 'artifact' && state.artifact?.id === item.id, controls: asideId
+        });
       }
     }
 
@@ -2403,6 +2133,8 @@ export default {
       const returnFocus = !view && aside.contains(document.activeElement);
       const target = returnFocus ? returnTarget() : undefined;
       if (view) {
+        const active = document.activeElement;
+        state.opener = active instanceof HTMLElement && root.contains(active) && !aside.contains(active) ? active : null;
         aside.dataset.view = view;
         aside.setAttribute('aria-label', view === 'settings' ? 'Assistant settings' : 'Artifact');
         settingsView.hidden = view !== 'settings';
@@ -2447,15 +2179,14 @@ export default {
     /**
      * Shows an artifact in the inspector.
      * @param {string} id
-     * @param {{version?: number, focus?: boolean, opener?: HTMLElement}} [options] `version` is an
-     *   index; the latest by default.
+     * @param {{version?: number, focus?: boolean}} [options] `version` is an index; the latest by
+     *   default.
      * @returns {void}
      */
-    function openArtifact(id, { version, focus = true, opener } = {}) {
+    function openArtifact(id, { version, focus = true } = {}) {
       const item = artifactById(id);
       if (!item) return;
       state.artifact = { id, version: version ?? item.versions.length - 1 };
-      state.artifactOpener = opener ?? null;
       renderArtifact();
       setInspector('artifact', { focus });
     }
@@ -2463,12 +2194,11 @@ export default {
     /**
      * The card in an answer: opens its artifact, or closes it when it is the one showing.
      * @param {string} id
-     * @param {HTMLElement} card
      * @returns {void}
      */
-    function toggleArtifact(id, card) {
+    function toggleArtifact(id) {
       if (inspectorShown() && aside.dataset.view === 'artifact' && state.artifact?.id === id) setInspector(null);
-      else openArtifact(id, { opener: card });
+      else openArtifact(id);
     }
 
     /** Draws the artifact in the inspector at the chosen version. @returns {void} */
@@ -2499,9 +2229,13 @@ export default {
       const latest = entry.version === item.versions.length - 1;
       artifactNote.textContent = `${latest ? 'Latest · ' : ''}${version.note} · ${formatDate(new Date(version.at), DATE.time)}`;
       artifactBody.setAttribute('aria-label', `${item.title}, version ${entry.version + 1}`);
-      artifactBody.replaceChildren(typeof version.content === 'string'
-        ? codeLines(item.language ?? '', version.content)
-        : h('div', { class: 'zx-prose chat__artifact-doc', dataset: { size: 'sm' } }, renderBlocks(version.content)));
+      artifactCanvas.reset();
+      const view = artifactCanvas.own(new BlockView(null, {
+        blocks: typeof version.content === 'string'
+          ? [{ type: 'code', language: item.language ?? '', code: version.content, lines: true }]
+          : version.content
+      }));
+      artifactBody.replaceChildren(h('div', { class: 'chat__artifact-canvas' }, view.toElement()));
       artifactBody.scrollTop = 0;
     }
 
@@ -2549,26 +2283,6 @@ export default {
     // -------------------------------------------------------------------- helpers --
 
     /**
-     * The owner of what an answer creates outside the thread, reset each time the answer is drawn.
-     * @param {string} id Message id.
-     * @returns {ReturnType<typeof renderScope>}
-     */
-    function ownerFor(id) {
-      let owner = owners.get(id);
-      if (!owner) {
-        owner = renderScope(context);
-        owners.set(id, owner);
-      }
-      return owner;
-    }
-
-    /** @param {string} id @returns {HTMLElement|undefined} The message's element in the thread. */
-    function messageNode(id) {
-      return /** @type {HTMLElement[]} */ ([...column.querySelectorAll('.chat__message')])
-        .find((node) => node.dataset.id === id);
-    }
-
-    /**
      * @param {KnowledgeFile} file
      * @returns {Source} The source an answer cites for a knowledge file.
      */
@@ -2581,244 +2295,79 @@ export default {
   }
 };
 
-// ------------------------------------------------------------- rendering answers --
+// ------------------------------------------------------------- the agent kit --
 
 /**
- * Splits a text run into plain, bold, and code segments.
- * @param {string} text
- * @returns {Array<{kind: 'text'|'strong'|'code', text: string}>}
+ * Who writes in the thread: the signed-in user; each model, marked by its glyph; and each agent on
+ * each model, marked by its glyph in its own tone, whose byline names the model it ran on.
+ * @param {string} name The signed-in user's name.
+ * @returns {Record<string, {name: string, kind: 'person'|'agent'|'model', icon?: string, tone?: string, via?: string}>}
  */
-function segments(text) {
-  return text.split(/(\*\*[^*]+\*\*|`[^`]+`)/).filter(Boolean).map((part) => {
-    if (part.startsWith('**') && part.endsWith('**')) return { kind: 'strong', text: part.slice(2, -2) };
-    if (part.startsWith('`') && part.endsWith('`')) return { kind: 'code', text: part.slice(1, -1) };
-    return { kind: 'text', text: part };
-  });
+function threadAuthors(name) {
+  /** @type {Record<string, {name: string, kind: 'person'|'agent'|'model', icon?: string, tone?: string, via?: string}>} */
+  const authors = { me: { name, kind: 'person' } };
+  for (const model of MODELS) {
+    authors[model.ID] = { name: model.name, kind: 'model', icon: model.icon };
+    for (const agent of AGENTS) {
+      authors[`${agent.id}@${model.ID}`] = { name: agent.name, kind: 'agent', icon: agent.icon, tone: agent.tone, via: model.name };
+    }
+  }
+  return authors;
 }
 
 /**
- * Renders a text run as text nodes, `<strong>`, and `<code>` — never as HTML.
- * @param {string} text
- * @returns {Array<Node|string>}
+ * @param {ChatMessage} message
+ * @returns {string} The id of the timeline an answer's steps run in while it is written.
  */
-function inline(text) {
-  return segments(text).map((segment) => (segment.kind === 'strong' ? h('strong', {}, segment.text)
-    : segment.kind === 'code' ? h('code', {}, segment.text) : segment.text));
+function traceId(message) {
+  return `${message.id}:steps`;
 }
 
-/** A string in single, double, or back quotes; unterminated while it is still being streamed. */
-const STRING = /'(?:[^'\\\n]|\\.)*'?|"(?:[^"\\\n]|\\.)*"?|`(?:[^`\\]|\\.)*`?/;
-/** A number, digit separators included: `30_000`, `0.5`. */
-const NUMBER = /\b\d[\d_]*(?:\.\d+)?\b/;
-/** A name or a keyword. */
-const WORD = /[A-Za-z_$][\w$]*/;
+/**
+ * An answer's steps as the thread's trace draws them: each step's detail is the muted line under
+ * it, and a step that was stopped took no time worth counting.
+ * @param {string|undefined} id The answer's id.
+ * @param {Step[]} steps
+ * @param {number} [running] The step that is running, if any.
+ * @returns {Array<Record<string, unknown>>}
+ */
+function traceSteps(id, steps, running = -1) {
+  return steps.map((entry, index) => ({
+    id: `${id}:${index}`, kind: entry.kind, label: entry.label, doing: entry.doing, count: entry.detail,
+    status: index === running ? 'running' : entry.stopped ? 'stopped' : 'done',
+    ...(entry.stopped ? {} : { ms: entry.ms }),
+    ...(entry.sources ? { sources: entry.sources } : {})
+  }));
+}
 
 /**
- * What the code highlighter recognises in one language. Comments, strings, numbers, and words are
- * matched in that order from left to right, so a quote inside a comment or a digit inside a name
- * never starts a token of its own.
- * @param {RegExp} comment A line comment.
- * @param {string} keywords Space-separated, lower case.
- * @param {boolean} [caseless] Whether `SELECT` is the keyword `select`.
- * @returns {{pattern: RegExp, keywords: Set<string>, caseless: boolean}}
+ * A page or a file an answer cites, as the thread's sources take it: a web page opens itself, a
+ * file names itself on its chip.
+ * @param {Source} source
+ * @returns {ThreadSource}
  */
-function grammar(comment, keywords, caseless = false) {
+function sourceOf(source) {
   return {
-    pattern: new RegExp([['comment', comment], ['string', STRING], ['number', NUMBER], ['word', WORD]]
-      .map(([name, part]) => `(?<${name}>${/** @type {RegExp} */ (part).source})`).join('|'), 'g'),
-    keywords: new Set(keywords.split(' ')),
-    caseless
+    id: source.url, title: source.title, kind: source.file ? 'file' : 'web',
+    site: source.file ? source.title : source.site, snippet: source.snippet, href: source.url
   };
 }
 
-/** The languages answers colour; any other code block stays plain text. */
-const GRAMMARS = {
-  javascript: grammar(/\/\/[^\n]*/, 'async await break case catch class const continue default do else export '
-    + 'for from function if import in let new of return switch throw try typeof while'),
-  sql: grammar(/--[^\n]*/, 'and as by desc from group having interval join not on or order select where', true),
-  bash: grammar(/(?<!\S)#[^\n]*/, 'do done elif else esac export fi for function if in then while')
-};
-
 /**
- * Colours a code block — keywords, strings, numbers, comments — as text nodes and spans, never HTML.
- * @param {string} language
- * @param {string} source
- * @returns {Array<Node|string>}
- */
-function highlight(language, source) {
-  const syntax = GRAMMARS[/** @type {keyof typeof GRAMMARS} */ (language)];
-  if (!syntax) return [source];
-  /** @type {Array<Node|string>} */
-  const out = [];
-  let plain = 0;
-  for (const match of source.matchAll(syntax.pattern)) {
-    const { comment, string, number, word } = /** @type {Record<string, string|undefined>} */ (match.groups);
-    const token = comment ? 'comment' : string ? 'string' : number ? 'number'
-      : word && syntax.keywords.has(syntax.caseless ? word.toLowerCase() : word) ? 'keyword' : null;
-    if (!token) continue;
-    out.push(source.slice(plain, match.index), h('span', { class: 'chat__token', dataset: { token } }, match[0]));
-    plain = Number(match.index) + match[0].length;
-  }
-  out.push(source.slice(plain));
-  return out.filter((part) => part !== '');
-}
-
-/**
- * Code in the inspector, line by line: a long line wraps a step deeper than its own indent rather
- * than run out of the panel, and each line carries its number in the margin. The numbers are drawn
- * by CSS, so selecting and copying the code takes the code alone.
- * @param {string} language
- * @param {string} source
- * @returns {HTMLElement}
- */
-function codeLines(language, source) {
-  return h('pre', { class: 'chat__artifact-code' }, h('code', {},
-    source.split('\n').map((line) => h('span', {
-      class: 'chat__line', style: { '--chat-indent': `${/^\s*/.exec(line)?.[0].length ?? 0}ch` }
-    }, highlight(language, line)))));
-}
-
-/**
- * Draws an answer's blocks as plain semantic elements, which the `.zx-prose` they are placed in
- * sets; code blocks, quoted drafts, and artifact cards are the chat's own.
+ * What an answer is fed as it streams: its text a few characters at a time, every other block
+ * whole. A `**bold**` or `` `code` `` run arrives in one piece, so its markers never show, and a
+ * paragraph that follows another starts with the blank line that opens it.
  * @param {Block[]} blocks
- * @param {(block: Extract<Block, {type: 'artifact'}>) => HTMLElement} [artifactCard] Draws an
- *   artifact block; without it the artifact is named in a line of its own.
- * @returns {HTMLElement[]} The blocks as elements.
+ * @returns {Feed[]}
  */
-function renderBlocks(blocks, artifactCard) {
-  return blocks.map((block) => {
-    if (block.type === 'artifact') {
-      return artifactCard ? artifactCard(block) : h('p', { class: 'meta' }, block.title);
-    }
-    if (block.type === 'heading') {
-      // One level below the chat's own title, whichever level the answer starts at.
-      return h(block.level === 3 ? 'h4' : 'h3', {}, inline(block.text));
-    }
-    if (block.type === 'quote') {
-      return h('blockquote', { class: 'chat__quote' },
-        block.text.split('\n\n').map((paragraph) => h('p', {}, inline(paragraph))));
-    }
-    if (block.type === 'list') {
-      return h(block.ordered ? 'ol' : 'ul', {}, block.items.map((item) => h('li', {}, inline(item))));
-    }
-    if (block.type === 'code') {
-      return h('figure', { class: 'chat__code' },
-        h('figcaption', { class: 'chat__code-head' },
-          h('span', { class: 'chat__code-language' }, block.language),
-          copyButton({ text: block.code, title: 'Copy code', size: 'sm' })),
-        h('pre', { class: 'chat__pre', tabindex: '0' }, h('code', {}, highlight(block.language, block.code))));
-    }
-    if (block.type === 'table') {
-      const align = (/** @type {number} */ index) => ({ align: block.align?.[index] === 'end' ? 'end' : undefined });
-      return h('div', { class: 'chat__table-wrap' }, h('table', {},
-        h('thead', {}, h('tr', {}, block.columns.map((column, index) => h('th', { scope: 'col', dataset: align(index) }, column)))),
-        h('tbody', {}, block.rows.map((row) => h('tr', {}, row.map((cell, index) => h('td', { dataset: align(index) }, inline(cell))))))));
-    }
-    return h('p', {}, inline(block.text));
+function feedOf(blocks) {
+  return blocks.flatMap((block, index) => {
+    if (block.type !== 'p') return [{ block }];
+    const lead = index > 0 && blocks[index - 1].type === 'p' ? '\n\n' : '';
+    const pieces = block.text.split(/(\*\*[^*]+\*\*|`[^`]+`)/).filter(Boolean)
+      .flatMap((part) => (/^(?:\*\*|`)/.test(part) ? [part] : part.match(new RegExp(`[\\s\\S]{1,${STREAM.step}}`, 'g')) ?? []));
+    return pieces.map((text, at) => ({ text: at ? text : lead + text }));
   });
-}
-
-/**
- * How many characters a block costs to stream. A table row counts as a fixed amount, so rows
- * arrive one at a time; an artifact's card arrives whole.
- * @param {Block} block
- * @returns {number}
- */
-function blockLength(block) {
-  if (block.type === 'artifact') return 48;
-  if (block.type === 'list') return block.items.reduce((sum, item) => sum + visibleLength(item), 0);
-  if (block.type === 'code') return block.code.length;
-  if (block.type === 'table') return block.rows.length * 24;
-  return visibleLength(block.text);
-}
-
-/** @param {Block[]} blocks @returns {number} */
-function blocksLength(blocks) {
-  return blocks.reduce((sum, block) => sum + blockLength(block), 0);
-}
-
-/** @param {string} text @returns {number} Characters shown, not counting markup. */
-function visibleLength(text) {
-  return segments(text).reduce((sum, segment) => sum + segment.text.length, 0);
-}
-
-/**
- * Cuts a text run after `limit` visible characters and keeps its markup well formed.
- * @param {string} text
- * @param {number} limit
- * @returns {string}
- */
-function truncateText(text, limit) {
-  let left = limit;
-  let out = '';
-  for (const segment of segments(text)) {
-    if (left <= 0) break;
-    const part = segment.text.slice(0, left);
-    left -= part.length;
-    out += segment.kind === 'strong' ? `**${part}**` : segment.kind === 'code' ? `\`${part}\`` : part;
-  }
-  return out;
-}
-
-/**
- * The part of an answer that has been "written" after `budget` characters.
- * @param {Block[]} blocks
- * @param {number} budget
- * @returns {Block[]}
- */
-function sliceBlocks(blocks, budget) {
-  const out = [];
-  let left = budget;
-  for (const block of blocks) {
-    if (left <= 0) break;
-    const cost = blockLength(block);
-    if (cost <= left) {
-      out.push(block);
-      left -= cost;
-      continue;
-    }
-    if (block.type === 'list') {
-      const items = [];
-      for (const item of block.items) {
-        if (left <= 0) break;
-        items.push(truncateText(item, left));
-        left -= visibleLength(item);
-      }
-      out.push({ ...block, items });
-    } else if (block.type === 'code') out.push({ ...block, code: block.code.slice(0, left) });
-    else if (block.type === 'table') out.push({ ...block, rows: block.rows.slice(0, Math.floor(left / 24)) });
-    else if (block.type !== 'artifact') out.push({ ...block, text: truncateText(block.text, left) });
-    left = 0;
-  }
-  return out;
-}
-
-/** @param {Block[]} blocks @returns {string} The answer as plain text, for previews. */
-function blocksToText(blocks) {
-  return blocks.map((block) => (block.type === 'list' ? block.items.join(' ')
-    : block.type === 'code' ? block.code
-      : block.type === 'table' ? block.rows.map((row) => row.join(' ')).join(' ')
-        : block.type === 'artifact' ? block.title
-          : block.text).replaceAll(/\*\*|`/g, '')).join(' ');
-}
-
-/** @param {Block[]} blocks @returns {string} The answer as Markdown, for copying and export. */
-function blocksToMarkdown(blocks) {
-  return blocks.map((block) => {
-    if (block.type === 'artifact') return `**${block.title}** (artifact)`;
-    if (block.type === 'heading') return `${'#'.repeat(block.level)} ${block.text}`;
-    if (block.type === 'quote') return block.text.split('\n').map((line) => `> ${line}`).join('\n');
-    if (block.type === 'list') {
-      return block.items.map((item, index) => `${block.ordered ? `${index + 1}.` : '-'} ${item}`).join('\n');
-    }
-    if (block.type === 'code') return `\`\`\`${block.language}\n${block.code}\n\`\`\``;
-    if (block.type === 'table') {
-      const rows = [block.columns, block.columns.map(() => '---'), ...block.rows];
-      return rows.map((row) => `| ${row.join(' | ')} |`).join('\n');
-    }
-    return block.text;
-  }).join('\n\n');
 }
 
 /** @param {Chat} chat @returns {string} The whole conversation as Markdown. */
@@ -2832,43 +2381,6 @@ function chatToMarkdown(chat) {
 }
 
 // -------------------------------------------------------------------- the work --
-
-/**
- * The one line an answer's steps fold into: what kinds of thing it did, and how often.
- * "Searched 12 sources, read 1 file, wrote 2 drafts, ran the tests twice". A step that was stopped
- * counts for nothing but the stop.
- * @param {Step[]} steps
- * @returns {string}
- */
-function workSummary(steps) {
-  const finished = steps.filter((entry) => !entry.stopped);
-  const stopped = steps.find((entry) => entry.stopped);
-  if (stopped && !finished.length) return `Stopped while ${stopped.doing.charAt(0).toLowerCase()}${stopped.doing.slice(1)}`;
-  const of = (/** @type {StepKind} */ kind) => finished.filter((entry) => entry.kind === kind);
-  const times = (/** @type {number} */ count) => (count === 1 ? '' : count === 2 ? ' twice' : ` ${count} times`);
-  const phrases = [];
-  const searches = of('search');
-  if (searches.length) phrases.push(`searched ${searches.reduce((sum, entry) => sum + (entry.sources ?? 0), 0)} sources`);
-  const reads = of('read').length;
-  if (reads) phrases.push(`read ${reads} ${reads === 1 ? 'file' : 'files'}`);
-  const queries = of('query').length;
-  if (queries) phrases.push(queries === 1 ? 'ran a query' : `ran ${queries} queries`);
-  const drafts = of('write').length;
-  if (drafts) phrases.push(`wrote ${drafts === 1 ? 'a draft' : `${drafts} drafts`}`);
-  const runs = of('run');
-  if (runs.length) {
-    const targets = new Set(runs.map((entry) => entry.target));
-    phrases.push(targets.size === 1 ? `ran ${runs[0].target}${times(runs.length)}` : `ran ${runs.length} commands`);
-  }
-  if (stopped) phrases.push('then stopped');
-  const text = phrases.join(', ');
-  return text.charAt(0).toUpperCase() + text.slice(1);
-}
-
-/** @param {number} ms @returns {string} A step's duration: "2.1s". */
-function seconds(ms) {
-  return `${formatNumber(ms / 1000, { decimals: 1 })}s`;
-}
 
 /**
  * How long a step shows as running while an answer is written — its real duration, shortened.
@@ -2891,7 +2403,18 @@ function topicOf(text) {
 
 /**
  * @param {string} text
- * @returns {Agent|undefined} The first agent the text mentions with `@handle`.
+ * @returns {string[]} The agents the text calls on, as it writes them (`analyst`, `Analyst`), which
+ *   the thread tints.
+ */
+function mentionsIn(text) {
+  return [...text.matchAll(/(?:^|\s)@([a-z][\w-]*)/gi)]
+    .map((match) => match[1])
+    .filter((name) => AGENTS.some((agent) => agent.id === name.toLowerCase()));
+}
+
+/**
+ * @param {string} text
+ * @returns {Agent|undefined} The first agent the text mentions with `@handle` or `@Name`.
  */
 function mentionedAgent(text) {
   for (const match of text.matchAll(/(?:^|\s)@([a-z][\w-]*)/gi)) {
@@ -2911,16 +2434,6 @@ function snapshot(message) {
     at: message.at, model: message.model, agent: message.agent,
     rating: message.rating ?? null, stopped: Boolean(message.stopped)
   };
-}
-
-/**
- * The three dots of an answer about to be written.
- * @param {string} author
- * @returns {HTMLElement}
- */
-function typing(author) {
-  return h('span', { class: 'chat__typing', role: 'img', 'aria-label': `${author} is thinking` },
-    h('span'), h('span'), h('span'));
 }
 
 /**
@@ -2958,26 +2471,6 @@ function segmented({ label, options, onchange, signal }) {
 
 // --------------------------------------------------------------------- helpers --
 
-/**
- * A compact file chip for the composer and for sent messages.
- * @param {Attachment} file
- * @param {() => void} [onremove] Adds a remove button.
- * @returns {HTMLElement}
- */
-function fileChip(file, onremove) {
-  return h('span', { class: 'chat__chip' },
-    h('span', { class: 'chat__chip-icon' }, icon(fileGlyph(file.mime))),
-    h('span', { class: 'chat__chip-name' }, file.name),
-    h('span', { class: 'chat__chip-size' }, formatFileSize(file.size)),
-    onremove ? iconButton('xmark', `Remove ${file.name}`, onremove) : null);
-}
-
-/** @param {string} mime @returns {string} The icon for a file type. */
-function fileGlyph(mime) {
-  return /pdf/.test(mime) ? 'file-pdf' : /csv|sheet|excel/.test(mime) ? 'table'
-    : /^image\//.test(mime) ? 'image' : 'file-lines';
-}
-
 /** @param {string} text @returns {string} A file name made from a title. */
 function slug(text) {
   return text.replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '').toLowerCase();
@@ -2986,11 +2479,6 @@ function slug(text) {
 /** @param {Date} date @returns {string} The local date-time as stored in the data, `2026-10-08T10:30`. */
 function stamp(date) {
   return formatDate(date, '%Y-%m-%dT%H:%M');
-}
-
-/** @param {ChatMessage} message @returns {string} When it was sent, as a time of day. */
-function timeOf(message) {
-  return formatDate(new Date(message.at), DATE.time);
 }
 
 /** @param {string} iso @returns {string} The history group a date falls into. */

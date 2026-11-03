@@ -1,0 +1,208 @@
+/*
+ * SourceList — the sources an answer cites. As chips, small numbered buttons wrap beside their
+ * label and the list drops under it when the line gets narrow; as a list, each source is a row
+ * with its title and site. The card a source shows renders in a tooltip, outside the root.
+ */
+.zx-source-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--zx-space-1) var(--zx-space-2);
+  min-inline-size: 0;
+  color: var(--zx-color-text);
+}
+
+.zx-source-list[data-empty] {
+  display: none;
+}
+
+.zx-source-list__label {
+  flex: 0 0 auto;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-weight: var(--zx-weight-medium);
+  line-height: var(--zx-space-6);
+}
+
+.zx-source-list__items {
+  display: flex;
+  flex: 1 1 12rem;
+  flex-wrap: wrap;
+  gap: var(--zx-space-1);
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.zx-source-list__item {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+
+/* ------------------------------------------------------------------ source -- */
+
+.zx-source-list__source {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-1);
+  max-inline-size: min(15rem, 100%);
+  min-block-size: var(--zx-space-6);
+  padding-block: 1px;
+  padding-inline: 1px var(--zx-space-2);
+  border: 1px solid var(--zx-color-border-subtle);
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-bg-surface);
+  color: var(--zx-color-text-muted);
+  font: inherit;
+  font-size: var(--zx-text-xs);
+  line-height: 1.3;
+  text-align: start;
+  cursor: pointer;
+}
+
+.zx-source-list__source:not(:has(.zx-source-list__n)) {
+  padding-inline-start: var(--zx-space-2);
+}
+
+.zx-source-list__source:hover {
+  border-color: var(--zx-color-border);
+  background: var(--zx-color-bg-hover);
+  color: var(--zx-color-text);
+}
+
+.zx-source-list__source:focus-visible {
+  outline-color: transparent;
+  box-shadow: var(--zx-focus-ring);
+}
+
+/* Pointed at from a citation: the accent fill, until it fades back. */
+.zx-source-list__source[data-state="highlighted"] {
+  border-color: var(--zx-color-accent);
+  background: var(--zx-color-accent-subtle);
+  color: var(--zx-color-text);
+}
+
+.zx-source-list__n {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  min-inline-size: calc(var(--zx-space-6) - 6px);
+  block-size: calc(var(--zx-space-6) - 6px);
+  padding-inline: 3px;
+  border-radius: var(--zx-radius-sm);
+  background: var(--zx-color-bg-muted);
+  color: var(--zx-color-text-muted);
+  font-weight: var(--zx-weight-medium);
+  font-variant-numeric: tabular-nums;
+}
+
+.zx-source-list__glyph {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--zx-color-text-subtle);
+}
+
+.zx-source-list__name,
+.zx-source-list__title,
+.zx-source-list__site {
+  overflow: hidden;
+  min-inline-size: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zx-source-list__sr {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------------ list layout -- */
+
+.zx-source-list[data-layout="list"] {
+  display: grid;
+}
+
+.zx-source-list[data-layout="list"] .zx-source-list__items {
+  display: grid;
+  gap: 1px;
+}
+
+.zx-source-list[data-layout="list"] .zx-source-list__source {
+  inline-size: calc(100% + 2 * var(--zx-space-2));
+  max-inline-size: none;
+  min-block-size: var(--zx-control-height);
+  margin-inline: calc(-1 * var(--zx-space-2));
+  padding: var(--zx-space-1) var(--zx-space-2);
+  gap: var(--zx-space-2);
+  border-color: transparent;
+  background: none;
+  color: var(--zx-color-text);
+  font-size: var(--zx-text-sm);
+}
+
+.zx-source-list[data-layout="list"] .zx-source-list__source:hover {
+  background: var(--zx-color-bg-hover);
+}
+
+.zx-source-list[data-layout="list"] .zx-source-list__source[data-state="highlighted"] {
+  border-color: transparent;
+  background: var(--zx-color-accent-subtle);
+}
+
+.zx-source-list__copy {
+  display: grid;
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  line-height: 1.35;
+}
+
+.zx-source-list__title {
+  font-weight: var(--zx-weight-medium);
+}
+
+.zx-source-list__site {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+}
+
+/* ------------------------------------------------------------------ card -- */
+
+.zx-source-list__card {
+  display: grid;
+  gap: 2px;
+  padding-block: var(--zx-space-1);
+}
+
+.zx-source-list__card-title {
+  font-weight: var(--zx-weight-semibold);
+}
+
+.zx-source-list__card-site {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-1);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+}
+
+.zx-source-list__card-snippet {
+  margin-block-start: var(--zx-space-1);
+  color: var(--zx-color-text);
+}
+
+/* ------------------------------------------------------------------ motion -- */
+
+@media (prefers-reduced-motion: no-preference) {
+  .zx-source-list__source {
+    transition:
+      background-color var(--zx-dur-base) var(--zx-ease),
+      border-color var(--zx-dur-base) var(--zx-ease),
+      color var(--zx-dur-fast) var(--zx-ease);
+  }
+}

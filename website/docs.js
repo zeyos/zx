@@ -38,7 +38,8 @@ const COMPONENT_IDS = [
   'entity-ref', 'file-item', 'file-list', 'activity-item', 'activity-list',
   'table', 'table-view', 'card-view', 'kanban-view', 'grid', 'chart', 'calendar', 'data-filter', 'filter', 'filter-panel', 'sort-control', 'list-toolbar', 'view-settings', 'pagination', 'tree', 'finder',
   'form', 'form-widgets', 'code-editor', 'questionnaire', 'elements',
-  'value-list', 'multi-value-editor', 'field-upload'
+  'value-list', 'multi-value-editor', 'field-upload',
+  'agent-thread', 'block-view', 'run-trace', 'approval-card', 'source-list', 'composer', 'run-status'
 ];
 
 const DOCS_URL = '../docs/llms.md';

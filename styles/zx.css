@@ -93,4 +93,11 @@
 @import url("../src/components/multi-value-editor/multi-value-editor.css");
 @import url("../src/components/field-upload/field-upload.css");
 @import url("../src/components/questionnaire/questionnaire.css");
+@import url("../src/components/block-view/block-view.css");
+@import url("../src/components/run-status/run-status.css");
+@import url("../src/components/composer/composer.css");
+@import url("../src/components/approval-card/approval-card.css");
+@import url("../src/components/run-trace/run-trace.css");
+@import url("../src/components/source-list/source-list.css");
+@import url("../src/components/agent-thread/agent-thread.css");
 @import url("./print.css");

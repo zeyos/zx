@@ -1,0 +1,300 @@
+/*
+ * BlockView — an answer an agent wrote. The root is `.zx-prose`, which sets the paragraphs,
+ * headings, lists, quotes, and tables; this sheet adds only what prose has no element for: code
+ * with its caption, figures, citations, artifact cards, and the line a stopped answer ends with.
+ */
+.zx-block-view {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.zx-block-view:empty {
+  display: none;
+}
+
+/* A single line break in model text is meant: an address, a sign-off. A blank line is a new
+   paragraph and never reaches here. */
+.zx-block-view :is(p, li, td) {
+  white-space: pre-line;
+}
+
+/* ------------------------------------------------------------------ quote -- */
+
+.zx-block-view__quote {
+  white-space: pre-line;
+}
+
+/* ------------------------------------------------------------------ code -- */
+
+.zx-block-view__code {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  margin-inline: 0;
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-bg-muted);
+}
+
+.zx-block-view__code-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--zx-space-2);
+  padding: var(--zx-space-1) var(--zx-space-3);
+}
+
+.zx-block-view__code-language {
+  color: var(--zx-color-text-muted);
+  font-family: var(--zx-font-mono);
+  font-size: var(--zx-text-xs);
+}
+
+.zx-block-view .zx-block-view__pre {
+  margin: 0;
+  padding: 0 var(--zx-space-3) var(--zx-space-3);
+  border-radius: 0;
+  background: none;
+  overflow-wrap: normal;
+}
+
+/* Numbered lines (`lines: true`), for code read at length: a long line wraps a step deeper than
+   its own indent instead of scrolling, and the numbers are drawn by CSS, so copying the code takes
+   the code alone. */
+.zx-block-view .zx-block-view__pre[data-lines] {
+  --zx-block-view-gutter: 3ch;
+  --zx-block-view-hang: 2ch;
+  padding-block-start: var(--zx-space-1);
+  counter-reset: zx-block-view-line;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.zx-block-view__line {
+  position: relative;
+  display: block;
+  min-block-size: 1lh;
+  padding-inline-start: calc(var(--zx-block-view-gutter) + var(--zx-space-3) + var(--zx-block-view-indent, 0ch) + var(--zx-block-view-hang));
+  text-indent: calc(-1 * (var(--zx-block-view-indent, 0ch) + var(--zx-block-view-hang)));
+}
+
+.zx-block-view__line::before {
+  content: counter(zx-block-view-line);
+  counter-increment: zx-block-view-line;
+  position: absolute;
+  inset-inline-start: 0;
+  inline-size: var(--zx-block-view-gutter);
+  color: var(--zx-color-text-subtle);
+  text-align: end;
+  text-indent: 0;
+  user-select: none;
+}
+
+.zx-block-view__pre:focus-visible {
+  outline-color: transparent;
+  box-shadow: inset var(--zx-focus-ring);
+}
+
+.zx-block-view__token[data-token="keyword"] { color: var(--zx-color-tone-violet-fg); }
+.zx-block-view__token[data-token="string"] { color: var(--zx-color-tone-green-fg); }
+.zx-block-view__token[data-token="number"] { color: var(--zx-color-tone-orange-fg); }
+.zx-block-view__token[data-token="comment"] { color: var(--zx-color-text-muted); }
+
+/* ------------------------------------------------------------------ table -- */
+
+/* A wide table scrolls inside the answer; its cells keep their words whole. */
+.zx-block-view__table {
+  overflow-x: auto;
+  overflow-wrap: normal;
+}
+
+.zx-block-view__table:focus-visible {
+  outline-color: transparent;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.zx-block-view__table :is(th, td)[data-align="end"] {
+  text-align: end;
+}
+
+.zx-block-view__table :is(th, td)[data-align="center"] {
+  text-align: center;
+}
+
+.zx-block-view__table td {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------------ figures -- */
+
+.zx-block-view__figures {
+  display: grid;
+  /* The label keeps a readable width; a long detail wraps rather than squeezing it. */
+  grid-template-columns: minmax(min(12ch, 40%), 1fr) minmax(0, auto) auto;
+  margin-inline: 0;
+  font-size: var(--zx-text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.zx-block-view__figure {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: baseline;
+  border-block-start: 1px solid var(--zx-color-border-subtle);
+}
+
+.zx-block-view__figure:first-child {
+  border-block-start: 0;
+}
+
+.zx-block-view__figure > :is(dt, dd) {
+  margin: 0;
+  padding-block: var(--zx-space-1);
+}
+
+.zx-block-view__figure-detail {
+  padding-inline-start: var(--zx-space-5);
+  color: var(--zx-color-text-muted);
+  text-align: end;
+}
+
+.zx-block-view__figure-value {
+  grid-column: 3;
+  padding-inline-start: var(--zx-space-5);
+  font-weight: var(--zx-weight-medium);
+  text-align: end;
+}
+
+/* ------------------------------------------------------------------ citations -- */
+
+.zx-block-view__cite {
+  font-size: 0.7em;
+  line-height: 1;
+  vertical-align: 0.4em;
+}
+
+.zx-block-view__cite,
+.zx-block-view__cite-button {
+  display: inline-block;
+  min-inline-size: 1.6em;
+  border-radius: var(--zx-radius-sm);
+  background: var(--zx-color-bg-muted);
+  color: var(--zx-color-text-muted);
+  font-weight: var(--zx-weight-medium);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.zx-block-view__cite:has(> .zx-block-view__cite-button) {
+  min-inline-size: 0;
+  background: none;
+}
+
+.zx-block-view__cite-button {
+  margin-inline-start: 1px;
+  padding: 0.15em 0.3em;
+  border: 0;
+  font: inherit;
+  font-weight: var(--zx-weight-medium);
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.zx-block-view__cite-button:hover {
+  background: var(--zx-color-bg-hover);
+  color: var(--zx-color-text);
+}
+
+.zx-block-view__cite-button:focus-visible {
+  outline-color: transparent;
+  box-shadow: var(--zx-focus-ring);
+}
+
+/* ------------------------------------------------------------------ artifacts -- */
+
+.zx-block-view__artifact-row {
+  margin-inline: 0;
+}
+
+.zx-block-view__artifact {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-3);
+  inline-size: min(100%, 24rem);
+  padding: var(--zx-space-2) var(--zx-space-3);
+  padding-inline-start: var(--zx-space-2);
+  border: 1px solid var(--zx-color-border-subtle);
+  border-radius: var(--zx-radius-lg);
+  background: var(--zx-color-bg-surface);
+  color: inherit;
+  font: inherit;
+  font-size: var(--zx-text-sm);
+  text-align: start;
+}
+
+button.zx-block-view__artifact {
+  cursor: pointer;
+}
+
+button.zx-block-view__artifact:hover {
+  border-color: var(--zx-color-border);
+  background: var(--zx-color-bg-hover);
+}
+
+button.zx-block-view__artifact[aria-expanded="true"] {
+  border-color: transparent;
+  background: var(--zx-color-bg-current);
+}
+
+button.zx-block-view__artifact:focus-visible {
+  outline-color: transparent;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.zx-block-view__artifact-tile {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  inline-size: var(--zx-control-height);
+  block-size: var(--zx-control-height);
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-tone-amber-bg);
+  color: var(--zx-color-tone-amber-fg);
+}
+
+.zx-block-view__artifact-tile[data-kind="code"] {
+  background: var(--zx-color-tone-violet-bg);
+  color: var(--zx-color-tone-violet-fg);
+}
+
+.zx-block-view__artifact-copy {
+  display: grid;
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  line-height: 1.4;
+}
+
+.zx-block-view__artifact-name {
+  overflow: hidden;
+  font-weight: var(--zx-weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zx-block-view__artifact-meta {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+}
+
+.zx-block-view__artifact-chevron {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--zx-color-text-subtle);
+}
+
+/* ------------------------------------------------------------------ states -- */
+
+.zx-block-view__stopped {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}

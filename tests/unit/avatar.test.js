@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { AVATAR_TONES, avatarInitials, avatarTone } from '../../src/components/avatar/avatar.js';
+import { AVATAR_TONES, Avatar, avatarInitials, avatarTone } from '../../src/components/avatar/avatar.js';
 
 /** Tones pinned for a few names. The hash is part of the contract; see the tone tests below. */
 const PINNED = { 'Ada Lovelace': 'pink', 'Grace Hopper': 'amber', 'Peter Zey': 'teal' };
@@ -72,4 +72,19 @@ test('different names spread across the palette rather than collapsing onto one 
     'Barbara Liskov', 'Donald Knuth', 'Margaret Hamilton', 'Tim Berners-Lee', 'Radia Perlman',
     'Frances Allen', 'John Backus', 'Hedy Lamarr', 'Linus Torvalds', 'Shafi Goldwasser'];
   assert.ok(new Set(names.map(avatarTone)).size >= 6);
+});
+
+/* ----------------------------------------------------------------------- phase -- */
+
+test('an avatar moves at a phase derived from its name unless one is given', () => {
+  assert.equal(Avatar.defaults.phase, null, 'no phase by default: the name decides');
+  // `_phase()` reads only the avatar's state, so it can be asked of a bare object.
+  const phase = (/** @type {Record<string, unknown>} */ state) => Avatar.prototype._phase.call({ _state: state });
+  assert.equal(phase({ name: 'Finance agent', phase: null }), phase({ name: 'Finance agent', phase: null }));
+  assert.notEqual(phase({ name: 'Finance agent', phase: null }), phase({ name: 'Research agent', phase: null }));
+  assert.equal(phase({ name: '', initials: 'FA', phase: null }), phase({ name: 'FA', phase: null }), 'initials stand in for a name');
+  assert.equal(phase({ name: 'Finance agent', phase: 0.5 }), 0.5);
+  assert.equal(phase({ name: 'Finance agent', phase: 1.25 }), 0.25, 'whole turns wrap');
+  assert.equal(phase({ name: 'Finance agent', phase: 'half' }), phase({ name: 'Finance agent', phase: null }),
+    'anything but a number is no phase');
 });

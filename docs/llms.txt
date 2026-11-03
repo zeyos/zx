@@ -66,7 +66,8 @@ exports and as `window.zx.*`.
   metric with optional delta, sparkline, and loading state), `AppIcon` (generic tile geometry;
   circular `zeyosAppIcon()` application presets and compact `moduleChip()` identities),
   `Aurora` (one- to four-colour ambient
-  canvas light; shared material roles govern chrome and overlays), `Avatar`, `Panel` (header/footer action
+  canvas light; shared material roles govern chrome and overlays), `Avatar` (person presence, or an
+  agent's `activity` with an opt-in shared presence animation), `Panel` (header/footer action
   buttons), `MasterPanel`, `Tabbox`
   (`variant: 'divided'|'bracket'|'line'|'segmented'`), `NavigationBar`, `AppSidebar` (expanded and
   minimized vertical states plus horizontal rail layouts; sections; a modules layout), `ModuleBar`
@@ -76,6 +77,14 @@ exports and as `window.zx.*`.
   `Toolbar` (APG toolbar with overflow menu), `SplitView`, `Dock`
   (collapsible resizable pane stack; tab groups, regions, adopts a `Sheet`), `Stepper`,
   `Breadcrumb`, `emptyState()`.
+- Agents: `AgentThread` (a conversation with agents as an APG feed: messages, streamed answers, run traces,
+  approvals, notices; plain-JSON items, the application owns transport), `BlockView`/`renderBlocks()` (an
+  answer drawn block by block as prose, appended to as it streams; model text is never HTML),
+  `RunTrace` (the steps a run took: tool calls with arguments and results, retries, hand-offs),
+  `ApprovalCard` (a request that holds a run: approve, edit, reject, typed confirmation),
+  `SourceList` (cited sources with a card each; nothing remote is loaded), `Composer` (the message
+  box: mentions, `/` commands, attachments, context chips, Send that becomes Stop), `RunStatus` (a
+  run's state, steps, working time, tokens, and a cost meter against a budget).
 - Core: `Component`, `h`/`__`/`icon`, `position`, `breakpoints`/`breakpointOf`/`matchBreakpoint`/`onBreakpoint` (named width bands, observed on an element or the window), `Http`/`zeyosService`, i18n, date utils, `defineElements` (declarative `<zx-*>` custom elements).
 - Helpers: `formatNumber`/`formatCurrency`/`formatPercent`/`formatFileSize`/`formatRelativeTime` (locale-aware, cached `Intl`), `debounce`/`throttle`, `groupBy`/`sortBy`/`uniqueBy`, `escapeRegExp`/`highlightMatch`, `storage()` (namespaced JSON, degrades to memory), `toCsv`/`downloadBlob`/`copyToClipboard`, `truncate()`/`isTruncated()` (line clamp with the full value on hover).
 

@@ -1,0 +1,208 @@
+/*
+ * RunStatus — where an agent's run stands. The state is a glyph and a word; the steps and the cost
+ * are thin bars whose words sit beside or above them; the facts are a two-column property list
+ * with tabular figures. `data-compact` draws the state alone, as a pill for a narrow header, and
+ * `data-compact="icon"` as its glyph alone.
+ */
+.zx-run-status {
+  display: grid;
+  gap: var(--zx-space-2);
+  min-inline-size: 0;
+  color: var(--zx-color-text);
+  font-size: var(--zx-text-sm);
+}
+
+/* The panel holds focus itself only when an update took away the control that had it. */
+.zx-run-status:focus-visible {
+  border-radius: var(--zx-radius-md);
+  outline-color: transparent;
+  box-shadow: var(--zx-focus-ring);
+}
+
+/* ------------------------------------------------------------------ state -- */
+
+.zx-run-status__state {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  margin: 0;
+  font-size: var(--zx-text-lg);
+  font-weight: var(--zx-weight-semibold);
+  letter-spacing: var(--zx-tracking-tight);
+  line-height: 1.3;
+}
+
+.zx-run-status__summary {
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+/* ------------------------------------------------------------------ bars -- */
+
+.zx-run-status__steps {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-3);
+  margin-block: var(--zx-space-1);
+}
+
+.zx-run-status__bar,
+.zx-run-status__meter {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  flex: 1 1 auto;
+  block-size: 4px;
+  border-radius: var(--zx-radius-full);
+  background: var(--zx-color-border-subtle);
+}
+
+.zx-run-status__bar-fill,
+.zx-run-status__meter-fill {
+  display: block;
+  block-size: 100%;
+  border-radius: inherit;
+  background: var(--zx-color-accent);
+}
+
+.zx-run-status:is([data-state="failed"], [data-state="blocked"]) .zx-run-status__bar-fill {
+  background: var(--zx-color-danger);
+}
+
+.zx-run-status:is([data-state="stopped"], [data-state="skipped"], [data-state="paused"]) .zx-run-status__bar-fill {
+  background: var(--zx-color-text-muted);
+}
+
+.zx-run-status__steps-text {
+  flex: none;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.zx-run-status__meter[data-level="warning"] .zx-run-status__meter-fill {
+  background: var(--zx-color-warning);
+}
+
+.zx-run-status__meter[data-level="danger"] .zx-run-status__meter-fill {
+  background: var(--zx-color-danger);
+}
+
+/* ---------------------------------------------------------------- actions -- */
+
+.zx-run-status__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zx-space-2);
+}
+
+/* ------------------------------------------------------------------ facts -- */
+
+.zx-run-status__props {
+  display: grid;
+  grid-template-columns: fit-content(9rem) minmax(0, 1fr);
+  gap: var(--zx-space-1) var(--zx-space-3);
+  margin: 0;
+  margin-block-start: var(--zx-space-1);
+}
+
+.zx-run-status__prop {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: baseline;
+}
+
+.zx-run-status__label {
+  overflow: hidden;
+  color: var(--zx-color-text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zx-run-status__value {
+  display: grid;
+  gap: var(--zx-space-1);
+  min-inline-size: 0;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.zx-run-status__value > .zx-run-status__meter {
+  margin-block-end: var(--zx-space-1);
+}
+
+/* ---------------------------------------------------------------- compact -- */
+
+.zx-run-status[data-compact] {
+  display: inline-flex;
+  vertical-align: middle;
+}
+
+.zx-run-status__pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-1);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  white-space: nowrap;
+}
+
+.zx-run-status:is([data-state="waiting"], [data-state="blocked"], [data-state="failed"]) .zx-run-status__pill {
+  color: var(--zx-color-text);
+  font-weight: var(--zx-weight-medium);
+}
+
+/* The glyph alone: the word stays the accessible text, and the pill's tooltip. */
+.zx-run-status[data-compact="icon"] .zx-run-status__word {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ----------------------------------------------------------------- motion -- */
+
+/* While the agent works, a soft shine runs along the steps bar. The state says it in words too. */
+@media (prefers-reduced-motion: no-preference) {
+  .zx-run-status[data-state="running"] .zx-run-status__bar::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, var(--zx-color-bg-surface), transparent);
+    opacity: 0.7;
+    translate: -100% 0;
+    animation: zx-run-status-sweep 1.6s var(--zx-ease) infinite;
+  }
+
+  .zx-run-status[data-state="running"] .zx-run-status__bar:dir(rtl)::after {
+    animation-direction: reverse;
+  }
+
+  .zx-run-status__bar-fill,
+  .zx-run-status__meter-fill {
+    transition: inline-size var(--zx-dur-base) var(--zx-ease);
+  }
+
+  @keyframes zx-run-status-sweep {
+    to {
+      translate: 100% 0;
+    }
+  }
+}
+
+@media (forced-colors: active) {
+  .zx-run-status__bar,
+  .zx-run-status__meter {
+    border: 1px solid CanvasText;
+  }
+
+  .zx-run-status[data-state] :is(.zx-run-status__bar-fill, .zx-run-status__meter-fill) {
+    background: CanvasText;
+  }
+}

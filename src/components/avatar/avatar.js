@@ -1,10 +1,15 @@
+// @ts-check
 import { Component } from '../../core/component.js';
 import { h } from '../../core/dom.js';
+import { ACTIVITY, AGENT_MESSAGES, normalizeActivity } from '../../internal/agent-model.js';
+import { normalizePhase, presencePhase, trackPresence } from '../../internal/presence-loop.js';
 
 /**
  * A categorical tone from the design system's tone palette (`--zx-color-tone-*`).
  * @typedef {'blue'|'teal'|'green'|'amber'|'orange'|'red'|'pink'|'violet'|'slate'} AvatarTone
  */
+
+/** @typedef {import('../../internal/agent-model.js').AgentActivity} AgentActivity */
 
 /**
  * @typedef {Object} AvatarOptions
@@ -18,8 +23,28 @@ import { h } from '../../core/dom.js';
  * @property {AvatarTone|null} [tone=null] Fallback colour from the tone palette. `null` derives a
  * stable tone from the name (or the initials when there is no name), so the same person gets the
  * same colour on every screen; see {@link avatarTone}.
- * @property {'online'|'away'|'busy'|'offline'|null} [status=null] Optional presence state.
+ * @property {'online'|'away'|'busy'|'offline'|null} [status=null] Optional presence state of a
+ * person. An agent's `activity` takes its place: when both are given, only the activity is drawn
+ * and named.
  * @property {string|null} [statusLabel=null] Text alternative for the presence state.
+ * @property {AgentActivity|null} [activity=null] What an agent is doing: `'idle'`, `'thinking'`,
+ * `'working'`, `'needs-you'`, `'blocked'` or `'offline'`. Drawn as a dot whose shape and tone
+ * differ per activity (a square for blocked, a hollow ring for idle, a dashed ring for offline);
+ * its word joins the accessible name and the dot's tooltip. Wins over `status`.
+ * @property {string|null} [activityLabel=null] The activity's word, when the default ("Working",
+ * "Needs you", …) is not the one to show.
+ * @property {boolean} [animate=false] Moves the avatar with its activity — idle breathes, thinking
+ * sways, working bobs, needs-you leans and blinks — in the one animation loop every animated
+ * avatar on the page shares. Motion is never the only signal, stops off screen and while the page
+ * is hidden, and returns the avatar to rest under reduced motion (the system's, or a
+ * `data-zx-motion="reduced"` region). While it is on, the root's `transform` belongs to the loop.
+ * @property {number|null} [phase=null] Where in its activity's cycle the avatar moves, as a
+ * fraction from 0 up to 1 (whole turns wrap): two avatars of the same agent on one screen — a
+ * roster and an inspector — at different phases never move in step, and 0.5 puts them half a cycle
+ * apart. `null` derives the phase from the name (or the initials), so the same agent always moves
+ * the same way.
+ * @property {Record<string, string>|Record<string, Record<string, string>>} [msg] Localized
+ * messages: the activity words, `agent.activity.<activity>`.
  */
 
 /**
@@ -36,9 +61,16 @@ const HASHED_TONES = Object.freeze(AVATAR_TONES.filter((tone) => tone !== 'slate
 /** Below this rendered size the fallback has room for one initial, not two. */
 const SINGLE_INITIAL_BELOW = 24;
 
+/** The presence states a person can have. */
+const PRESENCE = Object.freeze(['online', 'away', 'busy', 'offline']);
+
+/** The values `set()` accepts. */
+const SETTABLE = Object.freeze(['src', 'name', 'initials', 'label', 'size', 'shape', 'tone', 'status', 'statusLabel',
+  'activity', 'activityLabel', 'animate', 'phase']);
+
 /**
  * Stable-size user image with a deterministic fallback — initials on a tone picked from the name —
- * and an optional presence state.
+ * and an optional presence state for a person, or activity for an agent.
  * @extends {Component<AvatarOptions>}
  */
 export class Avatar extends Component {
@@ -54,7 +86,12 @@ export class Avatar extends Component {
     shape: 'circle',
     tone: null,
     status: null,
-    statusLabel: null
+    statusLabel: null,
+    activity: null,
+    activityLabel: null,
+    animate: false,
+    phase: null,
+    msg: AGENT_MESSAGES
   };
 
   /** @returns {HTMLElement} */
@@ -75,8 +112,14 @@ export class Avatar extends Component {
       shape: this.options.shape,
       tone: this.options.tone,
       status: this.options.status,
-      statusLabel: this.options.statusLabel
+      statusLabel: this.options.statusLabel,
+      activity: this.options.activity ?? null,
+      activityLabel: this.options.activityLabel ?? null,
+      animate: Boolean(this.options.animate),
+      phase: this.options.phase ?? null
     };
+    /** @type {import('../../internal/presence-loop.js').PresenceHandle|null} */
+    this._presence = null;
 
     const image = /** @type {HTMLImageElement} */ (h('img', {
       ref: 'image',
@@ -95,7 +138,13 @@ export class Avatar extends Component {
       ariaHidden: 'true',
       hidden: true
     });
-    root.replaceChildren(image, fallback, status);
+    const activity = h('span', {
+      ref: 'activity',
+      class: 'zx-avatar__activity',
+      ariaHidden: 'true',
+      hidden: true
+    });
+    root.replaceChildren(image, fallback, status, activity);
     this.listen(image, 'load', () => {
       if (this._isCurrentImageSource()) this._showImage(true);
     });
@@ -107,14 +156,15 @@ export class Avatar extends Component {
   }
 
   /**
-   * Replaces avatar identity and presentation values.
+   * Replaces avatar identity and presentation values: any option but `msg`, `phase` included, so
+   * an animated avatar can be moved out of step with another of the same agent while it runs.
    * @param {Partial<AvatarOptions>} values New values.
    * @returns {this}
    */
   set(values = {}) {
     if (!values || typeof values !== 'object') return this;
-    for (const key of ['src', 'name', 'initials', 'label', 'size', 'shape', 'tone', 'status', 'statusLabel']) {
-      if (Object.hasOwn(values, key)) this._state[key] = values[key];
+    for (const key of SETTABLE) {
+      if (Object.hasOwn(values, key)) this._state[key] = key === 'animate' ? Boolean(values[key]) : values[key];
     }
     this._sync();
     return this;
@@ -129,14 +179,36 @@ export class Avatar extends Component {
     return this;
   }
 
+  /**
+   * Sets what an agent is doing and, optionally, the word for it. `null` clears the activity, and
+   * a person's `status` shows again if one is set.
+   * @param {AgentActivity|null} activity
+   * @param {string|null} [label=null] The word, when the default is not the one to show.
+   * @returns {this}
+   */
+  setActivity(activity, label = null) {
+    this._state.activity = activity;
+    this._state.activityLabel = label;
+    this._syncLabel();
+    this._syncStatus();
+    return this;
+  }
+
+  /** @returns {AgentActivity|null} What the agent is doing, or null. */
+  getActivity() {
+    return normalizeActivity(this._state.activity);
+  }
+
   /** Returns whether the image is currently visible. @returns {boolean} */
   hasImage() {
-    return !this.refs.image.hidden;
+    return !(/** @type {HTMLElement} */ (this.refs.image)).hidden;
   }
 
   /** Restores an enhanced target or removes an owned root. @returns {void} */
   destroy() {
     const original = this._original;
+    this._presence?.untrack();
+    this._presence = null;
     super.destroy();
     if (!this._createdRoot && original) {
       for (const attribute of Array.from(this.el.attributes)) this.el.removeAttribute(attribute.name);
@@ -147,13 +219,14 @@ export class Avatar extends Component {
 
   /** @returns {void} */
   _sync() {
-    const { size, shape, label } = this._state;
-    this.el.dataset.size = typeof size === 'string' ? size : 'custom';
-    this.el.dataset.shape = ['circle', 'rounded', 'square'].includes(shape) ? shape : 'circle';
+    const root = /** @type {HTMLElement} */ (this.el);
+    const { size, shape } = this._state;
+    root.dataset.size = typeof size === 'string' ? size : 'custom';
+    root.dataset.shape = ['circle', 'rounded', 'square'].includes(shape) ? shape : 'circle';
     if (typeof size === 'number' && Number.isFinite(size)) {
-      this.el.style.setProperty('--zx-avatar-size', `${Math.max(1, size)}px`);
+      root.style.setProperty('--zx-avatar-size', `${Math.max(1, size)}px`);
     } else {
-      this.el.style.removeProperty('--zx-avatar-size');
+      root.style.removeProperty('--zx-avatar-size');
     }
     this._syncLabel();
     const name = String(this._state.name ?? '');
@@ -164,7 +237,7 @@ export class Avatar extends Component {
     const tone = AVATAR_TONES.includes(this._state.tone)
       ? this._state.tone
       : avatarTone(name.trim() ? name : this._state.initials);
-    this.el.dataset.tone = tone;
+    root.dataset.tone = tone;
     const src = this._state.src == null ? '' : String(this._state.src).trim();
     if (src) {
       this.refs.image.setAttribute('src', src);
@@ -182,7 +255,8 @@ export class Avatar extends Component {
   _syncLabel() {
     const { label, status, statusLabel } = this._state;
     if (label) {
-      const presence = ['online', 'away', 'busy', 'offline'].includes(status) ? statusLabel : null;
+      const word = this._activityWord();
+      const presence = word ?? (PRESENCE.includes(status) ? statusLabel : null);
       this.el.setAttribute('role', 'img');
       this.el.setAttribute('aria-label', [label, presence].filter(Boolean).join(', '));
       this.el.removeAttribute('aria-hidden');
@@ -195,9 +269,9 @@ export class Avatar extends Component {
 
   /** @param {boolean} visible @returns {void} */
   _showImage(visible) {
-    this.refs.image.hidden = !visible;
-    this.refs.fallback.hidden = visible;
-    this.el.dataset.fallback = String(!visible);
+    (/** @type {HTMLElement} */ (this.refs.image)).hidden = !visible;
+    (/** @type {HTMLElement} */ (this.refs.fallback)).hidden = visible;
+    (/** @type {HTMLElement} */ (this.el)).dataset.fallback = String(!visible);
   }
 
   /** Ignores a late load/error from a source that has already been replaced. @returns {boolean} */
@@ -212,19 +286,67 @@ export class Avatar extends Component {
     }
   }
 
+  /** The word for the current activity, or null without one. @returns {string|null} */
+  _activityWord() {
+    const activity = normalizeActivity(this._state.activity);
+    if (!activity) return null;
+    return this._state.activityLabel ? String(this._state.activityLabel) : this.msg(ACTIVITY[activity].key);
+  }
+
   /** @returns {void} */
   _syncStatus() {
-    const allowed = ['online', 'away', 'busy', 'offline'];
-    const status = allowed.includes(this._state.status) ? this._state.status : null;
-    this.refs.status.hidden = status === null;
-    if (status) this.refs.status.dataset.status = status;
-    else delete this.refs.status.dataset.status;
+    const root = /** @type {HTMLElement} */ (this.el);
+    const activity = normalizeActivity(this._state.activity);
+    const dot = /** @type {HTMLElement} */ (this.refs.activity);
+    dot.hidden = activity === null;
+    if (activity) {
+      root.dataset.activity = activity;
+      dot.setAttribute('title', String(this._activityWord()));
+    } else {
+      delete root.dataset.activity;
+      dot.removeAttribute('title');
+    }
+    this._syncMotion(activity);
+    const status = !activity && PRESENCE.includes(this._state.status) ? this._state.status : null;
+    const presence = /** @type {HTMLElement} */ (this.refs.status);
+    presence.hidden = status === null;
+    if (status) presence.dataset.status = status;
+    else delete presence.dataset.status;
     const label = this._state.statusLabel;
     if (label) {
-      this.refs.status.setAttribute('title', String(label));
+      presence.setAttribute('title', String(label));
     } else {
-      this.refs.status.removeAttribute('title');
+      presence.removeAttribute('title');
     }
+  }
+
+  /**
+   * Joins, follows, or leaves the shared presence loop.
+   * @param {AgentActivity|null} activity
+   * @returns {void}
+   */
+  _syncMotion(activity) {
+    const root = /** @type {HTMLElement} */ (this.el);
+    const animate = Boolean(this._state.animate) && activity !== null;
+    if (animate) root.dataset.animate = '';
+    else delete root.dataset.animate;
+    if (!animate) {
+      this._presence?.untrack();
+      this._presence = null;
+    } else if (this._presence) {
+      this._presence.set(activity, { phase: this._phase() });
+    } else {
+      this._presence = trackPresence(root, activity, { phase: this._phase() });
+    }
+  }
+
+  /**
+   * The phase the avatar moves at: the `phase` option, or one derived from the name or initials.
+   * @returns {number} A fraction of the cycle.
+   */
+  _phase() {
+    const key = String(this._state.name ?? '') || String(this._state.initials ?? '');
+    return normalizePhase(this._state.phase) ?? presencePhase(key);
   }
 }
 

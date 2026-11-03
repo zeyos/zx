@@ -1,0 +1,289 @@
+/*
+ * ApprovalCard — a request that holds an agent's run until a person answers it. Pending, it
+ * carries the stronger frame and the actions; answered, it stays as the record of what was
+ * decided. A size container, so the head reflows to the width the thread gives it.
+ */
+.zx-approval-card {
+  display: grid;
+  gap: var(--zx-space-3);
+  inline-size: 100%;
+  min-inline-size: 0;
+  padding: var(--zx-space-4);
+  border: 1px solid var(--zx-color-border-subtle);
+  border-radius: var(--zx-radius-lg);
+  background: var(--zx-color-bg-surface);
+  color: var(--zx-color-text);
+  container-type: inline-size;
+}
+
+.zx-approval-card[data-state="pending"] {
+  border-color: var(--zx-color-border);
+}
+
+.zx-approval-card:focus-visible {
+  outline-color: transparent;
+  box-shadow: var(--zx-focus-ring);
+}
+
+:is(
+  .zx-approval-card__changes,
+  .zx-approval-card__reason,
+  .zx-approval-card__preview-body,
+  .zx-approval-card__actions
+)[hidden] {
+  display: none;
+}
+
+/* ------------------------------------------------------------------ head -- */
+
+/* The title and the lines under it take the room; the state sits at the end, and moves under
+   the title when the card is narrow. */
+.zx-approval-card__head {
+  display: grid;
+  grid-template-areas: "titles status";
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--zx-space-2) var(--zx-space-3);
+  align-items: start;
+}
+
+.zx-approval-card__head:has(> .zx-approval-card__tile) {
+  grid-template-areas: "tile titles status";
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.zx-approval-card__tile {
+  display: inline-grid;
+  grid-area: tile;
+  place-items: center;
+  inline-size: var(--zx-space-6);
+  block-size: var(--zx-space-6);
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-tone-blue-bg);
+  color: var(--zx-color-tone-blue-fg);
+}
+
+.zx-approval-card__tile[data-tone="slate"] { background: var(--zx-color-tone-slate-bg); color: var(--zx-color-tone-slate-fg); }
+.zx-approval-card__tile[data-tone="teal"] { background: var(--zx-color-tone-teal-bg); color: var(--zx-color-tone-teal-fg); }
+.zx-approval-card__tile[data-tone="green"] { background: var(--zx-color-tone-green-bg); color: var(--zx-color-tone-green-fg); }
+.zx-approval-card__tile[data-tone="amber"] { background: var(--zx-color-tone-amber-bg); color: var(--zx-color-tone-amber-fg); }
+.zx-approval-card__tile[data-tone="orange"] { background: var(--zx-color-tone-orange-bg); color: var(--zx-color-tone-orange-fg); }
+.zx-approval-card__tile[data-tone="red"] { background: var(--zx-color-tone-red-bg); color: var(--zx-color-tone-red-fg); }
+.zx-approval-card__tile[data-tone="pink"] { background: var(--zx-color-tone-pink-bg); color: var(--zx-color-tone-pink-fg); }
+.zx-approval-card__tile[data-tone="violet"] { background: var(--zx-color-tone-violet-bg); color: var(--zx-color-tone-violet-fg); }
+
+.zx-approval-card__titles {
+  display: grid;
+  grid-area: titles;
+  gap: 2px;
+  min-inline-size: 0;
+}
+
+.zx-approval-card__title {
+  margin: 0;
+  font-size: var(--zx-text-md);
+  font-weight: var(--zx-weight-semibold);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.zx-approval-card__description {
+  margin: 0;
+  font-size: var(--zx-text-sm);
+}
+
+.zx-approval-card__note {
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+/* The state: a pill, glyph and word, because a state is what a pill means. */
+.zx-approval-card__status {
+  display: inline-flex;
+  grid-area: status;
+  align-items: center;
+  justify-self: start;
+  gap: var(--zx-space-1);
+  padding: 2px var(--zx-space-2);
+  padding-inline-start: var(--zx-space-1);
+  border-radius: var(--zx-radius-full);
+  background: var(--zx-color-bg-muted);
+  font-size: var(--zx-text-xs);
+  font-weight: var(--zx-weight-medium);
+  white-space: nowrap;
+}
+
+.zx-approval-card[data-state="pending"] .zx-approval-card__status {
+  background: var(--zx-color-warning-bg);
+}
+
+.zx-approval-card__status .zx-status-icon {
+  inline-size: 12px;
+  block-size: 12px;
+  border-width: 1.5px;
+}
+
+/* ------------------------------------------------------------------ body -- */
+
+.zx-approval-card__details,
+.zx-approval-card__blocks {
+  min-inline-size: 0;
+  overflow-wrap: break-word;
+}
+
+.zx-approval-card__blocks > :first-child {
+  margin-block-start: 0;
+}
+
+.zx-approval-card__blocks > :last-child {
+  margin-block-end: 0;
+}
+
+.zx-approval-card__text {
+  margin: 0;
+  font-size: var(--zx-text-sm);
+}
+
+.zx-approval-card__changes,
+.zx-approval-card__reason {
+  display: grid;
+  gap: var(--zx-space-1);
+}
+
+.zx-approval-card__label {
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+}
+
+.zx-approval-card__values {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--zx-space-1) var(--zx-space-4);
+  margin: 0;
+  padding: var(--zx-space-2) var(--zx-space-3);
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-bg-muted);
+  font-size: var(--zx-text-sm);
+}
+
+.zx-approval-card__value {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: baseline;
+}
+
+.zx-approval-card__value-label {
+  color: var(--zx-color-text-muted);
+}
+
+.zx-approval-card__value-text {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+.zx-approval-card__quote {
+  margin: 0;
+  padding: var(--zx-space-2) var(--zx-space-3);
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-bg-muted);
+  font-size: var(--zx-text-sm);
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+/* ------------------------------------------------------------------ preview -- */
+
+.zx-approval-card__disclosure {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-1);
+  min-block-size: var(--zx-space-6);
+  margin-inline-start: calc(-1 * var(--zx-space-1));
+  padding-block: 0;
+  padding-inline: var(--zx-space-1) var(--zx-space-2);
+  border: 0;
+  border-radius: var(--zx-radius-sm);
+  background: none;
+  color: var(--zx-color-text-muted);
+  font: inherit;
+  font-size: var(--zx-text-sm);
+  cursor: pointer;
+}
+
+.zx-approval-card__disclosure:hover {
+  background: var(--zx-color-bg-hover);
+  color: var(--zx-color-text);
+}
+
+.zx-approval-card__disclosure:focus-visible {
+  outline-color: transparent;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.zx-approval-card__disclosure[aria-expanded="true"] > .zx-icon {
+  rotate: 90deg;
+}
+
+.zx-approval-card__preview-body {
+  margin-block-start: var(--zx-space-2);
+  padding: var(--zx-space-3) var(--zx-space-4);
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-bg-muted);
+}
+
+/* ------------------------------------------------------------------ actions -- */
+
+.zx-approval-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--zx-space-2);
+}
+
+/* --------------------------------------------------------------- dialogs -- */
+
+/* The Edit form is the dialog's body, not a box inside it. */
+.zx-fieldset.zx-approval-card__form {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* ------------------------------------------------------------------ narrow -- */
+
+@container (max-width: 30rem) {
+  .zx-approval-card__head {
+    grid-template-areas: "titles" "status";
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .zx-approval-card__head:has(> .zx-approval-card__tile) {
+    grid-template-areas: "tile titles" ". status";
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .zx-approval-card__values {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: var(--zx-space-2);
+  }
+
+  .zx-approval-card__value {
+    gap: 0;
+  }
+}
+
+/* ------------------------------------------------------------------ motion -- */
+
+@media (prefers-reduced-motion: no-preference) {
+  .zx-approval-card__disclosure > .zx-icon {
+    transition: rotate var(--zx-dur-fast) var(--zx-ease);
+  }
+
+  .zx-approval-card__disclosure {
+    transition: background-color var(--zx-dur-fast) var(--zx-ease), color var(--zx-dur-fast) var(--zx-ease);
+  }
+}

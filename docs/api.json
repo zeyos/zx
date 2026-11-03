@@ -360,6 +360,240 @@
       }
     ]
   },
+  "AgentThread": {
+    "options": [
+      {
+        "name": "items",
+        "type": "ThreadItem[]",
+        "default": "[]",
+        "description": "The conversation, oldest first."
+      },
+      {
+        "name": "authors",
+        "type": "Record<string, Author>",
+        "default": "{}",
+        "description": "Who wrote the items and took the steps, by key. An item without an `author` is the person's own (`user`) or the first agent's (anything else)."
+      },
+      {
+        "name": "me",
+        "type": "string",
+        "default": "'me'",
+        "description": "Author key of the person reading; their items read as \"You\"."
+      },
+      {
+        "name": "label",
+        "type": "string|null",
+        "default": "null",
+        "description": "Accessible name of the feed; \"Conversation\" when null."
+      },
+      {
+        "name": "headingLevel",
+        "type": "2|3|4|5",
+        "default": "3",
+        "description": "Heading level inside answers and cards."
+      },
+      {
+        "name": "emptyState",
+        "type": "EmptyStateOptions|null",
+        "default": "null",
+        "description": "Shown while there are no items."
+      },
+      {
+        "name": "followOutput",
+        "type": "boolean",
+        "default": "true",
+        "description": "Keep the end in view while new output arrives, as long as the reader is at the end; otherwise offer \"Jump to latest\" and leave them where they are."
+      },
+      {
+        "name": "scroller",
+        "type": "Element|null",
+        "default": "null",
+        "description": "The element that scrolls; the nearest scrolling ancestor (or the thread itself) when null."
+      },
+      {
+        "name": "answerActions",
+        "type": "AnswerAction[]",
+        "default": "['copy','regenerate','branch']",
+        "description": "Actions under each finished answer; `regenerate` only under the latest one."
+      },
+      {
+        "name": "icons",
+        "type": "Partial<Record<'regenerate'|'branch'|'rateUp'|'rateDown'|'edit', string>>",
+        "default": null,
+        "description": "Glyph names for the answer and message actions."
+      },
+      {
+        "name": "userActions",
+        "type": "Array<'edit'|'copy'>",
+        "default": "[]",
+        "description": "Actions on the person's own messages, shown while the message is pointed at or holds focus (always on a touch screen): `edit` asks the application to put the message back in the composer, `copy` copies its text."
+      },
+      {
+        "name": "traceIcons",
+        "type": "Record<string, string>",
+        "default": "{}",
+        "description": "Glyph names for trace step kinds, handed to every `RunTrace` the thread draws."
+      },
+      {
+        "name": "sourceIcons",
+        "type": "Record<string, string>",
+        "default": "{}",
+        "description": "Glyph names for source kinds, handed to every `SourceList` the thread draws."
+      },
+      {
+        "name": "now",
+        "type": "(() => Date)|null",
+        "default": "null",
+        "description": "The clock \"today\" is measured against in cards and traces, for an application whose world runs on fixed dates; the real clock when null."
+      },
+      {
+        "name": "formatTime",
+        "type": "((at: string) => string)|null",
+        "default": "null",
+        "description": "Formats an item's `at`; the local clock time when null."
+      },
+      {
+        "name": "locale",
+        "type": "string",
+        "default": null,
+        "description": "Locale for times."
+      },
+      {
+        "name": "msg",
+        "type": "Record<string, string>|Record<string, Record<string, string>>",
+        "default": null,
+        "description": "Localized messages."
+      }
+    ],
+    "events": [
+      {
+        "name": "action",
+        "payload": "{item: ThreadItem, action: string, value?: unknown}",
+        "description": "Answer action listener."
+      },
+      {
+        "name": "approve",
+        "payload": "{item: ThreadItem, values: Record<string, unknown>}",
+        "description": "Approval listener."
+      },
+      {
+        "name": "edit",
+        "payload": "{item: ThreadItem, values: Record<string, unknown>}",
+        "description": "Edit listener."
+      },
+      {
+        "name": "reject",
+        "payload": "{item: ThreadItem, reason: string}",
+        "description": "Rejection listener."
+      },
+      {
+        "name": "cite",
+        "payload": "{item: ThreadItem, n: number, source: Source|null}",
+        "description": "Citation listener."
+      },
+      {
+        "name": "artifact",
+        "payload": "{item: ThreadItem, id: string}",
+        "description": "Artifact listener."
+      },
+      {
+        "name": "reveal",
+        "payload": "{target: string}",
+        "description": "Reveal listener."
+      },
+      {
+        "name": "open",
+        "payload": "{item: ThreadItem, ref: import('../../internal/agent-model.js').ItemRef}",
+        "description": "Link listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "register",
+        "signature": "register(type, render)",
+        "returns": "typeof AgentThread",
+        "description": "Registers how items of another type are drawn — an application's own, or a surface. A built-in type cannot be replaced."
+      },
+      {
+        "name": "has",
+        "signature": "has(type)",
+        "returns": "boolean",
+        "description": "Reports whether a type has a registered renderer."
+      },
+      {
+        "name": "setItems",
+        "signature": "setItems(items)",
+        "returns": "this",
+        "description": "Replaces the conversation."
+      },
+      {
+        "name": "upsert",
+        "signature": "upsert(item)",
+        "returns": "this",
+        "description": "Adds an item, or replaces the item with the same id where it stands."
+      },
+      {
+        "name": "patch",
+        "signature": "patch(id, partial)",
+        "returns": "this",
+        "description": "Changes part of an item. The common changes are made in place — an answer finishing or stopping, a trace's steps, an approval's status — so focus and selection inside the item survive; anything else redraws the item."
+      },
+      {
+        "name": "appendText",
+        "signature": "appendText(id, text)",
+        "returns": "this",
+        "description": "Streams text into an answer, creating it when the id is new. Only the answer's last paragraph is redrawn."
+      },
+      {
+        "name": "appendBlock",
+        "signature": "appendBlock(id, block)",
+        "returns": "this",
+        "description": "Adds a whole block to an answer — a figures block, a table, code — after what it already shows, without redrawing the rest of the answer. Creates the answer when the id is new."
+      },
+      {
+        "name": "announce",
+        "signature": "announce(text)",
+        "returns": "this",
+        "description": "Says something through the thread's polite status — an outcome the thread cannot see itself, such as \"Reminders sent\". Said once; the same words said twice are heard twice."
+      },
+      {
+        "name": "remove",
+        "signature": "remove(id)",
+        "returns": "this",
+        "description": "Removes an item."
+      },
+      {
+        "name": "get",
+        "signature": "get(id)",
+        "returns": "ThreadItem|null",
+        "description": "An item as it stands, an answer's streamed text included."
+      },
+      {
+        "name": "getComponent",
+        "signature": "getComponent(id)",
+        "returns": "Component|null",
+        "description": "The main component drawn for an item: an answer's BlockView, a trace's RunTrace, an approval's ApprovalCard."
+      },
+      {
+        "name": "reveal",
+        "signature": "reveal(target)",
+        "returns": "boolean",
+        "description": "Brings something into view and moves focus to it: `item:<id>` an item, `step:<id>` a trace step (in whichever trace holds it), `source:<n>` a source of the latest answer that has one."
+      },
+      {
+        "name": "setArtifactState",
+        "signature": "setArtifactState(id, state)",
+        "returns": "this",
+        "description": "Reflects whether an artifact is open somewhere — an inspector, a drawer — on every card that names it, in every answer. See `BlockView#setArtifactState()`."
+      },
+      {
+        "name": "scrollToEnd",
+        "signature": "scrollToEnd()",
+        "returns": "this",
+        "description": "Scrolls to the end of the conversation."
+      }
+    ]
+  },
   "Alert": {
     "options": [
       {
@@ -819,6 +1053,173 @@
     "events": [],
     "methods": []
   },
+  "ApprovalCard": {
+    "options": [
+      {
+        "name": "title",
+        "type": "string",
+        "default": "''",
+        "description": "What the agent wants to do, as a question: \"Send 3 payment reminders?\"."
+      },
+      {
+        "name": "description",
+        "type": "string",
+        "default": "''",
+        "description": "One line under the title: what follows from approving."
+      },
+      {
+        "name": "icon",
+        "type": "string|null",
+        "default": "null",
+        "description": "Icon name for the tile beside the title; none when null."
+      },
+      {
+        "name": "tone",
+        "type": "ApprovalTone",
+        "default": "'blue'",
+        "description": "Categorical tone of the icon tile."
+      },
+      {
+        "name": "headingLevel",
+        "type": "2|3|4|5|6",
+        "default": "3",
+        "description": "Element level of the title heading."
+      },
+      {
+        "name": "status",
+        "type": "ApprovalStatus",
+        "default": "'pending'",
+        "description": "Where the request stands."
+      },
+      {
+        "name": "details",
+        "type": "Node|Block[]|null",
+        "default": "null",
+        "description": "What will happen — recipients, amounts, records — as a node the application built, or as blocks. Model text in blocks is drawn as text only."
+      },
+      {
+        "name": "preview",
+        "type": "ApprovalPreview|null",
+        "default": "null",
+        "description": "What the request produces, behind a disclosure."
+      },
+      {
+        "name": "fields",
+        "type": "Record<string, FieldOptions>|null",
+        "default": "null",
+        "description": "The Edit form, keyed by value name. No fields, no Edit."
+      },
+      {
+        "name": "values",
+        "type": "Record<string, unknown>",
+        "default": "{}",
+        "description": "The values the request carries; the Edit form starts from them and `approve` reports them."
+      },
+      {
+        "name": "confirmText",
+        "type": "string|null",
+        "default": "null",
+        "description": "Text the person must type before Approve goes through, for an action that cannot be undone. Decided by the application from the tool the action triggers, never taken from model output."
+      },
+      {
+        "name": "reason",
+        "type": "ApprovalReasonMode",
+        "default": "'optional'",
+        "description": "Whether Reject asks why."
+      },
+      {
+        "name": "edited",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether the values were already edited, for a request restored from a record. Without `editedKeys` every field is listed under \"Edited by you\"."
+      },
+      {
+        "name": "editedKeys",
+        "type": "string[]|null",
+        "default": "null",
+        "description": "Which values were edited: only these fields are listed under \"Edited by you\", in field order. A non-empty list implies `edited`; null lists every field of an edited request."
+      },
+      {
+        "name": "rejectReason",
+        "type": "string|null",
+        "default": "null",
+        "description": "The reason a rejected request was given, for a request restored from a record."
+      },
+      {
+        "name": "answeredBy",
+        "type": "string|null",
+        "default": "null",
+        "description": "Who answers, as the verdict names them; the message `approvalCard.you` (\"you\") when null."
+      },
+      {
+        "name": "answeredAt",
+        "type": "string|Date|null",
+        "default": "null",
+        "description": "When an answered request was answered: a local ISO date-time or a Date. An answer given on the card takes the time it was given."
+      },
+      {
+        "name": "now",
+        "type": "(() => Date)|null",
+        "default": "null",
+        "description": "The clock: decides whether `answeredAt` is today (the time alone) or another day (date and time), and gives the time of an answer recorded without an explicit `at`. Real time when null."
+      },
+      {
+        "name": "keys",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether A, E, and R act while focus is inside the pending card. `handleKey()` works either way."
+      },
+      {
+        "name": "msg",
+        "type": "Record<string, string>|Record<string, Record<string, string>>",
+        "default": null,
+        "description": "Localized messages."
+      }
+    ],
+    "events": [
+      {
+        "name": "approve",
+        "payload": "{values: Record<string, unknown>}",
+        "description": "Approve listener."
+      },
+      {
+        "name": "edit",
+        "payload": "{values, changed, editedKeys}",
+        "description": "Edit listener."
+      },
+      {
+        "name": "reject",
+        "payload": "{reason: string}",
+        "description": "Reject listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "update",
+        "signature": "update([partial])",
+        "returns": "this",
+        "description": "Changes the request in place — the agent revised it, or the record it is drawn from changed — and redraws only what changed. Focus stays where it was; when the element that held it is gone (the Edit button, the preview toggle), the card takes it. Of the card's dialogs only one the change makes meaningless closes: the Edit form when `fields` change, the Reject dialog when `reason` changes, the typed confirmation when `confirmText` changes. An open Edit form stays open over new `values` and saves what the person typed. Emits nothing. `edited` and `editedKeys` follow the options' rules: `edited: true` alone keeps the fields already listed (every field, on a card that was not edited); `edited: false` alone clears the list; a non-empty `editedKeys` marks the card edited."
+      },
+      {
+        "name": "setStatus",
+        "signature": "setStatus(status, [answer])",
+        "returns": "this",
+        "description": "Settles the request from outside: an answer the application received elsewhere, a request that timed out, or a prevented answer the application has now carried out. Emits nothing."
+      },
+      {
+        "name": "focus",
+        "signature": "focus([options])",
+        "returns": "this",
+        "description": "Moves focus to the card, so a thread can bring the reader to a request when a run starts waiting on it."
+      },
+      {
+        "name": "handleKey",
+        "signature": "handleKey(event)",
+        "returns": "boolean",
+        "description": "Answers a key: A approves, E edits, R rejects. Acts only while the request is pending, never from a text control or with a modifier held, and never while one of the card's dialogs is open. The card calls it for keys inside itself; an application may forward keys from elsewhere."
+      }
+    ]
+  },
   "Aspect": {
     "options": [
       {
@@ -940,13 +1341,43 @@
         "name": "status",
         "type": "'online'|'away'|'busy'|'offline'|null",
         "default": "null",
-        "description": "Optional presence state."
+        "description": "Optional presence state of a person. An agent's `activity` takes its place: when both are given, only the activity is drawn and named."
       },
       {
         "name": "statusLabel",
         "type": "string|null",
         "default": "null",
         "description": "Text alternative for the presence state."
+      },
+      {
+        "name": "activity",
+        "type": "AgentActivity|null",
+        "default": "null",
+        "description": "What an agent is doing: `'idle'`, `'thinking'`, `'working'`, `'needs-you'`, `'blocked'` or `'offline'`. Drawn as a dot whose shape and tone differ per activity (a square for blocked, a hollow ring for idle, a dashed ring for offline); its word joins the accessible name and the dot's tooltip. Wins over `status`."
+      },
+      {
+        "name": "activityLabel",
+        "type": "string|null",
+        "default": "null",
+        "description": "The activity's word, when the default (\"Working\", \"Needs you\", …) is not the one to show."
+      },
+      {
+        "name": "animate",
+        "type": "boolean",
+        "default": "false",
+        "description": "Moves the avatar with its activity — idle breathes, thinking sways, working bobs, needs-you leans and blinks — in the one animation loop every animated avatar on the page shares. Motion is never the only signal, stops off screen and while the page is hidden, and returns the avatar to rest under reduced motion (the system's, or a `data-zx-motion=\"reduced\"` region). While it is on, the root's `transform` belongs to the loop."
+      },
+      {
+        "name": "phase",
+        "type": "number|null",
+        "default": "null",
+        "description": "Where in its activity's cycle the avatar moves, as a fraction from 0 up to 1 (whole turns wrap): two avatars of the same agent on one screen — a roster and an inspector — at different phases never move in step, and 0.5 puts them half a cycle apart. `null` derives the phase from the name (or the initials), so the same agent always moves the same way."
+      },
+      {
+        "name": "msg",
+        "type": "Record<string, string>|Record<string, Record<string, string>>",
+        "default": null,
+        "description": "Localized messages: the activity words, `agent.activity.<activity>`."
       }
     ],
     "events": [],
@@ -955,13 +1386,19 @@
         "name": "set",
         "signature": "set(values)",
         "returns": "this",
-        "description": "Replaces avatar identity and presentation values."
+        "description": "Replaces avatar identity and presentation values: any option but `msg`, `phase` included, so an animated avatar can be moved out of step with another of the same agent while it runs."
       },
       {
         "name": "setStatus",
         "signature": "setStatus(status, [label])",
         "returns": "this",
         "description": "Sets the presence state and its text alternative."
+      },
+      {
+        "name": "setActivity",
+        "signature": "setActivity(activity, [label])",
+        "returns": "this",
+        "description": "Sets what an agent is doing and, optionally, the word for it. `null` clears the activity, and a person's `status` shows again if one is set."
       },
       {
         "name": "hasImage",
@@ -1102,6 +1539,107 @@
       }
     ],
     "methods": []
+  },
+  "BlockView": {
+    "options": [
+      {
+        "name": "blocks",
+        "type": "Block[]",
+        "default": "[]",
+        "description": "The answer's blocks. Model text is data: every string reaches the page as text, through the inline grammar of `**bold**`, `` `code` `` and `[n]` citations."
+      },
+      {
+        "name": "headingLevel",
+        "type": "2|3|4|5",
+        "default": "3",
+        "description": "Element level of a `heading` block of level 2; a level-3 heading goes one deeper. Set it one below the heading that names the answer."
+      },
+      {
+        "name": "size",
+        "type": "'sm'|'md'",
+        "default": "'sm'",
+        "description": "Prose size: `'sm'` sets the answer at the interface size, for a conversation; `'md'` at the reading size, for a document."
+      },
+      {
+        "name": "streaming",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether more is still being written. The last block stays open to `appendText()`, and the root is busy until `end()` or `stop()`."
+      },
+      {
+        "name": "sources",
+        "type": "Source[]|null",
+        "default": "null",
+        "description": "The sources citations point at; their titles name the citation buttons."
+      },
+      {
+        "name": "msg",
+        "type": "Record<string, string>|Record<string, Record<string, string>>",
+        "default": null,
+        "description": "Localized messages."
+      }
+    ],
+    "events": [
+      {
+        "name": "cite",
+        "payload": "{n: number, source: Source|null}",
+        "description": "Citation listener."
+      },
+      {
+        "name": "artifact",
+        "payload": "{id: string}",
+        "description": "Artifact listener."
+      },
+      {
+        "name": "end",
+        "payload": "Record<string, never>",
+        "description": "End-of-stream listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "setBlocks",
+        "signature": "setBlocks(blocks, [options])",
+        "returns": "this",
+        "description": "Replaces every block, clearing a stopped state."
+      },
+      {
+        "name": "append",
+        "signature": "append(block)",
+        "returns": "this",
+        "description": "Adds a block after the last one. The blocks before it are left as they are."
+      },
+      {
+        "name": "appendText",
+        "signature": "appendText(text)",
+        "returns": "this",
+        "description": "Streams text into the answer. It continues the last paragraph, or opens one when the answer ends in anything else; a blank line in the text starts a new paragraph. Only the last paragraph is redrawn, so a marker split across two calls (`**bo` … `ld**`) resolves as soon as its close arrives."
+      },
+      {
+        "name": "end",
+        "signature": "end()",
+        "returns": "this",
+        "description": "Marks the answer finished."
+      },
+      {
+        "name": "stop",
+        "signature": "stop()",
+        "returns": "this",
+        "description": "Marks the answer stopped where it is, with a line saying so."
+      },
+      {
+        "name": "setSources",
+        "signature": "setSources(sources)",
+        "returns": "this",
+        "description": "Sets the sources citations point at."
+      },
+      {
+        "name": "setArtifactState",
+        "signature": "setArtifactState(id, state)",
+        "returns": "this",
+        "description": "Says whether an artifact's card has its artifact open somewhere — an inspector, a drawer — so the card reads as pressed and names what it controls. The application owns the open state; the card only reflects it."
+      }
+    ]
   },
   "Breadcrumb": {
     "options": [
@@ -2461,6 +2999,275 @@
         "signature": "setValue(value, [options])",
         "returns": "this",
         "description": "Replaces the editor text."
+      }
+    ]
+  },
+  "Composer": {
+    "options": [
+      {
+        "name": "label",
+        "type": "string|null",
+        "default": "null",
+        "description": "Accessible name of the text and of the group around it. Omitted resolves `composer.label`, English `Message`."
+      },
+      {
+        "name": "placeholder",
+        "type": "string",
+        "default": "''",
+        "description": "Placeholder of the text."
+      },
+      {
+        "name": "value",
+        "type": "string",
+        "default": "''",
+        "description": "Initial text. Without it, a saved draft is restored."
+      },
+      {
+        "name": "submitKey",
+        "type": "'enter'|'mod+enter'",
+        "default": "'enter'",
+        "description": "`'enter'`: Enter sends and Shift+Enter breaks the line. `'mod+enter'`: Cmd+Enter (Ctrl+Enter elsewhere) sends and Enter breaks the line."
+      },
+      {
+        "name": "busy",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether an agent is working: Send becomes Stop."
+      },
+      {
+        "name": "disabled",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether the composer takes no input."
+      },
+      {
+        "name": "attachments",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether files can be attached: an Attach button, paste, and drop."
+      },
+      {
+        "name": "accept",
+        "type": "string",
+        "default": "''",
+        "description": "File types accepted, in the `<input type=\"file\">` syntax (`'image/*,.pdf'`). Empty accepts every file."
+      },
+      {
+        "name": "maxFiles",
+        "type": "number",
+        "default": "10",
+        "description": "Most files one message carries."
+      },
+      {
+        "name": "mentions",
+        "type": "MentionSource|null",
+        "default": "null",
+        "description": "Enables `@` mentions."
+      },
+      {
+        "name": "commands",
+        "type": "LauncherItem[]|null",
+        "default": "null",
+        "description": "Commands opened by `/` on an empty text, in a Launcher; an item with `items` opens a page of further commands."
+      },
+      {
+        "name": "context",
+        "type": "ContextChip[]",
+        "default": "[]",
+        "description": "Initial context chips."
+      },
+      {
+        "name": "hint",
+        "type": "string",
+        "default": "''",
+        "description": "Quiet text in the bar beside Send."
+      },
+      {
+        "name": "note",
+        "type": "string",
+        "default": "''",
+        "description": "Quiet line under the composer."
+      },
+      {
+        "name": "draftKey",
+        "type": "string|null",
+        "default": "null",
+        "description": "Key the unsent text is kept under (through `storage()`), restored on create and cleared on send."
+      },
+      {
+        "name": "minRows",
+        "type": "number",
+        "default": "1",
+        "description": "Rows the text never shrinks below, even when empty. Capped at `maxRows`."
+      },
+      {
+        "name": "maxRows",
+        "type": "number",
+        "default": "10",
+        "description": "Rows the text grows to before it scrolls."
+      },
+      {
+        "name": "icons",
+        "type": "{attach?: string, commands?: string}",
+        "default": "{}",
+        "description": "Glyph names for the Attach and Commands buttons (a paperclip, a book) where the application registered its own."
+      },
+      {
+        "name": "tools",
+        "type": "ComposerTool[]",
+        "default": "[]",
+        "description": "Further icon buttons in the bar, after Attach and Commands. An entry without `id`, `label` or `icon` is left out, as is a repeated id."
+      },
+      {
+        "name": "sendLabel",
+        "type": "string|null",
+        "default": "null",
+        "description": "Visible text beside the Send glyph (`'Start task'`), which is then also its accessible name; while busy the button reads `composer.stop`. Null keeps Send icon-only. In a composer narrower than 24rem the text is visually hidden and stays the name."
+      },
+      {
+        "name": "msg",
+        "type": "Record<string, string>|Record<string, Record<string, string>>",
+        "default": null,
+        "description": "Localized messages."
+      }
+    ],
+    "events": [
+      {
+        "name": "send",
+        "payload": "{text, files, mentions, context}",
+        "description": "Preventable send listener."
+      },
+      {
+        "name": "stop",
+        "payload": "Record<string, never>",
+        "description": "Stop listener."
+      },
+      {
+        "name": "input",
+        "payload": "{text: string}",
+        "description": "Text listener."
+      },
+      {
+        "name": "attach",
+        "payload": "{files: File[]}",
+        "description": "Preventable attach listener."
+      },
+      {
+        "name": "remove",
+        "payload": "{kind, id, file, chip}",
+        "description": "Chip removal listener."
+      },
+      {
+        "name": "mention",
+        "payload": "{item: MentionItem}",
+        "description": "Mention listener."
+      },
+      {
+        "name": "command",
+        "payload": "{item: LauncherItem}",
+        "description": "Command listener."
+      },
+      {
+        "name": "tool",
+        "payload": "{id, tool}",
+        "description": "Tool listener."
+      },
+      {
+        "name": "historyprevious",
+        "payload": "Record<string, never>",
+        "description": "Listener for ArrowUp on an empty text."
+      }
+    ],
+    "methods": [
+      {
+        "name": "focus",
+        "signature": "focus()",
+        "returns": "this",
+        "description": "Focuses the text."
+      },
+      {
+        "name": "setValue",
+        "signature": "setValue(text)",
+        "returns": "this",
+        "description": "Replaces the text, keeps the draft in step, and puts the caret at the end. Emits nothing."
+      },
+      {
+        "name": "insertText",
+        "signature": "insertText(text)",
+        "returns": "this",
+        "description": "Types text at the caret, replacing any selection, as if the person had typed it: the draft follows, and text ending in the mention trigger (`'@'`) opens the suggestions. Emits `input`. Use it for a button that starts a mention or inserts a snippet."
+      },
+      {
+        "name": "clear",
+        "signature": "clear()",
+        "returns": "this",
+        "description": "Empties the text, the attachments and the draft. Context chips stay. Emits nothing."
+      },
+      {
+        "name": "setBusy",
+        "signature": "setBusy(busy)",
+        "returns": "this",
+        "description": "Shows Stop in place of Send while an agent works; Escape in the text then emits `stop`."
+      },
+      {
+        "name": "setHint",
+        "signature": "setHint(text)",
+        "returns": "this",
+        "description": "Changes the quiet text in the bar beside Send — what Enter does now, or why sending waits. An empty text hides it."
+      },
+      {
+        "name": "setNote",
+        "signature": "setNote(text)",
+        "returns": "this",
+        "description": "Changes the line under the composer, which also describes the text box. An empty text hides it."
+      },
+      {
+        "name": "setDisabled",
+        "signature": "setDisabled(disabled)",
+        "returns": "this",
+        "description": "Turns input on or off."
+      },
+      {
+        "name": "update",
+        "signature": "update([partial])",
+        "returns": "this",
+        "description": "Changes the composer in place: the text, its caret and selection, the focus, the attachments, the context chips and the draft all stay. This is how a placeholder follows the model picked beside the composer. Keys left out (or `undefined`) are kept; other keys are ignored. Emits nothing."
+      },
+      {
+        "name": "setTools",
+        "signature": "setTools(tools)",
+        "returns": "this",
+        "description": "Replaces the bar's extra tools. A tool that held the focus keeps it when a tool with the same id is still there (and enabled); otherwise the focus moves to the text. Emits nothing."
+      },
+      {
+        "name": "setToolPressed",
+        "signature": "setToolPressed(id, pressed)",
+        "returns": "this",
+        "description": "Presses or releases a tool, which makes it a toggle if it was a plain button. Emits nothing."
+      },
+      {
+        "name": "addFiles",
+        "signature": "addFiles(files)",
+        "returns": "this",
+        "description": "Attaches files, as far as `accept` and `maxFiles` allow. Emits `attach` with the files taken."
+      },
+      {
+        "name": "addContext",
+        "signature": "addContext(chip)",
+        "returns": "this",
+        "description": "Adds a context chip, or replaces the chip with the same id. Emits nothing."
+      },
+      {
+        "name": "removeContext",
+        "signature": "removeContext(id)",
+        "returns": "this",
+        "description": "Removes a context chip. Emits nothing."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Removes what the composer drew and the launcher it opened, and stops listening."
       }
     ]
   },
@@ -8587,6 +9394,299 @@
       }
     ]
   },
+  "RenderBlocks": {
+    "options": [
+      {
+        "name": "headingLevel",
+        "type": "2|3|4|5",
+        "default": "3",
+        "description": "Element level of a level-2 `heading` block."
+      },
+      {
+        "name": "msg",
+        "type": "(key: string, ...args: unknown[]) => string",
+        "default": null,
+        "description": "Message lookup for the few words the blocks add (code copy, artifact kinds)."
+      }
+    ],
+    "events": [],
+    "methods": []
+  },
+  "RunStatus": {
+    "options": [
+      {
+        "name": "state",
+        "type": "RunState",
+        "default": "'queued'",
+        "description": "Where the run stands. Also the root's `data-state`. A `blocked` run is not over: it shows since when it is blocked, never a finished time."
+      },
+      {
+        "name": "summary",
+        "type": "string",
+        "default": "''",
+        "description": "One sentence on what is happening: \"Step 3 of 6 needs your approval.\" Text only."
+      },
+      {
+        "name": "steps",
+        "type": "RunSteps|null",
+        "default": "null",
+        "description": "Steps done out of the total, drawn as a progressbar."
+      },
+      {
+        "name": "started",
+        "type": "RunTime|null",
+        "default": "null",
+        "description": "When the run started."
+      },
+      {
+        "name": "finished",
+        "type": "RunTime|null",
+        "default": "null",
+        "description": "When it finished, failed, or was stopped. Shown once the run is over."
+      },
+      {
+        "name": "workMs",
+        "type": "number|null",
+        "default": "null",
+        "description": "How long the agent has worked, in milliseconds. Waiting for a person is not work. The row shows only when this is a number."
+      },
+      {
+        "name": "waitingSince",
+        "type": "RunTime|null",
+        "default": "null",
+        "description": "Since when the run has waited for a person, or been blocked. Shown as \"Waiting since\" while the state is `waiting` and \"Blocked since\" while it is `blocked`."
+      },
+      {
+        "name": "tokens",
+        "type": "RunTokens|null",
+        "default": "null",
+        "description": "Input and output tokens as `[in, out]`, or the total as one number."
+      },
+      {
+        "name": "tokenBudget",
+        "type": "number|null",
+        "default": "null",
+        "description": "The most tokens the run may use. With a budget the tokens are a meter, read in compact figures (\"22.8K of 60K tokens\"), that turns to the warning tone from 80% and to the danger tone at 100%. Without one they stay text."
+      },
+      {
+        "name": "cost",
+        "type": "RunCost|null",
+        "default": "null",
+        "description": "What the run has cost, against its budget."
+      },
+      {
+        "name": "model",
+        "type": "string|null",
+        "default": "null",
+        "description": "The model the agent runs on."
+      },
+      {
+        "name": "actions",
+        "type": "RunStatusAction[]",
+        "default": "[]",
+        "description": "Buttons under the summary."
+      },
+      {
+        "name": "ticking",
+        "type": "boolean",
+        "default": "true",
+        "description": "While the state is `running`, the working time counts on once a second from `workMs` and the moment of the last `update()`. One interval, which sleeps while the page is hidden."
+      },
+      {
+        "name": "compact",
+        "type": "boolean|'icon'",
+        "default": "false",
+        "description": "Draws only the state: `true` as a pill of glyph and word for a narrow header, `'icon'` as the glyph alone, its word visually hidden but still the accessible text, and shown as the pill's tooltip."
+      },
+      {
+        "name": "now",
+        "type": "(() => Date)|null",
+        "default": "null",
+        "description": "The clock: what decides whether a time is today (a time on another day shows its date too) and what the working time counts against while `ticking`. Null is real time. Fixed at construction."
+      },
+      {
+        "name": "locale",
+        "type": "string",
+        "default": null,
+        "description": "BCP 47 tag for numbers and amounts; defaults to the active language."
+      },
+      {
+        "name": "msg",
+        "type": "Record<string, string>|Record<string, Record<string, string>>",
+        "default": null,
+        "description": "Localized messages: the state words (`agent.status.*`) and the `runStatus.*` labels."
+      }
+    ],
+    "events": [
+      {
+        "name": "action",
+        "payload": "{index: number, action: RunStatusAction}",
+        "description": "Action listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "update",
+        "signature": "update(values)",
+        "returns": "this",
+        "description": "Merges new values and redraws. The working time carries on from where it stood unless the update brings a new `workMs`. Focus inside the panel stays where it was: an action row that did not change is kept as it is, and otherwise focus moves to the action at the same index (or the nearest one left), or to the panel itself when no action is left."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Stops the clock, removes what the component drew, and restores an enhanced target."
+      }
+    ]
+  },
+  "RunTrace": {
+    "options": [
+      {
+        "name": "steps",
+        "type": "TraceStep[]",
+        "default": "[]",
+        "description": "The steps the run took, in the order they started. A step with `retryOf` is drawn under the step it repeats. Model text is data: every string reaches the page as text."
+      },
+      {
+        "name": "open",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether the step list starts open under its summary."
+      },
+      {
+        "name": "label",
+        "type": "string|null",
+        "default": "null",
+        "description": "Text the summary reads instead of the computed \"Worked for …\" line — a plan's title, \"Plan · 5 of 6 done\". Any state but done still follows it as a word (\"· Running\"). `setLabel()` changes it."
+      },
+      {
+        "name": "authors",
+        "type": "Record<string, Author>",
+        "default": "{}",
+        "description": "Who the `actor` and `to` keys of the steps name; a hand-off draws both authors' avatars, round for a `person` and rounded squares otherwise. A key with no entry is shown as written."
+      },
+      {
+        "name": "showArguments",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether a step's disclosure shows the arguments its call was made with."
+      },
+      {
+        "name": "maxResult",
+        "type": "number",
+        "default": "4000",
+        "description": "Characters of a result shown before it is cut, with a \"Show all\" button for the rest. Zero or a non-finite value shows every result whole."
+      },
+      {
+        "name": "summary",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether the steps fold into a summary line. Without it the list always shows — for a run panel whose state is already told beside it."
+      },
+      {
+        "name": "kindIcons",
+        "type": "boolean|null",
+        "default": "null",
+        "description": "Whether each step leads with its kind's glyph. Without them a step shows only its status. `null` decides by the steps: a plan, where every step is a `task`, shows none; anything else shows them."
+      },
+      {
+        "name": "selectable",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether every step can be chosen: a row with nothing to open becomes a button, and a disclosure also reports the step as it opens. Both emit `select`."
+      },
+      {
+        "name": "ticking",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether a running step that has `at` shows how long it has run, counting once a second. One interval serves the whole trace; it runs only while such a step is on screen in the open list, and sleeps while the page is hidden."
+      },
+      {
+        "name": "now",
+        "type": "(() => Date)|null",
+        "default": "null",
+        "description": "The clock `ticking` counts against, for an application whose world is fixed on another date; real time when null."
+      },
+      {
+        "name": "formatTime",
+        "type": "((at: string) => string)|null",
+        "default": "null",
+        "description": "Writes a step's `at` for its meta line; \"10:31:05\" (the local ISO time as given) when null."
+      },
+      {
+        "name": "icons",
+        "type": "Partial<Record<TraceKind, string>>",
+        "default": "{}",
+        "description": "Icon names per step kind, over the built-in `STEP_ICONS`."
+      },
+      {
+        "name": "msg",
+        "type": "Record<string, string>|Record<string, Record<string, string>>",
+        "default": null,
+        "description": "Localized messages: the `runTrace.*` keys and the `agent.status.*` words."
+      }
+    ],
+    "events": [
+      {
+        "name": "toggle",
+        "payload": "{id: string|null, open: boolean}",
+        "description": "Disclosure listener."
+      },
+      {
+        "name": "reveal",
+        "payload": "{id: string}",
+        "description": "Reveal listener."
+      },
+      {
+        "name": "select",
+        "payload": "{id: string}",
+        "description": "Selection listener (`selectable` traces)."
+      },
+      {
+        "name": "open",
+        "payload": "{step: TraceStep, ref: ItemRef}",
+        "description": "Listener for a step's links."
+      }
+    ],
+    "methods": [
+      {
+        "name": "setLabel",
+        "signature": "setLabel(label)",
+        "returns": "this",
+        "description": "Sets the text the summary reads instead of the computed line; null or an empty string goes back to \"Worked for …\". Any state but done still follows it as a word."
+      },
+      {
+        "name": "setSteps",
+        "signature": "setSteps(steps)",
+        "returns": "this",
+        "description": "Replaces every step. Open steps stay open, and focus on a step's row stays on that step."
+      },
+      {
+        "name": "upsert",
+        "signature": "upsert(step)",
+        "returns": "this",
+        "description": "Adds a step, or replaces the step with the same `id`. A replaced step is redrawn on its own, keeping its place, its open state, and the retries under it; a new step is appended, under the step it repeats when it has `retryOf`."
+      },
+      {
+        "name": "expand",
+        "signature": "expand([id])",
+        "returns": "this",
+        "description": "Opens the step list, and the disclosure of the step `id` when one is given."
+      },
+      {
+        "name": "collapse",
+        "signature": "collapse([id])",
+        "returns": "this",
+        "description": "Closes the step list, or only the disclosure of the step `id` when one is given."
+      },
+      {
+        "name": "reveal",
+        "signature": "reveal(id)",
+        "returns": "this",
+        "description": "Shows one step: opens the list and the step, scrolls it into view, puts focus on its row, and marks it with `data-state=\"revealed\"` for two seconds. Under reduced motion the scroll jumps. An unknown id does nothing."
+      }
+    ]
+  },
   "Search": {
     "options": [
       {
@@ -9561,6 +10661,67 @@
         "signature": "destroy()",
         "returns": "void",
         "description": "Releases the owned Select and restores an enhanced target."
+      }
+    ]
+  },
+  "SourceList": {
+    "options": [
+      {
+        "name": "sources",
+        "type": "Source[]",
+        "default": "[]",
+        "description": "The sources, in the order an answer's `[n]` citations number them. Model text is data: every string reaches the page as text."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "default": "'Sources'",
+        "description": "The visible label the list is named by. Empty hides it and names the list with the `sourceList.label` message instead."
+      },
+      {
+        "name": "layout",
+        "type": "'chips'|'list'",
+        "default": "'chips'",
+        "description": "`'chips'` wraps short chips beside the label; `'list'` gives each source a full-width row with its title and site."
+      },
+      {
+        "name": "numbered",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether each source shows its number."
+      },
+      {
+        "name": "icons",
+        "type": "Partial<Record<SourceKind, string>>",
+        "default": "{}",
+        "description": "Icon names per source kind, over the built-in `SOURCE_ICONS`."
+      },
+      {
+        "name": "msg",
+        "type": "Record<string, string>|Record<string, Record<string, string>>",
+        "default": null,
+        "description": "Localized messages."
+      }
+    ],
+    "events": [
+      {
+        "name": "select",
+        "payload": "{source: Source, n: number}",
+        "description": "Activation listener; `preventDefault()` keeps a web source from opening."
+      }
+    ],
+    "methods": [
+      {
+        "name": "setSources",
+        "signature": "setSources(sources)",
+        "returns": "this",
+        "description": "Replaces every source. Focus on a source stays on the source with the same `id`."
+      },
+      {
+        "name": "highlight",
+        "signature": "highlight(n)",
+        "returns": "this",
+        "description": "Points at one source, as a citation `[n]` in the answer does: scrolls it into view, puts focus on it, and marks it with `data-state=\"highlighted\"` for two seconds. A number is the source's position, from 1; a string is its `id`. Anything else does nothing."
       }
     ]
   },

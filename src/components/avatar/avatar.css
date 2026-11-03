@@ -47,7 +47,8 @@
 
 .zx-avatar__image[hidden],
 .zx-avatar__fallback[hidden],
-.zx-avatar__status[hidden] {
+.zx-avatar__status[hidden],
+.zx-avatar__activity[hidden] {
   display: none;
 }
 
@@ -80,7 +81,61 @@
 .zx-avatar__status[data-status="away"] { background: var(--zx-color-warning); }
 .zx-avatar__status[data-status="busy"] { background: var(--zx-color-danger); }
 
+/*
+ * An agent's activity. Each one is a shape as well as a tone, so it reads where the colour does
+ * not: a solid dot for working, thinking and needs-you, a square for blocked, a hollow ring for
+ * idle, and a dashed ring for offline. The outline cuts the dot out of the avatar it sits on.
+ */
+.zx-avatar__activity {
+  position: absolute;
+  inset-inline-end: 0;
+  inset-block-end: 0;
+  box-sizing: border-box;
+  inline-size: max(8px, calc(var(--zx-avatar-size) * .3));
+  block-size: max(8px, calc(var(--zx-avatar-size) * .3));
+  border-radius: 50%;
+  outline: 2px solid var(--zx-color-bg-raised);
+  background: var(--zx-color-text-muted);
+}
+
+.zx-avatar[data-activity="working"] > .zx-avatar__activity { background: var(--zx-color-success); }
+.zx-avatar[data-activity="thinking"] > .zx-avatar__activity { background: var(--zx-color-info); }
+.zx-avatar[data-activity="needs-you"] > .zx-avatar__activity { background: var(--zx-color-warning); }
+
+/* A square, whatever the theme's radius: the shape is the signal. */
+.zx-avatar[data-activity="blocked"] > .zx-avatar__activity {
+  border-radius: 15%;
+  background: var(--zx-color-danger);
+}
+
+.zx-avatar[data-activity="idle"] > .zx-avatar__activity {
+  border: 1.5px solid var(--zx-color-text-muted);
+  background: var(--zx-color-bg-raised);
+}
+
+.zx-avatar[data-activity="offline"] > .zx-avatar__activity {
+  border: 1.5px dashed var(--zx-color-text-subtle);
+  background: var(--zx-color-bg-raised);
+}
+
+/* An animated avatar pivots low, the way a head nods; the shared loop writes only `transform`. */
+.zx-avatar[data-animate] {
+  transform-origin: 50% 75%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .zx-avatar[data-animate] {
+    will-change: transform;
+  }
+}
+
 /* Forced colours drop the tint; a system-coloured edge keeps the fallback a shape. */
 @media (forced-colors: active) {
   .zx-avatar__fallback { border: 1px solid CanvasText; }
+  .zx-avatar[data-activity] > .zx-avatar__activity { background: CanvasText; }
+
+  .zx-avatar:is([data-activity="idle"], [data-activity="offline"]) > .zx-avatar__activity {
+    border-color: CanvasText;
+    background: Canvas;
+  }
 }

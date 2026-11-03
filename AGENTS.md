@@ -117,7 +117,7 @@ Register exports in `src/index.js` and CSS `@import` in `styles/zx.css`.
 ```js
 export default {
   title: 'Select',            // display name
-  group: 'Inputs',            // Core | Helpers | Inputs | Layout | Feedback | Overlays | Pickers | Data | Forms
+  group: 'Inputs',            // Core | Helpers | Inputs | Layout | Feedback | Overlays | Pickers | Data | Forms | Agents
   mount(container) { ... }    // build one or more usage examples into container
 };
 ```

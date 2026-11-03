@@ -998,14 +998,28 @@ and the component is decorative by default so adjacent identity text is not anno
 - **Options** — `src`, `name`, `initials`, `label`, `size: 'sm'|'md'|'lg'|<pixels>` (24 / 32 /
   40px at the default spacing unit), `shape: 'circle'|'rounded'|'square'`, `tone:
   'blue'|'teal'|'green'|'amber'|'orange'|'red'|'pink'|'violet'|'slate'|null`, `status:
-  'online'|'away'|'busy'|'offline'|null`, and `statusLabel`.
+  'online'|'away'|'busy'|'offline'|null`, `statusLabel`, `activity:
+  'idle'|'thinking'|'working'|'needs-you'|'blocked'|'offline'|null`, `activityLabel`, `animate: false`, and `phase: null|number`.
 - **Fallback** — no ring; the `--zx-color-tone-*-bg` fill with its `-fg` ink, initials at 0.4× the
   size (never under 10px), weight 600, one initial below 24px. `tone: null` derives the tone with
   `avatarTone(name)` (exported from the module): FNV-1a over the trimmed, NFC-normalised,
   lower-cased name, mapped onto the eight chromatic tones, so a person keeps their colour on every
   screen. `slate`, the neutral, is reserved for an avatar with no name and can be set explicitly.
   The root carries `data-tone`. `avatarInitials(name, limit = 2)` returns the initials.
-- **Methods** — `set(values)`, `setStatus(status, label?)`, `hasImage()`, `destroy()`.
+- **Agent activity** — `activity` draws what an agent is doing as a dot whose shape differs as
+  well as its tone: solid success (working), solid info (thinking), solid warning (needs you), a
+  danger square (blocked), a hollow ring (idle), and a dashed ring (offline). Its word ("Needs
+  you", or `activityLabel`) joins the accessible name and the dot's tooltip, and the root carries
+  `data-activity`. When both are given, `activity` wins over `status`. `animate: true` moves the
+  avatar with its activity — idle breathes, thinking sways, working bobs, needs-you leans and
+  blinks — in the one `requestAnimationFrame` loop every animated avatar on the page shares: only
+  on screen, never while the page is hidden, and back at rest under reduced motion (the system's
+  or a `data-zx-motion="reduced"` region). While it is on, the loop owns the root's `transform`. `phase` sets where in its activity's cycle the avatar moves, as a fraction from 0 up to 1
+  (whole turns wrap): two avatars of one agent on the same screen — a roster and an inspector —
+  at `phase: 0` and `phase: 0.5` move half a cycle apart. `null` derives the phase from the name
+  (or the initials), so avatars of the same agent without a phase move in step.
+- **Methods** — `set(values)` (any option above, `phase` included, applied while the avatar moves), `setStatus(status, label?)`,
+  `setActivity(activity, label?)`, `getActivity()`, `hasImage()`, `destroy()`.
 - **Accessibility** — set `label` only when the avatar stands alone. Presence is supplementary
   status, not the account's accessible name; supply `statusLabel` when it conveys information.
 <!-- /doc -->
@@ -3276,6 +3290,445 @@ bar.setBadge('mail', 8);
   the neutral `--zx-color-bg-current` fill behind the tile, never the accent or an edge bar.
 - **Geometry** — a target is one control plus a space step, a tile one control less one, so
   `--zx-control-height` resizes the bar; a coarse pointer keeps a 40px target.
+<!-- /doc -->
+
+### Agents — the conversation model
+
+The agent components draw a conversation with one or more AI agents from **plain JSON**: no
+functions and no DOM nodes in the data, so an agent can produce it, an application can store and
+replay it, and a component can render it. Three rules hold for every agent component:
+
+1. **The application owns transport and state.** No agent component fetches anything. The
+   application feeds them (`upsert`, `patch`, `appendText`) and acts on the intents they emit
+   (`send`, `stop`, `approve`, `regenerate`, …).
+2. **Model text is data.** Every string an agent wrote reaches the page as text. Inside a text run
+   the whole grammar is `**bold**`, `` `code` `` and `[n]` citations (a backslash makes a marker
+   literal); there are no links, no HTML, and no images in answer text.
+3. **Consequence comes from the application.** Whether an action needs a confirmation — and which
+   — is decided by the application from the tool the action triggers, never taken from model
+   output.
+
+A thread is a list of items, each `{id, type, at?, author?, …}`, where `author` is a key into
+the thread's `authors` (`{name, kind: 'person'|'agent'|'model', initials?, tone?, activity?, via?}`):
+
+```json
+[
+  {"id": "ask", "type": "user", "text": "Reconcile September and draft reminders.", "files": [{"name": "Policy.pdf", "size": 188416}]},
+  {"id": "note", "type": "text", "author": "finance", "text": "I’ll check the bank feed first."},
+  {"id": "work", "type": "trace", "author": "finance", "steps": [
+    {"id": "q", "kind": "query", "label": "Queried invoices", "count": "42 rows", "ms": 800, "tool": "invoices.search", "args": "{\"month\": \"2026-09\"}", "result": "42 invoices"}
+  ]},
+  {"id": "a1", "type": "answer", "author": "finance", "blocks": [
+    {"type": "p", "text": "Three invoices are more than **14 days** late [1]."},
+    {"type": "figures", "rows": [["Late", "3 invoices", "€19,375.50"]]}
+  ], "sources": [{"id": "inv", "title": "Invoices · September", "kind": "call", "call": "q"}]},
+  {"id": "ok", "type": "approval", "author": "finance", "title": "Send 3 reminder emails?", "status": "pending"},
+  {"id": "n1", "type": "notice", "text": "The bank feed timed out; retried once.", "tone": "warning"}
+]
+```
+
+- **Blocks** — `p`, `quote`, `heading` (`level: 2|3`), `list` (`ordered`), `code` (`language`),
+  `table` (`columns`, `rows`, `align`), `figures` (`rows` of `[label, detail, value]` or
+  `{label, detail?, value, call?}`), `callout` (`tone`, `title`), `artifact` (`id`, `title`,
+  `kind: 'document'|'code'`, `versions`).
+- **Steps** — `{id, kind: 'search'|'read'|'query'|'write'|'run'|'call'|'handoff'|'think', label,
+  status, doing?, detail?, ms?, count?, sources?, tool?, args?, result?, error?, retryOf?, actor?,
+  to?, at?}`. A retry names the step it repeats with `retryOf`; a hand-off names `actor` and `to`.
+- **States** — runs and steps are `queued`, `running`, `waiting`, `paused`, `done`, `failed`,
+  `stopped`, or `skipped`; an agent's activity is `idle`, `thinking`, `working`, `needs-you`,
+  `blocked`, or `offline`. Each is always drawn as a glyph and a word, never by colour or motion
+  alone.
+
+<!-- doc:block-view -->
+### BlockView — `new BlockView(target, options)` / `renderBlocks(blocks, options)`
+
+An answer an agent wrote, drawn block by block as semantic elements inside `.zx-prose`, and
+written to as it streams. Finished blocks are never redrawn: `append()` and `appendText()` touch
+only the last block, so a reader's selection or focus in an earlier paragraph survives the rest of
+the answer arriving.
+
+- **Options** — `blocks: []`, `headingLevel: 3` (the element level of a level-2 `heading` block;
+  set it one below the heading that names the answer), `size: 'sm'|'md'` (interface or reading
+  size), `streaming: false`, `sources: null` (names the citation buttons by title), `msg`.
+- **Methods** — `setBlocks(blocks, {streaming?})`, `append(block)`, `appendText(text)` (continues
+  the last paragraph, or opens one; a blank line in the text starts a new paragraph; a marker split
+  across two chunks resolves when its close arrives), `end()`, `stop()` (adds "Stopped here."),
+  `setSources(sources)`, `setArtifactState(id, {expanded, controls})` (reflects whether the
+  application has the artifact open somewhere), `getBlocks()`, `isStreaming()`, `toText()`,
+  `toMarkdown()`, `destroy()`. A single line break in model text is kept (an address, a sign-off); a
+  blank line starts a new paragraph.
+- **Events** — `cite {n, source}` from a citation button, `artifact {id}` from an artifact card,
+  `end` when a streamed answer is marked finished.
+- **Rendering** — code is a figure with its language, a copy button and a focusable `<pre>`
+  (`lines: true` on a code block numbers its lines and wraps long ones under their own indent, for
+  code read at length in an inspector),
+  coloured for js, ts, json, sql, python, shell and css (anything else stays plain); a wide table
+  scrolls inside the answer and becomes a named, focusable region only while it overflows; figures
+  are a `<dl>` with tabular numbers; a callout uses `.zx-callout` with its tone as `data-kind`.
+- **Static** — `renderBlocks(blocks, options)` returns a `DocumentFragment` for a transcript or a
+  print view: citations are plain superscripts and artifacts plain cards. `blocksToMarkdown(blocks)`
+  and `blocksToText(blocks)` export an answer for copying and search.
+- **State** — `data-state` is `streaming`, `done` or `stopped`; the root is `aria-busy` while it
+  streams. Streamed text is never inside a live region.
+<!-- /doc -->
+
+<!-- doc:agent-thread -->
+### AgentThread
+
+A conversation with one or more agents, drawn from the items above: the person's messages, the
+agents' answers as they stream (`BlockView` with a `SourceList`), the steps a run took
+(`RunTrace`), the approvals that hold it (`ApprovalCard`), and one-line notices.
+
+- **Options** — `items: []`, `authors: {}`, `me: 'me'` (the reader's author key; an item without
+  `author` is the reader's when it is a `user` item), `label` (the feed's name, "Conversation"),
+  `headingLevel: 3`, `emptyState: null` (`emptyState()` options shown while empty),
+  `followOutput: true`, `scroller: null` (the element that scrolls; the nearest scrolling ancestor
+  when null), `answerActions: ['copy', 'regenerate', 'branch']` (add `'rate'` for helpful / not
+  helpful), `userActions: []` (`'edit'`, `'copy'` on the reader's own messages, revealed while the
+  message is pointed at or holds focus), `icons` (glyphs for `regenerate`, `branch`, `rateUp`,
+  `rateDown`, `edit`), `traceIcons` (handed to every `RunTrace` it draws), `now: null` (the clock
+  "today" is measured against, for a world on fixed dates), `formatTime`, `locale`, `msg`.
+- **Item extras** — any item's `refs: [{id, label, icon?, entity?}]` draws links to the
+  application's own things after its content (`open {item, ref}`); a `user` item's `mentions`
+  (names, or `{name, tone}`) marks each `@name` in its text; an `answer`'s `steps` show the work it
+  did inline above its text (`stepsOpen` opens them) and, like `stopped`, `rating` and `at`, follow
+  its version (`versions[]`); a `trace`'s `title` replaces its summary (a plan:
+  "Plan · 5 of 6 done"); a `notice` is named by its own text and may carry `action: {id, label}`
+  (`action {item, action: id}`); an author with an `icon` is drawn as a tinted tile instead of
+  initials (round for a `model`; `tone: 'accent'` for the accent's quiet fill); an `approval`'s
+  `editedKeys` say which values the person changed. `setArtifactState()` is remembered for answers
+  drawn later; `sourceIcons` is handed to every `SourceList`.
+- **Methods** — `setItems(items)`, `upsert(item)` (adds, or replaces in place by `id`),
+  `patch(id, partial)` (an answer finishing, stopping or gaining sources, a trace's steps, an
+  approval's status change in place; anything else redraws the item), `appendText(id, text)`
+  (streams into an answer, creating it when the id is new), `appendBlock(id, block)` (adds a whole
+  block — figures, a table — without redrawing the answer), `announce(text)` (says an outcome
+  through the thread's polite status), `setArtifactState(id, {expanded, controls})` (whether an
+  artifact is open in an inspector, on every card naming it), `remove(id)`, `get(id)`,
+  `getItems()`, `getComponent(id)`, `reveal(target)` (`item:<id>`, `step:<id>`, `source:<n>`),
+  `scrollToEnd()`, `destroy()`. The static `AgentThread.register(type, render)` draws an item type
+  of the application's own; `render(item, {thread, author, own})` returns its content, and `own()`
+  hands a component to the thread to destroy with the item.
+- **Events** — `action {item, action, value?}` (`copy`, `regenerate`, `branch`, `rate` with
+  `up`/`down`/null, `version` with an index — preventable for `rate` and `version`; `edit` on the
+  reader's message; a notice's action id), `open {item, ref, step?}` (an item's link, or a trace
+  step's),
+  `approve {item, values}`, `edit {item, values}`, `reject {item, reason}` (preventable: the card
+  stays pending), `cite {item, n, source}` (preventable: by default the cited source is
+  highlighted), `artifact {item, id}`, `reveal {target}`. Each reaches a listener on the thread's
+  root once, as the thread's `zx-*` event: the cards, answers and traces inside it do not bubble
+  their own copies past it. A source that names a `call` reveals that
+  step in the trace.
+- **Turns** — consecutive items by the same agent read as one turn: the avatar and byline are drawn
+  once, and the byline still names every article. The reader's own messages sit at the end as a
+  bubble without an avatar.
+- **Following output** — while the reader is at the end, new output keeps the end in view;
+  scrolled up, a "Jump to latest" button appears and the reader is never moved. While a streaming
+  answer has nothing yet, a quiet line says who is writing.
+- **Narrow** — the thread is a size container; below 30rem the content takes the full width and
+  the avatar stays beside the byline.
+- **Keyboard and semantics** — the APG feed pattern: each item is an `article` in a `role="feed"`
+  with `aria-posinset`, `aria-setsize` and `aria-labelledby` its byline; PageDown and PageUp move
+  between articles; Ctrl+End and Ctrl+Home move focus past the end or before the start of the feed.
+  The feed is `aria-busy` while an answer streams. One polite status says when an agent starts
+  writing, answers, needs approval, or is stopped — streamed text is never read aloud as it arrives.
+<!-- /doc -->
+
+<!-- doc:run-status -->
+### RunStatus
+
+Where an agent's run stands, for a run panel or a narrow header: the state as a glyph and a word,
+one sentence on what is happening, the steps as a progressbar, when it started and how long the
+agent has worked, the tokens, and the cost against a budget. It draws the values it is given and
+announces nothing itself; the thread the run belongs to announces its milestones.
+
+- **Options** — `state` (a run state: `queued`, `running`, `waiting`, `paused`, `blocked`, `done`,
+  `failed`, `stopped`, `skipped`; default `'queued'`, reflected as `data-state`), `summary` (one
+  sentence, text only), `steps: {done, total}|null`, `started`, `finished` and `waitingSince`
+  (local ISO date-time strings or `Date`s), `workMs` (milliseconds worked; the row shows only when
+  it is a number), `tokens: [in, out]|number|null` (the pair, or the total as one number),
+  `tokenBudget: number|null`, `cost: {amount, budget?, currency}|null`, `model`,
+  `actions: [{label, kind?, icon?, onclick?}]`, `ticking: true`, `compact: false|true|'icon'`,
+  `now: (() => Date)|null`, `locale`, and `msg` (the `agent.status.*` words and the `runStatus.*`
+  labels).
+- **Rendering** — the state line; the summary; a `role="progressbar"` whose `aria-valuetext` reads
+  "3 of 6 steps"; the actions as small buttons; and a `<dl>` of Started, Working time, Waiting
+  since (while `waiting`) or Blocked since (while `blocked`), Finished / Failed at / Stopped at
+  (once the run is over), Model, Tokens ("18,420 in · 1,236 out", or "22,840" for a total) and
+  Cost. With a `budget` the cost is a `role="meter"` reading "€0.14 of €2.00" whose `data-level`
+  is `warning` from 80% and `danger` at 100%. With a `tokenBudget` the tokens are a meter the same
+  way, in the locale's compact figures (`Intl.NumberFormat` `notation: 'compact'`): "22.8K of 60K
+  tokens"; without one they stay text. A time on another day than today shows its date too.
+- **Blocked** — `blocked` is a glyph and the word "Blocked" in the danger tone, and the steps bar
+  takes the danger tone. A blocked run is not over: it shows "Blocked since" from `waitingSince`
+  and never a finished time.
+- **Compact** — `compact: true` (reflected as `data-compact`) draws only the state, glyph and
+  word, as a pill for a header too narrow for the panel. `compact: 'icon'`
+  (`data-compact="icon"`) draws the glyph alone, for a list row: the word stays in the pill,
+  visually hidden, as its accessible text, and is the pill's `title` tooltip.
+- **Ticking** — while `state` is `running` and `ticking` is on, the working time counts on once a
+  second from `workMs` and the moment of the last `update()`, through one interval that sleeps
+  while the page is hidden. Leaving `running` freezes the clock where it stands. `now` replaces
+  the clock, both for that count and for deciding whether a time is today; a fixed `now` makes the
+  panel deterministic for screenshots and tests. It is fixed at construction.
+- **Focus** — `update()` keeps focus where it was: an action row whose labels, kinds, and icons did
+  not change is kept as it is, so the focused button never leaves the DOM; otherwise focus goes to
+  the action at the same index, or the nearest one left. When no action is left the panel itself
+  holds focus (`tabindex="-1"`, removed again once focus moves on).
+- **Methods** — `update(values)` merges new values and redraws (the clock carries on unless the
+  update brings a new `workMs`; `locale`, `msg`, `now`, and `onaction` are fixed), `getState()`
+  (the values as copies, `tokenBudget` included, `workMs` counted up to now), `destroy()`.
+- **Events** — `action {index, action}`, after the descriptor's own `onclick`.
+<!-- /doc -->
+
+<!-- doc:composer -->
+### Composer — the message box of an agent conversation
+
+A text that grows with what is written, Send (Stop while the agent works), attachments, `@`
+mentions, `/` commands, extra tools and removable context chips. It keeps only the unsent message:
+`send` hands the text, files, mentions and context to the application, which owns the conversation
+and the transport.
+
+- **Constructor** — `new Composer(null, options)` creates its own root; `new Composer(element,
+  options)` takes over an element and restores it on `destroy()`.
+- **Options** — `label` (accessible name of the text and of the `role="group"` root, English
+  `Message`), `placeholder`, `value`, `submitKey: 'enter'|'mod+enter'`, `busy: false`,
+  `disabled: false`, `attachments: false`, `accept: ''` (the `<input type="file">` syntax),
+  `maxFiles: 10`, `mentions: null|{trigger: '@', items}` where `items` is `[{id, label,
+  description?, icon?}]` or `(query) => items | Promise<items>`, `commands: null|LauncherItem[]`,
+  `tools: []` (`[{id, label, icon, pressed?, expanded?, controls?, disabled?}]` — `pressed` makes a
+  toggle, `expanded`/`controls` a disclosure; see Tools), `icons: {}` (`attach`, `commands` glyphs),
+  `context: [{id, label,
+  icon?, ref?}]`, `hint` (quiet text beside Send), `note` (a quiet line under the composer, also
+  its description), `sendLabel: null` (visible text on Send, see Send), `draftKey: null`,
+  `minRows: 1` (the text never shrinks below it, even empty; capped at `maxRows`), `maxRows: 10`
+  (it scrolls beyond), `msg`.
+- **Methods** — `focus()`, `getValue()`, `setValue(text)`, `insertText(text)` (types at the caret
+  as the person would — text ending in `@` opens the suggestions), `clear()` (text, files and draft;
+  context stays), `setBusy(busy)`, `isBusy()`, `setDisabled(disabled)`, `setHint(text)`,
+  `setNote(text)` (an empty text hides either), `update(partial)`, `setTools(tools)`,
+  `setToolPressed(id, pressed)`, `addFiles(files)`, `getFiles()`, `addContext(chip)` (replaces a
+  chip with the same id), `removeContext(id)`, `getContext()`, `destroy()`. The setters emit
+  nothing.
+- **update(partial)** — changes `label`, `placeholder`, `hint`, `note`, `submitKey`, `sendLabel`,
+  `disabled` and `busy` in place; a key left out or `undefined` is kept, other keys are ignored.
+  The text, its caret and selection, the focus, the attachments, the context chips and the draft
+  all stay, so a placeholder that names the chosen model follows the model picker without
+  recreating the composer: `composer.update({placeholder: 'Message Halden 3 Deep'})`.
+  `label: null` returns to `composer.label`; an empty `placeholder` removes it.
+- **Events** — `send {text, files, mentions, context}` is preventable: unless prevented, the text,
+  files and draft clear; it never fires with an empty text and no files, nor while busy. `text` is
+  trimmed; `mentions` are the picked items whose `@<label>` is still in the text. `stop`,
+  `input {text}`, `attach {files}` (preventable, before the files are added), `remove {kind:
+  'file'|'context', id, file?, chip?}` (after the reader removes one), `mention {item}`,
+  `command {item}` (the application's own item), `tool {id, tool}` (a copy of the tool as it
+  stands, `pressed` included), `historyprevious`.
+- **Keyboard** — `submitKey: 'enter'`: Enter sends, Shift+Enter breaks the line;
+  `'mod+enter'`: Cmd+Enter (Ctrl+Enter elsewhere) sends, Enter breaks the line. A key during an IME
+  composition never sends. Escape closes the suggestions, otherwise emits `stop` while busy (and is
+  left alone when idle, so a surrounding dialog can close). ArrowUp on an empty text emits
+  `historyprevious`; `/` on an empty text opens the commands. In the suggestions, Up and Down move,
+  Enter or Tab picks, Escape closes. Tools are ordinary buttons in the tab order (Enter or Space).
+  No key is bound on the document.
+- **Tools** — icon buttons in the bar after Attach and Commands, each named by its `label` (also
+  its `title` tooltip). A boolean `pressed` makes a toggle with `aria-pressed`, drawn with the
+  neutral current fill and an edge; without it the tool is a plain button. Pressing one emits
+  `tool`; the composer never changes `pressed` itself — call `setToolPressed(id, !tool.pressed)`.
+  `setTools(tools)` redraws them, keeping the focus on the tool with the same id (on the text when
+  that tool is gone or disabled). An entry without `id`, `label` or `icon` is left out, as is a
+  repeated id; other fields on a tool are handed back in `tool`. `icon` is a built-in glyph name or
+  one the application registered with `registerIcons()`. Tools are disabled with the composer.
+- **Send** — one button that swaps its glyph, name and `aria-keyshortcuts` between Send and Stop.
+  With `sendLabel` (`'Start task'`) it shows the glyph and that text, which is also its accessible
+  name; while busy it reads `composer.stop` ("Stop"). In a composer narrower than 24rem (a phone, a
+  side column) the text is visually hidden and Send is the square glyph again — the text stays its
+  accessible name and its tooltip.
+- **Mentions** — the query is the text after the trigger up to the caret, with no whitespace;
+  picking writes `@<label> `. An array is filtered by label prefix, word prefix, label substring,
+  then id prefix or a word of the description, ignoring case and accents. A function answers the
+  query itself; a stale Promise is ignored.
+- **Commands** — opened in a `Launcher` the composer creates on first use and destroys with
+  itself; an item with `items` opens a page. The commands keep the order given. A Commands button
+  in the bar opens the same list for pointer and touch.
+- **Files** — the Attach button, pasting files, and dropping files on the composer (the root shows
+  `data-state="dropping"` and a drop label meanwhile) add attachments, filtered by `accept` and
+  capped by `maxFiles`.
+- **Accessibility** — the `<textarea>` keeps its textbox role. While suggestions show it carries
+  `aria-autocomplete="list"`, `aria-controls` (the listbox) and `aria-activedescendant` (the
+  highlighted `role="option"`), and a polite status says how many there are. Attachments and
+  context chips are labelled lists, each chip with a button named "Remove <name>". Send is never
+  disabled while the composer is live (it is `aria-disabled` when there is nothing to send), so
+  the focus it holds survives a run ending. A toggled tool states itself with `aria-pressed`, not
+  colour alone.
+- **Draft** — with `draftKey`, the unsent text is kept through `storage('composer')`, restored
+  when the composer is created without a `value`, and cleared on send and `clear()`.
+<!-- /doc -->
+
+<!-- doc:approval-card -->
+### ApprovalCard
+
+A request that holds an agent's run until a person answers it: what the agent wants to do, what
+will happen, a preview of what it produces, and Approve, Edit, and Reject. Answered, it freezes
+into the record of what was decided, by whom, and when. The card never acts on its own — it emits
+the answer, and the application carries it out.
+
+- **Options** — `title`, `description`, `icon: null` (an icon name for the tinted tile), `tone:
+  'blue'` (`slate|blue|teal|green|amber|orange|red|pink|violet`), `headingLevel: 3`,
+  `status: 'pending'|'approved'|'rejected'|'expired'`, `details: Node|Block[]|null` (recipients,
+  amounts, records), `preview: {label, content: Node|Block[]}|null` (behind a disclosure; `blocks`
+  is accepted for `content`, as the thread model spells it), `fields: Record<string,
+  FieldOptions>|null` (the Edit form — no fields, no Edit), `values: {}`, `confirmText: null`,
+  `reason: 'optional'|'required'|'none'` (whether Reject asks why), `answeredBy: null` (the verdict's
+  "you" when null), `answeredAt: null` (local ISO date-time or Date), `edited: false`,
+  `editedKeys: null` and `rejectReason: null` (for a card restored from a record), `now: null`
+  (a `() => Date` clock), `keys: true`, and `msg`.
+- **Edited values** — `edited: true` lists every field under "Edited by you"; `editedKeys:
+  ['subject']` lists only those (in field order) and on its own marks the card edited. The card's
+  own Edit flow keeps `editedKeys` as the union of every save so far, so a restored card and a
+  card edited in place list the same thing.
+- **Events** — `approve {values}`, `edit {values, changed, editedKeys}`, `reject {reason}`, all
+  **preventable** (on the component or on the bubbling `zx-*` event). Unless `approve` or `reject`
+  is prevented the card moves to its answered state; a saved `edit` keeps it pending and adopts
+  the values. `changed` names the fields this save changed. `editedKeys` is the union the card
+  will list (null when it lists every field), so the application can store it with the record.
+  Prevent an answer to refuse or defer it, then settle the card with `setStatus()`.
+- **Methods** — `update(partial)` changes any of `title`, `description`, `icon`, `tone`,
+  `details`, `preview`, `fields`, `values`, `confirmText`, `reason`, `edited`, `editedKeys` in
+  place (see below); `setStatus(status, {by?, at?, reason?})` (emits nothing; `at` defaults to
+  now; closes any of the card's open dialogs), `getStatus()`, `getValues()` (a copy, edits
+  included), `getEditedKeys()` (`[]` when not edited, `null` when every field is listed),
+  `focus()` (the root is `tabindex="-1"`, so a thread can move focus to a request when a run
+  starts waiting), `handleKey(event)` → `boolean`, and `destroy()` (also destroys the card's
+  dialogs, including an open confirmation).
+- **Update in place** — `update()` is for a request the agent revises while it waits, or a record
+  that changed. It redraws only what changed: values equal to what is drawn (compared by content,
+  so a fresh copy of the same blocks or fields counts as equal) are left alone, and focus stays
+  where it was. When the focused control goes away (Edit when `fields` go, the preview toggle when
+  `preview` goes), focus moves to the card. A change closes a dialog only when the dialog no
+  longer applies: new `fields` close the Edit form, a new `reason` closes the Reject dialog, a new
+  `confirmText` closes the typed confirmation without approving. An open Edit form stays open over
+  new `values`. Status goes through `setStatus()`. `update()` emits nothing.
+- **Approve** — with `confirmText`, Approve first opens `Dialog.confirm({confirmText, danger:
+  true})` titled with the card's title; only a confirmed approval emits `approve`.
+- **Reject** — `reason: 'optional'` asks in a dialog with a textarea and accepts an empty answer;
+  `'required'` keeps the Reject button disabled until the reason is non-empty; `'none'` rejects at
+  once with `reason: ''`. Mod+Enter submits the Reject and Edit dialogs.
+- **Answered state** — no actions; the line under the title becomes the verdict ("Approved by you
+  at 10:31"; the date is added when it is not today, by the `now` clock); the edited values and
+  the reason (as a quote) stay. An answer given on the card, or a `setStatus()` without `at`,
+  takes its time from `now`. `data-state` is the status, and the state pill is a `statusIcon()`
+  glyph plus its word (waiting, done, skipped, stopped glyphs for pending, approved, rejected,
+  expired).
+- **Keyboard** — A approves, E edits, R rejects, only while focus is inside the pending card, not
+  in a text control, with no modifier held, and while none of the card's dialogs is open. The card
+  binds no document key: an application that wants them from elsewhere forwards the event to
+  `handleKey(event)`, which returns true and prevents the default when it used the key.
+  `keys: false` stops the card listening on itself (and drops the key hints on its buttons).
+- **Accessibility** — `role="group"` labelled by the title heading and described by the
+  description and the state line; a pending card says "The run is paused until you answer."
+  (message `approvalCard.paused`). The preview toggle follows the APG Disclosure pattern.
+- **Consequence comes from the application** — whether an action needs `confirmText` (or
+  `reason: 'required'`) is decided by the application from the tool the action triggers. It is
+  never taken from model output: an agent that could set its own confirmation could also waive it.
+<!-- /doc -->
+
+<!-- doc:run-trace -->
+### RunTrace
+
+What an agent did during a run: a one-line summary ("Worked for 41 s · 5 tool calls · 9 sources ·
+1 retry") that opens into a timeline of its steps. A tool call opens to the arguments it was made
+with and what came back; a retry is drawn under the call it repeats; a hand-off shows both agents.
+The same component draws a plan: `task` steps under a `label` of the plan's own, the people's
+`ask` and `decision` steps among them, chosen one at a time with `selectable`. The trace changes
+only when the application calls `setSteps()`, `upsert()` or `setLabel()`.
+
+- **Options** — `steps: []` (`TraceStep[]`, in the order they started), `open: false` (the step
+  list starts open), `label: null` (text the summary reads instead of the computed line — "Close
+  September · 2 of 5 done"; every state but done still follows it as a word, "· Running"),
+  `authors: {}` (who the steps' `actor` and `to` keys name), `showArguments: true`,
+  `maxResult: 4000` (characters of a result shown before a "Show all" button; 0 shows every
+  result whole), `summary: true` (false: no summary line, the list always shows — for a run panel
+  whose state is told beside it), `kindIcons: null` (whether a step leads with its kind's glyph;
+  null hides them for a plan whose steps are all `task`s), `selectable: false` (every step can be chosen, see Events), `ticking: false`
+  (a running step that has `at` counts its time once a second, on from its `ms` when it was
+  resumed), `now: null` (`() => Date`, the
+  clock `ticking` counts against, for an application whose world is fixed on another date; real
+  time when null), `formatTime: null` (`(at) => string`, how a step's start time is written;
+  "10:31:05" when null), `icons: {}` (glyph per step kind over the built-in `search`→search,
+  `read`→file, `query`→table, `write`→type, `run`→code, `call`→gear, `handoff`→link-2,
+  `think`→dots, `task`→list, `ask`→mail, `decision`→check), `msg` (`runTrace.*` and the
+  `agent.status.*` words).
+- **Methods** — `setSteps(steps)` (open steps stay open, focus stays on its step),
+  `upsert(step)` (replaces the step with the same `id` and redraws only that step, keeping its
+  retries, its open state, and focus on its row or links; a new step is appended, under the step
+  it repeats when it has `retryOf`), `setLabel(text|null)` (null or `''` goes back to the computed
+  line), `expand(id?)` (opens the list, and that step), `collapse(id?)` (closes the list, or only
+  that step), `reveal(id)` (opens the list and the step, scrolls to it, focuses its row and marks
+  it `data-state="revealed"` for 2 s; the scroll jumps under reduced motion), `getSteps()`,
+  `isOpen()`, `destroy()` (also stops the clock).
+- **Events** — `toggle {id, open}` whenever the list (`id: null`) or a step opens or closes, from a
+  click or a method; `reveal {id}`; `open {step, ref}` when one of a step's links is activated
+  (copies; the application opens what the `ref` names); `select {id}` in a `selectable` trace when
+  the reader activates a row with nothing to open, or opens a step's disclosure (not from
+  `expand()` or `reveal()`, so an application can answer `select` with them).
+- **Rendering** — while a step runs the summary reads "Working…" with the step's `doing` line, and
+  the step shows "Reading the policy…"; with `ticking` and an `at`, its end shows how long it has
+  run ("41 s", "1 min 42 s"). A waiting or blocked run says so and names the step ("Blocked after
+  12 s · 3 tool calls"); paused, stopped and failed runs say so first ("Failed after 12 s · 3
+  tool calls"); a run no step of which has started reads "Not started · 6 steps". Counts are left
+  out at zero, and `think`, `handoff`, `task`, `ask` and `decision` steps are not tool calls. Each
+  step's muted meta line follows its label and wraps under it only when narrow: the `count`, a
+  search's `sources`, the actor's name, the start time (`<time>`, tabular figures) and the
+  `tokens` it used ("912 tokens"), each only when present. A step's `refs` (`ItemRef[]`, `{id,
+  label, icon?, entity?}`) are quiet underlined link buttons under its words, with the glyph when
+  `icon` is set. A step with `args`, `result`, `error` or `detail` is a disclosure holding the tool
+  name (mono), the detail, the arguments (pretty-printed when they parse as JSON, verbatim
+  otherwise) and the result or the error, each in a focusable `<pre>` with a copy button. A
+  `handoff` step reads "Finance agent handed over to Collections agent" beside both authors'
+  avatars joined by a dotted line — round for a `person`, a rounded square for an agent or a
+  model — and its own label moves to the meta line.
+- **Accessibility** — the summary and every step with content follow the APG Disclosure pattern
+  (`aria-expanded`, `aria-controls`); in a `selectable` trace a step without content is a plain
+  `<button>`. A step's links are buttons beside its row, never inside it, so no control holds
+  another; each is reached with Tab. The running step carries `aria-current="step"`. Every state
+  is a glyph and a word: visible for waiting, blocked, failed, stopped, skipped and queued steps
+  (blocked and failed in the danger tone), visually hidden beside a finished step's duration and a
+  running step's "…ing" line. The running glyph pulses only without a reduced-motion preference.
+  The clock is one interval for the whole trace, running only while a counting step is in the open
+  list and the page is visible. The trace has no live region; the thread it sits in announces
+  milestones.
+- **State** — the root's `data-state` is the run's state (`running`, `waiting`, `blocked`,
+  `paused`, `stopped`, `failed`, `queued`, `done`), and it is hidden while it has no steps. Each
+  step's `<li>` carries `data-kind` and `data-status`.
+<!-- /doc -->
+
+<!-- doc:source-list -->
+### SourceList
+
+The sources an answer cites: a numbered chip (or row) for each, naming its site or title, with a
+card of its title, where it is, and the passage used on hover and focus. It never loads a favicon,
+a thumbnail, or any other remote resource.
+
+- **Options** — `sources: []` (`Source[]`, numbered in order as the answer's `[n]` markers are),
+  `label: 'Sources'` (the visible label naming the list; `''` drops it and names the list with
+  the `sourceList.label` message), `layout: 'chips'|'list'` (`list` gives each source a row with
+  its title and site), `numbered: true`, `icons: {}` (glyph per kind over the built-in
+  `web`→link-2, `file`→file, `record`→table, `call`→gear), `msg`.
+- **Methods** — `setSources(sources)` (focus stays on the same source), `highlight(n)` (a number is
+  the 1-based position, a string an `id`: scrolls to it, focuses it, and marks it
+  `data-state="highlighted"` for 2 s — the answer to a BlockView `cite`), `getSources()`,
+  `destroy()`.
+- **Events** — `select {source, n}`, **preventable** (on the component or on the bubbling
+  `zx-select`). Unprevented, a `web` source opens its `href` in a new tab with
+  `noopener,noreferrer`, and only when `safeHref()` accepts it and it is an absolute `https:` URL;
+  the card shows that host. Every other kind is the application's to act on, for example
+  `runTrace.reveal(source.call)`.
+- **Accessibility** — each source is a native `<button>` named "Source 1: bank.example" (the
+  visible number and name, plus visually hidden words); its card is a `Tooltip`, so it is the
+  button's description while open. The list is an `<ol>` labelled by the visible label. It is not
+  a landmark, so a thread with many answers does not repeat a "Sources" region.
+- **Privacy** — the pure `sourceHref(source)` returns the only address a source may open, or null;
+  nothing is fetched to draw a source.
 <!-- /doc -->
 
 <!-- doc:kernel -->

@@ -1,0 +1,403 @@
+/*
+ * Composer — the message box of an agent conversation. A filled box on the chrome tone with no
+ * frame of its own: the context and attachment chips, the text, and a bar of quiet tools ending in
+ * Send. Focus in the text rings the whole box. The `@` suggestions open above it, in the top layer.
+ */
+.zx-composer {
+  position: relative;
+  display: grid;
+  gap: var(--zx-space-2);
+  min-inline-size: 0;
+}
+
+.zx-composer__frame {
+  position: relative;
+  display: grid;
+  gap: var(--zx-space-1);
+  min-inline-size: 0;
+  padding: var(--zx-space-2) var(--zx-space-3);
+  border-radius: var(--zx-radius-lg);
+  background: var(--zx-color-bg-chrome);
+  color: var(--zx-color-text);
+}
+
+.zx-composer__frame:has(.zx-composer__input:focus) {
+  box-shadow: var(--zx-focus-ring);
+}
+
+.zx-composer[aria-disabled="true"] .zx-composer__frame {
+  opacity: 0.6;
+}
+
+/* ------------------------------------------------------------------ text -- */
+
+.zx-composer .zx-composer__input {
+  display: block;
+  inline-size: 100%;
+  min-block-size: 0;
+  margin: 0;
+  padding: var(--zx-space-1);
+  overflow-y: hidden;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  font: inherit;
+  font-size: var(--zx-text-md);
+  line-height: 1.5;
+  resize: none;
+}
+
+.zx-composer .zx-composer__input[data-scrolls="true"] {
+  overflow-y: auto;
+}
+
+.zx-composer .zx-composer__input::placeholder {
+  color: var(--zx-color-text-placeholder);
+}
+
+/* The box draws the ring; the text inside it draws none of its own. */
+.zx-composer .zx-composer__input:is(:focus, :focus-visible) {
+  outline-color: transparent;
+  box-shadow: none;
+}
+
+.zx-composer .zx-composer__input:disabled {
+  cursor: not-allowed;
+}
+
+/* ------------------------------------------------------------------- bar -- */
+
+/* The bar is the container its own narrow form asks about: the composer itself may sit in a
+   shrink-to-fit parent, the bar always spans the box. */
+.zx-composer__bar {
+  container: zx-composer-bar / inline-size;
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-1);
+  min-inline-size: 0;
+  margin-inline-start: calc(-1 * var(--zx-space-1));
+}
+
+.zx-composer__tools {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--zx-space-1);
+}
+
+.zx-composer__tools[hidden] {
+  display: none;
+}
+
+.zx-composer__spacer {
+  flex: 1 1 auto;
+}
+
+.zx-composer__hint {
+  overflow: hidden;
+  min-inline-size: 0;
+  padding-inline-start: var(--zx-space-1);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The tools are quiet glyphs until they are pointed at. */
+.zx-composer .zx-composer__tool > .zx-icon {
+  color: var(--zx-color-text-subtle);
+}
+
+.zx-composer .zx-composer__tool:hover:not(:disabled) > .zx-icon {
+  color: var(--zx-color-text);
+}
+
+.zx-composer .zx-composer__tool:disabled > .zx-icon {
+  color: var(--zx-color-text-placeholder);
+}
+
+/* A pressed tool is a mode the next message is sent in: the neutral current fill, an edge, and the
+   full glyph colour, so the state never rests on colour alone. */
+.zx-composer .zx-composer__tool[aria-pressed="true"] {
+  background: var(--zx-color-bg-current);
+  box-shadow: inset 0 0 0 1px var(--zx-color-border-strong);
+}
+
+.zx-composer .zx-composer__tool[aria-pressed="true"] > .zx-icon {
+  color: var(--zx-color-text);
+}
+
+.zx-composer .zx-composer__tool[aria-pressed="true"]:hover:not(:disabled) {
+  background: linear-gradient(var(--zx-color-bg-hover), var(--zx-color-bg-hover)), var(--zx-color-bg-current);
+}
+
+.zx-composer .zx-composer__tool[aria-pressed="true"]:focus-visible {
+  box-shadow: inset var(--zx-focus-ring);
+}
+
+/* Send is a neutral square until there is something to send; then it is the accent. Stop takes
+   its place while the agent works. */
+.zx-composer .zx-composer__send {
+  flex: none;
+  inline-size: var(--zx-control-height);
+  block-size: var(--zx-control-height);
+  border-radius: var(--zx-radius-lg);
+  background: var(--zx-color-bg-current);
+  color: var(--zx-color-text);
+}
+
+.zx-composer .zx-composer__send:hover {
+  background: var(--zx-color-bg-current);
+}
+
+.zx-composer .zx-composer__send[aria-disabled="true"],
+.zx-composer .zx-composer__send:disabled {
+  color: var(--zx-color-text-placeholder);
+  cursor: default;
+}
+
+.zx-composer .zx-composer__send[data-mode="send"][aria-disabled="false"]:not(:disabled) {
+  background: var(--zx-color-accent-solid);
+  color: var(--zx-color-on-accent-solid);
+}
+
+.zx-composer .zx-composer__send[data-mode="send"][aria-disabled="false"]:not(:disabled):hover {
+  background: var(--zx-color-accent-solid-hover);
+}
+
+.zx-composer .zx-composer__send[data-mode="stop"] > .zx-icon {
+  fill: currentColor;
+}
+
+.zx-composer .zx-composer__send:focus-visible {
+  outline-color: transparent;
+  box-shadow: var(--zx-focus-ring);
+}
+
+/* A solid accent under the accent ring: an inner line in its own ink keeps them apart. */
+.zx-composer .zx-composer__send[data-mode="send"][aria-disabled="false"]:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--zx-color-on-accent-solid), var(--zx-focus-ring);
+}
+
+/* `sendLabel`: the glyph and a word ("Start task", "Stop" while busy). */
+.zx-composer .zx-composer__send:has(> .zx-composer__send-label) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--zx-space-2);
+  inline-size: auto;
+  max-inline-size: 100%;
+  padding-inline: var(--zx-space-3);
+}
+
+.zx-composer__send-label {
+  overflow: hidden;
+  font-size: var(--zx-control-font-size);
+  font-weight: var(--zx-control-font-weight);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* In a narrow composer — a phone, a side column — Send goes back to its square: the word is drawn
+   no more but stays the button's name, and its tooltip. */
+@container zx-composer-bar (inline-size < 24rem) {
+  .zx-composer .zx-composer__send:has(> .zx-composer__send-label) {
+    inline-size: var(--zx-control-height);
+    padding-inline: 0;
+  }
+
+  .zx-composer__send-label {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+}
+
+/* ----------------------------------------------------------------- chips -- */
+
+.zx-composer__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zx-space-2);
+  margin: 0;
+  padding: var(--zx-space-1) 0 0;
+  list-style: none;
+}
+
+.zx-composer__chips[hidden] {
+  display: none;
+}
+
+.zx-composer__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  max-inline-size: 100%;
+  min-block-size: calc(var(--zx-control-height) - var(--zx-space-1));
+  padding-inline: var(--zx-space-2) var(--zx-space-1);
+  border: 1px solid var(--zx-color-border-subtle);
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-bg-surface);
+  font-size: var(--zx-text-sm);
+}
+
+/* What the message is about reads as the accent's quiet tint; files stay on the surface. */
+.zx-composer__chip[data-kind="context"] {
+  border-color: transparent;
+  background: var(--zx-color-accent-subtle);
+}
+
+.zx-composer__chip > .zx-icon {
+  flex: none;
+  color: var(--zx-color-text-subtle);
+}
+
+.zx-composer__chip-label {
+  overflow: hidden;
+  min-inline-size: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zx-composer__chip-meta {
+  flex: none;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.zx-composer .zx-composer__remove {
+  inline-size: calc(var(--zx-control-height) - var(--zx-space-2));
+  block-size: calc(var(--zx-control-height) - var(--zx-space-2));
+  border-radius: var(--zx-radius-sm);
+}
+
+/* -------------------------------------------------------------- dropping -- */
+
+.zx-composer__drop {
+  position: absolute;
+  inset: 0;
+  display: none;
+  place-items: center;
+  align-content: center;
+  gap: var(--zx-space-1);
+  border-radius: inherit;
+  background: var(--zx-color-accent-subtle);
+  box-shadow: inset 0 0 0 1px var(--zx-color-accent);
+  color: var(--zx-color-accent);
+  font-size: var(--zx-text-sm);
+  font-weight: var(--zx-weight-medium);
+  pointer-events: none;
+}
+
+.zx-composer[data-state="dropping"] .zx-composer__drop {
+  display: grid;
+}
+
+/* ------------------------------------------------------------------ note -- */
+
+.zx-composer__note {
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  text-align: center;
+}
+
+/* ----------------------------------------------------------- suggestions -- */
+
+.zx-composer__suggestions {
+  display: grid;
+  gap: 2px;
+  inline-size: min(22rem, calc(100vw - var(--zx-space-4)));
+  max-block-size: min(18rem, 45vh);
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: var(--zx-space-1);
+  border: 1px solid var(--zx-color-overlay-border);
+  border-radius: var(--zx-radius-panel);
+  background-color: var(--zx-color-overlay-surface);
+  background-clip: padding-box;
+  box-shadow: var(--zx-overlay-shadow);
+  color: var(--zx-color-text);
+}
+
+.zx-composer__suggestions[hidden] {
+  display: none;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .zx-composer__suggestions {
+    border-color: var(--zx-color-border-strong);
+    background: var(--zx-color-bg-raised);
+  }
+}
+
+.zx-composer__option {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  min-block-size: calc(var(--zx-control-height) - 2px);
+  padding: var(--zx-space-1) var(--zx-space-2);
+  border-radius: var(--zx-radius-sm);
+  line-height: 1.35;
+  cursor: pointer;
+}
+
+/* The highlighted suggestion takes the same neutral step as a highlighted option in any list. */
+.zx-composer__option[aria-selected="true"] {
+  background: var(--zx-color-overlay-hover);
+}
+
+.zx-composer__option > .zx-icon {
+  flex: none;
+  color: var(--zx-color-text-subtle);
+}
+
+.zx-composer__option-text {
+  display: grid;
+  min-inline-size: 0;
+}
+
+.zx-composer__option-label {
+  overflow: hidden;
+  font-size: var(--zx-text-sm);
+  font-weight: var(--zx-weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zx-composer__option-description {
+  overflow: hidden;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Spoken, not drawn: the number of suggestions. */
+.zx-composer__status {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------- motion -- */
+
+@media (prefers-reduced-motion: no-preference) {
+  .zx-composer .zx-composer__send {
+    transition:
+      background-color var(--zx-dur-fast) var(--zx-ease),
+      color var(--zx-dur-fast) var(--zx-ease);
+  }
+
+  .zx-composer__frame {
+    transition: box-shadow var(--zx-dur-fast) var(--zx-ease);
+  }
+}

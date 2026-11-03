@@ -5,21 +5,26 @@
  * bottom panel (terminal, output, problems); the inspector groups the agents by state beside the
  * open run's figures; a status bar runs along the foot.
  *
- * Presence moves: an agent's avatar breathes while it is idle, bobs while it works, sways while it
- * thinks, and tilts and blinks when it needs you — every avatar driven by one animation loop that
- * pauses while the page is hidden or the avatar is off screen, and stops under reduced motion.
- * Presence is never told by motion alone: it is always a dot and a word as well.
+ * Presence moves: each agent's Avatar carries its `activity`, and with `animate` it breathes while
+ * the agent is idle, bobs while it works, sways while it thinks, and leans and blinks when it needs
+ * you — every avatar on the page in the library's one shared animation loop, which moves only what
+ * is on screen, sleeps while the page is hidden, and rests under reduced motion (the system's, or
+ * the status bar's Motion setting). Presence is never told by motion alone: the avatar's dot and a
+ * word beside it say it too.
+ *
+ * The run is drawn by the agent components: RunTrace for the execution log, RunStatus for the
+ * open run's figures, and an AgentThread over a Composer for each chat.
  */
 import {
-  Avatar, Launcher, ProgressBar, Tabbox, Table, button, formatNumber, h, icon,
-  spinner, statusIcon, watchMotion
+  AgentThread, Avatar, Composer, Launcher, ProgressBar, RunStatus, RunTrace, Tabbox, Table, button,
+  formatNumber, h, icon, statusIcon
 } from '../../src/index.js';
 import {
-  SHELL_BREAKPOINTS, adaptiveShell, disposer, iconButton, iconTile, kbd, later, layoutContext, modShortcut,
-  modifierLabel, paneHeader, panelBlock, propList, renderScope, sectionLabel, shortcutSheet, shortcuts,
+  SHELL_BREAKPOINTS, adaptiveShell, disposer, dot, iconButton, iconTile, kbd, later, layoutContext,
+  modShortcut, modifierLabel, paneHeader, panelBlock, renderScope, sectionLabel, shortcutSheet, shortcuts,
   suiteNav, toaster, unavailable
 } from './kit.js';
-import { ME, NOW, person } from './fixtures.js';
+import { ME, NOW, TODAY, person } from './fixtures.js';
 
 /**
  * The agents. Each has a categorical tone and an initial for its avatar; `away` says why an agent
@@ -83,9 +88,10 @@ const STEP = {
  * @property {number} [ms] How long the call took.
  * @property {number} [tokens] Tokens it used.
  * @property {boolean} [running] Still under way.
- * @property {number} [from] When a running event's clock counts from, once a pause has moved it.
  * @property {string} [file] A file the event wrote or read, by id.
  * @property {string[]} [detail] What the row shows when it is expanded.
+ * @property {boolean} [pause] The event that paused the run.
+ * @property {number} [retryOf] The index of the event this one repeats, once a block is resolved.
  */
 /**
  * @typedef {Object} AgentTask
@@ -233,7 +239,7 @@ const TASKS = [
         detail: ['Customer-facing, grouped by area, no internal ticket numbers.'] },
       { at: '09:31:40', actor: 'quill', kind: 'tool', action: 'Listed merged changes', call: 'list_changes', args: 'since: "4.1.0"', ms: 1900, tokens: 2600,
         detail: ['42 changes in 3 areas.'] },
-      { at: '09:40:00', actor: 'orbit', kind: 'note', action: 'Paused for the release freeze', args: 'until 14:00',
+      { at: '09:40:00', actor: 'orbit', kind: 'note', action: 'Paused for the release freeze', args: 'until 14:00', pause: true,
         detail: ['Nothing changes on release/4.2 until the freeze lifts.'] }
     ]
   },
@@ -403,12 +409,19 @@ const FILES = [
   ] }
 ];
 
-/** Earlier messages with the agents; an agent without any greets you instead. */
+/**
+ * Earlier messages with the agents; an agent without any greets you instead. `tools` are the calls
+ * an agent made before it wrote, `file` a file it attached, and `task` the task it points to.
+ * @type {Record<string, {from: string, at: string, text: string, tools?: {label: string, tool: string, ms: number}[],
+ *   file?: string, task?: string}[]>}
+ */
 const CHATS = {
   fathom: [
     { from: 'me', at: '10:05', text: 'Kestrel says Tuesday’s export skipped rows. Can you find out why?' },
-    { from: 'fathom', at: '10:06', text: 'On it. I’ll reproduce it with their dataset first.', tools: ['query_export · 3.4s'] },
-    { from: 'fathom', at: '10:19', text: 'Found it: the cursor keeps the key of deleted rows, so the next page starts one row late. My notes are in research.md, and Kiln has the fix.', tools: ['search_code · 1.2s', 'read_file · 0.4s'], file: 'research' }
+    { from: 'fathom', at: '10:06', text: 'On it. I’ll reproduce it with their dataset first.',
+      tools: [{ label: 'Queried the export', tool: 'query_export', ms: 3400 }] },
+    { from: 'fathom', at: '10:19', text: 'Found it: the cursor keeps the key of deleted rows, so the next page starts one row late. My notes are in research.md, and Kiln has the fix.',
+      tools: [{ label: 'Searched the code', tool: 'search_code', ms: 1200 }, { label: 'Read a file', tool: 'read_file', ms: 400 }], file: 'research' }
   ],
   relay: [
     { from: 'relay', at: '10:21', text: 'I drafted a reply to Priya at Kestrel: what went wrong, that nothing was exposed, and that corrected files will follow. Could you review it before it goes out?', file: 'reply', task: 'kestrel-reply' }
@@ -444,9 +457,6 @@ const SHORTCUTS = [
   ['Work', [['Pause or resume the open run', 'P'], ['Start the task you described', 'Mod+↵'], ['Close the current tab', 'Delete']]]
 ];
 
-/** Longest frame step the presence loop advances by: after a stall the avatars resume, not jump. */
-const MAX_FRAME_MS = 50;
-
 /** The tool each task's next step calls once you approve it. */
 const FOLLOW_UP_CALLS = {
   'fix-exports': 'deploy',
@@ -456,6 +466,39 @@ const FOLLOW_UP_CALLS = {
 
 /** The order the editor tabs keep, whichever are open. */
 const TAB_ORDER = ['home', 'task', 'chat', 'file'];
+
+/**
+ * The kind of trace step each tool is, for its glyph; any other call is a plain `call`. A request
+ * for your approval is an `ask` and your answer a `decision`, which the log does not count as calls.
+ */
+const TOOL_KINDS = {
+  query_export: 'query', query_metrics: 'query', fetch_invoices: 'query', match_ledger: 'query',
+  search_code: 'search', web_search: 'search',
+  read_file: 'read', read_ticket: 'read', list_changes: 'read',
+  write_file: 'write', edit_file: 'write', draft_reply: 'write',
+  run_tests: 'run', deploy: 'run', verify_figures: 'run'
+};
+
+/** How a task's state, read from its plan, is told as a run state. */
+const RUN_STATE = {
+  done: 'done', blocked: 'blocked', waiting: 'waiting', paused: 'paused', 'in-progress': 'running', todo: 'queued'
+};
+
+/** The workspace's words for the run states, which its plan and task list use too. */
+const RUN_WORDS = {
+  'agent.status.running': 'In progress',
+  'agent.status.waiting': 'Needs you',
+  'agent.status.queued': 'To do'
+};
+
+/** The tokens one run may use. */
+const TOKEN_BUDGET = 60_000;
+
+/**
+ * Where in its presence cycle an agent's avatar moves, per place it is drawn: the roster, the
+ * inspector, and the chat move one agent half and a quarter of a cycle apart.
+ */
+const PHASE = { roster: 0, inspector: 0.5, chat: 0.25 };
 
 /** @param {string|number} value `HH:MM` or `HH:MM:SS`, or seconds already. @returns {number} Seconds since midnight. */
 function seconds(value) {
@@ -485,11 +528,6 @@ function tokenCount(count) {
   return count >= 1000 ? `${formatNumber(count / 1000, { decimals: 1 })}k` : formatNumber(count);
 }
 
-/** @param {number} ms @returns {string} A call's duration: "400 ms", "3.4s". */
-function callTime(ms) {
-  return ms < 1000 ? `${ms} ms` : `${formatNumber(ms / 1000, { decimals: 1 })}s`;
-}
-
 /** @param {string} text @returns {string} A request turned into a task title. */
 function titleFrom(text) {
   const clean = text.replace(/\s+/g, ' ').trim().replace(/[.?!]+$/, '');
@@ -497,147 +535,36 @@ function titleFrom(text) {
   return title.length > 72 ? `${title.slice(0, 71).trimEnd()}…` : title;
 }
 
-/** @param {string} key @returns {number} A stable offset in seconds, so avatars never move in step. */
-function phaseOf(key) {
-  let hash = 0;
-  for (const char of key) hash = (hash * 31 + char.charCodeAt(0)) % 997;
-  return (hash / 997) * 4;
+/** @param {number} secs Seconds since midnight. @returns {string} A local ISO date-time on the workspace's day. */
+function isoAt(secs) {
+  return `${TODAY}T${clock(secs)}`;
 }
 
 /**
- * Where an avatar in a presence state wants to be at time `t`: a vertical offset in pixels, a
- * rotation in degrees, a scale, and — for an agent that needs you — the depth of a blink.
- * @param {string|undefined} presence
- * @param {number} t Seconds.
- * @returns {{y: number, r: number, s: number, w: number, blink: number}}
+ * @param {string} text Text an agent says.
+ * @returns {string} The text with the answer grammar's markers made literal, so it shows as written.
  */
-function presencePose(presence, t) {
-  const cycle = (period) => 0.5 - 0.5 * Math.cos((2 * Math.PI * t) / period);
-  if (presence === 'idle') return { y: 0, r: 0, s: 1 + 0.035 * cycle(4.8), w: 0, blink: 0 };
-  if (presence === 'thinking') return { y: 0, r: 4 * Math.sin((2 * Math.PI * t) / 3.4), s: 1, w: 0, blink: 0 };
-  if (presence === 'working') return { y: -1.6 * cycle(1.1), r: 0, s: 1, w: 0, blink: 0 };
-  if (presence === 'needs-you') {
-    const beat = t % 3.6;
-    const blink = beat < 0.18 ? Math.sin((Math.PI * beat) / 0.18) : 0;
-    return { y: 0, r: -8 + Math.sin((2 * Math.PI * t) / 2.6), s: 1, w: 1, blink: 0.28 * blink };
-  }
-  return { y: 0, r: 0, s: 1, w: 0, blink: 0 };
+function literal(text) {
+  return String(text).replace(/[\\*`[]/g, (char) => `\\${char}`);
+}
+
+/** @param {LogEvent} event @returns {string} The trace step kind an event is drawn as. */
+function traceKind(event) {
+  if (event.kind === 'handoff') return 'handoff';
+  if (event.kind === 'note') return 'think';
+  if (event.kind === 'request') return 'ask';
+  if (event.kind === 'decision') return 'decision';
+  return TOOL_KINDS[event.call ?? ''] ?? 'call';
 }
 
 /**
- * The one animation loop every presence avatar in a layout shares. An avatar joins with `track()`
- * (a `.agents__presence` element carrying `data-presence` and `data-presence-key`) and leaves when
- * a redraw tracks another under its key; one taken out of the document only rests, since the
- * navigation puts the roster back when it is shown again. The loop moves only avatars on screen, eases between states,
- * clamps its frame step, sleeps while the page is hidden or nothing is moving, and stops — with
- * every avatar back at rest — under reduced motion, the system's or the layout's own. It animates
- * `transform` only, and never runs in a thumbnail.
- * @param {HTMLElement} root The layout root, where `data-zx-motion` is set.
- * @param {import('./kit.js').LayoutContext} context
- * @returns {{track: (element: HTMLElement) => void}}
+ * @param {string} agent An agent id.
+ * @param {keyof typeof PHASE} place Where its avatar is drawn.
+ * @returns {number} The avatar's phase: agents spread over the cycle, each place offset from the others.
  */
-function presenceLoop(root, context) {
-  if (context.preview) return { track: () => {} };
-  /** @type {Map<HTMLElement, number>} Each tracked avatar and its phase. */
-  const tracked = new Map();
-  /** @type {Map<string, {y: number, r: number, s: number, w: number}>} Poses by key, so a redrawn avatar continues. */
-  const poses = new Map();
-  /** @type {Set<Element>} */
-  const visible = new Set();
-  let frame = 0;
-  let last = 0;
-  let time = 0;
-  let reduced = true;
-  const observer = new IntersectionObserver((entries) => {
-    for (const entry of entries) {
-      if (entry.isIntersecting) visible.add(entry.target);
-      else visible.delete(entry.target);
-    }
-    start();
-  });
-  const runnable = () => !reduced && !document.hidden && visible.size > 0 && !context.signal.aborted;
-
-  function start() {
-    if (frame || !runnable()) return;
-    last = performance.now();
-    frame = requestAnimationFrame(step);
-  }
-
-  function stop() {
-    if (frame) cancelAnimationFrame(frame);
-    frame = 0;
-  }
-
-  /** @param {number} now */
-  function step(now) {
-    frame = 0;
-    const dt = Math.min(Math.max(now - last, 0), MAX_FRAME_MS) / 1000;
-    last = now;
-    time += dt;
-    const ease = 1 - Math.exp(-dt * 8);
-    let moving = false;
-    for (const [element, phase] of tracked) {
-      // An avatar removed without a replacement is forgotten here.
-      if (!element.isConnected) {
-        tracked.delete(element);
-        visible.delete(element);
-        observer.unobserve(element);
-        continue;
-      }
-      if (!visible.has(element)) continue;
-      const key = element.dataset.presenceKey ?? '';
-      const target = presencePose(element.dataset.presence, time + phase);
-      const pose = poses.get(key) ?? { y: 0, r: 0, s: 1, w: 0 };
-      pose.y += (target.y - pose.y) * ease;
-      pose.r += (target.r - pose.r) * ease;
-      pose.s += (target.s - pose.s) * ease;
-      pose.w += (target.w - pose.w) * ease;
-      poses.set(key, pose);
-      const still = target.y === 0 && target.r === 0 && target.s === 1 && target.w === 0;
-      const settled = Math.abs(pose.y) < 0.01 && Math.abs(pose.r) < 0.01 && Math.abs(pose.s - 1) < 0.0005 && pose.w < 0.01;
-      if (still && settled) {
-        element.style.removeProperty('transform');
-        continue;
-      }
-      moving = true;
-      const squash = 1 - pose.w * target.blink;
-      element.style.transform = `translateY(${pose.y.toFixed(2)}px) rotate(${pose.r.toFixed(2)}deg) `
-        + `scale(${pose.s.toFixed(4)}, ${(pose.s * squash).toFixed(4)})`;
-    }
-    if (moving) start();
-  }
-
-  watchMotion(root, (value) => {
-    reduced = value;
-    if (!reduced) return start();
-    stop();
-    for (const element of tracked.keys()) element.style.removeProperty('transform');
-    poses.clear();
-  }, { signal: context.signal, immediate: true });
-  document.addEventListener('visibilitychange', () => (document.hidden ? stop() : start()), { signal: context.signal });
-  context.cleanup(() => {
-    stop();
-    observer.disconnect();
-    tracked.clear();
-  });
-
-  return {
-    track(element) {
-      if (!tracked.has(element)) {
-        // A redrawn avatar replaces the one drawn before it under the same key.
-        const key = element.dataset.presenceKey ?? '';
-        for (const other of tracked.keys()) {
-          if (other.dataset.presenceKey !== key) continue;
-          tracked.delete(other);
-          visible.delete(other);
-          observer.unobserve(other);
-        }
-        tracked.set(element, phaseOf(key));
-        observer.observe(element);
-      }
-      start();
-    }
-  };
+function phaseOf(agent, place) {
+  const index = Math.max(0, AGENTS.findIndex((entry) => entry.id === agent));
+  return (index / AGENTS.length + PHASE[place]) % 1;
 }
 
 export default {
@@ -645,8 +572,8 @@ export default {
   category: 'AI',
   blurb: 'A team of AI agents working through tasks: a roster with live presence, plans and execution logs, approvals as they arrive, a command palette, and a terminal.',
   components: [
-    'Tabbox', 'Launcher', 'Avatar', 'Table', 'AppSidebar', 'ModuleBar', 'AccountMenu', 'ProgressBar', 'Message',
-    'Dialog', 'statusIcon'
+    'Tabbox', 'Launcher', 'Avatar', 'AgentThread', 'Composer', 'RunTrace', 'RunStatus', 'Table', 'AppSidebar',
+    'ModuleBar', 'AccountMenu', 'ProgressBar', 'Message', 'Dialog', 'statusIcon'
   ],
 
   /**
@@ -662,7 +589,6 @@ export default {
     const { preview } = context;
     const root = h('div', { class: 'agents shell' });
     const statusbar = h('div', { class: 'shell__statusbar agents__statusbar', role: 'group', 'aria-label': 'Status' });
-    const motion = presenceLoop(root, context);
     const notify = toaster(context, root);
     const me = person(ME) ?? { name: 'Ines Bauer', role: 'Head of Operations' };
 
@@ -678,19 +604,22 @@ export default {
       log: task.log.map((event) => ({ ...event, at: seconds(event.at) }))
     }));
     const activity = ACTIVITY.map((entry) => ({ ...entry, at: seconds(entry.at) }));
-    /** @type {Map<string, {from: string, at: string, text: string, tools?: string[], file?: string, task?: string}[]>} */
-    const chats = new Map(Object.entries(structuredClone(CHATS)));
     const terminal = TERMINAL.map(([kind, text]) => ({ kind, text }));
     const output = [
       { at: '10:25:20', actor: 'kiln', text: 'run_tests filter="cursor"  6 passed' },
       { at: '10:26:10', actor: 'warden', text: 'review_diff branch="fix/cursor-pagination"  1 note' },
       { at: '10:27:02', actor: 'warden', text: 'run_tests suite="export" all=true  started' }
     ];
+    // Who the agent components name: the agents, and the signed-in person.
+    const authors = Object.fromEntries([
+      ['me', { name: me.name, kind: 'person' }],
+      ...agents.map((agent) => [agent.id, { name: agent.name, kind: 'agent', initials: agent.initial, tone: agent.tone }])
+    ]);
     const state = {
       tab: 'home', task: 'fix-exports', chat: 'fathom', file: 'research', model: 'ridge-pro',
       now: NOW.getHours() * 3600 + NOW.getMinutes() * 60 + NOW.getSeconds(),
-      nextRun: 483, nextNumber: 215, typing: /** @type {string|null} */ (null),
-      open: new Set(TAB_ORDER), expanded: /** @type {Set<string>} */ (new Set()),
+      nextRun: 483, nextNumber: 215, sent: 0,
+      open: new Set(TAB_ORDER),
       /** @type {{element: HTMLElement, from: number, task: AgentTask|null}[]} Clocks that tick. */
       timers: [],
       /** @type {Map<string, () => void>} What a paused run does once it resumes. */
@@ -698,11 +627,15 @@ export default {
     };
 
     // Components drawn for one rendering of a region are released when it is drawn again.
-    const rosterParts = renderScope(context);
-    const asideParts = renderScope(context);
     const homeParts = renderScope(context);
     const taskParts = renderScope(context);
-    const chatParts = renderScope(context);
+    // The agent components' clock: the workspace's fixed day, moving on with its own clock.
+    const now = () => new Date(isoAt(state.now));
+    // Presence avatars live as long as the workspace, so a redraw moves them without a jolt.
+    /** @type {Map<string, Avatar>} */
+    const rosterAvatars = new Map();
+    /** @type {Map<string, Avatar>} */
+    const asideAvatars = new Map();
 
     /* ------------------------------------------------------------ navigation column -- */
 
@@ -806,10 +739,17 @@ export default {
 
     /* ------------------------------------------------------------ inspector column -- */
 
-    const asideBody = h('div', { class: 'shell__body' });
+    // The agents by state, then the open run: its figures, and the tokens it has used of its budget.
+    const groupsView = h('div', { class: 'agents__groups' });
+    const runStatus = keep(new RunStatus(null, { ticking: !preview, now, msg: RUN_WORDS }));
+    const runBlock = panelBlock('', runStatus.toElement());
+    runBlock.classList.add('agents__run');
+    // A thumbnail is a still: the run's progress bar does not shine in it.
+    if (preview) runBlock.dataset.zxMotion = 'reduced';
+    const runTitle = /** @type {HTMLElement} */ (runBlock.firstElementChild);
     const aside = h('aside', { class: 'shell__aside', 'aria-label': 'Agents and run' },
       paneHeader({ title: 'Agents' }),
-      asideBody);
+      h('div', { class: 'shell__body' }, groupsView, runBlock));
 
     /* ------------------------------------------------------------------ status bar -- */
 
@@ -829,7 +769,7 @@ export default {
       h('button', {
         type: 'button', class: 'shell__status-item', 'data-narrow': 'hide', title: 'Show agents',
         onclick: () => shell.toggleInspector()
-      }, h('span', { class: 'agents__dot', 'data-presence': 'working', 'aria-hidden': 'true' }), workingLabel),
+      }, dot('success'), workingLabel),
       h('span', { class: 'shell__spacer' }),
       motionButton,
       h('span', { class: 'shell__status-item', 'data-narrow': 'hide' }, icon('coins'), tokensLabel));
@@ -841,33 +781,21 @@ export default {
 
     const greeting = h('h2', { class: 'record-title agents__greeting' }, `Good morning, ${me.name.split(' ')[0]}`);
     const summary = h('p', { class: 'agents__summary' });
-    const composerInput = /** @type {HTMLTextAreaElement} */ (h('textarea', {
-      class: 'agents__composer-input', rows: 3, 'aria-label': 'Describe a task',
-      placeholder: 'Describe a task for your agents…',
-      'aria-keyshortcuts': modShortcut('Enter').keys,
-      oninput: () => renderRoute()
+    // Mod+Enter starts the task: a request is often a few lines long.
+    const composer = keep(new Composer(null, {
+      label: 'Describe a task', placeholder: 'Describe a task for your agents…', submitKey: 'mod+enter',
+      attachments: true, sendLabel: 'Start task', minRows: 3,
+      oninput: () => renderRoute(),
+      onsend: (event) => startTask(event.detail.text, event.detail.files)
     }));
-    const route = h('span', { class: 'agents__route', 'aria-live': 'polite' });
-    const composer = h('form', {
-      class: 'agents__composer', 'aria-label': 'New task',
-      onsubmit: (event) => {
-        event.preventDefault();
-        startTask();
-      }
-    },
-    composerInput,
-    h('div', { class: 'agents__composer-bar' },
-      route,
-      h('span', { class: 'shell__spacer' }),
-      iconButton('paperclip', 'Attach files', () => notify(unavailable('Attachments'), 'info')),
-      button({ label: 'Start task', icon: 'paper-plane', kind: 'primary', size: 'sm', shortcut: modShortcut('Enter', '↵'), onclick: () => startTask() })));
+    const route = h('p', { class: 'agents__route', 'aria-live': 'polite' });
     const chips = h('div', { class: 'agents__chips', role: 'group', 'aria-label': 'Suggestions' },
       SUGGESTIONS.map((suggestion) => h('button', {
         type: 'button', class: 'agents__chip',
         onclick: () => {
-          composerInput.value = suggestion.text;
+          composer.setValue(suggestion.text);
           renderRoute();
-          if (!preview) composerInput.focus();
+          if (!preview) composer.focus();
         }
       }, icon(suggestion.icon), suggestion.text)));
     const tasksMeta = h('span', { class: 'agents__section-meta' });
@@ -888,7 +816,8 @@ export default {
     const activityHeading = h('h3', { class: 'agents__section-title' }, 'Recent activity');
     homeView.append(
       h('div', { class: 'agents__home-head' }, greeting, summary),
-      composer,
+      composer.toElement(),
+      route,
       chips,
       h('section', { class: 'agents__section' },
         h('div', { class: 'agents__section-head' }, tasksHeading, tasksMeta),
@@ -897,21 +826,49 @@ export default {
         h('div', { class: 'agents__section-head' }, activityHeading),
         activityList));
 
+    /* -------------------------------------------------------------------- task view -- */
+
+    // The head and the plan are redrawn as the run moves; the execution log is one RunTrace that
+    // keeps its open steps from one redraw to the next.
+    const taskHead = h('div', { class: 'agents__task-head' });
+    const planMeta = h('span', { class: 'agents__section-meta' });
+    const planList = h('ol', { class: 'agents__plan', role: 'list' });
+    const logMeta = h('span', { class: 'agents__section-meta' });
+    // Who acted, when, and the tokens it took read under each step; the running step counts its
+    // time, and a file an event wrote or read is a link under it. Like the plan, the log calls the
+    // reader "You".
+    const trace = keep(new RunTrace(null, {
+      open: true, authors: { ...authors, me: { ...authors.me, name: nameOf('me') } }, msg: RUN_WORDS,
+      ticking: !preview, now, onopen: (event) => openFile(String(event.detail.ref.id))
+    }));
+    taskView.append(
+      taskHead,
+      h('section', { class: 'agents__section' },
+        h('div', { class: 'agents__section-head' }, h('h3', { class: 'agents__section-title' }, 'Plan'), planMeta),
+        planList),
+      h('section', { class: 'agents__section' },
+        h('div', { class: 'agents__section-head' }, h('h3', { class: 'agents__section-title' }, 'Execution log'), logMeta),
+        trace.toElement()));
+
     /* -------------------------------------------------------------------- chat view -- */
 
-    const chatHead = h('div', { class: 'agents__chat-head' });
-    const thread = h('ol', { class: 'agents__thread', role: 'list' });
-    const chatInput = /** @type {HTMLTextAreaElement} */ (h('textarea', {
-      class: 'agents__chat-input', rows: 1, 'aria-keyshortcuts': 'Enter'
+    // One conversation per agent, each an AgentThread over its own Composer, so a draft and a
+    // reply still being written stay with the agent they are for.
+    const chatAvatar = keep(agentAvatar(agentById(state.chat), 'lg', {
+      activity: 'idle', animate: !preview, phase: phaseOf(state.chat, 'chat')
     }));
-    const chatComposer = h('form', {
-      class: 'agents__chat-composer',
-      onsubmit: (event) => {
-        event.preventDefault();
-        sendChat();
-      }
-    }, chatInput, iconButton('paper-plane', 'Send', () => sendChat(), { shortcut: { label: '↵', keys: 'Enter' } }));
-    chatView.append(chatHead, thread, h('div', { class: 'agents__chat-dock' }, chatComposer));
+    const chatName = h('h2', { class: 'agents__chat-name' });
+    const chatMeta = h('p', { class: 'agents__chat-meta' });
+    const threadHost = h('div', { class: 'agents__thread' });
+    const dock = h('div', { class: 'agents__chat-dock' });
+    chatView.append(
+      h('div', { class: 'agents__chat-head' },
+        h('span', { class: 'agents__avatar' }, chatAvatar.toElement()),
+        h('div', { class: 'agents__chat-who' }, chatName, chatMeta)),
+      threadHost,
+      dock);
+    /** @type {Map<string, {thread: AgentThread, composer: Composer}>} */
+    const chats = new Map();
 
     /* --------------------------------------------------------------------- overlays -- */
 
@@ -938,13 +895,6 @@ export default {
         togglePause(state.task);
       }
     }, context);
-    shortcuts(composerInput, { 'Mod+Enter': () => startTask() }, context);
-    // In the chat, Enter sends and Shift+Enter starts a new line.
-    chatInput.addEventListener('keydown', (event) => {
-      if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
-      event.preventDefault();
-      sendChat();
-    });
 
     container.append(root);
     render();
@@ -1037,6 +987,18 @@ export default {
       return end - task.started - (task.pausedFor ?? 0);
     }
 
+    /**
+     * @param {AgentTask} task
+     * @returns {number} Seconds its agents have worked: the time it has run, less the time it
+     * waited for you to approve a step or unblock one.
+     */
+    function worked(task) {
+      const end = task.finished ?? (task.paused ? task.pausedAt ?? state.now : state.now);
+      const answered = task.plan.reduce((sum, step) => sum + (step.approval && step.status === 'done' ? step.secs ?? 0 : 0), 0);
+      const open = task.plan.find((step) => (step.status === 'waiting' || step.status === 'blocked') && step.since !== undefined);
+      return Math.max(0, elapsed(task) - answered - (open ? end - (open.since ?? end) : 0));
+    }
+
     /** @param {AgentTask} task @returns {number} */
     function taskTokens(task) {
       return task.log.reduce((sum, event) => sum + (event.tokens ?? 0), 0);
@@ -1060,6 +1022,42 @@ export default {
         }
       }
       return best;
+    }
+
+    /**
+     * A task's execution log as trace steps: who acted, when it started, the tokens it took, and
+     * the file it wrote or read. A tool call opens to its arguments and what came back; a call
+     * that stopped the run is blocked until you resolve it, and failed once a retry repeats it.
+     * @param {AgentTask} task
+     * @returns {import('../../src/internal/agent-model.js').TraceStep[]}
+     */
+    function traceSteps(task) {
+      const waiting = task.plan.some((step) => step.status === 'waiting');
+      const blocked = task.plan.some((step) => step.status === 'blocked');
+      const lastRequest = task.log.findLastIndex((event) => event.kind === 'request');
+      const lastBlock = task.log.findLastIndex((event) => event.kind === 'block');
+      const lastPause = task.log.findLastIndex((event) => event.pause);
+      return task.log.map((event, index) => {
+        let status = 'done';
+        if (event.running) status = task.paused ? 'paused' : 'running';
+        else if (event.kind === 'block') status = blocked && index === lastBlock ? 'blocked' : 'failed';
+        else if (event.kind === 'request' && waiting && index === lastRequest) status = 'waiting';
+        else if (event.pause && task.paused && index === lastPause) status = 'paused';
+        const lines = (event.detail ?? []).join('\n') || undefined;
+        const file = FILES.find((entry) => entry.id === event.file);
+        const step = {
+          id: `${task.id}:${index}`, kind: traceKind(event), label: event.action, status,
+          actor: event.actor, at: isoAt(event.at), tokens: event.tokens,
+          retryOf: event.retryOf === undefined ? undefined : `${task.id}:${event.retryOf}`,
+          doing: event.running ? event.action : undefined,
+          refs: file ? [{ id: file.id, label: file.name, icon: file.kind === 'code' ? 'code' : 'file-lines', entity: 'file' }] : undefined
+        };
+        if (event.kind === 'handoff') return { ...step, label: event.args ?? event.action, to: event.to, detail: lines };
+        if (event.call || event.kind === 'block') {
+          return { ...step, tool: event.call, args: event.args, ms: event.ms, ...(event.kind === 'block' ? { error: lines } : { result: lines }) };
+        }
+        return { ...step, count: event.args, detail: lines };
+      });
     }
 
     /* ------------------------------------------------------------------ rendering -- */
@@ -1091,7 +1089,8 @@ export default {
 
     /**
      * Redraws a region without losing the keyboard: focus on a control the redraw replaced moves
-     * to its successor (the element with the same `data-key`), or to the region's heading.
+     * to its successor (the element with the same `data-key`), or to the region's heading. Focus a
+     * component kept inside the region stays where it is.
      * @param {HTMLElement} region
      * @param {() => void} draw
      * @returns {void}
@@ -1101,33 +1100,45 @@ export default {
       const inside = active instanceof HTMLElement && region.contains(active);
       const key = inside ? active.closest('[data-key]')?.getAttribute('data-key') : null;
       draw();
-      if (!inside || active.isConnected || preview) return;
+      if (!inside || preview) return;
+      const now = document.activeElement;
+      if (now && now !== document.body && region.contains(now)) return;
       const next = key ? region.querySelector(`[data-key="${CSS.escape(key)}"]`) : null;
       if (next instanceof HTMLElement) next.focus({ preventScroll: true });
       else focusHeadingIn(region);
     }
 
     /**
-     * An agent's avatar that moves with its presence. The wrapper carries the motion; the avatar
-     * itself is decorative, so the presence is always said in words beside it.
+     * An agent's avatar: its initial on its tone, and whatever else the place it is drawn in needs.
      * @param {(typeof agents)[number]} agent
-     * @param {string} where Where it is drawn, so a redrawn avatar continues its motion.
-     * @param {{own: <T extends {destroy: () => void}>(component: T) => T}} scope
-     * @param {'sm'|'md'|'lg'} [size]
-     * @returns {HTMLElement}
+     * @param {'sm'|'md'|'lg'} size
+     * @param {Partial<import('../../src/components/avatar/avatar.js').AvatarOptions>} [extra]
+     * @returns {Avatar}
      */
-    function presenceAvatar(agent, where, scope, size = 'sm') {
-      const element = h('span', {
-        class: 'agents__presence', 'aria-hidden': 'true',
-        dataset: { presence: presenceOf(agent).state, presenceKey: `${where}:${agent.id}` }
-      }, scope.own(agentAvatar(agent, size)).toElement());
-      motion.track(element);
-      return element;
+    function agentAvatar(agent, size, extra = {}) {
+      return new Avatar(null, { name: agent.name, initials: agent.initial, tone: agent.tone, shape: 'rounded', size, ...extra });
     }
 
-    /** @param {(typeof agents)[number]} agent @param {'sm'|'md'|'lg'} size @returns {Avatar} */
-    function agentAvatar(agent, size) {
-      return new Avatar(null, { name: agent.name, initials: agent.initial, tone: agent.tone, shape: 'rounded', size });
+    /**
+     * An agent's avatar that shows and moves with its presence. Each place keeps one per agent for
+     * the life of the workspace, so a redraw only changes its activity, and moves it at its own
+     * phase, so the roster and the inspector never move one agent in step. The avatar is
+     * decorative: the presence is said in words beside it.
+     * @param {Map<string, Avatar>} cache The place's avatars.
+     * @param {keyof typeof PHASE} place
+     * @param {(typeof agents)[number]} agent
+     * @param {keyof typeof PRESENCE} presence
+     * @returns {HTMLElement}
+     */
+    function presenceAvatar(cache, place, agent, presence) {
+      let avatar = cache.get(agent.id);
+      if (!avatar) {
+        avatar = keep(agentAvatar(agent, 'md', { activity: presence, animate: !preview, phase: phaseOf(agent.id, place) }));
+        cache.set(agent.id, avatar);
+      } else if (avatar.getActivity() !== presence) {
+        avatar.setActivity(presence);
+      }
+      return h('span', { class: 'agents__avatar' }, avatar.toElement());
     }
 
     /**
@@ -1166,11 +1177,9 @@ export default {
       return h('span', { class: 'agents__mark', 'aria-hidden': 'true', dataset: { tone: agent.tone } }, agent.initial);
     }
 
-    /** @param {keyof typeof PRESENCE} presence @returns {HTMLElement} A presence dot and its word. */
-    function presenceLabel(presence) {
-      return h('span', { class: 'agents__state', dataset: { presence } },
-        h('span', { class: 'agents__dot', 'data-presence': presence, 'aria-hidden': 'true' }),
-        PRESENCE[presence]);
+    /** @param {keyof typeof PRESENCE} presence @returns {HTMLElement} The presence's word, beside the avatar's dot. */
+    function presenceWord(presence) {
+      return h('span', { class: 'agents__state', dataset: { presence } }, PRESENCE[presence]);
     }
 
     /** @param {string} status A step or task status. @returns {HTMLElement} Its glyph and its words. */
@@ -1203,7 +1212,6 @@ export default {
     /** The roster in the navigation column. @returns {void} */
     function renderRoster() {
       redraw(roster, () => {
-        rosterParts.reset();
         rosterCount.textContent = formatNumber(agents.length);
         roster.replaceChildren(...agents.map((agent) => {
           const presence = presenceOf(agent);
@@ -1215,9 +1223,9 @@ export default {
             title: presence.doing,
             onclick: () => openChat(agent.id)
           },
-          presenceAvatar(agent, 'roster', rosterParts, 'md'),
+          presenceAvatar(rosterAvatars, 'roster', agent, presence.state),
           h('span', { class: 'agents__agent-name' }, agent.name),
-          presenceLabel(presence.state),
+          presenceWord(presence.state),
           h('span', { class: 'agents__agent-role' }, agent.role)));
         }));
       });
@@ -1225,8 +1233,7 @@ export default {
 
     /** The inspector: agents by state, then the open run's figures. @returns {void} */
     function renderInspector() {
-      redraw(asideBody, () => {
-        asideParts.reset();
+      redraw(groupsView, () => {
         const ranked = agents.map((agent) => ({ agent, presence: presenceOf(agent) }));
         const order = Object.keys(PRESENCE);
         ranked.sort((a, b) => order.indexOf(a.presence.state) - order.indexOf(b.presence.state));
@@ -1235,25 +1242,34 @@ export default {
           ['Idle', ranked.filter((entry) => entry.presence.state === 'idle')],
           ['Offline', ranked.filter((entry) => entry.presence.state === 'offline')]
         ];
-        const task = currentTask();
-        const progress = asideParts.own(new ProgressBar(null, {
-          value: Math.min(taskTokens(task), 60_000), max: 60_000, label: 'Token budget used', hideLabel: true, showValue: false, size: 'sm'
-        }));
-        asideBody.replaceChildren(
-          ...groups.filter(([, list]) => list.length).map(([label, list]) => h('section', { class: 'agents__group' },
-            h('h3', { class: 'list-group agents__group-title' }, label, h('span', { class: 'list-group__count' }, String(list.length))),
-            h('ul', { class: 'agents__members', role: 'list' }, list.map(({ agent, presence }) => memberRow(agent, presence))))),
-          panelBlock(`Run #${task.run}`, propList([
-            ['Task', h('button', { type: 'button', class: 'link-button agents__run-task', 'data-key': 'run-task', onclick: () => openTask(task.id) }, task.title)],
-            ['Status', statusText(taskStatus(task))],
-            ['Started', clock(task.started, false)],
-            ['Elapsed', task.finished !== undefined
-              ? h('span', { class: 'agents__num' }, duration(elapsed(task)))
-              : ticking(task.started + (task.pausedFor ?? 0), task)],
-            ['Tokens', h('div', { class: 'agents__budget' },
-              h('span', { class: 'agents__num' }, `${tokenCount(taskTokens(task))} of 60k`), progress.toElement())],
-            ['Model', MODELS.find((model) => model.id === state.model)?.label]
-          ])));
+        groupsView.replaceChildren(...groups.filter(([, list]) => list.length).map(([label, list]) => h('section', { class: 'agents__group' },
+          h('h3', { class: 'list-group agents__group-title' }, label, h('span', { class: 'list-group__count' }, String(list.length))),
+          h('ul', { class: 'agents__members', role: 'list' }, list.map(({ agent, presence }) => memberRow(agent, presence))))));
+      });
+      renderRun();
+    }
+
+    /**
+     * The open run's figures: its state, its steps, when it started and how long its agents have
+     * worked, the model, and the tokens it has used of its budget.
+     * @returns {void}
+     */
+    function renderRun() {
+      const task = currentTask();
+      const waiting = task.plan.find((step) => step.status === 'waiting' || step.status === 'blocked');
+      runTitle.textContent = `Run #${task.run}`;
+      runStatus.update({
+        state: RUN_STATE[taskStatus(task)],
+        summary: task.title,
+        steps: { done: task.plan.filter((step) => step.status === 'done').length, total: task.plan.length },
+        started: isoAt(task.started),
+        finished: task.finished === undefined ? null : isoAt(task.finished),
+        waitingSince: waiting?.since === undefined ? null : isoAt(waiting.since),
+        workMs: worked(task) * 1000,
+        tokens: taskTokens(task),
+        tokenBudget: TOKEN_BUDGET,
+        model: MODELS.find((model) => model.id === state.model)?.label ?? null,
+        actions: [{ label: 'Open task', icon: 'list-check', onclick: () => openTask(task.id) }]
       });
     }
 
@@ -1273,14 +1289,14 @@ export default {
       action?.setAttribute('aria-label', `${action.textContent} ${agent.name}’s request`);
       if (action) action.dataset.key = `member-action:${agent.id}`;
       return h('li', { class: 'agents__member', dataset: { presence: presence.state } },
-        presenceAvatar(agent, 'aside', asideParts, 'md'),
+        presenceAvatar(asideAvatars, 'inspector', agent, presence.state),
         h('div', { class: 'agents__member-main' },
           h('div', { class: 'agents__member-top' },
             h('button', {
               type: 'button', class: 'agents__member-name', 'data-key': `member:${agent.id}`,
               title: `Chat with ${agent.name}`, onclick: () => openChat(agent.id)
             }, agent.name),
-            presenceLabel(presence.state),
+            presenceWord(presence.state),
             presence.since !== null ? h('span', { class: 'agents__member-time' }, ticking(presence.since, presence.task)) : null),
           h('p', { class: 'agents__member-doing' }, presence.doing),
           action));
@@ -1366,31 +1382,24 @@ export default {
         const chat = button({ label: `Chat with ${owner.name}`, icon: 'comments', kind: 'ghost', size: 'sm', onclick: () => openChat(owner.id) });
         chat.dataset.key = 'chat';
         chat.setAttribute('data-narrow', 'icon');
-        taskView.replaceChildren(
-          h('div', { class: 'agents__task-head' },
-            h('p', { class: 'agents__eyebrow' }, `${task.project} · Task ${task.number}`),
-            h('div', { class: 'agents__title-row' },
-              h('h2', { class: 'record-title agents__task-title' }, task.title),
-              statusText(status)),
-            h('p', { class: 'agents__orchestrator' },
-              avatarOf(lead.id, taskParts),
-              h('span', {}, 'Orchestrated by ', h('span', { class: 'agents__strong' }, lead.name),
-                ` · run #${task.run} · started ${clock(task.started, false)}`,
-                task.paused && task.pauseReason ? ` · ${task.pauseReason}` : '')),
-            h('div', { class: 'agents__progress' },
-              progress.toElement(),
-              h('span', { class: 'agents__progress-text' }, `${done} of ${task.plan.length} steps`)),
-            h('div', { class: 'agents__task-actions' }, pause, chat)),
-          h('section', { class: 'agents__section' },
-            h('div', { class: 'agents__section-head' },
-              h('h3', { class: 'agents__section-title' }, 'Plan'),
-              h('span', { class: 'agents__section-meta' }, `${done} of ${task.plan.length} done`)),
-            h('ol', { class: 'agents__plan', role: 'list' }, task.plan.map((step, index) => planStep(task, step, index)))),
-          h('section', { class: 'agents__section' },
-            h('div', { class: 'agents__section-head' },
-              h('h3', { class: 'agents__section-title' }, 'Execution log'),
-              h('span', { class: 'agents__section-meta' }, `${task.log.length} events · ${tokenCount(taskTokens(task))} tokens`)),
-            h('ol', { class: 'agents__log', role: 'list' }, task.log.map((event, index) => logEntry(task, event, index)))));
+        taskHead.replaceChildren(
+          h('p', { class: 'agents__eyebrow' }, `${task.project} · Task ${task.number}`),
+          h('div', { class: 'agents__title-row' },
+            h('h2', { class: 'record-title agents__task-title' }, task.title),
+            statusText(status)),
+          h('p', { class: 'agents__orchestrator' },
+            avatarOf(lead.id, taskParts),
+            h('span', {}, 'Orchestrated by ', h('span', { class: 'agents__strong' }, lead.name),
+              ` · run #${task.run} · started ${clock(task.started, false)}`,
+              task.paused && task.pauseReason ? ` · ${task.pauseReason}` : '')),
+          h('div', { class: 'agents__progress' },
+            progress.toElement(),
+            h('span', { class: 'agents__progress-text' }, `${done} of ${task.plan.length} steps`)),
+          h('div', { class: 'agents__task-actions' }, pause, chat));
+        planMeta.textContent = `${done} of ${task.plan.length} done`;
+        planList.replaceChildren(...task.plan.map((step, index) => planStep(task, step, index)));
+        logMeta.textContent = `${task.log.length} events · ${tokenCount(taskTokens(task))} tokens`;
+        trace.setSteps(traceSteps(task));
       });
     }
 
@@ -1426,110 +1435,81 @@ export default {
         h('span', { class: 'agents__step-time' }, time));
     }
 
-    /**
-     * One event in the execution log: a button row that expands to the detail. A hand-off draws
-     * both agents joined by a dotted line.
-     * @param {AgentTask} task
-     * @param {LogEvent} event
-     * @param {number} index
-     * @returns {HTMLElement}
-     */
-    function logEntry(task, event, index) {
-      const key = `${task.id}:${index}`;
-      const open = state.expanded.has(key);
-      const who = event.kind === 'handoff' && event.to
-        ? h('span', { class: 'agents__handoff' },
-          avatarOf(event.actor, taskParts), h('span', { class: 'agents__handoff-line' }), avatarOf(event.to, taskParts))
-        : avatarOf(event.actor, taskParts);
-      const code = event.call ? `${event.call}(${event.args ?? ''})` : null;
-      const metrics = event.running
-        ? h('span', { class: 'agents__running' },
-          task.paused ? null : spinner({ size: 'sm' }),
-          h('span', {}, task.paused ? 'Paused' : 'Running'), ' · ', ticking(event.from ?? event.at, task))
-        : [event.ms !== undefined ? callTime(event.ms) : null, event.tokens ? `${tokenCount(event.tokens)} tokens` : null]
-          .filter(Boolean).join(' · ');
-      const detail = h('div', { class: 'agents__event-detail', hidden: !open },
-        h('div', { class: 'agents__event-output' }, (event.detail ?? []).map((line) => h('p', {}, line))),
-        h('p', { class: 'agents__event-meta' },
-          `${nameOf(event.actor)}${event.to ? ` to ${nameOf(event.to)}` : ''} · ${clock(event.at)}`,
-          code ? ` · ${MODELS.find((model) => model.id === state.model)?.label}` : ''),
-        event.file ? h('button', {
-          type: 'button', class: 'link-button agents__event-file', 'data-key': `event-file:${key}`,
-          onclick: () => openFile(event.file ?? '')
-        }, `Open ${FILES.find((file) => file.id === event.file)?.name}`) : null);
-      const row = h('button', {
-        type: 'button', class: 'agents__event-row', 'aria-expanded': String(open), 'data-key': `event:${key}`,
-        onclick: () => {
-          const next = !state.expanded.has(key);
-          if (next) state.expanded.add(key);
-          else state.expanded.delete(key);
-          row.setAttribute('aria-expanded', String(next));
-          detail.hidden = !next;
-        }
-      },
-      h('time', { class: 'agents__event-time', dateTime: clock(event.at) }, clock(event.at)),
-      h('span', { class: 'agents__event-who' }, who,
-        h('span', { class: 'agents__event-actor' }, nameOf(event.actor))),
-      h('span', { class: 'agents__event-action' }, event.action),
-      h('span', { class: code ? 'agents__event-args agents__event-args--code' : 'agents__event-args' }, code ?? event.args ?? ''),
-      h('span', { class: 'agents__event-metrics' }, metrics),
-      h('span', { class: 'agents__event-chevron', 'aria-hidden': 'true' }, icon('chevron-down', { size: 14 })));
-      return h('li', { class: 'agents__event', dataset: { kind: event.kind, running: event.running ? 'true' : null } }, row, detail);
-    }
-
-    /** The chat with one agent. @returns {void} */
+    /** The chat with one agent: its presence, the conversation, and the composer. @returns {void} */
     function renderChat() {
       const agent = agentById(state.chat);
       if (state.open.has('chat')) tabs.setTitle('chat', agent.name);
-      chatInput.placeholder = `Message ${agent.name}`;
-      chatInput.setAttribute('aria-label', `Message ${agent.name}`);
-      chatComposer.setAttribute('aria-label', `Message ${agent.name}`);
-      redraw(chatView, () => {
-        chatParts.reset();
-        const presence = presenceOf(agent);
-        chatHead.replaceChildren(
-          presenceAvatar(agent, 'chat', chatParts, 'lg'),
-          h('div', { class: 'agents__chat-who' },
-            h('h2', { class: 'agents__chat-name' }, agent.name),
-            h('p', { class: 'agents__chat-meta' }, presenceLabel(presence.state), h('span', {}, `${agent.role} · ${presence.doing}`))));
-        const messages = conversation(agent);
-        thread.replaceChildren(...messages.map((message, index) => h('li', {
-          class: 'agents__message', dataset: { from: message.from === 'me' ? 'me' : 'agent' }
-        },
-        avatarOf(message.from, chatParts),
-        h('div', { class: 'agents__message-body' },
-          h('p', { class: 'agents__message-head' },
-            h('span', { class: 'agents__strong' }, message.from === 'me' ? me.name : agentById(message.from).name),
-            h('time', { class: 'agents__message-time' }, message.at)),
-          message.tools ? h('p', { class: 'agents__message-tools' }, message.tools.map((tool) => h('span', { class: 'agents__tool' }, icon('wrench', { size: 12 }), tool))) : null,
-          h('p', { class: 'agents__message-text' }, message.text),
-          message.file || message.task ? h('p', { class: 'agents__message-links' },
-            message.file ? h('button', {
-              type: 'button', class: 'agents__file-chip', 'data-key': `chat-file:${index}`, onclick: () => openFile(message.file ?? '')
-            }, icon('file-lines', { size: 14 }), FILES.find((file) => file.id === message.file)?.name) : null,
-            message.task ? h('button', {
-              type: 'button', class: 'agents__file-chip', 'data-key': `chat-task:${index}`, onclick: () => openTask(message.task ?? '')
-            }, icon('list-check', { size: 14 }), 'Open the task') : null) : null))),
-        ...(state.typing === agent.id ? [h('li', { class: 'agents__message agents__typing', dataset: { from: 'agent' } },
-          avatarOf(agent.id, chatParts),
-          h('p', { class: 'agents__typing-text' }, `${agent.name} is writing`, h('span', { class: 'agents__typing-dots', 'aria-hidden': 'true' }, h('span'), h('span'), h('span'))))] : []));
-      });
+      const presence = presenceOf(agent);
+      chatAvatar.set({ name: agent.name, initials: agent.initial, tone: agent.tone, activity: presence.state, phase: phaseOf(agent.id, 'chat') });
+      chatName.textContent = agent.name;
+      chatMeta.replaceChildren(presenceWord(presence.state), h('span', {}, `${agent.role} · ${presence.doing}`));
+      const chat = chatFor(agent);
+      if (threadHost.firstElementChild !== chat.thread.toElement()) {
+        threadHost.replaceChildren(chat.thread.toElement());
+        dock.replaceChildren(chat.composer.toElement());
+      }
     }
 
     /**
-     * The messages with an agent; an agent you have not written to yet greets you first.
+     * The conversation with an agent and its composer, made the first time the chat opens. An
+     * agent you have not written to yet greets you first.
      * @param {(typeof agents)[number]} agent
-     * @returns {{from: string, at: string, text: string, tools?: string[], file?: string, task?: string}[]}
+     * @returns {{thread: AgentThread, composer: Composer}}
      */
-    function conversation(agent) {
-      if (!chats.has(agent.id)) {
-        chats.set(agent.id, [{
-          from: agent.id, at: clock(state.now, false),
-          text: agent.offline ? `I’m offline for now (${agent.away?.toLocaleLowerCase()}). Your messages will wait for me.`
-            : `Hello ${me.name.split(' ')[0]}. I’m ${agent.name}, on ${agent.role.toLocaleLowerCase()}. ${presenceOf(agent).doing}.`
-        }]);
+    function chatFor(agent) {
+      const existing = chats.get(agent.id);
+      if (existing) return existing;
+      const messages = CHATS[agent.id] ?? [{
+        from: agent.id, at: clock(state.now, false),
+        text: agent.offline ? `I’m offline for now (${agent.away?.toLocaleLowerCase()}). Your messages will wait for me.`
+          : `Hello ${me.name.split(' ')[0]}. I’m ${agent.name}, on ${agent.role.toLocaleLowerCase()}. ${presenceOf(agent).doing}.`
+      }];
+      const thread = keep(new AgentThread(null, {
+        items: messages.flatMap((message, index) => messageItems(message, `${agent.id}-${index}`)),
+        authors, label: `Conversation with ${agent.name}`, answerActions: [], now,
+        formatTime: (at) => at.slice(11, 16),
+        onartifact: (event) => openFile(event.detail.id),
+        // A link under a message opens what it names in its tab.
+        onopen: (event) => {
+          const { ref } = event.detail;
+          if (ref.entity === 'task') openTask(String(ref.id));
+          else openFile(String(ref.id));
+        }
+      }));
+      const composer = keep(new Composer(null, {
+        label: `Message ${agent.name}`, placeholder: `Message ${agent.name}`,
+        onsend: (event) => sendChat(agent, event.detail.text)
+      }));
+      const chat = { thread, composer };
+      chats.set(agent.id, chat);
+      return chat;
+    }
+
+    /**
+     * A message as thread items: the person's own as it was written; an agent's as the calls it
+     * made, then its answer with any file it attached and a link to the task it points to.
+     * @param {(typeof CHATS)[string][number]} message
+     * @param {string} id
+     * @returns {import('../../src/internal/agent-model.js').ThreadItem[]}
+     */
+    function messageItems(message, id) {
+      const at = `${TODAY}T${message.at}`;
+      if (message.from === 'me') return [{ id, type: 'user', author: 'me', at, text: message.text }];
+      const items = [];
+      if (message.tools) {
+        items.push({ id: `${id}-work`, type: 'trace', author: message.from, at, steps: message.tools.map((tool, index) => ({
+          id: `${id}-call-${index}`, kind: TOOL_KINDS[tool.tool] ?? 'call', label: tool.label, count: tool.tool, tool: tool.tool, ms: tool.ms
+        })) });
       }
-      return chats.get(agent.id) ?? [];
+      const file = message.file ? FILES.find((entry) => entry.id === message.file) : null;
+      items.push({
+        id, type: 'answer', author: message.from, at, blocks: [
+          { type: 'p', text: literal(message.text) },
+          ...(file ? [{ type: 'artifact', id: file.id, title: file.name, kind: file.kind === 'code' ? 'code' : 'document' }] : [])
+        ],
+        refs: message.task ? [{ id: message.task, label: 'Open the task', icon: 'list-check', entity: 'task' }] : undefined
+      });
+      return items;
     }
 
     /** The open file: a rendered document, or numbered source. @returns {void} */
@@ -1575,7 +1555,7 @@ export default {
 
     /** Where the composer's request will go, as you type it. @returns {void} */
     function renderRoute() {
-      const text = composerInput.value.trim();
+      const text = composer.getValue().trim();
       const target = text ? routeFor(text) : null;
       const orbit = agentById('orbit');
       if (!text) {
@@ -1654,7 +1634,6 @@ export default {
       if (!taskById(id)) return;
       const changed = state.task !== id;
       state.task = id;
-      if (changed) state.expanded.clear();
       renderTask();
       renderInspector();
       renderStatus();
@@ -1685,8 +1664,8 @@ export default {
     function newTask() {
       show('home', { focus: false });
       if (preview) return;
-      composerInput.focus();
-      composerInput.scrollIntoView({ block: 'nearest' });
+      composer.focus();
+      composer.toElement().scrollIntoView({ block: 'nearest' });
     }
 
     /**
@@ -1856,7 +1835,7 @@ export default {
     }
 
     /**
-     * Unblocks the step a task is stuck on.
+     * Unblocks the step a task is stuck on: the call that stopped is made again.
      * @param {string} id Task id.
      * @returns {void}
      */
@@ -1866,9 +1845,13 @@ export default {
       if (!task || !step) return;
       step.status = 'in-progress';
       step.since = state.now;
+      const stopped = task.log.findLastIndex((event) => event.actor === step.agent && event.kind === 'block');
+      const call = task.log.findLast((event) => event.call === 'match_ledger');
       log(task, { actor: 'me', kind: 'decision', action: 'Granted read access to the freight ledger', args: 'role: "ledger-reader"' });
-      const running = task.log.findLast((event) => event.actor === step.agent && event.kind === 'block');
-      log(task, { actor: step.agent, kind: 'tool', action: 'Matching against the ledger', call: 'match_ledger', args: running?.args ?? 'invoices: 240', running: true });
+      log(task, {
+        actor: step.agent, kind: 'tool', action: 'Matching against the ledger', call: 'match_ledger', args: call?.args ?? 'invoices: 240',
+        running: true, retryOf: stopped < 0 ? undefined : stopped
+      });
       remember('me', `gave ${nameOf(step.agent)} read access to the freight ledger`);
       announce(`${nameOf(step.agent)} is working again.`);
       refresh();
@@ -1978,9 +1961,20 @@ export default {
       const ledger = agentById('ledger');
       notify(`${ledger.name} is blocked: it needs read access to the freight ledger.`, 'warning', {
         leading: keep(agentAvatar(ledger, 'sm')).toElement(),
-        action: { label: 'Resolve', onclick: () => resolve(task.id) },
+        action: { label: 'Resolve', onclick: () => answerFromToast(() => resolve(task.id)) },
         timeout: 12000
       });
+    }
+
+    /**
+     * Answers a toast's request. The toast closes with the focus it holds, so the focus goes back
+     * to the open tab first, where the workspace's keys keep working.
+     * @param {() => void} answer
+     * @returns {void}
+     */
+    function answerFromToast(answer) {
+      focusActiveTab();
+      answer();
     }
 
     /** A toast for a decision an agent waits on. @param {AgentTask} task @returns {void} */
@@ -1990,7 +1984,7 @@ export default {
       const from = agentById(step.approval.from);
       notify(`${from.name}: ${step.approval.ask}`, 'info', {
         leading: keep(agentAvatar(from, 'sm')).toElement(),
-        action: { label: 'Approve', onclick: () => approve(task.id) },
+        action: { label: 'Approve', onclick: () => answerFromToast(() => approve(task.id)) },
         timeout: 12000
       });
     }
@@ -2006,7 +2000,6 @@ export default {
       if (task.paused) {
         task.pausedFor = (task.pausedFor ?? 0) + state.now - (task.pausedAt ?? state.now);
         for (const step of task.plan) if (step.status === 'in-progress' && step.since !== undefined) step.since += state.now - (task.pausedAt ?? state.now);
-        for (const event of task.log) if (event.running) event.from = (event.from ?? event.at) + state.now - (task.pausedAt ?? state.now);
         task.paused = false;
         task.pausedAt = undefined;
         task.pauseReason = undefined;
@@ -2017,24 +2010,23 @@ export default {
       } else {
         task.paused = true;
         task.pausedAt = state.now;
-        log(task, { actor: 'me', kind: 'decision', action: 'Paused the run' });
+        log(task, { actor: 'me', kind: 'decision', action: 'Paused the run', pause: true });
       }
       announce(task.paused ? `${task.title} is paused.` : `${task.title} is running again.`);
       refresh();
     }
 
-    /** Starts a task from the composer, routed to the agent that fits. @returns {void} */
-    function startTask() {
-      const text = composerInput.value.trim();
-      if (!text) {
-        notify('Describe the task first.', 'warning');
-        if (!preview) composerInput.focus();
-        return;
-      }
+    /**
+     * Starts a task from the composer, routed to the agent that fits.
+     * @param {string} text The request.
+     * @param {File[]} files What was attached to it.
+     * @returns {void}
+     */
+    function startTask(text, files) {
       const agent = agentById(routeFor(text) ?? 'orbit');
-      createTask(titleFrom(text), agent, 'Inbox');
-      composerInput.value = '';
-      renderRoute();
+      createTask(titleFrom(text), agent, 'Inbox', files.map((file) => file.name));
+      // The composer empties once the send is through; the route follows it.
+      queueMicrotask(() => renderRoute());
       const offline = presenceOf(agent).state === 'offline';
       notify(offline ? `${agent.name} is offline, so the task waits for it.` : `Orbit routed it to ${agent.name}.`, offline ? 'info' : 'success', {
         leading: keep(agentAvatar(agent, 'sm')).toElement()
@@ -2046,9 +2038,10 @@ export default {
      * @param {string} title
      * @param {(typeof agents)[number]} agent
      * @param {string} project
+     * @param {string[]} [files] Names of the files the request came with.
      * @returns {AgentTask}
      */
-    function createTask(title, agent, project) {
+    function createTask(title, agent, project, files = []) {
       const task = /** @type {AgentTask} */ ({
         id: `task-${state.nextNumber}`, number: state.nextNumber, title, project, lead: 'orbit', owner: agent.id,
         run: state.nextRun, branch: 'main', started: state.now, pausedFor: 0,
@@ -2061,7 +2054,10 @@ export default {
       });
       state.nextNumber += 1;
       state.nextRun += 1;
-      log(task, { actor: 'orbit', kind: 'tool', action: 'Planned the task', call: 'plan', args: 'steps: 3', ms: 1800, tokens: 940, detail: ['Three steps: the work, then a review.'] });
+      log(task, {
+        actor: 'orbit', kind: 'tool', action: 'Planned the task', call: 'plan', args: 'steps: 3', ms: 1800, tokens: 940,
+        detail: ['Three steps: the work, then a review.', ...(files.length ? [`Attached: ${files.join(', ')}`] : [])]
+      });
       log(task, { actor: 'orbit', kind: 'handoff', to: agent.id, action: `Handed off to ${agent.name}`, args: `“${title}”` });
       if (!agent.offline) log(task, { actor: agent.id, kind: 'note', action: title, running: true });
       tasks.unshift(task);
@@ -2088,34 +2084,25 @@ export default {
       notify(`The agents now run on ${MODELS.find((model) => model.id === id)?.label}.`);
     }
 
-    /** Sends a message to the agent the chat is with. @returns {void} */
-    function sendChat() {
-      const text = chatInput.value.trim();
-      if (!text) return;
-      const agent = agentById(state.chat);
-      const messages = conversation(agent);
-      messages.push({ from: 'me', at: clock(state.now, false), text });
-      chatInput.value = '';
+    /**
+     * Sends a message to an agent. One that is online writes back — the thread says it is writing
+     * until its answer arrives; one that is offline finds the message when it returns.
+     * @param {(typeof agents)[number]} agent
+     * @param {string} text
+     * @returns {void}
+     */
+    function sendChat(agent, text) {
+      const { thread } = chatFor(agent);
+      const at = isoAt(state.now);
+      thread.upsert({ id: `sent-${state.sent++}`, type: 'user', author: 'me', at, text });
+      if (agent.offline || preview) return;
       const presence = presenceOf(agent);
-      if (agent.offline) {
-        renderChat();
-        return;
-      }
-      state.typing = agent.id;
-      renderChat();
-      thread.lastElementChild?.scrollIntoView({ block: 'nearest' });
-      if (preview) return;
+      const reply = literal(presence.task ? `Noted. I’ll take that into “${presence.task.title}”.` : 'Noted. Send me a task whenever you’re ready.');
+      const id = `sent-${state.sent++}`;
+      thread.upsert({ id, type: 'answer', author: agent.id, at, blocks: [], streaming: true });
       later(context, () => {
-        if (state.typing === agent.id) state.typing = null;
-        messages.push({
-          from: agent.id, at: clock(state.now, false),
-          text: presence.task ? `Noted. I’ll take that into “${presence.task.title}”.` : 'Noted. Send me a task whenever you’re ready.'
-        });
-        if (state.chat === agent.id) {
-          renderChat();
-          thread.lastElementChild?.scrollIntoView({ block: 'nearest' });
-          announce(`${agent.name} replied.`);
-        }
+        thread.appendText(id, reply);
+        thread.patch(id, { streaming: false });
       }, 1400);
     }
 

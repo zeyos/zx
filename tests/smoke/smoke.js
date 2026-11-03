@@ -329,6 +329,17 @@ const cases = [
     component.set({ name: 'Grace Hopper', label: 'Grace Hopper', src: null }).setStatus('away', 'Away');
     assert(component.refs.fallback.textContent === 'GH' && !component.hasImage(), 'avatar update failed');
     assert(component.el.getAttribute('aria-label') === 'Grace Hopper, Away', 'setStatus did not update the avatar name');
+    component.setActivity('needs-you');
+    assert(component.el.getAttribute('aria-label') === 'Grace Hopper, Needs you',
+      'the activity word is not in the accessible name');
+    assert(component.el.dataset.activity === 'needs-you' && !component.refs.activity.hidden
+      && component.refs.status.hidden, 'the activity did not take the place of the presence dot');
+    assert(component.refs.activity.title === 'Needs you', 'the activity dot has no tooltip');
+    component.setActivity('blocked', 'Waiting on the bank');
+    assert(component.el.getAttribute('aria-label') === 'Grace Hopper, Waiting on the bank', 'activityLabel ignored');
+    component.setActivity(null);
+    assert(component.el.getAttribute('aria-label') === 'Grace Hopper, Away' && !component.refs.status.hidden
+      && !('activity' in component.el.dataset), 'clearing the activity did not bring the presence back');
   }),
   componentCase('EntityRef', () => new zx.EntityRef(null, {
     id: 'customer-7',
@@ -2502,7 +2513,583 @@ const cases = [
   truncateCase(),
   sizeContainerCase(),
   positionRtlCase(),
-  customElementsCase()
+  customElementsCase(),
+  componentCase('BlockView', () => new zx.BlockView(null, {
+    blocks: [
+      { type: 'p', text: 'Paid **€4,860.00** <img src=x onerror="window.__zxInjected = 1"> [1].' },
+      { type: 'figures', rows: [['Late', '3 invoices', '€19,375.50']] },
+      { type: 'table', columns: ['Invoice', 'Amount'], rows: [['RE-1', '€1.00']] },
+      { type: 'code', language: 'js', code: 'const a = 1;' },
+      { type: 'artifact', id: 'draft', title: 'Reminder draft', kind: 'document' }
+    ],
+    sources: [{ id: 'inv', title: 'Invoices · September' }]
+  }), (component) => {
+    const root = component.toElement();
+    assert(!root.querySelector('img') && !('__zxInjected' in window), 'model text reached the page as HTML');
+    assert(root.querySelector('strong')?.textContent === '€4,860.00', 'bold run missing');
+    const cites = observe(component, 'cite');
+    const cite = /** @type {HTMLButtonElement} */ (root.querySelector('[data-cite="1"]'));
+    assert(cite?.getAttribute('aria-label') === 'Source 1: Invoices · September', 'citation is not named by its source');
+    cite.click();
+    cites.expect();
+    const artifacts = observe(component, 'artifact');
+    /** @type {HTMLButtonElement} */ (root.querySelector('[data-artifact="draft"]')).click();
+    artifacts.expect();
+    // Streaming: finished paragraphs keep their nodes; a break split across chunks still splits.
+    component.setBlocks([], { streaming: true });
+    assert(root.getAttribute('aria-busy') === 'true', 'a streaming answer is not busy');
+    for (const chunk of ['One **bo', 'ld**\n', '\nTwo']) component.appendText(chunk);
+    const first = root.querySelector('p');
+    component.appendText(' more');
+    assert(root.querySelectorAll('p').length === 2, 'a paragraph break split across chunks was missed');
+    assert(root.querySelector('p') === first, 'a finished paragraph was redrawn');
+    const ends = observe(component, 'end');
+    component.end();
+    ends.expect();
+    assert(root.dataset.state === 'done' && !root.hasAttribute('aria-busy'), 'end() left the answer busy');
+    component.stop();
+    assert(root.dataset.state === 'stopped' && root.querySelector('.zx-block-view__stopped'), 'stop() left no note');
+    assert(component.toMarkdown() === 'One **bold**\n\nTwo more', 'Markdown export lost the stream');
+  }),
+  componentCase('RunStatus', () => new zx.RunStatus(null, {
+    state: 'waiting',
+    summary: 'Step 4 of 6 needs your approval.',
+    steps: { done: 3, total: 6 },
+    started: '2026-09-29T10:20:00',
+    workMs: 74_000,
+    waitingSince: '2026-09-29T10:22:00',
+    tokens: [18420, 1236],
+    cost: { amount: 0.14, budget: 2, currency: 'EUR' },
+    actions: [{ label: 'Review the request', kind: 'primary' }]
+  }), (component) => {
+    const root = component.el;
+    assert(root.dataset.state === 'waiting', 'RunStatus did not reflect its state');
+    assert(root.querySelector('.zx-run-status__state .zx-status-icon')
+      && root.querySelector('.zx-run-status__word')?.textContent === 'Waiting for you', 'state is not a glyph and a word');
+    const bar = root.querySelector('[role="progressbar"]');
+    assert(bar?.getAttribute('aria-valuenow') === '3' && bar.getAttribute('aria-valuemax') === '6'
+      && bar.getAttribute('aria-valuetext') === '3 of 6 steps', 'steps progressbar semantics missing');
+    const meter = root.querySelector('[role="meter"]');
+    assert(meter?.getAttribute('aria-valuetext')?.includes('0.14') && meter.dataset.level === 'normal',
+      'cost meter semantics missing');
+    assert([...root.querySelectorAll('dt')].some((dt) => dt.textContent === 'Waiting since'),
+      'a waiting run does not say since when');
+    const actions = observe(component, 'action');
+    root.querySelector('[data-run-action="0"]').click();
+    actions.expect();
+    // Focus survives update(): kept on the same button when the actions did not change, moved to
+    // the same index when they did, and held by the panel when none is left.
+    const review = root.querySelector('[data-run-action="0"]');
+    review.focus();
+    component.update({ summary: 'Still waiting.' });
+    assert(document.activeElement === review && review.isConnected, 'update() took focus off an unchanged action');
+    component.update({ actions: [{ label: 'Open the request', kind: 'primary' }, { label: 'Dismiss' }] });
+    assert(document.activeElement?.getAttribute('data-run-action') === '0'
+      && document.activeElement.textContent === 'Open the request', 'focus did not follow the action at its index');
+    component.update({ actions: [] });
+    assert(document.activeElement === root && root.getAttribute('tabindex') === '-1',
+      'focus fell out of the panel when its last action went');
+    component.update({ actions: [{ label: 'Review the request', kind: 'primary' }] });
+
+    // Tokens: a total, and a meter against a budget.
+    component.update({ tokens: 22840 });
+    assert([...root.querySelectorAll('dd')].some((dd) => dd.textContent === '22,840')
+      && root.querySelectorAll('[role="meter"]').length === 1, 'a token total without a budget is not plain text');
+    component.update({ tokenBudget: 60000 });
+    const tokenMeter = [...root.querySelectorAll('[role="meter"]')].find((meter) => meter.getAttribute('aria-label') === 'Tokens');
+    assert(tokenMeter?.getAttribute('aria-valuetext') === '22.8K of 60K tokens' && tokenMeter.dataset.level === 'normal'
+      && tokenMeter.getAttribute('aria-valuemax') === '60000', 'token budget meter semantics missing');
+    component.update({ tokens: [40000, 8000] });
+    assert([...root.querySelectorAll('[role="meter"]')].find((meter) => meter.getAttribute('aria-label') === 'Tokens')
+      ?.dataset.level === 'warning', 'the token meter did not warn from 80%');
+    component.update({ tokens: [18420, 1236], tokenBudget: null });
+
+    // Blocked: a glyph and a word in the danger tone, "Blocked since", and no finished time.
+    component.update({ state: 'blocked', finished: '2026-09-29T10:25:00' });
+    assert(root.dataset.state === 'blocked' && root.querySelector('.zx-run-status__word')?.textContent === 'Blocked'
+      && root.querySelector('.zx-run-status__state .zx-status-icon')?.dataset.tone === 'danger', 'blocked is not drawn');
+    const blockedLabels = [...root.querySelectorAll('dt')].map((dt) => dt.textContent);
+    assert(blockedLabels.includes('Blocked since') && !blockedLabels.some((label) => /Finished|Failed at|Stopped at/.test(label)),
+      'a blocked run does not say since when, or says it is over');
+    component.update({ state: 'waiting', finished: null });
+    component.update({ cost: { amount: 1.7, budget: 2, currency: 'EUR' } });
+    assert(root.querySelector('[role="meter"]').dataset.level === 'warning', 'the cost meter did not warn from 80%');
+    component.update({ cost: { amount: 2, budget: 2, currency: 'EUR' } });
+    assert(root.querySelector('[role="meter"]').dataset.level === 'danger', 'the cost meter did not turn to danger at 100%');
+    component.update({ state: 'running', workMs: 5000 });
+    assert(component.getState().workMs >= 5000 && root.querySelector('.zx-run-status__elapsed'),
+      'a running run shows no working time');
+    component.update({ state: 'done', finished: '2026-09-29T10:30:00' });
+    const frozen = component.getState().workMs;
+    assert(component.getState().workMs === frozen, 'the clock ran on after the run finished');
+    component.update({ compact: true });
+    assert(root.hasAttribute('data-compact') && !root.querySelector('dl, [role="progressbar"], button')
+      && root.querySelector('.zx-run-status__pill .zx-status-icon'), 'compact drew more than the state pill');
+    component.update({ compact: 'icon' });
+    const pill = root.querySelector('.zx-run-status__pill');
+    const word = pill?.querySelector('.zx-run-status__word');
+    assert(root.getAttribute('data-compact') === 'icon' && pill.title === word?.textContent && word.textContent === 'Done'
+      && word.getBoundingClientRect().width <= 1 && pill.querySelector('.zx-status-icon'),
+      'compact icon does not hide the word visually while keeping it as text and tooltip');
+  }),
+  componentCase('Composer', () => new zx.Composer(null, {
+    attachments: true,
+    mentions: { items: [{ id: 'finance', label: 'Finance agent' }, { id: 'sales', label: 'Sales agent' }] },
+    commands: [{ id: 'summarize', label: 'Summarize the conversation' }],
+    context: [{ id: 'selection', label: '3 invoices' }],
+    tools: [{ id: 'web', label: 'Web search', icon: 'search', pressed: false }]
+  }), (component) => {
+    const input = component.el.querySelector('textarea');
+    assert(input && !input.hasAttribute('role'), 'Composer text area lost its textbox role');
+    assert(component.el.getAttribute('role') === 'group', 'Composer root is not a group');
+    const key = (name, init = {}) => {
+      const event = new KeyboardEvent('keydown', { key: name, bubbles: true, cancelable: true, ...init });
+      input.dispatchEvent(event);
+      return event;
+    };
+    let sends = 0;
+    let sent = null;
+    component.on('send', (event) => { sends += 1; sent = event.detail; });
+    const sendEvents = observe(component, 'send');
+    key('Enter');
+    assert(sends === 0, 'Composer sent an empty message');
+    component.setValue('Draft the reminders');
+    const composing = key('Enter', { isComposing: true });
+    assert(sends === 0 && !composing.defaultPrevented, 'an IME composition Enter sent the message');
+    key('Enter', { shiftKey: true });
+    assert(sends === 0, 'Shift+Enter sent the message');
+    key('Enter');
+    assert(sends === 1, `Enter sent ${sends} times`);
+    sendEvents.expect();
+    assert(sent.text === 'Draft the reminders' && sent.context.length === 1, 'Composer send detail is wrong');
+    assert(component.getValue() === '' && input.value === '', 'send did not clear the text');
+
+    // Mentions: the text area points at the suggestions without becoming a combobox.
+    input.focus();
+    component.setValue('Ask @fin');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    const list = component.el.querySelector('[role="listbox"]');
+    assert(!list.hidden && input.getAttribute('aria-controls') === list.id
+      && input.getAttribute('aria-autocomplete') === 'list', 'mention suggestions did not open');
+    assert(input.getAttribute('aria-activedescendant') === list.querySelector('[aria-selected="true"]')?.id,
+      'the active suggestion is not exposed');
+    key('Enter');
+    assert(input.value === 'Ask @Finance agent ' && list.hidden, 'Enter did not pick the suggestion');
+    assert(!input.hasAttribute('aria-activedescendant'), 'a closed list left aria-activedescendant');
+    assert(sends === 1, 'picking a suggestion sent the message');
+
+    // Busy: Send becomes Stop, Enter does not send, Escape stops.
+    const stops = observe(component, 'stop');
+    component.setBusy(true);
+    assert(component.el.querySelector('.zx-composer__send').getAttribute('aria-label') === 'Stop', 'busy Send is not Stop');
+    key('Enter');
+    assert(sends === 1, 'Enter sent while busy');
+    key('Escape');
+    stops.expect();
+    component.setBusy(false);
+
+    // Attachments are a list with a named remove button each.
+    component.addFiles([new File(['x'], 'notes.txt', { type: 'text/plain' })]);
+    const remove = component.el.querySelector('ul [aria-label="Remove notes.txt"]');
+    assert(remove, 'the attachment has no remove button');
+    remove.click();
+    assert(component.getFiles().length === 0, 'removing the attachment failed');
+
+    // "/" on an empty text opens the commands in a launcher the composer owns.
+    component.clear();
+    const slash = key('/');
+    const launcher = document.querySelector('dialog.zx-launcher[open]');
+    assert(slash.defaultPrevented && launcher, '/ on an empty text did not open the commands');
+    launcher.close();
+
+    // Tools: an extra bar button named by its label; a boolean `pressed` makes it a toggle; a click
+    // emits `tool` and leaves the pressed state to the application.
+    const web = component.el.querySelector('.zx-composer__bar [data-tool="web"]');
+    assert(web && web.getAttribute('aria-label') === 'Web search' && web.getAttribute('aria-pressed') === 'false',
+      'the Web search tool is not a named toggle');
+    let toolDetail = null;
+    component.on('tool', (event) => { toolDetail = event.detail; });
+    const toolEvents = observe(component, 'tool');
+    web.click();
+    toolEvents.expect();
+    assert(toolDetail?.id === 'web' && toolDetail.tool.pressed === false, 'Composer tool detail is wrong');
+    assert(web.getAttribute('aria-pressed') === 'false', 'the composer toggled a tool by itself');
+    component.setToolPressed('web', true);
+    assert(web.getAttribute('aria-pressed') === 'true', 'setToolPressed did not press the tool');
+    web.focus();
+    component.setTools([{ id: 'params', label: 'Parameters', icon: 'gear' }, { id: 'web', label: 'Web search', icon: 'search', pressed: true }]);
+    assert(document.activeElement?.dataset.tool === 'web', 'setTools moved the focus off the same tool');
+
+    // update() changes the composer in place: the text, its selection, the focus and the chips stay.
+    component.setValue('Keep this text');
+    input.focus();
+    input.setSelectionRange(5, 9);
+    component.update({ placeholder: 'Message Halden 3 Deep', note: 'Halden 3 Deep can make mistakes.', label: 'Ask Halden' });
+    assert(component.getValue() === 'Keep this text' && document.activeElement === input
+      && input.selectionStart === 5 && input.selectionEnd === 9, 'update() lost the text, the focus or the selection');
+    assert(input.placeholder === 'Message Halden 3 Deep' && input.getAttribute('aria-label') === 'Ask Halden'
+      && document.getElementById(input.getAttribute('aria-describedby'))?.textContent === 'Halden 3 Deep can make mistakes.',
+      'update() did not change the placeholder, the label or the note');
+    assert(component.getContext().length === 1, 'update() dropped the context chip');
+
+    // sendLabel: a visible word that is also Send's name; busy, the button reads Stop.
+    const sendButton = component.el.querySelector('.zx-composer__send');
+    component.update({ sendLabel: 'Start task' });
+    assert(sendButton.textContent === 'Start task' && sendButton.getAttribute('aria-label') === 'Start task',
+      'sendLabel is not the visible text and the name of Send');
+    component.update({ busy: true });
+    assert(sendButton.textContent === 'Stop' && sendButton.getAttribute('aria-label') === 'Stop', 'a labelled busy Send is not Stop');
+    component.update({ busy: false, sendLabel: null });
+    assert(sendButton.textContent === '' && sendButton.getAttribute('aria-label') === 'Send', 'sendLabel: null kept the word');
+  }),
+  componentCase('ApprovalCard', () => new zx.ApprovalCard(null, {
+    title: 'Send 3 payment reminders?',
+    details: [{ type: 'p', text: 'Three reminders, **€4,515.50** in all.' }],
+    preview: { label: 'Show the email', content: [{ type: 'p', text: 'Hello Mara,' }] },
+    fields: { subject: { type: 'text', label: 'Subject' } },
+    values: { subject: 'Invoice overdue' }
+  }), (component) => {
+    const root = component.el;
+    assert(root.getAttribute('role') === 'group' && root.tabIndex === -1, 'ApprovalCard root is not a focusable group');
+    assert(document.getElementById(root.getAttribute('aria-labelledby'))?.localName === 'h3',
+      'ApprovalCard group is not labelled by its title');
+    assert(root.dataset.state === 'pending', 'ApprovalCard did not start pending');
+
+    // Approval keys act only with focus inside the card.
+    const outside = document.createElement('button');
+    document.body.append(outside);
+    outside.focus();
+    outside.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true, cancelable: true }));
+    outside.remove();
+    assert(component.getStatus() === 'pending', 'an approval key acted with focus outside the card');
+
+    // A key typed into a text control inside the card is typing, not an answer.
+    const input = document.createElement('input');
+    root.querySelector('.zx-approval-card__details').append(input);
+    input.focus();
+    const typed = new KeyboardEvent('keydown', { key: 'a', bubbles: true, cancelable: true });
+    input.dispatchEvent(typed);
+    input.remove();
+    assert(component.getStatus() === 'pending' && !typed.defaultPrevented, 'an approval key acted inside a text control');
+
+    // A prevented approval leaves the card pending.
+    const events = observe(component, 'approve');
+    const veto = (event) => event.preventDefault();
+    component.on('approve', veto);
+    assert(component.handleKey(new KeyboardEvent('keydown', { key: 'a', cancelable: true })) === true,
+      'handleKey did not use A');
+    assert(component.getStatus() === 'pending', 'a prevented approve answered the card');
+    component.off('approve', veto);
+    // update() changes the request in place: focus stays on Approve, nothing is emitted, and
+    // details equal to what is drawn are not redrawn.
+    const approveButton = root.querySelector('[data-approval-action="approve"]');
+    const detailsEl = root.querySelector('.zx-approval-card__details');
+    let updateEvents = 0;
+    const countEvent = () => { updateEvents += 1; };
+    for (const type of ['approve', 'edit', 'reject']) component.on(type, countEvent);
+    approveButton.focus();
+    component.update({
+      title: 'Send 4 payment reminders?',
+      details: [{ type: 'p', text: 'Four reminders, **€5,055.50** in all.' }],
+      values: { subject: 'Second notice' }
+    });
+    assert(document.activeElement === approveButton, 'ApprovalCard update() moved focus off Approve');
+    assert(root.querySelector('.zx-approval-card__title').textContent === 'Send 4 payment reminders?',
+      'ApprovalCard update() did not redraw the title');
+    assert(root.querySelector('.zx-approval-card__details') === detailsEl && detailsEl.textContent.includes('Four reminders'),
+      'ApprovalCard update() did not redraw the details in place');
+    assert(component.getValues().subject === 'Second notice', 'ApprovalCard update() did not adopt the values');
+    const drawnDetails = detailsEl.firstChild;
+    component.update({ details: [{ type: 'p', text: 'Four reminders, **€5,055.50** in all.' }] });
+    assert(detailsEl.firstChild === drawnDetails, 'ApprovalCard update() redrew details equal to what is drawn');
+    for (const type of ['approve', 'edit', 'reject']) component.off(type, countEvent);
+    assert(updateEvents === 0, 'ApprovalCard update() emitted an event');
+
+    // A control update() takes away hands focus to the card rather than the page.
+    root.querySelector('.zx-approval-card__disclosure').focus();
+    component.update({ preview: null });
+    assert(!root.querySelector('.zx-approval-card__preview') && document.activeElement === root,
+      'ApprovalCard update() dropped focus with the preview toggle');
+
+    // editedKeys lists only the named values; edited alone lists every field.
+    const editedLabels = () => [...root.querySelectorAll('.zx-approval-card__value-label')].map((el) => el.textContent).join(',');
+    component.update({
+      fields: { subject: { type: 'text', label: 'Subject' }, body: { type: 'textarea', label: 'Message' } },
+      values: { subject: 'Second notice', body: 'Hello' },
+      editedKeys: ['body']
+    });
+    assert(editedLabels() === 'Message' && JSON.stringify(component.getEditedKeys()) === '["body"]',
+      'ApprovalCard editedKeys did not narrow the edited values');
+    component.update({ edited: false });
+    assert(root.querySelector('.zx-approval-card__changes').hidden, 'ApprovalCard edited: false kept the edited values');
+    component.update({ edited: true });
+    assert(editedLabels() === 'Subject,Message' && component.getEditedKeys() === null,
+      'ApprovalCard edited without editedKeys did not list every field');
+    component.update({ edited: false, fields: { subject: { type: 'text', label: 'Subject' } }, values: { subject: 'Invoice overdue' } });
+
+    // A with focus on the card approves it.
+    component.focus();
+    const key = new KeyboardEvent('keydown', { key: 'a', bubbles: true, cancelable: true });
+    root.dispatchEvent(key);
+    assert(key.defaultPrevented, 'the card did not use A');
+    events.expect();
+    assert(component.getStatus() === 'approved' && root.dataset.state === 'approved', 'ApprovalCard did not move to approved');
+    assert(root.querySelector('.zx-approval-card__actions').hidden, 'an answered card kept its actions');
+    assert(/^Approved by you at /.test(root.querySelector('.zx-approval-card__note').textContent),
+      'the answered card has no verdict line');
+    assert(document.activeElement === root, 'answering dropped focus out of the card');
+    assert(component.handleKey(new KeyboardEvent('keydown', { key: 'r', cancelable: true })) === false,
+      'a key acted on an answered card');
+    assert(component.getValues().subject === 'Invoice overdue', 'approve lost the values');
+
+    component.setStatus('pending');
+    assert(!root.querySelector('.zx-approval-card__actions').hidden, 'setStatus(pending) did not restore the actions');
+  }),
+  componentCase('RunTrace', () => new zx.RunTrace(null, {
+    authors: { finance: { name: 'Finance agent' }, collections: { name: 'Collections agent' } },
+    maxResult: 20,
+    steps: [
+      { id: 'q', kind: 'query', label: 'Queried invoices', status: 'failed', tool: 'invoices.query', args: '{"status":"overdue"}', error: 'Timed out', ms: 900 },
+      { id: 'q2', kind: 'query', label: 'Queried invoices', retryOf: 'q', result: 'RE-0121, RE-0122, RE-0123, RE-0124', ms: 700 },
+      { id: 'h', kind: 'handoff', label: 'Passed on the list', actor: 'finance', to: 'collections' },
+      { id: 'w', kind: 'write', label: 'Drafted reminders', status: 'running', doing: 'Drafting reminders' }
+    ]
+  }), async (component) => {
+    const root = component.el;
+    const summary = root.querySelector('.zx-run-trace__summary');
+    assert(summary.getAttribute('aria-expanded') === 'false', 'RunTrace summary did not start closed');
+    assert(document.getElementById(summary.getAttribute('aria-controls')) === root.querySelector('.zx-run-trace__steps'),
+      'RunTrace summary does not control its list');
+    assert(root.querySelector('[aria-current="step"]')?.dataset.step === 'w', 'running step lacks aria-current');
+    assert(root.querySelector('[data-step="q"] .zx-run-trace__retries [data-step="q2"]'), 'retry not nested under its step');
+    assert(root.querySelectorAll('[data-step="h"] .zx-avatar').length === 2, 'hand-off lacks both avatars');
+    const toggles = observe(component, 'toggle');
+    summary.click();
+    toggles.expect();
+    assert(!root.querySelector('.zx-run-trace__steps').hidden, 'summary click did not open the list');
+    component.expand('q2');
+    const pre = root.querySelector('[data-step="q2"] [data-section="result"] pre');
+    assert(pre.textContent.length === 21, 'long result was not cut at maxResult');
+    root.querySelector('[data-step="q2"] [data-action="show-all"]').click();
+    assert(root.querySelector('[data-step="q2"] [data-section="result"] pre').textContent.length > 21, 'Show all failed');
+    const kept = root.querySelector('[data-step="h"]');
+    component.upsert({ id: 'w', kind: 'write', label: 'Drafted reminders', ms: 1200 });
+    assert(root.querySelector('[data-step="h"]') === kept && !root.querySelector('[aria-current]'), 'upsert redrew more than its step');
+    const reveals = observe(component, 'reveal');
+    component.reveal('h');
+    reveals.expect();
+    assert(root.querySelector('[data-step="h"]').dataset.state === 'revealed', 'reveal did not mark the step');
+    assert(component.getSteps().length === 4, 'getSteps lost a step');
+    // A plan: task, ask and hand-off steps under a label, selectable rows, links, a blocked step,
+    // and the one clock — which must stop with the trace.
+    let ticks = 0;
+    const plan = new zx.RunTrace(null, {
+      open: true,
+      selectable: true,
+      ticking: true,
+      label: 'Close September · 1 of 3 done',
+      authors: { hanna: { name: 'Hanna Weber', kind: 'person' }, finance: { name: 'Finance agent' } },
+      now: () => { ticks += 1; return new Date('2026-10-14T10:00:05'); },
+      steps: [
+        { id: 'ask', kind: 'ask', label: 'Close September', actor: 'hanna', at: '2026-10-14T09:58:12' },
+        { id: 't1', kind: 'task', label: 'Match the bank feed', actor: 'finance', at: '2026-10-14T09:59:00', ms: 4000, tokens: 912,
+          refs: [{ id: 'OPS-01', label: 'Account OPS-01', icon: 'table', entity: 'account' }] },
+        { id: 'h', kind: 'handoff', label: 'Asked for approval', actor: 'finance', to: 'hanna' },
+        { id: 't2', kind: 'task', label: 'Collect invoices', status: 'running', at: '2026-10-14T10:00:00', detail: 'Overdue only.' },
+        { id: 't3', kind: 'task', label: 'Send reminders', status: 'queued' }
+      ]
+    });
+    root.after(plan.el);
+    const planRoot = plan.el;
+    const planText = () => planRoot.querySelector('.zx-run-trace__summary-text').textContent;
+    assert(planText() === 'Close September · 1 of 3 done · Running', `RunTrace label lost its state word: ${planText()}`);
+    assert(['ask', 't1', 'h', 't2', 't3'].map((id) => planRoot.querySelector(`[data-step="${id}"]`).dataset.kind).join() === 'ask,task,handoff,task,task',
+      'RunTrace dropped a new step kind');
+    assert(!planRoot.querySelector('button button, .zx-run-trace__row .zx-run-trace__ref'), 'RunTrace nests a control in a row');
+    assert(planRoot.querySelector('[data-step="t1"] .zx-run-trace__meta').textContent === 'Finance agent · 09:59:00 · 912 tokens',
+      'RunTrace meta line is not actor · time · tokens');
+    assert(planRoot.querySelector('[data-step="t1"] time').dateTime === '2026-10-14T09:59:00', 'RunTrace start time lacks its datetime');
+    assert([...planRoot.querySelectorAll('[data-step="h"] .zx-avatar')].map((avatar) => avatar.dataset.shape).join() === 'rounded,circle',
+      'RunTrace hand-off avatars do not follow the author kind');
+    assert(planRoot.querySelector('[data-step="t2"] [data-since]')?.textContent === '5 s', 'RunTrace running step lacks its clock');
+    const opens = observe(plan, 'open');
+    let opened = null;
+    plan.once('open', (event) => { opened = event.detail; });
+    planRoot.querySelector('[data-step="t1"] .zx-run-trace__ref').click();
+    opens.expect();
+    assert(opened?.ref.id === 'OPS-01' && opened.step.id === 't1', 'RunTrace open detail names the wrong link');
+    const selects = observe(plan, 'select');
+    const picked = [];
+    plan.on('select', (event) => picked.push(event.detail.id));
+    const t1Row = planRoot.querySelector('[data-step="t1"] > .zx-run-trace__row');
+    assert(t1Row.localName === 'button' && !t1Row.hasAttribute('aria-expanded'), 'selectable row without a body is not a plain button');
+    t1Row.click();
+    planRoot.querySelector('[data-step="t2"] > .zx-run-trace__row').click(); // opens: selects
+    planRoot.querySelector('[data-step="t2"] > .zx-run-trace__row').click(); // closes: does not
+    selects.expect();
+    assert(picked.join() === 't1,t2', `RunTrace select fired for ${picked.join()}`);
+    plan.upsert({ id: 't2', kind: 'task', label: 'Collect invoices', status: 'blocked', at: '2026-10-14T10:00:00' });
+    assert(planRoot.dataset.state === 'blocked' && planText() === 'Close September · 1 of 3 done · Blocked', 'RunTrace blocked summary is wrong');
+    assert(planRoot.querySelector('[data-step="t2"] .zx-run-trace__word')?.textContent === 'Blocked', 'blocked step lacks its word');
+    plan.setLabel(null);
+    assert(planText() === 'Blocked after 4.0 s', `RunTrace blocked wording is wrong: ${planText()}`);
+    plan.upsert({ id: 't2', kind: 'task', label: 'Collect invoices', status: 'running', at: '2026-10-14T10:00:00' });
+    if (!document.hidden) {
+      const before = ticks;
+      await delay(1100);
+      assert(ticks > before, 'RunTrace clock did not tick');
+    }
+    plan.destroy();
+    const atDestroy = ticks;
+    await delay(1100);
+    assert(ticks === atDestroy, 'RunTrace clock kept ticking after destroy()');
+    assert(!planRoot.isConnected, 'RunTrace left its root behind');
+  }),
+  componentCase('SourceList', () => new zx.SourceList(null, {
+    sources: [
+      { id: 'fees', kind: 'web', title: 'Late fees', site: 'bank.example', href: 'https://bank.example/fees', snippet: '€40 per invoice.' },
+      { id: 'plain', kind: 'web', title: 'Plain', href: 'http://bank.example/plain' },
+      { id: 'policy', kind: 'file', title: 'Dunning policy', site: 'policy.pdf' }
+    ]
+  }), (component) => {
+    const root = component.el;
+    const list = root.querySelector('ol');
+    assert(list.getAttribute('aria-labelledby') === root.querySelector('.zx-source-list__label').id, 'SourceList list is not labelled');
+    assert(!root.querySelector('img, [src]'), 'SourceList loaded a remote resource');
+    const first = root.querySelector('[data-n="1"]');
+    assert(first.localName === 'button' && first.textContent === 'Source 1: bank.example', 'source button name is wrong');
+    const opened = [];
+    const realOpen = window.open;
+    window.open = (...args) => { opened.push(args); return null; };
+    try {
+      const selects = observe(component, 'select');
+      first.click();
+      selects.expect();
+      assert(opened.length === 1 && opened[0][0] === 'https://bank.example/fees' && opened[0][2] === 'noopener,noreferrer',
+        'web source did not open its https address safely');
+      root.querySelector('[data-n="2"]').click();
+      root.querySelector('[data-n="3"]').click();
+      assert(opened.length === 1, 'an http or file source opened a window');
+      component.once('select', (event) => event.preventDefault());
+      first.click();
+      assert(opened.length === 1, 'a prevented select still opened the source');
+    } finally {
+      window.open = realOpen;
+    }
+    component.highlight(3);
+    assert(root.querySelector('[data-n="3"]').dataset.state === 'highlighted', 'highlight did not mark the source');
+    component.setSources([{ id: 'only', title: 'Only' }]);
+    assert(component.getSources().length === 1 && root.querySelectorAll('button').length === 1, 'setSources failed');
+  }),
+  presenceLoopCase(),
+  componentCase('AgentThread', () => new zx.AgentThread(null, {
+    authors: { me: { name: 'Hanna Weber', kind: 'person' }, finance: { name: 'Finance agent', tone: 'violet' } },
+    answerActions: ['copy', 'regenerate', 'rate'],
+    items: [
+      { id: 'ask', type: 'user', text: 'Reconcile September.', files: [{ name: 'Policy.pdf', size: 1200 }] },
+      { id: 'note', type: 'text', author: 'finance', text: 'Checking the bank feed first.' },
+      { id: 'work', type: 'trace', author: 'finance', steps: [
+        { id: 'q', kind: 'query', label: 'Queried invoices', tool: 'invoices.search', args: '{"month": 9}', result: '42 rows' }
+      ] },
+      { id: 'a1', type: 'answer', author: 'finance', blocks: [{ type: 'p', text: 'Three are late [1].' }],
+        sources: [{ id: 'inv', title: 'Invoices · September', kind: 'call', call: 'q' }] },
+      { id: 'ok', type: 'approval', author: 'finance', title: 'Send 3 reminder emails?', status: 'pending' }
+    ]
+  }), async (component) => {
+    const root = component.toElement();
+    const feed = root.querySelector('[role="feed"]');
+    const articles = () => [...root.querySelectorAll('article')];
+    assert(feed && articles().length === 5 && articles()[0].getAttribute('aria-setsize') === '5', 'feed semantics missing');
+    assert(articles().every((article) => article.getAttribute('aria-labelledby')
+      && document.getElementById(String(article.getAttribute('aria-labelledby')))), 'an article is not named by its byline');
+    assert(articles()[0].dataset.mine === 'true' && articles()[2].dataset.continued === 'true', 'turns are not grouped by author');
+    // A source that names a call reveals the step it came from.
+    /** @type {HTMLButtonElement} */ (root.querySelector('.zx-source-list button')).click();
+    assert(root.querySelector('[data-state="revealed"]'), 'a source did not reveal its tool call');
+    const cites = observe(component, 'cite');
+    /** @type {HTMLButtonElement} */ (root.querySelector('[data-cite="1"]')).click();
+    cites.expect();
+    // The approval answers from its own keys and the thread re-emits it.
+    const approvals = observe(component, 'approve');
+    let heard = 0;
+    root.addEventListener('zx-approve', () => { heard += 1; });
+    const card = /** @type {HTMLElement} */ (root.querySelector('.zx-approval-card'));
+    card.focus();
+    card.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true, cancelable: true }));
+    approvals.expect();
+    assert(heard === 1, `the thread's root heard zx-approve ${heard} times`);
+    assert(component.get('ok')?.status === 'approved', 'the thread did not record the approval');
+    // Streaming: a new id becomes an answer; the feed is busy until it is finished.
+    component.appendText('a2', 'Bruckner pays late **9 times');
+    component.appendText('a2', '** out of 14.');
+    assert(feed.getAttribute('aria-busy') === 'true', 'a streaming answer did not make the feed busy');
+    assert(!root.querySelector('article[data-id="a2"] .zx-agent-thread__actions'), 'a streaming answer offered actions');
+    component.patch('a2', { streaming: false });
+    assert(feed.getAttribute('aria-busy') === 'false', 'the feed stayed busy after the answer ended');
+    assert(root.querySelector('article[data-id="a2"] strong')?.textContent === '9 times', 'a marker split across chunks did not resolve');
+    assert(root.querySelector('article[data-id="a2"] [data-thread-action="regenerate"]')
+      && !root.querySelector('article[data-id="a1"] [data-thread-action="regenerate"]'), 'regenerate is not offered on the latest answer only');
+    const actions = observe(component, 'action');
+    /** @type {HTMLButtonElement} */ (root.querySelector('article[data-id="a2"] [data-thread-action="rate"]')).click();
+    actions.expect();
+    assert(component.get('a2')?.rating === 'up', 'rating was not recorded');
+    // Feed keys move between articles.
+    articles()[0].focus();
+    articles()[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'PageDown', bubbles: true, cancelable: true }));
+    assert(document.activeElement === articles()[1], 'PageDown did not move to the next article');
+    // Replacing in place, registering a type, removing.
+    component.upsert({ id: 'note', type: 'notice', text: 'The bank feed timed out.', tone: 'warning' });
+    assert(articles().length === 6 && articles()[1].dataset.type === 'notice', 'upsert did not replace in place');
+    if (!zx.AgentThread.has('smoke-card')) zx.AgentThread.register('smoke-card', (item) => zx.h('p', { class: 'smoke-card' }, String(item.text)));
+    component.upsert({ id: 'custom', type: 'smoke-card', text: 'Custom' });
+    assert(root.querySelector('.smoke-card')?.textContent === 'Custom', 'a registered item type was not drawn');
+    component.remove('custom');
+    assert(!root.querySelector('.smoke-card') && articles().length === 6, 'remove left the item behind');
+    await delay(100);
+    assert(root.querySelector('.zx-agent-thread__status')?.textContent, 'no milestone was announced');
+    // Extras: mentions, links, notices with an action, message actions, version steps, writing.
+    const extra = new zx.AgentThread(null, {
+      authors: { finance: { name: 'Finance agent' } }, userActions: ['edit', 'copy'],
+      items: [
+        { id: 'u', type: 'user', text: 'Ask @Analyst about it', mentions: ['Analyst'], refs: [{ id: 't1', label: 'Task #214', icon: 'list' }] },
+        { id: 'n', type: 'notice', text: 'Branched from the nightly export.', action: { id: 'back', label: 'Back to original' } },
+        { id: 'v', type: 'answer', author: 'finance', blocks: [], version: 1, versions: [
+          { blocks: [{ type: 'p', text: 'First' }], steps: [{ id: 's1', kind: 'read', label: 'Read the first draft' }] },
+          { blocks: [{ type: 'artifact', id: 'doc', title: 'Draft' }], steps: [{ id: 's2', kind: 'read', label: 'Read the second draft' }] }
+        ] },
+        { id: 'w', type: 'answer', author: 'finance', blocks: [], streaming: true }
+      ]
+    });
+    root.after(extra.toElement());
+    const host = extra.toElement();
+    try {
+      assert(host.querySelector('.zx-agent-thread__mention')?.textContent === '@Analyst', 'a mention was not marked');
+      const opens = observe(extra, 'open');
+      /** @type {HTMLButtonElement} */ (host.querySelector('[data-thread-action="open"]')).click();
+      opens.expect();
+      const notice = /** @type {HTMLElement} */ (host.querySelector('article[data-id="n"]'));
+      assert(document.getElementById(String(notice.getAttribute('aria-labelledby')))?.textContent === 'Branched from the nightly export.',
+        'a notice is not named by its own text');
+      /** @type {string[]} */
+      const acted = [];
+      extra.on('action', (event) => acted.push(String(/** @type {CustomEvent} */ (event).detail.action)));
+      /** @type {HTMLButtonElement} */ (notice.querySelector('.zx-agent-thread__notice-action')).click();
+      /** @type {HTMLButtonElement} */ (host.querySelector('article[data-id="u"] [data-thread-action="edit"]')).click();
+      assert(acted.join() === 'back,edit', `notice and message actions reported ${acted.join()}`);
+      assert(host.querySelector('article[data-id="v"] .zx-run-trace')?.textContent?.includes('second draft'), 'the version did not bring its steps');
+      extra.setArtifactState('doc', { expanded: true, controls: 'inspector' });
+      assert(host.querySelector('[data-artifact="doc"]')?.getAttribute('aria-expanded') === 'true', 'setArtifactState did not reach the card');
+      /** @type {HTMLButtonElement} */ (host.querySelector('article[data-id="v"] [data-thread-dir="previous"]')).click();
+      assert(host.querySelector('article[data-id="v"] .zx-run-trace')?.textContent?.includes('first draft'), 'paging did not swap the steps');
+      assert(/** @type {HTMLElement} */ (document.activeElement)?.dataset.threadAction === 'version', 'paging lost the focus');
+      const writing = /** @type {HTMLElement} */ (host.querySelector('article[data-id="w"] .zx-agent-thread__writing'));
+      assert(!writing.hidden, 'an empty streaming answer did not say who is writing');
+      extra.appendText('w', 'Here');
+      assert(writing.hidden, 'the writing line stayed after the first words');
+    } finally {
+      extra.destroy();
+    }
+  })
 ];
 
 auditCoverage(cases);
@@ -4683,6 +5270,64 @@ function observe(component, type) {
   component.on(type, () => { componentCount += 1; });
   component.el.addEventListener(`zx-${type}`, () => { domCount += 1; });
   return { expect: () => assert(componentCount > 0 && domCount > 0, `${type} emit path failed`) };
+}
+
+/**
+ * The shared presence loop: kept on the document and gone with its last avatar, still inside a
+ * reduced-motion region, and asleep while the page is hidden. @returns {SmokeDefinition}
+ */
+function presenceLoopCase() {
+  return {
+    name: 'Avatar (presence loop)',
+    create(fixture) {
+      const symbols = Object.getOwnPropertySymbols(document).length;
+      const region = document.createElement('div');
+      region.dataset.zxMotion = 'reduced';
+      fixture.append(region);
+      const still = new zx.Avatar(null, { name: 'Ledger agent', label: 'Ledger agent', activity: 'working', animate: true });
+      const moving = new zx.Avatar(null, { name: 'Mail agent', label: 'Mail agent', activity: 'needs-you', animate: true });
+      region.append(still.toElement());
+      // The loop moves only avatars on screen, and the fixtures sit off screen: this one gets an
+      // invisible stage inside the viewport.
+      const stage = document.createElement('div');
+      stage.style.cssText = 'position: fixed; inset-block-start: 0; inset-inline-start: 0; opacity: 0; pointer-events: none;';
+      stage.className = 'zx-scope';
+      document.body.append(stage);
+      stage.append(moving.toElement());
+      return { symbols, region, still, moving, stage };
+    },
+    async exercise({ symbols, still, moving }) {
+      assert(Object.getOwnPropertySymbols(document).length === symbols + 1, 'the presence loop is not kept on the document');
+      await delay(400);
+      assert(still.el.style.transform === '', 'an avatar inside data-zx-motion="reduced" moved');
+      // A backgrounded run, or a machine asking for reduced motion, never starts the loop at all.
+      if (document.hidden || zx.prefersReducedMotion(moving.el)) return;
+      assert(moving.el.style.transform !== '', 'an animated avatar on screen did not move');
+
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+      document.dispatchEvent(new Event('visibilitychange'));
+      const frozen = moving.el.style.transform;
+      await delay(200);
+      const asleep = moving.el.style.transform === frozen;
+      delete document.hidden;
+      document.dispatchEvent(new Event('visibilitychange'));
+      assert(asleep, 'the presence loop ran on while the page was hidden');
+
+      moving.el.dataset.zxMotion = 'reduced';
+      await delay(50);
+      assert(moving.el.style.transform === '', 'reduced motion did not put the avatar back at rest');
+      delete moving.el.dataset.zxMotion;
+      await delay(100);
+      assert(moving.el.style.transform !== '', 'the avatar did not move again when motion returned');
+    },
+    destroy({ symbols, region, still, moving, stage }) {
+      still.destroy();
+      moving.destroy();
+      region.remove();
+      stage.remove();
+      assert(Object.getOwnPropertySymbols(document).length === symbols, 'the presence loop outlived its last avatar');
+    }
+  };
 }
 
 /** @param {SmokeDefinition[]} definitions @returns {void} */
