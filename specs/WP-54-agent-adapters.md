@@ -36,6 +36,21 @@ changelog lines. `docs/api.json` is regenerated. Public files must not mention t
 5. **URL mode asks first.** An MCP URL-mode elicitation is shown as a `confirm` surface that names
    the full host, emphasised, before anything opens. Opening uses `noopener`, and declining or
    closing answers `decline` or `cancel`.
+6. **The application designs the tiles; the model only fills them.**
+   - The application names the tools whose calls it draws itself (`tools`). A call to one becomes a
+     thread item that the application's own `AgentThread.register()` renderer draws. Every other
+     call stays a trace step.
+   - This is the first choice for anything an application knows in advance — a record card for a
+     lookup, a preview for a draft — and a composed surface the choice for what it does not.
+   - A call's arguments and result are model and tool output. The renderer puts them on the page
+     as text, like any server data, and loads nothing from a URL in them.
+   - The trace still records the call, and its step links to the tile, so the record of the run
+     stays complete.
+7. **Surfaces arrive three ways, and the adapter takes all three** (WP52 Decision 11): a custom
+   event from the application's server, a call to a surface tool, and a fence in the answer text.
+8. **The adapter scopes ids.** A model reuses surface ids such as `s1` in every run, so a surface
+   is the thread item `surface:<runId>/<surface>` and a tile `tool:<toolCallId>`. A line for a
+   surface that has already been answered is refused and reported.
 
 ## §1 · JSON Patch
 
@@ -60,7 +75,18 @@ runs `*.test.js`), `website/demos/agent-thread.demo.js`, `docs/llms.md`.
 - **`connectAgUi(thread, options)`** → `{handle(event), state(), destroy()}`.
 - **Options:** `runStatus?`, `authors`, `agent` (the author key for agent output),
   `requiresApproval(toolCall)`, `ontoolresult(id, result)`, `onstate(state)`, `onunknown(event)`,
-  `showReasoning: false`, `surfaceEvent: 'zx.surface'`.
+  `onerror(error)`, `showReasoning: false`, `surfaceEvent: 'zx.surface'`, and:
+  - `tools: {}`: `Record<string, (call: ToolCall) => ThreadItem|null>`, the tiles of Decision 6,
+    by tool name.
+  - `surfaceTools: ['show_surface', 'ask_user']`: the tool names that carry a WP52 `document`.
+  - `inlineSurfaces: false`: split surface fences out of answer text.
+  - `catalog`: a narrowed WP52 catalog, given to every surface the adapter creates.
+- **`ToolCall`**, what a tile renderer receives: `{id, name, args, argsText, result?, error?,
+  status}`.
+  - `args` is the parsed object once the arguments are complete, and `null` before.
+  - `status` is a WP51 run state: `queued` while the arguments arrive, `waiting` for an approval,
+    `running` until the result, then `done`, `failed`, or `skipped` when the approval was
+    rejected.
 - **Mapping:**
   - Run started, finished and error events drive `runStatus` and a `notice` item on error.
   - Text message start, content and end events become an `answer` item:
@@ -69,16 +95,49 @@ runs `*.test.js`), `website/demos/agent-thread.demo.js`, `docs/llms.md`.
   - Tool call start, args, end and result events become `trace` steps:
     - arguments accumulate as a string and are shown once complete;
     - a result fills the step.
+  - **Tiles:** for a call named in `tools`, the renderer is called at each status change, never
+    on an argument delta.
+    - Its first result that is not `null` is inserted at the call's place in the thread with the
+      id `tool:<toolCallId>`, and later results patch it in place; the adapter sets the id, the
+      renderer cannot.
+    - The call's trace step gains a ref to the tile. The adapter answers the thread's `open` for
+      that ref with `thread.reveal('item:tool:<toolCallId>')`; it never handles another ref.
+    - An approval-gated call keeps its ApprovalCard (Decision 4); the tile follows it.
+    - A renderer that throws is reported through `onerror`, and the trace step stays as it was.
+  - **Surface tools:** a call named in `surfaceTools` becomes a surface item, and its trace step an
+    `ask` step.
+    - While the arguments arrive, the item stands as a Skeleton.
+    - Once complete, the arguments are parsed and validated as one WP52 `document`.
+    - The person's reply is the call's result, through `ontoolresult(id, reply)`, with the
+      surface's `errors` added when there are any.
+    - Arguments that are not JSON draw nothing and answer the call at once with
+      `{error: 'invalid-arguments'}`.
+  - **Inline surfaces:** with `inlineSurfaces`, answer content goes through WP52's
+    `inlineSplitter()`.
+    - Prose before a fence stays in the answer. The fence's lines go to their surfaces, inserted
+      after it.
+    - Prose after a fence continues in a new answer item `<messageId>#<n>`, by the same author, so
+      the thread draws it as the same turn.
+    - A fence still open when the message ends is reported through `onerror`, and its surfaces
+      are cancelled when the run ends (WP52 Decision 7).
+  - **Custom events:** a custom event named by `surfaceEvent` carries WP52 operations into
+    `thread.surface(id)`. Its `value` is one operation, or `{ops: […], token?}`. A `token` is taken
+    from the event that opens the surface; later ones are ignored.
+  - **Tokens:** the application's `token` binds a custom-event surface to what its server issued.
+    A surface tool's surface gets the tool call id as its token, and an inline surface the run id,
+    so a server can bind every reply to a call or a run it knows (WP52 Decision 5).
   - State snapshot and delta events keep the application state, applied with §1 and reported
     through `onstate`.
-  - A custom event named by `surfaceEvent` carries WP52 operations into `thread.surface(id)`.
   - Reasoning events follow Decision 3.
   - Anything else goes to `onunknown`.
 - **Out of order:** content arriving before its start creates the item, and a duplicate start for
   a known id is ignored. Both cases are reported.
-- **Fixtures:** two recorded sequences, a plain answer with two tool calls and an approval-gated
-  tool call, replayed in tests and, from the demo, into an AgentThread (instantly under reduced
-  motion).
+- **Fixtures:** three recorded sequences, replayed in tests and, from the demo, into an
+  AgentThread (instantly under reduced motion):
+  - a plain answer with two tool calls;
+  - an approval-gated tool call;
+  - a call drawn as a tile, an `ask_user` call the person answers, and an answer with an inline
+    surface.
 
 ## §3 · MCP elicitation handler
 
@@ -105,6 +164,8 @@ runs `*.test.js`), `website/demos/agent-thread.demo.js`, `docs/llms.md`.
 - Rendering sandboxed HTML apps from MCP servers.
 - Mapping Zx surfaces to or from other declarative UI protocols. A catalog for such a protocol is
   worth a separate WP once its specification reaches 1.0; public versions disagree today.
+- Partial-JSON parsing of tool arguments: tiles and surface tools render from complete arguments.
+- Tiles drawn by Zx itself for well-known tool names. Every tile is the application's.
 
 ## Acceptance criteria
 
@@ -116,7 +177,19 @@ runs `*.test.js`), `website/demos/agent-thread.demo.js`, `docs/llms.md`.
    - Approval-gated tool calls wait for a decision.
    - Reasoning text is hidden by default.
    - Unknown events are reported.
+   - A tile is inserted on its renderer's first non-null result, patched in place at later status
+     changes, never re-rendered on an argument delta, and keeps the id the adapter gave it; a
+     throwing renderer is reported and its trace step remains.
+   - A surface tool's reply is its tool result, with the surface's errors; arguments that are not
+     JSON answer the call at once.
+   - Inline fences split across chunks; prose after a fence continues in `<messageId>#2`; an
+     unterminated fence is reported and its surface cancelled at run end.
+   - Surface ids are scoped per run: `s1` in two runs gives two surfaces, and a line for an
+     answered surface is refused.
+   - Every reply carries its token: the application's for a custom event, the tool call id for a
+     surface tool, the run id for an inline surface.
    - Elicitation in form mode (accept, decline, cancel), in URL mode (consent shown, decline), and
      with an unsupported schema.
-3. The demo replays a fixture into an AgentThread and shows the replies an MCP client would send.
+3. The demo replays the fixtures into an AgentThread, with one application tile registered, and
+   shows the tool results and the replies an MCP client would send.
 4. Changelog lines and the pinned protocol versions are reported.
