@@ -95,7 +95,8 @@ ZeyOS binding — see `src/zeyos/modules.js`.
 | API | Description |
 | --- | --- |
 | `button()`, `buttonGroup()` | Styled native button and grouped-button factories. |
-| `badge()`, `badgeGroup()` | Status-pill factories with semantic kinds, variants, and sizes. |
+| `badge()`, `badgeGroup()` | Status pills with semantic kinds, variants, and sizes; with a `tone`, a categorical tag. |
+| `kbd()` | Keycaps for every shortcut hint, with platform glyphs for `Mod` and the named keys. |
 | `CheckButton` | Two-state pressed button with optional state-specific labels. |
 | `Toggle` | Native-button switch with a separate submitted value. |
 | `Search` | Search input with debounced input, submit, and clear events. |
@@ -108,7 +109,7 @@ ZeyOS binding — see `src/zeyos/modules.js`.
 | `DatePicker` | APG calendar grid with bounds, week numbers, and optional time selection. |
 | `MonthPicker` | Twelve-month grid with year navigation. |
 | `TimePicker` | Segmented local-time picker. |
-| `Datebox`, `DateTimeBox` | Formatted date input and its date-time factory variant. |
+| `Datebox`, `DateTimeBox` | Formatted date input and its date-time factory variant; `displayFormat` shows a screen's own date format while the field is not focused. |
 | `DateRangePicker` | Two-month range calendar with presets, night bounds, and range preview. |
 | `DateRangeBox` | Formatted date-range input with an anchored range calendar. |
 | `Timebox` | Segmented signed or unsigned duration input. |
@@ -144,7 +145,7 @@ ZeyOS binding — see `src/zeyos/modules.js`.
 | `DataFilter` | Declarative select, text, and custom filters for client-side row sets. |
 | `FilterPanel` | Typed filter form built from a server's own field metadata, drafted then applied. |
 | `ListToolbar` | Search, result count, view switch, and badged tools above a record view. |
-| `TreeView` | APG tree with lazy children, filtering, and tri-state checkboxes. |
+| `TreeView` | APG tree with lazy children, filtering, tri-state checkboxes, and hover-revealed `rowActions`. |
 | `Finder` | Miller-columns hierarchy browser with an optional preview pane. |
 | `Pagination` | Page, page-size, and load-more pager, with the pure `paginationRange()` helper. |
 
@@ -170,7 +171,7 @@ ZeyOS binding — see `src/zeyos/modules.js`.
 | `Avatar` | Fixed-size user image with initials fallback and optional presence. |
 | `Groupbox` | Collapsible section backed by native `<details>`. |
 | `Card` | Semantic content/record surface with media, native title link, actions, and footer. |
-| `StatTile`, `statTile()` | Labelled metric with optional delta, sparkline, and loading state. |
+| `StatTile`, `statTile()` | Labelled metric with optional delta, sparkline, and loading state; `variant: 'plain'` sets the figure on the page, and `emphasis` lets one figure lead. |
 | `Aurora` | One- to four-colour ambient canvas light; chrome, raised content, and overlays respond through shared material tokens. |
 | `Launcher` | Cmd/Ctrl+K application and record launcher with ranked local items and abortable grouped sources. |
 | `Panel` | Framed, optionally collapsible section with a footer. |

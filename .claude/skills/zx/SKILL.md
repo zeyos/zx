@@ -211,7 +211,10 @@ region) by overriding those tokens, never with an attribute. In component CSS, s
 meaning (badges, avatars, toggles). Data rows are `--zx-row-height`; type is one base,
 `--zx-text-base`, with every `--zx-text-*` step derived from it. Define a product theme by
 overriding **semantic** tokens only (`--zx-color-*`, `--zx-control-*`, `--zx-space-*`,
-`--zx-radius-*`, `--zx-text-*`) under a `[data-zx-theme="name"]` selector. Never reference tier-1
+`--zx-radius-*`, `--zx-text-*`) once on `:root`, writing `light-dark(<light>, <dark>)` where the two
+appearances differ, so the override reaches light, dark, auto and nested regions alike.
+Per-row secondary actions are `rowActions` on `TreeView` and `actions` on `AppSidebar` items, never
+hand-built hover buttons; a screen shows dates in one `displayFormat`. Never reference tier-1
 palette tokens (`--zx-gray-*`, `--zx-green-*`) or raw color literals in component/app CSS —
 `tests/lint-tokens.js` enforces this.
 
