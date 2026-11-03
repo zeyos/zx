@@ -100,6 +100,50 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Row actions. The row is the reveal host (`data-zx-reveal-host` in base.css): the strip keeps its
+   room at the row's end and shows while the row is pointed at, focused or selected. Each control
+   is a square a little smaller than a control, pulled into the row's padding so the row keeps its
+   height. */
+.zx-tree__actions {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+  margin-inline: auto calc(var(--zx-space-1) - var(--zx-space-2));
+}
+
+.zx-tree__badge + .zx-tree__actions {
+  margin-inline-start: 0;
+}
+
+.zx-tree .zx-tree__action {
+  display: inline-grid;
+  place-items: center;
+  inline-size: calc(var(--zx-control-height) - var(--zx-space-1) - 2px);
+  block-size: calc(var(--zx-control-height) - var(--zx-space-1) - 2px);
+  min-block-size: 0;
+  margin-block: calc(1px - var(--zx-space-1));
+  padding: 0;
+  border: 0;
+  border-radius: var(--zx-radius-sm);
+  background: none;
+  color: var(--zx-color-text-muted);
+}
+
+.zx-tree .zx-tree__action:is(:hover, [aria-expanded="true"]):not(:disabled) {
+  background: var(--zx-color-bg-hover);
+  color: var(--zx-color-text);
+}
+
+.zx-tree .zx-tree__action:focus-visible {
+  outline-color: transparent;
+  box-shadow: inset var(--zx-focus-ring);
+}
+
+.zx-tree .zx-tree__action .zx-btn__label:empty {
+  display: none;
+}
+
 .zx-tree__empty {
   padding: var(--zx-space-5);
   color: var(--zx-color-text-muted);

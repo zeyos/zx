@@ -1,0 +1,53 @@
+/*
+ * Section links (`proseAnchors()`). A heading with an id ends in a small link to itself; the heading
+ * is the reveal host (base.css), so the link rests out of sight, keeps its room, and shows while the
+ * heading is pointed at or the link has focus — and always on a touch screen or under a contrast
+ * preference. The link is a square a little smaller than a control, sized so that a heading's line
+ * never grows to hold it.
+ */
+.zx-prose__anchor {
+  --zx-prose-anchor-size: calc(var(--zx-control-height) - var(--zx-space-1) - 2px);
+  display: inline-grid;
+  place-items: center;
+  inline-size: var(--zx-prose-anchor-size);
+  block-size: var(--zx-prose-anchor-size);
+  margin-block: calc((1lh - var(--zx-prose-anchor-size)) / 2);
+  margin-inline-start: 0.2em;
+  border-radius: var(--zx-radius-sm);
+  color: var(--zx-color-text-muted);
+  text-decoration: none;
+  vertical-align: bottom;
+  transition: opacity var(--zx-dur-fast) var(--zx-ease), color var(--zx-dur-fast) var(--zx-ease);
+}
+
+.zx-prose__anchor:hover {
+  background: var(--zx-color-bg-hover);
+  color: var(--zx-color-text);
+}
+
+.zx-prose__anchor:focus-visible {
+  outline-color: transparent;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.zx-prose__anchor[data-copied] {
+  color: var(--zx-color-success);
+}
+
+/* The confirmation is spoken, not drawn: the tick already shows it. */
+.zx-prose__status {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  clip-path: inset(50%);
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+@media print {
+  .zx-prose__anchor {
+    display: none;
+  }
+}

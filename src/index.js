@@ -89,6 +89,7 @@ export { stack, grid, aspect } from './components/layout/layout.js';
 export { truncate, isTruncated } from './components/truncate/truncate.js';
 export { copyButton } from './components/copy/copy-button.js';
 export { CopyInput } from './components/copy/copy-input.js';
+export { proseAnchors, sectionHref } from './components/prose/prose.js';
 export { CodeEditor, indentSelection, editorPosition } from './components/code-editor/code-editor.js';
 export { Toolbar } from './components/toolbar/toolbar.js';
 export { Toggle } from './components/toggle/toggle.js';

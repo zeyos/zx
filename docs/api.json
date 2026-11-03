@@ -556,6 +556,12 @@
         "description": "Navigation accessible label."
       },
       {
+        "name": "moreLabel",
+        "type": "string",
+        "default": "'More actions'",
+        "description": "Name of a destination's overflow menu when its `actions` fold; every action name is followed by the destination's label."
+      },
+      {
         "name": "header",
         "type": "Node|string|number|{toElement: () => Node|null}|null",
         "default": "null",
@@ -7799,6 +7805,54 @@
     "events": [],
     "methods": []
   },
+  "ProseAnchors": {
+    "options": [
+      {
+        "name": "selector",
+        "type": "string",
+        "default": "'h2[id], h3[id], h4[id]'",
+        "description": "The headings that get a link, inside a `.zx-prose` under the root. A heading without an `id` has nothing to link to and is skipped."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "default": "'Copy link to %1'",
+        "description": "The link's accessible name; `%1` is the heading."
+      },
+      {
+        "name": "title",
+        "type": "string",
+        "default": "'Copy link'",
+        "description": "The link's tooltip."
+      },
+      {
+        "name": "feedback",
+        "type": "string",
+        "default": "'Link copied'",
+        "description": "What the live region says after a copy."
+      },
+      {
+        "name": "feedbackDuration",
+        "type": "number",
+        "default": "2000",
+        "description": "Milliseconds the tick and the message stay."
+      },
+      {
+        "name": "href",
+        "type": "(id: string) => string",
+        "default": null,
+        "description": "The address copied for a heading id. Defaults to the current address with its hash replaced (`sectionHref(location.href, id)`)."
+      }
+    ],
+    "events": [
+      {
+        "name": "copy",
+        "payload": null,
+        "description": "Called with the address and whether the clipboard took it."
+      }
+    ],
+    "methods": []
+  },
   "Questionnaire": {
     "options": [
       {
@@ -11566,6 +11620,18 @@
         "type": "((node: TreeNode) => Node|string)|null",
         "default": "null",
         "description": "Label renderer."
+      },
+      {
+        "name": "rowActions",
+        "type": "((node: TreeNode) => Array<RowAction|Node>)|null",
+        "default": "null",
+        "description": "A row's actions: `{icon, label, onSelect(node), disabled?, danger?}` descriptors, or nodes placed as given. They rest out of sight and show while the row is pointed at, focused or selected; one or two show as icon buttons, more fold after the first into a \"More actions\" menu. Every descriptor is also in the row's context menu, and the focused row's actions follow it in the Tab order."
+      },
+      {
+        "name": "moreLabel",
+        "type": "string",
+        "default": "'More actions'",
+        "description": "Name of a row's overflow menu; every action name is followed by the row's name (\"More actions: Q3 plan\")."
       },
       {
         "name": "load",

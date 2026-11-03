@@ -1,4 +1,4 @@
-import { h, icon } from '../../src/index.js';
+import { h, icon, proseAnchors } from '../../src/index.js';
 
 /** A short internal page, as a team writes one: a heading, a paragraph, a list, and a table. */
 const PAGE = {
@@ -17,9 +17,17 @@ const PAGE = {
   ]
 };
 
+/** Sections of a runbook, each heading with the id its link points at. */
+const RUNBOOK = [
+  { id: 'runbook-freeze', title: 'Freeze posting', text: 'Lock the closed period before anything else is booked.' },
+  { id: 'runbook-reconcile', title: 'Reconcile the banks', text: 'Match every statement line and clear suspense items.' },
+  { id: 'runbook-sign-off', title: 'Sign-off', text: 'The controller signs the close and posts the reports.' }
+];
+
 export default {
   title: 'Prose',
   group: 'Core',
+  api: ['proseAnchors'],
   blurb: 'The reading register for authored content: its own typeface, size, line height, and measure.',
 
   examples: [
@@ -65,6 +73,21 @@ export default {
         h('p', {}, 'Highlight ', h('mark', {}, 'a decision'), ', ', h('mark', { 'data-tone': 'blue' }, 'a reference'),
           ', or set a ', h('span', { 'data-tone': 'teal' }, 'run of text'), ' and ',
           h('span', { 'data-tone': 'pink', 'data-fill': '' }, 'a filled one'), ' in a tone.'))
+    },
+    {
+      title: 'Section links',
+      blurb: 'proseAnchors(root) ends every h2 to h4 that has an id with a link to itself. It shows '
+        + 'while the heading is pointed at or the link has focus; clicking it copies the page\'s '
+        + 'address with the section\'s hash and confirms in place. Headings without an id are left alone.',
+      layout: 'stack',
+      render: ({ cleanup, log }) => {
+        const article = h('article', { class: 'zx-prose' },
+          h('h1', {}, 'Close runbook'),
+          RUNBOOK.flatMap((section) => [h('h2', { id: section.id }, section.title), h('p', {}, section.text)]));
+        const anchors = proseAnchors(article, { oncopy: (url, copied) => log(copied ? `copied ${url}` : 'copy refused') });
+        cleanup(() => anchors.destroy());
+        return article;
+      }
     },
     {
       title: 'Interface size',

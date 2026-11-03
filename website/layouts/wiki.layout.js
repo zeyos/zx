@@ -2,7 +2,7 @@ import {
   ActivityList, Avatar, Breadcrumb, CodeEditor, CopyInput, Dialog, Fieldset,
   Groupbox, InlineLoading, Launcher, MenuButton, Select, Sheet, SplitView, Toolbar, TreeView, button,
   copyButton, debounce, downloadBlob, emptyState, formatDate, formatNumber, formatRelativeTime, h,
-  icon
+  icon, proseAnchors
 } from '../../src/index.js';
 import {
   DATE, adaptiveShell, disposer, iconButton, iconTile, kbd, layoutContext, modShortcut,
@@ -303,6 +303,8 @@ const BLOCK_START = /^(#{2,4}\s|~~~|>|\||[-*] |\d+\. |!\[|-{3,}$)/;
  * @property {(id: string) => Node|null} mention Renders `@id`, or null for an unknown id.
  * @property {(id: string) => void} openPage Follows a `page:<id>` link.
  * @property {(line: number, done: boolean) => void} toggle Ticks the checklist item on a line.
+ * @property {boolean} [ids=false] Gives every heading an id from its text, unique on the page, so
+ *   its section can be linked to. Only one rendering of a page carries them at a time.
  */
 
 /**
@@ -318,6 +320,7 @@ function renderMarkdown(source, hooks) {
   const lines = source.split('\n');
   const nodes = [];
   const headings = [];
+  const ids = new Set();
   let index = 0;
   /** @param {(text: string) => boolean} test @returns {Array<{text: string, line: number}>} */
   const take = (test) => {
@@ -331,7 +334,7 @@ function renderMarkdown(source, hooks) {
     if (!line.trim()) index += 1;
     else if ((match = /^(#{2,4})\s+(.+)$/.exec(line))) {
       const level = match[1].length;
-      const el = h(`h${level}`, { tabIndex: -1 }, inline(match[2], hooks));
+      const el = h(`h${level}`, { tabIndex: -1, id: hooks.ids ? sectionId(match[2], ids) : null }, inline(match[2], hooks));
       headings.push({ level, text: el.textContent ?? '', el });
       nodes.push(el);
       index += 1;
@@ -364,6 +367,23 @@ function renderMarkdown(source, hooks) {
     }
   }
   return { nodes, headings };
+}
+
+/**
+ * A heading's id: its words, lower-cased and joined by hyphens under a `section-` prefix that keeps
+ * it clear of the page's own ids, with a number added when the page already used it.
+ * @param {string} text Heading Markdown.
+ * @param {Set<string>} used Ids already given on this page; the new one is added.
+ * @returns {string}
+ */
+function sectionId(text, used) {
+  const words = text.replace(/[`*_[\]()]/g, '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const base = `section-${words || 'heading'}`;
+  let id = base;
+  for (let count = 2; used.has(id); count += 1) id = `${base}-${count}`;
+  used.add(id);
+  return id;
 }
 
 /**
@@ -564,6 +584,8 @@ export default {
       items: treeItems(),
       selected: [state.page],
       expanded: ['shipping', 'runbooks'],
+      // Each page's commands wait on its row, and are in its context menu too.
+      rowActions: (node) => pageRowActions(node.ID),
       onselect: (event) => openPage(event.detail.id)
     }));
     const favoriteTree = keep(new TreeView(null, {
@@ -642,6 +664,8 @@ export default {
     }));
 
     const article = h('article', { class: 'wiki__article' });
+    // Every section heading of the open page ends in a link that copies its address.
+    const sectionLinks = context.preview ? null : keep(proseAnchors(article));
     // Focusable, so the reading pane can be scrolled from the keyboard.
     const readBody = h('div', { class: 'shell__body wiki__read', tabIndex: 0, 'aria-label': 'Page content' }, article);
 
@@ -786,7 +810,7 @@ export default {
       syncStar();
       for (const control of [starButton, more.el, viewers]) control.hidden = false;
 
-      const { nodes, headings } = renderMarkdown(page.body, markdownHooks);
+      const { nodes, headings } = renderMarkdown(page.body, { ...markdownHooks, ids: !context.preview });
       const children = childrenOf(page.ID);
       article.replaceChildren(...[
         h('header', { class: 'wiki__head' },
@@ -811,6 +835,7 @@ export default {
               h('span', { class: 'wiki__child-excerpt' }, excerpt(child.body)),
               h('span', { class: 'meta' }, `Edited ${since(child.updated)}`))))) : null
       ].filter(Boolean));
+      sectionLinks?.refresh();
 
       buildOutline(headings);
       const words = page.body.split(/\s+/).filter(Boolean).length;
@@ -1251,12 +1276,30 @@ export default {
       starButton.setAttribute('aria-pressed', String(favorites.has(state.page)));
     }
 
-    /** @returns {void} */
-    function toggleFavorite() {
-      if (favorites.has(state.page)) favorites.delete(state.page);
-      else favorites.add(state.page);
+    /** @param {string} [id] The page; the open one by default. @returns {void} */
+    function toggleFavorite(id = state.page) {
+      if (favorites.has(id)) favorites.delete(id);
+      else favorites.add(id);
       syncStar();
       renderNav();
+    }
+
+    /**
+     * A page tree row's commands: "Add sub-page" on the row, the rest in its "More" menu.
+     * @param {string} id Page id.
+     * @returns {import('../../src/internal/row-actions.js').RowAction[]}
+     */
+    function pageRowActions(id) {
+      const page = pageById(id);
+      if (!page) return [];
+      return [
+        { icon: 'plus', label: 'Add sub-page', onSelect: () => createPage(page.ID) },
+        favorites.has(page.ID)
+          ? { icon: 'star', label: 'Remove from favorites', onSelect: () => toggleFavorite(page.ID) }
+          : { icon: 'star', label: 'Add to favorites', onSelect: () => toggleFavorite(page.ID) },
+        { icon: 'arrow-right-arrow-left', label: 'Move…', onSelect: () => openMove(page) },
+        { icon: 'trash-can', label: 'Delete', danger: true, onSelect: () => void deletePage(page) }
+      ];
     }
 
     /** @param {string} action A value from the overflow menu. @returns {void} */
@@ -1273,9 +1316,8 @@ export default {
       }
     }
 
-    /** @returns {Promise<void>} */
-    async function deletePage() {
-      const page = current();
+    /** @param {(typeof pages)[number]} [page] The page; the open one by default. @returns {Promise<void>} */
+    async function deletePage(page = current()) {
       const doomed = [page, ...readingOrder(page.ID)];
       const confirmed = await Dialog.confirm({
         title: 'Delete page?',
@@ -1286,11 +1328,14 @@ export default {
         danger: true
       });
       if (!confirmed || context.signal.aborted) return;
+      const openGone = state.view === 'page' && doomed.some((gone) => gone.ID === state.page);
       for (const gone of doomed) {
         pages.splice(pages.indexOf(gone), 1);
         favorites.delete(gone.ID);
       }
-      if (page.parent) openPage(page.parent);
+      // Deleting the open page (or one above it) moves the reader up; any other page just leaves the tree.
+      if (!openGone) renderNav();
+      else if (page.parent) openPage(page.parent);
       else showHome();
       notify(`Deleted “${page.title}”.`);
     }
@@ -1420,9 +1465,8 @@ export default {
       });
     }
 
-    /** @returns {void} */
-    function openMove() {
-      const page = current();
+    /** @param {(typeof pages)[number]} [page] The page; the open one by default. @returns {void} */
+    function openMove(page = current()) {
       const excluded = new Set([page.ID, ...readingOrder(page.ID).map((child) => child.ID)]);
       formDialog({
         title: `Move “${page.title}”`,

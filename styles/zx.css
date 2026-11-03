@@ -19,6 +19,7 @@
 @import url("../src/components/skeleton/skeleton.css");
 @import url("../src/components/copy/copy-button.css");
 @import url("../src/components/copy/copy-input.css");
+@import url("../src/components/prose/prose.css");
 @import url("../src/components/code-editor/code-editor.css");
 @import url("../src/components/toolbar/toolbar.css");
 @import url("../src/components/toggle/toggle.css");

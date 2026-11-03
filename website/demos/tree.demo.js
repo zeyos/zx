@@ -44,6 +44,23 @@ function catalogue() {
   ];
 }
 
+/** @returns {import('../../src/components/tree/hierarchy.js').TreeNode[]} A space's pages. */
+function pages() {
+  return [
+    {
+      ID: 'handbook',
+      name: 'Team handbook',
+      children: [
+        { ID: 'onboarding', name: 'Onboarding' },
+        { ID: 'holidays', name: 'Holidays and leave' },
+        { ID: 'expenses', name: 'Expenses' }
+      ]
+    },
+    { ID: 'releases', name: 'Release notes', children: [{ ID: 'r-5-4', name: '5.4' }] },
+    { ID: 'glossary', name: 'Glossary' }
+  ];
+}
+
 export default {
   title: 'Tree view',
   group: 'Data',
@@ -80,6 +97,37 @@ export default {
             h('button', { type: 'button', onclick: () => tree.collapseAll() }, 'collapseAll()'),
             h('button', { type: 'button', onclick: () => tree.focusNode('wh-vie') }, "focusNode('wh-vie')"))
         ];
+      }
+    },
+    {
+      title: 'Row actions',
+      blurb: 'rowActions(node) gives each row its own commands. They rest out of sight and show '
+        + 'while the row is pointed at, focused or selected; past two, the first stays and the rest '
+        + 'fold into a menu. Tab from the focused row reaches them, a right-click or Shift+F10 lists '
+        + 'them all, and each one is named after its row (\u201cAdd sub-page: Onboarding\u201d).',
+      render: ({ cleanup, log }) => {
+        const tree = new TreeView(null, {
+          items: pages(),
+          expanded: ['handbook'],
+          selected: ['onboarding'],
+          icons: false,
+          height: 260,
+          rowActions: (page) => [
+            { icon: 'plus', label: 'Add sub-page', onSelect: (node) => log(`add sub-page \u2192 ${node.name}`) },
+            { icon: 'copy', label: 'Duplicate', onSelect: (node) => log(`duplicate \u2192 ${node.name}`) },
+            {
+              icon: 'trash',
+              label: 'Delete',
+              danger: true,
+              // A page with sub-pages cannot go before they do.
+              disabled: Boolean(page.children?.length),
+              onSelect: (node) => log(`delete \u2192 ${node.name}`)
+            }
+          ],
+          onselect: ({ detail }) => log(`select \u2192 ${detail.node.name}`)
+        });
+        cleanup(() => tree.destroy());
+        return tree.toElement();
       }
     },
     {

@@ -93,6 +93,21 @@ function suiteModules({ compose, history }) {
   ];
 }
 
+// A project list: destinations the reader acts on as well as opens. Each carries its own actions,
+// shown while the row is pointed at, focused or current; the third folds into a menu.
+function projectItems(log) {
+  const actions = [
+    { icon: 'plus', label: 'New task', onSelect: (item) => log(`new task in ${item.label}`) },
+    { icon: 'star', label: 'Add to favorites', onSelect: (item) => log(`favorite ${item.label}`) },
+    { icon: 'trash', label: 'Archive', danger: true, onSelect: (item) => log(`archive ${item.label}`) }
+  ];
+  return [
+    { id: 'website', label: 'Website relaunch', icon: 'folder', href: '#website', badge: 12, actions },
+    { id: 'payroll', label: 'Payroll migration', icon: 'folder', href: '#payroll', actions },
+    { id: 'audit', label: 'Security audit', icon: 'folder', href: '#audit', actions: actions.slice(0, 1) }
+  ];
+}
+
 function renderModuleIcon(item, context = {}) {
   return moduleVisual(item.module ?? item.id, 24, context.location === 'root' ? 'circle' : 'tile');
 }
@@ -212,6 +227,27 @@ export default {
         cleanup(() => sidebar.destroy());
         return h('div', { style: 'display: grid; gap: var(--zx-space-3)' }, sidebar.toElement(),
           h('div', { class: 'demo-card', style: 'min-block-size: 180px' }, 'Horizontal workspace'));
+      }
+    },
+    {
+      title: 'Row actions',
+      blurb: 'actions on a destination gives its row its own commands, revealed while the row is '
+        + 'pointed at, focused or current. Two show as icon buttons; past two, the first stays and '
+        + 'the rest fold into a menu. Tab from a destination reaches its actions, a right-click or '
+        + 'Shift+F10 lists them all, and each is named after its row (\u201cNew task: Payroll migration\u201d).',
+      layout: 'stack',
+      render: ({ cleanup, log }) => {
+        const sidebar = new AppSidebar(null, {
+          label: 'Projects',
+          header: h('strong', {}, 'Projects'),
+          collapsible: false,
+          items: projectItems(log),
+          active: 'website',
+          onselect: (event) => { event.preventDefault(); log(`select ${event.detail.id}`); }
+        });
+        cleanup(() => sidebar.destroy());
+        return h('div', { style: 'block-size: 220px; display: flex' }, sidebar.toElement(),
+          h('div', { class: 'demo-card', style: 'flex: 1; display: grid; place-items: center' }, 'Project'));
       }
     },
     {

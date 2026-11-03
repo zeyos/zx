@@ -3,6 +3,7 @@ import { h } from '../../core/dom.js';
 import { printf } from '../../core/i18n.js';
 import { ICON_SIZE, icon } from '../../core/icons.js';
 import { uid } from '../../core/util.js';
+import { renderRowActions, rowActionMenu, setRowActionsTabbable } from '../../internal/row-actions.js';
 import {
   AppRailPresenter as MinimizedPresenter, appNavIcon, normalizeAppItems
 } from '../../internal/app-rail.js';
@@ -54,6 +55,8 @@ const PRESENTATIONS = Object.freeze(['expanded', 'compact', 'collapsed']);
  *   switch between presentations. Turn it off when the choice lives elsewhere — an account menu,
  *   through `presentationChoice()`.
  * @property {string} [label='Applications'] Navigation accessible label.
+ * @property {string} [moreLabel='More actions'] Name of a destination's overflow menu when its
+ *   `actions` fold; every action name is followed by the destination's label.
  * @property {Node|string|number|{toElement: () => Node|null}|null} [header=null] Expanded header content;
  *   in the modules layout, content above every module's menu.
  * @property {Node|string|number|{toElement: () => Node|null}|null} [footer=null] Expanded sticky footer content.
@@ -103,6 +106,7 @@ export class AppSidebar extends Component {
     presentations: ['expanded', 'compact', 'collapsed'],
     presentationSwitch: true,
     label: 'Applications',
+    moreLabel: 'More actions',
     header: null,
     footer: null,
     railHeader: null,
@@ -153,6 +157,12 @@ export class AppSidebar extends Component {
     }
     this._shownId = this._modules ? this._resolveShown(this.options.module) : null;
     this._modeAbort = null;
+    /** @type {Map<string, import('../../internal/row-actions.js').RowActionStrip>} Destinations' actions, by id. */
+    this._strips = new Map();
+    /** @type {import('../context-menu/context-menu.js').ContextMenu|null} */
+    this._rowMenu = null;
+    /** @type {HTMLElement|null} The list the row menu is attached to. */
+    this._rowMenuList = null;
     root.replaceChildren();
     return root;
   }
@@ -456,6 +466,7 @@ export class AppSidebar extends Component {
     this._modeAbort?.abort();
     this._modeAbort = null;
     for (const tooltip of this._stripTooltips.splice(0)) tooltip.destroy();
+    this._dropRowActions({ menu: true });
     this._rail?.destroy();
     this._rail = null;
     super.destroy();
@@ -470,6 +481,7 @@ export class AppSidebar extends Component {
   _renderMode() {
     this._modeAbort?.abort();
     this._modeAbort = new AbortController();
+    this._dropRowActions({ menu: true });
     for (const tooltip of this._stripTooltips.splice(0)) tooltip.destroy();
     this._presentationGroup = null;
     this._rail?.destroy();
@@ -537,6 +549,8 @@ export class AppSidebar extends Component {
   _listenTree(list) {
     this._listenMode(list, 'click', (event) => this._onTreeClick(event));
     this._listenMode(list, 'keydown', (event) => this._onTreeKeydown(/** @type {KeyboardEvent} */ (event)));
+    // The actions of the row holding focus are Tab stops; every other row's wait for the pointer.
+    this._listenMode(list, 'focusin', (event) => this._syncActionStops(event.target));
   }
 
   /** @returns {void} */
@@ -920,11 +934,23 @@ export class AppSidebar extends Component {
   /** @returns {void} */
   _renderTree() {
     if (!this.refs.list) return;
-    const focused = this.refs.list.contains(document.activeElement)
-      ? /** @type {Element} */ (document.activeElement).closest('[data-app-nav-id]')
-        ?.getAttribute('data-app-nav-id')
+    const active = /** @type {Element|null} */ (document.activeElement);
+    // Focus on a row's action comes back to the row's own control.
+    const focused = active && this.refs.list.contains(active)
+      ? (active.closest('[data-app-nav-id]') ?? rowControl(active.closest('.zx-app-sidebar__row')))
+        ?.getAttribute('data-app-nav-id') ?? null
       : null;
+    this._dropRowActions({ menu: this._rowMenuList !== this.refs.list });
     this.refs.list.replaceChildren(...this._treeItems().map((item) => this._treeRow(item, 1)));
+    if (this._strips.size > 0 && !this._rowMenu) {
+      this._rowMenuList = this.refs.list;
+      this._rowMenu = rowActionMenu(this.refs.list, '.zx-app-sidebar__line', (line) => {
+        const id = rowControl(line.parentElement)?.getAttribute('data-app-nav-id') ?? null;
+        const strip = id === null ? null : this._strips.get(id);
+        const item = strip ? findItem(this._items, id) : null;
+        return strip && item ? { actions: strip.actions, subject: item } : null;
+      });
+    }
     this._syncActive();
     if (focused !== null) {
       const replacement = [...this.refs.list.querySelectorAll('[data-app-nav-id]')]
@@ -949,10 +975,11 @@ export class AppSidebar extends Component {
       location: level === 1 ? 'root' : 'inline'
     });
     const control = navControl(item, hasChildren, expanded, childId, visual);
+    const strip = this._renderRowActions(item);
     const row = h('li', {
       class: 'zx-app-sidebar__row',
       dataset: { level }
-    }, control);
+    }, strip ? actionLine(control, strip.element) : control);
     if (hasChildren) {
       row.append(h('ul', {
         class: 'zx-app-sidebar__sublist',
@@ -984,8 +1011,63 @@ export class AppSidebar extends Component {
         (item.children ?? []).map((child) => this._treeRow(child, level))));
   }
 
+  /**
+   * Builds a destination's action strip, when it lists actions.
+   * @param {AppNavItem} item Destination.
+   * @returns {import('../../internal/row-actions.js').RowActionStrip|null}
+   */
+  _renderRowActions(item) {
+    const entries = Array.isArray(item.actions) ? item.actions
+      : item.actions && typeof item.actions === 'object' && 'nodeType' in item.actions ? [item.actions] : [];
+    if (entries.length === 0) return null;
+    const strip = renderRowActions(entries, {
+      block: 'app-sidebar',
+      name: item.label,
+      moreLabel: String(this.options.moreLabel ?? 'More actions'),
+      run: (action) => action.onSelect(item)
+    });
+    if (strip) this._strips.set(String(item.id), strip);
+    return strip;
+  }
+
+  /**
+   * Makes the actions of the row holding focus Tab stops, and every other row's not.
+   * @param {EventTarget|null} target What took focus.
+   * @returns {void}
+   */
+  _syncActionStops(target) {
+    const line = /** @type {Element|null} */ (target)?.closest?.('.zx-app-sidebar__line') ?? null;
+    for (const strip of this._strips.values()) {
+      setRowActionsTabbable(strip.element, Boolean(line?.contains(strip.element)));
+    }
+  }
+
+  /**
+   * Destroys the destinations' action strips, and with `menu` the row menu bound to the list.
+   * @param {{menu?: boolean}} [options={}]
+   * @returns {void}
+   */
+  _dropRowActions({ menu = false } = {}) {
+    for (const strip of this._strips?.values() ?? []) strip.destroy();
+    this._strips?.clear();
+    if (menu) {
+      this._rowMenu?.destroy();
+      this._rowMenu = null;
+      this._rowMenuList = null;
+    }
+  }
+
   /** @param {Event} event @returns {void} */
   _onTreeClick(event) {
+    const actionControl = /** @type {HTMLElement|null} */ (/** @type {Element|null} */ (event.target)
+      ?.closest?.('.zx-app-sidebar__actions [data-row-action]') ?? null);
+    if (actionControl && this.refs.list.contains(actionControl)) {
+      const id = rowControl(actionControl.closest('.zx-app-sidebar__row'))?.getAttribute('data-app-nav-id') ?? null;
+      const action = id === null ? null : this._strips.get(id)?.actions[Number(actionControl.dataset.rowAction)];
+      const item = action ? findItem(this._items, id) : null;
+      if (action && item && !action.disabled) action.onSelect(item);
+      return;
+    }
     const control = /** @type {Element|null} */ (event.target)?.closest?.('[data-app-nav-id]');
     if (!control || !this.refs.list.contains(control)) return;
     const item = findItem(this._items, control.getAttribute('data-app-nav-id'));
@@ -1007,7 +1089,7 @@ export class AppSidebar extends Component {
     if (event.key === 'ArrowRight' && item?.children?.length) {
       event.preventDefault();
       if (!this._expanded.has(String(item.id))) this.toggleBranch(item.id);
-      else visibleTreeControls(current.parentElement?.querySelector('.zx-app-sidebar__sublist'))[0]?.focus();
+      else visibleTreeControls(current.closest('.zx-app-sidebar__row')?.querySelector(':scope > .zx-app-sidebar__sublist'))[0]?.focus();
       return;
     }
     if (event.key === 'ArrowLeft') {
@@ -1017,7 +1099,7 @@ export class AppSidebar extends Component {
         return;
       }
       const parentList = current.closest('.zx-app-sidebar__sublist');
-      const parentControl = parentList?.parentElement?.querySelector(':scope > [data-app-nav-id]');
+      const parentControl = rowControl(parentList?.parentElement ?? null);
       if (parentControl instanceof HTMLElement) {
         event.preventDefault();
         parentControl.focus();
@@ -1093,7 +1175,7 @@ export class AppSidebar extends Component {
     if (!this.refs.list) return;
     const control = [...this.refs.list.querySelectorAll('[data-app-nav-id]')]
       .find((candidate) => candidate.getAttribute('data-app-nav-id') === key) ?? null;
-    const sublist = control?.parentElement?.querySelector(':scope > .zx-app-sidebar__sublist');
+    const sublist = control?.closest('.zx-app-sidebar__row')?.querySelector(':scope > .zx-app-sidebar__sublist');
     if (sublist instanceof HTMLElement) sublist.dataset.branchMotion = 'expand';
   }
 
@@ -1165,6 +1247,32 @@ function navControl(item, disclosure, expanded, controls, visual) {
     icon(expanded ? 'chevron-down' : 'chevron-right', { size: ICON_SIZE.chevron })) : null));
 }
 
+/**
+ * A row's own control: the row's first child, or the first child of its action line.
+ * @param {Element|null|undefined} row `li.zx-app-sidebar__row`.
+ * @returns {HTMLElement|null}
+ */
+function rowControl(row) {
+  return /** @type {HTMLElement|null} */ (row?.querySelector(
+    ':scope > [data-app-nav-id], :scope > .zx-app-sidebar__line > [data-app-nav-id]') ?? null);
+}
+
+/**
+ * A destination with actions: its control and the action strip on one line, which is the reveal
+ * host — the row's sub-list sits outside it, so pointing at a child never shows the parent's
+ * actions. The line tells the stylesheet how many controls to keep room for.
+ * @param {HTMLElement} control Destination control.
+ * @param {HTMLElement} strip Action strip.
+ * @returns {HTMLElement}
+ */
+function actionLine(control, strip) {
+  return /** @type {HTMLElement} */ (h('div', {
+    class: 'zx-app-sidebar__line',
+    'data-zx-reveal-host': '',
+    style: { '--zx-app-sidebar-actions': String(strip.childElementCount) }
+  }, control, strip));
+}
+
 /** @param {Element|null|undefined} root @returns {HTMLElement[]} */
 function visibleTreeControls(root) {
   if (!root) return [];
@@ -1178,7 +1286,7 @@ function visibleTreeControl(control) {
   while (candidate) {
     const hiddenList = candidate.closest('.zx-app-sidebar__sublist[hidden]');
     if (!hiddenList) return candidate;
-    candidate = /** @type {HTMLElement|null} */ (hiddenList.parentElement?.firstElementChild ?? null);
+    candidate = rowControl(hiddenList.parentElement);
   }
   return null;
 }

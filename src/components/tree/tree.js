@@ -3,11 +3,13 @@ import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
 import { ICON_SIZE, icon } from '../../core/icons.js';
 import { typeahead } from '../../core/keyboard.js';
 import { uid } from '../../core/util.js';
+import { renderRowActions, rowActionMenu, setRowActionsTabbable } from '../../internal/row-actions.js';
 import {
   createReaders, descendants, filterTree, findNode, flattenVisible, isBranch, pathTo, walk
 } from './hierarchy.js';
 
 /** @typedef {import('./hierarchy.js').TreeNode} TreeNode */
+/** @typedef {import('../../internal/row-actions.js').RowAction} RowAction */
 /**
  * @typedef {Object} TreeOptions
  * @property {TreeNode[]} [items=[]] Nested nodes.
@@ -21,6 +23,13 @@ import {
  * @property {unknown[]} [checked=[]] Initially checked node IDs.
  * @property {boolean} [icons=true] Whether to render folder and file icons.
  * @property {((node: TreeNode) => Node|string)|null} [renderLabel=null] Label renderer.
+ * @property {((node: TreeNode) => Array<RowAction|Node>)|null} [rowActions=null] A row's actions:
+ *   `{icon, label, onSelect(node), disabled?, danger?}` descriptors, or nodes placed as given. They
+ *   rest out of sight and show while the row is pointed at, focused or selected; one or two show
+ *   as icon buttons, more fold after the first into a "More actions" menu. Every descriptor is also
+ *   in the row's context menu, and the focused row's actions follow it in the Tab order.
+ * @property {string} [moreLabel='More actions'] Name of a row's overflow menu; every action name
+ *   is followed by the row's name ("More actions: Q3 plan").
  * @property {((node: TreeNode) => Promise<TreeNode[]>|TreeNode[])|null} [load=null] Lazy child loader.
  * @property {string} [filter=''] Label substring the tree is filtered by.
  * @property {string} [label='Tree'] Accessible name of the tree.
@@ -66,6 +75,8 @@ export class TreeView extends Component {
     checked: [],
     icons: true,
     renderLabel: null,
+    rowActions: null,
+    moreLabel: 'More actions',
     load: null,
     filter: '',
     label: 'Tree',
@@ -85,6 +96,9 @@ export class TreeView extends Component {
     this._loading = new Map();
     this._focusId = null;
     this._filter = '';
+    /** @type {Array<import('../../internal/row-actions.js').RowActionStrip|undefined>} Per visible row. */
+    this._strips = [];
+    this._rowMenu = null;
     this._createdRoot = this.el === null;
     this._snapshot = this._createdRoot ? null : snapshotTarget(this.el);
 
@@ -131,6 +145,22 @@ export class TreeView extends Component {
       // Focusing the container hands focus straight to the active row.
       if (this._rows.length > 0 && !this._rowElement(this._focusId)) this._focusRow(0);
     });
+    // Focus arriving on a row's action makes that row the tree's tab stop, without moving focus.
+    this.listen(root, 'focusin', (event) => {
+      const strip = this._stripOf(event.target);
+      const row = strip ? this._rows[this._rowIndex(strip.closest('.zx-tree__row'))] : null;
+      if (row && !Object.is(row.id, this._focusId)) {
+        this._focusId = row.id;
+        this._syncRows();
+      }
+    });
+    if (typeof this.options.rowActions === 'function') {
+      this._rowMenu = rowActionMenu(root, '.zx-tree__row', (element) => {
+        const index = this._rowIndex(element);
+        const strip = this._strips[index];
+        return strip ? { actions: strip.actions, subject: this._subject(this._rows[index]) } : null;
+      });
+    }
 
     // Runs the same expansion logic as setFilter() so an initial filter behaves identically.
     if (String(this.options.filter ?? '') !== '') this.setFilter(this.options.filter);
@@ -409,21 +439,23 @@ export class TreeView extends Component {
   _renderRows() {
     const items = this._visibleItems();
     this._rows = flattenVisible(items, this._readers, this._expanded);
+    for (const strip of this._strips.splice(0)) strip?.destroy();
 
     if (this._rows.length === 0) {
       this.el.replaceChildren(h('div', { class: 'zx-tree__empty' },
         this._message('tree.empty', this.options.emptyText)));
       return;
     }
-    this.el.replaceChildren(...this._rows.map((row) => this._renderRow(row)));
+    this.el.replaceChildren(...this._rows.map((row, index) => this._renderRow(row, index)));
     this._syncRows();
   }
 
   /**
    * @param {{node: TreeNode, id: unknown, level: number, posinset: number, setsize: number}} row Row spec.
+   * @param {number} index Visible position.
    * @returns {HTMLElement}
    */
-  _renderRow(row) {
+  _renderRow(row, index) {
     const branch = isBranch(row.node, this._readers);
     const expanded = branch && this._expanded.has(row.id);
     const element = h('div', {
@@ -462,10 +494,28 @@ export class TreeView extends Component {
     const content = this.options.renderLabel
       ? this.options.renderLabel(row.node)
       : this._readers.label(row.node);
-    element.append(h('span', { class: 'zx-tree__label' }, content));
+    const label = h('span', { class: 'zx-tree__label' }, content);
+    element.append(label);
 
-    if (row.node.badge != null) {
-      element.append(h('span', { class: 'zx-tree__badge' }, String(row.node.badge)));
+    const badge = row.node.badge != null ? h('span', { class: 'zx-tree__badge' }, String(row.node.badge)) : null;
+    if (badge) element.append(badge);
+
+    const strip = typeof this.options.rowActions === 'function'
+      ? renderRowActions(this.options.rowActions(this._subject(row)), {
+        block: 'tree',
+        name: this._readers.label(row.node),
+        moreLabel: String(this.options.moreLabel ?? 'More actions'),
+        run: (action) => action.onSelect(this._subject(row))
+      })
+      : null;
+    if (strip) {
+      this._strips[index] = strip;
+      // The row keeps the name its label (and count) gives it; the action names stay out of it.
+      label.id = uid('zx-tree-label');
+      if (badge) badge.id = uid('zx-tree-badge');
+      element.setAttribute('aria-labelledby', badge ? `${label.id} ${badge.id}` : label.id);
+      element.setAttribute('data-zx-reveal-host', '');
+      element.append(strip.element);
     }
     return element;
   }
@@ -489,6 +539,8 @@ export class TreeView extends Component {
       element.toggleAttribute('data-branch', branch);
       element.toggleAttribute('data-loading', this._loading.has(row.id));
       element.tabIndex = index === focusIndex ? 0 : -1;
+      // The row holding the tab stop lends it to its actions: Tab walks them, then leaves the tree.
+      setRowActionsTabbable(this._strips[index]?.element, index === focusIndex);
 
       const box = /** @type {HTMLInputElement|null} */ (element.querySelector('.zx-tree__checkbox'));
       if (box) {
@@ -513,6 +565,15 @@ export class TreeView extends Component {
 
   /** @param {MouseEvent} event @returns {void} */
   _onClick(event) {
+    const strip = this._stripOf(event.target);
+    if (strip) {
+      // An action acts on its row; it neither selects nor focuses it.
+      const control = /** @type {HTMLElement|null} */ (/** @type {Element} */ (event.target).closest('[data-row-action]'));
+      const index = this._rowIndex(strip.closest('.zx-tree__row'));
+      const action = control ? this._strips[index]?.actions[Number(control.dataset.rowAction)] : null;
+      if (action && !action.disabled) action.onSelect(this._subject(this._rows[index]));
+      return;
+    }
     const element = /** @type {Element} */ (event.target).closest('.zx-tree__row');
     if (!element) return;
     const index = this._rowIndex(element);
@@ -540,6 +601,7 @@ export class TreeView extends Component {
 
   /** @param {MouseEvent} event @returns {void} */
   _onDoubleClick(event) {
+    if (this._stripOf(event.target)) return;
     const element = /** @type {Element} */ (event.target).closest('.zx-tree__row');
     if (!element) return;
     const row = this._rows[this._rowIndex(element)];
@@ -553,6 +615,9 @@ export class TreeView extends Component {
 
   /** @param {KeyboardEvent} event @returns {void} */
   _onKeydown(event) {
+    // Keys pressed on a row's action belong to that control: Enter runs it, the menu's arrows move
+    // through the menu, and nothing walks the tree.
+    if (this._stripOf(event.target)) return;
     const index = this._rows.findIndex((row) => Object.is(row.id, this._focusId));
     if (index < 0 || this._rows.length === 0) return;
     const row = this._rows[index];
@@ -716,7 +781,27 @@ export class TreeView extends Component {
     return [...this._rows.slice(from + 1), ...this._rows.slice(0, from + 1)];
   }
 
-  /** @param {Element} element @returns {number} */
+  /**
+   * The action strip an event target sits in, if any.
+   * @param {EventTarget|null} target Event target.
+   * @returns {HTMLElement|null}
+   */
+  _stripOf(target) {
+    const element = target && /** @type {Node} */ (target).nodeType === 1 ? /** @type {Element} */ (target) : null;
+    const strip = /** @type {HTMLElement|null} */ (element?.closest('.zx-tree__actions') ?? null);
+    return strip && this.el.contains(strip) ? strip : null;
+  }
+
+  /**
+   * What a row's actions receive: the node in the working tree, not a filtered copy.
+   * @param {{node: TreeNode, id: unknown}|undefined} row Visible row.
+   * @returns {TreeNode|null}
+   */
+  _subject(row) {
+    return row ? this.getNode(row.id) ?? row.node : null;
+  }
+
+  /** @param {Element|null} element @returns {number} */
   _rowIndex(element) {
     return [...this.el.querySelectorAll('.zx-tree__row')].indexOf(element);
   }
@@ -754,6 +839,9 @@ export class TreeView extends Component {
   /** Restores an enhanced target to the markup it had before the takeover. @returns {void} */
   destroy() {
     const root = this.el;
+    for (const strip of this._strips?.splice(0) ?? []) strip?.destroy();
+    this._rowMenu?.destroy();
+    this._rowMenu = null;
     super.destroy();
     if (!this._createdRoot && root) restoreTarget(root, this._snapshot);
   }

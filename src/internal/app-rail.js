@@ -19,7 +19,11 @@ import { Tooltip } from '../components/tooltip/tooltip.js';
  * @property {AppNavItem[]} [children] Child destinations/actions.
  * @property {boolean} [section] Makes the item a section: a quiet heading over its `children`, which
  *   render at the same level. A section is never focused, selected, or collapsed, and needs no `id`.
- * @property {Node|{toElement: () => Node|null}} [actions] A section's trailing controls, such as an add button.
+ * @property {Node|{toElement: () => Node|null}|Array<import('./row-actions.js').RowAction|Node>} [actions]
+ *   On a section, trailing controls beside its heading, such as an add button, always shown. On a
+ *   destination of AppSidebar's tree, the row's actions: `{icon, label, onSelect(item), disabled?,
+ *   danger?}` descriptors or nodes, revealed with the row, in its context menu, and after its
+ *   control in the Tab order while it holds focus. Minimized flyouts show destinations only.
  */
 /**
  * @typedef {Object} AppRailPresenterOptions

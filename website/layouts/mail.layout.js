@@ -567,9 +567,34 @@ export default {
       return [
         ...mailboxItems(),
         { section: true, label: 'Labels', children: LABELS.map((entry) => ({
-          id: entry.id, label: entry.label, icon: () => swatch(entry.tone), invoke: () => go(null, entry.id)
+          id: entry.id, label: entry.label, icon: () => swatch(entry.tone), invoke: () => go(null, entry.id),
+          // A label's own commands wait on its row, and are in its context menu too.
+          actions: labelActions(entry)
         })) }
       ];
+    }
+
+    /**
+     * A label row's commands: "Mark all as read" on the row, the rest in its "More" menu.
+     * @param {(typeof LABELS)[number]} entry
+     * @returns {import('../../src/internal/row-actions.js').RowAction[]}
+     */
+    function labelActions(entry) {
+      return [
+        { icon: 'envelope-open', label: 'Mark all as read', onSelect: () => markLabelRead(entry) },
+        { icon: 'pen', label: 'Rename…', onSelect: () => notify(unavailable('Renaming a label'), 'info') },
+        { icon: 'trash-can', label: 'Delete label', danger: true, onSelect: () => notify(unavailable('Deleting a label'), 'info') }
+      ];
+    }
+
+    /** @param {(typeof LABELS)[number]} entry @returns {void} */
+    function markLabelRead(entry) {
+      const unread = threads.filter((thread) => thread.labels.includes(entry.id) && thread.unread);
+      for (const thread of unread) thread.unread = false;
+      render();
+      notify(unread.length
+        ? `Every conversation labelled ${entry.label} is marked as read.`
+        : `Nothing labelled ${entry.label} is unread.`);
     }
 
     /** @returns {any[]} The mailboxes, with live counts. */

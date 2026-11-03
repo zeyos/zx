@@ -912,6 +912,7 @@ const cases = [
       menu.destroy();
     }
   }),
+  appSidebarRowActionsCase(),
   componentCase('AppSidebar (sections)', () => new zx.AppSidebar(null, {
     items: [
       { id: 'home', label: 'Home', icon: 'search' },
@@ -2330,6 +2331,7 @@ const cases = [
     events.expect();
     component.collapse(1);
   }),
+  treeRowActionsCase(),
   componentCase('Finder', () => new zx.Finder(null, {
     items: [{ ID: 1, name: 'One', children: [{ ID: 2, name: 'Two' }] }]
   }), async (component) => {
@@ -2470,6 +2472,7 @@ const cases = [
       exercise: () => assert(element.querySelector('.zx-grid') && element.querySelector('.zx-aspect'), 'layout children missing')
     };
   }),
+  proseAnchorsCase(),
   artifactCase('copyButton()', () => {
     const element = zx.copyButton({ text: 'INV-1042' });
     return { element, exercise: () => assert(element.getAttribute('aria-label') === 'Copy', 'copy button is unnamed') };
@@ -4702,6 +4705,221 @@ function fixture() {
   const element = document.createElement('div');
   fixtures.append(element);
   return element;
+}
+
+/**
+ * Row actions on a tree: revealed strips named after their rows, the focused row's actions as its
+ * Tab stops, the overflow and the context menu running the action, keys on an action left to it,
+ * and menus rebuilt with the rows.
+ * @returns {SmokeDefinition}
+ */
+function treeRowActionsCase() {
+  return {
+    name: 'TreeView (row actions)',
+    create(fixture) {
+      const runs = [];
+      const record = (name) => (node) => runs.push(`${name}:${node.name}`);
+      const component = new zx.TreeView(null, {
+        items: [{ ID: 1, name: 'Handbook', children: [{ ID: 2, name: 'Onboarding' }, { ID: 3, name: 'Leave' }] }],
+        expanded: [1],
+        selected: [2],
+        icons: false,
+        rowActions: (node) => (node.ID === 3
+          ? [{ icon: 'plus', label: 'Add sub-page', onSelect: record('add') }]
+          : [
+            { icon: 'plus', label: 'Add sub-page', onSelect: record('add') },
+            { icon: 'copy', label: 'Rename', onSelect: record('rename') },
+            { icon: 'trash', label: 'Delete', danger: true, onSelect: record('delete') }
+          ])
+      });
+      fixture.append(component.toElement());
+      return { component, runs };
+    },
+    async exercise({ component, runs }) {
+      const rows = () => [...component.el.querySelectorAll('.zx-tree__row')];
+      const strip = (row) => row.querySelector(':scope > .zx-tree__actions');
+      const [handbook, onboarding, leave] = rows();
+      let selects = 0;
+      component.el.addEventListener('zx-select', () => { selects += 1; });
+
+      // Revealed, named after the row, and the row keeps its own name.
+      assert(handbook.hasAttribute('data-zx-reveal-host') && strip(handbook)?.hasAttribute('data-zx-reveal'), 'reveal attributes missing');
+      const controls = [...strip(handbook).children];
+      assert(controls.length === 2, `three actions should show two controls, got ${controls.length}`);
+      assert(controls[0].getAttribute('aria-label') === 'Add sub-page: Handbook', 'inline action is not named after its row');
+      assert(controls[1].getAttribute('aria-label') === 'More actions: Handbook' && controls[1].getAttribute('aria-haspopup') === 'menu',
+        'overflow trigger is not a named menu button');
+      assert(strip(leave).children.length === 1, 'a single action should show alone');
+      const nameIds = handbook.getAttribute('aria-labelledby')?.split(' ') ?? [];
+      assert(nameIds.length === 1 && document.getElementById(nameIds[0])?.textContent === 'Handbook', 'row name includes its actions');
+
+      // The focused row lends its tab stop to its actions; every other strip is out of the order.
+      assert(onboarding.tabIndex === 0, 'the selected row should hold the tab stop');
+      assert([...strip(onboarding).querySelectorAll('button')].every((button) => button.tabIndex === 0), 'focused row actions are not Tab stops');
+      assert([...strip(handbook).querySelectorAll('button')].every((button) => button.tabIndex === -1), 'other rows\u2019 actions are Tab stops');
+
+      // An inline action runs for its row and neither selects nor focuses it.
+      strip(leave).querySelector('button').click();
+      assert(runs.at(-1) === 'add:Leave', `inline action did not run: ${runs.join()}`);
+      assert(component.getSelection().join() === '2' && selects === 0, 'an action click changed the selection');
+
+      // Keys pressed on an action belong to it.
+      const onboardingAdd = strip(onboarding).querySelector('button');
+      onboardingAdd.focus();
+      const arrow = pressKey('ArrowDown');
+      assert(!arrow.defaultPrevented && document.activeElement === onboardingAdd, 'the tree moved on a key pressed on an action');
+
+      // Focus arriving on another row's action makes that row the tab stop, without moving focus.
+      const handbookAdd = strip(handbook).querySelector('button');
+      handbookAdd.focus();
+      assert(handbook.tabIndex === 0 && onboarding.tabIndex === -1, 'the tab stop did not follow the focused action');
+      assert(handbookAdd.tabIndex === 0 && onboardingAdd.tabIndex === -1, 'the action stops did not follow the focused row');
+      assert(document.activeElement === handbookAdd, 'focus moved off the action');
+
+      // The overflow runs a folded action, and its events stay inside the row.
+      const more = strip(handbook).querySelector('.zx-tree__more');
+      more.click();
+      const panel = document.getElementById(more.getAttribute('aria-controls'));
+      const items = [...panel.querySelectorAll('[role="menuitem"]')];
+      assert(items.map((item) => item.textContent.trim()).join() === 'Rename,Delete', 'overflow should list the folded actions');
+      items[0].click();
+      assert(runs.at(-1) === 'rename:Handbook' && selects === 0, 'overflow selection did not run, or leaked a select event');
+
+      // The context menu lists every descriptor and returns focus to the row before running it.
+      component.focusNode(2);
+      const row = rows()[1];
+      assert(document.activeElement === row, 'focusNode did not focus the row');
+      pressKey('F10', { shiftKey: true });
+      const menu = [...document.querySelectorAll('.zx-context-menu')].find((element) => element.dataset.state === 'open');
+      assert(menu, 'Shift+F10 did not open the row menu');
+      const entries = [...menu.querySelectorAll('[role="menuitem"]')];
+      assert(entries.length === 3, `row menu should list three actions, got ${entries.length}`);
+      entries[2].click();
+      assert(runs.at(-1) === 'delete:Onboarding', `row menu did not run the action: ${runs.join()}`);
+      assert(document.activeElement === row, 'focus did not return to the row');
+
+      // Menus are rebuilt with the rows: collapsing drops the children's strips and their panels.
+      const panels = document.querySelectorAll('.zx-menu-button__menu').length;
+      component.collapse(1);
+      await component.expand(1);
+      assert(document.querySelectorAll('.zx-menu-button__menu').length === panels, 'row menus leaked across a re-render');
+    },
+    destroy: ({ component }) => component.destroy()
+  };
+}
+
+/**
+ * Actions on AppSidebar destinations: a reveal line only where there are actions, names, focus-led
+ * Tab stops, the row menu, and arrow navigation unchanged.
+ * @returns {SmokeDefinition}
+ */
+function appSidebarRowActionsCase() {
+  return {
+    name: 'AppSidebar (row actions)',
+    create(fixture) {
+      const runs = [];
+      const record = (name) => (item) => runs.push(`${name}:${item.label}`);
+      const actions = [
+        { icon: 'check', label: 'Mark all as read', onSelect: record('read') },
+        { icon: 'copy', label: 'Rename', onSelect: record('rename') },
+        { icon: 'trash', label: 'Delete label', danger: true, onSelect: record('delete') }
+      ];
+      const component = new zx.AppSidebar(null, {
+        collapsible: false,
+        items: [
+          { id: 'customers', label: 'Customers', href: '#customers', actions },
+          { id: 'finance', label: 'Finance', href: '#finance', actions: actions.slice(0, 1) },
+          { id: 'plain', label: 'Plain', href: '#plain' }
+        ],
+        active: 'customers'
+      });
+      fixture.append(component.toElement());
+      return { component, runs };
+    },
+    exercise({ component, runs }) {
+      const control = (id) => component.el.querySelector(`[data-app-nav-id="${id}"]`);
+      const strip = (id) => control(id).parentElement.querySelector(':scope > .zx-app-sidebar__actions');
+      let selects = 0;
+      component.on('select', () => { selects += 1; });
+
+      assert(control('customers').parentElement.matches('.zx-app-sidebar__line[data-zx-reveal-host]'), 'no reveal line around a row with actions');
+      assert(control('plain').parentElement.matches('.zx-app-sidebar__row'), 'a row without actions changed its markup');
+      assert(strip('customers').children.length === 2, 'three actions should show two controls');
+      assert(strip('finance').querySelector('button').getAttribute('aria-label') === 'Mark all as read: Finance', 'action not named after its row');
+      assert([...component.el.querySelectorAll('.zx-app-sidebar__actions button')].every((button) => button.tabIndex === -1),
+        'actions are Tab stops before any row has focus');
+
+      control('customers').focus();
+      assert([...strip('customers').querySelectorAll('button')].every((button) => button.tabIndex === 0), 'focused row actions are not Tab stops');
+      assert(strip('finance').querySelector('button').tabIndex === -1, 'another row\u2019s actions are Tab stops');
+
+      pressKey('ArrowDown');
+      assert(document.activeElement === control('finance'), 'arrow navigation broke on an action line');
+      strip('finance').querySelector('button').click();
+      assert(runs.at(-1) === 'read:Finance' && selects === 0, 'inline action did not run, or selected the row');
+
+      control('customers').focus();
+      pressKey('F10', { shiftKey: true });
+      const menu = [...document.querySelectorAll('.zx-context-menu')].find((element) => element.dataset.state === 'open');
+      assert(menu?.querySelectorAll('[role="menuitem"]').length === 3, 'row menu should list three actions');
+      menu.querySelectorAll('[role="menuitem"]')[1].click();
+      assert(runs.at(-1) === 'rename:Customers', 'row menu did not run the action');
+      assert(document.activeElement === control('customers'), 'focus did not return to the destination');
+
+      component.setItems([{ id: 'plain', label: 'Plain', href: '#plain' }]);
+      assert(!component.el.querySelector('.zx-app-sidebar__line'), 'a stale action line survived setItems');
+    },
+    destroy: ({ component }) => component.destroy()
+  };
+}
+
+/**
+ * Section links: only headings with ids, named after the heading, copying without navigating, and
+ * a refresh that follows re-rendered content.
+ * @returns {SmokeDefinition}
+ */
+function proseAnchorsCase() {
+  return {
+    name: 'proseAnchors()',
+    create(fixture) {
+      const copies = [];
+      const article = zx.h('article', { class: 'zx-prose' },
+        zx.h('h1', { id: 'top' }, 'Runbook'),
+        zx.h('h2', { id: 'freeze' }, 'Freeze posting'),
+        zx.h('h3', {}, 'No id'),
+        zx.h('h4', { id: 'sign-off' }, 'Sign-off'));
+      fixture.append(article);
+      const anchors = zx.proseAnchors(article, {
+        href: (id) => `https://example.test/runbook#${id}`,
+        oncopy: (url) => copies.push(url)
+      });
+      return { article, anchors, copies };
+    },
+    async exercise({ article, anchors, copies }) {
+      const links = () => [...article.querySelectorAll('.zx-prose__anchor')];
+      assert(links().length === 2, `expected links on h2 and h4 only, got ${links().length}`);
+      const [freeze] = links();
+      assert(freeze.getAttribute('href') === '#freeze' && freeze.getAttribute('aria-label') === 'Copy link to Freeze posting',
+        'link href or name mismatch');
+      assert(freeze.parentElement.hasAttribute('data-zx-reveal-host') && freeze.hasAttribute('data-zx-reveal'), 'reveal attributes missing');
+
+      const hash = location.hash;
+      freeze.click();
+      for (let wait = 0; wait < 40 && copies.length === 0; wait += 1) await new Promise((resolve) => setTimeout(resolve, 25));
+      assert(copies[0] === 'https://example.test/runbook#freeze', `copy did not run: ${copies.join()}`);
+      assert(location.hash === hash, 'a section link changed the location');
+
+      article.replaceChildren(zx.h('h2', { id: 'reconcile' }, 'Reconcile'));
+      anchors.refresh();
+      assert(links().length === 1 && links()[0].getAttribute('href') === '#reconcile', 'refresh did not follow new content');
+      assert(article.querySelector('.zx-prose__status[role="status"]'), 'refresh did not restore the live region');
+    },
+    destroy({ article, anchors }) {
+      anchors.destroy();
+      assert(!article.querySelector('.zx-prose__anchor, .zx-prose__status, [data-zx-reveal-host]'), 'destroy left anchors behind');
+      article.remove();
+    }
+  };
 }
 
 /** @param {Element} element @returns {void} */
