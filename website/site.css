@@ -225,6 +225,7 @@ body.site-page > main {
 .site-nav a {
   display: inline-flex;
   align-items: center;
+  gap: var(--zx-space-2);
   min-block-size: var(--zx-control-height);
   padding-inline: var(--zx-space-3);
   border-radius: var(--zx-radius-md);
@@ -233,6 +234,30 @@ body.site-page > main {
   font-weight: var(--zx-weight-medium);
   text-decoration: none;
   white-space: nowrap;
+}
+
+/* A glyph before each label, drawn like the header's icon buttons: an SVG mask filled with
+   currentColor, so it follows hover, the current page, and the overlay header's ink. The markup
+   stays plain links; the mask is decorative and the label carries the name. */
+.site-nav a::before {
+  content: "";
+  flex: none;
+  inline-size: 16px;
+  block-size: 16px;
+  background: currentColor;
+  mask: var(--site-nav-icon) center / contain no-repeat;
+}
+
+.site-nav a[href^="docs"] {
+  --site-nav-icon: url("assets/book-open.svg");
+}
+
+.site-nav a[href^="layouts"] {
+  --site-nav-icon: url("assets/layout-dashboard.svg");
+}
+
+.site-nav a[href^="theme"] {
+  --site-nav-icon: url("assets/palette.svg");
 }
 
 .site-nav a:hover {
