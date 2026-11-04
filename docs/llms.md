@@ -3529,8 +3529,9 @@ source.onmessage = (message) => adapter.handle(JSON.parse(message.data));
   call's place — after its trace and the items of earlier calls in it, even when text was drawn
   below since — later items replace it in place, and the step links to it. A renderer that throws is
   reported and the step stays as it was. Put arguments and results on the page as text.
-- **Approvals** — a call `requiresApproval` returns `true` for waits at an ApprovalCard
-  (`approval:<toolCallId>`); nothing is approved by default. The decision is the call's result:
+- **Approvals** — a call `requiresApproval` answers truthy for waits at an ApprovalCard
+  (`approval:<toolCallId>`); nothing is approved by default, so a check that throws or returns a
+  Promise holds the call too. The decision is the call's result:
   `ontoolresult(id, {approved: true})` or `{approved: false, reason?}`. AG-UI 1.0 asks by ending the
   run with an `interrupt` outcome: keep each `interrupt.id` from that event and send the result as
   the next run's `resume` entry `{interruptId, status: 'resolved', payload: result}`. A `tool_call`

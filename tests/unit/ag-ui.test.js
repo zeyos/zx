@@ -200,6 +200,25 @@ test('an approval-gated call waits for the person, and the decision is the tool 
   assert.deepEqual(log.errors, []);
 });
 
+test('any truthy answer holds a call, and so does a Promise, whatever it resolves to', () => {
+  const held = [
+    () => true, () => 1, () => 'yes', () => ({ level: 'high' }), () => ['send'],
+    (call) => /^send/.exec(call.name), async () => true, async () => false, () => Promise.resolve(false)
+  ];
+  for (const requiresApproval of held) {
+    const { thread, play } = setup({ requiresApproval });
+    play([{ type: 'RUN_STARTED', threadId: 't', runId: 'r1' }, { type: 'TOOL_CALL_START', toolCallId: 'c1', toolCallName: 'send_mail' }, { type: 'TOOL_CALL_END', toolCallId: 'c1' }]);
+    assert.ok(thread.items.get('approval:c1'), String(requiresApproval));
+    assert.equal(thread.step('trace:r1', 'c1').status, 'waiting', String(requiresApproval));
+  }
+  for (const requiresApproval of [() => false, () => 0, () => '', () => null, () => undefined, (call) => /^delete/.exec(call.name)]) {
+    const { thread, play } = setup({ requiresApproval });
+    play([{ type: 'RUN_STARTED', threadId: 't', runId: 'r1' }, { type: 'TOOL_CALL_START', toolCallId: 'c1', toolCallName: 'send_mail' }, { type: 'TOOL_CALL_END', toolCallId: 'c1' }]);
+    assert.equal(thread.items.get('approval:c1'), undefined, String(requiresApproval));
+    assert.equal(thread.step('trace:r1', 'c1').status, 'running', String(requiresApproval));
+  }
+});
+
 test('a rejected approval skips the call; a prevented one keeps it waiting', async () => {
   const events = fixture('approval').slice(0, 13);
   const rejected = setup({ requiresApproval: () => true });

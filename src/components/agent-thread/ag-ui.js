@@ -101,10 +101,11 @@ const MAX_TOKEN = 512;
  *   `name` is one of their keys is written by that author; every other item by `agent`.
  * @property {string|null} [agent=null] The author key of the agent's output; the thread's first
  *   agent when null.
- * @property {((call: ToolCall) => boolean)|null} [requiresApproval=null] Asked once a call's
- *   arguments are complete: `true` holds the call at an ApprovalCard until the person decides.
- *   Nothing is approved by default, and a check that throws holds the call too. Not asked for
- *   surface tools, whose surface is the person's say.
+ * @property {((call: ToolCall) => unknown)|null} [requiresApproval=null] Asked once a call's
+ *   arguments are complete: any truthy answer holds the call at an ApprovalCard until the person
+ *   decides. Nothing is approved by default: a check that throws holds the call too, and so does a
+ *   Promise, whatever it resolves to, so an asynchronous check never lets a call through. Not asked
+ *   for surface tools, whose surface is the person's say.
  * @property {((id: string, result: Record<string, unknown>) => void)|null} [ontoolresult=null] What
  *   the person decided, for the application to send back to the agent. An approval answers
  *   `{approved: true}` or `{approved: false, reason?}`; a surface tool its reply, with `errors`
@@ -936,7 +937,7 @@ export function connectAgUi(thread, options = {}) {
     let gated = false;
     if (typeof options.requiresApproval === 'function') {
       try {
-        gated = options.requiresApproval(structuredClone(call)) === true;
+        gated = Boolean(options.requiresApproval(structuredClone(call)));
       } catch (error) {
         gated = true;
         report('approval-check', `requiresApproval failed for "${call.name}"; the call waits for a person`, { cause: error });
