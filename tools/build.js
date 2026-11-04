@@ -13,7 +13,9 @@ const assets = [
   { name: 'ESM', entry: 'src/index.js', file: 'zx.esm.js', format: 'esm' },
   { name: 'ZeyOS', entry: 'src/zeyos/index.js', file: 'zx-zeyos.esm.js', format: 'esm' },
   { name: 'Global', entry: 'src/index.js', file: 'zx.global.js', format: 'iife', globalName: 'zx' },
-  { name: 'CSS', entry: 'styles/zx.css', file: 'zx.css' }
+  { name: 'CSS', entry: 'styles/zx.css', file: 'zx.css' },
+  { name: 'CSS core', entry: 'styles/core.css', file: 'zx.core.css' },
+  { name: 'CSS layered', entry: 'styles/zx.layered.css', file: 'zx.layered.css' }
 ];
 
 await rm(dist, { recursive: true, force: true });

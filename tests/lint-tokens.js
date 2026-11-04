@@ -11,7 +11,7 @@ const componentRoot = resolve(root, 'src/components');
  * `print.css` and `icons.css` both shipped without this line and nothing noticed — so the list is
  * also checked against the directory below, and a stylesheet missing from it fails the lint.
  */
-const styleNames = ['base.css', 'prose.css', 'print.css', 'icons.css'];
+const styleNames = ['base.css', 'prose.css', 'print.css', 'icons.css', 'core.css', 'zx.layered.css'];
 const styleFiles = styleNames.map((name) => resolve(root, 'styles', name));
 const componentFiles = findCssFiles(componentRoot);
 /*
