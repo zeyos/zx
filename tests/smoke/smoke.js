@@ -6791,6 +6791,30 @@ function surfaceSafetyCases() {
       typed.destroy();
       await delay(20);
     }),
+    // A form's members answer to its inputs' names, and those are the model's to choose.
+    surfaceCase('Surface (an input named after a form member)', (fixture) => ({ fixture }), ({ fixture }) => {
+      for (const name of ['removeAttribute', 'setAttribute', 'getAttribute', 'localName', 'querySelector', 'submit', 'contains', 'dataset', 'classList', 'addEventListener']) {
+        const nodes = [{ id: 'form', type: 'fields', schema: { type: 'object', required: [name], properties: { [name]: { type: 'string', title: 'Field' } } } }];
+        const whole = new zx.Surface(null, { document: surfaceDocument({ root: ['form'], nodes }) });
+        const count = countReplies(whole);
+        fixture.append(whole.toElement());
+        assert(whole.getErrors().every((error) => error.code !== 'draw-failed'), `${name}: drawing failed`);
+        assert(!whole.el.querySelector('.zx-surface__frame').hasAttribute('aria-busy'), `${name}: the finished surface is still busy`);
+        assert(surfaceButton(whole.el, 'submit').type === 'submit', `${name}: Enter no longer submits`);
+        setSurfaceField(whole.el, name, 'Ada');
+        surfaceButton(whole.el, 'submit').click();
+        assert(count.replies.length === 1 && count.replies[0].values[name] === 'Ada', `${name}: the value did not reach the reply`);
+        whole.destroy();
+        const streamed = new zx.Surface(null);
+        fixture.append(streamed.toElement());
+        streamed.apply({ zx: 'surface/1', op: 'begin', surface: 's1', intent: 'ask', title: 'T', author: 'a', root: ['form'] });
+        streamed.apply({ op: 'node', surface: 's1', ...nodes[0] });
+        assert(streamed.el.querySelector('.zx-surface__frame').hasAttribute('aria-busy'), `${name}: a streaming surface is not busy`);
+        streamed.apply({ op: 'end', surface: 's1' });
+        assert(streamed.getErrors().every((error) => error.code !== 'draw-failed'), `${name}: streaming failed`);
+        streamed.destroy();
+      }
+    }),
     /* -- end of the safety cases -- */
   ];
 }
@@ -6998,6 +7022,48 @@ function agUiCases() {
       assert(feed.getAttribute('aria-busy') === 'false', 'the feed reads as busy for ever');
       assert(!thread.el.querySelector('[data-type="zx-placeholder"]'), 'a Skeleton was left standing');
       assert(status.getState().state === 'stopped', `the run reads as ${status.getState().state}`);
+    }),
+    surfaceCase('AgentThread (a reply on the item)', () => ({
+      component: new zx.AgentThread(null, { authors: { finance: { name: 'Finance agent' } } })
+    }), ({ component: thread }) => {
+      const replies = [];
+      thread.on('reply', (event) => replies.push(event.detail.reply));
+      const document = surfaceDocument();
+      const reply = { zx: 'reply/1', surface: 's1', action: 'submit', key: 's1#submit', values: { name: 'Elsewhere' }, confirmation: null, at: '2026-11-04T10:00:00' };
+      // Answered somewhere else: the form must not stay open to be answered twice.
+      for (const write of [
+        (item) => thread.setItems([item]),
+        (item) => thread.upsert(item)
+      ]) {
+        thread.setItems([]);
+        replies.length = 0;
+        thread.setItems([{ id: 'x', type: 'surface', document }]);
+        const open = thread.surface('x');
+        replies.length = 0;
+        write({ id: 'x', type: 'surface', document, reply });
+        assert(thread.surface('x') !== open && thread.surface('x').getReply()?.action === 'submit', 'the reply on the item did not reach the surface');
+        assert(!thread.el.querySelector('article[data-id="x"] input'), 'the answered surface kept its form');
+        assert(thread.get('x').reply?.values.name === 'Elsewhere', 'get() lost the reply');
+        assert(replies.length === 0, `an answer given elsewhere sent another reply: ${JSON.stringify(replies)}`);
+      }
+      // A surface streamed in has no document on its item.
+      thread.setItems([{ id: 's', type: 'surface' }]);
+      for (const op of [
+        { zx: 'surface/1', op: 'begin', surface: 's1', intent: 'ask', title: 'T', author: 'finance', root: ['form'] },
+        { op: 'node', surface: 's1', id: 'form', type: 'fields', schema: { type: 'object', properties: { name: { type: 'string', title: 'Name' } } } },
+        { op: 'end', surface: 's1' }
+      ]) thread.surface('s').apply(op);
+      replies.length = 0;
+      thread.upsert({ id: 's', type: 'surface', reply });
+      assert(thread.surface('s').getReply()?.action === 'submit', 'a streamed surface lost the reply');
+      assert(!thread.el.querySelector('article[data-id="s"] input') && thread.el.querySelector('article[data-id="s"] .zx-surface__verdict'), 'a streamed surface was not frozen');
+      assert(replies.length === 0, 'a streamed surface sent another reply');
+      // Answered here, a later reply on the item changes nothing: it replies once.
+      thread.setItems([{ id: 'y', type: 'surface', document }]);
+      const answered = thread.surface('y');
+      answered.cancel('cancelled');
+      thread.setItems([{ id: 'y', type: 'surface', document, reply }]);
+      assert(thread.surface('y') === answered && answered.getReply().action === 'cancel', 'the surface’s own reply was replaced');
     }),
     surfaceCase('AgentThread (an application’s own surface and placeholder)', () => ({}), async () => {
       // `register()` has no undo, so this runs on a module instance of its own.

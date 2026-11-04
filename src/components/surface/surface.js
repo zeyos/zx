@@ -256,6 +256,7 @@ export class Surface extends Component {
     this._documentMode = false;
     /** @type {HTMLElement|null} */
     this._frame = null;
+    this._asking = false;
     /** @type {HTMLElement|null} */
     this._body = null;
     /** @type {HTMLElement|null} */
@@ -613,6 +614,7 @@ export class Surface extends Component {
       novalidate: asking ? true : null
     }));
     this._frame = frame;
+    this._asking = asking;
     const header = h('header', { class: 'zx-surface__header' });
     if (!labelledBy && model.title) header.append(h(`h${level}`, { class: 'zx-surface__title', id: titleId }, model.title));
     if (model.description) header.append(h('p', { class: 'zx-surface__description' }, model.description));
@@ -686,8 +688,7 @@ export class Surface extends Component {
     this._syncVisibility();
     if (!this._reply) this._drawActions();
     const busy = !this._model.ended && !this._reply;
-    if (busy) this._frame?.setAttribute('aria-busy', 'true');
-    else this._frame?.removeAttribute('aria-busy');
+    if (this._frame) setFormAttribute(this._frame, 'aria-busy', busy ? 'true' : null);
   }
 
   /**
@@ -1165,7 +1166,7 @@ export class Surface extends Component {
       return this._fallback();
     }
     const labelledBy = this._frame?.getAttribute('aria-labelledby');
-    if (labelledBy) questionnaire.toElement().setAttribute('aria-labelledby', labelledBy);
+    if (labelledBy) setFormAttribute(questionnaire.toElement(), 'aria-labelledby', labelledBy);
     questionnaire.on('submit', (event) => {
       event.preventDefault();
       void this._run('submit');
@@ -1571,7 +1572,7 @@ export class Surface extends Component {
         }));
         element.dataset.surfaceAction = action.id;
         if (action.builtin) element.dataset.surfaceBuiltin = 'cancel';
-        if (action.kind === 'primary' && !action.builtin && this._frame?.localName === 'form') element.type = 'submit';
+        if (action.kind === 'primary' && !action.builtin && this._asking) element.type = 'submit';
         if (action.description) element.title = action.description;
         return element;
       }));
@@ -2081,6 +2082,18 @@ function syncChildren(container, children) {
     const at = container.children[index];
     if (at !== child) container.insertBefore(child, at ?? null);
   });
+}
+
+/**
+ * Sets an attribute of a form, or removes it with `null`, through the prototype: a form's members
+ * answer to its inputs' names, and a surface's inputs are named by the model, so `form.setAttribute`
+ * may be an input. Read nothing else off a form that holds a surface's inputs.
+ * @param {Element} form @param {string} name @param {string|null} value
+ * @returns {void}
+ */
+function setFormAttribute(form, name, value) {
+  if (value === null) Element.prototype.removeAttribute.call(form, name);
+  else Element.prototype.setAttribute.call(form, name, value);
 }
 
 /**
