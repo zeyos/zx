@@ -3404,7 +3404,8 @@ const cases = [
     } finally {
       extra.destroy();
     }
-  })
+  }),
+  ...uiMessageStreamCases()
 ];
 
 auditCoverage(cases);
@@ -6697,6 +6698,226 @@ function fixture() {
   const element = document.createElement('div');
   fixtures.append(element);
   return element;
+}
+
+/**
+ * The recorded UI message streams, replayed through a real AgentThread. The adapter's unit tests
+ * run against a stand-in, so what only the thread can show is checked here: where things land in
+ * the feed, what is left on screen, and what the real controls do.
+ * @returns {SmokeDefinition[]}
+ */
+function uiMessageStreamCases() {
+  /** @param {string} name @returns {Promise<any[][]>} */
+  const recorded = async (name) => {
+    const response = await fetch(new URL(`../unit/fixtures/ui-stream-${name}.json`, import.meta.url));
+    assert(response.ok, `the ${name} recording did not load`);
+    return (await response.json()).responses;
+  };
+  /** @param {HTMLElement} root @returns {string[]} The feed's item ids, top to bottom. */
+  const feed = (root) => [.../** @type {NodeListOf<HTMLElement>} */ (root.querySelectorAll('[role="feed"] > article'))].map((article) => String(article.dataset.id));
+  /** @param {HTMLElement} root @param {string} id @returns {HTMLElement} */
+  const article = (root, id) => /** @type {HTMLElement} */ (root.querySelector(`article[data-id="${id}"]`));
+  /** @param {HTMLElement} root @param {string} id @returns {string[]} An answer's paragraphs as read. */
+  const paragraphs = (root, id) => [...article(root, id).querySelectorAll('.zx-block-view p')].map((node) => String(node.textContent));
+  /** @param {HTMLElement} root @param {string} above @param {string} below @returns {boolean} */
+  const standsAbove = (root, above, below) => article(root, above).getBoundingClientRect().bottom <= article(root, below).getBoundingClientRect().top;
+  /** @param {HTMLElement} root @param {string} id @returns {void} */
+  const assertSettled = (root, id) => {
+    assert(root.querySelector('[role="feed"]')?.getAttribute('aria-busy') === 'false', 'the feed stayed busy');
+    assert(article(root, id).querySelector('.zx-block-view')?.getAttribute('data-state') === 'done', `${id} did not finish`);
+  };
+  /** The application's own tile, drawn from what the renderer returned. */
+  const TILE = 'smoke-stream-tile';
+  /** @param {any} call @returns {any} */
+  const tile = (call) => (call.status === 'queued' ? null : { type: TILE, text: `${call.id} ${call.status}` });
+
+  /**
+   * @param {string} name
+   * @param {(context: {root: HTMLElement, thread: any, stream: any, log: Record<string, any[]>, play: (parts: any[]) => void}) => unknown} scenario
+   * @param {Record<string, unknown>} [options]
+   * @returns {SmokeDefinition}
+   */
+  const replay = (name, scenario, options = {}) => ({
+    name,
+    create(host) {
+      if (!zx.AgentThread.has(TILE)) zx.AgentThread.register(TILE, (item) => zx.h('p', { class: 'smoke-stream-tile' }, String(item.text)));
+      const log = { approval: [], error: [], unknown: [] };
+      const thread = new zx.AgentThread(null, { authors: { me: { name: 'Hanna', kind: 'person' }, agent: { name: 'Finance agent' } } });
+      host.append(thread.toElement());
+      const stream = zx.connectUiMessageStream(thread, {
+        agent: 'agent',
+        onapproval: (...args) => log.approval.push(args),
+        onerror: (error) => log.error.push(error.message),
+        onunknown: (part) => log.unknown.push(part?.type),
+        ...options
+      });
+      /** @param {any[]} parts */
+      const play = (parts) => { for (const part of parts) stream.handle(part); };
+      return { root: thread.toElement(), thread, stream, log, play };
+    },
+    exercise: scenario,
+    destroy({ thread, stream }) {
+      stream.destroy();
+      thread.destroy();
+    }
+  });
+
+  return [
+    replay('AgentThread (stream: tools and sources)', async ({ root, log, play }) => {
+      play((await recorded('tools'))[0]);
+      assert(feed(root).join() === 'msg-weather', `tool calls left the answer: ${feed(root)}`);
+      assert(paragraphs(root, 'msg-weather').length === 2, 'each text block is a paragraph of the answer');
+      assert(root.querySelector('[data-cite="1"]')?.getAttribute('aria-label')?.includes('Hamburg forecast'), 'a citation did not name its source');
+      assert(article(root, 'msg-weather').querySelectorAll('.zx-source-list__source').length === 2, 'the sources were not listed');
+      assert(/Worked|2 tool calls/.test(String(article(root, 'msg-weather').querySelector('.zx-run-trace')?.textContent)), 'the steps were not summed up');
+      assertSettled(root, 'msg-weather');
+      assert(!log.error.length && !log.unknown.length, `reported: ${log.error} ${log.unknown}`);
+    }),
+
+    replay('AgentThread (stream: text keeps its place below a card)', async ({ root, thread, log, play }) => {
+      const [first, second] = await recorded('approval');
+      play(first);
+      assert(feed(root).join() === 'msg-reminder,approval:approval-reminder', `first response: ${feed(root)}`);
+      await waitFor(() => /needs your approval/.test(String(root.querySelector('.zx-agent-thread__status')?.textContent)), 'the status did not say the run needs approval');
+
+      /** @type {HTMLButtonElement} */ (root.querySelector('[data-state="pending"] .zx-approval-card__actions button')).click();
+      await Promise.resolve();
+      assert(log.approval.length === 1 && log.approval[0][0] === 'approval-reminder' && log.approval[0][1] === true, 'the decision did not reach onapproval');
+      assert(root.querySelector('.zx-approval-card')?.getAttribute('data-state') === 'approved', 'the card did not take the answer');
+
+      play(second);
+      assert(feed(root).join() === 'msg-reminder,approval:approval-reminder,msg-reminder#2', `second response: ${feed(root)}`);
+      assert(standsAbove(root, 'approval:approval-reminder', 'msg-reminder#2'), 'the final text is not below its card');
+      assert(paragraphs(root, 'msg-reminder').join() === 'Bruckner Logistik is 21 days late. I’ll send the first reminder once you agree.', 'the first answer changed');
+      assert(paragraphs(root, 'msg-reminder#2').join() === 'The reminder is on its way.', 'the final text is not in the continuation');
+      assert(article(root, 'msg-reminder#2').dataset.continued === 'true', 'the continuation is not drawn as the same turn');
+      assert(/** @type {any} */ (thread.get('msg-reminder')).steps[0].status === 'done', 'the step stayed on the first piece, waiting');
+      assertSettled(root, 'msg-reminder#2');
+      assertSettled(root, 'msg-reminder');
+      assert(!log.error.length && !log.unknown.length, `reported: ${log.error} ${log.unknown}`);
+    }),
+
+    replay('AgentThread (stream: text keeps its place below a tile)', async ({ root, log, play }) => {
+      play((await recorded('tools'))[0]);
+      const ids = feed(root);
+      assert(ids.join() === 'msg-weather,tool:call-hamburg,tool:call-vienna,msg-weather#2', `feed: ${ids}`);
+      assert(standsAbove(root, 'tool:call-vienna', 'msg-weather#2'), 'the text is not below its tiles');
+      assert(article(root, 'tool:call-vienna').textContent?.includes('call-vienna done'), 'the tile was not patched in place');
+      assert(paragraphs(root, 'msg-weather#2').join().startsWith('It rains in Hamburg'), 'the text after the tiles did not continue');
+      assert(root.querySelector('article[data-id="msg-weather#2"] [data-cite="1"]')?.getAttribute('aria-label')?.includes('Hamburg forecast'), 'a citation in the continuation lost its source');
+      assert(!article(root, 'msg-weather').querySelector('.zx-source-list'), 'the sources are listed twice');
+      assert(article(root, 'msg-weather#2').querySelector('.zx-source-list'), 'the sources are not listed at the end of the turn');
+      assertSettled(root, 'msg-weather#2');
+      assert(!log.error.length, `reported: ${log.error}`);
+    }, { tools: { getWeatherInformation: tile } }),
+
+    replay('AgentThread (stream: a citation above a tile keeps its source)', ({ root, play }) => {
+      play([
+        { type: 'start', messageId: 'm' },
+        { type: 'text-start', id: 'a' },
+        { type: 'text-delta', id: 'a', delta: 'Above the tile [1].' },
+        { type: 'source-url', sourceId: 'one', url: 'https://one.example/', title: 'First source' },
+        { type: 'tool-input-available', toolCallId: 'c', toolName: 'lookup', input: {} },
+        { type: 'tool-output-available', toolCallId: 'c', output: {} },
+        { type: 'text-delta', id: 'a', delta: ' Below it [2].' },
+        { type: 'text-end', id: 'a' },
+        { type: 'source-url', sourceId: 'two', url: 'https://two.example/', title: 'Second source' },
+        { type: 'finish', finishReason: 'stop' }
+      ]);
+      assert(feed(root).join() === 'm,tool:c,m#2', `feed: ${feed(root)}`);
+      assert(paragraphs(root, 'm#2').join() === 'Below it 2.', `the continuation kept its space: ${paragraphs(root, 'm#2')}`);
+      assert(root.querySelector('article[data-id="m"] [data-cite="1"]')?.getAttribute('aria-label')?.includes('First source'), 'the citation above the tile lost its source');
+      assert(root.querySelector('article[data-id="m#2"] [data-cite="2"]')?.getAttribute('aria-label')?.includes('Second source'), 'the citation below the tile lost its source');
+    }, { tools: { lookup: tile } }),
+
+    replay('AgentThread (stream: card expiry)', async ({ root, stream, log, play }) => {
+      const [first] = await recorded('approval');
+      play(first);
+      play([{ type: 'tool-output-denied', toolCallId: 'call-reminder' }]);
+      const card = /** @type {HTMLElement} */ (root.querySelector('.zx-approval-card'));
+      assert(card.dataset.state === 'expired', 'a call the server settled left its card pending');
+      assert(/** @type {HTMLElement} */ (card.querySelector('.zx-approval-card__actions')).hidden, 'an expired card still offers its buttons');
+      stream.destroy();
+      assert(card.isConnected && card.dataset.state === 'expired', 'destroy changed a settled card');
+      assert(!log.approval.length, 'an expired card reached onapproval');
+    }),
+
+    replay('AgentThread (stream: a pending card expires with the connection)', async ({ root, stream, log, thread, play }) => {
+      play((await recorded('approval'))[0]);
+      const before = root.querySelector('.zx-approval-card');
+      assert(before?.getAttribute('data-state') === 'pending', 'the card is not pending');
+      stream.destroy();
+      assert(before?.getAttribute('data-state') === 'expired', 'nobody can answer this card, and it still asks');
+      assert(/** @type {any} */ (thread.get('msg-reminder')).steps[0].status === 'stopped', 'the held step was not stopped');
+      assert(!log.approval.length, 'destroy decided something');
+    }),
+
+    replay('AgentThread (stream: reasoning shows its duration once)', async ({ root, log, play }) => {
+      play((await recorded('reasoning'))[0]);
+      const row = /** @type {HTMLElement} */ (article(root, 'msg-plan').querySelector('.zx-run-trace__row'));
+      assert(/Thought for/.test(String(row.textContent)), `the reasoning row reads: ${row.textContent}`);
+      assert(!row.querySelector('.zx-run-trace__time'), 'the reasoning row prints its duration twice');
+      assert(!/paid late/.test(String(root.textContent)), 'reasoning text reached the page');
+      assert(!log.error.length && !log.unknown.length, `reported: ${log.error} ${log.unknown}`);
+    }),
+
+    replay('AgentThread (stream: reasoning shown on request)', async ({ root, play }) => {
+      play((await recorded('reasoning'))[0]);
+      assert(/paid late/.test(String(article(root, 'msg-plan').querySelector('.zx-run-trace')?.textContent)), 'showReasoning did not put the text on the step');
+    }, { showReasoning: true }),
+
+    replay('AgentThread (stream: reset-step leaves nothing of the step)', async ({ root, thread, log, play }) => {
+      const [parts] = await recorded('reset');
+      const at = parts.findIndex((part) => part.type === 'reset-step');
+      play(parts.slice(0, at));
+      assert(feed(root).length > 2 && /Withdrawn text above/.test(String(root.textContent)), 'the step was not drawn before it was withdrawn');
+      assert(root.querySelector('.zx-approval-card')?.getAttribute('data-state') === 'pending', 'the step drew no card');
+
+      play(parts.slice(at));
+      assert(feed(root).join() === 'msg-retry', `items left behind: ${feed(root)}`);
+      assert(!/withdrawn/i.test(String(root.textContent)), `left on screen: ${root.textContent}`);
+      assert(!/withdrawn/i.test(JSON.stringify(thread.getItems())), `left in the items: ${JSON.stringify(thread.getItems())}`);
+      assert(paragraphs(root, 'msg-retry').join('|') === 'I’ll look the invoice up.|The invoice is still open 1.', `paragraphs: ${paragraphs(root, 'msg-retry')}`);
+      assert(!root.querySelector('.zx-approval-card'), 'the card is still there');
+      assert(root.querySelector('[data-cite="1"]')?.getAttribute('aria-label')?.includes('Reminder policy'), 'the citation counted a withdrawn source');
+      const { steps } = /** @type {any} */ (thread.get('msg-retry'));
+      assert(steps.map((step) => step.id).join() === 'call-invoice' && steps[0].status === 'done', 'the step before stayed as it was');
+      assertSettled(root, 'msg-retry');
+      assert(!log.error.length && !log.unknown.length, `reported: ${log.error} ${log.unknown}`);
+    }),
+
+    replay('AgentThread (stream: reset-step after a continuation goes on where the step began)', ({ root, play }) => {
+      play([
+        { type: 'start', messageId: 'm' },
+        { type: 'start-step' },
+        { type: 'text-start', id: 'a' },
+        { type: 'text-delta', id: 'a', delta: 'Kept above the tile.' },
+        { type: 'tool-input-available', toolCallId: 'kept', toolName: 'lookup', input: {} },
+        { type: 'finish-step' },
+        { type: 'start-step' },
+        { type: 'text-start', id: 'b' },
+        { type: 'text-delta', id: 'b', delta: 'Withdrawn in a piece of its own.' },
+        { type: 'reset-step' },
+        { type: 'text-start', id: 'b' },
+        { type: 'text-delta', id: 'b', delta: 'The retry.' },
+        { type: 'finish', finishReason: 'stop' }
+      ]);
+      assert(feed(root).join() === 'm,tool:kept,m#2', `feed: ${feed(root)}`);
+      assert(paragraphs(root, 'm#2').join() === 'The retry.', `the retry reads: ${paragraphs(root, 'm#2')}`);
+      assert(paragraphs(root, 'm').join() === 'Kept above the tile.', 'the step before changed');
+    }, { tools: { lookup: tile } })
+  ];
+}
+
+/**
+ * Waits for something the page does on its own time.
+ * @param {() => boolean} condition
+ * @param {string} reason
+ * @returns {Promise<void>}
+ */
+async function waitFor(condition, reason) {
+  for (let attempt = 0; attempt < 40 && !condition(); attempt += 1) await new Promise((resolve) => setTimeout(resolve, 10));
+  assert(condition(), reason);
 }
 
 /**

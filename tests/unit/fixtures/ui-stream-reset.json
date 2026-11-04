@@ -1,0 +1,37 @@
+{
+  "pinned": {"protocol": "v1", "documentation": "https://ai-sdk.dev/docs/ai-sdk-ui/stream-protocol", "read": "2026-11-04", "release": "ai@7.0.162"},
+  "note": "A step the server withdraws and sends again. reset-step removes everything since the most recent start-step, and the step goes on without a start-step of its own. The first step stands. Everything withdrawn says so, so a test can look for that word on screen.",
+  "responses": [
+    [
+      {"type":"start","messageId":"msg-retry"},
+      {"type":"start-step"},
+      {"type":"text-start","id":"text-1"},
+      {"type":"text-delta","id":"text-1","delta":"I’ll look the invoice up."},
+      {"type":"text-end","id":"text-1"},
+      {"type":"tool-input-available","toolCallId":"call-invoice","toolName":"findInvoice","input":{"number":"RE-2026-0126"}},
+      {"type":"tool-output-available","toolCallId":"call-invoice","output":{"open":true}},
+      {"type":"finish-step"},
+      {"type":"start-step"},
+      {"type":"reasoning-start","id":"reasoning-1"},
+      {"type":"reasoning-delta","id":"reasoning-1","delta":"Withdrawn reasoning."},
+      {"type":"reasoning-end","id":"reasoning-1"},
+      {"type":"text-start","id":"text-2"},
+      {"type":"text-delta","id":"text-2","delta":"Withdrawn text above the card."},
+      {"type":"text-end","id":"text-2"},
+      {"type":"source-url","sourceId":"source-withdrawn","url":"https://policy.example/withdrawn","title":"Withdrawn source"},
+      {"type":"file","url":"https://cdn.example/files/withdrawn-draft.pdf","mediaType":"application/pdf"},
+      {"type":"tool-input-available","toolCallId":"call-withdrawn","toolName":"withdrawnReminder","input":{"customer":"Withdrawn customer"}},
+      {"type":"tool-approval-request","toolCallId":"call-withdrawn","approvalId":"approval-withdrawn","reason":"Withdrawn reason."},
+      {"type":"text-start","id":"text-3"},
+      {"type":"text-delta","id":"text-3","delta":"Withdrawn text below the card."},
+      {"type":"error","errorText":"Withdrawn error."},
+      {"type":"reset-step"},
+      {"type":"text-start","id":"text-2"},
+      {"type":"text-delta","id":"text-2","delta":"The invoice is still open [1]."},
+      {"type":"text-end","id":"text-2"},
+      {"type":"source-url","sourceId":"source-policy","url":"https://policy.example/reminders","title":"Reminder policy"},
+      {"type":"finish-step"},
+      {"type":"finish","finishReason":"stop"}
+    ]
+  ]
+}
