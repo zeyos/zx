@@ -6733,6 +6733,34 @@ function surfaceSafetyCases() {
       }
       assert(refused instanceof TypeError && document.querySelectorAll('dialog').length === dialogs, 'a refused surface left its dialog behind');
     }),
+    // Several primary actions: the one pressed answers, under its own policy.
+    surfaceCase('Surface (each primary action answers for itself)', (fixture) => ({ fixture }), async ({ fixture }) => {
+      const actions = [{ id: 'erase', label: 'Erase', kind: 'primary', tool: 'data.erase' }, { id: 'keep', label: 'Keep', kind: 'primary', tool: 'data.keep' }];
+      const open = (policy) => {
+        const component = new zx.Surface(null, { document: surfaceDocument({ actions }), policy });
+        fixture.append(component.toElement());
+        setSurfaceField(component.el, 'name', 'Ada');
+        return { component, count: countReplies(component) };
+      };
+      const clicked = open(null);
+      surfaceButton(clicked.component.el, 'keep').click();
+      await delay(0);
+      assert(clicked.count.replies.length === 1 && clicked.count.replies[0].action === 'keep', `pressing Keep answered ${clicked.count.replies[0]?.action}`);
+      clicked.component.destroy();
+      // The confirmation the policy wants for the action pressed is the one asked.
+      const guarded = open((action) => (action.id === 'keep' ? { level: 'type-to-confirm', confirmText: 'KEEP' } : 'allow'));
+      surfaceButton(guarded.component.el, 'keep').click();
+      await delay(0);
+      assert(document.querySelector('dialog[open] .zx-dialog__confirm-input') && guarded.count.replies.length === 0, 'the action pressed skipped its type-to-confirm');
+      guarded.component.destroy();
+      assert(!document.querySelector('dialog[open]'), 'the confirmation stayed open');
+      // Enter in a field presses the first of them.
+      const entered = open(null);
+      entered.component.el.querySelector('form').requestSubmit();
+      await delay(0);
+      assert(entered.count.replies[0]?.action === 'erase', 'Enter did not take the first primary action');
+      entered.component.destroy();
+    }),
     /* -- end of the safety cases -- */
   ];
 }

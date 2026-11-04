@@ -629,8 +629,10 @@ export class Surface extends Component {
       this.listen(frame, 'submit', (event) => {
         event.preventDefault();
         if (event.target !== frame) return;
-        const primary = this._actions.find((action) => action.kind === 'primary' && !action.builtin);
-        if (primary) void this._run(primary.id);
+        // The button pressed answers; Enter in a field presses the first primary action.
+        const pressed = /** @type {SubmitEvent} */ (event).submitter?.getAttribute('data-surface-action');
+        const id = pressed ?? this._actions.find((action) => action.kind === 'primary' && !action.builtin)?.id;
+        if (id) void this._run(id);
       });
     }
     this.listen(this._actionsEl, 'click', (event) => {
