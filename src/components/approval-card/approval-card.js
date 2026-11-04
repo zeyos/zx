@@ -2,6 +2,7 @@
 import { Component } from '../../core/component.js';
 import { formatDate } from '../../core/date.js';
 import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
+import { translate } from '../../core/i18n.js';
 import { icon } from '../../core/icons.js';
 import { isEditableTarget } from '../../core/keyboard.js';
 import { uid } from '../../core/util.js';
@@ -1129,8 +1130,8 @@ export function toDate(value) {
  * @returns {string} A `formatDate()` pattern.
  */
 export function answeredTimeFormat(date, now = new Date()) {
-  if (date.getFullYear() !== now.getFullYear()) return '%e %b %Y, %H:%M';
-  if (date.getMonth() !== now.getMonth() || date.getDate() !== now.getDate()) return '%e %b, %H:%M';
+  if (date.getFullYear() !== now.getFullYear()) return translate('approvalCard.fullDateTimeFormat');
+  if (date.getMonth() !== now.getMonth() || date.getDate() !== now.getDate()) return translate('approvalCard.dateTimeFormat');
   return '%H:%M';
 }
 

@@ -52,8 +52,8 @@ const SAME_AS_ENGLISH = new Map([
  * tokens are not placeholders; `%d.%` would even read as a named one.
  */
 const DATE_PATTERNS = new Set([
-  'datePicker.dayLabel', 'daterange.span.day', 'daterange.span.full', 'daterange.span.month',
-  'runStatus.dateTimeFormat', 'runStatus.timeFormat'
+  'approvalCard.dateTimeFormat', 'approvalCard.fullDateTimeFormat', 'datePicker.dayLabel', 'daterange.dayLabel',
+  'daterange.span.day', 'daterange.span.full', 'daterange.span.month', 'runStatus.dateTimeFormat', 'runStatus.timeFormat'
 ]);
 
 /**
@@ -107,6 +107,9 @@ test('date patterns read as German dates and survive interpolation', () => {
   assert.equal(formatDate(date, de['daterange.span.full']), '5. März 2026');
   assert.equal(formatDate(date, de['daterange.span.month']), '5. März');
   assert.equal(formatDate(date, de['daterange.span.day']), '5.');
+  assert.equal(formatDate(date, de['daterange.dayLabel']), 'Donnerstag, 5. März 2026');
+  assert.equal(formatDate(date, de['approvalCard.dateTimeFormat']), '05.03., 09:07');
+  assert.equal(formatDate(date, de['approvalCard.fullDateTimeFormat']), '05.03.2026, 09:07');
   for (const key of DATE_PATTERNS) assert.equal(printf(de[key], []), de[key], key);
 });
 

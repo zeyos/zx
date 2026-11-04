@@ -1,8 +1,8 @@
 /**
  * Fails when a documentation page shows library text in English with the German catalogue installed.
  *
- *   node tools/check-language.js                   # Select, Table and Datebox
- *   node tools/check-language.js calendar filter   # other pages, by component id
+ *   node tools/check-language.js                   # every page in PAGES
+ *   node tools/check-language.js calendar filter   # the pages named, by component id
  *
  * A complete catalogue proves nothing about text that never asks it, so this reads the screen. Each
  * page opens twice, as written and with `de` installed through `setTranslator()` and `setLanguage()`,
@@ -106,6 +106,217 @@ const FIXTURES = {
       new Datebox(null, { value: new Date(2026, 2, 5), displayFormat: '%A, %e %B %Y' }),
       DateTimeBox(null, { value: new Date(2026, 2, 5, 9, 7) })
     ]) fixture.append(box.el);
+  },
+  async filter() {
+    const { Filter, filterOperators } = await import('/src/index.js');
+    const fixture = document.querySelector('[data-language-fixture]');
+    const choices = [{ value: 'a', label: 'Alpha' }];
+    const filter = new Filter(null, {
+      fields: [
+        { id: 'text', label: 'Alpha', type: 'text' },
+        { id: 'number', label: 'Beta', type: 'number' },
+        { id: 'date', label: 'Gamma', type: 'date' },
+        { id: 'enum', label: 'Alpha', type: 'enum', choices },
+        { id: 'tags', label: 'Beta', type: 'tags', choices }
+      ],
+      // The built-ins handed back as data stay translated, and a host's own label stays its own.
+      operators: [...filterOperators, { id: 'alpha', label: 'Alpha', arity: 'single', types: ['text'] }],
+      value: {
+        version: 1,
+        root: {
+          kind: 'group', id: 'root', logic: 'and',
+          children: ['text', 'number', 'date', 'enum', 'tags'].map((field) => ({
+            kind: 'condition', id: field, field, operator: '', value: null
+          }))
+        }
+      }
+    });
+    fixture.append(filter.el);
+  },
+
+  'account-menu': async () => {
+    const { AccountMenu } = await import('/src/index.js');
+    const fixture = document.querySelector('[data-language-fixture]');
+    for (const account of [{}, { name: 'Alpha' }]) fixture.append(new AccountMenu(null, { account, items: [] }).el);
+  },
+
+  'activity-list': async () => {
+    const { ActivityList } = await import('/src/index.js');
+    const fixture = document.querySelector('[data-language-fixture]');
+    for (const options of [
+      { items: [] },
+      { items: [], loading: true },
+      { items: [{ id: 1, actor: 'Alpha', title: 'Beta' }], groupBy: () => null }
+    ]) fixture.append(new ActivityList(null, options).el);
+  },
+
+  'app-sidebar': async () => {
+    const { AppSidebar } = await import('/src/index.js');
+    const fixture = document.querySelector('[data-language-fixture]');
+    const action = { icon: 'plus', label: 'Beta', onSelect() {} };
+    fixture.append(new AppSidebar(null, {
+      items: [{ id: 'alpha', label: 'Alpha', actions: [action, action, action] }]
+    }).el);
+  },
+
+  'file-item': async () => {
+    const { FileItem } = await import('/src/index.js');
+    const fixture = document.querySelector('[data-language-fixture]');
+    const mimes = [
+      'application/vnd.ms-excel', 'application/msword', 'application/vnd.ms-powerpoint', 'text/plain',
+      'message/rfc822', 'text/calendar', 'text/vcard', 'image/png', 'video/mp4', 'audio/mpeg', 'font/woff2'
+    ];
+    const statuses = ['temporary', 'waiting', 'uploading', 'processing', 'success', 'error'];
+    for (const mime of mimes) fixture.append(new FileItem(null, { name: 'Alpha', mime }).el);
+    for (const status of statuses) fixture.append(new FileItem(null, { name: 'Alpha', status }).el);
+    fixture.append(new FileItem(null, {
+      name: 'Alpha', indeterminate: true, actions: [{ id: 'beta', title: 'Beta', icon: 'x' }]
+    }).el);
+  },
+
+  'file-list': async () => {
+    const { FileList } = await import('/src/index.js');
+    const fixture = document.querySelector('[data-language-fixture]');
+    for (const options of [{ items: [] }, { items: [], loading: true }]) fixture.append(new FileList(null, options).el);
+  },
+
+  'field-upload': async () => {
+    const { FieldUpload } = await import('/src/index.js');
+    const fixture = document.querySelector('[data-language-fixture]');
+    window.zxCheckUpload = new FieldUpload(null, { http: { upload: () => new Promise(() => {}) } });
+    window.zxCheckRefusing = new FieldUpload(null, { accept: 'image/*', maxSize: 1 });
+    for (const upload of [
+      window.zxCheckUpload, window.zxCheckRefusing, new FieldUpload(null, { multiple: true })
+    ]) fixture.append(upload.el);
+  },
+
+  'kanban-view': async () => {
+    const { KanbanView } = await import('/src/index.js');
+    const fixture = document.querySelector('[data-language-fixture]');
+    fixture.append(new KanbanView(null, {
+      data: [{ ID: 1, name: 'Alpha', stage: null }], fields: [{ id: 'name', label: 'Beta' }],
+      recordId: 'ID', titleField: 'name', columnBy: 'stage', fieldControls: true, searchControl: true,
+      historyControls: true
+    }).el);
+  },
+
+  async chart() {
+    const { Chart } = await import('/src/index.js');
+    const fixture = document.querySelector('[data-language-fixture]');
+    const failed = new Chart(null, {});
+    failed.setError(false);
+    for (const chart of [
+      new Chart(null, {}),
+      new Chart(null, { loading: true }),
+      failed,
+      new Chart(null, { summary: 'visible', data: { labels: ['Alpha'], datasets: [{ data: [1] }] } })
+    ]) fixture.append(chart.el);
+  },
+
+  async tree() {
+    const { TreeView } = await import('/src/index.js');
+    const fixture = document.querySelector('[data-language-fixture]');
+    const action = { icon: 'plus', label: 'Beta', onSelect() {} };
+    for (const tree of [
+      new TreeView(null, { items: [] }),
+      new TreeView(null, { items: [{ ID: 1, name: 'Alpha' }], rowActions: () => [action, action, action] })
+    ]) fixture.append(tree.el);
+  },
+
+  'sort-control': async () => {
+    const { SortControl } = await import('/src/index.js');
+    document.querySelector('[data-language-fixture]').append(new SortControl(null, {
+      fields: [{ id: 'alpha', label: 'Alpha' }]
+    }).el);
+  },
+
+  'multi-value-editor': async () => {
+    const { MultiValueEditor } = await import('/src/index.js');
+    document.querySelector('[data-language-fixture]').append(new MultiValueEditor(null, {
+      values: ['Alpha', 'Beta']
+    }).el);
+  },
+
+  async rating() {
+    const { Rating } = await import('/src/index.js');
+    document.querySelector('[data-language-fixture]').append(new Rating(null, {}).el);
+  },
+
+  async finder() {
+    const { Finder } = await import('/src/index.js');
+    document.querySelector('[data-language-fixture]').append(new Finder(null, { items: [] }).el);
+  },
+
+  async toolbar() {
+    const { MasterPanel, Toolbar } = await import('/src/index.js');
+    const fixture = document.querySelector('[data-language-fixture]');
+    fixture.append(new Toolbar(null, { items: [{ name: 'alpha', label: 'Alpha' }] }).el, new MasterPanel(null, {}).el);
+  },
+
+  'code-editor': async () => {
+    const { CodeEditor } = await import('/src/index.js');
+    window.zxCheckEditor = new CodeEditor(null, { status: true, value: 'Alpha\nBeta' });
+    document.querySelector('[data-language-fixture]').append(window.zxCheckEditor.el);
+  },
+
+  async calendar() {
+    const { Calendar } = await import('/src/index.js');
+    document.querySelector('[data-language-fixture]').append(new Calendar(null, {
+      date: new Date(2026, 2, 5), now: new Date(2026, 2, 5, 9), view: 'week',
+      events: [{ id: 1, start: new Date(2026, 2, 5, 9), end: new Date(2026, 2, 5, 10) }]
+    }).el);
+  },
+
+  'date-range': async () => {
+    const { DateRangePicker } = await import('/src/index.js');
+    const fixture = document.querySelector('[data-language-fixture]');
+    for (const [start, end] of [
+      [new Date(2026, 2, 5), new Date(2026, 2, 12)],
+      [new Date(2026, 2, 5), new Date(2026, 3, 12)],
+      [new Date(2025, 2, 5), new Date(2026, 3, 12)]
+    ]) fixture.append(new DateRangePicker(null, { start, end }).el);
+  },
+
+  async copy() {
+    const { CopyInput, copyButton } = await import('/src/index.js');
+    const fixture = document.querySelector('[data-language-fixture]');
+    fixture.append(copyButton({ text: 'Alpha' }), new CopyInput(null, { value: 'Alpha' }).el);
+  },
+
+  'entity-ref': async () => {
+    const { EntityRef } = await import('/src/index.js');
+    document.querySelector('[data-language-fixture]').append(new EntityRef(null, {
+      title: 'Alpha', actions: [{ id: 'beta', title: 'Beta', icon: 'x' }]
+    }).el);
+  },
+
+  async form() {
+    const { Form } = await import('/src/index.js');
+    document.querySelector('[data-language-fixture]').append(new Form(null, { fields: {}, actions: [{}] }).el);
+  },
+
+  async slider() {
+    const { Slider } = await import('/src/index.js');
+    document.querySelector('[data-language-fixture]').append(new Slider(null, { showInput: true, label: null }).el);
+  },
+
+  'source-list': async () => {
+    const { SourceList } = await import('/src/index.js');
+    document.querySelector('[data-language-fixture]').append(new SourceList(null, {
+      sources: [{ id: 'alpha', title: 'Alpha' }]
+    }).el);
+  },
+
+  async questionnaire() {
+    const { Questionnaire } = await import('/src/index.js');
+    document.querySelector('[data-language-fixture]').append(new Questionnaire(null, {
+      items: [{ name: 'alpha', prompt: 'Alpha', choices: [{ value: 'beta', label: 'Beta' }], input: true }]
+    }).el);
+  },
+
+  'block-view': async () => {
+    const { renderBlocks } = await import('/src/index.js');
+    document.querySelector('[data-language-fixture]').append(renderBlocks([{ type: 'code', code: 'Alpha' }]));
   }
 };
 
@@ -179,6 +390,174 @@ const PAGES = {
       'Monat und Jahr auswählen, Oktober 2026', '8. Oktober 2026', 'Mo', 'Montag', 'Mär', 'März 2026',
       'Donnerstag, 5 März 2026'
     ]
+  },
+
+  filter: {
+    expect: [
+      'enthält', 'enthält nicht', 'ist', 'ist nicht', 'beginnt mit', 'endet mit', 'ist kleiner als', 'ist höchstens',
+      'ist größer als', 'ist mindestens', 'ist am', 'ist nicht am', 'ist vor', 'ist am oder vor', 'ist nach',
+      'ist am oder nach', 'ist zwischen', 'ist nicht zwischen', 'liegt in den letzten', 'liegt in den nächsten',
+      'ist eines von', 'ist keines von', 'enthält eines von', 'enthält alle', 'enthält keines von', 'ist leer',
+      'ist nicht leer', 'Alpha'
+    ]
+  },
+
+  'account-menu': { expect: ['Kontomenü', 'Kontomenü für Alpha'], demoText: [/^[A-Z]{2}$/] },
+
+  'activity-list': {
+    expect: ['Aktivität', 'Noch keine Aktivität', 'Aktivität wird geladen', 'Sonstige'],
+    demoText: [/^[A-Z]{2}$/, /^(?:Today|Yesterday) · \d+$/]
+  },
+
+  'app-sidebar': {
+    expect: ['Anwendungen', 'Weitere Aktionen'],
+    demoText: [/^[A-Z]{2}$/, / \(\d+\)$/, /^New task: /]
+  },
+
+  'sort-control': { expect: ['Sortieren nach', 'Aufsteigend → Absteigend'] },
+
+  'multi-value-editor': {
+    expect: [
+      'Wert hinzufügen', 'Wert 1', 'Wert 1 entfernen', 'Wert 1 nach oben verschieben', 'Wert 1 nach unten verschieben',
+      'Wert 1 neu anordnen. Mit den Pfeiltasten verschieben.'
+    ],
+    demoText: [/^Add to (?:drag|buttons|none)$/, /^(?:drag|buttons|none) — /]
+  },
+
+  'file-item': {
+    expect: [
+      'Tabelle', 'Dokument', 'Präsentation', 'E-Mail', 'Kalender', 'Kontakt', 'Bild', 'Schriftart', 'Temporär',
+      'Wartet', 'Wird hochgeladen', 'Wird verarbeitet', 'Abgeschlossen', 'Fehlgeschlagen', 'Fortschritt',
+      'Dateiaktionen'
+    ],
+    demoText: [/^(?:PDF|ZIP|CSV|BIN)$/, / KiB$/, /^Actions for /, /Checksum failed/]
+  },
+
+  'file-list': {
+    expect: ['Dateien', 'Keine Dateien', 'Dateien werden geladen'],
+    demoText: [/^PDF$/, / KiB$/]
+  },
+
+  'field-upload': {
+    async reveal(page, read) {
+      await page.evaluate(() => {
+        const refused = (name, type, size) => new File(['x'.repeat(size)], name, { type });
+        window.zxCheckRefusing._setFiles([refused('Alpha.txt', 'text/plain', 1)]);
+      });
+      await read();
+      await page.evaluate(() => {
+        window.zxCheckRefusing._setFiles([new File(['xx'], 'Beta.png', { type: 'image/png' })]);
+      });
+      await read();
+      await page.evaluate(() => {
+        window.zxCheckUpload._setFiles([new File(['x'], 'Gamma.txt', { type: 'text/plain' })]);
+        window.zxCheckUpload.upload();
+      });
+      await read();
+      await page.evaluate(() => window.zxCheckUpload.abort());
+      await read();
+    },
+    expect: [
+      'Datei auswählen oder hier ablegen', 'Dateien auswählen oder hier ablegen', 'Datei hier ablegen oder auswählen',
+      'Dateien hier ablegen oder auswählen', 'Von diesem Gerät auswählen', 'Upload-Fortschritt', 'Abbrechen',
+      'Alpha.txt ist kein zulässiger Dateityp.', 'Beta.png überschreitet die maximale Dateigröße.',
+      'Wird hochgeladen…', 'Upload abgebrochen.'
+    ],
+    demoText: [/^Simulate /, /^(?:abort|clear)\(\)$/]
+  },
+
+  'view-settings': { expect: ['Ansichtseinstellungen'], demoText: [/^, /] },
+
+  'kanban-view': {
+    expect: [
+      'Kanban-Board', 'Felder', 'Board durchsuchen', 'Karten suchen', 'Rückgängig', 'Wiederholen', 'Nicht zugewiesen'
+    ],
+    demoText: [
+      /^[A-Z]{2}$/, /^Flagged at risk\./, /, (?:Ada Lovelace|Grace Hopper)$/, / preview$/, / · €[\d,]+$/
+    ]
+  },
+
+  grid: { expect: ['Position', 'Menge', 'Einheit', 'Einzelpreis', 'Währung', 'Gesamtpreis'] },
+
+  chart: {
+    expect: [
+      'Diagramm', 'Keine Diagrammdaten', 'Diagramm wird geladen…', 'Diagramm kann nicht dargestellt werden',
+      'Bezeichnung', 'Reihe 1'
+    ]
+  },
+
+  tree: {
+    expect: ['Baumansicht', 'Nichts anzuzeigen', 'Weitere Aktionen'],
+    demoText: [/^Add sub-page: /]
+  },
+
+  finder: { expect: ['Leer'] },
+
+  'navigation-bar': { expect: ['Hauptnavigation', 'Anwendungsaktionen', 'Mehr'] },
+
+  toolbar: {
+    expect: ['Symbolleiste', 'Aktionen des Bereichs'],
+    demoText: [/^Aligned (?:start|end|between)$/]
+  },
+
+  'split-view': { expect: ['Größe der Bereiche ändern'] },
+
+  dock: { expect: ['Größe der Bereiche ändern'] },
+
+  rating: { expect: ['Bewertung'] },
+
+  'code-editor': {
+    async reveal(page, read) {
+      await page.evaluate(() => {
+        const input = window.zxCheckEditor.el.querySelector('textarea');
+        input.setSelectionRange(0, input.value.length);
+        input.dispatchEvent(new Event('select', { bubbles: true }));
+      });
+      await read();
+    },
+    expect: ['Code-Editor', 'Z. 2, Sp. 5', 'Z. 1, Sp. 1 · 2 Zeilen ausgewählt'],
+    demoText: [/^\{ "theme"/]
+  },
+
+  calendar: {
+    expect: ['Termin ohne Titel', 'Termin ohne Titel, Do., 5. März, 09:00 bis Do., 5. März, 10:00'],
+    demoText: [/^[^,]+: [^,]+$/]
+  },
+
+  'date-range': {
+    expect: [
+      '5. – 12. März 2026, 7 Nächte', '5. März – 12. April 2026, 38 Nächte',
+      '5. März 2025 – 12. April 2026, 403 Nächte', 'Donnerstag, 5. März 2026, Beginn des Zeitraums'
+    ]
+  },
+
+  copy: { expect: ['Kopieren'] },
+
+  prose: { expect: ['Link kopieren'], demoText: [/^The finance team closes/] },
+
+  'entity-ref': { expect: ['Aktionen des Objekts'] },
+
+  form: { expect: ['Aktion'], demoText: [/^set(?:Values|Highlights)\(…\)$/] },
+
+  slider: { expect: ['Wert'] },
+
+  'source-list': { expect: ['Quellen'] },
+
+  questionnaire: { expect: ['Sonstiges'], demoText: [/^path type progress /] },
+
+  'block-view': { expect: ['Code kopieren'] },
+
+  'agent-thread': {
+    expect: ['Code kopieren'],
+    demoText: [/^[A-Z]{2}$/, / kB$/, /^\{ "/, /^json$/, /^Bruckner Logistik is/]
+  },
+
+  composer: { demoText: [/^Message Halden/, /^Start task \(/] },
+
+  'run-status': {},
+
+  'run-trace': {
+    demoText: [/^[A-Z]{2}$/, /^[{[] /, /^Searching the bank feed…$/, /^Sending \d+ reminders…$/]
   }
 };
 

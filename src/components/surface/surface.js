@@ -37,6 +37,7 @@ import {
 import {
   cellLimitMessage, createValidationState, describeValue, tableCells, validateDocument, validateOp, validateValue
 } from './validate.js';
+import { dateLocale } from '../../internal/date-locale.js';
 
 /** @typedef {import('./catalog.js').SurfaceCatalog} SurfaceCatalog */
 /** @typedef {import('./catalog.js').SurfaceIntent} SurfaceIntent */
@@ -2194,7 +2195,7 @@ function formatTime(at, locale) {
   if (!match) return '';
   const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), Number(match[4]), Number(match[5]));
   try {
-    return new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }).format(date);
+    return new Intl.DateTimeFormat(dateLocale(locale), { hour: '2-digit', minute: '2-digit' }).format(date);
   } catch {
     return `${match[4]}:${match[5]}`;
   }

@@ -2342,6 +2342,23 @@ const cases = [
     assert(component.getSelection().length === 1, 'selection mismatch');
     events.expect();
     component.collapse(1);
+    // `tree.empty` beats the option, and the option beats the default message.
+    const read = (options) => {
+      const tree = new zx.TreeView(null, { items: [], ...options });
+      const text = tree.el.textContent;
+      tree.destroy();
+      return text;
+    };
+    assert(read({}) === 'Nothing to show', 'empty tree lost its default text');
+    assert(read({ msg: { 'tree.noItems': 'Nichts' } }) === 'Nichts', 'tree.noItems did not answer');
+    assert(read({ emptyText: 'None', msg: { 'tree.noItems': 'Nichts' } }) === 'None', 'emptyText did not beat tree.noItems');
+    assert(read({ emptyText: 'None', msg: { 'tree.empty': 'Leer' } }) === 'Leer', 'tree.empty did not beat emptyText');
+    zx.setTranslator((key) => (key === 'tree.empty' ? 'Übersetzt' : null));
+    try {
+      assert(read({ emptyText: 'None' }) === 'Übersetzt', 'a host translation of tree.empty did not beat emptyText');
+    } finally {
+      zx.setTranslator(null);
+    }
   }),
   treeRowActionsCase(),
   componentCase('Finder', () => new zx.Finder(null, {
@@ -2350,6 +2367,37 @@ const cases = [
     await component.setPath([1, 2]);
     assert(component.getSelection()?.ID === 2, 'path selection mismatch');
     assert(component.getNodes().length === 2, 'node chain mismatch');
+    // `finder.empty` beats the option, and the option beats the default message.
+    const read = (options) => {
+      const finder = new zx.Finder(null, { items: [], ...options });
+      const text = finder.el.querySelector('.zx-finder__empty').textContent;
+      finder.destroy();
+      return text;
+    };
+    assert(read({}) === 'Empty', 'empty finder lost its default text');
+    assert(read({ emptyText: 'None', msg: { 'finder.noItems': 'Nichts' } }) === 'None', 'emptyText did not beat finder.noItems');
+    assert(read({ emptyText: 'None', msg: { 'finder.empty': 'Leer' } }) === 'Leer', 'finder.empty did not beat emptyText');
+  }),
+  componentCase('Filter (operator labels)', () => {
+    const eq = zx.filterOperators.find((operator) => operator.id === 'eq');
+    return new zx.Filter(null, {
+      fields: [{ id: 'name', label: 'Name', type: 'text' }],
+      // The built-ins handed back as data, one given its own label, and one of the host's own.
+      operators: [
+        ...zx.filterOperators,
+        { ...zx.filterOperators.find((operator) => operator.id === 'contains'), label: 'has' },
+        { ...eq, id: 'like', label: 'sounds like' }
+      ],
+      value: { version: 1, root: { kind: 'group', id: 'root', logic: 'and', children: [
+        { kind: 'condition', id: 'c', field: 'name', operator: 'eq', value: null }
+      ] } },
+      msg: { 'filter.op.eq': 'ist', 'filter.op.contains': 'enthält' }
+    });
+  }, (component) => {
+    const labels = [...component.el.querySelectorAll('.zx-filter__operator option')].map((option) => option.textContent);
+    assert(labels.includes('ist') && !labels.includes('is'), `built-in handed back as data read English: ${labels}`);
+    assert(labels.includes('has') && !labels.includes('enthält'), 'a built-in id lost its host label');
+    assert(labels.includes('sounds like'), 'a host operator lost its label');
   }),
   componentCase('Field', () => new zx.Field(null, { id: 'name', type: 'text', label: 'Name' }), (component) => {
     const events = observe(component, 'change');
@@ -3296,6 +3344,19 @@ const cases = [
     assert(root.querySelector('[data-n="3"]').dataset.state === 'highlighted', 'highlight did not mark the source');
     component.setSources([{ id: 'only', title: 'Only' }]);
     assert(component.getSources().length === 1 && root.querySelectorAll('button').length === 1, 'setSources failed');
+    // Unset draws the catalogue's heading; null and '' hide it and name the list instead.
+    const naming = (options) => {
+      const list = new zx.SourceList(null, { sources: [{ id: 'a', title: 'A' }], ...options });
+      const heading = list.el.querySelector('.zx-source-list__label')?.textContent ?? null;
+      const name = list.el.querySelector('ol').getAttribute('aria-label');
+      list.destroy();
+      return [heading, name].join('|');
+    };
+    assert(naming({}) === 'Sources|', 'default heading lost');
+    assert(naming({ msg: { 'sourceList.label': 'Quellen' } }) === 'Quellen|', 'default heading ignored the catalogue');
+    assert(naming({ label: 'Cited' }) === 'Cited|', 'label option lost');
+    assert(naming({ label: null }) === '|Sources', 'null did not hide the heading');
+    assert(naming({ label: '' }) === '|Sources', 'an empty label did not hide the heading');
   }),
   presenceLoopCase(),
   componentCase('AgentThread', () => new zx.AgentThread(null, {
@@ -3885,11 +3946,11 @@ function chartCase() {
         'chart summary did not update');
       component.setError(false);
       assert(component.el.dataset.state === 'error' && component.refs.viewport.hidden
-        && !component.refs.status.hidden && component.refs.status.textContent === component.options.errorText,
+        && !component.refs.status.hidden && component.refs.status.textContent === 'Unable to render chart',
       'a falsy chart error left the component visually ready');
       component.clearError().setError(new Error(''));
       assert(component.el.dataset.state === 'error' && !component.refs.status.hidden
-        && component.refs.status.textContent === component.options.errorText,
+        && component.refs.status.textContent === 'Unable to render chart',
       'an empty chart error hid its fallback status');
       component.clearError();
     },
@@ -6126,7 +6187,9 @@ function kitElementSpecs() {
       events: ['select'],
       data: ['sources'],
       properties: () => ({ sources: [{ id: 'inv', title: 'Invoices', kind: 'file' }, { id: 'pol', title: 'Policy', kind: 'file' }] }),
-      rendered: (element) => element.querySelectorAll('.zx-source-list__source').length === 2,
+      // The element's unset `label` must stay unset, or the default heading would vanish.
+      rendered: (element) => element.querySelectorAll('.zx-source-list__source').length === 2
+        && element.querySelector('.zx-source-list__label')?.textContent === 'Sources',
       queue: (element) => element.highlight(1),
       queued: (element) => element.querySelector('[data-state="highlighted"]') !== null,
       interact(element) {

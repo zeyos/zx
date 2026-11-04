@@ -428,7 +428,7 @@ const MIME_FAMILIES = new Map([
 
 /**
  * @param {string} mime MIME type, possibly with parameters.
- * @returns {{label: string, icons: string[]}|null}
+ * @returns {{key?: string, label: string, icons: string[]}|null}
  */
 function fileKind(mime) {
   const essence = String(mime ?? '').split(';')[0].trim().toLowerCase();

@@ -8,6 +8,7 @@ import {
   cloneCalendarEvent, layoutCalendarSpans, layoutTimedCalendarEvents, normalizeCalendarEvents,
   shiftCalendarEvent, startOfCalendarDay
 } from './calendar-model.js';
+import { dateLocale } from '../../internal/date-locale.js';
 
 /** @typedef {import('./calendar-model.js').CalendarEvent} CalendarEvent */
 /** @typedef {import('./calendar-model.js').CalendarView} CalendarView */
@@ -19,7 +20,8 @@ import {
  * @property {Date|string|number|null} [date=null] Initial local anchor date; null uses today.
  * @property {CalendarView} [view='month'] Initial view.
  * @property {CalendarView[]} [views=['agenda','day','week','month','year']] Allowed views.
- * @property {string|string[]} [locale] Intl locale override.
+ * @property {string|string[]} [locale] Intl locale override. Unset, dates follow `setLanguage()`, and
+ *   the browser's language under an English one.
  * @property {number} [weekStart=1] First weekday, 0 (Sunday) through 6 (Saturday).
  * @property {boolean} [weekNumbers=true] Show ISO week numbers in month view.
  * @property {boolean} [workweek=false] Show Monday–Friday in the week time grid.
@@ -500,7 +502,7 @@ export class Calendar extends Component {
     let firstTabStop = true;
     for (let row = 0; row < slotCount; row += 1) {
       const minutes = min + row * slot;
-      axis.append(h('span', { class: 'zx-calendar__time-label' }, minutes % 60 === 0 ? formatTimeMinutes(minutes, this.options.locale) : ''));
+      axis.append(h('span', { class: 'zx-calendar__time-label' }, minutes % 60 === 0 ? formatTimeMinutes(minutes, this._locale()) : ''));
       for (let column = 0; column < days.length; column += 1) {
         const date = dateWithMinutes(days[column], minutes);
         const key = String(date.getTime());
@@ -759,7 +761,7 @@ export class Calendar extends Component {
         insetBlockStart: `${((minutes - min) / (max - min)) * 100}%`,
         '--zx-calendar-now-day': String(dayIndex)
       } : null
-    }, h('span', { class: 'zx-calendar__now-time' }, formatTimeMinutes(minutes, this.options.locale)));
+    }, h('span', { class: 'zx-calendar__now-time' }, formatTimeMinutes(minutes, this._locale())));
   }
 
   /** @param {Event} event @returns {void} */
@@ -1328,7 +1330,7 @@ export class Calendar extends Component {
     if (this._view === 'month') return this._format(this._date, { month: 'long', year: 'numeric' });
     if (this._view === 'year') return this._format(this._date, { year: 'numeric' });
     const last = addCalendarDays(range.end, -1);
-    const formatter = new Intl.DateTimeFormat(this.options.locale, {
+    const formatter = new Intl.DateTimeFormat(this._locale(), {
       day: 'numeric', month: 'long', year: 'numeric'
     });
     if (typeof formatter.formatRange === 'function') return formatter.formatRange(range.start, last);
@@ -1345,31 +1347,36 @@ export class Calendar extends Component {
   _eventTime(event, day) {
     if (event.allDay) return this.msg('calendar.allDay');
     if (calendarEventSpansDays(event)) {
-      if (sameCalendarDay(event.start, day)) return `${formatDateTime(event.start, this.options.locale)} →`;
-      if (sameCalendarDay(event.end, day)) return `→ ${formatDateTime(event.end, this.options.locale)}`;
+      if (sameCalendarDay(event.start, day)) return `${formatDateTime(event.start, this._locale())} →`;
+      if (sameCalendarDay(event.end, day)) return `→ ${formatDateTime(event.end, this._locale())}`;
       return this.msg('calendar.allDay');
     }
-    const start = formatTimeDate(event.start, this.options.locale);
+    const start = formatTimeDate(event.start, this._locale());
     if (event.end <= event.start) return start;
-    return `${start}–${formatTimeDate(event.end, this.options.locale)}`;
+    return `${start}–${formatTimeDate(event.end, this._locale())}`;
   }
 
   /** @param {CalendarEvent} event @returns {string} */
   _eventLabel(event) {
     const location = event.location ? `, ${event.location}` : '';
     const label = this.msg('calendar.eventLabel', event.title,
-      formatDateTime(event.start, this.options.locale), formatDateTime(event.end, this.options.locale));
+      formatDateTime(event.start, this._locale()), formatDateTime(event.end, this._locale()));
     return `${label}${location}`;
   }
 
   /** @param {Date} date @returns {string} */
   _dateTimeLabel(date) {
-    return formatDateTime(date, this.options.locale);
+    return formatDateTime(date, this._locale());
+  }
+
+  /** @returns {string|string[]|undefined} The locale this calendar writes its dates in. */
+  _locale() {
+    return dateLocale(this.options.locale);
   }
 
   /** @param {Date} date @param {Intl.DateTimeFormatOptions} options @returns {string} */
   _format(date, options) {
-    return new Intl.DateTimeFormat(this.options.locale, options).format(date);
+    return new Intl.DateTimeFormat(this._locale(), options).format(date);
   }
 
   /** @returns {Date} */
@@ -1445,7 +1452,7 @@ export class Calendar extends Component {
     if (!visible) return;
     line.style.insetBlockStart = `${((minutes - min) / (max - min)) * 100}%`;
     line.style.setProperty('--zx-calendar-now-day', String(dayIndex));
-    line.querySelector('.zx-calendar__now-time').textContent = formatTimeMinutes(minutes, this.options.locale);
+    line.querySelector('.zx-calendar__now-time').textContent = formatTimeMinutes(minutes, this._locale());
   }
 
   /** @param {string} message @returns {void} */

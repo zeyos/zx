@@ -1914,7 +1914,7 @@
         "name": "locale",
         "type": "string|string[]",
         "default": null,
-        "description": "Intl locale override."
+        "description": "Intl locale override. Unset, dates follow `setLanguage()`, and the browser's language under an English one."
       },
       {
         "name": "weekStart",

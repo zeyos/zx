@@ -7,6 +7,7 @@ import { isElement, uid } from '../../core/util.js';
 import { Avatar } from '../avatar/avatar.js';
 import { badge } from '../badge/badge.js';
 import { button } from '../button/button.js';
+import { dateLocale } from '../../internal/date-locale.js';
 
 /** @typedef {string|number|Node|Component|null} ActivityContent */
 /** @typedef {import('../avatar/avatar.js').AvatarOptions} AvatarOptions */
@@ -586,7 +587,7 @@ function normalizeHeadingLevel(value) {
 /** @param {Date} date @returns {string} */
 function formatActivityDate(date) {
   try {
-    return new Intl.DateTimeFormat(undefined, {
+    return new Intl.DateTimeFormat(dateLocale(), {
       dateStyle: 'medium', timeStyle: 'short'
     }).format(date);
   } catch {

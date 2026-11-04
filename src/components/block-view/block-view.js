@@ -1,6 +1,7 @@
 // @ts-check
 import { Component } from '../../core/component.js';
 import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
+import { translate } from '../../core/i18n.js';
 import { icon } from '../../core/icons.js';
 import { blocksToMarkdown, blocksToText, figureRow, parseInline } from '../../internal/agent-model.js';
 import { highlight } from '../../internal/highlight.js';
@@ -376,13 +377,13 @@ export function renderBlocks(blocks, options = {}) {
 }
 
 /**
- * @param {string} key
- * @param {...unknown} args
+ * Resolves a message when no component does: the host translator, then the catalogue.
+ * @param {string} key Message key.
+ * @param {...unknown} args Placeholder values.
  * @returns {string}
  */
-function englishMessage(key, ...args) {
-  const text = MESSAGES[/** @type {keyof typeof MESSAGES} */ (key)] ?? key;
-  return text.replace(/%(\d+)/g, (match, index) => String(args[Number(index) - 1] ?? match));
+function catalogueMessage(key, ...args) {
+  return translate(key, args);
 }
 
 /**
@@ -406,7 +407,7 @@ function inlineNodes(text, cite) {
  * @returns {HTMLElement}
  */
 function renderBlock(block, options) {
-  const msg = options.msg ?? englishMessage;
+  const msg = options.msg ?? catalogueMessage;
   const cite = options.cite;
   const base = Math.min(5, Math.max(2, Number(options.headingLevel) || 3));
   switch (block.type) {

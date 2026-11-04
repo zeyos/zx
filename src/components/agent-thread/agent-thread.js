@@ -15,6 +15,7 @@ import { skeletonText } from '../skeleton/skeleton.js';
 import { RunTrace } from '../run-trace/run-trace.js';
 import { SourceList } from '../source-list/source-list.js';
 import { Surface } from '../surface/surface.js';
+import { dateLocale } from '../../internal/date-locale.js';
 
 /** @typedef {import('../../internal/agent-model.js').ThreadItem} ThreadItem */
 /** @typedef {import('../../internal/agent-model.js').Author} Author */
@@ -1202,7 +1203,7 @@ export class AgentThread extends Component {
     if (typeof this.options.formatTime === 'function') return String(this.options.formatTime(at) ?? '');
     const date = new Date(at);
     if (Number.isNaN(date.getTime())) return '';
-    return new Intl.DateTimeFormat(this.options.locale, { hour: '2-digit', minute: '2-digit' }).format(date);
+    return new Intl.DateTimeFormat(dateLocale(this.options.locale), { hour: '2-digit', minute: '2-digit' }).format(date);
   }
 
   /** @private @param {Extract<ThreadItem, {type: 'answer'}>} answer @returns {number} */

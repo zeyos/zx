@@ -722,7 +722,7 @@ export class DateRangePicker extends Component {
 
   /** @param {Date} date @param {string|null} state @returns {string} */
   _dayLabel(date, state) {
-    const base = formatDate(date, '%A, %e %B %Y');
+    const base = formatDate(date, text('daterange.dayLabel', '%A, %e %B %Y'));
     if (state === 'start') return `${base}, ${text('daterange.day.start', 'range start')}`;
     if (state === 'end') return `${base}, ${text('daterange.day.end', 'range end')}`;
     if (state === 'middle') return `${base}, ${text('daterange.day.middle', 'in selected range')}`;
@@ -746,7 +746,7 @@ export class DateRangePicker extends Component {
     if (!this._start) return text('daterange.status.empty', 'No date range selected');
     if (!this._end) {
       return text('daterange.status.start', '%1 selected, choose an end date',
-        [formatDate(this._start, '%e %B %Y')]);
+        [formatDate(this._start, text('daterange.span.full', '%e %B %Y'))]);
     }
     const nights = rangeNights(this._start, this._end);
     const spans = nights === 1

@@ -229,12 +229,18 @@ current text of `DEFAULT_LABELS`):
 
 **Scope:** `src/core/messages.js`, `src/locales/de.js`, `src/components/calendar/calendar.js`,
 `src/components/calendar/calendar-model.js`, `src/components/date-picker/date-range-picker.js`,
+`src/components/activity-item/activity-item.js`, `src/components/agent-thread/agent-thread.js`,
+`src/components/surface/surface.js`, `src/components/block-view/block-view.js`, new
+`src/internal/date-locale.js`, new `tests/unit/date-locale.test.js`, `src/components/approval-card/approval-card.js`,
 `tests/unit/locale-de.test.js`.
 
 | Key | English |
 |---|---|
 | `calendar.eventLabel` | %1, %2 to %3 |
 | `calendar.untitled` | Untitled event |
+| `approvalCard.dateTimeFormat` | `%e %b, %H:%M` (a `formatDate()` pattern) |
+| `approvalCard.fullDateTimeFormat` | `%e %b %Y, %H:%M` (a `formatDate()` pattern) |
+| `daterange.dayLabel` | `%A, %e %B %Y` (a `formatDate()` pattern) |
 | `daterange.span.day` | `%e` (a `formatDate()` pattern) |
 | `daterange.span.full` | `%e %B %Y` (a `formatDate()` pattern) |
 | `daterange.span.month` | `%e %B` (a `formatDate()` pattern) |
@@ -243,11 +249,20 @@ current text of `DEFAULT_LABELS`):
   Calendar's three call sites, including the one in `updateEvent()`, pass it. The location stays
   a comma-joined suffix on `calendar.eventLabel`.
 - `spanLabel()` reads the three patterns. They join `DATE_PATTERNS` in `tests/unit/locale-de.test.js`.
+- The picker's day label and start status had the same bug, and so did `answeredTimeFormat()` in
+  `src/components/approval-card/approval-card.js`. Both read patterns from the catalogue too.
+- **Dates that ignored the language.** Calendar, ActivityItem, AgentThread and Surface handed `Intl` an
+  unset locale, so the browser's language wrote `Tue` and `07:00 AM` under `de`. No catalogue can reach
+  that. New `src/internal/date-locale.js` resolves the option, then the active language. An English
+  tag, or one `Intl` cannot use, stays unset, as `formatDate()` treats them, so English output and a
+  browser's own English variant do not change.
+- **`renderBlocks()`** fell back to a private English table when called without `msg`, as ApprovalCard
+  and Surface call it, so the translator never answered. It now falls back to `translate()`.
 
 ## §4 · The check
 
-**Scope:** `tools/check-language.js`, `tests/unit/messages.test.js`, `docs/llms.md`, `docs/api.json`,
-`docs/agent-catalog.*` if the generator rewrites it.
+**Scope:** `tools/check-language.js`, `tests/unit/messages.test.js`, `tests/smoke/smoke.js`,
+`docs/llms.md`, `docs/api.json`, `docs/agent-catalog.*` if the generator rewrites it.
 
 - Each finished page joins `PAGES`, with a fixture where the demos leave options out and `expect`
   naming German that must appear, so a step that opens nothing fails. `npm run test:browser` runs
@@ -256,19 +271,24 @@ current text of `DEFAULT_LABELS`):
   covers the components in this WP, and the operators, status words and Kanban keys get the same
   entry-against-English check that `DEFAULT_STATUSES` has, since the scan cannot read their keys out
   of code that builds them.
+- Smoke cases prove what needs a real DOM: `tree.empty` and `finder.empty` still beat `emptyText`, and
+  `null` or `''` still hide SourceList's heading while an unset `label` draws it.
 - `docs/llms.md` says that `filterOperators[].label` is English data and that Filter shows
   `filter.op.<id>`, and describes defaults that are now messages.
 
 ## Out of scope
 
-- `src/zeyos/*`. Its module names may be product names rather than library text, and that needs a
-  decision from the user before anything there changes. The other hits in that folder wait with them.
+- `src/zeyos/*`, which stays unchanged. The user decided that the ZeyOS module names stay out of the
+  catalogue: a host already passes its own `label` through `registerModules()`, which can override a
+  shipped entry.
 - Keyboard key names in `src/components/kbd/kbd.js` (`Ctrl`, `Space`, `Home`). They are not catalogue
   text today, and German keycaps are a design question of their own.
 - Developer-facing errors: `TypeError` and `RangeError` messages, the Questionnaire condition parser's
   `message` fields (they name schema keys), `XMLHttpRequest is not available`, and the `AbortError`
   FieldUpload makes for itself, which nothing shows.
 - A `Datebox` `msg` option reaching its DatePicker. A `locale` option on the date components.
+- NumberField's digit grouping, which uses the browser's locale when `locale` is unset. It is number
+  formatting rather than English text.
 - `fileTypeLabel()` in `src/index.js`: it stays where it is, not newly exported.
 - Translating documentation, demos or layout content.
 
