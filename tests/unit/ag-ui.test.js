@@ -991,6 +991,62 @@ test('destroy() closes an open run as stopped, and reports nothing for it', () =
   assert.equal(done.log.status.at(-1).state, final);
 });
 
+test('a call with no result and no pending id keeps the run from reading as finished', () => {
+  const start = { type: 'TOOL_CALL_START', toolCallId: 'c1', toolCallName: 'pick_file' };
+  const end = { type: 'TOOL_CALL_END', toolCallId: 'c1' };
+  const unanswered = setup();
+  unanswered.play(run('r1', [start, end]));
+  assert.equal(unanswered.log.status.at(-1).state, 'waiting');
+  assert.ok(unanswered.log.status.at(-1).waitingSince instanceof Date);
+  const success = setup();
+  success.play(run('r1', [start, end], { type: 'success' }));
+  assert.equal(success.log.status.at(-1).state, 'waiting', 'an outcome without the list says nothing either way');
+  const pending = setup();
+  pending.play(run('r1', [start, end], { type: 'success', pendingToolCallIds: [] }));
+  assert.equal(pending.log.status.at(-1).state, 'waiting', 'an empty list does not mean nothing is pending');
+  const unknown = setup();
+  unknown.play(run('r1', [start, end], { type: 'someday' }));
+  assert.equal(unknown.log.status.at(-1).state, 'waiting', 'an unknown outcome reads as success');
+  assert.deepEqual(unknown.log.errors, ['invalid-event']);
+
+  const answered = setup();
+  answered.play(run('r1', [start, end, { type: 'TOOL_CALL_RESULT', toolCallId: 'c1', messageId: 't1', content: 'ok' }]));
+  assert.equal(answered.log.status.at(-1).state, 'done');
+
+  // Only a call of this run holds it: an earlier run's call is that run's to wait for.
+  const later = setup();
+  later.play(run('r1', [start, end]));
+  later.play(run('r2', []));
+  assert.equal(later.log.status.at(-1).state, 'done');
+  const stopped = setup();
+  stopped.play(run('r1', [start, end], { type: 'cancelled' }));
+  assert.equal(stopped.log.status.at(-1).state, 'stopped');
+});
+
+test('a run error outside an open run fails the last run, and what waits for a person stays open', async () => {
+  const { thread, log, play } = setup({ requiresApproval: (call) => call.name === 'send' });
+  play(run('r1', [...askCall('c1'), { type: 'TOOL_CALL_START', toolCallId: 'c2', toolCallName: 'send' }, { type: 'TOOL_CALL_END', toolCallId: 'c2' }]));
+  play([{ type: 'RUN_ERROR', message: 'The resume was refused' }]);
+  assert.deepEqual(thread.items.get('error:r1'), { id: 'error:r1', type: 'notice', tone: 'danger', text: 'The run failed: The resume was refused' });
+  assert.equal(log.status.at(-1).state, 'failed');
+  assert.deepEqual(log.errors, ['no-run']);
+  assert.deepEqual(log.results, [], 'nobody answered for the person');
+  assert.equal(thread.surface('surface:r1/q').cancelled, null);
+  assert.equal(thread.items.get('approval:c2').status, 'pending');
+  assert.equal(thread.step('trace:r1#2', 'c2').status, 'waiting');
+  thread.emit('approve', { item: thread.get('approval:c2'), values: {} });
+  await tick();
+  assert.deepEqual(log.results, [['c2', { approved: true }]], 'the card can still be answered');
+  thread.surface('surface:r1/q').answer('confirm');
+  assert.equal(log.results.at(-1)[1].action, 'confirm');
+
+  const first = setup();
+  first.play([{ type: 'RUN_ERROR', message: 'Refused', timestamp: 7 }]);
+  assert.deepEqual(first.thread.order, ['error:7']);
+  assert.equal(first.log.status.at(-1).state, 'failed');
+  assert.deepEqual(first.log.errors, ['no-run']);
+});
+
 test('a tile on a gated call follows its card', () => {
   const seen = [];
   const { thread, play } = setup({ tools: { show_company: companyTile(seen) }, requiresApproval: () => true });

@@ -64,7 +64,8 @@ const MAX_TOKEN = 512;
  * - `invalid-event`: an event without a field its type requires, or a value the adapter cannot
  *   read; it is dropped.
  * - `version`: `RUN_STARTED` names a protocol version other than 1.x; the run is drawn anyway.
- * - `no-run`: an event outside a run; it is dropped.
+ * - `no-run`: an event outside a run; it is dropped. A `RUN_ERROR` there still draws its notice and
+ *   marks the last run failed, and what waits for a person stays open.
  * - `out-of-order`: content, arguments, an end or a result for something that was never started
  *   or has already ended; it is dropped, never turned into an item.
  * - `duplicate-start`: a start for an id still open, or for a run already seen; it is ignored.
@@ -98,7 +99,7 @@ const MAX_TOKEN = 512;
  * @typedef {Object} AgUiOptions
  * @property {{update: (values: Record<string, unknown>) => unknown}|null} [runStatus=null] A
  *   RunStatus the run's lifecycle drives: `running` when it starts, `done`, `waiting` (an
- *   interrupt, or calls still waiting for the person), `stopped` (cancelled) or `failed`.
+ *   interrupt, or calls of the run still without a result), `stopped` (cancelled) or `failed`.
  * @property {Record<string, Author>} [authors={}] The thread's authors. A text message whose
  *   `name` is one of their keys is written by that author; every other item by `agent`.
  * @property {string|null} [agent=null] The author key of the agent's output; the thread's first
@@ -231,7 +232,8 @@ const OPEN_STATES = new Set(['queued', 'running', 'waiting']);
 /**
  * Connects an AG-UI 1.0 event stream to an AgentThread.
  *
- * - Run start, finish and error drive `runStatus`; an error also adds a `notice`.
+ * - Run start, finish and error drive `runStatus`; an error also adds a `notice`. An error outside
+ *   an open run closes nothing: an approval or a surface still waiting for a person stays open.
  * - A text message is an `answer` streamed with `appendText()`; with `inlineSurfaces`, its
  *   surface fences become surfaces after the prose before them, and the prose after a fence
  *   continues in the answer `<messageId>#2` (then `#3`…), by the same author.
@@ -829,12 +831,9 @@ export function connectAgUi(thread, options = {}) {
     const outcome = isObject(event.outcome) ? event.outcome : { type: 'success' };
     const kind = outcome.type;
     const at = new Date(timeOf(event));
+    // An outcome nobody recognises reads as success.
     if (kind !== 'success' && kind !== 'interrupt' && kind !== 'cancelled') {
       report('invalid-event', `RUN_FINISHED has an unknown outcome ${safeText(kind)}`, { event });
-      closeRun(run, null, timeOf(event));
-      active = null;
-      status({ state: 'done', finished: at });
-      return;
     }
     closeRun(run, kind === 'cancelled' ? 'stopped' : 'done', timeOf(event));
     active = null;
@@ -843,9 +842,11 @@ export function connectAgUi(thread, options = {}) {
       return;
     }
     if (kind === 'interrupt') interrupted(event, Array.isArray(outcome.interrupts) ? outcome.interrupts : []);
+    // The list only ever adds to what the stream shows: a call of this run with no result is still
+    // owed one, whoever owes it.
     const pending = Array.isArray(outcome.pendingToolCallIds) && outcome.pendingToolCallIds.length > 0;
     const waiting = kind === 'interrupt' || pending
-      || [...calls.values()].some((entry) => entry.run === run && entry.call.status === 'waiting');
+      || [...calls.values()].some((entry) => entry.run === run && OPEN_STATES.has(entry.call.status));
     status(waiting ? { state: 'waiting', waitingSince: at } : { state: 'done', finished: at });
   };
 
@@ -872,7 +873,10 @@ export function connectAgUi(thread, options = {}) {
   /** @param {AgUiEvent} event */
   const runError = (event) => {
     const run = active ?? lastRun;
-    if (run) closeRun(run, 'failed', timeOf(event));
+    if (active) closeRun(active, 'failed', timeOf(event));
+    // A run that already ended, or a stream refused before it began: what waits for a person from
+    // an earlier run is not this error's to close.
+    else report('no-run', 'RUN_ERROR arrived outside a run; the last run reads as failed, and what waits for a person stays open', { event });
     active = null;
     const text = String(event.message ?? '');
     const key = run ? `error:${run.id}` : 'error';

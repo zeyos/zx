@@ -3513,9 +3513,11 @@ source.onmessage = (message) => adapter.handle(JSON.parse(message.data));
   `onerror(problem)` (`{code, message, event?, cause?, errors?}`), `showReasoning: false`,
   `surfaceEvent: 'zx.surface'`, `tools: {}` (tile renderers by tool name), `surfaceTools:
   ['show_surface', 'ask_user']`, `inlineSurfaces: false`, `catalog` (a narrowed surface catalog).
-- **What is drawn** — a run drives `runStatus` (`running`, then `done`, `waiting` while calls wait
-  for the person, `stopped` when cancelled, `failed`), and a run error adds a `notice`
-  (`error:<runId>`). A text message is an `answer` with the message id. Tool calls are steps of a
+- **What is drawn** — a run drives `runStatus` (`running`, then `done`, `waiting` while a call of
+  the run has no result, listed in `pendingToolCallIds` or not, `stopped` when cancelled, `failed`),
+  and a run error adds a `notice` (`error:<runId>`). A run error outside an open run marks the last
+  run failed and reports `no-run`, but closes nothing: approvals and surfaces still waiting for a
+  person stay open. A text message is an `answer` with the message id. Tool calls are steps of a
   `trace` (`trace:<runId>`, a new one, `#2`, after anything else was drawn): the arguments show once
   complete, the result fills the step. Reasoning is one collapsed "Thought for 0.7 s" step; its text
   only with `showReasoning: true`. State snapshots and JSON Patch deltas keep `state()`.
