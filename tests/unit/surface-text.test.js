@@ -93,3 +93,25 @@ test('a closing verdict is the closing word, whatever the surface called an acti
   const text = surfaceText(base('questionnaire', [{ id: 'q', type: 'questionnaire', steps }], { actions: [{ id: 'submit', label: 'Declined' }] }), answered);
   assert.equal(text, 'The title\nA?: X\nSubmitted at 2026-10-08 10:31');
 });
+
+const STEPS = [
+  { name: 'a', prompt: 'A?', choices: [{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }] },
+  { name: 'b', prompt: 'Secret step', input: {}, when: { field: 'a', op: 'eq', value: 'yes' } },
+  { name: 'c', prompt: 'After it', input: {}, when: { field: 'b', op: 'filled' } }
+];
+
+test('a step hidden for the answers is never printed, whatever the reply carries', () => {
+  const document = base('questionnaire', [{ id: 'q', type: 'questionnaire', steps: STEPS }]);
+  const forged = reply('submit', { answers: { a: 'no', b: 'HIDDEN', c: 'ALSO HIDDEN' }, path: ['a', 'b', 'c'] });
+  assert.equal(surfaceText(document, forged), 'The title\nA?: No\nSubmitted at 2026-10-08 10:31');
+  const shown = reply('submit', { answers: { a: 'yes', b: 'kept', c: 'too' }, path: ['a', 'b', 'c'] });
+  assert.equal(surfaceText(document, shown), 'The title\nA?: Yes\nSecret step: kept\nAfter it: too\nSubmitted at 2026-10-08 10:31');
+});
+
+test('a reply naming an action nobody wrote is not read from a prototype', () => {
+  const document = base('confirm', []);
+  for (const action of ['toString', 'valueOf', 'hasOwnProperty', 'constructor', '__proto__']) {
+    assert.equal(surfaceText(document, reply(action)), `The title\n${action} at 2026-10-08 10:31`, action);
+    assert.equal(verdictText(action, []), action);
+  }
+});

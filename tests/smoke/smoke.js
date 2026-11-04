@@ -6929,6 +6929,28 @@ function surfaceSafetyCases() {
       assert(dropped.count.replies[0]?.action === 'submit', 'a questionnaire with a dangling next could not be answered');
       dropped.component.destroy();
     }),
+    // A receipt shows what the reply answered, restored or not.
+    surfaceCase('Surface (a restored receipt)', (fixture) => ({ fixture }), ({ fixture }) => {
+      const reply = { zx: 'reply/1', surface: 's1', action: 'submit', key: 's1#submit', values: { method: 'transfer', iban: 'DE123' }, confirmation: null, at: '2026-01-01T10:00:00' };
+      const document = surfaceDocument({ root: ['form', 'bank', 'open'], nodes: [
+        { id: 'form', type: 'fields', schema: { type: 'object', properties: { method: { type: 'string', title: 'Method', enum: ['card', 'transfer'] } } } },
+        { id: 'bank', type: 'fields', visible: { field: 'method', op: 'eq', value: 'transfer' }, schema: { type: 'object', properties: { iban: { type: 'string', title: 'IBAN' } } } },
+        { id: 'open', type: 'text', visible: { field: 'method', op: 'empty' }, text: 'Shown only while unanswered' }
+      ] });
+      const component = new zx.Surface(null, { document, reply });
+      fixture.append(component.toElement());
+      const shown = (id) => !component.el.querySelector(`[data-surface-node="${id}"]`).hidden;
+      assert(shown('bank') && component.el.textContent.includes('DE123'), 'an answered section was hidden');
+      assert(!shown('open'), 'a node hidden for the answer was shown');
+      component.destroy();
+      // A hidden step in a stored reply stays out of the receipt as well.
+      const steps = [{ name: 'a', prompt: 'A?', input: {} }, { name: 'b', prompt: 'B?', input: {}, when: { field: 'a', op: 'eq', value: 'yes' } }];
+      const stored = new zx.Surface(null, { document: surfaceDocument({ intent: 'questionnaire', root: ['q'], nodes: [{ id: 'q', type: 'questionnaire', steps }] }),
+        reply: { ...reply, values: { answers: { a: 'no', b: 'HIDDEN' }, path: ['a', 'b'] } } });
+      fixture.append(stored.toElement());
+      assert(!stored.el.textContent.includes('HIDDEN'), 'a hidden step was drawn in the receipt');
+      stored.destroy();
+    }),
     /* -- end of the safety cases -- */
   ];
 }

@@ -31,7 +31,7 @@ import { assertCatalog, CATALOG, ID_PATTERN, LIMITS, REPLY_VERSION, SURFACE_VERS
 import { checkValue, schemaToFields, toJsonValue } from './schema.js';
 import { lineSplitter } from './stream.js';
 import {
-  CLOSING_ACTIONS, createReply, inputNames, localDateTime, readProp, surfaceVisibility, verdictText
+  CLOSING_ACTIONS, createReply, inputNames, localDateTime, readProp, surfaceVisibility, verdictText, visibleSteps
 } from './text.js';
 import { cellLimitMessage, createValidationState, tableCells, validateDocument, validateOp, validateValue } from './validate.js';
 
@@ -1244,8 +1244,9 @@ export class Surface extends Component {
         break;
       }
       case 'questionnaire': {
-        const answers = /** @type {Record<string, unknown>} */ (values.answers ?? {});
-        for (const name of Array.isArray(values.path) ? values.path : Object.keys(answers)) {
+        const given = /** @type {Record<string, unknown>} */ (values.answers ?? {});
+        const { answers, path } = visibleSteps(props.steps, given, /** @type {string[]} */ (Array.isArray(values.path) ? values.path : Object.keys(given)));
+        for (const name of path) {
           const step = props.steps.find((/** @type {any} */ entry) => entry.name === name);
           if (!step || !Object.hasOwn(answers, name)) continue;
           const choices = new Map((step.choices ?? []).map((/** @type {any} */ choice) => [choice.value, choice.label]));
@@ -1423,7 +1424,8 @@ export class Surface extends Component {
    * @returns {void}
    */
   _syncVisibility(changed = []) {
-    const visibility = this._visibilityFor(this._jsonValues());
+    // Answered, the surface shows what the reply says, which a restored one has no inputs for.
+    const visibility = this._visibilityFor(this._reply ? this._reply.values ?? {} : this._jsonValues());
     this._visibility = visibility;
     const active = document.activeElement;
     let lost = false;

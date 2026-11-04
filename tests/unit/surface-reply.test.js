@@ -75,3 +75,18 @@ test('visibility cascades, and a condition on an input not yet arrived leaves it
   assert.ok(!hidden.hiddenNodes.has('early'));
   assert.deepEqual(hidden.names, ['method']);
 });
+
+test('a reply leaves out the steps hidden for its answers', () => {
+  const steps = [
+    { name: 'a', prompt: 'A?', input: {} },
+    { name: 'b', prompt: 'B?', input: {}, when: { field: 'a', op: 'eq', value: 'yes' } }
+  ];
+  for (const nodes of [[{ id: 'q', type: 'questionnaire', steps }], new Map([['q', { id: 'q', type: 'questionnaire', steps }]])]) {
+    const document = { ...doc('questionnaire', [{ id: 'q', type: 'questionnaire', steps }]), nodes };
+    const reply = createReply(document, { action: 'submit', values: { answers: { a: 'no', b: 'HIDDEN' }, path: ['a', 'b'] }, at: AT });
+    assert.deepEqual(reply.values, { answers: { a: 'no' }, path: ['a'] });
+  }
+  // With no steps to read, what was given stands.
+  const bare = createReply(doc('questionnaire', []), { action: 'submit', values: { answers: { a: 1 }, path: ['a'] }, at: AT });
+  assert.deepEqual(bare.values, { answers: { a: 1 }, path: ['a'] });
+});

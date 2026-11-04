@@ -10,6 +10,7 @@ import { getLanguage, printf, translate } from '../../core/i18n.js';
 import { defaultMessages } from '../../core/messages.js';
 import { getPointer } from '../../internal/json-patch.js';
 import { evaluate, isEmptyAnswer } from '../questionnaire/conditions.js';
+import { resolveFlow } from '../questionnaire/items.js';
 import { CATALOG, REPLY_VERSION, RESERVED_ACTIONS } from './catalog.js';
 import { choicesOf } from './schema.js';
 import { validateDocument } from './validate.js';
@@ -292,9 +293,9 @@ function conditionFields(condition, depth = 0) {
 
 /**
  * Builds a reply. Values are shaped for the intent: `show` and `confirm` reply `{}`, as do
- * `reject` and a closed surface; a questionnaire's `submit` keeps `{answers, path}`; every other
- * reply keeps only the inputs that are visible for the values given, so a hidden input never
- * leaves the page.
+ * `reject` and a closed surface; a questionnaire's `submit` keeps `{answers, path}` for the steps
+ * visible for those answers; every other reply keeps only the inputs that are visible for the
+ * values given, so a hidden input never leaves the page.
  * @param {SurfaceDocument} document The surface, as validated.
  * @param {ReplyDetails} details
  * @returns {SurfaceReply}
@@ -308,7 +309,7 @@ export function createReply(document, details) {
   if (!intent || VALUELESS_INTENTS.has(intent) || VALUELESS_ACTIONS.has(action)) {
     values = {};
   } else if (intent === 'questionnaire') {
-    values = isObject(given.answers) ? { answers: clone(given.answers), path: Array.isArray(given.path) ? [...given.path] : [] } : {};
+    values = isObject(given.answers) ? visibleSteps(questionnaireSteps(document), given.answers, Array.isArray(given.path) ? given.path : []) : {};
   } else {
     const { names } = surfaceVisibility(document, given);
     for (const name of names) {
@@ -364,12 +365,11 @@ export function surfaceText(document, reply, options = {}) {
   const answered = Boolean(doc.intent) && !VALUELESS_INTENTS.has(/** @type {string} */ (doc.intent)) && !VALUELESS_ACTIONS.has(action);
 
   if (answered && doc.intent === 'questionnaire') {
-    const node = doc.nodes.find((entry) => entry.type === 'questionnaire');
-    const steps = node ? readProp(node, 'steps', data) : null;
-    const answers = isObject(values.answers) ? values.answers : {};
-    const path = Array.isArray(values.path) ? values.path : Object.keys(answers);
+    const steps = questionnaireSteps(doc);
+    const given = isObject(values.answers) ? values.answers : {};
+    const { answers, path } = visibleSteps(steps, given, Array.isArray(values.path) ? values.path : Object.keys(given));
     for (const name of path) {
-      const step = Array.isArray(steps) ? steps.find((entry) => isObject(entry) && entry.name === name) : null;
+      const step = steps.find((entry) => isObject(entry) && entry.name === name);
       if (!step || !Object.hasOwn(answers, name)) continue;
       const choices = Array.isArray(step.choices) ? step.choices.map((choice) => [choice.value, choice.label]) : [];
       lines.push(`${step.prompt}: ${display(answers[name], choices, msg)}`);
@@ -401,8 +401,32 @@ export function verdictText(action, actions, msg = surfaceMessage) {
   // A closing word is never a surface's own: it could otherwise name what closing it meant.
   const own = Array.isArray(actions) && !CLOSING_ACTIONS.includes(action) ? actions.find((entry) => entry.id === action) : null;
   if (own) return msg('surface.chose', own.label);
-  const key = /** @type {Record<string, string>} */ (VERDICT_KEYS)[action];
-  return key ? msg(key) : action;
+  return Object.hasOwn(VERDICT_KEYS, action) ? msg(VERDICT_KEYS[/** @type {keyof typeof VERDICT_KEYS} */ (action)]) : action;
+}
+
+/**
+ * The steps of a surface's questionnaire.
+ * @param {{nodes?: unknown, data?: unknown}} document
+ * @returns {Array<Record<string, any>>}
+ */
+function questionnaireSteps(document) {
+  const nodes = document.nodes instanceof Map ? [...document.nodes.values()] : Array.isArray(document.nodes) ? document.nodes : [];
+  const node = nodes.find((entry) => entry.type === 'questionnaire');
+  const steps = node ? readProp(node, 'steps', document.data) : null;
+  return Array.isArray(steps) ? steps : [];
+}
+
+/**
+ * A questionnaire's answers and path, limited to the steps visible for those answers, by the
+ * Questionnaire's own rule. Without steps to read, what was given stands.
+ * @param {Array<Record<string, any>>} steps @param {Record<string, unknown>} answers @param {string[]} path
+ * @returns {{answers: Record<string, unknown>, path: string[]}}
+ */
+export function visibleSteps(steps, answers, path) {
+  if (!steps.length) return { answers: clone(answers), path: [...path] };
+  const flow = resolveFlow(/** @type {any} */ (steps), answers);
+  const names = new Set(flow.visible.map((step) => step.name));
+  return { answers: clone(flow.answers), path: path.filter((name) => names.has(name)) };
 }
 
 /**
