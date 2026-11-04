@@ -287,24 +287,21 @@ export class AgentThread extends Component {
   /* ------------------------------------------------------------------ public API -- */
 
   /**
-   * Replaces the conversation.
+   * Replaces the conversation. Everything is dropped and then drawn anew, except a surface already
+   * drawn, which stays so that one still matching keeps answering.
    * @param {ThreadItem[]} items
    * @returns {this}
    */
   setItems(items) {
     const list = (Array.isArray(items) ? items : []).filter((item) => item && typeof item === 'object' && item.id != null);
-    const ids = new Set(list.map((item) => String(item.id)));
-    for (const id of [...this._order]) if (!ids.has(id)) this._drop(id);
-    // An item already drawn is redrawn in place, so a surface that still matches keeps answering.
+    const staying = new Set(list.filter((item) => item.type === 'surface' && this._entries.get(String(item.id))?.surface)
+      .map((item) => String(item.id)));
+    for (const id of [...this._order]) if (!staying.has(id)) this._drop(id);
     for (const item of list) {
-      const id = String(item.id);
-      if (this._entries.has(id)) this._replace(id, item);
+      if (item.type === 'surface' && staying.has(String(item.id))) this._replace(String(item.id), item);
       else this._add(item);
     }
-    this._order = [...ids].filter((id) => this._entries.has(id));
-    for (const id of this._order) this._feed.append(/** @type {ThreadEntry} */ (this._entries.get(id)).article);
-    for (const id of this._order) this._syncContinuation(id);
-    this._syncLatest();
+    if (staying.size) this._arrange(list.map((item) => String(item.id)));
     this._syncPositions();
     this._syncEmpty();
     return this;
@@ -342,7 +339,7 @@ export class AgentThread extends Component {
     const entry = this._entries.get(String(id));
     if (!entry || !partial || typeof partial !== 'object') return this;
     const before = entry.item;
-    const item = /** @type {ThreadItem} */ ({ ...before, ...cloneItem(partial), id: before.id, type: before.type });
+    const item = /** @type {ThreadItem} */ ({ ...before, ...cloneItem({ ...partial, type: before.type }), id: before.id, type: before.type });
     const keys = Object.keys(partial);
     const only = (/** @type {string[]} */ allowed) => keys.every((key) => allowed.includes(key));
     this._follow(() => {
@@ -632,6 +629,24 @@ export class AgentThread extends Component {
     this._syncPositions();
     this._syncLatest();
     if (hadFocus) entry.article.focus({ preventScroll: true });
+  }
+
+  /**
+   * Puts the feed in the order given, moving only what stands elsewhere.
+   * @private
+   * @param {string[]} ids
+   * @returns {void}
+   */
+  _arrange(ids) {
+    this._order = [...new Set(ids)].filter((id) => this._entries.has(id));
+    let next = this._feed.firstElementChild;
+    for (const id of this._order) {
+      const { article } = /** @type {ThreadEntry} */ (this._entries.get(id));
+      if (article === next) next = next.nextElementSibling;
+      else this._feed.insertBefore(article, next);
+    }
+    for (const id of this._order) this._syncContinuation(id);
+    this._syncLatest();
   }
 
   /** @private @param {string} id @returns {void} */
@@ -1418,14 +1433,14 @@ function asksForAnswer(intent) {
 }
 
 /**
- * Copies an item, keeping a surface's catalog by reference: a catalog is the library's own frozen
- * object, and a copy of it is refused.
+ * Copies an item. Only a surface keeps its `catalog` by reference: a catalog is the library's own
+ * frozen object, and a copy of it is refused.
  * @template {Record<string, any>} T
  * @param {T} item
  * @returns {T}
  */
 function cloneItem(item) {
-  if (!item || typeof item !== 'object' || !('catalog' in item)) return structuredClone(item);
+  if (item?.type !== 'surface' || !('catalog' in item)) return structuredClone(item);
   const { catalog, ...rest } = item;
   return /** @type {T} */ (/** @type {unknown} */ ({ ...structuredClone(rest), catalog }));
 }

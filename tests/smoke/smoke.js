@@ -6772,3 +6772,77 @@ function agUiCases() {
       assert(component.getActive() === '$review', `next left for ${component.getActive()} instead of the item named $review`);
       assert(forward.dataset.role === 'review', 'the last item did not lead to the review');
     }),
+    surfaceCase('Questionnaire (what the last release tolerated)', () => ({
+      component: new zx.Questionnaire(null, { review: true, items: [
+        { name: 'a', prompt: 'A', input: {}, next: '$review', validate: false, when: {} },
+        { name: 'skipped', prompt: 'Skipped', input: {}, next: false },
+        { name: '$review', prompt: 'An item of that name', input: {}, next: [] }
+      ] })
+    }), async ({ component }) => {
+      const forward = /** @type {HTMLButtonElement} */ (component.el.querySelector('[data-role]'));
+      assert(component.getActive() === 'a', 'the questionnaire did not start on its first item');
+      assert(forward.dataset.role === 'next', `the item’s own name read as the review screen: ${forward.dataset.role}`);
+      await component.next();
+      assert(component.getActive() === '$review', `next left for ${component.getActive()} instead of the item named $review`);
+      assert(forward.dataset.role === 'review', 'the last item did not lead to the review');
+    }),
+    surfaceCase('AgentThread (setItems draws anew, as it always has)', () => ({
+      component: new zx.AgentThread(null, { authors: { finance: { name: 'Finance agent' } } })
+    }), async ({ component: thread }) => {
+      const log = { alive: new Map(), calls: [], seen: [] };
+      /** @type {any} */ (thread).smokeLog = log;
+      if (!zx.AgentThread.has('smoke-registry')) {
+        zx.AgentThread.register('smoke-registry', (item, { thread: owner, own }) => {
+          const { smokeLog } = /** @type {any} */ (owner);
+          smokeLog.calls.push(`render ${item.id}`);
+          smokeLog.seen.push(owner.get(item.id));
+          const element = zx.h('p', {}, String(item.id));
+          smokeLog.alive.set(item.id, element);
+          own(/** @type {any} */ ({ destroy() {
+            smokeLog.calls.push(`destroy ${item.id}`);
+            smokeLog.alive.delete(item.id);
+          } }));
+          return element;
+        });
+      }
+      const ids = () => [...thread.el.querySelectorAll('.zx-agent-thread__item')].map((article) => article.dataset.id);
+      thread.setItems([{ id: 'a', type: 'smoke-registry' }, { id: 'b', type: 'smoke-registry' }]);
+      log.calls.length = 0;
+      log.seen.length = 0;
+      thread.setItems([{ id: 'b', type: 'smoke-registry' }, { id: 'a', type: 'smoke-registry' }]);
+      assert(log.calls.join() === 'destroy a,destroy b,render b,render a', `the old items must go before anything is drawn: ${log.calls}`);
+      assert(log.alive.has('a') && log.alive.has('b'), 'a renderer’s cleanup took the item that replaced it');
+      assert(log.seen.every((item) => item === null), 'a renderer saw the item it replaces');
+      assert(ids().join() === 'b,a', `order: ${ids()}`);
+      thread.setItems([{ id: 7, type: 'text', text: 'one' }]);
+      thread.setItems([{ id: 7, type: 'text', text: 'two' }]);
+      assert(thread.get(7).id === 7, `an id’s type changed: ${typeof thread.get(7).id}`);
+      // A surface already drawn is the exception: it stays, and keeps what was typed.
+      const surfaceItem = { id: 's', type: 'surface', document: surfaceDocument({ root: ['form'], nodes: [
+        { id: 'form', type: 'fields', schema: { type: 'object', properties: { a: { type: 'string', title: 'A' } } } }
+      ] }) };
+      thread.setItems([{ id: 'n', type: 'text', text: 'before' }, surfaceItem]);
+      const surface = thread.surface('s');
+      thread.setItems([surfaceItem, { id: 'm', type: 'text', text: 'after' }, { id: 'n', type: 'text', text: 'again' }]);
+      assert(thread.surface('s') === surface, 'a surface that still matches was drawn anew');
+      assert(ids().join() === 's,m,n', `order around a kept surface: ${ids()}`);
+      thread.setItems([{ id: 'm', type: 'text', text: 'then' }, surfaceItem]);
+      assert(thread.surface('s') === surface && ids().join() === 'm,s', `moved surface: ${ids()}`);
+      assert(thread.el.querySelector('article[data-id="m"]').getAttribute('aria-setsize') === '2', 'positions were not synced');
+    }),
+    surfaceCase('AgentThread (an item’s own catalog field is still copied)', () => ({
+      component: new zx.AgentThread(null, {})
+    }), ({ component: thread }) => {
+      if (!zx.AgentThread.has('smoke-shop')) zx.AgentThread.register('smoke-shop', (item) => zx.h('p', {}, String(item.catalog.a)));
+      const given = { id: 'x', type: 'smoke-shop', catalog: { a: 1 } };
+      thread.upsert(given);
+      given.catalog.a = 2;
+      assert(thread.get('x').catalog.a === 1, 'an application’s later change reached the thread');
+      thread.get('x').catalog.a = 3;
+      assert(thread.get('x').catalog.a === 1, 'get() handed out the thread’s own object');
+      thread.patch('x', { catalog: { a: 4 } });
+      assert(thread.get('x').catalog.a === 4, 'a patched catalog was lost');
+      const narrow = narrowCatalog(SURFACE_CATALOG, { intents: ['show'], nodes: ['text'] });
+      thread.upsert({ id: 's', type: 'surface', catalog: narrow, document: { zx: 'surface/1', surface: 's', intent: 'show', title: 'T', author: 'a', root: [], nodes: [] } });
+      assert(thread.surface('s'), 'a surface’s catalog must stay the library’s own object');
+    }),
