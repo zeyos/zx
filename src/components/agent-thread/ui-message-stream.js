@@ -85,6 +85,10 @@ export const UI_MESSAGE_STREAM_VERSION = 'v1';
  * @property {Source[]} sources The message's sources.
  * @property {string} listed The piece that lists them.
  * @property {Set<unknown>} texts Text blocks not ended yet. An ended block's id is free again.
+ * @property {unknown} speaking The open block whose words are going out; null when none is.
+ * @property {Map<unknown, {text: string, ended: boolean}>} held What other open blocks said
+ * meanwhile, by block, in the order they began. Answers can only be written at their end, so blocks
+ * that stream side by side go out one after the other.
  * @property {boolean} hasText Whether the last piece ends in text a new block has to be set apart
  * from.
  * @property {boolean} gap Whether the next text starts a new paragraph.
@@ -362,6 +366,7 @@ export function connectUiMessageStream(thread, options = {}) {
     const id = taken && !adopted ? uid('zx-ui-message') : requested;
     const message = /** @type {MessageState} */ ({
       id, pieces: [id], writing: true, steps: [], sources: [], listed: id, texts: new Set(), hasText: false,
+      speaking: null, held: new Map(),
       gap: false, drawn: false, failed: false, closed: false, implied, thinking: null, quiet: false,
       writes: 0, replaying: false, calls: [], notices: []
     });
@@ -455,6 +460,8 @@ export function connectUiMessageStream(thread, options = {}) {
    */
   function closeMessage(message, stopped = false) {
     endThinking(message);
+    while (message.held.size) nextBlock(message);
+    message.speaking = null;
     message.closed = true;
     message.writing = false;
     message.implied = false;
@@ -577,6 +584,8 @@ export function connectUiMessageStream(thread, options = {}) {
     const notices = message.notices.splice(mark.notices);
     // No block is open any more, and the retry may name its blocks the same way.
     message.texts.clear();
+    message.held.clear();
+    message.speaking = null;
     // A mark taken since no longer points at anything. The response falls back with it, and still
     // began when it began: a replay sends no card from before that.
     if (message.mark.at > mark.at) message.mark = mark;
@@ -628,29 +637,25 @@ export function connectUiMessageStream(thread, options = {}) {
 
   /* ------------------------------------------------------------------ text -- */
 
-  /** @param {MessageState} message @param {unknown} id @returns {void} */
-  function beginText(message, id) {
-    message.texts.add(id);
+  /**
+   * A block's words start going out, in a new paragraph.
+   * @param {MessageState} message
+   * @param {unknown} id
+   * @returns {void}
+   */
+  function speak(message, id) {
+    message.speaking = id;
     message.gap = message.hasText;
   }
 
-  /** @param {UiMessagePart} part @returns {void} */
-  function onTextStart(part) {
-    const message = activeMessage(part);
-    if (message.texts.has(part.id)) report(`Duplicate text-start for block ${part.id}`, part);
-    else beginText(message, part.id);
-  }
-
-  /** @param {UiMessagePart} part @returns {void} */
-  function onTextDelta(part) {
-    const message = activeMessage(part);
-    if (!message.texts.has(part.id)) {
-      report(`text-delta arrived before the text-start of block ${part.id}`, part);
-      beginText(message, part.id);
-    }
-    let delta = String(part.delta ?? '');
+  /**
+   * @param {MessageState} message
+   * @param {string} text
+   * @returns {void}
+   */
+  function writeText(message, text) {
     // A new block is a new paragraph and a new piece a new answer; only text opens either.
-    if (message.gap || !atEnd(message)) delta = delta.trimStart();
+    const delta = message.gap || !atEnd(message) ? text.trimStart() : text;
     if (!delta) return;
     const id = writeTo(message);
     thread.appendText(id, message.gap ? `\n\n${delta}` : delta);
@@ -658,9 +663,56 @@ export function connectUiMessageStream(thread, options = {}) {
     message.hasText = true;
   }
 
+  /**
+   * The block speaking is done: the first one held back goes out, and so on while they have ended.
+   * @param {MessageState} message
+   * @returns {void}
+   */
+  function nextBlock(message) {
+    message.speaking = null;
+    for (const [id, block] of message.held) {
+      message.held.delete(id);
+      speak(message, id);
+      writeText(message, block.text);
+      if (!block.ended) return;
+      message.speaking = null;
+    }
+  }
+
+  /** @param {UiMessagePart} part @returns {void} */
+  function onTextStart(part) {
+    const message = activeMessage(part);
+    if (message.texts.has(part.id)) report(`Duplicate text-start for block ${part.id}`, part);
+    else message.texts.add(part.id);
+  }
+
+  /** @param {UiMessagePart} part @returns {void} */
+  function onTextDelta(part) {
+    const message = activeMessage(part);
+    if (!message.texts.has(part.id)) {
+      report(`text-delta arrived before the text-start of block ${part.id}`, part);
+      message.texts.add(part.id);
+    }
+    const delta = String(part.delta ?? '');
+    if (message.speaking === null) speak(message, part.id);
+    if (message.speaking === part.id) {
+      writeText(message, delta);
+      return;
+    }
+    const block = message.held.get(part.id);
+    if (block) block.text += delta;
+    else message.held.set(part.id, { text: delta, ended: false });
+  }
+
   /** @param {UiMessagePart} part @returns {void} */
   function onTextEnd(part) {
-    if (!current?.texts.delete(part.id)) report(`text-end arrived before the text-start of block ${part.id}`, part);
+    if (!current?.texts.delete(part.id)) {
+      report(`text-end arrived before the text-start of block ${part.id}`, part);
+      return;
+    }
+    const block = current.held.get(part.id);
+    if (block) block.ended = true;
+    else if (current.speaking === part.id) nextBlock(current);
   }
 
   /* ------------------------------------------------------------------ reasoning -- */

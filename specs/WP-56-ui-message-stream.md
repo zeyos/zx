@@ -73,7 +73,9 @@ regenerated. Public files must not mention this spec.
   - `text-start`, `text-delta` and `text-end` stream through `thread.appendText`. Several text
     blocks in one message append to the same answer, unless stream order says otherwise (below).
     A block's id only names it while it is open: as on the AI SDK client, `text-end` frees the id,
-    and so does the end of its message, so a later block may reuse it.
+    and so does the end of its message, so a later block may reuse it. Blocks open side by side, as
+    streams merged into one send them, go out one after the other, each its own paragraph: the first
+    to say something streams, and what the others say waits until it ends, or the message does.
   - `reasoning-*` follows Decision 3.
   - `tool-input-start`, `tool-input-delta`, `tool-input-available`, `tool-output-available` and
     the error and denial parts become steps of the answer, with the WP51 run states: `queued`

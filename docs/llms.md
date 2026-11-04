@@ -3609,7 +3609,8 @@ for await (const part of parsedParts(response)) stream.handle(part);
   item opens an answer of its own, and a continuation skips a number already in use.
 - **Message** — `start` opens an `answer` under the message id, `finish` closes it and settles
   `runStatus` (`waiting` while an approval is pending), `abort` closes it as stopped. Text blocks
-  stream through `appendText`, each block a new paragraph of the same answer. `error` draws a
+  stream through `appendText`, each block a new paragraph of the same answer; blocks open side by side
+  go out one after the other. `error` draws a
   `notice` with tone `danger`. `start-step` and `finish-step` draw nothing. `message-metadata`, and
   the `messageMetadata` of `start` and `finish`, go to `onmetadata`.
 - **Stream order** — the thread adds at its end, so what a message says after a card, a tile, or

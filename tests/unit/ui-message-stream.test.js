@@ -650,6 +650,50 @@ test('a block left open when its message ends does not hold its id into the next
   assert.deepEqual(log.error, []);
 });
 
+/* Two blocks open side by side, as streams merged into one send them. */
+const SIDE_BY_SIDE = [
+  { type: 'start', messageId: 'm' },
+  { type: 'text-start', id: 'a' }, { type: 'text-start', id: 'b' },
+  { type: 'text-delta', id: 'a', delta: 'Hel' }, { type: 'text-delta', id: 'b', delta: 'Wor' },
+  { type: 'text-delta', id: 'a', delta: 'lo.' }, { type: 'text-delta', id: 'b', delta: 'ld.' }
+];
+
+test('blocks open side by side read as their own paragraphs, one after the other', () => {
+  const { thread, log, play } = connect();
+  play(SIDE_BY_SIDE);
+  assert.deepEqual(/** @type {any} */ (thread.get('m')).blocks, [{ type: 'p', text: 'Hello.' }], 'the second waits for the first');
+  play([{ type: 'text-end', id: 'a' }]);
+  assert.deepEqual(/** @type {any} */ (thread.get('m')).blocks.map((block) => block.text), ['Hello.', 'World.']);
+  play([{ type: 'text-delta', id: 'b', delta: ' More.' }, { type: 'text-end', id: 'b' }, { type: 'finish' }]);
+  assert.deepEqual(/** @type {any} */ (thread.get('m')).blocks.map((block) => block.text), ['Hello.', 'World. More.']);
+  assert.deepEqual(log.error, []);
+});
+
+test('a block that ended while it waited goes out whole, and the next one after it', () => {
+  const { thread, log, play } = connect();
+  play([
+    ...SIDE_BY_SIDE, { type: 'text-start', id: 'c' }, { type: 'text-delta', id: 'c', delta: 'Third' },
+    { type: 'text-end', id: 'b' }, { type: 'text-end', id: 'a' }
+  ]);
+  assert.deepEqual(/** @type {any} */ (thread.get('m')).blocks.map((block) => block.text), ['Hello.', 'World.', 'Third']);
+  play([{ type: 'text-delta', id: 'c', delta: ' block.' }, { type: 'text-end', id: 'c' }, { type: 'finish' }]);
+  assert.deepEqual(/** @type {any} */ (thread.get('m')).blocks.map((block) => block.text), ['Hello.', 'World.', 'Third block.']);
+  assert.deepEqual(log.error, []);
+});
+
+test('what a block held back is not lost when the message ends, and goes with a reset-step', () => {
+  const finished = connect();
+  finished.play([...SIDE_BY_SIDE, { type: 'finish' }]);
+  assert.deepEqual(/** @type {any} */ (finished.thread.get('m')).blocks.map((block) => block.text), ['Hello.', 'World.']);
+  const stopped = connect();
+  stopped.play([...SIDE_BY_SIDE, { type: 'abort' }]);
+  assert.deepEqual(/** @type {any} */ (stopped.thread.get('m')).blocks.map((block) => block.text), ['Hello.', 'World.']);
+  assert.equal(/** @type {any} */ (stopped.thread.get('m')).stopped, true);
+  const withdrawn = connect();
+  withdrawn.play([...SIDE_BY_SIDE, { type: 'reset-step' }, ...said('c', 'Retry.'), { type: 'finish' }]);
+  assert.deepEqual(/** @type {any} */ (withdrawn.thread.get('m')).blocks.map((block) => block.text), ['Retry.']);
+});
+
 test('a block ended is closed: its late delta and second end are reported', () => {
   const { thread, log, play } = connect();
   play([
