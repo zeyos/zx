@@ -3936,9 +3936,10 @@ a thumbnail, or any other remote resource.
 - **i18n** — `setTranslator`, `setLanguage`, `getLanguage`, `translate`, `printf`, and
   `defaultMessages`, the frozen English catalogue of every component key (`table.empty` → "No
   records") that a host copies as the starting point for a locale.
-- **Dates** — `formatDate(d, fmt)`, `parseDate(s, fmt)` (tokens
+- **Dates** — `formatDate(d, fmt, {locale})`, `parseDate(s, fmt)` (tokens
   `%d %m %Y %y %H %M %S %a %A %b %B %s`), `clampDate`, `isSameDay`, `addDays`, `addMonths`,
-  `getWeekStart`.
+  `getWeekStart`. `locale` defaults to `getLanguage()`, and names come from `Intl` in that locale;
+  an English tag writes the English names.
 - **Keyboard** — `focusTrap`, `rovingTabindex`, `typeahead`.
 - **Motion** — `prefersReducedMotion(element?)` → boolean, and
   `watchMotion(element, fn, {signal?, immediate?})` → disposer, for code that animates in script;
@@ -4030,10 +4031,12 @@ Standalone exports with no DOM ownership and no lifecycle, importable individual
 entry point as the components. See also the Kernel section for `Component`, `h`, `icon`, and
 `position` — the substrate the components themselves are built on.
 
-- **Dates** — `formatDate(date, fmt)`, `parseDate(str, fmt)` (returns `null` when the string does
-  not match, so it doubles as a validator), `clampDate(date, min, max)`, `isSameDay(a, b)`,
-  `addDays(date, n)`, `addMonths(date, n)`, `getWeekStart(lang?)` → `0` (Sunday) or `1` (Monday).
-  strftime-style tokens: `%d %m %Y %y %H %M %S %a %A %b %B %s`.
+- **Dates** — `formatDate(date, fmt, {locale})`, `parseDate(str, fmt)` (returns `null` when the
+  string does not match, so it doubles as a validator), `clampDate(date, min, max)`,
+  `isSameDay(a, b)`, `addDays(date, n)`, `addMonths(date, n)`, `getWeekStart(lang?)` → `0` (Sunday)
+  or `1` (Monday). strftime-style tokens: `%d %m %Y %y %H %M %S %a %A %b %B %s`. Month and weekday
+  names come from `Intl` in `locale`, which defaults to `getLanguage()`, and an English tag writes
+  the English names, so `setLanguage()` drives them too.
 - **Numbers, money and time** — `formatNumber(value, {locale, decimals, minDecimals, maxDecimals,
   group=true})`, `formatCurrency(value, currency, {locale, decimals})`, `formatPercent(value,
   {locale, decimals=0})` (takes a fraction, so `0.42` → `42%`), `formatFileSize(bytes, {locale,
@@ -4086,7 +4089,7 @@ entry point as the components. See also the Kernel section for `Component`, `h`,
   without a translator never sees a raw key. `defaultMessages` is that catalogue — copy it to
   start a locale (`setTranslator((key) => de[key])`), or install the German one below.
   `setLanguage()` also selects the language table of a `msg` option and drives locale-dependent
-  behaviour such as the first day of the week.
+  behaviour such as the first day of the week and the month and weekday names `formatDate()` writes.
 - **Keyboard** — `focusTrap(container)` → `{activate, release}` confines Tab to a container;
   `rovingTabindex(container, itemSelector, {orientation, wrap, rtl: 'auto'})` → `{focusFirst,
   focusLast, destroy}` keeps one tab stop in a group — horizontal arrows follow `dir="rtl"`, and a
@@ -4111,11 +4114,11 @@ setLanguage('de');
 ```
 
 One instance can take it alone through its `msg` option (`new CardView(null, { msg: de })`). The
-catalogue covers messages only. `formatDate()` reads month and weekday names from the translator
-as `date.month.0`–`11`, `date.month.short.0`–`11`, `date.weekday.0`–`6` (Sunday first) and
-`date.weekday.short.0`–`6`, and writes English names when nothing answers, so an application that
-shows them adds those keys: `setTranslator((key) => de[key] ?? dateNames[key])`. `Tree` and `Finder`
-show their `emptyText` option when empty, so an application sets that as well.
+catalogue covers messages only. Month and weekday names come from `Intl` in the active language, so
+`setLanguage('de')` is what makes `formatDate()` write "März". A translator can still override them
+with `date.month.0`–`11`, `date.month.short.0`–`11`, `date.weekday.0`–`6` (Sunday first) and
+`date.weekday.short.0`–`6`. `Tree` and `Finder` show their `emptyText` option when empty, so an
+application sets that as well.
 
 - **Voice** — a business application. The reader is addressed formally ("Sie"), and preferably not
   at all ("Änderungen speichern"). Buttons and menu items use the infinitive ("Speichern",
