@@ -46,6 +46,10 @@
       "types": "./dist/types/components/*.d.ts",
       "default": "./src/components/*.js"
     },
+    "./locales/*.js": {
+      "types": "./dist/types/locales/*.d.ts",
+      "default": "./src/locales/*.js"
+    },
     "./styles/*": "./styles/*",
     "./dist/*": "./dist/*",
     "./package.json": "./package.json"

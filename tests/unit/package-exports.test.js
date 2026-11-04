@@ -37,6 +37,15 @@ test('the granular source pattern carries types alongside the module', () => {
     'the declaration mirrors the source path with a .d.ts extension — see tsconfig outDir');
 });
 
+test('a locale catalogue imports by its package path, with types beside it', async () => {
+  const entry = manifest.exports['./locales/*.js'];
+  assert.ok(entry, 'the locale subpath is missing');
+  assert.equal(entry.default, './src/locales/*.js');
+  assert.equal(entry.types, './dist/types/locales/*.d.ts');
+  const { de } = await import('@zeyos/zx/locales/de.js');
+  assert.equal(de['dialog.cancel'], 'Abbrechen');
+});
+
 test('every non-pattern export target that is not a build output exists', () => {
   const targets = [];
   for (const value of Object.values(manifest.exports)) {

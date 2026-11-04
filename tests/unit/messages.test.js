@@ -102,7 +102,7 @@ function stringLiteral(argument) {
 
 /**
  * Collects every message key the components resolve, with the English fallback written beside it
- * where there is one. It reads, outside `src/core/` and `src/compat/`:
+ * where there is one. It reads, outside `src/core/`, `src/compat/`, and `src/locales/`:
  * - `.msg(…)`, `._message(…)`, `._msgOr(…)` calls and the module-level `text(…)`/`message(…)`
  *   resolvers — every quoted dotted key in the first argument, the second argument as the English
  *   fallback when it is a string literal and the file's helper takes a fallback;
@@ -116,7 +116,7 @@ function scanMessageKeys() {
   const templates = [];
   for (const file of sourceFiles(SRC)) {
     const path = relative(SRC, file).split(sep).join('/');
-    if (path.startsWith('core/') || path.startsWith('compat/')) continue;
+    if (path.startsWith('core/') || path.startsWith('compat/') || path.startsWith('locales/')) continue;
     const source = readFileSync(file, 'utf8');
     const takesFallback = !/\b_message\(key, \.\.\.args\)/.test(source);
     for (const call of source.matchAll(/(?:\.(_message|_msgOr|msg)|(?<![.\w])(text|message))\(/g)) {
