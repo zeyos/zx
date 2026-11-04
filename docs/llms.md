@@ -3906,8 +3906,9 @@ entry point as the components. See also the Kernel section for `Component`, `h`,
   defaults → the default English catalogue → the key. The translator answers one key at a time;
   null, undefined, or the key itself means "not translated" and English shows, so an application
   without a translator never sees a raw key. `defaultMessages` is that catalogue — copy it to
-  start a locale (`setTranslator((key) => de[key])`). `setLanguage()` also selects the language
-  table of a `msg` option and drives locale-dependent behaviour such as the first day of the week.
+  start a locale (`setTranslator((key) => de[key])`), or install the German one below.
+  `setLanguage()` also selects the language table of a `msg` option and drives locale-dependent
+  behaviour such as the first day of the week.
 - **Keyboard** — `focusTrap(container)` → `{activate, release}` confines Tab to a container;
   `rovingTabindex(container, itemSelector, {orientation, wrap, rtl: 'auto'})` → `{focusFirst,
   focusLast, destroy}` keeps one tab stop in a group — horizontal arrows follow `dir="rtl"`, and a
@@ -3916,6 +3917,49 @@ entry point as the components. See also the Kernel section for `Component`, `h`,
   container moves the tab stop off them; `typeahead(getItems, onMatch)` →
   `(event|string) => void` resolves buffered printable keystrokes to an item (500 ms buffer,
   repeated-letter cycling).
+
+#### Internationalisation — the German catalogue
+
+`de`, from `@zeyos/zx/locales/de.js` (`src/locales/de.js` in the repository), is a complete German
+translation of `defaultMessages`: the same keys, the same placeholders, frozen. It stays out of the
+main bundle, so only an application that imports it pays for it.
+
+```js
+import { setLanguage, setTranslator } from '@zeyos/zx';
+import { de } from '@zeyos/zx/locales/de.js';
+
+setTranslator((key) => de[key]);
+setLanguage('de');
+```
+
+One instance can take it alone through its `msg` option (`new CardView(null, { msg: de })`). The
+catalogue covers messages only. `formatDate()` reads month and weekday names from the translator
+as `date.month.0`–`11`, `date.month.short.0`–`11`, `date.weekday.0`–`6` (Sunday first) and
+`date.weekday.short.0`–`6`, and writes English names when nothing answers, so an application that
+shows them adds those keys: `setTranslator((key) => de[key] ?? dateNames[key])`. `Tree` and `Finder`
+show their `emptyText` option when empty, so an application sets that as well.
+
+- **Voice** — a business application. The reader is addressed formally ("Sie"), and preferably not
+  at all ("Änderungen speichern"). Buttons and menu items use the infinitive ("Speichern",
+  "Abbrechen").
+- **Typography** — quotation marks „…“; the ellipsis character attached to its word ("Wird
+  geladen…"); a non-breaking space between a number and its unit ("Letzte 30 Tage").
+- **Kept as they are** — Agent, Board, Code, Swimlanes, Tags, Token, Tool; also Dashboard, Prompt,
+  and Tab where a key needs them.
+- **Agents** — approve → genehmigen, approval → Genehmigung, reject → ablehnen, request → Anfrage,
+  run → Ausführung, working time → Laufzeit, step → Schritt, tool call → Tool-Aufruf, retry →
+  Wiederholung, stop → stoppen, conversation → Unterhaltung, source → Quelle, attachment → Anhang.
+- **Records** — record → Datensatz, field → Feld, row → Zeile, column → Spalte, view → Ansicht,
+  group by → gruppieren nach, no records → Keine Datensätze.
+- **Dates** — event → Termin, date range and period → Zeitraum, week number → Kalenderwoche.
+- **Actions** — choose and select → auswählen, clear → zurücksetzen (a selection: aufheben), search
+  → suchen, or durchsuchen with an object, expand → ausklappen, collapse → einklappen, hide →
+  ausblenden, remove → entfernen, no matches → Keine Treffer, no results → Keine Ergebnisse.
+- **Parts of the interface** — message → Nachricht in a conversation and Meldung in a notice,
+  launcher → Schnellsuche, workspace → Arbeitsbereich, panel → Bereich, sheet → Seitenbereich,
+  breadcrumb → Pfadnavigation.
+- **Keys** — arrow keys → Pfeiltasten, Space → Leertaste, Enter → Eingabetaste, Escape → Esc, Ctrl →
+  Strg, Delete → Entf.
 <!-- /doc -->
 
 <!-- doc:truncate -->

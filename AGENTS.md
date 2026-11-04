@@ -98,6 +98,8 @@ its "Out of scope" section is binding. Do not modify files outside the spec's fi
   settings, and the six accent presets (`data-zx-preset`, `styles/tokens/themes.css`).
 - `destroy()` must leave the DOM as found: remove created elements, abort listeners.
   Creating and destroying a component twice on the same target must not throw or leak nodes.
+- A new message key gets its German text in `src/locales/de.js` in the same change;
+  `tests/unit/locale-de.test.js` enforces it.
 
 ## File layout per component
 
