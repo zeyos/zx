@@ -67,7 +67,7 @@ const MAX_TOKEN = 512;
  * - `no-run`: an event outside a run; it is dropped.
  * - `out-of-order`: content, arguments, an end or a result for something that was never started
  *   or has already ended; it is dropped, never turned into an item.
- * - `duplicate-start`: a start for an id already known; it is ignored.
+ * - `duplicate-start`: a start for an id still open, or for a run already seen; it is ignored.
  * - `unclosed`: a message still open when its run ended; it is ended.
  * - `renderer`: a tile renderer threw or returned something that is not an item; the trace step
  *   stays as it was.
@@ -243,8 +243,9 @@ const OPEN_STATES = new Set(['queued', 'running', 'waiting']);
  *   application keeps each `interrupt.id` from the event for its `resume` entry. Every other
  *   interrupt is the application's: the event goes to `onunknown`. A result that arrives before
  *   the decision is drawn as it is, the card expires, and no decision is sent for that call.
- * - A message id is the answer's item id. A start for an id already seen, in this run or an
- *   earlier one, is ignored and reported.
+ * - A message id is the answer's item id. A start for a closed message or call reopens it, in this
+ *   run or a later one, and its content continues: a reopened call is asked about again once its
+ *   arguments are complete. A start for an id still open is ignored and reported.
  * - A surface is the thread item `surface:<runId>/<surface>`, so a model reusing `s1` in every
  *   run gets a new surface each run. Its token is the application's for a custom event, the tool
  *   call id for a surface tool, and the run id for an inline surface.
@@ -252,7 +253,7 @@ const OPEN_STATES = new Set(['queued', 'running', 'waiting']);
  * - Reasoning is one collapsed "Thought for N s" step, its text shown only with `showReasoning`.
  * - `*_CHUNK` events are expanded into their start, content and end events.
  * - Out of order: content, arguments or an end for something never started is dropped, not
- *   drawn; a second start for a known id is ignored. Both are reported through `onerror`.
+ *   drawn; a second start for an open id is ignored. Both are reported through `onerror`.
  *
  * @param {AgentThread} thread The thread to draw in.
  * @param {AgUiOptions} [options]
@@ -442,6 +443,42 @@ export function connectAgUi(thread, options = {}) {
     thread.patch(`approval:${entry.call.id}`, { status: 'expired' });
   };
 
+  /**
+   * A start for a closed call: its arguments continue, so nothing drawn from them stands any more.
+   * Its card and its surface go, and it is asked about again once the arguments are complete, so
+   * nobody decides on arguments that have since changed.
+   * @param {Call} entry @param {Run} run
+   */
+  const reopenCall = (entry, run) => {
+    const { call } = entry;
+    if (entry.gated) {
+      approvals.delete(`approval:${call.id}`);
+      unplace(entry, `approval:${call.id}`);
+    }
+    if (entry.surfaceId) {
+      // Forgotten first: the reply its removal sends is not the call's answer.
+      surfaces.delete(entry.surfaceId);
+      surfaceCalls.delete(entry.surfaceId);
+      entry.run.surfaces.delete(entry.surfaceId);
+      unplace(entry, entry.surfaceId);
+    }
+    Object.assign(entry, { run, open: true, gated: false, decided: false, surfaceId: null });
+    delete call.result;
+    delete call.error;
+    call.args = null;
+    if (entry.kind === 'surface') standIn(entry);
+    setStatus(entry, 'queued', {}, { args: undefined, result: undefined, error: undefined, detail: undefined });
+  };
+
+  /**
+   * Draws the Skeleton a surface call stands as while its arguments arrive.
+   * @param {Call} entry
+   */
+  const standIn = (entry) => {
+    entry.placeholder = `tool:${entry.call.id}`;
+    placeForCall(entry, /** @type {ThreadItem} */ ({ id: entry.placeholder, type: 'zx-placeholder', ...by(), lines: 4 }));
+  };
+
   /** @param {Call} entry */
   const renderTile = (entry) => {
     const render = tools[entry.call.name];
@@ -543,11 +580,11 @@ export function connectAgUi(thread, options = {}) {
    */
   const surfaceArguments = (entry, parsed) => {
     const { call, run } = entry;
-    const standIn = entry.placeholder;
+    const skeleton = entry.placeholder;
     entry.placeholder = null;
     /** @param {Record<string, unknown>} result @param {SurfaceError[]} [errors] */
     const refuse = (result, errors) => {
-      if (standIn) unplace(entry, standIn);
+      if (skeleton) unplace(entry, skeleton);
       setStatus(entry, 'failed', { error: 'invalid-arguments' }, { args: call.argsText, error: 'invalid-arguments' });
       if (errors) report('invalid-event', `The arguments of "${call.name}" are not a surface`, { errors });
       answer(call.id, result);
@@ -578,7 +615,7 @@ export function connectAgUi(thread, options = {}) {
     placeForCall(entry, /** @type {ThreadItem} */ ({
       id, type: 'surface', ...by(), document: parsed.value, token: tokenOf(call.id), ...(catalog ? { catalog } : {})
     }));
-    if (standIn) unplace(entry, standIn);
+    if (skeleton) unplace(entry, skeleton);
     if (document.intent === 'show' && !document.actions?.length) {
       // Nothing here can be answered: the call is, at once, and the surface stays on screen.
       const problems = thread.surface(id)?.getErrors() ?? errors;
@@ -592,6 +629,31 @@ export function connectAgUi(thread, options = {}) {
   };
 
   /* ------------------------------------------------------------------ text -- */
+
+  /** @param {Message} message @returns {ReturnType<typeof inlineSplitter>} */
+  const splitterFor = (message) => inlineSplitter({
+    ontext: (text) => prose(message, text),
+    online: (line) => fenceLine(message, line),
+    onerror: (error) => {
+      report(error.code, error.message);
+      if (error.code !== 'unterminated-fence') return;
+      for (const surface of message.pending) message.run.cancelAtEnd.add(surface);
+      message.pending.clear();
+    }
+  });
+
+  /**
+   * A start for a closed message: its content continues where it stands, in this run.
+   * @param {Message} message @param {Run} run
+   */
+  const reopenMessage = (message, run) => {
+    message.open = true;
+    message.run = run;
+    if (message.ignored) return;
+    if (inlineSurfaces) message.splitter = splitterFor(message);
+    const last = thread.get(/** @type {string} */ (message.segments.at(-1)));
+    if (last) thread.upsert(/** @type {ThreadItem} */ ({ ...last, streaming: true, stopped: false }));
+  };
 
   /** @param {Message} message @param {string} text */
   const prose = (message, text) => {
@@ -824,8 +886,13 @@ export function connectAgUi(thread, options = {}) {
     const run = inRun(event);
     if (!run) return;
     const id = String(event.messageId);
-    if (messages.has(id)) {
-      report('duplicate-start', `Message "${id}" has already started; the start was ignored`, { event });
+    const known = messages.get(id);
+    if (known?.open) {
+      report('duplicate-start', `Message "${id}" is already open; the start was ignored`, { event });
+      return;
+    }
+    if (known) {
+      reopenMessage(known, run);
       return;
     }
     const reserved = RESERVED.test(id);
@@ -842,18 +909,7 @@ export function connectAgUi(thread, options = {}) {
       if (!reserved) unknown(event);
       return;
     }
-    if (inlineSurfaces) {
-      message.splitter = inlineSplitter({
-        ontext: (text) => prose(message, text),
-        online: (line) => fenceLine(message, line),
-        onerror: (error) => {
-          report(error.code, error.message);
-          if (error.code !== 'unterminated-fence') return;
-          for (const surface of message.pending) message.run.cancelAtEnd.add(surface);
-          message.pending.clear();
-        }
-      });
-    }
+    if (inlineSurfaces) message.splitter = splitterFor(message);
     place(/** @type {ThreadItem} */ ({ id, type: 'answer', ...by(message.author), blocks: [], streaming: true }));
   };
 
@@ -885,8 +941,13 @@ export function connectAgUi(thread, options = {}) {
     const run = inRun(event);
     if (!run) return;
     const id = String(event.toolCallId);
-    if (calls.has(id)) {
-      report('duplicate-start', `Tool call "${id}" has already started; the start was ignored`, { event });
+    const known = calls.get(id);
+    if (known?.open) {
+      report('duplicate-start', `Tool call "${id}" is already open; the start was ignored`, { event });
+      return;
+    }
+    if (known) {
+      reopenCall(known, run);
       return;
     }
     const name = String(event.toolCallName);
@@ -901,12 +962,8 @@ export function connectAgUi(thread, options = {}) {
       startedAt: timeOf(event), gated: false, decided: false, tileId: null, placeholder: null, surfaceId: null, items: []
     };
     calls.set(id, entry);
-    if (kind === 'surface') {
-      entry.placeholder = `tool:${id}`;
-      placeForCall(entry, /** @type {ThreadItem} */ ({ id: entry.placeholder, type: 'zx-placeholder', ...by(), lines: 4 }));
-    } else if (kind === 'tile') {
-      renderTile(entry);
-    }
+    if (kind === 'surface') standIn(entry);
+    else if (kind === 'tile') renderTile(entry);
   };
 
   /** @param {AgUiEvent} event */

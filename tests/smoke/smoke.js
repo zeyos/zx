@@ -6882,6 +6882,60 @@ function agUiCases() {
       assert(thread.surface('s'), 'a surface’s catalog must stay the library’s own object');
     }),
     surfaceCase('AgentThread (an application’s own surface and placeholder)', () => ({}), async () => {
+    surfaceCase('connectAgUi() (a closed message or call reopens)', () => ({
+      component: new zx.AgentThread(null, { authors: { finance: { name: 'Finance agent' } }, answerActions: ['copy'] })
+    }), async ({ component: thread }) => {
+      const results = [];
+      const replies = [];
+      const problems = [];
+      thread.on('reply', (event) => replies.push(event.detail.reply));
+      const adapter = zx.connectAgUi(thread, {
+        agent: 'finance',
+        ontoolresult: (id, result) => results.push([id, result]),
+        onerror: (problem) => problems.push(problem.code)
+      });
+      const say = (id, delta) => {
+        adapter.handle({ type: 'TEXT_MESSAGE_START', messageId: id });
+        adapter.handle({ type: 'TEXT_MESSAGE_CONTENT', messageId: id, delta });
+      };
+      const view = () => thread.el.querySelector('article[data-id="m"] .zx-block-view');
+      adapter.handle({ type: 'RUN_STARTED', threadId: 't', runId: 'r1' });
+      say('m', 'first ');
+      adapter.handle({ type: 'TEXT_MESSAGE_END', messageId: 'm' });
+      assert(view().dataset.state === 'done' && thread.el.querySelector('article[data-id="m"] .zx-agent-thread__actions'), 'the answer did not finish');
+      say('m', 'second');
+      assert(thread.get('m').streaming === true && view().dataset.state === 'streaming', 'a reopened answer does not stream');
+      assert(!thread.el.querySelector('article[data-id="m"] .zx-agent-thread__actions'), 'a reopened answer offered actions');
+      adapter.handle({ type: 'TEXT_MESSAGE_END', messageId: 'm' });
+      assert(thread.getComponent('m').toText() === 'first second', `text: ${thread.getComponent('m').toText()}`);
+      adapter.handle({ type: 'RUN_FINISHED', threadId: 't', runId: 'r1', outcome: { type: 'cancelled' } });
+      // Stopped, then reopened by a later run: it reads as stopped no more.
+      adapter.handle({ type: 'RUN_STARTED', threadId: 't', runId: 'r2' });
+      say('m', 'x');
+      adapter.handle({ type: 'RUN_FINISHED', threadId: 't', runId: 'r2', outcome: { type: 'cancelled' } });
+      assert(view().dataset.state === 'stopped', 'the message did not read as stopped');
+      adapter.handle({ type: 'RUN_STARTED', threadId: 't', runId: 'r3' });
+      say('m', ' again');
+      assert(view().dataset.state === 'streaming' && !view().querySelector('.zx-block-view__stopped'), 'a reopened answer still reads as stopped');
+      adapter.handle({ type: 'TEXT_MESSAGE_END', messageId: 'm' });
+      assert(thread.getComponent('m').toText().endsWith('again'), 'the text did not continue');
+      // A surface goes when its call reopens: its one reply reaches the thread, but it is not the
+      // call's answer, and the document drawn again is a surface of this run.
+      const document = JSON.stringify(surfaceDocument());
+      const call = (delta) => {
+        adapter.handle({ type: 'TOOL_CALL_START', toolCallId: 'c', toolCallName: 'ask_user' });
+        adapter.handle({ type: 'TOOL_CALL_ARGS', toolCallId: 'c', delta });
+        adapter.handle({ type: 'TOOL_CALL_END', toolCallId: 'c' });
+      };
+      call(document);
+      assert(thread.surface('surface:r3/s1'), 'the surface was not drawn');
+      call(' ');
+      assert(replies.length === 1 && replies[0].action === 'dismiss', 'the surface that went did not reply once');
+      assert(thread.surface('surface:r3/s1') && thread.surface('surface:r3/s1').getReply() === null, 'the reopened call was not drawn again');
+      assert(results.length === 0, `the call was answered for: ${JSON.stringify(results)}`);
+      assert(problems.length === 0, `problems: ${problems}`);
+      adapter.destroy();
+    }),
       // `register()` has no undo, so this runs on a module instance of its own.
       const { AgentThread } = await import('../../src/components/agent-thread/agent-thread.js?own-surface');
       if (!AgentThread.has('surface')) AgentThread.register('surface', (item) => zx.h('p', { class: 'smoke-own-surface' }, String(item.label)));

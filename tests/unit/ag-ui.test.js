@@ -544,6 +544,136 @@ test('out of order: orphans are dropped, duplicate starts ignored, both reported
   assert.deepEqual(outside.thread.order, []);
 });
 
+test('a start for a closed message reopens it, and its content continues', () => {
+  const { thread, log, play } = setup();
+  const say = (id, delta) => [
+    { type: 'TEXT_MESSAGE_START', messageId: id },
+    { type: 'TEXT_MESSAGE_CONTENT', messageId: id, delta },
+    { type: 'TEXT_MESSAGE_END', messageId: id }
+  ];
+  play(run('r1', [...say('m1', 'first '), { type: 'TOOL_CALL_START', toolCallId: 'c1', toolCallName: 'x' }, { type: 'TOOL_CALL_END', toolCallId: 'c1' }, ...say('m1', 'second')]));
+  assert.equal(thread.items.get('m1').text, 'first second');
+  assert.equal(thread.items.get('m1').streaming, false);
+  assert.deepEqual(thread.order.filter((id) => id.startsWith('m')), ['m1'], 'it continues where it stands');
+  play(run('r2', say('m1', ' third')));
+  assert.equal(thread.items.get('m1').text, 'first second third', 'a later run may reopen it too');
+  assert.deepEqual(log.errors, []);
+
+  // Left open, the reopened message is closed by the run like any other.
+  const open = setup();
+  open.play(run('r1', say('m1', 'one')));
+  open.play(run('r2', [{ type: 'TEXT_MESSAGE_START', messageId: 'm1' }]));
+  assert.equal(open.thread.items.get('m1').streaming, false);
+  assert.deepEqual(open.log.errors, ['unclosed']);
+
+  // A chunk stream reopens the same way.
+  const chunks = setup();
+  chunks.play(run('r1', [
+    { type: 'TEXT_MESSAGE_CHUNK', messageId: 'm1', delta: 'a' },
+    { type: 'STATE_SNAPSHOT', snapshot: {} },
+    { type: 'TEXT_MESSAGE_CHUNK', messageId: 'm1', delta: 'b' }
+  ]));
+  assert.equal(chunks.thread.items.get('m1').text, 'ab');
+  assert.deepEqual(chunks.log.errors, []);
+});
+
+test('a reopened message with fences keeps splitting them', () => {
+  const { thread, log, play } = setup({ inlineSurfaces: true });
+  const line = (surface) => `\`\`\`zx-surface\n{"zx":"surface/1","op":"begin","surface":"${surface}","intent":"confirm","title":"Go?","author":"finance","root":[]}\n{"op":"end","surface":"${surface}"}\n\`\`\`\n`;
+  play(run('r1', [
+    { type: 'TEXT_MESSAGE_START', messageId: 'm1' },
+    { type: 'TEXT_MESSAGE_CONTENT', messageId: 'm1', delta: `Before\n${line('s1')}` },
+    { type: 'TEXT_MESSAGE_END', messageId: 'm1' },
+    { type: 'TEXT_MESSAGE_START', messageId: 'm1' },
+    { type: 'TEXT_MESSAGE_CONTENT', messageId: 'm1', delta: `After\n${line('s2')}Done` },
+    { type: 'TEXT_MESSAGE_END', messageId: 'm1' }
+  ]));
+  assert.deepEqual(thread.order, ['m1', 'surface:r1/s1', 'm1#2', 'surface:r1/s2', 'm1#3']);
+  assert.equal(thread.items.get('m1#3').text, 'Done');
+  assert.deepEqual(log.errors, []);
+});
+
+test('a start for a closed call reopens it: its arguments continue, and are asked about again', async () => {
+  const start = { type: 'TOOL_CALL_START', toolCallId: 'c1', toolCallName: 'send' };
+  const end = { type: 'TOOL_CALL_END', toolCallId: 'c1' };
+  const args = (delta) => ({ type: 'TOOL_CALL_ARGS', toolCallId: 'c1', delta });
+  const begun = { type: 'RUN_STARTED', threadId: 't', runId: 'r1' };
+
+  const plain = setup();
+  plain.play(run('r1', [start, args('{"a":'), end, start, args('1}'), end, { type: 'TOOL_CALL_RESULT', toolCallId: 'c1', messageId: 't1', content: 'ok' }]));
+  assert.equal(plain.thread.step('trace:r1', 'c1').args, '{"a":1}');
+  assert.equal(plain.thread.step('trace:r1', 'c1').status, 'done');
+  assert.deepEqual(plain.log.errors, []);
+
+  // What a person is shown is what they decide on: the card goes while the arguments change.
+  const asked = [];
+  const gated = setup({ requiresApproval: (call) => { asked.push(call.args); return true; } });
+  gated.play([begun, start, args('{"a":1'), end]);
+  const stale = gated.thread.get('approval:c1');
+  gated.play([start]);
+  assert.equal(gated.thread.items.get('approval:c1'), undefined, 'a card for arguments still changing is gone');
+  assert.equal(gated.thread.step('trace:r1', 'c1').status, 'queued');
+  gated.thread.emit('approve', { item: stale, values: {} });
+  await tick();
+  assert.deepEqual(gated.log.results, [], 'a decision on the old card counts for nothing');
+  gated.play([args(',"b":2}'), end]);
+  assert.equal(gated.thread.items.get('approval:c1').status, 'pending');
+  assert.deepEqual(asked, [null, { a: 1, b: 2 }], 'the check sees the complete arguments');
+  gated.thread.emit('approve', { item: gated.thread.get('approval:c1'), values: {} });
+  await tick();
+  assert.deepEqual(gated.log.results, [['c1', { approved: true }]]);
+
+  // Reopened after a decision, the call is decided anew, on the new arguments.
+  gated.play([start, args(' '), end]);
+  assert.equal(gated.thread.items.get('approval:c1').status, 'pending');
+  gated.thread.emit('reject', { item: gated.thread.get('approval:c1'), reason: 'no' });
+  await tick();
+  assert.deepEqual(gated.log.results.at(-1), ['c1', { approved: false, reason: 'no' }]);
+
+  // A tile sees the reopening as a status change, and is not drawn twice.
+  const statuses = [];
+  const tiled = setup({ tools: { send: (call) => { statuses.push([call.status, call.args, call.result]); return { type: 'card' }; } } });
+  tiled.play(run('r1', [start, args('{}'), end, { type: 'TOOL_CALL_RESULT', toolCallId: 'c1', messageId: 't1', content: 'ok' }, start, end]));
+  assert.deepEqual(statuses, [['queued', null, undefined], ['running', {}, undefined], ['done', {}, 'ok'], ['queued', null, undefined], ['running', {}, undefined]]);
+  assert.equal(tiled.thread.order.filter((id) => id === 'tool:c1').length, 1);
+});
+
+test('a reopened surface call stands as a skeleton again, and draws its complete arguments', () => {
+  const document = askDoc('s1');
+  const start = { type: 'TOOL_CALL_START', toolCallId: 'c1', toolCallName: 'ask_user' };
+  const end = { type: 'TOOL_CALL_END', toolCallId: 'c1' };
+  const args = (delta) => ({ type: 'TOOL_CALL_ARGS', toolCallId: 'c1', delta });
+  const begun = { type: 'RUN_STARTED', threadId: 't', runId: 'r1' };
+
+  // Refused while incomplete, then completed.
+  const refused = setup();
+  refused.play([begun, start, args(document.slice(0, 20)), end]);
+  assert.deepEqual(refused.log.results, [['c1', { error: 'invalid-arguments' }]]);
+  refused.play([start]);
+  assert.equal(refused.thread.items.get('tool:c1').type, 'zx-placeholder');
+  refused.play([args(document.slice(20)), end]);
+  assert.equal(refused.thread.items.get('tool:c1'), undefined);
+  assert.equal(refused.thread.step('trace:r1', 'c1').status, 'waiting');
+  assert.equal(refused.thread.step('trace:r1', 'c1').error, undefined);
+  refused.thread.surface('surface:r1/s1').answer('submit', { a: 1 });
+  assert.equal(refused.log.results.length, 2);
+  assert.equal(refused.log.results[1][1].action, 'submit');
+
+  // Drawn, then reopened: the surface goes, unanswered, and its call is not answered for it.
+  const drawn = setup();
+  drawn.play([begun, start, args(document), end]);
+  const first = drawn.thread.surface('surface:r1/s1');
+  drawn.play([start]);
+  assert.equal(drawn.thread.items.get('surface:r1/s1'), undefined);
+  first.answer('cancel');
+  assert.deepEqual(drawn.log.results, []);
+  drawn.play([args(' '), end]);
+  assert.ok(drawn.thread.items.get('surface:r1/s1'), 'the same surface id is free again');
+  assert.deepEqual(drawn.log.errors, []);
+  drawn.thread.surface('surface:r1/s1').answer('submit', { a: 1 });
+  assert.equal(drawn.log.results.length, 1);
+});
+
 test('chunk events expand into start, content and end', () => {
   const { thread, log, play } = setup();
   play(run('r1', [

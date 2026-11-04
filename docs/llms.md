@@ -3557,9 +3557,11 @@ source.onmessage = (message) => adapter.handle(JSON.parse(message.data));
   token is the application's for a custom event, the tool call id for a surface tool, and the run
   id for an inline surface.
 - **Strictness** — `*_CHUNK` events are expanded into start, content and end. Content, arguments
-  or an end for something never started is dropped and reported (`out-of-order`), never drawn; a
-  second start is ignored (`duplicate-start`) — also for a message id reused in a later run, and a
-  message id with one of the adapter's prefixes (`approval:`, `tool:`, `trace:`, `surface:`,
+  or an end for something never started is dropped and reported (`out-of-order`), never drawn. A
+  start for a closed message or tool call reopens it, in this run or a later one, and its content
+  continues; a reopened call stands as `queued`, loses its card or surface, and is asked about
+  again once its arguments are complete. A start for an id still open is ignored and reported
+  (`duplicate-start`), and a message id with one of the adapter's prefixes (`approval:`, `tool:`, `trace:`, `surface:`,
   `error:`, `think:`) is refused. `handle()` never throws: what it cannot read is reported and
   dropped. `destroy()` cancels unanswered surface-tool surfaces (their replies still reach
   `ontoolresult`, with `reason: 'stopped'`) and expires undecided approvals before it stops
