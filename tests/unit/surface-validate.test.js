@@ -920,3 +920,22 @@ test('a questionnaire next forming a cycle is dropped and reported', () => {
   assert.deepEqual(nextOf(back), { a: 'c', b: '$submit', c: 'b' });
   assert.deepEqual(back.errors, []);
 });
+
+test('nesting past any stack is refused wherever it is written', () => {
+  const deep = (depth) => JSON.parse('['.repeat(depth) + ']'.repeat(depth));
+  const value = deep(100000);
+  const state = createValidationState();
+  validateOp(begin(), state);
+  for (const key of ['op', 'surface', 'id', 'type', 'props', 'path', 'value', 'items', 'root', 'intent', 'title', 'sources']) {
+    for (const op of ['node', 'patch', 'data', 'actions', 'end']) {
+      const line = { op, surface: 's1', [key]: value };
+      assert.doesNotThrow(() => validateOp(line, state), `${op} with a deep "${key}"`);
+    }
+  }
+  const unknown = validateOp({ op: value, surface: 's1' }, createValidationState());
+  assert.equal(unknown.errors[0].code, 'unknown-op');
+  assert.match(unknown.errors[0].message, /^Unknown operation a list;/);
+  assert.match(validateOp({ op: 'x'.repeat(5000), surface: 's1' }, state).errors[0].message.slice(0, 100), /^Unknown operation "x+"/);
+  assert.ok(validateOp({ op: 'x'.repeat(5000), surface: 's1' }, state).errors[0].message.length < 300);
+  assert.equal(check({ zx: 'surface/1', surface: value, intent: value, root: value, nodes: value }).document, null);
+});

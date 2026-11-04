@@ -148,8 +148,8 @@ export function urlConsentDocument(message, url, text = messageResolver(null)) {
   /** @type {Array<Record<string, unknown>>} */
   const nodes = [];
   if (message.trim()) nodes.push({ id: 'message', type: 'text', text: plainInline(message, LIMITS.string) });
-  nodes.push({ id: 'host', type: 'text', text: text('mcp.urlHost', `**${plainInline(url.host)}**`) });
-  nodes.push({ id: 'address', type: 'text', text: text('mcp.urlAddress', plainInline(url.href)) });
+  nodes.push({ id: 'host', type: 'text', text: around(text, 'mcp.urlHost', `**${plainInline(url.host)}**`) });
+  nodes.push({ id: 'address', type: 'text', text: around(text, 'mcp.urlAddress', plainInline(url.href)) });
   if (url.international) nodes.push({ id: 'international', type: 'callout', tone: 'warning', text: text('mcp.urlInternational') });
   nodes.push({ id: 'note', type: 'text', text: text('mcp.urlNote') });
   return /** @type {any} */ ({
@@ -168,6 +168,20 @@ export function urlConsentDocument(message, url, text = messageResolver(null)) {
 }
 
 /* ------------------------------------------------------------------ module helpers -- */
+
+/** Stands in for a server's value while a message is resolved. */
+const PLACEHOLDER = '\u0000';
+
+/**
+ * A message around a value of the server's, which is put in afterwards: a message's placeholders
+ * are read in what it is given too, and an address may hold what looks like one (`/%a%/`).
+ * @param {(key: string, ...args: unknown[]) => string} text @param {string} key @param {string} value
+ * @returns {string}
+ */
+function around(text, key, value) {
+  const message = text(key, PLACEHOLDER);
+  return message.includes(PLACEHOLDER) ? message.replace(PLACEHOLDER, () => value) : `${message} ${value}`;
+}
 
 /**
  * Asks before opening a URL-mode page, and opens it in the click that agreed.

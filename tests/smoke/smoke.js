@@ -6951,6 +6951,34 @@ function surfaceSafetyCases() {
       assert(!stored.el.textContent.includes('HIDDEN'), 'a hidden step was drawn in the receipt');
       stored.destroy();
     }),
+    // What an application registered is the application's: the surface fills in only what is missing.
+    surfaceCase('Surface (an application\'s own Field adapters)', (fixture) => ({ fixture }), async ({ fixture }) => {
+      const { registerRatingFieldAdapter } = await import('../../src/components/rating/field-adapter.js');
+      const { registerDateboxFieldAdapters } = await import('../../src/components/datebox/field-adapter.js');
+      const own = (name) => () => {
+        const el = document.createElement('input');
+        el.dataset.own = name;
+        return { el, get: () => el.value, set: (value) => { el.value = value ?? ''; }, focus: () => el.focus(), setDisabled: (disabled) => { el.disabled = disabled; } };
+      };
+      zx.Field.register('rating', own('rating'));
+      zx.Field.register('date', own('date'));
+      try {
+        const properties = {
+          stars: { type: 'integer', title: 'Stars', 'x-zx': { field: 'rating' } },
+          day: { type: 'string', title: 'Day', format: 'date' },
+          at: { type: 'string', title: 'At', format: 'date-time' }
+        };
+        const component = new zx.Surface(null, { document: surfaceDocument({ root: ['form'], nodes: [{ id: 'form', type: 'fields', schema: { type: 'object', properties } }] }) });
+        fixture.append(component.toElement());
+        assert(component.el.querySelector('[data-own="rating"]'), 'the application\'s rating adapter was replaced');
+        assert(component.el.querySelector('[data-own="date"]'), 'the application\'s date adapter was replaced');
+        assert(component.el.querySelector('[data-field-id="at"] input') && !component.el.querySelector('[data-field-id="at"] [data-own]'), 'the adapter beside it was lost');
+        component.destroy();
+      } finally {
+        registerRatingFieldAdapter();
+        registerDateboxFieldAdapters();
+      }
+    }),
     /* -- end of the safety cases -- */
   ];
 }
@@ -7365,34 +7393,6 @@ function agUiCases() {
       assert(thread.el.querySelectorAll('.zx-agent-thread__item').length === 0 && thread.get('x') === null, 'a destroyed thread took new items');
       delete window.__smokeTiles;
     }),
-    surfaceCase('AgentThread (an application’s own surface and placeholder)', () => ({}), async () => {
-      // `register()` has no undo, so this runs on a module instance of its own.
-      const { AgentThread } = await import('../../src/components/agent-thread/agent-thread.js?own-surface');
-      if (!AgentThread.has('surface')) AgentThread.register('surface', (item) => zx.h('p', { class: 'smoke-own-surface' }, String(item.label)));
-      if (!AgentThread.has('placeholder')) AgentThread.register('placeholder', (item) => zx.h('p', { class: 'smoke-own-placeholder' }, String(item.label)));
-      const thread = new AgentThread(null, { authors: { finance: { name: 'Finance agent' } }, items: [
-        { id: 'p', type: 'placeholder', label: 'Mine too' }
-      ] });
-      try {
-        thread.upsert({ id: 's', type: 'surface', label: 'Mine', document: { zx: 'surface/1', surface: 's', intent: 'confirm', title: 'Go?', root: [], nodes: [] } });
-        assert(thread.el.querySelector('.smoke-own-surface')?.textContent === 'Mine', 'the application’s surface renderer lost to the built-in');
-        assert(!thread.el.querySelector('.zx-surface') && thread.surface('s') === null, 'the library drew a surface over the application’s renderer');
-        assert(thread.el.querySelector('.smoke-own-placeholder')?.textContent === 'Mine too', 'the application’s placeholder type was not drawn');
-        await delay(100);
-        assert(!thread.el.querySelector('[role="status"]').textContent, 'an application’s surface was announced as waiting');
-      } finally {
-        thread.destroy();
-      }
-      // The library’s stand-in has its own name now, and draws a Skeleton for anyone who asks.
-      const library = new zx.AgentThread(null, { items: [{ id: 'q', type: 'zx-placeholder', lines: 3 }] });
-      assert(library.el.querySelector('article[data-type="zx-placeholder"] .zx-agent-thread__body[aria-busy="true"]'), 'the stand-in did not draw');
-      library.destroy();
-    }),
-    surfaceCase('AgentThread (items at a call’s place)', () => ({
-      component: new zx.AgentThread(null, { authors: { finance: { name: 'Finance agent' } } })
-    }), async ({ component: thread }) => {
-      if (!zx.AgentThread.has('smoke-company')) {
-        zx.AgentThread.register('smoke-company', (item) => zx.h('p', { class: 'smoke-company' }, String(item.name ?? '')));
     surfaceCase('connectAgUi() (an application’s own surface renderer)', () => ({}), async () => {
       const { AgentThread } = await import('../../src/components/agent-thread/agent-thread.js?own-surface');
       if (!AgentThread.has('surface')) AgentThread.register('surface', (item) => zx.h('p', { class: 'smoke-own-surface' }, String(item.label)));
@@ -7456,6 +7456,34 @@ function agUiCases() {
       assert(problems.filter((code) => code === 'duplicate-start').length === 2, `problems: ${problems}`);
       adapter.destroy();
     }),
+    surfaceCase('AgentThread (an application’s own surface and placeholder)', () => ({}), async () => {
+      // `register()` has no undo, so this runs on a module instance of its own.
+      const { AgentThread } = await import('../../src/components/agent-thread/agent-thread.js?own-surface');
+      if (!AgentThread.has('surface')) AgentThread.register('surface', (item) => zx.h('p', { class: 'smoke-own-surface' }, String(item.label)));
+      if (!AgentThread.has('placeholder')) AgentThread.register('placeholder', (item) => zx.h('p', { class: 'smoke-own-placeholder' }, String(item.label)));
+      const thread = new AgentThread(null, { authors: { finance: { name: 'Finance agent' } }, items: [
+        { id: 'p', type: 'placeholder', label: 'Mine too' }
+      ] });
+      try {
+        thread.upsert({ id: 's', type: 'surface', label: 'Mine', document: { zx: 'surface/1', surface: 's', intent: 'confirm', title: 'Go?', root: [], nodes: [] } });
+        assert(thread.el.querySelector('.smoke-own-surface')?.textContent === 'Mine', 'the application’s surface renderer lost to the built-in');
+        assert(!thread.el.querySelector('.zx-surface') && thread.surface('s') === null, 'the library drew a surface over the application’s renderer');
+        assert(thread.el.querySelector('.smoke-own-placeholder')?.textContent === 'Mine too', 'the application’s placeholder type was not drawn');
+        await delay(100);
+        assert(!thread.el.querySelector('[role="status"]').textContent, 'an application’s surface was announced as waiting');
+      } finally {
+        thread.destroy();
+      }
+      // The library’s stand-in has its own name now, and draws a Skeleton for anyone who asks.
+      const library = new zx.AgentThread(null, { items: [{ id: 'q', type: 'zx-placeholder', lines: 3 }] });
+      assert(library.el.querySelector('article[data-type="zx-placeholder"] .zx-agent-thread__body[aria-busy="true"]'), 'the stand-in did not draw');
+      library.destroy();
+    }),
+    surfaceCase('AgentThread (items at a call’s place)', () => ({
+      component: new zx.AgentThread(null, { authors: { finance: { name: 'Finance agent' } } })
+    }), async ({ component: thread }) => {
+      if (!zx.AgentThread.has('smoke-company')) {
+        zx.AgentThread.register('smoke-company', (item) => zx.h('p', { class: 'smoke-company' }, String(item.name ?? '')));
       }
       const replies = [];
       thread.on('reply', (event) => replies.push(event.detail.reply));

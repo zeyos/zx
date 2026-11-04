@@ -13,6 +13,7 @@ import { registerDateboxFieldAdapters } from '../datebox/field-adapter.js';
 import { Dialog } from '../dialog/dialog.js';
 import { emptyState } from '../empty-state/empty-state.js';
 import { EntityRef } from '../entity-ref/entity-ref.js';
+import { Field } from '../field/field.js';
 import { Fieldset } from '../fieldset/fieldset.js';
 import { Groupbox } from '../groupbox/groupbox.js';
 import { grid, stack } from '../layout/layout.js';
@@ -33,7 +34,9 @@ import { lineSplitter } from './stream.js';
 import {
   CLOSING_ACTIONS, createReply, inputNames, localDateTime, readProp, surfaceVisibility, verdictText, visibleSteps
 } from './text.js';
-import { cellLimitMessage, createValidationState, tableCells, validateDocument, validateOp, validateValue } from './validate.js';
+import {
+  cellLimitMessage, createValidationState, describeValue, tableCells, validateDocument, validateOp, validateValue
+} from './validate.js';
 
 /** @typedef {import('./catalog.js').SurfaceCatalog} SurfaceCatalog */
 /** @typedef {import('./catalog.js').SurfaceIntent} SurfaceIntent */
@@ -314,7 +317,7 @@ export class Surface extends Component {
     if (this._model.began && surface !== this._model.surface) {
       this._report([{
         code: 'not-allowed',
-        message: `This surface is "${this._model.surface}"; an operation for ${JSON.stringify(surface ?? null)} was refused`,
+        message: `This surface is "${this._model.surface}"; an operation for ${describeValue(surface)} was refused`,
         path: '/surface'
       }]);
       return this;
@@ -2056,16 +2059,25 @@ export function openSurface(document, options = {}) {
 
 /* ------------------------------------------------------------------ module helpers -- */
 
-/** Registers the Field types a schema property may name. Each registration is idempotent. */
+/** What draws the Field types a schema property may name. */
+const FIELD_ADAPTERS = Object.freeze([
+  registerSelectFieldAdapter, registerChecklistFieldAdapter, registerDateboxFieldAdapters, registerToggleFieldAdapter,
+  registerNumberFieldAdapter, registerRatingFieldAdapter, registerTagPickerFieldAdapter, registerSliderFieldAdapter
+]);
+
+/**
+ * Registers the Field types a schema property may name, where nothing draws them yet. What the
+ * application registered stays. `Field.register` replaces, and one adapter below registers two
+ * types, so the check is made for each type as it is registered.
+ */
 function registerFields() {
-  registerSelectFieldAdapter();
-  registerChecklistFieldAdapter();
-  registerDateboxFieldAdapters();
-  registerToggleFieldAdapter();
-  registerNumberFieldAdapter();
-  registerRatingFieldAdapter();
-  registerTagPickerFieldAdapter();
-  registerSliderFieldAdapter();
+  const register = Field.register;
+  Field.register = (type, adapter) => (Field.has(type) ? Field : register.call(Field, type, adapter));
+  try {
+    for (const add of FIELD_ADAPTERS) add();
+  } finally {
+    Field.register = register;
+  }
 }
 
 /**

@@ -427,7 +427,7 @@ function validateOpAt(raw, state, catalog, at) {
   /** @type {Context} */
   const ctx = { surface: typeof surface === 'string' ? surface : '', errors, at, entities: state.entities };
   if (typeof raw.op !== 'string' || !OPS.has(raw.op)) {
-    report(ctx, 'unknown-op', `Unknown operation ${JSON.stringify(raw.op ?? null)}; use one of ${[...OPS].join(', ')}`, { path: '/op' });
+    report(ctx, 'unknown-op', `Unknown operation ${describeValue(raw.op)}; use one of ${[...OPS].join(', ')}`, { path: '/op' });
     return refused;
   }
   if (typeof surface !== 'string' || !ID.test(surface)) {
@@ -2186,6 +2186,18 @@ function withoutNulls(value) {
 /** @template T @param {T} value @returns {T} */
 function clone(value) {
   return value === undefined ? value : JSON.parse(JSON.stringify(value));
+}
+
+/**
+ * Names a value that has not been sanitized yet, for a message, without walking into it: it may
+ * nest deeper than the stack can follow, and be as long as a line.
+ * @param {unknown} value
+ * @returns {string}
+ */
+export function describeValue(value) {
+  if (typeof value === 'string') return JSON.stringify(value.slice(0, LIMITS.name));
+  if (Array.isArray(value)) return 'a list';
+  return isObject(value) ? 'an object' : String(value ?? null);
 }
 
 /** @param {SurfaceError} error @returns {SurfaceError} */

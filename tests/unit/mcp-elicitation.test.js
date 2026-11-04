@@ -193,3 +193,16 @@ test('a long message is escaped first and then cut, never inside an escape', () 
   assert.equal(plainInline('a*b', 4), 'a\\*b');
   assert.equal(plainInline('ab😀', 3), 'ab');
 });
+
+test('the full address is the address that opens', () => {
+  for (const address of ['https://billing.example.com/%a%/p', 'https://billing.example.com/%x%%y%?q=%1&r=%2']) {
+    const url = elicitationUrl(address);
+    const document = urlConsentDocument('Pay', url);
+    const shown = document.nodes.find((node) => node.id === 'address').text;
+    assert.equal(shown, `Full address: ${url.href}`);
+    assert.equal(document.nodes.find((node) => node.id === 'host').text, 'The page is on **billing.example.com**.');
+  }
+  // A translation that drops the placeholder does not drop the address.
+  const shown = urlConsentDocument('Pay', elicitationUrl('https://billing.example.com/x'), (key) => key);
+  assert.equal(shown.nodes.find((node) => node.id === 'address').text, 'mcp.urlAddress https://billing.example.com/x');
+});
