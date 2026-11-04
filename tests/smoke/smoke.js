@@ -7271,6 +7271,52 @@ function treeRowActionsCase() {
     create(fixture) {
       const runs = [];
       const record = (name) => (node) => runs.push(`${name}:${node.name}`);
+    }),
+
+    replay('AgentThread (stream: a restored conversation goes on without losing a word)', ({ root, thread, log, play }) => {
+      thread.setItems([
+        { id: 'u1', type: 'user', author: 'me', text: 'Send the reminder' },
+        {
+          id: 'm', type: 'answer', author: 'agent', blocks: [{ type: 'p', text: 'The answer read before the reload.' }],
+          steps: [{ id: 'c', kind: 'call', label: 'send', tool: 'send', status: 'waiting' }]
+        },
+        { id: 'approval:a', type: 'approval', author: 'agent', title: 'Allow send?', status: 'approved' }
+      ]);
+      play([
+        { type: 'start', messageId: 'm' },
+        { type: 'tool-output-available', toolCallId: 'c', output: 'sent' },
+        { type: 'text-start', id: 'a' },
+        { type: 'text-delta', id: 'a', delta: 'The reminder is on its way.' },
+        { type: 'text-end', id: 'a' },
+        { type: 'finish', finishReason: 'stop' }
+      ]);
+      assert(feed(root).join() === 'u1,m,approval:a,m#2', `feed: ${feed(root)}`);
+      assert(paragraphs(root, 'm').join() === 'The answer read before the reload.', `the restored answer reads: ${paragraphs(root, 'm')}`);
+      assert(standsAbove(root, 'approval:a', 'm#2'), 'the new text is not below the card');
+      const { steps } = /** @type {any} */ (thread.get('m'));
+      assert(steps.length === 1 && steps[0].status === 'done', `steps: ${JSON.stringify(steps)}`);
+      assertSettled(root, 'm#2');
+      assert(!log.error.length, `reported: ${log.error}`);
+    }),
+
+    replay('AgentThread (stream: a start naming something else overwrites nothing)', ({ root, thread, play }) => {
+      thread.upsert({ id: 'u1', type: 'user', author: 'me', text: 'What I asked' });
+      play([
+        { type: 'start', messageId: 'u1' },
+        { type: 'text-start', id: 'a' },
+        { type: 'text-delta', id: 'a', delta: 'An answer.' },
+        { type: 'text-end', id: 'a' },
+        { type: 'finish', finishReason: 'stop' },
+        { type: 'start', messageId: 'held' },
+        { type: 'tool-input-available', toolCallId: 'c', toolName: 'look', input: {} },
+        { type: 'tool-approval-request', toolCallId: 'c', approvalId: 'a' },
+        { type: 'finish', finishReason: 'tool-calls' },
+        { type: 'start', messageId: 'approval:a' },
+        { type: 'finish', finishReason: 'stop' }
+      ]);
+      assert(article(root, 'u1').dataset.type === 'user' && /What I asked/.test(String(article(root, 'u1').textContent)), 'the person’s message was replaced');
+      assert(article(root, 'approval:a').querySelector('.zx-approval-card')?.getAttribute('data-state') === 'pending', 'the card was replaced');
+      assert(feed(root).length === 5, `feed: ${feed(root)}`);
       const component = new zx.TreeView(null, {
         items: [{ ID: 1, name: 'Handbook', children: [{ ID: 2, name: 'Onboarding' }, { ID: 3, name: 'Leave' }] }],
         expanded: [1],

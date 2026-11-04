@@ -3590,6 +3590,10 @@ for await (const part of parsedParts(response)) stream.handle(part);
   joins it, because streams merged into one each send their own. `destroy()` stops a message still open and every
   call still going, and expires a pending approval, because no decision could reach the application
   any more.
+- **What stands in the thread stays.** A `start` for an answer this connection did not draw, restored
+  with the conversation or drawn by an earlier connection, takes it over: the message goes on below
+  what stands under it, and a call on one of its steps finds that step. A `start` naming any other
+  item opens an answer of its own, and a continuation skips a number already in use.
 - **Message** — `start` opens an `answer` under the message id, `finish` closes it and settles
   `runStatus` (`waiting` while an approval is pending), `abort` closes it as stopped. Text blocks
   stream through `appendText`, each block a new paragraph of the same answer. `error` draws a

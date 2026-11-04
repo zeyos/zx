@@ -190,7 +190,9 @@ function sourceOf(part) {
  * part to `handle()`, so the adapter runs with any transport and without a network.
  *
  * Keep one connection for the whole conversation: an approval's answer goes out with the
- * application's next request, and the response to it continues the same message.
+ * application's next request, and the response to it continues the same message. A `start` for an
+ * answer the connection did not draw, restored with the conversation, takes it over, and nothing in
+ * the thread is overwritten: a `start` naming any other item opens an answer of its own.
  *
  * The thread stays in stream order. What a message says after a card, a tile, or another item it
  * cannot write above continues in a new answer `<messageId>#<n>`, counting from 2, which the thread
@@ -251,7 +253,8 @@ export function connectUiMessageStream(thread, options = {}) {
 
   /** @param {string} id An item the adapter added. @returns {void} */
   const takeBack = (id) => {
-    added.splice(added.lastIndexOf(id), 1);
+    const at = added.lastIndexOf(id);
+    if (at !== -1) added.splice(at, 1);
     thread.remove(id);
   };
 
@@ -266,22 +269,69 @@ export function connectUiMessageStream(thread, options = {}) {
    */
   const atEnd = (message) => added.at(-1) === tailOf(message);
 
+  /** @param {string} id @returns {MessageState|undefined} The message an answer is a piece of. */
+  const ownerOf = (id) => [...messages.values()].find((message) => message.pieces.includes(id));
+
   /* ------------------------------------------------------------------ messages -- */
 
   /**
-   * @param {string} id
+   * Takes over an answer this connection did not draw: restored with the conversation, or drawn by
+   * a connection before it. The message goes on from what stands in the thread, with the pieces,
+   * sources and steps it has, so that a later part of one of its calls finds that call's step.
+   * @param {MessageState} message
+   * @param {any} item The answer as it stands.
+   * @returns {void}
+   */
+  function adopt(message, item) {
+    for (let n = 2; /** @type {any} */ (thread.get(`${message.id}#${n}`))?.type === 'answer'; n += 1) {
+      message.pieces.push(`${message.id}#${n}`);
+    }
+    const tail = /** @type {any} */ (thread.get(tailOf(message)));
+    message.listed = tailOf(message);
+    message.sources = tail.sources ?? [];
+    message.hasText = tail.blocks?.at(-1)?.type === 'p';
+    message.writing = false;
+    message.quiet = true;
+    message.steps = item.steps ?? [];
+    message.drawn = message.steps.length > 0;
+    for (const step of message.steps) {
+      if (step.kind === 'think') {
+        message.thinking = { step, open: new Set(), since: null, ms: 0, text: step.detail ?? '' };
+      } else if (step.kind === 'call' && !calls.has(step.id)) {
+        const tile = `tool:${step.id}`;
+        const drawn = Boolean(thread.get(tile));
+        if (drawn) tiles.add(tile);
+        calls.set(step.id, {
+          id: step.id, name: step.tool ?? '', message, status: step.status ?? 'done', args: null,
+          argsText: step.args ?? '', since: null, step, tile: drawn ? tile : null
+        });
+      }
+    }
+    // What already stands in the thread decides where the message goes on, whoever put it there.
+    added.splice(0, added.length, ...thread.getItems().map((entry) => String(entry.id)));
+  }
+
+  /**
+   * Opens a message under the id asked for. What already holds that id is never overwritten: an
+   * answer the adapter did not draw is taken over, and anything else, whether a person's message, a
+   * card, or a piece of another message, leaves the message an id of its own.
+   * @param {string} requested
    * @param {boolean} [implied]
    * @returns {MessageState}
    */
-  function openMessage(id, implied = false) {
+  function openMessage(requested, implied = false) {
+    const taken = /** @type {any} */ (thread.get(requested));
+    const adopted = taken?.type === 'answer' && !ownerOf(requested);
+    const id = taken && !adopted ? uid('zx-ui-message') : requested;
     const message = /** @type {MessageState} */ ({
       id, pieces: [id], writing: true, steps: [], sources: [], listed: id, texts: new Set(), hasText: false,
       gap: false, drawn: false, failed: false, closed: false, implied, thinking: null, quiet: false,
       writes: 0
     });
-    messages.set(id, message);
+    messages.set(requested, message);
     current = message;
-    add({ id, type: 'answer', ...byline, blocks: [], streaming: true });
+    if (adopted) adopt(message, taken);
+    else add({ id, type: 'answer', ...byline, blocks: [], streaming: true });
     message.mark = markStep(message);
     return message;
   }
@@ -329,7 +379,9 @@ export function connectUiMessageStream(thread, options = {}) {
    */
   function continueMessage(message) {
     endPiece(message);
-    const id = `${message.id}#${message.pieces.length + 1}`;
+    let n = message.pieces.length + 1;
+    while (thread.get(`${message.id}#${n}`)) n += 1;
+    const id = `${message.id}#${n}`;
     message.pieces.push(id);
     message.writing = true;
     message.hasText = false;
@@ -929,7 +981,7 @@ export function connectUiMessageStream(thread, options = {}) {
   const onCite = (event) => {
     const { detail } = /** @type {CustomEvent<{item?: ThreadItem, n: number}>} */ (event);
     const id = String(detail?.item?.id);
-    const message = [...messages.values()].find((known) => known.pieces.includes(id));
+    const message = ownerOf(id);
     if (!message || tailOf(message) === id) return;
     queueMicrotask(() => {
       if (!destroyed && !event.defaultPrevented) thread.reveal(`source:${detail.n}:${tailOf(message)}`);

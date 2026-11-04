@@ -115,6 +115,10 @@ class FakeThread extends EventTarget {
     return true;
   }
 
+  getItems() {
+    return this.order().map((id) => this.get(id));
+  }
+
   /** @returns {string[]} The item ids, in thread order. */
   order() {
     return [...this.items.keys()];
@@ -1000,6 +1004,108 @@ test('a long message moves its list from answer to answer and leaves the others 
   assert.deepEqual(/** @type {any} */ (thread.get('m#3')).sources, []);
   assert.deepEqual(/** @type {any} */ (thread.get('m#21')).sources.map(({ id }) => id), ['s']);
   assert.deepEqual(thread.citing.get('m#3').map(({ id }) => id), ['s'], 'its citations still count them');
+});
+
+/* ------------------------------------------------------------------ what is already there -- */
+
+/** @param {any} thread The conversation as an application restores it. */
+function restore(thread) {
+  thread.upsert({ id: 'u1', type: 'user', text: 'Send the reminder' });
+  thread.upsert({
+    id: 'm', type: 'answer', author: 'agent', blocks: [{ type: 'p', text: 'Restored.' }],
+    steps: [{ id: 'think:m', kind: 'think', label: 'Thought', status: 'done' }, { id: 'c', kind: 'call', label: 'send', tool: 'send', status: 'waiting', args: '{}' }],
+    sources: [{ id: 's', kind: 'web', title: 'A source' }]
+  });
+  thread.upsert({ id: 'approval:a', type: 'approval', status: 'approved' });
+}
+
+test('a start takes a restored answer over and goes on below what stands under it', () => {
+  const { thread, log, play } = connect();
+  restore(thread);
+  play([
+    { type: 'start', messageId: 'm' }, { type: 'tool-output-available', toolCallId: 'c', output: 'sent' },
+    ...said('It is on its way.'), { type: 'source-url', sourceId: 't', url: 'https://example.com/' }, { type: 'finish' }
+  ]);
+  assert.deepEqual(thread.order(), ['u1', 'm', 'approval:a', 'm#2']);
+  const answer = /** @type {any} */ (thread.get('m'));
+  assert.deepEqual(answer.blocks, [{ type: 'p', text: 'Restored.' }], 'nothing it said is lost');
+  assert.deepEqual(answer.steps.map(({ id, status }) => [id, status]), [['think:m', 'done'], ['c', 'done']], 'one step for the call');
+  assert.deepEqual(/** @type {any} */ (thread.get('m#2')).sources.map(({ id }) => id), ['s', 't'], 'the numbering goes on');
+  assert.equal(/** @type {any} */ (thread.get('m#2')).streaming, false);
+  assert.deepEqual(log.error, []);
+});
+
+test('a restored answer with nothing below it goes on in the same answer, as a new paragraph', () => {
+  const { thread, play } = connect();
+  thread.upsert({ id: 'm', type: 'answer', blocks: [{ type: 'p', text: 'One.' }] });
+  play([{ type: 'start', messageId: 'm' }, ...said('Two.'), { type: 'finish' }]);
+  assert.deepEqual(thread.order(), ['m']);
+  assert.deepEqual(/** @type {any} */ (thread.get('m')).blocks.map((block) => block.text), ['One.', 'Two.']);
+});
+
+test('a restored message keeps its continuation and its tile', () => {
+  const { thread, log, play } = connect({ tools: { lookup: tile([]) } });
+  thread.upsert({ id: 'm', type: 'answer', blocks: [], steps: [{ id: 'c', kind: 'call', tool: 'lookup', label: 'lookup', status: 'running' }] });
+  thread.upsert({ id: 'tool:c', type: 'record-card', title: 'running' });
+  thread.upsert({ id: 'm#2', type: 'answer', blocks: [{ type: 'p', text: 'Two.' }], sources: [{ id: 's', kind: 'web', title: 'A source' }] });
+  play([{ type: 'start', messageId: 'm' }, { type: 'tool-output-available', toolCallId: 'c', output: 'ok' }, ...said('Three.'), { type: 'finish' }]);
+  assert.deepEqual(thread.order(), ['m', 'tool:c', 'm#2'], 'the tile is patched, not added again');
+  assert.deepEqual(/** @type {any} */ (thread.get('m#2')).blocks.map((block) => block.text), ['Two.', 'Three.']);
+  assert.equal(/** @type {any} */ (thread.get('tool:c')).title, 'done');
+  assert.deepEqual(log.error, []);
+});
+
+test('every restored answer can be taken over, one after the other', () => {
+  const { thread, play } = connect();
+  thread.upsert({ id: 'one', type: 'answer', blocks: [{ type: 'p', text: 'One.' }] });
+  thread.upsert({ id: 'two', type: 'answer', blocks: [{ type: 'p', text: 'Two.' }] });
+  play([{ type: 'start', messageId: 'one' }, { type: 'finish' }, { type: 'start', messageId: 'two' }, ...said('More.'), { type: 'finish' }]);
+  assert.deepEqual(thread.order(), ['one', 'two']);
+  assert.deepEqual(/** @type {any} */ (thread.get('two')).blocks.map((block) => block.text), ['Two.', 'More.']);
+});
+
+test('a connection after the first goes on with the answer the first one drew', () => {
+  const { thread, stream, play } = connect();
+  play([{ type: 'start', messageId: 'm' }, ...said('First.'), { type: 'finish' }]);
+  stream.destroy();
+  const next = connectUiMessageStream(/** @type {any} */ (thread), {});
+  for (const part of [{ type: 'start', messageId: 'm' }, ...said('Second.'), { type: 'finish' }]) next.handle(part);
+  assert.deepEqual(/** @type {any} */ (thread.get('m')).blocks.map((block) => block.text), ['First.', 'Second.']);
+});
+
+test('a start naming anything else opens an answer of its own and overwrites nothing', () => {
+  const { thread, log, play } = connect();
+  thread.upsert({ id: 'u1', type: 'user', text: 'Mine' });
+  play([
+    { type: 'start', messageId: 'u1' }, ...said('An answer.'), { type: 'finish' },
+    { type: 'start', messageId: 'held' },
+    { type: 'tool-input-available', toolCallId: 'c', toolName: 'lookup', input: {} },
+    { type: 'tool-approval-request', toolCallId: 'c', approvalId: 'a' },
+    { type: 'finish' },
+    { type: 'start', messageId: 'approval:a' }, ...said('Another.'), { type: 'finish' },
+    { type: 'start', messageId: 'u1' }, ...said('More.'), { type: 'finish' }
+  ]);
+  assert.equal(/** @type {any} */ (thread.get('u1')).type, 'user');
+  assert.equal(/** @type {any} */ (thread.get('approval:a')).status, 'pending');
+  const [, first, , , second, third] = thread.order();
+  assert.equal(/** @type {any} */ (thread.get(first)).blocks[0].text, 'An answer.');
+  assert.equal(/** @type {any} */ (thread.get(second)).blocks[0].text, 'Another.');
+  assert.equal(/** @type {any} */ (thread.get(third)).blocks[0].text, 'More.', 'that id still names the same message');
+  assert.deepEqual(log.error, []);
+});
+
+test('a continuation skips a number a real message holds, and a real message never takes one', () => {
+  const { thread, log, play } = connect({ tools: { lookup: tile([]) } });
+  play([
+    { type: 'start', messageId: 'm#2' }, ...said('A message of that name.'), { type: 'finish' },
+    { type: 'start', messageId: 'm' }, ...said('First.'), ...ran('c'), ...said('Continued.'), { type: 'finish' }
+  ]);
+  assert.deepEqual(thread.order(), ['m#2', 'm', 'tool:c', 'm#3']);
+  assert.equal(/** @type {any} */ (thread.get('m#2')).blocks[0].text, 'A message of that name.');
+  play([{ type: 'start', messageId: 'm#3' }, ...said('Another.'), { type: 'finish' }]);
+  assert.equal(/** @type {any} */ (thread.get('m#3')).blocks[0].text, 'Continued.');
+  assert.equal(thread.order().length, 5);
+  assert.deepEqual(log.error, []);
 });
 
 /* ------------------------------------------------------------------ reset-step -- */

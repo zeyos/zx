@@ -64,6 +64,12 @@ regenerated. Public files must not mention this spec.
     otherwise; a call of an earlier message still finds its step. During an open message it names no
     other message: streams merged into one each send their own, the message goes on, and only its
     metadata is taken.
+  - What already stands in the thread is never overwritten. A `start` for an answer the adapter did
+    not draw takes it over, whether it was restored with the conversation or drawn by a connection
+    before this one: the message goes on from its pieces, sources and steps, a call on one of its
+    steps finds that step, and what stands below decides where its next words go. A `start` naming
+    anything else, such as a person's message, a card, or a piece of another message, opens an answer
+    with an id of its own, and that id goes on naming it. A continuation skips a number in use.
   - `text-start`, `text-delta` and `text-end` stream through `thread.appendText`. Several text
     blocks in one message append to the same answer, unless stream order says otherwise (below).
     A block's id only names it while it is open: as on the AI SDK client, `text-end` frees the id,
