@@ -64,8 +64,9 @@ import { createValidationState, validateDocument, validateOp, validateValue } fr
 /**
  * The application's say over each action. It receives a copy of the action — its `id`, `label`,
  * `kind`, `tool` and `description` — and the surface as it stands, and decides what the action
- * needs. It is asked for every action except the built-in Cancel, which only closes. Anything it
- * returns that is not a decision counts as `confirm`; a policy that throws denies the action.
+ * needs. It is asked for every action except the built-in Cancel, which only closes. It answers
+ * synchronously: nothing waits for it, so a Promise denies the action, as a policy that throws
+ * does. Anything else it returns that is not a decision counts as `confirm`.
  * @typedef {(action: SurfaceAction, surface: SurfaceDocument) => PolicyDecision} SurfacePolicy
  */
 
@@ -2017,7 +2018,7 @@ function registerFields() {
 
 /**
  * What the policy decided, read strictly: anything but a decision asks for a confirmation, and a
- * policy that throws denies.
+ * policy that throws or returns a Promise denies.
  * @param {SurfacePolicy|null|undefined} policy @param {SurfaceAction} action @param {SurfaceDocument} doc
  * @returns {{level: PolicyLevel, confirmText?: string, message?: string}}
  */
@@ -2029,6 +2030,11 @@ function decide(policy, action, doc) {
   let result;
   try {
     result = policy(Object.freeze(copy), doc);
+    if (typeof result?.then === 'function') {
+      // Whatever it settles to arrives too late to decide anything, and must not go unhandled.
+      Promise.resolve(result).catch(() => {});
+      return { level: 'deny' };
+    }
   } catch {
     return { level: 'deny' };
   }

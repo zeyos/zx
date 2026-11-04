@@ -6762,6 +6762,35 @@ function surfaceSafetyCases() {
       assert(entered.count.replies[0]?.action === 'erase', 'Enter did not take the first primary action');
       entered.component.destroy();
     }),
+    // The policy is synchronous: nothing waits for a promise, so a promise allows nothing.
+    surfaceCase('Surface (a policy that returns a promise)', (fixture) => ({ fixture }), async ({ fixture }) => {
+      const policies = {
+        'resolved deny': async () => 'deny',
+        'resolved allow': async () => 'allow',
+        rejected: async () => { throw new Error('refused'); },
+        pending: () => new Promise(() => {}),
+        thenable: () => ({ then() {} })
+      };
+      for (const [name, policy] of Object.entries(policies)) {
+        const component = new zx.Surface(null, { document: surfaceDocument(), policy });
+        const count = countReplies(component);
+        fixture.append(component.toElement());
+        assert(!surfaceButton(component.el, 'submit'), `${name}: the action was drawn`);
+        assert(surfaceButton(component.el, 'cancel'), `${name}: the way out went with it`);
+        component.cancel();
+        assert(count.replies[0]?.removed?.includes('submit'), `${name}: the reply does not say it was removed`);
+        component.destroy();
+      }
+      // The object form of a decision stays: it is how a policy supplies the text to type.
+      const typed = new zx.Surface(null, { document: surfaceDocument(), policy: () => ({ level: 'type-to-confirm', confirmText: 'SEND' }) });
+      fixture.append(typed.toElement());
+      setSurfaceField(typed.el, 'name', 'Ada');
+      surfaceButton(typed.el, 'submit').click();
+      await delay(0);
+      assert(document.querySelector('dialog[open] .zx-dialog__confirm-label b')?.textContent === 'SEND', 'a decision object was not read');
+      typed.destroy();
+      await delay(20);
+    }),
     /* -- end of the safety cases -- */
   ];
 }
@@ -6953,6 +6982,23 @@ function agUiCases() {
       assert(problems.join() === 'unterminated-surface', `problems: ${problems}`);
       adapter.destroy();
     }),
+    surfaceCase('connectAgUi() (destroyed during a run)', () => ({
+      component: new zx.AgentThread(null, { authors: { finance: { name: 'Finance agent' } } }),
+      status: new zx.RunStatus(null, {}),
+      cleanup() { this.status.destroy(); }
+    }), ({ component: thread, status }) => {
+      const adapter = zx.connectAgUi(thread, { agent: 'finance', runStatus: status });
+      adapter.handle({ type: 'RUN_STARTED', threadId: 't', runId: 'r1' });
+      adapter.handle({ type: 'TEXT_MESSAGE_START', messageId: 'm' });
+      adapter.handle({ type: 'TEXT_MESSAGE_CONTENT', messageId: 'm', delta: 'Half' });
+      adapter.handle({ type: 'TOOL_CALL_START', toolCallId: 'c', toolCallName: 'ask_user' });
+      const feed = thread.el.querySelector('[role="feed"]');
+      assert(feed.getAttribute('aria-busy') === 'true', 'the run did not read as busy');
+      adapter.destroy();
+      assert(feed.getAttribute('aria-busy') === 'false', 'the feed reads as busy for ever');
+      assert(!thread.el.querySelector('[data-type="zx-placeholder"]'), 'a Skeleton was left standing');
+      assert(status.getState().state === 'stopped', `the run reads as ${status.getState().state}`);
+    }),
     surfaceCase('AgentThread (an application’s own surface and placeholder)', () => ({}), async () => {
       // `register()` has no undo, so this runs on a module instance of its own.
       const { AgentThread } = await import('../../src/components/agent-thread/agent-thread.js?own-surface');
@@ -6982,23 +7028,6 @@ function agUiCases() {
       if (!zx.AgentThread.has('smoke-company')) {
         zx.AgentThread.register('smoke-company', (item) => zx.h('p', { class: 'smoke-company' }, String(item.name ?? '')));
       }
-    surfaceCase('connectAgUi() (destroyed during a run)', () => ({
-      component: new zx.AgentThread(null, { authors: { finance: { name: 'Finance agent' } } }),
-      status: new zx.RunStatus(null, {}),
-      cleanup() { this.status.destroy(); }
-    }), ({ component: thread, status }) => {
-      const adapter = zx.connectAgUi(thread, { agent: 'finance', runStatus: status });
-      adapter.handle({ type: 'RUN_STARTED', threadId: 't', runId: 'r1' });
-      adapter.handle({ type: 'TEXT_MESSAGE_START', messageId: 'm' });
-      adapter.handle({ type: 'TEXT_MESSAGE_CONTENT', messageId: 'm', delta: 'Half' });
-      adapter.handle({ type: 'TOOL_CALL_START', toolCallId: 'c', toolCallName: 'ask_user' });
-      const feed = thread.el.querySelector('[role="feed"]');
-      assert(feed.getAttribute('aria-busy') === 'true', 'the run did not read as busy');
-      adapter.destroy();
-      assert(feed.getAttribute('aria-busy') === 'false', 'the feed reads as busy for ever');
-      assert(!thread.el.querySelector('[data-type="zx-placeholder"]'), 'a Skeleton was left standing');
-      assert(status.getState().state === 'stopped', `the run reads as ${status.getState().state}`);
-    }),
       const replies = [];
       thread.on('reply', (event) => replies.push(event.detail.reply));
       const results = [];
