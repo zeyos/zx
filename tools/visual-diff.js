@@ -494,7 +494,13 @@ async function launch(chromium) {
   try {
     // The signal handlers above end the process, and Playwright closes the browser on exit.
     return await chromium.launch({
-      channel: 'chrome', handleSIGINT: false, handleSIGTERM: false, handleSIGHUP: false
+      channel: 'chrome',
+      // GPU raster antialiases a rounded corner differently from one render to the next, even of
+      // the same tree. Software raster gives the same pixels every time.
+      args: ['--disable-gpu'],
+      handleSIGINT: false,
+      handleSIGTERM: false,
+      handleSIGHUP: false
     });
   } catch (error) {
     throw new Error(`Chrome could not start, is Google Chrome installed? ${error.message}`);
