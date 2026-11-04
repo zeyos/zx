@@ -7241,6 +7241,86 @@ function agUiCases() {
       assert(status() === 'Finance agent answered', `a question long since said silenced the thread: ${status()}`);
       adapter.destroy();
     }),
+    surfaceCase('connectAgUi() (the thread destroyed first)', () => ({}), () => {
+      const counts = { alive: 0, drawn: 0, asked: 0 };
+      if (!zx.AgentThread.has('smoke-tile')) {
+        zx.AgentThread.register('smoke-tile', (item, { own }) => {
+          window.__smokeTiles.alive += 1;
+          window.__smokeTiles.drawn += 1;
+          own(/** @type {any} */ ({ destroy() { window.__smokeTiles.alive -= 1; } }));
+          return zx.h('p', {}, 'Tile');
+        });
+      }
+      window.__smokeTiles = counts;
+      const thread = new zx.AgentThread(null, { authors: { finance: { name: 'Finance agent' } } });
+      const adapter = zx.connectAgUi(thread, {
+        agent: 'finance',
+        requiresApproval: () => true,
+        tools: { draw: () => { counts.asked += 1; return { type: 'smoke-tile' }; } }
+      });
+      adapter.handle({ type: 'RUN_STARTED', threadId: 't', runId: 'r1' });
+      adapter.handle({ type: 'TOOL_CALL_START', toolCallId: 'c', toolCallName: 'draw' });
+      adapter.handle({ type: 'TOOL_CALL_END', toolCallId: 'c' });
+      const { asked } = counts;
+      thread.destroy();
+      assert(counts.alive === 0, 'destroying the thread left a tile alive');
+      adapter.handle({ type: 'TEXT_MESSAGE_START', messageId: 'late' });
+      adapter.handle({ type: 'TEXT_MESSAGE_CONTENT', messageId: 'late', delta: 'Too late' });
+      adapter.destroy();
+      assert(counts.alive === 0, 'the adapter drew a tile into a destroyed thread');
+      assert(counts.asked === asked, 'the tile renderer was asked for a thread that is gone');
+      assert(thread.el.querySelectorAll('.zx-agent-thread__item').length === 0, 'something was drawn into a destroyed thread');
+      thread.upsert({ id: 'x', type: 'text', text: 'Too late' });
+      thread.appendText('y', 'Too late');
+      assert(thread.el.querySelectorAll('.zx-agent-thread__item').length === 0 && thread.get('x') === null, 'a destroyed thread took new items');
+      delete window.__smokeTiles;
+    }),
+    surfaceCase('AgentThread (an application’s own surface and placeholder)', () => ({}), async () => {
+      // `register()` has no undo, so this runs on a module instance of its own.
+      const { AgentThread } = await import('../../src/components/agent-thread/agent-thread.js?own-surface');
+      if (!AgentThread.has('surface')) AgentThread.register('surface', (item) => zx.h('p', { class: 'smoke-own-surface' }, String(item.label)));
+      if (!AgentThread.has('placeholder')) AgentThread.register('placeholder', (item) => zx.h('p', { class: 'smoke-own-placeholder' }, String(item.label)));
+      const thread = new AgentThread(null, { authors: { finance: { name: 'Finance agent' } }, items: [
+        { id: 'p', type: 'placeholder', label: 'Mine too' }
+      ] });
+      try {
+        thread.upsert({ id: 's', type: 'surface', label: 'Mine', document: { zx: 'surface/1', surface: 's', intent: 'confirm', title: 'Go?', root: [], nodes: [] } });
+        assert(thread.el.querySelector('.smoke-own-surface')?.textContent === 'Mine', 'the application’s surface renderer lost to the built-in');
+        assert(!thread.el.querySelector('.zx-surface') && thread.surface('s') === null, 'the library drew a surface over the application’s renderer');
+        assert(thread.el.querySelector('.smoke-own-placeholder')?.textContent === 'Mine too', 'the application’s placeholder type was not drawn');
+        await delay(100);
+        assert(!thread.el.querySelector('[role="status"]').textContent, 'an application’s surface was announced as waiting');
+      } finally {
+        thread.destroy();
+      }
+      // The library’s stand-in has its own name now, and draws a Skeleton for anyone who asks.
+      const library = new zx.AgentThread(null, { items: [{ id: 'q', type: 'zx-placeholder', lines: 3 }] });
+      assert(library.el.querySelector('article[data-type="zx-placeholder"] .zx-agent-thread__body[aria-busy="true"]'), 'the stand-in did not draw');
+      library.destroy();
+    }),
+    surfaceCase('AgentThread (items at a call’s place)', () => ({
+      component: new zx.AgentThread(null, { authors: { finance: { name: 'Finance agent' } } })
+    }), async ({ component: thread }) => {
+      if (!zx.AgentThread.has('smoke-company')) {
+        zx.AgentThread.register('smoke-company', (item) => zx.h('p', { class: 'smoke-company' }, String(item.name ?? '')));
+      }
+      const replies = [];
+      thread.on('reply', (event) => replies.push(event.detail.reply));
+      const results = [];
+      const adapter = zx.connectAgUi(thread, {
+        agent: 'finance',
+        tools: { show_company: (call) => (call.status === 'done' ? { type: 'smoke-company', name: JSON.parse(call.result).name } : null) },
+        requiresApproval: (call) => call.name === 'send',
+        ontoolresult: (id, result) => results.push([id, result])
+      });
+      const article = (id) => thread.el.querySelector(`article[data-id="${CSS.escape(id)}"]`);
+      const ids = () => [...thread.el.querySelectorAll('.zx-agent-thread__item')].map((item) => item.dataset.id);
+      const send = (...events) => events.forEach((event) => adapter.handle(event));
+      send({ type: 'RUN_STARTED', threadId: 't', runId: 'r1' },
+        { type: 'TOOL_CALL_START', toolCallId: 'c1', toolCallName: 'show_company' },
+        { type: 'TOOL_CALL_ARGS', toolCallId: 'c1', delta: '{"id":"helios"}' },
+        { type: 'TOOL_CALL_END', toolCallId: 'c1' },
+        { type: 'TOOL_CALL_START', toolCallId: 'c2', toolCallName: 'ask_user' },
         { type: 'TEXT_MESSAGE_START', messageId: 'm1' },
         { type: 'TEXT_MESSAGE_CONTENT', messageId: 'm1', delta: 'Looking that up' });
       assert(article('tool:c2')?.dataset.type === 'zx-placeholder' && article('tool:c2').querySelector('[aria-busy="true"] .zx-skeleton, [aria-busy="true"]'),

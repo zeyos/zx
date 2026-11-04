@@ -1057,6 +1057,48 @@ test('a tile on a gated call follows its card', () => {
   assert.deepEqual(seen, ['queued', 'waiting', 'done'], 'the renderer runs only when the status changes');
 });
 
+test('a tile follows its card, whatever status the renderer first answers at', () => {
+  const seen = [];
+  const { thread, play } = setup({
+    requiresApproval: (call) => call.name === 'show_company',
+    tools: { show_company: (call) => { seen.push(call.status); return { type: 'company-card', status: call.status }; } }
+  });
+  play([
+    { type: 'RUN_STARTED', threadId: 't', runId: 'r1' },
+    { type: 'TOOL_CALL_START', toolCallId: 'c0', toolCallName: 'lookup' },
+    { type: 'TOOL_CALL_END', toolCallId: 'c0' },
+    { type: 'TOOL_CALL_START', toolCallId: 'c1', toolCallName: 'show_company' },
+    { type: 'TOOL_CALL_END', toolCallId: 'c1' },
+    { type: 'TOOL_CALL_START', toolCallId: 'c2', toolCallName: 'lookup' },
+    { type: 'TOOL_CALL_END', toolCallId: 'c2' }
+  ]);
+  assert.deepEqual(seen, ['queued', 'waiting']);
+  assert.deepEqual(thread.order, ['trace:r1', 'approval:c1', 'tool:c1', 'trace:r1#2'], 'the card goes before the tile drawn earlier, and what follows goes after both');
+});
+
+test('a result for a surface still waiting closes it: no answer goes out for that call', () => {
+  const { thread, log, play } = setup();
+  play(run('r1', [...askCall('c1'), { type: 'TOOL_CALL_RESULT', toolCallId: 'c1', messageId: 't1', content: 'timed out' }]));
+  assert.deepEqual(log.errors, ['out-of-order']);
+  assert.equal(thread.step('trace:r1', 'c1').status, 'done');
+  assert.equal(thread.step('trace:r1', 'c1').result, 'timed out');
+  const surface = thread.surface('surface:r1/q');
+  assert.equal(surface.cancelled, 'stopped', 'its one reply is out, and it cannot be answered any more');
+  assert.deepEqual(log.results, []);
+  surface.answer('confirm');
+  assert.deepEqual(log.results, []);
+  assert.equal(log.status.at(-1).state, 'done');
+
+  // A result that follows an answer only fills the step.
+  const answered = setup();
+  answered.play(run('r1', askCall('c1')));
+  answered.thread.surface('surface:r1/q').answer('confirm');
+  answered.play(run('r2', [{ type: 'TOOL_CALL_RESULT', toolCallId: 'c1', messageId: 't1', content: 'sent' }]));
+  assert.deepEqual(answered.log.errors, []);
+  assert.equal(answered.log.results.length, 1);
+  assert.equal(answered.thread.surface('surface:r1/q').cancelled, null);
+});
+
 test('run end removes the stand-in of a call whose arguments never completed', () => {
   const { thread, log, play } = setup();
   play(run('r1', [{ type: 'TOOL_CALL_START', toolCallId: 'c1', toolCallName: 'ask_user' }, { type: 'TOOL_CALL_ARGS', toolCallId: 'c1', delta: '{' }]));

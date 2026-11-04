@@ -247,7 +247,8 @@ const OPEN_STATES = new Set(['queued', 'running', 'waiting']);
  *   A `tool_call` interrupt for a call `requiresApproval` let through gates it too; the
  *   application keeps each `interrupt.id` from the event for its `resume` entry. Every other
  *   interrupt is the application's: the event goes to `onunknown`. A result that arrives before
- *   the decision is drawn as it is, the card expires, and no decision is sent for that call.
+ *   the decision is drawn as it is, the card expires, and no decision is sent for that call; a
+ *   surface still waiting is cancelled the same way.
  * - A message id is the answer's item id. A start for a closed message or call reopens it, in this
  *   run or a later one, and its content continues: a reopened call is asked about again once its
  *   arguments are complete. A start for an id still open is ignored and reported.
@@ -344,14 +345,15 @@ export function connectAgUi(thread, options = {}) {
   /**
    * The item a call's next item goes after: the last item drawn for this call or an earlier call
    * of the same trace, else the trace itself.
-   * @param {Call} entry
+   * @param {Call} entry @param {string|null} [before] An item of the call to go before.
    * @returns {string}
    */
-  const anchorOf = (entry) => {
+  const anchorOf = (entry, before = null) => {
     let anchor = entry.traceId;
     for (const step of traces.get(entry.traceId) ?? []) {
       const other = calls.get(step.id);
-      if (other?.traceId === entry.traceId && other.items.length) anchor = /** @type {string} */ (other.items.at(-1));
+      const items = other?.traceId === entry.traceId ? other.items.filter((id) => id !== before) : [];
+      if (items.length) anchor = /** @type {string} */ (items.at(-1));
       if (step.id === entry.call.id) break;
     }
     return anchor;
@@ -432,10 +434,17 @@ export function connectAgUi(thread, options = {}) {
     entry.gated = true;
     const id = `approval:${entry.call.id}`;
     approvals.set(id, entry.call.id);
-    placeForCall(entry, /** @type {ThreadItem} */ ({
+    const card = /** @type {ThreadItem} */ ({
       id, type: 'approval', ...by(), title: thread.msg('agUi.approve', entry.call.name), status: 'pending',
       details: [{ type: 'code', language: 'json', code: pretty(entry.call.argsText) }]
-    }));
+    });
+    // A tile follows the card, also when the renderer answered before there was one.
+    if (entry.tileId) {
+      thread.upsert(card, { after: anchorOf(entry, entry.tileId) });
+      entry.items.splice(entry.items.indexOf(entry.tileId), 0, id);
+    } else {
+      placeForCall(entry, card);
+    }
     setStatus(entry, 'waiting', {}, { args: entry.call.argsText });
   };
 
@@ -488,7 +497,7 @@ export function connectAgUi(thread, options = {}) {
   /** @param {Call} entry */
   const renderTile = (entry) => {
     const render = tools[entry.call.name];
-    if (typeof render !== 'function') return;
+    if (typeof render !== 'function' || thread._destroyed) return;
     const id = `tool:${entry.call.id}`;
     try {
       const item = render(structuredClone(entry.call));
@@ -1039,6 +1048,11 @@ export function connectAgUi(thread, options = {}) {
     if (entry.gated && !entry.decided) {
       report('out-of-order', `Tool call "${entry.call.id}" has a result before the person decided; its approval expired`, { event });
       expire(entry);
+    }
+    if (entry.surfaceId && !entry.decided) {
+      report('out-of-order', `Tool call "${entry.call.id}" has a result before the person answered; its surface was cancelled`, { event });
+      entry.decided = true;
+      thread.surface(entry.surfaceId)?.cancel('stopped');
     }
     setStatus(entry, 'done', { result: structuredClone(content) }, { result: text, ...timing });
   };

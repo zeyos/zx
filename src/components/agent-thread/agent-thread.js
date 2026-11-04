@@ -585,7 +585,7 @@ export class AgentThread extends Component {
    * @returns {void}
    */
   _add(item, options = {}) {
-    if (!item || typeof item !== 'object' || item.id == null) return;
+    if (this._destroyed || !item || typeof item !== 'object' || item.id == null) return;
     const id = String(item.id);
     if (this._entries.has(id)) {
       this._replace(id, item);

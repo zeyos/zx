@@ -3486,7 +3486,8 @@ agents' answers as they stream (`BlockView` with a `SourceList`), the steps a ru
   the avatar stays beside the byline.
 - **Keyboard and semantics** — the APG feed pattern: each item is an `article` in a `role="feed"`
   with `aria-posinset`, `aria-setsize` and `aria-labelledby` its byline; PageDown and PageUp move
-  between articles; Ctrl+End and Ctrl+Home move focus past the end or before the start of the feed. A control inside an item keeps those keys: they move a caret, not the feed.
+  between articles; Ctrl+End and Ctrl+Home move focus past the end or before the start of the feed.
+  A control inside an item keeps those keys: they move a caret, not the feed.
   The feed is `aria-busy` while an answer streams. One polite status says when an agent starts
   writing, answers, needs approval, or is stopped — streamed text is never read aloud as it arrives.
 
@@ -3529,8 +3530,9 @@ source.onmessage = (message) => adapter.handle(JSON.parse(message.data));
   registered with `AgentThread.register()`. The renderer runs at each status change, never on an
   argument delta; its first item that is not `null` is inserted as `tool:<toolCallId>` at the
   call's place — after its trace and the items of earlier calls in it, even when text was drawn
-  below since — later items replace it in place, and the step links to it. A renderer that throws is
-  reported and the step stays as it was. Put arguments and results on the page as text.
+  below since — later items replace it in place, and the step links to it. A gated call's tile
+  follows its card. A renderer that throws is reported and the step stays as it was. Put arguments
+  and results on the page as text.
 - **Approvals** — a call `requiresApproval` answers truthy for waits at an ApprovalCard
   (`approval:<toolCallId>`); nothing is approved by default, so a check that throws or returns a
   Promise holds the call too. The decision is the call's result:
@@ -3540,7 +3542,7 @@ source.onmessage = (message) => adapter.handle(JSON.parse(message.data));
   interrupt for a call `requiresApproval` let through draws the card too; any other interrupt
   (`input_required`, `confirmation`, …) goes to `onunknown`. A result that arrives before the
   decision is drawn, the card expires, and no decision is sent; a result after a rejection only
-  fills the step.
+  fills the step. A result for a surface tool still waiting closes its surface the same way.
 - **Surfaces** — a call named in `surfaceTools` is an `ask` step and a surface at the call's place,
   a `zx-placeholder` until its arguments are complete; its reply, plus the surface's `errors` when there are any, is the call's
   result through `ontoolresult` — in AG-UI 1.0 a frontend tool, answered in the next run's input as
