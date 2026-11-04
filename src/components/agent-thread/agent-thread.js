@@ -444,14 +444,19 @@ export class AgentThread extends Component {
   }
 
   /**
-   * Removes an item.
+   * Removes an item. Focus inside it moves to the item above, or the one below when it was the
+   * first, so that a keyboard user is not thrown back to the top of the page.
    * @param {string} id
    * @returns {this}
    */
   remove(id) {
-    this._drop(String(id));
+    const key = String(id);
+    const index = this._order.indexOf(key);
+    const held = this._entries.get(key)?.article.contains(document.activeElement);
+    this._drop(key);
     this._syncPositions();
     this._syncEmpty();
+    if (held) this._entries.get(this._order[Math.max(0, index - 1)])?.article.focus({ preventScroll: true });
     return this;
   }
 

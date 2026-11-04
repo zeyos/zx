@@ -2378,6 +2378,7 @@ const cases = [
     assert(read({ emptyText: 'None', msg: { 'finder.noItems': 'Nichts' } }) === 'None', 'emptyText did not beat finder.noItems');
     assert(read({ emptyText: 'None', msg: { 'finder.empty': 'Leer' } }) === 'Leer', 'finder.empty did not beat emptyText');
   }),
+  componentCase('Text options (unset, null, text)', () => new zx.TreeView(null, { items: [] }), textOptionChecks),
   componentCase('Filter (operator labels)', () => {
     const eq = zx.filterOperators.find((operator) => operator.id === 'eq');
     return new zx.Filter(null, {
@@ -5892,6 +5893,132 @@ function rectSnapshot(element) {
   return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom };
 }
 
+/**
+ * What an application passes to a text option keeps its meaning. Unset reads the catalogue and text
+ * wins. Null means what it meant before the option's default moved to the catalogue: nothing shown
+ * where the component took the value as it came, and the default where it read `??` or `||`.
+ * @returns {Promise<void>}
+ */
+async function textOptionChecks() {
+  const read = (create, pick, options) => {
+    const component = create(options);
+    const text = pick(component);
+    component.destroy?.();
+    return text;
+  };
+  const engine = () => ({ create: () => ({ instance: {}, update() {}, resize() {}, destroy() {} }) });
+  const text = (selector) => (component) => component.el.querySelector(selector)?.textContent ?? null;
+  const named = (selector) => (component) => component.el.querySelector(selector)?.getAttribute('aria-label') ?? null;
+  const own = (component) => component.el.getAttribute('aria-label');
+  const fileList = (options) => new zx.FileList(null, options);
+  const activityList = (options) => new zx.ActivityList(null, options);
+  const tree = (options) => new zx.TreeView(null, { items: [], ...options });
+  const finder = (options) => new zx.Finder(null, { items: [], ...options });
+  const chart = (options) => new zx.Chart(null, { adapter: engine(), ...options });
+  const toolbar = (options) => new zx.Toolbar(null, { items: [{ label: 'A' }], ...options });
+  const board = (options) => new zx.KanbanView(null, {
+    fields: [{ id: 'title', label: 'Title' }], data: [{ id: 1, title: 'One', stage: 'a' }], recordId: 'id',
+    titleField: 'title', columnBy: 'stage', ...options
+  });
+  const sidebar = (options) => new zx.AppSidebar(null, { items: [{ id: 'a', label: 'A', icon: 'search' }], ...options });
+
+  // Option, component, what to read, unset, null.
+  const none = [
+    ['FileList.emptyText', 'emptyText', fileList, text('.zx-file-list__empty'), 'No files', ''],
+    ['FileList.loadingText', 'loadingText', (o) => fileList({ loading: true, ...o }), text('.zx-file-list__loading-label'), 'Loading files', ''],
+    ['ActivityList.emptyText', 'emptyText', activityList, text('.zx-activity-list__empty'), 'No activity yet', ''],
+    ['ActivityList.loadingText', 'loadingText', (o) => activityList({ loading: true, ...o }), text('.zx-activity-list__loading-label'), 'Loading activity', ''],
+    ['TreeView.emptyText', 'emptyText', tree, text('.zx-tree__empty'), 'Nothing to show', ''],
+    ['Finder.emptyText', 'emptyText', finder, text('.zx-finder__empty'), 'Empty', ''],
+    ['Chart.emptyText', 'emptyText', chart, (c) => c.refs.status.textContent, 'No chart data', ''],
+    ['Chart.loadingText', 'loadingText', (o) => chart({ loading: true, ...o }), (c) => c.refs.status.textContent, 'Loading chart…', ''],
+    ['Chart.errorText', 'errorText', chart, (c) => c.setError().refs.status.textContent, 'Unable to render chart', ''],
+    ['CopyInput.buttonTitle', 'buttonTitle', (o) => new zx.CopyInput(null, o), named('.zx-copy-button'), 'Copy', ''],
+    ['AppSidebar.label', 'label', sidebar, named('.zx-app-sidebar__nav'), 'Applications', null],
+    ['KanbanView.label', 'label', board, named('.zx-kanban-view__board'), 'Kanban board', null],
+    ['Toolbar.label', 'label', toolbar, own, 'Toolbar', ''],
+    ['Toolbar.overflowLabel', 'overflowLabel', toolbar, named('.zx-toolbar__overflow'), 'More', '']
+  ];
+  const fallsBack = [
+    ['FileList.label', 'label', fileList, own, 'Files'],
+    ['ActivityList.label', 'label', activityList, own, 'Activity'],
+    ['TreeView.label', 'label', tree, own, 'Tree'],
+    ['Chart.label', 'label', chart, (c) => c.refs.canvas.getAttribute('aria-label'), 'Chart'],
+    ['Rating.label', 'label', (o) => new zx.Rating(null, o), named('.zx-rating__symbols'), 'Rating'],
+    ['CodeEditor.label', 'label', (o) => new zx.CodeEditor(null, o), named('textarea'), 'Code editor'],
+    ['MultiValueEditor.addLabel', 'addLabel', (o) => new zx.MultiValueEditor(null, o), text('.zx-multi-value-editor__add'), 'Add value'],
+    ['SplitView.label', 'label', (o) => new zx.SplitView(null, o), named('[role="separator"]'), 'Resize panes']
+  ];
+  for (const [name, option, create, pick, unset, cleared] of none) {
+    assert(read(create, pick, {}) === unset, `${name}: unset did not read the catalogue`);
+    assert(read(create, pick, { [option]: null }) === cleared, `${name}: null no longer means none`);
+    assert(read(create, pick, { [option]: 'Mine' }) === 'Mine', `${name}: an application's text did not win`);
+  }
+  for (const [name, option, create, pick, unset] of fallsBack) {
+    assert(read(create, pick, {}) === unset, `${name}: unset did not read the catalogue`);
+    assert(read(create, pick, { [option]: null }) === unset, `${name}: null no longer means the default`);
+    assert(read(create, pick, { [option]: 'Mine' }) === 'Mine', `${name}: an application's text did not win`);
+  }
+
+  const direction = (options) => read((o) => new zx.SortControl(null, { fields: [{ id: 'a', label: 'A' }], ...o }),
+    (component) => component.el.querySelector('[data-direction]').getAttribute('aria-label'), options);
+  assert(direction({}) === 'Sort by: Ascending', 'SortControl.label: unset did not read the catalogue');
+  assert(direction({ label: null }) === 'Ascending', 'SortControl.label: null no longer means none');
+  assert(direction({ label: 'Order' }) === 'Order: Ascending', "SortControl.label: an application's text did not win");
+
+  const title = (options) => zx.copyButton(options).getAttribute('aria-label');
+  assert(title({}) === 'Copy' && title({ title: null }) === '' && title({ title: 'Mine' }) === 'Mine',
+    'copyButton.title changed its meaning');
+
+  const anchored = (options) => {
+    const root = document.createElement('div');
+    root.className = 'zx-prose';
+    root.innerHTML = '<h2 id="one">One</h2>';
+    const anchors = zx.proseAnchors(root, options);
+    const link = root.querySelector('a');
+    const result = [link.getAttribute('aria-label'), link.title];
+    anchors.destroy();
+    return result.join('|');
+  };
+  assert(anchored({}) === 'Copy link to One|Copy link', 'proseAnchors: unset did not read the catalogue');
+  assert(anchored({ label: null, title: null }) === '|', 'proseAnchors: null no longer means none');
+
+  const element = (tag) => {
+    const node = document.createElement(tag);
+    document.body.append(node);
+    return node;
+  };
+  const settled = () => new Promise((resolve) => { setTimeout(resolve, 0); });
+  const chartElement = element('zx-smoke-chart');
+  const status = () => chartElement.querySelector('[role="status"]').textContent;
+  assert(status() === 'No chart data', '<zx-chart>: unset did not read the catalogue');
+  chartElement.setAttribute('empty-text', 'Nothing yet');
+  await settled();
+  assert(status() === 'Nothing yet', '<zx-chart>: empty-text did not win');
+  chartElement.removeAttribute('empty-text');
+  await settled();
+  assert(status() === 'No chart data', '<zx-chart>: removing empty-text did not restore the default');
+  chartElement.emptyText = null;
+  await settled();
+  assert(status() === '', '<zx-chart>: null no longer means none');
+  chartElement.remove();
+  const treeElement = element('zx-smoke-tree');
+  assert(treeElement.textContent === 'Nothing to show', '<zx-tree>: unset did not read the catalogue');
+  treeElement.emptyText = null;
+  await settled();
+  assert(treeElement.textContent === '', '<zx-tree>: null no longer means none');
+  treeElement.remove();
+  const boardElement = element('zx-smoke-kanban-view');
+  const boardName = () => boardElement.querySelector('.zx-kanban-view__board').getAttribute('aria-label');
+  assert(boardName() === 'Kanban board', '<zx-kanban-view>: unset did not read the catalogue');
+  boardElement.setAttribute('label', 'Pipeline');
+  await settled();
+  boardElement.removeAttribute('label');
+  await settled();
+  assert(boardName() === 'Kanban board', '<zx-kanban-view>: removing label did not restore the default');
+  boardElement.remove();
+}
+
 /** @returns {SmokeDefinition} */
 function customElementsCase() {
   zx.defineElements('zx-smoke');
@@ -7004,7 +7131,21 @@ function uiMessageStreamCases() {
       assert(feed(root).join() === 'm,tool:kept,m#2', `feed: ${feed(root)}`);
       assert(paragraphs(root, 'm#2').join() === 'The retry.', `the retry reads: ${paragraphs(root, 'm#2')}`);
       assert(paragraphs(root, 'm').join() === 'Kept above the tile.', 'the step before changed');
-    }, { tools: { lookup: tile } })
+    }, { tools: { lookup: tile } }),
+
+    replay('AgentThread (stream: focus leaves a withdrawn card for the answer above it)', ({ root, play }) => {
+      play([
+        { type: 'start', messageId: 'm' },
+        { type: 'text-start', id: 'a' },
+        { type: 'text-delta', id: 'a', delta: 'Kept.' },
+        { type: 'start-step' },
+        { type: 'tool-input-available', toolCallId: 'c', toolName: 'lookup', input: {} },
+        { type: 'tool-approval-request', toolCallId: 'c', approvalId: 'a' }
+      ]);
+      /** @type {HTMLButtonElement} */ (root.querySelector('.zx-approval-card__actions button')).focus();
+      play([{ type: 'reset-step' }]);
+      assert(document.activeElement === article(root, 'm'), `focus went to ${document.activeElement?.tagName}`);
+    })
   ];
 }
 

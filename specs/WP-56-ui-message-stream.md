@@ -105,6 +105,7 @@ regenerated. Public files must not mention this spec.
     `runStatus` returns to `running`, or to `waiting` while an earlier card still waits.
   - What already went out stays with the application: `ondata`, `onmetadata` and `onapproval` cannot
     be recalled, and the adapter has no callback that says so.
+  - Focus inside a withdrawn item moves to the item above it, as for any item the thread removes.
   - Outside a message it draws nothing and is reported through `onerror`.
 - **Out of order:** a delta arriving outside its block creates the item, and a `start` for a message
   still open is ignored. A `start` for another message stops the open one, which nothing else can
