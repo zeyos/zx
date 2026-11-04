@@ -83,6 +83,7 @@ const AGENT_THREAD_ATTRS = attributes({
   'user-actions': rebuiltData([]),
   'trace-icons': rebuiltData({}),
   'source-icons': rebuiltData({}),
+  'surface-options': rebuiltData({}),
   now: rebuiltProp(),
   'format-time': rebuiltProp(),
   locale: rebuiltText(),
@@ -351,9 +352,9 @@ export const KIT_ELEMENTS = Object.freeze([
     attrs: AGENT_THREAD_ATTRS,
     methods: forward(
       'setItems', 'upsert', 'patch', 'appendText', 'appendBlock', 'announce', 'remove', 'get', 'getItems',
-      'getComponent', 'reveal', 'setArtifactState', 'scrollToEnd'
+      'getComponent', 'surface', 'reveal', 'setArtifactState', 'scrollToEnd'
     ),
-    events: ['action', 'approve', 'edit', 'reject', 'cite', 'artifact', 'reveal', 'open']
+    events: ['action', 'approve', 'edit', 'reject', 'cite', 'artifact', 'reveal', 'open', 'reply']
   }],
   ['composer', Composer, {
     attrs: COMPOSER_ATTRS,

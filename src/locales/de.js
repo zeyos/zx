@@ -61,6 +61,16 @@ export const de = Object.freeze({
   'agentThread.edit': 'Nachricht bearbeiten',
   'agentThread.copyMessage': 'Nachricht kopieren',
 
+  'agUi.approve': '%1 ausführen?',
+  'agUi.asked': 'Hat um Ihre Antwort gebeten',
+  'agUi.called': '%1 aufgerufen',
+  'agUi.calling': '%1 wird aufgerufen',
+  'agUi.runFailed': 'Die Ausführung ist fehlgeschlagen',
+  'agUi.runFailedWith': 'Die Ausführung ist fehlgeschlagen: %1',
+  'agUi.showTile': 'In der Unterhaltung anzeigen',
+  'agUi.thinking': 'Denkt nach',
+  'agUi.thought': '%1 nachgedacht',
+
   'appRail.subNavigation': 'Unternavigation %1',
 
   'appSidebar.expand': 'Seitenleiste der Anwendung ausklappen',
@@ -311,6 +321,15 @@ export const de = Object.freeze({
   'listToolbar.views': 'Ansicht',
   'listToolbar.viewTable': 'Tabelle',
 
+  'mcp.askedBy': 'Angefragt von %1',
+  'mcp.decline': 'Ablehnen',
+  'mcp.urlAddress': 'Vollständige Adresse: %1',
+  'mcp.urlHost': 'Die Seite liegt auf %1.',
+  'mcp.urlInternational': 'Diese Adresse enthält einen internationalisierten Domainnamen, der einem anderen zum Verwechseln ähnlich sehen kann. Prüfen Sie den Host, bevor Sie die Seite öffnen.',
+  'mcp.urlNote': 'Die Seite öffnet sich in einem neuen Tab. Aus dieser Anwendung werden keine Daten an sie gesendet.',
+  'mcp.urlOpen': 'Seite öffnen',
+  'mcp.urlTitle': 'Seite einer anderen Website öffnen?',
+
   'message.close': 'Meldung schließen',
   'message.closeTitle': 'Schließen',
 
@@ -551,5 +570,49 @@ export const de = Object.freeze({
 
   'workspaceSwitcher.heading': 'Arbeitsbereiche',
   'workspaceSwitcher.label': 'Arbeitsbereich wechseln: %1',
-  'workspaceSwitcher.labelEmpty': 'Arbeitsbereich wechseln'
+  'workspaceSwitcher.labelEmpty': 'Arbeitsbereich wechseln',
+
+  'surface.byline': 'Erstellt von %1',
+  'surface.submit': 'Absenden',
+  'surface.cancel': 'Abbrechen',
+  'surface.confirm': 'Bestätigen',
+  'surface.approve': 'Auswahl genehmigen',
+  'surface.reject': 'Ablehnen',
+  'surface.decline': 'Ablehnen',
+  'surface.fallback': 'Dieser Teil konnte nicht angezeigt werden',
+  'surface.choiceRequired': 'Wählen Sie eine Antwort aus, um fortzufahren.',
+  'surface.noAnswer': 'Keine Antwort',
+  'surface.yes': 'Ja',
+  'surface.no': 'Nein',
+  'surface.selected': 'Ausgewählt',
+  'surface.field': 'Feld',
+  'surface.before': 'Vorher',
+  'surface.after': 'Nachher',
+  'surface.dataTable': 'Datentabelle',
+  'surface.requested': 'Angefragte Informationen',
+  'surface.submitted': 'Abgesendet',
+  'surface.confirmed': 'Bestätigt',
+  'surface.approved': 'Genehmigt',
+  'surface.rejected': 'Abgelehnt',
+  'surface.cancelled': 'Abgebrochen',
+  'surface.dismissed': 'Geschlossen',
+  'surface.chose': '„%1“ gewählt',
+  'surface.verdictAt': '%1, %2',
+  'surface.typeToConfirm': 'bestätigen',
+  'surface.choose': 'Auswählen…',
+
+  'questionnaire.rule.minLength': 'Geben Sie mindestens %1 Zeichen ein.',
+  'questionnaire.rule.maxLength': 'Geben Sie höchstens %1 Zeichen ein.',
+  'questionnaire.rule.minItems': 'Wählen Sie mindestens %1 aus.',
+  'questionnaire.rule.maxItems': 'Wählen Sie höchstens %1 aus.',
+  'questionnaire.rule.minimum': 'Geben Sie eine Zahl ab %1 ein.',
+  'questionnaire.rule.maximum': 'Geben Sie eine Zahl bis %1 ein.',
+  'questionnaire.rule.oneOf': 'Wählen Sie eine der angebotenen Antworten aus.',
+  'questionnaire.rule.date': 'Geben Sie ein Datum im Format JJJJ-MM-TT ein.',
+  'questionnaire.rule.dateTime': 'Geben Sie Datum und Uhrzeit im Format JJJJ-MM-TTTHH:MM ein.',
+  'questionnaire.rule.time': 'Geben Sie eine Uhrzeit im Format HH:MM ein.',
+  'questionnaire.rule.email': 'Geben Sie eine E-Mail-Adresse ein.',
+  'questionnaire.rule.uri': 'Geben Sie eine vollständige Adresse ein, etwa https://example.com.',
+
+  'agentThread.needsAnswer': '%1 wartet auf Ihre Antwort'
 });

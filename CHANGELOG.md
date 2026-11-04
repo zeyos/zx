@@ -10,6 +10,28 @@ and friends remain the complete record.
 
 ### Added
 
+- **Surface** — an agent composes an answer or a dialog as JSON, whole or streamed, and Zx validates
+  and draws it with library components: `show`, `ask`, `choose`, `confirm`, `review` and
+  `questionnaire` intents, tables, charts, conditional fields and a review of proposed changes.
+  Model output is data, never code or markup. No URL from a model is loaded. The application's
+  `policy()` decides how each action is confirmed, and nothing in a surface can lower that. Every
+  surface ends in exactly one reply, which carries the application's `token`, and stays as a
+  read-only receipt. `openSurface()`, `elicit()` and `surfaceText()` go with it, and AgentThread
+  draws `surface` items (`thread.surface(id)`, the `reply` event).
+- **`narrowCatalog()`, `surfaceSchema()`, `surfaceTools()` and `surfacePrompt()`** — generate a
+  model's prompt, schema and tool definitions at runtime, from all of the catalog or a narrowed
+  part of it. `catalog.js` imports without a DOM, so a server can use it. Model output reaches a
+  surface as operation lines, as a tool call's arguments, or in a fence in the answer text, split
+  out by `inlineSplitter()`.
+- **`connectAgUi(thread, options)`** and `AG_UI_VERSION` — draw an AG-UI 1.0 event stream in an
+  AgentThread: run status, answers, trace steps, approvals, the application's own tiles, surfaces
+  and JSON Patch state, with reasoning kept private. The application keeps the transport.
+- **`elicitationHandler()`** and `MCP_ELICITATION_VERSION` — MCP elicitation 2026-07-28, also
+  accepting 2025-11-25. Form mode goes through `elicit()`; URL mode asks first, naming the host.
+- **Questionnaire** `when`, `next` and `validate` accept plain-JSON forms beside functions:
+  conditions with `all`, `any` and `not`, first-match `next` with `$review` and `$submit`, and rule
+  lists.
+- **AgentThread** `upsert(item, {after})` places a new item after another.
 - **Custom elements for the agent kit and the data views** — `<zx-agent-thread>`,
   `<zx-composer>`, `<zx-block-view>`, `<zx-run-trace>`, `<zx-approval-card>`, `<zx-source-list>`,
   `<zx-run-status>`, `<zx-card-view>`, `<zx-kanban-view>`, `<zx-tree>` and `<zx-chart>`. Data options
@@ -41,6 +63,13 @@ and friends remain the complete record.
 
 - The `ai-chat` layout's empty state uses PromptStarters, and focus moves to the composer after a
   pick.
+- PageUp, PageDown and Ctrl+Home/End inside a control in a thread item stay with the control.
+- An answer finishing no longer drowns out "needs your approval" or "needs your answer".
+
+### Fixed
+
+- `AgentThread.remove()` gives the next item its byline back when it now starts a turn.
+- A destroyed AgentThread takes no more items.
 
 ## 5.6.0 — 2026-11-03
 
