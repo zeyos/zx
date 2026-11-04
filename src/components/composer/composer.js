@@ -3,11 +3,16 @@ import { Component } from '../../core/component.js';
 import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
 import { formatFileSize } from '../../core/format.js';
 import { ICON_SIZE, icon } from '../../core/icons.js';
+import { rovingTabindex } from '../../core/keyboard.js';
 import { position } from '../../core/position.js';
 import { storage } from '../../core/storage.js';
 import { uid } from '../../core/util.js';
+import { Dialog } from '../dialog/dialog.js';
 import { keyLabels } from '../kbd/kbd.js';
 import { Launcher } from '../launcher/launcher.js';
+import {
+  addToQueue, emptyQueue, isQueueFull, queueLimit, removeFromQueue, takeNext
+} from './queue.js';
 
 /** @typedef {import('../launcher/launcher.js').LauncherItem} LauncherItem */
 
@@ -77,6 +82,31 @@ import { Launcher } from '../launcher/launcher.js';
  * @property {File[]} files Attached files, in the order they were added.
  * @property {MentionItem[]} mentions The picked mentions whose `@<label>` is still in the text.
  * @property {ContextChip[]} context The context chips.
+ * @property {boolean} [queued] `true` on a message that waited in the queue. Absent otherwise.
+ */
+
+/**
+ * A message waiting for the agent to finish. Everything it carries was taken when it was queued,
+ * so it is sent as it was written.
+ * @typedef {Object} QueuedMessage
+ * @property {string} id Stable identifier, for `removeQueued()`.
+ * @property {string} text The message, trimmed.
+ * @property {File[]} files Attached files, in the order they were added.
+ * @property {MentionItem[]} mentions The picked mentions whose `@<label>` is in the text.
+ * @property {ContextChip[]} context The context chips when it was queued.
+ */
+
+/**
+ * @typedef {Object} ComposerQueueDetail
+ * @property {QueuedMessage} item The message added.
+ * @property {QueuedMessage[]} items The whole queue, in order, the message added included.
+ */
+
+/**
+ * @typedef {Object} ComposerDequeueDetail
+ * @property {QueuedMessage} item The message that left the queue.
+ * @property {QueuedMessage[]} items What is left of the queue, in order.
+ * @property {'sent'|'removed'|'edited'|'cleared'} reason Why it left.
  */
 
 /**
@@ -96,6 +126,11 @@ import { Launcher } from '../launcher/launcher.js';
  * @property {'enter'|'mod+enter'} [submitKey='enter'] `'enter'`: Enter sends and Shift+Enter breaks
  * the line. `'mod+enter'`: Cmd+Enter (Ctrl+Enter elsewhere) sends and Enter breaks the line.
  * @property {boolean} [busy=false] Whether an agent is working: Send becomes Stop.
+ * @property {boolean} [queue=false] Whether the send key holds a message back while the agent works.
+ * It is sent when the agent is no longer busy, one message each time busy ends, in order. The queue
+ * lives as long as the composer: it is not kept with the draft.
+ * @property {number} [queueLimit=10] Most messages that wait at once. At the limit the send key is
+ * refused, and the hint says why.
  * @property {boolean} [disabled=false] Whether the composer takes no input.
  * @property {boolean} [attachments=false] Whether files can be attached: an Attach button, paste,
  * and drop.
@@ -129,6 +164,10 @@ import { Launcher } from '../launcher/launcher.js';
  * @property {(event: CustomEvent<{item: MentionItem}>) => void} [onmention] Mention listener.
  * @property {(event: CustomEvent<{item: LauncherItem}>) => void} [oncommand] Command listener.
  * @property {(event: CustomEvent<ComposerToolDetail>) => void} [ontool] Tool listener.
+ * @property {(event: CustomEvent<ComposerQueueDetail>) => void} [onqueue] Listener for a message being
+ * queued.
+ * @property {(event: CustomEvent<ComposerDequeueDetail>) => void} [ondequeue] Listener for a message
+ * leaving the queue.
  * @property {(event: CustomEvent<Record<string, never>>) => void} [onhistoryprevious] Listener for
  * ArrowUp on an empty text.
  */
@@ -146,7 +185,17 @@ const MESSAGES = Object.freeze({
   'composer.matches': '%1 suggestions',
   'composer.commands': 'Commands',
   'composer.commandsPlaceholder': 'Search commands',
-  'composer.drop': 'Drop files to attach'
+  'composer.drop': 'Drop files to attach',
+  'composer.queue': 'Queued (%1)',
+  'composer.queued': 'Queued; sends when the agent finishes',
+  'composer.queueEdit': 'Edit',
+  'composer.queueFile': '1 file',
+  'composer.queueFiles': '%1 files',
+  'composer.queueFull': 'Queue full (limit %1)',
+  'composer.queueRemove': 'Remove',
+  'composer.queueReplaceConfirm': 'Replace',
+  'composer.queueReplaceMessage': 'The queued message takes its place in the message box.',
+  'composer.queueReplaceTitle': 'Replace what you have written?'
 });
 
 /** Namespace the drafts are stored under. */
@@ -316,7 +365,8 @@ export function normalizeTools(tools) {
  * A message box for talking to an agent: a text that grows with what is written, Send (Stop while
  * the agent works), attachments, `@` mentions, `/` commands, and context chips. It keeps nothing
  * but the unsent message: sending hands the text, files, mentions and context to the application,
- * which owns the conversation.
+ * which owns the conversation. With `queue`, a message written while the agent works waits here
+ * until it is no longer busy.
  *
  * @fires Composer#send
  * @fires Composer#stop
@@ -326,6 +376,8 @@ export function normalizeTools(tools) {
  * @fires Composer#mention
  * @fires Composer#command
  * @fires Composer#tool
+ * @fires Composer#queue
+ * @fires Composer#dequeue
  * @fires Composer#historyprevious
  * @extends {Component<ComposerOptions>}
  */
@@ -339,6 +391,8 @@ export class Composer extends Component {
     value: '',
     submitKey: 'enter',
     busy: false,
+    queue: false,
+    queueLimit: 10,
     disabled: false,
     attachments: false,
     accept: '',
@@ -386,6 +440,18 @@ export class Composer extends Component {
     this._width = 0;
     /** What the Send button last drew: mode, send key and label, so it redraws only on a change. */
     this._sendDrawn = '';
+    /** @type {QueuedMessage[]} Session state: never saved with the draft. */
+    this._queue = [];
+    this._queueLimit = queueLimit(options.queueLimit);
+    /** Whether the send key was refused at the limit, which the hint then says. */
+    this._queueRefused = false;
+    /** @type {{destroy: () => void}[]} The keyboard of each queued row. */
+    this._queueRoving = [];
+    /** Whether a queued message is being sent, and whether busy ended again meanwhile. */
+    this._sendingQueued = false;
+    this._busyEndedAgain = false;
+    /** The application's hint, which `_syncHint()` shows unless the queue has something to say. */
+    this._hint = String(options.hint ?? '');
     this._mentionSource = normalizeMentionSource(options.mentions);
     this._commands = Array.isArray(options.commands) && options.commands.length ? options.commands : null;
     this._draft = options.draftKey ? storage(DRAFT_NAMESPACE) : null;
@@ -431,7 +497,12 @@ export class Composer extends Component {
       ref: 'send', type: 'button', class: 'zx-icon-btn zx-composer__send'
     }));
     const hint = h('span', { ref: 'hint', class: 'zx-composer__hint', hidden: !options.hint }, String(options.hint ?? ''));
+    const queueLabelId = uid('zx-composer-queue');
+    const queue = options.queue ? h('div', { ref: 'queue', class: 'zx-composer__queue', hidden: true },
+      h('span', { ref: 'queueLabel', class: 'zx-composer__queue-label', id: queueLabelId }),
+      h('ol', { ref: 'queueList', class: 'zx-composer__queue-list', 'aria-labelledby': queueLabelId })) : null;
     const frame = h('div', { ref: 'frame', class: 'zx-composer__frame' },
+      queue,
       context,
       files,
       input,
@@ -485,6 +556,10 @@ export class Composer extends Component {
     if (commands) this.listen(commands, 'click', () => this._openCommands());
     this.listen(tools, 'click', (event) => this._onToolClick(/** @type {MouseEvent} */ (event)));
     this.listen(frame, 'click', (event) => this._onChipClick(/** @type {MouseEvent} */ (event)));
+    if (queue) {
+      this.listen(this.refs.queueList, 'click', (event) => this._onQueueClick(/** @type {MouseEvent} */ (event)));
+      this.listen(this.refs.queueList, 'keydown', (event) => this._onQueueKeydown(/** @type {KeyboardEvent} */ (event)));
+    }
     // The suggestions keep the focus in the text: a press picks without blurring it.
     this.listen(list, 'mousedown', (event) => event.preventDefault());
     this.listen(list, 'click', (event) => {
@@ -578,13 +653,18 @@ export class Composer extends Component {
   }
 
   /**
-   * Shows Stop in place of Send while an agent works; Escape in the text then emits `stop`.
+   * Shows Stop in place of Send while an agent works; Escape in the text then emits `stop`. When
+   * busy ends, the first queued message is sent; the next waits for the next time it ends.
    * @param {boolean} busy
    * @returns {this}
+   * @fires Composer#send
+   * @fires Composer#dequeue
    */
   setBusy(busy) {
+    const ended = this._busy && !busy;
     this._busy = Boolean(busy);
     this._syncSend();
+    if (ended) this._sendNextQueued();
     return this;
   }
 
@@ -600,9 +680,8 @@ export class Composer extends Component {
    * @returns {this}
    */
   setHint(text) {
-    const hint = /** @type {HTMLElement} */ (this.refs.hint);
-    hint.textContent = String(text ?? '');
-    hint.hidden = !hint.textContent;
+    this._hint = String(text ?? '');
+    this._syncHint();
     return this;
   }
 
@@ -739,10 +818,51 @@ export class Composer extends Component {
     return this._context.map((chip) => ({ ...chip }));
   }
 
-  /** Removes what the composer drew and the launcher it opened, and stops listening. @returns {void} */
+  /** @returns {QueuedMessage[]} Copies of the queued messages, the next to be sent first. */
+  getQueue() {
+    return this._queue.map(copyQueued);
+  }
+
+  /**
+   * Removes every queued message. Emits `dequeue` for each, with `reason: 'cleared'`. Stop does not
+   * do this: call it from a `stop` listener to drop what was waiting along with the run.
+   * @returns {this}
+   * @fires Composer#dequeue
+   */
+  clearQueue() {
+    const { queue, items } = emptyQueue(this._queue);
+    if (!items.length) return this;
+    this._queue = queue;
+    this._renderQueue();
+    for (const item of items) this._emitDequeue(item, 'cleared');
+    return this;
+  }
+
+  /**
+   * Removes one queued message. Emits `dequeue` with `reason: 'removed'`. An id that is not queued,
+   * because the message has been sent, say, changes nothing.
+   * @param {string} id
+   * @returns {this}
+   * @fires Composer#dequeue
+   */
+  removeQueued(id) {
+    const { queue, item } = removeFromQueue(this._queue, String(id));
+    if (!item) return this;
+    this._queue = queue;
+    this._renderQueue();
+    this._emitDequeue(item, 'removed');
+    return this;
+  }
+
+  /**
+   * Removes what the composer drew and the launcher it opened, drops the queue, and stops listening.
+   * @returns {void}
+   */
   destroy() {
     if (this._destroyed) return;
     this._destroyed = true;
+    this._queue = [];
+    this._releaseQueueRoving();
     this._mentionSequence += 1;
     this._observer?.disconnect();
     this._observer = null;
@@ -843,19 +963,33 @@ export class Composer extends Component {
 
   /* ------------------------------------------------------------- send/stop -- */
 
-  /** @private @returns {void} @fires Composer#send */
-  _send() {
-    if (this._disabled || this._busy) return;
+  /**
+   * The message as it stands in the composer, or null when there is nothing to send.
+   * @private
+   * @returns {ComposerSendDetail|null}
+   */
+  _message() {
     const text = this._input.value.trim();
     const files = this.getFiles();
-    if (!text && !files.length) return;
+    if (!text && !files.length) return null;
     const trigger = this._mentionSource?.trigger ?? '@';
-    const detail = {
+    return {
       text,
       files,
       mentions: mentionsInText(text, this._mentions, trigger).map((item) => ({ ...item })),
       context: this.getContext()
     };
+  }
+
+  /** @private @returns {void} @fires Composer#send @fires Composer#queue */
+  _send() {
+    if (this._disabled) return;
+    if (this._busy) {
+      if (this.options.queue) this._enqueue();
+      return;
+    }
+    const detail = this._message();
+    if (!detail) return;
     const event = this.emit('send', detail, { honorDomCancellation: true });
     if (event.defaultPrevented || this._destroyed) return;
     this.clear();
@@ -896,6 +1030,13 @@ export class Composer extends Component {
     // Never disabled while the composer is live: a disabled button drops the focus it holds.
     const empty = !this._input.value.trim() && !this._files.length;
     button.setAttribute('aria-disabled', String(!busy && empty));
+  }
+
+  /** The quiet text beside Send: why the queue refused, else the application's. @private @returns {void} */
+  _syncHint() {
+    const hint = /** @type {HTMLElement} */ (this.refs.hint);
+    hint.textContent = this._queueRefused ? this.msg('composer.queueFull', this._queueLimit) : this._hint;
+    hint.hidden = !hint.textContent;
   }
 
   /** Disabled state on the text and the buttons. @private @returns {void} */
@@ -1118,12 +1259,226 @@ export class Composer extends Component {
    * Sets the polite status, once per change.
    * @private
    * @param {string} text
+   * @param {boolean} [again=false] Whether the same text is news again: a no-break space then tells
+   * it apart from the last time, because a live region says nothing about a text that did not change.
    * @returns {void}
    */
-  _announce(text) {
-    if (text === this._announced) return;
-    this._announced = text;
-    this.refs.status.textContent = text;
+  _announce(text, again = false) {
+    const spoken = again && text === this._announced ? `${text}\u00A0` : text;
+    if (spoken === this._announced) return;
+    this._announced = spoken;
+    this.refs.status.textContent = spoken;
+  }
+
+  /* ----------------------------------------------------------------- queue -- */
+
+  /**
+   * Holds the message back until the agent is no longer busy, or refuses it at the limit: the
+   * message then stays where it was written.
+   * @private
+   * @returns {void}
+   * @fires Composer#queue
+   */
+  _enqueue() {
+    const message = this._message();
+    if (!message) return;
+    const { queue, item } = addToQueue(this._queue, { id: uid('zx-composer-queued'), ...message }, this._queueLimit);
+    if (!item) {
+      this._queueRefused = true;
+      this._syncHint();
+      this._announce(this.msg('composer.queueFull', this._queueLimit), true);
+      return;
+    }
+    this._queue = queue;
+    this.clear();
+    this._renderQueue();
+    this._announce(this.msg('composer.queued'), true);
+    this.emit('queue', { item: copyQueued(item), items: this.getQueue() });
+  }
+
+  /**
+   * Sends the first queued message for an end of busy. A `send` listener that ends busy again,
+   * before it returns, does not send from inside this one: the next message goes when it is done.
+   * @private
+   * @returns {void}
+   */
+  _sendNextQueued() {
+    if (this._sendingQueued) {
+      this._busyEndedAgain = true;
+      return;
+    }
+    this._sendingQueued = true;
+    do {
+      this._busyEndedAgain = false;
+      this._sendQueued();
+    } while (this._busyEndedAgain);
+    this._sendingQueued = false;
+  }
+
+  /**
+   * Sends the first queued message, unless it must wait. What is being written stays: it is not the
+   * message that goes. A prevented `send` was not sent, so the message stays first in line.
+   * @private
+   * @returns {void}
+   * @fires Composer#send
+   * @fires Composer#dequeue
+   */
+  _sendQueued() {
+    if (this._busy || this._disabled || this._destroyed) return;
+    const { queue, item } = takeNext(this._queue);
+    if (!item) return;
+    this._queue = queue;
+    const { id, ...message } = copyQueued(item);
+    const event = this.emit('send', { ...message, queued: true }, { honorDomCancellation: true });
+    if (this._destroyed) return;
+    if (event.defaultPrevented) this._queue = [item, ...this._queue];
+    this._renderQueue();
+    if (!event.defaultPrevented) this._emitDequeue(item, 'sent');
+  }
+
+  /**
+   * @private
+   * @param {QueuedMessage} item
+   * @param {ComposerDequeueDetail['reason']} reason
+   * @returns {void}
+   * @fires Composer#dequeue
+   */
+  _emitDequeue(item, reason) {
+    this.emit('dequeue', { item: copyQueued(item), items: this.getQueue(), reason });
+  }
+
+  /**
+   * Takes a queued message back into the composer, asking first when that would replace what is
+   * being written. The message may have been sent while the question was open; nothing happens then.
+   * @private
+   * @param {string} id
+   * @returns {Promise<void>}
+   * @fires Composer#dequeue
+   */
+  async _editQueued(id) {
+    if (this._input.value.trim() || this._files.length) {
+      const replace = await Dialog.confirm({
+        title: this.msg('composer.queueReplaceTitle'),
+        message: this.msg('composer.queueReplaceMessage'),
+        okLabel: this.msg('composer.queueReplaceConfirm'),
+        danger: true
+      });
+      if (!replace || this._destroyed) return;
+    }
+    const { queue, item } = removeFromQueue(this._queue, id);
+    if (!item) return;
+    this._queue = queue;
+    this._files = item.files.map((file) => ({ id: uid('zx-composer-file'), file }));
+    this._renderFiles();
+    this.setValue(item.text);
+    this._mentions = item.mentions.map((mention) => ({ ...mention }));
+    this._renderQueue();
+    this._input.focus();
+    this._emitDequeue(item, 'edited');
+  }
+
+  /**
+   * @private
+   * @param {MouseEvent} event
+   * @returns {void}
+   */
+  _onQueueClick(event) {
+    const button = /** @type {HTMLElement|null} */ (/** @type {Element|null} */ (event.target)?.closest?.('[data-queue-action]'));
+    const row = /** @type {HTMLElement|null} */ (button?.closest('[data-queued]') ?? null);
+    if (!button || !row || this._disabled) return;
+    if (button.dataset.queueAction === 'edit') this._editQueued(String(row.dataset.queued));
+    else this.removeQueued(String(row.dataset.queued));
+  }
+
+  /**
+   * Delete on a focused row removes it. The arrow keys inside a row belong to its toolbar.
+   * @private
+   * @param {KeyboardEvent} event
+   * @returns {void}
+   */
+  _onQueueKeydown(event) {
+    if (event.key !== 'Delete' || event.shiftKey || event.altKey || event.metaKey || event.ctrlKey || this._disabled) return;
+    const row = /** @type {HTMLElement|null} */ (/** @type {Element|null} */ (event.target)?.closest?.('[data-queued]'));
+    if (!row) return;
+    event.preventDefault();
+    this.removeQueued(String(row.dataset.queued));
+  }
+
+  /**
+   * Draws the queue, and keeps the focus in it: on the same button of the same row, on the row now
+   * in that place when the row has gone, and in the text when no row is left.
+   * @private
+   * @returns {void}
+   */
+  _renderQueue() {
+    if (!this.options.queue) return;
+    const list = /** @type {HTMLElement} */ (this.refs.queueList);
+    const active = /** @type {HTMLElement|null} */ (list.ownerDocument.activeElement);
+    const focused = active && list.contains(active) ? active : null;
+    const focusedRow = /** @type {HTMLElement|null} */ (focused?.closest('[data-queued]') ?? null);
+    const place = focusedRow ? Array.from(list.children).indexOf(focusedRow) : -1;
+
+    this._releaseQueueRoving();
+    /** @type {HTMLElement} */ (this.refs.queue).hidden = this._queue.length === 0;
+    this.refs.queueLabel.textContent = this.msg('composer.queue', this._queue.length);
+    list.replaceChildren(...this._queue.map((item) => this._queueRow(item)));
+    this._queueRoving = /** @type {HTMLElement[]} */ (Array.from(list.querySelectorAll('[role="toolbar"]')))
+      .map((toolbar) => rovingTabindex(toolbar, '[data-queue-action]', { orientation: 'horizontal' }));
+
+    if (this._queueRefused && !isQueueFull(this._queue, this._queueLimit)) {
+      this._queueRefused = false;
+      this._syncHint();
+    }
+    if (!focused || !focusedRow) return;
+    const rows = /** @type {HTMLElement[]} */ (Array.from(list.children));
+    const row = rows.find((entry) => entry.dataset.queued === focusedRow.dataset.queued)
+      ?? rows[Math.min(place, rows.length - 1)];
+    const next = /** @type {HTMLElement|null} */ (row?.querySelector(`[data-queue-action="${focused.dataset.queueAction}"]`) ?? null);
+    if (next) next.focus();
+    else this._input.focus();
+  }
+
+  /**
+   * One queued message on one line: its text, or the names of its files when it has none, and a
+   * toolbar named by that line.
+   * @private
+   * @param {QueuedMessage} item
+   * @returns {HTMLElement}
+   */
+  _queueRow(item) {
+    const textId = uid('zx-composer-queued-text');
+    const count = item.files.length;
+    return h('li', { class: 'zx-composer__queued', dataset: { queued: item.id } },
+      h('span', { class: 'zx-composer__queued-text', id: textId },
+        item.text || item.files.map((file) => file.name).join(', ')),
+      item.text && count
+        ? h('span', { class: 'zx-composer__queued-meta' },
+          count === 1 ? this.msg('composer.queueFile') : this.msg('composer.queueFiles', count))
+        : null,
+      h('div', { class: 'zx-composer__queued-actions', role: 'toolbar', 'aria-labelledby': textId },
+        this._queueButton('edit', this.msg('composer.queueEdit')),
+        this._queueButton('remove', this.msg('composer.queueRemove'))));
+  }
+
+  /**
+   * @private
+   * @param {'edit'|'remove'} action
+   * @param {string} label
+   * @returns {HTMLElement}
+   */
+  _queueButton(action, label) {
+    return h('button', {
+      type: 'button',
+      class: 'zx-icon-btn zx-composer__queued-action',
+      disabled: this._disabled,
+      dataset: { queueAction: action }
+    }, label);
+  }
+
+  /** @private @returns {void} */
+  _releaseQueueRoving() {
+    for (const roving of this._queueRoving) roving.destroy();
+    this._queueRoving = [];
   }
 
   /* -------------------------------------------------------------- commands -- */
@@ -1336,6 +1691,20 @@ function iconButton(name, label, action) {
 }
 
 /**
+ * A copy of a queued message that shares nothing with the queue but its files.
+ * @param {QueuedMessage} item
+ * @returns {QueuedMessage}
+ */
+function copyQueued(item) {
+  return {
+    ...item,
+    files: [...item.files],
+    mentions: item.mentions.map((mention) => ({ ...mention })),
+    context: item.context.map((chip) => ({ ...chip }))
+  };
+}
+
+/**
  * The send key an option names; anything but `'mod+enter'` is `'enter'`.
  * @param {unknown} value
  * @returns {'enter'|'mod+enter'}
@@ -1438,4 +1807,6 @@ function isApplePlatform() {
 /** Fired when a suggestion is picked. @event Composer#mention @type {CustomEvent<{item: MentionItem}>} */
 /** Fired when a command is chosen. @event Composer#command @type {CustomEvent<{item: LauncherItem}>} */
 /** Fired when one of the extra tools is pressed; the composer changes nothing itself. @event Composer#tool @type {CustomEvent<ComposerToolDetail>} */
+/** Fired when a message is added to the queue. @event Composer#queue @type {CustomEvent<ComposerQueueDetail>} */
+/** Fired when a message leaves the queue: sent, removed, taken back to edit, or cleared. @event Composer#dequeue @type {CustomEvent<ComposerDequeueDetail>} */
 /** Fired for ArrowUp on an empty text. @event Composer#historyprevious @type {CustomEvent<Record<string, never>>} */

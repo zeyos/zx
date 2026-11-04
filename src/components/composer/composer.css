@@ -276,6 +276,79 @@
   border-radius: var(--zx-radius-sm);
 }
 
+/* ----------------------------------------------------------------- queue -- */
+
+/* What waits for the agent, at the top of the box and set off by a line from the message being
+   written: both sit on the same tone. A long queue scrolls, so the text stays on screen. */
+.zx-composer__queue {
+  display: grid;
+  gap: var(--zx-space-1);
+  min-inline-size: 0;
+  padding: var(--zx-space-1) 0 var(--zx-space-2);
+  border-block-end: 1px solid var(--zx-color-border-subtle);
+}
+
+.zx-composer__queue[hidden] {
+  display: none;
+}
+
+.zx-composer__queue-label {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-weight: var(--zx-weight-medium);
+  font-variant-numeric: tabular-nums;
+}
+
+.zx-composer__queue-list {
+  display: grid;
+  gap: 2px;
+  min-inline-size: 0;
+  max-block-size: calc(5 * var(--zx-control-height));
+  margin: 0;
+  overflow-y: auto;
+  padding: 0;
+  list-style: none;
+}
+
+.zx-composer__queued {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  min-inline-size: 0;
+}
+
+.zx-composer__queued-text {
+  flex: 1 1 auto;
+  overflow: hidden;
+  min-inline-size: 0;
+  font-size: var(--zx-text-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zx-composer__queued-meta {
+  flex: none;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.zx-composer__queued-actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Words rather than glyphs, quiet until they are pointed at. */
+.zx-composer .zx-composer__queued-action {
+  inline-size: auto;
+  block-size: calc(var(--zx-control-height) - var(--zx-space-1));
+  padding-inline: var(--zx-space-2);
+  font-size: var(--zx-text-xs);
+  font-weight: var(--zx-weight-medium);
+}
+
 /* -------------------------------------------------------------- dropping -- */
 
 .zx-composer__drop {
