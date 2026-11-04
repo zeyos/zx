@@ -27,6 +27,9 @@ jobs:
       - name: Build distribution bundles
         run: npm run build
 
+      - name: Check gzipped sizes against the budget
+        run: npm run check:size
+
       # After the build: the distribution suite loads `dist/zx.global.js`. Chrome is preinstalled
       # on the GitHub runners, which is why this needs `playwright-core` and no browser download.
       - name: Smoke-test both suites in a real browser

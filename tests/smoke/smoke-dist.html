@@ -87,6 +87,162 @@
         })); })) throw new Error('record primitive roots survived destroy');
       });
 
+      /*
+       * Which stylesheet a page loads must not change what it renders. Each frame below loads one
+       * set of sheets, draws the same Selects, and the computed styles of every element and
+       * pseudo-element are compared with the frame on the whole of `zx.css`.
+       *
+       * The subset is resolved by `bin/zx-css.js`, which needs Node, so `tools/run-smoke.js` serves
+       * it at this address. Opened by hand, this one check fails and says so.
+       */
+      var SELECT_SUBSET = 'zx-css-select.css';
+
+      function frameWith(sheets, extraStyle) {
+        return new Promise(function (resolve) {
+          var frame = document.createElement('iframe');
+          frame.title = 'Stylesheet comparison';
+          frame.style.cssText = 'position:fixed;inset-block-start:0;inset-inline-start:-10000px;inline-size:800px;block-size:600px;border:0';
+          frame.srcdoc = '<!doctype html><html lang="en" data-zx-theme="light"><head><meta charset="utf-8">'
+            + sheets.map(function (href) { return '<link rel="stylesheet" href="' + href + '">'; }).join('')
+            + (extraStyle ? '<style>' + extraStyle + '</style>' : '')
+            + '</head><body class="zx-scope"><div id="selects"></div><script src="../../dist/zx.global.min.js"><\/script></body></html>';
+          frame.addEventListener('load', function () { resolve(frame); }, { once: true });
+          document.body.append(frame);
+        });
+      }
+
+      function drawSelects(frame) {
+        var zx = frame.contentWindow.zx;
+        var host = frame.contentDocument.getElementById('selects');
+        var items = [
+          { ID: 1, name: 'Alpha', group: 'First', description: 'The first one', icon: 'check' },
+          { ID: 2, name: 'Beta', group: 'First' },
+          { ID: 3, name: 'Gamma', group: 'Second', color: 'var(--zx-color-tone-blue-fg)' }
+        ];
+        var selects = [
+          new zx.Select(null, { items: items, value: 2, clearable: true, label: 'Plain' }),
+          new zx.Select(null, { items: items, filter: 'local', groupKey: 'group', placeholder: 'Find', label: 'Filtered' }),
+          new zx.Select(null, { items: items, value: 1, disabled: true, label: 'Disabled' }),
+          zx.Select.priority(null, { value: 2, label: 'Priority' }),
+          zx.Select.status(null, { value: 'open', label: 'Status' })
+        ];
+        selects.forEach(function (select) { host.append(select.toElement()); });
+        return selects;
+      }
+
+      /* Transitions are finished rather than disabled, so that their own properties still compare. */
+      async function settle(frame) {
+        await new Promise(function (resolve) { setTimeout(resolve, 60); });
+        frame.contentDocument.getAnimations().forEach(function (animation) {
+          try { animation.finish(); } catch (error) { /* Endless, and the same in both frames. */ }
+        });
+      }
+
+      function computedStyles(frame) {
+        var doc = frame.contentDocument;
+        var view = frame.contentWindow;
+        var elements = [doc.documentElement, doc.body].concat(Array.from(doc.body.querySelectorAll('*')))
+          .filter(function (element) { return element.localName !== 'script'; });
+        return elements.flatMap(function (element) {
+          var name = element.localName + (element.className ? '.' + String(element.className).trim().split(/\s+/).join('.') : '');
+          return ['', '::before', '::after', '::placeholder'].map(function (pseudo) {
+            var style = view.getComputedStyle(element, pseudo || null);
+            var values = {};
+            for (var index = 0; index < style.length; index += 1) {
+              values[style[index]] = style.getPropertyValue(style[index]);
+            }
+            return { name: name + pseudo, values: values };
+          });
+        });
+      }
+
+      /*
+       * A custom property keeps its value as written, and the bundles are not spaced alike. An
+       * anchor name is generated per render, so it differs between any two frames.
+       */
+      function comparable(value) {
+        return String(value).replace(/\s+/g, '').replace(/--zx-a-[\w-]+/g, '--zx-a');
+      }
+
+      function differences(reference, other) {
+        if (reference.length !== other.length) {
+          return [reference.length + ' elements against ' + other.length];
+        }
+        var found = [];
+        reference.forEach(function (entry, index) {
+          Object.keys(entry.values).forEach(function (property) {
+            var value = comparable(entry.values[property]);
+            var otherValue = comparable(other[index].values[property]);
+            if (value !== otherValue) found.push(entry.name + ' ' + property + ': ' + value + ' against ' + otherValue);
+          });
+        });
+        return found;
+      }
+
+      async function stylesInEveryState(frame) {
+        var selects = drawSelects(frame);
+        var snapshots = [];
+        for (var theme of ['light', 'dark']) {
+          frame.contentDocument.documentElement.setAttribute('data-zx-theme', theme);
+          selects.forEach(function (select) { select.close(); });
+          await settle(frame);
+          snapshots.push(computedStyles(frame));
+          selects[0].open();
+          await settle(frame);
+          snapshots.push(computedStyles(frame));
+        }
+        selects.forEach(function (select) { select.destroy(); });
+        frame.remove();
+        return snapshots;
+      }
+
+      function compareStates(reference, other, label) {
+        reference.forEach(function (snapshot, index) {
+          var found = differences(snapshot, other[index]);
+          if (found.length) {
+            throw new Error(label + ' differs in state ' + index + ' at ' + found.length + ' values: ' + found.slice(0, 4).join('; '));
+          }
+        });
+      }
+
+      try {
+        var subset = await fetch(SELECT_SUBSET);
+        if (!subset.ok) throw new Error(SELECT_SUBSET + ' is served by tools/run-smoke.js: npm run test:browser');
+
+        var whole = await stylesInEveryState(await frameWith(['../../dist/zx.css']));
+        var withCore = await stylesInEveryState(await frameWith(['../../dist/zx.core.css', SELECT_SUBSET]));
+        var alone = await stylesInEveryState(await frameWith([SELECT_SUBSET]));
+        var coreOnly = await stylesInEveryState(await frameWith(['../../dist/zx.core.css']));
+        compareStates(whole, withCore, 'zx.core.css with the Select subset');
+        compareStates(whole, alone, 'the Select subset alone');
+        // Without this the comparison could pass by never having seen a styled Select.
+        if (!differences(whole[0], coreOnly[0]).length) throw new Error('the core sheet alone styled the Select');
+        results.push({ name: 'a Select renders the same on its zx-css subset', passed: true });
+      } catch (error) {
+        results.push({ name: 'a Select renders the same on its zx-css subset', passed: false, error: error.message });
+      }
+
+      try {
+        var layered = await stylesInEveryState(await frameWith(['../../dist/zx.layered.css']));
+        compareStates(whole, layered, 'zx.layered.css');
+        // The weakest selector there is against a class: it loses to `zx.css` and beats the layer.
+        var inputMinWidth = async function (sheet) {
+          var frame = await frameWith([sheet], 'input { min-inline-size: 7px; }');
+          drawSelects(frame);
+          var input = frame.contentDocument.querySelector('.zx-select__input');
+          var width = frame.contentWindow.getComputedStyle(input).minInlineSize;
+          frame.remove();
+          return width;
+        };
+        if (await inputMinWidth('../../dist/zx.css') === '7px') throw new Error('an element rule beat zx.css');
+        if (await inputMinWidth('../../dist/zx.layered.css') !== '7px') {
+          throw new Error('an unlayered rule did not win over the zx layer');
+        }
+        results.push({ name: 'the layered build renders the same and yields to unlayered rules', passed: true });
+      } catch (error) {
+        results.push({ name: 'the layered build renders the same and yields to unlayered rules', passed: false, error: error.message });
+      }
+
       var failed = results.filter(function (entry) { return !entry.passed; }).length;
       var passed = failed === 0;
       var output = document.getElementById('result');

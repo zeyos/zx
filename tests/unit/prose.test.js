@@ -11,6 +11,7 @@ import test from 'node:test';
 const source = readFileSync(new URL('../../styles/prose.css', import.meta.url), 'utf8')
   .replace(/\/\*[\s\S]*?\*\//g, '');
 const zx = readFileSync(new URL('../../styles/zx.css', import.meta.url), 'utf8');
+const core = readFileSync(new URL('../../styles/core.css', import.meta.url), 'utf8');
 
 /** @param {string} list A selector list. @returns {string[]} Its selectors, split at top-level commas. */
 function splitSelectors(list) {
@@ -48,9 +49,10 @@ test('every prose rule is one class plus :where(), so components inside keep the
 });
 
 test('prose loads before the component stylesheets', () => {
-  const prose = zx.indexOf('./prose.css');
+  const coreSheet = zx.indexOf('./core.css');
   const firstComponent = zx.indexOf('../src/components/');
-  assert.ok(prose > 0 && prose < firstComponent, 'prose.css must be imported ahead of every component');
+  assert.ok(core.includes('./prose.css'), 'prose.css must be part of the core sheet');
+  assert.ok(coreSheet > 0 && coreSheet < firstComponent, 'core.css must be imported ahead of every component');
 });
 
 test('a callout is neutral by default, with status kinds and the nine tones', () => {

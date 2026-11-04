@@ -1,10 +1,11 @@
 import { execFile } from 'node:child_process';
-import { mkdir, readFile, rm } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rm } from 'node:fs/promises';
 import { gzipSync } from 'node:zlib';
 import { dirname, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
+import { componentNames, resolveSubset } from '../bin/zx-css.js';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = resolve(root, 'dist');
@@ -13,8 +14,22 @@ const assets = [
   { name: 'ESM', entry: 'src/index.js', file: 'zx.esm.js', format: 'esm' },
   { name: 'ZeyOS', entry: 'src/zeyos/index.js', file: 'zx-zeyos.esm.js', format: 'esm' },
   { name: 'Global', entry: 'src/index.js', file: 'zx.global.js', format: 'iife', globalName: 'zx' },
-  { name: 'CSS', entry: 'styles/zx.css', file: 'zx.css' }
+  { name: 'CSS', entry: 'styles/zx.css', file: 'zx.css' },
+  { name: 'CSS core', entry: 'styles/core.css', file: 'zx.core.css' },
+  { name: 'CSS layered', entry: 'styles/zx.layered.css', file: 'zx.layered.css' }
 ];
+
+/*
+ * Subsets are resolved from the import list in `styles/zx.css`, so a component stylesheet that is
+ * not on it would be missing from `zx.css` and from every subset. Stop before anything is written.
+ */
+const resolved = resolveSubset(componentNames());
+const stylesheets = await readdir(resolve(root, 'src/components'), { recursive: true });
+const unlisted = stylesheets
+  .filter((file) => file.endsWith('.css'))
+  .map((file) => `src/components/${file.replaceAll('\\', '/')}`)
+  .filter((file) => !resolved.includes(file));
+if (unlisted.length) throw new Error(`Not imported by styles/zx.css: ${unlisted.join(', ')}`);
 
 await rm(dist, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });

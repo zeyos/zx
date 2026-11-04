@@ -46,6 +46,34 @@ test('a locale catalogue imports by its package path, with types beside it', asy
   assert.equal(de['dialog.cancel'], 'Abbrechen');
 });
 
+test('the stylesheet routes resolve to what the build and the source provide', () => {
+  const built = [...readFileSync(root + 'tools/build.js', 'utf8').matchAll(/file: '([^']+\.css)'/g)]
+    .map((match) => match[1]);
+  const routes = ['./zx.css', './zx.min.css', './zx.core.css', './zx.core.min.css', './zx.layered.css'];
+  for (const route of routes) {
+    assert.equal(manifest.exports[route], `./dist/${route.slice(2)}`, `${route} is not exported`);
+    assert.ok(built.includes(route.slice(2).replace('.min.css', '.css')), `the build does not write ${route}`);
+  }
+
+  assert.equal(manifest.exports['./src/components/*.css'], './src/components/*.css');
+  assert.ok(existsSync(root + 'src/components/select/select.css'));
+  assert.ok(existsSync(root + 'styles/core.css'), './styles/core.css must resolve');
+});
+
+test('zx-css ships as a Node program with no dependencies', () => {
+  const path = manifest.bin['zx-css'];
+  assert.equal(path, 'bin/zx-css.js');
+  assert.ok(manifest.files.includes('bin'), 'bin/ must be published for the command to exist');
+  assert.ok(manifest.files.includes('src') && manifest.files.includes('styles'),
+    'the command resolves subsets from the published source and stylesheets');
+
+  const source = readFileSync(root + path, 'utf8');
+  assert.ok(source.startsWith('#!/usr/bin/env node\n'));
+  const specifiers = [...source.matchAll(/^import\s[^'"]*['"]([^'"]+)['"]/gm)].map((match) => match[1]);
+  assert.ok(specifiers.length > 0, 'found no imports to check');
+  assert.deepEqual(specifiers.filter((specifier) => !specifier.startsWith('node:')), []);
+});
+
 test('every non-pattern export target that is not a build output exists', () => {
   const targets = [];
   for (const value of Object.values(manifest.exports)) {
