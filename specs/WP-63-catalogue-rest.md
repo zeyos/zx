@@ -292,15 +292,12 @@ current text of `DEFAULT_LABELS`):
 - `fileTypeLabel()` in `src/index.js`: it stays where it is, not newly exported.
 - Translating documentation, demos or layout content.
 
-## Known limit
+## printf
 
-`printf()` runs its `%name%` pass over text it has already filled, so a value holding `%word%` is
-rewritten: `Remove %1` with `50%off%sale.pdf` gives `Remove 5050%off%sale.pdfsale.pdf`. Every key with a
-string slot has always had this. It is new here for `accountMenu.labelFor`, `calendar.eventLabel`,
-`fieldUpload.preview`, `fieldUpload.rejectedSize`, `fieldUpload.rejectedType`, `filter.fieldUnavailable`,
-`filter.operatorType` and `filter.operatorUnavailable`, which were template literals before, so
-Decision 1 does not hold for such a value. The fix belongs in `src/core/i18n.js`, which this WP does
-not permit changing, and waits on that decision.
+`printf()` once ran its `%name%` pass over text it had already filled, so a value holding `%word%` was
+rewritten: `Remove %1` with `50%off%sale.pdf` gave `Remove 5050%off%sale.pdfsale.pdf`. It now fills
+every placeholder in one pass, in `src/core/i18n.js`, because the keys this WP converted from template
+literals would otherwise have changed English for such a value, against Decision 1.
 
 ## Acceptance criteria
 

@@ -53,3 +53,18 @@ test('hostMessage treats null, undefined, and an echoed key as no answer', () =>
   setTranslator(() => 'Hallo');
   assert.equal(hostMessage('a.b'), 'Hallo');
 });
+
+test('a value written into the text is never read as a placeholder', () => {
+  assert.equal(printf('Remove %1', ['50%off%sale.pdf']), 'Remove 50%off%sale.pdf');
+  assert.equal(printf('%1 and %2', ['%2', 'b']), '%2 and b');
+  assert.equal(printf('Hi %name%', { name: '%name% %1' }), 'Hi %name% %1');
+  assert.equal(printf('%one% %two%', ['%two%', 'b']), '%two% b');
+});
+
+test('placeholders keep their reading in one pass', () => {
+  assert.equal(printf('%1 %name%', ['a', 'b']), 'a a');
+  assert.equal(printf('%foo%1', ['a']), '%fooa');
+  assert.equal(printf('%1%', ['5']), '5%');
+  assert.equal(printf('%name%', {}), '%name%');
+  assert.equal(printf('%3', ['a']), '%3');
+});

@@ -101,16 +101,16 @@ export function printf(str, args) {
 
   const positional = Array.isArray(args) ? args :
     (typeof args === 'object' ? null : [args]);
-  let output = String(str).replace(/%(\d+)/g, (placeholder, indexText) => {
-    const index = Number(indexText) - 1;
-    let value;
-    if (positional) value = positional[index];
-    else if (Object.prototype.hasOwnProperty.call(args, indexText)) value = args[indexText];
-    return value == null ? placeholder : String(value);
-  });
-
+  // One pass: a value already written into the text is never read as a placeholder.
   let legacyIndex = 0;
-  output = output.replace(/%([A-Za-z_][\w.-]*)%/g, (placeholder, key) => {
+  return String(str).replace(/%(\d+)|%([A-Za-z_][\w.-]*)%(?!\d)/g, (placeholder, indexText, key) => {
+    if (indexText !== undefined) {
+      const index = Number(indexText) - 1;
+      let value;
+      if (positional) value = positional[index];
+      else if (Object.prototype.hasOwnProperty.call(args, indexText)) value = args[indexText];
+      return value == null ? placeholder : String(value);
+    }
     if (!positional && Object.prototype.hasOwnProperty.call(args, key)) {
       const value = args[key];
       return value == null ? placeholder : String(value);
@@ -122,5 +122,4 @@ export function printf(str, args) {
     }
     return placeholder;
   });
-  return output;
 }
