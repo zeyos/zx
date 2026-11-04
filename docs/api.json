@@ -13016,6 +13016,68 @@
     "events": [],
     "methods": []
   },
+  "UiMessageStream": {
+    "options": [
+      {
+        "name": "runStatus",
+        "type": "RunStatus|null",
+        "default": "null",
+        "description": "A run status to keep up to date."
+      },
+      {
+        "name": "authors",
+        "type": "Record<string, Author>",
+        "default": "{}",
+        "description": "Who writes; its first author who is not a person is the agent when `agent` is not given."
+      },
+      {
+        "name": "agent",
+        "type": "string|null",
+        "default": "null",
+        "description": "Author key of the assistant's output."
+      },
+      {
+        "name": "tools",
+        "type": "Record<string, (call: ToolCall) => ThreadItem|null>",
+        "default": "{}",
+        "description": "Tiles by tool name: the application's renderer for a tool's calls, called at each status change. Its item joins the thread as `tool:<toolCallId>`, and the call's step links to it."
+      },
+      {
+        "name": "showReasoning",
+        "type": "boolean",
+        "default": "false",
+        "description": "Shows the model's reasoning text. Without it the text is not kept, and the reasoning is one step that says how long it took."
+      }
+    ],
+    "events": [
+      {
+        "name": "approval",
+        "payload": null,
+        "description": "The person decided. The application sends the answer with its next request."
+      },
+      {
+        "name": "data",
+        "payload": null,
+        "description": "A `data-<name>` part. With an `id` it replaces the earlier value of that name and id."
+      },
+      {
+        "name": "metadata",
+        "payload": null,
+        "description": "Metadata of the message."
+      },
+      {
+        "name": "unknown",
+        "payload": null,
+        "description": "A part the adapter does not draw."
+      },
+      {
+        "name": "error",
+        "payload": null,
+        "description": "A part out of order, or a tile that failed."
+      }
+    ],
+    "methods": []
+  },
   "UploadTransport": {
     "options": [
       {
