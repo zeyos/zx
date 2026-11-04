@@ -582,6 +582,7 @@ export function connectUiMessageStream(thread, options = {}) {
   function withdraw(message, mark, again = false) {
     const begun = new Set(message.calls.splice(mark.calls));
     const notices = message.notices.splice(mark.notices);
+    const finishedSince = message.response.at > mark.at;
     // No block is open any more, and the retry may name its blocks the same way.
     message.texts.clear();
     message.held.clear();
@@ -613,6 +614,8 @@ export function connectUiMessageStream(thread, options = {}) {
     restoreThinking(message, mark.thought);
     Object.assign(message, mark.state);
     message.writes = mark.writes;
+    // An answer that finished since is not left writing above what now stands below it.
+    if (finishedSince && !atEnd(message)) message.writing = false;
 
     const traced = message.drawn;
     message.drawn = message.steps.length > 0;

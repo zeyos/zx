@@ -1512,6 +1512,20 @@ test('what stays after a reset-step is changed in place, not drawn anew', () => 
   assert.deepEqual(/** @type {any} */ (thread.get('m')).blocks, []);
 });
 
+test('an answer that finished does not write on above what stands below it after a reset-step', () => {
+  const { thread, play } = connect();
+  play([
+    { type: 'start', messageId: 'm' }, ...said('Gone.'), { type: 'finish' },
+    { type: 'start', messageId: 'n' }, ...said('Below.'), { type: 'finish' },
+    { type: 'start', messageId: 'm' }, ...said('Gone too.'), { type: 'reset-step' }
+  ]);
+  assert.deepEqual(thread.order(), ['m', 'n']);
+  assert.deepEqual(/** @type {any} */ (thread.get('m')).blocks, []);
+  assert.equal(/** @type {any} */ (thread.get('m')).streaming, false);
+  play([...said('Retried.'), { type: 'finish' }]);
+  assert.deepEqual(thread.order(), ['m', 'n', 'm#2']);
+});
+
 test('a reset-step outside a message is reported and draws nothing', () => {
   const { thread, log, play } = connect();
   play([{ type: 'start', messageId: 'm' }, ...said('kept'), { type: 'finish' }, { type: 'reset-step' }]);
