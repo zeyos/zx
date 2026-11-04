@@ -6,7 +6,7 @@ import {
   checkNext, checkRuleList, checkRules, evaluate, resolveNext, ruleMessage
 } from '../../src/components/questionnaire/conditions.js';
 import {
-  normalizeItems, progressOf, resolveFlow, resolveNext as nextItem
+  endsFlow, normalizeItems, progressOf, resolveFlow, resolveNext as nextItem
 } from '../../src/components/questionnaire/items.js';
 
 /** @param {string} field @param {string} op @param {unknown} [value] @returns {any} */
@@ -320,7 +320,6 @@ test('normalizeItems checks and copies declarative next and validate', () => {
   assert.throws(() => normalizeItems([{ name: 'a', prompt: 'A', input: {}, next: [{ if: is('b', 'eq', 1), goto: 'c' }] }]),
     /Item "a" next\/0\/if\/field/);
   assert.throws(() => normalizeItems([{ name: 'a', prompt: 'A', input: {}, validate: [{ pattern: '^x' }] }]), TypeError);
-  assert.throws(() => normalizeItems([{ name: '$review', prompt: 'A', input: {} }]), /reserved/);
 });
 
 test('the first matching branch picks the next item, and a hidden target walks on', () => {
@@ -421,13 +420,35 @@ test('a declarative required rule marks the item required', () => {
   assert.equal(optional.required, false);
 });
 
-test('a validate or next of a type neither form takes throws', () => {
+test('what the last release tolerated still reads as absent', () => {
   /** @param {any} extra */
-  const item = (extra) => normalizeItems([{ name: 'a', prompt: 'A', input: {}, ...extra }]);
-  assert.throws(() => item({ validate: { required: true } }), /Item "a" validate/);
-  assert.throws(() => item({ validate: 'required' }), TypeError);
-  assert.throws(() => item({ next: { goto: 'x' } }), /Item "a" next/);
-  assert.throws(() => item({ next: 3 }), TypeError);
-  assert.equal(item({ validate: null, next: null })[0].validate, null);
-  assert.equal(item({ validate: undefined, next: undefined })[0].next, null);
+  const item = (extra) => normalizeItems([{ name: 'a', prompt: 'A', input: {}, ...extra }])[0];
+  // The idiom `validate: strict && check` hands in `false`, which must not end the questionnaire.
+  const absent = [undefined, null, false, true, 0, 1, '', {}, [], [1], ['x'], [() => null], [null], { goto: 'x' }, { required: true }];
+  for (const value of absent) {
+    assert.equal(item({ next: value }).next, null, `next: ${JSON.stringify(value)}`);
+    assert.equal(item({ validate: value }).validate, null, `validate: ${JSON.stringify(value)}`);
+  }
+  for (const value of [undefined, null, false, true, 0, 1, '', 'x', {}, [], [1], [{ field: 'a', op: 'filled' }]]) {
+    assert.equal(item({ when: value }).when, null, `when: ${JSON.stringify(value)}`);
+  }
+  assert.equal(item({ validate: [{ required: true }, 1] }).required, false, 'a list read as absent marks nothing required');
+});
+
+test('an item may still be named $review or $submit, and a name wins over the sentinel', () => {
+  const items = normalizeItems([
+    { name: 'a', prompt: 'A', input: {}, next: '$review' },
+    { name: 'b', prompt: 'B', input: {} },
+    { name: '$review', prompt: 'R', input: {} },
+    { name: '$submit', prompt: 'S', input: {} }
+  ]);
+  assert.equal(endsFlow(items, '$review'), false);
+  assert.equal(endsFlow(items, '$submit'), false);
+  assert.equal(nextItem(items, items[0], {}), '$review');
+  assert.equal(progressOf(items, {}, ['a']).total, 4, 'the path does not end at an item that bears the name');
+  const plain = normalizeItems([{ name: 'a', prompt: 'A', input: {}, next: '$review' }, { name: 'b', prompt: 'B', input: {} }]);
+  assert.equal(endsFlow(plain, '$review'), true);
+  assert.equal(endsFlow(plain, '$submit'), true);
+  assert.equal(endsFlow(plain, 'b'), false);
+  assert.equal(endsFlow(plain, null), false);
 });

@@ -7,9 +7,9 @@ import { button } from '../button/button.js';
 import { Field } from '../field/field.js';
 import { kbd } from '../kbd/kbd.js';
 import { ProgressBar } from '../loading/progress-bar.js';
-import { NEXT_REVIEW, NEXT_SUBMIT, checkRules, ruleMessage } from './conditions.js';
+import { NEXT_REVIEW, checkRules, ruleMessage } from './conditions.js';
 import {
-  applyExclusive, isEmptyAnswer, normalizeItems, progressOf, resolveFlow, resolveNext, validateAnswer
+  applyExclusive, endsFlow, isEmptyAnswer, normalizeItems, progressOf, resolveFlow, resolveNext, validateAnswer
 } from './items.js';
 
 /**
@@ -658,8 +658,7 @@ export class Questionnaire extends Component {
    * @param {string|null} target @param {'next'|'skip'} reason @returns {Promise<boolean>|boolean}
    */
   _leave(target, reason) {
-    if (target === NEXT_REVIEW) return this._enterReview();
-    if (target === NEXT_SUBMIT) return this.submit();
+    if (endsFlow(this._items, target)) return target === NEXT_REVIEW ? this._enterReview() : this.submit();
     if (target) return this._navigate(target, reason);
     if (this.options.review) return this._enterReview();
     return this.submit();
@@ -889,7 +888,7 @@ export class Questionnaire extends Component {
     } catch {
       target = null;
     }
-    const ending = target === NEXT_REVIEW ? 'review' : target === NEXT_SUBMIT ? 'submit'
+    const ending = endsFlow(this._items, target) ? (target === NEXT_REVIEW ? 'review' : 'submit')
       : target === null ? (this.options.review ? 'review' : 'submit') : null;
 
     this._back.hidden = complete || (!review && (!this.options.allowBack || this._path.length <= 1));

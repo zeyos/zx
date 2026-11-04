@@ -2585,7 +2585,9 @@ can be any registered `Field` type, and its validation may be asynchronous.
   `toFormData()`, so an abandoned branch never submits stale data. A `next` naming a hidden item
   walks forward from it rather than stranding the reader; naming an item that does not exist
   throws `RangeError`. `next: '$review'` opens the review screen and `next: '$submit'` submits at
-  once, wherever the item stands.
+  once, wherever the item stands; an item of that name goes first. A `when`, `next` or `validate`
+  that is neither a function nor a declarative form (`false`, `[]`, `{}`) reads as absent, so
+  `validate: strict && check` is safe.
 - **Declarative logic** — `when`, `next` and `validate` also take plain JSON, so a questionnaire can
   be stored, sent, or written by an agent; the function forms keep working beside them.
   - A condition is `{field, op, value?}` with `op` one of `eq`, `ne`, `in`, `nin`, `gt`, `gte`,

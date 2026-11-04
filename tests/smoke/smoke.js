@@ -6758,3 +6758,17 @@ function agUiCases() {
     })
   ];
 }
+    surfaceCase('Questionnaire (what the last release tolerated)', () => ({
+      component: new zx.Questionnaire(null, { review: true, items: [
+        { name: 'a', prompt: 'A', input: {}, next: '$review', validate: false, when: {} },
+        { name: 'skipped', prompt: 'Skipped', input: {}, next: false },
+        { name: '$review', prompt: 'An item of that name', input: {}, next: [] }
+      ] })
+    }), async ({ component }) => {
+      const forward = /** @type {HTMLButtonElement} */ (component.el.querySelector('[data-role]'));
+      assert(component.getActive() === 'a', 'the questionnaire did not start on its first item');
+      assert(forward.dataset.role === 'next', `the item’s own name read as the review screen: ${forward.dataset.role}`);
+      await component.next();
+      assert(component.getActive() === '$review', `next left for ${component.getActive()} instead of the item named $review`);
+      assert(forward.dataset.role === 'review', 'the last item did not lead to the review');
+    }),

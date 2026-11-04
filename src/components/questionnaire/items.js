@@ -50,14 +50,16 @@ export { isEmptyAnswer };
  * @property {Object|null} [field=null] Any registered Zx `Field` type used as the answer control.
  * @property {Condition|((answers: Record<string, unknown>) => boolean)|null} [when=null] Visibility:
  *   a declarative condition, or a predicate. Either sees only the answers of visible items declared
- *   before this one, and a declarative condition may only name those items.
+ *   before this one, and a declarative condition may only name those items. Anything else, such as
+ *   `false` or `{}`, reads as absent.
  * @property {NextTarget|((answer: unknown, answers: Record<string, unknown>) => string|null)|null} [next=null]
  *   Branch target: an item name, `$review`, `$submit`, a list of `{if, goto}` branches whose first
  *   match wins, or a function returning a name. A branch condition may name this item and the
- *   items declared before it.
+ *   items declared before it. An item named `$review` or `$submit` takes the name's place; anything
+ *   else, such as `false` or `[]`, reads as absent.
  * @property {ValidationRule[]|((answer: unknown, answers: Record<string, unknown>) => string|null|Promise<string|null>)|null} [validate=null]
  *   Extra validation: a list of declarative rules, or a function returning an error message, or
- *   null when the answer is acceptable.
+ *   null when the answer is acceptable. Anything else, such as `false` or `[]`, reads as absent.
  */
 
 /**
@@ -115,10 +117,10 @@ const SHORTCUT_KEYS = '123456789abcdefghijklmnopqrstuvwxyz';
  * `when`, `next` and `validate` forms are copied.
  * @param {QuestionnaireItem[]} list Item definitions.
  * @returns {NormalizedItem[]}
- * @throws {TypeError} When the list, an item, or a name is malformed, a name repeats or is a
- *   reserved `$review`/`$submit`, `next` or `validate` is of a type neither form takes, or a
+ * @throws {TypeError} When the list, an item, or a name is malformed, a name repeats, or a
  *   declarative condition, branch list or rule list is malformed — including a condition naming
- *   an item that is not declared before it.
+ *   an item that is not declared before it. A `when`, `next` or `validate` that is neither
+ *   declarative nor a function does not throw: it reads as absent.
  */
 export function normalizeItems(list) {
   if (!Array.isArray(list)) throw new TypeError('Questionnaire items must be an array');
@@ -133,11 +135,11 @@ export function normalizeItems(list) {
     }
     const name = item.name;
     if (seen.has(name)) throw new TypeError(`Item already exists: ${name}`);
-    if (name === NEXT_REVIEW || name === NEXT_SUBMIT) throw new TypeError(`Item name is reserved: ${name}`);
     // Conditions may name only what comes before; `next` branches may also name the item itself.
     const before = [...seen];
     seen.add(name);
 
+    const validate = normalizeValidate(item.validate, name);
     const choices = normalizeChoices(item.choices ?? [], name);
     const field = item.field && typeof item.field === 'object' ? { ...item.field } : null;
     const input = normalizeInput(item.input);
@@ -150,8 +152,7 @@ export function normalizeItems(list) {
       description: item.description == null || item.description === '' ? null : String(item.description),
       section: item.section == null ? '' : String(item.section),
       // A declarative required rule marks the control too, so `required` and `aria-required` show.
-      required: Boolean(item.required)
-        || (Array.isArray(item.validate) && item.validate.some((rule) => rule?.required === true)),
+      required: Boolean(item.required) || (Array.isArray(validate) && validate.some((rule) => rule.required === true)),
       multiple: Boolean(item.multiple),
       skippable: Boolean(item.skippable),
       choices,
@@ -159,7 +160,7 @@ export function normalizeItems(list) {
       field,
       when: normalizeWhen(item.when, name, before),
       next: normalizeNext(item.next, name, [...before, name]),
-      validate: normalizeValidate(item.validate, name)
+      validate
     };
   });
 }
@@ -274,7 +275,7 @@ export function visibleItems(items, raw) {
  * item in declaration order. A string, a matching branch, or a function returning a string names a
  * target: when that target is currently hidden the walk continues forward from it rather than
  * stranding the reader on an invisible question. `$review` and `$submit` are returned as they are,
- * for the caller to open the review screen or submit.
+ * for the caller to open the review screen or submit, unless an item bears that name.
  * @param {NormalizedItem[]} items All items.
  * @param {NormalizedItem} item Item being left.
  * @param {Record<string, unknown>} raw Every answer given.
@@ -287,7 +288,7 @@ export function resolveNext(items, item, raw) {
   const shown = new Set(visible.map((candidate) => candidate.name));
 
   const target = resolveTarget(item.next, answers[item.name], answers);
-  if (target === NEXT_REVIEW || target === NEXT_SUBMIT) return target;
+  if (endsFlow(items, target)) return target;
 
   let from = items.indexOf(item);
   if (target !== null) {
@@ -302,6 +303,17 @@ export function resolveNext(items, item, raw) {
     if (shown.has(items[index].name)) return items[index].name;
   }
   return null;
+}
+
+/**
+ * Reports whether a resolved target ends the walk rather than naming an item: `$review` or
+ * `$submit`, unless an item bears that name, which then goes first.
+ * @param {NormalizedItem[]} items All items.
+ * @param {string|null} target What `resolveNext()` returned.
+ * @returns {boolean}
+ */
+export function endsFlow(items, target) {
+  return (target === NEXT_REVIEW || target === NEXT_SUBMIT) && !items.some((item) => item.name === target);
 }
 
 /**
@@ -384,13 +396,28 @@ function normalizeInput(input) {
   };
 }
 
+/** @param {unknown} value @returns {value is Record<string, unknown>} */
+function isRecord(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+/**
+ * The shape of a declarative `next` or `validate`. Anything else was never one of those forms, and
+ * reads as absent the way it always has; only a list that means to be one is held to the rules.
+ * @param {unknown} value
+ * @returns {value is Record<string, unknown>[]}
+ */
+function isRecordList(value) {
+  return Array.isArray(value) && value.length > 0 && value.every(isRecord);
+}
+
 /**
  * @param {unknown} when @param {string} name @param {string[]} before
  * @returns {NormalizedItem['when']}
  */
 function normalizeWhen(when, name, before) {
   if (typeof when === 'function') return /** @type {NormalizedItem['when']} */ (when);
-  if (when == null || typeof when !== 'object') return null;
+  if (!isRecord(when) || Object.keys(when).length === 0) return null;
   failOn(checkCondition(when, { fields: before }), name, 'when');
   return structuredClone(/** @type {Condition} */ (when));
 }
@@ -402,10 +429,7 @@ function normalizeWhen(when, name, before) {
 function normalizeNext(next, name, fields) {
   if (typeof next === 'function') return /** @type {NormalizedItem['next']} */ (next);
   if (typeof next === 'string') return next || null;
-  if (next == null) return null;
-  if (!Array.isArray(next)) {
-    throw new TypeError(`Item "${name}" next must be a name, a list of branches, or a function`);
-  }
+  if (!isRecordList(next)) return null;
   failOn(checkNext(next, { fields }), name, 'next');
   return structuredClone(/** @type {NextTarget} */ (next));
 }
@@ -416,8 +440,7 @@ function normalizeNext(next, name, fields) {
  */
 function normalizeValidate(validate, name) {
   if (typeof validate === 'function') return /** @type {NormalizedItem['validate']} */ (validate);
-  if (validate == null) return null;
-  if (!Array.isArray(validate)) throw new TypeError(`Item "${name}" validate must be a list of rules or a function`);
+  if (!isRecordList(validate)) return null;
   failOn(checkRuleList(validate), name, 'validate');
   return structuredClone(/** @type {ValidationRule[]} */ (validate));
 }
@@ -438,8 +461,7 @@ function failOn(problems, name, key) {
  */
 function endsHere(items, item, raw) {
   try {
-    const target = resolveNext(items, item, raw);
-    return target === NEXT_REVIEW || target === NEXT_SUBMIT;
+    return endsFlow(items, resolveNext(items, item, raw));
   } catch {
     return false;
   }
