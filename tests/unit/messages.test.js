@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { Component } from '../../src/core/component.js';
 import { defaultMessages, legacyMessageKeys } from '../../src/core/messages.js';
 import { setLanguage, setTranslator, translate } from '../../src/core/i18n.js';
+import { DEFAULT_STATUSES } from '../../src/components/select/glyphs.js';
 
 const SRC = fileURLToPath(new URL('../../src/', import.meta.url));
 
@@ -188,6 +189,26 @@ test('catalogue entries match the English fallback written beside each call', ()
     }
   }
   assert.deepEqual(drift, []);
+});
+
+test('the default statuses read their catalogue entries, which hold the English beside each', () => {
+  // The scan cannot read keys out of these tuples, so the same two checks run here.
+  for (const [, key, english] of DEFAULT_STATUSES) assert.equal(defaultMessages[key], english, key);
+});
+
+test('Select, Table and Datebox name nothing with a literal', () => {
+  // A literal here reaches the screen in English whatever catalogue is installed.
+  const literal = /\b(?:ariaLabel|aria-label|title|placeholder|textContent)['"]?\s*[:=]\s*['"`][^'"`]*[A-Za-z]/g;
+  for (const path of [
+    'components/select/select.js',
+    'components/table/table.js',
+    'components/datebox/datebox.js',
+    'components/date-picker/date-picker.js'
+  ]) {
+    const source = readFileSync(join(SRC, path), 'utf8').split('\n')
+      .filter((line) => !/^\s*(?:\*|\/\/)/.test(line)).join('\n');
+    assert.deepEqual(source.match(literal) ?? [], [], path);
+  }
 });
 
 test('keys kept out of the catalogue really are absent', () => {

@@ -3682,6 +3682,18 @@ function selectEntityTargetCase() {
     },
     exercise({ component }) {
       assert(component.el.dataset.preset === 'entity', 'entity preset marker missing');
+      // A preset hands its text to the constructor, and still reads the instance's `msg` option.
+      const translated = zx.Select.entity(null, {
+        items: [{ ID: 1, name: 'Account' }],
+        recent: [{ ID: 2, name: 'Contact' }],
+        create: true,
+        msg: { 'select.recent': 'Kürzlich', 'select.create': 'Anlegen', 'select.createGroup': 'Aktion' }
+      });
+      const text = translated.el.textContent;
+      translated.destroy();
+      for (const expected of ['Kürzlich', 'Anlegen', 'Aktion']) {
+        assert(text.includes(expected), `Select.entity() ignored its msg option: ${text}`);
+      }
     },
     destroy({ component, target, before }) {
       component.destroy();

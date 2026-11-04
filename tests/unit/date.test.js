@@ -4,7 +4,7 @@ import test from 'node:test';
 import {
   addDays, addMonths, clampDate, formatDate, getWeekStart, isSameDay, parseDate
 } from '../../src/core/date.js';
-import { setTranslator } from '../../src/core/i18n.js';
+import { setLanguage, setTranslator } from '../../src/core/i18n.js';
 
 const ROUND_TRIPS = [
   [new Date(2026, 6, 19, 14, 35, 42), '%d.%m.%Y %H:%M'],
@@ -59,4 +59,59 @@ test('formatDate localizes month and weekday names with English fallbacks', () =
   })[key] ?? key);
   assert.equal(formatDate(sunday, '%A %B'), 'Sonntag Januar');
   setTranslator(null);
+});
+
+test('formatDate writes names in the active language through Intl', () => {
+  const thursday = new Date(2026, 2, 5);
+  try {
+    setLanguage('de');
+    assert.equal(formatDate(thursday, '%A, %e. %B %Y'), 'Donnerstag, 5. März 2026');
+    assert.equal(formatDate(thursday, '%a %b'), 'Do Mär');
+    setLanguage('de-AT');
+    assert.equal(formatDate(new Date(2026, 0, 5), '%B %b'), 'Jänner Jän');
+  } finally {
+    setLanguage('en');
+  }
+});
+
+test('formatDate takes a locale, which beats the active language', () => {
+  const thursday = new Date(2026, 2, 5);
+  assert.equal(formatDate(thursday, '%A %B', { locale: 'de' }), 'Donnerstag März');
+  try {
+    setLanguage('de');
+    assert.equal(formatDate(thursday, '%A %B', { locale: 'fr' }), 'jeudi mars');
+  } finally {
+    setLanguage('en');
+  }
+});
+
+test('English tags keep the English names, and a tag Intl refuses falls back to them', () => {
+  const september = new Date(2026, 8, 6);
+  for (const locale of ['en', 'en-GB', 'EN-us']) {
+    assert.equal(formatDate(september, '%A %a %B %b', { locale }), 'Sunday Sun September Sep', locale);
+  }
+  assert.equal(formatDate(september, '%B', { locale: 'not a locale' }), 'September');
+});
+
+test('a translator answers before Intl, and its long names still shorten to three letters', () => {
+  const thursday = new Date(2026, 2, 5);
+  try {
+    setLanguage('de');
+    setTranslator((key) => ({ 'date.month.2': 'Lenzmond' })[key] ?? null);
+    assert.equal(formatDate(thursday, '%B %b'), 'Lenzmond Len');
+    assert.equal(formatDate(thursday, '%A %a'), 'Donnerstag Do', 'keys it lacks stay with Intl');
+    setTranslator((key) => ({ 'date.month.short.2': 'Lz' })[key] ?? null);
+    assert.equal(formatDate(thursday, '%b'), 'Lz');
+  } finally {
+    setTranslator(null);
+    setLanguage('en');
+  }
+});
+
+test('names stay Gregorian in a locale whose default calendar is not', () => {
+  const march = new Date(2026, 2, 5);
+  const gregorian = new Intl.DateTimeFormat('fa-u-ca-gregory', { month: 'long' }).format(march);
+  const solar = new Intl.DateTimeFormat('fa', { month: 'long' }).format(march);
+  assert.notEqual(gregorian, solar, 'fa must default to another calendar for this test to mean anything');
+  assert.equal(formatDate(march, '%B', { locale: 'fa' }), gregorian);
 });

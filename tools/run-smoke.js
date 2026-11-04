@@ -16,6 +16,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
 import { buildSubset } from '../bin/zx-css.js';
+import { checkLanguage } from './check-language.js';
 import { LAYOUT_IDS, PATTERN_IDS, TEMPLATE_IDS } from '../website/layouts/index.js';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -53,6 +54,7 @@ try {
   failed = (await runDocumentationShell(browser)) || failed;
   failed = (await runLayoutGallery(browser)) || failed;
   failed = (await runStandaloneLayout(browser)) || failed;
+  failed = (await checkLanguage(browser, base)) || failed;
 } catch (error) {
   console.error(`\nSmoke run could not start: ${error.message}`);
   if (String(error.message).includes('chrome')) {

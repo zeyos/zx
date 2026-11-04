@@ -20,6 +20,10 @@ const SAME_AS_ENGLISH = new Map([
   ['agentThread.agent', 'shared word'],
   ['appSidebar.itemBadge', 'no words'],
   ['blockView.code', 'established term'],
+  ['datebox.placeholder.hour', 'no words'],
+  ['datebox.placeholder.minute', 'no words'],
+  ['datebox.placeholder.month', 'no words'],
+  ['datebox.placeholder.second', 'no words'],
   ['dialog.ok', 'shared word'],
   ['filter.conditionNoun', 'shared word'],
   ['listToolbar.toolBadge', 'no words'],
@@ -28,6 +32,7 @@ const SAME_AS_ENGLISH = new Map([
   ['runStatus.timeFormat', 'no words'],
   ['runStatus.tokens', 'established term'],
   ['runTrace.doing', 'no words'],
+  ['status.backlog', 'established term'],
   ['stepper.optional', 'shared word'],
   ['timePicker.minute', 'shared word'],
   ['viewSettings.board', 'established term'],
@@ -41,7 +46,7 @@ const SAME_AS_ENGLISH = new Map([
  * `formatDate()` patterns, not printf templates. German writes them in its own order, so their
  * tokens are not placeholders; `%d.%` would even read as a named one.
  */
-const DATE_PATTERNS = new Set(['runStatus.dateTimeFormat', 'runStatus.timeFormat']);
+const DATE_PATTERNS = new Set(['datePicker.dayLabel', 'runStatus.dateTimeFormat', 'runStatus.timeFormat']);
 
 /**
  * The placeholders `printf()` fills, sorted, so a repeated or a dropped one shows.
@@ -85,15 +90,13 @@ test('only the listed entries read the same as the English text', () => {
   assert.deepEqual(same.sort(), [...SAME_AS_ENGLISH.keys()].sort());
 });
 
-test('date patterns stay numeric and survive interpolation', () => {
+test('date patterns read as German dates and survive interpolation', () => {
+  setLanguage('de');
   const date = new Date(2026, 2, 5, 9, 7);
   assert.equal(formatDate(date, de['runStatus.dateTimeFormat']), '05.03., 09:07');
   assert.equal(formatDate(date, de['runStatus.timeFormat']), '09:07');
-  for (const key of DATE_PATTERNS) {
-    // A month or weekday name would come out in English: the catalogue cannot carry those names.
-    assert.doesNotMatch(de[key], /%[aAbB]/, key);
-    assert.equal(printf(de[key], []), de[key], key);
-  }
+  assert.equal(formatDate(date, de['datePicker.dayLabel']), '5. März 2026');
+  for (const key of DATE_PATTERNS) assert.equal(printf(de[key], []), de[key], key);
 });
 
 test('the typography is German', () => {

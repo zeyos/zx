@@ -227,6 +227,7 @@ export class DatePicker extends Component {
     this.refs.heading.textContent = formatDate(first, '%B %Y');
     this.refs.heading.setAttribute('aria-label',
       this._message('datePicker.chooseMonthYear', 'Choose month and year, %1', formatDate(first, '%B %Y')));
+    const dayLabel = this._message('datePicker.dayLabel', '%e %B %Y');
     const rows = [];
 
     for (let week = 0; week < 6; week += 1) {
@@ -251,7 +252,7 @@ export class DatePicker extends Component {
           ariaSelected: String(selected),
           ariaDisabled: String(unavailable),
           ariaCurrent: isSameDay(date, new Date()) ? 'date' : null,
-          ariaLabel: `${formatDate(date, '%e')} ${formatDate(date, '%B %Y')}`,
+          ariaLabel: formatDate(date, dayLabel),
           dataset: {
             date: formatDate(date, '%Y-%m-%d'),
             otherMonth: date.getMonth() === this._viewMonth ? null : 'true'
