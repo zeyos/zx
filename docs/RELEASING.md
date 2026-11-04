@@ -128,6 +128,16 @@ First move `CHANGELOG.md`'s `## Unreleased` heading to the version and date bein
 fresh `## Unreleased` above it. The file ships in the tarball, so an entry that still says
 "Unreleased" is published as such.
 
+Then compare the tree against the previous release and read the report before going on:
+
+```sh
+npm run test:visual -- --base "$(git describe --tags --abbrev=0)" --full --layouts
+```
+
+It prints where the report is. Exit code 1 says only that sections differ, which a release expects:
+what matters is that each of them is a change the changelog names. Exit code 2 means nothing was
+compared. See `tools/visual-diff.js`.
+
 The publish workflow refuses to run if the tag and package version disagree. Set the intended
 semver, update both manifests without creating an implicit commit, then commit and tag the verified
 tree explicitly:
