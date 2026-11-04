@@ -47,7 +47,9 @@ regenerated. Public files must not mention this spec.
 `node --test`, which only picks up `*.test.js`), `website/demos/agent-thread.demo.js`,
 `docs/llms.md`, `src/core/messages.js` (new keys only, if any), `tests/smoke/smoke.js`.
 
-- **`connectUiMessageStream(thread, options)`** → `{handle(part), destroy()}`.
+- **`connectUiMessageStream(thread, options)`** → `{handle(part), destroy()}`. `destroy()` stops an
+  open message, expires a pending approval, and stops every call still going, those of a finished
+  message too, because nothing can settle them any more.
 - **Options:** `runStatus?`, `authors`, `agent` (the author key for assistant output), `tools: {}`,
   `onapproval(approvalId, approved, reason)`, `ondata(name, data, id)`, `onmetadata(metadata)`,
   `onunknown(part)`, `onerror(error)`, `showReasoning: false`.

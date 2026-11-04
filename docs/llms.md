@@ -3584,8 +3584,9 @@ for await (const part of parsedParts(response)) stream.handle(part);
   application's next request, and the response to it continues the same message: its `start` names
   a message that has finished or was stopped, and the message picks up where it stopped, once it has
   something to say. A `start` without a `messageId` opens a new answer, or, during an open message,
-  joins it, because streams merged into one each send their own. `destroy()` stops a message still open and expires
-  a pending approval, because no decision could reach the application any more.
+  joins it, because streams merged into one each send their own. `destroy()` stops a message still open and every
+  call still going, and expires a pending approval, because no decision could reach the application
+  any more.
 - **Message** — `start` opens an `answer` under the message id, `finish` closes it and settles
   `runStatus` (`waiting` while an approval is pending), `abort` closes it as stopped. Text blocks
   stream through `appendText`, each block a new paragraph of the same answer. `error` draws a

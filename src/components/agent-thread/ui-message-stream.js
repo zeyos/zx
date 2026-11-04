@@ -64,8 +64,9 @@ export const UI_MESSAGE_STREAM_VERSION = 'v1';
 /**
  * @typedef {Object} UiMessageStreamConnection
  * @property {(part: UiMessagePart) => void} handle Takes the next part of the stream.
- * @property {() => void} destroy Stops listening. An answer still open is stopped and a pending
- * approval expires, because no decision could reach the application any more.
+ * @property {() => void} destroy Stops listening. An answer still open is stopped, a pending
+ * approval expires, because no decision could reach the application any more, and a call still
+ * going is stopped, because nothing can settle it.
  */
 
 /**
@@ -1049,6 +1050,10 @@ export function connectUiMessageStream(thread, options = {}) {
       if (current) {
         stopMessage(current);
         runStatus?.update({ state: 'stopped', finished: new Date() });
+      }
+      // A call of a finished message may be waiting for the next response, which cannot come now.
+      for (const call of calls.values()) {
+        if (call.status === 'queued' || call.status === 'running') finishCall(call, 'stopped');
       }
     }
   };

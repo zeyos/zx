@@ -1327,6 +1327,25 @@ test('destroy stops listening, stops what is open, and expires what nobody can a
   assert.deepEqual(thread.order(), before);
 });
 
+test('destroy stops the calls nothing can settle any more, those of a finished message too', async () => {
+  const { thread, stream, play } = connect();
+  play([
+    { type: 'start', messageId: 'm' },
+    { type: 'tool-input-start', toolCallId: 'streaming', toolName: 'lookup' },
+    { type: 'tool-input-available', toolCallId: 'client', toolName: 'lookup', input: {} },
+    { type: 'tool-input-available', toolCallId: 'approved', toolName: 'lookup', input: {} },
+    { type: 'tool-approval-request', toolCallId: 'approved', approvalId: 'a' },
+    { type: 'tool-input-available', toolCallId: 'settled', toolName: 'lookup', input: {} },
+    { type: 'tool-output-available', toolCallId: 'settled', output: 'ok' },
+    { type: 'finish' }
+  ]);
+  await thread.decide('approve', { item: thread.get('approval:a'), values: {} });
+  stream.destroy();
+  assert.deepEqual(/** @type {any} */ (thread.get('m')).steps.map(({ id, status }) => [id, status]), [
+    ['streaming', 'stopped'], ['client', 'stopped'], ['approved', 'stopped'], ['settled', 'done']
+  ]);
+});
+
 test('a finished conversation leaves destroy nothing to change', () => {
   const { thread, stream, play } = connect();
   play(fixture('tools').responses[0]);
