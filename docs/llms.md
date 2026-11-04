@@ -4405,7 +4405,8 @@ setLanguage('de');
 
 One instance can take it alone through its `msg` option (`new CardView(null, { msg: de })`). The
 catalogue covers messages only. Month and weekday names come from `Intl` in the active language, so
-`setLanguage('de')` is what makes `formatDate()` write "März". A translator can still override them
+`setLanguage('de')` is what makes `formatDate()` write "März", and what `Calendar` and the agent
+components write their dates in when they have no `locale` option. A translator can still override them
 with `date.month.0`–`11`, `date.month.short.0`–`11`, `date.weekday.0`–`6` (Sunday first) and
 `date.weekday.short.0`–`6`.
 
