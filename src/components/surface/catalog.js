@@ -308,7 +308,7 @@ const INTENT_ENTRIES = {
   choose: { intent: 'choose', requires: ['choice'], actions: ['Submit', 'Cancel'], reply: 'The picked value under the choice\'s name; a list when `multiple`.' },
   confirm: { intent: 'confirm', requires: [], actions: ['Confirm', 'Cancel'], reply: '`{}`. The application may ask the person to type a confirmation.' },
   review: { intent: 'review', requires: ['diff', 'table'], actions: ['Approve selected', 'Reject'], reply: 'The ids of the accepted diff rows or selected table rows, under the input\'s name.' },
-  questionnaire: { intent: 'questionnaire', requires: ['questionnaire'], actions: [], reply: '`{answers, path}`: the answers by step name and the steps taken.' }
+  questionnaire: { intent: 'questionnaire', requires: ['questionnaire'], actions: ['Cancel'], reply: '`{answers, path}`: the answers by step name and the steps taken.' }
 };
 
 /**

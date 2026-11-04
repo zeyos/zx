@@ -152,7 +152,7 @@ import { cellLimitMessage, createValidationState, tableCells, validateDocument, 
 /** @typedef {SurfaceAction & {builtin?: boolean}} DrawnAction */
 
 const ASKING_INTENTS = new Set(['ask', 'choose', 'review']);
-const CANCEL_INTENTS = new Set(['ask', 'choose', 'confirm']);
+const CANCEL_INTENTS = new Set(['ask', 'choose', 'confirm', 'questionnaire']);
 const VALUELESS = new Set(['reject', 'cancel', 'dismiss']);
 const LEVELS = new Set(['allow', 'confirm', 'type-to-confirm', 'deny']);
 const BLOCK_TYPES = new Set(['text', 'heading', 'list', 'quote', 'code', 'callout', 'figures']);
@@ -1597,6 +1597,8 @@ export class Surface extends Component {
         else delete /** @type {HTMLElement} */ (this.el).dataset.submit;
       }
       this._actions = this._actions.filter((action) => !this._removed.includes(action.id));
+      // A review's Reject is its way out; without one, it gets the Cancel the others have.
+      if (this._model.intent === 'review' && !this._actions.some((action) => action.id === 'reject')) this._actions.push(this._cancelAction());
       host.replaceChildren(...this._actions.map((action) => {
         const element = /** @type {HTMLButtonElement} */ (button({
           label: action.label,
@@ -1629,8 +1631,13 @@ export class Surface extends Component {
     else if (intent === 'review') {
       list.push({ id: 'approve', label: this.msg('surface.approve'), kind: 'primary' }, { id: 'reject', label: this.msg('surface.reject') });
     }
-    if (CANCEL_INTENTS.has(intent)) list.push({ id: 'cancel', label: this.msg('surface.cancel'), builtin: true });
+    if (CANCEL_INTENTS.has(intent)) list.push(this._cancelAction());
     return list;
+  }
+
+  /** @private @returns {DrawnAction} */
+  _cancelAction() {
+    return { id: 'cancel', label: this.msg('surface.cancel'), builtin: true };
   }
 
   /**
@@ -1822,7 +1829,7 @@ export class Surface extends Component {
   /** @private @param {KeyboardEvent} event @returns {void} */
   _onKeydown(event) {
     if (event.key !== 'Escape' || event.defaultPrevented || event.isComposing || this._reply || this._busy) return;
-    if (!this._actions.some((action) => action.builtin)) return;
+    if (!this._waits()) return;
     // An Escape that closes something nested — an open popover, an expanded list — is not ours.
     if (this._escapeIsNested(event)) return;
     // Decide once every other handler had its turn: one that handled the key prevents it.
@@ -1830,6 +1837,16 @@ export class Surface extends Component {
       if (event.defaultPrevented || this._reply || this._busy || this._destroyed) return;
       this.cancel('escape');
     }, 0);
+  }
+
+  /**
+   * @private
+   * @returns {boolean} Whether someone is expected to answer: every intent that asks, and a `show`
+   *   surface with actions of its own. One without any has nothing to close.
+   */
+  _waits() {
+    const intent = this._model.intent;
+    return intent !== null && (intent !== 'show' || this._actions.length > 0);
   }
 
   /**

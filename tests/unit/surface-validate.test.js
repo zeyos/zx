@@ -883,3 +883,40 @@ test('the tables of a surface hold 100,000 cells, a binding counted each time it
   const streamed = stream([begin({ root: ['a', 'b', 'c'] }), { op: 'data', surface: 's1', path: '/rows', value: rows }, ...bound.map((entry) => ({ op: 'node', surface: 's1', ...entry })), { op: 'end', surface: 's1' }]);
   assert.ok(streamed.ops.some((op) => op.op === 'patch' && op.id === 'c' && op.props.rows === null));
 });
+
+const questionnaire = (steps) => check(doc([{ id: 'q', type: 'questionnaire', steps }], { intent: 'questionnaire' }));
+const asked = (name, extra = {}) => ({ name, prompt: `${name}?`, choices: [{ value: 'x', label: 'X' }], ...extra });
+const nextOf = (result) => Object.fromEntries(node(result, 'q').steps.map((step) => [step.name, step.next ?? null]));
+
+test('a questionnaire next naming a dropped step is dropped and reported', () => {
+  const direct = questionnaire([asked('a', { next: 'gone' }), { name: 'gone' }, asked('c')]);
+  assert.deepEqual(nextOf(direct), { a: null, c: null });
+  assert.ok(direct.errors.some((error) => error.code === 'condition' && error.path === '/nodes/0/steps/0/next' && /gone/.test(error.message)));
+  const branch = questionnaire([asked('a', { next: [{ if: { field: 'a', op: 'eq', value: 'x' }, goto: 'gone' }, { goto: 'c' }] }), { name: 'gone' }, asked('c')]);
+  assert.equal(nextOf(branch).a, null);
+  assert.ok(has(branch.errors, 'condition'));
+  // A step dropped for its name is as gone as one dropped for its prompt, and the later of two of a name stays dropped.
+  assert.equal(nextOf(questionnaire([asked('a', { next: '__proto__' }), asked('c')])).a, null);
+  assert.deepEqual(nextOf(questionnaire([asked('a', { next: 'c' }), asked('b'), asked('c')])), { a: 'c', b: null, c: null });
+});
+
+test('a questionnaire next forming a cycle is dropped and reported', () => {
+  const pair = questionnaire([asked('a', { next: 'b' }), asked('b', { next: 'a' })]);
+  assert.deepEqual(nextOf(pair), { a: 'b', b: null });
+  assert.ok(pair.errors.some((error) => error.code === 'condition' && error.path === '/nodes/0/steps/1/next'));
+
+  // Back to a step that falls through to this one.
+  assert.deepEqual(nextOf(questionnaire([asked('a'), asked('b'), asked('c', { next: 'a' })])), { a: null, b: null, c: null });
+  // A branch may be taken or not: a list that can go back goes.
+  const branch = questionnaire([asked('a'), asked('b', { next: [{ if: { field: 'b', op: 'eq', value: 'x' }, goto: 'a' }, { goto: '$submit' }] })]);
+  assert.equal(nextOf(branch).b, null);
+  // A hidden step is walked past, so its own `next` does not stop the way back.
+  const past = questionnaire([asked('a'), asked('b', { when: { field: 'a', op: 'eq', value: 'y' }, next: '$submit' }), asked('c', { next: 'a' })]);
+  assert.equal(nextOf(past).c, null);
+  assert.ok(has(past.errors, 'condition'));
+
+  // Going back is not a cycle when nothing there leads here, and going forward never is one.
+  const back = questionnaire([asked('a', { next: 'c' }), asked('b', { next: '$submit' }), asked('c', { next: 'b' })]);
+  assert.deepEqual(nextOf(back), { a: 'c', b: '$submit', c: 'b' });
+  assert.deepEqual(back.errors, []);
+});

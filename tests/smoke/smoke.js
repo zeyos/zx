@@ -6861,6 +6861,74 @@ function surfaceSafetyCases() {
       assert(!component.el.querySelector('[data-surface-node="c"]').classList.contains('zx-surface__fallback'), 'a table that fits again stayed a fallback');
       component.destroy();
     }),
+    // Every waiting surface has a way out, and Escape is one of them.
+    surfaceCase('Surface (a way out of every waiting surface)', (fixture) => ({ fixture }), async ({ fixture }) => {
+      const escape = async (component) => {
+        (component.el.querySelector('input, button') ?? component.el).dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+        await delay(0);
+      };
+      const steps = [{ name: 'a', prompt: 'A?', required: true, choices: [{ value: 'x', label: 'X' }] }];
+      const asking = surfaceDocument({ intent: 'questionnaire', root: ['q'], nodes: [{ id: 'q', type: 'questionnaire', steps }] });
+      const diff = { id: 'd', type: 'diff', name: 'accepted', rows: [{ id: 'r1', field: 'name', label: 'Name', before: 'A', after: 'B' }] };
+      const review = surfaceDocument({ intent: 'review', root: ['d'], nodes: [diff] });
+      const open = (document, options = {}) => {
+        const component = new zx.Surface(null, { document, ...options });
+        fixture.append(component.toElement());
+        return { component, count: countReplies(component) };
+      };
+      // A questionnaire has its Cancel, enabled while it streams and whatever the policy says of Submit.
+      for (const policy of [null, () => 'deny']) {
+        const { component, count } = open(asking, { policy });
+        surfaceButton(component.el, 'cancel').click();
+        await delay(0);
+        assert(count.replies.length === 1 && count.replies[0].action === 'cancel', 'Cancel did not close a questionnaire');
+        component.destroy();
+      }
+      const streaming = new zx.Surface(null);
+      fixture.append(streaming.toElement());
+      streaming.apply({ zx: 'surface/1', op: 'begin', surface: 's1', intent: 'questionnaire', title: 'T', author: 'a', root: [] });
+      assert(surfaceButton(streaming.el, 'cancel') && !surfaceButton(streaming.el, 'cancel').disabled, 'Cancel waited for a questionnaire to end');
+      streaming.destroy();
+      // Escape closes whatever waits.
+      for (const [name, document, action] of [
+        ['questionnaire', asking, 'cancel'],
+        ['review', review, 'cancel'],
+        ['show with actions', surfaceDocument({ intent: 'show', root: ['why'], nodes: [surfaceDocument().nodes[0]], actions: [{ id: 'go', label: 'Go' }] }), 'dismiss']
+      ]) {
+        const { component, count } = open(document);
+        await escape(component);
+        assert(count.replies.length === 1 && count.replies[0].action === action && count.replies[0].reason === 'escape', `Escape did not close a ${name}`);
+        component.destroy();
+      }
+      // A surface that asks nothing has nothing to close.
+      const plain = open(surfaceDocument({ intent: 'show', root: ['why'], nodes: [surfaceDocument().nodes[0]] }));
+      await escape(plain.component);
+      assert(plain.count.replies.length === 0, 'Escape closed a surface that waits for nothing');
+      plain.component.destroy();
+      // A review keeps a visible way to refuse: its Reject, or Cancel where that is gone.
+      const reject = open(review);
+      assert(surfaceButton(reject.component.el, 'reject') && !surfaceButton(reject.component.el, 'cancel'), 'a review with Reject grew a Cancel');
+      reject.component.destroy();
+      for (const [name, document, options] of [
+        ['its own actions', surfaceDocument({ intent: 'review', root: ['d'], nodes: [diff], actions: [{ id: 'send', label: 'Send', kind: 'primary' }] }), {}],
+        ['Reject denied', review, { policy: (action) => (action.id === 'reject' ? 'deny' : 'allow') }]
+      ]) {
+        const { component, count } = open(document, options);
+        assert(surfaceButton(component.el, 'cancel'), `a review with ${name} has no way out`);
+        surfaceButton(component.el, 'cancel').click();
+        await delay(0);
+        assert(count.replies[0]?.action === 'cancel', `Cancel did not close a review with ${name}`);
+        component.destroy();
+      }
+      // A step the validator dropped takes the `next` naming it along, so the questionnaire can end.
+      const dropped = open(surfaceDocument({ intent: 'questionnaire', root: ['q'], nodes: [{ id: 'q', type: 'questionnaire', steps: [{ ...steps[0], next: 'gone' }, { name: 'gone' }] }] }));
+      const questionnaire = zx.Component.from(dropped.component.el.querySelector('.zx-questionnaire'));
+      dropped.component.el.querySelector('.zx-questionnaire__control').click();
+      await questionnaire.submit();
+      await delay(0);
+      assert(dropped.count.replies[0]?.action === 'submit', 'a questionnaire with a dangling next could not be answered');
+      dropped.component.destroy();
+    }),
     /* -- end of the safety cases -- */
   ];
 }

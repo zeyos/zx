@@ -1743,11 +1743,12 @@ function checkSteps(value, max, ctx, path, id) {
     report(ctx, 'limit', `A questionnaire has at most ${max} steps`, { id, path });
     return undefined;
   }
-  const names = value.map((step) => (isObject(step) && typeof step.name === 'string' ? step.name : null));
   /** @type {Record<string, unknown>[]} */
   const steps = [];
   /** @type {string[]} */
   const earlier = [];
+  /** @type {Array<{step: Record<string, unknown>, next: unknown, fields: string[], at: string}>} A `next` can only be checked against the steps that stay. */
+  const branches = [];
   value.forEach((raw, index) => {
     const at = `${path}/${index}`;
     const step = closed(raw, ['name', 'prompt', 'description', 'section', 'required', 'multiple', 'skippable', 'choices', 'input', 'when', 'next', 'validate'], ctx, at, id);
@@ -1806,13 +1807,7 @@ function checkSteps(value, max, ctx, path, id) {
           return copy;
         })
         : step.next;
-      const targets = names.filter((name) => typeof name === 'string' && name !== step.name);
-      const problems = checkNext(next, { targets: [...targets, NEXT_REVIEW, NEXT_SUBMIT], fields: [...earlier, step.name] });
-      if (problems.length) {
-        for (const problem of problems) report(ctx, 'condition', `"next": ${problem.message}; it was dropped`, { id, path: `${at}/next${problem.path}` });
-      } else {
-        out.next = next;
-      }
+      branches.push({ step: out, next, fields: [...earlier, step.name], at });
     }
     if (present(step.validate)) {
       const rules = Array.isArray(step.validate) ? step.validate.map((rule) => (isObject(rule) ? withoutNulls(rule) : rule)) : step.validate;
@@ -1826,7 +1821,64 @@ function checkSteps(value, max, ctx, path, id) {
     earlier.push(step.name);
     steps.push(out);
   });
+  for (const { step, next, fields, at } of branches) {
+    const targets = earlier.filter((name) => name !== step.name);
+    const problems = checkNext(next, { targets: [...targets, NEXT_REVIEW, NEXT_SUBMIT], fields });
+    if (problems.length) {
+      for (const problem of problems) report(ctx, 'condition', `"next": ${problem.message}; it was dropped`, { id, path: `${at}/next${problem.path}` });
+    } else {
+      step.next = next;
+    }
+  }
+  for (const { step, at } of branches) {
+    if (!leadsBack(step, steps)) continue;
+    report(ctx, 'condition', `"next" can lead back to "${step.name}", so the questionnaire might never end; it was dropped`, { id, path: `${at}/next` });
+    delete step.next;
+  }
   return steps.length ? steps : undefined;
+}
+
+/**
+ * Whether a step's `next` can lead back to the step. Only a jump back can close a cycle, as every
+ * other way on goes forward: from there the walk is followed along every `next` and through every
+ * step it falls through to, which a list of branches may do, and past every step with a `when`,
+ * which may be hidden. So a list that could still go elsewhere counts as going back.
+ * @param {Record<string, any>} step @param {Array<Record<string, any>>} steps
+ * @returns {boolean}
+ */
+function leadsBack(step, steps) {
+  if (step.next === undefined) return false;
+  const positions = new Map(steps.map((entry, position) => [entry.name, position]));
+  const target = (/** @type {Record<string, any>} */ entry) => (entry.next === undefined ? []
+    : typeof entry.next === 'string' ? [entry.next] : entry.next.map((/** @type {{goto: string}} */ branch) => branch.goto))
+    .filter((/** @type {string} */ name) => positions.has(name));
+  // Where a walk arrives at a step: there, and on past it while it may be hidden.
+  const landing = (/** @type {number} */ position) => {
+    const out = [];
+    for (let at = position; at < steps.length; at += 1) {
+      out.push(at);
+      if (!steps[at].when) break;
+    }
+    return out;
+  };
+  const following = (/** @type {number} */ position) => {
+    const entry = steps[position];
+    const out = target(entry).flatMap((/** @type {string} */ name) => landing(/** @type {number} */ (positions.get(name))));
+    const fallsThrough = entry.next === undefined || (Array.isArray(entry.next) && Object.hasOwn(entry.next.at(-1), 'if'));
+    return fallsThrough ? [...out, ...landing(position + 1)] : out;
+  };
+  const own = /** @type {number} */ (positions.get(step.name));
+  const pending = target(step).filter((name) => /** @type {number} */ (positions.get(name)) <= own)
+    .flatMap((name) => landing(/** @type {number} */ (positions.get(name))));
+  const seen = new Set();
+  while (pending.length) {
+    const position = /** @type {number} */ (pending.pop());
+    if (position === own) return true;
+    if (seen.has(position)) continue;
+    seen.add(position);
+    pending.push(...following(position));
+  }
+  return false;
 }
 
 /**
