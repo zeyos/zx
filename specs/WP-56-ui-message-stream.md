@@ -61,6 +61,8 @@ regenerated. Public files must not mention this spec.
     step.
   - `text-start`, `text-delta` and `text-end` stream through `thread.appendText`. Several text
     blocks in one message append to the same answer, unless stream order says otherwise (below).
+    A block's id only names it while it is open: as on the AI SDK client, `text-end` frees the id,
+    and so does the end of its message, so a later block may reuse it.
   - `reasoning-*` follows Decision 3.
   - `tool-input-start`, `tool-input-delta`, `tool-input-available`, `tool-output-available` and
     the error and denial parts become steps of the answer, with the WP51 run states: `queued`
@@ -104,7 +106,7 @@ regenerated. Public files must not mention this spec.
   - What already went out stays with the application: `ondata`, `onmetadata` and `onapproval` cannot
     be recalled, and the adapter has no callback that says so.
   - Outside a message it draws nothing and is reported through `onerror`.
-- **Out of order:** a delta arriving before its start creates the item, and a `start` for a message
+- **Out of order:** a delta arriving outside its block creates the item, and a `start` for a message
   still open is ignored. A `start` for another message stops the open one, which nothing else can
   finish. All three are reported through `onerror`.
 - **Fixtures:** four streams: a plain answer with two tool calls and two sources; an approval-gated

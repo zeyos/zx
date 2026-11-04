@@ -602,6 +602,49 @@ test('a start without a message id opens a new answer, and a call of the earlier
   assert.deepEqual(log.error, []);
 });
 
+test('a block id is free again once its block has ended, and the next block is its own paragraph', () => {
+  const { thread, log, play } = connect();
+  play([
+    { type: 'start', messageId: 'm' },
+    { type: 'start-step' }, ...said('0', 'One.'), { type: 'finish-step' },
+    { type: 'start-step' }, ...said('0', 'Two.'), { type: 'finish-step' },
+    { type: 'finish' }
+  ]);
+  assert.deepEqual(/** @type {any} */ (thread.get('m')).blocks.map((block) => block.text), ['One.', 'Two.']);
+  assert.deepEqual(log.error, []);
+});
+
+test('a block left open when its message ends does not hold its id into the next response', () => {
+  const { thread, log, play } = connect();
+  play([
+    { type: 'start', messageId: 'm' },
+    { type: 'text-start', id: '0' },
+    { type: 'text-delta', id: '0', delta: 'One.' },
+    { type: 'finish' },
+    { type: 'start', messageId: 'm' },
+    ...said('0', 'Two.'),
+    { type: 'finish' }
+  ]);
+  assert.deepEqual(/** @type {any} */ (thread.get('m')).blocks.map((block) => block.text), ['One.', 'Two.']);
+  assert.deepEqual(log.error, []);
+});
+
+test('a block ended is closed: its late delta and second end are reported', () => {
+  const { thread, log, play } = connect();
+  play([
+    { type: 'start', messageId: 'm' },
+    ...said('t', 'One.'),
+    { type: 'text-delta', id: 't', delta: 'Late.' },
+    { type: 'text-end', id: 't' },
+    { type: 'text-end', id: 't' }
+  ]);
+  assert.deepEqual(/** @type {any} */ (thread.get('m')).blocks.map((block) => block.text), ['One.', 'Late.'], 'what it carries is still drawn');
+  assert.deepEqual(log.error, [
+    'text-delta arrived before the text-start of block t',
+    'text-end arrived before the text-start of block t'
+  ]);
+});
+
 test('tool and reasoning parts out of order create their step and are reported', () => {
   const { thread, log, play } = connect();
   play([

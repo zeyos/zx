@@ -76,7 +76,7 @@ export const UI_MESSAGE_STREAM_VERSION = 'v1';
  * @property {boolean} writing Whether its last piece is streaming.
  * @property {TraceStep[]} steps The message's steps, which its first piece shows.
  * @property {Source[]} sources The message's sources.
- * @property {Set<unknown>} texts Text blocks seen.
+ * @property {Set<unknown>} texts Text blocks not ended yet. An ended block's id is free again.
  * @property {boolean} hasText Whether the last piece ends in text a new block has to be set apart
  * from.
  * @property {boolean} gap Whether the next text starts a new paragraph.
@@ -350,6 +350,8 @@ export function connectUiMessageStream(thread, options = {}) {
     endThinking(message);
     message.closed = true;
     message.writing = false;
+    // A response brings its own blocks, so one left open cannot hold its id into the next.
+    message.texts.clear();
     if (current === message) current = null;
     thread.patch(tailOf(message), partial);
   }
@@ -473,7 +475,7 @@ export function connectUiMessageStream(thread, options = {}) {
     message.sources.length = mark.sources;
     restoreThinking(message, mark.thought);
     // No block is open any more, and the retry may name its blocks the same way.
-    message.texts = new Set();
+    message.texts.clear();
     Object.assign(message, mark.state);
     mark.calls.clear();
     mark.notices.length = 0;
@@ -534,7 +536,7 @@ export function connectUiMessageStream(thread, options = {}) {
 
   /** @param {UiMessagePart} part @returns {void} */
   function onTextEnd(part) {
-    if (!current?.texts.has(part.id)) report(`text-end arrived before the text-start of block ${part.id}`, part);
+    if (!current?.texts.delete(part.id)) report(`text-end arrived before the text-start of block ${part.id}`, part);
   }
 
   /* ------------------------------------------------------------------ reasoning -- */

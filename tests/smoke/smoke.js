@@ -6830,6 +6830,20 @@ function uiMessageStreamCases() {
       assert(root.querySelector('article[data-id="m#2"] [data-cite="2"]')?.getAttribute('aria-label')?.includes('Second source'), 'the citation below the tile lost its source');
     }, { tools: { lookup: tile } }),
 
+    replay('AgentThread (stream: a block id reused in a later step)', ({ root, log, play }) => {
+      /** @param {string} delta @returns {any[]} */
+      const block = (delta) => [
+        { type: 'start-step' },
+        { type: 'text-start', id: '0' },
+        { type: 'text-delta', id: '0', delta },
+        { type: 'text-end', id: '0' },
+        { type: 'finish-step' }
+      ];
+      play([{ type: 'start', messageId: 'm' }, ...block('First step.'), ...block('Second step.'), { type: 'finish', finishReason: 'stop' }]);
+      assert(paragraphs(root, 'm').join('|') === 'First step.|Second step.', `paragraphs: ${paragraphs(root, 'm')}`);
+      assert(!log.error.length, `reported: ${log.error}`);
+    }),
+
     replay('AgentThread (stream: card expiry)', async ({ root, stream, log, play }) => {
       const [first] = await recorded('approval');
       play(first);
