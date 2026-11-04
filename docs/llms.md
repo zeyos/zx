@@ -3564,9 +3564,9 @@ source.onmessage = (message) => adapter.handle(JSON.parse(message.data));
   again once its arguments are complete. A start for an id still open is ignored and reported
   (`duplicate-start`), and a message id with one of the adapter's prefixes (`approval:`, `tool:`, `trace:`, `surface:`,
   `error:`, `think:`) is refused. `handle()` never throws: what it cannot read is reported and
-  dropped. `destroy()` cancels unanswered surface-tool surfaces (their replies still reach
-  `ontoolresult`, with `reason: 'stopped'`) and expires undecided approvals before it stops
-  listening. Every event the thread does not draw goes to
+  dropped. `destroy()` closes a run still open as stopped, cancels unanswered surface-tool surfaces
+  (their replies still reach `ontoolresult`, with `reason: 'stopped'`) and expires undecided
+  approvals before it stops listening, and reports none of that through `onerror`. Every event the thread does not draw goes to
   `onunknown`, including steps, message snapshots, activities, subagents and the deprecated
   `THINKING_*` names.
 <!-- /doc -->

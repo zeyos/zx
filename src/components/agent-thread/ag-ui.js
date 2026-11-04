@@ -148,10 +148,11 @@ const MAX_TOKEN = 512;
  * @property {(event: AgUiEvent) => void} handle Takes the next event, in stream order.
  * @property {() => unknown} state The application state as it stands: a copy of the last
  *   snapshot with every delta since applied, `null` before the first.
- * @property {() => void} destroy Ends the connection without leaving anyone waiting: every
- *   unanswered surface-tool surface is cancelled (its reply, with `reason: 'stopped'`, still reaches
- *   `ontoolresult`), every undecided approval card expires, and then the thread is no longer
- *   listened to. Later events are ignored; the items stay.
+ * @property {() => void} destroy Ends the connection without leaving anyone waiting: a run still
+ *   open is closed as stopped, every unanswered surface-tool surface is cancelled (its reply, with
+ *   `reason: 'stopped'`, still reaches `ontoolresult`), every undecided approval card expires, and
+ *   then the thread is no longer listened to. Nothing of this is reported through `onerror`. Later
+ *   events are ignored; the items stay.
  */
 
 /** The fields each event type needs: `id` a non-empty string, `text` any string. */
@@ -310,7 +311,8 @@ export function connectAgUi(thread, options = {}) {
 
   /** @param {string} code @param {string} message @param {Partial<AgUiProblem>} [extra] */
   const report = (code, message, extra = {}) => {
-    if (typeof options.onerror === 'function') options.onerror({ code, message, ...extra });
+    // Going away is not a problem in the stream, however much it leaves unfinished.
+    if (!destroyed && typeof options.onerror === 'function') options.onerror({ code, message, ...extra });
   };
   /** @param {AgUiEvent} event */
   const unknown = (event) => {
@@ -1285,6 +1287,12 @@ export function connectAgUi(thread, options = {}) {
     },
     destroy() {
       if (destroyed) return;
+      destroyed = true;
+      if (active) {
+        closeRun(active, 'stopped');
+        active = null;
+        status({ state: 'stopped', finished: new Date() });
+      }
       for (const entry of calls.values()) {
         if (entry.decided) continue;
         if (entry.surfaceId) thread.surface(entry.surfaceId)?.cancel('stopped');
@@ -1293,7 +1301,6 @@ export function connectAgUi(thread, options = {}) {
           setStatus(entry, 'stopped');
         }
       }
-      destroyed = true;
       thread.off('open', onOpen);
       thread.off('reply', onReply);
       thread.off('approve', onApprove);

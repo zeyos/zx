@@ -6982,6 +6982,23 @@ function agUiCases() {
       if (!zx.AgentThread.has('smoke-company')) {
         zx.AgentThread.register('smoke-company', (item) => zx.h('p', { class: 'smoke-company' }, String(item.name ?? '')));
       }
+    surfaceCase('connectAgUi() (destroyed during a run)', () => ({
+      component: new zx.AgentThread(null, { authors: { finance: { name: 'Finance agent' } } }),
+      status: new zx.RunStatus(null, {}),
+      cleanup() { this.status.destroy(); }
+    }), ({ component: thread, status }) => {
+      const adapter = zx.connectAgUi(thread, { agent: 'finance', runStatus: status });
+      adapter.handle({ type: 'RUN_STARTED', threadId: 't', runId: 'r1' });
+      adapter.handle({ type: 'TEXT_MESSAGE_START', messageId: 'm' });
+      adapter.handle({ type: 'TEXT_MESSAGE_CONTENT', messageId: 'm', delta: 'Half' });
+      adapter.handle({ type: 'TOOL_CALL_START', toolCallId: 'c', toolCallName: 'ask_user' });
+      const feed = thread.el.querySelector('[role="feed"]');
+      assert(feed.getAttribute('aria-busy') === 'true', 'the run did not read as busy');
+      adapter.destroy();
+      assert(feed.getAttribute('aria-busy') === 'false', 'the feed reads as busy for ever');
+      assert(!thread.el.querySelector('[data-type="zx-placeholder"]'), 'a Skeleton was left standing');
+      assert(status.getState().state === 'stopped', `the run reads as ${status.getState().state}`);
+    }),
       const replies = [];
       thread.on('reply', (event) => replies.push(event.detail.reply));
       const results = [];

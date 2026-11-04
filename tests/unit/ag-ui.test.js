@@ -786,7 +786,7 @@ test('after destroy() events are ignored and the thread is not listened to', asy
   await tick();
   adapter.handle({ type: 'RUN_STARTED', threadId: 't', runId: 'later' });
   assert.deepEqual(log.results, []);
-  assert.equal(log.status.length, 1);
+  assert.deepEqual(log.status.map((update) => update.state), ['running', 'stopped'], 'the open run was closed, and nothing started after');
 });
 
 test('a thread is required and the catalog must be the library’s', () => {
@@ -952,6 +952,43 @@ test('a pending surface tool is answered when the run fails, is cancelled, or th
   thread.emit('approve', { item: thread.get('approval:c2'), values: {} });
   await tick();
   assert.equal(log.results.length, 1);
+});
+
+test('destroy() closes an open run as stopped, and reports nothing for it', () => {
+  const custom = (value) => ({ type: 'CUSTOM', name: 'zx.surface', value });
+  const { thread, log, play, adapter } = setup({ inlineSurfaces: true });
+  play([
+    { type: 'RUN_STARTED', threadId: 't', runId: 'r1' },
+    { type: 'REASONING_START', messageId: 'rs' },
+    { type: 'TEXT_MESSAGE_START', messageId: 'm1' },
+    { type: 'TEXT_MESSAGE_CONTENT', messageId: 'm1', delta: 'Half an answer' },
+    { type: 'TOOL_CALL_START', toolCallId: 'c1', toolCallName: 'lookup' },
+    { type: 'TOOL_CALL_START', toolCallId: 'c2', toolCallName: 'ask_user' },
+    { type: 'TOOL_CALL_ARGS', toolCallId: 'c2', delta: '{"zx":' },
+    custom({ ops: [begin('s1')], token: 'app' })
+  ]);
+  const updates = log.status.length;
+  adapter.destroy();
+  assert.equal(thread.items.get('m1').streaming, false, 'the answer stopped streaming');
+  assert.equal(thread.items.get('m1').stopped, true);
+  assert.equal(thread.items.get('tool:c2'), undefined, 'the Skeleton of a call that never completed is gone');
+  assert.equal(thread.step('trace:r1#2', 'c1').status, 'stopped');
+  assert.equal(thread.step('trace:r1#2', 'c2').status, 'stopped');
+  assert.equal(thread.step('trace:r1', 'think:rs').status, 'done', 'open reasoning is closed');
+  assert.equal(thread.surface('surface:r1/s1').cancelled, 'stopped', 'a custom surface does not wait for ever');
+  assert.equal(log.status.length, updates + 1);
+  assert.equal(log.status.at(-1).state, 'stopped');
+  assert.ok(log.status.at(-1).finished instanceof Date);
+  assert.deepEqual(log.errors, [], 'going away is not a problem in the stream');
+
+  // Nothing is left to close afterwards, and a finished run is not stopped after the fact.
+  adapter.destroy();
+  assert.equal(log.status.length, updates + 1);
+  const done = setup();
+  done.play(run('r1', [{ type: 'TEXT_MESSAGE_START', messageId: 'm1' }, { type: 'TEXT_MESSAGE_END', messageId: 'm1' }]));
+  const final = done.log.status.at(-1).state;
+  done.adapter.destroy();
+  assert.equal(done.log.status.at(-1).state, final);
 });
 
 test('a tile on a gated call follows its card', () => {
