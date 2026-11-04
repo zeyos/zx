@@ -2378,7 +2378,7 @@ const cases = [
     assert(read({ emptyText: 'None', msg: { 'finder.noItems': 'Nichts' } }) === 'None', 'emptyText did not beat finder.noItems');
     assert(read({ emptyText: 'None', msg: { 'finder.empty': 'Leer' } }) === 'Leer', 'finder.empty did not beat emptyText');
   }),
-  componentCase('Text options (unset, null, text)', () => new zx.TreeView(null, { items: [] }), textOptionChecks),
+  componentCase('TreeView (text options across the library)', () => new zx.TreeView(null, { items: [] }), textOptionChecks),
   componentCase('Filter (operator labels)', () => {
     const eq = zx.filterOperators.find((operator) => operator.id === 'eq');
     return new zx.Filter(null, {
@@ -5982,6 +5982,33 @@ async function textOptionChecks() {
   };
   assert(anchored({}) === 'Copy link to One|Copy link', 'proseAnchors: unset did not read the catalogue');
   assert(anchored({ label: null, title: null }) === '|', 'proseAnchors: null no longer means none');
+
+  // A copy confirms itself only once it has happened, so the clipboard has to answer.
+  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async () => {} } });
+  try {
+    const confirmed = async (control, status) => {
+      document.body.append(control);
+      control.querySelector('a')?.click() ?? control.click?.();
+      await new Promise((resolve) => { setTimeout(resolve, 0); });
+      const said = control.querySelector(status).textContent;
+      control.remove();
+      return said;
+    };
+    const button = (options) => confirmed(zx.copyButton({ text: 'x', ...options }), '.zx-copy-button__status');
+    assert(await button({}) === 'Copied', 'copyButton.feedback: unset did not read the catalogue');
+    assert(await button({ feedback: null }) === '', 'copyButton.feedback: null no longer says nothing');
+    const prose = (options) => {
+      const root = document.createElement('div');
+      root.className = 'zx-prose';
+      root.innerHTML = '<h2 id="one">One</h2>';
+      zx.proseAnchors(root, options);
+      return confirmed(root, '[role="status"]');
+    };
+    assert(await prose({}) === 'Link copied', 'proseAnchors.feedback: unset did not read the catalogue');
+    assert(await prose({ feedback: null }) === '', 'proseAnchors.feedback: null no longer says nothing');
+  } finally {
+    delete navigator.clipboard;
+  }
 
   const element = (tag) => {
     const node = document.createElement(tag);
