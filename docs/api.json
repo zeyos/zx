@@ -366,7 +366,7 @@
         "name": "runStatus",
         "type": "{update: (values: Record<string, unknown>) => unknown}|null",
         "default": "null",
-        "description": "A RunStatus the run's lifecycle drives: `running` when it starts, `done`, `waiting` (an interrupt, or calls still waiting for the person), `stopped` (cancelled) or `failed`."
+        "description": "A RunStatus the run's lifecycle drives: `running` when it starts, `done`, `waiting` (an interrupt, or calls of the run still without a result), `stopped` (cancelled) or `failed`."
       },
       {
         "name": "authors",
@@ -382,9 +382,9 @@
       },
       {
         "name": "requiresApproval",
-        "type": "((call: ToolCall) => boolean)|null",
+        "type": "((call: ToolCall) => unknown)|null",
         "default": "null",
-        "description": "Asked once a call's arguments are complete: `true` holds the call at an ApprovalCard until the person decides. Nothing is approved by default, and a check that throws holds the call too. Not asked for surface tools, whose surface is the person's say."
+        "description": "Asked once a call's arguments are complete: any truthy answer holds the call at an ApprovalCard until the person decides. Nothing is approved by default: a check that throws holds the call too, and so does a Promise, whatever it resolves to, so an asynchronous check never lets a call through. Not asked for surface tools, whose surface is the person's say."
       },
       {
         "name": "showReasoning",
@@ -427,7 +427,7 @@
       {
         "name": "toolresult",
         "payload": null,
-        "description": "What the person decided, for the application to send back to the agent. An approval answers `{approved: true}` or `{approved: false, reason?}`; a surface tool its reply, with `errors` when the surface had any; a surface tool whose arguments are not a surface answers at once with `{error: 'invalid-arguments'}`. In AG-UI 1.0 the application turns it into a `resume` entry (`{interruptId, status: 'resolved', payload}`) when the run ended with an interrupt for the call, or into a tool message (`{role: 'tool', toolCallId, content}`) when it ended with the call among its `pendingToolCallIds`; either goes in the next run's input."
+        "description": "What the person decided, for the application to send back to the agent. An approval answers `{approved: true}` or `{approved: false, reason?}`; a surface tool its reply, with `errors` when the surface had any; a `show` surface with no actions answers at once with `{shown: true, surface, errors?}` and stays on screen; a surface tool whose arguments are not a surface answers at once with `{error: 'invalid-arguments'}`, and one the thread cannot draw with `{error: 'surface-unavailable'}`. It fires once for a call. In AG-UI 1.0 the application turns it into a `resume` entry (`{interruptId, status: 'resolved', payload}`) when the run ended with an interrupt for the call, or into a tool message (`{role: 'tool', toolCallId, content}`) when it ended with the call among its `pendingToolCallIds`; either goes in the next run's input."
       },
       {
         "name": "state",
@@ -610,19 +610,19 @@
         "name": "register",
         "signature": "register(type, render)",
         "returns": "typeof AgentThread",
-        "description": "Registers how items of another type are drawn — an application's own, or a surface. A built-in type cannot be replaced."
+        "description": "Registers how items of another type are drawn. An application's own renderer for `surface` replaces the library's drawing of that type; the types the library always draws cannot be replaced."
       },
       {
         "name": "has",
         "signature": "has(type)",
         "returns": "boolean",
-        "description": "Reports whether a type has a registered renderer."
+        "description": "Reports whether a type has a registered renderer. `surface` answers false until an application registers its own, so a guarded `register()` still takes effect."
       },
       {
         "name": "setItems",
         "signature": "setItems(items)",
         "returns": "this",
-        "description": "Replaces the conversation."
+        "description": "Replaces the conversation. Everything is dropped and then drawn anew, except a surface already drawn, which stays so that one still matching keeps answering."
       },
       {
         "name": "upsert",

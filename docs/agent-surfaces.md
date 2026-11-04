@@ -19,9 +19,9 @@ A surface declares one intent. It fixes the frame, the default actions and the r
 | `choose` | a `choice` | Submit, Cancel | The picked value under the choice's name; a list when `multiple`. |
 | `confirm` | — | Confirm, Cancel | `{}`. The application may ask the person to type a confirmation. |
 | `review` | a `diff` or a `table` | Approve selected, Reject | The ids of the accepted diff rows or selected table rows, under the input's name. |
-| `questionnaire` | a `questionnaire` | — | `{answers, path}`: the answers by step name and the steps taken. |
+| `questionnaire` | a `questionnaire` | Cancel | `{answers, path}`: the answers by step name and the steps taken. |
 
-A reply is `{"zx": "reply/1", "surface", "action", "key", "values", "confirmation", "at"}`. `action` is the id of the action taken: one of yours, a default one (`submit`, `confirm`, `approve`, `reject`), or `cancel` or `dismiss` when the person closed the surface. Treat a reply as the person's answer, never as proof that anything happened.
+A reply is `{"zx": "reply/1", "surface", "action", "key", "values", "confirmation", "at"}`. `action` is the id of the action taken: one of yours, a default one (`submit`, `confirm`, `approve`, `reject`), or `cancel` or `dismiss` when the person closed the surface. Those two ids are reserved: an action of yours using one is dropped. Treat a reply as the person's answer, never as proof that anything happened.
 
 ## Nodes
 
@@ -179,7 +179,7 @@ Proposed changes, one row per value: `{"id", "field", "label", "before", "after"
 
 ### `questionnaire`
 
-Steps asked one at a time: `{"name", "prompt", "choices"?, "input"?, "required"?, "multiple"?, "when"?, "next"?, "validate"?}`. `next` is a step name, `$review`, `$submit`, or `[{"if": condition, "goto": name}, …]`; `validate` lists rules (`required`, `minLength`, `maxLength`, `minimum`, `maximum`, `format`, `oneOf`, each with an optional `message`). Only in a `questionnaire` surface.
+Steps asked one at a time: `{"name", "prompt", "choices"?, "input"?, "required"?, "multiple"?, "when"?, "next"?, "validate"?}`. `next` is a step name, `$review`, `$submit`, or `[{"if": condition, "goto": name}, …]`, and is dropped if it names a step that was dropped or can lead back to its own step; `validate` lists rules (`required`, `minLength`, `maxLength`, `minimum`, `maximum`, `format`, `oneOf`, each with an optional `message`). Only in a `questionnaire` surface.
 
 - `steps`: list of steps, at most 50, required
 - `review`: `true` or `false`
@@ -229,7 +229,7 @@ A condition may only name inputs that come earlier in the surface: depth first f
 - A surface says it was composed by its `author`. It cannot show notifications, navigate or change the application around it.
 - `placement` (`inline`, `sheet` or `dialog`) is a request; the application decides.
 - Every surface ends in exactly one reply, also when the person closes it or it is replaced. Wait for it before you act on it.
-- Limits per surface: 400 nodes, depth 12, 20,000 characters per string, 1,000 rows per table, 50 fields, 64 choices, and 8 actions.
+- Limits per surface: 400 nodes, depth 12, 20,000 characters per string, 1,000 rows per table, 100,000 table cells in all, 50 fields, 64 choices, and 8 actions.
 - Anything invalid is dropped and reported. When the application returns the errors, correct the surface and send it again.
 
 ## Examples

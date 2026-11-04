@@ -12,6 +12,7 @@
     "condition": 4,
     "value": 32,
     "columns": 50,
+    "cells": 100000,
     "datasets": 12,
     "steps": 50,
     "sources": 50,
@@ -77,7 +78,9 @@
         "requires": [
           "questionnaire"
         ],
-        "actions": [],
+        "actions": [
+          "Cancel"
+        ],
         "reply": "`{answers, path}`: the answers by step name and the steps taken."
       }
     },

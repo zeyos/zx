@@ -57,8 +57,9 @@ regenerated, never hand-edited. Public files must not mention this spec or the r
      confirmed, and `deny` removes the action.
    - Nothing inside a surface can lower that: there is no "skip confirmation", and `kind: 'danger'`
      is presentation only.
-   - The policy is synchronous. Anything it returns that is not one of those four strings counts
-     as `confirm`, and a Promise, like a policy that throws, counts as `deny`.
+   - The policy is synchronous. It may answer `{level, confirmText, message}` to supply the text to
+     type. Anything else that is not a decision counts as `confirm`, and a Promise, like a policy
+     that throws, counts as `deny`.
    - A reply records what the page did; it does not prove it. A modified client can send any
      reply, so the application's server runs its policy again for the named tool and the submitted
      values before acting. `confirmation` says which way the person confirmed, nothing more.
