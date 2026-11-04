@@ -10,7 +10,8 @@ Two independent reviews on other models fed the format and its safety rules; the
 outside the repository.
 
 Work in the current checkout, on top of WP51. **Do not commit**: this lands after central review.
-`AGENTS.md`, the WP40 and WP45 design rules, and WP42 apply. `src/core/**` is **not** in scope.
+`AGENTS.md`, the WP40 and WP45 design rules, and WP42 apply. `src/core/**` is **not** in scope,
+except `src/core/messages.js` for new keys only.
 
 This WP explicitly permits:
 
@@ -40,7 +41,8 @@ regenerated, never hand-edited. Public files must not mention this spec or the r
    - How the lines reach the page is Decision 11.
 4. **Inputs are restricted JSON Schema.** It is the subset MCP elicitation's form mode uses:
    - one flat object, with `required`;
-   - types `string`, `number`, `integer` and `boolean`;
+   - types `string`, `number`, `integer` and `boolean`, and an `array` of `enum` or `oneOf` strings
+     for multi-select, as that form mode allows;
    - `enum`, or `oneOf` of `{const, title}`;
    - `format`: `date`, `date-time`, `time`, `email` or `uri`;
    - `minimum`/`maximum` and `minLength`/`maxLength`;
@@ -55,6 +57,8 @@ regenerated, never hand-edited. Public files must not mention this spec or the r
      confirmed, and `deny` removes the action.
    - Nothing inside a surface can lower that: there is no "skip confirmation", and `kind: 'danger'`
      is presentation only.
+   - The policy is synchronous. Anything it returns that is not one of those four strings counts
+     as `confirm`, and a Promise, like a policy that throws, counts as `deny`.
    - A reply records what the page did; it does not prove it. A modified client can send any
      reply, so the application's server runs its policy again for the named tool and the submitted
      values before acting. `confirmation` says which way the person confirmed, nothing more.
@@ -73,6 +77,8 @@ regenerated, never hand-edited. Public files must not mention this spec or the r
    - Submit and every action reply. So do cancel, Escape, closing, the surface being superseded,
      the run stopping, and `destroy()` of an unanswered surface (`dismiss`). A waiting agent never
      hangs.
+   - Nothing a model writes can prevent that reply: a failure while drawing the receipt still
+     emits it, and every waiting surface has a way out, Escape included.
    - A reply carries an idempotency key.
    - An answered surface freezes into a read-only receipt that stays in the thread.
 8. **Tolerant rendering, strict reporting.**
@@ -189,8 +195,9 @@ Every line names its `surface`; one stream may carry several. `begin` carries th
 - **Questionnaire steps** use the Questionnaire item shape with declarative `when`, `next` and
   `validate` (§1).
 - **Limits:** 400 nodes, depth 12, 20,000 characters per string, 1,000 table rows, 50 fields,
-  64 choices, 8 actions and 1 MB of data per surface. Anything over a limit is dropped and
-  reported.
+  64 choices, 8 actions, 100,000 table cells across all tables, and 1 MB of data per surface.
+  Anything over a limit is dropped and reported. A `$data` binding counts each time it is used,
+  and one operation costs what it touches, not what the surface holds.
 
 ## §1 · Declarative conditions in Questionnaire
 
@@ -209,7 +216,8 @@ Every line names its `surface`; one stream may carry several. `begin` carries th
   `format` (the named formats of Decision 4) and `oneOf`, each with an optional `message`. There
   are no patterns.
 - **Compatibility:** `when`, `next` and `validate` accept these forms beside the existing
-  functions, and the function forms keep working unchanged.
+  functions, and the function forms keep working unchanged. Anything else the last release
+  tolerated (`false`, an empty list, an empty object) still reads as absent.
 - **Exports** from `conditions.js`: `evaluate(condition, answers)`, `resolveNext(next, answer,
   answers)` and `checkRules(rules, value)`, all pure. The Surface evaluates Decision 12's
   `visible` with the same `evaluate()`, so the two cannot drift.
@@ -259,6 +267,10 @@ Every line names its `surface`; one stream may carry several. `begin` carries th
   - 10,000-deep nesting, oversized arrays and strings are refused.
   - Unknown intents and node types are reported.
   - An action trying to set its own confirmation is ignored.
+  - An action using a reserved id (`cancel`, `dismiss`) is dropped and reported.
+  - A node `type`, `rowId` or schema property naming an inherited member (`constructor`,
+    `toString`, `removeAttribute`) changes nothing outside its own value.
+  - A questionnaire `next` naming a dropped step, or forming a cycle, is dropped and reported.
   - A `token` in a model-written `begin` is dropped and reported.
   - A duplicate node id replaces the earlier node.
   - A `data` path through a non-object is reported.
@@ -363,6 +375,9 @@ Every line names its `surface`; one stream may carry several. `begin` carries th
 - **AgentThread:**
   - Registers `{type: 'surface', id, document?, token?, catalog?}`. The item comes from the
     application, never from a model line, so `token` and `catalog` cannot be set by the model.
+    An application that registers its own `surface` renderer keeps it: `register()` does not
+    refuse the name, and the application's renderer wins.
+  - The Surface registers the Field types it needs only where the application has not.
   - `thread.surface(id)` returns the Surface to stream into.
   - Replies bubble as the thread event `reply {item, reply}`.
 
