@@ -82,7 +82,8 @@
     "prepublishOnly": "npm test && npm run build",
     "build:api": "node tools/build-api.js",
     "build:types": "tsc --project tsconfig.json",
-    "test:browser": "node tools/run-smoke.js"
+    "test:browser": "node tools/run-smoke.js",
+    "bench:table": "node tools/bench-table.js"
   },
   "devDependencies": {
     "chart.js": "4.5.1",
