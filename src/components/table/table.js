@@ -728,7 +728,8 @@ export class Table extends Component {
       const column = this._columns.find((candidate) => candidate.id === String(id));
       const index = this.getColumnOrder().indexOf(String(id));
       if (column && index >= 0) {
-        this._columnStatus.textContent = `Moved ${tableColumnName(column)} to position ${index + 1} of ${this._columns.length}.`;
+        this._columnStatus.textContent = this._message('table.columnMoved', 'Moved %1 to position %2 of %3.',
+          [tableColumnName(column), index + 1, this._columns.length]);
       }
     }
     return this;
@@ -802,7 +803,8 @@ export class Table extends Component {
     if (this._rowMoveMessage) {
       const siblings = this._siblingIds(id);
       const index = siblings.findIndex((candidate) => Object.is(candidate, id));
-      this._rowMoveMessage.textContent = `Moved row to position ${index + 1} of ${siblings.length}.`;
+      this._rowMoveMessage.textContent = this._message('table.rowMoved', 'Moved row to position %1 of %2.',
+        [index + 1, siblings.length]);
     }
     this._emitDataChange();
     queueMicrotask(() => this._rowHandle(id)?.focus());
@@ -1557,12 +1559,12 @@ export class Table extends Component {
       },
       h('button', {
         class: 'zx-table__column-move', type: 'button', disabled: index === 0,
-        ariaLabel: `Move ${name} earlier`,
+        ariaLabel: this._message('table.moveColumnEarlier', 'Move %1 earlier', [name]),
         dataset: { columnId: column.id, columnAction: 'up' }
       }, icon('chevron-up', { size: ICON_SIZE.chevron })),
       h('button', {
         class: 'zx-table__column-move', type: 'button', disabled: index === this._columns.length - 1,
-        ariaLabel: `Move ${name} later`,
+        ariaLabel: this._message('table.moveColumnLater', 'Move %1 later', [name]),
         dataset: { columnId: column.id, columnAction: 'down' }
       }, icon('chevron-down', { size: ICON_SIZE.chevron }))) : null;
       return h('div', { class: 'zx-table__column-option', dataset: { columnId: column.id } }, label, order);
@@ -1699,7 +1701,8 @@ export class Table extends Component {
       // message would make a successful drop look like a red editing error on editable grids.
       const status = this._rowMoveMessage ?? this._editMessage;
       if (status) status.textContent = this._grabbedId == null
-        ? 'Row dropped' : 'Row grabbed. Use the arrow keys to move it.';
+        ? this._message('table.rowDropped', 'Row dropped', [])
+        : this._message('table.rowGrabbed', 'Row grabbed. Use the arrow keys to move it.', []);
       return;
     }
     if (event.key === 'Escape' && this._grabbedId != null) {
@@ -1786,7 +1789,7 @@ export class Table extends Component {
     const row = h('tr', { class: 'zx-table__header-row' });
     if (this._indexed) row.setAttribute('aria-rowindex', '1');
     if (this.options.rowReorder) row.append(h('th', {
-      class: 'zx-table__reorder-header', scope: 'col', ariaLabel: 'Row order'
+      class: 'zx-table__reorder-header', scope: 'col', ariaLabel: this._message('table.rowOrder', 'Row order', [])
     }));
     if (this.options.selectable === 'multi') {
       this._selectAll = h('input', {
@@ -1995,7 +1998,8 @@ export class Table extends Component {
         dataset: { rowHandle: '' },
         ariaPressed: String(Object.is(this._grabbedId, id)),
         disabled: Boolean(this._sort && this.options.sortMode === 'local'),
-        title: this._sort && this.options.sortMode === 'local' ? 'Clear sorting to reorder rows' : null
+        title: this._sort && this.options.sortMode === 'local'
+          ? this._message('table.reorderBlocked', 'Clear sorting to reorder rows', []) : null
       }, icon('drag', { size: 14 }));
       tr.append(h('td', { class: 'zx-table__reorder-cell' }, handle));
     }
@@ -2317,7 +2321,7 @@ export class Table extends Component {
       ...props,
       class: textarea ? 'zx-table__editor-input zx-table__editor-textarea' : 'zx-table__editor-input',
       ...(textarea ? {} : { type: 'text' }),
-      ariaLabel: props.ariaLabel ?? `${tableColumnName(column)} row ${index + 1}`,
+      ariaLabel: props.ariaLabel ?? this._message('table.cellInput', '%1 row %2', [tableColumnName(column), index + 1]),
       value: formatCellValue(column, value, row)
     }));
     host.append(input);

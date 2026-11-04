@@ -6,6 +6,7 @@ import { ICON_SIZE, icon } from '../../core/icons.js';
 import { position } from '../../core/position.js';
 import { escapeRegExp, uid } from '../../core/util.js';
 import { DateRangePicker, clampRange, normalizeRange } from '../date-picker/date-range-picker.js';
+import { placeholderTokens } from './placeholder.js';
 
 /** @typedef {import('../date-picker/date-range-picker.js').DateRange} DateRange */
 /** @typedef {import('../date-picker/date-range-picker.js').DateRangePreset} DateRangePreset */
@@ -41,14 +42,6 @@ import { DateRangePicker, clampRange, normalizeRange } from '../date-picker/date
  */
 /** @typedef {{silent?: boolean}} DateRangeBoxSetOptions */
 /** @typedef {'date'|'seconds'} DateRangeBoxUnit */
-
-const PLACEHOLDER_TOKENS = {
-  '%d': 'DD',
-  '%e': 'D',
-  '%m': 'MM',
-  '%Y': 'YYYY',
-  '%y': 'YY'
-};
 
 /**
  * Parses `"<start><separator><end>"` into a range. A lone date is read as a one-day range, and a
@@ -449,7 +442,8 @@ export class DateRangeBox extends Component {
 
   /** @returns {string} */
   _placeholder() {
-    const one = this._format.replace(/%[demYy]/g, (token) => PLACEHOLDER_TOKENS[token] ?? token);
+    const tokens = placeholderTokens((key) => this.msg(key));
+    const one = this._format.replace(/%[demYy]/g, (token) => tokens[token] ?? token);
     return `${one}${this._separator}${one}`;
   }
 

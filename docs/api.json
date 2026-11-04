@@ -4747,9 +4747,9 @@
       },
       {
         "name": "recentLabel",
-        "type": "string",
-        "default": "'Recent'",
-        "description": "Heading above recent choices."
+        "type": "string|null",
+        "default": null,
+        "description": "Heading above recent choices, by default the `select.recent` message (\"Recent\"); null shows none."
       },
       {
         "name": "create",

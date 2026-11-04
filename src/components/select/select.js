@@ -50,7 +50,8 @@ import {
 /**
  * @typedef {Object} EntitySelectOptions
  * @property {SelectItem[]} [recent=[]] Choices pinned above ordinary results.
- * @property {string} [recentLabel='Recent'] Heading above recent choices.
+ * @property {string|null} [recentLabel] Heading above recent choices, by default the `select.recent`
+ *   message ("Recent"); null shows none.
  * @property {boolean|SelectAction} [create=false] Optional create command at the bottom.
  * @property {string|((item: SelectItem)=>unknown)} [iconKey='icon'] Item icon reader.
  * @property {string|((item: SelectItem)=>unknown)} [colorKey='color'] Optional icon colour reader: a CSS
@@ -132,7 +133,7 @@ export class Select extends Component {
       class: 'zx-select__input',
       type: 'text',
       role: 'combobox',
-      ariaLabel: String(this.options.label || this.options.placeholder || 'Select'),
+      ariaLabel: String(this.options.label || this.options.placeholder || this._message('select.label', 'Select')),
       autocomplete: 'off',
       spellcheck: false,
       ariaExpanded: 'false',
@@ -480,8 +481,8 @@ export class Select extends Component {
    */
   static entity(target, options = {}) {
     const {
-      recent = [], recentLabel = 'Recent', create = false, iconKey = 'icon', colorKey = 'color',
-      subtitleKey = 'description', renderIcon = null,
+      recent = [], recentLabel = message('select.recent', options), create = false, iconKey = 'icon',
+      colorKey = 'color', subtitleKey = 'description', renderIcon = null,
       fixedItems = [], actions = [], renderItem = null, renderValueAdornment = null,
       ...rest
     } = options;
@@ -497,7 +498,7 @@ export class Select extends Component {
         ariaHidden: 'true'
       }, icon(value, { size: 14 }));
     };
-    const createAction = create ? normalizeEntityCreateAction(create) : null;
+    const createAction = create ? normalizeEntityCreateAction(create, options) : null;
     const select = new Select(target, {
       ...rest,
       fixedItems: [...(Array.isArray(recent) ? recent : []), ...(Array.isArray(fixedItems) ? fixedItems : [])],
@@ -985,12 +986,23 @@ function readSelectItem(item, reader) {
   return null;
 }
 
-/** @param {boolean|SelectAction} value @returns {SelectAction} */
-function normalizeEntityCreateAction(value) {
+/**
+ * Resolves a message for a preset, which hands text to the constructor before an instance exists.
+ * `msg()` reads the `msg` option off whatever object borrows it, so the preset's own option counts.
+ * @param {string} key Message key.
+ * @param {SelectOptions} options Options the preset was given.
+ * @returns {string}
+ */
+function message(key, options) {
+  return Component.prototype.msg.call({ options }, key);
+}
+
+/** @param {boolean|SelectAction} value @param {SelectOptions} options @returns {SelectAction} */
+function normalizeEntityCreateAction(value, options) {
   const descriptor = value === true ? {} : value;
   return {
-    id: descriptor.id ?? 'create', label: descriptor.label ?? 'Create new…',
-    description: descriptor.description, group: descriptor.group ?? 'New',
+    id: descriptor.id ?? 'create', label: descriptor.label ?? message('select.create', options),
+    description: descriptor.description, group: descriptor.group ?? message('select.createGroup', options),
     icon: descriptor.icon ?? 'plus', invoke: descriptor.invoke
   };
 }

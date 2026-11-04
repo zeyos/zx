@@ -5,6 +5,7 @@ import { ICON_SIZE, icon } from '../../core/icons.js';
 import { position } from '../../core/position.js';
 import { uid } from '../../core/util.js';
 import { DatePicker } from '../date-picker/date-picker.js';
+import { placeholderTokens } from './placeholder.js';
 
 /**
  * @typedef {Object} DateboxOptions
@@ -80,7 +81,7 @@ export class Datebox extends Component {
           class: 'zx-datebox__input',
           type: 'text',
           autocomplete: 'off',
-          placeholder: this.options.placeholder ?? placeholderFromFormat(this._format),
+          placeholder: this.options.placeholder ?? placeholderFromFormat(this._format, (key) => this.msg(key)),
           'aria-haspopup': 'grid',
           ariaControls: popoverId,
           ariaExpanded: 'false'
@@ -89,13 +90,13 @@ export class Datebox extends Component {
           ref: 'clear',
           class: 'zx-icon-btn zx-datebox__clear',
           type: 'button',
-          ariaLabel: 'Clear date'
+          ariaLabel: this.msg('datebox.clear')
         }, icon('x', { size: ICON_SIZE.dismiss })),
         h('button', {
           ref: 'toggle',
           class: 'zx-datebox__toggle',
           type: 'button',
-          ariaLabel: 'Choose date',
+          ariaLabel: this.msg('datebox.choose'),
           'aria-haspopup': 'grid',
           ariaControls: popoverId,
           ariaExpanded: 'false'
@@ -391,16 +392,8 @@ function effectiveFormat(format, time) {
   return time && !/%[HM]/.test(value) ? `${value} %H:%M` : value;
 }
 
-/** @param {string} format @returns {string} */
-function placeholderFromFormat(format) {
-  return format.replace(/%[demYyHMS]/g, (token) => ({
-    '%d': 'DD',
-    '%e': 'D',
-    '%m': 'MM',
-    '%Y': 'YYYY',
-    '%y': 'YY',
-    '%H': 'HH',
-    '%M': 'MM',
-    '%S': 'SS'
-  })[token] ?? token);
+/** @param {string} format @param {(key: string) => string} message @returns {string} */
+function placeholderFromFormat(format, message) {
+  const tokens = placeholderTokens(message);
+  return format.replace(/%[demYyHMS]/g, (token) => tokens[token] ?? token);
 }

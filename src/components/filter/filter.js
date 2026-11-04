@@ -78,6 +78,13 @@ export const RELATIVE_DATE_UNITS = Object.freeze(['days', 'weeks', 'months']);
 /** English unit words the relative-date editor falls back to. */
 const RELATIVE_UNIT_WORDS = Object.freeze({ days: 'days', weeks: 'weeks', months: 'months' });
 
+/** What an empty picker asks for, by the part of the condition it sets. */
+const PART_PROMPTS = Object.freeze({
+  field: { key: 'filter.choosePart.field', fallback: 'Choose field…' },
+  operator: { key: 'filter.choosePart.operator', fallback: 'Choose operator…' },
+  value: { key: 'filter.choosePart.value', fallback: 'Choose value…' }
+});
+
 /** English text the value builders fall back to when they are called without a component. */
 const BUILT_IN_VALUE_MESSAGES = Object.freeze({
   choose: 'Choose…',
@@ -518,7 +525,7 @@ export class Filter extends Component {
    * @param {unknown} value Selected value.
    * @param {string} label Accessible name.
    * @param {string} nodeId Condition ID.
-   * @param {string} part Focus target name.
+   * @param {keyof typeof PART_PROMPTS} part Focus target name, which also picks the placeholder.
    * @param {(value:unknown)=>void} changed Selection handler.
    * @returns {HTMLElement} Picker root.
    */
@@ -533,7 +540,7 @@ export class Filter extends Component {
     } : {};
     const select = new Select(null, {
       items, valueKey: 'value', labelKey: 'label', value, label, filter: 'local',
-      disabled: this._blocked(), placeholder: this._message('filter.choosePart', 'Choose %1…', part),
+      disabled: this._blocked(), placeholder: this._message(PART_PROMPTS[part].key, PART_PROMPTS[part].fallback),
       ...glyphs,
       onchange: ({detail}) => queueMicrotask(() => {
         if (!this._disposed && version === this._renderVersion && this._canMutate()) changed(detail.value);
