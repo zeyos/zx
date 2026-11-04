@@ -84,6 +84,8 @@ export const UI_MESSAGE_STREAM_VERSION = 'v1';
  * @property {boolean} failed Whether the run reported an error.
  * @property {boolean} closed Whether it finished or was stopped.
  * @property {boolean} implied Whether a part created it before its `start` arrived.
+ * @property {boolean} quiet Whether the response that resumed it has written nothing yet.
+ * @property {number} writes Counts what it wrote, so that a step can tell it wrote nothing.
  * @property {ThinkingState|null} thinking Its reasoning.
  * @property {StepMark} mark Where its current step began.
  */
@@ -97,7 +99,9 @@ export const UI_MESSAGE_STREAM_VERSION = 'v1';
  * @property {Block[]} blocks What its last piece showed.
  * @property {number} sources How many sources it had.
  * @property {{ms: number, text: string}|null} thought Its reasoning so far, if it had any.
- * @property {Pick<MessageState, 'writing'|'hasText'|'gap'|'failed'>} state Where its text stood.
+ * @property {Pick<MessageState, 'writing'|'hasText'|'gap'|'failed'|'quiet'>} state Where its text
+ * stood.
+ * @property {number} writes What it had written.
  * @property {Set<CallState>} calls The calls begun since.
  * @property {string[]} notices The error notices drawn since.
  */
@@ -270,7 +274,8 @@ export function connectUiMessageStream(thread, options = {}) {
   function openMessage(id, implied = false) {
     const message = /** @type {MessageState} */ ({
       id, pieces: [id], writing: true, steps: [], sources: [], texts: new Set(), hasText: false,
-      gap: false, drawn: false, failed: false, closed: false, implied, thinking: null
+      gap: false, drawn: false, failed: false, closed: false, implied, thinking: null, quiet: false,
+      writes: 0
     });
     messages.set(id, message);
     current = message;
@@ -332,28 +337,36 @@ export function connectUiMessageStream(thread, options = {}) {
   }
 
   /**
-   * The answer that takes what a message says next.
+   * The answer that takes what a message says next. A resumed message's last answer stays as it is
+   * until here, so one with nothing to say leaves it closed.
    * @param {MessageState} message
    * @returns {string}
    */
   function writeTo(message) {
+    message.writes += 1;
+    message.quiet = false;
     if (!atEnd(message)) continueMessage(message);
+    else if (!message.writing) {
+      message.writing = true;
+      thread.patch(tailOf(message), { streaming: true, stopped: false });
+    }
     return tailOf(message);
   }
 
   /**
    * @param {MessageState} message
-   * @param {Record<string, unknown>} partial
+   * @param {boolean} [stopped=false] Whether it was cut off. What a response that wrote nothing cut
+   * off is not its last answer, which had already said what it had to say.
    * @returns {void}
    */
-  function closeMessage(message, partial) {
+  function closeMessage(message, stopped = false) {
     endThinking(message);
     message.closed = true;
     message.writing = false;
     // A response brings its own blocks, so one left open cannot hold its id into the next.
     message.texts.clear();
     if (current === message) current = null;
-    thread.patch(tailOf(message), partial);
+    thread.patch(tailOf(message), stopped && !message.quiet ? { streaming: false, stopped: true } : { streaming: false });
   }
 
   /** @param {MessageState} message @returns {void} */
@@ -361,24 +374,21 @@ export function connectUiMessageStream(thread, options = {}) {
     for (const call of calls.values()) {
       if (call.message === message && (call.status === 'queued' || call.status === 'running')) finishCall(call, 'stopped');
     }
-    closeMessage(message, { streaming: false, stopped: true });
+    closeMessage(message, true);
   }
 
   /**
-   * The response to an approval or a tool's output continues the message it belongs to. With
-   * something below its last piece, that piece stays as it is, and whatever the message says next
-   * opens a new one.
+   * The response to an approval or a tool's output continues the message it belongs to. Its last
+   * piece stays as it is: whatever the message says next takes it up again or, with something below
+   * it, opens a new one.
    * @param {MessageState} message
    * @returns {void}
    */
   function resumeMessage(message) {
     message.closed = false;
     message.failed = false;
+    message.quiet = true;
     current = message;
-    if (!atEnd(message)) return;
-    message.writing = true;
-    const item = thread.get(tailOf(message));
-    if (item) thread.upsert({ .../** @type {any} */ (item), streaming: true, stopped: false });
   }
 
   /**
@@ -416,7 +426,7 @@ export function connectUiMessageStream(thread, options = {}) {
     let failed = part.finishReason === 'error';
     if (current) {
       failed = failed || current.failed;
-      closeMessage(current, { streaming: false });
+      closeMessage(current);
     } else {
       report('finish arrived outside a message', part);
     }
@@ -431,7 +441,7 @@ export function connectUiMessageStream(thread, options = {}) {
    * @returns {StepMark}
    */
   function markStep(message) {
-    const { thinking, writing, hasText, gap, failed } = message;
+    const { thinking, writing, hasText, gap, failed, quiet, writes } = message;
     return {
       pieces: message.pieces.length,
       blocks: /** @type {{blocks?: Block[]}|null} */ (thread.get(tailOf(message)))?.blocks ?? [],
@@ -440,7 +450,8 @@ export function connectUiMessageStream(thread, options = {}) {
         ms: thinking.ms + (thinking.since === null ? 0 : Date.now() - thinking.since),
         text: thinking.text
       },
-      state: { writing, hasText, gap, failed },
+      state: { writing, hasText, gap, failed, quiet },
+      writes,
       calls: new Set(),
       notices: []
     };
@@ -448,12 +459,17 @@ export function connectUiMessageStream(thread, options = {}) {
 
   /**
    * Takes back what a message's current step added, so that only what the server sends next stands
-   * in its place. The step itself stays open: its next parts need no `start-step` of their own.
+   * in its place. The step itself stays open: its next parts need no `start-step` of their own. A
+   * step that added nothing leaves the answer alone, with whatever the reader has selected in it,
+   * and what stays is changed in place, so that what the reader opened stays open.
    * @param {MessageState} message
    * @returns {void}
    */
   function withdrawStep(message) {
     const { mark } = message;
+    // No block is open any more, and the retry may name its blocks the same way.
+    message.texts.clear();
+    if (!mark.calls.size && !mark.notices.length && message.writes === mark.writes && !message.thinking?.open.size) return;
     for (const [id, approval] of approvals) {
       if (!mark.calls.has(approval.call)) continue;
       // A decision on its way cannot reach the application any more.
@@ -474,18 +490,16 @@ export function connectUiMessageStream(thread, options = {}) {
     for (const id of [...message.pieces.splice(mark.pieces), ...mark.notices]) takeBack(id);
     message.sources.length = mark.sources;
     restoreThinking(message, mark.thought);
-    // No block is open any more, and the retry may name its blocks the same way.
-    message.texts.clear();
     Object.assign(message, mark.state);
+    message.writes = mark.writes;
     mark.calls.clear();
     mark.notices.length = 0;
 
+    const traced = message.drawn;
     message.drawn = message.steps.length > 0;
-    thread.upsert({ .../** @type {any} */ (thread.get(message.id)), steps: message.steps });
-    thread.upsert({
-      .../** @type {any} */ (thread.get(tailOf(message))),
-      blocks: mark.blocks, streaming: message.writing, stopped: false
-    });
+    if (message.drawn) thread.patch(message.id, { steps: message.steps });
+    else if (traced) thread.upsert({ .../** @type {any} */ (thread.get(message.id)), steps: [] });
+    thread.patch(tailOf(message), { blocks: mark.blocks, streaming: message.writing, stopped: false });
     drawSources(message);
     if (waitingForPerson()) runStatus?.update({ state: 'waiting' });
     else runStatus?.update({ state: 'running', waitingSince: null });
@@ -560,6 +574,7 @@ export function connectUiMessageStream(thread, options = {}) {
    */
   function beginThinking(message, id) {
     const thinking = thinkingOf(message);
+    message.writes += 1;
     thinking.open.add(id);
     if (thinking.text) thinking.text += '\n\n';
     if (thinking.since === null) {
@@ -628,6 +643,7 @@ export function connectUiMessageStream(thread, options = {}) {
       report(`reasoning-delta arrived before the reasoning-start of block ${part.id}`, part);
       thinking = beginThinking(message, part.id);
     }
+    message.writes += 1;
     if (showReasoning) thinking.text += String(part.delta ?? '');
   }
 
@@ -638,6 +654,7 @@ export function connectUiMessageStream(thread, options = {}) {
       report(`reasoning-end arrived before the reasoning-start of block ${part.id}`, part);
       return;
     }
+    current.writes += 1;
     thinking.open.delete(part.id);
     if (thinking.open.size === 0) endThinking(current);
   }
@@ -936,6 +953,7 @@ export function connectUiMessageStream(thread, options = {}) {
     const source = sourceOf(part);
     if (message.sources.some((known) => known.id === source.id)) return;
     message.sources.push(source);
+    message.writes += 1;
     drawSources(message);
   }
 

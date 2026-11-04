@@ -7192,7 +7192,59 @@ function uiMessageStreamCases() {
       /** @type {HTMLButtonElement} */ (article(root, 'm').querySelector('[data-cite="1"]')).click();
       await Promise.resolve();
       assert(article(root, 'm#2').querySelector('.zx-source-list__source')?.getAttribute('data-state') === 'highlighted', 'the citation reached nothing');
-    }, { tools: { lookup: tile } })
+    }, { tools: { lookup: tile } }),
+
+    replay('AgentThread (stream: what the reader opened and selected survives a resume and a reset)', ({ root, play }) => {
+      /** @returns {HTMLElement} */
+      const summary = () => /** @type {HTMLElement} */ (article(root, 'm').querySelector('.zx-run-trace [aria-expanded]'));
+      play([
+        { type: 'start', messageId: 'm' },
+        { type: 'text-start', id: 'a' },
+        { type: 'text-delta', id: 'a', delta: 'Words the reader selected.' },
+        { type: 'text-end', id: 'a' },
+        { type: 'tool-input-available', toolCallId: 'kept', toolName: 'look', input: {} },
+        { type: 'tool-output-available', toolCallId: 'kept', output: 'ok' },
+        { type: 'finish', finishReason: 'stop' }
+      ]);
+      summary().click();
+      assert(summary().getAttribute('aria-expanded') === 'true', 'the trace did not open');
+      const paragraph = /** @type {HTMLElement} */ (article(root, 'm').querySelector('.zx-block-view p'));
+      getSelection()?.selectAllChildren(paragraph);
+
+      play([{ type: 'start', messageId: 'm' }, { type: 'start-step' }, { type: 'reset-step' }]);
+      assert(getSelection()?.toString() === 'Words the reader selected.', 'a resume and an empty reset lost the selection');
+      assert(summary().getAttribute('aria-expanded') === 'true', 'a resume or an empty reset closed the trace');
+
+      play([
+        { type: 'tool-input-available', toolCallId: 'gone', toolName: 'look', input: {} },
+        { type: 'text-start', id: 'b' },
+        { type: 'text-delta', id: 'b', delta: 'Withdrawn.' },
+        { type: 'reset-step' },
+        { type: 'finish', finishReason: 'stop' }
+      ]);
+      assert(summary().getAttribute('aria-expanded') === 'true', 'a reset closed the trace');
+      assert(paragraphs(root, 'm').join() === 'Words the reader selected.', `after the reset: ${paragraphs(root, 'm')}`);
+      assertSettled(root, 'm');
+      getSelection()?.removeAllRanges();
+    }),
+
+    replay('AgentThread (stream: an abort that said nothing leaves the finished answer alone)', async ({ root, log, play }) => {
+      play([
+        { type: 'start', messageId: 'm' },
+        { type: 'text-start', id: 'a' },
+        { type: 'text-delta', id: 'a', delta: 'A complete answer.' },
+        { type: 'text-end', id: 'a' },
+        { type: 'tool-input-available', toolCallId: 'c', toolName: 'look', input: {} },
+        { type: 'tool-approval-request', toolCallId: 'c', approvalId: 'a' },
+        { type: 'finish', finishReason: 'tool-calls' }
+      ]);
+      /** @type {HTMLButtonElement} */ (root.querySelector('.zx-approval-card__actions button')).click();
+      await Promise.resolve();
+      assert(log.approval.length === 1, 'the decision did not go out');
+      play([{ type: 'start', messageId: 'm' }, { type: 'abort', reason: 'cancelled' }]);
+      assert(!article(root, 'm').querySelector('.zx-block-view__stopped'), 'the finished answer above the card says it was stopped');
+      assertSettled(root, 'm');
+    })
   ];
 }
 

@@ -62,7 +62,7 @@ class FakeThread extends EventTarget {
     const hadTrace = Boolean(before.steps?.length);
     const item = { ...before, ...structuredClone(partial), id: before.id, type: before.type };
     this.items.set(key, item);
-    if (item.type === 'answer' && 'steps' in partial && !hadTrace) this._blocks(item);
+    if (item.type === 'answer' && ('blocks' in partial || ('steps' in partial && !hadTrace))) this._blocks(item);
     return this;
   }
 
@@ -564,13 +564,10 @@ test('a start for a finished message resumes it, and is not a duplicate', () => 
     { type: 'finish' },
     { type: 'start', messageId: 'm' }
   ]);
+  assert.equal(/** @type {any} */ (thread.get('m')).streaming, false, 'it has said nothing yet');
+  play([{ type: 'text-start', id: 'b' }, { type: 'text-delta', id: 'b', delta: 'Second.' }]);
   assert.equal(/** @type {any} */ (thread.get('m')).streaming, true);
-  play([
-    { type: 'text-start', id: 'b' },
-    { type: 'text-delta', id: 'b', delta: 'Second.' },
-    { type: 'text-end', id: 'b' },
-    { type: 'finish' }
-  ]);
+  play([{ type: 'text-end', id: 'b' }, { type: 'finish' }]);
   assert.deepEqual(thread.order(), ['m'], 'nothing stands below it, so it goes on in the same answer');
   assert.deepEqual(/** @type {any} */ (thread.get('m')).blocks.map((block) => block.text), ['First.', 'Second.']);
   assert.deepEqual(log.error, []);
@@ -579,10 +576,30 @@ test('a start for a finished message resumes it, and is not a duplicate', () => 
 test('a start for a stopped message resumes it too', () => {
   const { thread, log, play } = connect();
   play([{ type: 'start', messageId: 'm' }, { type: 'abort' }, { type: 'start', messageId: 'm' }]);
+  assert.equal(/** @type {any} */ (thread.get('m')).stopped, true, 'until it has something to say');
+  play(said('More.'));
   const answer = /** @type {any} */ (thread.get('m'));
   assert.equal(answer.stopped, false);
   assert.equal(answer.streaming, true);
   assert.deepEqual(log.error, []);
+});
+
+test('a resumed message with nothing to say leaves its last answer as it was', () => {
+  const { thread, play } = connect();
+  play([{ type: 'start', messageId: 'm' }, ...said('Finished.'), { type: 'finish' }]);
+  const before = thread.calls.length;
+  play([{ type: 'start', messageId: 'm' }]);
+  assert.equal(thread.calls.length, before, 'a start alone draws nothing');
+  play([{ type: 'finish' }]);
+  assert.equal(/** @type {any} */ (thread.get('m')).streaming, false);
+});
+
+test('an abort of a response that said nothing does not call the finished answer stopped', () => {
+  const { thread, play } = connect();
+  play([{ type: 'start', messageId: 'm' }, ...said('Finished.'), { type: 'finish' }, { type: 'start', messageId: 'm' }, { type: 'abort' }]);
+  assert.notEqual(/** @type {any} */ (thread.get('m')).stopped, true);
+  play([{ type: 'start', messageId: 'm' }, ...said('Cut off.'), { type: 'abort' }]);
+  assert.equal(/** @type {any} */ (thread.get('m')).stopped, true, 'one that did write is stopped');
 });
 
 test('a start without a message id opens a new answer, and a call of the earlier one still finds its step', () => {
@@ -1015,6 +1032,24 @@ test('two reset-steps in a row, and one with nothing to take back, change nothin
   play([{ type: 'start', messageId: 'm' }, ...said('kept'), { type: 'start-step' }, { type: 'reset-step' }, ...said('gone'), { type: 'reset-step' }, { type: 'reset-step' }]);
   assert.deepEqual(/** @type {any} */ (thread.get('m')).blocks, [{ type: 'p', text: 'kept' }]);
   assert.deepEqual(log.error, []);
+});
+
+test('a step that added nothing leaves the answer alone', () => {
+  const { thread, play } = connect();
+  play([{ type: 'start', messageId: 'm' }, ...said('Kept.'), { type: 'start-step' }, { type: 'text-start', id: 'open' }]);
+  const before = thread.calls.length;
+  play([{ type: 'reset-step' }]);
+  assert.equal(thread.calls.length, before);
+  play(said('open', 'The block it held is free again.'));
+  assert.equal(/** @type {any} */ (thread.get('m')).blocks.length, 2);
+});
+
+test('what stays after a reset-step is changed in place, not drawn anew', () => {
+  const { thread, play } = connect();
+  play([{ type: 'start', messageId: 'm' }, ...ran('kept'), { type: 'start-step' }, ...ran('gone'), ...said('Gone.'), { type: 'reset-step' }]);
+  assert.deepEqual(thread.calls.filter(([kind]) => kind === 'upsert').map(([, id]) => id), ['m']);
+  assert.deepEqual(/** @type {any} */ (thread.get('m')).steps.map(({ id }) => id), ['kept']);
+  assert.deepEqual(/** @type {any} */ (thread.get('m')).blocks, []);
 });
 
 test('a reset-step outside a message is reported and draws nothing', () => {

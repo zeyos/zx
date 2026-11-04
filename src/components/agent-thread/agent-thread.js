@@ -333,9 +333,9 @@ export class AgentThread extends Component {
   }
 
   /**
-   * Changes part of an item. The common changes are made in place — an answer finishing or
-   * stopping, a trace's steps, an approval's status — so focus and selection inside the item
-   * survive; anything else redraws the item.
+   * Changes part of an item. The common changes are made in place — an answer finishing, stopping
+   * or writing on, a trace's steps, an approval's status — so what the reader opened, and focus and
+   * selection where the blocks stay, survive; anything else redraws the item.
    * @param {string} id
    * @param {Record<string, unknown>} partial
    * @returns {this}
@@ -352,7 +352,12 @@ export class AgentThread extends Component {
         && (!('steps' in partial) || entry.trace)) {
         entry.item = item;
         const answer = /** @type {Extract<ThreadItem, {type: 'answer'}>} */ (item);
-        if ('blocks' in partial) entry.view.setBlocks(answer.blocks ?? []);
+        // An answer that writes on, or is no longer stopped, takes its view back up where it stands.
+        const reopened = Boolean(answer.streaming) && !(/** @type {any} */ (before)).streaming;
+        const unstopped = !answer.stopped && Boolean(/** @type {any} */ (before).stopped);
+        if ('blocks' in partial || reopened || unstopped) {
+          entry.view.setBlocks('blocks' in partial ? answer.blocks ?? [] : entry.view.getBlocks(), reopened ? { streaming: true } : {});
+        }
         if ('steps' in partial) entry.trace?.setSteps(answer.steps ?? []);
         if (answer.stopped && !(/** @type {any} */ (before)).stopped) {
           entry.view.stop();

@@ -56,9 +56,10 @@ regenerated. Public files must not mention this spec.
     `runStatus`; `abort` closes it as stopped.
   - A `start` for a message that finished or was stopped resumes it. The response after an approval
     or a tool's output reuses the message id, and the AI SDK client appends that response to the
-    same message. A `start` without a `messageId` always opens a new answer, because the adapter
-    does not see the request that would say otherwise; a call of an earlier message still finds its
-    step.
+    same message. Its last answer stays as it is until the message has something to say, and an
+    `abort` before that leaves it as it was. A `start` without a `messageId` always opens a new
+    answer, because the adapter does not see the request that would say otherwise; a call of an
+    earlier message still finds its step.
   - `text-start`, `text-delta` and `text-end` stream through `thread.appendText`. Several text
     blocks in one message append to the same answer, unless stream order says otherwise (below).
     A block's id only names it while it is open: as on the AI SDK client, `text-end` frees the id,
@@ -107,6 +108,8 @@ regenerated. Public files must not mention this spec.
     goes too and the run does not end as failed.
   - The answer goes on where the step began. A retry may reuse the ids of the step it replaces, and
     `runStatus` returns to `running`, or to `waiting` while an earlier card still waits.
+  - A step that added nothing leaves the answer alone. Otherwise what stays is changed in place, so
+    that a trace the reader opened stays open.
   - What already went out stays with the application: `ondata`, `onmetadata` and `onapproval` cannot
     be recalled, and the adapter has no callback that says so.
   - Focus inside a withdrawn item moves to the item above it, as for any item the thread removes.

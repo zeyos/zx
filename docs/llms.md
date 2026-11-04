@@ -3582,8 +3582,8 @@ for await (const part of parsedParts(response)) stream.handle(part);
   `{handle(part), destroy()}`.
 - **Keep one connection for the conversation.** The answer to an approval goes out with the
   application's next request, and the response to it continues the same message: its `start` names
-  a message that has finished or was stopped, and the message picks up where it stopped. A `start`
-  without a `messageId` always opens a new answer. `destroy()` stops a message still open and expires
+  a message that has finished or was stopped, and the message picks up where it stopped, once it has
+  something to say. A `start` without a `messageId` always opens a new answer. `destroy()` stops a message still open and expires
   a pending approval, because no decision could reach the application any more.
 - **Message** — `start` opens an `answer` under the message id, `finish` closes it and settles
   `runStatus` (`waiting` while an approval is pending), `abort` closes it as stopped. Text blocks
