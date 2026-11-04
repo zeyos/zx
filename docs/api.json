@@ -360,6 +360,93 @@
       }
     ]
   },
+  "AgUi": {
+    "options": [
+      {
+        "name": "runStatus",
+        "type": "{update: (values: Record<string, unknown>) => unknown}|null",
+        "default": "null",
+        "description": "A RunStatus the run's lifecycle drives: `running` when it starts, `done`, `waiting` (an interrupt, or calls still waiting for the person), `stopped` (cancelled) or `failed`."
+      },
+      {
+        "name": "authors",
+        "type": "Record<string, Author>",
+        "default": "{}",
+        "description": "The thread's authors. A text message whose `name` is one of their keys is written by that author; every other item by `agent`."
+      },
+      {
+        "name": "agent",
+        "type": "string|null",
+        "default": "null",
+        "description": "The author key of the agent's output; the thread's first agent when null."
+      },
+      {
+        "name": "requiresApproval",
+        "type": "((call: ToolCall) => boolean)|null",
+        "default": "null",
+        "description": "Asked once a call's arguments are complete: `true` holds the call at an ApprovalCard until the person decides. Nothing is approved by default, and a check that throws holds the call too. Not asked for surface tools, whose surface is the person's say."
+      },
+      {
+        "name": "showReasoning",
+        "type": "boolean",
+        "default": "false",
+        "description": "Show the reasoning text in its trace step. Without it, reasoning is one collapsed \"Thought for 12 s\" step."
+      },
+      {
+        "name": "surfaceEvent",
+        "type": "string",
+        "default": "'zx.surface'",
+        "description": "The name of the custom event that carries surface operations: its `value` is one operation, or `{ops: [...], token?}`. The token of the event that opens a surface is kept; later ones are ignored. Give these surfaces ids a model cannot predict: a surface belongs to the source that opened it, and a `begin` for an id the model already took is refused."
+      },
+      {
+        "name": "tools",
+        "type": "Record<string, ToolTileRenderer>",
+        "default": "{}",
+        "description": "The tools whose calls the application draws itself, by name. The renderer is called at each status change of the call, never while its arguments stream; its first item that is not `null` is inserted after the call's step, later ones replace it where it stands, and the step links to it."
+      },
+      {
+        "name": "surfaceTools",
+        "type": "string[]",
+        "default": "['show_surface','ask_user']",
+        "description": "The tools whose arguments are a whole surface document. The surface is drawn once the arguments are complete, and its reply is the call's result."
+      },
+      {
+        "name": "inlineSurfaces",
+        "type": "boolean",
+        "default": "false",
+        "description": "Split surface fences out of answer text."
+      },
+      {
+        "name": "catalog",
+        "type": "SurfaceCatalog",
+        "default": null,
+        "description": "A narrowed catalog, given to every surface the adapter creates."
+      }
+    ],
+    "events": [
+      {
+        "name": "toolresult",
+        "payload": null,
+        "description": "What the person decided, for the application to send back to the agent. An approval answers `{approved: true}` or `{approved: false, reason?}`; a surface tool its reply, with `errors` when the surface had any; a surface tool whose arguments are not a surface answers at once with `{error: 'invalid-arguments'}`. In AG-UI 1.0 the application turns it into a `resume` entry (`{interruptId, status: 'resolved', payload}`) when the run ended with an interrupt for the call, or into a tool message (`{role: 'tool', toolCallId, content}`) when it ended with the call among its `pendingToolCallIds`; either goes in the next run's input."
+      },
+      {
+        "name": "state",
+        "payload": null,
+        "description": "The application state after each snapshot or delta."
+      },
+      {
+        "name": "unknown",
+        "payload": null,
+        "description": "Every event the adapter does not draw: unknown types, and known ones without a place in the thread (steps, message snapshots, activities, raw and encrypted values, subagents, custom events of another name)."
+      },
+      {
+        "name": "error",
+        "payload": null,
+        "description": "Problems found in the stream."
+      }
+    ],
+    "methods": []
+  },
   "AgentThread": {
     "options": [
       {
@@ -459,6 +546,12 @@
         "description": "Locale for times."
       },
       {
+        "name": "surfaceOptions",
+        "type": "Omit<SurfaceOptions, 'document'|'token'|'catalog'|'reply'>",
+        "default": "{}",
+        "description": "Options handed to every Surface the thread draws: the application's `policy`, `resolve`, `chartAdapter` and `msg`. Its authors, heading level and locale are the thread's unless given here."
+      },
+      {
         "name": "msg",
         "type": "Record<string, string>|Record<string, Record<string, string>>",
         "default": null,
@@ -470,6 +563,11 @@
         "name": "action",
         "payload": "{item: ThreadItem, action: string, value?: unknown}",
         "description": "Answer action listener."
+      },
+      {
+        "name": "reply",
+        "payload": "{item: ThreadItem, reply: SurfaceReply}",
+        "description": "Surface reply listener."
       },
       {
         "name": "approve",
@@ -528,9 +626,9 @@
       },
       {
         "name": "upsert",
-        "signature": "upsert(item)",
+        "signature": "upsert(item, [options])",
         "returns": "this",
-        "description": "Adds an item, or replaces the item with the same id where it stands."
+        "description": "Adds an item, or replaces the item with the same id where it stands. A new item goes at the end, or right after the item `options.after` names."
       },
       {
         "name": "patch",
@@ -573,6 +671,12 @@
         "signature": "getComponent(id)",
         "returns": "Component|null",
         "description": "The main component drawn for an item: an answer's BlockView, a trace's RunTrace, an approval's ApprovalCard."
+      },
+      {
+        "name": "surface",
+        "signature": "surface(id)",
+        "returns": "Surface|null",
+        "description": "The Surface drawn for a `surface` item, to stream its operations into with `apply()` or `write()`."
       },
       {
         "name": "reveal",
@@ -4541,6 +4645,42 @@
       }
     ]
   },
+  "ElicitationHandler": {
+    "options": [
+      {
+        "name": "serverName",
+        "type": "string",
+        "default": null,
+        "description": "The name of the server that asks, as the client knows it; shown as \"Asked by <server>\". Required: the person must always see who asks."
+      },
+      {
+        "name": "authors",
+        "type": "Record<string, {name: string}>",
+        "default": "{}",
+        "description": "Display names by key; when it lists `serverName`, that entry's name is shown instead."
+      },
+      {
+        "name": "target",
+        "type": "Element|string|null",
+        "default": "null",
+        "description": "Where the surface goes inline; a Dialog without one."
+      },
+      {
+        "name": "open",
+        "type": "(url: string) => boolean|void",
+        "default": null,
+        "description": "Opens the page in URL mode, after the person agreed. It receives the normalised address and must open it in a new browsing context that cannot reach the application; returning `false` or throwing means it was not opened, and the request answers `cancel`. The default opens a new tab with `noopener` and `noreferrer`."
+      },
+      {
+        "name": "msg",
+        "type": "Record<string, string>|Record<string, Record<string, string>>",
+        "default": null,
+        "description": "Localized messages, flat or by language: the `mcp.*` keys, and the `surface.*` keys of the form."
+      }
+    ],
+    "events": [],
+    "methods": []
+  },
   "EmptyState": {
     "options": [
       {
@@ -6135,6 +6275,34 @@
       }
     ]
   },
+  "InlineSplitter": {
+    "options": [
+      {
+        "name": "maxLine",
+        "type": "number",
+        "default": "262144",
+        "description": "Longest line inside a fence."
+      }
+    ],
+    "events": [
+      {
+        "name": "text",
+        "payload": null,
+        "description": "Receives prose, as it arrives, unchanged."
+      },
+      {
+        "name": "line",
+        "payload": null,
+        "description": "Receives each line inside a surface fence."
+      },
+      {
+        "name": "error",
+        "payload": null,
+        "description": "Receives an over-long line inside a fence and a fence still open at `end()`."
+      }
+    ],
+    "methods": []
+  },
   "KanbanView": {
     "options": [
       {
@@ -7007,6 +7175,24 @@
       }
     ],
     "events": [],
+    "methods": []
+  },
+  "LineSplitter": {
+    "options": [
+      {
+        "name": "maxLine",
+        "type": "number",
+        "default": "262144",
+        "description": "Longest line, in characters, that is buffered. A longer one is reported once and dropped up to its end rather than held in memory."
+      }
+    ],
+    "events": [
+      {
+        "name": "error",
+        "payload": null,
+        "description": "Receives an over-long line's report."
+      }
+    ],
     "methods": []
   },
   "ListToolbar": {
@@ -11271,6 +11457,201 @@
       }
     ]
   },
+  "Surface": {
+    "options": [
+      {
+        "name": "document",
+        "type": "SurfaceDocument|Record<string, unknown>|null",
+        "default": "null",
+        "description": "A whole surface, as the `show_surface` and `ask_user` tools take it. Leave it out to stream with `apply()` or `write()`."
+      },
+      {
+        "name": "policy",
+        "type": "SurfacePolicy|null",
+        "default": "null",
+        "description": "What each action needs before it replies; every action is allowed when null. Nothing in a surface can lower what it decides."
+      },
+      {
+        "name": "resolve",
+        "type": "SurfaceResolve",
+        "default": "{}",
+        "description": "How records, links and assets are resolved."
+      },
+      {
+        "name": "authors",
+        "type": "Record<string, {name: string}>",
+        "default": "{}",
+        "description": "Who may compose a surface, by the key its `author` names; the byline shows the name, or the key when it is not listed."
+      },
+      {
+        "name": "userInitiated",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether the surface answers the person's latest message; only then may `openSurface()` honour a request for a sheet or a dialog."
+      },
+      {
+        "name": "headingLevel",
+        "type": "2|3|4|5",
+        "default": "3",
+        "description": "The element level of the surface's title; its `heading` nodes go one and two deeper."
+      },
+      {
+        "name": "locale",
+        "type": "string",
+        "default": null,
+        "description": "Locale for numbers and times."
+      },
+      {
+        "name": "catalog",
+        "type": "SurfaceCatalog",
+        "default": "CATALOG",
+        "description": "A catalog narrowed with `narrowCatalog()`; the full one by default. What lies outside it is refused as unknown."
+      },
+      {
+        "name": "token",
+        "type": "string|null",
+        "default": "null",
+        "description": "The application's opaque string, at most 512 characters, copied unchanged into every reply. A surface cannot set it."
+      },
+      {
+        "name": "reply",
+        "type": "SurfaceReply|null",
+        "default": "null",
+        "description": "A reply the surface already gave, for a surface restored from a stored conversation: it starts as its receipt and replies no more."
+      },
+      {
+        "name": "labelledBy",
+        "type": "string|null",
+        "default": "null",
+        "description": "The id of an element that already shows the title, such as a Dialog's; the surface then draws no title of its own and is labelled by it."
+      },
+      {
+        "name": "chartAdapter",
+        "type": "ChartAdapter|null",
+        "default": "null",
+        "description": "The engine that draws `chart` nodes; without one a chart shows its data table."
+      },
+      {
+        "name": "msg",
+        "type": "Record<string, string>|Record<string, Record<string, string>>",
+        "default": null,
+        "description": "Localized messages."
+      }
+    ],
+    "events": [
+      {
+        "name": "reply",
+        "payload": "{reply: SurfaceReply}",
+        "description": "Reply listener."
+      },
+      {
+        "name": "error",
+        "payload": "{errors: SurfaceError[]}",
+        "description": "Error listener."
+      },
+      {
+        "name": "change",
+        "payload": "{name: string, value: unknown}",
+        "description": "Input listener."
+      },
+      {
+        "name": "ready",
+        "payload": "Record<string, never>",
+        "description": "First-render listener."
+      },
+      {
+        "name": "end",
+        "payload": "Record<string, never>",
+        "description": "End-of-surface listener."
+      }
+    ],
+    "methods": [
+      {
+        "name": "apply",
+        "signature": "apply(op)",
+        "returns": "this",
+        "description": "Applies one operation, as parsed from its line. It is validated against the catalog first: what is invalid is dropped and reported through `error`, and only the valid rest is drawn. Operations for another surface, and any after the surface was answered, are ignored."
+      },
+      {
+        "name": "write",
+        "signature": "write(chunk)",
+        "returns": "this",
+        "description": "Takes a chunk of operation lines, as streamed: every complete line is parsed and applied."
+      },
+      {
+        "name": "end",
+        "signature": "end()",
+        "returns": "this",
+        "description": "Ends the stream: applies a last line without a line break. A surface whose `end` never arrived is reported and keeps its actions disabled; Cancel still replies."
+      },
+      {
+        "name": "getValues",
+        "signature": "getValues()",
+        "returns": "Record<string, unknown>",
+        "description": "The values of the visible inputs by name, as a reply would carry them: JSON, hidden inputs left out. A questionnaire's are `{answers, path}`."
+      },
+      {
+        "name": "getErrors",
+        "signature": "getErrors()",
+        "returns": "SurfaceError[]",
+        "description": "Every problem collected so far, in a shape an application can return to the model."
+      },
+      {
+        "name": "cancel",
+        "signature": "cancel([reason])",
+        "returns": "this",
+        "description": "Closes the surface unanswered: replies `cancel` (`dismiss` for a `show` surface)."
+      },
+      {
+        "name": "supersede",
+        "signature": "supersede()",
+        "returns": "this",
+        "description": "Ends the surface because a newer one takes its place: replies `dismiss` with the reason `superseded`."
+      },
+      {
+        "name": "focus",
+        "signature": "focus()",
+        "returns": "this",
+        "description": "Moves focus to the first control: the first input, else the first enabled action."
+      },
+      {
+        "name": "toDocument",
+        "signature": "toDocument()",
+        "returns": "SurfaceDocument|null",
+        "description": "The surface as it stands, as a document: what was validated, repairs applied and invalid parts dropped. `null` before it began."
+      },
+      {
+        "name": "getReply",
+        "signature": "getReply()",
+        "returns": "SurfaceReply|null",
+        "description": "The reply the surface gave, or `null` while it waits."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Destroys the surface. An unanswered surface replies `dismiss` first, with the reason `destroyed`, so a waiting agent never hangs."
+      }
+    ]
+  },
+  "SurfaceText": {
+    "options": [
+      {
+        "name": "msg",
+        "type": "(key: string, ...args: unknown[]) => string",
+        "default": null,
+        "description": "Resolves a message key; English by default (`SURFACE_MESSAGES`)."
+      },
+      {
+        "name": "entities",
+        "type": "Iterable<string>|null",
+        "default": "null",
+        "description": "The record entities the document may name, as the Surface's `resolve.entities`."
+      }
+    ],
+    "events": [],
+    "methods": []
+  },
   "TabInsert": {
     "options": [
       {
@@ -13053,6 +13434,18 @@
         "type": "(percent: number) => void",
         "default": null,
         "description": "Progress callback."
+      }
+    ],
+    "events": [],
+    "methods": []
+  },
+  "Upsert": {
+    "options": [
+      {
+        "name": "after",
+        "type": "string|null",
+        "default": "null",
+        "description": "The id of the item to insert the new item right after; the end of the thread when null or unknown. An item already in the thread stays where it is."
       }
     ],
     "events": [],

@@ -1,6 +1,6 @@
 import {
   AgentThread, Composer, MenuButton, RunStatus, RunTrace, SourceList, button, copyToClipboard, emptyState,
-  formatCurrency, formatDate, formatNumber, h, icon, prefersReducedMotion, watchMotion
+  formatCurrency, formatDate, formatNumber, h, icon, prefersReducedMotion, surfaceText, watchMotion
 } from '../../src/index.js';
 import {
   DATE, adaptiveShell, disposer, iconButton, iconTile, kbd, later, layoutContext, listTime, paneHeader, panelBlock,
@@ -80,10 +80,11 @@ const WAITING_REPLY = 'Noted. The reminders are still waiting for your answer ab
  * @typedef {{state: RunState, started: string, workMs: number, waitingSince?: string,
  *   finished?: string, error?: string, tokens: [number, number], resumedAt?: number}} Run
  * @typedef {{id: string, title: string, updated: string, plan: string|null, reveals?: Record<string, string>,
- *   items: any[], sources: Source[], run: Run|null, busy?: boolean}} Conversation `plan` names the
+ *   items: any[], sources: Source[], run: Run|null, busy?: boolean, waiting?: string}} Conversation `plan` names the
  *   trace item that holds the plan, whose steps are the run's steps; without one the run's steps
  *   are its calls. `reveals` says what each plan step stands for in the thread: the call it made
- *   (`step:<id>`) or the approval it waits on (`item:<id>`).
+ *   (`step:<id>`) or the approval it waits on (`item:<id>`). `waiting` is what the agent says to a
+ *   message that arrives while the run waits for the reader.
  * @typedef {{conv: Conversation, timers: Set<number>, interval: number, flush: (() => void)|null,
  *   onstop: () => void}} Activity What the agent is doing in one conversation, and how to end it.
  */
@@ -200,6 +201,43 @@ function planTitle(steps) {
 /** @type {ReminderValues} */
 const DRAFTED ={ recipients: OVERDUE.map((entry) => entry.company), subject: TEMPLATE.subject, body: TEMPLATE.body };
 
+/** Bruckner's two open September invoices, either of which the damaged pallets may concern. */
+const CREDIT_INVOICES = [
+  { invoice: 'RE-2026-0126', label: 'Freight Munich–Lyon', amount: 12340 },
+  { invoice: 'RE-2026-0134', label: 'Pallet hire', amount: 3980 }
+];
+
+/**
+ * The form the agent composes when it lacks the invoice and the amount for a credit note: an
+ * `ask` surface, answered with `{invoice, amount, reason}`.
+ * @type {import('../../src/components/surface/validate.js').SurfaceDocument}
+ */
+const CREDIT_QUESTION = {
+  zx: 'surface/1',
+  surface: 'credit-note',
+  intent: 'ask',
+  title: 'Which invoice, and how much?',
+  author: 'finance',
+  root: ['why', 'form'],
+  nodes: [
+    { id: 'why', type: 'text', text: 'A credit note needs the invoice it corrects and an amount. The customer note gives neither.' },
+    {
+      id: 'form', type: 'fields',
+      schema: {
+        type: 'object', required: ['invoice', 'amount'],
+        properties: {
+          invoice: {
+            type: 'string', title: 'Invoice to correct', 'x-zx': { field: 'zxselect' },
+            oneOf: CREDIT_INVOICES.map((entry) => ({ const: entry.invoice, title: `${entry.invoice} · ${entry.label} · ${euro(entry.amount)}` }))
+          },
+          amount: { type: 'number', title: 'Credit amount in euros', minimum: 0.01, maximum: 12340 },
+          reason: { type: 'string', title: 'Reason on the credit note', default: 'Two pallets damaged in transit', maxLength: 200 }
+        }
+      }
+    }
+  ]
+};
+
 /**
  * The agent's conversations, newest first, as thread items. The first is the one on screen: the
  * agent has reconciled September and is waiting for approval to send three reminders.
@@ -257,6 +295,31 @@ const CONVERSATIONS = [
       { id: 'policy', title: 'Dunning policy 2026.pdf', kind: 'file', call: 'policy' }
     ],
     run: { state: 'waiting', started: '2026-10-08T10:27:40', workMs: 41_000, waitingSince: '2026-10-08T10:28:21', tokens: [18_420, 1_236] }
+  },
+  {
+    id: 'credit',
+    title: 'Credit note for Bruckner’s damaged pallets',
+    updated: '2026-10-08T09:14',
+    plan: null,
+    waiting: 'Noted. The credit note waits for the invoice and the amount above — I haven’t drafted anything yet.',
+    items: [
+      { id: 'ask', type: 'user', at: '2026-10-08T09:14', text: 'Issue a credit note to Bruckner Logistik for the pallets that arrived damaged.' },
+      { id: 'calls', type: 'trace', at: '2026-10-08T09:14', open: true, steps: [
+        { id: 'credit-invoices', kind: 'query', status: 'done', label: 'Queried Bruckner’s open invoices', count: '2 rows', ms: 700, tool: 'invoices.search', at: '2026-10-08T09:14',
+          args: '{"customer": "Bruckner Logistik", "status": "open"}',
+          result: CREDIT_INVOICES.map((entry) => `${entry.invoice} · ${entry.label} · ${euro(entry.amount)}`).join('\n') },
+        { id: 'credit-notes', kind: 'read', status: 'done', label: 'Read customer notes', count: '1 note', ms: 500, tool: 'customers.notes',
+          args: '{"customers": ["Bruckner Logistik"]}',
+          result: 'Felix Bruckner, 6 Oct: two pallets arrived broken and he asks for a credit. No invoice or amount given.' }
+      ] },
+      { id: 'credit-explain', type: 'text', text: 'Bruckner has two open invoices from September, and the note doesn’t say which one the pallets were on or how much to credit. I won’t guess the amount on a credit note.' },
+      { id: 'credit-question', type: 'surface', at: '2026-10-08T09:14', document: CREDIT_QUESTION }
+    ],
+    sources: [
+      { id: 'credit-invoices', title: 'Invoices · Bruckner Logistik', kind: 'record', call: 'credit-invoices' },
+      { id: 'credit-notes', title: 'Customer notes · Bruckner Logistik', kind: 'record', call: 'credit-notes' }
+    ],
+    run: { state: 'waiting', started: '2026-10-08T09:14:12', workMs: 9_000, waitingSince: '2026-10-08T09:14:21', tokens: [6_210, 402] }
   },
   {
     id: 'forecast',
@@ -420,7 +483,7 @@ export default {
   category: 'Pattern',
   blurb: 'One conversation with an agent that acts: its plan, every tool call, an approval that holds the run, a streamed answer with sources, and the run beside it.',
   components: [
-    'AgentThread', 'RunTrace', 'ApprovalCard', 'SourceList', 'Composer', 'RunStatus', 'MenuButton', 'Message',
+    'AgentThread', 'RunTrace', 'ApprovalCard', 'Surface', 'SourceList', 'Composer', 'RunStatus', 'MenuButton', 'Message',
     'AppSidebar', 'ModuleBar', 'AccountMenu'
   ],
 
@@ -499,6 +562,8 @@ export default {
       label: `Conversation with the ${AGENT.name.toLowerCase()}`,
       scroller,
       answerActions: [],
+      // A surface the agent composes resolves only what this example knows, and never opens a link.
+      surfaceOptions: { resolve: { entities: [], link: () => false } },
       // This world has one day: an answer given on it reads as today.
       now: clock,
       formatTime: clockTime,
@@ -574,6 +639,8 @@ export default {
       const { values, changed, editedKeys } = event.detail;
       later(context, () => saveEdit(values, changed, editedKeys), 0);
     });
+    // A surface the agent composed has been answered: the run continues with the values.
+    thread.on('reply', (event) => answered(event.detail.item, event.detail.reply));
     thread.on('reveal', () => closeAside());
     composer.on('send', (event) => {
       event.preventDefault();
@@ -648,6 +715,16 @@ export default {
     /** @param {Conversation} conv @returns {any} The approval holding the run. */
     function pendingApproval(conv) {
       return conv.items.find((item) => item.type === 'approval' && item.status === 'pending') ?? null;
+    }
+
+    /** @param {Conversation} conv @returns {any} A surface the agent asked with, still unanswered. */
+    function pendingSurface(conv) {
+      return conv.items.find((item) => item.type === 'surface' && !item.reply) ?? null;
+    }
+
+    /** @param {Conversation} conv @returns {any} The last approval or surface: what the run asks the reader. */
+    function lastQuestion(conv) {
+      return [...conv.items].reverse().find((item) => item.type === 'approval' || item.type === 'surface') ?? null;
     }
 
     /**
@@ -840,7 +917,7 @@ export default {
       const running = conv.items.filter((item) => item.type === 'trace' && item.id !== conv.plan)
         .flatMap((item) => item.steps).find((step) => step.status === 'running');
       return {
-        waiting: `Step ${index + 1} of ${steps.length} needs your approval.`,
+        waiting: pendingSurface(conv) ? 'The agent needs an answer from you to go on.' : `Step ${index + 1} of ${steps.length} needs your approval.`,
         running: running ? `${running.doing ?? running.label}…` : conv.busy ? 'Writing the answer…' : 'Working…',
         done: skipped
           ? `${formatNumber(done)} of ${formatNumber(steps.length)} steps done; ${formatNumber(skipped)} skipped at your request.`
@@ -1049,23 +1126,72 @@ export default {
     }
 
     /**
-     * Writes the closing answer after an approval was answered, then ends the run.
+     * Writes the closing answer after an approval or a question was answered, then ends the run.
      * @param {Activity} own
-     * @param {any} approval
+     * @param {any} approval The approval answered, when the answer is written from it.
+     * @param {Block[]} [blocks] The answer itself, when it is not about an approval.
      * @returns {void}
      */
-    function conclude(own, approval) {
+    function conclude(own, approval, blocks = closingAnswer(approval)) {
       const { conv } = own;
       const id = nextId('answer');
       put(conv, { id, type: 'answer', blocks: [], streaming: true, sources: conv.sources });
       render();
-      stream(own, id, closingAnswer(approval), () => {
+      stream(own, id, blocks, () => {
         const run = conv.run;
         if (run) run.tokens = [run.tokens[0] + 5_540, run.tokens[1] + 872];
         finishActivity(conv);
         setRun(conv, 'done');
         conv.updated = stamp(clock());
         refresh(conv);
+      });
+    }
+
+    /**
+     * A surface the agent asked with has its reply. Submitted, the agent drafts the credit note
+     * with the values and says what it did; cancelled, it drafts nothing. A surface destroyed
+     * unanswered — the reader looked at another conversation — is no answer: it is asked again when
+     * the conversation is shown.
+     * @param {any} item The surface item, with its reply.
+     * @param {import('../../src/components/surface/text.js').SurfaceReply} answer
+     * @returns {void}
+     */
+    function answered(item, answer) {
+      if (preview || context.signal.aborted || answer.action === 'dismiss') return;
+      const conv = conversations.find((entry) => entry.items.some((own) => own.id === item.id && own.type === 'surface'));
+      const asked = conv ? itemOf(conv, item.id) : null;
+      if (!conv || !asked || asked.reply) return;
+      asked.reply = structuredClone(answer);
+      settle();
+      setRun(conv, 'running');
+      if (answer.action !== 'submit') {
+        const own = begin(conv, () => {});
+        render();
+        conclude(own, null, [{ type: 'p', text: 'Understood — I drafted nothing. Tell me the invoice and the amount whenever you’re ready.' }]);
+        return;
+      }
+      const values = /** @type {{invoice: string, amount: number, reason?: string}} */ (answer.values);
+      const entry = CREDIT_INVOICES.find((candidate) => candidate.invoice === values.invoice) ?? CREDIT_INVOICES[0];
+      const amount = Math.min(Number(values.amount) || 0, entry.amount);
+      const reason = String(values.reason ?? '').trim();
+      /** @type {TraceStep} */
+      const call = {
+        id: nextId('credit'), kind: 'write', status: 'running', label: 'Drafting the credit note', doing: 'Drafting the credit note',
+        tool: 'invoices.credit_notes.draft', args: JSON.stringify({ invoice: entry.invoice, amount, reason })
+      };
+      const traceId = nextId('work');
+      put(conv, { id: traceId, type: 'trace', at: stamp(clock()), open: true, steps: [call] });
+      const own = begin(conv, () => putStep(conv, traceId, { ...call, status: 'stopped', label: 'Drafting stopped', result: 'Stopped by you. Nothing was saved.' }));
+      render();
+      thread.announce('Answered. Drafting the credit note.');
+      wait(own, 1200, () => {
+        putStep(conv, traceId, { ...call, status: 'done', label: 'Drafted credit note GS-2026-0019', count: 'not booked', ms: 1150,
+          result: `GS-2026-0019 against ${entry.invoice}: ${euro(amount)}. Saved as a draft.` });
+        conclude(own, null, [
+          { type: 'p', text: `I drafted credit note **GS-2026-0019** for Bruckner Logistik against ${entry.invoice} [1].` },
+          { type: 'figures', rows: [['Invoice', `${entry.label}`, euro(entry.amount)], ['Credit', reason || 'No reason given', `−${euro(amount)}`], ['Still open', entry.invoice, euro(entry.amount - amount)]] },
+          { type: 'p', text: `It is a draft: I can’t book it, so it waits in Invoices › Credit notes for someone in finance to check and book. Felix Bruckner’s note is answered once it is sent [2].` }
+        ]);
       });
     }
 
@@ -1090,7 +1216,7 @@ export default {
       conv.updated = at;
       const waiting = conv.run?.state === 'waiting';
       if (!conv.run) startRun(conv);
-      else reply(conv, waiting ? [WAITING_REPLY] : EXAMPLE_REPLY);
+      else reply(conv, waiting ? [conv.waiting ?? WAITING_REPLY] : EXAMPLE_REPLY);
       focusComposer();
       return true;
     }
@@ -1224,10 +1350,10 @@ export default {
       if (root.dataset.asideOpen === 'true') shell.toggleAside(false);
     }
 
-    /** Moves focus to the approval holding the run. @returns {void} */
+    /** Moves focus to the approval or the question holding the run. @returns {void} */
     function focusApproval() {
-      const approval = [...current().items].reverse().find((item) => item.type === 'approval');
-      if (approval) reveal(`item:${approval.id}`);
+      const question = lastQuestion(current());
+      if (question) reveal(`item:${question.id}`);
     }
 
     /**
@@ -1258,8 +1384,8 @@ export default {
       later(context, () => {
         const active = document.activeElement;
         if (active && active !== document.body && active.isConnected && root.contains(active)) return;
-        const approval = [...current().items].reverse().find((item) => item.type === 'approval');
-        const card = approval ? thread.getComponent(approval.id) : null;
+        const question = lastQuestion(current());
+        const card = question ? thread.getComponent(question.id) : null;
         if (card) card.focus({ preventScroll: true });
         else scroller.focus({ preventScroll: true });
       }, 0);
@@ -1276,6 +1402,7 @@ export default {
         else if (any.type === 'trace') lines.push(...any.steps.map((step) => `  ${step.label}${step.count ? ` · ${step.count}` : ''}${step.status && step.status !== 'done' ? ` (${step.status})` : ''}`));
         else if (any.type === 'approval') lines.push(`  Approval: ${any.title} — ${any.status}${any.rejectReason ? ` (“${any.rejectReason}”)` : ''}`);
         else if (any.type === 'answer') lines.push(`${AGENT.name}: ${thread.getComponent(any.id)?.toText() ?? ''}`);
+        else if (any.type === 'surface' && any.document) lines.push(any.reply ? surfaceText(any.document, any.reply).replace(/^/gm, '  ') : `  Question: ${any.document.title}`);
       }
       const copied = await copyToClipboard(lines.join('\n'));
       notify(copied ? 'Transcript copied.' : 'The transcript couldn’t be copied.', copied ? 'success' : 'error');

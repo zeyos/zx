@@ -1,0 +1,36 @@
+{
+  "protocol": "mcp/2025-11-25",
+  "requests": [
+    {
+      "jsonrpc": "2.0",
+      "id": 7,
+      "method": "elicitation/create",
+      "params": {
+        "mode": "form",
+        "message": "Delivery details for order SO-4471",
+        "requestedSchema": {
+          "type": "object",
+          "properties": {
+            "date": { "type": "string", "format": "date", "title": "Delivery date" },
+            "dock": { "type": "string", "title": "Dock", "oneOf": [{ "const": "north", "title": "North gate" }, { "const": "south", "title": "South gate" }] },
+            "pallets": { "type": "integer", "title": "Pallets", "minimum": 1, "maximum": 24, "default": 4 },
+            "services": { "type": "array", "title": "Services", "items": { "type": "string", "enum": ["tail-lift", "notify"] }, "default": ["notify"] },
+            "lift": { "type": "boolean", "title": "A tail lift is needed", "default": false }
+          },
+          "required": ["date", "dock"]
+        }
+      }
+    },
+    {
+      "jsonrpc": "2.0",
+      "id": 8,
+      "method": "elicitation/create",
+      "params": {
+        "mode": "url",
+        "elicitationId": "550e8400-e29b-41d4-a716-446655440000",
+        "url": "https://billing.example.com/connect?session=7f3a",
+        "message": "Connect your bank account to continue."
+      }
+    }
+  ]
+}

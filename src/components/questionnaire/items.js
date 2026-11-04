@@ -5,6 +5,16 @@
  * are testable in Node.
  * @module questionnaire/items
  */
+import {
+  NEXT_REVIEW, NEXT_SUBMIT, checkCondition, checkNext, checkRuleList, evaluate, isEmptyAnswer,
+  resolveNext as resolveTarget
+} from './conditions.js';
+
+export { isEmptyAnswer };
+
+/** @typedef {import('./conditions.js').Condition} Condition */
+/** @typedef {import('./conditions.js').NextTarget} NextTarget */
+/** @typedef {import('./conditions.js').ValidationRule} ValidationRule */
 
 /**
  * @typedef {Object} QuestionnaireChoice
@@ -38,11 +48,16 @@
  * @property {QuestionnaireChoice[]} [choices=[]] Fixed answers.
  * @property {QuestionnaireInput|null} [input=null] Freeform answer offered beside the choices.
  * @property {Object|null} [field=null] Any registered Zx `Field` type used as the answer control.
- * @property {((answers: Record<string, unknown>) => boolean)|null} [when=null] Visibility predicate.
- * @property {string|((answer: unknown, answers: Record<string, unknown>) => string|null)|null} [next=null]
- *   Branch target: an item name, or a function returning one.
- * @property {((answer: unknown, answers: Record<string, unknown>) => string|null|Promise<string|null>)|null} [validate=null]
- *   Extra validation returning an error message, or null when the answer is acceptable.
+ * @property {Condition|((answers: Record<string, unknown>) => boolean)|null} [when=null] Visibility:
+ *   a declarative condition, or a predicate. Either sees only the answers of visible items declared
+ *   before this one, and a declarative condition may only name those items.
+ * @property {NextTarget|((answer: unknown, answers: Record<string, unknown>) => string|null)|null} [next=null]
+ *   Branch target: an item name, `$review`, `$submit`, a list of `{if, goto}` branches whose first
+ *   match wins, or a function returning a name. A branch condition may name this item and the
+ *   items declared before it.
+ * @property {ValidationRule[]|((answer: unknown, answers: Record<string, unknown>) => string|null|Promise<string|null>)|null} [validate=null]
+ *   Extra validation: a list of declarative rules, or a function returning an error message, or
+ *   null when the answer is acceptable.
  */
 
 /**
@@ -57,9 +72,11 @@
  * @property {NormalizedChoice[]} choices Fixed answers with shortcut keys assigned.
  * @property {Required<QuestionnaireInput>|null} input Freeform answer, or null.
  * @property {Object|null} field Field options, or null.
- * @property {((answers: Record<string, unknown>) => boolean)|null} when Visibility predicate.
- * @property {string|((answer: unknown, answers: Record<string, unknown>) => string|null)|null} next Branch target.
- * @property {((answer: unknown, answers: Record<string, unknown>) => string|null|Promise<string|null>)|null} validate Extra validation.
+ * @property {Condition|((answers: Record<string, unknown>) => boolean)|null} when Visibility
+ *   condition or predicate.
+ * @property {NextTarget|((answer: unknown, answers: Record<string, unknown>) => string|null)|null} next Branch target.
+ * @property {ValidationRule[]|((answer: unknown, answers: Record<string, unknown>) => string|null|Promise<string|null>)|null} validate
+ *   Extra validation.
  */
 
 /**
@@ -94,10 +111,14 @@
 const SHORTCUT_KEYS = '123456789abcdefghijklmnopqrstuvwxyz';
 
 /**
- * Normalizes and validates a list of item definitions. Never mutates its input.
+ * Normalizes and validates a list of item definitions. Never mutates its input; declarative
+ * `when`, `next` and `validate` forms are copied.
  * @param {QuestionnaireItem[]} list Item definitions.
  * @returns {NormalizedItem[]}
- * @throws {TypeError} When the list, an item, or a name is malformed, or a name repeats.
+ * @throws {TypeError} When the list, an item, or a name is malformed, a name repeats or is a
+ *   reserved `$review`/`$submit`, `next` or `validate` is of a type neither form takes, or a
+ *   declarative condition, branch list or rule list is malformed — including a condition naming
+ *   an item that is not declared before it.
  */
 export function normalizeItems(list) {
   if (!Array.isArray(list)) throw new TypeError('Questionnaire items must be an array');
@@ -112,6 +133,9 @@ export function normalizeItems(list) {
     }
     const name = item.name;
     if (seen.has(name)) throw new TypeError(`Item already exists: ${name}`);
+    if (name === NEXT_REVIEW || name === NEXT_SUBMIT) throw new TypeError(`Item name is reserved: ${name}`);
+    // Conditions may name only what comes before; `next` branches may also name the item itself.
+    const before = [...seen];
     seen.add(name);
 
     const choices = normalizeChoices(item.choices ?? [], name);
@@ -125,15 +149,17 @@ export function normalizeItems(list) {
       prompt: String(item.prompt ?? name),
       description: item.description == null || item.description === '' ? null : String(item.description),
       section: item.section == null ? '' : String(item.section),
-      required: Boolean(item.required),
+      // A declarative required rule marks the control too, so `required` and `aria-required` show.
+      required: Boolean(item.required)
+        || (Array.isArray(item.validate) && item.validate.some((rule) => rule?.required === true)),
       multiple: Boolean(item.multiple),
       skippable: Boolean(item.skippable),
       choices,
       input,
       field,
-      when: typeof item.when === 'function' ? item.when : null,
-      next: typeof item.next === 'function' || (typeof item.next === 'string' && item.next) ? item.next : null,
-      validate: typeof item.validate === 'function' ? item.validate : null
+      when: normalizeWhen(item.when, name, before),
+      next: normalizeNext(item.next, name, [...before, name]),
+      validate: normalizeValidate(item.validate, name)
     };
   });
 }
@@ -187,16 +213,17 @@ export function normalizeChoices(list, itemName = '') {
 }
 
 /**
- * Reports whether an item's `when` predicate passes for a given set of answers. An item without
- * one is always visible, and a predicate that throws hides nothing — a broken condition must not
- * strand the reader mid-questionnaire.
+ * Reports whether an item's `when` condition or predicate passes for a given set of answers. An
+ * item without one is always visible, and a condition that throws hides nothing — a broken
+ * condition must not strand the reader mid-questionnaire.
  * @param {NormalizedItem} item Item to test.
  * @param {Record<string, unknown>} answers Answers visible to the predicate.
  * @returns {boolean}
  */
 export function isVisible(item, answers) {
-  if (typeof item.when !== 'function') return true;
+  if (item.when == null) return true;
   try {
+    if (typeof item.when !== 'function') return evaluate(item.when, answers);
     return item.when(answers) !== false;
   } catch {
     return true;
@@ -243,25 +270,24 @@ export function visibleItems(items, raw) {
 /**
  * Resolves which item follows the given one.
  *
- * A `next` of `null` falls through to the next visible item in declaration order. A string, or a
- * function returning a string, names a target: when that target is currently hidden the walk
- * continues forward from it rather than stranding the reader on an invisible question.
+ * A `next` of `null`, or a branch list where nothing matches, falls through to the next visible
+ * item in declaration order. A string, a matching branch, or a function returning a string names a
+ * target: when that target is currently hidden the walk continues forward from it rather than
+ * stranding the reader on an invisible question. `$review` and `$submit` are returned as they are,
+ * for the caller to open the review screen or submit.
  * @param {NormalizedItem[]} items All items.
  * @param {NormalizedItem} item Item being left.
  * @param {Record<string, unknown>} raw Every answer given.
- * @returns {string|null} Name of the next item, or null at the end of the questionnaire.
+ * @returns {string|null} Name of the next item, `$review`, `$submit`, or null at the end of the
+ *   questionnaire.
  * @throws {RangeError} When `next` names an item that does not exist.
  */
 export function resolveNext(items, item, raw) {
   const { answers, visible } = resolveFlow(items, raw);
   const shown = new Set(visible.map((candidate) => candidate.name));
 
-  let target = null;
-  if (typeof item.next === 'string') target = item.next;
-  else if (typeof item.next === 'function') {
-    const resolved = item.next(answers[item.name], answers);
-    target = resolved == null || resolved === '' ? null : String(resolved);
-  }
+  const target = resolveTarget(item.next, answers[item.name], answers);
+  if (target === NEXT_REVIEW || target === NEXT_SUBMIT) return target;
 
   let from = items.indexOf(item);
   if (target !== null) {
@@ -276,19 +302,6 @@ export function resolveNext(items, item, raw) {
     if (shown.has(items[index].name)) return items[index].name;
   }
   return null;
-}
-
-/**
- * Reports whether an answer counts as absent. An empty string, an empty array, null, and undefined
- * are all "no answer"; `false` and `0` are answers.
- * @param {unknown} value Answer value.
- * @returns {boolean}
- */
-export function isEmptyAnswer(value) {
-  if (value == null) return true;
-  if (typeof value === 'string') return value.trim() === '';
-  if (Array.isArray(value)) return value.every((entry) => isEmptyAnswer(entry));
-  return false;
 }
 
 /**
@@ -345,7 +358,9 @@ export function progressOf(items, raw, path) {
 
   const seen = new Set(walked);
   const from = active ? visible.indexOf(active) : -1;
-  const remaining = visible.slice(from + 1).filter((item) => !seen.has(item.name)).length;
+  // An active item that leads to `$review` or `$submit` ends the path, whatever is declared after.
+  const remaining = active && endsHere(items, active, raw) ? 0
+    : visible.slice(from + 1).filter((item) => !seen.has(item.name)).length;
 
   const total = walked.length + remaining;
   return {
@@ -367,4 +382,65 @@ function normalizeInput(input) {
     multiline: Boolean(source.multiline),
     maxLength: Math.max(0, Number(source.maxLength) || 0)
   };
+}
+
+/**
+ * @param {unknown} when @param {string} name @param {string[]} before
+ * @returns {NormalizedItem['when']}
+ */
+function normalizeWhen(when, name, before) {
+  if (typeof when === 'function') return /** @type {NormalizedItem['when']} */ (when);
+  if (when == null || typeof when !== 'object') return null;
+  failOn(checkCondition(when, { fields: before }), name, 'when');
+  return structuredClone(/** @type {Condition} */ (when));
+}
+
+/**
+ * @param {unknown} next @param {string} name @param {string[]} fields
+ * @returns {NormalizedItem['next']}
+ */
+function normalizeNext(next, name, fields) {
+  if (typeof next === 'function') return /** @type {NormalizedItem['next']} */ (next);
+  if (typeof next === 'string') return next || null;
+  if (next == null) return null;
+  if (!Array.isArray(next)) {
+    throw new TypeError(`Item "${name}" next must be a name, a list of branches, or a function`);
+  }
+  failOn(checkNext(next, { fields }), name, 'next');
+  return structuredClone(/** @type {NextTarget} */ (next));
+}
+
+/**
+ * @param {unknown} validate @param {string} name
+ * @returns {NormalizedItem['validate']}
+ */
+function normalizeValidate(validate, name) {
+  if (typeof validate === 'function') return /** @type {NormalizedItem['validate']} */ (validate);
+  if (validate == null) return null;
+  if (!Array.isArray(validate)) throw new TypeError(`Item "${name}" validate must be a list of rules or a function`);
+  failOn(checkRuleList(validate), name, 'validate');
+  return structuredClone(/** @type {ValidationRule[]} */ (validate));
+}
+
+/**
+ * @param {import('./conditions.js').ConditionProblem[]} problems @param {string} name @param {string} key
+ * @returns {void}
+ */
+function failOn(problems, name, key) {
+  if (problems.length === 0) return;
+  const [first] = problems;
+  throw new TypeError(`Item "${name}" ${key}${first.path}: ${first.message}`);
+}
+
+/**
+ * @param {NormalizedItem[]} items @param {NormalizedItem} item @param {Record<string, unknown>} raw
+ * @returns {boolean} Whether the item currently leads to `$review` or `$submit`.
+ */
+function endsHere(items, item, raw) {
+  try {
+    const target = resolveNext(items, item, raw);
+    return target === NEXT_REVIEW || target === NEXT_SUBMIT;
+  } catch {
+    return false;
+  }
 }

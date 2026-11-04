@@ -10,8 +10,10 @@ import { Avatar } from '../avatar/avatar.js';
 import { BlockView } from '../block-view/block-view.js';
 import { copyButton } from '../copy/copy-button.js';
 import { emptyState } from '../empty-state/empty-state.js';
+import { skeletonText } from '../skeleton/skeleton.js';
 import { RunTrace } from '../run-trace/run-trace.js';
 import { SourceList } from '../source-list/source-list.js';
+import { Surface } from '../surface/surface.js';
 
 /** @typedef {import('../../internal/agent-model.js').ThreadItem} ThreadItem */
 /** @typedef {import('../../internal/agent-model.js').Author} Author */
@@ -19,6 +21,42 @@ import { SourceList } from '../source-list/source-list.js';
 /** @typedef {import('../../internal/agent-model.js').Block} Block */
 /** @typedef {import('../empty-state/empty-state.js').EmptyStateOptions} EmptyStateOptions */
 /** @typedef {'copy'|'regenerate'|'branch'|'rate'} AnswerAction */
+/** @typedef {import('../surface/surface.js').SurfaceOptions} SurfaceOptions */
+/** @typedef {import('../surface/text.js').SurfaceReply} SurfaceReply */
+
+/**
+ * Something still on its way — a tool call's arguments, a document being composed — drawn as a
+ * Skeleton under its author's byline. It is replaced by the item it stands for, and goes without
+ * replying or announcing anything.
+ * @typedef {Object} PlaceholderItem
+ * @property {string} id
+ * @property {'placeholder'} type
+ * @property {string} [at]
+ * @property {string} [author]
+ * @property {number} [lines=2] Skeleton lines.
+ */
+
+/**
+ * Where `upsert()` puts an item it adds.
+ * @typedef {Object} UpsertOptions
+ * @property {string|null} [after=null] The id of the item to insert the new item right after;
+ *   the end of the thread when null or unknown. An item already in the thread stays where it is.
+ */
+
+/**
+ * A surface in the conversation: an answer or a question an agent composed. The item comes from
+ * the application, never from a model line, so its `token` and `catalog` are the application's.
+ * Without a `document` it waits for operations streamed into `thread.surface(id)`.
+ * @typedef {Object} SurfaceItem
+ * @property {string} id
+ * @property {'surface'} type
+ * @property {string} [at]
+ * @property {string} [author]
+ * @property {import('../surface/validate.js').SurfaceDocument|null} [document] The whole surface.
+ * @property {string|null} [token] The application's token, copied into the reply.
+ * @property {import('../surface/catalog.js').SurfaceCatalog} [catalog] A narrowed catalog.
+ * @property {SurfaceReply|null} [reply] The reply it gave; the surface is drawn as its receipt.
+ */
 
 /**
  * What a registered item renderer receives besides the item.
@@ -64,8 +102,12 @@ import { SourceList } from '../source-list/source-list.js';
  * @property {((at: string) => string)|null} [formatTime=null] Formats an item's `at`; the local
  * clock time when null.
  * @property {string} [locale] Locale for times.
+ * @property {Omit<SurfaceOptions, 'document'|'token'|'catalog'|'reply'>} [surfaceOptions={}] Options
+ * handed to every Surface the thread draws: the application's `policy`, `resolve`, `chartAdapter`
+ * and `msg`. Its authors, heading level and locale are the thread's unless given here.
  * @property {Record<string, string>|Record<string, Record<string, string>>} [msg] Localized messages.
  * @property {(event: CustomEvent<{item: ThreadItem, action: string, value?: unknown}>) => void} [onaction] Answer action listener.
+ * @property {(event: CustomEvent<{item: ThreadItem, reply: SurfaceReply}>) => void} [onreply] Surface reply listener.
  * @property {(event: CustomEvent<{item: ThreadItem, values: Record<string, unknown>}>) => void} [onapprove] Approval listener.
  * @property {(event: CustomEvent<{item: ThreadItem, values: Record<string, unknown>}>) => void} [onedit] Edit listener.
  * @property {(event: CustomEvent<{item: ThreadItem, reason: string}>) => void} [onreject] Rejection listener.
@@ -84,6 +126,7 @@ import { SourceList } from '../source-list/source-list.js';
  * @property {RunTrace|null} trace A trace's steps.
  * @property {SourceList|null} sources An answer's sources.
  * @property {ApprovalCard|null} card An approval.
+ * @property {Surface|null} [surface] A surface.
  */
 
 const MESSAGES = Object.freeze({
@@ -108,6 +151,7 @@ const MESSAGES = Object.freeze({
   'agentThread.answered': '%1 answered',
   'agentThread.working': '%1 is working',
   'agentThread.needsApproval': '%1 needs your approval',
+  'agentThread.needsAnswer': '%1 needs your answer',
   'agentThread.stoppedAnnounce': 'Stopped',
   'agentThread.writingNow': '%1 is writing…',
   'agentThread.edit': 'Edit message',
@@ -138,6 +182,7 @@ const END_SLACK = 48;
  * @fires AgentThread#artifact
  * @fires AgentThread#reveal
  * @fires AgentThread#open
+ * @fires AgentThread#reply
  * @extends {Component<AgentThreadOptions>}
  */
 export class AgentThread extends Component {
@@ -160,6 +205,7 @@ export class AgentThread extends Component {
     sourceIcons: {},
     now: null,
     formatTime: null,
+    surfaceOptions: {},
     msg: MESSAGES
   };
 
@@ -243,24 +289,38 @@ export class AgentThread extends Component {
    * @returns {this}
    */
   setItems(items) {
-    for (const id of [...this._order]) this._drop(id);
-    for (const item of Array.isArray(items) ? items : []) this._add(item);
+    const list = (Array.isArray(items) ? items : []).filter((item) => item && typeof item === 'object' && item.id != null);
+    const ids = new Set(list.map((item) => String(item.id)));
+    for (const id of [...this._order]) if (!ids.has(id)) this._drop(id);
+    // An item already drawn is redrawn in place, so a surface that still matches keeps answering.
+    for (const item of list) {
+      const id = String(item.id);
+      if (this._entries.has(id)) this._replace(id, item);
+      else this._add(item);
+    }
+    this._order = [...ids].filter((id) => this._entries.has(id));
+    for (const id of this._order) this._feed.append(/** @type {ThreadEntry} */ (this._entries.get(id)).article);
+    for (const id of this._order) this._syncContinuation(id);
+    this._syncLatest();
     this._syncPositions();
     this._syncEmpty();
     return this;
   }
 
   /**
-   * Adds an item, or replaces the item with the same id where it stands.
+   * Adds an item, or replaces the item with the same id where it stands. A new item goes at the
+   * end, or right after the item `options.after` names.
    * @param {ThreadItem} item
+   * @param {UpsertOptions} [options]
    * @returns {this}
    */
-  upsert(item) {
+  upsert(item, options = {}) {
     if (!item || typeof item !== 'object' || item.id == null) return this;
     const id = String(item.id);
+    const after = options?.after == null ? null : String(options.after);
     this._follow(() => {
       if (this._entries.has(id)) this._replace(id, item);
-      else this._add(item, { announce: true });
+      else this._add(item, { announce: true, after });
       this._syncPositions();
       this._syncEmpty();
     });
@@ -279,7 +339,7 @@ export class AgentThread extends Component {
     const entry = this._entries.get(String(id));
     if (!entry || !partial || typeof partial !== 'object') return this;
     const before = entry.item;
-    const item = /** @type {ThreadItem} */ ({ ...before, ...structuredClone(partial), id: before.id, type: before.type });
+    const item = /** @type {ThreadItem} */ ({ ...before, ...cloneItem(partial), id: before.id, type: before.type });
     const keys = Object.keys(partial);
     const only = (/** @type {string[]} */ allowed) => keys.every((key) => allowed.includes(key));
     this._follow(() => {
@@ -398,7 +458,13 @@ export class AgentThread extends Component {
   get(id) {
     const entry = this._entries.get(String(id));
     if (!entry) return null;
-    const item = structuredClone(entry.item);
+    const item = cloneItem(entry.item);
+    if (item.type === 'surface' && entry.surface) {
+      const surface = /** @type {any} */ (item);
+      const document = entry.surface.toDocument();
+      if (document) surface.document = document;
+      surface.reply = entry.surface.getReply();
+    }
     if (item.type === 'answer' && entry.view) /** @type {any} */ (item).blocks = entry.view.getBlocks();
     if (item.type === 'trace' && entry.trace) /** @type {any} */ (item).steps = entry.trace.getSteps();
     return item;
@@ -417,7 +483,17 @@ export class AgentThread extends Component {
    */
   getComponent(id) {
     const entry = this._entries.get(String(id));
-    return entry ? entry.view ?? entry.trace ?? entry.card ?? null : null;
+    return entry ? entry.view ?? entry.trace ?? entry.card ?? entry.surface ?? null : null;
+  }
+
+  /**
+   * The Surface drawn for a `surface` item, to stream its operations into with `apply()` or
+   * `write()`.
+   * @param {string} id
+   * @returns {Surface|null}
+   */
+  surface(id) {
+    return this._entries.get(String(id))?.surface ?? null;
   }
 
   /**
@@ -501,7 +577,7 @@ export class AgentThread extends Component {
   /**
    * @private
    * @param {ThreadItem} item
-   * @param {{announce?: boolean}} [options]
+   * @param {{announce?: boolean, after?: string|null}} [options]
    * @returns {void}
    */
   _add(item, options = {}) {
@@ -511,10 +587,16 @@ export class AgentThread extends Component {
       this._replace(id, item);
       return;
     }
-    const entry = this._build(structuredClone(item));
+    const entry = this._build(cloneItem(item));
     this._entries.set(id, entry);
-    this._order.push(id);
-    this._feed.append(entry.article);
+    const anchor = options.after != null && options.after !== id ? this._entries.get(options.after) : null;
+    if (anchor) {
+      this._order.splice(this._order.indexOf(String(options.after)) + 1, 0, id);
+      anchor.article.after(entry.article);
+    } else {
+      this._order.push(id);
+      this._feed.append(entry.article);
+    }
     this._syncContinuation(id);
     this._syncLatest();
     if (options.announce) this._announceItem(entry.item);
@@ -530,7 +612,16 @@ export class AgentThread extends Component {
     const old = this._entries.get(id);
     if (!old) return;
     const hadFocus = old.article.contains(document.activeElement);
-    const entry = this._build(structuredClone({ ...item, id }));
+    // A surface keeps answering where it stands unless the item brings a different surface, which
+    // supersedes it: it replies once either way.
+    const keep = item.type === 'surface' && old.surface && keepsSurface(old, /** @type {any} */ (item)) ? old.surface : null;
+    if (keep) {
+      old.owned = old.owned.filter((component) => component !== keep);
+      old.surface = null;
+    } else {
+      old.surface?.supersede();
+    }
+    const entry = this._build(cloneItem({ ...item, id }), keep);
     old.article.replaceWith(entry.article);
     for (const component of old.owned) component.destroy();
     this._entries.set(id, entry);
@@ -594,11 +685,12 @@ export class AgentThread extends Component {
    * Draws one item into its article.
    * @private
    * @param {ThreadItem} item
+   * @param {Surface|null} [surface=null] A surface to keep rather than draw anew.
    * @returns {ThreadEntry}
    */
-  _build(item) {
+  _build(item, surface = null) {
     /** @type {ThreadEntry} */
-    const entry = { item, article: h('article'), owned: [], view: null, trace: null, sources: null, card: null };
+    const entry = { item, article: h('article'), owned: [], view: null, trace: null, sources: null, card: null, surface: null };
     const own = /** @type {<T extends Component>(component: T) => T} */ ((component) => {
       entry.owned.push(component);
       return component;
@@ -662,6 +754,15 @@ export class AgentThread extends Component {
       }
       case 'approval':
         this._buildApproval(entry, body, own);
+        break;
+      case 'placeholder': {
+        const lines = Number(/** @type {any} */ (item).lines);
+        body.setAttribute('aria-busy', 'true');
+        body.append(skeletonText({ lines: Number.isInteger(lines) && lines > 0 && lines <= 12 ? lines : 2 }));
+        break;
+      }
+      case 'surface':
+        this._buildSurface(entry, body, own, surface);
         break;
       default: {
         const render = AgentThread.#renderers.get(item.type);
@@ -931,6 +1032,49 @@ export class AgentThread extends Component {
   }
 
   /**
+   * A surface item: the Surface, its reply re-emitted as the thread's `reply` and kept on the item.
+   * @private
+   * @param {ThreadEntry} entry
+   * @param {HTMLElement} body
+   * @param {<T extends Component>(component: T) => T} own
+   * @param {Surface|null} kept A surface carried over from the item's earlier drawing.
+   * @returns {void}
+   */
+  _buildSurface(entry, body, own, kept) {
+    const item = /** @type {SurfaceItem} */ (/** @type {unknown} */ (entry.item));
+    const surface = kept ?? new Surface(null, {
+      authors: /** @type {any} */ (this.options.authors),
+      headingLevel: this.options.headingLevel,
+      locale: this.options.locale,
+      ...(this.options.surfaceOptions ?? {}),
+      document: item.document ?? null,
+      token: item.token ?? null,
+      reply: item.reply ?? null,
+      ...(item.catalog ? { catalog: item.catalog } : {})
+    });
+    own(surface);
+    if (!kept) {
+      this._contain(surface, ['reply', 'error', 'change', 'ready', 'end']);
+      // A streamed surface says what it is only once it begins.
+      if (!item.document) {
+        surface.on('ready', () => {
+          if (!surface.getReply() && asksForAnswer(surface.toDocument()?.intent)) {
+            this._announce(this.msg('agentThread.needsAnswer', this._authorName(item)));
+          }
+        });
+      }
+      surface.on('reply', (event) => {
+        const { reply } = /** @type {CustomEvent<{reply: SurfaceReply}>} */ (event).detail;
+        const current = this._entries.get(String(item.id));
+        if (current?.surface === surface) current.item = /** @type {ThreadItem} */ ({ ...current.item, reply });
+        this.emit('reply', { item: this.get(String(item.id)) ?? { ...item, reply }, reply });
+      });
+    }
+    entry.surface = surface;
+    body.append(surface.toElement());
+  }
+
+  /**
    * The author's avatar, beside the byline and the content. Decorative: the byline names them.
    * @private
    * @param {ThreadItem} item
@@ -1102,6 +1246,8 @@ export class AgentThread extends Component {
       this._announce(this.msg(/** @type {any} */ (item).streaming ? 'agentThread.writing' : 'agentThread.answered', name));
     } else if (item.type === 'approval' && (/** @type {any} */ (item).status ?? 'pending') === 'pending') {
       this._announce(this.msg('agentThread.needsApproval', name));
+    } else if (item.type === 'surface' && asksForAnswer(/** @type {any} */ (item).document?.intent) && !(/** @type {any} */ (item).reply)) {
+      this._announce(this.msg('agentThread.needsAnswer', name));
     } else if (item.type === 'trace') {
       this._announce(this.msg('agentThread.working', name));
     } else if (item.type === 'notice' && ['warning', 'danger'].includes(String(/** @type {any} */ (item).tone))) {
@@ -1256,7 +1402,48 @@ export class AgentThread extends Component {
 }
 
 /** Item types the thread draws itself. */
-const BUILT_IN = new Set(['user', 'text', 'answer', 'trace', 'approval', 'notice']);
+const BUILT_IN = new Set(['user', 'text', 'answer', 'trace', 'approval', 'notice', 'surface', 'placeholder']);
+
+/**
+ * Whether a surface of this intent waits for the person's answer.
+ * @param {unknown} intent
+ * @returns {boolean}
+ */
+function asksForAnswer(intent) {
+  return typeof intent === 'string' && intent !== 'show';
+}
+
+/**
+ * Copies an item, keeping a surface's catalog by reference: a catalog is the library's own frozen
+ * object, and a copy of it is refused.
+ * @template {Record<string, any>} T
+ * @param {T} item
+ * @returns {T}
+ */
+function cloneItem(item) {
+  if (!item || typeof item !== 'object' || !('catalog' in item)) return structuredClone(item);
+  const { catalog, ...rest } = item;
+  return /** @type {T} */ (/** @type {unknown} */ ({ ...structuredClone(rest), catalog }));
+}
+
+/**
+ * Whether a redrawn surface item still describes the surface already drawn: same token and
+ * catalog, and no other document.
+ * @param {ThreadEntry} old
+ * @param {SurfaceItem} item
+ * @returns {boolean}
+ */
+function keepsSurface(old, item) {
+  const before = /** @type {SurfaceItem} */ (/** @type {unknown} */ (old.item));
+  if ((item.token ?? null) !== (before.token ?? null) || (item.catalog ?? null) !== (before.catalog ?? null)) return false;
+  if (item.document == null) return true;
+  // The document the item was drawn from, or the one the surface now stands as — what `get()`
+  // hands back — both describe the surface already drawn.
+  const given = JSON.stringify(item.document);
+  if (given === JSON.stringify(before.document ?? null)) return true;
+  const drawn = old.surface?.toDocument();
+  return Boolean(drawn) && given === JSON.stringify(drawn);
+}
 
 /**
  * An icon button the thread's delegated click listener acts on.
@@ -1362,4 +1549,11 @@ function focusableOutside(element, direction) {
  * A link was activated: one of an item's `refs`, or of a trace step's (then `step` names it).
  * @event AgentThread#open
  * @type {CustomEvent<{item: ThreadItem, ref: import('../../internal/agent-model.js').ItemRef, step?: import('../../internal/agent-model.js').TraceStep}>}
+ */
+/**
+ * A surface in the thread replied: its one reply, with the item as it now stands. Also sent when
+ * an unanswered surface is superseded by a new one under the same id, removed, or destroyed with
+ * the thread.
+ * @event AgentThread#reply
+ * @type {CustomEvent<{item: ThreadItem, reply: SurfaceReply}>}
  */

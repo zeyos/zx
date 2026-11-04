@@ -1,0 +1,26 @@
+{
+  "protocol": "ag-ui/1.0",
+  "events": [
+    {"type":"RUN_STARTED","threadId":"thread_7f3a2c","runId":"run_b1","protocolVersion":"1.0","timestamp":1793698205040},
+    {"type":"TEXT_MESSAGE_START","messageId":"msg_b1","role":"assistant","timestamp":1793698205180},
+    {"type":"TEXT_MESSAGE_CONTENT","messageId":"msg_b1","delta":"I'll send the fir","timestamp":1793698205320},
+    {"type":"TEXT_MESSAGE_CONTENT","messageId":"msg_b1","delta":"st reminder for RE-2026","timestamp":1793698205460},
+    {"type":"TEXT_MESSAGE_CONTENT","messageId":"msg_b1","delta":"-0121 to Élise Martin.","timestamp":1793698205600},
+    {"type":"TEXT_MESSAGE_END","messageId":"msg_b1","timestamp":1793698205740},
+    {"type":"TOOL_CALL_START","toolCallId":"call_b1","toolCallName":"send_reminder","parentMessageId":"msg_b1","timestamp":1793698205880},
+    {"type":"TOOL_CALL_ARGS","toolCallId":"call_b1","delta":"{\"invoice\":\"RE-2026-","timestamp":1793698206020},
+    {"type":"TOOL_CALL_ARGS","toolCallId":"call_b1","delta":"0121\",\"template\":\"re","timestamp":1793698206160},
+    {"type":"TOOL_CALL_ARGS","toolCallId":"call_b1","delta":"minder-1\",\"to\":\"e.ma","timestamp":1793698206300},
+    {"type":"TOOL_CALL_ARGS","toolCallId":"call_b1","delta":"rtin@helios.example\"","timestamp":1793698206440},
+    {"type":"TOOL_CALL_ARGS","toolCallId":"call_b1","delta":"}","timestamp":1793698206580},
+    {"type":"TOOL_CALL_END","toolCallId":"call_b1","timestamp":1793698206720},
+    {"type":"RUN_FINISHED","threadId":"thread_7f3a2c","runId":"run_b1","outcome":{"type":"interrupt","interrupts":[{"id":"int_b1","reason":"tool_call","toolCallId":"call_b1","message":"Send the first reminder for RE-2026-0121 to e.martin@helios.example?","responseSchema":{"type":"object","properties":{"approved":{"type":"boolean"}},"required":["approved"]}}]},"timestamp":1793698206860},
+    {"type":"RUN_STARTED","threadId":"thread_7f3a2c","runId":"run_b2","protocolVersion":"1.0","timestamp":1793698207000},
+    {"type":"TOOL_CALL_RESULT","messageId":"tool_b1","toolCallId":"call_b1","role":"tool","content":"{\"sent\":true,\"messageId\":\"mail-88213\"}","timestamp":1793698207140},
+    {"type":"TEXT_MESSAGE_START","messageId":"msg_b2","role":"assistant","timestamp":1793698207280},
+    {"type":"TEXT_MESSAGE_CONTENT","messageId":"msg_b2","delta":"Done — the reminder ","timestamp":1793698207420},
+    {"type":"TEXT_MESSAGE_CONTENT","messageId":"msg_b2","delta":"is on its way to Élise Martin.","timestamp":1793698207560},
+    {"type":"TEXT_MESSAGE_END","messageId":"msg_b2","timestamp":1793698207700},
+    {"type":"RUN_FINISHED","threadId":"thread_7f3a2c","runId":"run_b2","outcome":{"type":"success"},"timestamp":1793698207840}
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "protocol": "mcp/2026-07-28",
+  "result": {
+    "resultType": "input_required",
+    "inputRequests": {
+      "delivery": {
+        "method": "elicitation/create",
+        "params": {
+          "message": "Delivery details for order SO-4471",
+          "requestedSchema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+              "date": { "type": "string", "format": "date", "title": "Delivery date" },
+              "dock": { "type": "string", "title": "Dock", "enum": ["north", "south"] },
+              "services": { "type": "array", "title": "Services", "minItems": 0, "maxItems": 2, "items": { "anyOf": [{ "const": "tail-lift", "title": "Tail lift" }, { "const": "notify", "title": "Call ahead" }] } },
+              "contact": { "type": "string", "format": "email", "title": "Contact on site" }
+            },
+            "required": ["date"]
+          }
+        }
+      },
+      "bank": {
+        "method": "elicitation/create",
+        "params": {
+          "mode": "url",
+          "url": "https://billing.example.com/connect?session=7f3a",
+          "message": "Connect your bank account to continue."
+        }
+      }
+    },
+    "requestState": "eyJzdGVwIjoyfQ"
+  },
+  "unsupported": [
+    {
+      "message": "Pick a plan",
+      "requestedSchema": {
+        "type": "object",
+        "properties": {
+          "plan": { "type": "string", "title": "Plan", "enum": ["basic", "pro"], "enumNames": ["Basic", "Professional"] }
+        }
+      }
+    },
+    {
+      "message": "Where should it go?",
+      "requestedSchema": {
+        "type": "object",
+        "properties": {
+          "address": { "type": "object", "title": "Address", "properties": { "city": { "type": "string" } } }
+        }
+      }
+    }
+  ]
+}
