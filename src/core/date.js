@@ -11,7 +11,8 @@ const TOKEN_PATTERN = /%[demYyHMSaAbBs]/g;
 
 /**
  * `Intl` formatters for month and weekday names, under their locale and style, because a calendar
- * formats dozens of cells per render. A locale `Intl` cannot use is cached as null.
+ * formats dozens of cells per render. A locale `Intl` cannot use is cached as null: one it refuses,
+ * and one it has no data for, which it would otherwise answer in the runtime's own language.
  * @type {Map<string, Intl.DateTimeFormat|null>}
  */
 const nameFormatters = new Map();
@@ -24,10 +25,11 @@ const nameFormatters = new Map();
  * use, writes the English names.
  * @param {Date} date Date to format.
  * @param {string} fmt Format containing `%d %e %m %Y %y %H %M %S %a %A %b %B %s` tokens.
- * @param {{locale?: string}} [options={}] `locale` defaults to `getLanguage()`.
+ * @param {{locale?: string|null}|null} [options] `locale` defaults to `getLanguage()`.
  * @returns {string}
  */
-export function formatDate(date, fmt, { locale = getLanguage() } = {}) {
+export function formatDate(date, fmt, options) {
+  const locale = options?.locale ?? getLanguage();
   if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
   return String(fmt).replace(TOKEN_PATTERN, (token) => {
     switch (token) {
@@ -229,7 +231,8 @@ function nameFormatter(type, style, locale) {
   let formatter = nameFormatters.get(key);
   if (formatter === undefined) {
     try {
-      formatter = new Intl.DateTimeFormat(locale, { [type]: style, calendar: 'gregory' });
+      formatter = Intl.DateTimeFormat.supportedLocalesOf(locale).length > 0
+        ? new Intl.DateTimeFormat(locale, { [type]: style, calendar: 'gregory' }) : null;
     } catch {
       formatter = null;
     }

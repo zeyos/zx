@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 
 import {
@@ -91,6 +92,33 @@ test('English tags keep the English names, and a tag Intl refuses falls back to 
     assert.equal(formatDate(september, '%A %a %B %b', { locale }), 'Sunday Sun September Sep', locale);
   }
   assert.equal(formatDate(september, '%B', { locale: 'not a locale' }), 'September');
+});
+
+test('a tag Intl has no data for writes the English names, not the language of the machine', (t) => {
+  const module = (path) => JSON.stringify(new URL(path, import.meta.url).href);
+  const script = `
+    import { formatDate } from ${module('../../src/core/date.js')};
+    import { setLanguage } from ${module('../../src/core/i18n.js')};
+    setLanguage('xx');
+    const host = new Intl.DateTimeFormat().resolvedOptions().locale;
+    console.log(JSON.stringify({ host, names: formatDate(new Date(2026, 2, 2), '%a %A %b %B') }));
+  `;
+  const { stdout, status } = spawnSync(process.execPath, ['--input-type=module', '--eval', script], {
+    env: { ...process.env, LC_ALL: 'de_DE.UTF-8', LANG: 'de_DE.UTF-8' }, encoding: 'utf8'
+  });
+  assert.equal(status, 0);
+  const { host, names } = JSON.parse(stdout);
+  if (!host.startsWith('de')) t.skip('this runtime ignores LC_ALL');
+  assert.equal(names, 'Mon Monday Mar March');
+});
+
+test('formatDate reads a third argument only when it holds a locale', () => {
+  const date = new Date(2026, 2, 2);
+  assert.equal(formatDate(date, '%B', null), 'March');
+  assert.equal(formatDate(date, '%B', undefined), 'March');
+  assert.equal(formatDate(date, '%B', { locale: null }), 'March');
+  assert.deepEqual([date].map((value, index) => formatDate(value, '%B', index)), ['March']);
+  assert.equal(formatDate(date, '%B', { locale: 'de' }), 'März');
 });
 
 test('a translator answers before Intl, and its long names still shorten to three letters', () => {
