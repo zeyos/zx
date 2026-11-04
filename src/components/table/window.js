@@ -190,7 +190,11 @@ export class RowWindow {
    * @returns {void}
    */
   measure() {
-    const row = this.drawn.values().next().value;
+    // A row from the middle of the window, with rows either side of it. The rows at its edges can
+    // measure differently when content sets their height: the last row of a table has no divider,
+    // and a pinned row sits between spacers.
+    const { start, end } = this._range();
+    const row = this.drawn.get(Math.floor((start + end - 1) / 2)) ?? this.drawn.values().next().value;
     if (!row?.isConnected) return;
     const { scroller, head, sticky } = this.host;
     const rowHeight = row.getBoundingClientRect().height;
@@ -256,11 +260,16 @@ export class RowWindow {
     return Math.max(0, this.host.scroller.scrollTop - this.offset);
   }
 
-  /** @returns {Array<{from: number, to: number}|{gap: number}>} What the body should hold now. */
-  _segments() {
-    const { start, end } = tableWindow({
+  /** @returns {{start: number, end: number}} The rows the scroll position calls for. */
+  _range() {
+    return tableWindow({
       total: this.total, rowHeight: this.rowHeight, scrollTop: this._position(), viewport: this.viewport
     });
+  }
+
+  /** @returns {Array<{from: number, to: number}|{gap: number}>} What the body should hold now. */
+  _segments() {
+    const { start, end } = this._range();
     return tableWindowSegments(this.total, start, end, this.host.pins());
   }
 

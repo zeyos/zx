@@ -2498,6 +2498,9 @@ const cases = [
   }),
   tableStackingCase(),
   tableGrowingCase(),
+  tableWindowedCase(),
+  tableWindowedEditingCase(),
+  tableWindowedStructureCase(),
   tableHierarchyCase(),
   tableKeyboardCase(),
   tableTreegridKeyboardCase(),
@@ -4676,6 +4679,399 @@ function tableGrowingCase() {
     },
     destroy({ component }) {
       component.destroy();
+    }
+  };
+}
+
+/**
+ * Rows for a windowed table, numbered from 1 and named so they sort by that number.
+ * @param {number} count Row count.
+ * @returns {Array<{ID: number, name: string, city: string}>}
+ */
+function windowedRows(count) {
+  return Array.from({ length: count }, (_, index) => ({
+    ID: index + 1, name: `Row ${String(index + 1).padStart(4, '0')}`, city: `City ${index % 7}`
+  }));
+}
+
+/**
+ * Waits until a windowed table has measured itself: the observer reports on one frame and the
+ * measurement runs on the next.
+ * @returns {Promise<void>}
+ */
+async function windowSettled() {
+  await nextFrame();
+  await nextFrame();
+}
+
+/** @param {Element|null|undefined} row @returns {number} The row's `aria-rowindex`, or 0. */
+function rowIndexOf(row) {
+  return Number(row?.getAttribute('aria-rowindex') ?? 0);
+}
+
+/**
+ * Asserts what must hold of the body of a windowed table at any moment: its rows are in order, each
+ * says where it is, and each stripe belongs to its row's place in the data rather than in the DOM.
+ * @param {HTMLElement} root Table root.
+ * @returns {void}
+ */
+function assertWindowIntact(root) {
+  const rows = [...root.querySelectorAll('tbody tr[data-row]')];
+  rows.forEach((row, position) => {
+    const index = rowIndexOf(row);
+    assert(index >= 2, 'a drawn row has no aria-rowindex');
+    assert(position === 0 || index > rowIndexOf(rows[position - 1]), 'drawn rows are out of order');
+    assert(row.hasAttribute('data-stripe') === ((index - 2) % 2 === 1), `row ${index} carries the wrong stripe`);
+  });
+  assert(root.querySelectorAll('tbody [tabindex="0"]').length === 1, 'the body is not exactly one Tab stop');
+}
+
+/** Windowed rendering: one grid over every row, whichever few of them are drawn. @returns {SmokeDefinition} */
+function tableWindowedCase() {
+  return {
+    name: 'Table (windowed)',
+    create(fixture) {
+      const opened = [];
+      const component = new zx.Table(null, {
+        virtual: true,
+        height: 240,
+        selectable: 'multi',
+        label: 'Orders',
+        columns: [
+          { id: 'name', label: 'Name', sortable: true },
+          { id: 'city', label: 'City' },
+          {
+            id: 'open', label: '', ariaLabel: 'Open',
+            render: (row) => zx.h('button', { type: 'button', class: 'qa-open', onclick: () => opened.push(row.ID) }, 'Open')
+          }
+        ],
+        data: windowedRows(2000)
+      });
+      fixture.append(component.toElement());
+      return { component, opened };
+    },
+    async exercise({ component, opened }) {
+      await windowSettled();
+      const root = component.el;
+      const table = root.querySelector('table');
+      const scroller = root.querySelector('.zx-table__scroll');
+      const drawn = () => [...root.querySelectorAll('tbody tr[data-row]')];
+      const focused = () => rowIndexOf(document.activeElement?.closest('tr'));
+      const row = (index) => root.querySelector(`tbody tr[aria-rowindex="${index}"]`);
+      const inView = (element) => {
+        const box = element.getBoundingClientRect();
+        const view = scroller.getBoundingClientRect();
+        const head = root.querySelector('thead').getBoundingClientRect().height;
+        return box.top >= view.top + head - 1 && box.bottom <= view.top + scroller.clientHeight + 1;
+      };
+
+      // One grid: the count of the whole table, and each drawn row saying where it is.
+      assert(table.getAttribute('role') === 'grid', 'a windowed table is not a grid');
+      assert(table.getAttribute('aria-rowcount') === '2001', `aria-rowcount is ${table.getAttribute('aria-rowcount')}`);
+      assert(root.querySelector('thead tr').getAttribute('aria-rowindex') === '1', 'the header row has no aria-rowindex');
+      const rowHeight = drawn()[0].getBoundingClientRect().height;
+      const inRegion = Math.ceil(scroller.clientHeight / rowHeight);
+      assert(drawn().length <= inRegion * 2 + 2, `drew ${drawn().length} rows for ${inRegion} in view`);
+      assert(component.getRenderedCount() === drawn().length, 'getRenderedCount() is not what is drawn');
+      assertWindowIntact(root);
+
+      // The spacers carry the height of every row that is not drawn.
+      const head = root.querySelector('thead').getBoundingClientRect().height;
+      const height = scroller.scrollHeight;
+      assert(Math.abs(height - head - 2000 * rowHeight) < 3, `scroll height ${height} for 2000 rows of ${rowHeight}`);
+      const spacer = root.querySelector('.zx-table__spacer');
+      assert(spacer.getAttribute('aria-hidden') === 'true' && !spacer.hasAttribute('data-row'), 'a spacer reads as a row');
+      assert(getComputedStyle(spacer.firstElementChild).paddingBlockStart === '0px', 'a spacer took a cell\'s padding');
+
+      // The keyboard map reaches the last row and comes back, drawing what it lands on.
+      drawn()[0].focus();
+      assert(pressKey('End').defaultPrevented && focused() === 2001, `End reached row ${focused()}`);
+      assert(document.activeElement.textContent.includes('Row 2000') && inView(document.activeElement),
+        'End did not bring the last row into view');
+      assert(drawn().length <= inRegion * 2 + 3, 'End left the rows it passed drawn');
+      pressKey('ArrowUp');
+      assert(focused() === 2000, 'ArrowUp did not move from the last row');
+      pressKey('PageUp');
+      const page = 2000 - focused();
+      assert(page >= 1 && inView(document.activeElement), 'PageUp did not move by a page');
+      pressKey('PageDown');
+      assert(focused() === 2000, 'PageDown did not come back');
+      pressKey('Home');
+      assert(focused() === 2 && inView(document.activeElement), `Home reached row ${focused()}`);
+      pressKey('End', { ctrlKey: true });
+      assert(focused() === 2001, 'Ctrl+End did not reach the last row');
+      pressKey('Home', { ctrlKey: true });
+      assert(focused() === 2 && scroller.scrollTop === 0, 'Ctrl+Home did not reach the first row');
+      for (let step = 0; step < 40; step += 1) pressKey('ArrowDown');
+      assert(focused() === 42 && inView(document.activeElement), `40 × ArrowDown reached row ${focused()}`);
+      assertWindowIntact(root);
+
+      // The focused row outlives scrolling away from it, in its place, and the keys carry on from it.
+      pressKey('Home');
+      const held = document.activeElement;
+      scroller.scrollTop = height;
+      await windowSettled();
+      assert(document.activeElement === held && held.isConnected, 'scrolling away removed the focused row');
+      assert(row(2001), 'the rows at the end were not drawn');
+      assert(drawn().length <= inRegion * 2 + 3, `${drawn().length} rows drawn at the end`);
+      assert(Math.abs(scroller.scrollHeight - height) < 3,
+        `keeping the focused row moved the scroll height from ${height} to ${scroller.scrollHeight}, `
+        + `rows ${[...new Set(drawn().map((tr) => tr.getBoundingClientRect().height))].join('/')}, `
+        + `spacers ${[...root.querySelectorAll('.zx-table__spacer')].map((tr) => tr.getBoundingClientRect().height).join('/')}`);
+      assertWindowIntact(root);
+      pressKey('ArrowDown');
+      assert(focused() === 3 && inView(document.activeElement), 'ArrowDown did not return to the row after the focused one');
+
+      // Sticky header: still there, at the top of the region, far down the table.
+      component.reveal(1000);
+      await windowSettled();
+      const header = root.querySelector('thead th');
+      assert(getComputedStyle(header).position === 'sticky', 'the header stopped sticking');
+      assert(Math.abs(header.getBoundingClientRect().top - scroller.getBoundingClientRect().top) < 3,
+        'the header scrolled away');
+
+      // A Shift range reaches rows that are not drawn, pointer and keyboard alike.
+      assert(component.reveal(5), 'reveal() did not reach a row');
+      await windowSettled();
+      row(6).querySelector('.zx-table__row-checkbox').click();
+      component.reveal(1500);
+      await windowSettled();
+      assert(!row(6) || row(6).matches('[tabindex="0"]'), 'the row the range began on should have left the window');
+      row(1501).querySelector('.zx-table__row-checkbox')
+        .dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, shiftKey: true }));
+      const range = component.getSelection();
+      assert(range.length === 1496 && range[0].ID === 5 && range.at(-1).ID === 1500,
+        `Shift+click selected ${range.length} rows, ${range[0]?.ID}–${range.at(-1)?.ID}`);
+      component.reveal(700);
+      await windowSettled();
+      assert(row(701).getAttribute('aria-selected') === 'true'
+        && row(701).querySelector('.zx-table__row-checkbox').checked,
+      'a row drawn after the selection does not show it');
+      const selectAll = root.querySelector('thead .zx-table__select-all');
+      assert(selectAll.indeterminate, 'select-all does not show a partial selection');
+
+      component.clearSelection();
+      drawn().at(-1).focus();
+      const anchor = focused();
+      pressKey(' ');
+      pressKey('End', { shiftKey: true });
+      assert(component.getSelection().length === 2001 - anchor + 1,
+        `Shift+End selected ${component.getSelection().length} rows from row ${anchor}`);
+      pressKey('a', { ctrlKey: true });
+      assert(component.getSelection().length === 2000 && selectAll.checked, 'Ctrl+A did not take every row');
+      component.clearSelection();
+
+      // Row actions in a cell work on rows drawn later.
+      component.reveal(1234);
+      await windowSettled();
+      row(1235).querySelector('.qa-open').click();
+      assert(opened.join() === '1234', `the row's action ran for ${opened.join()}`);
+
+      // A sort while scrolled leaves the scroll position and redraws what is there; focus goes with its row.
+      row(1235).focus();
+      const scrolled = scroller.scrollTop;
+      component.setSort('name', 'desc');
+      assert(scroller.scrollTop === scrolled, `the sort scrolled from ${scrolled} to ${scroller.scrollTop}`);
+      await windowSettled();
+      const data = component.getData();
+      assert(data[0].ID === 2000, 'the sort did not reorder the data');
+      for (const tr of drawn()) {
+        const expected = data[rowIndexOf(tr) - 2].name;
+        assert(tr.querySelector('[data-column="name"]').textContent === expected, `row ${rowIndexOf(tr)} shows the old order`);
+      }
+      assert(document.activeElement.textContent.includes('Row 1234') && focused() === 2000 - 1234 + 2,
+        'the sort lost the focused row');
+      assertWindowIntact(root);
+
+      // reveal() draws a row by id, and says when there is no such row.
+      assert(component.reveal(1) && inView(row(2001)), 'reveal() did not bring the row into view');
+      assert(component.reveal('nobody') === false, 'reveal() claimed a row that does not exist');
+
+      // Filtering shrinks the table under a scroll position past its new end.
+      component.setSort('name', 'asc');
+      component.setData(windowedRows(30));
+      assert(table.getAttribute('aria-rowcount') === '31', 'aria-rowcount did not follow the data');
+      await windowSettled();
+      assert(drawn().at(-1) === row(31) && scroller.scrollTop <= scroller.scrollHeight - scroller.clientHeight,
+        'the last rows were not drawn after filtering');
+      assertWindowIntact(root);
+
+      component.setData([]);
+      assert(root.querySelector('.zx-table__empty') && !root.querySelector('.zx-table__spacer'), 'no empty state');
+      assert(component.getRenderedCount() === 0, 'an empty table still counts rows');
+      assert(root.contains(document.activeElement), 'emptying the table dropped focus');
+      component.setData(windowedRows(2000));
+      await windowSettled();
+      assert(document.activeElement.closest?.('tr[data-row]'), 'new rows did not take focus back');
+      assertWindowIntact(root);
+
+      // Export reads the data, so it holds every row wherever the window is.
+      const csv = zx.toCsv(component.getData(), ['ID', 'name']);
+      assert(csv.split('\r\n').length === 2001, 'export did not hold every row');
+    },
+    destroy({ component }) { component.destroy(); }
+  };
+}
+
+/** Editing in a windowed table: the row being edited is never removed. @returns {SmokeDefinition} */
+function tableWindowedEditingCase() {
+  return {
+    name: 'Table (windowed editing)',
+    create(fixture) {
+      const component = new zx.Table(null, {
+        virtual: true,
+        height: 240,
+        editMode: 'cell',
+        label: 'Orders',
+        columns: [{ id: 'name', label: 'Name', editable: true }, { id: 'city', label: 'City', editable: true }],
+        data: windowedRows(500)
+      });
+      fixture.append(component.toElement());
+      return { component };
+    },
+    async exercise({ component }) {
+      await windowSettled();
+      const root = component.el;
+      const scroller = root.querySelector('.zx-table__scroll');
+      const focused = () => document.activeElement?.closest('td');
+
+      // Cell focus reaches the corners of the whole table.
+      root.querySelector('tbody td[tabindex="0"]').focus();
+      pressKey('End', { ctrlKey: true });
+      assert(rowIndexOf(focused()?.parentElement) === 501 && focused().dataset.column === 'city',
+        'Ctrl+End did not reach the last cell of the last row');
+      pressKey('Home', { ctrlKey: true });
+      assert(rowIndexOf(focused()?.parentElement) === 2 && focused().dataset.column === 'name',
+        'Ctrl+Home did not reach the first cell of the first row');
+
+      // startEdit() draws a row that is not drawn.
+      component.startEdit(400, 'name');
+      assert(component.isEditing(), 'startEdit() did not reach a row outside the window');
+      const editing = root.querySelector('tbody tr[data-editing="true"]');
+      const input = editing.querySelector('.zx-table__editor-input');
+      assert(rowIndexOf(editing) === 401 && document.activeElement === input, 'the editor did not take focus');
+
+      // The row being edited stays, editor and all, when the reader scrolls away and back.
+      input.value = 'Edited';
+      scroller.scrollTop = 0;
+      await windowSettled();
+      assert(editing.isConnected && input.isConnected && component.isEditing(), 'scrolling away removed the edited row');
+      assert(document.activeElement === input, 'scrolling away took focus out of the editor');
+      assert(root.querySelector('tbody tr[aria-rowindex="2"]'), 'the rows in view were not drawn');
+      assertWindowIntact(root);
+      component.commitEdit();
+      assert(component.getRow(400).name === 'Edited' && !component.isEditing(), 'the edit did not commit');
+      assert(document.activeElement?.closest('tr') && rowIndexOf(document.activeElement.closest('tr')) === 401,
+        'focus did not return to the edited cell');
+
+      // Tab walks from an open editor into a row that has to be drawn.
+      component.startEdit(1, 'city');
+      scroller.scrollTop = scroller.scrollHeight;
+      await windowSettled();
+      assert(!root.querySelector('tbody tr[aria-rowindex="3"]'), 'the next row should have left the window');
+      pressKey('Tab');
+      const moved = component.getEditing();
+      assert(moved?.id === 2 && moved.columnId === 'name', `Tab moved the edit to ${JSON.stringify(moved)}`);
+      assert(root.querySelector('tbody tr[aria-rowindex="3"][data-editing="true"]'), 'Tab did not draw the next row');
+      component.cancelEdit();
+    },
+    destroy({ component }) { component.destroy(); }
+  };
+}
+
+/** Section rows, a tree, stacking, and the options a window has to refuse. @returns {SmokeDefinition} */
+function tableWindowedStructureCase() {
+  return {
+    name: 'Table (windowed structure)',
+    create(fixture) {
+      const sections = new zx.Table(null, {
+        virtual: true,
+        height: 240,
+        rowKind: 'kind',
+        rowKinds: { section: { span: true } },
+        columns: [{ id: 'name', label: 'Name', sortable: true }, { id: 'city', label: 'City' }],
+        data: windowedRows(1000).map((row, index) => (index % 10 === 0
+          ? { ID: row.ID, kind: 'section', name: `Section ${index / 10 + 1}` } : row))
+      });
+      const tree = new zx.Table(null, {
+        virtual: true,
+        height: 240,
+        hierarchy: { parentId: 'parent', expanded: true },
+        columns: [{ id: 'name', label: 'Name' }],
+        data: [{ ID: 0, parent: null, name: 'Root' },
+          ...windowedRows(600).map((row) => ({ ...row, parent: 0 }))]
+      });
+      const host = zx.h('div', {}, sections.toElement(), tree.toElement());
+      fixture.append(host);
+      return { sections, tree, host };
+    },
+    async exercise({ sections, tree, host }) {
+      await windowSettled();
+
+      // Grouped: section rows draw as they scroll in, and the sort stays withheld.
+      const scroller = sections.el.querySelector('.zx-table__scroll');
+      assert(!sections.el.querySelector('.zx-table__sort-button'), 'a grouped table offered a sort');
+      scroller.scrollTop = scroller.scrollHeight;
+      await windowSettled();
+      const section = [...sections.el.querySelectorAll('tbody tr[data-span]')].at(-1);
+      assert(section && rowIndexOf(section) === 992 && section.querySelector('th[colspan="2"]'),
+        'the section rows at the end were not drawn');
+      assertWindowIntact(sections.el);
+
+      // Treegrid: the parent of a row at the far end is not drawn until ArrowLeft asks for it.
+      const rows = () => tree.el.querySelectorAll('tbody tr[data-row]');
+      assert(tree.el.querySelector('table').getAttribute('role') === 'treegrid', 'hierarchy lost its treegrid');
+      rows()[0].focus();
+      pressKey('End');
+      assert(rowIndexOf(document.activeElement) === 602, 'End did not reach the last child');
+      pressKey('ArrowLeft');
+      assert(rowIndexOf(document.activeElement) === 2, 'ArrowLeft did not draw and focus the parent');
+      pressKey('ArrowRight');
+      assert(rowIndexOf(document.activeElement) === 3, 'ArrowRight did not move into the first child');
+      pressKey('ArrowUp');
+      pressKey('ArrowLeft');
+      assert(tree.getExpanded().length === 0 && rowIndexOf(document.activeElement) === 2, 'collapse lost the row');
+      assert(tree.el.querySelector('table').getAttribute('aria-rowcount') === '2', 'aria-rowcount ignored the collapse');
+      tree.expandAll();
+      await windowSettled();
+
+      // Collapsing hands focus to the ancestor even when that ancestor was not drawn.
+      tree.el.querySelector('tbody tr[tabindex="0"]').focus();
+      pressKey('End');
+      assert(rowIndexOf(document.activeElement) === 602, 'End did not reach the last child again');
+      tree.collapseRow(0);
+      assert(rowIndexOf(document.activeElement) === 2, 'collapsing the branch lost focus');
+
+      // `growing` gives way to `virtual`, and says so once.
+      const warnings = [];
+      const warn = console.warn;
+      console.warn = (...args) => warnings.push(args.join(' '));
+      const both = new zx.Table(null, {
+        virtual: true, growing: 5, height: 240, columns: [{ id: 'name', label: 'Name' }], data: windowedRows(300)
+      });
+      host.append(both.toElement());
+      await windowSettled();
+      both.setData(windowedRows(400));
+      console.warn = warn;
+      const conflicts = warnings.filter((text) => text.includes('growing'));
+      assert(conflicts.length === 1, `the conflict was reported ${conflicts.length} times`);
+      assert(!both.el.querySelector('.zx-table__more'), 'virtual did not win over growing');
+      assert(both.el.querySelectorAll('tbody tr[data-row]').length > 5, 'growing still held the rows back');
+      both.destroy();
+
+      // A table that does not ask for any of this is left alone.
+      const plain = new zx.Table(null, { columns: [{ id: 'name', label: 'Name' }], data: windowedRows(50) });
+      host.append(plain.toElement());
+      assert(plain.el.querySelectorAll('tbody tr[data-row]').length === 50, 'a plain table stopped drawing every row');
+      assert(!plain.el.querySelector('.zx-table__spacer, .zx-table__row-probe'), 'a plain table grew window parts');
+      assert(!plain.el.querySelector('table').hasAttribute('aria-rowcount'), 'a plain table announces a row count');
+      assert(!plain.el.hasAttribute('data-virtual'), 'a plain table is marked windowed');
+      plain.destroy();
+    },
+    destroy({ sections, tree, host }) {
+      sections.destroy();
+      tree.destroy();
+      host.remove();
     }
   };
 }
