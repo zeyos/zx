@@ -83,7 +83,9 @@ regenerated. Public files must not mention this spec.
     with nothing to say leaves its last answer closed.
   - The steps stay on the message's first answer.
   - The sources are listed once, under its last answer. Earlier answers keep them for their
-    citations, which count the whole message's sources, without a list of their own.
+    citations, which count the whole message's sources, without a list of their own. A citation in
+    an earlier answer goes to that list through `thread.reveal('source:<n>:<id>')`, unless the
+    application prevents it.
   - The answer above a card ends before the card joins, so the thread's last word is that it needs
     approval. An answer above a tile goes on streaming until the message continues or finishes, so
     a tile does not announce an answer that is not finished.

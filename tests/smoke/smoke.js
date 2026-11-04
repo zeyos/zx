@@ -7173,7 +7173,26 @@ function uiMessageStreamCases() {
       assert(paragraphs(root, 'm').join('|') === 'First try.', `the other version: ${paragraphs(root, 'm')}`);
       page('next');
       assert(paragraphs(root, 'm').join('|') === 'Second try.|And more.', `paged back: ${paragraphs(root, 'm')}`);
-    })
+    }),
+
+    replay('AgentThread (stream: a citation above a tile leads to the list below it)', async ({ root, play }) => {
+      play([
+        { type: 'start', messageId: 'm' },
+        { type: 'text-start', id: 'a' },
+        { type: 'text-delta', id: 'a', delta: 'Above the tile [1].' },
+        { type: 'text-end', id: 'a' },
+        { type: 'source-url', sourceId: 'one', url: 'https://one.example/', title: 'First source' },
+        { type: 'tool-input-available', toolCallId: 'c', toolName: 'lookup', input: {} },
+        { type: 'tool-output-available', toolCallId: 'c', output: {} },
+        { type: 'text-start', id: 'b' },
+        { type: 'text-delta', id: 'b', delta: 'Below the tile.' },
+        { type: 'text-end', id: 'b' },
+        { type: 'finish', finishReason: 'stop' }
+      ]);
+      /** @type {HTMLButtonElement} */ (article(root, 'm').querySelector('[data-cite="1"]')).click();
+      await Promise.resolve();
+      assert(article(root, 'm#2').querySelector('.zx-source-list__source')?.getAttribute('data-state') === 'highlighted', 'the citation reached nothing');
+    }, { tools: { lookup: tile } })
   ];
 }
 

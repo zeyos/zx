@@ -938,6 +938,27 @@ test('the sources are listed once, under the last answer, and every answer’s c
   assert.deepEqual(thread.citing.get('m').map(({ id }) => id), ['a', 'b']);
 });
 
+test('a citation above the last answer reaches the list below it, unless it is prevented', async () => {
+  const { thread, stream, play } = connect({ tools: { lookup: tile([]) } });
+  play([{ type: 'start', messageId: 'm' }, ...said('Above [1].'), { type: 'source-url', sourceId: 's', url: 'https://example.com/' }, ...ran('c'), ...said('Below [1].'), { type: 'finish' }]);
+  /** @param {string} id @param {boolean} [prevent] */
+  const cite = async (id, prevent = false) => {
+    const event = new CustomEvent('cite', { detail: { item: { id }, n: 1 }, cancelable: true });
+    thread.dispatchEvent(event);
+    if (prevent) event.preventDefault();
+    await Promise.resolve();
+  };
+  await cite('m', true);
+  await cite('m#2');
+  await cite('another');
+  assert.deepEqual(thread.revealed, [], 'prevented, and neither of the others stands above a list');
+  await cite('m');
+  assert.deepEqual(thread.revealed, ['source:1:m#2']);
+  stream.destroy();
+  await cite('m');
+  assert.equal(thread.revealed.length, 1);
+});
+
 /* ------------------------------------------------------------------ reset-step -- */
 
 test('reset-step leaves nothing of the withdrawn step in the thread, and the retry stands', () => {

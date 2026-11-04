@@ -3525,7 +3525,8 @@ agents' answers as they stream (`BlockView` with a `SourceList`), the steps a ru
   block — figures, a table — without redrawing the answer), `announce(text)` (says an outcome
   through the thread's polite status), `setArtifactState(id, {expanded, controls})` (whether an
   artifact is open in an inspector, on every card naming it), `remove(id)`, `get(id)`,
-  `getItems()`, `getComponent(id)`, `reveal(target)` (`item:<id>`, `step:<id>`, `source:<n>`),
+  `getItems()`, `getComponent(id)`, `reveal(target)` (`item:<id>`, `step:<id>`, `source:<n>`,
+  `source:<n>:<id>`, a source in the list of that answer),
   `scrollToEnd()`, `surface(id)` (the `Surface` of a `surface` item, to stream into), `destroy()`. The static `AgentThread.register(type, render)` draws an item type
   of the application's own; `render(item, {thread, author, own})` returns its content, and `own()`
   hands a component to the thread to destroy with the item. An application's renderer for
@@ -3593,7 +3594,7 @@ for await (const part of parsedParts(response)) stream.handle(part);
   another item the adapter added continues in a new answer `<messageId>#<n>`, counting from 2, by
   the same author, and the thread draws it as the same turn. The steps stay on the message's first
   answer, and the sources are listed under its last, while citations in any of its answers count
-  them all. Each answer is its own item: `thread.get(messageId)` is the first one alone, and an
+  them all and lead to that list. Each answer is its own item: `thread.get(messageId)` is the first one alone, and an
   action under a continuation carries the id `<messageId>#<n>`, so strip `#<n>` to name the message.
 - **`reset-step`** withdraws the current step: everything the message added since its last
   `start-step` goes, or all of it when it has none, and the answer goes on where the step began. Its

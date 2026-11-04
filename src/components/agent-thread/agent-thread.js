@@ -511,7 +511,8 @@ export class AgentThread extends Component {
 
   /**
    * Brings something into view and moves focus to it: `item:<id>` an item, `step:<id>` a trace
-   * step (in whichever trace holds it), `source:<n>` a source of the latest answer that has one.
+   * step (in whichever trace holds it), `source:<n>` a source of the latest answer that has one,
+   * `source:<n>:<id>` a source in the list of the answer `id`.
    * @param {string} target
    * @returns {boolean} Whether the target was found.
    */
@@ -536,10 +537,11 @@ export class AgentThread extends Component {
         }
       }
     } else if (kind === 'source') {
-      for (const entryId of [...this._order].reverse()) {
+      const [n, ...answer] = rest;
+      for (const entryId of answer.length ? [answer.join(':')] : [...this._order].reverse()) {
         const sources = this._entries.get(entryId)?.sources;
         if (sources) {
-          sources.highlight(Number(id));
+          sources.highlight(Number(n));
           found = true;
           break;
         }

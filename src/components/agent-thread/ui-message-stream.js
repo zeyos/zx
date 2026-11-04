@@ -891,9 +891,27 @@ export function connectUiMessageStream(thread, options = {}) {
     if (id && tiles.has(id)) thread.reveal(`item:${id}`);
   };
 
+  /**
+   * A message lists its sources under its last piece, where a citation in an earlier piece cannot
+   * reach them on its own. Like a decision, it waits for every listener: a prevented citation is
+   * the application's to answer.
+   * @param {Event} event
+   * @returns {void}
+   */
+  const onCite = (event) => {
+    const { detail } = /** @type {CustomEvent<{item?: ThreadItem, n: number}>} */ (event);
+    const id = String(detail?.item?.id);
+    const message = [...messages.values()].find((known) => known.pieces.includes(id));
+    if (!message || tailOf(message) === id) return;
+    queueMicrotask(() => {
+      if (!destroyed && !event.defaultPrevented) thread.reveal(`source:${detail.n}:${tailOf(message)}`);
+    });
+  };
+
   thread.on('approve', onApprove);
   thread.on('reject', onReject);
   thread.on('open', onOpen);
+  thread.on('cite', onCite);
 
   /* ------------------------------------------------------------------ the rest -- */
 
@@ -993,6 +1011,7 @@ export function connectUiMessageStream(thread, options = {}) {
       thread.off('approve', onApprove);
       thread.off('reject', onReject);
       thread.off('open', onOpen);
+      thread.off('cite', onCite);
       for (const [id, approval] of approvals) {
         if (approval.settled) continue;
         expire(id, approval);
