@@ -990,6 +990,18 @@ test('a citation above the last answer reaches the list below it, unless it is p
   assert.equal(thread.revealed.length, 1);
 });
 
+test('a long message moves its list from answer to answer and leaves the others alone', () => {
+  const { thread, play } = connect({ tools: { lookup: tile([]) } });
+  play([{ type: 'start', messageId: 'm' }, { type: 'source-url', sourceId: 's', url: 'https://example.com/' }]);
+  for (let index = 0; index < 20; index += 1) play([...ran(`c${index}`), ...said(`Text ${index}.`)]);
+  play([{ type: 'finish' }]);
+  const patches = thread.calls.filter(([kind, , keys]) => kind === 'patch' && keys.join() === 'sources');
+  assert.equal(patches.length, 2 + 2 * 20, 'the source and the first step, then one answer giving the list up and one taking it');
+  assert.deepEqual(/** @type {any} */ (thread.get('m#3')).sources, []);
+  assert.deepEqual(/** @type {any} */ (thread.get('m#21')).sources.map(({ id }) => id), ['s']);
+  assert.deepEqual(thread.citing.get('m#3').map(({ id }) => id), ['s'], 'its citations still count them');
+});
+
 /* ------------------------------------------------------------------ reset-step -- */
 
 test('reset-step leaves nothing of the withdrawn step in the thread, and the retry stands', () => {

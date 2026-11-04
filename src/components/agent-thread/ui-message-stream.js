@@ -76,6 +76,7 @@ export const UI_MESSAGE_STREAM_VERSION = 'v1';
  * @property {boolean} writing Whether its last piece is streaming.
  * @property {TraceStep[]} steps The message's steps, which its first piece shows.
  * @property {Source[]} sources The message's sources.
+ * @property {string} listed The piece that lists them.
  * @property {Set<unknown>} texts Text blocks not ended yet. An ended block's id is free again.
  * @property {boolean} hasText Whether the last piece ends in text a new block has to be set apart
  * from.
@@ -273,7 +274,7 @@ export function connectUiMessageStream(thread, options = {}) {
    */
   function openMessage(id, implied = false) {
     const message = /** @type {MessageState} */ ({
-      id, pieces: [id], writing: true, steps: [], sources: [], texts: new Set(), hasText: false,
+      id, pieces: [id], writing: true, steps: [], sources: [], listed: id, texts: new Set(), hasText: false,
       gap: false, drawn: false, failed: false, closed: false, implied, thinking: null, quiet: false,
       writes: 0
     });
@@ -333,7 +334,8 @@ export function connectUiMessageStream(thread, options = {}) {
     message.hasText = false;
     message.gap = false;
     add({ id, type: 'answer', ...byline, blocks: [], streaming: true });
-    if (message.sources.length) drawSources(message);
+    // Only the answer that held the list changes: the ones above it keep what they have.
+    if (message.sources.length) drawSources(message, message.pieces.slice(-2, -1));
   }
 
   /**
@@ -945,14 +947,15 @@ export function connectUiMessageStream(thread, options = {}) {
    * whole message's sources wherever it stands, so the pieces above keep them for their citations,
    * without a list of their own.
    * @param {MessageState} message
+   * @param {string[]} [above] The pieces above the last whose citations have to learn of them.
    * @returns {void}
    */
-  function drawSources(message) {
-    thread.patch(tailOf(message), { sources: message.sources });
-    for (const id of message.pieces.slice(0, -1)) {
-      thread.patch(id, { sources: [] });
-      /** @type {BlockView|null} */ (thread.getComponent(id))?.setSources(message.sources);
-    }
+  function drawSources(message, above = message.pieces.slice(0, -1)) {
+    const tail = tailOf(message);
+    if (message.listed !== tail) thread.patch(message.listed, { sources: [] });
+    message.listed = tail;
+    thread.patch(tail, { sources: message.sources });
+    for (const id of above) /** @type {BlockView|null} */ (thread.getComponent(id))?.setSources(message.sources);
   }
 
   /** @param {UiMessagePart} part @returns {void} */
