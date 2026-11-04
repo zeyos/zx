@@ -15,6 +15,7 @@ import { spawn } from 'node:child_process';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
+import { buildSubset } from '../bin/zx-css.js';
 import { LAYOUT_IDS, PATTERN_IDS, TEMPLATE_IDS } from '../website/layouts/index.js';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -97,6 +98,13 @@ async function run(instance, suite) {
     if (text.startsWith('Failed to load resource')) return; // covered above, with the URL
     problems.push(`console: ${text}`);
   });
+
+  // The distribution suite compares a Select on its `zx-css` subset with one on `zx.css`. Only
+  // Node can resolve a subset, so it comes from here, and nothing lands in `dist/`.
+  await page.route('**/tests/smoke/zx-css-select.css', (route) => route.fulfill({
+    contentType: 'text/css; charset=utf-8',
+    body: buildSubset(['select'])
+  }));
 
   await page.goto(suite.url, { waitUntil: 'load' });
   const finished = await page.waitForFunction(
