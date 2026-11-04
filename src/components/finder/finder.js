@@ -20,8 +20,8 @@ import { createReaders, isBranch, pathTo } from '../tree/hierarchy.js';
  * @property {number|string|null} [height=320] Component height in pixels or any CSS length.
  * @property {boolean} [icons=true] Whether to render folder and file icons.
  * @property {((node: TreeNode) => Node|string)|null} [renderItem=null] Row renderer.
- * @property {string|null} [emptyText=null] Text shown in an empty column; null reads the
- *   `finder.noItems` message ("Empty").
+ * @property {string|null} [emptyText] Text shown in an empty column, by default the `finder.noItems`
+ *   message ("Empty"). Null shows none.
  * @property {Record<string, string>|Record<string, Record<string, string>>} [msg] Localized messages.
  * @property {(event: CustomEvent<{path: unknown[], nodes: TreeNode[], node: TreeNode|null}>) => void} [onchange] Path listener.
  * @property {(event: CustomEvent<{node: TreeNode, id: unknown}>) => void} [onactivate] Activation listener.
@@ -57,7 +57,8 @@ export class Finder extends Component {
     height: 320,
     icons: true,
     renderItem: null,
-    emptyText: null
+    // Undefined rather than null, which shows nothing.
+    emptyText: undefined
   };
 
   /** @returns {HTMLElement} */
@@ -253,9 +254,10 @@ export class Finder extends Component {
 
     if (column.nodes.length === 0) {
       const loading = column.owner !== null && this._loading.has(this._readers.value(column.owner));
+      const { emptyText = this.msg('finder.noItems') } = this.options;
       list.append(h('div', { class: 'zx-finder__empty' }, loading
         ? this._message('finder.loading', 'Loading…')
-        : this._message('finder.empty', this.options.emptyText ?? this.msg('finder.noItems'))));
+        : this._message('finder.empty', emptyText)));
     }
 
     for (const node of column.nodes) {

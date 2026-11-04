@@ -197,8 +197,8 @@ import {
  * @property {boolean} [showCounts=true] Show record counts and WIP indicators.
  * @property {boolean} [showEmptyColumns=true] Keep configured empty columns visible.
  * @property {'outlined'|'raised'|'filled'} [variant='outlined'] Shared record-card treatment.
- * @property {string|null} [label=null] Accessible board label; null reads the `kanbanView.label`
- *   message ("Kanban board").
+ * @property {string|null} [label] Accessible board label, by default the `kanbanView.label` message
+ *   ("Kanban board"). Null leaves the board unnamed.
  * @property {(event: CustomEvent<Record<string,unknown>>) => void} [onrecordmove]
  * @property {(event: CustomEvent<Record<string,unknown>>) => void} [onmovereject]
  * @property {(event: CustomEvent<Record<string,unknown>>) => void} [onrecordaction]
@@ -313,7 +313,8 @@ export class KanbanView extends RecordView {
     showCounts: true,
     showEmptyColumns: true,
     variant: 'outlined',
-    label: null
+    // Undefined rather than null, which leaves the board unnamed.
+    label: undefined
   };
 
   /**
@@ -384,9 +385,8 @@ export class KanbanView extends RecordView {
       }
       if (options.searchControl) this._toolbar.append(this._createSearchControl());
       if (options.historyControls) this._toolbar.append(this._createHistoryControls());
-      this._board = h('div', {
-        class: 'zx-kanban-view__board', role: 'region', ariaLabel: options.label ?? this.msg('kanbanView.label')
-      });
+      const { label = this.msg('kanbanView.label') } = options;
+      this._board = h('div', { class: 'zx-kanban-view__board', role: 'region', ariaLabel: label });
       this._live = h('div', {
         class: 'zx-kanban-view__live', role: 'status', ariaLive: 'polite', ariaAtomic: 'true'
       });

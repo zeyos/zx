@@ -43,11 +43,11 @@ const ITEM_SELECTOR = FOCUSABLE
  * @typedef {Object} ToolbarOptions
  * @property {ToolbarItem[]} [items=[]] Controls, separators (`'-'`), and ready-made Elements.
  * @property {'start'|'end'|'between'} [align='start'] Horizontal distribution.
- * @property {string|null} [label=null] Accessible name of the toolbar; null reads the `toolbar.label`
- *   message ("Toolbar").
+ * @property {string|null} [label] Accessible name of the toolbar, by default the `toolbar.label`
+ *   message ("Toolbar"). Null gives none.
  * @property {boolean} [overflow=true] Collapses items that no longer fit into a trailing menu.
- * @property {string|null} [overflowLabel=null] Accessible name of the overflow menu trigger; null
- *   reads the `toolbar.more` message ("More").
+ * @property {string|null} [overflowLabel] Accessible name of the overflow menu trigger, by default
+ *   the `toolbar.more` message ("More"). Null gives none.
  * @property {boolean} [dense=false] Tighter spacing and small controls.
  * @property {(event: CustomEvent<{name: string|null, item: Element}>) => void} [onaction] Action listener.
  */
@@ -65,9 +65,10 @@ export class Toolbar extends Component {
   static defaults = {
     items: [],
     align: 'start',
-    label: null,
+    // Undefined rather than null, which gives no name.
+    label: undefined,
     overflow: true,
-    overflowLabel: null,
+    overflowLabel: undefined,
     dense: false
   };
 
@@ -107,9 +108,9 @@ export class Toolbar extends Component {
       });
       const trigger = /** @type {HTMLButtonElement} */ (this.#overflow.toElement());
       trigger.classList.add('zx-toolbar__overflow');
-      const overflowLabel = String(this.options.overflowLabel ?? this.msg('toolbar.more'));
-      trigger.setAttribute('aria-label', overflowLabel);
-      trigger.setAttribute('title', overflowLabel);
+      const { overflowLabel = this.msg('toolbar.more') } = this.options;
+      trigger.setAttribute('aria-label', String(overflowLabel ?? ''));
+      trigger.setAttribute('title', String(overflowLabel ?? ''));
       if (this.options.dense) trigger.setAttribute('data-size', 'sm');
       trigger.hidden = true;
     }
@@ -145,7 +146,8 @@ export class Toolbar extends Component {
       Array.from(root.children) : items;
 
     root.setAttribute('role', 'toolbar');
-    root.setAttribute('aria-label', String(this.options.label ?? this.msg('toolbar.label')));
+    const { label = this.msg('toolbar.label') } = this.options;
+    root.setAttribute('aria-label', String(label ?? ''));
     root.dataset.align = normalizeAlign(this.options.align);
     root.dataset.overflow = this.options.overflow ? 'true' : 'false';
     if (this.options.dense) root.dataset.dense = 'true';

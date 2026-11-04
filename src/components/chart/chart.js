@@ -50,12 +50,12 @@ import { uid } from '../../core/util.js';
  * @property {string} [description=''] Accessible description.
  * @property {'hidden'|'visible'} [summary='hidden'] Semantic data-table presentation.
  * @property {boolean} [loading=false] Initial loading state.
- * @property {string|null} [emptyText=null] Empty-state text; null reads the `chart.empty` message
- *   ("No chart data").
- * @property {string|null} [loadingText=null] Loading-state text; null reads the `chart.loading`
- *   message ("Loading chart…").
- * @property {string|null} [errorText=null] Error fallback text; null reads the `chart.error` message
- *   ("Unable to render chart").
+ * @property {string|null} [emptyText] Empty-state text, by default the `chart.empty` message
+ *   ("No chart data"). Null shows none.
+ * @property {string|null} [loadingText] Loading-state text, by default the `chart.loading` message
+ *   ("Loading chart…"). Null shows none.
+ * @property {string|null} [errorText] Error fallback text, by default the `chart.error` message
+ *   ("Unable to render chart"). Null shows none.
  * @property {string} [aspectRatio='16 / 9'] Responsive container aspect ratio.
  * @property {(event: CustomEvent<{instance: unknown}>) => void} [onready] Engine-ready listener.
  * @property {(event: CustomEvent<{data: ChartData, type: string}>) => void} [onupdate] Update listener.
@@ -84,9 +84,10 @@ export class Chart extends Component {
     description: '',
     summary: 'hidden',
     loading: false,
-    emptyText: null,
-    loadingText: null,
-    errorText: null,
+    // Undefined rather than null, which shows nothing.
+    emptyText: undefined,
+    loadingText: undefined,
+    errorText: undefined,
     aspectRatio: '16 / 9'
   };
 
@@ -205,7 +206,7 @@ export class Chart extends Component {
 
   /** Shows an error and destroys the current engine. @param {unknown} error @returns {this} */
   setError(error) {
-    this._error = error ?? new Error(String(this.options.errorText ?? this.msg('chart.error')));
+    this._error = error ?? new Error(this._errorText());
     this._hasError = true;
     this._loading = false;
     this._destroyHandle();
@@ -310,12 +311,19 @@ export class Chart extends Component {
     const state = this._loading ? 'loading' : this._hasError ? 'error' : empty ? 'empty' : 'ready';
     this.el.dataset.state = state;
     this.refs.viewport.hidden = state !== 'ready';
+    const { loadingText = this.msg('chart.loading'), emptyText = this.msg('chart.empty') } = this.options;
     let text = '';
-    if (state === 'loading') text = String(this.options.loadingText ?? this.msg('chart.loading'));
-    else if (state === 'error') text = errorMessage(this._error, this.options.errorText ?? this.msg('chart.error'));
-    else if (state === 'empty') text = String(this.options.emptyText ?? this.msg('chart.empty'));
+    if (state === 'loading') text = String(loadingText ?? '');
+    else if (state === 'error') text = errorMessage(this._error, this._errorText());
+    else if (state === 'empty') text = String(emptyText ?? '');
     this.refs.status.textContent = text;
     this.refs.status.hidden = !text;
+  }
+
+  /** @returns {string} What an error without a message of its own says. */
+  _errorText() {
+    const { errorText = this.msg('chart.error') } = this.options;
+    return String(errorText ?? '');
   }
 
   /** @returns {void} */

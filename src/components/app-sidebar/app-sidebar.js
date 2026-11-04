@@ -54,8 +54,8 @@ const PRESENTATIONS = Object.freeze(['expanded', 'compact', 'collapsed']);
  * @property {boolean} [presentationSwitch=true] Modules layout: whether the strip's foot carries the
  *   switch between presentations. Turn it off when the choice lives elsewhere — an account menu,
  *   through `presentationChoice()`.
- * @property {string|null} [label=null] Navigation accessible label; null reads the
- *   `appSidebar.label` message ("Applications").
+ * @property {string|null} [label] Navigation accessible label, by default the `appSidebar.label`
+ *   message ("Applications"). Null leaves the navigation unnamed.
  * @property {string|null} [moreLabel=null] Name of a destination's overflow menu when its `actions`
  *   fold; every action name is followed by the destination's label. Null reads the `appSidebar.more`
  *   message ("More actions").
@@ -107,7 +107,8 @@ export class AppSidebar extends Component {
     presentation: null,
     presentations: ['expanded', 'compact', 'collapsed'],
     presentationSwitch: true,
-    label: null,
+    // Undefined rather than null, which leaves the navigation unnamed.
+    label: undefined,
     moreLabel: null,
     header: null,
     footer: null,
@@ -502,6 +503,12 @@ export class AppSidebar extends Component {
     else this._renderExpanded();
   }
 
+  /** @returns {string|null} The navigation's name: unset reads the catalogue, and null is no name. */
+  _navigationLabel() {
+    const { label = this.msg('appSidebar.label') } = this.options;
+    return label;
+  }
+
   /** @returns {void} */
   _renderExpanded() {
     const headerContent = h('div', { class: 'zx-app-sidebar__header-content' });
@@ -513,7 +520,7 @@ export class AppSidebar extends Component {
     const list = h('ul', { class: 'zx-app-sidebar__list' });
     const expanded = h('div', { class: 'zx-app-sidebar__expanded' },
       h('header', { class: 'zx-app-sidebar__header' }, headerContent, collapseButton),
-      h('nav', { class: 'zx-app-sidebar__nav', ariaLabel: this.options.label ?? this.msg('appSidebar.label') }, list),
+      h('nav', { class: 'zx-app-sidebar__nav', ariaLabel: this._navigationLabel() }, list),
       footer);
     this.refs.expanded = expanded;
     this.refs.list = list;
@@ -569,7 +576,7 @@ export class AppSidebar extends Component {
       active: this._active,
       orientation: this._orientation,
       side: this._side,
-      label: this.options.label ?? this.msg('appSidebar.label'),
+      label: this._navigationLabel(),
       header: railHeader.hasChildNodes() ? railHeader : null,
       footer: this.options.railFooter,
       openDelay: this.options.openDelay,

@@ -35,10 +35,10 @@ import { ActivityItem } from '../activity-item/activity-item.js';
  * the root. `'compact'` also makes an avatar descriptor without a `size` small.
  * @property {boolean} [loading=false] Whether initial or incremental activity is loading.
  * @property {number} [loadingCount=3] Placeholder rows shown for an empty loading list.
- * @property {string|null} [loadingText=null] Loading status text; null reads the
- *   `activityList.loading` message ("Loading activity").
- * @property {ActivityListContent} [emptyText=null] Empty-state content; null reads the
- *   `activityList.empty` message ("No activity yet").
+ * @property {string|null} [loadingText] Loading status text, by default the `activityList.loading`
+ *   message ("Loading activity"). Null shows none.
+ * @property {ActivityListContent} [emptyText] Empty-state content, by default the
+ *   `activityList.empty` message ("No activity yet"). Null shows none.
  * @property {1|2|3|4|5|6} [groupHeadingLevel=2] Semantic group-heading level.
  * @property {1|2|3|4|5|6} [itemHeadingLevel=3] Default item-heading level.
  * @property {(event:CustomEvent<{items:ActivityItemOptions[]}>)=>void} [ondatachange]
@@ -64,8 +64,9 @@ export class ActivityList extends Component {
     variant: 'default',
     loading: false,
     loadingCount: 3,
-    loadingText: null,
-    emptyText: null,
+    // Undefined rather than null, which shows nothing.
+    loadingText: undefined,
+    emptyText: undefined,
     groupHeadingLevel: 2,
     itemHeadingLevel: 3
   };
@@ -252,9 +253,10 @@ export class ActivityList extends Component {
         const grouped = groupBy !== null;
         for (const group of groups) content.push(this._createGroup(group, grouped));
       } else if (!this._loading) {
+        const { emptyText = this.msg('activityList.empty') } = this.options;
         content.push(h('div', {
           class: 'zx-activity-list__empty', role: 'status'
-        }, listContent(this.options.emptyText ?? this.msg('activityList.empty'), 'ActivityList emptyText')));
+        }, listContent(emptyText, 'ActivityList emptyText')));
       }
       if (this._loading) content.push(this._createLoading(this._items.length === 0));
       root.replaceChildren(...content);
@@ -291,9 +293,10 @@ export class ActivityList extends Component {
 
   /** @private @param {boolean} placeholders @returns {HTMLElement} */
   _createLoading(placeholders) {
+    const { loadingText = this.msg('activityList.loading') } = this.options;
     const region = h('div', {
       class: 'zx-activity-list__loading', role: 'status', ariaLive: 'polite'
-    }, h('span', { class: 'zx-activity-list__loading-label' }, String(this.options.loadingText ?? this.msg('activityList.loading'))));
+    }, h('span', { class: 'zx-activity-list__loading-label' }, String(loadingText ?? '')));
     if (!placeholders) return region;
     const rows = h('div', { class: 'zx-activity-list__skeletons', ariaHidden: 'true' });
     const count = normalizeLoadingCount(this.options.loadingCount);

@@ -34,8 +34,8 @@ import {
  * @property {string} [filter=''] Label substring the tree is filtered by.
  * @property {string|null} [label=null] Accessible name of the tree; null reads the `tree.label`
  *   message ("Tree").
- * @property {string|null} [emptyText=null] Text shown when the tree is empty; null reads the
- *   `tree.noItems` message ("Nothing to show").
+ * @property {string|null} [emptyText] Text shown when the tree is empty, by default the
+ *   `tree.noItems` message ("Nothing to show"). Null shows none.
  * @property {number|string|null} [height=null] Scroll height in pixels or any CSS length.
  * @property {Record<string, string>|Record<string, Record<string, string>>} [msg] Localized messages.
  * @property {(event: CustomEvent<{node: TreeNode, id: unknown, ids: unknown[]}>) => void} [onselect] Selection listener.
@@ -82,7 +82,8 @@ export class TreeView extends Component {
     load: null,
     filter: '',
     label: null,
-    emptyText: null,
+    // Undefined rather than null, which shows nothing.
+    emptyText: undefined,
     height: null
   };
 
@@ -444,8 +445,8 @@ export class TreeView extends Component {
     for (const strip of this._strips.splice(0)) strip?.destroy();
 
     if (this._rows.length === 0) {
-      this.el.replaceChildren(h('div', { class: 'zx-tree__empty' },
-        this._message('tree.empty', this.options.emptyText ?? this.msg('tree.noItems'))));
+      const { emptyText = this.msg('tree.noItems') } = this.options;
+      this.el.replaceChildren(h('div', { class: 'zx-tree__empty' }, this._message('tree.empty', emptyText)));
       return;
     }
     this.el.replaceChildren(...this._rows.map((row, index) => this._renderRow(row, index)));

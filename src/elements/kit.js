@@ -287,7 +287,7 @@ const KANBAN_VIEW_ATTRS = attributes({
   'show-counts': flag({ rebuild: true }),
   'show-empty-columns': flag({ rebuild: true }),
   variant: rebuiltText({ default: 'outlined' }),
-  label: rebuiltText({ default: null })
+  label: rebuiltText()
 });
 
 const TREE_ATTRS = attributes({
@@ -307,7 +307,7 @@ const TREE_ATTRS = attributes({
   load: rebuiltProp(),
   filter: text({ default: '', set: (component, value) => component.setFilter(value) }),
   label: rebuiltText({ default: null }),
-  'empty-text': rebuiltText({ default: null }),
+  'empty-text': rebuiltText(),
   height: rebuiltText({ default: null, normalize: normalizeNumberOrString }),
   msg: messages()
 });
@@ -322,9 +322,9 @@ const CHART_ATTRS = attributes({
   summary: rebuiltText({ default: 'hidden' }),
   // New data ends a load on its own, so the property reads the chart rather than what it was told.
   loading: bool({ set: (component, value) => component.setLoading(value), get: (component) => component.el.dataset.state === 'loading' }),
-  'empty-text': rebuiltText({ default: null }),
-  'loading-text': rebuiltText({ default: null }),
-  'error-text': rebuiltText({ default: null }),
+  'empty-text': rebuiltText(),
+  'loading-text': rebuiltText(),
+  'error-text': rebuiltText(),
   'aspect-ratio': rebuiltText({ default: '16 / 9' })
 });
 

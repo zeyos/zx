@@ -7,11 +7,12 @@ import { icon } from '../../core/icons.js';
  * @typedef {Object} ProseAnchorsOptions
  * @property {string} [selector='h2[id], h3[id], h4[id]'] The headings that get a link, inside a
  *   `.zx-prose` under the root. A heading without an `id` has nothing to link to and is skipped.
- * @property {string} [label] The link's accessible name; `%1` is the heading. By default the
- *   `prose.copyLinkTo` message ("Copy link to %1").
- * @property {string} [title] The link's tooltip, by default the `prose.copyLink` message ("Copy link").
- * @property {string} [feedback] What the live region says after a copy, by default the `prose.copied`
- *   message ("Link copied").
+ * @property {string|null} [label] The link's accessible name; `%1` is the heading. By default the
+ *   `prose.copyLinkTo` message ("Copy link to %1"). Null gives none.
+ * @property {string|null} [title] The link's tooltip, by default the `prose.copyLink` message
+ *   ("Copy link"). Null gives none.
+ * @property {string|null} [feedback] What the live region says after a copy, by default the
+ *   `prose.copied` message ("Link copied"). Null says nothing.
  * @property {number} [feedbackDuration=2000] Milliseconds the tick and the message stay.
  * @property {(id: string) => string} [href] The address copied for a heading id. Defaults to the
  *   current address with its hash replaced (`sectionHref(location.href, id)`).
@@ -64,10 +65,10 @@ export function sectionHref(base, id) {
 export function proseAnchors(root, options = {}) {
   const target = typeof root === 'string' ? document.querySelector(root) : root;
   if (!(target instanceof Element)) throw new TypeError('proseAnchors root could not be resolved');
-  const settings = {
-    label: translate('prose.copyLinkTo'), title: translate('prose.copyLink'), feedback: translate('prose.copied'),
-    ...defaults, ...options
-  };
+  const settings = { ...defaults, ...options };
+  const {
+    label = translate('prose.copyLinkTo'), title = translate('prose.copyLink'), feedback = translate('prose.copied')
+  } = settings;
   const abort = new AbortController();
   /** @type {Map<HTMLAnchorElement, HTMLElement>} Link → its heading. */
   const anchors = new Map();
@@ -98,8 +99,8 @@ export function proseAnchors(root, options = {}) {
       const anchor = /** @type {HTMLAnchorElement} */ (h('a', {
         class: 'zx-prose__anchor',
         href: `#${heading.id}`,
-        ariaLabel: String(settings.label).replace('%1', text),
-        title: String(settings.title),
+        ariaLabel: String(label ?? '').replace('%1', text),
+        title: String(title ?? ''),
         'data-zx-reveal': ''
       }, icon('link-2')));
       if (!heading.hasAttribute('data-zx-reveal-host')) {
@@ -129,7 +130,7 @@ export function proseAnchors(root, options = {}) {
     anchor.dataset.copied = 'true';
     anchor.replaceChildren(icon('check'));
     if (!status.isConnected) target.append(status);
-    status.textContent = String(settings.feedback);
+    status.textContent = String(feedback ?? '');
     timer = setTimeout(() => {
       delete anchor.dataset.copied;
       anchor.replaceChildren(icon('link-2'));

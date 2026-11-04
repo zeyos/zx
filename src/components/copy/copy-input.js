@@ -8,10 +8,10 @@ import { copyButton } from './copy-button.js';
  * @property {string} [value=''] Text shown and copied.
  * @property {string} [label=''] Visible label above the box.
  * @property {boolean} [hideLabel=false] Whether the label is kept for assistive technology only.
- * @property {string|null} [feedback=null] Confirmation shown after a copy; null reads the
- *   `copy.copied` message ("Copied").
- * @property {string|null} [buttonTitle=null] Accessible name of the copy button; null reads the
- *   `copy.copy` message ("Copy").
+ * @property {string|null} [feedback] Confirmation shown after a copy, by default the `copy.copied`
+ *   message ("Copied"). Null says nothing.
+ * @property {string|null} [buttonTitle] Accessible name of the copy button, by default the
+ *   `copy.copy` message ("Copy"). Null gives none.
  * @property {'md'|'sm'} [size='md'] Control size.
  * @property {(event: CustomEvent<{value: string, copied: boolean}>) => void} [oncopy] Copy listener.
  */
@@ -35,8 +35,9 @@ export class CopyInput extends Component {
     value: '',
     label: '',
     hideLabel: false,
-    feedback: null,
-    buttonTitle: null,
+    // Undefined rather than null, which gives no text at all.
+    feedback: undefined,
+    buttonTitle: undefined,
     size: 'md'
   };
 
@@ -58,10 +59,11 @@ export class CopyInput extends Component {
       readOnly: true,
       value: String(this.options.value ?? '')
     }));
+    const { buttonTitle = this.msg('copy.copy'), feedback = this.msg('copy.copied') } = this.options;
     const button = copyButton({
       text: () => this.get(),
-      title: String(this.options.buttonTitle ?? this.msg('copy.copy')),
-      feedback: String(this.options.feedback ?? this.msg('copy.copied')),
+      title: buttonTitle,
+      feedback,
       size: this.options.size === 'sm' ? 'sm' : 'md',
       oncopy: (value, copied) => this.emit('copy', { value, copied })
     });

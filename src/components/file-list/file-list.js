@@ -15,10 +15,10 @@ import { FileItem, normalizeFileItem } from '../file-item/file-item.js';
  *   message ("Files").
  * @property {boolean} [loading=false] Whether initial or incremental files are loading.
  * @property {number} [loadingCount=3] Placeholder rows shown for an empty loading list.
- * @property {string|null} [loadingText=null] Loading status text; null reads the `fileList.loading`
- *   message ("Loading files").
- * @property {string|number|Node|Component|null} [emptyText=null] Empty-state content; null reads the
- *   `fileList.empty` message ("No files").
+ * @property {string|null} [loadingText] Loading status text, by default the `fileList.loading`
+ *   message ("Loading files"). Null shows none.
+ * @property {string|number|Node|Component|null} [emptyText] Empty-state content, by default the
+ *   `fileList.empty` message ("No files"). Null shows none.
  * @property {(event: CustomEvent<{id: unknown, index: number, file: Readonly<FileItemState>, href: string, event: MouseEvent}>) => void} [onactivate]
  *   Preventable native-file-link listener.
  * @property {(event: CustomEvent<{id: string, fileId: unknown, index: number, action: object, file: Readonly<FileItemState>, event: MouseEvent}>) => void} [onaction]
@@ -50,8 +50,9 @@ export class FileList extends Component {
     label: null,
     loading: false,
     loadingCount: 3,
-    loadingText: null,
-    emptyText: null
+    // Undefined rather than null, which shows nothing.
+    loadingText: undefined,
+    emptyText: undefined
   };
 
   /**
@@ -204,9 +205,10 @@ export class FileList extends Component {
     const content = [];
     if (this._items.length) content.push(/** @type {HTMLElement} */ (this._itemList));
     else if (!this._loading) {
+      const { emptyText = this.msg('fileList.empty') } = this.options;
       this._emptyRegion ??= h('div', {
         class: 'zx-file-list__empty', role: 'status'
-      }, listContent(this.options.emptyText ?? this.msg('fileList.empty'), 'FileList emptyText'));
+      }, listContent(emptyText, 'FileList emptyText'));
       content.push(this._emptyRegion);
     }
     if (this._loading) content.push(this._createLoading(this._items.length === 0));
@@ -280,9 +282,10 @@ export class FileList extends Component {
 
   /** @param {boolean} placeholders @returns {HTMLElement} */
   _buildLoading(placeholders) {
+    const { loadingText = this.msg('fileList.loading') } = this.options;
     const region = h('div', {
       class: 'zx-file-list__loading', role: 'status', ariaLive: 'polite'
-    }, h('span', { class: 'zx-file-list__loading-label' }, String(this.options.loadingText ?? this.msg('fileList.loading'))));
+    }, h('span', { class: 'zx-file-list__loading-label' }, String(loadingText ?? '')));
     if (!placeholders) return region;
     const rows = h('div', { class: 'zx-file-list__skeletons', ariaHidden: 'true' });
     for (let index = 0; index < normalizeLoadingCount(this.options.loadingCount); index += 1) {
