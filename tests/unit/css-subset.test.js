@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { build, transform } from 'esbuild';
 import { buildSubset, componentNames, resolveSubset } from '../../bin/zx-css.js';
+import { compareSizes } from '../../tools/check-size.js';
 
 /*
  * `zx-css` writes the stylesheet for the components an application uses, so a mistake here does
@@ -338,5 +339,39 @@ test('the layered bundle holds no import and leaves no rule outside the zx layer
     const layered = rules(await bundle({ entryPoints: ['styles/zx.layered.css'] }, minify));
     assert.ok(layered.length > 50);
     assert.deepEqual(layered.filter((rule) => !/^@layer zx\s*[{;]/.test(rule)), []);
+  }
+});
+
+test('the size check passes at the budget and names every file over it', (context) => {
+  const directory = fixture({ 'a.css': 'a'.repeat(1000), 'b.css': 'b', 'types/ignored.d.ts': 'x' }, context);
+  const size = (file) => compareSizes(directory, { 'a.css': 1e6, 'b.css': 1e6 }).rows
+    .find((row) => row.file === file).size;
+  assert.ok(size('a.css') > 0);
+
+  const within = compareSizes(directory, { 'a.css': size('a.css'), 'b.css': size('b.css') + 5 });
+  assert.deepEqual(within.problems, []);
+  assert.deepEqual(within.rows.map((row) => row.headroom), [0, 5]);
+  assert.deepEqual(within.rows.map((row) => row.file), ['a.css', 'b.css']);
+
+  const over = compareSizes(directory, { 'a.css': 1, 'b.css': 1 });
+  assert.equal(over.problems.length, 2);
+  assert.match(over.problems[0], /^a\.css: /);
+  assert.match(over.problems[1], /^b\.css: /);
+
+  assert.match(compareSizes(directory, { 'a.css': 1e6 }).problems[0], /^b\.css: has no budget/);
+  assert.match(compareSizes(directory, { 'a.css': 1e6, 'b.css': 1e6, 'c.css': 1 }).problems[0],
+    /^c\.css: has a budget but was not built/);
+});
+
+test('the budget lists every bundle the build writes, in whole bytes', () => {
+  const budgets = JSON.parse(readFileSync(join(root, 'tools/size-budget.json'), 'utf8'));
+  const script = readFileSync(join(root, 'tools/build.js'), 'utf8');
+  const expected = [...script.matchAll(/file: '([^']+)'/g)].flatMap(([, file]) => {
+    const dot = file.lastIndexOf('.');
+    return [file, `${file.slice(0, dot)}.min${file.slice(dot)}`];
+  });
+  assert.deepEqual(Object.keys(budgets).sort(), expected.sort());
+  for (const [file, budget] of Object.entries(budgets)) {
+    assert.ok(Number.isInteger(budget) && budget > 0, `${file} has no budget in bytes`);
   }
 });
