@@ -19,7 +19,7 @@ import { safeHref } from '../../core/dom.js';
 import { parsePointer } from '../../internal/json-patch.js';
 import { checkCondition, checkNext, checkRuleList, MAX_CONDITION_DEPTH, NEXT_REVIEW, NEXT_SUBMIT } from '../questionnaire/conditions.js';
 import {
-  assertCatalog, CATALOG, FORBIDDEN_KEYS, HREF_PATTERN, ICON_PATTERN, ID_PATTERN, LIMITS, NAME_PATTERN, PLACEMENTS, SURFACE_VERSION
+  assertCatalog, CATALOG, FORBIDDEN_KEYS, HREF_PATTERN, ICON_PATTERN, ID_PATTERN, LIMITS, NAME_PATTERN, PLACEMENTS, RESERVED_ACTIONS, SURFACE_VERSION
 } from './catalog.js';
 import { unsupported } from './schema.js';
 
@@ -970,6 +970,10 @@ function validateActions(raw, track, ctx) {
     return { op: null, errors: ctx.errors, ops: [] };
   }
   let items = /** @type {unknown[]} */ (input.items);
+  if (track.intent === 'questionnaire' && items.length) {
+    report(ctx, 'not-allowed', 'A questionnaire answers with its own steps; its actions were dropped', { path: '/items' });
+    items = [];
+  }
   if (items.length > LIMITS.actions) {
     report(ctx, 'limit', `A surface has at most ${LIMITS.actions} actions; the rest were dropped`, { path: '/items' });
     items = items.slice(0, LIMITS.actions);
@@ -979,6 +983,10 @@ function validateActions(raw, track, ctx) {
   items.forEach((item, index) => {
     const action = checkAction(item, ctx, `/items/${index}`);
     if (!action) return;
+    if (RESERVED_ACTIONS.includes(action.id)) {
+      report(ctx, 'not-allowed', `The action id "${action.id}" is reserved for closing the surface; the action was dropped`, { id: action.id, path: `/items/${index}/id` });
+      return;
+    }
     if (actions.some((other) => other.id === action.id)) {
       report(ctx, 'invalid-value', `The action id "${action.id}" is used twice`, { id: action.id, path: `/items/${index}/id` });
       return;

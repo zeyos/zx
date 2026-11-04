@@ -10,7 +10,7 @@ import { getLanguage, printf, translate } from '../../core/i18n.js';
 import { defaultMessages } from '../../core/messages.js';
 import { getPointer } from '../../internal/json-patch.js';
 import { evaluate, isEmptyAnswer } from '../questionnaire/conditions.js';
-import { CATALOG, REPLY_VERSION } from './catalog.js';
+import { CATALOG, REPLY_VERSION, RESERVED_ACTIONS } from './catalog.js';
 import { choicesOf } from './schema.js';
 import { validateDocument } from './validate.js';
 
@@ -96,7 +96,7 @@ const VERDICT_KEYS = Object.freeze({
 });
 
 /** Actions that close a surface rather than answer it. */
-export const CLOSING_ACTIONS = Object.freeze(['cancel', 'dismiss']);
+export const CLOSING_ACTIONS = RESERVED_ACTIONS;
 
 /** Actions whose reply carries no values: the closing ones and a rejection. */
 const VALUELESS_ACTIONS = new Set([...CLOSING_ACTIONS, 'reject']);
@@ -398,7 +398,8 @@ export function surfaceText(document, reply, options = {}) {
  * @returns {string}
  */
 export function verdictText(action, actions, msg = surfaceMessage) {
-  const own = Array.isArray(actions) ? actions.find((entry) => entry.id === action) : null;
+  // A closing word is never a surface's own: it could otherwise name what closing it meant.
+  const own = Array.isArray(actions) && !CLOSING_ACTIONS.includes(action) ? actions.find((entry) => entry.id === action) : null;
   if (own) return msg('surface.chose', own.label);
   const key = /** @type {Record<string, string>} */ (VERDICT_KEYS)[action];
   return key ? msg(key) : action;

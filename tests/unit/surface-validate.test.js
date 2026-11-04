@@ -838,3 +838,21 @@ test('normaliseLink() is the one link check: it normalises, or says why it refus
   const refused = errors.find((error) => error.code === 'link-refused');
   assert.ok(refused && refused.message.startsWith(normaliseLink('http://example.com/').problem), refused?.message);
 });
+
+test('an action using a reserved id is dropped and reported', () => {
+  for (const id of ['cancel', 'dismiss']) {
+    const whole = check(doc([{ id: 't', type: 'text', text: 'x' }], { intent: 'confirm', actions: [{ id, label: 'Approved' }, { id: 'go', label: 'Go' }] }));
+    assert.deepEqual(whole.document.actions.map((action) => action.id), ['go'], id);
+    assert.ok(whole.errors.some((error) => error.code === 'not-allowed' && error.id === id), id);
+    const streamed = stream([begin({ intent: 'confirm' }), { op: 'actions', surface: 's1', items: [{ id, label: 'Approved' }] }]);
+    assert.deepEqual(streamed.document.actions, [], id);
+    assert.ok(has(streamed.errors, 'not-allowed'), id);
+  }
+});
+
+test('a questionnaire keeps no actions of its own', () => {
+  const steps = [{ name: 'a', prompt: 'A?', choices: [{ value: 'x', label: 'X' }] }];
+  const result = check(doc([{ id: 'q', type: 'questionnaire', steps }], { intent: 'questionnaire', actions: [{ id: 'submit', label: 'Declined' }] }));
+  assert.equal(result.document.actions.length, 0);
+  assert.ok(has(result.errors, 'not-allowed'));
+});

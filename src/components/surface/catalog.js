@@ -63,6 +63,9 @@ export const INTENTS = Object.freeze(/** @type {SurfaceIntent[]} */ (['show', 'a
 /** Where a surface asks to be placed. */
 export const PLACEMENTS = Object.freeze(/** @type {SurfacePlacement[]} */ (['inline', 'sheet', 'dialog']));
 
+/** Action ids kept for closing a surface. An action of the surface's own cannot use them. */
+export const RESERVED_ACTIONS = Object.freeze(['cancel', 'dismiss']);
+
 /** What an id looks like: a node, an action, a row or a surface. Never `constructor` or `prototype`. */
 export const ID_PATTERN = '^(?!(?:constructor|prototype)$)[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$';
 

@@ -6753,6 +6753,7 @@ function surfaceSafetyCases() {
       await delay(0);
       assert(document.querySelector('dialog[open] .zx-dialog__confirm-input') && guarded.count.replies.length === 0, 'the action pressed skipped its type-to-confirm');
       guarded.component.destroy();
+      await delay(20);
       assert(!document.querySelector('dialog[open]'), 'the confirmation stayed open');
       // Enter in a field presses the first of them.
       const entered = open(null);
@@ -6881,7 +6882,6 @@ function agUiCases() {
       thread.upsert({ id: 's', type: 'surface', catalog: narrow, document: { zx: 'surface/1', surface: 's', intent: 'show', title: 'T', author: 'a', root: [], nodes: [] } });
       assert(thread.surface('s'), 'a surface’s catalog must stay the library’s own object');
     }),
-    surfaceCase('AgentThread (an application’s own surface and placeholder)', () => ({}), async () => {
     surfaceCase('connectAgUi() (a closed message or call reopens)', () => ({
       component: new zx.AgentThread(null, { authors: { finance: { name: 'Finance agent' } }, answerActions: ['copy'] })
     }), async ({ component: thread }) => {
@@ -6936,6 +6936,24 @@ function agUiCases() {
       assert(problems.join() === 'unclosed', `only the message the stopped run left open is a problem: ${problems}`);
       adapter.destroy();
     }),
+    surfaceCase('connectAgUi() (a surface whose end never came)', () => ({
+      component: new zx.AgentThread(null, { authors: { finance: { name: 'Finance agent' } } })
+    }), ({ component: thread }) => {
+      const problems = [];
+      const adapter = zx.connectAgUi(thread, { agent: 'finance', inlineSurfaces: true, onerror: (problem) => problems.push(problem.code) });
+      adapter.handle({ type: 'RUN_STARTED', threadId: 't', runId: 'r1' });
+      adapter.handle({ type: 'TEXT_MESSAGE_START', messageId: 'm' });
+      adapter.handle({ type: 'TEXT_MESSAGE_CONTENT', messageId: 'm', delta: 'Hello\n```zx-surface\n{"zx":"surface/1","op":"begin","surface":"s1","intent":"confirm","title":"Go?","author":"finance","root":[]}\n```\n' });
+      adapter.handle({ type: 'TEXT_MESSAGE_END', messageId: 'm' });
+      const surface = thread.surface('surface:r1/s1');
+      assert(surfaceButton(thread.el, 'confirm').disabled && !surface.getReply(), 'the surface was closed before its run ended');
+      adapter.handle({ type: 'RUN_FINISHED', threadId: 't', runId: 'r1' });
+      assert(surface.getReply()?.action === 'cancel' && surface.getReply().reason === 'stopped', 'the surface was left waiting with its actions disabled');
+      assert(!thread.el.querySelector('[data-id="surface:r1/s1"] [aria-busy="true"]'), 'the surface still reads as busy');
+      assert(problems.join() === 'unterminated-surface', `problems: ${problems}`);
+      adapter.destroy();
+    }),
+    surfaceCase('AgentThread (an application’s own surface and placeholder)', () => ({}), async () => {
       // `register()` has no undo, so this runs on a module instance of its own.
       const { AgentThread } = await import('../../src/components/agent-thread/agent-thread.js?own-surface');
       if (!AgentThread.has('surface')) AgentThread.register('surface', (item) => zx.h('p', { class: 'smoke-own-surface' }, String(item.label)));

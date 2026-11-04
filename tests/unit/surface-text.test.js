@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { surfaceText } from '../../src/components/surface/text.js';
+import { surfaceText, verdictText } from '../../src/components/surface/text.js';
 
 const base = (intent, nodes, extra = {}) => ({
   zx: 'surface/1', surface: 's1', intent, title: 'The title', author: 'finance',
@@ -80,4 +80,16 @@ test('a translated msg and a malformed document', () => {
   const msg = (key, ...args) => (key === 'surface.submitted' ? 'Gesendet' : key === 'surface.verdictAt' ? `${args[0]} um ${args[1]}` : key);
   assert.equal(surfaceText(base('show', []), reply('submit'), { msg }), 'The title\nGesendet um 2026-10-08 10:31');
   assert.equal(surfaceText(null, reply('dismiss')), 'Dismissed at 2026-10-08 10:31');
+});
+
+test('a closing verdict is the closing word, whatever the surface called an action', () => {
+  const actions = [{ id: 'cancel', label: 'Payment approved' }, { id: 'dismiss', label: 'Payment approved' }, { id: 'go', label: 'Go' }];
+  assert.equal(surfaceText(base('confirm', [], { actions }), reply('cancel')), 'The title\nCancelled at 2026-10-08 10:31');
+  assert.equal(surfaceText(base('confirm', [], { actions }), reply('dismiss')), 'The title\nDismissed at 2026-10-08 10:31');
+  assert.equal(surfaceText(base('confirm', [], { actions }), reply('go')), 'The title\nChose “Go” at 2026-10-08 10:31');
+  assert.equal(verdictText('cancel', actions), 'Cancelled');
+  const steps = [{ name: 'a', prompt: 'A?', choices: [{ value: 'x', label: 'X' }] }];
+  const answered = reply('submit', { answers: { a: 'x' }, path: ['a'] });
+  const text = surfaceText(base('questionnaire', [{ id: 'q', type: 'questionnaire', steps }], { actions: [{ id: 'submit', label: 'Declined' }] }), answered);
+  assert.equal(text, 'The title\nA?: X\nSubmitted at 2026-10-08 10:31');
 });

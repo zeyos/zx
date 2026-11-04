@@ -1588,16 +1588,7 @@ export class Surface extends Component {
     if (!intent) return [];
     /** @type {DrawnAction[]} */
     const list = [];
-    const own = (this._model.actions ?? []).filter((action) => {
-      if (!CLOSING_ACTIONS.includes(action.id) && intent !== 'questionnaire') return true;
-      this._report([{
-        code: 'not-allowed', surface: this._model.surface, id: action.id, path: '/actions',
-        message: CLOSING_ACTIONS.includes(action.id)
-          ? `The action id "${action.id}" is reserved for closing the surface; the action was dropped`
-          : 'A questionnaire answers with its own steps; its actions were dropped'
-      }]);
-      return false;
-    });
+    const own = this._model.actions ?? [];
     if (own.length) list.push(...own);
     else if (intent === 'ask' || intent === 'choose') list.push({ id: 'submit', label: this.msg('surface.submit'), kind: 'primary' });
     else if (intent === 'confirm') list.push({ id: 'confirm', label: this.msg('surface.confirm'), kind: 'primary' });
