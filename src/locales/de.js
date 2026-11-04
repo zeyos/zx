@@ -161,6 +161,16 @@ export const de = Object.freeze({
   'composer.label': 'Nachricht',
   'composer.match': '1 Vorschlag',
   'composer.matches': '%1 Vorschläge',
+  'composer.queue': 'In Warteschlange (%1)',
+  'composer.queued': 'In Warteschlange; wird gesendet, sobald der Agent fertig ist',
+  'composer.queueEdit': 'Bearbeiten',
+  'composer.queueFile': '1 Datei',
+  'composer.queueFiles': '%1 Dateien',
+  'composer.queueFull': 'Warteschlange voll (maximal %1)',
+  'composer.queueRemove': 'Entfernen',
+  'composer.queueReplaceConfirm': 'Ersetzen',
+  'composer.queueReplaceMessage': 'Die Nachricht aus der Warteschlange tritt an die Stelle Ihres Textes im Nachrichtenfeld.',
+  'composer.queueReplaceTitle': 'Ihren Text ersetzen?',
   'composer.remove': '%1 entfernen',
   'composer.send': 'Senden',
   'composer.stop': 'Stoppen',
@@ -339,6 +349,8 @@ export const de = Object.freeze({
   'priority.none': 'Keine Priorität',
   'priority.normal': 'Mittel',
 
+  'promptStarters.label': 'Vorschläge',
+
   'questionnaire.counter': 'Frage %1 von %2',
   'questionnaire.edit': 'Bearbeiten',
   'questionnaire.empty': 'Es gibt nichts zu beantworten.',
@@ -477,6 +489,12 @@ export const de = Object.freeze({
   'timePicker.second': 'Sekunde',
   'timePicker.selectHour': 'Stunde auswählen',
   'timePicker.selectMinutes': 'Minuten auswählen',
+
+  'uiMessageStream.approvalTitle': '%1 ausführen?',
+  'uiMessageStream.file': 'Datei',
+  'uiMessageStream.showTile': '%1 anzeigen',
+  'uiMessageStream.thinking': 'Denkt nach',
+  'uiMessageStream.thought': '%1 nachgedacht',
 
   'valueList.add': 'Wert hinzufügen',
   'valueList.duplicate': 'Dieser Wert ist bereits vorhanden.',

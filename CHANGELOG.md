@@ -8,6 +8,40 @@ and friends remain the complete record.
 
 ## Unreleased
 
+### Added
+
+- **Custom elements for the agent kit and the data views** — `<zx-agent-thread>`,
+  `<zx-composer>`, `<zx-block-view>`, `<zx-run-trace>`, `<zx-approval-card>`, `<zx-source-list>`,
+  `<zx-run-status>`, `<zx-card-view>`, `<zx-kanban-view>`, `<zx-tree>` and `<zx-chart>`. Data options
+  are properties and are never written back to attributes; methods are forwarded to the component,
+  and calls made before it exists are queued; events reach the host under their plain names as well
+  as `zx-<type>`.
+- **`connectUiMessageStream(thread, options)`** and `UI_MESSAGE_STREAM_VERSION` — draw an AI SDK UI
+  message stream (`v1`) in an AgentThread: text, private reasoning, tool steps, approvals, sources,
+  files, data parts and application tiles. The application keeps the transport.
+- **PromptStarters** — conversation starters for an empty conversation, with `items`, `label`,
+  `columns`, `headingLevel`, `setItems()` and a `pick` event. A pick is reported and never sent.
+- **Queued messages in Composer** — `queue` and `queueLimit`, `getQueue()`, `clearQueue()`,
+  `removeQueued(id)`, and `queue` and `dequeue` events. A queued message goes out as a normal `send`
+  with `queued: true`, one each time busy ends.
+- **Table `virtual: true`** — windowed rendering: only the rows in view and one viewport of overscan
+  above and below are in the DOM, and the table stays one grid over all its rows. Off by default.
+  `reveal(id)` scrolls a row into view, drawing it first in a windowed table.
+- **`zx-css`** — `npx zx-css select table --out public/zx.css` writes one stylesheet with the core
+  sheet and everything those components reach, in `zx.css` order, with `--min`, `--layer` and
+  `--list`.
+- **`zx.core.css` and `zx.layered.css`** — the core sheet on its own, and an opt-in build with the
+  whole library in `@layer zx`, so unlayered application rules win. `./src/components/*.css` exports
+  one component's own rules.
+- **`@zeyos/zx/locales/de.js`** — a complete German message catalogue, installed with
+  `setTranslator((key) => de[key])` and `setLanguage('de')`. A test keeps it complete, and the
+  reference lists its glossary.
+
+### Changed
+
+- The `ai-chat` layout's empty state uses PromptStarters, and focus moves to the composer after a
+  pick.
+
 ## 5.6.0 — 2026-11-03
 
 Agents: a conversation with AI agents drawn from plain JSON — streamed answers, the steps a run

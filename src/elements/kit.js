@@ -110,6 +110,8 @@ const COMPOSER_ATTRS = attributes({
   icons: rebuiltData({}),
   tools: data({ default: [], set: (component, value) => component.setTools(value) }),
   'send-label': text({ default: null, set: updates('sendLabel') }),
+  queue: rebuiltBool(),
+  'queue-limit': rebuiltNumber(10),
   msg: messages()
 });
 
@@ -356,7 +358,8 @@ export const KIT_ELEMENTS = Object.freeze([
   ['composer', Composer, {
     attrs: COMPOSER_ATTRS,
     methods: {
-      ...forward('focus', 'setValue', 'insertText', 'clear', 'setToolPressed', 'addFiles', 'addContext', 'removeContext'),
+      ...forward('focus', 'setValue', 'insertText', 'clear', 'setToolPressed', 'addFiles', 'addContext', 'removeContext',
+        'getQueue', 'clearQueue', 'removeQueued'),
       setBusy: records('busy'),
       setHint: records('hint'),
       setNote: records('note'),
@@ -364,7 +367,7 @@ export const KIT_ELEMENTS = Object.freeze([
       setTools: records('tools'),
       update: recordsPatch
     },
-    events: ['send', 'stop', 'input', 'attach', 'remove', 'mention', 'command', 'tool', 'historyprevious']
+    events: ['send', 'stop', 'input', 'attach', 'remove', 'mention', 'command', 'tool', 'historyprevious', 'queue', 'dequeue']
   }],
   ['block-view', BlockView, {
     attrs: BLOCK_VIEW_ATTRS,
