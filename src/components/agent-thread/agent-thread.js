@@ -3,6 +3,7 @@ import { Component } from '../../core/component.js';
 import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
 import { formatFileSize } from '../../core/format.js';
 import { icon } from '../../core/icons.js';
+import { isEditableTarget } from '../../core/keyboard.js';
 import { escapeRegExp, uid } from '../../core/util.js';
 import { AGENT_MESSAGES, initialsOf } from '../../internal/agent-model.js';
 import { ApprovalCard } from '../approval-card/approval-card.js';
@@ -253,6 +254,7 @@ export class AgentThread extends Component {
     /** @type {string[]} */
     this._order = [];
     this._announceTimer = 0;
+    this._askingPerson = false;
     /** @type {Element|null} */
     this._scrollHost = null;
     /** @type {string|null} */
@@ -353,7 +355,7 @@ export class AgentThread extends Component {
         if ('steps' in partial) entry.trace?.setSteps(answer.steps ?? []);
         if (answer.stopped && !(/** @type {any} */ (before)).stopped) {
           entry.view.stop();
-          this._announce(this.msg('agentThread.stoppedAnnounce'));
+          this._announce(this.msg('agentThread.stoppedAnnounce'), true);
         } else if ('streaming' in partial && !answer.streaming && (/** @type {any} */ (before)).streaming) {
           entry.view.end();
           this._announce(this.msg('agentThread.answered', this._authorName(item)));
@@ -436,7 +438,7 @@ export class AgentThread extends Component {
    * @returns {this}
    */
   announce(text) {
-    if (text) this._announce(String(text));
+    if (text) this._announce(String(text), true);
     return this;
   }
 
@@ -673,7 +675,10 @@ export class AgentThread extends Component {
     for (const component of entry.owned) component.destroy();
     entry.article.remove();
     this._entries.delete(id);
+    const index = this._order.indexOf(id);
     this._order = this._order.filter((other) => other !== id);
+    // The item after it may now start a turn, and needs its byline back.
+    if (this._order[index] !== undefined) this._syncContinuation(this._order[index]);
     this._syncLatest();
   }
 
@@ -1095,7 +1100,7 @@ export class AgentThread extends Component {
       if (!item.document) {
         surface.on('ready', () => {
           if (!surface.getReply() && asksForAnswer(surface.toDocument()?.intent)) {
-            this._announce(this.msg('agentThread.needsAnswer', this._authorName(item)));
+            this._announce(this.msg('agentThread.needsAnswer', this._authorName(item)), true);
           }
         });
       }
@@ -1282,9 +1287,9 @@ export class AgentThread extends Component {
     if (item.type === 'answer') {
       this._announce(this.msg(/** @type {any} */ (item).streaming ? 'agentThread.writing' : 'agentThread.answered', name));
     } else if (item.type === 'approval' && (/** @type {any} */ (item).status ?? 'pending') === 'pending') {
-      this._announce(this.msg('agentThread.needsApproval', name));
+      this._announce(this.msg('agentThread.needsApproval', name), true);
     } else if (item.type === 'surface' && !AgentThread.#renderers.has('surface') && asksForAnswer(/** @type {any} */ (item).document?.intent) && !(/** @type {any} */ (item).reply)) {
-      this._announce(this.msg('agentThread.needsAnswer', name));
+      this._announce(this.msg('agentThread.needsAnswer', name), true);
     } else if (item.type === 'trace') {
       this._announce(this.msg('agentThread.working', name));
     } else if (item.type === 'notice' && ['warning', 'danger'].includes(String(/** @type {any} */ (item).tone))) {
@@ -1294,15 +1299,20 @@ export class AgentThread extends Component {
 
   /**
    * Says a milestone once. The region is cleared first so the same words said twice are heard
-   * twice.
+   * twice. Words still waiting to be said give way only to words that must be heard: what asks
+   * something of the person is not overtaken by what has just finished.
    * @private
    * @param {string} text
+   * @param {boolean} [urgent=false] Whether it must be heard.
    * @returns {void}
    */
-  _announce(text) {
+  _announce(text, urgent = false) {
+    if (this._askingPerson && !urgent) return;
     clearTimeout(this._announceTimer);
+    this._askingPerson = urgent;
     this._status.textContent = '';
     this._announceTimer = window.setTimeout(() => {
+      this._askingPerson = false;
       this._status.textContent = text;
     }, 60);
   }
@@ -1412,12 +1422,14 @@ export class AgentThread extends Component {
 
   /**
    * APG feed keys: PageDown and PageUp move between articles; Ctrl+End and Ctrl+Home move focus
-   * past the end or before the start of the feed.
+   * past the end or before the start of the feed. A control inside an item keeps them.
    * @private
    * @param {KeyboardEvent} event
    * @returns {void}
    */
   _onFeedKey(event) {
+    // A key a control inside an item handled, or one that moves its caret, is the control's.
+    if (event.defaultPrevented || isEditableTarget(/** @type {Element|null} */ (event.target))) return;
     const article = event.target instanceof Element ? event.target.closest('.zx-agent-thread__item') : null;
     if (!(article instanceof HTMLElement)) return;
     const articles = this._order.map((id) => this._entries.get(id)?.article).filter(Boolean);

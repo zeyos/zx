@@ -7156,6 +7156,91 @@ function agUiCases() {
         { type: 'TOOL_CALL_ARGS', toolCallId: 'c1', delta: '{"id":"helios"}' },
         { type: 'TOOL_CALL_END', toolCallId: 'c1' },
         { type: 'TOOL_CALL_START', toolCallId: 'c2', toolCallName: 'ask_user' },
+    surfaceCase('AgentThread (feed keys inside a control)', () => ({
+      component: new zx.AgentThread(null, { authors: { finance: { name: 'Finance agent' } }, items: [
+        { id: 's', type: 'surface', document: surfaceDocument({ root: ['form'], nodes: [{ id: 'form', type: 'fields', schema: { type: 'object', properties: {
+          note: { type: 'string', title: 'Note', 'x-zx': { field: 'textarea' } },
+          pick: { type: 'string', title: 'Pick', 'x-zx': { field: 'zxselect' }, oneOf: [{ const: 'a', title: 'A' }, { const: 'b', title: 'B' }] }
+        } } }] }) },
+        { id: 'after', type: 'text', text: 'After it' }
+      ] }),
+      after: () => {}
+    }), ({ component: thread }) => {
+      const press = (target, init) => target.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }));
+      const area = /** @type {HTMLElement} */ (thread.el.querySelector('article[data-id="s"] textarea'));
+      const box = /** @type {HTMLElement} */ (thread.el.querySelector('article[data-id="s"] [role="combobox"]'));
+      for (const [target, what] of [[area, 'a text area'], [box, 'a select']]) {
+        target.focus();
+        for (const init of [{ key: 'PageDown' }, { key: 'PageUp' }, { key: 'End', ctrlKey: true }, { key: 'Home', ctrlKey: true }]) {
+          press(target, init);
+          assert(document.activeElement === target, `${init.key} left ${what}`);
+        }
+      }
+      // A control that handled the key itself keeps it too, editable or not.
+      const handled = zx.h('button', { type: 'button' }, 'Handles keys');
+      handled.addEventListener('keydown', (event) => event.preventDefault());
+      thread.el.querySelector('article[data-id="s"]').append(handled);
+      handled.focus();
+      press(handled, { key: 'PageDown' });
+      assert(document.activeElement === handled, 'a key the control handled moved the feed');
+      handled.remove();
+      // On the item itself the feed still moves.
+      const article = /** @type {HTMLElement} */ (thread.el.querySelector('article[data-id="s"]'));
+      article.focus();
+      press(article, { key: 'PageDown' });
+      assert(document.activeElement === thread.el.querySelector('article[data-id="after"]'), 'PageDown no longer moves between items');
+    }),
+    surfaceCase('AgentThread (a turn after an item goes)', () => ({
+      component: new zx.AgentThread(null, { authors: { me: { name: 'Me', kind: 'person' }, finance: { name: 'Finance agent' } }, items: [
+        { id: 'u', type: 'user', text: 'Hello' },
+        { id: 'first', type: 'text', author: 'finance', text: 'One' },
+        { id: 'second', type: 'text', author: 'finance', text: 'Two' },
+        { id: 'third', type: 'text', author: 'finance', text: 'Three' }
+      ] })
+    }), ({ component: thread }) => {
+      const continued = (id) => thread.el.querySelector(`article[data-id="${id}"]`).dataset.continued === 'true';
+      assert(!continued('first') && continued('second') && continued('third'), 'the turn was not drawn as one');
+      thread.remove('first');
+      assert(!continued('second'), 'the item that now starts the turn kept hiding its byline');
+      assert(continued('third'), 'the rest of the turn was broken up');
+      // The adapter drops an empty answer once its surface took the whole message.
+      const adapter = zx.connectAgUi(thread, { agent: 'finance', inlineSurfaces: true });
+      thread.setItems([{ id: 'u', type: 'user', text: 'Hello' }]);
+      adapter.handle({ type: 'RUN_STARTED', threadId: 't', runId: 'r1' });
+      adapter.handle({ type: 'TEXT_MESSAGE_START', messageId: 'm' });
+      adapter.handle({ type: 'TEXT_MESSAGE_CONTENT', messageId: 'm', delta: '```zx-surface\n{"zx":"surface/1","op":"begin","surface":"s1","intent":"show","title":"T","author":"finance","root":[]}\n{"op":"end","surface":"s1"}\n```\n' });
+      adapter.handle({ type: 'TEXT_MESSAGE_END', messageId: 'm' });
+      adapter.handle({ type: 'RUN_FINISHED', threadId: 't', runId: 'r1' });
+      assert(!continued('surface:r1/s1'), 'a surface that opens the turn lost its byline');
+      adapter.destroy();
+    }),
+    surfaceCase('AgentThread (a question is not overtaken)', () => ({
+      component: new zx.AgentThread(null, { authors: { finance: { name: 'Finance agent' } } })
+    }), async ({ component: thread }) => {
+      const status = () => thread.el.querySelector('.zx-agent-thread__status').textContent;
+      const ask = '```zx-surface\n{"zx":"surface/1","op":"begin","surface":"s1","intent":"confirm","title":"T","author":"finance","root":[]}\n{"op":"end","surface":"s1"}\n```\n';
+      const adapter = zx.connectAgUi(thread, { agent: 'finance', inlineSurfaces: true, requiresApproval: () => true });
+      adapter.handle({ type: 'RUN_STARTED', threadId: 't', runId: 'r1' });
+      adapter.handle({ type: 'TEXT_MESSAGE_START', messageId: 'm' });
+      adapter.handle({ type: 'TEXT_MESSAGE_CONTENT', messageId: 'm', delta: `One question:\n${ask}` });
+      adapter.handle({ type: 'TEXT_MESSAGE_END', messageId: 'm' });
+      adapter.handle({ type: 'RUN_FINISHED', threadId: 't', runId: 'r1' });
+      await delay(120);
+      assert(status() === 'Finance agent needs your answer', `a finished answer drowned the question: ${status()}`);
+      // Nothing is said over an approval either, and the application still has the last word.
+      thread.upsert({ id: 'a', type: 'approval', title: 'Send?' });
+      thread.upsert({ id: 'b', type: 'answer', blocks: [{ type: 'p', text: 'Done' }] });
+      await delay(120);
+      assert(status() === 'Finance agent needs your approval', `an answer drowned the approval: ${status()}`);
+      thread.upsert({ id: 'c', type: 'approval', title: 'Send more?' });
+      thread.announce('Reminders sent');
+      await delay(120);
+      assert(status() === 'Reminders sent', 'an application’s own announcement was lost');
+      thread.upsert({ id: 'd', type: 'answer', blocks: [{ type: 'p', text: 'Later' }] });
+      await delay(120);
+      assert(status() === 'Finance agent answered', `a question long since said silenced the thread: ${status()}`);
+      adapter.destroy();
+    }),
         { type: 'TEXT_MESSAGE_START', messageId: 'm1' },
         { type: 'TEXT_MESSAGE_CONTENT', messageId: 'm1', delta: 'Looking that up' });
       assert(article('tool:c2')?.dataset.type === 'zx-placeholder' && article('tool:c2').querySelector('[aria-busy="true"] .zx-skeleton, [aria-busy="true"]'),

@@ -3486,7 +3486,7 @@ agents' answers as they stream (`BlockView` with a `SourceList`), the steps a ru
   the avatar stays beside the byline.
 - **Keyboard and semantics** — the APG feed pattern: each item is an `article` in a `role="feed"`
   with `aria-posinset`, `aria-setsize` and `aria-labelledby` its byline; PageDown and PageUp move
-  between articles; Ctrl+End and Ctrl+Home move focus past the end or before the start of the feed.
+  between articles; Ctrl+End and Ctrl+Home move focus past the end or before the start of the feed. A control inside an item keeps those keys: they move a caret, not the feed.
   The feed is `aria-busy` while an answer streams. One polite status says when an agent starts
   writing, answers, needs approval, or is stopped — streamed text is never read aloud as it arrives.
 
