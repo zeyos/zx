@@ -3451,7 +3451,10 @@ agents' answers as they stream (`BlockView` with a `SourceList`), the steps a ru
   still on its way, as a Skeleton under its author's byline; replace or remove it once the real
   item is there. It neither replies nor is announced. The name is reserved; `placeholder` is free
   for an application's own items.
-- **Methods** — `setItems(items)`, `upsert(item, {after?})` (adds, or replaces in place by `id`;
+- **Methods** — `setItems(items)` (replaces the conversation: everything is dropped and drawn anew,
+  except a surface already drawn, which stays so that one still matching keeps what was typed; an
+  item bringing a `reply` that surface never gave freezes it as answered elsewhere),
+  `upsert(item, {after?})` (adds, or replaces in place by `id`;
   a new item goes at the end, or right after the item `after` names — nothing else is redrawn),
   `patch(id, partial)` (an answer finishing, stopping or gaining sources, a trace's steps, an
   approval's status change in place; anything else redraws the item), `appendText(id, text)`
