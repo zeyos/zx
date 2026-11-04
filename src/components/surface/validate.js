@@ -58,6 +58,7 @@ import { unsupported } from './schema.js';
  * - `unsupported-schema`: a schema construct outside the input subset; dropped.
  * - `untitled-property`: a schema property without a `title`.
  * - `duplicate-name`: an input name used twice; the later one is dropped.
+ * - `draw-failed`: a node or the surface could not be drawn; the rest stands, and it still replies.
  * - `cycle`: a child that is the node itself or one of its ancestors, or already placed elsewhere.
  * - `missing-node`: a child id that never arrived by `end`.
  * - `unreachable`: a node that no list of children reaches from `root`.
@@ -67,7 +68,8 @@ import { unsupported } from './schema.js';
  *   |'unknown-type'|'not-allowed'|'unknown-node'|'unknown-key'|'token-refused'|'confirmation-ignored'
  *   |'forbidden-key'|'not-finite'|'limit'|'invalid-value'|'missing'|'link-refused'|'ref-refused'
  *   |'pointer-invalid'|'data-path'|'condition'|'unsupported-schema'|'untitled-property'|'duplicate-name'
- *   |'cycle'|'missing-node'|'unreachable'|'needs'|'wrapped-list'|'pointer-slash'|'lifted-child'} SurfaceErrorCode
+ *   |'cycle'|'missing-node'|'unreachable'|'needs'|'wrapped-list'|'pointer-slash'|'lifted-child'
+ *   |'draw-failed'} SurfaceErrorCode
  */
 
 /**

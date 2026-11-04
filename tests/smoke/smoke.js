@@ -3092,6 +3092,7 @@ const cases = [
     }
   }),
   ...surfaceCases(),
+  ...surfaceSafetyCases(),
   ...agUiCases()
 ];
 
@@ -6636,6 +6637,106 @@ function surfaceCases() {
   ];
 }
 
+/** @returns {Array<object>} What a surface must survive, whatever a model wrote. */
+function surfaceSafetyCases() {
+  return [
+    // A type is only ever looked up as the catalog's own entry: these are unknown types, nothing more.
+    surfaceCase('Surface (a node type naming an inherited member)', (fixture) => ({ fixture }), ({ fixture }) => {
+      const begin = '{"zx":"surface/1","op":"begin","surface":"s1","intent":"ask","title":"T","author":"a","root":["odd","form"]}';
+      const form = '{"op":"node","surface":"s1","id":"form","type":"fields","schema":{"type":"object","properties":{"a":{"type":"string","title":"A"}}}}';
+      for (const type of ['constructor', 'toString', 'hasOwnProperty', 'valueOf', '__proto__']) {
+        const whole = new zx.Surface(null, { document: surfaceDocument({ root: ['odd', 'form'], nodes: [{ id: 'odd', type }, surfaceDocument().nodes[1]] }) });
+        fixture.append(whole.toElement());
+        assert(whole.el.querySelector('.zx-surface__fallback'), `${type}: no fallback`);
+        assert(whole.getErrors().some((error) => error.code === 'unknown-type'), `${type}: not reported`);
+        assert(surfaceButton(whole.el, 'submit') && whole.el.querySelector('input'), `${type}: took the rest of the surface with it`);
+        whole.destroy();
+        for (const close of ['cancel', 'supersede', 'destroy']) {
+          const streamed = new zx.Surface(null);
+          const count = countReplies(streamed);
+          fixture.append(streamed.toElement());
+          // One chunk: what follows the odd line in it must still arrive.
+          streamed.write(`${begin}\n{"op":"node","surface":"s1","id":"odd","type":${JSON.stringify(type)}}\n${form}\n{"op":"end","surface":"s1"}\n`);
+          assert(streamed.toDocument().nodes.length === 2 && !surfaceButton(streamed.el, 'submit').disabled, `${type}: the chunk was cut short`);
+          streamed[close]();
+          assert(count.replies.length === 1 && count.dom === 1, `${type}: ${close} replied ${count.replies.length} times`);
+          streamed.destroy();
+          assert(!streamed.el.isConnected, `${type}: ${close} left the surface in the page`);
+        }
+      }
+    }),
+    // The id of a row is what that row holds, never something every object inherits.
+    surfaceCase('Surface (a rowId or column naming an inherited member)', (fixture) => ({ fixture }), ({ fixture }) => {
+      const table = { id: 'list', type: 'table', name: 'pick', rowId: 'toString', selectable: 'multi',
+        columns: [{ id: 'label', label: 'Label' }, { id: 'valueOf', label: 'Odd' }], rows: [{ label: 'One' }, { label: 'Two', toString: 'own' }] };
+      const component = new zx.Surface(null, { document: surfaceDocument({ intent: 'review', root: ['list'], nodes: [table] }) });
+      const count = countReplies(component);
+      fixture.append(component.toElement());
+      const rows = [...component.el.querySelectorAll('tbody tr')];
+      assert(rows.length === 2, 'the table did not draw');
+      assert(!component.el.textContent.includes('native code'), 'an inherited function was drawn as a cell');
+      rows[0].querySelector('input[type="checkbox"]').click();
+      assert(rows[0].getAttribute('aria-selected') === 'true' && rows[1].getAttribute('aria-selected') !== 'true', 'rows without an id of their own were one row');
+      assert(JSON.stringify(component.getValues()) === '{"pick":[]}', 'a row without an id reported one');
+      rows[1].querySelector('input[type="checkbox"]').click();
+      assert(JSON.stringify(component.getValues()) === '{"pick":["own"]}', `the selection is ${JSON.stringify(component.getValues())}`);
+      surfaceButton(component.el, 'approve').click();
+      assert(count.replies.length === 1 && JSON.stringify(count.replies[0].values) === '{"pick":["own"]}', 'the selection did not reach the reply');
+      assert(component.el.querySelectorAll('tbody tr[data-selected]').length === 1, 'the receipt marked the wrong rows');
+      component.destroy();
+      // The same with one row picked and the surface closed instead, for each way of closing it.
+      for (const close of ['cancel', 'supersede', 'destroy']) {
+        const single = new zx.Surface(null, { document: surfaceDocument({ intent: 'review', root: ['list'], nodes: [{ ...table, selectable: 'single' }] }) });
+        const replies = countReplies(single);
+        fixture.append(single.toElement());
+        single.el.querySelector('tbody tr').click();
+        single[close]();
+        assert(replies.replies.length === 1, `${close} replied ${replies.replies.length} times`);
+        single.destroy();
+      }
+    }),
+    // Nothing that goes wrong while drawing may cost the reply, or anything but the part that failed.
+    surfaceCase('Surface (a failure while drawing)', (fixture) => ({ fixture }), async ({ fixture }) => {
+      const resolve = { entities: ['company'], ref: () => ({ get title() { throw new Error('drawing failed'); } }) };
+      const node = new zx.Surface(null, { resolve, document: surfaceDocument({ intent: 'show', root: ['ref', 'text'], nodes: [
+        { id: 'ref', type: 'ref', ref: { $ref: 'company', id: 'c1' } }, { id: 'text', type: 'text', text: 'Still here' }] }) });
+      fixture.append(node.toElement());
+      assert(node.el.querySelector('.zx-surface__fallback') && node.el.textContent.includes('Still here'), 'one failing node took the surface with it');
+      assert(node.getErrors().some((error) => error.code === 'draw-failed'), 'the failure was not reported');
+      node.destroy();
+      for (const close of ['cancel', 'supersede', 'destroy']) {
+        const component = new zx.Surface(null, { document: surfaceDocument() });
+        const count = countReplies(component);
+        fixture.append(component.toElement());
+        component._freeze = () => { throw new Error('drawing failed'); };
+        component[close]();
+        assert(count.replies.length === 1 && count.dom === 1, `${close}: a failing receipt cost the reply`);
+        assert(component.getErrors().some((error) => error.code === 'draw-failed'), `${close}: the failure was not reported`);
+        component.destroy();
+        assert(!component.el.isConnected, `${close}: the surface stayed in the page`);
+      }
+      // The closing reply itself cannot be built: a bare one still goes out.
+      const bare = new zx.Surface(null, { document: surfaceDocument() });
+      const bareCount = countReplies(bare);
+      fixture.append(bare.toElement());
+      bare._docLike = () => { throw new Error('drawing failed'); };
+      bare.cancel();
+      assert(bareCount.replies.length === 1 && bareCount.replies[0].surface === 's1' && bareCount.replies[0].action === 'cancel', 'a closing reply was lost');
+      bare.destroy();
+      // A surface that cannot be built opens nothing and leaves nothing behind.
+      const dialogs = document.querySelectorAll('dialog').length;
+      let refused = null;
+      try {
+        await zx.openSurface(surfaceDocument(), { placement: 'dialog', token: 5 });
+      } catch (error) {
+        refused = error;
+      }
+      assert(refused instanceof TypeError && document.querySelectorAll('dialog').length === dialogs, 'a refused surface left its dialog behind');
+    }),
+    /* -- end of the safety cases -- */
+  ];
+}
+
 /** @returns {Array<object>} The AG-UI adapter, replaying a recorded sequence into a real thread. */
 function agUiCases() {
   return [
@@ -6677,6 +6778,80 @@ function agUiCases() {
       assert(replies[0]?.token === 'run_c2', 'an inline surface does not carry the run id as its token');
       assert(problems.length === 0, `problems: ${problems}`);
       adapter.destroy();
+    }),
+    surfaceCase('Questionnaire (what the last release tolerated)', () => ({
+      component: new zx.Questionnaire(null, { review: true, items: [
+        { name: 'a', prompt: 'A', input: {}, next: '$review', validate: false, when: {} },
+        { name: 'skipped', prompt: 'Skipped', input: {}, next: false },
+        { name: '$review', prompt: 'An item of that name', input: {}, next: [] }
+      ] })
+    }), async ({ component }) => {
+      const forward = /** @type {HTMLButtonElement} */ (component.el.querySelector('[data-role]'));
+      assert(component.getActive() === 'a', 'the questionnaire did not start on its first item');
+      assert(forward.dataset.role === 'next', `the item’s own name read as the review screen: ${forward.dataset.role}`);
+      await component.next();
+      assert(component.getActive() === '$review', `next left for ${component.getActive()} instead of the item named $review`);
+      assert(forward.dataset.role === 'review', 'the last item did not lead to the review');
+    }),
+    surfaceCase('AgentThread (setItems draws anew, as it always has)', () => ({
+      component: new zx.AgentThread(null, { authors: { finance: { name: 'Finance agent' } } })
+    }), async ({ component: thread }) => {
+      const log = { alive: new Map(), calls: [], seen: [] };
+      /** @type {any} */ (thread).smokeLog = log;
+      if (!zx.AgentThread.has('smoke-registry')) {
+        zx.AgentThread.register('smoke-registry', (item, { thread: owner, own }) => {
+          const { smokeLog } = /** @type {any} */ (owner);
+          smokeLog.calls.push(`render ${item.id}`);
+          smokeLog.seen.push(owner.get(item.id));
+          const element = zx.h('p', {}, String(item.id));
+          smokeLog.alive.set(item.id, element);
+          own(/** @type {any} */ ({ destroy() {
+            smokeLog.calls.push(`destroy ${item.id}`);
+            smokeLog.alive.delete(item.id);
+          } }));
+          return element;
+        });
+      }
+      const ids = () => [...thread.el.querySelectorAll('.zx-agent-thread__item')].map((article) => article.dataset.id);
+      thread.setItems([{ id: 'a', type: 'smoke-registry' }, { id: 'b', type: 'smoke-registry' }]);
+      log.calls.length = 0;
+      log.seen.length = 0;
+      thread.setItems([{ id: 'b', type: 'smoke-registry' }, { id: 'a', type: 'smoke-registry' }]);
+      assert(log.calls.join() === 'destroy a,destroy b,render b,render a', `the old items must go before anything is drawn: ${log.calls}`);
+      assert(log.alive.has('a') && log.alive.has('b'), 'a renderer’s cleanup took the item that replaced it');
+      assert(log.seen.every((item) => item === null), 'a renderer saw the item it replaces');
+      assert(ids().join() === 'b,a', `order: ${ids()}`);
+      thread.setItems([{ id: 7, type: 'text', text: 'one' }]);
+      thread.setItems([{ id: 7, type: 'text', text: 'two' }]);
+      assert(thread.get(7).id === 7, `an id’s type changed: ${typeof thread.get(7).id}`);
+      // A surface already drawn is the exception: it stays, and keeps what was typed.
+      const surfaceItem = { id: 's', type: 'surface', document: surfaceDocument({ root: ['form'], nodes: [
+        { id: 'form', type: 'fields', schema: { type: 'object', properties: { a: { type: 'string', title: 'A' } } } }
+      ] }) };
+      thread.setItems([{ id: 'n', type: 'text', text: 'before' }, surfaceItem]);
+      const surface = thread.surface('s');
+      thread.setItems([surfaceItem, { id: 'm', type: 'text', text: 'after' }, { id: 'n', type: 'text', text: 'again' }]);
+      assert(thread.surface('s') === surface, 'a surface that still matches was drawn anew');
+      assert(ids().join() === 's,m,n', `order around a kept surface: ${ids()}`);
+      thread.setItems([{ id: 'm', type: 'text', text: 'then' }, surfaceItem]);
+      assert(thread.surface('s') === surface && ids().join() === 'm,s', `moved surface: ${ids()}`);
+      assert(thread.el.querySelector('article[data-id="m"]').getAttribute('aria-setsize') === '2', 'positions were not synced');
+    }),
+    surfaceCase('AgentThread (an item’s own catalog field is still copied)', () => ({
+      component: new zx.AgentThread(null, {})
+    }), ({ component: thread }) => {
+      if (!zx.AgentThread.has('smoke-shop')) zx.AgentThread.register('smoke-shop', (item) => zx.h('p', {}, String(item.catalog.a)));
+      const given = { id: 'x', type: 'smoke-shop', catalog: { a: 1 } };
+      thread.upsert(given);
+      given.catalog.a = 2;
+      assert(thread.get('x').catalog.a === 1, 'an application’s later change reached the thread');
+      thread.get('x').catalog.a = 3;
+      assert(thread.get('x').catalog.a === 1, 'get() handed out the thread’s own object');
+      thread.patch('x', { catalog: { a: 4 } });
+      assert(thread.get('x').catalog.a === 4, 'a patched catalog was lost');
+      const narrow = narrowCatalog(SURFACE_CATALOG, { intents: ['show'], nodes: ['text'] });
+      thread.upsert({ id: 's', type: 'surface', catalog: narrow, document: { zx: 'surface/1', surface: 's', intent: 'show', title: 'T', author: 'a', root: [], nodes: [] } });
+      assert(thread.surface('s'), 'a surface’s catalog must stay the library’s own object');
     }),
     surfaceCase('AgentThread (an application’s own surface and placeholder)', () => ({}), async () => {
       // `register()` has no undo, so this runs on a module instance of its own.
@@ -6758,91 +6933,3 @@ function agUiCases() {
     })
   ];
 }
-    surfaceCase('Questionnaire (what the last release tolerated)', () => ({
-      component: new zx.Questionnaire(null, { review: true, items: [
-        { name: 'a', prompt: 'A', input: {}, next: '$review', validate: false, when: {} },
-        { name: 'skipped', prompt: 'Skipped', input: {}, next: false },
-        { name: '$review', prompt: 'An item of that name', input: {}, next: [] }
-      ] })
-    }), async ({ component }) => {
-      const forward = /** @type {HTMLButtonElement} */ (component.el.querySelector('[data-role]'));
-      assert(component.getActive() === 'a', 'the questionnaire did not start on its first item');
-      assert(forward.dataset.role === 'next', `the item’s own name read as the review screen: ${forward.dataset.role}`);
-      await component.next();
-      assert(component.getActive() === '$review', `next left for ${component.getActive()} instead of the item named $review`);
-      assert(forward.dataset.role === 'review', 'the last item did not lead to the review');
-    }),
-    surfaceCase('Questionnaire (what the last release tolerated)', () => ({
-      component: new zx.Questionnaire(null, { review: true, items: [
-        { name: 'a', prompt: 'A', input: {}, next: '$review', validate: false, when: {} },
-        { name: 'skipped', prompt: 'Skipped', input: {}, next: false },
-        { name: '$review', prompt: 'An item of that name', input: {}, next: [] }
-      ] })
-    }), async ({ component }) => {
-      const forward = /** @type {HTMLButtonElement} */ (component.el.querySelector('[data-role]'));
-      assert(component.getActive() === 'a', 'the questionnaire did not start on its first item');
-      assert(forward.dataset.role === 'next', `the item’s own name read as the review screen: ${forward.dataset.role}`);
-      await component.next();
-      assert(component.getActive() === '$review', `next left for ${component.getActive()} instead of the item named $review`);
-      assert(forward.dataset.role === 'review', 'the last item did not lead to the review');
-    }),
-    surfaceCase('AgentThread (setItems draws anew, as it always has)', () => ({
-      component: new zx.AgentThread(null, { authors: { finance: { name: 'Finance agent' } } })
-    }), async ({ component: thread }) => {
-      const log = { alive: new Map(), calls: [], seen: [] };
-      /** @type {any} */ (thread).smokeLog = log;
-      if (!zx.AgentThread.has('smoke-registry')) {
-        zx.AgentThread.register('smoke-registry', (item, { thread: owner, own }) => {
-          const { smokeLog } = /** @type {any} */ (owner);
-          smokeLog.calls.push(`render ${item.id}`);
-          smokeLog.seen.push(owner.get(item.id));
-          const element = zx.h('p', {}, String(item.id));
-          smokeLog.alive.set(item.id, element);
-          own(/** @type {any} */ ({ destroy() {
-            smokeLog.calls.push(`destroy ${item.id}`);
-            smokeLog.alive.delete(item.id);
-          } }));
-          return element;
-        });
-      }
-      const ids = () => [...thread.el.querySelectorAll('.zx-agent-thread__item')].map((article) => article.dataset.id);
-      thread.setItems([{ id: 'a', type: 'smoke-registry' }, { id: 'b', type: 'smoke-registry' }]);
-      log.calls.length = 0;
-      log.seen.length = 0;
-      thread.setItems([{ id: 'b', type: 'smoke-registry' }, { id: 'a', type: 'smoke-registry' }]);
-      assert(log.calls.join() === 'destroy a,destroy b,render b,render a', `the old items must go before anything is drawn: ${log.calls}`);
-      assert(log.alive.has('a') && log.alive.has('b'), 'a renderer’s cleanup took the item that replaced it');
-      assert(log.seen.every((item) => item === null), 'a renderer saw the item it replaces');
-      assert(ids().join() === 'b,a', `order: ${ids()}`);
-      thread.setItems([{ id: 7, type: 'text', text: 'one' }]);
-      thread.setItems([{ id: 7, type: 'text', text: 'two' }]);
-      assert(thread.get(7).id === 7, `an id’s type changed: ${typeof thread.get(7).id}`);
-      // A surface already drawn is the exception: it stays, and keeps what was typed.
-      const surfaceItem = { id: 's', type: 'surface', document: surfaceDocument({ root: ['form'], nodes: [
-        { id: 'form', type: 'fields', schema: { type: 'object', properties: { a: { type: 'string', title: 'A' } } } }
-      ] }) };
-      thread.setItems([{ id: 'n', type: 'text', text: 'before' }, surfaceItem]);
-      const surface = thread.surface('s');
-      thread.setItems([surfaceItem, { id: 'm', type: 'text', text: 'after' }, { id: 'n', type: 'text', text: 'again' }]);
-      assert(thread.surface('s') === surface, 'a surface that still matches was drawn anew');
-      assert(ids().join() === 's,m,n', `order around a kept surface: ${ids()}`);
-      thread.setItems([{ id: 'm', type: 'text', text: 'then' }, surfaceItem]);
-      assert(thread.surface('s') === surface && ids().join() === 'm,s', `moved surface: ${ids()}`);
-      assert(thread.el.querySelector('article[data-id="m"]').getAttribute('aria-setsize') === '2', 'positions were not synced');
-    }),
-    surfaceCase('AgentThread (an item’s own catalog field is still copied)', () => ({
-      component: new zx.AgentThread(null, {})
-    }), ({ component: thread }) => {
-      if (!zx.AgentThread.has('smoke-shop')) zx.AgentThread.register('smoke-shop', (item) => zx.h('p', {}, String(item.catalog.a)));
-      const given = { id: 'x', type: 'smoke-shop', catalog: { a: 1 } };
-      thread.upsert(given);
-      given.catalog.a = 2;
-      assert(thread.get('x').catalog.a === 1, 'an application’s later change reached the thread');
-      thread.get('x').catalog.a = 3;
-      assert(thread.get('x').catalog.a === 1, 'get() handed out the thread’s own object');
-      thread.patch('x', { catalog: { a: 4 } });
-      assert(thread.get('x').catalog.a === 4, 'a patched catalog was lost');
-      const narrow = narrowCatalog(SURFACE_CATALOG, { intents: ['show'], nodes: ['text'] });
-      thread.upsert({ id: 's', type: 'surface', catalog: narrow, document: { zx: 'surface/1', surface: 's', intent: 'show', title: 'T', author: 'a', root: [], nodes: [] } });
-      assert(thread.surface('s'), 'a surface’s catalog must stay the library’s own object');
-    }),

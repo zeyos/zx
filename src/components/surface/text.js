@@ -190,7 +190,7 @@ export function readProp(node, prop, data) {
  * @returns {string[]}
  */
 export function inputNames(node, data) {
-  const entry = CATALOG.nodes[node.type];
+  const entry = Object.hasOwn(CATALOG.nodes, node.type) ? CATALOG.nodes[node.type] : null;
   if (!entry?.input) return [];
   if (node.type === 'fields') {
     const schema = readProp(node, 'schema', data);

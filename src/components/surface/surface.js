@@ -648,6 +648,27 @@ export class Surface extends Component {
    */
   _draw() {
     if (!this._model.began || this._destroyed || !this._body) return;
+    try {
+      this._paint();
+    } catch (error) {
+      this._drawFailed(error);
+    }
+    this.el.removeAttribute('aria-busy');
+    if (!this._ready) {
+      this._ready = true;
+      this.emit('ready');
+    }
+    if (this._model.ended && !this._endEmitted) {
+      this._endEmitted = true;
+      this.emit('end');
+    }
+  }
+
+  /**
+   * @private
+   * @returns {void}
+   */
+  _paint() {
     if (this._reply && !this._frozen) this._freeze();
     /** @type {Set<string>} */
     const used = new Set();
@@ -664,15 +685,20 @@ export class Surface extends Component {
     const busy = !this._model.ended && !this._reply;
     if (busy) this._frame?.setAttribute('aria-busy', 'true');
     else this._frame?.removeAttribute('aria-busy');
-    this.el.removeAttribute('aria-busy');
-    if (!this._ready) {
-      this._ready = true;
-      this.emit('ready');
-    }
-    if (this._model.ended && !this._endEmitted) {
-      this._endEmitted = true;
-      this.emit('end');
-    }
+  }
+
+  /**
+   * What goes wrong while drawing costs the part that failed and is reported; never the rest of
+   * the surface, and never its reply.
+   * @private
+   * @param {unknown} error @param {string} [id] The node that failed.
+   * @returns {void}
+   */
+  _drawFailed(error, id) {
+    this._report([{
+      code: 'draw-failed', surface: this._model.surface || undefined, ...(id === undefined ? {} : { id }),
+      message: `${id === undefined ? 'The surface' : `The node "${id}"`} could not be drawn: ${error instanceof Error ? error.message : String(error)}`
+    }]);
   }
 
   /**
@@ -687,7 +713,7 @@ export class Surface extends Component {
     used.add(id);
     let view = this._views.get(id);
     if (!view || this._dirty.has(id)) {
-      const next = this._build(id);
+      const next = this._safeBuild(id);
       if (view) {
         const hadFocus = view.el.contains(document.activeElement);
         view.el.replaceWith(next.el);
@@ -706,6 +732,20 @@ export class Surface extends Component {
   }
 
   /**
+   * @private
+   * @param {string} id
+   * @returns {NodeView}
+   */
+  _safeBuild(id) {
+    try {
+      return this._build(id);
+    } catch (error) {
+      this._drawFailed(error, id);
+      return this._fallback();
+    }
+  }
+
+  /**
    * Builds one node's view: the component it maps to, a skeleton while what it needs has not
    * arrived, a quiet fallback for what cannot be shown, or, once answered, the receipt.
    * @private
@@ -716,7 +756,7 @@ export class Surface extends Component {
     const node = this._model.nodes.get(id);
     const ended = this._model.ended;
     if (!node) return ended ? this._fallback() : this._placeholder();
-    const entry = this._catalog.nodes[node.type];
+    const entry = this._entry(node.type);
     if (!entry || (entry.input && !this._model.intent)) return this._fallback();
     /** @type {Record<string, any>} */
     const props = {};
@@ -793,6 +833,16 @@ export class Surface extends Component {
   }
 
   /**
+   * The catalog's own entry for a type: a node of any other type, whatever it is called, has none.
+   * @private
+   * @param {string} type
+   * @returns {import('./catalog.js').CatalogNode|undefined}
+   */
+  _entry(type) {
+    return Object.hasOwn(this._catalog.nodes, type) ? this._catalog.nodes[type] : undefined;
+  }
+
+  /**
    * A property's value, a `$data` binding resolved and checked as if it had been written in.
    * @private
    * @param {SurfaceNode} node @param {string} name
@@ -837,8 +887,8 @@ export class Surface extends Component {
     const selectable = props.selectable && props.name ? props.selectable : false;
     const table = new Table(null, {
       columns: /** @type {any} */ (this._columns(props.columns, rows, view)),
-      data: rows.map((row, index) => (props.rowId ? { ...row } : { ...row, __index: index })),
-      rowId: props.rowId ?? '__index',
+      data: drawnRows(rows, props.columns),
+      rowId: drawnRowId(props.rowId),
       selectable,
       label: props.label ?? null,
       stickyHeader: false
@@ -1181,12 +1231,12 @@ export class Surface extends Component {
         const table = new Table(null, {
           columns: [{
             id: '__selected', label: '', ariaLabel: this.msg('surface.selected'), width: '2.5rem',
-            render: (/** @type {Record<string, any>} */ row) => (selected.has(row[rowId])
+            render: (/** @type {Record<string, any>} */ row) => (selected.has(ownValue(row, rowId))
               ? h('span', { class: 'zx-surface__mark' }, icon('check', { size: 14 }), h('span', { class: 'zx-surface__sr' }, this.msg('surface.selected')))
               : '')
           }, ...columns].map((column) => /** @type {any} */ (column)),
-          data: rows.map((row) => ({ ...row })),
-          rowId,
+          data: node.type === 'diff' ? rows.map((row) => ({ ...row })) : drawnRows(rows, props.columns),
+          rowId: node.type === 'diff' ? rowId : drawnRowId(rowId),
           label: props.label ?? null,
           stickyHeader: false
         });
@@ -1243,7 +1293,7 @@ export class Surface extends Component {
         raw[String(node.name)] = multiple ? checked : checked[0] ?? null;
       } else if (view.table && typeof node.name === 'string' && (node.type === 'diff' || this._prop(node, 'selectable'))) {
         const key = /** @type {string} */ (view.rowId);
-        const ids = view.table.getSelection().map((row) => row[key]);
+        const ids = view.table.getSelection().map((row) => ownValue(row, key)).filter((id) => id !== null);
         raw[node.name] = node.type === 'table' && this._prop(node, 'selectable') === 'single' ? ids[0] ?? null : ids;
       }
     }
@@ -1649,20 +1699,35 @@ export class Surface extends Component {
    */
   _close(action, reason) {
     if (this._reply || this._destroyed) return;
-    if (!this._model.began) {
-      // Nothing valid began, and the one reply is owed all the same.
-      const surface = this._named;
-      /** @type {SurfaceReply} */
-      const reply = {
-        zx: /** @type {'reply/1'} */ (REPLY_VERSION), surface, action, key: `${surface ?? ''}#${action}`,
-        values: {}, confirmation: null, at: localDateTime(new Date())
-      };
-      if (this._token !== null) reply.token = this._token;
-      if (reason) reply.reason = reason;
-      this._finish(reply);
-      return;
+    /** @type {SurfaceReply|null} */
+    let reply = null;
+    if (this._model.began) {
+      try {
+        reply = createReply(this._docLike(), { action, reason, token: this._token, removed: this._removed });
+      } catch (error) {
+        this._drawFailed(error);
+      }
     }
-    this._finish(createReply(this._docLike(), { action, reason, token: this._token, removed: this._removed }));
+    this._finish(reply ?? this._bareReply(action, reason));
+  }
+
+  /**
+   * The closing reply when no fuller one can be built: nothing valid began, say. It is owed all
+   * the same.
+   * @private
+   * @param {'cancel'|'dismiss'} action @param {ReplyReason} reason
+   * @returns {SurfaceReply}
+   */
+  _bareReply(action, reason) {
+    const surface = this._model.surface || this._named;
+    /** @type {SurfaceReply} */
+    const reply = {
+      zx: /** @type {'reply/1'} */ (REPLY_VERSION), surface, action, key: `${surface ?? ''}#${action}`,
+      values: {}, confirmation: null, at: localDateTime(new Date())
+    };
+    if (this._token !== null) reply.token = this._token;
+    if (reason) reply.reason = reason;
+    return reply;
   }
 
   /**
@@ -1687,16 +1752,21 @@ export class Surface extends Component {
   _finish(reply) {
     if (this._reply) return;
     this._reply = reply;
-    this._confirm?.close(false);
-    if (!this._model.began) {
-      this._waiting?.remove();
-      this.el.removeAttribute('aria-busy');
-      /** @type {HTMLElement} */ (this.el).dataset.state = 'answered';
-    }
-    const hadFocus = this.el.contains(document.activeElement);
-    if (!this._destroyed) {
-      this._draw();
-      if (hadFocus && this._verdict) this._verdict.focus({ preventScroll: true });
+    // The reply is owed whatever happens to the receipt.
+    try {
+      this._confirm?.close(false);
+      if (!this._model.began) {
+        this._waiting?.remove();
+        this.el.removeAttribute('aria-busy');
+        /** @type {HTMLElement} */ (this.el).dataset.state = 'answered';
+      }
+      const hadFocus = this.el.contains(document.activeElement);
+      if (!this._destroyed) {
+        this._draw();
+        if (hadFocus && this._verdict) this._verdict.focus({ preventScroll: true });
+      }
+    } catch (error) {
+      this._drawFailed(error);
     }
     this.emit('reply', { reply: structuredClone(reply) });
   }
@@ -1711,7 +1781,7 @@ export class Surface extends Component {
     const reply = /** @type {SurfaceReply} */ (this._reply);
     this._frozen = true;
     /** @type {HTMLElement} */ (this.el).dataset.state = 'answered';
-    for (const [id, node] of this._model.nodes) if (this._catalog.nodes[node.type]?.input) this._dirty.add(id);
+    for (const [id, node] of this._model.nodes) if (this._entry(node.type)?.input) this._dirty.add(id);
     const time = formatTime(reply.at, this.options.locale);
     const verdict = verdictText(reply.action, this._model.actions ?? [], (key, ...args) => this.msg(key, ...args));
     this._verdict = h('p', { class: 'zx-surface__verdict', tabIndex: -1, dataset: { action: reply.action } },
@@ -1779,7 +1849,8 @@ export class Surface extends Component {
   /** @private @returns {string} */
   _authorName() {
     const key = this._model.author ?? '';
-    const author = this.options.authors?.[key];
+    const authors = this.options.authors ?? {};
+    const author = Object.hasOwn(authors, key) ? authors[key] : null;
     return author && typeof author.name === 'string' && author.name ? author.name : key || '—';
   }
 }
@@ -1904,7 +1975,14 @@ export function openSurface(document, options = {}) {
       ...(placement === 'sheet' ? { side } : {})
     }));
     const titleId = overlay.refs.title?.id ?? null;
-    const surface = new Surface(null, { ...surfaceOptions, document, labelledBy: titleId });
+    let surface;
+    try {
+      surface = new Surface(null, { ...surfaceOptions, document, labelledBy: titleId });
+    } catch (error) {
+      overlay.destroy();
+      reject(error);
+      return;
+    }
     overlay.setContent(surface.toElement());
     overlay.el.classList.add('zx-surface-host');
     let settled = false;
@@ -2065,6 +2143,43 @@ function isBinding(value) {
 /** @param {SurfaceNode} node @returns {boolean} */
 function hasBinding(node) {
   return Object.values(node).some(isBinding);
+}
+
+/**
+ * Where a drawn row keeps its position, so every row has an id of its own whatever the surface
+ * names as its `rowId`: `#` cannot be part of a column id.
+ */
+const ROW_POSITION = '#position';
+
+/**
+ * The rows as a Table draws them. A column reads what the row itself holds: a column id every
+ * object happens to inherit (`toString`) is an empty cell, not a function.
+ * @param {Array<Record<string, unknown>>} rows @param {Array<{id: string}>} columns
+ * @returns {Array<Record<string, unknown>>}
+ */
+function drawnRows(rows, columns) {
+  return rows.map((row, index) => {
+    const copy = { ...row, [ROW_POSITION]: `#${index}` };
+    for (const column of columns) if (!Object.hasOwn(copy, column.id)) copy[column.id] = null;
+    return copy;
+  });
+}
+
+/**
+ * A row's id for a Table: what the row holds under the surface's `rowId`, or, when it holds
+ * nothing there, its position. Such a row can be selected but has no id to report.
+ * @param {string} [key] @returns {(row: Record<string, unknown>) => unknown}
+ */
+function drawnRowId(key) {
+  return (row) => ownValue(row, key) ?? row[ROW_POSITION];
+}
+
+/**
+ * @param {Record<string, unknown>} row @param {string} [key]
+ * @returns {unknown} What the row itself holds under the key, or `null`.
+ */
+function ownValue(row, key) {
+  return key !== undefined && Object.hasOwn(row, key) ? row[key] ?? null : null;
 }
 
 /** @param {unknown} value @returns {value is {$ref: string, id: string}} */
