@@ -11525,6 +11525,12 @@
         "description": "Number of rows to render at first, with a control that appends the next batch on demand. A result set an ERP query returns happily — tens of thousands of rows — costs more to lay out than anyone will ever scroll through."
       },
       {
+        "name": "virtual",
+        "type": "boolean",
+        "default": "false",
+        "description": "Windowed rendering: only the rows in view and one viewport of overscan above and below are in the DOM, with spacer rows keeping the scroll height. The table stays one grid over all of its rows, so this implies `interactive`, the header checkbox and Ctrl/Cmd+A take every row, drawn or not, and the row that has focus or is being edited stays drawn wherever it is. It needs a bounded scroll region: give it `height`, or the region stops at the height of the window. Every row takes the height of one measured row, rows of differing height are not supported, and column widths cannot follow content that is not drawn, so `auto` columns share the width evenly. Find-in-page does not see rows that are not drawn. Wins over `growing`."
+      },
+      {
         "name": "responsive",
         "type": "false|'sm'|'md'|'lg'|'xl'",
         "default": "false",
@@ -11938,6 +11944,12 @@
         "signature": "getRenderedCount()",
         "returns": "number",
         "description": "How many rows are currently rendered."
+      },
+      {
+        "name": "reveal",
+        "signature": "reveal(id)",
+        "returns": "boolean",
+        "description": "Scrolls a row into view. A windowed table draws it first, so a row that is not in the DOM can be reached by id; rows outside the data, in a collapsed branch, or held back by `growing` cannot."
       },
       {
         "name": "addEventListener",

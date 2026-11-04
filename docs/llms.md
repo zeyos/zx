@@ -1887,7 +1887,7 @@ range select.
   type?: 'text'|'number'|'currency'|'percent'|'unit', locale?, decimals?, currency?, unit?,
   render?: (row,i)=>Node|string, sortValue?, headerTitle? }]`, `data`, `rowId: 'ID'`,
   `sort: { id, dir }`, `sortMode: 'local'|'server'`, `selectable: false|'single'|'multi'`,
-  `stickyHeader: true`, `height`, `emptyText`, `rowClass`, `zebra: true`, `variant:
+  `stickyHeader: true`, `height`, `virtual: false`, `emptyText`, `rowClass`, `zebra: true`, `variant:
   'default'|'plain'`, `hierarchy: false|{parentId, column?, expanded?}`, `interactive: false`,
   and `label`/`labelledBy`. Locale, currency, unit, and decimals may be row callbacks; values
   remain numbers in row data while display formatting is locale-aware.
@@ -1907,8 +1907,8 @@ range select.
   root; TableView passes it through `table: { variant: 'plain' }`.
 - **Methods** — `setData()`, `addData()`, `updateRow(id,row)`, `removeRow(id)`, `getRow(id)`,
   `getData()`, `empty()`, `setSort(id,dir)`, `getSort()`, `clearSort()`, `getSelection()`, `setSelection(ids)`,
-  `clearSelection()`, `setLoading(bool)` (busy/skeleton state — dims rows, shows an indeterminate
-  top bar, sets `aria-busy`, and is cleared by the next `setData`).
+  `clearSelection()`, `reveal(id)`, `setLoading(bool)` (busy/skeleton state — dims rows, shows an
+  indeterminate top bar, sets `aria-busy`, and is cleared by the next `setData`).
 - **Events** — `rowclick {row, id, index, event}`, `rowdblclick`, `sort {id, dir}`,
   `selectionchange {rows, ids}`, `datachange {rows}`, and `rowtoggle {row, id, expanded}`.
   `rowclick` fires for Enter on a focused row as well as for a click; `event` is then the keydown.
@@ -2006,6 +2006,26 @@ range select.
   call `showAll()` first to mean all of them. While growing, the table carries `aria-rowcount` and
   each row an `aria-rowindex`, so assistive technology hears the real total rather than the size of
   the batch.
+- **Windowed rendering** — `virtual: true` draws only the rows in view and one viewport of overscan
+  above and below; spacer rows keep the scroll height, so what the table costs stops depending on
+  how many rows it holds. It is off by default, and a table that does not ask for it renders exactly
+  as before. A windowed table is one grid over all of its rows, so `virtual` implies `interactive`:
+  the table carries `aria-rowcount`, every drawn row an `aria-rowindex`, and the whole keyboard map
+  moves through every row, drawing the one it lands on. The focused row and the row being edited
+  stay drawn wherever the reader scrolls. Sorting, filtering through `setData()`, section rows,
+  hierarchy, row-level controls in cells, inline editing, and the sticky header work as usual, and
+  `getData()`, `getSelection()`, and exports built on them read the data, not the DOM. Selection
+  reaches rows that are not drawn: a Shift range covers them, and **the header checkbox and
+  Ctrl/Cmd+A take every row**, not only the drawn ones. `reveal(id)` scrolls a row into view, drawing
+  it first, and returns whether it could; it works without `virtual` too, on any row in the DOM.
+  `getRenderedCount()` reports the rows drawn. `virtual` wins over `growing`, and the conflict is
+  reported once through the console. Limits: give the table a `height`, or its scroll region stops at
+  the height of the window. **Rows have one height:** the table measures one row and takes that
+  height for all, following `--zx-row-height`, so rows of differing height are not supported, and
+  long text is cut short with an ellipsis rather than wrapped. Column widths cannot follow content
+  that is not drawn, so the layout is fixed: `auto` columns share the width evenly, and a column that
+  needs more sets `width`. **Find-in-page does not see rows that are not drawn**, and printing prints
+  the drawn rows only.
 - **Responsive stacking** — `responsive: false|'sm'|'md'|'lg'|'xl'` stacks each row into a card of
   label/value pairs below that width, instead of leaving a horizontal scrollbar with the data
   hidden behind it. The width measured is **the table's own container**, not the viewport, so this

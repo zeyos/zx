@@ -96,7 +96,8 @@
     "build:api": "node tools/build-api.js",
     "build:types": "tsc --project tsconfig.json",
     "test:browser": "node tools/run-smoke.js",
-    "test:visual": "node tools/visual-diff.js"
+    "test:visual": "node tools/visual-diff.js",
+    "bench:table": "node tools/bench-table.js"
   },
   "devDependencies": {
     "chart.js": "4.5.1",

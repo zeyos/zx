@@ -10,6 +10,7 @@ import { NumberField } from '../number-field/number-field.js';
 import { Select } from '../select/select.js';
 import { Toggle } from '../toggle/toggle.js';
 import { sortRows } from './sort.js';
+import { RowWindow } from './window.js';
 
 /** @typedef {Record<string, any>} TableRow */
 /** @typedef {'asc'|'desc'} TableSortDirection */
@@ -114,6 +115,15 @@ import { sortRows } from './sort.js';
  * @property {false|number} [growing=false] Number of rows to render at first, with a control that
  * appends the next batch on demand. A result set an ERP query returns happily — tens of thousands
  * of rows — costs more to lay out than anyone will ever scroll through.
+ * @property {boolean} [virtual=false] Windowed rendering: only the rows in view and one viewport of
+ * overscan above and below are in the DOM, with spacer rows keeping the scroll height. The table
+ * stays one grid over all of its rows, so this implies `interactive`, the header checkbox and
+ * Ctrl/Cmd+A take every row, drawn or not, and the row that has focus or is being edited stays drawn
+ * wherever it is. It needs a bounded scroll region: give it `height`,
+ * or the region stops at the height of the window. Every row takes the height of one measured row,
+ * rows of differing height are not supported, and column widths cannot follow content that is not
+ * drawn, so `auto` columns share the width evenly. Find-in-page does not see rows that are not
+ * drawn. Wins over `growing`.
  * @property {false|'sm'|'md'|'lg'|'xl'} [responsive=false] Width below which each row stacks into a
  * card of label/value pairs instead of scrolling sideways. Measured on the table's own container,
  * not the viewport, so a table inside a split pane stacks when *it* is narrow.
@@ -281,7 +291,9 @@ const FOCUSABLE = 'input, textarea, select, button, [tabindex]:not([tabindex="-1
  * does not scroll). Enter activates the row exactly as a click does (`rowclick`), Space toggles the
  * row's selection when `selectable` (and activates otherwise), Shift+Arrow extends a `multi`
  * selection, and Ctrl/Cmd+A selects every rendered row. The focused row survives `setData`, sorting,
- * expansion, and `updateRow`. Column headers keep their sort buttons in the Tab order.
+ * expansion, and `updateRow`. Column headers keep their sort buttons in the Tab order. With `virtual`
+ * all of this runs over every row, drawn or not: the keys draw the row they move to, and a selection
+ * reaches rows that are not in the DOM.
  * @fires Table#rowclick
  * @fires Table#rowdblclick
  * @fires Table#sort
@@ -313,6 +325,7 @@ export class Table extends Component {
     stickyHeader: true,
     responsive: false,
     growing: false,
+    virtual: false,
     height: null,
     emptyText: null,
     rowClass: null,
@@ -373,7 +386,13 @@ export class Table extends Component {
     this._editMessage = null;
     this._stacked = false;
     this._width = null;
-    this._growStep = growStep(this.options.growing);
+    this._virtual = Boolean(this.options.virtual);
+    if (this._virtual && growStep(this.options.growing)) {
+      console.warn('[zx.Table] `growing` is ignored: `virtual` already decides which rows are drawn.');
+    }
+    this._growStep = this._virtual ? null : growStep(this.options.growing);
+    // Both keep only part of the rows in the DOM, so both have to say where each row really is.
+    this._indexed = Boolean(this._growStep || this._virtual);
     this._rendered = this._growStep ?? Infinity;
     this._more = null;
     // Keyboard focus. `_current` is the row (and, with cell focus, the column) holding the grid's
@@ -381,7 +400,7 @@ export class Table extends Component {
     this._focusMode = this._editMode === false ? 'row' : 'cell';
     // `_clickListened` is set by `addEventListener()`, which the base constructor runs for `on…`
     // options before this method; it is deliberately not reset here.
-    this._interactive = Boolean(this.options.interactive || this.options.selectable
+    this._interactive = Boolean(this.options.interactive || this.options.selectable || this._virtual
       || this._editMode !== false || normalizeHierarchy(this.options.hierarchy, this._columns)
       || this._clickListened);
     this._current = null;
@@ -418,9 +437,26 @@ export class Table extends Component {
       class: 'zx-table__scroll',
       dataset: {
         stickyHeader: String(Boolean(this.options.stickyHeader)),
-        zebra: String(Boolean(this.options.zebra))
+        // Stripes follow the row's place in the data while windowed: `:nth-child` would count the
+        // spacers, and the stripes would swap as the window moved.
+        zebra: this._virtual && this.options.zebra ? 'index' : String(Boolean(this.options.zebra))
       }
     }, this._table);
+    this._window = null;
+    if (this._virtual) {
+      root.dataset.virtual = '';
+      this._window = new RowWindow({
+        scroller: this._scroll,
+        body: this._tbody,
+        head: this._thead,
+        sticky: Boolean(this.options.stickyHeader),
+        draw: (entry) => this._createRow(entry.row, entry.index, entry),
+        release: (row) => this._releaseRow(row),
+        pins: () => this._windowPins(),
+        colspan: () => this._spanColspan(),
+        changed: () => { if (this._stacked) this._applyStackedRoles(true); }
+      });
+    }
     this._rowMoveMessage = this.options.rowReorder ? h('div', {
       class: 'zx-table__reorder-status', role: 'status', ariaLive: 'polite'
     }) : null;
@@ -449,6 +485,10 @@ export class Table extends Component {
     this._renderHeader();
     this._renderBody();
     this._watchWidth();
+    if (this._window) {
+      this._window.start();
+      this.listen(this._scroll, 'scroll', () => this._window.update(), { passive: true });
+    }
     this.listen(this._tbody, 'click', (event) => this._handleBodyClick(event));
     this.listen(this._tbody, 'dblclick', (event) => this._handleBodyDoubleClick(event));
     if (this.options.rowReorder) {
@@ -1014,7 +1054,7 @@ export class Table extends Component {
     const index = this._data.findIndex((candidate) => Object.is(this._idFor(candidate), rowId));
     if (index < 0) return this;
     const row = this._data[index];
-    const tr = this._rowElements.get(rowId)?.[0];
+    const tr = this._rowById(rowId);
     if (!tr) return this;
     const targets = this._editMode === 'row'
       ? this._visibleColumns().filter((candidate) => resolveEditable(candidate, row) !== false)
@@ -1179,7 +1219,85 @@ export class Table extends Component {
    * @returns {number}
    */
   getRenderedCount() {
+    if (this._window) return this._window.drawn.size;
     return Math.min(this._rendered, this._projectedData().length);
+  }
+
+  /**
+   * Scrolls a row into view. A windowed table draws it first, so a row that is not in the DOM can
+   * be reached by id; rows outside the data, in a collapsed branch, or held back by `growing` cannot.
+   * @param {unknown} id Row id.
+   * @returns {boolean} Whether the row is in view now.
+   */
+  reveal(id) {
+    if (this._window) return Boolean(this._rowById(id, true));
+    const tr = this._rowElements.get(id)?.[0];
+    tr?.scrollIntoView({ block: 'nearest' });
+    return Boolean(tr);
+  }
+
+  /**
+   * The element of a row, drawing it first when a windowed table has not.
+   * @param {unknown} id Row id.
+   * @param {boolean} [scroll=false] Whether a row that is already drawn is scrolled into view too.
+   * @returns {HTMLTableRowElement|undefined}
+   */
+  _rowById(id, scroll = false) {
+    const drawn = this._rowElements.get(id)?.[0];
+    if (!this._window || drawn && !scroll) return drawn;
+    const position = this._hierarchyMeta?.get(id)?.visibleIndex;
+    if (position === undefined) return undefined;
+    return /** @type {HTMLTableRowElement|undefined} */ (this._window.reveal(position) ?? undefined);
+  }
+
+  /**
+   * Rows a windowed table keeps drawn wherever the scroll position is: the one holding the Tab stop,
+   * which is the first row until something takes it, the one being edited, and the one being
+   * dragged, whose removal would end the drag.
+   * @returns {Array<number|undefined>} Row positions.
+   */
+  _windowPins() {
+    const position = (id) => this._hierarchyMeta?.get(id)?.visibleIndex;
+    return [
+      this._currentPosition(),
+      this._edit ? position(this._edit.id) : undefined,
+      this._dragId == null ? undefined : position(this._dragId)
+    ];
+  }
+
+  /**
+   * Where the row holding the Tab stop is in a windowed table. A row a collapsed branch hides hands
+   * over to its nearest visible ancestor, and a row that is gone to whichever row took its place.
+   * @returns {number} Row position.
+   */
+  _currentPosition() {
+    if (!this._current) return 0;
+    const meta = this._hierarchyMeta;
+    const position = meta?.get(this._current.id)?.visibleIndex;
+    if (position !== undefined) return position;
+    const seen = new Set();
+    let row = this._hierarchy ? this.getRow(this._current.id) : null;
+    while (row) {
+      const parentId = readRowValue(this._hierarchy.parentId, row);
+      if (parentId == null || seen.has(parentId)) break;
+      seen.add(parentId);
+      const ancestor = meta?.get(parentId)?.visibleIndex;
+      if (ancestor !== undefined) return ancestor;
+      row = this.getRow(parentId);
+    }
+    return Math.min(Math.max(this._current.visibleIndex ?? 0, 0), Math.max(0, this._window.total - 1));
+  }
+
+  /**
+   * Forgets a row the window removed from the DOM.
+   * @param {HTMLElement} tr Removed row.
+   * @returns {void}
+   */
+  _releaseRow(tr) {
+    const id = this._rowMeta.get(tr)?.id;
+    const others = this._rowElements.get(id)?.filter((element) => element !== tr);
+    if (others?.length) this._rowElements.set(id, others);
+    else this._rowElements.delete(id);
   }
 
   /**
@@ -1255,6 +1373,8 @@ export class Table extends Component {
     this._stacked = stacked;
     this.el.toggleAttribute('data-stacked', stacked);
     this._applyStackedRoles(stacked);
+    // A card is taller than a row, and no size the window watches changes when a table stacks.
+    this._window?.schedule();
     this.emit('stackedchange', { stacked });
   }
 
@@ -1337,6 +1457,7 @@ export class Table extends Component {
   /** Restores an enhanced target and releases all component listeners. @returns {void} */
   destroy() {
     this._teardownEdit();
+    this._window?.stop();
     this._width?.destroy();
     this._width = null;
     if (!this._restored && !this._createdRoot) {
@@ -1648,7 +1769,9 @@ export class Table extends Component {
     const columns = this._visibleColumns();
     const fractions = columns.map((column) => parseFraction(column.width));
     const total = fractions.reduce((sum, value) => sum + value, 0);
-    this._table.dataset.layout = total > 0 ? 'fixed' : 'auto';
+    // A windowed table cannot size a column by content that is mostly not drawn: the widths would
+    // move under the reader on every scroll.
+    this._table.dataset.layout = total > 0 || this._virtual ? 'fixed' : 'auto';
     columns.forEach((column, index) => {
       const col = h('col');
       if (fractions[index] > 0) col.style.width = `${fractions[index] / total * 100}%`;
@@ -1661,7 +1784,7 @@ export class Table extends Component {
   /** @returns {void} */
   _renderHeader() {
     const row = h('tr', { class: 'zx-table__header-row' });
-    if (this._growStep) row.setAttribute('aria-rowindex', '1');
+    if (this._indexed) row.setAttribute('aria-rowindex', '1');
     if (this.options.rowReorder) row.append(h('th', {
       class: 'zx-table__reorder-header', scope: 'col', ariaLabel: 'Row order'
     }));
@@ -1767,9 +1890,13 @@ export class Table extends Component {
     const projected = this._projectedData();
     this._hierarchyMeta = new Map(projected.map((entry) => [entry.id, entry]));
     if (this._data.length === 0) {
+      this._window?.clear();
       fragment.append(h('tr', { class: 'zx-table__empty-row' },
         h('td', { class: 'zx-table__empty', colspan: this._spanColspan() }, this._emptyContent())
       ));
+    } else if (this._window) {
+      projected.forEach((entry, visibleIndex) => { entry.visibleIndex = visibleIndex; });
+      this._window.fill(projected, fragment);
     } else {
       // Indices stay absolute: a row's index is its place in the data, not in what is on screen.
       this._visibleEntries().forEach((entry, visibleIndex) => {
@@ -1780,13 +1907,14 @@ export class Table extends Component {
     this._table.setAttribute('aria-colcount', String(this._visibleColumns().length
       + (this.options.selectable === 'multi' ? 1 : 0) + (this.options.rowReorder ? 1 : 0)));
     /*
-     * With `growing` on, the DOM holds a prefix of the data — so without this a screen reader
-     * announces "row 3 of 10" for a table of ten thousand. The header counts as a row.
+     * With `growing` or `virtual` on, the DOM holds part of the data — so without this a screen
+     * reader announces "row 3 of 10" for a table of ten thousand. The header counts as a row.
      */
-    if (this._growStep) this._table.setAttribute('aria-rowcount', String(projected.length + 1));
+    if (this._indexed) this._table.setAttribute('aria-rowcount', String(projected.length + 1));
     this._syncSelectAll();
     this._syncGrowing();
     if (this._stacked) this._applyStackedRoles(true);
+    this._window?.settle();
     this._syncRoving(focus);
   }
 
@@ -1814,8 +1942,9 @@ export class Table extends Component {
   _createRow(row, index, tree) {
     const id = this._idFor(row);
     const tr = /** @type {HTMLTableRowElement} */ (h('tr', { dataset: { row: '' } }));
-    // Only a prefix is in the DOM while growing, so each visible row states where it really is.
-    if (this._growStep) tr.setAttribute('aria-rowindex', String(tree.visibleIndex + 2));
+    // Only part of the rows is in the DOM, so each drawn row states where it really is.
+    if (this._indexed) tr.setAttribute('aria-rowindex', String(tree.visibleIndex + 2));
+    if (this._virtual && tree.visibleIndex % 2 === 1) tr.dataset.stripe = '';
     const rowClass = typeof this.options.rowClass === 'function' ? this.options.rowClass(row) : '';
     if (rowClass) tr.classList.add(...String(rowClass).split(/\s+/).filter(Boolean));
     const kind = this._rowKind === null ? null : resolveRowKind(row, this._rowKind);
@@ -2220,7 +2349,7 @@ export class Table extends Component {
    * @returns {void}
    */
   _focusCell(id, columnId) {
-    const tr = this._rowElements.get(id)?.[0];
+    const tr = this._rowById(id);
     const td = tr ? cellIn(tr, columnId) : null;
     td?.focus();
   }
@@ -2500,7 +2629,8 @@ export class Table extends Component {
       }
     }
     if (!tr) {
-      tr = rows[Math.min(Math.max(this._current?.visibleIndex ?? 0, 0), rows.length - 1)];
+      tr = this._window ? this._window.drawn.get(this._currentPosition())
+        : rows[Math.min(Math.max(this._current?.visibleIndex ?? 0, 0), rows.length - 1)];
       if (this._current) {
         const meta = this._rowMeta.get(tr);
         this._current = { ...this._current, id: meta.id, visibleIndex: meta.visibleIndex };
@@ -2656,16 +2786,21 @@ export class Table extends Component {
     }
 
     const rows = this._navRows();
-    const rowIndex = rows.indexOf(tr);
+    const rowIndex = this._window ? meta.visibleIndex : rows.indexOf(tr);
     const byCell = cellMode && !onRow;
     const column = onCell ? cells.indexOf(/** @type {HTMLTableCellElement} */ (target))
       : Math.max(0, cells.indexOf(/** @type {HTMLTableCellElement} */ (this._cellFor(tr))));
     const next = tableGridTarget({ row: rowIndex, column }, key, {
-      rows: rows.length, columns: byCell ? cells.length : 1, page: this._pageSize(rows), ctrl: mod, cells: byCell
+      rows: this._window?.total ?? rows.length,
+      columns: byCell ? cells.length : 1,
+      page: this._pageSize(rows),
+      ctrl: mod,
+      cells: byCell
     });
     if (!next) return;
     event.preventDefault();
-    const targetRow = rows[next.row];
+    const targetRow = /** @type {HTMLTableRowElement} */ (this._window
+      ? this._window.reveal(next.row) : rows[next.row]);
     if (!byCell) {
       targetRow.focus();
     } else if (next.row === rowIndex || key === 'Home' || key === 'End') {
@@ -2685,7 +2820,7 @@ export class Table extends Component {
    * Carries out one treegrid arrow-key action on a row.
    * @param {{action: string, column?: number}} action What `treegridArrowAction()` decided.
    * @param {HTMLTableRowElement} tr Focused row.
-   * @param {{id: unknown}} meta Row metadata.
+   * @param {{id: unknown, visibleIndex?: number}} meta Row metadata.
    * @param {unknown} parentId Parent row id, or null at the root.
    * @returns {void}
    * @fires Table#rowtoggle
@@ -2693,10 +2828,10 @@ export class Table extends Component {
   _applyTreeAction(action, tr, meta, parentId) {
     if (action.action === 'expand') this.expandRow(meta.id);
     else if (action.action === 'collapse') this.collapseRow(meta.id);
-    else if (action.action === 'parent') this._rowElements.get(parentId)?.[0]?.focus();
+    else if (action.action === 'parent') this._rowById(parentId)?.focus();
     else if (action.action === 'child') {
       const rows = this._navRows();
-      rows[rows.indexOf(tr) + 1]?.focus();
+      (this._window ? this._window.reveal(meta.visibleIndex + 1) : rows[rows.indexOf(tr) + 1])?.focus();
     } else if (action.action === 'row') tr.focus();
     else if (action.action === 'cell') this._navCells(tr)[action.column ?? 0]?.focus();
   }
