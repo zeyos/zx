@@ -2742,6 +2742,78 @@ const cases = [
     component.update({ busy: false, sendLabel: null });
     assert(sendButton.textContent === '' && sendButton.getAttribute('aria-label') === 'Send', 'sendLabel: null kept the word');
   }),
+  componentCase('PromptStarters', () => new zx.PromptStarters(null, {
+    items: [
+      { id: 'reply', title: 'Draft a reply', text: 'Draft a friendly reply.', icon: 'mail', ref: 7 },
+      { id: 'join', title: 'Explain a concept', text: 'Explain a LEFT JOIN.', description: 'With a short example' },
+      { id: 'join', title: 'A repeated id', text: 'Left out' },
+      { id: 'untitled', text: 'No title' }
+    ]
+  }), (component) => {
+    const root = component.el;
+    assert(root.getAttribute('role') === 'group' && root.getAttribute('aria-label') === 'Suggestions',
+      'PromptStarters group has no accessible name');
+    const [reply, join, ...rest] = root.querySelectorAll('button');
+    assert(reply && join && rest.length === 0, 'PromptStarters kept an invalid or repeated item');
+    assert(reply.type === 'button' && reply.tabIndex === 0 && join.tabIndex === 0, 'a starter is not a button in the Tab order');
+    const linked = (button, attribute) => document.getElementById(button.getAttribute(attribute))?.textContent;
+    assert(linked(reply, 'aria-labelledby') === 'Draft a reply' && linked(reply, 'aria-describedby') === 'Draft a friendly reply.',
+      'a starter without a description is not named by its title and described by its text');
+    assert(linked(join, 'aria-describedby') === 'With a short example', 'the description did not take the place of the text');
+    assert(reply.querySelector('.zx-icon') && !join.querySelector('.zx-icon'), 'the icon did not follow the item');
+
+    // A pick reports the item and does nothing else.
+    const picks = [];
+    component.on('pick', (event) => picks.push(event.detail.item));
+    const events = observe(component, 'pick');
+    join.click();
+    reply.click();
+    events.expect();
+    assert(picks.length === 2 && picks[0].id === 'join' && picks[0].text === 'Explain a LEFT JOIN.' && picks[1].ref === 7,
+      'pick did not carry the item as given');
+
+    // 'auto' is two columns, and one in a narrow container.
+    const list = root.querySelector('.zx-prompt-starters__list');
+    const columns = () => getComputedStyle(list).gridTemplateColumns.split(' ').length;
+    root.style.inlineSize = '640px';
+    assert(columns() === 2, `auto drew ${columns()} columns in a wide container`);
+    root.style.inlineSize = '320px';
+    assert(columns() === 1, `auto drew ${columns()} columns in a narrow container`);
+    root.dataset.columns = '2';
+    assert(columns() === 2, 'columns: 2 gave way in a narrow container');
+    root.dataset.columns = '1';
+    root.style.inlineSize = '640px';
+    assert(columns() === 1, 'columns: 1 gave way in a wide container');
+    root.dataset.columns = 'auto';
+    root.style.removeProperty('inline-size');
+
+    // setItems keeps the focus on the same starter, and no items hide the group.
+    join.focus();
+    component.setItems([{ id: 'other', title: 'Other', text: 'Another' }, { id: 'join', title: 'Join', text: 'Joined' }]);
+    assert(document.activeElement?.dataset.starter === 'join', 'setItems moved the focus off the same starter');
+    component.setItems([]);
+    assert(root.hidden && getComputedStyle(root).display === 'none', 'an empty PromptStarters is still drawn');
+    component.setItems([{ id: 'reply', title: 'Draft a reply', text: 'Draft a friendly reply.' }]);
+    assert(!root.hidden, 'PromptStarters did not come back with its items');
+
+    // headingLevel draws the label as a heading that names the group, and a target is restored.
+    const target = document.createElement('section');
+    target.className = 'starters-target';
+    target.append(document.createTextNode('Original'));
+    const before = target.outerHTML;
+    root.parentElement.append(target);
+    const headed = new zx.PromptStarters(target, {
+      label: 'Start here', headingLevel: 3, columns: 1, items: [{ id: 'a', title: 'A', text: 'First' }]
+    });
+    const heading = target.querySelector('h3');
+    assert(heading?.textContent === 'Start here' && target.getAttribute('aria-labelledby') === heading.id
+      && !target.hasAttribute('aria-label'), 'headingLevel did not draw the heading that names the group');
+    assert(target.dataset.columns === '1', 'columns: 1 is not drawn');
+    headed.destroy();
+    headed.destroy();
+    assert(target.outerHTML === before, `PromptStarters did not restore its target: ${target.outerHTML}`);
+    target.remove();
+  }),
   componentCase('ApprovalCard', () => new zx.ApprovalCard(null, {
     title: 'Send 3 payment reminders?',
     details: [{ type: 'p', text: 'Three reminders, **€4,515.50** in all.' }],

@@ -343,6 +343,8 @@ export const defaultMessages = Object.freeze({
   'priority.none': 'No priority',
   'priority.normal': 'Medium',
 
+  'promptStarters.label': 'Suggestions',
+
   'questionnaire.counter': 'Question %1 of %2',
   'questionnaire.edit': 'Edit',
   'questionnaire.empty': 'There is nothing to answer.',
