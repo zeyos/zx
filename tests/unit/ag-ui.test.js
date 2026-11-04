@@ -465,7 +465,7 @@ test('surface ids are scoped per run, and a line for an answered surface is refu
   assert.deepEqual(thread.order, ['surface:r1/s1', 'surface:r2/s1']);
 
   thread.surface('surface:r2/s1').answer('confirm');
-  play(run('r3', [custom(begin('s1'))]));
+  play(run('r3', [custom(begin('s1')), custom({ op: 'end', surface: 's1' })]));
   assert.deepEqual(thread.order, ['surface:r1/s1', 'surface:r2/s1', 'surface:r3/s1']);
   assert.equal(thread.surface('surface:r1/s1').token, 'app-1');
   assert.equal(thread.surface('surface:r2/s1').getReply().action, 'confirm', 'the answered one stays answered');
@@ -480,6 +480,43 @@ test('surface ids are scoped per run, and a line for an answered surface is refu
   live.play([custom({ op: 'node', surface: 'nope', id: 'x', type: 'text', text: 'x' })]);
   assert.deepEqual(live.log.errors, ['surface-answered', 'unknown-surface']);
   assert.deepEqual(log.errors, []);
+});
+
+test('a surface that reaches the end of its run without its end is reported and cancelled', () => {
+  const custom = (value) => ({ type: 'CUSTOM', name: 'zx.surface', value });
+  const { thread, log, play } = setup();
+  play(run('r1', [custom(begin('open')), custom(begin('done')), custom({ op: 'end', surface: 'done' })]));
+  assert.deepEqual(log.errors, ['unterminated-surface']);
+  assert.equal(thread.surface('surface:r1/open').cancelled, 'stopped');
+  assert.equal(thread.surface('surface:r1/open').getReply().token, undefined);
+  assert.equal(thread.surface('surface:r1/done').cancelled, null, 'a surface that ended goes on waiting');
+
+  // A fence closed without an `end`: nothing in the text is wrong, but the surface never ended.
+  const inline = setup({ inlineSurfaces: true });
+  inline.play(run('r1', [
+    { type: 'TEXT_MESSAGE_START', messageId: 'm' },
+    { type: 'TEXT_MESSAGE_CONTENT', messageId: 'm', delta: `Hello\n\`\`\`zx-surface\n${JSON.stringify(begin('s1'))}\n\`\`\`\n` },
+    { type: 'TEXT_MESSAGE_END', messageId: 'm' }
+  ]));
+  assert.deepEqual(inline.log.errors, ['unterminated-surface']);
+  assert.equal(inline.thread.surface('surface:r1/s1').cancelled, 'stopped');
+
+  // An unterminated fence is reported as that, once.
+  const fence = setup({ inlineSurfaces: true });
+  fence.play(run('r1', [
+    { type: 'TEXT_MESSAGE_START', messageId: 'm' },
+    { type: 'TEXT_MESSAGE_CONTENT', messageId: 'm', delta: `\`\`\`zx-surface\n${JSON.stringify(begin('s1'))}\n` },
+    { type: 'TEXT_MESSAGE_END', messageId: 'm' }
+  ]));
+  assert.deepEqual(fence.log.errors, ['unterminated-fence']);
+  assert.equal(fence.thread.surface('surface:r1/s1').cancelled, 'stopped');
+
+  // An answered surface owes nothing, ended or not.
+  const answered = setup();
+  answered.play([{ type: 'RUN_STARTED', threadId: 't', runId: 'r1' }, custom(begin('s1'))]);
+  answered.thread.surface('surface:r1/s1').cancel('cancelled');
+  answered.play([{ type: 'RUN_FINISHED', threadId: 't', runId: 'r1' }]);
+  assert.deepEqual(answered.log.errors, []);
 });
 
 test('every reply carries its token: the application’s, the tool call’s, the run’s', () => {

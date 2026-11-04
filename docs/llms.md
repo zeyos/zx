@@ -3547,7 +3547,8 @@ source.onmessage = (message) => adapter.handle(JSON.parse(message.data));
   screen. Arguments that are not a surface, or a surface with no valid intent, answer at once with
   `{error: 'invalid-arguments'}`. With `inlineSurfaces`, surface fences in answer text become
   surfaces after the prose before them, and the prose after continues in `<messageId>#2`; a fence
-  still open at the message's end is reported and its surface cancelled when the run ends. A
+  still open at the message's end is reported and its surface cancelled when the run ends, and so
+  is any surface that reaches the end of its run without its `end` (`unterminated-surface`). A
   `CUSTOM` event named `surfaceEvent` carries one operation or `{ops, token?}`; the token of the
   event that opens a surface is kept. Each surface is `surface:<runId>/<surface>`, so `s1` in two
   runs is two surfaces; an operation for an answered surface is refused and reported. A surface

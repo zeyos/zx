@@ -82,6 +82,8 @@ const MAX_TOKEN = 512;
  *   `error:`, `think:`); it is refused, never merged.
  * - `unterminated-fence`, `line-too-long`: from splitting answer text; a surface left open by an
  *   unterminated fence is cancelled when the run ends.
+ * - `unterminated-surface`: a surface reached the end of its run without its `end` operation; it
+ *   is cancelled, because its actions would stay disabled for good.
  * - `internal`: an event the adapter could not handle at all; it is dropped, and `handle()` does
  *   not throw.
  * @typedef {Object} AgUiProblem
@@ -190,7 +192,7 @@ const OPEN_STATES = new Set(['queued', 'running', 'waiting']);
  * @property {number} traces
  * @property {number} errors
  * @property {Set<string>} surfaces Surface items created in the run.
- * @property {Set<string>} cancelAtEnd Surfaces an unterminated fence left open.
+ * @property {Set<string>} cancelAtEnd Surfaces an unterminated fence left open, already reported.
  */
 
 /**
@@ -726,7 +728,12 @@ export function connectAgUi(thread, options = {}) {
       if (!message.ignored) report('unclosed', `Message "${message.id}" was still open when its run ended`);
       endMessage(message, stopped);
     }
-    for (const id of run.cancelAtEnd) thread.surface(id)?.cancel('stopped');
+    for (const id of run.surfaces) {
+      const surface = thread.surface(id);
+      if (surfaces.get(id)?.ended || !surface || surface.getReply()) continue;
+      if (!run.cancelAtEnd.has(id)) report('unterminated-surface', `Surface "${id}" reached the end of its run without its "end"; it was cancelled`);
+      surface.cancel('stopped');
+    }
     run.cancelAtEnd.clear();
     if (!stopped) return;
     for (const id of run.surfaces) {
