@@ -81,11 +81,13 @@ const held = { servers: [], scratch: null, tree: null, link: null };
  * @typedef {object} Job One page, rendered once on each side.
  * @property {string} key Stable name, used for image file names.
  * @property {string} label What the report calls it.
+ * @property {string} theme `light` or `dark`.
  * @property {string} path URL path and query, from the repository root.
  * @property {string} source The file whose absence means this page is not on a side at all.
  * @property {string} selector The page's sections.
  * @property {{width: number, height: number}} viewport
  * @property {Record<string, string>} storage Written to `localStorage` before any script runs.
+ * @property {Record<string, string>} tokens Custom properties the working tree must then resolve.
  * @property {string} [layout] The layout this page mounts; it is then the page's only section.
  */
 
@@ -113,6 +115,9 @@ const held = { servers: [], scratch: null, tree: null, link: null };
 
 /** A problem with how the tool was called: it answers with the usage line. */
 class UsageError extends Error {}
+
+/** The tool is out of step with the site, so a page must not be reported as merely different. */
+class ToolError extends Error {}
 
 /** Removes the worktree and stops the servers. Synchronous, so the exit event can run it. */
 function release() {
@@ -357,7 +362,8 @@ async function layoutsOf(tree) {
 /**
  * Turns the options into the pages to render.
  * @param {Options} options
- * @param {{DEFAULTS: {preset: string, spacing: number}, PRESETS: {id: string}[],
+ * @param {{DEFAULTS: {preset: string, spacing: number},
+ *   PRESETS: {id: string, ramp: Record<number, string>}[],
  *   RANGES: Record<string, {min: number, max: number}>}} theme The working tree's theme model.
  * @param {string[]} layoutIds Every layout on either side.
  * @returns {Job[]}
@@ -370,18 +376,21 @@ function plan(options, { DEFAULTS, PRESETS, RANGES }, layoutIds) {
    * @param {string} suffix What sets this variant apart in `Job.key`, if anything.
    * @param {string} detail The same for `Job.label`.
    * @param {Record<string, string>} [storage] What the site reads its theme from.
+   * @param {Record<string, string>} [tokens] What that storage has to produce.
    * @param {{width: number, height: number}} [viewport]
    */
-  const themePage = (suffix, detail, storage = {}, viewport = DESKTOP) => {
+  const themePage = (suffix, detail, storage = {}, tokens = {}, viewport = DESKTOP) => {
     for (const name of THEMES) {
       jobs.push({
         key: `theme-${name}${suffix}`,
         label: `theme page, ${name}${detail}`,
+        theme: name,
         path: 'website/theme.html',
         source: 'website/theme.html',
         selector: '.studio-card[id^="card-"]',
         viewport,
-        storage: { 'zx-site-theme': name, ...storage }
+        storage: { 'zx-site-theme': name, ...storage },
+        tokens
       });
     }
   };
@@ -390,18 +399,19 @@ function plan(options, { DEFAULTS, PRESETS, RANGES }, layoutIds) {
   if (options.full) {
     // Accent only, on the default geometry. The studio's whole recipes would move the spacing and
     // radius too, and those have variants of their own.
-    for (const { id } of PRESETS) {
-      if (id !== DEFAULTS.preset) themePage(`-preset-${id}`, `, preset ${id}`, { 'zx-site-preset': id });
+    for (const { id, ramp } of PRESETS) {
+      if (id === DEFAULTS.preset) continue;
+      themePage(`-preset-${id}`, `, preset ${id}`, { 'zx-site-preset': id }, { '--zx-accent-600': ramp[600] });
     }
     // The two ends of each slider: the settings furthest from the default that the page offers.
-    for (const setting of ['spacing', 'radius']) {
+    for (const [setting, token] of [['spacing', '--zx-space-unit'], ['radius', '--zx-radius']]) {
       for (const value of [RANGES[setting].min, RANGES[setting].max]) {
         themePage(`-${setting}-${value}`, `, ${setting} ${value}px`, {
           'zx-theme-studio': JSON.stringify({ spacing: DEFAULTS.spacing, [setting]: value })
-        });
+        }, { [token]: `${value}px` });
       }
     }
-    themePage('-390', ', 390 wide', {}, PHONE);
+    themePage('-390', ', 390 wide', {}, {}, PHONE);
   }
 
   if (options.layouts) {
@@ -414,12 +424,14 @@ function plan(options, { DEFAULTS, PRESETS, RANGES }, layoutIds) {
         jobs.push({
           key: `layout-${id}-${name}`,
           label: `layout ${id}, ${name}`,
+          theme: name,
           // Preview is the state a layout promises to render with no timers, streaming, or focus.
           path: `tests/layouts/harness.html?${new URLSearchParams({ id, theme: name, preview: '1' })}`,
           source: `website/layouts/${id}.layout.js`,
           selector: 'body[data-ready="true"] #stage',
           viewport: DESKTOP,
           storage: {},
+          tokens: {},
           layout: id
         });
       }
@@ -524,6 +536,7 @@ async function capture(browser, side, job, only) {
     await page.waitForSelector(job.selector, { state: 'attached', timeout: READY_TIMEOUT });
     await page.waitForLoadState('networkidle', { timeout: READY_TIMEOUT });
     await settle(page, job);
+    if (side.directory === root) await confirmTheme(page, job);
 
     const sections = await page.evaluate(locateSections, { selector: job.selector, layout: job.layout ?? null });
     result.found = sections.length;
@@ -535,6 +548,7 @@ async function capture(browser, side, job, only) {
       result.sections.set(id, { title, image });
     }
   } catch (error) {
+    if (error instanceof ToolError) throw error;
     result.problems.push(String(error.message).split('\n')[0]);
   } finally {
     await context.close();
@@ -584,6 +598,29 @@ async function settle(page, job) {
     previous = current;
   }
   throw new Error('the page never stopped moving');
+}
+
+/**
+ * Confirms that a page shows the theme its job asked for. Both sides get the same settings, so a
+ * setting that stopped reaching the page would compare clean while testing nothing. Only the
+ * working tree is held to this: the settings come from its theme model, not the ref's.
+ * @param {import('playwright-core').Page} page
+ * @param {Job} job
+ * @returns {Promise<void>}
+ */
+async function confirmTheme(page, job) {
+  const { theme, tokens } = await page.evaluate((names) => {
+    const style = getComputedStyle(document.documentElement);
+    return {
+      theme: document.documentElement.dataset.zxTheme,
+      tokens: Object.fromEntries(names.map((name) => [name, style.getPropertyValue(name).trim()]))
+    };
+  }, Object.keys(job.tokens));
+  const wrong = Object.keys(job.tokens).filter((name) => tokens[name] !== job.tokens[name]);
+  if (theme !== job.theme || wrong.length > 0) {
+    throw new ToolError(`${job.label} did not reach the page: data-zx-theme is ${theme}`
+      + `${wrong.map((name) => `, ${name} is ${tokens[name] || 'unset'}`).join('')}`);
+  }
 }
 
 /**
