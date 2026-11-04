@@ -788,8 +788,8 @@ a `MenuButton`, where choosing one activates the original control.
 
 - **Options** — `items: [Element | '-' | {name, label, icon, kind, size, disabled, title, active,
   onclick}]`, `align: 'start'|'end'|'between'`, `label` (accessible name, by default the `toolbar.label` message),
-  `overflow` (default `true`), `overflowLabel` (by default the `toolbar.more` message), `dense`. `active` renders the
-  item as a pressed toggle (`aria-pressed`).
+  `overflow` (default `true`), `overflowLabel` (by default the `toolbar.more` message), `dense`; `null` gives either
+  no name. `active` renders the item as a pressed toggle (`aria-pressed`).
 - **Methods** — `setItems()`, `getItem(name)`, `enable(name)`, `disable(name)`,
   `setActive(name, active?)`, `destroy()`.
 - **Events** — `action {name, item}`, emitted for descriptor-built items in addition to their own
@@ -1120,7 +1120,8 @@ An accessible ordered collection of `FileItem` rows with loading and empty prese
 Explicit duplicate file IDs are rejected; source order is preserved.
 
 - **Options** — `items`, `label`, `loading`, `loadingCount: 3`, `loadingText`, and `emptyText` (text,
-  Node, or Component). Unset, the three read the `fileList.*` messages.
+  Node, or Component). Unset, the three read the `fileList.*` messages; `loadingText` or `emptyText`
+  set to `null` shows no text.
 - **Methods** — `setItems(items,{silent?})`, `getItems()`, `getItem(id)`,
   `addItem(item,index?,{silent?})`, `updateItem(id,values,{silent?})`,
   `removeItem(id,{silent?})`, `setLoading()`, and `destroy()`.
@@ -1164,7 +1165,7 @@ whether a feed is newest- or oldest-first.
 - **Options** — `items`, `groupBy` (property, resolver, or null), `groupLabel`,
   `label`, `variant: 'default'|'compact'`, `loading`, `loadingCount: 3`, `loadingText`, `emptyText`,
   `groupHeadingLevel`, and `itemHeadingLevel`. Unset, `label`, `loadingText` and `emptyText` read the
-  `activityList.*` messages.
+  `activityList.*` messages; `loadingText` or `emptyText` set to `null` shows no text.
 - **Compact** — `variant: 'compact'` (reflected as `data-variant`) keeps every entry on one line at
   any width, for a summary card narrower than 30rem: actor and title read as one sentence that
   wraps as text, the time keeps the trailing end instead of stacking under the title, an avatar
@@ -1320,7 +1321,7 @@ appears once. Changing fields preserves direction; toggling direction preserves 
 from `Select`, with its themed popover and keyboard behavior.
 
 - **Options** — `fields: [{id,label}]`, `value: {id,dir:'asc'|'desc'}` (null selects the first field
-  ascending), `label` (by default the `sortControl.label` message), `labels: {asc,desc}` to override
+  ascending), `label` (by default the `sortControl.label` message, and `null` gives no name), `labels: {asc,desc}` to override
   the `sortControl.ascending` and `sortControl.descending` messages, `disabled`.
 - **Methods** — defensive `getValue()`, `setValue(value,{silent})`, `enable()`, `disable()`,
   `focus()`, `destroy()`. Unknown fields or directions are rejected. An empty catalogue disables
@@ -1433,7 +1434,7 @@ to a hidden textarea when the async Clipboard API is unavailable or denied.
   → `HTMLButtonElement`.
 - **Options** — `text: ''` — a string, or **a function returning one**, which is what a button
   beside a live value needs so the copy is never stale; `label: ''` (empty renders an icon-only
-  ghost button), `title`, `feedback` (by default the `copy.copy` and `copy.copied` messages), `feedbackDuration: 2000`,
+  ghost button), `title`, `feedback` (by default the `copy.copy` and `copy.copied` messages, and `null` gives no text), `feedbackDuration: 2000`,
   `size: 'md'|'sm'`, `kind: 'default'|'primary'|'ghost'`.
 - **Events** — `oncopy(text, copied)` is called for every attempt; `copied` is `false` when the
   clipboard refused the write, and the button then stays untouched rather than claiming a copy
@@ -1446,7 +1447,7 @@ to a hidden textarea when the async Clipboard API is unavailable or denied.
 #### CopyInput
 
 - **Options** — `value: ''`, `label: ''`, `hideLabel: false`, `feedback`, `buttonTitle` (by default
-  the `copy.copied` and `copy.copy` messages), `size: 'md'|'sm'`.
+  the `copy.copied` and `copy.copy` messages, and `null` gives no text), `size: 'md'|'sm'`.
 - **Methods** — `get()`, `set(value)`, `focus()` (focuses and selects the whole value).
 - **Events** — `copy {value, copied}`.
 - **Behaviour** — the field is `readonly`, not `disabled`, so the text stays selectable and
@@ -2441,7 +2442,8 @@ mutate the caller's data.
   (tri-state), `checked: []`, `icons: true`, `renderLabel`, `load: (node)=>Promise<children>`
   (lazy children; mark a branch with `hasChildren: true`), `filter`, `emptyText`, `height`,
   `rowActions: (node) => actions`, `moreLabel`. Unset, `label`, `emptyText` and `moreLabel` read the
-  `tree.label`, `tree.noItems` and `tree.more` messages; `tree.empty` still wins over `emptyText`.
+  `tree.label`, `tree.noItems` and `tree.more` messages; `tree.empty` still wins over `emptyText`, and
+  `emptyText: null` shows no text.
 - **Row actions** — `rowActions(node)` returns the row's commands: `{icon, label, onSelect(node),
   disabled?, danger?}` descriptors, or nodes of your own placed as given. One or two show as icon
   buttons at the row's end; with more, the first shows and the rest fold into a "More actions"
@@ -2483,7 +2485,8 @@ breadcrumb.
 - **Options** — `items` (the same nested shape as `TreeView`), `valueKey`, `labelKey`,
   `childrenKey`, `path: []` (initial selection, root first), `load: (node)=>Promise<children>`,
   `preview: (node)=>Node|null` (renders a pane after the last column for a selected leaf),
-  `rootLabel`, `columnWidth: 220`, `height: 320`, `icons: true`, `renderItem`, `emptyText`.
+  `rootLabel`, `columnWidth: 220`, `height: 320`, `icons: true`, `renderItem`, `emptyText` (unset, the
+  `finder.noItems` message; `null` shows no text).
 - **Methods** — `getPath()`, `getNodes()`, `getSelection()`, `setPath(ids, {silent, focus})`
   (async — loads every branch along the way), `reveal(id)`, `setItems()`, `focus()`.
 - **Events** — `change {path, nodes, node}`, `activate {node, id}`.
@@ -4246,7 +4249,7 @@ a thumbnail, or any other remote resource.
 - **Dates** — `formatDate(d, fmt, {locale})`, `parseDate(s, fmt)` (tokens
   `%d %m %Y %y %H %M %S %a %A %b %B %s`), `clampDate`, `isSameDay`, `addDays`, `addMonths`,
   `getWeekStart`. `locale` defaults to `getLanguage()`, and names come from `Intl` in that locale;
-  an English tag writes the English names.
+  an English tag, or one `Intl` has no data for, writes the English names.
 - **Keyboard** — `focusTrap`, `rovingTabindex`, `typeahead`.
 - **Motion** — `prefersReducedMotion(element?)` → boolean, and
   `watchMotion(element, fn, {signal?, immediate?})` → disposer, for code that animates in script;
@@ -4342,8 +4345,8 @@ entry point as the components. See also the Kernel section for `Component`, `h`,
   string does not match, so it doubles as a validator), `clampDate(date, min, max)`,
   `isSameDay(a, b)`, `addDays(date, n)`, `addMonths(date, n)`, `getWeekStart(lang?)` → `0` (Sunday)
   or `1` (Monday). strftime-style tokens: `%d %m %Y %y %H %M %S %a %A %b %B %s`. Month and weekday
-  names come from `Intl` in `locale`, which defaults to `getLanguage()`, and an English tag writes
-  the English names, so `setLanguage()` drives them too.
+  names come from `Intl` in `locale`, which defaults to `getLanguage()`, and an English tag, or one
+  `Intl` has no data for, writes the English names, so `setLanguage()` drives them too.
 - **Numbers, money and time** — `formatNumber(value, {locale, decimals, minDecimals, maxDecimals,
   group=true})`, `formatCurrency(value, currency, {locale, decimals})`, `formatPercent(value,
   {locale, decimals=0})` (takes a fraction, so `0.42` → `42%`), `formatFileSize(bytes, {locale,

@@ -21,23 +21,44 @@ This WP **explicitly permits** changes to one core file: `src/core/messages.js`.
    all conditions." and its `any` sibling are two keys, not one with a slot, and each pair of
    singular and plural prompts in FieldUpload is two keys. A slot holds a name or a number the
    application supplied, never a word the library chose.
-3. **Option wins, then the catalogue.** An option that held default text defaults to `null` and
-   resolves as `this.options.x ?? this.msg('…')`, or `||` where the code read `||` before, so an empty
-   string keeps meaning what it means today. Passing text keeps working unchanged. Element attributes
-   follow, because `tests/unit/elements-kit.test.js` holds them equal to the component's defaults.
-4. **Code without a component takes the text as an argument.** `validateFilterAst()`,
-   `rootLogicError()`, `billingColumns()`, `chartSummaryTable()`, `chartSummaryModel()`,
-   `fileTypeLabel()` and `normalizeCalendarEvents()` are exported, or reached by exported code, and
-   have no `msg()`. Each gains an optional last parameter, or an option where it already takes
-   options, that the component fills from `this.msg()`, so a `msg` option reaches them. Called
-   without it they use `translate()`, so a host translator still reaches them. A signature that
-   existed keeps working: nothing moves, and the English result is the same.
+3. **What an application passed keeps its meaning.** Only an option left unset reads the catalogue.
+   Passing text keeps working unchanged, and `''` and `null` mean what they meant:
+   - Where the code read `??` or `||`, `null` already meant the default. Those options default to
+     `null` and keep the same operator: the `label` of ActivityList, Chart, CodeEditor, Dock, FileList,
+     Rating, SplitView and Tree; `actionsLabel`, `addLabel`, and the `moreLabel` of AppSidebar and Tree.
+   - Where the code took the value as it came, `null` was a value of its own, so the default is
+     `undefined`, as on SourceList, and the option is read with a destructuring default:
+     `const { emptyText = this.msg('…') } = this.options`. These are `emptyText` on ActivityList,
+     FileList, Tree, Finder and Chart; `loadingText` on ActivityList, FileList and Chart; Chart's
+     `errorText`; CopyInput's `feedback` and `buttonTitle`; the `label` of AppSidebar, KanbanView,
+     SortControl and Toolbar; Toolbar's `overflowLabel`; the `title` and `feedback` of `copyButton()`
+     and `proseAnchors()`; and the `label` of `proseAnchors()`.
+   - `null` on those shows nothing. That is what 5.x did for `emptyText` on the lists, Tree and Finder,
+     and for the `label` of AppSidebar and KanbanView. The rest wrote the word "null" into the page,
+     which no application can have meant, so they show nothing too.
+   - An explicit `undefined` counts as unset.
+
+   Element attributes follow, because `tests/unit/elements-kit.test.js` holds them equal to the
+   component's defaults, so removing an attribute restores the default text.
+4. **Code without a component reads the catalogue; a component uses an internal function.**
+   `validateFilterAst()`, `rootLogicError()`, `billingColumns()`, `chartSummaryTable()`,
+   `chartSummaryModel()`, `fileTypeLabel()`, `normalizeEntityRef()`, `normalizeFileItem()`,
+   `normalizeKanbanDescriptors()`, `deriveKanbanDescriptors()` and `normalizeItems()` are exported and
+   have no `msg()`. Each keeps the signature it released with and uses `translate()`, so a host
+   translator reaches it. A component calls an internal function that takes the text as well, so a
+   `msg` option reaches it. The text is never an extra positional parameter on the exported function:
+   an exported function gets passed as a value, and `files.map(normalizeFileItem)` then writes the
+   index into that parameter. `tests/unit/export-signatures.test.js` holds every exported function to
+   the parameters it declared at the last release, and `formatDate()`'s options bag is its one
+   exception. `normalizeCalendarEvents()` already takes options and reads a string from them, so it
+   keeps `untitledTitle`.
 5. **`filterOperators` stays English and frozen.** It is exported data, and hosts read it. A built-in
    operator's name is the `filter.op.<id>` message. A host-supplied operator keeps its own `label`:
    an entry in the `operators` option shows its label unless that label is the built-in text for
    that id, which is the case for `operators: filterOperators`, and for a spread that changes
    something else, and then it translates like the built-in. The rule compares labels rather than
-   object identity for that reason.
+   object identity for that reason. An id `filterOperators` does not have reads no message, so an
+   operator without a label stays without one rather than showing `filter.op.<id>`.
 6. **Deliberate absences stay.** `tree.empty`, `finder.empty` and `priority.medium` stay out of the
    catalogue. Tree and Finder keep asking for `tree.empty` and `finder.empty` first, so a host that
    translated those wins over `emptyText` as it does today; only the default `emptyText` moves, to
@@ -59,8 +80,9 @@ This WP **explicitly permits** changes to one core file: `src/core/messages.js`.
   module-private API, not exported from `src/index.js`.
 - Filter asks at the moment it draws, not once in `render()`, so `this._operators` keeps the host's
   data and a redraw follows the catalogue, as the rest of its text does.
-- `validateFilterAst(ast, fields, operators, text)` and `rootLogicError(value, logic, text)` per
-  Decision 4. Its error `code` values do not change; only `message` does, and only under a catalogue.
+- `Filter` validates through `checkFilterAst(ast, fields, operators, text)` in `filter-model.js`, not
+  exported from `src/index.js`, and an internal `logicError()` in `filter.js`, per Decision 4. Error
+  `code` values do not change; only `message` does, and only under a catalogue.
 
 | Key | English |
 |---|---|
@@ -123,7 +145,8 @@ Confirmed real, each by reading the code:
   with `printf()`, as it does today. `clearSearch` and `searchSummary` are never asked for, so they
   get no entry.
 - **SourceList.** `label` draws a visible heading, and `null` or `''` already mean "no heading". So
-  the default is `undefined`, not `null`, and only `undefined` reads `sourceList.label`.
+  the default is `undefined`, not `null`, and only `undefined` reads `sourceList.label`. Decision 3
+  gives every option of this kind the same treatment.
 - **CodeEditor's `code` field.** The adapter stops writing the name itself and hands the editor the
   label it has or `null`.
 - **MasterPanel** reuses `panel.actions`: same words, same role.

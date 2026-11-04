@@ -28,7 +28,9 @@ This WP **explicitly permits** changes to two core files: `src/core/messages.js`
    1. the host translator's `date.month.*` / `date.weekday.*` keys, as today;
    2. `Intl.DateTimeFormat` in the `locale` option, which defaults to `getLanguage()`, the same
       contract as `formatNumber()`;
-   3. the English constants, for an English language tag or a tag `Intl` cannot use.
+   3. the English constants, for an English language tag or a tag `Intl` cannot use: one it refuses,
+      and one `Intl.DateTimeFormat.supportedLocalesOf()` finds no data for, which `Intl` would
+      otherwise answer in the runtime's own language.
 
    English tags (`en`, `en-*`) never reach `Intl`, so `Sep` does not become `Sept` under `en-GB`.
    Names always use the Gregorian calendar, because `%d`, `%m` and `%Y` do.
@@ -105,8 +107,10 @@ New keys, in the same place and order in both catalogues. German follows WP-61 D
 **Scope:** `src/core/date.js`, `tests/unit/date.test.js`, `tests/unit/locale-de.test.js`,
 `docs/llms.md`.
 
-- `formatDate(date, fmt, { locale } = {})` implements Decision 3. Formatters are cached under their
-  locale and style, because `formatDate()` runs once per calendar cell.
+- `formatDate(date, fmt, options)` implements Decision 3. It reads `options?.locale`, because the
+  function took two arguments until now and a third was ignored, whatever it held; `null` must not
+  throw. Formatters are cached under their locale and style, because `formatDate()` runs once per
+  calendar cell.
 - `docs/llms.md` says that names follow `setLanguage()` through `Intl`, and that `date.*` keys remain
   the way to override them.
 - The `locale-de.test.js` assertion that date patterns must avoid `%a %A %b %B` goes: the reason for
