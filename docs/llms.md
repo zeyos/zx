@@ -3583,7 +3583,8 @@ for await (const part of parsedParts(response)) stream.handle(part);
 - **Keep one connection for the conversation.** The answer to an approval goes out with the
   application's next request, and the response to it continues the same message: its `start` names
   a message that has finished or was stopped, and the message picks up where it stopped, once it has
-  something to say. A `start` without a `messageId` always opens a new answer. `destroy()` stops a message still open and expires
+  something to say. A `start` without a `messageId` opens a new answer, or, during an open message,
+  joins it, because streams merged into one each send their own. `destroy()` stops a message still open and expires
   a pending approval, because no decision could reach the application any more.
 - **Message** — `start` opens an `answer` under the message id, `finish` closes it and settles
   `runStatus` (`waiting` while an approval is pending), `abort` closes it as stopped. Text blocks
@@ -3627,9 +3628,9 @@ for await (const part of parsedParts(response)) stream.handle(part);
 - **Data parts** — `data-<name>` goes to `ondata(name, data, id)`. A part with an `id` replaces the
   earlier one of that name and id, so keep the latest value per name and id.
 - **Reported, never guessed at.** A part the adapter does not draw goes to `onunknown`, among them
-  `custom` and `tool-approval-response`. A delta ahead of its start creates the item, a `start` for a
-  message still open is ignored, a `start` for another message stops the open one, and a `reset-step`
-  outside a message draws nothing; each goes to `onerror`.
+  `custom` and `tool-approval-response`. A delta ahead of its start creates the item, a `start`
+  naming a message still open is ignored, a `start` naming another message stops the open one, and a
+  `reset-step` outside a message draws nothing; each goes to `onerror`.
 
 #### AG-UI event streams: `connectAgUi(thread, options)`
 

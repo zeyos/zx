@@ -394,7 +394,8 @@ export function connectUiMessageStream(thread, options = {}) {
   /**
    * A `start` for an unknown id opens a message, and one for a message that finished or was stopped
    * resumes it: the response to an approval or a tool's output reuses the id. Only a `start` for a
-   * message still open is a duplicate.
+   * message still open is a duplicate. One without an id during an open message names no other
+   * message: streams merged into one each send their own, and the message goes on.
    * @param {UiMessagePart} part
    * @returns {void}
    */
@@ -405,6 +406,9 @@ export function connectUiMessageStream(thread, options = {}) {
       // The parts that came ahead of this start already opened the answer.
       current.implied = false;
       if (id) messages.set(id, current);
+    } else if (!id && current) {
+      sendMetadata(part);
+      return;
     } else if (known && !known.closed) {
       report(`Duplicate start for message ${id}`, part);
       return;

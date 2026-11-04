@@ -57,9 +57,11 @@ regenerated. Public files must not mention this spec.
   - A `start` for a message that finished or was stopped resumes it. The response after an approval
     or a tool's output reuses the message id, and the AI SDK client appends that response to the
     same message. Its last answer stays as it is until the message has something to say, and an
-    `abort` before that leaves it as it was. A `start` without a `messageId` always opens a new
-    answer, because the adapter does not see the request that would say otherwise; a call of an
-    earlier message still finds its step.
+    `abort` before that leaves it as it was. Outside an open message, a `start` without a
+    `messageId` opens a new answer, because the adapter does not see the request that would say
+    otherwise; a call of an earlier message still finds its step. During an open message it names no
+    other message: streams merged into one each send their own, the message goes on, and only its
+    metadata is taken.
   - `text-start`, `text-delta` and `text-end` stream through `thread.appendText`. Several text
     blocks in one message append to the same answer, unless stream order says otherwise (below).
     A block's id only names it while it is open: as on the AI SDK client, `text-end` frees the id,
@@ -115,9 +117,9 @@ regenerated. Public files must not mention this spec.
     be recalled, and the adapter has no callback that says so.
   - Focus inside a withdrawn item moves to the item above it, as for any item the thread removes.
   - Outside a message it draws nothing and is reported through `onerror`.
-- **Out of order:** a delta arriving outside its block creates the item, and a `start` for a message
-  still open is ignored. A `start` for another message stops the open one, which nothing else can
-  finish. All three are reported through `onerror`.
+- **Out of order:** a delta arriving outside its block creates the item, and a `start` naming a
+  message still open is ignored. A `start` naming another message stops the open one, which nothing
+  else can finish. All three are reported through `onerror`.
 - **Fixtures:** four streams: a plain answer with two tool calls and two sources; an approval-gated
   tool call; an answer with reasoning and a data part; and a step withdrawn by `reset-step`, written
   from the documented rule rather than recorded. They are replayed in tests, and all but the last

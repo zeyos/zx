@@ -692,6 +692,20 @@ test('a start while another message is open stops that one, which nothing else c
   assert.equal(log.error.length, 1);
 });
 
+test('a start without an id during an open message is a merged stream joining it', () => {
+  const { thread, log, play } = connect();
+  play([
+    { type: 'start', messageId: 'm' }, ...said('One.'),
+    { type: 'start', messageMetadata: { model: 'second' } }, ...said('Two.'),
+    { type: 'finish' }
+  ]);
+  assert.deepEqual(thread.order(), ['m']);
+  assert.deepEqual(/** @type {any} */ (thread.get('m')).blocks.map((block) => block.text), ['One.', 'Two.']);
+  assert.equal(/** @type {any} */ (thread.get('m')).stopped, undefined);
+  assert.deepEqual(log.error, []);
+  assert.deepEqual(log.metadata, [{ model: 'second' }]);
+});
+
 test('a start without a message id still opens an answer', () => {
   const { thread, play } = connect();
   play([{ type: 'start' }]);
