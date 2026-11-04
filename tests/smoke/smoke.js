@@ -5648,9 +5648,14 @@ function kitElementCase(spec) {
   };
 }
 
-/** @param {HTMLElement} element @param {object} spec @returns {void} */
-function assertNoDataAttributes(element, spec) {
-  for (const property of spec.data) {
+/**
+ * @param {HTMLElement} element
+ * @param {object} spec
+ * @param {string[]} [properties=spec.data] Properties to check.
+ * @returns {void}
+ */
+function assertNoDataAttributes(element, spec, properties = spec.data) {
+  for (const property of properties) {
     assert(!element.hasAttribute(kebabCase(property)), `${property} was serialized into an attribute`);
   }
 }
@@ -5687,7 +5692,8 @@ function kitElementsBeforeUpgradeCase() {
       for (const { spec, element, properties } of entries) {
         assert(element.component instanceof spec.component, `${spec.tag} did not upgrade`);
         assert(spec.rendered(element), `${spec.tag} did not render from properties set before upgrade`);
-        assertNoDataAttributes(element, spec);
+        // Before upgrade `title` is the browser's own property, and the browser writes the attribute.
+        assertNoDataAttributes(element, spec, spec.data.filter((name) => !(name in HTMLElement.prototype)));
         for (const name of Object.keys(properties)) {
           assert(!Object.hasOwn(element, name), `${spec.tag} kept ${name} as a plain property`);
         }
