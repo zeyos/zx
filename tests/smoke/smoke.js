@@ -7065,6 +7065,51 @@ function agUiCases() {
       thread.setItems([{ id: 'y', type: 'surface', document, reply }]);
       assert(thread.surface('y') === answered && answered.getReply().action === 'cancel', 'the surface’s own reply was replaced');
     }),
+    surfaceCase('AgentThread (focus in a surface that stays)', () => ({
+      component: new zx.AgentThread(null, { authors: { finance: { name: 'Finance agent' } } })
+    }), ({ component: thread }) => {
+      const item = { id: 's', type: 'surface', document: surfaceDocument() };
+      const other = { id: 'o', type: 'text', text: 'Beside it' };
+      thread.setItems([item, other]);
+      const input = /** @type {HTMLInputElement} */ (thread.el.querySelector('article[data-id="s"] input'));
+      const typing = () => {
+        input.focus();
+        input.value = 'Typing';
+        input.setSelectionRange(3, 3);
+      };
+      const check = (what) => {
+        assert(document.activeElement === input, `${what} took the focus from the field: ${document.activeElement?.localName}`);
+        assert(input.value === 'Typing' && input.selectionStart === 3, `${what} lost what was typed, or the caret`);
+      };
+      typing();
+      thread.upsert(item);
+      check('upsert()');
+      thread.patch('s', { at: '2026-11-04T10:00:00' });
+      check('patch()');
+      thread.setItems([item, other]);
+      check('setItems() in the same order');
+      thread.setItems([other, item]);
+      check('setItems() moving the surface');
+      // Focus on the item itself stays where it always went.
+      thread.el.querySelector('article[data-id="s"]').focus();
+      thread.upsert(item);
+      assert(document.activeElement === thread.el.querySelector('article[data-id="s"]'), 'focus on the article was lost');
+    }),
+    surfaceCase('AgentThread (an item added while setItems runs)', () => ({
+      component: new zx.AgentThread(null, { emptyState: { title: 'Nothing yet' } })
+    }), ({ component: thread }) => {
+      const stays = { id: 'a', type: 'surface', document: surfaceDocument({ surface: 'a' }) };
+      thread.setItems([stays, { id: 'b', type: 'surface', document: surfaceDocument({ surface: 'b' }) }]);
+      thread.on('reply', () => thread.upsert({ id: 'note', type: 'notice', tone: 'info', text: 'A question was closed' }));
+      thread.setItems([stays]);
+      const articles = () => [...thread.el.querySelectorAll('.zx-agent-thread__item')];
+      assert(articles().map((article) => article.dataset.id).join() === 'a,note', `items: ${articles().map((article) => article.dataset.id)}`);
+      assert(articles().every((article) => article.getAttribute('aria-setsize') === '2'), 'the added item is not counted');
+      thread.setItems([]);
+      assert(articles().length === 0 || articles().every((article) => article.dataset.id === 'note'), 'setItems left an item it knew of');
+      thread.remove('note');
+      assert(articles().length === 0 && !thread.el.querySelector('.zx-agent-thread__empty').hidden, 'the added item could not be removed');
+    }),
     surfaceCase('AgentThread (an application’s own surface and placeholder)', () => ({}), async () => {
       // `register()` has no undo, so this runs on a module instance of its own.
       const { AgentThread } = await import('../../src/components/agent-thread/agent-thread.js?own-surface');

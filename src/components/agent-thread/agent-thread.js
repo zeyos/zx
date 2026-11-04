@@ -613,7 +613,8 @@ export class AgentThread extends Component {
   _replace(id, item) {
     const old = this._entries.get(id);
     if (!old) return;
-    const hadFocus = old.article.contains(document.activeElement);
+    const focused = /** @type {HTMLElement|null} */ (document.activeElement);
+    const hadFocus = old.article.contains(focused);
     // A surface keeps answering where it stands unless the item brings a different surface, which
     // supersedes it: it replies once either way.
     const keep = item.type === 'surface' && old.surface && keepsSurface(old, /** @type {any} */ (item)) ? old.surface : null;
@@ -639,23 +640,28 @@ export class AgentThread extends Component {
     this._syncContinuation(id);
     this._syncPositions();
     this._syncLatest();
-    if (hadFocus) entry.article.focus({ preventScroll: true });
+    // A surface carried over took its field with it, and whoever was typing there stays there.
+    if (hadFocus) (keep?.toElement().contains(focused) ? /** @type {HTMLElement} */ (focused) : entry.article).focus({ preventScroll: true });
   }
 
   /**
-   * Puts the feed in the order given, moving only what stands elsewhere.
+   * Puts the feed in the order given, moving only what stands elsewhere. Anything a listener added
+   * meanwhile stays, after what was asked for.
    * @private
    * @param {string[]} ids
    * @returns {void}
    */
   _arrange(ids) {
-    this._order = [...new Set(ids)].filter((id) => this._entries.has(id));
+    const focused = /** @type {HTMLElement|null} */ (document.activeElement);
+    const listed = new Set(ids);
+    this._order = [...[...listed].filter((id) => this._entries.has(id)), ...this._order.filter((id) => !listed.has(id))];
     let next = this._feed.firstElementChild;
     for (const id of this._order) {
       const { article } = /** @type {ThreadEntry} */ (this._entries.get(id));
       if (article === next) next = next.nextElementSibling;
       else this._feed.insertBefore(article, next);
     }
+    if (focused !== document.activeElement && this._feed.contains(focused)) focused?.focus({ preventScroll: true });
     for (const id of this._order) this._syncContinuation(id);
     this._syncLatest();
   }
