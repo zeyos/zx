@@ -5370,7 +5370,7 @@ function kitElementSpecs() {
       tag: 'approval-card',
       component: zx.ApprovalCard,
       events: ['approve', 'edit', 'reject'],
-      data: ['details', 'fields', 'values'],
+      data: ['title', 'details', 'fields', 'values'],
       properties: () => ({
         title: 'Send 3 reminders?',
         details: [{ type: 'p', text: 'Three reminders.' }],

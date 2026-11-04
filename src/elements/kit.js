@@ -69,13 +69,6 @@ function normalizeCompact(value) {
   return value;
 }
 
-/** @param {unknown} value @returns {unknown} A selection mode from the attribute's text. */
-function normalizeTreeSelection(value) {
-  if (value === '' || value === 'true') return 'single';
-  if (value === 'false') return false;
-  return value;
-}
-
 const AGENT_THREAD_ATTRS = attributes({
   items: data({ default: [], set: (component, value) => component.setItems(value), get: (component) => component.getItems() }),
   authors: rebuiltData({}),
@@ -150,7 +143,8 @@ const RUN_TRACE_ATTRS = attributes({
 });
 
 const APPROVAL_CARD_ATTRS = attributes({
-  title: text({ default: '', set: updates('title') }),
+  // Off the attribute, where the browser would show it as a tooltip over the whole card.
+  title: text({ default: '', reflect: false, set: updates('title') }),
   description: text({ default: '', set: updates('description') }),
   icon: text({ default: null, set: updates('icon') }),
   tone: text({ default: 'blue', set: updates('tone') }),
@@ -299,7 +293,7 @@ const TREE_ATTRS = attributes({
   'label-key': textOrValue({ default: 'name', rebuild: true }),
   'children-key': rebuiltText({ default: 'children' }),
   expanded: rebuiltData([]),
-  selection: rebuiltText({ default: 'single', normalize: normalizeTreeSelection }),
+  selection: rebuiltText({ default: 'single', normalize: normalizeSelectable }),
   selected: data({ default: [], set: (component, value) => component.setSelection(value), get: (component) => component.getSelection() }),
   checkboxes: rebuiltBool(),
   checked: data({ default: [], set: (component, value) => component.setChecked(value), get: (component) => component.getChecked() }),

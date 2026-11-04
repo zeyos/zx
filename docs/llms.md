@@ -3971,9 +3971,10 @@ thread.appendText('answer-1', chunk);     // forwarded to the component
 ```
 
 - **Options.** Every component option keeps its name and default. A scalar is an attribute, kebab-cased
-  (`heading-level`, `submit-key`), and its property reflects to it, except a Composer's `value`,
-  which stays on the property, as an input's does. A boolean that defaults to `true` is turned off
-  with `="false"` (`numbered="false"`, `follow-output="false"`).
+  (`heading-level`, `submit-key`), and its property reflects to it. Two stay on the property: a
+  Composer's `value`, as an input's does, and an ApprovalCard's `title`, which as an attribute
+  would be a tooltip over the whole card. A boolean that defaults to `true` is turned off with
+  `="false"` (`numbered="false"`, `follow-output="false"`).
 - **Data is a property.** Lists, items, columns and records are properties first. A JSON attribute
   is read for static markup, but a value set on the property is never written to an attribute, so
   a long thread does not pass through `JSON.stringify`. Functions, nodes and the chart `adapter`
