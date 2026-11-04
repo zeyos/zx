@@ -3621,7 +3621,9 @@ for await (const part of parsedParts(response)) stream.handle(part);
   `ApprovalCard` and its step waits. The person's decision goes to `onapproval`, and a prevented
   `approve` or `reject` decides nothing. Nothing is approved by default, and an automatic decision
   (`isAutomatic`) draws no card, because nobody is asked. A call the server settles while its card
-  is pending expires the card.
+  is pending expires the card, and a `tool-approval-response` shows on it what was decided elsewhere,
+  without `onapproval`. `onapproval` fires once per approval: a request that arrives again, from a
+  retried step or a replay, draws its card with the answer it already has.
 - **No address is loaded.** A `source-url` keeps its link only when it is `https:` and passes
   `safeHref()`; otherwise the source stays, so `[n]` citations count the same sources, and opens
   nothing. A `source-document` is a `file` source. A `file` part draws its name and type, never its
@@ -3636,7 +3638,7 @@ for await (const part of parsedParts(response)) stream.handle(part);
 - **Data parts** — `data-<name>` goes to `ondata(name, data, id)`. A part with an `id` replaces the
   earlier one of that name and id, so keep the latest value per name and id.
 - **Reported, never guessed at.** A part the adapter does not draw goes to `onunknown`, among them
-  `custom` and `tool-approval-response`. A delta ahead of its start creates the item, a `start`
+  `custom` and a `tool-approval-response` with no card here. A delta ahead of its start creates the item, a `start`
   naming a message still open is ignored, a `start` naming another message stops the open one, and a
   `reset-step` outside a message draws nothing; each goes to `onerror`.
 

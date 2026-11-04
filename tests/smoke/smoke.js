@@ -7271,33 +7271,6 @@ function uiMessageStreamCases() {
       play([{ type: 'start', messageId: 'm' }, { type: 'abort', reason: 'cancelled' }]);
       assert(!article(root, 'm').querySelector('.zx-block-view__stopped'), 'the finished answer above the card says it was stopped');
       assertSettled(root, 'm');
-    })
-  ];
-}
-
-/**
- * Waits for something the page does on its own time.
- * @param {() => boolean} condition
- * @param {string} reason
- * @returns {Promise<void>}
- */
-async function waitFor(condition, reason) {
-  for (let attempt = 0; attempt < 40 && !condition(); attempt += 1) await new Promise((resolve) => setTimeout(resolve, 10));
-  assert(condition(), reason);
-}
-
-/**
- * Row actions on a tree: revealed strips named after their rows, the focused row's actions as its
- * Tab stops, the overflow and the context menu running the action, keys on an action left to it,
- * and menus rebuilt with the rows.
- * @returns {SmokeDefinition}
- */
-function treeRowActionsCase() {
-  return {
-    name: 'TreeView (row actions)',
-    create(fixture) {
-      const runs = [];
-      const record = (name) => (node) => runs.push(`${name}:${node.name}`);
     }),
 
     replay('AgentThread (stream: a restored conversation goes on without losing a word)', ({ root, thread, log, play }) => {
@@ -7344,6 +7317,49 @@ function treeRowActionsCase() {
       assert(article(root, 'u1').dataset.type === 'user' && /What I asked/.test(String(article(root, 'u1').textContent)), 'the person’s message was replaced');
       assert(article(root, 'approval:a').querySelector('.zx-approval-card')?.getAttribute('data-state') === 'pending', 'the card was replaced');
       assert(feed(root).length === 5, `feed: ${feed(root)}`);
+    }),
+
+    replay('AgentThread (stream: a decision recorded in the stream settles the card)', async ({ root, log, play }) => {
+      play([
+        { type: 'start', messageId: 'm' },
+        { type: 'tool-input-available', toolCallId: 'c', toolName: 'look', input: {} },
+        { type: 'tool-approval-request', toolCallId: 'c', approvalId: 'a' }
+      ]);
+      /** @type {HTMLButtonElement} */
+      const button = /** @type {any} */ (root.querySelector('.zx-approval-card__actions button'));
+      play([{ type: 'tool-approval-response', approvalId: 'a', approved: false, reason: 'Decided elsewhere' }, { type: 'finish', finishReason: 'stop' }]);
+      assert(root.querySelector('.zx-approval-card')?.getAttribute('data-state') === 'rejected', 'the card still asks');
+      assert(/Decided elsewhere/.test(String(root.querySelector('.zx-approval-card')?.textContent)), 'the reason is not shown');
+      button.click();
+      await Promise.resolve();
+      assert(!log.approval.length && !log.unknown.length && !log.error.length, `reported: ${log.approval} ${log.unknown} ${log.error}`);
+    })
+  ];
+}
+
+/**
+ * Waits for something the page does on its own time.
+ * @param {() => boolean} condition
+ * @param {string} reason
+ * @returns {Promise<void>}
+ */
+async function waitFor(condition, reason) {
+  for (let attempt = 0; attempt < 40 && !condition(); attempt += 1) await new Promise((resolve) => setTimeout(resolve, 10));
+  assert(condition(), reason);
+}
+
+/**
+ * Row actions on a tree: revealed strips named after their rows, the focused row's actions as its
+ * Tab stops, the overflow and the context menu running the action, keys on an action left to it,
+ * and menus rebuilt with the rows.
+ * @returns {SmokeDefinition}
+ */
+function treeRowActionsCase() {
+  return {
+    name: 'TreeView (row actions)',
+    create(fixture) {
+      const runs = [];
+      const record = (name) => (node) => runs.push(`${name}:${node.name}`);
       const component = new zx.TreeView(null, {
         items: [{ ID: 1, name: 'Handbook', children: [{ ID: 2, name: 'Onboarding' }, { ID: 3, name: 'Leave' }] }],
         expanded: [1],

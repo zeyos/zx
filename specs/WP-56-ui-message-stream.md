@@ -80,6 +80,11 @@ regenerated. Public files must not mention this spec.
     while the input streams, `running` once it is available, then `done`, `failed` or `skipped`.
     The input text accumulates and is shown once complete.
   - `tool-approval-request` follows Decision 4, and its step waits (`waiting`) until the decision.
+  - `tool-approval-response` records a decision made elsewhere: the card shows it, its call moves on,
+    and nothing goes to `onapproval`. One for a card already settled changes nothing, and one with no
+    card of this connection goes to `onunknown`.
+  - A decision stands for good. `onapproval` fires once per approval, and a request that arrives
+    again, from a retried step for instance, draws its card with the answer it was given.
   - `source-url` and `source-document` become the answer's sources (Decision 5).
   - `data-<name>` parts go to `ondata`. A part with an `id` replaces the earlier one of the same
     name and id, so `ondata` always receives the current value.
@@ -122,7 +127,8 @@ regenerated. Public files must not mention this spec.
   - A step that added nothing leaves the answer alone. Otherwise what stays is changed in place, so
     that a trace the reader opened stays open.
   - What already went out stays with the application: `ondata`, `onmetadata` and `onapproval` cannot
-    be recalled, and the adapter has no callback that says so.
+    be recalled, and the adapter has no callback that says so. A retry that asks the same approval
+    again finds it answered.
   - Focus inside a withdrawn item moves to the item above it, as for any item the thread removes.
   - Outside a message it draws nothing and is reported through `onerror`.
 - **Out of order:** a delta arriving outside its block creates the item, and a `start` naming a

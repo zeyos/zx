@@ -139,10 +139,27 @@ export const UI_MESSAGE_STREAM_VERSION = 'v1';
  * @property {boolean} settled Whether nothing can be decided any more.
  */
 
+/**
+ * An answer to an approval, from the person or recorded in the stream.
+ * @typedef {Object} Decision
+ * @property {boolean} approved Whether it was approved.
+ * @property {string} [reason] Why it was rejected.
+ * @property {string} [at] When, as the card says it.
+ */
+
 /** @param {unknown} value @returns {string} A tool's input or output as text. */
 function asText(value) {
   if (value === undefined) return '';
   return typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+}
+
+/**
+ * What a card that holds a decision shows.
+ * @param {Decision} decision
+ * @returns {{status: 'approved'|'rejected', rejectReason?: string, answeredAt?: string}}
+ */
+function cardOf({ approved, reason, at }) {
+  return { status: approved ? 'approved' : 'rejected', ...(reason ? { rejectReason: reason } : {}), ...(at ? { answeredAt: at } : {}) };
 }
 
 /**
@@ -220,6 +237,8 @@ export function connectUiMessageStream(thread, options = {}) {
   const calls = new Map();
   /** @type {Map<string, ApprovalState>} By thread item id. */
   const approvals = new Map();
+  /** @type {Map<string, Decision>} What was decided, by approval id, for good. */
+  const decisions = new Map();
   /** @type {Set<string>} */
   const tiles = new Set();
   /** @type {string[]} Every item the adapter added, in thread order. */
@@ -907,7 +926,8 @@ export function connectUiMessageStream(thread, options = {}) {
 
   /** @param {UiMessagePart} part @returns {void} */
   function onApprovalRequest(part) {
-    const id = `approval:${part.approvalId}`;
+    const approvalId = String(part.approvalId);
+    const id = `approval:${approvalId}`;
     if (approvals.has(id)) {
       report(`Duplicate tool-approval-request ${part.approvalId}`, part);
       return;
@@ -915,7 +935,9 @@ export function connectUiMessageStream(thread, options = {}) {
     const call = callOf(part);
     // An automatic decision is a record, not a question: nobody is asked, and the outcome follows.
     if (part.isAutomatic) return;
-    approvals.set(id, { id: String(part.approvalId), call, settled: false });
+    // A request that arrives again was answered once, and that answer stands.
+    const decision = decisions.get(approvalId);
+    approvals.set(id, { id: approvalId, call, settled: Boolean(decision) });
     const code = call.args === null ? call.argsText : asText(call.args);
     // The answer ends before the card joins, so the thread's last word is that it needs approval,
     // not that it answered. A card for an earlier call outlives a reset of this step, and the answer
@@ -931,7 +953,7 @@ export function connectUiMessageStream(thread, options = {}) {
       title: thread.msg('uiMessageStream.approvalTitle', call.step.label),
       ...(typeof part.reason === 'string' && part.reason ? { description: part.reason } : {}),
       ...(code ? { details: [{ type: 'code', ...(typeof call.args === 'string' ? {} : { language: 'json' }), code }] } : {}),
-      status: 'pending'
+      ...(decision ? cardOf(decision) : { status: 'pending' })
     });
     // A tile follows the card that holds its call.
     if (call.tile) {
@@ -939,8 +961,47 @@ export function connectUiMessageStream(thread, options = {}) {
       takeBack(call.tile);
       if (tile) add(tile);
     }
+    if (decision) {
+      settleCall(call, decision.approved);
+      return;
+    }
     moveCall(call, 'waiting');
     runStatus?.update({ state: 'waiting', waitingSince: new Date() });
+  }
+
+  /**
+   * The stream records a decision the person did not make here: on another device, or on the
+   * server's side. It is the application's already, so nothing goes to `onapproval`, and the card
+   * says what was decided rather than inviting another answer.
+   * @param {UiMessagePart} part
+   * @returns {void}
+   */
+  function onApprovalResponse(part) {
+    const approvalId = String(part.approvalId);
+    const id = `approval:${approvalId}`;
+    const approval = approvals.get(id);
+    if (!approval) {
+      options.onunknown?.(part);
+      return;
+    }
+    if (approval.settled) return;
+    const decision = { approved: part.approved === true, ...(typeof part.reason === 'string' && part.reason ? { reason: part.reason } : {}) };
+    approval.settled = true;
+    decisions.set(approvalId, decision);
+    thread.patch(id, cardOf(decision));
+    settleCall(approval.call, decision.approved);
+    if (!waitingForPerson()) runStatus?.update({ state: 'running', waitingSince: null });
+  }
+
+  /**
+   * Moves on a call whose approval was decided.
+   * @param {CallState} call
+   * @param {boolean} approved
+   * @returns {void}
+   */
+  function settleCall(call, approved) {
+    if (approved) moveCall(call, 'running');
+    else finishCall(call, 'skipped');
   }
 
   /**
@@ -956,10 +1017,12 @@ export function connectUiMessageStream(thread, options = {}) {
     queueMicrotask(() => {
       if (destroyed || approval.settled || event.defaultPrevented) return;
       approval.settled = true;
-      if (approved) moveCall(approval.call, 'running');
-      else finishCall(approval.call, 'skipped');
+      const reason = approved ? undefined : detail.reason || undefined;
+      const at = /** @type {{answeredAt?: string}|null} */ (thread.get(`approval:${approval.id}`))?.answeredAt;
+      decisions.set(approval.id, { approved, ...(reason ? { reason } : {}), ...(at ? { at } : {}) });
+      settleCall(approval.call, approved);
       if (!waitingForPerson()) runStatus?.update({ state: 'running', waitingSince: null });
-      options.onapproval?.(approval.id, approved, approved ? undefined : detail.reason || undefined);
+      options.onapproval?.(approval.id, approved, reason);
     });
   };
   const onApprove = onDecision(true);
@@ -1067,6 +1130,7 @@ export function connectUiMessageStream(thread, options = {}) {
     'tool-output-error': onOutputError,
     'tool-output-denied': onOutputDenied,
     'tool-approval-request': onApprovalRequest,
+    'tool-approval-response': onApprovalResponse,
     'source-url': onSource,
     'source-document': onSource,
     file: onFile,

@@ -1006,6 +1006,73 @@ test('a long message moves its list from answer to answer and leaves the others 
   assert.deepEqual(thread.citing.get('m#3').map(({ id }) => id), ['s'], 'its citations still count them');
 });
 
+/* ------------------------------------------------------------------ decisions in the stream -- */
+
+const ASKED = [
+  { type: 'start', messageId: 'm' }, { type: 'start-step' },
+  { type: 'tool-input-available', toolCallId: 'c', toolName: 'lookup', input: {} },
+  { type: 'tool-approval-request', toolCallId: 'c', approvalId: 'a' }
+];
+
+test('a decision recorded in the stream settles the card, and nobody is asked any more', async () => {
+  const runStatus = fakeRunStatus();
+  const { thread, log, play } = connect({ runStatus });
+  play(ASKED);
+  const card = thread.get('approval:a');
+  play([{ type: 'tool-approval-response', approvalId: 'a', approved: true }]);
+  assert.equal(/** @type {any} */ (thread.get('approval:a')).status, 'approved');
+  assert.equal(/** @type {any} */ (thread.get('m')).steps[0].status, 'running');
+  assert.equal(runStatus.states.at(-1), 'running');
+  await thread.decide('approve', { item: card, values: {} });
+  assert.deepEqual(log.approval, [], 'it was never the person’s to send');
+  assert.deepEqual(log.unknown, []);
+  assert.deepEqual(log.error, []);
+});
+
+test('a rejection recorded in the stream keeps its reason and skips the call', () => {
+  const { thread, log, play } = connect();
+  play([...ASKED, { type: 'tool-approval-response', approvalId: 'a', approved: false, reason: 'Not this month' }]);
+  const card = /** @type {any} */ (thread.get('approval:a'));
+  assert.equal(card.status, 'rejected');
+  assert.equal(card.rejectReason, 'Not this month');
+  assert.equal(/** @type {any} */ (thread.get('m')).steps[0].status, 'skipped');
+  assert.deepEqual(log.approval, []);
+});
+
+test('a decision recorded for a card already answered changes nothing', async () => {
+  const { thread, log, play } = connect();
+  play(ASKED);
+  await thread.decide('reject', { item: thread.get('approval:a'), reason: 'No' });
+  play([{ type: 'tool-approval-response', approvalId: 'a', approved: true }]);
+  assert.equal(/** @type {any} */ (thread.get('m')).steps[0].status, 'skipped');
+  assert.equal(log.approval.length, 1);
+  assert.deepEqual(log.unknown, []);
+});
+
+test('a decision for an approval without a card is not guessed at', () => {
+  const { log, play } = connect();
+  const part = { type: 'tool-approval-response', approvalId: 'elsewhere', approved: true };
+  play([{ type: 'start', messageId: 'm' }, part]);
+  assert.deepEqual(log.unknown, [part]);
+  assert.deepEqual(log.error, []);
+});
+
+test('a retry that asks the same approval again finds it answered, and onapproval hears of it once', async () => {
+  const runStatus = fakeRunStatus();
+  const { thread, log, play } = connect({ runStatus });
+  play(ASKED);
+  await thread.decide('reject', { item: thread.get('approval:a'), reason: 'Not this one' });
+  assert.equal(log.approval.length, 1);
+  play([{ type: 'reset-step' }, ...ASKED.slice(2)]);
+  const card = /** @type {any} */ (thread.get('approval:a'));
+  assert.equal(card.status, 'rejected');
+  assert.equal(card.rejectReason, 'Not this one');
+  assert.equal(/** @type {any} */ (thread.get('m')).steps[0].status, 'skipped');
+  await thread.decide('approve', { item: card, values: {} });
+  assert.equal(log.approval.length, 1);
+  assert.notEqual(runStatus.states.at(-1), 'waiting');
+});
+
 /* ------------------------------------------------------------------ what is already there -- */
 
 /** @param {any} thread The conversation as an application restores it. */
