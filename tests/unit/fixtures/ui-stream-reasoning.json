@@ -1,0 +1,23 @@
+{
+  "pinned": {"protocol": "v1", "documentation": "https://ai-sdk.dev/docs/ai-sdk-ui/stream-protocol", "read": "2026-11-03", "release": "ai@7.0.162"},
+  "note": "An answer with reasoning, data parts and message metadata.",
+  "responses": [
+    [
+      {"type":"start","messageId":"msg-plan","messageMetadata":{"model":"large"}},
+      {"type":"start-step"},
+      {"type":"reasoning-start","id":"reasoning-1"},
+      {"type":"reasoning-delta","id":"reasoning-1","delta":"The customer paid late nine times, "},
+      {"type":"reasoning-delta","id":"reasoning-1","delta":"so a first reminder is due."},
+      {"type":"reasoning-end","id":"reasoning-1"},
+      {"type":"data-progress","id":"progress-1","data":{"done":1,"total":3}},
+      {"type":"data-progress","id":"progress-1","data":{"done":3,"total":3}},
+      {"type":"data-note","data":{"text":"Checked against the 2026 policy"}},
+      {"type":"text-start","id":"text-1"},
+      {"type":"text-delta","id":"text-1","delta":"Send the reminder today."},
+      {"type":"text-end","id":"text-1"},
+      {"type":"message-metadata","messageMetadata":{"tokens":412}},
+      {"type":"finish-step"},
+      {"type":"finish","finishReason":"stop","messageMetadata":{"tokens":640}}
+    ]
+  ]
+}

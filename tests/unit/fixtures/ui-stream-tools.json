@@ -1,0 +1,30 @@
+{
+  "pinned": {"protocol": "v1", "documentation": "https://ai-sdk.dev/docs/ai-sdk-ui/stream-protocol", "read": "2026-11-03", "release": "ai@7.0.162"},
+  "note": "A plain answer with two tool calls and two sources. The second call was not streamed, so it has no tool-input-start.",
+  "responses": [
+    [
+      {"type":"start","messageId":"msg-weather"},
+      {"type":"start-step"},
+      {"type":"text-start","id":"text-1"},
+      {"type":"text-delta","id":"text-1","delta":"I’ll check both cities."},
+      {"type":"text-end","id":"text-1"},
+      {"type":"tool-input-start","toolCallId":"call-hamburg","toolName":"getWeatherInformation"},
+      {"type":"tool-input-delta","toolCallId":"call-hamburg","inputTextDelta":"{\"city\":"},
+      {"type":"tool-input-delta","toolCallId":"call-hamburg","inputTextDelta":"\"Hamburg\"}"},
+      {"type":"tool-input-available","toolCallId":"call-hamburg","toolName":"getWeatherInformation","input":{"city":"Hamburg"}},
+      {"type":"tool-input-available","toolCallId":"call-vienna","toolName":"getWeatherInformation","input":{"city":"Vienna"}},
+      {"type":"tool-output-available","toolCallId":"call-hamburg","output":{"city":"Hamburg","weather":"rainy"}},
+      {"type":"tool-output-available","toolCallId":"call-vienna","output":{"city":"Vienna","weather":"sunny"}},
+      {"type":"finish-step"},
+      {"type":"start-step"},
+      {"type":"text-start","id":"text-2"},
+      {"type":"text-delta","id":"text-2","delta":"It rains in Hamburg [1] "},
+      {"type":"text-delta","id":"text-2","delta":"and the sun is out in Vienna [2]."},
+      {"type":"text-end","id":"text-2"},
+      {"type":"source-url","sourceId":"source-hamburg","url":"https://weather.example/hamburg","title":"Hamburg forecast"},
+      {"type":"source-document","sourceId":"source-vienna","mediaType":"application/pdf","title":"Vienna station report","filename":"vienna.pdf"},
+      {"type":"finish-step"},
+      {"type":"finish","finishReason":"stop"}
+    ]
+  ]
+}

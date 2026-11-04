@@ -482,6 +482,12 @@ export const defaultMessages = Object.freeze({
   'timePicker.selectHour': 'Select the hour',
   'timePicker.selectMinutes': 'Select the minutes',
 
+  'uiMessageStream.approvalTitle': 'Run %1?',
+  'uiMessageStream.file': 'File',
+  'uiMessageStream.showTile': 'Show %1',
+  'uiMessageStream.thinking': 'Thinking',
+  'uiMessageStream.thought': 'Thought for %1',
+
   'valueList.add': 'Add value',
   'valueList.duplicate': 'This value already exists.',
   'valueList.instructions': 'Press Enter to add. Focus a value and press Ctrl plus Left or Right to reorder.',

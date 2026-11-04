@@ -1,4 +1,4 @@
-import { AgentThread, button, h, prefersReducedMotion } from '../../src/index.js';
+import { AgentThread, button, connectUiMessageStream, h, prefersReducedMotion } from '../../src/index.js';
 
 // Who takes part: the person reading (`me`) and the agent. An agent's `via` names the model it
 // answers through.
@@ -36,10 +36,53 @@ function reconcileConversation() {
 const FOLLOW_UP = 'Bruckner Logistik has paid late **9 times out of 14** this year [1], so I would '
   + 'send their reminder today.\n\nThe other two usually pay within a week of a first reminder.';
 
+// A recorded AI SDK UI message stream: the response that asks for approval, and the response the
+// server sends once the application has passed the decision on. The application strips the
+// `data: ` framing and the `[DONE]` sentinel; each entry is one parsed part.
+const RECORDED_STREAM = [
+  [
+    {"type":"start","messageId":"msg-reminder"},
+    {"type":"start-step"},
+    {"type":"text-start","id":"text-1"},
+    {"type":"text-delta","id":"text-1","delta":"Bruckner Logistik is 21 days late. "},
+    {"type":"text-delta","id":"text-1","delta":"I’ll send the first reminder once you agree."},
+    {"type":"text-end","id":"text-1"},
+    {"type":"tool-input-start","toolCallId":"call-reminder","toolName":"sendReminder"},
+    {"type":"tool-input-delta","toolCallId":"call-reminder","inputTextDelta":"{\"customer\":\"Bruckner Logistik\","},
+    {"type":"tool-input-delta","toolCallId":"call-reminder","inputTextDelta":"\"invoice\":\"RE-2026-0126\"}"},
+    {"type":"tool-input-available","toolCallId":"call-reminder","toolName":"sendReminder","input":{"customer":"Bruckner Logistik","invoice":"RE-2026-0126"}},
+    {"type":"tool-approval-request","toolCallId":"call-reminder","approvalId":"approval-reminder","reason":"Sent mail can’t be recalled."},
+    {"type":"finish-step"},
+    {"type":"finish","finishReason":"tool-calls"}
+  ],
+  [
+    {"type":"start","messageId":"msg-reminder"},
+    {"type":"start-step"},
+    {"type":"tool-output-available","toolCallId":"call-reminder","output":{"sent":true,"to":"accounts@bruckner.example"}},
+    {"type":"finish-step"},
+    {"type":"start-step"},
+    {"type":"text-start","id":"text-2"},
+    {"type":"text-delta","id":"text-2","delta":"The reminder is on its way."},
+    {"type":"text-end","id":"text-2"},
+    {"type":"finish-step"},
+    {"type":"finish","finishReason":"stop"}
+  ]
+];
+
+// What the server sends instead when the person rejects the call.
+const DENIED_RESPONSE = [
+  { type: 'start', messageId: 'msg-reminder' },
+  { type: 'tool-output-denied', toolCallId: 'call-reminder' },
+  { type: 'text-start', id: 'text-3' },
+  { type: 'text-delta', id: 'text-3', delta: 'Understood, I won’t send it.' },
+  { type: 'text-end', id: 'text-3' },
+  { type: 'finish', finishReason: 'stop' }
+];
+
 export default {
   title: 'Agent thread',
   group: 'Agents',
-  api: ['AgentThread'],
+  api: ['AgentThread', 'UiMessageStream'],
   blurb: 'A conversation with agents: messages, streamed answers, the steps a run took, and the approvals that hold it.',
   examples: [
     {
@@ -106,6 +149,63 @@ export default {
         return [
           h('div', { class: 'demo-card', style: { maxBlockSize: '24rem', overflowY: 'auto' } }, thread.toElement()),
           h('div', { class: 'demo-row' }, button({ label: 'Ask the agent', kind: 'primary', onclick: ask }))
+        ];
+      }
+    },
+    {
+      title: 'Drawing an AI SDK stream',
+      blurb: 'connectUiMessageStream() draws a UI message stream: the application hands each parsed '
+        + 'part to handle() and sends the answer to an approval with its next request. This is a '
+        + 'recording; answer the card to play the response that follows. Reduced motion plays it at once.',
+      layout: 'stack',
+      width: '720px',
+      render: ({ cleanup, log }) => {
+        const thread = new AgentThread(null, { authors: AUTHORS, answerActions: ['copy'] });
+        let timer = 0;
+        let stream = null;
+        // A person can answer before the first response has ended: the next one waits its turn.
+        let queue = [];
+        const tick = () => {
+          timer = 0;
+          stream.handle(queue.shift());
+          if (queue.length) timer = window.setTimeout(tick, 120);
+        };
+        const play = (parts) => {
+          queue.push(...parts);
+          if (prefersReducedMotion(thread.toElement())) {
+            while (queue.length) stream.handle(queue.shift());
+          } else if (!timer) {
+            tick();
+          }
+        };
+        const replay = () => {
+          clearTimeout(timer);
+          timer = 0;
+          queue = [];
+          stream?.destroy();
+          thread.setItems([]);
+          stream = connectUiMessageStream(thread, {
+            agent: 'finance',
+            onapproval: (id, approved, reason) => {
+              log(`onapproval ${id}: ${approved}${reason ? `, ${reason}` : ''}`);
+              play(approved ? RECORDED_STREAM[1] : DENIED_RESPONSE);
+            },
+            ondata: (name, data) => log(`ondata ${name}: ${JSON.stringify(data)}`),
+            onmetadata: (metadata) => log(`onmetadata ${JSON.stringify(metadata)}`),
+            onunknown: (part) => log(`onunknown ${part.type}`),
+            onerror: (error) => log(`onerror ${error.message}`)
+          });
+          play(RECORDED_STREAM[0]);
+        };
+        replay();
+        cleanup(() => {
+          clearTimeout(timer);
+          stream.destroy();
+          thread.destroy();
+        });
+        return [
+          h('div', { class: 'demo-card', style: { maxBlockSize: '28rem', overflowY: 'auto' } }, thread.toElement()),
+          h('div', { class: 'demo-row' }, button({ label: 'Replay the recording', onclick: replay }))
         ];
       }
     }

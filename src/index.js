@@ -132,6 +132,7 @@ export { ApprovalCard } from './components/approval-card/approval-card.js';
 export { RunTrace } from './components/run-trace/run-trace.js';
 export { SourceList } from './components/source-list/source-list.js';
 export { AgentThread } from './components/agent-thread/agent-thread.js';
+export { UI_MESSAGE_STREAM_VERSION, connectUiMessageStream } from './components/agent-thread/ui-message-stream.js';
 export { AccountMenu } from './components/account-menu/account-menu.js';
 export { WorkspaceSwitcher } from './components/workspace-switcher/workspace-switcher.js';
 export { normalizeAppItems } from './internal/app-rail.js';
