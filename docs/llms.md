@@ -3432,6 +3432,65 @@ agents' answers as they stream (`BlockView` with a `SourceList`), the steps a ru
   between articles; Ctrl+End and Ctrl+Home move focus past the end or before the start of the feed.
   The feed is `aria-busy` while an answer streams. One polite status says when an agent starts
   writing, answers, needs approval, or is stopped — streamed text is never read aloud as it arrives.
+
+#### connectUiMessageStream() — the AI SDK UI message stream
+
+Draws a server's AI SDK UI message stream (the response header `x-vercel-ai-ui-message-stream: v1`;
+`UI_MESSAGE_STREAM_VERSION` is the version implemented) in a thread. The application keeps the
+request, the event source, retries, and authentication: it strips the `data: ` framing and the
+`[DONE]` sentinel, and hands each parsed part to `handle()`.
+
+```js
+const stream = connectUiMessageStream(thread, {
+  agent: 'finance',
+  runStatus,
+  onapproval: (approvalId, approved, reason) => sendNextRequest({ approvalId, approved, reason }),
+  ondata: (name, data, id) => store.set(`${name}/${id}`, data)
+});
+for await (const part of parsedParts(response)) stream.handle(part);
+```
+
+- **Options** — `runStatus` (a `RunStatus` to keep up to date), `authors`, `agent` (the author key
+  of the assistant's output; without it, the first author who is not a person), `tools: {}`,
+  `onapproval(approvalId, approved, reason)`, `ondata(name, data, id)`, `onmetadata(metadata)`,
+  `onunknown(part)`, `onerror(error)`, `showReasoning: false`. It returns
+  `{handle(part), destroy()}`.
+- **Keep one connection for the conversation.** The answer to an approval goes out with the
+  application's next request, and the response to it continues the same message: its `start` names
+  a message that has finished, and the answer picks up where it stopped. `destroy()` stops a message
+  still open and expires a pending approval, because no decision could reach the application any more.
+- **Message** — `start` opens an `answer` under the message id, `finish` closes it and settles
+  `runStatus` (`waiting` while an approval is pending), `abort` closes it as stopped. Text blocks
+  stream through `appendText`, each block a new paragraph of the same answer. `error` draws a
+  `notice` with tone `danger`. `start-step` and `finish-step` draw nothing. `message-metadata`, and
+  the `messageMetadata` of `start` and `finish`, go to `onmetadata`.
+- **Reasoning stays private.** All of a message's reasoning is one collapsed "Thought for 12 s" step.
+  The text is not kept at all unless `showReasoning: true` puts it on the step. A `reasoning-file` is
+  never drawn.
+- **Tool calls** are steps of the answer: `queued` while the input streams, `running` once it is
+  available, then `done`, `failed`, or `skipped`. The input is shown once it is complete. A
+  preliminary output leaves the step running.
+- **The server asks; the person answers; the application sends.** A `tool-approval-request` draws an
+  `ApprovalCard` and its step waits. The person's decision goes to `onapproval`, and a prevented
+  `approve` or `reject` decides nothing. Nothing is approved by default, and an automatic decision
+  (`isAutomatic`) draws no card, because nobody is asked. A call the server settles while its card
+  is pending expires the card.
+- **No address is loaded.** A `source-url` keeps its link only when it is `https:` and passes
+  `safeHref()`; otherwise the source stays, so `[n]` citations count the same sources, and opens
+  nothing. A `source-document` is a `file` source. A `file` part draws its name and type, never its
+  content.
+- **Tiles** — `tools` maps a tool's name to the application's own renderer: `(call) => ThreadItem|null`,
+  called at each status change and never on an input delta, with `{id, name, args, argsText, result?,
+  error?, status}`. `args` is `null` until the input is complete. The first result that is not null
+  joins the thread as `tool:<toolCallId>` (a card that holds the call stays ahead of it), and later
+  results patch it in place; the adapter sets the id. The call's step links to the tile, and the
+  adapter answers that link with `thread.reveal()`. Draw the tile with `AgentThread.register()`. A
+  renderer that throws is reported through `onerror`, and the step stays.
+- **Data parts** — `data-<name>` goes to `ondata(name, data, id)`. A part with an `id` replaces the
+  earlier one of that name and id, so keep the latest value per name and id.
+- **Reported, never guessed at.** A part the adapter does not draw goes to `onunknown`, among them
+  `custom`, `tool-approval-response`, and `reset-step`. A delta ahead of its start creates the item,
+  a duplicate start is ignored, and both go to `onerror`.
 <!-- /doc -->
 
 <!-- doc:run-status -->

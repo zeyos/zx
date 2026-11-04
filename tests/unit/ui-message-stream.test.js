@@ -150,6 +150,14 @@ test('the adapter names the protocol version it implements and is exported', () 
   for (const name of ['tools', 'approval', 'reasoning']) assert.equal(fixture(name).pinned.protocol, UI_MESSAGE_STREAM_VERSION);
 });
 
+test('the documentation replays the recorded stream, not a version of its own', () => {
+  // Tests are not published, so the demo carries its own copy of the recording.
+  const source = readFileSync(new URL('../../website/demos/agent-thread.demo.js', import.meta.url), 'utf8');
+  const recorded = /const RECORDED_STREAM = (\[[\s\S]*?\n\]);/.exec(source);
+  assert.ok(recorded, 'RECORDED_STREAM not found in the demo');
+  assert.deepEqual(JSON.parse(recorded[1]), fixture('approval').responses);
+});
+
 /* ------------------------------------------------------------------ the fixtures -- */
 
 test('an answer with two tool calls and two sources replays into one answer', () => {
