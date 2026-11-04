@@ -6678,6 +6678,29 @@ function agUiCases() {
       assert(problems.length === 0, `problems: ${problems}`);
       adapter.destroy();
     }),
+    surfaceCase('AgentThread (an application’s own surface and placeholder)', () => ({}), async () => {
+      // `register()` has no undo, so this runs on a module instance of its own.
+      const { AgentThread } = await import('../../src/components/agent-thread/agent-thread.js?own-surface');
+      if (!AgentThread.has('surface')) AgentThread.register('surface', (item) => zx.h('p', { class: 'smoke-own-surface' }, String(item.label)));
+      if (!AgentThread.has('placeholder')) AgentThread.register('placeholder', (item) => zx.h('p', { class: 'smoke-own-placeholder' }, String(item.label)));
+      const thread = new AgentThread(null, { authors: { finance: { name: 'Finance agent' } }, items: [
+        { id: 'p', type: 'placeholder', label: 'Mine too' }
+      ] });
+      try {
+        thread.upsert({ id: 's', type: 'surface', label: 'Mine', document: { zx: 'surface/1', surface: 's', intent: 'confirm', title: 'Go?', root: [], nodes: [] } });
+        assert(thread.el.querySelector('.smoke-own-surface')?.textContent === 'Mine', 'the application’s surface renderer lost to the built-in');
+        assert(!thread.el.querySelector('.zx-surface') && thread.surface('s') === null, 'the library drew a surface over the application’s renderer');
+        assert(thread.el.querySelector('.smoke-own-placeholder')?.textContent === 'Mine too', 'the application’s placeholder type was not drawn');
+        await delay(100);
+        assert(!thread.el.querySelector('[role="status"]').textContent, 'an application’s surface was announced as waiting');
+      } finally {
+        thread.destroy();
+      }
+      // The library’s stand-in has its own name now, and draws a Skeleton for anyone who asks.
+      const library = new zx.AgentThread(null, { items: [{ id: 'q', type: 'zx-placeholder', lines: 3 }] });
+      assert(library.el.querySelector('article[data-type="zx-placeholder"] .zx-agent-thread__body[aria-busy="true"]'), 'the stand-in did not draw');
+      library.destroy();
+    }),
     surfaceCase('AgentThread (items at a call’s place)', () => ({
       component: new zx.AgentThread(null, { authors: { finance: { name: 'Finance agent' } } })
     }), async ({ component: thread }) => {
@@ -6703,7 +6726,7 @@ function agUiCases() {
         { type: 'TOOL_CALL_START', toolCallId: 'c2', toolCallName: 'ask_user' },
         { type: 'TEXT_MESSAGE_START', messageId: 'm1' },
         { type: 'TEXT_MESSAGE_CONTENT', messageId: 'm1', delta: 'Looking that up' });
-      assert(article('tool:c2')?.dataset.type === 'placeholder' && article('tool:c2').querySelector('[aria-busy="true"] .zx-skeleton, [aria-busy="true"]'),
+      assert(article('tool:c2')?.dataset.type === 'zx-placeholder' && article('tool:c2').querySelector('[aria-busy="true"] .zx-skeleton, [aria-busy="true"]'),
         'the surface tool did not stand as a placeholder skeleton');
       const answer = article('m1');
       answer.focus();

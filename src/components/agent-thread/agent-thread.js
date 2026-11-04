@@ -28,9 +28,10 @@ import { Surface } from '../surface/surface.js';
  * Something still on its way — a tool call's arguments, a document being composed — drawn as a
  * Skeleton under its author's byline. It is replaced by the item it stands for, and goes without
  * replying or announcing anything.
+ * The type's name is reserved; `placeholder` is free for an application's own items.
  * @typedef {Object} PlaceholderItem
  * @property {string} id
- * @property {'placeholder'} type
+ * @property {'zx-placeholder'} type
  * @property {string} [at]
  * @property {string} [author]
  * @property {number} [lines=2] Skeleton lines.
@@ -213,8 +214,9 @@ export class AgentThread extends Component {
   static #renderers = new Map();
 
   /**
-   * Registers how items of another type are drawn — an application's own, or a surface. A
-   * built-in type cannot be replaced.
+   * Registers how items of another type are drawn. An application's own renderer for `surface`
+   * replaces the library's drawing of that type; the types the library always draws cannot be
+   * replaced.
    * @param {string} type Item type.
    * @param {ThreadItemRenderer} render Draws the item's content.
    * @returns {typeof AgentThread}
@@ -229,7 +231,8 @@ export class AgentThread extends Component {
   }
 
   /**
-   * Reports whether a type has a registered renderer.
+   * Reports whether a type has a registered renderer. `surface` answers false until an
+   * application registers its own, so a guarded `register()` still takes effect.
    * @param {string} type
    * @returns {boolean}
    */
@@ -713,7 +716,8 @@ export class AgentThread extends Component {
 
     const body = h('div', { class: 'zx-agent-thread__body' });
     article.append(body);
-    switch (item.type) {
+    // An application's own renderer for `surface` goes the way of every registered type.
+    switch (item.type === 'surface' && AgentThread.#renderers.has('surface') ? '' : item.type) {
       case 'user': {
         const user = /** @type {Extract<ThreadItem, {type: 'user'}>} */ (item);
         body.append(h('div', { class: 'zx-agent-thread__bubble' },
@@ -755,7 +759,7 @@ export class AgentThread extends Component {
       case 'approval':
         this._buildApproval(entry, body, own);
         break;
-      case 'placeholder': {
+      case 'zx-placeholder': {
         const lines = Number(/** @type {any} */ (item).lines);
         body.setAttribute('aria-busy', 'true');
         body.append(skeletonText({ lines: Number.isInteger(lines) && lines > 0 && lines <= 12 ? lines : 2 }));
@@ -1246,7 +1250,7 @@ export class AgentThread extends Component {
       this._announce(this.msg(/** @type {any} */ (item).streaming ? 'agentThread.writing' : 'agentThread.answered', name));
     } else if (item.type === 'approval' && (/** @type {any} */ (item).status ?? 'pending') === 'pending') {
       this._announce(this.msg('agentThread.needsApproval', name));
-    } else if (item.type === 'surface' && asksForAnswer(/** @type {any} */ (item).document?.intent) && !(/** @type {any} */ (item).reply)) {
+    } else if (item.type === 'surface' && !AgentThread.#renderers.has('surface') && asksForAnswer(/** @type {any} */ (item).document?.intent) && !(/** @type {any} */ (item).reply)) {
       this._announce(this.msg('agentThread.needsAnswer', name));
     } else if (item.type === 'trace') {
       this._announce(this.msg('agentThread.working', name));
@@ -1402,7 +1406,7 @@ export class AgentThread extends Component {
 }
 
 /** Item types the thread draws itself. */
-const BUILT_IN = new Set(['user', 'text', 'answer', 'trace', 'approval', 'notice', 'surface', 'placeholder']);
+const BUILT_IN = new Set(['user', 'text', 'answer', 'trace', 'approval', 'notice', 'zx-placeholder']);
 
 /**
  * Whether a surface of this intent waits for the person's answer.

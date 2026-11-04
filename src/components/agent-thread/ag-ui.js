@@ -891,7 +891,7 @@ export function connectAgUi(thread, options = {}) {
     calls.set(id, entry);
     if (kind === 'surface') {
       entry.placeholder = `tool:${id}`;
-      placeForCall(entry, /** @type {ThreadItem} */ ({ id: entry.placeholder, type: 'placeholder', ...by(), lines: 4 }));
+      placeForCall(entry, /** @type {ThreadItem} */ ({ id: entry.placeholder, type: 'zx-placeholder', ...by(), lines: 4 }));
     } else if (kind === 'tile') {
       renderTile(entry);
     }

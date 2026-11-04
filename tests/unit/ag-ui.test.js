@@ -298,7 +298,7 @@ test('a surface tool stands as a skeleton, then its reply is the tool result wit
   const end = events.findIndex((event) => event.type === 'TOOL_CALL_END' && event.toolCallId === 'call_c2');
   play(events.slice(0, end));
   const placeholder = thread.items.get('tool:call_c2');
-  assert.equal(placeholder.type, 'placeholder');
+  assert.equal(placeholder.type, 'zx-placeholder');
   assert.equal(thread.surfaces.size, 0, 'the stand-in is no surface, so it never replies');
   play(events.slice(end, end + 2));
   assert.ok(!thread.items.has('tool:call_c2'));

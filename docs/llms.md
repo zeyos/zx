@@ -3445,9 +3445,10 @@ agents' answers as they stream (`BlockView` with a `SourceList`), the steps a ru
   initials (round for a `model`; `tone: 'accent'` for the accent's quiet fill); an `approval`'s
   `editedKeys` say which values the person changed. `setArtifactState()` is remembered for answers
   drawn later; `sourceIcons` is handed to every `SourceList`.
-- **Placeholders** — a `{type: 'placeholder', id, author?, lines?}` item stands for something
+- **Placeholders** — a `{type: 'zx-placeholder', id, author?, lines?}` item stands for something
   still on its way, as a Skeleton under its author's byline; replace or remove it once the real
-  item is there. It neither replies nor is announced.
+  item is there. It neither replies nor is announced. The name is reserved; `placeholder` is free
+  for an application's own items.
 - **Methods** — `setItems(items)`, `upsert(item, {after?})` (adds, or replaces in place by `id`;
   a new item goes at the end, or right after the item `after` names — nothing else is redrawn),
   `patch(id, partial)` (an answer finishing, stopping or gaining sources, a trace's steps, an
@@ -3459,7 +3460,9 @@ agents' answers as they stream (`BlockView` with a `SourceList`), the steps a ru
   `getItems()`, `getComponent(id)`, `reveal(target)` (`item:<id>`, `step:<id>`, `source:<n>`),
   `scrollToEnd()`, `surface(id)` (the `Surface` of a `surface` item, to stream into), `destroy()`. The static `AgentThread.register(type, render)` draws an item type
   of the application's own; `render(item, {thread, author, own})` returns its content, and `own()`
-  hands a component to the thread to destroy with the item.
+  hands a component to the thread to destroy with the item. An application's renderer for
+  `surface` replaces the library's drawing of that type, and `has('surface')` answers false until
+  it does; the other built-in types cannot be replaced.
 - **Events** — `action {item, action, value?}` (`copy`, `regenerate`, `branch`, `rate` with
   `up`/`down`/null, `version` with an index — preventable for `rate` and `version`; `edit` on the
   reader's message; a notice's action id), `open {item, ref, step?}` (an item's link, or a trace
@@ -3534,7 +3537,7 @@ source.onmessage = (message) => adapter.handle(JSON.parse(message.data));
   decision is drawn, the card expires, and no decision is sent; a result after a rejection only
   fills the step.
 - **Surfaces** — a call named in `surfaceTools` is an `ask` step and a surface at the call's place,
-  a `placeholder` until its arguments are complete; its reply, plus the surface's `errors` when there are any, is the call's
+  a `zx-placeholder` until its arguments are complete; its reply, plus the surface's `errors` when there are any, is the call's
   result through `ontoolresult` — in AG-UI 1.0 a frontend tool, answered in the next run's input as
   `{role: 'tool', toolCallId, content}`. Arguments that are not a surface answer at once with
   `{error: 'invalid-arguments'}`. With `inlineSurfaces`, surface fences in answer text become
