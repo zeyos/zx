@@ -92,11 +92,9 @@ export function billingItemsConfig(options = {}) {
     return quantity !== null && price !== null ? quantity * price : null;
   };
   const columns = Array.isArray(suppliedColumns) ? suppliedColumns.map((column) => ({ ...column }))
-    : billingColumns(fields, {
-      units, currencies, currency, locale, decimals, columnOverrides,
-      // No instance exists yet, so a `msg` option is read the way `msg()` reads it off a borrower.
-      text: (key) => Component.prototype.msg.call({ options }, key)
-    });
+    // No instance exists yet, so a `msg` option is read the way `msg()` reads it off a borrower.
+    : presetColumns(fields, { units, currencies, currency, locale, decimals, columnOverrides },
+      (key) => Component.prototype.msg.call({ options }, key));
   return {
     rowId: fields.id,
     editMode: 'cell',
@@ -153,10 +151,20 @@ export function isBillingLine(row, fields = DEFAULT_FIELDS) {
 /**
  * Produces the preset columns without mutating overrides.
  * @param {BillingFields} fields Field map.
- * @param {{units: unknown, currencies: unknown, currency: string, locale?: string, decimals: number, columnOverrides: Record<string, object>, text?: (key: string) => string}} options Formatting/editor options; `text` resolves the column names.
+ * @param {{units: unknown, currencies: unknown, currency: string, locale?: string, decimals: number, columnOverrides: Record<string, object>}} options Formatting/editor options.
  * @returns {import('../table/table.js').TableColumn[]}
  */
-export function billingColumns(fields, { units, currencies, currency, locale, decimals, columnOverrides, text = translate }) {
+export function billingColumns(fields, options) {
+  return presetColumns(fields, options, translate);
+}
+
+/**
+ * @param {BillingFields} fields Field map.
+ * @param {{units: unknown, currencies: unknown, currency: string, locale?: string, decimals: number, columnOverrides: Record<string, object>}} options Formatting/editor options.
+ * @param {(key: string) => string} text Resolves the column names.
+ * @returns {import('../table/table.js').TableColumn[]}
+ */
+function presetColumns(fields, { units, currencies, currency, locale, decimals, columnOverrides }, text) {
   const editableLine = (type) => (row) => isBillingLine(row, fields) ? type : false;
   const rowCurrency = (row) => String(row?.[fields.currency] || currency);
   const rowUnit = (row) => String(row?.[fields.unit] ?? '');

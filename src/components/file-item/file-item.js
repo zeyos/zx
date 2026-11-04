@@ -131,7 +131,7 @@ export class FileItem extends Component {
     this.el = root;
     this._snapshot = this._createdRoot ? null : snapshotTarget(root);
     this._destroyed = false;
-    this._state = normalizeFileItem(this.options, this.msg('fileItem.actions'));
+    this._state = fileItemState(this.options, this.msg('fileItem.actions'));
 
     const entityHost = h('div', { ref: 'entity', class: 'zx-file-item__entity' });
     root.replaceChildren(
@@ -162,7 +162,7 @@ export class FileItem extends Component {
    */
   set(values = {}) {
     if (!values || typeof values !== 'object' || Array.isArray(values)) return this;
-    this._state = normalizeFileItem({ ...this._state, ...values }, this.msg('fileItem.actions'));
+    this._state = fileItemState({ ...this._state, ...values }, this.msg('fileItem.actions'));
     this._sync();
     return this;
   }
@@ -282,7 +282,16 @@ export class FileItem extends Component {
  * @param {Partial<FileItemOptions>|null|undefined} values Candidate values.
  * @returns {FileItemState}
  */
-export function normalizeFileItem(values = {}, actionsLabel = translate('fileItem.actions')) {
+export function normalizeFileItem(values = {}) {
+  return fileItemState(values, translate('fileItem.actions'));
+}
+
+/**
+ * @param {Partial<FileItemOptions>|null|undefined} values Candidate values.
+ * @param {string} actionsLabel Name of the secondary actions when the values give none.
+ * @returns {FileItemState}
+ */
+function fileItemState(values, actionsLabel) {
   const source = values && typeof values === 'object' && !Array.isArray(values) ? values : {};
   const rawSize = source.size == null || source.size === '' ? null : Number(source.size);
   const rawProgress = source.progress == null ? null : Number(source.progress);
@@ -318,7 +327,7 @@ export function normalizeFileItem(values = {}, actionsLabel = translate('fileIte
  */
 function entityOptions(state, text) {
   const metadata = [];
-  const type = state.typeLabel ?? fileTypeLabel(state.mime, state.name, text);
+  const type = state.typeLabel ?? typeLabel(state.mime, state.name, text);
   if (type) metadata.push({ label: text('fileItem.type'), value: type, showLabel: false });
   if (state.size !== null) {
     metadata.push({
@@ -443,10 +452,19 @@ function fileKind(mime) {
  * the result is empty — a raw MIME string is never shown.
  * @param {string} mime MIME type, possibly with parameters (`text/csv; charset=utf-8`).
  * @param {string} [name=''] File name, consulted only when the MIME type is unfamiliar.
- * @param {(key: string) => string} [text=translate] Resolves a family word; a FileItem passes its `msg()`.
  * @returns {string}
  */
-export function fileTypeLabel(mime, name = '', text = translate) {
+export function fileTypeLabel(mime, name = '') {
+  return typeLabel(mime, name, translate);
+}
+
+/**
+ * @param {string} mime MIME type, possibly with parameters.
+ * @param {string} name File name.
+ * @param {(key: string) => string} text Resolves a family word; a FileItem passes its `msg()`.
+ * @returns {string}
+ */
+function typeLabel(mime, name, text) {
   if (!String(mime ?? '').trim()) return '';
   const kind = fileKind(mime);
   if (kind) return kind.key ? text(kind.key) : kind.label;

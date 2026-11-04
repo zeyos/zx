@@ -153,10 +153,21 @@ export function stringifyFilterAst(value) {
  * @param {FilterAst} ast
  * @param {FilterField[]} fields
  * @param {FilterOperator[]} [operators=filterOperators]
+ * @returns {{valid:boolean, errors:FilterValidationError[]}}
+ */
+export function validateFilterAst(ast, fields, operators = filterOperators) {
+  return checkFilterAst(ast, fields, operators, filterText);
+}
+
+/**
+ * {@link validateFilterAst} with the messages of a component, not exported from the package.
+ * @param {FilterAst} ast
+ * @param {FilterField[]} fields
+ * @param {FilterOperator[]} operators
  * @param {FilterText} [text=filterText] Resolves the messages of the errors.
  * @returns {{valid:boolean, errors:FilterValidationError[]}}
  */
-export function validateFilterAst(ast, fields, operators = filterOperators, text = filterText) {
+export function checkFilterAst(ast, fields, operators, text = filterText) {
   const errors = [];
   const fieldMap = new Map((Array.isArray(fields) ? fields : []).map((field) => [String(field.id), field]));
   const operatorMap = new Map((Array.isArray(operators) ? operators : []).map((operator) => [String(operator.id), operator]));

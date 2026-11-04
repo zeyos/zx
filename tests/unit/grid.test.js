@@ -137,3 +137,10 @@ test('billing preset does not turn missing operands into zero totals', () => {
   } });
   assert.equal(changes.total, 0);
 });
+
+test('billingColumns reads only the options it documents', () => {
+  const columns = billingColumns(fields, {
+    units: [], currencies: [], currency: 'EUR', decimals: 2, columnOverrides: {}, text: 'a stray property'
+  });
+  assert.equal(columns[0].label, 'Item');
+});

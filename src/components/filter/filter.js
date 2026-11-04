@@ -5,8 +5,8 @@ import { printf } from '../../core/i18n.js';
 import { Select } from '../select/select.js';
 import { TagPicker } from '../tag-picker/tag-picker.js';
 import {
-  cloneFilterAst, cloneFilterValue, emptyFilterAst, filterCondition, filterGroup, filterOperatorLabel, filterOperators,
-  filterText, parseFilterAst, validateFilterAst
+  checkFilterAst, cloneFilterAst, cloneFilterValue, emptyFilterAst, filterCondition, filterGroup, filterOperatorLabel,
+  filterOperators, filterText, parseFilterAst
 } from './filter-model.js';
 
 /** @typedef {import('./filter-model.js').FilterAst} FilterAst */
@@ -250,7 +250,7 @@ export class Filter extends Component {
 
   /** Returns semantic validity and errors. @returns {{valid:boolean,errors:Array<Record<string,string>>}} */
   validate() {
-    const result = validateFilterAst(this._value, this._fields, this._operators, this._text);
+    const result = checkFilterAst(this._value, this._fields, this._operators, this._text);
     for (const node of conditionNodes(this._value.root)) {
       if (!isRelativeDateOperator(this._operator(node.operator))) continue;
       // The model only checks that both halves of the pair are filled; a span also needs a
@@ -262,7 +262,7 @@ export class Filter extends Component {
       else result.errors.push({ nodeId: node.id, code: 'value', message });
       result.valid = false;
     }
-    const error = rootLogicError(this._value, this.options.rootLogic, this._text);
+    const error = logicError(this._value, this.options.rootLogic, this._text);
     if (error) { result.valid = false; result.errors.push(error); }
     return result;
   }
@@ -1005,10 +1005,19 @@ function cssEscape(value) { return globalThis.CSS?.escape ? CSS.escape(value) : 
  * Reports a restricted root mismatch without mutating the supplied expression.
  * @param {FilterAst} value Expression to validate.
  * @param {'and'|'or'|null} logic Required root logic.
+ * @returns {Record<string,string>|null} Actionable validation error, or null.
+ */
+export function rootLogicError(value, logic) {
+  return logicError(value, logic, filterText);
+}
+
+/**
+ * @param {FilterAst} value Expression to validate.
+ * @param {'and'|'or'|null} logic Required root logic.
  * @param {import('./filter-model.js').FilterText} [text=filterText] Resolves the error's message.
  * @returns {Record<string,string>|null} Actionable validation error, or null.
  */
-export function rootLogicError(value, logic, text = filterText) {
+function logicError(value, logic, text = filterText) {
   if (!logic || value.root.logic === logic) return null;
   return {nodeId: value.root.id, code: 'root-logic', message: text(logic === 'or' ? 'filter.requiresAny' : 'filter.requiresAll')};
 }

@@ -320,7 +320,7 @@ export class Chart extends Component {
 
   /** @returns {void} */
   _renderSummary() {
-    this.refs.summary.replaceChildren(chartSummaryTable(this._data, this._label, (key, ...args) => this.msg(key, ...args)));
+    this.refs.summary.replaceChildren(summaryTable(this._data, this._label, (key, ...args) => this.msg(key, ...args)));
   }
 }
 
@@ -471,13 +471,22 @@ const catalogueText = (key, ...args) => translate(key, args);
  * Builds the semantic table mirrored alongside the canvas.
  * @param {ChartData} data Chart data.
  * @param {string} [label] Caption, by default the `chart.summary` message ("Chart data").
- * @param {ChartText} [text=catalogueText] Resolves the table's own words; a Chart passes its `msg()`.
  * @returns {HTMLTableElement}
  */
-export function chartSummaryTable(data, label, text = catalogueText) {
-  const summary = chartSummaryModel(data, text);
+export function chartSummaryTable(data, label = translate('chart.summary')) {
+  return summaryTable(data, label, catalogueText);
+}
+
+/**
+ * @param {ChartData} data Chart data.
+ * @param {string} label Caption.
+ * @param {ChartText} text Resolves the table's own words; a Chart passes its `msg()`.
+ * @returns {HTMLTableElement}
+ */
+function summaryTable(data, label, text) {
+  const summary = summaryModel(data, text);
   const table = /** @type {HTMLTableElement} */ (h('table', { class: 'zx-chart__table' },
-    h('caption', {}, label ?? text('chart.summary')),
+    h('caption', {}, label),
     h('thead', {}, h('tr', {}, h('th', { scope: 'col' }, text('chart.summaryLabel')),
       summary.headers.map((header) => h('th', { scope: 'col' }, header)))),
     h('tbody', {}, summary.rows.map((row) => h('tr', {},
@@ -489,10 +498,18 @@ export function chartSummaryTable(data, label, text = catalogueText) {
 /**
  * Produces the exact text matrix rendered by the semantic chart summary.
  * @param {ChartData} data Chart data.
- * @param {ChartText} [text=catalogueText] Resolves the name of an unnamed series.
  * @returns {{headers: string[], rows: Array<{label: string, values: string[]}>}}
  */
-export function chartSummaryModel(data, text = catalogueText) {
+export function chartSummaryModel(data) {
+  return summaryModel(data, catalogueText);
+}
+
+/**
+ * @param {ChartData} data Chart data.
+ * @param {ChartText} text Resolves the name of an unnamed series.
+ * @returns {{headers: string[], rows: Array<{label: string, values: string[]}>}}
+ */
+function summaryModel(data, text) {
   const datasets = Array.isArray(data?.datasets) ? data.datasets : [];
   const labels = Array.isArray(data?.labels) ? data.labels : [];
   const length = Math.max(labels.length,

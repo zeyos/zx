@@ -9,7 +9,7 @@ import { kbd } from '../kbd/kbd.js';
 import { ProgressBar } from '../loading/progress-bar.js';
 import { NEXT_REVIEW, checkRules, ruleMessage } from './conditions.js';
 import {
-  applyExclusive, endsFlow, isEmptyAnswer, normalizeItems, progressOf, resolveFlow, resolveNext, validateAnswer
+  applyExclusive, endsFlow, isEmptyAnswer, normalizeItemList, progressOf, resolveFlow, resolveNext, validateAnswer
 } from './items.js';
 
 /**
@@ -257,7 +257,7 @@ export class Questionnaire extends Component {
    */
   setItems(list) {
     const previous = this.getActive();
-    const items = normalizeItems(list, (key) => this.msg(key));
+    const items = normalizeItemList(list, (key) => this.msg(key));
     const names = new Set(items.map((item) => item.name));
     this._items = items;
 

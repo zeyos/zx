@@ -308,3 +308,8 @@ test('progressOf reports the active section and copes with an empty flow', () =>
     index: 0, answered: 0, total: 0, percent: 0, section: ''
   });
 });
+
+test('normalizeItems ignores a stray argument, as a callback receives one', () => {
+  const [items] = [[{ name: 'free', title: 'Anything else?', input: true }]].map(normalizeItems);
+  assert.equal(items[0].input.label, 'Other');
+});

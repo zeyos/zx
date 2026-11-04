@@ -3939,6 +3939,12 @@ function chartCase() {
     },
     exercise({ component }) {
       assert(component.getInstance(), 'chart adapter was not mounted');
+      // The exported table keeps its 5.x signature: a null caption stays empty, and it runs as a callback.
+      const summaryData = { labels: ['a'], datasets: [{ data: [1] }] };
+      const caption = (table) => table.querySelector('caption').textContent;
+      assert(caption(zx.chartSummaryTable(summaryData)) === 'Chart data', 'chartSummaryTable lost its default caption');
+      assert(caption(zx.chartSummaryTable(summaryData, null)) === '', 'chartSummaryTable replaced a null caption');
+      assert(caption([summaryData].map(zx.chartSummaryTable)[0]) === '0', 'chartSummaryTable failed as an array callback');
       assert(component.refs.canvas.getAttribute('aria-label') === 'Chart'
         && component.el.querySelector('.zx-chart__table caption').textContent === 'Chart',
       'blank chart label did not fall back to an accessible canvas and summary name');

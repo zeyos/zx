@@ -117,14 +117,23 @@ const SHORTCUT_KEYS = '123456789abcdefghijklmnopqrstuvwxyz';
  * Normalizes and validates a list of item definitions. Never mutates its input; declarative
  * `when`, `next` and `validate` forms are copied.
  * @param {QuestionnaireItem[]} list Item definitions.
- * @param {(key: string) => string} [text=translate] Resolves the default label of a free-form input.
  * @returns {NormalizedItem[]}
  * @throws {TypeError} When the list, an item, or a name is malformed, a name repeats, or a
  *   declarative condition, branch list or rule list is malformed — including a condition naming
  *   an item that is not declared before it. A `when`, `next` or `validate` that is neither
  *   declarative nor a function does not throw: it reads as absent.
  */
-export function normalizeItems(list, text = translate) {
+export function normalizeItems(list) {
+  return normalizeItemList(list, translate);
+}
+
+/**
+ * {@link normalizeItems} with the messages of a component.
+ * @param {QuestionnaireItem[]} list Item definitions.
+ * @param {(key: string) => string} text Resolves the default label of a free-form input.
+ * @returns {NormalizedItem[]}
+ */
+export function normalizeItemList(list, text) {
   if (!Array.isArray(list)) throw new TypeError('Questionnaire items must be an array');
   /** @type {Set<string>} */
   const seen = new Set();

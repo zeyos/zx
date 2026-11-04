@@ -831,3 +831,8 @@ function kanbanMethodFixture(overrides = {}) {
   view._moveHandle = () => null;
   return view;
 }
+
+test('the exported descriptor helpers ignore a stray argument, as a callback receives one', () => {
+  assert.equal(normalizeKanbanDescriptors([{ id: 'open' }], 'column', 7)[0].label, 'open');
+  assert.equal(deriveKanbanDescriptors([{ lane: null }], (record) => record.lane, 7)[0].label, 'Unassigned');
+});

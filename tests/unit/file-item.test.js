@@ -50,3 +50,9 @@ test('the MIME icon is used only when the active icon set can draw it', () => {
     useBuiltinIcons();
   }
 });
+
+test('the exported helpers work as array callbacks', () => {
+  const states = [{ name: 'a.pdf' }, { name: 'b.pdf' }, { name: 'c.pdf' }].map(normalizeFileItem);
+  assert.deepEqual(states.map((state) => state.actionsLabel), ['File actions', 'File actions', 'File actions']);
+  assert.deepEqual(['application/pdf', 'image/png'].map(fileTypeLabel), ['PDF', 'Image']);
+});

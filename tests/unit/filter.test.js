@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-  cloneFilterAst, cloneFilterValue, emptyFilterAst, filterCondition, filterGroup, filterOperatorLabel,
+  checkFilterAst, cloneFilterAst, cloneFilterValue, emptyFilterAst, filterCondition, filterGroup, filterOperatorLabel,
   filterOperators, parseFilterAst, stringifyFilterAst, validateFilterAst
 } from '../../src/components/filter/filter-model.js';
 import { setTranslator } from '../../src/core/i18n.js';
@@ -125,7 +125,9 @@ const conditionAst = (node) => parseFilterAst({ version: 1, root: { kind: 'group
 ] } });
 
 /** @param {object} node @param {(...args: any[]) => string} [text] @returns {string[]} The messages. */
-const messagesFor = (node, text) => validateFilterAst(conditionAst(node), fields, undefined, text).errors.map((error) => error.message);
+const messagesFor = (node, text) => (text
+  ? checkFilterAst(conditionAst(node), fields, filterOperators, text)
+  : validateFilterAst(conditionAst(node), fields)).errors.map((error) => error.message);
 
 test('validation keeps its English word for word', () => {
   const nested = parseFilterAst({ version: 1, root: { kind: 'group', id: 'root', logic: 'and', children: [
@@ -160,7 +162,19 @@ test('the root logic error is one sentence per logic', async () => {
   const ast = sampleAst();
   assert.equal(rootLogicError(ast, 'or').message, 'This filter requires match any conditions.');
   assert.equal(rootLogicError({ ...ast, root: { ...ast.root, logic: 'or' } }, 'and').message, 'This filter requires match all conditions.');
-  assert.equal(rootLogicError(ast, 'or', (key) => key).message, 'filter.requiresAny');
+  setTranslator((key) => de[key]);
+  try {
+    assert.equal(rootLogicError(ast, 'or').message, de['filter.requiresAny']);
+  } finally {
+    setTranslator(null);
+  }
+});
+
+test('the exported validators ignore a stray argument, as a callback receives one', async () => {
+  const { rootLogicError } = await import('../../src/components/filter/filter.js');
+  const ast = sampleAst();
+  assert.deepEqual([ast].map((value, index) => validateFilterAst(value, fields, filterOperators, index).valid), [true]);
+  assert.equal(rootLogicError(ast, 'or', 0).message, 'This filter requires match any conditions.');
 });
 
 test('a TagPicker value round-trips through the AST with its raw values', async () => {

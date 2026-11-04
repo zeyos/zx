@@ -1,0 +1,920 @@
+{
+  "components/activity-item/activity-item.js": {
+    "normalizeActivityAction": 1,
+    "normalizeActivityTimestamp": 2,
+    "resolveActivityActions": 1,
+    "resolveActivityState": 2
+  },
+  "components/activity-list/activity-list.js": {
+    "groupActivityItems": 2,
+    "normalizeActivityItems": 1,
+    "normalizeActivityListVariant": 1
+  },
+  "components/agent-thread/ag-ui.js": {
+    "connectAgUi": 2
+  },
+  "components/agent-thread/ui-message-stream.js": {
+    "connectUiMessageStream": 2
+  },
+  "components/app-icon/app-icon.js": {
+    "appIcon": 1
+  },
+  "components/app-sidebar/app-sidebar.js": {
+    "presentationGlyph": 1
+  },
+  "components/approval-card/approval-card.js": {
+    "answerVerdict": 2,
+    "answeredTimeFormat": 2,
+    "approvalKeyAction": 2,
+    "approvalVerdict": 2,
+    "changedKeys": 3,
+    "displayValue": 2,
+    "editedEntries": 3,
+    "editedState": 2,
+    "formatAnsweredAt": 2,
+    "isEmptyValue": 1,
+    "mergeEditedKeys": 3,
+    "normalizeApprovalStatus": 1,
+    "normalizeEditedKeys": 1,
+    "normalizeReasonMode": 1,
+    "sameValue": 2,
+    "toDate": 1
+  },
+  "components/aurora/aurora.js": {
+    "expandAuroraColors": 1,
+    "normalizeAuroraColors": 1,
+    "normalizeAuroraIntensity": 1,
+    "normalizeAuroraPreset": 1
+  },
+  "components/avatar/avatar.js": {
+    "avatarInitials": 2,
+    "avatarTone": 1
+  },
+  "components/badge/badge.js": {
+    "badge": 1,
+    "badgeGroup": 1,
+    "normalizeBadgeTone": 1
+  },
+  "components/block-view/block-view.js": {
+    "renderBlocks": 2
+  },
+  "components/button/button.js": {
+    "button": 1,
+    "buttonGroup": 1,
+    "setButtonBusy": 2
+  },
+  "components/calendar/calendar-model.js": {
+    "addCalendarDays": 2,
+    "addCalendarMonths": 2,
+    "calendarDayDifference": 2,
+    "calendarDayKey": 1,
+    "calendarEventIntersects": 3,
+    "calendarEventSpansDays": 1,
+    "calendarPageDate": 4,
+    "calendarRange": 3,
+    "cloneCalendarEvent": 1,
+    "layoutCalendarSpans": 3,
+    "layoutTimedCalendarEvents": 3,
+    "normalizeCalendarEvents": 2,
+    "shiftCalendarEvent": 2,
+    "startOfCalendarDay": 1,
+    "startOfCalendarWeek": 2
+  },
+  "components/card-view/card-view.js": {
+    "cardColumnCount": 1,
+    "cardGridRows": 2,
+    "cardGridTarget": 4,
+    "cardPageSize": 3,
+    "groupCardRecords": 5,
+    "normalizeCardWidth": 1
+  },
+  "components/card-view/record-card.js": {
+    "createRecordCard": 3,
+    "partitionRecordCardFields": 3,
+    "resolveRecordActions": 3,
+    "resolveRecordLink": 3,
+    "resolveRecordPreview": 5
+  },
+  "components/chart/chart.js": {
+    "chartSummaryModel": 1,
+    "chartSummaryTable": 2,
+    "cloneChartValue": 1,
+    "isEmptyChartData": 1
+  },
+  "components/checklist/field-adapter.js": {
+    "registerChecklistFieldAdapter": 0
+  },
+  "components/code-editor/code-editor.js": {
+    "editorPosition": 3,
+    "indentSelection": 5
+  },
+  "components/code-editor/field-adapter.js": {
+    "registerCodeEditorFieldAdapter": 0
+  },
+  "components/composer/composer.js": {
+    "acceptsFile": 2,
+    "autosizeHeight": 2,
+    "filterMentions": 2,
+    "isSubmitKey": 3,
+    "mentionQuery": 3,
+    "mentionsInText": 3,
+    "normalizeTools": 1,
+    "rowRange": 2
+  },
+  "components/composer/queue.js": {
+    "addToQueue": 3,
+    "emptyQueue": 1,
+    "isQueueFull": 2,
+    "queueLimit": 1,
+    "removeFromQueue": 2,
+    "takeNext": 1
+  },
+  "components/copy/copy-button.js": {
+    "copyButton": 1
+  },
+  "components/data-filter/filter-core.js": {
+    "applyFilters": 3,
+    "deriveSelectOptions": 2,
+    "getFilterValues": 2,
+    "isActiveFilterValue": 1,
+    "matchesText": 2,
+    "normalizeText": 1
+  },
+  "components/date-picker/date-range-picker.js": {
+    "clampRange": 2,
+    "defaultDateRangePresets": 0,
+    "normalizeRange": 2,
+    "rangeNights": 2,
+    "rangeStateOf": 3
+  },
+  "components/date-picker/field-adapter.js": {
+    "registerDatePickerFieldAdapters": 0
+  },
+  "components/date-picker/range-field-adapter.js": {
+    "registerDateRangeFieldAdapter": 0
+  },
+  "components/datebox/date-range-box.js": {
+    "formatRangeText": 3,
+    "parseRangeText": 3
+  },
+  "components/datebox/datebox.js": {
+    "dateboxFormats": 1
+  },
+  "components/datebox/field-adapter.js": {
+    "registerDateboxFieldAdapters": 0
+  },
+  "components/dialog/dialog.js": {
+    "normalizeDialogButtons": 1,
+    "typeToConfirmParts": 2,
+    "typedConfirmation": 2
+  },
+  "components/empty-state/empty-state.js": {
+    "emptyState": 1
+  },
+  "components/entity-ref/entity-ref.js": {
+    "normalizeEntityRef": 1,
+    "normalizeEntityRefActions": 1,
+    "normalizeEntityRefLink": 1,
+    "normalizeEntityRefMetadata": 1
+  },
+  "components/field/field.js": {
+    "coerceFloat": 1,
+    "coerceInteger": 1
+  },
+  "components/field-upload/field-adapter.js": {
+    "registerFieldUploadAdapter": 0
+  },
+  "components/fieldset/external-adapter.js": {
+    "externalAdapter": 2,
+    "externalElement": 1,
+    "readExternalDisabled": 1,
+    "readExternalReadonly": 1,
+    "readExternalValue": 1
+  },
+  "components/file-item/file-item.js": {
+    "fileTypeIcon": 1,
+    "fileTypeLabel": 2,
+    "normalizeFileItem": 1
+  },
+  "components/file-list/file-list.js": {
+    "normalizeFileListItems": 1
+  },
+  "components/filter/filter-model.js": {
+    "cloneFilterAst": 1,
+    "cloneFilterValue": 1,
+    "emptyFilterAst": 0,
+    "filterCondition": 1,
+    "filterGroup": 2,
+    "parseFilterAst": 2,
+    "stringifyFilterAst": 1,
+    "validateFilterAst": 3
+  },
+  "components/filter/filter.js": {
+    "filterConnectorText": 2,
+    "filterTagItems": 1,
+    "filterTagValue": 1,
+    "nextFilterGroupLogic": 3,
+    "readRelativeDateValue": 1,
+    "relativeDateValue": 2,
+    "relativeDateValueError": 1,
+    "rootLogicError": 2,
+    "withFilterMessage": 3
+  },
+  "components/filter-panel/filter-panel.js": {
+    "isActiveValue": 1,
+    "normalizeOptions": 1,
+    "normalizePanelTimeZone": 1,
+    "parseFieldType": 1,
+    "pruneValue": 1,
+    "serializeDate": 4,
+    "serializeFilterValue": 4,
+    "toDateInput": 2,
+    "toDraft": 3
+  },
+  "components/grid/grid.js": {
+    "billingColumns": 2,
+    "billingItemsConfig": 1,
+    "isBillingLine": 2
+  },
+  "components/kanban-view/kanban-card.js": {
+    "createKanbanAvatars": 4,
+    "createKanbanCardHead": 1,
+    "createKanbanIndicator": 1,
+    "createKanbanProgress": 3,
+    "kanbanAvatarLimit": 2,
+    "resolveKanbanAssignees": 1,
+    "resolveKanbanIndicator": 2,
+    "resolveKanbanProgress": 2
+  },
+  "components/kanban-view/kanban-policy.js": {
+    "absoluteKanbanIndex": 2,
+    "allowsKanbanTransition": 3,
+    "clampKanbanIndex": 2,
+    "createKanbanHistory": 1,
+    "evaluateKanbanMove": 1,
+    "kanbanSearchTerms": 1,
+    "locateKanbanRecord": 3,
+    "matchesKanbanSearch": 2,
+    "normalizeAxisId": 1,
+    "normalizeKanbanRules": 1,
+    "readKanbanAccessor": 3,
+    "reorderKanbanRecords": 3,
+    "resolveKanbanRules": 3
+  },
+  "components/kanban-view/kanban-view.js": {
+    "deriveKanbanDescriptors": 2,
+    "normalizeKanbanDescriptors": 2,
+    "reconcileKanbanOrder": 2,
+    "reconcileKanbanPreference": 3,
+    "reorderKanbanData": 4
+  },
+  "components/kbd/kbd.js": {
+    "kbd": 2,
+    "keyLabels": 2
+  },
+  "components/launcher/launcher.js": {
+    "findLauncherPage": 2,
+    "isLauncherPage": 1,
+    "launcherShortcutCaps": 1,
+    "orderedLauncherSourceItems": 2,
+    "rankLauncherItems": 3
+  },
+  "components/layout/layout.js": {
+    "aspect": 2,
+    "grid": 2,
+    "stack": 2
+  },
+  "components/list-toolbar/list-toolbar.js": {
+    "countLineText": 2,
+    "normalizeToolBadge": 1,
+    "normalizeTools": 1,
+    "normalizeViewList": 1,
+    "recordViewCapabilities": 1,
+    "resolveView": 3,
+    "toolAccessibleName": 3
+  },
+  "components/loading/spinner.js": {
+    "spinner": 1
+  },
+  "components/message/message.js": {
+    "messageTimeout": 2,
+    "normalizeMessageAction": 1
+  },
+  "components/modal/modal.js": {
+    "initialFocusTarget": 1
+  },
+  "components/module-bar/module-bar.js": {
+    "liftSections": 3,
+    "moduleOf": 2,
+    "partitionModules": 4,
+    "resolveModuleColor": 1
+  },
+  "components/multi-value-editor/field-adapter.js": {
+    "registerMultiValueEditorFieldAdapter": 0
+  },
+  "components/navigation-bar/navigation-bar.js": {
+    "lengthToPixels": 2,
+    "resolveMinVisible": 2,
+    "resolveOverflowBelow": 1
+  },
+  "components/number-field/field-adapter.js": {
+    "registerNumberFieldAdapter": 0
+  },
+  "components/number-field/number-field.js": {
+    "parseNumber": 2,
+    "snapNumber": 2
+  },
+  "components/pagination/pagination.js": {
+    "paginationRange": 1
+  },
+  "components/prose/prose.js": {
+    "proseAnchors": 2,
+    "sectionHref": 2
+  },
+  "components/questionnaire/conditions.js": {
+    "checkCondition": 2,
+    "checkNext": 2,
+    "checkRuleList": 1,
+    "checkRules": 3,
+    "evaluate": 2,
+    "isEmptyAnswer": 1,
+    "resolveNext": 3,
+    "ruleMessage": 2
+  },
+  "components/questionnaire/items.js": {
+    "applyExclusive": 3,
+    "endsFlow": 2,
+    "isVisible": 2,
+    "normalizeChoices": 2,
+    "normalizeItems": 1,
+    "progressOf": 3,
+    "resolveFlow": 2,
+    "resolveNext": 3,
+    "validateAnswer": 3,
+    "visibleItems": 2
+  },
+  "components/questionnaire/questionnaire.js": {
+    "ruleText": 3
+  },
+  "components/rating/field-adapter.js": {
+    "registerRatingFieldAdapter": 0
+  },
+  "components/run-status/run-status.js": {
+    "compactMode": 1,
+    "costLevel": 2,
+    "currentTime": 1,
+    "formatCompactNumber": 2,
+    "formatRunCost": 2,
+    "formatTokens": 2,
+    "runDate": 1,
+    "runTimeKeys": 1,
+    "stepProgress": 1,
+    "tokenMeter": 3,
+    "tokenTotal": 1
+  },
+  "components/run-trace/run-trace.js": {
+    "elapsedSince": 2,
+    "groupRetries": 1,
+    "prettyArguments": 1,
+    "rowKind": 2,
+    "stepIcon": 2,
+    "stepMeta": 2,
+    "traceLabel": 3,
+    "truncateText": 2
+  },
+  "components/select/color.js": {
+    "itemColor": 1
+  },
+  "components/select/field-adapter.js": {
+    "registerSelectFieldAdapter": 0
+  },
+  "components/select/filter.js": {
+    "matchItems": 3
+  },
+  "components/select/glyphs.js": {
+    "normalizePriorityLevel": 1,
+    "normalizeStatusId": 1,
+    "priorityIcon": 2,
+    "resolveStatusGlyph": 2,
+    "statusIcon": 2
+  },
+  "components/skeleton/skeleton.js": {
+    "skeleton": 1,
+    "skeletonTable": 1,
+    "skeletonText": 1
+  },
+  "components/slider/field-adapter.js": {
+    "registerSliderFieldAdapter": 0
+  },
+  "components/slider/slider.js": {
+    "stepPrecision": 1
+  },
+  "components/sort-control/sort-control.js": {
+    "normalizeSortValue": 2,
+    "sortChoices": 1
+  },
+  "components/source-list/source-list.js": {
+    "sourceHost": 1,
+    "sourceHref": 1,
+    "sourceKind": 1,
+    "sourceName": 1
+  },
+  "components/split-view/split-view.js": {
+    "clampSize": 1,
+    "snapSize": 3
+  },
+  "components/stat-tile/stat-tile.js": {
+    "formatStatValue": 2,
+    "normalizeStatTileVariant": 1,
+    "statDelta": 2,
+    "statTile": 1,
+    "statTileName": 1,
+    "statTileTag": 1,
+    "statTrendPoints": 2
+  },
+  "components/stepper/steps.js": {
+    "completedByAdvance": 3,
+    "normalizeSteps": 1,
+    "resolveStepIndex": 3,
+    "stepIndex": 2,
+    "stepState": 3
+  },
+  "components/surface/catalog.js": {
+    "assertCatalog": 1,
+    "narrowCatalog": 2,
+    "surfacePrompt": 2,
+    "surfaceSchema": 1,
+    "surfaceTools": 1,
+    "workedExamples": 2
+  },
+  "components/surface/elicit.js": {
+    "elicit": 2,
+    "elicitDocument": 2
+  },
+  "components/surface/mcp.js": {
+    "elicitationHandler": 1,
+    "elicitationUrl": 1,
+    "urlConsentDocument": 3
+  },
+  "components/surface/schema.js": {
+    "checkValue": 4,
+    "choicesOf": 1,
+    "kindOf": 1,
+    "propertyProblems": 1,
+    "schemaToFields": 1,
+    "toJsonValue": 2,
+    "unsupported": 1
+  },
+  "components/surface/stream.js": {
+    "inlineSplitter": 1,
+    "lineSplitter": 2
+  },
+  "components/surface/surface.js": {
+    "openSurface": 2
+  },
+  "components/surface/text.js": {
+    "createReply": 2,
+    "inputNames": 2,
+    "localDateTime": 1,
+    "messageResolver": 2,
+    "plainInline": 2,
+    "readProp": 3,
+    "surfaceMessage": 2,
+    "surfaceText": 3,
+    "surfaceVisibility": 2,
+    "verdictText": 3,
+    "visibleSteps": 3
+  },
+  "components/surface/validate.js": {
+    "cellLimitMessage": 1,
+    "createValidationState": 1,
+    "describeValue": 1,
+    "normaliseLink": 1,
+    "stateToDocument": 2,
+    "tableCells": 2,
+    "validateDocument": 3,
+    "validateOp": 3,
+    "validateValue": 4
+  },
+  "components/table/sort.js": {
+    "compareDates": 2,
+    "compareNumbers": 2,
+    "compareStrings": 2,
+    "compareValues": 3,
+    "createComparator": 2,
+    "sortRows": 3
+  },
+  "components/table/table.js": {
+    "diffChanges": 2,
+    "editorSelectsOnEntry": 1,
+    "firstValidationError": 4,
+    "formatCellValue": 3,
+    "formatTableCell": 3,
+    "hasSpanningRow": 3,
+    "isSpanningRow": 3,
+    "moveTableColumn": 4,
+    "normalizeEditorOptions": 2,
+    "normalizeTableColumns": 1,
+    "normalizeTableVariant": 1,
+    "parseCellValue": 3,
+    "projectHierarchyRows": 4,
+    "reconcileTableColumnOrder": 2,
+    "reorderTableRows": 6,
+    "resolveEditable": 2,
+    "resolveRowKind": 2,
+    "resolveRowKindSpec": 2,
+    "sortHierarchyRows": 5,
+    "spanRowContent": 4,
+    "tableColumnName": 1,
+    "tableGridTarget": 3,
+    "tableHeaderName": 1,
+    "tablePageSize": 3,
+    "tableRowLabel": 2,
+    "tableSpanColspan": 2,
+    "treegridArrowAction": 2,
+    "valuesEqual": 2
+  },
+  "components/table/window.js": {
+    "tableWindow": 1,
+    "tableWindowScroll": 1,
+    "tableWindowSegments": 4
+  },
+  "components/table-view/table-view.js": {
+    "fieldsToTableColumns": 1,
+    "tableOptionsForView": 2
+  },
+  "components/tag-picker/field-adapter.js": {
+    "registerTagPickerFieldAdapter": 0
+  },
+  "components/timebox/field-adapter.js": {
+    "registerTimeboxFieldAdapter": 0
+  },
+  "components/timebox/timebox.js": {
+    "joinTime": 2,
+    "splitTime": 2
+  },
+  "components/toggle/field-adapter.js": {
+    "registerToggleFieldAdapter": 0
+  },
+  "components/toolbar/toolbar.js": {
+    "normalizeItems": 1
+  },
+  "components/tooltip/tooltip.js": {
+    "describe": 2,
+    "tooltip": 2
+  },
+  "components/tree/hierarchy.js": {
+    "createReaders": 1,
+    "descendants": 2,
+    "filterTree": 4,
+    "findNode": 3,
+    "flattenVisible": 3,
+    "isBranch": 2,
+    "pathTo": 3,
+    "walk": 4
+  },
+  "components/tree/tree.js": {
+    "isTreeTypeaheadKey": 1
+  },
+  "components/truncate/truncate.js": {
+    "isTruncated": 1,
+    "truncate": 2
+  },
+  "components/value-list/field-adapter.js": {
+    "registerValueListFieldAdapter": 0
+  },
+  "components/view/record-view.js": {
+    "moveViewField": 4,
+    "normalizeViewFieldControls": 1,
+    "normalizeViewFields": 1,
+    "normalizeViewState": 2,
+    "readViewField": 3,
+    "reconcileFieldOrder": 2,
+    "renderViewField": 3,
+    "sortViewRecords": 3,
+    "viewRecordId": 2
+  },
+  "components/view-settings/view-settings.js": {
+    "autoScrollDelta": 5,
+    "dropGapIndex": 2,
+    "groupingFieldIds": 2,
+    "isDiscreteFieldType": 1,
+    "matchesFieldQuery": 3,
+    "mergeViewField": 2,
+    "moveVisibleField": 5,
+    "normalizeBoard": 2,
+    "normalizeSections": 2,
+    "normalizeViewSettingsFields": 1,
+    "resolveFieldType": 2,
+    "showFieldInOrder": 3
+  },
+  "components/workspace-switcher/workspace-switcher.js": {
+    "formatWorkspaceLabel": 2,
+    "normalizeWorkspace": 1,
+    "normalizeWorkspaces": 1,
+    "resolveActive": 2,
+    "workspaceInitials": 2
+  },
+  "core/breakpoint.js": {
+    "breakpointOf": 1,
+    "matchBreakpoint": 2,
+    "onBreakpoint": 2
+  },
+  "core/date.js": {
+    "addDays": 2,
+    "addMonths": 2,
+    "clampDate": 3,
+    "formatDate": 2,
+    "getWeekStart": 1,
+    "isSameDay": 2,
+    "parseDate": 2
+  },
+  "core/dom.js": {
+    "appendCompact": 4,
+    "appendCompactChild": 4,
+    "appendContent": 2,
+    "applyCompactProperties": 2,
+    "compactElement": 3,
+    "fireCompactEvent": 3,
+    "fragment": 1,
+    "h": 3,
+    "highlightMatch": 3,
+    "htmlEscape": 1,
+    "offCompactEvent": 3,
+    "onCompactEvent": 4,
+    "parseCompactTag": 1,
+    "resolveElement": 1,
+    "restoreTarget": 2,
+    "safeHref": 1,
+    "snapshotTarget": 1
+  },
+  "core/drag-axis.js": {
+    "dragAxis": 2,
+    "resolveSize": 2
+  },
+  "core/export.js": {
+    "copyToClipboard": 1,
+    "downloadBlob": 3,
+    "toCsv": 3
+  },
+  "core/fontawesome.js": {
+    "faIconClasses": 2,
+    "kitUrl": 1,
+    "loadFontAwesomeKit": 1,
+    "parseIconSpec": 1
+  },
+  "core/format.js": {
+    "formatCurrency": 3,
+    "formatFileSize": 2,
+    "formatNumber": 2,
+    "formatPercent": 2,
+    "formatRelativeTime": 2
+  },
+  "core/http.js": {
+    "parseResult": 1,
+    "zeyosService": 3
+  },
+  "core/i18n.js": {
+    "defaultMessage": 1,
+    "getLanguage": 0,
+    "hostMessage": 1,
+    "legacyMessageKey": 1,
+    "printf": 2,
+    "setLanguage": 1,
+    "setTranslator": 1,
+    "translate": 2
+  },
+  "core/icons.js": {
+    "configureIcons": 1,
+    "getIconConfig": 0,
+    "icon": 2,
+    "iconNames": 0,
+    "loadFontAwesome": 1,
+    "registerIcons": 1,
+    "useBuiltinIcons": 0,
+    "useFontAwesome": 1
+  },
+  "core/keyboard.js": {
+    "captureItemFocus": 2,
+    "editableAllowsRoving": 2,
+    "focusTrap": 1,
+    "isEditableTarget": 1,
+    "restoreItemFocus": 3,
+    "rovingStep": 3,
+    "rovingTabindex": 3,
+    "typeahead": 2
+  },
+  "core/motion.js": {
+    "prefersReducedMotion": 1,
+    "watchMotion": 3
+  },
+  "core/overlay-host.js": {
+    "connectedOverlayHost": 2,
+    "openDialogOf": 1,
+    "overlayHost": 1,
+    "overlayScope": 1
+  },
+  "core/overlay-stack.js": {
+    "containsNode": 2,
+    "escapeCandidates": 2,
+    "findParent": 2,
+    "insideChain": 3,
+    "outsideTargets": 3,
+    "pushOverlay": 1,
+    "topmostEntry": 2
+  },
+  "core/position.js": {
+    "position": 3
+  },
+  "core/storage.js": {
+    "storage": 2
+  },
+  "core/util.js": {
+    "clamp": 3,
+    "debounce": 2,
+    "deepMerge": 2,
+    "escapeRegExp": 1,
+    "groupBy": 2,
+    "isCssColor": 1,
+    "isElement": 1,
+    "sortBy": 2,
+    "throttle": 3,
+    "toArray": 1,
+    "uid": 1,
+    "uniqueBy": 2
+  },
+  "elements/define.js": {
+    "defineElements": 1,
+    "elementFor": 2
+  },
+  "elements/definitions.js": {
+    "attributes": 1,
+    "bool": 1,
+    "createCallQueue": 0,
+    "data": 1,
+    "flag": 1,
+    "forward": 1,
+    "forwardedResult": 3,
+    "isDomCall": 2,
+    "json": 1,
+    "normalizeAttributes": 1,
+    "normalizeNumberOrString": 1,
+    "normalizeSelectable": 1,
+    "number": 1,
+    "prop": 1,
+    "records": 1,
+    "recordsPatch": 1,
+    "reflectPlain": 1,
+    "text": 1
+  },
+  "elements/reflect.js": {
+    "coerceAttribute": 3,
+    "serializeAttribute": 3
+  },
+  "index.js": {
+    "registerFieldAdapters": 0
+  },
+  "internal/agent-model.js": {
+    "blocksToMarkdown": 1,
+    "blocksToText": 1,
+    "figureRow": 1,
+    "formatDuration": 2,
+    "formatElapsed": 1,
+    "initialsOf": 1,
+    "inlineText": 1,
+    "normalizeActivity": 1,
+    "normalizeRunState": 1,
+    "parseInline": 1,
+    "runCost": 2,
+    "traceSummary": 1
+  },
+  "internal/app-rail.js": {
+    "appNavIcon": 3,
+    "normalizeAppItems": 1
+  },
+  "internal/highlight.js": {
+    "highlight": 2,
+    "isHighlighted": 1
+  },
+  "internal/json-patch.js": {
+    "applyPatch": 2,
+    "formatPointer": 1,
+    "getPointer": 2,
+    "hasPointer": 2,
+    "jsonEqual": 2,
+    "parsePointer": 1,
+    "removePointer": 2,
+    "setPointer": 3
+  },
+  "internal/menu-items.js": {
+    "isMenuItem": 1,
+    "menuItemRole": 1,
+    "renderMenuEntries": 3
+  },
+  "internal/presence-loop.js": {
+    "normalizePhase": 1,
+    "presenceOffset": 2,
+    "presencePeriod": 1,
+    "presencePhase": 1,
+    "presencePose": 2,
+    "trackPresence": 3
+  },
+  "internal/row-actions.js": {
+    "isRowAction": 1,
+    "isRowActionNode": 1,
+    "menuEntries": 2,
+    "planRowActions": 1,
+    "renderRowActions": 2,
+    "rowActionLabel": 2,
+    "rowActionMenu": 3,
+    "setRowActionsTabbable": 2
+  },
+  "zeyos/calendar.js": {
+    "buildZeyosCalendarOptions": 1,
+    "calendarEventToZeyosPatch": 1,
+    "zeyosAppointmentToEvent": 1,
+    "zeyosAppointmentsToEvents": 1,
+    "zeyosCalendar": 2
+  },
+  "zeyos/connect.js": {
+    "connect": 2,
+    "errorMessage": 1
+  },
+  "zeyos/form.js": {
+    "buildZeyosFormConfig": 3,
+    "zeyosForm": 3
+  },
+  "zeyos/icons.js": {
+    "moduleChip": 2,
+    "moduleIcon": 2,
+    "useZeyosIcons": 1,
+    "zeyosAppIcon": 2
+  },
+  "zeyos/launcher.js": {
+    "buildZeyosLauncherConfig": 2,
+    "mergeDestination": 2,
+    "normalizeApplication": 3,
+    "normalizeZeyosLauncherApplications": 2,
+    "normalizeZeyosLauncherRecords": 2,
+    "zeyosActiveIdentifier": 1,
+    "zeyosLauncher": 2
+  },
+  "zeyos/legacy-saved-views.js": {
+    "createLegacySavedViewTransport": 2,
+    "legacySavedViewRequest": 1
+  },
+  "zeyos/module-bar.js": {
+    "buildZeyosAppSidebarConfig": 2,
+    "buildZeyosModuleBarConfig": 2,
+    "zeyosModuleBar": 3,
+    "zeyosModuleItems": 2
+  },
+  "zeyos/modules.js": {
+    "moduleColor": 1,
+    "moduleGlyphColor": 1,
+    "moduleIconName": 2,
+    "moduleInfo": 1,
+    "moduleKeys": 0,
+    "normalizeModuleName": 1,
+    "registerModules": 1
+  },
+  "zeyos/query.js": {
+    "buildListQuery": 1,
+    "calendarDayToUnixSeconds": 2,
+    "calendarZone": 1,
+    "dataFilterStateToFilters": 3,
+    "dateToUnixSeconds": 1,
+    "normalizeTimeZone": 1,
+    "tableSortToQuery": 1,
+    "unixSecondsToCalendarDay": 2,
+    "unixSecondsToDate": 1
+  },
+  "zeyos/saved-views.js": {
+    "createSavedViewRegistry": 3,
+    "migrateSavedViewDocument": 2,
+    "normalizeSavedViewDocument": 3,
+    "normalizeSavedViewScope": 1
+  },
+  "zeyos/schema.js": {
+    "fieldToZxColumn": 1,
+    "fieldToZxField": 1,
+    "registerFieldType": 2,
+    "resolveFields": 3
+  },
+  "zeyos/select.js": {
+    "buildZeyosEntitySelectConfig": 3,
+    "buildZeyosSelectConfig": 3,
+    "normalizeZeyosListResult": 2,
+    "zeyosEntitySelect": 3,
+    "zeyosSelect": 3
+  },
+  "zeyos/table.js": {
+    "buildZeyosTableConfig": 3,
+    "createServerPager": 1,
+    "zeyosTable": 3
+  },
+  "zeyos/view.js": {
+    "buildZeyosViewConfig": 3,
+    "zeyosView": 4
+  }
+}

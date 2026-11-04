@@ -133,3 +133,8 @@ test('ChartJsAdapter destroys the old engine once when type reconstruction fails
   handle.destroy();
   assert.equal(destroys, 1);
 });
+
+test('chartSummaryModel works as an array callback', () => {
+  const [model] = [{ labels: ['a'], datasets: [{ data: [1] }] }].map(chartSummaryModel);
+  assert.deepEqual(model.headers, ['Series 1']);
+});

@@ -335,9 +335,9 @@ export class KanbanView extends RecordView {
     try {
       this._initRecordView(root);
       this._kanbanColumns = options.columns === null
-        ? null : normalizeKanbanDescriptors(options.columns, 'column', this._text('unassigned'));
+        ? null : kanbanDescriptors(options.columns, 'column', this._text('unassigned'));
       this._kanbanSwimlanes = options.swimlanes === null
-        ? null : normalizeKanbanDescriptors(options.swimlanes, 'swimlane', this._text('unassigned'));
+        ? null : kanbanDescriptors(options.swimlanes, 'swimlane', this._text('unassigned'));
       this._kanbanColumnOrder = normalizeOrder(options.columnOrder);
       this._kanbanSwimlaneOrder = normalizeOrder(options.swimlaneOrder);
       this._collapsedColumns = new Set(normalizeOrder(options.collapsedColumns));
@@ -429,7 +429,7 @@ export class KanbanView extends RecordView {
    * @returns {this}
    */
   setColumns(columns) {
-    this._kanbanColumns = columns === null ? null : normalizeKanbanDescriptors(columns, 'column', this._text('unassigned'));
+    this._kanbanColumns = columns === null ? null : kanbanDescriptors(columns, 'column', this._text('unassigned'));
     const descriptors = this._rawColumns();
     this._kanbanColumnOrder = reconcileKanbanPreference(
       descriptors, this._kanbanColumnOrder, this._kanbanColumns === null);
@@ -453,7 +453,7 @@ export class KanbanView extends RecordView {
    * @returns {this}
    */
   setSwimlanes(lanes) {
-    this._kanbanSwimlanes = lanes === null ? null : normalizeKanbanDescriptors(lanes, 'swimlane', this._text('unassigned'));
+    this._kanbanSwimlanes = lanes === null ? null : kanbanDescriptors(lanes, 'swimlane', this._text('unassigned'));
     const descriptors = this._rawSwimlanes();
     const preserveUnknown = this._kanbanSwimlanes === null && this._kanbanOptions().swimlaneBy != null;
     this._kanbanSwimlaneOrder = reconcileKanbanPreference(
@@ -1351,7 +1351,7 @@ export class KanbanView extends RecordView {
   _rawColumns() {
     const options = this._kanbanOptions();
     return this._kanbanColumns === null
-      ? deriveKanbanDescriptors(this._viewData, (record, index) => this._readAxis(options.columnBy, record, index),
+      ? derivedDescriptors(this._viewData, (record, index) => this._readAxis(options.columnBy, record, index),
         this._text('unassigned'))
       : this._kanbanColumns.map((column) => ({ ...column }));
   }
@@ -1369,7 +1369,7 @@ export class KanbanView extends RecordView {
     const options = this._kanbanOptions();
     if (options.swimlaneBy == null) return [];
     return this._kanbanSwimlanes === null
-      ? deriveKanbanDescriptors(this._viewData, (record, index) => this._readAxis(options.swimlaneBy, record, index),
+      ? derivedDescriptors(this._viewData, (record, index) => this._readAxis(options.swimlaneBy, record, index),
         this._text('unassigned'))
       : this._kanbanSwimlanes.map((lane) => ({ ...lane }));
   }
@@ -2431,11 +2431,19 @@ export class KanbanView extends RecordView {
  * Validates and clones configured column or lane descriptors.
  * @param {unknown} descriptors Descriptors.
  * @param {'column'|'swimlane'} [axis='column'] Descriptor kind.
- * @param {string} [unassigned] Name of a descriptor with no label or id, by default the
- *   `kanbanView.unassigned` message ("Unassigned").
  * @returns {KanbanColumn[]}
  */
-export function normalizeKanbanDescriptors(descriptors, axis = 'column', unassigned = translate('kanbanView.unassigned')) {
+export function normalizeKanbanDescriptors(descriptors, axis = 'column') {
+  return kanbanDescriptors(descriptors, axis, translate('kanbanView.unassigned'));
+}
+
+/**
+ * @param {unknown} descriptors Descriptors.
+ * @param {'column'|'swimlane'} axis Descriptor kind.
+ * @param {string} unassigned Name of a descriptor with no label or id.
+ * @returns {KanbanColumn[]}
+ */
+function kanbanDescriptors(descriptors, axis, unassigned) {
   if (!Array.isArray(descriptors)) throw new TypeError(`Kanban ${axis}s must be an array or null`);
   const seen = new Set();
   return /** @type {KanbanColumn[]} */ (descriptors.map((descriptor, index) => {
@@ -2479,11 +2487,19 @@ export function normalizeKanbanDescriptors(descriptors, axis = 'column', unassig
  * Derives stable descriptors from distinct accessor values in first-seen order.
  * @param {KanbanRecord[]} records Records.
  * @param {KanbanAccessor} accessor Grouping accessor.
- * @param {string} [unassigned] Name of the group without a value, by default the
- *   `kanbanView.unassigned` message ("Unassigned").
  * @returns {KanbanColumn[]}
  */
-export function deriveKanbanDescriptors(records, accessor, unassigned = translate('kanbanView.unassigned')) {
+export function deriveKanbanDescriptors(records, accessor) {
+  return derivedDescriptors(records, accessor, translate('kanbanView.unassigned'));
+}
+
+/**
+ * @param {KanbanRecord[]} records Records.
+ * @param {KanbanAccessor} accessor Grouping accessor.
+ * @param {string} unassigned Name of the group without a value.
+ * @returns {KanbanColumn[]}
+ */
+function derivedDescriptors(records, accessor, unassigned) {
   const result = [];
   const seen = new Set();
   records.forEach((record, index) => {

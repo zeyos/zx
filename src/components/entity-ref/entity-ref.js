@@ -118,7 +118,7 @@ export class EntityRef extends Component {
     this.el = root;
     this._snapshot = this._createdRoot ? null : snapshotTarget(root);
     this._destroyed = false;
-    this._state = normalizeEntityRef(this.options, this.msg('entityRef.actions'));
+    this._state = entityRefState(this.options, this.msg('entityRef.actions'));
     this._renderedActions = [];
 
     root.replaceChildren(
@@ -146,7 +146,7 @@ export class EntityRef extends Component {
    */
   set(values = {}) {
     if (!values || typeof values !== 'object' || Array.isArray(values)) return this;
-    this._state = normalizeEntityRef({ ...this._state, ...values }, this.msg('entityRef.actions'));
+    this._state = entityRefState({ ...this._state, ...values }, this.msg('entityRef.actions'));
     this._sync();
     return this;
   }
@@ -283,7 +283,16 @@ export class EntityRef extends Component {
  * @param {Partial<EntityRefOptions>|null|undefined} values Candidate values.
  * @returns {EntityRefState}
  */
-export function normalizeEntityRef(values = {}, actionsLabel = translate('entityRef.actions')) {
+export function normalizeEntityRef(values = {}) {
+  return entityRefState(values, translate('entityRef.actions'));
+}
+
+/**
+ * @param {Partial<EntityRefOptions>|null|undefined} values Candidate values.
+ * @param {string} actionsLabel Name of the secondary actions when the values give none.
+ * @returns {EntityRefState}
+ */
+function entityRefState(values, actionsLabel) {
   const source = values && typeof values === 'object' && !Array.isArray(values) ? values : {};
   const title = String(source.title ?? '');
   const link = normalizeEntityRefLink(source.link);

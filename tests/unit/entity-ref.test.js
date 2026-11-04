@@ -73,3 +73,8 @@ test('invalid descriptor callbacks fail at the normalization boundary', () => {
   assert.throws(() => normalizeEntityRefActions([{ id: 'open', label: 'Open', onselect: 'nope' }]),
     /must be a function/);
 });
+
+test('normalizeEntityRef works as an array callback', () => {
+  const states = [{ title: 'One' }, { title: 'Two' }].map(normalizeEntityRef);
+  assert.deepEqual(states.map((state) => state.actionsLabel), ['Entity actions', 'Entity actions']);
+});
