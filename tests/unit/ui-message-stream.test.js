@@ -1142,7 +1142,8 @@ function straight() {
   return drawn(thread);
 }
 
-test('a replay after a reconnect rebuilds the message, doubling and reporting nothing', () => {
+test('a replay after a reconnect rebuilds the message, doubling and reporting nothing', (context) => {
+  context.mock.timers.enable({ apis: ['Date'], now: 0 });
   for (const cut of [1, 4, 7, 9, 13, 16, RESPONSE.length - 1, RESPONSE.length]) {
     const { thread, stream, log, play } = connect({ tools: { lookup: tile([]) } });
     play(RESPONSE.slice(0, cut));
