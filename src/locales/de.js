@@ -6,8 +6,8 @@
  * The voice is that of a business application. It addresses the reader formally and prefers forms
  * that need no address at all ("Änderungen speichern"); buttons and menu items use the infinitive.
  * Quotation marks are „…“, the ellipsis is one character attached to its word, and a number stays
- * on the line of its unit through a non-breaking space. Established software terms (Tab, Token,
- * Prompt) stay; `docs/llms.md` lists the glossary.
+ * on the line of its unit through a non-breaking space. Established software terms (Agent, Board,
+ * Token, Tool) stay; `docs/llms.md` lists the glossary.
  *
  * @type {Readonly<Record<string, string>>}
  */
