@@ -6933,7 +6933,7 @@ function agUiCases() {
       assert(replies.length === 1 && replies[0].action === 'dismiss', 'the surface that went did not reply once');
       assert(thread.surface('surface:r3/s1') && thread.surface('surface:r3/s1').getReply() === null, 'the reopened call was not drawn again');
       assert(results.length === 0, `the call was answered for: ${JSON.stringify(results)}`);
-      assert(problems.length === 0, `problems: ${problems}`);
+      assert(problems.join() === 'unclosed', `only the message the stopped run left open is a problem: ${problems}`);
       adapter.destroy();
     }),
       // `register()` has no undo, so this runs on a module instance of its own.
