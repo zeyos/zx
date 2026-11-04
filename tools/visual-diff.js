@@ -648,16 +648,17 @@ function locateSections({ selector, layout }) {
   for (const node of document.querySelectorAll(selector)) {
     const box = node.getBoundingClientRect();
     if (box.width === 0 || box.height === 0) continue;
-    const x = Math.floor(box.left + window.scrollX);
-    const y = Math.floor(box.top + window.scrollY);
+    // Rounded as the browser snaps a box to pixels, so a section that only moved keeps its size.
+    const x = Math.round(box.left + window.scrollX);
+    const y = Math.round(box.top + window.scrollY);
     sections.push({
       id: node.id.replace(/^card-/, ''),
       title: node.querySelector('.studio-card__title')?.textContent ?? node.id,
       clip: {
         x,
         y,
-        width: Math.ceil(box.right + window.scrollX) - x,
-        height: Math.ceil(box.bottom + window.scrollY) - y
+        width: Math.round(box.right + window.scrollX) - x,
+        height: Math.round(box.bottom + window.scrollY) - y
       }
     });
   }
