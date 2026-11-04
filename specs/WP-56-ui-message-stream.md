@@ -125,7 +125,8 @@ regenerated. Public files must not mention this spec.
   - An `error` is not a message part, but a step the server takes back has not failed, so its notice
     goes too and the run does not end as failed.
   - The answer goes on where the step began. A retry may reuse the ids of the step it replaces, and
-    `runStatus` returns to `running`, or to `waiting` while an earlier card still waits.
+    `runStatus` returns to `running`, or to `waiting` while an earlier card still waits. An answer
+    that finished since the step began goes back to writing only at the thread's end.
   - A step that added nothing leaves the answer alone. Otherwise what stays is changed in place, so
     that a trace the reader opened stays open.
   - What already went out stays with the application: `ondata`, `onmetadata` and `onapproval` cannot
@@ -183,7 +184,10 @@ regenerated. Public files must not mention this spec.
    - text and files after a card or tile continuing in `<messageId>#<n>`, sources included;
    - `reset-step` taking back each kind of output, keeping earlier steps, and allowing a retry to
      reuse its ids;
-   - `replay()` rebuilding a response cut at any point, keeping earlier responses and decisions.
+   - `replay()` rebuilding a response cut at any point, keeping earlier responses and decisions;
+   - a `start` taking a restored answer over and overwriting nothing else;
+   - a `tool-approval-response` settling its card, and `onapproval` firing once per approval;
+   - blocks open side by side going out one after the other.
 3. The demo replays a fixture into an AgentThread and logs the callbacks.
 4. Changelog lines and the pinned protocol version are reported.
 5. Smoke cases replay the fixtures through a real AgentThread: the approval fixture shows its final
