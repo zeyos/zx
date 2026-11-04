@@ -54,15 +54,16 @@ const BUILT_IN_LABELS = new Map(filterOperators.map((operator) => [operator.id, 
 
 /**
  * The name to show for an operator. A built-in reads its `filter.op.<id>` message. A host-supplied
- * operator keeps its own label, unless that label is the built-in text for its ID: labels are
- * compared rather than objects so that `operators: filterOperators`, or a spread of a built-in that
- * changes something else, translates too.
+ * operator keeps its own label, or its lack of one, unless that label is the built-in text for its
+ * ID: labels are compared rather than objects so that `operators: filterOperators`, or a spread of a
+ * built-in that changes something else, translates too.
  * @param {FilterOperator} operator
  * @param {FilterText} [text=filterText]
  * @returns {string}
  */
 export function filterOperatorLabel(operator, text = filterText) {
-  return BUILT_IN_LABELS.get(operator.id) === operator.label ? text(`filter.op.${operator.id}`) : operator.label;
+  const builtIn = BUILT_IN_LABELS.has(operator.id) && BUILT_IN_LABELS.get(operator.id) === operator.label;
+  return builtIn ? text(`filter.op.${operator.id}`) : operator.label;
 }
 
 /** @returns {FilterAst} */
@@ -188,7 +189,7 @@ export function checkFilterAst(ast, fields, operators, text = filterText) {
       const allowed = Array.isArray(field.operators) && field.operators.length
         ? field.operators : operators.filter((candidate) => candidate.types.includes(field.type)).map((candidate) => candidate.id);
       if (!allowed.includes(operator.id) || !operator.types.includes(field.type)) {
-        errors.push(error(node.id, 'operator-type', text('filter.operatorType', filterOperatorLabel(operator, text), field.label)));
+        errors.push(error(node.id, 'operator-type', text('filter.operatorType', String(filterOperatorLabel(operator, text)), String(field.label))));
       }
     }
     if (!validArity(operator.arity, node.value)) {

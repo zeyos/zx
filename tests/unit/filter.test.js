@@ -116,6 +116,8 @@ test('a built-in operator reads its message, and a host-supplied operator keeps 
   assert.equal(filterOperatorLabel({ ...eq, label: 'equals' }, text), 'equals', 'a built-in id with its own label');
   assert.equal(filterOperatorLabel({ id: 'like', label: 'sounds like', arity: 'single', types: ['text'] }, text), 'sounds like');
   assert.equal(filterOperatorLabel(eq), 'is', 'the catalogue, when no text is given');
+  assert.equal(filterOperatorLabel({ id: 'like', arity: 'none', types: ['text'] }, text), undefined,
+    'an operator of the host without a label has no message to read');
   assert.equal(eq.label, 'is', 'the exported data stays as it was');
 });
 
@@ -143,6 +145,14 @@ test('validation keeps its English word for word', () => {
   assert.deepEqual(messagesFor({ field: 'status', operator: 'anyOf', value: [] }), ['Choose at least one value']);
   assert.deepEqual(messagesFor({ operator: 'isEmpty', value: 1 }), ['This operator does not accept a value']);
   assert.deepEqual(messagesFor({ value: '' }), ['Enter a value']);
+});
+
+test('validation writes an unnamed operator and field as it always has', () => {
+  const operators = [{ id: 'like', arity: 'none', types: ['text'] }];
+  const unnamedOperator = validateFilterAst(conditionAst({ operator: 'like', value: null }), fields, operators);
+  assert.deepEqual(unnamedOperator.errors.map((error) => error.message), ['undefined is not available for Amount']);
+  const unnamedField = validateFilterAst(conditionAst({ operator: 'contains' }), [{ id: 'amount', type: 'money' }]);
+  assert.deepEqual(unnamedField.errors.map((error) => error.message), ['contains is not available for undefined']);
 });
 
 test('validation asks the text it is given, and the host translator without one', () => {
