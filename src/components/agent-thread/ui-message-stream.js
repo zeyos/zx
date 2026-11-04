@@ -64,6 +64,12 @@ export const UI_MESSAGE_STREAM_VERSION = 'v1';
 /**
  * @typedef {Object} UiMessageStreamConnection
  * @property {(part: UiMessagePart) => void} handle Takes the next part of the stream.
+ * @property {(messageId?: string) => void} replay Says that the stream is about to be fed again from
+ * the `start` of the response it was reading, after a reconnect that returns the whole response:
+ * only the application knows that it reconnected. What that response drew goes, so that the replay
+ * rebuilds it, with nothing doubled and nothing reported. What earlier responses of the message drew
+ * stays, because a response is all a replay sends, and a decision stands. Without `messageId`, the
+ * message being read. A message this connection does not know is left alone.
  * @property {() => void} destroy Stops listening. An answer still open is stopped, a pending
  * approval expires, because no decision could reach the application any more, and a call still
  * going is stopped, because nothing can settle it.
@@ -85,18 +91,27 @@ export const UI_MESSAGE_STREAM_VERSION = 'v1';
  * @property {boolean} drawn Whether the first piece has steps on screen.
  * @property {boolean} failed Whether the run reported an error.
  * @property {boolean} closed Whether it finished or was stopped.
- * @property {boolean} implied Whether a part created it before its `start` arrived.
+ * @property {boolean} implied Whether its `start` is still to come: a part created it ahead of its
+ * `start`, or a replay is about to send it again.
+ * @property {boolean} replaying Whether its latest response is being sent again.
  * @property {boolean} quiet Whether the response that resumed it has written nothing yet.
  * @property {number} writes Counts what it wrote, so that a step can tell it wrote nothing.
  * @property {ThinkingState|null} thinking Its reasoning.
+ * @property {CallState[]} calls The calls it began, in order.
+ * @property {string[]} notices The error notices drawn while it was open, in order.
  * @property {StepMark} mark Where its current step began.
+ * @property {StepMark} response Where its latest response began.
  */
 
 /**
- * Where a message's current step began, and what that step added since: everything `reset-step`
- * has to take back. A call belongs to the step that began it, and its tile and card go with it; an
- * earlier call the step only moved on stays, as it does on the protocol's own client.
+ * A point in a message that it can go back to: where a step or a response began. Everything added
+ * since is what `reset-step` and `replay()` take back. A call belongs to the step that began it, and
+ * its tile and card go with it; an earlier call the step only moved on stays, as it does on the
+ * protocol's own client.
  * @typedef {Object} StepMark
+ * @property {number} at When it was taken, among the connection's marks.
+ * @property {number} calls How many calls the message had begun.
+ * @property {number} notices How many notices it had drawn.
  * @property {number} pieces How many pieces the message had.
  * @property {Block[]} blocks What its last piece showed.
  * @property {number} sources How many sources it had.
@@ -104,8 +119,6 @@ export const UI_MESSAGE_STREAM_VERSION = 'v1';
  * @property {Pick<MessageState, 'writing'|'hasText'|'gap'|'failed'|'quiet'>} state Where its text
  * stood.
  * @property {number} writes What it had written.
- * @property {Set<CallState>} calls The calls begun since.
- * @property {string[]} notices The error notices drawn since.
  */
 
 /**
@@ -136,6 +149,8 @@ export const UI_MESSAGE_STREAM_VERSION = 'v1';
  * @typedef {Object} ApprovalState
  * @property {string} id The approval id.
  * @property {CallState} call The call it holds.
+ * @property {MessageState|null} by The message being read when it was drawn.
+ * @property {number} at How many marks had been taken when it was drawn.
  * @property {boolean} settled Whether nothing can be decided any more.
  */
 
@@ -245,6 +260,9 @@ export function connectUiMessageStream(thread, options = {}) {
   const added = [];
   /** @type {MessageState|null} */
   let current = null;
+  /** @type {MessageState|null} The message read last. */
+  let latest = null;
+  let marks = 0;
   let destroyed = false;
 
   /**
@@ -345,13 +363,15 @@ export function connectUiMessageStream(thread, options = {}) {
     const message = /** @type {MessageState} */ ({
       id, pieces: [id], writing: true, steps: [], sources: [], listed: id, texts: new Set(), hasText: false,
       gap: false, drawn: false, failed: false, closed: false, implied, thinking: null, quiet: false,
-      writes: 0
+      writes: 0, replaying: false, calls: [], notices: []
     });
     messages.set(requested, message);
     current = message;
+    latest = message;
     if (adopted) adopt(message, taken);
     else add({ id, type: 'answer', ...byline, blocks: [], streaming: true });
     message.mark = markStep(message);
+    message.response = message.mark;
     return message;
   }
 
@@ -437,6 +457,8 @@ export function connectUiMessageStream(thread, options = {}) {
     endThinking(message);
     message.closed = true;
     message.writing = false;
+    message.implied = false;
+    message.replaying = false;
     // A response brings its own blocks, so one left open cannot hold its id into the next.
     message.texts.clear();
     if (current === message) current = null;
@@ -463,6 +485,8 @@ export function connectUiMessageStream(thread, options = {}) {
     message.failed = false;
     message.quiet = true;
     current = message;
+    latest = message;
+    message.response = markStep(message);
   }
 
   /**
@@ -494,7 +518,7 @@ export function connectUiMessageStream(thread, options = {}) {
       if (known) resumeMessage(known);
       else openMessage(id ?? uid('zx-ui-message'));
     }
-    runStatus?.update({ state: 'running', finished: null, waitingSince: null, ...(known ? {} : { started: new Date() }) });
+    runStatus?.update({ state: 'running', finished: null, waitingSince: null, ...(known || current?.replaying ? {} : { started: new Date() }) });
     sendMetadata(part);
   }
 
@@ -520,7 +544,11 @@ export function connectUiMessageStream(thread, options = {}) {
    */
   function markStep(message) {
     const { thinking, writing, hasText, gap, failed, quiet, writes } = message;
+    marks += 1;
     return {
+      at: marks,
+      calls: message.calls.length,
+      notices: message.notices.length,
       pieces: message.pieces.length,
       blocks: /** @type {{blocks?: Block[]}|null} */ (thread.get(tailOf(message)))?.blocks ?? [],
       sources: message.sources.length,
@@ -529,27 +557,33 @@ export function connectUiMessageStream(thread, options = {}) {
         text: thinking.text
       },
       state: { writing, hasText, gap, failed, quiet },
-      writes,
-      calls: new Set(),
-      notices: []
+      writes
     };
   }
 
   /**
-   * Takes back what a message's current step added, so that only what the server sends next stands
-   * in its place. The step itself stays open: its next parts need no `start-step` of their own. A
-   * step that added nothing leaves the answer alone, with whatever the reader has selected in it,
-   * and what stays is changed in place, so that what the reader opened stays open.
+   * Takes a message back to a mark, so that only what the server sends next stands in place of what
+   * it added since. The step or response itself stays open: its next parts need no `start-step` of
+   * their own. If it added nothing the answer is left alone, with whatever the reader has selected
+   * in it, and what stays is changed in place, so that what the reader opened stays open.
    * @param {MessageState} message
+   * @param {StepMark} mark
+   * @param {boolean} [again=false] Whether the same parts are about to come again, which rebuilds
+   * every card drawn since, also one for an earlier call, in its place among the rest.
    * @returns {void}
    */
-  function withdrawStep(message) {
-    const { mark } = message;
+  function withdraw(message, mark, again = false) {
+    const begun = new Set(message.calls.splice(mark.calls));
+    const notices = message.notices.splice(mark.notices);
     // No block is open any more, and the retry may name its blocks the same way.
     message.texts.clear();
-    if (!mark.calls.size && !mark.notices.length && message.writes === mark.writes && !message.thinking?.open.size) return;
-    for (const [id, approval] of approvals) {
-      if (!mark.calls.has(approval.call)) continue;
+    // A mark taken since no longer points at anything. The response falls back with it, and still
+    // began when it began: a replay sends no card from before that.
+    if (message.mark.at > mark.at) message.mark = mark;
+    if (message.response.at > mark.at) message.response = { ...mark, at: message.response.at };
+    const cards = [...approvals].filter(([, { call, by, at }]) => begun.has(call) || (again && by === message && at >= mark.at));
+    if (!begun.size && !cards.length && !notices.length && message.writes === mark.writes && !message.thinking?.open.size) return;
+    for (const [id, approval] of cards) {
       // A decision on its way cannot reach the application any more.
       approval.settled = true;
       approvals.delete(id);
@@ -557,7 +591,7 @@ export function connectUiMessageStream(thread, options = {}) {
     }
     /** @type {Set<TraceStep>} */
     const steps = new Set();
-    for (const call of mark.calls) {
+    for (const call of begun) {
       steps.add(call.step);
       calls.delete(call.id);
       if (!call.tile) continue;
@@ -565,13 +599,11 @@ export function connectUiMessageStream(thread, options = {}) {
       takeBack(call.tile);
     }
     message.steps = message.steps.filter((step) => !steps.has(step));
-    for (const id of [...message.pieces.splice(mark.pieces), ...mark.notices]) takeBack(id);
+    for (const id of [...message.pieces.splice(mark.pieces), ...notices]) takeBack(id);
     message.sources.length = mark.sources;
     restoreThinking(message, mark.thought);
     Object.assign(message, mark.state);
     message.writes = mark.writes;
-    mark.calls.clear();
-    mark.notices.length = 0;
 
     const traced = message.drawn;
     message.drawn = message.steps.length > 0;
@@ -590,7 +622,7 @@ export function connectUiMessageStream(thread, options = {}) {
 
   /** @param {UiMessagePart} part @returns {void} */
   function onResetStep(part) {
-    if (current) withdrawStep(current);
+    if (current) withdraw(current, current.mark);
     else report('reset-step arrived outside a message', part);
   }
 
@@ -751,7 +783,7 @@ export function connectUiMessageStream(thread, options = {}) {
     };
     if (name) call.step.tool = name;
     calls.set(id, call);
-    message.mark.calls.add(call);
+    message.calls.push(call);
     message.steps.push(call.step);
     drawSteps(message);
     drawTile(call);
@@ -768,7 +800,8 @@ export function connectUiMessageStream(thread, options = {}) {
   function callOf(part, { expected = false } = {}) {
     const known = calls.get(String(part.toolCallId));
     if (known) return known;
-    if (!expected) report(`${part.type} arrived before the start of tool call ${part.toolCallId}`, part);
+    // A replay may name a call a reset-step of the same stream already took back.
+    if (!expected && !current?.replaying) report(`${part.type} arrived before the start of tool call ${part.toolCallId}`, part);
     return addCall(part);
   }
 
@@ -937,14 +970,16 @@ export function connectUiMessageStream(thread, options = {}) {
     if (part.isAutomatic) return;
     // A request that arrives again was answered once, and that answer stands.
     const decision = decisions.get(approvalId);
-    approvals.set(id, { id: approvalId, call, settled: Boolean(decision) });
+    approvals.set(id, { id: approvalId, call, by: current, at: marks, settled: Boolean(decision) });
     const code = call.args === null ? call.argsText : asText(call.args);
     // The answer ends before the card joins, so the thread's last word is that it needs approval,
     // not that it answered. A card for an earlier call outlives a reset of this step, and the answer
     // above it stays ended with it.
     if (current) {
       endPiece(current);
-      if (!current.mark.calls.has(call)) current.mark.state.writing = false;
+      for (const mark of [current.mark, current.response]) {
+        if (!current.calls.includes(call, mark.calls)) mark.state.writing = false;
+      }
     }
     add({
       id,
@@ -1098,7 +1133,7 @@ export function connectUiMessageStream(thread, options = {}) {
     const id = uid('zx-ui-error');
     if (current) {
       current.failed = true;
-      current.mark.notices.push(id);
+      current.notices.push(id);
     }
     add({ id, type: 'notice', tone: 'danger', text: String(part.errorText ?? '') });
     runStatus?.update({ state: 'failed' });
@@ -1150,6 +1185,21 @@ export function connectUiMessageStream(thread, options = {}) {
       if (typeof type === 'string' && Object.hasOwn(handlers, type)) handlers[type](part);
       else if (typeof type === 'string' && type.length > 5 && type.startsWith('data-')) options.ondata?.(type.slice(5), part.data, part.id);
       else options.onunknown?.(part);
+    },
+    replay(messageId) {
+      if (destroyed) return;
+      const message = messageId == null ? current ?? latest : messages.get(String(messageId));
+      if (!message) return;
+      if (current && current !== message) stopMessage(current);
+      withdraw(message, message.response, true);
+      message.closed = false;
+      message.failed = false;
+      message.implied = true;
+      message.replaying = true;
+      current = message;
+      latest = message;
+      const waiting = waitingForPerson();
+      runStatus?.update({ state: waiting ? 'waiting' : 'running', finished: null, ...(waiting ? {} : { waitingSince: null }) });
     },
     destroy() {
       if (destroyed) return;

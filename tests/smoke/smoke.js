@@ -7333,7 +7333,64 @@ function uiMessageStreamCases() {
       button.click();
       await Promise.resolve();
       assert(!log.approval.length && !log.unknown.length && !log.error.length, `reported: ${log.approval} ${log.unknown} ${log.error}`);
-    })
+    }),
+
+    replay('AgentThread (stream: replay rebuilds a response without doubling it)', async ({ root, thread, stream, log, play }) => {
+      const first = [
+        { type: 'start', messageId: 'm' },
+        { type: 'text-start', id: 'a' },
+        { type: 'text-delta', id: 'a', delta: 'Before the card.' },
+        { type: 'text-end', id: 'a' },
+        { type: 'tool-input-available', toolCallId: 'c', toolName: 'lookup', input: {} },
+        { type: 'tool-approval-request', toolCallId: 'c', approvalId: 'a' },
+        { type: 'finish', finishReason: 'tool-calls' }
+      ];
+      const second = [
+        { type: 'start', messageId: 'm' },
+        { type: 'tool-output-available', toolCallId: 'c', output: 'ok' },
+        { type: 'text-start', id: 'a' },
+        { type: 'text-delta', id: 'a', delta: 'After the card.' },
+        { type: 'text-end', id: 'a' },
+        { type: 'finish', finishReason: 'stop' }
+      ];
+      play(first);
+      /** @type {HTMLButtonElement} */ (root.querySelector('.zx-approval-card__actions button')).click();
+      await Promise.resolve();
+
+      // The connection drops during the first response's successor: only that response comes again.
+      play(second.slice(0, 4));
+      stream.replay('m');
+      play(second);
+      assert(feed(root).join() === 'm,tool:c,approval:a,m#2' || feed(root).join() === 'm,approval:a,tool:c,m#2', `feed: ${feed(root)}`);
+      assert(paragraphs(root, 'm').join() === 'Before the card.', `the first response reads: ${paragraphs(root, 'm')}`);
+      assert(paragraphs(root, 'm#2').join() === 'After the card.', `the replayed response reads: ${paragraphs(root, 'm#2')}`);
+      assert(root.querySelector('.zx-approval-card')?.getAttribute('data-state') === 'approved', 'the decision went');
+      assertSettled(root, 'm#2');
+
+      // A whole response again, the decision in it included.
+      stream.replay('m');
+      play(second);
+      assert(paragraphs(root, 'm#2').join() === 'After the card.', `replayed twice: ${paragraphs(root, 'm#2')}`);
+      assert(log.approval.length === 1, `onapproval fired ${log.approval.length} times`);
+      assert(!log.error.length, `reported: ${log.error}`);
+
+      const asked = [
+        { type: 'start', messageId: 'n' },
+        { type: 'tool-input-available', toolCallId: 'd', toolName: 'lookup', input: {} },
+        { type: 'tool-approval-request', toolCallId: 'd', approvalId: 'b' },
+        { type: 'finish', finishReason: 'tool-calls' }
+      ];
+      play(asked);
+      /** @type {HTMLButtonElement} */ (article(root, 'approval:b').querySelector('.zx-approval-card__actions button')).click();
+      await Promise.resolve();
+      stream.replay('n');
+      play(asked);
+      assert(article(root, 'approval:b').querySelector('.zx-approval-card')?.getAttribute('data-state') === 'approved', 'the decision did not survive the replay of the response that asked');
+      assert(/** @type {HTMLElement} */ (article(root, 'approval:b').querySelector('.zx-approval-card__actions')).hidden, 'the card asks again');
+      assert(log.approval.length === 2, `onapproval fired ${log.approval.length} times`);
+      assert(!log.error.length, `reported: ${log.error}`);
+      assert(/** @type {any} */ (thread.get('n')).steps[0].status === 'running', 'the approved call did not go on');
+    }, { tools: { lookup: tile } })
   ];
 }
 

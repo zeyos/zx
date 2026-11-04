@@ -1073,6 +1073,223 @@ test('a retry that asks the same approval again finds it answered, and onapprova
   assert.notEqual(runStatus.states.at(-1), 'waiting');
 });
 
+/* ------------------------------------------------------------------ replay -- */
+
+/** The whole of one response, with something of every kind in it. */
+const RESPONSE = [
+  { type: 'start', messageId: 'm' }, { type: 'start-step' },
+  { type: 'reasoning-start', id: 'r' }, { type: 'reasoning-delta', id: 'r', delta: 'hm' }, { type: 'reasoning-end', id: 'r' },
+  ...said('a', 'Hello world.'),
+  { type: 'source-url', sourceId: 's', url: 'https://example.com/' },
+  ...ran('c'),
+  { type: 'file', url: 'https://example.com/report.pdf', mediaType: 'application/pdf' },
+  ...said('b', 'After the tile.'),
+  { type: 'error', errorText: 'Overloaded' },
+  { type: 'finish-step' }, { type: 'finish' }
+];
+
+/** @param {any} thread @returns {any} The thread as it stands, without generated ids. */
+const drawn = (thread) => thread.getItems().map(({ id, stopped, ...item }) => ({ ...item, stopped: Boolean(stopped), id: String(id).replace(/^zx-ui-error.*/, 'error') }));
+
+/** What a run reads straight through, to compare a replay with. */
+function straight() {
+  const { thread, play } = connect({ tools: { lookup: tile([]) } });
+  play(RESPONSE);
+  return drawn(thread);
+}
+
+test('a replay after a reconnect rebuilds the message, doubling and reporting nothing', () => {
+  for (const cut of [1, 4, 7, 9, 13, 16, RESPONSE.length - 1, RESPONSE.length]) {
+    const { thread, stream, log, play } = connect({ tools: { lookup: tile([]) } });
+    play(RESPONSE.slice(0, cut));
+    stream.replay('m');
+    play(RESPONSE);
+    assert.deepEqual(drawn(thread), straight(), `cut after ${cut} parts`);
+    assert.deepEqual(log.error, [], `cut after ${cut} parts`);
+  }
+});
+
+test('replay clears what the response drew at once, and the run goes on', () => {
+  const runStatus = fakeRunStatus();
+  const { thread, stream, log, play } = connect({ runStatus, tools: { lookup: tile([]) } });
+  play(RESPONSE);
+  assert.equal(runStatus.states.at(-1), 'failed');
+  stream.replay('m');
+  assert.deepEqual(thread.order(), ['m']);
+  const answer = /** @type {any} */ (thread.get('m'));
+  assert.deepEqual([answer.blocks, answer.steps, answer.sources], [[], [], []]);
+  assert.equal(answer.streaming, true);
+  assert.equal(runStatus.states.at(-1), 'running');
+  play([{ type: 'start', messageId: 'm' }, ...said('a', 'Again.'), { type: 'finish' }]);
+  assert.deepEqual(/** @type {any} */ (thread.get('m')).blocks.map((block) => block.text), ['Again.']);
+  assert.deepEqual(log.error, []);
+});
+
+test('a replay of a resumed message leaves what its earlier responses drew', async () => {
+  const { thread, stream, log, play } = connect();
+  play([{ type: 'start', messageId: 'm' }, ...said('a', 'First response.'), ...ASKED.slice(2), { type: 'finish' }]);
+  await thread.decide('approve', { item: thread.get('approval:a'), values: {} });
+  const second = [{ type: 'start', messageId: 'm' }, { type: 'tool-output-available', toolCallId: 'c', output: 'ok' }, ...said('b', 'Second response.'), { type: 'finish' }];
+  play(second.slice(0, 4));
+  stream.replay('m');
+  assert.deepEqual(thread.order(), ['m', 'approval:a']);
+  play(second);
+  assert.deepEqual(thread.order(), ['m', 'approval:a', 'm#2']);
+  assert.equal(/** @type {any} */ (thread.get('m')).blocks[0].text, 'First response.');
+  assert.deepEqual(/** @type {any} */ (thread.get('m#2')).blocks.map((block) => block.text), ['Second response.']);
+  assert.deepEqual(log.error, []);
+  assert.equal(log.approval.length, 1);
+});
+
+test('a decision survives the replay of the response that asked, and goes out once', async () => {
+  const runStatus = fakeRunStatus();
+  const { thread, stream, log, play } = connect({ runStatus });
+  const response = [...ASKED, { type: 'finish-step' }, { type: 'finish' }];
+  play(response);
+  await thread.decide('reject', { item: thread.get('approval:a'), reason: 'Not now' });
+  stream.replay('m');
+  assert.equal(thread.get('approval:a'), null);
+  play(response);
+  const card = /** @type {any} */ (thread.get('approval:a'));
+  assert.equal(card.status, 'rejected');
+  assert.equal(card.rejectReason, 'Not now');
+  assert.equal(/** @type {any} */ (thread.get('m')).steps[0].status, 'skipped');
+  assert.notEqual(runStatus.states.at(-1), 'waiting');
+  await thread.decide('approve', { item: card, values: {} });
+  assert.equal(log.approval.length, 1);
+  assert.deepEqual(log.error, []);
+});
+
+test('a question still open is asked again by the replay', async () => {
+  const { thread, stream, log, play } = connect();
+  play(ASKED);
+  stream.replay('m');
+  play(ASKED);
+  assert.equal(/** @type {any} */ (thread.get('approval:a')).status, 'pending');
+  await thread.decide('approve', { item: thread.get('approval:a'), values: {} });
+  assert.deepEqual(log.approval.map(([id]) => id), ['a']);
+  assert.deepEqual(log.error, []);
+});
+
+test('a card the response drew for an earlier call comes back in its place, not above the rest', () => {
+  const { thread, stream, log, play } = connect();
+  const second = [
+    { type: 'start', messageId: 'm' }, ...said('a', 'Above.'),
+    { type: 'tool-approval-request', toolCallId: 'c', approvalId: 'a' }, ...said('b', 'Below.'), { type: 'finish' }
+  ];
+  play([...ASKED.slice(0, 3), { type: 'finish' }, ...second]);
+  assert.deepEqual(thread.order(), ['m', 'approval:a', 'm#2']);
+  stream.replay('m');
+  assert.deepEqual(thread.order(), ['m']);
+  play(second);
+  assert.deepEqual(thread.order(), ['m', 'approval:a', 'm#2']);
+  assert.equal(/** @type {any} */ (thread.get('m')).blocks[0].text, 'Above.');
+  assert.equal(/** @type {any} */ (thread.get('approval:a')).status, 'pending');
+  assert.deepEqual(log.error, []);
+});
+
+test('a replay of an older message leaves the cards of the messages after it', () => {
+  const { thread, stream, play } = connect();
+  play([
+    { type: 'start', messageId: 'old' }, ...said('a', 'Old.'), { type: 'finish' },
+    { type: 'start', messageId: 'next' },
+    { type: 'tool-input-available', toolCallId: 'c', toolName: 'lookup', input: {} },
+    { type: 'tool-approval-request', toolCallId: 'c', approvalId: 'a' },
+    { type: 'finish' }
+  ]);
+  stream.replay('old');
+  assert.equal(/** @type {any} */ (thread.get('approval:a')).status, 'pending');
+});
+
+test('a card of an earlier response stays through a replay', () => {
+  const { thread, stream, play } = connect();
+  play([...ASKED, { type: 'finish' }, { type: 'start', messageId: 'm' }, ...said('a', 'More.')]);
+  stream.replay('m');
+  assert.deepEqual(thread.order(), ['m', 'approval:a']);
+});
+
+test('a card from before the response stays, also when a reset-step reached back past its start', () => {
+  const { thread, stream, log, play } = connect();
+  play([
+    { type: 'start', messageId: 'm' },
+    { type: 'tool-input-available', toolCallId: 'c', toolName: 'lookup', input: {} },
+    { type: 'tool-input-available', toolCallId: 'd', toolName: 'lookup', input: {} },
+    { type: 'finish-step' }, { type: 'start-step' },
+    { type: 'tool-approval-request', toolCallId: 'c', approvalId: 'a' },
+    { type: 'finish' }
+  ]);
+  const second = [
+    { type: 'start', messageId: 'm' }, ...said('a', 'Withdrawn.'),
+    { type: 'tool-approval-request', toolCallId: 'd', approvalId: 'b' },
+    { type: 'reset-step' }, { type: 'finish' }
+  ];
+  play(second);
+  assert.deepEqual(thread.order(), ['m', 'approval:a', 'approval:b']);
+  stream.replay('m');
+  assert.deepEqual(thread.order(), ['m', 'approval:a'], 'the first response is not sent again, so its card stays');
+  play(second);
+  assert.deepEqual(thread.order(), ['m', 'approval:a', 'approval:b']);
+  assert.deepEqual(log.error, []);
+});
+
+test('a replay that names a call a reset-step already took back reports nothing', () => {
+  const { thread, stream, log, play } = connect();
+  const second = [{ type: 'start', messageId: 'm' }, { type: 'tool-output-available', toolCallId: 'c', output: 'ok' }, { type: 'reset-step' }, { type: 'finish' }];
+  play([{ type: 'start', messageId: 'm' }, ...ran('c'), { type: 'finish' }, ...second]);
+  stream.replay('m');
+  play(second);
+  assert.deepEqual(log.error, []);
+  assert.deepEqual(/** @type {any} */ (thread.get('m')).steps, []);
+});
+
+test('without replay a start for a finished message still resumes it', () => {
+  const { thread, log, play } = connect();
+  const response = [{ type: 'start', messageId: 'm' }, ...said('a', 'Words.'), { type: 'finish' }];
+  play([...response, ...response]);
+  assert.deepEqual(/** @type {any} */ (thread.get('m')).blocks.map((block) => block.text), ['Words.', 'Words.']);
+  assert.deepEqual(log.error, []);
+});
+
+test('replay without an id takes the message being read, or the one read last', () => {
+  const { thread, stream, play } = connect();
+  play([{ type: 'start' }, ...said('a', 'Open.')]);
+  stream.replay();
+  play([{ type: 'start' }, ...said('a', 'Open.'), { type: 'finish' }]);
+  assert.equal(thread.order().length, 1);
+  assert.deepEqual(/** @type {any} */ (thread.get(thread.order()[0])).blocks.map((block) => block.text), ['Open.']);
+  stream.replay();
+  play([{ type: 'start' }, ...said('a', 'Open.'), { type: 'finish' }]);
+  assert.equal(thread.order().length, 1);
+});
+
+test('replay of one message stops another one still open, and leaves it drawn', () => {
+  const { thread, stream, play } = connect();
+  play([{ type: 'start', messageId: 'old' }, ...said('a', 'Old.'), { type: 'finish' }, { type: 'start', messageId: 'open' }, ...said('a', 'Open.')]);
+  stream.replay('old');
+  assert.equal(/** @type {any} */ (thread.get('open')).stopped, true);
+  assert.deepEqual(/** @type {any} */ (thread.get('old')).blocks, []);
+});
+
+test('replay leaves a message it does not know alone, and does nothing after destroy', () => {
+  const { thread, stream, log, play } = connect();
+  play([{ type: 'start', messageId: 'm' }, ...said('a', 'Kept.'), { type: 'finish' }]);
+  stream.replay('nobody');
+  assert.deepEqual(/** @type {any} */ (thread.get('m')).blocks, [{ type: 'p', text: 'Kept.' }]);
+  stream.destroy();
+  stream.replay('m');
+  assert.deepEqual(/** @type {any} */ (thread.get('m')).blocks, [{ type: 'p', text: 'Kept.' }]);
+  assert.deepEqual(log.error, []);
+});
+
+test('a connection that ends during a replay stops the message', () => {
+  const { thread, stream, play } = connect();
+  play([{ type: 'start', messageId: 'm' }, ...said('a', 'Words.')]);
+  stream.replay('m');
+  stream.destroy();
+  assert.equal(/** @type {any} */ (thread.get('m')).stopped, true);
+  assert.equal(/** @type {any} */ (thread.get('m')).streaming, false);
+});
+
 /* ------------------------------------------------------------------ what is already there -- */
 
 /** @param {any} thread The conversation as an application restores it. */

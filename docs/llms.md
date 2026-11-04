@@ -3582,7 +3582,7 @@ for await (const part of parsedParts(response)) stream.handle(part);
   of the assistant's output; without it, the first author who is not a person), `tools: {}`,
   `onapproval(approvalId, approved, reason)`, `ondata(name, data, id)`, `onmetadata(metadata)`,
   `onunknown(part)`, `onerror(error)`, `showReasoning: false`. It returns
-  `{handle(part), destroy()}`.
+  `{handle(part), replay(messageId), destroy()}`.
 - **Keep one connection for the conversation.** The answer to an approval goes out with the
   application's next request, and the response to it continues the same message: its `start` names
   a message that has finished or was stopped, and the message picks up where it stopped, once it has
@@ -3590,6 +3590,19 @@ for await (const part of parsedParts(response)) stream.handle(part);
   joins it, because streams merged into one each send their own. `destroy()` stops a message still open and every
   call still going, and expires a pending approval, because no decision could reach the application
   any more.
+- **After a reconnect, call `replay(messageId)`.** A reconnect can return the whole response from its
+  beginning. Only the application knows it reconnected, so it calls `replay()` before it feeds the
+  stream again from the `start`: what that response drew goes and is rebuilt, with nothing doubled
+  and nothing reported. Earlier responses of the message are not sent again, so what they drew stays.
+  A decision stands: its card comes back with its answer, and `onapproval` does not fire twice.
+  `ondata` and `onmetadata` hear what the replay sends again. Without an id it takes the message being
+  read, or the one read last. Without `replay()`, a `start` for a finished message resumes it, and a
+  second copy of a response is drawn twice.
+
+  ```js
+  stream.replay(lastMessageId);
+  for await (const part of parsedParts(await reconnect())) stream.handle(part);
+  ```
 - **What stands in the thread stays.** A `start` for an answer this connection did not draw, restored
   with the conversation or drawn by an earlier connection, takes it over: the message goes on below
   what stands under it, and a call on one of its steps finds that step. A `start` naming any other

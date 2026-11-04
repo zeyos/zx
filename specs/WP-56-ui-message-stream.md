@@ -47,9 +47,9 @@ regenerated. Public files must not mention this spec.
 `node --test`, which only picks up `*.test.js`), `website/demos/agent-thread.demo.js`,
 `docs/llms.md`, `src/core/messages.js` (new keys only, if any), `tests/smoke/smoke.js`.
 
-- **`connectUiMessageStream(thread, options)`** → `{handle(part), destroy()}`. `destroy()` stops an
-  open message, expires a pending approval, and stops every call still going, those of a finished
-  message too, because nothing can settle them any more.
+- **`connectUiMessageStream(thread, options)`** → `{handle(part), replay(messageId), destroy()}`.
+  `destroy()` stops an open message, expires a pending approval, and stops every call still going,
+  those of a finished message too, because nothing can settle them any more.
 - **Options:** `runStatus?`, `authors`, `agent` (the author key for assistant output), `tools: {}`,
   `onapproval(approvalId, approved, reason)`, `ondata(name, data, id)`, `onmetadata(metadata)`,
   `onunknown(part)`, `onerror(error)`, `showReasoning: false`.
@@ -131,6 +131,23 @@ regenerated. Public files must not mention this spec.
     again finds it answered.
   - Focus inside a withdrawn item moves to the item above it, as for any item the thread removes.
   - Outside a message it draws nothing and is reported through `onerror`.
+- **`replay(messageId)`:** a reconnect can return a whole response from its beginning, and the
+  adapter cannot tell that from a response that continues the message. Only the application knows it
+  reconnected, so it says so, before it feeds the stream again from the `start`.
+  - What the message's latest response drew goes, so that the replay rebuilds it, doubling and
+    reporting nothing. That is one response and not the whole message: a response after an approval
+    reuses the message id, a replay sends only that response, and what the earlier ones drew stays.
+  - It takes everything `reset-step` takes, and every card the response drew, in order to bring each
+    back in its place. A tile the response first drew for an earlier call stays where it stands.
+  - A decision stands: a request that arrives again draws its card with its answer, the call goes on
+    from there, and `onapproval` does not fire again. A question still open is asked again.
+  - The message stays open, so that the `start` that follows is no duplicate, and a connection that
+    ends during a replay stops it. An open message other than the one named is stopped.
+  - `ondata` and `onmetadata` receive what the replay sends again.
+  - Without `messageId` it takes the message being read, or the one read last, for a server that
+    sends none. A message this connection does not know is left alone.
+  - Without `replay()`, a `start` for a finished message resumes it, as above, and nothing tells a
+    second copy of a response from a new one.
 - **Out of order:** a delta arriving outside its block creates the item, and a `start` naming a
   message still open is ignored. A `start` naming another message stops the open one, which nothing
   else can finish. All three are reported through `onerror`.
@@ -163,7 +180,8 @@ regenerated. Public files must not mention this spec.
    - a `start` for a finished or stopped message resuming it, and one for an open message ignored;
    - text and files after a card or tile continuing in `<messageId>#<n>`, sources included;
    - `reset-step` taking back each kind of output, keeping earlier steps, and allowing a retry to
-     reuse its ids.
+     reuse its ids;
+   - `replay()` rebuilding a response cut at any point, keeping earlier responses and decisions.
 3. The demo replays a fixture into an AgentThread and logs the callbacks.
 4. Changelog lines and the pinned protocol version are reported.
 5. Smoke cases replay the fixtures through a real AgentThread: the approval fixture shows its final
