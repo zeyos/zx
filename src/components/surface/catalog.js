@@ -41,6 +41,8 @@ export const LIMITS = Object.freeze({
   value: 32,
   /** Columns per table. */
   columns: 50,
+  /** Table cells across all tables of a surface; a `$data` binding counts each time it is used. */
+  cells: 100000,
   /** Datasets per chart. */
   datasets: 12,
   /** Steps per questionnaire. */
@@ -1292,7 +1294,9 @@ function formatJson(value, indent = '') {
  */
 function limitWords(types, mode) {
   const words = [`${LIMITS.nodes} nodes`, `depth ${LIMITS.depth}`, `${LIMITS.string.toLocaleString('en-US')} characters per string`];
-  if (types.includes('table') || types.includes('diff')) words.push(`${LIMITS.rows.toLocaleString('en-US')} rows per ${types.includes('table') ? 'table' : 'list of changes'}`);
+  if (types.includes('table') || types.includes('diff')) {
+    words.push(`${LIMITS.rows.toLocaleString('en-US')} rows per ${types.includes('table') ? 'table' : 'list of changes'}`, `${LIMITS.cells.toLocaleString('en-US')} table cells in all`);
+  }
   if (types.includes('fields')) words.push(`${LIMITS.fields} fields`);
   if (types.includes('choice') || types.includes('fields') || types.includes('questionnaire')) words.push(`${LIMITS.choices} choices`);
   words.push(`${LIMITS.actions} actions`);

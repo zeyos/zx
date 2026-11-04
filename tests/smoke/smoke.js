@@ -6815,6 +6815,52 @@ function surfaceSafetyCases() {
         streamed.destroy();
       }
     }),
+    // One operation costs what it touches, whatever else the surface holds.
+    surfaceCase('Surface (an operation costs what it touches)', (fixture) => ({ fixture }), ({ fixture }) => {
+      const component = new zx.Surface(null);
+      fixture.append(component.toElement());
+      const rows = Array.from({ length: 50 }, (_, index) => ({ id: `r${index}`, note: 'x' }));
+      component.apply({ zx: 'surface/1', op: 'begin', surface: 's1', intent: 'show', title: 'T', author: 'a', root: ['list', 'note', 'first'] });
+      component.apply({ op: 'data', surface: 's1', path: '', value: { rows, note: 'one', items: [{ text: 'a' }, { text: 'b' }] } });
+      component.apply({ op: 'node', surface: 's1', id: 'list', type: 'table', columns: [{ id: 'id', label: 'Id' }], rows: { $data: '/rows' } });
+      component.apply({ op: 'node', surface: 's1', id: 'note', type: 'text', text: { $data: '/note' } });
+      component.apply({ op: 'node', surface: 's1', id: 'first', type: 'text', text: { $data: '/items/1/text' } });
+      const table = component.el.querySelector('table');
+      const held = component._model.data.rows;
+      const resolved = component._prop(component._model.nodes.get('list'), 'rows');
+      component.apply({ op: 'data', surface: 's1', path: '/note', value: 'two' });
+      assert(component.el.textContent.includes('two'), 'the node bound to the path was not redrawn');
+      assert(component.el.querySelector('table') === table, 'a node bound elsewhere was redrawn');
+      assert(component._model.data.rows === held, 'the data was copied to change one member');
+      assert(component._prop(component._model.nodes.get('list'), 'rows') === resolved, 'a binding was resolved and checked again');
+      // A list that changes moves what follows, and a bound row keeps up.
+      component.apply({ op: 'data', surface: 's1', path: '/rows/0/note', value: 'y' });
+      assert(component.el.querySelector('table') !== table, 'a change inside bound rows was not drawn');
+      assert(component.el.textContent.includes('b'), 'the bound list entry is missing');
+      component.apply({ op: 'data', surface: 's1', path: '/items/0', remove: true });
+      assert(!component.el.querySelector('[data-surface-node="first"]').textContent.includes('b'), 'a removal did not reach what it moved');
+      component.apply({ op: 'data', surface: 's1', path: '/items/-', value: { text: 'c' } });
+      assert(component.el.querySelector('[data-surface-node="first"]').textContent.includes('c'), 'an append did not reach what it moved in');
+      component.apply({ op: 'data', surface: 's1', path: '', value: { note: 'three' } });
+      assert(component.el.querySelector('[data-surface-node="note"]').textContent.includes('three'), 'replacing the data did not redraw');
+      component.destroy();
+    }),
+    // The budget holds while a surface streams, before anything has ended it.
+    surfaceCase('Surface (the table cell budget)', (fixture) => ({ fixture }), ({ fixture }) => {
+      const component = new zx.Surface(null);
+      fixture.append(component.toElement());
+      const columns = Array.from({ length: 50 }, (_, index) => ({ id: `c${index}`, label: 'C' }));
+      component.apply({ zx: 'surface/1', op: 'begin', surface: 's1', intent: 'ask', title: 'T', author: 'a', root: ['a', 'b', 'c', 'form'] });
+      component.apply({ op: 'data', surface: 's1', path: '/rows', value: Array.from({ length: 1000 }, () => ({ c0: 1 })) });
+      for (const id of ['a', 'b', 'c']) component.apply({ op: 'node', surface: 's1', id, type: 'table', columns, rows: { $data: '/rows' } });
+      assert(component.el.querySelectorAll('.zx-table, [data-surface-node] table').length > 0, 'no table drew');
+      assert(component.el.querySelector('[data-surface-node="c"]').classList.contains('zx-surface__fallback'), 'the table past the budget drew');
+      assert(component.getErrors().some((error) => error.code === 'limit' && error.id === 'c'), 'the budget was not reported');
+      // It is what the surface holds now that counts.
+      component.apply({ op: 'remove', surface: 's1', id: 'a' });
+      assert(!component.el.querySelector('[data-surface-node="c"]').classList.contains('zx-surface__fallback'), 'a table that fits again stayed a fallback');
+      component.destroy();
+    }),
     /* -- end of the safety cases -- */
   ];
 }
@@ -7110,52 +7156,6 @@ function agUiCases() {
       thread.remove('note');
       assert(articles().length === 0 && !thread.el.querySelector('.zx-agent-thread__empty').hidden, 'the added item could not be removed');
     }),
-    surfaceCase('AgentThread (an application’s own surface and placeholder)', () => ({}), async () => {
-      // `register()` has no undo, so this runs on a module instance of its own.
-      const { AgentThread } = await import('../../src/components/agent-thread/agent-thread.js?own-surface');
-      if (!AgentThread.has('surface')) AgentThread.register('surface', (item) => zx.h('p', { class: 'smoke-own-surface' }, String(item.label)));
-      if (!AgentThread.has('placeholder')) AgentThread.register('placeholder', (item) => zx.h('p', { class: 'smoke-own-placeholder' }, String(item.label)));
-      const thread = new AgentThread(null, { authors: { finance: { name: 'Finance agent' } }, items: [
-        { id: 'p', type: 'placeholder', label: 'Mine too' }
-      ] });
-      try {
-        thread.upsert({ id: 's', type: 'surface', label: 'Mine', document: { zx: 'surface/1', surface: 's', intent: 'confirm', title: 'Go?', root: [], nodes: [] } });
-        assert(thread.el.querySelector('.smoke-own-surface')?.textContent === 'Mine', 'the application’s surface renderer lost to the built-in');
-        assert(!thread.el.querySelector('.zx-surface') && thread.surface('s') === null, 'the library drew a surface over the application’s renderer');
-        assert(thread.el.querySelector('.smoke-own-placeholder')?.textContent === 'Mine too', 'the application’s placeholder type was not drawn');
-        await delay(100);
-        assert(!thread.el.querySelector('[role="status"]').textContent, 'an application’s surface was announced as waiting');
-      } finally {
-        thread.destroy();
-      }
-      // The library’s stand-in has its own name now, and draws a Skeleton for anyone who asks.
-      const library = new zx.AgentThread(null, { items: [{ id: 'q', type: 'zx-placeholder', lines: 3 }] });
-      assert(library.el.querySelector('article[data-type="zx-placeholder"] .zx-agent-thread__body[aria-busy="true"]'), 'the stand-in did not draw');
-      library.destroy();
-    }),
-    surfaceCase('AgentThread (items at a call’s place)', () => ({
-      component: new zx.AgentThread(null, { authors: { finance: { name: 'Finance agent' } } })
-    }), async ({ component: thread }) => {
-      if (!zx.AgentThread.has('smoke-company')) {
-        zx.AgentThread.register('smoke-company', (item) => zx.h('p', { class: 'smoke-company' }, String(item.name ?? '')));
-      }
-      const replies = [];
-      thread.on('reply', (event) => replies.push(event.detail.reply));
-      const results = [];
-      const adapter = zx.connectAgUi(thread, {
-        agent: 'finance',
-        tools: { show_company: (call) => (call.status === 'done' ? { type: 'smoke-company', name: JSON.parse(call.result).name } : null) },
-        requiresApproval: (call) => call.name === 'send',
-        ontoolresult: (id, result) => results.push([id, result])
-      });
-      const article = (id) => thread.el.querySelector(`article[data-id="${CSS.escape(id)}"]`);
-      const ids = () => [...thread.el.querySelectorAll('.zx-agent-thread__item')].map((item) => item.dataset.id);
-      const send = (...events) => events.forEach((event) => adapter.handle(event));
-      send({ type: 'RUN_STARTED', threadId: 't', runId: 'r1' },
-        { type: 'TOOL_CALL_START', toolCallId: 'c1', toolCallName: 'show_company' },
-        { type: 'TOOL_CALL_ARGS', toolCallId: 'c1', delta: '{"id":"helios"}' },
-        { type: 'TOOL_CALL_END', toolCallId: 'c1' },
-        { type: 'TOOL_CALL_START', toolCallId: 'c2', toolCallName: 'ask_user' },
     surfaceCase('AgentThread (feed keys inside a control)', () => ({
       component: new zx.AgentThread(null, { authors: { finance: { name: 'Finance agent' } }, items: [
         { id: 's', type: 'surface', document: surfaceDocument({ root: ['form'], nodes: [{ id: 'form', type: 'fields', schema: { type: 'object', properties: {

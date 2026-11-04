@@ -16,7 +16,7 @@
  * wrote before it forwards it, and again when a reply comes back.
  */
 import { safeHref } from '../../core/dom.js';
-import { parsePointer } from '../../internal/json-patch.js';
+import { getPointer, parsePointer } from '../../internal/json-patch.js';
 import { checkCondition, checkNext, checkRuleList, MAX_CONDITION_DEPTH, NEXT_REVIEW, NEXT_SUBMIT } from '../questionnaire/conditions.js';
 import {
   assertCatalog, CATALOG, FORBIDDEN_KEYS, HREF_PATTERN, ICON_PATTERN, ID_PATTERN, LIMITS, NAME_PATTERN, PLACEMENTS, RESERVED_ACTIONS, SURFACE_VERSION
@@ -210,6 +210,8 @@ const UNBOUND_PROPS = new Set(['name', 'schema', 'steps']);
 /** An array index as RFC 6901 writes it. */
 const ARRAY_INDEX = /^(?:0|[1-9][0-9]*)$/;
 const INPUT_INTENTS_EXCLUDED = new Set(['show', 'confirm']);
+/** The columns a list of changes is drawn with. */
+const DIFF_COLUMNS = 3;
 
 /**
  * Creates the state one stream's operations are validated against.
@@ -333,6 +335,40 @@ export function stateToDocument(state, surface) {
   if (track.actions) out.actions = clone(track.actions);
   if (track.sources) out.sources = clone(track.sources);
   return /** @type {SurfaceDocument} */ (out);
+}
+
+/**
+ * The cells a node draws as a table, for the budget of `LIMITS.cells`. Rows bound to data count
+ * for every node they are drawn in.
+ * @param {SurfaceNode} node @param {unknown} data The surface's data.
+ * @returns {number} `0` for anything that is not a table, or has no rows yet.
+ */
+export function tableCells(node, data) {
+  if (node.type !== 'table' && node.type !== 'diff') return 0;
+  const rows = boundValue(node.rows, data);
+  if (!Array.isArray(rows)) return 0;
+  const count = Math.min(rows.length, LIMITS.rows);
+  if (node.type === 'diff') return count * DIFF_COLUMNS;
+  const columns = boundValue(node.columns, data);
+  return Array.isArray(columns) ? count * Math.min(columns.length, LIMITS.columns) : 0;
+}
+
+/**
+ * @param {string} id A table's node id.
+ * @returns {string} What a table past the budget is told, here and by the surface drawing it.
+ */
+export function cellLimitMessage(id) {
+  return `The tables of a surface hold at most ${LIMITS.cells.toLocaleString('en-US')} cells, each binding counted where it is used; the rows of "${id}" were dropped`;
+}
+
+/** @param {unknown} value @param {unknown} data @returns {unknown} The value, a binding read from the data. */
+function boundValue(value, data) {
+  if (!isBinding(value)) return value;
+  try {
+    return getPointer(data, /** @type {string} */ (value.$data));
+  } catch {
+    return undefined;
+  }
 }
 
 /**
@@ -934,15 +970,28 @@ function applyData(track, segments, removing, value) {
   const member = JSON.stringify(key).length + 1;
   if (removing) {
     if (!exists) return { code: 'data-path', message: `There is nothing at "${pointer}" to remove` };
-    track.dataSize -= member + jsonLength(parent[key]) + (Object.keys(parent).length > 1 ? 1 : 0);
+    track.dataSize -= member + jsonLength(parent[key]) + (hasMembers(parent, 2) ? 1 : 0);
     delete parent[key];
     return true;
   }
-  const size = track.dataSize + jsonLength(value) - (exists ? jsonLength(parent[key]) : -(member + (Object.keys(parent).length ? 1 : 0)));
+  const size = track.dataSize + jsonLength(value) - (exists ? jsonLength(parent[key]) : -(member + (hasMembers(parent, 1) ? 1 : 0)));
   if (size > LIMITS.data) return tooBig;
   parent[key] = clone(value);
   track.dataSize = size;
   return true;
+}
+
+/**
+ * @param {Record<string, unknown>} object @param {number} count
+ * @returns {boolean} Whether it has at least that many members, without listing them all.
+ */
+function hasMembers(object, count) {
+  let found = 0;
+  for (const key in object) {
+    if (Object.hasOwn(object, key)) found += 1;
+    if (found >= count) return true;
+  }
+  return false;
 }
 
 /** @param {unknown} value @returns {number} Characters of the value written as JSON. */
@@ -1130,6 +1179,20 @@ function validateEnd(raw, track, catalog, ctx) {
   }
   for (const id of track.nodes.keys()) {
     if (!reached.has(id)) report(ctx, 'unreachable', `The node "${id}" is not listed in "root" or any "children"; it is not shown`, { id });
+  }
+
+  // The table cells, in the order the tables are drawn.
+  let cells = 0;
+  for (const id of reached) {
+    const node = /** @type {SurfaceNode} */ (track.nodes.get(id));
+    const count = tableCells(node, track.data);
+    if (cells + count <= LIMITS.cells) {
+      cells += count;
+      continue;
+    }
+    report(ctx, 'limit', cellLimitMessage(id), { id, path: `${at(id)}/rows` });
+    delete node.rows;
+    patches.push(/** @type {SurfaceOp} */ ({ op: 'patch', surface: ctx.surface, id, props: { rows: null } }));
   }
 
   // The intent's needs.

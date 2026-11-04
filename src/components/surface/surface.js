@@ -3,7 +3,6 @@ import { Component } from '../../core/component.js';
 import { h, restoreTarget, safeHref, snapshotTarget } from '../../core/dom.js';
 import { icon } from '../../core/icons.js';
 import { uid } from '../../core/util.js';
-import { removePointer, setPointer } from '../../internal/json-patch.js';
 import { isEmptyAnswer } from '../questionnaire/conditions.js';
 import { badge } from '../badge/badge.js';
 import { renderBlocks } from '../block-view/block-view.js';
@@ -34,7 +33,7 @@ import { lineSplitter } from './stream.js';
 import {
   CLOSING_ACTIONS, createReply, inputNames, localDateTime, readProp, surfaceVisibility, verdictText
 } from './text.js';
-import { createValidationState, validateDocument, validateOp, validateValue } from './validate.js';
+import { cellLimitMessage, createValidationState, tableCells, validateDocument, validateOp, validateValue } from './validate.js';
 
 /** @typedef {import('./catalog.js').SurfaceCatalog} SurfaceCatalog */
 /** @typedef {import('./catalog.js').SurfaceIntent} SurfaceIntent */
@@ -147,6 +146,7 @@ import { createValidationState, validateDocument, validateOp, validateValue } fr
  * @property {Questionnaire} [questionnaire]
  * @property {HTMLFieldSetElement} [choice]
  * @property {HTMLElement} [choiceError]
+ * @property {boolean} [overBudget] A table left out for the cell budget.
  */
 
 /** @typedef {SurfaceAction & {builtin?: boolean}} DrawnAction */
@@ -231,6 +231,10 @@ export class Surface extends Component {
     this._views = new Map();
     /** @type {Set<string>} */
     this._dirty = new Set();
+    /** @type {Map<string, Map<string, unknown>>} Bound properties resolved and checked, by node. */
+    this._bound = new Map();
+    /** Table cells drawn so far in this pass. */
+    this._cells = 0;
     /** @type {Record<string, unknown>} Raw input values by name, kept while an input is hidden. */
     this._raw = {};
     /** @type {Record<string, string>} JSON of the last reported value of each input. */
@@ -538,6 +542,7 @@ export class Surface extends Component {
         const { op: _op, surface: _surface, ...node } = /** @type {any} */ (op);
         if (!model.order.has(node.id)) model.order.set(node.id, model.order.size);
         model.nodes.set(node.id, /** @type {SurfaceNode} */ (node));
+        this._bound.delete(node.id);
         this._dirty.add(node.id);
         break;
       }
@@ -548,6 +553,7 @@ export class Surface extends Component {
           if (value === null) delete node[key];
           else node[key] = structuredClone(value);
         }
+        this._bound.delete(op.id);
         this._dirty.add(op.id);
         break;
       }
@@ -560,6 +566,7 @@ export class Surface extends Component {
       }
       case 'remove':
         model.nodes.delete(op.id);
+        this._bound.delete(op.id);
         model.root = model.root.filter((id) => id !== op.id);
         for (const node of model.nodes.values()) {
           if (Array.isArray(node.children) && node.children.includes(op.id)) {
@@ -569,12 +576,13 @@ export class Surface extends Component {
         }
         break;
       case 'data':
-        try {
-          model.data = /** @type {Record<string, unknown>} */ (op.remove ? removePointer(model.data, op.path) : setPointer(model.data, op.path, structuredClone(op.value)));
-        } catch {
-          break;
+        // Validation stored it: the surface reads that data, and redraws only what is bound to it.
+        model.data = this._state.surfaces.get(op.surface)?.data ?? model.data;
+        for (const node of model.nodes.values()) {
+          if (!boundPointers(node).some((pointer) => touches(pointer, op.path))) continue;
+          this._bound.delete(node.id);
+          this._dirty.add(node.id);
         }
-        for (const node of model.nodes.values()) if (hasBinding(node)) this._dirty.add(node.id);
         break;
       case 'actions':
         model.actions = structuredClone(op.items);
@@ -677,6 +685,7 @@ export class Surface extends Component {
     if (this._reply && !this._frozen) this._freeze();
     /** @type {Set<string>} */
     const used = new Set();
+    this._cells = 0;
     syncChildren(this._body, this._model.root.map((id) => this._viewOf(id, used, 1)));
     for (const [id, view] of [...this._views]) {
       if (used.has(id)) continue;
@@ -716,8 +725,9 @@ export class Surface extends Component {
     if (used.has(id) || depth > LIMITS.depth) return h('span', { hidden: true });
     used.add(id);
     let view = this._views.get(id);
-    if (!view || this._dirty.has(id)) {
-      const next = this._safeBuild(id);
+    const overBudget = this._overBudget(id);
+    if (!view || this._dirty.has(id) || Boolean(view.overBudget) !== overBudget) {
+      const next = overBudget ? { ...this._fallback(), overBudget } : this._safeBuild(id);
       if (view) {
         const hadFocus = view.el.contains(document.activeElement);
         view.el.replaceWith(next.el);
@@ -733,6 +743,24 @@ export class Surface extends Component {
       syncChildren(view.container, node.children.map((child) => this._viewOf(child, used, depth + 1)));
     }
     return view.el;
+  }
+
+  /**
+   * Counts a table against the cell budget as it is drawn, so the budget also holds for a stream
+   * that never ends.
+   * @private
+   * @param {string} id
+   * @returns {boolean} Whether it is left out.
+   */
+  _overBudget(id) {
+    const node = this._model.nodes.get(id);
+    const cells = node ? tableCells(node, this._model.data) : 0;
+    if (this._cells + cells <= LIMITS.cells) {
+      this._cells += cells;
+      return false;
+    }
+    this._report([{ code: 'limit', surface: this._model.surface, id, path: `/nodes/${id}/rows`, message: cellLimitMessage(id) }]);
+    return true;
   }
 
   /**
@@ -855,13 +883,17 @@ export class Surface extends Component {
   _prop(node, name) {
     const raw = node[name];
     if (!isBinding(raw)) return raw === null ? undefined : raw;
+    const known = this._bound.get(node.id);
+    if (known?.has(name)) return known.get(name);
     const value = readProp(node, name, this._model.data);
-    if (value === undefined) return undefined;
-    const { value: checked, errors } = validateValue(node.type, name, value, { entities: this._entities, node });
+    const { value: checked, errors } = value === undefined ? { value: undefined, errors: [] }
+      : validateValue(node.type, name, value, { entities: this._entities, node });
     this._report(errors.map((error) => ({
       ...error, surface: this._model.surface, id: node.id,
       path: `/nodes/${node.id}/${name}${error.path}`
     })));
+    if (known) known.set(name, checked);
+    else this._bound.set(node.id, new Map([[name, checked]]));
     return checked;
   }
 
@@ -2155,6 +2187,23 @@ function isBinding(value) {
 /** @param {SurfaceNode} node @returns {boolean} */
 function hasBinding(node) {
   return Object.values(node).some(isBinding);
+}
+
+/** @param {SurfaceNode} node @returns {string[]} The pointers the node's properties are bound to. */
+function boundPointers(node) {
+  return Object.values(node).filter(isBinding).map((value) => value.$data);
+}
+
+/**
+ * Whether a change at a path reaches a binding: at the pointer, above it or below it, or, for an
+ * entry of a list, anywhere in that list, as adding or removing one moves the entries after it.
+ * @param {string} pointer @param {string} path
+ * @returns {boolean}
+ */
+function touches(pointer, path) {
+  if (pointer === path || pointer.startsWith(`${path}/`) || path.startsWith(`${pointer}/`)) return true;
+  const end = path.lastIndexOf('/');
+  return /^(?:\d+|-)$/.test(path.slice(end + 1)) && pointer.startsWith(`${path.slice(0, end)}/`);
 }
 
 /**

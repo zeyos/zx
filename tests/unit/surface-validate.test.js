@@ -856,3 +856,30 @@ test('a questionnaire keeps no actions of its own', () => {
   assert.equal(result.document.actions.length, 0);
   assert.ok(has(result.errors, 'not-allowed'));
 });
+
+test('the tables of a surface hold 100,000 cells, a binding counted each time it is used', () => {
+  assert.equal(LIMITS.cells, 100000);
+  const columns = Array.from({ length: 50 }, (_, index) => ({ id: `c${index}`, label: 'C' }));
+  const rows = Array.from({ length: 1000 }, () => ({ c0: 1 }));
+  const bound = ['a', 'b', 'c'].map((id) => ({ id, type: 'table', columns, rows: { $data: '/rows' } }));
+  const result = check(doc(bound, { data: { rows } }));
+  assert.deepEqual(['a', 'b', 'c'].map((id) => Object.hasOwn(node(result, id), 'rows')), [true, true, false]);
+  assert.ok(result.errors.some((error) => error.code === 'limit' && error.id === 'c' && error.path === '/nodes/c/rows'));
+
+  // Written out, and drawn as changes (three columns each), the same budget applies.
+  const written = check(doc([{ id: 'a', type: 'table', columns, rows }, { id: 'b', type: 'table', columns, rows }, { id: 'c', type: 'table', columns: columns.slice(0, 1), rows }]));
+  assert.deepEqual(codes(written.errors).filter((code) => code === 'limit'), ['limit']);
+  const changes = Array.from({ length: 1000 }, (_, index) => ({ id: `r${index}`, field: 'f', label: 'L', before: 1, after: 2 }));
+  const diffs = Array.from({ length: 34 }, (_, index) => ({ id: `d${index}`, type: 'diff', name: `n${index}`, rows: changes }));
+  const reviewed = check(doc(diffs, { intent: 'review' }));
+  assert.equal(reviewed.document.nodes.filter((entry) => Object.hasOwn(entry, 'rows')).length, 33);
+
+  // What a smaller table needs can still fit after a larger one was dropped.
+  const small = { id: 'd', type: 'table', columns: columns.slice(0, 1), rows: rows.slice(0, 10) };
+  const fitted = check(doc([bound[0], { ...bound[1], columns: columns.slice(0, 40) }, bound[2], small], { data: { rows } }));
+  assert.deepEqual(['a', 'b', 'c', 'd'].map((id) => Object.hasOwn(node(fitted, id), 'rows')), [true, true, false, true]);
+
+  // A stream is told what to drop when it ends.
+  const streamed = stream([begin({ root: ['a', 'b', 'c'] }), { op: 'data', surface: 's1', path: '/rows', value: rows }, ...bound.map((entry) => ({ op: 'node', surface: 's1', ...entry })), { op: 'end', surface: 's1' }]);
+  assert.ok(streamed.ops.some((op) => op.op === 'patch' && op.id === 'c' && op.props.rows === null));
+});
