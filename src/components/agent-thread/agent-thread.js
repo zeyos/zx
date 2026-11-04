@@ -344,7 +344,7 @@ export class AgentThread extends Component {
     const entry = this._entries.get(String(id));
     if (!entry || !partial || typeof partial !== 'object') return this;
     const before = entry.item;
-    const item = /** @type {ThreadItem} */ ({ ...before, ...cloneItem({ ...partial, type: before.type }), id: before.id, type: before.type });
+    const item = this._intoVersion(/** @type {ThreadItem} */ ({ ...before, ...cloneItem({ ...partial, type: before.type }), id: before.id, type: before.type }), partial);
     const keys = Object.keys(partial);
     const only = (/** @type {string[]} */ allowed) => keys.every((key) => allowed.includes(key));
     this._follow(() => {
@@ -475,7 +475,10 @@ export class AgentThread extends Component {
       if (document) surface.document = document;
       surface.reply = entry.surface.getReply();
     }
-    if (item.type === 'answer' && entry.view) /** @type {any} */ (item).blocks = entry.view.getBlocks();
+    if (item.type === 'answer' && entry.view) {
+      /** @type {any} */ (item).blocks = entry.view.getBlocks();
+      return this._intoVersion(item, { blocks: true });
+    }
     if (item.type === 'trace' && entry.trace) /** @type {any} */ (item).steps = entry.trace.getSteps();
     return item;
   }
@@ -631,13 +634,13 @@ export class AgentThread extends Component {
     const reply = /** @type {any} */ (item).reply;
     const answered = !keep && item.type === 'surface' && reply && old.surface && !old.surface.getReply() ? old.surface : null;
     /** @type {ThreadItem} */
-    let next = item;
+    let next = this._keepStreamed(old, item);
     if (keep) {
       old.owned = old.owned.filter((component) => component !== keep);
       old.surface = null;
     } else if (answered) {
       this._answeredElsewhere.add(answered);
-      next = /** @type {ThreadItem} */ ({ ...item, document: /** @type {any} */ (item).document ?? answered.toDocument() });
+      next = /** @type {ThreadItem} */ ({ ...next, document: /** @type {any} */ (item).document ?? answered.toDocument() });
     } else {
       old.surface?.supersede();
     }
@@ -1216,6 +1219,40 @@ export class AgentThread extends Component {
     const versions = Array.isArray(answer.versions) ? answer.versions : [];
     const index = Number.isInteger(answer.version) ? Number(answer.version) : versions.length - 1;
     return Math.max(0, Math.min(versions.length - 1, index));
+  }
+
+  /**
+   * An answer with versions shows its chosen version, so what changes in it belongs there too: the
+   * item's own fields are only what it would show without them.
+   * @private
+   * @template {ThreadItem} T
+   * @param {T} item
+   * @param {Record<string, unknown>} partial What changed.
+   * @returns {T}
+   */
+  _intoVersion(item, partial) {
+    const answer = /** @type {any} */ (item);
+    const versions = Array.isArray(answer.versions) ? answer.versions : [];
+    const changed = ['blocks', 'sources', 'steps'].filter((key) => key in partial);
+    if (item.type !== 'answer' || versions.length < 2 || !changed.length || 'versions' in partial) return item;
+    const index = this._versionIndex(answer);
+    const version = { ...versions[index], ...Object.fromEntries(changed.map((key) => [key, answer[key]])) };
+    return { ...item, versions: versions.map((other, at) => (at === index ? version : other)) };
+  }
+
+  /**
+   * Streamed text lives in the view, so an answer drawn anew from the same versions takes it along
+   * into the version it was streamed into.
+   * @private
+   * @param {ThreadEntry} old
+   * @param {ThreadItem} item
+   * @returns {ThreadItem}
+   */
+  _keepStreamed(old, item) {
+    const versions = /** @type {any} */ (item).versions;
+    if (!old.view || versions === undefined || versions !== /** @type {any} */ (old.item).versions) return item;
+    const shown = this._intoVersion(/** @type {ThreadItem} */ ({ ...old.item, blocks: old.view.getBlocks() }), { blocks: true });
+    return /** @type {ThreadItem} */ ({ ...item, versions: /** @type {any} */ (shown).versions });
   }
 
   /**

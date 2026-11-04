@@ -7145,6 +7145,34 @@ function uiMessageStreamCases() {
       /** @type {HTMLButtonElement} */ (root.querySelector('.zx-approval-card__actions button')).focus();
       play([{ type: 'reset-step' }]);
       assert(document.activeElement === article(root, 'm'), `focus went to ${document.activeElement?.tagName}`);
+    }),
+
+    replay('AgentThread (stream: text resumed into an answer with versions stays in the version)', ({ root, thread, play }) => {
+      /** @param {string} name @returns {void} */
+      const page = (name) => /** @type {HTMLButtonElement} */ (article(root, 'm').querySelector(`[data-thread-dir="${name}"]`)).click();
+      play([
+        { type: 'start', messageId: 'm' },
+        { type: 'text-start', id: 'a' },
+        { type: 'text-delta', id: 'a', delta: 'Second try.' },
+        { type: 'text-end', id: 'a' },
+        { type: 'finish', finishReason: 'stop' }
+      ]);
+      thread.patch('m', { versions: [{ blocks: [{ type: 'p', text: 'First try.' }] }, { blocks: [{ type: 'p', text: 'Second try.' }] }], version: 1 });
+      play([
+        { type: 'start', messageId: 'm' },
+        { type: 'text-start', id: 'b' },
+        { type: 'text-delta', id: 'b', delta: 'And more.' },
+        { type: 'text-end', id: 'b' },
+        { type: 'source-url', sourceId: 's', url: 'https://example.com/a', title: 'A source' },
+        { type: 'finish', finishReason: 'stop' }
+      ]);
+      assert(paragraphs(root, 'm').join('|') === 'Second try.|And more.', `resumed: ${paragraphs(root, 'm')}`);
+      assert(/** @type {any} */ (thread.get('m')).versions[1].blocks.length === 2, 'get() does not have it in the version');
+      assert(article(root, 'm').querySelectorAll('.zx-source-list__source').length === 1, 'the version does not list the new source');
+      page('previous');
+      assert(paragraphs(root, 'm').join('|') === 'First try.', `the other version: ${paragraphs(root, 'm')}`);
+      page('next');
+      assert(paragraphs(root, 'm').join('|') === 'Second try.|And more.', `paged back: ${paragraphs(root, 'm')}`);
     })
   ];
 }

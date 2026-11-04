@@ -91,6 +91,8 @@ regenerated. Public files must not mention this spec.
   - The thread keeps drawing each answer as its own item. `thread.get(messageId)` is the first
     answer alone, an action under a continuation carries the id `<messageId>#<n>`, and each
     finished answer draws its own action row.
+  - An answer the application gave `versions` keeps what the adapter streams into it in the version
+    shown, its text, steps and sources included, so that paging does not lose it.
 - **`reset-step`:** the protocol defines it as removing every message part received since the most
   recent `start-step`, or every part of the message when there is none. It clears the blocks still
   open and does not end the step: the step's next parts follow without a `start-step`.
