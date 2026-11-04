@@ -1,5 +1,6 @@
 import * as zx from '../../src/index.js';
 import * as zeyos from '../../src/zeyos/index.js';
+import { CATALOG as SURFACE_CATALOG, narrowCatalog } from '../../src/components/surface/catalog.js';
 
 const runtimeErrors = window.__zxSmokeErrors;
 const resultBody = document.querySelector('#results');
@@ -3404,7 +3405,10 @@ const cases = [
     } finally {
       extra.destroy();
     }
-  })
+  }),
+  ...surfaceCases(),
+  ...surfaceSafetyCases(),
+  ...agUiCases()
 ];
 
 auditCoverage(cases);
@@ -7360,4 +7364,1522 @@ function toolbarFieldsetDisabledCase() {
     },
     destroy: ({ component }) => component.destroy()
   };
+}
+
+/* ------------------------------------------------------------------ surfaces -- */
+
+/** A surface document with an `ask` form, overridable member by member. */
+function surfaceDocument(overrides = {}) {
+  return {
+    zx: 'surface/1', surface: 's1', intent: 'ask', title: 'Who should get the reminder?', author: 'finance',
+    root: ['why', 'form'],
+    nodes: [
+      { id: 'why', type: 'text', text: 'One invoice is **late**.' },
+      { id: 'form', type: 'fields', schema: { type: 'object', required: ['name'], properties: { name: { type: 'string', title: 'Name' } } } }
+    ],
+    ...overrides
+  };
+}
+
+/** Counts a surface's replies, through the component and through the bubbling DOM event. */
+function countReplies(surface) {
+  const replies = [];
+  let dom = 0;
+  surface.on('reply', (event) => replies.push(event.detail.reply));
+  surface.el.addEventListener('zx-reply', () => { dom += 1; });
+  return { replies, get dom() { return dom; } };
+}
+
+/** Writes a value into a schema field the way a person's edit lands: through its Field. */
+function setSurfaceField(root, name, value) {
+  const element = root.querySelector(`[data-field-id="${name}"]`);
+  const field = element ? zx.Component.from(element) : null;
+  assert(field, `no field "${name}"`);
+  field.setValue(value);
+  const input = field.getInput?.();
+  input?.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+function surfaceButton(root, id) {
+  return root.querySelector(`button[data-surface-action="${id}"]`);
+}
+
+/** A case whose create/destroy is a component of its own, with the exercise given. */
+function surfaceCase(name, create, exercise) {
+  return {
+    name,
+    create(fixture) {
+      const state = create(fixture);
+      if (state.component) fixture.append(state.component.toElement());
+      return state;
+    },
+    exercise: (state) => exercise(state),
+    destroy: (state) => {
+      state.component?.destroy();
+      state.cleanup?.();
+    }
+  };
+}
+
+/** @returns {Array<object>} */
+function surfaceCases() {
+  return [
+    componentCase('Surface', () => new zx.Surface(null, { token: 'opaque-1', headingLevel: 2, authors: { finance: { name: 'Finance agent' } } }), async (component) => {
+      const root = component.toElement();
+      const log = countReplies(component);
+      let ready = 0;
+      let ended = 0;
+      component.on('ready', () => { ready += 1; });
+      component.on('end', () => { ended += 1; });
+      // Streamed line by line: the begin names two children that have not arrived.
+      component.write('{"zx":"surface/1","op":"begin","surface":"s1","intent":"ask","title":"Who?","author":"finance","root":["why","form"]}\n');
+      assert(ready === 1, 'ready did not fire at the first renderable state');
+      const frame = root.querySelector('.zx-surface__frame');
+      assert(frame?.localName === 'form', 'an ask surface is not a form');
+      const title = root.querySelector('h2.zx-surface__title');
+      assert(title && frame.getAttribute('aria-labelledby') === title.id, 'the form is not labelled by its title at headingLevel');
+      assert(root.querySelector('.zx-surface__byline')?.textContent === 'Composed by Finance agent', 'byline missing');
+      assert(root.querySelectorAll('.zx-surface__placeholder').length === 2, 'missing children are not skeleton lines');
+      component.write('{"op":"node","surface":"s1","id":"why","type":"text","text":"Late."}\n{"op":"node","surface":"s1","id":"form","type":"fields",');
+      component.write('"schema":{"type":"object","required":["name"],"properties":{"name":{"type":"string","title":"Name"}}}}\n');
+      assert(root.querySelectorAll('.zx-surface__placeholder').length === 0, 'arrived nodes are still placeholders');
+      assert(surfaceButton(root, 'submit').disabled, 'Submit was enabled before end');
+      assert(!surfaceButton(root, 'cancel').disabled, 'Cancel was disabled before end');
+      assert(frame.getAttribute('aria-busy') === 'true', 'a streaming surface is not busy');
+      component.write('{"op":"end","surface":"s1"}\n');
+      assert(ended === 1 && !surfaceButton(root, 'submit').disabled, 'end did not enable Submit');
+      // A failed submit focuses the first invalid field and does not reply.
+      surfaceButton(root, 'submit').click();
+      frame.requestSubmit(surfaceButton(root, 'submit'));
+      assert(log.replies.length === 0, 'an invalid form replied');
+      assert(root.querySelector('[data-field-id="name"]').contains(document.activeElement), 'focus did not move to the invalid field');
+      setSurfaceField(root, 'name', 'Mara');
+      const submit = surfaceButton(root, 'submit');
+      frame.requestSubmit(submit);
+      submit.click();
+      assert(log.replies.length === 1 && log.dom === 1, `expected one reply, got ${log.replies.length}`);
+      const reply = log.replies[0];
+      assert(reply.zx === 'reply/1' && reply.action === 'submit' && reply.key === 's1#submit', 'reply shape');
+      assert(reply.values.name === 'Mara' && reply.token === 'opaque-1' && reply.confirmation === null, 'reply values or token');
+      assert(root.dataset.state === 'answered', 'the surface did not freeze into its receipt');
+      assert(root.querySelector('.zx-surface__verdict') && !root.querySelector('.zx-surface__actions'), 'actions did not give way to the verdict');
+      assert(root.querySelector('.zx-surface__answers')?.textContent.includes('Mara'), 'the receipt does not show the answer');
+      component.cancel();
+      component.supersede();
+      assert(log.replies.length === 1, 'a second reply followed the first');
+      // Enhancing a target restores it.
+      const target = document.createElement('div');
+      target.className = 'host';
+      target.append('original');
+      const before = target.outerHTML;
+      fixtures.append(target);
+      const enhanced = new zx.Surface(target, { document: surfaceDocument() });
+      enhanced.destroy();
+      assert(target.outerHTML === before, 'Surface did not restore its target');
+      target.remove();
+    }),
+    surfaceCase('Surface (one reply each way)', () => ({}), async () => {
+      const ways = [
+        ['submit', (s) => { setSurfaceField(s.el, 'name', 'A'); surfaceButton(s.el, 'submit').click(); }, 'submit'],
+        // An own action that is not primary replies without checking the (empty, required) inputs.
+        ['action', (s) => surfaceButton(s.el, 'later').click(), 'later', { actions: [{ id: 'send', label: 'Send', kind: 'primary' }, { id: 'later', label: 'Not now' }] }],
+        ['cancel', (s) => surfaceButton(s.el, 'cancel').click(), 'cancel'],
+        ['Escape', (s) => s.el.querySelector('input').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })), 'cancel'],
+        ['supersede', (s) => s.supersede(), 'dismiss'],
+        ['destroy', (s) => s.destroy(), 'dismiss']
+      ];
+      for (const [way, act, action, extra] of ways) {
+        const surface = new zx.Surface(null, { document: surfaceDocument(extra ?? {}), token: 'tok' });
+        fixtures.append(surface.toElement());
+        const log = countReplies(surface);
+        act(surface);
+        await delay(5);
+        try { act(surface); } catch { /* The controls are gone once it replied. */ }
+        await delay(5);
+        surface.destroy();
+        assert(log.replies.length === 1, `${way}: ${log.replies.length} replies`);
+        assert(log.replies[0].action === action, `${way}: replied ${log.replies[0].action}`);
+        assert(log.replies[0].token === 'tok', `${way}: the token did not come back unchanged`);
+        if (way === 'action') assert(Object.keys(log.replies[0].values).length === 0, 'a non-primary own action sent values');
+      }
+      // A surface that never began still replies once, with the id it was given when valid.
+      for (const [given, id] of [[{ zx: 'surface/9', surface: 'bad' }, 'bad'], [{ surface: 5 }, null], ['nope', null]]) {
+        const broken = new zx.Surface(null, { document: given, token: 'tok' });
+        const brokenLog = countReplies(broken);
+        broken.destroy();
+        assert(brokenLog.replies.length === 1 && brokenLog.replies[0].action === 'dismiss' && brokenLog.replies[0].surface === id
+          && brokenLog.replies[0].reason === 'destroyed' && brokenLog.replies[0].token === 'tok', `an unbegun surface replied ${JSON.stringify(brokenLog.replies)}`);
+      }
+      const streamed = new zx.Surface(null, {});
+      const streamedLog = countReplies(streamed);
+      streamed.apply({ op: 'node', surface: 'early', id: 'x', type: 'text', text: 'too soon' });
+      streamed.cancel('stopped');
+      streamed.destroy();
+      assert(streamedLog.replies.length === 1 && streamedLog.replies[0].action === 'cancel' && streamedLog.replies[0].reason === 'stopped'
+        && streamedLog.replies[0].surface === 'early', 'a stream without begin did not reply once');
+      // openSurface settles: a document that cannot begin rejects before anything opens.
+      const dialogs = document.querySelectorAll('dialog').length;
+      let refused = null;
+      try { await zx.openSurface({ zx: 'surface/2', surface: 's' }, { placement: 'dialog' }); } catch (error) { refused = error; }
+      assert(refused instanceof TypeError && Array.isArray(refused.errors) && document.querySelectorAll('dialog').length === dialogs,
+        'openSurface did not reject an unbeginnable document up front');
+      const answered = { zx: 'reply/1', surface: 's1', action: 'submit', key: 's1#submit', values: { name: 'A' }, confirmation: null, at: '2026-11-04T10:00:00' };
+      assert((await zx.openSurface(surfaceDocument(), { placement: 'dialog', reply: answered })).action === 'submit', 'a given reply did not resolve at once');
+      const show = new zx.Surface(null, { document: surfaceDocument({ intent: 'show', root: ['why'], nodes: [{ id: 'why', type: 'text', text: 'Hi' }] }) });
+      const shown = countReplies(show);
+      assert(show.el.querySelector('.zx-surface__frame')?.getAttribute('role') === 'region', 'a show surface is not a region');
+      show.destroy();
+      assert(shown.replies.length === 1 && shown.replies[0].action === 'dismiss' && shown.replies[0].reason === 'destroyed', 'destroying a show surface did not dismiss it');
+    }),
+    surfaceCase('Surface (type-to-confirm)', () => ({}), async () => {
+      const policy = () => ({ level: 'type-to-confirm', confirmText: 'DELETE' });
+      const attempts = [
+        [{ id: 'go', label: 'Delete', kind: 'danger', confirm: false, skipConfirmation: true, confirmText: '', policy: 'allow' }],
+        [{ id: 'go', label: 'Delete', kind: 'primary', confirmation: 'typed', requiresConfirmation: false }],
+        [{ id: 'go', label: 'Delete', tool: 'safe.read' }]
+      ];
+      for (const actions of attempts) {
+        const doc = { ...surfaceDocument({ intent: 'confirm', root: ['why'], nodes: [{ id: 'why', type: 'text', text: 'Delete it?' }], actions }), token: 'model-token' };
+        const surface = new zx.Surface(null, { document: doc, policy, token: 'app-token' });
+        fixtures.append(surface.toElement());
+        const log = countReplies(surface);
+        assert(surface.getErrors().some((error) => error.code === 'token-refused'), 'a token in the document was not refused');
+        surfaceButton(surface.el, 'go').click();
+        await nextFrame();
+        const input = document.querySelector('dialog.zx-dialog[open] .zx-dialog__confirm-input');
+        assert(input, 'type-to-confirm did not ask for the text');
+        assert(log.replies.length === 0, 'the action replied before the text was typed');
+        const dialog = input.closest('dialog');
+        const ok = () => [...dialog.querySelectorAll('.zx-dialog__footer button')].find((button) => button.textContent === 'Delete');
+        assert(ok().disabled, 'confirm enabled before typing');
+        input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+        await delay(10);
+        assert(log.replies.length === 0 && dialog.open, 'Enter confirmed without the text');
+        input.value = 'DELETE';
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        ok().click();
+        await delay(10);
+        assert(log.replies.length === 1 && log.replies[0].confirmation === 'typed', 'the typed confirmation did not reply "typed"');
+        assert(log.replies[0].token === 'app-token', 'the reply token is not the application\'s');
+        surface.destroy();
+        await delay(10);
+      }
+      // Without the policy's text the phrase is a fixed word, never the model's label.
+      const fallback = new zx.Surface(null, {
+        document: surfaceDocument({ intent: 'confirm', root: ['why'], nodes: [{ id: 'why', type: 'text', text: 'x' }], actions: [{ id: 'go', label: 'y' }] }),
+        policy: () => 'type-to-confirm'
+      });
+      fixtures.append(fallback.el);
+      surfaceButton(fallback.el, 'go').click();
+      await nextFrame();
+      const phrase = document.querySelector('dialog.zx-dialog[open] .zx-dialog__confirm-label')?.textContent;
+      assert(phrase === 'Type confirm to confirm', `type-to-confirm asked for "${phrase}"`);
+      fallback.destroy();
+      await delay(10);
+      // A questionnaire's Submit is put to the policy up front; denied, it is reported and gone.
+      const asked = [];
+      const quiz = new zx.Surface(null, {
+        policy: (action) => { asked.push(action.id); return 'deny'; },
+        document: { zx: 'surface/1', surface: 'q', intent: 'questionnaire', title: 'Setup', author: 'a', root: ['q'],
+          nodes: [{ id: 'q', type: 'questionnaire', steps: [{ name: 'region', prompt: 'Where?', required: true, choices: [{ value: 'eu', label: 'EU' }] }] }] }
+      });
+      fixtures.append(quiz.el);
+      const quizLog = countReplies(quiz);
+      assert(asked.includes('submit'), 'the questionnaire submit was not decided up front');
+      quiz.el.querySelector('input[type="radio"]').click();
+      await delay(10);
+      const submitButton = quiz.el.querySelector('.zx-questionnaire__actions [data-role="submit"]');
+      assert(submitButton && getComputedStyle(submitButton).display === 'none', 'a denied questionnaire still offers Submit');
+      quiz.destroy();
+      assert(quizLog.replies.length === 1 && quizLog.replies[0].removed?.includes('submit'), 'the denied submit is not reported as removed');
+      // A denied action is not drawn, and the reply says it was removed.
+      const denied = new zx.Surface(null, {
+        document: surfaceDocument({ actions: [{ id: 'send', label: 'Send', kind: 'primary', tool: 'mail.send' }, { id: 'later', label: 'Later' }] }),
+        policy: (action) => (action.tool === 'mail.send' ? 'deny' : 'allow')
+      });
+      const deniedLog = countReplies(denied);
+      assert(!surfaceButton(denied.el, 'send'), 'a denied action was drawn');
+      surfaceButton(denied.el, 'later').click();
+      assert(deniedLog.replies.length === 1 && deniedLog.replies[0].removed?.includes('send'), 'the reply does not report the removed action');
+      denied.destroy();
+    }),
+    surfaceCase('Surface (Escape in pickers)', () => ({}), async () => {
+      const escape = (element) => element.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+      const pickers = {
+        plan: [{ type: 'string', title: 'Plan', enum: ['a', 'b'], 'x-zx': { field: 'zxselect' } }, '.zx-select__toggle'],
+        start: [{ type: 'string', title: 'Start', format: 'date' }, '.zx-datebox__toggle'],
+        tags: [{ type: 'array', title: 'Tags', items: { type: 'string', enum: ['x', 'y'] }, 'x-zx': { field: 'tagpicker' } }, '.zx-tag-picker__toggle']
+      };
+      for (const [name, [property, toggle]] of Object.entries(pickers)) {
+        const surface = new zx.Surface(null, { document: surfaceDocument({ root: ['form'], nodes: [{ id: 'form', type: 'fields', schema: { type: 'object', properties: { [name]: property } } }] }) });
+        fixtures.append(surface.el);
+        const log = countReplies(surface);
+        const opener = surface.el.querySelector(`[data-field-id="${name}"] ${toggle}`);
+        opener.click();
+        await delay(30);
+        const open = surface.el.querySelector(':popover-open, [aria-expanded="true"]');
+        assert(open, `${name}: the picker did not open`);
+        escape(document.activeElement && surface.el.contains(document.activeElement) ? document.activeElement : opener);
+        await delay(20);
+        assert(log.replies.length === 0, `${name}: Escape in an open picker cancelled the surface`);
+        surface.destroy();
+      }
+      // With nothing open, Escape is Cancel.
+      const plain = new zx.Surface(null, { document: surfaceDocument() });
+      fixtures.append(plain.el);
+      const plainLog = countReplies(plain);
+      escape(plain.el.querySelector('input'));
+      await delay(20);
+      assert(plainLog.replies.length === 1 && plainLog.replies[0].reason === 'escape', 'Escape did not cancel');
+      plain.destroy();
+    }),
+    surfaceCase('Surface (names)', () => ({
+      component: new zx.Surface(null, { document: surfaceDocument({ root: ['form'], nodes: [{ id: 'form', type: 'fields', schema: { type: 'object', required: ['must', 'kept'], properties: {
+        text: { type: 'string', title: 'Text' },
+        note: { type: 'string', title: 'Note', 'x-zx': { field: 'textarea' } },
+        size: { type: 'string', title: 'Size', enum: ['S', 'M'] },
+        must: { type: 'string', title: 'Must', enum: ['A', 'B'] },
+        kept: { type: 'string', title: 'Kept', enum: ['A', 'B'], default: 'A' },
+        method: { type: 'string', title: 'Method', enum: ['card', 'transfer'], 'x-zx': { field: 'optionlist' } },
+        plan: { type: 'string', title: 'Plan', oneOf: [{ const: 'a', title: 'A' }], 'x-zx': { field: 'zxselect' } },
+        start: { type: 'string', title: 'Start', format: 'date' },
+        copy: { type: 'boolean', title: 'Copy' },
+        on: { type: 'boolean', title: 'On', 'x-zx': { field: 'toggle' } },
+        seats: { type: 'integer', title: 'Seats', minimum: 1, maximum: 9 },
+        share: { type: 'number', title: 'Share', minimum: 0, maximum: 100, 'x-zx': { field: 'slider' } },
+        stars: { type: 'integer', title: 'Stars', maximum: 5, 'x-zx': { field: 'rating' } },
+        tags: { type: 'array', title: 'Tags', items: { enum: ['x', 'y'] }, 'x-zx': { field: 'tagpicker' } },
+        list: { type: 'array', title: 'List', items: { enum: ['x', 'y'] }, 'x-zx': { field: 'checklist' } }
+      } } }] }) })
+    }), ({ component }) => {
+      const root = component.el;
+      const named = (element) => {
+        if (element.getAttribute('aria-label')?.trim()) return true;
+        const by = element.getAttribute('aria-labelledby');
+        if (by && by.split(/\s+/).some((id) => document.getElementById(id)?.textContent.trim())) return true;
+        return [...(element.labels ?? [])].some((label) => label.textContent.trim());
+      };
+      const controls = root.querySelectorAll('.zx-surface__fields :is(input:not([type="hidden"]), select, textarea, [role="radiogroup"], [role="combobox"], [role="slider"])');
+      assert(controls.length >= 15, `only ${controls.length} controls drawn`);
+      for (const control of controls) {
+        if (control.closest('[hidden], [popover]:not(:popover-open)')) continue;
+        assert(named(control), `an unnamed control: ${control.outerHTML.slice(0, 120)}`);
+      }
+      for (const option of root.querySelectorAll('.zx-surface__fields select option')) {
+        assert(option.textContent.trim(), 'a select option without a name');
+      }
+      assert(!root.querySelector('[data-field-id="kept"] option[value=""]'), 'a required select with a default kept an empty option');
+      // The byline reads the muted text token, which passes contrast in both themes.
+      const probe = document.createElement('span');
+      probe.style.color = 'var(--zx-color-text-muted)';
+      root.append(probe);
+      assert(getComputedStyle(root.querySelector('.zx-surface__byline')).color === getComputedStyle(probe).color, 'the byline is not muted text');
+      probe.remove();
+    }),
+    surfaceCase('Surface (conditional field)', () => {
+      const document = {
+        zx: 'surface/1', surface: 'pay', intent: 'ask', title: 'How will the customer pay?', author: 'orders', root: ['form'],
+        nodes: [{ id: 'form', type: 'fields', schema: { type: 'object', required: ['method'], properties: {
+          method: { type: 'string', title: 'Payment', oneOf: [{ const: 'card', title: 'Card' }, { const: 'transfer', title: 'Bank transfer' }] },
+          iban: { type: 'string', title: 'IBAN', 'x-zx': { visible: { field: 'method', op: 'eq', value: 'transfer' } } }
+        } } }]
+      };
+      return { component: new zx.Surface(null, { document }), document };
+    }, async ({ component, document }) => {
+      const root = component.el;
+      const log = countReplies(component);
+      const changes = [];
+      component.on('change', (event) => changes.push(event.detail));
+      const iban = () => root.querySelector('[data-field-id="iban"]');
+      assert(iban().hidden, 'the IBAN showed before transfer was chosen');
+      setSurfaceField(root, 'method', 'transfer');
+      assert(!iban().hidden, 'the IBAN did not appear for transfer');
+      setSurfaceField(root, 'iban', 'DE89370400440532013000');
+      assert(changes.some((change) => change.name === 'iban'), 'no change event for the IBAN');
+      setSurfaceField(root, 'method', 'card');
+      assert(iban().hidden, 'the IBAN did not disappear for card');
+      assert(!('iban' in component.getValues()), 'a hidden field is in getValues()');
+      setSurfaceField(root, 'method', 'transfer');
+      assert(component.getValues().iban === 'DE89370400440532013000', 'the hidden IBAN lost its value');
+      setSurfaceField(root, 'method', 'card');
+      surfaceButton(root, 'submit').click();
+      assert(log.replies.length === 1 && !('iban' in log.replies[0].values) && log.replies[0].values.method === 'card', 'the hidden IBAN was in the reply');
+      const text = zx.surfaceText(document, log.replies[0]);
+      assert(text.includes('Payment: Card') && !text.includes('IBAN'), `surfaceText: ${text}`);
+      // Rule messages go through msg(), under the same keys as a questionnaire's.
+      const ruled = new zx.Surface(null, {
+        msg: { 'questionnaire.rule.minLength': 'Mindestens %1 Zeichen.' },
+        document: surfaceDocument({ nodes: [{ id: 'why', type: 'text', text: 'x' }, { id: 'form', type: 'fields',
+          schema: { type: 'object', properties: { name: { type: 'string', title: 'Name', minLength: 5 } } } }] })
+      });
+      fixtures.append(ruled.el);
+      setSurfaceField(ruled.el, 'name', 'ab');
+      surfaceButton(ruled.el, 'submit').click();
+      assert(ruled.el.textContent.includes('Mindestens 5 Zeichen.'), 'a rule message did not go through msg()');
+      ruled.destroy();
+    }),
+    surfaceCase('Surface (narrowed catalog)', () => ({
+      component: new zx.Surface(null, {
+        catalog: narrowCatalog(SURFACE_CATALOG, { intents: ['show'], nodes: ['text'] }),
+        document: { zx: 'surface/1', surface: 'n', intent: 'show', title: 'Status', author: 'ops', root: ['a', 'b'],
+          nodes: [{ id: 'a', type: 'text', text: 'Fine.' }, { id: 'b', type: 'badge', label: 'OK' }] }
+      })
+    }), ({ component }) => {
+      const root = component.el;
+      assert(root.querySelector('[data-surface-node="b"].zx-surface__fallback'), 'a node outside the catalog did not render the fallback');
+      assert(!root.querySelector('.zx-badge'), 'a node outside the catalog was drawn');
+      // A display table stays in the receipt, and headings sit below the title.
+      const shown = new zx.Surface(null, {
+        headingLevel: 5,
+        document: { zx: 'surface/1', surface: 'sh', intent: 'confirm', title: 'Overdue', author: 'a', root: ['h', 'tbl'], nodes: [
+          { id: 'h', type: 'heading', text: 'Detail', level: 2 },
+          { id: 'tbl', type: 'table', columns: [{ id: 'inv', label: 'Invoice' }], rows: [{ inv: 'RE-1' }] }
+        ] }
+      });
+      fixtures.append(shown.el);
+      assert(shown.el.querySelector('h5.zx-surface__title') && shown.el.querySelector('[data-surface-node="h"] h6'), 'a node heading is not below the title');
+      surfaceButton(shown.el, 'cancel').click();
+      const kept = shown.el.querySelector('[data-surface-node="tbl"]');
+      assert(kept && !kept.hidden && kept.querySelector('table'), 'a display table vanished from the receipt');
+      assert(!shown.el.querySelector('[aria-readonly]'), 'the receipt carries aria-readonly');
+      shown.destroy();
+      assert(component.getErrors().some((error) => error.code === 'unknown-type' && error.id === 'b'), 'the node outside the catalog was not reported');
+    }),
+    surfaceCase('Surface (in a thread)', () => ({
+      component: new zx.AgentThread(null, { authors: { finance: { name: 'Finance agent' } }, items: [
+        { id: 'q', type: 'surface', author: 'finance', token: 'thread-token' }
+      ] })
+    }), async ({ component }) => {
+      const replies = [];
+      let dom = 0;
+      component.on('reply', (event) => replies.push(event.detail));
+      component.el.addEventListener('zx-reply', () => { dom += 1; });
+      const surface = component.surface('q');
+      assert(surface instanceof zx.Surface, 'thread.surface(id) did not return the Surface');
+      for (const op of [
+        { zx: 'surface/1', op: 'begin', surface: 's9', intent: 'confirm', title: 'Archive?', author: 'finance', root: ['t'] },
+        { op: 'node', surface: 's9', id: 't', type: 'text', text: 'Archive 3 drafts.' },
+        { op: 'end', surface: 's9' }
+      ]) surface.apply(op);
+      await delay(120);
+      assert(component.el.querySelector('[role="status"]')?.textContent === 'Finance agent needs your answer', 'a waiting surface was not announced');
+      surfaceButton(component.el, 'confirm').click();
+      assert(replies.length === 1 && dom === 1, `the thread re-emitted ${replies.length} replies (${dom} DOM)`);
+      assert(replies[0].reply.token === 'thread-token' && replies[0].item.id === 'q' && replies[0].item.reply?.action === 'confirm', 'thread reply detail');
+      component.patch('q', { author: 'finance' });
+      assert(component.surface('q').getReply()?.action === 'confirm' && replies.length === 1, 'a redraw replied again or lost the answer');
+      // upsert(get(id)) and setItems(getItems()) keep a live surface.
+      component.upsert({ id: 'live', type: 'surface', author: 'finance', document: { zx: 'surface/1', surface: 'k', intent: 'confirm', title: 'Go?', author: 'finance', root: ['t'], nodes: [{ id: 't', type: 'text', text: 'x' }] } });
+      const live = component.surface('live');
+      component.upsert(component.get('live'));
+      component.setItems(component.getItems());
+      assert(component.surface('live') === live && replies.length === 1, 'a redraw replaced the live surface');
+      component.el.querySelector('article[data-id="live"] button[data-surface-action="confirm"]').click();
+      assert(replies.length === 2 && replies[1].reply.key === 'k#confirm', 'the kept surface did not reply once');
+      // A surface item that never begins still replies when it goes.
+      component.upsert({ id: 'never', type: 'surface' });
+      component.remove('never');
+      assert(replies.length === 3 && replies[2].reply.action === 'dismiss' && replies[2].reply.surface === null, 'an unbegun thread surface did not reply');
+    }),
+    surfaceCase('elicit()', (fixture) => {
+      const host = document.createElement('div');
+      fixture.append(host);
+      return { host, cleanup: () => host.remove() };
+    }, async ({ host }) => {
+      const requestedSchema = {
+        type: 'object', required: ['name', 'plan'],
+        properties: {
+          name: { type: 'string', title: 'Name', minLength: 2 },
+          plan: { type: 'string', title: 'Plan', oneOf: [{ const: 'basic', title: 'Basic' }, { const: 'pro', title: 'Professional' }] },
+          agree: { type: 'boolean', title: 'Send a copy' },
+          seats: { type: 'integer', title: 'Seats', minimum: 1, maximum: 50 },
+          start: { type: 'string', format: 'date', title: 'Start' }
+        }
+      };
+      const answer = zx.elicit({ message: 'Set up the account', requestedSchema }, { target: host });
+      await Promise.resolve();
+      setSurfaceField(host, 'name', 'Mara');
+      setSurfaceField(host, 'plan', 'pro');
+      setSurfaceField(host, 'agree', true);
+      setSurfaceField(host, 'seats', 12);
+      setSurfaceField(host, 'start', new Date(2026, 10, 9));
+      surfaceButton(host, 'submit').click();
+      const result = await answer;
+      assert(result.action === 'accept', `elicit resolved ${result.action}`);
+      const content = result.content;
+      assert(content.name === 'Mara' && content.plan === 'pro' && content.agree === true && content.seats === 12 && content.start === '2026-11-09',
+        `elicit content ${JSON.stringify(content)}`);
+      host.replaceChildren();
+      const declined = zx.elicit({ message: 'Again', requestedSchema }, { target: host });
+      surfaceButton(host, 'reject').click();
+      assert((await declined).action === 'decline', 'Decline did not resolve decline');
+      host.replaceChildren();
+      const cancelled = zx.elicit({ message: 'Again', requestedSchema }, { target: host });
+      host.querySelector('input').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+      assert((await cancelled).action === 'cancel', 'Escape did not resolve cancel');
+      host.replaceChildren();
+      let rejected = null;
+      try {
+        await zx.elicit({ message: 'Nested', requestedSchema: { type: 'object', properties: { address: { type: 'object', title: 'Address', properties: {} } } } }, { target: host });
+      } catch (error) {
+        rejected = error;
+      }
+      assert(rejected instanceof TypeError && /address/.test(rejected.message), 'a nested object was not rejected with a TypeError naming it');
+      // In a dialog by default; closing it resolves cancel.
+      const dialogAnswer = zx.elicit({ message: 'In a dialog', requestedSchema });
+      await nextFrame();
+      const dialog = document.querySelector('dialog.zx-surface-host[open]');
+      assert(dialog, 'elicit did not open a dialog');
+      const close = dialog.querySelector('.zx-dialog__close, [data-dialog-close], header button');
+      assert(close, 'the elicit dialog has no close button');
+      close.click();
+      assert((await dialogAnswer).action === 'cancel', 'closing the dialog did not resolve cancel');
+      await delay(10);
+    }),
+    surfaceCase('elicitationHandler()', (fixture) => {
+      const host = document.createElement('div');
+      fixture.append(host);
+      return { host, cleanup: () => host.remove() };
+    }, async ({ host }) => {
+      const load = async (revision) => (await fetch(new URL(`../unit/fixtures/mcp-elicitation-${revision}.json`, import.meta.url))).json();
+      const legacy = await load('2025-11-25');
+      const current = await load('2026-07-28');
+      const [legacyForm, legacyUrl] = legacy.requests.map((request) => request.params);
+      const { delivery, bank } = current.result.inputRequests;
+      const opened = [];
+      const handler = zx.elicitationHandler({
+        serverName: 'orders', authors: { orders: { name: 'Orders server' } }, target: host,
+        open: (url) => { opened.push(url); }
+      });
+      const fresh = () => host.replaceChildren();
+      const escape = () => host.querySelector('.zx-surface button').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+
+      // Form mode, 2025-11-25 shape: accept with the values; the byline says who asks.
+      let answer = handler(legacyForm);
+      await Promise.resolve();
+      assert(host.querySelector('.zx-surface__byline')?.textContent === 'Asked by Orders server', `byline: ${host.querySelector('.zx-surface__byline')?.textContent}`);
+      setSurfaceField(host, 'date', new Date(2026, 10, 9));
+      setSurfaceField(host, 'dock', 'south');
+      surfaceButton(host, 'submit').click();
+      let result = await answer;
+      assert(result.action === 'accept' && result.content.date === '2026-11-09' && result.content.dock === 'south' && result.content.pallets === 4,
+        `form accept: ${JSON.stringify(result)}`);
+      // Form mode, 2026-07-28 shape (an inputRequests entry, no mode): decline and cancel.
+      fresh();
+      answer = handler(delivery.params);
+      surfaceButton(host, 'reject').click();
+      assert((await answer).action === 'decline', 'Decline did not answer decline');
+      fresh();
+      answer = handler(delivery.params);
+      escape();
+      result = await answer;
+      assert(result.action === 'cancel' && !('content' in result), 'Escape did not answer cancel');
+
+      // URL mode: consent first, naming the host, emphasised, and the whole address; nothing opens.
+      for (const params of [legacyUrl, bank.params]) {
+        fresh();
+        answer = handler(params);
+        await Promise.resolve();
+        const surface = host.querySelector('.zx-surface');
+        assert(surface && opened.length === 0, 'the page opened before the person agreed');
+        assert(surface.querySelector('[data-surface-node="host"] strong')?.textContent === 'billing.example.com', 'the host is not emphasised');
+        assert(surface.querySelector('[data-surface-node="address"]')?.textContent.includes('https://billing.example.com/connect?session=7f3a'), 'the full address is not shown');
+        assert(!surface.querySelector('a[href]') && !document.querySelector('link[rel~="prefetch"], link[rel~="preconnect"]'), 'the address is followable or prefetched');
+        assert(surfaceButton(host, 'confirm')?.textContent.includes('Open page'), 'no Open page action');
+        surfaceButton(host, 'reject').click();
+        result = await answer;
+        assert(result.action === 'decline' && opened.length === 0, `URL decline: ${JSON.stringify(result)}`);
+      }
+      fresh();
+      answer = handler(bank.params);
+      escape();
+      assert((await answer).action === 'cancel' && opened.length === 0, 'Escape did not answer cancel in URL mode');
+      fresh();
+      answer = handler(legacyUrl);
+      surfaceButton(host, 'confirm').click();
+      result = await answer;
+      assert(result.action === 'accept' && !('content' in result), `URL accept: ${JSON.stringify(result)}`);
+      assert(opened.length === 1 && opened[0] === 'https://billing.example.com/connect?session=7f3a', `opened ${JSON.stringify(opened)}`);
+      // An opener that reports failure answers cancel.
+      fresh();
+      answer = zx.elicitationHandler({ serverName: 'orders', target: host, open: () => false })(bank.params);
+      surfaceButton(host, 'confirm').click();
+      assert((await answer).action === 'cancel', 'a page that did not open answered accept');
+
+      // The default opener: a new browsing context without opener or referrer, in the click.
+      const realOpen = window.open;
+      const calls = [];
+      window.open = (...args) => { calls.push(args); return null; };
+      try {
+        fresh();
+        answer = zx.elicitationHandler({ serverName: 'orders' })(bank.params);
+        await nextFrame();
+        const dialog = document.querySelector('dialog.zx-surface-host[open]');
+        assert(dialog, 'URL mode did not ask in a dialog');
+        assert(dialog.querySelector('.zx-surface__byline')?.textContent === 'Asked by orders', 'the dialog does not say who asks');
+        surfaceButton(dialog, 'confirm').click();
+        assert(calls.length === 1, 'the page did not open within the click');
+        result = await answer;
+        const [url, name, features] = calls[0];
+        const flags = String(features).split(',').map((flag) => flag.trim());
+        assert(result.action === 'accept' && url === 'https://billing.example.com/connect?session=7f3a' && name === '_blank'
+          && flags.includes('noopener') && flags.includes('noreferrer'), `default opener: ${JSON.stringify(calls)}`);
+        // Closing the dialog answers cancel.
+        answer = zx.elicitationHandler({ serverName: 'orders' })(legacyUrl);
+        await nextFrame();
+        const close = document.querySelector('dialog.zx-surface-host[open]')?.querySelector('.zx-dialog__close, [data-dialog-close], header button');
+        assert(close, 'the URL dialog has no close button');
+        close.click();
+        assert((await answer).action === 'cancel' && calls.length === 1, 'closing the dialog did not answer cancel');
+        // Withdrawn by the client: a signal that aborts closes the dialog, opens nothing, answers cancel.
+        let controller = new AbortController();
+        answer = zx.elicitationHandler({ serverName: 'orders' })(bank.params, { signal: controller.signal });
+        await nextFrame();
+        assert(document.querySelector('dialog.zx-surface-host[open]'), 'the withdrawn request never asked');
+        controller.abort();
+        assert((await answer).action === 'cancel' && calls.length === 1, 'aborting did not answer cancel');
+        await delay(20);
+        assert(!document.querySelector('dialog.zx-surface-host'), 'an aborted dialog was left in the page');
+        controller = new AbortController();
+        answer = zx.elicitationHandler({ serverName: 'orders' })(legacyForm, { signal: controller.signal });
+        await nextFrame();
+        controller.abort();
+        assert((await answer).action === 'cancel', 'aborting a form dialog did not answer cancel');
+        await delay(20);
+        assert(!document.querySelector('dialog.zx-surface-host'), 'an aborted form dialog was left in the page');
+      } finally {
+        window.open = realOpen;
+      }
+      // Aborted inline: the surface stays as its receipt, and the request answers cancel.
+      fresh();
+      const inline = new AbortController();
+      answer = handler(delivery.params, { signal: inline.signal });
+      await Promise.resolve();
+      inline.abort();
+      result = await answer;
+      assert(result.action === 'cancel' && host.querySelector('.zx-surface[data-state="answered"]'), 'aborting inline did not cancel into a receipt');
+      // Already aborted: nothing is drawn, nothing opens.
+      fresh();
+      const early = AbortSignal.abort();
+      assert((await handler(bank.params, { signal: early })).action === 'cancel' && !host.firstChild && opened.length === 1, 'an aborted signal drew or opened');
+      assert((await zx.elicit(delivery.params, { signal: early })).action === 'cancel' && !document.querySelector('dialog.zx-surface-host'), 'elicit() with an aborted signal drew');
+      // An unsupported schema and a refused address reject before anything is drawn.
+      fresh();
+      let rejected = null;
+      try {
+        await handler(current.unsupported[0]);
+      } catch (error) {
+        rejected = error;
+      }
+      assert(rejected instanceof TypeError && /enumNames/.test(rejected.message) && !host.firstChild, 'an unsupported schema did not reject');
+      rejected = null;
+      try {
+        await handler({ mode: 'url', message: 'x', url: 'http://billing.example.com/' });
+      } catch (error) {
+        rejected = error;
+      }
+      assert(rejected instanceof TypeError && !host.firstChild, 'an http address did not reject');
+      await delay(10);
+    })
+  ];
+}
+
+/** @returns {Array<object>} What a surface must survive, whatever a model wrote. */
+function surfaceSafetyCases() {
+  return [
+    // A type is only ever looked up as the catalog's own entry: these are unknown types, nothing more.
+    surfaceCase('Surface (a node type naming an inherited member)', (fixture) => ({ fixture }), ({ fixture }) => {
+      const begin = '{"zx":"surface/1","op":"begin","surface":"s1","intent":"ask","title":"T","author":"a","root":["odd","form"]}';
+      const form = '{"op":"node","surface":"s1","id":"form","type":"fields","schema":{"type":"object","properties":{"a":{"type":"string","title":"A"}}}}';
+      for (const type of ['constructor', 'toString', 'hasOwnProperty', 'valueOf', '__proto__']) {
+        const whole = new zx.Surface(null, { document: surfaceDocument({ root: ['odd', 'form'], nodes: [{ id: 'odd', type }, surfaceDocument().nodes[1]] }) });
+        fixture.append(whole.toElement());
+        assert(whole.el.querySelector('.zx-surface__fallback'), `${type}: no fallback`);
+        assert(whole.getErrors().some((error) => error.code === 'unknown-type'), `${type}: not reported`);
+        assert(surfaceButton(whole.el, 'submit') && whole.el.querySelector('input'), `${type}: took the rest of the surface with it`);
+        whole.destroy();
+        for (const close of ['cancel', 'supersede', 'destroy']) {
+          const streamed = new zx.Surface(null);
+          const count = countReplies(streamed);
+          fixture.append(streamed.toElement());
+          // One chunk: what follows the odd line in it must still arrive.
+          streamed.write(`${begin}\n{"op":"node","surface":"s1","id":"odd","type":${JSON.stringify(type)}}\n${form}\n{"op":"end","surface":"s1"}\n`);
+          assert(streamed.toDocument().nodes.length === 2 && !surfaceButton(streamed.el, 'submit').disabled, `${type}: the chunk was cut short`);
+          streamed[close]();
+          assert(count.replies.length === 1 && count.dom === 1, `${type}: ${close} replied ${count.replies.length} times`);
+          streamed.destroy();
+          assert(!streamed.el.isConnected, `${type}: ${close} left the surface in the page`);
+        }
+      }
+    }),
+    // The id of a row is what that row holds, never something every object inherits.
+    surfaceCase('Surface (a rowId or column naming an inherited member)', (fixture) => ({ fixture }), ({ fixture }) => {
+      const table = { id: 'list', type: 'table', name: 'pick', rowId: 'toString', selectable: 'multi',
+        columns: [{ id: 'label', label: 'Label' }, { id: 'valueOf', label: 'Odd' }], rows: [{ label: 'One' }, { label: 'Two', toString: 'own' }] };
+      const component = new zx.Surface(null, { document: surfaceDocument({ intent: 'review', root: ['list'], nodes: [table] }) });
+      const count = countReplies(component);
+      fixture.append(component.toElement());
+      const rows = [...component.el.querySelectorAll('tbody tr')];
+      assert(rows.length === 2, 'the table did not draw');
+      assert(!component.el.textContent.includes('native code'), 'an inherited function was drawn as a cell');
+      rows[0].querySelector('input[type="checkbox"]').click();
+      assert(rows[0].getAttribute('aria-selected') === 'true' && rows[1].getAttribute('aria-selected') !== 'true', 'rows without an id of their own were one row');
+      assert(JSON.stringify(component.getValues()) === '{"pick":[]}', 'a row without an id reported one');
+      rows[1].querySelector('input[type="checkbox"]').click();
+      assert(JSON.stringify(component.getValues()) === '{"pick":["own"]}', `the selection is ${JSON.stringify(component.getValues())}`);
+      surfaceButton(component.el, 'approve').click();
+      assert(count.replies.length === 1 && JSON.stringify(count.replies[0].values) === '{"pick":["own"]}', 'the selection did not reach the reply');
+      assert(component.el.querySelectorAll('tbody tr[data-selected]').length === 1, 'the receipt marked the wrong rows');
+      component.destroy();
+      // The same with one row picked and the surface closed instead, for each way of closing it.
+      for (const close of ['cancel', 'supersede', 'destroy']) {
+        const single = new zx.Surface(null, { document: surfaceDocument({ intent: 'review', root: ['list'], nodes: [{ ...table, selectable: 'single' }] }) });
+        const replies = countReplies(single);
+        fixture.append(single.toElement());
+        single.el.querySelector('tbody tr').click();
+        single[close]();
+        assert(replies.replies.length === 1, `${close} replied ${replies.replies.length} times`);
+        single.destroy();
+      }
+    }),
+    // Nothing that goes wrong while drawing may cost the reply, or anything but the part that failed.
+    surfaceCase('Surface (a failure while drawing)', (fixture) => ({ fixture }), async ({ fixture }) => {
+      const resolve = { entities: ['company'], ref: () => ({ get title() { throw new Error('drawing failed'); } }) };
+      const node = new zx.Surface(null, { resolve, document: surfaceDocument({ intent: 'show', root: ['ref', 'text'], nodes: [
+        { id: 'ref', type: 'ref', ref: { $ref: 'company', id: 'c1' } }, { id: 'text', type: 'text', text: 'Still here' }] }) });
+      fixture.append(node.toElement());
+      assert(node.el.querySelector('.zx-surface__fallback') && node.el.textContent.includes('Still here'), 'one failing node took the surface with it');
+      assert(node.getErrors().some((error) => error.code === 'draw-failed'), 'the failure was not reported');
+      node.destroy();
+      for (const close of ['cancel', 'supersede', 'destroy']) {
+        const component = new zx.Surface(null, { document: surfaceDocument() });
+        const count = countReplies(component);
+        fixture.append(component.toElement());
+        component._freeze = () => { throw new Error('drawing failed'); };
+        component[close]();
+        assert(count.replies.length === 1 && count.dom === 1, `${close}: a failing receipt cost the reply`);
+        assert(component.getErrors().some((error) => error.code === 'draw-failed'), `${close}: the failure was not reported`);
+        component.destroy();
+        assert(!component.el.isConnected, `${close}: the surface stayed in the page`);
+      }
+      // The closing reply itself cannot be built: a bare one still goes out.
+      const bare = new zx.Surface(null, { document: surfaceDocument() });
+      const bareCount = countReplies(bare);
+      fixture.append(bare.toElement());
+      bare._docLike = () => { throw new Error('drawing failed'); };
+      bare.cancel();
+      assert(bareCount.replies.length === 1 && bareCount.replies[0].surface === 's1' && bareCount.replies[0].action === 'cancel', 'a closing reply was lost');
+      bare.destroy();
+      // A surface that cannot be built opens nothing and leaves nothing behind.
+      const dialogs = document.querySelectorAll('dialog').length;
+      let refused = null;
+      try {
+        await zx.openSurface(surfaceDocument(), { placement: 'dialog', token: 5 });
+      } catch (error) {
+        refused = error;
+      }
+      assert(refused instanceof TypeError && document.querySelectorAll('dialog').length === dialogs, 'a refused surface left its dialog behind');
+    }),
+    // Several primary actions: the one pressed answers, under its own policy.
+    surfaceCase('Surface (each primary action answers for itself)', (fixture) => ({ fixture }), async ({ fixture }) => {
+      const actions = [{ id: 'erase', label: 'Erase', kind: 'primary', tool: 'data.erase' }, { id: 'keep', label: 'Keep', kind: 'primary', tool: 'data.keep' }];
+      const open = (policy) => {
+        const component = new zx.Surface(null, { document: surfaceDocument({ actions }), policy });
+        fixture.append(component.toElement());
+        setSurfaceField(component.el, 'name', 'Ada');
+        return { component, count: countReplies(component) };
+      };
+      const clicked = open(null);
+      surfaceButton(clicked.component.el, 'keep').click();
+      await delay(0);
+      assert(clicked.count.replies.length === 1 && clicked.count.replies[0].action === 'keep', `pressing Keep answered ${clicked.count.replies[0]?.action}`);
+      clicked.component.destroy();
+      // The confirmation the policy wants for the action pressed is the one asked.
+      const guarded = open((action) => (action.id === 'keep' ? { level: 'type-to-confirm', confirmText: 'KEEP' } : 'allow'));
+      surfaceButton(guarded.component.el, 'keep').click();
+      await delay(0);
+      assert(document.querySelector('dialog[open] .zx-dialog__confirm-input') && guarded.count.replies.length === 0, 'the action pressed skipped its type-to-confirm');
+      guarded.component.destroy();
+      await delay(20);
+      assert(!document.querySelector('dialog[open]'), 'the confirmation stayed open');
+      // Enter in a field presses the first of them.
+      const entered = open(null);
+      entered.component.el.querySelector('form').requestSubmit();
+      await delay(0);
+      assert(entered.count.replies[0]?.action === 'erase', 'Enter did not take the first primary action');
+      entered.component.destroy();
+    }),
+    // The policy is synchronous: nothing waits for a promise, so a promise allows nothing.
+    surfaceCase('Surface (a policy that returns a promise)', (fixture) => ({ fixture }), async ({ fixture }) => {
+      const policies = {
+        'resolved deny': async () => 'deny',
+        'resolved allow': async () => 'allow',
+        rejected: async () => { throw new Error('refused'); },
+        pending: () => new Promise(() => {}),
+        thenable: () => ({ then() {} })
+      };
+      for (const [name, policy] of Object.entries(policies)) {
+        const component = new zx.Surface(null, { document: surfaceDocument(), policy });
+        const count = countReplies(component);
+        fixture.append(component.toElement());
+        assert(!surfaceButton(component.el, 'submit'), `${name}: the action was drawn`);
+        assert(surfaceButton(component.el, 'cancel'), `${name}: the way out went with it`);
+        component.cancel();
+        assert(count.replies[0]?.removed?.includes('submit'), `${name}: the reply does not say it was removed`);
+        component.destroy();
+      }
+      // The object form of a decision stays: it is how a policy supplies the text to type.
+      const typed = new zx.Surface(null, { document: surfaceDocument(), policy: () => ({ level: 'type-to-confirm', confirmText: 'SEND' }) });
+      fixture.append(typed.toElement());
+      setSurfaceField(typed.el, 'name', 'Ada');
+      surfaceButton(typed.el, 'submit').click();
+      await delay(0);
+      assert(document.querySelector('dialog[open] .zx-dialog__confirm-label b')?.textContent === 'SEND', 'a decision object was not read');
+      typed.destroy();
+      await delay(20);
+    }),
+    // A form's members answer to its inputs' names, and those are the model's to choose.
+    surfaceCase('Surface (an input named after a form member)', (fixture) => ({ fixture }), ({ fixture }) => {
+      for (const name of ['removeAttribute', 'setAttribute', 'getAttribute', 'localName', 'querySelector', 'submit', 'contains', 'dataset', 'classList', 'addEventListener']) {
+        const nodes = [{ id: 'form', type: 'fields', schema: { type: 'object', required: [name], properties: { [name]: { type: 'string', title: 'Field' } } } }];
+        const whole = new zx.Surface(null, { document: surfaceDocument({ root: ['form'], nodes }) });
+        const count = countReplies(whole);
+        fixture.append(whole.toElement());
+        assert(whole.getErrors().every((error) => error.code !== 'draw-failed'), `${name}: drawing failed`);
+        assert(!whole.el.querySelector('.zx-surface__frame').hasAttribute('aria-busy'), `${name}: the finished surface is still busy`);
+        assert(surfaceButton(whole.el, 'submit').type === 'submit', `${name}: Enter no longer submits`);
+        setSurfaceField(whole.el, name, 'Ada');
+        surfaceButton(whole.el, 'submit').click();
+        assert(count.replies.length === 1 && count.replies[0].values[name] === 'Ada', `${name}: the value did not reach the reply`);
+        whole.destroy();
+        const streamed = new zx.Surface(null);
+        fixture.append(streamed.toElement());
+        streamed.apply({ zx: 'surface/1', op: 'begin', surface: 's1', intent: 'ask', title: 'T', author: 'a', root: ['form'] });
+        streamed.apply({ op: 'node', surface: 's1', ...nodes[0] });
+        assert(streamed.el.querySelector('.zx-surface__frame').hasAttribute('aria-busy'), `${name}: a streaming surface is not busy`);
+        streamed.apply({ op: 'end', surface: 's1' });
+        assert(streamed.getErrors().every((error) => error.code !== 'draw-failed'), `${name}: streaming failed`);
+        streamed.destroy();
+      }
+    }),
+    // One operation costs what it touches, whatever else the surface holds.
+    surfaceCase('Surface (an operation costs what it touches)', (fixture) => ({ fixture }), ({ fixture }) => {
+      const component = new zx.Surface(null);
+      fixture.append(component.toElement());
+      const rows = Array.from({ length: 50 }, (_, index) => ({ id: `r${index}`, note: 'x' }));
+      component.apply({ zx: 'surface/1', op: 'begin', surface: 's1', intent: 'show', title: 'T', author: 'a', root: ['list', 'note', 'first'] });
+      component.apply({ op: 'data', surface: 's1', path: '', value: { rows, note: 'one', items: [{ text: 'a' }, { text: 'b' }] } });
+      component.apply({ op: 'node', surface: 's1', id: 'list', type: 'table', columns: [{ id: 'id', label: 'Id' }], rows: { $data: '/rows' } });
+      component.apply({ op: 'node', surface: 's1', id: 'note', type: 'text', text: { $data: '/note' } });
+      component.apply({ op: 'node', surface: 's1', id: 'first', type: 'text', text: { $data: '/items/1/text' } });
+      const table = component.el.querySelector('table');
+      const held = component._model.data.rows;
+      const resolved = component._prop(component._model.nodes.get('list'), 'rows');
+      component.apply({ op: 'data', surface: 's1', path: '/note', value: 'two' });
+      assert(component.el.textContent.includes('two'), 'the node bound to the path was not redrawn');
+      assert(component.el.querySelector('table') === table, 'a node bound elsewhere was redrawn');
+      assert(component._model.data.rows === held, 'the data was copied to change one member');
+      assert(component._prop(component._model.nodes.get('list'), 'rows') === resolved, 'a binding was resolved and checked again');
+      // A list that changes moves what follows, and a bound row keeps up.
+      component.apply({ op: 'data', surface: 's1', path: '/rows/0/note', value: 'y' });
+      assert(component.el.querySelector('table') !== table, 'a change inside bound rows was not drawn');
+      assert(component.el.textContent.includes('b'), 'the bound list entry is missing');
+      component.apply({ op: 'data', surface: 's1', path: '/items/0', remove: true });
+      assert(!component.el.querySelector('[data-surface-node="first"]').textContent.includes('b'), 'a removal did not reach what it moved');
+      component.apply({ op: 'data', surface: 's1', path: '/items/-', value: { text: 'c' } });
+      assert(component.el.querySelector('[data-surface-node="first"]').textContent.includes('c'), 'an append did not reach what it moved in');
+      component.apply({ op: 'data', surface: 's1', path: '', value: { note: 'three' } });
+      assert(component.el.querySelector('[data-surface-node="note"]').textContent.includes('three'), 'replacing the data did not redraw');
+      component.destroy();
+    }),
+    // The budget holds while a surface streams, before anything has ended it.
+    surfaceCase('Surface (the table cell budget)', (fixture) => ({ fixture }), ({ fixture }) => {
+      const component = new zx.Surface(null);
+      fixture.append(component.toElement());
+      const columns = Array.from({ length: 50 }, (_, index) => ({ id: `c${index}`, label: 'C' }));
+      component.apply({ zx: 'surface/1', op: 'begin', surface: 's1', intent: 'ask', title: 'T', author: 'a', root: ['a', 'b', 'c', 'form'] });
+      component.apply({ op: 'data', surface: 's1', path: '/rows', value: Array.from({ length: 1000 }, () => ({ c0: 1 })) });
+      for (const id of ['a', 'b', 'c']) component.apply({ op: 'node', surface: 's1', id, type: 'table', columns, rows: { $data: '/rows' } });
+      assert(component.el.querySelectorAll('.zx-table, [data-surface-node] table').length > 0, 'no table drew');
+      assert(component.el.querySelector('[data-surface-node="c"]').classList.contains('zx-surface__fallback'), 'the table past the budget drew');
+      assert(component.getErrors().some((error) => error.code === 'limit' && error.id === 'c'), 'the budget was not reported');
+      // It is what the surface holds now that counts.
+      component.apply({ op: 'remove', surface: 's1', id: 'a' });
+      assert(!component.el.querySelector('[data-surface-node="c"]').classList.contains('zx-surface__fallback'), 'a table that fits again stayed a fallback');
+      component.destroy();
+    }),
+    // Every waiting surface has a way out, and Escape is one of them.
+    surfaceCase('Surface (a way out of every waiting surface)', (fixture) => ({ fixture }), async ({ fixture }) => {
+      const escape = async (component) => {
+        (component.el.querySelector('input, button') ?? component.el).dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+        await delay(0);
+      };
+      const steps = [{ name: 'a', prompt: 'A?', required: true, choices: [{ value: 'x', label: 'X' }] }];
+      const asking = surfaceDocument({ intent: 'questionnaire', root: ['q'], nodes: [{ id: 'q', type: 'questionnaire', steps }] });
+      const diff = { id: 'd', type: 'diff', name: 'accepted', rows: [{ id: 'r1', field: 'name', label: 'Name', before: 'A', after: 'B' }] };
+      const review = surfaceDocument({ intent: 'review', root: ['d'], nodes: [diff] });
+      const open = (document, options = {}) => {
+        const component = new zx.Surface(null, { document, ...options });
+        fixture.append(component.toElement());
+        return { component, count: countReplies(component) };
+      };
+      // A questionnaire has its Cancel, enabled while it streams and whatever the policy says of Submit.
+      for (const policy of [null, () => 'deny']) {
+        const { component, count } = open(asking, { policy });
+        surfaceButton(component.el, 'cancel').click();
+        await delay(0);
+        assert(count.replies.length === 1 && count.replies[0].action === 'cancel', 'Cancel did not close a questionnaire');
+        component.destroy();
+      }
+      const streaming = new zx.Surface(null);
+      fixture.append(streaming.toElement());
+      streaming.apply({ zx: 'surface/1', op: 'begin', surface: 's1', intent: 'questionnaire', title: 'T', author: 'a', root: [] });
+      assert(surfaceButton(streaming.el, 'cancel') && !surfaceButton(streaming.el, 'cancel').disabled, 'Cancel waited for a questionnaire to end');
+      streaming.destroy();
+      // Escape closes whatever waits.
+      for (const [name, document, action] of [
+        ['questionnaire', asking, 'cancel'],
+        ['review', review, 'cancel'],
+        ['show with actions', surfaceDocument({ intent: 'show', root: ['why'], nodes: [surfaceDocument().nodes[0]], actions: [{ id: 'go', label: 'Go' }] }), 'dismiss']
+      ]) {
+        const { component, count } = open(document);
+        await escape(component);
+        assert(count.replies.length === 1 && count.replies[0].action === action && count.replies[0].reason === 'escape', `Escape did not close a ${name}`);
+        component.destroy();
+      }
+      // A surface that asks nothing has nothing to close.
+      const plain = open(surfaceDocument({ intent: 'show', root: ['why'], nodes: [surfaceDocument().nodes[0]] }));
+      await escape(plain.component);
+      assert(plain.count.replies.length === 0, 'Escape closed a surface that waits for nothing');
+      plain.component.destroy();
+      // A review keeps a visible way to refuse: its Reject, or Cancel where that is gone.
+      const reject = open(review);
+      assert(surfaceButton(reject.component.el, 'reject') && !surfaceButton(reject.component.el, 'cancel'), 'a review with Reject grew a Cancel');
+      reject.component.destroy();
+      for (const [name, document, options] of [
+        ['its own actions', surfaceDocument({ intent: 'review', root: ['d'], nodes: [diff], actions: [{ id: 'send', label: 'Send', kind: 'primary' }] }), {}],
+        ['Reject denied', review, { policy: (action) => (action.id === 'reject' ? 'deny' : 'allow') }]
+      ]) {
+        const { component, count } = open(document, options);
+        assert(surfaceButton(component.el, 'cancel'), `a review with ${name} has no way out`);
+        surfaceButton(component.el, 'cancel').click();
+        await delay(0);
+        assert(count.replies[0]?.action === 'cancel', `Cancel did not close a review with ${name}`);
+        component.destroy();
+      }
+      // A step the validator dropped takes the `next` naming it along, so the questionnaire can end.
+      const dropped = open(surfaceDocument({ intent: 'questionnaire', root: ['q'], nodes: [{ id: 'q', type: 'questionnaire', steps: [{ ...steps[0], next: 'gone' }, { name: 'gone' }] }] }));
+      const questionnaire = zx.Component.from(dropped.component.el.querySelector('.zx-questionnaire'));
+      dropped.component.el.querySelector('.zx-questionnaire__control').click();
+      await questionnaire.submit();
+      await delay(0);
+      assert(dropped.count.replies[0]?.action === 'submit', 'a questionnaire with a dangling next could not be answered');
+      dropped.component.destroy();
+    }),
+    // A receipt shows what the reply answered, restored or not.
+    surfaceCase('Surface (a restored receipt)', (fixture) => ({ fixture }), ({ fixture }) => {
+      const reply = { zx: 'reply/1', surface: 's1', action: 'submit', key: 's1#submit', values: { method: 'transfer', iban: 'DE123' }, confirmation: null, at: '2026-01-01T10:00:00' };
+      const document = surfaceDocument({ root: ['form', 'bank', 'open'], nodes: [
+        { id: 'form', type: 'fields', schema: { type: 'object', properties: { method: { type: 'string', title: 'Method', enum: ['card', 'transfer'] } } } },
+        { id: 'bank', type: 'fields', visible: { field: 'method', op: 'eq', value: 'transfer' }, schema: { type: 'object', properties: { iban: { type: 'string', title: 'IBAN' } } } },
+        { id: 'open', type: 'text', visible: { field: 'method', op: 'empty' }, text: 'Shown only while unanswered' }
+      ] });
+      const component = new zx.Surface(null, { document, reply });
+      fixture.append(component.toElement());
+      const shown = (id) => !component.el.querySelector(`[data-surface-node="${id}"]`).hidden;
+      assert(shown('bank') && component.el.textContent.includes('DE123'), 'an answered section was hidden');
+      assert(!shown('open'), 'a node hidden for the answer was shown');
+      component.destroy();
+      // A hidden step in a stored reply stays out of the receipt as well.
+      const steps = [{ name: 'a', prompt: 'A?', input: {} }, { name: 'b', prompt: 'B?', input: {}, when: { field: 'a', op: 'eq', value: 'yes' } }];
+      const stored = new zx.Surface(null, { document: surfaceDocument({ intent: 'questionnaire', root: ['q'], nodes: [{ id: 'q', type: 'questionnaire', steps }] }),
+        reply: { ...reply, values: { answers: { a: 'no', b: 'HIDDEN' }, path: ['a', 'b'] } } });
+      fixture.append(stored.toElement());
+      assert(!stored.el.textContent.includes('HIDDEN'), 'a hidden step was drawn in the receipt');
+      stored.destroy();
+    }),
+    // What an application registered is the application's: the surface fills in only what is missing.
+    surfaceCase('Surface (an application\'s own Field adapters)', (fixture) => ({ fixture }), async ({ fixture }) => {
+      const { registerRatingFieldAdapter } = await import('../../src/components/rating/field-adapter.js');
+      const { registerDateboxFieldAdapters } = await import('../../src/components/datebox/field-adapter.js');
+      const own = (name) => () => {
+        const el = document.createElement('input');
+        el.dataset.own = name;
+        return { el, get: () => el.value, set: (value) => { el.value = value ?? ''; }, focus: () => el.focus(), setDisabled: (disabled) => { el.disabled = disabled; } };
+      };
+      zx.Field.register('rating', own('rating'));
+      zx.Field.register('date', own('date'));
+      try {
+        const properties = {
+          stars: { type: 'integer', title: 'Stars', 'x-zx': { field: 'rating' } },
+          day: { type: 'string', title: 'Day', format: 'date' },
+          at: { type: 'string', title: 'At', format: 'date-time' }
+        };
+        const component = new zx.Surface(null, { document: surfaceDocument({ root: ['form'], nodes: [{ id: 'form', type: 'fields', schema: { type: 'object', properties } }] }) });
+        fixture.append(component.toElement());
+        assert(component.el.querySelector('[data-own="rating"]'), 'the application\'s rating adapter was replaced');
+        assert(component.el.querySelector('[data-own="date"]'), 'the application\'s date adapter was replaced');
+        assert(component.el.querySelector('[data-field-id="at"] input') && !component.el.querySelector('[data-field-id="at"] [data-own]'), 'the adapter beside it was lost');
+        component.destroy();
+      } finally {
+        registerRatingFieldAdapter();
+        registerDateboxFieldAdapters();
+      }
+    }),
+    /* -- end of the safety cases -- */
+  ];
+}
+
+/** @returns {Array<object>} The AG-UI adapter, replaying a recorded sequence into a real thread. */
+function agUiCases() {
+  return [
+    surfaceCase('connectAgUi()', () => ({
+      component: new zx.AgentThread(null, { authors: { finance: { name: 'Finance agent' } } })
+    }), async ({ component: thread }) => {
+      const { events } = await (await fetch(new URL('../unit/fixtures/ag-ui-surfaces.json', import.meta.url))).json();
+      if (!zx.AgentThread.has('smoke-company')) {
+        zx.AgentThread.register('smoke-company', (item) => zx.h('p', { class: 'smoke-company' }, String(item.name ?? '')));
+      }
+      const results = [];
+      const problems = [];
+      const adapter = zx.connectAgUi(thread, {
+        agent: 'finance',
+        inlineSurfaces: true,
+        tools: { show_company: (call) => (call.args ? { type: 'smoke-company', name: call.status === 'done' ? JSON.parse(call.result).name : '…' } : null) },
+        ontoolresult: (id, result) => results.push([id, result]),
+        onerror: (problem) => problems.push(problem.code)
+      });
+      const ids = () => [...thread.el.querySelectorAll('.zx-agent-thread__item')].map((article) => article.dataset.id);
+      const second = events.findIndex((event) => event.runId === 'run_c2');
+      const skeletonAt = events.findIndex((event) => event.type === 'TOOL_CALL_ARGS' && event.toolCallId === 'call_c2');
+      for (const event of events.slice(0, skeletonAt + 1)) adapter.handle(event);
+      assert(thread.el.querySelector('article[data-id="tool:call_c2"] [aria-busy="true"]'), 'a surface tool did not stand as a skeleton while its arguments arrived');
+      for (const event of events.slice(skeletonAt + 1, second)) adapter.handle(event);
+      assert(JSON.stringify(ids()) === JSON.stringify(['trace:run_c1', 'tool:call_c1', 'trace:run_c1#2', 'surface:run_c1/s1']), `items after the first run: ${ids()}`);
+      assert(thread.el.querySelector('article[data-id="tool:call_c1"] .smoke-company')?.textContent === 'Helios Energie', 'the tile was not patched with the result');
+      const asked = thread.el.querySelector('article[data-id="surface:run_c1/s1"]');
+      setSurfaceField(asked, 'template', 'reminder-2');
+      surfaceButton(asked, 'submit').click();
+      assert(results.length === 1 && results[0][0] === 'call_c2', 'the surface reply did not become the tool result');
+      assert(results[0][1].token === 'call_c2' && results[0][1].values.template === 'reminder-2', `tool result ${JSON.stringify(results[0][1])}`);
+      for (const event of events.slice(second)) adapter.handle(event);
+      assert(JSON.stringify(ids().slice(4)) === JSON.stringify(['msg_c2', 'surface:run_c2/s1', 'msg_c2#2']), `items after the second run: ${ids()}`);
+      assert(thread.el.querySelector('article[data-id="msg_c2#2"]')?.dataset.continued === 'true', 'the prose after a fence does not read as the same turn');
+      const replies = [];
+      thread.on('reply', (event) => replies.push(event.detail.reply));
+      thread.surface('surface:run_c2/s1').cancel();
+      assert(replies[0]?.token === 'run_c2', 'an inline surface does not carry the run id as its token');
+      assert(problems.length === 0, `problems: ${problems}`);
+      adapter.destroy();
+    }),
+    surfaceCase('Questionnaire (what the last release tolerated)', () => ({
+      component: new zx.Questionnaire(null, { review: true, items: [
+        { name: 'a', prompt: 'A', input: {}, next: '$review', validate: false, when: {} },
+        { name: 'skipped', prompt: 'Skipped', input: {}, next: false },
+        { name: '$review', prompt: 'An item of that name', input: {}, next: [] }
+      ] })
+    }), async ({ component }) => {
+      const forward = /** @type {HTMLButtonElement} */ (component.el.querySelector('[data-role]'));
+      assert(component.getActive() === 'a', 'the questionnaire did not start on its first item');
+      assert(forward.dataset.role === 'next', `the item’s own name read as the review screen: ${forward.dataset.role}`);
+      await component.next();
+      assert(component.getActive() === '$review', `next left for ${component.getActive()} instead of the item named $review`);
+      assert(forward.dataset.role === 'review', 'the last item did not lead to the review');
+    }),
+    surfaceCase('AgentThread (setItems draws anew, as it always has)', () => ({
+      component: new zx.AgentThread(null, { authors: { finance: { name: 'Finance agent' } } })
+    }), async ({ component: thread }) => {
+      const log = { alive: new Map(), calls: [], seen: [] };
+      /** @type {any} */ (thread).smokeLog = log;
+      if (!zx.AgentThread.has('smoke-registry')) {
+        zx.AgentThread.register('smoke-registry', (item, { thread: owner, own }) => {
+          const { smokeLog } = /** @type {any} */ (owner);
+          smokeLog.calls.push(`render ${item.id}`);
+          smokeLog.seen.push(owner.get(item.id));
+          const element = zx.h('p', {}, String(item.id));
+          smokeLog.alive.set(item.id, element);
+          own(/** @type {any} */ ({ destroy() {
+            smokeLog.calls.push(`destroy ${item.id}`);
+            smokeLog.alive.delete(item.id);
+          } }));
+          return element;
+        });
+      }
+      const ids = () => [...thread.el.querySelectorAll('.zx-agent-thread__item')].map((article) => article.dataset.id);
+      thread.setItems([{ id: 'a', type: 'smoke-registry' }, { id: 'b', type: 'smoke-registry' }]);
+      log.calls.length = 0;
+      log.seen.length = 0;
+      thread.setItems([{ id: 'b', type: 'smoke-registry' }, { id: 'a', type: 'smoke-registry' }]);
+      assert(log.calls.join() === 'destroy a,destroy b,render b,render a', `the old items must go before anything is drawn: ${log.calls}`);
+      assert(log.alive.has('a') && log.alive.has('b'), 'a renderer’s cleanup took the item that replaced it');
+      assert(log.seen.every((item) => item === null), 'a renderer saw the item it replaces');
+      assert(ids().join() === 'b,a', `order: ${ids()}`);
+      thread.setItems([{ id: 7, type: 'text', text: 'one' }]);
+      thread.setItems([{ id: 7, type: 'text', text: 'two' }]);
+      assert(thread.get(7).id === 7, `an id’s type changed: ${typeof thread.get(7).id}`);
+      // A surface already drawn is the exception: it stays, and keeps what was typed.
+      const surfaceItem = { id: 's', type: 'surface', document: surfaceDocument({ root: ['form'], nodes: [
+        { id: 'form', type: 'fields', schema: { type: 'object', properties: { a: { type: 'string', title: 'A' } } } }
+      ] }) };
+      thread.setItems([{ id: 'n', type: 'text', text: 'before' }, surfaceItem]);
+      const surface = thread.surface('s');
+      thread.setItems([surfaceItem, { id: 'm', type: 'text', text: 'after' }, { id: 'n', type: 'text', text: 'again' }]);
+      assert(thread.surface('s') === surface, 'a surface that still matches was drawn anew');
+      assert(ids().join() === 's,m,n', `order around a kept surface: ${ids()}`);
+      thread.setItems([{ id: 'm', type: 'text', text: 'then' }, surfaceItem]);
+      assert(thread.surface('s') === surface && ids().join() === 'm,s', `moved surface: ${ids()}`);
+      assert(thread.el.querySelector('article[data-id="m"]').getAttribute('aria-setsize') === '2', 'positions were not synced');
+    }),
+    surfaceCase('AgentThread (an item’s own catalog field is still copied)', () => ({
+      component: new zx.AgentThread(null, {})
+    }), ({ component: thread }) => {
+      if (!zx.AgentThread.has('smoke-shop')) zx.AgentThread.register('smoke-shop', (item) => zx.h('p', {}, String(item.catalog.a)));
+      const given = { id: 'x', type: 'smoke-shop', catalog: { a: 1 } };
+      thread.upsert(given);
+      given.catalog.a = 2;
+      assert(thread.get('x').catalog.a === 1, 'an application’s later change reached the thread');
+      thread.get('x').catalog.a = 3;
+      assert(thread.get('x').catalog.a === 1, 'get() handed out the thread’s own object');
+      thread.patch('x', { catalog: { a: 4 } });
+      assert(thread.get('x').catalog.a === 4, 'a patched catalog was lost');
+      const narrow = narrowCatalog(SURFACE_CATALOG, { intents: ['show'], nodes: ['text'] });
+      thread.upsert({ id: 's', type: 'surface', catalog: narrow, document: { zx: 'surface/1', surface: 's', intent: 'show', title: 'T', author: 'a', root: [], nodes: [] } });
+      assert(thread.surface('s'), 'a surface’s catalog must stay the library’s own object');
+    }),
+    surfaceCase('connectAgUi() (a closed message or call reopens)', () => ({
+      component: new zx.AgentThread(null, { authors: { finance: { name: 'Finance agent' } }, answerActions: ['copy'] })
+    }), async ({ component: thread }) => {
+      const results = [];
+      const replies = [];
+      const problems = [];
+      thread.on('reply', (event) => replies.push(event.detail.reply));
+      const adapter = zx.connectAgUi(thread, {
+        agent: 'finance',
+        ontoolresult: (id, result) => results.push([id, result]),
+        onerror: (problem) => problems.push(problem.code)
+      });
+      const say = (id, delta) => {
+        adapter.handle({ type: 'TEXT_MESSAGE_START', messageId: id });
+        adapter.handle({ type: 'TEXT_MESSAGE_CONTENT', messageId: id, delta });
+      };
+      const view = () => thread.el.querySelector('article[data-id="m"] .zx-block-view');
+      adapter.handle({ type: 'RUN_STARTED', threadId: 't', runId: 'r1' });
+      say('m', 'first ');
+      adapter.handle({ type: 'TEXT_MESSAGE_END', messageId: 'm' });
+      assert(view().dataset.state === 'done' && thread.el.querySelector('article[data-id="m"] .zx-agent-thread__actions'), 'the answer did not finish');
+      say('m', 'second');
+      assert(thread.get('m').streaming === true && view().dataset.state === 'streaming', 'a reopened answer does not stream');
+      assert(!thread.el.querySelector('article[data-id="m"] .zx-agent-thread__actions'), 'a reopened answer offered actions');
+      adapter.handle({ type: 'TEXT_MESSAGE_END', messageId: 'm' });
+      assert(thread.getComponent('m').toText() === 'first second', `text: ${thread.getComponent('m').toText()}`);
+      adapter.handle({ type: 'RUN_FINISHED', threadId: 't', runId: 'r1', outcome: { type: 'cancelled' } });
+      // Stopped, then reopened by a later run: it reads as stopped no more.
+      adapter.handle({ type: 'RUN_STARTED', threadId: 't', runId: 'r2' });
+      say('m', 'x');
+      adapter.handle({ type: 'RUN_FINISHED', threadId: 't', runId: 'r2', outcome: { type: 'cancelled' } });
+      assert(view().dataset.state === 'stopped', 'the message did not read as stopped');
+      adapter.handle({ type: 'RUN_STARTED', threadId: 't', runId: 'r3' });
+      say('m', ' again');
+      assert(view().dataset.state === 'streaming' && !view().querySelector('.zx-block-view__stopped'), 'a reopened answer still reads as stopped');
+      adapter.handle({ type: 'TEXT_MESSAGE_END', messageId: 'm' });
+      assert(thread.getComponent('m').toText().endsWith('again'), 'the text did not continue');
+      // A surface goes when its call reopens: its one reply reaches the thread, but it is not the
+      // call's answer, and the document drawn again is a surface of this run.
+      const document = JSON.stringify(surfaceDocument());
+      const call = (delta) => {
+        adapter.handle({ type: 'TOOL_CALL_START', toolCallId: 'c', toolCallName: 'ask_user' });
+        adapter.handle({ type: 'TOOL_CALL_ARGS', toolCallId: 'c', delta });
+        adapter.handle({ type: 'TOOL_CALL_END', toolCallId: 'c' });
+      };
+      call(document);
+      assert(thread.surface('surface:r3/s1'), 'the surface was not drawn');
+      call(' ');
+      assert(replies.length === 1 && replies[0].action === 'dismiss', 'the surface that went did not reply once');
+      assert(thread.surface('surface:r3/s1') && thread.surface('surface:r3/s1').getReply() === null, 'the reopened call was not drawn again');
+      assert(results.length === 0, `the call was answered for: ${JSON.stringify(results)}`);
+      assert(problems.join() === 'unclosed', `only the message the stopped run left open is a problem: ${problems}`);
+      adapter.destroy();
+    }),
+    surfaceCase('connectAgUi() (a surface whose end never came)', () => ({
+      component: new zx.AgentThread(null, { authors: { finance: { name: 'Finance agent' } } })
+    }), ({ component: thread }) => {
+      const problems = [];
+      const adapter = zx.connectAgUi(thread, { agent: 'finance', inlineSurfaces: true, onerror: (problem) => problems.push(problem.code) });
+      adapter.handle({ type: 'RUN_STARTED', threadId: 't', runId: 'r1' });
+      adapter.handle({ type: 'TEXT_MESSAGE_START', messageId: 'm' });
+      adapter.handle({ type: 'TEXT_MESSAGE_CONTENT', messageId: 'm', delta: 'Hello\n```zx-surface\n{"zx":"surface/1","op":"begin","surface":"s1","intent":"confirm","title":"Go?","author":"finance","root":[]}\n```\n' });
+      adapter.handle({ type: 'TEXT_MESSAGE_END', messageId: 'm' });
+      const surface = thread.surface('surface:r1/s1');
+      assert(surfaceButton(thread.el, 'confirm').disabled && !surface.getReply(), 'the surface was closed before its run ended');
+      adapter.handle({ type: 'RUN_FINISHED', threadId: 't', runId: 'r1' });
+      assert(surface.getReply()?.action === 'cancel' && surface.getReply().reason === 'stopped', 'the surface was left waiting with its actions disabled');
+      assert(!thread.el.querySelector('[data-id="surface:r1/s1"] [aria-busy="true"]'), 'the surface still reads as busy');
+      assert(problems.join() === 'unterminated-surface', `problems: ${problems}`);
+      adapter.destroy();
+    }),
+    surfaceCase('connectAgUi() (destroyed during a run)', () => ({
+      component: new zx.AgentThread(null, { authors: { finance: { name: 'Finance agent' } } }),
+      status: new zx.RunStatus(null, {}),
+      cleanup() { this.status.destroy(); }
+    }), ({ component: thread, status }) => {
+      const adapter = zx.connectAgUi(thread, { agent: 'finance', runStatus: status });
+      adapter.handle({ type: 'RUN_STARTED', threadId: 't', runId: 'r1' });
+      adapter.handle({ type: 'TEXT_MESSAGE_START', messageId: 'm' });
+      adapter.handle({ type: 'TEXT_MESSAGE_CONTENT', messageId: 'm', delta: 'Half' });
+      adapter.handle({ type: 'TOOL_CALL_START', toolCallId: 'c', toolCallName: 'ask_user' });
+      const feed = thread.el.querySelector('[role="feed"]');
+      assert(feed.getAttribute('aria-busy') === 'true', 'the run did not read as busy');
+      adapter.destroy();
+      assert(feed.getAttribute('aria-busy') === 'false', 'the feed reads as busy for ever');
+      assert(!thread.el.querySelector('[data-type="zx-placeholder"]'), 'a Skeleton was left standing');
+      assert(status.getState().state === 'stopped', `the run reads as ${status.getState().state}`);
+    }),
+    surfaceCase('AgentThread (a reply on the item)', () => ({
+      component: new zx.AgentThread(null, { authors: { finance: { name: 'Finance agent' } } })
+    }), ({ component: thread }) => {
+      const replies = [];
+      thread.on('reply', (event) => replies.push(event.detail.reply));
+      const document = surfaceDocument();
+      const reply = { zx: 'reply/1', surface: 's1', action: 'submit', key: 's1#submit', values: { name: 'Elsewhere' }, confirmation: null, at: '2026-11-04T10:00:00' };
+      // Answered somewhere else: the form must not stay open to be answered twice.
+      for (const write of [
+        (item) => thread.setItems([item]),
+        (item) => thread.upsert(item)
+      ]) {
+        thread.setItems([]);
+        replies.length = 0;
+        thread.setItems([{ id: 'x', type: 'surface', document }]);
+        const open = thread.surface('x');
+        replies.length = 0;
+        write({ id: 'x', type: 'surface', document, reply });
+        assert(thread.surface('x') !== open && thread.surface('x').getReply()?.action === 'submit', 'the reply on the item did not reach the surface');
+        assert(!thread.el.querySelector('article[data-id="x"] input'), 'the answered surface kept its form');
+        assert(thread.get('x').reply?.values.name === 'Elsewhere', 'get() lost the reply');
+        assert(replies.length === 0, `an answer given elsewhere sent another reply: ${JSON.stringify(replies)}`);
+      }
+      // A surface streamed in has no document on its item.
+      thread.setItems([{ id: 's', type: 'surface' }]);
+      for (const op of [
+        { zx: 'surface/1', op: 'begin', surface: 's1', intent: 'ask', title: 'T', author: 'finance', root: ['form'] },
+        { op: 'node', surface: 's1', id: 'form', type: 'fields', schema: { type: 'object', properties: { name: { type: 'string', title: 'Name' } } } },
+        { op: 'end', surface: 's1' }
+      ]) thread.surface('s').apply(op);
+      replies.length = 0;
+      thread.upsert({ id: 's', type: 'surface', reply });
+      assert(thread.surface('s').getReply()?.action === 'submit', 'a streamed surface lost the reply');
+      assert(!thread.el.querySelector('article[data-id="s"] input') && thread.el.querySelector('article[data-id="s"] .zx-surface__verdict'), 'a streamed surface was not frozen');
+      assert(replies.length === 0, 'a streamed surface sent another reply');
+      // Answered here, a later reply on the item changes nothing: it replies once.
+      thread.setItems([{ id: 'y', type: 'surface', document }]);
+      const answered = thread.surface('y');
+      answered.cancel('cancelled');
+      thread.setItems([{ id: 'y', type: 'surface', document, reply }]);
+      assert(thread.surface('y') === answered && answered.getReply().action === 'cancel', 'the surface’s own reply was replaced');
+    }),
+    surfaceCase('AgentThread (focus in a surface that stays)', () => ({
+      component: new zx.AgentThread(null, { authors: { finance: { name: 'Finance agent' } } })
+    }), ({ component: thread }) => {
+      const item = { id: 's', type: 'surface', document: surfaceDocument() };
+      const other = { id: 'o', type: 'text', text: 'Beside it' };
+      thread.setItems([item, other]);
+      const input = /** @type {HTMLInputElement} */ (thread.el.querySelector('article[data-id="s"] input'));
+      const typing = () => {
+        input.focus();
+        input.value = 'Typing';
+        input.setSelectionRange(3, 3);
+      };
+      const check = (what) => {
+        assert(document.activeElement === input, `${what} took the focus from the field: ${document.activeElement?.localName}`);
+        assert(input.value === 'Typing' && input.selectionStart === 3, `${what} lost what was typed, or the caret`);
+      };
+      typing();
+      thread.upsert(item);
+      check('upsert()');
+      thread.patch('s', { at: '2026-11-04T10:00:00' });
+      check('patch()');
+      thread.setItems([item, other]);
+      check('setItems() in the same order');
+      thread.setItems([other, item]);
+      check('setItems() moving the surface');
+      // Focus on the item itself stays where it always went.
+      thread.el.querySelector('article[data-id="s"]').focus();
+      thread.upsert(item);
+      assert(document.activeElement === thread.el.querySelector('article[data-id="s"]'), 'focus on the article was lost');
+    }),
+    surfaceCase('AgentThread (an item added while setItems runs)', () => ({
+      component: new zx.AgentThread(null, { emptyState: { title: 'Nothing yet' } })
+    }), ({ component: thread }) => {
+      const stays = { id: 'a', type: 'surface', document: surfaceDocument({ surface: 'a' }) };
+      thread.setItems([stays, { id: 'b', type: 'surface', document: surfaceDocument({ surface: 'b' }) }]);
+      thread.on('reply', () => thread.upsert({ id: 'note', type: 'notice', tone: 'info', text: 'A question was closed' }));
+      thread.setItems([stays]);
+      const articles = () => [...thread.el.querySelectorAll('.zx-agent-thread__item')];
+      assert(articles().map((article) => article.dataset.id).join() === 'a,note', `items: ${articles().map((article) => article.dataset.id)}`);
+      assert(articles().every((article) => article.getAttribute('aria-setsize') === '2'), 'the added item is not counted');
+      thread.setItems([]);
+      assert(articles().length === 0 || articles().every((article) => article.dataset.id === 'note'), 'setItems left an item it knew of');
+      thread.remove('note');
+      assert(articles().length === 0 && !thread.el.querySelector('.zx-agent-thread__empty').hidden, 'the added item could not be removed');
+    }),
+    surfaceCase('AgentThread (feed keys inside a control)', () => ({
+      component: new zx.AgentThread(null, { authors: { finance: { name: 'Finance agent' } }, items: [
+        { id: 's', type: 'surface', document: surfaceDocument({ root: ['form'], nodes: [{ id: 'form', type: 'fields', schema: { type: 'object', properties: {
+          note: { type: 'string', title: 'Note', 'x-zx': { field: 'textarea' } },
+          pick: { type: 'string', title: 'Pick', 'x-zx': { field: 'zxselect' }, oneOf: [{ const: 'a', title: 'A' }, { const: 'b', title: 'B' }] }
+        } } }] }) },
+        { id: 'after', type: 'text', text: 'After it' }
+      ] }),
+      after: () => {}
+    }), ({ component: thread }) => {
+      const press = (target, init) => target.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }));
+      const area = /** @type {HTMLElement} */ (thread.el.querySelector('article[data-id="s"] textarea'));
+      const box = /** @type {HTMLElement} */ (thread.el.querySelector('article[data-id="s"] [role="combobox"]'));
+      for (const [target, what] of [[area, 'a text area'], [box, 'a select']]) {
+        target.focus();
+        for (const init of [{ key: 'PageDown' }, { key: 'PageUp' }, { key: 'End', ctrlKey: true }, { key: 'Home', ctrlKey: true }]) {
+          press(target, init);
+          assert(document.activeElement === target, `${init.key} left ${what}`);
+        }
+      }
+      // A control that handled the key itself keeps it too, editable or not.
+      const handled = zx.h('button', { type: 'button' }, 'Handles keys');
+      handled.addEventListener('keydown', (event) => event.preventDefault());
+      thread.el.querySelector('article[data-id="s"]').append(handled);
+      handled.focus();
+      press(handled, { key: 'PageDown' });
+      assert(document.activeElement === handled, 'a key the control handled moved the feed');
+      handled.remove();
+      // On the item itself the feed still moves.
+      const article = /** @type {HTMLElement} */ (thread.el.querySelector('article[data-id="s"]'));
+      article.focus();
+      press(article, { key: 'PageDown' });
+      assert(document.activeElement === thread.el.querySelector('article[data-id="after"]'), 'PageDown no longer moves between items');
+    }),
+    surfaceCase('AgentThread (a turn after an item goes)', () => ({
+      component: new zx.AgentThread(null, { authors: { me: { name: 'Me', kind: 'person' }, finance: { name: 'Finance agent' } }, items: [
+        { id: 'u', type: 'user', text: 'Hello' },
+        { id: 'first', type: 'text', author: 'finance', text: 'One' },
+        { id: 'second', type: 'text', author: 'finance', text: 'Two' },
+        { id: 'third', type: 'text', author: 'finance', text: 'Three' }
+      ] })
+    }), ({ component: thread }) => {
+      const continued = (id) => thread.el.querySelector(`article[data-id="${id}"]`).dataset.continued === 'true';
+      assert(!continued('first') && continued('second') && continued('third'), 'the turn was not drawn as one');
+      thread.remove('first');
+      assert(!continued('second'), 'the item that now starts the turn kept hiding its byline');
+      assert(continued('third'), 'the rest of the turn was broken up');
+      // The adapter drops an empty answer once its surface took the whole message.
+      const adapter = zx.connectAgUi(thread, { agent: 'finance', inlineSurfaces: true });
+      thread.setItems([{ id: 'u', type: 'user', text: 'Hello' }]);
+      adapter.handle({ type: 'RUN_STARTED', threadId: 't', runId: 'r1' });
+      adapter.handle({ type: 'TEXT_MESSAGE_START', messageId: 'm' });
+      adapter.handle({ type: 'TEXT_MESSAGE_CONTENT', messageId: 'm', delta: '```zx-surface\n{"zx":"surface/1","op":"begin","surface":"s1","intent":"show","title":"T","author":"finance","root":[]}\n{"op":"end","surface":"s1"}\n```\n' });
+      adapter.handle({ type: 'TEXT_MESSAGE_END', messageId: 'm' });
+      adapter.handle({ type: 'RUN_FINISHED', threadId: 't', runId: 'r1' });
+      assert(!continued('surface:r1/s1'), 'a surface that opens the turn lost its byline');
+      adapter.destroy();
+    }),
+    surfaceCase('AgentThread (a question is not overtaken)', () => ({
+      component: new zx.AgentThread(null, { authors: { finance: { name: 'Finance agent' } } })
+    }), async ({ component: thread }) => {
+      const status = () => thread.el.querySelector('.zx-agent-thread__status').textContent;
+      const ask = '```zx-surface\n{"zx":"surface/1","op":"begin","surface":"s1","intent":"confirm","title":"T","author":"finance","root":[]}\n{"op":"end","surface":"s1"}\n```\n';
+      const adapter = zx.connectAgUi(thread, { agent: 'finance', inlineSurfaces: true, requiresApproval: () => true });
+      adapter.handle({ type: 'RUN_STARTED', threadId: 't', runId: 'r1' });
+      adapter.handle({ type: 'TEXT_MESSAGE_START', messageId: 'm' });
+      adapter.handle({ type: 'TEXT_MESSAGE_CONTENT', messageId: 'm', delta: `One question:\n${ask}` });
+      adapter.handle({ type: 'TEXT_MESSAGE_END', messageId: 'm' });
+      adapter.handle({ type: 'RUN_FINISHED', threadId: 't', runId: 'r1' });
+      await delay(120);
+      assert(status() === 'Finance agent needs your answer', `a finished answer drowned the question: ${status()}`);
+      // Nothing is said over an approval either, and the application still has the last word.
+      thread.upsert({ id: 'a', type: 'approval', title: 'Send?' });
+      thread.upsert({ id: 'b', type: 'answer', blocks: [{ type: 'p', text: 'Done' }] });
+      await delay(120);
+      assert(status() === 'Finance agent needs your approval', `an answer drowned the approval: ${status()}`);
+      thread.upsert({ id: 'c', type: 'approval', title: 'Send more?' });
+      thread.announce('Reminders sent');
+      await delay(120);
+      assert(status() === 'Reminders sent', 'an application’s own announcement was lost');
+      thread.upsert({ id: 'd', type: 'answer', blocks: [{ type: 'p', text: 'Later' }] });
+      await delay(120);
+      assert(status() === 'Finance agent answered', `a question long since said silenced the thread: ${status()}`);
+      adapter.destroy();
+    }),
+    surfaceCase('connectAgUi() (the thread destroyed first)', () => ({}), () => {
+      const counts = { alive: 0, drawn: 0, asked: 0 };
+      if (!zx.AgentThread.has('smoke-tile')) {
+        zx.AgentThread.register('smoke-tile', (item, { own }) => {
+          window.__smokeTiles.alive += 1;
+          window.__smokeTiles.drawn += 1;
+          own(/** @type {any} */ ({ destroy() { window.__smokeTiles.alive -= 1; } }));
+          return zx.h('p', {}, 'Tile');
+        });
+      }
+      window.__smokeTiles = counts;
+      const thread = new zx.AgentThread(null, { authors: { finance: { name: 'Finance agent' } } });
+      const adapter = zx.connectAgUi(thread, {
+        agent: 'finance',
+        requiresApproval: () => true,
+        tools: { draw: () => { counts.asked += 1; return { type: 'smoke-tile' }; } }
+      });
+      adapter.handle({ type: 'RUN_STARTED', threadId: 't', runId: 'r1' });
+      adapter.handle({ type: 'TOOL_CALL_START', toolCallId: 'c', toolCallName: 'draw' });
+      adapter.handle({ type: 'TOOL_CALL_END', toolCallId: 'c' });
+      const { asked } = counts;
+      thread.destroy();
+      assert(counts.alive === 0, 'destroying the thread left a tile alive');
+      adapter.handle({ type: 'TEXT_MESSAGE_START', messageId: 'late' });
+      adapter.handle({ type: 'TEXT_MESSAGE_CONTENT', messageId: 'late', delta: 'Too late' });
+      adapter.destroy();
+      assert(counts.alive === 0, 'the adapter drew a tile into a destroyed thread');
+      assert(counts.asked === asked, 'the tile renderer was asked for a thread that is gone');
+      assert(thread.el.querySelectorAll('.zx-agent-thread__item').length === 0, 'something was drawn into a destroyed thread');
+      thread.upsert({ id: 'x', type: 'text', text: 'Too late' });
+      thread.appendText('y', 'Too late');
+      assert(thread.el.querySelectorAll('.zx-agent-thread__item').length === 0 && thread.get('x') === null, 'a destroyed thread took new items');
+      delete window.__smokeTiles;
+    }),
+    surfaceCase('connectAgUi() (an application’s own surface renderer)', () => ({}), async () => {
+      const { AgentThread } = await import('../../src/components/agent-thread/agent-thread.js?own-surface');
+      if (!AgentThread.has('surface')) AgentThread.register('surface', (item) => zx.h('p', { class: 'smoke-own-surface' }, String(item.label)));
+      const thread = new AgentThread(null, { authors: { finance: { name: 'Finance agent' } } });
+      const results = [];
+      const problems = [];
+      const adapter = zx.connectAgUi(thread, {
+        agent: 'finance',
+        inlineSurfaces: true,
+        ontoolresult: (id, result) => results.push([id, result]),
+        onerror: (problem) => problems.push(problem.code)
+      });
+      try {
+        adapter.handle({ type: 'RUN_STARTED', threadId: 't', runId: 'r1' });
+        adapter.handle({ type: 'TOOL_CALL_START', toolCallId: 'c', toolCallName: 'ask_user' });
+        adapter.handle({ type: 'TOOL_CALL_ARGS', toolCallId: 'c', delta: JSON.stringify(surfaceDocument()) });
+        adapter.handle({ type: 'TOOL_CALL_END', toolCallId: 'c' });
+        assert(results.length === 1 && results[0][1].error === 'surface-unavailable', `the call hangs: ${JSON.stringify(results)}`);
+        assert(problems.join() === 'surface-unavailable', `problems: ${problems}`);
+        assert(!thread.el.querySelector('.smoke-own-surface, [data-type="zx-placeholder"]'), 'something stands for a call already answered');
+        adapter.handle({ type: 'CUSTOM', name: 'zx.surface', value: { zx: 'surface/1', op: 'begin', surface: 'x', intent: 'confirm', title: 'T', author: 'finance', root: [] } });
+        assert(problems.join() === 'surface-unavailable,surface-unavailable', `an operation was dropped silently: ${problems}`);
+      } finally {
+        adapter.destroy();
+        thread.destroy();
+      }
+    }),
+    surfaceCase('connectAgUi() (a settled call stays settled)', () => ({
+      component: new zx.AgentThread(null, { authors: { finance: { name: 'Finance agent' } } })
+    }), async ({ component: thread }) => {
+      const results = [];
+      const problems = [];
+      const adapter = zx.connectAgUi(thread, {
+        agent: 'finance',
+        requiresApproval: (call) => call.name === 'send',
+        ontoolresult: (id, result) => results.push([id, result]),
+        onerror: (problem) => problems.push(problem.code)
+      });
+      const call = (id, name, delta) => {
+        adapter.handle({ type: 'TOOL_CALL_START', toolCallId: id, toolCallName: name });
+        adapter.handle({ type: 'TOOL_CALL_ARGS', toolCallId: id, delta });
+        adapter.handle({ type: 'TOOL_CALL_END', toolCallId: id });
+      };
+      adapter.handle({ type: 'RUN_STARTED', threadId: 't', runId: 'r1' });
+      call('s', 'ask_user', JSON.stringify(surfaceDocument()));
+      const surface = thread.surface('surface:r1/s1');
+      surface.cancel('cancelled');
+      assert(results.length === 1, 'the surface did not answer its call');
+      call('s', 'ask_user', ' ');
+      assert(results.length === 1, 'the call was answered twice');
+      assert(thread.surface('surface:r1/s1') === surface && thread.el.querySelector('article[data-id="surface:r1/s1"] .zx-surface__verdict'), 'the receipt left the thread');
+      assert(!thread.el.querySelector('[data-type="zx-placeholder"]'), 'a Skeleton took the receipt’s place');
+      call('g', 'send', '{"to":"a"}');
+      /** @type {HTMLButtonElement} */ (thread.getComponent('approval:g').toElement().querySelector('[data-action="approve"], .zx-approval-card__approve')
+        ?? [...thread.getComponent('approval:g').toElement().querySelectorAll('button')].find((button) => /approve/i.test(button.textContent))).click();
+      await delay(0);
+      assert(results.length === 2 && results[1][1].approved === true, 'the approval did not answer its call');
+      call('g', 'send', ',"also":"b"}');
+      assert(results.length === 2, 'a decided call was asked again');
+      assert(thread.get('approval:g').status === 'approved', `the decision was undone: ${thread.get('approval:g').status}`);
+      assert(problems.filter((code) => code === 'duplicate-start').length === 2, `problems: ${problems}`);
+      adapter.destroy();
+    }),
+    surfaceCase('AgentThread (an application’s own surface and placeholder)', () => ({}), async () => {
+      // `register()` has no undo, so this runs on a module instance of its own.
+      const { AgentThread } = await import('../../src/components/agent-thread/agent-thread.js?own-surface');
+      if (!AgentThread.has('surface')) AgentThread.register('surface', (item) => zx.h('p', { class: 'smoke-own-surface' }, String(item.label)));
+      if (!AgentThread.has('placeholder')) AgentThread.register('placeholder', (item) => zx.h('p', { class: 'smoke-own-placeholder' }, String(item.label)));
+      const thread = new AgentThread(null, { authors: { finance: { name: 'Finance agent' } }, items: [
+        { id: 'p', type: 'placeholder', label: 'Mine too' }
+      ] });
+      try {
+        thread.upsert({ id: 's', type: 'surface', label: 'Mine', document: { zx: 'surface/1', surface: 's', intent: 'confirm', title: 'Go?', root: [], nodes: [] } });
+        assert(thread.el.querySelector('.smoke-own-surface')?.textContent === 'Mine', 'the application’s surface renderer lost to the built-in');
+        assert(!thread.el.querySelector('.zx-surface') && thread.surface('s') === null, 'the library drew a surface over the application’s renderer');
+        assert(thread.el.querySelector('.smoke-own-placeholder')?.textContent === 'Mine too', 'the application’s placeholder type was not drawn');
+        await delay(100);
+        assert(!thread.el.querySelector('[role="status"]').textContent, 'an application’s surface was announced as waiting');
+      } finally {
+        thread.destroy();
+      }
+      // The library’s stand-in has its own name now, and draws a Skeleton for anyone who asks.
+      const library = new zx.AgentThread(null, { items: [{ id: 'q', type: 'zx-placeholder', lines: 3 }] });
+      assert(library.el.querySelector('article[data-type="zx-placeholder"] .zx-agent-thread__body[aria-busy="true"]'), 'the stand-in did not draw');
+      library.destroy();
+    }),
+    surfaceCase('AgentThread (items at a call’s place)', () => ({
+      component: new zx.AgentThread(null, { authors: { finance: { name: 'Finance agent' } } })
+    }), async ({ component: thread }) => {
+      if (!zx.AgentThread.has('smoke-company')) {
+        zx.AgentThread.register('smoke-company', (item) => zx.h('p', { class: 'smoke-company' }, String(item.name ?? '')));
+      }
+      const replies = [];
+      thread.on('reply', (event) => replies.push(event.detail.reply));
+      const results = [];
+      const adapter = zx.connectAgUi(thread, {
+        agent: 'finance',
+        tools: { show_company: (call) => (call.status === 'done' ? { type: 'smoke-company', name: JSON.parse(call.result).name } : null) },
+        requiresApproval: (call) => call.name === 'send',
+        ontoolresult: (id, result) => results.push([id, result])
+      });
+      const article = (id) => thread.el.querySelector(`article[data-id="${CSS.escape(id)}"]`);
+      const ids = () => [...thread.el.querySelectorAll('.zx-agent-thread__item')].map((item) => item.dataset.id);
+      const send = (...events) => events.forEach((event) => adapter.handle(event));
+      send({ type: 'RUN_STARTED', threadId: 't', runId: 'r1' },
+        { type: 'TOOL_CALL_START', toolCallId: 'c1', toolCallName: 'show_company' },
+        { type: 'TOOL_CALL_ARGS', toolCallId: 'c1', delta: '{"id":"helios"}' },
+        { type: 'TOOL_CALL_END', toolCallId: 'c1' },
+        { type: 'TOOL_CALL_START', toolCallId: 'c2', toolCallName: 'ask_user' },
+        { type: 'TEXT_MESSAGE_START', messageId: 'm1' },
+        { type: 'TEXT_MESSAGE_CONTENT', messageId: 'm1', delta: 'Looking that up' });
+      assert(article('tool:c2')?.dataset.type === 'zx-placeholder' && article('tool:c2').querySelector('[aria-busy="true"] .zx-skeleton, [aria-busy="true"]'),
+        'the surface tool did not stand as a placeholder skeleton');
+      const answer = article('m1');
+      answer.focus();
+      await delay(100);
+      const status = thread.el.querySelector('.zx-agent-thread__status').textContent;
+      assert(status, 'the answer was not announced');
+      // The tile's first item arrives after text was drawn below the call's step.
+      send({ type: 'TOOL_CALL_RESULT', toolCallId: 'c1', messageId: 'tm1', content: '{"name":"Helios Energie"}' });
+      assert(JSON.stringify(ids()) === JSON.stringify(['trace:r1', 'tool:c1', 'tool:c2', 'm1']), `tile not at its call's place: ${ids()}`);
+      assert(article('m1') === answer && document.activeElement === answer, 'the streaming answer was redrawn or lost focus');
+      assert(thread.el.querySelector('.zx-agent-thread__status').textContent === status, 'inserting the tile re-announced something');
+      send({ type: 'TEXT_MESSAGE_CONTENT', messageId: 'm1', delta: ' for you.' },
+        { type: 'TOOL_CALL_ARGS', toolCallId: 'c2', delta: JSON.stringify({ zx: 'surface/1', surface: 's1', intent: 'confirm', title: 'Go?', author: 'finance', root: [], nodes: [] }) },
+        { type: 'TOOL_CALL_END', toolCallId: 'c2' },
+        { type: 'TOOL_CALL_START', toolCallId: 'c3', toolCallName: 'send' },
+        { type: 'TOOL_CALL_END', toolCallId: 'c3' });
+      assert(JSON.stringify(ids()) === JSON.stringify(['trace:r1', 'tool:c1', 'surface:r1/s1', 'm1', 'trace:r1#2', 'approval:c3']), `items: ${ids()}`);
+      assert(article('m1') === answer && document.activeElement === answer && answer.textContent.includes('Looking that up for you.'), 'the answer stopped streaming in place');
+      assert(replies.length === 0, `the stand-in replied: ${JSON.stringify(replies)}`);
+      surfaceButton(article('surface:r1/s1'), 'confirm').click();
+      assert(replies.length === 1 && replies[0].token === 'c2', `replies: ${JSON.stringify(replies)}`);
+      assert(results.length === 1 && results[0][0] === 'c2', 'the surface reply did not answer its call once');
+      // The thread's own insertion: after a known id, or at the end.
+      thread.upsert({ id: 'x', type: 'notice', text: 'Inserted' }, { after: 'trace:r1' });
+      thread.upsert({ id: 'y', type: 'notice', text: 'End' }, { after: 'missing' });
+      assert(ids()[1] === 'x' && ids().at(-1) === 'y', `upsert after: ${ids()}`);
+      assert(article('x').getAttribute('aria-posinset') === '2', 'positions were not renumbered');
+      adapter.destroy();
+    })
+  ];
 }

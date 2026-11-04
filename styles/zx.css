@@ -94,4 +94,5 @@
 @import url("../src/components/run-trace/run-trace.css");
 @import url("../src/components/source-list/source-list.css");
 @import url("../src/components/agent-thread/agent-thread.css");
+@import url("../src/components/surface/surface.css");
 @import url("./print.css");

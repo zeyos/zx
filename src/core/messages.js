@@ -65,6 +65,16 @@ export const defaultMessages = Object.freeze({
   'agentThread.edit': 'Edit message',
   'agentThread.copyMessage': 'Copy message',
 
+  'agUi.approve': 'Run %1?',
+  'agUi.asked': 'Asked for your answer',
+  'agUi.called': 'Called %1',
+  'agUi.calling': 'Calling %1',
+  'agUi.runFailed': 'The run failed',
+  'agUi.runFailedWith': 'The run failed: %1',
+  'agUi.showTile': 'Show in conversation',
+  'agUi.thinking': 'Thinking',
+  'agUi.thought': 'Thought for %1',
+
   'appRail.subNavigation': '%1 sub-navigation',
 
   'appSidebar.expand': 'Expand application sidebar',
@@ -315,6 +325,15 @@ export const defaultMessages = Object.freeze({
   'listToolbar.views': 'View',
   'listToolbar.viewTable': 'Table',
 
+  'mcp.askedBy': 'Asked by %1',
+  'mcp.decline': 'Decline',
+  'mcp.urlAddress': 'Full address: %1',
+  'mcp.urlHost': 'The page is on %1.',
+  'mcp.urlInternational': 'This address uses an internationalised domain name, which can look like another one. Check the host before you open it.',
+  'mcp.urlNote': 'It opens in a new tab. Nothing from this application is sent to it.',
+  'mcp.urlOpen': 'Open page',
+  'mcp.urlTitle': 'Open a page on another site?',
+
   'message.close': 'Close message',
   'message.closeTitle': 'Close',
 
@@ -555,7 +574,51 @@ export const defaultMessages = Object.freeze({
 
   'workspaceSwitcher.heading': 'Workspaces',
   'workspaceSwitcher.label': 'Switch workspace: %1',
-  'workspaceSwitcher.labelEmpty': 'Switch workspace'
+  'workspaceSwitcher.labelEmpty': 'Switch workspace',
+
+  'surface.byline': 'Composed by %1',
+  'surface.submit': 'Submit',
+  'surface.cancel': 'Cancel',
+  'surface.confirm': 'Confirm',
+  'surface.approve': 'Approve selected',
+  'surface.reject': 'Reject',
+  'surface.decline': 'Decline',
+  'surface.fallback': 'This part could not be shown',
+  'surface.choiceRequired': 'Choose an answer to continue.',
+  'surface.noAnswer': 'No answer',
+  'surface.yes': 'Yes',
+  'surface.no': 'No',
+  'surface.selected': 'Selected',
+  'surface.field': 'Field',
+  'surface.before': 'Before',
+  'surface.after': 'After',
+  'surface.dataTable': 'Data table',
+  'surface.requested': 'Information requested',
+  'surface.submitted': 'Submitted',
+  'surface.confirmed': 'Confirmed',
+  'surface.approved': 'Approved',
+  'surface.rejected': 'Rejected',
+  'surface.cancelled': 'Cancelled',
+  'surface.dismissed': 'Dismissed',
+  'surface.chose': 'Chose “%1”',
+  'surface.verdictAt': '%1 at %2',
+  'surface.typeToConfirm': 'confirm',
+  'surface.choose': 'Choose…',
+
+  'questionnaire.rule.minLength': 'Enter at least %1 characters.',
+  'questionnaire.rule.maxLength': 'Enter at most %1 characters.',
+  'questionnaire.rule.minItems': 'Choose at least %1.',
+  'questionnaire.rule.maxItems': 'Choose at most %1.',
+  'questionnaire.rule.minimum': 'Enter a number of at least %1.',
+  'questionnaire.rule.maximum': 'Enter a number of at most %1.',
+  'questionnaire.rule.oneOf': 'Choose one of the offered answers.',
+  'questionnaire.rule.date': 'Enter a date as YYYY-MM-DD.',
+  'questionnaire.rule.dateTime': 'Enter a date and time as YYYY-MM-DDTHH:MM.',
+  'questionnaire.rule.time': 'Enter a time as HH:MM.',
+  'questionnaire.rule.email': 'Enter an email address.',
+  'questionnaire.rule.uri': 'Enter a full address, such as https://example.com.',
+
+  'agentThread.needsAnswer': '%1 needs your answer'
 });
 
 /**

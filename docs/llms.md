@@ -2642,7 +2642,46 @@ can be any registered `Field` type, and its validation may be asynchronous.
   walk back into the branch and it is still there — but is left out of `getAnswers()` and
   `toFormData()`, so an abandoned branch never submits stale data. A `next` naming a hidden item
   walks forward from it rather than stranding the reader; naming an item that does not exist
-  throws `RangeError`.
+  throws `RangeError`. `next: '$review'` opens the review screen and `next: '$submit'` submits at
+  once, wherever the item stands; an item of that name goes first. A `when`, `next` or `validate`
+  that is neither a function nor a declarative form (`false`, `[]`, `{}`) reads as absent, so
+  `validate: strict && check` is safe.
+- **Declarative logic** — `when`, `next` and `validate` also take plain JSON, so a questionnaire can
+  be stored, sent, or written by an agent; the function forms keep working beside them.
+  - A condition is `{field, op, value?}` with `op` one of `eq`, `ne`, `in`, `nin`, `gt`, `gte`,
+    `lt`, `lte`, `empty`, `filled`, `contains`, combined with `{all: […]}`, `{any: […]}` and
+    `{not: …}`, at most four levels deep. A `when` condition may only name items declared before
+    it, and sees only their visible answers, so it cascades like a predicate. A `value` is never
+    `null`: an unanswered item has no answer to compare, so test it with `empty` or `filled`. A
+    `Date` answer compares by its local date against `YYYY-MM-DD`, and by its local
+    `YYYY-MM-DDTHH:MM` against a date-time.
+  - `next` may be a list of branches, `[{if: condition, goto: name}, …, {goto: name}]`; the first
+    match wins, and no match falls through to the next visible item. A branch condition may also
+    name the item itself.
+  - `validate` may be a list of rules, each one key plus an optional `message`: `{required: true}`,
+    `{minLength: n}`, `{maxLength: n}` (characters, or entries of a multiple answer),
+    `{minimum: n}`, `{maximum: n}`, `{format: 'date'|'date-time'|'time'|'email'|'uri'}`,
+    `{oneOf: [values]}`. Rules other than `required` pass an empty answer; there are no patterns.
+    A `{required: true}` rule marks the item required, like `required: true`.
+    A rule's own `message` wins; otherwise its text resolves through `msg()` under
+    `questionnaire.rule.<rule>` (`minLength`, `maxLength`, `minItems`, `maxItems`, `minimum`,
+    `maximum`, `oneOf`, `date`, `dateTime`, `time`, `email`, `uri`), the same keys a Surface's
+    fields use.
+  - A malformed condition, branch list or rule list throws `TypeError` when the items are set.
+    `evaluate(condition, answers)`, `resolveNext(next, answer, answers)`, `checkRules(rules,
+    value)` and the shape checks `checkCondition()`, `checkNext()` and `checkRuleList()` are pure
+    exports of `src/components/questionnaire/conditions.js`, for evaluating the same JSON elsewhere.
+
+  ```js
+  items: [
+    { name: 'method', prompt: 'How will you pay?', required: true,
+      choices: [{ value: 'card', label: 'Card' }, { value: 'transfer', label: 'Bank transfer' }],
+      next: [{ if: { field: 'method', op: 'eq', value: 'card' }, goto: '$submit' }] },
+    { name: 'iban', prompt: 'IBAN', input: {},
+      when: { field: 'method', op: 'eq', value: 'transfer' },
+      validate: [{ required: true }, { minLength: 15, message: 'An IBAN has at least 15 characters.' }] }
+  ]
+  ```
 - **Path and progress** — `getPath()` is the questionnaire's memory of the route walked, and
   `previous()` pops it: once a branch has been taken, "previous" is not `index - 1`. `getProgress()`
   returns `{index, answered, total, percent, section}` where `total` is the path plus the items
@@ -2653,8 +2692,8 @@ can be any registered `Field` type, and its validation may be asynchronous.
   itself. The `<legend>` already asks the question, so the Field's own label is hidden from sight
   but kept as the control's accessible name unless the item gives `field.label` explicitly; the
   Field draws its own highlight, so a failing answer shows one message, not two.
-- **Validation** — `required` is checked synchronously; an item's `validate(answer, answers)` may
-  return a message, `null`, or a **promise** of either, and a rejection is reported as its message.
+- **Validation** — `required` and declarative rules are checked synchronously; a function
+  `validate(answer, answers)` may return a message, `null`, or a **promise** of either, and a rejection is reported as its message.
   While the check is pending the root carries `data-state="checking"` and `aria-busy="true"` and
   the actions are disabled.
 - **Review** — `review: true` shows a summary of every answer on the path before submitting, each
@@ -3446,6 +3485,16 @@ agents' answers as they stream (`BlockView` with a `SourceList`), the steps a ru
   message is pointed at or holds focus), `icons` (glyphs for `regenerate`, `branch`, `rateUp`,
   `rateDown`, `edit`), `traceIcons` (handed to every `RunTrace` it draws), `now: null` (the clock
   "today" is measured against, for a world on fixed dates), `formatTime`, `locale`, `msg`.
+- **Surfaces** — a `{type: 'surface', id, document?, token?, catalog?, reply?}` item draws a
+  `Surface`. The item comes from the application, never from a model line, so its `token` and
+  `catalog` are the application's. `surfaceOptions` (`policy`, `resolve`, `chartAdapter`, `msg`)
+  is handed to every surface the thread draws. `thread.surface(id)` returns it to stream into, and
+  its one reply arrives as the thread's `reply {item, reply}`. Redrawing the item — `patch`,
+  `upsert(thread.get(id))`, `setItems(thread.getItems())` — keeps the live surface; an item with a
+  different `document` supersedes it, which replies `dismiss`. Removing the item or destroying the
+  thread dismisses it. A surface that waits for an answer is announced ("Finance agent needs your
+  answer") when it arrives, or when a streamed one begins. When a run stops, the application calls
+  `thread.surface(id).cancel('stopped')`.
 - **Item extras** — any item's `refs: [{id, label, icon?, entity?}]` draws links to the
   application's own things after its content (`open {item, ref}`); a `user` item's `mentions`
   (names, or `{name, tone}`) marks each `@name` in its text; an `answer`'s `steps` show the work it
@@ -3456,7 +3505,15 @@ agents' answers as they stream (`BlockView` with a `SourceList`), the steps a ru
   initials (round for a `model`; `tone: 'accent'` for the accent's quiet fill); an `approval`'s
   `editedKeys` say which values the person changed. `setArtifactState()` is remembered for answers
   drawn later; `sourceIcons` is handed to every `SourceList`.
-- **Methods** — `setItems(items)`, `upsert(item)` (adds, or replaces in place by `id`),
+- **Placeholders** — a `{type: 'zx-placeholder', id, author?, lines?}` item stands for something
+  still on its way, as a Skeleton under its author's byline; replace or remove it once the real
+  item is there. It neither replies nor is announced. The name is reserved; `placeholder` is free
+  for an application's own items.
+- **Methods** — `setItems(items)` (replaces the conversation: everything is dropped and drawn anew,
+  except a surface already drawn, which stays so that one still matching keeps what was typed; an
+  item bringing a `reply` that surface never gave freezes it as answered elsewhere),
+  `upsert(item, {after?})` (adds, or replaces in place by `id`;
+  a new item goes at the end, or right after the item `after` names — nothing else is redrawn),
   `patch(id, partial)` (an answer finishing, stopping or gaining sources, a trace's steps, an
   approval's status change in place; anything else redraws the item), `appendText(id, text)`
   (streams into an answer, creating it when the id is new), `appendBlock(id, block)` (adds a whole
@@ -3464,13 +3521,16 @@ agents' answers as they stream (`BlockView` with a `SourceList`), the steps a ru
   through the thread's polite status), `setArtifactState(id, {expanded, controls})` (whether an
   artifact is open in an inspector, on every card naming it), `remove(id)`, `get(id)`,
   `getItems()`, `getComponent(id)`, `reveal(target)` (`item:<id>`, `step:<id>`, `source:<n>`),
-  `scrollToEnd()`, `destroy()`. The static `AgentThread.register(type, render)` draws an item type
+  `scrollToEnd()`, `surface(id)` (the `Surface` of a `surface` item, to stream into), `destroy()`. The static `AgentThread.register(type, render)` draws an item type
   of the application's own; `render(item, {thread, author, own})` returns its content, and `own()`
-  hands a component to the thread to destroy with the item.
+  hands a component to the thread to destroy with the item. An application's renderer for
+  `surface` replaces the library's drawing of that type, and `has('surface')` answers false until
+  it does; the other built-in types cannot be replaced.
 - **Events** — `action {item, action, value?}` (`copy`, `regenerate`, `branch`, `rate` with
   `up`/`down`/null, `version` with an index — preventable for `rate` and `version`; `edit` on the
   reader's message; a notice's action id), `open {item, ref, step?}` (an item's link, or a trace
   step's),
+  `reply {item, reply}` (a surface's one reply; the item keeps it as `reply`),
   `approve {item, values}`, `edit {item, values}`, `reject {item, reason}` (preventable: the card
   stays pending), `cite {item, n, source}` (preventable: by default the cited source is
   highlighted), `artifact {item, id}`, `reveal {target}`. Each reaches a listener on the thread's
@@ -3488,6 +3548,7 @@ agents' answers as they stream (`BlockView` with a `SourceList`), the steps a ru
 - **Keyboard and semantics** — the APG feed pattern: each item is an `article` in a `role="feed"`
   with `aria-posinset`, `aria-setsize` and `aria-labelledby` its byline; PageDown and PageUp move
   between articles; Ctrl+End and Ctrl+Home move focus past the end or before the start of the feed.
+  A control inside an item keeps those keys: they move a caret, not the feed.
   The feed is `aria-busy` while an answer streams. One polite status says when an agent starts
   writing, answers, needs approval, or is stopped — streamed text is never read aloud as it arrives.
 
@@ -3549,6 +3610,230 @@ for await (const part of parsedParts(response)) stream.handle(part);
 - **Reported, never guessed at.** A part the adapter does not draw goes to `onunknown`, among them
   `custom`, `tool-approval-response`, and `reset-step`. A delta ahead of its start creates the item,
   a duplicate start is ignored, and both go to `onerror`.
+
+#### AG-UI event streams: `connectAgUi(thread, options)`
+
+`connectAgUi()` draws an [AG-UI](https://docs.ag-ui.com) event stream in a thread. It implements
+AG-UI `AG_UI_VERSION` (`'1.0'`). It takes events already parsed — the application keeps the
+transport, retries and authentication — and returns `{handle(event), state(), destroy()}`.
+
+```js
+const status = new RunStatus(null, { compact: true });
+const adapter = connectAgUi(thread, {
+  agent: 'finance', runStatus: status, inlineSurfaces: true,
+  requiresApproval: (call) => call.name === 'send_reminder',
+  tools: { show_company: (call) => (call.args ? { type: 'company-card', company: call.args.id, status: call.status } : null) },
+  ontoolresult: (id, result) => sendWithNextRun(id, result)
+});
+source.onmessage = (message) => adapter.handle(JSON.parse(message.data));
+```
+
+- **Options** — `runStatus` (a `RunStatus` the run's lifecycle drives), `authors` (a text message
+  whose `name` is an author key is that author's), `agent` (the author key of agent output),
+  `requiresApproval(call)`, `ontoolresult(id, result)`, `onstate(state)`, `onunknown(event)`,
+  `onerror(problem)` (`{code, message, event?, cause?, errors?}`), `showReasoning: false`,
+  `surfaceEvent: 'zx.surface'`, `tools: {}` (tile renderers by tool name), `surfaceTools:
+  ['show_surface', 'ask_user']`, `inlineSurfaces: false`, `catalog` (a narrowed surface catalog).
+- **What is drawn** — a run drives `runStatus` (`running`, then `done`, `waiting` while a call of
+  the run has no result, listed in `pendingToolCallIds` or not, `stopped` when cancelled, `failed`),
+  and a run error adds a `notice` (`error:<runId>`). A run error outside an open run marks the last
+  run failed and reports `no-run`, but closes nothing: approvals and surfaces still waiting for a
+  person stay open. A text message is an `answer` with the message id. Tool calls are steps of a
+  `trace` (`trace:<runId>`, a new one, `#2`, after anything else was drawn): the arguments show once
+  complete, the result fills the step. Reasoning is one collapsed "Thought for 0.7 s" step; its text
+  only with `showReasoning: true`. State snapshots and JSON Patch deltas keep `state()`.
+- **`ToolCall`** — what a tile renderer receives: `{id, name, args, argsText, result?, error?,
+  status}`; `args` is the parsed arguments once complete, `null` before; `result` the result's
+  `content` unchanged; `status` is `queued` while arguments arrive, `waiting`, `running`, then
+  `done`, `failed`, `skipped` (rejected) or `stopped`.
+- **Tiles** — a call named in `tools` is drawn by the application's renderer, an item type
+  registered with `AgentThread.register()`. The renderer runs at each status change, never on an
+  argument delta; its first item that is not `null` is inserted as `tool:<toolCallId>` at the
+  call's place — after its trace and the items of earlier calls in it, even when text was drawn
+  below since — later items replace it in place, and the step links to it. A gated call's tile
+  follows its card. A renderer that throws is reported and the step stays as it was. Put arguments
+  and results on the page as text.
+- **Approvals** — a call `requiresApproval` answers truthy for waits at an ApprovalCard
+  (`approval:<toolCallId>`); nothing is approved by default, so a check that throws or returns a
+  Promise holds the call too. The decision is the call's result:
+  `ontoolresult(id, {approved: true})` or `{approved: false, reason?}`. AG-UI 1.0 asks by ending the
+  run with an `interrupt` outcome: keep each `interrupt.id` from that event and send the result as
+  the next run's `resume` entry `{interruptId, status: 'resolved', payload: result}`. A `tool_call`
+  interrupt for a call `requiresApproval` let through draws the card too; any other interrupt
+  (`input_required`, `confirmation`, …) goes to `onunknown`. A result that arrives before the
+  decision is drawn, the card expires, and no decision is sent; a result after a rejection only
+  fills the step. A result for a surface tool still waiting closes its surface the same way.
+- **Surfaces** — a call named in `surfaceTools` is an `ask` step and a surface at the call's place,
+  a `zx-placeholder` until its arguments are complete; its reply, plus the surface's `errors` when there are any, is the call's
+  result through `ontoolresult` — in AG-UI 1.0 a frontend tool, answered in the next run's input as
+  `{role: 'tool', toolCallId, content}`. A `show` surface with no actions has nothing to answer, so
+  the call is answered at once with `{shown: true, surface, errors?}` and the surface stays on
+  screen. Arguments that are not a surface, or a surface with no valid intent, answer at once with
+  `{error: 'invalid-arguments'}`. Where `thread.surface(id)` gives nothing, as with an application's
+  own `surface` renderer, an operation is reported (`surface-unavailable`) and a surface tool's call
+  answered at once with `{error: 'surface-unavailable'}`. With `inlineSurfaces`, surface fences in answer text become
+  surfaces after the prose before them, and the prose after continues in `<messageId>#2`; a fence
+  still open at the message's end is reported and its surface cancelled when the run ends, and so
+  is any surface that reaches the end of its run without its `end` (`unterminated-surface`). A
+  `CUSTOM` event named `surfaceEvent` carries one operation or `{ops, token?}`; the token of the
+  event that opens a surface is kept. Each surface is `surface:<runId>/<surface>`, so `s1` in two
+  runs is two surfaces; an operation for an answered surface is refused and reported. A surface
+  belongs to the source that opened it — custom event, surface tool or fence — and an operation
+  from another source is refused (`not-allowed`), never merged; give custom-event surfaces ids a
+  model cannot predict, since a server `begin` for an id the model took first is refused. A reply's
+  token is the application's for a custom event, the tool call id for a surface tool, and the run
+  id for an inline surface.
+- **Strictness** — `*_CHUNK` events are expanded into start, content and end. Content, arguments
+  or an end for something never started is dropped and reported (`out-of-order`), never drawn. A
+  start for a closed message or tool call reopens it, in this run or a later one, and its content
+  continues; a reopened call stands as `queued`, loses its card or surface, and is asked about
+  again once its arguments are complete. A start for an id still open, or for a call already
+  decided or answered, is ignored and reported (`duplicate-start`), so `ontoolresult` fires once
+  for a call and an answered surface's receipt stays; and a message id with one of the adapter's prefixes (`approval:`, `tool:`, `trace:`, `surface:`,
+  `error:`, `think:`) is refused. `handle()` never throws: what it cannot read is reported and
+  dropped. `destroy()` closes a run still open as stopped, cancels unanswered surface-tool surfaces
+  (their replies still reach `ontoolresult`, with `reason: 'stopped'`) and expires undecided
+  approvals before it stops listening, and reports none of that through `onerror`. Every event the thread does not draw goes to
+  `onunknown`, including steps, message snapshots, activities, subagents and the deprecated
+  `THINKING_*` names.
+<!-- /doc -->
+
+<!-- doc:surface -->
+### Surface — `new Surface(target, options)` / `openSurface()` / `elicit()` / `surfaceText()`
+
+Interface an agent composes as JSON — a rich answer, or a dialog asking the person something —
+validated and drawn with the library's own components. A surface declares one `intent`, which fixes
+its frame, default actions and reply, and composes its body from catalog nodes laid out by id. The
+format, the node reference and the rules a model reads are in `docs/agent-surfaces.md`; the catalog
+functions (`narrowCatalog`, `surfaceSchema`, `surfaceTools`, `surfacePrompt`) and the validator are
+in `src/components/surface/catalog.js` and `validate.js`, importable on a server.
+
+- **Options** — `document` (a whole surface; leave it out to stream), `policy`, `resolve: {ref,
+  link, asset, entities}`, `authors`, `userInitiated: false`, `headingLevel: 3`, `locale`,
+  `catalog` (a narrowed catalog; the full one by default), `token: null` (the application's opaque
+  string, at most 512 characters, copied unchanged into every reply), `reply: null` (a stored reply:
+  the surface starts as its receipt), `labelledBy: null` (the id of a title shown by a host),
+  `chartAdapter: null` (draws `chart` nodes; without one a chart shows its data table), `msg`.
+- **Methods** — `apply(op)`, `write(chunk)` (operation lines in chunks), `end()` (the stream is
+  over), `getValues()`, `getErrors()`, `cancel(reason)`, `supersede()`, `focus()`, `toDocument()`,
+  `getReply()`, `destroy()`.
+- **Events** — `reply {reply}` exactly once, `error {errors}` each time new problems are found,
+  `change {name, value}`, `ready` at the first drawn state, `end`.
+- **Streaming** — every line is validated before it is drawn. A child that has not arrived is a
+  skeleton line, and every action but Cancel stays disabled until the surface's `end`. What is
+  invalid is dropped and reported; an unknown node, or one outside a narrowed catalog, draws "This
+  part could not be shown". A surface whose stream ends without its `end` keeps its actions
+  disabled. A node that fails while drawing shows the same line beside the rest of the surface, and
+  is reported as `draw-failed`. One operation costs what it touches: a `data` operation redraws only
+  the nodes bound to the path it changed.
+- **Limits** — 400 nodes, depth 12, 20,000 characters per string, 1,000 rows per table, 50 fields,
+  64 choices, 8 actions, 1 MB of data, and 100,000 table cells across all tables, each `$data`
+  binding counted where it is used. What is over a limit is dropped and reported, and the table
+  budget holds while a surface streams; rows past it draw the fallback.
+- **Actions** — the intent's defaults (`submit`, `confirm`, `approve`/`reject`) or the surface's own,
+  plus Cancel for `ask`, `choose`, `confirm` and `questionnaire`, and for a `review` left without
+  its `reject`. The ids `cancel` and `dismiss` are reserved: an action using one is dropped and
+  reported, as is any action of a `questionnaire`'s own. Escape closes whatever waits for an answer
+  (`cancel`, or `dismiss` for a `show` surface with actions), except while it closes something
+  inside the surface (an open picker, an expanded list) or another handler took it. The answering
+  defaults (`submit`, `confirm`, `approve`) and an own action with `kind: 'primary'` check the
+  visible inputs first, move focus to the first invalid one, and send the values; any other own
+  action replies at once with `values: {}`. With several primary actions the one pressed answers,
+  and Enter in a field presses the first. A single `choice` must be picked before an answering
+  action replies; a `multiple` one may be empty. A questionnaire's `next` that names a dropped step,
+  or can lead back to its own step, is dropped and reported.
+- **Policy** — `policy(action, surface)` returns `'allow'`, `'confirm'` (a confirmation Dialog),
+  `'type-to-confirm'` (`Dialog.confirm({confirmText})`) or `'deny'` (the action is not drawn, and
+  the reply lists it under `removed`), or `{level, confirmText?, message?}`. Supply `confirmText`
+  for `type-to-confirm`: without it the person types the fixed word "confirm"
+  (`surface.typeToConfirm`), never text from the surface. A questionnaire's own Submit is put to the
+  policy up front, as `submit`; denied, it is hidden and reported. The policy is synchronous:
+  nothing waits for it, so a Promise denies, like a policy that throws. Anything else counts as
+  `confirm`. Nothing in a surface can lower it: `kind: 'danger'` is presentation only, and
+  confirmation keys in a surface are dropped.
+- **Reply** — `{zx: 'reply/1', surface, action, key, values, confirmation, at, token?, removed?,
+  reason?}`. `key` is `<surface>#<action>`; `confirmation` is `clicked`, `typed` or `null`;
+  `reason` says why a closing reply (`cancel`, `dismiss`) was sent: `cancelled`, `escape`,
+  `closed`, `superseded`, `stopped`, `destroyed`, or the application's. Submit and every action
+  reply, and so do Cancel, Escape, `cancel()`, `supersede()` and destroying an unanswered surface
+  (`dismiss`), whatever happens while its receipt is drawn. When its run stops, the application
+  calls `surface.cancel('stopped')`. A surface
+  whose `begin` never validated still replies once: `surface` is the id it was given when that was
+  a valid id, `null` otherwise. A reply records what the page did; the server runs its policy again
+  before it acts.
+- **Conditions** — a node's `visible` and a schema property's `x-zx.visible` are evaluated as values
+  change. A hidden input keeps what was typed, is not required, and is left out of `getValues()`
+  and the reply. A node that hides while it holds the focus hands it to the input whose value hid
+  it.
+- **Receipt** — answered, the surface carries `data-state="answered"`: inputs become read-only
+  displays of what was answered, tables stay with their selected rows marked, and the actions give
+  way to a verdict line. A restored surface (`reply`) shows what that reply answered.
+  `surfaceText(document, reply)` gives the same receipt as plain text, with choice titles rather
+  than raw values and never a hidden input or step, whatever the reply carries.
+- **Field types** — a schema property's `x-zx.field` draws through `Field`. The surface registers the
+  types it needs only where nothing draws them yet, so an adapter the application registered with
+  `Field.register()` stays.
+- **Placement** — `openSurface(document, {placement, target, …})` resolves with the reply. A sheet
+  or a dialog the document asks for is honoured only with `userInitiated`; otherwise the surface goes
+  inline into `target`. Closing the sheet or dialog replies `cancel`. A document that cannot begin
+  rejects with a `TypeError` (its `errors` attached) before anything opens; given its `reply`, it
+  resolves with it at once. `signal` withdraws it: on abort the surface is cancelled with the reason
+  `stopped` and the promise resolves that reply — a sheet or dialog closes, an inline surface stays
+  as its receipt — and a signal already aborted resolves it without drawing anything. Removing an
+  inline `target` is not noticed: abort the signal or destroy the surface so the promise settles.
+- **Elicitation** — `elicit({message, requestedSchema}, options)` draws an `ask` form in a Dialog,
+  or inline into `options.target`, and resolves `{action: 'accept', content}`, `{action: 'decline'}`
+  or `{action: 'cancel'}`. A schema outside the subset (a nested object, a pattern, …) rejects with
+  a `TypeError` naming what is unsupported. The message is drawn as plain text, never as markup;
+  the labels resolve through `msg` (by language, then flat), the host translator, then English.
+  `options.signal` withdraws the request: it resolves `cancel`.
+- **MCP elicitation** — `elicitationHandler({serverName, authors?, target?, open?, msg?})` returns
+  `(params, {signal}?) => Promise<{action, content?}>` for an MCP client to install; `MCP_ELICITATION_VERSION`
+  (`'2026-07-28'`) names the revision it implements. Call it with the `params` of an
+  `elicitation/create` request, or of each `inputRequests` entry whose `method` is
+  `elicitation/create` in an `input_required` result, and send what it resolves back — in
+  `inputResponses` under the same key, with `requestState` echoed unchanged. Fields a mode does not
+  use, such as an `elicitationId`, are ignored. The byline says "Asked by <server>": the
+  `authors[serverName].name` when listed, else `serverName`, which is required. Abort `signal` when
+  the request is withdrawn (the server cancelled it, the call timed out, the session closed, or the
+  inline `target` was removed): the surface is cancelled, nothing opens, and it resolves `cancel`.
+  - Form mode, the default without `mode`, is `elicit()`; a schema outside the subset rejects with
+    its `TypeError`, so the client can answer the server with an error. Single and multiple choice
+    (`enum`, `oneOf`, `items.enum`, `items.anyOf`) and defaults are supported; the deprecated
+    `enumNames` is reported as unsupported.
+  - URL mode is a `confirm` surface that asks first: the server's message as plain text, the page's
+    host emphasised, its full address, a warning for an internationalised host, and no link. Nothing
+    is fetched or opened before the person agrees. Open page opens the address in a new tab with
+    `noopener` and `noreferrer`, inside the click, and resolves `{action: 'accept'}`; Decline
+    resolves `decline`; Cancel, Escape or closing the dialog resolves `cancel`. The address must be
+    an absolute lower-case `https://` URL without credentials, checked and normalised like a surface
+    link; anything else rejects with a `TypeError`. `open(url)` replaces the opener: it must open a
+    browsing context that cannot reach the application, and `false` or a throw answers `cancel`.
+
+  ```js
+  const answer = elicitationHandler({ serverName: 'Orders server' });
+  const inputResponses = {};
+  for (const [key, request] of Object.entries(result.inputRequests ?? {})) {
+    if (request.method === 'elicitation/create') inputResponses[key] = await answer(request.params);
+  }
+  await client.callTool({ ...call, inputResponses, requestState: result.requestState });
+  ```
+- **Safety** — no string reaches the page as HTML. Records are drawn through `resolve.ref` as an
+  `EntityRef`; links are `https:` only, show their host, and pass `resolve.link`, which may refuse
+  them; nothing is loaded from an address the surface gives.
+- **Accessibility** — a surface that asks is a `<form>` labelled by its title, any other a labelled
+  region; the title is at `headingLevel` and its `heading` nodes one and two below, up to h6; a chart offers its data table; the byline says
+  "Composed by <author>".
+
+```js
+const surface = new Surface(null, {
+  document,                                   // from the model's show_surface call
+  token: issuedToken,
+  policy: (action) => (action.tool === 'mail.send' ? 'confirm' : 'allow'),
+  resolve: { entities: ['company'], ref: (ref) => ({ id: ref.id, title: names[ref.id] }) },
+  onreply: ({ detail }) => sendToolResult(detail.reply)
+});
+```
 <!-- /doc -->
 
 <!-- doc:run-status -->

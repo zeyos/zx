@@ -80,6 +80,62 @@ function intake() {
   ];
 }
 
+/**
+ * A support request written entirely as JSON: `when` conditions instead of predicates, a `next`
+ * branch list whose first match wins, `$review` to end on the summary, and validation rules with
+ * their own messages. Nothing here is a function, so the same list could come from a server.
+ */
+function supportRequest() {
+  return [
+    {
+      name: 'topic',
+      prompt: 'What do you need help with?',
+      required: true,
+      choices: [
+        { value: 'billing', label: 'An invoice' },
+        { value: 'bug', label: 'Something is broken' },
+        { value: 'other', label: 'Something else' }
+      ]
+    },
+    {
+      name: 'invoice',
+      prompt: 'Which invoice is it?',
+      when: { field: 'topic', op: 'eq', value: 'billing' },
+      input: { label: 'Invoice number', placeholder: 'RE-2026-0121' },
+      validate: [
+        { required: true, message: 'Enter the invoice number from the top of the invoice.' },
+        { minLength: 6 }
+      ]
+    },
+    {
+      name: 'severity',
+      prompt: 'How badly does it affect your work?',
+      when: { field: 'topic', op: 'eq', value: 'bug' },
+      required: true,
+      choices: [
+        { value: 'blocker', label: 'I cannot work', description: 'Skips straight to your contact details' },
+        { value: 'annoying', label: 'It slows me down' },
+        { value: 'cosmetic', label: 'It just looks wrong' }
+      ],
+      next: [{ if: { field: 'severity', op: 'eq', value: 'blocker' }, goto: 'email' }]
+    },
+    {
+      name: 'details',
+      prompt: 'Describe what happened',
+      when: { any: [{ field: 'topic', op: 'eq', value: 'other' }, { field: 'severity', op: 'filled' }] },
+      input: { label: 'Details', multiline: true },
+      validate: [{ required: true }, { maxLength: 280 }]
+    },
+    {
+      name: 'email',
+      prompt: 'Where can we reach you?',
+      input: { label: 'Email', placeholder: 'name@example.com' },
+      validate: [{ required: true }, { format: 'email' }],
+      next: '$review'
+    }
+  ];
+}
+
 /** An intake asking for real data types: a Field per question instead of a list of choices. */
 function onboarding() {
   return [
@@ -174,6 +230,26 @@ export default {
 
         cleanup(() => wizard.destroy());
         return [wizard.toElement(), state];
+      }
+    },
+    {
+      title: 'Declarative branching',
+      blurb: 'The same branching written as plain JSON, so it can be stored or sent: when takes a '
+        + 'condition such as {field, op, value}, next a list of {if, goto} branches where the first '
+        + 'match wins, and validate a list of rules with optional messages. Pick “Something is '
+        + 'broken”, then “I cannot work”, to jump past the description; the last question leads to '
+        + 'the review with next: "$review".',
+      layout: 'stack',
+      width: 520,
+      render: ({ cleanup, log }) => {
+        const request = new Questionnaire(null, {
+          items: supportRequest(),
+          onnavigate: ({ detail }) => log(`${detail.reason}: ${detail.from} → ${detail.to ?? 'review'}`),
+          oninvalid: ({ detail }) => log(`invalid ${detail.name}: ${detail.message}`),
+          onsubmit: ({ detail }) => log(`submit ${JSON.stringify(detail.answers)}`)
+        });
+        cleanup(() => request.destroy());
+        return request.toElement();
       }
     },
     {

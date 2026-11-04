@@ -12,7 +12,8 @@ This WP adds thin adapters so an application can point either at Zx without glue
 renders; it does not become a transport, a client SDK or an agent host.
 
 Work in the current checkout, on top of WP51 and WP52. **Do not commit**: this lands after central
-review. `AGENTS.md` applies. `src/core/**` is **not** in scope. `CHANGELOG.md` is central: report
+review. `AGENTS.md` applies. `src/core/**` is **not** in scope, except `src/core/messages.js` for
+new keys only. `CHANGELOG.md` is central: report
 changelog lines. `docs/api.json` is regenerated. Public files must not mention this spec.
 
 ## Decisions (binding)
@@ -33,6 +34,8 @@ changelog lines. `docs/api.json` is regenerated. Public files must not mention t
    - The application's `requiresApproval(toolCall)` decides which tool calls wait for a person.
    - The adapter draws the card and hands the decision back through `ontoolresult`. No tool call
      is approved by default.
+   - Any truthy answer gates the call, and so does a Promise: an asynchronous check holds the call
+     for a person rather than letting it through.
 5. **URL mode asks first.** An MCP URL-mode elicitation is shown as a `confirm` surface that names
    the full host, emphasised, before anything opens. Opening uses `noopener`, and declining or
    closing answers `decline` or `cancel`.
@@ -102,7 +105,8 @@ runs `*.test.js`), `website/demos/agent-thread.demo.js`, `docs/llms.md`.
       renderer cannot.
     - The call's trace step gains a ref to the tile. The adapter answers the thread's `open` for
       that ref with `thread.reveal('item:tool:<toolCallId>')`; it never handles another ref.
-    - An approval-gated call keeps its ApprovalCard (Decision 4); the tile follows it.
+    - An approval-gated call keeps its ApprovalCard (Decision 4); the tile follows it, whatever
+      status the renderer first answers at.
     - A renderer that throws is reported through `onerror`, and the trace step stays as it was.
   - **Surface tools:** a call named in `surfaceTools` becomes a surface item, and its trace step an
     `ask` step.
@@ -112,6 +116,10 @@ runs `*.test.js`), `website/demos/agent-thread.demo.js`, `docs/llms.md`.
       surface's `errors` added when there are any.
     - Arguments that are not JSON draw nothing and answer the call at once with
       `{error: 'invalid-arguments'}`.
+    - A `show` surface with no actions has nothing to answer, so the call is answered at once with
+      `{shown: true, surface, errors?}` and the surface stays on screen.
+    - Where `thread.surface(id)` gives nothing, as with an application's own renderer, every
+      operation is reported and the call is answered at once with `{error: 'surface-unavailable'}`.
   - **Inline surfaces:** with `inlineSurfaces`, answer content goes through WP52's
     `inlineSplitter()`.
     - Prose before a fence stays in the answer. The fence's lines go to their surfaces, inserted
@@ -130,8 +138,18 @@ runs `*.test.js`), `website/demos/agent-thread.demo.js`, `docs/llms.md`.
     through `onstate`.
   - Reasoning events follow Decision 3.
   - Anything else goes to `onunknown`.
-- **Out of order:** content arriving before its start creates the item, and a duplicate start for
-  a known id is ignored. Both cases are reported.
+- **Out of order:** as AG-UI 1.0 requires, content, arguments, an end or a result with no start are
+  dropped and reported; they never create an item. A start for a closed message or tool call
+  reopens it, and its content continues. A start for an id still open is ignored and reported.
+- **Ending:**
+  - A surface that reaches the end of its run without its `end` operation is reported and
+    cancelled.
+  - A tool call with no result and no pending id keeps the run from reading as finished.
+  - A run error outside an open run marks the last run failed, draws its notice and is reported.
+    Approvals and surfaces still waiting for a person stay open.
+  - `destroy()` closes an open run as stopped.
+  - A start for a call already decided or answered is ignored and reported: `ontoolresult` never
+    fires twice for one call, and an answered surface's receipt stays.
 - **Fixtures:** three recorded sequences, replayed in tests and, from the demo, into an
   AgentThread (instantly under reduced motion):
   - a plain answer with two tool calls;

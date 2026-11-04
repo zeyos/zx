@@ -7,9 +7,43 @@ import { button } from '../button/button.js';
 import { Field } from '../field/field.js';
 import { kbd } from '../kbd/kbd.js';
 import { ProgressBar } from '../loading/progress-bar.js';
+import { NEXT_REVIEW, checkRules, ruleMessage } from './conditions.js';
 import {
-  applyExclusive, isEmptyAnswer, normalizeItems, progressOf, resolveFlow, resolveNext, validateAnswer
+  applyExclusive, endsFlow, isEmptyAnswer, normalizeItems, progressOf, resolveFlow, resolveNext, validateAnswer
 } from './items.js';
+
+/**
+ * The message key of each declarative rule's default text, as `checkRules()` names the rule.
+ * `required` is absent: an item words it itself (`questionnaire.required`,
+ * `questionnaire.requiredInput`).
+ */
+export const RULE_MESSAGE_KEYS = Object.freeze({
+  minLength: 'questionnaire.rule.minLength',
+  maxLength: 'questionnaire.rule.maxLength',
+  minItems: 'questionnaire.rule.minItems',
+  maxItems: 'questionnaire.rule.maxItems',
+  minimum: 'questionnaire.rule.minimum',
+  maximum: 'questionnaire.rule.maximum',
+  oneOf: 'questionnaire.rule.oneOf',
+  date: 'questionnaire.rule.date',
+  'date-time': 'questionnaire.rule.dateTime',
+  time: 'questionnaire.rule.time',
+  email: 'questionnaire.rule.email',
+  uri: 'questionnaire.rule.uri'
+});
+
+/**
+ * A rule's default message through a component's `msg()`: its catalogue key when it has one, the
+ * English of `ruleMessage()` otherwise.
+ * @param {(key: string, ...args: unknown[]) => string} msg The component's message lookup.
+ * @param {string} key The rule key `checkRules()` reports.
+ * @param {...unknown} args Its interpolation values.
+ * @returns {string}
+ */
+export function ruleText(msg, key, ...args) {
+  const catalogueKey = /** @type {Record<string, string>} */ (RULE_MESSAGE_KEYS)[key];
+  return catalogueKey ? msg(catalogueKey, ...args) : ruleMessage(key, ...args);
+}
 
 /** @typedef {import('./items.js').QuestionnaireItem} QuestionnaireItem */
 /** @typedef {import('./items.js').QuestionnaireChoice} QuestionnaireChoice */
@@ -83,10 +117,13 @@ function keyHint(key) {
  * persistence and transport.
  *
  * Three things separate it from a `Form` with one `Fieldset` per question. It **branches**: an item
- * carries a `when` predicate and a `next` target, conditions cascade, and Back retraces the path
+ * carries a `when` condition and a `next` target, conditions cascade, and Back retraces the path
  * actually walked rather than an array index. Its answer control is **any registered Zx `Field`
  * type**, so a question can ask for a date, a number, a rating or an upload instead of a choice.
  * And its `validate` may be asynchronous, which is what lets a question be gated on a server check.
+ *
+ * `when`, `next` and `validate` each take a function or the same logic written as plain JSON (see
+ * `conditions.js`), so a whole questionnaire can be stored, sent, or composed by an agent.
  *
  * The root is a real `<form>` and choices are native radios and checkboxes carrying the item name,
  * so `new FormData(questionnaire.toElement())` reads the answers, arrow-key navigation inside a
@@ -296,9 +333,7 @@ export class Questionnaire extends Component {
     }
     const item = this._activeItem();
     const target = item ? resolveNext(this._items, item, this._rawAnswers()) : null;
-    if (target) return this._navigate(target, 'next');
-    if (this.options.review) return this._enterReview();
-    return this.submit();
+    return this._leave(target, 'next');
   }
 
   /**
@@ -351,10 +386,7 @@ export class Questionnaire extends Component {
       this._returnToReview = false;
       return this._enterReview();
     }
-    const target = resolveNext(this._items, item, this._rawAnswers());
-    if (target) return this._navigate(target, 'skip');
-    if (this.options.review) return this._enterReview();
-    return this.submit();
+    return this._leave(resolveNext(this._items, item, this._rawAnswers()), 'skip');
   }
 
   /**
@@ -621,6 +653,17 @@ export class Questionnaire extends Component {
     return true;
   }
 
+  /**
+   * Follows a resolved branch target: an item, the review screen, or submission.
+   * @param {string|null} target @param {'next'|'skip'} reason @returns {Promise<boolean>|boolean}
+   */
+  _leave(target, reason) {
+    if (endsFlow(this._items, target)) return target === NEXT_REVIEW ? this._enterReview() : this.submit();
+    if (target) return this._navigate(target, reason);
+    if (this.options.review) return this._enterReview();
+    return this.submit();
+  }
+
   /** @returns {boolean} */
   _enterReview() {
     if (this.emit('navigate', { from: this.getActive(), to: null, reason: 'review' }).defaultPrevented) {
@@ -640,7 +683,12 @@ export class Questionnaire extends Component {
     const answer = this._answerOf(item);
     let message = validateAnswer(item, answer, (key) => this.msg(key));
 
-    if (!message && typeof item.validate === 'function') {
+    if (!message && Array.isArray(item.validate)) {
+      // The required rule says what an empty item already says; the others read their English.
+      message = checkRules(item.validate, answer, (key, ...args) => (key === 'required'
+        ? this.msg(item.choices.length > 0 ? 'questionnaire.required' : 'questionnaire.requiredInput')
+        : ruleText((ruleKey, ...values) => this.msg(ruleKey, ...values), key, ...args)));
+    } else if (!message && typeof item.validate === 'function') {
       this._setBusy(true);
       try {
         message = await item.validate(answer, this.getAnswers());
@@ -834,13 +882,14 @@ export class Questionnaire extends Component {
     const review = this._status === 'review';
     const complete = this._status === 'complete';
     // `next()` lets a bad branch target throw; painting must not, or one typo blanks the UI.
-    let hasNext = false;
+    let target = null;
     try {
-      hasNext = Boolean(item) && resolveNext(this._items, /** @type {NormalizedItem} */ (item),
-        this._rawAnswers()) !== null;
+      target = item ? resolveNext(this._items, /** @type {NormalizedItem} */ (item), this._rawAnswers()) : null;
     } catch {
-      hasNext = false;
+      target = null;
     }
+    const ending = endsFlow(this._items, target) ? (target === NEXT_REVIEW ? 'review' : 'submit')
+      : target === null ? (this.options.review ? 'review' : 'submit') : null;
 
     this._back.hidden = complete || (!review && (!this.options.allowBack || this._path.length <= 1));
     this._back.disabled = this._busy;
@@ -849,8 +898,7 @@ export class Questionnaire extends Component {
     this._forward.hidden = complete;
     this._forward.disabled = this._busy || (!item && !review);
 
-    const role = review ? 'submit' : this._returnToReview || (!hasNext && this.options.review) ? 'review'
-      : hasNext ? 'next' : 'submit';
+    const role = review ? 'submit' : this._returnToReview ? 'review' : ending ?? 'next';
     if (this._forward.dataset.role !== role) {
       this._forward.dataset.role = role;
       const glyph = role === 'next' ? 'chevron-right' : role === 'review' ? 'list' : 'check';

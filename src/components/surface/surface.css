@@ -1,0 +1,308 @@
+/*
+ * Surface — a piece of interface an agent composed: a rich answer, or a dialog asking the person
+ * something. One quiet frame around library components, a byline saying who composed it, and
+ * the actions; answered, it stays as the record of what was decided.
+ */
+.zx-surface {
+  display: block;
+  inline-size: 100%;
+  min-inline-size: 0;
+  color: var(--zx-color-text);
+  container-type: inline-size;
+}
+
+.zx-surface__frame {
+  display: grid;
+  gap: var(--zx-space-3);
+  min-inline-size: 0;
+  margin: 0;
+  padding: var(--zx-space-4);
+  border: 1px solid var(--zx-color-border-subtle);
+  border-radius: var(--zx-radius-lg);
+  background: var(--zx-color-bg-surface);
+}
+
+.zx-surface[data-state="open"] .zx-surface__frame:is(form) {
+  border-color: var(--zx-color-border);
+}
+
+/* Inside a dialog or a sheet the overlay is the frame. */
+.zx-surface-host .zx-surface__frame {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+:is(.zx-surface__actions, .zx-surface__receipt, .zx-surface__choice-error)[hidden],
+.zx-surface [data-surface-node][hidden] {
+  display: none;
+}
+
+/* ------------------------------------------------------------------ head -- */
+
+.zx-surface__header {
+  display: grid;
+  gap: 2px;
+  min-inline-size: 0;
+}
+
+.zx-surface__title {
+  margin: 0;
+  font-size: var(--zx-text-md);
+  font-weight: var(--zx-weight-semibold);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.zx-surface__description {
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  overflow-wrap: anywhere;
+}
+
+.zx-surface__byline {
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+}
+
+/* ------------------------------------------------------------------ body -- */
+
+.zx-surface__body {
+  display: grid;
+  gap: var(--zx-space-3);
+  min-inline-size: 0;
+}
+
+.zx-surface__body > *,
+.zx-surface__stack > *,
+.zx-surface__columns > * {
+  min-inline-size: 0;
+}
+
+.zx-surface__blocks > :first-child { margin-block-start: 0; }
+.zx-surface__blocks > :last-child { margin-block-end: 0; }
+
+.zx-surface__placeholder {
+  padding-block: var(--zx-space-1);
+}
+
+.zx-surface__fallback {
+  display: flex;
+  gap: var(--zx-space-2);
+  align-items: center;
+  margin: 0;
+  padding: var(--zx-space-2) var(--zx-space-3);
+  border: 1px dashed var(--zx-color-border);
+  border-radius: var(--zx-radius-md);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+.zx-surface__fallback-icon {
+  display: inline-flex;
+  color: var(--zx-color-text-subtle);
+}
+
+.zx-surface__link {
+  margin: 0;
+  font-size: var(--zx-text-sm);
+  overflow-wrap: anywhere;
+}
+
+.zx-surface__link-text:is(a) {
+  color: var(--zx-color-accent);
+}
+
+.zx-surface__link-text:is(a):focus-visible {
+  border-radius: var(--zx-radius-sm);
+  outline-color: transparent;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.zx-surface__host,
+.zx-surface__none,
+.zx-surface__ref-id {
+  color: var(--zx-color-text-muted);
+}
+
+.zx-surface__chart {
+  display: grid;
+  gap: var(--zx-space-2);
+  justify-items: start;
+}
+
+.zx-surface__chart > .zx-chart {
+  justify-self: stretch;
+}
+
+.zx-surface__diff-label {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--zx-space-2);
+  align-items: center;
+}
+
+/* ------------------------------------------------------------------ choice -- */
+
+.zx-surface__choice {
+  display: grid;
+  gap: var(--zx-space-2);
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.zx-surface__choice-legend {
+  padding: 0;
+  margin-block-end: var(--zx-space-2);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  font-weight: var(--zx-weight-medium);
+}
+
+.zx-surface__choice-list {
+  display: grid;
+  gap: var(--zx-space-1);
+}
+
+.zx-surface__option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--zx-space-2);
+  align-items: start;
+  padding: var(--zx-space-2) var(--zx-space-3);
+  border: 1px solid var(--zx-color-border-subtle);
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-bg-surface);
+}
+
+.zx-surface__option:hover {
+  background: var(--zx-color-bg-hover);
+}
+
+.zx-surface__option:has(input:checked) {
+  border-color: var(--zx-color-accent);
+  background: var(--zx-color-bg-selected);
+}
+
+.zx-surface__option input {
+  margin: 0;
+  margin-block-start: 2px;
+  accent-color: var(--zx-color-accent);
+}
+
+.zx-surface__option input:focus-visible {
+  outline-color: transparent;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.zx-surface__option-label {
+  display: flex;
+  gap: var(--zx-space-2);
+  align-items: start;
+  font-size: var(--zx-text-sm);
+  cursor: pointer;
+}
+
+.zx-surface__option-icon {
+  display: inline-flex;
+  color: var(--zx-color-text-muted);
+}
+
+.zx-surface__option-text {
+  display: grid;
+  gap: 2px;
+}
+
+.zx-surface__option-description {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-xs);
+}
+
+.zx-surface__choice-error {
+  margin: 0;
+  color: var(--zx-color-danger);
+  font-size: var(--zx-text-xs);
+}
+
+/* ------------------------------------------------------------------ receipt -- */
+
+.zx-surface__answers {
+  display: grid;
+  gap: var(--zx-space-2);
+  margin: 0;
+  font-size: var(--zx-text-sm);
+}
+
+.zx-surface__answer {
+  display: grid;
+  grid-template-columns: minmax(8rem, 1fr) minmax(0, 2fr);
+  gap: var(--zx-space-3);
+}
+
+.zx-surface__answer dt {
+  color: var(--zx-color-text-muted);
+}
+
+.zx-surface__answer dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+@container (max-width: 30rem) {
+  .zx-surface__answer {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+}
+
+.zx-surface__mark {
+  display: inline-flex;
+  color: var(--zx-color-success);
+}
+
+.zx-surface__sr {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------------ actions -- */
+
+.zx-surface__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zx-space-2);
+  justify-content: flex-end;
+}
+
+.zx-surface__verdict {
+  display: flex;
+  gap: var(--zx-space-2);
+  align-items: center;
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+.zx-surface__verdict:focus-visible {
+  border-radius: var(--zx-radius-sm);
+  outline-color: transparent;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.zx-surface__verdict-icon {
+  display: inline-flex;
+}
+
+
+/* A questionnaire whose Submit the application's policy denied offers no way to submit. */
+.zx-surface[data-submit="denied"] .zx-questionnaire__actions [data-role="submit"] {
+  display: none;
+}

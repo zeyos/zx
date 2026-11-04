@@ -101,7 +101,10 @@ available as ESM named exports and as `window.zx.*`.
   `SourceList` (cited sources with a card each; nothing remote is loaded), `Composer` (the message
   box: mentions, `/` commands, attachments, context chips, Send that becomes Stop), `PromptStarters`
   (starting points for an empty conversation; a pick is reported, never sent), `RunStatus` (a run's
-  state, steps, working time, tokens, and a cost meter against a budget).
+  state, steps, working time, tokens, and a cost meter against a budget), `Surface` (a surface an
+  agent composed as JSON, validated and drawn with library components; it ends in exactly one reply
+  and stays as its receipt), `openSurface()`, `elicit()` (a form-mode elicitation as a dialog),
+  `surfaceText()` (a reply's receipt as plain text).
 - Core: `Component`, `h`/`__`/`icon`, `position`, `breakpoints`/`breakpointOf`/`matchBreakpoint`/
   `onBreakpoint`, i18n, date utilities, `defineElements` (declarative `<zx-*>` custom elements).
 - Helpers: `formatNumber`/`formatCurrency`/`formatFileSize`/`formatRelativeTime`, `storage()`,
