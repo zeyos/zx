@@ -40,7 +40,8 @@ and friends remain the complete record.
   as `zx-<type>`.
 - **`connectUiMessageStream(thread, options)`** and `UI_MESSAGE_STREAM_VERSION` — draw an AI SDK UI
   message stream (`v1`) in an AgentThread: text, private reasoning, tool steps, approvals, sources,
-  files, data parts and application tiles. The application keeps the transport.
+  files, data parts and application tiles. The application keeps the transport. `replay(messageId)`
+  rebuilds a response fed again after a reconnect, so its text is not doubled.
 - **PromptStarters** — conversation starters for an empty conversation, with `items`, `label`,
   `columns`, `headingLevel`, `setItems()` and a `pick` event. A pick is reported and never sent.
 - **Queued messages in Composer** — `queue` and `queueLimit`, `getQueue()`, `clearQueue()`,
@@ -63,12 +64,27 @@ and friends remain the complete record.
 
 - The `ai-chat` layout's empty state uses PromptStarters, and focus moves to the composer after a
   pick.
+- The library's remaining text, in Select, Table, Datebox, Filter and the rest, now goes through the
+  message catalogue, so a translator reaches it. Without one, the English is unchanged.
+- Month and weekday names, and dates in Calendar, ActivityItem, AgentThread and Surface, follow
+  `setLanguage()`. With no language set, nothing changes.
+- Text options whose default moved to the catalogue no longer hold that English text, so
+  `component.options.label`, `treeEl.label` and `chartEl.emptyText` read `null` or `undefined` until
+  set. Read the text with `component.msg('tree.label')`.
+- `null` in a text option that used to print the word "null" now shows nothing.
 - PageUp, PageDown and Ctrl+Home/End inside a control in a thread item stay with the control.
 - An answer finishing no longer drowns out "needs your approval" or "needs your answer".
 
+### Removed
+
+- The `filter.choosePart` message, so a host override of it stops applying. Use
+  `filter.choosePart.field`, `.operator` and `.value`.
+
 ### Fixed
 
-- `AgentThread.remove()` gives the next item its byline back when it now starts a turn.
+- `printf()` fills every placeholder in one pass, so a value holding `%word%` stays as written.
+- `AgentThread.remove()` gives the next item its byline back when it now starts a turn, and moves
+  focus to a neighbour when the removed item held it.
 - A destroyed AgentThread takes no more items.
 
 ## 5.6.0 — 2026-11-03

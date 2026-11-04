@@ -274,14 +274,14 @@
       {
         "name": "loadingText",
         "type": "string|null",
-        "default": "null",
-        "description": "Loading status text; null reads the `activityList.loading` message (\"Loading activity\")."
+        "default": null,
+        "description": "Loading status text, by default the `activityList.loading` message (\"Loading activity\"). Null shows none."
       },
       {
         "name": "emptyText",
         "type": "ActivityListContent",
-        "default": "null",
-        "description": "Empty-state content; null reads the `activityList.empty` message (\"No activity yet\")."
+        "default": null,
+        "description": "Empty-state content, by default the `activityList.empty` message (\"No activity yet\"). Null shows none."
       },
       {
         "name": "groupHeadingLevel",
@@ -634,7 +634,7 @@
         "name": "patch",
         "signature": "patch(id, partial)",
         "returns": "this",
-        "description": "Changes part of an item. The common changes are made in place — an answer finishing or stopping, a trace's steps, an approval's status — so focus and selection inside the item survive; anything else redraws the item."
+        "description": "Changes part of an item. The common changes are made in place — an answer finishing, stopping or writing on, a trace's steps, an approval's status — so what the reader opened, and focus and selection where the blocks stay, survive; anything else redraws the item."
       },
       {
         "name": "appendText",
@@ -658,7 +658,7 @@
         "name": "remove",
         "signature": "remove(id)",
         "returns": "this",
-        "description": "Removes an item."
+        "description": "Removes an item. Focus inside it moves to the item above, or the one below when it was the first, so that a keyboard user is not thrown back to the top of the page."
       },
       {
         "name": "get",
@@ -682,7 +682,7 @@
         "name": "reveal",
         "signature": "reveal(target)",
         "returns": "boolean",
-        "description": "Brings something into view and moves focus to it: `item:<id>` an item, `step:<id>` a trace step (in whichever trace holds it), `source:<n>` a source of the latest answer that has one."
+        "description": "Brings something into view and moves focus to it: `item:<id>` an item, `step:<id>` a trace step (in whichever trace holds it), `source:<n>` a source of the latest answer that has one, `source:<n>:<id>` a source in the list of the answer `id`."
       },
       {
         "name": "setArtifactState",
@@ -890,8 +890,8 @@
       {
         "name": "label",
         "type": "string|null",
-        "default": "null",
-        "description": "Navigation accessible label; null reads the `appSidebar.label` message (\"Applications\")."
+        "default": null,
+        "description": "Navigation accessible label, by default the `appSidebar.label` message (\"Applications\"). Null leaves the navigation unnamed."
       },
       {
         "name": "moreLabel",
@@ -2692,20 +2692,20 @@
       {
         "name": "emptyText",
         "type": "string|null",
-        "default": "null",
-        "description": "Empty-state text; null reads the `chart.empty` message (\"No chart data\")."
+        "default": null,
+        "description": "Empty-state text, by default the `chart.empty` message (\"No chart data\"). Null shows none."
       },
       {
         "name": "loadingText",
         "type": "string|null",
-        "default": "null",
-        "description": "Loading-state text; null reads the `chart.loading` message (\"Loading chart…\")."
+        "default": null,
+        "description": "Loading-state text, by default the `chart.loading` message (\"Loading chart…\"). Null shows none."
       },
       {
         "name": "errorText",
         "type": "string|null",
-        "default": "null",
-        "description": "Error fallback text; null reads the `chart.error` message (\"Unable to render chart\")."
+        "default": null,
+        "description": "Error fallback text, by default the `chart.error` message (\"Unable to render chart\"). Null shows none."
       },
       {
         "name": "aspectRatio",
@@ -3550,15 +3550,15 @@
       },
       {
         "name": "title",
-        "type": "string",
+        "type": "string|null",
         "default": null,
-        "description": "Accessible name, and the native tooltip on the icon-only form; by default the `copy.copy` message (\"Copy\")."
+        "description": "Accessible name, and the native tooltip on the icon-only form; by default the `copy.copy` message (\"Copy\"). Null gives none."
       },
       {
         "name": "feedback",
-        "type": "string",
+        "type": "string|null",
         "default": null,
-        "description": "Confirmation announced and shown after a copy; by default the `copy.copied` message (\"Copied\")."
+        "description": "Confirmation announced and shown after a copy; by default the `copy.copied` message (\"Copied\"). Null says nothing."
       },
       {
         "name": "feedbackDuration",
@@ -3611,14 +3611,14 @@
       {
         "name": "feedback",
         "type": "string|null",
-        "default": "null",
-        "description": "Confirmation shown after a copy; null reads the `copy.copied` message (\"Copied\")."
+        "default": null,
+        "description": "Confirmation shown after a copy, by default the `copy.copied` message (\"Copied\"). Null says nothing."
       },
       {
         "name": "buttonTitle",
         "type": "string|null",
-        "default": "null",
-        "description": "Accessible name of the copy button; null reads the `copy.copy` message (\"Copy\")."
+        "default": null,
+        "description": "Accessible name of the copy button, by default the `copy.copy` message (\"Copy\"). Null gives none."
       },
       {
         "name": "size",
@@ -5522,14 +5522,14 @@
       {
         "name": "loadingText",
         "type": "string|null",
-        "default": "null",
-        "description": "Loading status text; null reads the `fileList.loading` message (\"Loading files\")."
+        "default": null,
+        "description": "Loading status text, by default the `fileList.loading` message (\"Loading files\"). Null shows none."
       },
       {
         "name": "emptyText",
         "type": "string|number|Node|Component|null",
-        "default": "null",
-        "description": "Empty-state content; null reads the `fileList.empty` message (\"No files\")."
+        "default": null,
+        "description": "Empty-state content, by default the `fileList.empty` message (\"No files\"). Null shows none."
       }
     ],
     "events": [
@@ -5979,8 +5979,8 @@
       {
         "name": "emptyText",
         "type": "string|null",
-        "default": "null",
-        "description": "Text shown in an empty column; null reads the `finder.noItems` message (\"Empty\")."
+        "default": null,
+        "description": "Text shown in an empty column, by default the `finder.noItems` message (\"Empty\"). Null shows none."
       },
       {
         "name": "msg",
@@ -6720,8 +6720,8 @@
       {
         "name": "label",
         "type": "string|null",
-        "default": "null",
-        "description": "Accessible board label; null reads the `kanbanView.label` message (\"Kanban board\")."
+        "default": null,
+        "description": "Accessible board label, by default the `kanbanView.label` message (\"Kanban board\"). Null leaves the board unnamed."
       }
     ],
     "events": [
@@ -8903,21 +8903,21 @@
       },
       {
         "name": "label",
-        "type": "string",
+        "type": "string|null",
         "default": null,
-        "description": "The link's accessible name; `%1` is the heading. By default the `prose.copyLinkTo` message (\"Copy link to %1\")."
+        "description": "The link's accessible name; `%1` is the heading. By default the `prose.copyLinkTo` message (\"Copy link to %1\"). Null gives none."
       },
       {
         "name": "title",
-        "type": "string",
+        "type": "string|null",
         "default": null,
-        "description": "The link's tooltip, by default the `prose.copyLink` message (\"Copy link\")."
+        "description": "The link's tooltip, by default the `prose.copyLink` message (\"Copy link\"). Null gives none."
       },
       {
         "name": "feedback",
-        "type": "string",
+        "type": "string|null",
         "default": null,
-        "description": "What the live region says after a copy, by default the `prose.copied` message (\"Link copied\")."
+        "description": "What the live region says after a copy, by default the `prose.copied` message (\"Link copied\"). Null says nothing."
       },
       {
         "name": "feedbackDuration",
@@ -10883,8 +10883,8 @@
       {
         "name": "label",
         "type": "string|null",
-        "default": "null",
-        "description": "Accessible field label and direction-name prefix; null reads the `sortControl.label` message (\"Sort by\")."
+        "default": null,
+        "description": "Accessible field label and direction-name prefix, by default the `sortControl.label` message (\"Sort by\"). Null gives neither."
       },
       {
         "name": "labels",
@@ -13020,8 +13020,8 @@
       {
         "name": "label",
         "type": "string|null",
-        "default": "null",
-        "description": "Accessible name of the toolbar; null reads the `toolbar.label` message (\"Toolbar\")."
+        "default": null,
+        "description": "Accessible name of the toolbar, by default the `toolbar.label` message (\"Toolbar\"). Null gives none."
       },
       {
         "name": "overflow",
@@ -13032,8 +13032,8 @@
       {
         "name": "overflowLabel",
         "type": "string|null",
-        "default": "null",
-        "description": "Accessible name of the overflow menu trigger; null reads the `toolbar.more` message (\"More\")."
+        "default": null,
+        "description": "Accessible name of the overflow menu trigger, by default the `toolbar.more` message (\"More\"). Null gives none."
       },
       {
         "name": "dense",
@@ -13315,8 +13315,8 @@
       {
         "name": "emptyText",
         "type": "string|null",
-        "default": "null",
-        "description": "Text shown when the tree is empty; null reads the `tree.noItems` message (\"Nothing to show\")."
+        "default": null,
+        "description": "Text shown when the tree is empty, by default the `tree.noItems` message (\"Nothing to show\"). Null shows none."
       },
       {
         "name": "height",
