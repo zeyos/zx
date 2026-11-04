@@ -1175,6 +1175,21 @@ test('a withdrawn card decides nothing, also when the decision is already on its
   assert.deepEqual(log.approval, [], 'nothing is listening for it any more');
 });
 
+test('an answer above a card that outlives the reset stays ended', () => {
+  const { thread, play } = connect();
+  play([
+    { type: 'start', messageId: 'm' }, ...said('Above the card.'),
+    { type: 'tool-input-available', toolCallId: 'c', toolName: 'lookup', input: {} },
+    { type: 'finish-step' }, { type: 'start-step' },
+    { type: 'tool-approval-request', toolCallId: 'c', approvalId: 'a' },
+    { type: 'reset-step' }
+  ]);
+  assert.equal(/** @type {any} */ (thread.get('approval:a')).status, 'pending');
+  assert.equal(/** @type {any} */ (thread.get('m')).streaming, false);
+  play([...said('Below.'), { type: 'finish' }]);
+  assert.deepEqual(thread.order(), ['m', 'approval:a', 'm#2']);
+});
+
 test('runStatus goes back to running when the card or the error it was reporting is withdrawn', () => {
   const runStatus = fakeRunStatus();
   const { play } = connect({ runStatus });

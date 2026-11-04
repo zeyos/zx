@@ -103,7 +103,8 @@ regenerated. Public files must not mention this spec.
     its reasoning, and its tool calls with their steps, tiles and cards. Reasoning from earlier steps
     stays, with their time and text.
   - A call belongs to the step that began it. An earlier call keeps whatever the withdrawn step did
-    to it, as it does on the AI SDK client, where a tool part is updated in place.
+    to it, as it does on the AI SDK client, where a tool part is updated in place. Its card stays,
+    and the answer above that card stays ended.
   - An `error` is not a message part, but a step the server takes back has not failed, so its notice
     goes too and the run does not end as failed.
   - The answer goes on where the step began. A retry may reuse the ids of the step it replaces, and

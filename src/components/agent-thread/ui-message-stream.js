@@ -859,8 +859,12 @@ export function connectUiMessageStream(thread, options = {}) {
     approvals.set(id, { id: String(part.approvalId), call, settled: false });
     const code = call.args === null ? call.argsText : asText(call.args);
     // The answer ends before the card joins, so the thread's last word is that it needs approval,
-    // not that it answered.
-    if (current) endPiece(current);
+    // not that it answered. A card for an earlier call outlives a reset of this step, and the answer
+    // above it stays ended with it.
+    if (current) {
+      endPiece(current);
+      if (!current.mark.calls.has(call)) current.mark.state.writing = false;
+    }
     add({
       id,
       type: 'approval',
