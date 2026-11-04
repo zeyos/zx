@@ -13546,7 +13546,7 @@
       {
         "name": "data",
         "payload": null,
-        "description": "A `data-<name>` part. With an `id` it replaces the earlier value of that name and id."
+        "description": "A `data-<name>` part. With an `id` it replaces the earlier value of that name and id. What went out here stays with the application: a `reset-step` takes back what was drawn, not what was delivered."
       },
       {
         "name": "metadata",

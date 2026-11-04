@@ -30,6 +30,8 @@ class FakeThread extends EventTarget {
   revealed = [];
   /** @type {any[]} */
   calls = [];
+  /** @type {Map<string, any[]>} The sources given to an answer's view rather than its item. */
+  citing = new Map();
 
   msg(key, ...args) { return translate(key, args); }
   on(type, fn) { this.addEventListener(type, fn); return this; }
@@ -66,8 +68,9 @@ class FakeThread extends EventTarget {
 
   /** @param {any} item */
   _blocks(item) {
-    this.text.set(String(item.id), (item.blocks ?? []).map((block) => block.text).join('\n\n'));
-    this.appended.delete(String(item.id));
+    const blocks = item.blocks ?? [];
+    this.text.set(String(item.id), blocks.filter((block) => block.type === 'p').map((block) => block.text).join('\n\n'));
+    this.appended.set(String(item.id), blocks.filter((block) => block.type !== 'p'));
   }
 
   appendText(id, text) {
@@ -97,8 +100,14 @@ class FakeThread extends EventTarget {
   }
 
   remove(id) {
+    this.calls.push(['remove', String(id)]);
     this.items.delete(String(id));
     return this;
+  }
+
+  /** An answer's view, as far as the adapter reaches for it. */
+  getComponent(id) {
+    return { setSources: (sources) => this.citing.set(String(id), structuredClone(sources)) };
   }
 
   reveal(target) {
@@ -147,7 +156,7 @@ test('the adapter names the protocol version it implements and is exported', () 
   assert.equal(UI_MESSAGE_STREAM_VERSION, 'v1');
   assert.equal(zx.UI_MESSAGE_STREAM_VERSION, 'v1');
   assert.equal(zx.connectUiMessageStream, connectUiMessageStream);
-  for (const name of ['tools', 'approval', 'reasoning']) assert.equal(fixture(name).pinned.protocol, UI_MESSAGE_STREAM_VERSION);
+  for (const name of ['tools', 'approval', 'reasoning', 'reset']) assert.equal(fixture(name).pinned.protocol, UI_MESSAGE_STREAM_VERSION);
 });
 
 test('the documentation replays the recorded stream, not a version of its own', () => {
@@ -187,7 +196,7 @@ test('an answer with two tool calls and two sources replays into one answer', ()
   assert.deepEqual(log.unknown, []);
 });
 
-test('an approval-gated call waits, and the next response continues the same message', async () => {
+test('an approval-gated call waits, and the next response continues the same turn below the card', async () => {
   const { thread, log, play } = connect();
   const [first, second] = fixture('approval').responses;
   play(first);
@@ -207,14 +216,15 @@ test('an approval-gated call waits, and the next response continues the same mes
   assert.equal(/** @type {any} */ (thread.get('msg-reminder')).steps[0].status, 'running');
 
   play(second);
+  assert.deepEqual(thread.order(), ['msg-reminder', 'approval:approval-reminder', 'msg-reminder#2'], 'the final text stands below the card');
   const answer = /** @type {any} */ (thread.get('msg-reminder'));
-  assert.deepEqual(thread.order(), ['msg-reminder', 'approval:approval-reminder'], 'the same answer, not a new one');
+  const rest = /** @type {any} */ (thread.get('msg-reminder#2'));
   assert.equal(answer.streaming, false);
-  assert.equal(answer.steps[0].status, 'done');
-  assert.deepEqual(answer.blocks.map((block) => block.text), [
-    'Bruckner Logistik is 21 days late. I’ll send the first reminder once you agree.',
-    'The reminder is on its way.'
-  ]);
+  assert.equal(rest.streaming, false);
+  assert.equal(answer.steps[0].status, 'done', 'the steps stay on the message’s first answer');
+  assert.equal(rest.steps, undefined);
+  assert.deepEqual(answer.blocks.map((block) => block.text), ['Bruckner Logistik is 21 days late. I’ll send the first reminder once you agree.']);
+  assert.deepEqual(rest.blocks.map((block) => block.text), ['The reminder is on its way.']);
   assert.deepEqual(log.error, []);
 });
 
@@ -314,7 +324,7 @@ test('reasoning is one "Thought for 12 s" step without the text', (context) => {
 
   const [step, ...rest] = /** @type {any} */ (thread.get('m')).steps;
   assert.deepEqual(rest, []);
-  assert.deepEqual(step, { id: 'think:m', kind: 'think', label: 'Thought for 12 s', doing: 'Thinking', status: 'done', ms: 12_000 });
+  assert.deepEqual(step, { id: 'think:m', kind: 'think', label: 'Thought for 12 s', doing: 'Thinking', status: 'done' }, 'the label says how long, and `ms` would say it again beside it');
   assert.doesNotMatch(JSON.stringify(thread.get('m')), /secret/);
   assert.equal(/** @type {any} */ (thread.get('m')).stepsOpen, undefined, 'the steps stay collapsed');
 });
@@ -335,7 +345,6 @@ test('every reasoning block of a message shares its one step and its clock', (co
   play([{ type: 'reasoning-end', id: 'r2' }]);
   const { steps } = /** @type {any} */ (thread.get('m'));
   assert.equal(steps.length, 1);
-  assert.equal(steps[0].ms, 5_000);
   assert.equal(steps[0].label, 'Thought for 5.0 s');
 });
 
@@ -507,10 +516,10 @@ test('a later block starts a new paragraph, and leading space cannot hide the br
 test('an unknown part is reported and not guessed at', () => {
   const { thread, log, stream } = connect();
   const custom = { type: 'custom', kind: 'openai.compaction' };
-  for (const part of [custom, { type: 'tool-approval-response', approvalId: 'a', approved: true }, { type: 'reset-step' }, { type: 'data-' }]) stream.handle(part);
+  for (const part of [custom, { type: 'tool-approval-response', approvalId: 'a', approved: true }, { type: 'data-' }]) stream.handle(part);
   stream.handle(/** @type {any} */ (null));
   stream.handle(/** @type {any} */ ({ type: 'constructor' }));
-  assert.equal(log.unknown.length, 6);
+  assert.equal(log.unknown.length, 5);
   assert.equal(log.unknown[0], custom);
   assert.deepEqual(thread.order(), []);
 });
@@ -543,6 +552,97 @@ test('a duplicate start for a known id is ignored and reported', () => {
   ]);
   assert.deepEqual(/** @type {any} */ (thread.get('m')).blocks, [{ type: 'p', text: 'Kept' }]);
   assert.deepEqual(log.error, ['Duplicate start for message m', 'Duplicate text-start for block t']);
+});
+
+test('a start for a finished message resumes it, and is not a duplicate', () => {
+  const { thread, log, play } = connect();
+  play([
+    { type: 'start', messageId: 'm' },
+    { type: 'text-start', id: 'a' },
+    { type: 'text-delta', id: 'a', delta: 'First.' },
+    { type: 'text-end', id: 'a' },
+    { type: 'finish' },
+    { type: 'start', messageId: 'm' }
+  ]);
+  assert.equal(/** @type {any} */ (thread.get('m')).streaming, true);
+  play([
+    { type: 'text-start', id: 'b' },
+    { type: 'text-delta', id: 'b', delta: 'Second.' },
+    { type: 'text-end', id: 'b' },
+    { type: 'finish' }
+  ]);
+  assert.deepEqual(thread.order(), ['m'], 'nothing stands below it, so it goes on in the same answer');
+  assert.deepEqual(/** @type {any} */ (thread.get('m')).blocks.map((block) => block.text), ['First.', 'Second.']);
+  assert.deepEqual(log.error, []);
+});
+
+test('a start for a stopped message resumes it too', () => {
+  const { thread, log, play } = connect();
+  play([{ type: 'start', messageId: 'm' }, { type: 'abort' }, { type: 'start', messageId: 'm' }]);
+  const answer = /** @type {any} */ (thread.get('m'));
+  assert.equal(answer.stopped, false);
+  assert.equal(answer.streaming, true);
+  assert.deepEqual(log.error, []);
+});
+
+test('a start without a message id opens a new answer, and a call of the earlier one still finds its step', () => {
+  const { thread, log, play } = connect();
+  play([
+    { type: 'start' },
+    { type: 'tool-input-available', toolCallId: 'c', toolName: 'lookup', input: {} },
+    { type: 'finish', finishReason: 'tool-calls' },
+    { type: 'start' },
+    { type: 'tool-output-available', toolCallId: 'c', output: 'kept' },
+    { type: 'finish' }
+  ]);
+  const [first, second, ...rest] = thread.order();
+  assert.deepEqual(rest, []);
+  assert.equal(/** @type {any} */ (thread.get(first)).steps[0].status, 'done');
+  assert.equal(/** @type {any} */ (thread.get(second)).steps, undefined);
+  assert.deepEqual(log.error, []);
+});
+
+test('a block id is free again once its block has ended, and the next block is its own paragraph', () => {
+  const { thread, log, play } = connect();
+  play([
+    { type: 'start', messageId: 'm' },
+    { type: 'start-step' }, ...said('0', 'One.'), { type: 'finish-step' },
+    { type: 'start-step' }, ...said('0', 'Two.'), { type: 'finish-step' },
+    { type: 'finish' }
+  ]);
+  assert.deepEqual(/** @type {any} */ (thread.get('m')).blocks.map((block) => block.text), ['One.', 'Two.']);
+  assert.deepEqual(log.error, []);
+});
+
+test('a block left open when its message ends does not hold its id into the next response', () => {
+  const { thread, log, play } = connect();
+  play([
+    { type: 'start', messageId: 'm' },
+    { type: 'text-start', id: '0' },
+    { type: 'text-delta', id: '0', delta: 'One.' },
+    { type: 'finish' },
+    { type: 'start', messageId: 'm' },
+    ...said('0', 'Two.'),
+    { type: 'finish' }
+  ]);
+  assert.deepEqual(/** @type {any} */ (thread.get('m')).blocks.map((block) => block.text), ['One.', 'Two.']);
+  assert.deepEqual(log.error, []);
+});
+
+test('a block ended is closed: its late delta and second end are reported', () => {
+  const { thread, log, play } = connect();
+  play([
+    { type: 'start', messageId: 'm' },
+    ...said('t', 'One.'),
+    { type: 'text-delta', id: 't', delta: 'Late.' },
+    { type: 'text-end', id: 't' },
+    { type: 'text-end', id: 't' }
+  ]);
+  assert.deepEqual(/** @type {any} */ (thread.get('m')).blocks.map((block) => block.text), ['One.', 'Late.'], 'what it carries is still drawn');
+  assert.deepEqual(log.error, [
+    'text-delta arrived before the text-start of block t',
+    'text-end arrived before the text-start of block t'
+  ]);
 });
 
 test('tool and reasoning parts out of order create their step and are reported', () => {
@@ -690,6 +790,423 @@ test('a tile follows the card that holds its call', () => {
   const { thread, play } = connect({ tools: { sendReminder: tile([]) } });
   play(fixture('approval').responses[0]);
   assert.deepEqual(thread.order(), ['msg-reminder', 'approval:approval-reminder', 'tool:call-reminder']);
+});
+
+/* ------------------------------------------------------------------ stream order -- */
+
+/** @param {string} id @param {string} [delta] @returns {any[]} A whole text block. */
+const said = (id, delta = id) => [
+  { type: 'text-start', id },
+  { type: 'text-delta', id, delta },
+  { type: 'text-end', id }
+];
+
+/** @param {string} id @param {string} [toolName] @returns {any[]} A tool call that ran. */
+const ran = (id, toolName = 'lookup') => [
+  { type: 'tool-input-available', toolCallId: id, toolName, input: {} },
+  { type: 'tool-output-available', toolCallId: id, output: {} }
+];
+
+test('text after a tile continues below it, by the same author', () => {
+  const { thread, log, play } = connect({ agent: 'finance', tools: { getWeatherInformation: tile([]) } });
+  play(fixture('tools').responses[0]);
+  assert.deepEqual(thread.order(), ['msg-weather', 'tool:call-hamburg', 'tool:call-vienna', 'msg-weather#2']);
+  const first = /** @type {any} */ (thread.get('msg-weather'));
+  const rest = /** @type {any} */ (thread.get('msg-weather#2'));
+  assert.deepEqual(first.blocks.map((block) => block.text), ['I’ll check both cities.']);
+  assert.deepEqual(rest.blocks.map((block) => block.text), ['It rains in Hamburg [1] and the sun is out in Vienna [2].']);
+  assert.equal(rest.type, 'answer');
+  assert.equal(rest.author, 'finance');
+  assert.equal(first.steps.length, 2);
+  assert.deepEqual(log.error, []);
+});
+
+test('every interruption opens the next answer, numbered from 2', () => {
+  const { thread, play } = connect({ tools: { lookup: tile([]) } });
+  play([
+    { type: 'start', messageId: 'm' }, ...said('one'),
+    ...ran('a'), ...said('two'),
+    ...ran('b'), ...said('three'),
+    { type: 'finish' }
+  ]);
+  assert.deepEqual(thread.order(), ['m', 'tool:a', 'm#2', 'tool:b', 'm#3']);
+  for (const id of ['m', 'm#2', 'm#3']) assert.equal(/** @type {any} */ (thread.get(id)).streaming, false, `${id} stayed open`);
+});
+
+test('a file after a card goes below it too', () => {
+  const { thread, play } = connect();
+  play(fixture('approval').responses[0]);
+  play([{ type: 'start', messageId: 'msg-reminder' }, { type: 'file', url: 'https://cdn.example/report.pdf', mediaType: 'application/pdf' }]);
+  assert.deepEqual(thread.order(), ['msg-reminder', 'approval:approval-reminder', 'msg-reminder#2']);
+  assert.equal(/** @type {any} */ (thread.get('msg-reminder#2')).blocks[0].type, 'figures');
+});
+
+test('only content opens a new answer: an empty block or blank text leaves none behind', () => {
+  const { thread, play } = connect();
+  play(fixture('approval').responses[0]);
+  play([
+    { type: 'start', messageId: 'msg-reminder' },
+    { type: 'text-start', id: 'blank' },
+    { type: 'text-delta', id: 'blank', delta: ' \n' },
+    { type: 'text-end', id: 'blank' },
+    { type: 'tool-output-available', toolCallId: 'call-reminder', output: {} },
+    { type: 'finish' }
+  ]);
+  assert.deepEqual(thread.order(), ['msg-reminder', 'approval:approval-reminder']);
+});
+
+test('a block a tile cuts in two goes on below it, without its leading space or a paragraph mark', () => {
+  const { thread, log, play } = connect({ tools: { lookup: tile([]) } });
+  play([
+    { type: 'start', messageId: 'm' },
+    { type: 'text-start', id: 't' },
+    { type: 'text-delta', id: 't', delta: 'Before.' },
+    ...ran('c'),
+    { type: 'text-delta', id: 't', delta: ' After.' },
+    { type: 'text-end', id: 't' }
+  ]);
+  assert.deepEqual(/** @type {any} */ (thread.get('m#2')).blocks, [{ type: 'p', text: 'After.' }]);
+  assert.equal(thread.text.get('m#2'), 'After.');
+  assert.deepEqual(log.error, []);
+});
+
+test('a tile leaves the answer above it writing until the words move on', () => {
+  const { thread, play } = connect({ tools: { lookup: tile([]) } });
+  play([{ type: 'start', messageId: 'm' }, ...said('one'), ...ran('c')]);
+  assert.equal(/** @type {any} */ (thread.get('m')).streaming, true, 'a tile is not the end of an answer');
+  play(said('two'));
+  assert.equal(/** @type {any} */ (thread.get('m')).streaming, false);
+  assert.equal(/** @type {any} */ (thread.get('m#2')).streaming, true);
+});
+
+test('the answer above a card ends first, so that the card is the last thing the thread says', () => {
+  const { thread, play } = connect();
+  play(fixture('approval').responses[0]);
+  const ended = thread.calls.findIndex(([name, id, keys]) => name === 'patch' && id === 'msg-reminder' && keys.join() === 'streaming');
+  const asked = thread.calls.findIndex(([name, id]) => name === 'upsert' && id === 'approval:approval-reminder');
+  assert.ok(ended >= 0 && ended < asked, 'the answer finished after the card');
+});
+
+test('text after an error notice continues below it', () => {
+  const { thread, play } = connect();
+  play([{ type: 'start', messageId: 'm' }, ...said('one'), { type: 'error', errorText: 'Hiccup' }, ...said('two')]);
+  const [first, notice, rest] = thread.order();
+  assert.equal(first, 'm');
+  assert.equal(/** @type {any} */ (thread.get(notice)).type, 'notice');
+  assert.equal(rest, 'm#2');
+});
+
+test('a message resumed below another answer continues below that one', () => {
+  const { thread, play } = connect();
+  play([
+    { type: 'start', messageId: 'm' }, ...said('one'), { type: 'finish' },
+    { type: 'start', messageId: 'n' }, ...said('other'), { type: 'finish' },
+    { type: 'start', messageId: 'm' }
+  ]);
+  assert.equal(/** @type {any} */ (thread.get('m')).streaming, false, 'it stays closed until it has something to say');
+  play([...said('two'), { type: 'finish' }]);
+  assert.deepEqual(thread.order(), ['m', 'n', 'm#2']);
+});
+
+test('a card or tile for an earlier message holds the text of the open one back too', () => {
+  const { thread, play } = connect({ tools: { lookup: tile([]) } });
+  play([
+    { type: 'start', messageId: 'm' }, { type: 'tool-input-start', toolCallId: 'c', toolName: 'lookup' }, { type: 'finish' },
+    { type: 'start', messageId: 'n' }, ...said('one'),
+    { type: 'tool-input-available', toolCallId: 'c', toolName: 'lookup', input: {} },
+    ...said('two')
+  ]);
+  assert.deepEqual(thread.order(), ['m', 'n', 'tool:c', 'n#2']);
+});
+
+test('stopping a continued message stops the answer it was writing', () => {
+  const { thread, play } = connect({ tools: { lookup: tile([]) } });
+  play([{ type: 'start', messageId: 'm' }, ...said('one'), ...ran('c'), ...said('two'), { type: 'abort' }]);
+  assert.equal(/** @type {any} */ (thread.get('m#2')).stopped, true);
+  assert.equal(/** @type {any} */ (thread.get('m')).stopped, undefined);
+});
+
+test('the sources are listed once, under the last answer, and every answer’s citations still count them', () => {
+  const { thread, play } = connect({ tools: { lookup: tile([]) } });
+  const source = (id) => ({ type: 'source-url', sourceId: id, url: `https://${id}.example/` });
+  play([{ type: 'start', messageId: 'm' }, ...said('one', 'One [1].'), source('a'), ...ran('c')]);
+  assert.deepEqual(/** @type {any} */ (thread.get('m')).sources.map(({ id }) => id), ['a'], 'still the last answer');
+
+  play([...said('two', 'Two [2].'), source('b'), { type: 'finish' }]);
+  assert.deepEqual(/** @type {any} */ (thread.get('m')).sources, [], 'the list moved on');
+  assert.deepEqual(/** @type {any} */ (thread.get('m#2')).sources.map(({ id }) => id), ['a', 'b']);
+  assert.deepEqual(thread.citing.get('m').map(({ id }) => id), ['a', 'b']);
+});
+
+/* ------------------------------------------------------------------ reset-step -- */
+
+test('reset-step leaves nothing of the withdrawn step in the thread, and the retry stands', () => {
+  const { thread, log, play } = connect();
+  const [parts] = fixture('reset').responses;
+  const at = parts.findIndex((part) => part.type === 'reset-step');
+  play(parts.slice(0, at));
+  assert.ok(thread.order().length > 2, 'the step drew a card and a notice');
+  assert.match(JSON.stringify(thread.get('msg-retry')), /Withdrawn/);
+
+  play(parts.slice(at));
+  assert.deepEqual(thread.order(), ['msg-retry']);
+  const answer = /** @type {any} */ (thread.get('msg-retry'));
+  assert.doesNotMatch(JSON.stringify(answer), /withdrawn/i);
+  assert.deepEqual(answer.blocks.map((block) => block.text), ['I’ll look the invoice up.', 'The invoice is still open [1].']);
+  assert.deepEqual(answer.steps.map((step) => [step.id, step.status]), [['call-invoice', 'done']]);
+  assert.deepEqual(answer.sources.map(({ id }) => id), ['source-policy']);
+  assert.equal(answer.streaming, false);
+  assert.deepEqual(log.error, [], 'the retry names its blocks the way the first try did');
+  assert.deepEqual(log.unknown, []);
+});
+
+test('without a step boundary reset-step takes back the whole message, and its answer stays', () => {
+  const { thread, play } = connect({ tools: { lookup: tile([]) } });
+  play([{ type: 'start', messageId: 'm' }, ...said('gone'), ...ran('c'), ...said('gone too'), { type: 'reset-step' }]);
+  assert.deepEqual(thread.order(), ['m']);
+  const answer = /** @type {any} */ (thread.get('m'));
+  assert.deepEqual(answer.blocks, []);
+  assert.deepEqual(answer.steps, []);
+  assert.equal(answer.streaming, true);
+  play([...said('kept'), { type: 'finish' }]);
+  assert.deepEqual(/** @type {any} */ (thread.get('m')).blocks, [{ type: 'p', text: 'kept' }]);
+});
+
+test('the step it takes back is the one since the most recent start-step, in any response', () => {
+  const { thread, play } = connect();
+  play([
+    { type: 'start', messageId: 'm' }, { type: 'start-step' }, ...said('one'), { type: 'finish-step' },
+    { type: 'start-step' }, ...said('two'), { type: 'finish-step' }, { type: 'finish' },
+    { type: 'start', messageId: 'm' }, ...said('three'), { type: 'reset-step' }
+  ]);
+  assert.deepEqual(/** @type {any} */ (thread.get('m')).blocks.map((block) => block.text), ['one']);
+  assert.equal(/** @type {any} */ (thread.get('m')).streaming, true);
+});
+
+test('a reset-step after finish-step still takes that step back', () => {
+  const { thread, play } = connect();
+  play([{ type: 'start', messageId: 'm' }, { type: 'start-step' }, ...said('gone'), { type: 'finish-step' }, { type: 'reset-step' }]);
+  assert.deepEqual(/** @type {any} */ (thread.get('m')).blocks, []);
+});
+
+test('two reset-steps in a row, and one with nothing to take back, change nothing more', () => {
+  const { thread, log, play } = connect();
+  play([{ type: 'start', messageId: 'm' }, ...said('kept'), { type: 'start-step' }, { type: 'reset-step' }, ...said('gone'), { type: 'reset-step' }, { type: 'reset-step' }]);
+  assert.deepEqual(/** @type {any} */ (thread.get('m')).blocks, [{ type: 'p', text: 'kept' }]);
+  assert.deepEqual(log.error, []);
+});
+
+test('a reset-step outside a message is reported and draws nothing', () => {
+  const { thread, log, play } = connect();
+  play([{ type: 'start', messageId: 'm' }, ...said('kept'), { type: 'finish' }, { type: 'reset-step' }]);
+  assert.deepEqual(log.error, ['reset-step arrived outside a message']);
+  assert.deepEqual(/** @type {any} */ (thread.get('m')).blocks, [{ type: 'p', text: 'kept' }]);
+  assert.deepEqual(thread.order(), ['m']);
+});
+
+test('a text block goes on in the answer it stood in, with the same paragraph break after a retry', () => {
+  const { thread, play } = connect();
+  play([
+    { type: 'start', messageId: 'm' }, { type: 'start-step' }, ...said('one', 'One.'), { type: 'finish-step' },
+    { type: 'start-step' }, ...said('two', 'Withdrawn.'), { type: 'reset-step' }, ...said('two', 'Two.'), { type: 'finish' }
+  ]);
+  assert.deepEqual(/** @type {any} */ (thread.get('m')).blocks.map((block) => block.text), ['One.', 'Two.']);
+});
+
+test('reset-step takes back a piece the step opened and writes on where the step began', () => {
+  const { thread, play } = connect({ tools: { lookup: tile([]) } });
+  play([
+    { type: 'start', messageId: 'm' }, { type: 'start-step' }, ...said('kept'),
+    { type: 'finish-step' }, { type: 'start-step' },
+    ...said('gone above'), ...ran('c'), ...said('gone below'),
+    { type: 'reset-step' }, ...said('retry'), { type: 'finish' }
+  ]);
+  assert.deepEqual(thread.order(), ['m'], 'the tile and the piece went');
+  assert.deepEqual(/** @type {any} */ (thread.get('m')).blocks.map((block) => block.text), ['kept', 'retry']);
+  assert.equal(/** @type {any} */ (thread.get('m')).streaming, false);
+  assert.deepEqual(/** @type {any} */ (thread.get('m')).steps, []);
+});
+
+test('a piece an earlier step opened stands, and the numbering goes on from it', () => {
+  const { thread, play } = connect({ tools: { lookup: tile([]) } });
+  play([
+    { type: 'start', messageId: 'm' }, { type: 'start-step' }, ...said('one'), ...ran('a'), ...said('two'),
+    { type: 'finish-step' }, { type: 'start-step' },
+    ...ran('b'), ...said('gone'),
+    { type: 'reset-step' }, ...ran('b'), ...said('three'), { type: 'finish' }
+  ]);
+  assert.deepEqual(thread.order(), ['m', 'tool:a', 'm#2', 'tool:b', 'm#3'], 'the same ids, not a gap');
+  assert.deepEqual(/** @type {any} */ (thread.get('m#2')).blocks, [{ type: 'p', text: 'two' }]);
+  assert.deepEqual(/** @type {any} */ (thread.get('m#3')).blocks, [{ type: 'p', text: 'three' }]);
+});
+
+test('an earlier step’s text below a tile stays below it after a retry', () => {
+  const { thread, play } = connect({ tools: { lookup: tile([]) } });
+  play([
+    { type: 'start', messageId: 'm' }, { type: 'start-step' }, ...said('one'), ...ran('a'),
+    { type: 'finish-step' }, { type: 'start-step' }, { type: 'reset-step' }, ...said('two'), { type: 'finish' }
+  ]);
+  assert.deepEqual(thread.order(), ['m', 'tool:a', 'm#2'], 'the tile from before still stands below the first answer');
+});
+
+test('a call from an earlier step keeps what the withdrawn step did to it', () => {
+  const { thread, play } = connect();
+  play([
+    { type: 'start', messageId: 'm' }, { type: 'start-step' },
+    { type: 'tool-input-available', toolCallId: 'c', toolName: 'lookup', input: {} },
+    { type: 'finish-step' }, { type: 'start-step' },
+    { type: 'tool-output-available', toolCallId: 'c', output: 'kept' },
+    { type: 'reset-step' }
+  ]);
+  const [step] = /** @type {any} */ (thread.get('m')).steps;
+  assert.equal(step.status, 'done', 'a part of an earlier step stays as it is on the protocol’s own client');
+  assert.equal(step.result, 'kept');
+});
+
+test('a tile first drawn for an earlier call in the withdrawn step stays', () => {
+  const { thread, play } = connect({ tools: { lookup: (call) => (call.status === 'done' ? { type: 'record-card' } : null) } });
+  play([
+    { type: 'start', messageId: 'm' }, { type: 'start-step' }, ...said('one'),
+    { type: 'tool-input-available', toolCallId: 'c', toolName: 'lookup', input: {} },
+    { type: 'finish-step' }, { type: 'start-step' },
+    { type: 'tool-output-available', toolCallId: 'c', output: {} },
+    { type: 'reset-step' }, ...said('two')
+  ]);
+  assert.deepEqual(thread.order(), ['m', 'tool:c', 'm#2'], 'the text still lands below it');
+});
+
+test('a part for a withdrawn call is reported, and the link to its tile is gone', () => {
+  const { thread, log, play } = connect({ tools: { lookup: tile([]) } });
+  play([{ type: 'start', messageId: 'm' }, { type: 'start-step' }, ...ran('c'), { type: 'reset-step' }]);
+  thread.dispatchEvent(new CustomEvent('open', { detail: { ref: { id: 'tool:c' } } }));
+  assert.deepEqual(thread.revealed, []);
+  play([{ type: 'tool-output-available', toolCallId: 'c', output: {} }]);
+  assert.match(log.error[0], /before the start of tool call c/);
+});
+
+test('a retried step may reuse the ids of the one it replaces', () => {
+  const step = [
+    { type: 'reasoning-start', id: 'r' },
+    { type: 'reasoning-end', id: 'r' },
+    ...said('t'),
+    { type: 'tool-input-start', toolCallId: 'c', toolName: 'lookup' },
+    { type: 'tool-input-available', toolCallId: 'c', toolName: 'lookup', input: {} },
+    { type: 'tool-approval-request', toolCallId: 'c', approvalId: 'a' }
+  ];
+  const { thread, log, play } = connect();
+  play([{ type: 'start', messageId: 'm' }, { type: 'start-step' }, ...step, { type: 'reset-step' }, ...step]);
+  assert.deepEqual(log.error, []);
+  assert.deepEqual(thread.order(), ['m', 'approval:a']);
+  assert.equal(/** @type {any} */ (thread.get('approval:a')).status, 'pending');
+});
+
+test('a withdrawn card decides nothing, also when the decision is already on its way', async () => {
+  const { thread, log, play } = connect();
+  const parts = [
+    { type: 'start', messageId: 'm' }, { type: 'start-step' },
+    { type: 'tool-input-available', toolCallId: 'c', toolName: 'lookup', input: {} },
+    { type: 'tool-approval-request', toolCallId: 'c', approvalId: 'a' }
+  ];
+  play(parts);
+  const card = thread.get('approval:a');
+  thread.dispatchEvent(new CustomEvent('approve', { detail: { item: card, values: {} }, cancelable: true }));
+  play([{ type: 'reset-step' }]);
+  await Promise.resolve();
+  assert.deepEqual(log.approval, []);
+  assert.equal(thread.get('approval:a'), null);
+
+  await thread.decide('approve', { item: card, values: {} });
+  assert.deepEqual(log.approval, [], 'nothing is listening for it any more');
+});
+
+test('runStatus goes back to running when the card or the error it was reporting is withdrawn', () => {
+  const runStatus = fakeRunStatus();
+  const { play } = connect({ runStatus });
+  play([
+    { type: 'start', messageId: 'm' }, { type: 'start-step' },
+    { type: 'tool-input-available', toolCallId: 'c', toolName: 'lookup', input: {} },
+    { type: 'tool-approval-request', toolCallId: 'c', approvalId: 'a' },
+    { type: 'reset-step' }
+  ]);
+  assert.equal(runStatus.states.at(-1), 'running');
+  play([{ type: 'error', errorText: 'Overloaded' }, { type: 'reset-step' }, { type: 'finish' }]);
+  assert.equal(runStatus.states.at(-1), 'done', 'a failure the server took back is not a failed run');
+});
+
+test('runStatus keeps waiting for a card an earlier step put up', () => {
+  const runStatus = fakeRunStatus();
+  const { thread, play } = connect({ runStatus });
+  play([
+    { type: 'start', messageId: 'm' }, { type: 'start-step' },
+    { type: 'tool-input-available', toolCallId: 'c', toolName: 'lookup', input: {} },
+    { type: 'tool-approval-request', toolCallId: 'c', approvalId: 'a' },
+    { type: 'finish-step' }, { type: 'start-step' }, ...said('gone'), { type: 'reset-step' }
+  ]);
+  assert.equal(runStatus.states.at(-1), 'waiting');
+  assert.equal(/** @type {any} */ (thread.get('approval:a')).status, 'pending');
+});
+
+test('reasoning from before the step stays, without the time or text of the withdrawn stretch', (context) => {
+  context.mock.timers.enable({ apis: ['Date'], now: 0 });
+  const { thread, play } = connect({ showReasoning: true });
+  const think = (id, delta) => [
+    { type: 'reasoning-start', id },
+    { type: 'reasoning-delta', id, delta }
+  ];
+  play([{ type: 'start', messageId: 'm' }, { type: 'start-step' }, ...think('r', 'Kept thought.')]);
+  context.mock.timers.tick(2_000);
+  play([{ type: 'reasoning-end', id: 'r' }, { type: 'finish-step' }, { type: 'start-step' }, ...think('s', 'Withdrawn thought.')]);
+  context.mock.timers.tick(30_000);
+  play([{ type: 'reasoning-end', id: 's' }, { type: 'reset-step' }]);
+
+  const [step, ...rest] = /** @type {any} */ (thread.get('m')).steps;
+  assert.deepEqual(rest, []);
+  assert.equal(step.status, 'done');
+  assert.equal(step.label, 'Thought for 2.0 s');
+  assert.equal(step.detail, 'Kept thought.');
+});
+
+test('reasoning that only the withdrawn step did goes altogether, and the next starts its own step', () => {
+  const { thread, log, play } = connect();
+  play([...REASONING, { type: 'reset-step' }]);
+  assert.deepEqual(/** @type {any} */ (thread.get('m')).steps, []);
+  play([{ type: 'reasoning-start', id: 'r' }, { type: 'reasoning-end', id: 'r' }]);
+  assert.equal(/** @type {any} */ (thread.get('m')).steps.length, 1);
+  assert.deepEqual(log.error, []);
+});
+
+test('text from before the first step survives a withdrawn step and the redraw of the next one', () => {
+  const { thread, play } = connect();
+  play([
+    { type: 'start', messageId: 'm' }, ...said('kept'), { type: 'start-step' },
+    { type: 'tool-input-start', toolCallId: 'c', toolName: 'one' },
+    { type: 'reset-step' },
+    { type: 'tool-input-start', toolCallId: 'd', toolName: 'two' }
+  ]);
+  const answer = /** @type {any} */ (thread.get('m'));
+  assert.deepEqual(answer.blocks, [{ type: 'p', text: 'kept' }]);
+  assert.deepEqual(answer.steps.map((step) => step.id), ['d']);
+});
+
+test('a file the step drew goes with it, one from before stays', () => {
+  const { thread, play } = connect();
+  const file = (name) => ({ type: 'file', url: `https://cdn.example/${name}.pdf`, mediaType: 'application/pdf' });
+  play([{ type: 'start', messageId: 'm' }, file('kept'), { type: 'start-step' }, file('gone'), { type: 'reset-step' }]);
+  assert.deepEqual(/** @type {any} */ (thread.get('m')).blocks.map((block) => block.rows[0].label), ['kept.pdf']);
+});
+
+test('sources from before the step stay, and the numbering goes on from them', () => {
+  const { thread, play } = connect();
+  const source = (id) => ({ type: 'source-url', sourceId: id, url: `https://${id}.example/` });
+  play([{ type: 'start', messageId: 'm' }, source('a'), { type: 'start-step' }, source('b'), { type: 'reset-step' }, source('c')]);
+  assert.deepEqual(/** @type {any} */ (thread.get('m')).sources.map(({ id }) => id), ['a', 'c']);
+});
+
+test('data already delivered is the application’s: reset-step draws back what is on screen only', () => {
+  const { log, play } = connect();
+  play([{ type: 'start', messageId: 'm' }, { type: 'start-step' }, { type: 'data-note', data: 1 }, { type: 'reset-step' }]);
+  assert.deepEqual(log.data, [['note', 1, undefined]]);
+  assert.deepEqual(log.unknown, []);
 });
 
 /* ------------------------------------------------------------------ destroy -- */

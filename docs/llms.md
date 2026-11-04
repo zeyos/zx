@@ -3581,16 +3581,29 @@ for await (const part of parsedParts(response)) stream.handle(part);
   `{handle(part), destroy()}`.
 - **Keep one connection for the conversation.** The answer to an approval goes out with the
   application's next request, and the response to it continues the same message: its `start` names
-  a message that has finished, and the answer picks up where it stopped. `destroy()` stops a message
-  still open and expires a pending approval, because no decision could reach the application any more.
+  a message that has finished or was stopped, and the message picks up where it stopped. A `start`
+  without a `messageId` always opens a new answer. `destroy()` stops a message still open and expires
+  a pending approval, because no decision could reach the application any more.
 - **Message** — `start` opens an `answer` under the message id, `finish` closes it and settles
   `runStatus` (`waiting` while an approval is pending), `abort` closes it as stopped. Text blocks
   stream through `appendText`, each block a new paragraph of the same answer. `error` draws a
   `notice` with tone `danger`. `start-step` and `finish-step` draw nothing. `message-metadata`, and
   the `messageMetadata` of `start` and `finish`, go to `onmetadata`.
+- **Stream order** — the thread adds at its end, so what a message says after a card, a tile, or
+  another item the adapter added continues in a new answer `<messageId>#<n>`, counting from 2, by
+  the same author, and the thread draws it as the same turn. The steps stay on the message's first
+  answer, and the sources are listed under its last, while citations in any of its answers count
+  them all. Each answer is its own item: `thread.get(messageId)` is the first one alone, and an
+  action under a continuation carries the id `<messageId>#<n>`, so strip `#<n>` to name the message.
+- **`reset-step`** withdraws the current step: everything the message added since its last
+  `start-step` goes, or all of it when it has none, and the answer goes on where the step began. Its
+  text, files, continuation answers, sources, reasoning, and tool calls with their tiles and cards
+  go, and so does an error notice, because a step the server takes back has not failed. An earlier
+  call keeps what the step did to it. A person can no longer answer a withdrawn card. What already
+  went out through `ondata`, `onmetadata`, or `onapproval` stays with the application.
 - **Reasoning stays private.** All of a message's reasoning is one collapsed "Thought for 12 s" step.
   The text is not kept at all unless `showReasoning: true` puts it on the step. A `reasoning-file` is
-  never drawn.
+  never drawn. The step says its duration in words, so the trace's "Worked for" total leaves it out.
 - **Tool calls** are steps of the answer: `queued` while the input streams, `running` once it is
   available, then `done`, `failed`, or `skipped`. The input is shown once it is complete. A
   preliminary output leaves the step running.
@@ -3613,8 +3626,9 @@ for await (const part of parsedParts(response)) stream.handle(part);
 - **Data parts** — `data-<name>` goes to `ondata(name, data, id)`. A part with an `id` replaces the
   earlier one of that name and id, so keep the latest value per name and id.
 - **Reported, never guessed at.** A part the adapter does not draw goes to `onunknown`, among them
-  `custom`, `tool-approval-response`, and `reset-step`. A delta ahead of its start creates the item,
-  a duplicate start is ignored, and both go to `onerror`.
+  `custom` and `tool-approval-response`. A delta ahead of its start creates the item, a `start` for a
+  message still open is ignored, a `start` for another message stops the open one, and a `reset-step`
+  outside a message draws nothing; each goes to `onerror`.
 
 #### AG-UI event streams: `connectAgUi(thread, options)`
 

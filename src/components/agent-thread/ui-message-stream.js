@@ -4,8 +4,10 @@ import { formatDuration } from '../../internal/agent-model.js';
 import { sourceHost, sourceHref } from '../source-list/source-list.js';
 
 /** @typedef {import('./agent-thread.js').AgentThread} AgentThread */
+/** @typedef {import('../block-view/block-view.js').BlockView} BlockView */
 /** @typedef {import('../run-status/run-status.js').RunStatus} RunStatus */
 /** @typedef {import('../../internal/agent-model.js').Author} Author */
+/** @typedef {import('../../internal/agent-model.js').Block} Block */
 /** @typedef {import('../../internal/agent-model.js').RunState} RunState */
 /** @typedef {import('../../internal/agent-model.js').Source} Source */
 /** @typedef {import('../../internal/agent-model.js').ThreadItem} ThreadItem */
@@ -50,7 +52,8 @@ export const UI_MESSAGE_STREAM_VERSION = 'v1';
  * @property {(approvalId: string, approved: boolean, reason?: string) => void} [onapproval] The
  * person decided. The application sends the answer with its next request.
  * @property {(name: string, data: unknown, id?: string) => void} [ondata] A `data-<name>` part. With
- * an `id` it replaces the earlier value of that name and id.
+ * an `id` it replaces the earlier value of that name and id. What went out here stays with the
+ * application: a `reset-step` takes back what was drawn, not what was delivered.
  * @property {(metadata: unknown) => void} [onmetadata] Metadata of the message.
  * @property {(part: UiMessagePart) => void} [onunknown] A part the adapter does not draw.
  * @property {(error: Error) => void} [onerror] A part out of order, or a tile that failed.
@@ -67,17 +70,36 @@ export const UI_MESSAGE_STREAM_VERSION = 'v1';
 
 /**
  * @typedef {Object} MessageState
- * @property {string} id The answer's item id.
- * @property {TraceStep[]} steps The answer's steps.
- * @property {Source[]} sources The answer's sources.
- * @property {Set<unknown>} texts Text blocks seen.
- * @property {boolean} hasText Whether the answer ends in text a new block has to be set apart from.
+ * @property {string} id The message id, which is also its first answer item's.
+ * @property {string[]} pieces The answer items that hold it, in thread order: the message id, then
+ * `<id>#2`, `<id>#3`. What it says next goes to the last.
+ * @property {boolean} writing Whether its last piece is streaming.
+ * @property {TraceStep[]} steps The message's steps, which its first piece shows.
+ * @property {Source[]} sources The message's sources.
+ * @property {Set<unknown>} texts Text blocks not ended yet. An ended block's id is free again.
+ * @property {boolean} hasText Whether the last piece ends in text a new block has to be set apart
+ * from.
  * @property {boolean} gap Whether the next text starts a new paragraph.
- * @property {boolean} drawn Whether the answer has steps on screen.
+ * @property {boolean} drawn Whether the first piece has steps on screen.
  * @property {boolean} failed Whether the run reported an error.
  * @property {boolean} closed Whether it finished or was stopped.
  * @property {boolean} implied Whether a part created it before its `start` arrived.
  * @property {ThinkingState|null} thinking Its reasoning.
+ * @property {StepMark} mark Where its current step began.
+ */
+
+/**
+ * Where a message's current step began, and what that step added since: everything `reset-step`
+ * has to take back. A call belongs to the step that began it, and its tile and card go with it; an
+ * earlier call the step only moved on stays, as it does on the protocol's own client.
+ * @typedef {Object} StepMark
+ * @property {number} pieces How many pieces the message had.
+ * @property {Block[]} blocks What its last piece showed.
+ * @property {number} sources How many sources it had.
+ * @property {{ms: number, text: string}|null} thought Its reasoning so far, if it had any.
+ * @property {Pick<MessageState, 'writing'|'hasText'|'gap'|'failed'>} state Where its text stood.
+ * @property {Set<CallState>} calls The calls begun since.
+ * @property {string[]} notices The error notices drawn since.
  */
 
 /**
@@ -164,6 +186,10 @@ function sourceOf(part) {
  * Keep one connection for the whole conversation: an approval's answer goes out with the
  * application's next request, and the response to it continues the same message.
  *
+ * The thread stays in stream order. What a message says after a card, a tile, or another item it
+ * cannot write above continues in a new answer `<messageId>#<n>`, counting from 2, which the thread
+ * draws as the same turn. A `reset-step` takes back what the step drew, whichever answers it reached.
+ *
  * Model output is data. Nothing is approved without the person, reasoning text stays out of the
  * page unless asked for, a source only ever links to `https:`, and no address is fetched to draw
  * anything: a file part shows its name and type, never its content.
@@ -188,6 +214,8 @@ export function connectUiMessageStream(thread, options = {}) {
   const approvals = new Map();
   /** @type {Set<string>} */
   const tiles = new Set();
+  /** @type {string[]} Every item the adapter added, in thread order. */
+  const added = [];
   /** @type {MessageState|null} */
   let current = null;
   let destroyed = false;
@@ -209,6 +237,29 @@ export function connectUiMessageStream(thread, options = {}) {
   /** @returns {boolean} Whether an approval is still waiting for the person. */
   const waitingForPerson = () => [...approvals.values()].some((approval) => !approval.settled);
 
+  /** @param {ThreadItem} item @returns {void} */
+  const add = (item) => {
+    added.push(String(item.id));
+    thread.upsert(item);
+  };
+
+  /** @param {string} id An item the adapter added. @returns {void} */
+  const takeBack = (id) => {
+    added.splice(added.lastIndexOf(id), 1);
+    thread.remove(id);
+  };
+
+  /** @param {MessageState} message @returns {string} The item its next words go to. */
+  const tailOf = (message) => /** @type {string} */ (message.pieces.at(-1));
+
+  /**
+   * The thread can only add at its end, so a message's last piece stops being a place to write
+   * once anything else stands below it.
+   * @param {MessageState} message
+   * @returns {boolean}
+   */
+  const atEnd = (message) => added.at(-1) === tailOf(message);
+
   /* ------------------------------------------------------------------ messages -- */
 
   /**
@@ -217,14 +268,14 @@ export function connectUiMessageStream(thread, options = {}) {
    * @returns {MessageState}
    */
   function openMessage(id, implied = false) {
-    /** @type {MessageState} */
-    const message = {
-      id, steps: [], sources: [], texts: new Set(), hasText: false, gap: false, drawn: false,
-      failed: false, closed: false, implied, thinking: null
-    };
+    const message = /** @type {MessageState} */ ({
+      id, pieces: [id], writing: true, steps: [], sources: [], texts: new Set(), hasText: false,
+      gap: false, drawn: false, failed: false, closed: false, implied, thinking: null
+    });
     messages.set(id, message);
     current = message;
-    thread.upsert({ id, type: 'answer', ...byline, blocks: [], streaming: true });
+    add({ id, type: 'answer', ...byline, blocks: [], streaming: true });
+    message.mark = markStep(message);
     return message;
   }
 
@@ -249,9 +300,45 @@ export function connectUiMessageStream(thread, options = {}) {
   function drawSteps(message) {
     /** @type {Record<string, unknown>} */
     const partial = { steps: message.steps };
-    if (!message.drawn) partial.blocks = /** @type {{blocks?: unknown[]}|null} */ (thread.get(message.id))?.blocks ?? [];
+    const redraw = !message.drawn;
+    if (redraw) partial.blocks = /** @type {{blocks?: unknown[]}|null} */ (thread.get(message.id))?.blocks ?? [];
     message.drawn = true;
     thread.patch(message.id, partial);
+    if (redraw && message.sources.length) drawSources(message);
+  }
+
+  /** @param {MessageState} message @returns {void} */
+  function endPiece(message) {
+    if (!message.writing) return;
+    message.writing = false;
+    thread.patch(tailOf(message), { streaming: false });
+  }
+
+  /**
+   * Continues a message below what now stands under it, in a new answer of the same author, which
+   * the thread draws as the same turn.
+   * @param {MessageState} message
+   * @returns {void}
+   */
+  function continueMessage(message) {
+    endPiece(message);
+    const id = `${message.id}#${message.pieces.length + 1}`;
+    message.pieces.push(id);
+    message.writing = true;
+    message.hasText = false;
+    message.gap = false;
+    add({ id, type: 'answer', ...byline, blocks: [], streaming: true });
+    if (message.sources.length) drawSources(message);
+  }
+
+  /**
+   * The answer that takes what a message says next.
+   * @param {MessageState} message
+   * @returns {string}
+   */
+  function writeTo(message) {
+    if (!atEnd(message)) continueMessage(message);
+    return tailOf(message);
   }
 
   /**
@@ -262,8 +349,11 @@ export function connectUiMessageStream(thread, options = {}) {
   function closeMessage(message, partial) {
     endThinking(message);
     message.closed = true;
+    message.writing = false;
+    // A response brings its own blocks, so one left open cannot hold its id into the next.
+    message.texts.clear();
     if (current === message) current = null;
-    thread.patch(message.id, partial);
+    thread.patch(tailOf(message), partial);
   }
 
   /** @param {MessageState} message @returns {void} */
@@ -275,7 +365,9 @@ export function connectUiMessageStream(thread, options = {}) {
   }
 
   /**
-   * The response to an approval or a tool's output continues the message it belongs to.
+   * The response to an approval or a tool's output continues the message it belongs to. With
+   * something below its last piece, that piece stays as it is, and whatever the message says next
+   * opens a new one.
    * @param {MessageState} message
    * @returns {void}
    */
@@ -283,11 +375,19 @@ export function connectUiMessageStream(thread, options = {}) {
     message.closed = false;
     message.failed = false;
     current = message;
-    const item = thread.get(message.id);
+    if (!atEnd(message)) return;
+    message.writing = true;
+    const item = thread.get(tailOf(message));
     if (item) thread.upsert({ .../** @type {any} */ (item), streaming: true, stopped: false });
   }
 
-  /** @param {UiMessagePart} part @returns {void} */
+  /**
+   * A `start` for an unknown id opens a message, and one for a message that finished or was stopped
+   * resumes it: the response to an approval or a tool's output reuses the id. Only a `start` for a
+   * message still open is a duplicate.
+   * @param {UiMessagePart} part
+   * @returns {void}
+   */
   function onStart(part) {
     const id = part.messageId == null ? null : String(part.messageId);
     const known = id ? messages.get(id) : undefined;
@@ -324,6 +424,84 @@ export function connectUiMessageStream(thread, options = {}) {
     else runStatus?.update({ state: failed ? 'failed' : 'done', finished: new Date() });
   }
 
+  /* ------------------------------------------------------------------ steps -- */
+
+  /**
+   * @param {MessageState} message
+   * @returns {StepMark}
+   */
+  function markStep(message) {
+    const { thinking, writing, hasText, gap, failed } = message;
+    return {
+      pieces: message.pieces.length,
+      blocks: /** @type {{blocks?: Block[]}|null} */ (thread.get(tailOf(message)))?.blocks ?? [],
+      sources: message.sources.length,
+      thought: thinking && {
+        ms: thinking.ms + (thinking.since === null ? 0 : Date.now() - thinking.since),
+        text: thinking.text
+      },
+      state: { writing, hasText, gap, failed },
+      calls: new Set(),
+      notices: []
+    };
+  }
+
+  /**
+   * Takes back what a message's current step added, so that only what the server sends next stands
+   * in its place. The step itself stays open: its next parts need no `start-step` of their own.
+   * @param {MessageState} message
+   * @returns {void}
+   */
+  function withdrawStep(message) {
+    const { mark } = message;
+    for (const [id, approval] of approvals) {
+      if (!mark.calls.has(approval.call)) continue;
+      // A decision on its way cannot reach the application any more.
+      approval.settled = true;
+      approvals.delete(id);
+      takeBack(id);
+    }
+    /** @type {Set<TraceStep>} */
+    const steps = new Set();
+    for (const call of mark.calls) {
+      steps.add(call.step);
+      calls.delete(call.id);
+      if (!call.tile) continue;
+      tiles.delete(call.tile);
+      takeBack(call.tile);
+    }
+    message.steps = message.steps.filter((step) => !steps.has(step));
+    for (const id of [...message.pieces.splice(mark.pieces), ...mark.notices]) takeBack(id);
+    message.sources.length = mark.sources;
+    restoreThinking(message, mark.thought);
+    // No block is open any more, and the retry may name its blocks the same way.
+    message.texts.clear();
+    Object.assign(message, mark.state);
+    mark.calls.clear();
+    mark.notices.length = 0;
+
+    message.drawn = message.steps.length > 0;
+    thread.upsert({ .../** @type {any} */ (thread.get(message.id)), steps: message.steps });
+    thread.upsert({
+      .../** @type {any} */ (thread.get(tailOf(message))),
+      blocks: mark.blocks, streaming: message.writing, stopped: false
+    });
+    drawSources(message);
+    if (waitingForPerson()) runStatus?.update({ state: 'waiting' });
+    else runStatus?.update({ state: 'running', waitingSince: null });
+  }
+
+  /** @returns {void} */
+  function onStartStep() {
+    if (current) current.mark = markStep(current);
+  }
+
+  /** @param {UiMessagePart} part @returns {void} */
+  function onResetStep(part) {
+    if (current) withdrawStep(current);
+    else report('reset-step arrived outside a message', part);
+  }
+
   /* ------------------------------------------------------------------ text -- */
 
   /** @param {MessageState} message @param {unknown} id @returns {void} */
@@ -347,17 +525,18 @@ export function connectUiMessageStream(thread, options = {}) {
       beginText(message, part.id);
     }
     let delta = String(part.delta ?? '');
-    // A new block is a new paragraph; only a blank line followed by text opens one.
-    if (message.gap) delta = delta.trimStart();
+    // A new block is a new paragraph and a new piece a new answer; only text opens either.
+    if (message.gap || !atEnd(message)) delta = delta.trimStart();
     if (!delta) return;
-    thread.appendText(message.id, message.gap ? `\n\n${delta}` : delta);
+    const id = writeTo(message);
+    thread.appendText(id, message.gap ? `\n\n${delta}` : delta);
     message.gap = false;
     message.hasText = true;
   }
 
   /** @param {UiMessagePart} part @returns {void} */
   function onTextEnd(part) {
-    if (!current?.texts.has(part.id)) report(`text-end arrived before the text-start of block ${part.id}`, part);
+    if (!current?.texts.delete(part.id)) report(`text-end arrived before the text-start of block ${part.id}`, part);
   }
 
   /* ------------------------------------------------------------------ reasoning -- */
@@ -391,19 +570,47 @@ export function connectUiMessageStream(thread, options = {}) {
     return thinking;
   }
 
+  /**
+   * The step says how long the reasoning took in its words, so it carries no `ms`: the trace would
+   * print that beside them.
+   * @param {ThinkingState} thinking
+   * @returns {void}
+   */
+  function settleThinking(thinking) {
+    const { step, ms, text } = thinking;
+    thinking.since = null;
+    thinking.open.clear();
+    step.status = 'done';
+    step.label = thread.msg('uiMessageStream.thought', formatDuration(ms, { locale: thread.options.locale }));
+    if (text) step.detail = text;
+    else delete step.detail;
+  }
+
   /** @param {MessageState} message @returns {void} */
   function endThinking(message) {
     const thinking = message.thinking;
     if (!thinking || thinking.since === null) return;
     thinking.ms += Date.now() - thinking.since;
-    thinking.since = null;
-    thinking.open.clear();
-    const { step, ms } = thinking;
-    step.status = 'done';
-    step.ms = ms;
-    step.label = thread.msg('uiMessageStream.thought', formatDuration(ms, { locale: thread.options.locale }));
-    if (thinking.text) step.detail = thinking.text;
+    settleThinking(thinking);
     drawSteps(message);
+  }
+
+  /**
+   * Puts a message's reasoning back where a withdrawn step found it.
+   * @param {MessageState} message
+   * @param {StepMark['thought']} thought
+   * @returns {void}
+   */
+  function restoreThinking(message, thought) {
+    const { thinking } = message;
+    if (!thinking) return;
+    if (thought) {
+      Object.assign(thinking, thought);
+      settleThinking(thinking);
+    } else {
+      message.steps = message.steps.filter((step) => step !== thinking.step);
+      message.thinking = null;
+    }
   }
 
   /** @param {UiMessagePart} part @returns {void} */
@@ -449,6 +656,7 @@ export function connectUiMessageStream(thread, options = {}) {
     };
     if (name) call.step.tool = name;
     calls.set(id, call);
+    message.mark.calls.add(call);
     message.steps.push(call.step);
     drawSteps(message);
     drawTile(call);
@@ -552,7 +760,7 @@ export function connectUiMessageStream(thread, options = {}) {
     }
     call.tile = id;
     tiles.add(id);
-    thread.upsert({ ...byline, ...item, id });
+    add({ ...byline, ...item, id });
     call.step.refs = [{ id, label: thread.msg('uiMessageStream.showTile', call.step.label), entity: 'tool' }];
     drawSteps(call.message);
   }
@@ -633,7 +841,10 @@ export function connectUiMessageStream(thread, options = {}) {
     if (part.isAutomatic) return;
     approvals.set(id, { id: String(part.approvalId), call, settled: false });
     const code = call.args === null ? call.argsText : asText(call.args);
-    thread.upsert({
+    // The answer ends before the card joins, so the thread's last word is that it needs approval,
+    // not that it answered.
+    if (current) endPiece(current);
+    add({
       id,
       type: 'approval',
       ...byline,
@@ -645,8 +856,8 @@ export function connectUiMessageStream(thread, options = {}) {
     // A tile follows the card that holds its call.
     if (call.tile) {
       const tile = thread.get(call.tile);
-      thread.remove(call.tile);
-      if (tile) thread.upsert(tile);
+      takeBack(call.tile);
+      if (tile) add(tile);
     }
     moveCall(call, 'waiting');
     runStatus?.update({ state: 'waiting', waitingSince: new Date() });
@@ -686,28 +897,47 @@ export function connectUiMessageStream(thread, options = {}) {
 
   /* ------------------------------------------------------------------ the rest -- */
 
+  /**
+   * Lists a message's sources under its last piece, where its turn ends. A citation counts the
+   * whole message's sources wherever it stands, so the pieces above keep them for their citations,
+   * without a list of their own.
+   * @param {MessageState} message
+   * @returns {void}
+   */
+  function drawSources(message) {
+    thread.patch(tailOf(message), { sources: message.sources });
+    for (const id of message.pieces.slice(0, -1)) {
+      thread.patch(id, { sources: [] });
+      /** @type {BlockView|null} */ (thread.getComponent(id))?.setSources(message.sources);
+    }
+  }
+
   /** @param {UiMessagePart} part @returns {void} */
   function onSource(part) {
     const message = activeMessage(part);
     const source = sourceOf(part);
     if (message.sources.some((known) => known.id === source.id)) return;
     message.sources.push(source);
-    thread.patch(message.id, { sources: message.sources });
+    drawSources(message);
   }
 
   /** @param {UiMessagePart} part @returns {void} */
   function onFile(part) {
     const message = activeMessage(part);
     const label = fileName(part) || thread.msg('uiMessageStream.file');
-    thread.appendBlock(message.id, { type: 'figures', rows: [{ label, value: String(part.mediaType ?? '') }] });
+    thread.appendBlock(writeTo(message), { type: 'figures', rows: [{ label, value: String(part.mediaType ?? '') }] });
     message.hasText = false;
     message.gap = false;
   }
 
   /** @param {UiMessagePart} part @returns {void} */
   function onError(part) {
-    if (current) current.failed = true;
-    thread.upsert({ id: uid('zx-ui-error'), type: 'notice', tone: 'danger', text: String(part.errorText ?? '') });
+    const id = uid('zx-ui-error');
+    if (current) {
+      current.failed = true;
+      current.mark.notices.push(id);
+    }
+    add({ id, type: 'notice', tone: 'danger', text: String(part.errorText ?? '') });
     runStatus?.update({ state: 'failed' });
   }
 
@@ -743,9 +973,10 @@ export function connectUiMessageStream(thread, options = {}) {
     'message-metadata': sendMetadata,
     // A file made while reasoning is part of the reasoning, which stays private.
     'reasoning-file': () => {},
-    // Step boundaries draw nothing of their own.
-    'start-step': () => {},
-    'finish-step': () => {}
+    // Step boundaries draw nothing of their own, and a step ends with its own parts.
+    'start-step': onStartStep,
+    'finish-step': () => {},
+    'reset-step': onResetStep
   };
 
   return {
