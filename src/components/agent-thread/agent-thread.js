@@ -259,6 +259,8 @@ export class AgentThread extends Component {
     this._latestAnswer = null;
     /** @type {Map<string, {expanded?: boolean|null, controls?: string|null}>} Artifact open states, for answers drawn later. */
     this._artifacts = new Map();
+    /** @type {WeakSet<Surface>} Surfaces answered elsewhere, whose going is no reply. */
+    this._answeredElsewhere = new WeakSet();
 
     this._feed = h('div', {
       class: 'zx-agent-thread__feed', role: 'feed', 'aria-busy': 'false',
@@ -615,13 +617,22 @@ export class AgentThread extends Component {
     // A surface keeps answering where it stands unless the item brings a different surface, which
     // supersedes it: it replies once either way.
     const keep = item.type === 'surface' && old.surface && keepsSurface(old, /** @type {any} */ (item)) ? old.surface : null;
+    // An item bringing a reply the surface never gave says it was answered elsewhere: the one reply
+    // is out already, and what is drawn now is its receipt.
+    const reply = /** @type {any} */ (item).reply;
+    const answered = !keep && item.type === 'surface' && reply && old.surface && !old.surface.getReply() ? old.surface : null;
+    /** @type {ThreadItem} */
+    let next = item;
     if (keep) {
       old.owned = old.owned.filter((component) => component !== keep);
       old.surface = null;
+    } else if (answered) {
+      this._answeredElsewhere.add(answered);
+      next = /** @type {ThreadItem} */ ({ ...item, document: /** @type {any} */ (item).document ?? answered.toDocument() });
     } else {
       old.surface?.supersede();
     }
-    const entry = this._build(cloneItem({ ...item, id }), keep);
+    const entry = this._build(cloneItem({ ...next, id }), keep);
     old.article.replaceWith(entry.article);
     for (const component of old.owned) component.destroy();
     this._entries.set(id, entry);
@@ -1083,6 +1094,7 @@ export class AgentThread extends Component {
         });
       }
       surface.on('reply', (event) => {
+        if (this._answeredElsewhere.has(surface)) return;
         const { reply } = /** @type {CustomEvent<{reply: SurfaceReply}>} */ (event).detail;
         const current = this._entries.get(String(item.id));
         if (current?.surface === surface) current.item = /** @type {ThreadItem} */ ({ ...current.item, reply });
@@ -1447,13 +1459,14 @@ function cloneItem(item) {
 
 /**
  * Whether a redrawn surface item still describes the surface already drawn: same token and
- * catalog, and no other document.
+ * catalog, no other document, and no reply the surface has not given itself.
  * @param {ThreadEntry} old
  * @param {SurfaceItem} item
  * @returns {boolean}
  */
 function keepsSurface(old, item) {
   const before = /** @type {SurfaceItem} */ (/** @type {unknown} */ (old.item));
+  if (item.reply && !old.surface?.getReply()) return false;
   if ((item.token ?? null) !== (before.token ?? null) || (item.catalog ?? null) !== (before.catalog ?? null)) return false;
   if (item.document == null) return true;
   // The document the item was drawn from, or the one the surface now stands as — what `get()`
