@@ -1,7 +1,7 @@
 import {
   AgentThread, BlockView, Composer, ContextMenu, CopyInput, Dialog, FileList, InlineLoading, Launcher,
-  MenuButton, NumberField, ProgressBar, Select, Slider, Toggle, appIcon, blocksToMarkdown, blocksToText,
-  button, copyButton, downloadBlob, emptyState, formatDate, formatNumber, formatPercent, h, icon,
+  MenuButton, NumberField, ProgressBar, PromptStarters, Select, Slider, Toggle, appIcon, blocksToMarkdown,
+  blocksToText, button, copyButton, downloadBlob, emptyState, formatDate, formatNumber, formatPercent, h, icon,
   prefersReducedMotion, rovingTabindex, stack, uid, watchMotion
 } from '../../src/index.js';
 import {
@@ -183,10 +183,10 @@ const PROMPTS = [
 
 /** Conversation starters on an empty chat. */
 const SUGGESTIONS = [
-  { title: 'Summarise escalations', text: 'Summarise this week’s customer escalations for the Monday operations review.' },
-  { title: 'Draft a reply', text: 'Draft a friendly reply to Meridian Health asking to move our call to Tuesday.' },
-  { title: 'Explain a concept', text: 'Explain what a LEFT JOIN does, with a short example.' },
-  { title: 'Ask the analyst', text: '@analyst Which warehouse site’s costs grew fastest this quarter?' }
+  { id: 'escalations', title: 'Summarise escalations', text: 'Summarise this week’s customer escalations for the Monday operations review.' },
+  { id: 'reply', title: 'Draft a reply', text: 'Draft a friendly reply to Meridian Health asking to move our call to Tuesday.' },
+  { id: 'concept', title: 'Explain a concept', text: 'Explain what a LEFT JOIN does, with a short example.' },
+  { id: 'analyst', title: 'Ask the analyst', text: '@analyst Which warehouse site’s costs grew fastest this quarter?' }
 ];
 
 /** Settings a new chat starts with. */
@@ -778,6 +778,7 @@ export default {
     // fade under the header and the composer. A new chat shows a welcome in its place. Your own
     // messages offer Edit and Copy on hover or focus; each step kind carries the layout's glyph.
     const column = h('div', { class: 'chat__column' });
+    const welcomeScope = renderScope(context);
     const scroller = h('div', { class: 'shell__body chat__thread' }, column);
     const thread = keep(new AgentThread(null, {
       authors,
@@ -1535,6 +1536,7 @@ export default {
     function renderThread() {
       const chat = current();
       thread.setItems(chat.messages.flatMap((_, index) => messageItems(chat, index)));
+      welcomeScope.reset();
       column.replaceChildren(chat.messages.length ? thread.toElement() : welcome(chat));
       syncInspector();
       thread.scrollToEnd();
@@ -1610,15 +1612,20 @@ export default {
      */
     function welcome(chat) {
       const model = modelById(chat.model);
+      const starters = welcomeScope.own(new PromptStarters(h('div', { class: 'chat__starters' }), {
+        items: SUGGESTIONS,
+        onpick: ({ detail }) => {
+          send(detail.item.text);
+          // The starter that was pressed has gone with the welcome: to the composer, where Esc
+          // stops the answer.
+          composer.focus();
+        }
+      }));
       return h('div', { class: 'chat__welcome' },
         appIcon({ icon: model.icon, size: 48, shape: 'circle' }),
         h('h3', { class: 'chat__welcome-title' }, `What can I help with, ${me.name.split(' ')[0]}?`),
         h('p', { class: 'meta' }, `${model.name} · ${model.description}`),
-        h('div', { class: 'chat__suggestions' }, SUGGESTIONS.map((suggestion) => h('button', {
-          type: 'button', class: 'chat__suggestion', onclick: () => send(suggestion.text)
-        },
-        h('span', { class: 'chat__suggestion-title' }, suggestion.title),
-        h('span', { class: 'chat__suggestion-text' }, suggestion.text)))));
+        starters.toElement());
     }
 
     /**

@@ -1,0 +1,91 @@
+/*
+ * PromptStarters — the starting points of an empty conversation: a group of buttons on the surface
+ * tone, each a title with a muted line of two at most beneath it. The root is the container its
+ * own narrow form asks about, so it fills whatever it is placed in.
+ */
+.zx-prompt-starters {
+  container: zx-prompt-starters / inline-size;
+  display: grid;
+  gap: var(--zx-space-3);
+  inline-size: 100%;
+  min-inline-size: 0;
+}
+
+.zx-prompt-starters[hidden] {
+  display: none;
+}
+
+.zx-prompt-starters__heading {
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  font-weight: var(--zx-weight-medium);
+  text-align: start;
+}
+
+.zx-prompt-starters__list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--zx-space-3);
+  min-inline-size: 0;
+}
+
+.zx-prompt-starters[data-columns="1"] > .zx-prompt-starters__list {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@container zx-prompt-starters (inline-size < 32rem) {
+  .zx-prompt-starters[data-columns="auto"] > .zx-prompt-starters__list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.zx-prompt-starters .zx-prompt-starters__item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--zx-space-2);
+  min-inline-size: 0;
+  padding: var(--zx-space-3) var(--zx-space-4);
+  border: 1px solid var(--zx-color-border-subtle);
+  border-radius: var(--zx-radius-lg);
+  background: var(--zx-color-bg-surface);
+  color: var(--zx-color-text);
+  text-align: start;
+}
+
+.zx-prompt-starters .zx-prompt-starters__item:hover {
+  border-color: var(--zx-color-border);
+  background: var(--zx-color-bg-hover);
+}
+
+.zx-prompt-starters .zx-prompt-starters__item:focus-visible {
+  outline-color: transparent;
+  box-shadow: var(--zx-focus-ring);
+}
+
+.zx-prompt-starters__item > .zx-icon {
+  flex: none;
+  margin-block-start: 2px;
+  color: var(--zx-color-text-subtle);
+}
+
+.zx-prompt-starters__copy {
+  display: grid;
+  gap: var(--zx-space-1);
+  min-inline-size: 0;
+}
+
+.zx-prompt-starters__title {
+  font-weight: var(--zx-weight-medium);
+}
+
+.zx-prompt-starters__text {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  font-weight: 400;
+}

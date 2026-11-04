@@ -3035,6 +3035,18 @@
         "description": "Whether an agent is working: Send becomes Stop."
       },
       {
+        "name": "queue",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether the send key holds a message back while the agent works. It is sent when the agent is no longer busy, one message each time busy ends, in order. The queue lives as long as the composer: it is not kept with the draft."
+      },
+      {
+        "name": "queueLimit",
+        "type": "number",
+        "default": "10",
+        "description": "Most messages that wait at once. At the limit the send key is refused, and the hint says why."
+      },
+      {
         "name": "disabled",
         "type": "boolean",
         "default": "false",
@@ -3134,7 +3146,7 @@
     "events": [
       {
         "name": "send",
-        "payload": "{text, files, mentions, context}",
+        "payload": "{text, files, mentions, context, queued}",
         "description": "Preventable send listener."
       },
       {
@@ -3173,6 +3185,16 @@
         "description": "Tool listener."
       },
       {
+        "name": "queue",
+        "payload": "{item, items}",
+        "description": "Listener for a message being queued."
+      },
+      {
+        "name": "dequeue",
+        "payload": "{item, items, reason}",
+        "description": "Listener for a message leaving the queue."
+      },
+      {
         "name": "historyprevious",
         "payload": "Record<string, never>",
         "description": "Listener for ArrowUp on an empty text."
@@ -3207,7 +3229,7 @@
         "name": "setBusy",
         "signature": "setBusy(busy)",
         "returns": "this",
-        "description": "Shows Stop in place of Send while an agent works; Escape in the text then emits `stop`."
+        "description": "Shows Stop in place of Send while an agent works; Escape in the text then emits `stop`. When busy ends, the first queued message is sent; the next waits for the next time it ends."
       },
       {
         "name": "setHint",
@@ -3264,10 +3286,22 @@
         "description": "Removes a context chip. Emits nothing."
       },
       {
+        "name": "clearQueue",
+        "signature": "clearQueue()",
+        "returns": "this",
+        "description": "Removes every queued message. Emits `dequeue` for each, with `reason: 'cleared'`. Stop does not do this: call it from a `stop` listener to drop what was waiting along with the run."
+      },
+      {
+        "name": "removeQueued",
+        "signature": "removeQueued(id)",
+        "returns": "this",
+        "description": "Removes one queued message. Emits `dequeue` with `reason: 'removed'`. An id that is not queued, because the message has been sent, say, changes nothing."
+      },
+      {
         "name": "destroy",
         "signature": "destroy()",
         "returns": "void",
-        "description": "Removes what the composer drew and the launcher it opened, and stops listening."
+        "description": "Removes what the composer drew and the launcher it opened, drops the queue, and stops listening."
       }
     ]
   },
@@ -8611,6 +8645,61 @@
     ],
     "events": [],
     "methods": []
+  },
+  "PromptStarters": {
+    "options": [
+      {
+        "name": "items",
+        "type": "PromptStarter[]",
+        "default": "[]",
+        "description": "The starters. An entry without `id`, `title` or `text` is left out, as is a repeated id; any other field on an item is handed back in `pick`."
+      },
+      {
+        "name": "label",
+        "type": "string|null",
+        "default": "null",
+        "description": "Accessible name of the group. Omitted resolves `promptStarters.label`, English `Suggestions`."
+      },
+      {
+        "name": "columns",
+        "type": "'auto'|1|2",
+        "default": "'auto'",
+        "description": "Columns of starters. `'auto'` is two, and one in a container narrower than 32rem."
+      },
+      {
+        "name": "headingLevel",
+        "type": "1|2|3|4|5|6|null",
+        "default": "null",
+        "description": "Shows `label` above the starters as a heading of this level, which then names the group. Null keeps the label for assistive technology only."
+      },
+      {
+        "name": "msg",
+        "type": "Record<string, string>|Record<string, Record<string, string>>",
+        "default": null,
+        "description": "Localized messages."
+      }
+    ],
+    "events": [
+      {
+        "name": "pick",
+        "payload": "{item: PromptStarter}",
+        "description": "Listener for a starter being picked."
+      }
+    ],
+    "methods": [
+      {
+        "name": "setItems",
+        "signature": "setItems(items)",
+        "returns": "this",
+        "description": "Replaces the starters. The focus on a starter stays on the starter with the same `id`. Emits nothing."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Removes what was drawn and stops listening."
+      }
+    ]
   },
   "ProseAnchors": {
     "options": [

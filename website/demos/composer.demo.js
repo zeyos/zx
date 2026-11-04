@@ -49,12 +49,15 @@ function tools() {
   ];
 }
 
+// How long the simulated agent below stays busy with each message, in milliseconds.
+const RUN_MS = 4000;
+
 export default {
   title: 'Composer',
   group: 'Agents',
   api: ['Composer'],
   blurb: 'The message box of an agent conversation: a growing text with Send and Stop, attachments, '
-    + '@-mentions, / commands, and context chips.',
+    + '@-mentions, / commands, context chips, and queued messages.',
   examples: [
     {
       title: 'Chat composer',
@@ -98,6 +101,45 @@ export default {
             button({ label: 'Toggle busy', onclick: () => composer.setBusy(!composer.isBusy()) }),
             button({ label: 'Add context', onclick: () => composer.addContext({ id: 'quarter', label: 'Q3 report', icon: 'table' }) }),
             button({ label: 'Remove context', onclick: () => composer.removeContext('selection').removeContext('quarter') }))
+        ];
+      }
+    },
+    {
+      title: 'Queued messages',
+      blurb: 'With queue: true, the send key holds a message back while the agent works: send one, '
+        + 'then send two more within the four seconds it stays busy. Each waits above the text with '
+        + 'Edit and Remove, and each end of busy sends the first of them, with queued: true in its '
+        + 'detail. Tab reaches a row, the arrow keys move between its two buttons, and Delete removes '
+        + 'it. Stop keeps the queue, so the next message goes when the run has stopped; clearQueue() '
+        + 'empties it. queueLimit: 3 refuses a fourth, and the hint says why.',
+      layout: 'stack',
+      width: '640px',
+      render: ({ cleanup, log }) => {
+        let run = 0;
+        const composer = new Composer(null, {
+          placeholder: 'Message the agent, and queue the next while it works',
+          queue: true,
+          queueLimit: 3,
+          onsend: ({ detail }) => {
+            log(`send "${detail.text}"${detail.queued ? ' · queued' : ''}`);
+            composer.setBusy(true);
+            run = setTimeout(() => composer.setBusy(false), RUN_MS);
+          },
+          onstop: () => {
+            log('stop');
+            clearTimeout(run);
+            composer.setBusy(false);
+          },
+          onqueue: ({ detail }) => log(`queue "${detail.item.text}" · ${detail.items.length} waiting`),
+          ondequeue: ({ detail }) => log(`dequeue "${detail.item.text}" · ${detail.reason} · ${detail.items.length} waiting`)
+        });
+        cleanup(() => {
+          clearTimeout(run);
+          composer.destroy();
+        });
+        return [
+          composer.toElement(),
+          h('div', { class: 'demo-row' }, button({ label: 'Clear queue', onclick: () => composer.clearQueue() }))
         ];
       }
     },

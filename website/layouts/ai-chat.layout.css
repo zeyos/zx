@@ -140,37 +140,8 @@
   letter-spacing: var(--zx-tracking-title);
 }
 
-.chat .chat__suggestions {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
-  gap: var(--zx-space-3);
-  inline-size: 100%;
+.chat .chat__starters {
   margin-block-start: var(--zx-space-5);
-}
-
-.chat .chat__suggestion {
-  display: grid;
-  gap: var(--zx-space-1);
-  padding: var(--zx-space-3) var(--zx-space-4);
-  border: 1px solid var(--zx-color-border-subtle);
-  border-radius: var(--zx-radius-lg);
-  background: var(--zx-color-bg-surface);
-  text-align: start;
-}
-
-.chat .chat__suggestion:hover {
-  border-color: var(--zx-color-border);
-  background: var(--zx-color-bg-hover);
-}
-
-.chat .chat__suggestion-title {
-  font-weight: var(--zx-weight-medium);
-}
-
-.chat .chat__suggestion-text {
-  color: var(--zx-color-text-muted);
-  font-size: var(--zx-text-sm);
-  font-weight: 400;
 }
 
 /* The composer sits under the conversation, as wide as its text. */

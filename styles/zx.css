@@ -89,6 +89,7 @@
 @import url("../src/components/block-view/block-view.css");
 @import url("../src/components/run-status/run-status.css");
 @import url("../src/components/composer/composer.css");
+@import url("../src/components/prompt-starters/prompt-starters.css");
 @import url("../src/components/approval-card/approval-card.css");
 @import url("../src/components/run-trace/run-trace.css");
 @import url("../src/components/source-list/source-list.css");
