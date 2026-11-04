@@ -1,8 +1,8 @@
 /**
  * Holds every bundle in `dist/` to the gzipped budget in `tools/size-budget.json`.
  *
- * A bundle grows one reasonable change at a time and nothing in a diff shows it. The budget makes
- * the growth a line a reviewer reads: raising a limit means editing that file in the same change.
+ * A bundle grows one reasonable change at a time and nothing in a diff shows it. The budget puts
+ * that growth in the diff: raising a limit means editing that file in the same change.
  * `npm run check:size` builds first; run directly, this compares whatever `dist/` already holds.
  */
 import { readFileSync, readdirSync } from 'node:fs';
