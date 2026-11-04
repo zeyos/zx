@@ -1,4 +1,5 @@
 import { CardView, badge, button, h } from '../../src/index.js';
+import { de } from '../../src/locales/de.js';
 
 // One projection can feed TableView, CardView, or KanbanView. Presentation-only preview fields may
 // stay hidden while title, group, and board fields remain available to their resolvers.
@@ -182,7 +183,8 @@ export default {
       blurb: 'fieldControls accepts an object as well as a boolean. Without a label the trigger '
         + 'reads the recordView.fields message, so a translated application gets it for free, and '
         + 'target mounts the disclosure into a toolbar the application owns rather than the view. '
-        + 'The sort control reads cardView.sort, cardView.unsorted and the two direction messages.',
+        + 'The msg option here is de, the German catalogue from @zeyos/zx/locales/de.js, so this one '
+        + 'instance is translated; setTranslator() installs it for the whole library.',
       layout: 'stack',
       render: ({ cleanup, log }) => {
         const toolbar = h('div', { class: 'demo-row' }, h('strong', {}, 'Verkaufschancen'));
@@ -192,13 +194,7 @@ export default {
           maxColumns: 3,
           preview: null,
           fieldControls: { target: toolbar },
-          msg: {
-            'recordView.fields': 'Felder',
-            'cardView.sort': 'Sortierung',
-            'cardView.unsorted': 'Unsortiert',
-            'cardView.sortAscending': '%1 (aufsteigend)',
-            'cardView.sortDescending': '%1 (absteigend)'
-          }
+          msg: de
         });
         cleanup(() => view.destroy());
         return [toolbar, view.toElement()];
