@@ -1,0 +1,33 @@
+{
+  "pinned": {"protocol": "v1", "documentation": "https://ai-sdk.dev/docs/ai-sdk-ui/stream-protocol", "read": "2026-11-03", "release": "ai@7.0.162"},
+  "note": "An approval-gated tool call. The second response is what the application receives after sending the approval; it continues the same message.",
+  "responses": [
+    [
+      {"type":"start","messageId":"msg-reminder"},
+      {"type":"start-step"},
+      {"type":"text-start","id":"text-1"},
+      {"type":"text-delta","id":"text-1","delta":"Bruckner Logistik is 21 days late. "},
+      {"type":"text-delta","id":"text-1","delta":"I’ll send the first reminder once you agree."},
+      {"type":"text-end","id":"text-1"},
+      {"type":"tool-input-start","toolCallId":"call-reminder","toolName":"sendReminder"},
+      {"type":"tool-input-delta","toolCallId":"call-reminder","inputTextDelta":"{\"customer\":\"Bruckner Logistik\","},
+      {"type":"tool-input-delta","toolCallId":"call-reminder","inputTextDelta":"\"invoice\":\"RE-2026-0126\"}"},
+      {"type":"tool-input-available","toolCallId":"call-reminder","toolName":"sendReminder","input":{"customer":"Bruckner Logistik","invoice":"RE-2026-0126"}},
+      {"type":"tool-approval-request","toolCallId":"call-reminder","approvalId":"approval-reminder","reason":"Sent mail can’t be recalled."},
+      {"type":"finish-step"},
+      {"type":"finish","finishReason":"tool-calls"}
+    ],
+    [
+      {"type":"start","messageId":"msg-reminder"},
+      {"type":"start-step"},
+      {"type":"tool-output-available","toolCallId":"call-reminder","output":{"sent":true,"to":"accounts@bruckner.example"}},
+      {"type":"finish-step"},
+      {"type":"start-step"},
+      {"type":"text-start","id":"text-2"},
+      {"type":"text-delta","id":"text-2","delta":"The reminder is on its way."},
+      {"type":"text-end","id":"text-2"},
+      {"type":"finish-step"},
+      {"type":"finish","finishReason":"stop"}
+    ]
+  ]
+}
