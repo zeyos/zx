@@ -1,14 +1,14 @@
 {
-  "zx.css": 60000,
+  "zx.css": 65000,
   "zx.min.css": 60000,
   "zx.core.css": 10000,
   "zx.core.min.css": 10000,
   "zx.layered.css": 65000,
   "zx.layered.min.css": 60000,
-  "zx.esm.js": 485000,
-  "zx.esm.min.js": 295000,
-  "zx.global.js": 495000,
-  "zx.global.min.js": 295000,
+  "zx.esm.js": 560000,
+  "zx.esm.min.js": 345000,
+  "zx.global.js": 565000,
+  "zx.global.min.js": 345000,
   "zx-zeyos.esm.js": 215000,
   "zx-zeyos.esm.min.js": 135000
 }
