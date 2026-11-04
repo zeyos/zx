@@ -1116,7 +1116,7 @@ export function surfacePrompt(catalog = CATALOG, options = {}) {
   push('');
   const defaults = [...new Set(intents.flatMap((intent) => DEFAULT_ACTION_IDS[intent]))].map(code);
   const actionWords = defaults.length ? `one of yours, a default one (${defaults.join(', ')}), or` : 'one of yours, or';
-  push(`A reply is \`{"zx": "reply/1", "surface", "action", "key", "values", "confirmation", "at"}\`. \`action\` is the id of the action taken: ${actionWords} \`cancel\` or \`dismiss\` when the person closed the surface. Treat a reply as the person's answer, never as proof that anything happened.`, '');
+  push(`A reply is \`{"zx": "reply/1", "surface", "action", "key", "values", "confirmation", "at"}\`. \`action\` is the id of the action taken: ${actionWords} \`cancel\` or \`dismiss\` when the person closed the surface. Those two ids are reserved: an action of yours using one is dropped. Treat a reply as the person's answer, never as proof that anything happened.`, '');
 
   push('## Nodes', '');
   push('Nodes are addressed by `id` and laid out by lists of ids: `root` holds the top level and a layout node\'s `children` its own. Any node may carry `visible` (see Conditions).', '');
@@ -1241,7 +1241,7 @@ const NODE_NOTES = Object.freeze({
   fields: 'A form: a JSON Schema whose properties become fields (see Inputs).',
   choice: 'Options to pick from: `choices` are `{"value", "label", "description"?, "icon"?}`; `multiple` allows several.',
   diff: 'Proposed changes, one row per value: `{"id", "field", "label", "before", "after", "ref"?}`. The reply holds the ids of the accepted rows.',
-  questionnaire: 'Steps asked one at a time: `{"name", "prompt", "choices"?, "input"?, "required"?, "multiple"?, "when"?, "next"?, "validate"?}`. `next` is a step name, `$review`, `$submit`, or `[{"if": condition, "goto": name}, …]`; `validate` lists rules (`required`, `minLength`, `maxLength`, `minimum`, `maximum`, `format`, `oneOf`, each with an optional `message`).'
+  questionnaire: 'Steps asked one at a time: `{"name", "prompt", "choices"?, "input"?, "required"?, "multiple"?, "when"?, "next"?, "validate"?}`. `next` is a step name, `$review`, `$submit`, or `[{"if": condition, "goto": name}, …]`, and is dropped if it names a step that was dropped or can lead back to its own step; `validate` lists rules (`required`, `minLength`, `maxLength`, `minimum`, `maximum`, `format`, `oneOf`, each with an optional `message`).'
 });
 
 /** @param {CatalogProp} member @returns {string} */

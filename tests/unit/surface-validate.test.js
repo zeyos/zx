@@ -939,3 +939,18 @@ test('nesting past any stack is refused wherever it is written', () => {
   assert.ok(validateOp({ op: 'x'.repeat(5000), surface: 's1' }, state).errors[0].message.length < 300);
   assert.equal(check({ zx: 'surface/1', surface: value, intent: value, root: value, nodes: value }).document, null);
 });
+
+test('a name every object inherits is only ever a name', () => {
+  const schema = { type: 'object', properties: { removeAttribute: { type: 'string', title: 'A' }, toString: { type: 'string', title: 'B' } } };
+  const result = check(doc([
+    { id: 'kind', type: 'constructor' },
+    { id: 'list', type: 'table', name: 'pick', rowId: 'toString', selectable: 'multi', columns: [{ id: 'valueOf', label: 'V' }], rows: [{ valueOf: 1 }] },
+    { id: 'form', type: 'fields', schema }
+  ], { intent: 'ask' }));
+  assert.equal(node(result, 'kind').type, 'constructor');
+  assert.ok(result.errors.some((error) => error.code === 'unknown-type' && error.id === 'kind'));
+  assert.equal(node(result, 'list').rowId, 'toString');
+  assert.deepEqual(Object.keys(node(result, 'form').schema.properties), ['removeAttribute', 'toString']);
+  assert.equal(({}).removeAttribute, undefined);
+  assert.equal(typeof ({}).toString, 'function');
+});

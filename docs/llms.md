@@ -3606,28 +3606,41 @@ in `src/components/surface/catalog.js` and `validate.js`, importable on a server
   skeleton line, and every action but Cancel stays disabled until the surface's `end`. What is
   invalid is dropped and reported; an unknown node, or one outside a narrowed catalog, draws "This
   part could not be shown". A surface whose stream ends without its `end` keeps its actions
-  disabled.
+  disabled. A node that fails while drawing shows the same line beside the rest of the surface, and
+  is reported as `draw-failed`. One operation costs what it touches: a `data` operation redraws only
+  the nodes bound to the path it changed.
+- **Limits** — 400 nodes, depth 12, 20,000 characters per string, 1,000 rows per table, 50 fields,
+  64 choices, 8 actions, 1 MB of data, and 100,000 table cells across all tables, each `$data`
+  binding counted where it is used. What is over a limit is dropped and reported, and the table
+  budget holds while a surface streams; rows past it draw the fallback.
 - **Actions** — the intent's defaults (`submit`, `confirm`, `approve`/`reject`) or the surface's own,
-  plus Cancel for `ask`, `choose` and `confirm`. Escape is Cancel, except while it closes something
+  plus Cancel for `ask`, `choose`, `confirm` and `questionnaire`, and for a `review` left without
+  its `reject`. The ids `cancel` and `dismiss` are reserved: an action using one is dropped and
+  reported, as is any action of a `questionnaire`'s own. Escape closes whatever waits for an answer
+  (`cancel`, or `dismiss` for a `show` surface with actions), except while it closes something
   inside the surface (an open picker, an expanded list) or another handler took it. The answering
   defaults (`submit`, `confirm`, `approve`) and an own action with `kind: 'primary'` check the
   visible inputs first, move focus to the first invalid one, and send the values; any other own
-  action replies at once with `values: {}`. A single `choice` must be picked before an answering
-  action replies; a `multiple` one may be empty.
+  action replies at once with `values: {}`. With several primary actions the one pressed answers,
+  and Enter in a field presses the first. A single `choice` must be picked before an answering
+  action replies; a `multiple` one may be empty. A questionnaire's `next` that names a dropped step,
+  or can lead back to its own step, is dropped and reported.
 - **Policy** — `policy(action, surface)` returns `'allow'`, `'confirm'` (a confirmation Dialog),
   `'type-to-confirm'` (`Dialog.confirm({confirmText})`) or `'deny'` (the action is not drawn, and
   the reply lists it under `removed`), or `{level, confirmText?, message?}`. Supply `confirmText`
   for `type-to-confirm`: without it the person types the fixed word "confirm"
   (`surface.typeToConfirm`), never text from the surface. A questionnaire's own Submit is put to the
-  policy up front, as `submit`; denied, it is hidden and reported. Anything else counts as
-  `confirm`, and a policy that throws denies. Nothing in a surface can lower
-  it: `kind: 'danger'` is presentation only, and confirmation keys in a surface are dropped.
+  policy up front, as `submit`; denied, it is hidden and reported. The policy is synchronous:
+  nothing waits for it, so a Promise denies, like a policy that throws. Anything else counts as
+  `confirm`. Nothing in a surface can lower it: `kind: 'danger'` is presentation only, and
+  confirmation keys in a surface are dropped.
 - **Reply** — `{zx: 'reply/1', surface, action, key, values, confirmation, at, token?, removed?,
   reason?}`. `key` is `<surface>#<action>`; `confirmation` is `clicked`, `typed` or `null`;
   `reason` says why a closing reply (`cancel`, `dismiss`) was sent: `cancelled`, `escape`,
   `closed`, `superseded`, `stopped`, `destroyed`, or the application's. Submit and every action
   reply, and so do Cancel, Escape, `cancel()`, `supersede()` and destroying an unanswered surface
-  (`dismiss`). When its run stops, the application calls `surface.cancel('stopped')`. A surface
+  (`dismiss`), whatever happens while its receipt is drawn. When its run stops, the application
+  calls `surface.cancel('stopped')`. A surface
   whose `begin` never validated still replies once: `surface` is the id it was given when that was
   a valid id, `null` otherwise. A reply records what the page did; the server runs its policy again
   before it acts.
@@ -3637,8 +3650,12 @@ in `src/components/surface/catalog.js` and `validate.js`, importable on a server
   it.
 - **Receipt** — answered, the surface carries `data-state="answered"`: inputs become read-only
   displays of what was answered, tables stay with their selected rows marked, and the actions give
-  way to a verdict line. `surfaceText(document, reply)` gives the same receipt as plain text, with choice titles
-  rather than raw values and never a hidden input.
+  way to a verdict line. A restored surface (`reply`) shows what that reply answered.
+  `surfaceText(document, reply)` gives the same receipt as plain text, with choice titles rather
+  than raw values and never a hidden input or step, whatever the reply carries.
+- **Field types** — a schema property's `x-zx.field` draws through `Field`. The surface registers the
+  types it needs only where nothing draws them yet, so an adapter the application registered with
+  `Field.register()` stays.
 - **Placement** — `openSurface(document, {placement, target, …})` resolves with the reply. A sheet
   or a dialog the document asks for is honoured only with `userInitiated`; otherwise the surface goes
   inline into `target`. Closing the sheet or dialog replies `cancel`. A document that cannot begin
