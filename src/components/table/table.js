@@ -117,8 +117,9 @@ import { RowWindow } from './window.js';
  * of rows — costs more to lay out than anyone will ever scroll through.
  * @property {boolean} [virtual=false] Windowed rendering: only the rows in view and one viewport of
  * overscan above and below are in the DOM, with spacer rows keeping the scroll height. The table
- * stays one grid over all of its rows, so this implies `interactive`, and the row that has focus or
- * is being edited stays drawn wherever it is. It needs a bounded scroll region: give it `height`,
+ * stays one grid over all of its rows, so this implies `interactive`, the header checkbox and
+ * Ctrl/Cmd+A take every row, drawn or not, and the row that has focus or is being edited stays drawn
+ * wherever it is. It needs a bounded scroll region: give it `height`,
  * or the region stops at the height of the window. Every row takes the height of one measured row,
  * rows of differing height are not supported, and column widths cannot follow content that is not
  * drawn, so `auto` columns share the width evenly. Find-in-page does not see rows that are not

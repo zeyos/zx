@@ -422,6 +422,40 @@ export default {
       }
     },
     {
+      title: 'Windowed rendering',
+      blurb: 'virtual: true keeps only the rows around the scroll position in the DOM, so ten '
+        + 'thousand rows scroll like fifty. It stays one grid over every row: sort a column, '
+        + 'press End, or Shift+click two checkboxes far apart, and reveal() scrolls to a row '
+        + 'that is not drawn. Give it a height, and expect one row height for all rows; '
+        + 'find-in-page only sees the rows that are drawn.',
+      layout: 'stack',
+      render: ({ cleanup, log }) => {
+        const table = new Table(null, {
+          virtual: true,
+          height: 420,
+          rowId: 'id',
+          label: 'Customers',
+          selectable: 'multi',
+          data: makeRows(10000),
+          sort: { id: 'id', dir: 'asc' },
+          columns: [
+            { id: 'id', label: 'ID', sortable: true, width: '90px', align: 'right' },
+            { id: 'name', label: 'Customer', sortable: true, width: '2fr' },
+            { id: 'category', label: 'Category', sortable: true, width: '1fr' },
+            { id: 'amount', label: 'Amount', sortable: true, width: '1fr', align: 'right', render: (row) => money(row.amount) },
+            { id: 'date', label: 'Date', sortable: true, width: '1fr', render: (row) => isoDate(row.date) }
+          ],
+          onsort: ({ detail }) => log(`sort → ${detail.id} ${detail.dir}`),
+          onselectionchange: ({ detail }) => log(`${detail.ids.length.toLocaleString()} of 10,000 rows selected`)
+        });
+        cleanup(() => table.destroy());
+        return [
+          h('button', { type: 'button', onclick: () => table.reveal(7500) }, 'Reveal row 7,500'),
+          table.toElement()
+        ];
+      }
+    },
+    {
       title: 'Server-side sorting',
       blurb: 'sortMode: "server" leaves the rows exactly as given and only emits sort, so the '
         + 'header stays the control while your query does the ordering. The header still shows '
