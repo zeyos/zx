@@ -46,7 +46,7 @@ const MAX_TOKEN = 512;
  *   they are not JSON.
  * @property {string} argsText The arguments as they arrived.
  * @property {unknown} [result] The `content` of the call's result event, unchanged (a string, or a
- *   list of content parts); for a surface tool, the reply.
+ *   list of content parts); for a surface tool, what `ontoolresult` received.
  * @property {string} [error] Why the call failed.
  * @property {RunState} status `queued` while the arguments arrive, `waiting` for an approval or an
  *   answer, `running` until the result, then `done`, `failed`, `skipped` when the approval was
@@ -108,8 +108,9 @@ const MAX_TOKEN = 512;
  * @property {((id: string, result: Record<string, unknown>) => void)|null} [ontoolresult=null] What
  *   the person decided, for the application to send back to the agent. An approval answers
  *   `{approved: true}` or `{approved: false, reason?}`; a surface tool its reply, with `errors`
- *   when the surface had any; a surface tool whose arguments are not a surface answers at once
- *   with `{error: 'invalid-arguments'}`. In AG-UI 1.0 the application turns it into a `resume`
+ *   when the surface had any; a `show` surface with no actions answers at once with
+ *   `{shown: true, surface, errors?}` and stays on screen; a surface tool whose arguments are not a
+ *   surface answers at once with `{error: 'invalid-arguments'}`. In AG-UI 1.0 the application turns it into a `resume`
  *   entry (`{interruptId, status: 'resolved', payload}`) when the run ended with an interrupt for
  *   the call, or into a tool message (`{role: 'tool', toolCallId, content}`) when it ended with
  *   the call among its `pendingToolCallIds`; either goes in the next run's input.
@@ -557,7 +558,8 @@ export function connectAgUi(thread, options = {}) {
     call.args = parsed.value;
     const settings = thread.options?.surfaceOptions?.resolve?.entities;
     const { document, errors } = validateDocument(parsed.value, catalog ?? CATALOG, { entities: settings ?? null });
-    if (!document) {
+    // Without a valid intent a surface draws no controls, so nobody could ever answer it.
+    if (!document?.intent) {
       refuse({ error: 'invalid-arguments', errors }, errors);
       return;
     }
@@ -576,6 +578,15 @@ export function connectAgUi(thread, options = {}) {
       id, type: 'surface', ...by(), document: parsed.value, token: tokenOf(call.id), ...(catalog ? { catalog } : {})
     }));
     if (standIn) unplace(entry, standIn);
+    if (document.intent === 'show' && !document.actions?.length) {
+      // Nothing here can be answered: the call is, at once, and the surface stays on screen.
+      const problems = thread.surface(id)?.getErrors() ?? errors;
+      const result = { shown: true, surface: document.surface, ...(problems.length ? { errors: problems } : {}) };
+      entry.decided = true;
+      setStatus(entry, 'done', { result }, { args: call.argsText, detail: document.title, result: JSON.stringify(result) });
+      answer(call.id, result);
+      return;
+    }
     setStatus(entry, 'waiting', {}, { args: call.argsText, detail: document.title });
   };
 

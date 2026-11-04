@@ -353,6 +353,52 @@ test('surface-tool arguments that are not JSON, or not a surface, are answered a
 
 /* ------------------------------------------------------------------ inline surfaces -- */
 
+test('a show surface with no actions has nothing to answer: the call is answered at once', () => {
+  const call = (id, document) => [
+    { type: 'TOOL_CALL_START', toolCallId: id, toolCallName: 'show_surface' },
+    { type: 'TOOL_CALL_ARGS', toolCallId: id, delta: JSON.stringify(document) },
+    { type: 'TOOL_CALL_END', toolCallId: id }
+  ];
+  const show = { zx: 'surface/1', surface: 's1', intent: 'show', title: 'Balance', author: 'finance', root: ['a'], nodes: [{ id: 'a', type: 'text', text: 'Paid' }] };
+  const { thread, log, play } = setup();
+  play(run('r1', call('c1', show)));
+  assert.deepEqual(log.results, [['c1', { shown: true, surface: 's1' }]]);
+  assert.equal(thread.step('trace:r1', 'c1').status, 'done');
+  assert.equal(log.status.at(-1).state, 'done', 'a run with nothing left to answer does not wait');
+  const surface = thread.surface('surface:r1/s1');
+  assert.ok(surface, 'the surface stays on screen');
+  assert.equal(surface.getReply(), null);
+
+  // Its errors go with the answer, and a later close of the surface does not answer twice.
+  const faulty = setup();
+  faulty.play(run('r1', call('c1', { ...show, nodes: [...show.nodes, { id: 'b', type: 'hologram' }] })));
+  assert.equal(faulty.log.results.length, 1);
+  assert.ok(faulty.log.results[0][1].errors.some((error) => error.code === 'unknown-type'));
+  faulty.thread.surface('surface:r1/s1').cancel('stopped');
+  assert.equal(faulty.log.results.length, 1);
+
+  // With actions of its own there is something to answer, and the call waits for it.
+  const acting = setup();
+  acting.play(run('r1', call('c1', { ...show, actions: [{ id: 'ack', label: 'Got it' }] })));
+  assert.deepEqual(acting.log.results, []);
+  assert.equal(acting.log.status.at(-1).state, 'waiting');
+});
+
+test('a surface with no valid intent draws no controls, so the call is refused rather than left waiting', () => {
+  const { thread, log, play } = setup();
+  play(run('r1', [
+    { type: 'TOOL_CALL_START', toolCallId: 'c1', toolCallName: 'show_surface' },
+    { type: 'TOOL_CALL_ARGS', toolCallId: 'c1', delta: JSON.stringify({ zx: 'surface/1', surface: 's1', intent: 'hologram', title: 'T', author: 'finance', root: [], nodes: [] }) },
+    { type: 'TOOL_CALL_END', toolCallId: 'c1' }
+  ]));
+  assert.equal(log.results.length, 1);
+  assert.equal(log.results[0][1].error, 'invalid-arguments');
+  assert.ok(log.results[0][1].errors.some((error) => error.code === 'unknown-intent'));
+  assert.equal(thread.step('trace:r1', 'c1').status, 'failed');
+  assert.equal(thread.surface('surface:r1/s1'), null);
+  assert.notEqual(log.status.at(-1).state, 'waiting');
+});
+
 test('inline fences split across chunks of any size', () => {
   const events = fixture('surfaces');
   const run2 = events.slice(events.findIndex((event) => event.runId === 'run_c2'));

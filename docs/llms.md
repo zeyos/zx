@@ -3541,7 +3541,9 @@ source.onmessage = (message) => adapter.handle(JSON.parse(message.data));
 - **Surfaces** — a call named in `surfaceTools` is an `ask` step and a surface at the call's place,
   a `zx-placeholder` until its arguments are complete; its reply, plus the surface's `errors` when there are any, is the call's
   result through `ontoolresult` — in AG-UI 1.0 a frontend tool, answered in the next run's input as
-  `{role: 'tool', toolCallId, content}`. Arguments that are not a surface answer at once with
+  `{role: 'tool', toolCallId, content}`. A `show` surface with no actions has nothing to answer, so
+  the call is answered at once with `{shown: true, surface, errors?}` and the surface stays on
+  screen. Arguments that are not a surface, or a surface with no valid intent, answer at once with
   `{error: 'invalid-arguments'}`. With `inlineSurfaces`, surface fences in answer text become
   surfaces after the prose before them, and the prose after continues in `<messageId>#2`; a fence
   still open at the message's end is reported and its surface cancelled when the run ends. A
