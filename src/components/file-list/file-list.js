@@ -11,11 +11,14 @@ import { FileItem, normalizeFileItem } from '../file-item/file-item.js';
 /**
  * @typedef {Object} FileListOptions
  * @property {FileItemOptions[]} [items=[]] Initial files in host-supplied order.
- * @property {string} [label='Files'] Accessible collection name.
+ * @property {string|null} [label=null] Accessible collection name; null reads the `fileList.label`
+ *   message ("Files").
  * @property {boolean} [loading=false] Whether initial or incremental files are loading.
  * @property {number} [loadingCount=3] Placeholder rows shown for an empty loading list.
- * @property {string} [loadingText='Loading files'] Loading status text.
- * @property {string|number|Node|Component|null} [emptyText='No files'] Empty-state content.
+ * @property {string|null} [loadingText=null] Loading status text; null reads the `fileList.loading`
+ *   message ("Loading files").
+ * @property {string|number|Node|Component|null} [emptyText=null] Empty-state content; null reads the
+ *   `fileList.empty` message ("No files").
  * @property {(event: CustomEvent<{id: unknown, index: number, file: Readonly<FileItemState>, href: string, event: MouseEvent}>) => void} [onactivate]
  *   Preventable native-file-link listener.
  * @property {(event: CustomEvent<{id: string, fileId: unknown, index: number, action: object, file: Readonly<FileItemState>, event: MouseEvent}>) => void} [onaction]
@@ -44,11 +47,11 @@ export class FileList extends Component {
   /** @type {Readonly<FileListOptions>} */
   static defaults = {
     items: [],
-    label: 'Files',
+    label: null,
     loading: false,
     loadingCount: 3,
-    loadingText: 'Loading files',
-    emptyText: 'No files'
+    loadingText: null,
+    emptyText: null
   };
 
   /**
@@ -77,7 +80,7 @@ export class FileList extends Component {
     this._loadingRegion = /** @type {HTMLElement|null} */ (null);
     this._loadingPlaceholders = false;
 
-    root.setAttribute('aria-label', String(this.options.label || 'Files'));
+    root.setAttribute('aria-label', String(this.options.label || this.msg('fileList.label')));
     this.listen(root, 'zx-activate', (event) => this._forwardActivate(/** @type {CustomEvent} */ (event)));
     this.listen(root, 'zx-action', (event) => this._forwardAction(/** @type {CustomEvent} */ (event)));
     try {
@@ -203,7 +206,7 @@ export class FileList extends Component {
     else if (!this._loading) {
       this._emptyRegion ??= h('div', {
         class: 'zx-file-list__empty', role: 'status'
-      }, listContent(this.options.emptyText, 'FileList emptyText'));
+      }, listContent(this.options.emptyText ?? this.msg('fileList.empty'), 'FileList emptyText'));
       content.push(this._emptyRegion);
     }
     if (this._loading) content.push(this._createLoading(this._items.length === 0));
@@ -279,7 +282,7 @@ export class FileList extends Component {
   _buildLoading(placeholders) {
     const region = h('div', {
       class: 'zx-file-list__loading', role: 'status', ariaLive: 'polite'
-    }, h('span', { class: 'zx-file-list__loading-label' }, String(this.options.loadingText)));
+    }, h('span', { class: 'zx-file-list__loading-label' }, String(this.options.loadingText ?? this.msg('fileList.loading'))));
     if (!placeholders) return region;
     const rows = h('div', { class: 'zx-file-list__skeletons', ariaHidden: 'true' });
     for (let index = 0; index < normalizeLoadingCount(this.options.loadingCount); index += 1) {

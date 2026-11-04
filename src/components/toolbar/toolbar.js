@@ -43,9 +43,11 @@ const ITEM_SELECTOR = FOCUSABLE
  * @typedef {Object} ToolbarOptions
  * @property {ToolbarItem[]} [items=[]] Controls, separators (`'-'`), and ready-made Elements.
  * @property {'start'|'end'|'between'} [align='start'] Horizontal distribution.
- * @property {string} [label='Toolbar'] Accessible name of the toolbar.
+ * @property {string|null} [label=null] Accessible name of the toolbar; null reads the `toolbar.label`
+ *   message ("Toolbar").
  * @property {boolean} [overflow=true] Collapses items that no longer fit into a trailing menu.
- * @property {string} [overflowLabel='More'] Accessible name of the overflow menu trigger.
+ * @property {string|null} [overflowLabel=null] Accessible name of the overflow menu trigger; null
+ *   reads the `toolbar.more` message ("More").
  * @property {boolean} [dense=false] Tighter spacing and small controls.
  * @property {(event: CustomEvent<{name: string|null, item: Element}>) => void} [onaction] Action listener.
  */
@@ -63,9 +65,9 @@ export class Toolbar extends Component {
   static defaults = {
     items: [],
     align: 'start',
-    label: 'Toolbar',
+    label: null,
     overflow: true,
-    overflowLabel: 'More',
+    overflowLabel: null,
     dense: false
   };
 
@@ -105,8 +107,9 @@ export class Toolbar extends Component {
       });
       const trigger = /** @type {HTMLButtonElement} */ (this.#overflow.toElement());
       trigger.classList.add('zx-toolbar__overflow');
-      trigger.setAttribute('aria-label', String(this.options.overflowLabel));
-      trigger.setAttribute('title', String(this.options.overflowLabel));
+      const overflowLabel = String(this.options.overflowLabel ?? this.msg('toolbar.more'));
+      trigger.setAttribute('aria-label', overflowLabel);
+      trigger.setAttribute('title', overflowLabel);
       if (this.options.dense) trigger.setAttribute('data-size', 'sm');
       trigger.hidden = true;
     }
@@ -142,7 +145,7 @@ export class Toolbar extends Component {
       Array.from(root.children) : items;
 
     root.setAttribute('role', 'toolbar');
-    root.setAttribute('aria-label', String(this.options.label));
+    root.setAttribute('aria-label', String(this.options.label ?? this.msg('toolbar.label')));
     root.dataset.align = normalizeAlign(this.options.align);
     root.dataset.overflow = this.options.overflow ? 'true' : 'false';
     if (this.options.dense) root.dataset.dense = 'true';

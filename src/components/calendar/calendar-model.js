@@ -1,3 +1,5 @@
+import { translate } from '../../core/i18n.js';
+
 /** @typedef {'agenda'|'day'|'week'|'month'|'year'} CalendarView */
 /** @typedef {string|((record: Record<string, any>) => unknown)} CalendarReader */
 
@@ -27,6 +29,8 @@
  * @property {CalendarReader} [eventEditable='editable'] Move-policy reader.
  * @property {CalendarReader} [eventDurationEditable='durationEditable'] Resize-policy reader.
  * @property {'milliseconds'|'seconds'} [dateUnit='milliseconds'] Unit used for numeric dates.
+ * @property {string} [untitledTitle] Title of an event without one, by default the `calendar.untitled`
+ *   message ("Untitled event").
  */
 
 /** @type {readonly CalendarView[]} */
@@ -152,7 +156,8 @@ export function normalizeCalendarEvents(records, options = {}) {
       : calendarDate(rawEnd, unit, `event ${key} end`);
     if (end < start) throw new RangeError(`Calendar event ${key} ends before it starts`);
 
-    const title = String(readCalendarValue(record, readers.title) ?? '').trim() || 'Untitled event';
+    const title = String(readCalendarValue(record, readers.title) ?? '').trim()
+      || (options.untitledTitle ?? translate('calendar.untitled'));
     const location = String(readCalendarValue(record, readers.location) ?? '').trim();
     const editable = optionalBoolean(readCalendarValue(record, readers.editable));
     const durationEditable = optionalBoolean(readCalendarValue(record, readers.durationEditable));

@@ -257,7 +257,7 @@ export class Questionnaire extends Component {
    */
   setItems(list) {
     const previous = this.getActive();
-    const items = normalizeItems(list);
+    const items = normalizeItems(list, (key) => this.msg(key));
     const names = new Set(items.map((item) => item.name));
     this._items = items;
 

@@ -12,7 +12,8 @@ import { uid } from '../../core/util.js';
  * @property {boolean} [clearable=true] Whether re-selecting the current value clears it.
  * @property {boolean} [readonly=false] Whether the rating is display-only.
  * @property {boolean} [disabled=false] Whether interaction is disabled.
- * @property {string} [label='Rating'] Accessible name of the group.
+ * @property {string|null} [label=null] Accessible name of the group; null reads the `rating.label`
+ *   message ("Rating").
  * @property {string} [icon='star'] Icon name used for each symbol.
  * @property {string[]|null} [labels=null] Per-step accessible names, lowest first.
  * @property {boolean} [showValue=false] Whether to render the numeric value beside the symbols.
@@ -43,7 +44,7 @@ export class Rating extends Component {
     clearable: true,
     readonly: false,
     disabled: false,
-    label: 'Rating',
+    label: null,
     icon: 'star',
     labels: null,
     showValue: false,
@@ -75,7 +76,7 @@ export class Rating extends Component {
       ref: 'symbols',
       class: 'zx-rating__symbols',
       role: 'radiogroup',
-      ariaLabel: String(this.options.label ?? 'Rating')
+      ariaLabel: String(this.options.label ?? this.msg('rating.label'))
     });
 
     for (let index = 1; index <= this._max; index += 1) {

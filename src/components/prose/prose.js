@@ -1,14 +1,17 @@
 import { h } from '../../core/dom.js';
 import { copyToClipboard } from '../../core/export.js';
+import { translate } from '../../core/i18n.js';
 import { icon } from '../../core/icons.js';
 
 /**
  * @typedef {Object} ProseAnchorsOptions
  * @property {string} [selector='h2[id], h3[id], h4[id]'] The headings that get a link, inside a
  *   `.zx-prose` under the root. A heading without an `id` has nothing to link to and is skipped.
- * @property {string} [label='Copy link to %1'] The link's accessible name; `%1` is the heading.
- * @property {string} [title='Copy link'] The link's tooltip.
- * @property {string} [feedback='Link copied'] What the live region says after a copy.
+ * @property {string} [label] The link's accessible name; `%1` is the heading. By default the
+ *   `prose.copyLinkTo` message ("Copy link to %1").
+ * @property {string} [title] The link's tooltip, by default the `prose.copyLink` message ("Copy link").
+ * @property {string} [feedback] What the live region says after a copy, by default the `prose.copied`
+ *   message ("Link copied").
  * @property {number} [feedbackDuration=2000] Milliseconds the tick and the message stay.
  * @property {(id: string) => string} [href] The address copied for a heading id. Defaults to the
  *   current address with its hash replaced (`sectionHref(location.href, id)`).
@@ -23,12 +26,9 @@ import { icon } from '../../core/icons.js';
  * @property {() => void} destroy Removes every link, the live region, and the listener.
  */
 
-/** @type {Readonly<Required<Omit<ProseAnchorsOptions, 'href'|'oncopy'>>>} */
+/** @type {Readonly<Required<Omit<ProseAnchorsOptions, 'href'|'oncopy'|'label'|'title'|'feedback'>>>} */
 const defaults = Object.freeze({
   selector: 'h2[id], h3[id], h4[id]',
-  label: 'Copy link to %1',
-  title: 'Copy link',
-  feedback: 'Link copied',
   feedbackDuration: 2000
 });
 
@@ -64,7 +64,10 @@ export function sectionHref(base, id) {
 export function proseAnchors(root, options = {}) {
   const target = typeof root === 'string' ? document.querySelector(root) : root;
   if (!(target instanceof Element)) throw new TypeError('proseAnchors root could not be resolved');
-  const settings = { ...defaults, ...options };
+  const settings = {
+    label: translate('prose.copyLinkTo'), title: translate('prose.copyLink'), feedback: translate('prose.copied'),
+    ...defaults, ...options
+  };
   const abort = new AbortController();
   /** @type {Map<HTMLAnchorElement, HTMLElement>} Link → its heading. */
   const anchors = new Map();

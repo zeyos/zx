@@ -8,8 +8,10 @@ import { copyButton } from './copy-button.js';
  * @property {string} [value=''] Text shown and copied.
  * @property {string} [label=''] Visible label above the box.
  * @property {boolean} [hideLabel=false] Whether the label is kept for assistive technology only.
- * @property {string} [feedback='Copied'] Confirmation shown after a copy.
- * @property {string} [buttonTitle='Copy'] Accessible name of the copy button.
+ * @property {string|null} [feedback=null] Confirmation shown after a copy; null reads the
+ *   `copy.copied` message ("Copied").
+ * @property {string|null} [buttonTitle=null] Accessible name of the copy button; null reads the
+ *   `copy.copy` message ("Copy").
  * @property {'md'|'sm'} [size='md'] Control size.
  * @property {(event: CustomEvent<{value: string, copied: boolean}>) => void} [oncopy] Copy listener.
  */
@@ -33,8 +35,8 @@ export class CopyInput extends Component {
     value: '',
     label: '',
     hideLabel: false,
-    feedback: 'Copied',
-    buttonTitle: 'Copy',
+    feedback: null,
+    buttonTitle: null,
     size: 'md'
   };
 
@@ -58,8 +60,8 @@ export class CopyInput extends Component {
     }));
     const button = copyButton({
       text: () => this.get(),
-      title: String(this.options.buttonTitle),
-      feedback: String(this.options.feedback),
+      title: String(this.options.buttonTitle ?? this.msg('copy.copy')),
+      feedback: String(this.options.feedback ?? this.msg('copy.copied')),
       size: this.options.size === 'sm' ? 'sm' : 'md',
       oncopy: (value, copied) => this.emit('copy', { value, copied })
     });

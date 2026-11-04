@@ -28,12 +28,14 @@ import {
  *   rest out of sight and show while the row is pointed at, focused or selected; one or two show
  *   as icon buttons, more fold after the first into a "More actions" menu. Every descriptor is also
  *   in the row's context menu, and the focused row's actions follow it in the Tab order.
- * @property {string} [moreLabel='More actions'] Name of a row's overflow menu; every action name
- *   is followed by the row's name ("More actions: Q3 plan").
+ * @property {string|null} [moreLabel=null] Name of a row's overflow menu; every action name is
+ *   followed by the row's name ("More actions: Q3 plan"). Null reads the `tree.more` message.
  * @property {((node: TreeNode) => Promise<TreeNode[]>|TreeNode[])|null} [load=null] Lazy child loader.
  * @property {string} [filter=''] Label substring the tree is filtered by.
- * @property {string} [label='Tree'] Accessible name of the tree.
- * @property {string} [emptyText='Nothing to show'] Text shown when the tree is empty.
+ * @property {string|null} [label=null] Accessible name of the tree; null reads the `tree.label`
+ *   message ("Tree").
+ * @property {string|null} [emptyText=null] Text shown when the tree is empty; null reads the
+ *   `tree.noItems` message ("Nothing to show").
  * @property {number|string|null} [height=null] Scroll height in pixels or any CSS length.
  * @property {Record<string, string>|Record<string, Record<string, string>>} [msg] Localized messages.
  * @property {(event: CustomEvent<{node: TreeNode, id: unknown, ids: unknown[]}>) => void} [onselect] Selection listener.
@@ -76,11 +78,11 @@ export class TreeView extends Component {
     icons: true,
     renderLabel: null,
     rowActions: null,
-    moreLabel: 'More actions',
+    moreLabel: null,
     load: null,
     filter: '',
-    label: 'Tree',
-    emptyText: 'Nothing to show',
+    label: null,
+    emptyText: null,
     height: null
   };
 
@@ -108,7 +110,7 @@ export class TreeView extends Component {
     this._childrenKey = this.options.childrenKey ?? 'children';
 
     root.setAttribute('role', 'tree');
-    root.setAttribute('aria-label', String(this.options.label ?? 'Tree'));
+    root.setAttribute('aria-label', String(this.options.label ?? this.msg('tree.label')));
     root.tabIndex = 0;
     if (this.options.selection === 'multi') root.setAttribute('aria-multiselectable', 'true');
     if (this.options.height !== null) {
@@ -443,7 +445,7 @@ export class TreeView extends Component {
 
     if (this._rows.length === 0) {
       this.el.replaceChildren(h('div', { class: 'zx-tree__empty' },
-        this._message('tree.empty', this.options.emptyText)));
+        this._message('tree.empty', this.options.emptyText ?? this.msg('tree.noItems'))));
       return;
     }
     this.el.replaceChildren(...this._rows.map((row, index) => this._renderRow(row, index)));
@@ -504,7 +506,7 @@ export class TreeView extends Component {
       ? renderRowActions(this.options.rowActions(this._subject(row)), {
         block: 'tree',
         name: this._readers.label(row.node),
-        moreLabel: String(this.options.moreLabel ?? 'More actions'),
+        moreLabel: String(this.options.moreLabel ?? this.msg('tree.more')),
         run: (action) => action.onSelect(this._subject(row))
       })
       : null;

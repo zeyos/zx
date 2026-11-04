@@ -6,7 +6,8 @@ import { h } from '../../core/dom.js';
  * @property {unknown} [value=''] Initial text.
  * @property {string} [name=''] Form field name.
  * @property {string} [language='text'] Language identifier shown to the user and exposed as data.
- * @property {string} [label='Code editor'] Accessible editor label.
+ * @property {string|null} [label=null] Accessible editor label; null reads the `codeEditor.label`
+ *   message ("Code editor").
  * @property {string} [placeholder=''] Placeholder text.
  * @property {number} [rows=12] Visible textarea rows.
  * @property {string} [indent='\t'] Text inserted by Tab and removed by Shift+Tab.
@@ -42,7 +43,7 @@ export class CodeEditor extends Component {
     value: '',
     name: '',
     language: 'text',
-    label: 'Code editor',
+    label: null,
     placeholder: '',
     rows: 12,
     indent: '\t',
@@ -73,7 +74,7 @@ export class CodeEditor extends Component {
     this._input = /** @type {HTMLTextAreaElement} */ (h('textarea', {
       class: 'zx-code-editor__input',
       name: this.options.name ? String(this.options.name) : undefined,
-      ariaLabel: String(this.options.label ?? 'Code editor'),
+      ariaLabel: String(this.options.label ?? this.msg('codeEditor.label')),
       placeholder: String(this.options.placeholder ?? ''),
       rows: normalizeRows(this.options.rows),
       wrap: normalizeWrap(this.options.wrap),
@@ -182,8 +183,8 @@ export class CodeEditor extends Component {
     const position = editorPosition(this._input.value, this._input.selectionStart ?? 0,
       this._input.selectionEnd ?? 0);
     this._position.textContent = position.lines > 1
-      ? `Ln ${position.line}, Col ${position.column} · ${position.lines} lines selected`
-      : `Ln ${position.line}, Col ${position.column}`;
+      ? this.msg('codeEditor.selection', position.line, position.column, position.lines)
+      : this.msg('codeEditor.position', position.line, position.column);
   }
 
   /** @returns {void} */

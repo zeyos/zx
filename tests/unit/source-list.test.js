@@ -65,6 +65,6 @@ test('every source kind has a glyph the bundled icon set draws', () => {
 
 test('the defaults match the documented options', () => {
   const { sources, label, layout, numbered } = SourceList.defaults;
-  assert.deepEqual({ sources, label, layout, numbered }, { sources: [], label: 'Sources', layout: 'chips', numbered: true });
+  assert.deepEqual({ sources, label, layout, numbered }, { sources: [], label: undefined, layout: 'chips', numbered: true });
   assert.equal(SourceList.cssName, 'source-list');
 });

@@ -19,7 +19,8 @@ import { MenuButton } from '../menu-button/menu-button.js';
  * @property {AccountIdentity} [account={}] Account presentation supplied by the application.
  * @property {MenuButtonItem[]} [items=[]] Account actions and `'-'` separators.
  * @property {boolean} [compact=false] Whether only the avatar is visually shown in the trigger.
- * @property {string|null} [label=null] Trigger label; defaults to `Account menu for <name>`.
+ * @property {string|null} [label=null] Trigger label; null reads the `accountMenu.labelFor` message
+ *   ("Account menu for <name>"), or `accountMenu.label` without a name.
  * @property {'bottom-start'|'bottom-end'|'top-start'|'top-end'|'bottom'|'top'|'right-start'|'right-end'|'left-start'|'left-end'|'right'|'left'} [placement='top-start'] Popup placement.
  * @property {(event: CustomEvent<{value: unknown, item: object}>) => void} [onselect] Preventable action listener.
  * @property {(event: CustomEvent<Record<string, never>>) => void} [onopen] Open listener.
@@ -174,7 +175,9 @@ export class AccountMenu extends Component {
     this.refs.secondary.hidden = !this._account.secondary;
     const hasStatus = ['online', 'away', 'busy', 'offline'].includes(this._account.status);
     const status = hasStatus && this._account.statusLabel ? `, ${this._account.statusLabel}` : '';
-    const label = this.options.label || `Account menu${this._account.name ? ` for ${this._account.name}` : ''}${status}`;
+    const name = this._account.name
+      ? this.msg('accountMenu.labelFor', this._account.name) : this.msg('accountMenu.label');
+    const label = this.options.label || `${name}${status}`;
     this.refs.trigger.setAttribute('aria-label', label);
     this._renderPanelHeader();
   }
@@ -187,7 +190,7 @@ export class AccountMenu extends Component {
       class: 'zx-account-menu__panel-identity',
       role: 'presentation'
     },
-    h('strong', {}, this._account.name || 'Account'),
+    h('strong', {}, this._account.name || this.msg('accountMenu.fallback')),
     this._account.secondary ? h('span', {}, this._account.secondary) : null));
   }
 }

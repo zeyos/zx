@@ -94,7 +94,7 @@ export class NavigationBar extends Component {
   constructor(target, options = {}) {
     super(target, options);
     this._overflow = new MenuButton(this.refs.moreTrigger, {
-      label: 'More',
+      label: this.msg('navigationBar.more'),
       icon: 'dots',
       kind: 'ghost',
       items: [],
@@ -131,7 +131,7 @@ export class NavigationBar extends Component {
       h('div', { class: 'zx-navigation-bar__brand', ref: 'title' }),
       h('nav', {
         class: 'zx-navigation-bar__navigation',
-        ariaLabel: 'Primary navigation'
+        ariaLabel: this.msg('navigationBar.primary')
       },
       h('div', { class: 'zx-navigation-bar__items', ref: 'items' }),
       h('div', { class: 'zx-navigation-bar__more', ref: 'more' },
@@ -141,7 +141,7 @@ export class NavigationBar extends Component {
         class: 'zx-navigation-bar__actions',
         ref: 'actions',
         role: 'group',
-        ariaLabel: 'Application actions'
+        ariaLabel: this.msg('navigationBar.actions')
       })
     );
     const panels = h('div', {

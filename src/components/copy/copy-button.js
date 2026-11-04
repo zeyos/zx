@@ -1,5 +1,6 @@
 import { h } from '../../core/dom.js';
 import { copyToClipboard } from '../../core/export.js';
+import { translate } from '../../core/i18n.js';
 import { icon as createIcon } from '../../core/icons.js';
 
 /**
@@ -7,8 +8,10 @@ import { icon as createIcon } from '../../core/icons.js';
  * @property {string|(() => string)} [text=''] Text to copy, or a function returning it — a
  *   function is what a button beside a live value wants, so the copy is never stale.
  * @property {string} [label=''] Visible label. Empty renders an icon-only ghost button.
- * @property {string} [title='Copy'] Accessible name, and the native tooltip on the icon-only form.
- * @property {string} [feedback='Copied'] Confirmation announced and shown after a copy.
+ * @property {string} [title] Accessible name, and the native tooltip on the icon-only form; by
+ *   default the `copy.copy` message ("Copy").
+ * @property {string} [feedback] Confirmation announced and shown after a copy; by default the
+ *   `copy.copied` message ("Copied").
  * @property {number} [feedbackDuration=2000] Milliseconds the confirmation stays.
  * @property {'md'|'sm'} [size='md'] Control size.
  * @property {'default'|'primary'|'ghost'} [kind='ghost'] Visual intent.
@@ -20,8 +23,6 @@ import { icon as createIcon } from '../../core/icons.js';
 const buttonDefaults = Object.freeze({
   text: '',
   label: '',
-  title: 'Copy',
-  feedback: 'Copied',
   feedbackDuration: 2000,
   size: 'md',
   kind: 'ghost'
@@ -39,7 +40,7 @@ const buttonDefaults = Object.freeze({
  * @returns {HTMLButtonElement}
  */
 export function copyButton(opts = {}) {
-  const options = { ...buttonDefaults, ...opts };
+  const options = { title: translate('copy.copy'), feedback: translate('copy.copied'), ...buttonDefaults, ...opts };
   const iconOnly = !options.label;
   const element = /** @type {HTMLButtonElement} */ (h('button', {
     class: ['zx-copy-button', iconOnly ? 'zx-icon-btn' : 'zx-btn'],

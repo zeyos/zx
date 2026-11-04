@@ -6,7 +6,8 @@ import { ICON_SIZE, icon } from '../../core/icons.js';
  * @typedef {Object} MultiValueEditorOptions
  * @property {unknown[]} [values=[]] Initial ordered values.
  * @property {unknown[]|Record<string, string>|null} [options=null] Allowed values; null uses text inputs.
- * @property {string} [addLabel='Add value'] Add-row button text.
+ * @property {string|null} [addLabel=null] Add-row button text; null reads the `multiValueEditor.add`
+ *   message ("Add value").
  * @property {'both'|'buttons'|'drag'|'none'} [reorder='both'] Reordering affordances each row gets:
  *   a drag handle, the up/down buttons, both, or neither.
  * @property {(event: CustomEvent<{values: string[]}>) => void} [onchange] Values change listener.
@@ -41,7 +42,7 @@ export class MultiValueEditor extends Component {
   static cssName = 'multi-value-editor';
 
   /** @type {MultiValueEditorOptions} */
-  static defaults = { values: [], options: null, addLabel: 'Add value', reorder: 'both' };
+  static defaults = { values: [], options: null, addLabel: null, reorder: 'both' };
 
   /** @returns {HTMLElement} */
   render() {
@@ -58,7 +59,7 @@ export class MultiValueEditor extends Component {
       class: 'zx-btn zx-multi-value-editor__add',
       type: 'button',
       dataset: { action: 'add' }
-    }, String(this.options.addLabel ?? 'Add value'));
+    }, String(this.options.addLabel ?? this.msg('multiValueEditor.add')));
     this._ownedNodes.push(this._rows, this._add);
     root.append(this._rows, this._add);
     this.listen(root, 'click', (event) => this._handleClick(event));
@@ -124,7 +125,7 @@ export class MultiValueEditor extends Component {
         : [[value, value], ...choices];
       const control = useSelect ? h('select', {
         class: 'zx-multi-value-editor__value',
-        ariaLabel: `Value ${index + 1}`,
+        ariaLabel: this.msg('multiValueEditor.value', index + 1),
         dataset: { index }
       }, entries.map(([optionValue, label]) => h('option', {
         value: optionValue,
@@ -133,14 +134,14 @@ export class MultiValueEditor extends Component {
         class: 'zx-multi-value-editor__value',
         type: 'text',
         value,
-        ariaLabel: `Value ${index + 1}`,
+        ariaLabel: this.msg('multiValueEditor.value', index + 1),
         dataset: { index }
       });
       return h('div', { class: 'zx-multi-value-editor__row', dataset: { row: index } },
         drag ? h('button', {
           class: 'zx-multi-value-editor__handle',
           type: 'button',
-          ariaLabel: `Reorder value ${index + 1}. Use the arrow keys to move it.`,
+          ariaLabel: this.msg('multiValueEditor.reorder', index + 1),
           dataset: { action: 'grab', index }
         }, icon('drag', { size: 12 })) : null,
         control,
@@ -151,20 +152,20 @@ export class MultiValueEditor extends Component {
             // `aria-disabled` rather than `disabled`: the buttons re-render on every move, and a
             // control that disables itself under the reader's finger drops focus to the document.
             ariaDisabled: String(index === 0),
-            ariaLabel: `Move value ${index + 1} up`,
+            ariaLabel: this.msg('multiValueEditor.moveUp', index + 1),
             dataset: { action: 'up', index }
           }, icon('chevron-up', { size: ICON_SIZE.chevron })) : null,
           buttons ? h('button', {
             class: 'zx-btn',
             type: 'button',
             ariaDisabled: String(index === last),
-            ariaLabel: `Move value ${index + 1} down`,
+            ariaLabel: this.msg('multiValueEditor.moveDown', index + 1),
             dataset: { action: 'down', index }
           }, icon('chevron-down', { size: ICON_SIZE.chevron })) : null,
           h('button', {
             class: 'zx-btn',
             type: 'button',
-            ariaLabel: `Remove value ${index + 1}`,
+            ariaLabel: this.msg('multiValueEditor.remove', index + 1),
             dataset: { action: 'remove', index }
           }, icon('x', { size: ICON_SIZE.dismiss }))
         )

@@ -1,6 +1,7 @@
 // @ts-check
 import { Component } from '../../core/component.js';
 import { h, restoreTarget, safeHref, snapshotTarget } from '../../core/dom.js';
+import { translate } from '../../core/i18n.js';
 import { icon as createIcon } from '../../core/icons.js';
 import { isElement } from '../../core/util.js';
 
@@ -54,7 +55,8 @@ import { isElement } from '../../core/util.js';
  * @property {EntityRefActionEntry[]} [actions=[]] Secondary controls; element actions keep their own behavior.
  * @property {'sm'|'md'|'lg'} [size='md'] Size of the icon and the identity text.
  * @property {boolean} [wrap=false] Whether long identity text may wrap instead of truncating.
- * @property {string} [actionsLabel='Entity actions'] Accessible name for secondary actions.
+ * @property {string|null} [actionsLabel=null] Accessible name for secondary actions; null reads the
+ *   `entityRef.actions` message ("Entity actions").
  * @property {(event: CustomEvent<{id: unknown, entity: Readonly<EntityRefState>, href: string, event: MouseEvent}>) => void} [onactivate]
  *   Preventable primary-link listener.
  * @property {(event: CustomEvent<{id: string, action: Readonly<EntityRefAction>, entity: Readonly<EntityRefState>, event: MouseEvent}>) => void} [onaction]
@@ -97,7 +99,7 @@ export class EntityRef extends Component {
     actions: [],
     size: 'md',
     wrap: false,
-    actionsLabel: 'Entity actions'
+    actionsLabel: null
   };
 
   /**
@@ -116,7 +118,7 @@ export class EntityRef extends Component {
     this.el = root;
     this._snapshot = this._createdRoot ? null : snapshotTarget(root);
     this._destroyed = false;
-    this._state = normalizeEntityRef(this.options);
+    this._state = normalizeEntityRef(this.options, this.msg('entityRef.actions'));
     this._renderedActions = [];
 
     root.replaceChildren(
@@ -144,7 +146,7 @@ export class EntityRef extends Component {
    */
   set(values = {}) {
     if (!values || typeof values !== 'object' || Array.isArray(values)) return this;
-    this._state = normalizeEntityRef({ ...this._state, ...values });
+    this._state = normalizeEntityRef({ ...this._state, ...values }, this.msg('entityRef.actions'));
     this._sync();
     return this;
   }
@@ -281,7 +283,7 @@ export class EntityRef extends Component {
  * @param {Partial<EntityRefOptions>|null|undefined} values Candidate values.
  * @returns {EntityRefState}
  */
-export function normalizeEntityRef(values = {}) {
+export function normalizeEntityRef(values = {}, actionsLabel = translate('entityRef.actions')) {
   const source = values && typeof values === 'object' && !Array.isArray(values) ? values : {};
   const title = String(source.title ?? '');
   const link = normalizeEntityRefLink(source.link);
@@ -296,7 +298,7 @@ export function normalizeEntityRef(values = {}) {
     actions: normalizeEntityRefActions(source.actions),
     size: normalizeSize(source.size),
     wrap: Boolean(source.wrap),
-    actionsLabel: String(source.actionsLabel || 'Entity actions')
+    actionsLabel: String(source.actionsLabel || actionsLabel)
   };
 }
 

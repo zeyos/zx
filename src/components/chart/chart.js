@@ -1,10 +1,12 @@
 import { Component } from '../../core/component.js';
 import { h } from '../../core/dom.js';
+import { translate } from '../../core/i18n.js';
 import { prefersReducedMotion, watchMotion } from '../../core/motion.js';
 import { uid } from '../../core/util.js';
 
 /** @typedef {{label?: string, data?: unknown[], [key: string]: unknown}} ChartDataset */
 /** @typedef {{labels?: unknown[], datasets?: ChartDataset[], [key: string]: unknown}} ChartData */
+/** @typedef {(key: string, ...args: unknown[]) => string} ChartText Resolves a message. */
 /**
  * @typedef {Object} ChartSpec
  * @property {string} type Chart type.
@@ -43,13 +45,17 @@ import { uid } from '../../core/util.js';
  * @property {string} [type='bar'] Chart type passed to the adapter.
  * @property {ChartData} [data={labels: [], datasets: []}] Chart data.
  * @property {Record<string, unknown>} [chartOptions={}] Engine-specific options.
- * @property {string} [label='Chart'] Accessible canvas and summary label; blank text falls back to `Chart`.
+ * @property {string|null} [label=null] Accessible canvas and summary label; null or blank text reads
+ *   the `chart.label` message ("Chart").
  * @property {string} [description=''] Accessible description.
  * @property {'hidden'|'visible'} [summary='hidden'] Semantic data-table presentation.
  * @property {boolean} [loading=false] Initial loading state.
- * @property {string} [emptyText='No chart data'] Empty-state text.
- * @property {string} [loadingText='Loading chart…'] Loading-state text.
- * @property {string} [errorText='Unable to render chart'] Error fallback text.
+ * @property {string|null} [emptyText=null] Empty-state text; null reads the `chart.empty` message
+ *   ("No chart data").
+ * @property {string|null} [loadingText=null] Loading-state text; null reads the `chart.loading`
+ *   message ("Loading chart…").
+ * @property {string|null} [errorText=null] Error fallback text; null reads the `chart.error` message
+ *   ("Unable to render chart").
  * @property {string} [aspectRatio='16 / 9'] Responsive container aspect ratio.
  * @property {(event: CustomEvent<{instance: unknown}>) => void} [onready] Engine-ready listener.
  * @property {(event: CustomEvent<{data: ChartData, type: string}>) => void} [onupdate] Update listener.
@@ -74,13 +80,13 @@ export class Chart extends Component {
     type: 'bar',
     data: { labels: [], datasets: [] },
     chartOptions: {},
-    label: 'Chart',
+    label: null,
     description: '',
     summary: 'hidden',
     loading: false,
-    emptyText: 'No chart data',
-    loadingText: 'Loading chart…',
-    errorText: 'Unable to render chart',
+    emptyText: null,
+    loadingText: null,
+    errorText: null,
     aspectRatio: '16 / 9'
   };
 
@@ -106,7 +112,7 @@ export class Chart extends Component {
     this._adapter = this.options.adapter;
     this._type = String(this.options.type || 'bar');
     this._data = normalizeChartData(this.options.data);
-    this._label = normalizeChartLabel(this.options.label);
+    this._label = String(this.options.label ?? '').trim() || this.msg('chart.label');
     this._chartOptions = cloneChartValue(this.options.chartOptions);
     this._loading = Boolean(this.options.loading);
     this._error = null;
@@ -199,7 +205,7 @@ export class Chart extends Component {
 
   /** Shows an error and destroys the current engine. @param {unknown} error @returns {this} */
   setError(error) {
-    this._error = error ?? new Error(String(this.options.errorText));
+    this._error = error ?? new Error(String(this.options.errorText ?? this.msg('chart.error')));
     this._hasError = true;
     this._loading = false;
     this._destroyHandle();
@@ -305,22 +311,17 @@ export class Chart extends Component {
     this.el.dataset.state = state;
     this.refs.viewport.hidden = state !== 'ready';
     let text = '';
-    if (state === 'loading') text = String(this.options.loadingText);
-    else if (state === 'error') text = errorMessage(this._error, this.options.errorText);
-    else if (state === 'empty') text = String(this.options.emptyText);
+    if (state === 'loading') text = String(this.options.loadingText ?? this.msg('chart.loading'));
+    else if (state === 'error') text = errorMessage(this._error, this.options.errorText ?? this.msg('chart.error'));
+    else if (state === 'empty') text = String(this.options.emptyText ?? this.msg('chart.empty'));
     this.refs.status.textContent = text;
     this.refs.status.hidden = !text;
   }
 
   /** @returns {void} */
   _renderSummary() {
-    this.refs.summary.replaceChildren(chartSummaryTable(this._data, this._label));
+    this.refs.summary.replaceChildren(chartSummaryTable(this._data, this._label, (key, ...args) => this.msg(key, ...args)));
   }
-}
-
-/** @param {unknown} value @returns {string} */
-function normalizeChartLabel(value) {
-  return String(value ?? '').trim() || 'Chart';
 }
 
 /**
@@ -463,17 +464,21 @@ export function isEmptyChartData(data) {
   return !Array.isArray(data?.datasets) || !data.datasets.some((dataset) => Array.isArray(dataset?.data) && dataset.data.length > 0);
 }
 
+/** The catalogue, for the summary helpers when no Chart called them. @type {ChartText} */
+const catalogueText = (key, ...args) => translate(key, args);
+
 /**
  * Builds the semantic table mirrored alongside the canvas.
  * @param {ChartData} data Chart data.
- * @param {string} label Caption.
+ * @param {string} [label] Caption, by default the `chart.summary` message ("Chart data").
+ * @param {ChartText} [text=catalogueText] Resolves the table's own words; a Chart passes its `msg()`.
  * @returns {HTMLTableElement}
  */
-export function chartSummaryTable(data, label = 'Chart data') {
-  const summary = chartSummaryModel(data);
+export function chartSummaryTable(data, label, text = catalogueText) {
+  const summary = chartSummaryModel(data, text);
   const table = /** @type {HTMLTableElement} */ (h('table', { class: 'zx-chart__table' },
-    h('caption', {}, label),
-    h('thead', {}, h('tr', {}, h('th', { scope: 'col' }, 'Label'),
+    h('caption', {}, label ?? text('chart.summary')),
+    h('thead', {}, h('tr', {}, h('th', { scope: 'col' }, text('chart.summaryLabel')),
       summary.headers.map((header) => h('th', { scope: 'col' }, header)))),
     h('tbody', {}, summary.rows.map((row) => h('tr', {},
       h('th', { scope: 'row' }, row.label),
@@ -484,15 +489,16 @@ export function chartSummaryTable(data, label = 'Chart data') {
 /**
  * Produces the exact text matrix rendered by the semantic chart summary.
  * @param {ChartData} data Chart data.
+ * @param {ChartText} [text=catalogueText] Resolves the name of an unnamed series.
  * @returns {{headers: string[], rows: Array<{label: string, values: string[]}>}}
  */
-export function chartSummaryModel(data) {
+export function chartSummaryModel(data, text = catalogueText) {
   const datasets = Array.isArray(data?.datasets) ? data.datasets : [];
   const labels = Array.isArray(data?.labels) ? data.labels : [];
   const length = Math.max(labels.length,
     ...datasets.map((dataset) => Array.isArray(dataset.data) ? dataset.data.length : 0), 0);
   return {
-    headers: datasets.map((dataset, index) => String(dataset.label ?? `Series ${index + 1}`)),
+    headers: datasets.map((dataset, index) => String(dataset.label ?? text('chart.series', index + 1))),
     rows: Array.from({ length }, (_, index) => ({
       label: String(labels[index] ?? index + 1),
       values: datasets.map((dataset) => summaryValue(dataset.data?.[index]))

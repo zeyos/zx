@@ -542,7 +542,7 @@ export function elementFor(ComponentClass, {
       const { formValue, state, empty } = currentFormValue(Constructor, this._component, this);
       this._internals.setFormValue(formValue, state);
       if ((Constructor === Select || Constructor === Datebox) && this.hasAttribute('required') && empty) {
-        const message = Constructor === Datebox ? 'Please enter a date.' : 'Please select a value.';
+        const message = this._component.msg(Constructor === Datebox ? 'datebox.required' : 'select.required');
         this._internals.setValidity({ valueMissing: true }, message, this._component.refs.input);
       } else {
         this._internals.setValidity({});

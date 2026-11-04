@@ -171,7 +171,7 @@ const APPROVAL_CARD_ATTRS = attributes({
 
 const SOURCE_LIST_ATTRS = attributes({
   sources: data({ default: [], set: (component, value) => component.setSources(value), get: (component) => component.getSources() }),
-  label: rebuiltText({ default: 'Sources' }),
+  label: rebuiltText(),
   layout: rebuiltText({ default: 'chips' }),
   numbered: flag({ rebuild: true }),
   icons: rebuiltData({}),
@@ -287,7 +287,7 @@ const KANBAN_VIEW_ATTRS = attributes({
   'show-counts': flag({ rebuild: true }),
   'show-empty-columns': flag({ rebuild: true }),
   variant: rebuiltText({ default: 'outlined' }),
-  label: rebuiltText({ default: 'Kanban board' })
+  label: rebuiltText({ default: null })
 });
 
 const TREE_ATTRS = attributes({
@@ -303,11 +303,11 @@ const TREE_ATTRS = attributes({
   icons: flag({ rebuild: true }),
   'render-label': rebuiltProp(),
   'row-actions': rebuiltProp(),
-  'more-label': rebuiltText({ default: 'More actions' }),
+  'more-label': rebuiltText({ default: null }),
   load: rebuiltProp(),
   filter: text({ default: '', set: (component, value) => component.setFilter(value) }),
-  label: rebuiltText({ default: 'Tree' }),
-  'empty-text': rebuiltText({ default: 'Nothing to show' }),
+  label: rebuiltText({ default: null }),
+  'empty-text': rebuiltText({ default: null }),
   height: rebuiltText({ default: null, normalize: normalizeNumberOrString }),
   msg: messages()
 });
@@ -317,14 +317,14 @@ const CHART_ATTRS = attributes({
   type: text({ default: 'bar', set: (component, value) => component.setType(value) }),
   data: data({ default: { labels: [], datasets: [] }, set: (component, value) => component.setData(value) }),
   'chart-options': data({ default: {}, set: (component, value) => component.update(value) }),
-  label: rebuiltText({ default: 'Chart' }),
+  label: rebuiltText({ default: null }),
   description: rebuiltText({ default: '' }),
   summary: rebuiltText({ default: 'hidden' }),
   // New data ends a load on its own, so the property reads the chart rather than what it was told.
   loading: bool({ set: (component, value) => component.setLoading(value), get: (component) => component.el.dataset.state === 'loading' }),
-  'empty-text': rebuiltText({ default: 'No chart data' }),
-  'loading-text': rebuiltText({ default: 'Loading chart…' }),
-  'error-text': rebuiltText({ default: 'Unable to render chart' }),
+  'empty-text': rebuiltText({ default: null }),
+  'loading-text': rebuiltText({ default: null }),
+  'error-text': rebuiltText({ default: null }),
   'aspect-ratio': rebuiltText({ default: '16 / 9' })
 });
 

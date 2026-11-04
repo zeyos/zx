@@ -25,7 +25,12 @@ const SAME_AS_ENGLISH = new Map([
   ['datebox.placeholder.month', 'no words'],
   ['datebox.placeholder.second', 'no words'],
   ['dialog.ok', 'shared word'],
+  ['fileItem.kind.audio', 'shared word'],
+  ['fileItem.kind.text', 'shared word'],
+  ['fileItem.kind.video', 'shared word'],
   ['filter.conditionNoun', 'shared word'],
+  ['kanbanView.assigneeOverflow', 'no words'],
+  ['kanbanView.statusLabel', 'shared word'],
   ['listToolbar.toolBadge', 'no words'],
   ['listToolbar.viewBoard', 'established term'],
   ['moduleBar.itemBadge', 'no words'],
@@ -46,7 +51,10 @@ const SAME_AS_ENGLISH = new Map([
  * `formatDate()` patterns, not printf templates. German writes them in its own order, so their
  * tokens are not placeholders; `%d.%` would even read as a named one.
  */
-const DATE_PATTERNS = new Set(['datePicker.dayLabel', 'runStatus.dateTimeFormat', 'runStatus.timeFormat']);
+const DATE_PATTERNS = new Set([
+  'datePicker.dayLabel', 'daterange.span.day', 'daterange.span.full', 'daterange.span.month',
+  'runStatus.dateTimeFormat', 'runStatus.timeFormat'
+]);
 
 /**
  * The placeholders `printf()` fills, sorted, so a repeated or a dropped one shows.
@@ -96,6 +104,9 @@ test('date patterns read as German dates and survive interpolation', () => {
   assert.equal(formatDate(date, de['runStatus.dateTimeFormat']), '05.03., 09:07');
   assert.equal(formatDate(date, de['runStatus.timeFormat']), '09:07');
   assert.equal(formatDate(date, de['datePicker.dayLabel']), '5. März 2026');
+  assert.equal(formatDate(date, de['daterange.span.full']), '5. März 2026');
+  assert.equal(formatDate(date, de['daterange.span.month']), '5. März');
+  assert.equal(formatDate(date, de['daterange.span.day']), '5.');
   for (const key of DATE_PATTERNS) assert.equal(printf(de[key], []), de[key], key);
 });
 

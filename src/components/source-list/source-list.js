@@ -17,8 +17,9 @@ import { Tooltip } from '../tooltip/tooltip.js';
  * @typedef {Object} SourceListOptions
  * @property {Source[]} [sources=[]] The sources, in the order an answer's `[n]` citations number
  * them. Model text is data: every string reaches the page as text.
- * @property {string} [label='Sources'] The visible label the list is named by. Empty hides it and
- * names the list with the `sourceList.label` message instead.
+ * @property {string|null} [label] The visible label the list is named by, by default the
+ * `sourceList.label` message ("Sources"). Empty or null hides it and names the list with that
+ * message instead.
  * @property {'chips'|'list'} [layout='chips'] `'chips'` wraps short chips beside the label;
  * `'list'` gives each source a full-width row with its title and site.
  * @property {boolean} [numbered=true] Whether each source shows its number.
@@ -63,7 +64,8 @@ export class SourceList extends Component {
   /** @type {Readonly<SourceListOptions>} */
   static defaults = {
     sources: [],
-    label: 'Sources',
+    // Undefined rather than null, which already hides the label.
+    label: undefined,
     layout: 'chips',
     numbered: true,
     icons: {},
@@ -89,7 +91,8 @@ export class SourceList extends Component {
     this._layout = this.options.layout === 'list' ? 'list' : 'chips';
     root.dataset.layout = this._layout;
 
-    const label = typeof this.options.label === 'string' ? this.options.label.trim() : '';
+    const { label: option = this.msg('sourceList.label') } = this.options;
+    const label = typeof option === 'string' ? option.trim() : '';
     const labelId = uid('zx-source-list');
     const heading = label ? h('span', { class: 'zx-source-list__label', id: labelId }, label) : null;
     this._list = h('ol', {

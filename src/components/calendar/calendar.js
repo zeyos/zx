@@ -268,7 +268,9 @@ export class Calendar extends Component {
     };
     // `source` is assembled from canonical keys, so the configured readers must not be reapplied
     // here — but `dateUnit` must, or a numeric change is read in the wrong unit.
-    const [next] = normalizeCalendarEvents([source], { dateUnit: this.options.dateUnit });
+    const [next] = normalizeCalendarEvents([source], {
+      dateUnit: this.options.dateUnit, untitledTitle: this.msg('calendar.untitled')
+    });
     next.data = source.data;
     this._events = this._events.map((event, eventIndex) => eventIndex === index ? next : event);
     this._mutationVersions.delete(String(id));
@@ -386,6 +388,7 @@ export class Calendar extends Component {
       eventLocation: this.options.eventLocation,
       eventEditable: this.options.eventEditable,
       eventDurationEditable: this.options.eventDurationEditable,
+      untitledTitle: this.msg('calendar.untitled'),
       dateUnit: this.options.dateUnit
     };
   }
@@ -1354,7 +1357,9 @@ export class Calendar extends Component {
   /** @param {CalendarEvent} event @returns {string} */
   _eventLabel(event) {
     const location = event.location ? `, ${event.location}` : '';
-    return `${event.title}, ${formatDateTime(event.start, this.options.locale)} to ${formatDateTime(event.end, this.options.locale)}${location}`;
+    const label = this.msg('calendar.eventLabel', event.title,
+      formatDateTime(event.start, this.options.locale), formatDateTime(event.end, this.options.locale));
+    return `${label}${location}`;
   }
 
   /** @param {Date} date @returns {string} */

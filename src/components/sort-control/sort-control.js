@@ -10,7 +10,8 @@ import { Select } from '../select/select.js';
  * @typedef {Object} SortControlOptions
  * @property {SortField[]} [fields=[]] Available sort fields, in display order.
  * @property {SortValue|null} [value=null] Initial sort; null chooses the first field ascending.
- * @property {string} [label='Sort by'] Accessible field label and direction-name prefix.
+ * @property {string|null} [label=null] Accessible field label and direction-name prefix; null reads
+ *   the `sortControl.label` message ("Sort by").
  * @property {{asc?:string,desc?:string}} [labels={}] Current/next direction labels, defaulting to Ascending/Descending.
  * @property {boolean} [disabled=false] Whether interaction is disabled.
  * @property {(event:CustomEvent<{value:SortValue}>)=>void} [onchange] Atomic field/direction change.
@@ -24,7 +25,7 @@ import { Select } from '../select/select.js';
 export class SortControl extends Component {
   static cssName = 'sort-control';
   /** @type {SortControlOptions} */
-  static defaults = { fields: [], value: null, label: 'Sort by', labels: {}, disabled: false };
+  static defaults = { fields: [], value: null, label: null, labels: {}, disabled: false };
 
   /** @returns {HTMLElement} */
   render() {
@@ -42,7 +43,7 @@ export class SortControl extends Component {
     });
     this._select = new Select(null, {
       items: sortChoices(this.options.fields), valueKey: 'id', labelKey: 'label',
-      value: this._value?.id ?? null, label: this.options.label,
+      value: this._value?.id ?? null, label: this.options.label ?? this.msg('sortControl.label'),
       filter: 'local', disabled: this._disabled,
       onchange: ({ detail }) => {
         if (!detail.item) return;
@@ -94,10 +95,12 @@ export class SortControl extends Component {
   _syncDirection() {
     const dir = this._value?.dir ?? 'asc';
     const next = dir === 'asc' ? 'desc' : 'asc';
-    const labels = { asc: 'Ascending', desc: 'Descending', ...this.options.labels };
+    const labels = {
+      asc: this.msg('sortControl.ascending'), desc: this.msg('sortControl.descending'), ...this.options.labels
+    };
     this._direction.replaceChildren(icon(dir === 'asc' ? 'arrow-up-wide-short' : 'arrow-down-wide-short'));
     this._direction.dataset.direction = dir;
-    this._direction.setAttribute('aria-label', `${this.options.label}: ${labels[dir]}`);
+    this._direction.setAttribute('aria-label', `${this.options.label ?? this.msg('sortControl.label')}: ${labels[dir]}`);
     this._direction.title = `${labels[dir]} → ${labels[next]}`;
   }
 

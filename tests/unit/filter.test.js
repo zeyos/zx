@@ -2,9 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-  cloneFilterAst, cloneFilterValue, emptyFilterAst, filterCondition, filterGroup,
-  parseFilterAst, stringifyFilterAst, validateFilterAst
+  cloneFilterAst, cloneFilterValue, emptyFilterAst, filterCondition, filterGroup, filterOperatorLabel,
+  filterOperators, parseFilterAst, stringifyFilterAst, validateFilterAst
 } from '../../src/components/filter/filter-model.js';
+import { setTranslator } from '../../src/core/i18n.js';
+import { de } from '../../src/locales/de.js';
 
 const fields = [
   { id: 'status', label: 'Status', type: 'status', defaultOperator: 'eq' },
@@ -104,6 +106,61 @@ test('restricted root logic rejects a mismatching saved expression without rewri
   assert.equal(mismatch.code, 'root-logic');
   assert.equal(mismatch.nodeId, 'root');
   assert.equal(JSON.stringify(ast), before);
+});
+
+test('a built-in operator reads its message, and a host-supplied operator keeps its label', () => {
+  const text = (key) => `[${key}]`;
+  const eq = filterOperators.find((operator) => operator.id === 'eq');
+  assert.equal(filterOperatorLabel(eq, text), '[filter.op.eq]');
+  assert.equal(filterOperatorLabel({ ...eq, arity: 'many' }, text), '[filter.op.eq]', 'a spread that keeps the label');
+  assert.equal(filterOperatorLabel({ ...eq, label: 'equals' }, text), 'equals', 'a built-in id with its own label');
+  assert.equal(filterOperatorLabel({ id: 'like', label: 'sounds like', arity: 'single', types: ['text'] }, text), 'sounds like');
+  assert.equal(filterOperatorLabel(eq), 'is', 'the catalogue, when no text is given');
+  assert.equal(eq.label, 'is', 'the exported data stays as it was');
+});
+
+/** One condition on the money field, with what it holds. */
+const conditionAst = (node) => parseFilterAst({ version: 1, root: { kind: 'group', id: 'root', logic: 'and', children: [
+  { kind: 'condition', id: 'c', field: 'amount', operator: 'gte', value: 1, ...node }
+] } });
+
+/** @param {object} node @param {(...args: any[]) => string} [text] @returns {string[]} The messages. */
+const messagesFor = (node, text) => validateFilterAst(conditionAst(node), fields, undefined, text).errors.map((error) => error.message);
+
+test('validation keeps its English word for word', () => {
+  const nested = parseFilterAst({ version: 1, root: { kind: 'group', id: 'root', logic: 'and', children: [
+    { kind: 'group', id: 'g', logic: 'or', children: [] }
+  ] } });
+  assert.deepEqual(validateFilterAst(nested, fields).errors.map((error) => error.message), ['Nested groups need at least one condition']);
+  assert.deepEqual(messagesFor({ field: '' }), ['Choose a field']);
+  assert.deepEqual(messagesFor({ field: 'gone' }), ['Unavailable field: gone']);
+  assert.deepEqual(messagesFor({ operator: '' }), ['Choose an operator']);
+  assert.deepEqual(messagesFor({ operator: 'gone' }), ['Unavailable operator: gone']);
+  assert.deepEqual(messagesFor({ operator: 'contains' }), ['contains is not available for Amount']);
+  assert.deepEqual(messagesFor({ operator: 'between', value: [1] }), ['Enter both values']);
+  assert.deepEqual(messagesFor({ field: 'status', operator: 'anyOf', value: [] }), ['Choose at least one value']);
+  assert.deepEqual(messagesFor({ operator: 'isEmpty', value: 1 }), ['This operator does not accept a value']);
+  assert.deepEqual(messagesFor({ value: '' }), ['Enter a value']);
+});
+
+test('validation asks the text it is given, and the host translator without one', () => {
+  const text = (key, ...args) => [key, ...args].join(' ');
+  assert.deepEqual(messagesFor({ operator: 'contains' }, text), ['filter.operatorType filter.op.contains Amount']);
+  setTranslator((key) => de[key]);
+  try {
+    assert.deepEqual(messagesFor({ value: '' }), ['Wert eingeben']);
+    assert.deepEqual(messagesFor({ operator: 'contains' }), ['„enthält“ ist für Amount nicht verfügbar']);
+  } finally {
+    setTranslator(null);
+  }
+});
+
+test('the root logic error is one sentence per logic', async () => {
+  const { rootLogicError } = await import('../../src/components/filter/filter.js');
+  const ast = sampleAst();
+  assert.equal(rootLogicError(ast, 'or').message, 'This filter requires match any conditions.');
+  assert.equal(rootLogicError({ ...ast, root: { ...ast.root, logic: 'or' } }, 'and').message, 'This filter requires match all conditions.');
+  assert.equal(rootLogicError(ast, 'or', (key) => key).message, 'filter.requiresAny');
 });
 
 test('a TagPicker value round-trips through the AST with its raw values', async () => {

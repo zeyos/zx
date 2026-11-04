@@ -59,7 +59,8 @@ const STORAGE_NAMESPACE = 'dock';
  *   front.
  * @property {string|null} [storageKey=null] Key under which sizes, collapsed panes, and active
  *   tabs are remembered. Storage failures degrade to memory rather than throwing.
- * @property {string} [label='Resize panes'] Accessible name given to every divider.
+ * @property {string|null} [label=null] Accessible name given to every divider; null reads the
+ *   `dock.resize` message ("Resize panes").
  * @property {(event: CustomEvent<{name: string}>) => void} [oncollapse] Collapse listener.
  * @property {(event: CustomEvent<{name: string}>) => void} [onexpand] Expand listener.
  * @property {(event: CustomEvent<{name: string, size: number}>) => void} [onresize] Resize listener.
@@ -99,7 +100,7 @@ export class Dock extends Component {
     collapsible: true,
     lazy: true,
     storageKey: null,
-    label: 'Resize panes'
+    label: null
   };
 
   /**
@@ -606,7 +607,7 @@ export class Dock extends Component {
       // A separator's aria-orientation describes the separator, not the stack: panes stacked
       // vertically are parted by horizontal lines.
       ariaOrientation: this._orientation === 'vertical' ? 'horizontal' : 'vertical',
-      ariaLabel: String(this.options.label ?? 'Resize panes')
+      ariaLabel: String(this.options.label ?? this.msg('dock.resize'))
     });
     this._dividerDrags.push(dragAxis(divider, {
       orientation: this._orientation,

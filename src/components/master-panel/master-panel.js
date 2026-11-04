@@ -73,7 +73,7 @@ export class MasterPanel extends Component {
         class: 'zx-master-panel__buttons',
         ref: 'buttons',
         role: 'group',
-        ariaLabel: 'Panel actions'
+        ariaLabel: this.msg('panel.actions')
       })
     );
     const content = h('div', {

@@ -5,6 +5,7 @@
  * are testable in Node.
  * @module questionnaire/items
  */
+import { translate } from '../../core/i18n.js';
 import {
   NEXT_REVIEW, NEXT_SUBMIT, checkCondition, checkNext, checkRuleList, evaluate, isEmptyAnswer,
   resolveNext as resolveTarget
@@ -116,13 +117,14 @@ const SHORTCUT_KEYS = '123456789abcdefghijklmnopqrstuvwxyz';
  * Normalizes and validates a list of item definitions. Never mutates its input; declarative
  * `when`, `next` and `validate` forms are copied.
  * @param {QuestionnaireItem[]} list Item definitions.
+ * @param {(key: string) => string} [text=translate] Resolves the default label of a free-form input.
  * @returns {NormalizedItem[]}
  * @throws {TypeError} When the list, an item, or a name is malformed, a name repeats, or a
  *   declarative condition, branch list or rule list is malformed — including a condition naming
  *   an item that is not declared before it. A `when`, `next` or `validate` that is neither
  *   declarative nor a function does not throw: it reads as absent.
  */
-export function normalizeItems(list) {
+export function normalizeItems(list, text = translate) {
   if (!Array.isArray(list)) throw new TypeError('Questionnaire items must be an array');
   /** @type {Set<string>} */
   const seen = new Set();
@@ -142,7 +144,7 @@ export function normalizeItems(list) {
     const validate = normalizeValidate(item.validate, name);
     const choices = normalizeChoices(item.choices ?? [], name);
     const field = item.field && typeof item.field === 'object' ? { ...item.field } : null;
-    const input = normalizeInput(item.input);
+    const input = normalizeInput(item.input, text);
     if (choices.length === 0 && !field && !input) {
       throw new TypeError(`Item "${name}" needs choices, an input, or a field`);
     }
@@ -384,12 +386,12 @@ export function progressOf(items, raw, path) {
   };
 }
 
-/** @param {unknown} input @returns {Required<QuestionnaireInput>|null} */
-function normalizeInput(input) {
+/** @param {unknown} input @param {(key: string) => string} text @returns {Required<QuestionnaireInput>|null} */
+function normalizeInput(input, text) {
   if (!input) return null;
   const source = typeof input === 'object' && !Array.isArray(input) ? /** @type {QuestionnaireInput} */ (input) : {};
   return {
-    label: String(source.label ?? 'Other'),
+    label: String(source.label ?? text('questionnaire.other')),
     placeholder: String(source.placeholder ?? ''),
     multiline: Boolean(source.multiline),
     maxLength: Math.max(0, Number(source.maxLength) || 0)

@@ -29,13 +29,16 @@ import { ActivityItem } from '../activity-item/activity-item.js';
  * @property {ActivityItemOptions[]} [items=[]] Initial activities in host-supplied chronological order.
  * @property {ActivityGroupReader} [groupBy=null] Property or resolver used for stable grouping.
  * @property {ActivityGroupLabel|null} [groupLabel=null] Group-heading renderer.
- * @property {string} [label='Activity'] Accessible collection name.
+ * @property {string|null} [label=null] Accessible collection name; null reads the
+ *   `activityList.label` message ("Activity").
  * @property {ActivityListVariant} [variant='default'] Entry layout, reflected as `data-variant` on
  * the root. `'compact'` also makes an avatar descriptor without a `size` small.
  * @property {boolean} [loading=false] Whether initial or incremental activity is loading.
  * @property {number} [loadingCount=3] Placeholder rows shown for an empty loading list.
- * @property {string} [loadingText='Loading activity'] Loading status text.
- * @property {ActivityListContent} [emptyText='No activity yet'] Empty-state content.
+ * @property {string|null} [loadingText=null] Loading status text; null reads the
+ *   `activityList.loading` message ("Loading activity").
+ * @property {ActivityListContent} [emptyText=null] Empty-state content; null reads the
+ *   `activityList.empty` message ("No activity yet").
  * @property {1|2|3|4|5|6} [groupHeadingLevel=2] Semantic group-heading level.
  * @property {1|2|3|4|5|6} [itemHeadingLevel=3] Default item-heading level.
  * @property {(event:CustomEvent<{items:ActivityItemOptions[]}>)=>void} [ondatachange]
@@ -57,12 +60,12 @@ export class ActivityList extends Component {
     items: [],
     groupBy: null,
     groupLabel: null,
-    label: 'Activity',
+    label: null,
     variant: 'default',
     loading: false,
     loadingCount: 3,
-    loadingText: 'Loading activity',
-    emptyText: 'No activity yet',
+    loadingText: null,
+    emptyText: null,
     groupHeadingLevel: 2,
     itemHeadingLevel: 3
   };
@@ -88,7 +91,7 @@ export class ActivityList extends Component {
     this._loading = Boolean(this.options.loading);
     this._itemComponents = [];
     this._groupSequence = 0;
-    root.setAttribute('aria-label', String(this.options.label || 'Activity'));
+    root.setAttribute('aria-label', String(this.options.label || this.msg('activityList.label')));
     this._variant = normalizeActivityListVariant(this.options.variant);
     if (this._variant === 'compact') root.dataset.variant = 'compact';
     try {
@@ -251,7 +254,7 @@ export class ActivityList extends Component {
       } else if (!this._loading) {
         content.push(h('div', {
           class: 'zx-activity-list__empty', role: 'status'
-        }, listContent(this.options.emptyText, 'ActivityList emptyText')));
+        }, listContent(this.options.emptyText ?? this.msg('activityList.empty'), 'ActivityList emptyText')));
       }
       if (this._loading) content.push(this._createLoading(this._items.length === 0));
       root.replaceChildren(...content);
@@ -278,7 +281,7 @@ export class ActivityList extends Component {
     const headingId = uid(`zx-activity-list-group-${this._groupSequence}`);
     const label = this.options.groupLabel
       ? this.options.groupLabel(group.id, group.items.map(cloneActivityDescriptor))
-      : String(group.id ?? 'Other');
+      : String(group.id ?? this.msg('activityList.other'));
     list.setAttribute('aria-labelledby', headingId);
     return h('section', { class: 'zx-activity-list__group', ariaLabelledby: headingId },
       h(`h${normalizeHeadingLevel(this.options.groupHeadingLevel, 2)}`, {
@@ -290,7 +293,7 @@ export class ActivityList extends Component {
   _createLoading(placeholders) {
     const region = h('div', {
       class: 'zx-activity-list__loading', role: 'status', ariaLive: 'polite'
-    }, h('span', { class: 'zx-activity-list__loading-label' }, String(this.options.loadingText)));
+    }, h('span', { class: 'zx-activity-list__loading-label' }, String(this.options.loadingText ?? this.msg('activityList.loading'))));
     if (!placeholders) return region;
     const rows = h('div', { class: 'zx-activity-list__skeletons', ariaHidden: 'true' });
     const count = normalizeLoadingCount(this.options.loadingCount);

@@ -1,7 +1,7 @@
 // @ts-check
 import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
 import { ICON_SIZE, icon } from '../../core/icons.js';
-import { printf } from '../../core/i18n.js';
+import { printf, translate } from '../../core/i18n.js';
 import { uid } from '../../core/util.js';
 import { badge } from '../badge/badge.js';
 import { createRecordCard, resolveRecordActions } from '../card-view/record-card.js';
@@ -187,7 +187,9 @@ import {
  * @property {((context:KanbanHeaderContext)=>Node|null|undefined)|null} [renderSwimlaneHeader=null] Replaces lane header content.
  * @property {((context:KanbanHeaderContext)=>Node|null|undefined)|null} [renderColumnEmpty=null] Empty-column placeholder.
  * @property {((context:{records:KanbanRecord[],ids:unknown[],count:number})=>Node|null|undefined)|null} [renderDragPreview=null] Replaces the floating drag preview.
- * @property {Record<string,string>} [labels={}] Overrides for every visible and announced string.
+ * @property {Record<string,string>} [labels={}] Per-instance overrides of the board's text. Each key is
+ *   the part after `kanbanView.` in the message catalogue, where every visible and announced string
+ *   lives, and a value may reorder or drop the named placeholders.
  * @property {string[]} [columnOrder=[]] Preferred column order.
  * @property {string[]} [swimlaneOrder=[]] Preferred swim-lane order.
  * @property {string[]} [collapsedColumns=[]] Initially collapsed columns.
@@ -195,7 +197,8 @@ import {
  * @property {boolean} [showCounts=true] Show record counts and WIP indicators.
  * @property {boolean} [showEmptyColumns=true] Keep configured empty columns visible.
  * @property {'outlined'|'raised'|'filled'} [variant='outlined'] Shared record-card treatment.
- * @property {string} [label='Kanban board'] Accessible board label.
+ * @property {string|null} [label=null] Accessible board label; null reads the `kanbanView.label`
+ *   message ("Kanban board").
  * @property {(event: CustomEvent<Record<string,unknown>>) => void} [onrecordmove]
  * @property {(event: CustomEvent<Record<string,unknown>>) => void} [onmovereject]
  * @property {(event: CustomEvent<Record<string,unknown>>) => void} [onrecordaction]
@@ -234,67 +237,6 @@ const SEARCH_DEBOUNCE = 120;
 /** Distance from a scroll edge at which a drag starts auto-scrolling, and the speed it uses. */
 const SCROLL_EDGE = 56;
 const SCROLL_SPEED = 18;
-
-/**
- * Every user-visible and announced string, so a host can translate the board without patching it.
- * Values run through `printf`, so named placeholders may be reordered or dropped by a translation.
- */
-const DEFAULT_LABELS = Object.freeze({
-  fields: 'Fields',
-  search: 'Search board',
-  searchPlaceholder: 'Search cards',
-  clearSearch: 'Clear search',
-  searchSummary: '%count% of %total% cards match.',
-  undo: 'Undo',
-  redo: 'Redo',
-  add: 'Add card',
-  addTo: 'Add card to %target%',
-  move: 'Move %name%',
-  moveMultiple: 'Move %count% selected cards',
-  collapseColumn: 'Collapse column %label%',
-  expandColumn: 'Expand column %label%',
-  collapseLane: 'Collapse swim lane %label%',
-  expandLane: 'Expand swim lane %label%',
-  count: '%count% records',
-  countFiltered: '%count% of %total% records',
-  countLimit: '%count% records, work-in-progress limit %limit%',
-  countLimitInLane: '%count% records in this lane, %total% of work-in-progress limit %limit% in the column',
-  empty: 'No records',
-  columnEmpty: 'Drop a card here',
-  identifier: 'Record',
-  priorityLabel: 'Priority',
-  statusLabel: 'Status',
-  progress: 'Progress',
-  progressValue: '%percent%%',
-  assignees: 'Assigned to %names%',
-  assigneeOverflow: '+%count%',
-  selected: 'Selected',
-  notSelected: 'Not selected',
-  noMatches: 'No cards match the current search.',
-  record: 'record',
-  grabbed: 'Grabbed %name%. Use left and right for columns, up and down for position, and Alt plus up or down for swim lanes.',
-  grabbedMultiple: 'Grabbed %count% cards. Use left and right for columns, up and down for position, and Alt plus up or down for swim lanes.',
-  target: 'Target %target%, position %position% of %total%.',
-  moved: 'Moved %name% to %target%.%wip%',
-  movedMultiple: 'Moved %count% cards to %target%.%wip%',
-  moveRequested: 'Move requested for %name% to %target%.%wip%',
-  moveCanceled: 'Move canceled for %name%.',
-  moveCanceledPlain: 'Move canceled.',
-  limitReached: ' Work-in-progress limit %limit% reached.',
-  limitExceeded: ' Work-in-progress limit %limit% exceeded.',
-  rejectAccept: 'Move rejected: %target% does not accept %name%.',
-  rejectTransition: 'Move rejected: %target% does not accept cards from %origin%.',
-  rejectWip: 'Move rejected: %target% is at its work-in-progress limit of %limit%.',
-  rejectDestination: 'Move rejected: the destination is not available.',
-  rejectGrouping: 'Move rejected: callback grouping requires external move mode.',
-  undone: 'Move undone.',
-  redone: 'Move redone.',
-  nothingToUndo: 'Nothing to undo.',
-  nothingToRedo: 'Nothing to redo.',
-  menuMoveTo: 'Move to %target%',
-  menuMoveToLane: 'Move to lane %target%',
-  dragPreview: '%count% cards'
-});
 
 /**
  * A field consumed by the card head or footer — the `identifier`, `status`, `priority`,
@@ -371,7 +313,7 @@ export class KanbanView extends RecordView {
     showCounts: true,
     showEmptyColumns: true,
     variant: 'outlined',
-    label: 'Kanban board'
+    label: null
   };
 
   /**
@@ -393,9 +335,9 @@ export class KanbanView extends RecordView {
     try {
       this._initRecordView(root);
       this._kanbanColumns = options.columns === null
-        ? null : normalizeKanbanDescriptors(options.columns, 'column');
+        ? null : normalizeKanbanDescriptors(options.columns, 'column', this._text('unassigned'));
       this._kanbanSwimlanes = options.swimlanes === null
-        ? null : normalizeKanbanDescriptors(options.swimlanes, 'swimlane');
+        ? null : normalizeKanbanDescriptors(options.swimlanes, 'swimlane', this._text('unassigned'));
       this._kanbanColumnOrder = normalizeOrder(options.columnOrder);
       this._kanbanSwimlaneOrder = normalizeOrder(options.swimlaneOrder);
       this._collapsedColumns = new Set(normalizeOrder(options.collapsedColumns));
@@ -443,7 +385,7 @@ export class KanbanView extends RecordView {
       if (options.searchControl) this._toolbar.append(this._createSearchControl());
       if (options.historyControls) this._toolbar.append(this._createHistoryControls());
       this._board = h('div', {
-        class: 'zx-kanban-view__board', role: 'region', ariaLabel: options.label
+        class: 'zx-kanban-view__board', role: 'region', ariaLabel: options.label ?? this.msg('kanbanView.label')
       });
       this._live = h('div', {
         class: 'zx-kanban-view__live', role: 'status', ariaLive: 'polite', ariaAtomic: 'true'
@@ -487,7 +429,7 @@ export class KanbanView extends RecordView {
    * @returns {this}
    */
   setColumns(columns) {
-    this._kanbanColumns = columns === null ? null : normalizeKanbanDescriptors(columns, 'column');
+    this._kanbanColumns = columns === null ? null : normalizeKanbanDescriptors(columns, 'column', this._text('unassigned'));
     const descriptors = this._rawColumns();
     this._kanbanColumnOrder = reconcileKanbanPreference(
       descriptors, this._kanbanColumnOrder, this._kanbanColumns === null);
@@ -511,7 +453,7 @@ export class KanbanView extends RecordView {
    * @returns {this}
    */
   setSwimlanes(lanes) {
-    this._kanbanSwimlanes = lanes === null ? null : normalizeKanbanDescriptors(lanes, 'swimlane');
+    this._kanbanSwimlanes = lanes === null ? null : normalizeKanbanDescriptors(lanes, 'swimlane', this._text('unassigned'));
     const descriptors = this._rawSwimlanes();
     const preserveUnknown = this._kanbanSwimlanes === null && this._kanbanOptions().swimlaneBy != null;
     this._kanbanSwimlaneOrder = reconcileKanbanPreference(
@@ -1409,7 +1351,8 @@ export class KanbanView extends RecordView {
   _rawColumns() {
     const options = this._kanbanOptions();
     return this._kanbanColumns === null
-      ? deriveKanbanDescriptors(this._viewData, (record, index) => this._readAxis(options.columnBy, record, index))
+      ? deriveKanbanDescriptors(this._viewData, (record, index) => this._readAxis(options.columnBy, record, index),
+        this._text('unassigned'))
       : this._kanbanColumns.map((column) => ({ ...column }));
   }
 
@@ -1426,7 +1369,8 @@ export class KanbanView extends RecordView {
     const options = this._kanbanOptions();
     if (options.swimlaneBy == null) return [];
     return this._kanbanSwimlanes === null
-      ? deriveKanbanDescriptors(this._viewData, (record, index) => this._readAxis(options.swimlaneBy, record, index))
+      ? deriveKanbanDescriptors(this._viewData, (record, index) => this._readAxis(options.swimlaneBy, record, index),
+        this._text('unassigned'))
       : this._kanbanSwimlanes.map((lane) => ({ ...lane }));
   }
 
@@ -2451,14 +2395,15 @@ export class KanbanView extends RecordView {
 
   /**
    * Resolves one localizable string.
-   * @param {keyof typeof DEFAULT_LABELS|string} key Label key.
+   * @param {string} key Label key.
    * @param {Record<string, unknown>} [args] Placeholder values.
    * @returns {string} Resolved text.
    */
   _text(key, args) {
     const overrides = this._kanbanOptions().labels;
+    // `msg()` fills positional placeholders and these are named, so it only supplies the template.
     const source = overrides && typeof overrides === 'object' && key in overrides
-      ? overrides[key] : /** @type {Record<string,string>} */ (DEFAULT_LABELS)[key];
+      ? overrides[key] : this.msg(`kanbanView.${key}`);
     return printf(source == null ? String(key) : String(source), args);
   }
 
@@ -2486,9 +2431,11 @@ export class KanbanView extends RecordView {
  * Validates and clones configured column or lane descriptors.
  * @param {unknown} descriptors Descriptors.
  * @param {'column'|'swimlane'} [axis='column'] Descriptor kind.
+ * @param {string} [unassigned] Name of a descriptor with no label or id, by default the
+ *   `kanbanView.unassigned` message ("Unassigned").
  * @returns {KanbanColumn[]}
  */
-export function normalizeKanbanDescriptors(descriptors, axis = 'column') {
+export function normalizeKanbanDescriptors(descriptors, axis = 'column', unassigned = translate('kanbanView.unassigned')) {
   if (!Array.isArray(descriptors)) throw new TypeError(`Kanban ${axis}s must be an array or null`);
   const seen = new Set();
   return /** @type {KanbanColumn[]} */ (descriptors.map((descriptor, index) => {
@@ -2509,7 +2456,7 @@ export function normalizeKanbanDescriptors(descriptors, axis = 'column') {
     const normalized = /** @type {Record<string, any>} */ ({
       ...source,
       id,
-      label: String(source.label ?? axisLabel(source.id)),
+      label: String(source.label ?? axisLabel(source.id, unassigned)),
       limit: normalizeLimit(source.limit),
       from: Array.isArray(source.from) ? source.from.map(String) : null,
       ...(Object.prototype.hasOwnProperty.call(source, 'value') ? {} : { value: source.id })
@@ -2532,9 +2479,11 @@ export function normalizeKanbanDescriptors(descriptors, axis = 'column') {
  * Derives stable descriptors from distinct accessor values in first-seen order.
  * @param {KanbanRecord[]} records Records.
  * @param {KanbanAccessor} accessor Grouping accessor.
+ * @param {string} [unassigned] Name of the group without a value, by default the
+ *   `kanbanView.unassigned` message ("Unassigned").
  * @returns {KanbanColumn[]}
  */
-export function deriveKanbanDescriptors(records, accessor) {
+export function deriveKanbanDescriptors(records, accessor, unassigned = translate('kanbanView.unassigned')) {
   const result = [];
   const seen = new Set();
   records.forEach((record, index) => {
@@ -2542,7 +2491,7 @@ export function deriveKanbanDescriptors(records, accessor) {
     const id = normalizeAxisId(value);
     if (seen.has(id)) return;
     seen.add(id);
-    result.push({ id, label: axisLabel(value), value, limit: null });
+    result.push({ id, label: axisLabel(value, unassigned), value, limit: null });
   });
   return result;
 }
@@ -2591,9 +2540,9 @@ export function reorderKanbanData(records, id, movedRecord, options) {
   return result ? { records: result.records, from: result.moves[0].from, to: result.to } : null;
 }
 
-/** @param {unknown} value @returns {string} */
-function axisLabel(value) {
-  if (value == null || String(value).trim() === '') return 'Unassigned';
+/** @param {unknown} value @param {string} unassigned @returns {string} */
+function axisLabel(value, unassigned) {
+  if (value == null || String(value).trim() === '') return unassigned;
   return String(value);
 }
 

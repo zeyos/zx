@@ -23,7 +23,7 @@
         "name": "label",
         "type": "string|null",
         "default": "null",
-        "description": "Trigger label; defaults to `Account menu for <name>`."
+        "description": "Trigger label; null reads the `accountMenu.labelFor` message (\"Account menu for <name>\"), or `accountMenu.label` without a name."
       },
       {
         "name": "placement",
@@ -249,9 +249,9 @@
       },
       {
         "name": "label",
-        "type": "string",
-        "default": "'Activity'",
-        "description": "Accessible collection name."
+        "type": "string|null",
+        "default": "null",
+        "description": "Accessible collection name; null reads the `activityList.label` message (\"Activity\")."
       },
       {
         "name": "variant",
@@ -273,15 +273,15 @@
       },
       {
         "name": "loadingText",
-        "type": "string",
-        "default": "'Loading activity'",
-        "description": "Loading status text."
+        "type": "string|null",
+        "default": "null",
+        "description": "Loading status text; null reads the `activityList.loading` message (\"Loading activity\")."
       },
       {
         "name": "emptyText",
         "type": "ActivityListContent",
-        "default": "'No activity yet'",
-        "description": "Empty-state content."
+        "default": "null",
+        "description": "Empty-state content; null reads the `activityList.empty` message (\"No activity yet\")."
       },
       {
         "name": "groupHeadingLevel",
@@ -889,15 +889,15 @@
       },
       {
         "name": "label",
-        "type": "string",
-        "default": "'Applications'",
-        "description": "Navigation accessible label."
+        "type": "string|null",
+        "default": "null",
+        "description": "Navigation accessible label; null reads the `appSidebar.label` message (\"Applications\")."
       },
       {
         "name": "moreLabel",
-        "type": "string",
-        "default": "'More actions'",
-        "description": "Name of a destination's overflow menu when its `actions` fold; every action name is followed by the destination's label."
+        "type": "string|null",
+        "default": "null",
+        "description": "Name of a destination's overflow menu when its `actions` fold; every action name is followed by the destination's label. Null reads the `appSidebar.more` message (\"More actions\")."
       },
       {
         "name": "header",
@@ -2297,6 +2297,12 @@
         "type": "'milliseconds'|'seconds'",
         "default": "'milliseconds'",
         "description": "Unit used for numeric dates."
+      },
+      {
+        "name": "untitledTitle",
+        "type": "string",
+        "default": null,
+        "description": "Title of an event without one, by default the `calendar.untitled` message (\"Untitled event\")."
       }
     ],
     "events": [],
@@ -2661,9 +2667,9 @@
       },
       {
         "name": "label",
-        "type": "string",
-        "default": "'Chart'",
-        "description": "Accessible canvas and summary label; blank text falls back to `Chart`."
+        "type": "string|null",
+        "default": "null",
+        "description": "Accessible canvas and summary label; null or blank text reads the `chart.label` message (\"Chart\")."
       },
       {
         "name": "description",
@@ -2685,21 +2691,21 @@
       },
       {
         "name": "emptyText",
-        "type": "string",
-        "default": "'No chart data'",
-        "description": "Empty-state text."
+        "type": "string|null",
+        "default": "null",
+        "description": "Empty-state text; null reads the `chart.empty` message (\"No chart data\")."
       },
       {
         "name": "loadingText",
-        "type": "string",
-        "default": "'Loading chart…'",
-        "description": "Loading-state text."
+        "type": "string|null",
+        "default": "null",
+        "description": "Loading-state text; null reads the `chart.loading` message (\"Loading chart…\")."
       },
       {
         "name": "errorText",
-        "type": "string",
-        "default": "'Unable to render chart'",
-        "description": "Error fallback text."
+        "type": "string|null",
+        "default": "null",
+        "description": "Error fallback text; null reads the `chart.error` message (\"Unable to render chart\")."
       },
       {
         "name": "aspectRatio",
@@ -3032,9 +3038,9 @@
       },
       {
         "name": "label",
-        "type": "string",
-        "default": "'Code editor'",
-        "description": "Accessible editor label."
+        "type": "string|null",
+        "default": "null",
+        "description": "Accessible editor label; null reads the `codeEditor.label` message (\"Code editor\")."
       },
       {
         "name": "placeholder",
@@ -3545,14 +3551,14 @@
       {
         "name": "title",
         "type": "string",
-        "default": "'Copy'",
-        "description": "Accessible name, and the native tooltip on the icon-only form."
+        "default": null,
+        "description": "Accessible name, and the native tooltip on the icon-only form; by default the `copy.copy` message (\"Copy\")."
       },
       {
         "name": "feedback",
         "type": "string",
-        "default": "'Copied'",
-        "description": "Confirmation announced and shown after a copy."
+        "default": null,
+        "description": "Confirmation announced and shown after a copy; by default the `copy.copied` message (\"Copied\")."
       },
       {
         "name": "feedbackDuration",
@@ -3604,15 +3610,15 @@
       },
       {
         "name": "feedback",
-        "type": "string",
-        "default": "'Copied'",
-        "description": "Confirmation shown after a copy."
+        "type": "string|null",
+        "default": "null",
+        "description": "Confirmation shown after a copy; null reads the `copy.copied` message (\"Copied\")."
       },
       {
         "name": "buttonTitle",
-        "type": "string",
-        "default": "'Copy'",
-        "description": "Accessible name of the copy button."
+        "type": "string|null",
+        "default": "null",
+        "description": "Accessible name of the copy button; null reads the `copy.copy` message (\"Copy\")."
       },
       {
         "name": "size",
@@ -4434,9 +4440,9 @@
       },
       {
         "name": "label",
-        "type": "string",
-        "default": "'Resize panes'",
-        "description": "Accessible name given to every divider."
+        "type": "string|null",
+        "default": "null",
+        "description": "Accessible name given to every divider; null reads the `dock.resize` message (\"Resize panes\")."
       }
     ],
     "events": [
@@ -4815,9 +4821,9 @@
       },
       {
         "name": "actionsLabel",
-        "type": "string",
-        "default": "'Entity actions'",
-        "description": "Accessible name for secondary actions."
+        "type": "string|null",
+        "default": "null",
+        "description": "Accessible name for secondary actions; null reads the `entityRef.actions` message (\"Entity actions\")."
       }
     ],
     "events": [
@@ -5425,9 +5431,9 @@
       },
       {
         "name": "actionsLabel",
-        "type": "string",
-        "default": "'File actions'",
-        "description": "Accessible name for secondary actions."
+        "type": "string|null",
+        "default": "null",
+        "description": "Accessible name for secondary actions; null reads the `fileItem.actions` message (\"File actions\")."
       },
       {
         "name": "locale",
@@ -5497,9 +5503,9 @@
       },
       {
         "name": "label",
-        "type": "string",
-        "default": "'Files'",
-        "description": "Accessible collection name."
+        "type": "string|null",
+        "default": "null",
+        "description": "Accessible collection name; null reads the `fileList.label` message (\"Files\")."
       },
       {
         "name": "loading",
@@ -5515,15 +5521,15 @@
       },
       {
         "name": "loadingText",
-        "type": "string",
-        "default": "'Loading files'",
-        "description": "Loading status text."
+        "type": "string|null",
+        "default": "null",
+        "description": "Loading status text; null reads the `fileList.loading` message (\"Loading files\")."
       },
       {
         "name": "emptyText",
         "type": "string|number|Node|Component|null",
-        "default": "'No files'",
-        "description": "Empty-state content."
+        "default": "null",
+        "description": "Empty-state content; null reads the `fileList.empty` message (\"No files\")."
       }
     ],
     "events": [
@@ -5972,9 +5978,9 @@
       },
       {
         "name": "emptyText",
-        "type": "string",
-        "default": "'Empty'",
-        "description": "Text shown in an empty column."
+        "type": "string|null",
+        "default": "null",
+        "description": "Text shown in an empty column; null reads the `finder.noItems` message (\"Empty\")."
       },
       {
         "name": "msg",
@@ -6667,7 +6673,7 @@
         "name": "labels",
         "type": "Record<string,string>",
         "default": "{}",
-        "description": "Overrides for every visible and announced string."
+        "description": "Per-instance overrides of the board's text. Each key is the part after `kanbanView.` in the message catalogue, where every visible and announced string lives, and a value may reorder or drop the named placeholders."
       },
       {
         "name": "columnOrder",
@@ -6713,9 +6719,9 @@
       },
       {
         "name": "label",
-        "type": "string",
-        "default": "'Kanban board'",
-        "description": "Accessible board label."
+        "type": "string|null",
+        "default": "null",
+        "description": "Accessible board label; null reads the `kanbanView.label` message (\"Kanban board\")."
       }
     ],
     "events": [
@@ -8065,9 +8071,9 @@
       },
       {
         "name": "addLabel",
-        "type": "string",
-        "default": "'Add value'",
-        "description": "Add-row button text."
+        "type": "string|null",
+        "default": "null",
+        "description": "Add-row button text; null reads the `multiValueEditor.add` message (\"Add value\")."
       },
       {
         "name": "reorder",
@@ -8898,20 +8904,20 @@
       {
         "name": "label",
         "type": "string",
-        "default": "'Copy link to %1'",
-        "description": "The link's accessible name; `%1` is the heading."
+        "default": null,
+        "description": "The link's accessible name; `%1` is the heading. By default the `prose.copyLinkTo` message (\"Copy link to %1\")."
       },
       {
         "name": "title",
         "type": "string",
-        "default": "'Copy link'",
-        "description": "The link's tooltip."
+        "default": null,
+        "description": "The link's tooltip, by default the `prose.copyLink` message (\"Copy link\")."
       },
       {
         "name": "feedback",
         "type": "string",
-        "default": "'Link copied'",
-        "description": "What the live region says after a copy."
+        "default": null,
+        "description": "What the live region says after a copy, by default the `prose.copied` message (\"Link copied\")."
       },
       {
         "name": "feedbackDuration",
@@ -9175,9 +9181,9 @@
       },
       {
         "name": "label",
-        "type": "string",
-        "default": "'Rating'",
-        "description": "Accessible name of the group."
+        "type": "string|null",
+        "default": "null",
+        "description": "Accessible name of the group; null reads the `rating.label` message (\"Rating\")."
       },
       {
         "name": "icon",
@@ -10876,9 +10882,9 @@
       },
       {
         "name": "label",
-        "type": "string",
-        "default": "'Sort by'",
-        "description": "Accessible field label and direction-name prefix."
+        "type": "string|null",
+        "default": "null",
+        "description": "Accessible field label and direction-name prefix; null reads the `sortControl.label` message (\"Sort by\")."
       },
       {
         "name": "labels",
@@ -10949,9 +10955,9 @@
       },
       {
         "name": "label",
-        "type": "string",
-        "default": "'Sources'",
-        "description": "The visible label the list is named by. Empty hides it and names the list with the `sourceList.label` message instead."
+        "type": "string|null",
+        "default": null,
+        "description": "The visible label the list is named by, by default the `sourceList.label` message (\"Sources\"). Empty or null hides it and names the list with that message instead."
       },
       {
         "name": "layout",
@@ -11100,9 +11106,9 @@
       },
       {
         "name": "label",
-        "type": "string",
-        "default": "'Resize panes'",
-        "description": "Accessible name of the divider."
+        "type": "string|null",
+        "default": "null",
+        "description": "Accessible name of the divider; null reads the `splitView.resize` message (\"Resize panes\")."
       }
     ],
     "events": [
@@ -13013,9 +13019,9 @@
       },
       {
         "name": "label",
-        "type": "string",
-        "default": "'Toolbar'",
-        "description": "Accessible name of the toolbar."
+        "type": "string|null",
+        "default": "null",
+        "description": "Accessible name of the toolbar; null reads the `toolbar.label` message (\"Toolbar\")."
       },
       {
         "name": "overflow",
@@ -13025,9 +13031,9 @@
       },
       {
         "name": "overflowLabel",
-        "type": "string",
-        "default": "'More'",
-        "description": "Accessible name of the overflow menu trigger."
+        "type": "string|null",
+        "default": "null",
+        "description": "Accessible name of the overflow menu trigger; null reads the `toolbar.more` message (\"More\")."
       },
       {
         "name": "dense",
@@ -13284,9 +13290,9 @@
       },
       {
         "name": "moreLabel",
-        "type": "string",
-        "default": "'More actions'",
-        "description": "Name of a row's overflow menu; every action name is followed by the row's name (\"More actions: Q3 plan\")."
+        "type": "string|null",
+        "default": "null",
+        "description": "Name of a row's overflow menu; every action name is followed by the row's name (\"More actions: Q3 plan\"). Null reads the `tree.more` message."
       },
       {
         "name": "load",
@@ -13302,15 +13308,15 @@
       },
       {
         "name": "label",
-        "type": "string",
-        "default": "'Tree'",
-        "description": "Accessible name of the tree."
+        "type": "string|null",
+        "default": "null",
+        "description": "Accessible name of the tree; null reads the `tree.label` message (\"Tree\")."
       },
       {
         "name": "emptyText",
-        "type": "string",
-        "default": "'Nothing to show'",
-        "description": "Text shown when the tree is empty."
+        "type": "string|null",
+        "default": "null",
+        "description": "Text shown when the tree is empty; null reads the `tree.noItems` message (\"Nothing to show\")."
       },
       {
         "name": "height",

@@ -91,22 +91,22 @@ export class FieldUpload extends Component {
       class: 'zx-field-upload__dropzone',
       type: 'button',
       ariaControls: inputId,
-      ariaLabel: this.options.multiple ? 'Choose files or drop them here' : 'Choose a file or drop it here'
+      ariaLabel: this.msg(this.options.multiple ? 'fieldUpload.chooseMany' : 'fieldUpload.choose')
     },
-    h('span', { class: 'zx-field-upload__prompt' }, this.options.multiple ? 'Drop files here or choose files' : 'Drop a file here or choose a file'),
-    h('span', { class: 'zx-field-upload__hint' }, uploadHint(this.options)));
+    h('span', { class: 'zx-field-upload__prompt' }, this.msg(this.options.multiple ? 'fieldUpload.dropMany' : 'fieldUpload.drop')),
+    h('span', { class: 'zx-field-upload__hint' }, uploadHint(this)));
     this._preview = h('div', { class: 'zx-field-upload__preview' });
     this._progress = h('progress', {
       class: 'zx-field-upload__progress',
       max: 100,
       value: 0,
-      ariaLabel: 'Upload progress'
+      ariaLabel: this.msg('fieldUpload.progress')
     });
     this._progressText = h('span', { class: 'zx-field-upload__progress-text' }, '0%');
     this._abort = h('button', {
       class: 'zx-btn zx-field-upload__abort',
       type: 'button'
-    }, 'Abort');
+    }, this.msg('fieldUpload.abort'));
     this._progressWrap = h('div', {
       class: 'zx-field-upload__progress-wrap',
       hidden: true
@@ -154,7 +154,7 @@ export class FieldUpload extends Component {
     this._progressWrap.hidden = false;
     this._abort.hidden = false;
     this._setProgress(0);
-    this._status.textContent = 'Uploading…';
+    this._status.textContent = this.msg('fieldUpload.uploading');
 
     try {
       const response = this.options.http ? await this._uploadInjected() : await this._uploadXhr();
@@ -165,7 +165,7 @@ export class FieldUpload extends Component {
       this._abort.hidden = true;
       this._setProgress(100);
       this._setState('success');
-      this._status.textContent = 'Upload complete.';
+      this._status.textContent = this.msg('fieldUpload.complete');
       this.emit('success', { response });
       return response;
     } catch (caught) {
@@ -245,12 +245,12 @@ export class FieldUpload extends Component {
     if (normalized.length === 0) return false;
     const invalid = normalized.find((file) => !matchesAccept(file, this.options.accept));
     if (invalid) {
-      this._selectionError(new Error(`${invalid.name} is not an accepted file type.`));
+      this._selectionError(new Error(this.msg('fieldUpload.rejectedType', invalid.name)));
       return false;
     }
     const oversized = this.options.maxSize == null ? null : normalized.find((file) => file.size > Number(this.options.maxSize));
     if (oversized) {
-      this._selectionError(new Error(`${oversized.name} exceeds the maximum file size.`));
+      this._selectionError(new Error(this.msg('fieldUpload.rejectedSize', oversized.name)));
       return false;
     }
     this._files = normalized;
@@ -307,12 +307,12 @@ export class FieldUpload extends Component {
       });
       this.listen(xhr, 'load', () => {
         if (xhr.status < 200 || xhr.status >= 300) {
-          reject(new Error(`Upload failed with HTTP ${xhr.status}`));
+          reject(new Error(this.msg('fieldUpload.httpFailed', xhr.status)));
           return;
         }
         resolve(parseResponse(xhr.responseText));
       });
-      this.listen(xhr, 'error', () => reject(new Error('Upload request failed')));
+      this.listen(xhr, 'error', () => reject(new Error(this.msg('fieldUpload.requestFailed'))));
       this.listen(xhr, 'abort', () => reject(abortError()));
       xhr.send(createFormData(this._files, String(this.options.paramName), this.options.params));
     });
@@ -335,7 +335,7 @@ export class FieldUpload extends Component {
     this._transportController = null;
     this._abort.hidden = true;
     this._setState('idle');
-    this._status.textContent = 'Upload aborted.';
+    this._status.textContent = this.msg('fieldUpload.aborted');
     this.emit('abort', {});
   }
 
@@ -356,7 +356,7 @@ export class FieldUpload extends Component {
     this._preview.append(h('img', {
       class: 'zx-field-upload__image',
       src: this._previewUrl,
-      alt: `Preview of ${file.name}`
+      alt: this.msg('fieldUpload.preview', file.name)
     }));
   }
 
@@ -385,12 +385,13 @@ export class FieldUpload extends Component {
   }
 }
 
-/** @param {FieldUploadOptions} options @returns {string} */
-function uploadHint(options) {
+/** @param {FieldUpload} upload @returns {string} */
+function uploadHint(upload) {
+  const { accept, maxSize } = upload.options;
   const parts = [];
-  if (options.accept) parts.push(String(options.accept));
-  if (options.maxSize != null) parts.push(`up to ${formatBytes(Number(options.maxSize))}`);
-  return parts.join(' · ') || 'Choose from this device';
+  if (accept) parts.push(String(accept));
+  if (maxSize != null) parts.push(upload.msg('fieldUpload.maxSize', formatBytes(Number(maxSize))));
+  return parts.join(' · ') || upload.msg('fieldUpload.hint');
 }
 
 /** @param {number} bytes @returns {string} */

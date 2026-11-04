@@ -2,6 +2,7 @@
 import { Component } from '../../core/component.js';
 import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
 import { formatFileSize } from '../../core/format.js';
+import { translate } from '../../core/i18n.js';
 import { getIconConfig, iconNames } from '../../core/icons.js';
 import { isElement } from '../../core/util.js';
 import { badge } from '../badge/badge.js';
@@ -37,7 +38,8 @@ import {
  * @property {boolean} [indeterminate=false] Whether active progress has no known amount.
  * @property {'sm'|'md'|'lg'} [identitySize='md'] Size of the file's icon and name.
  * @property {boolean} [wrap=false] Whether long identity text may wrap.
- * @property {string} [actionsLabel='File actions'] Accessible name for secondary actions.
+ * @property {string|null} [actionsLabel=null] Accessible name for secondary actions; null reads the
+ *   `fileItem.actions` message ("File actions").
  * @property {string} [locale] Locale passed to `formatFileSize`.
  * @property {(event: CustomEvent<{id: unknown, file: Readonly<FileItemState>, href: string, event: MouseEvent}>) => void} [onactivate]
  *   Preventable native-link listener.
@@ -71,14 +73,15 @@ const FILE_STATUSES = new Set([
   'ready', 'temporary', 'waiting', 'uploading', 'processing', 'success', 'error'
 ]);
 
+/** The word each status shows. `ready` shows none. */
 const STATUS_LABELS = Object.freeze({
-  ready: '',
-  temporary: 'Temporary',
-  waiting: 'Waiting',
-  uploading: 'Uploading',
-  processing: 'Processing',
-  success: 'Complete',
-  error: 'Failed'
+  ready: null,
+  temporary: { key: 'fileItem.status.temporary', label: 'Temporary' },
+  waiting: { key: 'fileItem.status.waiting', label: 'Waiting' },
+  uploading: { key: 'fileItem.status.uploading', label: 'Uploading' },
+  processing: { key: 'fileItem.status.processing', label: 'Processing' },
+  success: { key: 'fileItem.status.success', label: 'Complete' },
+  error: { key: 'fileItem.status.error', label: 'Failed' }
 });
 
 /**
@@ -109,7 +112,7 @@ export class FileItem extends Component {
     indeterminate: false,
     identitySize: 'md',
     wrap: false,
-    actionsLabel: 'File actions'
+    actionsLabel: null
   };
 
   /**
@@ -128,7 +131,7 @@ export class FileItem extends Component {
     this.el = root;
     this._snapshot = this._createdRoot ? null : snapshotTarget(root);
     this._destroyed = false;
-    this._state = normalizeFileItem(this.options);
+    this._state = normalizeFileItem(this.options, this.msg('fileItem.actions'));
 
     const entityHost = h('div', { ref: 'entity', class: 'zx-file-item__entity' });
     root.replaceChildren(
@@ -145,7 +148,7 @@ export class FileItem extends Component {
         }, h('div', { ref: 'progressFill', class: 'zx-file-item__progress-fill' })))
     );
 
-    this._entity = new EntityRef(entityHost, entityOptions(this._state));
+    this._entity = new EntityRef(entityHost, entityOptions(this._state, (key) => this.msg(key)));
     this.listen(this._entity.el, 'zx-activate', (event) => this._forwardActivate(/** @type {CustomEvent} */ (event)));
     this.listen(this._entity.el, 'zx-action', (event) => this._forwardAction(/** @type {CustomEvent} */ (event)));
     this._sync();
@@ -159,7 +162,7 @@ export class FileItem extends Component {
    */
   set(values = {}) {
     if (!values || typeof values !== 'object' || Array.isArray(values)) return this;
-    this._state = normalizeFileItem({ ...this._state, ...values });
+    this._state = normalizeFileItem({ ...this._state, ...values }, this.msg('fileItem.actions'));
     this._sync();
     return this;
   }
@@ -215,9 +218,9 @@ export class FileItem extends Component {
     const fill = /** @type {HTMLElement} */ (this.refs.progressFill);
     root.dataset.status = state.status;
     root.dataset.identitySize = state.identitySize;
-    this._entity.set(entityOptions(state));
+    this._entity.set(entityOptions(state, (key) => this.msg(key)));
 
-    const label = fileStatusLabel(state);
+    const label = fileStatusLabel(state, (key) => this.msg(key));
     status.replaceChildren(...(label ? [badge({
       label,
       kind: statusKind(state.status),
@@ -231,10 +234,11 @@ export class FileItem extends Component {
     progress.toggleAttribute('data-indeterminate', state.indeterminate);
     if (!visible) return;
 
-    const progressLabel = `${label || 'Progress'}${state.indeterminate || state.progress === null
+    const progressName = label || this.msg('fileItem.progress');
+    const progressLabel = `${progressName}${state.indeterminate || state.progress === null
       ? '' : ` — ${Math.round(state.progress)}%`}`;
     this.refs.progressHead.textContent = progressLabel;
-    track.setAttribute('aria-label', `${state.name || 'File'}: ${label || 'Progress'}`);
+    track.setAttribute('aria-label', `${state.name || this.msg('fileItem.file')}: ${progressName}`);
     if (state.indeterminate) {
       track.removeAttribute('aria-valuenow');
       track.removeAttribute('aria-valuetext');
@@ -278,7 +282,7 @@ export class FileItem extends Component {
  * @param {Partial<FileItemOptions>|null|undefined} values Candidate values.
  * @returns {FileItemState}
  */
-export function normalizeFileItem(values = {}) {
+export function normalizeFileItem(values = {}, actionsLabel = translate('fileItem.actions')) {
   const source = values && typeof values === 'object' && !Array.isArray(values) ? values : {};
   const rawSize = source.size == null || source.size === '' ? null : Number(source.size);
   const rawProgress = source.progress == null ? null : Number(source.progress);
@@ -302,19 +306,23 @@ export function normalizeFileItem(values = {}) {
     indeterminate: Boolean(source.indeterminate),
     identitySize: source.identitySize === 'sm' || source.identitySize === 'lg' ? source.identitySize : 'md',
     wrap: Boolean(source.wrap),
-    actionsLabel: String(source.actionsLabel || 'File actions'),
+    actionsLabel: String(source.actionsLabel || actionsLabel),
     locale: normalizeLocale(source.locale)
   };
 }
 
-/** @param {FileItemState} state @returns {import('../entity-ref/entity-ref.js').EntityRefOptions} */
-function entityOptions(state) {
+/**
+ * @param {FileItemState} state
+ * @param {(key: string) => string} text Resolves the metadata's names.
+ * @returns {import('../entity-ref/entity-ref.js').EntityRefOptions}
+ */
+function entityOptions(state, text) {
   const metadata = [];
-  const type = state.typeLabel ?? fileTypeLabel(state.mime, state.name);
-  if (type) metadata.push({ label: 'Type', value: type, showLabel: false });
+  const type = state.typeLabel ?? fileTypeLabel(state.mime, state.name, text);
+  if (type) metadata.push({ label: text('fileItem.type'), value: type, showLabel: false });
   if (state.size !== null) {
     metadata.push({
-      label: 'Size',
+      label: text('fileItem.size'),
       value: formatFileSize(state.size, { locale: state.locale }),
       showLabel: false
     });
@@ -337,17 +345,18 @@ function entityOptions(state) {
 /**
  * What a MIME type is called and drawn as. Labels are what a reader recognises — a format's own
  * acronym where it has a well-known one, the family otherwise — and icons are Font Awesome names
- * in order of preference, used only when the active icon set can draw them.
- * @type {Readonly<Record<string, {label: string, icons: string[]}>>}
+ * in order of preference, used only when the active icon set can draw them. A format's name is the
+ * same in every language; a family word has a `key` into the catalogue.
+ * @type {Readonly<Record<string, {key?: string, label: string, icons: string[]}>>}
  */
 const FILE_KINDS = Object.freeze({
   pdf: { label: 'PDF', icons: ['file-pdf'] },
   csv: { label: 'CSV', icons: ['file-csv', 'file-excel'] },
   tsv: { label: 'TSV', icons: ['file-csv', 'file-excel'] },
-  spreadsheet: { label: 'Spreadsheet', icons: ['file-excel'] },
-  document: { label: 'Document', icons: ['file-word', 'file-lines'] },
-  presentation: { label: 'Presentation', icons: ['file-powerpoint'] },
-  text: { label: 'Text', icons: ['file-lines'] },
+  spreadsheet: { key: 'fileItem.kind.spreadsheet', label: 'Spreadsheet', icons: ['file-excel'] },
+  document: { key: 'fileItem.kind.document', label: 'Document', icons: ['file-word', 'file-lines'] },
+  presentation: { key: 'fileItem.kind.presentation', label: 'Presentation', icons: ['file-powerpoint'] },
+  text: { key: 'fileItem.kind.text', label: 'Text', icons: ['file-lines'] },
   markdown: { label: 'Markdown', icons: ['file-lines'] },
   html: { label: 'HTML', icons: ['file-code', 'code'] },
   css: { label: 'CSS', icons: ['file-code', 'code'] },
@@ -359,13 +368,13 @@ const FILE_KINDS = Object.freeze({
   tar: { label: 'TAR', icons: ['file-zipper'] },
   rar: { label: 'RAR', icons: ['file-zipper'] },
   sevenZip: { label: '7Z', icons: ['file-zipper'] },
-  email: { label: 'Email', icons: ['envelope'] },
-  calendar: { label: 'Calendar', icons: ['calendar'] },
-  contact: { label: 'Contact', icons: ['address-card'] },
-  image: { label: 'Image', icons: ['file-image', 'image'] },
-  video: { label: 'Video', icons: ['file-video', 'video'] },
-  audio: { label: 'Audio', icons: ['file-audio'] },
-  font: { label: 'Font', icons: ['font'] }
+  email: { key: 'fileItem.kind.email', label: 'Email', icons: ['envelope'] },
+  calendar: { key: 'fileItem.kind.calendar', label: 'Calendar', icons: ['calendar'] },
+  contact: { key: 'fileItem.kind.contact', label: 'Contact', icons: ['address-card'] },
+  image: { key: 'fileItem.kind.image', label: 'Image', icons: ['file-image', 'image'] },
+  video: { key: 'fileItem.kind.video', label: 'Video', icons: ['file-video', 'video'] },
+  audio: { key: 'fileItem.kind.audio', label: 'Audio', icons: ['file-audio'] },
+  font: { key: 'fileItem.kind.font', label: 'Font', icons: ['font'] }
 });
 
 /** Exact MIME types, lower case and without parameters, mapped to their kind. */
@@ -434,12 +443,13 @@ function fileKind(mime) {
  * the result is empty — a raw MIME string is never shown.
  * @param {string} mime MIME type, possibly with parameters (`text/csv; charset=utf-8`).
  * @param {string} [name=''] File name, consulted only when the MIME type is unfamiliar.
+ * @param {(key: string) => string} [text=translate] Resolves a family word; a FileItem passes its `msg()`.
  * @returns {string}
  */
-export function fileTypeLabel(mime, name = '') {
+export function fileTypeLabel(mime, name = '', text = translate) {
   if (!String(mime ?? '').trim()) return '';
   const kind = fileKind(mime);
-  if (kind) return kind.label;
+  if (kind) return kind.key ? text(kind.key) : kind.label;
   const extension = /\.([a-z0-9]{1,5})$/i.exec(String(name ?? ''))?.[1];
   return extension ? extension.toUpperCase() : '';
 }
@@ -459,9 +469,11 @@ export function fileTypeIcon(mime) {
   return candidates.find((name) => available.has(name)) ?? 'file';
 }
 
-/** @param {FileItemState} state @returns {string} */
-function fileStatusLabel(state) {
-  return state.statusLabel === null ? STATUS_LABELS[state.status] : state.statusLabel;
+/** @param {FileItemState} state @param {(key: string) => string} text @returns {string} */
+function fileStatusLabel(state, text) {
+  if (state.statusLabel !== null) return state.statusLabel;
+  const entry = STATUS_LABELS[state.status];
+  return entry ? text(entry.key) : '';
 }
 
 /** @param {FileStatus} status @returns {'neutral'|'accent'|'success'|'warning'|'danger'|'info'} */

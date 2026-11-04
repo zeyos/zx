@@ -246,7 +246,7 @@ export class Slider extends Component {
       step: String(this._step),
       disabled: Boolean(this.options.disabled),
       readOnly: this._readonly,
-      ariaLabel: String(this.options.label ?? 'Value')
+      ariaLabel: String(this.options.label ?? this.msg('slider.value'))
     }));
     this.listen(number, 'input', () => {
       if (this._readonly) return;

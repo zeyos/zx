@@ -1,3 +1,5 @@
+import { Component } from '../../core/component.js';
+import { translate } from '../../core/i18n.js';
 import { Table } from '../table/table.js';
 
 /** @typedef {Record<string, any>} BillingRow */
@@ -90,7 +92,11 @@ export function billingItemsConfig(options = {}) {
     return quantity !== null && price !== null ? quantity * price : null;
   };
   const columns = Array.isArray(suppliedColumns) ? suppliedColumns.map((column) => ({ ...column }))
-    : billingColumns(fields, { units, currencies, currency, locale, decimals, columnOverrides });
+    : billingColumns(fields, {
+      units, currencies, currency, locale, decimals, columnOverrides,
+      // No instance exists yet, so a `msg` option is read the way `msg()` reads it off a borrower.
+      text: (key) => Component.prototype.msg.call({ options }, key)
+    });
   return {
     rowId: fields.id,
     editMode: 'cell',
@@ -147,24 +153,24 @@ export function isBillingLine(row, fields = DEFAULT_FIELDS) {
 /**
  * Produces the preset columns without mutating overrides.
  * @param {BillingFields} fields Field map.
- * @param {{units: unknown, currencies: unknown, currency: string, locale?: string, decimals: number, columnOverrides: Record<string, object>}} options Formatting/editor options.
+ * @param {{units: unknown, currencies: unknown, currency: string, locale?: string, decimals: number, columnOverrides: Record<string, object>, text?: (key: string) => string}} options Formatting/editor options; `text` resolves the column names.
  * @returns {import('../table/table.js').TableColumn[]}
  */
-export function billingColumns(fields, { units, currencies, currency, locale, decimals, columnOverrides }) {
+export function billingColumns(fields, { units, currencies, currency, locale, decimals, columnOverrides, text = translate }) {
   const editableLine = (type) => (row) => isBillingLine(row, fields) ? type : false;
   const rowCurrency = (row) => String(row?.[fields.currency] || currency);
   const rowUnit = (row) => String(row?.[fields.unit] ?? '');
   const columns = {
     item: {
       id: fields.item,
-      label: 'Item',
+      label: text('grid.item'),
       width: '2fr',
       sortable: true,
       editable: editableLine('text')
     },
     quantity: {
       id: fields.quantity,
-      label: 'Quantity',
+      label: text('grid.quantity'),
       width: '1fr',
       type: 'unit',
       locale,
@@ -174,14 +180,14 @@ export function billingColumns(fields, { units, currencies, currency, locale, de
     },
     unit: {
       id: fields.unit,
-      label: 'Unit',
+      label: text('grid.unit'),
       width: '.8fr',
       editable: editableLine(hasChoices(units) ? 'select' : 'text'),
       options: units
     },
     unitPrice: {
       id: fields.unitPrice,
-      label: 'Unit price',
+      label: text('grid.unitPrice'),
       width: '1fr',
       type: 'currency',
       locale,
@@ -192,14 +198,14 @@ export function billingColumns(fields, { units, currencies, currency, locale, de
     },
     currency: {
       id: fields.currency,
-      label: 'Currency',
+      label: text('grid.currency'),
       width: '.8fr',
       editable: editableLine(hasChoices(currencies) ? 'select' : 'text'),
       options: currencies
     },
     total: {
       id: fields.total,
-      label: 'Line total',
+      label: text('grid.lineTotal'),
       width: '1fr',
       type: 'currency',
       locale,

@@ -7,9 +7,23 @@ import { fileURLToPath } from 'node:url';
 import { Component } from '../../src/core/component.js';
 import { defaultMessages, legacyMessageKeys } from '../../src/core/messages.js';
 import { setLanguage, setTranslator, translate } from '../../src/core/i18n.js';
+import { filterOperators } from '../../src/components/filter/filter-model.js';
+import { KanbanView } from '../../src/components/kanban-view/kanban-view.js';
 import { DEFAULT_STATUSES } from '../../src/components/select/glyphs.js';
 
 const SRC = fileURLToPath(new URL('../../src/', import.meta.url));
+
+/**
+ * The label keys KanbanView asks for, read out of its source: `_text()` builds the catalogue key, so
+ * the scan below cannot see them, and a label with no entry would show the bare key.
+ */
+const KANBAN_SOURCE = readFileSync(join(SRC, 'components/kanban-view/kanban-view.js'), 'utf8');
+const KANBAN_KEYS = [...KANBAN_SOURCE.matchAll(/\b_text\(/g)].flatMap((call) => {
+  const [first = ''] = callArguments(KANBAN_SOURCE, call.index + call[0].length);
+  // In `a === 'b' ? 'c' : 'd'` the keys are what the condition chooses between.
+  const choice = first.slice(first.indexOf('?') + 1);
+  return [...choice.matchAll(/'(\w+)'/g)].map((match) => match[1]);
+});
 
 /**
  * Keys a component asks for that must stay out of the catalogue, because something other than
@@ -37,6 +51,7 @@ const TEMPLATE_KEYS = new Map([
   ['`calendar.${view}`', ['agenda', 'day', 'week', 'month', 'year'].map((view) => `calendar.${view}`)],
   ['`field.${kind}`', ['field.int', 'field.float']],
   ['`filter.unit.${id}`', ['days', 'weeks', 'months'].map((unit) => `filter.unit.${unit}`)],
+  ['`kanbanView.${key}`', KANBAN_KEYS.map((key) => `kanbanView.${key}`)],
   ['`questionnaire.${role}`', ['next', 'review', 'submit'].map((role) => `questionnaire.${role}`)]
 ]);
 
@@ -196,17 +211,75 @@ test('the default statuses read their catalogue entries, which hold the English 
   for (const [, key, english] of DEFAULT_STATUSES) assert.equal(defaultMessages[key], english, key);
 });
 
-test('Select, Table and Datebox name nothing with a literal', () => {
-  // A literal here reaches the screen in English whatever catalogue is installed.
-  const literal = /\b(?:ariaLabel|aria-label|title|placeholder|textContent)['"]?\s*[:=]\s*['"`][^'"`]*[A-Za-z]/g;
+test('every operator reads its catalogue entry, which holds the label beside it', () => {
+  assert.equal(filterOperators.length, 27);
+  for (const { id, label } of filterOperators) assert.equal(defaultMessages[`filter.op.${id}`], label, id);
+});
+
+test('KanbanView asks for labels the catalogue has, and for no others', () => {
+  assert.ok(KANBAN_KEYS.length > 45, `only ${KANBAN_KEYS.length} keys found`);
+  const asked = new Set([...KANBAN_KEYS, 'label']);
+  const held = Object.keys(defaultMessages).filter((key) => key.startsWith('kanbanView.'))
+    .map((key) => key.slice('kanbanView.'.length));
+  assert.deepEqual(held.filter((key) => !asked.has(key)), [], 'entries nothing asks for');
+});
+
+test('Kanban text fills named placeholders, from an override first and the catalogue next', () => {
+  const text = (labels) => KanbanView.prototype._text.bind({
+    _kanbanOptions: () => ({ labels }), msg: Component.prototype.msg, options: {}
+  });
+  assert.equal(text({})('move', { name: 'Alpha' }), 'Move Alpha');
+  assert.equal(text({})('progressValue', { percent: 40 }), '40%');
+  assert.equal(text({ move: 'Shift %name%' })('move', { name: 'Alpha' }), 'Shift Alpha');
+  setTranslator((key) => ({ 'kanbanView.move': '%name% verschieben' })[key] ?? null);
+  assert.equal(text({})('move', { name: 'Alpha' }), 'Alpha verschieben');
+  assert.equal(text({ move: 'Shift %name%' })('move', { name: 'Alpha' }), 'Shift Alpha', 'the option wins');
+});
+
+test('the closed components name nothing with a literal', () => {
+  // A literal here reaches the screen in English whatever catalogue is installed. Lines naming a
+  // `key` are catalogue-backed tables, and a line with `icons` is a format's own name.
+  const literal = /(?<![.\w])(?:ariaLabel|aria-label|title|placeholder|textContent|label|moreLabel|addLabel|overflowLabel|actionsLabel|buttonTitle|feedback|emptyText|loadingText|errorText)['"]?\s*[:=]\s*['"`](?!\$\{)[^'"`]*[A-Za-z]/g;
   for (const path of [
-    'components/select/select.js',
-    'components/table/table.js',
+    'components/account-menu/account-menu.js',
+    'components/activity-list/activity-list.js',
+    'components/app-sidebar/app-sidebar.js',
+    'components/calendar/calendar.js',
+    'components/chart/chart.js',
+    'components/code-editor/code-editor.js',
+    'components/code-editor/field-adapter.js',
+    'components/copy/copy-button.js',
+    'components/copy/copy-input.js',
+    'components/date-picker/date-picker.js',
+    'components/date-picker/date-range-picker.js',
     'components/datebox/datebox.js',
-    'components/date-picker/date-picker.js'
+    'components/dock/dock.js',
+    'components/entity-ref/entity-ref.js',
+    'components/field-upload/field-upload.js',
+    'components/file-item/file-item.js',
+    'components/file-list/file-list.js',
+    'components/filter/filter-model.js',
+    'components/filter/filter.js',
+    'components/finder/finder.js',
+    'components/form/form.js',
+    'components/grid/grid.js',
+    'components/kanban-view/kanban-view.js',
+    'components/master-panel/master-panel.js',
+    'components/multi-value-editor/multi-value-editor.js',
+    'components/navigation-bar/navigation-bar.js',
+    'components/prose/prose.js',
+    'components/rating/rating.js',
+    'components/select/select.js',
+    'components/slider/slider.js',
+    'components/sort-control/sort-control.js',
+    'components/source-list/source-list.js',
+    'components/split-view/split-view.js',
+    'components/table/table.js',
+    'components/toolbar/toolbar.js',
+    'components/tree/tree.js'
   ]) {
     const source = readFileSync(join(SRC, path), 'utf8').split('\n')
-      .filter((line) => !/^\s*(?:\*|\/\/)/.test(line)).join('\n');
+      .filter((line) => !/^\s*(?:\*|\/\/|\/\*)/.test(line) && !/\b(?:key|icons):/.test(line)).join('\n');
     assert.deepEqual(source.match(literal) ?? [], [], path);
   }
 });

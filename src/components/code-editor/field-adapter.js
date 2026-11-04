@@ -8,7 +8,7 @@ import { Field } from '../field/field.js';
 export function registerCodeEditorFieldAdapter() {
   Field.register('code', (field, options) => {
     const editor = field.own(new CodeEditor(null, {
-      label: options.label ? String(options.label) : 'Code editor',
+      label: options.label ? String(options.label) : null,
       placeholder: options.placeholder,
       readOnly: Boolean(options.props?.readOnly),
       disabled: Boolean(options.disabled),

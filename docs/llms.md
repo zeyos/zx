@@ -787,8 +787,8 @@ items that overflow — removing them from the tab order and the roving group �
 a `MenuButton`, where choosing one activates the original control.
 
 - **Options** — `items: [Element | '-' | {name, label, icon, kind, size, disabled, title, active,
-  onclick}]`, `align: 'start'|'end'|'between'`, `label` (accessible name, default `'Toolbar'`),
-  `overflow` (default `true`), `overflowLabel` (default `'More'`), `dense`. `active` renders the
+  onclick}]`, `align: 'start'|'end'|'between'`, `label` (accessible name, by default the `toolbar.label` message),
+  `overflow` (default `true`), `overflowLabel` (by default the `toolbar.more` message), `dense`. `active` renders the
   item as a pressed toggle (`aria-pressed`).
 - **Methods** — `setItems()`, `getItem(name)`, `enable(name)`, `disable(name)`,
   `setActive(name, active?)`, `destroy()`.
@@ -1119,8 +1119,8 @@ preview, or persists a file.
 An accessible ordered collection of `FileItem` rows with loading and empty presentations.
 Explicit duplicate file IDs are rejected; source order is preserved.
 
-- **Options** — `items`, `label: 'Files'`, `loading`, `loadingCount: 3`,
-  `loadingText: 'Loading files'`, and `emptyText: 'No files'` (text, Node, or Component).
+- **Options** — `items`, `label`, `loading`, `loadingCount: 3`, `loadingText`, and `emptyText` (text,
+  Node, or Component). Unset, the three read the `fileList.*` messages.
 - **Methods** — `setItems(items,{silent?})`, `getItems()`, `getItem(id)`,
   `addItem(item,index?,{silent?})`, `updateItem(id,values,{silent?})`,
   `removeItem(id,{silent?})`, `setLoading()`, and `destroy()`.
@@ -1162,8 +1162,9 @@ incremental host-controlled mutation. It deliberately preserves source order ins
 whether a feed is newest- or oldest-first.
 
 - **Options** — `items`, `groupBy` (property, resolver, or null), `groupLabel`,
-  `label: 'Activity'`, `variant: 'default'|'compact'`, `loading`, `loadingCount: 3`,
-  `loadingText`, `emptyText`, `groupHeadingLevel`, and `itemHeadingLevel`.
+  `label`, `variant: 'default'|'compact'`, `loading`, `loadingCount: 3`, `loadingText`, `emptyText`,
+  `groupHeadingLevel`, and `itemHeadingLevel`. Unset, `label`, `loadingText` and `emptyText` read the
+  `activityList.*` messages.
 - **Compact** — `variant: 'compact'` (reflected as `data-variant`) keeps every entry on one line at
   any width, for a summary card narrower than 30rem: actor and title read as one sentence that
   wraps as text, the time keeps the trailing end instead of stacking under the title, an avatar
@@ -1319,7 +1320,8 @@ appears once. Changing fields preserves direction; toggling direction preserves 
 from `Select`, with its themed popover and keyboard behavior.
 
 - **Options** — `fields: [{id,label}]`, `value: {id,dir:'asc'|'desc'}` (null selects the first field
-  ascending), `label: 'Sort by'`, `labels: {asc,desc}` for localized direction text, `disabled`.
+  ascending), `label` (by default the `sortControl.label` message), `labels: {asc,desc}` to override
+  the `sortControl.ascending` and `sortControl.descending` messages, `disabled`.
 - **Methods** — defensive `getValue()`, `setValue(value,{silent})`, `enable()`, `disable()`,
   `focus()`, `destroy()`. Unknown fields or directions are rejected. An empty catalogue disables
   selection and returns null.
@@ -1431,7 +1433,7 @@ to a hidden textarea when the async Clipboard API is unavailable or denied.
   → `HTMLButtonElement`.
 - **Options** — `text: ''` — a string, or **a function returning one**, which is what a button
   beside a live value needs so the copy is never stale; `label: ''` (empty renders an icon-only
-  ghost button), `title: 'Copy'`, `feedback: 'Copied'`, `feedbackDuration: 2000`,
+  ghost button), `title`, `feedback` (by default the `copy.copy` and `copy.copied` messages), `feedbackDuration: 2000`,
   `size: 'md'|'sm'`, `kind: 'default'|'primary'|'ghost'`.
 - **Events** — `oncopy(text, copied)` is called for every attempt; `copied` is `false` when the
   clipboard refused the write, and the button then stays untouched rather than claiming a copy
@@ -1443,8 +1445,8 @@ to a hidden textarea when the async Clipboard API is unavailable or denied.
 
 #### CopyInput
 
-- **Options** — `value: ''`, `label: ''`, `hideLabel: false`, `feedback: 'Copied'`,
-  `buttonTitle: 'Copy'`, `size: 'md'|'sm'`.
+- **Options** — `value: ''`, `label: ''`, `hideLabel: false`, `feedback`, `buttonTitle` (by default
+  the `copy.copied` and `copy.copy` messages), `size: 'md'|'sm'`.
 - **Methods** — `get()`, `set(value)`, `focus()` (focuses and selects the whole value).
 - **Events** — `copy {value, copied}`.
 - **Behaviour** — the field is `readonly`, not `disabled`, so the text stays selectable and
@@ -2393,7 +2395,9 @@ adapter to compile into its own backend query language.
 - **Fields** — `{id,label,type,operators?,defaultOperator?,choices?,loadChoices?,editor?,minQuery?,
   debounce?}`. Built-in types cover text, number/money, date/datetime, boolean, enum/status/
   priority/country/currency/unit/entity, and tags. Compatible operators and their arity come from
-  the exported `filterOperators` matrix; applications may explicitly override/add operator IDs.
+  the exported `filterOperators` matrix; applications may explicitly override/add operator IDs. The
+  labels in that matrix are English data. `Filter` shows a built-in operator through its
+  `filter.op.<id>` message, and an operator the `operators` option supplies through its own `label`.
 - **Relative dates** — `withinLast` and `withinNext` take a span, not two dates: the editor is a
   whole-number amount and a unit select, and the value is the pair `[amount, unit]` with `unit` one
   of `RELATIVE_DATE_UNITS` (`'days'|'weeks'|'months'`), e.g. `[7, 'days']`. `validate()` requires a
@@ -2436,7 +2440,8 @@ mutate the caller's data.
   `expanded: []`, `selection: 'single'|'multi'|false`, `selected: []`, `checkboxes: false`
   (tri-state), `checked: []`, `icons: true`, `renderLabel`, `load: (node)=>Promise<children>`
   (lazy children; mark a branch with `hasChildren: true`), `filter`, `emptyText`, `height`,
-  `rowActions: (node) => actions`, `moreLabel: 'More actions'`.
+  `rowActions: (node) => actions`, `moreLabel`. Unset, `label`, `emptyText` and `moreLabel` read the
+  `tree.label`, `tree.noItems` and `tree.more` messages; `tree.empty` still wins over `emptyText`.
 - **Row actions** — `rowActions(node)` returns the row's commands: `{icon, label, onSelect(node),
   disabled?, danger?}` descriptors, or nodes of your own placed as given. One or two show as icon
   buttons at the row's end; with more, the first shows and the rest fold into a "More actions"
@@ -3250,7 +3255,7 @@ inline; every rail state opens descendants toward the workspace in anchored flyo
   (`{appearance, labels: 'auto'|'beside'|'below'|'hidden', allModules, label}` for the module
   strip), `label`,
   `header`, `footer`, `railHeader`, `railFooter`, `openDelay: 80`, `closeDelay: 160`,
-  `moreLabel: 'More actions'`, and `renderIcon(item, context)`. Icon values may also be names,
+  `moreLabel` (by default the `appSidebar.more` message), and `renderIcon(item, context)`. Icon values may also be names,
   nodes, components, or factories.
 - **Row actions** — `actions` on a destination lists its commands: `{icon, label, onSelect(item),
   disabled?, danger?}` descriptors or nodes, laid out as TreeView's `rowActions` (two at most, the
@@ -4173,8 +4178,8 @@ card of its title, where it is, and the passage used on hover and focus. It neve
 a thumbnail, or any other remote resource.
 
 - **Options** — `sources: []` (`Source[]`, numbered in order as the answer's `[n]` markers are),
-  `label: 'Sources'` (the visible label naming the list; `''` drops it and names the list with
-  the `sourceList.label` message), `layout: 'chips'|'list'` (`list` gives each source a row with
+  `label` (the visible label naming the list, by default the `sourceList.label` message; `''` or
+  `null` drops it and names the list with that message), `layout: 'chips'|'list'` (`list` gives each source a row with
   its title and site), `numbered: true`, `icons: {}` (glyph per kind over the built-in
   `web`→link-2, `file`→file, `record`→table, `call`→gear), `msg`.
 - **Methods** — `setSources(sources)` (focus stays on the same source), `highlight(n)` (a number is
@@ -4402,16 +4407,15 @@ One instance can take it alone through its `msg` option (`new CardView(null, { m
 catalogue covers messages only. Month and weekday names come from `Intl` in the active language, so
 `setLanguage('de')` is what makes `formatDate()` write "März". A translator can still override them
 with `date.month.0`–`11`, `date.month.short.0`–`11`, `date.weekday.0`–`6` (Sunday first) and
-`date.weekday.short.0`–`6`. `Tree` and `Finder` show their `emptyText` option when empty, so an
-application sets that as well.
+`date.weekday.short.0`–`6`.
 
 - **Voice** — a business application. The reader is addressed formally ("Sie"), and preferably not
   at all ("Änderungen speichern"). Buttons and menu items use the infinitive ("Speichern",
   "Abbrechen").
 - **Typography** — quotation marks „…“; the ellipsis character attached to its word ("Wird
   geladen…"); a non-breaking space between a number and its unit ("Letzte 30 Tage").
-- **Kept as they are** — Agent, Board, Code, Swimlanes, Tags, Token, Tool; also Dashboard, Prompt,
-  and Tab where a key needs them.
+- **Kept as they are** — Agent, Board, Code, Swimlanes, Tags, Token, Tool, Upload; also Dashboard,
+  Prompt, and Tab where a key needs them. A work-in-progress limit is a WIP-Limit.
 - **Agents** — approve → genehmigen, approval → Genehmigung, reject → ablehnen, request → Anfrage,
   run → Ausführung, working time → Laufzeit, step → Schritt, tool call → Tool-Aufruf, retry →
   Wiederholung, stop → stoppen, conversation → Unterhaltung, source → Quelle, attachment → Anhang.

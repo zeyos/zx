@@ -118,7 +118,7 @@ export class Form extends Component {
   setActions(list) {
     this._actionDescriptors = Array.isArray(list) ? list.map((action) => ({ ...action })) : [];
     this._actions.replaceChildren(...this._actionDescriptors.map((action, index) => {
-      const label = String(action.label ?? action.id ?? 'Action');
+      const label = String(action.label ?? action.id ?? this.msg('form.action'));
       return h('button', {
         class: 'zx-btn',
         type: ['submit', 'reset'].includes(action.type) ? action.type : 'button',

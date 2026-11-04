@@ -29,7 +29,8 @@ const STORAGE_NAMESPACE = 'split-view';
  * @property {string|null} [storageKey=null] Key under which the size is remembered between visits.
  *   Storage failures degrade to memory rather than throwing.
  * @property {boolean} [disabled=false] Whether resizing is blocked.
- * @property {string} [label='Resize panes'] Accessible name of the divider.
+ * @property {string|null} [label=null] Accessible name of the divider; null reads the
+ *   `splitView.resize` message ("Resize panes").
  * @property {(event: CustomEvent<{size: number, ratio: number}>) => void} [onresize] Resize listener.
  * @property {(event: CustomEvent<{size: number, ratio: number}>) => void} [onresizeend] Resize-end listener.
  * @property {(event: CustomEvent<{pane: 'start'|'end'}>) => void} [oncollapse] Collapse listener.
@@ -70,7 +71,7 @@ export class SplitView extends Component {
     snap: 0,
     storageKey: null,
     disabled: false,
-    label: 'Resize panes'
+    label: null
   };
 
   /** @type {ResizeObserver|null} */
@@ -181,7 +182,7 @@ export class SplitView extends Component {
       // A separator's aria-orientation describes the separator itself, not the split: panes lying
       // side by side (orientation "horizontal") are parted by a vertical line.
       ariaOrientation: this._orientation === 'vertical' ? 'horizontal' : 'vertical',
-      ariaLabel: String(options.label ?? 'Resize panes'),
+      ariaLabel: String(options.label ?? this.msg('splitView.resize')),
       ariaControls: startId
     });
     const end = h('div', {

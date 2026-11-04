@@ -861,11 +861,12 @@ function text(key, fallback, args) {
  * @returns {string}
  */
 function spanLabel(start, end) {
-  if (isSameDay(start, end)) return formatDate(start, '%e %B %Y');
-  const tail = formatDate(end, '%e %B %Y');
-  if (start.getFullYear() !== end.getFullYear()) return `${formatDate(start, '%e %B %Y')} – ${tail}`;
-  if (start.getMonth() !== end.getMonth()) return `${formatDate(start, '%e %B')} – ${tail}`;
-  return `${formatDate(start, '%e')} – ${tail}`;
+  const full = text('daterange.span.full', '%e %B %Y');
+  if (isSameDay(start, end)) return formatDate(start, full);
+  const tail = formatDate(end, full);
+  if (start.getFullYear() !== end.getFullYear()) return `${formatDate(start, full)} – ${tail}`;
+  if (start.getMonth() !== end.getMonth()) return `${formatDate(start, text('daterange.span.month', '%e %B'))} – ${tail}`;
+  return `${formatDate(start, text('daterange.span.day', '%e'))} – ${tail}`;
 }
 
 /** @param {unknown} value @returns {DateRangePreset[]} */

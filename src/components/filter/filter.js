@@ -5,8 +5,8 @@ import { printf } from '../../core/i18n.js';
 import { Select } from '../select/select.js';
 import { TagPicker } from '../tag-picker/tag-picker.js';
 import {
-  cloneFilterAst, cloneFilterValue, emptyFilterAst, filterCondition, filterGroup, filterOperators,
-  parseFilterAst, validateFilterAst
+  cloneFilterAst, cloneFilterValue, emptyFilterAst, filterCondition, filterGroup, filterOperatorLabel, filterOperators,
+  filterText, parseFilterAst, validateFilterAst
 } from './filter-model.js';
 
 /** @typedef {import('./filter-model.js').FilterAst} FilterAst */
@@ -126,6 +126,8 @@ export class Filter extends Component {
     this._snapshot = this._createdRoot ? null : snapshotTarget(root);
     this._fields = (Array.isArray(this.options.fields) ? this.options.fields : []).map((field) => ({ ...field }));
     this._operators = mergeOperators(filterOperators, this.options.operators);
+    /** @type {import('./filter-model.js').FilterText} */
+    this._text = (key, ...args) => this.msg(key, ...args);
     this._readonly = Boolean(this.options.readonly);
     this._disabled = Boolean(this.options.disabled);
     this._async = new Map();
@@ -248,7 +250,7 @@ export class Filter extends Component {
 
   /** Returns semantic validity and errors. @returns {{valid:boolean,errors:Array<Record<string,string>>}} */
   validate() {
-    const result = validateFilterAst(this._value, this._fields, this._operators);
+    const result = validateFilterAst(this._value, this._fields, this._operators, this._text);
     for (const node of conditionNodes(this._value.root)) {
       if (!isRelativeDateOperator(this._operator(node.operator))) continue;
       // The model only checks that both halves of the pair are filled; a span also needs a
@@ -260,7 +262,7 @@ export class Filter extends Component {
       else result.errors.push({ nodeId: node.id, code: 'value', message });
       result.valid = false;
     }
-    const error = rootLogicError(this._value, this.options.rootLogic);
+    const error = rootLogicError(this._value, this.options.rootLogic, this._text);
     if (error) { result.valid = false; result.errors.push(error); }
     return result;
   }
@@ -422,7 +424,7 @@ export class Filter extends Component {
     const operator = this._operator(node.operator);
     const fieldChoices = this._fields.map((candidate) => ({value: candidate.id, label: candidate.label, icon: candidate.icon}));
     if (node.field && !field) fieldChoices.push({value: node.field, label: this._unavailable(node.field)});
-    const operatorChoices = operators.map((candidate) => ({value: candidate.id, label: candidate.label}));
+    const operatorChoices = operators.map((candidate) => ({value: candidate.id, label: filterOperatorLabel(candidate, this._text)}));
     if (node.operator && !operators.some((candidate) => candidate.id === node.operator)) operatorChoices.push({value: node.operator, label: this._unavailable(node.operator)});
     const fieldSelect = this.options.searchable ? this._searchSelect(fieldChoices, node.field, this._message('filter.field', 'Filter field'), node.id, 'field', (value) => {
       const selectedField = this._field(String(value));
@@ -443,7 +445,7 @@ export class Filter extends Component {
       ariaLabel: this._message('filter.operator', 'Filter operator'), disabled: this._blocked()
     },
     h('option', { value: '', selected: !node.operator }, this._message('filter.chooseOperator', 'Choose an operator…')),
-    operators.map((candidate) => h('option', { value: candidate.id, selected: candidate.id === node.operator }, candidate.label)),
+    operators.map((candidate) => h('option', { value: candidate.id, selected: candidate.id === node.operator }, filterOperatorLabel(candidate, this._text))),
     node.operator && !operators.some((candidate) => candidate.id === node.operator)
       ? h('option', { value: node.operator, selected: true }, this._unavailable(node.operator)) : null);
     return h('li', { class: 'zx-filter__condition', dataset: { nodeId: node.id } },
@@ -1003,9 +1005,10 @@ function cssEscape(value) { return globalThis.CSS?.escape ? CSS.escape(value) : 
  * Reports a restricted root mismatch without mutating the supplied expression.
  * @param {FilterAst} value Expression to validate.
  * @param {'and'|'or'|null} logic Required root logic.
+ * @param {import('./filter-model.js').FilterText} [text=filterText] Resolves the error's message.
  * @returns {Record<string,string>|null} Actionable validation error, or null.
  */
-export function rootLogicError(value, logic) {
+export function rootLogicError(value, logic, text = filterText) {
   if (!logic || value.root.logic === logic) return null;
-  return {nodeId: value.root.id, code: 'root-logic', message: `This filter requires match ${logic === 'or' ? 'any' : 'all'} conditions.`};
+  return {nodeId: value.root.id, code: 'root-logic', message: text(logic === 'or' ? 'filter.requiresAny' : 'filter.requiresAll')};
 }

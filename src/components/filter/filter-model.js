@@ -1,3 +1,4 @@
+import { translate } from '../../core/i18n.js';
 import { uid } from '../../core/util.js';
 
 /** @typedef {null|boolean|number|string|FilterJson[]|{[key:string]: FilterJson}} FilterJson */
@@ -8,8 +9,13 @@ import { uid } from '../../core/util.js';
 /** @typedef {{id:string, label:string, arity:'none'|'single'|'pair'|'many', types:string[]}} FilterOperator */
 /** @typedef {{id:string, label:string, type:string, operators?:string[], defaultOperator?:string}} FilterField */
 /** @typedef {{nodeId:string, code:string, message:string}} FilterValidationError */
+/** @typedef {(key:string, ...args:unknown[]) => string} FilterText Resolves a message; a component passes its `msg()`. */
 
-/** Core operators are application-neutral IDs; an adapter maps them to executable query syntax. */
+/**
+ * Core operators are application-neutral IDs; an adapter maps them to executable query syntax. The
+ * labels here are English data that hosts read. What `Filter` shows for a built-in is the
+ * `filter.op.<id>` message, see {@link filterOperatorLabel}.
+ */
 export const filterOperators = Object.freeze([
   op('contains', 'contains', 'single', ['text']),
   op('notContains', 'does not contain', 'single', ['text']),
@@ -39,6 +45,25 @@ export const filterOperators = Object.freeze([
   op('isEmpty', 'is empty', 'none', ['text', 'number', 'money', 'date', 'datetime', 'boolean', 'enum', 'status', 'priority', 'country', 'currency', 'unit', 'entity', 'tags']),
   op('isNotEmpty', 'is not empty', 'none', ['text', 'number', 'money', 'date', 'datetime', 'boolean', 'enum', 'status', 'priority', 'country', 'currency', 'unit', 'entity', 'tags'])
 ]);
+
+/** The catalogue, for code that runs without a component. @type {FilterText} */
+export const filterText = (key, ...args) => translate(key, args);
+
+/** Built-in English labels by operator ID. */
+const BUILT_IN_LABELS = new Map(filterOperators.map((operator) => [operator.id, operator.label]));
+
+/**
+ * The name to show for an operator. A built-in reads its `filter.op.<id>` message. A host-supplied
+ * operator keeps its own label, unless that label is the built-in text for its ID: labels are
+ * compared rather than objects so that `operators: filterOperators`, or a spread of a built-in that
+ * changes something else, translates too.
+ * @param {FilterOperator} operator
+ * @param {FilterText} [text=filterText]
+ * @returns {string}
+ */
+export function filterOperatorLabel(operator, text = filterText) {
+  return BUILT_IN_LABELS.get(operator.id) === operator.label ? text(`filter.op.${operator.id}`) : operator.label;
+}
 
 /** @returns {FilterAst} */
 export function emptyFilterAst() {
@@ -128,36 +153,37 @@ export function stringifyFilterAst(value) {
  * @param {FilterAst} ast
  * @param {FilterField[]} fields
  * @param {FilterOperator[]} [operators=filterOperators]
+ * @param {FilterText} [text=filterText] Resolves the messages of the errors.
  * @returns {{valid:boolean, errors:FilterValidationError[]}}
  */
-export function validateFilterAst(ast, fields, operators = filterOperators) {
+export function validateFilterAst(ast, fields, operators = filterOperators, text = filterText) {
   const errors = [];
   const fieldMap = new Map((Array.isArray(fields) ? fields : []).map((field) => [String(field.id), field]));
   const operatorMap = new Map((Array.isArray(operators) ? operators : []).map((operator) => [String(operator.id), operator]));
   const visit = (node, root = false) => {
     if (node.kind === 'group') {
-      if (!root && node.children.length === 0) errors.push(error(node.id, 'empty-group', 'Nested groups need at least one condition'));
+      if (!root && node.children.length === 0) errors.push(error(node.id, 'empty-group', text('filter.emptyGroup')));
       node.children.forEach((child) => visit(child));
       return;
     }
     const field = fieldMap.get(node.field);
-    if (!field) errors.push(error(node.id, 'unknown-field', node.field ? `Unavailable field: ${node.field}` : 'Choose a field'));
+    if (!field) errors.push(error(node.id, 'unknown-field', node.field ? text('filter.fieldUnavailable', node.field) : text('filter.fieldRequired')));
     const operator = operatorMap.get(node.operator);
     if (!operator) {
-      errors.push(error(node.id, 'unknown-operator', node.operator ? `Unavailable operator: ${node.operator}` : 'Choose an operator'));
+      errors.push(error(node.id, 'unknown-operator', node.operator ? text('filter.operatorUnavailable', node.operator) : text('filter.operatorRequired')));
       return;
     }
     if (field) {
       const allowed = Array.isArray(field.operators) && field.operators.length
         ? field.operators : operators.filter((candidate) => candidate.types.includes(field.type)).map((candidate) => candidate.id);
       if (!allowed.includes(operator.id) || !operator.types.includes(field.type)) {
-        errors.push(error(node.id, 'operator-type', `${operator.label} is not available for ${field.label}`));
+        errors.push(error(node.id, 'operator-type', text('filter.operatorType', filterOperatorLabel(operator, text), field.label)));
       }
     }
     if (!validArity(operator.arity, node.value)) {
-      errors.push(error(node.id, 'value', operator.arity === 'pair' ? 'Enter both values'
-        : operator.arity === 'many' ? 'Choose at least one value'
-          : operator.arity === 'none' ? 'This operator does not accept a value' : 'Enter a value'));
+      errors.push(error(node.id, 'value', text(operator.arity === 'pair' ? 'filter.valuePair'
+        : operator.arity === 'many' ? 'filter.valueMany'
+          : operator.arity === 'none' ? 'filter.valueNone' : 'filter.valueOne')));
     }
   };
   visit(ast.root, true);
