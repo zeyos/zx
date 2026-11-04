@@ -118,6 +118,8 @@ runs `*.test.js`), `website/demos/agent-thread.demo.js`, `docs/llms.md`.
       `{error: 'invalid-arguments'}`.
     - A `show` surface with no actions has nothing to answer, so the call is answered at once with
       `{shown: true, surface, errors?}` and the surface stays on screen.
+    - Where `thread.surface(id)` gives nothing, as with an application's own renderer, every
+      operation is reported and the call is answered at once with `{error: 'surface-unavailable'}`.
   - **Inline surfaces:** with `inlineSurfaces`, answer content goes through WP52's
     `inlineSplitter()`.
     - Prose before a fence stays in the answer. The fence's lines go to their surfaces, inserted
@@ -146,6 +148,8 @@ runs `*.test.js`), `website/demos/agent-thread.demo.js`, `docs/llms.md`.
   - A run error outside an open run marks the last run failed, draws its notice and is reported.
     Approvals and surfaces still waiting for a person stay open.
   - `destroy()` closes an open run as stopped.
+  - A start for a call already decided or answered is ignored and reported: `ontoolresult` never
+    fires twice for one call, and an answered surface's receipt stays.
 - **Fixtures:** three recorded sequences, replayed in tests and, from the demo, into an
   AgentThread (instantly under reduced motion):
   - a plain answer with two tool calls;

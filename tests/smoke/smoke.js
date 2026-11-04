@@ -7393,6 +7393,69 @@ function agUiCases() {
     }), async ({ component: thread }) => {
       if (!zx.AgentThread.has('smoke-company')) {
         zx.AgentThread.register('smoke-company', (item) => zx.h('p', { class: 'smoke-company' }, String(item.name ?? '')));
+    surfaceCase('connectAgUi() (an application’s own surface renderer)', () => ({}), async () => {
+      const { AgentThread } = await import('../../src/components/agent-thread/agent-thread.js?own-surface');
+      if (!AgentThread.has('surface')) AgentThread.register('surface', (item) => zx.h('p', { class: 'smoke-own-surface' }, String(item.label)));
+      const thread = new AgentThread(null, { authors: { finance: { name: 'Finance agent' } } });
+      const results = [];
+      const problems = [];
+      const adapter = zx.connectAgUi(thread, {
+        agent: 'finance',
+        inlineSurfaces: true,
+        ontoolresult: (id, result) => results.push([id, result]),
+        onerror: (problem) => problems.push(problem.code)
+      });
+      try {
+        adapter.handle({ type: 'RUN_STARTED', threadId: 't', runId: 'r1' });
+        adapter.handle({ type: 'TOOL_CALL_START', toolCallId: 'c', toolCallName: 'ask_user' });
+        adapter.handle({ type: 'TOOL_CALL_ARGS', toolCallId: 'c', delta: JSON.stringify(surfaceDocument()) });
+        adapter.handle({ type: 'TOOL_CALL_END', toolCallId: 'c' });
+        assert(results.length === 1 && results[0][1].error === 'surface-unavailable', `the call hangs: ${JSON.stringify(results)}`);
+        assert(problems.join() === 'surface-unavailable', `problems: ${problems}`);
+        assert(!thread.el.querySelector('.smoke-own-surface, [data-type="zx-placeholder"]'), 'something stands for a call already answered');
+        adapter.handle({ type: 'CUSTOM', name: 'zx.surface', value: { zx: 'surface/1', op: 'begin', surface: 'x', intent: 'confirm', title: 'T', author: 'finance', root: [] } });
+        assert(problems.join() === 'surface-unavailable,surface-unavailable', `an operation was dropped silently: ${problems}`);
+      } finally {
+        adapter.destroy();
+        thread.destroy();
+      }
+    }),
+    surfaceCase('connectAgUi() (a settled call stays settled)', () => ({
+      component: new zx.AgentThread(null, { authors: { finance: { name: 'Finance agent' } } })
+    }), async ({ component: thread }) => {
+      const results = [];
+      const problems = [];
+      const adapter = zx.connectAgUi(thread, {
+        agent: 'finance',
+        requiresApproval: (call) => call.name === 'send',
+        ontoolresult: (id, result) => results.push([id, result]),
+        onerror: (problem) => problems.push(problem.code)
+      });
+      const call = (id, name, delta) => {
+        adapter.handle({ type: 'TOOL_CALL_START', toolCallId: id, toolCallName: name });
+        adapter.handle({ type: 'TOOL_CALL_ARGS', toolCallId: id, delta });
+        adapter.handle({ type: 'TOOL_CALL_END', toolCallId: id });
+      };
+      adapter.handle({ type: 'RUN_STARTED', threadId: 't', runId: 'r1' });
+      call('s', 'ask_user', JSON.stringify(surfaceDocument()));
+      const surface = thread.surface('surface:r1/s1');
+      surface.cancel('cancelled');
+      assert(results.length === 1, 'the surface did not answer its call');
+      call('s', 'ask_user', ' ');
+      assert(results.length === 1, 'the call was answered twice');
+      assert(thread.surface('surface:r1/s1') === surface && thread.el.querySelector('article[data-id="surface:r1/s1"] .zx-surface__verdict'), 'the receipt left the thread');
+      assert(!thread.el.querySelector('[data-type="zx-placeholder"]'), 'a Skeleton took the receipt’s place');
+      call('g', 'send', '{"to":"a"}');
+      /** @type {HTMLButtonElement} */ (thread.getComponent('approval:g').toElement().querySelector('[data-action="approve"], .zx-approval-card__approve')
+        ?? [...thread.getComponent('approval:g').toElement().querySelectorAll('button')].find((button) => /approve/i.test(button.textContent))).click();
+      await delay(0);
+      assert(results.length === 2 && results[1][1].approved === true, 'the approval did not answer its call');
+      call('g', 'send', ',"also":"b"}');
+      assert(results.length === 2, 'a decided call was asked again');
+      assert(thread.get('approval:g').status === 'approved', `the decision was undone: ${thread.get('approval:g').status}`);
+      assert(problems.filter((code) => code === 'duplicate-start').length === 2, `problems: ${problems}`);
+      adapter.destroy();
+    }),
       }
       const replies = [];
       thread.on('reply', (event) => replies.push(event.detail.reply));

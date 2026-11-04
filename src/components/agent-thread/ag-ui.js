@@ -68,7 +68,8 @@ const MAX_TOKEN = 512;
  *   marks the last run failed, and what waits for a person stays open.
  * - `out-of-order`: content, arguments, an end or a result for something that was never started
  *   or has already ended; it is dropped, never turned into an item.
- * - `duplicate-start`: a start for an id still open, or for a run already seen; it is ignored.
+ * - `duplicate-start`: a start for an id still open, a settled tool call, or a run already seen; it
+ *   is ignored.
  * - `unclosed`: a message still open when its run ended; it is ended.
  * - `renderer`: a tile renderer threw or returned something that is not an item; the trace step
  *   stays as it was.
@@ -76,6 +77,9 @@ const MAX_TOKEN = 512;
  * - `state`: a state delta that does not apply; the state stays as it was.
  * - `invalid-line`: a line in a surface fence that is not JSON; it is dropped.
  * - `unknown-surface`: an operation for a surface that has not begun; it is dropped.
+ * - `surface-unavailable`: `thread.surface()` gave nothing, as with an application's own `surface`
+ *   renderer, or a surface it removed. An operation is dropped, and a surface tool's call is
+ *   answered at once with `{error: 'surface-unavailable'}`.
  * - `surface-answered`: an operation for a surface that has already replied; it is refused.
  * - `not-allowed`: an operation for a surface another source opened — a fence line for a
  *   custom-event or tool surface, a custom event for a surface the model opened — or a message id
@@ -114,7 +118,8 @@ const MAX_TOKEN = 512;
  *   `{approved: true}` or `{approved: false, reason?}`; a surface tool its reply, with `errors`
  *   when the surface had any; a `show` surface with no actions answers at once with
  *   `{shown: true, surface, errors?}` and stays on screen; a surface tool whose arguments are not a
- *   surface answers at once with `{error: 'invalid-arguments'}`. In AG-UI 1.0 the application turns it into a `resume`
+ *   surface answers at once with `{error: 'invalid-arguments'}`, and one the thread cannot draw
+ *   with `{error: 'surface-unavailable'}`. It fires once for a call. In AG-UI 1.0 the application turns it into a `resume`
  *   entry (`{interruptId, status: 'resolved', payload}`) when the run ended with an interrupt for
  *   the call, or into a tool message (`{role: 'tool', toolCallId, content}`) when it ended with
  *   the call among its `pendingToolCallIds`; either goes in the next run's input.
@@ -251,7 +256,8 @@ const OPEN_STATES = new Set(['queued', 'running', 'waiting']);
  *   surface still waiting is cancelled the same way.
  * - A message id is the answer's item id. A start for a closed message or call reopens it, in this
  *   run or a later one, and its content continues: a reopened call is asked about again once its
- *   arguments are complete. A start for an id still open is ignored and reported.
+ *   arguments are complete. A start for an id still open, or for a call already decided or
+ *   answered, is ignored and reported: `ontoolresult` fires once for a call, and a receipt stays.
  * - A surface is the thread item `surface:<runId>/<surface>`, so a model reusing `s1` in every
  *   run gets a new surface each run. Its token is the application's for a custom event, the tool
  *   call id for a surface tool, and the run id for an inline surface.
@@ -459,9 +465,31 @@ export function connectAgUi(thread, options = {}) {
   };
 
   /**
-   * A start for a closed call: its arguments continue, so nothing drawn from them stands any more.
-   * Its card and its surface go, and it is asked about again once the arguments are complete, so
-   * nobody decides on arguments that have since changed.
+   * Takes a call's surface away. Forgotten first: the reply its removal sends is not the call's
+   * answer.
+   * @param {Call} entry
+   */
+  const forgetSurface = (entry) => {
+    const id = /** @type {string} */ (entry.surfaceId);
+    surfaces.delete(id);
+    surfaceCalls.delete(id);
+    entry.run.surfaces.delete(id);
+    entry.surfaceId = null;
+    unplace(entry, id);
+  };
+
+  /**
+   * Whether a call has its answer: a person decided it, or it was answered, by its result or at
+   * once. Nothing changes that, so `ontoolresult` never fires twice for one call.
+   * @param {Call} entry
+   * @returns {boolean}
+   */
+  const isSettled = (entry) => entry.decided || Object.hasOwn(entry.call, 'result');
+
+  /**
+   * A start for a call closed but not settled: its arguments continue, so nothing drawn from them
+   * stands any more. Its card and its surface go, and it is asked about again once the arguments
+   * are complete, so nobody decides on arguments that have since changed.
    * @param {Call} entry @param {Run} run
    */
   const reopenCall = (entry, run) => {
@@ -470,19 +498,11 @@ export function connectAgUi(thread, options = {}) {
       approvals.delete(`approval:${call.id}`);
       unplace(entry, `approval:${call.id}`);
     }
-    if (entry.surfaceId) {
-      // Forgotten first: the reply its removal sends is not the call's answer.
-      surfaces.delete(entry.surfaceId);
-      surfaceCalls.delete(entry.surfaceId);
-      entry.run.surfaces.delete(entry.surfaceId);
-      unplace(entry, entry.surfaceId);
-    }
-    Object.assign(entry, { run, open: true, gated: false, decided: false, surfaceId: null });
-    delete call.result;
-    delete call.error;
+    if (entry.surfaceId) forgetSurface(entry);
+    Object.assign(entry, { run, open: true, gated: false });
     call.args = null;
     if (entry.kind === 'surface') standIn(entry);
-    setStatus(entry, 'queued', {}, { args: undefined, result: undefined, error: undefined, detail: undefined });
+    setStatus(entry, 'queued', {}, { args: undefined, detail: undefined });
   };
 
   /**
@@ -567,17 +587,26 @@ export function connectAgUi(thread, options = {}) {
       owner = { source: context.source, ended: false };
       surfaces.set(id, owner);
       context.run.surfaces.add(id);
+      const before = lastPlaced;
       place(/** @type {ThreadItem} */ ({
         id, type: 'surface', ...by(context.message ? context.message.author : agent), document: null,
         token: context.token, ...(catalog ? { catalog } : {})
       }));
+      // Nothing can stream into what this thread drew for it: an empty item does not stay.
+      if (!thread.surface(id)) {
+        thread.remove(id);
+        lastPlaced = before;
+      }
       if (context.message) {
         context.message.pending.add(id);
         context.message.surfaces += 1;
       }
     }
     const surface = thread.surface(id);
-    if (!surface) return;
+    if (!surface) {
+      report('surface-unavailable', `The thread has no surface for "${name}"; the operation was dropped`, { event: context.event });
+      return;
+    }
     if (surface.getReply()) {
       report('surface-answered', `Surface "${name}" has already been answered; the operation was refused`, { event: context.event });
       return;
@@ -597,10 +626,11 @@ export function connectAgUi(thread, options = {}) {
     const { call, run } = entry;
     const skeleton = entry.placeholder;
     entry.placeholder = null;
-    /** @param {Record<string, unknown>} result @param {SurfaceError[]} [errors] */
+    /** @param {{error: string, errors?: SurfaceError[]}} result @param {SurfaceError[]} [errors] */
     const refuse = (result, errors) => {
       if (skeleton) unplace(entry, skeleton);
-      setStatus(entry, 'failed', { error: 'invalid-arguments' }, { args: call.argsText, error: 'invalid-arguments' });
+      entry.decided = true;
+      setStatus(entry, 'failed', { error: result.error }, { args: call.argsText, error: result.error });
       if (errors) report('invalid-event', `The arguments of "${call.name}" are not a surface`, { errors });
       answer(call.id, result);
     };
@@ -630,6 +660,13 @@ export function connectAgUi(thread, options = {}) {
     placeForCall(entry, /** @type {ThreadItem} */ ({
       id, type: 'surface', ...by(), document: parsed.value, token: tokenOf(call.id), ...(catalog ? { catalog } : {})
     }));
+    if (!thread.surface(id)) {
+      // Nothing in this thread can reply: the item goes, and the call is not left waiting for it.
+      forgetSurface(entry);
+      report('surface-unavailable', `The thread has no surface for "${document.surface}"; the call of "${call.name}" was answered at once`);
+      refuse({ error: 'surface-unavailable' });
+      return;
+    }
     if (skeleton) unplace(entry, skeleton);
     if (document.intent === 'show' && !document.actions?.length) {
       // Nothing here can be answered: the call is, at once, and the surface stays on screen.
@@ -964,8 +1001,8 @@ export function connectAgUi(thread, options = {}) {
     if (!run) return;
     const id = String(event.toolCallId);
     const known = calls.get(id);
-    if (known?.open) {
-      report('duplicate-start', `Tool call "${id}" is already open; the start was ignored`, { event });
+    if (known?.open || (known && isSettled(known))) {
+      report('duplicate-start', `Tool call "${id}" is ${known.open ? 'already open' : 'settled'}; the start was ignored`, { event });
       return;
     }
     if (known) {

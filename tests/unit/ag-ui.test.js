@@ -660,18 +660,11 @@ test('a start for a closed call reopens it: its arguments continue, and are aske
   await tick();
   assert.deepEqual(gated.log.results, [['c1', { approved: true }]]);
 
-  // Reopened after a decision, the call is decided anew, on the new arguments.
-  gated.play([start, args(' '), end]);
-  assert.equal(gated.thread.items.get('approval:c1').status, 'pending');
-  gated.thread.emit('reject', { item: gated.thread.get('approval:c1'), reason: 'no' });
-  await tick();
-  assert.deepEqual(gated.log.results.at(-1), ['c1', { approved: false, reason: 'no' }]);
-
   // A tile sees the reopening as a status change, and is not drawn twice.
   const statuses = [];
   const tiled = setup({ tools: { send: (call) => { statuses.push([call.status, call.args, call.result]); return { type: 'card' }; } } });
-  tiled.play(run('r1', [start, args('{}'), end, { type: 'TOOL_CALL_RESULT', toolCallId: 'c1', messageId: 't1', content: 'ok' }, start, end]));
-  assert.deepEqual(statuses, [['queued', null, undefined], ['running', {}, undefined], ['done', {}, 'ok'], ['queued', null, undefined], ['running', {}, undefined]]);
+  tiled.play(run('r1', [start, args('{}'), end, start, end, { type: 'TOOL_CALL_RESULT', toolCallId: 'c1', messageId: 't1', content: 'ok' }]));
+  assert.deepEqual(statuses, [['queued', null, undefined], ['running', {}, undefined], ['queued', null, undefined], ['running', {}, undefined], ['done', {}, 'ok']]);
   assert.equal(tiled.thread.order.filter((id) => id === 'tool:c1').length, 1);
 });
 
@@ -681,20 +674,6 @@ test('a reopened surface call stands as a skeleton again, and draws its complete
   const end = { type: 'TOOL_CALL_END', toolCallId: 'c1' };
   const args = (delta) => ({ type: 'TOOL_CALL_ARGS', toolCallId: 'c1', delta });
   const begun = { type: 'RUN_STARTED', threadId: 't', runId: 'r1' };
-
-  // Refused while incomplete, then completed.
-  const refused = setup();
-  refused.play([begun, start, args(document.slice(0, 20)), end]);
-  assert.deepEqual(refused.log.results, [['c1', { error: 'invalid-arguments' }]]);
-  refused.play([start]);
-  assert.equal(refused.thread.items.get('tool:c1').type, 'zx-placeholder');
-  refused.play([args(document.slice(20)), end]);
-  assert.equal(refused.thread.items.get('tool:c1'), undefined);
-  assert.equal(refused.thread.step('trace:r1', 'c1').status, 'waiting');
-  assert.equal(refused.thread.step('trace:r1', 'c1').error, undefined);
-  refused.thread.surface('surface:r1/s1').answer('submit', { a: 1 });
-  assert.equal(refused.log.results.length, 2);
-  assert.equal(refused.log.results[1][1].action, 'submit');
 
   // Drawn, then reopened: the surface goes, unanswered, and its call is not answered for it.
   const drawn = setup();
@@ -709,6 +688,147 @@ test('a reopened surface call stands as a skeleton again, and draws its complete
   assert.deepEqual(drawn.log.errors, []);
   drawn.thread.surface('surface:r1/s1').answer('submit', { a: 1 });
   assert.equal(drawn.log.results.length, 1);
+});
+
+test('a start for a settled call changes nothing: it is ignored and reported', async () => {
+  const start = (name) => ({ type: 'TOOL_CALL_START', toolCallId: 'c1', toolCallName: name });
+  const args = (delta) => ({ type: 'TOOL_CALL_ARGS', toolCallId: 'c1', delta });
+  const end = { type: 'TOOL_CALL_END', toolCallId: 'c1' };
+  const begun = { type: 'RUN_STARTED', threadId: 't', runId: 'r1' };
+  const result = { type: 'TOOL_CALL_RESULT', toolCallId: 'c1', messageId: 't1', content: 'ok' };
+  const again = (name) => [start(name), args(' more'), end];
+  const refused = ['duplicate-start', 'out-of-order', 'out-of-order'];
+
+  // Decided: the person's answer stands, and no second one is asked for.
+  for (const [decision, answer] of [['approve', { approved: true }], ['reject', { approved: false, reason: 'no' }]]) {
+    const { thread, log, play } = setup({ requiresApproval: () => true });
+    play([begun, start('send'), args('{"a":1}'), end]);
+    thread.emit(decision, { item: thread.get('approval:c1'), values: {}, reason: 'no' });
+    await tick();
+    const { status } = thread.step('trace:r1', 'c1');
+    play(again('send'));
+    assert.deepEqual(log.results, [['c1', answer]], decision);
+    assert.deepEqual(log.errors, refused, decision);
+    assert.ok(thread.items.get('approval:c1'), `${decision}: the card stays`);
+    assert.equal(thread.step('trace:r1', 'c1').status, status, decision);
+    assert.equal(thread.step('trace:r1', 'c1').args, '{"a":1}', decision);
+  }
+
+  // Expired by a result that came first.
+  const expired = setup({ requiresApproval: () => true });
+  expired.play([begun, start('send'), end, result]);
+  expired.play(again('send'));
+  assert.deepEqual(expired.log.results, []);
+  assert.equal(expired.thread.items.get('approval:c1').status, 'expired');
+  assert.deepEqual(expired.log.errors, ['out-of-order', ...refused]);
+
+  // Answered by its result.
+  const seen = [];
+  const answered = setup({ tools: { send: (call) => { seen.push(call.status); return { type: 'card' }; } } });
+  answered.play([begun, start('send'), args('{}'), end, result]);
+  answered.play(again('send'));
+  assert.equal(answered.thread.step('trace:r1', 'c1').status, 'done');
+  assert.equal(answered.thread.step('trace:r1', 'c1').result, 'ok');
+  assert.equal(answered.thread.step('trace:r1', 'c1').args, '{}');
+  assert.deepEqual(seen, ['queued', 'running', 'done'], 'a tile is not drawn for a start that changed nothing');
+  assert.deepEqual(answered.log.errors, refused);
+
+  // A surface answered: its receipt stays where it stands.
+  const receipt = setup();
+  receipt.play([begun, ...askCall('c1', 's1')]);
+  receipt.thread.surface('surface:r1/s1').answer('confirm');
+  receipt.play(again('ask_user'));
+  assert.equal(receipt.log.results.length, 1);
+  assert.ok(receipt.thread.items.get('surface:r1/s1'), 'the receipt stays in the thread');
+  assert.equal(receipt.thread.surface('surface:r1/s1').getReply().action, 'confirm');
+  assert.equal(receipt.thread.items.get('tool:c1'), undefined, 'no Skeleton takes its place');
+  assert.deepEqual(receipt.log.errors, refused);
+
+  // Answered at once, because its arguments were no surface.
+  const invalid = setup();
+  invalid.play([begun, start('ask_user'), args('{"zx":'), end]);
+  invalid.play(again('ask_user'));
+  assert.deepEqual(invalid.log.results, [['c1', { error: 'invalid-arguments' }]]);
+  assert.equal(invalid.thread.items.get('tool:c1'), undefined);
+  assert.equal(invalid.thread.step('trace:r1', 'c1').status, 'failed');
+  assert.deepEqual(invalid.log.errors, refused);
+
+  // Answered at once, because a show surface has nothing to answer.
+  const shown = setup();
+  shown.play([begun, start('show_surface'), args(JSON.stringify({ zx: 'surface/1', surface: 's1', intent: 'show', title: 'T', author: 'finance', root: [], nodes: [] })), end]);
+  shown.play(again('show_surface'));
+  assert.deepEqual(shown.log.results, [['c1', { shown: true, surface: 's1' }]]);
+  assert.ok(shown.thread.items.get('surface:r1/s1'));
+  assert.deepEqual(shown.log.errors, refused);
+
+  // A chunk stream asks the same way, and is told the same.
+  const chunks = setup();
+  chunks.play([begun, start('send'), end, result,
+    { type: 'TOOL_CALL_CHUNK', toolCallId: 'c1', toolCallName: 'send', delta: '{}' }, { type: 'STATE_SNAPSHOT', snapshot: {} }]);
+  assert.equal(chunks.thread.step('trace:r1', 'c1').status, 'done');
+  assert.deepEqual(chunks.log.errors, refused);
+});
+
+test('with no surface from the thread nothing is dropped silently, and no call hangs', () => {
+  const custom = (value) => ({ type: 'CUSTOM', name: 'zx.surface', value });
+  const drawn = (options) => {
+    const parts = setup(options);
+    parts.thread.surface = () => null;
+    return parts;
+  };
+  const show = JSON.stringify({ zx: 'surface/1', surface: 's2', intent: 'show', title: 'T', author: 'finance', root: [], nodes: [] });
+
+  // A surface tool is answered at once, whatever its intent, and nothing stands in the thread.
+  const tool = drawn();
+  tool.play(run('r1', [
+    ...askCall('c1', 's1'),
+    { type: 'TOOL_CALL_START', toolCallId: 'c2', toolCallName: 'show_surface' },
+    { type: 'TOOL_CALL_ARGS', toolCallId: 'c2', delta: show },
+    { type: 'TOOL_CALL_END', toolCallId: 'c2' }
+  ]));
+  assert.deepEqual(tool.log.results, [['c1', { error: 'surface-unavailable' }], ['c2', { error: 'surface-unavailable' }]]);
+  assert.deepEqual(tool.log.errors, ['surface-unavailable', 'surface-unavailable']);
+  assert.equal(tool.thread.step('trace:r1', 'c1').status, 'failed');
+  assert.equal(tool.thread.step('trace:r1', 'c1').error, 'surface-unavailable');
+  assert.deepEqual([...tool.thread.items.values()].filter((item) => item.type !== 'trace'), [], 'no surface, and no Skeleton either');
+  assert.equal(tool.log.status.at(-1).state, 'done', 'the run does not wait for an answer that cannot come');
+
+  // Answered, the call is settled: it cannot be answered twice.
+  tool.play([{ type: 'RUN_STARTED', threadId: 't', runId: 'r2' }, ...askCall('c1', 's1')]);
+  assert.equal(tool.log.results.length, 2);
+
+  // Every operation of a custom stream is reported, not only the first.
+  const stream = drawn();
+  stream.play(run('r1', [custom(begin('s1')), custom({ op: 'node', surface: 's1', id: 'a', type: 'text', text: 'x' }), custom({ op: 'end', surface: 's1' })]));
+  assert.deepEqual(stream.log.errors, ['surface-unavailable', 'surface-unavailable', 'surface-unavailable']);
+  assert.deepEqual(stream.thread.order, [], 'an empty surface item does not stay');
+
+  // So is every line of a fence, and the prose around it goes on.
+  const fence = drawn({ inlineSurfaces: true });
+  fence.play(run('r1', [
+    { type: 'TEXT_MESSAGE_START', messageId: 'm' },
+    { type: 'TEXT_MESSAGE_CONTENT', messageId: 'm', delta: `Before\n\`\`\`zx-surface\n${JSON.stringify(begin('s1'))}\n{"op":"end","surface":"s1"}\n\`\`\`\nAfter` },
+    { type: 'TEXT_MESSAGE_END', messageId: 'm' }
+  ]));
+  assert.deepEqual(fence.log.errors, ['surface-unavailable', 'surface-unavailable']);
+  assert.equal(fence.thread.items.get('m').text, 'Before\n');
+  assert.equal(fence.thread.items.get('m#2').text, 'After');
+
+  // A step can follow where the surface would have stood.
+  const after = drawn();
+  after.play(run('r1', [
+    { type: 'TOOL_CALL_START', toolCallId: 'c0', toolCallName: 'x' }, { type: 'TOOL_CALL_END', toolCallId: 'c0' },
+    custom(begin('s1')),
+    { type: 'TOOL_CALL_START', toolCallId: 'c1', toolCallName: 'x' }, { type: 'TOOL_CALL_END', toolCallId: 'c1' }
+  ]));
+  assert.deepEqual(after.thread.order, ['trace:r1'], 'nothing was drawn, so the trace goes on');
+
+  // A surface the application removed from under a live stream is reported the same way.
+  const removed = setup();
+  removed.play([{ type: 'RUN_STARTED', threadId: 't', runId: 'r1' }, custom(begin('s1'))]);
+  removed.thread.surface = () => null;
+  removed.play([custom({ op: 'end', surface: 's1' })]);
+  assert.deepEqual(removed.log.errors, ['surface-unavailable']);
 });
 
 test('chunk events expand into start, content and end', () => {

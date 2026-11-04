@@ -3552,7 +3552,9 @@ source.onmessage = (message) => adapter.handle(JSON.parse(message.data));
   `{role: 'tool', toolCallId, content}`. A `show` surface with no actions has nothing to answer, so
   the call is answered at once with `{shown: true, surface, errors?}` and the surface stays on
   screen. Arguments that are not a surface, or a surface with no valid intent, answer at once with
-  `{error: 'invalid-arguments'}`. With `inlineSurfaces`, surface fences in answer text become
+  `{error: 'invalid-arguments'}`. Where `thread.surface(id)` gives nothing, as with an application's
+  own `surface` renderer, an operation is reported (`surface-unavailable`) and a surface tool's call
+  answered at once with `{error: 'surface-unavailable'}`. With `inlineSurfaces`, surface fences in answer text become
   surfaces after the prose before them, and the prose after continues in `<messageId>#2`; a fence
   still open at the message's end is reported and its surface cancelled when the run ends, and so
   is any surface that reaches the end of its run without its `end` (`unterminated-surface`). A
@@ -3568,8 +3570,9 @@ source.onmessage = (message) => adapter.handle(JSON.parse(message.data));
   or an end for something never started is dropped and reported (`out-of-order`), never drawn. A
   start for a closed message or tool call reopens it, in this run or a later one, and its content
   continues; a reopened call stands as `queued`, loses its card or surface, and is asked about
-  again once its arguments are complete. A start for an id still open is ignored and reported
-  (`duplicate-start`), and a message id with one of the adapter's prefixes (`approval:`, `tool:`, `trace:`, `surface:`,
+  again once its arguments are complete. A start for an id still open, or for a call already
+  decided or answered, is ignored and reported (`duplicate-start`), so `ontoolresult` fires once
+  for a call and an answered surface's receipt stays; and a message id with one of the adapter's prefixes (`approval:`, `tool:`, `trace:`, `surface:`,
   `error:`, `think:`) is refused. `handle()` never throws: what it cannot read is reported and
   dropped. `destroy()` closes a run still open as stopped, cancels unanswered surface-tool surfaces
   (their replies still reach `ontoolresult`, with `reason: 'stopped'`) and expires undecided
