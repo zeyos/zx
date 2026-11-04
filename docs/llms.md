@@ -44,10 +44,45 @@ const t = new Table(target, options);
 - ESM: `import { … } from '/assets/zx.esm.js'` (or `../src/index.js` in-repo, no build).
 - Granular: `import { Slider } from '@zeyos/zx/src/components/slider/slider.js'` — one component
   rather than the whole library, for consumers running a bundler. Two components bundle 26 kB
-  minified against 157 kB through the package entry. The stylesheet is still loaded whole.
+  minified against 157 kB through the package entry. `zx-css` does the same for the stylesheet.
 - Global: `<script src="/assets/zx.global.js">` → `window.zx.*`.
-- Styles: load `/assets/zx.css` once.
+- Styles: load `/assets/zx.css` once, or one of the stylesheets below.
 - Build bundles with `npm run build` (esbuild). No build is needed to develop against `src/`.
+
+### Stylesheets
+
+| Load | It holds | Choose it when |
+| --- | --- | --- |
+| `@zeyos/zx/zx.css`, `zx.min.css` | the whole library | the default |
+| a file written by `zx-css` | the core sheet and the components named, with what they depend on | an application uses a few components |
+| `@zeyos/zx/zx.layered.css` | the whole library in `@layer zx` | the application's own CSS should win without specificity work |
+| `@zeyos/zx/zx.core.css`, `zx.core.min.css` | tokens, base rules, icons, reading type | composing stylesheets by hand |
+| `@zeyos/zx/src/components/select/select.css` | one component's own rules | composing stylesheets by hand |
+
+**`zx-css`** ships with the package and runs on Node alone:
+
+```sh
+npx zx-css select table --out public/zx.css   # one stylesheet for these components
+npx zx-css select table --out public/zx.css --min --layer
+npx zx-css select table --list                # the files it contains, in order
+```
+
+The file starts with the core sheet, then every stylesheet the components reach, in `zx.css` order,
+each once. A component reaches another by importing it, and by naming a `zx-<block>` class in the
+source of any module it imports, because a component may draw another's markup without importing it.
+A name is the file name of a stylesheet under `src/components/`: `select`, `progress-bar`,
+`button` for `button()`, `layout` for `stack()` and `grid()`. An unknown name fails and lists the
+known ones. Name what the page draws by hand as well: a `Form` that uses `type: 'zxselect'` needs
+`form select`, because a field type is registered at run time, not imported. The print rules are not
+part of a subset: a page that prints loads `@zeyos/zx/styles/print.css` after it.
+
+**The layered build** puts the whole library in `@layer zx`, and an unlayered rule beats any layered
+one whatever its specificity, so `button { padding: 0 }` overrides `.zx-btn[data-size="sm"]` with no
+`!important`. The trade-off is that this holds for every unlayered rule on the page, not just the
+application's: a reset or a third-party stylesheet that is not in a layer overrides Zx just as
+easily. Choose `zx.layered.css` (or `zx-css --layer`) when the application controls the CSS on its
+pages, and stay on `zx.css` when it does not. `!important` turns the other way round: one inside the
+layer beats an unlayered one.
 
 ## Choosing what to build with
 

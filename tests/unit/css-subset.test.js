@@ -19,7 +19,10 @@ const root = fileURLToPath(new URL('../../', import.meta.url));
 const bin = join(root, 'bin/zx-css.js');
 const CORE = 'styles/core.css';
 
-/** Today's import list of `styles/zx.css`, written out flat: the order existing consumers have. */
+/**
+ * The import list `styles/zx.css` had when it was one flat list, which is the order the rules of
+ * every existing consumer's stylesheet come in. New sheets may join it; these keep their places.
+ */
 const ORDER = `
   ./tokens/global.css ./tokens/themes.css ./tokens/semantic.css ./tokens/dark.css
   ./tokens/modules.css ./base.css ./icons.css ./prose.css
@@ -304,7 +307,7 @@ async function bundle(entry, minify) {
 
 test('zx.css keeps the order every existing consumer has', () => {
   const flat = [...importsOf('styles/core.css'), ...importsOf('styles/zx.css').slice(1)];
-  assert.deepEqual(importsOf('styles/zx.css')[0], './core.css');
+  assert.equal(importsOf('styles/zx.css')[0], './core.css');
   assert.deepEqual(flat.filter((url) => ORDER.includes(url)), ORDER);
   assert.equal(flat.at(-1), './print.css');
 });

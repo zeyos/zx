@@ -98,13 +98,22 @@ export function componentNames({ root = PACKAGE_ROOT } = {}) {
 }
 
 /**
- * Splits a stylesheet into its rule preludes and returns the block that opens each selector.
- * @param {string} css Stylesheet source.
+ * @param {string} root Package root.
+ * @param {string} sheet Stylesheet path relative to the root.
+ * @returns {string} Stylesheet source without comments.
+ */
+function rulesOf(root, sheet) {
+  return read(root, sheet).replace(/\/\*[\s\S]*?\*\//g, '');
+}
+
+/**
+ * Finds the block that opens each selector of a stylesheet.
+ * @param {string} css Stylesheet source without comments.
  * @returns {Set<string>} Block names.
  */
 function leadingBlocks(css) {
   const blocks = new Set();
-  const tokens = css.replace(/\/\*[\s\S]*?\*\//g, '').split(/([{};])/);
+  const tokens = css.split(/([{};])/);
   for (let index = 1; index < tokens.length; index += 2) {
     if (tokens[index] !== '{' || tokens[index - 1].trimStart().startsWith('@')) continue;
     for (const selector of tokens[index - 1].split(',')) {
@@ -128,13 +137,13 @@ function leadingBlocks(css) {
  */
 function blockHomes(root, sheets) {
   const core = new Set(importsOf(root, CORE_SHEET)
-    .flatMap((sheet) => [...leadingBlocks(read(root, sheet))]));
+    .flatMap((sheet) => [...leadingBlocks(rulesOf(root, sheet))]));
   /** @type {Map<string, string[]>} */
   const homes = new Map();
-  const sources = sheets.map((sheet) => ({ sheet, css: read(root, sheet) }));
+  const sources = sheets.map((sheet) => ({ sheet, css: rulesOf(root, sheet) }));
   for (const { sheet, css } of sources) {
-    const named = new RegExp(`\\.zx-${nameOf(sheet)}(?![a-z0-9-])`);
-    if (named.test(css.replace(/\/\*[\s\S]*?\*\//g, ''))) homes.set(nameOf(sheet), [sheet]);
+    const ownClass = new RegExp(`\\.zx-${nameOf(sheet)}(?![a-z0-9-])`);
+    if (ownClass.test(css)) homes.set(nameOf(sheet), [sheet]);
   }
   const named = new Set(homes.keys());
   for (const { sheet, css } of sources) {

@@ -44,9 +44,9 @@ Import a component source module directly when a bundler needs the narrowest pos
 import { Slider } from '@zeyos/zx/src/components/slider/slider.js';
 ```
 
-The package also exposes the bundled ESM entry for ordinary named imports. Load the complete
-stylesheet either way: it contains the shared tokens and cross-component states that make the
-system coherent, while JavaScript can still be tree-shaken or imported component by component.
+The package also exposes the bundled ESM entry for ordinary named imports. JavaScript can be
+tree-shaken or imported component by component either way, and [`zx-css`](#installing) does the
+same for the stylesheet.
 
 TypeScript definitions ship with the package. They are generated from the JSDoc that documents
 every option, method, and event, so `new Slider(null, { … })` is checked against `SliderOptions`
@@ -400,7 +400,20 @@ import { Table, Message } from '@zeyos/zx';
 import '@zeyos/zx/zx.css';
 ```
 
+`zx.css` is the whole library. To load only what an application uses, `zx-css` writes one stylesheet
+for the components named: the tokens and base rules, then those components and everything they
+depend on, resolved from the source.
+
+```sh
+npx zx-css select table --out public/zx.css --min
+npx zx-css select table --list   # the files it contains, in order
+```
+
 Additional entry points: `@zeyos/zx/zeyos` (the schema-driven ZeyOS binding) and
-`@zeyos/zx/global` for classic script tags.
+`@zeyos/zx/global` for classic script tags. For styles, `@zeyos/zx/zx.core.css` is the tokens, base
+rules, icons and reading type, `@zeyos/zx/src/components/select/select.css` is one component's own
+rules, and `@zeyos/zx/zx.layered.css` puts the whole library in `@layer zx`, so that unlayered
+application rules win without a specificity fight, and so do unlayered resets and third-party
+stylesheets: `docs/llms.md` covers when to choose it.
 
 Documentation lives at <https://zx.zeyos.com>.
