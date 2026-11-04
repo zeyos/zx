@@ -323,7 +323,8 @@ const CHART_ATTRS = attributes({
   label: rebuiltText({ default: 'Chart' }),
   description: rebuiltText({ default: '' }),
   summary: rebuiltText({ default: 'hidden' }),
-  loading: bool({ set: (component, value) => component.setLoading(value) }),
+  // New data ends a load on its own, so the property reads the chart rather than what it was told.
+  loading: bool({ set: (component, value) => component.setLoading(value), get: (component) => component.el.dataset.state === 'loading' }),
   'empty-text': rebuiltText({ default: 'No chart data' }),
   'loading-text': rebuiltText({ default: 'Loading chart…' }),
   'error-text': rebuiltText({ default: 'Unable to render chart' }),

@@ -5579,12 +5579,15 @@ function kitElementSpecs() {
       change(element) {
         element.data = { labels: ['Feb'], datasets: [{ label: 'Revenue', data: [84] }] };
         assert(element.adapter.spec.data.labels[0] === 'Feb', 'data set after connection did not reach the engine');
+        // New data ends a load by itself, and the next component must not start out loading.
+        element.loading = true;
+        assert(element.component.el.dataset.state === 'loading', 'loading did not reach the chart');
         element.setData({ labels: ['Mar'], datasets: [{ label: 'Revenue', data: [21] }] });
+        assert(element.loading === false, 'loading outlived the data it was waiting for');
         element.update({ indexAxis: 'x' });
-        element.setLoading(false);
       },
       changed: (element) => element.adapter.spec.data.labels[0] === 'Mar' && element.adapter.spec.options.indexAxis === 'x'
-        && element.type === 'line'
+        && element.type === 'line' && element.component.el.dataset.state === 'ready'
     }
   ];
 }
