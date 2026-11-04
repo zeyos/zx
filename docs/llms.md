@@ -3557,12 +3557,12 @@ the application, which owns the conversation and the transport.
   ends busy, the first message is sent as a normal `send`, and the next waits for the next time busy
   ends. Nothing is sent while the composer is disabled, and what is being written stays in the text.
   A prevented `send` keeps the message first in line. Edit takes the text, files and mentions back
-  into the composer and removes the row; when something is already written or attached it asks first
-  through `Dialog.confirm`. At `queueLimit` the send key is refused, the message stays where it is,
-  and the hint says why until there is room. Stop keeps the queue, so the next message goes when the
-  application ends busy: call `clearQueue()` in the `stop` listener to drop it with the run. The
-  queue is session state: it is not kept with the draft, and `destroy()` drops it. Only a sent message
-  belongs in the conversation, so queued messages are not thread items.
+  into the composer, removes the row and emits `input`; when something is already written or
+  attached it asks first through `Dialog.confirm`. At `queueLimit` the send key is refused, the
+  message stays where it is, and the hint says why until there is room. Stop keeps the queue, so the
+  next message goes when the application ends busy: call `clearQueue()` in the `stop` listener to
+  drop it with the run. The queue is session state: it is not kept with the draft, and `destroy()`
+  drops it. Only a sent message belongs in the conversation, so queued messages are not thread items.
 - **Mentions** — the query is the text after the trigger up to the caret, with no whitespace;
   picking writes `@<label> `. An array is filtered by label prefix, word prefix, label substring,
   then id prefix or a word of the description, ignoring case and accents. A function answers the

@@ -2847,10 +2847,12 @@ const cases = [
     assert(queued().length === 2, 'removeQueued took a message it does not know');
 
     // Edit with an empty input takes the text back, and the row goes.
+    let written = '';
+    component.once('input', (event) => { written = event.detail.text; });
     named(rows()[1], 'Edit').click();
     await Promise.resolve();
     assert(input.value === 'Fourth' && document.activeElement === input && queued().join() === 'Second', 'Edit did not take the text back');
-    assert(left.at(-1).reason === 'edited' && left.at(-1).item.text === 'Fourth', 'Edit did not report the message');
+    assert(left.at(-1).reason === 'edited' && left.at(-1).item.text === 'Fourth' && written === 'Fourth', 'Edit did not report the message');
 
     // With text in the input, Edit asks first: Cancel leaves both alone, confirming replaces.
     const editSecond = () => named(rows()[0], 'Edit').click();

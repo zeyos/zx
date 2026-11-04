@@ -1354,6 +1354,7 @@ export class Composer extends Component {
    * @param {string} id
    * @returns {Promise<void>}
    * @fires Composer#dequeue
+   * @fires Composer#input
    */
   async _editQueued(id) {
     if (this._input.value.trim() || this._files.length) {
@@ -1375,6 +1376,7 @@ export class Composer extends Component {
     this._renderQueue();
     this._input.focus();
     this._emitDequeue(item, 'edited');
+    this.emit('input', { text: this._input.value });
   }
 
   /**

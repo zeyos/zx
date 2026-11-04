@@ -35,8 +35,9 @@ export default {
     {
       title: 'A pick that sends',
       blurb: 'The starters of a new conversation, sent as they are picked. Two columns, and one in '
-        + 'a container narrower than 32rem: drag the frame or open the page on a phone. setItems() '
-        + 'replaces them, and the focus stays on the starter with the same id.',
+        + 'a container narrower than 32rem, as on a phone. Without a description a starter shows its '
+        + 'text, clamped to two lines. setItems() replaces them, and the focus stays on the starter '
+        + 'with the same id.',
       layout: 'stack',
       width: '640px',
       render: ({ cleanup, log }) => {
@@ -56,8 +57,7 @@ export default {
     {
       title: 'A pick that fills the composer',
       blurb: 'One column with a heading: headingLevel draws the label above the starters, and it '
-        + 'names the group. The pick goes into the composer, ready to finish and send. Without '
-        + 'description the text is shown, clamped to two lines.',
+        + 'names the group. The pick goes into the composer, ready to finish and send.',
       layout: 'stack',
       width: '480px',
       render: ({ cleanup, log }) => {
