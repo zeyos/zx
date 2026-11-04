@@ -377,7 +377,8 @@
   border-block-end: 0;
 }
 
-.zx-table__scroll[data-zebra="true"] .zx-table__body tr:nth-child(even):not([aria-selected="true"]) {
+.zx-table__scroll[data-zebra="true"] .zx-table__body tr:nth-child(even):not([aria-selected="true"]),
+.zx-table__scroll[data-zebra="index"] .zx-table__body tr[data-stripe]:not([aria-selected="true"]) {
   --zx-table-row-fill: var(--zx-color-bg-page);
   background: var(--zx-table-row-fill);
 }
@@ -401,7 +402,8 @@
 /* State is never lost under the pointer: a selected, current or striped row lays the hover step
    over its own fill instead of trading it for the hover fill. */
 .zx-table__body tr[data-row][aria-selected="true"]:hover,
-.zx-table__scroll[data-zebra="true"] .zx-table__body tr[data-row]:nth-child(even):not([aria-selected="true"]):hover {
+.zx-table__scroll[data-zebra="true"] .zx-table__body tr[data-row]:nth-child(even):not([aria-selected="true"]):hover,
+.zx-table__scroll[data-zebra="index"] .zx-table__body tr[data-stripe]:not([aria-selected="true"]):hover {
   background: linear-gradient(var(--zx-table-row-hover-bg, var(--zx-color-bg-hover)),
     var(--zx-table-row-hover-bg, var(--zx-color-bg-hover))), var(--zx-table-row-fill);
 }
@@ -433,7 +435,8 @@
 }
 
 /* The stripe's own rule paints this fill, and the hover step lays over it, so nothing more. */
-.zx-table[data-variant="plain"] .zx-table__scroll[data-zebra="true"] .zx-table__body tr:nth-child(even):not([aria-selected="true"]) {
+.zx-table[data-variant="plain"] .zx-table__scroll[data-zebra="true"] .zx-table__body tr:nth-child(even):not([aria-selected="true"]),
+.zx-table[data-variant="plain"] .zx-table__scroll[data-zebra="index"] .zx-table__body tr[data-stripe]:not([aria-selected="true"]) {
   --zx-table-row-fill: transparent;
 }
 
@@ -802,4 +805,61 @@
   border-color: var(--zx-color-border-strong);
   background: var(--zx-color-bg-hover);
   color: var(--zx-color-text);
+}
+
+/* --- Windowed rendering (Table virtual) ----------------------------------------------------- */
+
+/* A windowed table cannot grow with its rows, so the window height is the most it takes unless
+   `height` says otherwise. Scroll anchoring stays off: the rows it would anchor to are the ones
+   the window replaces, and the spacers already keep everything in place. */
+.zx-table[data-virtual] .zx-table__scroll {
+  max-block-size: 100dvh;
+  overflow-anchor: none;
+}
+
+/* One height for every row: text is cut short rather than wrapped into a taller row. */
+.zx-table[data-virtual]:not([data-stacked]) .zx-table__body > tr[data-row] > :is(td[data-column]:not([data-editing]), .zx-table__section-cell) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* After the row, stacked, and empty rules above, which a spacer must take nothing from. Its height
+   is set inline from the rows it stands in for. */
+.zx-table .zx-table__body > tr.zx-table__spacer {
+  padding: 0;
+  border: 0;
+}
+
+.zx-table .zx-table__body > tr.zx-table__spacer > td {
+  padding: 0;
+  border: 0;
+}
+
+/* What a row is tall in this table, in a box the window can watch. */
+.zx-table__row-probe {
+  position: absolute;
+  inset-block-start: 0;
+  inline-size: 0;
+  block-size: var(--zx-row-height);
+  visibility: hidden;
+}
+
+.zx-table[data-edit-mode] .zx-table__row-probe {
+  block-size: max(var(--zx-row-height), calc(var(--zx-control-height) + 1px));
+}
+
+/* Paper has no scroll position to keep: the drawn rows print without the height of the others. */
+@media print {
+  .zx-table .zx-table__body > tr.zx-table__spacer {
+    display: none;
+  }
+
+  .zx-table[data-virtual] .zx-table__scroll {
+    max-block-size: none;
+  }
+
+  .zx-scope .zx-table__scroll[data-zebra="index"] .zx-table__body tr[data-stripe]:not([aria-selected="true"]) {
+    background: transparent;
+  }
 }

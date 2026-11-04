@@ -140,12 +140,15 @@ export class RowWindow {
    */
   start() {
     this.live = true;
-    this.observer = new ResizeObserver(() => {
-      cancelAnimationFrame(this.frame);
-      this.frame = requestAnimationFrame(() => this.measure());
-    });
+    this.observer = new ResizeObserver(() => this.schedule());
     this.observer.observe(this.host.scroller);
     this.observer.observe(this.probe);
+  }
+
+  /** Measures on the next frame, however many times this is asked before it. @returns {void} */
+  schedule() {
+    cancelAnimationFrame(this.frame);
+    this.frame = requestAnimationFrame(() => this.measure());
   }
 
   /** Stops measuring. @returns {void} */
