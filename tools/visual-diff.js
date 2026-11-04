@@ -222,7 +222,7 @@ async function main() {
           if (measured.pixels > 0) counts.withinTolerance += 1;
         }
       }
-      console.log(`  ${job.label}: ${ids.length} sections, ${differing} differ`);
+      console.log(`  ${job.label}: ${differing} of ${ids.length} differ`);
     }
 
     if (counts.sections === 0) {
