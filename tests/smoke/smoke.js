@@ -2514,6 +2514,9 @@ const cases = [
   sizeContainerCase(),
   positionRtlCase(),
   customElementsCase(),
+  ...kitElementSpecs().map(kitElementCase),
+  kitElementsBeforeUpgradeCase(),
+  kitElementsMarkupCase(),
   componentCase('BlockView', () => new zx.BlockView(null, {
     blocks: [
       { type: 'p', text: 'Paid **€4,860.00** <img src=x onerror="window.__zxInjected = 1"> [1].' },
@@ -5429,6 +5432,645 @@ function customElementsCase() {
       const root = element.component.el;
       element.remove();
       assert(element.component === null && zx.Component.from(root) === null, 'disconnect cleanup failed');
+    }
+  };
+}
+
+/** @returns {{create: Function, spec: object|null, destroyed: number}} An engine that records what it was given. */
+function recordingChartAdapter() {
+  const adapter = {
+    spec: null,
+    destroyed: 0,
+    create(_canvas, spec) {
+      adapter.spec = spec;
+      return {
+        instance: adapter,
+        update(next) { adapter.spec = next; },
+        resize() {},
+        destroy() { adapter.destroyed += 1; }
+      };
+    }
+  };
+  return adapter;
+}
+
+/** @param {string} name @returns {string} `chartOptions` as `chart-options`. */
+function kebabCase(name) {
+  return name.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
+}
+
+/**
+ * Counts what reaches a host and what passes it, for one event type.
+ * @param {HTMLElement} element Host.
+ * @param {string} type Plain event name.
+ * @returns {{plain: number, zx: number, above: number, leaked: number, detail: unknown, stop: () => void}}
+ */
+function hostEvents(element, type) {
+  const parent = /** @type {HTMLElement} */ (element.parentNode);
+  const seen = {
+    plain: 0,
+    zx: 0,
+    above: 0,
+    leaked: 0,
+    detail: null,
+    stop() {
+      element.removeEventListener(type, onPlain);
+      element.removeEventListener(`zx-${type}`, onBridged);
+      parent.removeEventListener(`zx-${type}`, onAbove);
+      parent.removeEventListener(type, onLeak);
+    }
+  };
+  function onPlain(event) { seen.plain += 1; seen.detail = event.detail; }
+  function onBridged() { seen.zx += 1; }
+  function onAbove() { seen.above += 1; }
+  function onLeak() { seen.leaked += 1; }
+  element.addEventListener(type, onPlain);
+  element.addEventListener(`zx-${type}`, onBridged);
+  parent.addEventListener(`zx-${type}`, onAbove);
+  parent.addEventListener(type, onLeak);
+  return seen;
+}
+
+/**
+ * One entry per kit element. `properties` are set while the element is detached, and `rendered`
+ * says they drew. `queue` calls a forwarded method before the component exists, and `queued` says
+ * it ran. `change` sets properties and forwards calls on the live element, and `changed` says the
+ * result still stands, both then and after the element is removed and put back. `interact` goes
+ * through the component the way a person does.
+ * @returns {object[]}
+ */
+function kitElementSpecs() {
+  const blocks = [{ type: 'p', text: 'Three are late [1].' }];
+  const records = () => [
+    { id: 'a', title: 'Alpha', status: 'new' },
+    { id: 'b', title: 'Beta', status: 'open' }
+  ];
+  const fields = () => [{ id: 'title', label: 'Title' }, { id: 'status', label: 'Status' }];
+  const answer = () => ({
+    id: 'a1', type: 'answer', author: 'finance', blocks,
+    sources: [{ id: 'inv', title: 'Invoices · September' }]
+  });
+
+  return [
+    {
+      tag: 'agent-thread',
+      component: zx.AgentThread,
+      events: ['action', 'approve', 'edit', 'reject', 'cite', 'artifact', 'reveal', 'open'],
+      data: ['items', 'authors', 'answerActions'],
+      properties: () => ({
+        authors: { finance: { name: 'Finance agent' } },
+        answerActions: ['copy'],
+        items: [{ id: 'ask', type: 'user', text: 'Reconcile September.' }, answer()]
+      }),
+      rendered: (element) => element.querySelectorAll('article').length >= 2
+        && element.querySelector('[data-cite="1"]') !== null,
+      queue: (element) => element.upsert({ id: 'queued', type: 'text', text: 'Queued' }),
+      queued: (element) => element.get('queued')?.text === 'Queued',
+      interact(element) {
+        const heard = hostEvents(element, 'cite');
+        element.querySelector('[data-cite="1"]').click();
+        heard.stop();
+        assert(heard.plain === 1 && heard.zx === 1, `a citation reached the host ${heard.plain}/${heard.zx} times`);
+        assert(heard.detail.n === 1 && heard.detail.item.id === 'a1', 'the citation lost its detail');
+      },
+      change(element) {
+        assert(element.remove('queued') === element, 'remove(id) did not answer with the element');
+        assert(element.get('queued') === null && element.isConnected, 'remove(id) did not remove the item');
+        element.items = [answer()];
+        assert(element.querySelectorAll('article').length === 1, 'items set after connection did not draw');
+        element.appendText('stream', 'Written ');
+        element.appendText('stream', 'as it came.');
+        element.patch('stream', { streaming: false });
+        element.upsert({ id: 'note', type: 'text', text: 'Added' });
+        assert(element.getItems().length === 3, 'getItems() missed what was streamed');
+        assert(element.getItems()[1].blocks[0].text === 'Written as it came.', 'streamed text was lost');
+        assert(element.scrollToEnd() === element, 'a chain left the element');
+        assert(element.reveal('item:note') === true, 'reveal() lost its answer');
+      },
+      changed: (element) => element.querySelector('article[data-id="stream"]')?.textContent.includes('Written as it came.')
+        && element.get('note')?.text === 'Added' && element.items.length === 3
+    },
+    {
+      tag: 'composer',
+      component: zx.Composer,
+      events: ['send', 'stop', 'input', 'attach', 'remove', 'mention', 'command', 'tool', 'historyprevious'],
+      data: ['context', 'tools', 'value'],
+      properties: () => ({
+        value: 'Draft',
+        placeholder: 'Ask',
+        context: [{ id: 'selection', label: '3 invoices' }],
+        tools: [{ id: 'web', label: 'Web search', icon: 'search' }]
+      }),
+      rendered: (element) => element.querySelector('textarea')?.placeholder === 'Ask'
+        && element.querySelector('textarea').value.startsWith('Draft')
+        && element.context.length === 1,
+      queue: (element) => element.setHint('Queued'),
+      queued: (element) => element.component.refs.hint.textContent === 'Queued' && element.getAttribute('hint') === 'Queued',
+      interact(element) {
+        const input = element.querySelector('textarea');
+        const key = () => input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+
+        // The textarea's own `input` stops at the component, so the host hears one event per keystroke.
+        const typed = hostEvents(element, 'input');
+        input.value = 'Draft the reminders';
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        typed.stop();
+        assert(typed.plain === 1 && typed.detail?.text === 'Draft the reminders', 'the host did not hear one input with its text');
+        assert(typed.leaked === 0, 'the textarea\'s input passed through the host');
+
+        // Either copy of a preventable event cancels it.
+        for (const name of ['send', 'zx-send']) {
+          const hold = (event) => event.preventDefault();
+          element.addEventListener(name, hold, { once: true });
+          key();
+          assert(input.value === 'Draft the reminders', `preventing ${name} did not hold the message back`);
+        }
+        const sent = hostEvents(element, 'send');
+        key();
+        sent.stop();
+        assert(sent.plain === 1 && sent.detail.text === 'Draft the reminders', 'send did not reach the host');
+        assert(input.value === '', 'send did not clear the text');
+      },
+      change(element) {
+        element.value = 'Set from script';
+        assert(element.querySelector('textarea').value === 'Set from script', 'value did not reach the text');
+        assert(element.setBusy(true) === element && element.hasAttribute('busy') && element.busy === true,
+          'setBusy() left the property behind');
+        element.setBusy(false);
+        element.busy = true;
+        assert(element.component.isBusy(), 'busy did not reach the component');
+        element.busy = false;
+        element.update({ note: 'Updated' });
+        assert(element.note === 'Updated' && element.getAttribute('note') === 'Updated', 'update() left the property behind');
+        element.setDisabled(true);
+        element.hint = 'Later';
+        assert(element.querySelector('textarea').disabled, 'a later property undid a forwarded setDisabled()');
+        element.setDisabled(false);
+        element.addContext({ id: 'second', label: 'Second' });
+        element.focus();
+        assert(document.activeElement === element.querySelector('textarea'), 'focus() did not reach the text');
+      },
+      changed: (element) => element.querySelector('textarea').value === 'Set from script'
+        && element.component.refs.note.textContent === 'Updated' && element.context.length === 2
+    },
+    {
+      tag: 'block-view',
+      component: zx.BlockView,
+      events: ['cite', 'artifact', 'end'],
+      data: ['blocks', 'sources'],
+      properties: () => ({ blocks, sources: [{ id: 'inv', title: 'Invoices · September' }], streaming: true }),
+      rendered: (element) => element.querySelector('[data-cite="1"]')?.getAttribute('aria-label') === 'Source 1: Invoices · September',
+      queue: (element) => element.appendText(' Queued'),
+      queued: (element) => element.textContent.includes('Queued'),
+      interact(element) {
+        const heard = hostEvents(element, 'cite');
+        element.querySelector('[data-cite="1"]').click();
+        heard.stop();
+        assert(heard.plain === 1 && heard.zx === 1 && heard.detail.n === 1, 'a citation did not reach the host');
+      },
+      change(element) {
+        element.blocks = [{ type: 'p', text: 'Replaced' }];
+        assert(element.textContent.includes('Replaced'), 'blocks set after connection did not draw');
+        assert(element.append({ type: 'p', text: 'Block appended' }) === element, 'append(block) lost its answer');
+        const child = document.createElement('span');
+        assert(element.append(child) === undefined && child.parentNode === element, 'append(node) stopped being the DOM\'s');
+        child.remove();
+        element.appendText(' Streamed');
+        const ended = hostEvents(element, 'end');
+        element.end();
+        ended.stop();
+        assert(ended.plain === 1 && element.streaming === false, 'end() did not reach the host');
+      },
+      changed: (element) => element.textContent.includes('Block appended') && element.textContent.includes('Streamed')
+        && element.blocks.length === 2
+    },
+    {
+      tag: 'run-trace',
+      component: zx.RunTrace,
+      events: ['toggle', 'reveal', 'select', 'open'],
+      data: ['steps', 'authors'],
+      properties: () => ({
+        authors: { finance: { name: 'Finance agent' } },
+        steps: [{ id: 'q', kind: 'query', label: 'Queried invoices', status: 'done' }]
+      }),
+      rendered: (element) => element.querySelector('[data-step="q"]') !== null,
+      queue: (element) => element.upsert({ id: 'queued', kind: 'read', label: 'Queued step' }),
+      queued: (element) => element.steps.some((step) => step.id === 'queued'),
+      interact(element) {
+        const heard = hostEvents(element, 'toggle');
+        element.querySelector('.zx-run-trace__summary').click();
+        heard.stop();
+        assert(heard.plain === 1 && heard.zx === 1 && element.open === true, 'the summary did not reach the host');
+      },
+      change(element) {
+        element.steps = [{ id: 'w', kind: 'write', label: 'Wrote', status: 'done' }];
+        assert(element.querySelector('[data-step="w"]'), 'steps set after connection did not draw');
+        element.upsert({ id: 'x', kind: 'read', label: 'Read', status: 'done' });
+        element.setLabel('Plan');
+        assert(element.label === 'Plan' && element.getAttribute('label') === 'Plan', 'setLabel() left the property behind');
+        element.open = false;
+        assert(element.querySelector('.zx-run-trace__steps').hidden, 'open = false did not close the list');
+        element.open = true;
+      },
+      changed: (element) => element.steps.length === 2 && element.open === true
+        && element.querySelector('.zx-run-trace__summary').textContent.includes('Plan')
+    },
+    {
+      tag: 'approval-card',
+      component: zx.ApprovalCard,
+      events: ['approve', 'edit', 'reject'],
+      data: ['title', 'details', 'fields', 'values'],
+      properties: () => ({
+        title: 'Send 3 reminders?',
+        details: [{ type: 'p', text: 'Three reminders.' }],
+        fields: { subject: { type: 'text', label: 'Subject' } },
+        values: { subject: 'Invoice overdue' }
+      }),
+      rendered: (element) => element.querySelector('h3')?.textContent === 'Send 3 reminders?'
+        && element.textContent.includes('Three reminders.') && element.status === 'pending',
+      queue: (element) => element.update({ description: 'Queued' }),
+      queued: (element) => element.textContent.includes('Queued') && element.description === 'Queued',
+      interact(element) {
+        const heard = hostEvents(element, 'approve');
+        const card = element.component.el;
+        card.focus();
+        card.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true, cancelable: true }));
+        heard.stop();
+        assert(heard.plain === 1 && heard.detail.values.subject === 'Invoice overdue', 'approve did not reach the host');
+        assert(element.status === 'approved', 'status did not follow the card');
+      },
+      change(element) {
+        element.title = 'Send 4 reminders?';
+        assert(element.querySelector('h3').textContent === 'Send 4 reminders?', 'title did not reach the card');
+        element.values = { subject: 'Changed' };
+        assert(element.values.subject === 'Changed', 'values did not reach the card');
+      },
+      changed: (element) => element.querySelector('h3').textContent === 'Send 4 reminders?'
+        && element.status === 'approved' && element.values.subject === 'Changed'
+    },
+    {
+      tag: 'source-list',
+      component: zx.SourceList,
+      events: ['select'],
+      data: ['sources'],
+      properties: () => ({ sources: [{ id: 'inv', title: 'Invoices', kind: 'file' }, { id: 'pol', title: 'Policy', kind: 'file' }] }),
+      rendered: (element) => element.querySelectorAll('.zx-source-list__source').length === 2,
+      queue: (element) => element.highlight(1),
+      queued: (element) => element.querySelector('[data-state="highlighted"]') !== null,
+      interact(element) {
+        const heard = hostEvents(element, 'select');
+        element.querySelector('.zx-source-list__source').click();
+        heard.stop();
+        assert(heard.plain === 1 && heard.detail.n === 1, 'a source did not reach the host');
+      },
+      change(element) {
+        element.sources = [{ id: 'new', title: 'Replaced', kind: 'file' }];
+        assert(element.textContent.includes('Replaced'), 'sources set after connection did not draw');
+        element.setSources([...element.sources, { id: 'more', title: 'Added', kind: 'file' }]);
+      },
+      changed: (element) => element.sources.length === 2 && element.textContent.includes('Added')
+    },
+    {
+      tag: 'run-status',
+      component: zx.RunStatus,
+      events: ['action'],
+      data: ['steps', 'tokens', 'cost', 'actions'],
+      properties: () => ({
+        state: 'waiting',
+        summary: 'Step 4 of 6 needs your approval.',
+        steps: { done: 3, total: 6 },
+        tokens: [18420, 1236],
+        cost: { amount: 0.14, budget: 2, currency: 'EUR' },
+        actions: [{ label: 'Review the request', kind: 'primary' }]
+      }),
+      rendered: (element) => element.component.el.dataset.state === 'waiting'
+        && element.querySelector('[role="progressbar"]')?.getAttribute('aria-valuenow') === '3',
+      queue: (element) => element.update({ model: 'Queued model' }),
+      queued: (element) => element.textContent.includes('Queued model') && element.getAttribute('model') === 'Queued model',
+      interact(element) {
+        const heard = hostEvents(element, 'action');
+        element.querySelector('[data-run-action="0"]').click();
+        heard.stop();
+        assert(heard.plain === 1 && heard.detail.index === 0, 'an action did not reach the host');
+      },
+      change(element) {
+        element.state = 'running';
+        assert(element.component.el.dataset.state === 'running', 'state did not reach the panel');
+        element.steps = { done: 5, total: 6 };
+        element.update({ state: 'done', summary: 'Finished.', workMs: 90_000 });
+        assert(element.state === 'done' && element.getAttribute('state') === 'done', 'update() left the property behind');
+      },
+      changed: (element) => element.component.el.dataset.state === 'done'
+        && element.querySelector('[role="progressbar"]')?.getAttribute('aria-valuenow') === '5'
+        && element.workMs === 90_000
+    },
+    {
+      tag: 'card-view',
+      component: zx.CardView,
+      events: ['recordclick', 'recorddblclick', 'datachange', 'selectionchange', 'sortchange', 'fieldvisibilitychange',
+        'fieldorderchange', 'statechange', 'recordaction', 'groupcollapse'],
+      data: ['fields', 'data', 'actions'],
+      properties: () => ({
+        fields: fields(),
+        data: records(),
+        recordId: 'id',
+        titleField: 'title',
+        actions: [{ id: 'open', label: 'Open' }]
+      }),
+      rendered: (element) => element.textContent.includes('Alpha') && element.textContent.includes('Beta'),
+      queue: (element) => element.addData([{ id: 'c', title: 'Gamma', status: 'new' }]),
+      queued: (element) => element.textContent.includes('Gamma') && element.data.length === 3,
+      interact(element) {
+        const heard = hostEvents(element, 'recordaction');
+        element.querySelector('[data-record-action="open"]').click();
+        heard.stop();
+        assert(heard.plain === 1 && heard.detail.id === 'a', 'a record action did not reach the host');
+      },
+      change(element) {
+        element.data = [{ id: 'z', title: 'Zeta', status: 'new' }];
+        assert(element.textContent.includes('Zeta') && !element.textContent.includes('Alpha'), 'data set after connection did not draw');
+        element.hiddenFields = ['status'];
+        assert(element.component.getHiddenFields().includes('status'), 'hiddenFields did not reach the view');
+        const heard = hostEvents(element, 'datachange');
+        element.updateRecord('z', { id: 'z', title: 'Zeta two', status: 'new' });
+        heard.stop();
+        assert(heard.plain === 1, 'a forwarded call stayed silent');
+      },
+      changed: (element) => element.textContent.includes('Zeta two') && element.hiddenFields.includes('status')
+    },
+    {
+      tag: 'kanban-view',
+      component: zx.KanbanView,
+      events: ['recordclick', 'recorddblclick', 'datachange', 'selectionchange', 'sortchange', 'fieldvisibilitychange',
+        'fieldorderchange', 'statechange', 'recordaction', 'recordmove', 'movereject', 'recordadd', 'searchchange',
+        'historychange'],
+      data: ['fields', 'data', 'columns', 'labels'],
+      properties: () => ({
+        fields: fields(),
+        data: records(),
+        recordId: 'id',
+        titleField: 'title',
+        labels: { board: 'Pipeline' },
+        columns: [{ id: 'new', label: 'New' }, { id: 'open', label: 'Open' }]
+      }),
+      rendered: (element) => element.textContent.includes('Alpha') && element.component.getColumns().length === 2
+        && element.labels.board === 'Pipeline',
+      queue: (element) => element.addData([{ id: 'c', title: 'Gamma', status: 'new' }]),
+      queued: (element) => element.textContent.includes('Gamma') && element.data.length === 3,
+      interact(element) {
+        const heard = hostEvents(element, 'recordmove');
+        assert(element.moveRecord('a', { column: 'open' }) === element, 'moveRecord() left the element');
+        heard.stop();
+        assert(heard.plain === 1 && element.data.find((record) => record.id === 'a').status === 'open',
+          'a move did not reach the host');
+      },
+      change(element) {
+        element.setColumns([{ id: 'new', label: 'New' }, { id: 'open', label: 'Open' }, { id: 'won', label: 'Won' }]);
+        assert(element.columns.length === 3 && element.component.getColumns().length === 3, 'setColumns() left the property behind');
+        element.data = [{ id: 'z', title: 'Zeta', status: 'won' }];
+        assert(element.textContent.includes('Zeta') && !element.textContent.includes('Alpha'), 'data set after connection did not draw');
+        element.search = 'zeta';
+        assert(element.component.getSearch() === 'zeta', 'search did not reach the board');
+        element.search = '';
+      },
+      changed: (element) => element.textContent.includes('Zeta') && element.component.getColumns().length === 3
+    },
+    {
+      tag: 'tree',
+      component: zx.TreeView,
+      events: ['select', 'expand', 'collapse', 'activate', 'check', 'error'],
+      data: ['items', 'expanded', 'selected'],
+      properties: () => ({
+        items: [{ ID: 1, name: 'One', children: [{ ID: 2, name: 'Two' }] }, { ID: 3, name: 'Three' }],
+        label: 'Folders'
+      }),
+      rendered: (element) => element.querySelector('[role="tree"]')?.getAttribute('aria-label') === 'Folders'
+        && element.textContent.includes('One'),
+      queue: (element) => element.expandAll(),
+      queued: (element) => element.textContent.includes('Two'),
+      interact(element) {
+        const heard = hostEvents(element, 'select');
+        element.querySelector('.zx-tree__row').click();
+        heard.stop();
+        assert(heard.plain === 1 && heard.detail.id === 1, 'a row did not reach the host');
+        assert(element.selected.includes(1), 'selected did not follow the tree');
+      },
+      change(element) {
+        element.items = [{ ID: 7, name: 'Seven' }, { ID: 8, name: 'Eight' }];
+        assert(element.textContent.includes('Seven'), 'items set after connection did not draw');
+        element.select(8);
+        element.setFilter('e');
+        assert(element.filter === 'e' && element.getAttribute('filter') === 'e', 'setFilter() left the property behind');
+      },
+      changed: (element) => element.textContent.includes('Seven') && element.selected.includes(8) && element.filter === 'e'
+    },
+    {
+      tag: 'chart',
+      component: zx.Chart,
+      events: ['ready', 'update', 'select', 'error'],
+      data: ['data', 'chartOptions'],
+      properties: () => ({
+        adapter: recordingChartAdapter(),
+        data: { labels: ['Jan'], datasets: [{ label: 'Revenue', data: [42] }] },
+        chartOptions: { indexAxis: 'y' }
+      }),
+      watch: (element) => hostEvents(element, 'ready'),
+      watched: (ready) => assert(ready.plain === 1, 'ready fired during construction and was lost'),
+      rendered: (element) => element.adapter.spec?.data.labels[0] === 'Jan' && element.adapter.spec.options.indexAxis === 'y',
+      queue: (element) => element.setType('line'),
+      queued: (element) => element.adapter.spec.type === 'line' && element.type === 'line',
+      interact(element) {
+        const heard = hostEvents(element, 'select');
+        element.adapter.spec.onSelect({ datasetIndex: 0, index: 0, value: 42 });
+        heard.stop();
+        assert(heard.plain === 1 && heard.detail.value === 42, 'a point did not reach the host');
+      },
+      change(element) {
+        element.data = { labels: ['Feb'], datasets: [{ label: 'Revenue', data: [84] }] };
+        assert(element.adapter.spec.data.labels[0] === 'Feb', 'data set after connection did not reach the engine');
+        // New data ends a load by itself, and the next component must not start out loading.
+        element.loading = true;
+        assert(element.component.el.dataset.state === 'loading', 'loading did not reach the chart');
+        element.setData({ labels: ['Mar'], datasets: [{ label: 'Revenue', data: [21] }] });
+        assert(element.loading === false, 'loading outlived the data it was waiting for');
+        element.update({ indexAxis: 'x' });
+      },
+      changed: (element) => element.adapter.spec.data.labels[0] === 'Mar' && element.adapter.spec.options.indexAxis === 'x'
+        && element.type === 'line' && element.component.el.dataset.state === 'ready'
+    }
+  ];
+}
+
+/**
+ * The contract every kit element keeps, driven from its entry in `kitElementSpecs()`.
+ * @param {object} spec Element entry.
+ * @returns {SmokeDefinition}
+ */
+function kitElementCase(spec) {
+  return {
+    name: `defineElements() (zx-${spec.tag})`,
+    create(fixture) {
+      const element = document.createElement(`zx-smoke-${spec.tag}`);
+      assert(element.component === null, 'a detached element has a component');
+      Object.assign(element, spec.properties());
+      assert(spec.queue(element) === undefined, 'a queued call answered as if it had run');
+      fixture.append(element);
+      assert(element.component instanceof spec.component, 'backing component missing');
+      assert(spec.rendered(element), 'did not render from properties set before connection');
+      assert(spec.queued(element), 'a forwarded call made before connection did not run after it');
+      return { element, fixture };
+    },
+    async exercise({ element, fixture }) {
+      assertNoDataAttributes(element, spec);
+
+      for (const type of spec.events) {
+        const heard = hostEvents(element, type);
+        element.component.emit(type, { probe: type });
+        heard.stop();
+        assert(heard.plain === 1 && heard.detail?.probe === type, `${type} did not reach the host by its plain name`);
+        assert(heard.zx === 1 && heard.above === 1, `zx-${type} stopped bubbling`);
+        assert(heard.leaked === 0, `the plain ${type} left the host`);
+      }
+
+      spec.interact(element);
+      spec.change(element);
+      assert(spec.changed(element), 'changes on the live element did not stand');
+      assertNoDataAttributes(element, spec);
+
+      for (let round = 1; round <= 2; round += 1) {
+        const root = element.component.el;
+        element.remove();
+        assert(element.component === null && zx.Component.from(root) === null, 'removal did not destroy the component');
+        assert(element.childNodes.length === 0, 'removal left nodes in the element');
+        assert(fixture.childNodes.length === 0, 'removal left nodes in the document');
+        fixture.append(element);
+        assert(element.component instanceof spec.component, `re-inserting (${round}) did not rebuild the component`);
+        assert(spec.changed(element), `re-inserting (${round}) lost the current properties`);
+      }
+    },
+    destroy({ element }) {
+      const root = element.component?.el ?? null;
+      element.remove();
+      assert(element.component === null, 'removal did not destroy the component');
+      if (root) assert(zx.Component.from(root) === null, 'removal did not unregister the component');
+    }
+  };
+}
+
+/**
+ * @param {HTMLElement} element
+ * @param {object} spec
+ * @param {string[]} [properties=spec.data] Properties to check.
+ * @returns {void}
+ */
+function assertNoDataAttributes(element, spec, properties = spec.data) {
+  for (const property of properties) {
+    assert(!element.hasAttribute(kebabCase(property)), `${property} was serialized into an attribute`);
+  }
+}
+
+/**
+ * Properties a framework assigned before `defineElements()` ran, on elements in the document and
+ * on elements still detached when the definitions arrive. A chart mounts its engine while it is
+ * being constructed, so its `ready` also proves an event fired that early reaches the host.
+ * @returns {SmokeDefinition}
+ */
+function kitElementsBeforeUpgradeCase() {
+  let runs = 0;
+  return {
+    name: 'defineElements() (before upgrade)',
+    create(fixture) {
+      runs += 1;
+      const prefix = `zx-late${runs}`;
+      const build = (spec) => {
+        const element = document.createElement(`${prefix}-${spec.tag}`);
+        const properties = spec.properties();
+        Object.assign(element, properties);
+        return { spec, element, properties };
+      };
+      const specs = kitElementSpecs();
+      const connected = specs.map(build);
+      const detached = specs.map(build);
+      for (const { element } of connected) fixture.append(element);
+      const ready = connected.flatMap(({ spec, element }) => (spec.watch ? [[spec, spec.watch(element)]] : []));
+      zx.defineElements(prefix);
+      for (const { element } of detached) fixture.append(element);
+      return { entries: [...connected, ...detached], ready };
+    },
+    exercise({ entries, ready }) {
+      for (const { spec, element, properties } of entries) {
+        assert(element.component instanceof spec.component, `${spec.tag} did not upgrade`);
+        assert(spec.rendered(element), `${spec.tag} did not render from properties set before upgrade`);
+        // Before upgrade `title` is the browser's own property, and the browser writes the attribute.
+        assertNoDataAttributes(element, spec, spec.data.filter((name) => !(name in HTMLElement.prototype)));
+        for (const name of Object.keys(properties)) {
+          assert(!Object.hasOwn(element, name), `${spec.tag} kept ${name} as a plain property`);
+        }
+      }
+      for (const [spec, seen] of ready) {
+        seen.stop();
+        spec.watched(seen);
+      }
+    },
+    destroy({ entries }) {
+      for (const { element } of entries) element.remove();
+    }
+  };
+}
+
+/** Static markup: attributes with the options' names, JSON for data, and `="false"` for what is on by default. @returns {SmokeDefinition} */
+function kitElementsMarkupCase() {
+  return {
+    name: 'defineElements() (static markup)',
+    create(fixture) {
+      const template = document.createElement('template');
+      template.innerHTML = `
+        <zx-smoke-source-list label="Evidence" layout="list" numbered="false"
+          sources='[{"id":"a","title":"One","kind":"file"}]'></zx-smoke-source-list>
+        <zx-smoke-run-status state="running" summary="Working" compact="icon" ticking="false"></zx-smoke-run-status>
+        <zx-smoke-tree selection="multi" items='[{"ID":1,"name":"One"}]' height="120"></zx-smoke-tree>
+        <zx-smoke-agent-thread label="Support" heading-level="4"
+          items='[{"id":"a","type":"user","text":"Hello"}]'></zx-smoke-agent-thread>
+        <zx-smoke-composer placeholder="Ask" submit-key="mod+enter" busy></zx-smoke-composer>
+        <zx-smoke-card-view record-id="id" title-field="title" selectable="multi" variant="raised"
+          field-controls="false" data='[{"id":"a","title":"One"}]'
+          fields='[{"id":"title","label":"Title"}]'></zx-smoke-card-view>`;
+      fixture.append(template.content);
+      return { fixture };
+    },
+    exercise({ fixture }) {
+      const pick = (name) => fixture.querySelector(`zx-smoke-${name}`);
+      const sources = pick('source-list');
+      assert(sources.numbered === false && sources.component.el.dataset.layout === 'list', 'the source list ignored its attributes');
+      assert(sources.textContent.includes('Evidence') && sources.textContent.includes('One'), 'the source list did not render');
+      assert(pick('run-status').component.el.dataset.state === 'running', 'the status ignored its attributes');
+      assert(pick('run-status').component.options.ticking === false, 'ticking="false" stayed on');
+      assert(pick('tree').querySelector('[aria-multiselectable="true"]'), 'the tree ignored selection="multi"');
+      const thread = pick('agent-thread');
+      assert(thread.querySelector('[role="feed"]').getAttribute('aria-label') === 'Support', 'the thread ignored its label');
+      assert(thread.items.length === 1, 'the thread did not read its JSON attribute');
+      const composer = pick('composer');
+      assert(composer.busy === true && composer.querySelector('textarea').placeholder === 'Ask', 'the composer ignored its attributes');
+      const view = pick('card-view');
+      assert(view.textContent.includes('One') && view.selectable === 'multi' && view.component.getFieldControls() === null,
+        'the card view ignored its attributes');
+
+      // Setting an attribute later is the same route; setting the property leaves the attribute alone.
+      composer.setAttribute('hint', 'From an attribute');
+      assert(composer.component.refs.hint.textContent === 'From an attribute', 'a later attribute did not apply');
+      const before = thread.getAttribute('items');
+      thread.items = [{ id: 'b', type: 'user', text: 'Later' }];
+      assert(thread.getAttribute('items') === before, 'a property was written over the attribute');
+      thread.setAttribute('items', '[{"id":"c","type":"user","text":"Attribute"}]');
+      assert(thread.items[0].id === 'c', 'a changed attribute did not replace the property');
+      // A rebuild takes the live items along.
+      thread.upsert({ id: 'd', type: 'user', text: 'Streamed' });
+      thread.setAttribute('label', 'Renamed');
+      assert(thread.querySelector('[role="feed"]').getAttribute('aria-label') === 'Renamed', 'a rebuild option did not rebuild');
+      assert(thread.items.length === 2, 'a rebuild lost what was streamed');
+    },
+    destroy({ fixture }) {
+      fixture.replaceChildren();
     }
   };
 }

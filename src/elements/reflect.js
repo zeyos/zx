@@ -1,6 +1,9 @@
 /**
- * Attribute value types supported by the custom-element wrappers.
- * @typedef {'string'|'number'|'boolean'|'json'} AttributeType
+ * Attribute value types supported by the custom-element wrappers. `boolean` goes by presence, so
+ * an absent attribute means false. `flag` is the shape of HTML's `draggable="false"`, for an option
+ * that is on (or undecided) by default: absent keeps the default, `"false"` turns it off, anything
+ * else turns it on.
+ * @typedef {'string'|'number'|'boolean'|'flag'|'json'} AttributeType
  */
 
 /** Sentinel returned when an attribute value cannot be safely applied. */
@@ -20,6 +23,7 @@ export function coerceAttribute(value, type = 'string', warn = console.warn) {
   if (type === 'boolean') return value !== null;
   if (value === null) return undefined;
   if (type === 'string') return value;
+  if (type === 'flag') return value !== 'false';
 
   if (type === 'number') {
     const number = Number(value);
@@ -49,6 +53,7 @@ export function serializeAttribute(value, type = 'string', warn = console.warn) 
   assertType(type);
   if (type === 'boolean') return value ? '' : null;
   if (value === null || value === undefined) return null;
+  if (type === 'flag') return value ? '' : 'false';
 
   if (type === 'number') {
     const number = Number(value);
@@ -73,7 +78,7 @@ export function serializeAttribute(value, type = 'string', warn = console.warn) 
 
 /** @param {unknown} type @returns {asserts type is AttributeType} */
 function assertType(type) {
-  if (!['string', 'number', 'boolean', 'json'].includes(String(type))) {
+  if (!['string', 'number', 'boolean', 'flag', 'json'].includes(String(type))) {
     throw new TypeError(`Unknown reflected attribute type: ${String(type)}`);
   }
 }

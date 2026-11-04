@@ -2,12 +2,32 @@ import { Component, defineElements, h } from '../../src/index.js';
 
 defineElements();
 
+/** Who takes part in the conversation: the keys its items name as `author`. */
+const AUTHORS = {
+  me: { name: 'Hanna Weber', kind: 'person' },
+  finance: { name: 'Finance agent', tone: 'violet' }
+};
+
+/** The conversation so far, as plain items. @returns {object[]} */
+function conversation() {
+  return [
+    { id: 'ask', type: 'user', text: 'Which invoices are late?' },
+    {
+      id: 'answer',
+      type: 'answer',
+      author: 'finance',
+      blocks: [{ type: 'p', text: 'Three invoices are late, **€4,515.50** in all [1].' }],
+      sources: [{ id: 'ledger', title: 'Invoices · September', kind: 'file' }]
+    }
+  ];
+}
+
 export default {
   title: 'Custom elements',
   group: 'Core',
   api: ['defineElements', 'Component'],
-  blurb: 'A focused set of Zx controls also ships as custom elements, so a screen can be written as markup '
-    + 'and configured with attributes instead of constructor calls.',
+  blurb: 'Form controls, containers, the agent kit and the data views also ship as custom elements, so a '
+    + 'screen can be written as markup and configured with attributes instead of constructor calls.',
 
   examples: [
     {
@@ -106,6 +126,66 @@ export default {
           columns='[{"id":"id","label":"ID","sortable":true},{"id":"name","label":"Name","sortable":true}]'
           data='[{"id":1,"name":"Ada"},{"id":2,"name":"Grace"}]'></zx-table>
       `)
+    },
+    {
+      title: 'An agent conversation in markup',
+      blurb: 'A thread, a composer and a run status written as markup and driven the way a framework '
+        + 'drives them: the script sets properties and listens for events by their plain names. '
+        + 'Rich data stays on the property, so the conversation is never serialised into an attribute. '
+        + 'Send a message, then press Stop while the agent is working.',
+      layout: 'stack',
+      width: '560px',
+      render: ({ log }) => {
+        const markup = h.raw(`
+          <div class="demo-stack">
+            <zx-run-status compact state="done"></zx-run-status>
+            <zx-agent-thread label="Invoices"></zx-agent-thread>
+            <zx-composer label="Message" placeholder="Ask the finance agent"></zx-composer>
+          </div>
+        `);
+
+        const status = /** @type {HTMLElement & {state: string}} */ (markup.querySelector('zx-run-status'));
+        const thread = /** @type {HTMLElement & {authors: object, items: object[]}} */ (
+          markup.querySelector('zx-agent-thread'));
+        const composer = /** @type {HTMLElement & {busy: boolean}} */ (markup.querySelector('zx-composer'));
+
+        let items = conversation();
+        let reply = 0;
+        const add = (item) => {
+          items = [...items, { id: `item-${items.length}`, ...item }];
+          thread.items = items;
+        };
+        const settle = (state) => {
+          clearTimeout(reply);
+          composer.busy = false;
+          status.state = state;
+        };
+
+        thread.authors = AUTHORS;
+        thread.items = items;
+
+        composer.addEventListener('send', (event) => {
+          log(`send: ${event.detail.text}`);
+          add({ type: 'user', text: event.detail.text });
+          composer.busy = true;
+          status.state = 'running';
+          reply = window.setTimeout(() => {
+            add({
+              type: 'answer',
+              author: 'finance',
+              blocks: [{ type: 'p', text: 'I will check the ledger and come back to you.' }]
+            });
+            settle('done');
+          }, 1500);
+        });
+        composer.addEventListener('stop', () => {
+          log('stop');
+          settle('stopped');
+        });
+        thread.addEventListener('cite', (event) => log(`cite: ${event.detail.source?.title}`));
+        thread.addEventListener('action', (event) => log(`action: ${event.detail.action}`));
+        return markup;
+      }
     },
     {
       title: 'Disconnect cleanup',

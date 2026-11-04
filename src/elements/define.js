@@ -10,36 +10,34 @@ import { Table } from '../components/table/table.js';
 import { Timebox } from '../components/timebox/timebox.js';
 import { Toggle } from '../components/toggle/toggle.js';
 import { formatDate, parseDate } from '../core/date.js';
+import {
+  attributes, bool, createCallQueue, forwardedResult, isDomCall, json, normalizeAttributes,
+  normalizeNumberOrString, normalizeSelectable, number, text
+} from './definitions.js';
+import { KIT_ELEMENTS } from './kit.js';
 import { INVALID_ATTRIBUTE, coerceAttribute, serializeAttribute } from './reflect.js';
 
-/** @typedef {'string'|'number'|'boolean'|'json'} AttributeType */
-/**
- * @typedef {Object} ElementAttribute
- * @property {AttributeType} [type='string'] Attribute representation.
- * @property {string|null} [option] Component option name; null keeps the value on the host only.
- * @property {string} [property] Host property name; defaults to camel-cased attribute name.
- * @property {unknown} [default] Property value used while the attribute is absent.
- * @property {boolean} [always=false] Pass the default to the component during initial creation.
- * @property {boolean} [rebuild=false] Recreate the component when this value changes.
- * @property {(value: unknown, host: HTMLElement) => unknown} [normalize] Value adapter.
- * @property {(value: unknown, host: HTMLElement) => string|null|typeof INVALID_ATTRIBUTE} [serialize]
- * Property serializer override.
- * @property {(component: InstanceType<typeof import('../core/component.js').Component>, value: any, host: HTMLElement) => void} [set]
- * Live component setter.
- * @property {(component: InstanceType<typeof import('../core/component.js').Component>, host: HTMLElement) => unknown} [get]
- * Live component getter.
- */
-/** @typedef {Record<string, AttributeType|ElementAttribute>} ElementAttributeMap */
+/** @typedef {import('./definitions.js').ElementAttribute} ElementAttribute */
+/** @typedef {import('./definitions.js').ElementAttributeMap} ElementAttributeMap */
+/** @typedef {import('./definitions.js').ElementMethodMap} ElementMethodMap */
 /**
  * @typedef {Object} ElementWrapperOptions
  * @property {boolean} [formAssociated=false] Whether the element participates in native forms.
  * @property {ElementAttributeMap} [attrs={}] Reflected attribute definitions.
+ * @property {string[]|null} [events=null] The component's events. Declared, each also reaches the
+ * host under its plain name, and no DOM event of that name passes through from inside the
+ * component. Left out, the common `zx-*` set is bridged.
+ * @property {ElementMethodMap|null} [methods=null] Component methods the element forwards. Declared,
+ * the element also carries its live values across a rebuild and across removal.
  */
 
 const COMPONENT_EVENTS = Object.freeze([
   'change', 'input', 'submit', 'clear', 'open', 'close', 'cancel', 'invalid',
   'query', 'loaded', 'rowclick', 'rowdblclick', 'sort', 'selectionchange', 'datachange'
 ]);
+
+/** Form-control accessors every wrapper carries; an element that is no form control may reuse the names. */
+const FORM_ACCESSORS = Object.freeze(['form', 'labels', 'validity', 'validationMessage', 'willValidate']);
 
 const TOGGLE_ATTRS = attributes({
   checked: bool({ always: true, set: (component, value) => component.set(value, { silent: true }), get: (component) => component.get() }),
@@ -158,7 +156,8 @@ const ELEMENTS = Object.freeze([
   ['groupbox', Groupbox, { formAssociated: false, attrs: GROUPBOX_ATTRS }],
   ['tabbox', Tabbox, { formAssociated: false, attrs: TABBOX_ATTRS }],
   ['table', Table, { formAssociated: false, attrs: TABLE_ATTRS }],
-  ['dialog', Dialog, { formAssociated: false, attrs: DIALOG_ATTRS }]
+  ['dialog', Dialog, { formAssociated: false, attrs: DIALOG_ATTRS }],
+  ...KIT_ELEMENTS
 ]);
 
 /**
@@ -166,13 +165,23 @@ const ELEMENTS = Object.freeze([
  * Groupbox and Dialog wrappers adopt their host's initial children as component content;
  * other wrappers leave unrelated host children untouched and append their component root.
  *
+ * A wrapper that declares `methods` forwards them: `element.upsert(item)` calls the component, and
+ * a call made while no component exists is queued and runs, in order, once it does. A forwarded
+ * call returns the component's answer, with the component itself replaced by the element; a
+ * queued call returns undefined. A wrapper that declares `events` dispatches each one on the host
+ * under its plain name as well as `zx-<type>`. The plain event does not bubble; `zx-<type>` does.
+ *
  * @param {typeof import('../core/component.js').Component} ComponentClass Component constructor.
  * @param {ElementWrapperOptions} [wrapperOptions={}] Wrapper behavior.
  * @returns {typeof HTMLElement} Custom-element constructor.
  */
-export function elementFor(ComponentClass, { formAssociated = false, attrs = {} } = {}) {
+export function elementFor(ComponentClass, {
+  formAssociated = false, attrs = {}, events = null, methods = null
+} = {}) {
   const definitions = normalizeAttributes(attrs);
-  const attributeNames = Object.freeze(Object.keys(definitions));
+  const attributeNames = Object.freeze(
+    Object.keys(definitions).filter((name) => definitions[name].observed));
+  const byProperty = new Map(Object.values(definitions).map((definition) => [definition.property, definition]));
   const contentElement = ComponentClass === Groupbox || ComponentClass === Dialog;
 
   class ZxElement extends HTMLElement {
@@ -193,16 +202,18 @@ export function elementFor(ComponentClass, { formAssociated = false, attrs = {} 
       this._contentNodes = null;
       this._disabledByForm = false;
       this._applying = false;
+      this._calls = createCallQueue();
       this._internals = formAssociated && typeof this.attachInternals === 'function' ? this.attachInternals() : null;
     }
 
-    /** Instantiates and mounts the backing component. @returns {void} */
+    /** Instantiates and mounts the backing component, then runs the calls queued for it. @returns {void} */
     connectedCallback() {
       if (this._component) return;
       this._upgradeProperties(definitions);
       if (contentElement && this._contentNodes === null) this._contentNodes = Array.from(this.childNodes);
       if (formAssociated && this._defaults === null) this._captureDefaults(definitions);
       this._createComponent(ComponentClass, definitions, contentElement);
+      this._calls.drain((name, args) => this._invoke(name, args), () => this._component !== null);
     }
 
     /** Destroys the backing component and all bridged listeners. @returns {void} */
@@ -331,11 +342,14 @@ export function elementFor(ComponentClass, { formAssociated = false, attrs = {} 
     _createComponent(Constructor, defs, adoptsContent) {
       const options = {};
       for (const [name, definition] of Object.entries(defs)) {
-        const supplied = this._propertyValues.has(definition.property) || this.hasAttribute(name) || definition.always;
-        if (!supplied || definition.option === null) continue;
+        if (!this._supplied(name, definition) || definition.option === null) continue;
         const value = this._currentValue(name, definition);
         if (value === INVALID_ATTRIBUTE || value === undefined) continue;
         options[definition.option] = normalizeValue(definition, value, this);
+      }
+      // As options, so an event fired during construction (a chart's `ready`) is heard as well.
+      for (const type of events ?? []) {
+        options[`on${type}`] = (event) => this._dispatchBridged(Constructor, type, event, true);
       }
 
       let content = null;
@@ -353,13 +367,23 @@ export function elementFor(ComponentClass, { formAssociated = false, attrs = {} 
 
       for (const [name, definition] of Object.entries(defs)) {
         if (definition.option !== null || !definition.set) continue;
-        const supplied = this._propertyValues.has(definition.property) || this.hasAttribute(name) || definition.always;
-        if (!supplied) continue;
+        if (!this._supplied(name, definition)) continue;
         const value = this._currentValue(name, definition);
         if (value !== INVALID_ATTRIBUTE && value !== undefined) this._applyValue(name, definition, value, true);
       }
       this._syncEffectiveDisabled(defs);
       this._syncFormState(ComponentClass);
+    }
+
+    /**
+     * @param {string} name
+     * @param {ElementAttribute} definition
+     * @returns {boolean} Whether a value was given for this definition, or its default always applies.
+     */
+    _supplied(name, definition) {
+      return this._propertyValues.has(definition.property)
+        || (definition.observed && this.hasAttribute(name))
+        || definition.always;
     }
 
     /**
@@ -370,42 +394,107 @@ export function elementFor(ComponentClass, { formAssociated = false, attrs = {} 
     _bridgeEvents(component, Constructor) {
       this._bridgeAbort?.abort();
       this._bridgeAbort = new AbortController();
-      for (const type of COMPONENT_EVENTS) {
-        component.on(type, (event) => {
-          if (this._applying) return;
-          this._syncFormState(Constructor);
-          const bridged = new CustomEvent(`zx-${type}`, {
-            detail: event.detail ?? {},
-            bubbles: true,
-            composed: true,
-            cancelable: true
-          });
-          this.dispatchEvent(bridged);
-          if (bridged.defaultPrevented) event.preventDefault();
-        });
-        component.el.addEventListener(`zx-${type}`, (event) => event.stopPropagation(), {
-          signal: this._bridgeAbort.signal
-        });
+      const stop = (event) => event.stopPropagation();
+      const { signal } = this._bridgeAbort;
+      for (const type of events ?? COMPONENT_EVENTS) {
+        component.el.addEventListener(`zx-${type}`, stop, { signal });
+        if (events) component.el.addEventListener(type, stop, { signal });
+        else component.on(type, (event) => this._dispatchBridged(Constructor, type, event, false));
       }
     }
 
-    /** @returns {void} */
-    _destroyComponent() {
+    /**
+     * Re-dispatches a component event on the host. Either copy being cancelled cancels the original.
+     * @param {typeof import('../core/component.js').Component} Constructor
+     * @param {string} type Component event name.
+     * @param {Event & {detail?: Record<string, unknown>}} event Component event.
+     * @param {boolean} plain Whether the plain name is dispatched too.
+     * @returns {void}
+     */
+    _dispatchBridged(Constructor, type, event, plain) {
+      if (this._applying) return;
+      this._syncFormState(Constructor);
+      const detail = event.detail ?? {};
+      const bridged = new CustomEvent(`zx-${type}`, { detail, bubbles: true, composed: true, cancelable: true });
+      this.dispatchEvent(bridged);
+      if (bridged.defaultPrevented) event.preventDefault();
+      if (!plain) return;
+      const named = new CustomEvent(type, { detail, cancelable: true });
+      this.dispatchEvent(named);
+      if (named.defaultPrevented) event.preventDefault();
+    }
+
+    /**
+     * Runs a forwarded call, or queues it until a component exists.
+     * @param {string} name Method name.
+     * @param {unknown[]} args Call arguments.
+     * @returns {unknown}
+     */
+    _forward(name, args) {
+      if (this._component) return this._invoke(name, args);
+      this._calls.push(name, args);
+      return undefined;
+    }
+
+    /** @param {string} name @param {unknown[]} args @returns {unknown} */
+    _invoke(name, args) {
+      const component = this._component;
+      const result = component[name](...args);
+      this._recordProperties(methods?.[name]?.(args));
+      return forwardedResult(result, component, this);
+    }
+
+    /**
+     * Brings properties in step with what a forwarded method changed, without applying it again.
+     * @param {Record<string, unknown>|null|undefined} changed Values by property name.
+     * @returns {void}
+     */
+    _recordProperties(changed) {
+      for (const [property, value] of Object.entries(changed ?? {})) {
+        const definition = byProperty.get(property);
+        if (!definition || value === undefined) continue;
+        this._propertyValues.set(property, value);
+        this._reflectProperty(definition, value);
+      }
+    }
+
+    /**
+     * Copies the component's live values to the host, so the next component starts where this one
+     * stopped. Only an element that forwards methods can drift from what it was given.
+     * @param {ElementAttribute|null} changed The definition being replaced, which keeps its new value.
+     * @returns {void}
+     */
+    _keepLiveValues(changed) {
+      if (!methods) return;
+      for (const definition of Object.values(definitions)) {
+        if (!definition.get || definition === changed) continue;
+        this._propertyValues.set(definition.property, definition.get(this._component, this));
+      }
+    }
+
+    /** @param {ElementAttribute|null} [changed=null] @returns {void} */
+    _destroyComponent(changed = null) {
       this._bridgeAbort?.abort();
       this._bridgeAbort = null;
       if (!this._component) return;
+      this._keepLiveValues(changed);
       this._component.destroy();
       this._component = null;
     }
 
-    /** @param {Record<string, ElementAttribute>} defs @param {boolean} adoptsContent @returns {void} */
-    _rebuildComponent(defs, adoptsContent = contentElement) {
+    /**
+     * @param {Record<string, ElementAttribute>} defs
+     * @param {boolean} [adoptsContent]
+     * @param {ElementAttribute|null} [changed=null] The definition that asked for the rebuild.
+     * @returns {void}
+     */
+    _rebuildComponent(defs, adoptsContent = contentElement, changed = null) {
       if (!this._component) return;
       if (adoptsContent && this._contentNodes) {
         const fragment = document.createDocumentFragment();
         fragment.append(...this._contentNodes);
       }
-      this._destroyComponent();
+      this._destroyComponent(changed);
       this._createComponent(ComponentClass, defs, adoptsContent);
     }
 
@@ -419,7 +508,7 @@ export function elementFor(ComponentClass, { formAssociated = false, attrs = {} 
     _applyValue(name, definition, value, initial = false) {
       if (!this._component) return;
       if (definition.rebuild && !initial) {
-        this._rebuildComponent(definitions);
+        this._rebuildComponent(definitions, contentElement, definition);
         return;
       }
       if (!definition.set) {
@@ -472,10 +561,17 @@ export function elementFor(ComponentClass, { formAssociated = false, attrs = {} 
       this._applyValue(entry[0], entry[1], value);
     }
 
+    /** @param {ElementAttribute} definition @returns {unknown} The attribute's value; undefined without one. */
+    _attributeValue(definition) {
+      return definition.observed
+        ? coerceAttribute(this.getAttribute(definition.attribute), definition.type)
+        : undefined;
+    }
+
     /** @param {string} name @param {ElementAttribute} definition @returns {unknown} */
     _currentValue(name, definition) {
       if (this._propertyValues.has(definition.property)) return this._propertyValues.get(definition.property);
-      const value = coerceAttribute(this.getAttribute(name), definition.type);
+      const value = this._attributeValue(definition);
       return value === undefined ? definition.default : value;
     }
 
@@ -483,7 +579,7 @@ export function elementFor(ComponentClass, { formAssociated = false, attrs = {} 
     _readProperty(definition) {
       if (this._component && definition.get) return definition.get(this._component, this);
       if (this._propertyValues.has(definition.property)) return this._propertyValues.get(definition.property);
-      const value = coerceAttribute(this.getAttribute(definition.attribute), definition.type);
+      const value = this._attributeValue(definition);
       if (value === INVALID_ATTRIBUTE || value === undefined) return cloneDefault(definition.default);
       return value;
     }
@@ -491,28 +587,44 @@ export function elementFor(ComponentClass, { formAssociated = false, attrs = {} 
     /** @param {ElementAttribute} definition @param {unknown} value @returns {void} */
     _writeProperty(definition, value) {
       this._propertyValues.set(definition.property, value);
+      this._reflectProperty(definition, value);
+      this._applyValue(definition.attribute, definition, value);
+    }
+
+    /** @param {ElementAttribute} definition @param {unknown} value @returns {void} */
+    _reflectProperty(definition, value) {
+      if (!definition.reflect) return;
       const serialized = definition.serialize ?
         definition.serialize(value, this) : serializeAttribute(value, definition.type);
-      if (serialized !== INVALID_ATTRIBUTE) {
-        this._reflecting.add(definition.attribute);
-        try {
-          if (serialized === null) this.removeAttribute(definition.attribute);
-          else this.setAttribute(definition.attribute, serialized);
-        } finally {
-          this._reflecting.delete(definition.attribute);
-        }
+      if (serialized === INVALID_ATTRIBUTE) return;
+      this._reflecting.add(definition.attribute);
+      try {
+        if (serialized === null) this.removeAttribute(definition.attribute);
+        else this.setAttribute(definition.attribute, serialized);
+      } finally {
+        this._reflecting.delete(definition.attribute);
       }
-      this._applyValue(definition.attribute, definition, value);
     }
   }
 
   for (const definition of Object.values(definitions)) {
-    if (Object.prototype.hasOwnProperty.call(ZxElement.prototype, definition.property)) continue;
+    const owned = Object.prototype.hasOwnProperty.call(ZxElement.prototype, definition.property);
+    if (owned && (formAssociated || !FORM_ACCESSORS.includes(definition.property))) continue;
     Object.defineProperty(ZxElement.prototype, definition.property, {
       configurable: true,
       enumerable: true,
       get() { return this._readProperty(definition); },
       set(value) { this._writeProperty(definition, value); }
+    });
+  }
+
+  for (const name of Object.keys(methods ?? {})) {
+    Object.defineProperty(ZxElement.prototype, name, {
+      configurable: true,
+      writable: true,
+      value(...args) {
+        return isDomCall(name, args) ? HTMLElement.prototype[name].apply(this, args) : this._forward(name, args);
+      }
     });
   }
 
@@ -535,59 +647,6 @@ export function defineElements(prefix = 'zx') {
     const name = `${normalizedPrefix}-${suffix}`;
     if (!customElements.get(name)) customElements.define(name, elementFor(Constructor, options));
   }
-}
-
-/** @param {ElementAttributeMap} attrs @returns {Readonly<Record<string, ElementAttribute>>} */
-function normalizeAttributes(attrs) {
-  const normalized = {};
-  for (const [attribute, definition] of Object.entries(attrs)) {
-    const details = typeof definition === 'string' ? { type: definition } : { ...definition };
-    const property = details.property ?? camelCase(attribute);
-    normalized[attribute] = Object.freeze({
-      type: details.type ?? 'string',
-      option: Object.prototype.hasOwnProperty.call(details, 'option') ? details.option : property,
-      property,
-      default: details.default,
-      always: Boolean(details.always),
-      rebuild: Boolean(details.rebuild),
-      normalize: details.normalize,
-      serialize: details.serialize,
-      set: details.set,
-      get: details.get,
-      attribute
-    });
-  }
-  return Object.freeze(normalized);
-}
-
-/** @param {Record<string, ElementAttribute>} value @returns {Readonly<Record<string, ElementAttribute>>} */
-function attributes(value) {
-  return normalizeAttributes(value);
-}
-
-/** @param {Partial<ElementAttribute>} [options={}] @returns {ElementAttribute} */
-function text(options = {}) {
-  return { type: 'string', ...options };
-}
-
-/** @param {Partial<ElementAttribute>} [options={}] @returns {ElementAttribute} */
-function number(options = {}) {
-  return { type: 'number', ...options };
-}
-
-/** @param {Partial<ElementAttribute>} [options={}] @returns {ElementAttribute} */
-function bool(options = {}) {
-  return { type: 'boolean', default: false, always: true, ...options };
-}
-
-/** @param {Partial<ElementAttribute>} [options={}] @returns {ElementAttribute} */
-function json(options = {}) {
-  return { type: 'json', ...options };
-}
-
-/** @param {string} value @returns {string} */
-function camelCase(value) {
-  return value.replace(/-([a-z])/g, (_match, letter) => letter.toUpperCase());
 }
 
 /** @param {ElementAttribute} definition @param {unknown} value @param {HTMLElement} host @returns {unknown} */
@@ -613,20 +672,6 @@ function normalizeFilter(value) {
   if (value === '' || value === 'true') return 'local';
   if (value === 'false') return false;
   return value;
-}
-
-/** @param {unknown} value @returns {unknown} */
-function normalizeSelectable(value) {
-  if (value === '' || value === 'true') return 'single';
-  if (value === 'false') return false;
-  return value;
-}
-
-/** @param {unknown} value @returns {unknown} */
-function normalizeNumberOrString(value) {
-  if (typeof value !== 'string' || value.trim() === '') return value;
-  const numeric = Number(value);
-  return Number.isFinite(numeric) ? numeric : value;
 }
 
 /** @param {unknown} value @returns {unknown} */
@@ -708,9 +753,12 @@ function restoredFormValue(Constructor, state) {
   return state;
 }
 
-/** @param {unknown} value @returns {unknown} */
+/** @param {unknown} value @returns {unknown} A copy, so a caller can never reach the shared default. */
 function cloneDefault(value) {
-  if (Array.isArray(value)) return value.slice();
+  if (Array.isArray(value)) return value.map(cloneDefault);
   if (value instanceof Date) return new Date(value.getTime());
+  if (value && Object.getPrototypeOf(value) === Object.prototype) {
+    return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, cloneDefault(entry)]));
+  }
   return value;
 }
