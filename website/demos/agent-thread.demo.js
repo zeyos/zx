@@ -163,21 +163,25 @@ export default {
         const thread = new AgentThread(null, { authors: AUTHORS, answerActions: ['copy'] });
         let timer = 0;
         let stream = null;
+        // A person can answer before the first response has ended: the next one waits its turn.
+        let queue = [];
+        const tick = () => {
+          timer = 0;
+          stream.handle(queue.shift());
+          if (queue.length) timer = window.setTimeout(tick, 120);
+        };
         const play = (parts) => {
-          clearTimeout(timer);
+          queue.push(...parts);
           if (prefersReducedMotion(thread.toElement())) {
-            for (const part of parts) stream.handle(part);
-            return;
+            while (queue.length) stream.handle(queue.shift());
+          } else if (!timer) {
+            tick();
           }
-          const queue = [...parts];
-          const tick = () => {
-            stream.handle(queue.shift());
-            if (queue.length) timer = window.setTimeout(tick, 120);
-          };
-          tick();
         };
         const replay = () => {
           clearTimeout(timer);
+          timer = 0;
+          queue = [];
           stream?.destroy();
           thread.setItems([]);
           stream = connectUiMessageStream(thread, {
