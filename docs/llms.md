@@ -3936,7 +3936,8 @@ One instance can take it alone through its `msg` option (`new CardView(null, { m
 catalogue covers messages only. `formatDate()` reads month and weekday names from the translator
 as `date.month.0`–`11`, `date.month.short.0`–`11`, `date.weekday.0`–`6` (Sunday first) and
 `date.weekday.short.0`–`6`, and writes English names when nothing answers, so an application that
-shows them adds those keys: `setTranslator((key) => de[key] ?? dateNames[key])`.
+shows them adds those keys: `setTranslator((key) => de[key] ?? dateNames[key])`. `Tree` and `Finder`
+show their `emptyText` option when empty, so an application sets that as well.
 
 - **Voice** — a business application. The reader is addressed formally ("Sie"), and preferably not
   at all ("Änderungen speichern"). Buttons and menu items use the infinitive ("Speichern",

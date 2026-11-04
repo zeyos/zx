@@ -98,7 +98,7 @@ test('date patterns stay numeric and survive interpolation', () => {
 
 test('the typography is German', () => {
   for (const [key, text] of Object.entries(de)) {
-    assert.doesNotMatch(text, /\.\.\.|["'”]/, key);
+    assert.doesNotMatch(text, /\.\.\.|["'”—]/, key);
     assert.equal(text.split('„').length, text.split('“').length, `${key}: quotes open with „ and close with “`);
     assert.doesNotMatch(text, / …/, `${key}: the ellipsis follows its word`);
     assert.doesNotMatch(text, /(?:\d|%\d) [A-ZÄÖÜ%]/, `${key}: a number keeps its unit through a no-break space`);
