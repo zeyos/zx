@@ -2742,6 +2742,241 @@ const cases = [
     component.update({ busy: false, sendLabel: null });
     assert(sendButton.textContent === '' && sendButton.getAttribute('aria-label') === 'Send', 'sendLabel: null kept the word');
   }),
+  componentCase('Composer (queued messages)', () => new zx.Composer(null, {
+    queue: true,
+    queueLimit: 3,
+    hint: 'Enter sends',
+    context: [{ id: 'selection', label: '3 invoices' }],
+    attachments: true
+  }), async (component) => {
+    const root = component.el;
+    const input = root.querySelector('textarea');
+    const box = root.querySelector('.zx-composer__queue');
+    const send = root.querySelector('.zx-composer__send');
+    const status = root.querySelector('[role="status"]');
+    const hint = root.querySelector('.zx-composer__hint');
+    const list = root.querySelector('.zx-composer__queue-list');
+    const key = (target, name, init = {}) => {
+      const event = new KeyboardEvent('keydown', { key: name, bubbles: true, cancelable: true, ...init });
+      target.dispatchEvent(event);
+      return event;
+    };
+    const write = (text) => {
+      input.focus();
+      component.setValue(text);
+      key(input, 'Enter');
+    };
+    const rows = () => [...list.children];
+    const texts = () => rows().map((row) => row.querySelector('.zx-composer__queued-text').textContent);
+    const queued = () => component.getQueue().map((item) => item.text);
+    const named = (row, name) => [...row.querySelectorAll('button')].find((button) => button.textContent === name);
+    const sent = [];
+    const added = [];
+    const left = [];
+    component.on('send', (event) => sent.push(event.detail));
+    component.on('queue', (event) => added.push(event.detail));
+    component.on('dequeue', (event) => left.push(event.detail));
+    const queueEvents = observe(component, 'queue');
+    const dequeueEvents = observe(component, 'dequeue');
+
+    assert(box.hidden && getComputedStyle(box).display === 'none', 'an empty queue is drawn');
+
+    // Idle, the send key sends as it always did.
+    write('First');
+    assert(sent.length === 1 && sent[0].queued === undefined && added.length === 0, 'an idle send went through the queue');
+
+    // Busy, it queues: the input clears, the button stays Stop, and the status speaks once per message.
+    component.setBusy(true);
+    key(input, 'Enter');
+    assert(queued().length === 0 && added.length === 0, 'an empty text was queued');
+    component.setValue('Second');
+    component.insertText(' @');
+    component.setValue('Second');
+    key(input, 'Enter');
+    assert(sent.length === 1 && input.value === '' && queued().join() === 'Second', 'the send key did not queue the message');
+    assert(send.dataset.mode === 'stop' && send.getAttribute('aria-label') === 'Stop', 'queueing changed Stop');
+    assert(added.length === 1 && added[0].item.text === 'Second' && added[0].items.length === 1, 'queue detail is wrong');
+    queueEvents.expect();
+    assert(status.textContent.trim() === 'Queued; sends when the agent finishes', 'queueing was not announced');
+    const announced = status.textContent;
+    write('Third');
+    assert(status.textContent !== announced && status.textContent.trim() === announced.trim(),
+      'the second message was not announced apart from the first');
+
+    // The list: labelled "Queued (2)", above the text, each row with a toolbar of Edit and Remove.
+    assert(!box.hidden && list.localName === 'ol'
+      && document.getElementById(list.getAttribute('aria-labelledby'))?.textContent === 'Queued (2)', 'the queue is not labelled');
+    assert(box.compareDocumentPosition(input) & Node.DOCUMENT_POSITION_FOLLOWING, 'the queue is not above the text');
+    assert(texts().join() === 'Second,Third', 'the rows are not in order');
+    const toolbar = rows()[0].querySelector('[role="toolbar"]');
+    const edit = named(rows()[0], 'Edit');
+    const remove = named(rows()[0], 'Remove');
+    assert(document.getElementById(toolbar.getAttribute('aria-labelledby'))?.textContent === 'Second', 'the toolbar is not named by its row');
+    assert(edit.tabIndex === 0 && remove.tabIndex === -1, 'a row is not one Tab stop');
+    edit.focus();
+    key(edit, 'ArrowRight');
+    assert(document.activeElement === remove && remove.tabIndex === 0 && edit.tabIndex === -1, 'the toolbar arrows did not move');
+    key(remove, 'ArrowRight');
+    assert(document.activeElement === edit, 'the toolbar arrows did not wrap');
+    key(edit, 'End');
+    assert(document.activeElement === remove, 'End did not reach the last button');
+
+    // At the limit the message is refused and stays; the hint says why, and goes with room again.
+    write('Fourth');
+    assert(queued().length === 3 && added.length === 3, 'the third message was not queued');
+    write('Over');
+    assert(queued().length === 3 && input.value === 'Over' && added.length === 3, 'the limit did not refuse the message');
+    assert(hint.textContent === 'Queue full (limit 3)' && !hint.hidden, 'the hint did not say why');
+    assert(status.textContent.trim() === 'Queue full (limit 3)', 'the refusal was not announced');
+    component.setValue('');
+
+    // Delete on a row removes it, and the focus stays in the list.
+    named(rows()[1], 'Remove').focus();
+    const deleted = key(document.activeElement, 'Delete');
+    assert(deleted.defaultPrevented && queued().join() === 'Second,Fourth', 'Delete did not remove the row');
+    assert(left.at(-1).reason === 'removed' && left.at(-1).item.text === 'Third' && left.at(-1).items.length === 2, 'dequeue detail is wrong');
+    dequeueEvents.expect();
+    assert(document.activeElement === named(rows()[1], 'Remove'), 'the focus did not go to the row now in that place');
+    assert(hint.textContent === 'Enter sends', 'the application hint did not come back');
+
+    // Remove, and removeQueued(), which ignores an id it does not know.
+    write('Fifth');
+    named(rows()[2], 'Remove').click();
+    assert(queued().join() === 'Second,Fourth', 'Remove did not remove the row');
+    component.removeQueued('nothing');
+    assert(queued().length === 2, 'removeQueued took a message it does not know');
+
+    // Edit with an empty input takes the text back, and the row goes.
+    named(rows()[1], 'Edit').click();
+    await Promise.resolve();
+    assert(input.value === 'Fourth' && document.activeElement === input && queued().join() === 'Second', 'Edit did not take the text back');
+    assert(left.at(-1).reason === 'edited' && left.at(-1).item.text === 'Fourth', 'Edit did not report the message');
+
+    // With text in the input, Edit asks first: Cancel leaves both alone, confirming replaces.
+    const editSecond = () => named(rows()[0], 'Edit').click();
+    const answer = async (label) => {
+      await nextFrame();
+      const dialog = document.querySelector('dialog.zx-dialog[open]');
+      assert(dialog, 'Edit did not ask before replacing the text');
+      [...dialog.querySelectorAll('button')].find((button) => button.textContent.trim() === label).click();
+      for (let wait = 0; wait < 40 && dialog.isConnected; wait += 1) await delay(25);
+      assert(!dialog.isConnected, 'the question stayed on the page');
+    };
+    editSecond();
+    await answer('Cancel');
+    assert(input.value === 'Fourth' && queued().join() === 'Second', 'Cancel changed the text or the queue');
+    editSecond();
+    await answer('Replace');
+    assert(input.value === 'Second' && queued().length === 0 && box.hidden, 'confirming did not replace the text');
+
+    // A queued message keeps what it was written with, and Edit brings its files back.
+    const file = new File(['x'], 'notes.txt', { type: 'text/plain' });
+    component.clear();
+    component.addFiles([file]);
+    component.setValue('With a file');
+    key(input, 'Enter');
+    assert(component.getFiles().length === 0, 'queueing left the files in the composer');
+    assert(rows()[0].querySelector('.zx-composer__queued-meta')?.textContent === '1 file', 'the row does not say a file goes with it');
+    assert(component.getQueue()[0].context[0].id === 'selection' && component.getQueue()[0].files[0] === file, 'the queued message lost its files or context');
+    named(rows()[0], 'Edit').click();
+    await Promise.resolve();
+    assert(input.value === 'With a file' && component.getFiles()[0] === file, 'Edit did not bring the files back');
+    component.clear();
+
+    // Stop keeps the queue, and clearQueue() does not.
+    write('Kept');
+    const stops = observe(component, 'stop');
+    key(input, 'Escape');
+    stops.expect();
+    send.click();
+    assert(queued().join() === 'Kept', 'Stop cleared the queue');
+    component.clearQueue();
+    assert(queued().length === 0 && left.at(-1).reason === 'cleared' && left.at(-1).item.text === 'Kept' && box.hidden, 'clearQueue did not report the message');
+
+    // One message per end of busy, in order, as a normal send with `queued: true`.
+    sent.length = 0;
+    write('One');
+    write('Two');
+    component.setValue('Still writing');
+    component.setBusy(false);
+    assert(sent.length === 1 && sent[0].text === 'One' && sent[0].queued === true && sent[0].context.length === 1,
+      'the end of busy did not send the first message');
+    assert(left.at(-1).reason === 'sent' && left.at(-1).item.text === 'One' && left.at(-1).items.length === 1, 'the sent message was not reported');
+    assert(input.value === 'Still writing', 'a queued send cleared what was being written');
+    component.setBusy(false);
+    assert(sent.length === 1, 'the next message went without busy ending');
+    component.setBusy(true);
+    assert(sent.length === 1, 'the next message went while busy');
+    component.setBusy(false);
+    assert(sent.length === 2 && sent[1].text === 'Two' && queued().length === 0, 'the second end of busy did not send the second message');
+    component.setBusy(true);
+    component.setBusy(false);
+    assert(sent.length === 2, 'an empty queue sent something');
+    component.clear();
+
+    // A prevented send keeps the message first in line; a disabled composer sends nothing.
+    component.setBusy(true);
+    write('Held');
+    write('After');
+    const veto = (event) => event.preventDefault();
+    component.on('send', veto);
+    component.setBusy(false);
+    component.off('send', veto);
+    assert(queued().join() === 'Held,After' && texts().join() === 'Held,After', 'a prevented send lost its place');
+    component.setDisabled(true);
+    component.setBusy(true);
+    component.setBusy(false);
+    assert(queued().length === 2, 'a disabled composer sent a queued message');
+    assert(named(rows()[0], 'Edit').disabled, 'a disabled composer left the queue active');
+    component.setDisabled(false);
+
+    // A listener that ends busy again gets the next message only when it is done.
+    const order = [];
+    const record = (event) => {
+      order.push(event.detail.text);
+      if (event.detail.text === 'Held') {
+        component.setBusy(true);
+        component.setBusy(false);
+      }
+    };
+    component.on('send', record);
+    component.setBusy(true);
+    component.setBusy(false);
+    component.off('send', record);
+    assert(order.join() === 'Held,After', `the messages went out of order: ${order}`);
+
+    // Sent from under the focus: it goes to the row now in that place, then to the text.
+    component.setBusy(true);
+    write('Focused');
+    write('Next');
+    component.setValue('');
+    named(rows()[0], 'Remove').focus();
+    component.setBusy(false);
+    assert(document.activeElement === named(rows()[0], 'Remove'), 'a sent row took the focus with it');
+    component.setBusy(true);
+    component.setBusy(false);
+    assert(document.activeElement === input, 'the last row took the focus with it');
+
+    // A queue with a draft saved: the queue is not kept with it, and a destroyed composer drops it.
+    const draftKey = 'smoke-queue';
+    const drafted = new zx.Composer(null, { queue: true, busy: true, draftKey });
+    root.parentElement.append(drafted.toElement());
+    drafted.setValue('Queued, not a draft');
+    drafted.el.querySelector('textarea').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+    drafted.destroy();
+    assert(drafted.getQueue().length === 0, 'destroy() kept the queue');
+    const again = new zx.Composer(null, { queue: true, draftKey });
+    assert(again.getValue() === '' && again.getQueue().length === 0, 'the queue came back with the draft');
+    again.destroy();
+
+    // Without the option nothing changes: the send key does nothing while busy, and no list exists.
+    const plain = new zx.Composer(null, { busy: true });
+    assert(!plain.el.querySelector('.zx-composer__queue'), 'a composer without queue drew one');
+    plain.setValue('Waits');
+    plain.el.querySelector('textarea').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+    assert(plain.getValue() === 'Waits' && plain.getQueue().length === 0, 'a composer without queue queued');
+    plain.destroy();
+  }),
   componentCase('PromptStarters', () => new zx.PromptStarters(null, {
     items: [
       { id: 'reply', title: 'Draft a reply', text: 'Draft a friendly reply.', icon: 'mail', ref: 7 },

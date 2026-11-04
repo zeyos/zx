@@ -3035,6 +3035,18 @@
         "description": "Whether an agent is working: Send becomes Stop."
       },
       {
+        "name": "queue",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether the send key holds a message back while the agent works. It is sent when the agent is no longer busy, one message each time busy ends, in order. The queue lives as long as the composer: it is not kept with the draft."
+      },
+      {
+        "name": "queueLimit",
+        "type": "number",
+        "default": "10",
+        "description": "Most messages that wait at once. At the limit the send key is refused, and the hint says why."
+      },
+      {
         "name": "disabled",
         "type": "boolean",
         "default": "false",
@@ -3134,7 +3146,7 @@
     "events": [
       {
         "name": "send",
-        "payload": "{text, files, mentions, context}",
+        "payload": "{text, files, mentions, context, queued}",
         "description": "Preventable send listener."
       },
       {
@@ -3173,6 +3185,16 @@
         "description": "Tool listener."
       },
       {
+        "name": "queue",
+        "payload": "{item, items}",
+        "description": "Listener for a message being queued."
+      },
+      {
+        "name": "dequeue",
+        "payload": "{item, items, reason}",
+        "description": "Listener for a message leaving the queue."
+      },
+      {
         "name": "historyprevious",
         "payload": "Record<string, never>",
         "description": "Listener for ArrowUp on an empty text."
@@ -3207,7 +3229,7 @@
         "name": "setBusy",
         "signature": "setBusy(busy)",
         "returns": "this",
-        "description": "Shows Stop in place of Send while an agent works; Escape in the text then emits `stop`."
+        "description": "Shows Stop in place of Send while an agent works; Escape in the text then emits `stop`. When busy ends, the first queued message is sent; the next waits for the next time it ends."
       },
       {
         "name": "setHint",
@@ -3264,10 +3286,22 @@
         "description": "Removes a context chip. Emits nothing."
       },
       {
+        "name": "clearQueue",
+        "signature": "clearQueue()",
+        "returns": "this",
+        "description": "Removes every queued message. Emits `dequeue` for each, with `reason: 'cleared'`. Stop does not do this: call it from a `stop` listener to drop what was waiting along with the run."
+      },
+      {
+        "name": "removeQueued",
+        "signature": "removeQueued(id)",
+        "returns": "this",
+        "description": "Removes one queued message. Emits `dequeue` with `reason: 'removed'`. An id that is not queued, because the message has been sent, say, changes nothing."
+      },
+      {
         "name": "destroy",
         "signature": "destroy()",
         "returns": "void",
-        "description": "Removes what the composer drew and the launcher it opened, and stops listening."
+        "description": "Removes what the composer drew and the launcher it opened, drops the queue, and stops listening."
       }
     ]
   },
