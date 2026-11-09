@@ -219,7 +219,7 @@ export class CodeEditor extends Component {
     const position = editorPosition(this._input.value, this._input.selectionStart ?? 0,
       this._input.selectionEnd ?? 0);
     this._position.textContent = position.lines > 1
-      ? this.msg('codeEditor.selection', position.line, position.column, position.lines)
+      ? this.msgPlural('codeEditor.selection', position.lines, position.line, position.column, position.lines)
       : this.msg('codeEditor.position', position.line, position.column);
   }
 
