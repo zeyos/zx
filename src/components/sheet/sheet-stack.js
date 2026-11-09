@@ -79,7 +79,15 @@ export class SheetStack extends EventTarget {
       this.#closers.set(sheet, onClose);
       sheet.on('close', onClose);
     }
+    // Clear the former covered state before presenting: an inert dialog cannot take focus.
+    this.#sync();
     if (!sheet.isOpen()) sheet.open();
+    else {
+      // Native top-layer order follows presentation order. Rehosting uses Modal's generation
+      // guard so its queued close is not a stack pop or a new user-visible lifecycle.
+      sheet._rehost();
+      sheet._focusInitial();
+    }
     this.#sync();
     this.#emit('push', { sheet, depth: 0 });
     return this;
@@ -97,8 +105,9 @@ export class SheetStack extends EventTarget {
   pop() {
     const sheet = this.top();
     if (!sheet) return null;
-    this.#remove(sheet);
+    // Dismiss this presentation before pop listeners can re-push and open a new one.
     sheet.close();
+    this.#remove(sheet);
     return sheet;
   }
 
