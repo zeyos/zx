@@ -1,6 +1,7 @@
 import { Component } from '../../core/component.js';
 import { h } from '../../core/dom.js';
 import { uid } from '../../core/util.js';
+import { Http, parseResult } from '../../core/http.js';
 
 /**
  * @typedef {Object} UploadTransport
@@ -270,14 +271,19 @@ export class FieldUpload extends Component {
   /** @returns {Promise<unknown>} */
   _uploadInjected() {
     const transport = this.options.http;
+    if (transport instanceof Http && transport.request === Http.prototype.request
+      && typeof transport.upload !== 'function') return this._uploadXhr(transport);
     this._transportController = new AbortController();
+    const runId = this._runId;
     const uploadOptions = {
       files: this._files.slice(),
       paramName: String(this.options.paramName),
       params: { ...this.options.params },
       headers: { ...this.options.headers },
       signal: this._transportController.signal,
-      onProgress: (percent) => this._setProgress(percent)
+      onProgress: (percent) => {
+        if (this._running && runId === this._runId) this._setProgress(percent);
+      }
     };
     if (typeof transport.upload === 'function') return transport.upload(String(this.options.url), uploadOptions);
     if (typeof transport.request === 'function') {
@@ -294,28 +300,64 @@ export class FieldUpload extends Component {
     return Promise.reject(new TypeError('Injected upload transport requires upload() or request()'));
   }
 
-  /** @returns {Promise<unknown>} */
-  _uploadXhr() {
-    if (typeof XMLHttpRequest !== 'function') return Promise.reject(new Error('XMLHttpRequest is not available'));
-    return new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      this._xhr = xhr;
-      xhr.open('POST', String(this.options.url));
-      for (const [name, value] of Object.entries(this.options.headers ?? {})) xhr.setRequestHeader(name, String(value));
-      this.listen(xhr.upload, 'progress', (event) => {
-        if (event.lengthComputable) this._setProgress((event.loaded / event.total) * 100);
+  /** @param {Http|null} [http=null] Optional client defaults. @returns {Promise<unknown>} */
+  async _uploadXhr(http = null) {
+    const path = String(this.options.url);
+    const options = {
+      method: 'POST', data: this.options.params, files: this._files.slice(),
+      headers: this.options.headers, paramName: String(this.options.paramName)
+    };
+    const runId = this._runId;
+    const cleanups = [];
+    const listen = (target, type, handler) => {
+      this.listen(target, type, handler);
+      cleanups.push(() => target.removeEventListener(type, handler));
+    };
+    try {
+      if (typeof XMLHttpRequest !== 'function') throw new Error('XMLHttpRequest is not available');
+      return await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        this._xhr = xhr;
+        xhr.open('POST', (http?.base ?? '') + path);
+        if (http) xhr.timeout = http.timeout > 0 ? http.timeout : 0;
+        const headers = new Headers(http?.headers);
+        for (const [name, value] of Object.entries(options.headers ?? {})) headers.set(name, String(value));
+        if (http && !headers.has('Accept')) headers.set('Accept', 'application/json');
+        headers.delete('Content-Type');
+        for (const [name, value] of headers) xhr.setRequestHeader(name, value);
+        listen(xhr.upload, 'progress', (event) => {
+          if (this._running && runId === this._runId && event.lengthComputable) {
+            this._setProgress((event.loaded / event.total) * 100);
+          }
+        });
+        listen(xhr, 'load', () => {
+          try {
+            let response = parseResponse(xhr.responseText);
+            if (http) {
+              try { response = xhr.responseText ? JSON.parse(xhr.responseText) : null; }
+              catch (cause) { throw new Error('Invalid JSON response', { cause }); }
+              response = parseResult(response);
+            }
+            if (xhr.status < 200 || xhr.status >= 300) {
+              throw new Error(this.msg('fieldUpload.httpFailed', xhr.status));
+            }
+            resolve(response);
+          } catch (error) {
+            error.response = xhr;
+            reject(error);
+          }
+        });
+        listen(xhr, 'error', () => reject(new Error(this.msg('fieldUpload.requestFailed'))));
+        listen(xhr, 'abort', () => reject(abortError()));
+        listen(xhr, 'timeout', () => reject(new DOMException('Request timed out', 'TimeoutError')));
+        xhr.send(createFormData(options.files, options.paramName, options.data));
       });
-      this.listen(xhr, 'load', () => {
-        if (xhr.status < 200 || xhr.status >= 300) {
-          reject(new Error(this.msg('fieldUpload.httpFailed', xhr.status)));
-          return;
-        }
-        resolve(parseResponse(xhr.responseText));
-      });
-      this.listen(xhr, 'error', () => reject(new Error(this.msg('fieldUpload.requestFailed'))));
-      this.listen(xhr, 'abort', () => reject(abortError()));
-      xhr.send(createFormData(this._files, String(this.options.paramName), this.options.params));
-    });
+    } catch (error) {
+      try { http?.onError?.(error, { path, options }); } catch { /* Preserve the transport failure. */ }
+      throw error;
+    } finally {
+      for (const cleanup of cleanups) cleanup();
+    }
   }
 
   /** @param {number} percent @returns {void} */
