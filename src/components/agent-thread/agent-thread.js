@@ -258,6 +258,9 @@ export class AgentThread extends Component {
     this._askingPerson = false;
     /** @type {Element|null} */
     this._scrollHost = null;
+    /** @type {EventTarget|null} */
+    this._scrollTarget = null;
+    this._onScroll = () => { if (this._atEnd()) this._latestButton.hidden = true; };
     /** @type {string|null} */
     this._latestAnswer = null;
     /** @type {Map<string, {expanded?: boolean|null, controls?: string|null}>} Artifact open states, for answers drawn later. */
@@ -591,6 +594,9 @@ export class AgentThread extends Component {
     if (this._destroyed) return;
     this._destroyed = true;
     clearTimeout(this._announceTimer);
+    this._scrollTarget?.removeEventListener('scroll', this._onScroll);
+    this._scrollTarget = null;
+    this._scrollHost = null;
     for (const id of [...this._order]) this._drop(id);
     super.destroy();
     if (this._original) restoreTarget(this.el, this._original);
@@ -1373,21 +1379,22 @@ export class AgentThread extends Component {
 
   /** @private @returns {Element|null} */
   _scroller() {
-    if (this.options.scroller) return this.options.scroller;
-    if (this._scrollHost?.isConnected) return this._scrollHost;
     /** @type {Element|null} */
-    let node = this.el;
-    while (node && node !== document.documentElement) {
-      const overflow = getComputedStyle(node).overflowY;
-      if (overflow === 'auto' || overflow === 'scroll') break;
-      node = node.parentElement;
+    let node = this.options.scroller ?? this.el;
+    if (!this.options.scroller) {
+      while (node && node !== document.documentElement) {
+        const overflow = getComputedStyle(node).overflowY;
+        if (overflow === 'auto' || overflow === 'scroll') break;
+        node = node.parentElement;
+      }
+      node = node ?? document.scrollingElement;
     }
-    this._scrollHost = node ?? document.scrollingElement;
-    if (this._scrollHost) {
-      const host = this._scrollHost === document.documentElement ? window : this._scrollHost;
-      this.listen(host, 'scroll', () => {
-        if (this._atEnd()) this._latestButton.hidden = true;
-      }, { passive: true });
+    const target = node === document.documentElement ? window : node;
+    if (target !== this._scrollTarget) {
+      this._scrollTarget?.removeEventListener('scroll', this._onScroll);
+      this._scrollHost = node;
+      this._scrollTarget = target;
+      if (target) this.listen(target, 'scroll', this._onScroll, { passive: true });
     }
     return this._scrollHost;
   }
