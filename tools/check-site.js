@@ -16,6 +16,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, extname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { verifyClientVendor } from './build-client-vendor.js';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const site = resolve(root, process.env.SITE_DIR ?? 'site');
@@ -57,6 +58,18 @@ const SCRIPT_PATH = /['"]([\w][\w./-]*\.(?:js|css|md|txt|json|svg|html))['"]/g;
 const SITE_ENTRIES = new Set(readdirSync(site).map((entry) => entry));
 
 const problems = [];
+const vendorDirectories = [join(site, 'vendor')];
+if (existsSync(join(site, 'v'))) {
+  for (const entry of readdirSync(join(site, 'v'), { withFileTypes: true })) {
+    if (entry.isDirectory()) vendorDirectories.push(join(site, 'v', entry.name, 'vendor'));
+  }
+}
+for (const directory of vendorDirectories) {
+  if (!existsSync(join(directory, 'zeyos-client.esm.js'))
+    && !existsSync(join(directory, 'zeyos-client.manifest.json'))) continue;
+  try { await verifyClientVendor(directory); }
+  catch (error) { problems.push(`${relative(site, directory)}/zeyos-client.esm.js → ${error.message}`); }
+}
 /**
  * Every file whose references are checked. `v/<rev>/` is skipped: it is a verbatim copy of the
  * tree beside it, so checking it again would only duplicate every finding — and the copy is not

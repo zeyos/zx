@@ -18,6 +18,7 @@ import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { dirname, extname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { verifyClientVendor } from './build-client-vendor.js';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const websiteDir = join(root, 'website');
@@ -58,6 +59,7 @@ const TEXT_EXTENSIONS = new Set(['.html', '.js', '.css', '.txt', '.md', '.json',
 
 const domain = process.env.SITE_DOMAIN ?? 'zx.zeyos.com';
 
+await verifyClientVendor();
 await rm(outDir, { recursive: true, force: true });
 await mkdir(outDir, { recursive: true });
 

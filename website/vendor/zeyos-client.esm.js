@@ -1,4 +1,28 @@
-// ../../../zeyos/client/src/generated/operations.js
+/*! @zeyos/client 1.1.0
+MIT License
+
+Copyright (c) 2026 ZeyOS
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
+// src/generated/operations.js
 var GENERATED = {
   "generatedAt": null,
   "services": {
@@ -9769,7 +9793,7 @@ var GENERATED = {
 var SERVICES = GENERATED.services;
 var SERVICE_KEYS = Object.freeze(Object.keys(SERVICES));
 
-// ../../../zeyos/client/src/generated/schema.js
+// src/generated/schema.js
 var SCHEMA = {
   "accounts": {
     "type": "table",
@@ -18750,7 +18774,7 @@ var SCHEMA = {
 };
 var SCHEMA_RESOURCES = Object.freeze(Object.keys(SCHEMA));
 
-// ../../../zeyos/client/src/runtime/error.js
+// src/runtime/error.js
 var ZeyosApiError = class extends Error {
   constructor(message, details = {}) {
     super(message);
@@ -18775,7 +18799,7 @@ var ZeyosValidationError = class extends Error {
   }
 };
 
-// ../../../zeyos/client/src/runtime/http.js
+// src/runtime/http.js
 function isPlainObject(value) {
   return Object.prototype.toString.call(value) === "[object Object]";
 }
@@ -18923,7 +18947,7 @@ async function httpRequest({
   };
 }
 
-// ../../../zeyos/client/src/runtime/request-shape.js
+// src/runtime/request-shape.js
 var REQUEST_CONTROL_KEYS = Object.freeze([
   "path",
   "query",
@@ -18946,7 +18970,7 @@ var OBJECT_CONTROL_KEYS = Object.freeze([
   "headers"
 ]);
 
-// ../../../zeyos/client/src/runtime/suggest.js
+// src/runtime/suggest.js
 function levenshtein(a, b) {
   const m = a.length;
   const n = b.length;
@@ -18998,7 +19022,183 @@ function suggestClosest(name, candidates) {
   return bestDistance <= threshold ? best : null;
 }
 
-// ../../../zeyos/client/src/runtime/schema.js
+// src/runtime/custom-fields.js
+var TYPES = /* @__PURE__ */ new Set(["string", "number", "integer", "boolean", "object", "array"]);
+var DEFINITION_KEYS = /* @__PURE__ */ new Set(["type", "enum", "description"]);
+var EQUALITY = /* @__PURE__ */ new Set(["=", "!=", "<>"]);
+var ORDERING = /* @__PURE__ */ new Set(["<", "<=", ">", ">="]);
+var MEMBERSHIP = /* @__PURE__ */ new Set(["IN", "!IN"]);
+var own = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
+var isRecord = (value) => value !== null && typeof value === "object" && !Array.isArray(value) && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
+var isEnumValue = (value) => value === null || typeof value === "string" || typeof value === "boolean" || typeof value === "number" && Number.isFinite(value);
+function isJsonValue(value, ancestors = /* @__PURE__ */ new Set()) {
+  if (isEnumValue(value)) return true;
+  if (!Array.isArray(value) && !isRecord(value) || ancestors.has(value) || ancestors.size >= 64) return false;
+  ancestors.add(value);
+  const children = Array.isArray(value) ? Array.from(value) : Object.values(value);
+  const valid = children.every((child) => isJsonValue(child, ancestors));
+  ancestors.delete(value);
+  return valid;
+}
+function matchesType(value, type) {
+  switch (type) {
+    case "integer":
+      return Number.isInteger(value);
+    case "number":
+      return typeof value === "number" && Number.isFinite(value);
+    case "array":
+      return Array.isArray(value);
+    case "object":
+      return isRecord(value);
+    default:
+      return typeof value === type;
+  }
+}
+function createCustomFieldValidator(customFields) {
+  if (customFields !== void 0 && !isRecord(customFields)) {
+    throw new TypeError("customFields must be an object mapping resources to custom-field definitions.");
+  }
+  const resources = /* @__PURE__ */ Object.create(null);
+  for (const [resource, definitions] of Object.entries(customFields ?? {})) {
+    if (!resource || !isRecord(definitions)) {
+      throw new TypeError("Each customFields resource must map to an object of field definitions.");
+    }
+    const fields = /* @__PURE__ */ Object.create(null);
+    for (const [name, definition] of Object.entries(definitions)) {
+      if (!name || !isRecord(definition)) {
+        throw new TypeError(`Each custom field in "${resource}" must have a nonempty key and an object definition.`);
+      }
+      if (Object.keys(definition).some((key) => !DEFINITION_KEYS.has(key))) {
+        throw new TypeError(`Unsupported custom-field constraint in "${resource}.${name}"; use type, enum, or description.`);
+      }
+      if (own(definition, "type") && !TYPES.has(definition.type)) {
+        throw new TypeError(`Unsupported JSON type for custom field "${resource}.${name}".`);
+      }
+      if (own(definition, "description") && typeof definition.description !== "string") {
+        throw new TypeError(`Description for custom field "${resource}.${name}" must be a string.`);
+      }
+      if (own(definition, "enum") && (!Array.isArray(definition.enum) || !Array.from(definition.enum).every(isEnumValue))) {
+        throw new TypeError(`Enum for custom field "${resource}.${name}" must be an array of finite JSON scalar values.`);
+      }
+      if (definition.type && definition.enum?.some((value) => value !== null && !matchesType(value, definition.type))) {
+        throw new TypeError(`Enum values for custom field "${resource}.${name}" must match its JSON type.`);
+      }
+      fields[name] = Object.freeze({
+        ...definition,
+        ...definition.enum ? { enum: Object.freeze([...definition.enum]) } : {}
+      });
+    }
+    resources[resource] = Object.freeze(fields);
+  }
+  Object.freeze(resources);
+  function checkValue(definition, value, field, errors, checkEnum = true) {
+    if (value === null) return;
+    if (!isJsonValue(value)) {
+      errors.push({
+        code: "invalid_custom_field_value",
+        field,
+        message: `Invalid JSON value for "${field}"; use finite scalar values, arrays, or plain objects without cycles and fewer than 64 nested containers.`
+      });
+      return;
+    }
+    if (definition.type && !matchesType(value, definition.type)) {
+      errors.push({
+        code: "invalid_custom_field_type",
+        field,
+        message: `Invalid value for "${field}": expected ${definition.type}.`
+      });
+      return;
+    }
+    if (checkEnum && definition.enum && !definition.enum.some((allowed) => Object.is(allowed, value))) {
+      errors.push({
+        code: "invalid_custom_field_enum",
+        field,
+        message: `Invalid value for "${field}": not a member of its configured enum.`
+      });
+    }
+  }
+  function checkFilterValue(definition, value, field, errors) {
+    if (Array.isArray(value)) {
+      for (const candidate of value) checkValue(definition, candidate, field, errors);
+    } else if (isRecord(value)) {
+      for (const [operator, operand] of Object.entries(value)) {
+        if (EQUALITY.has(operator)) checkValue(definition, operand, field, errors);
+        else if (ORDERING.has(operator)) checkValue(definition, operand, field, errors, false);
+        else if (MEMBERSHIP.has(operator)) {
+          if (!Array.isArray(operand)) {
+            errors.push({
+              code: "invalid_custom_field_filter",
+              field,
+              message: `The ${operator} operand for "${field}" must be an array.`
+            });
+          } else {
+            for (const candidate of operand) checkValue(definition, candidate, field, errors);
+          }
+        }
+      }
+    } else {
+      checkValue(definition, value, field, errors);
+    }
+  }
+  function resolve(resource, suffix, fullRef, errors, value, { write = false } = {}) {
+    if (!own(resources, resource)) {
+      errors.push({
+        code: "custom_fields_unavailable",
+        field: fullRef,
+        message: `Cannot validate "${fullRef}": custom-field metadata for "${resource}" is unavailable. Supply customFields.${resource} from the target instance's reviewed field contract.`
+      });
+      return null;
+    }
+    const fields = resources[resource];
+    if (!own(fields, suffix)) {
+      const suggestion = suggestClosest(suffix, Object.keys(fields));
+      errors.push({
+        code: "unknown_custom_field",
+        field: fullRef,
+        message: `Unknown custom field "${fullRef}" on "${resource}".` + (suggestion ? ` Did you mean "${suggestion}"?` : ""),
+        ...suggestion ? { suggestion } : {}
+      });
+      return null;
+    }
+    const definition = fields[suffix];
+    if (value !== void 0) {
+      if (write) checkValue(definition, value, fullRef, errors);
+      else checkFilterValue(definition, value, fullRef, errors);
+    }
+    return definition;
+  }
+  function validatePayload(resource, value, errors) {
+    if (!isRecord(value)) {
+      errors.push({
+        code: "invalid_custom_fields_payload",
+        field: "extdata",
+        message: "extdata must be an object of custom-field values; set an individual field to null to remove it."
+      });
+      return;
+    }
+    for (const [name, fieldValue] of Object.entries(value)) {
+      if (fieldValue === void 0) {
+        errors.push({
+          code: "invalid_custom_field_value",
+          field: `extdata.${name}`,
+          message: `Undefined is not a JSON value for "extdata.${name}"; omit the key or use null to remove it.`
+        });
+        continue;
+      }
+      resolve(resource, name, `extdata.${name}`, errors, fieldValue, { write: true });
+    }
+  }
+  function describe(resource) {
+    if (!own(resources, resource)) return null;
+    return Object.fromEntries(Object.entries(resources[resource]).map(([name, definition]) => [
+      name,
+      { ...definition, ...definition.enum ? { enum: [...definition.enum] } : {} }
+    ]));
+  }
+  return Object.freeze({ resolve, validatePayload, describe });
+}
+
+// src/runtime/schema.js
 var QUERY_DIRECTIVES = /* @__PURE__ */ new Set([
   "fields",
   "filter",
@@ -19027,18 +19227,18 @@ function resourceFromPath(path) {
   }
   return null;
 }
-function baseFieldName(ref) {
-  if (typeof ref !== "string") return null;
-  const head = ref.split(".")[0].trim();
-  return head || null;
+function isObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value) && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
 }
 function sortFieldName(ref) {
   if (typeof ref !== "string") return null;
   return ref.trim().replace(/^[+-]/, "").replace(/:(?:asc|desc)$/i, "");
 }
-function createSchema({ services, schema }) {
+function createSchema({ services, schema, customFields }) {
   const schemaMap = schema && typeof schema === "object" ? schema : {};
   const resourceNames = Object.keys(schemaMap);
+  const customFieldValidator = createCustomFieldValidator(customFields);
+  const resourceEntry = (resource) => Object.prototype.hasOwnProperty.call(schemaMap, resource) ? schemaMap[resource] : null;
   const opIndex = /* @__PURE__ */ new Map();
   const allOperationIds = [];
   for (const [serviceKey, service] of Object.entries(services || {})) {
@@ -19055,12 +19255,16 @@ function createSchema({ services, schema }) {
     return resourceNames.slice();
   }
   function describe(resource) {
-    const entry = schemaMap[resource];
+    const entry = resourceEntry(resource);
     if (!entry) return null;
-    return { name: resource, type: entry.type, fields: entry.fields };
+    const fieldDefinitions = Object.fromEntries(Object.entries(entry.fields).map(([name, definition]) => [
+      name,
+      { ...definition, ...definition.enum ? { enum: { ...definition.enum } } : {} }
+    ]));
+    return { name: resource, type: entry.type, fields: fieldDefinitions, customFields: customFieldValidator.describe(resource) };
   }
   function fields(resource) {
-    const entry = schemaMap[resource];
+    const entry = resourceEntry(resource);
     return entry ? Object.keys(entry.fields) : [];
   }
   function operationIds() {
@@ -19076,28 +19280,165 @@ function createSchema({ services, schema }) {
   function suggestOperation(name) {
     return suggestClosest(name, allOperationIds);
   }
-  function checkField(resourceFields, fieldDefs, ref, value, errors) {
-    const base = baseFieldName(ref);
-    if (!base) return;
-    if (base === "extdata") return;
-    if (!resourceFields.includes(base)) {
-      const suggestion = suggestClosest(base, resourceFields);
+  function checkField(resource, ref, value, errors, { write = false } = {}) {
+    if (typeof ref !== "string" || !ref) {
       errors.push({
-        field: base,
-        message: `Unknown field "${base}".` + (suggestion ? ` Did you mean "${suggestion}"?` : ""),
-        ...suggestion ? { suggestion } : {}
+        field: typeof ref === "string" ? ref : "fields",
+        code: "invalid_field_reference",
+        message: "Field references must be nonempty strings."
       });
       return;
     }
-    const def = fieldDefs[base];
-    if (def && def.enum && (typeof value === "string" || typeof value === "number")) {
-      if (!Object.prototype.hasOwnProperty.call(def.enum, String(value))) {
-        const valid = Object.entries(def.enum).map(([k, v]) => `${k}=${v}`).join(", ");
-        errors.push({
-          field: base,
-          message: `Invalid value ${JSON.stringify(value)} for "${base}". Valid: ${valid}.`
-        });
+    const parts = ref.split(".");
+    if (write && parts.length > 1) {
+      errors.push({
+        field: ref,
+        code: "invalid_write_field",
+        message: `Joined field "${ref}" is a query reference, not a writable field. Update the related resource explicitly; put custom values inside extdata.`
+      });
+      return;
+    }
+    let currentResource = resource;
+    let def;
+    for (let index = 0; index < parts.length; index += 1) {
+      const part = parts[index];
+      if (!part || part !== part.trim()) {
+        errors.push({ field: ref, code: "invalid_field_reference", message: `Invalid field path "${ref}".` });
+        return;
       }
+      const currentFields = resourceEntry(currentResource)?.fields;
+      if (!currentFields) {
+        errors.push({
+          field: ref,
+          code: "schema_unavailable",
+          message: `Cannot validate "${ref}": schema metadata for "${currentResource}" is unavailable.`
+        });
+        return;
+      }
+      if (part === "extdata") {
+        customFieldValidator.resolve(currentResource, parts.slice(index + 1).join("."), ref, errors, value, { write });
+        return;
+      }
+      if (!Object.prototype.hasOwnProperty.call(currentFields, part)) {
+        const closest = suggestClosest(part, Object.keys(currentFields));
+        const suggestion = closest ? [...parts.slice(0, index), closest, ...parts.slice(index + 1)].join(".") : null;
+        errors.push({
+          field: ref,
+          code: "unknown_field",
+          resource: currentResource,
+          message: `Unknown field "${ref}" on "${currentResource}".` + (suggestion ? ` Did you mean "${suggestion}"?` : ""),
+          ...suggestion ? { suggestion } : {}
+        });
+        return;
+      }
+      def = currentFields[part];
+      if (index < parts.length - 1) {
+        if (typeof def.fk !== "string" || !def.fk) {
+          errors.push({
+            field: ref,
+            code: "invalid_relationship",
+            resource: currentResource,
+            message: `Cannot traverse "${parts.slice(0, index + 1).join(".")}": "${currentResource}.${part}" has no documented relationship.`
+          });
+          return;
+        }
+        currentResource = def.fk;
+      }
+    }
+    if (def && def.enum) {
+      if (write && value !== null && !["string", "number", "boolean"].includes(typeof value)) {
+        errors.push({ field: ref, code: "invalid_enum", message: `"${ref}" requires a single enum value when writing; filter operators and arrays are query-only.` });
+        return;
+      }
+      for (const candidate of write && value !== null ? [value] : enumCandidates(value, ref, errors)) {
+        if (!Object.prototype.hasOwnProperty.call(def.enum, String(candidate))) {
+          const valid = Object.entries(def.enum).map(([k, v]) => `${k}=${v}`).join(", ");
+          errors.push({
+            field: ref,
+            code: "invalid_enum",
+            message: `Invalid value ${JSON.stringify(candidate)} for "${ref}". Valid: ${valid}.`
+          });
+        }
+      }
+    }
+  }
+  function enumCandidates(value, field, errors, ancestors = /* @__PURE__ */ new Set()) {
+    if (["string", "number", "boolean"].includes(typeof value)) return [value];
+    if (Array.isArray(value)) return value.filter((v) => ["string", "number", "boolean"].includes(typeof v));
+    if (value && typeof value === "object") {
+      if (ancestors.has(value) || ancestors.size >= 64) {
+        errors.push({ field, code: "invalid_filters", message: `Invalid enum filter for "${field}": operands must not be circular or exceed 64 nested objects.` });
+        return [];
+      }
+      ancestors.add(value);
+      const out = [];
+      for (const [op, operand] of Object.entries(value)) {
+        if (op !== "=" && op !== "!=" && op !== "<>" && op !== "IN" && op !== "!IN") continue;
+        out.push(...enumCandidates(operand, field, errors, ancestors));
+      }
+      ancestors.delete(value);
+      return out;
+    }
+    return [];
+  }
+  function checkFilterObject(resource, filterObj, errors, ancestors = /* @__PURE__ */ new Set()) {
+    if (!isObject(filterObj) || ancestors.has(filterObj) || ancestors.size >= 64) {
+      errors.push({ field: "filters", code: "invalid_filters", message: "Filters must be a non-circular object of field conditions with fewer than 64 nested groups." });
+      return;
+    }
+    ancestors.add(filterObj);
+    for (const [field, value] of Object.entries(filterObj)) {
+      if (value === void 0) {
+        errors.push({ field, code: "invalid_filters", message: `Filter "${field}" has an undefined value and would disappear during JSON serialization. Omit the condition explicitly or provide a JSON value.` });
+        continue;
+      }
+      if (/^\d+$/.test(field) && Array.isArray(value)) {
+        if (!["AND", "OR", "NOT"].includes(value[0]) || value.length < 2) {
+          errors.push({ field: "filters", code: "invalid_filters", message: `Invalid logical filter group "${field}".` });
+          continue;
+        }
+        for (const member of value.slice(1)) {
+          checkFilterObject(resource, member, errors, ancestors);
+        }
+        continue;
+      }
+      checkField(resource, field, value, errors);
+    }
+    ancestors.delete(filterObj);
+  }
+  function checkQuery(resource, data, errors) {
+    if (Object.prototype.hasOwnProperty.call(data, "filter")) {
+      errors.push({
+        field: "filter",
+        message: 'Use "filters" (plural) rather than "filter" \u2014 it also matches GIN-indexed foreign-key fields (project, account, ticket).',
+        suggestion: "filters"
+      });
+    }
+    for (const key of ["filters", "filter"]) {
+      if (data[key] !== void 0) checkFilterObject(resource, data[key], errors);
+    }
+    if (data.fields !== void 0) {
+      if (!Array.isArray(data.fields) && !isObject(data.fields)) {
+        errors.push({ field: "fields", code: "invalid_fields", message: "fields must be an array of references or an object mapping aliases to references." });
+      } else {
+        const selections = Array.isArray(data.fields) ? data.fields : Object.values(data.fields);
+        for (const ref of selections) checkField(resource, ref, void 0, errors);
+      }
+    }
+    if (data.sort !== void 0) {
+      const sortValues = Array.isArray(data.sort) ? data.sort : typeof data.sort === "string" ? data.sort.split(",") : null;
+      if (sortValues === null) {
+        errors.push({ field: "sort", code: "invalid_sort", message: "sort must be a string or array of field references." });
+      } else {
+        for (const ref of sortValues) checkField(resource, sortFieldName(ref), void 0, errors);
+      }
+    }
+    for (const key of ["group", "having"]) {
+      if (data[key] !== void 0) errors.push({
+        field: key,
+        code: "unsupported_validation",
+        message: `Validation of "${key}" is not supported by the bundled API contract.`
+      });
     }
   }
   function validate(operationId, input) {
@@ -19111,44 +19452,41 @@ function createSchema({ services, schema }) {
       });
       return { valid: false, errors };
     }
-    const data = input && typeof input === "object" ? input : {};
-    const resourceEntry = schemaMap[entry.resource];
-    const resourceFields = resourceEntry ? Object.keys(resourceEntry.fields) : null;
-    const fieldDefs = resourceEntry ? resourceEntry.fields : {};
+    const data = isObject(input) ? input : {};
+    const fieldsForResource = resourceEntry(entry.resource)?.fields;
     const isListLike = /^(list|count)/.test(operationId);
-    if (isListLike && Object.prototype.hasOwnProperty.call(data, "filter")) {
-      errors.push({
-        field: "filter",
-        message: 'Use "filters" (plural) rather than "filter" \u2014 it also matches GIN-indexed foreign-key fields (project, account, ticket).',
-        suggestion: "filters"
-      });
-    }
-    if (!resourceFields) {
+    if (!fieldsForResource) {
       return { valid: errors.length === 0, errors };
     }
+    const hasBody = Object.prototype.hasOwnProperty.call(data, "body");
+    const hasData = Object.prototype.hasOwnProperty.call(data, "data");
+    const payload = hasBody ? data.body : hasData ? data.data : data;
+    if (!isObject(payload)) {
+      errors.push({
+        field: hasBody ? "body" : "data",
+        code: "invalid_payload",
+        message: "Schema validation requires an object payload."
+      });
+      return { valid: false, errors };
+    }
     if (isListLike) {
-      for (const key of ["filters", "filter"]) {
-        const filterObj = data[key];
-        if (filterObj && typeof filterObj === "object" && !Array.isArray(filterObj)) {
-          for (const [field, value] of Object.entries(filterObj)) {
-            checkField(resourceFields, fieldDefs, field, value, errors);
-          }
-        }
-      }
-      const sel = data.fields;
-      const selValues = Array.isArray(sel) ? sel : sel && typeof sel === "object" ? Object.values(sel) : [];
-      for (const ref of selValues) checkField(resourceFields, fieldDefs, ref, void 0, errors);
-      const sort = data.sort;
-      const sortValues = Array.isArray(sort) ? sort : typeof sort === "string" ? sort.split(",") : [];
-      for (const ref of sortValues) checkField(resourceFields, fieldDefs, sortFieldName(ref), void 0, errors);
+      checkQuery(entry.resource, payload, errors);
     } else {
-      const payload = data.body && typeof data.body === "object" && !Array.isArray(data.body) ? data.body : data.data && typeof data.data === "object" && !Array.isArray(data.data) ? data.data : data;
+      const readOnly = ["GET", "HEAD"].includes(entry.operation.method);
+      if (readOnly) {
+        checkQuery(entry.resource, payload, errors);
+        if (isObject(data.query)) checkQuery(entry.resource, data.query, errors);
+      }
       for (const [key, value] of Object.entries(payload)) {
+        if (key === "extdata" && !readOnly) {
+          customFieldValidator.validatePayload(entry.resource, value, errors);
+          continue;
+        }
         if (CONTROL_KEYS.has(key) || QUERY_DIRECTIVES.has(key)) continue;
         if (entry.operation.parameterNames?.path?.includes(key)) continue;
         if (entry.operation.parameterNames?.query?.includes(key)) continue;
         if (entry.operation.parameterNames?.header?.includes(key)) continue;
-        checkField(resourceFields, fieldDefs, key, value, errors);
+        checkField(entry.resource, key, value, errors, { write: !readOnly });
       }
       if (/^create/i.test(operationId)) {
         for (const field of REQUIRED_CREATE_FIELDS[entry.resource] || []) {
@@ -19176,7 +19514,7 @@ function createSchema({ services, schema }) {
   });
 }
 
-// ../../../zeyos/client/src/runtime/token-store.js
+// src/runtime/token-store.js
 function toNumber(value) {
   if (value == null || value === "") {
     return null;
@@ -19228,7 +19566,7 @@ var MemoryTokenStore = class {
   }
 };
 
-// ../../../zeyos/client/src/runtime/client.js
+// src/runtime/client.js
 var DEFAULT_RETRY = Object.freeze({
   maxRetries: 2,
   retryOn: Object.freeze([429, 503]),
@@ -19293,6 +19631,9 @@ function isReadOperation(operation) {
   const method = operation?.method;
   if (method === "GET" || method === "HEAD") {
     return true;
+  }
+  if (operation?.operationId === "getToken") {
+    return false;
   }
   return /^(list|count|search|exists|get)/i.test(operation?.operationId || "");
 }
@@ -19363,7 +19704,7 @@ var PLATFORM_PRESETS = Object.freeze({
 var VALID_AUTH_MODES = /* @__PURE__ */ new Set(["auto", "oauth", "session", "none"]);
 var RESERVED_INPUT_KEYS = new Set(REQUEST_CONTROL_KEYS);
 var OBJECT_CONTROL_KEYS2 = new Set(OBJECT_CONTROL_KEYS);
-function isObject(value) {
+function isObject2(value) {
   return value != null && typeof value === "object" && !Array.isArray(value);
 }
 function isPlainObject2(value) {
@@ -19426,7 +19767,7 @@ function normalizePlatform(platform) {
       instance: null
     };
   }
-  if (!isObject(platform)) {
+  if (!isObject2(platform)) {
     return null;
   }
   const preset = typeof platform.preset === "string" ? platform.preset : null;
@@ -19485,7 +19826,7 @@ function shouldInferBody(operation, input) {
     if (!Object.prototype.hasOwnProperty.call(input, key)) {
       continue;
     }
-    if (OBJECT_CONTROL_KEYS2.has(key) && !isObject(input[key])) {
+    if (OBJECT_CONTROL_KEYS2.has(key) && !isObject2(input[key])) {
       continue;
     }
     return false;
@@ -19493,13 +19834,13 @@ function shouldInferBody(operation, input) {
   return true;
 }
 function prepareOperationInput(operation, inputValue) {
-  const input = isObject(inputValue) ? inputValue : {};
-  const pathParams = isObject(input.path) ? { ...input.path } : {};
-  const query = isObject(input.query) ? { ...input.query } : {};
-  const headers = isObject(input.headers) ? { ...input.headers } : {};
+  const input = isObject2(inputValue) ? inputValue : {};
+  const pathParams = isObject2(input.path) ? { ...input.path } : {};
+  const query = isObject2(input.query) ? { ...input.query } : {};
+  const headers = isObject2(input.headers) ? { ...input.headers } : {};
   const consumedInputKeys = new Set(RESERVED_INPUT_KEYS);
   for (const key of OBJECT_CONTROL_KEYS2) {
-    if (Object.prototype.hasOwnProperty.call(input, key) && !isObject(input[key])) {
+    if (Object.prototype.hasOwnProperty.call(input, key) && !isObject2(input[key])) {
       consumedInputKeys.delete(key);
     }
   }
@@ -19620,7 +19961,7 @@ function normalizeRequestAuth(auth) {
   return auth;
 }
 function getBasicCredentials({ body, requestAuth, oauthConfig }) {
-  const bodyObject = isObject(body) ? body : {};
+  const bodyObject = isObject2(body) ? body : {};
   const clientId = requestAuth.clientId ?? requestAuth.client_id ?? bodyObject.client_id ?? bodyObject.clientId ?? oauthConfig.clientId ?? oauthConfig.client_id;
   const clientSecret = requestAuth.clientSecret ?? requestAuth.client_secret ?? bodyObject.client_secret ?? bodyObject.clientSecret ?? oauthConfig.clientSecret ?? oauthConfig.client_secret;
   if (!clientId || !clientSecret) {
@@ -19635,7 +19976,7 @@ function resolveBaseUrl({ services, serviceKey, config, explicitBaseUrl }) {
   if (explicitBaseUrl) {
     return trimTrailingSlash(explicitBaseUrl);
   }
-  if (isObject(config.baseUrls) && typeof config.baseUrls[serviceKey] === "string") {
+  if (isObject2(config.baseUrls) && typeof config.baseUrls[serviceKey] === "string") {
     return trimTrailingSlash(config.baseUrls[serviceKey]);
   }
   const service = services[serviceKey];
@@ -19643,7 +19984,7 @@ function resolveBaseUrl({ services, serviceKey, config, explicitBaseUrl }) {
     throw new Error(`Unknown service key: ${serviceKey}`);
   }
   const template = service.server?.urlTemplate || "";
-  const defaults = isObject(service.server?.defaultVariables) ? service.server.defaultVariables : {};
+  const defaults = isObject2(service.server?.defaultVariables) ? service.server.defaultVariables : {};
   const platform = normalizePlatform(config.platform);
   const platformInstance = platform?.instance ?? config.instance ?? defaults.INSTANCE;
   if (platform?.origin) {
@@ -19748,24 +20089,24 @@ function isAccessTokenExpired(tokenSet, skewSeconds = 60) {
   return expiresAt <= now + skewSeconds;
 }
 function createZeyosClient(rawConfig = {}) {
-  const config = isObject(rawConfig) ? rawConfig : {};
+  const config = isObject2(rawConfig) ? rawConfig : {};
   const fetchImpl = config.fetch ?? globalThis.fetch;
   if (typeof fetchImpl !== "function") {
     throw new Error("Fetch implementation is required (pass config.fetch or run in an environment with global fetch).");
   }
-  const authConfig = isObject(config.auth) ? config.auth : {};
-  const oauthConfig = isObject(authConfig.oauth) ? authConfig.oauth : {};
-  const sessionConfig = isObject(authConfig.session) ? authConfig.session : {};
+  const authConfig = isObject2(config.auth) ? config.auth : {};
+  const oauthConfig = isObject2(authConfig.oauth) ? authConfig.oauth : {};
+  const sessionConfig = isObject2(authConfig.session) ? authConfig.session : {};
   const defaultMode = normalizeAuthMode(authConfig.mode, "auto");
   const sessionEnabled = sessionConfig.enabled !== false;
   const sessionCredentials = sessionConfig.credentials ?? "include";
   const providedTokenStore = oauthConfig.tokenStore;
   const tokenStore = providedTokenStore && typeof providedTokenStore.get === "function" && typeof providedTokenStore.set === "function" ? providedTokenStore : new MemoryTokenStore(oauthConfig.token ?? null);
-  const defaultHeaders = isObject(config.headers) ? config.headers : {};
+  const defaultHeaders = isObject2(config.headers) ? config.headers : {};
   const retryConfig = normalizeRetry(config.retry);
   const defaultTimeoutMs = Number(config.timeoutMs) > 0 ? Number(config.timeoutMs) : 0;
   const defaultRetryOnNetworkError = typeof config.retryOnNetworkError === "boolean" ? config.retryOnNetworkError : void 0;
-  const schemaApi = createSchema({ services: SERVICES, schema: SCHEMA });
+  const schemaApi = createSchema({ services: SERVICES, schema: SCHEMA, customFields: config.customFields });
   const validateByDefault = config.validate === true;
   const operationLookup = /* @__PURE__ */ new Map();
   for (const [serviceKey, service] of Object.entries(SERVICES)) {
@@ -19818,7 +20159,7 @@ function createZeyosClient(rawConfig = {}) {
         throw new Error("Missing client_id/client_secret for basic-authenticated request.");
       }
       authHeaders.authorization = `Basic ${toBase64(`${credentialsPair.clientId}:${credentialsPair.clientSecret}`)}`;
-      if (isObject(body)) {
+      if (isObject2(body)) {
         if (!Object.prototype.hasOwnProperty.call(body, "client_id")) {
           body.client_id = credentialsPair.clientId;
         }
@@ -19863,7 +20204,8 @@ function createZeyosClient(rawConfig = {}) {
         await abortableDelay(backoffDelay(attempt, retryConfig), signal);
         continue;
       }
-      if (attempt >= retryConfig.maxRetries || !retryConfig.retryOn.has(response.status)) {
+      const statusRetryAllowed = response.status === 429 || networkRetryAllowed;
+      if (attempt >= retryConfig.maxRetries || !retryConfig.retryOn.has(response.status) || !statusRetryAllowed) {
         break;
       }
       await abortableDelay(computeRetryDelay(response, attempt, retryConfig), signal);
@@ -20026,6 +20368,17 @@ function createZeyosClient(rawConfig = {}) {
     }
     throw new Error("Unable to execute request due to missing authentication candidates.");
   }
+  function validateOperationInput(operation, input, requestOptions) {
+    if (validateByDefault || requestOptions?.validate === true) {
+      const result = schemaApi.validate(operation.operationId, input);
+      if (!result.valid) {
+        throw new ZeyosValidationError(
+          `${operation.operationId}: ${result.errors.map((entry) => entry.message).join(" ")}`,
+          { operationId: operation.operationId, errors: result.errors }
+        );
+      }
+    }
+  }
   function bindService(serviceKey) {
     const service = SERVICES[serviceKey];
     if (!service) {
@@ -20035,15 +20388,7 @@ function createZeyosClient(rawConfig = {}) {
     const operationIds = service.operations.map((operation) => operation.operationId);
     for (const operation of service.operations) {
       namespace[operation.operationId] = async (input, requestOptions) => {
-        if (validateByDefault || requestOptions?.validate === true) {
-          const result = schemaApi.validate(operation.operationId, input);
-          if (!result.valid) {
-            throw new ZeyosValidationError(
-              `${operation.operationId}: ${result.errors.map((entry) => entry.message).join(" ")}`,
-              { operationId: operation.operationId, errors: result.errors }
-            );
-          }
-        }
+        validateOperationInput(operation, input, requestOptions);
         const prepared = prepareOperationInput(operation, input);
         return executeOperation({ serviceKey, operation, prepared, requestOptions });
       };
@@ -20064,7 +20409,7 @@ function createZeyosClient(rawConfig = {}) {
     });
   }
   async function request(input = {}, requestOptions = {}) {
-    if (!isObject(input)) {
+    if (!isObject2(input)) {
       throw new Error("client.request input must be an object.");
     }
     const serviceKey = input.service;
@@ -20082,9 +20427,9 @@ function createZeyosClient(rawConfig = {}) {
         );
       }
       const prepared2 = {
-        pathParams: isObject(input.pathParams) ? input.pathParams : {},
-        query: isObject(input.query) ? input.query : {},
-        headers: isObject(input.headers) ? input.headers : {},
+        pathParams: isObject2(input.pathParams) ? input.pathParams : {},
+        query: isObject2(input.query) ? input.query : {},
+        headers: isObject2(input.headers) ? input.headers : {},
         body: input.body,
         bodyType: input.bodyType,
         auth: input.auth,
@@ -20092,6 +20437,11 @@ function createZeyosClient(rawConfig = {}) {
         raw: input.raw,
         baseUrl: input.baseUrl
       };
+      validateOperationInput(operation2, {
+        path: prepared2.pathParams,
+        query: prepared2.query,
+        ...Object.prototype.hasOwnProperty.call(input, "body") ? { body: input.body } : {}
+      }, requestOptions);
       return executeOperation({ serviceKey, operation: operation2, prepared: prepared2, requestOptions });
     }
     if (!input.path || !input.method) {
@@ -20110,9 +20460,9 @@ function createZeyosClient(rawConfig = {}) {
       }
     };
     const prepared = {
-      pathParams: isObject(input.pathParams) ? input.pathParams : {},
-      query: isObject(input.query) ? input.query : {},
-      headers: isObject(input.headers) ? input.headers : {},
+      pathParams: isObject2(input.pathParams) ? input.pathParams : {},
+      query: isObject2(input.query) ? input.query : {},
+      headers: isObject2(input.headers) ? input.headers : {},
       body: input.body,
       bodyType: input.bodyType,
       auth: input.auth,
@@ -20132,6 +20482,12 @@ function createZeyosClient(rawConfig = {}) {
       const suggestion = suggestClosest(operationId, candidates);
       throw new ZeyosApiError(
         `Unknown list operation: api.${operationId}.` + (suggestion ? ` Did you mean '${suggestion}'?` : ""),
+        { operationId, service: "api" }
+      );
+    }
+    if (!isReadOperation(op)) {
+      throw new ZeyosApiError(
+        `paginate() only supports read operations; api.${operationId} mutates data.`,
         { operationId, service: "api" }
       );
     }
@@ -20210,8 +20566,11 @@ function createZeyosClient(rawConfig = {}) {
       isError: params.has("error")
     };
   }
-  async function storeTokenResponse(tokenResponse, store = true) {
+  async function storeTokenResponse(tokenResponse, store = true, previousRefreshToken = null) {
     const tokenSet = tokenResponseToTokenSet(tokenResponse);
+    if (tokenSet && !tokenSet.refreshToken && previousRefreshToken) {
+      tokenSet.refreshToken = previousRefreshToken;
+    }
     if (store && tokenSet) {
       await tokenStore.set(tokenSet);
     }
@@ -20277,7 +20636,7 @@ function createZeyosClient(rawConfig = {}) {
       },
       requestOptions
     );
-    return storeTokenResponse(tokenResponse, options.store !== false);
+    return storeTokenResponse(tokenResponse, options.store !== false, refreshTokenValue);
   }
   async function revokeToken(options = {}, requestOptions = {}) {
     const clientId = options.clientId ?? options.client_id ?? oauthConfig.clientId;
@@ -20354,245 +20713,6 @@ function createZeyosClient(rawConfig = {}) {
   };
   return Object.freeze(client);
 }
-
-// ../../../zeyos/client/src/runtime/okf.js
-var OKF_VERSION = "0.1";
-var GENERATED_FRONTMATTER_KEYS = Object.freeze([
-  "type",
-  "title",
-  "description",
-  "resource",
-  "tags",
-  "timestamp",
-  "api_backed",
-  "list_operation",
-  "visibility_column"
-]);
-var RESERVED_BASENAMES = /* @__PURE__ */ new Set(["index.md", "log.md"]);
-var VERB_RE = /^(list|get|create|update|delete|exists)/;
-function parseConcept(content) {
-  const text = String(content || "");
-  const match = /^---\n([\s\S]*?)\n---\n?/.exec(text);
-  if (!match) return { frontmatter: {}, body: text };
-  const frontmatter = {};
-  for (const line of match[1].split("\n")) {
-    const kv = /^([A-Za-z0-9_]+):\s*(.*)$/.exec(line);
-    if (kv) frontmatter[kv[1]] = kv[2].trim();
-  }
-  return { frontmatter, body: text.slice(match[0].length) };
-}
-function isReserved(relPath) {
-  const base = relPath.split("/").pop();
-  return RESERVED_BASENAMES.has(base);
-}
-function validateOkfFiles(files) {
-  const errors = [];
-  let conceptCount = 0;
-  for (const [relPath, content] of Object.entries(files || {})) {
-    if (!relPath.endsWith(".md") || isReserved(relPath)) continue;
-    conceptCount += 1;
-    const { frontmatter } = parseConcept(content);
-    if (!Object.keys(frontmatter).length) {
-      errors.push({ path: relPath, message: "Missing YAML frontmatter." });
-      continue;
-    }
-    if (!frontmatter.type) {
-      errors.push({ path: relPath, message: "Frontmatter is missing the required `type` field." });
-    }
-  }
-  return { valid: errors.length === 0, errors, conceptCount };
-}
-function conceptIdForResource(resource) {
-  return `entities/${resource}`;
-}
-function groupOperations(services) {
-  const byResource = /* @__PURE__ */ new Map();
-  for (const service of Object.values(services || {})) {
-    for (const op of service.operations || []) {
-      const resource = resourceFromPath2(op.path);
-      if (!resource) continue;
-      if (!byResource.has(resource)) byResource.set(resource, {});
-      const bucket = byResource.get(resource);
-      const m = VERB_RE.exec(op.operationId);
-      const key = m ? m[1] : op.operationId;
-      if (!bucket[key]) bucket[key] = op.operationId;
-    }
-  }
-  return byResource;
-}
-function resourceFromPath2(p) {
-  if (typeof p !== "string") return null;
-  for (const segment of p.split("/")) {
-    if (segment && !segment.startsWith("{")) return segment;
-  }
-  return null;
-}
-function titleFromOps(ops, fallback) {
-  const op = ops.list || ops.get;
-  if (!op) return fallback.charAt(0).toUpperCase() + fallback.slice(1);
-  return op.replace(VERB_RE, "").replace(/([a-z0-9])([A-Z])/g, "$1 $2").trim() || fallback;
-}
-function fnv1a(str) {
-  let h = 2166136261;
-  for (let i = 0; i < str.length; i += 1) {
-    h ^= str.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return (h >>> 0).toString(16).padStart(8, "0");
-}
-function renderEntityDoc(name, entry, ops, hasDoc) {
-  const link = (target) => hasDoc.has(target) ? `/entities/${target}.md` : null;
-  const fields = Object.entries(entry.fields || {});
-  const schemaRows = fields.map(([fname, def]) => {
-    const fkCell = def.fk ? link(def.fk) ? `[${def.fk}](${link(def.fk)})` : def.fk : "\u2014";
-    const enumCell = def.enum ? Object.entries(def.enum).map(([k, v]) => `${k}=${v}`).join(", ") : "\u2014";
-    return `| \`${fname}\` | ${def.type || "unknown"} | ${def.indexed ? "yes" : "\u2014"} | ${fkCell} | ${enumCell} |`;
-  });
-  const schema = `# Schema
-
-| Column | Type | Indexed | FK | Enum |
-|---|---|---|---|---|
-${schemaRows.join("\n")}`;
-  const fks = fields.filter(([, d]) => d.fk);
-  const fkSection = fks.length ? `
-
-# Foreign Keys
-
-${fks.map(([f, d]) => `- \`${f}\` \u2192 ${link(d.fk) ? `[${d.fk}](${link(d.fk)})` : d.fk}`).join("\n")}` : "";
-  const order = ["list", "get", "create", "update", "delete", "exists"];
-  const opLines = order.filter((k) => ops[k]).map((k) => `- ${k}: \`${ops[k]}\``);
-  const opSection = opLines.length ? `
-
-# Operations
-
-${opLines.join("\n")}` : "";
-  const title = titleFromOps(ops, name);
-  const fm = [
-    "type: ZeyOS Entity",
-    `title: ${title}`,
-    `resource: zeyos://api/${name}`,
-    "tags: [generated]",
-    "api_backed: true"
-  ];
-  if (ops.list) fm.push(`list_operation: ${ops.list}`);
-  fm.push(`visibility_column: ${Object.prototype.hasOwnProperty.call(entry.fields || {}, "visibility")}`);
-  return `---
-${fm.join("\n")}
----
-
-${schema}${fkSection}${opSection}
-`;
-}
-function buildOkf({ schema = SCHEMA, services = SERVICES } = {}) {
-  const ops = groupOperations(services);
-  const resources = Object.keys(schema).filter((r) => ops.has(r)).sort();
-  const hasDoc = new Set(resources);
-  const files = {};
-  for (const name of resources) {
-    files[`entities/${name}.md`] = renderEntityDoc(name, schema[name], ops.get(name) || {}, hasDoc);
-  }
-  const indexItems = resources.map((name) => `* [${titleFromOps(ops.get(name) || {}, name)}](${name}.md)`).join("\n");
-  files["entities/index.md"] = `# Entities
-
-${indexItems}
-`;
-  const signature = resources.map((r) => `${r}:${Object.keys(schema[r].fields || {}).join(",")}`).join("|");
-  files["index.md"] = `---
-okf_version: ${OKF_VERSION}
-source_snapshot: ${fnv1a(signature)}
----
-
-# ZeyOS Knowledge Bundle
-
-* [Entities](entities/) - ${resources.length} API-backed entity concepts.
-`;
-  return files;
-}
-async function loadOkfBundle(dir) {
-  const { readFile, readdir } = await import("node:fs/promises");
-  const path = await import("node:path");
-  const files = {};
-  async function walk(current, prefix) {
-    const entries = await readdir(current, { withFileTypes: true });
-    for (const entry of entries) {
-      const abs = path.join(current, entry.name);
-      const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
-      if (entry.isDirectory()) await walk(abs, rel);
-      else if (entry.name.endsWith(".md")) files[rel] = await readFile(abs, "utf8");
-    }
-  }
-  await walk(dir, "");
-  const concepts = {};
-  for (const [rel, content] of Object.entries(files)) {
-    if (isReserved(rel)) continue;
-    concepts[rel.replace(/\.md$/, "")] = parseConcept(content);
-  }
-  let version = null;
-  if (files["index.md"]) version = parseConcept(files["index.md"]).frontmatter.okf_version || null;
-  return { version, files, concepts };
-}
-async function validateOkfBundle(dirOrFiles) {
-  if (typeof dirOrFiles === "string") {
-    const { files } = await loadOkfBundle(dirOrFiles);
-    return validateOkfFiles(files);
-  }
-  return validateOkfFiles(dirOrFiles);
-}
-
-// ../../../zeyos/client/src/index.js
-function normalizeListResult(result) {
-  if (Array.isArray(result)) {
-    return { data: result };
-  }
-  if (result != null && typeof result === "object") {
-    const data = Array.isArray(result.data) ? result.data : [];
-    const out = { data };
-    if (typeof result.count === "number" && Number.isFinite(result.count)) {
-      out.count = result.count;
-    } else if (typeof result.count === "string" && result.count !== "") {
-      const parsed = Number(result.count);
-      if (Number.isFinite(parsed)) out.count = parsed;
-    }
-    return out;
-  }
-  return { data: [] };
-}
-function normalizeCountResult(result) {
-  if (typeof result === "number") {
-    return Number.isFinite(result) ? result : 0;
-  }
-  if (typeof result === "string" && result !== "") {
-    const parsed = Number(result);
-    return Number.isFinite(parsed) ? parsed : 0;
-  }
-  if (Array.isArray(result)) {
-    return result.length;
-  }
-  if (result != null && typeof result === "object") {
-    if (result.count != null) {
-      const parsed = Number(result.count);
-      return Number.isFinite(parsed) ? parsed : 0;
-    }
-    if (Array.isArray(result.data)) {
-      return result.data.length;
-    }
-  }
-  return 0;
-}
 export {
-  MemoryTokenStore,
-  OKF_VERSION,
-  ZeyosApiError,
-  ZeyosValidationError,
-  buildOkf,
-  conceptIdForResource,
-  createZeyosClient,
-  loadOkfBundle,
-  normalizeCountResult,
-  normalizeListResult,
-  normalizeTokenSet,
-  suggestClosest,
-  tokenResponseToTokenSet,
-  validateOkfBundle,
-  validateOkfFiles
+  createZeyosClient
 };

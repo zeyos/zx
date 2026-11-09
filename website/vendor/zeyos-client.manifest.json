@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "package": {
+    "name": "@zeyos/client",
+    "version": "1.1.0",
+    "license": "MIT"
+  },
+  "source": {
+    "repository": "https://github.com/zeyos/client",
+    "revision": "465c2c7016f5028405c987b17704f3491a597857",
+    "sha256": "fee0cb4980ea88f43a55aebd5a55ed877b07778b3f7cace8345f24adc5bb0624",
+    "files": [
+      {
+        "path": "LICENSE",
+        "sha256": "d99e7b96572b2cc343289278628426646a567f556dd10cb4038de5260bb9d7e9"
+      },
+      {
+        "path": "package.json",
+        "sha256": "f5ecfe7f2a01711a29c84be7d4cf23180a2aeb538c15ea3368f1d999fd9fba6a"
+      },
+      {
+        "path": "src/generated/operations.js",
+        "sha256": "5002dc09a902464260e4cc4daa22139c94743186431834a5ac9ca86315fda1ae"
+      },
+      {
+        "path": "src/generated/schema.js",
+        "sha256": "0b61b79a150781be2d66949fdce84c886687d307d63151cbc7ad070e041aee0d"
+      },
+      {
+        "path": "src/runtime/client.js",
+        "sha256": "738336131e09dc7b0d5ab68dde0f43d9e2e9416c78e4309cb0ffa85703a79fef"
+      },
+      {
+        "path": "src/runtime/custom-fields.js",
+        "sha256": "85cd329f5c2393788b2617db5deea1d433d55b2c9ce876d862558f83c2358d04"
+      },
+      {
+        "path": "src/runtime/error.js",
+        "sha256": "5d58c1ef629e5b56dead38705fda88a46880e8c424bb7e944942385e1e42efae"
+      },
+      {
+        "path": "src/runtime/http.js",
+        "sha256": "8e438ac6a82725a861b3b96ec91b8bd7ecb28c1bd136741ce53c8beedb54549b"
+      },
+      {
+        "path": "src/runtime/request-shape.js",
+        "sha256": "ab867b6d5a9011c395947513a3dbf602c9e9961e97ed33c62609232b49d16222"
+      },
+      {
+        "path": "src/runtime/schema.js",
+        "sha256": "185ed95d4e7a42be1de5aa825d1343302c02d29f731afb8d12c30f9a137bc807"
+      },
+      {
+        "path": "src/runtime/suggest.js",
+        "sha256": "834e784b099b1a16c3c6902f93cec2f648d3bf7e18a1f8fdb2052683c04a5573"
+      },
+      {
+        "path": "src/runtime/token-store.js",
+        "sha256": "24ed0ec9d188d2fcadf82fc1498576b7953368fbe97b7782a7936995905ecc78"
+      }
+    ]
+  },
+  "build": {
+    "tool": "esbuild",
+    "version": "0.28.1",
+    "options": {
+      "entryPoints": [
+        "src/runtime/client.js"
+      ],
+      "bundle": true,
+      "format": "esm",
+      "platform": "browser",
+      "target": "es2022",
+      "legalComments": "eof"
+    }
+  },
+  "bundle": {
+    "file": "zeyos-client.esm.js",
+    "bytes": 476793,
+    "sha256": "76ccc6442822b82be45792f9237bda320460461e4f65d0e175c4f7220cc13b9e"
+  }
+}
