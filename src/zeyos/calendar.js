@@ -1,3 +1,4 @@
+import { translate } from '../core/i18n.js';
 import { Calendar, calendarDayDifference } from '../index.js';
 import { dateToUnixSeconds, unixSecondsToDate } from './query.js';
 
@@ -31,7 +32,7 @@ export function zeyosAppointmentToEvent(record) {
   const end = unixSecondsToDate(record.dateto ?? record.datefrom);
   if (!(start instanceof Date) || !(end instanceof Date)) throw new TypeError('ZeyOS appointment requires datefrom and dateto');
   const association = String(record.assoc_name ?? '').trim();
-  const name = String(record.name ?? '').trim() || 'Untitled appointment';
+  const name = String(record.name ?? '').trim() || translate('zeyosCalendar.untitled');
   const title = record.entity && association ? `${association}: ${name}` : name;
   const allDay = record.allDay != null ? Boolean(record.allDay)
     : isMidnight(start) && isMidnight(end) && calendarDayDifference(start, end) >= 1;

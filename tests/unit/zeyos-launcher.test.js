@@ -93,3 +93,20 @@ test('active identifier distinguishes modules, forks, and weblets', () => {
   assert.equal(zeyosActiveIdentifier({ module: 'projects', fork: 42 }), 'fork#42');
   assert.equal(zeyosActiveIdentifier({ module: 'main', weblet: 'clock' }), 'weblet#clock');
 });
+
+test('launcher interface defaults translate without changing supplied module and record labels', async () => {
+  const { setTranslator } = await import('../../src/core/i18n.js');
+  const { de } = await import('../../src/locales/de.js');
+  try {
+    setTranslator((key) => de[key]);
+    const config = buildZeyosLauncherConfig({ modules: { billing: 'Billing identity' }, recent: [['accounts', 1, null, 'Acme', 'Berlin']] });
+    assert.equal(config.items[0].label, 'Billing identity');
+    assert.equal(config.items[0].group, de['zeyosLauncher.applications']);
+    assert.equal(config.items[1].label, 'Acme');
+    assert.equal(config.items[1].group, de['zeyosLauncher.recent']);
+    const records = normalizeZeyosLauncherRecords({ '': [[7, null, 'Acme', 'Berlin', 'accounts']] }, { query: 'a' });
+    assert.equal(records[0].group, de['zeyosLauncher.results']);
+    const custom = buildZeyosLauncherConfig({ modules: { billing: 'Billing identity' }, labels: { applications: 'Tools' } });
+    assert.equal(custom.items[0].group, 'Tools');
+  } finally { setTranslator(null); }
+});

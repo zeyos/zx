@@ -1,3 +1,4 @@
+import { translate } from '../core/i18n.js';
 import { Launcher } from '../components/launcher/launcher.js';
 import { moduleChip, zeyosAppIcon } from './icons.js';
 import { moduleInfo } from './modules.js';
@@ -332,12 +333,12 @@ function normalizeServerColor(value) {
 function launcherLabels(input) {
   const labels = input && typeof input === 'object' ? input : {};
   return {
-    applications: String(labels.applications ?? 'Applications'),
-    recent: String(labels.recent ?? 'Recent'),
-    results: String(labels.results ?? 'Top results'),
+    applications: String(labels.applications ?? translate('zeyosLauncher.applications')),
+    recent: String(labels.recent ?? translate('zeyosLauncher.recent')),
+    results: String(labels.results ?? translate('zeyosLauncher.results')),
     entities: labels.entities && typeof labels.entities === 'object' ? labels.entities : {},
-    move: String(labels.move ?? 'Move'),
-    open: String(labels.open ?? 'Open'),
-    close: String(labels.close ?? 'Close')
+    move: String(labels.move ?? translate('zeyosLauncher.move')),
+    open: String(labels.open ?? translate('zeyosLauncher.open')),
+    close: String(labels.close ?? translate('zeyosLauncher.close'))
   };
 }

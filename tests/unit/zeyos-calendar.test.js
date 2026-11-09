@@ -76,3 +76,14 @@ test('Calendar proposals convert back to Unix-second ZeyOS patches', () => {
   });
   assert.throws(() => calendarEventToZeyosPatch({ start: 'bad', end }), /Dates/);
 });
+
+test('unnamed appointment fallback translates while supplied titles remain unchanged', async () => {
+  const { setTranslator } = await import('../../src/core/i18n.js');
+  const { de } = await import('../../src/locales/de.js');
+  try {
+    setTranslator((key) => de[key]);
+    const record = { ID: 1, datefrom: 1_700_000_000, dateto: 1_700_003_600 };
+    assert.equal(zeyosAppointmentToEvent(record).title, de['zeyosCalendar.untitled']);
+    assert.equal(zeyosAppointmentToEvent({ ...record, name: 'Customer appointment' }).title, 'Customer appointment');
+  } finally { setTranslator(null); }
+});

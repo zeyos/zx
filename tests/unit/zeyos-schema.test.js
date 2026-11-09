@@ -166,3 +166,24 @@ test('resolveFields applies format overrides and validates the instance time zon
   assert.equal(resolveFields(client, 'messages')[2].timeZone, undefined);
   assert.throws(() => resolveFields(client, 'messages', { timeZone: 'Mars/Olympus' }), RangeError);
 });
+
+test('schema formatters follow current language and honor explicit metadata locale', async () => {
+  const { setLanguage } = await import('../../src/core/i18n.js');
+  try {
+    setLanguage('de');
+    const number = fieldToZxColumn({ id: 'amount', type: 'numeric' });
+    const explicit = fieldToZxColumn({ id: 'amount', type: 'numeric', locale: 'en-US' });
+    const percent = fieldToZxColumn({ id: 'amount', format: 'percent' });
+    assert.equal(number.render({ amount: 1234.5 }), '1.234,5');
+    assert.equal(explicit.render({ amount: 1234.5 }), '1,234.5');
+    assert.equal(percent.render({ amount: 42.5 }), '42,5%');
+    const day = new Date(2026, 2, 5, 9, 7);
+    const date = fieldToZxColumn({ id: 'date', format: 'date', locale: 'en-GB', timeZone: 'Europe/Vienna' });
+    assert.equal(date.render({ date: day }), new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(Date.UTC(2026, 2, 5))));
+    const instant = fieldToZxColumn({ id: 'date', format: 'datetime' });
+    assert.equal(instant.render({ date: day }), new Intl.DateTimeFormat('de', { dateStyle: 'medium', timeStyle: 'short' }).format(day));
+    setLanguage('en-US');
+    assert.equal(number.render({ amount: 1234.5 }), '1,234.5', 'previously constructed column follows active language');
+    assert.equal(instant.render({ date: day }), new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(day));
+  } finally { setLanguage('en'); }
+});

@@ -1,3 +1,4 @@
+import { translate } from '../core/i18n.js';
 import { ModuleBar } from '../components/module-bar/module-bar.js';
 import { normalizeAppItems } from '../internal/app-rail.js';
 import { moduleIcon } from './icons.js';
@@ -57,7 +58,7 @@ export function zeyosModuleItems(state = {}, options = {}) {
   const menus = state.menus && typeof state.menus === 'object' ? state.menus : {};
   const badges = state.badges && typeof state.badges === 'object' ? state.badges : {};
   const groups = state.groups && typeof state.groups === 'object' ? state.groups : {};
-  const labels = { forks: 'Forks', weblets: 'Weblets', ...(state.labels ?? {}) };
+  const labels = { forks: translate('zeyosModuleBar.forks'), weblets: translate('zeyosModuleBar.weblets'), ...(state.labels ?? {}) };
   const seen = new Set();
   /** @type {Record<string, any>[]} */
   const items = [];

@@ -1,3 +1,4 @@
+import { translate } from '../core/i18n.js';
 import { Form, Message, Select } from '../index.js';
 import { overlayScope } from '../core/overlay-host.js';
 import { connect, errorMessage } from './connect.js';
@@ -191,7 +192,7 @@ export function zeyosForm(client, resource, opts = {}) {
           throw error;
         }
       }
-      if (host) Message.success(`${recordLabel(record, resource)} saved successfully.`, { scope: host });
+      if (host) Message.success(translate('zeyosForm.saved', [recordLabel(record, resource)]), { scope: host });
       return record;
     })().finally(() => {
       savePending = null;

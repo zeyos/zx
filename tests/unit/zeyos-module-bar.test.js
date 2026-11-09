@@ -97,3 +97,15 @@ test('the builders produce solid ModuleBar and modules-layout AppSidebar options
   assert.equal(sidebar.collapsed, true);
   assert.deepEqual(sidebar.moduleBar, { appearance: 'tint' });
 });
+
+test('module group defaults translate and custom labels retain precedence', async () => {
+  const { setTranslator } = await import('../../src/core/i18n.js');
+  const { de } = await import('../../src/locales/de.js');
+  try {
+    setTranslator((key) => de[key]);
+    const state = { menuApps: [[17, 'Field service', 'tickets', 'ff8800']] };
+    assert.equal(zeyosModuleItems(state)[0].group, de['zeyosModuleBar.forks']);
+    assert.equal(zeyosModuleItems({ ...state, labels: { forks: 'Branches' } })[0].group, 'Branches');
+    assert.equal(zeyosModuleItems(state)[0].label, 'Field service');
+  } finally { setTranslator(null); }
+});

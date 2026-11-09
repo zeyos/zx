@@ -1,3 +1,5 @@
+import { formattingLocale } from '../core/i18n.js';
+import { formatNumber, formatCurrency } from '../core/format.js';
 import { calendarZone, dateToUnixSeconds, normalizeTimeZone, unixSecondsToDate } from './query.js';
 
 /** @typedef {Record<string, unknown>} FieldMeta */
@@ -227,7 +229,7 @@ const percentColumn = {
   field: { type: 'float', props: { min: 0, max: 100 } },
   column: (meta) => ({
     align: 'right',
-    render: (row) => formatPercent(rowValue(row, meta)),
+    render: (row) => formatPercent(rowValue(row, meta), meta.locale),
     sortValue: (row) => finiteNumber(rowValue(row, meta))
   })
 };
@@ -270,7 +272,7 @@ function dateStrategy(type) {
   return {
     field: { type },
     column: (meta) => {
-      const format = type === 'datetime' ? instantFormatter() : calendarDayFormatter(meta.timeZone);
+      const format = type === 'datetime' ? instantFormatter(meta.locale) : calendarDayFormatter(meta.timeZone, meta.locale);
       return {
         render: (row) => format(rowValue(row, meta)),
         sortValue: (row) => unixSortValue(rowValue(row, meta))
@@ -484,18 +486,9 @@ function enumRenderer(meta, fallback = {}) {
 
 /** @param {FieldMeta} meta @param {boolean} [currency=false] @returns {(row: Record<string, unknown>) => string} */
 function numberRenderer(meta, currency = false) {
-  let formatter;
-  try {
-    formatter = new Intl.NumberFormat(meta.locale, currency && meta.currency
-      ? { style: 'currency', currency: String(meta.currency) }
-      : {});
-  } catch {
-    formatter = new Intl.NumberFormat();
-  }
-  return (row) => {
-    const value = finiteNumber(rowValue(row, meta));
-    return value == null ? '' : formatter.format(value);
-  };
+  return (row) => currency && meta.currency
+    ? formatCurrency(rowValue(row, meta), String(meta.currency), { locale: meta.locale })
+    : formatNumber(rowValue(row, meta), { locale: meta.locale });
 }
 
 /** @param {unknown} value @returns {number|null} */
@@ -505,21 +498,22 @@ function finiteNumber(value) {
   return Number.isFinite(number) ? number : null;
 }
 
-/** @param {unknown} value @returns {string} */
-function formatPercent(value) {
+/** @param {unknown} value @param {unknown} locale @returns {string} */
+function formatPercent(value, locale) {
   const number = finiteNumber(value);
-  return number == null ? '' : `${new Intl.NumberFormat().format(number)}%`;
+  return number == null ? '' : `${formatNumber(number, { locale })}%`;
 }
 
 /**
  * Formats a date-time field: the instant, in the viewer's zone, with its time.
+ * @param {unknown} locale Explicit field locale.
  * @returns {(value: unknown) => string}
  */
-function instantFormatter() {
-  const formatter = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+function instantFormatter(locale) {
+  const format = localizedDateFormatter(locale, { dateStyle: 'medium', timeStyle: 'short' });
   return (value) => {
     const date = timestampDate(value);
-    return date ? formatter.format(date) : '';
+    return date ? format(date) : '';
   };
 }
 
@@ -527,12 +521,13 @@ function instantFormatter() {
  * Formats a date-only field: the calendar day the stored midnight names in the instance's zone,
  * with no time, so neither the viewer's zone nor daylight saving can move it.
  * @param {unknown} timeZone Instance zone from the field metadata; the runtime's own when absent.
+ * @param {unknown} locale Explicit field locale.
  * @returns {(value: unknown) => string}
  */
-function calendarDayFormatter(timeZone) {
+function calendarDayFormatter(timeZone, locale) {
   const zone = calendarZone(/** @type {string|undefined} */ (timeZone ?? undefined));
   // The day is formatted as a UTC date so the formatter cannot shift it a second time.
-  const formatter = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeZone: 'UTC' });
+  const format = localizedDateFormatter(locale, { dateStyle: 'medium', timeZone: 'UTC' });
   return (value) => {
     const date = timestampDate(value);
     if (!date) return '';
@@ -542,7 +537,26 @@ function calendarDayFormatter(timeZone) {
       : zone.dayOf(date.getTime());
     const utc = new Date(0);
     utc.setUTCFullYear(year, month, day);
-    return formatter.format(utc);
+    return format(utc);
+  };
+}
+
+/**
+ * Keeps a field's date formatter until its effective locale changes.
+ * @param {unknown} locale Explicit field locale.
+ * @param {Intl.DateTimeFormatOptions} options Date presentation.
+ * @returns {(date: Date) => string}
+ */
+function localizedDateFormatter(locale, options) {
+  let key;
+  let formatter;
+  return (date) => {
+    const effective = formattingLocale(locale, Intl.DateTimeFormat);
+    if (!formatter || key !== String(effective)) {
+      key = String(effective);
+      formatter = new Intl.DateTimeFormat(effective, options);
+    }
+    return formatter.format(date);
   };
 }
 

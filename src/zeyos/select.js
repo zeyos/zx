@@ -1,3 +1,4 @@
+import { translate } from '../core/i18n.js';
 import { Select, h } from '../index.js';
 import { connect } from './connect.js';
 import { moduleChip } from './icons.js';
@@ -161,7 +162,7 @@ export function buildZeyosEntitySelectConfig(client, resource, opts = {}) {
   });
   base.renderValueAdornment = renderValueAdornment ?? ((item) => renderModuleIcon(item, true));
   if (none !== false) {
-    base.noneLabel = typeof none === 'string' ? none : rest.noneLabel ?? 'No selection';
+    base.noneLabel = typeof none === 'string' ? none : rest.noneLabel ?? translate('select.none');
     base.renderNone = rest.renderNone ?? ((label) => h('span', { class: 'zx-select__entity-none' },
       h('span', { class: 'zx-select__entity-none-icon', ariaHidden: 'true' }),
       h('span', {}, label)));
@@ -171,8 +172,8 @@ export function buildZeyosEntitySelectConfig(client, resource, opts = {}) {
     const invoke = typeof descriptor.oninvoke === 'function' ? descriptor.oninvoke : null;
     base.actions = [...(Array.isArray(base.actions) ? base.actions : []), {
       id: descriptor.id ?? 'create',
-      label: descriptor.label ?? 'Create new…',
-      group: descriptor.group ?? 'New',
+      label: descriptor.label ?? translate('select.create'),
+      group: descriptor.group ?? translate('select.createGroup'),
       icon: descriptor.icon ?? 'plus',
       invoke: (detail) => invoke?.({ ...detail, resource })
     }];

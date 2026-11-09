@@ -1,3 +1,4 @@
+import { formatCurrency } from '../core/format.js';
 import { Table } from '../index.js';
 import { connect } from './connect.js';
 import { buildListQuery } from './query.js';
@@ -182,7 +183,7 @@ export function buildZeyosTableConfig(client, resource, opts = {}) {
     const monetary = isMonetaryField(meta);
     const column = fieldToZxColumn(monetary ? { ...meta, format: 'money' } : meta);
     if (monetary) {
-      column.render = (row) => formatCurrency(row?.[meta.id], row?.currency);
+      column.render = (row) => formatCurrency(row?.[meta.id], row?.currency, { locale: meta.locale });
       if (schemaHasField(client, resource, 'currency')) projection.currency = 'currency';
     }
     return column;
@@ -430,18 +431,6 @@ function isMonetaryField(meta) {
   return /money|currency|price/.test(format) || /(?:amount|price)$/.test(String(meta.id).toLowerCase());
 }
 
-/** @param {unknown} value @param {unknown} currency @returns {string} */
-function formatCurrency(value, currency) {
-  if (value == null || value === '') return '';
-  const number = Number(value);
-  if (!Number.isFinite(number)) return '';
-  const code = typeof currency === 'string' && /^[A-Z]{3}$/.test(currency) ? currency : null;
-  try {
-    return new Intl.NumberFormat(undefined, code ? { style: 'currency', currency: code } : {}).format(number);
-  } catch {
-    return new Intl.NumberFormat().format(number);
-  }
-}
 
 /** @param {Record<string, any>} client @param {string} resource @param {string} id @returns {boolean} */
 function schemaHasField(client, resource, id) {
