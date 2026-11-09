@@ -293,6 +293,8 @@ export class Select extends Component {
    */
   setItems(items) {
     const selectedValue = this.value;
+    this._cancelQuery();
+    this._setLoading(false);
     this._items = Array.isArray(items) ? items.slice() : [];
     this._visibleItems = this._items.slice();
     this._selected = selectedValue == null ? null : this._findItem(selectedValue);
@@ -338,6 +340,11 @@ export class Select extends Component {
 
   /** Opens the option panel. @returns {this} @fires Select#open */
   open() {
+    return this._openPanel(true);
+  }
+
+  /** @param {boolean} selectText Whether to select the existing label. @returns {this} */
+  _openPanel(selectText) {
     if (this._disabled || this._open) return this;
     this._open = true;
     this.el.setAttribute('data-state', 'open');
@@ -352,7 +359,7 @@ export class Select extends Component {
     // is a no-op while the panel is still hidden.
     this._setActive(this._selectedEntryIndex());
     if (this._activeIndex < 0 && this._optionEntries.length > 0) this._setActive(0);
-    if (this.options.filter && this._selected !== null) {
+    if (selectText && this.options.filter && this._selected !== null) {
       /** @type {HTMLInputElement} */ (this.refs.input).select();
     }
     if (typeof this.options.filter === 'function') this._scheduleAsyncQuery('');
@@ -628,7 +635,7 @@ export class Select extends Component {
     if (!this.options.filter) return;
     const query = /** @type {HTMLInputElement} */ (this.refs.input).value;
     this._syncValueAdornment();
-    if (!this._open) this.open();
+    if (!this._open) this._openPanel(false);
     if (this.options.filter === 'local') {
       this._visibleFixed = this._matchFixed(query);
       this._visibleItems = matchItems(this._items, query, this._searchKeys());
