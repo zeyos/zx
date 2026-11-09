@@ -125,9 +125,10 @@ function keyHint(key) {
  * `when`, `next` and `validate` each take a function or the same logic written as plain JSON (see
  * `conditions.js`), so a whole questionnaire can be stored, sent, or composed by an agent.
  *
- * The root is a real `<form>` and choices are native radios and checkboxes carrying the item name,
- * so `new FormData(questionnaire.toElement())` reads the answers, arrow-key navigation inside a
- * choice group is the browser's rather than ours, and nothing depends on JavaScript for semantics.
+ * A created root is a real `<form>`; an enhanced non-form target contains one. Choices are native
+ * radios and checkboxes carrying the item name,
+ * and arrow-key navigation inside a choice group is the browser's. Form data includes every
+ * applicable answer, including answers from earlier steps.
  *
  * @fires Questionnaire#change
  * @fires Questionnaire#navigate
@@ -189,6 +190,7 @@ export class Questionnaire extends Component {
     this._status = 'asking';
     this._returnToReview = false;
     this._busy = false;
+    this._revision = 0;
     this._error = '';
     this._advanceTimer = 0;
     this._uid = uid('zx-questionnaire');
@@ -224,12 +226,20 @@ export class Questionnaire extends Component {
     this._form.replaceChildren(this._progressHost, this._itemHost, this._reviewHost, this._actionsHost);
     if (this._form !== root) root.replaceChildren(this._form);
 
+    this.listen(this._form, 'formdata', (event) => {
+      const data = /** @type {FormDataEvent} */ (event).formData;
+      for (const name of new Set([...data.keys()])) data.delete(name);
+      for (const [name, value] of this.toFormData()) data.append(name, value);
+    });
     this.listen(this._form, 'submit', (event) => {
       event.preventDefault();
       void this.next();
     });
     this.listen(this._itemHost, 'change', (event) => this._onControlChange(event));
-    this.listen(this._itemHost, 'input', (event) => this._onFreeformInput(event));
+    this.listen(this._itemHost, 'input', (event) => {
+      this._revision += 1;
+      this._onFreeformInput(event);
+    });
     this.listen(this._actionsHost, 'click', (event) => this._onActionClick(event));
     this.listen(this._reviewHost, 'click', (event) => this._onReviewClick(event));
     this.listen(root, 'keydown', (event) => this._onKeydown(/** @type {KeyboardEvent} */ (event)));
@@ -259,17 +269,25 @@ export class Questionnaire extends Component {
     const previous = this.getActive();
     const items = normalizeItemList(list, (key) => this.msg(key));
     const names = new Set(items.map((item) => item.name));
+    const oldItems = this._items;
+    const savedFields = new Map();
+    for (const [name, field] of this._fields) {
+      if (oldItems.find((item) => item.name === name)?.field && items.find((item) => item.name === name)?.field) {
+        savedFields.set(name, field.getValue());
+      }
+      field.destroy();
+    }
+    this._fields.clear();
     this._items = items;
+    this._revision += 1;
+    for (const [name, value] of savedFields) {
+      const item = items.find((candidate) => candidate.name === name);
+      if (item) this._field(item).setValue(value, { silent: true });
+    }
 
     for (const map of [this._selected, this._freeform]) {
       for (const name of [...map.keys()]) if (!names.has(name)) map.delete(name);
     }
-    for (const [name, field] of [...this._fields]) {
-      if (names.has(name)) continue;
-      field.destroy();
-      this._fields.delete(name);
-    }
-
     const visible = resolveFlow(items, this._rawAnswers()).visible;
     const kept = this._path.filter((name) => visible.some((item) => item.name === name));
     if (previous && kept[kept.length - 1] === previous) this._path = kept;
@@ -324,8 +342,9 @@ export class Questionnaire extends Component {
   async next() {
     if (this._busy || this._status === 'complete') return false;
     if (this._status === 'review') return this.submit();
+    const revision = this._revision;
     if (!await this._validateActive()) return false;
-    if (this._destroyed) return false;
+    if (this._destroyed || revision !== this._revision) return false;
 
     if (this._returnToReview) {
       this._returnToReview = false;
@@ -333,6 +352,7 @@ export class Questionnaire extends Component {
     }
     const item = this._activeItem();
     const target = item ? resolveNext(this._items, item, this._rawAnswers()) : null;
+    if (this._destroyed || revision !== this._revision) return false;
     return this._leave(target, 'next');
   }
 
@@ -349,6 +369,7 @@ export class Questionnaire extends Component {
       if (!last) return false;
       const event = this.emit('navigate', { from: null, to: last, reason: 'previous' });
       if (event.defaultPrevented) return false;
+      this._revision += 1;
       this._status = 'asking';
       // The last question leads back into review on its own, so nothing needs to be remembered.
       this._returnToReview = false;
@@ -362,6 +383,7 @@ export class Questionnaire extends Component {
     const to = this._path[this._path.length - 2];
     const event = this.emit('navigate', { from, to, reason: 'previous' });
     if (event.defaultPrevented) return false;
+    this._revision += 1;
     this._path.pop();
     this._returnToReview = false;
     this._error = '';
@@ -381,12 +403,16 @@ export class Questionnaire extends Component {
     const item = this._activeItem();
     if (!item || !item.skippable || this._busy) return false;
     this.setAnswer(item.name, null, { silent: true });
+    const revision = this._revision;
     this.emit('skip', { name: item.name });
+    if (this._destroyed || revision !== this._revision || this._activeItem() !== item) return false;
     if (this._returnToReview) {
       this._returnToReview = false;
       return this._enterReview();
     }
-    return this._leave(resolveNext(this._items, item, this._rawAnswers()), 'skip');
+    const target = resolveNext(this._items, item, this._rawAnswers());
+    if (this._destroyed || revision !== this._revision || this._activeItem() !== item) return false;
+    return this._leave(target, 'skip');
   }
 
   /**
@@ -397,11 +423,18 @@ export class Questionnaire extends Component {
    */
   async submit() {
     if (this._busy || this._status === 'complete') return false;
+    const revision = this._revision;
     if (this._status !== 'review' && !await this._validateActive()) return false;
-    if (this._destroyed) return false;
+    if (this._destroyed || revision !== this._revision) return false;
 
+    return this._finishSubmit();
+  }
+
+  /** @returns {boolean} */
+  _finishSubmit() {
+    const revision = this._revision;
     const detail = { answers: this.getAnswers(), path: this.getPath() };
-    if (this.emit('submit', detail).defaultPrevented) return false;
+    if (this.emit('submit', detail).defaultPrevented || this._destroyed || revision !== this._revision) return false;
     this._status = 'complete';
     this._paint();
     this.emit('complete', { answers: detail.answers, path: detail.path });
@@ -462,6 +495,7 @@ export class Questionnaire extends Component {
   setAnswer(name, value, { silent = false } = {}) {
     const item = this._items.find((candidate) => candidate.name === name);
     if (!item) throw new RangeError(`Unknown questionnaire item: ${name}`);
+    this._revision += 1;
 
     if (item.field) {
       this._field(item).setValue(value === undefined ? null : value, { silent: true });
@@ -539,6 +573,7 @@ export class Questionnaire extends Component {
    * @returns {this}
    */
   reset() {
+    this._revision += 1;
     this._selected.clear();
     this._freeform.clear();
     for (const [name, field] of this._fields) {
@@ -627,6 +662,7 @@ export class Questionnaire extends Component {
     // The legend already asks the question; repeating it above the control would say it twice.
     if (options.label == null) field.el.setAttribute('data-hide-label', '');
     field.on('change', () => {
+      this._revision += 1;
       this._error = '';
       this._paintError(item);
       this._emitChange(item);
@@ -641,8 +677,11 @@ export class Questionnaire extends Component {
   _navigate(name, reason) {
     const from = this.getActive();
     if (from === name && this._status === 'asking') return false;
-    if (this.emit('navigate', { from, to: name, reason }).defaultPrevented) return false;
+    const revision = this._revision;
+    if (this.emit('navigate', { from, to: name, reason }).defaultPrevented
+      || this._destroyed || revision !== this._revision) return false;
 
+    this._revision += 1;
     const index = this._path.indexOf(name);
     if (index >= 0) this._path = this._path.slice(0, index + 1);
     else this._path.push(name);
@@ -658,17 +697,20 @@ export class Questionnaire extends Component {
    * @param {string|null} target @param {'next'|'skip'} reason @returns {Promise<boolean>|boolean}
    */
   _leave(target, reason) {
-    if (endsFlow(this._items, target)) return target === NEXT_REVIEW ? this._enterReview() : this.submit();
+    if (endsFlow(this._items, target)) return target === NEXT_REVIEW ? this._enterReview() : this._finishSubmit();
     if (target) return this._navigate(target, reason);
     if (this.options.review) return this._enterReview();
-    return this.submit();
+    return this._finishSubmit();
   }
 
   /** @returns {boolean} */
   _enterReview() {
-    if (this.emit('navigate', { from: this.getActive(), to: null, reason: 'review' }).defaultPrevented) {
+    const revision = this._revision;
+    if (this.emit('navigate', { from: this.getActive(), to: null, reason: 'review' }).defaultPrevented
+      || this._destroyed || revision !== this._revision) {
       return false;
     }
+    this._revision += 1;
     this._status = 'review';
     this._error = '';
     this._paint();
@@ -680,6 +722,7 @@ export class Questionnaire extends Component {
   async _validateActive() {
     const item = this._activeItem();
     if (!item) return true;
+    const revision = this._revision;
     const answer = this._answerOf(item);
     let message = validateAnswer(item, answer, (key) => this.msg(key));
 
@@ -698,7 +741,7 @@ export class Questionnaire extends Component {
         if (!this._destroyed) this._setBusy(false);
       }
     }
-    if (this._destroyed) return false;
+    if (this._destroyed || revision !== this._revision || this._activeItem() !== item) return false;
 
     this._error = message ? String(message) : '';
     this._paintError(item);
@@ -927,6 +970,7 @@ export class Questionnaire extends Component {
     if (!item) return;
     const choice = item.choices[Number(control.dataset.index)];
     if (!choice) return;
+    this._revision += 1;
 
     if (item.multiple) {
       const checked = [...this._itemHost.querySelectorAll('.zx-questionnaire__control')]
