@@ -4,7 +4,7 @@ export const cases = [
   {
     name: 'country picker searches descriptions in ordinary and preferred results',
     async run({ page }) {
-      await page.evaluate(() => { window.picker = new zx.CountryPicker(null, { countries: [{ code: 'DE', description: 'ordinary unicorn' }], preferred: [{ code: 'AT', description: 'preferred unicorn' }], sort: false }); document.body.append(picker.el); });
+      await page.evaluate(() => { window.picker = zx.Select.country(null, { countries: [{ code: 'DE', description: 'ordinary unicorn' }], preferred: [{ code: 'AT', description: 'preferred unicorn' }], sort: false }); document.body.append(picker.el); });
       const input = page.locator('.zx-select__input'); await input.fill('unicorn');
       const options = await page.locator('[role=option]').allTextContents();
       assert(options.some(x => x.includes('ordinary unicorn'))); assert(options.some(x => x.includes('preferred unicorn')));

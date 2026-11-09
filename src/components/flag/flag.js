@@ -24,7 +24,7 @@ import { h } from '../../core/dom.js';
 
 /**
  * Every officially assigned ISO 3166-1 alpha-2 code, and `XK` (Kosovo), which is user-assigned but
- * in common use, in alphabetical order. `CountryPicker` lists these when given no `countries`.
+ * in common use, in alphabetical order. `Select.country()` lists these when given no `countries`.
  * @type {ReadonlyArray<string>}
  */
 export const COUNTRY_CODES = Object.freeze((

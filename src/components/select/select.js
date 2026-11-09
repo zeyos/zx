@@ -6,6 +6,9 @@ import { position } from '../../core/position.js';
 import { uid } from '../../core/util.js';
 import { itemColor } from './color.js';
 import { matchItems } from './filter.js';
+import { canonicalLocale, localeItems, localeSelectOptions } from './locale.js';
+import { countryItems, countrySelectOptions } from './country.js';
+import { normalizeRegion } from '../flag/flag.js';
 import {
   DEFAULT_STATUSES, STATUS_INDICATORS, STATUS_TONES, normalizePriorityLevel, priorityIcon, statusIcon
 } from './glyphs.js';
@@ -67,6 +70,9 @@ import {
 /** @typedef {{item: SelectItem|null, clear: boolean, action: SelectAction|null, element: HTMLElement}} SelectOptionEntry */
 /** @typedef {{silent?: boolean}} SelectSetOptions */
 
+// Internal factory configuration; ordinary Select instances keep their IDs unchanged.
+const NORMALIZE_VALUE = Symbol('normalizeSelectValue');
+
 const PRIORITY_KEYS = [
   'priority.lowest',
   'priority.low',
@@ -121,6 +127,8 @@ export class Select extends Component {
     // Instance state initialized here because render() runs inside the base
     // constructor, before class-field initializers would run (and clobber it).
     this._items = []; this._visibleItems = []; this._fixedItems = []; this._visibleFixed = []; this._actions = []; this._selected = null; this._optionEntries = []; this._activeIndex = -1; this._open = false; this._disabled = false; this._loading = false; this._requestSequence = 0; this._queryTimer = null; this._position = null; this._createdRoot = false; this._root = null; this._snapshot = null; this._pointerModality = false;
+    /** @private @type {(value: string) => string} */
+    this._normalizeValue = this.options[NORMALIZE_VALUE] ?? ((value) => value);
     this._createdRoot = this.el === null;
     const root = /** @type {HTMLElement} */ (this.el ?? h('div'));
     this.el = root;
@@ -275,7 +283,8 @@ export class Select extends Component {
    */
   set(idOrItem, { silent = false } = {}) {
     const previousValue = this.value;
-    const item = idOrItem == null ? null : this._findItem(idOrItem);
+    const candidate = typeof idOrItem === 'string' ? this._normalizeValue(idOrItem) : idOrItem;
+    const item = candidate == null ? null : this._findItem(candidate);
     this._selected = item;
     this._syncInputValue();
     this._renderOptions();
@@ -405,6 +414,60 @@ export class Select extends Component {
   focus() {
     /** @type {HTMLInputElement} */ (this.refs.input).focus();
     return this;
+  }
+
+  /**
+   * Creates a locale Select with native/localized names, pinned choices, and optional flags.
+   * Values are canonical BCP 47 tags; initial values and `set()` accept underscores and any case.
+   * @param {Element|string|null} target Component target.
+   * @param {import('./locale.js').LocaleSelectOptions & SelectOptions} [options={}] Locale options
+   *   and Select overrides other than items, readers, and renderers.
+   * @returns {Select}
+   */
+  static locale(target, options = {}) {
+    const select = new Select(target, {
+      ...localeSelectOptions(options),
+      [NORMALIZE_VALUE]: (value) => canonicalLocale(value) ?? value
+    });
+    select.el.setAttribute('data-preset', 'locale');
+    return select;
+  }
+
+  /**
+   * Builds locale items without the DOM, for lists and summaries using the same names.
+   * @param {Array<string|import('./locale.js').LocaleItem>} locales Locale tags or specifications.
+   * @param {Pick<import('./locale.js').LocaleSelectOptions, 'displayLocale'|'display'|'flagRegions'|'sort'>} [options={}] Naming options.
+   * @returns {ReturnType<typeof localeItems>}
+   */
+  static localeItems(locales, options = {}) {
+    return localeItems(locales, options);
+  }
+
+  /**
+   * Creates a country Select with localized names, pinned choices, and optional flags. Search
+   * includes the English name, ISO code, and descriptions; initial values and `set()` accept either case.
+   * @param {Element|string|null} target Component target.
+   * @param {import('./country.js').CountrySelectOptions & SelectOptions} [options={}] Country options
+   *   and Select overrides other than items, readers, and renderers.
+   * @returns {Select}
+   */
+  static country(target, options = {}) {
+    const select = new Select(target, {
+      ...countrySelectOptions(options),
+      [NORMALIZE_VALUE]: (value) => normalizeRegion(value) ?? value
+    });
+    select.el.setAttribute('data-preset', 'country');
+    return select;
+  }
+
+  /**
+   * Builds country items without the DOM, defaulting to the ISO country catalogue.
+   * @param {Array<string|import('./country.js').CountryItem>} [countries] Country codes or specifications.
+   * @param {Pick<import('./country.js').CountrySelectOptions, 'displayLocale'|'showCode'|'sort'>} [options={}] Naming options.
+   * @returns {ReturnType<typeof countryItems>}
+   */
+  static countryItems(countries, options = {}) {
+    return countryItems(countries, options);
   }
 
   /**

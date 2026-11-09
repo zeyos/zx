@@ -72,6 +72,22 @@
         reader semantics come from the pattern rather than from bolted-on attributes.
       </p>
 
+      <h2>Optional integration requirements</h2>
+      <p>
+        Zx has no package runtime dependencies and its source modules import no external runtime packages.
+        <code>Chart</code> requires an injected renderer; the only supplied renderer,
+        <code>ChartJsAdapter</code>, requires host-provided Chart.js 4. There is no built-in chart renderer.
+        The website pins Chart.js 4.5.1 as a development dependency and copies it to self-hosted vendor
+        assets during its build; Zx does not bundle it.
+      </p>
+      <p>
+        Core icons use bundled SVG by default. Font Awesome opt-in requires host-loaded CSS or a kit.
+        ZeyOS <code>moduleIcon()</code>, <code>moduleChip()</code>, and <code>zeyosAppIcon()</code>
+        default to the external custom ZeyOS Font Awesome kit; <code>standard: true</code> still needs
+        stock Font Awesome assets. <code>ZeyOS.connect()</code> requires an injected compatible client;
+        it does not import the client package.
+      </p>
+
       <h2>How this documentation is organised</h2>
       <ul>
         <li><strong>Getting started</strong> — installation, the mental model, theming, and how to
@@ -142,8 +158,9 @@
       <h2>From a CDN</h2>
       <p>
         Every release published to npm is served by public CDNs such as jsDelivr and unpkg, with no
-        download or build. The bundles are self-contained, so one stylesheet and one script are all a
-        page needs.
+        download or build. One stylesheet and one script provide the standard components and bundled
+        SVG icons. Chart rendering additionally needs an injected engine adapter; Font Awesome modes
+        need their CSS or kit assets, and ZeyOS data operations need an application-provided client.
       </p>
       <table>
         <thead>
@@ -417,7 +434,7 @@ const toolbar = h('div', { class: 'toolbar' },
         <li><code>setTranslator(fn)</code> supplies the words. The function receives a flat message key and returns its text.</li>
         <li><code>setLanguage(tag)</code> selects the active language for plural rules, default formatting, and language-specific <code>msg</code> tables. It does not load a catalogue or change the page&#x27;s HTML <code>lang</code> attribute.</li>
         <li><code>locale</code> selects formatting on helpers and components that expose this option. It does not select translated interface messages.</li>
-        <li><code>displayLocale</code> controls the names shown by LocalePicker and CountryPicker, independently of their selected value.</li>
+        <li><code>displayLocale</code> controls the names shown by Select.locale() and Select.country(), independently of their selected value.</li>
         <li><code>msg</code> overrides messages for one component. Application labels, record values, and server text remain application-owned.</li>
       </ul>
 
@@ -467,7 +484,7 @@ document.documentElement.lang = 'fr-FR';
       </p>
 
       <p>
-        Application catalogues need no change to Zx or its shipped manifest. Keep a registry of the languages your application actually supports, and pass those tags to LocalePicker.
+        Application catalogues need no change to Zx or its shipped manifest. Keep a registry of the languages your application actually supports, and pass those tags to Select.locale().
       </p>
 
       <h2>Regional variants and catalogue lookup</h2>
@@ -580,7 +597,7 @@ formatDate(new Date(2026, 8, 1), '%b', { locale: 'en-GB' });
       <h2>Use the Select-based pickers</h2>
 
       <p>
-        LocalePicker and CountryPicker extend Select. They keep its popup, keyboard map, events, field adapter, and <code>.zx-select</code> styling, adding item generation, names, flags, and value normalization. A locale selection emits <code>change</code>; it does not install translations or change the application language.
+        Select.locale() and Select.country() return ordinary Select instances. They keep its popup, keyboard map, events, field adapter, and <code>.zx-select</code> styling, adding item generation, names, flags, and value normalization. A locale selection emits <code>change</code>; it does not install translations or change the application language.
       </p>
 
       <p>
@@ -588,9 +605,9 @@ formatDate(new Date(2026, 8, 1), '%b', { locale: 'en-GB' });
       </p>
 
       <pre data-code="language-picker.js">
-import { getLanguage, LocalePicker } from '@zeyos/zx';
+import { getLanguage, Select } from '@zeyos/zx';
 
-const picker = new LocalePicker(null, {
+const picker = Select.locale(null, {
   locales: ['en-GB', 'de-DE', 'de-AT'],
   value: getLanguage(),
   displayLocale: 'en-GB',
@@ -604,7 +621,7 @@ document.querySelector('#language').append(picker.toElement());
       </pre>
 
       <p>
-        <code>displayLocale</code> changes the language names shown, while the selected value stays a locale tag. LocalePicker filters automatically for lists longer than seven; <code>filter: &#x27;local&#x27;</code> also enables search for short lists. For a form, use the existing Select field preset:
+        <code>displayLocale</code> changes the language names shown, while the selected value stays a locale tag. Select.locale() filters automatically for lists longer than seven; <code>filter: &#x27;local&#x27;</code> also enables search for short lists. For a form, use the existing Select field preset:
       </p>
 
       <pre data-code="language-field.js">
@@ -620,7 +637,7 @@ const languageField = new Field(null, {
       </pre>
 
       <p>
-        Use <code>preset: &#x27;country&#x27;</code> for CountryPicker. These presets belong to the Field adapter&#x27;s <code>props</code>; constructing a plain Select with <code>preset: &#x27;locale&#x27;</code> does not select a subclass.
+        Use <code>props.preset: &#x27;country&#x27;</code> for the country factory. Preset names are Field adapter options; for direct construction call <code>Select.locale()</code> or <code>Select.country()</code>.
       </p>
 
       <h2>Switching language at runtime</h2>

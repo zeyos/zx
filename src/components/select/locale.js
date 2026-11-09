@@ -2,9 +2,8 @@ import { Component } from '../../core/component.js';
 import { h } from '../../core/dom.js';
 import { getLanguage } from '../../core/i18n.js';
 import { flagRenderer, normalizeRegion } from '../flag/flag.js';
-import { Select } from '../select/select.js';
 
-/** @typedef {import('../select/select.js').SelectOptions} SelectOptions */
+/** @typedef {import('./select.js').SelectOptions} SelectOptions */
 /** @typedef {import('../flag/flag.js').FlagMode} FlagMode */
 
 /**
@@ -17,7 +16,7 @@ import { Select } from '../select/select.js';
  *   language chip instead of a flag.
  */
 /**
- * @typedef {Object} LocalePickerOptions
+ * @typedef {Object} LocaleSelectOptions
  * @property {Array<string|LocaleItem>} [locales] The locales to offer, in the order given. Tags are
  *   canonicalized (`'de_at'` → `'de-AT'`); an invalid tag is left out. Without it the picker offers
  *   a short list of widely used languages.
@@ -50,93 +49,55 @@ const DEFAULT_LOCALES = Object.freeze([
 ]);
 
 /**
- * Language picker: a `Select` over a list of locales, each named in its own language and in the
- * interface's, with the flag of its region or a language chip before it. Names come from
- * `Intl.DisplayNames`, so no translation table ships with it. The value is the canonical BCP 47
- * tag (`'de-AT'`); `set()` accepts any spelling of a tag in the list.
- *
- * Everything else is Select: the APG combobox and its keyboard map, `change`, `clearable`,
- * `disabled`, and the field type (`zxselect` with `preset: 'locale'`). A list longer than seven
- * filters as the reader types, by native name, localized name, and tag.
- *
- * @fires Select#change
- * @fires Select#open
- * @fires Select#close
- * @extends {Select}
+ * Builds the items a locale picker lists, without the DOM: one `{ID, name, nameLang, description,
+ * region, language}` per valid tag; `nameLang` is the language `name` is written in. Exposed for
+ * a table or a summary that names locales the same way.
+ * @param {Array<string|LocaleItem>} locales Tags or locale items.
+ * @param {Pick<LocaleSelectOptions, 'displayLocale'|'display'|'flagRegions'|'sort'>} [options={}]
+ *   Naming options.
+ * @returns {Array<{ID: string, name: string, nameLang: string|null, description: string, region: string|null, language: string}>}
  */
-export class LocalePicker extends Select {
-  /**
-   * Creates a locale picker.
-   * @param {Element|string|null} target Component target.
-   * @param {LocalePickerOptions & SelectOptions} [options={}] Locale options, and Select overrides
-   *   other than items, readers, and renderers.
-   */
-  constructor(target, options = {}) {
-    super(target, localeSelectOptions(options));
-    this.el.setAttribute('data-preset', 'locale');
+export function localeItems(locales, options = {}) {
+  const displayLocale = options.displayLocale || getLanguage() || 'en';
+  const display = options.display ?? 'both';
+  const flagRegions = options.flagRegions ?? {};
+  const localized = displayNames(displayLocale, 'language');
+  const seen = new Set();
+  const items = [];
+  for (const entry of Array.isArray(locales) ? locales : []) {
+    const spec = typeof entry === 'string' ? { code: entry } : entry;
+    const code = canonicalLocale(spec?.code);
+    if (!code || seen.has(code)) continue;
+    seen.add(code);
+    const locale = new Intl.Locale(code);
+    const base = locale.baseName;
+    const nativeName = capitalize(displayNames(base, 'language')?.of(base) ?? base, base);
+    const localizedName = capitalize(localized?.of(base) ?? base, displayLocale);
+    const name = spec.name ?? (display === 'localized' ? localizedName : nativeName);
+    const description = spec.description
+      ?? (display === 'both' && localizedName.toLocaleLowerCase() !== nativeName.toLocaleLowerCase() ? localizedName : '');
+    items.push({
+      ID: code,
+      name: String(name),
+      nameLang: spec.name != null ? null : display === 'localized' ? displayLocale : code,
+      description: String(description),
+      region: 'region' in spec ? normalizeRegion(spec.region) : localeRegion(locale, code, flagRegions),
+      language: locale.language
+    });
   }
-
-  /**
-   * Selects a locale by tag, in any spelling (`'de_at'`, `'DE-at'`), or by item.
-   * @param {unknown} idOrItem Tag, item, or null.
-   * @param {import('../select/select.js').SelectSetOptions} [options={}] Set options.
-   * @returns {this}
-   */
-  set(idOrItem, options = {}) {
-    return super.set(typeof idOrItem === 'string' ? canonicalLocale(idOrItem) ?? idOrItem : idOrItem, options);
+  if (options.sort) {
+    const collator = new Intl.Collator(displayLocale);
+    items.sort((a, b) => collator.compare(a.name, b.name));
   }
-
-  /**
-   * Builds the items a locale picker lists, without the DOM: one `{ID, name, nameLang, description,
-   * region, language}` per valid tag; `nameLang` is the language `name` is written in. Exposed for
-   * a table or a summary that names locales the same way.
-   * @param {Array<string|LocaleItem>} locales Tags or locale items.
-   * @param {Pick<LocalePickerOptions, 'displayLocale'|'display'|'flagRegions'|'sort'>} [options={}]
-   *   Naming options.
-   * @returns {Array<{ID: string, name: string, nameLang: string|null, description: string, region: string|null, language: string}>}
-   */
-  static items(locales, options = {}) {
-    const displayLocale = options.displayLocale || getLanguage() || 'en';
-    const display = options.display ?? 'both';
-    const flagRegions = options.flagRegions ?? {};
-    const localized = displayNames(displayLocale, 'language');
-    const seen = new Set();
-    const items = [];
-    for (const entry of Array.isArray(locales) ? locales : []) {
-      const spec = typeof entry === 'string' ? { code: entry } : entry;
-      const code = canonicalLocale(spec?.code);
-      if (!code || seen.has(code)) continue;
-      seen.add(code);
-      const locale = new Intl.Locale(code);
-      const base = locale.baseName;
-      const nativeName = capitalize(displayNames(base, 'language')?.of(base) ?? base, base);
-      const localizedName = capitalize(localized?.of(base) ?? base, displayLocale);
-      const name = spec.name ?? (display === 'localized' ? localizedName : nativeName);
-      const description = spec.description
-        ?? (display === 'both' && localizedName.toLocaleLowerCase() !== nativeName.toLocaleLowerCase() ? localizedName : '');
-      items.push({
-        ID: code,
-        name: String(name),
-        nameLang: spec.name != null ? null : display === 'localized' ? displayLocale : code,
-        description: String(description),
-        region: 'region' in spec ? normalizeRegion(spec.region) : localeRegion(locale, code, flagRegions),
-        language: locale.language
-      });
-    }
-    if (options.sort) {
-      const collator = new Intl.Collator(displayLocale);
-      items.sort((a, b) => collator.compare(a.name, b.name));
-    }
-    return items;
-  }
+  return items;
 }
 
 /**
- * Turns locale-picker options into the Select options behind them.
- * @param {LocalePickerOptions & SelectOptions} options Locale-picker options.
+ * Turns locale preset options into the Select options behind them.
+ * @param {LocaleSelectOptions & SelectOptions} options Locale preset options.
  * @returns {SelectOptions}
  */
-function localeSelectOptions(options) {
+export function localeSelectOptions(options) {
   const {
     locales = DEFAULT_LOCALES, preferred = [], preferredLabel = null, displayLocale = null,
     display = 'both', flags = 'auto', flagUrl = null, flagRegions = {}, sort = false,
@@ -148,8 +109,8 @@ function localeSelectOptions(options) {
     flagRegions,
     sort
   };
-  const items = LocalePicker.items(locales, naming);
-  const pinned = LocalePicker.items(preferred, { ...naming, sort: false });
+  const items = localeItems(locales, naming);
+  const pinned = localeItems(preferred, { ...naming, sort: false });
   const drawFlag = flagRenderer(flags, flagUrl);
   const visual = (item) => drawFlag(item.region, item.language.toUpperCase(), item);
   return {

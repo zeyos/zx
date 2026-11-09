@@ -33,7 +33,7 @@ const COMPONENT_IDS = [
   'stepper', 'breadcrumb', 'split-view', 'dock', 'app-sidebar', 'module-bar',
   'loading', 'skeleton',
   'message', 'modal', 'dialog', 'sheet', 'sheet-stack', 'dropdown', 'menu-button', 'context-menu', 'tooltip',
-  'select', 'locale-picker', 'country-picker', 'checklist', 'tag-picker',
+  'select', 'checklist', 'tag-picker',
   'date-picker', 'datebox', 'date-range', 'timebox',
   'entity-ref', 'file-item', 'file-list', 'activity-item', 'activity-list',
   'table', 'table-view', 'card-view', 'kanban-view', 'grid', 'chart', 'calendar', 'data-filter', 'filter', 'filter-panel', 'sort-control', 'list-toolbar', 'view-settings', 'pagination', 'tree', 'finder',
@@ -631,7 +631,12 @@ function route() {
  * @returns {{key: string, anchor: string}}
  */
 function readHash() {
-  const hash = decodeURIComponent(window.location.hash.replace(/^#/, ''));
+  let hash = decodeURIComponent(window.location.hash.replace(/^#/, ''));
+  const picker = /^components\/(locale|country)-picker(?:\/.*)?$/.exec(hash);
+  if (picker) {
+    hash = `components/select/${picker[1]}`;
+    window.history.replaceState(null, '', `#${hash}`);
+  }
   if (hash === '' || hash === 'getting-started') {
     const introduction = 'getting-started/introduction';
     if (entries.has(introduction)) return { key: introduction, anchor: '' };

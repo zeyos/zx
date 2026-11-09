@@ -57,6 +57,18 @@ Components accept an existing element or selector as their first argument. Passi
 the component create and own its root. Call `destroy()` when a component is no longer needed; an
 owned root is removed, while an enhanced target is restored.
 
+## Optional integration requirements
+
+Zx has no package runtime dependencies and its source modules import no external runtime packages.
+Optional integrations still need application-provided assets or clients. `Chart` requires an injected
+renderer; the only supplied renderer, `ChartJsAdapter`, requires Chart.js 4 supplied by the host.
+There is no built-in chart renderer. Chart.js 4.5.1 is pinned as a development dependency and copied
+to the documentation site's self-hosted vendor assets during its build; it is not bundled into Zx.
+Core icons use bundled SVG by default. Opting into Font Awesome requires host-loaded CSS or a kit.
+ZeyOS `moduleIcon()`, `moduleChip()`, and `zeyosAppIcon()` default to glyphs from the external custom
+ZeyOS Font Awesome kit; `standard: true` still needs stock Font Awesome assets. `ZeyOS.connect()`
+requires an injected compatible client and never imports the client package.
+
 ## Component index
 
 The groups match the demo sidebar.
@@ -100,10 +112,8 @@ ZeyOS binding — see `src/zeyos/modules.js`.
 | `CheckButton` | Two-state pressed button with optional state-specific labels. |
 | `Toggle` | Native-button switch with a separate submitted value. |
 | `Search` | Search input with debounced input, submit, and clear events. |
-| `Select` | APG combobox with local or async filtering, pinned items, priority/status/permission presets, and an optional ZeyOS entity picker. |
+| `Select` | APG combobox with local or async filtering, pinned items, locale/country/priority/status/permission presets, and an optional ZeyOS entity picker. `Select.locale()` and `Select.country()` return ordinary Select instances; `Select.localeItems()` and `Select.countryItems()` generate rows without DOM. |
 | `Checklist` | Searchable checkbox group with optional async loading. |
-| `LocalePicker` | Select over a list of locales, named in their own language, with flags or language chips. |
-| `CountryPicker` | Filterable Select over ISO 3166-1 countries with localized names and flags. |
 | `TagPicker` | Multi-select combobox that keeps its selection as removable tags. |
 | `NumberField` | APG spinbutton with step buttons, ranges, units, and wrapping. |
 | `Rating` | Star rating as a radio group, with optional half steps. |
@@ -144,7 +154,7 @@ ZeyOS binding — see `src/zeyos/modules.js`.
 | `CardView` | Responsive record cards with configurable fields, safe preview media, grouping, actions, sorting, and selection. |
 | `KanbanView` | Record board with configurable columns, swim lanes, WIP guidance, and cancelable pointer/keyboard movement. |
 | `Grid`, `Grid.BillingItems()` | Table-compatible preset surface with editable currencies, units, totals, and sub-items. |
-| `Chart`, `ChartJsAdapter` | Accessible engine-neutral chart host and explicitly injected Chart.js adapter. |
+| `Chart`, `ChartJsAdapter` | Accessible chart host requiring an injected renderer; the supplied adapter requires host-provided Chart.js 4. |
 | `Calendar` | Agenda/day/week/month/year scheduling with timed collisions, spanning events, range selection, and configurable optimistic drag/resize editing. |
 | `Filter` | Nested, backend-neutral filter expression editor. |
 | `DataFilter` | Declarative select, text, and custom filters for client-side row sets. |
@@ -456,7 +466,7 @@ The generic core and full-library stylesheets do not include that product palett
 
 The [Locales guide](https://zx.zeyos.com/docs.html#getting-started/locales) covers the shipped
 English/German catalogues, adding application languages and regional variants, custom messages and
-variables, plural forms, formatting, and runtime language switching. LocalePicker and CountryPicker
-are Select subclasses; selecting a locale is separate from installing its translations.
+variables, plural forms, formatting, and runtime language switching. `Select.locale()` and `Select.country()`
+return ordinary Select instances; selecting a locale is separate from installing its translations.
 
 Documentation lives at <https://zx.zeyos.com>.

@@ -1,11 +1,9 @@
 import { Field } from '../field/field.js';
-import { CountryPicker } from '../country-picker/country-picker.js';
-import { LocalePicker } from '../locale-picker/locale-picker.js';
 import { Select } from './select.js';
 
 /**
  * Registers the Select-backed `zxselect` field type. `props.preset` picks a preset: `'priority'`,
- * `'status'`, `'locale'` (LocalePicker), or `'country'` (CountryPicker).
+ * `'status'`, `'locale'`, or `'country'`.
  * @returns {void}
  */
 export function registerSelectFieldAdapter() {
@@ -24,9 +22,9 @@ export function registerSelectFieldAdapter() {
       : preset === 'status'
         ? Select.status(null, selectOptions)
         : preset === 'locale'
-          ? new LocalePicker(null, selectOptions)
+          ? Select.locale(null, selectOptions)
           : preset === 'country'
-            ? new CountryPicker(null, selectOptions)
+            ? Select.country(null, selectOptions)
             : new Select(null, selectOptions));
     field.listen(select.el, 'change', (event) => event.stopImmediatePropagation());
     select.on('change', (event) => field.emit('change', { value: event.detail.value }));

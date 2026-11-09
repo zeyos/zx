@@ -3661,7 +3661,7 @@
       }
     ]
   },
-  "CountryPicker": {
+  "CountrySelect": {
     "options": [
       {
         "name": "countries",
@@ -3713,20 +3713,7 @@
       }
     ],
     "events": [],
-    "methods": [
-      {
-        "name": "set",
-        "signature": "set(idOrItem, [options])",
-        "returns": "this",
-        "description": "Selects a country by code, in either case, or by item."
-      },
-      {
-        "name": "items",
-        "signature": "items([countries], [options])",
-        "returns": "Array<{ID: string, name: string, description: string, alias: string}>",
-        "description": "Builds the items a country picker lists, without the DOM: one `{ID, name, description, alias}` per valid code, where `alias` is the English name. Exposed for a table or a summary that names countries the same way."
-      }
-    ]
+    "methods": []
   },
   "DataFilter": {
     "options": [
@@ -7505,7 +7492,7 @@
       }
     ]
   },
-  "LocalePicker": {
+  "LocaleSelect": {
     "options": [
       {
         "name": "locales",
@@ -7563,20 +7550,7 @@
       }
     ],
     "events": [],
-    "methods": [
-      {
-        "name": "set",
-        "signature": "set(idOrItem, [options])",
-        "returns": "this",
-        "description": "Selects a locale by tag, in any spelling (`'de_at'`, `'DE-at'`), or by item."
-      },
-      {
-        "name": "items",
-        "signature": "items(locales, [options])",
-        "returns": "Array<{ID: string, name: string, nameLang: string|null, description: string, region: string|null, language: string}>",
-        "description": "Builds the items a locale picker lists, without the DOM: one `{ID, name, nameLang, description, region, language}` per valid tag; `nameLang` is the language `name` is written in. Exposed for a table or a summary that names locales the same way."
-      }
-    ]
+    "methods": []
   },
   "MasterPanel": {
     "options": [
@@ -10448,6 +10422,30 @@
         "signature": "focus()",
         "returns": "this",
         "description": "Moves focus to the combobox input."
+      },
+      {
+        "name": "locale",
+        "signature": "locale(target, [options])",
+        "returns": "Select",
+        "description": "Creates a locale Select with native/localized names, pinned choices, and optional flags. Values are canonical BCP 47 tags; initial values and `set()` accept underscores and any case."
+      },
+      {
+        "name": "localeItems",
+        "signature": "localeItems(locales, [options])",
+        "returns": "ReturnType<typeof localeItems>",
+        "description": "Builds locale items without the DOM, for lists and summaries using the same names."
+      },
+      {
+        "name": "country",
+        "signature": "country(target, [options])",
+        "returns": "Select",
+        "description": "Creates a country Select with localized names, pinned choices, and optional flags. Search includes the English name, ISO code, and descriptions; initial values and `set()` accept either case."
+      },
+      {
+        "name": "countryItems",
+        "signature": "countryItems([countries], [options])",
+        "returns": "ReturnType<typeof countryItems>",
+        "description": "Builds country items without the DOM, defaulting to the ISO country catalogue."
       },
       {
         "name": "priority",

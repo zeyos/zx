@@ -10,9 +10,10 @@
  * and the same steps open what the page hides: lists, calendars, the column menu, a grabbed row, a
  * cell editor. Text and labelling attributes are collected from every step.
  *
- * Library English is what reads the same in both runs and has no other explanation. Three things
+ * Library English is what reads the same in both runs and has no other explanation. Four things
  * explain it: the demo's own source wrote it, the locale shares it (a catalogue entry identical to its
- * English text, or a name such as `November`), or it holds no words.
+ * English text, or a name such as `November`), a mounted locale/country preset generated it as item
+ * data, or it holds no words.
  *
  * Demos do not use every option, so each page also mounts a fixture with the options they leave out,
  * and each page names text that must appear, so a step that silently opens nothing fails too.
@@ -84,6 +85,8 @@ const FIXTURES = {
     const items = [{ ID: 1, name: 'Alpha' }, { ID: 2, name: 'Beta' }];
     for (const select of [
       new Select(null, { items, clearable: true, value: 1 }),
+      Select.locale(null),
+      Select.country(null),
       Select.status(null),
       Select.priority(null),
       Select.permission(null, { groups: [{ ID: 3, name: 'Gamma' }] }),
@@ -342,7 +345,7 @@ const PAGES = {
     expect: [
       'Auswahl', 'Auswahl aufheben', 'Zuletzt verwendet', 'Neu erstellen…', 'Neu', 'Backlog', 'Zu erledigen',
       'In Bearbeitung', 'In Prüfung', 'Bereit zum Mergen', 'Wartet auf Feedback', 'Erledigt', 'Abgebrochen',
-      'Duplikat', 'Mittel', 'Privat', 'Öffentlich'
+      'Duplikat', 'Mittel', 'Privat', 'Öffentlich', 'Sprache', 'Sprache auswählen', 'Land', 'Land auswählen'
     ],
     demoText: [/^[A-Z]{2}$/]
   },
@@ -605,7 +608,7 @@ function readPage(attributes) {
  * @param {string} base Server origin.
  * @param {string} id Component id.
  * @param {string|boolean|null} locale Catalogue to install; true retains the German default.
- * @returns {Promise<{strings: Set<string>, shared: Set<string>, problems: string[]}>}
+ * @returns {Promise<{strings: Set<string>, shared: Set<string>, generated: Set<string>, problems: string[]}>}
  */
 export async function capturePage(browser, base, id, locale) {
   const language = locale === true ? 'de' : typeof locale === 'string' ? locale : null;
@@ -635,6 +638,29 @@ export async function capturePage(browser, base, id, locale) {
     });
     if (FIXTURES[id]) await page.evaluate(FIXTURES[id]);
 
+    // Only preset item names, descriptions, and language-code chips are data. Labels, placeholders,
+    // headings, and status messages remain subject to the audit even on these same controls.
+    const generated = new Set(await page.evaluate(async () => {
+      const { Component } = await import('/src/core/component.js');
+      const data = new Set();
+      const scopes = document.querySelectorAll('.docs-example__stage, [data-language-fixture]');
+      for (const scope of scopes) {
+        for (const element of scope.querySelectorAll('.zx-select[data-preset="locale"], .zx-select[data-preset="country"]')) {
+          const options = Component.from(element)?.options;
+          for (const item of [...(options?.items ?? []), ...(options?.fixedItems ?? [])]) {
+            const languageChip = element.dataset.preset === 'locale' && typeof item.language === 'string'
+              ? item.language.toUpperCase() : null;
+            for (const value of [item.name, item.description, languageChip]) {
+              if (typeof value !== 'string') continue;
+              const text = value.replace(/\s+/g, ' ').trim();
+              if (text) data.add(text);
+            }
+          }
+        }
+      }
+      return [...data];
+    }));
+
     const strings = new Set();
     const read = async () => {
       for (const text of await page.evaluate(readPage, ATTRIBUTES)) strings.add(text);
@@ -656,7 +682,7 @@ export async function capturePage(browser, base, id, locale) {
       }
       return names;
     }, language ?? 'en'));
-    return { strings, shared, problems };
+    return { strings, shared, generated, problems };
   } finally {
     await context.close();
   }
@@ -682,8 +708,8 @@ function authorText(id) {
 
 /**
  * What one page still shows in English.
- * @param {{strings: Set<string>, shared: Set<string>}} english The page as written.
- * @param {{strings: Set<string>, shared: Set<string>}} german The page with the catalogue installed.
+ * @param {{strings: Set<string>, shared: Set<string>, generated?: Set<string>}} english The page as written.
+ * @param {{strings: Set<string>, shared: Set<string>, generated?: Set<string>}} german The page with the catalogue installed.
  * @param {string} author The demo's own source.
  * @param {RegExp[]} [demoText=[]] Text the demo's code builds.
  * @param {string} [locale='de'] Shipped catalogue being audited.
@@ -696,6 +722,9 @@ export function libraryEnglish(english, german, author, demoText = [], locale = 
   const fixture = new RegExp(`\\b(?:${FIXTURE_WORDS.join('|')})\\b`, 'g');
   return [...german.strings].filter((text) => {
     if (!english.strings.has(text) || catalogue.has(text)) return false;
+    // Unlike date names, generated item data explains a complete string only. A name inside
+    // a label or prompt must not hide untranslated interface text.
+    if (german.generated?.has(text)) return false;
     if (demoText.some((pattern) => pattern.test(text))) return false;
     // Demos number what they generate: `Item ${index}` reads `Item 12` on the page.
     if (text.split(/\d+/).every((part) => author.includes(part.trim()))) return false;

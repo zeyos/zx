@@ -9,6 +9,18 @@
 > component below is wrapped in `<!-- doc:<name> -->` markers so tools can extract a single
 > component's section (`website/docs.html` renders them as each component's Reference tab).
 
+## Optional integration requirements
+
+Zx has no package runtime dependencies and its source modules import no external runtime packages.
+Optional integrations still need application-provided assets or clients. `Chart` requires an injected
+renderer; the only supplied renderer, `ChartJsAdapter`, requires Chart.js 4 supplied by the host.
+There is no built-in chart renderer. Chart.js 4.5.1 is pinned as a development dependency and copied
+to the documentation site's self-hosted vendor assets during its build; it is not bundled into Zx.
+Core icons use bundled SVG by default. Opting into Font Awesome requires host-loaded CSS or a kit.
+ZeyOS `moduleIcon()`, `moduleChip()`, and `zeyosAppIcon()` default to glyphs from the external custom
+ZeyOS Font Awesome kit; `standard: true` still needs stock Font Awesome assets. `ZeyOS.connect()`
+requires an injected compatible client and never imports the client package.
+
 ## Mental model
 
 Every visual component is an ES class extending `Component`, instantiated identically:
@@ -614,7 +626,8 @@ registerModules({ tickets: '#f04639', 'my-fork': { label: 'My Fork', icon: 'zeyo
 ```
 
 - `moduleIcon(name, {size, label, standard})` → the bare glyph; `standard: true` uses the stock
-  Font Awesome fallback, for pages on a kit without the ZeyOS uploads.
+  Font Awesome fallback, for pages on a kit without the ZeyOS uploads. Stock Font Awesome
+  CSS or kit assets must still be loaded by the host.
 - `moduleChip(name, {size, iconSize, label, title, standard})` → `<span class="zx-module-icon">`
   with a centred white glyph on the module colour. `moduleGlyphColor(hex)` remains available as a
   separate contrast helper for non-AppIcon integrations that deliberately choose their foreground.
@@ -1327,6 +1340,68 @@ Unifies single-select, local filtering, and async loading.
   as a disabled Field does, and not a second time inside one.
 - **Quiet fields** — inside `[data-zx-fields="quiet"]` the value reads as text: no border, fill,
   chevron or clear button until hover; full field chrome while focused or open.
+
+#### Select.locale()
+
+`Select.locale(target, options)` returns an ordinary Select: each locale is named in its own language ("Deutsch") with the interface's
+name for it beneath ("German"), and the flag of its region or a language chip before it. Names come
+from `Intl.DisplayNames`, so no translation table ships. The value is the canonical BCP 47 tag
+(`'de-AT'`); `set()` and `value` accept any spelling of a listed tag (`'de_at'`). Everything else —
+keyboard map, events, `clearable`, `disabled`, `msg` — is Select's. Field type: `zxselect` with
+`props.preset: 'locale'`.
+
+The picker supplies locale names, not translations for the application. It emits `change` without
+changing the active language. See the [Locales guide](https://zx.zeyos.com/docs.html#getting-started/locales)
+for catalogues, message variables, formatting, and runtime language switching.
+
+```js
+Select.locale(el, { locales: ['en-GB', 'de', 'de-AT', 'fr'], value: 'de' });
+```
+
+- **Options** — `locales` (tags or `{code, name?, description?, region?}`; invalid tags are left
+  out; a short list of common languages by default), `preferred: []` and `preferredLabel` (pinned
+  above the list), `displayLocale` (default: the `lang` option, then `getLanguage()`),
+  `display: 'both'|'native'|'localized'`, `flags: 'auto'|'emoji'|'code'|'none'|(region, item) => Node`,
+  `flagUrl` (image template, `{code}`/`{CODE}`), `flagRegions` (`{ en: 'GB' }` — a language's flag
+  when its likely region is not the one meant), `sort: false`, plus Select options. Message overrides
+  retain the `localePicker.*` keys. A list longer
+  than seven filters locally by native name, localized name, and tag.
+- **Flags** — a full-tag `flagRegions` override wins, then the tag's own region (`de-AT` → Austria),
+  then a language-level override, then the language's likely region (`Intl.Locale#maximize()`:
+  `ja` → Japan). A locale with no country (`es-419`) shows
+  its language chip. `flags: 'code'` shows chips throughout — the honest choice where a language is
+  not a country.
+- **Statics** — `Select.localeItems(locales, options)` returns the rows without the DOM;
+  `canonicalLocale(tag)` canonicalizes one tag.
+
+#### Select.country()
+
+`Select.country(target, options)` returns an ordinary Select: a filterable list of ISO 3166-1 countries, named in the interface's language by
+`Intl.DisplayNames` and drawn with their flags. The value is the upper-case alpha-2 code (`'DE'`);
+`set()` accepts either case. Search matches the name, the code, and the English name, so "Germany"
+finds Deutschland in a German interface. Field type: `zxselect` with `props.preset: 'country'`.
+Custom descriptions are searchable too. Its `displayLocale` names countries without changing the
+application language; see the [Locales guide](https://zx.zeyos.com/docs.html#getting-started/locales).
+
+```js
+Select.country(el, { preferred: ['DE', 'AT', 'CH'], value: 'AT', clearable: true });
+```
+
+- **Options** — `countries` (codes or `{code, name?, description?}`; all of `COUNTRY_CODES` by
+  default), `preferred: []` and `preferredLabel`, `displayLocale`, `flags`, `flagUrl`,
+  `showCode: false`, `sort: true` (by name, with `Intl.Collator`), plus Select options. Message
+  overrides retain the `countryPicker.*` keys.
+- **Statics** — `Select.countryItems(countries, options)` returns the rows without the DOM.
+
+#### flag()
+
+`flag(code, { kind, src, text, label })` draws one flag as a `.zx-flag` span — for a picker row, a
+table cell, a profile. `kind: 'auto'` (default) draws the platform's flag emoji where it has them
+(`supportsFlagEmoji()`) and a muted code chip where it does not (Windows); `'emoji'`, `'code'`, and
+`'image'` force one. Zx ships no flag artwork: `src: '/flags/{code}.svg'` draws from any flag set
+the application serves. Decorative (`aria-hidden`) unless `label` is given. Also exported:
+`flagEmoji(code)`, `supportsFlagEmoji()`, and `COUNTRY_CODES`.
+
 <!-- /doc -->
 
 <!-- doc:sort-control -->
@@ -1347,68 +1422,6 @@ from `Select`, with its themed popover and keyboard behavior.
   accessible name includes the current direction; its hover title shows current → next direction.
 - **Events** — one `change {value:{id,dir}}` event per changed field or direction. Typed search text does
   not change the sort. The application applies the resulting state to its table, data source or route.
-<!-- /doc -->
-
-<!-- doc:locale-picker -->
-### LocalePicker
-
-`LocalePicker extends Select`: each locale is named in its own language ("Deutsch") with the interface's
-name for it beneath ("German"), and the flag of its region or a language chip before it. Names come
-from `Intl.DisplayNames`, so no translation table ships. The value is the canonical BCP 47 tag
-(`'de-AT'`); `set()` and `value` accept any spelling of a listed tag (`'de_at'`). Everything else —
-keyboard map, events, `clearable`, `disabled`, `msg` — is Select's. Field type: `zxselect` with
-`props.preset: 'locale'`.
-
-The picker supplies locale names, not translations for the application. It emits `change` without
-changing the active language. See the [Locales guide](https://zx.zeyos.com/docs.html#getting-started/locales)
-for catalogues, message variables, formatting, and runtime language switching.
-
-```js
-new LocalePicker(el, { locales: ['en-GB', 'de', 'de-AT', 'fr'], value: 'de' });
-```
-
-- **Options** — `locales` (tags or `{code, name?, description?, region?}`; invalid tags are left
-  out; a short list of common languages by default), `preferred: []` and `preferredLabel` (pinned
-  above the list), `displayLocale` (default: the `lang` option, then `getLanguage()`),
-  `display: 'both'|'native'|'localized'`, `flags: 'auto'|'emoji'|'code'|'none'|(region, item) => Node`,
-  `flagUrl` (image template, `{code}`/`{CODE}`), `flagRegions` (`{ en: 'GB' }` — a language's flag
-  when its likely region is not the one meant), `sort: false`, plus Select options. A list longer
-  than seven filters locally by native name, localized name, and tag.
-- **Flags** — a tag's own region wins (`de-AT` → Austria), then `flagRegions`, then the language's
-  likely region (`Intl.Locale#maximize()`: `ja` → Japan). A locale with no country (`es-419`) shows
-  its language chip. `flags: 'code'` shows chips throughout — the honest choice where a language is
-  not a country.
-- **Statics** — `LocalePicker.items(locales, options)` returns the rows without the DOM;
-  `canonicalLocale(tag)` canonicalizes one tag.
-<!-- /doc -->
-
-<!-- doc:country-picker -->
-### CountryPicker
-
-`CountryPicker extends Select`: a filterable list of ISO 3166-1 countries, named in the interface's language by
-`Intl.DisplayNames` and drawn with their flags. The value is the upper-case alpha-2 code (`'DE'`);
-`set()` accepts either case. Search matches the name, the code, and the English name, so "Germany"
-finds Deutschland in a German interface. Field type: `zxselect` with `props.preset: 'country'`.
-Custom descriptions are searchable too. Its `displayLocale` names countries without changing the
-application language; see the [Locales guide](https://zx.zeyos.com/docs.html#getting-started/locales).
-
-```js
-new CountryPicker(el, { preferred: ['DE', 'AT', 'CH'], value: 'AT', clearable: true });
-```
-
-- **Options** — `countries` (codes or `{code, name?, description?}`; all of `COUNTRY_CODES` by
-  default), `preferred: []` and `preferredLabel`, `displayLocale`, `flags`, `flagUrl`,
-  `showCode: false`, `sort: true` (by name, with `Intl.Collator`), plus Select options.
-- **Statics** — `CountryPicker.items(countries, options)` returns the rows without the DOM.
-
-### flag()
-
-`flag(code, { kind, src, text, label })` draws one flag as a `.zx-flag` span — for a picker row, a
-table cell, a profile. `kind: 'auto'` (default) draws the platform's flag emoji where it has them
-(`supportsFlagEmoji()`) and a muted code chip where it does not (Windows); `'emoji'`, `'code'`, and
-`'image'` force one. Zx ships no flag artwork: `src: '/flags/{code}.svg'` draws from any flag set
-the application serves. Decorative (`aria-hidden`) unless `label` is given. Also exported:
-`flagEmoji(code)`, `supportsFlagEmoji()`, and `COUNTRY_CODES`.
 <!-- /doc -->
 
 <!-- doc:checklist -->
@@ -2316,7 +2329,8 @@ editable cells/rows, loading, events, and teardown keep the Table contract.
 
 An accessible, engine-neutral chart host. Zx renders state, canvas, semantic data summary, tokens,
 and lifecycle; an injected adapter owns the drawing engine. The Zx runtime imports no Chart.js
-code, so future adapters do not change the public `Chart` API.
+code. A renderer must be injected: without one Chart cannot draw data. The only supplied renderer
+is `ChartJsAdapter`, which requires host-provided Chart.js 4.
 
 - **Options** — `adapter`, `type: 'bar'`, `data`, engine-specific `chartOptions`, `label`,
   `description`, `summary: 'hidden'|'visible'`, `loading`, loading/empty/error text, and
@@ -2331,8 +2345,8 @@ code, so future adapters do not change the public `Chart` API.
   system preference or inside a `data-zx-motion="reduced"` region, and an adapter must then turn its
   engine's animation off; Chart watches for the answer changing and updates the mounted engine.
 - **`ChartJsAdapter`** — construct it with a Chart.js constructor or namespace:
-  `new ChartJsAdapter(window.Chart)`. The documentation pins Chart.js 4.5.1 as a development-only
-  asset; `package.json` has no runtime dependencies and application builds explicitly choose how
+  `new ChartJsAdapter(window.Chart)`. The documentation pins Chart.js 4.5.1 as a development dependency and copies it to its
+  self-hosted vendor assets during the website build; `package.json` has no runtime dependencies and application builds explicitly choose how
   the engine is loaded. Under reduced motion it sets `animation: false`, over any animation the
   application configured.
 - **Accessibility** — the canvas always has a name and optional description, while synchronized
@@ -4560,7 +4574,7 @@ tag to a picker does not install a translation.
 - `setTranslator(fn)` supplies the words. The function receives a flat message key and returns its text.
 - `setLanguage(tag)` selects the active language for plural rules, default formatting, and language-specific `msg` tables. It does not load a catalogue or change the page's HTML `lang` attribute.
 - `locale` selects formatting on helpers and components that expose this option. It does not select translated interface messages.
-- `displayLocale` controls the names shown by LocalePicker and CountryPicker, independently of their selected value.
+- `displayLocale` controls the names shown by Select.locale() and Select.country(), independently of their selected value.
 - `msg` overrides messages for one component. Application labels, record values, and server text remain application-owned.
 
 ##### Enable a shipped language
@@ -4611,7 +4625,7 @@ by spreading `defaultMessages` into it. `null` and an echoed key also mean “no
 empty string is an intentional empty translation.
 
 Application catalogues need no change to Zx or its shipped manifest. Keep a registry of the languages
-your application actually supports, and pass those tags to LocalePicker.
+your application actually supports, and pass those tags to Select.locale().
 
 ##### Regional variants and catalogue lookup
 
@@ -4725,16 +4739,16 @@ passed; an explicit `formatDate(..., { locale })` takes precedence. `locale: nul
 
 ##### Use the Select-based pickers
 
-LocalePicker and CountryPicker extend Select. They keep its popup, keyboard map, events, field
+Select.locale() and Select.country() return ordinary Select instances. They keep its popup, keyboard map, events, field
 adapter, and `.zx-select` styling, adding item generation, names, flags, and value normalization.
 A locale selection emits `change`; it does not install translations or change the application language.
 
 Using `applyLocale()` from the regional-lookup example:
 
 ```js
-import { getLanguage, LocalePicker } from '@zeyos/zx';
+import { getLanguage, Select } from '@zeyos/zx';
 
-const picker = new LocalePicker(null, {
+const picker = Select.locale(null, {
   locales: ['en-GB', 'de-DE', 'de-AT'],
   value: getLanguage(),
   displayLocale: 'en-GB',
@@ -4748,7 +4762,7 @@ document.querySelector('#language').append(picker.toElement());
 ```
 
 `displayLocale` changes the language names shown, while the selected value stays a locale tag.
-LocalePicker filters automatically for lists longer than seven; `filter: 'local'` also enables
+Select.locale() filters automatically for lists longer than seven; `filter: 'local'` also enables
 search for short lists. For a form, use the existing Select field preset:
 
 ```js
@@ -4763,8 +4777,8 @@ const languageField = new Field(null, {
 });
 ```
 
-Use `preset: 'country'` for CountryPicker. These presets belong to the Field adapter's `props`;
-constructing a plain Select with `preset: 'locale'` does not select a subclass.
+Use `props.preset: 'country'` for the country factory. Preset names are Field adapter options;
+for direct construction call `Select.locale()` or `Select.country()`.
 
 ##### Switching language at runtime
 

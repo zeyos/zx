@@ -107,7 +107,7 @@ export const cases = [
   {
     name: 'locale extension tags and nested date picker Escape',
     async run({ page }) {
-      const locales = await page.evaluate(() => zx.LocalePicker.items(['en-US-u-ca-gregory', 'de-AT-x-private']).map(({ ID, name }) => ({ ID, name })));
+      const locales = await page.evaluate(() => zx.Select.localeItems(['en-US-u-ca-gregory', 'de-AT-x-private']).map(({ ID, name }) => ({ ID, name })));
       assert.deepEqual(locales.map(x => x.ID), ['en-US-u-ca-gregory', 'de-AT-x-private']); assert(locales.every(x => x.name));
       await page.evaluate(() => { window.d = new zx.Datebox(null, { value: new Date(2026, 0, 1) }); document.body.append(d.el); d.open(); d._picker.refs.heading.click(); });
       await page.keyboard.press('Escape');

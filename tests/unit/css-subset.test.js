@@ -113,10 +113,10 @@ test('a leaf component is the core sheet and its own stylesheet', () => {
   assert.deepEqual(subset, [CORE, 'src/components/kbd/kbd.css']);
 });
 
-test('Select draws its own listbox, so it needs its own stylesheet and no other', () => {
+test('Select includes its own listbox and the flag styles used by locale/country presets', () => {
   const subset = resolveSubset(['select']);
   assertOrdered(subset);
-  assert.deepEqual(subset, [CORE, 'src/components/select/select.css']);
+  assert.deepEqual(subset, [CORE, 'src/components/select/select.css', 'src/components/flag/flag.css']);
 });
 
 test('Table brings the editors in its import graph, in zx.css order', () => {

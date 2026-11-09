@@ -1,4 +1,4 @@
-import { h, priorityIcon, Select, statusIcon } from '../../src/index.js';
+import { flag, h, priorityIcon, Select, stack, statusIcon } from '../../src/index.js';
 import { matchItems } from '../../src/components/select/filter.js';
 import { demoZeyosAppIcon } from '../zeyos-demo-icons.js';
 
@@ -51,11 +51,49 @@ const PROJECTS = [
   { ID: 5, name: 'Frontend', team: 'Other projects', group: 'OTHER PROJECTS', module: 'projects' }
 ];
 
+/** The languages an application ships, as BCP 47 tags. A tag with a region draws that region's flag. */
+const APP_LOCALES = ['en-GB', 'en-US', 'de', 'de-AT', 'de-CH', 'fr', 'it'];
+
+/** A longer list: the picker filters once it holds more than seven locales. */
+const ALL_LOCALES = [
+  'ar', 'cs', 'da', 'de', 'el', 'en', 'es', 'es-419', 'fi', 'fr', 'he', 'hi', 'hu', 'id', 'it',
+  'ja', 'ko', 'nb', 'nl', 'pl', 'pt-BR', 'pt-PT', 'ro', 'ru', 'sk', 'sv', 'th', 'tr', 'uk', 'vi',
+  'zh-Hans', 'zh-Hant'
+];
+
+/** Locales described as items: a name or a flag region of the application's own choosing. */
+const CUSTOM_LOCALES = [
+  { code: 'en', name: 'English', region: null },
+  { code: 'de', name: 'Deutsch', region: null },
+  { code: 'tlh', name: 'Klingon (fan translation)', description: 'Community-maintained', region: null }
+];
+
+/** The markets this example ships to, pinned above every other country. */
+const MARKETS = ['DE', 'AT', 'CH'];
+
+/** A restricted list: the countries a shipping form accepts, with a note per country. */
+const SHIPPING = [
+  { code: 'DE', description: 'Standard, 1–2 days' },
+  { code: 'AT', description: 'Standard, 2–3 days' },
+  { code: 'CH', description: 'Customs declaration required' },
+  { code: 'FR', description: 'Standard, 3–4 days' },
+  { code: 'IT', description: 'Standard, 3–5 days' },
+  { code: 'NL', description: 'Standard, 2–3 days' }
+];
+
+/** Offices for the flag() example: a flag beside a name, outside any picker. */
+const OFFICES = [
+  { city: 'Vienna', country: 'AT' },
+  { city: 'Munich', country: 'DE' },
+  { city: 'Zurich', country: 'CH' },
+  { city: 'Lisbon', country: 'PT' }
+];
+
 export default {
   title: 'Select',
   group: 'Inputs',
   blurb: 'An APG editable combobox: a real text input, a top-layer listbox, and three filtering '
-    + 'modes — none, local, and a function you supply.',
+    + 'modes — none, local, and a function you supply. Locale and country presets add Intl names, flags, and value normalization.',
 
   examples: [
     {
@@ -215,6 +253,127 @@ export default {
         cleanup(() => select.destroy());
         return select.toElement();
       }
+    },
+    {
+      id: 'locale',
+      preset: true,
+      title: 'Select.locale()',
+      blurb: 'locales lists the tags to offer, in the order given. A tag with a region draws that '
+        + 'region\'s flag; the value is the canonical tag, and set() accepts any spelling of it. '
+        + 'Where the platform has no flag emoji, a language chip stands in.',
+      width: '320px',
+      render: ({ cleanup, log }) => {
+        const picker = Select.locale(null, {
+          locales: APP_LOCALES,
+          value: 'de_at'
+        });
+        log(`value=${picker.value}`);
+        picker.on('change', ({ detail }) => log(`change value=${detail.value}`));
+        cleanup(() => picker.destroy());
+        return picker.toElement();
+      }
+    },
+    {
+      id: 'locale-language-chips',
+      preset: true,
+      title: 'Language chips instead of flags',
+      blurb: 'A language is not a country. flags: "code" draws the language code instead, and '
+        + 'display: "localized" names every locale in the interface language — set here with '
+        + 'displayLocale. preferred pins the main languages above the filterable rest.',
+      width: '320px',
+      render: ({ cleanup, log }) => {
+        const picker = Select.locale(null, {
+          locales: ALL_LOCALES,
+          preferred: ['en', 'de'],
+          flags: 'code',
+          display: 'localized',
+          displayLocale: 'de',
+          sort: true,
+          clearable: true
+        });
+        picker.on('change', ({ detail }) => log(`change value=${detail.value}`));
+        cleanup(() => picker.destroy());
+        return picker.toElement();
+      }
+    },
+    {
+      id: 'locale-custom-items',
+      preset: true,
+      title: 'Flag regions and custom items',
+      blurb: 'flagRegions decides the flag of a language whose likely region is not the one meant: '
+        + 'English shows the United Kingdom here, Portuguese Brazil. An item can carry its own name, '
+        + 'description, and region — null draws the chip.',
+      width: '320px',
+      render: ({ cleanup, log }) => {
+        const regional = Select.locale(null, {
+          locales: ['en', 'pt', 'es', 'zh'],
+          flagRegions: { en: 'GB', pt: 'BR' },
+          flags: 'emoji',
+          value: 'en'
+        });
+        const custom = Select.locale(null, {
+          locales: CUSTOM_LOCALES,
+          label: 'Translation',
+          value: 'tlh'
+        });
+        for (const picker of [regional, custom]) {
+          picker.on('change', ({ detail }) => log(`change value=${detail.value}`));
+          cleanup(() => picker.destroy());
+        }
+        return stack({ gap: 3 }, regional.toElement(), custom.toElement());
+      }
+    },
+    {
+      id: 'country',
+      preset: true,
+      title: 'Select.country()',
+      blurb: 'Without countries the picker lists all of them, sorted by name. preferred pins a few '
+        + 'above the rest; typing filters by name, code, or English name.',
+      width: '320px',
+      render: ({ cleanup, log }) => {
+        const picker = Select.country(null, {
+          preferred: MARKETS,
+          clearable: true,
+          value: 'at'
+        });
+        log(`value=${picker.value}`);
+        picker.on('change', ({ detail }) => log(`change value=${detail.value}`));
+        cleanup(() => picker.destroy());
+        return picker.toElement();
+      }
+    },
+    {
+      id: 'country-restricted',
+      preset: true,
+      title: 'A restricted list in German',
+      blurb: 'countries limits the choice and may carry a description per country. displayLocale '
+        + 'names them in another language — search still finds "Germany" — and showCode or a '
+        + 'description adds the secondary line.',
+      width: '320px',
+      render: ({ cleanup, log }) => {
+        const picker = Select.country(null, {
+          countries: SHIPPING,
+          displayLocale: 'de',
+          label: 'Lieferland',
+          value: 'DE'
+        });
+        picker.on('change', ({ detail }) => log(`change value=${detail.value}`));
+        cleanup(() => picker.destroy());
+        return picker.toElement();
+      }
+    },
+    {
+      id: 'country-flags',
+      preset: true,
+      title: 'Flags outside a picker',
+      blurb: 'flag() draws the same flag anywhere — a table cell, a profile. It is decorative, so put '
+        + 'the name beside it. kind: "code" draws the chip, and src draws from a flag set the '
+        + 'application serves (\'/flags/{code}.svg\').',
+      width: '320px',
+      render: () => stack({ gap: 2 }, ...OFFICES.map((office) => stack({ direction: 'row', gap: 2, align: 'center' },
+        flag(office.country),
+        flag(office.country, { kind: 'code' }),
+        h('span', {}, office.city))))
     },
     {
       id: 'priority',
