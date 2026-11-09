@@ -3661,6 +3661,73 @@
       }
     ]
   },
+  "CountryPicker": {
+    "options": [
+      {
+        "name": "countries",
+        "type": "Array<string|CountryItem>",
+        "default": null,
+        "description": "The countries to offer. Without it, every ISO 3166-1 country (`COUNTRY_CODES`). A code that is not two letters is left out."
+      },
+      {
+        "name": "preferred",
+        "type": "Array<string|CountryItem>",
+        "default": "[]",
+        "description": "Countries pinned above the list, in the order given and kept through filtering — the markets an application serves, say."
+      },
+      {
+        "name": "preferredLabel",
+        "type": "string|null",
+        "default": "null",
+        "description": "Heading above the pinned countries."
+      },
+      {
+        "name": "displayLocale",
+        "type": "string|null",
+        "default": "null",
+        "description": "The language country names are written in. By default the component's `lang` option, then the library language (`setLanguage()`)."
+      },
+      {
+        "name": "flags",
+        "type": "FlagMode",
+        "default": "'auto'",
+        "description": "What stands before each country: its flag (`auto` draws flag emoji where the platform has them and a code chip where it does not; `emoji` forces the emoji), the code chip (`code`), nothing (`none`), or a function returning the content."
+      },
+      {
+        "name": "flagUrl",
+        "type": "string|null",
+        "default": "null",
+        "description": "Flag image URL template, such as `'/flags/{code}.svg'`; `{code}` is the lower-case code, `{CODE}` the upper-case. Draws flags from the application's own flag set instead of emoji."
+      },
+      {
+        "name": "showCode",
+        "type": "boolean",
+        "default": "false",
+        "description": "Shows the ISO code as secondary text."
+      },
+      {
+        "name": "sort",
+        "type": "boolean",
+        "default": "true",
+        "description": "Orders the countries by name in the display language; `false` keeps the order given."
+      }
+    ],
+    "events": [],
+    "methods": [
+      {
+        "name": "set",
+        "signature": "set(idOrItem, [options])",
+        "returns": "this",
+        "description": "Selects a country by code, in either case, or by item."
+      },
+      {
+        "name": "items",
+        "signature": "items([countries], [options])",
+        "returns": "Array<{ID: string, name: string, description: string, alias: string}>",
+        "description": "Builds the items a country picker lists, without the DOM: one `{ID, name, description, alias}` per valid code, where `alias` is the English name. Exposed for a table or a summary that names countries the same way."
+      }
+    ]
+  },
   "DataFilter": {
     "options": [
       {
@@ -6057,6 +6124,36 @@
       }
     ]
   },
+  "Flag": {
+    "options": [
+      {
+        "name": "kind",
+        "type": "FlagKind",
+        "default": "'auto'",
+        "description": "Drawing; `src` implies `image`."
+      },
+      {
+        "name": "src",
+        "type": "string|null",
+        "default": "null",
+        "description": "Image URL. `{code}` in it is replaced by the lower-case region code and `{CODE}` by the upper-case one, so `'/flags/{code}.svg'` serves a whole flag set."
+      },
+      {
+        "name": "text",
+        "type": "string|null",
+        "default": "null",
+        "description": "Text of the code chip, by default the region code. A chip also stands in for a flag when there is no valid region, as for a language without a country."
+      },
+      {
+        "name": "label",
+        "type": "string|null",
+        "default": "null",
+        "description": "Accessible name. Without one the flag is decorative (`aria-hidden`) and must sit beside text that names the country or language."
+      }
+    ],
+    "events": [],
+    "methods": []
+  },
   "Form": {
     "options": [
       {
@@ -7405,6 +7502,79 @@
         "signature": "destroy()",
         "returns": "void",
         "description": "Destroys the search field, returns every adopted control to where it came from, and restores an enhanced target to the markup it had before the takeover."
+      }
+    ]
+  },
+  "LocalePicker": {
+    "options": [
+      {
+        "name": "locales",
+        "type": "Array<string|LocaleItem>",
+        "default": null,
+        "description": "The locales to offer, in the order given. Tags are canonicalized (`'de_at'` → `'de-AT'`); an invalid tag is left out. Without it the picker offers a short list of widely used languages."
+      },
+      {
+        "name": "preferred",
+        "type": "Array<string|LocaleItem>",
+        "default": "[]",
+        "description": "Locales pinned above the list, kept through filtering — the application's own languages above a long list, say."
+      },
+      {
+        "name": "preferredLabel",
+        "type": "string|null",
+        "default": "null",
+        "description": "Heading above the pinned locales."
+      },
+      {
+        "name": "displayLocale",
+        "type": "string|null",
+        "default": "null",
+        "description": "The language the secondary name is written in. By default the component's `lang` option, then the library language (`setLanguage()`)."
+      },
+      {
+        "name": "display",
+        "type": "'both'|'native'|'localized'",
+        "default": "'both'",
+        "description": "`native` names each locale in its own language (\"Deutsch\"), `localized` in the display language (\"German\"), and `both` shows the native name with the localized one beneath it where the two differ — so a reader finds their language whichever language the interface is in."
+      },
+      {
+        "name": "flags",
+        "type": "FlagMode",
+        "default": "'auto'",
+        "description": "What stands before each locale: the flag of its region (`auto` draws flag emoji where the platform has them and a language chip where it does not; `emoji` forces the emoji), a language chip (`code`, the honest choice where a language is not a country), nothing (`none`), or a function returning the content."
+      },
+      {
+        "name": "flagUrl",
+        "type": "string|null",
+        "default": "null",
+        "description": "Flag image URL template, such as `'/flags/{code}.svg'`; `{code}` is the lower-case region, `{CODE}` the upper-case. Draws flags from the application's own flag set instead of emoji."
+      },
+      {
+        "name": "flagRegions",
+        "type": "Record<string, string|null>",
+        "default": "{}",
+        "description": "Flag region per tag or language, for a language whose likely region is not the one the application means: `{ en: 'GB' }`. A tag with a region of its own (`en-US`) keeps it unless it is listed here itself."
+      },
+      {
+        "name": "sort",
+        "type": "boolean",
+        "default": "false",
+        "description": "Orders the locales by label rather than as given."
+      }
+    ],
+    "events": [],
+    "methods": [
+      {
+        "name": "set",
+        "signature": "set(idOrItem, [options])",
+        "returns": "this",
+        "description": "Selects a locale by tag, in any spelling (`'de_at'`, `'DE-at'`), or by item."
+      },
+      {
+        "name": "items",
+        "signature": "items(locales, [options])",
+        "returns": "Array<{ID: string, name: string, nameLang: string|null, description: string, region: string|null, language: string}>",
+        "description": "Builds the items a locale picker lists, without the DOM: one `{ID, name, nameLang, description, region, language}` per valid tag; `nameLang` is the language `name` is written in. Exposed for a table or a summary that names locales the same way."
       }
     ]
   },

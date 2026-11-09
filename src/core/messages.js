@@ -220,6 +220,9 @@ export const defaultMessages = Object.freeze({
   'copy.copied': 'Copied',
   'copy.copy': 'Copy',
 
+  'countryPicker.label': 'Country',
+  'countryPicker.placeholder': 'Choose a country',
+
   'dataFilter.all': 'All',
   'dataFilter.clear': 'Clear',
 
@@ -524,6 +527,9 @@ export const defaultMessages = Object.freeze({
   'listToolbar.viewList': 'List',
   'listToolbar.views': 'View',
   'listToolbar.viewTable': 'Table',
+
+  'localePicker.label': 'Language',
+  'localePicker.placeholder': 'Choose a language',
 
   'mcp.askedBy': 'Asked by %1',
   'mcp.decline': 'Decline',

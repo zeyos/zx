@@ -10,6 +10,14 @@ and friends remain the complete record.
 
 ### Added
 
+- **LocalePicker** and **CountryPicker** — Select subclasses over a list of locales or ISO 3166-1
+  countries, named by `Intl.DisplayNames` with no translation table. A locale shows its native name
+  with the interface's name beneath; the value is the canonical BCP 47 tag or the upper-case
+  alpha-2 code. Both take `preferred` choices pinned above the list, `displayLocale`, and a `flags`
+  mode; field type `zxselect` with `preset: 'locale'` or `'country'`.
+- **`flag()`** — draws a country flag as the platform's emoji, a muted code chip where the platform
+  has no flag glyphs, or an image from a flag set the application serves (`src: '/flags/{code}.svg'`).
+  `flagEmoji()`, `supportsFlagEmoji()` and `COUNTRY_CODES` go with it.
 - **Surface** — an agent composes an answer or a dialog as JSON, whole or streamed, and Zx validates
   and draws it with library components: `show`, `ask`, `choose`, `confirm`, `review` and
   `questionnaire` intents, tables, charts, conditional fields and a review of proposed changes.

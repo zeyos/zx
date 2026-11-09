@@ -102,6 +102,8 @@ ZeyOS binding — see `src/zeyos/modules.js`.
 | `Search` | Search input with debounced input, submit, and clear events. |
 | `Select` | APG combobox with local or async filtering, pinned items, priority/status/permission presets, and an optional ZeyOS entity picker. |
 | `Checklist` | Searchable checkbox group with optional async loading. |
+| `LocalePicker` | Select over a list of locales, named in their own language, with flags or language chips. |
+| `CountryPicker` | Filterable Select over ISO 3166-1 countries with localized names and flags. |
 | `TagPicker` | Multi-select combobox that keeps its selection as removable tags. |
 | `NumberField` | APG spinbutton with step buttons, ranges, units, and wrapping. |
 | `Rating` | Star rating as a radio group, with optional half steps. |

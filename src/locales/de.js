@@ -216,6 +216,9 @@ export const de = Object.freeze({
   'copy.copied': 'Kopiert',
   'copy.copy': 'Kopieren',
 
+  'countryPicker.label': 'Land',
+  'countryPicker.placeholder': 'Land auswählen',
+
   'dataFilter.all': 'Alle',
   'dataFilter.clear': 'Zurücksetzen',
 
@@ -520,6 +523,9 @@ export const de = Object.freeze({
   'listToolbar.viewList': 'Liste',
   'listToolbar.views': 'Ansicht',
   'listToolbar.viewTable': 'Tabelle',
+
+  'localePicker.label': 'Sprache',
+  'localePicker.placeholder': 'Sprache auswählen',
 
   'mcp.askedBy': 'Angefragt von %1',
   'mcp.decline': 'Ablehnen',

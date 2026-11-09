@@ -1339,6 +1339,44 @@ const cases = [
     component.setReadonly(true);
     component.setReadonly(false);
   }),
+  componentCase('LocalePicker', () => new zx.LocalePicker(null, {
+    locales: ['en', 'de_at', 'fr', 'es-419'],
+    displayLocale: 'en',
+    flagRegions: { en: 'GB' },
+    value: 'DE-at'
+  }), (component) => {
+    const events = observe(component, 'change');
+    assert(component.value === 'de-AT', 'LocalePicker did not canonicalize its value');
+    assert(component.el.dataset.preset === 'locale', 'LocalePicker omitted its preset marker');
+    assert(component.el.querySelector('.zx-select__value-adornment .zx-flag[data-region="AT"]'),
+      'LocalePicker did not draw the selected flag');
+    const options = [...component.el.querySelectorAll('.zx-select__option')];
+    assert(options.length === 4, 'LocalePicker option count mismatch');
+    assert(options[0].querySelector('.zx-flag[data-region="GB"]'), 'flagRegions did not win');
+    assert(options[3].querySelector('.zx-flag[data-kind="code"]')?.textContent === 'ES',
+      'a locale without a country did not fall back to its language chip');
+    assert(options[2].querySelector('.zx-select__entity-label').lang === 'fr', 'native name lost its lang');
+    component.set('fr');
+    events.expect();
+    assert(component.value === 'fr', 'LocalePicker set failed');
+  }),
+  componentCase('CountryPicker', () => new zx.CountryPicker(null, {
+    displayLocale: 'de',
+    preferred: ['DE', 'AT', 'CH'],
+    flags: 'code',
+    value: 'at'
+  }), (component) => {
+    const events = observe(component, 'change');
+    assert(component.value === 'AT', 'CountryPicker did not upper-case its value');
+    assert(/** @type {HTMLInputElement} */ (component.refs.input).value === 'Österreich',
+      'CountryPicker did not name the country in the display locale');
+    assert(component.el.querySelectorAll('.zx-select__option').length >= 250, 'CountryPicker omitted countries');
+    assert(component.el.querySelector('.zx-select__option .zx-flag[data-kind="code"]')?.textContent === 'DE',
+      'CountryPicker did not pin the preferred countries first');
+    component.set('fr');
+    events.expect();
+    assert(component.value === 'FR', 'CountryPicker set failed');
+  }),
   componentCase('TagPicker', () => new zx.TagPicker(null, {
     items: [
       { ID: 1, name: 'Urgent', icon: 'warning', color: '#d97706' },

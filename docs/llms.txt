@@ -42,7 +42,8 @@ exports and as `window.zx.*`.
 - Inputs: `button()`, `buttonGroup()`, `badge()`/`badgeGroup()`, `CheckButton`,
   `Toggle`, `Search`,
   `Select` (APG combobox; `filter: false|'local'|async`; priority, status, permission, and
-  `Select.entity()` presets), `Checklist`, `TagPicker` (icon/color identity), `NumberField`, `Rating`, `Slider`,
+  `Select.entity()` presets), `LocalePicker`/`CountryPicker` (Select over locales or ISO countries,
+  `Intl`-named, with `flag()` emoji, code chip, or app-served flag images), `Checklist`, `TagPicker` (icon/color identity), `NumberField`, `Rating`, `Slider`,
   `copyButton()`/`CopyInput`, `DatePicker`, `MonthPicker`, `TimePicker`,
   `Datebox`/`DateTimeBox`, `DateRangePicker`/`DateRangeBox`, `Timebox`.
 - Overlays: `Message` (toasts/inline/progress), `Modal`, `Dialog` (+ `alert`/`confirm`/`prompt` Promises), `Sheet` (edge-anchored Dialog; `side`, `modal: true|'trap-focus'|false`, `backdrop`, `snap` detents, swipe-to-dismiss), `SheetStack` (drill-down; `stack`/`cascade`), `Dropdown`, `MenuButton`, `ContextMenu` (right-click; `selector` for per-row menus), `Tooltip`/`tooltip()`/`describe()`.

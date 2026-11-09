@@ -1333,6 +1333,62 @@ from `Select`, with its themed popover and keyboard behavior.
   not change the sort. The application applies the resulting state to its table, data source or route.
 <!-- /doc -->
 
+<!-- doc:locale-picker -->
+### LocalePicker
+
+A `Select` over a list of locales: each named in its own language ("Deutsch") with the interface's
+name for it beneath ("German"), and the flag of its region or a language chip before it. Names come
+from `Intl.DisplayNames`, so no translation table ships. The value is the canonical BCP 47 tag
+(`'de-AT'`); `set()` and `value` accept any spelling of a listed tag (`'de_at'`). Everything else —
+keyboard map, events, `clearable`, `disabled`, `msg` — is Select's. Field type: `zxselect` with
+`props.preset: 'locale'`.
+
+```js
+new LocalePicker(el, { locales: ['en-GB', 'de', 'de-AT', 'fr'], value: 'de', onchange: (e) => setLanguage(e.detail.value) });
+```
+
+- **Options** — `locales` (tags or `{code, name?, description?, region?}`; invalid tags are left
+  out; a short list of common languages by default), `preferred: []` and `preferredLabel` (pinned
+  above the list), `displayLocale` (default: the `lang` option, then `getLanguage()`),
+  `display: 'both'|'native'|'localized'`, `flags: 'auto'|'emoji'|'code'|'none'|(region, item) => Node`,
+  `flagUrl` (image template, `{code}`/`{CODE}`), `flagRegions` (`{ en: 'GB' }` — a language's flag
+  when its likely region is not the one meant), `sort: false`, plus Select options. A list longer
+  than seven filters locally by native name, localized name, and tag.
+- **Flags** — a tag's own region wins (`de-AT` → Austria), then `flagRegions`, then the language's
+  likely region (`Intl.Locale#maximize()`: `ja` → Japan). A locale with no country (`es-419`) shows
+  its language chip. `flags: 'code'` shows chips throughout — the honest choice where a language is
+  not a country.
+- **Statics** — `LocalePicker.items(locales, options)` returns the rows without the DOM;
+  `canonicalLocale(tag)` canonicalizes one tag.
+<!-- /doc -->
+
+<!-- doc:country-picker -->
+### CountryPicker
+
+A filterable `Select` over ISO 3166-1 countries, named in the interface's language by
+`Intl.DisplayNames` and drawn with their flags. The value is the upper-case alpha-2 code (`'DE'`);
+`set()` accepts either case. Search matches the name, the code, and the English name, so "Germany"
+finds Deutschland in a German interface. Field type: `zxselect` with `props.preset: 'country'`.
+
+```js
+new CountryPicker(el, { preferred: ['DE', 'AT', 'CH'], value: 'AT', clearable: true });
+```
+
+- **Options** — `countries` (codes or `{code, name?, description?}`; all of `COUNTRY_CODES` by
+  default), `preferred: []` and `preferredLabel`, `displayLocale`, `flags`, `flagUrl`,
+  `showCode: false`, `sort: true` (by name, with `Intl.Collator`), plus Select options.
+- **Statics** — `CountryPicker.items(countries, options)` returns the rows without the DOM.
+
+### flag()
+
+`flag(code, { kind, src, text, label })` draws one flag as a `.zx-flag` span — for a picker row, a
+table cell, a profile. `kind: 'auto'` (default) draws the platform's flag emoji where it has them
+(`supportsFlagEmoji()`) and a muted code chip where it does not (Windows); `'emoji'`, `'code'`, and
+`'image'` force one. Zx ships no flag artwork: `src: '/flags/{code}.svg'` draws from any flag set
+the application serves. Decorative (`aria-hidden`) unless `label` is given. Also exported:
+`flagEmoji(code)`, `supportsFlagEmoji()`, and `COUNTRY_CODES`.
+<!-- /doc -->
+
 <!-- doc:checklist -->
 ### Checklist
 

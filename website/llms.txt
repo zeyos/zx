@@ -57,7 +57,8 @@ available as ESM named exports and as `window.zx.*`.
 - Inputs: `button()`, `buttonGroup()`, `badge()`, `CheckButton`, `Toggle`, `Search`,
   `Select` (APG combobox;
   `filter: false|'local'|async`; priority, status, permission, and `Select.entity()` presets),
-  `Checklist`, `TagPicker` (icon/color identity),
+  `LocalePicker`/`CountryPicker` (Select over locales or ISO countries, `Intl`-named, with
+  `flag()` emoji, code chip, or app-served flag images), `Checklist`, `TagPicker` (icon/color identity),
   `NumberField`, `Rating`, `Slider` (native range; marks, bounds, optional number box),
   `copyButton()`/`CopyInput`, `DatePicker`, `MonthPicker`, `TimePicker`, `Datebox`/`DateTimeBox`,
   `DateRangePicker`/`DateRangeBox`,
