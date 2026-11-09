@@ -413,7 +413,8 @@ function dateAtMinutes(day, minutes) {
 
 /** @param {Date} day @param {Date} value @returns {number} */
 function minutesSinceDay(day, value) {
-  return (value.getTime() - day.getTime()) / 60_000;
+  return calendarDayDifference(day, value) * 1440 + value.getHours() * 60
+    + value.getMinutes() + value.getSeconds() / 60 + value.getMilliseconds() / 60_000;
 }
 
 /** @param {unknown} value @param {string} label @returns {Date} */

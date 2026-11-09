@@ -506,7 +506,7 @@ export class Calendar extends Component {
       for (let column = 0; column < days.length; column += 1) {
         const date = dateWithMinutes(days[column], minutes);
         const key = String(date.getTime());
-        const tabbable = this._focusedSlot ? this._focusedSlot === key : firstTabStop;
+        const tabbable = firstTabStop && (!this._focusedSlot || this._focusedSlot === key);
         if (tabbable) firstTabStop = false;
         slots.append(h('button', {
           type: 'button',
@@ -526,6 +526,9 @@ export class Calendar extends Component {
         }));
       }
     }
+    // A remembered date can leave the visible period. Keep a reachable stop even when navigation
+    // happened while focus was outside the grid; focus restoration may choose a relative slot.
+    if (firstTabStop && slots.firstElementChild) slots.firstElementChild.tabIndex = 0;
     const eventsLayer = h('div', { class: 'zx-calendar__timed-events', ariaHidden: 'false' });
     days.forEach((day, dayIndex) => {
       const layouts = layoutTimedCalendarEvents(this._events, day, {
@@ -896,6 +899,9 @@ export class Calendar extends Component {
     const edit = this._keyboardEdit;
     if (edit.action === 'move') edit.event = shiftCalendarEvent(edit.event, { days, minutes });
     else {
+      const end = addCalendarDays(edit.event.end, days);
+      end.setMinutes(end.getMinutes() + minutes);
+      if (end <= edit.event.start) return;
       const proposed = shiftCalendarEvent(edit.event, { days: 0, minutes: 0, endDays: days, endMinutes: minutes });
       if (proposed.end > proposed.start) edit.event = proposed;
     }
@@ -1401,7 +1407,7 @@ export class Calendar extends Component {
     if (target.dataset.slot) this._focusedSlot = target.dataset.slot;
   }
 
-  /** @returns {{eventId?: string, eventAction?: string, date?: string, slot?: string}|null} */
+  /** @returns {{eventId?: string, eventAction?: string, date?: string, slot?: string, row?: string, column?: string}|null} */
   _focusIdentity() {
     const active = document.activeElement;
     if (!(active instanceof HTMLElement) || !this.el.contains(active)) return null;
@@ -1409,16 +1415,33 @@ export class Calendar extends Component {
       eventId: active.dataset.eventId,
       eventAction: active.dataset.eventAction,
       date: active.dataset.date,
-      slot: active.dataset.slot
+      slot: active.dataset.slot,
+      row: active.dataset.rowIndex,
+      column: active.dataset.dayIndex
     };
   }
 
-  /** @param {{eventId?: string, eventAction?: string, date?: string, slot?: string}} identity @returns {void} */
+  /** @param {{eventId?: string, eventAction?: string, date?: string, slot?: string, row?: string, column?: string}} identity @returns {void} */
   _restoreFocus(identity) {
     let target = null;
     if (identity.eventId) target = this.el.querySelector(
       `[data-event-id="${cssEscape(identity.eventId)}"][data-event-action="${identity.eventAction ?? 'activate'}"]`);
-    if (!target && identity.slot) target = this.el.querySelector(`[data-slot="${cssEscape(identity.slot)}"]`);
+    if (!target && identity.slot) {
+      const slots = [...this.el.querySelectorAll('[data-slot]:not(:disabled)')];
+      target = slots.find((slot) => slot.dataset.slot === identity.slot) ?? null;
+      if (!target) {
+        // Rows and columns describe local time and relative day, unlike the old absolute timestamp.
+        const row = Number(identity.row) || 0;
+        const column = Number(identity.column) || 0;
+        target = slots.sort((left, right) =>
+          Math.abs(Number(left.dataset.rowIndex) - row) - Math.abs(Number(right.dataset.rowIndex) - row)
+          || Math.abs(Number(left.dataset.dayIndex) - column) - Math.abs(Number(right.dataset.dayIndex) - column))[0] ?? null;
+      }
+      if (target) {
+        for (const slot of slots) slot.tabIndex = slot === target ? 0 : -1;
+        this._focusedSlot = target.dataset.slot;
+      }
+    }
     if (!target && identity.date) target = this.el.querySelector(`[data-date-cell][data-date="${cssEscape(identity.date)}"]`);
     target?.focus?.();
   }

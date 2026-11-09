@@ -121,6 +121,30 @@ test('timed layout creates the minimum collision columns per overlap cluster', (
   ]);
 });
 
+test('timed layout follows local clock minutes on ordinary and both DST transition days', () => {
+  for (const [month, date] of [[2, 29], [9, 25], [7, 25]]) {
+    const day = new Date(2026, month, date);
+    const records = [
+      event('meeting', new Date(2026, month, date, 10), new Date(2026, month, date, 11)),
+      event('overlap', new Date(2026, month, date, 10, 30), new Date(2026, month, date, 12)),
+      event('midnight', new Date(2026, month, date, 23), new Date(2026, month, date + 1)),
+      event('span', new Date(2026, month, date - 1, 23), new Date(2026, month, date, 1))
+    ];
+    const before = records.map(({ start, end }) => [start.getTime(), end.getTime()]);
+    const layout = layoutTimedCalendarEvents(records, day);
+    assert.deepEqual(layout.map(({ event, startMinutes, endMinutes, column, columns }) =>
+      [event.id, startMinutes, endMinutes, column, columns]), [
+      ['meeting', 600, 660, 0, 2], ['overlap', 630, 720, 1, 2], ['midnight', 1380, 1440, 0, 1]
+    ]);
+    const clipped = layoutTimedCalendarEvents(records, day, { minMinutes: 615, maxMinutes: 645 });
+    assert.deepEqual(clipped.map(({ startMinutes, endMinutes }) => [startMinutes, endMinutes]),
+      [[615, 645], [630, 645]]);
+    assert.deepEqual(layoutCalendarSpans(records, day, 1).map(({ event, start, end }) =>
+      [event.id, start, end]), [['span', 0, 1]]);
+    assert.deepEqual(records.map(({ start, end }) => [start.getTime(), end.getTime()]), before);
+  }
+});
+
 test('spanning layout clips events and reuses free lanes', () => {
   const start = new Date(2026, 7, 24);
   const spans = layoutCalendarSpans([
