@@ -1,8 +1,8 @@
 # WP71 — Confirmed review maintenance backlog
 
-Status: specified, deferred. Implement only after WP65–WP70; this pass writes the spec only.
+Status: implementation authorized by the owner after WP65–WP70. WP72–WP75 refine the scope.
 Branch for later implementation: `wp/71-review-maintenance`, from completed WP65 integration.
-`AGENTS.md` applies. Split this package into narrower implementation specs before parallel work.
+`AGENTS.md` applies. WP72 covers M1–M7; WP73 M8/M9; WP74 M10–M14; WP75 M15/M16.
 
 ## Confirmed items and acceptance
 
