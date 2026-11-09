@@ -125,7 +125,7 @@ const MESSAGES = Object.freeze({
   'runStatus.costLabel': 'Cost',
   'runStatus.cost': '%1 of %2',
   'runStatus.stepsLabel': 'Steps done',
-  'runStatus.steps': '%1 of %2 steps',
+  // Step plurals come from the English catalogue so its own cardinal rules select the fallback.
   'runStatus.timeFormat': '%H:%M',
   'runStatus.dateTimeFormat': '%e %b, %H:%M'
 });
@@ -441,7 +441,7 @@ export class RunStatus extends Component {
         'aria-valuemin': '0',
         'aria-valuemax': String(steps.total),
         'aria-valuenow': String(steps.done),
-        'aria-valuetext': this.msg('runStatus.steps', done, total)
+        'aria-valuetext': this.msgPlural('runStatus.steps', steps.total, done, total)
       }, h('span', { class: 'zx-run-status__bar-fill', style: { inlineSize: `${steps.percent}%` } })),
       h('span', { class: 'zx-run-status__steps-text', 'aria-hidden': 'true' }, `${done}/${total}`));
   }

@@ -140,3 +140,26 @@ test('run times read local ISO strings and dates, and nothing else', () => {
     assert.equal(runDate(value), null, String(value));
   }
 });
+
+test('built-in step plurals use English rules while inherited and instance custom messages retain precedence', async () => {
+  const { RunStatus } = await import('../../src/components/run-status/run-status.js');
+  const { setLanguage, setTranslator } = await import('../../src/core/i18n.js');
+  class Probe extends RunStatus { render() { return this.el; } }
+  class CustomProbe extends Probe {
+    static defaults = { msg: { 'runStatus.steps.one': 'Inherited %1 / %2' } };
+  }
+  const target = () => ({ nodeType: 1, classList: { contains: () => true, add() {}, remove() {} } });
+  try {
+    setLanguage('ru');
+    setTranslator(null);
+    const plain = new Probe(target());
+    assert.equal(plain.msgPlural('runStatus.steps', 21, 1, 21), '1 of 21 steps');
+    assert.equal(plain.msgPlural('runStatus.steps', 1, 1, 1), '1 of 1 step');
+    const inherited = new CustomProbe(target());
+    assert.equal(inherited.msgPlural('runStatus.steps', 21, 1, 21), 'Inherited 1 / 21');
+    setTranslator((key) => key === 'runStatus.steps.one' ? 'Host %1 / %2' : null);
+    assert.equal(inherited.msgPlural('runStatus.steps', 21, 1, 21), 'Host 1 / 21');
+    const own = new CustomProbe(target(), { msg: { 'runStatus.steps': 'Instance %1 / %2' } });
+    assert.equal(own.msgPlural('runStatus.steps', 21, 1, 21), 'Instance 1 / 21');
+  } finally { setLanguage('en'); setTranslator(null); }
+});
