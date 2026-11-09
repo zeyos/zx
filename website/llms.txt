@@ -14,6 +14,7 @@ exports and as `window.zx.*`.
 
 ## Documentation
 - [Documentation site](https://zx.zeyos.com/docs.html): supported APIs, live demos, and example source.
+- [Locales guide](https://zx.zeyos.com/docs.html#getting-started/locales): add languages, regional catalogues, custom message keys, interpolation variables, plurals, and formatting options.
 - [README](https://zx.zeyos.com/README.md): installation, component index, theming, and browser support.
 - [API reference](https://zx.zeyos.com/docs/llms.md): options, methods, events, and core helpers.
 - [Surface guide](https://zx.zeyos.com/docs/agent-surfaces.md): agent-authored surfaces and their reply contract.

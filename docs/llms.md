@@ -1352,15 +1352,19 @@ from `Select`, with its themed popover and keyboard behavior.
 <!-- doc:locale-picker -->
 ### LocalePicker
 
-A `Select` over a list of locales: each named in its own language ("Deutsch") with the interface's
+`LocalePicker extends Select`: each locale is named in its own language ("Deutsch") with the interface's
 name for it beneath ("German"), and the flag of its region or a language chip before it. Names come
 from `Intl.DisplayNames`, so no translation table ships. The value is the canonical BCP 47 tag
 (`'de-AT'`); `set()` and `value` accept any spelling of a listed tag (`'de_at'`). Everything else —
 keyboard map, events, `clearable`, `disabled`, `msg` — is Select's. Field type: `zxselect` with
 `props.preset: 'locale'`.
 
+The picker supplies locale names, not translations for the application. It emits `change` without
+changing the active language. See the [Locales guide](https://zx.zeyos.com/docs.html#getting-started/locales)
+for catalogues, message variables, formatting, and runtime language switching.
+
 ```js
-new LocalePicker(el, { locales: ['en-GB', 'de', 'de-AT', 'fr'], value: 'de', onchange: (e) => setLanguage(e.detail.value) });
+new LocalePicker(el, { locales: ['en-GB', 'de', 'de-AT', 'fr'], value: 'de' });
 ```
 
 - **Options** — `locales` (tags or `{code, name?, description?, region?}`; invalid tags are left
@@ -1381,10 +1385,12 @@ new LocalePicker(el, { locales: ['en-GB', 'de', 'de-AT', 'fr'], value: 'de', onc
 <!-- doc:country-picker -->
 ### CountryPicker
 
-A filterable `Select` over ISO 3166-1 countries, named in the interface's language by
+`CountryPicker extends Select`: a filterable list of ISO 3166-1 countries, named in the interface's language by
 `Intl.DisplayNames` and drawn with their flags. The value is the upper-case alpha-2 code (`'DE'`);
 `set()` accepts either case. Search matches the name, the code, and the English name, so "Germany"
 finds Deutschland in a German interface. Field type: `zxselect` with `props.preset: 'country'`.
+Custom descriptions are searchable too. Its `displayLocale` names countries without changing the
+application language; see the [Locales guide](https://zx.zeyos.com/docs.html#getting-started/locales).
 
 ```js
 new CountryPicker(el, { preferred: ['DE', 'AT', 'CH'], value: 'AT', clearable: true });
@@ -4534,32 +4540,238 @@ entry point as the components. See also the Kernel section for `Component`, `h`,
   `(event|string) => void` resolves buffered printable keystrokes to an item (500 ms buffer,
   repeated-letter cycling).
 
-#### Internationalisation — English and German catalogues
+#### Locales
 
-`de`, from `@zeyos/zx/locales/de.js` (`src/locales/de.js` in the repository), is a complete German
-translation of `defaultMessages`: the same keys, the same placeholders, frozen. It stays out of the
-main bundle, so only an application that imports it pays for it.
+[Open the Locales guide](https://zx.zeyos.com/docs.html#getting-started/locales).
 
-`en` from `@zeyos/zx/locales/en.js` is the same frozen object as `defaultMessages`.
-`@zeyos/zx/locales/index.js` exports `en`, `de`, and a frozen `locales` manifest keyed by language.
-Importing that manifest opts into both catalogues; the main library does not import it.
+##### Language, locale, and catalogue
+
+Zx ships English and German interface messages. Other languages can be supplied by the application.
+Locale tags such as `en-GB`, `de-AT`, and `fr-CA` describe language and regional conventions; adding a
+tag to a picker does not install a translation.
+
+- `setTranslator(fn)` supplies the words. The function receives a flat message key and returns its text.
+- `setLanguage(tag)` selects the active language for plural rules, default formatting, and language-specific `msg` tables. It does not load a catalogue or change the page's HTML `lang` attribute.
+- `locale` selects formatting on helpers and components that expose this option. It does not select translated interface messages.
+- `displayLocale` controls the names shown by LocalePicker and CountryPicker, independently of their selected value.
+- `msg` overrides messages for one component. Application labels, record values, and server text remain application-owned.
+
+##### Enable a shipped language
+
+Install the catalogue and language before creating components:
 
 ```js
 import { setLanguage, setTranslator } from '@zeyos/zx';
 import { de } from '@zeyos/zx/locales/de.js';
 
 setTranslator((key) => de[key]);
-setLanguage('de');
+setLanguage('de-AT');
+document.documentElement.lang = 'de-AT';
 ```
 
-One instance can take it alone through its `msg` option (`new CardView(null, { msg: de })`). The
-catalogue covers messages only. Month and weekday names come from `Intl` in the active language, so
-`setLanguage('de')` is what makes `formatDate()` write "März", and what `Calendar` and the agent
-components write their dates in when they have no `locale` option. A translator can still override them
-with `date.month.0`–`11`, `date.month.short.0`–`11`, `date.weekday.0`–`6` (Sunday first) and
-`date.weekday.short.0`–`6` when no explicit locale was requested. A translated long name does not
-replace its short form. Built-in count messages have `.one` and `.other` forms; host catalogues may
-add the other cardinal categories required by their language.
+This uses German messages with Austrian formatting conventions. `setTranslator(null)` restores
+English message fallback; call `setLanguage('en')` as well to return formatting to English.
+`en` from `@zeyos/zx/locales/en.js` is the frozen `defaultMessages` object. The optional
+`@zeyos/zx/locales/index.js` exports `en`, `de`, and the frozen `locales` manifest. Importing that
+manifest includes both catalogues; the main entry does not load German automatically.
+
+##### Add a new language
+
+Create an application-owned module, for example `app/locales/fr.js`, served at `/app/locales/fr.js`.
+This intentionally partial example translates two Select messages:
+
+```js
+export const fr = Object.freeze({
+  'select.none': 'Aucune sélection',
+  'select.empty': 'Aucun résultat'
+});
+```
+
+```js
+import { setLanguage, setTranslator } from '@zeyos/zx';
+import { fr } from '/app/locales/fr.js';
+
+setTranslator((key) => fr[key]);
+setLanguage('fr-FR');
+document.documentElement.lang = 'fr-FR';
+```
+
+Use `defaultMessages` as the inventory of built-in keys to translate. Keep their placeholders,
+including each plural form's placeholders, and test the controls and accessible labels that your
+application uses. A partial catalogue should return `undefined` for untranslated keys so Zx can
+apply its English fallback with English plural rules. Do not fill a partial non-English catalogue
+by spreading `defaultMessages` into it. `null` and an echoed key also mean “no translation”; an
+empty string is an intentional empty translation.
+
+Application catalogues need no change to Zx or its shipped manifest. Keep a registry of the languages
+your application actually supports, and pass those tags to LocalePicker.
+
+##### Regional variants and catalogue lookup
+
+The application chooses how a regional tag maps to a catalogue. Zx does not automatically search
+`de-AT`, then `de`, inside your translator. Reuse a language catalogue, or create regional overrides:
+
+```js
+import { setLanguage, setTranslator } from '@zeyos/zx';
+import { en, de } from '@zeyos/zx/locales/index.js';
+
+const deAT = Object.freeze({ ...de, 'table.empty': 'Keine Einträge' });
+const catalogues = { en, de, 'de-AT': deAT };
+
+function applyLocale(tag) {
+  const locale = Intl.getCanonicalLocales(tag)[0];
+  const language = new Intl.Locale(locale).language;
+  const catalogue = catalogues[locale] ?? catalogues[language];
+  setTranslator(catalogue ? (key) => catalogue[key] : null);
+  setLanguage(locale);
+  document.documentElement.lang = locale;
+}
+
+applyLocale('de-AT');
+```
+
+Here `en-GB` reuses English messages, while `de-AT` keeps its regional override. This function expects
+a valid BCP 47 tag; picker values are already canonical. General locale APIs use hyphenated tags.
+
+##### Message keys and interpolation variables
+
+Use flat string keys for your own messages. A dotted key is a name, not a nested object path.
+Positional placeholders are `%1`, `%2`, and so on; named placeholders use `%name%`:
+
+```js
+import { setLanguage, setTranslator, translate } from '@zeyos/zx';
+import { de } from '@zeyos/zx/locales/de.js';
+
+const messages = Object.freeze({
+  ...de,
+  'app.welcome': 'Willkommen, %1!',
+  'app.assigned': '%person% bearbeitet %record%.'
+});
+setTranslator((key) => messages[key]);
+setLanguage('de');
+
+translate('app.welcome', ['Ada']);
+translate('app.assigned', { person: 'Ada', record: 'INV-42' });
+```
+
+`component.msg(key, ...args)` takes positional arguments. For a named template, use
+`translate(key, values)` or `printf(component.msg(key), values)`. Interpolation produces plain text;
+render it with text nodes or `textContent`.
+
+For a single component, pass `msg: { 'select.empty': 'Nothing found here' }`. Resolution is instance
+messages, host translator, inherited component messages, English catalogue, then the key.
+Language-specific tables such as `msg: { de: { 'select.empty': 'Nichts gefunden' } }` match the exact
+active language identifier; provide a `de-AT` table or a flat entry when that is the active tag.
+
+##### Plural forms
+
+Pass a numeric count separately from its displayed text. The selected cardinal category comes
+from `Intl.PluralRules`; messages remain flat strings:
+
+```js
+import { formatNumber, setLanguage, setTranslator, translatePlural } from '@zeyos/zx';
+import { de } from '@zeyos/zx/locales/de.js';
+
+const messages = Object.freeze({
+  ...de,
+  'app.results.one': '%1 Ergebnis',
+  'app.results.other': '%1 Ergebnisse'
+});
+setTranslator((key) => messages[key]);
+setLanguage('de');
+
+const count = 1200;
+translatePlural('app.results', count, [formatNumber(count)]);
+```
+
+Use `component.msgPlural(key, count, ...args)` inside a component. Supply `.other` and the categories
+your language needs: `.zero`, `.one`, `.two`, `.few`, and `.many` are supported too. At each message
+source, lookup tries the selected category, `.other`, then the unsuffixed key and any supported legacy
+alias before moving to the next source. Existing flat overrides therefore keep their precedence.
+English fallback uses English rules. Custom application keys need their own fallback text; they are
+not part of the built-in English catalogue. Ordinary `translate()` and `msg()` never infer a count.
+
+##### Formatting and date-name overrides
+
+Formatting uses a supported explicit locale, then the active language, then English. Support is
+checked for the particular Intl service, since a language may support numbers but not plural rules.
+Regional English tags retain their own conventions.
+
+```js
+import { formatCurrency, formatDate, formatNumber } from '@zeyos/zx';
+
+formatNumber(1234.5, { locale: 'en-GB', decimals: 2 });
+formatCurrency(1234.5, 'EUR', { locale: 'de-AT' });
+formatDate(new Date(2026, 8, 1), '%b', { locale: 'en-GB' });
+```
+
+Components with a `locale` option can use the same override. For NumberField, locale-aware display
+and parsing apply with `group: true`; ungrouped fields retain their machine-format input behavior.
+Currency, time zone, week start, and display patterns are separate settings where the API exposes
+them; a locale tag alone does not choose them all.
+
+`formatDate()` normally obtains month and weekday names from Intl. A host translator can override
+`date.month.0` through `date.month.11` and `date.weekday.0` through `date.weekday.6` (Sunday is zero).
+Use `date.month.short.0` and `date.weekday.short.0` for their short forms. Missing short names come
+from Intl, not a shortened translated long name. These overrides apply when no explicit locale is
+passed; an explicit `formatDate(..., { locale })` takes precedence. `locale: null` remains implicit.
+
+##### Use the Select-based pickers
+
+LocalePicker and CountryPicker extend Select. They keep its popup, keyboard map, events, field
+adapter, and `.zx-select` styling, adding item generation, names, flags, and value normalization.
+A locale selection emits `change`; it does not install translations or change the application language.
+
+Using `applyLocale()` from the regional-lookup example:
+
+```js
+import { getLanguage, LocalePicker } from '@zeyos/zx';
+
+const picker = new LocalePicker(null, {
+  locales: ['en-GB', 'de-DE', 'de-AT'],
+  value: getLanguage(),
+  displayLocale: 'en-GB',
+  flags: 'code',
+  filter: 'local'
+});
+picker.on('change', ({ detail }) => {
+  if (detail.value) applyLocale(detail.value);
+});
+document.querySelector('#language').append(picker.toElement());
+```
+
+`displayLocale` changes the language names shown, while the selected value stays a locale tag.
+LocalePicker filters automatically for lists longer than seven; `filter: 'local'` also enables
+search for short lists. For a form, use the existing Select field preset:
+
+```js
+import { Field } from '@zeyos/zx';
+
+const languageField = new Field(null, {
+  type: 'zxselect',
+  name: 'language',
+  label: 'Language',
+  value: 'de-AT',
+  props: { preset: 'locale', locales: ['en-GB', 'de-AT'], flags: 'code' }
+});
+```
+
+Use `preset: 'country'` for CountryPicker. These presets belong to the Field adapter's `props`;
+constructing a plain Select with `preset: 'locale'` does not select a subclass.
+
+##### Switching language at runtime
+
+Set the translator and active language together, then refresh your application UI. Zx does not
+broadcast a language-change event or automatically relabel every mounted component. Preserve the
+application's values, destroy affected instances, and recreate them with the new messages; merely
+changing the picker value does not do this. Use each component's documented update methods where
+they cover the text being changed, rather than calling its internal `render()` method.
+
+Set the document or region's HTML `lang` for pronunciation, and set `dir="rtl"` when your application
+selects a right-to-left language. Zx does not infer text direction from `setLanguage()`. Verify visible
+labels, accessible names, plural counts, date/number entry, and layout after a switch.
+
+##### German catalogue glossary
 
 - **Voice** — a business application. The reader is addressed formally ("Sie"), and preferably not
   at all ("Änderungen speichern"). Buttons and menu items use the infinitive ("Speichern",

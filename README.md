@@ -454,4 +454,9 @@ stylesheets: `docs/llms.md` covers when to choose it.
 ZeyOS module colours are optional: import `@zeyos/zx/styles/zeyos.css` when using the ZeyOS binding.
 The generic core and full-library stylesheets do not include that product palette.
 
+The [Locales guide](https://zx.zeyos.com/docs.html#getting-started/locales) covers the shipped
+English/German catalogues, adding application languages and regional variants, custom messages and
+variables, plural forms, formatting, and runtime language switching. LocalePicker and CountryPicker
+are Select subclasses; selecting a locale is separate from installing its translations.
+
 Documentation lives at <https://zx.zeyos.com>.

@@ -21,9 +21,10 @@ export default {
   title: 'Locale picker',
   group: 'Inputs',
   api: ['LocalePicker'],
-  blurb: 'A Select over a list of locales, each named in its own language with the interface\'s '
+  blurb: 'A Select subclass over a list of locales, each named in its own language with the interface\'s '
     + 'name beneath it, and the flag of its region or a language chip before it. Names come from '
-    + 'Intl.DisplayNames, so nothing needs translating.',
+    + 'Intl.DisplayNames. The application supplies its message catalogues and handles language changes; '
+    + 'selecting a tag does not install a translation.',
 
   examples: [
     {

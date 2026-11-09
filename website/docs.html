@@ -387,6 +387,237 @@ const toolbar = h('div', { class: 'toolbar' },
     </template>
 
     <template
+      data-guide="locales"
+      data-title="Locales"
+      data-blurb="Choose languages, add translation catalogues and regional variants, and format messages, plurals, numbers and dates.">
+      <h2>Language, locale, and catalogue</h2>
+
+      <p>
+        Zx ships English and German interface messages. Other languages can be supplied by the application. Locale tags such as <code>en-GB</code>, <code>de-AT</code>, and <code>fr-CA</code> describe language and regional conventions; adding a tag to a picker does not install a translation.
+      </p>
+
+      <ul>
+        <li><code>setTranslator(fn)</code> supplies the words. The function receives a flat message key and returns its text.</li>
+        <li><code>setLanguage(tag)</code> selects the active language for plural rules, default formatting, and language-specific <code>msg</code> tables. It does not load a catalogue or change the page&#x27;s HTML <code>lang</code> attribute.</li>
+        <li><code>locale</code> selects formatting on helpers and components that expose this option. It does not select translated interface messages.</li>
+        <li><code>displayLocale</code> controls the names shown by LocalePicker and CountryPicker, independently of their selected value.</li>
+        <li><code>msg</code> overrides messages for one component. Application labels, record values, and server text remain application-owned.</li>
+      </ul>
+
+      <h2>Enable a shipped language</h2>
+
+      <p>
+        Install the catalogue and language before creating components:
+      </p>
+
+      <pre data-code="activate-german.js">
+import { setLanguage, setTranslator } from '@zeyos/zx';
+import { de } from '@zeyos/zx/locales/de.js';
+
+setTranslator((key) =&gt; de[key]);
+setLanguage('de-AT');
+document.documentElement.lang = 'de-AT';
+      </pre>
+
+      <p>
+        This uses German messages with Austrian formatting conventions. <code>setTranslator(null)</code> restores English message fallback; call <code>setLanguage(&#x27;en&#x27;)</code> as well to return formatting to English. <code>en</code> from <code>@zeyos/zx/locales/en.js</code> is the frozen <code>defaultMessages</code> object. The optional <code>@zeyos/zx/locales/index.js</code> exports <code>en</code>, <code>de</code>, and the frozen <code>locales</code> manifest. Importing that manifest includes both catalogues; the main entry does not load German automatically.
+      </p>
+
+      <h2>Add a new language</h2>
+
+      <p>
+        Create an application-owned module, for example <code>app/locales/fr.js</code>, served at <code>/app/locales/fr.js</code>. This intentionally partial example translates two Select messages:
+      </p>
+
+      <pre data-code="app/locales/fr.js">
+export const fr = Object.freeze({
+  'select.none': 'Aucune sélection',
+  'select.empty': 'Aucun résultat'
+});
+      </pre>
+
+      <pre data-code="activate-french.js">
+import { setLanguage, setTranslator } from '@zeyos/zx';
+import { fr } from '/app/locales/fr.js';
+
+setTranslator((key) =&gt; fr[key]);
+setLanguage('fr-FR');
+document.documentElement.lang = 'fr-FR';
+      </pre>
+
+      <p>
+        Use <code>defaultMessages</code> as the inventory of built-in keys to translate. Keep their placeholders, including each plural form&#x27;s placeholders, and test the controls and accessible labels that your application uses. A partial catalogue should return <code>undefined</code> for untranslated keys so Zx can apply its English fallback with English plural rules. Do not fill a partial non-English catalogue by spreading <code>defaultMessages</code> into it. <code>null</code> and an echoed key also mean “no translation”; an empty string is an intentional empty translation.
+      </p>
+
+      <p>
+        Application catalogues need no change to Zx or its shipped manifest. Keep a registry of the languages your application actually supports, and pass those tags to LocalePicker.
+      </p>
+
+      <h2>Regional variants and catalogue lookup</h2>
+
+      <p>
+        The application chooses how a regional tag maps to a catalogue. Zx does not automatically search <code>de-AT</code>, then <code>de</code>, inside your translator. Reuse a language catalogue, or create regional overrides:
+      </p>
+
+      <pre data-code="regional-locales.js">
+import { setLanguage, setTranslator } from '@zeyos/zx';
+import { en, de } from '@zeyos/zx/locales/index.js';
+
+const deAT = Object.freeze({ ...de, 'table.empty': 'Keine Einträge' });
+const catalogues = { en, de, 'de-AT': deAT };
+
+function applyLocale(tag) {
+  const locale = Intl.getCanonicalLocales(tag)[0];
+  const language = new Intl.Locale(locale).language;
+  const catalogue = catalogues[locale] ?? catalogues[language];
+  setTranslator(catalogue ? (key) =&gt; catalogue[key] : null);
+  setLanguage(locale);
+  document.documentElement.lang = locale;
+}
+
+applyLocale('de-AT');
+      </pre>
+
+      <p>
+        Here <code>en-GB</code> reuses English messages, while <code>de-AT</code> keeps its regional override. This function expects a valid BCP 47 tag; picker values are already canonical. General locale APIs use hyphenated tags.
+      </p>
+
+      <h2>Message keys and interpolation variables</h2>
+
+      <p>
+        Use flat string keys for your own messages. A dotted key is a name, not a nested object path. Positional placeholders are <code>%1</code>, <code>%2</code>, and so on; named placeholders use <code>%name%</code>:
+      </p>
+
+      <pre data-code="messages.js">
+import { setLanguage, setTranslator, translate } from '@zeyos/zx';
+import { de } from '@zeyos/zx/locales/de.js';
+
+const messages = Object.freeze({
+  ...de,
+  'app.welcome': 'Willkommen, %1!',
+  'app.assigned': '%person% bearbeitet %record%.'
+});
+setTranslator((key) =&gt; messages[key]);
+setLanguage('de');
+
+translate('app.welcome', ['Ada']);
+translate('app.assigned', { person: 'Ada', record: 'INV-42' });
+      </pre>
+
+      <p>
+        <code>component.msg(key, ...args)</code> takes positional arguments. For a named template, use <code>translate(key, values)</code> or <code>printf(component.msg(key), values)</code>. Interpolation produces plain text; render it with text nodes or <code>textContent</code>.
+      </p>
+
+      <p>
+        For a single component, pass <code>msg: { &#x27;select.empty&#x27;: &#x27;Nothing found here&#x27; }</code>. Resolution is instance messages, host translator, inherited component messages, English catalogue, then the key. Language-specific tables such as <code>msg: { de: { &#x27;select.empty&#x27;: &#x27;Nichts gefunden&#x27; } }</code> match the exact active language identifier; provide a <code>de-AT</code> table or a flat entry when that is the active tag.
+      </p>
+
+      <h2>Plural forms</h2>
+
+      <p>
+        Pass a numeric count separately from its displayed text. The selected cardinal category comes from <code>Intl.PluralRules</code>; messages remain flat strings:
+      </p>
+
+      <pre data-code="plurals.js">
+import { formatNumber, setLanguage, setTranslator, translatePlural } from '@zeyos/zx';
+import { de } from '@zeyos/zx/locales/de.js';
+
+const messages = Object.freeze({
+  ...de,
+  'app.results.one': '%1 Ergebnis',
+  'app.results.other': '%1 Ergebnisse'
+});
+setTranslator((key) =&gt; messages[key]);
+setLanguage('de');
+
+const count = 1200;
+translatePlural('app.results', count, [formatNumber(count)]);
+      </pre>
+
+      <p>
+        Use <code>component.msgPlural(key, count, ...args)</code> inside a component. Supply <code>.other</code> and the categories your language needs: <code>.zero</code>, <code>.one</code>, <code>.two</code>, <code>.few</code>, and <code>.many</code> are supported too. At each message source, lookup tries the selected category, <code>.other</code>, then the unsuffixed key and any supported legacy alias before moving to the next source. Existing flat overrides therefore keep their precedence. English fallback uses English rules. Custom application keys need their own fallback text; they are not part of the built-in English catalogue. Ordinary <code>translate()</code> and <code>msg()</code> never infer a count.
+      </p>
+
+      <h2>Formatting and date-name overrides</h2>
+
+      <p>
+        Formatting uses a supported explicit locale, then the active language, then English. Support is checked for the particular Intl service, since a language may support numbers but not plural rules. Regional English tags retain their own conventions.
+      </p>
+
+      <pre data-code="formatting.js">
+import { formatCurrency, formatDate, formatNumber } from '@zeyos/zx';
+
+formatNumber(1234.5, { locale: 'en-GB', decimals: 2 });
+formatCurrency(1234.5, 'EUR', { locale: 'de-AT' });
+formatDate(new Date(2026, 8, 1), '%b', { locale: 'en-GB' });
+      </pre>
+
+      <p>
+        Components with a <code>locale</code> option can use the same override. For NumberField, locale-aware display and parsing apply with <code>group: true</code>; ungrouped fields retain their machine-format input behavior. Currency, time zone, week start, and display patterns are separate settings where the API exposes them; a locale tag alone does not choose them all.
+      </p>
+
+      <p>
+        <code>formatDate()</code> normally obtains month and weekday names from Intl. A host translator can override <code>date.month.0</code> through <code>date.month.11</code> and <code>date.weekday.0</code> through <code>date.weekday.6</code> (Sunday is zero). Use <code>date.month.short.0</code> and <code>date.weekday.short.0</code> for their short forms. Missing short names come from Intl, not a shortened translated long name. These overrides apply when no explicit locale is passed; an explicit <code>formatDate(..., { locale })</code> takes precedence. <code>locale: null</code> remains implicit.
+      </p>
+
+      <h2>Use the Select-based pickers</h2>
+
+      <p>
+        LocalePicker and CountryPicker extend Select. They keep its popup, keyboard map, events, field adapter, and <code>.zx-select</code> styling, adding item generation, names, flags, and value normalization. A locale selection emits <code>change</code>; it does not install translations or change the application language.
+      </p>
+
+      <p>
+        Using <code>applyLocale()</code> from the regional-lookup example:
+      </p>
+
+      <pre data-code="language-picker.js">
+import { getLanguage, LocalePicker } from '@zeyos/zx';
+
+const picker = new LocalePicker(null, {
+  locales: ['en-GB', 'de-DE', 'de-AT'],
+  value: getLanguage(),
+  displayLocale: 'en-GB',
+  flags: 'code',
+  filter: 'local'
+});
+picker.on('change', ({ detail }) =&gt; {
+  if (detail.value) applyLocale(detail.value);
+});
+document.querySelector('#language').append(picker.toElement());
+      </pre>
+
+      <p>
+        <code>displayLocale</code> changes the language names shown, while the selected value stays a locale tag. LocalePicker filters automatically for lists longer than seven; <code>filter: &#x27;local&#x27;</code> also enables search for short lists. For a form, use the existing Select field preset:
+      </p>
+
+      <pre data-code="language-field.js">
+import { Field } from '@zeyos/zx';
+
+const languageField = new Field(null, {
+  type: 'zxselect',
+  name: 'language',
+  label: 'Language',
+  value: 'de-AT',
+  props: { preset: 'locale', locales: ['en-GB', 'de-AT'], flags: 'code' }
+});
+      </pre>
+
+      <p>
+        Use <code>preset: &#x27;country&#x27;</code> for CountryPicker. These presets belong to the Field adapter&#x27;s <code>props</code>; constructing a plain Select with <code>preset: &#x27;locale&#x27;</code> does not select a subclass.
+      </p>
+
+      <h2>Switching language at runtime</h2>
+
+      <p>
+        Set the translator and active language together, then refresh your application UI. Zx does not broadcast a language-change event or automatically relabel every mounted component. Preserve the application&#x27;s values, destroy affected instances, and recreate them with the new messages; merely changing the picker value does not do this. Use each component&#x27;s documented update methods where they cover the text being changed, rather than calling its internal <code>render()</code> method.
+      </p>
+
+      <p>
+        Set the document or region&#x27;s HTML <code>lang</code> for pronunciation, and set <code>dir=&quot;rtl&quot;</code> when your application selects a right-to-left language. Zx does not infer text direction from <code>setLanguage()</code>. Verify visible labels, accessible names, plural counts, date/number entry, and layout after a switch.
+      </p>
+    </template>
+
+    <template
       data-guide="theming"
       data-title="Theming"
       data-blurb="Two attributes switch light/dark and the accent; spacing and geometry are tokens. A product theme is a short list of semantic token overrides.">
