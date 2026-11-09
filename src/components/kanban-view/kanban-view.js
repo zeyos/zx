@@ -2088,6 +2088,7 @@ export class KanbanView extends RecordView {
     this._pointerStart = null;
     if (!this._dragIds.length) return;
     event.preventDefault();
+    this._updateDropTarget(event.clientX, event.clientY);
     const ids = [...this._dragIds];
     const destination = this._dragDestination ? { ...this._dragDestination } : null;
     this._clearDrag();
@@ -2189,6 +2190,7 @@ export class KanbanView extends RecordView {
       this._dragFrame = 0;
       if (!this._dragIds.length) return;
       this._autoScroll();
+      this._updateDropTarget(this._dragPoint.x, this._dragPoint.y);
       this._scheduleAutoScroll();
     });
   }
