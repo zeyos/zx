@@ -85,6 +85,8 @@ export class CodeEditor extends Component {
       autocapitalize: 'off'
     }));
     this._input.value = String(this.options.value ?? '');
+    this._committedValue = this._input.value;
+    this._indentEditing = false;
     root.dataset.language = this._language;
     root.dataset.readonly = String(Boolean(this.options.readOnly));
     root.dataset.disabled = String(Boolean(this.options.disabled));
@@ -93,12 +95,16 @@ export class CodeEditor extends Component {
     this._tabReleased = false;
 
     this.listen(this._input, 'keydown', (event) => this._handleKeydown(event));
-    this.listen(this._input, 'blur', () => { this._tabReleased = false; });
+    this.listen(this._input, 'blur', () => {
+      this._tabReleased = false;
+      this._commitValue();
+    });
     this.listen(this._input, 'input', () => {
+      if (this._indentEditing) return;
       this._updatePosition();
       this.emit('input', { value: this.getValue() });
     });
-    this.listen(this._input, 'change', () => this.emit('change', { value: this.getValue() }));
+    this.listen(this._input, 'change', () => this._commitValue());
     for (const type of ['click', 'keyup', 'select', 'focus']) {
       this.listen(this._input, type, () => this._updatePosition());
     }
@@ -119,6 +125,7 @@ export class CodeEditor extends Component {
     const next = String(value ?? '');
     if (this._input.value === next) return this;
     this._input.value = next;
+    this._committedValue = next;
     this._updatePosition();
     if (!silent) this.emit('change', { value: next });
     return this;
@@ -171,10 +178,39 @@ export class CodeEditor extends Component {
       event.shiftKey
     );
     if (result.value === this._input.value) return;
-    this._input.value = result.value;
+    // Native editing commands retain the textarea's undo history; assigning value or using
+    // setRangeText does not. Replace only the changed range so surrounding edits stay intact.
+    const previous = this._input.value;
+    let from = 0;
+    while (from < previous.length && previous[from] === result.value[from]) from += 1;
+    let tail = 0;
+    while (tail < previous.length - from && tail < result.value.length - from
+      && previous[previous.length - tail - 1] === result.value[result.value.length - tail - 1]) tail += 1;
+    this._input.setSelectionRange(from, previous.length - tail);
+    this._indentEditing = true;
+    try {
+      const document = this._input.ownerDocument;
+      const replacement = result.value.slice(from, result.value.length - tail);
+      document?.execCommand?.(replacement ? 'insertText' : 'delete', false, replacement);
+    } catch {
+      // An unavailable editing command falls through to the same plain-text fallback.
+    } finally {
+      this._indentEditing = false;
+    }
+    // Browsers without the editing command still indent and commit, but cannot add that change
+    // to native history. Keep this fallback separate from the supported native editing path.
+    if (this._input.value !== result.value) this._input.value = result.value;
     this._input.setSelectionRange(result.start, result.end);
     this._updatePosition();
     this.emit('input', { value: this.getValue() });
+  }
+
+  /** Commits once, whether the browser emits change before blur or the fallback edited text. @returns {void} */
+  _commitValue() {
+    const value = this.getValue();
+    if (value === this._committedValue) return;
+    this._committedValue = value;
+    this.emit('change', { value });
   }
 
   /** @returns {void} */
