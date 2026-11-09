@@ -401,7 +401,7 @@ export class Dialog extends Modal {
         { label: okLabel ?? dialog._message('dialog.ok', 'OK'), kind: 'primary', action: () => finish(input.value) }
       ]);
       dialog.listen(input, 'keydown', (event) => {
-        if (event.key !== 'Enter') return;
+        if (event.key !== 'Enter' || event.isComposing) return;
         event.preventDefault();
         finish(input.value);
       });
