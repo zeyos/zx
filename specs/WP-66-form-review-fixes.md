@@ -30,6 +30,7 @@ Report any public documentation change to the integration owner.
    a changed field definition/required state must rebuild or update the control. Transfer compatible
    values through the new Field's value API; do not reuse an incompatible control by name alone.
 4. **F4: native submission agrees with answers.** `new FormData(questionnaire.toElement())`
+   for created or enhanced form roots (use the contained form for enhanced non-form roots)
    must represent all currently applicable answers, in the same shape as `toFormData()`, including
    earlier steps. Avoid duplicate names/values for the active controls, exclude hidden branches,
    preserve array semantics, and restore an enhanced target on destruction.

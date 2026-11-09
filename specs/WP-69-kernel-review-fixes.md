@@ -12,7 +12,9 @@ This WP **explicitly permits** changes to `src/core/http.js`, `src/core/dom.js` 
 - `website/index.html`, new `website/index.js`, `tools/build-site.js`, `tools/check-site.js`
   (only entry-asset handling/verification).
 - `tests/unit/http.test.js`, `tests/unit/keyboard.test.js`, `tests/unit/dom-builder.test.js`,
-  `tests/unit/site-assets.test.js`, `tests/regression/kernel.js`.
+  `tests/unit/site-assets.test.js`, `tests/unit/docs-search.test.js` (landing entry assertion only),
+  `tests/regression/kernel.js`,
+  `tests/regression/kernel-content.js`.
 - Public documentation/generated output coordinated through WP65.
 
 ## Required corrections (P2)

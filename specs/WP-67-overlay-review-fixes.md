@@ -4,6 +4,8 @@ Branch: `wp/65-library-review-fixes`, from WP65. `AGENTS.md` and WP65 apply.
 
 ## Scope
 
+- `website/demos/tooltip.demo.js` (supported hover behavior wording only).
+
 - `src/components/message/message.js`, `tabbox/tabbox.js`, `menu-button/menu-button.js`,
   `breadcrumb/breadcrumb.js`, `context-menu/context-menu.js`, `launcher/launcher.js`,
   `dock/dock.js`, `sheet/sheet-stack.js`, `sheet/sheet.js`, `dialog/dialog.js`,
