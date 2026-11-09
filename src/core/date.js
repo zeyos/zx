@@ -1,5 +1,5 @@
 // @ts-check
-import { getLanguage, translate } from './i18n.js';
+import { formattingLocale, getLanguage, hostMessage } from './i18n.js';
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -21,15 +21,16 @@ const nameFormatters = new Map();
  * Formats a local Date using strftime-style kernel tokens.
  *
  * Month and weekday names come from the host translator's `date.month.*` and `date.weekday.*` keys
- * when it has them, and otherwise from `Intl` in `locale`. An English tag, or one `Intl` cannot
- * use, writes the English names.
+ * when no explicit locale is given, and otherwise from `Intl` in the effective formatting locale.
+ * Explicit supported locales take precedence over host translations.
  * @param {Date} date Date to format.
  * @param {string} fmt Format containing `%d %e %m %Y %y %H %M %S %a %A %b %B %s` tokens.
  * @param {{locale?: string|null}|null} [options] `locale` defaults to `getLanguage()`.
  * @returns {string}
  */
 export function formatDate(date, fmt, options) {
-  const locale = options?.locale ?? getLanguage();
+  const locale = formattingLocale(options?.locale, Intl.DateTimeFormat);
+  const useHost = options?.locale == null;
   if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
   return String(fmt).replace(TOKEN_PATTERN, (token) => {
     switch (token) {
@@ -41,10 +42,10 @@ export function formatDate(date, fmt, options) {
       case '%H': return pad(date.getHours());
       case '%M': return pad(date.getMinutes());
       case '%S': return pad(date.getSeconds());
-      case '%a': return localizedShortName('weekday', date, locale);
-      case '%A': return localizedName('weekday', date, locale);
-      case '%b': return localizedShortName('month', date, locale);
-      case '%B': return localizedName('month', date, locale);
+      case '%a': return localizedShortName('weekday', date, locale, useHost);
+      case '%A': return localizedName('weekday', date, locale, useHost);
+      case '%b': return localizedShortName('month', date, locale, useHost);
+      case '%B': return localizedName('month', date, locale, useHost);
       case '%s': return String(Math.floor(date.getTime() / 1000));
       default: return token;
     }
@@ -194,39 +195,32 @@ function nameIndex(type, date) {
   return type === 'month' ? date.getMonth() : date.getDay();
 }
 
-/** @param {'month'|'weekday'} type @param {Date} date @param {string} locale @returns {string} */
-function localizedName(type, date, locale) {
+/** @param {'month'|'weekday'} type @param {Date} date @param {string|string[]} locale @param {boolean} useHost @returns {string} */
+function localizedName(type, date, locale, useHost) {
   const index = nameIndex(type, date);
   const key = `date.${type}.${index}`;
-  const value = translate(key);
-  if (value !== key) return value;
+  const value = useHost ? hostMessage(key) : null;
+  if (value !== null) return value;
   return nameFormatter(type, 'long', locale)?.format(date) ?? ENGLISH_NAMES[type][index];
 }
 
-/** @param {'month'|'weekday'} type @param {Date} date @param {string} locale @returns {string} */
-function localizedShortName(type, date, locale) {
+/** @param {'month'|'weekday'} type @param {Date} date @param {string|string[]} locale @param {boolean} useHost @returns {string} */
+function localizedShortName(type, date, locale, useHost) {
   const index = nameIndex(type, date);
-  const shortKey = `date.${type}.short.${index}`;
-  const shortValue = translate(shortKey);
-  if (shortValue !== shortKey) return shortValue;
-  // A translator that answers the long key only keeps deriving the short name from it.
-  const key = `date.${type}.${index}`;
-  const value = translate(key);
-  if (value !== key) return value.slice(0, 3);
+  const shortValue = useHost ? hostMessage(`date.${type}.short.${index}`) : null;
+  if (shortValue !== null) return shortValue;
   return nameFormatter(type, 'short', locale)?.format(date) ?? ENGLISH_NAMES[type][index].slice(0, 3);
 }
 
 /**
  * The cached `Intl` formatter for one kind of name, or null when the English constants answer.
- * English tags never reach `Intl`, whose `en-GB` writes `Sept` where these names write `Sep`, and
- * the calendar is fixed because `%d`, `%m` and `%Y` are Gregorian in every locale.
+ * The calendar is fixed because `%d`, `%m` and `%Y` are Gregorian in every locale.
  * @param {'month'|'weekday'} type Kind of name.
  * @param {'long'|'short'} style Length of the name.
- * @param {string} locale BCP 47 language tag.
+ * @param {string|string[]} locale BCP 47 language tag or locale list.
  * @returns {Intl.DateTimeFormat|null}
  */
 function nameFormatter(type, style, locale) {
-  if (/^en(?:-|$)/i.test(locale)) return null;
   const key = `${locale}\u0000${type}\u0000${style}`;
   let formatter = nameFormatters.get(key);
   if (formatter === undefined) {

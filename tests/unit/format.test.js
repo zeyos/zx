@@ -211,3 +211,27 @@ test('formatters survive an unusable locale instead of throwing', () => {
   assert.doesNotThrow(() => formatRelativeTime(at(-DAY), { now: NOW, locale: 'not a locale' }));
   assert.match(formatNumber(1234.5, { locale: 'not a locale' }), /1/);
 });
+
+test('unusable explicit formatting locales fall through to active language, then English', () => {
+  setLanguage('de');
+  assert.equal(formatNumber(1234.5, { locale: 'bad locale' }), '1.234,5');
+  assert.equal(formatNumber(1234.5, { locale: 'en-US' }), '1,234.5');
+  assert.equal(formatCurrency(1234.5, 'EUR', { locale: 'bad locale' }), new Intl.NumberFormat('de', { style: 'currency', currency: 'EUR' }).format(1234.5));
+  setLanguage('bad language');
+  assert.equal(formatNumber(1234.5, { locale: 'xx' }), '1,234.5');
+});
+
+test('relative-time locale fallback uses its own service support', (t) => {
+  const supported = Intl.RelativeTimeFormat.supportedLocalesOf;
+  t.mock.method(Intl.RelativeTimeFormat, 'supportedLocalesOf', (requested) => supported.call(
+    Intl.RelativeTimeFormat, Intl.getCanonicalLocales(requested).filter((locale) => locale !== 'en-GB')));
+  assert.ok(Intl.NumberFormat.supportedLocalesOf('en-GB').length, 'numbers support the rejected relative-time locale');
+  const previous = getLanguage();
+  try {
+    setLanguage('ru');
+    assert.equal(formatRelativeTime(at(-DAY), { now: NOW, locale: 'en-GB' }),
+      new Intl.RelativeTimeFormat('ru', { numeric: 'auto' }).format(-1, 'day'));
+    setLanguage('en-GB');
+    assert.equal(formatRelativeTime(at(-DAY), { now: NOW }), 'yesterday');
+  } finally { setLanguage(previous); }
+});

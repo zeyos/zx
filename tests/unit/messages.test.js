@@ -135,7 +135,7 @@ function scanMessageKeys() {
     if (path.startsWith('core/') || path.startsWith('compat/') || path.startsWith('locales/')) continue;
     const source = readFileSync(file, 'utf8');
     const takesFallback = !/\b_message\(key, \.\.\.args\)/.test(source);
-    for (const call of source.matchAll(/(?:\.(_message|_msgOr|msg)|(?<![.\w])(text|message))\(/g)) {
+    for (const call of source.matchAll(/(?:\.(_message|_msgOr|msgPlural|msg)|(?<![.\w])(translatePlural|translate|text|message))\(/g)) {
       const kind = call[1] ?? call[2];
       const args = callArguments(source, call.index + call[0].length);
       const at = `${path}:${source.slice(0, call.index).split('\n').length}`;
@@ -145,7 +145,7 @@ function scanMessageKeys() {
         continue;
       }
       const keys = [...first.matchAll(/'([a-zA-Z]+\.[\w.]+)'/g)].map((match) => match[1]);
-      const fallback = kind !== 'msg' && takesFallback && keys.length === 1 ? stringLiteral(args[1]) : null;
+      const fallback = !['msg', 'msgPlural', 'translate', 'translatePlural'].includes(kind) && takesFallback && keys.length === 1 ? stringLiteral(args[1]) : null;
       for (const key of keys) uses.push({ key, fallback, at });
     }
     for (const entry of source.matchAll(/key:\s*'([a-zA-Z]+\.[\w.]+)'\s*,\s*(?:fallback|label):\s*'((?:[^'\\]|\\.)*)'/g)) {
@@ -220,13 +220,13 @@ test('KanbanView asks for labels the catalogue has, and for no others', () => {
   assert.ok(KANBAN_KEYS.length > 45, `only ${KANBAN_KEYS.length} keys found`);
   const asked = new Set([...KANBAN_KEYS, 'label']);
   const held = Object.keys(defaultMessages).filter((key) => key.startsWith('kanbanView.'))
-    .map((key) => key.slice('kanbanView.'.length));
+    .map((key) => key.slice('kanbanView.'.length).replace(/\.(?:zero|one|two|few|many|other)$/, ''));
   assert.deepEqual(held.filter((key) => !asked.has(key)), [], 'entries nothing asks for');
 });
 
 test('Kanban text fills named placeholders, from an override first and the catalogue next', () => {
   const text = (labels) => KanbanView.prototype._text.bind({
-    _kanbanOptions: () => ({ labels }), msg: Component.prototype.msg, options: {}
+    _kanbanOptions: () => ({ labels }), msg: Component.prototype.msg, msgPlural: Component.prototype.msgPlural, options: {}
   });
   assert.equal(text({})('move', { name: 'Alpha' }), 'Move Alpha');
   assert.equal(text({})('progressValue', { percent: 40 }), '40%');
@@ -367,4 +367,37 @@ test('renamed Calendar keys still read the former bare key, after the new one', 
   const legacyOption = new Probe(fakeElement(), { msg: { next: 'Weiter' } });
   assert.equal(legacyOption.msg('calendar.next'), 'Weiter', 'instance option, former key');
   assert.equal(legacyOption.msg('calendar.label'), 'Calendar');
+});
+
+test('msgPlural preserves instance, host, inherited, and English source tiers', () => {
+  class PluralProbe extends Component {
+    static defaults = { msg: { 'rating.count.one': 'inherited one %1', 'rating.count': 'inherited base %1' } };
+  }
+  const plain = new PluralProbe(fakeElement());
+  assert.equal(plain.msgPlural('rating.count', 1, 'shown'), 'inherited one shown');
+  setTranslator((key) => key === 'rating.count' ? 'host base %1' : null);
+  assert.equal(plain.msgPlural('rating.count', 1, 'shown'), 'host base shown');
+  const own = new PluralProbe(fakeElement(), { lang: 'ru', msg: {
+    ru: { 'rating.count.few': 'own few %1' }, 'rating.count.other': 'own other %1'
+  } });
+  assert.equal(own.msgPlural('rating.count', 2, '1,000'), 'own few 1,000');
+  assert.equal(own.msgPlural('rating.count', 5, 'five'), 'own other five');
+  const legacy = new PluralProbe(fakeElement(), { msg: { 'rating.count': 'own base %1' } });
+  assert.equal(legacy.msgPlural('rating.count', 1, 'one'), 'own base one');
+  setTranslator(null);
+  setLanguage('fr');
+  assert.equal(new Probe(fakeElement()).msgPlural('listToolbar.results', 0, 0), '0 results');
+  assert.equal(new Probe(fakeElement()).msgPlural('listToolbar.results', 1, 1), '1 result');
+});
+
+test('Kanban plural labels use total for filtered records and count for lane/drag labels', () => {
+  const component = { _kanbanOptions: () => ({ labels: {} }), msg: Component.prototype.msg,
+    msgPlural: Component.prototype.msgPlural, options: {} };
+  const text = KanbanView.prototype._text.bind(component);
+  assert.equal(text('count', { count: 1 }), '1 record');
+  assert.equal(text('countFiltered', { count: 1, total: 2 }), '1 of 2 records');
+  assert.equal(text('countFiltered', { count: 0, total: 1 }), '0 of 1 record');
+  assert.equal(text('dragPreview', { count: 1 }), '1 card');
+  component._kanbanOptions = () => ({ labels: { count: 'custom %count% things' } });
+  assert.equal(text('count', { count: 1 }), 'custom 1 things');
 });

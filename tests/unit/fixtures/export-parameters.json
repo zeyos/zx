@@ -676,13 +676,17 @@
   },
   "core/i18n.js": {
     "defaultMessage": 1,
+    "formattingLocale": 2,
     "getLanguage": 0,
     "hostMessage": 1,
     "legacyMessageKey": 1,
+    "pluralKeys": 3,
+    "pluralMessage": 2,
     "printf": 2,
     "setLanguage": 1,
     "setTranslator": 1,
-    "translate": 2
+    "translate": 2,
+    "translatePlural": 4
   },
   "core/icons.js": {
     "configureIcons": 1,

@@ -1,5 +1,5 @@
 // @ts-check
-import { getLanguage } from './i18n.js';
+import { formattingLocale } from './i18n.js';
 
 /**
  * @typedef {Object} NumberFormatOptions
@@ -77,7 +77,7 @@ const relativeFormatters = new Map();
 export function formatNumber(value, options = {}) {
   const number = toFiniteNumber(value);
   if (number === null) return '';
-  const { locale = getLanguage(), decimals, minDecimals, maxDecimals, group = true } = options;
+  const { locale, decimals, minDecimals, maxDecimals, group = true } = options;
   return format(locale, digitOptions({ decimals, minDecimals, maxDecimals, group }), number);
 }
 
@@ -92,7 +92,7 @@ export function formatNumber(value, options = {}) {
 export function formatCurrency(value, currency, options = {}) {
   const number = toFiniteNumber(value);
   if (number === null) return '';
-  const { locale = getLanguage(), decimals } = options;
+  const { locale, decimals } = options;
   const code = currencyCode(currency);
   if (code === null) return formatNumber(number, { locale, decimals });
 
@@ -109,7 +109,7 @@ export function formatCurrency(value, currency, options = {}) {
 export function formatPercent(value, options = {}) {
   const number = toFiniteNumber(value);
   if (number === null) return '';
-  const { locale = getLanguage(), decimals = 0 } = options;
+  const { locale, decimals = 0 } = options;
   return format(locale, { ...digitOptions({ decimals, group: true }), style: 'percent' }, number);
 }
 
@@ -122,7 +122,7 @@ export function formatPercent(value, options = {}) {
 export function formatFileSize(bytes, options = {}) {
   const number = toFiniteNumber(bytes);
   if (number === null) return '';
-  const { locale = getLanguage(), decimals = 1, standard = 'iec' } = options;
+  const { locale, decimals = 1, standard = 'iec' } = options;
   if (number === 0) return `${formatNumber(0, { locale, decimals: 0 })} B`;
 
   const units = standard === 'si' ? SI_UNITS : IEC_UNITS;
@@ -152,7 +152,7 @@ export function formatFileSize(bytes, options = {}) {
 export function formatRelativeTime(date, options = {}) {
   const target = toDate(date);
   if (target === null) return '';
-  const { now = new Date(), locale = getLanguage(), numeric = 'auto' } = options;
+  const { now = new Date(), locale, numeric = 'auto' } = options;
   const reference = toDate(now);
   if (reference === null) return '';
 
@@ -165,13 +165,14 @@ export function formatRelativeTime(date, options = {}) {
 }
 
 /**
- * Returns a cached `Intl.NumberFormat`, falling back to the runtime default for unusable locales.
- * @param {string} locale BCP 47 language tag.
+ * Returns a cached `Intl.NumberFormat`, falling back to the active language for unusable locales.
+ * @param {string|string[]|undefined} locale BCP 47 language tag.
  * @param {Intl.NumberFormatOptions} options Formatter options.
  * @param {number} value Number to format.
  * @returns {string}
  */
 function format(locale, options, value) {
+  locale = formattingLocale(locale);
   const key = `${locale}\u0000${JSON.stringify(options)}`;
   let formatter = numberFormatters.get(key);
   if (formatter === undefined) {
@@ -182,7 +183,7 @@ function format(locale, options, value) {
 }
 
 /**
- * @param {string} locale BCP 47 language tag.
+ * @param {string|string[]|undefined} locale BCP 47 language tag.
  * @param {Intl.NumberFormatOptions} options Formatter options.
  * @returns {Intl.NumberFormat}
  */
@@ -191,27 +192,28 @@ function createNumberFormat(locale, options) {
     return new Intl.NumberFormat(locale, options);
   } catch {
     try {
-      return new Intl.NumberFormat(undefined, options);
+      return new Intl.NumberFormat(formattingLocale(), options);
     } catch {
       // Unusable options (an unsupported currency style, say) still have to produce digits.
-      return new Intl.NumberFormat();
+      return new Intl.NumberFormat(formattingLocale());
     }
   }
 }
 
 /**
- * @param {string} locale BCP 47 language tag.
+ * @param {string|string[]|undefined} locale BCP 47 language tag.
  * @param {'auto'|'always'} numeric Numeric-phrasing mode.
  * @returns {Intl.RelativeTimeFormat}
  */
 function relativeFormatter(locale, numeric) {
+  locale = formattingLocale(locale, Intl.RelativeTimeFormat);
   const key = `${locale}\u0000${numeric}`;
   let formatter = relativeFormatters.get(key);
   if (formatter === undefined) {
     try {
       formatter = new Intl.RelativeTimeFormat(locale, { numeric });
     } catch {
-      formatter = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
+      formatter = new Intl.RelativeTimeFormat(formattingLocale(undefined, Intl.RelativeTimeFormat), { numeric: 'auto' });
     }
     relativeFormatters.set(key, formatter);
   }

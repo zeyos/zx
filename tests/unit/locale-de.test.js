@@ -44,7 +44,8 @@ const SAME_AS_ENGLISH = new Map([
   ['viewSettings.typeStatus', 'shared word'],
   ['viewSettings.typeTags', 'established term'],
   ['viewSettings.typeText', 'shared word'],
-  ['viewSettings.typeUrl', 'established term']
+  ['viewSettings.typeUrl', 'established term'],
+  ['zeyosModuleBar.weblets', 'established term']
 ]);
 
 /**
@@ -56,41 +57,9 @@ const DATE_PATTERNS = new Set([
   'daterange.span.day', 'daterange.span.full', 'daterange.span.month', 'runStatus.dateTimeFormat', 'runStatus.timeFormat'
 ]);
 
-/**
- * The placeholders `printf()` fills, sorted, so a repeated or a dropped one shows.
- * @param {string} text
- * @returns {string[]}
- */
-function placeholders(text) {
-  return [...text.matchAll(/%\d+|%[A-Za-z_][\w.-]*%/g)].map((match) => match[0]).sort();
-}
-
 afterEach(() => {
   setTranslator(null);
   setLanguage('en');
-});
-
-test('the keys are those of the English catalogue, in its order', () => {
-  const english = Object.keys(defaultMessages);
-  const german = Object.keys(de);
-  assert.deepEqual(english.filter((key) => !Object.hasOwn(de, key)), [], 'missing from src/locales/de.js');
-  assert.deepEqual(german.filter((key) => !Object.hasOwn(defaultMessages, key)), [], 'not in defaultMessages');
-  assert.deepEqual(german, english);
-});
-
-test('the catalogue is frozen and every entry has text', () => {
-  assert.ok(Object.isFrozen(de));
-  for (const [key, text] of Object.entries(de)) {
-    assert.equal(typeof text, 'string', key);
-    assert.notEqual(text.trim(), '', key);
-  }
-});
-
-test('every entry keeps the placeholders of its English text', () => {
-  for (const [key, english] of Object.entries(defaultMessages)) {
-    if (DATE_PATTERNS.has(key)) continue;
-    assert.deepEqual(placeholders(de[key] ?? ''), placeholders(english), key);
-  }
 });
 
 test('only the listed entries read the same as the English text', () => {

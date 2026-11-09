@@ -1,6 +1,6 @@
 // @ts-check
 import { h, resolveElement } from './dom.js';
-import { defaultMessage, getLanguage, hostMessage, legacyMessageKey, printf } from './i18n.js';
+import { defaultMessage, getLanguage, hostMessage, legacyMessageKey, pluralKeys, pluralMessage, printf } from './i18n.js';
 import { deepMerge, isElement } from './util.js';
 
 /** @typedef {Record<string, any>} ComponentOptions */
@@ -245,6 +245,30 @@ export class Component extends EventTarget {
       ?? (legacy ? hostMessage(legacy) : null)
       ?? pickMessage(tables.inherited, lang, key)
       ?? defaultMessage(key)
+      ?? key;
+    return printf(text, args);
+  }
+
+  /**
+   * Resolves a cardinal plural message, keeping the numeric count separate from displayed values.
+   * Each source tries the selected category, `other`, and the unsuffixed/legacy key before moving
+   * from instance messages to the host, class defaults, and finally English plural rules.
+   * @param {string} key Unsuffixed message key.
+   * @param {number} count Finite numeric count.
+   * @param {...unknown} args Positional interpolation values.
+   * @returns {string}
+   */
+  msgPlural(key, count, ...args) {
+    const lang = this.options?.lang ?? this.options?.language ?? getLanguage();
+    const keys = pluralKeys(key, count, lang);
+    const tables = messageTables.get(this) ?? {
+      own: isMessageTable(this.options?.msg) ? this.options.msg : null,
+      inherited: null
+    };
+    const text = pluralMessage(keys, (candidate) => pickMessage(tables.own, lang, candidate))
+      ?? pluralMessage(keys, hostMessage)
+      ?? pluralMessage(keys, (candidate) => pickMessage(tables.inherited, lang, candidate))
+      ?? pluralMessage(pluralKeys(key, count, 'en'), defaultMessage)
       ?? key;
     return printf(text, args);
   }

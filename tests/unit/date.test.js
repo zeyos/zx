@@ -86,10 +86,11 @@ test('formatDate takes a locale, which beats the active language', () => {
   }
 });
 
-test('English tags keep the English names, and a tag Intl refuses falls back to them', () => {
+test('English regional names follow Intl and unusable tags fall back to the active language', () => {
   const september = new Date(2026, 8, 6);
   for (const locale of ['en', 'en-GB', 'EN-us']) {
-    assert.equal(formatDate(september, '%A %a %B %b', { locale }), 'Sunday Sun September Sep', locale);
+    const short = new Intl.DateTimeFormat(locale, { month: 'short' }).format(september);
+    assert.equal(formatDate(september, '%A %a %B %b', { locale }), `Sunday Sun September ${short}`, locale);
   }
   assert.equal(formatDate(september, '%B', { locale: 'not a locale' }), 'September');
 });
@@ -121,15 +122,18 @@ test('formatDate reads a third argument only when it holds a locale', () => {
   assert.equal(formatDate(date, '%B', { locale: 'de' }), 'März');
 });
 
-test('a translator answers before Intl, and its long names still shorten to three letters', () => {
+test('implicit names use host translations and missing short names come from Intl', () => {
   const thursday = new Date(2026, 2, 5);
   try {
     setLanguage('de');
     setTranslator((key) => ({ 'date.month.2': 'Lenzmond' })[key] ?? null);
-    assert.equal(formatDate(thursday, '%B %b'), 'Lenzmond Len');
+    assert.equal(formatDate(thursday, '%B %b'), 'Lenzmond Mär');
+    assert.equal(formatDate(thursday, '%B', { locale: null }), 'Lenzmond', 'null remains an implicit locale');
     assert.equal(formatDate(thursday, '%A %a'), 'Donnerstag Do', 'keys it lacks stay with Intl');
     setTranslator((key) => ({ 'date.month.short.2': 'Lz' })[key] ?? null);
     assert.equal(formatDate(thursday, '%b'), 'Lz');
+    assert.equal(formatDate(thursday, '%B %b', { locale: 'en-GB' }), 'March Mar', 'explicit locale bypasses both host names');
+    assert.equal(formatDate(thursday, '%B', { locale: 'invalid tag' }), 'März', 'invalid explicit locale uses active language');
   } finally {
     setTranslator(null);
     setLanguage('en');

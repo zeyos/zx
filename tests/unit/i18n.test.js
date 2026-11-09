@@ -68,3 +68,71 @@ test('placeholders keep their reading in one pass', () => {
   assert.equal(printf('%name%', {}), '%name%');
   assert.equal(printf('%3', ['a']), '%3');
 });
+
+test('plural rules support Arabic, Russian, and French with an explicit numeric count', async () => {
+  const { translatePlural } = await import('../../src/core/i18n.js');
+  setTranslator((key) => key.startsWith('items.') ? `${key}: %1` : null);
+  for (const [locale, cases] of [
+    ['ar', [[0, 'zero'], [1, 'one'], [2, 'two'], [3, 'few'], [11, 'many'], [100, 'other']]],
+    ['ru', [[1, 'one'], [2, 'few'], [5, 'many'], [1.5, 'other']]],
+    ['fr', [[0, 'one'], [1, 'one'], [2, 'other']]]
+  ]) {
+    setLanguage(locale);
+    for (const [count, category] of cases) {
+      assert.equal(translatePlural('items', count, ['formatted 1,000']), `items.${category}: formatted 1,000`);
+    }
+  }
+  assert.equal(translatePlural('items', 2, ['two'], { locale: 'ar' }), 'items.two: two');
+  for (const count of ['2', NaN, Infinity, null]) assert.throws(() => translatePlural('items', count), TypeError);
+});
+
+test('plural lookup respects each source before English and recomputes English cardinal rules', async () => {
+  const { translatePlural } = await import('../../src/core/i18n.js');
+  setLanguage('fr');
+  assert.equal(translatePlural('rating.count', 0, ['zero']), 'zero ratings', 'French zero must not choose English singular');
+  assert.equal(translatePlural('rating.count', 1, ['one']), 'one rating');
+  setTranslator((key) => ({ 'rating.count': 'legacy %1', 'rating.count.other': 'other %1' })[key]);
+  assert.equal(translatePlural('rating.count', 1, ['shown']), 'other shown', 'host other wins over English one and host base');
+  setTranslator((key) => key === 'rating.count' ? 'legacy %1' : null);
+  assert.equal(translatePlural('rating.count', 1, ['shown']), 'legacy shown');
+  setTranslator((key) => key === 'today' ? 'legacy date' : null);
+  assert.equal(translatePlural('calendar.today', 1), 'legacy date');
+  const calls = [];
+  setTranslator((key) => { calls.push(key); return key.endsWith('.one') ? 'selected' : null; });
+  assert.equal(translatePlural('rating.count', 1), 'selected');
+  assert.deepEqual(calls, ['rating.count.one'], 'stop as soon as a source answers');
+});
+
+test('plural locale fallback is deterministic and an intentional empty translation stays empty', async () => {
+  const { translatePlural } = await import('../../src/core/i18n.js');
+  setTranslator((key) => ({ 'items.one': 'one', 'items.few': 'few', 'items.other': 'other' })[key]);
+  setLanguage('ru');
+  assert.equal(translatePlural('items', 2, [], { locale: 'invalid tag' }), 'few');
+  for (const language of ['invalid tag', 'zz-ZZ']) {
+    setLanguage(language);
+    assert.equal(translatePlural('items', 1), 'one');
+    assert.equal(translatePlural('items', 2), 'other');
+  }
+  setTranslator((key) => ({ 'items.one': '', items: 'legacy' })[key]);
+  assert.equal(translatePlural('items', 1), '');
+  assert.equal(translate('items', [1]), 'legacy');
+});
+
+test('plural locale fallback uses PluralRules support rather than NumberFormat support', async (t) => {
+  const { formattingLocale, translatePlural } = await import('../../src/core/i18n.js');
+  // Some ICU builds support Bashkir numbers but have no Bashkir plural data. Keep that support
+  // boundary explicit so the regression remains useful when the runtime's ICU data changes.
+  const numbers = Intl.NumberFormat.supportedLocalesOf;
+  const plurals = Intl.PluralRules.supportedLocalesOf;
+  t.mock.method(Intl.NumberFormat, 'supportedLocalesOf', (requested) => requested.includes('ba')
+    ? ['ba'] : numbers.call(Intl.NumberFormat, requested));
+  t.mock.method(Intl.PluralRules, 'supportedLocalesOf', (requested) =>
+    plurals.call(Intl.PluralRules, requested.filter((locale) => locale !== 'ba')));
+  setLanguage('ru');
+  setTranslator((key) => key.startsWith('items.') ? `chosen:${key}` : null);
+  assert.equal(formattingLocale('ba'), 'ba', 'the locale really remains supported for numbers');
+  assert.equal(translatePlural('items', 2, [], { locale: 'ba' }), 'chosen:items.few');
+  setLanguage('ba');
+  assert.equal(formattingLocale(undefined, Intl.PluralRules), 'en', 'unsupported active locale uses deterministic English');
+  assert.equal(translatePlural('items', 2), 'chosen:items.other');
+});
