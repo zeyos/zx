@@ -311,6 +311,8 @@ export class Tabbox extends Component {
   disableTab(name) {
     const record = this._require(name);
     if (record.definition.disabled) return this;
+    const held = record.tab.contains(document.activeElement);
+    const wasStop = record.tab.tabIndex === 0;
     if (record === this._active) {
       const replacement = this._enabledTabs().find((item) => item !== record) ?? null;
       if (replacement) {
@@ -327,6 +329,10 @@ export class Tabbox extends Component {
     record.definition.disabled = true;
     record.tab.setAttribute('aria-disabled', 'true');
     record.tab.tabIndex = -1;
+    if (held || wasStop) {
+      const replacement = this._active ?? this._enabledTabs()[0];
+      if (replacement) this._setFocused(replacement, held);
+    }
     return this;
   }
 
@@ -393,6 +399,8 @@ export class Tabbox extends Component {
     const record = this._find(name);
     if (!record) return false;
     const index = this._tabs.indexOf(record);
+    const held = record.tab.contains(document.activeElement);
+    const wasStop = record.tab.tabIndex === 0;
     const remaining = this._tabs.filter((item) => item !== record);
     const enabled = remaining.filter((item) => !item.definition.disabled);
     const replacement = enabled.find((item) => this._tabs.indexOf(item) > index) ?? enabled.at(-1) ?? null;
@@ -411,6 +419,7 @@ export class Tabbox extends Component {
       this._active = null;
       if (replacement) this._applyActive(replacement);
     }
+    if ((held || wasStop) && replacement) this._setFocused(replacement, held);
     if (emitClose) this.emit('close', { name: record.definition.name });
     return true;
   }
