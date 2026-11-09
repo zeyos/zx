@@ -2405,7 +2405,10 @@ export class KanbanView extends RecordView {
     const overrides = this._kanbanOptions().labels;
     // `msg()` fills positional placeholders and these are named, so it only supplies the template.
     const source = overrides && typeof overrides === 'object' && key in overrides
-      ? overrides[key] : this.msg(`kanbanView.${key}`);
+      ? overrides[key]
+      : ['count', 'countFiltered', 'countLimit', 'countLimitInLane', 'dragPreview'].includes(key)
+        ? this.msgPlural(`kanbanView.${key}`, Number(key === 'countFiltered' ? args?.total : args?.count))
+        : this.msg(`kanbanView.${key}`);
     return printf(source == null ? String(key) : String(source), args);
   }
 
