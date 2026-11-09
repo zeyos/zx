@@ -730,7 +730,9 @@ export class Questionnaire extends Component {
       // The required rule says what an empty item already says; the others read their English.
       message = checkRules(item.validate, answer, (key, ...args) => (key === 'required'
         ? this.msg(item.choices.length > 0 ? 'questionnaire.required' : 'questionnaire.requiredInput')
-        : ruleText((ruleKey, ...values) => this.msg(ruleKey, ...values), key, ...args)));
+        : ruleText((ruleKey, ...values) => ruleKey === 'questionnaire.rule.minLength'
+          ? this.msgPlural(ruleKey, Number(values[0]), ...values)
+          : this.msg(ruleKey, ...values), key, ...args)));
     } else if (!message && typeof item.validate === 'function') {
       this._setBusy(true);
       try {
