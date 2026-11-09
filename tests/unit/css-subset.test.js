@@ -25,7 +25,7 @@ const CORE = 'styles/core.css';
  */
 const ORDER = `
   ./tokens/global.css ./tokens/themes.css ./tokens/semantic.css ./tokens/dark.css
-  ./tokens/modules.css ./base.css ./icons.css ./prose.css
+  ./base.css ./icons.css ./prose.css
   kbd/kbd button/button badge/badge check-button/check-button empty-state/empty-state layout/layout
   truncate/truncate loading/spinner loading/progress-bar loading/inline-loading skeleton/skeleton
   copy/copy-button copy/copy-input prose/prose code-editor/code-editor toolbar/toolbar toggle/toggle

@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
+import { buildSubset } from '../../bin/zx-css.js';
 
 import {
   moduleAliases, moduleColor, moduleGlyphColor, moduleIconName, moduleInfo, moduleKeys,
@@ -98,6 +100,18 @@ test('the checked-in module tokens match the configuration', async () => {
     renderModuleTokens(),
     'styles/tokens/modules.css is stale — run node tools/build-module-tokens.js'
   );
+});
+
+test('the generic CSS excludes product colours and the optional source sheet restores their import', () => {
+  const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
+  assert.doesNotMatch(read('styles/core.css'), /tokens\/modules\.css/);
+  assert.equal(/--zx-module-[\w-]+\s*:/.test(buildSubset(['select'])), false,
+    'generic subsets never define product module colours');
+  assert.match(read('styles/zeyos.css'), /@import url\("\.\/tokens\/modules\.css"\)/);
+  assert.match(read('website/site.css'), /@import url\("\.\.\/styles\/zeyos\.css"\)/);
+  const manifest = JSON.parse(read('package.json'));
+  assert.equal(manifest.exports['./styles/*'], './styles/*');
+  assert.ok(manifest.files.includes('styles'), 'the optional source sheet is in the package allowlist');
 });
 
 /**
