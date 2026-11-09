@@ -46,6 +46,9 @@ import { buildZeyosTableConfig, createServerPager } from './table.js';
  * @property {string|Function} [swimlaneBy] Kanban swim-lane field or resolver.
  * @property {false|Record<string,any>|ZeyosSavedViewsOptions|null} [savedViews] Existing registry or
  * injected transport/scope configuration for named saved views.
+ * @property {'error'|'baseline'} [savedViewFallback='error'] Allow record loads using the configured
+ * baseline when the saved-view registry cannot be read. `ready` still rejects and saved-view
+ * operations remain unavailable until a later initialization succeeds.
  * @property {(record:Record<string,unknown>,event:CustomEvent<Record<string,unknown>>)=>void} [onRecordClick]
  */
 
@@ -111,7 +114,8 @@ import { buildZeyosTableConfig, createServerPager } from './table.js';
  * @property {number} pageSize Current server page size.
  * @property {boolean} hasMore Whether another page is available.
  * @property {Record<string,any>|null} savedViews Saved-view registry when configured.
- * @property {Promise<SavedViewApplyResult|null>} ready Default restoration completed before loads.
+ * @property {Promise<SavedViewApplyResult|null>} ready Default restoration completed before loads;
+ * rejects on failure even when baseline record loading is enabled.
  * @property {(options?:ZeyosApplyViewOptions)=>Promise<SavedViewApplyResult|null>} restoreDefault Restores the current default.
  * @property {(details:{id?:string,name:string})=>ZeyosSavedViewCapture} captureView Captures current query/view state without persistence.
  * @property {(details:ZeyosSaveViewOptions)=>Promise<SavedViewEntry>} saveView Captures and persists the current view.
@@ -232,6 +236,7 @@ export function zeyosView(client, resource, View, opts = {}) {
   }
   let destroyed = false;
   const performLoad = pager.load;
+  let initializationUnsafe = false;
 
   /** @param {string} idOrName @param {{load?:boolean}} [options={}] @returns {Promise<SavedViewApplyResult>} */
   const applySaved = async (idOrName, options = {}) => {
@@ -251,16 +256,38 @@ export function zeyosView(client, resource, View, opts = {}) {
     return result;
   };
 
-  /** @param {{load?:boolean}} [options={}] @returns {Promise<SavedViewApplyResult|null>} */
-  const restoreDefaultInternal = async (options = {}) => {
+  /**
+   * @param {{load?:boolean}} [options={}] Apply behavior.
+   * @param {()=>void} [onReadFailure] Marks a registry read failure for this attempt.
+   * @returns {Promise<SavedViewApplyResult|null>}
+   */
+  const restoreDefaultInternal = async (options = {}, onReadFailure = () => {}) => {
     if (!savedViews) return null;
-    await readySavedViews(savedViews);
+    try {
+      await readySavedViews(savedViews);
+    } catch (error) {
+      if (!destroyed) {
+        onReadFailure();
+        if (opts.savedViewFallback === 'baseline') {
+          try { facade.reportError(error, { operation: 'savedViews.read', resource }); }
+          catch { /* Preserve the registry failure if reporting itself fails. */ }
+        }
+      }
+      throw error;
+    }
     if (destroyed) throw new Error('ZeyOS view binding has been destroyed');
-    const entry = await savedViews.getDefault();
-    if (!entry) return /** @type {SavedViewApplyResult} */ ({
-      status: 'missing', applied: false, entry: null
-    });
-    return applySaved(entry.id, options);
+    try {
+      const entry = await savedViews.getDefault();
+      if (destroyed) throw new Error('ZeyOS view binding has been destroyed');
+      if (!entry) return /** @type {SavedViewApplyResult} */ ({
+        status: 'missing', applied: false, entry: null
+      });
+      return await applySaved(entry.id, options);
+    } catch (error) {
+      // A failed application may have changed view or query state, so it is not a safe baseline.
+      initializationUnsafe = true;
+      throw error;
+    }
   };
 
   /** Default application starts immediately and every server load below awaits it. */
@@ -275,9 +302,11 @@ export function zeyosView(client, resource, View, opts = {}) {
    * Later operations retry a failed initial registry/default restoration instead of remaining
    * poisoned by the intentionally observable first `ready` rejection.
    * @param {{load?:boolean}} [options={load:false}] Retry apply behavior.
+   * @param {boolean} [allowBaseline=false] Permit record loading after a registry read failure.
    * @returns {Promise<SavedViewApplyResult|null>}
    */
-  const ensureInitialized = async (options = { load: false }) => {
+  const ensureInitialized = async (options = { load: false }, allowBaseline = false) => {
+    if (destroyed) throw new Error('ZeyOS view binding has been destroyed');
     if (initialized) return null;
     try {
       const result = await ready;
@@ -286,27 +315,38 @@ export function zeyosView(client, resource, View, opts = {}) {
     } catch {
       // The first failure remains available through binding.ready; this operation gets a retry.
     }
+    if (destroyed) throw new Error('ZeyOS view binding has been destroyed');
     if (!retryingInitialization) {
-      const retry = restoreDefaultInternal(options).then((result) => {
+      const attempt = { readFailed: false, promise: null };
+      const retry = restoreDefaultInternal(options, () => { attempt.readFailed = true; }).then((result) => {
         initialized = true;
         return result;
       });
-      const pending = retry.finally(() => {
-        if (retryingInitialization === pending) retryingInitialization = null;
+      attempt.promise = retry.finally(() => {
+        if (retryingInitialization === attempt) retryingInitialization = null;
       });
-      retryingInitialization = pending;
+      retryingInitialization = attempt;
     }
-    return retryingInitialization;
+    const attempt = retryingInitialization;
+    try {
+      return await attempt.promise;
+    } catch (error) {
+      if (allowBaseline && opts.savedViewFallback === 'baseline' && attempt.readFailed
+        && !initializationUnsafe && !destroyed) return null;
+      throw error;
+    }
   };
 
   const load = async (options = {}) => {
     // Rejected before saved-view initialization runs, so an invalid call has no side effect.
     pager.check(options);
-    await ensureInitialized({ load: false });
+    await ensureInitialized({ load: false }, true);
     return performLoad(options);
   };
 
   const captureView = (details) => {
+    if (destroyed) throw new Error('ZeyOS view binding has been destroyed');
+    if (savedViews && !initialized) throw new Error('Saved-view initialization has not succeeded');
     if (!presentation || typeof view.getViewState !== 'function') {
       throw new Error('This view does not expose serializable saved-view state');
     }
@@ -359,7 +399,7 @@ export function zeyosView(client, resource, View, opts = {}) {
     setSearch: (search) => load({ search, page: 0 }),
     setFilters: (filters) => load({ filters, page: 0 }),
     loadMore: async () => {
-      await ensureInitialized({ load: false });
+      await ensureInitialized({ load: false }, true);
       return pager.loadMore();
     },
     get count() { return pager.count; },

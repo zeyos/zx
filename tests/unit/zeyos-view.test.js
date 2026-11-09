@@ -349,3 +349,135 @@ test('a rejected zeyosView load leaves page size, search, and filters untouched'
   assert.deepEqual([client.calls.at(-1).limit, client.calls.at(-1).filters.status], [1, 0]);
   binding.destroy();
 });
+
+test('saved-view registry read failures block record loads by default', async () => {
+  const client = fakeClient();
+  const document = { version: 99, views: [] };
+  let writes = 0;
+  const transport = { load: async () => document, save: async () => { writes++; } };
+  const binding = zeyosView(client, 'tickets', FakeCardView, {
+    fields: ['name'], savedViews: { transport, scope: { userId: 'u', workspaceId: null } }
+  });
+  await assert.rejects(binding.ready, /Unsupported saved-view document version/);
+  await assert.rejects(binding.load(), /Unsupported saved-view document version/);
+  await assert.rejects(binding.saveView({ name: 'Mine' }), /Unsupported saved-view document version/);
+  await assert.rejects(binding.applyView('Mine'), /Unsupported saved-view document version/);
+  assert.throws(() => binding.captureView({ name: 'Mine' }), /initializ/i);
+  assert.equal(client.calls.length, 0); assert.equal(writes, 0);
+  assert.deepEqual(document, { version: 99, views: [] }); binding.destroy();
+});
+
+test('baseline fallback reports failed registry reads, loads configured records, and recovers after repair', async () => {
+  const { Message } = await import('../../src/components/message/message.js');
+  const originalError = Message.error;
+  const reports = []; Message.error = (message) => { reports.push(message); };
+  const client = fakeClient();
+  let document = { version: 99, views: [] };
+  let writes = 0, reads = 0;
+  const transport = { load: async () => { reads++; return document; }, save: async () => { writes++; } };
+  const binding = zeyosView(client, 'tickets', FakeCardView, {
+    fields: ['name', 'priority'], filters: { status: 0 }, search: 'initial', sort: { id: 'priority', dir: 'desc' }, pageSize: 1,
+    savedViewFallback: 'baseline', savedViews: { transport, scope: { userId: 'u', workspaceId: null } }
+  });
+  try {
+    await assert.rejects(binding.ready, /Unsupported saved-view document version/);
+    const first = await binding.load();
+    assert.deepEqual(first.query.sort, ['-priority']); assert.deepEqual(first.query.filters, { status: 0, visibility: 0 });
+    assert.equal(first.query.query, 'initial'); assert.equal(first.data[0].name, 'Printer');
+    await binding.loadMore(); await binding.load();
+    assert.equal(client.calls.length, 3); assert(reports.some((text) => /Unsupported saved-view document version/.test(text)));
+    assert.throws(() => binding.captureView({ name: 'Mine' }), /initializ/i);
+    await assert.rejects(binding.saveView({ name: 'Mine' }), /Unsupported saved-view document version/);
+    await assert.rejects(binding.applyView('Mine'), /Unsupported saved-view document version/);
+    await assert.rejects(binding.restoreDefault(), /Unsupported saved-view document version/);
+    assert.equal(writes, 0); assert.deepEqual(document, { version: 99, views: [] });
+    document = { version: 1, defaultId: 'recovered', views: [{
+      id: 'recovered', name: 'Recovered', type: 'card', state: { version: 1, sort: { id: 'name', dir: 'asc' } },
+      filters: { priority: 1 }, search: 'restored', createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z'
+    }] };
+    const recovered = await binding.load(); assert.equal(recovered.data[0].name, 'Printer');
+    assert.deepEqual(recovered.query.sort, ['+name']); assert.equal(recovered.query.query, 'restored');
+    assert.equal(recovered.query.filters.priority, 1);
+    assert.ok(reads > 1); assert.equal(binding.captureView({ name: 'Mine' }).search, 'restored');
+    await binding.saveView({ name: 'Mine' }); assert.equal(writes, 1);
+  } finally { binding.destroy(); Message.error = originalError; }
+});
+
+test('baseline fallback does not suppress failures applying a saved default', async () => {
+  const client = fakeClient();
+  const registry = new FakeSavedViews([{ id: 'bad', name: 'Bad', type: 'card', state: { version: 1 }, filters: {}, search: '' }], { defaultId: 'bad' });
+  registry.apply = async () => { throw new Error('consumer cannot apply state'); };
+  const binding = zeyosView(client, 'tickets', FakeCardView, { savedViews: registry, savedViewFallback: 'baseline' });
+  await assert.rejects(binding.ready, /consumer cannot apply state/);
+  await assert.rejects(binding.load(), /consumer cannot apply state/);
+  assert.equal(client.calls.length, 0); binding.destroy();
+});
+
+test('baseline option keeps ordinary valid and unconfigured view initialization', async () => {
+  const client = fakeClient();
+  const withoutRegistry = zeyosView(client, 'tickets', FakeCardView, { savedViewFallback: 'baseline' });
+  assert.equal(await withoutRegistry.ready, null); await withoutRegistry.load(); withoutRegistry.destroy();
+  const registry = new FakeSavedViews([{ id: 'mine', name: 'Mine', type: 'card', state: { version: 1, sort: { id: 'priority', dir: 'desc' } }, filters: { priority: 1 }, search: 'restored' }], { defaultId: 'mine' });
+  const withRegistry = zeyosView(client, 'tickets', FakeCardView, { savedViews: registry, savedViewFallback: 'baseline' });
+  await withRegistry.load(); assert.equal((await withRegistry.ready).status, 'applied');
+  assert.equal(client.calls.at(-1).query, 'restored'); assert.deepEqual(client.calls.at(-1).sort, ['-priority']);
+  withRegistry.destroy();
+});
+
+test('baseline fallback does not hide default selection or query application errors', async () => {
+  for (const failure of ['default', 'query']) {
+    const client = fakeClient();
+    const registry = new FakeSavedViews([{ id: 'bad', name: 'Bad', type: 'card', state: { version: 1 }, filters: {}, search: '' }], { defaultId: 'bad' });
+    if (failure === 'default') registry.getDefault = async () => { throw new Error('default consumer failed'); };
+    else registry.apply = async (_id, _view, { onQuery }) => { await onQuery({ filters: {}, search: { toString() { throw new Error('query application failed'); } } }); };
+    const binding = zeyosView(client, 'tickets', FakeCardView, { savedViews: registry, savedViewFallback: 'baseline' });
+    const expected = failure === 'default' ? /default consumer failed/ : /query application failed/;
+    await assert.rejects(binding.ready, expected);
+    await assert.rejects(binding.load(), expected);
+    assert.equal(client.calls.length, 0, failure); binding.destroy();
+  }
+});
+
+test('concurrent baseline loads and saved-view writes share a retry but only loads may continue', async () => {
+  const { Message } = await import('../../src/components/message/message.js');
+  const originalError = Message.error; Message.error = () => {};
+  const client = fakeClient(); let reads = 0, writes = 0;
+  const registry = new FakeSavedViews();
+  registry.ready = async () => { reads++; throw new Error('offline'); };
+  registry.capture = async () => { writes++; };
+  const binding = zeyosView(client, 'tickets', FakeCardView, { savedViews: registry, savedViewFallback: 'baseline' });
+  try {
+    await assert.rejects(binding.ready, /offline/);
+    const [load, save] = await Promise.allSettled([binding.load(), binding.saveView({ name: 'Blocked' })]);
+    assert.equal(load.status, 'fulfilled'); assert.equal(save.status, 'rejected');
+    assert.equal(reads, 2); assert.equal(client.calls.length, 1); assert.equal(writes, 0);
+  } finally { binding.destroy(); Message.error = originalError; }
+});
+
+test('destroying during a saved-view read does not trigger fallback or report', async () => {
+  const { Message } = await import('../../src/components/message/message.js');
+  const originalError = Message.error; let reports = 0; Message.error = () => { reports++; };
+  const client = fakeClient(); const registry = new FakeSavedViews();
+  let rejectRead; registry.ready = () => new Promise((_resolve, reject) => { rejectRead = reject; });
+  const binding = zeyosView(client, 'tickets', FakeCardView, { savedViews: registry, savedViewFallback: 'baseline' });
+  try {
+    const pending = binding.load(); binding.destroy(); rejectRead(new Error('offline'));
+    await assert.rejects(binding.ready, /offline/); await assert.rejects(pending, /destroyed/);
+    assert.equal(client.calls.length, 0); assert.equal(reports, 0);
+  } finally { binding.destroy(); Message.error = originalError; }
+});
+
+test('a later read failure cannot fall back after a partially applied default', async () => {
+  const { Message } = await import('../../src/components/message/message.js');
+  const originalError = Message.error; Message.error = () => {};
+  const client = fakeClient(); const registry = new FakeSavedViews([{ id: 'bad', name: 'Bad', type: 'card', state: { version: 1 }, filters: {}, search: '' }], { defaultId: 'bad' });
+  let readyCalls = 0;
+  registry.ready = async () => { if (++readyCalls > 2) throw new Error('read failed'); };
+  registry.apply = async (_id, view) => { view.setViewState({ version: 1, sort: { id: 'priority', dir: 'desc' } }); throw new Error('apply failed'); };
+  const binding = zeyosView(client, 'tickets', FakeCardView, { savedViews: registry, savedViewFallback: 'baseline' });
+  try {
+    await assert.rejects(binding.ready, /apply failed/);
+    await assert.rejects(binding.load(), /read failed/);
+    assert.equal(client.calls.length, 0);
+  } finally { binding.destroy(); Message.error = originalError; }
+});
