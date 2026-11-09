@@ -224,7 +224,7 @@ const OPEN_STATES = new Set(['queued', 'running', 'waiting']);
  * @property {Run} run
  * @property {string} traceId
  * @property {boolean} open Its arguments are still arriving.
- * @property {number} startedAt
+ * @property {{source:boolean, value:number}} startedAt
  * @property {boolean} gated
  * @property {boolean} decided
  * @property {string|null} tileId
@@ -304,7 +304,7 @@ export function connectAgUi(thread, options = {}) {
   const approvals = new Map();
   /** @type {Set<string>} */
   const tileRefs = new Set();
-  /** @type {{id: string, start: number, stepId: string, traceId: string, text: string, open: Set<string>, seen: Set<string>}|null} */
+  /** @type {{id: string, start: {source:boolean, value:number}, stepId: string, traceId: string, text: string, open: Set<string>, seen: Set<string>}|null} */
   let reasoning = null;
   /** @type {Set<string>} */
   const spans = new Set();
@@ -339,6 +339,14 @@ export function connectAgUi(thread, options = {}) {
   const by = (key = agent) => (key ? { author: key } : {});
   /** @param {AgUiEvent} event @returns {number} */
   const timeOf = (event) => (typeof event.timestamp === 'number' && Number.isFinite(event.timestamp) ? event.timestamp : Date.now());
+  /** @param {AgUiEvent} [event] @returns {{source:boolean, value:number}} */
+  const stamp = (event) => {
+    const source = typeof event?.timestamp === 'number' && Number.isFinite(event.timestamp);
+    return { source, value: source ? event.timestamp : Date.now() };
+  };
+  /** @param {{source:boolean,value:number}} start @param {{source:boolean,value:number}} end @returns {number|null} */
+  const elapsed = (start, end) => start.source === end.source && end.value >= start.value
+    ? end.value - start.value : null;
   /** @param {string|null|undefined} token @returns {string|null} */
   const tokenOf = (token) => (typeof token === 'string' && token.length <= MAX_TOKEN ? token : null);
 
@@ -760,9 +768,9 @@ export function connectAgUi(thread, options = {}) {
   /**
    * Ends a run: open reasoning, messages and fences, then the surfaces an unterminated fence left.
    * @param {Run} run @param {'done'|'stopped'|'failed'|null} outcome
-   * @param {number} [at] When the run ended.
+   * @param {{source:boolean,value:number}} [at] When the run ended.
    */
-  const closeRun = (run, outcome, at = Date.now()) => {
+  const closeRun = (run, outcome, at = stamp()) => {
     if (reasoning) endReasoning(at);
     const stopped = outcome === 'stopped' || outcome === 'failed';
     for (const entry of calls.values()) {
@@ -798,12 +806,13 @@ export function connectAgUi(thread, options = {}) {
     }
   };
 
-  /** @param {number} at */
+  /** @param {{source:boolean,value:number}} at */
   const endReasoning = (at) => {
     const span = /** @type {NonNullable<typeof reasoning>} */ (reasoning);
-    const ms = Math.max(0, at - span.start);
+    const ms = elapsed(span.start, at);
     updateStep(span.traceId, span.stepId, {
-      status: 'done', label: thread.msg('agUi.thought', formatDuration(ms)), doing: undefined, ms,
+      status: 'done', label: ms === null ? thread.msg('agUi.thoughtComplete') : thread.msg('agUi.thought', formatDuration(ms)),
+      doing: undefined, ...(ms === null ? {} : { ms }),
       ...(showReasoning && span.text ? { detail: span.text } : {})
     });
     reasoning = null;
@@ -858,7 +867,7 @@ export function connectAgUi(thread, options = {}) {
     }
     if (active) {
       report('out-of-order', `Run "${active.id}" never finished before run "${id}" started`, { event });
-      closeRun(active, null, timeOf(event));
+      closeRun(active, null, stamp(event));
     }
     runIds.add(id);
     active = { id, traceId: null, traces: 0, errors: 0, surfaces: new Set(), cancelAtEnd: new Set() };
@@ -881,7 +890,7 @@ export function connectAgUi(thread, options = {}) {
     if (kind !== 'success' && kind !== 'interrupt' && kind !== 'cancelled') {
       report('invalid-event', `RUN_FINISHED has an unknown outcome ${safeText(kind)}`, { event });
     }
-    closeRun(run, kind === 'cancelled' ? 'stopped' : 'done', timeOf(event));
+    closeRun(run, kind === 'cancelled' ? 'stopped' : 'done', stamp(event));
     active = null;
     if (kind === 'cancelled') {
       status({ state: 'stopped', finished: at });
@@ -919,7 +928,7 @@ export function connectAgUi(thread, options = {}) {
   /** @param {AgUiEvent} event */
   const runError = (event) => {
     const run = active ?? lastRun;
-    if (active) closeRun(active, 'failed', timeOf(event));
+    if (active) closeRun(active, 'failed', stamp(event));
     // A run that already ended, or a stream refused before it began: what waits for a person from
     // an earlier run is not this error's to close.
     else report('no-run', 'RUN_ERROR arrived outside a run; the last run reads as failed, and what waits for a person stays open', { event });
@@ -1018,7 +1027,7 @@ export function connectAgUi(thread, options = {}) {
     /** @type {Call} */
     const entry = {
       call: { id, name, args: null, argsText: '', status: 'queued' }, kind, run, traceId: addStep(run, step), open: true,
-      startedAt: timeOf(event), gated: false, decided: false, tileId: null, placeholder: null, surfaceId: null, items: []
+      startedAt: stamp(event), gated: false, decided: false, tileId: null, placeholder: null, surfaceId: null, items: []
     };
     calls.set(id, entry);
     if (kind === 'surface') standIn(entry);
@@ -1075,8 +1084,8 @@ export function connectAgUi(thread, options = {}) {
     const text = typeof content === 'string' ? content
       : /** @type {unknown[]} */ (content).filter((part) => isObject(part) && part.type === 'text' && typeof part.text === 'string')
         .map((part) => String(/** @type {any} */ (part).text)).join('\n');
-    const end = timeOf(event);
-    const timing = end >= entry.startedAt ? { ms: end - entry.startedAt } : {};
+    const duration = elapsed(entry.startedAt, stamp(event));
+    const timing = duration === null ? {} : { ms: duration };
     // A rejected or stopped call keeps its status: the result is only recorded.
     if (entry.call.status === 'skipped' || entry.call.status === 'stopped') {
       setStatus(entry, entry.call.status, { result: structuredClone(content) }, { result: text });
@@ -1162,7 +1171,7 @@ export function connectAgUi(thread, options = {}) {
         spans.add(id);
         const stepId = `think:${id}`;
         const traceId = addStep(run, { id: stepId, kind: 'think', label: thread.msg('agUi.thinking'), doing: thread.msg('agUi.thinking'), status: 'running' });
-        reasoning = { id, start: timeOf(event), stepId, traceId, text: '', open: new Set(), seen: new Set() };
+        reasoning = { id, start: stamp(event), stepId, traceId, text: '', open: new Set(), seen: new Set() };
         return;
       }
       case 'REASONING_MESSAGE_START':
@@ -1186,7 +1195,7 @@ export function connectAgUi(thread, options = {}) {
       default:
         if (!reasoning || reasoning.id !== id) return orphan('The end of reasoning');
         reasoning.text = reasoning.text.trim();
-        endReasoning(timeOf(event));
+        endReasoning(stamp(event));
     }
   };
 

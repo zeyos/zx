@@ -1256,3 +1256,42 @@ test('a token is checked only on the event that opens a surface; an invalid begi
   assert.equal(thread.surface('surface:r1/b').token, 'ok');
   assert.deepEqual(log.errors, ['invalid-event', 'invalid-event']);
 });
+
+test('AG-UI durations use matching source or local clocks and omit mixed or reversed spans', () => {
+  const samples = [
+    { start: 1000, end: 1500, expected: 500 },
+    { start: 1000, end: undefined, expected: null },
+    { start: undefined, end: 1500, expected: null },
+    { start: 1500, end: 1000, expected: null },
+    { start: undefined, end: undefined, expected: 'local' }
+  ];
+  for (const { start, end, expected } of samples) {
+    const { thread, play } = setup();
+    const first = start === undefined ? {} : { timestamp: start };
+    const last = end === undefined ? {} : { timestamp: end };
+    play([{ type: 'RUN_STARTED', threadId: 't', runId: 'r' },
+      { type: 'REASONING_START', messageId: 's', ...first },
+      { type: 'REASONING_END', messageId: 's', ...last },
+      { type: 'TOOL_CALL_START', toolCallId: 'c', toolCallName: 'lookup', ...first },
+      { type: 'TOOL_CALL_END', toolCallId: 'c' },
+      { type: 'TOOL_CALL_RESULT', toolCallId: 'c', messageId: 'm', content: 'ok', ...last },
+      { type: 'RUN_FINISHED', threadId: 't', runId: 'r' }]);
+    const reasoning = thread.step('trace:r', 'think:s'); const tool = thread.step('trace:r', 'c');
+    if (expected === null) {
+      assert.equal(reasoning.ms, undefined); assert.equal(tool.ms, undefined);
+      assert.equal(reasoning.label, 'Thought complete');
+    } else if (expected === 'local') {
+      assert(reasoning.ms >= 0); assert(tool.ms >= 0);
+    } else { assert.equal(reasoning.ms, expected); assert.equal(tool.ms, expected); }
+  }
+});
+
+test('a synthetic reasoning close does not mix a source start with local time', () => {
+  const { thread, adapter, play } = setup();
+  play([{ type: 'RUN_STARTED', threadId: 't', runId: 'r' },
+    { type: 'REASONING_START', messageId: 's', timestamp: 1000 }]);
+  adapter.destroy();
+  const reasoning = thread.step('trace:r', 'think:s');
+  assert.equal(reasoning.ms, undefined);
+  assert.equal(reasoning.label, 'Thought complete');
+});
