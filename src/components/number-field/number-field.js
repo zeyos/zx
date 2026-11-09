@@ -1,5 +1,6 @@
 import { Component } from '../../core/component.js';
 import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
+import { formattingLocale } from '../../core/i18n.js';
 import { icon } from '../../core/icons.js';
 
 /**
@@ -19,7 +20,7 @@ import { icon } from '../../core/icons.js';
  * @property {boolean} [required=false] Whether an empty value is invalid.
  * @property {string|null} [name=null] Native form field name.
  * @property {boolean} [group=false] Whether to render thousands separators while idle.
- * @property {string|null} [locale=null] Locale for formatting; defaults to the document locale.
+ * @property {string|null} [locale=null] Locale for formatting; defaults to the active language.
  * @property {Record<string, string>|Record<string, Record<string, string>>} [msg] Localized messages.
  * @property {(event: CustomEvent<{value: number|null}>) => void} [onchange] Committed-value listener.
  * @property {(event: CustomEvent<{value: number|null}>) => void} [oninput] Per-keystroke listener.
@@ -295,7 +296,7 @@ export class NumberField extends Component {
     const max = this._rangeMax;
     // Step from whatever is in the field right now: typing 25 then pressing ArrowUp must give 26,
     // not commit-value + 1.
-    const typed = parseNumber(this.refs.input.value, this.options.group ? this._separators() : null);
+    const typed = parseNumber(this.refs.input.value, this.options.group ? this._separators(this._inputLocale) : null);
     const current = typed ?? this._value;
     const base = current === null ? (min ?? 0) : current;
     // An empty field steps to the lower bound first, so the first click lands on a real value.
@@ -311,24 +312,33 @@ export class NumberField extends Component {
   }
 
   /**
-   * The grouping and decimal separators of the configured locale.
-   * @returns {{group: string, decimal: string}}
+   * The grouping and decimal separators of the effective formatting locale.
+   * @param {string|string[]} [locale] Locale of the text being parsed.
+   * @returns {{group: string, decimal: string, minus: string, digits: Record<string, string>}}
    */
-  _separators() {
-    if (this._localeSeparators) return this._localeSeparators;
-    const parts = new Intl.NumberFormat(this.options.locale ?? undefined, {
+  _separators(locale = formattingLocale(this.options.locale)) {
+    const key = String(locale);
+    if (this._localeSeparators && this._separatorLocale === key) return this._localeSeparators;
+    this._separatorLocale = key;
+    const parts = new Intl.NumberFormat(locale, {
       minimumFractionDigits: 1
     }).formatToParts(1234.5);
+    const digitFormatter = new Intl.NumberFormat(locale, { useGrouping: false });
     this._localeSeparators = {
       group: parts.find((part) => part.type === 'group')?.value ?? ',',
-      decimal: parts.find((part) => part.type === 'decimal')?.value ?? '.'
+      decimal: parts.find((part) => part.type === 'decimal')?.value ?? '.',
+      minus: digitFormatter.formatToParts(-1).find((part) => part.type === 'minusSign')?.value ?? '-',
+      digits: Object.fromEntries(Array.from({ length: 10 }, (_, value) => [
+        digitFormatter.formatToParts(value).find((part) => part.type === 'integer')?.value ?? String(value),
+        String(value)
+      ]))
     };
     return this._localeSeparators;
   }
 
   /** @returns {void} */
   _onInput() {
-    const parsed = parseNumber(this.refs.input.value, this.options.group ? this._separators() : null);
+    const parsed = parseNumber(this.refs.input.value, this.options.group ? this._separators(this._inputLocale) : null);
     this._syncAria(parsed);
     this.emit('input', { value: parsed });
   }
@@ -359,12 +369,13 @@ export class NumberField extends Component {
 
   /** Parses whatever the user typed and normalizes the displayed text. @returns {void} */
   _commit() {
-    this.set(this.refs.input.value);
+    this.set(parseNumber(this.refs.input.value, this.options.group ? this._separators(this._inputLocale) : null));
   }
 
   /** @returns {void} */
   _syncInput() {
     const input = /** @type {HTMLInputElement} */ (this.refs.input);
+    this._inputLocale = formattingLocale(this.options.locale);
     const text = this._value === null ? '' : this._format(this._value, this._editing);
     if (input.value !== text) input.value = text;
     this._syncAria(this._value);
@@ -405,7 +416,7 @@ export class NumberField extends Component {
     // Grouped fields stay in the locale's notation even while editing — only the thousands
     // separators drop away. Display and input therefore always use the same decimal character,
     // so a value the field rendered is always a value it can read back.
-    return new Intl.NumberFormat(this.options.locale ?? undefined, {
+    return new Intl.NumberFormat(formattingLocale(this.options.locale), {
       minimumFractionDigits: this._precision,
       maximumFractionDigits: this._precision,
       useGrouping: !editing
@@ -464,7 +475,7 @@ export class NumberField extends Component {
  * which is the best available guess for free-form typing.
  *
  * @param {unknown} raw Value to parse.
- * @param {{group: string, decimal: string}|null} [separators=null] Known locale separators.
+ * @param {{group: string, decimal: string, minus?: string, digits?: Record<string, string>}|null} [separators=null] Known locale separators, minus sign, and digit mappings.
  * @returns {number|null} The number, or null when the input is empty or unparseable.
  */
 export function parseNumber(raw, separators = null) {
@@ -475,9 +486,14 @@ export function parseNumber(raw, separators = null) {
 
   let normalized;
   if (separators) {
-    normalized = text
+    normalized = text;
+    for (const [digit, ascii] of Object.entries(separators.digits ?? {})) {
+      normalized = normalized.split(digit).join(ascii);
+    }
+    normalized = normalized
       .split(separators.group).join('')
       .replace(separators.decimal, '.')
+      .replace(separators.minus ?? '-', '-')
       .replace(/[^\d.\-+eE]/g, '');
   } else {
     // Keep the last separator as the decimal point; everything before it is grouping.

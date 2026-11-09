@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { parseNumber, snapNumber } from '../../src/components/number-field/number-field.js';
+import { NumberField, parseNumber, snapNumber } from '../../src/components/number-field/number-field.js';
 
 test('parseNumber accepts both decimal separators and ignores grouping', () => {
   assert.equal(parseNumber('42'), 42);
@@ -90,9 +90,11 @@ test('a grouped field can always read back what it displayed', () => {
   for (const [locale, separators] of [
     ['en-US', { group: ',', decimal: '.' }],
     ['de-DE', { group: '.', decimal: ',' }],
-    ['fr-FR', null]
+    ['fr-FR', null],
+    ['ar', null],
+    ['fa', null]
   ]) {
-    const resolved = separators ?? readSeparators(locale);
+    const resolved = separators ?? NumberField.prototype._separators.call({ options: { locale } });
     for (const value of [0, 7, 1234, 9876543.25, -4200.5]) {
       for (const grouping of [true, false]) {
         const shown = new Intl.NumberFormat(locale, {
@@ -103,12 +105,3 @@ test('a grouped field can always read back what it displayed', () => {
     }
   }
 });
-
-/** @param {string} locale @returns {{group: string, decimal: string}} */
-function readSeparators(locale) {
-  const parts = new Intl.NumberFormat(locale, { minimumFractionDigits: 1 }).formatToParts(1234.5);
-  return {
-    group: parts.find((part) => part.type === 'group')?.value ?? ',',
-    decimal: parts.find((part) => part.type === 'decimal')?.value ?? '.'
-  };
-}
