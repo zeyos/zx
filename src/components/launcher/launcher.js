@@ -189,6 +189,8 @@ export class Launcher extends Component {
     this._announcePending = false;
     this._announceToggle = false;
     this._destroyed = false;
+    this._presentation = 0;
+    this._closingPresentations = [];
 
     const listId = uid('zx-launcher-results');
     const label = String(this.options.label ?? this._message('launcher.label', 'Launcher'));
@@ -305,7 +307,11 @@ export class Launcher extends Component {
       this.close();
     });
     this.listen(dialog, 'close', () => {
-      if (!dialog.open) this._releaseOverlay();
+      // Native close is queued; a newer presentation owns its state and requests now.
+      const presentation = this._closingPresentations.shift();
+      if (presentation !== undefined && presentation !== this._presentation) return;
+      if (dialog.open) return;
+      this._releaseOverlay();
       dialog.dataset.state = 'closed';
       input.setAttribute('aria-expanded', 'false');
       this._abortRequest();
@@ -342,6 +348,11 @@ export class Launcher extends Component {
       if (path.length) this._goTo(path);
       return this;
     }
+    // A caller may close an enhanced native dialog directly. Its queued close still needs its
+    // own ticket before a new presentation queues another one through close().
+    if (this.el.dataset.state === 'open' && !this._closingPresentations.includes(this._presentation)) {
+      this._closingPresentations.push(this._presentation);
+    }
     if (this._createdRoot) {
       const host = overlayScope(this.options.scope);
       if (this.el.parentElement !== host) host.append(this.el);
@@ -349,6 +360,7 @@ export class Launcher extends Component {
     const before = this._pages.map((entry) => entry.page);
     const opener = document.activeElement;
     this.el.showModal();
+    this._presentation += 1;
     /*
      * A modal on the overlay stack, like every Modal: Escape and presses inside it then reach no
      * popup left open behind it, and toast regions move into it while it is open.
@@ -392,7 +404,10 @@ export class Launcher extends Component {
 
   /** Closes the launcher. @returns {this} */
   close() {
-    if (this.isOpen()) this.el.close();
+    if (this.isOpen()) {
+      this._closingPresentations.push(this._presentation);
+      this.el.close();
+    }
     return this;
   }
 
