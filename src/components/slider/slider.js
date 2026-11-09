@@ -160,6 +160,7 @@ export class Slider extends Component {
     const value = this._snap(next);
     const changed = value !== this._value;
     this._value = value;
+    this._committedValue = value;
     this._paint();
     if (changed && !silent) this.emit('change', { value });
     return this;
@@ -263,7 +264,10 @@ export class Slider extends Component {
         number.value = String(this._value);
         return;
       }
-      this.set(number.value === '' ? this._min : Number(number.value));
+      const value = this._snap(number.value === '' ? this._min : Number(number.value));
+      const changed = value !== this._committedValue;
+      this.set(value, { silent: true });
+      if (changed) this.emit('change', { value });
     });
     return number;
   }
@@ -303,6 +307,7 @@ export class Slider extends Component {
       this.refs.input.value = String(this._value);
       return;
     }
+    this._committedValue = this._value;
     this.emit('change', { value: this._value });
   }
 
