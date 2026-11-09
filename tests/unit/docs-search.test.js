@@ -80,7 +80,9 @@ test('public site keeps Aurora in component docs without publishing study pages'
   }
   const landing = readFileSync(fileURLToPath(new URL('../../website/index.html', import.meta.url)), 'utf8');
   const docsJs = readFileSync(fileURLToPath(new URL('../../website/docs.js', import.meta.url)), 'utf8');
-  assert.match(landing, /new Aurora\('#hero'/);
+  const landingScript = readFileSync(fileURLToPath(new URL('../../website/index.js', import.meta.url)), 'utf8');
+  assert.match(landing, /<script type="module" src="\.\/index\.js"><\/script>/);
+  assert.match(landingScript, /new Aurora\('#hero'/);
   assert.match(docsJs, /['"]aurora['"]/);
   for (const file of [
     'aurora.html', 'aurora.js', 'aurora.css', 'aurora-preview.html', 'aurora-preview.css'

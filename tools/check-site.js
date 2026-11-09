@@ -34,8 +34,8 @@ const CHECKED = new Set(['.html', '.js', '.css']);
  * otherwise indistinguishable from an import.
  */
 const IMPORT_PATTERNS = [
-  /^(?:import|export)\s[\w\s{},*]*?\bfrom\s*['"]([^'"]+)['"]/gm,
-  /^import\s*['"]([^'"]+)['"]/gm,
+  /^[\t ]*(?:import|export)\s[\w\s{},*]*?\bfrom\s*['"]([^'"]+)['"]/gm,
+  /^[\t ]*import\s*['"]([^'"]+)['"]/gm,
   /\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g
 ];
 
@@ -102,6 +102,10 @@ for (const file of files) {
   for (const script of scripts) {
     for (const pattern of IMPORT_PATTERNS) {
       for (const [, specifier] of script.matchAll(pattern)) {
+        if (extension === '.html' && /(?:href|src)=["']\/v\/[^/]+\//.test(source)
+          && /^(?:\.{1,2}\/|\/)/.test(specifier) && !specifier.startsWith('/v/')) {
+          problems.push(`${relative(site, file)} → unversioned inline module import "${specifier}" alongside revisioned assets`);
+        }
         if (/^(?:\.{1,2}\/|\/)/.test(specifier)) continue;
         problems.push(`${relative(site, file)} → bare module specifier "${specifier}"`);
       }
