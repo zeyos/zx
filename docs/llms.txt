@@ -13,10 +13,12 @@ Subscribe with `.on(type, fn)` or an `on<type>` option; handlers receive a `Cust
 exports and as `window.zx.*`.
 
 ## Documentation
-- [Documentation site](https://zx.zeyos.com/docs.html): getting started, every component with a live demo and its JavaScript source, and the application layouts. Machine index: [llms.txt](https://zx.zeyos.com/llms.txt).
-- [README](../README.md): what Zx is, quick start (ESM + global script), component index, theming, and browser support.
-- [API reference](llms.md): per-component constructor options, methods, and events for all public components plus the core helpers.
-- [Changelog](../CHANGELOG.md): what changed in each release, including behaviour changes an upgrade has to account for.
+- [Documentation site](https://zx.zeyos.com/docs.html): supported APIs, live demos, and example source.
+- [README](https://zx.zeyos.com/README.md): installation, component index, theming, and browser support.
+- [API reference](https://zx.zeyos.com/docs/llms.md): options, methods, events, and core helpers.
+- [Surface guide](https://zx.zeyos.com/docs/agent-surfaces.md): agent-authored surfaces and their reply contract.
+- [Component catalogue](https://zx.zeyos.com/docs/agent-catalog.json): machine-readable surface component schemas.
+- [Changelog](https://zx.zeyos.com/CHANGELOG.md): supported changes and upgrade notes.
 
 ## Start here: choosing
 - Start every screen from the closest **layout**, never from a blank page. Gallery:
@@ -91,7 +93,8 @@ exports and as `window.zx.*`.
   and stays as its receipt), `openSurface()`, `elicit()` (a form-mode elicitation as a dialog),
   `surfaceText()` (a reply's receipt as plain text).
 - Core: `Component`, `h`/`__`/`icon`, `position`, `breakpoints`/`breakpointOf`/`matchBreakpoint`/`onBreakpoint` (named width bands, observed on an element or the window), `Http`/`zeyosService`, i18n, date utils, `defineElements` (declarative `<zx-*>` custom elements).
-- Helpers: `formatNumber`/`formatCurrency`/`formatPercent`/`formatFileSize`/`formatRelativeTime` (locale-aware, cached `Intl`), `debounce`/`throttle`, `groupBy`/`sortBy`/`uniqueBy`, `escapeRegExp`/`highlightMatch`, `storage()` (namespaced JSON, degrades to memory), `toCsv`/`downloadBlob`/`copyToClipboard`, `truncate()`/`isTruncated()` (line clamp with the full value on hover).
+- Helpers: `formatNumber`/`formatCurrency`/`formatPercent`/`formatFileSize`/`formatRelativeTime` (locale-aware, cached `Intl`), `translatePlural(key, count, args, options)` and `Component.msgPlural(key, count, ...args)` (explicit count, cardinal forms), `debounce`/`throttle`, `groupBy`/`sortBy`/`uniqueBy`, `escapeRegExp`/`highlightMatch`, `storage()` (unambiguous namespaces, explicit `migrateLegacy(keys)`, degrades to memory), `toCsv`/`downloadBlob`/`copyToClipboard`, `truncate()`/`isTruncated()` (line clamp with the full value on hover).
+- Locales: `locales/en.js`, `locales/de.js`, and opt-in `locales/index.js`; explicit locale, then active language, then English for formatting. ZeyOS module colours are opt-in through `styles/zeyos.css`.
 
 ## Theming
 Load `zx.css` once; set `data-zx-theme` (`light`|`dark`|`auto`) on any ancestor. There is one geometry: spacing steps are multiples of `--zx-space-unit` (4px), radius steps are fractions of `--zx-radius` (4px: 2/3/4/6px), and controls are `--zx-control-height` (30px) tall — override those to tighten or loosen an application. Define a product theme by overriding semantic `--zx-color-*` / `--zx-control-*` tokens under `[data-zx-theme="name"]`. The theme studio controls accent, neutral tint, spacing, font, type size, radius, control height, and the CSS-first material: Glass (the default, a thin lit pane), Deep glass, Frost (milk glass), Smoke (tinted), Paper, Satin and Enamel (opaque, no blur), or Flat — each a token-override recipe composed from the theme's glass ingredients (`--zx-color-glass-rim/-ring/-lift/-shade/-edge/-tint`). Compact menus, pickers, tooltips, column menus, and toasts share responsive compact glass; Launcher, Modal, Dialog, and floating Sheets share a calmer reading panel. Both preserve scoped theme inheritance and refract Aurora/page content; docked Sheets and dense data surfaces remain opaque. Never use tier-1 palette tokens or raw color literals in application CSS.

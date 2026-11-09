@@ -10,6 +10,12 @@ and friends remain the complete record.
 
 ### Added
 
+- `translatePlural(key, count, args, {locale}?)` and `Component.msgPlural(key, count, ...args)`
+  select cardinal forms with an explicit numeric count, preserving existing message overrides.
+- English catalogue export and an opt-in English/German manifest at `@zeyos/zx/locales/en.js`
+  and `@zeyos/zx/locales/index.js`.
+- Optional ZeyOS module palette at `@zeyos/zx/styles/zeyos.css`.
+- Explicit legacy storage migration with `storage(namespace).migrateLegacy(['known-key'])`.
 - **LocalePicker** and **CountryPicker** — Select subclasses over a list of locales or ISO 3166-1
   countries, named by `Intl.DisplayNames` with no translation table. A locale shows its native name
   with the interface's name beneath; the value is the canonical BCP 47 tag or the upper-case
@@ -70,6 +76,17 @@ and friends remain the complete record.
 
 ### Changed
 
+- Storage keys use length-prefixed namespaces, preventing collisions when names contain colons.
+  Built-in persisted components migrate known legacy keys once, preserving the originals. Applications
+  using `storage()` directly should call `migrateLegacy()` for their own known keys before reading.
+- Generic stylesheets exclude the ZeyOS module palette; import `styles/zeyos.css` to retain those colours.
+- Locale-aware formatting preserves regional English conventions and follows a usable explicit locale,
+  then the active language, then English. Explicit date locales take precedence over host date names.
+- Built-in counts and ZeyOS control defaults use the message catalogue. Caller and server labels remain
+  unchanged. Short date names use locale abbreviations unless explicitly translated.
+- The package includes the Surface guide and catalogue; documented ESM entries preserve field-adapter
+  registration when bundled with tree-shaking. Development tools are pinned to the lockfile versions.
+- The documentation's ZeyOS client asset has a reproducible build command and a verified source manifest.
 - The `ai-chat` layout's empty state uses PromptStarters, and focus moves to the composer after a
   pick.
 - The library's remaining text, in Select, Table, Datebox, Filter and the rest, now goes through the
@@ -90,6 +107,13 @@ and friends remain the complete record.
 
 ### Fixed
 
+- CountryPicker searches custom descriptions. Blurring an unchanged Datebox preserves hidden time fields
+  and emits no change. Disabled AppSidebar items remain inert under keyboard activation.
+- Empty focus traps focus their boundary and restore its attributes on release. AgentThread follows its
+  current scroll container after reparenting and releases listeners from the previous one.
+- AG-UI durations are omitted when event timestamps use different clocks or move backwards.
+- Filter empty-state markup and Select reset, spinner, disabled and overlay styling follow semantic
+  tokens and logical layout. CSS checks cover SVG data-URL paint and shared layout styles.
 - Questionnaire ignores stale asynchronous validation, validates the final answer once, refreshes
   replaced field definitions, and includes earlier applicable answers in native form data.
 - Slider number-box commits, locale-aware NumberField stepping, normalized FilterPanel values,

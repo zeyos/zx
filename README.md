@@ -128,6 +128,7 @@ ZeyOS binding — see `src/zeyos/modules.js`.
 | `Dropdown` | Generic anchored popover with placement fallback. |
 | `MenuButton` | APG menu button built on `Dropdown`. |
 | `ContextMenu` | APG right-click menu for a region or, via `selector`, per row. |
+| `Sheet` | Dockable panel that can float as a modal or nonmodal dialog. |
 | `Tooltip`, `tooltip()`, `describe()` | Hover/focus description bubble anchored with `position()`. |
 
 ### Data
@@ -138,14 +139,18 @@ ZeyOS binding — see `src/zeyos/modules.js`.
 | `FileItem`, `FileList` | Durable and transient file presentation with MIME/size metadata, status, progress, downloads, and collection states. |
 | `ActivityItem`, `ActivityList` | Chronological activity entries and grouped collections with actor, time, attachment, action, loading, and empty slots. |
 | `Table` | Sortable/selectable table with typed transaction columns, flat-data hierarchy/treegrid projection, and opt-in cell/row editing. |
+| `RecordView` | Shared record collection state for table, card, and Kanban views. |
 | `TableView` | Record-oriented Table composition with shared fields, portable state, column visibility/order, sorting, and selection. |
 | `CardView` | Responsive record cards with configurable fields, safe preview media, grouping, actions, sorting, and selection. |
 | `KanbanView` | Record board with configurable columns, swim lanes, WIP guidance, and cancelable pointer/keyboard movement. |
 | `Grid`, `Grid.BillingItems()` | Table-compatible preset surface with editable currencies, units, totals, and sub-items. |
 | `Chart`, `ChartJsAdapter` | Accessible engine-neutral chart host and explicitly injected Chart.js adapter. |
 | `Calendar` | Agenda/day/week/month/year scheduling with timed collisions, spanning events, range selection, and configurable optimistic drag/resize editing. |
+| `Filter` | Nested, backend-neutral filter expression editor. |
 | `DataFilter` | Declarative select, text, and custom filters for client-side row sets. |
 | `FilterPanel` | Typed filter form built from a server's own field metadata, drafted then applied. |
+| `SortControl` | Searchable sort field and direction control. |
+| `ViewSettings` | Portable field visibility, order, grouping, and view settings. |
 | `ListToolbar` | Search, result count, view switch, and badged tools above a record view. |
 | `TreeView` | APG tree with lazy children, filtering, tri-state checkboxes, and hover-revealed `rowActions`. |
 | `Finder` | Miller-columns hierarchy browser with an optional preview pane. |
@@ -183,6 +188,8 @@ ZeyOS binding — see `src/zeyos/modules.js`.
 | `AppSidebar` | Expanded or minimized vertical application navigation plus horizontal rails; descendants are inline only while expanded. Sections group a tree; `layout: 'modules'` puts a module strip beside one module's menu. |
 | `ModuleBar` | Colour-coded module tiles in a strip or bar: flyout menus, live badges, one Tab stop, and an "All modules" catalogue for what does not fit. |
 | `Toolbar` | APG toolbar: one tab stop, arrow-key movement, and overflow into a menu. |
+| `Dock` | Resizable, collapsible pane layout with tabs and hosted Sheets. |
+| `WorkspaceSwitcher` | Workspace identity and switching menu. |
 | `SplitView` | Resizable two-pane split with a keyboard-operable separator. |
 | `Stepper` | Linear multi-step progress with completed, active, and error states. |
 | `Breadcrumb` | Hierarchy trail with middle-collapse, pairing with `Finder` and `TreeView`. |
@@ -193,6 +200,23 @@ ZeyOS binding — see `src/zeyos/modules.js`.
 | `InlineLoading` | Status line that resolves a wait into its outcome in place. |
 | `skeleton()`, `skeletonText()`, `skeletonTable()` | Placeholders shaped like the content that is coming. |
 | `truncate()` | Clamps text to a number of lines, with the full value on hover. |
+
+### Agents
+
+| API | Description |
+| --- | --- |
+| `AgentThread` | Accessible conversation feed with streamed answers, versions, and actions. |
+| `BlockView`, `renderBlocks()` | Safe structured answer content with incremental streaming. |
+| `Composer` | Message input with attachments, mentions, commands, context, and queued messages. |
+| `RunTrace` | Tool calls, reasoning summaries, retries, and handoffs within a run. |
+| `RunStatus` | Run state, steps, elapsed work, tokens, and cost. |
+| `ApprovalCard` | Application-controlled approval, editing, rejection, and typed confirmation. |
+| `SourceList` | Citations and source metadata without loading remote content. |
+| `PromptStarters` | Suggested conversation starters that report a selection. |
+| `Surface` | Validated agent-authored forms, tables, choices, and reviews with one reply. |
+
+See the [Surface guide](docs/agent-surfaces.md) and [component catalogue](docs/agent-catalog.json)
+for supported schemas and streaming helpers. Both ship in the package.
 
 ## Start from a layout
 
@@ -374,7 +398,7 @@ JavaScript positioning fallback.
 Install the development toolchain and start the no-build demo server:
 
 ```sh
-npm install
+npm ci
 npm run serve
 ```
 
@@ -390,6 +414,15 @@ npm run build      # writes ESM, ZeyOS, global, CSS, and declaration assets to d
 npm run build:site # assembles the deployable documentation site into site/
 npm run serve:site # serves site/ exactly as it will be deployed
 ```
+
+Browser checks use an already-installed Chrome. Set `ZX_BROWSER_CHANNEL` to another installed
+Playwright browser channel, or `ZX_BROWSER_EXECUTABLE_PATH` to an executable path; use one option
+at a time. No browser is downloaded by the checks.
+
+The checked-in ZeyOS client asset has a source and checksum manifest. To refresh it from a local
+client checkout, run `node tools/build-client-vendor.js --source /path/to/client`; verify it with
+`node tools/build-client-vendor.js --check`. Ordinary site builds verify the asset without needing
+that checkout or a network connection.
 
 ## Installing
 
@@ -417,5 +450,8 @@ rules, icons and reading type, `@zeyos/zx/src/components/select/select.css` is o
 rules, and `@zeyos/zx/zx.layered.css` puts the whole library in `@layer zx`, so that unlayered
 application rules win without a specificity fight, and so do unlayered resets and third-party
 stylesheets: `docs/llms.md` covers when to choose it.
+
+ZeyOS module colours are optional: import `@zeyos/zx/styles/zeyos.css` when using the ZeyOS binding.
+The generic core and full-library stylesheets do not include that product palette.
 
 Documentation lives at <https://zx.zeyos.com>.

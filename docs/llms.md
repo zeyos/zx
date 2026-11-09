@@ -49,6 +49,11 @@ const t = new Table(target, options);
 - Styles: load `/assets/zx.css` once, or one of the stylesheets below.
 - Build bundles with `npm run build` (esbuild). No build is needed to develop against `src/`.
 
+Use one entry family for component instances and their registrations: source modules share the
+source `Field` registry, while each distribution bundle contains its own classes and registry.
+An adapter registered through a distribution bundle does not register a separately imported source
+`Field`; import the related components from the same entry family.
+
 ### Stylesheets
 
 | Load | It holds | Choose it when |
@@ -58,6 +63,7 @@ const t = new Table(target, options);
 | `@zeyos/zx/zx.layered.css` | the whole library in `@layer zx` | the application's own CSS should win without specificity work |
 | `@zeyos/zx/zx.core.css`, `zx.core.min.css` | tokens, base rules, icons, reading type | composing stylesheets by hand |
 | `@zeyos/zx/src/components/select/select.css` | one component's own rules | composing stylesheets by hand |
+| `@zeyos/zx/styles/zeyos.css` | ZeyOS module colours | optional product palette for the ZeyOS binding |
 
 **`zx-css`** ships with the package and runs on Node alone:
 
@@ -4342,13 +4348,13 @@ a thumbnail, or any other remote resource.
   `{update, destroy}`. It anchors a manual popover with CSS anchor positioning where the browser
   supports it and a scroll/resize-tracked fallback where it does not. Options are resolved once,
   so changing a placement means `destroy()` and a fresh `position()` call.
-- **i18n** — `setTranslator`, `setLanguage`, `getLanguage`, `translate`, `printf`, and
+- **i18n** — `setTranslator`, `setLanguage`, `getLanguage`, `translate`, `translatePlural`, `printf`, and
   `defaultMessages`, the frozen English catalogue of every component key (`table.empty` → "No
   records") that a host copies as the starting point for a locale.
 - **Dates** — `formatDate(d, fmt, {locale})`, `parseDate(s, fmt)` (tokens
   `%d %m %Y %y %H %M %S %a %A %b %B %s`), `clampDate`, `isSameDay`, `addDays`, `addMonths`,
-  `getWeekStart`. `locale` defaults to `getLanguage()`, and names come from `Intl` in that locale;
-  an English tag, or one `Intl` has no data for, writes the English names.
+  `getWeekStart`. A supported explicit `locale` takes precedence over `getLanguage()`, then
+  English. Names and abbreviations come from `Intl`, preserving regional differences.
 - **Keyboard** — `focusTrap`, `rovingTabindex`, `typeahead`.
 - **Motion** — `prefersReducedMotion(element?)` → boolean, and
   `watchMotion(element, fn, {signal?, immediate?})` → disposer, for code that animates in script;
@@ -4444,16 +4450,19 @@ entry point as the components. See also the Kernel section for `Component`, `h`,
   string does not match, so it doubles as a validator), `clampDate(date, min, max)`,
   `isSameDay(a, b)`, `addDays(date, n)`, `addMonths(date, n)`, `getWeekStart(lang?)` → `0` (Sunday)
   or `1` (Monday). strftime-style tokens: `%d %m %Y %y %H %M %S %a %A %b %B %s`. Month and weekday
-  names come from `Intl` in `locale`, which defaults to `getLanguage()`, and an English tag, or one
-  `Intl` has no data for, writes the English names, so `setLanguage()` drives them too.
+  names come from `Intl` in a supported explicit `locale`, then `getLanguage()`, then English.
+  Regional English tags keep their own abbreviations and conventions. Explicit locale names take
+  precedence over host date-name translations; without an explicit locale those translations apply.
+  Short names use `Intl` unless a host supplies the corresponding short-name key.
 - **Numbers, money and time** — `formatNumber(value, {locale, decimals, minDecimals, maxDecimals,
   group=true})`, `formatCurrency(value, currency, {locale, decimals})`, `formatPercent(value,
   {locale, decimals=0})` (takes a fraction, so `0.42` → `42%`), `formatFileSize(bytes, {locale,
   decimals=1, standard='iec'})` (`'iec'` → KiB/MiB/GiB in steps of 1024, `'si'` → kB/MB/GB in steps
   of 1000; `0` → `'0 B'`, trailing zeros dropped), `formatRelativeTime(date, {now=new Date(),
   locale, numeric='auto'})` (picks the largest sensible unit from second to year; accepts a `Date`,
-  Unix seconds, or an ISO string). `locale` defaults to `getLanguage()` throughout, so
-  `setLanguage()` drives all five. Nothing throws: `null`, `undefined` and `NaN` all format as
+  Unix seconds, or an ISO string). A supported explicit `locale` takes precedence over
+  `getLanguage()`, then English, so `setLanguage()` drives all five when no usable option is given.
+  Nothing throws: `null`, `undefined` and `NaN` all format as
   `''`, an invalid currency code falls back to plain number formatting, and every `Intl` instance
   is cached because tables call these once per cell.
 - **Utilities** — `debounce(fn, ms)` (trailing edge, preserves `this`), `throttle(fn, ms,
@@ -4474,10 +4483,16 @@ entry point as the components. See also the Kernel section for `Component`, `h`,
   pattern, and `highlightMatch(text, query, {className='zx-mark'})` → `DocumentFragment` wraps
   every case-insensitive occurrence in a `<mark>` built from text nodes, with no `innerHTML`
   involved — the pairing every filtering list wants.
-- **Storage** — `storage(namespace, {area='local'})` → `{get, set, remove, keys, clear}`, a
+- **Storage** — `storage(namespace, {area='local'})` → `{get, set, remove, keys, clear, migrateLegacy}`, a
   namespaced JSON-encoded view of `localStorage` (or `sessionStorage` with `{area: 'session'}`).
-  Keys are written as `zx:<namespace>:<key>`, so features share an origin without colliding and
-  `clear()` empties only its own namespace; `keys()` reports namespace-relative names.
+  Keys are written as `zx2:<namespace length>:<namespace>:<key>` (UTF-16 string length), so names
+  containing colons cannot overlap. `clear()` empties only its own namespace; `keys()` reports
+  namespace-relative names. To retain values from the earlier `zx:` format, call
+  `migrateLegacy(['known-key'])` before reading them. It copies only the exact keys you name, only
+  when they contain valid JSON and the current key is absent, and returns the names copied.
+  Legacy values are never deleted. Migration is recorded once per key, including missing keys;
+  removing or clearing a migrated value does not restore it on the next load. Invalid legacy JSON
+  remains retryable. Built-in persisted components migrate their own known keys automatically.
   `get(key, fallback)` returns the fallback both for a missing key and for unparseable JSON, and
   `set()` drops values JSON cannot represent rather than throwing. When the area is missing or
   refuses a write — private browsing, a full quota, cookies disabled — the view degrades silently
@@ -4501,7 +4516,15 @@ entry point as the components. See also the Kernel section for `Component`, `h`,
   start a locale (`setTranslator((key) => de[key])`), or install the German one below.
   `setLanguage()` also selects the language table of a `msg` option and drives locale-dependent
   behaviour such as the first day of the week and the month and weekday names `formatDate()` writes.
-- **Keyboard** — `focusTrap(container)` → `{activate, release}` confines Tab to a container;
+  `translatePlural(key, count, args, {locale}?)` and `component.msgPlural(key, count, ...args)`
+  select cardinal forms using `Intl.PluralRules`. Pass the finite numeric count separately from
+  display arguments: `translatePlural('items', 2, ['two'])`. At each message source, resolution
+  tries `items.<category>`, `items.other`, then `items` (including a legacy alias). Instance overrides
+  precede the host translator, inherited component messages, and English defaults. English fallback
+  selects its category using English rules. Existing unsuffixed overrides remain valid.
+- **Keyboard** — `focusTrap(container)` → `{activate, deactivate}` confines Tab to a container;
+  an empty trap focuses its boundary, temporarily adding `tabindex="-1"` when needed and removing
+  it on deactivation. Deactivation restores the previous focus when it is still connected.
   `rovingTabindex(container, itemSelector, {orientation, wrap, rtl: 'auto'})` → `{focusFirst,
   focusLast, destroy}` keeps one tab stop in a group — horizontal arrows follow `dir="rtl"`, and a
   text field, select, or contenteditable item keeps Home/End and its arrows (an arrow leaves a text
@@ -4511,11 +4534,15 @@ entry point as the components. See also the Kernel section for `Component`, `h`,
   `(event|string) => void` resolves buffered printable keystrokes to an item (500 ms buffer,
   repeated-letter cycling).
 
-#### Internationalisation — the German catalogue
+#### Internationalisation — English and German catalogues
 
 `de`, from `@zeyos/zx/locales/de.js` (`src/locales/de.js` in the repository), is a complete German
 translation of `defaultMessages`: the same keys, the same placeholders, frozen. It stays out of the
 main bundle, so only an application that imports it pays for it.
+
+`en` from `@zeyos/zx/locales/en.js` is the same frozen object as `defaultMessages`.
+`@zeyos/zx/locales/index.js` exports `en`, `de`, and a frozen `locales` manifest keyed by language.
+Importing that manifest opts into both catalogues; the main library does not import it.
 
 ```js
 import { setLanguage, setTranslator } from '@zeyos/zx';
@@ -4530,7 +4557,9 @@ catalogue covers messages only. Month and weekday names come from `Intl` in the 
 `setLanguage('de')` is what makes `formatDate()` write "März", and what `Calendar` and the agent
 components write their dates in when they have no `locale` option. A translator can still override them
 with `date.month.0`–`11`, `date.month.short.0`–`11`, `date.weekday.0`–`6` (Sunday first) and
-`date.weekday.short.0`–`6`.
+`date.weekday.short.0`–`6` when no explicit locale was requested. A translated long name does not
+replace its short form. Built-in count messages have `.one` and `.other` forms; host catalogues may
+add the other cardinal categories required by their language.
 
 - **Voice** — a business application. The reader is addressed formally ("Sie"), and preferably not
   at all ("Änderungen speichern"). Buttons and menu items use the infinitive ("Speichern",

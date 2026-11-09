@@ -8455,7 +8455,7 @@
         "name": "locale",
         "type": "string|null",
         "default": "null",
-        "description": "Locale for formatting; defaults to the document locale."
+        "description": "Locale for formatting; defaults to the active language."
       },
       {
         "name": "msg",

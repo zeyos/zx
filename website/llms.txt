@@ -1,37 +1,24 @@
 # Xenon Design System (Zx)
 
 > Xenon is a dependency-free design system for browser applications; Zx is its product-agnostic
-> vanilla-JavaScript implementation. ES2022 modules, WAI-ARIA-accessible controls built on native platform features,
-> semantic `--zx-*` design tokens with light/dark theming and one token-driven geometry, and
-> lifecycle-safe components. Source modules run directly in the browser; a build step emits ESM, IIFE-global,
+> vanilla-JavaScript implementation. ES2022 modules, WAI-ARIA-accessible native
+> controls, semantic `--zx-*` design tokens with light/dark theming and one token-driven geometry,
+> and lifecycle-safe components. Source modules run directly in the browser; a build step emits ESM, IIFE-global,
 > ZeyOS binding, and CSS bundles. Zero runtime dependencies.
 
-Instantiate every component as `new Component(target, options)`, where `target` is an Element, a
-selector string, or `null` (the component creates and owns its root, retrieved via
-`.toElement()`). Subscribe with `.on(type, fn)` or an `on<type>` option; handlers receive a
-`CustomEvent` whose `.detail` is an object. Call `.destroy()` to clean up. The same API is
-available as ESM named exports and as `window.zx.*`.
+Instantiate every component as `new Component(target, options)` where `target` is an Element, a
+selector string, or `null` (the component creates and owns its root, retrieved via `.toElement()`).
+Subscribe with `.on(type, fn)` or an `on<type>` option; handlers receive a `CustomEvent` whose
+`.detail` is an object. Call `.destroy()` to clean up. The same API is available as ESM named
+exports and as `window.zx.*`.
 
-## Documentation site
-- [Documentation](docs.html): the documentation surface — getting started and every component.
-  Each entry shows a live demo, its complete JavaScript source, and the API reference.
-- [Getting started](docs.html#getting-started): installation, the mental model, theming,
-  accessibility, and talking to ZeyOS.
-- [Components](docs.html#components): components organized into task-based sections, with entries
-  alphabetized inside each section.
-- [Layouts](layouts.html): the layout gallery, each layout running live with its full source.
-  Application templates — mail, an issue tracker, a knowledge base, an AI chat, an invoice editor,
-  an item and inventory record, a workflow tool, an infrastructure dashboard, and a CRM — built on
-  one shared application shell; and screen patterns — master–detail, dashboard, inbox, record page,
-  two wizards (vertical and horizontal steps), settings workspace, and a schema-driven ZeyOS
-  invoices screen. `layouts.html#<id>` opens one directly (`#crm`, `#zeyos-invoices`).
-
-## Deeper references
-- [Agent reference](../docs/llms.md): per-component constructor options, methods, and events for
-  every component plus the core helpers. Sections are marked `<!-- doc:<name> -->`.
-- [README](../README.md): what Zx is, quick start, component index, theming, browser support.
-- [Changelog](../CHANGELOG.md): what changed in each release, including behaviour changes an
-  upgrade has to account for.
+## Documentation
+- [Documentation site](https://zx.zeyos.com/docs.html): supported APIs, live demos, and example source.
+- [README](https://zx.zeyos.com/README.md): installation, component index, theming, and browser support.
+- [API reference](https://zx.zeyos.com/docs/llms.md): options, methods, events, and core helpers.
+- [Surface guide](https://zx.zeyos.com/docs/agent-surfaces.md): agent-authored surfaces and their reply contract.
+- [Component catalogue](https://zx.zeyos.com/docs/agent-catalog.json): machine-readable surface component schemas.
+- [Changelog](https://zx.zeyos.com/CHANGELOG.md): supported changes and upgrade notes.
 
 ## Start here: choosing
 - Start every screen from the closest **layout**, never from a blank page. Gallery:
@@ -54,46 +41,45 @@ available as ESM named exports and as `window.zx.*`.
 ## Components
 - Foundations: `.zx-prose` (the reading register for authored content) and `.zx-callout`;
   `kbd()` (keycaps for every shortcut hint).
-- Inputs: `button()`, `buttonGroup()`, `badge()`, `CheckButton`, `Toggle`, `Search`,
-  `Select` (APG combobox;
-  `filter: false|'local'|async`; priority, status, permission, and `Select.entity()` presets),
-  `LocalePicker`/`CountryPicker` (Select over locales or ISO countries, `Intl`-named, with
-  `flag()` emoji, code chip, or app-served flag images), `Checklist`, `TagPicker` (icon/color identity),
-  `NumberField`, `Rating`, `Slider` (native range; marks, bounds, optional number box),
-  `copyButton()`/`CopyInput`, `DatePicker`, `MonthPicker`, `TimePicker`, `Datebox`/`DateTimeBox`,
-  `DateRangePicker`/`DateRangeBox`,
-  `Timebox`.
-- Overlays: `Tooltip`, `Message` (toasts/inline/progress), `Modal`, `Dialog` (+ `alert`/`confirm`/`prompt`
-  Promises), `Sheet` (edge-anchored Dialog; `side`, `modal: true|'trap-focus'|false`, `backdrop`,
-  `snap` detents, swipe-to-dismiss), `SheetStack` (drill-down; `stack`/`cascade`), `Dropdown`,
-  `MenuButton`, `ContextMenu` (right-click and Shift+F10; `selector` gives per-row menus from one
-  instance).
+- Inputs: `button()`, `buttonGroup()`, `badge()`/`badgeGroup()`, `CheckButton`,
+  `Toggle`, `Search`,
+  `Select` (APG combobox; `filter: false|'local'|async`; priority, status, permission, and
+  `Select.entity()` presets), `LocalePicker`/`CountryPicker` (Select over locales or ISO countries,
+  `Intl`-named, with `flag()` emoji, code chip, or app-served flag images), `Checklist`, `TagPicker` (icon/color identity), `NumberField`, `Rating`, `Slider`,
+  `copyButton()`/`CopyInput`, `DatePicker`, `MonthPicker`, `TimePicker`,
+  `Datebox`/`DateTimeBox`, `DateRangePicker`/`DateRangeBox`, `Timebox`.
+- Overlays: `Message` (toasts/inline/progress), `Modal`, `Dialog` (+ `alert`/`confirm`/`prompt` Promises), `Sheet` (edge-anchored Dialog; `side`, `modal: true|'trap-focus'|false`, `backdrop`, `snap` detents, swipe-to-dismiss), `SheetStack` (drill-down; `stack`/`cascade`), `Dropdown`, `MenuButton`, `ContextMenu` (right-click; `selector` for per-row menus), `Tooltip`/`tooltip()`/`describe()`.
 - Data: `EntityRef` (dense linked/static identity), `FileItem`/`FileList` (durable and transient
   file presentation), `ActivityItem`/`ActivityList` (chronological entries and grouped feeds),
-  `Table` (sortable, selectable, sticky header, opt-in inline editing, row reorder, column
-  visibility), shared `RecordView` state through `TableView`, `CardView`, and `KanbanView`, `Grid`
-  with single-click editing and `Grid.BillingItems()`, engine-neutral `Chart`
-  with injected `ChartJsAdapter`, `Calendar` (agenda/day/week/month/year, pointer/keyboard drag and
-  resize, `optimistic: true|false`), backend-neutral nested `Filter`, simple client-side `DataFilter`,
-  `FilterPanel` (typed filters from server field metadata), `ListToolbar` (search, count, view
-  switch, badged tools), `ViewSettings` (field order, visibility, grouping, board axes),
-  `Pagination`, `SortControl`, `TreeView` (APG tree),
-  `Finder` (Miller columns).
-- Forms: `Form`, `Fieldset`, `Questionnaire` (guided one-question-at-a-time flow with branching), `Field` (type registry), `CodeEditor` (structured text,
-  never executed or injected), `ValueList`, `MultiValueEditor`, `FieldUpload`.
-- Layout: `stack()`/`grid()`/`aspect()`, `Groupbox`, `Card`, `StatTile`/`statTile()`, `AppIcon` (generic tile geometry;
+  `Table` (sortable, selectable, sticky header, opt-in inline cell/row editing, row reorder,
+  column visibility), shared `RecordView` state through `TableView`, `CardView`, and `KanbanView`,
+  `Grid` with single-click editing and `Grid.BillingItems()`, engine-neutral
+  `Chart` with injected `ChartJsAdapter`, `Calendar` (agenda/day/week/month/year, pointer/keyboard
+  drag and resize, `optimistic: true|false`), backend-neutral nested `Filter`, simple client-side
+  `DataFilter`, `FilterPanel` (typed filter form built from a server's own field metadata;
+  `mode: 'draft'|'live'`, `serialize`), `ListToolbar` (search, live result count, view switch, and
+  tools whose badge is part of the accessible name), `ViewSettings` (view-settings drawer content:
+  reorder, hide, and add fields, grouping, board axes; `bind()` to a record view),
+  `Pagination` (+ pure `paginationRange()`),
+  `SortControl` (searchable field selector with a direction toggle, one atomic `{id,dir}`),
+  `TreeView` (APG tree), `Finder` (Miller columns).
+- Forms: `Form`, `Fieldset`, `Questionnaire` (guided one-question-at-a-time flow with branching), `Field` (type registry), `CodeEditor` (structured text in a native textarea; never executes or injects the value), `ValueList`, `MultiValueEditor`, `FieldUpload`.
+- Layout: `stack()`/`grid()`/`aspect()` (spacing, an intrinsically reflowing grid, a fixed-ratio
+  box), `Groupbox`, `Card` (media/title link/actions/footer), `StatTile`/`statTile()` (labelled
+  metric with optional delta, sparkline, and loading state), `AppIcon` (generic tile geometry;
   circular `zeyosAppIcon()` application presets and compact `moduleChip()` identities),
   `Aurora` (one- to four-colour ambient
   canvas light; shared material roles govern chrome and overlays), `Avatar` (person presence, or an
-  agent's `activity` with an opt-in shared presence animation), `Panel`, `MasterPanel`, `Tabbox`,
-  `NavigationBar`, `AppSidebar` (expanded/minimized vertical and horizontal rail states; sections; a
-  modules layout), `ModuleBar` (colour-coded module strip or bar with flyout menus and an "All
-  modules" catalogue),
-  `AccountMenu`, `WorkspaceSwitcher` (workspace tile, name and menu at the head of a navigation
-  column), `Launcher`, `spinner()`/`ProgressBar`/`InlineLoading`,
-  `skeleton()`/`skeletonText()`/`skeletonTable()`, `Toolbar`, `SplitView`, `Dock` (collapsible
-  resizable pane stack; tab groups,
-  regions, adopts a `Sheet`), `Stepper`, `Breadcrumb`, `emptyState()`.
+  agent's `activity` with an opt-in shared presence animation), `Panel` (header/footer action
+  buttons), `MasterPanel`, `Tabbox`
+  (`variant: 'divided'|'bracket'|'line'|'segmented'`), `NavigationBar`, `AppSidebar` (expanded and
+  minimized vertical states plus horizontal rail layouts; sections; a modules layout), `ModuleBar`
+  (colour-coded module strip or bar with flyout menus and an "All modules" catalogue), `AccountMenu`,
+  `WorkspaceSwitcher` (workspace tile, name and menu at the head of a navigation column), `Launcher`,
+  `spinner()`/`ProgressBar`/`InlineLoading`, `skeleton()`/`skeletonText()`/`skeletonTable()`,
+  `Toolbar` (APG toolbar with overflow menu), `SplitView`, `Dock`
+  (collapsible resizable pane stack; tab groups, regions, adopts a `Sheet`), `Stepper`,
+  `Breadcrumb`, `emptyState()`.
 - Agents: `AgentThread` (a conversation with agents as an APG feed: messages, streamed answers, run traces,
   approvals, notices; plain-JSON items, the application owns transport), `BlockView`/`renderBlocks()` (an
   answer drawn block by block as prose, appended to as it streams; model text is never HTML),
@@ -106,53 +92,24 @@ available as ESM named exports and as `window.zx.*`.
   agent composed as JSON, validated and drawn with library components; it ends in exactly one reply
   and stays as its receipt), `openSurface()`, `elicit()` (a form-mode elicitation as a dialog),
   `surfaceText()` (a reply's receipt as plain text).
-- Core: `Component`, `h`/`__`/`icon`, `position`, `breakpoints`/`breakpointOf`/`matchBreakpoint`/
-  `onBreakpoint`, i18n, date utilities, `defineElements` (declarative `<zx-*>` custom elements).
-- Helpers: `formatNumber`/`formatCurrency`/`formatFileSize`/`formatRelativeTime`, `storage()`,
-  `toCsv`/`downloadBlob`/`copyToClipboard`, `truncate()`/`isTruncated()`,
-  `groupBy`/`sortBy`/`uniqueBy`, `throttle`,
-  `debounce`, `uid`, `deepMerge`, `clamp`, `toArray`, `isElement`, `htmlEscape`,
-  `formatDate`/`parseDate`/`addDays`/`addMonths`/`clampDate`/`isSameDay`/`getWeekStart`,
-  `translate`/`printf`/`setTranslator`/`setLanguage`, `focusTrap`/`rovingTabindex`/`typeahead`.
+- Core: `Component`, `h`/`__`/`icon`, `position`, `breakpoints`/`breakpointOf`/`matchBreakpoint`/`onBreakpoint` (named width bands, observed on an element or the window), `Http`/`zeyosService`, i18n, date utils, `defineElements` (declarative `<zx-*>` custom elements).
+- Helpers: `formatNumber`/`formatCurrency`/`formatPercent`/`formatFileSize`/`formatRelativeTime` (locale-aware, cached `Intl`), `translatePlural(key, count, args, options)` and `Component.msgPlural(key, count, ...args)` (explicit count, cardinal forms), `debounce`/`throttle`, `groupBy`/`sortBy`/`uniqueBy`, `escapeRegExp`/`highlightMatch`, `storage()` (unambiguous namespaces, explicit `migrateLegacy(keys)`, degrades to memory), `toCsv`/`downloadBlob`/`copyToClipboard`, `truncate()`/`isTruncated()` (line clamp with the full value on hover).
+- Locales: `locales/en.js`, `locales/de.js`, and opt-in `locales/index.js`; explicit locale, then active language, then English for formatting. ZeyOS module colours are opt-in through `styles/zeyos.css`.
 
 ## Theming
-Load `zx.css` once and put `zx-scope` on the application root. Set `data-zx-theme`
-(`light`|`dark`|`auto`) on any ancestor. There is one geometry: spacing steps are multiples of
-`--zx-space-unit` (4px), radius steps are fractions of `--zx-radius` (4px), and controls are
-`--zx-control-height` (30px) tall; override those to tighten or loosen an application. Define a
-product theme by overriding semantic `--zx-color-*` / `--zx-control-*` tokens under
-`[data-zx-theme="name"]`. Never use tier-1 palette tokens or raw colour literals in application
-CSS. The stock themes use a restrained neutral ramp with the ZeyOS green as the accent.
-Six stable accent IDs ship as `data-zx-preset` (zx, zeyos, ocean, violet, rose, slate). The theme
-studio applies complete recipes spanning accent, neutral tint, spacing, font, type size, radius,
-control height, and the CSS-first material — Glass (the default, a thin lit pane), Deep glass,
-Frost (milk glass), Smoke (tinted), Paper, Satin and Enamel (opaque, no blur), or Flat, each a
-token-override recipe composed from the theme's glass ingredients — with the result exportable
-as CSS. Compact menus,
-pickers, tooltips, column menus, and toasts use responsive compact glass; Launcher, Modal,
-Dialog, and floating Sheets use a calmer reading panel. Both preserve scoped theme inheritance and
-refract Aurora/page content; docked Sheets and dense data surfaces remain opaque.
+Load `zx.css` once; set `data-zx-theme` (`light`|`dark`|`auto`) on any ancestor. There is one geometry: spacing steps are multiples of `--zx-space-unit` (4px), radius steps are fractions of `--zx-radius` (4px: 2/3/4/6px), and controls are `--zx-control-height` (30px) tall — override those to tighten or loosen an application. Define a product theme by overriding semantic `--zx-color-*` / `--zx-control-*` tokens under `[data-zx-theme="name"]`. The theme studio controls accent, neutral tint, spacing, font, type size, radius, control height, and the CSS-first material: Glass (the default, a thin lit pane), Deep glass, Frost (milk glass), Smoke (tinted), Paper, Satin and Enamel (opaque, no blur), or Flat — each a token-override recipe composed from the theme's glass ingredients (`--zx-color-glass-rim/-ring/-lift/-shade/-edge/-tint`). Compact menus, pickers, tooltips, column menus, and toasts share responsive compact glass; Launcher, Modal, Dialog, and floating Sheets share a calmer reading panel. Both preserve scoped theme inheritance and refract Aurora/page content; docked Sheets and dense data surfaces remain opaque. Never use tier-1 palette tokens or raw color literals in application CSS.
 
 ## Talking to ZeyOS
-Use the dedicated ZeyOS client library **`@zeyos/client`** (`npm install @zeyos/client`) for ZeyOS
-business data: `createZeyosClient({ platform, auth })`, typed
-`client.api.list/get/create/update<Resource>` over the full OpenAPI surface, `normalizeListResult`.
-The optional `zx-zeyos` binding (`src/zeyos/`) generates typed tables, forms, and pickers from
-`client.schema`; it never imports `@zeyos/client` itself and ships as a separate bundle.
-The `ZeyOS invoices` layout is the reference integration. Zx also ships a minimal `Http`/`zeyosService`
-for ad-hoc in-app `remotecall`, but `@zeyos/client` is the recommended default.
+Use the dedicated ZeyOS client library **`@zeyos/client`** (`npm install @zeyos/client`) for ZeyOS business data: `createZeyosClient({ platform, auth })`, typed `client.api.list/get/create/update<Resource>` over the full OpenAPI surface, and `normalizeListResult`. Zx accepts the client by injection and does not bundle it. See the `website/layouts/zeyos-invoices.layout.js` layout for a Zx-components-on-@zeyos/client reference. Zx also ships a minimal `Http`/`zeyosService` for ad-hoc in-app `remotecall`, but `@zeyos/client` is the recommended default.
 
-That optional entry also maps schemas into Table, Card, and Kanban record views. Its
-`SavedViewRegistry` adds private named configurations scoped by user, workspace/fork (null means
-the base workspace), and resource through an injected atomic transport. A compatibility adapter
-reuses authenticated ZeyOS `userfields` without persisting records, selection, pages, callbacks,
-or DOM.
+The optional `./zeyos` entry maps schemas into all three record views. `SavedViewRegistry` adds
+private named configurations scoped by authenticated user, workspace/fork (including null for the
+base workspace), and resource through an injected atomic transport. The compatibility transport
+reuses ZeyOS `userfields`; records, selection, pages, callbacks, and DOM are never persisted.
 
 ## Installing
-`npm install @zeyos/zx` · `import { Table } from '@zeyos/zx'` · `import '@zeyos/zx/zx.css'`.
-Entry points: `.` (components), `./zeyos` (schema-driven ZeyOS binding), and `./global`
-(classic script tags).
+`npm install @zeyos/zx`. Entry points: `.` (components), `./zeyos` (ZeyOS binding), `./zx.css`
+(styles), and `./global` (classic script tag). Docs: https://zx.zeyos.com
 
 ## Commands
-`npm run serve` (no-build site at http://127.0.0.1:8321/website/docs.html) · `npm test` (unit
-tests + token lint) · `npm run build` (dist bundles) · `npm run build:site` (deployable site).
+`npm run serve` (no-build documentation at http://127.0.0.1:8321/website/docs.html) · `npm test` (unit + token lint) · `npm run build` (dist bundles).
