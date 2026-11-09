@@ -634,7 +634,7 @@
         "name": "patch",
         "signature": "patch(id, partial)",
         "returns": "this",
-        "description": "Changes part of an item. The common changes are made in place — an answer finishing, stopping or writing on, a trace's steps, an approval's status — so what the reader opened, and focus and selection where the blocks stay, survive; anything else redraws the item."
+        "description": "Changes part of an item. The common changes are made in place — an answer finishing, stopping or writing on, a trace's steps, an approval's status — so what the reader opened, and focus and selection where the blocks stay, survive; anything else redraws the item. Metadata patches retain an answer's live blocks; explicit `blocks` or `versions` remain authoritative."
       },
       {
         "name": "appendText",

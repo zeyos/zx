@@ -457,6 +457,10 @@ await zeyos.api.updateTransaction({ ID, status: 9 });
 Feed results straight into Zx components (Table `data`, Select `items`, Form values). See the
 `website/layouts/zeyos-invoices.layout.js` layout for the reference integration. Zx also ships a minimal `Http` /
 `zeyosService(service, accesskey)` for ad-hoc `remotecall`, but `@zeyos/client` is the default.
+`Http.request(path, options)` accepts a caller `signal` and multipart `paramName` (default
+`'files'`). Caller cancellation aborts the request; the client's timeout rejects with
+`TimeoutError`. Legacy envelopes with `error: false`, `0`, `null`, or no error return `result`;
+string and object errors reject.
 
 <!-- doc:zeyos -->
 ## ZeyOS binding (zx-zeyos)
@@ -540,6 +544,12 @@ await records.saveView({ name: 'My open invoices', setDefault: true });
   paging and server sort. Paging is the same loader as `zeyosTable()` — same `pageSize: 50` default,
   validation, `replace`/`pageSize` load options, and destroy guard. Title, preview, group, column, and swim-lane fields stay in the projection
   even when hidden. Without `savedViews`, the host may persist `view.getViewState()` directly.
+  `savedViewFallback: 'error'` is the default: a saved-view initialization failure blocks loads.
+  Opt into `'baseline'` to load records using the configured query and sort when the registry
+  cannot be read. The failure is reported and `ready` still rejects; capture, save, apply, and
+  default restoration remain blocked. Later operations retry initialization so repaired storage
+  can restore its default. The unreadable document is never rewritten automatically, and a
+  failure while applying a view or query cannot fall back.
 - `createSavedViewRegistry(transport, {userId,workspaceId,resource})` coordinates private named
   Table/Card/Kanban configurations as one versioned, atomically replaced document. Entries capture
   component state plus filters/search and an explicit presentation type, never records, selection,
@@ -1466,7 +1476,7 @@ from; everything Zx adds is chrome around it. Field type: `slider`.
 - **Methods** — `get()`, `set(value, {silent})`, `setRange(min, max, step?)`, `setLabel()`,
   `setReadonly()`, `focus()`, `enable()`/`disable()`. `value` is also a getter/setter.
 - **Events** — `input {value}` continuously while dragging, `change {value}` once the value is
-  committed (pointer released, or a key pressed).
+  committed (pointer released, a range key pressed, or the optional number box committed).
 - **Behaviour** — values snap to the step grid anchored at `min`, so 5…95 by 10 gives 5, 15, 25 —
   not 10, 20, 30. Bounds win over the grid, so a `max` that is not a whole number of steps above
   `min` stays reachable. A fractional step snaps to the decimals it carries: 0.1 gives 0.3, never
@@ -1903,7 +1913,7 @@ parked at the pointer, so it flips near a viewport edge like every other floatin
 <!-- doc:tooltip -->
 ### Tooltip
 
-A description bubble anchored to another element. The panel is a manual popover positioned by the kernel's `position()`, so it escapes clipping and stacking contexts and flips near a viewport edge; it carries `role="tooltip"` and a generated id, and the anchor gets `aria-describedby` pointing at it only while it is open — closing puts the anchor's original value back, including no value at all. The bubble is never interactive: `pointer-events: none` keeps it from stealing the hover it depends on, and nothing inside it can take focus. Hover opens it after `delay`; keyboard focus opens it immediately, because a keyboard user cannot hover a moment longer; a touch pointer never opens it, since a bubble with no "move away" gesture would simply stick. Only one is ever visible at a time, which falls out of the dismissal rules rather than a registry.
+A description bubble anchored to another element. The panel is a manual popover positioned by the kernel's `position()`, so it escapes clipping and stacking contexts and flips near a viewport edge; it carries `role="tooltip"` and a generated id, and the anchor gets `aria-describedby` pointing at it only while it is open — closing puts the anchor's original value back, including no value at all. The bubble contains no focusable controls and stays visible while the pointer is over either the anchor or the bubble. Keyboard focus on the anchor independently keeps it visible. Hover opens it after `delay`; keyboard focus opens it immediately, because a keyboard user cannot hover a moment longer; a touch pointer never opens it, since a bubble with no "move away" gesture would simply stick. Only one is ever visible at a time, which falls out of the dismissal rules rather than a registry.
 
 - **Options** — `content` (string, Node, or a function re-evaluated on every open), `placement`
   (`'top'` default, plus top/bottom/left/right and their start/end variants), `offset` (6), `delay`
@@ -1912,7 +1922,7 @@ A description bubble anchored to another element. The panel is a manual popover 
   at all and leaves everything to the methods), `disabled` (false).
 - **Methods** — `show()`, `hide()`, `toggle()`, `isOpen()`, `setContent(content)`, `enable()`, `disable()`, `isDisabled()`, `getAnchor()`, `destroy()`. Convenience factories: `tooltip(anchor, contentOrOptions)` takes either a content value or a full option object, and `describe(anchor, text)` is the one-liner replacement for a `title` attribute. Both return the instance.
 - **Events** — `open`, `close`. Both fire only on a real transition, so a `show()` on an open tooltip is silent.
-- **Keyboard** — Focusing the anchor opens the tooltip at once; moving focus away closes it. `Escape` closes it without moving focus (WCAG 1.4.13 "dismissible") — and only it, when it is the topmost open overlay, so one press never closes a tooltip and the menu beneath it. A `pointerdown` anywhere closes it, and focus that arrives with a click does not re-open it. A closed tooltip listens to nothing outside its anchor; an open one is an entry on the shared overlay stack.
+- **Keyboard** — Focusing the anchor opens the tooltip at once; it closes after both focus and hover have left the anchor and bubble. `Escape` closes it without moving focus (WCAG 1.4.13 "dismissible") — and only it, when it is the topmost open overlay, so one press never closes a tooltip and the menu beneath it. A `pointerdown` anywhere closes it, and focus that arrives with a click does not re-open it. A closed tooltip listens to nothing outside its anchor; an open one is an entry on the shared overlay stack.
 <!-- /doc -->
 
 <!-- doc:split-view -->
@@ -2413,7 +2423,8 @@ form renders, with no per-application translation layer in between.
   `int:range` / `float:range` / `number:range`. An unrecognised type renders a visible,
   labelled placeholder naming it and is excluded from the value — never dropped silently.
 - **Methods** — `getValue()`, `setValue()`, `apply()`, `reset()`, `clear()`.
-- **Events** — `apply {value}`, `change {value, field}`.
+- **Events** — `apply {value}`, `change {value, field}`. Values read back from typed controls
+  include their normalization, such as integer rounding and numeric bounds.
 
 Five behaviours are deliberate rather than incidental:
 
@@ -2677,9 +2688,10 @@ a feedback survey. The questionnaire owns the ordered items, the active one, the
 validation, progress and navigation; the page, card, dialog or drawer around it owns closing,
 persistence and transport.
 
-The root is a real `<form>` and the choices are native radios and checkboxes carrying the item
-name, so `new FormData(questionnaire.toElement())` reads the answers, arrow keys inside a choice
-group are the browser's rather than ours, and the semantics do not depend on JavaScript. Three
+The created root is a real `<form>`, so `new FormData(questionnaire.toElement())` reads the
+applicable answers. When enhancing a non-form target, pass its contained `<form>` to `FormData`
+or call `toFormData()`. Choices are native radios and checkboxes carrying the item name, and
+arrow keys inside a choice group use the browser's navigation. Three
 things separate it from a `Form` with one `Fieldset` per question: it branches, its answer control
 can be any registered `Field` type, and its validation may be asynchronous.
 
@@ -2695,7 +2707,10 @@ can be any registered `Field` type, and its validation may be asynchronous.
   `setAnswer(name, value, {silent})`, `getActive()`, `getPath()`, `getProgress()`, `getState()`,
   `toFormData()`, `reset()`, `focus()`, `destroy()`. `next()`, `skip()` and `submit()` return
   **promises** — `next()` because an item's `validate` may be asynchronous, and `skip()` because
-  skipping the last question submits. Everything else is synchronous.
+  skipping the last question submits. Everything else is synchronous. Async validation applies
+  only to the answer and step it started on; editing, navigating, replacing items, resetting, or
+  destroying the questionnaire invalidates a pending result. The last answer is validated once,
+  and skipping an optional last question does not validate it again.
 - **Events** — `change {name, value, answers}`, `navigate {from, to, reason}` **preventable**,
   `skip {name}`, `invalid {name, message}`, `submit {answers, path}` **preventable**,
   `complete {answers, path}`.
@@ -2704,7 +2719,8 @@ can be any registered `Field` type, and its validation may be asynchronous.
   only the answers of visible items declared before it, so hiding the VAT question also hides
   whatever depended on the VAT id. An answer to a conditioned-out question is kept internally —
   walk back into the branch and it is still there — but is left out of `getAnswers()` and
-  `toFormData()`, so an abandoned branch never submits stale data. A `next` naming a hidden item
+  `toFormData()` and native `new FormData(questionnaire.toElement())`, so an abandoned branch
+  never submits stale data. Native form data includes applicable answers from earlier steps too. A `next` naming a hidden item
   walks forward from it rather than stranding the reader; naming an item that does not exist
   throws `RangeError`. `next: '$review'` opens the review screen and `next: '$submit'` submits at
   once, wherever the item stands; an item of that name goes first. A `when`, `next` or `validate`
@@ -2810,7 +2826,11 @@ Ordered value editor with explicit rows (add / remove / move).
 ### FieldUpload
 
 Click/drop file upload with progress. The drop zone is keyboard-accessible and progress comes from
-`XMLHttpRequest`.
+`XMLHttpRequest`. Passing the shipped `Http` client keeps XHR upload progress while applying its
+base URL, default headers, timeout, JSON/envelope parsing, and error observer. Per-upload headers
+can override defaults; the browser supplies the multipart boundary. Custom `upload()` or
+`request()` transports receive files, `paramName`, a cancellation signal, and a progress callback.
+Aborted uploads ignore late progress and success callbacks.
 
 - **Options** — `url`, `paramName: 'upload'`, `params`, `headers`, `multiple: false`, `accept`,
   `maxSize`, `autoUpload: true`, `preview: true`, `http`.
@@ -3140,7 +3160,8 @@ first and last items.
 - **Options** — `items: [{name, label, icon?, href?}]`, `maxVisible: 0` (0 shows all),
   `separator: 'chevron'|'slash'`, `rootIcon: null`.
 - **Methods** — `setItems()`, `getItems()`, `push(item)`, `pop()`, `truncateTo(name)`, `destroy()`.
-- **Events** — `select {name, item, index}`. An item with an `href` renders as a real `<a>` and its
+- **Events** — `select {name, item, index}` **preventable**, including overflow items. An item
+  with an `href` renders as a real `<a>` in the trail or overflow, and its
   default is left alone, so ordinary navigation and middle-click still work; without one it renders
   as a `<button>` and only the event fires.
 - **Semantics** — `<nav aria-label="Breadcrumb"><ol>`; the last item is plain text carrying
@@ -3579,7 +3600,9 @@ agents' answers as they stream (`BlockView` with a `SourceList`), the steps a ru
   `upsert(item, {after?})` (adds, or replaces in place by `id`;
   a new item goes at the end, or right after the item `after` names — nothing else is redrawn),
   `patch(id, partial)` (an answer finishing, stopping or gaining sources, a trace's steps, an
-  approval's status change in place; anything else redraws the item), `appendText(id, text)`
+  approval's status change in place; anything else redraws the item). Metadata patches preserve
+  streamed answer blocks, including the selected version; explicit `blocks` or `versions`
+  replacements remain authoritative. `appendText(id, text)`
   (streams into an answer, creating it when the id is new), `appendBlock(id, block)` (adds a whole
   block — figures, a table — without redrawing the answer), `announce(text)` (says an outcome
   through the thread's polite status), `setArtifactState(id, {expanded, controls})` (whether an
@@ -4444,7 +4467,9 @@ entry point as the components. See also the Kernel section for `Component`, `h`,
   name, a `'-name'` prefix or a `{key, dir}` object for descending, or an accessor function,
   comparing digit runs numerically and always sorting `null`, `undefined` and `NaN` last in either
   direction; `uniqueBy(items, key?)` keeps the first occurrence.
-- **Escaping** — `htmlEscape(str)`, and `h.raw(html)` as the only sanctioned `innerHTML` path, for
+- **Escaping** — `h()` rejects `innerHTML`, `outerHTML`, and `srcdoc` properties regardless of
+  casing, and sanitizes `href` through `safeHref`. `htmlEscape(str)`, and `h.raw(html)` as the only
+  sanctioned `innerHTML` path, for
   component-generated markup only. `escapeRegExp(value)` makes user input safe as a literal
   pattern, and `highlightMatch(text, query, {className='zx-mark'})` → `DocumentFragment` wraps
   every case-insensitive occurrence in a `<mark>` built from text nodes, with no `innerHTML`
@@ -4481,7 +4506,8 @@ entry point as the components. See also the Kernel section for `Component`, `h`,
   focusLast, destroy}` keeps one tab stop in a group — horizontal arrows follow `dir="rtl"`, and a
   text field, select, or contenteditable item keeps Home/End and its arrows (an arrow leaves a text
   field only from the edge of its text); toggling a `<fieldset disabled>` around items inside the
-  container moves the tab stop off them; `typeahead(getItems, onMatch)` →
+  container moves the tab stop off them. Removed items regain their original tabindex and are
+  released; reinserted items use their new baseline. `typeahead(getItems, onMatch)` →
   `(event|string) => void` resolves buffered printable keystrokes to an item (500 ms buffer,
   repeated-letter cycling).
 

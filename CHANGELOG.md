@@ -90,6 +90,28 @@ and friends remain the complete record.
 
 ### Fixed
 
+- Questionnaire ignores stale asynchronous validation, validates the final answer once, refreshes
+  replaced field definitions, and includes earlier applicable answers in native form data.
+- Slider number-box commits, locale-aware NumberField stepping, normalized FilterPanel values,
+  Select typing and async item replacement, locale extension labels, and nested Datebox dismissal.
+- Persistent messages retain their duration. Tabbox restores a tab stop; MenuButton preserves Tab
+  navigation; Breadcrumb overflow keeps links and cancellation; ContextMenu restores invoking focus.
+- Launcher ignores stale close events, Dock restores lazy content and destroys hosted sheets,
+  SheetStack raises native dialogs correctly, Dialog respects IME composition, and Tooltip remains
+  visible while the pointer moves onto its bubble.
+- Calendar positions events by local clock time on daylight-saving transitions, retains keyboard
+  focus across periods, and rejects invalid resize steps. CodeEditor indentation participates in
+  native undo where supported and commits once on blur.
+- Tree and Finder ignore stale lazy loads after replacement or destruction. Kanban recomputes its
+  drop target during stationary-pointer auto-scroll and on release.
+- Http honors cancellation and multipart names, distinguishes timeouts, and accepts legacy
+  false-valued success envelopes. FieldUpload with Http retains upload progress and client defaults.
+- AgentThread metadata patches preserve streamed blocks. The DOM builder rejects raw HTML sinks
+  and unsafe links; roving focus releases removed nodes, and repeated-letter typeahead cycles.
+- Landing-page modules and styles load from the same asset revision.
+- ZeyOS views can opt into `savedViewFallback: 'baseline'` to browse records when the saved-view
+  registry cannot be read, preserving the document and reporting the failure until recovery.
+
 - `printf()` fills every placeholder in one pass, so a value holding `%word%` stays as written.
 - `AgentThread.remove()` gives the next item its byline back when it now starts a turn, and moves
   focus to a neighbour when the removed item held it.
