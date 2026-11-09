@@ -295,7 +295,7 @@ export class NumberField extends Component {
     const max = this._rangeMax;
     // Step from whatever is in the field right now: typing 25 then pressing ArrowUp must give 26,
     // not commit-value + 1.
-    const typed = parseNumber(this.refs.input.value);
+    const typed = parseNumber(this.refs.input.value, this.options.group ? this._separators() : null);
     const current = typed ?? this._value;
     const base = current === null ? (min ?? 0) : current;
     // An empty field steps to the lower bound first, so the first click lands on a real value.
