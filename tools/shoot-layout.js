@@ -23,7 +23,7 @@ import { mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { chromium } from 'playwright-core';
+import { launchBrowser } from './browser.js';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
@@ -57,7 +57,7 @@ let failed = false;
 let browser;
 try {
   await waitForServer();
-  browser = await chromium.launch({ channel: 'chrome' });
+  browser = await launchBrowser();
   for (const theme of themes) failed = (await shoot(theme)) || failed;
 } catch (error) {
   console.error(`shoot-layout: ${error.message}`);

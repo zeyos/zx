@@ -14,7 +14,7 @@
 import { spawn } from 'node:child_process';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { chromium } from 'playwright-core';
+import { launchBrowser } from './browser.js';
 import { buildSubset } from '../bin/zx-css.js';
 import { checkLanguage } from './check-language.js';
 import { LAYOUT_IDS, PATTERN_IDS, TEMPLATE_IDS } from '../website/layouts/index.js';
@@ -49,7 +49,7 @@ let browser;
 let failed = false;
 try {
   await waitForServer();
-  browser = await chromium.launch({ channel: 'chrome' });
+  browser = await launchBrowser();
   for (const suite of suites) failed = (await run(browser, suite)) || failed;
   failed = (await runDocumentationShell(browser)) || failed;
   failed = (await runLayoutGallery(browser)) || failed;
@@ -57,9 +57,7 @@ try {
   failed = (await checkLanguage(browser, base)) || failed;
 } catch (error) {
   console.error(`\nSmoke run could not start: ${error.message}`);
-  if (String(error.message).includes('chrome')) {
-    console.error('Install Google Chrome, or set a channel Playwright can find.');
-  }
+  console.error('Select an installed browser with ZX_BROWSER_CHANNEL or ZX_BROWSER_EXECUTABLE_PATH.');
   failed = true;
 } finally {
   await browser?.close();

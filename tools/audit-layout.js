@@ -31,7 +31,7 @@ import { spawn } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { chromium } from 'playwright-core';
+import { launchBrowser } from './browser.js';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
@@ -75,7 +75,7 @@ let failed = false;
 let browser;
 try {
   await waitForServer();
-  browser = await chromium.launch({ channel: 'chrome' });
+  browser = await launchBrowser();
   for (const theme of themes) {
     const result = await audit(theme);
     report[theme] = result;

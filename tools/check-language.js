@@ -1,16 +1,17 @@
 /**
- * Fails when a documentation page shows library text in English with the German catalogue installed.
+ * Fails when a documentation page shows library text in English with a selected catalogue installed.
  *
  *   node tools/check-language.js                   # every page in PAGES
+ *   node tools/check-language.js --locale=en       # another shipped catalogue
  *   node tools/check-language.js calendar filter   # the pages named, by component id
  *
  * A complete catalogue proves nothing about text that never asks it, so this reads the screen. Each
- * page opens twice, as written and with `de` installed through `setTranslator()` and `setLanguage()`,
+ * page opens twice, as written and with the selected locale installed through `setTranslator()` and `setLanguage()`,
  * and the same steps open what the page hides: lists, calendars, the column menu, a grabbed row, a
  * cell editor. Text and labelling attributes are collected from every step.
  *
  * Library English is what reads the same in both runs and has no other explanation. Three things
- * explain it: the demo's own source wrote it, German shares it (a catalogue entry identical to its
+ * explain it: the demo's own source wrote it, the locale shares it (a catalogue entry identical to its
  * English text, or a name such as `November`), or it holds no words.
  *
  * Demos do not use every option, so each page also mounts a fixture with the options they leave out,
@@ -23,7 +24,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
-import { de } from '../src/locales/de.js';
+import { locales } from '../src/locales/index.js';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -36,12 +37,19 @@ const ATTRIBUTES = ['aria-label', 'aria-description', 'aria-roledescription', 'a
 /** The fixture's own text, which is data rather than library text. */
 const FIXTURE_WORDS = ['Alpha', 'Beta', 'Gamma'];
 
-/** Prepended to `website/docs.js`, so the catalogue is in place before a demo mounts. */
-const INSTALL = `import { setLanguage as zxCheckLanguage, setTranslator as zxCheckTranslator } from '/src/core/i18n.js';
-import { de as zxCheckGerman } from '/src/locales/de.js';
-zxCheckTranslator((key) => zxCheckGerman[key]);
-zxCheckLanguage('de');
+/**
+ * Prepended to docs.js before mounting. Only identifiers present in the opt-in manifest are accepted.
+ * @param {string} locale Shipped locale identifier.
+ * @returns {string}
+ */
+function installLocale(locale) {
+  if (!Object.hasOwn(locales, locale)) throw new TypeError(`Unknown catalogue: ${locale}`);
+  return `import { setLanguage as zxCheckLanguage, setTranslator as zxCheckTranslator } from '/src/core/i18n.js';
+import { locales as zxCheckLocales } from '/src/locales/index.js';
+zxCheckTranslator((key) => zxCheckLocales[${JSON.stringify(locale)}][key]);
+zxCheckLanguage(${JSON.stringify(locale)});
 `;
+}
 
 /**
  * Clicks each visible control, reads the page, and closes it again.
@@ -596,19 +604,21 @@ function readPage(attributes) {
  * @param {import('playwright-core').Browser} browser Browser.
  * @param {string} base Server origin.
  * @param {string} id Component id.
- * @param {boolean} german Whether to install the catalogue.
+ * @param {string|boolean|null} locale Catalogue to install; true retains the German default.
  * @returns {Promise<{strings: Set<string>, shared: Set<string>, problems: string[]}>}
  */
-export async function capturePage(browser, base, id, german) {
+export async function capturePage(browser, base, id, locale) {
+  const language = locale === true ? 'de' : typeof locale === 'string' ? locale : null;
+  const install = language ? installLocale(language) : '';
   const context = await browser.newContext({
     viewport: { width: 1440, height: 1200 }, reducedMotion: 'reduce', colorScheme: 'light'
   });
   try {
     await context.clock.setFixedTime(FIXED_TIME);
-    if (german) {
+    if (install) {
       await context.route('**/website/docs.js', async (route) => {
         const response = await route.fetch();
-        await route.fulfill({ response, body: INSTALL + await response.text() });
+        await route.fulfill({ response, body: install + await response.text() });
       });
     }
     const page = await context.newPage();
@@ -632,20 +642,20 @@ export async function capturePage(browser, base, id, german) {
     await read();
     await PAGES[id]?.reveal?.(page, read);
 
-    // Words German shares with English are the platform's, so they are read from the same engine.
-    const shared = new Set(await page.evaluate(() => {
+    // Words the selected locale shares with English are the platform's, so they are read from the same engine.
+    const shared = new Set(await page.evaluate((locale) => {
       const names = [];
       for (const [option, count, make] of [
         ['month', 12, (index) => new Date(2026, index, 15)],
         ['weekday', 7, (index) => new Date(2026, 2, 1 + index)]
       ]) {
         for (const style of ['long', 'short']) {
-          const format = new Intl.DateTimeFormat('de', { [option]: style });
+          const format = new Intl.DateTimeFormat(locale, { [option]: style });
           for (let index = 0; index < count; index += 1) names.push(format.format(make(index)));
         }
       }
       return names;
-    }));
+    }, language ?? 'en'));
     return { strings, shared, problems };
   } finally {
     await context.close();
@@ -676,10 +686,12 @@ function authorText(id) {
  * @param {{strings: Set<string>, shared: Set<string>}} german The page with the catalogue installed.
  * @param {string} author The demo's own source.
  * @param {RegExp[]} [demoText=[]] Text the demo's code builds.
+ * @param {string} [locale='de'] Shipped catalogue being audited.
  * @returns {string[]}
  */
-export function libraryEnglish(english, german, author, demoText = []) {
-  const catalogue = new Set(Object.values(de));
+export function libraryEnglish(english, german, author, demoText = [], locale = 'de') {
+  if (!Object.hasOwn(locales, locale)) throw new TypeError(`Unknown catalogue: ${locale}`);
+  const catalogue = new Set(Object.values(locales[locale]));
   const sharedNames = [...german.shared].sort((left, right) => right.length - left.length);
   const fixture = new RegExp(`\\b(?:${FIXTURE_WORDS.join('|')})\\b`, 'g');
   return [...german.strings].filter((text) => {
@@ -699,16 +711,25 @@ export function libraryEnglish(english, german, author, demoText = []) {
  * @param {import('playwright-core').Browser} browser Browser.
  * @param {string} base Server origin.
  * @param {string[]} [ids=Object.keys(PAGES)] Component ids.
+ * @param {string} [locale='de'] Shipped catalogue identifier.
  * @returns {Promise<boolean>} Whether a page failed.
  */
-export async function checkLanguage(browser, base, ids = Object.keys(PAGES)) {
+export async function checkLanguage(browser, base, ids = Object.keys(PAGES), locale = 'de') {
+  installLocale(locale);
   let failed = false;
   let read = 0;
   for (const id of ids) {
     const english = await capturePage(browser, base, id, false);
-    const german = await capturePage(browser, base, id, true);
-    const leftovers = libraryEnglish(english, german, authorText(id), PAGES[id]?.demoText);
-    const missing = (PAGES[id]?.expect ?? []).filter((text) => !german.strings.has(text));
+    const german = await capturePage(browser, base, id, locale);
+    const leftovers = locale === 'en' ? [] : libraryEnglish(english, german, authorText(id), PAGES[id]?.demoText, locale);
+    // German fixtures also exercise interpolated phrases. Exact catalogue expectations carry
+    // over to every shipped locale; synonymous German entries may have distinct translations.
+    const normalize = (text) => text.replace(/\s+/g, ' ').trim();
+    const expected = (PAGES[id]?.expect ?? []).map((text) => locale === 'de' ? [text]
+      : Object.keys(locales.de).filter((key) => normalize(locales.de[key]) === text)
+        .map((key) => normalize(locales[locale][key])));
+    const missing = expected.filter((choices) => choices.length && !choices.some((text) => german.strings.has(text)))
+      .map((choices) => [...new Set(choices)].join(' / '));
     const problems = [...english.problems, ...german.problems];
     read += german.strings.size;
     if (leftovers.length || missing.length || problems.length) {
@@ -719,13 +740,16 @@ export async function checkLanguage(browser, base, ids = Object.keys(PAGES)) {
       for (const text of problems.slice(0, 5)) console.error(`        ${text}`);
     }
   }
-  if (!failed) console.log(`PASS  language — ${ids.join(', ')}: ${read} strings in German`);
+  if (!failed) console.log(`PASS  language — ${ids.join(', ')}: ${read} strings in ${locale}`);
   return failed;
 }
 
 /** Runs on its own: serves the repository, checks, and stops. @returns {Promise<number>} Exit code. */
 async function main() {
-  const ids = process.argv.slice(2);
+  const args = process.argv.slice(2);
+  const locale = args.find((arg) => arg.startsWith('--locale='))?.slice('--locale='.length) ?? 'de';
+  const ids = args.filter((arg) => !arg.startsWith('--locale='));
+  installLocale(locale);
   const port = Number(process.env.SMOKE_PORT ?? 8398);
   const base = `http://127.0.0.1:${port}`;
   const server = spawn(process.execPath, [join(root, 'tools/serve.js')], {
@@ -743,7 +767,7 @@ async function main() {
       }
     }
     browser = await chromium.launch({ channel: 'chrome' });
-    return (await checkLanguage(browser, base, ids.length ? ids : undefined)) ? 1 : 0;
+    return (await checkLanguage(browser, base, ids.length ? ids : undefined, locale)) ? 1 : 0;
   } finally {
     await browser?.close();
     server.kill();

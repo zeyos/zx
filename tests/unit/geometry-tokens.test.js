@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { launchBrowser } from '../../tools/browser.js';
 
 /*
  * One geometry (AGENTS.md): control sizes, radius, spacing, blur, filters, durations, easings and
@@ -151,18 +152,9 @@ test('the classifier tells colours from geometry', () => {
  * smoke suites (`npm run test:browser`).
  */
 test('a nested light region keeps an application\'s :root control height', async (t) => {
-  let chromium;
-  try {
-    ({ chromium } = await import('playwright-core'));
-  } catch {
-    t.skip('playwright-core is not installed');
-    return;
-  }
-  let browser;
-  try {
-    browser = await chromium.launch({ channel: 'chrome' });
-  } catch {
-    t.skip('Google Chrome is not installed');
+  const browser = await launchBrowser({ optional: true });
+  if (!browser) {
+    t.skip('Configured installed browser is not available');
     return;
   }
   try {

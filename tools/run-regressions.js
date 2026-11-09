@@ -7,7 +7,7 @@ import { spawn } from 'node:child_process';
 import { readdir } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { chromium } from 'playwright-core';
+import { launchBrowser } from './browser.js';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const directory = resolve(root, 'tests/regression');
@@ -38,7 +38,7 @@ let passed = 0;
 let failed = 0;
 try {
   await waitForServer();
-  browser = await chromium.launch({ channel: 'chrome' });
+  browser = await launchBrowser();
   for (const file of suites) {
     const { cases } = await import(pathToFileURL(resolve(directory, file)).href);
     if (!Array.isArray(cases) || cases.length === 0) throw new Error(`${file} exports no cases`);

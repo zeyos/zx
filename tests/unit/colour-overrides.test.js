@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import test, { after, before } from 'node:test';
 
+import { launchBrowser } from '../../tools/browser.js';
 import { MATERIAL_RECIPES } from '../../website/theme-presets.js';
 import { LIGHT_DARK, NO_LIGHT_DARK, presetMapping, singleMapping } from './theme-tokens.js';
 
@@ -30,18 +31,8 @@ let browser;
 let unavailable = '';
 
 before(async () => {
-  let chromium;
-  try {
-    ({ chromium } = await import('playwright-core'));
-  } catch {
-    unavailable = 'playwright-core is not installed';
-    return;
-  }
-  try {
-    browser = await chromium.launch({ channel: 'chrome' });
-  } catch {
-    unavailable = 'Google Chrome is not installed';
-  }
+  browser = await launchBrowser({ optional: true }) ?? undefined;
+  if (!browser) unavailable = 'Configured installed browser is not available';
 });
 
 after(async () => {
