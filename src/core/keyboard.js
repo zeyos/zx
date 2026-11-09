@@ -38,6 +38,18 @@ const CARETLESS_INPUT_TYPES = new Set(['button', 'checkbox', 'color', 'file', 'i
 export function focusTrap(container) {
   let active = false;
   let previousFocus = null;
+  let temporaryTabindex = false;
+
+  /** @returns {void} */
+  function focusBoundary() {
+    const boundary = /** @type {HTMLElement} */ (container);
+    if (typeof boundary.focus !== 'function') return;
+    if (!boundary.hasAttribute('tabindex') && boundary.tabIndex < 0) {
+      boundary.setAttribute('tabindex', '-1');
+      temporaryTabindex = true;
+    }
+    boundary.focus();
+  }
 
   /** @returns {void} */
   function onKeydown(event) {
@@ -45,6 +57,7 @@ export function focusTrap(container) {
     const items = focusableItems(container);
     if (items.length === 0) {
       event.preventDefault();
+      focusBoundary();
       return;
     }
     const first = items[0];
@@ -65,7 +78,9 @@ export function focusTrap(container) {
       active = true;
       previousFocus = document.activeElement;
       document.addEventListener('keydown', onKeydown);
-      focusableItems(container)[0]?.focus();
+      const first = focusableItems(container)[0];
+      if (first) first.focus();
+      else focusBoundary();
     },
 
     /** Deactivates trapping and restores focus when possible. @returns {void} */
@@ -73,6 +88,8 @@ export function focusTrap(container) {
       if (!active) return;
       active = false;
       document.removeEventListener('keydown', onKeydown);
+      if (temporaryTabindex && container.getAttribute('tabindex') === '-1') container.removeAttribute('tabindex');
+      temporaryTabindex = false;
       if (previousFocus?.isConnected && typeof previousFocus.focus === 'function') previousFocus.focus();
       previousFocus = null;
     }
