@@ -1,3 +1,4 @@
+// @ts-check
 import { resolveElement } from './dom.js';
 
 const SCOPE_SELECTOR = '.zx-scope, [data-zx-theme], [data-zx-preset]';
