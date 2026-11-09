@@ -407,6 +407,7 @@ export class Dock extends Component {
         record.collapsed = shouldCollapse;
         this._syncPaneState(record);
       }
+      this._materialize(record);
     }
     this._syncGrow();
     this._syncDividers();
@@ -424,10 +425,10 @@ export class Dock extends Component {
     this._dividerDrags = [];
     for (const record of this._panes.values()) {
       record.roving?.destroy();
-      record.breakpoint?.destroy();
       // The dock never owned the sheet, so it hands it back rather than taking it down with it.
-      if (record.kind === 'sheet') record.sheet._setDock(null);
+      if (record.kind === 'sheet') this._releaseSheet(record);
     }
+    this._panes.clear();
     super.destroy();
     if (!this._createdRoot && this._snapshot) restoreTarget(this.el, this._snapshot);
   }
@@ -680,7 +681,10 @@ export class Dock extends Component {
       collapsed: false,
       collapsible: false,
       breakpoint: null,
-      resync: null
+      resync: null,
+      originalSize: sheet.el.style.getPropertyValue('--zx-pane-size'),
+      originalSizePriority: sheet.el.style.getPropertyPriority('--zx-pane-size'),
+      originalGrow: sheet.el.getAttribute('data-grow')
     };
     const entries = [...this._panes.entries()];
     const index = Number.isInteger(options.index)
@@ -724,17 +728,32 @@ export class Dock extends Component {
   release(sheet) {
     const record = [...this._panes.values()].find((candidate) => candidate.sheet === sheet);
     if (!record) return this;
-    record.breakpoint?.destroy();
-    record.breakpoint = null;
     this._panes.delete(record.name);
-    sheet.off('open', record.resync);
-    sheet.off('close', record.resync);
-    sheet.el.style.removeProperty('--zx-pane-size');
-    sheet._setDock(null);
+    this._releaseSheet(record);
     this._layout();
     this._syncGrow();
     this._syncDividers();
     return this;
+  }
+
+  /**
+   * Removes adoption-only subscriptions and styling before returning a surviving sheet.
+   * @param {Record<string, any>} record Adopted sheet record.
+   * @param {boolean} [rehost=true] Whether the sheet is still alive and can be floated.
+   * @returns {void}
+   */
+  _releaseSheet(record, rehost = true) {
+    record.breakpoint?.destroy();
+    record.breakpoint = null;
+    const sheet = record.sheet;
+    sheet.off('open', record.resync);
+    sheet.off('close', record.resync);
+    if (record.originalSize) {
+      sheet.el.style.setProperty('--zx-pane-size', record.originalSize, record.originalSizePriority);
+    } else sheet.el.style.removeProperty('--zx-pane-size');
+    if (record.originalGrow === null) sheet.el.removeAttribute('data-grow');
+    else sheet.el.setAttribute('data-grow', record.originalGrow);
+    if (rehost) sheet._setDock(null);
   }
 
   /**
@@ -745,7 +764,7 @@ export class Dock extends Component {
   _forget(sheet) {
     const record = [...this._panes.values()].find((candidate) => candidate.sheet === sheet);
     if (!record) return;
-    record.breakpoint?.destroy();
+    this._releaseSheet(record, false);
     this._panes.delete(record.name);
     if (this._destroyed) return;
     this._layout();
