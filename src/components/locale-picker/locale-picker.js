@@ -108,8 +108,9 @@ export class LocalePicker extends Select {
       if (!code || seen.has(code)) continue;
       seen.add(code);
       const locale = new Intl.Locale(code);
-      const nativeName = capitalize(displayNames(code, 'language')?.of(code) ?? code, code);
-      const localizedName = capitalize(localized?.of(code) ?? code, displayLocale);
+      const base = locale.baseName;
+      const nativeName = capitalize(displayNames(base, 'language')?.of(base) ?? base, base);
+      const localizedName = capitalize(localized?.of(base) ?? base, displayLocale);
       const name = spec.name ?? (display === 'localized' ? localizedName : nativeName);
       const description = spec.description
         ?? (display === 'both' && localizedName.toLocaleLowerCase() !== nativeName.toLocaleLowerCase() ? localizedName : '');
