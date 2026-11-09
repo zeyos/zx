@@ -1,6 +1,7 @@
 # WP74 — Reproducible assets, package discovery and delivery checks
 
 Branch: `wp/71-review-maintenance`. Implements WP71 M10–M14 and integration for WP72–75.
+Status: complete, 2026-11-09.
 AGENTS.md applies. The owner requested a fresh website for local testing after the remaining fixes.
 
 ## Scope
@@ -39,6 +40,19 @@ AGENTS.md applies. The owner requested a fresh website for local testing after t
 
 npm test, bundle/type build, complete regressions and smoke checks, both-theme demos for changed UI,
 client provenance/API verification, package tree-shaking and allowlist checks, fresh site audit.
+
+## Validation results
+
+- `npm test`: 1,841 passing tests, zero failures or skips; semantic-token lint covers 127 stylesheets.
+- Bundle and declaration build: passing; API reference regenerated for 132 components.
+- Browser regressions: 122 passing cases across light and dark themes.
+- Smoke: 251 source and six distribution checks; documentation shell, all 21 layout gallery tiles,
+  standalone routes and the German audit of 17,032 strings pass.
+- Vendor recipe reproduces the committed bundle byte for byte; root and revisioned site assets are
+  checksum-checked. Package dry run contains 516 files, supported Surface/locale/palette additions,
+  and no private working material.
+- WP75 desktop/mobile light/dark screenshots and accessibility audits pass. The site is rebuilt
+  from the final branch revision for local testing; publication remains outside this package.
 
 ## Out of scope
 

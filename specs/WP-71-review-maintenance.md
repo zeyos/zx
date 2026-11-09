@@ -1,7 +1,7 @@
 # WP71 — Confirmed review maintenance backlog
 
-Status: implementation authorized by the owner after WP65–WP70. WP72–WP75 refine the scope.
-Branch for later implementation: `wp/71-review-maintenance`, from completed WP65 integration.
+Status: implemented and validated in WP72–WP75 after WP65–WP70.
+Branch: `wp/71-review-maintenance`, from completed WP65 integration.
 `AGENTS.md` applies. WP72 covers M1–M7; WP73 M8/M9; WP74 M10–M14; WP75 M15/M16.
 
 ## Confirmed items and acceptance
@@ -25,8 +25,8 @@ Branch for later implementation: `wp/71-review-maintenance`, from completed WP65
 | M15 | `tests/lint-tokens.js`, logical-property tests, browser launch checks; smoke runner | Scan quoted SVG colours appropriately and shared/layout logical properties; distinguish missing browser from launch errors; explicitly configure any alternate browser. Add behavior coverage for discovered failures, not source-text-only assertions. |
 | M16 | Filter/Select CSS and other specifically identified component CSS; styles/core.css and module palette | Replace modifier state/fixed control geometry with supported attributes/tokens; audit overrides before removal. Separate product palette from generic core with a compatible optional import. |
 
-The M4/M5/M8/M9/M14 entries explicitly identify future core scope; they do not authorize edits
-during WP65–WP70. Future implementation specs must name exact touched files and compatibility choices.
+WP72–WP75 name the exact touched files and compatibility choices, including explicit core permission.
+WP74 records final integration validation. The excluded architecture decisions below remain separate.
 
 ## Excluded claims and separate decisions
 

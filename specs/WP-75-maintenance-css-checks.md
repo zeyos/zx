@@ -1,6 +1,9 @@
 # WP75 — CSS invariants and reliable browser checks
 
 Branch: `wp/71-review-maintenance`. Implements WP71 M15/M16. AGENTS.md applies.
+Status: complete, 2026-11-09. Eight CSS browser cases and 58 scoped unit/browser checks pass;
+16 desktop/mobile light/dark screenshots and 16 accessibility audit checks pass. Hover ink,
+responsive geometry, optional module colours and missing-browser/error handling are verified.
 
 ## Scope
 

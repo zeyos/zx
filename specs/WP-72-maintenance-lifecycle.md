@@ -1,6 +1,8 @@
 # WP72 — Remaining input, storage and lifecycle corrections
 
 Branch: `wp/71-review-maintenance`, from completed WP65. Implements WP71 M1–M7.
+Status: complete, 2026-11-09. All 14 lifecycle browser cases pass across light and dark themes;
+storage/AG-UI units and the full WP74 integration checks pass.
 The owner authorized the remaining findings. AGENTS.md applies. No dependencies or publication.
 
 ## Scope

@@ -1,6 +1,9 @@
 # WP73 — Plurals, formatting locale and translated binding defaults
 
 Branch: `wp/71-review-maintenance`. Implements WP71 M8/M9. AGENTS.md applies.
+Status: complete, 2026-11-09. All 12 localization browser cases pass across both themes, including
+English fallback under Russian plural rules; catalogue, locale-service, number-input and binding
+regressions, type checks and English/German audits pass. Full integration results are in WP74.
 
 ## Scope
 
@@ -27,6 +30,8 @@ Branch: `wp/71-review-maintenance`. Implements WP71 M8/M9. AGENTS.md applies.
   run-status steps, code-editor selected lines, questionnaire minimum-length validation.
   Preserve custom labels and old unsuffixed overrides. Use explicit count at each call site.
 - Valid explicit formatting locale wins, then active language including regional English, then en.
+  Determine support with the consuming Intl service: number, date, relative-time and plural-rule
+  support sets may differ. Built-in English plural text must reach English-rule fallback.
   Explicit formatDate locale bypasses host date-name translation. Without explicit locale, honor
   host short names; absent short names come from Intl, never slicing translated long names.
   NumberField parsing separators and formatting share the same effective locale, including changes.
