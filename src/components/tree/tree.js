@@ -97,6 +97,9 @@ export class TreeView extends Component {
     this._checked = new Set();
     /** @type {Map<unknown, Promise<boolean>>} In-flight lazy loads, keyed by node ID. */
     this._loading = new Map();
+    this._loadGeneration = 0;
+    this._destroyed = false;
+    this._expanding = new Map();
     this._focusId = null;
     this._filter = '';
     /** @type {Array<import('../../internal/row-actions.js').RowActionStrip|undefined>} Per visible row. */
@@ -179,6 +182,9 @@ export class TreeView extends Component {
    * @returns {this}
    */
   setItems(items) {
+    this._loadGeneration += 1;
+    this._loading.clear();
+    this._expanding.clear();
     this._items = cloneNodes(items);
     this._renderRows();
     return this;
@@ -236,6 +242,7 @@ export class TreeView extends Component {
    * @fires TreeView#expand
    */
   async expand(id) {
+    if (this._destroyed) return this;
     const node = this.getNode(id);
     if (!node || !isBranch(node, this._readers)) return this;
     const loaded = this._readers.children(node);
@@ -243,7 +250,11 @@ export class TreeView extends Component {
     // An ID can already be in the expanded set without its children having been fetched
     // (`expanded` option, expandAll, `*`, filtering) — that still has to trigger the loader.
     if (this._expanded.has(id) && !needsLoad) return this;
+    const operation = {};
+    this._expanding.set(id, operation);
     const ok = await this._ensureChildren(node, id);
+    if (this._destroyed || this._expanding.get(id) !== operation) return this;
+    this._expanding.delete(id);
     if (!ok) return this;
     this._expanded.add(id);
     this._renderRows();
@@ -258,6 +269,7 @@ export class TreeView extends Component {
    * @fires TreeView#collapse
    */
   collapse(id) {
+    this._expanding.delete(id);
     if (!this._expanded.delete(id)) return this;
     const node = this.getNode(id);
     this._renderRows();
@@ -289,6 +301,7 @@ export class TreeView extends Component {
 
   /** Collapses every branch. @returns {this} */
   collapseAll() {
+    this._expanding.clear();
     this._expanded.clear();
     this._renderRows();
     return this;
@@ -587,7 +600,12 @@ export class TreeView extends Component {
     const action = /** @type {Element} */ (event.target).closest('[data-action]');
     if (action?.dataset.action === 'twisty') {
       // toggle() re-renders every row, so focus has to be put back on this one afterwards.
-      if (isBranch(row.node, this._readers)) void this.toggle(row.id).then(() => this._focusNodeId(row.id));
+      const generation = this._loadGeneration;
+      if (isBranch(row.node, this._readers)) void this.toggle(row.id).then(() => {
+        if (!this._destroyed && generation === this._loadGeneration && Object.is(this._focusId, row.id)) {
+          this._focusNodeId(row.id);
+        }
+      });
       return;
     }
     const node = this.getNode(row.id) ?? row.node;
@@ -636,12 +654,18 @@ export class TreeView extends Component {
         event.preventDefault();
         this._focusRow(Math.max(0, index - 1));
         return;
-      case 'ArrowRight':
+      case 'ArrowRight': {
         event.preventDefault();
         // Re-find the row by ID after the async expand: positional indices can have shifted.
-        if (branch && !expanded) void this.expand(row.id).then(() => this._focusNodeId(row.id));
+        const generation = this._loadGeneration;
+        if (branch && !expanded) void this.expand(row.id).then(() => {
+          if (!this._destroyed && generation === this._loadGeneration && Object.is(this._focusId, row.id)) {
+            this._focusNodeId(row.id);
+          }
+        });
         else if (expanded) this._focusRow(Math.min(this._rows.length - 1, index + 1));
         return;
+      }
       case 'ArrowLeft': {
         event.preventDefault();
         if (expanded) {
@@ -709,33 +733,32 @@ export class TreeView extends Component {
    * Loads a branch's children through the configured loader, once.
    * @param {TreeNode} node Branch node.
    * @param {unknown} id Node ID.
-   * @returns {Promise<void>}
+   * @returns {Promise<boolean>}
    */
   async _ensureChildren(node, id) {
     const loaded = this._readers.children(node);
     if (!this.options.load || (loaded && loaded.length > 0)) return true;
     // One in-flight request per branch: concurrent expansions must not call the loader twice.
-    if (this._loading.has(id)) {
-      await this._loading.get(id);
-      return Array.isArray(this._readers.children(node));
-    }
+    if (this._loading.has(id)) return this._loading.get(id);
+    const generation = this._loadGeneration;
     const request = (async () => {
       try {
         const children = await this.options.load(node);
+        if (this._destroyed || generation !== this._loadGeneration) return false;
         node[this._childrenKey] = Array.isArray(children) ? children : [];
         // A branch that turns out to be empty must stop advertising children.
         if (node[this._childrenKey].length === 0) node.hasChildren = false;
         return true;
       } catch (error) {
-        this.emit('error', { error, node, id });
+        if (!this._destroyed && generation === this._loadGeneration) this.emit('error', { error, node, id });
         return false;
-      } finally {
-        this._loading.delete(id);
       }
     })();
     this._loading.set(id, request);
-    this._syncRows();
+    if (!this._destroyed && generation === this._loadGeneration) this._syncRows();
     const ok = await request;
+    if (this._destroyed || generation !== this._loadGeneration) return false;
+    if (this._loading.get(id) === request) this._loading.delete(id);
     this._syncRows();
     return ok;
   }
@@ -841,6 +864,10 @@ export class TreeView extends Component {
 
   /** Restores an enhanced target to the markup it had before the takeover. @returns {void} */
   destroy() {
+    this._destroyed = true;
+    this._loadGeneration += 1;
+    this._loading.clear();
+    this._expanding.clear();
     const root = this.el;
     for (const strip of this._strips?.splice(0) ?? []) strip?.destroy();
     this._rowMenu?.destroy();
