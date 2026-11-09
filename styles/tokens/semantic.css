@@ -28,6 +28,7 @@
   --zx-control-radius: var(--zx-radius-lg);
   --zx-control-font-size: var(--zx-text-md);
   --zx-control-font-weight: 500;
+  --zx-control-disabled-opacity: 0.65;
   /* A data row — a table row, a single-line list row: one rhythm for every list on a screen,
      following the control height, so a tighter or looser product is still one decision. 36px at
      the default. */

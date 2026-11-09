@@ -26,8 +26,8 @@
 
 .zx-select__value-adornment[hidden] { display: none; }
 
-.zx-select__value-adornment:not([hidden]) + .zx-select__input {
-  padding-inline-start: var(--zx-space-2) !important;
+.zx-select .zx-select__value-adornment:not([hidden]) + .zx-select__input {
+  padding-inline-start: var(--zx-space-2);
 }
 
 /* The ring follows keyboard focus. A text input matches :focus-visible on a click as well, so the
@@ -37,32 +37,31 @@
   box-shadow: var(--zx-focus-ring);
 }
 
-.zx-select__input {
+.zx-select .zx-select__input {
   grid-column: 2;
   inline-size: 100%;
   min-inline-size: 0;
-  min-block-size: calc(var(--zx-control-height) - 2px) !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: none !important;
-  box-shadow: none !important;
+  min-block-size: calc(var(--zx-control-height) - 2px);
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
 }
 
 .zx-select__input:read-only {
   cursor: default;
 }
 
-.zx-select__clear,
-.zx-select__toggle {
+.zx-select .zx-select__control :is(.zx-select__clear, .zx-select__toggle) {
   display: grid;
   place-items: center;
   inline-size: var(--zx-control-height);
-  min-block-size: calc(var(--zx-control-height) - 2px) !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: none !important;
+  min-block-size: calc(var(--zx-control-height) - 2px);
+  border: 0;
+  border-radius: 0;
+  background: none;
   color: var(--zx-color-text-muted);
-  padding: 0 !important;
+  padding: 0;
 }
 
 .zx-select__clear { grid-column: 3; }
@@ -70,19 +69,19 @@
 .zx-select__toggle { grid-column: 5; align-self: stretch; }
 .zx-select__toggle > .zx-icon { display: block; }
 
-.zx-select__clear:hover,
-.zx-select__toggle:hover {
+.zx-select .zx-select__clear:hover,
+.zx-select .zx-select__toggle:hover {
   color: var(--zx-color-text);
 }
 
-.zx-select__clear[hidden],
+.zx-select .zx-select__clear[hidden],
 .zx-select__loading[hidden] {
   display: none;
 }
 
 .zx-select__loading {
-  inline-size: 14px;
-  block-size: 14px;
+  inline-size: calc(var(--zx-control-height) / 2 - 1px);
+  block-size: calc(var(--zx-control-height) / 2 - 1px);
   border: 2px solid var(--zx-color-border);
   border-block-start-color: var(--zx-color-accent);
   border-radius: var(--zx-radius-full);
@@ -91,7 +90,7 @@
 /* Disabled reads the way a disabled Field does: text and frame fade together, nothing else
    changes. Inside a disabled Field the field has already faded, so the Select does not again. */
 .zx-select[aria-disabled="true"] {
-  opacity: 0.65;
+  opacity: var(--zx-control-disabled-opacity);
 }
 
 .zx-field[data-disabled="true"] .zx-select[aria-disabled="true"] {
@@ -103,7 +102,6 @@
 }
 
 .zx-select__panel {
-  z-index: 20;
   inline-size: max-content;
   max-inline-size: calc(100vw - var(--zx-space-4));
   overflow: hidden;
