@@ -146,7 +146,7 @@ export class Datebox extends Component {
       this.focus();
     });
     this.listen(document, 'keydown', (event) => {
-      if (!this._open || event.key !== 'Escape') return;
+      if (!this._open || event.defaultPrevented || event.key !== 'Escape') return;
       event.preventDefault();
       this._close(true);
     });
