@@ -14,6 +14,8 @@
  * @property {File|FileList|File[]} [files=null] Files that switch the body to FormData.
  * @property {string|URLSearchParams|Record<string, unknown>} [query=null] Query parameters.
  * @property {Record<string, string>} [headers={}] Per-request headers.
+ * @property {AbortSignal|null} [signal=null] Caller cancellation signal.
+ * @property {string} [paramName='files'] Multipart field name used for each file.
  */
 
 /** Dependency-free JSON fetch wrapper with legacy ZeyOS envelope handling. */
@@ -45,25 +47,29 @@ export class Http {
    */
   async request(path, options = {}) {
     const {
-      method = 'GET', data = null, files = null, query = null, headers = {}
+      method = 'GET', data = null, files = null, query = null, headers = {}, signal = null, paramName = 'files'
     } = options;
     const controller = new AbortController();
-    const timeoutId = this.timeout > 0 ? setTimeout(() => controller.abort(), this.timeout) : null;
-    const requestHeaders = new Headers(this.headers);
-    for (const [name, value] of Object.entries(headers)) requestHeaders.set(name, value);
-    requestHeaders.set('Accept', requestHeaders.get('Accept') ?? 'application/json');
-
-    let body;
-    if (files !== null) {
-      body = createFormData(data, files);
-      requestHeaders.delete('Content-Type');
-    } else if (data !== null && method.toUpperCase() !== 'GET' && method.toUpperCase() !== 'HEAD') {
-      body = JSON.stringify(data);
-      requestHeaders.set('Content-Type', requestHeaders.get('Content-Type') ?? 'application/json');
-    }
-
-    const url = appendQuery(this.base + path, query);
+    const abort = () => controller.abort(signal?.reason);
+    if (signal?.aborted) abort();
+    else signal?.addEventListener('abort', abort, { once: true });
+    const timeoutId = this.timeout > 0 ? setTimeout(() => {
+      controller.abort(new DOMException('Request timed out', 'TimeoutError'));
+    }, this.timeout) : null;
     try {
+      controller.signal.throwIfAborted();
+      const requestHeaders = new Headers(this.headers);
+      for (const [name, value] of Object.entries(headers)) requestHeaders.set(name, value);
+      requestHeaders.set('Accept', requestHeaders.get('Accept') ?? 'application/json');
+      let body;
+      if (files !== null) {
+        body = createFormData(data, files, String(paramName));
+        requestHeaders.delete('Content-Type');
+      } else if (data !== null && method.toUpperCase() !== 'GET' && method.toUpperCase() !== 'HEAD') {
+        body = JSON.stringify(data);
+        requestHeaders.set('Content-Type', requestHeaders.get('Content-Type') ?? 'application/json');
+      }
+      const url = appendQuery(this.base + path, query);
       const response = await fetch(url, {
         method: method.toUpperCase(),
         headers: requestHeaders,
@@ -71,6 +77,7 @@ export class Http {
         signal: controller.signal
       });
       const text = await response.text();
+      controller.signal.throwIfAborted();
       let json = null;
       if (text !== '') {
         try {
@@ -110,6 +117,7 @@ export class Http {
       throw error;
     } finally {
       if (timeoutId !== null) clearTimeout(timeoutId);
+      signal?.removeEventListener('abort', abort);
     }
   }
 
@@ -175,7 +183,8 @@ export function zeyosService(service, accesskey = '', options = {}) {
  */
 export function parseResult(json) {
   if (json && typeof json === 'object') {
-    if (Object.prototype.hasOwnProperty.call(json, 'error') && json.error != null) {
+    if (Object.prototype.hasOwnProperty.call(json, 'error') && json.error != null
+      && json.error !== false && json.error !== 0) {
       const message = typeof json.error === 'string' ? json.error : JSON.stringify(json.error);
       throw new Error(message || 'Server error');
     }
@@ -213,8 +222,8 @@ function appendParameter(parameters, key, value) {
   }
 }
 
-/** @param {unknown} data @param {File|FileList|File[]} files @returns {FormData} */
-function createFormData(data, files) {
+/** @param {unknown} data @param {File|FileList|File[]} files @param {string} paramName @returns {FormData} */
+function createFormData(data, files, paramName) {
   const form = new FormData();
   if (data && typeof data === 'object' && !Array.isArray(data)) {
     for (const [key, value] of Object.entries(data)) appendFormValue(form, key, value);
@@ -223,7 +232,7 @@ function createFormData(data, files) {
   }
 
   const list = isFileList(files) || Array.isArray(files) ? Array.from(files) : [files];
-  for (const file of list) form.append('files', file);
+  for (const file of list) form.append(paramName, file);
   return form;
 }
 
