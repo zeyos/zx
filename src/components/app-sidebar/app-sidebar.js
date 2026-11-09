@@ -1097,6 +1097,7 @@ export class AppSidebar extends Component {
     const index = controls.indexOf(current);
     if (event.key === 'ArrowRight' && item?.children?.length) {
       event.preventDefault();
+      if (item.disabled) return;
       if (!this._expanded.has(String(item.id))) this.toggleBranch(item.id);
       else visibleTreeControls(current.closest('.zx-app-sidebar__row')?.querySelector(':scope > .zx-app-sidebar__sublist'))[0]?.focus();
       return;
