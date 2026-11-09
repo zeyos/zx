@@ -8,6 +8,11 @@ and friends remain the complete record.
 
 ## Unreleased
 
+## 5.7.0 — 2026-11-09
+
+Locale and country Select presets, complete English/German catalogues and plural messages,
+agent surfaces and protocol adapters, and fixes across forms, data views and overlays.
+
 ### Added
 
 - `translatePlural(key, count, args, {locale}?)` and `Component.msgPlural(key, count, ...args)`
@@ -16,11 +21,16 @@ and friends remain the complete record.
   and `@zeyos/zx/locales/index.js`.
 - Optional ZeyOS module palette at `@zeyos/zx/styles/zeyos.css`.
 - Explicit legacy storage migration with `storage(namespace).migrateLegacy(['known-key'])`.
-- **LocalePicker** and **CountryPicker** — Select subclasses over a list of locales or ISO 3166-1
+- **`Select.locale()`** and **`Select.country()`** — Select presets over a list of locales or ISO 3166-1
   countries, named by `Intl.DisplayNames` with no translation table. A locale shows its native name
   with the interface's name beneath; the value is the canonical BCP 47 tag or the upper-case
   alpha-2 code. Both take `preferred` choices pinned above the list, `displayLocale`, and a `flags`
-  mode; field type `zxselect` with `preset: 'locale'` or `'country'`.
+  mode, and return ordinary Select instances. `Select.localeItems()` and `Select.countryItems()`
+  expose the item builders, and `canonicalLocale()` normalizes locale tags. Field type `zxselect`
+  supports `preset: 'locale'` or `'country'`.
+- **Locales guide** — adding languages and message keys, positional and named variables, plural
+  forms, regional formatting, and switching language at runtime. Its live example switches between
+  English, German and a custom French catalogue, with editable variables and counts.
 - **`flag()`** — draws a country flag as the platform's emoji, a muted code chip where the platform
   has no flag glyphs, or an image from a flag set the application serves (`src: '/flags/{code}.svg'`).
   `flagEmoji()`, `supportsFlagEmoji()` and `COUNTRY_CODES` go with it.
@@ -87,10 +97,21 @@ and friends remain the complete record.
 - The package includes the Surface guide and catalogue; documented ESM entries preserve field-adapter
   registration when bundled with tree-shaking. Development tools are pinned to the lockfile versions.
 - The documentation's ZeyOS client asset has a reproducible build command and a verified source manifest.
+- Component documentation explains host-provided integrations: Chart needs a rendering adapter
+  (`ChartJsAdapter` uses Chart.js), Font Awesome modes need their icon assets, and ZeyOS data
+  bindings need a compatible client. The library has no runtime package dependencies.
+- Theme Studio groups specimens into named sections, with a responsive grid, sticky section
+  navigation and colour swatches grouped by semantic role. Website navigation adds icons for
+  Docs, Layouts and Theme Studio.
+- Composer mention suggestions use the floating overlay material, including glass and
+  forced-colour treatment where supported.
+- The `agent-chat` layout includes an interactive credit-note question built with Surface and
+  uses the submitted values in the answer.
 - The `ai-chat` layout's empty state uses PromptStarters, and focus moves to the composer after a
   pick.
 - The library's remaining text, in Select, Table, Datebox, Filter and the rest, now goes through the
-  message catalogue, so a translator reaches it. Without one, the English is unchanged.
+  message catalogue, so a translator reaches it. English remains the fallback, with singular and
+  plural forms selected from explicit counts.
 - Month and weekday names, and dates in Calendar, ActivityItem, AgentThread and Surface, follow
   `setLanguage()`. With no language set, nothing changes.
 - Text options whose default moved to the catalogue no longer hold that English text, so
@@ -107,7 +128,7 @@ and friends remain the complete record.
 
 ### Fixed
 
-- CountryPicker searches custom descriptions. Blurring an unchanged Datebox preserves hidden time fields
+- Country Select presets search custom descriptions. Blurring an unchanged Datebox preserves hidden time fields
   and emits no change. Disabled AppSidebar items remain inert under keyboard activation.
 - Empty focus traps focus their boundary and restore its attributes on release. AgentThread follows its
   current scroll container after reparenting and releases listeners from the previous one.
@@ -118,6 +139,7 @@ and friends remain the complete record.
   replaced field definitions, and includes earlier applicable answers in native form data.
 - Slider number-box commits, locale-aware NumberField stepping, normalized FilterPanel values,
   Select typing and async item replacement, locale extension labels, and nested Datebox dismissal.
+- NumberField preserves localized digits and minus signs while editing and committing grouped values.
 - Persistent messages retain their duration. Tabbox restores a tab stop; MenuButton preserves Tab
   navigation; Breadcrumb overflow keeps links and cancellation; ContextMenu restores invoking focus.
 - Launcher ignores stale close events, Dock restores lazy content and destroys hosted sheets,
@@ -135,7 +157,6 @@ and friends remain the complete record.
 - Landing-page modules and styles load from the same asset revision.
 - ZeyOS views can opt into `savedViewFallback: 'baseline'` to browse records when the saved-view
   registry cannot be read, preserving the document and reporting the failure until recovery.
-
 - `printf()` fills every placeholder in one pass, so a value holding `%word%` stays as written.
 - `AgentThread.remove()` gives the next item its byline back when it now starts a turn, and moves
   focus to a neighbour when the removed item held it.
