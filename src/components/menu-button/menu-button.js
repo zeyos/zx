@@ -277,7 +277,11 @@ export class MenuButton extends Component {
   /** @param {KeyboardEvent} event @returns {void} */
   #onMenuKeydown(event) {
     if (event.key === 'Tab') {
+      // Let the browser continue sequential navigation from the trigger's document position.
+      // Focus first: close callbacks may deliberately move it elsewhere, and their choice wins.
+      /** @type {HTMLElement} */ (this.el).focus();
       this.close();
+      if (document.activeElement !== this.el) event.preventDefault();
       return;
     }
     if (event.key === 'Enter' || event.key === ' ') {
