@@ -351,7 +351,7 @@ export class Rating extends Component {
     const parts = [];
     if (this.options.showValue) parts.push(formatValue(this._value, this._step));
     if (count !== null && count !== undefined) {
-      parts.push(this._message('rating.count', '%1 ratings', [count]));
+      parts.push(this.msgPlural('rating.count', Number(count), count));
     }
     readout.textContent = parts.join(' · ');
   }
