@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { editableAllowsRoving, isEditableTarget, rovingStep } from '../../src/core/keyboard.js';
+import { editableAllowsRoving, isEditableTarget, rovingStep, typeahead } from '../../src/core/keyboard.js';
 
 /*
  * The decisions `rovingTabindex` makes before it moves focus, as pure functions: which step a key
@@ -61,3 +61,30 @@ test('an editable target keeps Home/End and its arrows until the caret reaches t
 function input(type, value = '', start = 0, end = start) {
   return { tagName: 'INPUT', type, value, selectionStart: start, selectionEnd: end };
 }
+
+test('repeated-letter typeahead cycles through matches and wraps', () => {
+  const items = ['Apple', 'Banana', 'Apricot', 'Avocado'];
+  const matches = [];
+  const handle = typeahead(() => items, (item, index) => matches.push([item, index]));
+  for (const key of ['a', 'A', 'a', 'a']) handle(key);
+  assert.deepEqual(matches, [['Apple', 0], ['Apricot', 2], ['Avocado', 3], ['Apple', 0]]);
+  assert.equal(typeahead.length, 2, 'the public signature stays compatible');
+});
+
+test('typeahead preserves prefixes, ignores modifiers and handles changed candidates', () => {
+  let items = ['Apple', 'Apricot', 'Avocado'];
+  const matches = [];
+  const handle = typeahead(() => items, (item) => matches.push(item));
+  handle('a');
+  handle({ key: 'a', ctrlKey: true });
+  handle({ key: 'a', metaKey: true });
+  handle({ key: 'a', altKey: true });
+  items = ['Almond', 'Avocado'];
+  handle('a');
+  handle('v');
+  assert.deepEqual(matches, ['Apple', 'Almond', 'Avocado']);
+  handle(' ');
+  handle('ArrowDown');
+  handle('o');
+  assert.equal(matches.at(-1), 'Avocado');
+});

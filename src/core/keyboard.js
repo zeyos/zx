@@ -100,11 +100,46 @@ export function focusTrap(container) {
 export function rovingTabindex(container, itemSelector, { orientation = 'vertical', wrap = true, rtl = 'auto' } = {}) {
   const controller = new AbortController();
   const originals = new Map();
+  const managed = new Map();
   let destroyed = false;
+
+  /** @param {HTMLElement} item @returns {void} */
+  function release(item) {
+    if (!originals.has(item)) return;
+    // A caller may have assigned a new value while the item was detached. Only undo our own write.
+    if (item.getAttribute('tabindex') === managed.get(item)) {
+      const tabindex = originals.get(item);
+      if (tabindex === null) item.removeAttribute('tabindex');
+      else item.setAttribute('tabindex', tabindex);
+    }
+    originals.delete(item);
+    managed.delete(item);
+  }
+
+  /** @param {MutationRecord[]} records @returns {void} */
+  function releaseRemoved(records) {
+    for (const record of records) {
+      if (record.type !== 'childList') continue;
+      for (const node of record.removedNodes) {
+        for (const item of originals.keys()) {
+          if (node === item || node.contains(item)) release(item);
+        }
+      }
+    }
+  }
 
   /** @returns {HTMLElement[]} */
   function items() {
-    return /** @type {HTMLElement[]} */ (Array.from(container.querySelectorAll(itemSelector)))
+    const pending = observer?.takeRecords() ?? [];
+    const changed = pending.some(concernsItems);
+    releaseRemoved(pending);
+    // A synchronous API/key call can consume observer records before its callback runs. Keep its
+    // pending availability refresh even if that call does not itself update the group.
+    if (changed) queueMicrotask(() => { if (!destroyed) update(); });
+    const current = /** @type {HTMLElement[]} */ (Array.from(container.querySelectorAll(itemSelector)));
+    const present = new Set(current);
+    for (const item of originals.keys()) if (!present.has(item)) release(item);
+    return current
       .filter((item) => {
         remember(item);
         return isAvailable(item);
@@ -113,7 +148,11 @@ export function rovingTabindex(container, itemSelector, { orientation = 'vertica
 
   /** @param {HTMLElement} item @returns {void} */
   function remember(item) {
-    if (!originals.has(item)) originals.set(item, item.getAttribute('tabindex'));
+    if (!originals.has(item)) {
+      const value = item.getAttribute('tabindex');
+      originals.set(item, value);
+      managed.set(item, value);
+    }
   }
 
   /** @param {HTMLElement|null} selected @returns {void} */
@@ -124,6 +163,7 @@ export function rovingTabindex(container, itemSelector, { orientation = 'vertica
     for (const item of available) {
       const tabindex = item === active ? 0 : -1;
       if (item.tabIndex !== tabindex) item.tabIndex = tabindex;
+      managed.set(item, item.getAttribute('tabindex'));
     }
   }
 
@@ -162,7 +202,11 @@ export function rovingTabindex(container, itemSelector, { orientation = 'vertica
   container.addEventListener('keydown', onKeydown, { signal: controller.signal });
   container.addEventListener('focusin', onFocus, { signal: controller.signal });
   const observer = typeof MutationObserver === 'function'
-    ? new MutationObserver((records) => { if (records.some(concernsItems)) update(); })
+    ? new MutationObserver((records) => {
+      const changed = records.some(concernsItems);
+      releaseRemoved(records);
+      if (changed) update();
+    })
     : null;
   observer?.observe(container, {
     childList: true, subtree: true, attributes: true, attributeFilter: AVAILABILITY_ATTRIBUTES
@@ -218,12 +262,14 @@ export function rovingTabindex(container, itemSelector, { orientation = 'vertica
       if (destroyed) return;
       destroyed = true;
       controller.abort();
+      releaseRemoved(observer?.takeRecords() ?? []);
       observer?.disconnect();
       for (const [item, tabindex] of originals) {
         if (tabindex === null) item.removeAttribute('tabindex');
         else item.setAttribute('tabindex', tabindex);
       }
       originals.clear();
+      managed.clear();
     }
   };
 }
@@ -309,6 +355,7 @@ function controlSignature(element) {
 export function typeahead(getItems, onMatch) {
   let buffer = '';
   let timer = null;
+  let lastMatch = null;
 
   return function handleTypeahead(event) {
     const key = typeof event === 'string' ? event : event.key;
@@ -316,16 +363,23 @@ export function typeahead(getItems, onMatch) {
     if (!key || key.length !== 1 || /\s/.test(key)) return;
 
     if (timer !== null) clearTimeout(timer);
-    buffer += key.toLocaleLowerCase();
-    if (buffer.split('').every((character) => character === buffer[0])) buffer = buffer[0];
+    const letter = key.toLocaleLowerCase();
+    const cycle = buffer === letter;
+    buffer = cycle ? letter : buffer + letter;
     timer = setTimeout(() => {
       buffer = '';
       timer = null;
     }, 500);
 
     const candidates = getItems();
-    const index = candidates.findIndex((item) => itemText(item).startsWith(buffer));
-    if (index >= 0) onMatch(candidates[index], index);
+    const start = cycle ? candidates.indexOf(lastMatch) + 1 : 0;
+    for (let offset = 0; offset < candidates.length; offset += 1) {
+      const index = (start + offset) % candidates.length;
+      if (!itemText(candidates[index]).startsWith(buffer)) continue;
+      lastMatch = candidates[index];
+      onMatch(lastMatch, index);
+      break;
+    }
   };
 }
 
