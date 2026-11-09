@@ -104,7 +104,7 @@ export class Breadcrumb extends Component {
       const control = /** @type {Element} */ (event.target).closest?.('[data-crumb]');
       if (!control || !list.contains(control)) return;
       // A crumb with an href is an ordinary link: report the selection and let the browser follow.
-      this._select(/** @type {HTMLElement} */ (control).dataset.crumb);
+      if (this._select(/** @type {HTMLElement} */ (control).dataset.crumb)?.defaultPrevented) event.preventDefault();
     });
     return root;
   }
@@ -283,11 +283,14 @@ export class Breadcrumb extends Component {
       const trigger = this._overflow.toElement();
       trigger.classList.add('zx-breadcrumb__more');
       trigger.setAttribute('aria-label', this._message('breadcrumb.more', 'Show hidden levels'));
-      this._overflow.on('select', (event) => this._select(String(event.detail.value)));
+      this._overflow.on('select', (event) => {
+        if (this._select(String(event.detail.value))?.defaultPrevented) event.preventDefault();
+      });
     }
     this._overflow.setItems(hidden.map((item) => ({
       label: item.label,
       value: item.name,
+      href: item.href ?? undefined,
       icon: item.icon ?? undefined
     })));
     return /** @type {HTMLElement} */ (this._overflow.toElement());
@@ -301,13 +304,13 @@ export class Breadcrumb extends Component {
 
   /**
    * @param {string|undefined} name Item name from a control's `data-crumb`.
-   * @returns {void}
+   * @returns {CustomEvent<BreadcrumbSelectDetail>|undefined}
    * @fires Breadcrumb#select
    */
   _select(name) {
     const index = this._items.findIndex((item) => item.name === name);
     if (index < 0) return;
-    this.emit('select', { name: this._items[index].name, item: { ...this._items[index] }, index });
+    return this.emit('select', { name: this._items[index].name, item: { ...this._items[index] }, index });
   }
 
   /**
@@ -325,7 +328,7 @@ export class Breadcrumb extends Component {
 
 /**
  * Fired when an interactive crumb is chosen, from the trail itself or from the overflow menu. A
- * crumb with an `href` still navigates: the event reports the choice, it does not gate it.
+ * crumb with an `href` navigates natively unless the selection is prevented.
  * @event Breadcrumb#select
  * @type {CustomEvent<BreadcrumbSelectDetail>}
  */
