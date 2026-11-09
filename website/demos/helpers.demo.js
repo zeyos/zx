@@ -430,7 +430,7 @@ function storageHelpers() {
    */
   const rawKeys = () => {
     try {
-      return Object.keys(globalThis.localStorage ?? {}).filter((key) => key.startsWith('zx:'));
+      return Object.keys(globalThis.localStorage ?? {}).filter((key) => key.startsWith('zx2:'));
     } catch {
       return [];
     }
@@ -442,7 +442,7 @@ function storageHelpers() {
       `store.get('note', '(nothing yet)') → ${JSON.stringify(store.get('note', '(nothing yet)'))}`,
       `store.get('missing', 'fallback') → ${JSON.stringify(store.get('missing', 'fallback'))}`,
       '',
-      'Raw keys in localStorage (note the zx: prefix and the namespace);',
+      'Raw keys in localStorage (note the zx2: prefix and the namespace);',
       'empty here means the in-memory fallback is active:',
       JSON.stringify(rawKeys(), null, 2)
     ].join('\n');
@@ -463,12 +463,13 @@ function storageHelpers() {
 
   return section('Storage',
     note('storage(namespace) is a namespaced, JSON-encoded view of localStorage (or '
-      + "sessionStorage with { area: 'session' }). Every key is written as zx:<namespace>:<key>, so "
+      + "sessionStorage with { area: 'session' }). Keys use a length-delimited namespace, so "
       + 'features share an origin without colliding and clear() only empties its own namespace. '
       + 'When the area is unavailable or refuses a write — private browsing, a full quota, cookies '
       + 'disabled — it silently falls back to an in-memory map, so callers never need a try/catch.'),
     code([
       "const store = storage('invoices');",
+      "store.migrateLegacy(['filter']); // copy a known old key once, without deleting it",
       "store.set('filter', { status: 'open', page: 1 });",
       "store.get('filter', {});   // the fallback covers a missing key AND unparseable JSON",
       'store.keys();              // namespace-relative names',

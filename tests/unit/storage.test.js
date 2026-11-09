@@ -110,18 +110,18 @@ test('storage.get returns the fallback for unparseable JSON', () => {
   withArea('localStorage', new FakeStorage(), (area) => {
     const store = storage('app');
     // Something else wrote a raw, non-JSON value under our prefix.
-    area.setItem('zx:app:broken', 'not json {');
+    area.setItem('zx2:3:app:broken', 'not json {');
     assert.equal(store.get('broken', 'fallback'), 'fallback');
     assert.equal(store.get('broken'), undefined);
   });
 });
 
-test('storage prefixes every key with zx:<namespace>:', () => {
+test('storage prefixes keys with a length-delimited namespace', () => {
   withArea('localStorage', new FakeStorage(), (area) => {
     const store = storage('invoices');
     store.set('filter', 'open');
-    assert.equal(area.getItem('zx:invoices:filter'), '"open"');
-    assert.deepEqual([...area.map.keys()], ['zx:invoices:filter']);
+    assert.equal(area.getItem('zx2:8:invoices:filter'), '"open"');
+    assert.deepEqual([...area.map.keys()], ['zx2:8:invoices:filter']);
     // keys() reports the namespace-relative name.
     assert.deepEqual(store.keys(), ['filter']);
   });
@@ -144,7 +144,7 @@ test('storage namespaces are isolated and clear() spares its neighbours', () => 
     invoices.clear();
     assert.deepEqual(invoices.keys(), []);
     assert.deepEqual(contacts.keys(), ['filter']);
-    assert.equal(area.getItem('zx:contacts:filter'), '"active"');
+    assert.equal(area.getItem('zx2:8:contacts:filter'), '"active"');
   });
 });
 
@@ -181,8 +181,8 @@ test('storage selects the session area when asked', () => {
     withArea('sessionStorage', new FakeStorage(), (session) => {
       const store = storage('app', { area: 'session' });
       store.set('key', 'value');
-      assert.equal(session.getItem('zx:app:key'), '"value"');
-      assert.equal(local.getItem('zx:app:key'), null);
+      assert.equal(session.getItem('zx2:3:app:key'), '"value"');
+      assert.equal(local.getItem('zx2:3:app:key'), null);
     });
   });
 });
@@ -219,7 +219,7 @@ test('storage degrades to memory when writes start failing mid-session', () => {
   withArea('localStorage', area, () => {
     const store = storage('app');
     store.set('before', 'written');
-    assert.equal(area.getItem('zx:app:before'), '"written"');
+    assert.equal(area.getItem('zx2:3:app:before'), '"written"');
 
     // A full quota turns every later write into an exception.
     area.setItem = () => {
@@ -227,7 +227,7 @@ test('storage degrades to memory when writes start failing mid-session', () => {
     };
     assert.doesNotThrow(() => store.set('after', 'memory'));
     assert.equal(store.get('after'), 'memory');
-    assert.equal(area.getItem('zx:app:after'), null);
+    assert.equal(area.getItem('zx2:3:app:after'), null);
   });
 });
 
@@ -236,6 +236,114 @@ test('storage tolerates an empty or nullish namespace', () => {
     const store = storage(null);
     store.set('key', 'value');
     assert.equal(store.get('key'), 'value');
-    assert.equal(area.getItem('zx::key'), '"value"');
+    assert.equal(area.getItem('zx2:0::key'), '"value"');
   });
+});
+
+test('colon-containing namespaces and keys remain distinct across clears', () => {
+  withArea('localStorage', new FakeStorage(), () => {
+    const short = storage('a'); const nested = storage('a:b');
+    short.set('b:key', 'short'); nested.set('key', 'nested');
+    assert.equal(short.get('b:key'), 'short'); assert.equal(nested.get('key'), 'nested');
+    short.clear(); assert.equal(short.get('b:key'), undefined); assert.equal(nested.get('key'), 'nested');
+  });
+});
+
+test('legacy migration copies exact valid keys once and never deletes the originals', () => {
+  for (const areaName of ['localStorage', 'sessionStorage']) withArea(areaName, new FakeStorage(), (area) => {
+    const options = { area: areaName === 'sessionStorage' ? 'session' : 'local' };
+    const store = storage('a', options); const nested = storage('a:b', options);
+    area.setItem('zx:a:b:key', JSON.stringify('legacy'));
+    area.setItem('zx:a:invalid', '{');
+    area.setItem('zx:a:existing', JSON.stringify('old'));
+    store.set('existing', 'new');
+    assert.equal(store.get('b:key'), undefined);
+    assert.deepEqual(store.migrateLegacy(['b:key', 'invalid', 'existing', 'missing']), ['b:key']);
+    assert.equal(store.get('b:key'), 'legacy'); assert.equal(store.get('existing'), 'new');
+    assert.equal(area.getItem('zx:a:b:key'), '"legacy"');
+    assert.deepEqual(nested.migrateLegacy(['key']), ['key']);
+    store.remove('b:key'); store.clear();
+    const fresh = storage('a', options);
+    area.setItem('zx:a:missing', JSON.stringify('arrived later'));
+    assert.deepEqual(fresh.migrateLegacy(['b:key', 'existing', 'missing']), []);
+    assert.equal(fresh.get('b:key'), undefined); assert.equal(fresh.get('existing'), undefined);
+    assert.equal(fresh.get('missing'), undefined); assert.equal(nested.get('key'), 'legacy');
+    area.setItem('zx:a:invalid', JSON.stringify('repaired'));
+    assert.deepEqual(fresh.migrateLegacy(['invalid']), ['invalid']);
+    assert.equal(fresh.get('invalid'), 'repaired');
+  });
+});
+
+test('migration uses the in-memory fallback if writes fail partway through', () => {
+  const area = new FakeStorage();
+  withArea('localStorage', area, () => {
+    area.setItem('zx:app:one', '1');
+    const store = storage('app');
+    const write = area.setItem.bind(area);
+    area.setItem = (key, value) => { if (key.startsWith('zx2:')) throw new Error('quota'); write(key, value); };
+    assert.deepEqual(store.migrateLegacy(['one']), ['one']);
+    assert.equal(store.get('one'), 1); assert.equal(area.getItem('zx:app:one'), '1');
+    store.remove('one'); assert.deepEqual(store.migrateLegacy(['one']), []);
+  });
+});
+
+test('legacy migration preserves falsy JSON and keeps local and session markers independent', () => {
+  withArea('localStorage', new FakeStorage(), (local) => {
+    withArea('sessionStorage', new FakeStorage(), (session) => {
+      const values = { zero: 0, false: false, empty: '', null: null };
+      for (const area of [local, session]) {
+        for (const [key, value] of Object.entries(values)) area.setItem(`zx:app:${key}`, JSON.stringify(value));
+      }
+      for (const [areaName, backing] of [['local', local], ['session', session]]) {
+        const store = storage('app', { area: areaName });
+        assert.deepEqual(store.migrateLegacy(Object.keys(values)), Object.keys(values));
+        for (const [key, value] of Object.entries(values)) {
+          assert.equal(store.get(key, 'missing'), value);
+          assert.equal(backing.getItem(`zx2:3:app:${key}`), JSON.stringify(value));
+          assert.equal(backing.getItem(`zx:app:${key}`), JSON.stringify(value));
+        }
+      }
+    });
+  });
+});
+
+test('a failed migration-marker write keeps the copied value visible in memory', () => {
+  const area = new FakeStorage();
+  withArea('localStorage', area, () => {
+    area.setItem('zx:app:key', '42');
+    const store = storage('app');
+    const write = area.setItem.bind(area);
+    area.setItem = (key, value) => { if (key.startsWith('zx2m:')) throw new Error('quota'); write(key, value); };
+    assert.deepEqual(store.migrateLegacy(['key']), ['key']);
+    assert.equal(store.get('key'), 42); assert.equal(area.getItem('zx:app:key'), '42');
+    store.remove('key'); assert.deepEqual(store.migrateLegacy(['key']), []);
+  });
+});
+
+test('a failed migration marker preserves an existing persisted destination', () => {
+  const area = new FakeStorage();
+  withArea('localStorage', area, () => {
+    area.setItem('zx2:3:app:key', '42'); area.setItem('zx:app:key', '7');
+    const store = storage('app'); const write = area.setItem.bind(area);
+    area.setItem = (key, value) => { if (key.startsWith('zx2m:')) throw new Error('quota'); write(key, value); };
+    assert.deepEqual(store.migrateLegacy(['key']), []);
+    assert.equal(store.get('key'), 42); assert.deepEqual(store.keys(), ['key']);
+    assert.equal(area.getItem('zx:app:key'), '7');
+  });
+});
+
+test('an externally removed cached value does not return after fallback', () => {
+  for (const readAfterRemoval of [false, true]) {
+    const area = new FakeStorage();
+    withArea('localStorage', area, () => {
+      area.setItem('zx2:3:app:seen', '42');
+      const store = storage('app'); assert.equal(store.get('seen'), 42);
+      area.removeItem('zx2:3:app:seen');
+      if (readAfterRemoval) assert.equal(store.get('seen', 'missing'), 'missing');
+      area.setItem = () => { throw new Error('quota'); };
+      store.set('other', 1);
+      assert.equal(store.get('seen', 'missing'), 'missing');
+      assert.deepEqual(store.keys(), ['other']);
+    });
+  }
 });

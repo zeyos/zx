@@ -1030,6 +1030,7 @@ function adaptiveShell(root, context, {
     return element ? /** @type {AppSidebar|null} */ (Component.from(element)) : null;
   };
   const preferences = storage('zx-layouts');
+  preferences.migrateLegacy(['nav-presentation']);
   /** @type {'full'|'wide'|'mid'|'narrow'|null} */
   let band = null;
   /** True while the shell itself changes the presentation, which is not the reader's choice. */

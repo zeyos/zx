@@ -92,6 +92,7 @@ export class SplitView extends Component {
     const key = this.options.storageKey;
     if (key !== null && key !== undefined && key !== '') {
       this.#store = storage(STORAGE_NAMESPACE);
+      this.#store.migrateLegacy([String(key)]);
       const stored = this.#store.get(String(key));
       if (typeof stored === 'number' && Number.isFinite(stored) && stored >= 0) this.setSize(stored);
     }

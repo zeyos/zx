@@ -455,6 +455,7 @@ export class Composer extends Component {
     this._mentionSource = normalizeMentionSource(options.mentions);
     this._commands = Array.isArray(options.commands) && options.commands.length ? options.commands : null;
     this._draft = options.draftKey ? storage(DRAFT_NAMESPACE) : null;
+    if (this._draft) this._draft.migrateLegacy([String(options.draftKey)]);
     this._tools = normalizeTools(options.tools);
     this._sendLabel = sendLabelText(options.sendLabel);
     this._rows = rowRange(options.minRows, Number(options.maxRows) || 10);

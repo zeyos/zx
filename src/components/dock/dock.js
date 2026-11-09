@@ -114,6 +114,7 @@ export class Dock extends Component {
     const key = this.options.storageKey;
     if (key !== null && key !== undefined && key !== '') {
       this._store = storage(STORAGE_NAMESPACE);
+      this._store.migrateLegacy([String(key)]);
       const stored = this._store.get(String(key));
       if (stored && typeof stored === 'object') this.setState(stored);
     }

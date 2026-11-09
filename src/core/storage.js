@@ -11,18 +11,22 @@
  * @property {(key: string) => void} remove Deletes a single key.
  * @property {() => string[]} keys Lists the namespace's keys without their prefix.
  * @property {() => void} clear Deletes every key in the namespace, leaving other namespaces alone.
+ * @property {(keys: string[]) => string[]} migrateLegacy Copies listed valid legacy keys once if absent.
  */
 
 /** Every key written by this module carries this prefix plus its namespace. */
-const PREFIX = 'zx:';
+const PREFIX = 'zx2:';
+/** The previous format cannot distinguish namespace separators from key separators. */
+const LEGACY_PREFIX = 'zx:';
 /** Written and removed once to detect an area that exists but refuses writes. */
 const PROBE_KEY = 'zx:__probe__';
 
 /**
  * Creates a namespaced, JSON-encoded view of `localStorage` or `sessionStorage`.
  *
- * Every key is stored as `zx:<namespace>:<key>`, so several features can share one origin without
- * colliding, and `clear()` only touches the namespace it belongs to. When the storage area is
+ * Keys use `zx2:<namespace length>:<namespace>:<key>`, so namespaces cannot overlap. Existing
+ * `zx:` keys are copied only when explicitly requested through `migrateLegacy(keys)`; they are
+ * never deleted. `clear()` only touches the current namespace. When the storage area is
  * unavailable or refuses a write — private browsing, a full quota, cookies disabled — the view
  * transparently falls back to an in-memory map that lives as long as the page, so callers never
  * need a try/catch and never see an exception.
@@ -33,7 +37,10 @@ const PROBE_KEY = 'zx:__probe__';
  */
 export function storage(namespace, options = {}) {
   const { area = 'local' } = options;
-  const prefix = `${PREFIX}${String(namespace ?? '')}:`;
+  const name = String(namespace ?? '');
+  const prefix = `${PREFIX}${name.length}:${name}:`;
+  const legacyPrefix = `${LEGACY_PREFIX}${name}:`;
+  const migratedPrefix = `zx2m:${name.length}:${name}:`;
   /** @type {Map<string, string>} */
   const memory = new Map();
   let backing = resolveArea(area);
@@ -42,7 +49,10 @@ export function storage(namespace, options = {}) {
   const readRaw = (key) => {
     if (backing !== null) {
       try {
-        return backing.getItem(key);
+        const raw = backing.getItem(key);
+        if (raw === null) memory.delete(key);
+        else memory.set(key, raw);
+        return raw;
       } catch {
         backing = null;
       }
@@ -52,16 +62,27 @@ export function storage(namespace, options = {}) {
 
   /** @param {string} key @param {string} raw @returns {void} */
   const writeRaw = (key, raw) => {
+    // Retain successful writes as well: a later quota failure must not hide this view's data.
+    memory.set(key, raw);
     if (backing !== null) {
       try {
         backing.setItem(key, raw);
         return;
       } catch {
+        // Reconcile entries that another storage user may have changed or removed, while reads
+        // still work. The failed write itself stays in memory as the caller's intended value.
+        for (const cached of memory.keys()) {
+          if (cached === key) continue;
+          try {
+            const current = backing.getItem(cached);
+            if (current === null) memory.delete(cached);
+            else memory.set(cached, current);
+          } catch { break; }
+        }
         // A quota error mid-session degrades this view to memory rather than throwing.
         backing = null;
       }
     }
-    memory.set(key, raw);
   };
 
   /** @param {string} key @returns {void} */
@@ -94,6 +115,38 @@ export function storage(namespace, options = {}) {
   };
 
   return {
+    /**
+     * Copies exact legacy keys once without removing the originals. Existing current values win;
+     * missing keys are also marked handled. Invalid legacy JSON remains eligible for a later retry.
+     * Handled markers survive `remove()` and `clear()`, preventing a deleted value from returning.
+     * @param {string[]} keys Legacy keys known to belong to this caller.
+     * @returns {string[]} Names copied successfully.
+     */
+    migrateLegacy(keys) {
+      const migrated = [];
+      for (const key of new Set(Array.isArray(keys) ? keys.map(String) : [])) {
+        const destination = prefix + key;
+        const marker = migratedPrefix + key;
+        if (readRaw(marker) != null) continue;
+        if (readRaw(destination) != null) {
+          writeRaw(marker, '1');
+          continue;
+        }
+        const raw = readRaw(legacyPrefix + key);
+        if (raw == null) {
+          writeRaw(marker, '1');
+          continue;
+        }
+        try { JSON.parse(raw); } catch { continue; }
+        writeRaw(destination, raw);
+        if (readRaw(destination) === raw) {
+          writeRaw(marker, '1');
+          migrated.push(key);
+        }
+      }
+      return migrated;
+    },
+
     /**
      * Reads a value, returning the fallback for a missing key or unparseable JSON.
      * @param {string} key Key within the namespace.
