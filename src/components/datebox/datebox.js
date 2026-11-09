@@ -273,18 +273,22 @@ export class Datebox extends Component {
   _commitText() {
     if (this._disabled) return;
     const text = this.refs.input.value.trim();
-    if (text === '') {
-      this.set(null);
+    const current = this._value ? formatDate(this._value, this._format) : '';
+    if (text === current) {
+      this._setValid();
+      this._syncDisplay();
       return;
     }
-    const parsed = parseDate(text, this._format);
-    if (!parsed) {
+    const parsed = text === '' ? null : parseDate(text, this._format);
+    if (text !== '' && !parsed) {
       this.el.dataset.state = 'invalid';
       this.refs.input.setAttribute('aria-invalid', 'true');
       this.emit('invalid', { text });
       return;
     }
-    this.set(parsed);
+    const next = this._normalizeValue(parsed);
+    const unchanged = (next?.getTime() ?? null) === (this._value?.getTime() ?? null);
+    this.set(next, { silent: unchanged });
   }
 
   /** @param {Date|number|string|null|unknown} value @returns {Date|null} */
