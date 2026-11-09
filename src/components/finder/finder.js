@@ -68,8 +68,10 @@ export class Finder extends Component {
     this._path = [];
     this._columns = [];
     this._activeColumn = 0;
-    /** @type {Map<unknown, Promise<void>>} In-flight lazy loads, keyed by node ID. */
+    /** @type {Map<unknown, Promise<{children?: TreeNode[], error?: Error}>>} In-flight lazy loads, keyed by node ID. */
     this._loading = new Map();
+    this._loadGeneration = 0;
+    this._destroyed = false;
     this._pathSequence = 0;
     this._createdRoot = this.el === null;
     this._snapshot = this._createdRoot ? null : snapshotTarget(this.el);
@@ -144,6 +146,7 @@ export class Finder extends Component {
    * @fires Finder#change
    */
   async setPath(ids, { silent = false, focus = false } = {}) {
+    if (this._destroyed) return this;
     const sequence = this._pathSequence + 1;
     this._pathSequence = sequence;
     const wanted = Array.isArray(ids) ? ids.slice() : [];
@@ -155,9 +158,9 @@ export class Finder extends Component {
       if (!node) break;
       path.push(id);
       if (!isBranch(node, this._readers)) break;
-      await this._ensureChildren(node);
+      await this._ensureChildren(node, sequence);
       // A slower earlier call must not overwrite a newer path once its loaders resolve.
-      if (sequence !== this._pathSequence) return this;
+      if (this._destroyed || sequence !== this._pathSequence) return this;
       level = this._readers.children(node) ?? [];
     }
     this._path = path;
@@ -185,6 +188,9 @@ export class Finder extends Component {
    * @returns {this}
    */
   setItems(items) {
+    this._pathSequence += 1;
+    this._loadGeneration += 1;
+    this._loading.clear();
     this._items = Array.isArray(items) ? items.slice() : [];
     this._path = [];
     this._render({});
@@ -355,6 +361,7 @@ export class Finder extends Component {
       case 'ArrowLeft':
         event.preventDefault();
         if (column === 0) return;
+        this._pathSequence += 1;
         this._path = this._path.slice(0, column);
         this._activeColumn = column - 1;
         this._render({ focus: true });
@@ -382,12 +389,14 @@ export class Finder extends Component {
    * @fires Finder#change
    */
   async _selectAt(column, index, { focus = false } = {}) {
+    if (this._destroyed) return;
     const node = this._columnNodes(column)[index];
     if (!node) return;
+    const sequence = ++this._pathSequence;
     const id = this._readers.value(node);
     // Re-selecting the row that is already selected would replace the element under the pointer
     // and break the browser's own double-click detection.
-    if (this._path.length === column + 1 && Object.is(this._path[column], id)) {
+    if (this._path.length === column + 1 && Object.is(this._path[column], id) && !this._loading.has(id)) {
       this._activeColumn = column;
       this._syncTabStop();
       if (focus) this.focus();
@@ -395,7 +404,8 @@ export class Finder extends Component {
     }
     this._path = [...this._path.slice(0, column), id];
     this._activeColumn = column;
-    if (isBranch(node, this._readers)) await this._ensureChildren(node);
+    if (isBranch(node, this._readers)) await this._ensureChildren(node, sequence);
+    if (this._destroyed || sequence !== this._pathSequence) return;
     this._render({ focus });
     this._emitChange();
   }
@@ -407,7 +417,10 @@ export class Finder extends Component {
    * @returns {Promise<void>}
    */
   async _enter(column, index) {
-    await this._selectAt(column, index);
+    const selecting = this._selectAt(column, index);
+    const sequence = this._pathSequence;
+    await selecting;
+    if (this._destroyed || sequence !== this._pathSequence) return;
     const children = this._columnNodes(column + 1);
     if (children.length === 0) {
       this._activeColumn = column;
@@ -429,29 +442,34 @@ export class Finder extends Component {
   /**
    * Loads a branch's children through the configured loader, once.
    * @param {TreeNode} node Branch node.
+   * @param {number} sequence Navigation that requested the children.
    * @returns {Promise<void>}
    */
-  async _ensureChildren(node) {
+  async _ensureChildren(node, sequence) {
     const loaded = this._readers.children(node);
     if (!this.options.load || (loaded && loaded.length > 0)) return;
     const id = this._readers.value(node);
     // One in-flight request per branch, so a double navigation never calls the loader twice.
-    const pending = this._loading.get(id);
-    if (pending) return pending;
-    const request = (async () => {
-      try {
-        const children = await this.options.load(node);
-        node[this._childrenKey] = Array.isArray(children) ? children : [];
-        if (node[this._childrenKey].length === 0) node.hasChildren = false;
-      } catch (error) {
-        node[this._childrenKey] = [];
-        this.emit('error', { error, node, id });
-      } finally {
-        this._loading.delete(id);
-      }
-    })();
-    this._loading.set(id, request);
-    return request;
+    const generation = this._loadGeneration;
+    let request = this._loading.get(id);
+    if (!request) {
+      request = (async () => {
+        try {
+          const children = await this.options.load(node);
+          return { children: Array.isArray(children) ? children : [] };
+        } catch (error) {
+          return { error };
+        }
+      })();
+      this._loading.set(id, request);
+    }
+    const result = await request;
+    if (this._destroyed || generation !== this._loadGeneration) return;
+    if (this._loading.get(id) === request) this._loading.delete(id);
+    if (sequence !== this._pathSequence) return;
+    node[this._childrenKey] = result.children ?? [];
+    if ('error' in result) this.emit('error', { error: result.error, node, id });
+    else if (node[this._childrenKey].length === 0) node.hasChildren = false;
   }
 
   /** @param {number} column @returns {TreeNode[]} */
@@ -501,6 +519,9 @@ export class Finder extends Component {
   destroy() {
     // Invalidate any in-flight path resolution so a late loader cannot re-render a dead component.
     this._pathSequence += 1;
+    this._loadGeneration += 1;
+    this._destroyed = true;
+    this._loading.clear();
     const root = this.el;
     super.destroy();
     if (!this._createdRoot && root) restoreTarget(root, this._snapshot);
