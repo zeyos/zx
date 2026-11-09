@@ -129,7 +129,7 @@ function countrySelectOptions(options) {
     fixedLabel: pinned.length ? preferredLabel : null,
     valueKey: 'ID',
     labelKey: 'name',
-    searchKeys: ['name', 'ID', 'alias'],
+    searchKeys: ['name', 'ID', 'alias', 'description'],
     value: typeof value === 'string' ? normalizeRegion(value) ?? value : value,
     renderItem: (item) => pickerRow(visual(item), item.name, item.description),
     renderValueAdornment: (item) => visual(item)
