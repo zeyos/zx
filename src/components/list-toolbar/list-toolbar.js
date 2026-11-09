@@ -1,5 +1,6 @@
 import { Component } from '../../core/component.js';
 import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
+import { formatNumber } from '../../core/format.js';
 import { printf } from '../../core/i18n.js';
 import { icon } from '../../core/icons.js';
 import { isElement } from '../../core/util.js';
@@ -471,7 +472,7 @@ export class ListToolbar extends Component {
   _countFormat() {
     const custom = this.options.countText;
     if (typeof custom === 'function') return (value) => String(custom(value));
-    return (value) => this._message('listToolbar.results', '%1 results', value.toLocaleString());
+    return (value) => this.msgPlural('listToolbar.results', value, formatNumber(value));
   }
 
   /**

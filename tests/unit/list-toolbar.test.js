@@ -257,7 +257,7 @@ test('the public surface a host is documented to call exists', () => {
 });
 
 test('every user-visible string goes through the message layer', () => {
-  const literals = [...source.matchAll(/_message\('([^']+)', '([^']*)'/g)];
+  const literals = [...source.matchAll(/(?:_message|msgPlural)\('([^']+)'/g)];
   assert.deepEqual(literals.map(([, key]) => key).sort(), [
     'listToolbar.label', 'listToolbar.results', 'listToolbar.search', 'listToolbar.toolBadge',
     'listToolbar.views'
