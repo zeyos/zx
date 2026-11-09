@@ -107,7 +107,7 @@ export class ContextMenu extends Component {
       this.#context = null;
       const restore = this.#returnFocus;
       this.#returnFocus = null;
-      if (restore instanceof HTMLElement && restore.isConnected) restore.focus();
+      if (restore instanceof HTMLElement && restore.isConnected && this.#ownsFocus()) restore.focus();
       this.emit('close');
     });
 
@@ -299,9 +299,14 @@ export class ContextMenu extends Component {
       return;
     }
     const context = this.#context;
+    const restore = this.#returnFocus;
+    const reclaim = restore instanceof HTMLElement && restore.isConnected && this.#ownsFocus();
+    // A dialog opened by a callback records the invoking control as its opener.
+    if (reclaim) restore.focus();
     const selected = this.emit('select', { value: item.value, item, context });
     if (selected.defaultPrevented) {
       event?.preventDefault();
+      if (reclaim && document.activeElement === restore && element instanceof HTMLElement) element.focus();
       return;
     }
     try {
@@ -314,6 +319,12 @@ export class ContextMenu extends Component {
   /** @returns {HTMLElement[]} */
   #menuItems() {
     return Array.from(this.#panel.querySelectorAll(MENU_ITEM_SELECTOR));
+  }
+
+  /** @returns {boolean} Whether focus still belongs to this menu to restore. */
+  #ownsFocus() {
+    const active = document.activeElement;
+    return !active || active === document.body || this.#panel.contains(active);
   }
 }
 
