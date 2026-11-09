@@ -58,7 +58,7 @@
 
 .zx-filter__logic {
   inline-size: auto;
-  min-block-size: 28px;
+  min-block-size: calc(var(--zx-control-height) - 2px);
   font-size: var(--zx-text-sm);
 }
 
@@ -97,11 +97,11 @@
 }
 
 .zx-filter__value > :only-child,
-.zx-filter__value--empty {
+.zx-filter__value[data-empty] {
   grid-column: 1 / -1;
 }
 
-.zx-filter__value--empty {
+.zx-filter__value[data-empty] {
   display: flex;
   align-items: center;
   min-block-size: var(--zx-control-height);

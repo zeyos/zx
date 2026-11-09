@@ -458,7 +458,7 @@ export class Filter extends Component {
   _renderValue(node, field, operator) {
     const host = h('div', { class: 'zx-filter__value' });
     if (!field || !operator) return host;
-    if (operator.arity === 'none') return h('div', { class: 'zx-filter__value zx-filter__value--empty' }, this._message('filter.noValue', 'No value'));
+    if (operator.arity === 'none') return h('div', { class: 'zx-filter__value', 'data-empty': '' }, this._message('filter.noValue', 'No value'));
     if (field.type === 'custom' && typeof field.editor === 'function') {
       const renderVersion = this._renderVersion;
       queueMicrotask(() => {
