@@ -4,7 +4,7 @@ import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
 import { printf } from '../../core/i18n.js';
 import { uid } from '../../core/util.js';
 import { Checklist } from '../checklist/checklist.js';
-import { NumberField, parseNumber } from '../number-field/number-field.js';
+import { NumberField, parseNumber, snapNumber } from '../number-field/number-field.js';
 
 /**
  * Number of options past which the select filter's `Checklist` gets its search box. Below it the
@@ -810,8 +810,8 @@ export function toDraft(value, fields, timeZone = null) {
         : toDateInput(raw, timeZone);
     } else {
       draft[key] = spec.range
-        ? { from: toNumberValue(readEdge(raw, 'from'), spec), to: toNumberValue(readEdge(raw, 'to'), spec) }
-        : toNumberValue(raw, spec);
+        ? { from: toNumberValue(readEdge(raw, 'from'), spec, field), to: toNumberValue(readEdge(raw, 'to'), spec, field) }
+        : toNumberValue(raw, spec, field);
     }
   }
   return draft;
@@ -924,12 +924,20 @@ function readEdge(raw, edge) {
 /**
  * @param {unknown} raw Candidate number.
  * @param {FilterPanelSpec} spec Resolved type.
+ * @param {FilterPanelField} field Numeric constraints.
  * @returns {number|null}
  */
-function toNumberValue(raw, spec) {
+function toNumberValue(raw, spec, field) {
   const parsed = parseNumber(raw);
   if (parsed === null) return null;
-  return spec.integer ? Math.trunc(parsed) : parsed;
+  const step = Number.isFinite(Number(field.step)) && Number(field.step) > 0
+    ? Number(field.step) : (spec.integer ? 1 : FLOAT_STEP);
+  const text = String(step);
+  const precision = spec.integer ? 0 : Number(text.match(/e-(\d+)/i)?.[1] ?? (text.split('.')[1]?.length || 0));
+  return snapNumber(parsed, {
+    min: field.min == null ? null : Number(field.min),
+    max: field.max == null ? null : Number(field.max), step, precision
+  });
 }
 
 /**

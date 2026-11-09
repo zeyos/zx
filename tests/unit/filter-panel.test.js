@@ -174,7 +174,7 @@ test('values coming back as text still name the option and the number they mean'
   }, fields()), {
     status: [1, 2],
     amount: { from: 1234.56 },
-    priority: 3
+    priority: 4
   });
 });
 
