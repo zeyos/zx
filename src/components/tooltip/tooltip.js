@@ -42,8 +42,8 @@ const TRIGGERS = new Set(['hover', 'focus', 'both', 'manual']);
  *
  * The bubble is a manual popover in the top layer, positioned by `position()` from the kernel, so
  * it escapes clipping and stacking contexts and flips near a viewport edge. It never takes focus
- * and never receives pointer events: it describes the anchor rather than adding a target of its
- * own. While open, the anchor carries `aria-describedby` pointing at the bubble; closing restores
+ * but remains visible while the pointer is over either the anchor or the bubble. While open, the
+ * anchor carries `aria-describedby` pointing at the bubble; closing restores
  * whatever the anchor had before — including nothing at all.
  *
  * A hover opens it after `delay`; keyboard focus opens it at once, because a keyboard user has no
@@ -83,6 +83,9 @@ export class Tooltip extends Component {
   #closeTimer = 0;
   /** True between `pointerdown` and `pointerup`, so a click-induced focus cannot re-open. */
   #pointerActive = false;
+  #anchorHovered = false;
+  #bubbleHovered = false;
+  #focused = false;
   /** Whether the tooltip dismisses itself (every trigger but `manual`). */
   #dismissible = false;
   /** @type {import('../../core/overlay-stack.js').OverlayHandle|null} */
@@ -116,18 +119,37 @@ export class Tooltip extends Component {
       this.listen(this.#anchor, 'pointerenter', (event) => {
         // A touch tooltip has no "move away" gesture to close it, so it would stick open.
         if (/** @type {PointerEvent} */ (event).pointerType === 'touch') return;
+        this.#anchorHovered = true;
         this.#scheduleShow(Number(this.options.delay));
       });
-      this.listen(this.#anchor, 'pointerleave', () => this.#scheduleHide(Number(this.options.hideDelay)));
+      this.listen(this.#anchor, 'pointerleave', (event) => {
+        if (/** @type {PointerEvent} */ (event).pointerType === 'touch') return;
+        this.#anchorHovered = false;
+        this.#scheduleHide(Number(this.options.hideDelay));
+      });
     }
+
+    this.listen(this.el, 'pointerenter', (event) => {
+      if (/** @type {PointerEvent} */ (event).pointerType === 'touch') return;
+      this.#bubbleHovered = true;
+      this.#cancelTimers();
+    });
+    this.listen(this.el, 'pointerleave', () => {
+      this.#bubbleHovered = false;
+      this.#scheduleHide(Number(this.options.hideDelay));
+    });
 
     if (trigger === 'focus' || trigger === 'both') {
       this.listen(this.#anchor, 'focusin', () => {
         // Focus that came from a click is not a request for a tooltip; the pointer already closed it.
         if (this.#pointerActive || !isFocusVisible(this.#anchor)) return;
+        this.#focused = true;
         this.#scheduleShow(0);
       });
-      this.listen(this.#anchor, 'focusout', () => this.#scheduleHide(Number(this.options.hideDelay)));
+      this.listen(this.#anchor, 'focusout', () => {
+        this.#focused = false;
+        this.#scheduleHide(Number(this.options.hideDelay));
+      });
     }
 
     // A press on the anchor closes the bubble and cancels a pending open, and the focus that
@@ -200,7 +222,10 @@ export class Tooltip extends Component {
       inside: [this.#anchor],
       onEscape: this.#dismissible ? () => { this.hide(); } : undefined,
       onOutsidePointer: this.#dismissible ? () => this.hide() : undefined,
-      onFocusOutside: this.#dismissible ? () => this.hide() : undefined,
+      onFocusOutside: this.#dismissible ? () => {
+        this.#focused = false;
+        this.#scheduleHide(Number(this.options.hideDelay));
+      } : undefined,
       onParentClose: () => this.hide()
     });
     this.emit('open');
@@ -217,6 +242,7 @@ export class Tooltip extends Component {
     if (!this.isOpen()) return this;
     this.#position?.destroy();
     this.#position = null;
+    this.#bubbleHovered = false;
     this.el.dataset.state = 'closed';
     this.el.replaceChildren();
     this.#restoreDescribedBy();
@@ -323,6 +349,7 @@ export class Tooltip extends Component {
   /** @param {number} delay @returns {void} */
   #scheduleHide(delay) {
     this.#cancelTimers();
+    if (this.#anchorHovered || this.#bubbleHovered || this.#focused) return;
     if (!this.isOpen()) return;
     const ms = Number.isFinite(delay) ? Math.max(0, delay) : 0;
     if (ms === 0) {

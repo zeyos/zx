@@ -24,9 +24,8 @@
   line-height: 1.45;
   text-align: start;
   overflow-wrap: anywhere;
-  /* A tooltip describes its anchor; it must never become a target of its own. Without this, the
-     bubble would steal the hover that keeps it open the moment it covered the anchor. */
-  pointer-events: none;
+  /* The bubble keeps its description visible while a pointer moves across it. */
+  pointer-events: auto;
   user-select: none;
 }
 

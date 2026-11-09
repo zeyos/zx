@@ -6,7 +6,7 @@ export default {
   title: 'Tooltip',
   group: 'Overlays',
   api: ['Tooltip', 'tooltip', 'describe'],
-  blurb: 'A description bubble that never takes focus and never takes the pointer: hover opens it '
+  blurb: 'A description bubble that stays visible over its anchor or bubble: hover opens it '
     + 'after a beat, keyboard focus opens it at once, and touch leaves it alone.',
 
   examples: [
