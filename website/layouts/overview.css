@@ -28,7 +28,8 @@
 
 .overview .overview__toolbar {
   flex: 0 0 auto;
-  padding: var(--zx-space-1) var(--zx-space-2) var(--zx-space-1) var(--zx-space-4);
+  padding-block: var(--zx-space-1);
+  padding-inline: var(--zx-space-4) var(--zx-space-2);
   border-block-end: 1px solid var(--zx-color-border-subtle);
 }
 

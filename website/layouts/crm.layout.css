@@ -92,7 +92,8 @@
   align-items: center;
   gap: var(--zx-space-1);
   max-inline-size: 100%;
-  padding: 1px var(--zx-space-2) 1px 1px;
+  padding-block: 1px;
+  padding-inline: 1px var(--zx-space-2);
   border: 1px solid var(--zx-color-border);
   border-radius: var(--zx-radius-full);
   font-size: var(--zx-text-sm);

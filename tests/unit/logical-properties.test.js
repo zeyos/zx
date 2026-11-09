@@ -20,6 +20,7 @@ import test from 'node:test';
  * `@media print` block it is meant to live in.
  */
 const COMPONENTS = fileURLToPath(new URL('../../src/components/', import.meta.url));
+const LAYOUTS = fileURLToPath(new URL('../../website/layouts/', import.meta.url));
 const STYLES = fileURLToPath(new URL('../../styles/', import.meta.url));
 
 /** Physical longhands, each with the logical property that replaces it. */
@@ -77,14 +78,14 @@ const SIDE = /(?<![\w-])(left|right)(?![\w-])/;
  */
 const ALLOWED = [
   {
-    file: 'sheet/sheet.css',
+    file: 'src/components/sheet/sheet.css',
     declaration: 'transform-origin: left center',
     why: 'A transform origin is a point in the box, and `transform-origin` has no logical keyword '
       + 'to express it with. The sheet scales toward its own edge from here; flipping it for RTL '
       + 'is the job of a `[dir="rtl"]` rule beside the enter transition that already has one.'
   },
   {
-    file: 'sheet/sheet.css',
+    file: 'src/components/sheet/sheet.css',
     declaration: 'transform-origin: right center',
     why: 'The `data-side="end"` half of the pair above, for the same reason.'
   }
@@ -166,7 +167,10 @@ function topLevelParts(value) {
  */
 async function physicalDeclarations() {
   const found = [];
-  for (const { file, selector, declarations: block } of await rules(COMPONENTS)) {
+  const allRules = (await Promise.all([
+    rules(COMPONENTS, 'src/components/'), rules(STYLES, 'styles/'), rules(LAYOUTS, 'website/layouts/')
+  ])).flat();
+  for (const { file, selector, declarations: block } of allRules) {
     for (const { property, value, text } of declarations(block)) {
       const logical = PHYSICAL_PROPERTIES.get(property);
       if (logical) {
@@ -215,14 +219,14 @@ function isAllowed(declaration) {
     && entry.declaration === declaration.text);
 }
 
-test('component CSS never names a physical side', async () => {
+test('component, shared and layout CSS never names an unexplained physical side', async () => {
   const offenders = (await physicalDeclarations()).filter((found) => !isAllowed(found));
   const report = offenders
-    .map((found) => `  src/components/${found.file}\n    ${found.selector}\n      ${found.text}   →   ${found.fix}`)
+    .map((found) => `  ${found.file}\n    ${found.selector}\n      ${found.text}   →   ${found.fix}`)
     .join('\n');
 
   assert.deepEqual(offenders, [],
-    'Component stylesheets are written with logical properties, so one stylesheet serves an LTR\n'
+    'Component, shared and layout stylesheets are written with logical properties, so one stylesheet serves an LTR\n'
     + 'and an RTL document without a mirrored copy. These declarations name a physical side:\n\n'
     + report
     + '\n\nRewrite each in its logical form. If the side really is physical — a transform origin, a\n'

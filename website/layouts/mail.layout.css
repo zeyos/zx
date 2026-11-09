@@ -96,7 +96,8 @@
     min-inline-size: 0;
     margin-block: calc(-1 * var(--zx-space-1));
     margin-inline-start: calc(-1 * (var(--mail-split-pad) + var(--zx-space-1)));
-    padding: var(--zx-space-1) var(--zx-space-5) var(--zx-space-1) var(--zx-space-1);
+    padding-block: var(--zx-space-1);
+  padding-inline: var(--zx-space-1) var(--zx-space-5);
     scrollbar-width: none;
     -webkit-mask-image: linear-gradient(to left, transparent, currentColor var(--zx-space-5));
     mask-image: linear-gradient(to left, transparent, currentColor var(--zx-space-5));

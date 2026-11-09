@@ -910,7 +910,8 @@
   display: flex;
   align-items: center;
   gap: var(--zx-space-1);
-  padding: var(--zx-space-1) var(--zx-space-1) var(--zx-space-1) var(--zx-space-4);
+  padding-block: var(--zx-space-1);
+  padding-inline: var(--zx-space-4) var(--zx-space-1);
   border: 1px solid var(--zx-color-border);
   border-radius: var(--zx-radius-lg);
   background: var(--zx-color-bg-raised);

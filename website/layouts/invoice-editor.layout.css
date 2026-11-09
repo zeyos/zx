@@ -543,7 +543,8 @@
   flex-direction: column;
   inline-size: var(--invoicing-paper-width);
   min-block-size: 297mm;
-  padding: 10mm 20mm 10mm 25mm;
+  padding-block: 10mm;
+  padding-inline: 25mm 20mm;
   overflow: hidden;
   background: var(--zx-color-bg-surface);
   color: var(--zx-color-text);
@@ -734,7 +735,8 @@
 
 .invoicing .invoicing__sum {
   min-inline-size: 85mm;
-  margin: 0 0 6mm auto;
+  margin-block: 0 6mm;
+  margin-inline: auto 0;
   border-collapse: collapse;
   font-variant-numeric: tabular-nums;
 }
