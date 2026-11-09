@@ -335,7 +335,8 @@ export class AgentThread extends Component {
   /**
    * Changes part of an item. The common changes are made in place — an answer finishing, stopping
    * or writing on, a trace's steps, an approval's status — so what the reader opened, and focus and
-   * selection where the blocks stay, survive; anything else redraws the item.
+   * selection where the blocks stay, survive; anything else redraws the item. Metadata patches
+   * retain an answer's live blocks; explicit `blocks` or `versions` remain authoritative.
    * @param {string} id
    * @param {Record<string, unknown>} partial
    * @returns {this}
@@ -344,7 +345,10 @@ export class AgentThread extends Component {
     const entry = this._entries.get(String(id));
     if (!entry || !partial || typeof partial !== 'object') return this;
     const before = entry.item;
-    const item = this._intoVersion(/** @type {ThreadItem} */ ({ ...before, ...cloneItem({ ...partial, type: before.type }), id: before.id, type: before.type }), partial);
+    // Streamed blocks live in the BlockView until read back. Start a partial update from that
+    // snapshot so a redraw for metadata (including version metadata) cannot rewind its text.
+    const current = before.type === 'answer' ? this.get(String(id)) ?? before : before;
+    const item = this._intoVersion(/** @type {ThreadItem} */ ({ ...current, ...cloneItem({ ...partial, type: before.type }), id: before.id, type: before.type }), partial);
     const keys = Object.keys(partial);
     const only = (/** @type {string[]} */ allowed) => keys.every((key) => allowed.includes(key));
     this._follow(() => {
