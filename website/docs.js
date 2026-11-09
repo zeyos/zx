@@ -1773,6 +1773,9 @@ function guidePage(entry) {
   for (const pre of body.querySelectorAll('pre[data-code]')) {
     pre.replaceWith(codeBlock(pre.textContent.replace(/^\n|\s+$/g, ''), pre.dataset.code));
   }
+  for (const frame of body.querySelectorAll('iframe[data-guide-example]')) {
+    mountGuideFrame(frame);
+  }
 
   // Each `<h2>` and the content up to the next one becomes a section, so the guide gets the same
   // rail as a component page without the guides being authored any differently.
@@ -1788,6 +1791,63 @@ function guidePage(entry) {
     else header.append(node);
   }
   return nodes.length ? [header, ...nodes] : [header, body];
+}
+
+/**
+ * Embeds a runnable guide example with its own module state, matching the guide's theme and
+ * source revision. Removing the page tears down the frame and both parent-owned observers.
+ * @param {HTMLIFrameElement} frame Authored example frame.
+ * @returns {void}
+ */
+function mountGuideFrame(frame) {
+  const controller = new AbortController();
+  const attributes = ['data-zx-theme', 'data-zx-preset'];
+  const syncTheme = () => {
+    const root = frame.contentDocument?.documentElement;
+    if (!root) return;
+    for (const name of attributes) {
+      const value = document.documentElement.getAttribute(name);
+      if (value === null) root.removeAttribute(name);
+      else root.setAttribute(name, value);
+    }
+  };
+  const resize = new ResizeObserver(() => {
+    const body = frame.contentDocument?.body;
+    if (body && frame.isConnected) {
+      const border = frame.offsetHeight - frame.clientHeight;
+      frame.style.height = `${Math.ceil(body.getBoundingClientRect().height) + border}px`;
+    }
+  });
+  const theme = new MutationObserver(syncTheme);
+  theme.observe(document.documentElement, { attributes: true, attributeFilter: attributes });
+  frame.addEventListener('load', () => {
+    syncTheme();
+    resize.disconnect();
+    if (frame.contentDocument?.body) resize.observe(frame.contentDocument.body);
+  }, { signal: controller.signal });
+  frame.src = moduleUrl(frame.getAttribute('src'));
+
+  const wrapper = element('div', 'docs-example');
+  frame.replaceWith(wrapper);
+  wrapper.append(frame);
+  const paths = (frame.dataset.exampleSources ?? '').split(/\s+/).filter(Boolean);
+  if (paths.length) {
+    const disclosure = codeDisclosure('// Loading example source…');
+    wrapper.append(disclosure);
+    void Promise.all(paths.map(async (source) => ({
+      name: source.split('/').pop(), code: await fetchSource({ source })
+    }))).then((files) => {
+      if (controller.signal.aborted) return;
+      if (files.length === 1) disclosure.setCode(files[0].code);
+      else disclosure.setFiles(files);
+    });
+  }
+  pageCleanups.push(() => {
+    controller.abort();
+    resize.disconnect();
+    theme.disconnect();
+    frame.remove();
+  });
 }
 
 /* ---------------------------------------------------------------- markdown -- */

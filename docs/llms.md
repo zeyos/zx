@@ -4544,6 +4544,13 @@ entry point as the components. See also the Kernel section for `Component`, `h`,
 
 [Open the Locales guide](https://zx.zeyos.com/docs.html#getting-started/locales).
 
+Its [live language-switching example](https://zx.zeyos.com/docs.html#getting-started/locales/try-language-switching)
+offers English, German, and an application-owned French catalogue. Edit the name, record, and
+count to try positional/named variables, plural forms, and number formatting. Switching preserves
+the input values and recreates the translated Select. French intentionally omits `table.empty`
+to demonstrate English fallback. The embedded example has its own language state, and its running
+source and catalogues are available under Code.
+
 ##### Language, locale, and catalogue
 
 Zx ships English and German interface messages. Other languages can be supplied by the application.

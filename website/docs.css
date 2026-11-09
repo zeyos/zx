@@ -592,6 +592,13 @@
   overflow: hidden;
 }
 
+.docs-example__stage.docs-guide-frame {
+  display: block;
+  inline-size: 100%;
+  block-size: 44rem;
+  padding: 0;
+}
+
 /* An example that names a width keeps the full card: the trailing padding narrows what the stage
    holds to that width instead (the stage is border-box, so the width includes its own padding,
    exactly as a max-inline-size on the stage would). */
