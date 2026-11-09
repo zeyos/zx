@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Component regression fixture</title>
+  <link rel="icon" href="data:,">
+  <script>
+    document.documentElement.dataset.zxTheme = new URL(location.href).searchParams.get('theme') === 'dark' ? 'dark' : 'light';
+  </script>
+  <link rel="stylesheet" href="../../styles/zx.css">
+</head>
+<body>
+  <script type="module">
+    import * as zx from '../../src/index.js';
+    window.zx = zx;
+  </script>
+</body>
+</html>

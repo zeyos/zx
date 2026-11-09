@@ -96,7 +96,7 @@
     "build:api": "node tools/build-api.js",
     "build:catalog": "node tools/build-agent-catalog.js",
     "build:types": "tsc --project tsconfig.json",
-    "test:browser": "node tools/run-smoke.js",
+    "test:browser": "node tools/run-regressions.js && node tools/run-smoke.js",
     "test:visual": "node tools/visual-diff.js",
     "bench:table": "node tools/bench-table.js"
   },
