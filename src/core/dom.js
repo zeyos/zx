@@ -20,6 +20,9 @@ const DOM_BUILDER_PROPERTIES = new Set([
   'href', 'id', 'lang', 'name', 'rel', 'src', 'target', 'title', 'value'
 ]);
 
+/** HTML parsing belongs only to the explicit trusted `h.raw()` path. */
+const HTML_SINK_PROPERTIES = new Set(['innerhtml', 'outerhtml', 'srcdoc']);
+
 /** @type {WeakMap<EventTarget, Map<string, {handlers: Function[], listener: EventListener}>>} */
 const compactEvents = new WeakMap();
 
@@ -208,16 +211,23 @@ export function fragment(...children) {
  * @param {(HProps & Record<string, any>)|DomChild} [props] Properties and attributes, or the first child.
  * @param {...DomChild} children Child values.
  * @returns {HTMLElement}
+ * @throws {TypeError} When properties contain an HTML sink; use `h.raw()` for trusted HTML.
  */
 export function h(tag, props, ...children) {
-  const element = document.createElement(tag);
   let properties = props;
   if (!isPropsObject(properties)) {
     children.unshift(/** @type {DomChild} */ (properties));
     properties = {};
   }
 
-  for (const [key, value] of Object.entries(properties)) {
+  const entries = Object.entries(properties);
+  for (const [key] of entries) {
+    if (HTML_SINK_PROPERTIES.has(key.toLowerCase())) {
+      throw new TypeError(`HTML property ${key} requires trusted h.raw() content`);
+    }
+  }
+  const element = document.createElement(tag);
+  for (const [key, value] of entries) {
     applyProperty(element, key, value);
   }
   appendChildren(element, children);
@@ -365,6 +375,16 @@ function isPropsObject(value) {
 
 /** @param {HTMLElement} element @param {string} key @param {any} value @returns {void} */
 function applyProperty(element, key, value) {
+  if (key.toLowerCase() === 'href') {
+    const href = safeHref(value);
+    if (href !== null) {
+      if ('href' in element) {
+        try { element.href = href; return; } catch { /* Attribute fallback for read-only properties. */ }
+      }
+      element.setAttribute('href', href);
+    }
+    return;
+  }
   if (key === 'ref') {
     if (activeRefs && typeof value === 'string') activeRefs[value] = element;
     return;

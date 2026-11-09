@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import {
   __, appendCompact, appendCompactChild, appendContent, applyCompactProperties,
-  fireCompactEvent, fragment, offCompactEvent, onCompactEvent, parseCompactTag
+  fireCompactEvent, fragment, h, offCompactEvent, onCompactEvent, parseCompactTag
 } from '../../src/core/dom.js';
 import { installGlobals } from '../../src/compat/globals.js';
 
@@ -19,6 +19,37 @@ test('compact tags preserve the established tag#id.class grammar', () => {
   assert.deepEqual(parseCompactTag('div.one.two'), { tag: 'div', id: '', className: 'one.two' });
   assert.deepEqual(parseCompactTag(''), { tag: 'div', id: '', className: '' });
   assert.throws(() => parseCompactTag(null), /must be a string/);
+});
+
+test('h rejects HTML sinks in every casing before creating or mutating a node', () => {
+  withFakeDocument(() => {
+    let created = 0;
+    document.createElement = () => { created++; return new FakeElement('div'); };
+    for (const key of ['innerHTML', 'innerhtml', 'InnerHTML', 'INNERHTML',
+      'outerHTML', 'outerhtml', 'OuterHtml', 'srcdoc', 'srcDoc', 'SRCDOC']) {
+      assert.throws(() => h('div', { id: 'not-applied', [key]: '<img src=x>' }),
+        { name: 'TypeError' }, key);
+      assert.throws(() => h('div', { [key]: null }), { name: 'TypeError' }, key);
+    }
+    assert.equal(created, 0, 'Invalid properties are rejected before DOM mutation');
+  });
+});
+
+test('h filters href through safeHref for DOM properties and attribute casing', () => {
+  withFakeDocument(() => {
+    for (const key of ['href', 'HREF', 'Href']) {
+      for (const href of ['/records/42', '../files', '#details', 'https://example.test/',
+        'http://example.test/', 'mailto:help@example.test', 'tel:+431234']) {
+        assert.equal(h('a', { [key]: ` ${href} ` }).attributes.get('href'), href);
+      }
+      for (const href of ['javascript:alert(1)', 'java\nscript:alert(1)',
+        'data:text/html,unsafe', 'vbscript:msgbox(1)', 'http://[', '', null]) {
+        const element = h('a', { [key]: href });
+        assert.equal(element.attributes.has('href'), false, `${key}: ${href}`);
+        assert.equal(element.attributes.has(key), false, `${key}: ${href}`);
+      }
+    }
+  });
 });
 
 test('the builder applies ZeyOS property prefixes, safe text, and element defaults', () => {
