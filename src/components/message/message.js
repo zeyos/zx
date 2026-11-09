@@ -329,6 +329,7 @@ export class Message extends Component {
         settled = true;
         state.pct = 100;
         syncProgress(entry, state);
+        entry.timeout = 600;
         entry.remaining = 600;
         if (this._queue.isActive(entry)) this._schedule(entry);
       },
@@ -341,6 +342,7 @@ export class Message extends Component {
         entry.node.setAttribute('role', 'alert');
         entry.iconHost.replaceChildren(icon('error', { size: 18 }));
         syncProgress(entry, state);
+        entry.timeout = 4000;
         entry.remaining = 4000;
         if (this._queue.isActive(entry)) this._schedule(entry);
       }
@@ -480,6 +482,7 @@ export class Message extends Component {
   /** @param {any} entry @returns {void} */
   _resume(entry) {
     if (entry.closed || entry.timer !== null || entry.hovered || entry.focused) return;
+    if (entry.timeout === 0) return;
     if (entry.remaining <= 0) {
       this._close(entry);
       return;
