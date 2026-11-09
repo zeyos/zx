@@ -19,7 +19,7 @@ jobs:
           node-version: 22
 
       - name: Install devDependencies (esbuild, typescript, playwright-core)
-        run: npm ci || npm install
+        run: npm ci
 
       - name: Test (unit + design-token lint)
         run: npm test

@@ -28,8 +28,8 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install devDependencies (esbuild only)
-        run: npm ci || npm install
+      - name: Install locked devDependencies
+        run: npm ci
 
       # The site serves the source modules directly, so `dist/` is not part of the artifact and
       # is not built here — ci.yml covers the bundles on the same push.

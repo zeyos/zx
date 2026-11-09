@@ -25,7 +25,12 @@
   "sideEffects": [
     "*.css",
     "./dist/zx.global.js",
-    "./dist/zx.global.min.js"
+    "./dist/zx.global.min.js",
+    "./src/index.js",
+    "./dist/zx.esm.js",
+    "./dist/zx.esm.min.js",
+    "./dist/zx-zeyos.esm.js",
+    "./dist/zx-zeyos.esm.min.js"
   ],
   "exports": {
     ".": {
@@ -75,6 +80,8 @@
     "docs/llms.md",
     "docs/llms.txt",
     "docs/api.json",
+    "docs/agent-surfaces.md",
+    "docs/agent-catalog.json",
     "CHANGELOG.md",
     "README.md",
     "LICENSE"
@@ -102,9 +109,9 @@
   },
   "devDependencies": {
     "chart.js": "4.5.1",
-    "esbuild": "latest",
-    "playwright-core": "^1.62.1",
-    "typescript": "^7.0.2"
+    "esbuild": "0.28.1",
+    "playwright-core": "1.62.1",
+    "typescript": "7.0.2"
   },
   "types": "./dist/types/index.d.ts"
 }

@@ -31,7 +31,7 @@ jobs:
           fi
 
       - name: Install devDependencies
-        run: npm ci || npm install
+        run: npm ci
 
       - name: Test (zero-dependency offline suite)
         run: npm test
