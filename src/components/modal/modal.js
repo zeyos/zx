@@ -501,9 +501,9 @@ export class Modal extends Component {
  */
 
 /**
- * Fired when the reader asks to dismiss the modal — Escape, a header close button, a
- * `'cancel'` footer button, a backdrop click, a press outside a non-modal overlay, a drag — with the gesture in `detail.reason`.
- * Preventing it keeps the modal open. A programmatic `close()` does not raise it.
+ * Fired when the reader asks to dismiss the modal — Escape, a header close button, a `'cancel'`
+ * footer button, a backdrop click, a press outside a non-modal overlay, a drag — with the gesture
+ * in `detail.reason`. Preventing it keeps the modal open. A programmatic `close()` does not raise it.
  * @event Modal#cancel
  * @type {CustomEvent<ModalCancelDetail>}
  */

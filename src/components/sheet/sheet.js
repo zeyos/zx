@@ -390,7 +390,10 @@ export class Sheet extends Dialog {
       onEscape: (event) => {
         if (!this._overlayContains(/** @type {Node|null} */ (event.target))) return false;
         // Refused, but still reported — and the key stays free for whatever is underneath.
-        if (!this.options.closable) return this.emit('cancel', { reason: 'escape' }) && false;
+        if (!this.options.closable) {
+          this.emit('cancel', { reason: 'escape' });
+          return false;
+        }
         this._requestDismiss('escape');
         return undefined;
       },
