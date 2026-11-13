@@ -50,6 +50,26 @@ export default {
         button({ label: 'Grid', size: 'sm', kind: 'primary' }),
         button({ label: 'Map', size: 'sm' })
       ])
+    },
+    {
+      title: 'Segmented view switch',
+      blurb: 'A group whose buttons are toggles: the one you are in carries aria-pressed="true". '
+        + 'It is a mode, not a pick, so it stays neutral — a stronger fill and a frame set it apart '
+        + 'from its neighbours in both themes.',
+      render: ({ log }) => {
+        const select = (chosen) => segments.forEach((segment) => {
+          segment.setAttribute('aria-pressed', String(segment === chosen));
+        });
+        const segments = ['Day', 'Week', 'Month'].map((label) => button({
+          label,
+          onclick: (event) => {
+            select(event.currentTarget);
+            log(`view → ${label}`);
+          }
+        }));
+        select(segments[1]);
+        return buttonGroup(segments);
+      }
     }
   ]
 };

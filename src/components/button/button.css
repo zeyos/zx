@@ -108,24 +108,32 @@
   color: var(--zx-color-text);
 }
 
-/* A pressed toggle (`aria-pressed="true"`, e.g. a Toolbar item with `active`) is a mode you are
-   in, not a pick: the neutral current fill and the full text colour, never the accent. */
+/* A pressed toggle (`aria-pressed="true"`, e.g. a Toolbar item with `active`, a segment of a
+   button group) is a mode you are in, not a pick: neutral, never the accent. Two cues carry it,
+   because a few percent of fill alone disappears beside an unpressed neighbour, in dark most of
+   all: a fill clearly stronger than hover, and a frame in the subtle ink, which holds 3:1 on every
+   surface. The raised highlight goes, so the control reads as pushed in. A ghost button gains the
+   frame too; it is the only edge its pressed state has. */
 .zx-btn[aria-pressed="true"] {
-  border-color: var(--zx-color-border-control);
-  background: var(--zx-color-bg-current);
+  border-color: var(--zx-color-text-subtle);
+  background: color-mix(in srgb, var(--zx-color-text) 14%, transparent);
   color: var(--zx-color-text);
-}
-
-.zx-btn[data-kind="ghost"][aria-pressed="true"] {
-  border-color: transparent;
+  box-shadow: none;
 }
 
 .zx-btn[aria-pressed="true"] > .zx-icon {
   color: var(--zx-color-text);
 }
 
-.zx-btn[aria-pressed="true"]:hover:not(:disabled) {
-  background: var(--zx-color-bg-current);
+.zx-btn[aria-pressed="true"]:hover:not(:disabled),
+.zx-btn[aria-pressed="true"]:active:not(:disabled),
+.zx-btn[data-kind="ghost"][aria-pressed="true"][aria-expanded="true"]:not(:disabled) {
+  border-color: var(--zx-color-text-subtle);
+  background: color-mix(in srgb, var(--zx-color-text) 14%, transparent);
+}
+
+.zx-btn[aria-pressed="true"]:focus-visible {
+  box-shadow: var(--zx-focus-ring);
 }
 
 .zx-btn[data-size="sm"] {
@@ -180,8 +188,13 @@
   border-end-end-radius: 0;
 }
 
-.zx-btn-group > .zx-btn:focus-visible {
+/* Neighbours overlap by their border; the pressed segment's frame stays on top of both. */
+.zx-btn-group > .zx-btn[aria-pressed="true"] {
   z-index: 1;
+}
+
+.zx-btn-group > .zx-btn:focus-visible {
+  z-index: 2;
 }
 
 @media (prefers-reduced-transparency: reduce) {
