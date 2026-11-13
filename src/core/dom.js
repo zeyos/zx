@@ -286,9 +286,52 @@ export function snapshotTarget(element) {
  */
 export function restoreTarget(element, snapshot) {
   if (!snapshot) return;
-  for (const attribute of Array.from(element.attributes)) element.removeAttribute(attribute.name);
-  for (const [name, value] of snapshot.attributes) element.setAttribute(name, value);
+  /*
+   * `style` goes back through the CSSOM (see `restoreInlineStyle`), so restoring a target never
+   * writes an inline style attribute that a strict Content Security Policy would block. While
+   * every captured attribute is still present they are corrected in place, which keeps their
+   * order and leaves an untouched `style` byte for byte as it was; only a target that lost one is
+   * rebuilt from nothing, in captured order.
+   */
+  const styled = /** @type {Element & ElementCSSInlineStyle} */ (element);
+  const cssom = typeof styled.style?.cssText === 'string';
+  const saved = new Map(snapshot.attributes);
+  const intact = snapshot.attributes.every(([name]) => element.hasAttribute(name));
+  for (const attribute of Array.from(element.attributes)) {
+    if (!intact || !saved.has(attribute.name)) {
+      if (attribute.name === 'style' && cssom) restoreInlineStyle(styled, null);
+      else element.removeAttribute(attribute.name);
+    }
+  }
+  for (const [name, value] of snapshot.attributes) {
+    if (name === 'style' && cssom) restoreInlineStyle(styled, value);
+    else if (element.getAttribute(name) !== value) element.setAttribute(name, value);
+  }
   element.replaceChildren(...snapshot.children);
+}
+
+/**
+ * Puts an element's inline style back to a captured attribute value.
+ *
+ * Written through the CSSOM, never the attribute: under a `style-src` policy without
+ * `'unsafe-inline'`, setting the `style` attribute is an inline style the browser blocks and
+ * reports, while `style.cssText` is not governed by it. A style that was absent (or empty) is
+ * cleared and its attribute removed — after a read, because Chrome reflects CSSOM changes into the
+ * attribute lazily, and a removal it has not reflected yet comes back as an empty `style=""`,
+ * which the next capture would then try to restore.
+ * @param {Element & ElementCSSInlineStyle} element Element whose inline style to restore.
+ * @param {string|null} value Attribute value captured earlier, or null when it was absent.
+ * @returns {void}
+ */
+export function restoreInlineStyle(element, value) {
+  // The read is also the flush: it makes the attribute current before anything compares or removes.
+  const current = element.getAttribute('style');
+  // Untouched styles keep their exact text; `cssText` would re-serialize `color:red` as `color: red;`.
+  if (current === value || (!value && current === null)) return;
+  element.style.cssText = value ?? '';
+  // Read either way: it places a restored attribute now, in order, and flushes before a removal.
+  element.getAttribute('style');
+  if (!value) element.removeAttribute('style');
 }
 
 /**

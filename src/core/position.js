@@ -1,4 +1,5 @@
 // @ts-check
+import { restoreInlineStyle } from './dom.js';
 import { clamp, uid } from './util.js';
 
 const PLACEMENTS = new Set([
@@ -112,9 +113,9 @@ export function position(anchor, floating, options = {}) {
         const rest = anchorNames(anchor).filter((name) => name !== anchorName);
         if (rest.length) /** @type {HTMLElement} */ (anchor).style.setProperty('anchor-name', rest.join(', '));
         else /** @type {HTMLElement} */ (anchor).style.removeProperty('anchor-name');
-        if (anchorStyle === null && anchor.getAttribute('style') === '') anchor.removeAttribute('style');
+        if (!anchorStyle && anchor.getAttribute('style') === '') anchor.removeAttribute('style');
       }
-      restoreAttribute(floating, 'style', floatingStyle);
+      restoreInlineStyle(floating, floatingStyle);
       restoreAttribute(floating, 'popover', popover);
     }
   };
