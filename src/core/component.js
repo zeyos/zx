@@ -320,12 +320,44 @@ function mergeOptions(constructor, options) {
       messages = deepMerge(messages, defaults.msg);
     }
   }
-  Object.assign(result, options && typeof options === 'object' ? options : {});
+  /*
+   * An option passed as `undefined` is an option not passed: a wrapper that forwards
+   * `{ value: props.value }` means "whatever the default is" when the prop is unset, the way a
+   * destructuring default reads it. `null` is a value and still overrides.
+   */
+  if (options && typeof options === 'object') {
+    // Object.assign's own key set — enumerable own properties, symbol keys included (Select's
+    // presets pass one) — so only the `undefined` values differ from a plain assignment.
+    /** @type {Record<PropertyKey, any>} */
+    const passed = Object.assign({}, options);
+    /** @type {Record<PropertyKey, any>} */
+    const merged = result;
+    for (const key of Reflect.ownKeys(passed)) {
+      if (passed[key] !== undefined) merged[key] = passed[key];
+    }
+  }
   if (options?.msg && typeof options.msg === 'object') {
     hasMessages = true;
-    messages = deepMerge(messages, options.msg);
+    messages = deepMerge(messages, withoutUndefined(options.msg));
   }
   if (hasMessages) result.msg = messages;
+  return result;
+}
+
+/**
+ * Copies a `msg` table without the entries that are `undefined`, at any depth, so that merging it
+ * over the declared defaults leaves those defaults in place. The table passed in is not changed.
+ * @param {Record<string, any>} table Message table, flat or keyed by language.
+ * @returns {Record<string, any>}
+ */
+function withoutUndefined(table) {
+  if (!isMessageTable(table)) return table;
+  /** @type {Record<string, any>} */
+  const result = {};
+  for (const [key, value] of Object.entries(table)) {
+    if (value === undefined) continue;
+    result[key] = isMessageTable(value) ? withoutUndefined(value) : value;
+  }
   return result;
 }
 
