@@ -148,7 +148,7 @@ const outline = (path) => [VIEW_BOX, path, 'stroke'];
  * The bundled glyph set: outline icons from Lucide (ISC; see the notice above), embedded as path
  * data so the library carries no webfont, stylesheet, or package dependency. Every entry is
  * `[viewBox, path, 'stroke']` in a 24-unit view box. Extend the set with `registerIcons()`; read
- * every available name with `iconNames()`.
+ * every available name with `iconNames()`, and the other names a glyph answers to in `iconAliases`.
  * @type {Readonly<Record<string, IconGlyph>>}
  */
 export const icons = Object.freeze({
@@ -209,11 +209,27 @@ export const icons = Object.freeze({
 });
 
 /**
- * Other names for bundled glyphs: legacy gx Factory names, and the older Font Awesome names
- * (`archive`, `edit`) that are still the ones most code reaches for. A glyph an application
- * registered under the alias itself takes precedence (see `icon()`).
+ * Other names for bundled glyphs, as `alias → bundled name`: legacy gx Factory names, and the
+ * older Font Awesome names (`archive`, `edit`) that are still the ones most code reaches for.
+ *
+ * | Alias | Renders |
+ * | --- | --- |
+ * | `archive` | `box-archive` |
+ * | `edit` | `pen-to-square` |
+ * | `settings` | `gear` |
+ * | `clear` | `x` |
+ * | `checked` | `check` |
+ * | `question` | `info` |
+ * | `range` | `filter` |
+ * | `fields` | `list` |
+ * | `grid` | `table-cells-large` |
+ *
+ * `icon()` accepts an alias wherever it accepts the bundled name, under either renderer, and
+ * `iconNames()` lists them. A glyph an application registered under the alias itself takes
+ * precedence (see `icon()`); the table is frozen, so that registration is how an alias is changed.
+ * @type {Readonly<Record<string, string>>}
  */
-const aliases = Object.freeze({
+export const iconAliases = Object.freeze({
   archive: 'box-archive',
   edit: 'pen-to-square',
   settings: 'gear',
@@ -331,18 +347,43 @@ export function registerIcons(glyphs) {
 }
 
 /**
- * Lists every inline SVG glyph name available, built-in and registered.
+ * Lists every name `icon()` renders as an inline SVG glyph: the bundled set, the glyphs added with
+ * `registerIcons()`, and the aliases in `iconAliases`. The two agree — a name listed here renders
+ * a glyph, and a bare name that is not listed renders the placeholder (or throws with
+ * `{ strict: true }`). Font Awesome is not part of the answer: it resolves names in the browser,
+ * so under that renderer any name may draw.
+ *
+ * An alias is listed beside the glyph it draws, so the list holds more names than glyphs. For one
+ * entry per glyph — an icon gallery — leave the aliases out:
+ *
+ *     iconNames().filter((name) => !Object.hasOwn(iconAliases, name));
  * @returns {string[]} Sorted icon names.
  */
 export function iconNames() {
-  return [...new Set([...Object.keys(icons), ...Object.keys(extraGlyphs)])].sort();
+  return [...new Set([
+    ...Object.keys(icons), ...Object.keys(extraGlyphs), ...Object.keys(iconAliases)
+  ])].sort();
+}
+
+/**
+ * Resolves a bare icon name to the glyph name it is drawn from: a registered glyph keeps its own
+ * name, an alias resolves to its bundled glyph, and anything else is returned unchanged. Own
+ * properties only, so a name such as `constructor` is an unknown icon and nothing else.
+ * @param {string} name Bare icon name.
+ * @returns {string}
+ */
+function resolveIconName(name) {
+  if (Object.hasOwn(extraGlyphs, name)) return name;
+  return Object.hasOwn(iconAliases, name) ? iconAliases[name] : name;
 }
 
 /**
  * Creates an icon element.
  *
  * Bare names (`'check'`) render through the active provider: the bundled inline SVG set by
- * default, or Font Awesome after `useFontAwesome()` / `loadFontAwesome()`. A name can also select
+ * default, or Font Awesome after `useFontAwesome()` / `loadFontAwesome()`. A bare name may be an
+ * alias from `iconAliases` (`'edit'` draws `pen-to-square`, `'settings'` draws `gear`); a glyph
+ * registered under the alias name wins over the alias. A name can also select
  * its renderer itself — `'fa:user'`, `'duotone:user'`, `'kit:zeyos-notes'`, `'builtin:check'`, or
  * a literal Font Awesome class list such as `'fa-solid fa-user'`.
  *
@@ -363,7 +404,7 @@ export function icon(name, options = {}) {
   if (spec.classes) return faIcon(spec.classes, options);
 
   // An application that registered a glyph under an alias name keeps its own glyph.
-  const resolved = Object.hasOwn(extraGlyphs, spec.name) ? spec.name : aliases[spec.name] ?? spec.name;
+  const resolved = resolveIconName(spec.name);
   if (spec.provider === 'builtin') return builtinIcon(resolved, options);
   if (spec.provider === 'fa') {
     return faIcon(faIconClasses(resolved, {
@@ -392,7 +433,7 @@ export function icon(name, options = {}) {
  * @throws {RangeError} With `options.strict`, when no glyph carries that name.
  */
 function builtinIcon(name, options) {
-  const entry = extraGlyphs[name] ?? icons[name];
+  const entry = extraGlyphs[name] ?? (Object.hasOwn(icons, name) ? icons[name] : undefined);
   if (!entry) {
     if (options.strict) throw new RangeError(`Unknown icon: ${name}`);
     warnMissingIcon(name);

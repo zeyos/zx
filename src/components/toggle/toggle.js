@@ -5,7 +5,12 @@ import { h } from '../../core/dom.js';
  * @typedef {Object} ToggleOptions
  * @property {boolean} [checked=false] Initial switch state.
  * @property {*} [value=true] Value returned while on.
- * @property {string|null} [label=null] Optional visible label.
+ * @property {string|null} [label=null] The switch's name, drawn beside the track and read as its
+ *   accessible name. Null renders no text: the switch then needs a name from somewhere else — a
+ *   Field or `<label for>` around it, or `aria-labelledby` on the element.
+ * @property {boolean} [hideLabel=false] Whether the label is kept for assistive technology only:
+ *   no visible text, and the label becomes the switch's `aria-label`. For a switch whose meaning
+ *   the surrounding layout already shows — a table cell under a column header, a settings row.
  * @property {boolean} [disabled=false] Initial disabled state.
  * @property {(event: CustomEvent<{checked: boolean, value: *}>) => void} [onchange] Change callback.
  */
@@ -23,6 +28,7 @@ export class Toggle extends Component {
     checked: false,
     value: true,
     label: null,
+    hideLabel: false,
     disabled: false
   };
 
@@ -39,14 +45,13 @@ export class Toggle extends Component {
     this._disabled = Boolean(this.options.disabled);
     root.type = 'button';
     root.setAttribute('role', 'switch');
-    const children = [
-      h('span', { class: 'zx-toggle__track', ariaHidden: 'true' },
-        h('span', { class: 'zx-toggle__thumb' }))
-    ];
-    if (this.options.label !== null) {
-      children.push(h('span', { class: 'zx-toggle__label' }, String(this.options.label)));
-    }
-    root.replaceChildren(...children);
+    /** The `aria-label` the target arrived with, put back whenever the switch stops writing its own. */
+    this._ariaLabel = root.getAttribute('aria-label');
+    /** @type {HTMLElement|null} The visible label, when there is one. */
+    this._labelEl = null;
+    root.replaceChildren(h('span', { class: 'zx-toggle__track', ariaHidden: 'true' },
+      h('span', { class: 'zx-toggle__thumb' })));
+    this._syncLabel(this.options.label ?? null);
     this._sync();
     this.listen(root, 'click', () => this.toggle());
     return root;
@@ -94,6 +99,16 @@ export class Toggle extends Component {
   }
 
   /**
+   * Replaces the switch's name: the visible label, or the `aria-label` under `hideLabel`.
+   * @param {string|null} label New name; null removes it.
+   * @returns {this}
+   */
+  setLabel(label) {
+    this._syncLabel(label ?? null);
+    return this;
+  }
+
+  /**
    * Enables user interaction.
    * @returns {this}
    */
@@ -119,6 +134,30 @@ export class Toggle extends Component {
     this._cleaned = true;
     super.destroy();
     if (!this._createdRoot && this._original) restore(this.el, this._original);
+  }
+
+  /**
+   * Writes the name where the options put it: a text node beside the track, or `aria-label` when
+   * the label is hidden. With no name of its own the switch leaves `aria-label` as it found it.
+   * @param {string|null} label Name, or null for none.
+   * @returns {void}
+   */
+  _syncLabel(label) {
+    const text = label === null ? '' : String(label);
+    const hidden = Boolean(this.options.hideLabel);
+    if (text && !hidden) {
+      if (!this._labelEl) {
+        this._labelEl = h('span', { class: 'zx-toggle__label' });
+        this.el.append(this._labelEl);
+      }
+      this._labelEl.textContent = text;
+    } else {
+      this._labelEl?.remove();
+      this._labelEl = null;
+    }
+    if (text && hidden) this.el.setAttribute('aria-label', text);
+    else if (this._ariaLabel === null) this.el.removeAttribute('aria-label');
+    else this.el.setAttribute('aria-label', this._ariaLabel);
   }
 
   /** @returns {void} */

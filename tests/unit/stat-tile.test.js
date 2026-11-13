@@ -6,6 +6,7 @@ import {
   formatStatValue,
   normalizeStatTileVariant,
   statDelta,
+  statTileClickable,
   statTileName,
   statTileTag,
   statTrendPoints
@@ -124,6 +125,22 @@ test('onclick and clickable are the same answer, which is what lets the shape su
   assert.equal(statTileTag({ onclick: () => {} }), statTileTag({ clickable: true }));
   assert.equal(statTileTag({ href: '/x', onclick: () => {} }), statTileTag({ href: '/x', clickable: true }));
   assert.equal(statTileTag({ onclick: undefined }), statTileTag({ clickable: false }));
+});
+
+// WP82 N6: a caller that always passes a handler could not opt a single tile out of being a button.
+test('an explicit clickable: false wins over a click handler', () => {
+  assert.equal(statTileTag({ clickable: false, onclick: () => {} }), 'div');
+  assert.equal(statTileClickable({ clickable: false, onclick: () => {} }), false);
+  // Left out or nullish, the handler still decides; `true` needs no handler.
+  assert.equal(statTileTag({ clickable: undefined, onclick: () => {} }), 'button');
+  assert.equal(statTileTag({ clickable: null, onclick: () => {} }), 'button');
+  assert.equal(statTileClickable({ clickable: true }), true);
+  assert.equal(statTileClickable({}), false);
+  // A destination is not "clickable": false does not unmake a link.
+  assert.equal(statTileTag({ href: '/x', clickable: false }), 'a');
+  // The constructor carries exactly this answer across, so the element and the listener follow it.
+  assert.match(readFileSync(new URL('../../src/components/stat-tile/stat-tile.js', import.meta.url), 'utf8'),
+    /clickable: statTileClickable\(options \?\? \{\}\)/);
 });
 
 test('an href that could execute script is not a destination', () => {

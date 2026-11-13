@@ -527,7 +527,7 @@ const PAGES = {
       await read();
     },
     expect: ['Code-Editor', 'Z. 2, Sp. 5', 'Z. 1, Sp. 1 · 2 Zeilen ausgewählt'],
-    demoText: [/^\{ "theme"/]
+    demoText: [/^\{ "(?:theme|event)"/]
   },
 
   calendar: {

@@ -8,7 +8,8 @@ import {
   faIconClasses, faNames, faStyles, kitUrl, parseIconSpec
 } from '../../src/core/fontawesome.js';
 import {
-  ICON_SIZE, configureIcons, icon, iconNames, icons, registerIcons, useBuiltinIcons, useFontAwesome
+  ICON_SIZE, configureIcons, icon, iconAliases, iconNames, icons, registerIcons, useBuiltinIcons,
+  useFontAwesome
 } from '../../src/core/icons.js';
 
 test('bare names are left for the active provider to interpret', () => {
@@ -424,9 +425,8 @@ test('every icon name the layout templates use resolves to an outline glyph', as
     }
   }
   assert.ok(used.size > 80, `expected the templates to use many icons, found ${used.size}`);
-  const aliases = ['settings', 'clear', 'checked', 'question', 'range', 'fields'];
   const unresolved = [...used].filter(([name]) => !Object.hasOwn(icons, name)
-    && !Object.hasOwn(LAYOUT_ICONS, name) && !aliases.includes(name));
+    && !Object.hasOwn(LAYOUT_ICONS, name) && !Object.hasOwn(iconAliases, name));
   assert.deepEqual(unresolved, [], 'template icon names without a glyph');
 });
 
@@ -455,6 +455,65 @@ test('common action names resolve to bundled glyphs under both providers', () =>
   });
 });
 
+/*
+ * WP82 F12. `icon('archive')` drew a glyph that `iconNames()` did not list, so a caller checking a
+ * name against the list (FileItem does) was told a renderable name was missing. The aliases are
+ * now a public, frozen table and the two functions answer alike.
+ */
+test('the alias table is public, frozen, and points only at bundled glyphs', () => {
+  assert.deepEqual({ ...iconAliases }, {
+    archive: 'box-archive',
+    edit: 'pen-to-square',
+    settings: 'gear',
+    clear: 'x',
+    checked: 'check',
+    question: 'info',
+    range: 'filter',
+    fields: 'list',
+    grid: 'table-cells-large'
+  });
+  assert.ok(Object.isFrozen(iconAliases));
+  for (const [alias, target] of Object.entries(iconAliases)) {
+    assert.ok(Object.hasOwn(icons, target), `${alias} points at ${target}, which is not bundled`);
+    assert.equal(Object.hasOwn(icons, alias), false, `${alias} is also a bundled glyph name`);
+  }
+});
+
+test('iconNames() and icon() agree about every name', () => {
+  withDocument(() => {
+    const names = iconNames();
+    for (const alias of Object.keys(iconAliases)) assert.ok(names.includes(alias), `${alias} is not listed`);
+    assert.deepEqual(names, [...names].sort(), 'the list is sorted');
+    assert.equal(new Set(names).size, names.length, 'no name is listed twice');
+
+    // Every listed name draws a glyph, silently, and passes the strict check.
+    const warnings = recordWarnings(() => {
+      for (const name of names) {
+        const element = icon(name, { strict: true });
+        assert.equal(element.getAttribute('data-zx-icon-missing'), null, `${name} is listed but not drawn`);
+        assert.equal(element.children.length, 1, `${name} is listed but has no path`);
+      }
+    });
+    assert.deepEqual(warnings, []);
+
+    // A name that is not listed is the placeholder — property names of Object.prototype included,
+    // which used to resolve through the alias table to a function.
+    for (const name of ['no-such-glyph', 'constructor', 'toString', 'hasOwnProperty', '__proto__']) {
+      assert.equal(names.includes(name), false);
+      assert.equal(quietly(() => icon(name)).getAttribute('data-zx-icon-missing'), name);
+      assert.throws(() => icon(name, { strict: true }), RangeError);
+    }
+  });
+});
+
+test('the alias names are the only names iconNames() adds to the glyph tables', () => {
+  const glyphs = iconNames().filter((name) => !Object.hasOwn(iconAliases, name));
+  assert.deepEqual(glyphs.filter((name) => Object.hasOwn(icons, name)), Object.keys(icons).sort());
+  assert.equal(iconNames().length, glyphs.length + Object.keys(iconAliases).length);
+  // It stays callable as a plain value: no positional parameter for a stray argument to land in.
+  assert.deepEqual(iconNames(/** @type {any} */ ({ aliases: false })), iconNames());
+});
+
 // Runs last: the registration below stays in the module's registry for the rest of the file.
 test('a glyph an application registered under an alias name keeps winning over the alias', () => {
   withDocument(() => {
@@ -462,6 +521,8 @@ test('a glyph an application registered under an alias name keeps winning over t
     const element = icon('archive');
     assert.equal(element.getAttribute('viewBox'), '0 0 16 16');
     assert.equal(element.children[0].getAttribute('d'), 'M1 1h14v14H1z');
+    // Still one name in the list, now a registered glyph as well as an alias.
+    assert.equal(iconNames().filter((name) => name === 'archive').length, 1);
   });
 });
 

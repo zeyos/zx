@@ -203,7 +203,9 @@ export default {
       blurb: 'A tile with href is an <a>, a tile with onclick and no href is a <button>, and a tile '
         + 'with neither is a <div>. There is no fourth case: a div never gets a click handler, so '
         + 'a tile you can activate is always something the keyboard and the browser already know '
-        + 'how to activate. onclick is the tile\'s click event, so on(\'click\', …) reaches it too.',
+        + 'how to activate. onclick is the tile\'s click event, so on(\'click\', …) reaches it too. '
+        + 'clickable: false wins over a handler: the last tile is passed the same onclick as the '
+        + 'second and stays a <div>, for a list that decides per tile whether the action applies.',
       layout: 'stack',
       render: (context) => {
         const tiles = statTiles(context, [
@@ -215,7 +217,14 @@ export default {
             icon: 'eye',
             onclick: (event) => context.log(`activated by ${event.detail.event.type}`)
           },
-          { label: 'Records touched', value: 812, icon: 'list' }
+          { label: 'Records touched', value: 812, icon: 'list' },
+          {
+            label: 'Archived',
+            value: 3,
+            icon: 'archive',
+            clickable: false,
+            onclick: (event) => context.log(`activated by ${event.detail.event.type}`)
+          }
         ]);
         return [
           tileRow(...tiles),

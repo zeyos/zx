@@ -27,6 +27,9 @@ export function registerCodeEditorFieldAdapter() {
     editor.on('input', (event) => field.emit('input', { value: event.detail.value }));
     return {
       el: editor.el,
+      // The textarea, not the frame, is what the label names and what is invalid: the Field's
+      // message then describes it, and the editor draws its error frame from `aria-invalid`.
+      labelTarget: editor.getInput(),
       get: () => editor.getValue(),
       set: (value) => {
         setting = true;

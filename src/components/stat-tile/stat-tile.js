@@ -62,12 +62,17 @@ import { skeleton } from '../skeleton/skeleton.js';
  *   display size while the others stay smaller, on a framed tile one step above the display size.
  *   Give it to one tile per row. Reflected as `data-emphasis="true"`.
  * @property {string|null} [href=null] Destination. A tile with an href is an `<a>`.
- * @property {boolean} [clickable=false] Renders a `<button>` without an href. Passing `onclick`
- *   sets this implicitly; set it directly to subscribe with `on('click', …)` instead.
+ * @property {boolean} [clickable=false] Renders a `<button>` without an href. Passing a function
+ *   as `onclick` sets this implicitly; set it to `true` to subscribe with `on('click', …)` instead.
+ *   An explicit `false` wins over `onclick`: the tile stays a `<div>` and the handler is never
+ *   called — for a caller that always passes a handler and decides per tile whether it applies.
+ *   It does not turn a tile with an `href` into anything but a link.
  * @property {boolean} [loading=false] Renders a skeleton shaped like the tile.
  * @property {Record<string, unknown>} [msg] Message overrides, keyed as `statTile.*`.
  * @property {(event: CustomEvent<{event: MouseEvent}>) => void} [onclick] Activation listener; its
- *   presence is what turns a tile with no href into a button. It is the tile's `click` event, as
+ *   presence is what turns a tile with no href into a button, unless `clickable` is `false`. Leave
+ *   it out — rather than passing an empty function — for a tile that does nothing. It is the
+ *   tile's `click` event, as
  *   every Zx component's `on*` option is, so it receives the `CustomEvent` carrying the native
  *   event in `detail.event`.
  */
@@ -153,10 +158,7 @@ export class StatTile extends Component {
     // `Component` consumes every function-valued `on*` option into a component event listener, so
     // `options.onclick` no longer exists by the time `render()` chooses the element's tag. The
     // shape decision is taken here, before the base constructor, and carried across as a flag.
-    super(target, {
-      ...options,
-      clickable: options?.clickable === true || typeof options?.onclick === 'function'
-    });
+    super(target, { ...options, clickable: statTileClickable(options ?? {}) });
   }
 
   /**
@@ -325,8 +327,21 @@ export function normalizeStatTileVariant(value) {
  */
 export function statTileTag(options = {}) {
   if (safeHref(options.href)) return 'a';
-  if (options.clickable === true || typeof options.onclick === 'function') return 'button';
-  return 'div';
+  return statTileClickable(options) ? 'button' : 'div';
+}
+
+/**
+ * Whether a tile without a destination is an action. `clickable` decides when it is given as a
+ * boolean; left out (or nullish), a function-valued `onclick` does. So an explicit
+ * `clickable: false` wins over a handler, and a handler that is not a function is not behaviour.
+ * @param {{clickable?: boolean|null, onclick?: unknown}} [options={}] The options that carry
+ *   behaviour.
+ * @returns {boolean}
+ */
+export function statTileClickable(options = {}) {
+  if (options.clickable === true) return true;
+  if (options.clickable === false) return false;
+  return typeof options.onclick === 'function';
 }
 
 /**

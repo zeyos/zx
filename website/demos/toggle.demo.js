@@ -24,6 +24,23 @@ export default {
       }
     },
     {
+      title: 'A switch without visible text',
+      blurb: 'hideLabel keeps the label for assistive technology only: nothing is drawn beside the '
+        + 'track and the label becomes the switch\'s accessible name. Use it where the layout '
+        + 'already says what the switch is for — here the row\'s own text — and call setLabel() '
+        + 'when that changes. A switch with neither a label nor a Field around it has no name.',
+      render: ({ cleanup, log }) => {
+        const toggle = new Toggle(null, { label: 'Email me about new invoices', hideLabel: true, checked: true });
+        toggle.on('change', ({ detail }) => {
+          log(`change checked=${detail.checked} — named "${toggle.el.getAttribute('aria-label')}"`);
+        });
+        cleanup(() => toggle.destroy());
+        return h('div', { class: 'demo-row' },
+          h('span', {}, 'New invoices'),
+          toggle.toElement());
+      }
+    },
+    {
       title: 'Programmatic control',
       blurb: 'toggle(), enable(), and getValue() drive a switch from elsewhere on the page — the '
         + 'same calls a form controller would make.',

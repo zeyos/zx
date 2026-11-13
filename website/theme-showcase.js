@@ -17,7 +17,7 @@ import {
   Dialog, Dropdown, Finder, Form, Groupbox, InlineLoading, MasterPanel, MenuButton, Message,
   Modal, ModuleBar, MultiValueEditor, NavigationBar, NumberField, Pagination, Panel, ProgressBar,
   Rating, Search, Select, Sheet, Slider, Stepper, Table, Tabbox, TagPicker, Timebox, Toggle, Toolbar,
-  TreeView, ValueList, badge, button, buttonGroup, CheckButton, emptyState, h, icon, iconNames,
+  TreeView, ValueList, badge, button, buttonGroup, CheckButton, emptyState, h, icon, iconAliases, iconNames,
   skeletonText, spinner, tooltip
 } from '../src/index.js';
 
@@ -1100,7 +1100,7 @@ function statesCard() {
 /** @returns {Node} */
 function iconsCard() {
   return h('div', { class: 'studio-icons' },
-    iconNames().map((name) => h('span', { class: 'studio-icons__cell', title: name }, icon(name))));
+    iconNames().filter((name) => !Object.hasOwn(iconAliases, name)).map((name) => h('span', { class: 'studio-icons__cell', title: name }, icon(name))));
 }
 
 /* -------------------------------------------------------------------- helpers -- */

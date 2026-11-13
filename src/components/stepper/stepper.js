@@ -21,7 +21,8 @@ const CLICKABLE = new Set(['completed', 'all', false]);
  * @property {StepDefinition[]} [steps=[]] Ordered step definitions.
  * @property {string|null} [active=null] Initially active step name; defaults to the first enabled step.
  * @property {StepperOrientation} [orientation='horizontal'] `horizontal` lays the rail out above the
- *   stage, `vertical` puts it beside the stage.
+ *   stage, `vertical` puts it beside the stage. A horizontal rail too wide for its container wraps
+ *   onto further rows; each row's connectors end at its last step.
  * @property {StepperClickable} [clickable='completed'] Which steps are activated by a click:
  *   `completed` (go back only), `all`, or `false` for a display-only rail.
  * @property {boolean} [showNumbers=true] Whether upcoming and active markers show their number.
@@ -48,7 +49,8 @@ const CLICKABLE = new Set(['completed', 'all', false]);
 /**
  * @typedef {Object} StepRecord
  * @property {NormalizedStep} step Normalized definition.
- * @property {HTMLLIElement} item List item carrying `data-state` and `aria-current`.
+ * @property {HTMLLIElement} item List item carrying `data-state` and `aria-current`, and
+ *   `data-row-end` while it is the last step of a row in a wrapped horizontal rail.
  * @property {HTMLElement} control Button (clickable rails) or span (display-only rails).
  * @property {HTMLElement} marker Number / check / warning bubble.
  * @property {HTMLElement} status Visually hidden state text for assistive technology.
@@ -125,6 +127,14 @@ export class Stepper extends Component {
     const list = h('ol', { class: 'zx-stepper__list', ref: 'list' });
     root.replaceChildren(...(this.options.counter ? [counter, list] : [list]));
 
+    // A wrapped horizontal rail must not draw a connector out of a row's last step, and only layout
+    // knows which step that is. Without ResizeObserver the rail keeps every connector.
+    /** @type {ResizeObserver|null} */
+    this._rowObserver = this.options.orientation === 'horizontal' && typeof ResizeObserver === 'function'
+      ? new ResizeObserver(() => this._markRows())
+      : null;
+    this._rowObserver?.observe(list);
+
     this.setSteps(this.options.steps);
 
     this.listen(list, 'click', (event) => {
@@ -157,9 +167,13 @@ export class Stepper extends Component {
     if (index < 0) index = resolveStepIndex(steps, -1, 1);
     this._activeIndex = index;
 
+    for (const record of this._records) this._rowObserver?.unobserve(record.item);
     this._records = steps.map((step) => this._createRecord(step));
     this.refs.list.replaceChildren(...this._records.map((record) => record.item));
+    // A step that changes size (a late font, a longer title) can move the row breaks too.
+    for (const record of this._records) this._rowObserver?.observe(record.item);
     this._sync();
+    this._markRows();
     return this;
   }
 
@@ -284,6 +298,8 @@ export class Stepper extends Component {
     if (this._destroyed) return;
     this._destroyed = true;
     const root = this.el;
+    this._rowObserver?.disconnect();
+    this._rowObserver = null;
     super.destroy();
     if (!this._createdRoot && root) restoreTarget(root, this._snapshot);
   }
@@ -311,6 +327,22 @@ export class Stepper extends Component {
     this._activeIndex = index;
     this._sync();
     return this;
+  }
+
+  /**
+   * Marks the last step of every row but the final one with `data-row-end`, which is what hides
+   * its connector. The mark changes no size — the connector keeps its box — so the row breaks it
+   * was measured from stay where they are and one pass settles.
+   * @returns {void}
+   */
+  _markRows() {
+    if (!this._rowObserver || !this.el?.isConnected) return;
+    const boxes = this._records.map((record) => record.item.getBoundingClientRect());
+    this._records.forEach((record, index) => {
+      const next = boxes[index + 1];
+      // Steps of one row overlap vertically even when their heights differ; the next row does not.
+      record.item.toggleAttribute('data-row-end', Boolean(next) && next.top >= boxes[index].bottom - 1);
+    });
   }
 
   /**

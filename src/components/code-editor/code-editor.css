@@ -66,3 +66,36 @@
 .zx-code-editor[data-disabled="true"] {
   opacity: 0.6;
 }
+
+/* The error state, whoever declares it: a standalone editor through setHighlight(), or a Field
+   marking the textarea it labels. Either way the frame says so, as a field's control does. */
+.zx-code-editor[data-state="danger"],
+.zx-code-editor:has(.zx-code-editor__input[aria-invalid="true"]) {
+  border-color: var(--zx-color-danger);
+}
+
+/* The message of a standalone editor: a Field's highlight text, set under the source. */
+.zx-code-editor__highlight {
+  padding: var(--zx-space-2) var(--zx-space-3);
+  border-block-start: 1px solid var(--zx-color-border);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  overflow-wrap: anywhere;
+}
+
+.zx-code-editor__highlight[hidden] {
+  display: none;
+}
+
+.zx-code-editor[data-state="danger"] .zx-code-editor__highlight {
+  border-block-start-color: var(--zx-color-danger);
+  color: var(--zx-color-danger);
+}
+
+.zx-code-editor[data-state="warning"] .zx-code-editor__highlight {
+  color: var(--zx-color-warning);
+}
+
+.zx-code-editor[data-state="success"] .zx-code-editor__highlight {
+  color: var(--zx-color-success);
+}

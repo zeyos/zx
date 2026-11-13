@@ -90,3 +90,107 @@ test('CodeEditor keeps the release across modifiers and ends it on any other key
   editor._handleKeydown(typed);
   assert.equal(typed.defaultPrevented, true, 'typing after Escape restores the capture');
 });
+
+/*
+ * WP82 N1. `indent: ''` switches the Tab capture off altogether; the option's documentation says
+ * so, and this is the behaviour it describes.
+ */
+test('CodeEditor with an empty indent leaves Tab and Shift+Tab to the browser', () => {
+  const editor = editorProbe();
+  editor.options = { indent: '' };
+  for (const event of [key('Tab'), key('Tab', { shiftKey: true })]) {
+    editor._handleKeydown(event);
+    assert.equal(event.defaultPrevented, false);
+  }
+  assert.equal(editor._input.value, 'alpha');
+});
+
+test('CodeEditor never captures Tab with Ctrl, Alt or Meta, or while read-only or disabled', () => {
+  const editor = editorProbe();
+  for (const modifier of ['ctrlKey', 'altKey', 'metaKey']) {
+    const event = key('Tab', { [modifier]: true });
+    editor._handleKeydown(event);
+    assert.equal(event.defaultPrevented, false, modifier);
+  }
+  for (const state of ['readOnly', 'disabled']) {
+    editor._input[state] = true;
+    const event = key('Tab');
+    editor._handleKeydown(event);
+    assert.equal(event.defaultPrevented, false, state);
+    editor._input[state] = false;
+  }
+  assert.equal(editor._input.value, 'alpha');
+});
+
+/*
+ * WP82 N8. The error state follows Field: setHighlight(message, kind) / clearHighlight(),
+ * `data-state` on the root, and for `danger` an alert, `aria-invalid` and the `invalid` event,
+ * with the message as the textarea's description. Stand-in elements carry just the attribute
+ * surface those two methods write.
+ */
+function fakeElement(attributes = {}) {
+  const map = new Map(Object.entries(attributes));
+  return {
+    id: '', hidden: true, textContent: '', dataset: {},
+    setAttribute(name, value) { map.set(name, String(value)); },
+    getAttribute(name) { return map.get(name) ?? null; },
+    removeAttribute(name) { map.delete(name); },
+    hasAttribute(name) { return map.has(name); }
+  };
+}
+
+function highlightProbe(describedBy) {
+  const editor = Object.create(CodeEditor.prototype);
+  editor.el = fakeElement();
+  editor._input = fakeElement(describedBy ? { 'aria-describedby': describedBy } : {});
+  editor._highlight = fakeElement();
+  editor._highlight.id = 'hl';
+  editor.emitted = [];
+  editor.emit = (type, detail) => { editor.emitted.push([type, detail]); };
+  return editor;
+}
+
+test('CodeEditor.setHighlight marks the error state the way a Field does', () => {
+  const editor = highlightProbe();
+  assert.equal(editor.setHighlight('Line 3: unexpected token'), editor);
+  assert.equal(editor.el.dataset.state, 'danger');
+  assert.equal(editor._highlight.textContent, 'Line 3: unexpected token');
+  assert.equal(editor._highlight.hidden, false);
+  assert.equal(editor._highlight.getAttribute('role'), 'alert');
+  assert.equal(editor._input.getAttribute('aria-invalid'), 'true');
+  assert.equal(editor._input.getAttribute('aria-describedby'), 'hl');
+  assert.deepEqual(editor.emitted, [['invalid', { message: 'Line 3: unexpected token' }]]);
+});
+
+test('CodeEditor warning and success are statuses, not errors, and an unknown kind is danger', () => {
+  const editor = highlightProbe();
+  editor.setHighlight('Broken');
+  for (const kind of ['warning', 'success']) {
+    editor.setHighlight('Saved', kind);
+    assert.equal(editor.el.dataset.state, kind);
+    assert.equal(editor._highlight.getAttribute('role'), null);
+    assert.equal(editor._input.getAttribute('aria-invalid'), null);
+    assert.equal(editor._input.getAttribute('aria-describedby'), 'hl');
+  }
+  assert.equal(editor.emitted.length, 1, 'only danger emits invalid');
+  editor.setHighlight('Broken', 'nonsense');
+  assert.equal(editor.el.dataset.state, 'danger');
+});
+
+test('CodeEditor.clearHighlight and an empty message both clear, keeping foreign descriptions', () => {
+  const editor = highlightProbe('field-description');
+  editor.setHighlight('Broken');
+  editor.setHighlight('Broken');
+  assert.equal(editor._input.getAttribute('aria-describedby'), 'field-description hl', 'the id is added once');
+  editor.setHighlight('');
+  assert.equal('state' in editor.el.dataset, false);
+  assert.equal(editor._highlight.hidden, true);
+  assert.equal(editor._highlight.textContent, '');
+  assert.equal(editor._highlight.getAttribute('role'), null);
+  assert.equal(editor._input.getAttribute('aria-invalid'), null);
+  assert.equal(editor._input.getAttribute('aria-describedby'), 'field-description');
+
+  const bare = highlightProbe();
+  bare.setHighlight('Broken').clearHighlight();
+  assert.equal(bare._input.hasAttribute('aria-describedby'), false);
+});

@@ -202,6 +202,21 @@ button.zx-stepper__control:disabled {
   background: var(--zx-color-border);
 }
 
+/* A rail too wide for its container wraps. The last step of a row has no next step beside it, so
+   its connector would run to the container's edge and point at nothing; the component marks that
+   step (it is a fact of layout, not of the markup) and the connector is not painted. It keeps its
+   box — at the minimum width the step was measured with, so the mark cannot move the row break it
+   was read from — and the step stops growing, so the row's slack goes to the connectors that are
+   drawn. */
+.zx-stepper[data-orientation="horizontal"] .zx-stepper__step[data-row-end] {
+  flex-grow: 0;
+}
+
+.zx-stepper[data-orientation="horizontal"] .zx-stepper__step[data-row-end]::after {
+  flex: 0 0 var(--zx-space-4);
+  visibility: hidden;
+}
+
 /* ---------------------------------------------------------------------- vertical -- */
 
 .zx-stepper[data-orientation="vertical"] .zx-stepper__list {

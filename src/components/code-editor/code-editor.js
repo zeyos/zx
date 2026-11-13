@@ -1,5 +1,6 @@
 import { Component } from '../../core/component.js';
 import { h } from '../../core/dom.js';
+import { uid } from '../../core/util.js';
 
 /**
  * @typedef {Object} CodeEditorOptions
@@ -10,7 +11,13 @@ import { h } from '../../core/dom.js';
  *   message ("Code editor").
  * @property {string} [placeholder=''] Placeholder text.
  * @property {number} [rows=12] Visible textarea rows.
- * @property {string} [indent='\t'] Text inserted by Tab and removed by Shift+Tab.
+ * @property {string} [indent='\t'] Text inserted by Tab and removed by Shift+Tab — a tab by
+ *   default, `'  '` for two spaces. While it is non-empty the editor captures Tab: Tab inserts it at
+ *   the caret or indents every selected line, Shift+Tab outdents them, and focus stays in the
+ *   editor. Escape releases the capture for the next keystroke, so Escape then Tab (or Shift+Tab)
+ *   moves focus on. `indent: ''` switches the capture off: Tab and Shift+Tab move focus as in any
+ *   other field and nothing is indented. Tab with Ctrl, Alt or Meta, and Tab in a read-only or
+ *   disabled editor, are never captured.
  * @property {'off'|'soft'|'hard'} [wrap='off'] Textarea wrapping behavior.
  * @property {boolean} [spellcheck=false] Whether browser spellcheck is enabled.
  * @property {boolean} [readOnly=false] Whether content can be selected but not changed.
@@ -18,6 +25,8 @@ import { h } from '../../core/dom.js';
  * @property {boolean} [status=true] Whether the line/column status is visible.
  * @property {(event: CustomEvent<{value:string}>) => void} [oninput] Input listener.
  * @property {(event: CustomEvent<{value:string}>) => void} [onchange] Change listener.
+ * @property {(event: CustomEvent<{message:string}>) => void} [oninvalid] Listener called when
+ *   `setHighlight()` puts the editor in its error state.
  */
 
 /** Keys that only modify the next one: pressing them is not the keystroke that ends a Tab release. */
@@ -31,8 +40,13 @@ const MODIFIER_KEYS = new Set(['Shift', 'Control', 'Alt', 'Meta', 'AltGraph', 'C
  * Capturing Tab is what a code surface has to do, and it would be a keyboard trap if nothing undid
  * it: Escape releases the capture until the next keystroke in the editor, so Escape then Tab (or
  * Shift+Tab) moves focus out of the editor as it would leave any other field.
+ *
+ * A standalone editor reports a validation or status message the way a Field does, with
+ * `setHighlight()` and `clearHighlight()`. Inside a Field (the `code` field type) the Field's own
+ * message is the one to set; it marks the editor's textarea invalid and the frame follows.
  * @fires CodeEditor#input
  * @fires CodeEditor#change
+ * @fires CodeEditor#invalid
  * @extends {Component<CodeEditorOptions>}
  */
 export class CodeEditor extends Component {
@@ -60,7 +74,7 @@ export class CodeEditor extends Component {
     const root = /** @type {HTMLElement} */ (this.el ?? h('div'));
     this.el = root;
     this._initialChildren = this._createdRoot ? [] : [...root.childNodes];
-    this._initialAttributes = new Map(['data-language', 'data-readonly', 'data-disabled']
+    this._initialAttributes = new Map(['data-language', 'data-readonly', 'data-disabled', 'data-state']
       .map((name) => [name, root.getAttribute(name)]));
     this._language = normalizeLanguage(this.options.language);
     this._languageLabel = h('span', { class: 'zx-code-editor__language' }, this._language);
@@ -84,13 +98,19 @@ export class CodeEditor extends Component {
       autocomplete: 'off',
       autocapitalize: 'off'
     }));
+    this._highlight = h('div', {
+      class: 'zx-code-editor__highlight',
+      id: uid('zx-code-editor-highlight'),
+      ariaLive: 'polite',
+      hidden: true
+    });
     this._input.value = String(this.options.value ?? '');
     this._committedValue = this._input.value;
     this._indentEditing = false;
     root.dataset.language = this._language;
     root.dataset.readonly = String(Boolean(this.options.readOnly));
     root.dataset.disabled = String(Boolean(this.options.disabled));
-    root.replaceChildren(this._header, this._input);
+    root.replaceChildren(this._header, this._input, this._highlight);
     /** Set by Escape: the next Tab moves focus instead of indenting. */
     this._tabReleased = false;
 
@@ -136,6 +156,56 @@ export class CodeEditor extends Component {
     this._language = normalizeLanguage(language);
     this.el.dataset.language = this._language;
     this._languageLabel.textContent = this._language;
+    return this;
+  }
+
+  /**
+   * Returns the native textarea — the element that carries the editor's name, validity and
+   * description, and the one a `<label for>` or a Field labels.
+   * @returns {HTMLTextAreaElement}
+   */
+  getInput() { return this._input; }
+
+  /**
+   * Displays a validation or status message under the text, as `Field#setHighlight()` does for a
+   * field: the kind is reflected as `data-state` on the root, and `'danger'` is the error state —
+   * the textarea gets `aria-invalid="true"`, the message is announced as an alert, the frame takes
+   * the danger colour, and `invalid` is emitted. The message is the textarea's description
+   * (`aria-describedby`) for as long as it is shown. An empty message clears it.
+   * @param {string} message Message text.
+   * @param {'danger'|'warning'|'success'} [kind='danger'] Message kind.
+   * @returns {this}
+   * @fires CodeEditor#invalid
+   */
+  setHighlight(message, kind = 'danger') {
+    if (!message) return this.clearHighlight();
+    const normalizedKind = ['danger', 'warning', 'success'].includes(kind) ? kind : 'danger';
+    this.el.dataset.state = normalizedKind;
+    this._highlight.textContent = String(message);
+    this._highlight.hidden = false;
+    this._describe(true);
+    if (normalizedKind === 'danger') {
+      this._highlight.setAttribute('role', 'alert');
+      this._input.setAttribute('aria-invalid', 'true');
+      this.emit('invalid', { message: String(message) });
+    } else {
+      this._highlight.removeAttribute('role');
+      this._input.removeAttribute('aria-invalid');
+    }
+    return this;
+  }
+
+  /**
+   * Clears the current validation or status message.
+   * @returns {this}
+   */
+  clearHighlight() {
+    delete this.el.dataset.state;
+    this._highlight.textContent = '';
+    this._highlight.hidden = true;
+    this._highlight.removeAttribute('role');
+    this._input.removeAttribute('aria-invalid');
+    this._describe(false);
     return this;
   }
 
@@ -203,6 +273,21 @@ export class CodeEditor extends Component {
     this._input.setSelectionRange(result.start, result.end);
     this._updatePosition();
     this.emit('input', { value: this.getValue() });
+  }
+
+  /**
+   * Adds the message to, or takes it out of, the textarea's `aria-describedby`, leaving any id
+   * something else put there (a Field's description) in place.
+   * @param {boolean} described Whether the message describes the textarea.
+   * @returns {void}
+   */
+  _describe(described) {
+    const id = this._highlight.id;
+    const ids = (this._input.getAttribute('aria-describedby') ?? '').split(/\s+/)
+      .filter((value) => value && value !== id);
+    if (described) ids.push(id);
+    if (ids.length) this._input.setAttribute('aria-describedby', ids.join(' '));
+    else this._input.removeAttribute('aria-describedby');
   }
 
   /** Commits once, whether the browser emits change before blur or the fallback edited text. @returns {void} */
@@ -340,4 +425,10 @@ function clampIndex(value, length) {
  * Code editor committed change event.
  * @event CodeEditor#change
  * @type {CustomEvent<{value:string}>}
+ */
+
+/**
+ * Emitted when `setHighlight()` puts the editor in its error state (`kind: 'danger'`).
+ * @event CodeEditor#invalid
+ * @type {CustomEvent<{message:string}>}
  */
