@@ -17,13 +17,21 @@ const FOCUSABLE_SELECTOR = [
  * @property {Node|string|number|{toElement: () => Node|null}|null} [content=null] Modal content.
  * @property {string|number} [width='auto'] CSS width, or a pixel width when numeric.
  * @property {boolean} [closable=true] Whether Escape may close the modal.
- * @property {boolean} [lightDismiss=false] Whether a backdrop click closes the modal.
+ * @property {boolean} [lightDismiss=false] Whether a backdrop click closes the modal. Like every
+ *   dismissal by the reader, it raises a preventable `cancel` first.
  * @property {boolean} [destroyOnClose=false] Whether to destroy the modal after it closes.
  * @property {Element|string|null} [scope=null] Element whose nearest Zx theme scope owns the overlay; defaults to the opener. Resolved on every open, so a scope connected after construction still owns it.
  * @property {(event: CustomEvent<Record<string, never>>) => void} [onopen] Open event listener.
  * @property {(event: CustomEvent<{result: unknown}>) => void} [onclose] Close event listener.
- * @property {(event: CustomEvent<Record<string, never>>) => void} [oncancel] Cancel event listener.
+ * @property {(event: CustomEvent<ModalCancelDetail>) => void} [oncancel] Cancel event listener.
  */
+/**
+ * What the reader did to ask for dismissal: pressed Escape, used a header close button, chose a
+ * footer button whose action is `'cancel'`, clicked the backdrop, pressed outside a non-modal
+ * overlay, or dragged it away.
+ * @typedef {'escape'|'close-button'|'button'|'backdrop'|'outside'|'drag'} ModalDismissReason
+ */
+/** @typedef {{reason: ModalDismissReason}} ModalCancelDetail */
 
 /**
  * Thin native-dialog overlay with lifecycle-safe content and dismissal behavior.
@@ -76,8 +84,35 @@ export class Modal extends Component {
     this.#setWidth(this.options.width);
     replaceContent(this.refs.content, this.options.content);
 
+    /*
+     * Escape on a modal presentation is answered here rather than by the browser's close request.
+     * A browser stops honouring a prevented `cancel` once close requests repeat without other
+     * interaction, which would let a third Escape through an "unsaved changes" guard; a cancelled
+     * keydown never becomes a close request at all. The listener sits on `window`, the last stop
+     * of the bubble, so everything that may use the key first has had it: a popup inside the
+     * dialog, the overlay stack, an application's own `document` handler. Whatever they prevented
+     * is not ours. Only the topmost modal answers, so a dialog opened above this one — the
+     * library's or the application's — keeps its key.
+     */
+    if (typeof window !== 'undefined') this.listen(window, 'keydown', (event) => {
+      const key = /** @type {KeyboardEvent} */ (event);
+      if (key.key !== 'Escape' || key.defaultPrevented || key.isComposing) return;
+      if (!this.isOpen() || !this.el.matches(':modal')) return;
+      const modals = document.querySelectorAll('dialog:modal');
+      if (modals[modals.length - 1] !== this.el) return;
+      // Reported before the key is cancelled: a `cancel` listener may ask whether something else
+      // had already claimed this keydown, and our own claim must not answer for it.
+      if (this.options.closable) this._requestDismiss('escape');
+      else this.emit('cancel', { reason: 'escape' });
+      key.preventDefault();
+    });
+    /*
+     * The platform's own close request, for what is not a keydown this class saw: a back gesture,
+     * an Escape pressed mid-composition, an assistive-technology dismiss. The browser may make
+     * such a request non-cancelable, and then the dialog closes whatever a listener says.
+     */
     this.listen(this.el, 'cancel', (event) => {
-      const cancelEvent = this.emit('cancel');
+      const cancelEvent = this.emit('cancel', { reason: 'escape' });
       if (!this.options.closable || cancelEvent.defaultPrevented) event.preventDefault();
     });
     this.listen(this.el, 'close', () => {
@@ -85,7 +120,7 @@ export class Modal extends Component {
     });
     this.listen(this.el, 'click', (event) => {
       if (!this.options.lightDismiss || event.target !== this.el || !isBackdropClick(this.el, event)) return;
-      this.close();
+      this._requestDismiss('backdrop');
     });
     /*
      * One listener for every close path, because `close` is the one event all four converge on:
@@ -168,8 +203,9 @@ export class Modal extends Component {
    * Describes the current presentation for the overlay stack, or returns null to stay off it.
    *
    * The kind is read from the platform like `aria-modal` is: a `showModal()` dialog is `modal`,
-   * and its Escape and backdrop stay the browser's; anything else is `non-modal`, and a subclass
-   * presenting that way adds the Escape and outside-press handling it wants.
+   * and the stack leaves its Escape alone (this class answers it, see the constructor); anything
+   * else is `non-modal`, and a subclass presenting that way adds the Escape and outside-press
+   * handling it wants.
    * @returns {import('../../core/overlay-stack.js').OverlayEntryOptions|null}
    * @protected
    */
@@ -180,6 +216,22 @@ export class Modal extends Component {
       owner: this,
       anchor: this.#opener
     };
+  }
+
+  /**
+   * Asks to close on the reader's behalf: emits a preventable `cancel` naming what they did, and
+   * closes unless a listener prevented it. Every dismissal gesture goes through here; `close()`
+   * itself stays unconditional, for the application's own decisions.
+   * @param {ModalDismissReason} reason What the reader did.
+   * @returns {boolean} Whether the overlay is closing.
+   * @fires Modal#cancel
+   * @protected
+   */
+  _requestDismiss(reason) {
+    if (!this.isOpen()) return false;
+    if (this.emit('cancel', { reason }).defaultPrevented) return false;
+    this.close();
+    return true;
   }
 
   /**
@@ -449,9 +501,11 @@ export class Modal extends Component {
  */
 
 /**
- * Fired when Escape requests cancellation. Preventing it keeps the modal open.
+ * Fired when the reader asks to dismiss the modal — Escape, a header close button, a
+ * `'cancel'` footer button, a backdrop click, a press outside a non-modal overlay, a drag — with the gesture in `detail.reason`.
+ * Preventing it keeps the modal open. A programmatic `close()` does not raise it.
  * @event Modal#cancel
- * @type {CustomEvent<Record<string, never>>}
+ * @type {CustomEvent<ModalCancelDetail>}
  */
 
 /**

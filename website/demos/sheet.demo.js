@@ -192,6 +192,36 @@ export default {
         cleanup(() => sheet.destroy());
         return button({ label: 'Open invoice', kind: 'primary', onclick: () => sheet.open() });
       }
+    },
+    {
+      title: 'Guarding unsaved changes',
+      blurb: 'Everything the reader does to dismiss a sheet — Escape, the close button, a click on '
+        + 'the backdrop, a dismissing drag — raises cancel first, with the gesture in detail.reason. '
+        + 'Preventing it keeps the sheet open, so one listener covers every way out. close() from '
+        + 'code is not a cancel and always closes.',
+      render: ({ cleanup, log }) => {
+        const note = new Field(null, { type: 'textarea', name: 'note', label: 'Internal note' });
+        let dirty = false;
+        note.toElement().addEventListener('input', () => { dirty = true; });
+        const sheet = new Sheet(null, {
+          side: 'end',
+          size: 420,
+          title: 'Invoice #4021',
+          content: note.toElement(),
+          buttons: [
+            { label: 'Discard', action: (instance) => { dirty = false; instance.close(); } },
+            { label: 'Save', kind: 'primary', action: (instance) => { dirty = false; instance.close('saved'); } }
+          ],
+          oncancel: (event) => {
+            if (!dirty) return;
+            event.preventDefault();
+            log(`kept open: ${event.detail.reason} with unsaved changes`);
+          },
+          onclose: ({ detail }) => log(`closed${detail.result ? ` (${detail.result})` : ''}`)
+        });
+        cleanup(() => { sheet.destroy(); note.destroy(); });
+        return button({ label: 'Edit note', kind: 'primary', onclick: () => sheet.open() });
+      }
     }
   ]
 };

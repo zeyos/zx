@@ -24,7 +24,7 @@ import { button } from '../button/button.js';
  * @property {Element|string|null} [scope=null] Element whose nearest Zx theme scope owns the overlay; defaults to the opener. Resolved on every open, so a scope connected after construction still owns it.
  * @property {(event: CustomEvent<Record<string, never>>) => void} [onopen] Open event listener.
  * @property {(event: CustomEvent<{result: unknown}>) => void} [onclose] Close event listener.
- * @property {(event: CustomEvent<Record<string, never>>) => void} [oncancel] Cancel event listener.
+ * @property {(event: CustomEvent<import('../modal/modal.js').ModalCancelDetail>) => void} [oncancel] Cancel event listener.
  */
 /**
  * @typedef {Object} DialogViewOptions
@@ -107,7 +107,7 @@ export class Dialog extends Modal {
     this.#renderButtons(this.#baseButtons);
     this.refs.close.hidden = !this.options.closable;
 
-    this.listen(this.refs.close, 'click', () => this.close());
+    this.listen(this.refs.close, 'click', () => this._requestDismiss('close-button'));
     this.listen(this.refs.footer, 'click', (event) => {
       const button = event.target.closest?.('[data-dialog-button]');
       if (!button || !this.refs.footer.contains(button)) return;
@@ -473,8 +473,7 @@ export class Dialog extends Modal {
     if (action === 'close') {
       this.close();
     } else if (action === 'cancel') {
-      const event = this.emit('cancel');
-      if (!event.defaultPrevented) this.close();
+      this._requestDismiss('button');
     } else if (typeof action === 'function') {
       action(this);
     }

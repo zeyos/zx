@@ -48,7 +48,7 @@ const GROW_SIGN = Object.freeze({ start: 1, end: -1, top: 1, bottom: -1 });
  * @property {Element|string|null} [scope=null] Element whose nearest Zx theme scope owns a floating sheet; defaults to the opener.
  * @property {(event: CustomEvent<Record<string, never>>) => void} [onopen] Open event listener.
  * @property {(event: CustomEvent<{result: unknown}>) => void} [onclose] Close event listener.
- * @property {(event: CustomEvent<Record<string, never>>) => void} [oncancel] Cancel event listener.
+ * @property {(event: CustomEvent<import('../modal/modal.js').ModalCancelDetail>) => void} [oncancel] Cancel event listener.
  * @property {(event: CustomEvent<{size: number, ratio: number}>) => void} [onresize] Resize listener.
  * @property {(event: CustomEvent<{docked: boolean, dock: import('../dock/dock.js').Dock|null}>) => void} [ondockchange] Dock-state listener.
  */
@@ -213,8 +213,10 @@ export class Sheet extends Dialog {
       return;
     }
     if (this.options.closable && next < min / 2) {
+      // Restored first, so a prevented dismissal leaves the sheet at the size it had.
       this._applySize(this.#dragStart);
-      this.close();
+      this.#syncHandleAria();
+      this._requestDismiss('drag');
       return;
     }
     const detents = this.#detents(total);
@@ -386,11 +388,13 @@ export class Sheet extends Dialog {
       ...entry,
       // An Escape pressed outside the sheet and everything it opened is not addressed to it.
       onEscape: (event) => {
-        if (!this.options.closable || !this._overlayContains(/** @type {Node|null} */ (event.target))) return false;
-        if (!this.emit('cancel').defaultPrevented) this.close();
+        if (!this._overlayContains(/** @type {Node|null} */ (event.target))) return false;
+        // Refused, but still reported — and the key stays free for whatever is underneath.
+        if (!this.options.closable) return this.emit('cancel', { reason: 'escape' }) && false;
+        this._requestDismiss('escape');
         return undefined;
       },
-      onOutsidePointer: this.options.lightDismiss ? () => { this.close(); } : undefined,
+      onOutsidePointer: this.options.lightDismiss ? () => { this._requestDismiss('outside'); } : undefined,
       // Hosted inside a modal that has now closed, the sheet would stay open but never be seen.
       onParentClose: () => {
         const holder = this.el.parentElement?.closest('dialog');
