@@ -41,7 +41,12 @@ changed; an item that no longer reproduces is recorded as such in the hand-off a
   `tools/size-budget.json` (only as far as the added code requires, stated in the hand-off).
 - The matching `website/demos/*.demo.js`, a guide under `website/guides/`, and its registration.
 - `tests/unit/**`, `tests/regression/wp82-*.js`.
-- `docs/llms.md`, `docs/api.json` (generated), `tools/build-api.js` (F10), `CHANGELOG.md`.
+- `docs/llms.md`, `docs/llms.txt`, `website/llms.txt`, `docs/api.json` (generated),
+  `tools/build-api.js` (F10), `README.md` (the size statement), `CHANGELOG.md`.
+- `website/docs.html`, `website/docs.js`, `website/docs.css` (the guide and the per-option column),
+  `website/theme-showcase.js` (one glyph per icon in the grid).
+- `tests/smoke/smoke.js` (Chart assertions that assumed a synchronous engine) and
+  `tools/check-language.js` (the new CodeEditor demo value).
 
 ## Validation
 

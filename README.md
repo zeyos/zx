@@ -44,9 +44,12 @@ Import a component source module directly when a bundler needs the narrowest pos
 import { Slider } from '@zeyos/zx/src/components/slider/slider.js';
 ```
 
-The package also exposes the bundled ESM entry for ordinary named imports. JavaScript can be
-tree-shaken or imported component by component either way, and [`zx-css`](#installing) does the
-same for the stylesheet.
+The package also exposes the bundled ESM entry for ordinary named imports. A bundler drops what
+an application does not import from it, apart from what the entry's Field-adapter registrations
+keep, so the per-component import is the smallest: measured with esbuild 0.28.1, `Slider` and
+`Toggle` bundle to about 49 kB minified from their own files and about 276 kB from the package
+entry. The core modules are importable the same way (`@zeyos/zx/src/core/i18n.js`,
+`@zeyos/zx/src/core/icons.js`), and [`zx-css`](#installing) does the same for the stylesheet.
 
 TypeScript definitions ship with the package. They are generated from the JSDoc that documents
 every option, method, and event, so `new Slider(null, { … })` is checked against `SliderOptions`

@@ -8,6 +8,118 @@ and friends remain the complete record.
 
 ## Unreleased
 
+Pinned columns and header groups in Table, placements for floating messages, a Chart that mounts
+when it can be measured and follows the theme, overlays and windowed tables that run in a DOM
+without a top layer, a package entry a bundler can prune, and a guide to using the class API from
+a framework.
+
+### Added
+
+- **Table and Grid: pinned columns and header groups.** `pin: 'start'|'end'` on a column keeps it
+  in view while the table scrolls sideways, following the writing direction; several pinned
+  columns stack, and the row handle and selection columns stay with the first `'start'` column.
+  `group: 'Label'` on adjacent columns renders one spanning header cell above them, announced
+  with every cell beneath it. Both work in plain, hierarchical and windowed tables.
+  `--zx-table-pin-bg` sets the base of pinned cells.
+- **`Table#setExpanded(ids, { silent })`** replaces the set of expanded branches in one render,
+  for restoring a saved state; `true` expands every branch, `false` collapses them all.
+- **`TableColumn.minWidth`**, the narrowest an `fr` column gets (default `5rem`, `0` lifts it).
+- **Message placement.** `placement` on `Message.show()`, the kind shortcuts and
+  `Message.progress()` puts a floating message in one of six positions (`top-start`, `top`,
+  `top-end`, `bottom-start`, `bottom`, `bottom-end`); `Message.setPlacement()` and
+  `Message.getPlacement()` set and read the default, which stays `top-end`. Each placement has its
+  own region, marked `data-placement`, and `--zx-message-offset` sets the distance from the
+  viewport edge. At 640px and narrower every placement spans the foot of the viewport.
+- **Chart `fill`** (and `setFill()`) takes the height of the container instead of an aspect ratio,
+  and `--zx-chart-min-block-size` sets the minimum viewport height, 220px as before unless set.
+  `setAspectRatio()`, `setLabel()`, `setDescription()` and `setSummary()` change what were
+  constructor-only options, on the class and on `<zx-chart>`.
+- **Chart theme for adapters.** An adapter's `create()` and `update()` receive `spec.theme` with
+  `color`, `borderColor` and `palette`, the eight `--zx-color-chart-*` colours in order. Every
+  colour handed to an adapter is `#rrggbb` or `rgba()`, whatever syntax the tokens are written in.
+- **Chart `summaryFormat(value, context)`** formats a cell of the summary table.
+- **Toggle `hideLabel`** keeps the label as the switch's accessible name without drawing it, and
+  `setLabel()` replaces it.
+- **CodeEditor error state.** `setHighlight(message, kind)` and `clearHighlight()` show a
+  validation or status message as a Field does, `'danger'` marks the textarea invalid and emits
+  `invalid`; `getInput()` returns the textarea.
+- **`iconAliases`**, the frozen table of alias names (`edit` → `pen-to-square`, `settings` →
+  `gear`, …), exported beside `icons`.
+- **Granular core imports.** `@zeyos/zx/src/core/*.js` is an export with types, so an application
+  importing components one by one takes `setTranslator`, `registerIcons` and `icon` from the same
+  module instances those components use.
+- **Frameworks guide** in the documentation: mounting the class API from React and Vue, the double
+  mount in development, framework content inside a component, controlled props, Groupbox's
+  asynchronous events, Chart engine timing, and unit tests under jsdom.
+- The Options tables of the documentation, and `docs/api.json`, state per option how it is changed
+  after construction where the source says so: the setter, or that it takes a rebuild.
+- The reference lists the stylesheet name `zx-css` needs for every Form field type.
+
+### Changed
+
+- **An option passed as `undefined` keeps its default**, at the top level and inside `msg`.
+  It used to override the default with `undefined`. A wrapper can now forward unset props as they
+  are; code that passed `undefined` to switch a default off passes `null` (or `false`) instead.
+- **Chart `ready` may fire after the constructor returns.** The engine is created once the chart
+  is in a document and has a size, so a chart built with `null` and appended later is ready then.
+  `getInstance()` and `resize()` create it on the spot when called after appending. Code that read
+  the engine straight after `new Chart()` listens for `ready` or appends first.
+- **Chart follows the theme by itself.** A change of `data-zx-theme` or `data-zx-preset`, of the
+  system colour scheme or contrast preference, and showing a hidden chart again update the engine;
+  `refreshTheme()` is only needed for changes none of those cover.
+- **`ChartJsAdapter` colours uncoloured datasets from the theme palette**, one colour per series,
+  or per value for pie, doughnut and polar-area charts. They were drawn in Chart.js's own default
+  colour. A dataset that sets `backgroundColor` or `borderColor` is left as written.
+- **Chart summary numbers are formatted for the active language** with grouping and at most
+  twelve significant digits: `1234567.5` reads "1,234,567.5", and `0.1 + 0.2` reads "0.3" rather
+  than "0.30000000000000004". `chartSummaryModel()` returns the same text. Use `summaryFormat` for
+  another format.
+- **A click on a control inside a table cell no longer raises `rowclick` or `rowdblclick`**, and
+  no longer selects the row in a `single` selection. A control is a button, link, field, label,
+  an element with a widget role or in the Tab order, editable content, or anything marked
+  `data-zx-table-no-edit`. Handlers that called `stopPropagation()` for this can drop it; a
+  handler that relied on the row event for clicks on such an element listens on the element.
+- **`fr` columns have a floor and the table scrolls inline below it.** In a container too narrow
+  for its columns a table with `fr` widths used to squeeze them, in a windowed table to almost
+  nothing; it now keeps each at `minWidth` (5rem by default) and scrolls sideways. Set
+  `minWidth: 0` on a column to let it shrink as before.
+- **`iconNames()` includes the alias names.** The list now agrees with what `icon()` renders, so
+  it holds more names than glyphs. An icon gallery filters them out with
+  `iconNames().filter((name) => !Object.hasOwn(iconAliases, name))`.
+- **StatTile: an explicit `clickable: false` wins over `onclick`.** The tile stays a `<div>` and
+  the handler is not called. It used to become a button whenever a handler was passed.
+- **The `code` Form field labels and marks the editor's textarea**, not its frame: the label's
+  `for`, `aria-invalid` and the field message's `aria-describedby` are on the `<textarea>`.
+  Selectors or tests that looked for `aria-invalid` on `.zx-code-editor` read it from
+  `.zx-code-editor__input`.
+- **Sticky table header cells sit at `z-index: 2`** inside the scroll region (they were at 1), and
+  the loading bar at 4, to stay above pinned cells. Content an application positions over the
+  header inside the table needs a higher value.
+- The package entry no longer keeps every component in a bundle that imports one of them:
+  importing `Slider` and `Toggle` from `@zeyos/zx` bundles to about 276 kB minified with esbuild
+  0.28.1, down from about 880 kB; from their own files it is about 49 kB. What registers on import
+  is unchanged.
+- `<zx-chart>` applies `label`, `description`, `summary` and `aspect-ratio` in place instead of
+  rebuilding the chart.
+
+### Fixed
+
+- A Dialog with `closable: false` and a Sheet with `closeButton: false` no longer show a header ✕
+  that could be focused and clicked.
+- Modal, Dialog, Sheet and Launcher open, close and are destroyed without throwing where
+  `showModal()` or `showPopover()` is missing, as in jsdom, by falling back to the `open`
+  attribute; the fallback has no top layer, inertness or backdrop.
+- A Table with `virtual: true` no longer throws where `ResizeObserver` is missing.
+- A horizontal Stepper that wraps no longer draws a connector from the last step of a row to the
+  edge of its container.
+- A Chart no longer hands an engine colours in a syntax its own parser may not read
+  (`color(srgb …)`, `oklch()`).
+- `icon()` no longer resolves a name through inherited object properties, so a name such as
+  `constructor` is an unknown icon.
+- CodeEditor's Tab capture, its Escape release and `indent: ''` are documented.
+- The reference states that a sticky table header needs a bounded `height`, and how `Chart`'s
+  `setData()`, `setLoading()` and `setError()` affect the engine.
+
 ## 5.7.1 — 2026-11-13
 
 One preventable `cancel` for every way of dismissing an overlay, exact values in NumberField, a

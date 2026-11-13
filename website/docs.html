@@ -652,6 +652,235 @@ const languageField = new Field(null, {
     </template>
 
     <template
+      data-guide="frameworks"
+      data-title="Frameworks"
+      data-blurb="Mounting the class API from React or Vue: lifecycle, the double mount in development, framework content inside a component, controlled props, and unit tests without a browser.">
+      <p>
+        The class API is imperative: <code>new Component(target, options)</code> builds DOM, methods
+        change it, and <code>destroy()</code> takes it away. A framework component wraps that in its
+        mount and unmount hooks. Where the framework should render a tag and set properties
+        instead, use the <a href="#components/elements">custom elements</a>.
+      </p>
+
+      <h2>Mount and unmount</h2>
+      <p>
+        Create the component when the host element exists and destroy it when the host goes away.
+        Nothing else is needed for cleanup: <code>destroy()</code> aborts every listener, removes a
+        root the component created, and restores a target it enhanced.
+      </p>
+      <pre data-code="ZxToggle.jsx">
+// React
+import { useEffect, useRef } from 'react';
+import { Toggle } from '@zeyos/zx';
+
+export function ZxToggle({ checked, label, onChange }) {
+  const host = useRef(null);
+  const toggle = useRef(null);
+  const handler = useRef(onChange);
+  handler.current = onChange;
+
+  useEffect(() =&gt; {
+    const instance = new Toggle(null, { checked, label });
+    instance.on('change', (event) =&gt; handler.current?.(event.detail.checked));
+    host.current.append(instance.toElement());
+    toggle.current = instance;
+    return () =&gt; { instance.destroy(); toggle.current = null; };
+  }, []);
+
+  // Props that arrive later go through setters.
+  // `silent` keeps the write from coming back as a `change` event.
+  useEffect(() =&gt; {
+    toggle.current?.set(Boolean(checked), { silent: true });
+  }, [checked]);
+  useEffect(() =&gt; {
+    toggle.current?.setLabel(label ?? null);
+  }, [label]);
+
+  return &lt;span ref={host} /&gt;;
+}
+      </pre>
+      <pre data-code="ZxToggle.vue">
+&lt;!-- Vue --&gt;
+&lt;script setup&gt;
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { Toggle } from '@zeyos/zx';
+
+const props = defineProps({ modelValue: Boolean, label: String });
+const emit = defineEmits(['update:modelValue']);
+const host = ref(null);
+let toggle = null;
+
+onMounted(() =&gt; {
+  toggle = new Toggle(null, { checked: props.modelValue, label: props.label });
+  toggle.on('change', (event) =&gt; emit('update:modelValue', event.detail.checked));
+  host.value.append(toggle.toElement());
+});
+watch(() =&gt; props.modelValue, (value) =&gt; toggle?.set(Boolean(value), { silent: true }));
+watch(() =&gt; props.label, (value) =&gt; toggle?.setLabel(value ?? null));
+onBeforeUnmount(() =&gt; { toggle?.destroy(); toggle = null; });
+&lt;/script&gt;
+
+&lt;template&gt;&lt;span ref="host" /&gt;&lt;/template&gt;
+      </pre>
+      <ul>
+        <li><strong>Target <code>null</code>, then append.</strong> The component owns its root and
+          <code>destroy()</code> removes it, so the framework's own element is left exactly as it
+          rendered it. Passing the framework's element as the target enhances it in place: Zx then
+          writes classes, attributes and children the framework did not render, and puts them back
+          on <code>destroy()</code>. A Groupbox given anything but a <code>&lt;details&gt;</code>
+          replaces that element in the document with one until it is destroyed, so give it
+          <code>null</code>.</li>
+        <li><strong>Unset props.</strong> <code>{ label: props.label }</code> with the prop unset
+          passes <code>undefined</code>, which keeps the option's default. Pass <code>null</code>
+          to mean "none".</li>
+        <li><strong>Events.</strong> Subscribe with <code>on()</code> or an
+          <code>on&lt;type&gt;</code> option; both end with <code>destroy()</code>. Read the current
+          callback from a ref, as above, instead of re-creating the component when a callback's
+          identity changes.</li>
+      </ul>
+
+      <h2>The double mount in development</h2>
+      <p>
+        React's StrictMode mounts, unmounts, and mounts again. A component created in the first
+        mount and not destroyed in its cleanup is a second set of DOM and listeners beside the
+        first. Returning <code>destroy()</code> from the effect is the whole fix, and it is safe to
+        call more than once.
+      </p>
+      <p>
+        Where a component enhances an existing element and the code cannot be sure the previous one
+        is gone, <code>Component.from(element)</code> returns the component registered on a root
+        element, or <code>null</code>: call <code>Component.from(element)?.destroy()</code> before
+        constructing. Floating toasts outlive the code that showed them; a view that unmounts its
+        themed shell while toasts are on screen calls <code>Message.disposeRegion(shell)</code> in
+        the same cleanup.
+      </p>
+
+      <h2>Framework content inside a component</h2>
+      <p>
+        Options such as a Dialog's, Sheet's, Modal's, Panel's or Card's <code>content</code>, and a
+        Panel's or Card's <code>footer</code>, take a DOM node. Create an element, hand it to the
+        component, and let the framework render into it through a portal. The content stays part
+        of the framework's tree, with its context, events and updates, while Zx decides where it
+        sits.
+      </p>
+      <pre data-code="ZxDialog.jsx">
+// React
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { Dialog } from '@zeyos/zx';
+
+export function ZxDialog({ open, title, onClose, children }) {
+  const [body] = useState(() =&gt; document.createElement('div'));
+  const [dialog, setDialog] = useState(null);
+  const closed = useRef(onClose);
+  closed.current = onClose;
+
+  useEffect(() =&gt; {
+    const instance = new Dialog(null, { title, content: body });
+    instance.on('close', () =&gt; closed.current?.());
+    setDialog(instance);
+    return () =&gt; instance.destroy();
+  }, []);
+
+  useEffect(() =&gt; { dialog?.setTitle(title ?? ''); }, [dialog, title]);
+  useEffect(() =&gt; {
+    if (!dialog || dialog.isOpen() === Boolean(open)) return;
+    if (open) dialog.open(); else dialog.close();
+  }, [dialog, open]);
+
+  return createPortal(children, body);
+}
+      </pre>
+      <p>
+        In Vue the same element is the target of <code>&lt;Teleport :to="body"&gt;</code>. Do not
+        let the framework render into an element the component fills itself, such as a table body
+        or a select's list: the next render of either side removes the other's nodes.
+      </p>
+
+      <h2>Controlled wrappers</h2>
+      <p>
+        A wrapper that owns the value writes it down with a setter and hears it back through an
+        event, and the two must not chase each other.
+      </p>
+      <ul>
+        <li>Write with <code>{ silent: true }</code> where the setter takes it, so the write
+          raises no event: <code>set(value, { silent })</code> on Toggle, CheckButton, Select and
+          the other value controls, <code>setSort(id, dir, { silent })</code> and
+          <code>setExpanded(ids, { silent })</code> on Table. Check the method's signature: not
+          every setter emits, and not every one that does takes <code>silent</code>.</li>
+        <li>Compare before writing an open state: <code>if (dialog.isOpen() !== open)</code>.
+          <code>open()</code> and <code>close()</code> emit, and a <code>close</code> after a
+          programmatic <code>close()</code> would otherwise be reported back as the reader's.</li>
+        <li>Each component's Options table has a <strong>Change</strong> column where the option's
+          setter is known: the call that changes it on a live component, or "Rebuild" for an option
+          that is read at construction. To rebuild, destroy the component and create it again with
+          the new options; in React, a <code>key</code> made of those options does it. A blank
+          states neither, so look for a method under another name before rebuilding.</li>
+      </ul>
+
+      <h2>Groupbox reports open and close later</h2>
+      <p>
+        Groupbox is a native <code>&lt;details&gt;</code>. Its <code>open</code> and
+        <code>close</code> events come from the element's <code>toggle</code> event, which the
+        browser dispatches in a later task, after the click that changed the state. Between the
+        two, <code>isOpen()</code> already reports the new state and the wrapper's
+        <code>open</code> prop still holds the old one. A wrapper that writes its prop back on every
+        render therefore reverts the reader's click whenever anything re-renders in that gap, and
+        then receives no event at all, because the state is back where it was. Write
+        <code>open</code> only when the prop itself changes, and take the state from the event:
+      </p>
+      <pre data-code="ZxGroupbox.jsx">
+useEffect(() =&gt; {                      // runs when the prop changes, not on every render
+  if (box.current &amp;&amp; box.current.isOpen() !== open) {
+    if (open) box.current.open(); else box.current.close();
+  }
+}, [open]);
+// constructed with: onopen: () =&gt; setOpen(true), onclose: () =&gt; setOpen(false)
+      </pre>
+      <p>
+        A programmatic <code>open()</code> or <code>close()</code> is reported the same way, one
+        task later, and has no silent form. Setting the state to what it already is reports
+        nothing.
+      </p>
+
+      <h2>Chart engine timing</h2>
+      <p>
+        A Chart creates its engine once it can be measured. <code>new Chart(…)</code> followed by
+        <code>chart.getInstance()</code> in the same effect returns the engine only if the chart is
+        already in the document and laid out; a chart appended later creates it then. Listen for
+        <code>ready</code> (the <code>onready</code> option) to reach the engine, or call
+        <code>getInstance()</code> after appending, which creates it on the spot.
+      </p>
+      <p>
+        <code>setLoading(true)</code> and <code>setError()</code> destroy the engine. A later
+        <code>setData()</code>, <code>setLoading(false)</code> or <code>clearError()</code> creates
+        a new one and fires <code>ready</code> again, so never keep the instance across them.
+        Theme changes reach the engine without a call.
+      </p>
+
+      <h2>Testing under jsdom</h2>
+      <p>
+        The components construct, open, close and destroy in a DOM without layout or top layer.
+      </p>
+      <ul>
+        <li>Modal, Dialog, Sheet and Launcher fall back to the <code>open</code> attribute where
+          <code>showModal()</code> or <code>showPopover()</code> is missing. <code>open()</code>,
+          <code>close(result)</code>, <code>isOpen()</code>, Escape, <code>cancel</code>, the
+          <code>open</code> and <code>close</code> events and <code>destroy()</code> behave as in a
+          browser. There is no top layer, no inert page, no backdrop and no
+          <code>aria-modal</code> in the fallback, so a test cannot assert focus containment or
+          that the rest of the page is unreachable; use a browser for those. <code>close</code> is
+          reported asynchronously, as in a browser: await a tick before asserting on it.</li>
+        <li>A Table with <code>virtual: true</code> works without <code>ResizeObserver</code>: it
+          draws for an assumed row height and viewport. A Stepper keeps every connector, and a
+          Chart creates its engine as soon as it has data, since nothing will ever report a
+          size.</li>
+        <li>Everything measured is zero, so assertions on geometry, such as pinned-column offsets,
+          a wrapped stepper or an overflow menu, belong in a browser test.</li>
+      </ul>
+    </template>
+
+    <template
       data-guide="theming"
       data-title="Theming"
       data-blurb="Two attributes switch light/dark and the accent; spacing and geometry are tokens. A product theme is a short list of semantic token overrides.">

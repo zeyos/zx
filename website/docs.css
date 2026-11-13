@@ -512,6 +512,19 @@
   border-block-end: 0;
 }
 
+/* What the Change column means, under the options table that has one. */
+.docs-api__footnote {
+  margin-block: var(--zx-space-2) 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  line-height: 1.6;
+}
+
+.docs-api__type:not(:has(code)) {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
 /* Small reference lists such as getters are labels, not data grids. Row rules only add visual
    noise immediately before the next section; generated multi-column API tables keep theirs. */
 .docs-api__table:not(:has(colgroup)) :is(.docs-api__term, .docs-api__type, .docs-api__note) {
@@ -1337,6 +1350,11 @@
      character-wide wrapping. */
   .docs-api__table:has(colgroup) {
     min-inline-size: 42rem;
+  }
+
+  /* An options table with a Change column has a fifth to keep readable. */
+  .docs-api__table:has(col:nth-child(5)) {
+    min-inline-size: 50rem;
   }
 }
 

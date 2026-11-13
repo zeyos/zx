@@ -3974,6 +3974,8 @@ function chartCase() {
         data: { labels: ['Jan'], datasets: [{ label: 'Revenue', data: [42] }] }
       });
       fixture.append(component.toElement());
+      // The engine waits for a connected, sized canvas; asking for it creates it at once.
+      component.getInstance();
       return { component, instance };
     },
     exercise({ component }) {
@@ -6550,7 +6552,7 @@ function kitElementSpecs() {
       }),
       watch: (element) => hostEvents(element, 'ready'),
       watched: (ready) => assert(ready.plain === 1, 'ready fired during construction and was lost'),
-      rendered: (element) => element.adapter.spec?.data.labels[0] === 'Jan' && element.adapter.spec.options.indexAxis === 'y',
+      rendered: (element) => Boolean(element.component.getInstance()) && element.adapter.spec?.data.labels[0] === 'Jan' && element.adapter.spec.options.indexAxis === 'y',
       queue: (element) => element.setType('line'),
       queued: (element) => element.adapter.spec.type === 'line' && element.type === 'line',
       interact(element) {

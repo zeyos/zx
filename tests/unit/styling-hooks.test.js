@@ -21,8 +21,18 @@ const HOOKS = [
   '--zx-table-row-hover-bg',
   '--zx-table-row-selected-bg',
   '--zx-table-border-color',
+  '--zx-table-pin-bg',
   '--zx-button-radius',
-  '--zx-panel-header-bg'
+  '--zx-panel-header-bg',
+  '--zx-message-offset'
+];
+
+/*
+ * Public too, but with a fixed default rather than a token behind it, so the fallback rule below
+ * does not apply: the reference documents each where it is used and states the default.
+ */
+const FIXED_DEFAULT_HOOKS = [
+  ['--zx-chart-min-block-size', '220px']
 ];
 
 /** @returns {Promise<string>} */
@@ -44,4 +54,14 @@ test('the hooks are documented for the people expected to use them', async () =>
   const reference = readFileSync(fileURLToPath(new URL('../../docs/llms.md', import.meta.url)), 'utf8');
   const undocumented = HOOKS.filter((hook) => !reference.includes(hook));
   assert.deepEqual(undocumented, [], `not in docs/llms.md: ${undocumented.join(', ')}`);
+});
+
+test('a public property with a fixed default is consumed with it and documented with it', async () => {
+  const css = await componentCss();
+  const reference = readFileSync(fileURLToPath(new URL('../../docs/llms.md', import.meta.url)), 'utf8');
+  for (const [hook, fallback] of FIXED_DEFAULT_HOOKS) {
+    assert.ok(css.includes(`var(${hook}, ${fallback})`), `${hook} is not consumed with ${fallback}`);
+    assert.ok(reference.includes(hook), `${hook} is not in docs/llms.md`);
+    assert.ok(reference.includes(fallback), `the ${fallback} default of ${hook} is not in docs/llms.md`);
+  }
 });

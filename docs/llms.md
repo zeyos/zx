@@ -34,7 +34,10 @@ const t = new Table(target, options);
   **owns** its root element; retrieve it with `t.toElement()` (or `t.el`) and insert it. A non-null
   target is *enhanced in place* and restored on `destroy()`.
 - **Options** — a plain object; each component declares `static defaults`. Never mutate the passed
-  object.
+  object. An option passed as `undefined` is an option not passed: it keeps the declared default,
+  at the top level and inside `msg`, so a wrapper can forward `{ label: props.label }` without
+  filtering unset props. `null` is a value and overrides the default. The merged options are
+  frozen; change a live component through its methods (see "Using Zx from a framework").
 - **Value/data** — set via constructor options and mutated via methods (`set`, `setData`, …);
   read via getters/methods (`.value`, `getValues()`, …).
 
@@ -55,8 +58,18 @@ const t = new Table(target, options);
 
 - ESM: `import { … } from '/assets/zx.esm.js'` (or `../src/index.js` in-repo, no build).
 - Granular: `import { Slider } from '@zeyos/zx/src/components/slider/slider.js'` — one component
-  rather than the whole library, for consumers running a bundler. Two components bundle 26 kB
-  minified against 157 kB through the package entry. `zx-css` does the same for the stylesheet.
+  rather than the whole library, for consumers running a bundler. Measured with esbuild 0.28.1
+  (`--bundle --minify --format=esm --target=es2022`): `Slider` and `Toggle` from their own files
+  bundle to about 49 kB (14 kB gzip), against about 276 kB (76 kB gzip) imported from the package
+  entry; `button()` alone is 15 kB against 279 kB. The package entry is one module that registers
+  the Field adapters, so a bundler keeps what those registrations reach and drops the rest; the
+  whole library is about 1.3 MB minified. Import `dist/zx.esm.js` (what `@zeyos/zx` resolves to),
+  not `dist/zx.esm.min.js`: a bundler given the minified file keeps most of it (about 0.9 MB for
+  one `button()`). The core modules
+  are importable the same way — `setTranslator` from `@zeyos/zx/src/core/i18n.js`, `registerIcons`
+  and `icon` from `@zeyos/zx/src/core/icons.js` — and they are the module instances the
+  per-component files import, so a translator or a glyph registered there reaches every component
+  imported granularly. `zx-css` does the same for the stylesheet.
 - Global: `<script src="/assets/zx.global.js">` → `window.zx.*`.
 - Styles: load `/assets/zx.css` once, or one of the stylesheets below.
 - Build bundles with `npm run build` (esbuild). No build is needed to develop against `src/`.
@@ -91,8 +104,9 @@ source of any module it imports, because a component may draw another's markup w
 A name is the file name of a stylesheet under `src/components/`: `select`, `progress-bar`,
 `button` for `button()`, `layout` for `stack()` and `grid()`. An unknown name fails and lists the
 known ones. Name what the page draws by hand as well: a `Form` that uses `type: 'zxselect'` needs
-`form select`, because a field type is registered at run time, not imported. The print rules are not
-part of a subset: a page that prints loads `@zeyos/zx/styles/print.css` after it.
+`form select`, because a field type is registered at run time, not imported — "Field widget types"
+lists the name for every type. The print rules are not part of a subset: a page that prints loads
+`@zeyos/zx/styles/print.css` after it.
 
 **The layered build** puts the whole library in `@layer zx`, and an unlayered rule beats any layered
 one whatever its specificity, so `button { padding: 0 }` overrides `.zx-btn[data-size="sm"]` with no
@@ -675,6 +689,191 @@ new ModuleBar(header, buildZeyosModuleBarConfig(state, { orientation: 'horizonta
   the bar directly.
 <!-- /doc -->
 
+## Using Zx from a framework
+
+The class API is imperative: `new Component(target, options)` builds DOM, methods change it, and
+`destroy()` takes it away. A framework component wraps that in its mount and unmount hooks. The
+`<zx-*>` elements (next section) are the alternative where a framework should render a tag and
+set properties instead.
+
+**Mount and unmount.** Create the component when the host element exists and destroy it when the
+host goes away. Nothing else is needed for cleanup: `destroy()` aborts every listener, removes a
+root the component created, and restores a target it enhanced.
+
+```jsx
+// React
+import { useEffect, useRef } from 'react';
+import { Toggle } from '@zeyos/zx';
+
+export function ZxToggle({ checked, label, onChange }) {
+  const host = useRef(null);
+  const toggle = useRef(null);
+  const handler = useRef(onChange);
+  handler.current = onChange;
+
+  useEffect(() => {
+    const instance = new Toggle(null, { checked, label });
+    instance.on('change', (event) => handler.current?.(event.detail.checked));
+    host.current.append(instance.toElement());
+    toggle.current = instance;
+    return () => { instance.destroy(); toggle.current = null; };
+  }, []);
+
+  // Props that arrive later go through setters.
+  // `silent` keeps the write from coming back as a `change` event.
+  useEffect(() => {
+    toggle.current?.set(Boolean(checked), { silent: true });
+  }, [checked]);
+  useEffect(() => {
+    toggle.current?.setLabel(label ?? null);
+  }, [label]);
+
+  return <span ref={host} />;
+}
+```
+
+```vue
+<!-- Vue -->
+<script setup>
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { Toggle } from '@zeyos/zx';
+
+const props = defineProps({ modelValue: Boolean, label: String });
+const emit = defineEmits(['update:modelValue']);
+const host = ref(null);
+let toggle = null;
+
+onMounted(() => {
+  toggle = new Toggle(null, { checked: props.modelValue, label: props.label });
+  toggle.on('change', (event) => emit('update:modelValue', event.detail.checked));
+  host.value.append(toggle.toElement());
+});
+watch(() => props.modelValue, (value) => toggle?.set(Boolean(value), { silent: true }));
+watch(() => props.label, (value) => toggle?.setLabel(value ?? null));
+onBeforeUnmount(() => { toggle?.destroy(); toggle = null; });
+</script>
+
+<template><span ref="host" /></template>
+```
+
+- **Target `null`, then append.** The component owns its root and `destroy()` removes it, so the
+  framework's own element is left exactly as it rendered it. Passing the framework's element as the
+  target enhances it in place — Zx then writes classes, attributes and children the framework did
+  not render, and puts them back on `destroy()`. A Groupbox given anything but a `<details>`
+  replaces that element in the document with one until it is destroyed, so give it `null`.
+- **Unset props.** `{ label: props.label }` with the prop unset passes `undefined`, which keeps
+  the default. Pass `null` to mean "none".
+- **Events.** Subscribe with `on()` or an `on<type>` option; both end with `destroy()`. Read the
+  current callback from a ref, as above, instead of re-creating the component when a callback's
+  identity changes.
+
+**The effect runs twice in development.** React's StrictMode mounts, unmounts, and mounts again;
+a component created in the first mount and not destroyed in its cleanup is a second set of DOM and
+listeners beside the first. Returning `destroy()` from the effect is the whole fix, and it is safe
+to call more than once. Where a component enhances an existing element and the code cannot be sure
+the previous one is gone, `Component.from(element)` returns the component registered on a root
+element, or null: `Component.from(element)?.destroy()` before constructing. Floating toasts
+outlive the code that showed them; a view that unmounts its themed shell while toasts are on
+screen calls `Message.disposeRegion(shell)` in the same cleanup.
+
+**Framework content inside a component.** Options such as a Dialog's, Sheet's, Modal's, Panel's or
+Card's `content`, and a Panel's or Card's `footer`, take a DOM node. Create an element, hand it to
+the component, and let the framework render into it through a portal, so the content stays part
+of the framework's tree (context, events, updates) while Zx decides where it sits:
+
+```jsx
+// React
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { Dialog } from '@zeyos/zx';
+
+export function ZxDialog({ open, title, onClose, children }) {
+  const [body] = useState(() => document.createElement('div'));
+  const [dialog, setDialog] = useState(null);
+  const closed = useRef(onClose);
+  closed.current = onClose;
+
+  useEffect(() => {
+    const instance = new Dialog(null, { title, content: body });
+    instance.on('close', () => closed.current?.());
+    setDialog(instance);
+    return () => instance.destroy();
+  }, []);
+
+  useEffect(() => { dialog?.setTitle(title ?? ''); }, [dialog, title]);
+  useEffect(() => {
+    if (!dialog || dialog.isOpen() === Boolean(open)) return;
+    if (open) dialog.open(); else dialog.close();
+  }, [dialog, open]);
+
+  return createPortal(children, body);
+}
+```
+
+In Vue the same element is the target of `<Teleport :to="body">`. Do not let the framework render
+into an element the component fills itself (a table body, a select's list): the next render of
+either side removes the other's nodes. Cell and item renderers (`render`, `renderCard`, …) return
+nodes; build those with the framework only if it can render into a detached element you create.
+
+**Controlled wrappers.** A wrapper that owns the value writes it down with a setter and hears it
+back through an event, and the two must not chase each other:
+
+- Write with `{ silent: true }` where the setter takes it — `set(value, { silent })` on Toggle,
+  CheckButton, Select and the other value controls, `Table#setSort(id, dir, { silent })`,
+  `Table#setExpanded(ids, { silent })` — so the write raises no event. Check the method's
+  signature: not every setter emits, and not every one that does takes `silent`.
+- Compare before writing an open state: `if (dialog.isOpen() !== open)`. `open()` and `close()`
+  emit, and `close` after a programmatic `close()` would otherwise be reported back as the user's.
+- Which options have a setter is stated per option: the documentation's Options tables carry a
+  **Change** column, generated into `docs/api.json` as `update: { methods: ['setTitle()'] }` or
+  `update: { rebuild: true }`. `rebuild` means the option is read at construction — destroy the
+  component and create it again with the new options (in React, a `key` made of those options does
+  it). An option with neither is not stated: look for a method under another name before
+  rebuilding.
+
+**Groupbox reports `open` and `close` later.** Groupbox is a native `<details>`; its events come
+from the element's `toggle` event, which the browser dispatches in a later task, after the click
+that changed the state. Between the two, `isOpen()` already reports the new state and the wrapper's
+`open` prop still holds the old one. A wrapper that writes its prop back on every render —
+`open ? box.open() : box.close()` — therefore reverts the reader's click whenever anything
+re-renders in that gap, and then receives no event at all, because the state is back where it was.
+Write `open` only when the prop itself changes, and take the state from the event:
+
+```jsx
+useEffect(() => {                      // runs when the prop changes, not on every render
+  if (box.current && box.current.isOpen() !== open) {
+    if (open) box.current.open(); else box.current.close();
+  }
+}, [open]);
+// constructed with: onopen: () => setOpen(true), onclose: () => setOpen(false)
+```
+
+A programmatic `open()` or `close()` is reported the same way, one task later, and has no
+`silent` form; setting the state to what it already is reports nothing.
+
+**Chart creates its engine when it can be measured.** `new Chart(...)` followed by
+`chart.getInstance()` in the same effect returns the engine only if the chart is already in the
+document and laid out; a chart appended later creates it then. Listen for `ready` (the `onready`
+option) to reach the engine, or call `getInstance()` after appending, which creates it on the
+spot. `setLoading(true)` and `setError()` destroy the engine and a later `setData()`,
+`setLoading(false)` or `clearError()` creates a new one and fires `ready` again, so never keep the
+instance across them. Theme changes reach the engine without a call.
+
+**Testing under jsdom.** The components construct, open, close and destroy in a DOM without
+layout or top layer:
+
+- Modal, Dialog, Sheet and Launcher fall back to the `open` attribute where `showModal()` or
+  `showPopover()` is missing. `open()`, `close(result)`, `isOpen()`, Escape, `cancel`, the `open`
+  and `close` events and `destroy()` behave as in a browser. There is no top layer, no inert
+  page, no backdrop, and no `aria-modal` in the fallback, so a test cannot assert focus
+  containment or that the rest of the page is unreachable — use a browser for those. `close` is
+  reported asynchronously, as in a browser: `await` a tick before asserting on it.
+- `Table` with `virtual: true` works without `ResizeObserver`: it draws for an assumed row height
+  (36px) and viewport. Stepper keeps every connector, and Chart creates its engine as soon as it
+  has data, since nothing will ever report a size.
+- Everything measured is zero, so assertions on geometry (pinned-column offsets, a wrapped
+  stepper, an overflow menu) belong in a browser test.
+
 ## Custom elements
 
 `defineElements()` (not auto-called) registers light-DOM `<zx-*>` wrappers with attribute↔option
@@ -940,11 +1139,17 @@ a stronger border, the text colour); only the check glyph, the mark, keeps the a
 
 Switch (`role="switch"`, `aria-checked`).
 
-- **Options** — `checked: false`, `value: true`, `label: null`, `disabled: false`.
+- **Options** — `checked: false`, `value: true`, `label: null`, `hideLabel: false`,
+  `disabled: false`.
 - **Label** — start-aligned and wrapping like text within the available width, the track level
-  with its first line.
+  with its first line. It is the switch's accessible name. `hideLabel: true` keeps it for assistive
+  technology only: no visible text, and the label becomes the switch's `aria-label` — for a switch
+  whose meaning the layout already shows, such as a table cell under a column header. With no
+  label at all, name the switch from outside: a Field or `<label for>` around it, or
+  `aria-labelledby` on the element.
 - **Methods** — `get()`, `set(checked, {silent})`, `toggle()`, `getValue()` (returns
-  `options.value` when on, `false` when off), `enable()`/`disable()`.
+  `options.value` when on, `false` when off), `setLabel(label)` (null removes it),
+  `enable()`/`disable()`.
 - **Events** — `change {checked, value}`.
 - **Keyboard** — Space/Enter.
 <!-- /doc -->
@@ -1657,19 +1862,32 @@ use `TimePicker` or `DateTimeBox`.
 
 Floating toasts come from statics; `new Message(target)` gives an inline, non-floating area with
 the same `.show()`. The toast region is `role="status"`/`aria-live` (`role="alert"` for errors).
-The shared floating region is fixed to the upper-right logical corner by default, sizes to its
-messages rather than the page, and uses the translucent glass surface tokens with a solid fallback.
+A floating region sits at the top of the viewport on the inline-end side by default (`top-end`:
+the upper right in a left-to-right page), sizes to its messages rather than the page, and uses the
+translucent glass surface tokens with a solid fallback.
 
 - **Statics** — `Message.info/success/warning/error(msg, opts)`,
-  `Message.show(msg, { kind, timeout=4000, closable, scope? })` → `{ close() }`,
-  `Message.progress(text, {scope?})` → `{ update(pct, text?), done(), fail(text?) }`. `scope` is
-  an element or selector whose nearest Zx theme scope owns that floating region; without it the
-  focused opener supplies the scope.
+  `Message.show(msg, { kind, timeout=4000, closable, scope?, placement? })` → `{ close() }`,
+  `Message.progress(text, {scope?, placement?})` → `{ update(pct, text?), done(), fail(text?) }`,
+  `Message.setPlacement(placement)` / `Message.getPlacement()`. `scope` is an element or selector
+  whose nearest Zx theme scope owns that floating region; without it the focused opener supplies
+  the scope.
+- **Placement** — `placement: 'top-start'|'top'|'top-end'|'bottom-start'|'bottom'|'bottom-end'`
+  per call, default `'top-end'`: the block edge, then the inline position, logical, so `start` and
+  `end` follow the writing direction and `top`/`bottom` alone are centred.
+  `Message.setPlacement(placement)` sets the default for calls that name none and returns the
+  placement now in effect (anything unknown restores `'top-end'`); it applies to messages shown
+  from then on. Messages of one placement share a region, so a scope has one region per placement
+  in use, each carrying `data-placement`. At the foot the newest toast is nearest the edge. The
+  distance from the viewport edge is the `--zx-message-offset` custom property (default
+  `var(--zx-space-4)`), read from the region's theme scope: set it there or on `:root` to clear a
+  header or a status bar. At 640px and narrower every placement spans the foot of the viewport,
+  full width. An inline area ignores `placement`.
 - **Region lifecycle** — a floating region is created on the first toast for its scope and removed
   when its last toast closes. One whose host was emptied or left the document is replaced on the
   next toast rather than reused, and a scope that is itself detached falls back to the focused
-  element's scope. `Message.disposeRegion(scope)` → boolean removes a scope's region at once,
-  toasts and all, for a host torn down while toasts are still showing. While a modal Dialog or
+  element's scope. `Message.disposeRegion(scope)` → boolean removes a scope's regions at once — all
+  placements, toasts and all — for a host torn down while toasts are still showing. While a modal Dialog or
   Sheet is open the region moves into the topmost one, so toasts and their actions stay visible
   and clickable above it, and moves back when it closes. A press on a toast dismisses no open menu
   or drawer.
@@ -1707,6 +1925,11 @@ panel material; the backdrop uses `--zx-color-overlay-backdrop`, and focus retur
   A programmatic `close()` raises no `cancel`. Escape is handled by Zx rather than by the browser's
   close request, so preventing it holds however often the key is pressed; a handler that calls
   `preventDefault()` on the Escape keydown (a popup inside the dialog, your own) keeps the key.
+- **Without `showModal()`** — in a DOM that has `<dialog>` but not `showModal()` (jsdom, for unit
+  tests), Modal, Dialog and Sheet present themselves through the `open` attribute instead.
+  `open()`, `close(result)`, `isOpen()`, Escape, `cancel`, the events and `destroy()` work the
+  same; there is no top layer, no inert page, no backdrop and no `aria-modal`, so modality itself
+  is not testable there.
 <!-- /doc -->
 
 <!-- doc:dialog -->
@@ -1716,6 +1939,8 @@ Structured modal: a header with title and close button, a body, and footer butto
 
 - **Options** — `title`, `size: 'sm'|'md'|'lg'|number`,
   `buttons: [{ label, kind, action: 'close'|'cancel'|fn(dialog), autofocus, shortcut }]`, `closable: true`.
+  `closable: false` refuses Escape and takes the header ✕ away entirely: it is not displayed, not
+  focusable, and closes nothing. Close such a dialog from a footer button or with `close()`.
 - **Methods** — `setTitle()`, `setContent()`, `setButtons()`,
   `addView(key, { content, buttons? })`, `showView(key)`.
 - **Statics returning Promises** — `Dialog.alert({ title, message, okLabel })`,
@@ -1742,8 +1967,9 @@ When a Dock adopts it, the Sheet becomes an opaque layout surface instead.
 
 - **Options** — `side: 'end'` (`'start' | 'end' | 'top' | 'bottom'`, logical), `modal: true`
   (`true | 'trap-focus' | false`), `backdrop: 'dim'` (`'dim' | 'blur' | 'none'`), `size: null`
-  (CSS length or px number, applied to whichever axis `side` implies), `closeButton: true`,
-  plus everything Dialog takes — `title`, `content`, `buttons`, `closable`, `lightDismiss`
+  (CSS length or px number, applied to whichever axis `side` implies), `closeButton: true`
+  (independent of `closable`, which governs Escape; when false the ✕ is not displayed, not
+  focusable, and closes nothing), plus everything Dialog takes — `title`, `content`, `buttons`, `closable`, `lightDismiss`
   (defaults to `true` here, unlike Modal), `destroyOnClose`, `scope`.
 - **Methods** — `open()`, `close(result?)`, `setSide(side)`, `getSide()`, `setSize(size)`,
   `isModal()`, `isDocked()`, `isOpen()`, `getSize()`, `snapTo(target)`, plus Dialog's `setTitle()`, `setContent()`,
@@ -1773,7 +1999,9 @@ When a Dock adopts it, the Sheet becomes an opaque layout surface instead.
   dialog while open, so it stays usable above it, closes when the dialog closes, and goes back to
   its theme scope when it closes. Their top-layer backdrop is
   explicitly transparent and non-filtering; `backdrop` is meaningful only when `modal` is `true`.
-  A docked Sheet remains a native non-modal dialog in its Dock's flow.
+  A docked Sheet remains a native non-modal dialog in its Dock's flow. Where the platform has no
+  `showPopover()` (jsdom), a floating non-modal sheet is presented the same in-flow way, without
+  the top layer.
 - **Resizing and detents** — `resizable` makes the inner edge draggable between `min` and `max`.
   `snap` gives it detents: a number at or below 1 is a fraction of the viewport along the sheet's
   axis, anything larger is pixels, and a string is any CSS length (`'320px'`, `'90%'`). With
@@ -1996,7 +2224,8 @@ Sortable, selectable, sticky-header data table. `fr` widths fill the container w
 widths scroll horizontally, and multi-select adds a tri-state header checkbox plus Shift+click
 range select.
 
-- **Options** — `columns: [{ id, label, ariaLabel?, sortable?, width ('120px'|'2fr'|'auto'), align,
+- **Options** — `columns: [{ id, label, ariaLabel?, sortable?, width ('120px'|'2fr'|'auto'),
+  minWidth?, pin?: 'start'|'end', group?, align,
   type?: 'text'|'number'|'currency'|'percent'|'unit', locale?, decimals?, currency?, unit?,
   render?: (row,i)=>Node|string, sortValue?, headerTitle? }]`, `data`, `rowId: 'ID'`,
   `sort: { id, dir }`, `sortMode: 'local'|'server'`, `selectable: false|'single'|'multi'`,
@@ -2011,6 +2240,38 @@ range select.
   the selected row of a `selectable: 'single'` table is the current record of a master–detail list
   and takes the neutral `--zx-color-bg-current` fill. Sortable and plain headers set the same type,
   and the scroll region reserves no scrollbar gutter until the table actually scrolls.
+- **Column widths** — `fr` columns share what the columns with a CSS length leave over, and never
+  less than their `minWidth` (a CSS length or a number of pixels, default `'5rem'`; `0` lifts the
+  floor). The table takes a minimum width from those floors, so a container too narrow for them
+  scrolls the table inline instead of squeezing the `fr` columns to nothing — in a windowed table
+  as well. `minWidth` is also honoured on an `auto` column of a table with a fixed layout (one
+  with `fr` columns, or `virtual`), where it has no default; a column with a CSS length `width`
+  ignores it.
+- **Sticky header** — `stickyHeader: true` sticks the column headers to the top of the table's
+  **own scroll region** while its rows scroll. That takes a bounded region: set `height`, or use
+  `virtual`, which caps the region at the window height. A table without one grows to the height
+  of its rows, never scrolls itself, and its header leaves with the page; to keep a header in view
+  while the *page* scrolls, give the table the height of the area it sits in. Header cells sit at
+  `z-index: 2` inside the scroll region.
+- **Pinned columns** — `pin: 'start'|'end'` on a column keeps it in view at that inline edge of
+  the scroll region while the table scrolls sideways (`position: sticky`, so it follows the
+  writing direction). A pinned column stays where the column order puts it and sticks once it
+  reaches the edge: declare a `'start'` column before the columns it should stay in front of and
+  an `'end'` column after them. Several pinned columns stack in column order, and the row handle
+  and selection checkbox columns are pinned along with the first `'start'` column. Give a pinned
+  column a `width` or keep it short — what is pinned is taken from the room the others scroll in.
+  A cell focused by keyboard scrolls clear of the pinned columns. Pinning is not applied while
+  the table is stacked (`responsive`). Pinned cells are opaque and paint the row's fill
+  themselves; `--zx-table-pin-bg` sets their base, the header background unless set. Cells carry
+  `data-pin="start"|"end"`, and `data-pin-edge` on the column next to the scrolling ones.
+- **Header groups** — `group: 'Label'` on adjacent visible columns (with the same `pin`) gives
+  them one shared header cell in a second header row above the column labels: a
+  `<th scope="col">` with the right `colspan`, so assistive technology announces the group with
+  every cell beneath it. Columns without a `group` have a blank above them. The group row holds
+  no controls and takes no part in sorting or keyboard navigation; it counts as a row in
+  `aria-rowcount`/`aria-rowindex`. Hiding or reordering columns regroups what is left: a group
+  interrupted by another column becomes two cells. It works in plain, hierarchical and windowed
+  tables, and sticks with the header.
 - **Columns in the DOM** — every header and body cell carries `data-column="<id>"` in every mode,
   read-only included, so a table can be styled per column. A column with `label: ''` (icons,
   actions) keeps a blank header named by `ariaLabel`, or by its id; `ariaLabel` also names the
@@ -2025,6 +2286,11 @@ range select.
 - **Events** — `rowclick {row, id, index, event}`, `rowdblclick`, `sort {id, dir}`,
   `selectionchange {rows, ids}`, `datachange {rows}`, and `rowtoggle {row, id, expanded}`.
   `rowclick` fires for Enter on a focused row as well as for a click; `event` is then the keydown.
+  A click on a control inside a cell belongs to that control: it raises neither `rowclick` nor
+  `rowdblclick` and does not select the row in a `single` selection. A control is a button, link,
+  field or `<label>`, an element with a widget role or in the Tab order, editable content, or
+  anything marked `data-zx-table-no-edit` — so a Toggle, a menu button or a link rendered into a
+  cell needs no `stopPropagation()`. Mark a custom clickable element the same way.
 - **Keyboard** — an *interactive* table implements the WAI-ARIA APG **Grid** pattern
   (`role="grid"`, with `aria-multiselectable` for `selectable: 'multi'`), or the **Treegrid**
   pattern with `hierarchy`. A table is interactive when it is `selectable`, has `editMode` or
@@ -2066,7 +2332,13 @@ range select.
   editing/mutation APIs stay flat and ID-based. Orphans become roots, cycles render once, local
   sort reorders siblings without mixing levels, and growing counts visible rows. Use
   `toggleRow()`, `expandRow()`, `collapseRow()`, `expandAll()`, `collapseAll()`, and
-  `getExpanded()`. The native disclosure button works by pointer and keyboard without selecting
+  `getExpanded()`. `hierarchy.expanded` is read at construction only; `setExpanded(ids, {silent})`
+  replaces the whole set afterwards in one render, which is what to call when restoring a saved
+  state (a loop over `expandRow()` renders once per branch). `true` expands every branch, `false`
+  or `[]` collapses them all; ids are compared as `rowId` returns them (`1` is not `'1'`), and ids
+  that are not branches of the current data are dropped. Unless silent it emits one `rowtoggle`
+  per branch whose state changed, after the render; a set equal to the current one renders and
+  fires nothing. The native disclosure button works by pointer and keyboard without selecting
   or clicking the row.
 - **Editing** — `editMode: false|'cell'|'row'` (default `false`, and completely inert until set),
   plus `editTrigger: 'double'|'single'` (Table defaults to double; Grid defaults to single).
@@ -2137,7 +2409,8 @@ range select.
   height for all, following `--zx-row-height`, so rows of differing height are not supported, and
   long text is cut short with an ellipsis rather than wrapped. Column widths cannot follow content
   that is not drawn, so the layout is fixed: `auto` columns share the width evenly, and a column that
-  needs more sets `width`. **Find-in-page does not see rows that are not drawn**, and printing prints
+  needs more sets `width`. It needs no `ResizeObserver`: where there is none (jsdom) the window
+  draws for an assumed row height and viewport. **Find-in-page does not see rows that are not drawn**, and printing prints
   the drawn rows only.
 - **Responsive stacking** — `responsive: false|'sm'|'md'|'lg'|'xl'` stacks each row into a card of
   label/value pairs below that width, instead of leaving a horizontal scrollbar with the data
@@ -2328,7 +2601,9 @@ without forking its implementation, so sorting, selection, hierarchy, responsive
 editable cells/rows, loading, events, and teardown keep the Table contract.
 
 - **Constructor** — `new Grid(target, tableOptions)` accepts the complete `Table` API and defaults
-  editable cells to a single-click trigger.
+  editable cells to a single-click trigger. Pinned columns, header groups, `minWidth`,
+  `setExpanded()` and the rule that a click on a control inside a cell raises no `rowclick` are
+  Table's and apply unchanged.
 - **Preset** — `Grid.BillingItems(target, options)` supplies an editable hierarchical billing
   schema for item, quantity, unit, unit price, currency, and line total. It enables single-click
   editing, hierarchy, row reorder handles, and the column visibility chooser. It returns a `Grid`.
@@ -2352,14 +2627,48 @@ code. A renderer must be injected: without one Chart cannot draw data. The only 
 is `ChartJsAdapter`, which requires host-provided Chart.js 4.
 
 - **Options** — `adapter`, `type: 'bar'`, `data`, engine-specific `chartOptions`, `label`,
-  `description`, `summary: 'hidden'|'visible'`, `loading`, loading/empty/error text, and
-  `aspectRatio: '16 / 9'`.
+  `description`, `summary: 'hidden'|'visible'`, `summaryFormat: null`, `loading`,
+  loading/empty/error text, `aspectRatio: '16 / 9'`, and `fill: false`.
 - **Methods** — `setData()`, `setType()`, `update(chartOptions)`, `setAdapter()`, `setLoading()`,
-  `setError()`, `clearError()`, `resize()`, `refreshTheme()`, `getInstance()`, `destroy()`.
+  `setError()`, `clearError()`, `setLabel()`, `setDescription()`, `setSummary()`,
+  `setAspectRatio()`, `setFill()`, `resize()`, `refreshTheme()`, `getInstance()`, `destroy()`.
 - **Events** — `ready {instance}`, `update {data, type}`, `select {datasetIndex, index, dataset,
   label, value, nativeEvent}`, and `error {error}`.
-- **Adapter contract** — `adapter.create(canvas, {type, data, options, reducedMotion, onSelect})`
-  returns `{update(spec), resize(), destroy(), instance?}`. Implementations must destroy engine
+- **When the engine exists** — the engine is created once the chart is in a document, its
+  viewport has a size, and it has data and an adapter; `ready` fires then, not necessarily inside
+  the constructor. A chart constructed on a target that is already laid out mounts synchronously;
+  one built with `null` and appended later mounts when the browser reports its size.
+  `getInstance()` and `resize()` do not wait: called after the chart is appended, they create the
+  engine on the spot, and `getInstance()` returns null while there is none. A chart that is
+  loading, empty, or in error has no engine. Where there is no `ResizeObserver` or no layout at
+  all (jsdom), nothing can report a size and the engine is created as soon as there is data.
+- **State changes and the engine** — `setData()` clears both the loading state and an error.
+  `setLoading(true)` and `setError()` destroy the engine; the next `setData()`,
+  `setLoading(false)` or `clearError()` creates a new one and fires `ready` again, so do not hold
+  on to an instance across them. `setAdapter()` replaces the engine as well.
+- **Sizing** — by default the viewport takes the width it is given and derives its height from
+  `aspectRatio` (`setAspectRatio()` changes it; null restores the default), never less than
+  `--zx-chart-min-block-size` (220px unless set, on the chart or any ancestor). `fill: true` (or
+  `setFill()`) takes the block size of the container instead: the root is 100% tall, the viewport
+  takes what the description and a visible summary leave, `aspectRatio` is not used, and there is
+  no minimum unless `--zx-chart-min-block-size` sets one. The container needs a height of its
+  own. The chart follows its viewport; `resize()` is for an engine that needs telling after
+  something else changed.
+- **Theme** — the chart resolves `--zx-color-text`, `--zx-color-border` and the categorical
+  palette `--zx-color-chart-1`…`-8` on its root and hands them to the adapter as values. It does
+  so again by itself when a `data-zx-theme` or `data-zx-preset` attribute changes anywhere in the
+  document, when the system colour scheme or contrast preference changes, and when the chart is
+  shown again after being hidden or moved. `refreshTheme()` is only for changes none of those
+  cover: a stylesheet swap, a class, an inline custom property.
+- **Adapter contract** — `adapter.create(canvas, {type, data, options, theme, reducedMotion, onSelect})`
+  returns `{update(spec), resize(), destroy(), instance?}`; `update(spec)` is called for new data,
+  type or options and whenever the theme or the motion preference changes. `spec.theme` is
+  `{color?, borderColor?, palette}`: text colour, grid and axis colour, and the series colours in
+  order (empty where the tokens are not defined; series beyond the eighth start over).
+  `spec.options` is the application's `chartOptions` over `color` and `borderColor`, the same two
+  strings in the shape Chart.js reads. Every colour is `#rrggbb` when opaque and
+  `rgba(r, g, b, a)` when translucent — never `color()`, `oklch()`, `light-dark()` or a `var()` —
+  so an engine with its own colour parser reads it. Implementations must destroy engine
   resources and must not retain the component after teardown. `reducedMotion` is true under the
   system preference or inside a `data-zx-motion="reduced"` region, and an adapter must then turn its
   engine's animation off; Chart watches for the answer changing and updates the mounted engine.
@@ -2367,10 +2676,21 @@ is `ChartJsAdapter`, which requires host-provided Chart.js 4.
   `new ChartJsAdapter(window.Chart)`. The documentation pins Chart.js 4.5.1 as a development dependency and copies it to its
   self-hosted vendor assets during the website build; `package.json` has no runtime dependencies and application builds explicitly choose how
   the engine is loaded. Under reduced motion it sets `animation: false`, over any animation the
-  application configured.
+  application configured. A dataset that names neither `backgroundColor` nor `borderColor` is
+  coloured from the theme palette: one colour per series (a bar filled with it, a line, radar or
+  point series stroked with it and filled at half opacity), or one per value for `pie`,
+  `doughnut` and `polarArea`. A dataset that names either is left exactly as written.
 - **Accessibility** — the canvas always has a name and optional description, while synchronized
   labels and dataset values live in a semantic table. `summary: 'hidden'` keeps it visually hidden
-  for assistive technology; `'visible'` makes exact values part of the interface.
+  for assistive technology; `'visible'` makes exact values part of the interface. `setLabel()`
+  renames the canvas and the table's caption, `setDescription()` and `setSummary()` change the
+  other two.
+- **Summary values** — a number is written for the active language (the chart's `lang`, else
+  `getLanguage()`) with grouping and up to twelve significant digits: `1234567.5` reads
+  "1,234,567.5" and `0.1 + 0.2` reads "0.3". For a point object the value is its `y`, else its
+  `r`. `summaryFormat(value, context)` returns the text of one cell instead — a currency, a unit,
+  a percentage — with `context` `{dataset, datasetIndex, index, label, raw, formatted}`, where
+  `formatted` is the default text; returning null or undefined keeps it.
 <!-- /doc -->
 
 <!-- doc:calendar -->
@@ -2697,10 +3017,37 @@ Beyond the built-in field types, these widget types wrap whole components, used 
 `registerFieldAdapters()`, which `src/index.js` calls by default.
 
 - `zxselect` (Select), `checklist` (Checklist), `tagpicker` (TagPicker), `number` (NumberField),
-  `rating` (Rating).
-- `date`/`month`/`datetime` (Datebox/MonthPicker — pass a `Date` value), `time` (Timebox).
+  `rating` (Rating), `slider` (Slider).
+- `date`/`month`/`datetime` (Datebox/MonthPicker — pass a `Date` value), `daterange`
+  (DateRangeBox — a `{start, end}` value), `time` (Timebox).
 - `valuelist` (ValueList), `multivalueeditor` (MultiValueEditor), `upload` (FieldUpload),
-  `toggle` (Toggle).
+  `toggle` (Toggle), `code` (CodeEditor).
+
+**Stylesheet names for `zx-css`.** A field type is registered at run time, so `zx-css` cannot
+follow it from `form` to the component that draws it: name that component's stylesheet beside
+`form`. Each line is field type — component — the name to pass, and the stylesheets that name
+depends on come with it.
+
+- `zxselect` — Select — `select`
+- `checklist` — Checklist — `checklist`
+- `tagpicker` — TagPicker — `tag-picker`
+- `number` — NumberField — `number-field`
+- `rating` — Rating — `rating`
+- `slider` — Slider — `slider`
+- `date` — Datebox — `datebox`
+- `datetime` — DateTimeBox — `datebox`
+- `month` — MonthPicker — `date-picker`
+- `daterange` — DateRangeBox — `date-range-box`
+- `time` — Timebox — `timebox`
+- `valuelist` — ValueList — `value-list`
+- `multivalueeditor` — MultiValueEditor — `multi-value-editor`
+- `upload` — FieldUpload — `field-upload`
+- `toggle` — Toggle — `toggle`
+- `code` — CodeEditor — `code-editor`
+
+The built-in types — `text`, `password`, `textarea`, `checkbox`, `int`, `float`, `select`,
+`optionlist`, `hidden`, `html`, `custom` — are drawn by Field itself and need `form` alone. A form
+with a Select and a date field is `npx zx-css form select datebox --out public/zx.css`.
 <!-- /doc -->
 
 <!-- doc:code-editor -->
@@ -2712,17 +3059,32 @@ surface for structured text — templates, queries, configuration — while rich
 stays a separate policy decision.
 
 - **Options** — `value`, `name`, `language` (shown to the reader and exposed as data),
-  `label`, `placeholder`, `rows` (clamped 2–100), `indent` (inserted by Tab, removed by
-  Shift+Tab), `wrap: 'off'|'soft'|'hard'`, `spellcheck`, `readOnly`, `disabled`,
-  `status` (the line/column readout).
-- **Methods** — `setValue()`.
-- **Events** — `input {value}`, `change {value}`.
-
-Tab indents rather than moving focus, which is what a code surface has to do and what makes it a
-keyboard trap if nothing else is arranged — so Escape releases the capture until the next
-keystroke in the editor: Escape then Tab (or Shift+Tab) leaves the field, and any other key,
-or leaving the editor, restores indentation. A `code` Form field adapter is registered by
-`registerFieldAdapters()`.
+  `label`, `placeholder`, `rows` (clamped 2–100), `indent: '\t'` (inserted by Tab, removed by
+  Shift+Tab; `'  '` for two spaces, `''` to leave Tab alone), `wrap: 'off'|'soft'|'hard'`,
+  `spellcheck`, `readOnly`, `disabled`, `status` (the line/column readout).
+- **Methods** — `setValue()`, `getValue()`, `setLanguage()`, `setReadOnly()`,
+  `enable()`/`disable()`, `getInput()` (the
+  native textarea: the element that carries the name, validity and description, and the one a
+  `<label for>` names), `setHighlight(message, kind = 'danger')`, `clearHighlight()`, `focus()`.
+- **Events** — `input {value}`, `change {value}`, `invalid {message}`.
+- **Tab** — while `indent` is non-empty the editor captures Tab: Tab inserts the indent at the
+  caret or indents every selected line, Shift+Tab outdents them, and focus stays in the editor.
+  That is what a code surface has to do and what makes it a keyboard trap if nothing else is
+  arranged — so Escape releases the capture until the next keystroke in the editor: Escape then
+  Tab (or Shift+Tab) leaves the field, and any other key, or leaving the editor, restores
+  indentation. `indent: ''` switches the capture off: Tab and Shift+Tab move focus as in any other
+  field and nothing is indented. Tab with Ctrl, Alt or Meta, and Tab in a read-only or disabled
+  editor, are never captured.
+- **Error state** — a standalone editor reports a validation or status message the way a Field
+  does. `setHighlight(message, kind)` shows it under the text and reflects `kind`
+  (`'danger'|'warning'|'success'`) as `data-state` on the root. `'danger'` is the error state: the
+  textarea gets `aria-invalid="true"`, the message is announced as an alert, the frame takes the
+  danger colour, and `invalid {message}` is emitted. The message describes the textarea
+  (`aria-describedby`) for as long as it is shown; an empty message, or `clearHighlight()`, clears
+  it.
+- **In a Form** — a `code` field adapter is registered by `registerFieldAdapters()`. Set the
+  Field's own message there (`field.setHighlight()`), not the editor's: the Field labels the
+  textarea, marks it invalid and describes it with its message, and the editor's frame follows.
 <!-- /doc -->
 
 <!-- doc:questionnaire -->
@@ -2993,6 +3355,11 @@ returns the component, the way `tooltip()` does; call `.toElement()` for the nod
   decoration and saying the delta twice is worse than saying it once.
 - **The element follows the behaviour** — `href` renders an `<a>`, `onclick` without `href` a
   `<button>`, neither a `<div>` with `role="group"`. Never a div with a click handler.
+  `clickable: true` renders the button without an `onclick` option, for subscribing with
+  `on('click', …)`. An explicit `clickable: false` wins over `onclick`: the tile stays a `<div>`
+  and the handler is never called, for a caller that always passes a handler and decides per tile
+  whether it applies. It never turns a tile with an `href` into anything but a link. Leave
+  `onclick` out, rather than passing an empty function, for a tile that does nothing.
 - **`loading: true` renders a skeleton shaped like the tile**, not a spinner.
 
 Nothing in it assumes a fixed set of buckets or a fixed label: the content of a dashboard tile
@@ -3178,7 +3545,9 @@ complete, or errored. It promotes the markup the checkout and record wizards use
 Advancing past a step marks it complete automatically, and only steps the `clickable` policy allows
 are rendered as real buttons — the rest are not focusable at all. A horizontal rail fills the width
 it is given: the labels keep their own width and the connectors stretch to take the slack, wrapping
-onto more lines only when the container is too narrow to hold them.
+onto more lines only when the container is too narrow to hold them. A wrapped row ends at its last
+step: no connector runs on from it to the container's edge. The component marks that step with
+`data-row-end` as the layout changes.
 
 - **Options** — `steps: [{name, title, description?, optional?, disabled?}]`, `active` (defaults to
   the first enabled step), `orientation: 'horizontal'|'vertical'`, `clickable:
@@ -4367,7 +4736,9 @@ a thumbnail, or any other remote resource.
 ### Core helpers
 
 - **Component** — the base class: `on`/`off`/`once`/`emit`, `listen`, `toElement`, `msg`,
-  `destroy`, and the static `Component.from(el)`. `msg(key, ...args)` always returns text: the
+  `destroy`, and the static `Component.from(el)`. Options are merged over the class's
+  `static defaults`; a key passed as `undefined` keeps its default (also inside `msg`), `null`
+  overrides it. `msg(key, ...args)` always returns text: the
   instance's `msg` option (a `{[lang]: {…}}` table for the active language, then flat keys), else
   the host translator, else the class's built-in `msg` defaults, else the default English
   catalogue, and only then the key itself; `%1`, `%2`, … are filled from `args`.
@@ -4381,7 +4752,7 @@ a thumbnail, or any other remote resource.
   newest-first handler registry. Existing `DOM.on/remEvt/fireEvt` methods can delegate to this
   triad. Zx never installs globals or alters DOM prototypes; applications decide whether to expose
   these functions globally or compose them into their own UI and routing layer.
-- **Icons** — `icon(name, {size, label})`, `icons`, and `ICON_SIZE` (one size per role); see the
+- **Icons** — `icon(name, {size, label})`, `icons`, `iconAliases`, `iconNames()`, and `ICON_SIZE` (one size per role); see the
   Icons section — bundled inline SVG by default, Font Awesome after an opt-in.
 - **Positioning** — `position(anchor, floating, {placement, offset, flip, matchWidth})` →
   `{update, destroy}`. It anchors a manual popover with CSS anchor positioning where the browser
@@ -4424,7 +4795,12 @@ registerIcons({ anchor: ['0 0 24 24', 'M12 6v16…', 'stroke'] });  // an outlin
   domains configured in the Font Awesome account.
 - `useFontAwesome(opts)` / `useBuiltinIcons()` / `configureIcons(opts)` / `getIconConfig()` —
   switch or read the renderer without touching the network.
-- `iconNames()` lists every inline glyph, bundled and registered; `icons` is the bundled table.
+- `iconNames()` lists every name `icon()` renders as an inline glyph: the bundled set, the glyphs
+  added with `registerIcons()`, and the aliases. A bare name that is not in the list renders the
+  placeholder. `icons` is the bundled table and `iconAliases` the frozen `alias → bundled name`
+  table. An alias is listed beside the glyph it draws, so the list holds more names than glyphs;
+  for one entry per glyph, as in an icon gallery, leave them out:
+  `iconNames().filter((name) => !Object.hasOwn(iconAliases, name))`.
 - `registerIcons(map)` adds or replaces inline glyphs. `[viewBox, path]` is a filled shape — the
   form Font Awesome path data comes in. `[viewBox, path, 'stroke']` is an outline drawn with the
   bundled pen; its stroke scales with the view box, so a 24-unit outline set such as Lucide renders
@@ -4442,6 +4818,10 @@ is how a state such as a set star or a liked heart is shown without a second gly
 **Names decide their own renderer.** A bare name (`'check'`) follows the active provider, and the
 built-in names are translated to their Font Awesome counterparts (`x` → `fa-xmark`, `search` →
 `fa-magnifying-glass`, `warning` → `fa-triangle-exclamation`, …), so component code never changes.
+A bare name may also be an alias, under either renderer: `archive` → `box-archive`, `edit` →
+`pen-to-square`, `settings` → `gear`, `clear` → `x`, `checked` → `check`, `question` → `info`,
+`range` → `filter`, `fields` → `list`, `grid` → `table-cells-large`. A glyph an application
+registered under the alias name itself wins over the alias, which is also how an alias is changed.
 Prefixes override: `'fa:user'`, `'fas:user'`/`'regular:user'`/`'duotone:user'`/`'thin:user'`,
 `'kit:zeyos-notes'` (custom kit icons), `'builtin:check'` (force the inline SVG). A literal class
 list — `'fa-sharp fa-solid fa-user'` — is used verbatim. Unknown names under Font Awesome are
@@ -4973,7 +5353,10 @@ in component CSS.
   properties for restyling one component without touching its internals. Each falls back to the
   semantic token it replaces, so setting none of them changes nothing:
   `--zx-table-header-bg`, `--zx-table-row-hover-bg`, `--zx-table-row-selected-bg`,
-  `--zx-table-border-color`, `--zx-button-radius`, `--zx-panel-header-bg`.
+  `--zx-table-border-color`, `--zx-table-pin-bg` (the opaque base of pinned columns; the header
+  background unless set), `--zx-button-radius`, `--zx-panel-header-bg`, `--zx-message-offset`
+  (the distance of floating messages from the viewport edge; `--zx-space-4` unless set).
+  `--zx-chart-min-block-size` is public as well, with a fixed 220px default rather than a token.
   Reach for the least specific override that works: a global semantic token first, one of these
   second, an internal selector never. Component CSS declares many other `--zx-<component>-*`
   properties — those are internal geometry, not API, and will change without notice.

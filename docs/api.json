@@ -5,19 +5,34 @@
         "name": "account",
         "type": "AccountIdentity",
         "default": "{}",
-        "description": "Account presentation supplied by the application."
+        "description": "Account presentation supplied by the application.",
+        "update": {
+          "methods": [
+            "setAccount()"
+          ]
+        }
       },
       {
         "name": "items",
         "type": "MenuButtonItem[]",
         "default": "[]",
-        "description": "Account actions and `'-'` separators."
+        "description": "Account actions and `'-'` separators.",
+        "update": {
+          "methods": [
+            "setItems()"
+          ]
+        }
       },
       {
         "name": "compact",
         "type": "boolean",
         "default": "false",
-        "description": "Whether only the avatar is visually shown in the trigger."
+        "description": "Whether only the avatar is visually shown in the trigger.",
+        "update": {
+          "methods": [
+            "setCompact()"
+          ]
+        }
       },
       {
         "name": "label",
@@ -233,7 +248,12 @@
         "name": "items",
         "type": "ActivityItemOptions[]",
         "default": "[]",
-        "description": "Initial activities in host-supplied chronological order."
+        "description": "Initial activities in host-supplied chronological order.",
+        "update": {
+          "methods": [
+            "setItems()"
+          ]
+        }
       },
       {
         "name": "groupBy",
@@ -263,7 +283,12 @@
         "name": "loading",
         "type": "boolean",
         "default": "false",
-        "description": "Whether initial or incremental activity is loading."
+        "description": "Whether initial or incremental activity is loading.",
+        "update": {
+          "methods": [
+            "setLoading()"
+          ]
+        }
       },
       {
         "name": "loadingCount",
@@ -453,109 +478,165 @@
         "name": "items",
         "type": "ThreadItem[]",
         "default": "[]",
-        "description": "The conversation, oldest first."
+        "description": "The conversation, oldest first.",
+        "update": {
+          "methods": [
+            "setItems()"
+          ]
+        }
       },
       {
         "name": "authors",
         "type": "Record<string, Author>",
         "default": "{}",
-        "description": "Who wrote the items and took the steps, by key. An item without an `author` is the person's own (`user`) or the first agent's (anything else)."
+        "description": "Who wrote the items and took the steps, by key. An item without an `author` is the person's own (`user`) or the first agent's (anything else).",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "me",
         "type": "string",
         "default": "'me'",
-        "description": "Author key of the person reading; their items read as \"You\"."
+        "description": "Author key of the person reading; their items read as \"You\".",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "label",
         "type": "string|null",
         "default": "null",
-        "description": "Accessible name of the feed; \"Conversation\" when null."
+        "description": "Accessible name of the feed; \"Conversation\" when null.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "headingLevel",
         "type": "2|3|4|5",
         "default": "3",
-        "description": "Heading level inside answers and cards."
+        "description": "Heading level inside answers and cards.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "emptyState",
         "type": "EmptyStateOptions|null",
         "default": "null",
-        "description": "Shown while there are no items."
+        "description": "Shown while there are no items.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "followOutput",
         "type": "boolean",
         "default": "true",
-        "description": "Keep the end in view while new output arrives, as long as the reader is at the end; otherwise offer \"Jump to latest\" and leave them where they are."
+        "description": "Keep the end in view while new output arrives, as long as the reader is at the end; otherwise offer \"Jump to latest\" and leave them where they are.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "scroller",
         "type": "Element|null",
         "default": "null",
-        "description": "The element that scrolls; the nearest scrolling ancestor (or the thread itself) when null."
+        "description": "The element that scrolls; the nearest scrolling ancestor (or the thread itself) when null.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "answerActions",
         "type": "AnswerAction[]",
         "default": "['copy','regenerate','branch']",
-        "description": "Actions under each finished answer; `regenerate` only under the latest one."
+        "description": "Actions under each finished answer; `regenerate` only under the latest one.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "icons",
         "type": "Partial<Record<'regenerate'|'branch'|'rateUp'|'rateDown'|'edit', string>>",
         "default": null,
-        "description": "Glyph names for the answer and message actions."
+        "description": "Glyph names for the answer and message actions.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "userActions",
         "type": "Array<'edit'|'copy'>",
         "default": "[]",
-        "description": "Actions on the person's own messages, shown while the message is pointed at or holds focus (always on a touch screen): `edit` asks the application to put the message back in the composer, `copy` copies its text."
+        "description": "Actions on the person's own messages, shown while the message is pointed at or holds focus (always on a touch screen): `edit` asks the application to put the message back in the composer, `copy` copies its text.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "traceIcons",
         "type": "Record<string, string>",
         "default": "{}",
-        "description": "Glyph names for trace step kinds, handed to every `RunTrace` the thread draws."
+        "description": "Glyph names for trace step kinds, handed to every `RunTrace` the thread draws.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "sourceIcons",
         "type": "Record<string, string>",
         "default": "{}",
-        "description": "Glyph names for source kinds, handed to every `SourceList` the thread draws."
+        "description": "Glyph names for source kinds, handed to every `SourceList` the thread draws.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "now",
         "type": "(() => Date)|null",
         "default": "null",
-        "description": "The clock \"today\" is measured against in cards and traces, for an application whose world runs on fixed dates; the real clock when null."
+        "description": "The clock \"today\" is measured against in cards and traces, for an application whose world runs on fixed dates; the real clock when null.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "formatTime",
         "type": "((at: string) => string)|null",
         "default": "null",
-        "description": "Formats an item's `at`; the local clock time when null."
+        "description": "Formats an item's `at`; the local clock time when null.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "locale",
         "type": "string",
         "default": null,
-        "description": "Locale for times."
+        "description": "Locale for times.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "surfaceOptions",
         "type": "Omit<SurfaceOptions, 'document'|'token'|'catalog'|'reply'>",
         "default": "{}",
-        "description": "Options handed to every Surface the thread draws: the application's `policy`, `resolve`, `chartAdapter` and `msg`. Its authors, heading level and locale are the thread's unless given here."
+        "description": "Options handed to every Surface the thread draws: the application's `policy`, `resolve`, `chartAdapter` and `msg`. Its authors, heading level and locale are the thread's unless given here.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "msg",
         "type": "Record<string, string>|Record<string, Record<string, string>>",
         "default": null,
-        "description": "Localized messages."
+        "description": "Localized messages.",
+        "update": {
+          "rebuild": true
+        }
       }
     ],
     "events": [
@@ -813,25 +894,45 @@
         "name": "items",
         "type": "AppNavItem[]|AppSidebarModule[]",
         "default": "[]",
-        "description": "Application navigation tree; in the modules layout its top level is the modules."
+        "description": "Application navigation tree; in the modules layout its top level is the modules.",
+        "update": {
+          "methods": [
+            "setItems()"
+          ]
+        }
       },
       {
         "name": "active",
         "type": "string|number|null",
         "default": "null",
-        "description": "Active item id."
+        "description": "Active item id.",
+        "update": {
+          "methods": [
+            "setActive()"
+          ]
+        }
       },
       {
         "name": "expanded",
         "type": "Array<string|number>",
         "default": "[]",
-        "description": "Initially expanded branch ids."
+        "description": "Initially expanded branch ids.",
+        "update": {
+          "methods": [
+            "setExpanded()"
+          ]
+        }
       },
       {
         "name": "collapsed",
         "type": "boolean",
         "default": "false",
-        "description": "Whether the minimized presentation is shown."
+        "description": "Whether the minimized presentation is shown.",
+        "update": {
+          "methods": [
+            "setCollapsed()"
+          ]
+        }
       },
       {
         "name": "collapsible",
@@ -855,13 +956,23 @@
         "name": "layout",
         "type": "'tree'|'modules'",
         "default": "'tree'",
-        "description": "`'modules'` draws the top level as a module strip beside a panel showing one module's menu; minimized, the strip remains and menus open as flyouts."
+        "description": "`'modules'` draws the top level as a module strip beside a panel showing one module's menu; minimized, the strip remains and menus open as flyouts.",
+        "update": {
+          "methods": [
+            "setLayout()"
+          ]
+        }
       },
       {
         "name": "module",
         "type": "string|number|null",
         "default": "null",
-        "description": "Modules layout: the module the panel shows first. Defaults to the module containing `active`, else the first module with a panel."
+        "description": "Modules layout: the module the panel shows first. Defaults to the module containing `active`, else the first module with a panel.",
+        "update": {
+          "methods": [
+            "setModule()"
+          ]
+        }
       },
       {
         "name": "moduleBar",
@@ -873,7 +984,12 @@
         "name": "presentation",
         "type": "'expanded'|'compact'|'collapsed'|null",
         "default": "null",
-        "description": "Modules layout: how much of the navigation shows — both menus expanded (module names beside the side menu), the module menu collapsed to icons beside the side menu, or both collapsed to the icon strip. Defaults to `collapsed` ? `'collapsed'` : `'expanded'`."
+        "description": "Modules layout: how much of the navigation shows — both menus expanded (module names beside the side menu), the module menu collapsed to icons beside the side menu, or both collapsed to the icon strip. Defaults to `collapsed` ? `'collapsed'` : `'expanded'`.",
+        "update": {
+          "methods": [
+            "setPresentation()"
+          ]
+        }
       },
       {
         "name": "presentations",
@@ -1163,121 +1279,213 @@
         "name": "title",
         "type": "string",
         "default": "''",
-        "description": "What the agent wants to do, as a question: \"Send 3 payment reminders?\"."
+        "description": "What the agent wants to do, as a question: \"Send 3 payment reminders?\".",
+        "update": {
+          "methods": [
+            "update({ title })"
+          ]
+        }
       },
       {
         "name": "description",
         "type": "string",
         "default": "''",
-        "description": "One line under the title: what follows from approving."
+        "description": "One line under the title: what follows from approving.",
+        "update": {
+          "methods": [
+            "update({ description })"
+          ]
+        }
       },
       {
         "name": "icon",
         "type": "string|null",
         "default": "null",
-        "description": "Icon name for the tile beside the title; none when null."
+        "description": "Icon name for the tile beside the title; none when null.",
+        "update": {
+          "methods": [
+            "update({ icon })"
+          ]
+        }
       },
       {
         "name": "tone",
         "type": "ApprovalTone",
         "default": "'blue'",
-        "description": "Categorical tone of the icon tile."
+        "description": "Categorical tone of the icon tile.",
+        "update": {
+          "methods": [
+            "update({ tone })"
+          ]
+        }
       },
       {
         "name": "headingLevel",
         "type": "2|3|4|5|6",
         "default": "3",
-        "description": "Element level of the title heading."
+        "description": "Element level of the title heading.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "status",
         "type": "ApprovalStatus",
         "default": "'pending'",
-        "description": "Where the request stands."
+        "description": "Where the request stands.",
+        "update": {
+          "methods": [
+            "setStatus()"
+          ]
+        }
       },
       {
         "name": "details",
         "type": "Node|Block[]|null",
         "default": "null",
-        "description": "What will happen — recipients, amounts, records — as a node the application built, or as blocks. Model text in blocks is drawn as text only."
+        "description": "What will happen — recipients, amounts, records — as a node the application built, or as blocks. Model text in blocks is drawn as text only.",
+        "update": {
+          "methods": [
+            "update({ details })"
+          ]
+        }
       },
       {
         "name": "preview",
         "type": "ApprovalPreview|null",
         "default": "null",
-        "description": "What the request produces, behind a disclosure."
+        "description": "What the request produces, behind a disclosure.",
+        "update": {
+          "methods": [
+            "update({ preview })"
+          ]
+        }
       },
       {
         "name": "fields",
         "type": "Record<string, FieldOptions>|null",
         "default": "null",
-        "description": "The Edit form, keyed by value name. No fields, no Edit."
+        "description": "The Edit form, keyed by value name. No fields, no Edit.",
+        "update": {
+          "methods": [
+            "update({ fields })"
+          ]
+        }
       },
       {
         "name": "values",
         "type": "Record<string, unknown>",
         "default": "{}",
-        "description": "The values the request carries; the Edit form starts from them and `approve` reports them."
+        "description": "The values the request carries; the Edit form starts from them and `approve` reports them.",
+        "update": {
+          "methods": [
+            "update({ values })"
+          ]
+        }
       },
       {
         "name": "confirmText",
         "type": "string|null",
         "default": "null",
-        "description": "Text the person must type before Approve goes through, for an action that cannot be undone. Decided by the application from the tool the action triggers, never taken from model output."
+        "description": "Text the person must type before Approve goes through, for an action that cannot be undone. Decided by the application from the tool the action triggers, never taken from model output.",
+        "update": {
+          "methods": [
+            "update({ confirmText })"
+          ]
+        }
       },
       {
         "name": "reason",
         "type": "ApprovalReasonMode",
         "default": "'optional'",
-        "description": "Whether Reject asks why."
+        "description": "Whether Reject asks why.",
+        "update": {
+          "methods": [
+            "update({ reason })"
+          ]
+        }
       },
       {
         "name": "edited",
         "type": "boolean",
         "default": "false",
-        "description": "Whether the values were already edited, for a request restored from a record. Without `editedKeys` every field is listed under \"Edited by you\"."
+        "description": "Whether the values were already edited, for a request restored from a record. Without `editedKeys` every field is listed under \"Edited by you\".",
+        "update": {
+          "methods": [
+            "update({ edited })"
+          ]
+        }
       },
       {
         "name": "editedKeys",
         "type": "string[]|null",
         "default": "null",
-        "description": "Which values were edited: only these fields are listed under \"Edited by you\", in field order. A non-empty list implies `edited`; null lists every field of an edited request."
+        "description": "Which values were edited: only these fields are listed under \"Edited by you\", in field order. A non-empty list implies `edited`; null lists every field of an edited request.",
+        "update": {
+          "methods": [
+            "update({ editedKeys })"
+          ]
+        }
       },
       {
         "name": "rejectReason",
         "type": "string|null",
         "default": "null",
-        "description": "The reason a rejected request was given, for a request restored from a record."
+        "description": "The reason a rejected request was given, for a request restored from a record.",
+        "update": {
+          "methods": [
+            "setStatus()"
+          ]
+        }
       },
       {
         "name": "answeredBy",
         "type": "string|null",
         "default": "null",
-        "description": "Who answers, as the verdict names them; the message `approvalCard.you` (\"you\") when null."
+        "description": "Who answers, as the verdict names them; the message `approvalCard.you` (\"you\") when null.",
+        "update": {
+          "methods": [
+            "setStatus()"
+          ]
+        }
       },
       {
         "name": "answeredAt",
         "type": "string|Date|null",
         "default": "null",
-        "description": "When an answered request was answered: a local ISO date-time or a Date. An answer given on the card takes the time it was given."
+        "description": "When an answered request was answered: a local ISO date-time or a Date. An answer given on the card takes the time it was given.",
+        "update": {
+          "methods": [
+            "setStatus()"
+          ]
+        }
       },
       {
         "name": "now",
         "type": "(() => Date)|null",
         "default": "null",
-        "description": "The clock: decides whether `answeredAt` is today (the time alone) or another day (date and time), and gives the time of an answer recorded without an explicit `at`. Real time when null."
+        "description": "The clock: decides whether `answeredAt` is today (the time alone) or another day (date and time), and gives the time of an answer recorded without an explicit `at`. Real time when null.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "keys",
         "type": "boolean",
         "default": "true",
-        "description": "Whether A, E, and R act while focus is inside the pending card. `handleKey()` works either way."
+        "description": "Whether A, E, and R act while focus is inside the pending card. `handleKey()` works either way.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "msg",
         "type": "Record<string, string>|Record<string, Record<string, string>>",
         "default": null,
-        "description": "Localized messages."
+        "description": "Localized messages.",
+        "update": {
+          "rebuild": true
+        }
       }
     ],
     "events": [
@@ -1354,19 +1562,34 @@
         "name": "preset",
         "type": "'source'|'confluence'|'horizon'|'diagonal'|'edge'|'curtain'",
         "default": "'source'",
-        "description": "Geometry of the ambient light field."
+        "description": "Geometry of the ambient light field.",
+        "update": {
+          "methods": [
+            "setPreset()"
+          ]
+        }
       },
       {
         "name": "colors",
         "type": "string[]",
         "default": "[]",
-        "description": "Zero to four concrete CSS colours. An empty list uses semantic Zx colours; shorter palettes repeat across the four gradient fields."
+        "description": "Zero to four concrete CSS colours. An empty list uses semantic Zx colours; shorter palettes repeat across the four gradient fields.",
+        "update": {
+          "methods": [
+            "setColors()"
+          ]
+        }
       },
       {
         "name": "intensity",
         "type": "'subtle'|'balanced'|'vivid'",
         "default": "'subtle'",
-        "description": "Strength of the light field."
+        "description": "Strength of the light field.",
+        "update": {
+          "methods": [
+            "setIntensity()"
+          ]
+        }
       }
     ],
     "events": [],
@@ -1445,7 +1668,12 @@
         "name": "status",
         "type": "'online'|'away'|'busy'|'offline'|null",
         "default": "null",
-        "description": "Optional presence state of a person. An agent's `activity` takes its place: when both are given, only the activity is drawn and named."
+        "description": "Optional presence state of a person. An agent's `activity` takes its place: when both are given, only the activity is drawn and named.",
+        "update": {
+          "methods": [
+            "setStatus()"
+          ]
+        }
       },
       {
         "name": "statusLabel",
@@ -1457,7 +1685,12 @@
         "name": "activity",
         "type": "AgentActivity|null",
         "default": "null",
-        "description": "What an agent is doing: `'idle'`, `'thinking'`, `'working'`, `'needs-you'`, `'blocked'` or `'offline'`. Drawn as a dot whose shape and tone differ per activity (a square for blocked, a hollow ring for idle, a dashed ring for offline); its word joins the accessible name and the dot's tooltip. Wins over `status`."
+        "description": "What an agent is doing: `'idle'`, `'thinking'`, `'working'`, `'needs-you'`, `'blocked'` or `'offline'`. Drawn as a dot whose shape and tone differ per activity (a square for blocked, a hollow ring for idle, a dashed ring for offline); its word joins the accessible name and the dot's tooltip. Wins over `status`.",
+        "update": {
+          "methods": [
+            "setActivity()"
+          ]
+        }
       },
       {
         "name": "activityLabel",
@@ -1650,37 +1883,62 @@
         "name": "blocks",
         "type": "Block[]",
         "default": "[]",
-        "description": "The answer's blocks. Model text is data: every string reaches the page as text, through the inline grammar of `**bold**`, `` `code` `` and `[n]` citations."
+        "description": "The answer's blocks. Model text is data: every string reaches the page as text, through the inline grammar of `**bold**`, `` `code` `` and `[n]` citations.",
+        "update": {
+          "methods": [
+            "setBlocks()"
+          ]
+        }
       },
       {
         "name": "headingLevel",
         "type": "2|3|4|5",
         "default": "3",
-        "description": "Element level of a `heading` block of level 2; a level-3 heading goes one deeper. Set it one below the heading that names the answer."
+        "description": "Element level of a `heading` block of level 2; a level-3 heading goes one deeper. Set it one below the heading that names the answer.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "size",
         "type": "'sm'|'md'",
         "default": "'sm'",
-        "description": "Prose size: `'sm'` sets the answer at the interface size, for a conversation; `'md'` at the reading size, for a document."
+        "description": "Prose size: `'sm'` sets the answer at the interface size, for a conversation; `'md'` at the reading size, for a document.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "streaming",
         "type": "boolean",
         "default": "false",
-        "description": "Whether more is still being written. The last block stays open to `appendText()`, and the root is busy until `end()` or `stop()`."
+        "description": "Whether more is still being written. The last block stays open to `appendText()`, and the root is busy until `end()` or `stop()`.",
+        "update": {
+          "methods": [
+            "setBlocks()",
+            "end()"
+          ]
+        }
       },
       {
         "name": "sources",
         "type": "Source[]|null",
         "default": "null",
-        "description": "The sources citations point at; their titles name the citation buttons."
+        "description": "The sources citations point at; their titles name the citation buttons.",
+        "update": {
+          "methods": [
+            "setSources()"
+          ]
+        }
       },
       {
         "name": "msg",
         "type": "Record<string, string>|Record<string, Record<string, string>>",
         "default": null,
-        "description": "Localized messages."
+        "description": "Localized messages.",
+        "update": {
+          "rebuild": true
+        }
       }
     ],
     "events": [
@@ -1751,7 +2009,12 @@
         "name": "items",
         "type": "BreadcrumbItem[]",
         "default": "[]",
-        "description": "Trail from the root to the current page."
+        "description": "Trail from the root to the current page.",
+        "update": {
+          "methods": [
+            "setItems()"
+          ]
+        }
       },
       {
         "name": "maxVisible",
@@ -1890,19 +2153,34 @@
         "name": "events",
         "type": "Record<string, any>[]",
         "default": "[]",
-        "description": "Event records."
+        "description": "Event records.",
+        "update": {
+          "methods": [
+            "setEvents()"
+          ]
+        }
       },
       {
         "name": "date",
         "type": "Date|string|number|null",
         "default": "null",
-        "description": "Initial local anchor date; null uses today."
+        "description": "Initial local anchor date; null uses today.",
+        "update": {
+          "methods": [
+            "setDate()"
+          ]
+        }
       },
       {
         "name": "view",
         "type": "CalendarView",
         "default": "'month'",
-        "description": "Initial view."
+        "description": "Initial view.",
+        "update": {
+          "methods": [
+            "setView()"
+          ]
+        }
       },
       {
         "name": "views",
@@ -2314,37 +2592,67 @@
         "name": "title",
         "type": "string",
         "default": "''",
-        "description": "Card title."
+        "description": "Card title.",
+        "update": {
+          "methods": [
+            "setTitle()"
+          ]
+        }
       },
       {
         "name": "media",
         "type": "CardContent",
         "default": "null",
-        "description": "Optional image, avatar, icon, or other media."
+        "description": "Optional image, avatar, icon, or other media.",
+        "update": {
+          "methods": [
+            "setMedia()"
+          ]
+        }
       },
       {
         "name": "content",
         "type": "CardContent",
         "default": "null",
-        "description": "Main card content; enhanced children are adopted by default."
+        "description": "Main card content; enhanced children are adopted by default.",
+        "update": {
+          "methods": [
+            "setContent()"
+          ]
+        }
       },
       {
         "name": "actions",
         "type": "CardAction[]",
         "default": "[]",
-        "description": "Secondary native controls beside the title."
+        "description": "Secondary native controls beside the title.",
+        "update": {
+          "methods": [
+            "setActions()"
+          ]
+        }
       },
       {
         "name": "footer",
         "type": "CardContent",
         "default": "null",
-        "description": "Optional metadata or trailing content."
+        "description": "Optional metadata or trailing content.",
+        "update": {
+          "methods": [
+            "setFooter()"
+          ]
+        }
       },
       {
         "name": "link",
         "type": "CardLink",
         "default": "null",
-        "description": "Optional native primary link rendered around the title."
+        "description": "Optional native primary link rendered around the title.",
+        "update": {
+          "methods": [
+            "setLink()"
+          ]
+        }
       },
       {
         "name": "variant",
@@ -2417,55 +2725,92 @@
         "name": "fields",
         "type": "ViewField[]",
         "default": "[]",
-        "description": "Shared ordered field descriptors."
+        "description": "Shared ordered field descriptors.",
+        "update": {
+          "methods": [
+            "setFields()"
+          ]
+        }
       },
       {
         "name": "data",
         "type": "ViewRecord[]",
         "default": "[]",
-        "description": "Initial records."
+        "description": "Initial records.",
+        "update": {
+          "methods": [
+            "setData()"
+          ]
+        }
       },
       {
         "name": "recordId",
         "type": "string|((record:ViewRecord)=>unknown)",
         "default": "'ID'",
-        "description": "Stable record id accessor."
+        "description": "Stable record id accessor.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "sort",
         "type": "import('../view/record-view.js').ViewSort|null",
         "default": "null",
-        "description": "Initial shared sort."
+        "description": "Initial shared sort.",
+        "update": {
+          "methods": [
+            "setSort()"
+          ]
+        }
       },
       {
         "name": "sortMode",
         "type": "'local'|'server'",
         "default": "'local'",
-        "description": "Local sorting or event-only server sorting."
+        "description": "Local sorting or event-only server sorting.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "selectable",
         "type": "false|'single'|'multi'",
         "default": "false",
-        "description": "Record selection behavior."
+        "description": "Record selection behavior.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "selectionTrigger",
         "type": "'checkbox'|'card'",
         "default": "'checkbox'",
-        "description": "Select through a checkbox or the non-interactive card surface."
+        "description": "Select through a checkbox or the non-interactive card surface.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "selection",
         "type": "unknown[]",
         "default": "[]",
-        "description": "Initially selected record ids."
+        "description": "Initially selected record ids.",
+        "update": {
+          "methods": [
+            "setSelection()"
+          ]
+        }
       },
       {
         "name": "fieldOrder",
         "type": "string[]",
         "default": "[]",
-        "description": "Preferred shared field order."
+        "description": "Preferred shared field order.",
+        "update": {
+          "methods": [
+            "setFieldOrder()"
+          ]
+        }
       },
       {
         "name": "hiddenFields",
@@ -2477,55 +2822,82 @@
         "name": "fieldControls",
         "type": "boolean|import('../view/record-view.js').ViewFieldControlsConfig",
         "default": "true",
-        "description": "Whether to expose shared field controls. `true` renders the chooser in the card toolbar and `false` omits it; an object customises its `label` and mounts it into `target`."
+        "description": "Whether to expose shared field controls. `true` renders the chooser in the card toolbar and `false` omits it; an object customises its `label` and mounts it into `target`.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "emptyText",
         "type": "string|Node|(()=>string|Node)|null",
         "default": "null",
-        "description": "Empty-result content."
+        "description": "Empty-result content.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "titleField",
         "type": "RecordCardValueSource",
         "default": "null",
-        "description": "Title field id or explicit resolver."
+        "description": "Title field id or explicit resolver.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "subtitleField",
         "type": "RecordCardValueSource",
         "default": "null",
-        "description": "Subtitle field id or explicit resolver."
+        "description": "Subtitle field id or explicit resolver.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "preview",
         "type": "string|((record:ViewRecord,index:number)=>RecordCardPreview)",
         "default": null,
-        "description": "Preview field id or explicit resolver."
+        "description": "Preview field id or explicit resolver.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "previewAlt",
         "type": "string|((record:ViewRecord,index:number)=>unknown)|null",
         "default": "null",
-        "description": "Preview alt field, literal, or resolver."
+        "description": "Preview alt field, literal, or resolver.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "link",
         "type": "RecordCardLink|((record:ViewRecord,index:number)=>RecordCardLink)",
         "default": null,
-        "description": "Safe native title link or resolver."
+        "description": "Safe native title link or resolver.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "actions",
         "type": "RecordCardAction[]|((record:ViewRecord,index:number)=>RecordCardAction[])",
         "default": "[]",
-        "description": "Listener-free action descriptors or resolver."
+        "description": "Listener-free action descriptors or resolver.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "groupBy",
         "type": "string|((record:ViewRecord,index:number)=>unknown)|null",
         "default": "null",
-        "description": "Field id or local group resolver."
+        "description": "Field id or local group resolver.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "groupOrder",
@@ -2555,31 +2927,46 @@
         "name": "loadingCount",
         "type": "number",
         "default": "6",
-        "description": "Skeleton cards shown while loading."
+        "description": "Skeleton cards shown while loading.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "headingLevel",
         "type": "1|2|3|4|5|6",
         "default": "3",
-        "description": "Per-card title heading level."
+        "description": "Per-card title heading level.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "label",
         "type": "string|null",
         "default": "null",
-        "description": "Accessible collection label; null resolves message `cardView.label`, \"Card view\"."
+        "description": "Accessible collection label; null resolves message `cardView.label`, \"Card view\".",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "keyboard",
         "type": "'tabs'|'roving'",
         "default": "'tabs'",
-        "description": "Keyboard model. `'tabs'` makes every card, title link, checkbox, and action its own Tab stop. `'roving'` — recommended for lists — follows the APG Grid pattern with row focus: the collection is one Tab stop, the arrow keys, Home/End, and PageUp/PageDown move between cards, Enter activates, Space selects, and the controls inside a card stay pointer targets with `tabindex=\"-1\"`."
+        "description": "Keyboard model. `'tabs'` makes every card, title link, checkbox, and action its own Tab stop. `'roving'` — recommended for lists — follows the APG Grid pattern with row focus: the collection is one Tab stop, the arrow keys, Home/End, and PageUp/PageDown move between cards, Enter activates, Space selects, and the controls inside a card stay pointer targets with `tabindex=\"-1\"`.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "collapsibleGroups",
         "type": "boolean",
         "default": "false",
-        "description": "Whether group headings carry a toggle that hides and shows the group's cards."
+        "description": "Whether group headings carry a toggle that hides and shows the group's cards.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "collapsedGroups",
@@ -2591,7 +2978,10 @@
         "name": "renderGroupHeading",
         "type": "((context:CardGroupHeadingContext)=>Node|string|null|undefined)|null",
         "default": "null",
-        "description": "Content of a group heading in place of its label. With `collapsibleGroups` it is placed inside the toggle button, so it must not contain interactive elements."
+        "description": "Content of a group heading in place of its label. With `collapsibleGroups` it is placed inside the toggle button, so it must not contain interactive elements.",
+        "update": {
+          "rebuild": true
+        }
       }
     ],
     "events": [
@@ -2645,73 +3035,147 @@
         "name": "adapter",
         "type": "ChartAdapter|null",
         "default": "null",
-        "description": "Injected engine adapter."
+        "description": "Injected engine adapter.",
+        "update": {
+          "methods": [
+            "setAdapter()"
+          ]
+        }
       },
       {
         "name": "type",
         "type": "string",
         "default": "'bar'",
-        "description": "Chart type passed to the adapter."
+        "description": "Chart type passed to the adapter.",
+        "update": {
+          "methods": [
+            "setType()"
+          ]
+        }
       },
       {
         "name": "data",
         "type": "ChartData",
         "default": "{labels: [], datasets: []}",
-        "description": "Chart data."
+        "description": "Chart data.",
+        "update": {
+          "methods": [
+            "setData()"
+          ]
+        }
       },
       {
         "name": "chartOptions",
         "type": "Record<string, unknown>",
         "default": "{}",
-        "description": "Engine-specific options."
+        "description": "Engine-specific options.",
+        "update": {
+          "methods": [
+            "update()"
+          ]
+        }
       },
       {
         "name": "label",
         "type": "string|null",
         "default": "null",
-        "description": "Accessible canvas and summary label; null or blank text reads the `chart.label` message (\"Chart\")."
+        "description": "Accessible canvas and summary label; null or blank text reads the `chart.label` message (\"Chart\").",
+        "update": {
+          "methods": [
+            "setLabel()"
+          ]
+        }
       },
       {
         "name": "description",
         "type": "string",
         "default": "''",
-        "description": "Accessible description."
+        "description": "Accessible description.",
+        "update": {
+          "methods": [
+            "setDescription()"
+          ]
+        }
       },
       {
         "name": "summary",
         "type": "'hidden'|'visible'",
         "default": "'hidden'",
-        "description": "Semantic data-table presentation."
+        "description": "Semantic data-table presentation.",
+        "update": {
+          "methods": [
+            "setSummary()"
+          ]
+        }
+      },
+      {
+        "name": "summaryFormat",
+        "type": "ChartSummaryFormat|null",
+        "default": "null",
+        "description": "Formats a summary-table value. Without it a number is written for the active language (`lang`, else `getLanguage()`) with grouping and up to twelve significant digits — `1234567.5` reads \"1,234,567.5\", `0.1 + 0.2` reads \"0.3\" — and any other value as its own text.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "loading",
         "type": "boolean",
         "default": "false",
-        "description": "Initial loading state."
+        "description": "Initial loading state.",
+        "update": {
+          "methods": [
+            "setLoading()"
+          ]
+        }
       },
       {
         "name": "emptyText",
         "type": "string|null",
         "default": null,
-        "description": "Empty-state text, by default the `chart.empty` message (\"No chart data\"). Null shows none."
+        "description": "Empty-state text, by default the `chart.empty` message (\"No chart data\"). Null shows none.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "loadingText",
         "type": "string|null",
         "default": null,
-        "description": "Loading-state text, by default the `chart.loading` message (\"Loading chart…\"). Null shows none."
+        "description": "Loading-state text, by default the `chart.loading` message (\"Loading chart…\"). Null shows none.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "errorText",
         "type": "string|null",
         "default": null,
-        "description": "Error fallback text, by default the `chart.error` message (\"Unable to render chart\"). Null shows none."
+        "description": "Error fallback text, by default the `chart.error` message (\"Unable to render chart\"). Null shows none.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "aspectRatio",
         "type": "string",
         "default": "'16 / 9'",
-        "description": "Responsive container aspect ratio."
+        "description": "Responsive container aspect ratio. Not used in `fill` mode.",
+        "update": {
+          "methods": [
+            "setAspectRatio()"
+          ]
+        }
+      },
+      {
+        "name": "fill",
+        "type": "boolean",
+        "default": "false",
+        "description": "Takes the block size of the container instead of deriving it from `aspectRatio`: the root is 100% tall and the viewport takes what the description and a visible summary leave. The container needs a height of its own. The minimum viewport height is the `--zx-chart-min-block-size` custom property: 220px by default, none in `fill` mode.",
+        "update": {
+          "methods": [
+            "setFill()"
+          ]
+        }
       }
     ],
     "events": [
@@ -2780,22 +3244,52 @@
         "description": "Clears the error and remounts when data and an adapter are available."
       },
       {
+        "name": "setLabel",
+        "signature": "setLabel(label)",
+        "returns": "this",
+        "description": "Changes the accessible name of the canvas and the caption of the summary table."
+      },
+      {
+        "name": "setDescription",
+        "signature": "setDescription(description)",
+        "returns": "this",
+        "description": "Changes the description under the chart, which also describes the canvas."
+      },
+      {
+        "name": "setSummary",
+        "signature": "setSummary(summary)",
+        "returns": "this",
+        "description": "Shows the summary table or leaves it to assistive technology only."
+      },
+      {
+        "name": "setAspectRatio",
+        "signature": "setAspectRatio(aspectRatio)",
+        "returns": "this",
+        "description": "Changes the aspect ratio of the viewport. It has no effect while the chart is in `fill` mode."
+      },
+      {
+        "name": "setFill",
+        "signature": "setFill([fill])",
+        "returns": "this",
+        "description": "Switches `fill` mode, in which the chart takes the block size of its container."
+      },
+      {
         "name": "resize",
         "signature": "resize()",
         "returns": "this",
-        "description": "Requests an engine resize."
+        "description": "Requests an engine resize. The chart follows its viewport on its own; this is for an engine that needs telling after something else changed."
       },
       {
         "name": "refreshTheme",
         "signature": "refreshTheme()",
         "returns": "this",
-        "description": "Re-applies computed theme defaults through the adapter update path."
+        "description": "Re-applies computed theme values through the adapter update path. The chart does this itself when a `data-zx-theme` or `data-zx-preset` attribute changes anywhere in the document, when the system colour scheme or contrast preference changes, and when it is shown again after being hidden or moved; call it after changing tokens in a way none of those cover — a stylesheet swap, a class, or an inline custom property."
       },
       {
         "name": "getInstance",
         "signature": "getInstance()",
         "returns": "unknown",
-        "description": "Returns the underlying engine instance when the adapter exposes it."
+        "description": "Returns the underlying engine instance when the adapter exposes it. The engine exists once the chart is connected, displayed, and has data; asking for it right after appending the chart creates it then rather than on the next frame."
       },
       {
         "name": "destroy",
@@ -2823,25 +3317,44 @@
         "name": "label",
         "type": "string|[string, string]",
         "default": "''",
-        "description": "A shared label or `[onLabel, offLabel]`."
+        "description": "A shared label or `[onLabel, offLabel]`.",
+        "update": {
+          "methods": [
+            "setLabel()"
+          ]
+        }
       },
       {
         "name": "checked",
         "type": "boolean",
         "default": "false",
-        "description": "Initial pressed state."
+        "description": "Initial pressed state.",
+        "update": {
+          "methods": [
+            "set()"
+          ]
+        }
       },
       {
         "name": "icon",
         "type": "boolean",
         "default": "true",
-        "description": "Whether to show the check indicator."
+        "description": "Whether to show the check indicator.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "disabled",
         "type": "boolean",
         "default": "false",
-        "description": "Initial disabled state."
+        "description": "Initial disabled state.",
+        "update": {
+          "methods": [
+            "disable()",
+            "enable()"
+          ]
+        }
       }
     ],
     "events": [
@@ -2896,49 +3409,77 @@
         "name": "items",
         "type": "ChecklistItem[]",
         "default": "[]",
-        "description": "Available checkbox items."
+        "description": "Available checkbox items.",
+        "update": {
+          "methods": [
+            "setItems()"
+          ]
+        }
       },
       {
         "name": "valueKey",
         "type": "string|((item: ChecklistItem) => unknown)",
         "default": "'ID'",
-        "description": "Item ID property or reader."
+        "description": "Item ID property or reader.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "labelKey",
         "type": "string|((item: ChecklistItem) => string)",
         "default": "'name'",
-        "description": "Item label property or reader."
+        "description": "Item label property or reader.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "checkedKey",
         "type": "string|((item: ChecklistItem) => unknown)",
         "default": "'on'",
-        "description": "Initial checked-state property or reader."
+        "description": "Initial checked-state property or reader.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "search",
         "type": "boolean",
         "default": "true",
-        "description": "Whether the search field is shown."
+        "description": "Whether the search field is shown.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "height",
         "type": "number",
         "default": "280",
-        "description": "Maximum list height in pixels."
+        "description": "Maximum list height in pixels.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "defaultChecked",
         "type": "boolean",
         "default": "false",
-        "description": "Fallback initial checked state."
+        "description": "Fallback initial checked state.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "label",
         "type": "string|null",
         "default": "null",
-        "description": "Heading text, which is also the group's accessible name; null uses the `checklist.label` message."
+        "description": "Heading text, which is also the group's accessible name; null uses the `checklist.label` message.",
+        "update": {
+          "methods": [
+            "setLabel()"
+          ]
+        }
       },
       {
         "name": "disabled",
@@ -3058,7 +3599,12 @@
         "name": "value",
         "type": "unknown",
         "default": "''",
-        "description": "Initial text."
+        "description": "Initial text.",
+        "update": {
+          "methods": [
+            "setValue()"
+          ]
+        }
       },
       {
         "name": "name",
@@ -3070,7 +3616,12 @@
         "name": "language",
         "type": "string",
         "default": "'text'",
-        "description": "Language identifier shown to the user and exposed as data."
+        "description": "Language identifier shown to the user and exposed as data.",
+        "update": {
+          "methods": [
+            "setLanguage()"
+          ]
+        }
       },
       {
         "name": "label",
@@ -3094,7 +3645,7 @@
         "name": "indent",
         "type": "string",
         "default": "'\\t'",
-        "description": "Text inserted by Tab and removed by Shift+Tab."
+        "description": "Text inserted by Tab and removed by Shift+Tab — a tab by default, `' '` for two spaces. While it is non-empty the editor captures Tab: Tab inserts it at the caret or indents every selected line, Shift+Tab outdents them, and focus stays in the editor. Escape releases the capture for the next keystroke, so Escape then Tab (or Shift+Tab) moves focus on. `indent: ''` switches the capture off: Tab and Shift+Tab move focus as in any other field and nothing is indented. Tab with Ctrl, Alt or Meta, and Tab in a read-only or disabled editor, are never captured."
       },
       {
         "name": "wrap",
@@ -3112,7 +3663,12 @@
         "name": "readOnly",
         "type": "boolean",
         "default": "false",
-        "description": "Whether content can be selected but not changed."
+        "description": "Whether content can be selected but not changed.",
+        "update": {
+          "methods": [
+            "setReadOnly()"
+          ]
+        }
       },
       {
         "name": "disabled",
@@ -3137,6 +3693,11 @@
         "name": "change",
         "payload": "{value:string}",
         "description": "Change listener."
+      },
+      {
+        "name": "invalid",
+        "payload": "{message:string}",
+        "description": "Listener called when `setHighlight()` puts the editor in its error state."
       }
     ],
     "methods": [
@@ -3145,6 +3706,24 @@
         "signature": "setValue(value, [options])",
         "returns": "this",
         "description": "Replaces the editor text."
+      },
+      {
+        "name": "getInput",
+        "signature": "getInput()",
+        "returns": "HTMLTextAreaElement",
+        "description": "Returns the native textarea — the element that carries the editor's name, validity and description, and the one a `<label for>` or a Field labels."
+      },
+      {
+        "name": "setHighlight",
+        "signature": "setHighlight(message, [kind])",
+        "returns": "this",
+        "description": "Displays a validation or status message under the text, as `Field#setHighlight()` does for a field: the kind is reflected as `data-state` on the root, and `'danger'` is the error state — the textarea gets `aria-invalid=\"true\"`, the message is announced as an alert, the frame takes the danger colour, and `invalid` is emitted. The message is the textarea's description (`aria-describedby`) for as long as it is shown. An empty message clears it."
+      },
+      {
+        "name": "clearHighlight",
+        "signature": "clearHighlight()",
+        "returns": "this",
+        "description": "Clears the current validation or status message."
       }
     ]
   },
@@ -3154,79 +3733,130 @@
         "name": "label",
         "type": "string|null",
         "default": "null",
-        "description": "Accessible name of the text and of the group around it. Omitted resolves `composer.label`, English `Message`."
+        "description": "Accessible name of the text and of the group around it. Omitted resolves `composer.label`, English `Message`.",
+        "update": {
+          "methods": [
+            "update({ label })"
+          ]
+        }
       },
       {
         "name": "placeholder",
         "type": "string",
         "default": "''",
-        "description": "Placeholder of the text."
+        "description": "Placeholder of the text.",
+        "update": {
+          "methods": [
+            "update({ placeholder })"
+          ]
+        }
       },
       {
         "name": "value",
         "type": "string",
         "default": "''",
-        "description": "Initial text. Without it, a saved draft is restored."
+        "description": "Initial text. Without it, a saved draft is restored.",
+        "update": {
+          "methods": [
+            "setValue()"
+          ]
+        }
       },
       {
         "name": "submitKey",
         "type": "'enter'|'mod+enter'",
         "default": "'enter'",
-        "description": "`'enter'`: Enter sends and Shift+Enter breaks the line. `'mod+enter'`: Cmd+Enter (Ctrl+Enter elsewhere) sends and Enter breaks the line."
+        "description": "`'enter'`: Enter sends and Shift+Enter breaks the line. `'mod+enter'`: Cmd+Enter (Ctrl+Enter elsewhere) sends and Enter breaks the line.",
+        "update": {
+          "methods": [
+            "update({ submitKey })"
+          ]
+        }
       },
       {
         "name": "busy",
         "type": "boolean",
         "default": "false",
-        "description": "Whether an agent is working: Send becomes Stop."
+        "description": "Whether an agent is working: Send becomes Stop.",
+        "update": {
+          "methods": [
+            "setBusy()"
+          ]
+        }
       },
       {
         "name": "queue",
         "type": "boolean",
         "default": "false",
-        "description": "Whether the send key holds a message back while the agent works. It is sent when the agent is no longer busy, one message each time busy ends, in order. The queue lives as long as the composer: it is not kept with the draft."
+        "description": "Whether the send key holds a message back while the agent works. It is sent when the agent is no longer busy, one message each time busy ends, in order. The queue lives as long as the composer: it is not kept with the draft.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "queueLimit",
         "type": "number",
         "default": "10",
-        "description": "Most messages that wait at once. At the limit the send key is refused, and the hint says why."
+        "description": "Most messages that wait at once. At the limit the send key is refused, and the hint says why.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "disabled",
         "type": "boolean",
         "default": "false",
-        "description": "Whether the composer takes no input."
+        "description": "Whether the composer takes no input.",
+        "update": {
+          "methods": [
+            "setDisabled()"
+          ]
+        }
       },
       {
         "name": "attachments",
         "type": "boolean",
         "default": "false",
-        "description": "Whether files can be attached: an Attach button, paste, and drop."
+        "description": "Whether files can be attached: an Attach button, paste, and drop.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "accept",
         "type": "string",
         "default": "''",
-        "description": "File types accepted, in the `<input type=\"file\">` syntax (`'image/*,.pdf'`). Empty accepts every file."
+        "description": "File types accepted, in the `<input type=\"file\">` syntax (`'image/*,.pdf'`). Empty accepts every file.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "maxFiles",
         "type": "number",
         "default": "10",
-        "description": "Most files one message carries."
+        "description": "Most files one message carries.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "mentions",
         "type": "MentionSource|null",
         "default": "null",
-        "description": "Enables `@` mentions."
+        "description": "Enables `@` mentions.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "commands",
         "type": "LauncherItem[]|null",
         "default": "null",
-        "description": "Commands opened by `/` on an empty text, in a Launcher; an item with `items` opens a page of further commands."
+        "description": "Commands opened by `/` on an empty text, in a Launcher; an item with `items` opens a page of further commands.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "context",
@@ -3238,55 +3868,90 @@
         "name": "hint",
         "type": "string",
         "default": "''",
-        "description": "Quiet text in the bar beside Send."
+        "description": "Quiet text in the bar beside Send.",
+        "update": {
+          "methods": [
+            "setHint()"
+          ]
+        }
       },
       {
         "name": "note",
         "type": "string",
         "default": "''",
-        "description": "Quiet line under the composer."
+        "description": "Quiet line under the composer.",
+        "update": {
+          "methods": [
+            "setNote()"
+          ]
+        }
       },
       {
         "name": "draftKey",
         "type": "string|null",
         "default": "null",
-        "description": "Key the unsent text is kept under (through `storage()`), restored on create and cleared on send."
+        "description": "Key the unsent text is kept under (through `storage()`), restored on create and cleared on send.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "minRows",
         "type": "number",
         "default": "1",
-        "description": "Rows the text never shrinks below, even when empty. Capped at `maxRows`."
+        "description": "Rows the text never shrinks below, even when empty. Capped at `maxRows`.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "maxRows",
         "type": "number",
         "default": "10",
-        "description": "Rows the text grows to before it scrolls."
+        "description": "Rows the text grows to before it scrolls.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "icons",
         "type": "{attach?: string, commands?: string}",
         "default": "{}",
-        "description": "Glyph names for the Attach and Commands buttons (a paperclip, a book) where the application registered its own."
+        "description": "Glyph names for the Attach and Commands buttons (a paperclip, a book) where the application registered its own.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "tools",
         "type": "ComposerTool[]",
         "default": "[]",
-        "description": "Further icon buttons in the bar, after Attach and Commands. An entry without `id`, `label` or `icon` is left out, as is a repeated id."
+        "description": "Further icon buttons in the bar, after Attach and Commands. An entry without `id`, `label` or `icon` is left out, as is a repeated id.",
+        "update": {
+          "methods": [
+            "setTools()"
+          ]
+        }
       },
       {
         "name": "sendLabel",
         "type": "string|null",
         "default": "null",
-        "description": "Visible text beside the Send glyph (`'Start task'`), which is then also its accessible name; while busy the button reads `composer.stop`. Null keeps Send icon-only. In a composer narrower than 24rem the text is visually hidden and stays the name."
+        "description": "Visible text beside the Send glyph (`'Start task'`), which is then also its accessible name; while busy the button reads `composer.stop`. Null keeps Send icon-only. In a composer narrower than 24rem the text is visually hidden and stays the name.",
+        "update": {
+          "methods": [
+            "update({ sendLabel })"
+          ]
+        }
       },
       {
         "name": "msg",
         "type": "Record<string, string>|Record<string, Record<string, string>>",
         "default": null,
-        "description": "Localized messages."
+        "description": "Localized messages.",
+        "update": {
+          "rebuild": true
+        }
       }
     ],
     "events": [
@@ -3499,7 +4164,12 @@
         "name": "items",
         "type": "ContextMenuEntry[]|((context: Element|null) => ContextMenuEntry[])",
         "default": "[]",
-        "description": "Menu items and `'-'` separators, or a function returning them for the element the menu is opening on — which is how a row menu disables the actions that row does not allow. Returning an empty array cancels the opening."
+        "description": "Menu items and `'-'` separators, or a function returning them for the element the menu is opening on — which is how a row menu disables the actions that row does not allow. Returning an empty array cancels the opening.",
+        "update": {
+          "methods": [
+            "setItems()"
+          ]
+        }
       },
       {
         "name": "selector",
@@ -3763,7 +4433,12 @@
         "name": "data",
         "type": "DataFilterRow[]",
         "default": "[]",
-        "description": "Rows to filter."
+        "description": "Rows to filter.",
+        "update": {
+          "methods": [
+            "setData()"
+          ]
+        }
       },
       {
         "name": "autoApply",
@@ -4223,19 +4898,28 @@
         "name": "format",
         "type": "string",
         "default": "'%d.%m.%Y'",
-        "description": "Kernel date format the reader types, shown while the field has focus. Numeric tokens only (`%d %e %m %Y %y %H %M %S`), since it is parsed."
+        "description": "Kernel date format the reader types, shown while the field has focus. Numeric tokens only (`%d %e %m %Y %y %H %M %S`), since it is parsed.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "displayFormat",
         "type": "string|null",
         "default": "null",
-        "description": "Format the field shows while it does not have focus, so a date reads as the rest of the screen writes dates. It is never parsed, so it may use any `formatDate()` token, month and weekday names included. Null shows `format`."
+        "description": "Format the field shows while it does not have focus, so a date reads as the rest of the screen writes dates. It is never parsed, so it may use any `formatDate()` token, month and weekday names included. Null shows `format`.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "time",
         "type": "boolean",
         "default": "false",
-        "description": "Append `%H:%M` and show time controls."
+        "description": "Append `%H:%M` and show time controls.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "min",
@@ -4253,19 +4937,31 @@
         "name": "placeholder",
         "type": "string|null",
         "default": "null",
-        "description": "Input placeholder; null derives one from the format."
+        "description": "Input placeholder; null derives one from the format.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "clearable",
         "type": "boolean",
         "default": "true",
-        "description": "Show a clear button while a value is present and the box is enabled; without it the input keeps no room for one."
+        "description": "Show a clear button while a value is present and the box is enabled; without it the input keeps no room for one.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "disabled",
         "type": "boolean",
         "default": "false",
-        "description": "Disable all controls."
+        "description": "Disable all controls.",
+        "update": {
+          "methods": [
+            "disable()",
+            "enable()"
+          ]
+        }
       }
     ],
     "events": [
@@ -4347,31 +5043,52 @@
         "name": "title",
         "type": "string",
         "default": "''",
-        "description": "Dialog title."
+        "description": "Dialog title.",
+        "update": {
+          "methods": [
+            "setTitle()"
+          ]
+        }
       },
       {
         "name": "size",
         "type": "'sm'|'md'|'lg'|number",
         "default": "'md'",
-        "description": "Preset or pixel width."
+        "description": "Preset or pixel width.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "buttons",
         "type": "DialogButton[]",
         "default": "[]",
-        "description": "Footer buttons."
+        "description": "Footer buttons.",
+        "update": {
+          "methods": [
+            "setButtons()"
+          ]
+        }
       },
       {
         "name": "closable",
         "type": "boolean",
         "default": "true",
-        "description": "Whether Escape and the header button may close the dialog."
+        "description": "Whether Escape and the header button may close the dialog. When false the header button is not rendered as a control at all: it is not displayed, not focusable, and closes nothing.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "content",
         "type": "Node|string|number|{toElement: () => Node|null}|null",
         "default": "null",
-        "description": "Body content."
+        "description": "Body content.",
+        "update": {
+          "methods": [
+            "setContent()"
+          ]
+        }
       },
       {
         "name": "scope",
@@ -4679,7 +5396,12 @@
         "name": "content",
         "type": "Node|string|number|{toElement: () => Node|null}|null",
         "default": "null",
-        "description": "Panel content."
+        "description": "Panel content.",
+        "update": {
+          "methods": [
+            "setContent()"
+          ]
+        }
       },
       {
         "name": "placement",
@@ -4883,19 +5605,34 @@
         "name": "metadata",
         "type": "EntityRefMetadata[]",
         "default": "[]",
-        "description": "Labelled dense metadata."
+        "description": "Labelled dense metadata.",
+        "update": {
+          "methods": [
+            "setMetadata()"
+          ]
+        }
       },
       {
         "name": "link",
         "type": "EntityRefLinkValue",
         "default": "null",
-        "description": "Optional native primary link."
+        "description": "Optional native primary link.",
+        "update": {
+          "methods": [
+            "setLink()"
+          ]
+        }
       },
       {
         "name": "actions",
         "type": "EntityRefActionEntry[]",
         "default": "[]",
-        "description": "Secondary controls; element actions keep their own behavior."
+        "description": "Secondary controls; element actions keep their own behavior.",
+        "update": {
+          "methods": [
+            "setActions()"
+          ]
+        }
       },
       {
         "name": "size",
@@ -5057,7 +5794,12 @@
         "name": "value",
         "type": "unknown",
         "default": "undefined",
-        "description": "Initial value."
+        "description": "Initial value.",
+        "update": {
+          "methods": [
+            "setValue()"
+          ]
+        }
       },
       {
         "name": "placeholder",
@@ -5075,13 +5817,23 @@
         "name": "disabled",
         "type": "boolean",
         "default": "false",
-        "description": "Whether the control is disabled."
+        "description": "Whether the control is disabled.",
+        "update": {
+          "methods": [
+            "setDisabled()"
+          ]
+        }
       },
       {
         "name": "readonly",
         "type": "boolean",
         "default": "false",
-        "description": "Whether the value is read-only: shown and focusable, not editable. Types whose control has no read-only state (`checkbox`, `select`, `optionlist`, `zxselect`, `date`, `time`, …) ignore it."
+        "description": "Whether the value is read-only: shown and focusable, not editable. Types whose control has no read-only state (`checkbox`, `select`, `optionlist`, `zxselect`, `date`, `time`, …) ignore it.",
+        "update": {
+          "methods": [
+            "setReadonly()"
+          ]
+        }
       },
       {
         "name": "options",
@@ -5487,7 +6239,12 @@
         "name": "status",
         "type": "FileStatus",
         "default": "'ready'",
-        "description": "Durable or transient presentation state."
+        "description": "Durable or transient presentation state.",
+        "update": {
+          "methods": [
+            "setStatus()"
+          ]
+        }
       },
       {
         "name": "statusLabel",
@@ -5499,7 +6256,12 @@
         "name": "progress",
         "type": "number|null",
         "default": "null",
-        "description": "Completed percentage, clamped to 0–100."
+        "description": "Completed percentage, clamped to 0–100.",
+        "update": {
+          "methods": [
+            "setProgress()"
+          ]
+        }
       },
       {
         "name": "indeterminate",
@@ -5589,7 +6351,12 @@
         "name": "items",
         "type": "FileItemOptions[]",
         "default": "[]",
-        "description": "Initial files in host-supplied order."
+        "description": "Initial files in host-supplied order.",
+        "update": {
+          "methods": [
+            "setItems()"
+          ]
+        }
       },
       {
         "name": "label",
@@ -5601,7 +6368,12 @@
         "name": "loading",
         "type": "boolean",
         "default": "false",
-        "description": "Whether initial or incremental files are loading."
+        "description": "Whether initial or incremental files are loading.",
+        "update": {
+          "methods": [
+            "setLoading()"
+          ]
+        }
       },
       {
         "name": "loadingCount",
@@ -5702,7 +6474,12 @@
         "name": "value",
         "type": "FilterAst",
         "default": null,
-        "description": "Initial expression."
+        "description": "Initial expression.",
+        "update": {
+          "methods": [
+            "setValue()"
+          ]
+        }
       },
       {
         "name": "operators",
@@ -5768,7 +6545,12 @@
         "name": "readonly",
         "type": "boolean",
         "default": "false",
-        "description": "Prevent mutations while keeping values readable."
+        "description": "Prevent mutations while keeping values readable.",
+        "update": {
+          "methods": [
+            "setReadonly()"
+          ]
+        }
       },
       {
         "name": "disabled",
@@ -5908,7 +6690,12 @@
         "name": "value",
         "type": "Record<string, unknown>",
         "default": "{}",
-        "description": "Applied filters. The draft starts as a copy."
+        "description": "Applied filters. The draft starts as a copy.",
+        "update": {
+          "methods": [
+            "setValue()"
+          ]
+        }
       },
       {
         "name": "mode",
@@ -5998,7 +6785,12 @@
         "name": "items",
         "type": "TreeNode[]",
         "default": "[]",
-        "description": "Nested nodes."
+        "description": "Nested nodes.",
+        "update": {
+          "methods": [
+            "setItems()"
+          ]
+        }
       },
       {
         "name": "valueKey",
@@ -6022,7 +6814,12 @@
         "name": "path",
         "type": "unknown[]",
         "default": "[]",
-        "description": "Initially selected node IDs, from the root down."
+        "description": "Initially selected node IDs, from the root down.",
+        "update": {
+          "methods": [
+            "setPath()"
+          ]
+        }
       },
       {
         "name": "load",
@@ -6189,7 +6986,12 @@
         "name": "actions",
         "type": "FormAction[]",
         "default": "[]",
-        "description": "Form action descriptors."
+        "description": "Form action descriptors.",
+        "update": {
+          "methods": [
+            "setActions()"
+          ]
+        }
       },
       {
         "name": "novalidate",
@@ -6308,13 +7110,24 @@
         "name": "title",
         "type": "string",
         "default": "''",
-        "description": "Section title."
+        "description": "Section title.",
+        "update": {
+          "methods": [
+            "setTitle()"
+          ]
+        }
       },
       {
         "name": "open",
         "type": "boolean",
         "default": "true",
-        "description": "Initial expanded state."
+        "description": "Initial expanded state.",
+        "update": {
+          "methods": [
+            "open()",
+            "close()"
+          ]
+        }
       }
     ],
     "events": [
@@ -6380,7 +7193,12 @@
         "name": "description",
         "type": "string",
         "default": "''",
-        "description": "Text shown beside the indicator."
+        "description": "Text shown beside the indicator.",
+        "update": {
+          "methods": [
+            "setDescription()"
+          ]
+        }
       },
       {
         "name": "size",
@@ -6469,55 +7287,92 @@
         "name": "fields",
         "type": "import('../view/record-view.js').ViewField[]",
         "default": "[]",
-        "description": "Shared field descriptors."
+        "description": "Shared field descriptors.",
+        "update": {
+          "methods": [
+            "setFields()"
+          ]
+        }
       },
       {
         "name": "data",
         "type": "KanbanRecord[]",
         "default": "[]",
-        "description": "Records."
+        "description": "Records.",
+        "update": {
+          "methods": [
+            "setData()"
+          ]
+        }
       },
       {
         "name": "recordId",
         "type": "string|((record:KanbanRecord)=>unknown)",
         "default": "'ID'",
-        "description": "Stable record id accessor."
+        "description": "Stable record id accessor.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "sort",
         "type": "{id:string,dir:'asc'|'desc'}|null",
         "default": "null",
-        "description": "Shared initial sort."
+        "description": "Shared initial sort.",
+        "update": {
+          "methods": [
+            "setSort()"
+          ]
+        }
       },
       {
         "name": "sortMode",
         "type": "'local'|'server'",
         "default": "'local'",
-        "description": "Shared sort mode."
+        "description": "Shared sort mode.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "selectable",
         "type": "false|'single'|'multi'",
         "default": "false",
-        "description": "Shared selection mode."
+        "description": "Shared selection mode.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "selectionTrigger",
         "type": "'checkbox'|'card'",
         "default": "'checkbox'",
-        "description": "Select through a checkbox or the non-interactive card surface."
+        "description": "Select through a checkbox or the non-interactive card surface.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "selection",
         "type": "unknown[]",
         "default": "[]",
-        "description": "Initial record ids."
+        "description": "Initial record ids.",
+        "update": {
+          "methods": [
+            "setSelection()"
+          ]
+        }
       },
       {
         "name": "fieldOrder",
         "type": "string[]",
         "default": "[]",
-        "description": "Shared field order."
+        "description": "Shared field order.",
+        "update": {
+          "methods": [
+            "setFieldOrder()"
+          ]
+        }
       },
       {
         "name": "hiddenFields",
@@ -6529,283 +7384,436 @@
         "name": "fieldControls",
         "type": "boolean|import('../view/record-view.js').ViewFieldControlsConfig",
         "default": "true",
-        "description": "Show shared field controls. Redeclared narrower than `RecordViewOptions` it fails declaration emit, because the two option types are intersected."
+        "description": "Show shared field controls. Redeclared narrower than `RecordViewOptions` it fails declaration emit, because the two option types are intersected.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "emptyText",
         "type": "string|Node|(() => string|Node)|null",
         "default": "null",
-        "description": "Empty-board content."
+        "description": "Empty-board content.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "columnBy",
         "type": "KanbanAccessor",
         "default": "'status'",
-        "description": "Column accessor."
+        "description": "Column accessor.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "columns",
         "type": "KanbanColumn[]|null",
         "default": "null",
-        "description": "Explicit columns, or null to derive them."
+        "description": "Explicit columns, or null to derive them.",
+        "update": {
+          "methods": [
+            "setColumns()"
+          ]
+        }
       },
       {
         "name": "swimlaneBy",
         "type": "KanbanAccessor",
         "default": "null",
-        "description": "Optional swim-lane accessor."
+        "description": "Optional swim-lane accessor.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "swimlanes",
         "type": "KanbanSwimlane[]|null",
         "default": "null",
-        "description": "Explicit lanes, or null to derive them."
+        "description": "Explicit lanes, or null to derive them.",
+        "update": {
+          "methods": [
+            "setSwimlanes()"
+          ]
+        }
       },
       {
         "name": "titleField",
         "type": "KanbanCardField",
         "default": "null",
-        "description": "Card title field or reader."
+        "description": "Card title field or reader.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "subtitleField",
         "type": "KanbanCardField",
         "default": "null",
-        "description": "Card subtitle field or reader."
+        "description": "Card subtitle field or reader.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "preview",
         "type": "string|((record:KanbanRecord,index:number)=>RecordCardPreview)|null",
         "default": "null",
-        "description": "Preview field or reader."
+        "description": "Preview field or reader.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "previewAlt",
         "type": "KanbanCardField",
         "default": "null",
-        "description": "Preview alternative-text field or reader."
+        "description": "Preview alternative-text field or reader.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "link",
         "type": "RecordCardLink|((record:KanbanRecord,index:number)=>RecordCardLink)|null",
         "default": "null",
-        "description": "Record-card primary link descriptor or reader."
+        "description": "Record-card primary link descriptor or reader.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "actions",
         "type": "RecordCardAction[]|((record:KanbanRecord,index:number)=>RecordCardAction[])",
         "default": "[]",
-        "description": "Card actions."
+        "description": "Card actions.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "moveMode",
         "type": "'local'|'external'",
         "default": "'local'",
-        "description": "Whether accepted moves update local data."
+        "description": "Whether accepted moves update local data.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "dragFrom",
         "type": "'card'|'handle'",
         "default": "'card'",
-        "description": "Whether the whole card or only its handle starts a pointer drag. Touch drags from the card body require a long press so the board still scrolls."
+        "description": "Whether the whole card or only its handle starts a pointer drag. Touch drags from the card body require a long press so the board still scrolls.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "moveHandle",
         "type": "'keyboard'|'always'",
         "default": "'keyboard'",
-        "description": "Move-handle presentation. `keyboard` keeps it announced and tabbable but out of sight until it takes focus, because the card itself is already the pointer drag source; `always` shows it alongside the card's other controls. `dragFrom:'handle'` overrides this — a drag source a pointer user cannot see is not a control."
+        "description": "Move-handle presentation. `keyboard` keeps it announced and tabbable but out of sight until it takes focus, because the card itself is already the pointer drag source; `always` shows it alongside the card's other controls. `dragFrom:'handle'` overrides this — a drag source a pointer user cannot see is not a control.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "entityIcon",
         "type": "string|((record:KanbanRecord,index:number)=>string|null)|null",
         "default": "null",
-        "description": "Icon naming what the record is, drawn before the identifier."
+        "description": "Icon naming what the record is, drawn before the identifier.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "identifier",
         "type": "KanbanCardField",
         "default": "null",
-        "description": "Stable record key shown on the card head."
+        "description": "Stable record key shown on the card head.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "status",
         "type": "KanbanIndicatorSource",
         "default": "null",
-        "description": "Status indicator source."
+        "description": "Status indicator source.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "statusTones",
         "type": "Record<string,string>",
         "default": "{}",
-        "description": "Maps a status value to a semantic tone."
+        "description": "Maps a status value to a semantic tone.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "priority",
         "type": "KanbanIndicatorSource",
         "default": "null",
-        "description": "Priority indicator source."
+        "description": "Priority indicator source.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "priorityTones",
         "type": "Record<string,string>",
         "default": "{}",
-        "description": "Maps a priority value to a semantic tone."
+        "description": "Maps a priority value to a semantic tone.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "progress",
         "type": "KanbanCardField",
         "default": "null",
-        "description": "Completion source; a number or `{value,max,label}`."
+        "description": "Completion source; a number or `{value,max,label}`.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "progressMax",
         "type": "number",
         "default": "100",
-        "description": "Amount that counts as finished."
+        "description": "Amount that counts as finished.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "assignees",
         "type": "KanbanCardField",
         "default": "null",
-        "description": "Responsible people; a name, a list, or descriptors."
+        "description": "Responsible people; a name, a list, or descriptors.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "maxAvatars",
         "type": "number",
         "default": "3",
-        "description": "Faces drawn before the overflow chip."
+        "description": "Faces drawn before the overflow chip.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "multiMove",
         "type": "boolean",
         "default": "true",
-        "description": "Move the whole selection when a selected card is picked up."
+        "description": "Move the whole selection when a selected card is picked up.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "autoScroll",
         "type": "boolean",
         "default": "true",
-        "description": "Scroll the board and columns while dragging near an edge."
+        "description": "Scroll the board and columns while dragging near an edge.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "wipPolicy",
         "type": "'warn'|'block'",
         "default": "'warn'",
-        "description": "Whether exceeding a limit warns or refuses."
+        "description": "Whether exceeding a limit warns or refuses.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "rules",
         "type": "KanbanRule[]",
         "default": "[]",
-        "description": "Ordered visual card rules."
+        "description": "Ordered visual card rules.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "search",
         "type": "string",
         "default": "''",
-        "description": "Board search text."
+        "description": "Board search text.",
+        "update": {
+          "methods": [
+            "setSearch()"
+          ]
+        }
       },
       {
         "name": "searchFields",
         "type": "string[]|null",
         "default": "null",
-        "description": "Field ids searched; null searches visible fields plus the title and subtitle sources."
+        "description": "Field ids searched; null searches visible fields plus the title and subtitle sources.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "filter",
         "type": "((record:KanbanRecord,index:number)=>boolean)|null",
         "default": "null",
-        "description": "Extra card predicate."
+        "description": "Extra card predicate.",
+        "update": {
+          "methods": [
+            "setFilter()"
+          ]
+        }
       },
       {
         "name": "searchControl",
         "type": "boolean",
         "default": "false",
-        "description": "Render the built-in board search control."
+        "description": "Render the built-in board search control.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "history",
         "type": "boolean",
         "default": "true",
-        "description": "Record committed local moves for undo and redo."
+        "description": "Record committed local moves for undo and redo.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "historyLimit",
         "type": "number",
         "default": "50",
-        "description": "Maximum remembered move steps."
+        "description": "Maximum remembered move steps.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "historyControls",
         "type": "boolean",
         "default": "false",
-        "description": "Render built-in undo and redo controls."
+        "description": "Render built-in undo and redo controls.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "columnHeight",
         "type": "string|null",
         "default": "null",
-        "description": "CSS length turning each column into a scroll region."
+        "description": "CSS length turning each column into a scroll region.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "allowAdd",
         "type": "boolean|((column:KanbanColumn,swimlane:KanbanSwimlane|null)=>boolean)",
         "default": "false",
-        "description": "Render a per-column add control that emits `recordadd`."
+        "description": "Render a per-column add control that emits `recordadd`.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "contextMenu",
         "type": "boolean|MenuItem[]|((context:KanbanCardContext)=>MenuItem[])",
         "default": "false",
-        "description": "Card context menu. `true` offers move commands; an array or function appends application items."
+        "description": "Card context menu. `true` offers move commands; an array or function appends application items.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "renderCard",
         "type": "((context:KanbanCardContext)=>Node|null|undefined)|null",
         "default": "null",
-        "description": "Replaces the shared record-card content — eyebrow, titles, and metadata. The preview, selection control, action group, move handle, rule badges, and any configured card head and footer still render, because each of those answers to its own option; clear those options to remove them."
+        "description": "Replaces the shared record-card content — eyebrow, titles, and metadata. The preview, selection control, action group, move handle, rule badges, and any configured card head and footer still render, because each of those answers to its own option; clear those options to remove them.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "renderColumnHeader",
         "type": "((context:KanbanHeaderContext)=>Node|null|undefined)|null",
         "default": "null",
-        "description": "Replaces column header content."
+        "description": "Replaces column header content.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "renderSwimlaneHeader",
         "type": "((context:KanbanHeaderContext)=>Node|null|undefined)|null",
         "default": "null",
-        "description": "Replaces lane header content."
+        "description": "Replaces lane header content.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "renderColumnEmpty",
         "type": "((context:KanbanHeaderContext)=>Node|null|undefined)|null",
         "default": "null",
-        "description": "Empty-column placeholder."
+        "description": "Empty-column placeholder.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "renderDragPreview",
         "type": "((context:{records:KanbanRecord[],ids:unknown[],count:number})=>Node|null|undefined)|null",
         "default": "null",
-        "description": "Replaces the floating drag preview."
+        "description": "Replaces the floating drag preview.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "labels",
         "type": "Record<string,string>",
         "default": "{}",
-        "description": "Per-instance overrides of the board's text. Each key is the part after `kanbanView.` in the message catalogue, where every visible and announced string lives, and a value may reorder or drop the named placeholders."
+        "description": "Per-instance overrides of the board's text. Each key is the part after `kanbanView.` in the message catalogue, where every visible and announced string lives, and a value may reorder or drop the named placeholders.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "columnOrder",
         "type": "string[]",
         "default": "[]",
-        "description": "Preferred column order."
+        "description": "Preferred column order.",
+        "update": {
+          "methods": [
+            "setColumnOrder()"
+          ]
+        }
       },
       {
         "name": "swimlaneOrder",
         "type": "string[]",
         "default": "[]",
-        "description": "Preferred swim-lane order."
+        "description": "Preferred swim-lane order.",
+        "update": {
+          "methods": [
+            "setSwimlaneOrder()"
+          ]
+        }
       },
       {
         "name": "collapsedColumns",
@@ -6823,25 +7831,37 @@
         "name": "showCounts",
         "type": "boolean",
         "default": "true",
-        "description": "Show record counts and WIP indicators."
+        "description": "Show record counts and WIP indicators.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "showEmptyColumns",
         "type": "boolean",
         "default": "true",
-        "description": "Keep configured empty columns visible."
+        "description": "Keep configured empty columns visible.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "variant",
         "type": "'outlined'|'raised'|'filled'",
         "default": "'outlined'",
-        "description": "Shared record-card treatment."
+        "description": "Shared record-card treatment.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "label",
         "type": "string|null",
         "default": null,
-        "description": "Accessible board label, by default the `kanbanView.label` message (\"Kanban board\"). Null leaves the board unnamed."
+        "description": "Accessible board label, by default the `kanbanView.label` message (\"Kanban board\"). Null leaves the board unnamed.",
+        "update": {
+          "rebuild": true
+        }
       }
     ],
     "events": [
@@ -7089,19 +8109,34 @@
         "name": "items",
         "type": "LauncherItem[]",
         "default": "[]",
-        "description": "Local application/action catalogue."
+        "description": "Local application/action catalogue.",
+        "update": {
+          "methods": [
+            "setItems()"
+          ]
+        }
       },
       {
         "name": "sources",
         "type": "LauncherSource[]",
         "default": "[]",
-        "description": "Abortable asynchronous result sources."
+        "description": "Abortable asynchronous result sources.",
+        "update": {
+          "methods": [
+            "setSources()"
+          ]
+        }
       },
       {
         "name": "query",
         "type": "string",
         "default": "''",
-        "description": "Initial query."
+        "description": "Initial query.",
+        "update": {
+          "methods": [
+            "setQuery()"
+          ]
+        }
       },
       {
         "name": "debounce",
@@ -7361,13 +8396,23 @@
         "name": "search",
         "type": "ListToolbarSearch|boolean",
         "default": "{}",
-        "description": "Search field configuration; `false` omits it."
+        "description": "Search field configuration; `false` omits it.",
+        "update": {
+          "methods": [
+            "setSearch()"
+          ]
+        }
       },
       {
         "name": "count",
         "type": "number|null",
         "default": "null",
-        "description": "Initial result count shown in the live status line."
+        "description": "Initial result count shown in the live status line.",
+        "update": {
+          "methods": [
+            "setCount()"
+          ]
+        }
       },
       {
         "name": "countText",
@@ -7385,13 +8430,23 @@
         "name": "view",
         "type": "string|null",
         "default": "null",
-        "description": "Initially selected shape; omitted selects the first entry."
+        "description": "Initially selected shape; omitted selects the first entry.",
+        "update": {
+          "methods": [
+            "setView()"
+          ]
+        }
       },
       {
         "name": "tools",
         "type": "ListToolbarTool[]",
         "default": "[]",
-        "description": "Tool buttons, in display order."
+        "description": "Tool buttons, in display order.",
+        "update": {
+          "methods": [
+            "setTools()"
+          ]
+        }
       },
       {
         "name": "label",
@@ -7594,19 +8649,34 @@
         "name": "title",
         "type": "string",
         "default": "''",
-        "description": "Header title."
+        "description": "Header title.",
+        "update": {
+          "methods": [
+            "setTitle()"
+          ]
+        }
       },
       {
         "name": "content",
         "type": "MasterPanelContent",
         "default": "null",
-        "description": "Scrollable body content."
+        "description": "Scrollable body content.",
+        "update": {
+          "methods": [
+            "setContent()"
+          ]
+        }
       },
       {
         "name": "buttons",
         "type": "MasterPanelButton[]",
         "default": "[]",
-        "description": "Header action elements or button descriptors."
+        "description": "Header action elements or button descriptors.",
+        "update": {
+          "methods": [
+            "setButtons()"
+          ]
+        }
       },
       {
         "name": "module",
@@ -7618,7 +8688,12 @@
         "name": "footer",
         "type": "MasterPanelContent",
         "default": "null",
-        "description": "Optional fixed footer content."
+        "description": "Optional fixed footer content.",
+        "update": {
+          "methods": [
+            "setFooter()"
+          ]
+        }
       }
     ],
     "events": [],
@@ -7655,7 +8730,12 @@
         "name": "label",
         "type": "string",
         "default": "''",
-        "description": "Trigger label."
+        "description": "Trigger label.",
+        "update": {
+          "methods": [
+            "setLabel()"
+          ]
+        }
       },
       {
         "name": "icon",
@@ -7673,7 +8753,12 @@
         "name": "items",
         "type": "MenuButtonItem[]",
         "default": "[]",
-        "description": "Menu items and separators."
+        "description": "Menu items and separators.",
+        "update": {
+          "methods": [
+            "setItems()"
+          ]
+        }
       },
       {
         "name": "placement",
@@ -7872,6 +8957,12 @@
         "type": "Element|string|null",
         "default": "null",
         "description": "Element whose nearest Zx theme scope owns a floating toast."
+      },
+      {
+        "name": "placement",
+        "type": "MessagePlacement",
+        "default": "'top-end'",
+        "description": "Where a floating toast sits in the viewport; the default is the one set with `Message.setPlacement()`. Messages of one placement share a region. Ignored by an inline area."
       }
     ],
     "events": [],
@@ -7883,7 +8974,12 @@
         "name": "content",
         "type": "Node|string|number|{toElement: () => Node|null}|null",
         "default": "null",
-        "description": "Modal content."
+        "description": "Modal content.",
+        "update": {
+          "methods": [
+            "setContent()"
+          ]
+        }
       },
       {
         "name": "width",
@@ -7978,13 +9074,23 @@
         "name": "items",
         "type": "ModuleItem[]",
         "default": "[]",
-        "description": "Modules, in bar order."
+        "description": "Modules, in bar order.",
+        "update": {
+          "methods": [
+            "setItems()"
+          ]
+        }
       },
       {
         "name": "active",
         "type": "string|number|null",
         "default": "null",
-        "description": "Active destination id: a module, or any item in a module's menu."
+        "description": "Active destination id: a module, or any item in a module's menu.",
+        "update": {
+          "methods": [
+            "setActive()"
+          ]
+        }
       },
       {
         "name": "orientation",
@@ -8008,7 +9114,12 @@
         "name": "labels",
         "type": "'hidden'|'below'|'beside'",
         "default": "'hidden'",
-        "description": "Whether a vertical bar prints each module's name: under its tile (a narrow strip), beside it (a full navigation column, with the count at the end of the row), or not at all — the name then stays the accessible name and the tooltip. Horizontal bars never print names."
+        "description": "Whether a vertical bar prints each module's name: under its tile (a narrow strip), beside it (a full navigation column, with the count at the end of the row), or not at all — the name then stays the accessible name and the tooltip. Horizontal bars never print names.",
+        "update": {
+          "methods": [
+            "setLabels()"
+          ]
+        }
       },
       {
         "name": "menus",
@@ -8020,7 +9131,12 @@
         "name": "expanded",
         "type": "string|number|null",
         "default": "null",
-        "description": "With `menus: 'none'`, the module whose menu the adjacent panel shows."
+        "description": "With `menus: 'none'`, the module whose menu the adjacent panel shows.",
+        "update": {
+          "methods": [
+            "setExpanded()"
+          ]
+        }
       },
       {
         "name": "controls",
@@ -8241,7 +9357,12 @@
         "name": "values",
         "type": "unknown[]",
         "default": "[]",
-        "description": "Initial ordered values."
+        "description": "Initial ordered values.",
+        "update": {
+          "methods": [
+            "setValues()"
+          ]
+        }
       },
       {
         "name": "options",
@@ -8290,25 +9411,45 @@
         "name": "title",
         "type": "string",
         "default": "''",
-        "description": "Brand or application title."
+        "description": "Brand or application title.",
+        "update": {
+          "methods": [
+            "setTitle()"
+          ]
+        }
       },
       {
         "name": "items",
         "type": "NavigationItem[]",
         "default": "[]",
-        "description": "Navigation items."
+        "description": "Navigation items.",
+        "update": {
+          "methods": [
+            "setItems()"
+          ]
+        }
       },
       {
         "name": "active",
         "type": "string|null",
         "default": "null",
-        "description": "Initially active item, or the first enabled item."
+        "description": "Initially active item, or the first enabled item.",
+        "update": {
+          "methods": [
+            "setActive()"
+          ]
+        }
       },
       {
         "name": "actions",
         "type": "NavigationAction[]",
         "default": "[]",
-        "description": "Right-aligned action elements or descriptors."
+        "description": "Right-aligned action elements or descriptors.",
+        "update": {
+          "methods": [
+            "setActions()"
+          ]
+        }
       },
       {
         "name": "overflow",
@@ -8447,7 +9588,12 @@
         "name": "readonly",
         "type": "boolean",
         "default": "false",
-        "description": "Whether the value is read-only."
+        "description": "Whether the value is read-only.",
+        "update": {
+          "methods": [
+            "setReadonly()"
+          ]
+        }
       },
       {
         "name": "required",
@@ -8573,19 +9719,34 @@
         "name": "page",
         "type": "number",
         "default": "1",
-        "description": "One-based current page."
+        "description": "One-based current page.",
+        "update": {
+          "methods": [
+            "setPage()"
+          ]
+        }
       },
       {
         "name": "pageSize",
         "type": "number",
         "default": "25",
-        "description": "Rows per page."
+        "description": "Rows per page.",
+        "update": {
+          "methods": [
+            "setPageSize()"
+          ]
+        }
       },
       {
         "name": "total",
         "type": "number",
         "default": "0",
-        "description": "Total row count; 0 is one empty page."
+        "description": "Total row count; 0 is one empty page.",
+        "update": {
+          "methods": [
+            "setTotal()"
+          ]
+        }
       },
       {
         "name": "pageSizes",
@@ -8730,13 +9891,23 @@
         "name": "title",
         "type": "string",
         "default": "''",
-        "description": "Section title."
+        "description": "Section title.",
+        "update": {
+          "methods": [
+            "setTitle()"
+          ]
+        }
       },
       {
         "name": "content",
         "type": "PanelContent",
         "default": "null",
-        "description": "Initial body content."
+        "description": "Initial body content.",
+        "update": {
+          "methods": [
+            "setContent()"
+          ]
+        }
       },
       {
         "name": "open",
@@ -8754,19 +9925,34 @@
         "name": "buttons",
         "type": "PanelButton[]",
         "default": "[]",
-        "description": "Header actions, right-aligned next to the title."
+        "description": "Header actions, right-aligned next to the title.",
+        "update": {
+          "methods": [
+            "setButtons()"
+          ]
+        }
       },
       {
         "name": "footer",
         "type": "PanelContent",
         "default": "null",
-        "description": "Optional footer content."
+        "description": "Optional footer content.",
+        "update": {
+          "methods": [
+            "setFooter()"
+          ]
+        }
       },
       {
         "name": "footerButtons",
         "type": "PanelButton[]",
         "default": "[]",
-        "description": "Footer actions, right-aligned in the footer bar."
+        "description": "Footer actions, right-aligned in the footer bar.",
+        "update": {
+          "methods": [
+            "setFooterButtons()"
+          ]
+        }
       }
     ],
     "events": [
@@ -8862,31 +10048,56 @@
         "name": "max",
         "type": "number",
         "default": "100",
-        "description": "Amount that counts as finished."
+        "description": "Amount that counts as finished.",
+        "update": {
+          "methods": [
+            "setMax()"
+          ]
+        }
       },
       {
         "name": "label",
         "type": "string",
         "default": "''",
-        "description": "Visible name of the task."
+        "description": "Visible name of the task.",
+        "update": {
+          "methods": [
+            "setLabel()"
+          ]
+        }
       },
       {
         "name": "helperText",
         "type": "string",
         "default": "''",
-        "description": "Supporting line below the track."
+        "description": "Supporting line below the track.",
+        "update": {
+          "methods": [
+            "setHelperText()"
+          ]
+        }
       },
       {
         "name": "status",
         "type": "'active'|'success'|'error'",
         "default": "'active'",
-        "description": "Visual state of the track."
+        "description": "Visual state of the track.",
+        "update": {
+          "methods": [
+            "setStatus()"
+          ]
+        }
       },
       {
         "name": "indeterminate",
         "type": "boolean",
         "default": "false",
-        "description": "Whether the amount done is unknown."
+        "description": "Whether the amount done is unknown.",
+        "update": {
+          "methods": [
+            "setIndeterminate()"
+          ]
+        }
       },
       {
         "name": "size",
@@ -9030,7 +10241,12 @@
         "name": "items",
         "type": "PromptStarter[]",
         "default": "[]",
-        "description": "The starters. An entry without `id`, `title` or `text` is left out, as is a repeated id; any other field on an item is handed back in `pick`."
+        "description": "The starters. An entry without `id`, `title` or `text` is left out, as is a repeated id; any other field on an item is handed back in `pick`.",
+        "update": {
+          "methods": [
+            "setItems()"
+          ]
+        }
       },
       {
         "name": "label",
@@ -9133,13 +10349,23 @@
         "name": "items",
         "type": "QuestionnaireItem[]",
         "default": "[]",
-        "description": "Ordered question definitions."
+        "description": "Ordered question definitions.",
+        "update": {
+          "methods": [
+            "setItems()"
+          ]
+        }
       },
       {
         "name": "answers",
         "type": "Record<string, unknown>",
         "default": "{}",
-        "description": "Answers to start from. Together with `active` this is the resume pair: hand back what a previous session collected."
+        "description": "Answers to start from. Together with `active` this is the resume pair: hand back what a previous session collected.",
+        "update": {
+          "methods": [
+            "setAnswers()"
+          ]
+        }
       },
       {
         "name": "active",
@@ -9357,7 +10583,12 @@
         "name": "readonly",
         "type": "boolean",
         "default": "false",
-        "description": "Whether the rating is display-only."
+        "description": "Whether the rating is display-only.",
+        "update": {
+          "methods": [
+            "setReadonly()"
+          ]
+        }
       },
       {
         "name": "disabled",
@@ -9393,7 +10624,12 @@
         "name": "count",
         "type": "number|null",
         "default": "null",
-        "description": "Optional rating count rendered beside the value."
+        "description": "Optional rating count rendered beside the value.",
+        "update": {
+          "methods": [
+            "setCount()"
+          ]
+        }
       },
       {
         "name": "size",
@@ -9585,13 +10821,23 @@
         "name": "fields",
         "type": "ViewField[]",
         "default": "[]",
-        "description": "Shared ordered field descriptors."
+        "description": "Shared ordered field descriptors.",
+        "update": {
+          "methods": [
+            "setFields()"
+          ]
+        }
       },
       {
         "name": "data",
         "type": "ViewRecord[]",
         "default": "[]",
-        "description": "Initial records."
+        "description": "Initial records.",
+        "update": {
+          "methods": [
+            "setData()"
+          ]
+        }
       },
       {
         "name": "recordId",
@@ -9603,7 +10849,12 @@
         "name": "sort",
         "type": "ViewSort|null",
         "default": "null",
-        "description": "Initial sort."
+        "description": "Initial sort.",
+        "update": {
+          "methods": [
+            "setSort()"
+          ]
+        }
       },
       {
         "name": "sortMode",
@@ -9621,13 +10872,23 @@
         "name": "selection",
         "type": "unknown[]",
         "default": "[]",
-        "description": "Initially selected record ids."
+        "description": "Initially selected record ids.",
+        "update": {
+          "methods": [
+            "setSelection()"
+          ]
+        }
       },
       {
         "name": "fieldOrder",
         "type": "string[]",
         "default": "[]",
-        "description": "Field ids in preferred order."
+        "description": "Field ids in preferred order.",
+        "update": {
+          "methods": [
+            "setFieldOrder()"
+          ]
+        }
       },
       {
         "name": "hiddenFields",
@@ -9885,103 +11146,182 @@
         "name": "state",
         "type": "RunState",
         "default": "'queued'",
-        "description": "Where the run stands. Also the root's `data-state`. A `blocked` run is not over: it shows since when it is blocked, never a finished time."
+        "description": "Where the run stands. Also the root's `data-state`. A `blocked` run is not over: it shows since when it is blocked, never a finished time.",
+        "update": {
+          "methods": [
+            "update({ state })"
+          ]
+        }
       },
       {
         "name": "summary",
         "type": "string",
         "default": "''",
-        "description": "One sentence on what is happening: \"Step 3 of 6 needs your approval.\" Text only."
+        "description": "One sentence on what is happening: \"Step 3 of 6 needs your approval.\" Text only.",
+        "update": {
+          "methods": [
+            "update({ summary })"
+          ]
+        }
       },
       {
         "name": "steps",
         "type": "RunSteps|null",
         "default": "null",
-        "description": "Steps done out of the total, drawn as a progressbar."
+        "description": "Steps done out of the total, drawn as a progressbar.",
+        "update": {
+          "methods": [
+            "update({ steps })"
+          ]
+        }
       },
       {
         "name": "started",
         "type": "RunTime|null",
         "default": "null",
-        "description": "When the run started."
+        "description": "When the run started.",
+        "update": {
+          "methods": [
+            "update({ started })"
+          ]
+        }
       },
       {
         "name": "finished",
         "type": "RunTime|null",
         "default": "null",
-        "description": "When it finished, failed, or was stopped. Shown once the run is over."
+        "description": "When it finished, failed, or was stopped. Shown once the run is over.",
+        "update": {
+          "methods": [
+            "update({ finished })"
+          ]
+        }
       },
       {
         "name": "workMs",
         "type": "number|null",
         "default": "null",
-        "description": "How long the agent has worked, in milliseconds. Waiting for a person is not work. The row shows only when this is a number."
+        "description": "How long the agent has worked, in milliseconds. Waiting for a person is not work. The row shows only when this is a number.",
+        "update": {
+          "methods": [
+            "update({ workMs })"
+          ]
+        }
       },
       {
         "name": "waitingSince",
         "type": "RunTime|null",
         "default": "null",
-        "description": "Since when the run has waited for a person, or been blocked. Shown as \"Waiting since\" while the state is `waiting` and \"Blocked since\" while it is `blocked`."
+        "description": "Since when the run has waited for a person, or been blocked. Shown as \"Waiting since\" while the state is `waiting` and \"Blocked since\" while it is `blocked`.",
+        "update": {
+          "methods": [
+            "update({ waitingSince })"
+          ]
+        }
       },
       {
         "name": "tokens",
         "type": "RunTokens|null",
         "default": "null",
-        "description": "Input and output tokens as `[in, out]`, or the total as one number."
+        "description": "Input and output tokens as `[in, out]`, or the total as one number.",
+        "update": {
+          "methods": [
+            "update({ tokens })"
+          ]
+        }
       },
       {
         "name": "tokenBudget",
         "type": "number|null",
         "default": "null",
-        "description": "The most tokens the run may use. With a budget the tokens are a meter, read in compact figures (\"22.8K of 60K tokens\"), that turns to the warning tone from 80% and to the danger tone at 100%. Without one they stay text."
+        "description": "The most tokens the run may use. With a budget the tokens are a meter, read in compact figures (\"22.8K of 60K tokens\"), that turns to the warning tone from 80% and to the danger tone at 100%. Without one they stay text.",
+        "update": {
+          "methods": [
+            "update({ tokenBudget })"
+          ]
+        }
       },
       {
         "name": "cost",
         "type": "RunCost|null",
         "default": "null",
-        "description": "What the run has cost, against its budget."
+        "description": "What the run has cost, against its budget.",
+        "update": {
+          "methods": [
+            "update({ cost })"
+          ]
+        }
       },
       {
         "name": "model",
         "type": "string|null",
         "default": "null",
-        "description": "The model the agent runs on."
+        "description": "The model the agent runs on.",
+        "update": {
+          "methods": [
+            "update({ model })"
+          ]
+        }
       },
       {
         "name": "actions",
         "type": "RunStatusAction[]",
         "default": "[]",
-        "description": "Buttons under the summary."
+        "description": "Buttons under the summary.",
+        "update": {
+          "methods": [
+            "update({ actions })"
+          ]
+        }
       },
       {
         "name": "ticking",
         "type": "boolean",
         "default": "true",
-        "description": "While the state is `running`, the working time counts on once a second from `workMs` and the moment of the last `update()`. One interval, which sleeps while the page is hidden."
+        "description": "While the state is `running`, the working time counts on once a second from `workMs` and the moment of the last `update()`. One interval, which sleeps while the page is hidden.",
+        "update": {
+          "methods": [
+            "update({ ticking })"
+          ]
+        }
       },
       {
         "name": "compact",
         "type": "boolean|'icon'",
         "default": "false",
-        "description": "Draws only the state: `true` as a pill of glyph and word for a narrow header, `'icon'` as the glyph alone, its word visually hidden but still the accessible text, and shown as the pill's tooltip."
+        "description": "Draws only the state: `true` as a pill of glyph and word for a narrow header, `'icon'` as the glyph alone, its word visually hidden but still the accessible text, and shown as the pill's tooltip.",
+        "update": {
+          "methods": [
+            "update({ compact })"
+          ]
+        }
       },
       {
         "name": "now",
         "type": "(() => Date)|null",
         "default": "null",
-        "description": "The clock: what decides whether a time is today (a time on another day shows its date too) and what the working time counts against while `ticking`. Null is real time. Fixed at construction."
+        "description": "The clock: what decides whether a time is today (a time on another day shows its date too) and what the working time counts against while `ticking`. Null is real time. Fixed at construction.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "locale",
         "type": "string",
         "default": null,
-        "description": "BCP 47 tag for numbers and amounts; defaults to the active language."
+        "description": "BCP 47 tag for numbers and amounts; defaults to the active language.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "msg",
         "type": "Record<string, string>|Record<string, Record<string, string>>",
         "default": null,
-        "description": "Localized messages: the state words (`agent.status.*`) and the `runStatus.*` labels."
+        "description": "Localized messages: the state words (`agent.status.*`) and the `runStatus.*` labels.",
+        "update": {
+          "rebuild": true
+        }
       }
     ],
     "events": [
@@ -10012,85 +11352,134 @@
         "name": "steps",
         "type": "TraceStep[]",
         "default": "[]",
-        "description": "The steps the run took, in the order they started. A step with `retryOf` is drawn under the step it repeats. Model text is data: every string reaches the page as text."
+        "description": "The steps the run took, in the order they started. A step with `retryOf` is drawn under the step it repeats. Model text is data: every string reaches the page as text.",
+        "update": {
+          "methods": [
+            "setSteps()"
+          ]
+        }
       },
       {
         "name": "open",
         "type": "boolean",
         "default": "false",
-        "description": "Whether the step list starts open under its summary."
+        "description": "Whether the step list starts open under its summary.",
+        "update": {
+          "methods": [
+            "expand()",
+            "collapse()"
+          ]
+        }
       },
       {
         "name": "label",
         "type": "string|null",
         "default": "null",
-        "description": "Text the summary reads instead of the computed \"Worked for …\" line — a plan's title, \"Plan · 5 of 6 done\". Any state but done still follows it as a word (\"· Running\"). `setLabel()` changes it."
+        "description": "Text the summary reads instead of the computed \"Worked for …\" line — a plan's title, \"Plan · 5 of 6 done\". Any state but done still follows it as a word (\"· Running\"). `setLabel()` changes it.",
+        "update": {
+          "methods": [
+            "setLabel()"
+          ]
+        }
       },
       {
         "name": "authors",
         "type": "Record<string, Author>",
         "default": "{}",
-        "description": "Who the `actor` and `to` keys of the steps name; a hand-off draws both authors' avatars, round for a `person` and rounded squares otherwise. A key with no entry is shown as written."
+        "description": "Who the `actor` and `to` keys of the steps name; a hand-off draws both authors' avatars, round for a `person` and rounded squares otherwise. A key with no entry is shown as written.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "showArguments",
         "type": "boolean",
         "default": "true",
-        "description": "Whether a step's disclosure shows the arguments its call was made with."
+        "description": "Whether a step's disclosure shows the arguments its call was made with.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "maxResult",
         "type": "number",
         "default": "4000",
-        "description": "Characters of a result shown before it is cut, with a \"Show all\" button for the rest. Zero or a non-finite value shows every result whole."
+        "description": "Characters of a result shown before it is cut, with a \"Show all\" button for the rest. Zero or a non-finite value shows every result whole.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "summary",
         "type": "boolean",
         "default": "true",
-        "description": "Whether the steps fold into a summary line. Without it the list always shows — for a run panel whose state is already told beside it."
+        "description": "Whether the steps fold into a summary line. Without it the list always shows — for a run panel whose state is already told beside it.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "kindIcons",
         "type": "boolean|null",
         "default": "null",
-        "description": "Whether each step leads with its kind's glyph. Without them a step shows only its status. `null` decides by the steps: a plan, where every step is a `task`, shows none; anything else shows them."
+        "description": "Whether each step leads with its kind's glyph. Without them a step shows only its status. `null` decides by the steps: a plan, where every step is a `task`, shows none; anything else shows them.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "selectable",
         "type": "boolean",
         "default": "false",
-        "description": "Whether every step can be chosen: a row with nothing to open becomes a button, and a disclosure also reports the step as it opens. Both emit `select`."
+        "description": "Whether every step can be chosen: a row with nothing to open becomes a button, and a disclosure also reports the step as it opens. Both emit `select`.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "ticking",
         "type": "boolean",
         "default": "false",
-        "description": "Whether a running step that has `at` shows how long it has run, counting once a second. One interval serves the whole trace; it runs only while such a step is on screen in the open list, and sleeps while the page is hidden."
+        "description": "Whether a running step that has `at` shows how long it has run, counting once a second. One interval serves the whole trace; it runs only while such a step is on screen in the open list, and sleeps while the page is hidden.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "now",
         "type": "(() => Date)|null",
         "default": "null",
-        "description": "The clock `ticking` counts against, for an application whose world is fixed on another date; real time when null."
+        "description": "The clock `ticking` counts against, for an application whose world is fixed on another date; real time when null.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "formatTime",
         "type": "((at: string) => string)|null",
         "default": "null",
-        "description": "Writes a step's `at` for its meta line; \"10:31:05\" (the local ISO time as given) when null."
+        "description": "Writes a step's `at` for its meta line; \"10:31:05\" (the local ISO time as given) when null.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "icons",
         "type": "Partial<Record<TraceKind, string>>",
         "default": "{}",
-        "description": "Icon names per step kind, over the built-in `STEP_ICONS`."
+        "description": "Icon names per step kind, over the built-in `STEP_ICONS`.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "msg",
         "type": "Record<string, string>|Record<string, Record<string, string>>",
         "default": null,
-        "description": "Localized messages: the `runTrace.*` keys and the `agent.status.*` words."
+        "description": "Localized messages: the `runTrace.*` keys and the `agent.status.*` words.",
+        "update": {
+          "rebuild": true
+        }
       }
     ],
     "events": [
@@ -10166,19 +11555,30 @@
         "name": "value",
         "type": "string",
         "default": "''",
-        "description": "Initial query."
+        "description": "Initial query.",
+        "update": {
+          "methods": [
+            "set()"
+          ]
+        }
       },
       {
         "name": "clearable",
         "type": "boolean",
         "default": "true",
-        "description": "Whether to show a clear control."
+        "description": "Whether to show a clear control.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "debounce",
         "type": "number",
         "default": "250",
-        "description": "Input debounce in milliseconds."
+        "description": "Input debounce in milliseconds.",
+        "update": {
+          "rebuild": true
+        }
       }
     ],
     "events": [
@@ -10231,13 +11631,23 @@
         "name": "items",
         "type": "SelectItem[]",
         "default": "[]",
-        "description": "Available values."
+        "description": "Available values.",
+        "update": {
+          "methods": [
+            "setItems()"
+          ]
+        }
       },
       {
         "name": "fixedItems",
         "type": "SelectItem[]",
         "default": "[]",
-        "description": "Choices pinned above the list, kept through filtering and async loads."
+        "description": "Choices pinned above the list, kept through filtering and async loads.",
+        "update": {
+          "methods": [
+            "setFixedItems()"
+          ]
+        }
       },
       {
         "name": "fixedLabel",
@@ -10249,13 +11659,19 @@
         "name": "valueKey",
         "type": "SelectValueReader",
         "default": "'ID'",
-        "description": "Item ID property or reader."
+        "description": "Item ID property or reader.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "labelKey",
         "type": "SelectLabelReader",
         "default": "'name'",
-        "description": "Item label property or reader."
+        "description": "Item label property or reader.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "renderItem",
@@ -10291,19 +11707,35 @@
         "name": "actions",
         "type": "SelectAction[]",
         "default": "[]",
-        "description": "Command rows that emit `action` without changing value."
+        "description": "Command rows that emit `action` without changing value.",
+        "update": {
+          "methods": [
+            "setActions()"
+          ]
+        }
       },
       {
         "name": "value",
         "type": "unknown",
         "default": "null",
-        "description": "Initially selected ID or item."
+        "description": "Initially selected ID or item.",
+        "update": {
+          "methods": [
+            "set()"
+          ]
+        }
       },
       {
         "name": "disabled",
         "type": "boolean",
         "default": "false",
-        "description": "Whether interaction is disabled."
+        "description": "Whether interaction is disabled.",
+        "update": {
+          "methods": [
+            "disable()",
+            "enable()"
+          ]
+        }
       },
       {
         "name": "placeholder",
@@ -10321,37 +11753,55 @@
         "name": "clearable",
         "type": "boolean",
         "default": "false",
-        "description": "Whether selection may be cleared."
+        "description": "Whether selection may be cleared.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "filter",
         "type": "false|'local'|((query: string) => Promise<SelectItem[]>|SelectItem[])",
         "default": "false",
-        "description": "Filtering mode."
+        "description": "Filtering mode.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "searchKeys",
         "type": "Array<SelectValueReader>|null",
         "default": "null",
-        "description": "Fields searched by local filtering."
+        "description": "Fields searched by local filtering.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "minQuery",
         "type": "number",
         "default": "0",
-        "description": "Minimum async query length."
+        "description": "Minimum async query length.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "debounce",
         "type": "number",
         "default": "200",
-        "description": "Async query delay in milliseconds."
+        "description": "Async query delay in milliseconds.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "listHeight",
         "type": "number",
         "default": "280",
-        "description": "Maximum list height in pixels."
+        "description": "Maximum list height in pixels.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "groupKey",
@@ -10527,7 +11977,12 @@
         "name": "side",
         "type": "SheetSide",
         "default": "'end'",
-        "description": "Edge the sheet is anchored to. Logical, so `start` and `end` follow the writing direction."
+        "description": "Edge the sheet is anchored to. Logical, so `start` and `end` follow the writing direction.",
+        "update": {
+          "methods": [
+            "setSide()"
+          ]
+        }
       },
       {
         "name": "modal",
@@ -10545,13 +12000,18 @@
         "name": "size",
         "type": "string|number|null",
         "default": "null",
-        "description": "Size along the sheet's own axis — width for `start`/`end`, height for `top`/`bottom`. A number is pixels, a string is any CSS length. Null keeps the per-side default."
+        "description": "Size along the sheet's own axis — width for `start`/`end`, height for `top`/`bottom`. A number is pixels, a string is any CSS length. Null keeps the per-side default.",
+        "update": {
+          "methods": [
+            "setSize()"
+          ]
+        }
       },
       {
         "name": "closeButton",
         "type": "boolean",
         "default": "true",
-        "description": "Whether the header shows its close control. Independent of `closable`, so a sheet can offer Escape without an ✕, or the reverse."
+        "description": "Whether the header shows its close control. Independent of `closable`, so a sheet can offer Escape without an ✕, or the reverse. When false the control is not displayed, not focusable, and closes nothing."
       },
       {
         "name": "resizable",
@@ -10587,19 +12047,34 @@
         "name": "title",
         "type": "string",
         "default": "''",
-        "description": "Header title."
+        "description": "Header title.",
+        "update": {
+          "methods": [
+            "setTitle()"
+          ]
+        }
       },
       {
         "name": "content",
         "type": "Node|string|number|{toElement: () => Node|null}|null",
         "default": "null",
-        "description": "Body content."
+        "description": "Body content.",
+        "update": {
+          "methods": [
+            "setContent()"
+          ]
+        }
       },
       {
         "name": "buttons",
         "type": "import('../dialog/dialog.js').DialogButton[]",
         "default": "[]",
-        "description": "Footer buttons."
+        "description": "Footer buttons.",
+        "update": {
+          "methods": [
+            "setButtons()"
+          ]
+        }
       },
       {
         "name": "closable",
@@ -10944,7 +12419,12 @@
         "name": "label",
         "type": "string",
         "default": "''",
-        "description": "Visible name of the control."
+        "description": "Visible name of the control.",
+        "update": {
+          "methods": [
+            "setLabel()"
+          ]
+        }
       },
       {
         "name": "hideLabel",
@@ -10992,7 +12472,12 @@
         "name": "readonly",
         "type": "boolean",
         "default": "false",
-        "description": "Whether the value is displayed but cannot be changed."
+        "description": "Whether the value is displayed but cannot be changed.",
+        "update": {
+          "methods": [
+            "setReadonly()"
+          ]
+        }
       },
       {
         "name": "size",
@@ -11088,7 +12573,12 @@
         "name": "value",
         "type": "SortValue|null",
         "default": "null",
-        "description": "Initial sort; null chooses the first field ascending."
+        "description": "Initial sort; null chooses the first field ascending.",
+        "update": {
+          "methods": [
+            "setValue()"
+          ]
+        }
       },
       {
         "name": "label",
@@ -11161,37 +12651,57 @@
         "name": "sources",
         "type": "Source[]",
         "default": "[]",
-        "description": "The sources, in the order an answer's `[n]` citations number them. Model text is data: every string reaches the page as text."
+        "description": "The sources, in the order an answer's `[n]` citations number them. Model text is data: every string reaches the page as text.",
+        "update": {
+          "methods": [
+            "setSources()"
+          ]
+        }
       },
       {
         "name": "label",
         "type": "string|null",
         "default": null,
-        "description": "The visible label the list is named by, by default the `sourceList.label` message (\"Sources\"). Empty or null hides it and names the list with that message instead."
+        "description": "The visible label the list is named by, by default the `sourceList.label` message (\"Sources\"). Empty or null hides it and names the list with that message instead.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "layout",
         "type": "'chips'|'list'",
         "default": "'chips'",
-        "description": "`'chips'` wraps short chips beside the label; `'list'` gives each source a full-width row with its title and site."
+        "description": "`'chips'` wraps short chips beside the label; `'list'` gives each source a full-width row with its title and site.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "numbered",
         "type": "boolean",
         "default": "true",
-        "description": "Whether each source shows its number."
+        "description": "Whether each source shows its number.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "icons",
         "type": "Partial<Record<SourceKind, string>>",
         "default": "{}",
-        "description": "Icon names per source kind, over the built-in `SOURCE_ICONS`."
+        "description": "Icon names per source kind, over the built-in `SOURCE_ICONS`.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "msg",
         "type": "Record<string, string>|Record<string, Record<string, string>>",
         "default": null,
-        "description": "Localized messages."
+        "description": "Localized messages.",
+        "update": {
+          "rebuild": true
+        }
       }
     ],
     "events": [
@@ -11258,19 +12768,34 @@
         "name": "start",
         "type": "SplitViewContent",
         "default": "null",
-        "description": "Leading pane content (left, or top)."
+        "description": "Leading pane content (left, or top).",
+        "update": {
+          "methods": [
+            "setStart()"
+          ]
+        }
       },
       {
         "name": "end",
         "type": "SplitViewContent",
         "default": "null",
-        "description": "Trailing pane content (right, or bottom)."
+        "description": "Trailing pane content (right, or bottom).",
+        "update": {
+          "methods": [
+            "setEnd()"
+          ]
+        }
       },
       {
         "name": "size",
         "type": "number|string",
         "default": "'38%'",
-        "description": "Initial size of the START pane. A number is pixels, a string is any CSS length the browser understands; `%` resolves against the container."
+        "description": "Initial size of the START pane. A number is pixels, a string is any CSS length the browser understands; `%` resolves against the container.",
+        "update": {
+          "methods": [
+            "setSize()"
+          ]
+        }
       },
       {
         "name": "min",
@@ -11568,7 +13093,7 @@
         "name": "clickable",
         "type": "boolean",
         "default": "false",
-        "description": "Renders a `<button>` without an href. Passing `onclick` sets this implicitly; set it directly to subscribe with `on('click', …)` instead."
+        "description": "Renders a `<button>` without an href. Passing a function as `onclick` sets this implicitly; set it to `true` to subscribe with `on('click', …)` instead. An explicit `false` wins over `onclick`: the tile stays a `<div>` and the handler is never called — for a caller that always passes a handler and decides per tile whether it applies. It does not turn a tile with an `href` into anything but a link."
       },
       {
         "name": "loading",
@@ -11587,7 +13112,7 @@
       {
         "name": "click",
         "payload": "{event: MouseEvent}",
-        "description": "Activation listener; its presence is what turns a tile with no href into a button. It is the tile's `click` event, as every Zx component's `on*` option is, so it receives the `CustomEvent` carrying the native event in `detail.event`."
+        "description": "Activation listener; its presence is what turns a tile with no href into a button, unless `clickable` is `false`. Leave it out — rather than passing an empty function — for a tile that does nothing. It is the tile's `click` event, as every Zx component's `on*` option is, so it receives the `CustomEvent` carrying the native event in `detail.event`."
       }
     ],
     "methods": [
@@ -11641,7 +13166,12 @@
         "name": "steps",
         "type": "StepDefinition[]",
         "default": "[]",
-        "description": "Ordered step definitions."
+        "description": "Ordered step definitions.",
+        "update": {
+          "methods": [
+            "setSteps()"
+          ]
+        }
       },
       {
         "name": "active",
@@ -11653,7 +13183,7 @@
         "name": "orientation",
         "type": "StepperOrientation",
         "default": "'horizontal'",
-        "description": "`horizontal` lays the rail out above the stage, `vertical` puts it beside the stage."
+        "description": "`horizontal` lays the rail out above the stage, `vertical` puts it beside the stage. A horizontal rail too wide for its container wraps onto further rows; each row's connectors end at its last step."
       },
       {
         "name": "clickable",
@@ -11975,25 +13505,39 @@
         "name": "tabs",
         "type": "TabDefinition[]",
         "default": "[]",
-        "description": "Initial tabs."
+        "description": "Initial tabs.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "active",
         "type": "string|null",
         "default": "null",
-        "description": "Initially active tab name, or the first enabled tab."
+        "description": "Initially active tab name, or the first enabled tab.",
+        "update": {
+          "methods": [
+            "openTab()"
+          ]
+        }
       },
       {
         "name": "variant",
         "type": "TabboxVariant",
         "default": "'divided'",
-        "description": "`divided` sets flat blocks on a muted track above a bordered panel; `bracket` outlines folder tabs that fuse into that panel; `line` underlines the active tab across a full-width rule; `segmented` renders a compact group that reads as one control, for a toolbar or card header."
+        "description": "`divided` sets flat blocks on a muted track above a bordered panel; `bracket` outlines folder tabs that fuse into that panel; `line` underlines the active tab across a full-width rule; `segmented` renders a compact group that reads as one control, for a toolbar or card header.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "keepAlive",
         "type": "boolean",
         "default": "true",
-        "description": "Keep inactive panel elements mounted."
+        "description": "Keep inactive panel elements mounted.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "label",
@@ -12077,43 +13621,70 @@
         "name": "columns",
         "type": "TableColumn[]",
         "default": "[]",
-        "description": "Column definitions."
+        "description": "Column definitions.",
+        "update": {
+          "methods": [
+            "setColumns()"
+          ]
+        }
       },
       {
         "name": "data",
         "type": "TableRow[]",
         "default": "[]",
-        "description": "Initial rows."
+        "description": "Initial rows.",
+        "update": {
+          "methods": [
+            "setData()"
+          ]
+        }
       },
       {
         "name": "rowId",
         "type": "string|((row: TableRow) => unknown)",
         "default": "'ID'",
-        "description": "Row id accessor."
+        "description": "Row id accessor.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "sort",
         "type": "{id: string, dir: TableSortDirection}|null",
         "default": "null",
-        "description": "Initial sort."
+        "description": "Initial sort.",
+        "update": {
+          "methods": [
+            "setSort()"
+          ]
+        }
       },
       {
         "name": "sortMode",
         "type": "'local'|'server'",
         "default": "'local'",
-        "description": "Whether sorting reorders local rows."
+        "description": "Whether sorting reorders local rows.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "selectable",
         "type": "TableSelectionMode",
         "default": "false",
-        "description": "Row selection mode."
+        "description": "Row selection mode.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "stickyHeader",
         "type": "boolean",
         "default": "true",
-        "description": "Whether column headers stick while scrolling."
+        "description": "Whether column headers stick to the top of the table's own scroll region while its rows scroll. That takes a bounded region: set `height` (or use `virtual`, which caps the region at the window height). A table without one grows to the height of its rows, never scrolls itself, and its header leaves with the page.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "growing",
@@ -12137,13 +13708,19 @@
         "name": "height",
         "type": "number|string|null",
         "default": "null",
-        "description": "Scroll-region height in pixels or CSS units."
+        "description": "Scroll-region height in pixels or CSS units.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "emptyText",
         "type": "string|Node|(() => Node|string)|null",
         "default": "null",
-        "description": "What to show when there are no rows; null resolves `table.empty`. A Node — an `emptyState()` with an action in it, say — is placed as given, and a function is called on each render, which is what to use when the placeholder holds live controls."
+        "description": "What to show when there are no rows; null resolves `table.empty`. A Node — an `emptyState()` with an action in it, say — is placed as given, and a function is called on each render, which is what to use when the placeholder holds live controls.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "rowClass",
@@ -12167,7 +13744,10 @@
         "name": "zebra",
         "type": "boolean",
         "default": "true",
-        "description": "Whether alternate rows use the zebra background."
+        "description": "Whether alternate rows use the zebra background.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "variant",
@@ -12489,6 +14069,12 @@
         "description": "Collapses every hierarchy branch."
       },
       {
+        "name": "setExpanded",
+        "signature": "setExpanded(ids, [options])",
+        "returns": "this",
+        "description": "Replaces the set of expanded branches in one render — the runtime counterpart of `hierarchy.expanded`, which is read at construction only, and what to call when restoring a saved state: a loop over `expandRow()` renders the body once per branch. Ids are compared as `rowId` returns them (`1` is not `'1'`); ids that are not in the data, or name a row without children, are dropped. A set equal to the current one renders nothing and fires nothing."
+      },
+      {
         "name": "getExpanded",
         "signature": "getExpanded()",
         "returns": "unknown[]",
@@ -12586,7 +14172,7 @@
         "name": "expanded",
         "type": "boolean|unknown[]",
         "default": "false",
-        "description": "Initially expanded branches: all, none, or ids."
+        "description": "Initially expanded branches: all, none, or ids. Read at construction only; `setExpanded()` replaces the set afterwards."
       }
     ],
     "events": [],
@@ -12598,13 +14184,23 @@
         "name": "fields",
         "type": "ViewField[]",
         "default": "[]",
-        "description": "Shared ordered field descriptors. These win over `table.columns`."
+        "description": "Shared ordered field descriptors. These win over `table.columns`.",
+        "update": {
+          "methods": [
+            "setFields()"
+          ]
+        }
       },
       {
         "name": "data",
         "type": "TableViewRecord[]",
         "default": "[]",
-        "description": "Initial records. These win over `table.data`."
+        "description": "Initial records. These win over `table.data`.",
+        "update": {
+          "methods": [
+            "setData()"
+          ]
+        }
       },
       {
         "name": "recordId",
@@ -12616,7 +14212,12 @@
         "name": "sort",
         "type": "ViewSort|null",
         "default": "null",
-        "description": "Initial shared sort."
+        "description": "Initial shared sort.",
+        "update": {
+          "methods": [
+            "setSort()"
+          ]
+        }
       },
       {
         "name": "sortMode",
@@ -12634,13 +14235,23 @@
         "name": "selection",
         "type": "unknown[]",
         "default": "[]",
-        "description": "Initially selected record ids."
+        "description": "Initially selected record ids.",
+        "update": {
+          "methods": [
+            "setSelection()"
+          ]
+        }
       },
       {
         "name": "fieldOrder",
         "type": "string[]",
         "default": "[]",
-        "description": "Preferred stable field order."
+        "description": "Preferred stable field order.",
+        "update": {
+          "methods": [
+            "setFieldOrder()"
+          ]
+        }
       },
       {
         "name": "hiddenFields",
@@ -12730,13 +14341,23 @@
         "name": "items",
         "type": "TagItem[]",
         "default": "[]",
-        "description": "Selectable items."
+        "description": "Selectable items.",
+        "update": {
+          "methods": [
+            "setItems()"
+          ]
+        }
       },
       {
         "name": "values",
         "type": "unknown[]",
         "default": "[]",
-        "description": "Initially selected IDs."
+        "description": "Initially selected IDs.",
+        "update": {
+          "methods": [
+            "setValues()"
+          ]
+        }
       },
       {
         "name": "valueKey",
@@ -12832,7 +14453,12 @@
         "name": "readonly",
         "type": "boolean",
         "default": "false",
-        "description": "When true the picker shows only its tags — no input, chevron, or remove buttons."
+        "description": "When true the picker shows only its tags — no input, chevron, or remove buttons.",
+        "update": {
+          "methods": [
+            "setReadonly()"
+          ]
+        }
       },
       {
         "name": "renderItem",
@@ -13073,31 +14699,51 @@
         "name": "value",
         "type": "number",
         "default": "0",
-        "description": "Initial duration in `unit`."
+        "description": "Initial duration in `unit`.",
+        "update": {
+          "methods": [
+            "set()"
+          ]
+        }
       },
       {
         "name": "unit",
         "type": "TimeUnit",
         "default": "'minutes'",
-        "description": "Default input and output unit."
+        "description": "Default input and output unit.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "seconds",
         "type": "boolean",
         "default": "false",
-        "description": "Show a seconds segment."
+        "description": "Show a seconds segment.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "signed",
         "type": "boolean",
         "default": "false",
-        "description": "Show a positive/negative toggle."
+        "description": "Show a positive/negative toggle.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "disabled",
         "type": "boolean",
         "default": "false",
-        "description": "Disable all controls."
+        "description": "Disable all controls.",
+        "update": {
+          "methods": [
+            "disable()",
+            "enable()"
+          ]
+        }
       }
     ],
     "events": [
@@ -13146,7 +14792,12 @@
         "name": "checked",
         "type": "boolean",
         "default": "false",
-        "description": "Initial switch state."
+        "description": "Initial switch state.",
+        "update": {
+          "methods": [
+            "set()"
+          ]
+        }
       },
       {
         "name": "value",
@@ -13158,13 +14809,30 @@
         "name": "label",
         "type": "string|null",
         "default": "null",
-        "description": "Optional visible label."
+        "description": "The switch's name, drawn beside the track and read as its accessible name. Null renders no text: the switch then needs a name from somewhere else — a Field or `<label for>` around it, or `aria-labelledby` on the element.",
+        "update": {
+          "methods": [
+            "setLabel()"
+          ]
+        }
+      },
+      {
+        "name": "hideLabel",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether the label is kept for assistive technology only: no visible text, and the label becomes the switch's `aria-label`. For a switch whose meaning the surrounding layout already shows — a table cell under a column header, a settings row."
       },
       {
         "name": "disabled",
         "type": "boolean",
         "default": "false",
-        "description": "Initial disabled state."
+        "description": "Initial disabled state.",
+        "update": {
+          "methods": [
+            "disable()",
+            "enable()"
+          ]
+        }
       }
     ],
     "events": [
@@ -13200,6 +14868,12 @@
         "description": "Returns the configured value while on, otherwise `false`."
       },
       {
+        "name": "setLabel",
+        "signature": "setLabel(label)",
+        "returns": "this",
+        "description": "Replaces the switch's name: the visible label, or the `aria-label` under `hideLabel`."
+      },
+      {
         "name": "enable",
         "signature": "enable()",
         "returns": "this",
@@ -13219,7 +14893,12 @@
         "name": "items",
         "type": "ToolbarItem[]",
         "default": "[]",
-        "description": "Controls, separators (`'-'`), and ready-made Elements."
+        "description": "Controls, separators (`'-'`), and ready-made Elements.",
+        "update": {
+          "methods": [
+            "setItems()"
+          ]
+        }
       },
       {
         "name": "align",
@@ -13304,7 +14983,12 @@
         "name": "content",
         "type": "TooltipContent",
         "default": "''",
-        "description": "Bubble content, re-evaluated on each open when a function."
+        "description": "Bubble content, re-evaluated on each open when a function.",
+        "update": {
+          "methods": [
+            "setContent()"
+          ]
+        }
       },
       {
         "name": "placement",
@@ -13430,115 +15114,182 @@
         "name": "items",
         "type": "TreeNode[]",
         "default": "[]",
-        "description": "Nested nodes."
+        "description": "Nested nodes.",
+        "update": {
+          "methods": [
+            "setItems()"
+          ]
+        }
       },
       {
         "name": "valueKey",
         "type": "string|((node: TreeNode) => unknown)",
         "default": "'ID'",
-        "description": "Node ID property or reader."
+        "description": "Node ID property or reader.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "labelKey",
         "type": "string|((node: TreeNode) => string)",
         "default": "'name'",
-        "description": "Node label property or reader."
+        "description": "Node label property or reader.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "childrenKey",
         "type": "string",
         "default": "'children'",
-        "description": "Property holding child nodes."
+        "description": "Property holding child nodes.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "expanded",
         "type": "unknown[]",
         "default": "[]",
-        "description": "Initially expanded node IDs."
+        "description": "Initially expanded node IDs.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "selection",
         "type": "false|'single'|'multi'",
         "default": "'single'",
-        "description": "Selection mode."
+        "description": "Selection mode.",
+        "update": {
+          "methods": [
+            "setSelection()"
+          ]
+        }
       },
       {
         "name": "selected",
         "type": "unknown[]",
         "default": "[]",
-        "description": "Initially selected node IDs."
+        "description": "Initially selected node IDs.",
+        "update": {
+          "methods": [
+            "setSelection()"
+          ]
+        }
       },
       {
         "name": "checkboxes",
         "type": "boolean",
         "default": "false",
-        "description": "Whether to render tri-state checkboxes."
+        "description": "Whether to render tri-state checkboxes.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "checked",
         "type": "unknown[]",
         "default": "[]",
-        "description": "Initially checked node IDs."
+        "description": "Initially checked node IDs.",
+        "update": {
+          "methods": [
+            "setChecked()"
+          ]
+        }
       },
       {
         "name": "icons",
         "type": "boolean",
         "default": "true",
-        "description": "Whether to render folder and file icons."
+        "description": "Whether to render folder and file icons.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "renderLabel",
         "type": "((node: TreeNode) => Node|string)|null",
         "default": "null",
-        "description": "Label renderer."
+        "description": "Label renderer.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "rowActions",
         "type": "((node: TreeNode) => Array<RowAction|Node>)|null",
         "default": "null",
-        "description": "A row's actions: `{icon, label, onSelect(node), disabled?, danger?}` descriptors, or nodes placed as given. They rest out of sight and show while the row is pointed at, focused or selected; one or two show as icon buttons, more fold after the first into a \"More actions\" menu. Every descriptor is also in the row's context menu, and the focused row's actions follow it in the Tab order."
+        "description": "A row's actions: `{icon, label, onSelect(node), disabled?, danger?}` descriptors, or nodes placed as given. They rest out of sight and show while the row is pointed at, focused or selected; one or two show as icon buttons, more fold after the first into a \"More actions\" menu. Every descriptor is also in the row's context menu, and the focused row's actions follow it in the Tab order.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "moreLabel",
         "type": "string|null",
         "default": "null",
-        "description": "Name of a row's overflow menu; every action name is followed by the row's name (\"More actions: Q3 plan\"). Null reads the `tree.more` message."
+        "description": "Name of a row's overflow menu; every action name is followed by the row's name (\"More actions: Q3 plan\"). Null reads the `tree.more` message.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "load",
         "type": "((node: TreeNode) => Promise<TreeNode[]>|TreeNode[])|null",
         "default": "null",
-        "description": "Lazy child loader."
+        "description": "Lazy child loader.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "filter",
         "type": "string",
         "default": "''",
-        "description": "Label substring the tree is filtered by."
+        "description": "Label substring the tree is filtered by.",
+        "update": {
+          "methods": [
+            "setFilter()"
+          ]
+        }
       },
       {
         "name": "label",
         "type": "string|null",
         "default": "null",
-        "description": "Accessible name of the tree; null reads the `tree.label` message (\"Tree\")."
+        "description": "Accessible name of the tree; null reads the `tree.label` message (\"Tree\").",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "emptyText",
         "type": "string|null",
         "default": null,
-        "description": "Text shown when the tree is empty, by default the `tree.noItems` message (\"Nothing to show\"). Null shows none."
+        "description": "Text shown when the tree is empty, by default the `tree.noItems` message (\"Nothing to show\"). Null shows none.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "height",
         "type": "number|string|null",
         "default": "null",
-        "description": "Scroll height in pixels or any CSS length."
+        "description": "Scroll height in pixels or any CSS length.",
+        "update": {
+          "rebuild": true
+        }
       },
       {
         "name": "msg",
         "type": "Record<string, string>|Record<string, Record<string, string>>",
         "default": null,
-        "description": "Localized messages."
+        "description": "Localized messages.",
+        "update": {
+          "rebuild": true
+        }
       }
     ],
     "events": [
@@ -13836,7 +15587,12 @@
         "name": "values",
         "type": "unknown[]",
         "default": "[]",
-        "description": "Initial ordered values."
+        "description": "Initial ordered values.",
+        "update": {
+          "methods": [
+            "setValues()"
+          ]
+        }
       },
       {
         "name": "placeholder",
@@ -13937,7 +15693,12 @@
         "name": "fields",
         "type": "ViewSettingsField[]",
         "default": "[]",
-        "description": "Field descriptors, in their default order. Bound to a view, a non-empty list is also the allow-list: the view's other fields are neither listed nor touched. An empty list takes every field the view has."
+        "description": "Field descriptors, in their default order. Bound to a view, a non-empty list is also the allow-list: the view's other fields are neither listed nor touched. An empty list takes every field the view has.",
+        "update": {
+          "methods": [
+            "setFields()"
+          ]
+        }
       },
       {
         "name": "fieldOrder",
@@ -14138,25 +15899,45 @@
         "name": "workspaces",
         "type": "WorkspaceItem[]",
         "default": "[]",
-        "description": "Workspaces in menu order. Entries without an id are skipped, and a repeated id keeps its first entry."
+        "description": "Workspaces in menu order. Entries without an id are skipped, and a repeated id keeps its first entry.",
+        "update": {
+          "methods": [
+            "setWorkspaces()"
+          ]
+        }
       },
       {
         "name": "active",
         "type": "string|number|null",
         "default": "null",
-        "description": "Active workspace id. Defaults to the first enabled workspace, which also stands in for an id that is not listed or is disabled."
+        "description": "Active workspace id. Defaults to the first enabled workspace, which also stands in for an id that is not listed or is disabled.",
+        "update": {
+          "methods": [
+            "setActive()"
+          ]
+        }
       },
       {
         "name": "items",
         "type": "MenuButtonItem[]",
         "default": "[]",
-        "description": "Extra actions listed after the workspaces — \"Create workspace\", \"Workspace settings\", `'-'` separators, \"Sign out\". A separator is inserted between the workspaces and the actions automatically."
+        "description": "Extra actions listed after the workspaces — \"Create workspace\", \"Workspace settings\", `'-'` separators, \"Sign out\". A separator is inserted between the workspaces and the actions automatically.",
+        "update": {
+          "methods": [
+            "setItems()"
+          ]
+        }
       },
       {
         "name": "compact",
         "type": "boolean",
         "default": "false",
-        "description": "Whether the trigger shows the tile alone."
+        "description": "Whether the trigger shows the tile alone.",
+        "update": {
+          "methods": [
+            "setCompact()"
+          ]
+        }
       },
       {
         "name": "heading",
