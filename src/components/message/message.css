@@ -3,15 +3,22 @@
   gap: var(--zx-space-2);
 }
 
+/*
+ * The floating region. `data-placement` names its corner or centre — the block edge, then the
+ * inline position — and `--zx-message-offset` is its distance from the viewport edge: public, read
+ * with the spacing token as its fallback, so an application sets it on the theme scope (or on
+ * `:root`) to clear a header or a status bar.
+ */
 .zx-message-region {
+  --zx-message-inset: var(--zx-message-offset, var(--zx-space-4));
   position: fixed;
-  inset-block-start: var(--zx-space-4);
+  inset-block-start: var(--zx-message-inset);
   inset-block-end: auto;
   inset-inline-start: auto;
-  inset-inline-end: var(--zx-space-4);
-  inline-size: min(420px, calc(100% - (2 * var(--zx-space-4))));
+  inset-inline-end: var(--zx-message-inset);
+  inline-size: min(420px, calc(100% - (2 * var(--zx-message-inset))));
   block-size: max-content;
-  max-block-size: calc(100% - (2 * var(--zx-space-4)));
+  max-block-size: calc(100% - (2 * var(--zx-message-inset)));
   margin: 0;
   overflow: visible;
   border: 0;
@@ -25,17 +32,45 @@
   align-content: start;
 }
 
+.zx-message-region[data-placement$="-start"] {
+  inset-inline-start: var(--zx-message-inset);
+  inset-inline-end: auto;
+}
+
+/* Centred: pinned to both inline edges, and the auto margins share out what the width leaves. */
+.zx-message-region[data-placement="top"],
+.zx-message-region[data-placement="bottom"] {
+  inset-inline: var(--zx-message-inset);
+  margin-inline: auto;
+}
+
+/* At the foot the newest toast is the one nearest the edge, and toasts enter and leave downwards. */
+.zx-message-region[data-placement^="bottom"] {
+  --zx-message-shift: var(--zx-space-2);
+  inset-block-start: auto;
+  inset-block-end: var(--zx-message-inset);
+}
+
+.zx-message-region[data-placement^="bottom"]:popover-open {
+  align-content: end;
+}
+
 /* On a phone the toasts rise from the foot of the screen, full width, where they cover content
-   rather than the header's controls, and sit where a thumb can reach their action. */
+   rather than the header's controls, and sit where a thumb can reach their action — whatever
+   placement was asked for, since there is one column to put them in. */
 @media (max-width: 640px) {
-  .zx-message-region {
+  .zx-message-region,
+  .zx-message-region[data-placement] {
+    --zx-message-shift: var(--zx-space-2);
     inset-block-start: auto;
-    inset-block-end: var(--zx-space-4);
-    inset-inline: var(--zx-space-4);
+    inset-block-end: var(--zx-message-inset);
+    inset-inline: var(--zx-message-inset);
     inline-size: auto;
+    margin-inline: 0;
   }
 
-  .zx-message-region:popover-open {
+  .zx-message-region:popover-open,
+  .zx-message-region[data-placement]:popover-open {
     align-content: end;
   }
 }
@@ -162,10 +197,12 @@
   }
 }
 
+/* `--zx-message-shift` is the direction a toast travels: up and out at the top of the viewport and
+   in an inline area, down and out in a region at the foot. */
 @keyframes zx-message-enter {
   from {
     opacity: 0;
-    transform: translateY(calc(-1 * var(--zx-space-2)));
+    transform: translateY(var(--zx-message-shift, calc(-1 * var(--zx-space-2))));
   }
 
   to {
@@ -182,6 +219,6 @@
 
   to {
     opacity: 0;
-    transform: translateY(calc(-1 * var(--zx-space-2)));
+    transform: translateY(var(--zx-message-shift, calc(-1 * var(--zx-space-2))));
   }
 }

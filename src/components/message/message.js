@@ -8,6 +8,18 @@ import { button } from '../button/button.js';
 /** @typedef {'info'|'success'|'warning'|'error'} MessageKind */
 
 /**
+ * Where a floating region sits in the viewport: the block edge, then the inline position. Logical,
+ * so `start` and `end` follow the writing direction; `top` and `bottom` alone are centred.
+ * @typedef {'top-start'|'top'|'top-end'|'bottom-start'|'bottom'|'bottom-end'} MessagePlacement
+ */
+
+/** The placements a floating region accepts. */
+const PLACEMENTS = new Set(['top-start', 'top', 'top-end', 'bottom-start', 'bottom', 'bottom-end']);
+
+/** The corner floating messages use unless told otherwise. */
+const DEFAULT_PLACEMENT = 'top-end';
+
+/**
  * The one command a message may carry, drawn as a small button beside its text.
  * @typedef {Object} MessageAction
  * @property {string} label Button text: a verb naming what happens ("Undo", "Approve", "Retry").
@@ -29,6 +41,7 @@ import { button } from '../button/button.js';
  *   kind icon, such as an Avatar's element. It is decorative — the message text must say what it
  *   shows.
  * @property {Element|string|null} [scope=null] Element whose nearest Zx theme scope owns a floating toast.
+ * @property {MessagePlacement} [placement='top-end'] Where a floating toast sits in the viewport; the default is the one set with `Message.setPlacement()`. Messages of one placement share a region. Ignored by an inline area.
  */
 
 /**
@@ -161,6 +174,9 @@ export class Message extends Component {
     maxVisible: 5
   };
 
+  /** @type {MessagePlacement} Where floating messages appear when a call names no placement. */
+  static #placement = DEFAULT_PLACEMENT;
+
   /** @returns {HTMLElement} */
   render() {
     const created = !this.el;
@@ -172,6 +188,8 @@ export class Message extends Component {
     this._floatingHost = null;
     /** @type {Element|null} Where the floating region was last put: its scope, or the topmost modal. */
     this._placedIn = null;
+    /** @type {MessagePlacement|null} The placement this instance is the floating region of. */
+    this._placement = null;
     /** @type {import('../../core/overlay-stack.js').OverlayHandle|null} The region's toast entry. */
     this._overlay = null;
     /** @type {(() => void)|null} Stops following the overlay stack. */
@@ -253,17 +271,41 @@ export class Message extends Component {
    * @returns {MessageHandle}
    */
   static show(msg, options = {}) {
-    return this.#floatingRegion(options.scope).show(msg, options);
+    return Message.#floatingRegion(options.scope, options.placement).show(msg, options);
   }
 
   /**
    * Shows a floating progress status.
    * @param {string} text Initial status text.
-   * @param {{scope?: Element|string|null}} [options={}] Floating-region scope.
+   * @param {{scope?: Element|string|null, placement?: MessagePlacement}} [options={}] Floating-region scope and placement.
    * @returns {ProgressHandle}
    */
   static progress(text, options = {}) {
-    return this.#floatingRegion(options.scope)._progress(text);
+    return Message.#floatingRegion(options.scope, options.placement)._progress(text);
+  }
+
+  /**
+   * Sets where floating messages appear when a call names no `placement`. It applies to messages
+   * shown from then on; a region already on screen stays where it is until its last toast closes.
+   *
+   * The region carries the placement as `data-placement`, and its distance from the viewport edge
+   * is the `--zx-message-offset` custom property (default `var(--zx-space-4)`), read from the
+   * region's theme scope. At 640px and narrower every placement spans the foot of the viewport.
+   * @param {MessagePlacement} placement One of `'top-start'`, `'top'`, `'top-end'`, `'bottom-start'`,
+   *   `'bottom'`, `'bottom-end'`; anything else restores `'top-end'`.
+   * @returns {MessagePlacement} The placement now in effect.
+   */
+  static setPlacement(placement) {
+    Message.#placement = normalizeMessagePlacement(placement);
+    return Message.#placement;
+  }
+
+  /**
+   * Returns where floating messages appear when a call names no `placement`.
+   * @returns {MessagePlacement}
+   */
+  static getPlacement() {
+    return Message.#placement;
   }
 
   /**
@@ -272,6 +314,8 @@ export class Message extends Component {
    * A region already removes itself when its last toast closes, and one whose host has left the
    * document is replaced on the next toast, so this is only for a host being torn down while
    * toasts are still showing — an application view unmounting its themed shell, say.
+   *
+   * A scope has one region per placement in use; all of them are removed.
    * @param {Element|string} scope Element or selector whose nearest Zx theme scope owns the region,
    *   as passed to `show()`.
    * @returns {boolean} Whether there was a region to remove.
@@ -280,10 +324,9 @@ export class Message extends Component {
     if (scope == null) return false;
     const context = resolveElement(scope);
     if (!context) return false;
-    const region = Message.#regionFor(overlayScope(context));
-    if (!region) return false;
-    region._disposeFloating();
-    return true;
+    const regions = Message.#regionsOf(overlayScope(context));
+    for (const region of regions) region._disposeFloating();
+    return regions.length > 0;
   }
 
   /** @returns {void} */
@@ -297,6 +340,7 @@ export class Message extends Component {
     overlay?.release();
     this._floatingHost = null;
     this._placedIn = null;
+    this._placement = null;
     for (const entry of this._entries) {
       clearEntryTimers(entry);
       entry.node.remove();
@@ -575,17 +619,19 @@ export class Message extends Component {
   }
 
   /**
-   * Finds or creates the floating region for a scope. A cached region is reused only while it is
-   * still where it was put: a host emptied by `replaceChildren()` would otherwise keep receiving
-   * toasts in a node nobody can see.
+   * Finds or creates the floating region of a scope for one placement. A cached region is reused
+   * only while it is still where it was put: a host emptied by `replaceChildren()` would otherwise
+   * keep receiving toasts in a node nobody can see.
    * @param {Element|string|null|undefined} scope
+   * @param {unknown} [requested] Placement asked for; the default placement when absent or unknown.
    * @returns {Message}
    */
-  static #floatingRegion(scope) {
+  static #floatingRegion(scope, requested) {
     let host = overlayScope(scope ?? null);
     // A scope that has itself left the document cannot show anything; the toast still must be seen.
     if (!host.isConnected) host = overlayScope(null);
-    const existing = this.#regionFor(host);
+    const placement = normalizeMessagePlacement(requested, Message.#placement);
+    const existing = Message.#regionsOf(host).find((region) => region._placement === placement) ?? null;
     if (existing && existing.el.isConnected && existing.el.parentElement === existing._placedIn) {
       existing._rehome();
       return existing;
@@ -595,10 +641,12 @@ export class Message extends Component {
       class: 'zx-message-region',
       popover: 'manual',
       role: 'status',
-      ariaLive: 'polite'
+      ariaLive: 'polite',
+      dataset: { placement }
     });
     const floating = new Message(region);
     floating._floatingHost = host;
+    floating._placement = placement;
     // A toast entry on the overlay stack: the registry of regions, and the reason a press on a
     // toast dismisses no drawer or menu. Following the stack moves the region into a modal dialog
     // when one opens and back out when it closes.
@@ -609,17 +657,19 @@ export class Message extends Component {
   }
 
   /**
-   * The live floating region of a theme scope, from the overlay stack's toast entries.
+   * The live floating regions of a theme scope — one per placement in use — from the overlay
+   * stack's toast entries.
    * @param {Element} host Theme scope.
-   * @returns {Message|null}
+   * @returns {Message[]}
    */
-  static #regionFor(host) {
+  static #regionsOf(host) {
+    const regions = [];
     for (const entry of overlayStack.entries()) {
       if (entry.kind === 'toast' && entry.owner instanceof Message && entry.owner._floatingHost === host) {
-        return entry.owner;
+        regions.push(entry.owner);
       }
     }
-    return null;
+    return regions;
   }
 
   /** @param {Message} region Floating region whose last toast closed. @returns {void} */
@@ -633,6 +683,16 @@ function normalizeKind(value) {
   if (value === 'danger') return 'error';
   return ['success', 'warning', 'error'].includes(String(value)) ?
     /** @type {MessageKind} */ (value) : 'info';
+}
+
+/**
+ * Settles a floating-message placement: the value when it is one of the six, the fallback otherwise.
+ * @param {unknown} value Requested placement.
+ * @param {MessagePlacement} [fallback='top-end'] Placement used when the value is absent or unknown.
+ * @returns {MessagePlacement}
+ */
+export function normalizeMessagePlacement(value, fallback = DEFAULT_PLACEMENT) {
+  return PLACEMENTS.has(/** @type {string} */ (value)) ? /** @type {MessagePlacement} */ (value) : fallback;
 }
 
 /** @param {unknown} value @returns {number} */

@@ -3,6 +3,9 @@ import { Avatar, button, h, Message } from '../../src/index.js';
 /** Who asks for the approval in the "An action" example. */
 const REQUESTER = { name: 'Mara Lind' };
 
+/** Where a floating region can sit: the block edge, then the inline position; alone, centred. */
+const PLACEMENTS = ['top-start', 'top', 'top-end', 'bottom-start', 'bottom', 'bottom-end'];
+
 export default {
   title: 'Message',
   group: 'Overlays',
@@ -27,6 +30,26 @@ export default {
           button({ label: 'Warning', onclick: () => show('warning') }),
           button({ label: 'Error', kind: 'danger', onclick: () => show('error') })
         ];
+      }
+    },
+    {
+      title: 'Placement',
+      blurb: 'placement puts a floating message at one of six places: top or bottom, then start, '
+        + 'end, or — with neither — the centre. start and end follow the writing direction. '
+        + 'Messages of one placement share a region, which carries it as data-placement; '
+        + 'Message.setPlacement() changes the default from top-end for calls that name none. '
+        + '--zx-message-offset, set on the theme scope or :root, is the distance from the viewport '
+        + 'edge. At 640px and narrower every placement spans the foot of the screen.',
+      render: ({ cleanup, log }) => {
+        const handles = new Set();
+        cleanup(() => handles.forEach((handle) => handle.close()));
+        return PLACEMENTS.map((placement) => button({
+          label: placement,
+          onclick: () => {
+            handles.add(Message.info(`Shown at ${placement}.`, { placement }));
+            log(`toast at ${placement}`);
+          }
+        }));
       }
     },
     {
