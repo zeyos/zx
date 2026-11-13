@@ -141,6 +141,63 @@ function quoteColumns() {
   ];
 }
 
+/**
+ * The columns of a cost plan: the account, pinned to the start so it stays beside whatever figures
+ * are in view, three figure columns per quarter sharing a header `group`, and the year total
+ * pinned to the end. Every width is a length, so the table is as wide as its columns and scrolls
+ * sideways in a narrower container.
+ * @returns {Array<Record<string, any>>}
+ */
+function planColumns() {
+  const figure = (id, label, group) => ({
+    id, label, group, width: '7.5rem', type: 'currency', currency: 'EUR', decimals: 0
+  });
+  return [
+    { id: 'account', label: 'Account', width: '15rem', pin: 'start' },
+    { id: 'owner', label: 'Owner', width: '9rem' },
+    ...['Q1', 'Q2', 'Q3', 'Q4'].flatMap((quarter) => [
+      figure(`${quarter}plan`, 'Plan', quarter),
+      figure(`${quarter}actual`, 'Actual', quarter),
+      figure(`${quarter}delta`, 'Delta', quarter)
+    ]),
+    { id: 'total', label: 'Year', width: '8rem', type: 'currency', currency: 'EUR', decimals: 0, pin: 'end' }
+  ];
+}
+
+/**
+ * The plan's rows, flat, each naming its parent: four cost centres and the accounts under them.
+ * A cost centre carries the sums of its accounts, as a reporting query returns them.
+ * @returns {Array<Record<string, any>>}
+ */
+function planRows() {
+  const centres = [
+    ['sales', 'Sales', 'M. Okafor', ['Travel', 'Events', 'Partner fees']],
+    ['operations', 'Operations', 'L. Brandt', ['Logistics', 'Facilities', 'Maintenance', 'Insurance']],
+    ['product', 'Product', 'S. Ilves', ['Licences', 'Hosting', 'Contractors']],
+    ['people', 'People', 'A. Moreau', ['Training', 'Recruiting']]
+  ];
+  const quarters = ['Q1', 'Q2', 'Q3', 'Q4'];
+  const rows = [];
+  centres.forEach(([id, name, owner, accounts], centreIndex) => {
+    const centre = { id, parent: null, account: name, owner, total: 0 };
+    for (const quarter of quarters) Object.assign(centre, { [`${quarter}plan`]: 0, [`${quarter}actual`]: 0, [`${quarter}delta`]: 0 });
+    rows.push(centre);
+    accounts.forEach((account, accountIndex) => {
+      const row = { id: `${id}-${accountIndex}`, parent: id, account, owner, total: 0 };
+      quarters.forEach((quarter, quarterIndex) => {
+        const plan = 4000 + (centreIndex * 7 + accountIndex * 13 + quarterIndex * 5) % 17 * 650;
+        const actual = plan + ((centreIndex + accountIndex * 3 + quarterIndex * 7) % 9 - 4) * 240;
+        Object.assign(row, { [`${quarter}plan`]: plan, [`${quarter}actual`]: actual, [`${quarter}delta`]: actual - plan });
+        for (const key of ['plan', 'actual', 'delta']) centre[`${quarter}${key}`] += row[`${quarter}${key}`];
+        row.total += actual;
+      });
+      centre.total += row.total;
+      rows.push(row);
+    });
+  });
+  return rows;
+}
+
 /** @param {Record<string, unknown>} changes @returns {string} */
 function describeChanges(changes) {
   const entries = Object.entries(changes);
@@ -273,6 +330,36 @@ export default {
           h('div', { class: 'demo-row' },
             h('button', { type: 'button', onclick: () => table.expandAll() }, 'expandAll()'),
             h('button', { type: 'button', onclick: () => table.collapseAll() }, 'collapseAll()'))
+        ];
+      }
+    },
+    {
+      title: 'Pinned columns, header groups, and a saved expansion',
+      blurb: 'pin: "start" and pin: "end" keep a column in view while the others scroll sideways '
+        + 'between them; group puts adjacent columns under one header cell. Scroll the figures: '
+        + 'the account and the year stay, and so does the header. setExpanded() replaces the '
+        + 'expanded branches in one render, which is how a saved view is restored — a loop over '
+        + 'expandRow() renders the body once per branch.',
+      layout: 'stack',
+      render: ({ cleanup, log }) => {
+        const table = new Table(null, {
+          rowId: 'id',
+          label: 'Cost plan',
+          height: 320,
+          columns: planColumns(),
+          data: planRows(),
+          hierarchy: { parentId: 'parent', column: 'account', expanded: ['sales'] },
+          onrowtoggle: ({ detail }) => log(`rowtoggle ${detail.id} → ${detail.expanded ? 'expanded' : 'collapsed'}`)
+        });
+        cleanup(() => table.destroy());
+        return [
+          table.toElement(),
+          h('div', { class: 'demo-row' },
+            h('button', { type: 'button', onclick: () => table.setExpanded(['operations', 'people']) },
+              'setExpanded(["operations", "people"])'),
+            h('button', { type: 'button', onclick: () => table.setExpanded(true) }, 'setExpanded(true)'),
+            h('button', { type: 'button', onclick: () => table.setExpanded([], { silent: true }) },
+              'setExpanded([], { silent: true })'))
         ];
       }
     },

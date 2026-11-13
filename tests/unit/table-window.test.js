@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { readFileSync } from 'node:fs';
+
 import {
-  tableWindow, tableWindowScroll, tableWindowSegments
+  cancelFrame, nextFrame, tableWindow, tableWindowScroll, tableWindowSegments
 } from '../../src/components/table/window.js';
 
 /*
@@ -130,4 +132,27 @@ test('a row below the view lands on its bottom edge', () => {
 
 test('in a view shorter than a row, the top of the row wins', () => {
   assert.equal(tableWindowScroll({ index: 2, rowHeight: 40, scrollTop: 0, viewport: 10 }), 80);
+});
+
+test('a window without ResizeObserver or animation frames still measures', async () => {
+  // This process is such an environment: neither global exists, as in jsdom.
+  assert.equal(typeof globalThis.ResizeObserver, 'undefined');
+  assert.equal(typeof globalThis.requestAnimationFrame, 'undefined');
+  let ran = 0;
+  await new Promise((resolve) => { nextFrame(() => { ran += 1; resolve(undefined); }); });
+  assert.equal(ran, 1);
+  cancelFrame(nextFrame(() => { ran += 1; }));
+  await new Promise((resolve) => { setTimeout(resolve, 40); });
+  assert.equal(ran, 1, 'a cancelled frame does not run');
+
+  const source = readFileSync(new URL('../../src/components/table/window.js', import.meta.url), 'utf8');
+  const start = /  start\(\) \{([\s\S]*?)\n  \}\n/.exec(source)?.[1] ?? '';
+  // The guard comes before the constructor, and the fallback is one measurement on a frame.
+  assert.match(start, /if \(typeof ResizeObserver !== 'function'\) \{\s*this\.schedule\(\);\s*return;\s*\}\s*this\.observer = new ResizeObserver/);
+  assert.doesNotMatch(source, /(?<!typeof )\b(?:requestAnimationFrame|cancelAnimationFrame)\((?!callback\)|handle\))/);
+  const table = readFileSync(new URL('../../src/components/table/table.js', import.meta.url), 'utf8');
+  for (const match of table.matchAll(/new ResizeObserver\(/g)) {
+    const before = table.slice(Math.max(0, match.index - 400), match.index);
+    assert.match(before, /typeof ResizeObserver !== 'function'/, 'every observer in table.js is guarded');
+  }
 });

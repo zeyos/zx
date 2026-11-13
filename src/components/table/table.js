@@ -10,7 +10,7 @@ import { NumberField } from '../number-field/number-field.js';
 import { Select } from '../select/select.js';
 import { Toggle } from '../toggle/toggle.js';
 import { sortRows } from './sort.js';
-import { RowWindow } from './window.js';
+import { RowWindow, cancelFrame, nextFrame } from './window.js';
 
 /** @typedef {Record<string, any>} TableRow */
 /** @typedef {'asc'|'desc'} TableSortDirection */
@@ -28,6 +28,7 @@ import { RowWindow } from './window.js';
  * @property {string} [column] Column that receives indentation and the disclosure control; the
  * first column is used when omitted.
  * @property {boolean|unknown[]} [expanded=false] Initially expanded branches: all, none, or ids.
+ * Read at construction only; `setExpanded()` replaces the set afterwards.
  */
 
 /**
@@ -69,7 +70,27 @@ import { RowWindow } from './window.js';
  * @property {boolean} [sortable=false] Whether the header changes the active sort.
  * @property {string} [width='auto'] CSS width, `auto`, or an `fr` proportion. `fr` values are
  * converted into proportional percentages on `<col>` elements and enable `table-layout: fixed`;
- * this preserves a single aligned header/body table without measuring layout in JavaScript.
+ * this preserves a single aligned header/body table without measuring layout in JavaScript. The
+ * `fr` columns share what the columns with a CSS length leave over, and never less than their
+ * `minWidth`: a container too narrow for that scrolls the table inline instead of squeezing them.
+ * @property {string|number} [minWidth='5rem'] Narrowest an `fr` column gets, as a CSS length or a
+ * number of pixels; `0` lifts the floor. Also honoured on an `auto` column of a table with a fixed
+ * layout (one with `fr` columns, or `virtual`), where it has no default. The table takes a minimum
+ * width from it, so every `fr` column keeps at least its floor whatever its share. A column with
+ * a CSS length `width` ignores it.
+ * @property {'start'|'end'} [pin] Keeps the column in view at the inline start or end edge of the
+ * scroll region while the table scrolls sideways (`position: sticky`, so it follows the writing
+ * direction). A pinned column stays where the column order puts it and sticks once it reaches the
+ * edge, so declare a `'start'` column before the columns it should stay in front of and an `'end'`
+ * column after them. Several pinned columns stack beside each other in column order, and the row
+ * handle and selection checkbox columns are pinned along with the first `'start'` column. Give a
+ * pinned column a `width` or keep it short: what is pinned is taken from the room the other
+ * columns scroll in. Not applied while the table is stacked (`responsive`).
+ * @property {string} [group] Label of a header group. Adjacent visible columns with the same
+ * `group` (and the same `pin`) share one header cell in a second header row above the column
+ * labels: a `<th scope="col">` spanning them, so assistive technology announces it with every
+ * cell beneath. Columns without a `group` leave that row blank above them. The group row takes
+ * no part in sorting or keyboard navigation.
  * @property {'start'|'center'|'end'|'left'|'right'} [align='start'] Cell alignment.
  * @property {(row: TableRow, rowIndex: number) => Node|string|number|null|undefined} [render]
  * Cell renderer. Non-Node results are inserted as text.
@@ -111,7 +132,10 @@ import { RowWindow } from './window.js';
  * @property {{id: string, dir: TableSortDirection}|null} [sort=null] Initial sort.
  * @property {'local'|'server'} [sortMode='local'] Whether sorting reorders local rows.
  * @property {TableSelectionMode} [selectable=false] Row selection mode.
- * @property {boolean} [stickyHeader=true] Whether column headers stick while scrolling.
+ * @property {boolean} [stickyHeader=true] Whether column headers stick to the top of the table's
+ * own scroll region while its rows scroll. That takes a bounded region: set `height` (or use
+ * `virtual`, which caps the region at the window height). A table without one grows to the height
+ * of its rows, never scrolls itself, and its header leaves with the page.
  * @property {false|number} [growing=false] Number of rows to render at first, with a control that
  * appends the next batch on demand. A result set an ERP query returns happily — tens of thousands
  * of rows — costs more to lay out than anyone will ever scroll through.
@@ -291,7 +315,9 @@ const FOCUSABLE = 'input, textarea, select, button, [tabindex]:not([tabindex="-1
  * does not scroll). Enter activates the row exactly as a click does (`rowclick`), Space toggles the
  * row's selection when `selectable` (and activates otherwise), Shift+Arrow extends a `multi`
  * selection, and Ctrl/Cmd+A selects every rendered row. The focused row survives `setData`, sorting,
- * expansion, and `updateRow`. Column headers keep their sort buttons in the Tab order. With `virtual`
+ * expansion, and `updateRow`. Column headers keep their sort buttons in the Tab order; the header
+ * row of column groups (`TableColumn.group`) holds no controls and takes no focus. A cell focused
+ * by keyboard scrolls clear of pinned columns (`TableColumn.pin`). With `virtual`
  * all of this runs over every row, drawn or not: the keys draw the row they move to, and a selection
  * reaches rows that are not in the DOM.
  * @fires Table#rowclick
@@ -415,6 +441,15 @@ export class Table extends Component {
     this._columnControlIds = new Map();
     this._columnStatus = null;
     this._expanded = initialExpanded(this._hierarchy?.expanded);
+    // Pinned columns and header groups. The layout is derived from the visible columns each time
+    // they change; the offsets are measured off the header, which is the only row always drawn.
+    this._pinLayout = tablePinLayout([], 0);
+    this._headerRows = 1;
+    this._headerRow = null;
+    this._groupRow = null;
+    this._pinObserver = null;
+    this._pinFrame = 0;
+    this._pinProps = [];
 
     if (this._sort && this.options.sortMode === 'local') this._sortData();
     if (this._hierarchy?.expanded === true) {
@@ -488,6 +523,14 @@ export class Table extends Component {
     if (this._window) {
       this._window.start();
       this.listen(this._scroll, 'scroll', () => this._window.update(), { passive: true });
+    }
+    // Without a ResizeObserver (jsdom) nothing reports a size change, so the window's resize is the
+    // one signal left for the row window and the pinned offsets to measure again.
+    if (typeof ResizeObserver !== 'function' && typeof window !== 'undefined') {
+      this.listen(window, 'resize', () => {
+        this._window?.schedule();
+        this._schedulePins();
+      });
     }
     this.listen(this._tbody, 'click', (event) => this._handleBodyClick(event));
     this.listen(this._tbody, 'dblclick', (event) => this._handleBodyDoubleClick(event));
@@ -1010,6 +1053,35 @@ export class Table extends Component {
   }
 
   /**
+   * Replaces the set of expanded branches in one render — the runtime counterpart of
+   * `hierarchy.expanded`, which is read at construction only, and what to call when restoring a
+   * saved state: a loop over `expandRow()` renders the body once per branch. Ids are compared as
+   * `rowId` returns them (`1` is not `'1'`); ids that are not in the data, or name a row without
+   * children, are dropped. A set equal to the current one renders nothing and fires nothing.
+   * @param {unknown[]|boolean} ids Branch ids to leave expanded; `true` expands every branch and
+   * `false` (or an empty array) collapses them all, as in `hierarchy.expanded`.
+   * @param {{silent?: boolean}} [options={}] Event behavior. When not silent, one `rowtoggle`
+   * event is emitted per branch whose state changed, after the render: the collapsed branches
+   * first, then the expanded ones, each in data order — the same events `expandAll()` and
+   * `collapseAll()` fire.
+   * @returns {this}
+   * @fires Table#rowtoggle
+   */
+  setExpanded(ids, options = {}) {
+    if (!this._hierarchy) return this;
+    const branchIds = hierarchyBranchIds(this._data, this.options.rowId, this._hierarchy.parentId);
+    const change = resolveExpandedChange(branchIds, this._expanded, ids);
+    if (change.opened.length === 0 && change.closed.length === 0) return this;
+    this._expanded = change.expanded;
+    this._renderBody();
+    if (!options.silent) {
+      for (const id of change.closed) this._emitRowToggle(id, false);
+      for (const id of change.opened) this._emitRowToggle(id, true);
+    }
+    return this;
+  }
+
+  /**
    * Returns expanded branch ids in current flat-data order.
    * @returns {unknown[]} Expanded branch ids.
    */
@@ -1460,6 +1532,9 @@ export class Table extends Component {
   destroy() {
     this._teardownEdit();
     this._window?.stop();
+    this._pinObserver?.disconnect();
+    this._pinObserver = null;
+    cancelFrame(this._pinFrame);
     this._width?.destroy();
     this._width = null;
     if (!this._restored && !this._createdRoot) {
@@ -1770,27 +1845,178 @@ export class Table extends Component {
       fragment.append(h('col', { class: 'zx-table__selection-column' }));
     }
     const columns = this._visibleColumns();
-    const fractions = columns.map((column) => parseFraction(column.width));
-    const total = fractions.reduce((sum, value) => sum + value, 0);
+    const structural = this._structuralColumns();
     // A windowed table cannot size a column by content that is mostly not drawn: the widths would
     // move under the reader on every scroll.
-    this._table.dataset.layout = total > 0 || this._virtual ? 'fixed' : 'auto';
-    columns.forEach((column, index) => {
+    const sizing = tableColumnSizing(columns, { virtual: this._virtual, structural });
+    this._table.dataset.layout = sizing.layout;
+    // The narrowest the table gets before its scroll region scrolls inline instead: without it a
+    // `1fr` column beside two fixed ones is handed the few pixels a narrow container leaves over.
+    if (sizing.minInlineSize) this._table.style.setProperty('--zx-table-min-inline-size', sizing.minInlineSize);
+    else this._table.style.removeProperty('--zx-table-min-inline-size');
+    sizing.widths.forEach((width) => {
       const col = h('col');
-      if (fractions[index] > 0) col.style.width = `${fractions[index] / total * 100}%`;
-      else if (column.width && column.width !== 'auto') col.style.width = String(column.width);
+      if (width) col.style.width = width;
       fragment.append(col);
     });
     this._colgroup.replaceChildren(fragment);
+    this._pinLayout = tablePinLayout(columns, structural);
+  }
+
+  /** @returns {number} Columns the table renders before the data columns: row handle, checkbox. */
+  _structuralColumns() {
+    return (this.options.rowReorder ? 1 : 0) + (this.options.selectable === 'multi' ? 1 : 0);
+  }
+
+  /**
+   * Marks a header or body cell as part of a pinned column. The offset is a reference to a custom
+   * property on the scroll region, which `_measurePins()` keeps at the width of the pinned columns
+   * before this one, so a row drawn later — a windowed table draws them all the time — needs no
+   * measuring of its own.
+   * @param {HTMLElement} cell Header or body cell.
+   * @param {'start'|'end'} side Edge the column is pinned to.
+   * @param {number} slot Position among the columns pinned to that edge, counted from the edge.
+   * @param {boolean} [edge=false] Whether this is the pinned column next to the scrolling ones.
+   * @returns {void}
+   */
+  _markPin(cell, side, slot, edge = false) {
+    cell.dataset.pin = side;
+    cell.style.setProperty('--zx-table-pin-offset', `var(--zx-table-pin-${side}-${slot}, 0px)`);
+    if (edge) cell.dataset.pinEdge = '';
+  }
+
+  /**
+   * Builds the header row that names column groups, or null when no visible column has a group.
+   * One cell per run of adjacent columns sharing a group and a pin: a `<th scope="col">` spanning
+   * the run, or a blank `<td>` above columns that belong to no group and above the structural
+   * columns. Native `colspan` carries the span to assistive technology; the cells take no focus.
+   * @returns {HTMLTableRowElement|null}
+   */
+  _renderGroupRow() {
+    const runs = tableHeaderGroups(this._visibleColumns());
+    if (runs.length === 0) return null;
+    const layout = this._pinLayout;
+    const row = /** @type {HTMLTableRowElement} */ (h('tr', { class: 'zx-table__group-row' }));
+    const structural = this._structuralColumns();
+    if (structural > 0) {
+      const blank = h('td', { class: 'zx-table__group-blank', colspan: structural });
+      if (layout.structural) this._markPin(blank, 'start', 0);
+      row.append(blank);
+    }
+    for (const run of runs) {
+      const cell = run.label === null
+        ? h('td', { class: 'zx-table__group-blank', colspan: run.columns.length })
+        : h('th', {
+          class: 'zx-table__group', scope: 'col', colspan: run.columns.length, dataset: { group: run.label }
+        }, h('span', { class: 'zx-table__group-label' }, run.label));
+      if (run.pin) {
+        const pins = run.columns.map((id) => layout.columns.get(id));
+        // The cell sticks where its first column does at the start edge, its last at the end edge.
+        const anchor = run.pin === 'start' ? pins[0] : pins[pins.length - 1];
+        this._markPin(cell, run.pin, anchor.slot, pins.some((pin) => pin.edge));
+      }
+      row.append(cell);
+    }
+    return row;
+  }
+
+  /**
+   * Follows the widths the pinned offsets are made of: the header cells of the pinned columns, and
+   * the group row, whose height is where the column labels stick below it.
+   * @returns {void}
+   */
+  _watchPins() {
+    this._pinObserver?.disconnect();
+    const cells = this._headerRow ? [...this._headerRow.cells].filter((cell) => cell.dataset.pin) : [];
+    if (this._groupRow?.cells[0]) cells.push(this._groupRow.cells[0]);
+    if (cells.length === 0) {
+      this._measurePins();
+      return;
+    }
+    if (typeof ResizeObserver !== 'function') {
+      this._schedulePins();
+      return;
+    }
+    // Setting an inset from the callback resizes nothing, so there is no loop to defer out of.
+    this._pinObserver ??= new ResizeObserver(() => this._measurePins());
+    for (const cell of cells) this._pinObserver.observe(cell);
+  }
+
+  /** Measures the pinned offsets on the next frame. @returns {void} */
+  _schedulePins() {
+    cancelFrame(this._pinFrame);
+    this._pinFrame = nextFrame(() => this._measurePins());
+  }
+
+  /**
+   * Writes where each pinned column sticks, as custom properties on the scroll region: the summed
+   * width of the pinned columns between it and its edge. Also the room the pinned columns take on
+   * each side, which pads the scroll region so a cell focused by keyboard scrolls clear of them,
+   * and the height of the group row. A table that is not laid out keeps what it had.
+   * @returns {void}
+   */
+  _measurePins() {
+    const style = this._scroll.style;
+    const cells = this._headerRow ? [...this._headerRow.cells] : [];
+    const pinned = cells.some((cell) => cell.dataset.pin);
+    if (!pinned && !this._groupRow) {
+      for (const name of this._pinProps) style.removeProperty(name);
+      this._pinProps = [];
+      return;
+    }
+    const widths = cells.map((cell) => cell.getBoundingClientRect().width);
+    if (!widths.some((width) => width > 0)) return;
+    /** @type {Array<[string, string]>} */
+    const next = [];
+    for (const side of /** @type {const} */ (['start', 'end'])) {
+      const order = side === 'start' ? cells.map((_cell, index) => index)
+        : cells.map((_cell, index) => cells.length - 1 - index);
+      let slot = 0;
+      let offset = 0;
+      for (const index of order) {
+        if (cells[index].dataset.pin !== side) continue;
+        // Rounded down: a pinned column may overlap its neighbour by a fraction of a pixel, but a
+        // gap between two of them would let the scrolling cells show through.
+        next.push([`--zx-table-pin-${side}-${slot}`, `${Math.floor(offset)}px`]);
+        slot += 1;
+        offset += widths[index];
+      }
+      if (slot > 0) next.push([`--zx-table-pin-${side}`, `${Math.ceil(offset)}px`]);
+    }
+    if (this._groupRow) {
+      const height = this._groupRow.getBoundingClientRect().height;
+      if (height > 0) next.push(['--zx-table-group-row-size', `${height}px`]);
+    }
+    const names = new Set(next.map(([name]) => name));
+    for (const name of this._pinProps) if (!names.has(name)) style.removeProperty(name);
+    for (const [name, value] of next) {
+      if (style.getPropertyValue(name) !== value) style.setProperty(name, value);
+    }
+    this._pinProps = [...names];
   }
 
   /** @returns {void} */
   _renderHeader() {
-    const row = h('tr', { class: 'zx-table__header-row' });
-    if (this._indexed) row.setAttribute('aria-rowindex', '1');
-    if (this.options.rowReorder) row.append(h('th', {
-      class: 'zx-table__reorder-header', scope: 'col', ariaLabel: this._message('table.rowOrder', 'Row order', [])
-    }));
+    const row = /** @type {HTMLTableRowElement} */ (h('tr', { class: 'zx-table__header-row' }));
+    const layout = this._pinLayout;
+    const groupRow = this._renderGroupRow();
+    // The group row is a header row like the other: it counts in the row indices a table that
+    // draws only part of its rows has to state.
+    this._headerRows = groupRow ? 2 : 1;
+    this._groupRow = groupRow;
+    this._headerRow = row;
+    this.el.toggleAttribute('data-header-groups', Boolean(groupRow));
+    if (this._indexed) {
+      groupRow?.setAttribute('aria-rowindex', '1');
+      row.setAttribute('aria-rowindex', String(this._headerRows));
+    }
+    if (this.options.rowReorder) {
+      const reorderHeader = h('th', {
+        class: 'zx-table__reorder-header', scope: 'col', ariaLabel: this._message('table.rowOrder', 'Row order', [])
+      });
+      if (layout.structural) this._markPin(reorderHeader, 'start', 0);
+      row.append(reorderHeader);
+    }
     if (this.options.selectable === 'multi') {
       this._selectAll = h('input', {
         class: 'zx-table__checkbox zx-table__select-all',
@@ -1801,6 +2027,7 @@ export class Table extends Component {
         class: 'zx-table__selection-header',
         scope: 'col'
       }, this._selectAll);
+      if (layout.structural) this._markPin(selectionHeader, 'start', this.options.rowReorder ? 1 : 0);
       row.append(selectionHeader);
       this.listen(this._selectAll, 'click', () => {
         /*
@@ -1836,6 +2063,8 @@ export class Table extends Component {
       // is announced with an empty column header.
       const name = tableHeaderName(column);
       if (name !== null) th.setAttribute('aria-label', name);
+      const pin = layout.columns.get(column.id);
+      if (pin) this._markPin(th, pin.side, pin.slot, pin.edge);
       // Withheld, not disabled: a header that invites a sort the component will refuse is worse
       // than a header that never offered one. The label still reads exactly the same.
       if (column.sortable && !this._spanning) {
@@ -1857,8 +2086,9 @@ export class Table extends Component {
       this._headers.set(column.id, th);
       row.append(th);
     }
-    this._thead.replaceChildren(row);
+    this._thead.replaceChildren(...(groupRow ? [groupRow, row] : [row]));
     this._syncSortHeader();
+    this._watchPins();
   }
 
   /** @returns {void} @fires Table#editcancel */
@@ -1911,9 +2141,9 @@ export class Table extends Component {
       + (this.options.selectable === 'multi' ? 1 : 0) + (this.options.rowReorder ? 1 : 0)));
     /*
      * With `growing` or `virtual` on, the DOM holds part of the data — so without this a screen
-     * reader announces "row 3 of 10" for a table of ten thousand. The header counts as a row.
+     * reader announces "row 3 of 10" for a table of ten thousand. Each header row counts as a row.
      */
-    if (this._indexed) this._table.setAttribute('aria-rowcount', String(projected.length + 1));
+    if (this._indexed) this._table.setAttribute('aria-rowcount', String(projected.length + this._headerRows));
     this._syncSelectAll();
     this._syncGrowing();
     if (this._stacked) this._applyStackedRoles(true);
@@ -1946,7 +2176,7 @@ export class Table extends Component {
     const id = this._idFor(row);
     const tr = /** @type {HTMLTableRowElement} */ (h('tr', { dataset: { row: '' } }));
     // Only part of the rows is in the DOM, so each drawn row states where it really is.
-    if (this._indexed) tr.setAttribute('aria-rowindex', String(tree.visibleIndex + 2));
+    if (this._indexed) tr.setAttribute('aria-rowindex', String(tree.visibleIndex + 1 + this._headerRows));
     if (this._virtual && tree.visibleIndex % 2 === 1) tr.dataset.stripe = '';
     const rowClass = typeof this.options.rowClass === 'function' ? this.options.rowClass(row) : '';
     if (rowClass) tr.classList.add(...String(rowClass).split(/\s+/).filter(Boolean));
@@ -2001,7 +2231,9 @@ export class Table extends Component {
         title: this._sort && this.options.sortMode === 'local'
           ? this._message('table.reorderBlocked', 'Clear sorting to reorder rows', []) : null
       }, icon('drag', { size: 14 }));
-      tr.append(h('td', { class: 'zx-table__reorder-cell' }, handle));
+      const handleCell = h('td', { class: 'zx-table__reorder-cell' }, handle);
+      if (this._pinLayout.structural) this._markPin(handleCell, 'start', 0);
+      tr.append(handleCell);
     }
 
     if (this.options.selectable === 'multi') {
@@ -2013,7 +2245,9 @@ export class Table extends Component {
         tabIndex: -1,
         checked: this._selected.has(id)
       });
-      tr.append(h('td', { class: 'zx-table__selection-cell' }, checkbox));
+      const selectionCell = h('td', { class: 'zx-table__selection-cell' }, checkbox);
+      if (this._pinLayout.structural) this._markPin(selectionCell, 'start', this.options.rowReorder ? 1 : 0);
+      tr.append(selectionCell);
     }
 
     this._visibleColumns().forEach((column) => {
@@ -2025,6 +2259,8 @@ export class Table extends Component {
       cell.dataset.label = column.label;
       cell.dataset.column = column.id;
       if (column.popin === false) cell.dataset.popin = 'false';
+      const pin = this._pinLayout.columns.get(column.id);
+      if (pin) this._markPin(cell, pin.side, pin.slot, pin.edge);
       if (this._focusMode === 'cell') cell.tabIndex = -1;
       if (this._editMode !== false && resolveEditable(column, row) !== false) cell.dataset.editable = 'true';
       this._renderCellContent(cell, column, row, index, tree);
@@ -2129,9 +2365,9 @@ export class Table extends Component {
       return;
     }
 
-    // Only an editable table holds a click on a control inside a cell back from the row: there the
-    // click could otherwise open an editor. A read-only table activates the row as it always has.
-    if (this._editMode !== false && isInteractiveCellContent(target)) return;
+    // A click on a control the host rendered into a cell — a button, a link, a field — belongs to
+    // that control: it neither activates the row nor opens an editor over it.
+    if (isInteractiveCellContent(target)) return;
 
     if (this._editMode !== false && this._editTrigger === 'single') {
       const cell = target?.closest('td[data-editable="true"]');
@@ -2175,7 +2411,7 @@ export class Table extends Component {
     if (!rowElement || !this._tbody.contains(rowElement)) return;
     const meta = this._rowMeta.get(rowElement);
     if (!meta) return;
-    if (this._editMode !== false && isInteractiveCellContent(target)) return;
+    if (isInteractiveCellContent(target)) return;
     if (this._editMode !== false && this._editTrigger === 'double') {
       const cell = target?.closest('td[data-editable="true"]');
       if (cell && this._tbody.contains(cell)) {
@@ -3078,13 +3314,16 @@ export class Table extends Component {
 }
 
 /**
- * Row activation event.
+ * Row activation event: a click on a row, or Enter on the focused row or cell. A click on a
+ * control inside a cell — a button, link, field, `<label>`, an element with a widget role or in
+ * the Tab order, editable content, or anything marked `data-zx-table-no-edit` — belongs to that
+ * control and does not fire it, nor select the row in a `single` selection.
  * @event Table#rowclick
  * @type {CustomEvent<TableRowClickDetail>}
  */
 
 /**
- * Row double-activation event.
+ * Row double-activation event. Like `rowclick`, not fired for a control inside a cell.
  * @event Table#rowdblclick
  * @type {CustomEvent<TableRowClickDetail>}
  */
@@ -3764,13 +4003,33 @@ function isInsideEditor(target) {
   return Boolean(target?.closest?.('.zx-table__editor'));
 }
 
-/** @param {Element|null} target @returns {boolean} */
+/**
+ * What counts as a control inside a cell: native controls and links, a `<label>` (a click on one
+ * is a click on its control), editable content, the ARIA widget roles, anything in the Tab order,
+ * and anything the host marks with `data-zx-table-no-edit`. Zx controls rendered into a cell are
+ * covered by the first and the last three: each is, or wraps, one of these.
+ */
+export const TABLE_INTERACTIVE_SELECTOR = [
+  'a[href]', 'button', 'input', 'select', 'textarea', 'summary', 'label',
+  '[contenteditable]:not([contenteditable="false"])',
+  ...['button', 'link', 'checkbox', 'switch', 'radio', 'menuitem', 'menuitemcheckbox',
+    'menuitemradio', 'tab', 'option', 'combobox', 'listbox', 'slider', 'spinbutton', 'textbox',
+    'searchbox'].map((role) => `[role="${role}"]`),
+  '[tabindex]:not([tabindex="-1"])', '[data-zx-table-no-edit]'
+].join(',');
+
+/**
+ * Whether a click landed on a control inside a body cell rather than on the cell: such a click
+ * neither activates the row (`rowclick`, `rowdblclick`, the `single` selection) nor opens an
+ * editor. The cell and the row are in the Tab order themselves, so only a match strictly inside
+ * the cell counts. The table's own controls — checkbox, disclosure, row handle, an open editor —
+ * are handled before this is asked.
+ * @param {Element|null} target Click target.
+ * @returns {boolean}
+ */
 function isInteractiveCellContent(target) {
-  const cell = target?.closest?.('td[data-column]');
-  const interactive = target?.closest?.([
-    'a[href]', 'button', 'input', 'select', 'textarea', 'summary', '[contenteditable="true"]',
-    '[role="button"]', '[role="link"]', '[tabindex]:not([tabindex="-1"])', '[data-zx-table-no-edit]'
-  ].join(','));
+  const cell = target?.closest?.('td[data-column], th.zx-table__section-cell');
+  const interactive = target?.closest?.(TABLE_INTERACTIVE_SELECTOR);
   return Boolean(cell && interactive && interactive !== cell && cell.contains(interactive));
 }
 
@@ -3899,6 +4158,189 @@ function normalizeSort(sort, columns) {
   if (!sort || typeof sort !== 'object') return null;
   if (!columns.some((column) => column.id === sort.id)) return null;
   return { id: sort.id, dir: sort.dir === 'desc' ? 'desc' : 'asc' };
+}
+
+/** Narrowest an `fr` column gets when its `minWidth` does not say. */
+export const TABLE_FR_MIN_WIDTH = '5rem';
+
+/**
+ * Whether a column width can be added up in a `calc()`: a length with a unit, or a CSS function
+ * that holds no percentage — a percentage would resolve against the container, not the table.
+ * @param {unknown} value Column `width` or `minWidth`.
+ * @returns {boolean}
+ */
+function isCssLength(value) {
+  if (typeof value !== 'string') return false;
+  const text = value.trim();
+  if (/^\d*\.?\d+[a-z]+$/i.test(text)) return !/fr$/i.test(text);
+  return /^(?:calc|min|max|clamp|var)\(.*\)$/i.test(text) && !text.includes('%');
+}
+
+/**
+ * Reads a column's `minWidth`.
+ * @param {unknown} value Configured value.
+ * @returns {string|null|undefined} A CSS length; null when the column asks for no floor (`0`);
+ * undefined when it says nothing usable, which leaves the default to the caller.
+ */
+function columnMinWidth(value) {
+  if (value === 0 || value === '0' || value === false) return null;
+  if (typeof value === 'number') return Number.isFinite(value) && value > 0 ? `${value}px` : undefined;
+  return isCssLength(value) ? /** @type {string} */ (value).trim() : undefined;
+}
+
+/**
+ * How the visible columns are sized: the table layout, the width of each `<col>`, and the
+ * narrowest the table may get. Pure, so the decisions can be tested without a layout engine.
+ *
+ * `fr` columns become percentages in proportion to each other and switch the table to a fixed
+ * layout, as a windowed table always is. In a fixed layout the columns with a CSS length keep it
+ * and the `fr` columns share what is left — which in a narrow container is next to nothing. So the
+ * table gets a minimum width: the lengths, plus enough for the `fr` column that needs the most
+ * room to reach its floor at its share, and the scroll region scrolls inline below that. The floor
+ * is the column's `minWidth`, or `TABLE_FR_MIN_WIDTH`; an `auto` column counts with its `minWidth`
+ * when it has one, and percentage widths are left out of the sum.
+ * @param {Array<Partial<TableColumn>>} columns Visible columns, in display order.
+ * @param {{virtual?: boolean, structural?: number}} [options={}] Whether the table is windowed, and
+ * how many control-height columns (row handle, checkbox) it renders before the data columns.
+ * @returns {{layout: 'fixed'|'auto', widths: Array<string|null>, minInlineSize: string|null}}
+ * `widths` holds one `<col>` width per column, null where the column has none.
+ */
+export function tableColumnSizing(columns, options = {}) {
+  const list = Array.isArray(columns) ? columns : [];
+  const fractions = list.map((column) => parseFraction(column?.width));
+  const total = fractions.reduce((sum, value) => sum + value, 0);
+  const layout = total > 0 || options.virtual ? 'fixed' : 'auto';
+  const widths = list.map((column, index) => {
+    if (fractions[index] > 0) return `${fractions[index] / total * 100}%`;
+    return column?.width && column.width !== 'auto' ? String(column.width) : null;
+  });
+  if (layout !== 'fixed') return { layout, widths, minInlineSize: null };
+
+  /** @type {string[]} */
+  const lengths = [];
+  /** @type {Map<string, number>} Floor of the `fr` columns → the largest factor it is scaled by. */
+  const floors = new Map();
+  let guarded = false;
+  list.forEach((column, index) => {
+    const min = columnMinWidth(column?.minWidth);
+    if (fractions[index] > 0) {
+      const floor = min === undefined ? TABLE_FR_MIN_WIDTH : min;
+      if (floor === null) return;
+      guarded = true;
+      // The column gets `fraction / total` of what the `fr` columns share, so they need this many
+      // floors between them for it to reach one.
+      floors.set(floor, Math.max(floors.get(floor) ?? 0, total / fractions[index]));
+    } else if (isCssLength(column?.width)) {
+      lengths.push(String(column.width).trim());
+    } else if (min && (!column?.width || column.width === 'auto')) {
+      guarded = true;
+      lengths.push(min);
+    }
+  });
+  if (!guarded) return { layout, widths, minInlineSize: null };
+  const structural = Math.max(0, Math.trunc(Number(options.structural) || 0));
+  if (structural > 0) lengths.unshift(structural === 1 ? 'var(--zx-control-height)' : `var(--zx-control-height) * ${structural}`);
+  const shares = [...floors].map(([floor, factor]) => {
+    const rounded = Math.ceil(factor * 1000) / 1000;
+    return rounded === 1 ? floor : `${floor} * ${rounded}`;
+  });
+  if (shares.length === 1) lengths.push(shares[0]);
+  else if (shares.length > 1) lengths.push(`max(${shares.join(', ')})`);
+  const minInlineSize = lengths.length === 1 && !lengths[0].includes('*') ? lengths[0] : `calc(${lengths.join(' + ')})`;
+  return { layout, widths, minInlineSize };
+}
+
+/**
+ * The edge a column is pinned to.
+ * @param {Partial<TableColumn>|null|undefined} column Column descriptor.
+ * @returns {'start'|'end'|null} Null for an unpinned column and for any other value.
+ */
+export function tableColumnPin(column) {
+  return column?.pin === 'start' || column?.pin === 'end' ? column.pin : null;
+}
+
+/**
+ * Where each pinned column sits among the columns pinned to its edge. A slot counts from the edge:
+ * slot 0 at the start is the first pinned column in display order, slot 0 at the end the last. The
+ * structural columns (row handle, selection checkbox) take the first start slots once any column
+ * is pinned to the start, so they stay in view with it. The `edge` column of a side is the one next
+ * to the scrolling columns — the last pinned to the start, the first pinned to the end — which is
+ * where the dividing rule is drawn.
+ * @param {Array<Partial<TableColumn>>} columns Visible columns, in display order.
+ * @param {number} [structural=0] Structural columns rendered before them.
+ * @returns {{start: number, end: number, structural: boolean,
+ *   columns: Map<string, {side: 'start'|'end', slot: number, edge: boolean}>}} Slots taken on each
+ * side, whether the structural columns are pinned, and the placement of each pinned column by id.
+ */
+export function tablePinLayout(columns, structural = 0) {
+  const list = Array.isArray(columns) ? columns : [];
+  const sides = list.map((column) => tableColumnPin(column));
+  const placed = new Map();
+  const leading = Math.max(0, Math.trunc(Number(structural) || 0));
+  const pinsStructural = leading > 0 && sides.includes('start');
+  let start = pinsStructural ? leading : 0;
+  const lastStart = sides.lastIndexOf('start');
+  const firstEnd = sides.indexOf('end');
+  sides.forEach((side, index) => {
+    if (side !== 'start') return;
+    placed.set(String(list[index].id), { side, slot: start, edge: index === lastStart });
+    start += 1;
+  });
+  let end = 0;
+  for (let index = list.length - 1; index >= 0; index -= 1) {
+    if (sides[index] !== 'end') continue;
+    placed.set(String(list[index].id), { side: 'end', slot: end, edge: index === firstEnd });
+    end += 1;
+  }
+  return { start, end, structural: pinsStructural, columns: placed };
+}
+
+/**
+ * The cells of the header row that names column groups: one per run of adjacent columns sharing a
+ * `group` and a `pin`, in display order, with a null label for a run that belongs to no group. A
+ * run is split where the pin changes because a header cell sticks as a whole or not at all. Empty
+ * when no column has a group, which is when the table renders no such row.
+ * @param {Array<Partial<TableColumn>>} columns Visible columns, in display order.
+ * @returns {Array<{label: string|null, pin: 'start'|'end'|null, columns: string[]}>} Runs; the
+ * length of `columns` is the cell's `colspan`.
+ */
+export function tableHeaderGroups(columns) {
+  const list = Array.isArray(columns) ? columns : [];
+  /** @type {Array<{label: string|null, pin: 'start'|'end'|null, columns: string[]}>} */
+  const runs = [];
+  let grouped = false;
+  for (const column of list) {
+    const label = column?.group == null ? null : String(column.group).trim() || null;
+    const pin = tableColumnPin(column);
+    if (label !== null) grouped = true;
+    const last = runs[runs.length - 1];
+    if (last && last.label === label && last.pin === pin) last.columns.push(String(column.id));
+    else runs.push({ label, pin, columns: [String(column.id)] });
+  }
+  return grouped ? runs : [];
+}
+
+/**
+ * What replacing the set of expanded branches changes. Ids that are not branches of the current
+ * data are dropped, exactly as the table drops them from `hierarchy.expanded`.
+ * @param {unknown[]} branchIds Ids of every row that has children, in data order.
+ * @param {Set<unknown>} current Branches expanded now.
+ * @param {unknown} ids Branches to leave expanded: an array (or any iterable) of ids, `true` for
+ * every branch, anything else for none.
+ * @returns {{expanded: Set<unknown>, opened: unknown[], closed: unknown[]}} The new set, and the
+ * branches whose state changes, each in data order.
+ */
+export function resolveExpandedChange(branchIds, current, ids) {
+  const branches = Array.isArray(branchIds) ? branchIds : [];
+  const before = current instanceof Set ? current : new Set();
+  const iterable = ids != null && typeof ids === 'object' && typeof ids[Symbol.iterator] === 'function';
+  const wanted = ids === true ? null : new Set(iterable ? /** @type {Iterable<unknown>} */ (ids) : []);
+  const expanded = new Set(branches.filter((id) => wanted === null || wanted.has(id)));
+  return {
+    expanded,
+    opened: branches.filter((id) => expanded.has(id) && !before.has(id)),
+    closed: branches.filter((id) => before.has(id) && !expanded.has(id))
+  };
 }
 
 /** @param {unknown} width @returns {number} */

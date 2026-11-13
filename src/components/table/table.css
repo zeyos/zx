@@ -203,7 +203,8 @@
   margin-block-end: -2px;
   background: var(--zx-color-accent);
   opacity: 0.85;
-  z-index: 2;
+  /* Above the sticky header, pinned header cells included. */
+  z-index: 4;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -239,8 +240,12 @@
 
 /* Fixed layout (fr/proportional columns): fill the container. `max-content` must NOT apply here —
    with table-layout:fixed and percentage <col> widths it resolves to a runaway width. */
+/* The minimum is what the fixed-width columns take plus the floor of the `fr` ones (see
+   `tableColumnSizing`): below it the scroll region scrolls inline instead of the `fr` columns
+   being handed the few pixels that are left. */
 .zx-table__table[data-layout="fixed"] {
   table-layout: fixed;
+  min-inline-size: var(--zx-table-min-inline-size, 0);
 }
 
 /*
@@ -273,9 +278,127 @@
 
 .zx-table__scroll[data-sticky-header="true"] th {
   position: sticky;
-  z-index: 1;
+  /* Over the pinned body cells, which sit at 1. */
+  z-index: 2;
   inset-block-start: 0;
 }
+
+/* --- Header groups (TableColumn group) ------------------------------------------------------- */
+
+/*
+ * A second header row above the column labels: one cell per run of columns sharing a `group`, and
+ * a blank one above the columns that have none. The row is one row height whatever it holds, so
+ * the labels beneath can stick right below it; the measured height takes over once there is one.
+ */
+.zx-table__group-row > * {
+  box-sizing: border-box;
+  block-size: var(--zx-row-height);
+  padding-block: var(--zx-space-1);
+  white-space: nowrap;
+}
+
+/* Blank above an ungrouped column: the header's surface with no rule under it, so the column
+   reads as one tall header. Stated here because the blank is a `<td>`, not a header cell. */
+.zx-table .zx-table__group-blank {
+  border-block-end-color: transparent;
+  background: var(--zx-table-header-bg, var(--zx-color-bg-surface));
+}
+
+.zx-table .zx-table__group {
+  color: var(--zx-color-text);
+}
+
+/* Where one group ends and the next begins. */
+.zx-table .zx-table__group + .zx-table__group {
+  border-inline-start: 1px solid var(--zx-table-border-color, var(--zx-color-border));
+}
+
+/* The label stays in view for as long as any of its columns is: it follows the scroll position
+   inside its cell, clear of the columns pinned to the start edge. */
+.zx-table__group-label {
+  position: sticky;
+  inset-inline-start: calc(var(--zx-table-pin-start, 0px) + var(--zx-space-3));
+  display: inline-block;
+  max-inline-size: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+}
+
+.zx-table__scroll[data-sticky-header="true"] .zx-table__group-blank {
+  position: sticky;
+  z-index: 2;
+  inset-block-start: 0;
+}
+
+.zx-table__scroll[data-sticky-header="true"] .zx-table__group-row ~ tr > th {
+  inset-block-start: var(--zx-table-group-row-size, var(--zx-row-height));
+}
+
+/* --- Pinned columns (TableColumn pin) --------------------------------------------------------- */
+
+/*
+ * A pinned cell sticks to the inline edge of the scroll region at the summed width of the pinned
+ * columns before it, which the component measures off the header and publishes on the scroll
+ * region (`--zx-table-pin-start-0`…, read here through the cell's own `--zx-table-pin-offset`).
+ * Logical insets, so the start edge is the right one in a right-to-left table.
+ *
+ * Rows are filled on the `<tr>` and cells are see-through, which a cell that other cells scroll
+ * under cannot be. A pinned cell therefore paints the row's fill itself, over an opaque base: the
+ * hover step, then the stripe or selection fill, then the surface — the same layers the row
+ * shows, so it never reads as a different colour from the rest of its row.
+ */
+.zx-table__scroll {
+  scroll-padding-inline: var(--zx-table-pin-start, 0px) var(--zx-table-pin-end, 0px);
+}
+
+.zx-table :is(th, td)[data-pin] {
+  position: sticky;
+  z-index: 1;
+}
+
+.zx-table :is(th, td)[data-pin="start"] {
+  inset-inline-start: var(--zx-table-pin-offset, 0px);
+}
+
+.zx-table :is(th, td)[data-pin="end"] {
+  inset-inline-end: var(--zx-table-pin-offset, 0px);
+}
+
+/* Header cells of pinned columns stay over both the header row and the pinned body cells. */
+.zx-table .zx-table__head :is(th, td)[data-pin] {
+  z-index: 3;
+  background: var(--zx-table-pin-bg, var(--zx-table-header-bg, var(--zx-color-bg-surface)));
+}
+
+.zx-table__body td[data-pin] {
+  background:
+    linear-gradient(var(--zx-table-pin-hover, transparent), var(--zx-table-pin-hover, transparent)),
+    linear-gradient(var(--zx-table-row-fill, transparent), var(--zx-table-row-fill, transparent)),
+    var(--zx-table-pin-bg, var(--zx-table-header-bg, var(--zx-color-bg-surface)));
+}
+
+.zx-table__body tr[data-row]:hover > td[data-pin] {
+  --zx-table-pin-hover: var(--zx-table-row-hover-bg, var(--zx-color-bg-hover));
+}
+
+/* The rule between the pinned columns and the ones that scroll under them. */
+.zx-table :is(th, td)[data-pin="start"][data-pin-edge] {
+  border-inline-end: 1px solid var(--zx-table-border-color, var(--zx-color-border));
+}
+
+.zx-table :is(th, td)[data-pin="end"][data-pin-edge] {
+  border-inline-start: 1px solid var(--zx-table-border-color, var(--zx-color-border));
+}
+
+/* The row draws its focus ring and its drop marker on the `<tr>`, under the cells; a pinned cell
+   is opaque, so it repeats them. */
+.zx-table__body tr[data-row][tabindex]:focus-visible > td[data-pin] {
+  box-shadow: inset var(--zx-focus-ring);
+}
+
+.zx-table__body tr[data-drop="before"] > td[data-pin] { box-shadow: inset 0 2px 0 var(--zx-color-accent); }
+.zx-table__body tr[data-drop="after"] > td[data-pin] { box-shadow: inset 0 -2px 0 var(--zx-color-accent); }
 
 /*
  * Body rows keep one rhythm: a single-line row is exactly `--zx-row-height`, its divider included,
@@ -432,6 +555,11 @@
 
 .zx-table[data-variant="plain"] .zx-table__scroll[data-sticky-header="false"] th {
   background: transparent;
+}
+
+/* A pinned header cell has cells scrolling under it whether or not the header sticks. */
+.zx-table[data-variant="plain"] .zx-table__scroll[data-sticky-header="false"] th[data-pin] {
+  background: var(--zx-table-pin-bg, var(--zx-table-header-bg, var(--zx-color-bg-surface)));
 }
 
 /* The stripe's own rule paints this fill, and the hover step lays over it, so nothing more. */
@@ -639,8 +767,17 @@
   scroll-margin-block: calc(var(--zx-control-height) + var(--zx-space-2)) var(--zx-space-2);
 }
 
+.zx-table[data-header-groups] .zx-table__body > tr[data-row] {
+  scroll-margin-block-start: calc(var(--zx-control-height) + var(--zx-row-height) + var(--zx-space-2));
+}
+
 .zx-table__body td[data-editing="true"] {
   position: relative;
+}
+
+/* A pinned cell is positioned already, and has to stay pinned while it is edited. */
+.zx-table .zx-table__body td[data-editing="true"][data-pin] {
+  position: sticky;
 }
 
 /* The cell keeps its rendered content while editing — invisible, but still contributing its
@@ -721,6 +858,21 @@
 .zx-table[data-stacked] .zx-table__body > tr {
   display: block;
   inline-size: 100%;
+}
+
+/* A card has no columns to keep a width for, and none to pin. */
+.zx-table[data-stacked] .zx-table__table {
+  min-inline-size: 0;
+}
+
+.zx-table[data-stacked] .zx-table__body td[data-pin] {
+  position: static;
+  border-inline: 0;
+  background: none;
+}
+
+.zx-table[data-stacked] .zx-table__scroll {
+  scroll-padding-inline: 0;
 }
 
 /* The header is redundant once every cell carries its own label, and its widths would fight the

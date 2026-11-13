@@ -6,6 +6,23 @@ const ASSUMED_ROW_HEIGHT = 36;
 const ASSUMED_VIEWPORT = 600;
 
 /**
+ * Runs a callback before the next paint, or shortly after where there are no animation frames
+ * (jsdom without `pretendToBeVisual`, a server-side DOM).
+ * @param {() => void} callback Work to run.
+ * @returns {number} Handle for `cancelFrame()`.
+ */
+export function nextFrame(callback) {
+  return typeof requestAnimationFrame === 'function'
+    ? requestAnimationFrame(callback) : /** @type {any} */ (setTimeout(callback, 16));
+}
+
+/** @param {number} handle What `nextFrame()` returned. @returns {void} */
+export function cancelFrame(handle) {
+  if (typeof cancelAnimationFrame === 'function') cancelAnimationFrame(handle);
+  else clearTimeout(handle);
+}
+
+/**
  * Which rows to draw for a scroll position: those in view, plus `overscan` viewports' worth above
  * and below. Positions are zero-based and `end` is exclusive. The scroll position is clamped to
  * what the rows can reach, so a list that just got shorter still draws its last rows while the
@@ -99,7 +116,7 @@ export function tableWindowScroll({ index, rowHeight, scrollTop, viewport }) {
  * Keeps a table body down to the rows around the scroll position. Spacer rows stand in for the rest,
  * sized from one measured row, so the scroll height is the height of every row. Rows that stay in
  * the window are never touched: moving one would blur it. Holds no listeners of its own except the
- * `ResizeObserver` released by `stop()`.
+ * `ResizeObserver` released by `stop()`, and does without one where the environment has none.
  */
 export class RowWindow {
   /** @param {RowWindowHost} host Table side of the arrangement. */
@@ -136,10 +153,19 @@ export class RowWindow {
    * through the observer too, so it happens once the table is laid out and styled, however late it
    * is attached. It waits for the next frame because a measurement may resize the scroll region
    * itself, which an observer callback must not do.
+   *
+   * Where there is no `ResizeObserver` (jsdom) the window still works: it measures once on the next
+   * frame and again whenever the host calls `schedule()` — `Table` does on a window resize — and
+   * until a measurement succeeds it draws for the assumed row height and viewport, which is what a
+   * DOM without layout gets for good.
    * @returns {void}
    */
   start() {
     this.live = true;
+    if (typeof ResizeObserver !== 'function') {
+      this.schedule();
+      return;
+    }
     this.observer = new ResizeObserver(() => this.schedule());
     this.observer.observe(this.host.scroller);
     this.observer.observe(this.probe);
@@ -147,14 +173,14 @@ export class RowWindow {
 
   /** Measures on the next frame, however many times this is asked before it. @returns {void} */
   schedule() {
-    cancelAnimationFrame(this.frame);
-    this.frame = requestAnimationFrame(() => this.measure());
+    cancelFrame(this.frame);
+    this.frame = nextFrame(() => this.measure());
   }
 
   /** Stops measuring. @returns {void} */
   stop() {
     this.live = false;
-    cancelAnimationFrame(this.frame);
+    cancelFrame(this.frame);
     this.observer?.disconnect();
     this.observer = null;
   }
