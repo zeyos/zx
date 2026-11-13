@@ -8,6 +8,11 @@ and friends remain the complete record.
 
 ## Unreleased
 
+## 5.7.1 — 2026-11-13
+
+One preventable `cancel` for every way of dismissing an overlay, exact values in NumberField, a
+lockable Checklist, and fixes for strict Content Security Policies and the pressed button state.
+
 ### Added
 
 - **`cancel` covers every dismissal.** Modal, Dialog and Sheet now raise the preventable `cancel`
