@@ -63,6 +63,30 @@ export default {
           checklist.toElement()
         ];
       }
+    },
+    {
+      title: 'Labelled and lockable',
+      blurb: 'label names the heading and the group. disable() locks the search field and every '
+        + 'checkbox — while a form saves, say — and the state holds through searches and reloads; '
+        + 'values can still be set from code.',
+      layout: 'stack',
+      width: '420px',
+      render: ({ cleanup, log }) => {
+        const checklist = new Checklist(null, {
+          label: 'Departments with access',
+          items: departments(),
+          disabled: true,
+          onchange: ({ detail }) => log(`change values=[${detail.values.join(', ') || 'none'}]`)
+        });
+        cleanup(() => checklist.destroy());
+        return [
+          h('div', { class: 'demo-row' },
+            h('button', { type: 'button', onclick: () => checklist.enable() }, 'enable()'),
+            h('button', { type: 'button', onclick: () => checklist.disable() }, 'disable()'),
+            h('button', { type: 'button', onclick: () => checklist.setValues([20, 30]) }, 'setValues([20, 30])')),
+          checklist.toElement()
+        ];
+      }
     }
   ]
 };

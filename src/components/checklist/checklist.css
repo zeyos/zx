@@ -41,7 +41,7 @@
   line-height: 1.35;
 }
 
-.zx-checklist__item:hover {
+.zx-checklist:not([aria-disabled="true"]) .zx-checklist__item:hover {
   background: var(--zx-color-bg-hover);
 }
 
@@ -69,4 +69,12 @@
 
 .zx-checklist[data-state="loading"] .zx-checklist__list {
   color: var(--zx-color-text-muted);
+}
+
+.zx-checklist[aria-disabled="true"] {
+  opacity: var(--zx-control-disabled-opacity);
+}
+
+.zx-checklist[aria-disabled="true"] .zx-checklist__item {
+  cursor: default;
 }

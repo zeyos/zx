@@ -13,6 +13,9 @@ import { matchItems } from '../select/filter.js';
  * @property {boolean} [search=true] Whether the search field is shown.
  * @property {number} [height=280] Maximum list height in pixels.
  * @property {boolean} [defaultChecked=false] Fallback initial checked state.
+ * @property {string|null} [label=null] Heading text, which is also the group's accessible name;
+ *   null uses the `checklist.label` message.
+ * @property {boolean} [disabled=false] Whether the search field and every checkbox are disabled.
  * @property {boolean} [hideLabel=false] Whether the heading is left out. The group keeps the
  *   heading text as its accessible name (`aria-label`); a Field labelling the checklist names it
  *   instead, which is why the `checklist` field type sets this.
@@ -43,6 +46,8 @@ export class Checklist extends Component {
     search: true,
     height: 280,
     defaultChecked: false,
+    label: null,
+    disabled: false,
     hideLabel: false,
     load: null
   };
@@ -57,13 +62,15 @@ export class Checklist extends Component {
     const root = /** @type {HTMLElement} */ (this.el ?? h('div'));
     this.el = root;
     if (!this._createdRoot) this._originalChildren = Array.from(root.childNodes);
-    for (const name of ['role', 'aria-label', 'aria-labelledby', 'data-state']) {
+    this._disabled = Boolean(this.options.disabled);
+    for (const name of ['role', 'aria-label', 'aria-labelledby', 'aria-disabled', 'data-state']) {
       this._originalAttributes.set(name, root.getAttribute(name));
     }
 
-    const labelText = this._message('checklist.label', 'Checklist');
+    const labelText = this._labelText(this.options.label);
     const labelId = uid('zx-checklist-label');
     const title = this.options.hideLabel ? null : h('div', {
+      ref: 'label',
       class: 'zx-checklist__label',
       id: labelId
     }, labelText);
@@ -74,7 +81,8 @@ export class Checklist extends Component {
       autocomplete: 'off',
       placeholder: this._message('checklist.search', 'Search'),
       ariaLabel: this._message('checklist.search', 'Search checklist'),
-      hidden: !this.options.search
+      hidden: !this.options.search,
+      disabled: this._disabled
     });
     const list = h('div', {
       ref: 'list',
@@ -99,6 +107,7 @@ export class Checklist extends Component {
     });
 
     this._replaceItems(this.options.items);
+    this._syncDisabled();
     if (typeof this.options.load === 'function') {
       queueMicrotask(() => {
         if (this._active) void this.reload().catch(() => {});
@@ -115,6 +124,37 @@ export class Checklist extends Component {
   setItems(items) {
     this._replaceItems(items);
     return this;
+  }
+
+  /**
+   * Replaces the heading text, which is also the group's accessible name.
+   * @param {string|null} label New label; null restores the `checklist.label` message.
+   * @returns {this}
+   */
+  setLabel(label) {
+    const text = this._labelText(label);
+    if (this.refs.label) this.refs.label.textContent = text;
+    else this.el.setAttribute('aria-label', text);
+    return this;
+  }
+
+  /** Enables the search field and the checkboxes. @returns {this} */
+  enable() {
+    this._disabled = false;
+    this._syncDisabled();
+    return this;
+  }
+
+  /** Disables the search field and the checkboxes; values can still be set programmatically. @returns {this} */
+  disable() {
+    this._disabled = true;
+    this._syncDisabled();
+    return this;
+  }
+
+  /** Whether the checklist is disabled. @returns {boolean} */
+  isDisabled() {
+    return this._disabled;
   }
 
   /** Returns checked IDs in item order. @returns {unknown[]} */
@@ -223,6 +263,7 @@ export class Checklist extends Component {
         type: 'checkbox',
         id: checkboxId,
         checked: this._checked.has(this._itemValue(item)),
+        disabled: this._disabled,
         dataset: { index }
       });
       return h('label', {
@@ -237,6 +278,21 @@ export class Checklist extends Component {
       }, this._message('checklist.empty', 'No matches')));
     }
     this.refs.list.replaceChildren(...rows);
+  }
+
+  /** @returns {void} */
+  _syncDisabled() {
+    if (this._disabled) this.el.setAttribute('aria-disabled', 'true');
+    else this.el.removeAttribute('aria-disabled');
+    /** @type {HTMLInputElement} */ (this.refs.search).disabled = this._disabled;
+    for (const input of this.refs.list.querySelectorAll('input[type="checkbox"]')) {
+      /** @type {HTMLInputElement} */ (input).disabled = this._disabled;
+    }
+  }
+
+  /** @param {string|null|undefined} label @returns {string} */
+  _labelText(label) {
+    return label == null || label === '' ? this._message('checklist.label', 'Checklist') : String(label);
   }
 
   /** @param {Set<unknown>} next @returns {void} */

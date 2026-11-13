@@ -10,19 +10,11 @@ export function registerChecklistFieldAdapter() {
     // The Field's label names the list (`aria-labelledby`), so the checklist draws no heading of
     // its own under it.
     const checklist = field.own(new Checklist(null, { hideLabel: true, ...(options.props ?? {}) }));
-    let disabled = false;
     let setting = false;
-    const syncDisabled = () => {
-      checklist.el.setAttribute('aria-disabled', String(disabled));
-      for (const control of checklist.el.querySelectorAll('input, button, select, textarea')) {
-        control.disabled = disabled;
-      }
-    };
     field.listen(checklist.el, 'change', (event) => event.stopImmediatePropagation());
     checklist.on('change', (event) => {
       if (!setting) field.emit('change', { value: event.detail.values });
     });
-    checklist.on('loaded', syncDisabled);
     return {
       el: checklist.el,
       get: () => checklist.getValues(),
@@ -33,15 +25,14 @@ export function registerChecklistFieldAdapter() {
         } finally {
           setting = false;
         }
-        syncDisabled();
       },
       focus: () => {
         const search = checklist.el.querySelector('.zx-checklist__search:not([hidden]):not([disabled])');
         (search ?? checklist.el.querySelector('input[type="checkbox"]:not([disabled])'))?.focus();
       },
       setDisabled: (value) => {
-        disabled = Boolean(value);
-        syncDisabled();
+        if (value) checklist.disable();
+        else checklist.enable();
       }
     };
   });
