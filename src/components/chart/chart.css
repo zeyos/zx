@@ -11,9 +11,28 @@
   /* The automatic minimum width would carry the 220px floor through the aspect ratio (587px at
      16 / 6) and push the canvas out of a narrow card; narrow, the chart grows taller instead. */
   min-inline-size: 0;
-  min-block-size: 220px;
+  /* Styling hook: the least height the viewport keeps, whatever the aspect ratio works out to.
+     Set it on the chart or any ancestor. */
+  min-block-size: var(--zx-chart-min-block-size, 220px);
   aspect-ratio: var(--zx-chart-aspect-ratio, 16 / 9);
 }
+
+/* Fill mode: the container decides the height. The root takes all of it, the viewport (or the
+   status that stands in for it) takes what the description and a visible summary leave, and the
+   floor applies only where the application set one. */
+.zx-chart[data-fill] {
+  grid-template-rows: minmax(0, 1fr);
+  block-size: 100%;
+  min-block-size: 0;
+}
+
+.zx-chart[data-fill] > .zx-chart__viewport,
+.zx-chart[data-fill] > .zx-chart__status {
+  grid-row: 1;
+  min-block-size: var(--zx-chart-min-block-size, 0px);
+}
+
+.zx-chart[data-fill] > .zx-chart__viewport { aspect-ratio: auto; }
 
 .zx-chart__viewport[hidden],
 .zx-chart__status[hidden] { display: none; }

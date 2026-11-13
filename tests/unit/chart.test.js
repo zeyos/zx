@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { setLanguage } from '../../src/core/i18n.js';
 import {
   ChartJsAdapter, chartSummaryModel, cloneChartValue, isEmptyChartData
 } from '../../src/components/chart/chart.js';
@@ -137,4 +138,70 @@ test('ChartJsAdapter destroys the old engine once when type reconstruction fails
 test('chartSummaryModel works as an array callback', () => {
   const [model] = [{ labels: ['a'], datasets: [{ data: [1] }] }].map(chartSummaryModel);
   assert.deepEqual(model.headers, ['Series 1']);
+});
+
+test('chart summary numbers are written for the active language, without float noise', () => {
+  const data = {
+    labels: ['a', 'b', 'c', 'd'],
+    datasets: [
+      { data: [0.1 + 0.2, 1234567.5, 0, -0.000123456] },
+      { data: [{ x: 1, y: 1500.25 }, { r: 12000 }, '1500', true] },
+      { data: [{ custom: 1 }, Number.NaN, 1e21, 3.14159265358979] }
+    ]
+  };
+  const values = () => chartSummaryModel(data).rows.map((row) => row.values);
+  assert.deepEqual(values(), [
+    ['0.3', '1,500.25', '{"custom":1}'],
+    ['1,234,567.5', '12,000', 'NaN'],
+    ['0', '1500', '1,000,000,000,000,000,000,000'],
+    ['-0.000123456', 'true', '3.14159265359']
+  ]);
+  setLanguage('de');
+  try {
+    assert.deepEqual(values().map((row) => row[0]), ['0,3', '1.234.567,5', '0', '-0,000123456']);
+  } finally {
+    setLanguage('en');
+  }
+});
+
+test('ChartJsAdapter colours uncoloured datasets from the theme palette and leaves the rest alone', () => {
+  class FakeChart {
+    constructor(_canvas, config) { this.data = config.data; this.options = config.options; }
+    update() {}
+    destroy() {}
+  }
+  const palette = ['#111111', '#222222', '#333333'];
+  const data = {
+    labels: ['A', 'B', 'C', 'D'],
+    datasets: [
+      { data: [1, 2, 3, 4] },
+      { data: [1, 2, 3, 4], backgroundColor: '#abcdef' },
+      { data: [1, 2, 3, 4], borderColor: '#fedcba' },
+      { data: [1, 2, 3, 4], type: 'line' },
+      { data: [1, 2, 3, 4], type: 'pie' }
+    ]
+  };
+  const spec = { type: 'bar', data, options: {}, theme: { palette }, onSelect() {} };
+  const handle = new ChartJsAdapter(FakeChart).create({}, spec);
+  const colours = () => handle.instance.data.datasets.map(({ backgroundColor, borderColor }) => [backgroundColor, borderColor]);
+  assert.deepEqual(colours(), [
+    ['#111111', '#111111'],
+    ['#abcdef', undefined],
+    [undefined, '#fedcba'],
+    ['rgba(17, 17, 17, 0.5)', '#111111'],
+    [['#111111', '#222222', '#333333', '#111111'], undefined]
+  ]);
+  assert.equal(data.datasets[0].backgroundColor, undefined, 'the application data is not written to');
+
+  handle.update({ ...spec, type: 'bar', theme: { palette: ['#444444'] } });
+  assert.equal(colours()[0][0], '#444444', 'an update carries the new palette');
+  handle.update({ ...spec, theme: { palette: [] } });
+  assert.deepEqual(colours()[0], [undefined, undefined], 'no palette, no colours');
+  handle.update({ type: 'bar', data, options: {}, onSelect() {} });
+  assert.deepEqual(colours()[0], [undefined, undefined], 'a spec from before `theme` existed still works');
+});
+
+test('a large whole number in the chart summary keeps every digit', () => {
+  const model = chartSummaryModel({ labels: ['a'], datasets: [{ data: [1234567890123456] }] });
+  assert.deepEqual(model.rows[0].values, ['1,234,567,890,123,456']);
 });
