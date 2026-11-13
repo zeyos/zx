@@ -57,6 +57,25 @@ export default {
       }
     },
     {
+      title: 'Exact values',
+      blurb: 'A field moves what you type onto its step grid: with step 2, 123 commits as 124. '
+        + 'snap: false keeps the value exactly as entered — for an identifier, a seed, a measurement — '
+        + 'and step is then only what the buttons and arrow keys add.',
+      render: ({ cleanup, log }) => {
+        const snapped = new NumberField(null, { value: 120, step: 2 });
+        const exact = new NumberField(null, { value: 123, step: 2, snap: false });
+        const seed = new NumberField(null, { value: 0.00002, step: 0.0001, snap: false });
+        const fields = [snapped, exact, seed];
+        fields.forEach((field) => field.on('change', ({ detail }) => log(`change → ${detail.value ?? 'empty'}`)));
+        cleanup(() => fields.forEach((field) => field.destroy()));
+        return [
+          h('label', { class: 'demo-field' }, h('span', {}, 'step 2 — type 123'), snapped.toElement()),
+          h('label', { class: 'demo-field' }, h('span', {}, 'step 2, snap: false'), exact.toElement()),
+          h('label', { class: 'demo-field' }, h('span', {}, 'step 0.0001, snap: false'), seed.toElement())
+        ];
+      }
+    },
+    {
       title: 'Programmatic control',
       blurb: 'stepUp() moves by whole steps, set(null) empties the field, and setRange() moves the '
         + 'bounds under a value that is already there.',

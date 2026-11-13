@@ -11,6 +11,11 @@ import { icon } from '../../core/icons.js';
  * @property {number} [step=1] Increment applied by the buttons and arrow keys.
  * @property {number} [largeStep=10] Multiple of `step` applied by PageUp/PageDown.
  * @property {number|null} [precision=null] Decimal places; derived from `step` when null.
+ * @property {boolean} [snap=true] Whether a typed or assigned value is moved onto the `step` grid.
+ *   With `false` the value is kept exactly as entered — `step` is then only the increment of the
+ *   buttons and arrow keys, and decimals are rounded only to an explicit `precision`. `min` and
+ *   `max` still apply. Use it for values that are not multiples of anything: an identifier, a
+ *   seed, a measurement.
  * @property {boolean} [wrap=false] Whether stepping past a bound wraps to the other one.
  * @property {string} [placeholder=''] Empty-state text.
  * @property {string|null} [label=null] Accessible name for the spinbutton.
@@ -48,6 +53,7 @@ export class NumberField extends Component {
     step: 1,
     largeStep: 10,
     precision: null,
+    snap: true,
     wrap: false,
     placeholder: '',
     label: null,
@@ -75,9 +81,13 @@ export class NumberField extends Component {
 
     const step = normalizeStep(this.options.step);
     this._step = step;
-    this._precision = this.options.precision === null
-      ? decimalsOf(step)
-      : Math.max(0, Math.trunc(Number(this.options.precision) || 0));
+    this._snap = this.options.snap !== false;
+    const explicit = this.options.precision !== null && this.options.precision !== undefined;
+    this._precision = explicit
+      ? Math.max(0, Math.trunc(Number(this.options.precision) || 0))
+      : decimalsOf(step);
+    // Without snapping, only a precision the application asked for may round a value.
+    this._fixedPrecision = this._snap || explicit;
 
     const down = this._stepButton('down', 'minus');
     const up = this._stepButton('up', 'plus');
@@ -86,7 +96,7 @@ export class NumberField extends Component {
       class: 'zx-number-field__input',
       type: 'text',
       role: 'spinbutton',
-      inputMode: this._precision > 0 ? 'decimal' : 'numeric',
+      inputMode: this._precision > 0 || !this._fixedPrecision ? 'decimal' : 'numeric',
       autocomplete: 'off',
       spellcheck: false,
       placeholder: String(this.options.placeholder ?? ''),
@@ -153,7 +163,8 @@ export class NumberField extends Component {
   }
 
   /**
-   * Sets the value, snapping it to `step` and clamping it into `[min, max]`.
+   * Sets the value, clamping it into `[min, max]` and — unless `snap` is off — moving it onto the
+   * `step` grid.
    * @param {number|string|null} next Next value; empty strings and null clear the field.
    * @param {{silent?: boolean}} [options={}] Set `silent` to suppress `change`.
    * @returns {this}
@@ -277,6 +288,16 @@ export class NumberField extends Component {
   _coerce(raw) {
     const parsed = parseNumber(raw, this.options.group ? this._separators() : null);
     if (parsed === null) return null;
+    if (!this._snap) {
+      // Past the digits a double can round to, rounding would only turn a tiny value into zero.
+      if (this._decimalsFor(parsed) > ROUNDABLE_DECIMALS) return clampNumber(parsed, this._rangeMin, this._rangeMax);
+      return snapNumber(parsed, {
+        min: this._rangeMin,
+        max: this._rangeMax,
+        step: 0,
+        precision: this._decimalsFor(parsed)
+      });
+    }
     return snapNumber(parsed, {
       min: this._rangeMin,
       max: this._rangeMax,
@@ -301,7 +322,8 @@ export class NumberField extends Component {
     const base = current === null ? (min ?? 0) : current;
     // An empty field steps to the lower bound first, so the first click lands on a real value.
     const start = current === null && count > 0 && min !== null ? min - this._step * count : base;
-    let next = round(start + this._step * count, this._precision);
+    const decimals = this._decimalsFor(start);
+    let next = decimals > ROUNDABLE_DECIMALS ? start + this._step * count : round(start + this._step * count, decimals);
 
     if (this.options.wrap && min !== null && max !== null) {
       if (next > max) next = min;
@@ -412,15 +434,27 @@ export class NumberField extends Component {
    */
   _format(value, editing) {
     // Ungrouped fields use a plain machine format, which `parseNumber` reads heuristically.
-    if (!this.options.group) return value.toFixed(this._precision);
+    const decimals = this._decimalsFor(value);
+    if (!this.options.group) return value.toFixed(decimals);
     // Grouped fields stay in the locale's notation even while editing — only the thousands
     // separators drop away. Display and input therefore always use the same decimal character,
     // so a value the field rendered is always a value it can read back.
     return new Intl.NumberFormat(formattingLocale(this.options.locale), {
-      minimumFractionDigits: this._precision,
-      maximumFractionDigits: this._precision,
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
       useGrouping: !editing
     }).format(value);
+  }
+
+  /**
+   * Decimal places a value is held and shown at: the field's precision, widened to the value's
+   * own decimals when nothing fixed the precision (`snap: false` without `precision`).
+   * @param {number} value Value in question.
+   * @returns {number}
+   */
+  _decimalsFor(value) {
+    if (this._fixedPrecision) return this._precision;
+    return Math.min(MAX_DECIMALS, Math.max(this._precision, decimalsOf(value)));
   }
 
   /**
@@ -541,13 +575,32 @@ function normalizeStep(step) {
   return Number.isFinite(value) && value > 0 ? value : 1;
 }
 
-/** @param {number} step @returns {number} */
-function decimalsOf(step) {
-  const text = String(step);
-  const exponent = text.match(/e-(\d+)/i);
-  if (exponent) return Number(exponent[1]);
-  const fraction = text.split('.')[1];
-  return fraction ? fraction.length : 0;
+/** Most decimals a value is displayed with (the limit of `toFixed`). */
+const MAX_DECIMALS = 100;
+/** Most decimals `round()` works to; an unsnapped value needing more is left unrounded. */
+const ROUNDABLE_DECIMALS = 15;
+
+/**
+ * @param {number} value Value to bound.
+ * @param {number|null} min Lower bound.
+ * @param {number|null} max Upper bound.
+ * @returns {number}
+ */
+function clampNumber(value, min, max) {
+  if (min !== null && value < min) return min;
+  if (max !== null && value > max) return max;
+  return value;
+}
+
+/**
+ * Decimal places in a number's shortest exact notation, exponent form included (`2.5e-7` has 8).
+ * @param {number} value Number to measure.
+ * @returns {number}
+ */
+function decimalsOf(value) {
+  const [mantissa, exponent = '0'] = String(value).toLowerCase().split('e');
+  const fraction = mantissa.split('.')[1]?.length ?? 0;
+  return Math.max(0, fraction - Number(exponent));
 }
 
 /**
