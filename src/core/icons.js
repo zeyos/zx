@@ -181,6 +181,10 @@ export const icons = Object.freeze({
   error: outline('M2 12a10 10 0 1 0 20 0a10 10 0 1 0-20 0zM12 8V12M12 16H12.01'), // circle-alert
   success: outline('M2 12a10 10 0 1 0 20 0a10 10 0 1 0-20 0zM16 9l-5.5 5.5L8 12'), // circle-check
   upload: outline('M12 3v12M17 8l-5-5-5 5M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'),
+  download: outline('M12 15V3M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5'),
+  'box-archive': outline('M3 3h18a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-18a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1zM4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8M10 12h4'), // archive
+  pencil: outline('M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497zM15 5l4 4'),
+  'pen-to-square': outline('M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z'), // square-pen
   drag: outline('M8 12a1 1 0 1 0 2 0a1 1 0 1 0-2 0zM8 5a1 1 0 1 0 2 0a1 1 0 1 0-2 0zM8 19a1 1 0 1 0 2 0a1 1 0 1 0-2 0zM14 12a1 1 0 1 0 2 0a1 1 0 1 0-2 0zM14 5a1 1 0 1 0 2 0a1 1 0 1 0-2 0zM14 19a1 1 0 1 0 2 0a1 1 0 1 0-2 0z'), // grip-vertical
   star: outline('M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z'),
   heart: outline('M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5'),
@@ -204,8 +208,14 @@ export const icons = Object.freeze({
   // </lucide-glyphs>
 });
 
-/** Legacy gx Factory icon names mapped to their Zx equivalents. */
+/**
+ * Other names for bundled glyphs: legacy gx Factory names, and the older Font Awesome names
+ * (`archive`, `edit`) that are still the ones most code reaches for. A glyph an application
+ * registered under the alias itself takes precedence (see `icon()`).
+ */
 const aliases = Object.freeze({
+  archive: 'box-archive',
+  edit: 'pen-to-square',
   settings: 'gear',
   clear: 'x',
   checked: 'check',
@@ -352,7 +362,8 @@ export function icon(name, options = {}) {
   const spec = parseIconSpec(name);
   if (spec.classes) return faIcon(spec.classes, options);
 
-  const resolved = aliases[spec.name] ?? spec.name;
+  // An application that registered a glyph under an alias name keeps its own glyph.
+  const resolved = Object.hasOwn(extraGlyphs, spec.name) ? spec.name : aliases[spec.name] ?? spec.name;
   if (spec.provider === 'builtin') return builtinIcon(resolved, options);
   if (spec.provider === 'fa') {
     return faIcon(faIconClasses(resolved, {

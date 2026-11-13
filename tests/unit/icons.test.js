@@ -430,6 +430,41 @@ test('every icon name the layout templates use resolves to an outline glyph', as
   assert.deepEqual(unresolved, [], 'template icon names without a glyph');
 });
 
+test('common action names resolve to bundled glyphs under both providers', () => {
+  withDocument(() => {
+    const warnings = recordWarnings(() => {
+      for (const name of ['archive', 'download', 'edit', 'pencil', 'box-archive', 'pen-to-square']) {
+        const element = icon(name);
+        assert.equal(element.getAttribute('data-zx-icon-missing'), null, `${name} fell through to the placeholder`);
+        assert.equal(element.children.length, 1, `${name} did not render a path`);
+      }
+    });
+    assert.deepEqual(warnings, []);
+    assert.equal(icon('archive').children[0].getAttribute('d'), icons['box-archive'][1]);
+    assert.equal(icon('edit').children[0].getAttribute('d'), icons['pen-to-square'][1]);
+    // Font Awesome carries the current names; the older ones resolve to them.
+    useFontAwesome();
+    try {
+      assert.equal(icon('archive').className, 'zx-icon fa-solid fa-box-archive');
+      assert.equal(icon('edit').className, 'zx-icon fa-solid fa-pen-to-square');
+      assert.equal(icon('download').className, 'zx-icon fa-solid fa-download');
+      assert.equal(icon('pencil').className, 'zx-icon fa-solid fa-pencil');
+    } finally {
+      useBuiltinIcons();
+    }
+  });
+});
+
+// Runs last: the registration below stays in the module's registry for the rest of the file.
+test('a glyph an application registered under an alias name keeps winning over the alias', () => {
+  withDocument(() => {
+    registerIcons({ archive: ['0 0 16 16', 'M1 1h14v14H1z'] });
+    const element = icon('archive');
+    assert.equal(element.getAttribute('viewBox'), '0 0 16 16');
+    assert.equal(element.children[0].getAttribute('d'), 'M1 1h14v14H1z');
+  });
+});
+
 /** Swallows the placeholder warning of a call whose warning is not what is under test. */
 function quietly(run) {
   let result;
