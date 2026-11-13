@@ -69,7 +69,9 @@ function normalizeCompact(value) {
   return value;
 }
 
-const AGENT_THREAD_ATTRS = attributes({
+/* The tables below are marked `@__PURE__` so an unused one can be dropped; see `define.js`. */
+
+const AGENT_THREAD_ATTRS =/* @__PURE__ */ (() => attributes({
   items: data({ default: [], set: (component, value) => component.setItems(value), get: (component) => component.getItems() }),
   authors: rebuiltData({}),
   me: rebuiltText({ default: 'me' }),
@@ -88,9 +90,9 @@ const AGENT_THREAD_ATTRS = attributes({
   'format-time': rebuiltProp(),
   locale: rebuiltText(),
   msg: messages()
-});
+}))();
 
-const COMPOSER_ATTRS = attributes({
+const COMPOSER_ATTRS = /* @__PURE__ */ (() => attributes({
   label: text({ default: null, set: updates('label') }),
   placeholder: text({ default: '', set: updates('placeholder') }),
   value: text({ default: '', reflect: false, set: (component, value) => component.setValue(value), get: (component) => component.getValue() }),
@@ -114,9 +116,9 @@ const COMPOSER_ATTRS = attributes({
   queue: rebuiltBool(),
   'queue-limit': rebuiltNumber(10),
   msg: messages()
-});
+}))();
 
-const BLOCK_VIEW_ATTRS = attributes({
+const BLOCK_VIEW_ATTRS = /* @__PURE__ */ (() => attributes({
   blocks: data({ default: [], set: (component, value) => component.setBlocks(value), get: (component) => component.getBlocks() }),
   'heading-level': rebuiltNumber(3),
   size: rebuiltText({ default: 'sm' }),
@@ -126,9 +128,9 @@ const BLOCK_VIEW_ATTRS = attributes({
   }),
   sources: data({ default: null, set: (component, value) => component.setSources(value) }),
   msg: messages()
-});
+}))();
 
-const RUN_TRACE_ATTRS = attributes({
+const RUN_TRACE_ATTRS = /* @__PURE__ */ (() => attributes({
   steps: data({ default: [], set: (component, value) => component.setSteps(value), get: (component) => component.getSteps() }),
   open: bool({ set: (component, value) => (value ? component.expand() : component.collapse()), get: (component) => component.isOpen() }),
   label: text({ default: null, set: (component, value) => component.setLabel(value) }),
@@ -143,9 +145,9 @@ const RUN_TRACE_ATTRS = attributes({
   'format-time': rebuiltProp(),
   icons: rebuiltData({}),
   msg: messages()
-});
+}))();
 
-const APPROVAL_CARD_ATTRS = attributes({
+const APPROVAL_CARD_ATTRS = /* @__PURE__ */ (() => attributes({
   // Off the attribute, where the browser would show it as a tooltip over the whole card.
   title: text({ default: '', reflect: false, set: updates('title') }),
   description: text({ default: '', set: updates('description') }),
@@ -167,18 +169,18 @@ const APPROVAL_CARD_ATTRS = attributes({
   now: rebuiltProp(),
   keys: flag({ rebuild: true }),
   msg: messages()
-});
+}))();
 
-const SOURCE_LIST_ATTRS = attributes({
+const SOURCE_LIST_ATTRS = /* @__PURE__ */ (() => attributes({
   sources: data({ default: [], set: (component, value) => component.setSources(value), get: (component) => component.getSources() }),
   label: rebuiltText(),
   layout: rebuiltText({ default: 'chips' }),
   numbered: flag({ rebuild: true }),
   icons: rebuiltData({}),
   msg: messages()
-});
+}))();
 
-const RUN_STATUS_ATTRS = attributes({
+const RUN_STATUS_ATTRS = /* @__PURE__ */ (() => attributes({
   state: text({ default: 'queued', set: updates('state') }),
   summary: text({ default: '', set: updates('summary') }),
   steps: data({ default: null, set: updates('steps') }),
@@ -196,9 +198,9 @@ const RUN_STATUS_ATTRS = attributes({
   now: rebuiltProp(),
   locale: rebuiltText(),
   msg: messages()
-});
+}))();
 
-const RECORD_VIEW_ATTRS = Object.freeze({
+const RECORD_VIEW_ATTRS = /* @__PURE__ */ (() => Object.freeze({
   fields: data({ default: [], set: (component, value) => component.setFields(value), get: (component) => component.getFields() }),
   data: data({ default: [], set: (component, value) => component.setData(value), get: (component) => component.getData() }),
   'record-id': textOrValue({ default: 'ID', rebuild: true }),
@@ -211,9 +213,9 @@ const RECORD_VIEW_ATTRS = Object.freeze({
   'hidden-fields': data({ default: [], set: viewState('hiddenFields'), get: (component) => component.getHiddenFields() }),
   'field-controls': flag({ rebuild: true, serialize: reflectPlain('flag') }),
   'empty-text': textOrValue({ default: null, rebuild: true })
-});
+}))();
 
-const CARD_VIEW_ATTRS = attributes({
+const CARD_VIEW_ATTRS = /* @__PURE__ */ (() => attributes({
   ...RECORD_VIEW_ATTRS,
   'title-field': textOrValue({ default: null, rebuild: true }),
   'subtitle-field': textOrValue({ default: null, rebuild: true }),
@@ -233,9 +235,9 @@ const CARD_VIEW_ATTRS = attributes({
   'collapsible-groups': rebuiltBool(),
   'collapsed-groups': data({ default: [], set: viewState('collapsedGroups'), get: (component) => component.getCollapsedGroups() }),
   'render-group-heading': rebuiltProp()
-});
+}))();
 
-const KANBAN_VIEW_ATTRS = attributes({
+const KANBAN_VIEW_ATTRS = /* @__PURE__ */ (() => attributes({
   ...RECORD_VIEW_ATTRS,
   'column-by': textOrValue({ default: 'status', rebuild: true }),
   columns: data({ default: null, set: (component, value) => component.setColumns(value) }),
@@ -288,9 +290,9 @@ const KANBAN_VIEW_ATTRS = attributes({
   'show-empty-columns': flag({ rebuild: true }),
   variant: rebuiltText({ default: 'outlined' }),
   label: rebuiltText()
-});
+}))();
 
-const TREE_ATTRS = attributes({
+const TREE_ATTRS = /* @__PURE__ */ (() => attributes({
   items: data({ default: [], set: (component, value) => component.setItems(value), get: (component) => component.getItems() }),
   'value-key': textOrValue({ default: 'ID', rebuild: true }),
   'label-key': textOrValue({ default: 'name', rebuild: true }),
@@ -310,44 +312,46 @@ const TREE_ATTRS = attributes({
   'empty-text': rebuiltText(),
   height: rebuiltText({ default: null, normalize: normalizeNumberOrString }),
   msg: messages()
-});
+}))();
 
-const CHART_ATTRS = attributes({
+const CHART_ATTRS = /* @__PURE__ */ (() => attributes({
   adapter: prop({ default: null, set: (component, value) => component.setAdapter(value) }),
   type: text({ default: 'bar', set: (component, value) => component.setType(value) }),
   data: data({ default: { labels: [], datasets: [] }, set: (component, value) => component.setData(value) }),
   'chart-options': data({ default: {}, set: (component, value) => component.update(value) }),
-  label: rebuiltText({ default: null }),
-  description: rebuiltText({ default: '' }),
-  summary: rebuiltText({ default: 'hidden' }),
+  label: text({ default: null, set: (component, value) => component.setLabel(value) }),
+  description: text({ default: '', set: (component, value) => component.setDescription(value) }),
+  summary: text({ default: 'hidden', set: (component, value) => component.setSummary(value) }),
+  'summary-format': rebuiltProp(),
+  fill: bool({ set: (component, value) => component.setFill(value) }),
   // New data ends a load on its own, so the property reads the chart rather than what it was told.
   loading: bool({ set: (component, value) => component.setLoading(value), get: (component) => component.el.dataset.state === 'loading' }),
   'empty-text': rebuiltText(),
   'loading-text': rebuiltText(),
   'error-text': rebuiltText(),
-  'aspect-ratio': rebuiltText({ default: '16 / 9' })
-});
+  'aspect-ratio': text({ default: '16 / 9', set: (component, value) => component.setAspectRatio(value) })
+}))();
 
-const RECORD_VIEW_METHODS = Object.freeze({
+const RECORD_VIEW_METHODS = /* @__PURE__ */ (() => Object.freeze({
   ...forward(
     'setData', 'addData', 'updateRecord', 'removeRecord', 'setFields', 'mountFieldControls', 'setFieldVisible',
     'toggleField', 'moveField', 'setFieldOrder', 'setSort', 'setSelection', 'clearSelection', 'toggleSelection',
     'setLoading'
   ),
   setViewState: recordsPatch
-});
+}))();
 
-const RECORD_VIEW_EVENTS = Object.freeze([
+const RECORD_VIEW_EVENTS = /* @__PURE__ */ (() => Object.freeze([
   'recordclick', 'recorddblclick', 'datachange', 'selectionchange', 'sortchange', 'fieldvisibilitychange',
   'fieldorderchange', 'statechange', 'recordaction'
-]);
+]))();
 
 /**
  * The agent kit and the data views, as `[suffix, Component, wrapper options]`. None of them is a
  * form control, so none is form-associated.
  * @type {ReadonlyArray<[string, typeof import('../core/component.js').Component, import('./define.js').ElementWrapperOptions]>}
  */
-export const KIT_ELEMENTS = Object.freeze([
+export const KIT_ELEMENTS = /* @__PURE__ */ (() => Object.freeze([
   ['agent-thread', AgentThread, {
     attrs: AGENT_THREAD_ATTRS,
     methods: forward(
@@ -437,8 +441,13 @@ export const KIT_ELEMENTS = Object.freeze([
       setType: records('type'),
       update: records('chartOptions'),
       setAdapter: records('adapter'),
-      setLoading: ([loading = true]) => ({ loading })
+      setLoading: ([loading = true]) => ({ loading }),
+      setLabel: records('label'),
+      setDescription: records('description'),
+      setSummary: records('summary'),
+      setAspectRatio: records('aspectRatio'),
+      setFill: ([fill = true]) => ({ fill })
     },
     events: ['ready', 'update', 'select', 'error']
   }]
-]);
+]))();

@@ -54,6 +54,10 @@
       "types": "./dist/types/components/*.d.ts",
       "default": "./src/components/*.js"
     },
+    "./src/core/*.js": {
+      "types": "./dist/types/core/*.d.ts",
+      "default": "./src/core/*.js"
+    },
     "./locales/*.js": {
       "types": "./dist/types/locales/*.d.ts",
       "default": "./src/locales/*.js"

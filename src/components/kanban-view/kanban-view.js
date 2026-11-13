@@ -259,8 +259,9 @@ const SCROLL_SPEED = 18;
 export class KanbanView extends RecordView {
   static cssName = 'kanban-view';
 
+  // Marked pure: a bare spread in a static initialiser keeps the class in every bundle of the entry.
   /** @type {Readonly<KanbanViewOptions & RecordViewOptions>} */
-  static defaults = {
+  static defaults =/* @__PURE__ */ (() => ({
     ...RecordView.defaults,
     selectionTrigger: 'checkbox',
     columnBy: 'status',
@@ -315,7 +316,7 @@ export class KanbanView extends RecordView {
     variant: 'outlined',
     // Undefined rather than null, which leaves the board unnamed.
     label: undefined
-  };
+  }))();
 
   /**
    * Creates a Kanban record view.

@@ -119,8 +119,9 @@ import {
 export class CardView extends RecordView {
   static cssName = 'card-view';
 
+  // Marked pure: a bare spread in a static initialiser keeps the class in every bundle of the entry.
   /** @type {Readonly<CardViewOptions & RecordViewOptions>} */
-  static defaults = {
+  static defaults =/* @__PURE__ */ (() => ({
     ...RecordView.defaults,
     selectionTrigger: 'checkbox',
     titleField: null,
@@ -141,7 +142,7 @@ export class CardView extends RecordView {
     collapsibleGroups: false,
     collapsedGroups: [],
     renderGroupHeading: null
-  };
+  }))();
 
   /**
    * Creates or enhances a card view.

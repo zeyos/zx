@@ -60,7 +60,7 @@ export {
   formatDate, parseDate, clampDate, isSameDay, addDays, addMonths, getWeekStart
 } from './core/date.js';
 export {
-  icon, icons, iconNames, registerIcons, ICON_SIZE,
+  icon, icons, iconAliases, iconNames, registerIcons, ICON_SIZE,
   configureIcons, getIconConfig, useFontAwesome, useBuiltinIcons, loadFontAwesome
 } from './core/icons.js';
 export {

@@ -99,7 +99,8 @@ export class Calendar extends Component {
     events: [],
     date: null,
     view: 'month',
-    views: [...CALENDAR_VIEWS],
+    // A copy, marked pure: a spread here keeps the class in every bundle of the entry.
+    views: /* @__PURE__ */ Array.from(CALENDAR_VIEWS),
     weekStart: 1,
     weekNumbers: true,
     workweek: false,

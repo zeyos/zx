@@ -37,6 +37,23 @@ test('the granular source pattern carries types alongside the module', () => {
     'the declaration mirrors the source path with a .d.ts extension — see tsconfig outDir');
 });
 
+test('the core modules import by their package path, as the instances the components use', async () => {
+  const entry = manifest.exports['./src/core/*.js'];
+  assert.ok(entry, 'the public core-source subpath is missing');
+  assert.equal(entry.default, './src/core/*.js');
+  assert.equal(entry.types, './dist/types/core/*.d.ts');
+
+  // A translator or an icon registered through the package path has to reach a component imported
+  // by its own file, so both specifiers must resolve to one module instance.
+  const i18n = await import('@zeyos/zx/src/core/i18n.js');
+  const icons = await import('@zeyos/zx/src/core/icons.js');
+  assert.equal(i18n, await import('../../src/core/i18n.js'));
+  assert.equal(icons, await import('../../src/core/icons.js'));
+  assert.equal(typeof i18n.setTranslator, 'function');
+  assert.equal(typeof icons.registerIcons, 'function');
+  assert.equal(typeof icons.icon, 'function');
+});
+
 test('a locale catalogue imports by its package path, with types beside it', async () => {
   const entry = manifest.exports['./locales/*.js'];
   assert.ok(entry, 'the locale subpath is missing');

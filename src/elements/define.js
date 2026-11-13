@@ -31,30 +31,39 @@ import { INVALID_ATTRIBUTE, coerceAttribute, serializeAttribute } from './reflec
  * the element also carries its live values across a rebuild and across removal.
  */
 
-const COMPONENT_EVENTS = Object.freeze([
+/*
+ * Every table in this module and in `kit.js` is built by a call marked `@__PURE__`. The bundled
+ * `dist/zx.esm.js` is one module with side effects, where a bundler drops a statement only if it
+ * can see that running it changes nothing: an unmarked `attributes({...})` or `Object.freeze([...])`
+ * stays, and a table that names component classes keeps every one of them in an application that
+ * never calls `defineElements()`. The tables are still built once, when the module is evaluated.
+ * `tests/unit/package-treeshake.test.js` fails when a new table is left unmarked.
+ */
+
+const COMPONENT_EVENTS = /* @__PURE__ */ (() => Object.freeze([
   'change', 'input', 'submit', 'clear', 'open', 'close', 'cancel', 'invalid',
   'query', 'loaded', 'rowclick', 'rowdblclick', 'sort', 'selectionchange', 'datachange'
-]);
+]))();
 
 /** Form-control accessors every wrapper carries; an element that is no form control may reuse the names. */
-const FORM_ACCESSORS = Object.freeze(['form', 'labels', 'validity', 'validationMessage', 'willValidate']);
+const FORM_ACCESSORS = /* @__PURE__ */ Object.freeze(['form', 'labels', 'validity', 'validationMessage', 'willValidate']);
 
-const TOGGLE_ATTRS = attributes({
+const TOGGLE_ATTRS = /* @__PURE__ */ (() => attributes({
   checked: bool({ always: true, set: (component, value) => component.set(value, { silent: true }), get: (component) => component.get() }),
   value: text({ default: true }),
-  label: text({ default: null, rebuild: true }),
+  label: text({ default: null, set: (component, value) => component.setLabel(value) }),
   disabled: bool({ always: true, set: setDisabled })
-});
+}))();
 
-const CHECK_BUTTON_ATTRS = attributes({
+const CHECK_BUTTON_ATTRS = /* @__PURE__ */ (() => attributes({
   checked: bool({ always: true, set: (component, value) => component.set(value, { silent: true }), get: (component) => component.get() }),
   value: text({ option: null, default: 'on' }),
   label: text({ default: '', set: (component, value) => component.setLabel(value) }),
   icon: bool({ rebuild: true }),
   disabled: bool({ always: true, set: setDisabled })
-});
+}))();
 
-const SELECT_ATTRS = attributes({
+const SELECT_ATTRS = /* @__PURE__ */ (() => attributes({
   items: json({ default: [], set: (component, value) => component.setItems(value) }),
   value: text({ default: null, set: (component, value) => component.set(value, { silent: true }), get: (component) => component.value }),
   'value-key': text({ property: 'valueKey', default: 'ID', rebuild: true }),
@@ -69,9 +78,9 @@ const SELECT_ATTRS = attributes({
   disabled: bool({ always: true, set: setDisabled }),
   required: bool({ option: null, always: true }),
   name: text({ option: null, default: '' })
-});
+}))();
 
-const CHECKLIST_ATTRS = attributes({
+const CHECKLIST_ATTRS = /* @__PURE__ */ (() => attributes({
   items: json({ default: [], set: (component, value) => component.setItems(value) }),
   value: json({ option: null, default: [], set: (component, value) => component.setValues(value), get: (component) => component.getValues() }),
   'value-key': text({ property: 'valueKey', default: 'ID', rebuild: true }),
@@ -82,9 +91,9 @@ const CHECKLIST_ATTRS = attributes({
   'default-checked': bool({ property: 'defaultChecked', default: false, rebuild: true }),
   disabled: bool({ option: null, always: true, set: setChecklistDisabled }),
   name: text({ option: null, default: '' })
-});
+}))();
 
-const DATEBOX_ATTRS = attributes({
+const DATEBOX_ATTRS = /* @__PURE__ */ (() => attributes({
   format: text({ default: '%d.%m.%Y', rebuild: true }),
   'display-format': text({ property: 'displayFormat', default: null, rebuild: true }),
   time: bool({ always: true, rebuild: true }),
@@ -94,37 +103,37 @@ const DATEBOX_ATTRS = attributes({
   disabled: bool({ always: true, set: setDisabled }),
   required: bool({ option: null, always: true }),
   name: text({ option: null, default: '' })
-});
+}))();
 
-const TIMEBOX_ATTRS = attributes({
+const TIMEBOX_ATTRS = /* @__PURE__ */ (() => attributes({
   value: number({ default: 0, set: (component, value) => component.set(value, { silent: true }), get: (component) => component.get() }),
   unit: text({ default: 'minutes', rebuild: true }),
   seconds: bool({ always: true, rebuild: true }),
   signed: bool({ always: true, rebuild: true }),
   disabled: bool({ always: true, set: setDisabled }),
   name: text({ option: null, default: '' })
-});
+}))();
 
-const SEARCH_ATTRS = attributes({
+const SEARCH_ATTRS = /* @__PURE__ */ (() => attributes({
   value: text({ default: '', set: (component, value) => component.set(value, { silent: true }), get: (component) => component.get() }),
   placeholder: text({ default: '', set: (component, value) => { component.refs.input.placeholder = value; } }),
   clearable: bool({ rebuild: true }),
   debounce: number({ default: 250, rebuild: true })
-});
+}))();
 
-const GROUPBOX_ATTRS = attributes({
+const GROUPBOX_ATTRS = /* @__PURE__ */ (() => attributes({
   title: text({ default: '', set: (component, value) => component.setTitle(value) }),
   open: bool({ default: false, always: true, set: (component, value) => value ? component.open() : component.close(), get: (component) => component.isOpen() })
-});
+}))();
 
-const TABBOX_ATTRS = attributes({
+const TABBOX_ATTRS = /* @__PURE__ */ (() => attributes({
   tabs: json({ default: [], normalize: normalizeTabs, rebuild: true }),
   active: text({ default: null, set: (component, value) => { if (value !== null) component.openTab(value); }, get: (component) => component.getActive() }),
   variant: text({ default: 'divided', rebuild: true }),
   'keep-alive': bool({ property: 'keepAlive', rebuild: true })
-});
+}))();
 
-const TABLE_ATTRS = attributes({
+const TABLE_ATTRS = /* @__PURE__ */ (() => attributes({
   columns: json({ default: [], rebuild: true }),
   data: json({ default: [], set: (component, value) => component.setData(value), get: (component) => component.getData() }),
   'row-id': text({ property: 'rowId', default: 'ID', rebuild: true }),
@@ -135,17 +144,17 @@ const TABLE_ATTRS = attributes({
   height: text({ default: null, normalize: normalizeNumberOrString, rebuild: true }),
   'empty-text': text({ property: 'emptyText', default: null, rebuild: true }),
   zebra: bool({ rebuild: true })
-});
+}))();
 
-const DIALOG_ATTRS = attributes({
+const DIALOG_ATTRS = /* @__PURE__ */ (() => attributes({
   title: text({ default: '', set: (component, value) => component.setTitle(value) }),
   size: text({ default: 'md', normalize: normalizeNumberOrString, rebuild: true }),
   buttons: json({ default: [], set: (component, value) => component.setButtons(value) }),
   closable: bool({ rebuild: true }),
   open: bool({ option: null, default: false, always: true, set: (component, value) => value ? component.open() : component.close(), get: (component) => component.isOpen() })
-});
+}))();
 
-const ELEMENTS = Object.freeze([
+const ELEMENTS = /* @__PURE__ */ (() => Object.freeze([
   ['toggle', Toggle, { formAssociated: true, attrs: TOGGLE_ATTRS }],
   ['check-button', CheckButton, { formAssociated: true, attrs: CHECK_BUTTON_ATTRS }],
   ['select', Select, { formAssociated: true, attrs: SELECT_ATTRS }],
@@ -158,7 +167,7 @@ const ELEMENTS = Object.freeze([
   ['table', Table, { formAssociated: false, attrs: TABLE_ATTRS }],
   ['dialog', Dialog, { formAssociated: false, attrs: DIALOG_ATTRS }],
   ...KIT_ELEMENTS
-]);
+]))();
 
 /**
  * Creates a light-DOM custom-element class backed by a Zx component.
