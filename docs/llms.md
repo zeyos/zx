@@ -768,7 +768,9 @@ accept.
   `--zx-color-accent-solid*` roles, so in dark it keeps the deep stop with white ink rather than a
   bright slab. A `ghost` button's icon is drawn in `--zx-color-text-subtle` until hovered. A button
   with `aria-pressed="true"` (a Toolbar item with `active`, a view toggle) is a mode, not a pick:
-  it takes the neutral `--zx-color-bg-current` fill and the text colour, never the accent.
+  it stays neutral, never the accent, and is drawn with a stronger fill plus a frame in
+  `--zx-color-text-subtle` (3:1 against its neighbours in both themes), so a pressed segment of a
+  `buttonGroup` is told apart without relying on the fill alone.
 <!-- /doc -->
 
 <!-- doc:badge -->
@@ -827,8 +829,8 @@ a `MenuButton`, where choosing one activates the original control.
   in visual order under `dir="rtl"`; Home/End jump to the first and last control. A text field, select,
   or contenteditable item keeps its own keys: Home/End and the arrows move its caret, and an arrow
   moves on to the neighbouring control only once the caret is at that edge of the text.
-- **Pressed items** — an item with `active` renders `aria-pressed="true"` and takes the neutral
-  `--zx-color-bg-current` fill, never the accent.
+- **Pressed items** — an item with `active` renders `aria-pressed="true"` and takes Button's
+  neutral pressed fill and frame, never the accent.
 <!-- /doc -->
 
 <!-- doc:empty-state -->
@@ -1430,12 +1432,15 @@ from `Select`, with its themed popover and keyboard behavior.
 Searchable multi-check list with optional async loading.
 
 - **Options** — `items`, `valueKey: 'ID'`, `labelKey: 'name'`, `checkedKey: 'on'`, `search: true`,
-  `height: 280`, `defaultChecked: false`, `hideLabel: false` (leaves out the heading; the group
-  keeps its text as `aria-label`), `load: async ()=>items`.
+  `height: 280`, `defaultChecked: false`, `label: null` (heading text and the group's accessible
+  name; null uses the `checklist.label` message), `disabled: false`, `hideLabel: false` (leaves out
+  the heading; the group keeps its text as `aria-label`), `load: async ()=>items`.
 - **In a Field** — field type `checklist` draws no heading of its own: the field's label names the
   group (`aria-labelledby`).
 - **Methods** — `setItems()`, `getValues()`, `setValues(ids)`, `checkAll()`/`uncheckAll()`,
-  `search(query)`, `reload()`.
+  `search(query)`, `reload()`, `setLabel(text)`, `enable()`/`disable()`, `isDisabled()`. Disabled,
+  the search field and every checkbox are disabled (`aria-disabled="true"` on the group) through
+  searches, `setItems()` and reloads; values can still be set from code.
 - **Events** — `change {values}`, `loaded`.
 <!-- /doc -->
 
@@ -1447,7 +1452,8 @@ buttons are `tabindex="-1"`/`aria-hidden` pointer affordances — the input itse
 Field type: `number`.
 
 - **Options** — `value` (number|null), `min`, `max`, `step: 1`, `largeStep: 10` (PageUp/PageDown
-  multiplier), `precision` (decimals; derived from `step` when null), `wrap: false` (stepping past
+  multiplier), `precision` (decimals; derived from `step` when null), `snap: true` (see
+  **Snapping**), `wrap: false` (stepping past
   a bound jumps to the other one), `placeholder`, `unit` (suffix rendered inside the control),
   `group: false` (thousands separators while idle), `locale`, `disabled`, `readonly`, `required`,
   `name`.
@@ -1455,6 +1461,11 @@ Field type: `number`.
   the range; `''`/null clear it), `stepUp(n)`, `stepDown(n)`, `setRange(min, max)`,
   `setReadonly()`, `reset()`, `focus()`, `getInput()`, `enable()`/`disable()`.
 - **Events** — `change {value}` (committed), `input {value}` (per keystroke, possibly unsnapped).
+- **Snapping** — by default a typed or assigned value is moved onto the `step` grid (step 2 turns
+  123 into 124) and rounded to the step's decimals. That suits quantities; it is wrong for a value
+  that is not a multiple of anything — an identifier, a seed, a measurement. `snap: false` keeps
+  the value exactly as entered: `step` is then only what the buttons and arrow keys add, decimals
+  are rounded only to an explicit `precision`, and `min`/`max` still clamp.
 - **Keyboard** — ↑/↓ one step, PageUp/PageDown `largeStep` steps, Home/End jump to `min`/`max` when
   set (otherwise they keep their caret meaning), Enter commits, wheel steps while focused.
 - **Also exported** — `parseNumber(raw)` (accepts `.` and `,` as the decimal separator, ignores
@@ -1688,7 +1699,14 @@ panel material; the backdrop uses `--zx-color-overlay-backdrop`, and focus retur
   scope is resolved again on every `open()`; a `scope` element not yet in the document leaves the
   dialog detached until then, rather than parking it on `<body>` outside the theme.
 - **Methods** — `open()`, `close(result?)`, `setContent()`, `isOpen()`.
-- **Events** — `open`, `close {result}`, `cancel` (Esc; preventable with `event.preventDefault()`).
+- **Events** — `open`, `close {result}`, `cancel {reason}`.
+- **Dismissal** — everything the reader does to dismiss an overlay raises `cancel` first, with
+  `reason` `'escape'`, `'close-button'` (Dialog/Sheet header ✕), `'button'` (a footer button whose
+  action is `'cancel'`), `'backdrop'` (`lightDismiss`), `'outside'` or `'drag'` (Sheet).
+  `event.preventDefault()` keeps it open, which is the place for an "unsaved changes" check.
+  A programmatic `close()` raises no `cancel`. Escape is handled by Zx rather than by the browser's
+  close request, so preventing it holds however often the key is pressed; a handler that calls
+  `preventDefault()` on the Escape keydown (a popup inside the dialog, your own) keeps the key.
 <!-- /doc -->
 
 <!-- doc:dialog -->
@@ -1730,7 +1748,8 @@ When a Dock adopts it, the Sheet becomes an opaque layout surface instead.
 - **Methods** — `open()`, `close(result?)`, `setSide(side)`, `getSide()`, `setSize(size)`,
   `isModal()`, `isDocked()`, `isOpen()`, `getSize()`, `snapTo(target)`, plus Dialog's `setTitle()`, `setContent()`,
   `setButtons()`, `addView()`, `showView()`.
-- **Events** — `open`, `close {result}`, `cancel` (preventable with `event.preventDefault()`),
+- **Events** — `open`, `close {result}`, `cancel {reason}` (preventable; raised by Escape, the ✕,
+  a backdrop click or outside press, and a dismissing drag — see Modal's **Dismissal**),
   `resize {size, ratio}`, `dockchange {docked, dock}`.
 - **Docked** — a sheet has two lives, and it does not choose between them: `Dock.adopt(sheet)`
   makes it a track in that dock's flow instead of an overlay, and the dock then owns its side,

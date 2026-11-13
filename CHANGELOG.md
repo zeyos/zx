@@ -8,6 +8,35 @@ and friends remain the complete record.
 
 ## Unreleased
 
+### Added
+
+- **`cancel` covers every dismissal.** Modal, Dialog and Sheet now raise the preventable `cancel`
+  for the header ✕, a backdrop click, a press outside a non-modal Sheet and a dismissing drag, not
+  only for Escape, and `event.detail.reason` names the gesture (`'escape'`, `'close-button'`,
+  `'button'`, `'backdrop'`, `'outside'`, `'drag'`). One listener is now enough for an "unsaved
+  changes" check. A programmatic `close()` still raises none.
+- **`NumberField` `snap: false`** keeps a typed or assigned value exactly as entered instead of
+  moving it onto the `step` grid; `step` then only sets the button and arrow-key increment.
+- **`Checklist`** `label` and `disabled` options, `setLabel()`, `enable()`, `disable()` and
+  `isDisabled()`.
+- Bundled icons `download`, `box-archive`, `pencil` and `pen-to-square`, with `archive` and `edit`
+  as aliases. A glyph registered under an alias name with `registerIcons()` keeps precedence.
+
+### Changed
+
+- A listener that treated `cancel` as "Escape was pressed" now also runs for the other dismissal
+  gestures; read `event.detail.reason` to tell them apart.
+- A pressed button (`aria-pressed="true"`) has a stronger neutral fill and a frame that holds 3:1
+  against its neighbours in both themes. A pressed `ghost` button gains the frame too.
+
+### Fixed
+
+- Escape on a modal overlay whose `cancel` was prevented no longer closes it on the third press.
+- Anchored popups (Select, TagPicker, Dropdown, Tooltip, Datebox, Composer) no longer write an
+  empty `style=""` attribute on close, which a `style-src` policy without `'unsafe-inline'`
+  blocked and reported. Restoring an enhanced target's inline style no longer writes the attribute
+  either.
+
 ## 5.7.0 — 2026-11-09
 
 Locale and country Select presets, complete English/German catalogues and plural messages,

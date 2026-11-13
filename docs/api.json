@@ -2935,6 +2935,18 @@
         "description": "Fallback initial checked state."
       },
       {
+        "name": "label",
+        "type": "string|null",
+        "default": "null",
+        "description": "Heading text, which is also the group's accessible name; null uses the `checklist.label` message."
+      },
+      {
+        "name": "disabled",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether the search field and every checkbox are disabled."
+      },
+      {
         "name": "hideLabel",
         "type": "boolean",
         "default": "false",
@@ -2971,6 +2983,30 @@
         "signature": "setItems(items)",
         "returns": "this",
         "description": "Replaces items and derives checked state from `checkedKey` and `defaultChecked`."
+      },
+      {
+        "name": "setLabel",
+        "signature": "setLabel(label)",
+        "returns": "this",
+        "description": "Replaces the heading text, which is also the group's accessible name."
+      },
+      {
+        "name": "enable",
+        "signature": "enable()",
+        "returns": "this",
+        "description": "Enables the search field and the checkboxes."
+      },
+      {
+        "name": "disable",
+        "signature": "disable()",
+        "returns": "this",
+        "description": "Disables the search field and the checkboxes; values can still be set programmatically."
+      },
+      {
+        "name": "isDisabled",
+        "signature": "isDisabled()",
+        "returns": "boolean",
+        "description": "Whether the checklist is disabled."
       },
       {
         "name": "getValues",
@@ -4357,7 +4393,7 @@
       },
       {
         "name": "cancel",
-        "payload": "Record<string, never>",
+        "payload": "import('../modal/modal.js').ModalCancelDetail",
         "description": "Cancel event listener."
       }
     ],
@@ -7865,7 +7901,7 @@
         "name": "lightDismiss",
         "type": "boolean",
         "default": "false",
-        "description": "Whether a backdrop click closes the modal."
+        "description": "Whether a backdrop click closes the modal. Like every dismissal by the reader, it raises a preventable `cancel` first."
       },
       {
         "name": "destroyOnClose",
@@ -7893,7 +7929,7 @@
       },
       {
         "name": "cancel",
-        "payload": "Record<string, never>",
+        "payload": "{reason}",
         "description": "Cancel event listener."
       }
     ],
@@ -8372,6 +8408,12 @@
         "description": "Decimal places; derived from `step` when null."
       },
       {
+        "name": "snap",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether a typed or assigned value is moved onto the `step` grid. With `false` the value is kept exactly as entered — `step` is then only the increment of the buttons and arrow keys, and decimals are rounded only to an explicit `precision`. `min` and `max` still apply. Use it for values that are not multiples of anything: an identifier, a seed, a measurement."
+      },
+      {
         "name": "wrap",
         "type": "boolean",
         "default": "false",
@@ -8461,7 +8503,7 @@
         "name": "set",
         "signature": "set(next, [options])",
         "returns": "this",
-        "description": "Sets the value, snapping it to `step` and clamping it into `[min, max]`."
+        "description": "Sets the value, clamping it into `[min, max]` and — unless `snap` is off — moving it onto the `step` grid."
       },
       {
         "name": "stepUp",
@@ -10597,7 +10639,7 @@
       },
       {
         "name": "cancel",
-        "payload": "Record<string, never>",
+        "payload": "import('../modal/modal.js').ModalCancelDetail",
         "description": "Cancel event listener."
       },
       {
