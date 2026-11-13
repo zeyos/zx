@@ -35,6 +35,12 @@
   padding-inline: 0;
 }
 
+/* `closable: false` (a sheet's `closeButton: false`) switches the header button off; the button's
+   own display rule must not show it. */
+.zx-dialog .zx-dialog__close[hidden] {
+  display: none;
+}
+
 .zx-dialog__body {
   min-block-size: 0;
   overflow: auto;

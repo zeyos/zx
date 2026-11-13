@@ -3,6 +3,7 @@ import { focusTrap } from '../../core/keyboard.js';
 import { h, resolveElement } from '../../core/dom.js';
 import { clamp } from '../../core/util.js';
 import { Dialog } from '../dialog/dialog.js';
+import { matchesState, showDialog } from '../modal/native-dialog.js';
 
 /** @typedef {'start'|'end'|'top'|'bottom'} SheetSide */
 /** @typedef {true|'trap-focus'|false} SheetModality */
@@ -29,7 +30,8 @@ const GROW_SIGN = Object.freeze({ start: 1, end: -1, top: 1, bottom: -1 });
  *   `start`/`end`, height for `top`/`bottom`. A number is pixels, a string is any CSS length. Null
  *   keeps the per-side default.
  * @property {boolean} [closeButton=true] Whether the header shows its close control. Independent of
- *   `closable`, so a sheet can offer Escape without an ✕, or the reverse.
+ *   `closable`, so a sheet can offer Escape without an ✕, or the reverse. When false the control is
+ *   not displayed, not focusable, and closes nothing.
  * @property {boolean} [resizable=false] Whether the inner edge may be dragged to resize the sheet.
  * @property {number} [min=160] Smallest the sheet may be dragged to, in pixels.
  * @property {number|null} [max=null] Largest it may be dragged to; null means the viewport.
@@ -117,7 +119,6 @@ export class Sheet extends Dialog {
     this.setSide(this.options.side);
     this.el.dataset.backdrop = BACKDROPS.has(this.options.backdrop) ? this.options.backdrop : 'dim';
     this.el.dataset.modality = modality(this.options.modal);
-    this.refs.close.hidden = !this.options.closeButton;
 
     /*
      * Registered after Dialog's own restore listener, so focus lands on the opener either way:
@@ -256,6 +257,15 @@ export class Sheet extends Dialog {
     const rect = this.el.getBoundingClientRect();
     const vertical = this.getSide() === 'top' || this.getSide() === 'bottom';
     return vertical ? rect.height : rect.width;
+  }
+
+  /**
+   * A sheet's header button follows `closeButton`, not `closable`: Escape and the ✕ are separate.
+   * @returns {boolean}
+   * @protected
+   */
+  _hasCloseButton() {
+    return Boolean(this.options.closeButton);
   }
 
   /**
@@ -401,7 +411,7 @@ export class Sheet extends Dialog {
       // Hosted inside a modal that has now closed, the sheet would stay open but never be seen.
       onParentClose: () => {
         const holder = this.el.parentElement?.closest('dialog');
-        if (holder && !holder.open && !holder.matches(':popover-open')) this.close();
+        if (holder && !holder.open && !matchesState(holder, ':popover-open')) this.close();
       }
     };
   }
@@ -506,9 +516,14 @@ export class Sheet extends Dialog {
       return;
     }
     this.el.setAttribute('aria-modal', 'false');
-    if (this._dock) {
+    /*
+     * Docked, the sheet is a native non-modal dialog in flow. Floating, it wants the popover top
+     * layer; where the platform has no `showPopover()` it is presented the same in-flow way, and
+     * without the `popover` attribute, which would otherwise keep it hidden.
+     */
+    if (this._dock || typeof (/** @type {HTMLElement} */ (this.el)).showPopover !== 'function') {
       this.el.removeAttribute('popover');
-      /** @type {HTMLDialogElement} */ (this.el).show();
+      showDialog(this.el);
       return;
     }
     this.el.setAttribute('popover', 'manual');
@@ -522,7 +537,7 @@ export class Sheet extends Dialog {
    * @returns {void}
    */
   _hide(result = '', presentation) {
-    if (!this.el.matches(':popover-open')) {
+    if (!matchesState(this.el, ':popover-open')) {
       super._hide(result, presentation);
       return;
     }
@@ -533,7 +548,7 @@ export class Sheet extends Dialog {
 
   /** @returns {boolean} */
   _isShown() {
-    return this.el.matches(':popover-open') || super._isShown();
+    return matchesState(this.el, ':popover-open') || super._isShown();
   }
 
   /**

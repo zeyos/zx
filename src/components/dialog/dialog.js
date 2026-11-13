@@ -19,7 +19,7 @@ import { button } from '../button/button.js';
  * @property {string} [title=''] Dialog title.
  * @property {'sm'|'md'|'lg'|number} [size='md'] Preset or pixel width.
  * @property {DialogButton[]} [buttons=[]] Footer buttons.
- * @property {boolean} [closable=true] Whether Escape and the header button may close the dialog.
+ * @property {boolean} [closable=true] Whether Escape and the header button may close the dialog. When false the header button is not rendered as a control at all: it is not displayed, not focusable, and closes nothing.
  * @property {Node|string|number|{toElement: () => Node|null}|null} [content=null] Body content.
  * @property {Element|string|null} [scope=null] Element whose nearest Zx theme scope owns the overlay; defaults to the opener. Resolved on every open, so a scope connected after construction still owns it.
  * @property {(event: CustomEvent<Record<string, never>>) => void} [onopen] Open event listener.
@@ -105,9 +105,13 @@ export class Dialog extends Modal {
     this.#applyTitle(this.#baseTitle);
     this.#baseButtons = normalizeDialogButtons(this.options.buttons);
     this.#renderButtons(this.#baseButtons);
-    this.refs.close.hidden = !this.options.closable;
+    this.refs.close.hidden = !this._hasCloseButton();
 
-    this.listen(this.refs.close, 'click', () => this._requestDismiss('close-button'));
+    this.listen(this.refs.close, 'click', () => {
+      // Switched off, the button is not displayed; a click dispatched at it all the same — by a
+      // script, or by a stylesheet that shows it again — must not close what was made unclosable.
+      if (this._hasCloseButton()) this._requestDismiss('close-button');
+    });
     this.listen(this.refs.footer, 'click', (event) => {
       const button = event.target.closest?.('[data-dialog-button]');
       if (!button || !this.refs.footer.contains(button)) return;
@@ -414,6 +418,20 @@ export class Dialog extends Modal {
       });
       dialog.open();
     });
+  }
+
+  /**
+   * Whether the header close button is offered. Switched off, it is not displayed, not focusable,
+   * and does not dismiss the dialog. A dialog shows it while it is `closable`; a subclass with a
+   * setting of its own for the button overrides this.
+   *
+   * Called from the constructor before any subclass field initializers have run, so an override
+   * may read `this.options` but no instance state.
+   * @returns {boolean}
+   * @protected
+   */
+  _hasCloseButton() {
+    return Boolean(this.options.closable);
   }
 
   /**

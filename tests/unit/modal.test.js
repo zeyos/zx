@@ -20,12 +20,14 @@ const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
 const modalSource = read('../../src/components/modal/modal.js');
 const dialogSource = read('../../src/components/dialog/dialog.js');
 const sheetSource = read('../../src/components/sheet/sheet.js');
+const nativeDialogSource = read('../../src/components/modal/native-dialog.js');
 
 test('the modal mode is the platform\'s, not a focus trap written on top of it', () => {
   // The root is a real dialog, and it is presented modally. Everything else follows from that.
   assert.match(modalSource, /h\('dialog',/);
-  assert.match(modalSource, /this\.el\.showModal\(\)/);
-  assert.match(modalSource, /matches\(':modal'\)/);
+  assert.match(modalSource, /showDialogModal\(this\.el\)/);
+  assert.match(nativeDialogSource, /element\.showModal\(\)/);
+  assert.match(modalSource, /matchesState\(this\.el, ':modal'\)/);
 
   // No second trap: no keyboard module, no Tab cycling, no inerting of the rest of the page.
   assert.doesNotMatch(modalSource, /core\/keyboard\.js|focusTrap/);
@@ -246,6 +248,165 @@ test('Sheet keeps exactly one focus trap, and it is still its own', () => {
 
   // And Sheet's modal path still delegates to showModal() rather than trapping.
   assert.match(sheetSource, /modal === true && !this\._dock[\s\S]{0,200}?super\._show\(\);/);
+});
+
+test('a close button that is switched off is hidden, takes no focus and closes nothing', async () => {
+  // Hidden by the attribute, and the stylesheet makes the attribute win over `.zx-btn`'s display.
+  assert.match(read('../../src/components/dialog/dialog.css'),
+    /\.zx-dialog \.zx-dialog__close\[hidden\]\s*\{\s*display:\s*none;/);
+
+  const cases = [
+    ['Dialog closable:false', () => new Dialog(null, { title: 'Working', closable: false })],
+    ['Sheet closeButton:false', () => new Sheet(null, { title: 'Working', closeButton: false })]
+  ];
+  for (const [name, create] of cases) {
+    await withDocument(async (doc) => {
+      const overlay = create();
+      const reasons = [];
+      overlay.on('cancel', (event) => reasons.push(event.detail.reason));
+      assert.equal(overlay.refs.close.hidden, true, `${name}: the button is hidden`);
+
+      overlay.open();
+      await flush();
+      assert.notEqual(doc.activeElement, overlay.refs.close, `${name}: it takes no initial focus`);
+      overlay.refs.close.focus();
+      assert.notEqual(doc.activeElement, overlay.refs.close, `${name}: it cannot be focused`);
+
+      click(overlay.refs.close);
+      await flush();
+      assert.equal(overlay.isOpen(), true, `${name}: a click on it closes nothing`);
+      assert.deepEqual(reasons, [], `${name}: and asks for no dismissal`);
+      overlay.destroy();
+    });
+  }
+});
+
+test('the close button follows closable on a Dialog and closeButton on a Sheet', async () => {
+  await withDocument(async () => {
+    const dialog = new Dialog(null, { title: 'Edit' });
+    assert.equal(dialog.refs.close.hidden, false);
+    dialog.open();
+    click(dialog.refs.close);
+    await flush();
+    assert.equal(dialog.isOpen(), false, 'a closable dialog still closes from its button');
+    dialog.destroy();
+
+    // A sheet keeps the two apart: `closable: false` refuses Escape, the ✕ is `closeButton`'s.
+    const sheet = new Sheet(null, { title: 'Edit', closable: false });
+    assert.equal(sheet.refs.close.hidden, false);
+    const reasons = [];
+    sheet.on('cancel', (event) => reasons.push(event.detail.reason));
+    sheet.open();
+    click(sheet.refs.close);
+    await flush();
+    assert.equal(sheet.isOpen(), false);
+    assert.deepEqual(reasons, ['close-button']);
+    sheet.destroy();
+
+    // Passed as `undefined`, both settings keep their default: the button is offered.
+    const forwarded = new Sheet(null, { closeButton: undefined, closable: undefined });
+    assert.equal(forwarded.refs.close.hidden, false);
+    forwarded.destroy();
+    const plain = new Dialog(null, { closable: undefined });
+    assert.equal(plain.refs.close.hidden, false);
+    assert.equal(plain.options.closable, true);
+    plain.destroy();
+  });
+});
+
+test('without showModal(), show() and close() an overlay opens and closes on the open attribute', async () => {
+  const kinds = [
+    ['Modal', () => new Modal(null, { content: 'Body' })],
+    ['Dialog', () => new Dialog(null, { title: 'Title', content: 'Body' })],
+    ['modal Sheet', () => new Sheet(null, { title: 'Title' })],
+    ['non-modal Sheet', () => new Sheet(null, { title: 'Title', modal: false })]
+  ];
+  for (const [name, create] of kinds) {
+    await withDocument(async () => {
+      const overlay = create();
+      // What a DOM implementation without the dialog methods looks like: the element, no methods.
+      for (const method of ['showModal', 'show', 'close']) overlay.el[method] = undefined;
+      const events = [];
+      overlay.on('open', () => events.push('open'));
+      overlay.on('close', (event) => events.push(['close', event.detail.result]));
+
+      for (const cycle of ['first', 'second']) {
+        events.length = 0;
+        assert.doesNotThrow(() => overlay.open(), `${name}: ${cycle} open`);
+        assert.equal(overlay.isOpen(), true, `${name}: ${cycle} open is reported`);
+        assert.equal(overlay.el.hasAttribute('open'), true, `${name}: presented by the attribute`);
+        assert.equal(overlay.el.dataset.state, 'open');
+
+        assert.doesNotThrow(() => overlay.close('saved'), `${name}: ${cycle} close`);
+        assert.equal(overlay.isOpen(), false, `${name}: ${cycle} close is reported`);
+        assert.equal(overlay.el.hasAttribute('open'), false);
+        await flush();
+        assert.deepEqual(events, ['open', ['close', 'saved']], `${name}: ${cycle} lifecycle`);
+        assert.equal(overlay.el.dataset.state, 'closed');
+      }
+
+      overlay.open();
+      assert.doesNotThrow(() => overlay.destroy(), `${name}: destroy while open`);
+    });
+  }
+});
+
+test('a selector engine that rejects :modal and :popover-open does not break an overlay', async () => {
+  await withDocument(async () => {
+    for (const create of [
+      () => new Dialog(null, { title: 'Title' }),
+      () => new Sheet(null, { title: 'Title', modal: false })
+    ]) {
+      const overlay = create();
+      const matches = overlay.el.matches.bind(overlay.el);
+      overlay.el.matches = (selector) => {
+        if (/:modal|:popover-open/.test(selector)) throw new SyntaxError(`unknown pseudo-class in ${selector}`);
+        return matches(selector);
+      };
+      for (const method of ['showModal', 'show', 'close']) overlay.el[method] = undefined;
+      overlay.open();
+      assert.equal(overlay.isOpen(), true);
+      overlay.close();
+      await flush();
+      assert.equal(overlay.isOpen(), false);
+      overlay.destroy();
+    }
+  });
+});
+
+test('the dialog helpers prefer the platform and fall back to the attribute', async () => {
+  const { closeDialog, isDialogOpen, matchesState, modalDialogs, showDialog, showDialogModal } =
+    await import('../../src/components/modal/native-dialog.js');
+  await withDocument(async (doc) => {
+    const native = doc.createElement('dialog');
+    assert.equal(showDialogModal(native), true, 'showModal() is used where it exists');
+    assert.equal(native.matches(':modal'), true);
+    closeDialog(native, 'done');
+    assert.equal(native.returnValue, 'done');
+    assert.equal(isDialogOpen(native), false);
+
+    const bare = doc.createElement('dialog');
+    for (const method of ['showModal', 'show', 'close']) bare[method] = undefined;
+    let closes = 0;
+    bare.addEventListener('close', () => { closes += 1; });
+    assert.equal(showDialogModal(bare), false, 'the attribute stands in');
+    assert.equal(isDialogOpen(bare), true);
+    closeDialog(bare, 'done');
+    closeDialog(bare, 'again');
+    await flush();
+    assert.equal(isDialogOpen(bare), false);
+    assert.equal(bare.returnValue, 'done', 'closing a closed dialog changes nothing');
+    assert.equal(closes, 1, 'one close event, queued like the platform\'s');
+    showDialog(bare);
+    assert.equal(isDialogOpen(bare), true);
+
+    const throwing = { matches() { throw new SyntaxError('unknown pseudo-class'); } };
+    assert.equal(matchesState(/** @type {any} */ (throwing), ':modal'), false);
+    assert.equal(matchesState(null, ':modal'), false);
+    assert.deepEqual(modalDialogs(/** @type {any} */ ({
+      querySelectorAll() { throw new SyntaxError('unknown pseudo-class'); }
+    })), []);
+  });
 });
 
 /* ------------------------------------------------------------------ *

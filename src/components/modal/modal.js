@@ -2,6 +2,7 @@ import { Component } from '../../core/component.js';
 import { h } from '../../core/dom.js';
 import { connectedOverlayHost, overlayScope } from '../../core/overlay-host.js';
 import { pushOverlay } from '../../core/overlay-stack.js';
+import { closeDialog, isDialogOpen, matchesState, modalDialogs, showDialogModal } from './native-dialog.js';
 
 /**
  * Controls initial focus may be placed on: what a reader reaches with Tab, rather than everything
@@ -73,6 +74,8 @@ export class Modal extends Component {
   #opener = null;
   /** @type {import('../../core/overlay-stack.js').OverlayHandle|null} Entry on the overlay stack while shown. */
   #overlay = null;
+  /** Whether the `open` attribute stands in for a `showModal()` the platform does not have. */
+  #attributeModal = false;
 
   /**
    * Creates a modal in the configured theme scope, or at document level when none is present.
@@ -97,9 +100,10 @@ export class Modal extends Component {
     if (typeof window !== 'undefined') this.listen(window, 'keydown', (event) => {
       const key = /** @type {KeyboardEvent} */ (event);
       if (key.key !== 'Escape' || key.defaultPrevented || key.isComposing) return;
-      if (!this.isOpen() || !this.el.matches(':modal')) return;
-      const modals = document.querySelectorAll('dialog:modal');
-      if (modals[modals.length - 1] !== this.el) return;
+      if (!this.isOpen() || !this._isModal()) return;
+      // Without `showModal()` there is no top layer to ask which dialog is uppermost.
+      const modals = modalDialogs(document);
+      if (modals.length > 0 && modals[modals.length - 1] !== this.el) return;
       // Reported before the key is cancelled: a `cancel` listener may ask whether something else
       // had already claimed this keydown, and our own claim must not answer for it.
       if (this.options.closable) this._requestDismiss('escape');
@@ -148,10 +152,24 @@ export class Modal extends Component {
 
   /**
    * Puts the dialog on screen. Overridden by subclasses that open non-modally.
+   *
+   * Where the platform has no `showModal()` — a DOM implementation used for unit tests — the dialog
+   * is presented through its `open` attribute instead: no top layer and no inertness, but `open()`,
+   * `close()`, Escape and the lifecycle events behave the same.
    * @returns {void}
    */
   _show() {
-    this.el.showModal();
+    this.#attributeModal = !showDialogModal(this.el);
+  }
+
+  /**
+   * Whether the current presentation is the modal one: the platform's `:modal`, or the `open`
+   * attribute standing in for `showModal()` where that is missing.
+   * @returns {boolean}
+   * @protected
+   */
+  _isModal() {
+    return matchesState(this.el, ':modal') || (this.#attributeModal && isDialogOpen(this.el));
   }
 
   /**
@@ -164,7 +182,7 @@ export class Modal extends Component {
   _hide(result = '', presentation = this.#presentation) {
     this.#nativeClosingPresentations.push(presentation);
     try {
-      this.el.close(result);
+      closeDialog(this.el, result);
     } catch (error) {
       this.#nativeClosingPresentations.pop();
       throw error;
@@ -178,6 +196,7 @@ export class Modal extends Component {
    * @returns {void}
    */
   _present() {
+    this.#attributeModal = false;
     this._show();
     this.#presentation += 1;
     this.#syncModality();
@@ -195,7 +214,7 @@ export class Modal extends Component {
    * @returns {void}
    */
   #syncModality() {
-    if (this.el.matches(':modal')) this.el.setAttribute('aria-modal', 'true');
+    if (matchesState(this.el, ':modal')) this.el.setAttribute('aria-modal', 'true');
     else if (this.el.getAttribute('aria-modal') === 'true') this.el.removeAttribute('aria-modal');
   }
 
@@ -211,7 +230,7 @@ export class Modal extends Component {
    */
   _overlayEntry() {
     return {
-      kind: this.el.matches(':modal') ? 'modal' : 'non-modal',
+      kind: this._isModal() ? 'modal' : 'non-modal',
       root: this.el,
       owner: this,
       anchor: this.#opener
@@ -285,7 +304,7 @@ export class Modal extends Component {
    * @returns {boolean}
    */
   _isShown() {
-    return this.el.open;
+    return isDialogOpen(this.el);
   }
 
   /**

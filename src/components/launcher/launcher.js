@@ -5,6 +5,7 @@ import { printf } from '../../core/i18n.js';
 import { connectedOverlayHost, overlayScope } from '../../core/overlay-host.js';
 import { pushOverlay } from '../../core/overlay-stack.js';
 import { uid } from '../../core/util.js';
+import { closeDialog, isDialogOpen, modalDialogs, showDialogModal } from '../modal/native-dialog.js';
 import { kbd } from '../kbd/kbd.js';
 
 /**
@@ -310,7 +311,7 @@ export class Launcher extends Component {
       // Native close is queued; a newer presentation owns its state and requests now.
       const presentation = this._closingPresentations.shift();
       if (presentation !== undefined && presentation !== this._presentation) return;
-      if (dialog.open) return;
+      if (isDialogOpen(dialog)) return;
       this._releaseOverlay();
       dialog.dataset.state = 'closed';
       input.setAttribute('aria-expanded', 'false');
@@ -318,7 +319,7 @@ export class Launcher extends Component {
       // The next opening starts on the root, so an application that sets the query or the items
       // before opening sets them on the level that will show. Reopened in the meantime, the
       // launcher keeps the page it was opened on.
-      if (this._pages.length && !dialog.open) {
+      if (this._pages.length && !isDialogOpen(dialog)) {
         this._unwind();
         this._announcePending = false;
         this._syncPage();
@@ -359,7 +360,8 @@ export class Launcher extends Component {
     }
     const before = this._pages.map((entry) => entry.page);
     const opener = document.activeElement;
-    this.el.showModal();
+    // Without `showModal()` — a DOM implementation used for unit tests — the `open` attribute.
+    showDialogModal(this.el);
     this._presentation += 1;
     /*
      * A modal on the overlay stack, like every Modal: Escape and presses inside it then reach no
@@ -406,7 +408,7 @@ export class Launcher extends Component {
   close() {
     if (this.isOpen()) {
       this._closingPresentations.push(this._presentation);
-      this.el.close();
+      closeDialog(this.el);
     }
     return this;
   }
@@ -418,7 +420,7 @@ export class Launcher extends Component {
 
   /** Reports whether the launcher is open. @returns {boolean} */
   isOpen() {
-    return Boolean(this.el.open);
+    return isDialogOpen(this.el);
   }
 
   /** Focuses and selects the query field. @returns {this} */
@@ -489,7 +491,7 @@ export class Launcher extends Component {
     this._destroyed = true;
     const original = this._original;
     this._abortRequest();
-    if (this.isOpen()) this.el.close();
+    if (this.isOpen()) closeDialog(this.el);
     // The queued close that would release it never arrives once listeners are aborted.
     this._releaseOverlay();
     super.destroy();
@@ -992,7 +994,7 @@ export class Launcher extends Component {
     if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement
       || active instanceof HTMLSelectElement
       || (active instanceof HTMLElement && active.isContentEditable)) return;
-    const modal = document.querySelector('dialog:modal');
+    const modal = modalDialogs(document)[0];
     if (modal && modal !== this.el) return;
     event.preventDefault();
     this.open();
