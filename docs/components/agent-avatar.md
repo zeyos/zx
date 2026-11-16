@@ -46,7 +46,7 @@ Avatar.
   interactive.
 - **In navigation** — `AppSidebar` and `ModuleBar` items take `agent` (these options, or `true`)
   and draw the AgentAvatar in place of their icon or tile, with the activity in the control's
-  name; Composer mention items take `agent` too; AgentThread and RunTrace authors and ActivityItem
+  name; Composer mention items and Launcher items take `agent` too; AgentThread and RunTrace authors and ActivityItem
   avatar descriptors take `face`. Only a
   face's trait strings are read, so agent-supplied data cannot animate or name it.
 - **Accessibility** — the SVG is always hidden. With `label` the root is `role="img"`, named

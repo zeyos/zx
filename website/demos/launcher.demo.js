@@ -18,15 +18,18 @@ const SEARCH_RECORDS = {
   projects: [[7, null, 'Berlin office refit', 'Active']]
 };
 
-/** The agents the "Open agent" page lists: what each is on, and its state as the row's hint. */
+/**
+ * The agents the "Open agent" page lists: what each is on, and what it is doing — drawn as its
+ * face (`agent`), whose activity word also joins the row's name.
+ */
 const AGENTS = [
-  { id: 'scout', name: 'Scout', task: 'Supplier audit', state: 'Working' },
-  { id: 'ledger', name: 'Ledger', task: 'Invoice reconciliation', state: 'Waiting' },
-  { id: 'atlas', name: 'Atlas', task: 'Route planning', state: 'Idle' },
-  { id: 'quill', name: 'Quill', task: 'Release notes', state: 'Thinking' },
-  { id: 'sentry', name: 'Sentry', task: 'Nightly checks', state: 'Idle' },
-  { id: 'harbor', name: 'Harbor', task: 'Customer onboarding', state: 'Needs you' },
-  { id: 'tally', name: 'Tally', task: 'Stock count', state: 'Working' }
+  { id: 'scout', name: 'Scout', task: 'Supplier audit', activity: 'working' },
+  { id: 'ledger', name: 'Ledger', task: 'Invoice reconciliation', activity: 'blocked' },
+  { id: 'atlas', name: 'Atlas', task: 'Route planning', activity: 'idle' },
+  { id: 'quill', name: 'Quill', task: 'Release notes', activity: 'thinking' },
+  { id: 'sentry', name: 'Sentry', task: 'Nightly checks', activity: 'idle' },
+  { id: 'harbor', name: 'Harbor', task: 'Customer onboarding', activity: 'needs-you' },
+  { id: 'tally', name: 'Tally', task: 'Stock count', activity: 'working' }
 ];
 
 /** Models for the "Switch model" page; the current one carries `current` and says so in its hint. */
@@ -83,7 +86,8 @@ function paletteItems(currentModel) {
     {
       id: 'agents', label: 'Open agent', icon: 'folder-open', group: 'Commands', placeholder: 'Search agents',
       items: AGENTS.map((agent) => ({
-        id: agent.id, label: agent.name, description: agent.task, hint: agent.state, keywords: [agent.task]
+        id: agent.id, label: agent.name, description: agent.task, keywords: [agent.task],
+        agent: { seed: `agt-${agent.id}`, activity: agent.activity }
       }))
     },
     {

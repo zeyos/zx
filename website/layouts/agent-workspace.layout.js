@@ -1741,8 +1741,10 @@ export default {
           items: agents.map((agent, index) => {
             const presence = presenceOf(agent);
             return {
-              id: `agent-${agent.id}`, label: agent.name, description: `${agent.role} · ${presence.doing}`, hint: PRESENCE[presence.state],
-              icon: () => agentMark(agent), keywords: [agent.role, presence.doing], itemOrder: index, invoke: () => openChat(agent.id)
+              id: `agent-${agent.id}`, label: agent.name, description: `${agent.role} · ${presence.doing}`,
+              // The face shows the presence, and its word joins the row's name.
+              agent: { seed: agent.id, tone: agent.tone, activity: presence.state },
+              keywords: [agent.role, presence.doing, PRESENCE[presence.state]], itemOrder: index, invoke: () => openChat(agent.id)
             };
           })
         }),

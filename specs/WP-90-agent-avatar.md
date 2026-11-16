@@ -89,7 +89,10 @@ palette and the route hint. Agent chat, Agent canvas and AI chat draw their agen
 thread and the navigation heading (and Agent canvas on its welcome); a model keeps its mark, and
 Composer mention items take `agent` like navigation items and draw the agent's still face; each
 Composer keeps one avatar per mentioned item id, reused while the list redraws on every keystroke
-and destroyed with it. AI chat's `@` list and the Composer demo use it.
+and destroyed with it. AI chat's `@` list and the Composer demo use it. Launcher items take `agent`
+the same way — one owned avatar per item id, a tile's size for `kind: 'application'` — with the
+activity's word as visually hidden text after the label, so the option's name keeps everything else
+the row prints. The Agent workspace palette and the Launcher demo use it.
 
 ## API
 
@@ -123,6 +126,7 @@ the component is not focusable.
   `src/components/activity-item/activity-item.js`, `src/internal/agent-model.js`: `face`;
   `website/demos/run-trace.demo.js`, `activity-item.demo.js`, `activity-list.demo.js`.
 - `src/components/composer/composer.js|css`, `website/demos/composer.demo.js`: mention `agent`.
+- `src/components/launcher/launcher.js|css`, `website/demos/launcher.demo.js`: item `agent`.
 - `website/layouts/agent-workspace.layout.js|css`, `agent-chat.layout.js`, `agent-canvas.layout.js`,
   `ai-chat.layout.js`; `website/demos/app-sidebar.demo.js`,
   `website/demos/module-bar.demo.js`.
