@@ -2038,6 +2038,7 @@ const cases = [
   }),
   billingGridTargetCase(),
   chartCase(),
+  svgChartCase(),
   calendarCase(),
   calendarControlledCase(),
   calendarTargetCase(),
@@ -4005,6 +4006,57 @@ function chartCase() {
     destroy({ component, instance }) {
       component.destroy();
       assert(instance.destroyed, 'chart adapter handle was not destroyed');
+    }
+  };
+}
+
+/**
+ * Draws the four surface kinds with the dependency-free adapter over the named canvas, refuses a
+ * kind it does not draw, and leaves nothing behind. @returns {SmokeDefinition}
+ */
+function svgChartCase() {
+  return {
+    name: 'Chart (SVG adapter)',
+    create(fixture) {
+      const component = new zx.Chart(null, {
+        adapter: new zx.SvgChartAdapter({ animation: false }),
+        label: 'Revenue and costs',
+        data: { labels: ['Jan', 'Feb', 'Mar'], datasets: [{ label: 'Revenue', data: [42, null, 61] }, { label: 'Costs', data: [28, 31, -4] }] }
+      });
+      fixture.append(component.toElement());
+      // The engine waits for a connected, sized viewport; asking for it creates it at once.
+      component.getInstance();
+      return { component, viewport: component.refs.viewport };
+    },
+    exercise({ component }) {
+      const drawing = () => component.el.querySelector('.zx-chart__drawing');
+      const count = (selector) => component.el.querySelectorAll(selector).length;
+      assert(drawing() && component.getInstance() === drawing(), 'the SVG adapter did not mount its drawing');
+      assert(drawing().getAttribute('aria-hidden') === 'true' && component.refs.canvas.getAttribute('role') === 'img'
+        && component.refs.canvas.getAttribute('aria-label') === 'Revenue and costs',
+      'the canvas no longer carries the chart\'s name, or the drawing is not presentational');
+      assert(count('.zx-chart__bar') === 5, `bars: one per value and none for a gap, got ${count('.zx-chart__bar')}`);
+      assert(count('.zx-chart__key') === 2 && component.el.querySelector('.zx-chart__bar[data-negative]'),
+        'a two-series bar chart lost its legend or its negative bar');
+      assert(component.el.querySelector('.zx-chart__bar title')?.textContent === 'Jan · Revenue: 42', 'a bar has no title');
+      const selected = observe(component, 'select');
+      component.el.querySelector('.zx-chart__bar').dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      selected.expect();
+      component.setType('line');
+      assert(count('.zx-chart__line') === 2 && count('.zx-chart__point') === 5, 'line chart marks are missing');
+      component.setType('pie');
+      assert(count('.zx-chart__slice') === 4 && count('.zx-chart__key') === 3, 'pie: one slice per positive value, one key per label');
+      component.setType('doughnut');
+      assert(count('.zx-chart__slice') === 4 && drawing().dataset.type === 'doughnut', 'doughnut did not redraw');
+      component.setType('radar');
+      assert(component.el.dataset.state === 'error' && !drawing() && /radar/.test(component.refs.status.textContent),
+        'an unsupported kind did not end in the error state');
+      component.setType('bar').clearError();
+      assert(count('.zx-chart__bar') === 5, 'the chart did not draw again after the error cleared');
+    },
+    destroy({ component, viewport }) {
+      component.destroy();
+      assert(!viewport.querySelector('.zx-chart__drawing'), 'the drawing outlived the chart');
     }
   };
 }

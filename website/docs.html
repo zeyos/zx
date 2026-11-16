@@ -75,10 +75,11 @@
       <h2>Optional integration requirements</h2>
       <p>
         Zx has no package runtime dependencies and its source modules import no external runtime packages.
-        <code>Chart</code> requires an injected renderer; the only supplied renderer,
-        <code>ChartJsAdapter</code>, requires host-provided Chart.js 4. There is no built-in chart renderer.
-        The website pins Chart.js 4.5.1 as a development dependency and copies it to self-hosted vendor
-        assets during its build; Zx does not bundle it.
+        <code>Chart</code> draws through an adapter: the built-in <code>SvgChartAdapter</code> draws bar,
+        line, pie and doughnut charts as SVG with nothing else loaded, and <code>Surface</code> draws its
+        charts with it by default; <code>ChartJsAdapter</code> draws any Chart.js type with host-provided
+        Chart.js 4. The website pins Chart.js 4.5.1 as a development dependency and copies it to
+        self-hosted vendor assets during its build; Zx does not bundle it.
       </p>
       <p>
         Core icons use bundled SVG by default. Font Awesome opt-in requires host-loaded CSS or a kit.

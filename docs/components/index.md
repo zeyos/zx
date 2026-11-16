@@ -50,7 +50,7 @@ One file per component: its section of the full reference (https://zx.zeyos.com/
 - [CardView](card-view.md) — A compact responsive record collection sharing fields, sort, selection, visibility, order, and serializable state with TableView and KanbanView.
 - [KanbanView](kanban-view.md) — A semantic opportunity board sharing fields, cards, sort, selection, and serializable configuration with the other record views.
 - [Grid and Grid.BillingItems()](grid.md) — A public Table specialization for domain presets; it inherits sorting, selection, hierarchy, typed formatting, and editing without forking them.
-- [Chart and ChartJsAdapter](chart.md) — An accessible engine-neutral chart host.
+- [Chart, SvgChartAdapter and ChartJsAdapter](chart.md) — An accessible engine-neutral chart host.
 - [Calendar](calendar.md) — A dependency-free scheduling surface with agenda, day, week, month, and year views; local-time event layout; range selection; and pointer or keyboard editing.
 - [DataFilter](data-filter.md) — The filter bar above a list: typed filter descriptors in, the matching rows out.
 - [FilterPanel](filter-panel.md) — The filter form a data-driven list needs: field metadata in, a query object out.

@@ -3035,7 +3035,7 @@
         "name": "adapter",
         "type": "ChartAdapter|null",
         "default": "null",
-        "description": "Injected engine adapter.",
+        "description": "The engine that draws: `new SvgChartAdapter()` needs nothing else, `new ChartJsAdapter(Chart)` an injected Chart.js. Without one the chart draws nothing, and its data lives in the summary table alone.",
         "update": {
           "methods": [
             "setAdapter()"
@@ -13392,8 +13392,8 @@
       {
         "name": "chartAdapter",
         "type": "ChartAdapter|null",
-        "default": "null",
-        "description": "The engine that draws `chart` nodes; without one a chart shows its data table."
+        "default": null,
+        "description": "The engine that draws `chart` nodes: a shared `SvgChartAdapter` by default, which needs no library; another adapter, such as a `ChartJsAdapter`, to draw with that engine; null to draw none, so that each chart shows its data table instead."
       },
       {
         "name": "msg",
@@ -13515,6 +13515,37 @@
     ],
     "events": [],
     "methods": []
+  },
+  "SvgChartAdapter": {
+    "options": [
+      {
+        "name": "animation",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether a chart grows into place the first time it is drawn. Reduced motion stops it whatever this says; `chartOptions.animation` decides per chart."
+      },
+      {
+        "name": "legend",
+        "type": "boolean|null",
+        "default": "null",
+        "description": "Whether a legend is drawn: null draws one for two or more series and for pie and doughnut charts; `chartOptions.legend` decides per chart."
+      }
+    ],
+    "events": [],
+    "methods": [
+      {
+        "name": "supports",
+        "signature": "supports(type)",
+        "returns": "boolean",
+        "description": "Whether the adapter draws a chart type: `bar`, `line`, `pie` or `doughnut`."
+      },
+      {
+        "name": "mount",
+        "signature": "mount(viewport, spec)",
+        "returns": "ChartHandle",
+        "description": "Draws one chart into the viewport Chart hands over and returns its lifecycle handle. The handle's `instance` is the drawing element."
+      }
+    ]
   },
   "TabInsert": {
     "options": [

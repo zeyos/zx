@@ -1,10 +1,10 @@
 import {
-  AgentThread, BlockView, ChartJsAdapter, Composer, MenuButton, PromptStarters, SourceList, Surface, Tabbox, badge,
+  AgentThread, BlockView, Composer, MenuButton, PromptStarters, SourceList, Surface, SvgChartAdapter, Tabbox, badge,
   button, emptyState, formatCurrency, formatDate, formatNumber, h, prefersReducedMotion, skeletonText, surfaceText,
   uid, watchMotion
 } from '../../src/index.js';
 import {
-  DATE, adaptiveShell, disposer, iconButton, iconTile, kbd, later, layoutContext, loadChartJs, paneHeader,
+  DATE, adaptiveShell, disposer, iconButton, iconTile, kbd, later, layoutContext, paneHeader,
   renderScope, shortcutSheet, shortcuts, suiteNav
 } from './kit.js';
 import { ME, NOW, ORGANISATION, company, person } from './fixtures.js';
@@ -528,7 +528,7 @@ export default {
   category: 'Pattern',
   blurb: 'A scripted agent whose every answer is a surface it composes as JSON — figures and a chart, a review, forms, a questionnaire, a confirmation — with an artifact panel showing each one’s JSON, versions, and the reply it produced.',
   components: [
-    'AgentThread', 'Surface', 'Composer', 'PromptStarters', 'Tabbox', 'SourceList', 'Chart', 'ChartJsAdapter',
+    'AgentThread', 'Surface', 'Composer', 'PromptStarters', 'Tabbox', 'SourceList', 'Chart', 'SvgChartAdapter',
     'Table', 'Questionnaire', 'Dialog', 'MenuButton', 'AppSidebar', 'ModuleBar', 'AccountMenu'
   ],
 
@@ -563,10 +563,11 @@ export default {
     const view = { artifact: /** @type {string|null} */ (null), index: 0, following: true };
     const mountedAt = performance.now();
     const clock = () => new Date(NOW.getTime() + (preview ? 0 : performance.now() - mountedAt));
-    /** @type {AgentThread|null} The thread, once the chart engine has loaded or failed to. */
+    /** @type {AgentThread|null} The thread, once the conversation has started. */
     let thread = null;
-    /** @type {ChartJsAdapter|null} */
-    let chartAdapter = null;
+    // Every chart an answer holds is drawn as SVG, with no engine to load; a thumbnail draws its
+    // charts still.
+    const chartAdapter = new SvgChartAdapter({ animation: !preview });
 
     /* --------------------------------------------------------------- navigation -- */
 
@@ -677,16 +678,7 @@ export default {
 
     container.append(root);
     render();
-
-    // Charts need their engine before the first surface draws; without it they show their data
-    // tables, which is the documented fallback. A thumbnail draws its charts still.
-    loadChartJs()
-      .then((engine) => new ChartJsAdapter(engine, preview ? { animation: false } : {}), () => null)
-      .then((adapter) => {
-        if (context.signal.aborted) return;
-        chartAdapter = adapter;
-        start();
-      });
+    start();
 
     /* ------------------------------------------------------------------ start -- */
 

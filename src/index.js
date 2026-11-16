@@ -201,6 +201,7 @@ export { Grid, billingColumns, isBillingLine } from './components/grid/grid.js';
 export {
   Chart, ChartJsAdapter, chartSummaryTable, cloneChartValue, isEmptyChartData
 } from './components/chart/chart.js';
+export { SvgChartAdapter } from './components/chart/svg-adapter.js';
 export { TreeView } from './components/tree/tree.js';
 export { Finder } from './components/finder/finder.js';
 export { DataFilter } from './components/data-filter/data-filter.js';
