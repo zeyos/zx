@@ -1346,7 +1346,8 @@ Avatar.
   interactive.
 - **In navigation** — `AppSidebar` and `ModuleBar` items take `agent` (these options, or `true`)
   and draw the AgentAvatar in place of their icon or tile, with the activity in the control's
-  name; AgentThread and RunTrace authors and ActivityItem avatar descriptors take `face`. Only a
+  name; Composer mention items take `agent` too; AgentThread and RunTrace authors and ActivityItem
+  avatar descriptors take `face`. Only a
   face's trait strings are read, so agent-supplied data cannot animate or name it.
 - **Accessibility** — the SVG is always hidden. With `label` the root is `role="img"`, named
   "label, activity word"; without one it is `aria-hidden`, for use beside the agent's name.
@@ -4580,7 +4581,8 @@ the application, which owns the conversation and the transport.
   `queue: false`, `queueLimit: 10` (see Queue),
   `disabled: false`, `attachments: false`, `accept: ''` (the `<input type="file">` syntax),
   `maxFiles: 10`, `mentions: null|{trigger: '@', items}` where `items` is `[{id, label,
-  description?, icon?}]` or `(query) => items | Promise<items>`, `commands: null|LauncherItem[]`,
+  description?, icon?, agent?}]` (`agent`: AgentAvatar options or `true` draws the item as its still
+  face instead of the icon, with an activity's word in the option's name) or `(query) => items | Promise<items>`, `commands: null|LauncherItem[]`,
   `tools: []` (`[{id, label, icon, pressed?, expanded?, controls?, disabled?}]` — `pressed` makes a
   toggle, `expanded`/`controls` a disclosure; see Tools), `icons: {}` (`attach`, `commands` glyphs),
   `context: [{id, label,

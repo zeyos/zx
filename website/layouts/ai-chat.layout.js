@@ -807,7 +807,8 @@ export default {
       icons: { attach: 'paperclip', commands: 'book-open' },
       mentions: {
         trigger: '@',
-        items: AGENTS.map((agent) => ({ id: agent.id, label: agent.name, description: agent.description, icon: agent.icon }))
+        // Each agent's face, seeded as its answers' are, so the list and the thread agree.
+        items: AGENTS.map((agent) => ({ id: agent.id, label: agent.name, description: agent.description, agent: { seed: `agt-${agent.id}`, tone: agent.tone } }))
       },
       commands: PROMPTS.map(({ value, label, description }) => ({ id: value, label, description, icon: 'book-open' })),
       tools: [

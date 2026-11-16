@@ -436,6 +436,9 @@
   color: var(--zx-color-text-subtle);
 }
 
+/* An agent mention draws its face, a little larger than a glyph. */
+.zx-composer__option > .zx-agent-avatar { --zx-agent-avatar-size: var(--zx-space-5); }
+
 .zx-composer__option-text {
   display: grid;
   min-inline-size: 0;

@@ -2821,7 +2821,7 @@ const cases = [
   }),
   componentCase('Composer', () => new zx.Composer(null, {
     attachments: true,
-    mentions: { items: [{ id: 'finance', label: 'Finance agent' }, { id: 'sales', label: 'Sales agent' }] },
+    mentions: { items: [{ id: 'finance', label: 'Finance agent', agent: { seed: 'agt-finance', activity: 'needs-you', animate: true } }, { id: 'sales', label: 'Sales agent' }] },
     commands: [{ id: 'summarize', label: 'Summarize the conversation' }],
     context: [{ id: 'selection', label: '3 invoices' }],
     tools: [{ id: 'web', label: 'Web search', icon: 'search', pressed: false }]
@@ -2858,6 +2858,13 @@ const cases = [
     const list = component.el.querySelector('[role="listbox"]');
     assert(!list.hidden && input.getAttribute('aria-controls') === list.id
       && input.getAttribute('aria-autocomplete') === 'list', 'mention suggestions did not open');
+    const agentOption = list.querySelector('[role="option"]');
+    const mentionFace = agentOption.querySelector('.zx-agent-avatar');
+    assert(mentionFace && !mentionFace.hasAttribute('data-animate') && agentOption.getAttribute('aria-label') === 'Finance agent, Needs you',
+      'an agent mention is not drawn as its still face, or its activity is not in the option name');
+    component.setValue('Ask @fina');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    assert(list.querySelector('.zx-agent-avatar') === mentionFace, 'redrawing the mentions rebuilt the agent face');
     assert(input.getAttribute('aria-activedescendant') === list.querySelector('[aria-selected="true"]')?.id,
       'the active suggestion is not exposed');
     key('Enter');

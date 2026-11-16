@@ -16,7 +16,8 @@ the application, which owns the conversation and the transport.
   `queue: false`, `queueLimit: 10` (see Queue),
   `disabled: false`, `attachments: false`, `accept: ''` (the `<input type="file">` syntax),
   `maxFiles: 10`, `mentions: null|{trigger: '@', items}` where `items` is `[{id, label,
-  description?, icon?}]` or `(query) => items | Promise<items>`, `commands: null|LauncherItem[]`,
+  description?, icon?, agent?}]` (`agent`: AgentAvatar options or `true` draws the item as its still
+  face instead of the icon, with an activity's word in the option's name) or `(query) => items | Promise<items>`, `commands: null|LauncherItem[]`,
   `tools: []` (`[{id, label, icon, pressed?, expanded?, controls?, disabled?}]` — `pressed` makes a
   toggle, `expanded`/`controls` a disclosure; see Tools), `icons: {}` (`attach`, `commands` glyphs),
   `context: [{id, label,

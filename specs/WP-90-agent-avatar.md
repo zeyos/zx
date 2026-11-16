@@ -87,7 +87,9 @@ initials or an `icon` tile — `face` wins over `icon`. The Agent workspace layo
 with AgentAvatar, soft material: roster, inspector, chat head, task owners, notifications, the
 palette and the route hint. Agent chat, Agent canvas and AI chat draw their agents' faces in the
 thread and the navigation heading (and Agent canvas on its welcome); a model keeps its mark, and
-Composer's `@` mentions keep their glyphs, since Composer items take icon names only.
+Composer mention items take `agent` like navigation items and draw the agent's still face; each
+Composer keeps one avatar per mentioned item id, reused while the list redraws on every keystroke
+and destroyed with it. AI chat's `@` list and the Composer demo use it.
 
 ## API
 
@@ -120,6 +122,7 @@ the component is not focusable.
 - `src/components/agent-thread/agent-thread.js`, `src/components/run-trace/run-trace.js`,
   `src/components/activity-item/activity-item.js`, `src/internal/agent-model.js`: `face`;
   `website/demos/run-trace.demo.js`, `activity-item.demo.js`, `activity-list.demo.js`.
+- `src/components/composer/composer.js|css`, `website/demos/composer.demo.js`: mention `agent`.
 - `website/layouts/agent-workspace.layout.js|css`, `agent-chat.layout.js`, `agent-canvas.layout.js`,
   `ai-chat.layout.js`; `website/demos/app-sidebar.demo.js`,
   `website/demos/module-bar.demo.js`.
