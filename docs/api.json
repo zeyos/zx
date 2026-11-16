@@ -505,6 +505,12 @@
         "description": "The eye shape, instead of the derived one."
       },
       {
+        "name": "material",
+        "type": "AgentMaterial",
+        "default": "'flat'",
+        "description": "How the body is painted. `flat` is the tone's solid fill; `soft` adds a quiet vertical ramp — a touch lighter at the top, deeper at the foot, the plain tone across the eyes — from 28px up. Below 28px, when offline, in print and in forced colours a soft body is drawn flat."
+      },
+      {
         "name": "size",
         "type": "string|number",
         "default": "'md'",

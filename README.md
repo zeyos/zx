@@ -224,7 +224,7 @@ ZeyOS binding — see `src/zeyos/modules.js`.
 | API | Description |
 | --- | --- |
 | `AgentThread` | Accessible conversation feed with streamed answers, versions, and actions. |
-| `AgentAvatar` | Generated agent face — a coloured shape or pixel creature with eyes — that shows its activity. |
+| `AgentAvatar` | Generated agent face — a coloured geometric shape with eyes — that shows its activity. |
 | `BlockView`, `renderBlocks()` | Safe structured answer content with incremental streaming. |
 | `Composer` | Message input with attachments, mentions, commands, context, and queued messages. |
 | `RunTrace` | Tool calls, reasoning summaries, retries, and handoffs within a run. |

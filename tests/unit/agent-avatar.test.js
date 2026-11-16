@@ -2,16 +2,14 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import {
-  AGENT_BODIES, AGENT_EYES, AGENT_PIXEL_BODIES, agentFace, agentTraits
-} from '../../src/components/agent-avatar/agent-face.js';
+import { AGENT_BODIES, AGENT_EYES, agentFace, agentTraits } from '../../src/components/agent-avatar/agent-face.js';
 import { AVATAR_TONES, avatarTone } from '../../src/components/avatar/avatar.js';
 
 /** A few seeds pinned to their faces. The generator is contract; see the table-order test. */
 const PINNED = {
-  'agt-7f3a': { tone: 'violet', body: 'circle', eyes: 'oval', spacing: 0 },
+  'agt-7f3a': { tone: 'violet', body: 'trapezoid', eyes: 'oval', spacing: 0 },
   Ledger: { tone: 'orange', body: 'clover', eyes: 'square', spacing: 0 },
-  Nova: { tone: 'violet', body: 'cap', eyes: 'square', spacing: 2 }
+  Nova: { tone: 'violet', body: 'drop', eyes: 'round', spacing: 2 }
 };
 
 /** Every shape in a drawing, depth first. */
@@ -21,8 +19,7 @@ const seeds = (count) => Array.from({ length: count }, (_, index) => `agent-${in
 
 test('the trait tables and their order are fixed', () => {
   assert.deepEqual([...AGENT_BODIES], ['circle', 'squircle', 'hexagon', 'triangle', 'drop', 'pill', 'clover', 'dome',
-    'tuft', 'beacon', 'cap', 'antler']);
-  assert.deepEqual([...AGENT_PIXEL_BODIES], ['tuft', 'beacon', 'cap', 'antler']);
+    'triangle-down', 'pentagon', 'trapezoid', 'cross', 'diamond', 'octagon']);
   assert.deepEqual([...AGENT_EYES], ['round', 'oval', 'square']);
 });
 
@@ -50,13 +47,6 @@ test('overrides fix one trait and leave the rest derived; unknown ones are ignor
   assert.ok(AVATAR_TONES.includes(agentTraits('agt-7f3a', { tone: 'slate' }).tone));
 });
 
-test('a pixel creature gets square eyes unless they are fixed', () => {
-  for (const body of AGENT_PIXEL_BODIES) {
-    for (const seed of seeds(30)) assert.equal(agentTraits(seed, { body }).eyes, 'square', `${seed} ${body}`);
-    assert.equal(agentTraits('agt-7f3a', { body, eyes: 'round' }).eyes, 'round');
-  }
-});
-
 test('every trait value is reachable and traits do not follow the tone', () => {
   const all = seeds(2400).map((seed) => agentTraits(seed));
   assert.deepEqual(new Set(all.map((traits) => traits.body)), new Set(AGENT_BODIES));
@@ -73,24 +63,16 @@ test('every trait value is reachable and traits do not follow the tone', () => {
   }
 });
 
-test('a pixel body is one crisp path of whole 8-unit cells, with its eyes on the grid', () => {
-  for (const body of AGENT_PIXEL_BODIES) {
-    const face = agentFace(agentTraits('x', { body }), 'idle', 48);
-    const shapes = flatten(face).filter((shape) => shape.part === 'body');
-    assert.equal(shapes.length, 1, body);
-    assert.equal(shapes[0].tag, 'path', body);
-    assert.equal(shapes[0].attrs['shape-rendering'], 'crispEdges', body);
-    const runs = [...shapes[0].attrs.d.matchAll(/M(\d+) (\d+)h(\d+)v8h-\d+z/g)];
-    assert.ok(runs.length >= 8, `${body} has a run per row`);
-    for (const [, x, y, w] of runs) assert.ok([x, y, w].every((value) => Number(value) % 8 === 0), `${body} off the grid`);
-    const grid = flatten(face).filter((shape) => shape.part === 'sclera' || shape.part === 'pupil');
-    assert.equal(grid.length, 4, `${body} draws two eyes and two pupils`);
-    for (const cell of grid) {
-      assert.ok(['x', 'y', 'width', 'height'].every((key) => Number(cell.attrs[key]) % 8 === 0), `${body} eye off the grid`);
+test('every body keeps its eyes inside the view box, clear of the edge', () => {
+  for (const body of AGENT_BODIES) {
+    for (const spacing of [0, 1, 2]) {
+      const scleras = flatten(agentFace({ tone: 'blue', body, eyes: 'square', spacing }, 'needs-you', 48))
+        .filter((shape) => shape.part === 'sclera');
+      for (const { attrs } of scleras) {
+        assert.ok(attrs.x >= 4 && attrs.y >= 4 && attrs.x + attrs.width <= 60 && attrs.y + attrs.height <= 60, `${body} ${spacing}`);
+      }
     }
   }
-  // Below 20px a pixel creature keeps its eyes and loses its pupils, like every face.
-  assert.equal(parts(agentFace(agentTraits('x', { body: 'tuft' }), 'idle', 16)).filter((part) => part === 'pupil').length, 0);
 });
 
 test('a face draws its body and two eyes with pupils, and drops the pupils below 20px', () => {

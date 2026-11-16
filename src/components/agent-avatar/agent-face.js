@@ -15,7 +15,7 @@ import { AVATAR_TONES, avatarTone } from '../avatar/avatar.js';
 
 /**
  * @typedef {'circle'|'squircle'|'hexagon'|'triangle'|'drop'|'pill'|'clover'|'dome'
- *   |'tuft'|'beacon'|'cap'|'antler'} AgentBody
+ *   |'triangle-down'|'pentagon'|'trapezoid'|'cross'|'diamond'|'octagon'} AgentBody
  */
 /** @typedef {'round'|'oval'|'square'} AgentEyes */
 
@@ -47,17 +47,11 @@ import { AVATAR_TONES, avatarTone } from '../avatar/avatar.js';
  */
 
 /**
- * The silhouettes, in hash order: eight smooth geometric shapes, then four pixel creatures.
+ * The silhouettes, in hash order.
  * @type {ReadonlyArray<AgentBody>}
  */
 export const AGENT_BODIES = Object.freeze(['circle', 'squircle', 'hexagon', 'triangle', 'drop', 'pill', 'clover', 'dome',
-  'tuft', 'beacon', 'cap', 'antler']);
-
-/**
- * The pixel creatures among {@link AGENT_BODIES}. Their eyes are drawn on the grid — two-cell
- * squares with a one-cell pupil — whatever the `eyes` trait says, which for them is `square`.
- */
-export const AGENT_PIXEL_BODIES = Object.freeze(['tuft', 'beacon', 'cap', 'antler']);
+  'triangle-down', 'pentagon', 'trapezoid', 'cross', 'diamond', 'octagon']);
 
 /** The eye shapes, in hash order. @type {ReadonlyArray<AgentEyes>} */
 export const AGENT_EYES = Object.freeze(['round', 'oval', 'square']);
@@ -67,24 +61,6 @@ export const AGENT_PRESET_PX = Object.freeze({ sm: 24, md: 32, lg: 40 });
 
 /** The eye spacings, as factors of a body's middle spacing. */
 const SPREAD = Object.freeze([0.85, 1, 1.15]);
-
-/**
- * A pixel creature's cell, in view-box units: 8 × 8 cells fill the box exactly, so at 16, 24, 32,
- * 40, 48, 64 and 128px every cell is a whole number of pixels.
- */
-const CELL = 8;
-
-/**
- * Pixel creatures as 8 × 8 grids, top row first, with the row their eyes start on. Each is
- * symmetric, original — no arcade sprite's grammar — and has two full-width rows for its eyes, which
- * sit on columns 1–2 and 5–6 with a body cell either side.
- */
-const PIXEL_GRIDS = Object.freeze({
-  tuft: { eyeRow: 3, rows: ['##....##', '##....##', '########', '########', '########', '########', '.######.', '..#..#..'] },
-  beacon: { eyeRow: 3, rows: ['..####..', '...##...', '########', '########', '########', '########', '.##..##.', '.##..##.'] },
-  cap: { eyeRow: 2, rows: ['.######.', '########', '########', '########', '########', '..####..', '..####..', '.######.'] },
-  antler: { eyeRow: 3, rows: ['#.#..#.#', '###..###', '.######.', '########', '########', '########', '.######.', '..####..'] }
-});
 
 /**
  * Where the eyes sit on each silhouette (centre height, half-spacing at the middle spacing) and the
@@ -104,17 +80,19 @@ const BODIES = Object.freeze({
     shape('rect', 'body', { x: 16, y: 16, width: 32, height: 32 })
   ] },
   dome: { y: 36, gap: 11, shapes: [shape('path', 'body', { d: 'M5 52V40A27 27 0 0 1 59 40V52Q59 56 55 56H9Q5 56 5 52Z' })] },
-  tuft: { y: 32, gap: 16, shapes: [pixelBody(PIXEL_GRIDS.tuft.rows)] },
-  beacon: { y: 32, gap: 16, shapes: [pixelBody(PIXEL_GRIDS.beacon.rows)] },
-  cap: { y: 24, gap: 16, shapes: [pixelBody(PIXEL_GRIDS.cap.rows)] },
-  antler: { y: 32, gap: 16, shapes: [pixelBody(PIXEL_GRIDS.antler.rows)] }
+  'triangle-down': { y: 23, gap: 9.5, shapes: [shape('polygon', 'body', { points: '7,11 57,11 32,55', 'stroke-width': 9, 'stroke-linejoin': 'round' })] },
+  pentagon: { y: 31, gap: 10, shapes: [shape('polygon', 'body', { points: '32,7 57,25 48,55 16,55 7,25', 'stroke-width': 8, 'stroke-linejoin': 'round' })] },
+  trapezoid: { y: 31, gap: 10, shapes: [shape('polygon', 'body', { points: '17,11 47,11 58,53 6,53', 'stroke-width': 8, 'stroke-linejoin': 'round' })] },
+  cross: { y: 31, gap: 11, shapes: [shape('polygon', 'body', { points: '22,7 42,7 42,21 57,21 57,43 42,43 42,57 22,57 22,43 7,43 7,21 22,21', 'stroke-width': 6, 'stroke-linejoin': 'round' })] },
+  diamond: { y: 30, gap: 9.5, shapes: [shape('polygon', 'body', { points: '32,5 59,32 32,59 5,32', 'stroke-width': 8, 'stroke-linejoin': 'round' })] },
+  octagon: { y: 30, gap: 11, shapes: [shape('polygon', 'body', { points: '22,5 42,5 59,22 59,42 42,59 22,59 5,42 5,22', 'stroke-width': 6, 'stroke-linejoin': 'round' })] }
 });
 
 /**
  * Resolves the face a seed gets. The tone is `avatarTone(seed)`, so an agent's initials Avatar and
  * its face agree when they share a key; every other trait comes from FNV-1a over the same
  * normalised key plus a per-trait salt, mixed, so traits are independent of the tone and of each
- * other. A pixel creature gets square eyes unless `eyes` is fixed.
+ * other.
  * @param {unknown} seed The agent's stable identity — an id, or its name.
  * @param {AgentTraitOverrides} [overrides={}] Traits to fix instead of deriving them.
  * @returns {AgentTraits}
@@ -125,9 +103,8 @@ export function agentTraits(seed, overrides = {}) {
     ? /** @type {AvatarTone} */ (overrides.tone) : avatarTone(key);
   const body = AGENT_BODIES.includes(/** @type {AgentBody} */ (overrides.body))
     ? /** @type {AgentBody} */ (overrides.body) : pick(key, 'body', AGENT_BODIES);
-  const fixedEyes = AGENT_EYES.includes(/** @type {AgentEyes} */ (overrides.eyes));
-  const eyes = fixedEyes ? /** @type {AgentEyes} */ (overrides.eyes)
-    : AGENT_PIXEL_BODIES.includes(body) ? 'square' : pick(key, 'eyes', AGENT_EYES);
+  const eyes = AGENT_EYES.includes(/** @type {AgentEyes} */ (overrides.eyes))
+    ? /** @type {AgentEyes} */ (overrides.eyes) : pick(key, 'eyes', AGENT_EYES);
   const spacing = /** @type {0|1|2} */ (pick(key, 'spacing', [0, 1, 2]));
   return { tone, body, eyes, spacing };
 }
@@ -145,8 +122,6 @@ export function agentFace(traits, activity = null, px = 32) {
   const state = activity ?? 'idle';
   const small = px <= 24;
   const body = BODIES[traits.body] ?? BODIES.circle;
-  const grid = PIXEL_GRIDS[/** @type {keyof typeof PIXEL_GRIDS} */ (traits.body)];
-  if (grid) return [shape('g', 'shape', {}, body.shapes.map(copyShape)), pixelEyes(grid.eyeRow, state, px >= 20)];
   const width = small ? 15 : 13;
   const gap = body.gap * (small ? 0.95 : (SPREAD[traits.spacing] ?? 1));
   return [
@@ -156,60 +131,6 @@ export function agentFace(traits, activity = null, px = 32) {
       shape: traits.eyes, pupils: px >= 20, heavy: small
     }, state)
   ];
-}
-
-/**
- * A pixel creature's silhouette as one path of row runs, drawn without anti-aliasing, so cells
- * never show seams between them and the edges stay crisp.
- * @param {ReadonlyArray<string>} rows
- * @returns {AgentShape}
- */
-function pixelBody(rows) {
-  let d = '';
-  rows.forEach((row, y) => {
-    for (const run of row.matchAll(/#+/g)) {
-      d += `M${(run.index ?? 0) * CELL} ${y * CELL}h${run[0].length * CELL}v${CELL}h${-run[0].length * CELL}z`;
-    }
-  });
-  return shape('path', 'body', { d, 'stroke-width': 0, 'shape-rendering': 'crispEdges' });
-}
-
-/**
- * A pixel creature's eyes, on its grid: two-by-two cells on columns 1–2 and 5–6 from `row`, with a
- * one-cell pupil. Idle looks down and to the side, thinking up and to the side, working lowers the
- * lids to the bottom row, needs-you stares straight out; blocked is a flat bar across the middle,
- * offline a thin closed line along the bottom.
- * @param {number} row The grid row the eyes start on.
- * @param {string} activity
- * @param {boolean} pupils Whether the size has room for pupils.
- * @returns {AgentShape}
- */
-function pixelEyes(row, activity, pupils) {
-  const top = row * CELL;
-  const size = 2 * CELL;
-  const crisp = { 'shape-rendering': 'crispEdges' };
-  /** @type {AgentShape[]} */
-  const eyes = [];
-  for (const left of [CELL, 5 * CELL]) {
-    if (activity === 'blocked') {
-      eyes.push(shape('rect', 'sclera', { x: left, y: top + CELL - 2, width: size, height: 4, ...crisp }));
-      continue;
-    }
-    if (activity === 'offline') {
-      eyes.push(shape('rect', 'sclera', { x: left, y: top + size - 3, width: size, height: 3, ...crisp }));
-      continue;
-    }
-    const lowered = activity === 'working';
-    /** @type {AgentShape[]} */
-    const parts = [shape('rect', 'sclera', { x: left, y: lowered ? top + CELL : top, width: size, height: lowered ? CELL : size, ...crisp })];
-    if (pupils) {
-      const px = activity === 'needs-you' ? left + CELL / 2 : activity === 'working' ? left : left + CELL;
-      const py = activity === 'thinking' ? top : top + CELL;
-      parts.push(shape('g', 'gaze', {}, [shape('rect', 'pupil', { x: px, y: py, width: CELL, height: CELL, ...crisp })]));
-    }
-    eyes.push(shape('g', 'eye', {}, parts));
-  }
-  return shape('g', 'eyes', {}, [shape('g', 'look', {}, eyes)]);
 }
 
 /**

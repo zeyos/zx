@@ -5,7 +5,7 @@ import { ACTIVITY, AGENT_MESSAGES, normalizeActivity } from '../../internal/agen
 import { normalizePhase, presencePhase, trackPresence } from '../../internal/presence-loop.js';
 import { AGENT_PRESET_PX, agentFace, agentTraits } from './agent-face.js';
 
-export { AGENT_BODIES, AGENT_EYES, AGENT_PIXEL_BODIES, agentFace, agentTraits } from './agent-face.js';
+export { AGENT_BODIES, AGENT_EYES, agentFace, agentTraits } from './agent-face.js';
 
 /** @typedef {import('./agent-face.js').AgentBody} AgentBody */
 /** @typedef {import('./agent-face.js').AgentEyes} AgentEyes */
@@ -13,6 +13,7 @@ export { AGENT_BODIES, AGENT_EYES, AGENT_PIXEL_BODIES, agentFace, agentTraits } 
 /** @typedef {import('./agent-face.js').AgentShape} AgentShape */
 /** @typedef {import('../avatar/avatar.js').AvatarTone} AvatarTone */
 /** @typedef {import('../../internal/agent-model.js').AgentActivity} AgentActivity */
+/** @typedef {'flat'|'soft'} AgentMaterial */
 
 /**
  * @typedef {Object} AgentAvatarOptions
@@ -24,6 +25,10 @@ export { AGENT_BODIES, AGENT_EYES, AGENT_PIXEL_BODIES, agentFace, agentTraits } 
  * @property {AgentBody|null} [body=null] The silhouette, instead of the derived one: one of eight
  * smooth shapes or four pixel creatures.
  * @property {AgentEyes|null} [eyes=null] The eye shape, instead of the derived one.
+ * @property {AgentMaterial} [material='flat'] How the body is painted. `flat` is the tone's solid
+ * fill; `soft` adds a quiet vertical ramp — a touch lighter at the top, deeper at the foot, the plain
+ * tone across the eyes — from 28px up. Below 28px, when offline, in print and in forced colours a
+ * soft body is drawn flat.
  * @property {string|number} [size='md'] Preset — `sm` 24px, `md` 32px, `lg` 40px at the default
  * spacing unit — or a pixel size. Small sizes draw less: no pupils below 20px, larger eyes at 24px
  * and below.
@@ -46,11 +51,22 @@ export { AGENT_BODIES, AGENT_EYES, AGENT_PIXEL_BODIES, agentFace, agentTraits } 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 /** The values `set()` accepts. */
-const SETTABLE = Object.freeze(['seed', 'name', 'tone', 'body', 'eyes', 'size', 'label',
+const SETTABLE = Object.freeze(['seed', 'name', 'tone', 'body', 'eyes', 'material', 'size', 'label',
   'activity', 'activityLabel', 'indicator', 'animate', 'phase']);
 
 /** How long one blink cycle takes, in seconds; the phase offsets the eyes within it. */
 const BLINK_PERIOD = 5.2;
+
+/** The smallest rendered size a soft body is drawn at; below it the ramp is too small to read. */
+const SOFT_MIN_PX = 28;
+
+/**
+ * The soft ramp's stops, top to bottom: offset and the part that colours it in the stylesheet.
+ * The light stop sits above the eye row and the plain tone across it, so white eyes keep the
+ * contrast they have on the flat fill.
+ * @type {ReadonlyArray<readonly [number, string]>}
+ */
+const SOFT_STOPS = Object.freeze([[0, 'stop-lit'], [0.3, 'stop-base'], [0.5, 'stop-base'], [1, 'stop-shade']]);
 
 /**
  * A generated face for an agent without a picture: a coloured silhouette — a geometric shape or a
@@ -67,6 +83,7 @@ export class AgentAvatar extends Component {
     tone: null,
     body: null,
     eyes: null,
+    material: 'flat',
     size: 'md',
     label: null,
     activity: null,
@@ -88,6 +105,8 @@ export class AgentAvatar extends Component {
     for (const key of SETTABLE) this._state[key] = this.options[key] ?? AgentAvatar.defaults[key];
     /** @type {AgentTraits|null} */
     this._traits = null;
+    /** A document-unique id for the soft ramp, so two avatars never share a paint server. */
+    this._paintId = `zx-agent-avatar-soft-${uniqueSuffix()}`;
     /** @type {import('../../internal/presence-loop.js').PresenceHandle|null} */
     this._presence = null;
 
@@ -184,7 +203,22 @@ export class AgentAvatar extends Component {
     else delete root.dataset.activity;
 
     const face = /** @type {SVGSVGElement} */ (this.refs.face);
+    const soft = this._state.material === 'soft' && this._px() >= SOFT_MIN_PX && activity !== 'offline';
     face.replaceChildren(...agentFace(traits, activity, this._px()).map(drawShape));
+    if (soft) {
+      face.prepend(drawShape({
+        tag: 'defs', part: null, attrs: {}, children: [{
+          tag: 'linearGradient', part: null,
+          attrs: { id: this._paintId, gradientUnits: 'userSpaceOnUse', x1: 0, y1: 4, x2: 0, y2: 60 },
+          children: SOFT_STOPS.map(([offset, part]) => ({ tag: 'stop', part, attrs: { offset } }))
+        }]
+      }));
+      root.dataset.material = 'soft';
+      root.style.setProperty('--zx-agent-avatar-paint', `url("#${this._paintId}") var(--zx-agent-avatar-solid)`);
+    } else {
+      root.dataset.material = 'flat';
+      root.style.removeProperty('--zx-agent-avatar-paint');
+    }
 
     const dot = /** @type {HTMLElement} */ (this.refs.activity);
     const word = this._activityWord();
@@ -256,4 +290,10 @@ function drawShape(shape) {
   for (const [name, value] of Object.entries(shape.attrs)) element.setAttribute(name, String(value));
   if (shape.children) element.append(...shape.children.map(drawShape));
   return element;
+}
+
+/** A random suffix for an element id. @returns {string} */
+function uniqueSuffix() {
+  const random = globalThis.crypto?.randomUUID?.();
+  return random ? random.slice(0, 8) : Math.random().toString(36).slice(2, 10);
 }

@@ -17,7 +17,7 @@ One file per component: its section of the full reference (https://zx.zeyos.com/
 - [Launcher](launcher.md) — A full application launcher with app tiles, current and pinned state, recent records, grouped asynchronous search, and application-owned routing.
 - [AppIcon](app-icon.md) — A stable application identity with a centred white glyph, module colour, tile or circle geometry, accessible labeling, interaction-aware feedback, badges, selection state, and an optional CSS-first glass material.
 - [Avatar](avatar.md) — A stable-size user image with a deterministic fallback — initials on a tone picked from the name — and an optional text-described presence indicator.
-- [AgentAvatar](agent-avatar.md) — A generated face for an agent without a picture: a coloured shape or a pixel creature with eyes that take what the agent is doing.
+- [AgentAvatar](agent-avatar.md) — A generated face for an agent without a picture: a coloured geometric shape with eyes that take what the agent is doing.
 - [EntityRef](entity-ref.md) — Dense linked or static record identity with labelled metadata and host-injected actions.
 - [FileItem](file-item.md) — A durable or transient file row with a readable type and size, native downloads, actions, and accessible progress.
 - [FileList](file-list.md) — An accessible ordered file collection with empty/loading states and incremental host-controlled mutation.

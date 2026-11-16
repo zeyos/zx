@@ -18,8 +18,8 @@ const SIZES = [16, 20, 'sm', 'md', 'lg', 56, 96];
 export default {
   title: 'AgentAvatar',
   group: 'Agents',
-  blurb: 'A generated face for an agent without a picture: a coloured shape or a pixel creature with '
-    + 'eyes that take what the agent is doing. The same seed always draws the same face.',
+  blurb: 'A generated face for an agent without a picture: a coloured geometric shape with eyes that '
+    + 'take what the agent is doing. The same seed always draws the same face.',
   examples: [
     {
       title: 'A face from the agent\'s id',
@@ -35,9 +35,9 @@ export default {
       }
     },
     {
-      title: 'Twelve silhouettes',
-      blurb: 'Eight smooth geometric shapes and four pixel creatures. A pixel creature draws its '
-        + 'eyes on its own grid: two-cell squares with a one-cell pupil.',
+      title: 'Fourteen silhouettes',
+      blurb: 'body fixes the silhouette; without it the seed picks one of these. Polygons round '
+        + 'their corners, so every shape reads as friendly at 16px.',
       layout: 'stack',
       render: ({ cleanup }) => {
         const avatars = AGENT_BODIES.map((body) => new AgentAvatar(null, { seed: 'agt-e07b', name: 'Mosaic', body, size: 48 }));
@@ -58,15 +58,15 @@ export default {
           seed: 'agt-58fd', name: 'Harbor', body, size: 'lg', label: 'Harbor', activity, animate: true
         }));
         const smooth = row('circle');
-        const pixel = row('beacon');
+        const angular = row('cross');
         const nova = new AgentAvatar(null, { seed: 'agt-2a57', name: 'Nova', size: 56, label: 'Nova', activity: 'idle', animate: true });
-        cleanup(() => [...smooth, ...pixel, nova].forEach((avatar) => avatar.destroy()));
+        cleanup(() => [...smooth, ...angular, nova].forEach((avatar) => avatar.destroy()));
         const field = (avatar) => h('div', { class: 'demo-field' }, avatar.toElement(),
           h('span', { class: 'demo-caption' }, avatar.toElement().getAttribute('aria-label')));
         const word = h('span', { class: 'demo-caption' }, nova.toElement().getAttribute('aria-label'));
         return [
           h('div', { class: 'demo-row' }, smooth.map(field)),
-          h('div', { class: 'demo-row' }, pixel.map(field)),
+          h('div', { class: 'demo-row' }, angular.map(field)),
           h('div', { class: 'demo-row' },
             h('div', { class: 'demo-field' }, nova.toElement(), word),
             button({ label: 'Next activity', onclick: () => {
@@ -86,11 +86,29 @@ export default {
       render: ({ cleanup }) => {
         const make = (body) => SIZES.map((size) => new AgentAvatar(null, { seed: 'agt-4d81', name: 'Juniper', body, size }));
         const smooth = make('squircle');
-        const pixel = make('tuft');
-        cleanup(() => [...smooth, ...pixel].forEach((avatar) => avatar.destroy()));
+        const angular = make('pentagon');
+        cleanup(() => [...smooth, ...angular].forEach((avatar) => avatar.destroy()));
         return [
           h('div', { class: 'demo-row' }, smooth.map((avatar) => avatar.toElement())),
-          h('div', { class: 'demo-row' }, pixel.map((avatar) => avatar.toElement()))
+          h('div', { class: 'demo-row' }, angular.map((avatar) => avatar.toElement()))
+        ];
+      }
+    },
+    {
+      title: 'Soft material',
+      blurb: 'material: \'soft\' paints the body with a quiet vertical ramp — a touch lighter at the '
+        + 'top, deeper at the foot, the plain tone across the eyes, so they keep their contrast. It is '
+        + 'an application-wide choice rather than a per-agent trait, and a soft avatar is drawn flat '
+        + 'below 28px, when offline, in print and in forced colours.',
+      layout: 'stack',
+      render: ({ cleanup }) => {
+        const make = (material) => AGENTS.slice(0, 6).map((agent) => new AgentAvatar(null, { seed: agent.id, name: agent.name, material, size: 64 }));
+        const flat = make('flat');
+        const soft = make('soft');
+        cleanup(() => [...flat, ...soft].forEach((avatar) => avatar.destroy()));
+        return [
+          h('div', { class: 'demo-row' }, h('span', { class: 'demo-caption' }, 'flat'), flat.map((avatar) => avatar.toElement())),
+          h('div', { class: 'demo-row' }, h('span', { class: 'demo-caption' }, 'soft'), soft.map((avatar) => avatar.toElement()))
         ];
       }
     },

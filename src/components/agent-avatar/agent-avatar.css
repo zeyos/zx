@@ -40,6 +40,27 @@
   stroke: var(--zx-agent-avatar-solid);
 }
 
+/*
+ * The soft material: the component writes `data-material="soft"`, a linear gradient into the face,
+ * and `--zx-agent-avatar-paint` (that gradient, falling back to the solid fill). The stops are mixed
+ * here from the tone and the two eye inks, so a theme change recolours them without a redraw.
+ */
+.zx-agent-avatar[data-material="soft"] .zx-agent-avatar__body {
+  fill: var(--zx-agent-avatar-paint, var(--zx-agent-avatar-solid));
+  stroke: var(--zx-agent-avatar-paint, var(--zx-agent-avatar-solid));
+}
+
+.zx-agent-avatar__stop-lit { stop-color: color-mix(in srgb, var(--zx-agent-avatar-solid) 90%, var(--zx-color-agent-eye)); }
+.zx-agent-avatar__stop-base { stop-color: var(--zx-agent-avatar-solid); }
+.zx-agent-avatar__stop-shade { stop-color: color-mix(in srgb, var(--zx-agent-avatar-solid) 86%, var(--zx-color-agent-pupil)); }
+
+@media print {
+  .zx-agent-avatar[data-material="soft"] .zx-agent-avatar__body {
+    fill: var(--zx-agent-avatar-solid);
+    stroke: var(--zx-agent-avatar-solid);
+  }
+}
+
 .zx-agent-avatar__sclera { fill: var(--zx-color-agent-eye); }
 .zx-agent-avatar__pupil { fill: var(--zx-color-agent-pupil); }
 
@@ -147,7 +168,8 @@
 
 /* Forced colours: the body in the text colour, eyes cut out of it in the canvas colour. */
 @media (forced-colors: active) {
-  .zx-agent-avatar__body { fill: CanvasText; stroke: CanvasText; }
+  .zx-agent-avatar__body,
+  .zx-agent-avatar[data-material] .zx-agent-avatar__body { fill: CanvasText; stroke: CanvasText; }
   .zx-agent-avatar__sclera { fill: Canvas; }
   .zx-agent-avatar__line { stroke: Canvas; }
   .zx-agent-avatar__pupil { fill: CanvasText; }

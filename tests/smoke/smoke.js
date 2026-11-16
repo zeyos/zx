@@ -359,9 +359,22 @@ const cases = [
     component.setActivity('blocked', 'Waiting on the bank');
     assert(component.el.getAttribute('aria-label') === 'Ledger, Waiting on the bank', 'activityLabel ignored');
     assert(!face.querySelector('.zx-agent-avatar__pupil') && !component.refs.activity.hidden, 'blocked eyes or dot missing');
-    component.set({ body: 'tuft', size: 'sm', indicator: false, label: null });
+    component.set({ body: 'cross', size: 'sm', indicator: false, label: null });
     assert(component.el.getAttribute('aria-hidden') === 'true' && component.refs.activity.hidden
-      && face.querySelectorAll('.zx-agent-avatar__body').length === 1, 'update to a pixel body failed');
+      && face.querySelectorAll('.zx-agent-avatar__body').length === 1, 'update to the cross body failed');
+    component.set({ material: 'soft', size: 48, activity: 'idle' });
+    const gradient = face.querySelector('linearGradient');
+    assert(component.el.dataset.material === 'soft' && gradient && gradient.querySelectorAll('stop').length === 4,
+      'the soft material drew no gradient');
+    assert(getComputedStyle(face.querySelector('.zx-agent-avatar__body')).fill.startsWith('url('),
+      'the soft gradient is not painting the body');
+    const second = new zx.AgentAvatar(null, { seed: 'agt-7f3a', material: 'soft', size: 48 });
+    assert(second.refs.face.querySelector('linearGradient').id !== gradient.id, 'two soft avatars share a gradient id');
+    second.destroy();
+    component.set({ size: 24 });
+    assert(component.el.dataset.material === 'flat' && !face.querySelector('linearGradient'), 'a small soft avatar was not drawn flat');
+    component.set({ size: 48, activity: 'offline' });
+    assert(component.el.dataset.material === 'flat', 'an offline soft avatar was not drawn flat');
     component.set({ animate: true, activity: 'thinking' });
     assert(component.el.hasAttribute('data-animate'), 'animate did not mark the root');
     component.setActivity(null);

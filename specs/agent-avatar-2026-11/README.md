@@ -2,10 +2,13 @@
 
 > Outcome, 2026-11-16: the product owner chose **Token**; it is `AgentAvatar` in WP90
 > (`specs/WP-90-agent-avatar.md`). A first round also shipped **Glyph** as a second variant; the
-> owner dropped it and asked for pixel-creature bodies beside the geometric ones, which became
-> tuft, beacon, cap and antler. The prototype keeps the study's own copies of every option. Its
-> trait hashing has a flaw the component fixes: FNV-1a's low bits make a salted trait a function of
-> the tone, so the prototype gives one body per tone.
+> owner dropped it. A second round added four pixel-creature bodies; the owner dropped those too in
+> favour of six more geometric shapes (triangle-down, pentagon, trapezoid, cross, diamond, octagon),
+> and took **Soft** from the materials study below as an opt-in `material`. The prototypes keep the
+> study's own copies of every option, except `materials.html`, which draws whatever the shipped
+> table holds and so now shows the geometric set. The first
+> prototype's trait hashing has a flaw the component fixes: FNV-1a's low bits make a salted trait a
+> function of the tone, so it gives one body per tone.
 
 Repository-only. `specs/` never reaches the site or the package; nothing here is approved for
 publication until a work package lifts it into a component.
@@ -87,5 +90,4 @@ and material (`zx-agent-avatar-soft-blue`) instead of a counter, a flat fallback
 below 28px, when offline, in print and in forced colours.
 
 Both partners also questioned mixing pixel creatures into the hashed pool (two idioms in one
-roster; appending to the table re-faces seeds). They are in the pool because the owner asked for
-them; nothing has shipped, so no existing face changes.
+roster); the owner then removed them.
