@@ -1,8 +1,8 @@
 /*
  * Pagination — the footer bar of a server-backed list.
  *
- * One row that wraps: the summary and the page-size select describe the slice and sit at the
- * start, the pager sits alone at the end. Page buttons are ordinary `.zx-btn` controls so they inherit the library's control
+ * One row that wraps: the summary, the page-size select, and the Auto-load switch describe the
+ * slice and sit at the start, the pager (or Load more) sits alone at the end. Page buttons are ordinary `.zx-btn` controls so they inherit the library's control
  * height, radius, and focus ring; the current page takes the neutral current fill — it is where
  * you are, not a call to action.
  */
@@ -94,4 +94,28 @@
 
 .zx-pagination[data-mode="loadmore"] .zx-pagination__more {
   flex: none;
+}
+
+/* Both ends are built once; the one the mode does not use is hidden. Their own display rules would
+   otherwise outrank the attribute. */
+.zx-pagination :is(.zx-pagination__controls, .zx-pagination__more)[hidden] {
+  display: none;
+}
+
+/* The switch reads as part of the bar's quiet description, not as a form field. */
+.zx-pagination__autoload {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.zx-pagination__autoload .zx-toggle {
+  min-block-size: calc(var(--zx-control-height) - var(--zx-space-1));
+  align-items: center;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+.zx-pagination__autoload .zx-toggle__track {
+  margin-block-start: 0;
 }

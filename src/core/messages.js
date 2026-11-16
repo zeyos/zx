@@ -581,6 +581,9 @@ export const defaultMessages = Object.freeze({
 
   'numberField.empty': 'Empty',
 
+  'pagination.auto': 'Auto',
+  'pagination.autoLoad': 'Auto-load',
+  'pagination.autoSize': 'Auto (%1)',
   'pagination.empty': '0 of 0',
   'pagination.label': 'Pagination',
   'pagination.loaded': '%1 of %2',

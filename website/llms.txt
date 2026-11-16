@@ -97,7 +97,7 @@ requires an injected compatible client and never imports the client package.
   `mode: 'draft'|'live'`, `serialize`), `ListToolbar` (search, live result count, view switch, and
   tools whose badge is part of the accessible name), `ViewSettings` (view-settings drawer content:
   reorder, hide, and add fields, grouping, board axes; `bind()` to a record view),
-  `Pagination` (+ pure `paginationRange()`),
+  `Pagination` (+ pure `paginationRange()` and `fitPageSize()`),
   `SortControl` (searchable field selector with a direction toggle, one atomic `{id,dir}`),
   `TreeView` (APG tree), `Finder` (Miller columns).
 - Forms: `Form`, `Fieldset`, `Questionnaire` (guided one-question-at-a-time flow with branching), `Field` (type registry), `CodeEditor` (structured text in a native textarea; never executes or injects the value), `ValueList`, `MultiValueEditor`, `FieldUpload`.

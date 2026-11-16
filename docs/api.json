@@ -1560,7 +1560,7 @@
     "options": [
       {
         "name": "preset",
-        "type": "'source'|'confluence'|'horizon'|'diagonal'|'edge'|'curtain'",
+        "type": "AuroraPreset",
         "default": "'source'",
         "description": "Geometry of the ambient light field.",
         "update": {
@@ -1590,10 +1590,27 @@
             "setIntensity()"
           ]
         }
+      },
+      {
+        "name": "motion",
+        "type": "AuroraMotion",
+        "default": "'none'",
+        "description": "Slow ambient movement: `drift` lets the field breathe while two lights wander across it, `flow` turns a disc of colour behind it. Shown only to readers who have not asked for reduced motion; `--zx-aurora-duration` (18s) sets the pace.",
+        "update": {
+          "methods": [
+            "setMotion()"
+          ]
+        }
       }
     ],
     "events": [],
     "methods": [
+      {
+        "name": "setMotion",
+        "signature": "setMotion(motion)",
+        "returns": "this",
+        "description": "Starts, changes, or stops the ambient movement without replacing surface content."
+      },
       {
         "name": "setPreset",
         "signature": "setPreset(preset)",
@@ -6944,6 +6961,48 @@
       }
     ]
   },
+  "FitPageSize": {
+    "options": [
+      {
+        "name": "available",
+        "type": "number",
+        "default": null,
+        "description": "Height the rows may fill, in pixels: the viewport's content box."
+      },
+      {
+        "name": "rowHeight",
+        "type": "number",
+        "default": null,
+        "description": "Height of one row of items, the gap to the next included, in pixels."
+      },
+      {
+        "name": "perRow",
+        "type": "number",
+        "default": "1",
+        "description": "Items per row: 1 for a table or a list, the column count of a grid."
+      },
+      {
+        "name": "reserve",
+        "type": "number",
+        "default": "0",
+        "description": "Pixels of `available` something else takes, such as a sticky table header. Negative gives space back — a grid's last row has no gap after it."
+      },
+      {
+        "name": "min",
+        "type": "number",
+        "default": "1",
+        "description": "Smallest size returned."
+      },
+      {
+        "name": "max",
+        "type": "number",
+        "default": "Infinity",
+        "description": "Largest size returned."
+      }
+    ],
+    "events": [],
+    "methods": []
+  },
   "Flag": {
     "options": [
       {
@@ -9757,9 +9816,9 @@
       },
       {
         "name": "pageSize",
-        "type": "number",
+        "type": "number|'auto'",
         "default": "25",
-        "description": "Rows per page.",
+        "description": "Rows per page, or `'auto'`: as many as fit `viewport` without scrolling, measured again whenever the viewport changes size.",
         "update": {
           "methods": [
             "setPageSize()"
@@ -9779,9 +9838,9 @@
       },
       {
         "name": "pageSizes",
-        "type": "number[]",
+        "type": "Array<number|'auto'>",
         "default": "[25, 50, 100]",
-        "description": "Choices offered by the page-size select."
+        "description": "Choices offered by the page-size select. `'auto'` offers the fitted size, shown with the count it currently stands for."
       },
       {
         "name": "siblings",
@@ -9814,6 +9873,65 @@
         "description": "`pages` renders a numbered pager, `loadmore` a single \"Load more\" button for append-style lists."
       },
       {
+        "name": "autoLoad",
+        "type": "boolean",
+        "default": "false",
+        "description": "Loads the next page by itself when the end of the list scrolls into view — infinite scroll. The pager then appends, as in `loadmore`, whatever `mode` says; `mode` is what it returns to when auto-load is switched off.",
+        "update": {
+          "methods": [
+            "setAutoLoad()"
+          ]
+        }
+      },
+      {
+        "name": "showAutoLoad",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether to render the Auto-load switch, so the reader decides between paging and continuous scrolling."
+      },
+      {
+        "name": "viewport",
+        "type": "Element|string|(() => Element|null)|null",
+        "default": "null",
+        "description": "The element the rows scroll in. `'auto'` fits the page to its height; auto-load watches its scroll position. A function is asked again on `refit()`, for a host that swaps its views. Without one, auto-load watches the pager itself approach the end of its scrolling ancestor, which suits a pager that follows the rows; a pager in a fixed footer needs the viewport."
+      },
+      {
+        "name": "rowHeight",
+        "type": "PaginationMeasure",
+        "default": "null",
+        "description": "One row's height, gap included. By default the first body row of a Zx Table in the viewport (`tbody > tr[data-row]`), else `--zx-row-height`."
+      },
+      {
+        "name": "perRow",
+        "type": "PaginationMeasure",
+        "default": "1",
+        "description": "Items per row, for a grid of cards."
+      },
+      {
+        "name": "reserve",
+        "type": "PaginationMeasure",
+        "default": "null",
+        "description": "Pixels of the viewport the rows cannot use. By default the height of the viewport's `thead`, which sticks above the rows."
+      },
+      {
+        "name": "minPageSize",
+        "type": "number",
+        "default": "5",
+        "description": "Smallest fitted page size."
+      },
+      {
+        "name": "maxPageSize",
+        "type": "number",
+        "default": "200",
+        "description": "Largest fitted page size."
+      },
+      {
+        "name": "autoLoadMargin",
+        "type": "number|null",
+        "default": "null",
+        "description": "How close to the end, in pixels, auto-load starts on the next page; half the viewport by default, so the rows arrive before they are due."
+      },
+      {
         "name": "disabled",
         "type": "boolean",
         "default": "false",
@@ -9831,6 +9949,11 @@
         "name": "change",
         "payload": "PaginationChangeDetail",
         "description": "Change listener."
+      },
+      {
+        "name": "autoload",
+        "payload": "{autoLoad: boolean}",
+        "description": "Auto-load switch listener."
       }
     ],
     "methods": [
@@ -9850,13 +9973,25 @@
         "name": "setPageSize",
         "signature": "setPageSize(pageSize)",
         "returns": "this",
-        "description": "Replaces the page size and returns to page 1."
+        "description": "Replaces the page size and returns to page 1. `'auto'` fits it to the viewport."
       },
       {
         "name": "setState",
         "signature": "setState([state], [options])",
         "returns": "this",
         "description": "Applies any combination of page, page size, and total in one pass, then clamps the page. `change` fires when the effective page or page size moved — updating only `total` is silent unless the new count clamps the page."
+      },
+      {
+        "name": "setAutoLoad",
+        "signature": "setAutoLoad(autoLoad, [options])",
+        "returns": "this",
+        "description": "Switches auto-load. Where that changes what the pager shows — paging becomes appending, or back — it returns to page 1 and fires `change` with reason `mode`."
+      },
+      {
+        "name": "refit",
+        "signature": "refit()",
+        "returns": "this",
+        "description": "Measures the viewport again — after the host swapped what it shows in it, or replaced it (a `viewport` function is asked again) — and refits an `'auto'` page size. Cheap to call after every redraw: it measures once on the next frame and fires only when the fitted size moved."
       },
       {
         "name": "getState",
@@ -9868,13 +10003,13 @@
         "name": "enable",
         "signature": "enable()",
         "returns": "this",
-        "description": "Enables every control."
+        "description": "Enables every control, and lets auto-load continue."
       },
       {
         "name": "disable",
         "signature": "disable()",
         "returns": "this",
-        "description": "Disables every control, for instance while a page is in flight."
+        "description": "Disables every control, for instance while a page is in flight. Auto-load waits too."
       },
       {
         "name": "destroy",

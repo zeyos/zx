@@ -107,7 +107,7 @@ export { Tabbox } from './components/tabbox/tabbox.js';
 export { NavigationBar } from './components/navigation-bar/navigation-bar.js';
 export { Stepper } from './components/stepper/stepper.js';
 export { Breadcrumb } from './components/breadcrumb/breadcrumb.js';
-export { Pagination, paginationRange } from './components/pagination/pagination.js';
+export { Pagination, fitPageSize, paginationRange } from './components/pagination/pagination.js';
 export { Search } from './components/search/search.js';
 export { AppIcon, appIcon } from './components/app-icon/app-icon.js';
 export { Launcher, rankLauncherItems } from './components/launcher/launcher.js';

@@ -1028,8 +1028,8 @@ export default {
         board: definition.board ? { columnBy: definition.board.columnBy } : undefined,
         sort: views[0].sort ?? definition.sort,
         // A sales team's collections are short; ten a page is there for reading on a phone.
-        pageSize: 25,
-        pageSizes: [10, 25, 50],
+        pageSize: 'auto',
+        pageSizes: ['auto', 10, 25, 50],
         search: { placeholder: `Search ${plural}…`, label: definition.title, text: searchText },
         // The count, and what it adds up to, in every shape — short, so that the count still fits
         // beside an open drawer; past that the line ends in an ellipsis and its title holds it all.

@@ -666,8 +666,10 @@ export default {
       views: ['list', 'board'],
       view: 'list',
       sort: { id: 'priority', dir: 'desc' },
-      pageSize: 50,
-      pageSizes: [25, 50, 100],
+      // An issue list reads as one stream: it grows as it scrolls, and the switch turns paging back on.
+      pageSize: 'auto',
+      pageSizes: ['auto', 25, 50, 100],
+      autoLoad: true,
       search: {
         placeholder: 'Find issues…',
         label: 'Issues',

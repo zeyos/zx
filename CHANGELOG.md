@@ -15,6 +15,18 @@ from a framework.
 
 ### Added
 
+- **Pagination: Auto page size.** `pageSize: 'auto'`, and `'auto'` among `pageSizes` ("Auto (14)"
+  in the select), fits the page to `viewport` — the rows that fit below its sticky header — and
+  refits when the viewport or its rows change size, keeping the page's first row. `rowHeight`,
+  `perRow`, `reserve`, `minPageSize` and `maxPageSize` cover content that is not a Zx Table;
+  `refit()` measures again. The pure `fitPageSize()` is exported.
+- **Pagination: auto-load.** `autoLoad` loads the next page as the end of the list nears, and
+  `showAutoLoad` renders a switch between paging and infinite scroll (`setAutoLoad()`, event
+  `autoload`). Auto-load waits while the pager is disabled, so an asynchronous loader never gets
+  two requests at once. `change` now carries `reason`, `append`, `auto`, `autoLoad` and `mode`.
+- **Aurora: Mesh, Ribbon and Bloom presets and ambient motion.** `motion: 'drift'|'flow'` (and
+  `setMotion()`) moves the field by transform alone, behind the reduced-motion preference;
+  `--zx-aurora-duration` sets the pace. Presets now write their gradients into `--zx-aurora-image`.
 - **Table and Grid: pinned columns and header groups.** `pin: 'start'|'end'` on a column keeps it
   in view while the table scrolls sideways, following the writing direction; several pinned
   columns stack, and the row handle and selection columns stay with the first `'start'` column.
@@ -69,6 +81,11 @@ from a framework.
 
 ### Changed
 
+- **Layouts:** the record overviews (CRM, issue tracker, record collection) fit their page to the
+  window by default and offer the Auto-load switch; the issue tracker starts with it on. The
+  website hero drifts.
+- **Documentation:** the Icons page no longer carries the ZeyOS module gallery; the ZeyOS binding's
+  module icons stay documented with the binding.
 - **Floating messages stack by default.** A floating region piles its messages into one stack
   instead of listing them one below another. `Message.setStack(false)` restores the list, at once
   and for every region; `Message.getStack()` reads the setting.

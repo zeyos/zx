@@ -77,7 +77,7 @@ One file per component: its section of the full reference (https://zx.zeyos.com/
 - [Breadcrumb](breadcrumb.md) — The trail of ancestors above the current page, with the middle levels collapsing into an ellipsis menu when there is no room for all of them.
 - [ListToolbar](list-toolbar.md) — The bar above a record view: one search field, a live result count, the tools that change what the list shows, and the shape switch.
 - [ViewSettings](view-settings.md) — The content of a view-settings drawer: arrange and hide the shown fields, add a hidden one back, and choose grouping and the board’s columns and swim lanes.
-- [Pagination](pagination.md) — The footer bar of a server-backed list: a page window that never changes width, a page-size select, a row summary, and an append-style Load more mode.
+- [Pagination](pagination.md) — The footer bar of a server-backed list: a page window that never changes width, a page-size select with an Auto size that fits the viewport, a row summary, an append-style Load more mode, and an Auto-load switch for infinite scrolling.
 - [NavigationBar](navigation-bar.md) — The application header: a brand, one row of destinations with badges, and the actions that stay reachable at every width.
 - [AppSidebar](app-sidebar.md) — One application-navigation component with an expanded vertical tree, a minimized vertical rail, and horizontal rail layouts.
 - [ModuleBar](module-bar.md) — The module level of an application: one colour-coded tile per module in a vertical strip or a horizontal bar.

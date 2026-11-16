@@ -514,4 +514,9 @@
   .overview .overview__filters {
     padding-inline: var(--zx-space-3);
   }
+
+  /* The pager keeps its description on one line: the select is still named "Rows per page". */
+  .overview .overview__footer .zx-pagination__size-label {
+    display: none;
+  }
 }

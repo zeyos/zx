@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { paginationRange } from '../../src/components/pagination/pagination.js';
+import { fitPageSize, paginationRange } from '../../src/components/pagination/pagination.js';
 
 /** @param {number} page @param {number} pages @param {number} siblings @param {number} boundaries */
 function window_(page, pages, siblings = 1, boundaries = 1) {
@@ -154,4 +154,37 @@ test('growing the page size folds the range into fewer pages', () => {
   assert.equal(slice({ page: 1, pageSize: 100, total: 312 }).pages, 4);
   // Page 13 of 25 no longer exists once the size doubles, so it clamps onto the new last page.
   assert.deepEqual(slice({ page: 13, pageSize: 50, total: 312 }).page, 7);
+});
+
+/* ----------------------------------------------------------------- fitted size -- */
+
+test('a fitted page holds the whole rows that fit below the reserved header', () => {
+  // 500px of viewport, a 36px sticky header, 36px rows: 464 / 36 = 12.9, so 12 rows.
+  assert.equal(fitPageSize({ available: 500, rowHeight: 36, reserve: 36 }), 12);
+  assert.equal(fitPageSize({ available: 468, rowHeight: 36 }), 13);
+});
+
+test('subpixel layout does not cost a row that visibly fits', () => {
+  assert.equal(fitPageSize({ available: 179.6, rowHeight: 36 }), 5);
+  assert.equal(fitPageSize({ available: 179.4, rowHeight: 36 }), 4);
+});
+
+test('a grid fits whole rows of cards, and a negative reserve returns the last gap', () => {
+  // Three columns of 200px cards with a 16px gap in 800px: (800 + 16) / 216 = 3.7 rows → 3 × 3.
+  assert.equal(fitPageSize({ available: 800, rowHeight: 216, perRow: 3, reserve: -16 }), 9);
+  assert.equal(fitPageSize({ available: 800, rowHeight: 216, perRow: 0 }), 3);
+});
+
+test('the fitted size is clamped into [min, max]', () => {
+  assert.equal(fitPageSize({ available: 100, rowHeight: 36, min: 5 }), 5);
+  assert.equal(fitPageSize({ available: 10000, rowHeight: 36, max: 200 }), 200);
+  assert.equal(fitPageSize({ available: 10000, rowHeight: 36 }), 277);
+  assert.equal(fitPageSize({ available: 10, rowHeight: 36 }), 1);
+});
+
+test('nothing to measure yet is 0, so a caller keeps the size it has', () => {
+  assert.equal(fitPageSize({ available: 0, rowHeight: 36 }), 0);
+  assert.equal(fitPageSize({ available: 500, rowHeight: 0 }), 0);
+  assert.equal(fitPageSize({ available: Number.NaN, rowHeight: 36 }), 0);
+  assert.equal(fitPageSize(), 0);
 });

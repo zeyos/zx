@@ -37,7 +37,8 @@ export default {
   title: 'Pagination',
   group: 'Data',
   blurb: 'The footer bar of a server-backed list: a page window that never changes width, a '
-    + 'page-size select, a row summary, and an append-style Load more mode.',
+    + 'page-size select with an Auto size that fits the viewport, a row summary, an append-style '
+    + 'Load more mode, and an Auto-load switch for infinite scrolling.',
 
   examples: [
     {
@@ -63,6 +64,91 @@ export default {
         table.setData(rows.slice(state.offset, state.offset + state.pageSize));
         cleanup(() => [table, pager].forEach((component) => component.destroy()));
         return [table.toElement(), pager.toElement()];
+      }
+    },
+    {
+      title: 'Fitting the page to the viewport',
+      blurb: 'pageSize: "auto" shows as many rows as fit the viewport below its sticky header — '
+        + 'no scrollbar, no half-empty page — and follows it when it changes height: drag the '
+        + 'corner of the box. The page keeps its first row, and change says why it fired '
+        + '(reason "fit"). Auto stays one choice among the fixed sizes.',
+      layout: 'stack',
+      render: ({ cleanup, log }) => {
+        const rows = invoices(312);
+        const viewport = h('div', {
+          style: {
+            blockSize: '18rem', minBlockSize: '8rem', overflow: 'auto', resize: 'vertical',
+            border: '1px solid var(--zx-color-border)', borderRadius: 'var(--zx-radius-md)'
+          }
+        });
+        const table = new Table(null, { columns: COLUMNS, data: [] });
+        viewport.append(table.toElement());
+        const pager = new Pagination(null, {
+          total: rows.length,
+          pageSize: 'auto',
+          pageSizes: ['auto', 25, 50],
+          viewport,
+          onchange: ({ detail }) => {
+            table.setData(rows.slice(detail.offset, detail.offset + detail.pageSize));
+            log(`change (${detail.reason}) page ${detail.page}/${detail.pages} \u00b7 `
+              + `pageSize ${detail.pageSize}${detail.auto ? ' (auto)' : ''}`);
+          }
+        });
+        const { offset, pageSize } = pager.getState();
+        table.setData(rows.slice(offset, offset + pageSize));
+        cleanup(() => [table, pager].forEach((component) => component.destroy()));
+        return [viewport, pager.toElement()];
+      }
+    },
+    {
+      title: 'Infinite scroll with an Auto-load switch',
+      blurb: 'autoLoad loads the next page as the end of the list nears — the rows arrive while '
+        + 'there is still half a viewport to read. showAutoLoad lets the reader switch back to '
+        + 'pages. A server-backed list calls disable() while a page is in flight and enable() '
+        + 'when it lands, and auto-load waits for it; Load more stays as the keyboard\u2019s way on.',
+      layout: 'stack',
+      render: ({ cleanup, log }) => {
+        const rows = invoices(312);
+        const viewport = h('div', {
+          style: {
+            blockSize: '18rem', overflow: 'auto',
+            border: '1px solid var(--zx-color-border)', borderRadius: 'var(--zx-radius-md)'
+          }
+        });
+        const table = new Table(null, { columns: COLUMNS, data: rows.slice(0, 20) });
+        viewport.append(table.toElement());
+        const pager = new Pagination(null, {
+          total: rows.length,
+          pageSize: 20,
+          pageSizes: [20, 50, 100],
+          autoLoad: true,
+          showAutoLoad: true,
+          viewport
+        });
+        let timer = 0;
+        // A pretend round trip: append (or replace) the slice the pager asked for, then let it go on.
+        pager.on('change', ({ detail }) => {
+          pager.disable();
+          clearTimeout(timer);
+          timer = setTimeout(() => {
+            if (detail.append) {
+              table.addData(rows.slice(detail.offset, detail.offset + detail.pageSize));
+            } else {
+              table.setData(detail.mode === 'loadmore'
+                ? rows.slice(0, detail.page * detail.pageSize)
+                : rows.slice(detail.offset, detail.offset + detail.pageSize));
+              viewport.scrollTop = 0;
+            }
+            pager.enable();
+          }, 350);
+          log(`change (${detail.reason}) page ${detail.page} \u00b7 ${detail.append ? 'append' : 'replace'}`);
+        });
+        pager.on('autoload', ({ detail }) => log(`autoload ${detail.autoLoad}`));
+        cleanup(() => {
+          clearTimeout(timer);
+          [table, pager].forEach((component) => component.destroy());
+        });
+        return [viewport, pager.toElement()];
       }
     },
     {

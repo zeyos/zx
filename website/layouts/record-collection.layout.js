@@ -425,8 +425,8 @@ export default {
       views: SHAPES,
       view: 'table',
       sort: { id: 'value', dir: 'desc' },
-      pageSize: 25,
-      pageSizes: [25, 50, 100],
+      pageSize: 'auto',
+      pageSizes: ['auto', 25, 50, 100],
       search: {
         placeholder: 'Search opportunities…',
         label: 'Opportunities',

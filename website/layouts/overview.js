@@ -152,8 +152,9 @@ import {
  * @property {{id: string, dir: 'asc'|'desc'}} sort Sort.
  * @property {string|null} group Grouping field, or null. On the board it is also the swim lanes.
  * @property {{columnBy: string|null, showEmptyColumns: boolean}} board The board's columns.
- * @property {number} page Current page, from 1.
- * @property {number} pageSize Records per page.
+ * @property {number} page Current page, from 1; while auto-loading, the pages loaded so far.
+ * @property {number|'auto'} pageSize Records per page, or `'auto'`: as many as fit the body.
+ * @property {boolean} autoLoad Whether the body loads the next page as its end scrolls near.
  * @property {OverviewFilters} filters Filter model.
  */
 
@@ -179,8 +180,12 @@ import {
  * @property {{columnBy?: string, showEmptyColumns?: boolean}} [board] The board's starting columns;
  *   the first of `groups` by default.
  * @property {{id: string, dir: 'asc'|'desc'}} [sort] Starting sort.
- * @property {number} [pageSize=25] Records per page.
- * @property {number[]} [pageSizes=[25, 50, 100]] Page sizes the pager offers.
+ * @property {number|'auto'} [pageSize='auto'] Records per page; `'auto'` fits the page to the body
+ *   — table rows below the sticky header, list rows, or whole rows of cards — and follows its height.
+ * @property {Array<number|'auto'>} [pageSizes=['auto', 25, 50, 100]] Page sizes the pager offers.
+ * @property {boolean} [autoLoad=false] Starts with auto-load on: the body grows by a page as its
+ *   end scrolls near, instead of paging.
+ * @property {boolean} [showAutoLoad=true] Whether the pager offers the Auto-load switch.
  * @property {string} [label='Record controls'] Accessible name of the toolbar.
  * @property {{placeholder?: string, label?: string, text?: (record: Record<string, any>) => string}} [search]
  *   The search field: placeholder, the name of its search landmark, and the text a record is found
@@ -250,7 +255,7 @@ import {
 /**
  * Events, through `on()`: `viewchange {view, previous}`, `filterschange {filters, reason}` (reason
  * `chip`, `remove`, `logic`, `drawer`, `clear`, or `set`), `groupchange {group}`, `pagechange
- * {page, pageSize}`, `selectionchange {ids}` (also after every refresh, as a page change can drop a
+ * {page, pageSize, autoLoad}`, `selectionchange {ids}` (also after every refresh, as a page change can drop a
  * selection), `recordclick {record}` (never a group heading), `recordmove {ids, to}` after a card
  * moved on the board, `render {records}` just before the view is handed a page — the moment to
  * destroy components a renderer made for the previous one (a `renderScope().reset()`) — and
@@ -363,7 +368,9 @@ function createOverview(context, options) {
         showEmptyColumns: options.board?.showEmptyColumns !== false
       },
       page: 1,
-      pageSize: options.pageSize ?? 25,
+      /** @type {number|'auto'} */
+      pageSize: options.pageSize ?? 'auto',
+      autoLoad: Boolean(options.autoLoad),
       filtersOpen: false,
       filters: normalizeFilters(options.defaultFilters)
     },
@@ -423,6 +430,7 @@ function createOverview(context, options) {
       board: { ...state.board },
       page: state.page,
       pageSize: state.pageSize,
+      autoLoad: state.autoLoad,
       filters: structuredClone(state.filters)
     };
   }
@@ -465,6 +473,12 @@ function createOverview(context, options) {
     }
     if (next.pageSize && next.pageSize !== state.pageSize) { state.pageSize = next.pageSize; reread = true; }
     if (next.page && next.page !== state.page) { state.page = next.page; reread = true; }
+    if (typeof next.autoLoad === 'boolean' && next.autoLoad !== state.autoLoad) {
+      state.autoLoad = next.autoLoad;
+      core.pager.setAutoLoad(next.autoLoad, { silent: true });
+      state.page = 1;
+      reread = true;
+    }
     const filters = next.filters ? normalizeFilters(next.filters) : null;
     const refilter = Boolean(filters) && JSON.stringify(filters) !== JSON.stringify(state.filters);
     const shape = next.view && shapes.includes(next.view) && next.view !== state.view ? next.view : null;
@@ -1469,16 +1483,44 @@ function overviewViewSettings(core) {
 function overviewBody(core) {
   const { context, options, state, keep, fields, axes, scopes } = core;
   const body = h('div', { class: 'shell__body overview__body', tabindex: '-1' });
+  /** @returns {HTMLElement|null} The card grid in the body, when a card shape shows one. */
+  const cardList = () => (state.view === 'table' ? null
+    : body.querySelector('.zx-card-view__list:not(.zx-card-view__skeletons)'));
+  /** @param {Element} list @returns {number} The grid's row gap in pixels. */
+  const rowGap = (list) => Number.parseFloat(getComputedStyle(list).rowGap) || 0;
+  // The pager fits a page to the body. A table measures itself (its first row, below its sticky
+  // header); a card shape is measured here, from its first card, its gap, and its column count.
+  // A shape with nothing drawn yet measures 0, which keeps the size the pager has.
   const pager = keep(new Pagination(null, {
     pageSize: state.pageSize,
-    pageSizes: options.pageSizes ?? [25, 50, 100],
+    pageSizes: options.pageSizes ?? ['auto', 25, 50, 100],
     total: 0,
+    autoLoad: state.autoLoad,
+    showAutoLoad: options.showAutoLoad !== false,
+    viewport: body,
+    rowHeight: () => {
+      if (state.view === 'table') return null;
+      const list = cardList();
+      const card = list?.firstElementChild;
+      return card ? card.getBoundingClientRect().height + rowGap(/** @type {Element} */ (list)) : 0;
+    },
+    perRow: () => {
+      const list = cardList();
+      return list ? getComputedStyle(list).gridTemplateColumns.split(' ').filter(Boolean).length : 1;
+    },
+    // A grid's last row has no gap after it.
+    reserve: () => {
+      const list = cardList();
+      return list ? -rowGap(list) : null;
+    },
     onchange: ({ detail }) => {
       state.page = detail.page;
-      state.pageSize = detail.pageSize;
+      state.pageSize = detail.auto ? 'auto' : detail.pageSize;
+      state.autoLoad = detail.autoLoad;
       core.refresh();
-      if (!context.preview) body.scrollTop = 0;
-      core.emit('pagechange', { page: state.page, pageSize: state.pageSize });
+      // A new page starts at the top; an appended one, or a page refitted in place, does not move.
+      if (!context.preview && !detail.append && detail.reason !== 'fit') body.scrollTop = 0;
+      core.emit('pagechange', { page: state.page, pageSize: state.pageSize, autoLoad: state.autoLoad });
     }
   }));
   const footer = h('div', { class: 'shell__footer overview__footer' }, pager.toElement());
@@ -1646,6 +1688,8 @@ function overviewBody(core) {
     syncFooterSize();
     core.refresh();
     core.syncViewSettings();
+    // A new shape has rows of another height.
+    pager.refit();
   };
 
   /** Keeps `--overview-footer-size` on the element: the pager row's height, 0 while hidden. @returns {void} */
@@ -1688,9 +1732,12 @@ function overviewBody(core) {
     if (resetPage) state.page = 1;
     core.toolbar.setCount(core.filtered.length);
     pager.setState({ total: core.filtered.length, pageSize: state.pageSize, page: state.page }, { silent: true });
-    const { page, offset } = pager.getState();
+    const { page, offset, pageSize, mode } = pager.getState();
     state.page = page;
-    const slice = state.view === 'board' ? core.filtered : core.filtered.slice(offset, offset + state.pageSize);
+    // Paging shows one page; auto-loading shows every page loaded so far; the board shows it all.
+    const slice = state.view === 'board' ? core.filtered
+      : mode === 'loadmore' ? core.filtered.slice(0, page * pageSize)
+        : core.filtered.slice(offset, offset + pageSize);
     if (!core.view) return;
     core.groupTitles = new Map(grouped.map((group) => [group.id, `${group.label} · ${groupCount(group, slice, core.filtered)}`]));
     // Before the view draws the page: a layout drops the components its renderers made for the last.
@@ -1703,6 +1750,9 @@ function overviewBody(core) {
     queueMicrotask(() => {
       if (!context.signal.aborted && core.view === drawn) core.emit('rendered', { records: slice, view: drawn });
     });
+    // Rows that arrive after the body was measured (data loaded late, a card shape that was empty)
+    // may change what fits; the pager checks on the next frame and stays put when nothing moved.
+    if (state.view !== 'board') pager.refit();
   };
 
   /** Points the table header's sort indicator at the current sort. @returns {void} */

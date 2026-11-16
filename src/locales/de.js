@@ -577,6 +577,9 @@ export const de = Object.freeze({
 
   'numberField.empty': 'Leer',
 
+  'pagination.auto': 'Automatisch',
+  'pagination.autoLoad': 'Automatisch laden',
+  'pagination.autoSize': 'Automatisch (%1)',
   'pagination.empty': '0 von 0',
   'pagination.label': 'Seitennavigation',
   'pagination.loaded': '%1 von %2',

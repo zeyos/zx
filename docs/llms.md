@@ -3403,18 +3403,27 @@ the target in place: it does not wrap, replace, or relocate the surface's conten
 own routing, overlays, or interaction. Its gradients sit behind the target's children, so raised
 Cards and other Liquid Glass surfaces can pick up the underlying colour naturally.
 
-- **Options** — `preset: 'source'|'confluence'|'horizon'|'diagonal'|'edge'|'curtain'`,
+- **Options** — `preset: 'source'|'confluence'|'horizon'|'diagonal'|'edge'|'curtain'|'mesh'|'ribbon'|'bloom'`,
   `colors: []` (zero to four concrete CSS colours),
-  `intensity: 'subtle'|'balanced'|'vivid'`.
-- **Methods** — `setPreset(preset)`, `setColors(colors)`, `setIntensity(intensity)`.
+  `intensity: 'subtle'|'balanced'|'vivid'`, `motion: 'none'|'drift'|'flow'`.
+- **Methods** — `setPreset(preset)`, `setColors(colors)`, `setIntensity(intensity)`,
+  `setMotion(motion)`.
 - **Palette** — an empty list uses semantic accent, info, success, and warning colours. One colour
   fills all four fields; two alternate; three repeat the second colour in the fourth field; four
   map directly. Network/image-bearing CSS values and palettes longer than four are rejected.
 - **Geometry** — Source starts at the leading chrome; Confluence meets from the corners; Horizon
   forms a shallow top band; Diagonal crosses the surface; Edge preserves a neutral centre; Curtain
-  descends as four elongated fields. All use ordinary CSS gradients without animation.
+  descends as four elongated fields; Mesh binds four fields with a wash in the middle; Ribbon hangs
+  two arcs of light from above the top edge; Bloom rises from below the bottom edge. All are
+  ordinary CSS gradients, written into `--zx-aurora-image`.
+- **Motion** — `drift` lets the field breathe while two lights wander across it; `flow` turns a disc
+  of colour slowly behind it. For either, Aurora adds one `<span class="zx-aurora__motion"
+  aria-hidden="true">` as the target's first child, clipped to the surface, and moves its layers by
+  transform alone, so nothing repaints. `--zx-aurora-duration` (18s) sets the pace. Readers who ask
+  for reduced motion see the static field.
 - **Lifecycle** — `destroy()` removes an owned root or restores every original attribute and child
-  of an enhanced target. Content is never rebuilt when a setter changes the effect.
+  of an enhanced target. Content is never rebuilt when a setter changes the effect; `setMotion()`
+  adds or removes only the motion element.
 - **Accessibility** — the light field is pointer-transparent and purely decorative. Forced-colour
   and reduced-transparency preferences remove it entirely.
 <!-- /doc -->
@@ -3725,16 +3734,48 @@ pager.on('change', async ({ detail }) => {
 
 In `mode: 'loadmore'` each `change` is one `binding.loadMore()`, which appends.
 
-- **Options** — `page: 1`, `pageSize: 25`, `total: 0`, `pageSizes: [25, 50, 100]`, `siblings: 1`,
-  `boundaries: 1`, `showPageSize: true`, `showSummary: true` (renders "26–50 of 312"),
-  `mode: 'pages'|'loadmore'`, `disabled: false`.
-- **Methods** — `setPage(n)`, `setTotal(n)`, `setPageSize(n)`, `setState({page, pageSize, total},
-  {silent})`, `getState()` → `{page, pageSize, total, pages, offset}`, `enable()`/`disable()`,
-  `destroy()`.
-- **Events** — `change {page, pageSize, offset, total, pages}`, fired for a page change, a
-  page-size change (which resets to page 1), and Load more.
+**Fitting the page.** `pageSize: 'auto'` (and `'auto'` among `pageSizes`, shown as "Auto (14)")
+shows as many rows as fit `viewport`, the element the rows scroll in, below its sticky `thead`. It
+measures again whenever the viewport or its content changes size — a window, a drawer, the row height,
+a table stacking into cards — and keeps the page's first row on the new page. A Zx Table is
+measured by its first body row, anything else by `--zx-row-height`; `rowHeight`, `perRow` (a card
+grid's columns) and `reserve` take numbers or functions of the viewport for other content. Call
+`refit()` after swapping what the viewport shows.
+
+**Auto-load.** `autoLoad: true` turns paging into infinite scroll: the next page loads by itself
+when the end of the viewport (or, without one, the pager) comes within `autoLoadMargin` pixels —
+half the viewport by default. `showAutoLoad: true` adds an Auto-load switch, so the reader chooses;
+switching between paging and appending returns to page 1. Load more stays as the keyboard's way on.
+Disable the pager while a page is in flight and enable it when the rows land; auto-load waits:
+
+```js
+const pager = new Pagination(footer, { pageSize: 'auto', pageSizes: ['auto', 25, 50], viewport: list, showAutoLoad: true });
+pager.on('change', async ({ detail }) => {
+  pager.disable();
+  // Appending adds one page; paging shows one; restarting an appending list shows all loaded so far.
+  const from = detail.append || detail.mode === 'pages' ? detail.offset : 0;
+  const rows = await fetchRows(from, detail.offset + detail.pageSize - from);
+  if (detail.append) table.addData(rows); else table.setData(rows);
+  pager.enable();
+});
+```
+
+- **Options** — `page: 1`, `pageSize: 25` (or `'auto'`), `total: 0`, `pageSizes: [25, 50, 100]`
+  (may include `'auto'`), `siblings: 1`, `boundaries: 1`, `showPageSize: true`, `showSummary: true`
+  (renders "26–50 of 312"), `mode: 'pages'|'loadmore'`, `autoLoad: false`, `showAutoLoad: false`,
+  `viewport: null` (element, selector, or function), `rowHeight`, `perRow: 1`, `reserve`,
+  `minPageSize: 5`, `maxPageSize: 200`, `autoLoadMargin: null`, `disabled: false`.
+- **Methods** — `setPage(n)`, `setTotal(n)`, `setPageSize(n|'auto')`, `setState({page, pageSize,
+  total}, {silent})`, `setAutoLoad(on, {silent})`, `refit()`, `getState()` → `{page, pageSize,
+  total, pages, offset, auto, autoLoad, mode}`, `enable()`/`disable()`, `destroy()`.
+- **Events** — `change {page, pageSize, offset, total, pages, auto, autoLoad, mode, reason,
+  append}`, where `reason` is `page`, `pageSize`, `fit`, `more`, `scroll`, `mode`, or `state`, and
+  `append` means "add rows `offset … offset + pageSize` after the shown ones" (otherwise show rows
+  `offset …` while paging, `0 … page × pageSize` while appending). `autoload {autoLoad}` when the
+  switch flips.
 - **Also exported** — `paginationRange({page, pages, siblings, boundaries})` → `Array<number|'…'>`,
-  the pure page-window calculation, usable on its own.
+  the pure page-window calculation, and `fitPageSize({available, rowHeight, perRow, reserve, min,
+  max})` → the fitted size (0 when nothing can be measured), both usable on their own.
 - **Semantics** — `<nav aria-label="Pagination">`; the current page carries `aria-current="page"`;
   previous/next are labelled icon buttons that go `disabled` at the ends; the ellipses are
   `aria-hidden` spans, not buttons.
