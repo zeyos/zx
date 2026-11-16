@@ -19,9 +19,9 @@ inline; every rail state opens descendants toward the workspace in anchored flyo
   nodes, components, or factories.
 - **Agents** — an item's `agent` (AgentAvatar options, or `true`) draws the destination as an
   agent: an `AgentAvatar` in place of its icon, in the tree, on the rail and in flyouts, sized by
-  the icon slot, `name` defaulting to the label. It is drawn at rest — the activity is the face and
-  the dot, never motion — and the activity's word joins the control's accessible name ("Ledger,
-  Needs you", with a count "Ledger, Needs you (1)"). Redraw with `setItems()` when it changes.
+  the icon slot, `name` defaulting to the label. It is drawn at rest and flat, at the small level of
+  detail whatever the slot measures — the activity is the face and the dot, never motion — and the activity's word joins the control's accessible name, with the
+  count when there is one ("Ledger, Needs you (1)"). Redraw with `setItems()` when it changes.
 - **Row actions** — `actions` on a destination lists its commands: `{icon, label, onSelect(item),
   disabled?, danger?}` descriptors or nodes, laid out as TreeView's `rowActions` (two at most, the
   rest in a "More actions" menu). They rest out of sight over the end of the row, which keeps room

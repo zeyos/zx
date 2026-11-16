@@ -620,8 +620,6 @@ export class ModuleBar extends AppRailPresenter {
     },
     this._renderTile(item, 'catalogue'),
     h('span', { class: 'zx-module-bar__entry-label' }, item.label)));
-    const agent = control.querySelector('.zx-module-bar__tile > .zx-agent-avatar');
-    if (appNavAgentWord(agent)) control.setAttribute('aria-label', appNavName(item, agent));
     applyRowBadge(control, item, 'zx-module-bar__entry');
     return control;
   }
@@ -1041,6 +1039,10 @@ function currentState(item, activeId) {
  * @returns {void}
  */
 function applyRowBadge(control, item, block) {
+  // An agent row is named with its activity and count, so the name follows the badge.
+  const agent = control.querySelector(
+    ':scope > .zx-module-bar__tile > .zx-agent-avatar, :scope > .zx-app-rail__flyout-item-icon > .zx-agent-avatar');
+  if (appNavAgentWord(agent)) control.setAttribute('aria-label', appNavName(item, agent, true));
   const existing = control.querySelector(`:scope > .${block}-badge`);
   const count = item.badge == null || item.badge === '' ? null : String(item.badge);
   if (count === null) {

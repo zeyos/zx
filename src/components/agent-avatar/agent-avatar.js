@@ -22,8 +22,8 @@ export { AGENT_BODIES, AGENT_EYES, agentFace, agentTraits } from './agent-face.j
  * @property {string} [name=''] The agent's name; the seed when `seed` is null.
  * @property {AvatarTone|null} [tone=null] Colour from the tone palette; `null` derives it from the
  * seed with `avatarTone()`, so the face matches an initials tile keyed the same way.
- * @property {AgentBody|null} [body=null] The silhouette, instead of the derived one: one of eight
- * smooth shapes or four pixel creatures.
+ * @property {AgentBody|null} [body=null] The silhouette, instead of the derived one: one of the
+ * fourteen in {@link AGENT_BODIES}.
  * @property {AgentEyes|null} [eyes=null] The eye shape, instead of the derived one.
  * @property {AgentMaterial} [material='flat'] How the body is painted. `flat` is the tone's solid
  * fill; `soft` adds a quiet vertical ramp — a touch lighter at the top, deeper at the foot, the plain
@@ -69,8 +69,8 @@ const SOFT_MIN_PX = 28;
 const SOFT_STOPS = Object.freeze([[0, 'stop-lit'], [0.3, 'stop-base'], [0.5, 'stop-base'], [1, 'stop-shade']]);
 
 /**
- * A generated face for an agent without a picture: a coloured silhouette — a geometric shape or a
- * pixel creature — with eyes that take the agent's activity, deterministic from the agent's seed.
+ * A generated face for an agent without a picture: a coloured geometric silhouette with eyes that
+ * take the agent's activity, deterministic from the agent's seed.
  * @extends {Component<AgentAvatarOptions>}
  */
 export class AgentAvatar extends Component {
@@ -107,6 +107,7 @@ export class AgentAvatar extends Component {
     this._traits = null;
     /** A document-unique id for the soft ramp, so two avatars never share a paint server. */
     this._paintId = `zx-agent-avatar-soft-${uniqueSuffix()}`;
+    this._destroyed = false;
     /** @type {import('../../internal/presence-loop.js').PresenceHandle|null} */
     this._presence = null;
 
@@ -173,8 +174,14 @@ export class AgentAvatar extends Component {
     return { ...(this._traits ?? this._resolveTraits()) };
   }
 
-  /** Restores an enhanced target or removes an owned root. @returns {void} */
+  /**
+   * Leaves the presence loop and restores an enhanced target or removes an owned root. Safe to call
+   * more than once: only the first call restores, so a target its owner has reused is left alone.
+   * @returns {void}
+   */
   destroy() {
+    if (this._destroyed) return;
+    this._destroyed = true;
     this._presence?.untrack();
     this._presence = null;
     super.destroy();
@@ -302,8 +309,17 @@ function drawShape(shape) {
   return element;
 }
 
-/** A random suffix for an element id. @returns {string} */
+/**
+ * A random suffix for an element id: a whole UUID where the platform has one (secure contexts), else
+ * 128 bits from `getRandomValues`, else four `Math.random()` draws — never a short value that two
+ * of many avatars on one page could share.
+ * @returns {string}
+ */
 function uniqueSuffix() {
-  const random = globalThis.crypto?.randomUUID?.();
-  return random ? random.slice(0, 8) : Math.random().toString(36).slice(2, 10);
+  const crypto = globalThis.crypto;
+  if (typeof crypto?.randomUUID === 'function') return crypto.randomUUID();
+  if (typeof crypto?.getRandomValues === 'function') {
+    return Array.from(crypto.getRandomValues(new Uint32Array(4)), (part) => part.toString(36)).join('-');
+  }
+  return Array.from({ length: 4 }, () => Math.random().toString(36).slice(2, 10)).join('-');
 }

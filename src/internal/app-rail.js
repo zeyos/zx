@@ -14,7 +14,8 @@ import { AgentAvatar } from '../components/agent-avatar/agent-avatar.js';
  * @property {AppNavAgent|true} [agent] Draws the item as an agent: an AgentAvatar built from these
  *   options (`true` for none) in place of `icon`, sized by the slot it sits in. `name` defaults to
  *   the item's label. The face shows the agent's `activity` at rest — navigation does not animate —
- *   and the activity's word joins the control's accessible name ("Ledger, Needs you").
+ *   at the small level of detail and flat, whatever the slot measures, and the activity's word
+ *   joins the control's accessible name ("Ledger, Needs you").
  * @property {string|number} [badge] Count or status badge.
  * @property {unknown} [value] Emitted value; defaults to `id`.
  * @property {string} [href] Native navigation target; executable/data schemes are disabled.
@@ -743,7 +744,10 @@ export function appNavIcon(item, renderer, context) {
     return new AgentAvatar(null, {
       ...options,
       name: options.name ?? item.label,
-      size: context?.location === 'module' || context?.location === 'catalogue' ? 'md' : 'sm',
+      // Navigation draws every face at the small level of detail, whatever its slot measures (24px
+      // rows, a 26px tile, a 34px catalogue tile): one calm, flat look across a menu, so a soft
+      // material is drawn flat here by design.
+      size: 'sm',
       label: null,
       animate: false
     }).toElement();
@@ -773,13 +777,17 @@ export function appNavAgentWord(visual) {
 /**
  * A navigation control's accessible name: its label, followed by an agent's activity when the
  * visual is one. The visible label stays first, so the name still starts with what is shown.
+ * A control whose badge is printed inside it, and which this name replaces, passes `withBadge` so
+ * the count is not lost: "Ledger, Needs you (2)".
  * @param {AppNavItem} item
  * @param {Node|null|undefined} visual
+ * @param {boolean} [withBadge=false] Whether to end the name with the item's badge.
  * @returns {string}
  */
-export function appNavName(item, visual) {
+export function appNavName(item, visual, withBadge = false) {
   const word = appNavAgentWord(visual);
-  return word ? `${item.label}, ${word}` : item.label;
+  const name = word ? `${item.label}, ${word}` : item.label;
+  return withBadge && item.badge != null && item.badge !== '' ? `${name} (${item.badge})` : name;
 }
 
 /** @param {AppNavItem} item @param {{className: string, index: string, iconOnly: boolean, disclosure: boolean, disclosureIcon: string, visual: Node|null}} options @returns {HTMLElement} */
@@ -793,7 +801,7 @@ function navControl(item, { className, index, iconOnly, disclosure, disclosureIc
     href: tag === 'a' ? href : null,
     target: tag === 'a' ? item.target ?? null : null,
     rel: tag === 'a' ? 'noopener' : null,
-    ariaLabel: iconOnly || named ? appNavName(item, visual) : null,
+    ariaLabel: iconOnly ? appNavName(item, visual) : named ? appNavName(item, visual, true) : null,
     ariaDisabled: item.disabled ? 'true' : null,
     dataset: { appNavId: index, appNavValueId: String(item.id) }
   },

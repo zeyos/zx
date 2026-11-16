@@ -1245,7 +1245,7 @@ function navControl(item, disclosure, expanded, controls, visual) {
     type: tag === 'button' ? 'button' : null,
     href: tag === 'a' ? item.href : null,
     target: tag === 'a' ? item.target ?? null : null,
-    ariaLabel: appNavAgentWord(visual) ? appNavName(item, visual) : null,
+    ariaLabel: appNavAgentWord(visual) ? appNavName(item, visual, true) : null,
     ariaDisabled: item.disabled ? 'true' : null,
     ariaExpanded: disclosure ? String(expanded) : null,
     ariaControls: controls,

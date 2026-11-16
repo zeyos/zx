@@ -45,7 +45,7 @@ traits; an unknown value is ignored.
 | Activity | Eyes |
 | --- | --- |
 | idle | open, seeded shape |
-| thinking | look up and to the side (pupils, or the eyes themselves); one eye slightly smaller |
+| thinking | look up and to the side — the pupils, or below 20px, where there are none, the eyes themselves, one slightly smaller |
 | working | look down, lids lowered (62% height) |
 | needs-you | 20% larger, looking straight out |
 | blocked | flat bars |
@@ -67,7 +67,8 @@ black). Forced colours draw the body in `CanvasText`, eyes in `Canvas`.
 **Navigation and threads.** `AppNavItem` (AppSidebar, the rail, flyouts) and `ModuleItem` take
 `agent`: AgentAvatar options without size, label or motion, or `true`. `appNavIcon()` builds a
 fresh AgentAvatar for every place an item is drawn — at rest, so it holds no listener or loop entry
-and goes with its row — sized by the slot in each component's stylesheet. The activity's word
+and goes with its row — sized by the slot in each component's stylesheet, and always at the small
+(24px) level of detail, so a menu reads as one calm, flat set and `soft` is drawn flat there. The activity's word
 (`getActivityWord()`) joins the control's accessible name after the visible label, badge counts
 included. A ModuleBar agent replaces the tile, whatever the appearance. AgentThread's `Author` takes
 `face` (`{seed, tone, body, eyes, material}` or `true`) and draws the agent's AgentAvatar instead of
@@ -94,7 +95,9 @@ the component is not focusable.
 
 ## File scope
 
-- This specification; `CHANGELOG.md`; `specs/agent-avatar-2026-11/README.md` (outcome note).
+- This specification; `CHANGELOG.md`; the repository-only study `specs/agent-avatar-2026-11/`
+  (`README.md`, `prototype.html|css|js`, `materials.html|css|js`), approved by the product owner as
+  working material and never published (`specs/` is a private path in `tools/check-site.js`).
 - `src/components/agent-avatar/agent-avatar.js`, `agent-avatar.css`, `agent-face.js`.
 - `src/index.js` (exports), `styles/zx.css` (import).
 - `src/internal/app-rail.js`, `src/components/app-sidebar/app-sidebar.js|css`,

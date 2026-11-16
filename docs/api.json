@@ -496,7 +496,7 @@
         "name": "body",
         "type": "AgentBody|null",
         "default": "null",
-        "description": "The silhouette, instead of the derived one: one of eight smooth shapes or four pixel creatures."
+        "description": "The silhouette, instead of the derived one: one of the fourteen in {@link AGENT_BODIES}."
       },
       {
         "name": "eyes",
@@ -594,7 +594,7 @@
         "name": "destroy",
         "signature": "destroy()",
         "returns": "void",
-        "description": "Restores an enhanced target or removes an owned root."
+        "description": "Leaves the presence loop and restores an enhanced target or removes an owned root. Safe to call more than once: only the first call restores, so a target its owner has reused is left alone."
       }
     ]
   },

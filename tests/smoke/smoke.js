@@ -371,6 +371,14 @@ const cases = [
     const second = new zx.AgentAvatar(null, { seed: 'agt-7f3a', material: 'soft', size: 48 });
     assert(second.refs.face.querySelector('linearGradient').id !== gradient.id, 'two soft avatars share a gradient id');
     second.destroy();
+    const host = document.createElement('span');
+    host.textContent = 'before';
+    const enhanced = new zx.AgentAvatar(host, { name: 'Ledger' });
+    enhanced.destroy();
+    host.textContent = 'reused';
+    enhanced.destroy();
+    assert(host.textContent === 'reused' && !host.classList.contains('zx-agent-avatar'),
+      'a second destroy() restored an old snapshot over a reused target');
     component.set({ size: 24 });
     assert(component.el.dataset.material === 'flat' && !face.querySelector('linearGradient'), 'a small soft avatar was not drawn flat');
     component.set({ size: 48, activity: 'offline' });
@@ -384,10 +392,13 @@ const cases = [
     const tile = bar.el.querySelector('.zx-module-bar__tile[data-agent] > .zx-agent-avatar');
     assert(tile && bar.el.querySelector('[data-app-nav-value-id="ledger"]').getAttribute('aria-label') === 'Ledger, Needs you (2)',
       'a ModuleBar agent is not drawn or not named with its activity');
+    bar.setBadge('ledger', 7);
+    assert(bar.el.querySelector('[data-app-nav-value-id="ledger"]').getAttribute('aria-label') === 'Ledger, Needs you (7)',
+      'setBadge() left a stale count in an agent module\'s name');
     bar.destroy();
     const sidebar = new zx.AppSidebar(null, { items: agentItems });
     const row = sidebar.el.querySelector('.zx-app-sidebar__item[data-app-nav-id="ledger"]');
-    assert(row.querySelector('.zx-agent-avatar:not([data-animate])') && row.getAttribute('aria-label') === 'Ledger, Needs you',
+    assert(row.querySelector('.zx-agent-avatar:not([data-animate])') && row.getAttribute('aria-label') === 'Ledger, Needs you (2)',
       'an AppSidebar agent is not drawn at rest or not named with its activity');
     sidebar.destroy();
   }),
