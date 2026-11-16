@@ -232,6 +232,20 @@
 }
 
 .zx-launcher__icon { display: inline-flex; flex: none; }
+
+/* An agent item draws its face: a little larger than a glyph in a row, a tile's size in a grid. */
+.zx-launcher__icon > .zx-agent-avatar { --zx-agent-avatar-size: var(--zx-space-5); }
+.zx-launcher__option[data-kind="application"] .zx-launcher__icon > .zx-agent-avatar { --zx-agent-avatar-size: var(--zx-space-7); }
+
+/* An agent's activity word: part of the option's name, not of what is shown. */
+.zx-launcher__word {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
 .zx-launcher__copy { display: grid; min-inline-size: 0; gap: 2px; }
 .zx-launcher__label { overflow: hidden; font-weight: var(--zx-weight-medium); text-overflow: ellipsis; white-space: nowrap; }
 .zx-launcher__description { overflow: hidden; color: var(--zx-color-text-muted); font-size: var(--zx-text-sm); text-overflow: ellipsis; white-space: nowrap; }

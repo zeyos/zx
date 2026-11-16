@@ -1,4 +1,5 @@
 import { Component } from '../../core/component.js';
+import { AgentAvatar } from '../agent-avatar/agent-avatar.js';
 import { h, safeHref } from '../../core/dom.js';
 import { ICON_SIZE, icon } from '../../core/icons.js';
 import { printf } from '../../core/i18n.js';
@@ -16,6 +17,9 @@ import { kbd } from '../kbd/kbd.js';
  * @property {string|string[]} [keywords] Additional search text.
  * @property {string} [group] Result group.
  * @property {string|Node|((item: LauncherItem) => Node|null)} [icon] Decorative icon name, node, or factory.
+ * @property {import('../../internal/app-rail.js').AppNavAgent|true} [agent] Draws the item as an
+ *   agent: its AgentAvatar, still, in place of `icon` — these options, or `true` to derive it from
+ *   the label. An activity's word joins the option's accessible name.
  * @property {string|number} [badge] Compact metadata.
  * @property {string|number} [hint] Muted text at the end of the row, such as a current value or a project.
  * @property {string|string[]|{label: string|string[], keys?: string}} [shortcut] Key labels drawn as
@@ -162,6 +166,12 @@ export class Launcher extends Component {
       throw new TypeError('Launcher target must be a <dialog> element');
     }
     this._createdRoot = this.el === null;
+    /**
+     * The faces of agent items, one per item id, reused while results redraw on every keystroke and
+     * destroyed with the launcher.
+     * @type {Map<string, {signature: string, avatar: AgentAvatar}>}
+     */
+    this._agentFaces = new Map();
     /** @type {import('../../core/overlay-stack.js').OverlayHandle|null} Entry on the overlay stack while open. */
     this._overlay = null;
     const dialog = /** @type {HTMLDialogElement} */ (this.el ?? h('dialog'));
@@ -494,6 +504,8 @@ export class Launcher extends Component {
     if (this.isOpen()) closeDialog(this.el);
     // The queued close that would release it never arrives once listeners are aborted.
     this._releaseOverlay();
+    for (const { avatar } of this._agentFaces.values()) avatar.destroy();
+    this._agentFaces.clear();
     super.destroy();
     if (!this._createdRoot && original) {
       for (const attribute of Array.from(this.el.attributes)) this.el.removeAttribute(attribute.name);
@@ -792,13 +804,17 @@ export class Launcher extends Component {
     const href = page ? null : safeHref(item.href);
     const tag = href ? 'a' : 'button';
     const children = [];
-    const visual = launcherItemIcon(item);
+    const face = this._agentFace(item);
+    const visual = face ? face.toElement() : launcherItemIcon(item);
     if (visual) children.push(h('span', {
       class: 'zx-launcher__icon',
       ariaHidden: 'true'
     }, visual));
+    // An agent's activity is in its face and dot; the option's name says it too, after the label.
+    const word = face?.getActivityWord() ?? null;
     children.push(h('span', { class: 'zx-launcher__copy' },
-      h('span', { class: 'zx-launcher__label' }, item.label),
+      h('span', { class: 'zx-launcher__label' }, item.label,
+        word ? h('span', { class: 'zx-launcher__word' }, `, ${word}`) : null),
       item.description ? h('span', { class: 'zx-launcher__description' }, item.description) : null));
     if (item.badge != null) children.push(h('span', { class: 'zx-launcher__badge' }, String(item.badge)));
     if (item.hint != null && item.hint !== '') {
@@ -830,6 +846,30 @@ export class Launcher extends Component {
         page: page ? 'true' : null
       }
     }, children));
+  }
+
+  /**
+   * The AgentAvatar an agent item draws, kept per item id and rebuilt only when the item changes.
+   * @private
+   * @param {LauncherItem} item
+   * @returns {AgentAvatar|null}
+   */
+  _agentFace(item) {
+    if (!item.agent) return null;
+    const options = item.agent === true ? {} : item.agent;
+    const key = String(item.id);
+    const size = normalizeLauncherKind(item.kind) === 'application' ? 'md' : 'sm';
+    const signature = JSON.stringify([item.label, size, options]);
+    let entry = this._agentFaces.get(key);
+    if (!entry || entry.signature !== signature) {
+      entry?.avatar.destroy();
+      entry = {
+        signature,
+        avatar: new AgentAvatar(null, { ...options, name: options.name ?? String(item.label), size, label: null, animate: false })
+      };
+      this._agentFaces.set(key, entry);
+    }
+    return entry.avatar;
   }
 
   /** @returns {void} */

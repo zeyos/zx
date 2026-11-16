@@ -1185,8 +1185,10 @@ permissions, recent-history/cache policy, and the route or command ultimately in
   `false`), and `scope` to explicitly select an element whose nearest Zx theme scope owns the launcher.
 - **Items** — `{id, label, description?, keywords?, group?, icon?, badge?, hint?, shortcut?, keys?,
   value?, href?, target?, invoke?, pinned?, disabled?, kind?, current?, when?, groupOrder?,
-  itemOrder?, items?, placeholder?, order?}`. `icon` accepts a bundled icon name, Node, or
-  factory. Links stay native so modified and middle clicks work;
+  itemOrder?, items?, placeholder?, order?, agent?}`. `icon` accepts a bundled icon name, Node, or
+  factory. `agent` (AgentAvatar options, or `true`) draws the item as the agent's still face
+  instead — a tile's size for an `application` — with its activity's word, visually hidden, after
+  the label in the option's name. Links stay native so modified and middle clicks work;
   non-link commands may provide an application-owned `invoke` callback. Malformed and executable
   URL schemes are stripped; a descriptor with no safe link or callback is disabled. `hint` is muted
   text at the end of the row (a current value, a project); `shortcut: ['⌘', 'K']` (or Button's
@@ -1346,7 +1348,7 @@ Avatar.
   interactive.
 - **In navigation** — `AppSidebar` and `ModuleBar` items take `agent` (these options, or `true`)
   and draw the AgentAvatar in place of their icon or tile, with the activity in the control's
-  name; Composer mention items take `agent` too; AgentThread and RunTrace authors and ActivityItem
+  name; Composer mention items and Launcher items take `agent` too; AgentThread and RunTrace authors and ActivityItem
   avatar descriptors take `face`. Only a
   face's trait strings are read, so agent-supplied data cannot animate or name it.
 - **Accessibility** — the SVG is always hidden. With `label` the root is `role="img"`, named

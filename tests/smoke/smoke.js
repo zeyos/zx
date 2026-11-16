@@ -434,6 +434,20 @@ const cases = [
     const actorFace = entry.el.querySelector('.zx-activity-item__avatar > .zx-agent-avatar');
     assert(actorFace && actorFace.getAttribute('aria-label') === 'Ledger, Working', 'an ActivityItem agent avatar was not drawn');
     entry.destroy();
+    const palette = new zx.Launcher(null, {
+      label: 'Agents', debounce: 0,
+      items: [{ id: 'ledger', label: 'Ledger', description: 'Finance', agent: { seed: 'agt-ledger', activity: 'needs-you', animate: true } }]
+    });
+    // A launcher is a modal dialog, so it is opened in the document.
+    document.body.append(palette.toElement());
+    palette.open();
+    const paletteRow = palette.el.querySelector('.zx-launcher__option');
+    const paletteFace = paletteRow?.querySelector('.zx-launcher__icon > .zx-agent-avatar');
+    assert(paletteFace && !paletteFace.hasAttribute('data-animate')
+      && paletteRow.querySelector('.zx-launcher__label').textContent === 'Ledger, Needs you',
+      'a Launcher agent item is not drawn as its still face, or its activity is not in the option name');
+    palette.close();
+    palette.destroy();
   }),
   componentCase('EntityRef', () => new zx.EntityRef(null, {
     id: 'customer-7',
