@@ -579,6 +579,12 @@
         "description": "Sets what the agent is doing and, optionally, the word for it. `null` clears the activity."
       },
       {
+        "name": "getActivity",
+        "signature": "getActivity()",
+        "returns": "AgentActivity|null",
+        "description": "What the agent is doing."
+      },
+      {
         "name": "getActivityWord",
         "signature": "getActivityWord()",
         "returns": "string|null",

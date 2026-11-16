@@ -16,7 +16,7 @@ in a 64-unit view box, built with `createElementNS`, never markup strings.
 
 The face is a free-standing silhouette filled with the tone's `-solid`, with white eyes (`round`,
 `oval`, `square`) and ink pupils. Fourteen geometric silhouettes — circle, squircle, hexagon,
-triangle, drop, tilted pill, clover, dome, triforce, pentagon, trapezoid, cross, diamond,
+triangle, drop, tilted pill, clover, dome, wedge, pentagon, trapezoid, cross, diamond,
 octagon — whose polygons round their corners with a stroke the colour of the fill.
 
 **Material.** `material: 'flat'|'soft'`, default `flat`, an application-wide choice rather than a
@@ -63,6 +63,11 @@ no-preference`; `styles/base.css` already stops them inside a `data-zx-motion="r
 **Colour.** Tier-2 only: the tone roles, plus two new semantic tokens for what eyes on a solid fill
 need regardless of theme — `--zx-color-agent-eye` (white) and `--zx-color-agent-pupil` (near
 black). Forced colours draw the body in `CanvasText`, eyes in `Canvas`.
+
+**The activity dot** is notched out of the face with a CSS mask (mirrored in right-to-left) instead
+of an outline in a surface colour, so it reads on glass navigation and hover or current rows; a
+hollow dot shows the background through it. An AgentThread `face` contributes only its five trait
+strings; the thread draws it still and decorative whatever else the data carries.
 
 **Navigation and threads.** `AppNavItem` (AppSidebar, the rail, flyouts) and `ModuleItem` take
 `agent`: AgentAvatar options without size, label or motion, or `true`. `appNavIcon()` builds a

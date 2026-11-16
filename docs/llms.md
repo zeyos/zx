@@ -1315,7 +1315,7 @@ Avatar.
   spacing unit), `label`, `activity: 'idle'|'thinking'|'working'|'needs-you'|'blocked'|'offline'|null`,
   `activityLabel`, `indicator: true`, `animate: false`, and `phase: null|number`.
 - **Silhouettes** — fourteen, filled with the tone's `-solid`: circle, squircle, hexagon,
-  triangle, drop, tilted pill, clover, dome, triforce, pentagon, trapezoid, cross, diamond and
+  triangle, drop, tilted pill, clover, dome, wedge, pentagon, trapezoid, cross, diamond and
   octagon; polygons round their corners. Eyes are `round`, `oval` or `square`, white with dark
   pupils, in `--zx-color-agent-eye` and `--zx-color-agent-pupil`, which keep their
   colour in both themes.
@@ -1335,6 +1335,8 @@ Avatar.
   lowered (working), wide (needs you), flat bars (blocked), closed on a faded, colourless face
   (offline). No mouths and nothing angry or sad. The Avatar activity dot (`indicator`) and the
   activity word in the accessible name stay the primary signal; the root carries `data-activity`.
+  The dot is notched out of the face with a mask rather than ringed in a surface colour, so it reads
+  on any background, glass navigation included.
   `animate: true` moves the root in the shared presence loop exactly as Avatar does and lets the eyes
   blink, drift and scan — never without the motion preference, and not inside a
   `data-zx-motion="reduced"` region. `phase` offsets both.

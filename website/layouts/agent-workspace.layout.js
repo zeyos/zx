@@ -573,7 +573,7 @@ export default {
   category: 'AI',
   blurb: 'A team of AI agents working through tasks: a roster with live presence, plans and execution logs, approvals as they arrive, a command palette, and a terminal.',
   components: [
-    'Tabbox', 'Launcher', 'Avatar', 'AgentThread', 'Composer', 'RunTrace', 'RunStatus', 'Table', 'AppSidebar',
+    'Tabbox', 'Launcher', 'Avatar', 'AgentAvatar', 'AgentThread', 'Composer', 'RunTrace', 'RunStatus', 'Table', 'AppSidebar',
     'ModuleBar', 'AccountMenu', 'ProgressBar', 'Message', 'Dialog', 'statusIcon'
   ],
 
@@ -633,10 +633,13 @@ export default {
     // The agent components' clock: the workspace's fixed day, moving on with its own clock.
     const now = () => new Date(isoAt(state.now));
     // Presence avatars live as long as the workspace, so a redraw moves them without a jolt.
-    /** @type {Map<string, Avatar>} */
+    /** @type {Map<string, AgentAvatar>} */
     const rosterAvatars = new Map();
-    /** @type {Map<string, Avatar>} */
+    /** @type {Map<string, AgentAvatar>} */
     const asideAvatars = new Map();
+    // Each agent's mark, built once; places that redraw on every keystroke take a copy of it.
+    /** @type {Map<string, HTMLElement>} */
+    const marks = new Map();
 
     /* ------------------------------------------------------------ navigation column -- */
 
@@ -1171,14 +1174,19 @@ export default {
 
     /**
      * An agent's mark for places that redraw on every keystroke (the palette, the composer's
-     * route): its face at rest. A still AgentAvatar holds no listener and no loop entry, so the
-     * mark is released with the row that shows it and needs no destroy.
+     * route): its face at rest. One AgentAvatar per agent is built once and owned by the workspace;
+     * every place gets a static copy of it, so a redraw creates no component.
      * @param {(typeof agents)[number]} agent
      * @returns {HTMLElement}
      */
     function agentMark(agent) {
-      return h('span', { class: 'agents__mark', 'aria-hidden': 'true' },
-        new AgentAvatar(null, { seed: agent.id, name: agent.name, tone: agent.tone, size: 'sm' }).toElement());
+      let mark = marks.get(agent.id);
+      if (!mark) {
+        mark = h('span', { class: 'agents__mark', 'aria-hidden': 'true' },
+          keep(agentAvatar(agent, 'sm')).toElement());
+        marks.set(agent.id, mark);
+      }
+      return /** @type {HTMLElement} */ (mark.cloneNode(true));
     }
 
     /** @param {keyof typeof PRESENCE} presence @returns {HTMLElement} The presence's word, beside the avatar's dot. */
