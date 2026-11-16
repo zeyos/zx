@@ -6,8 +6,9 @@ import { formatNumber } from '../../core/format.js';
 import { prefersReducedMotion } from '../../core/motion.js';
 import { uid } from '../../core/util.js';
 import {
-  AGENT_MESSAGES, STATUS, formatDuration, formatElapsed, initialsOf, normalizeRunState, traceSummary
+  AGENT_MESSAGES, STATUS, authorFace, formatDuration, formatElapsed, initialsOf, normalizeRunState, traceSummary
 } from '../../internal/agent-model.js';
+import { AgentAvatar } from '../agent-avatar/agent-avatar.js';
 import { Avatar } from '../avatar/avatar.js';
 import { copyButton } from '../copy/copy-button.js';
 import { statusIcon } from '../select/glyphs.js';
@@ -92,7 +93,7 @@ import { statusIcon } from '../select/glyphs.js';
  * @property {HTMLElement|null} refs The step's links, after its row.
  * @property {HTMLElement|null} body The disclosure's content, when the step has any.
  * @property {HTMLElement|null} retries The nested list of the steps that repeat this one.
- * @property {Avatar[]} avatars Avatars the row owns.
+ * @property {Array<Avatar|AgentAvatar>} avatars Avatars the row owns.
  * @property {string|null} rootId The top-level step a retry is drawn under; null for a top-level step.
  * @property {string|null} bodyId Id of the disclosure content.
  */
@@ -805,7 +806,7 @@ export class RunTrace extends Component {
   /**
    * @private
    * @param {unknown} key
-   * @returns {{name: string, initials: string, tone: AvatarTone|null, person: boolean}}
+   * @returns {{name: string, initials: string, tone: AvatarTone|null, person: boolean, face: Record<string, string>|null}}
    */
   _author(key) {
     const authors = this.options.authors && typeof this.options.authors === 'object' ? this.options.authors : {};
@@ -816,19 +817,27 @@ export class RunTrace extends Component {
       name,
       initials: text(author?.initials) || initialsOf(name),
       tone: /** @type {AvatarTone|null} */ (author?.tone ?? null),
-      person: author?.kind === 'person'
+      person: author?.kind === 'person',
+      face: authorFace(author)
     };
   }
 
   /**
-   * A hand-off avatar, shaped like the author's avatar everywhere else: round for a person, a
-   * rounded square for an agent or a model.
+   * A hand-off avatar, drawn like the author's avatar everywhere else: an agent with a `face` as its
+   * AgentAvatar, still; otherwise initials, round for a person and a rounded square for an agent or
+   * a model.
    * @private
    * @param {unknown} key
-   * @returns {Avatar}
+   * @returns {Avatar|AgentAvatar}
    */
   _avatar(key) {
     const author = this._author(key);
+    if (author.face) {
+      return new AgentAvatar(null, {
+        ...author.face, name: author.name, tone: /** @type {any} */ (author.face.tone ?? author.tone),
+        size: 'sm', label: null, animate: false
+      });
+    }
     return new Avatar(null, {
       name: author.name, initials: author.initials, tone: author.tone, size: 'sm', shape: author.person ? 'circle' : 'rounded'
     });

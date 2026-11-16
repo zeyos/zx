@@ -69,6 +69,12 @@ of an outline in a surface colour, so it reads on glass navigation and hover or 
 hollow dot shows the background through it. An AgentThread `face` contributes only its five trait
 strings; the thread draws it still and decorative whatever else the data carries.
 
+**Run traces and activity.** `authorFace()` in `src/internal/agent-model.js` is the one reader of
+a `face`: `true`, or a plain object's `seed`, `tone`, `body`, `eyes` and `material` strings; a
+person or any other value draws initials. RunTrace hand-offs draw an author with `face` as its
+still AgentAvatar; an ActivityItem avatar descriptor with `face` draws the actor as one, carrying
+`name`, `label`, `size`, `tone`, `activity`, `activityLabel`, `animate` and `phase`.
+
 **Navigation and threads.** `AppNavItem` (AppSidebar, the rail, flyouts) and `ModuleItem` take
 `agent`: AgentAvatar options without size, label or motion, or `true`. `appNavIcon()` builds a
 fresh AgentAvatar for every place an item is drawn — at rest, so it holds no listener or loop entry
@@ -108,7 +114,9 @@ the component is not focusable.
 - `src/internal/app-rail.js`, `src/components/app-sidebar/app-sidebar.js|css`,
   `src/components/app-rail/app-rail.css`, `src/components/module-bar/module-bar.js|css`:
   the `agent` item — explicitly in scope.
-- `src/components/agent-thread/agent-thread.js`, `src/internal/agent-model.js`: `Author.face`.
+- `src/components/agent-thread/agent-thread.js`, `src/components/run-trace/run-trace.js`,
+  `src/components/activity-item/activity-item.js`, `src/internal/agent-model.js`: `face`;
+  `website/demos/run-trace.demo.js`, `activity-item.demo.js`, `activity-list.demo.js`.
 - `website/layouts/agent-workspace.layout.js|css`; `website/demos/app-sidebar.demo.js`,
   `website/demos/module-bar.demo.js`.
 - `styles/tokens/semantic.css`: the two `--zx-color-agent-*` tokens, in both colour paths —
@@ -131,7 +139,7 @@ light and dark, at the default and a changed spacing unit, without console error
 ## Out of scope
 
 Pointer-following gaze, mouths and emotional expressions, an `Avatar` fallback that draws a face,
-RunTrace and ActivityItem adopting AgentAvatar, animated avatars in navigation, an AvatarGroup/stack
+animated avatars in navigation, an AvatarGroup/stack
 component, a `<zx-agent-avatar>`
 element, image export (`toDataURL`), the Glyph variant, pixel-creature bodies and the other studied
 directions, and every material but `soft` (see `specs/agent-avatar-2026-11/`).

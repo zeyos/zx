@@ -34,6 +34,28 @@ export default {
         cleanup(() => { activity.destroy(); attachment.destroy(); });
         return activity.toElement();
       }
+    },
+    {
+      title: 'An agent as the actor',
+      blurb: 'face on the avatar descriptor draws the actor as its generated AgentAvatar — '
+        + '{seed, tone, body, eyes, material}, or true to derive it from the name. activity puts the '
+        + 'agent\'s state on the face and the dot.',
+      width: '680px',
+      render: ({ cleanup, log }) => {
+        const activity = new ActivityItem(null, {
+          id: 'activity-18',
+          actor: 'Ledger',
+          avatar: { name: 'Ledger', face: { seed: 'agt-ledger', material: 'soft' }, activity: 'needs-you' },
+          title: 'matched 238 of 240 freight invoices',
+          content: h('p', {}, 'Two invoices differ from the ledger and wait for your review.'),
+          timestamp: '2026-08-31T10:02:00Z',
+          timeLabel: 'Today, 10:02',
+          metadata: ['Finance', 'Reconciliation'],
+          actions: [{ id: 'review', label: 'Review', icon: 'check', onselect: () => log('review') }]
+        });
+        cleanup(() => activity.destroy());
+        return activity.toElement();
+      }
     }
   ]
 };

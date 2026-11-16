@@ -1346,7 +1346,8 @@ Avatar.
   interactive.
 - **In navigation** — `AppSidebar` and `ModuleBar` items take `agent` (these options, or `true`)
   and draw the AgentAvatar in place of their icon or tile, with the activity in the control's
-  name; AgentThread authors take `face`.
+  name; AgentThread and RunTrace authors and ActivityItem avatar descriptors take `face`. Only a
+  face's trait strings are read, so agent-supplied data cannot animate or name it.
 - **Accessibility** — the SVG is always hidden. With `label` the root is `role="img"`, named
   "label, activity word"; without one it is `aria-hidden`, for use beside the agent's name.
 <!-- /doc -->
@@ -1431,7 +1432,9 @@ One chronological activity entry. It owns actor/avatar anatomy, semantic time, s
 attachments, and actions; the application owns posting, reactions, permissions, routing,
 persistence, and sanitization before any rich content becomes a Node.
 
-- **Options** — `id`, `actor`, `avatar` (Avatar options or Element), `title`, `content`,
+- **Options** — `id`, `actor`, `avatar` (Avatar options or Element; with `face` — `{seed, tone,
+  body, eyes, material}` or `true` — an agent's `AgentAvatar`, taking `name`, `label`, `size`,
+  `tone`, `activity`, `activityLabel`, `animate` and `phase`), `title`, `content`,
   `timestamp`, `timeLabel`, `metadata`, `attachments`, `actions`, `kind`, and
   `headingLevel: 1..6`. Content slots accept text, Nodes, or Components and never parse HTML.
 - **Actions** — Elements pass through; descriptors accept
@@ -4828,7 +4831,8 @@ only when the application calls `setSteps()`, `upsert()` or `setLabel()`.
   otherwise) and the result or the error, each in a focusable `<pre>` with a copy button. A
   `handoff` step reads "Finance agent handed over to Collections agent" beside both authors'
   avatars joined by a dotted line — round for a `person`, a rounded square for an agent or a
-  model — and its own label moves to the meta line.
+  model, and an agent author with `face` as its still `AgentAvatar` — and its own label moves to
+  the meta line.
 - **Accessibility** — the summary and every step with content follow the APG Disclosure pattern
   (`aria-expanded`, `aria-controls`); in a `selectable` trace a step without content is a plain
   `<button>`. A step's links are buttons beside its row, never inside it, so no control holds

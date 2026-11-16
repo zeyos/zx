@@ -14,7 +14,9 @@ function recentChanges() {
   return [
     { id: 'c3', actor: 'Ada Lovelace', avatar: { name: 'Ada Lovelace' }, title: 'replaced the power supply in rack R03', timeLabel: '12 min', metadata: ['Frankfurt', 'Maintenance'] },
     { id: 'c2', actor: 'Grace Hopper', avatar: { name: 'Grace Hopper' }, title: 'raised the uplink to 10 Gb/s', timeLabel: '1 h', metadata: ['Berlin'] },
-    { id: 'c1', actor: 'Linus Torvalds', avatar: { name: 'Linus Torvalds' }, title: 'retired two switches', timeLabel: 'Yesterday', state: 'pending', metadata: ['Amsterdam'] }
+    { id: 'c1', actor: 'Linus Torvalds', avatar: { name: 'Linus Torvalds' }, title: 'retired two switches', timeLabel: 'Yesterday', state: 'pending', metadata: ['Amsterdam'] },
+    // An agent's entry: `face` draws it as its generated AgentAvatar.
+    { id: 'c0', actor: 'Warden', avatar: { name: 'Warden', face: { seed: 'agt-warden' } }, title: 'verified last night’s backups', timeLabel: 'Yesterday', metadata: ['All sites'] }
   ];
 }
 

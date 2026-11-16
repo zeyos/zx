@@ -416,6 +416,24 @@ const cases = [
       && faces[0].dataset.activity === 'working' && faces[0].querySelector('polygon.zx-agent-avatar__body'),
       'an author face took fields other than its traits, or a non-object face was drawn');
     thread.destroy();
+    const trace = new zx.RunTrace(null, {
+      authors: {
+        finance: { name: 'Finance agent', kind: 'agent', face: { seed: 'agt-finance', animate: true } },
+        hanna: { name: 'Hanna Weber', kind: 'person', face: true }
+      },
+      steps: [{ id: 'pass', kind: 'handoff', label: 'Passed on 5 invoices', actor: 'finance', to: 'hanna' }]
+    });
+    const pair = trace.el.querySelector('.zx-run-trace__handoff');
+    assert(pair && pair.querySelectorAll('.zx-agent-avatar:not([data-animate])').length === 1 && pair.querySelectorAll('.zx-avatar').length === 1,
+      'a RunTrace hand-off did not draw the agent as its face and the person as initials');
+    trace.destroy();
+    const entry = new zx.ActivityItem(null, {
+      actor: 'Ledger', title: 'matched the invoices',
+      avatar: { name: 'Ledger', face: { seed: 'agt-ledger' }, activity: 'working', label: 'Ledger' }
+    });
+    const actorFace = entry.el.querySelector('.zx-activity-item__avatar > .zx-agent-avatar');
+    assert(actorFace && actorFace.getAttribute('aria-label') === 'Ledger, Working', 'an ActivityItem agent avatar was not drawn');
+    entry.destroy();
   }),
   componentCase('EntityRef', () => new zx.EntityRef(null, {
     id: 'customer-7',

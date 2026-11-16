@@ -8,7 +8,9 @@ One chronological activity entry. It owns actor/avatar anatomy, semantic time, s
 attachments, and actions; the application owns posting, reactions, permissions, routing,
 persistence, and sanitization before any rich content becomes a Node.
 
-- **Options** — `id`, `actor`, `avatar` (Avatar options or Element), `title`, `content`,
+- **Options** — `id`, `actor`, `avatar` (Avatar options or Element; with `face` — `{seed, tone,
+  body, eyes, material}` or `true` — an agent's `AgentAvatar`, taking `name`, `label`, `size`,
+  `tone`, `activity`, `activityLabel`, `animate` and `phase`), `title`, `content`,
   `timestamp`, `timeLabel`, `metadata`, `attachments`, `actions`, `kind`, and
   `headingLevel: 1..6`. Content slots accept text, Nodes, or Components and never parse HTML.
 - **Actions** — Elements pass through; descriptors accept

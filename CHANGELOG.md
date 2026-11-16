@@ -24,7 +24,8 @@ from a framework.
   `--zx-color-agent-pupil`.
 - **Agents in navigation and threads.** AppSidebar and ModuleBar items take `agent` (AgentAvatar
   options) and draw the agent's face in place of the icon or tile, with its activity in the
-  control's accessible name. AgentThread authors take `face`. The Agent workspace layout draws its
+  control's accessible name. AgentThread and RunTrace authors and ActivityItem avatar descriptors
+  take `face`. The Agent workspace layout draws its
   agents with AgentAvatar.
 - **Pagination: Auto page size.** `pageSize: 'auto'`, and `'auto'` among `pageSizes` ("Auto (14)"
   in the select), fits the page to `viewport` — the rows that fit below its sticky header — and

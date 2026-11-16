@@ -5,7 +5,7 @@ import { formatFileSize } from '../../core/format.js';
 import { icon } from '../../core/icons.js';
 import { isEditableTarget } from '../../core/keyboard.js';
 import { escapeRegExp, uid } from '../../core/util.js';
-import { AGENT_MESSAGES, initialsOf } from '../../internal/agent-model.js';
+import { AGENT_MESSAGES, authorFace, initialsOf } from '../../internal/agent-model.js';
 import { ApprovalCard } from '../approval-card/approval-card.js';
 import { AgentAvatar } from '../agent-avatar/agent-avatar.js';
 import { Avatar } from '../avatar/avatar.js';
@@ -1763,24 +1763,3 @@ function focusableOutside(element, direction) {
  * @event AgentThread#reply
  * @type {CustomEvent<{item: ThreadItem, reply: SurfaceReply}>}
  */
-
-/**
- * The face an author asks for, reduced to the traits it may set, or null for none: `face: true`
- * derives everything, a plain object contributes its `seed`, `tone`, `body`, `eyes` and `material`
- * strings, and anything else — a person, another value — draws initials.
- * @param {import('../../internal/agent-model.js').Author} author
- * @returns {Record<string, string>|null}
- */
-function authorFace(author) {
-  if (author.kind === 'person') return null;
-  if (author.face === true) return {};
-  const face = author.face;
-  if (!face || typeof face !== 'object' || Array.isArray(face)) return null;
-  /** @type {Record<string, string>} */
-  const traits = {};
-  for (const key of ['seed', 'tone', 'body', 'eyes', 'material']) {
-    const value = /** @type {Record<string, unknown>} */ (face)[key];
-    if (typeof value === 'string' && value) traits[key] = value;
-  }
-  return traits;
-}

@@ -493,3 +493,25 @@ export function initialsOf(name) {
   const letters = words.length === 1 ? [...words[0]].slice(0, 2) : [[...words[0]][0], [...words.at(-1) ?? ''][0]];
   return letters.join('').toUpperCase();
 }
+
+/**
+ * The face an author asks for, reduced to the traits it may set, or null for none: `face: true`
+ * derives everything, a plain object contributes its `seed`, `tone`, `body`, `eyes` and `material`
+ * strings, and anything else — a person, another value — means initials. Authors may come from an
+ * agent's own data, so how the face is drawn and named is never read from it.
+ * @param {Partial<Author>|null|undefined} author
+ * @returns {Record<string, string>|null}
+ */
+export function authorFace(author) {
+  if (!author || author.kind === 'person') return null;
+  if (author.face === true) return {};
+  const face = author.face;
+  if (!face || typeof face !== 'object' || Array.isArray(face)) return null;
+  /** @type {Record<string, string>} */
+  const traits = {};
+  for (const key of ['seed', 'tone', 'body', 'eyes', 'material']) {
+    const value = /** @type {Record<string, unknown>} */ (face)[key];
+    if (typeof value === 'string' && value) traits[key] = value;
+  }
+  return traits;
+}

@@ -4,14 +4,23 @@ import { h, restoreTarget, safeHref, snapshotTarget } from '../../core/dom.js';
 import { icon } from '../../core/icons.js';
 import { printf } from '../../core/i18n.js';
 import { isElement, uid } from '../../core/util.js';
+import { AgentAvatar } from '../agent-avatar/agent-avatar.js';
 import { Avatar } from '../avatar/avatar.js';
+import { authorFace } from '../../internal/agent-model.js';
 import { badge } from '../badge/badge.js';
 import { button } from '../button/button.js';
 import { dateLocale } from '../../internal/date-locale.js';
 
 /** @typedef {string|number|Node|Component|null} ActivityContent */
 /** @typedef {import('../avatar/avatar.js').AvatarOptions} AvatarOptions */
-/** @typedef {AvatarOptions|Element|null} ActivityAvatar */
+/**
+ * An avatar descriptor. With `face` (`{seed, tone, body, eyes, material}`, or `true` to derive
+ * everything from the name) the actor is an agent and is drawn as its AgentAvatar — `name`,
+ * `label`, `size`, `tone`, `activity`, `activityLabel`, `animate` and `phase` carry over, the
+ * picture and initials options do not.
+ * @typedef {AvatarOptions & {face?: import('../../internal/agent-model.js').AuthorFace|true}} ActivityAvatarDescriptor
+ */
+/** @typedef {ActivityAvatarDescriptor|Element|null} ActivityAvatar */
 
 /**
  * @typedef {Object} ActivityAction
@@ -258,9 +267,20 @@ export class ActivityItem extends Component {
     if (!value || typeof value !== 'object' || Array.isArray(value)) {
       throw new TypeError('ActivityItem avatar must be an Element, descriptor, or null');
     }
+    const name = value.name || textAlternative(actor);
+    const face = authorFace({ kind: 'agent', face: value.face });
+    if (face) {
+      this._avatarComponent = new AgentAvatar(null, {
+        ...face, name, tone: /** @type {any} */ (face.tone ?? value.tone ?? null),
+        label: value.label ?? null, size: value.size ?? 'md',
+        activity: value.activity ?? null, activityLabel: value.activityLabel ?? null,
+        animate: Boolean(value.animate), phase: value.phase ?? null
+      });
+      return this._avatarComponent.toElement();
+    }
     const settings = {
       ...value,
-      name: value.name || textAlternative(actor),
+      name,
       label: value.label ?? null,
       size: value.size ?? 'md'
     };

@@ -1,9 +1,10 @@
 import { RunTrace, button, h } from '../../src/index.js';
 
-// Who took the steps: the keys each step's `actor` and a hand-off's `to` name.
+// Who took the steps: the keys each step's `actor` and a hand-off's `to` name. `face` draws an
+// agent as its generated AgentAvatar, seeded by its id.
 const AUTHORS = {
-  finance: { name: 'Finance agent', kind: 'agent', tone: 'violet' },
-  collections: { name: 'Collections agent', kind: 'agent', tone: 'teal' }
+  finance: { name: 'Finance agent', kind: 'agent', tone: 'violet', face: { seed: 'agt-finance' } },
+  collections: { name: 'Collections agent', kind: 'agent', tone: 'teal', face: { seed: 'agt-collections' } }
 };
 
 // What the invoice query returned: long enough to be cut, with a button for the rest.
@@ -44,11 +45,12 @@ function dunningRun() {
   ];
 }
 
-// The people and agents in the plan below. A person's avatar is round, an agent's a rounded square.
+// The people and agents in the plan below. A person's avatar is round initials; an agent with
+// `face` is its AgentAvatar.
 const TEAM = {
   hanna: { name: 'Hanna Weber', kind: 'person', tone: 'amber' },
-  finance: { name: 'Finance agent', kind: 'agent', tone: 'violet' },
-  collections: { name: 'Collections agent', kind: 'agent', tone: 'teal' }
+  finance: { name: 'Finance agent', kind: 'agent', tone: 'violet', face: { seed: 'agt-finance' } },
+  collections: { name: 'Collections agent', kind: 'agent', tone: 'teal', face: { seed: 'agt-collections' } }
 };
 
 // The demo's world is fixed on 14 October 2026: its clock starts at 10:30:59 and runs in real time.

@@ -55,7 +55,8 @@ only when the application calls `setSteps()`, `upsert()` or `setLabel()`.
   otherwise) and the result or the error, each in a focusable `<pre>` with a copy button. A
   `handoff` step reads "Finance agent handed over to Collections agent" beside both authors'
   avatars joined by a dotted line — round for a `person`, a rounded square for an agent or a
-  model — and its own label moves to the meta line.
+  model, and an agent author with `face` as its still `AgentAvatar` — and its own label moves to
+  the meta line.
 - **Accessibility** — the summary and every step with content follow the APG Disclosure pattern
   (`aria-expanded`, `aria-controls`); in a `selectable` trace a step without content is a plain
   `<button>`. A step's links are buttons beside its row, never inside it, so no control holds
