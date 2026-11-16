@@ -37,3 +37,9 @@ test('date names retain their separate substring exemption', () => {
   const strings = ['November 2026', 'Choose November'];
   assert.deepEqual(libraryEnglish(capture(strings), capture(strings, [], ['November']), ''), ['Choose November']);
 });
+
+test('a composed name is explained when each part is, and only then', () => {
+  // German shares "Offline" with English; the name before it is the demo's own text.
+  const strings = ['Quill, Offline', 'Quill, Waiting for you'];
+  assert.deepEqual(libraryEnglish(capture(strings), capture(strings), 'Quill'), ['Quill, Waiting for you']);
+});

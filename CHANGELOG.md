@@ -22,6 +22,10 @@ from a framework.
   plus blinking. `material: 'soft'` adds a quiet tonal ramp from 28px up. `agentTraits()` and
   `agentFace()` expose the generator as pure data. New tokens `--zx-color-agent-eye` and
   `--zx-color-agent-pupil`.
+- **Agents in navigation and threads.** AppSidebar and ModuleBar items take `agent` (AgentAvatar
+  options) and draw the agent's face in place of the icon or tile, with its activity in the
+  control's accessible name. AgentThread authors take `face`. The Agent workspace layout draws its
+  agents with AgentAvatar.
 - **Pagination: Auto page size.** `pageSize: 'auto'`, and `'auto'` among `pageSizes` ("Auto (14)"
   in the select), fits the page to `viewport` — the rows that fit below its sticky header — and
   refits when the viewport or its rows change size, keeping the page's first row. `rowHeight`,

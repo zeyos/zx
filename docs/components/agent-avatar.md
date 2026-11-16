@@ -15,7 +15,7 @@ Avatar.
   spacing unit), `label`, `activity: 'idle'|'thinking'|'working'|'needs-you'|'blocked'|'offline'|null`,
   `activityLabel`, `indicator: true`, `animate: false`, and `phase: null|number`.
 - **Silhouettes** — fourteen, filled with the tone's `-solid`: circle, squircle, hexagon,
-  triangle, drop, tilted pill, clover, dome, triangle-down, pentagon, trapezoid, cross, diamond and
+  triangle, drop, tilted pill, clover, dome, triforce, pentagon, trapezoid, cross, diamond and
   octagon; polygons round their corners. Eyes are `round`, `oval` or `square`, white with dark
   pupils, in `--zx-color-agent-eye` and `--zx-color-agent-pupil`, which keep their
   colour in both themes.
@@ -39,7 +39,11 @@ Avatar.
   blink, drift and scan — never without the motion preference, and not inside a
   `data-zx-motion="reduced"` region. `phase` offsets both.
 - **Methods** — `set(values)` (any option above), `setActivity(activity, label?)`,
-  `getActivity()`, `getTraits()`, `destroy()`. No events: wrap it in a button or link to make it
+  `getActivity()`, `getActivityWord()` (the localized word, for a host that names its own
+  control), `getTraits()`, `destroy()`. No events: wrap it in a button or link to make it
   interactive.
+- **In navigation** — `AppSidebar` and `ModuleBar` items take `agent` (these options, or `true`)
+  and draw the AgentAvatar in place of their icon or tile, with the activity in the control's
+  name; AgentThread authors take `face`.
 - **Accessibility** — the SVG is always hidden. With `label` the root is `role="img"`, named
   "label, activity word"; without one it is `aria-hidden`, for use beside the agent's name.

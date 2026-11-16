@@ -155,6 +155,16 @@ export class AgentAvatar extends Component {
   }
 
   /**
+   * The localized word for the current activity — `activityLabel` when set — or null without an
+   * activity. A host that draws the avatar inside a control of its own adds it to that control's
+   * name, as AppSidebar and ModuleBar do.
+   * @returns {string|null}
+   */
+  getActivityWord() {
+    return this._activityWord();
+  }
+
+  /**
    * The traits the face is drawn from, so an application can store them — to keep a look across a
    * rename, or to settle a collision between two agents once.
    * @returns {AgentTraits}

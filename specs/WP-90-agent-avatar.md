@@ -16,7 +16,7 @@ in a 64-unit view box, built with `createElementNS`, never markup strings.
 
 The face is a free-standing silhouette filled with the tone's `-solid`, with white eyes (`round`,
 `oval`, `square`) and ink pupils. Fourteen geometric silhouettes — circle, squircle, hexagon,
-triangle, drop, tilted pill, clover, dome, triangle-down, pentagon, trapezoid, cross, diamond,
+triangle, drop, tilted pill, clover, dome, triforce, pentagon, trapezoid, cross, diamond,
 octagon — whose polygons round their corners with a stroke the colour of the fill.
 
 **Material.** `material: 'flat'|'soft'`, default `flat`, an application-wide choice rather than a
@@ -64,6 +64,16 @@ no-preference`; `styles/base.css` already stops them inside a `data-zx-motion="r
 need regardless of theme — `--zx-color-agent-eye` (white) and `--zx-color-agent-pupil` (near
 black). Forced colours draw the body in `CanvasText`, eyes in `Canvas`.
 
+**Navigation and threads.** `AppNavItem` (AppSidebar, the rail, flyouts) and `ModuleItem` take
+`agent`: AgentAvatar options without size, label or motion, or `true`. `appNavIcon()` builds a
+fresh AgentAvatar for every place an item is drawn — at rest, so it holds no listener or loop entry
+and goes with its row — sized by the slot in each component's stylesheet. The activity's word
+(`getActivityWord()`) joins the control's accessible name after the visible label, badge counts
+included. A ModuleBar agent replaces the tile, whatever the appearance. AgentThread's `Author` takes
+`face` (`{seed, tone, body, eyes, material}` or `true`) and draws the agent's AgentAvatar instead of
+initials. The Agent workspace layout draws every agent with AgentAvatar, soft material: roster,
+inspector, chat head, task owners, notifications, the palette and the route hint.
+
 ## API
 
 ```
@@ -87,6 +97,12 @@ the component is not focusable.
 - This specification; `CHANGELOG.md`; `specs/agent-avatar-2026-11/README.md` (outcome note).
 - `src/components/agent-avatar/agent-avatar.js`, `agent-avatar.css`, `agent-face.js`.
 - `src/index.js` (exports), `styles/zx.css` (import).
+- `src/internal/app-rail.js`, `src/components/app-sidebar/app-sidebar.js|css`,
+  `src/components/app-rail/app-rail.css`, `src/components/module-bar/module-bar.js|css`:
+  the `agent` item — explicitly in scope.
+- `src/components/agent-thread/agent-thread.js`, `src/internal/agent-model.js`: `Author.face`.
+- `website/layouts/agent-workspace.layout.js|css`; `website/demos/app-sidebar.demo.js`,
+  `website/demos/module-bar.demo.js`.
 - `styles/tokens/semantic.css`: the two `--zx-color-agent-*` tokens, in both colour paths —
   explicitly in scope.
 - `tests/unit/agent-avatar.test.js`; a case in `tests/smoke/smoke.js`.
@@ -94,7 +110,10 @@ the component is not focusable.
 - `docs/llms.md` (reference block), the generated `docs/api.json`, `docs/components/*`,
   `docs/llms-small.txt`, and the component lists in `docs/llms.txt`, `website/llms.txt` and
   `README.md`.
-- `tools/size-budget.json`: the JS bundles grow by about 5 KB (3 KB minified).
+- `tools/size-budget.json`: the JS bundles grow by about 5 KB (3 KB minified); the ZeyOS bundle,
+  whose AppSidebar and ModuleBar now draw agents, by about 6 KB (4 KB minified).
+- `tools/check-language.js` and `tests/unit/language-audit.test.js`: a comma-joined name ("Quill,
+  Offline") is explained when each part is — the German catalogue shares "Offline" with English.
 
 ## Validation
 
@@ -104,6 +123,7 @@ light and dark, at the default and a changed spacing unit, without console error
 ## Out of scope
 
 Pointer-following gaze, mouths and emotional expressions, an `Avatar` fallback that draws a face,
-AgentThread or RunTrace adopting AgentAvatar, an AvatarGroup/stack component, a `<zx-agent-avatar>`
+RunTrace and ActivityItem adopting AgentAvatar, animated avatars in navigation, an AvatarGroup/stack
+component, a `<zx-agent-avatar>`
 element, image export (`toDataURL`), the Glyph variant, pixel-creature bodies and the other studied
 directions, and every material but `soft` (see `specs/agent-avatar-2026-11/`).

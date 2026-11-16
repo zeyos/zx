@@ -257,6 +257,9 @@
   color: inherit;
 }
 
+/* An agent item draws its AgentAvatar at the size of the icon column. */
+.zx-app-sidebar__item-icon > .zx-agent-avatar { --zx-agent-avatar-size: var(--zx-app-sidebar-icon); }
+
 /* No nowrap and no ellipsis: the row grows instead. `hyphens` is what makes that bearable for a
    German compound — where the document declares a language the browser breaks "Rechnungsausgang"
    at a syllable, and `overflow-wrap` is only the last resort behind it for a word that fits

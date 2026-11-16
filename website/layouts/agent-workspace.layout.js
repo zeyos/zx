@@ -16,7 +16,7 @@
  * open run's figures, and an AgentThread over a Composer for each chat.
  */
 import {
-  AgentThread, Avatar, Composer, Launcher, ProgressBar, RunStatus, RunTrace, Tabbox, Table, button,
+  AgentAvatar, AgentThread, Avatar, Composer, Launcher, ProgressBar, RunStatus, RunTrace, Tabbox, Table, button,
   formatNumber, h, icon, statusIcon
 } from '../../src/index.js';
 import {
@@ -27,8 +27,9 @@ import {
 import { ME, NOW, TODAY, person } from './fixtures.js';
 
 /**
- * The agents. Each has a categorical tone and an initial for its avatar; `away` says why an agent
- * that is switched off is not working.
+ * The agents. Each is drawn as a generated AgentAvatar face, seeded by its id, in its categorical
+ * tone; `initial` is what a screen too small for a face would print. `away` says why an agent that
+ * is switched off is not working.
  * @type {{id: string, name: string, role: string, tone: import('../../src/components/avatar/avatar.js').AvatarTone,
  *   initial: string, offline?: boolean, away?: string}[]}
  */
@@ -613,7 +614,7 @@ export default {
     // Who the agent components name: the agents, and the signed-in person.
     const authors = Object.fromEntries([
       ['me', { name: me.name, kind: 'person' }],
-      ...agents.map((agent) => [agent.id, { name: agent.name, kind: 'agent', initials: agent.initial, tone: agent.tone }])
+      ...agents.map((agent) => [agent.id, { name: agent.name, kind: 'agent', initials: agent.initial, tone: agent.tone, face: { seed: agent.id, material: 'soft' } }])
     ]);
     const state = {
       tab: 'home', task: 'fix-exports', chat: 'fathom', file: 'research', model: 'ridge-pro',
@@ -1109,14 +1110,15 @@ export default {
     }
 
     /**
-     * An agent's avatar: its initial on its tone, and whatever else the place it is drawn in needs.
+     * An agent's avatar: its generated face — seeded by its id, so a rename keeps it — in its tone,
+     * with the soft material, and whatever else the place it is drawn in needs.
      * @param {(typeof agents)[number]} agent
-     * @param {'sm'|'md'|'lg'} size
-     * @param {Partial<import('../../src/components/avatar/avatar.js').AvatarOptions>} [extra]
-     * @returns {Avatar}
+     * @param {'sm'|'md'|'lg'|number} size
+     * @param {Partial<import('../../src/components/agent-avatar/agent-avatar.js').AgentAvatarOptions>} [extra]
+     * @returns {AgentAvatar}
      */
     function agentAvatar(agent, size, extra = {}) {
-      return new Avatar(null, { name: agent.name, initials: agent.initial, tone: agent.tone, shape: 'rounded', size, ...extra });
+      return new AgentAvatar(null, { seed: agent.id, name: agent.name, tone: agent.tone, material: 'soft', size, ...extra });
     }
 
     /**
@@ -1124,7 +1126,7 @@ export default {
      * the life of the workspace, so a redraw only changes its activity, and moves it at its own
      * phase, so the roster and the inspector never move one agent in step. The avatar is
      * decorative: the presence is said in words beside it.
-     * @param {Map<string, Avatar>} cache The place's avatars.
+     * @param {Map<string, AgentAvatar>} cache The place's avatars.
      * @param {keyof typeof PHASE} place
      * @param {(typeof agents)[number]} agent
      * @param {keyof typeof PRESENCE} presence
@@ -1169,12 +1171,14 @@ export default {
 
     /**
      * An agent's mark for places that redraw on every keystroke (the palette, the composer's
-     * route): initials on the agent's tone, without a component behind it.
+     * route): its face at rest. A still AgentAvatar holds no listener and no loop entry, so the
+     * mark is released with the row that shows it and needs no destroy.
      * @param {(typeof agents)[number]} agent
      * @returns {HTMLElement}
      */
     function agentMark(agent) {
-      return h('span', { class: 'agents__mark', 'aria-hidden': 'true', dataset: { tone: agent.tone } }, agent.initial);
+      return h('span', { class: 'agents__mark', 'aria-hidden': 'true' },
+        new AgentAvatar(null, { seed: agent.id, name: agent.name, tone: agent.tone, size: 'sm' }).toElement());
     }
 
     /** @param {keyof typeof PRESENCE} presence @returns {HTMLElement} The presence's word, beside the avatar's dot. */
@@ -1440,7 +1444,7 @@ export default {
       const agent = agentById(state.chat);
       if (state.open.has('chat')) tabs.setTitle('chat', agent.name);
       const presence = presenceOf(agent);
-      chatAvatar.set({ name: agent.name, initials: agent.initial, tone: agent.tone, activity: presence.state, phase: phaseOf(agent.id, 'chat') });
+      chatAvatar.set({ seed: agent.id, name: agent.name, tone: agent.tone, activity: presence.state, phase: phaseOf(agent.id, 'chat') });
       chatName.textContent = agent.name;
       chatMeta.replaceChildren(presenceWord(presence.state), h('span', {}, `${agent.role} · ${presence.doing}`));
       const chat = chatFor(agent);

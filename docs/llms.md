@@ -1315,7 +1315,7 @@ Avatar.
   spacing unit), `label`, `activity: 'idle'|'thinking'|'working'|'needs-you'|'blocked'|'offline'|null`,
   `activityLabel`, `indicator: true`, `animate: false`, and `phase: null|number`.
 - **Silhouettes** — fourteen, filled with the tone's `-solid`: circle, squircle, hexagon,
-  triangle, drop, tilted pill, clover, dome, triangle-down, pentagon, trapezoid, cross, diamond and
+  triangle, drop, tilted pill, clover, dome, triforce, pentagon, trapezoid, cross, diamond and
   octagon; polygons round their corners. Eyes are `round`, `oval` or `square`, white with dark
   pupils, in `--zx-color-agent-eye` and `--zx-color-agent-pupil`, which keep their
   colour in both themes.
@@ -1339,8 +1339,12 @@ Avatar.
   blink, drift and scan — never without the motion preference, and not inside a
   `data-zx-motion="reduced"` region. `phase` offsets both.
 - **Methods** — `set(values)` (any option above), `setActivity(activity, label?)`,
-  `getActivity()`, `getTraits()`, `destroy()`. No events: wrap it in a button or link to make it
+  `getActivity()`, `getActivityWord()` (the localized word, for a host that names its own
+  control), `getTraits()`, `destroy()`. No events: wrap it in a button or link to make it
   interactive.
+- **In navigation** — `AppSidebar` and `ModuleBar` items take `agent` (these options, or `true`)
+  and draw the AgentAvatar in place of their icon or tile, with the activity in the control's
+  name; AgentThread authors take `face`.
 - **Accessibility** — the SVG is always hidden. With `label` the root is `role="img"`, named
   "label, activity word"; without one it is `aria-hidden`, for use beside the agent's name.
 <!-- /doc -->
@@ -3865,6 +3869,11 @@ inline; every rail state opens descendants toward the workspace in anchored flyo
   `header`, `footer`, `railHeader`, `railFooter`, `openDelay: 80`, `closeDelay: 160`,
   `moreLabel` (by default the `appSidebar.more` message), and `renderIcon(item, context)`. Icon values may also be names,
   nodes, components, or factories.
+- **Agents** — an item's `agent` (AgentAvatar options, or `true`) draws the destination as an
+  agent: an `AgentAvatar` in place of its icon, in the tree, on the rail and in flyouts, sized by
+  the icon slot, `name` defaulting to the label. It is drawn at rest — the activity is the face and
+  the dot, never motion — and the activity's word joins the control's accessible name ("Ledger,
+  Needs you", with a count "Ledger, Needs you (1)"). Redraw with `setItems()` when it changes.
 - **Row actions** — `actions` on a destination lists its commands: `{icon, label, onSelect(item),
   disabled?, danger?}` descriptors or nodes, laid out as TreeView's `rowActions` (two at most, the
   rest in a "More actions" menu). They rest out of sight over the end of the row, which keeps room
@@ -3963,7 +3972,10 @@ bar.setBadge('mail', 8);
   pinned, unpinned ones are under "All modules" only), `group` (the catalogue heading), and
   `description`. Children are the module's menu. A `section` at the top level heads its modules:
   a caption over them while names are printed beside the tiles, a short rule between groups on an
-  icon strip or bar, and their group in the catalogue.
+  icon strip or bar, and their group in the catalogue. `agent` (AgentAvatar options, or `true`)
+  draws the module as an agent: its `AgentAvatar` at the size of the tile in place of the tile,
+  whatever the `appearance`, at rest, with the activity's word in the tile's accessible name
+  ("Ledger, Needs you (2)"); `tone` and `color` then do not apply.
 - **Options** — `items`, `active` (a module or anything in a module's menu),
   `orientation: 'vertical'|'horizontal'`, `side`, `appearance: 'tint'|'solid'|'plain'` (the glyph
   on a tint of the module colour; the solid identity tile; monochrome glyphs),
@@ -4115,7 +4127,9 @@ agents' answers as they stream (`BlockView` with a `SourceList`), the steps a ru
   its version (`versions[]`); a `trace`'s `title` replaces its summary (a plan:
   "Plan · 5 of 6 done"); a `notice` is named by its own text and may carry `action: {id, label}`
   (`action {item, action: id}`); an author with an `icon` is drawn as a tinted tile instead of
-  initials (round for a `model`; `tone: 'accent'` for the accent's quiet fill); an `approval`'s
+  initials (round for a `model`; `tone: 'accent'` for the accent's quiet fill); an agent author with
+  `face` (`{seed, tone, body, eyes, material}` or `true`) is drawn as its generated `AgentAvatar`,
+  with the author's `activity`; an `approval`'s
   `editedKeys` say which values the person changed. `setArtifactState()` is remembered for answers
   drawn later; `sourceIcons` is handed to every `SourceList`.
 - **Placeholders** — a `{type: 'zx-placeholder', id, author?, lines?}` item stands for something

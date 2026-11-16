@@ -19,7 +19,7 @@ const seeds = (count) => Array.from({ length: count }, (_, index) => `agent-${in
 
 test('the trait tables and their order are fixed', () => {
   assert.deepEqual([...AGENT_BODIES], ['circle', 'squircle', 'hexagon', 'triangle', 'drop', 'pill', 'clover', 'dome',
-    'triangle-down', 'pentagon', 'trapezoid', 'cross', 'diamond', 'octagon']);
+    'triforce', 'pentagon', 'trapezoid', 'cross', 'diamond', 'octagon']);
   assert.deepEqual([...AGENT_EYES], ['round', 'oval', 'square']);
 });
 

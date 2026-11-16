@@ -101,6 +101,13 @@ import { formatNumber } from '../core/format.js';
  * @property {AgentActivity|null} [activity] What an agent is doing now.
  * @property {string} [via] The model an agent answers through, shown in the byline.
  * @property {string} [icon] A glyph drawn in a tinted tile instead of initials — a model's mark.
+ * @property {AuthorFace|true} [face] Draws an agent as a generated AgentAvatar face instead of
+ *   initials: its options, or `true` to derive everything from the name. A person ignores it.
+ */
+/**
+ * The AgentAvatar options an author's face takes; name, size, label and activity come from the
+ * author and the place it is drawn.
+ * @typedef {{seed?: string, tone?: string, body?: string, eyes?: string, material?: 'flat'|'soft'}} AuthorFace
  */
 
 /** @typedef {{name: string, size?: number, type?: string}} Attachment */

@@ -579,6 +579,12 @@
         "description": "Sets what the agent is doing and, optionally, the word for it. `null` clears the activity."
       },
       {
+        "name": "getActivityWord",
+        "signature": "getActivityWord()",
+        "returns": "string|null",
+        "description": "The localized word for the current activity — `activityLabel` when set — or null without an activity. A host that draws the avatar inside a control of its own adds it to that control's name, as AppSidebar and ModuleBar do."
+      },
+      {
         "name": "getTraits",
         "signature": "getTraits()",
         "returns": "AgentTraits",

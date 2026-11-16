@@ -379,6 +379,17 @@ const cases = [
     assert(component.el.hasAttribute('data-animate'), 'animate did not mark the root');
     component.setActivity(null);
     assert(!component.el.hasAttribute('data-animate') && !component.el.dataset.activity, 'clearing the activity left motion on');
+    const agentItems = [{ id: 'ledger', label: 'Ledger', badge: 2, agent: { seed: 'agt-7f3a', activity: 'needs-you' } }];
+    const bar = new zx.ModuleBar(null, { items: agentItems });
+    const tile = bar.el.querySelector('.zx-module-bar__tile[data-agent] > .zx-agent-avatar');
+    assert(tile && bar.el.querySelector('[data-app-nav-value-id="ledger"]').getAttribute('aria-label') === 'Ledger, Needs you (2)',
+      'a ModuleBar agent is not drawn or not named with its activity');
+    bar.destroy();
+    const sidebar = new zx.AppSidebar(null, { items: agentItems });
+    const row = sidebar.el.querySelector('.zx-app-sidebar__item[data-app-nav-id="ledger"]');
+    assert(row.querySelector('.zx-agent-avatar:not([data-animate])') && row.getAttribute('aria-label') === 'Ledger, Needs you',
+      'an AppSidebar agent is not drawn at rest or not named with its activity');
+    sidebar.destroy();
   }),
   componentCase('EntityRef', () => new zx.EntityRef(null, {
     id: 'customer-7',
