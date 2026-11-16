@@ -3,7 +3,7 @@
 > Outcome, 2026-11-16: the product owner chose **Token**; it is `AgentAvatar` in WP90
 > (`specs/WP-90-agent-avatar.md`). A first round also shipped **Glyph** as a second variant; the
 > owner dropped it. A second round added four pixel-creature bodies; the owner dropped those too in
-> favour of six more geometric shapes (triforce, pentagon, trapezoid, cross, diamond, octagon),
+> favour of six more geometric shapes (wedge, pentagon, trapezoid, cross, diamond, octagon),
 > and took **Soft** from the materials study below as an opt-in `material`. The prototypes keep the
 > study's own copies of every option, except `materials.html`, which draws whatever the shipped
 > table holds and so now shows the geometric set. The first

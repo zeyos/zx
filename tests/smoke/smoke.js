@@ -401,6 +401,21 @@ const cases = [
     assert(row.querySelector('.zx-agent-avatar:not([data-animate])') && row.getAttribute('aria-label') === 'Ledger, Needs you (2)',
       'an AppSidebar agent is not drawn at rest or not named with its activity');
     sidebar.destroy();
+    const thread = new zx.AgentThread(null, {
+      authors: {
+        ledger: { name: 'Ledger', kind: 'agent', activity: 'working', face: { seed: 'agt-7f3a', animate: true, label: 'Spoofed', body: 'cross' } },
+        relay: { name: 'Relay', kind: 'agent', face: 'yes' }
+      },
+      items: [
+        { id: 'a1', type: 'text', author: 'ledger', text: 'Matched 240 invoices.' },
+        { id: 'a2', type: 'text', author: 'relay', text: 'Reply drafted.' }
+      ]
+    });
+    const faces = thread.el.querySelectorAll('.zx-agent-thread__avatar > .zx-agent-avatar');
+    assert(faces.length === 1 && !faces[0].hasAttribute('data-animate') && faces[0].getAttribute('aria-hidden') === 'true'
+      && faces[0].dataset.activity === 'working' && faces[0].querySelector('polygon.zx-agent-avatar__body'),
+      'an author face took fields other than its traits, or a non-object face was drawn');
+    thread.destroy();
   }),
   componentCase('EntityRef', () => new zx.EntityRef(null, {
     id: 'customer-7',

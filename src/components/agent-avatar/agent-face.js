@@ -15,7 +15,7 @@ import { AVATAR_TONES, avatarTone } from '../avatar/avatar.js';
 
 /**
  * @typedef {'circle'|'squircle'|'hexagon'|'triangle'|'drop'|'pill'|'clover'|'dome'
- *   |'triforce'|'pentagon'|'trapezoid'|'cross'|'diamond'|'octagon'} AgentBody
+ *   |'wedge'|'pentagon'|'trapezoid'|'cross'|'diamond'|'octagon'} AgentBody
  */
 /** @typedef {'round'|'oval'|'square'} AgentEyes */
 
@@ -51,7 +51,7 @@ import { AVATAR_TONES, avatarTone } from '../avatar/avatar.js';
  * @type {ReadonlyArray<AgentBody>}
  */
 export const AGENT_BODIES = Object.freeze(['circle', 'squircle', 'hexagon', 'triangle', 'drop', 'pill', 'clover', 'dome',
-  'triforce', 'pentagon', 'trapezoid', 'cross', 'diamond', 'octagon']);
+  'wedge', 'pentagon', 'trapezoid', 'cross', 'diamond', 'octagon']);
 
 /** The eye shapes, in hash order. @type {ReadonlyArray<AgentEyes>} */
 export const AGENT_EYES = Object.freeze(['round', 'oval', 'square']);
@@ -80,7 +80,7 @@ const BODIES = Object.freeze({
     shape('rect', 'body', { x: 16, y: 16, width: 32, height: 32 })
   ] },
   dome: { y: 36, gap: 11, shapes: [shape('path', 'body', { d: 'M5 52V40A27 27 0 0 1 59 40V52Q59 56 55 56H9Q5 56 5 52Z' })] },
-  triforce: { y: 23, gap: 9.5, shapes: [shape('polygon', 'body', { points: '7,11 57,11 32,55', 'stroke-width': 9, 'stroke-linejoin': 'round' })] },
+  wedge: { y: 23, gap: 9.5, shapes: [shape('polygon', 'body', { points: '7,11 57,11 32,55', 'stroke-width': 9, 'stroke-linejoin': 'round' })] },
   pentagon: { y: 31, gap: 10, shapes: [shape('polygon', 'body', { points: '32,7 57,25 48,55 16,55 7,25', 'stroke-width': 8, 'stroke-linejoin': 'round' })] },
   trapezoid: { y: 31, gap: 10, shapes: [shape('polygon', 'body', { points: '17,11 47,11 58,53 6,53', 'stroke-width': 8, 'stroke-linejoin': 'round' })] },
   cross: { y: 31, gap: 11, shapes: [shape('polygon', 'body', { points: '22,7 42,7 42,21 57,21 57,43 42,43 42,57 22,57 22,43 7,43 7,21 22,21', 'stroke-width': 6, 'stroke-linejoin': 'round' })] },

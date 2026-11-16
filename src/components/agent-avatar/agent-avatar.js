@@ -150,7 +150,10 @@ export class AgentAvatar extends Component {
     return this;
   }
 
-  /** @returns {AgentActivity|null} What the agent is doing, or null. */
+  /**
+   * What the agent is doing.
+   * @returns {AgentActivity|null} The activity, or null without one.
+   */
   getActivity() {
     return normalizeActivity(this._state.activity);
   }

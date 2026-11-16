@@ -77,7 +77,11 @@
   opacity: .55;
 }
 
-/* The Avatar activity dot, unchanged: shape and tone per activity, cut out of what it sits on. */
+/*
+ * The Avatar activity dot: shape and tone per activity. It is notched out of the face with a mask
+ * rather than ringed in a surface colour, so it reads on any background — glass navigation, hover
+ * and current rows, an Aurora — and a hollow dot shows that background through it.
+ */
 .zx-agent-avatar__activity {
   position: absolute;
   inset-inline-end: 0;
@@ -86,11 +90,20 @@
   inline-size: max(8px, calc(var(--zx-agent-avatar-size) * .3));
   block-size: max(8px, calc(var(--zx-agent-avatar-size) * .3));
   border-radius: 50%;
-  outline: 2px solid var(--zx-color-bg-raised);
   background: var(--zx-color-text-muted);
 }
 
 .zx-agent-avatar__activity[hidden] { display: none; }
+
+.zx-agent-avatar:has(> .zx-agent-avatar__activity:not([hidden])) > .zx-agent-avatar__face {
+  --zx-agent-avatar-dot: max(8px, calc(var(--zx-agent-avatar-size) * .3));
+  --zx-agent-avatar-notch: calc(var(--zx-agent-avatar-dot) * .6 + 2px);
+  --zx-agent-avatar-dot-x: calc(100% - var(--zx-agent-avatar-dot) / 2);
+  mask-image: radial-gradient(circle at var(--zx-agent-avatar-dot-x) calc(100% - var(--zx-agent-avatar-dot) / 2),
+    transparent var(--zx-agent-avatar-notch), var(--zx-color-agent-pupil) calc(var(--zx-agent-avatar-notch) + .5px));
+}
+
+.zx-agent-avatar:dir(rtl) > .zx-agent-avatar__face { --zx-agent-avatar-dot-x: calc(var(--zx-agent-avatar-dot) / 2); }
 .zx-agent-avatar[data-activity="working"] > .zx-agent-avatar__activity { background: var(--zx-color-success); }
 .zx-agent-avatar[data-activity="thinking"] > .zx-agent-avatar__activity { background: var(--zx-color-info); }
 .zx-agent-avatar[data-activity="needs-you"] > .zx-agent-avatar__activity { background: var(--zx-color-warning); }
@@ -102,12 +115,12 @@
 
 .zx-agent-avatar[data-activity="idle"] > .zx-agent-avatar__activity {
   border: 1.5px solid var(--zx-color-text-muted);
-  background: var(--zx-color-bg-raised);
+  background: transparent;
 }
 
 .zx-agent-avatar[data-activity="offline"] > .zx-agent-avatar__activity {
   border: 1.5px dashed var(--zx-color-text-subtle);
-  background: var(--zx-color-bg-raised);
+  background: transparent;
 }
 
 /*

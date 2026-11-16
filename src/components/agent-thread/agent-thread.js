@@ -1181,12 +1181,13 @@ export class AgentThread extends Component {
         h('span', { class: 'zx-agent-thread__mark', dataset: { tone: author.tone ?? null, kind: author.kind ?? 'agent' }, 'aria-hidden': 'true' },
           icon(String(author.icon), { size: 14 })));
     }
-    if (author.face && author.kind !== 'person') {
-      const face = author.face === true ? {} : author.face;
+    const face = authorFace(author);
+    if (face) {
+      // Only the face's own traits are read from the author, which may be an agent's data; how
+      // the avatar is drawn and named belongs to the thread: still, decorative, beside the byline.
       const agent = own(new AgentAvatar(null, {
         ...face, name: author.name, tone: /** @type {any} */ (face.tone ?? author.tone ?? null),
-        body: /** @type {any} */ (face.body ?? null), eyes: /** @type {any} */ (face.eyes ?? null),
-        size: 'sm', activity: author.activity ?? null
+        size: 'sm', label: null, animate: false, activity: author.activity ?? null
       }));
       return h('span', { class: 'zx-agent-thread__avatar' }, agent.toElement());
     }
@@ -1762,3 +1763,24 @@ function focusableOutside(element, direction) {
  * @event AgentThread#reply
  * @type {CustomEvent<{item: ThreadItem, reply: SurfaceReply}>}
  */
+
+/**
+ * The face an author asks for, reduced to the traits it may set, or null for none: `face: true`
+ * derives everything, a plain object contributes its `seed`, `tone`, `body`, `eyes` and `material`
+ * strings, and anything else — a person, another value — draws initials.
+ * @param {import('../../internal/agent-model.js').Author} author
+ * @returns {Record<string, string>|null}
+ */
+function authorFace(author) {
+  if (author.kind === 'person') return null;
+  if (author.face === true) return {};
+  const face = author.face;
+  if (!face || typeof face !== 'object' || Array.isArray(face)) return null;
+  /** @type {Record<string, string>} */
+  const traits = {};
+  for (const key of ['seed', 'tone', 'body', 'eyes', 'material']) {
+    const value = /** @type {Record<string, unknown>} */ (face)[key];
+    if (typeof value === 'string' && value) traits[key] = value;
+  }
+  return traits;
+}
