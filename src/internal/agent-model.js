@@ -102,7 +102,8 @@ import { formatNumber } from '../core/format.js';
  * @property {string} [via] The model an agent answers through, shown in the byline.
  * @property {string} [icon] A glyph drawn in a tinted tile instead of initials — a model's mark.
  * @property {AuthorFace|true} [face] Draws an agent as a generated AgentAvatar face instead of
- *   initials: its options, or `true` to derive everything from the name. A person ignores it.
+ *   initials or an `icon` tile: its options, or `true` to derive everything from the name. A person
+ *   ignores it.
  */
 /**
  * The AgentAvatar options an author's face takes; name, size, label and activity come from the
