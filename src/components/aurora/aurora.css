@@ -20,6 +20,9 @@
   --zx-aurora-faint-2: color-mix(in srgb, var(--zx-aurora-color-2) var(--zx-aurora-faint), transparent);
   --zx-aurora-faint-3: color-mix(in srgb, var(--zx-aurora-color-3) var(--zx-aurora-faint), transparent);
   --zx-aurora-faint-4: color-mix(in srgb, var(--zx-aurora-color-4) var(--zx-aurora-faint), transparent);
+  --zx-aurora-image: none;
+  /* One cycle of the slowest drift; `flow` turns once in three. Long enough to be felt, not watched. */
+  --zx-aurora-duration: 18s;
   position: relative;
   isolation: isolate;
 }
@@ -54,62 +57,192 @@
   --zx-aurora-faint: 7%;
 }
 
+/* The static field. Every preset writes its gradients into `--zx-aurora-image`, so the motion
+   layer below can paint the same field and move it. */
 .zx-aurora::before {
   content: "";
   position: absolute;
   z-index: -1;
   inset: 0;
   border-radius: inherit;
+  background-image: var(--zx-aurora-image);
   background-repeat: no-repeat;
   pointer-events: none;
 }
 
-.zx-aurora[data-preset="source"]::before {
-  background-image:
+.zx-aurora[data-preset="source"] {
+  --zx-aurora-image:
     radial-gradient(94% 78% at 0% 0%, var(--zx-aurora-core-1) 0%, var(--zx-aurora-wash-1) 34%, transparent 72%),
     radial-gradient(68% 54% at 72% 0%, var(--zx-aurora-wash-2) 0%, var(--zx-aurora-faint-2) 42%, transparent 74%),
     radial-gradient(62% 74% at 100% 82%, var(--zx-aurora-wash-3) 0%, transparent 68%),
     radial-gradient(58% 42% at 38% 100%, var(--zx-aurora-faint-4) 0%, transparent 72%);
 }
 
-.zx-aurora[data-preset="confluence"]::before {
-  background-image:
+.zx-aurora[data-preset="confluence"] {
+  --zx-aurora-image:
     radial-gradient(108% 84% at 0% 0%, var(--zx-aurora-core-1) 0%, var(--zx-aurora-wash-1) 34%, transparent 70%),
     radial-gradient(92% 72% at 100% 0%, var(--zx-aurora-core-2) 0%, var(--zx-aurora-wash-2) 36%, transparent 72%),
     radial-gradient(78% 62% at 0% 100%, var(--zx-aurora-wash-3) 0%, transparent 70%),
     radial-gradient(72% 64% at 100% 100%, var(--zx-aurora-wash-4) 0%, transparent 72%);
 }
 
-.zx-aurora[data-preset="horizon"]::before {
-  background-image:
+.zx-aurora[data-preset="horizon"] {
+  --zx-aurora-image:
     radial-gradient(72% 28% at 8% 19%, var(--zx-aurora-core-1) 0%, var(--zx-aurora-wash-1) 48%, transparent 78%),
     radial-gradient(68% 24% at 42% 23%, var(--zx-aurora-core-2) 0%, var(--zx-aurora-wash-2) 44%, transparent 78%),
     radial-gradient(72% 26% at 76% 18%, var(--zx-aurora-core-3) 0%, var(--zx-aurora-wash-3) 46%, transparent 80%),
     radial-gradient(54% 22% at 100% 26%, var(--zx-aurora-wash-4) 0%, transparent 78%);
 }
 
-.zx-aurora[data-preset="diagonal"]::before {
-  background-image:
+.zx-aurora[data-preset="diagonal"] {
+  --zx-aurora-image:
     linear-gradient(126deg, var(--zx-aurora-core-1) 0%, var(--zx-aurora-wash-1) 18%, transparent 44%),
     linear-gradient(126deg, transparent 18%, var(--zx-aurora-wash-2) 42%, transparent 63%),
     linear-gradient(126deg, transparent 44%, var(--zx-aurora-wash-3) 67%, transparent 84%),
     linear-gradient(126deg, transparent 68%, var(--zx-aurora-wash-4) 90%, transparent 100%);
 }
 
-.zx-aurora[data-preset="edge"]::before {
-  background-image:
+.zx-aurora[data-preset="edge"] {
+  --zx-aurora-image:
     radial-gradient(38% 108% at 0% 18%, var(--zx-aurora-core-1) 0%, var(--zx-aurora-faint-1) 52%, transparent 78%),
     radial-gradient(72% 34% at 72% 0%, var(--zx-aurora-wash-2) 0%, transparent 74%),
     radial-gradient(38% 106% at 100% 84%, var(--zx-aurora-wash-3) 0%, transparent 74%),
     radial-gradient(76% 32% at 32% 100%, var(--zx-aurora-wash-4) 0%, transparent 76%);
 }
 
-.zx-aurora[data-preset="curtain"]::before {
-  background-image:
+.zx-aurora[data-preset="curtain"] {
+  --zx-aurora-image:
     radial-gradient(28% 112% at 10% 0%, var(--zx-aurora-core-1) 0%, var(--zx-aurora-faint-1) 52%, transparent 78%),
     radial-gradient(26% 104% at 38% 0%, var(--zx-aurora-core-2) 0%, var(--zx-aurora-faint-2) 48%, transparent 76%),
     radial-gradient(28% 110% at 67% 0%, var(--zx-aurora-core-3) 0%, var(--zx-aurora-faint-3) 50%, transparent 78%),
     radial-gradient(26% 106% at 92% 0%, var(--zx-aurora-core-4) 0%, var(--zx-aurora-faint-4) 48%, transparent 76%);
+}
+
+/* A soft mesh: four fields meeting off-centre, with a fifth wash binding them in the middle. */
+.zx-aurora[data-preset="mesh"] {
+  --zx-aurora-image:
+    radial-gradient(58% 66% at 14% 20%, var(--zx-aurora-core-1) 0%, var(--zx-aurora-wash-1) 38%, transparent 72%),
+    radial-gradient(54% 62% at 86% 14%, var(--zx-aurora-core-2) 0%, var(--zx-aurora-wash-2) 36%, transparent 70%),
+    radial-gradient(60% 68% at 80% 90%, var(--zx-aurora-core-3) 0%, var(--zx-aurora-wash-3) 38%, transparent 72%),
+    radial-gradient(52% 58% at 16% 92%, var(--zx-aurora-wash-4) 0%, var(--zx-aurora-faint-4) 44%, transparent 72%),
+    radial-gradient(42% 46% at 52% 52%, var(--zx-aurora-wash-2) 0%, transparent 76%);
+}
+
+/* Ribbons: two arcs of light hanging from above the top edge, crossing as they fall. */
+.zx-aurora[data-preset="ribbon"] {
+  --zx-aurora-image:
+    radial-gradient(140% 100% at 22% -42%, transparent 56%, var(--zx-aurora-faint-1) 61%, var(--zx-aurora-core-1) 66%,
+      var(--zx-aurora-wash-2) 70%, var(--zx-aurora-faint-2) 75%, transparent 82%),
+    radial-gradient(130% 110% at 84% -56%, transparent 58%, var(--zx-aurora-faint-3) 64%, var(--zx-aurora-wash-3) 68%,
+      var(--zx-aurora-core-4) 72%, var(--zx-aurora-faint-4) 77%, transparent 84%),
+    radial-gradient(80% 46% at 50% 0%, var(--zx-aurora-faint-1) 0%, transparent 78%);
+}
+
+/* Bloom: a sunrise from below the bottom edge, its colours fanning out to the sides. */
+.zx-aurora[data-preset="bloom"] {
+  --zx-aurora-image:
+    radial-gradient(62% 58% at 50% 112%, var(--zx-aurora-core-1) 0%, var(--zx-aurora-wash-1) 42%, transparent 74%),
+    radial-gradient(48% 52% at 14% 100%, var(--zx-aurora-core-2) 0%, var(--zx-aurora-faint-2) 50%, transparent 76%),
+    radial-gradient(48% 52% at 86% 100%, var(--zx-aurora-core-3) 0%, var(--zx-aurora-faint-3) 50%, transparent 76%),
+    radial-gradient(96% 40% at 50% 0%, var(--zx-aurora-faint-4) 0%, transparent 80%);
+}
+
+/* ----------------------------------------------------------------- motion -- */
+
+/*
+ * Motion lives in one decorative element Aurora adds for `motion: 'drift'|'flow'`. It clips its two
+ * layers to the surface and moves them by transform alone, so the compositor animates them and
+ * nothing repaints. Without the element, or for a reader who asked for less motion, the static
+ * field above stays.
+ */
+.zx-aurora__motion {
+  display: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .zx-aurora > .zx-aurora__motion {
+    display: block;
+    position: absolute;
+    z-index: -1;
+    inset: 0;
+    overflow: hidden;
+    border-radius: inherit;
+    pointer-events: none;
+    contain: strict;
+  }
+
+  /* The moving copy replaces the static field rather than doubling it. */
+  .zx-aurora:has(> .zx-aurora__motion)::before {
+    visibility: hidden;
+  }
+
+  .zx-aurora__motion::before,
+  .zx-aurora__motion::after {
+    content: "";
+    position: absolute;
+    background-repeat: no-repeat;
+    will-change: transform;
+  }
+
+  /* The field breathes: it swells and leans a little, never far enough to bare an edge. */
+  .zx-aurora__motion::before {
+    inset: 0;
+    background-image: var(--zx-aurora-image);
+    animation: zx-aurora-breathe var(--zx-aurora-duration) ease-in-out infinite alternate;
+  }
+
+  /* Drift: two lights wander slowly across the field. */
+  .zx-aurora[data-motion="drift"] > .zx-aurora__motion::after {
+    inset: -30%;
+    background-image:
+      radial-gradient(22% 26% at 34% 40%, var(--zx-aurora-wash-2) 0%, transparent 72%),
+      radial-gradient(20% 24% at 66% 62%, var(--zx-aurora-wash-3) 0%, transparent 72%);
+    animation: zx-aurora-wander calc(var(--zx-aurora-duration) * 1.6) ease-in-out infinite alternate;
+  }
+
+  /* Flow: a disc of colour turns slowly behind the field, sweeping each hue across the surface.
+     Its centre and rim fade out, so neither the turning point nor an edge ever shows. */
+  .zx-aurora[data-motion="flow"] > .zx-aurora__motion::after {
+    inset-block-start: 50%;
+    inset-inline-start: 50%;
+    inline-size: 200%;
+    aspect-ratio: 1;
+    translate: -50% -50%;
+    background-image: conic-gradient(from 0deg, var(--zx-aurora-wash-1), var(--zx-aurora-faint-2) 25%,
+      var(--zx-aurora-wash-3) 50%, var(--zx-aurora-faint-4) 75%, var(--zx-aurora-wash-1));
+    mask-image: radial-gradient(closest-side, transparent 6%, currentColor 34%, currentColor 58%, transparent 100%);
+    animation: zx-aurora-turn calc(var(--zx-aurora-duration) * 3) linear infinite;
+  }
+}
+
+@keyframes zx-aurora-breathe {
+  from {
+    transform: scale(1);
+  }
+
+  to {
+    transform: scale(1.08) translate(-1.8%, 1.4%);
+  }
+}
+
+@keyframes zx-aurora-wander {
+  0% {
+    transform: translate(-6%, 4%);
+  }
+
+  50% {
+    transform: translate(5%, -3%);
+  }
+
+  100% {
+    transform: translate(-2%, -6%);
+  }
+}
+
+@keyframes zx-aurora-turn {
+  to {
+    rotate: 1turn;
+  }
 }
 
 @media (prefers-color-scheme: dark) {
@@ -133,13 +266,15 @@
 }
 
 @media (prefers-reduced-transparency: reduce), (forced-colors: active) {
-  .zx-aurora::before {
+  .zx-aurora::before,
+  .zx-aurora > .zx-aurora__motion {
     display: none;
   }
 }
 
 @media (prefers-contrast: more) {
-  .zx-aurora::before {
+  .zx-aurora::before,
+  .zx-aurora > .zx-aurora__motion {
     opacity: .35;
   }
 }

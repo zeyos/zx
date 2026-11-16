@@ -8,11 +8,13 @@ document.querySelectorAll('[data-feature-icon]').forEach((host) => {
 
 // The hero's ambient light is the shipped component, not a bespoke gradient: Aurora enhances
 // the band in place, paints behind its existing children, and owns none of them. The palette
-// is the ZeyOS accent plus the three module hues the launcher already uses.
+// is the ZeyOS accent plus the three module hues the launcher already uses; the drift is still
+// for readers who ask for reduced motion.
 new Aurora('#hero', {
   preset: 'confluence',
   colors: ['#21cc75', '#2b7fff', '#9a67ff', '#ffb900'],
-  intensity: 'vivid'
+  intensity: 'vivid',
+  motion: 'drift'
 });
 
 const toggleOutput = document.querySelector('#toggle-output');

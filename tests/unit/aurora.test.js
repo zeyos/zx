@@ -4,17 +4,22 @@ import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import {
   expandAuroraColors, normalizeAuroraColors,
-  normalizeAuroraIntensity, normalizeAuroraPreset
+  normalizeAuroraIntensity, normalizeAuroraMotion, normalizeAuroraPreset
 } from '../../src/components/aurora/aurora.js';
 
 test('Aurora normalizes only its documented geometry and intensity names', () => {
-  for (const preset of ['source', 'confluence', 'horizon', 'diagonal', 'edge', 'curtain']) {
+  for (const preset of ['source', 'confluence', 'horizon', 'diagonal', 'edge', 'curtain', 'mesh', 'ribbon', 'bloom']) {
     assert.equal(normalizeAuroraPreset(` ${preset.toUpperCase()} `), preset);
   }
   for (const intensity of ['subtle', 'balanced', 'vivid']) {
     assert.equal(normalizeAuroraIntensity(` ${intensity.toUpperCase()} `), intensity);
   }
+  for (const motion of ['none', 'drift', 'flow']) {
+    assert.equal(normalizeAuroraMotion(` ${motion.toUpperCase()} `), motion);
+  }
+  assert.equal(normalizeAuroraMotion(null), 'none');
   assert.throws(() => normalizeAuroraPreset('rainbow'), /Unknown Aurora preset/);
+  assert.throws(() => normalizeAuroraMotion('spin'), /Unknown Aurora motion/);
   assert.throws(() => normalizeAuroraIntensity('maximum'), /Unknown Aurora intensity/);
 });
 
@@ -40,7 +45,7 @@ test('Aurora expands short palettes predictably across four fields', () => {
 
 test('Aurora ships all geometries, accessibility fallbacks, and public registrations', () => {
   const css = readFileSync(fileURLToPath(new URL('../../src/components/aurora/aurora.css', import.meta.url)), 'utf8');
-  for (const preset of ['source', 'confluence', 'horizon', 'diagonal', 'edge', 'curtain']) {
+  for (const preset of ['source', 'confluence', 'horizon', 'diagonal', 'edge', 'curtain', 'mesh', 'ribbon', 'bloom']) {
     assert.match(css, new RegExp(`data-preset="${preset}"`));
   }
   for (const channel of [1, 2, 3, 4]) {
@@ -49,7 +54,24 @@ test('Aurora ships all geometries, accessibility fallbacks, and public registrat
   assert.match(css, /prefers-reduced-transparency: reduce/);
   assert.match(css, /prefers-contrast: more/);
   assert.match(css, /forced-colors: active/);
-  assert.doesNotMatch(css, /@keyframes|url\(|filter:\s*url\(/);
+  assert.doesNotMatch(css, /url\(|filter:/);
+  // Motion moves by transform alone, and only for readers who have not asked for less of it.
+  const guard = '@media (prefers-reduced-motion: no-preference) {';
+  const start = css.indexOf(guard);
+  assert.ok(start >= 0, 'motion needs the reduced-motion guard');
+  let depth = 0;
+  let end = start + guard.length - 1;
+  for (; end < css.length; end += 1) {
+    if (css[end] === '{') depth += 1;
+    if (css[end] === '}' && --depth === 0) break;
+  }
+  const outside = css.slice(0, start) + css.slice(end + 1);
+  assert.doesNotMatch(outside, /\banimation\s*:/, 'every animation sits inside the reduced-motion guard');
+  for (const name of [...css.matchAll(/@keyframes ([\w-]+)/g)].map(([, id]) => id)) {
+    const body = css.slice(css.indexOf(`@keyframes ${name}`));
+    const block = body.slice(0, body.indexOf('\n}') + 2);
+    assert.doesNotMatch(block, /\b(?:opacity|background|inset|width|height|top|left)\s*:/, `${name} animates transform only`);
+  }
   assert.doesNotMatch(css, /--zx-color-overlay|--zx-glass-filter/,
     'Aurora must remain independent from component material');
 

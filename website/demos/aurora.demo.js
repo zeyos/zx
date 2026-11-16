@@ -67,10 +67,11 @@ export default {
     {
       title: 'Multicolour geometry presets',
       blurb: 'Every geometry consumes the same four-colour palette differently. Data-heavy '
-        + 'surfaces usually start with Source, Horizon, or Edge.',
+        + 'surfaces usually start with Source, Horizon, or Edge; Mesh, Ribbon, and Bloom are the '
+        + 'richer fields for a hero, a sign-in page, or an empty workspace.',
       layout: 'stack',
       render: ({ cleanup }) => {
-        const instances = ['source', 'confluence', 'horizon', 'diagonal', 'edge', 'curtain']
+        const instances = ['source', 'confluence', 'horizon', 'diagonal', 'edge', 'curtain', 'mesh', 'ribbon', 'bloom']
           .map((preset) => {
             const { target, card } = surface(preset[0].toUpperCase() + preset.slice(1), 'Aurora preset');
             target.classList.add('demo-aurora-surface--compact');
@@ -92,6 +93,47 @@ export default {
             gap: 'var(--zx-space-3)'
           }
         }, instances.map(({ target }) => target));
+      }
+    },
+    {
+      title: 'Ambient motion',
+      blurb: 'motion: "drift" lets the field breathe while two lights wander across it; "flow" '
+        + 'turns a disc of colour slowly behind it. Both move by transform alone, so nothing '
+        + 'repaints, and both stay still for readers who ask for reduced motion. '
+        + '--zx-aurora-duration sets the pace.',
+      layout: 'stack',
+      render: ({ cleanup, log }) => {
+        const target = h('section', { class: 'demo-aurora-surface demo-aurora-surface--large' });
+        const aurora = new Aurora(target, {
+          preset: 'mesh',
+          colors: PALETTES.northern,
+          intensity: 'vivid',
+          motion: 'drift'
+        });
+        const card = new Card(null, {
+          title: 'Good morning, Ines',
+          variant: 'raised',
+          content: 'Three approvals and one review are waiting for you.',
+          footer: 'Workspace · Northwind'
+        });
+        card.toElement().style.maxInlineSize = '24rem';
+        target.append(card.toElement());
+        cleanup(() => {
+          card.destroy();
+          aurora.destroy();
+        });
+        const choose = (motion, preset) => {
+          aurora.setMotion(motion).setPreset(preset);
+          log(`motion: ${motion} · preset: ${preset}`);
+        };
+        return [
+          target,
+          h('div', { class: 'demo-row' },
+            button({ label: 'Drift over Mesh', onclick: () => choose('drift', 'mesh') }),
+            button({ label: 'Flow under Ribbon', onclick: () => choose('flow', 'ribbon') }),
+            button({ label: 'Flow under Bloom', onclick: () => choose('flow', 'bloom') }),
+            button({ label: 'Still', onclick: () => choose('none', 'mesh') }))
+        ];
       }
     },
     {

@@ -2,26 +2,38 @@ import { Component } from '../../core/component.js';
 import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
 import { isCssColor } from '../../core/util.js';
 
-const PRESETS = Object.freeze(['source', 'confluence', 'horizon', 'diagonal', 'edge', 'curtain']);
+const PRESETS = Object.freeze([
+  'source', 'confluence', 'horizon', 'diagonal', 'edge', 'curtain', 'mesh', 'ribbon', 'bloom'
+]);
 const INTENSITIES = Object.freeze(['subtle', 'balanced', 'vivid']);
+const MOTIONS = Object.freeze(['none', 'drift', 'flow']);
 const COLOR_PROPERTIES = Object.freeze([
   '--zx-aurora-color-1', '--zx-aurora-color-2',
   '--zx-aurora-color-3', '--zx-aurora-color-4'
 ]);
 
+/** @typedef {'source'|'confluence'|'horizon'|'diagonal'|'edge'|'curtain'|'mesh'|'ribbon'|'bloom'} AuroraPreset */
+/** @typedef {'none'|'drift'|'flow'} AuroraMotion */
+
 /**
  * @typedef {Object} AuroraOptions
- * @property {'source'|'confluence'|'horizon'|'diagonal'|'edge'|'curtain'} [preset='source']
- *   Geometry of the ambient light field.
+ * @property {AuroraPreset} [preset='source'] Geometry of the ambient light field.
  * @property {string[]} [colors=[]] Zero to four concrete CSS colours. An empty list uses semantic
  *   Zx colours; shorter palettes repeat across the four gradient fields.
  * @property {'subtle'|'balanced'|'vivid'} [intensity='subtle'] Strength of the light field.
+ * @property {AuroraMotion} [motion='none'] Slow ambient movement: `drift` lets the field breathe
+ *   while two lights wander across it, `flow` turns a disc of colour behind it. Shown only to readers
+ *   who have not asked for reduced motion; `--zx-aurora-duration` (18s) sets the pace.
  */
 
 /**
  * Decorative multicolour ambient light for an existing application surface.
  * Aurora owns no application content or interaction: it enhances the target in place and renders
  * its pointer-transparent light field behind the target's existing children.
+ *
+ * With `motion`, Aurora adds one decorative element as the target's first child —
+ * `<span class="zx-aurora__motion" aria-hidden="true">`, absolutely positioned and clipped to the
+ * surface — whose layers move by transform alone. `setMotion('none')` and `destroy()` remove it.
  * @extends {Component<AuroraOptions>}
  */
 export class Aurora extends Component {
@@ -31,7 +43,8 @@ export class Aurora extends Component {
   static defaults = {
     preset: 'source',
     colors: [],
-    intensity: 'subtle'
+    intensity: 'subtle',
+    motion: 'none'
   };
 
   /**
@@ -57,11 +70,32 @@ export class Aurora extends Component {
       priority: root.style.getPropertyPriority(property)
     }));
     this._colors = [];
+    /** @type {HTMLElement|null} The motion layer, while `motion` is not `none`. */
+    this._motion = null;
 
     this.setPreset(this.options.preset);
     this.setIntensity(this.options.intensity);
     this.setColors(this.options.colors);
+    this.setMotion(this.options.motion);
     return root;
+  }
+
+  /**
+   * Starts, changes, or stops the ambient movement without replacing surface content.
+   * @param {string} motion `none`, `drift`, or `flow`.
+   * @returns {this}
+   */
+  setMotion(motion) {
+    const value = normalizeAuroraMotion(motion);
+    this.el.dataset.motion = value;
+    if (value === 'none') {
+      this._motion?.remove();
+      this._motion = null;
+    } else if (!this._motion?.isConnected) {
+      this._motion = h('span', { class: 'zx-aurora__motion', ariaHidden: 'true' });
+      this.el.prepend(this._motion);
+    }
+    return this;
   }
 
   /** Sets the light-field geometry without replacing surface content. @param {string} preset @returns {this} */
@@ -100,16 +134,25 @@ export class Aurora extends Component {
   destroy() {
     if (this._cleaned) return;
     this._cleaned = true;
+    this._motion?.remove();
+    this._motion = null;
     super.destroy();
     if (!this._createdRoot) restoreTarget(this.el, this._original);
   }
 }
 
-/** @param {unknown} value @returns {'source'|'confluence'|'horizon'|'diagonal'|'edge'|'curtain'} */
+/** @param {unknown} value @returns {AuroraPreset} */
 export function normalizeAuroraPreset(value) {
   const preset = String(value ?? '').trim().toLowerCase();
   if (!PRESETS.includes(preset)) throw new TypeError(`Unknown Aurora preset: ${value}`);
-  return /** @type {'source'|'confluence'|'horizon'|'diagonal'|'edge'|'curtain'} */ (preset);
+  return /** @type {AuroraPreset} */ (preset);
+}
+
+/** @param {unknown} value @returns {AuroraMotion} `none` for null or undefined. */
+export function normalizeAuroraMotion(value) {
+  const motion = String(value ?? 'none').trim().toLowerCase();
+  if (!MOTIONS.includes(motion)) throw new TypeError(`Unknown Aurora motion: ${value}`);
+  return /** @type {AuroraMotion} */ (motion);
 }
 
 /** @param {unknown} value @returns {'subtle'|'balanced'|'vivid'} */
