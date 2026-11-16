@@ -102,7 +102,7 @@ function buildPage() {
 
   const root = h('div', { class: 'gallery__inner' },
     h('header', { class: 'gallery-intro' },
-      h('h1', { class: 'gallery-intro__title' }, 'Layouts')),
+      h('h1', { class: 'gallery-intro__title' }, 'Showcase')),
     sections);
 
   // The page itself is the plain page tone: the tiles are surfaces on it, so tone and a hairline

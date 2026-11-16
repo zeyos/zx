@@ -16,7 +16,7 @@ import { LAYOUT_IDS, PATTERN_IDS } from './layouts/index.js';
 import './layouts/layout-icons.js';
 
 /** Every page title on the layout pages ends with this. */
-const LAYOUTS_TITLE = 'Layouts — ZeyOS Xenon Design System';
+const LAYOUTS_TITLE = 'Showcase — ZeyOS Xenon Design System';
 
 /**
  * The tokens the source view colours. Comments and strings come first, so a keyword inside either

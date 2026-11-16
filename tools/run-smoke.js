@@ -456,7 +456,7 @@ async function runStandaloneLayout(instance) {
         || Math.abs(fit.bottom - 900) > 1 || fit.scroll > 0) {
         throw new Error(`${id} does not fill the window below the bar: ${JSON.stringify(fit)}`);
       }
-      if (fit.title !== `${fit.heading} — Layouts — ZeyOS Xenon Design System`) {
+      if (fit.title !== `${fit.heading} — Showcase — ZeyOS Xenon Design System`) {
         throw new Error(`${id} is titled "${fit.title}"`);
       }
     }

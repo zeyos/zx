@@ -9,6 +9,7 @@
  *
  * It also holds the published site to the content rules: no private paths, no pointers into
  * internal material, and no names of the products the layout templates took their patterns from.
+ * Every header navigation link must carry the `data-nav` attribute its glyph is chosen by.
  *
  * Absolute paths are skipped on purpose: the Getting started guides contain code samples with
  * paths like `/assets/zx.css`, which describe a consumer's deployment rather than this site.
@@ -163,6 +164,19 @@ for (const required of [
   'docs/llms.md'
 ]) {
   if (!existsSync(join(site, required))) problems.push(`missing required file: ${required}`);
+}
+
+// Every header link names its glyph with `data-nav`. `site.css` picks the icon from that attribute
+// because the host serves the pages at clean URLs (`/docs`), so a link's `href` is not something
+// the stylesheet can rely on; a link without the attribute shows no glyph at all.
+const SITE_NAV = /<nav\b[^>]*\bclass="[^"]*\bsite-nav\b[^"]*"[^>]*>([\s\S]*?)<\/nav>/gi;
+for (const file of files) {
+  if (extname(file).toLowerCase() !== '.html') continue;
+  for (const [, nav] of readFileSync(file, 'utf8').matchAll(SITE_NAV)) {
+    for (const [tag] of nav.matchAll(/<a\b[^>]*>/gi)) {
+      if (!/\sdata-nav="[^"\s]+"/.test(tag)) problems.push(`${relative(site, file)} → header link without data-nav: ${tag}`);
+    }
+  }
 }
 
 // Compatibility and operating material may remain in the repository/package for supported

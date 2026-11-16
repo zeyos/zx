@@ -13,7 +13,7 @@
  * a browser, and is covered by `tools/run-smoke.js`.
  */
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
@@ -26,14 +26,63 @@ function read(path) {
 
 const PAGES = ['website/index.html', 'website/docs.html', 'website/layouts.html', 'website/theme.html'];
 
-test('every page links the gallery from its header, and nothing links the retired addresses', () => {
+/** @param {string} path Repository-relative page. @returns {string} The page's primary navigation. */
+function primaryNav(path) {
+  return /<nav class="site-nav"[\s\S]*?<\/nav>/.exec(read(path))?.[0] ?? '';
+}
+
+test('every page links the gallery from its header as Showcase, and nothing links the retired addresses', () => {
   for (const path of PAGES) {
-    const nav = /<nav class="site-nav"[\s\S]*?<\/nav>/.exec(read(path))?.[0] ?? '';
-    assert.match(nav, /<a href="layouts\.html">Layouts<\/a>/, `${path}: the header does not link layouts.html`);
+    assert.match(primaryNav(path), /<a href="layouts\.html" data-nav="showcase">Showcase<\/a>/,
+      `${path}: the header does not link layouts.html as Showcase`);
   }
   for (const path of [...PAGES, 'website/llms.txt', 'website/site.js', 'website/docs.js']) {
     assert.doesNotMatch(read(path), /docs\.html#layouts|href="#layouts/, `${path} links the retired layout address`);
   }
+});
+
+test('every header link names its glyph with data-nav, and site.css draws each one without the href', () => {
+  // The deployed site serves the pages at clean URLs (`/docs`), so a glyph chosen by `href` stops
+  // matching there and the mask paints as a filled square. `data-nav` is left alone by every host.
+  const used = new Set();
+  for (const path of PAGES) {
+    const links = [...primaryNav(path).matchAll(/<a\b[^>]*>/g)].map(([tag]) => tag);
+    assert.ok(links.length > 0, `${path}: the header has no navigation links`);
+    for (const tag of links) {
+      const value = /\sdata-nav="([a-z-]+)"/.exec(tag)?.[1];
+      assert.ok(value, `${path}: ${tag} names no glyph with data-nav`);
+      used.add(value);
+    }
+  }
+  assert.deepEqual([...used].sort(), ['docs', 'showcase', 'theme']);
+
+  const css = read('website/site.css');
+  assert.doesNotMatch(css, /\.site-nav a\[href/, 'site.css still picks a header glyph by href');
+  // The pseudo-element only exists where a glyph does, so an unknown value draws no empty box.
+  const base = /^\.site-nav a::before \{([^}]*)\}/m.exec(css)?.[1] ?? '';
+  assert.ok(base, 'site.css has no base rule for the header glyph');
+  assert.doesNotMatch(base, /\bcontent:/, 'every header link gets a glyph box, known data-nav or not');
+  for (const value of used) {
+    const rule = new RegExp(`^\\.site-nav a\\[data-nav="${value}"\\]::before \\{([^}]*)\\}`, 'm').exec(css)?.[1] ?? '';
+    assert.match(rule, /\bcontent: "";/, `site.css draws no glyph for data-nav="${value}"`);
+    const asset = /url\("(assets\/[\w-]+\.svg)"\)/.exec(rule)?.[1];
+    assert.ok(asset, `site.css names no icon for data-nav="${value}"`);
+    assert.ok(existsSync(fileURLToPath(new URL(`../../website/${asset}`, import.meta.url))),
+      `data-nav="${value}" points at a missing ${asset}`);
+  }
+});
+
+test('the gallery and the standalone page are titled Showcase, and so is the search path', () => {
+  assert.match(read('website/layouts.html'), /<title>Showcase — ZeyOS Xenon Design System<\/title>/);
+  const page = read('website/layout.html');
+  assert.match(page, /<title>Showcase — ZeyOS Xenon Design System<\/title>/);
+  assert.match(page, /<h1 class="layout-bar__title">Showcase<\/h1>/);
+  assert.match(read('website/layouts.js'), /h\('h1', \{ class: 'gallery-intro__title' \}, 'Showcase'\)/);
+  assert.match(read('website/docs.js'), /path: \['Showcase', String\(layout\.title \?\? id\)\]/);
+  // The home page names the destination the same way wherever it links the gallery.
+  const home = read('website/index.html');
+  assert.match(home, /<a href="layouts\.html">See the Showcase<\/a>/);
+  assert.match(home, /<span class="path-card__cue">Showcase<\/span>/);
 });
 
 test('the gallery page loads its own stylesheet and script, and imports every layout after the shell', () => {
@@ -109,7 +158,7 @@ test('the gallery chrome keeps its corners at --zx-radius-lg or less', () => {
 test('every layout opens on a page of its own, from its tile and from the popup', () => {
   const host = read('website/layout-host.js');
   assert.match(host, /return `layout\.html#\$\{encodeURIComponent\(id\)\}`;/);
-  assert.match(host, /const LAYOUTS_TITLE = 'Layouts — ZeyOS Xenon Design System';/);
+  assert.match(host, /const LAYOUTS_TITLE = 'Showcase — ZeyOS Xenon Design System';/);
   assert.match(host, /preview: false,/, 'layouts are not mounted with a normal context');
   // Only an id the registry lists is ever imported.
   assert.match(host, /known: LAYOUT_IDS\.includes\(id\)/);

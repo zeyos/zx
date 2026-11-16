@@ -549,8 +549,9 @@ function buildGlobalSearch() {
 }
 
 /**
- * Search records for the layout gallery: one per layout, pointing at `layouts.html#<id>`. A layout
- * that fails to load is left out of the search rather than taking the documentation down with it.
+ * Search records for the layout gallery, the Showcase: one per layout, pointing at
+ * `layouts.html#<id>`, under the path label the gallery's header entry carries. A layout that fails
+ * to load is left out of the search rather than taking the documentation down with it.
  * @returns {Promise<Array<Record<string, any>>>}
  */
 async function layoutSearchRecords() {
@@ -564,7 +565,7 @@ async function layoutSearchRecords() {
       label: String(layout.title ?? id),
       parent: '',
       category: `Layout${layout.category ? ` · ${layout.category}` : ''}`,
-      path: ['Layouts', String(layout.title ?? id)],
+      path: ['Showcase', String(layout.title ?? id)],
       description: String(layout.blurb ?? ''),
       aliases: [id, ...components],
       keywords: `${layout.category ?? ''} ${components.join(' ')}`,

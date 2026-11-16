@@ -240,9 +240,13 @@ body.site-page > main {
 
 /* A glyph before each label, drawn like the header's icon buttons: an SVG mask filled with
    currentColor, so it follows hover, the current page, and the overlay header's ink. The markup
-   stays plain links; the mask is decorative and the label carries the name. */
+   stays plain links; the mask is decorative and the label carries the name.
+
+   Each link names its glyph with `data-nav`, never through its `href`: the deployed site serves
+   the pages at clean URLs (`/docs`), so a selector on the link target stops matching there. Only a
+   link whose `data-nav` has a rule below gets the pseudo-element at all — `content` is set there,
+   not here — so a link without a known glyph shows its label alone, never an empty mask box. */
 .site-nav a::before {
-  content: "";
   flex: none;
   inline-size: 16px;
   block-size: 16px;
@@ -250,16 +254,19 @@ body.site-page > main {
   mask: var(--site-nav-icon) center / contain no-repeat;
 }
 
-.site-nav a[href^="docs"] {
+.site-nav a[data-nav="docs"]::before {
   --site-nav-icon: url("assets/book-open.svg");
+  content: "";
 }
 
-.site-nav a[href^="layouts"] {
+.site-nav a[data-nav="showcase"]::before {
   --site-nav-icon: url("assets/layout-dashboard.svg");
+  content: "";
 }
 
-.site-nav a[href^="theme"] {
+.site-nav a[data-nav="theme"]::before {
   --site-nav-icon: url("assets/palette.svg");
+  content: "";
 }
 
 .site-nav a:hover {

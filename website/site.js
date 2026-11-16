@@ -245,7 +245,7 @@
   }
 
   /**
-   * Flags one nav entry as the current page: Documentation on docs.html, Layouts on the gallery in
+   * Flags one nav entry as the current page: Documentation on docs.html, Showcase on the gallery in
    * layouts.html, Theming on the studio. Entries may also point into a page by hash, so an exact
    * page+hash match wins; otherwise the hash-less entry for this page does. Pages are compared
    * without their `.html`, so a host that serves `/layouts` for `/layouts.html` still matches.
