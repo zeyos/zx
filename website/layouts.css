@@ -20,6 +20,7 @@
 @import url('layouts/inbox.layout.css');
 @import url('layouts/record-page.layout.css');
 @import url('layouts/agent-chat.layout.css');
+@import url('layouts/agent-canvas.layout.css');
 @import url('layouts/record-wizard.layout.css');
 @import url('layouts/checkout-wizard.layout.css');
 @import url('layouts/settings-workspace.layout.css');

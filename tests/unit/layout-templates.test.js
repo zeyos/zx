@@ -32,6 +32,7 @@ const BLOCKS = {
   'master-detail': 'master-detail',
   'record-collection': 'collection',
   'agent-chat': 'agent-chat',
+  'agent-canvas': 'canvas',
   'system-states': 'states',
   dashboard: 'dashboard',
   inbox: 'inbox',

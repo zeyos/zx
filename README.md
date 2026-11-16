@@ -242,7 +242,8 @@ drawers, states, and keyboard map come with it.
   `agent-workspace`, `invoice-editor`, `item-inventory`, `workflows`, `infrastructure`, `crm`.
 - **Patterns** — single screens: `master-detail`, `record-collection` (any list of records as a
   table, list, cards, gallery, or board), `dashboard`, `inbox`, `record-page`, `agent-chat`,
-  `record-wizard`, `checkout-wizard`, `settings-workspace`, `system-states`, `zeyos-invoices`.
+  `agent-canvas`, `record-wizard`, `checkout-wizard`, `settings-workspace`, `system-states`,
+  `zeyos-invoices`.
 
 `layouts.html#<id>` opens one; `layout.html#<id>` shows it alone. The shell helpers
 (`layouts/kit.js`, `kit.css`) and the record-screen composition (`createOverview()` in

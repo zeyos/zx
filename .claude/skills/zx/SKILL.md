@@ -34,7 +34,7 @@ and `kit.css`; the toolbar-chips-drawers-pager composition every record screen u
 | settings in sections | `settings-workspace` |
 | creation in steps | `record-wizard` (vertical) or `checkout-wizard` (horizontal) |
 | conversations, triage | `inbox`, or the `mail` template |
-| an assistant | `agent-chat`, or the `ai-chat` / `agent-workspace` templates |
+| an assistant | `agent-chat`, `agent-canvas` (every answer a surface), or the `ai-chat` / `agent-workspace` templates |
 | empty, loading, error, offline, confirmation | `system-states` — every screen needs these |
 | a schema-driven ZeyOS screen | `zeyos-invoices` |
 | a whole application | the closest template: `mail`, `issue-tracker`, `wiki`, `ai-chat`, `agent-workspace`, `invoice-editor`, `item-inventory`, `workflows`, `infrastructure`, `crm` |

@@ -1,0 +1,253 @@
+/*
+ * Agent canvas. Every selector is scoped under .canvas. The thread, the surfaces in it, the
+ * composer, the tabs and the panel's second surface are components that draw themselves; this
+ * sheet places them: the reading column, the suggestions over the composer, and the artifact panel.
+ */
+
+.canvas {
+  --canvas-column: 46rem;
+}
+
+/* ------------------------------------------------------------- navigation -- */
+
+/* The agent, then the artifacts it made in this conversation. */
+.canvas .canvas__agent {
+  display: flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  margin: var(--zx-space-3) 0 0;
+  padding-inline: var(--zx-space-2);
+  font-size: var(--zx-text-sm);
+  font-weight: var(--zx-weight-semibold);
+  line-height: 1.3;
+}
+
+.canvas .canvas__index .list-group {
+  margin: var(--zx-space-3) 0 0;
+}
+
+.canvas .canvas__artifacts {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.canvas .canvas__artifact {
+  gap: var(--zx-space-1);
+}
+
+.canvas .canvas__artifact .list-row__title {
+  font-size: var(--zx-text-sm);
+}
+
+.canvas .canvas__none {
+  padding: var(--zx-space-2);
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+/* ------------------------------------------------------------------ thread -- */
+
+/* One column of reading width, centred in the pane. */
+.canvas .canvas__column {
+  inline-size: min(100%, var(--canvas-column));
+  margin-inline: auto;
+  padding: var(--zx-space-6) var(--zx-space-5);
+}
+
+/* An empty conversation: who the agent is, and the requests it knows. */
+.canvas .canvas__welcome {
+  display: grid;
+  justify-items: start;
+  gap: var(--zx-space-3);
+  padding-block: var(--zx-space-6);
+}
+
+.canvas .canvas__welcome-title {
+  margin: 0;
+  font-size: var(--zx-text-xl);
+  font-weight: var(--zx-weight-semibold);
+  letter-spacing: var(--zx-tracking-tight);
+}
+
+.canvas .canvas__welcome-text {
+  max-inline-size: 36rem;
+  margin: 0 0 var(--zx-space-2);
+  color: var(--zx-color-text-muted);
+}
+
+.canvas .canvas__welcome .zx-prompt-starters {
+  inline-size: 100%;
+}
+
+/* --------------------------------------------------------------- composer -- */
+
+.canvas .canvas__dock {
+  display: grid;
+  flex: none;
+  gap: var(--zx-space-2);
+  padding: 0 var(--zx-space-5) var(--zx-space-3);
+}
+
+/* The suggestions and the composer keep to the thread's reading width. */
+.canvas .canvas__dock > * {
+  inline-size: min(100%, calc(var(--canvas-column) - 2 * var(--zx-space-5)));
+  margin-inline: auto;
+}
+
+.canvas .canvas__follow-ups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zx-space-2);
+}
+
+/* --------------------------------------------------------- artifact panel -- */
+
+/* The panel holds work, not chrome: it sits on the canvas tone, wide enough for a chart. */
+.canvas .canvas__panel {
+  --shell-aside-width: clamp(22rem, 26cqi, 30rem);
+  --shell-backdrop: var(--zx-color-bg-surface);
+
+  background: var(--shell-backdrop);
+}
+
+.canvas .canvas__versions {
+  flex-wrap: nowrap;
+  min-block-size: calc(var(--zx-control-height) + var(--zx-space-2));
+}
+
+.canvas .canvas__intent {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--zx-space-2);
+  min-inline-size: 0;
+}
+
+.canvas .canvas__surface-id {
+  overflow: hidden;
+  color: var(--zx-color-text-muted);
+  font-family: var(--zx-font-mono);
+  font-size: var(--zx-text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.canvas .canvas__stepper {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--zx-space-1);
+}
+
+.canvas .canvas__version {
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.canvas .canvas__empty {
+  display: grid;
+  align-content: start;
+  padding: var(--zx-space-6) var(--zx-space-5);
+}
+
+/* Each tab's content: the preview, the JSON, the reply. The tab panel scrolls. */
+.canvas .canvas__pane {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: var(--zx-space-3);
+  padding: var(--zx-space-4);
+}
+
+.canvas .canvas__note {
+  margin: 0;
+  color: var(--zx-color-text-muted);
+  font-size: var(--zx-text-sm);
+}
+
+.canvas .canvas__subhead {
+  margin: 0;
+  font-size: var(--zx-text-sm);
+  font-weight: var(--zx-weight-semibold);
+}
+
+/* A reply as plain text, the way an audit log would keep it. */
+.canvas .canvas__text {
+  margin: 0;
+  padding: var(--zx-space-3);
+  border-radius: var(--zx-radius-md);
+  background: var(--zx-color-bg-muted);
+  font-family: var(--zx-font-mono);
+  font-size: var(--zx-text-xs);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+/* What the application reported to the agent: the code and pointer, then the message. */
+.canvas .canvas__problems {
+  display: grid;
+  gap: var(--zx-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--zx-text-sm);
+}
+
+.canvas .canvas__problems > li {
+  display: grid;
+  gap: 2px;
+  padding: var(--zx-space-2) var(--zx-space-3);
+  border-inline-start: 2px solid var(--zx-color-warning);
+  border-radius: var(--zx-radius-sm);
+  background: var(--zx-color-bg-muted);
+}
+
+.canvas .canvas__problem-code {
+  font-family: var(--zx-font-mono);
+  font-size: var(--zx-text-xs);
+  color: var(--zx-color-text-muted);
+}
+
+/* ------------------------------------------------------------------ narrow -- */
+
+/* Below 1180px the panel is a drawer and takes the room a chart needs. */
+@container shell (max-width: 1180px) {
+  .canvas .canvas__panel {
+    --shell-aside-width: 32rem;
+  }
+}
+
+/* On a phone the suggestions keep to one row that scrolls, so the thread keeps its height. */
+@container shell (max-width: 640px) {
+  .canvas .canvas__column {
+    padding: var(--zx-space-5) var(--zx-space-4);
+  }
+
+  .canvas .canvas__dock {
+    padding-inline: var(--zx-space-3);
+  }
+
+  .canvas .canvas__follow-ups {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    margin-inline: calc(-1 * var(--zx-space-3));
+    padding-inline: var(--zx-space-3);
+    scrollbar-width: none;
+  }
+
+  .canvas .canvas__follow-ups > * {
+    flex: none;
+  }
+}
+
+/* A short window — a phone held sideways — keeps its height for the thread. */
+@media (max-height: 480px) {
+  .canvas .canvas__dock {
+    padding-block-end: var(--zx-space-2);
+  }
+}
