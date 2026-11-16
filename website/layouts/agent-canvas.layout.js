@@ -679,9 +679,9 @@ export default {
     render();
 
     // Charts need their engine before the first surface draws; without it they show their data
-    // tables, which is the documented fallback.
+    // tables, which is the documented fallback. A thumbnail draws its charts still.
     loadChartJs()
-      .then((engine) => new ChartJsAdapter(engine), () => null)
+      .then((engine) => new ChartJsAdapter(engine, preview ? { animation: false } : {}), () => null)
       .then((adapter) => {
         if (context.signal.aborted) return;
         chartAdapter = adapter;
@@ -696,6 +696,9 @@ export default {
         authors: AUTHORS,
         label: 'Conversation with the finance agent',
         scroller,
+        // The thread keeps the end in view while the agent writes, surfaces streamed into it
+        // included; a thumbnail stays at the question.
+        followOutput: !preview,
         // Receipts say when a surface was answered on the 24-hour clock the rest of the suite uses.
         locale: 'en-GB',
         answerActions: ['copy'],
@@ -704,7 +707,6 @@ export default {
         formatTime: clockTime
       }));
       column.append(thread.toElement());
-      followGrowth();
       // A surface's answer comes back to the layout, which hands it to the agent.
       thread.on('reply', (event) => answered(event.detail.item, event.detail.reply));
       thread.on('open', (event) => {
@@ -754,30 +756,6 @@ export default {
       return null;
     }
 
-    /** @returns {boolean} Whether the reader is reading the end of the conversation. */
-    function atEnd() {
-      return scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight <= 48;
-    }
-
-    /**
-     * While the agent writes, the end stays in view as long as the reader stays there: a surface
-     * grows after its lines arrive (a chart once it is measured), so growth is watched, not lines.
-     * Scrolling away lets go; the thread then offers "Jump to latest".
-     * @returns {void}
-     */
-    function followGrowth() {
-      if (preview) return;
-      let stick = true;
-      scroller.addEventListener('scroll', () => {
-        stick = atEnd();
-      }, { passive: true, signal: context.signal });
-      const observer = new ResizeObserver(() => {
-        if (stick && state.activity) thread?.scrollToEnd();
-      });
-      observer.observe(column);
-      context.cleanup(() => observer.disconnect());
-    }
-
     /** @param {string} kind @returns {string} */
     function nextId(kind) {
       state.seq += 1;
@@ -801,11 +779,13 @@ export default {
 
     /**
      * The suggestions under the thread: what follows the last request, then what hasn't been
-     * asked. Hidden while the agent writes and in an empty conversation, which offers starters.
+     * asked. Hidden while the agent writes, in an empty conversation, which offers starters, and
+     * while a question waits for its answer: a suggestion starts another task, and would end a
+     * half-filled surface without a word. Writing in the composer still does, on purpose.
      * @returns {void}
      */
     function renderFollowUps() {
-      followUps.hidden = Boolean(state.activity) || !thread?.getItems().length;
+      followUps.hidden = Boolean(state.activity) || !thread?.getItems().length || Boolean(pending());
       if (followUps.hidden) return;
       const order = [...(state.last ? FOLLOW_UPS[state.last.id] : []), ...SCENARIOS.map((scenario) => scenario.id)];
       const fresh = [...new Set(order)].filter((id) => !state.asked.has(id));
@@ -826,7 +806,7 @@ export default {
         return h('li', {}, h('button', {
           type: 'button', class: 'list-row canvas__artifact', dataset: { artifact: id },
           'aria-current': view.artifact === id ? 'true' : null,
-          onclick: () => showArtifact(id, list.length - 1, { pick: true })
+          onclick: () => pickArtifact(id)
         },
         h('span', { class: 'list-row__title' }, latest.title),
         h('span', { class: 'list-row__meta' }, `${latest.intent} · ${list.length === 1 ? '1 version' : `${list.length} versions`}`)));
@@ -1006,9 +986,38 @@ export default {
       if (!version || preview) return;
       const list = /** @type {Version[]} */ (artifacts.get(version.artifact));
       showArtifact(version.artifact, list.indexOf(version), { pick: true });
-      if (root.dataset.asideCollapsed === 'true') shell.collapse('aside', false);
-      else if (aside.checkVisibility()) thread?.announce(`${version.title} is open in the panel.`);
-      else shell.toggleAside(true);
+      revealPanel(version);
+    }
+
+    /**
+     * An artifact chosen in the navigation: its newest version, and the panel brought into view as
+     * "Open in panel" brings it.
+     * @param {string} artifact
+     * @returns {void}
+     */
+    function pickArtifact(artifact) {
+      const list = artifacts.get(artifact);
+      if (!list) return;
+      showArtifact(artifact, list.length - 1, { pick: true });
+      if (!preview) revealPanel(/** @type {Version} */ (list.at(-1)));
+    }
+
+    /**
+     * Brings the panel into view the way the width allows. A panel closed at full width comes back
+     * and focus stays where the reader chose, so the change is announced; below 1180px its drawer
+     * opens and takes focus, the navigation's drawer closing first so that closing the panel
+     * returns focus to the conversation's header rather than to a hidden list.
+     * @param {Version} version What the panel now shows.
+     * @returns {void}
+     */
+    function revealPanel(version) {
+      if (!aside.checkVisibility() && root.dataset.asideCollapsed === 'true') shell.collapse('aside', false);
+      if (aside.checkVisibility()) {
+        thread?.announce(`${version.title} is open in the panel.`);
+        return;
+      }
+      shell.closeNav();
+      shell.toggleAside(true);
     }
 
     /* --------------------------------------------------------- the conversation -- */
@@ -1087,14 +1096,31 @@ export default {
       const version = drawSurface(lines, scenario, options);
       render();
       let index = 0;
+      let finished = false;
+      /** @type {(() => void)|null} Cancels the step or finish this stream waits to run. */
+      let queued = null;
+      /** @param {number} ms @param {() => void} fn */
+      const queue = (ms, fn) => {
+        queued = wait(own, ms, () => {
+          queued = null;
+          fn();
+        });
+      };
       const write = (chunk) => {
         thread?.surface(version.item)?.write(chunk);
         version.written += 1;
         renderPanel();
       };
+      // Runs once per stream, however it ends — the last line, or a flush when the reader asks for
+      // less motion — and takes the step still waiting with it: `done` may go on with the same
+      // activity (the webhook's correction does), where a stray step would write past the end and
+      // finish a second time.
       const finish = () => {
-        if (state.activity !== own) return;
-        own.flush = null;
+        if (finished || state.activity !== own) return;
+        finished = true;
+        queued?.();
+        queued = null;
+        if (own.flush === finish) own.flush = null;
         if (index < lines.length) write(lines.slice(index).map((line) => `${JSON.stringify(line)}\n`).join(''));
         index = lines.length;
         settleSurface(version);
@@ -1105,16 +1131,17 @@ export default {
       // Stop cancels the surface where it stands: it replies, and its receipt says so.
       own.onstop = () => thread?.surface(version.item)?.cancel('stopped');
       if (prefersReducedMotion(root)) {
-        wait(own, PACE.line, finish);
+        queue(PACE.line, finish);
         return;
       }
       const step = () => {
+        if (finished || index >= lines.length) return;
         write(`${JSON.stringify(lines[index])}\n`);
         index += 1;
         if (index >= lines.length) finish();
-        else wait(own, lines[index].op === 'append' ? PACE.append : PACE.line, step);
+        else queue(lines[index].op === 'append' ? PACE.append : PACE.line, step);
       };
-      wait(own, PACE.line, step);
+      queue(PACE.line, step);
     }
 
     /**
@@ -1135,7 +1162,7 @@ export default {
      * @param {Activity} own
      * @param {number} ms
      * @param {() => void} fn Runs after `ms` unless the activity has ended by then.
-     * @returns {void}
+     * @returns {() => void} Cancels it.
      */
     function wait(own, ms, fn) {
       const cancel = later(context, () => {
@@ -1143,6 +1170,10 @@ export default {
         if (state.activity === own) fn();
       }, ms);
       own.cancels.add(cancel);
+      return () => {
+        own.cancels.delete(cancel);
+        cancel();
+      };
     }
 
     /** Ends what the agent does, normally. @returns {void} */
@@ -1271,6 +1302,8 @@ export default {
       const answer = scenario.answer(reply);
       if (!answer) return;
       const own = begin();
+      // The answer is what the reader looks at next: the thread follows it again.
+      thread?.scrollToEnd();
       thread?.announce('Answered. The agent is working on it.');
       wait(own, PACE.work, () => {
         if (answer.lines) {

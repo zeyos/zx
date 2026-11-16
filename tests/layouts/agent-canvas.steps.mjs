@@ -9,9 +9,11 @@
  * rows picked and a send confirmed, a form corrected after its validation error, changes accepted
  * in part, a questionnaire walked through its refusals to its review, a choice that makes a second
  * version, a deletion typed to confirm after one cancel, and a surface the agent corrects after the
- * application's report. Esc stops a surface while it arrives. It fails on any surface that reports
- * a problem it was not written to have. Works at any width: below 1180px the artifact panel is a
- * drawer, opened and closed again.
+ * application's report — with reduced motion switched on while it arrives. Esc stops a surface
+ * while it arrives. It fails on any surface that reports a problem it was not written to have, on a
+ * suggestion offered while a question waits for its answer, on an answer that arrives out of view,
+ * and on an artifact picked in the navigation that leaves the panel hidden. Works at any width:
+ * below 1180px the artifact panel is a drawer, opened and closed again.
  */
 
 /** The layout's root, and the parts the steps reach for. */
@@ -61,6 +63,22 @@ export default async function steps(page, { shot = async () => {} } = {}) {
     if (await root.evaluate((element) => element.dataset.asideOpen === 'true')) await page.keyboard.press('Escape');
   };
 
+  /** Waits for a question to have arrived: nothing offers to start another task while it waits. */
+  const asked = async (title) => {
+    await arrived(title);
+    if (await page.locator(`${ROOT} .canvas__follow-ups`).isVisible()) {
+      throw new Error(`${title}: suggestions are offered while the question waits for its answer`);
+    }
+  };
+
+  /** Fails unless the end of the conversation is in view: the thread followed what arrived. */
+  const following = async (label) => {
+    const gap = await page.locator(`${ROOT} .canvas__thread`).evaluate((scroller) => new Promise((done) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => done(scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight)));
+    }));
+    if (gap > 48) throw new Error(`${label}: the end of the conversation is ${gap}px out of view`);
+  };
+
   /** Fails when a surface in the thread reported a problem: none was written to have one. */
   const clean = async (label) => {
     const reports = await page.evaluate(async (selector) => {
@@ -106,7 +124,7 @@ export default async function steps(page, { shot = async () => {} } = {}) {
 
   /* 2 · Reminders: pick two rows, send, and confirm what the policy asks. */
   await suggestion('Chase the overdue invoices');
-  await arrived('Send first reminders?');
+  await asked('Send first reminders?');
   await latest().getByRole('checkbox', { name: 'Select RE-2026-0121' }).check();
   await latest().getByRole('checkbox', { name: 'Select RE-2026-0129' }).check();
   await latest().getByRole('button', { name: 'Send reminders' }).click();
@@ -116,11 +134,12 @@ export default async function steps(page, { shot = async () => {} } = {}) {
   await shot('reminders-confirm');
   await confirm.getByRole('button', { name: 'Send reminders' }).click();
   await arrived('Reminders scheduled');
+  await following('reminders');
   await clean('reminders');
 
   /* 3 · Credit note: "Something else" shows a field; submitting without it is refused. */
   await type('Draft a credit note');
-  await arrived('Credit note for Bruckner Logistik');
+  await asked('Credit note for Bruckner Logistik');
   await latest().getByRole('radio', { name: 'Something else' }).check();
   await latest().getByRole('textbox', { name: 'What happened' }).waitFor();
   await latest().getByRole('button', { name: 'Submit' }).click();
@@ -132,21 +151,23 @@ export default async function steps(page, { shot = async () => {} } = {}) {
   await issueOn.press('Tab');
   await latest().getByRole('button', { name: 'Submit' }).click();
   await arrived('Credit note GS-2026-0019 drafted');
+  await following('credit');
   await clean('credit');
 
   /* 4 · Helios: accept two of the four changes; the rest are rejected. */
   await suggestion('Tidy up Helios’ record');
-  await arrived('Tidy up Helios Energie');
+  await asked('Tidy up Helios Energie');
   const changes = latest().locator('.zx-table__row-checkbox');
   await changes.nth(0).check();
   await changes.nth(2).check();
   await latest().getByRole('button', { name: 'Approve selected' }).click();
   await arrived('Helios Energie updated');
+  await following('helios');
   await clean('helios');
 
   /* 5 · Dunning run: a branch, two refused answers, then the review and Submit. */
   await type('Set up the dunning run');
-  await arrived('Set up the dunning run');
+  await asked('Set up the dunning run');
   const walk = latest();
   await walk.getByText('Only larger amounts').click();
   await walk.getByRole('button', { name: 'Continue' }).click();
@@ -165,11 +186,12 @@ export default async function steps(page, { shot = async () => {} } = {}) {
   await shot('dunning-review');
   await walk.getByRole('button', { name: 'Submit' }).click();
   await arrived('Dunning run scheduled');
+  await following('dunning');
   await clean('dunning');
 
   /* 6 · Trend: a choice, then October again as a line chart — its version 2. */
   await suggestion('Show that as a trend');
-  await arrived('Which trend should I draw?');
+  await asked('Which trend should I draw?');
   await shot('trend-choice');
   await latest().getByText('Running total').click();
   await latest().getByRole('button', { name: 'Submit' }).click();
@@ -184,7 +206,7 @@ export default async function steps(page, { shot = async () => {} } = {}) {
 
   /* 7 · Old drafts: cancel the typed confirmation once, then type it. */
   await suggestion('Delete the old drafts');
-  await arrived('Delete 4 old reminder drafts?');
+  await asked('Delete 4 old reminder drafts?');
   await latest().getByRole('button', { name: 'Delete 4 drafts' }).click();
   let typed = page.getByRole('dialog', { name: 'Delete 4 old reminder drafts?' });
   await typed.getByRole('button', { name: 'Cancel' }).click();
@@ -196,17 +218,67 @@ export default async function steps(page, { shot = async () => {} } = {}) {
   await shot('drafts-typed');
   await typed.getByRole('button', { name: 'Delete 4 drafts' }).click();
   await arrived('4 drafts deleted');
+  await following('drafts');
   await clean('drafts');
 
+  /* An artifact picked in the navigation is shown in the panel, which comes into view: its drawer
+     opens where it is one (the navigation's drawer closing first), and a panel closed at full width
+     comes back. */
+  const navToggle = page.getByRole('button', { name: 'Show navigation' });
+  const artifact = page.locator(`${ROOT} .canvas__artifact`, { hasText: 'Send first reminders?' });
+  if (await navToggle.isVisible()) {
+    await navToggle.click();
+  } else if (await panel.isVisible()) {
+    await panel.getByRole('button', { name: 'Close the panel' }).click();
+    await panel.waitFor({ state: 'hidden' });
+  }
+  await artifact.click();
+  await panel.waitFor({ state: 'visible' });
+  const picked = await panel.locator('.shell__title').textContent();
+  if (picked !== 'Send first reminders?') throw new Error(`artifacts: the panel shows "${picked}"`);
+  const pickedFocus = await root.evaluate((element) => ({
+    drawer: element.dataset.asideOpen === 'true',
+    nav: element.dataset.navOpen === 'true',
+    inPanel: Boolean(element.querySelector('.canvas__panel')?.contains(document.activeElement)),
+    onPage: element.contains(document.activeElement)
+  }));
+  if (pickedFocus.nav) throw new Error('artifacts: the navigation drawer stayed open over the panel');
+  if (pickedFocus.drawer ? !pickedFocus.inPanel : !pickedFocus.onPage) {
+    throw new Error(`artifacts: focus went nowhere useful (${JSON.stringify(pickedFocus)})`);
+  }
+  // The drawer settles before the screenshot.
+  await page.waitForTimeout(350);
+  await shot('artifact-picked');
+  await closeDrawer();
+  if (!(await root.evaluate((element) => element.contains(document.activeElement)))) {
+    throw new Error('artifacts: closing the panel lost focus');
+  }
+
   /* 8 · Webhook: part of the first surface is refused, the report goes back to the agent, and the
-     corrected surface takes the first one's place. */
+     corrected surface takes the first one's place. Reduced motion is switched on while the first
+     attempt arrives: the rest of it arrives at once, and it is still reported once and corrected
+     once. */
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
   await suggestion('Give me the webhook snippet');
+  await page.waitForFunction((selector) => {
+    const item = [...document.querySelectorAll(selector)].at(-1);
+    return Boolean(item?.textContent.includes('Webhook for paid invoices') && item.querySelector('.zx-surface__frame[aria-busy="true"]'));
+  }, SURFACES, { timeout: 10_000 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.waitForSelector(`${ROOT} .zx-agent-thread__item[data-type="trace"]`, { timeout: 10_000 });
   await shot('webhook-report');
+  await idle();
+  // Long enough for a stray step of the first attempt to have fired.
+  await page.waitForTimeout(600);
+  const reports = page.locator(`${ROOT} .zx-agent-thread__item[data-type="trace"]`);
+  if ((await reports.count()) !== 1) throw new Error(`webhook: ${await reports.count()} reports of the first attempt, not one`);
   await arrived('Webhook for paid invoices');
-  const report = page.locator(`${ROOT} .zx-agent-thread__item[data-type="trace"]`).last();
+  const report = reports.last();
   await report.getByText('no problems').waitFor();
-  if (!(await versionLabel.textContent())?.startsWith('v2 of 2')) throw new Error('webhook: the corrected surface is not version 2');
+  if (!(await versionLabel.textContent())?.startsWith('v2 of 2')) {
+    throw new Error(`webhook: the corrected surface is ${await versionLabel.textContent()}, not v2 of 2`);
+  }
+  await page.emulateMedia({ reducedMotion: null });
   await clean('webhook');
   // The report as the agent received it, then the first attempt in the panel: its JSON without the
   // refused node, and the problems listed.

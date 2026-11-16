@@ -260,7 +260,25 @@ export class AgentThread extends Component {
     this._scrollHost = null;
     /** @type {EventTarget|null} */
     this._scrollTarget = null;
-    this._onScroll = () => { if (this._atEnd()) this._latestButton.hidden = true; };
+    this._onScroll = () => {
+      const end = this._atEnd();
+      const top = this._scrollHost?.scrollTop ?? 0;
+      // Only scrolling back lets go of the end. A scroll toward it — the thread's own, or the
+      // browser keeping the view anchored while content grows — never does, though it may land
+      // short of the end until the growth is followed.
+      if (end) this._stick = true;
+      else if (top < this._lastTop) this._stick = false;
+      this._lastTop = top;
+      if (end) this._latestButton.hidden = true;
+    };
+    /** Whether the reader stays with the end: set by their scrolling and by every follow. */
+    this._stick = true;
+    /** Where the scroller stood at the last scroll, to tell scrolling back from scrolling on. */
+    this._lastTop = 0;
+    /** @type {ResizeObserver|null} Watches the surfaces still being streamed into, while they grow. */
+    this._growth = null;
+    /** @type {Map<Element, number>} Each watched surface's height when it was last measured. */
+    this._heights = new Map();
     /** @type {string|null} */
     this._latestAnswer = null;
     /** @type {Map<string, {expanded?: boolean|null, controls?: string|null}>} Artifact open states, for answers drawn later. */
@@ -586,6 +604,7 @@ export class AgentThread extends Component {
     const scroller = this._scroller();
     if (scroller) scroller.scrollTop = scroller.scrollHeight;
     this._latestButton.hidden = true;
+    this._stick = true;
     return this;
   }
 
@@ -594,6 +613,9 @@ export class AgentThread extends Component {
     if (this._destroyed) return;
     this._destroyed = true;
     clearTimeout(this._announceTimer);
+    this._growth?.disconnect();
+    this._growth = null;
+    this._heights.clear();
     this._scrollTarget?.removeEventListener('scroll', this._onScroll);
     this._scrollTarget = null;
     this._scrollHost = null;
@@ -1122,13 +1144,14 @@ export class AgentThread extends Component {
     own(surface);
     if (!kept) {
       this._contain(surface, ['reply', 'error', 'change', 'ready', 'end']);
-      // A streamed surface says what it is only once it begins.
+      // A streamed surface says what it is only once it begins, and grows as its operations arrive.
       if (!item.document) {
         surface.on('ready', () => {
           if (!surface.getReply() && asksForAnswer(surface.toDocument()?.intent)) {
             this._announce(this.msg('agentThread.needsAnswer', this._authorName(item)), true);
           }
         });
+        this._watchGrowth(surface);
       }
       surface.on('reply', (event) => {
         if (this._answeredElsewhere.has(surface)) return;
@@ -1394,6 +1417,7 @@ export class AgentThread extends Component {
       this._scrollTarget?.removeEventListener('scroll', this._onScroll);
       this._scrollHost = node;
       this._scrollTarget = target;
+      this._lastTop = node?.scrollTop ?? 0;
       if (target) this.listen(target, 'scroll', this._onScroll, { passive: true });
     }
     return this._scrollHost;
@@ -1413,11 +1437,71 @@ export class AgentThread extends Component {
    * @returns {void}
    */
   _follow(change) {
+    // A streamed surface that grew since it was last measured is followed first, so a reader who
+    // was at the end still is when this change is measured.
+    for (const element of [...this._heights.keys()]) this._grown(element);
     const follow = this.options.followOutput && this.el.isConnected && this._atEnd();
     change();
     if (!this.options.followOutput || !this.el.isConnected) return;
-    if (follow) this.scrollToEnd();
-    else if (!this._atEnd()) this._latestButton.hidden = false;
+    if (follow) {
+      this.scrollToEnd();
+      return;
+    }
+    this._stick = this._atEnd();
+    if (!this._stick) this._latestButton.hidden = false;
+  }
+
+  /**
+   * Follows a surface streamed into through `surface(id)` as the thread's own updates are followed:
+   * what its operations add keeps the end in view while the reader is reading it, and offers
+   * "Jump to latest" otherwise. The surface says nothing per operation, and is fed from outside
+   * the thread, so its size is watched rather than the calls. Watching stops once its `end` has
+   * arrived or it has replied: what changes it after that is the reader's doing, and stays where
+   * they put it.
+   * @private
+   * @param {Surface} surface
+   * @returns {void}
+   */
+  _watchGrowth(surface) {
+    if (!this.options.followOutput || typeof ResizeObserver !== 'function') return;
+    const element = surface.toElement();
+    this._growth ??= new ResizeObserver((entries) => {
+      for (const entry of entries) this._grown(entry.target);
+    });
+    // Drawn into a thread on the page, the surface grows from nothing; drawn before the thread is
+    // placed, it is measured first when it is.
+    this._heights.set(element, this.el.isConnected ? 0 : Number.NaN);
+    this._growth.observe(element);
+    const unwatch = () => {
+      this._heights.delete(element);
+      this._growth?.unobserve(element);
+    };
+    // The last operation's growth is taken at once, before the observer lets go.
+    surface.on('end', () => {
+      this._grown(element);
+      unwatch();
+    });
+    surface.on('reply', unwatch);
+  }
+
+  /**
+   * A watched surface may have grown since it was last measured. The reader was at the end if,
+   * measured now, nothing but the growth lies past what they see, and they had not scrolled away.
+   * @private
+   * @param {Element} element
+   * @returns {void}
+   */
+  _grown(element) {
+    const before = this._heights.get(element);
+    if (before === undefined || this._destroyed) return;
+    const height = /** @type {HTMLElement} */ (element).offsetHeight;
+    this._heights.set(element, height);
+    if (Number.isNaN(before) || height <= before || !this.options.followOutput || !this.el.isConnected) return;
+    const scroller = this._scroller();
+    if (!scroller) return;
+    const gap = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
+    if (this._stick && gap - (height - before) <= END_SLACK) this.scrollToEnd();
+    else if (gap > END_SLACK) this._latestButton.hidden = false;
   }
 
   /** @private @returns {HTMLElement|null} */
