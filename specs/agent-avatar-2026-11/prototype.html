@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en" data-zx-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Agent avatars — internal study</title>
+  <link rel="stylesheet" href="../../styles/zx.css">
+  <link rel="stylesheet" href="prototype.css">
+</head>
+<body>
+  <!-- Internal exploration page. Served from the repository only (specs/ is never published). -->
+  <header class="p-head">
+    <div>
+      <h1>Agent avatars — layout options</h1>
+      <p>Generated, deterministic agent identities: a geometric body from the tone palette with eyes that
+        carry the agent's activity. Every option renders the same twelve agent names, a size ladder, the six
+        activity states, and three in-context uses.</p>
+    </div>
+    <form class="p-controls" id="controls">
+      <label>Theme
+        <select name="theme"><option value="light">Light</option><option value="dark">Dark</option></select>
+      </label>
+      <label>Accent preset
+        <select name="preset">
+          <option value="">Default</option><option>zeyos</option><option>ocean</option><option>violet</option>
+          <option>rose</option><option>slate</option><option>folio</option>
+        </select>
+      </label>
+      <label>Roster activity
+        <select name="activity">
+          <option value="idle">Idle</option><option value="thinking">Thinking</option>
+          <option value="working">Working</option><option value="needs-you">Needs you</option>
+          <option value="blocked">Blocked</option><option value="offline">Offline</option>
+        </select>
+      </label>
+      <label><input type="checkbox" name="motion" checked> Motion</label>
+      <label><input type="checkbox" name="dot" checked> Activity dot</label>
+      <label>Jump to
+        <select name="jump" id="jump"></select>
+      </label>
+    </form>
+  </header>
+  <main id="options"></main>
+  <script type="module" src="prototype.js"></script>
+</body>
+</html>

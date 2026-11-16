@@ -217,6 +217,7 @@ Each is the component's section of the full reference: https://zx.zeyos.com/docs
 - [Launcher](https://zx.zeyos.com/docs/components/launcher.md)
 - [AppIcon](https://zx.zeyos.com/docs/components/app-icon.md)
 - [Avatar](https://zx.zeyos.com/docs/components/avatar.md)
+- [AgentAvatar](https://zx.zeyos.com/docs/components/agent-avatar.md)
 - [EntityRef](https://zx.zeyos.com/docs/components/entity-ref.md)
 - [FileItem](https://zx.zeyos.com/docs/components/file-item.md)
 - [FileList](https://zx.zeyos.com/docs/components/file-list.md)

@@ -342,6 +342,31 @@ const cases = [
     assert(component.el.getAttribute('aria-label') === 'Grace Hopper, Away' && !component.refs.status.hidden
       && !('activity' in component.el.dataset), 'clearing the activity did not bring the presence back');
   }),
+  componentCase('AgentAvatar', () => new zx.AgentAvatar(null, {
+    seed: 'agt-7f3a', name: 'Ledger', label: 'Ledger', activity: 'working'
+  }), (component) => {
+    const face = component.refs.face;
+    assert(face.namespaceURI === 'http://www.w3.org/2000/svg' && face.getAttribute('aria-hidden') === 'true',
+      'the agent face is not a hidden SVG');
+    assert(component.el.getAttribute('role') === 'img' && component.el.getAttribute('aria-label') === 'Ledger, Working',
+      'the activity word is not in the agent avatar name');
+    assert(component.el.dataset.variant === 'token' && face.querySelector('.zx-agent-avatar__body')
+      && face.querySelectorAll('.zx-agent-avatar__pupil').length === 2, 'the token face was not drawn');
+    const traits = component.getTraits();
+    assert(JSON.stringify(traits) === JSON.stringify(zx.agentTraits('agt-7f3a')), 'getTraits disagrees with agentTraits');
+    component.set({ name: 'Ledger (renamed)' });
+    assert(JSON.stringify(component.getTraits()) === JSON.stringify(traits), 'a rename changed the face of a seeded agent');
+    component.setActivity('blocked', 'Waiting on the bank');
+    assert(component.el.getAttribute('aria-label') === 'Ledger, Waiting on the bank', 'activityLabel ignored');
+    assert(!face.querySelector('.zx-agent-avatar__pupil') && !component.refs.activity.hidden, 'blocked eyes or dot missing');
+    component.set({ variant: 'glyph', size: 'sm', indicator: false, label: null });
+    assert(component.el.dataset.variant === 'glyph' && component.el.getAttribute('aria-hidden') === 'true'
+      && component.refs.activity.hidden && !face.querySelector('.zx-agent-avatar__body'), 'glyph update failed');
+    component.set({ animate: true, activity: 'thinking' });
+    assert(component.el.hasAttribute('data-animate'), 'animate did not mark the root');
+    component.setActivity(null);
+    assert(!component.el.hasAttribute('data-animate') && !component.el.dataset.activity, 'clearing the activity left motion on');
+  }),
   componentCase('EntityRef', () => new zx.EntityRef(null, {
     id: 'customer-7',
     title: 'Northwind GmbH',

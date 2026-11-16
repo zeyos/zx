@@ -113,6 +113,9 @@ export { AppIcon, appIcon } from './components/app-icon/app-icon.js';
 export { Launcher, rankLauncherItems } from './components/launcher/launcher.js';
 export { AVATAR_TONES, Avatar, avatarInitials, avatarTone } from './components/avatar/avatar.js';
 export {
+  AGENT_BODIES, AGENT_GLYPH_EYES, AGENT_MARKS, AGENT_TOKEN_EYES, AGENT_VARIANTS, AgentAvatar, agentFace, agentTraits
+} from './components/agent-avatar/agent-avatar.js';
+export {
   EntityRef, normalizeEntityRef, normalizeEntityRefLink,
   normalizeEntityRefMetadata, normalizeEntityRefActions
 } from './components/entity-ref/entity-ref.js';
