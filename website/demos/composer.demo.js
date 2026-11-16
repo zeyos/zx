@@ -4,9 +4,9 @@ import { Composer, Select, button, h } from '../../src/index.js';
 // a function that answers a query itself, synchronously or with a Promise.
 function agents() {
   return [
-    { id: 'finance', label: 'Finance agent', description: 'Invoices, payments and cash forecasts', icon: 'table' },
-    { id: 'sales', label: 'Sales agent', description: 'Pipeline, quotes and renewals', icon: 'star' },
-    { id: 'support', label: 'Support agent', description: 'Tickets, returns and replies', icon: 'mail' }
+    { id: 'finance', label: 'Finance agent', description: 'Invoices, payments and cash forecasts', agent: { seed: 'agt-finance', tone: 'violet' } },
+    { id: 'sales', label: 'Sales agent', description: 'Pipeline, quotes and renewals', agent: { seed: 'agt-sales', tone: 'orange', activity: 'working' } },
+    { id: 'support', label: 'Support agent', description: 'Tickets, returns and replies', agent: { seed: 'agt-support', tone: 'teal' } }
   ];
 }
 

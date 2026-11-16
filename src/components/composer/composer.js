@@ -7,6 +7,7 @@ import { rovingTabindex } from '../../core/keyboard.js';
 import { position } from '../../core/position.js';
 import { storage } from '../../core/storage.js';
 import { uid } from '../../core/util.js';
+import { AgentAvatar } from '../agent-avatar/agent-avatar.js';
 import { Dialog } from '../dialog/dialog.js';
 import { keyLabels } from '../kbd/kbd.js';
 import { Launcher } from '../launcher/launcher.js';
@@ -23,6 +24,9 @@ import {
  * @property {string} label Visible name; picking the item writes `@<label> ` into the text.
  * @property {string} [description] Secondary line in the suggestion list.
  * @property {string} [icon] Icon name drawn before the label.
+ * @property {import('../../internal/app-rail.js').AppNavAgent|true} [agent] Draws the item as an
+ *   agent: its AgentAvatar, still, in place of `icon` — these options, or `true` to derive it from
+ *   the label. An activity's word joins the option's accessible name.
  */
 
 /**
@@ -417,6 +421,12 @@ export class Composer extends Component {
     const root = /** @type {HTMLElement} */ (this.el ?? h('div'));
     this.el = root;
     this._original = created ? null : snapshotTarget(root);
+    /**
+     * The faces of agent mentions, one per item id, reused while the list redraws on every
+     * keystroke and destroyed with the composer.
+     * @type {Map<string, {signature: string, avatar: AgentAvatar}>}
+     */
+    this._mentionFaces = new Map();
     if (!created) root.replaceChildren();
 
     const options = this.options;
@@ -871,6 +881,8 @@ export class Composer extends Component {
     this._position = null;
     this._launcher?.destroy();
     this._launcher = null;
+    for (const { avatar } of this._mentionFaces.values()) avatar.destroy();
+    this._mentionFaces.clear();
     super.destroy();
     if (this._original) restoreTarget(this.el, this._original);
   }
@@ -1178,14 +1190,20 @@ export class Composer extends Component {
     const highlighted = this._mention?.items[this._mention.index];
     const kept = highlighted ? items.findIndex((item) => String(item.id) === String(highlighted.id)) : -1;
     this._mention = { start, end, items, index: Math.max(0, kept) };
-    list.replaceChildren(...items.map((item, index) => h('div', {
-      class: 'zx-composer__option', role: 'option', id: `${list.id}-${index}`,
-      ariaSelected: 'false', dataset: { index: String(index) }
-    },
-    item.icon ? icon(item.icon, { size: ICON_SIZE.control }) : null,
-    h('span', { class: 'zx-composer__option-text' },
-      h('span', { class: 'zx-composer__option-label' }, String(item.label)),
-      item.description ? h('span', { class: 'zx-composer__option-description' }, String(item.description)) : null))));
+    list.replaceChildren(...items.map((item, index) => {
+      const face = this._mentionFace(item);
+      const word = face?.getActivityWord() ?? null;
+      return h('div', {
+        class: 'zx-composer__option', role: 'option', id: `${list.id}-${index}`,
+        ariaSelected: 'false', dataset: { index: String(index) },
+        // An agent's activity is in its face and dot; the name says it too, after the label.
+        ariaLabel: word ? [String(item.label), word, item.description ? String(item.description) : null].filter(Boolean).join(', ') : null
+      },
+      face ? face.toElement() : item.icon ? icon(item.icon, { size: ICON_SIZE.control }) : null,
+      h('span', { class: 'zx-composer__option-text' },
+        h('span', { class: 'zx-composer__option-label' }, String(item.label)),
+        item.description ? h('span', { class: 'zx-composer__option-description' }, String(item.description)) : null));
+    }));
     if (list.hidden) {
       list.hidden = false;
       this._position = position(/** @type {HTMLElement} */ (this.refs.frame), list, {
@@ -1216,6 +1234,29 @@ export class Composer extends Component {
   }
 
   /** @private @returns {void} */
+  /**
+   * The AgentAvatar an agent mention draws, kept per item id and rebuilt only when the item changes.
+   * @private
+   * @param {MentionItem} item
+   * @returns {AgentAvatar|null}
+   */
+  _mentionFace(item) {
+    if (!item.agent) return null;
+    const options = item.agent === true ? {} : item.agent;
+    const key = String(item.id);
+    const signature = JSON.stringify([item.label, options]);
+    let entry = this._mentionFaces.get(key);
+    if (!entry || entry.signature !== signature) {
+      entry?.avatar.destroy();
+      entry = {
+        signature,
+        avatar: new AgentAvatar(null, { ...options, name: options.name ?? String(item.label), size: 'sm', label: null, animate: false })
+      };
+      this._mentionFaces.set(key, entry);
+    }
+    return entry.avatar;
+  }
+
   _closeMentions() {
     this._mentionSequence += 1;
     if (!this._mention && /** @type {HTMLElement} */ (this.refs.list).hidden) return;
