@@ -83,8 +83,11 @@ and goes with its row — sized by the slot in each component's stylesheet, and 
 (`getActivityWord()`) joins the control's accessible name after the visible label, badge counts
 included. A ModuleBar agent replaces the tile, whatever the appearance. AgentThread's `Author` takes
 `face` (`{seed, tone, body, eyes, material}` or `true`) and draws the agent's AgentAvatar instead of
-initials. The Agent workspace layout draws every agent with AgentAvatar, soft material: roster,
-inspector, chat head, task owners, notifications, the palette and the route hint.
+initials or an `icon` tile — `face` wins over `icon`. The Agent workspace layout draws every agent
+with AgentAvatar, soft material: roster, inspector, chat head, task owners, notifications, the
+palette and the route hint. Agent chat, Agent canvas and AI chat draw their agents' faces in the
+thread and the navigation heading (and Agent canvas on its welcome); a model keeps its mark, and
+Composer's `@` mentions keep their glyphs, since Composer items take icon names only.
 
 ## API
 
@@ -117,7 +120,8 @@ the component is not focusable.
 - `src/components/agent-thread/agent-thread.js`, `src/components/run-trace/run-trace.js`,
   `src/components/activity-item/activity-item.js`, `src/internal/agent-model.js`: `face`;
   `website/demos/run-trace.demo.js`, `activity-item.demo.js`, `activity-list.demo.js`.
-- `website/layouts/agent-workspace.layout.js|css`; `website/demos/app-sidebar.demo.js`,
+- `website/layouts/agent-workspace.layout.js|css`, `agent-chat.layout.js`, `agent-canvas.layout.js`,
+  `ai-chat.layout.js`; `website/demos/app-sidebar.demo.js`,
   `website/demos/module-bar.demo.js`.
 - `styles/tokens/semantic.css`: the two `--zx-color-agent-*` tokens, in both colour paths —
   explicitly in scope.

@@ -1,9 +1,9 @@
 import {
-  AgentThread, Composer, MenuButton, RunStatus, RunTrace, SourceList, button, copyToClipboard, emptyState,
+  AgentAvatar, AgentThread, Composer, MenuButton, RunStatus, RunTrace, SourceList, button, copyToClipboard, emptyState,
   formatCurrency, formatDate, formatNumber, h, icon, prefersReducedMotion, surfaceText, watchMotion
 } from '../../src/index.js';
 import {
-  DATE, adaptiveShell, disposer, iconButton, iconTile, kbd, later, layoutContext, listTime, paneHeader, panelBlock,
+  DATE, adaptiveShell, disposer, iconButton, kbd, later, layoutContext, listTime, paneHeader, panelBlock,
   renderScope, shortcutSheet, shortcuts, suiteNav, toaster, unavailable
 } from './kit.js';
 import { ME, NOW, ORGANISATION, company, person } from './fixtures.js';
@@ -15,10 +15,16 @@ const AGENT = {
 };
 const MAILBOX = `billing@${ORGANISATION.domain}`;
 
+/**
+ * The agent's face: a generated AgentAvatar, seeded by a stable id so a rename keeps it, in the
+ * agent's tone, with the soft material where it is drawn large enough.
+ */
+const AGENT_FACE = { seed: 'agt-finance', tone: 'violet', material: 'soft' };
+
 /** Who takes part: the person reading, and the agent. */
 const AUTHORS = {
   me: { name: person(ME)?.name ?? 'You', kind: 'person' },
-  finance: { name: AGENT.name, kind: 'agent', tone: 'violet', icon: 'robot' }
+  finance: { name: AGENT.name, kind: 'agent', tone: 'violet', face: AGENT_FACE }
 };
 
 /** What the agent may touch. It reads, it drafts, it asks before it sends, and it books nothing. */
@@ -483,7 +489,7 @@ export default {
   category: 'Pattern',
   blurb: 'One conversation with an agent that acts: its plan, every tool call, an approval that holds the run, a streamed answer with sources, and the run beside it.',
   components: [
-    'AgentThread', 'RunTrace', 'ApprovalCard', 'Surface', 'SourceList', 'Composer', 'RunStatus', 'MenuButton', 'Message',
+    'AgentAvatar', 'AgentThread', 'RunTrace', 'ApprovalCard', 'Surface', 'SourceList', 'Composer', 'RunStatus', 'MenuButton', 'Message',
     'AppSidebar', 'ModuleBar', 'AccountMenu'
   ],
 
@@ -507,7 +513,8 @@ export default {
       module: 'assistant',
       header: button({ label: 'New conversation', icon: 'pen-to-square', shortcut: { label: 'N', keys: 'N' }, onclick: () => newConversation() }),
       content: h('div', { class: 'agent-chat__conversations' },
-        h('h2', { class: 'agent-chat__agent' }, iconTile('robot', 'violet'), AGENT.name),
+        h('h2', { class: 'agent-chat__agent' },
+          keep(new AgentAvatar(null, { ...AGENT_FACE, name: AGENT.name, size: 'sm' })).toElement(), AGENT.name),
         history)
     });
     const root = h('div', { class: 'agent-chat shell' }, nav.column);

@@ -649,7 +649,7 @@ export default {
   category: 'Communication',
   blurb: 'Chat with an assistant that shows its work: tool steps, cited sources, artifacts with versions, agent mentions, and per-chat model settings.',
   components: [
-    'AgentThread', 'Composer', 'BlockView', 'RunTrace', 'SourceList', 'Slider', 'FileList', 'CopyInput',
+    'AgentAvatar', 'AgentThread', 'Composer', 'BlockView', 'RunTrace', 'SourceList', 'Slider', 'FileList', 'CopyInput',
     'Launcher', 'Select', 'InlineLoading', 'ContextMenu', 'MenuButton', 'NumberField', 'Toggle',
     'ProgressBar', 'AppIcon', 'Dialog', 'Message', 'AppSidebar', 'ModuleBar', 'AccountMenu'
   ],
@@ -2316,7 +2316,8 @@ function threadAuthors(name) {
   for (const model of MODELS) {
     authors[model.ID] = { name: model.name, kind: 'model', icon: model.icon };
     for (const agent of AGENTS) {
-      authors[`${agent.id}@${model.ID}`] = { name: agent.name, kind: 'agent', icon: agent.icon, tone: agent.tone, via: model.name };
+      // An agent's face is seeded by its id, so it is the same whichever model it answers through.
+      authors[`${agent.id}@${model.ID}`] = { name: agent.name, kind: 'agent', tone: agent.tone, via: model.name, face: { seed: `agt-${agent.id}` } };
     }
   }
   return authors;

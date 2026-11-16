@@ -1176,12 +1176,12 @@ export class AgentThread extends Component {
   _avatar(item, own) {
     const author = this._author(item);
     if (!author) return null;
-    if (author.icon) {
+    const face = authorFace(author);
+    if (!face && author.icon) {
       return h('span', { class: 'zx-agent-thread__avatar' },
         h('span', { class: 'zx-agent-thread__mark', dataset: { tone: author.tone ?? null, kind: author.kind ?? 'agent' }, 'aria-hidden': 'true' },
           icon(String(author.icon), { size: 14 })));
     }
-    const face = authorFace(author);
     if (face) {
       // Only the face's own traits are read from the author, which may be an agent's data; how
       // the avatar is drawn and named belongs to the thread: still, decorative, beside the byline.

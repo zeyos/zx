@@ -1,10 +1,10 @@
 import {
-  AgentThread, BlockView, ChartJsAdapter, Composer, MenuButton, PromptStarters, SourceList, Surface, Tabbox, badge,
+  AgentAvatar, AgentThread, BlockView, ChartJsAdapter, Composer, MenuButton, PromptStarters, SourceList, Surface, Tabbox, badge,
   button, emptyState, formatCurrency, formatDate, formatNumber, h, prefersReducedMotion, skeletonText, surfaceText,
   uid, watchMotion
 } from '../../src/index.js';
 import {
-  DATE, adaptiveShell, disposer, iconButton, iconTile, kbd, later, layoutContext, loadChartJs, paneHeader,
+  DATE, adaptiveShell, disposer, iconButton, kbd, later, layoutContext, loadChartJs, paneHeader,
   renderScope, shortcutSheet, shortcuts, suiteNav
 } from './kit.js';
 import { ME, NOW, ORGANISATION, company, person } from './fixtures.js';
@@ -16,10 +16,16 @@ const AGENT = {
 };
 const MAILBOX = `billing@${ORGANISATION.domain}`;
 
+/**
+ * The agent's face: a generated AgentAvatar, seeded by a stable id so a rename keeps it, in the
+ * agent's tone, with the soft material where it is drawn large enough.
+ */
+const AGENT_FACE = { seed: 'agt-finance', tone: 'violet', material: 'soft' };
+
 /** Who takes part: the person reading, and the agent. A surface's `author` names one of them. */
 const AUTHORS = {
   me: { name: person(ME)?.name ?? 'You', kind: 'person' },
-  finance: { name: AGENT.name, kind: 'agent', tone: 'violet', icon: 'robot' }
+  finance: { name: AGENT.name, kind: 'agent', tone: 'violet', face: AGENT_FACE }
 };
 
 /** October week by week, in euros: invoiced, collected, and September's invoices for comparison. */
@@ -528,7 +534,7 @@ export default {
   category: 'Pattern',
   blurb: 'A scripted agent whose every answer is a surface it composes as JSON — figures and a chart, a review, forms, a questionnaire, a confirmation — with an artifact panel showing each one’s JSON, versions, and the reply it produced.',
   components: [
-    'AgentThread', 'Surface', 'Composer', 'PromptStarters', 'Tabbox', 'SourceList', 'Chart', 'ChartJsAdapter',
+    'AgentAvatar', 'AgentThread', 'Surface', 'Composer', 'PromptStarters', 'Tabbox', 'SourceList', 'Chart', 'ChartJsAdapter',
     'Table', 'Questionnaire', 'Dialog', 'MenuButton', 'AppSidebar', 'ModuleBar', 'AccountMenu'
   ],
 
@@ -575,7 +581,8 @@ export default {
       module: 'assistant',
       header: button({ label: 'New conversation', icon: 'pen-to-square', onclick: () => newConversation() }),
       content: h('div', { class: 'canvas__index' },
-        h('h2', { class: 'canvas__agent' }, iconTile('robot', 'violet'), AGENT.name),
+        h('h2', { class: 'canvas__agent' },
+          keep(new AgentAvatar(null, { ...AGENT_FACE, name: AGENT.name, size: 'sm' })).toElement(), AGENT.name),
         h('h3', { class: 'list-group' }, 'Artifacts'),
         artifactList)
     });
@@ -602,7 +609,7 @@ export default {
       onpick: ({ detail }) => send(detail.item.text, { focus: true })
     }));
     const welcome = h('div', { class: 'canvas__welcome' },
-      iconTile('robot', 'violet', { size: 'lg' }),
+      keep(new AgentAvatar(null, { ...AGENT_FACE, name: AGENT.name, size: 56 })).toElement(),
       h('h3', { class: 'canvas__welcome-title' }, 'What should the finance agent show you?'),
       h('p', { class: 'canvas__welcome-text' }, AGENT.description),
       starters.toElement());
