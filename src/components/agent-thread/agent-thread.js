@@ -7,6 +7,7 @@ import { isEditableTarget } from '../../core/keyboard.js';
 import { escapeRegExp, uid } from '../../core/util.js';
 import { AGENT_MESSAGES, initialsOf } from '../../internal/agent-model.js';
 import { ApprovalCard } from '../approval-card/approval-card.js';
+import { AgentAvatar } from '../agent-avatar/agent-avatar.js';
 import { Avatar } from '../avatar/avatar.js';
 import { BlockView } from '../block-view/block-view.js';
 import { copyButton } from '../copy/copy-button.js';
@@ -1179,6 +1180,15 @@ export class AgentThread extends Component {
       return h('span', { class: 'zx-agent-thread__avatar' },
         h('span', { class: 'zx-agent-thread__mark', dataset: { tone: author.tone ?? null, kind: author.kind ?? 'agent' }, 'aria-hidden': 'true' },
           icon(String(author.icon), { size: 14 })));
+    }
+    if (author.face && author.kind !== 'person') {
+      const face = author.face === true ? {} : author.face;
+      const agent = own(new AgentAvatar(null, {
+        ...face, name: author.name, tone: /** @type {any} */ (face.tone ?? author.tone ?? null),
+        body: /** @type {any} */ (face.body ?? null), eyes: /** @type {any} */ (face.eyes ?? null),
+        size: 'sm', activity: author.activity ?? null
+      }));
+      return h('span', { class: 'zx-agent-thread__avatar' }, agent.toElement());
     }
     const avatar = own(new Avatar(null, {
       name: author.name, initials: author.initials ?? initialsOf(author.name), tone: /** @type {any} */ (author.tone ?? null),

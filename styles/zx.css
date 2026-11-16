@@ -27,6 +27,7 @@
 @import url("../src/components/app-icon/app-icon.css");
 @import url("../src/components/launcher/launcher.css");
 @import url("../src/components/avatar/avatar.css");
+@import url("../src/components/agent-avatar/agent-avatar.css");
 @import url("../src/components/entity-ref/entity-ref.css");
 @import url("../src/components/file-item/file-item.css");
 @import url("../src/components/file-list/file-list.css");

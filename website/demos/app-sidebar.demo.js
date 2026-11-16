@@ -16,6 +16,20 @@ function moduleVisual(name, size = 24, shape = 'tile') {
   });
 }
 
+// A team of agents as navigation destinations: each item carries `agent`, the AgentAvatar
+// options the row draws in place of an icon, its activity included.
+function agentItems() {
+  return [
+    { id: 'inbox', label: 'Inbox', icon: 'envelope', badge: 3 },
+    { section: true, label: 'Agents', children: [
+      { id: 'agt-orbit', label: 'Orbit', agent: { seed: 'agt-orbit', tone: 'violet', activity: 'working' } },
+      { id: 'agt-ledger', label: 'Ledger', agent: { seed: 'agt-ledger', tone: 'green', activity: 'needs-you' }, badge: 1 },
+      { id: 'agt-fathom', label: 'Fathom', agent: { seed: 'agt-fathom', tone: 'teal', activity: 'thinking' } },
+      { id: 'agt-quill', label: 'Quill', agent: { seed: 'agt-quill', tone: 'pink', activity: 'offline' } }
+    ] }
+  ];
+}
+
 // A navigation tree sized like a real one: counts on several destinations, a three-digit count
 // that cannot fit a rail target, a label long enough to need a second line in a 280px sidebar,
 // and one branch three levels deep. Those are the cases a nav has to survive rather than edge
@@ -248,6 +262,28 @@ export default {
         cleanup(() => sidebar.destroy());
         return h('div', { style: 'block-size: 220px; display: flex' }, sidebar.toElement(),
           h('div', { class: 'demo-card', style: 'flex: 1; display: grid; place-items: center' }, 'Project'));
+      }
+    },
+    {
+      title: 'Agents as destinations',
+      blurb: 'agent on an item draws an AgentAvatar in place of its icon — expanded and minimized, '
+        + 'in rows and flyouts — sized by the slot. It shows the agent at rest: its activity is the '
+        + 'face and the dot, never motion, and its word joins the control\'s accessible name '
+        + '("Ledger, Needs you"). Redraw with setItems() when an activity changes.',
+      layout: 'stack',
+      render: ({ cleanup, log }) => {
+        const expanded = new AppSidebar(null, {
+          label: 'Agents', items: agentItems(), active: 'agt-orbit', collapsible: false,
+          onselect: (event) => { event.preventDefault(); log(`select ${event.detail.id}`); }
+        });
+        const minimized = new AppSidebar(null, {
+          label: 'Agents, minimized', items: agentItems(), active: 'agt-orbit', collapsed: true,
+          onselect: (event) => { event.preventDefault(); log(`select ${event.detail.id}`); }
+        });
+        cleanup(() => [expanded, minimized].forEach((sidebar) => sidebar.destroy()));
+        return h('div', { style: 'block-size: 320px; display: flex; gap: var(--zx-space-4)' },
+          expanded.toElement(), minimized.toElement(),
+          h('div', { class: 'demo-card', style: 'flex: 1; display: grid; place-items: center' }, 'Conversation'));
       }
     },
     {

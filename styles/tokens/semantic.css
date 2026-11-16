@@ -160,6 +160,9 @@
     --zx-color-text-chrome: color-mix(in srgb, var(--zx-color-text-muted) 70%, var(--zx-color-text));
     --zx-color-app-icon-glyph: var(--zx-gray-0);
     --zx-color-app-icon-shade: var(--zx-gray-950);
+    /* AgentAvatar's eyes on a solid tone: a white and a pupil ink that do not flip with the theme. */
+    --zx-color-agent-eye: var(--zx-gray-0);
+    --zx-color-agent-pupil: var(--zx-gray-950);
     --zx-color-app-icon-depth: color-mix(in srgb, var(--zx-color-app-icon-shade) 26%, transparent);
     /* White on the 600 accent in light, near-black on the 400 in dark: the ramp promise in
        tokens/themes.css is what keeps both legible. */
@@ -398,6 +401,9 @@
     --zx-color-text-invert: var(--zx-gray-50);
     --zx-color-app-icon-glyph: var(--zx-gray-0);
     --zx-color-app-icon-shade: var(--zx-gray-950);
+    /* AgentAvatar's eyes on a solid tone: a white and a pupil ink that do not flip with the theme. */
+    --zx-color-agent-eye: var(--zx-gray-0);
+    --zx-color-agent-pupil: var(--zx-gray-950);
     --zx-color-accent: var(--zx-accent-600);
     --zx-color-accent-hover: var(--zx-accent-700);
     --zx-color-accent-active: var(--zx-accent-700);

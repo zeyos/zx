@@ -29,7 +29,10 @@ bar.setBadge('mail', 8);
   pinned, unpinned ones are under "All modules" only), `group` (the catalogue heading), and
   `description`. Children are the module's menu. A `section` at the top level heads its modules:
   a caption over them while names are printed beside the tiles, a short rule between groups on an
-  icon strip or bar, and their group in the catalogue.
+  icon strip or bar, and their group in the catalogue. `agent` (AgentAvatar options, or `true`)
+  draws the module as an agent: its `AgentAvatar` at the size of the tile in place of the tile,
+  whatever the `appearance`, at rest, with the activity's word in the tile's accessible name
+  ("Ledger, Needs you (2)"); `tone` and `color` then do not apply.
 - **Options** — `items`, `active` (a module or anything in a module's menu),
   `orientation: 'vertical'|'horizontal'`, `side`, `appearance: 'tint'|'solid'|'plain'` (the glyph
   on a tint of the module colour; the solid identity tile; monochrome glyphs),

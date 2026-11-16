@@ -472,6 +472,132 @@
     ],
     "methods": []
   },
+  "AgentAvatar": {
+    "options": [
+      {
+        "name": "seed",
+        "type": "string|null",
+        "default": "null",
+        "description": "The agent's stable identity — an id. Every trait is derived from it, so renaming an agent does not change its face. `null` uses `name`."
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "default": "''",
+        "description": "The agent's name; the seed when `seed` is null."
+      },
+      {
+        "name": "tone",
+        "type": "AvatarTone|null",
+        "default": "null",
+        "description": "Colour from the tone palette; `null` derives it from the seed with `avatarTone()`, so the face matches an initials tile keyed the same way."
+      },
+      {
+        "name": "body",
+        "type": "AgentBody|null",
+        "default": "null",
+        "description": "The silhouette, instead of the derived one: one of the fourteen in {@link AGENT_BODIES}."
+      },
+      {
+        "name": "eyes",
+        "type": "AgentEyes|null",
+        "default": "null",
+        "description": "The eye shape, instead of the derived one."
+      },
+      {
+        "name": "material",
+        "type": "AgentMaterial",
+        "default": "'flat'",
+        "description": "How the body is painted. `flat` is the tone's solid fill; `soft` adds a quiet vertical ramp — a touch lighter at the top, deeper at the foot, the plain tone across the eyes — from 28px up. Below 28px, when offline, in print and in forced colours a soft body is drawn flat."
+      },
+      {
+        "name": "size",
+        "type": "string|number",
+        "default": "'md'",
+        "description": "Preset — `sm` 24px, `md` 32px, `lg` 40px at the default spacing unit — or a pixel size. Small sizes draw less: no pupils below 20px, larger eyes at 24px and below."
+      },
+      {
+        "name": "label",
+        "type": "string|null",
+        "default": "null",
+        "description": "Accessible label; null makes the avatar decorative."
+      },
+      {
+        "name": "activity",
+        "type": "AgentActivity|null",
+        "default": "null",
+        "description": "What the agent is doing. The eyes take the activity's expression, the activity dot shows it, and its word joins the accessible name.",
+        "update": {
+          "methods": [
+            "setActivity()"
+          ]
+        }
+      },
+      {
+        "name": "activityLabel",
+        "type": "string|null",
+        "default": "null",
+        "description": "The activity's word, when the default is not the one to show."
+      },
+      {
+        "name": "indicator",
+        "type": "boolean",
+        "default": "true",
+        "description": "Whether to draw the activity dot. Without it, show the activity's word nearby: the expression alone is a weaker signal."
+      },
+      {
+        "name": "animate",
+        "type": "boolean",
+        "default": "false",
+        "description": "Moves the avatar with its activity in the shared presence loop (as Avatar does) and lets its eyes blink, drift and scan. Motion is never the only signal and stops under reduced motion. While it is on, the root's `transform` belongs to the loop."
+      },
+      {
+        "name": "phase",
+        "type": "number|null",
+        "default": "null",
+        "description": "Where in its activity's cycle the avatar moves, as a fraction from 0 up to 1. `null` derives one from the seed."
+      },
+      {
+        "name": "msg",
+        "type": "Record<string, string>|Record<string, Record<string, string>>",
+        "default": null,
+        "description": "Localized messages: the activity words, `agent.activity.<activity>`."
+      }
+    ],
+    "events": [],
+    "methods": [
+      {
+        "name": "set",
+        "signature": "set(values)",
+        "returns": "this",
+        "description": "Replaces identity and presentation values: any option but `msg`."
+      },
+      {
+        "name": "setActivity",
+        "signature": "setActivity(activity, [label])",
+        "returns": "this",
+        "description": "Sets what the agent is doing and, optionally, the word for it. `null` clears the activity."
+      },
+      {
+        "name": "getActivityWord",
+        "signature": "getActivityWord()",
+        "returns": "string|null",
+        "description": "The localized word for the current activity — `activityLabel` when set — or null without an activity. A host that draws the avatar inside a control of its own adds it to that control's name, as AppSidebar and ModuleBar do."
+      },
+      {
+        "name": "getTraits",
+        "signature": "getTraits()",
+        "returns": "AgentTraits",
+        "description": "The traits the face is drawn from, so an application can store them — to keep a look across a rename, or to settle a collision between two agents once."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": "Leaves the presence loop and restores an enhanced target or removes an owned root. Safe to call more than once: only the first call restores, so a target its owner has reused is left alone."
+      }
+    ]
+  },
   "AgentThread": {
     "options": [
       {

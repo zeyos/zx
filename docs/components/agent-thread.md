@@ -34,7 +34,9 @@ agents' answers as they stream (`BlockView` with a `SourceList`), the steps a ru
   its version (`versions[]`); a `trace`'s `title` replaces its summary (a plan:
   "Plan · 5 of 6 done"); a `notice` is named by its own text and may carry `action: {id, label}`
   (`action {item, action: id}`); an author with an `icon` is drawn as a tinted tile instead of
-  initials (round for a `model`; `tone: 'accent'` for the accent's quiet fill); an `approval`'s
+  initials (round for a `model`; `tone: 'accent'` for the accent's quiet fill); an agent author with
+  `face` (`{seed, tone, body, eyes, material}` or `true`) is drawn as its generated `AgentAvatar`,
+  with the author's `activity`; an `approval`'s
   `editedKeys` say which values the person changed. `setArtifactState()` is remembered for answers
   drawn later; `sourceIcons` is handed to every `SourceList`.
 - **Placeholders** — a `{type: 'zx-placeholder', id, author?, lines?}` item stands for something

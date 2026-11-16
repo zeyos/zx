@@ -82,6 +82,9 @@
 
 .zx-app-rail__item-label { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); }
 .zx-app-rail__item-icon { display: inline-flex; }
+
+/* An agent item draws its AgentAvatar at the size of an icon slot. */
+.zx-app-rail__item-icon > .zx-agent-avatar { --zx-agent-avatar-size: var(--zx-space-6); }
 .zx-app-rail__item-badge {
   position: absolute;
   inset-inline-end: 1px;
@@ -205,6 +208,8 @@
   inline-size: var(--zx-app-rail-icon);
   color: inherit;
 }
+
+.zx-app-rail__flyout-item-icon > .zx-agent-avatar { --zx-agent-avatar-size: var(--zx-app-rail-icon); }
 
 .zx-app-rail__flyout-item-label {
   grid-column: 2;

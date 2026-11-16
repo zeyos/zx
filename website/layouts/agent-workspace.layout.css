@@ -174,28 +174,14 @@
   font-weight: var(--zx-weight-semibold);
 }
 
-/* An agent's initial on its tone, where a full Avatar would be redrawn on every keystroke. */
+/* An agent's face at rest, where an animated avatar would be redrawn on every keystroke. */
 .agents__mark {
   display: inline-grid;
   flex: none;
   place-items: center;
-  inline-size: 20px;
-  block-size: 20px;
-  border-radius: var(--zx-radius-sm);
-  background: var(--zx-color-tone-slate-bg);
-  color: var(--zx-color-tone-slate-fg);
-  font-size: 10px;
-  font-weight: var(--zx-weight-semibold);
-  line-height: 1;
 }
 
-.agents__mark[data-tone="blue"] { background: var(--zx-color-tone-blue-bg); color: var(--zx-color-tone-blue-fg); }
-.agents__mark[data-tone="teal"] { background: var(--zx-color-tone-teal-bg); color: var(--zx-color-tone-teal-fg); }
-.agents__mark[data-tone="green"] { background: var(--zx-color-tone-green-bg); color: var(--zx-color-tone-green-fg); }
-.agents__mark[data-tone="amber"] { background: var(--zx-color-tone-amber-bg); color: var(--zx-color-tone-amber-fg); }
-.agents__mark[data-tone="orange"] { background: var(--zx-color-tone-orange-bg); color: var(--zx-color-tone-orange-fg); }
-.agents__mark[data-tone="pink"] { background: var(--zx-color-tone-pink-bg); color: var(--zx-color-tone-pink-fg); }
-.agents__mark[data-tone="violet"] { background: var(--zx-color-tone-violet-bg); color: var(--zx-color-tone-violet-fg); }
+.agents__mark > .zx-agent-avatar { --zx-agent-avatar-size: var(--zx-space-5); }
 
 /* ------------------------------------------------------------- navigation -- */
 

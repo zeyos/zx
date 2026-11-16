@@ -1,7 +1,7 @@
 import { h } from '../../core/dom.js';
 import { icon } from '../../core/icons.js';
 import { isCssColor, uid } from '../../core/util.js';
-import { AppRailPresenter, appNavIcon, normalizeAppItems } from '../../internal/app-rail.js';
+import { AppRailPresenter, appNavAgentWord, appNavIcon, appNavName, normalizeAppItems } from '../../internal/app-rail.js';
 import { APP_ICON_TONES, appIcon } from '../app-icon/app-icon.js';
 import { Dropdown } from '../dropdown/dropdown.js';
 import { Tooltip } from '../tooltip/tooltip.js';
@@ -15,6 +15,10 @@ import { Tooltip } from '../tooltip/tooltip.js';
  * @property {string|number} id Stable module identifier.
  * @property {string} label Module name: the tile's accessible name, tooltip, and catalogue label.
  * @property {string|Node|{toElement: () => Node|null}|((context: Record<string, any>, item: AppNavItem) => Node|null)} [icon] Icon name, node, component, or factory.
+ * @property {import('../../internal/app-rail.js').AppNavAgent|true} [agent] Draws the module as an
+ *   agent: an AgentAvatar in place of the tile, whatever the `appearance`, at rest, with its
+ *   activity's word in the tile's accessible name. `tone` and `color` then do not apply; the
+ *   avatar's own `tone` does.
  * @property {ModuleTone} [tone] Identity colour from the theme's categorical tones.
  * @property {string} [color] Identity colour as any CSS colour; takes precedence over `tone`.
  * @property {string|number} [badge] Count or status badge.
@@ -450,6 +454,10 @@ export class ModuleBar extends AppRailPresenter {
       level: 1,
       location: location === 'bar' ? 'module' : 'catalogue'
     }) ?? h('span', { class: 'zx-module-bar__initial' }, item.label.trim().charAt(0).toUpperCase());
+    if (visual instanceof Element && visual.classList.contains('zx-agent-avatar')) {
+      // An agent is its own identity: no tint, no AppIcon, the face at the size of the tile.
+      return h('span', { class: 'zx-module-bar__tile', ariaHidden: 'true', dataset: { agent: '' } }, visual);
+    }
     const { tone, color } = resolveModuleColor(item);
     const tile = h('span', {
       class: 'zx-module-bar__tile',
@@ -476,8 +484,9 @@ export class ModuleBar extends AppRailPresenter {
   _applyTileBadge(control, item) {
     control.querySelector(':scope > .zx-module-bar__badge')?.remove();
     const count = item.badge == null || item.badge === '' ? null : String(item.badge);
-    control.setAttribute('aria-label', count === null ? item.label
-      : this._message('moduleBar.itemBadge', '%1 (%2)', item.label, count));
+    const name = appNavName(item, control.querySelector('.zx-module-bar__tile > .zx-agent-avatar'));
+    control.setAttribute('aria-label', count === null ? name
+      : this._message('moduleBar.itemBadge', '%1 (%2)', name, count));
     if (count === null) return;
     control.append(h('span', {
       class: 'zx-module-bar__badge',
@@ -1030,6 +1039,10 @@ function currentState(item, activeId) {
  * @returns {void}
  */
 function applyRowBadge(control, item, block) {
+  // An agent row is named with its activity and count, so the name follows the badge.
+  const agent = control.querySelector(
+    ':scope > .zx-module-bar__tile > .zx-agent-avatar, :scope > .zx-app-rail__flyout-item-icon > .zx-agent-avatar');
+  if (appNavAgentWord(agent)) control.setAttribute('aria-label', appNavName(item, agent, true));
   const existing = control.querySelector(`:scope > .${block}-badge`);
   const count = item.badge == null || item.badge === '' ? null : String(item.badge);
   if (count === null) {

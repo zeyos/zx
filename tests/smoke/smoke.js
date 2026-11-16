@@ -342,6 +342,66 @@ const cases = [
     assert(component.el.getAttribute('aria-label') === 'Grace Hopper, Away' && !component.refs.status.hidden
       && !('activity' in component.el.dataset), 'clearing the activity did not bring the presence back');
   }),
+  componentCase('AgentAvatar', () => new zx.AgentAvatar(null, {
+    seed: 'agt-7f3a', name: 'Ledger', label: 'Ledger', activity: 'working'
+  }), (component) => {
+    const face = component.refs.face;
+    assert(face.namespaceURI === 'http://www.w3.org/2000/svg' && face.getAttribute('aria-hidden') === 'true',
+      'the agent face is not a hidden SVG');
+    assert(component.el.getAttribute('role') === 'img' && component.el.getAttribute('aria-label') === 'Ledger, Working',
+      'the activity word is not in the agent avatar name');
+    assert(face.querySelector('.zx-agent-avatar__body')
+      && face.querySelectorAll('.zx-agent-avatar__pupil').length === 2, 'the token face was not drawn');
+    const traits = component.getTraits();
+    assert(JSON.stringify(traits) === JSON.stringify(zx.agentTraits('agt-7f3a')), 'getTraits disagrees with agentTraits');
+    component.set({ name: 'Ledger (renamed)' });
+    assert(JSON.stringify(component.getTraits()) === JSON.stringify(traits), 'a rename changed the face of a seeded agent');
+    component.setActivity('blocked', 'Waiting on the bank');
+    assert(component.el.getAttribute('aria-label') === 'Ledger, Waiting on the bank', 'activityLabel ignored');
+    assert(!face.querySelector('.zx-agent-avatar__pupil') && !component.refs.activity.hidden, 'blocked eyes or dot missing');
+    component.set({ body: 'cross', size: 'sm', indicator: false, label: null });
+    assert(component.el.getAttribute('aria-hidden') === 'true' && component.refs.activity.hidden
+      && face.querySelectorAll('.zx-agent-avatar__body').length === 1, 'update to the cross body failed');
+    component.set({ material: 'soft', size: 48, activity: 'idle' });
+    const gradient = face.querySelector('linearGradient');
+    assert(component.el.dataset.material === 'soft' && gradient && gradient.querySelectorAll('stop').length === 4,
+      'the soft material drew no gradient');
+    assert(getComputedStyle(face.querySelector('.zx-agent-avatar__body')).fill.startsWith('url('),
+      'the soft gradient is not painting the body');
+    const second = new zx.AgentAvatar(null, { seed: 'agt-7f3a', material: 'soft', size: 48 });
+    assert(second.refs.face.querySelector('linearGradient').id !== gradient.id, 'two soft avatars share a gradient id');
+    second.destroy();
+    const host = document.createElement('span');
+    host.textContent = 'before';
+    const enhanced = new zx.AgentAvatar(host, { name: 'Ledger' });
+    enhanced.destroy();
+    host.textContent = 'reused';
+    enhanced.destroy();
+    assert(host.textContent === 'reused' && !host.classList.contains('zx-agent-avatar'),
+      'a second destroy() restored an old snapshot over a reused target');
+    component.set({ size: 24 });
+    assert(component.el.dataset.material === 'flat' && !face.querySelector('linearGradient'), 'a small soft avatar was not drawn flat');
+    component.set({ size: 48, activity: 'offline' });
+    assert(component.el.dataset.material === 'flat', 'an offline soft avatar was not drawn flat');
+    component.set({ animate: true, activity: 'thinking' });
+    assert(component.el.hasAttribute('data-animate'), 'animate did not mark the root');
+    component.setActivity(null);
+    assert(!component.el.hasAttribute('data-animate') && !component.el.dataset.activity, 'clearing the activity left motion on');
+    const agentItems = [{ id: 'ledger', label: 'Ledger', badge: 2, agent: { seed: 'agt-7f3a', activity: 'needs-you' } }];
+    const bar = new zx.ModuleBar(null, { items: agentItems });
+    const tile = bar.el.querySelector('.zx-module-bar__tile[data-agent] > .zx-agent-avatar');
+    assert(tile && bar.el.querySelector('[data-app-nav-value-id="ledger"]').getAttribute('aria-label') === 'Ledger, Needs you (2)',
+      'a ModuleBar agent is not drawn or not named with its activity');
+    bar.setBadge('ledger', 7);
+    assert(bar.el.querySelector('[data-app-nav-value-id="ledger"]').getAttribute('aria-label') === 'Ledger, Needs you (7)',
+      'setBadge() left a stale count in an agent module\'s name');
+    bar.destroy();
+    const sidebar = new zx.AppSidebar(null, { items: agentItems });
+    const row = sidebar.el.querySelector('.zx-app-sidebar__item[data-app-nav-id="ledger"]');
+    assert(row.querySelector('.zx-agent-avatar:not([data-animate])') && row.getAttribute('aria-label') === 'Ledger, Needs you (2)',
+      'an AppSidebar agent is not drawn at rest or not named with its activity');
+    sidebar.destroy();
+  }),
   componentCase('EntityRef', () => new zx.EntityRef(null, {
     id: 'customer-7',
     title: 'Northwind GmbH',

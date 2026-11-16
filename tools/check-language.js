@@ -728,6 +728,10 @@ export function libraryEnglish(english, german, author, demoText = [], locale = 
     if (demoText.some((pattern) => pattern.test(text))) return false;
     // Demos number what they generate: `Item ${index}` reads `Item 12` on the page.
     if (text.split(/\d+/).every((part) => author.includes(part.trim()))) return false;
+    // A name the library composes from parts — "Quill, Offline": the demo's agent and a status
+    // word the catalogue shares with English — is explained when every part is.
+    const parts = text.split(/,\s+/);
+    if (parts.length > 1 && parts.every((part) => catalogue.has(part) || (part.trim() !== '' && author.includes(part.trim())))) return false;
     // A date heading reads the same in November, and a number is nobody's language.
     let words = text.replace(fixture, ' ');
     for (const name of sharedNames) words = words.split(name).join(' ');

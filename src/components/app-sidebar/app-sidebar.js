@@ -5,7 +5,7 @@ import { ICON_SIZE, icon } from '../../core/icons.js';
 import { uid } from '../../core/util.js';
 import { renderRowActions, rowActionMenu, setRowActionsTabbable } from '../../internal/row-actions.js';
 import {
-  AppRailPresenter as MinimizedPresenter, appNavIcon, normalizeAppItems
+  AppRailPresenter as MinimizedPresenter, appNavAgentWord, appNavIcon, appNavName, normalizeAppItems
 } from '../../internal/app-rail.js';
 import { ModuleBar, liftSections, moduleOf } from '../module-bar/module-bar.js';
 import { Tooltip } from '../tooltip/tooltip.js';
@@ -930,8 +930,8 @@ export class AppSidebar extends Component {
       if (!item || item.badge == null) continue;
       const count = String(item.badge);
       badge.dataset.zxBadge = count.length > 2 ? 'dot' : 'count';
-      control.setAttribute('aria-label',
-        this._message('appSidebar.itemBadge', '%1 (%2)', item.label, count));
+      const name = appNavName(item, control.querySelector(':scope > .zx-app-rail__item-icon > .zx-agent-avatar'));
+      control.setAttribute('aria-label', this._message('appSidebar.itemBadge', '%1 (%2)', name, count));
     }
   }
 
@@ -1245,6 +1245,7 @@ function navControl(item, disclosure, expanded, controls, visual) {
     type: tag === 'button' ? 'button' : null,
     href: tag === 'a' ? item.href : null,
     target: tag === 'a' ? item.target ?? null : null,
+    ariaLabel: appNavAgentWord(visual) ? appNavName(item, visual, true) : null,
     ariaDisabled: item.disabled ? 'true' : null,
     ariaExpanded: disclosure ? String(expanded) : null,
     ariaControls: controls,

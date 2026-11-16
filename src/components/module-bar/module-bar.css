@@ -264,6 +264,9 @@
 
 .zx-module-bar__item[aria-disabled="true"] .zx-module-bar__tile,
 .zx-module-bar__entry[aria-disabled="true"] .zx-module-bar__tile { opacity: .55; }
+
+/* An agent module is its AgentAvatar at the size of the tile: no tint, no AppIcon behind it. */
+.zx-module-bar__tile[data-agent] > .zx-agent-avatar { --zx-agent-avatar-size: var(--zx-module-bar-tile); }
 .zx-module-bar__item[aria-disabled="true"]:hover,
 .zx-module-bar__entry[aria-disabled="true"]:hover { background: transparent; }
 

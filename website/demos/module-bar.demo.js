@@ -4,6 +4,17 @@ import { demoZeyosGlyph } from '../zeyos-demo-icons.js';
 // The outline set the layout gallery uses, registered under Font Awesome names (envelope, building…).
 import '../layouts/layout-icons.js';
 
+// Agents as modules: `agent` draws each one's AgentAvatar in place of a tile.
+function agentModules() {
+  return [
+    { id: 'agt-orbit', label: 'Orbit', agent: { seed: 'agt-orbit', tone: 'violet', activity: 'working' } },
+    { id: 'agt-ledger', label: 'Ledger', agent: { seed: 'agt-ledger', tone: 'green', activity: 'needs-you' }, badge: 2 },
+    { id: 'agt-fathom', label: 'Fathom', agent: { seed: 'agt-fathom', tone: 'teal', activity: 'thinking' } },
+    { id: 'agt-kiln', label: 'Kiln', agent: { seed: 'agt-kiln', tone: 'orange', activity: 'idle', material: 'soft' } },
+    { id: 'agt-quill', label: 'Quill', agent: { seed: 'agt-quill', tone: 'pink', activity: 'offline' } }
+  ];
+}
+
 // A suite's modules: each with an icon, an identity tone, and — for the modules that have one —
 // the menu that opens beside its tile. A module without children is a destination of its own.
 function suiteModules() {
@@ -183,6 +194,26 @@ export default {
           h('div', {}, toggle),
           h('div', { style: 'display: flex; gap: var(--zx-space-4); block-size: 420px' },
             column.toElement(), labelled.toElement(), plain.toElement()));
+      }
+    },
+    {
+      title: 'Agents as modules',
+      blurb: 'agent on a module draws its AgentAvatar instead of a tile, whatever the appearance, '
+        + 'at the size of the tile and at rest. The activity is the face and the dot, and its word '
+        + 'joins the tile\'s accessible name with the count: "Ledger, Needs you (2)".',
+      layout: 'stack',
+      render: ({ cleanup, log }) => {
+        const vertical = new ModuleBar(null, {
+          items: agentModules(), active: 'agt-orbit', labels: 'beside', label: 'Agents',
+          onselect: (event) => { event.preventDefault(); log(`select ${event.detail.id}`); }
+        });
+        const horizontal = new ModuleBar(null, {
+          items: agentModules(), active: 'agt-ledger', orientation: 'horizontal', side: 'top', label: 'Agents, horizontal',
+          onselect: (event) => { event.preventDefault(); log(`select ${event.detail.id}`); }
+        });
+        cleanup(() => [vertical, horizontal].forEach((bar) => bar.destroy()));
+        return h('div', { style: 'display: flex; flex-wrap: wrap; gap: var(--zx-space-5); align-items: start' },
+          h('div', { style: 'inline-size: 220px' }, vertical.toElement()), horizontal.toElement());
       }
     },
     {

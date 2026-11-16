@@ -5,10 +5,10 @@
   "zx.core.min.css": 10000,
   "zx.layered.css": 65000,
   "zx.layered.min.css": 60000,
-  "zx.esm.js": 600000,
-  "zx.esm.min.js": 370000,
-  "zx.global.js": 610000,
-  "zx.global.min.js": 370000,
-  "zx-zeyos.esm.js": 236000,
-  "zx-zeyos.esm.min.js": 149000
+  "zx.esm.js": 604000,
+  "zx.esm.min.js": 373000,
+  "zx.global.js": 614000,
+  "zx.global.min.js": 373000,
+  "zx-zeyos.esm.js": 244000,
+  "zx-zeyos.esm.min.js": 155000
 }
