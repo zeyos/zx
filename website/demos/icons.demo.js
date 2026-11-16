@@ -1,9 +1,7 @@
 import {
   ICON_SIZE, Search, Toggle, button, getIconConfig, h, icon, icons, useBuiltinIcons, useFontAwesome
 } from '../../src/index.js';
-import {
-  ZEYOS_ICON_KIT, moduleChip, moduleInfo, moduleKeys, useZeyosIcons
-} from '../../src/zeyos/index.js';
+import { ZEYOS_ICON_KIT, useZeyosIcons } from '../../src/zeyos/index.js';
 
 /** Font Awesome styles offered by the style switcher. Kits carry the ones their licence allows. */
 const STYLES = ['solid', 'regular', 'light', 'thin', 'duotone'];
@@ -23,8 +21,7 @@ export default {
   group: 'Core',
   demoTitle: 'Icon gallery',
   blurb: 'One icon() call, two renderers: the outline SVG glyphs Zx bundles, or Font Awesome once '
-    + 'an application loads a kit. Plus the ZeyOS module icons and the colour each module is '
-    + 'drawn in.',
+    + 'an application loads a kit.',
 
   /**
    * Mounts the icon layer examples.
@@ -34,7 +31,6 @@ export default {
   mount(container) {
     container.append(
       fontAwesomeSection(),
-      moduleSection(),
       builtinSection(),
       configSection()
     );
@@ -86,8 +82,7 @@ function fontAwesomeSection() {
         await useZeyosIcons({ style: styleSelect.value });
         provider.enable();
         provider.set(true);
-        status.textContent = 'Kit loaded. Every bare icon name now resolves to Font Awesome, and '
-          + 'the ZeyOS module glyphs below are available.';
+        status.textContent = 'Kit loaded. Every bare icon name now resolves to Font Awesome.';
       } catch (error) {
         load.disabled = false;
         status.textContent = `${error.message} — kits are locked to the domains configured in `
@@ -137,63 +132,6 @@ function fontAwesomeSection() {
     note('Names carry their own renderer when they need to. A bare name follows the active '
       + 'provider; a prefixed name or a literal class list does not:'),
     specs
-  );
-}
-
-/* ------------------------------------------------------------- ZeyOS modules -- */
-
-/** @returns {HTMLElement} */
-function moduleSection() {
-  const grid = h('div', { style: {
-    display: 'grid', gap: 'var(--zx-space-3)',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(11rem, 1fr))'
-  } });
-  let query = '';
-  let standard = false;
-
-  const filter = new Search(null, {
-    placeholder: 'Filter modules…',
-    oninput: (event) => { query = event.detail.value.trim().toLowerCase(); draw(); }
-  });
-  const fallback = new Toggle(null, {
-    label: 'Use the stock Font Awesome fallbacks',
-    onchange: (event) => { standard = event.detail.checked; draw(); }
-  });
-
-  /** Redraws the module gallery. */
-  function draw() {
-    const keys = moduleKeys().filter((key) => !query
-      || key.includes(query) || moduleInfo(key).label.toLowerCase().includes(query));
-    grid.replaceChildren(...keys.map((key) => {
-      const info = moduleInfo(key);
-      return h('div', { style: {
-        display: 'flex', alignItems: 'center', gap: 'var(--zx-space-3)',
-        padding: 'var(--zx-space-2)', border: '1px solid var(--zx-color-border)',
-        borderRadius: 'var(--zx-radius-md)', background: 'var(--zx-color-bg-surface)'
-      } },
-      moduleChip(key, { size: 32, standard }),
-      h('div', { style: { display: 'grid', minWidth: '0' } },
-        h('span', { style: { fontSize: 'var(--zx-text-sm)' } }, info.label),
-        h('code', { style: {
-          overflow: 'hidden', color: 'var(--zx-color-text-muted)',
-          fontSize: 'var(--zx-text-xs)', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
-        } }, `${key} · ${info.color}`)));
-    }));
-  }
-
-  draw();
-  return section('ZeyOS modules',
-    note('Every ZeyOS module has an icon in the kit and an identity colour. moduleChip() draws '
-      + 'the pair the way ZeyOS draws module icons in navigation; moduleIcon() gives the bare '
-      + 'glyph. Both accept module, entity, and API resource names — moduleChip(\'invoices\') and '
-      + "moduleChip('transactions.billing') land on the same module — and unknown names fall back "
-      + 'to the ZeyOS default glyph rather than throwing. The glyphs stay blank until the kit '
-      + 'above is loaded; the chip colour does not depend on it.'),
-    code("import { moduleChip, moduleColor } from '/assets/zx-zeyos.esm.js';\n\n"
-      + "nav.append(moduleChip('tickets', { size: 24, title: true }));\n"
-      + "moduleColor('invoices');  // '#535494'"),
-    row(filter.toElement(), fallback.toElement()),
-    grid
   );
 }
 
@@ -284,13 +222,6 @@ function builtinSection() {
 function configSection() {
   const config = output(JSON.stringify(getIconConfig(), null, 2));
   return section('Configuration',
-    note('src/zeyos/modules.js is the configuration file behind the gallery: one entry per '
-      + 'module, holding the kit icon name, the identity colour, a display label, and a stock '
-      + 'Font Awesome fallback. The --zx-module-* CSS custom properties are generated from it, so '
-      + 'CSS and JavaScript can never disagree about a module colour.'),
-    code("notes: { label: 'Notes', icon: 'zeyos-notes', color: '#008853', fa: 'note-sticky' }\n\n"
-      + '// A ZeyOS menu payload is authoritative — feed its colours in at startup:\n'
-      + "registerModules({ tickets: '#f04639', 'my-fork': { label: 'My Fork', icon: 'zeyos-weblets' } });"),
     note('The active icon configuration, as getIconConfig() reports it:'),
     config
   );
