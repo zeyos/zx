@@ -6,6 +6,11 @@ and application layouts in plain ES2022 modules. Source modules run directly in 
 distribution also provides ESM and classic-script bundles. Xenon originated at ZeyOS, while its
 components and contracts remain product- and framework-agnostic.
 
+Coding agents start with [docs/llms-small.txt](docs/llms-small.txt) — how every component works,
+the layout and the component for each job, and what never to build, in under 8k tokens — then read
+one component's file in [docs/components/](docs/components/index.md). [docs/llms.md](docs/llms.md)
+is the complete reference; all three ship in the package.
+
 ## Quick start
 
 Use the ESM bundle when the application already uses modules:
@@ -230,6 +235,31 @@ ZeyOS binding — see `src/zeyos/modules.js`.
 
 See the [Surface guide](docs/agent-surfaces.md) and [component catalogue](docs/agent-catalog.json)
 for supported schemas and streaming helpers. Both ship in the package.
+
+## Composing surfaces at runtime
+
+An agent can put interface in front of a person without writing HTML: the model composes a
+`surface/1` document, and `Surface` (or `openSurface()`) validates it and draws it with Zx
+components. The server gives the model its tools and guide from the catalogue, which imports
+nothing that needs a browser:
+
+```js
+import { CATALOG, surfacePrompt, surfaceTools } from '@zeyos/zx/src/components/surface/catalog.js';
+
+const tools = surfaceTools(CATALOG, { profile: 'answer' });    // show_surface only
+const guide = surfacePrompt(CATALOG, { profile: 'answer' });   // the nodes it may use, and when
+```
+
+- **Profiles** — `answer` shows (prose, figures, tables, charts, records, links, layout), `ask`
+  adds forms, choices and confirmations, `review` adds proposed changes, and `full` is everything.
+  Give the model the narrowest that does the job: `answer` costs less than half of `full`.
+  `narrowCatalog(CATALOG, { profile, intents, nodes })` narrows further.
+- **One reply per surface** — every surface ends in exactly one `reply/1`, also when the person
+  closes it or it is replaced. Wait for it, and treat it as the person's answer, not as proof that
+  anything happened: the server runs its own policy again before it acts.
+- **Errors go back to the model** — what fails validation is dropped and reported (the `error`
+  event, `getErrors()`, or `validateDocument()` from `surface/validate.js` on the server); return
+  those errors to the model so it can correct the surface and send it again.
 
 ## Start from a layout
 

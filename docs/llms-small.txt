@@ -1,0 +1,297 @@
+# Xenon Design System (Zx) — small reference
+
+> Xenon is a dependency-free design system for browser applications; Zx is its vanilla-JavaScript
+> implementation. This is the small tier of its agent documentation: how every component works,
+> which layout and which component a screen needs, what never to build, and how a model composes
+> surfaces at runtime. Each component has its own file, listed at the end; the complete reference is
+> https://zx.zeyos.com/docs/llms.md.
+
+## Mental model
+
+Every visual component is an ES class extending `Component`, instantiated identically:
+
+```js
+import { Table, Dialog, Toggle } from '/assets/zx.esm.js'; // or window.zx.* from zx.global.js
+const t = new Table(target, options);
+```
+
+- **`target`** — an `Element`, a selector string, or `null`. `null` means the component creates and
+  **owns** its root element; retrieve it with `t.toElement()` (or `t.el`) and insert it. A non-null
+  target is *enhanced in place* and restored on `destroy()`.
+- **Options** — a plain object; each component declares `static defaults`. Never mutate the passed
+  object. An option passed as `undefined` is an option not passed: it keeps the declared default,
+  at the top level and inside `msg`, so a wrapper can forward `{ label: props.label }` without
+  filtering unset props. `null` is a value and overrides the default. The merged options are
+  frozen; change a live component through its methods (see "Using Zx from a framework").
+- **Value/data** — set via constructor options and mutated via methods (`set`, `setData`, …);
+  read via getters/methods (`.value`, `getValues()`, …).
+
+### Events & lifecycle
+
+- Subscribe with `t.on('change', fn)` (alias `addEvent`), `t.once(...)`, or an `on<type>` function
+  **option** (`onchange`, `onrowclick`, …). Handlers receive a `CustomEvent`; read `event.detail`
+  (always an object, e.g. `{ value, item }`).
+- Every `emit` also dispatches a **bubbling, composed** `zx-<type>` `CustomEvent` on `t.el`, so
+  `t.el.addEventListener('zx-change', …)` and event delegation work.
+- Mutation boundaries may opt into honoring cancellation of that mirrored DOM event; Kanban's
+  `zx-recordmove` does, so delegated hosts can veto a move without a component reference.
+- `t.destroy()` aborts all listeners (one AbortController), unregisters the element, and removes an
+  owned root. `Component.from(el)` returns the component for a root element (replaces the legacy
+  `el.retrieve('com')`).
+
+## Start from a layout, not a blank page
+
+Every layout in the gallery (<https://zx.zeyos.com/layouts>, `layouts.html#<id>` opens one,
+`layout.html#<id>` shows it alone) is a complete, working screen on one shared application shell,
+and its source is public: `https://zx.zeyos.com/layouts/<id>.layout.js` with `<id>.layout.css`
+(in the repository, `website/layouts/`). Open the closest one, keep its anatomy — the columns,
+the pane headers, the toolbar, the drawers, the states, the keyboard map — and change the data,
+the fields, and the copy.
+
+The helpers a layout imports are public too, and meant to be copied beside application code
+(they are documentation-site modules, not package exports; import them relatively):
+
+- `layouts/kit.js` + `kit.css` — the shell: `.shell` and its columns, `paneHeader()`,
+  `propList()`, `.list-row`, `.surface`, `suiteNav()` (module strip + module menu, with a
+  `workspace` switcher), `adaptiveShell()` (every column stays reachable at any width),
+  `shortcuts()` and `shortcutSheet()` (`?`), `toast()`, `loadChartJs()`.
+- `layouts/overview.js` + `overview.css` — `createOverview()`: one toolbar over one record set
+  shown as table, list, cards, gallery, or board; search; filters as editable chips with a Filters
+  drawer; a View settings drawer; grouping, sorting, paging, selection and bulk actions; a base
+  filter for tabs and scopes; split empty states. The record collection, CRM, and issue tracker
+  are all this one composition.
+
+Which layout a screen is:
+
+| The screen | Start from | Not from |
+| --- | --- | --- |
+| A list of records of one type (companies, tickets, orders, files) | **Record collection** (`record-collection`) — the toolbar, chips, drawers and pager come with it | a bare `Table` under a heading |
+| A list beside the record being edited | **Master–detail** (`master-detail`) | two unrelated panes |
+| One record on its own page | **Record page** (`record-page`) | a form |
+| Figures, charts, a period switch | **Dashboard** (`dashboard`) | cards of big numbers |
+| Settings in sections | **Settings workspace** (`settings-workspace`) | one long form |
+| Creating something in steps | **Record wizard** (`record-wizard`, vertical steps) or **Checkout wizard** (`checkout-wizard`, horizontal) | tabs |
+| Conversations, triage | **Inbox** (`inbox`) or the **Mail** template | — |
+| An assistant | **Agent chat** (`agent-chat`, one run with tools and approvals) or the **AI chat** template | a chat bubble list |
+| Empty, loading, error, offline, confirmation | **System states** (`system-states`) — every screen needs these; copy them | ad-hoc messages |
+| A whole application | the closest **template** below; they share one shell | a new shell |
+
+Templates — complete applications with navigation, lists, records, and editors together:
+
+| id | Screen | Use it for |
+| --- | --- | --- |
+| `mail` | Mail | a keyboard-first inbox: split streams, one-key triage, snooze, inline reply |
+| `issue-tracker` | Issue tracker | work items grouped by status or on a board, chips, sub-items, activity, properties edited in place |
+| `wiki` | Knowledge base | nested pages in spaces, a reading column with a live outline, comments, Markdown editing |
+| `ai-chat` | AI chat | chat with an assistant: tool steps, sources, artifacts with versions, per-chat settings |
+| `agent-workspace` | Agent workspace | a team of agents: roster with presence, plans and logs, approvals, a palette, a terminal |
+| `invoice-editor` | Invoice editor | a document edited beside its live page, totals per rate, a send step that locks it |
+| `item-inventory` | Item & inventory | one master-data record: levels per location, linked documents, tabbed settings, a log |
+| `workflows` | Workflows | recurring processes as step flows: built, run, measured |
+| `infrastructure` | Infrastructure | monitoring: health, alerts, traffic, drill-down to the unit |
+| `crm` | CRM | companies, people, deals: editable collections with saved views, record pages, a stage board |
+
+Patterns — single screens that recur in every application:
+
+| id | Screen | What it shows |
+| --- | --- | --- |
+| `master-detail` | Master–detail | a filterable list beside the record being edited; save, revert, unsaved-change checks |
+| `record-collection` | Record collection | one record type as table, list, cards, gallery, and board under one toolbar; filter chips and drawers |
+| `dashboard` | Dashboard | figures, a chart, tabbed detail, one period switch redrawing all of it |
+| `inbox` | Inbox | three panes: folders, conversations, the open thread with a reply |
+| `record-page` | Record page | one record: summary header, tabs for lines, files and history, editable details |
+| `agent-chat` | Agent chat | one agent run: plan, tool calls, an approval that holds it, a streamed answer with sources |
+| `record-wizard` | Record wizard | creation in validated vertical steps with a running total and a review |
+| `checkout-wizard` | Checkout wizard | a focused horizontal flow beside a live summary |
+| `settings-workspace` | Settings workspace | personal settings in sections, saved together |
+| `system-states` | System states | every empty, loading, error, and confirmation state, with an offline switch |
+| `zeyos-invoices` | ZeyOS invoices | a table and a form generated from the ZeyOS schema, beside the ZeyOS module navigation |
+
+Every application shares one shell: `AppSidebar` (or `ModuleBar` for the module level) with
+`AccountMenu`, a `WorkspaceSwitcher` where users have several workspaces, a `Launcher` as the
+command palette, `?` for the shortcut sheet, and `data-zx-theme` honoured throughout. Do not design
+a second navigation.
+
+## The component for the job
+
+| Job | Use | Rather than |
+| --- | --- | --- |
+| Records the user scans, sorts, selects | `Table`; `TableView` when the same records also appear as cards or a board | a styled `<table>`, a list of `<div>`s |
+| Records as cards or a gallery | `CardView` (`keyboard: 'roving'`, `groupBy`, `collapsibleGroups`) | `Card`s in a CSS grid |
+| Records by stage, dragged between columns | `KanbanView` | — |
+| One record set, several presentations, one state | `RecordView` family + `ListToolbar` + `ViewSettings` + `Pagination` — `createOverview()` wires them | three components with three states |
+| The bar above a record view | `ListToolbar` (search, live count, view switch, badged tools) | a row of buttons |
+| Sorting outside a header | `SortControl` | two selects |
+| Paging | `Pagination` (`paginationRange()` for the numbers) | — |
+| Filters, quick and client-side | `DataFilter` | — |
+| Filters typed from a server's field metadata | `FilterPanel` (`mode: 'draft'|'live'`) | — |
+| Filters the user composes, nested, serialisable | `Filter` (an AST; `parseFilterAst()`/`stringifyFilterAst()`) | — |
+| A spreadsheet-like editable grid (lines, positions) | `Grid` (`Grid.BillingItems()`) | `Table` with `editMode` — that is for occasional cell edits |
+| A tree | `TreeView` (one column) or `Finder` (Miller columns) | nested `<ul>`s |
+| Events over time | `Calendar` (agenda, day, week, month, year) | — |
+| One number with context | `StatTile` (delta, sparkline, loading; plain and one leading for a record's figures) | a card with a big figure |
+| A chart | `Chart` with `ChartJsAdapter` (Chart.js injected, never bundled) | — |
+| A linked record inline | `EntityRef` | a link |
+| Files | `FileItem` / `FileList`; uploading: `FieldUpload` | — |
+| History, comments, a feed | `ActivityItem` / `ActivityList` | — |
+| Choose one of many | `Select` (`filter: 'local'` or async for long lists; `Select.entity()` for records; `Select.priority()` / `Select.status()` presets); native radios for a handful of visible options | a custom dropdown |
+| Choose many | `TagPicker` (identity, colour, icons), `Checklist` (a plain list) | — |
+| On or off | `Toggle` (takes effect at once), `CheckButton` (a mode in a toolbar), a native checkbox inside a form | — |
+| Search | `Search` | an input with an icon |
+| Number, date, time, range | `NumberField`, `Datebox` / `DateTimeBox`, `Timebox`, `DateRangeBox`, `Slider`, `Rating` | plain inputs |
+| A form | `Form` → `Fieldset` → `Field` (the type registry); `Questionnaire` for one question at a time | hand-laid inputs |
+| Structured text, code | `CodeEditor` | a textarea |
+| Repeating values | `ValueList`, `MultiValueEditor` | — |
+| Confirm, alert, prompt | `Dialog.confirm()` / `Dialog.alert()` / `Dialog.prompt()` (Promises) | `window.confirm` |
+| A task in a window | `Dialog` (header, footer, buttons); `Modal` is the bare surface | — |
+| Edit without leaving the list | `Sheet` (`side: 'end'`); drill-down: `SheetStack`; a persistent pane: `Dock` | a dialog |
+| Transient status | `Message.success()` / `.info()` / `.warning()` / `.error()` (toasts); inline `Message` for a region | an alert bar built by hand |
+| Actions on a thing | `MenuButton`; `ContextMenu` (right-click and Shift+F10; one instance per table via `selector`) | a floating `<div>` |
+| Anchored content, hints | `Dropdown`; `tooltip()` / `describe()` | `title` attributes alone |
+| A row of actions | `Toolbar` (overflow menu, one Tab stop) | a flex row of buttons |
+| Navigation | `AppSidebar` (tree, sections, `layout: 'modules'`), `ModuleBar`, `NavigationBar`, `Tabbox` (in-page), `Breadcrumb` (where am I), `Stepper` (a sequence) | — |
+| Commands by keyboard | `Launcher` | — |
+| Account and workspace | `AccountMenu`, `WorkspaceSwitcher` | — |
+| Grouping content | `Card`, `Panel` (actions in the header or footer), `Groupbox`, `MasterPanel`, `SplitView`, `stack()` / `grid()` / `aspect()` | ad-hoc wrappers |
+| Identity and status marks | `Avatar`, `AppIcon`, `badge()` (`kind` says how it is doing, `tone` what it is) | coloured spans |
+| Nothing yet, loading, failed | `emptyState()`, `skeleton()` / `skeletonText()` / `skeletonTable()`, `InlineLoading`, `spinner()`, `ProgressBar` | a blank area |
+| Ambient colour behind a hero, a login, a launcher | `Aurora` | CSS gradients |
+| Icons | `icon(name)` — the bundled set or Font Awesome, whichever the application opted into | inline SVG |
+
+## Never
+
+- No raw colours (`#hex`, `rgb()`, named), no tier-1 tokens (`--zx-gray-*`, `--zx-emerald-*`,
+  `--zx-tone-*`), no hard-coded sizes the geometry tokens cover.
+- No application CSS on component internals (`.zx-<component>__<part>` selectors); override a
+  token, or use a published hook.
+- No hand-built dropdowns, menus, dialogs, tooltips, tables, date pickers, or toasts.
+- No `innerHTML` with data; `h()` and text nodes.
+- No state classes; state is ARIA and `data-state`, which the stylesheets already match.
+- No second shell, second navigation, or second keyboard convention inside one application.
+
+The theming decisions — theme, accent, geometry, material, motion, colour roles, type — are in "Choosing what to build with" in https://zx.zeyos.com/docs/llms.md.
+
+## Composing surfaces at runtime
+
+At runtime, a model composes interface as `surface/1` JSON — never HTML — and the application validates it and draws it with Zx components. Each surface declares one intent and ends in exactly one reply; treat a reply as the person's answer, not as proof that anything happened. When validation reports errors, return them to the model so it can correct the surface.
+
+| Intent | Needs | Default actions | Reply values |
+| --- | --- | --- | --- |
+| `show` | — | — | No values. Actions are optional; closing the surface replies `dismiss`. |
+| `ask` | a `fields` | Submit, Cancel | The values of its inputs, by name. |
+| `choose` | a `choice` | Submit, Cancel | The picked value under the choice's name; a list when `multiple`. |
+| `confirm` | — | Confirm, Cancel | `{}`. The application may ask the person to type a confirmation. |
+| `review` | a `diff` or a `table` | Approve selected, Reject | The ids of the accepted diff rows or selected table rows, under the input's name. |
+| `questionnaire` | a `questionnaire` | Cancel | `{answers, path}`: the answers by step name and the steps taken. |
+
+Give the model the narrowest profile that does the job — `surfacePrompt(CATALOG, { profile })`, `surfaceTools(CATALOG, { profile })`, `narrowCatalog(CATALOG, { profile })`; leaving it out is the whole catalog:
+
+- `answer` — intents `show`; nodes `text`, `heading`, `list`, `code`, `callout`, `figures`, `table`, `stat`, `badge`, `ref`, `link`, `chart`, `empty`, `stack`, `columns`, `group`.
+- `ask` — intents `show`, `ask`, `choose`, `confirm`; nodes `text`, `heading`, `list`, `code`, `callout`, `figures`, `table`, `stat`, `badge`, `ref`, `link`, `chart`, `empty`, `stack`, `columns`, `group`, `fields`, `choice`.
+- `review` — intents `show`, `ask`, `choose`, `confirm`, `review`; nodes `text`, `heading`, `list`, `code`, `callout`, `figures`, `table`, `stat`, `badge`, `ref`, `link`, `chart`, `empty`, `stack`, `columns`, `group`, `fields`, `choice`, `diff`.
+- `full` — intents `show`, `ask`, `choose`, `confirm`, `review`, `questionnaire`; nodes `text`, `heading`, `list`, `quote`, `code`, `callout`, `figures`, `table`, `stat`, `badge`, `ref`, `link`, `chart`, `empty`, `stack`, `columns`, `group`, `fields`, `choice`, `diff`, `questionnaire`.
+
+Limits per surface: 400 nodes, 8 actions, 20,000 characters per string. Every node says when to use it and when not to in the guide and the catalogue.
+
+- Model-facing guide: https://zx.zeyos.com/docs/agent-surfaces.md
+- Catalogue, JSON Schema and tool definitions: https://zx.zeyos.com/docs/agent-catalog.json
+- The Surface component: https://zx.zeyos.com/docs/components/surface.md
+
+## Component files
+
+Each is the component's section of the full reference: https://zx.zeyos.com/docs/components/<id>.md.
+
+- [ZeyOS binding (zx-zeyos)](https://zx.zeyos.com/docs/components/zeyos.md)
+- [Prose](https://zx.zeyos.com/docs/components/prose.md)
+- [Kbd](https://zx.zeyos.com/docs/components/kbd.md)
+- [Button](https://zx.zeyos.com/docs/components/button.md)
+- [Badge](https://zx.zeyos.com/docs/components/badge.md)
+- [Toolbar](https://zx.zeyos.com/docs/components/toolbar.md)
+- [EmptyState](https://zx.zeyos.com/docs/components/empty-state.md)
+- [Spinner / ProgressBar / InlineLoading](https://zx.zeyos.com/docs/components/loading.md)
+- [Skeleton](https://zx.zeyos.com/docs/components/skeleton.md)
+- [CheckButton](https://zx.zeyos.com/docs/components/check-button.md)
+- [Toggle](https://zx.zeyos.com/docs/components/toggle.md)
+- [Search](https://zx.zeyos.com/docs/components/search.md)
+- [Launcher](https://zx.zeyos.com/docs/components/launcher.md)
+- [AppIcon](https://zx.zeyos.com/docs/components/app-icon.md)
+- [Avatar](https://zx.zeyos.com/docs/components/avatar.md)
+- [EntityRef](https://zx.zeyos.com/docs/components/entity-ref.md)
+- [FileItem](https://zx.zeyos.com/docs/components/file-item.md)
+- [FileList](https://zx.zeyos.com/docs/components/file-list.md)
+- [ActivityItem](https://zx.zeyos.com/docs/components/activity-item.md)
+- [ActivityList](https://zx.zeyos.com/docs/components/activity-list.md)
+- [AccountMenu](https://zx.zeyos.com/docs/components/account-menu.md)
+- [WorkspaceSwitcher](https://zx.zeyos.com/docs/components/workspace-switcher.md)
+- [Select](https://zx.zeyos.com/docs/components/select.md)
+- [SortControl](https://zx.zeyos.com/docs/components/sort-control.md)
+- [Checklist](https://zx.zeyos.com/docs/components/checklist.md)
+- [NumberField](https://zx.zeyos.com/docs/components/number-field.md)
+- [Rating](https://zx.zeyos.com/docs/components/rating.md)
+- [Slider](https://zx.zeyos.com/docs/components/slider.md)
+- [copyButton() / CopyInput](https://zx.zeyos.com/docs/components/copy.md)
+- [DatePicker / MonthPicker / TimePicker](https://zx.zeyos.com/docs/components/date-picker.md)
+- [Datebox / DateTimeBox](https://zx.zeyos.com/docs/components/datebox.md)
+- [DateRangePicker / DateRangeBox](https://zx.zeyos.com/docs/components/date-range.md)
+- [Timebox](https://zx.zeyos.com/docs/components/timebox.md)
+- [Message](https://zx.zeyos.com/docs/components/message.md)
+- [Modal](https://zx.zeyos.com/docs/components/modal.md)
+- [Dialog (extends Modal)](https://zx.zeyos.com/docs/components/dialog.md)
+- [Sheet](https://zx.zeyos.com/docs/components/sheet.md)
+- [SheetStack](https://zx.zeyos.com/docs/components/sheet-stack.md)
+- [Dropdown](https://zx.zeyos.com/docs/components/dropdown.md)
+- [MenuButton](https://zx.zeyos.com/docs/components/menu-button.md)
+- [ContextMenu](https://zx.zeyos.com/docs/components/context-menu.md)
+- [Tooltip](https://zx.zeyos.com/docs/components/tooltip.md)
+- [SplitView](https://zx.zeyos.com/docs/components/split-view.md)
+- [Table](https://zx.zeyos.com/docs/components/table.md)
+- [TableView and the shared RecordView contract](https://zx.zeyos.com/docs/components/table-view.md)
+- [CardView](https://zx.zeyos.com/docs/components/card-view.md)
+- [KanbanView](https://zx.zeyos.com/docs/components/kanban-view.md)
+- [Grid and Grid.BillingItems()](https://zx.zeyos.com/docs/components/grid.md)
+- [Chart and ChartJsAdapter](https://zx.zeyos.com/docs/components/chart.md)
+- [Calendar](https://zx.zeyos.com/docs/components/calendar.md)
+- [DataFilter](https://zx.zeyos.com/docs/components/data-filter.md)
+- [FilterPanel](https://zx.zeyos.com/docs/components/filter-panel.md)
+- [Filter](https://zx.zeyos.com/docs/components/filter.md)
+- [TreeView](https://zx.zeyos.com/docs/components/tree.md)
+- [Finder](https://zx.zeyos.com/docs/components/finder.md)
+- [Form / Fieldset / Field](https://zx.zeyos.com/docs/components/form.md)
+- [Field widget types](https://zx.zeyos.com/docs/components/form-widgets.md)
+- [CodeEditor](https://zx.zeyos.com/docs/components/code-editor.md)
+- [Questionnaire](https://zx.zeyos.com/docs/components/questionnaire.md)
+- [ValueList](https://zx.zeyos.com/docs/components/value-list.md)
+- [MultiValueEditor](https://zx.zeyos.com/docs/components/multi-value-editor.md)
+- [FieldUpload](https://zx.zeyos.com/docs/components/field-upload.md)
+- [TagPicker](https://zx.zeyos.com/docs/components/tag-picker.md)
+- [Groupbox](https://zx.zeyos.com/docs/components/groupbox.md)
+- [Card](https://zx.zeyos.com/docs/components/card.md)
+- [StatTile](https://zx.zeyos.com/docs/components/stat-tile.md)
+- [Aurora](https://zx.zeyos.com/docs/components/aurora.md)
+- [Panel / MasterPanel](https://zx.zeyos.com/docs/components/panel.md)
+- [stack() / grid() / aspect()](https://zx.zeyos.com/docs/components/layout.md)
+- [Dock](https://zx.zeyos.com/docs/components/dock.md)
+- [Tabbox](https://zx.zeyos.com/docs/components/tabbox.md)
+- [Stepper](https://zx.zeyos.com/docs/components/stepper.md)
+- [Breadcrumb](https://zx.zeyos.com/docs/components/breadcrumb.md)
+- [ListToolbar](https://zx.zeyos.com/docs/components/list-toolbar.md)
+- [ViewSettings](https://zx.zeyos.com/docs/components/view-settings.md)
+- [Pagination](https://zx.zeyos.com/docs/components/pagination.md)
+- [NavigationBar](https://zx.zeyos.com/docs/components/navigation-bar.md)
+- [AppSidebar](https://zx.zeyos.com/docs/components/app-sidebar.md)
+- [ModuleBar](https://zx.zeyos.com/docs/components/module-bar.md)
+- [BlockView](https://zx.zeyos.com/docs/components/block-view.md)
+- [AgentThread](https://zx.zeyos.com/docs/components/agent-thread.md)
+- [Surface](https://zx.zeyos.com/docs/components/surface.md)
+- [RunStatus](https://zx.zeyos.com/docs/components/run-status.md)
+- [Composer](https://zx.zeyos.com/docs/components/composer.md)
+- [PromptStarters](https://zx.zeyos.com/docs/components/prompt-starters.md)
+- [ApprovalCard](https://zx.zeyos.com/docs/components/approval-card.md)
+- [RunTrace](https://zx.zeyos.com/docs/components/run-trace.md)
+- [SourceList](https://zx.zeyos.com/docs/components/source-list.md)
+- [Core helpers](https://zx.zeyos.com/docs/components/kernel.md)
+- [Icons](https://zx.zeyos.com/docs/components/icons.md)
+- [Helper functions](https://zx.zeyos.com/docs/components/helpers.md)
+- [truncate()](https://zx.zeyos.com/docs/components/truncate.md)
+- [Custom elements](https://zx.zeyos.com/docs/components/elements.md)
+- [Design tokens](https://zx.zeyos.com/docs/components/tokens.md)

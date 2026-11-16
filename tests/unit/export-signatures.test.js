@@ -17,7 +17,11 @@ const RELEASED = JSON.parse(readFileSync(new URL('./fixtures/export-parameters.j
  * array index or array cannot be mistaken for.
  * @type {Record<string, number>}
  */
-const OPTION_BAGS = { 'core/date.js#formatDate': 3 };
+const OPTION_BAGS = {
+  'core/date.js#formatDate': 3,
+  'components/surface/catalog.js#surfaceSchema': 2,
+  'components/surface/catalog.js#surfaceTools': 2
+};
 
 /**
  * Counts the parameters declared in a list that opens at `open`, so a default holding a comma, a

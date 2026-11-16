@@ -20,7 +20,9 @@
 
 import { highlightMatch } from '../src/core/dom.js';
 import { icon } from '../src/core/icons.js';
+import { copyButton as libraryCopyButton } from '../src/components/copy/copy-button.js';
 import { Search } from '../src/components/search/search.js';
+import { describe as describeControl } from '../src/components/tooltip/tooltip.js';
 import { collectDependencies } from './demo-source.js';
 import { rankDocsSearch } from './docs-search.js';
 import { LAYOUT_IDS } from './layouts/index.js';
@@ -45,6 +47,12 @@ const COMPONENT_IDS = [
 
 const DOCS_URL = '../docs/llms.md';
 const API_URL = '../docs/api.json';
+
+/**
+ * Where the published agent documentation lives. A prompt is pasted into another tool, so it names
+ * the public addresses rather than wherever this page happens to be served from.
+ */
+const SITE_URL = 'https://zx.zeyos.com';
 
 /**
  * Reference bullets whose lead-in label belongs in the API card at the top of the page. Everything
@@ -306,8 +314,6 @@ function docsSearchIndex() {
     const base = `#${entry.section}/${entry.id}`;
     const category = `${entry.kind === 'guide' ? 'Guide' : 'Component'} · ${entry.group}`;
     const rootPath = entry.kind === 'guide' ? 'Getting started' : entry.group;
-    const marker = new RegExp(`<!--\\s*doc:${entry.id}\\s*-->([\\s\\S]*?)<!--\\s*/doc\\s*-->`)
-      .exec(referenceText ?? '');
     const generated = (entry.api ?? []).map((name) => apiData[name]).filter(Boolean);
     push({
       label: entry.title,
@@ -316,7 +322,7 @@ function docsSearchIndex() {
       path: [rootPath, entry.title],
       description: entry.blurb,
       aliases: [entry.id, entry.import, ...(entry.api ?? [])],
-      keywords: `${marker?.[1] ?? ''} ${JSON.stringify(generated)}`,
+      keywords: `${referenceMarkdown(entry.id)} ${JSON.stringify(generated)}`,
       href: base
     });
 
@@ -747,7 +753,10 @@ function exampleGroup(entry, title, examples, className) {
  */
 function pageHeader(entry, reference) {
   const header = element('header', 'docs-header');
-  header.append(element('h1', 'docs-title', entry.title));
+  const top = element('div', 'docs-header__top', undefined, element('h1', 'docs-title', entry.title));
+  const actions = pageActions(entry);
+  if (actions) top.append(actions);
+  header.append(top);
   if (entry.blurb) header.append(element('p', 'docs-blurb', entry.blurb));
   // The reference's opening paragraphs describe what the component is for; that belongs with the
   // title rather than buried in the API card below it.
@@ -757,6 +766,58 @@ function pageHeader(entry, reference) {
     header.append(summary);
   }
   return header;
+}
+
+/**
+ * The page's copy controls, for a reader handing the component to a coding agent: Copy page puts
+ * the component's reference section on the clipboard as Markdown, and Copy prompt a short prompt
+ * that points the agent at Zx's small reference and this component's own file. Both use the
+ * library's copy button, which confirms in place and says nothing when the browser refuses.
+ * @param {object} entry
+ * @returns {HTMLElement | null} Null when the component has no reference section.
+ */
+function pageActions(entry) {
+  const markdown = referenceMarkdown(entry.id);
+  if (!markdown) return null;
+  const page = libraryCopyButton({ label: 'Copy page', text: () => `${markdown}\n`, size: 'sm', kind: 'default' });
+  const prompt = libraryCopyButton({ label: 'Copy prompt', text: () => agentPrompt(entry), size: 'sm', kind: 'default' });
+  for (const [button, hint] of [
+    [page, `Copies the ${entry.title} reference as Markdown`],
+    [prompt, 'Copies a prompt that points a coding agent at Zx and this component\'s documentation']
+  ]) {
+    const tip = describeControl(button, hint);
+    pageCleanups.push(() => tip.destroy());
+  }
+  const actions = element('div', 'docs-header__actions', undefined, page, prompt);
+  actions.setAttribute('role', 'group');
+  actions.setAttribute('aria-label', 'Copy for a coding agent');
+  return actions;
+}
+
+/**
+ * The prompt Copy prompt puts on the clipboard: what to build with, and where its documentation is.
+ * @param {object} entry
+ * @returns {string}
+ */
+function agentPrompt(entry) {
+  return [
+    'Build this with Zx (npm package @zeyos/zx), the dependency-free JavaScript implementation of the Xenon Design System.',
+    `First read ${SITE_URL}/docs/llms-small.txt: the rules, the layout to start from, and the component for each job.`,
+    `Then read the ${entry.title} reference, ${SITE_URL}/docs/components/${entry.id}.md, and use only the options, methods, and events it documents.`,
+    `The complete reference is ${SITE_URL}/docs/llms.md.`,
+    ''
+  ].join('\n');
+}
+
+/**
+ * One component's section of `docs/llms.md`, as written there: the text between its
+ * `<!-- doc:<id> -->` and `<!-- /doc -->` markers, trimmed.
+ * @param {string} id Demo basename, which doubles as the marker's id.
+ * @returns {string} The section, or '' when there is none.
+ */
+function referenceMarkdown(id) {
+  const match = new RegExp(`<!--\\s*doc:${id}\\s*-->([\\s\\S]*?)<!--\\s*/doc\\s*-->`).exec(referenceText ?? '');
+  return match ? match[1].trim() : '';
 }
 
 /**
@@ -1300,10 +1361,10 @@ function trimNote(nodes) {
  */
 function splitReference(id) {
   const empty = { found: false, summary: [], api: [], notes: [], accessibility: [] };
-  const match = new RegExp(`<!--\\s*doc:${id}\\s*-->([\\s\\S]*?)<!--\\s*/doc\\s*-->`).exec(referenceText ?? '');
-  if (!match) return empty;
+  const markdown = referenceMarkdown(id);
+  if (!markdown) return empty;
 
-  const parsed = [...renderMarkdown(match[1]).childNodes];
+  const parsed = [...renderMarkdown(markdown).childNodes];
   const result = { ...empty, found: true };
   let seenList = false;
 

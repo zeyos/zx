@@ -8,6 +8,8 @@
 > its component, and lists the theme settings to decide. Each
 > component below is wrapped in `<!-- doc:<name> -->` markers so tools can extract a single
 > component's section (`website/docs.html` renders them as each component's Reference tab).
+> A smaller first read is `docs/llms-small.txt` (under 8k tokens), and each section is also its own
+> file, `docs/components/<name>.md`.
 
 ## Optional integration requirements
 
@@ -4291,6 +4293,17 @@ in `src/components/surface/catalog.js` and `validate.js`, importable on a server
   disabled. A node that fails while drawing shows the same line beside the rest of the surface, and
   is reported as `draw-failed`. One operation costs what it touches: a `data` operation redraws only
   the nodes bound to the path it changed.
+- **Catalog and profiles** — every node in `CATALOG` carries `use` (one sentence: when to pick it)
+  and `avoid` (one sentence naming the node or intent to use instead); the guide `surfacePrompt()`
+  writes both under each node, and leaves out an `avoid` whose alternative the catalog lacks.
+  `PROFILES` names four nested sets: `answer` (a `show` surface of `text`, `heading`, `list`,
+  `callout`, `figures`, `table`, `stat`, `badge`, `chart`, `code`, `link`, `ref`, `empty`, `stack`,
+  `columns` and `group`), `ask` (adds the `ask`, `choose` and `confirm` intents with `fields` and
+  `choice`), `review` (adds the `review` intent with `diff`) and `full` (everything, also `quote`
+  and `questionnaire`). `narrowCatalog(CATALOG, { profile })` starts from one, and `intents` and
+  `nodes` narrow within it; `surfaceSchema()`, `surfaceTools()` and `surfacePrompt()` take the same
+  `profile` option, and leaving it out keeps the whole catalog. Give the model the narrowest
+  profile that does the job: `answer` costs well under half the prompt and tools of `full`.
 - **Limits** — 400 nodes, depth 12, 20,000 characters per string, 1,000 rows per table, 50 fields,
   64 choices, 8 actions, 1 MB of data, and 100,000 table cells across all tables, each `$data`
   binding counted where it is used. What is over a limit is dropped and reported, and the table

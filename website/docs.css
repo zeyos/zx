@@ -312,6 +312,21 @@
   letter-spacing: var(--zx-tracking-title);
 }
 
+/* The title shares its row with the page's copy controls, which wrap under a title too long for both. */
+.docs-header__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--zx-space-3) var(--zx-space-4);
+}
+
+.docs-header__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--zx-space-2);
+}
+
 .docs-blurb {
   margin: var(--zx-space-2) 0 0;
   color: var(--zx-color-text-muted);

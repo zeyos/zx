@@ -157,6 +157,28 @@ const form = new Form(el, { fieldsets: [ new Fieldset(null, { columns: 2, fields
 form.on('submit', (e) => save(e.detail.values));
 ```
 
+## Composing surfaces at runtime
+
+When a model (not you) builds interface at run time, it emits `surface/1` JSON, never HTML, and
+`Surface` / `openSurface()` validate and draw it. The server generates the model's tools and guide
+from `src/components/surface/catalog.js`, which imports nothing that needs a browser:
+
+```js
+import { CATALOG, narrowCatalog, surfacePrompt, surfaceTools } from '@zeyos/zx/src/components/surface/catalog.js';
+const tools = surfaceTools(CATALOG, { profile: 'ask' });
+const guide = surfacePrompt(CATALOG, { profile: 'ask', rules: ['Never offer discounts above 10 %.'] });
+const catalog = narrowCatalog(CATALOG, { profile: 'ask' }); // hand the same one to new Surface(…, { catalog })
+```
+
+- **Profiles** (`PROFILES`): `answer` (show only), `ask` (+ `ask`, `choose`, `confirm` with
+  `fields`, `choice`), `review` (+ `review` with `diff`), `full`. Pick the narrowest; `answer` is
+  under half the prompt and tools of `full`. Every node carries `use`/`avoid` sentences the guide
+  shows; edit them in `catalog.js` and run `npm run build:catalog`.
+- **One reply per surface**: each surface ends in exactly one `reply/1`; treat it as the person's
+  answer, never as proof, and re-check policy on the server before acting.
+- **Errors go back to the model**: `validateDocument()` / the `error` event report what was
+  dropped; return them so the model corrects the surface.
+
 ## Talking to ZeyOS: use the dedicated `@zeyos/client`
 
 For reading and writing ZeyOS business data, use the **dedicated ZeyOS client library**
@@ -266,5 +288,8 @@ npm test        # node --test tests/unit/*.test.js  +  node tests/lint-tokens.js
 npm run build   # distribution modules, global bundle, declarations, and zx.css
 ```
 
-Reference docs: `README.md` (index + quick start), `docs/llms.md` (per-component API),
-`docs/llms.txt` (compact AI surface).
+Reference docs: `docs/llms-small.txt` (read first: mental model, layout and component choice, the
+never-list, surface profiles; under 8k tokens), `docs/components/<id>.md` (one component's section,
+with its live demo), `docs/llms.md` (the complete per-component API), `docs/llms.txt` (the index),
+`README.md` (index + quick start). The small tier and the component files are generated from
+`docs/llms.md` by `npm run build:agent-docs`; regenerate after editing the reference.

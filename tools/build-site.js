@@ -28,11 +28,17 @@ const outDir = join(root, 'site');
  * Public directories and files the website reaches into, copied in beside the flattened website
  * as `[source, destination]`. Contributor instructions, agent skills, design audits, and other
  * working material deliberately stay in the repository rather than the public site.
+ *
+ * `docs/` carries the agent documentation in its tiers: `llms.md` (the complete reference),
+ * `llms-small.txt` (the small tier) and `components/<id>.md` (one file per component), all
+ * generated or checked by `npm run build:agent-docs`. The small tier is also published at the
+ * root beside `/llms.txt`, where tools that discover agent documentation look for it.
  */
 const EXTRA_SOURCES = [
   ['src', 'src'],
   ['styles', 'styles'],
   ['docs', 'docs'],
+  ['docs/llms-small.txt', 'llms-small.txt'],
   ['README.md', 'README.md'],
   ['CHANGELOG.md', 'CHANGELOG.md'],
   ['node_modules/chart.js/dist/chart.umd.js', 'vendor/chart.umd.js'],

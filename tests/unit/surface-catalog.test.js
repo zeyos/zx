@@ -5,7 +5,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import {
-  CATALOG, INTENTS, LIMITS, narrowCatalog, surfacePrompt, surfaceSchema, surfaceTools, workedExamples
+  CATALOG, INTENTS, LIMITS, PROFILES, narrowCatalog, surfacePrompt, surfaceSchema, surfaceTools, workedExamples
 } from '../../src/components/surface/catalog.js';
 import { inlineSplitter } from '../../src/components/surface/stream.js';
 import { createValidationState, validateDocument, validateOp } from '../../src/components/surface/validate.js';
@@ -516,4 +516,127 @@ test('a narrowed catalog\'s tool descriptions and prompt name no excluded intent
     }
   }
   assert.equal(surfaceTools(CATALOG)[0].description.includes('a questionnaire'), true);
+});
+
+/* ------------------------------------------------------------------------------------------------
+ * When to use a node, and profiles
+ * --------------------------------------------------------------------------------------------- */
+
+/** The node types and intents a sentence names as code spans. @param {string} sentence */
+function catalogNames(sentence) {
+  const known = new Set([...Object.keys(CATALOG.nodes), ...INTENTS]);
+  return [...sentence.matchAll(/`([a-z]+)`/g)].map((match) => match[1]).filter((name) => known.has(name));
+}
+
+test('every node says in one sentence when to use it, and in one when not to, naming the alternative', () => {
+  const json = JSON.parse(readFileSync(join(root, 'docs/agent-catalog.json'), 'utf8'));
+  const guide = readFileSync(join(root, 'docs/agent-surfaces.md'), 'utf8');
+  for (const [type, entry] of Object.entries(CATALOG.nodes)) {
+    assert.match(entry.use, /^Use it .+\.$/, `${type}: use`);
+    assert.match(entry.avoid, /^Avoid it .+\.$/, `${type}: avoid`);
+    for (const sentence of [entry.use, entry.avoid]) assert.doesNotMatch(sentence, /\.\s|\n/, `${type}: one sentence`);
+    // A use names no other node, so it reads the same in every catalog the node is in.
+    assert.deepEqual(catalogNames(entry.use), [], `${type}: use names a node or intent`);
+    const alternatives = catalogNames(entry.avoid);
+    assert.ok(alternatives.length > 0, `${type}: avoid names no alternative`);
+    assert.ok(!alternatives.includes(type), `${type}: avoid names itself`);
+    assert.equal(json.catalog.nodes[type].use, entry.use);
+    assert.equal(json.catalog.nodes[type].avoid, entry.avoid);
+    assert.ok(guide.includes(`${entry.use} ${entry.avoid}`), `${type}: not in docs/agent-surfaces.md`);
+  }
+  assert.ok(Object.isFrozen(CATALOG.nodes.text) && typeof CATALOG.nodes.text.use === 'string');
+});
+
+test('the guide leaves out an alternative its catalog does not have, and keeps the use', () => {
+  const plain = narrowCatalog(CATALOG, { intents: ['show'], nodes: ['text', 'link'] });
+  for (const mode of ['tool', 'inline']) {
+    const prompt = surfacePrompt(plain, { mode });
+    assert.ok(prompt.includes(CATALOG.nodes.text.use) && prompt.includes(CATALOG.nodes.link.use), mode);
+    assert.ok(!prompt.includes(CATALOG.nodes.text.avoid), `${mode}: text names list and heading`);
+    assert.ok(!prompt.includes(CATALOG.nodes.link.avoid), `${mode}: link names ref`);
+  }
+  assert.ok(surfacePrompt(narrowCatalog(CATALOG, { intents: ['show'], nodes: ['text', 'link', 'ref'] })).includes(CATALOG.nodes.link.avoid));
+  for (const profile of PROFILES) {
+    const catalog = narrowCatalog(CATALOG, { profile });
+    const prompt = surfacePrompt(catalog);
+    for (const entry of Object.values(catalog.nodes)) {
+      const available = catalogNames(entry.avoid).every((name) => Object.hasOwn(catalog.nodes, name) || Object.hasOwn(catalog.intents, name));
+      assert.equal(prompt.includes(entry.avoid), available, `${profile}: ${entry.type}`);
+      assert.ok(prompt.includes(entry.use), `${profile}: ${entry.type}`);
+    }
+  }
+});
+
+test('the profiles are a frozen list of nested sets, from answer to the whole catalog', () => {
+  assert.deepEqual(PROFILES, ['answer', 'ask', 'review', 'full']);
+  assert.ok(Object.isFrozen(PROFILES));
+  const answer = ['text', 'heading', 'list', 'callout', 'figures', 'table', 'stat', 'badge', 'chart', 'code', 'link', 'ref', 'empty', 'stack', 'columns', 'group'];
+  /** @param {string} profile */
+  const contents = (profile) => {
+    const catalog = narrowCatalog(CATALOG, { profile });
+    return { intents: Object.keys(catalog.intents), nodes: Object.keys(catalog.nodes).sort() };
+  };
+  assert.deepEqual(contents('answer'), { intents: ['show'], nodes: [...answer].sort() });
+  assert.deepEqual(contents('ask'), { intents: ['show', 'ask', 'choose', 'confirm'], nodes: [...answer, 'fields', 'choice'].sort() });
+  assert.deepEqual(contents('review'), { intents: ['show', 'ask', 'choose', 'confirm', 'review'], nodes: [...answer, 'fields', 'choice', 'diff'].sort() });
+  assert.deepEqual(contents('full'), { intents: [...INTENTS], nodes: Object.keys(CATALOG.nodes).sort() });
+  const json = JSON.parse(readFileSync(join(root, 'docs/agent-catalog.json'), 'utf8'));
+  assert.deepEqual(Object.keys(json.profiles), [...PROFILES]);
+  for (const profile of PROFILES) {
+    assert.deepEqual(json.profiles[profile].intents, contents(profile).intents);
+    assert.deepEqual([...json.profiles[profile].nodes].sort(), contents(profile).nodes);
+  }
+  assert.throws(() => narrowCatalog(CATALOG, { profile: 'tiny' }), /Unknown profile: tiny/);
+  assert.throws(() => narrowCatalog(CATALOG, { profile: 'Answer' }), TypeError);
+});
+
+test('a profile option on the schema, the tools and the guide narrows first, and leaving it out changes nothing', () => {
+  assert.deepEqual(surfaceSchema(CATALOG, { profile: 'full' }), surfaceSchema());
+  assert.deepEqual(surfaceTools(CATALOG, { profile: 'full' }), surfaceTools());
+  for (const mode of ['tool', 'inline']) assert.equal(surfacePrompt(CATALOG, { mode, profile: 'full' }), surfacePrompt(CATALOG, { mode }));
+  for (const profile of ['answer', 'ask', 'review']) {
+    const catalog = narrowCatalog(CATALOG, { profile });
+    assert.deepEqual(surfaceSchema(CATALOG, { profile }), surfaceSchema(catalog), profile);
+    assert.deepEqual(surfaceTools(CATALOG, { profile }), surfaceTools(catalog), profile);
+    assert.equal(surfacePrompt(CATALOG, { profile, mode: 'inline', rules: ['Be brief.'] }), surfacePrompt(catalog, { mode: 'inline', rules: ['Be brief.'] }), profile);
+  }
+  // Passed to `map`, the functions receive an index where the options go, which changes nothing.
+  assert.deepEqual([CATALOG].map(surfaceTools)[0], surfaceTools());
+  assert.deepEqual([CATALOG].map(surfaceSchema)[0], surfaceSchema());
+  assert.throws(() => surfaceTools(CATALOG, { profile: 'tiny' }), TypeError);
+  assert.throws(() => surfacePrompt(CATALOG, { profile: 'tiny' }), TypeError);
+  assert.deepEqual(surfaceTools(CATALOG, { profile: 'answer' }).map((tool) => tool.name), ['show_surface']);
+});
+
+test('a profile composes with intents and nodes, and with a catalog already narrowed', () => {
+  const askOnly = narrowCatalog(CATALOG, { profile: 'ask', intents: ['ask'] });
+  assert.deepEqual(Object.keys(askOnly.intents), ['ask']);
+  assert.ok(Object.hasOwn(askOnly.nodes, 'fields') && !Object.hasOwn(askOnly.nodes, 'diff'));
+  assert.deepEqual(Object.keys(narrowCatalog(CATALOG, { profile: 'answer', nodes: ['table', 'text'] }).nodes), ['text', 'table']);
+  assert.throws(() => narrowCatalog(CATALOG, { profile: 'answer', nodes: ['text', 'diff'] }), /"diff" is not in the "answer" profile/);
+  assert.throws(() => narrowCatalog(CATALOG, { profile: 'answer', intents: ['ask'] }), /"ask" is not in the "answer" profile/);
+  assert.throws(() => narrowCatalog(CATALOG, { profile: 'ask', nodes: ['text'] }), /needs a fields node/);
+  assert.throws(() => narrowCatalog(CATALOG, { profile: 'answer', nodes: ['webview'] }), /Unknown node type/);
+
+  const narrowed = narrowCatalog(CATALOG, { intents: ['show', 'review'], nodes: ['text', 'table', 'diff'] });
+  const answered = narrowCatalog(narrowed, { profile: 'answer' });
+  assert.deepEqual(Object.keys(answered.intents), ['show']);
+  assert.deepEqual(Object.keys(answered.nodes), ['text', 'table']);
+  assert.deepEqual(surfaceTools(narrowed, { profile: 'answer' }), surfaceTools(answered));
+  assert.throws(() => narrowCatalog(answered, { profile: 'full', nodes: ['diff'] }), TypeError, 'a profile cannot widen a narrowed catalog');
+});
+
+test('the answer profile costs at most half of the full prompt and tools, and explains no inputs', () => {
+  /** @param {object} options */
+  const size = (options) => surfacePrompt(CATALOG, options).length + JSON.stringify(surfaceTools(CATALOG, options)).length;
+  const full = size({});
+  for (const mode of ['tool', 'inline']) {
+    assert.ok(size({ mode, profile: 'answer' }) <= (surfacePrompt(CATALOG, { mode }).length + JSON.stringify(surfaceTools()).length) / 2, mode);
+  }
+  assert.ok(size({ profile: 'answer' }) < size({ profile: 'ask' }) && size({ profile: 'ask' }) < size({ profile: 'review' }) && size({ profile: 'review' }) < full);
+  const prompt = surfacePrompt(CATALOG, { profile: 'answer' });
+  for (const word of ['fields', 'choice', 'diff', 'questionnaire', 'ask_user', 'confirm', 'review', 'Inputs', 'Conditions', 'visible']) {
+    assert.doesNotMatch(prompt, new RegExp(`\\b${word}\\b`), `the answer guide mentions ${word}`);
+  }
+  assert.ok(!prompt.includes('it is an input'));
 });

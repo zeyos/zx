@@ -166,6 +166,34 @@ for (const required of [
   if (!existsSync(join(site, required))) problems.push(`missing required file: ${required}`);
 }
 
+// The agent documentation's tiers link each other by absolute address, which the reference check
+// above skips. Every document `llms.txt` names under `/docs/` must be published — the small tier,
+// the component index, the surface guide and catalogue — and so must every component file the
+// small tier and the index name. Once the component files are published there must be one for
+// every component page, since each page's "Copy prompt" points at its file, and the small tier is
+// also served at the root, beside `/llms.txt`.
+const SITE_ORIGIN = 'https://zx.zeyos.com/';
+for (const tier of ['llms.txt', 'docs/llms-small.txt', 'docs/components/index.md']) {
+  const path = join(site, tier);
+  if (!existsSync(path)) continue;
+  const text = readFileSync(path, 'utf8');
+  const named = [
+    ...[...text.matchAll(/https:\/\/zx\.zeyos\.com\/(docs\/[\w./-]+\.(?:md|txt|json))/g)].map(([, target]) => target),
+    ...(tier === 'docs/components/index.md' ? [...text.matchAll(/\]\(([\w-]+\.md)\)/g)].map(([, file]) => `docs/components/${file}`) : [])
+  ];
+  for (const target of new Set(named)) {
+    if (!existsSync(join(site, target))) problems.push(`${tier} → ${SITE_ORIGIN}${target}`);
+  }
+}
+if (existsSync(join(site, 'docs', 'components', 'index.md'))) {
+  for (const id of componentIds) {
+    if (!existsSync(join(site, 'docs', 'components', `${id}.md`))) problems.push(`docs.js COMPONENT_IDS → docs/components/${id}.md`);
+  }
+}
+if (existsSync(join(site, 'docs', 'llms-small.txt')) && !existsSync(join(site, 'llms-small.txt'))) {
+  problems.push('missing required file: llms-small.txt (the small tier, beside llms.txt)');
+}
+
 // Every header link names its glyph with `data-nav`. `site.css` picks the icon from that attribute
 // because the host serves the pages at clean URLs (`/docs`), so a link's `href` is not something
 // the stylesheet can rely on; a link without the attribute shows no glyph at all.

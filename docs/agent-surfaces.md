@@ -29,40 +29,40 @@ Nodes are addressed by `id` and laid out by lists of ids: `root` holds the top l
 
 ### `text`
 
-A paragraph.
+A paragraph. Use it for prose: an explanation, a finding or a reason, with `[n]` markers where a claim has a source. Avoid it for parallel items or a section title; use `list` or `heading`.
 
 - `text`: text, at most 20,000 characters, required
 
 ### `heading`
 
-A heading inside the surface; level 2 or 3.
+A heading inside the surface; level 2 or 3. Use it to title one part of a longer surface, so the person can scan it. Avoid it for a titled section around several nodes; use `group`.
 
 - `text`: text, at most 200 characters, required
 - `level`: one of `2`, `3`
 
 ### `list`
 
-A bulleted list, or numbered with `ordered`.
+A bulleted list, or numbered with `ordered`. Use it for parallel items the person reads in order or scans: steps, findings, things to check. Avoid it for labelled values or records with several values each; use `figures` or `table`.
 
 - `items`: list of texts, at most 1,000, required
 - `ordered`: `true` or `false`
 
 ### `quote`
 
-A quotation.
+A quotation. Use it for words quoted from a source, such as a message or a clause, shown as written. Avoid it for your own emphasis or a warning; use `callout`.
 
 - `text`: text, at most 20,000 characters, required
 
 ### `code`
 
-A code block.
+A code block. Use it for code, a command, a query or a log excerpt whose exact characters matter. Avoid it for a name or a value inside a sentence; mark that inline in `text`.
 
 - `code`: text, at most 20,000 characters, required
 - `language`: text, at most 32 characters
 
 ### `callout`
 
-A paragraph set apart, with a tone.
+A paragraph set apart, with a tone. Use it for a warning, a condition or a result the person must not miss, with a `tone` when it is a status. Avoid it for ordinary prose; use `text`.
 
 - `text`: text, at most 20,000 characters, required
 - `title`: text, at most 200 characters
@@ -70,13 +70,13 @@ A paragraph set apart, with a tone.
 
 ### `figures`
 
-Rows of `{"label", "value", "detail"?}`: amounts, dates, counts.
+Rows of `{"label", "value", "detail"?}`: amounts, dates, counts. Use it for a few labelled values of one thing, such as the total, due date and number of an invoice. Avoid it for records that share columns; use `table`.
 
 - `rows`: list of figure rows, at most 1,000, required
 
 ### `table`
 
-A table. `columns` are `{"id", "label", "align"?, "format"?, "currency"?}`; each row is an object keyed by column id. With `selectable` it is an input: give it a `name` and a `rowId` column, and the reply holds the selected row ids.
+A table. `columns` are `{"id", "label", "align"?, "format"?, "currency"?}`; each row is an object keyed by column id. With `selectable` it is an input: give it a `name` and a `rowId` column, and the reply holds the selected row ids. Use it for records that share columns, for the person to compare them or look one up. Avoid it for the values of a single record; use `figures`.
 
 - `columns`: list of columns, at most 50, required
 - `rows`: list of rows, at most 1,000, required
@@ -87,7 +87,7 @@ A table. `columns` are `{"id", "label", "align"?, "format"?, "currency"?}`; each
 
 ### `stat`
 
-One figure with its label, drawn as a tile.
+One figure with its label, drawn as a tile. Use it for a headline figure the answer turns on, with its change or its context. Avoid it for a set of values that are read together; use `figures`.
 
 - `label`: text, at most 200 characters, required
 - `value`: number or text, at most 200 characters, required
@@ -98,27 +98,27 @@ One figure with its label, drawn as a tile.
 
 ### `badge`
 
-A short status word.
+A short status word. Use it beside other content to mark a status or a category in a word or two, such as Overdue or Draft. Avoid it for a sentence or a phrase; use `text`.
 
 - `label`: text, at most 64 characters, required
 - `kind`: one of `"neutral"`, `"accent"`, `"success"`, `"warning"`, `"danger"`, `"info"`
 
 ### `ref`
 
-A record of the application, drawn with its own name and icon.
+A record of the application, drawn with its own name and icon. Use it for a customer, an invoice or another record of the application the person may want to open. Avoid it for a page on the web; use `link`.
 
 - `ref`: record `{"$ref", "id"}`, required
 
 ### `link`
 
-An external link.
+An external link. Use it for a page on the web the person may want to open, such as documentation or a source. Avoid it for a record of the application; use `ref`.
 
 - `text`: text, at most 200 characters, required
 - `href`: `https:` address, at most 2,000 characters, required
 
 ### `chart`
 
-A chart; its data table is always offered. `data` is `{"labels": […], "datasets": [{"label", "data": […]}]}`.
+A chart; its data table is always offered. `data` is `{"labels": […], "datasets": [{"label", "data": […]}]}`. Use it for a trend or a comparison across many values, where the shape matters more than each number. Avoid it for a few values the person reads exactly; use `figures`.
 
 - `kind`: one of `"bar"`, `"line"`, `"pie"`, `"doughnut"`, required
 - `data`: chart data, required
@@ -127,42 +127,42 @@ A chart; its data table is always offered. `data` is `{"labels": […], "dataset
 
 ### `empty`
 
-An empty state: nothing to show, and why.
+An empty state: nothing to show, and why. Use it when a search or a list comes back empty, to say what would change that. Avoid it for an error or a warning about what is shown; use `callout`.
 
 - `title`: text, at most 200 characters, required
 - `description`: text, at most 2,000 characters
 
 ### `stack`
 
-Lays out its children one under the other.
+Lays out its children one under the other. Use it to keep a run of nodes together with one spacing, such as several nodes in one column of a row. Avoid it for a titled section; use `group`.
 
 - `gap`: one of `"sm"`, `"md"`, `"lg"`
 - `children`: list of node ids.
 
 ### `columns`
 
-Lays out its children side by side, one column when narrow.
+Lays out its children side by side, one column when narrow. Use it for two or three items the person compares side by side, such as figures for two periods. Avoid it for long text or wide content, which gets cramped; use `stack`.
 
 - `count`: one of `1`, `2`, `3`
 - `children`: list of node ids.
 
 ### `group`
 
-A titled section around its children.
+A titled section around its children. Use it for a titled section of related nodes in a longer surface. Avoid it around a single node; use `heading` before the node.
 
 - `title`: text, at most 200 characters, required
 - `children`: list of node ids.
 
 ### `fields`
 
-A form: a JSON Schema whose properties become fields (see Inputs).
+A form: a JSON Schema whose properties become fields (see Inputs). Use it to ask for values the person types or picks: text, numbers, dates, options, switches. Avoid it for one decision between a few described options; use `choice`.
 
 - `schema`: input schema, required
 - `title`: text, at most 200 characters
 
 ### `choice`
 
-Options to pick from: `choices` are `{"value", "label", "description"?, "icon"?}`; `multiple` allows several.
+Options to pick from: `choices` are `{"value", "label", "description"?, "icon"?}`; `multiple` allows several. Use it for one decision between described options, each with a label and an optional description. Avoid it for several values at once or for typed input; use `fields`.
 
 - `name`: text, at most 64 characters, required
 - `label`: text, at most 200 characters, required
@@ -171,7 +171,7 @@ Options to pick from: `choices` are `{"value", "label", "description"?, "icon"?}
 
 ### `diff`
 
-Proposed changes, one row per value: `{"id", "field", "label", "before", "after", "ref"?}`. The reply holds the ids of the accepted rows. Only in a `review` surface.
+Proposed changes, one row per value: `{"id", "field", "label", "before", "after", "ref"?}`. The reply holds the ids of the accepted rows. Only in a `review` surface. Use it to propose changes to the values of a record, one row per value, for the person to accept or leave out. Avoid it for picking whole records; use a selectable `table`.
 
 - `name`: text, at most 64 characters, required
 - `rows`: list of changes, at most 1,000, required
@@ -179,7 +179,7 @@ Proposed changes, one row per value: `{"id", "field", "label", "before", "after"
 
 ### `questionnaire`
 
-Steps asked one at a time: `{"name", "prompt", "choices"?, "input"?, "required"?, "multiple"?, "when"?, "next"?, "validate"?}`. `next` is a step name, `$review`, `$submit`, or `[{"if": condition, "goto": name}, …]`, and is dropped if it names a step that was dropped or can lead back to its own step; `validate` lists rules (`required`, `minLength`, `maxLength`, `minimum`, `maximum`, `format`, `oneOf`, each with an optional `message`). Only in a `questionnaire` surface.
+Steps asked one at a time: `{"name", "prompt", "choices"?, "input"?, "required"?, "multiple"?, "when"?, "next"?, "validate"?}`. `next` is a step name, `$review`, `$submit`, or `[{"if": condition, "goto": name}, …]`, and is dropped if it names a step that was dropped or can lead back to its own step; `validate` lists rules (`required`, `minLength`, `maxLength`, `minimum`, `maximum`, `format`, `oneOf`, each with an optional `message`). Only in a `questionnaire` surface. Use it for several questions asked one at a time, where an answer decides what comes next. Avoid it for a few independent values; use `fields` in an `ask` surface.
 
 - `steps`: list of steps, at most 50, required
 - `review`: `true` or `false`

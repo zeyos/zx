@@ -90,6 +90,8 @@
         "component": "BlockView",
         "children": false,
         "input": false,
+        "use": "Use it for prose: an explanation, a finding or a reason, with `[n]` markers where a claim has a source.",
+        "avoid": "Avoid it for parallel items or a section title; use `list` or `heading`.",
         "props": {
           "text": {
             "type": "string",
@@ -104,6 +106,8 @@
         "component": "BlockView",
         "children": false,
         "input": false,
+        "use": "Use it to title one part of a longer surface, so the person can scan it.",
+        "avoid": "Avoid it for a titled section around several nodes; use `group`.",
         "props": {
           "text": {
             "type": "string",
@@ -126,6 +130,8 @@
         "component": "BlockView",
         "children": false,
         "input": false,
+        "use": "Use it for parallel items the person reads in order or scans: steps, findings, things to check.",
+        "avoid": "Avoid it for labelled values or records with several values each; use `figures` or `table`.",
         "props": {
           "items": {
             "type": "string[]",
@@ -144,6 +150,8 @@
         "component": "BlockView",
         "children": false,
         "input": false,
+        "use": "Use it for words quoted from a source, such as a message or a clause, shown as written.",
+        "avoid": "Avoid it for your own emphasis or a warning; use `callout`.",
         "props": {
           "text": {
             "type": "string",
@@ -158,6 +166,8 @@
         "component": "BlockView",
         "children": false,
         "input": false,
+        "use": "Use it for code, a command, a query or a log excerpt whose exact characters matter.",
+        "avoid": "Avoid it for a name or a value inside a sentence; mark that inline in `text`.",
         "props": {
           "code": {
             "type": "string",
@@ -177,6 +187,8 @@
         "component": "BlockView",
         "children": false,
         "input": false,
+        "use": "Use it for a warning, a condition or a result the person must not miss, with a `tone` when it is a status.",
+        "avoid": "Avoid it for ordinary prose; use `text`.",
         "props": {
           "text": {
             "type": "string",
@@ -206,6 +218,8 @@
         "component": "BlockView",
         "children": false,
         "input": false,
+        "use": "Use it for a few labelled values of one thing, such as the total, due date and number of an invoice.",
+        "avoid": "Avoid it for records that share columns; use `table`.",
         "props": {
           "rows": {
             "type": "Figure[]",
@@ -220,6 +234,8 @@
         "component": "Table",
         "children": false,
         "input": true,
+        "use": "Use it for records that share columns, for the person to compare them or look one up.",
+        "avoid": "Avoid it for the values of a single record; use `figures`.",
         "props": {
           "columns": {
             "type": "Column[]",
@@ -263,6 +279,8 @@
         "component": "StatTile",
         "children": false,
         "input": false,
+        "use": "Use it for a headline figure the answer turns on, with its change or its context.",
+        "avoid": "Avoid it for a set of values that are read together; use `figures`.",
         "props": {
           "label": {
             "type": "string",
@@ -307,6 +325,8 @@
         "component": "Badge",
         "children": false,
         "input": false,
+        "use": "Use it beside other content to mark a status or a category in a word or two, such as Overdue or Draft.",
+        "avoid": "Avoid it for a sentence or a phrase; use `text`.",
         "props": {
           "label": {
             "type": "string",
@@ -333,6 +353,8 @@
         "component": "EntityRef",
         "children": false,
         "input": false,
+        "use": "Use it for a customer, an invoice or another record of the application the person may want to open.",
+        "avoid": "Avoid it for a page on the web; use `link`.",
         "props": {
           "ref": {
             "type": "Ref",
@@ -346,6 +368,8 @@
         "component": null,
         "children": false,
         "input": false,
+        "use": "Use it for a page on the web the person may want to open, such as documentation or a source.",
+        "avoid": "Avoid it for a record of the application; use `ref`.",
         "props": {
           "text": {
             "type": "string",
@@ -366,6 +390,8 @@
         "component": "Chart",
         "children": false,
         "input": false,
+        "use": "Use it for a trend or a comparison across many values, where the shape matters more than each number.",
+        "avoid": "Avoid it for a few values the person reads exactly; use `figures`.",
         "props": {
           "kind": {
             "type": "string",
@@ -401,6 +427,8 @@
         "component": "EmptyState",
         "children": false,
         "input": false,
+        "use": "Use it when a search or a list comes back empty, to say what would change that.",
+        "avoid": "Avoid it for an error or a warning about what is shown; use `callout`.",
         "props": {
           "title": {
             "type": "string",
@@ -420,6 +448,8 @@
         "component": "Stack",
         "children": true,
         "input": false,
+        "use": "Use it to keep a run of nodes together with one spacing, such as several nodes in one column of a row.",
+        "avoid": "Avoid it for a titled section; use `group`.",
         "props": {
           "gap": {
             "type": "string",
@@ -437,6 +467,8 @@
         "component": "LayoutGrid",
         "children": true,
         "input": false,
+        "use": "Use it for two or three items the person compares side by side, such as figures for two periods.",
+        "avoid": "Avoid it for long text or wide content, which gets cramped; use `stack`.",
         "props": {
           "count": {
             "type": "integer",
@@ -454,6 +486,8 @@
         "component": "Groupbox",
         "children": true,
         "input": false,
+        "use": "Use it for a titled section of related nodes in a longer surface.",
+        "avoid": "Avoid it around a single node; use `heading` before the node.",
         "props": {
           "title": {
             "type": "string",
@@ -468,6 +502,8 @@
         "component": "Fieldset",
         "children": false,
         "input": true,
+        "use": "Use it to ask for values the person types or picks: text, numbers, dates, options, switches.",
+        "avoid": "Avoid it for one decision between a few described options; use `choice`.",
         "props": {
           "schema": {
             "type": "Schema",
@@ -486,6 +522,8 @@
         "component": "Questionnaire",
         "children": false,
         "input": true,
+        "use": "Use it for one decision between described options, each with a label and an optional description.",
+        "avoid": "Avoid it for several values at once or for typed input; use `fields`.",
         "props": {
           "name": {
             "type": "string",
@@ -517,6 +555,8 @@
         "intentOnly": "review",
         "children": false,
         "input": true,
+        "use": "Use it to propose changes to the values of a record, one row per value, for the person to accept or leave out.",
+        "avoid": "Avoid it for picking whole records; use a selectable `table`.",
         "props": {
           "name": {
             "type": "string",
@@ -543,6 +583,8 @@
         "intentOnly": "questionnaire",
         "children": false,
         "input": true,
+        "use": "Use it for several questions asked one at a time, where an answer decides what comes next.",
+        "avoid": "Avoid it for a few independent values; use `fields` in an `ask` surface.",
         "props": {
           "steps": {
             "type": "Step[]",
@@ -12497,5 +12539,121 @@
         }
       }
     }
-  ]
+  ],
+  "profiles": {
+    "answer": {
+      "intents": [
+        "show"
+      ],
+      "nodes": [
+        "text",
+        "heading",
+        "list",
+        "code",
+        "callout",
+        "figures",
+        "table",
+        "stat",
+        "badge",
+        "ref",
+        "link",
+        "chart",
+        "empty",
+        "stack",
+        "columns",
+        "group"
+      ]
+    },
+    "ask": {
+      "intents": [
+        "show",
+        "ask",
+        "choose",
+        "confirm"
+      ],
+      "nodes": [
+        "text",
+        "heading",
+        "list",
+        "code",
+        "callout",
+        "figures",
+        "table",
+        "stat",
+        "badge",
+        "ref",
+        "link",
+        "chart",
+        "empty",
+        "stack",
+        "columns",
+        "group",
+        "fields",
+        "choice"
+      ]
+    },
+    "review": {
+      "intents": [
+        "show",
+        "ask",
+        "choose",
+        "confirm",
+        "review"
+      ],
+      "nodes": [
+        "text",
+        "heading",
+        "list",
+        "code",
+        "callout",
+        "figures",
+        "table",
+        "stat",
+        "badge",
+        "ref",
+        "link",
+        "chart",
+        "empty",
+        "stack",
+        "columns",
+        "group",
+        "fields",
+        "choice",
+        "diff"
+      ]
+    },
+    "full": {
+      "intents": [
+        "show",
+        "ask",
+        "choose",
+        "confirm",
+        "review",
+        "questionnaire"
+      ],
+      "nodes": [
+        "text",
+        "heading",
+        "list",
+        "quote",
+        "code",
+        "callout",
+        "figures",
+        "table",
+        "stat",
+        "badge",
+        "ref",
+        "link",
+        "chart",
+        "empty",
+        "stack",
+        "columns",
+        "group",
+        "fields",
+        "choice",
+        "diff",
+        "questionnaire"
+      ]
+    }
+  }
 }

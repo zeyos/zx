@@ -2,8 +2,9 @@
  * Writes the agent surface catalog's generated files from the runtime functions, so the files and
  * what an application generates at runtime cannot drift:
  *
- * - `docs/agent-catalog.json`: the catalog, the JSON Schema of one operation line and of a whole
- *   document, and the `show_surface`/`ask_user` tool definitions;
+ * - `docs/agent-catalog.json`: the catalog (every node with when to use it and when not to), the
+ *   JSON Schema of one operation line and of a whole document, the `show_surface`/`ask_user` tool
+ *   definitions, and what each profile keeps;
  * - `docs/agent-surfaces.md`: the model-facing guide, in tool mode.
  *
  * Run by `npm run build:catalog`. The output is deterministic, so a second run leaves no diff, and
@@ -12,9 +13,20 @@
 import { writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { CATALOG, LIMITS, surfacePrompt, surfaceSchema, surfaceTools } from '../src/components/surface/catalog.js';
+import { CATALOG, LIMITS, PROFILES, narrowCatalog, surfacePrompt, surfaceSchema, surfaceTools } from '../src/components/surface/catalog.js';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
+
+/**
+ * The intents and node types each profile keeps.
+ * @returns {Record<string, {intents: string[], nodes: string[]}>}
+ */
+export function profileContents() {
+  return Object.fromEntries(PROFILES.map((profile) => {
+    const narrowed = narrowCatalog(CATALOG, { profile });
+    return [profile, { intents: Object.keys(narrowed.intents), nodes: Object.keys(narrowed.nodes) }];
+  }));
+}
 
 /**
  * The generated files, by path relative to the repository root.
@@ -26,7 +38,8 @@ export function agentCatalogFiles() {
     limits: LIMITS,
     catalog: CATALOG,
     schema: surfaceSchema(CATALOG),
-    tools: surfaceTools(CATALOG)
+    tools: surfaceTools(CATALOG),
+    profiles: profileContents()
   };
   return {
     'docs/agent-catalog.json': `${JSON.stringify(catalog, null, 2)}\n`,

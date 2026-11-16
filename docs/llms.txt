@@ -6,11 +6,44 @@
 > and lifecycle-safe components. Source modules run directly in the browser; a build step emits ESM, IIFE-global,
 > ZeyOS binding, and CSS bundles. Zero runtime dependencies.
 
+## Rules for agents
+- Start every screen from the closest layout (see "Start here: choosing"), never from a blank page.
+- Use only the options, methods, and events the reference documents; never style component internals.
+- Style with semantic `--zx-*` tokens only: no raw colours, no tier-1 palette tokens, no fixed sizes.
+- Never assign `innerHTML` with data; build with `h()` and text nodes.
+- Render every icon through `icon(name)`, never as hand-written SVG or icon-font markup.
+- Put any animation of your own inside `@media (prefers-reduced-motion: no-preference)`.
+- At runtime, have the model emit `surface/1` JSON for the application to validate and draw, never HTML.
+- Give the model the narrowest surface profile that does the job: `answer`, then `ask`, `review`, `full`.
+- Treat a surface reply as the person's answer, not as proof that anything happened.
+
+## Writing Zx code
 Instantiate every component as `new Component(target, options)` where `target` is an Element, a
 selector string, or `null` (the component creates and owns its root, retrieved via `.toElement()`).
 Subscribe with `.on(type, fn)` or an `on<type>` option; handlers receive a `CustomEvent` whose
 `.detail` is an object. Call `.destroy()` to clean up. The same API is available as ESM named
 exports and as `window.zx.*`.
+
+- [Small reference](https://zx.zeyos.com/docs/llms-small.txt): read this first — the mental model, the layout and the component for each job, what never to build, and surface profiles, in under 8k tokens.
+- [Component files](https://zx.zeyos.com/docs/components/index.md): one Markdown file per component (`docs/components/<id>.md`), each its section of the full reference with a one-line summary and its live demo.
+- [API reference](https://zx.zeyos.com/docs/llms.md): the complete reference — options, methods, events, core helpers, and the theming decisions.
+- [Documentation site](https://zx.zeyos.com/docs.html): supported APIs, live demos, and example source; every component page can copy its reference and a prompt for a coding agent.
+- [Locales guide](https://zx.zeyos.com/docs.html#getting-started/locales): add languages, regional catalogues, custom message keys, interpolation variables, plurals, and formatting options.
+- [Frameworks guide](https://zx.zeyos.com/docs.html#getting-started/frameworks): mount the class API from React or Vue — lifecycle, the double mount in development, framework content inside a component, controlled props, and unit tests under jsdom.
+- [README](https://zx.zeyos.com/README.md): installation, component index, theming, and browser support.
+- [Changelog](https://zx.zeyos.com/CHANGELOG.md): supported changes and upgrade notes.
+
+## Composing surfaces at runtime
+A model composes interface as `surface/1` JSON — a rich answer, a form, a choice, a confirmation,
+a review — and the application validates it and draws it with Zx components (`Surface`,
+`openSurface()`). On the server, `surfaceTools(CATALOG, { profile })` and
+`surfacePrompt(CATALOG, { profile })` from `@zeyos/zx/src/components/surface/catalog.js` give the
+model its tools and guide for the narrowest profile that does the job. Every surface ends in
+exactly one reply; when validation reports errors, return them to the model to correct the surface.
+
+- [Surface guide](https://zx.zeyos.com/docs/agent-surfaces.md): the model-facing guide — intents, every node with when to use it and when not to, rules, worked examples, and the reply contract.
+- [Surface catalogue](https://zx.zeyos.com/docs/agent-catalog.json): the machine-readable catalogue, its JSON Schema, the tool definitions, and what each profile keeps.
+- [Surface component](https://zx.zeyos.com/docs/components/surface.md): `Surface`, `openSurface()`, `elicit()` — options, policy, streaming, and the reply.
 
 ## Optional integration requirements
 
@@ -23,16 +56,6 @@ Core icons use bundled SVG by default. Opting into Font Awesome requires host-lo
 ZeyOS `moduleIcon()`, `moduleChip()`, and `zeyosAppIcon()` default to glyphs from the external custom
 ZeyOS Font Awesome kit; `standard: true` still needs stock Font Awesome assets. `ZeyOS.connect()`
 requires an injected compatible client and never imports the client package.
-
-## Documentation
-- [Documentation site](https://zx.zeyos.com/docs.html): supported APIs, live demos, and example source.
-- [Locales guide](https://zx.zeyos.com/docs.html#getting-started/locales): add languages, regional catalogues, custom message keys, interpolation variables, plurals, and formatting options.
-- [Frameworks guide](https://zx.zeyos.com/docs.html#getting-started/frameworks): mount the class API from React or Vue — lifecycle, the double mount in development, framework content inside a component, controlled props, and unit tests under jsdom.
-- [README](https://zx.zeyos.com/README.md): installation, component index, theming, and browser support.
-- [API reference](https://zx.zeyos.com/docs/llms.md): options, methods, events, and core helpers.
-- [Surface guide](https://zx.zeyos.com/docs/agent-surfaces.md): agent-authored surfaces and their reply contract.
-- [Component catalogue](https://zx.zeyos.com/docs/agent-catalog.json): machine-readable surface component schemas.
-- [Changelog](https://zx.zeyos.com/CHANGELOG.md): supported changes and upgrade notes.
 
 ## Start here: choosing
 - Start every screen from the closest **layout**, never from a blank page. Gallery:

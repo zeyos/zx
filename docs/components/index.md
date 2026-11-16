@@ -1,0 +1,98 @@
+# Zx components
+
+One file per component: its section of the full reference (https://zx.zeyos.com/docs/llms.md), opening with a one-line summary and a link to its live demo. Read https://zx.zeyos.com/docs/llms-small.txt first: it says which layout and which component a screen needs.
+
+- [ZeyOS binding (zx-zeyos)](zeyos.md) — `zx-zeyos` is the optional schema-driven layer above `@zeyos/client`: inject a client instance and declare a resource to generate typed Zx controls.
+- [Prose](prose.md) — The reading register for authored content: its own typeface, size, line height, and measure.
+- [Kbd](kbd.md) — Keycaps for every key hint: one construction in buttons, menus, the launcher, and help.
+- [Button](button.md) — Factories that return a real `<button>`, in four weights and two sizes.
+- [Badge](badge.md) — A status pill or a tag you place yourself: kind says how something is doing, tone what it is, and the shape follows.
+- [Toolbar](toolbar.md) — One tab stop, arrow-key navigation, and an overflow menu that swallows what no longer fits.
+- [EmptyState](empty-state.md) — The placeholder that stands where content would have been — in a table body, a panel, or a whole page.
+- [Spinner / ProgressBar / InlineLoading](loading.md) — Three shapes of "wait": a ring when the duration is unknown, a track when the share done is known, and a status line that resolves into its own outcome.
+- [Skeleton](skeleton.md) — Placeholders shaped like the content that is coming, so the layout does not jump when it arrives.
+- [CheckButton](check-button.md) — A button that stays pressed — a checkbox with the presence of a toolbar control.
+- [Toggle](toggle.md) — A labelled switch for settings that take effect immediately.
+- [Search](search.md) — A debounced search field with a clear button and a submit on Enter.
+- [Launcher](launcher.md) — A full application launcher with app tiles, current and pinned state, recent records, grouped asynchronous search, and application-owned routing.
+- [AppIcon](app-icon.md) — A stable application identity with a centred white glyph, module colour, tile or circle geometry, accessible labeling, interaction-aware feedback, badges, selection state, and an optional CSS-first glass material.
+- [Avatar](avatar.md) — A stable-size user image with a deterministic fallback — initials on a tone picked from the name — and an optional text-described presence indicator.
+- [EntityRef](entity-ref.md) — Dense linked or static record identity with labelled metadata and host-injected actions.
+- [FileItem](file-item.md) — A durable or transient file row with a readable type and size, native downloads, actions, and accessible progress.
+- [FileList](file-list.md) — An accessible ordered file collection with empty/loading states and incremental host-controlled mutation.
+- [ActivityItem](activity-item.md) — One chronological record with actor identity, timestamp, metadata, attachments, content, and host actions.
+- [ActivityList](activity-list.md) — A chronological ordered collection with stable grouping, incremental updates, and loading/empty states.
+- [AccountMenu](account-menu.md) — A single accessible Avatar trigger and grouped account-action popup; identity, permissions, preferences, and sign-out stay application-owned.
+- [WorkspaceSwitcher](workspace-switcher.md) — The current workspace at the head of a navigation column — tile, name, and secondary line — opening a menu of the workspaces with the current one checked, then the application’s own actions.
+- [Select](select.md) — An APG editable combobox: a real text input, a top-layer listbox, and three filtering modes — none, local, and a function you supply.
+- [SortControl](sort-control.md) — A searchable field selector with an adjacent direction toggle.
+- [Checklist](checklist.md) — A searchable list of checkboxes for picking several records at once, with a static or an asynchronously loaded set of items.
+- [NumberField](number-field.md) — A spinbutton with step buttons: bounded ranges, fractional steps, units, and wrapping.
+- [Rating](rating.md) — A star rating built as a radio group: one tab stop, arrow-key selection, optional half steps, and a read-only display mode.
+- [Slider](slider.md) — A bounded numeric value you set by dragging.
+- [copyButton() / CopyInput](copy.md) — Copying a value, and saying so.
+- [DatePicker / MonthPicker / TimePicker](date-picker.md) — Three inline pickers — a calendar, a month grid, and a time control — each a roving grid with one tab stop.
+- [Datebox / DateTimeBox](datebox.md) — A text date field: it parses what the reader types against a strftime-style format, and keeps unparseable text on screen instead of silently discarding it.
+- [DateRangePicker / DateRangeBox](date-range.md) — Two calendars driven as one roving-focus grid: the first click opens a range, hovering or arrowing previews where it would end, and the second click closes it.
+- [Timebox](timebox.md) — A duration field.
+- [Message](message.md) — Transient notifications: a floating region for toasts, a progress handle for long work, and an inline area for messages that belong to one part of the screen.
+- [Modal](modal.md) — A bare top-layer surface you fill yourself — Dialog’s unopinionated sibling, for overlays that supply their own chrome.
+- [Dialog (extends Modal)](dialog.md) — A modal built on native `<dialog>`: focus trapping, Escape, and the top layer come from the platform, and Modal adds initial focus and the return to the opener on top of them.
+- [Sheet](sheet.md) — An edge-anchored Dialog — one component covers both side sheets and mobile drawers, since only the edge and presentation differ.
+- [SheetStack](sheet-stack.md) — A group of Sheets that reads as one drill-down — and stays small, because the browser already stacks dialogs and already makes Escape unwind them one at a time.
+- [Dropdown](dropdown.md) — A top-layer panel tethered to an anchor.
+- [MenuButton](menu-button.md) — A trigger and its menu, following the APG menu button pattern: typeahead, wrapping arrows, and focus returned to the trigger on close.
+- [ContextMenu](context-menu.md) — Right-click menu for a region or a row.
+- [Tooltip](tooltip.md) — A description bubble that stays visible over its anchor or bubble: hover opens it after a beat, keyboard focus opens it at once, and touch leaves it alone.
+- [SplitView](split-view.md) — Two panes and a divider the reader owns: drag it, tab to it and use the arrow keys, double-click to reset, and — where it is allowed — fold a pane away entirely.
+- [Table](table.md) — A sortable, selectable, editable data table with a sticky header for dense records, transactions, and operational workflows.
+- [TableView and the shared RecordView contract](table-view.md) — A schema-friendly record view that composes the full Table: one field contract drives sorting, selection, editable cells, visibility, and stable column order.
+- [CardView](card-view.md) — A compact responsive record collection sharing fields, sort, selection, visibility, order, and serializable state with TableView and KanbanView.
+- [KanbanView](kanban-view.md) — A semantic opportunity board sharing fields, cards, sort, selection, and serializable configuration with the other record views.
+- [Grid and Grid.BillingItems()](grid.md) — A public Table specialization for domain presets; it inherits sorting, selection, hierarchy, typed formatting, and editing without forking them.
+- [Chart and ChartJsAdapter](chart.md) — An accessible engine-neutral chart host.
+- [Calendar](calendar.md) — A dependency-free scheduling surface with agenda, day, week, month, and year views; local-time event layout; range selection; and pointer or keyboard editing.
+- [DataFilter](data-filter.md) — The filter bar above a list: typed filter descriptors in, the matching rows out.
+- [FilterPanel](filter-panel.md) — The filter form a data-driven list needs: field metadata in, a query object out.
+- [Filter](filter.md) — A backend-neutral, nested filter authoring component.
+- [TreeView](tree.md) — A hierarchy following the APG tree pattern: arrow-key navigation, expand and collapse, typeahead, lazy children, and optional tri-state checkboxes.
+- [Finder](finder.md) — A Miller-columns browser: every column lists the children of the row picked to its left, the way a file browser’s column view works.
+- [Form / Fieldset / Field](form.md) — Fieldsets of typed fields with one values object in and out — the schema-shaped way to build a record editor.
+- [Field widget types](form-widgets.md) — The field types backed by a whole Zx component rather than a native input — what turns a Form into a real record editor.
+- [CodeEditor](code-editor.md) — A dependency-free, text-safe source editor with native undo, IME behavior, indentation and line/column feedback.
+- [Questionnaire](questionnaire.md) — One question at a time, with branching, a path-aware progress bar, and any Zx field type as the answer.
+- [ValueList](value-list.md) — A chip editor for a list of strings, with per-value validation and drag or keyboard reordering.
+- [MultiValueEditor](multi-value-editor.md) — A stack of rows for an ordered list of values, each row with its own remove and reorder controls — for a field that repeats.
+- [FieldUpload](field-upload.md) — Click/drop file upload with progress.
+- [TagPicker](tag-picker.md) — A multi-select combobox that keeps its selection visible as removable tags inside the control — for picking several values out of a large catalogue.
+- [Groupbox](groupbox.md) — A collapsible section built on native `<details>`, so the keyboard and find-in-page behaviour comes from the platform.
+- [Card](card.md) — A semantic content or record surface with optional media, a native title link, secondary actions, and metadata.
+- [StatTile](stat-tile.md) — A labelled number: the metric loud, the label small above it, and — when there is one — a signed change that says which way it went without claiming that way is good.
+- [Aurora](aurora.md) — A CSS-driven, multicolour ambient light field that decorates an existing surface without owning its content or application logic.
+- [Panel / MasterPanel](panel.md) — A raised surface with a title, an optional collapse control, header actions, and a footer — plus MasterPanel, its full-height variant.
+- [stack() / grid() / aspect()](layout.md) — The small pieces under Panel and SplitView: consistent spacing, a grid that reflows on its own width rather than the viewport, and a fixed-ratio box.
+- [Dock](dock.md) — A stack of collapsible, resizable panes — the inspector column of a design tool, and the detail side of a master–detail screen.
+- [Tabbox](tabbox.md) — Manual-activation tabs following the APG pattern: arrow keys move focus, Enter or Space selects, and panels can be built lazily.
+- [Stepper](stepper.md) — The wizard progress rail: four step states, an optional “Step 2 of 4” counter, and a preventable change event so a step can refuse to be left.
+- [Breadcrumb](breadcrumb.md) — The trail of ancestors above the current page, with the middle levels collapsing into an ellipsis menu when there is no room for all of them.
+- [ListToolbar](list-toolbar.md) — The bar above a record view: one search field, a live result count, the tools that change what the list shows, and the shape switch.
+- [ViewSettings](view-settings.md) — The content of a view-settings drawer: arrange and hide the shown fields, add a hidden one back, and choose grouping and the board’s columns and swim lanes.
+- [Pagination](pagination.md) — The footer bar of a server-backed list: a page window that never changes width, a page-size select, a row summary, and an append-style Load more mode.
+- [NavigationBar](navigation-bar.md) — The application header: a brand, one row of destinations with badges, and the actions that stay reachable at every width.
+- [AppSidebar](app-sidebar.md) — One application-navigation component with an expanded vertical tree, a minimized vertical rail, and horizontal rail layouts.
+- [ModuleBar](module-bar.md) — The module level of an application: one colour-coded tile per module in a vertical strip or a horizontal bar.
+- [BlockView](block-view.md) — An answer an agent wrote, drawn block by block as prose and written to as it streams.
+- [AgentThread](agent-thread.md) — A conversation with agents: messages, streamed answers, the steps a run took, and the approvals that hold it.
+- [Surface](surface.md) — Interface an agent composes as JSON — a rich answer, or a dialog asking the person something — validated and drawn with the library’s own components.
+- [RunStatus](run-status.md) — Where an agent's run stands: its state in a glyph and a word, what it is doing, its steps, its clock, and what it has cost against its budget.
+- [Composer](composer.md) — The message box of an agent conversation: a growing text with Send and Stop, attachments, @-mentions, / commands, context chips, and queued messages.
+- [PromptStarters](prompt-starters.md) — Starting points for an empty conversation.
+- [ApprovalCard](approval-card.md) — A request that holds an agent’s run until a person answers it: what will happen, a preview of what it produces, and Approve, Edit, and Reject.
+- [RunTrace](run-trace.md) — What an agent did during a run: a one-line summary that opens into a timeline of its steps, each tool call opening to its arguments and result.
+- [SourceList](source-list.md) — The sources an answer cites, as numbered chips with a card of each one’s title, site, and the passage used.
+- [Core helpers](kernel.md) — Core helpers: Component, DOM, Compact events, Icons, Positioning, i18n.
+- [Icons](icons.md) — One icon() call, two renderers: the outline SVG glyphs Zx bundles, or Font Awesome once an application loads a kit.
+- [Helper functions](helpers.md) — The standalone function library that ships alongside the components: dates, formatting, escaping, small utilities, translation, and keyboard behaviours.
+- [truncate()](truncate.md) — Clamps text to a number of lines and hands the cut-off text back on hover — because a cell that silently drops the end of a value is a data-loss bug wearing a layout costume.
+- [Custom elements](elements.md) — Form controls, containers, the agent kit and the data views also ship as custom elements, so a screen can be written as markup and configured with attributes instead of constructor calls.
+- [Design tokens](tokens.md) — Two tiers of CSS custom properties.

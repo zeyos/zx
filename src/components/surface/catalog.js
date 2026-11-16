@@ -129,6 +129,10 @@ export const FORBIDDEN_KEYS = Object.freeze(['__proto__', 'constructor', 'protot
  * @property {string|null} component The component that draws it, as `docs/api.json` names it;
  *   `null` for a node the surface draws itself.
  * @property {SurfaceIntent} [intentOnly] The one intent the node may appear in.
+ * @property {string} use One sentence, for the model: when to pick the node.
+ * @property {string} avoid One sentence, for the model: when not to, naming the node or intent to
+ *   use instead in backticks. The guide leaves it out when that node or intent is not in the
+ *   catalog it is written for.
  * @property {boolean} children Whether it lays out `children`.
  * @property {boolean} input Whether its value lands in the reply's `values`.
  * @property {Readonly<Record<string, CatalogProp>>} props Its properties.
@@ -152,6 +156,27 @@ export const FORBIDDEN_KEYS = Object.freeze(['__proto__', 'constructor', 'protot
  * @property {Readonly<Record<string, CatalogNode>>} nodes The node types.
  */
 
+/**
+ * A named narrowing of the catalog, from the smallest to everything: `answer` shows, `ask` also
+ * asks, `review` also reviews changes, `full` is the whole catalog.
+ * @typedef {'answer'|'ask'|'review'|'full'} CatalogProfile
+ */
+
+/**
+ * What `narrowCatalog()` keeps.
+ * @typedef {Object} CatalogNarrowing
+ * @property {CatalogProfile} [profile] A named set to start from; the whole catalog when left out.
+ * @property {SurfaceIntent[]} [intents] The intents to keep, within the profile; all when left out.
+ * @property {string[]} [nodes] The node types to keep, within the profile; all when left out.
+ */
+
+/**
+ * The `profile` option of `surfaceSchema()`, `surfaceTools()` and `surfacePrompt()`.
+ * @typedef {Object} ProfileChoice
+ * @property {CatalogProfile} [profile] Narrows the catalog to a profile first; the catalog as
+ *   given when left out.
+ */
+
 /** @param {CatalogType} type @param {Partial<CatalogProp>} [rest] @returns {CatalogProp} */
 const prop = (type, rest = {}) => ({ type, option: null, ...rest });
 
@@ -161,10 +186,14 @@ const TONES = ['info', 'success', 'warning', 'danger'];
 const NODES = {
   text: {
     type: 'text', component: 'BlockView', children: false, input: false,
+    use: 'Use it for prose: an explanation, a finding or a reason, with `[n]` markers where a claim has a source.',
+    avoid: 'Avoid it for parallel items or a section title; use `list` or `heading`.',
     props: { text: prop('string', { required: true, max: LIMITS.string, option: 'blocks[].text' }) }
   },
   heading: {
     type: 'heading', component: 'BlockView', children: false, input: false,
+    use: 'Use it to title one part of a longer surface, so the person can scan it.',
+    avoid: 'Avoid it for a titled section around several nodes; use `group`.',
     props: {
       text: prop('string', { required: true, max: LIMITS.label, option: 'blocks[].text' }),
       level: prop('integer', { enum: [2, 3], option: 'blocks[].level' })
@@ -172,6 +201,8 @@ const NODES = {
   },
   list: {
     type: 'list', component: 'BlockView', children: false, input: false,
+    use: 'Use it for parallel items the person reads in order or scans: steps, findings, things to check.',
+    avoid: 'Avoid it for labelled values or records with several values each; use `figures` or `table`.',
     props: {
       items: prop('string[]', { required: true, max: LIMITS.rows, option: 'blocks[].items' }),
       ordered: prop('boolean', { option: 'blocks[].ordered' })
@@ -179,10 +210,14 @@ const NODES = {
   },
   quote: {
     type: 'quote', component: 'BlockView', children: false, input: false,
+    use: 'Use it for words quoted from a source, such as a message or a clause, shown as written.',
+    avoid: 'Avoid it for your own emphasis or a warning; use `callout`.',
     props: { text: prop('string', { required: true, max: LIMITS.string, option: 'blocks[].text' }) }
   },
   code: {
     type: 'code', component: 'BlockView', children: false, input: false,
+    use: 'Use it for code, a command, a query or a log excerpt whose exact characters matter.',
+    avoid: 'Avoid it for a name or a value inside a sentence; mark that inline in `text`.',
     props: {
       code: prop('string', { required: true, max: LIMITS.string, option: 'blocks[].code' }),
       language: prop('string', { max: 32, option: 'blocks[].language' })
@@ -190,6 +225,8 @@ const NODES = {
   },
   callout: {
     type: 'callout', component: 'BlockView', children: false, input: false,
+    use: 'Use it for a warning, a condition or a result the person must not miss, with a `tone` when it is a status.',
+    avoid: 'Avoid it for ordinary prose; use `text`.',
     props: {
       text: prop('string', { required: true, max: LIMITS.string, option: 'blocks[].text' }),
       title: prop('string', { max: LIMITS.label, option: 'blocks[].title' }),
@@ -198,10 +235,14 @@ const NODES = {
   },
   figures: {
     type: 'figures', component: 'BlockView', children: false, input: false,
+    use: 'Use it for a few labelled values of one thing, such as the total, due date and number of an invoice.',
+    avoid: 'Avoid it for records that share columns; use `table`.',
     props: { rows: prop('Figure[]', { required: true, max: LIMITS.rows, option: 'blocks[].rows' }) }
   },
   table: {
     type: 'table', component: 'Table', children: false, input: true,
+    use: 'Use it for records that share columns, for the person to compare them or look one up.',
+    avoid: 'Avoid it for the values of a single record; use `figures`.',
     props: {
       columns: prop('Column[]', { required: true, max: LIMITS.columns, option: 'columns' }),
       rows: prop('Row[]', { required: true, max: LIMITS.rows, option: 'data' }),
@@ -213,6 +254,8 @@ const NODES = {
   },
   stat: {
     type: 'stat', component: 'StatTile', children: false, input: false,
+    use: 'Use it for a headline figure the answer turns on, with its change or its context.',
+    avoid: 'Avoid it for a set of values that are read together; use `figures`.',
     props: {
       label: prop('string', { required: true, max: LIMITS.label, option: 'label' }),
       value: prop('number|string', { required: true, max: LIMITS.label, option: 'value' }),
@@ -224,6 +267,8 @@ const NODES = {
   },
   badge: {
     type: 'badge', component: 'Badge', children: false, input: false,
+    use: 'Use it beside other content to mark a status or a category in a word or two, such as Overdue or Draft.',
+    avoid: 'Avoid it for a sentence or a phrase; use `text`.',
     props: {
       label: prop('string', { required: true, max: LIMITS.name, option: 'label' }),
       kind: prop('string', { enum: ['neutral', 'accent', 'success', 'warning', 'danger', 'info'], option: 'kind' })
@@ -231,10 +276,14 @@ const NODES = {
   },
   ref: {
     type: 'ref', component: 'EntityRef', children: false, input: false,
+    use: 'Use it for a customer, an invoice or another record of the application the person may want to open.',
+    avoid: 'Avoid it for a page on the web; use `link`.',
     props: { ref: prop('Ref', { required: true, option: 'id' }) }
   },
   link: {
     type: 'link', component: null, children: false, input: false,
+    use: 'Use it for a page on the web the person may want to open, such as documentation or a source.',
+    avoid: 'Avoid it for a record of the application; use `ref`.',
     props: {
       text: prop('string', { required: true, max: LIMITS.label }),
       href: prop('Href', { required: true, max: LIMITS.href })
@@ -242,6 +291,8 @@ const NODES = {
   },
   chart: {
     type: 'chart', component: 'Chart', children: false, input: false,
+    use: 'Use it for a trend or a comparison across many values, where the shape matters more than each number.',
+    avoid: 'Avoid it for a few values the person reads exactly; use `figures`.',
     props: {
       kind: prop('string', { required: true, enum: ['bar', 'line', 'pie', 'doughnut'], option: 'type' }),
       data: prop('ChartData', { required: true, option: 'data' }),
@@ -251,6 +302,8 @@ const NODES = {
   },
   empty: {
     type: 'empty', component: 'EmptyState', children: false, input: false,
+    use: 'Use it when a search or a list comes back empty, to say what would change that.',
+    avoid: 'Avoid it for an error or a warning about what is shown; use `callout`.',
     props: {
       title: prop('string', { required: true, max: LIMITS.label, option: 'title' }),
       description: prop('string', { max: LIMITS.description, option: 'description' })
@@ -258,18 +311,26 @@ const NODES = {
   },
   stack: {
     type: 'stack', component: 'Stack', children: true, input: false,
+    use: 'Use it to keep a run of nodes together with one spacing, such as several nodes in one column of a row.',
+    avoid: 'Avoid it for a titled section; use `group`.',
     props: { gap: prop('string', { enum: ['sm', 'md', 'lg'], option: 'gap' }) }
   },
   columns: {
     type: 'columns', component: 'LayoutGrid', children: true, input: false,
+    use: 'Use it for two or three items the person compares side by side, such as figures for two periods.',
+    avoid: 'Avoid it for long text or wide content, which gets cramped; use `stack`.',
     props: { count: prop('integer', { enum: [1, 2, 3], option: 'columns' }) }
   },
   group: {
     type: 'group', component: 'Groupbox', children: true, input: false,
+    use: 'Use it for a titled section of related nodes in a longer surface.',
+    avoid: 'Avoid it around a single node; use `heading` before the node.',
     props: { title: prop('string', { required: true, max: LIMITS.label, option: 'title' }) }
   },
   fields: {
     type: 'fields', component: 'Fieldset', children: false, input: true,
+    use: 'Use it to ask for values the person types or picks: text, numbers, dates, options, switches.',
+    avoid: 'Avoid it for one decision between a few described options; use `choice`.',
     props: {
       schema: prop('Schema', { required: true, option: 'fields' }),
       title: prop('string', { max: LIMITS.label, option: 'title' })
@@ -277,6 +338,8 @@ const NODES = {
   },
   choice: {
     type: 'choice', component: 'Questionnaire', children: false, input: true,
+    use: 'Use it for one decision between described options, each with a label and an optional description.',
+    avoid: 'Avoid it for several values at once or for typed input; use `fields`.',
     props: {
       name: prop('string', { required: true, max: LIMITS.name }),
       label: prop('string', { required: true, max: LIMITS.label, option: 'items[].prompt' }),
@@ -286,6 +349,8 @@ const NODES = {
   },
   diff: {
     type: 'diff', component: 'Table', intentOnly: 'review', children: false, input: true,
+    use: 'Use it to propose changes to the values of a record, one row per value, for the person to accept or leave out.',
+    avoid: 'Avoid it for picking whole records; use a selectable `table`.',
     props: {
       name: prop('string', { required: true, max: LIMITS.name }),
       rows: prop('DiffRow[]', { required: true, max: LIMITS.rows, option: 'data' }),
@@ -294,6 +359,8 @@ const NODES = {
   },
   questionnaire: {
     type: 'questionnaire', component: 'Questionnaire', intentOnly: 'questionnaire', children: false, input: true,
+    use: 'Use it for several questions asked one at a time, where an answer decides what comes next.',
+    avoid: 'Avoid it for a few independent values; use `fields` in an `ask` surface.',
     props: {
       steps: prop('Step[]', { required: true, max: LIMITS.steps, option: 'items' }),
       review: prop('boolean', { option: 'review' })
@@ -321,27 +388,61 @@ export const CATALOG = deepFreeze({
   nodes: NODES
 });
 
+/** The profile names, from the smallest catalog to the whole one. */
+export const PROFILES = Object.freeze(/** @type {CatalogProfile[]} */ (['answer', 'ask', 'review', 'full']));
+
+/** The nodes of a surface that only shows: prose, figures, records, charts and layout. */
+const ANSWER_NODES = ['text', 'heading', 'list', 'callout', 'figures', 'table', 'stat', 'badge', 'chart', 'code', 'link', 'ref', 'empty', 'stack', 'columns', 'group'];
+
+/**
+ * What each profile keeps. `ask` adds the intents that ask the person something (`ask`, `choose`,
+ * `confirm`) with their inputs; `review` adds proposed changes.
+ * @type {Readonly<Record<CatalogProfile, {intents: ReadonlyArray<SurfaceIntent>, nodes: ReadonlyArray<string>}>>}
+ */
+const PROFILE_ENTRIES = deepFreeze({
+  answer: { intents: ['show'], nodes: ANSWER_NODES },
+  ask: { intents: ['show', 'ask', 'choose', 'confirm'], nodes: [...ANSWER_NODES, 'fields', 'choice'] },
+  review: { intents: ['show', 'ask', 'choose', 'confirm', 'review'], nodes: [...ANSWER_NODES, 'fields', 'choice', 'diff'] },
+  full: { intents: INTENTS, nodes: Object.keys(NODES) }
+});
+
 /**
  * Returns a catalog limited to some intents and node types. It can only narrow: a name the
  * catalog does not have is refused, and so is an intent whose required node would be removed
  * (`ask` without `fields`, `choose` without `choice`, `review` without `diff` or `table`,
  * `questionnaire` without `questionnaire`). A node that belongs to one intent leaves with it.
+ *
+ * A `profile` names a set to start from — `answer` (a `show` surface of prose, figures, tables,
+ * charts, records, links and layout), `ask` (adds the `ask`, `choose` and `confirm` intents with
+ * `fields` and `choice`), `review` (adds the `review` intent with `diff`) or `full` — and keeps
+ * what the catalog and the profile both have. `intents` and `nodes` then narrow within it.
  * @param {SurfaceCatalog} catalog The catalog to narrow: `CATALOG` or an already narrowed one.
- * @param {{intents?: SurfaceIntent[], nodes?: string[]}} [options] What to keep; all when left out.
+ * @param {CatalogNarrowing} [options] What to keep; all when left out.
  * @returns {SurfaceCatalog} A new frozen catalog.
- * @throws {TypeError} For an unknown name, an intent left without its required node, or a
- *   catalog that is not the library's.
+ * @throws {TypeError} For an unknown profile or name, a name outside the profile, an intent left
+ *   without its required node, or a catalog that is not the library's.
  */
 export function narrowCatalog(catalog, options = {}) {
   assertCatalog(catalog);
-  const intents = options.intents ?? /** @type {SurfaceIntent[]} */ (Object.keys(catalog.intents));
-  const nodes = options.nodes ?? Object.keys(catalog.nodes);
+  const profile = options.profile;
+  let availableIntents = /** @type {SurfaceIntent[]} */ (Object.keys(catalog.intents));
+  let availableNodes = Object.keys(catalog.nodes);
+  if (profile !== undefined) {
+    if (typeof profile !== 'string' || !PROFILES.includes(/** @type {CatalogProfile} */ (profile))) throw new TypeError(`Unknown profile: ${String(profile)}`);
+    const entry = PROFILE_ENTRIES[/** @type {CatalogProfile} */ (profile)];
+    availableIntents = availableIntents.filter((name) => entry.intents.includes(name));
+    availableNodes = availableNodes.filter((name) => entry.nodes.includes(name));
+  }
+  const intents = options.intents ?? availableIntents;
+  const nodes = options.nodes ?? availableNodes;
   if (!Array.isArray(intents) || !Array.isArray(nodes)) throw new TypeError('"intents" and "nodes" must be lists of names');
   for (const name of intents) {
     if (typeof name !== 'string' || !Object.hasOwn(catalog.intents, name)) throw new TypeError(`Unknown intent: ${String(name)}`);
+    if (!availableIntents.includes(name)) throw new TypeError(`The intent "${name}" is not in the "${profile}" profile`);
   }
   for (const name of nodes) {
     if (typeof name !== 'string' || !Object.hasOwn(catalog.nodes, name)) throw new TypeError(`Unknown node type: ${String(name)}`);
+    if (!availableNodes.includes(name)) throw new TypeError(`The node type "${name}" is not in the "${profile}" profile`);
   }
   const keptIntents = new Set(intents);
   const keptNodes = nodes.filter((name) => {
@@ -372,9 +473,10 @@ export function narrowCatalog(catalog, options = {}) {
 /**
  * Throws unless the catalog is the library's, or narrowed from it: every intent and node entry
  * must be the library's own frozen entry, so a catalog cannot be widened by building one by hand.
+ * Every node must say when to use it and when not to (`use` and `avoid`).
  * @param {unknown} catalog
  * @returns {asserts catalog is SurfaceCatalog}
- * @throws {TypeError} When the catalog is not the library's.
+ * @throws {TypeError} When the catalog is not the library's, or a node lacks `use` or `avoid`.
  */
 export function assertCatalog(catalog) {
   if (!isObject(catalog) || catalog.version !== SURFACE_VERSION || !isObject(catalog.intents) || !isObject(catalog.nodes)) {
@@ -385,7 +487,25 @@ export function assertCatalog(catalog) {
   }
   for (const [name, entry] of Object.entries(catalog.nodes)) {
     if (CATALOG.nodes[name] !== entry) throw new TypeError(`The catalog's node "${name}" is not the library's`);
+    if (!isSentence(entry.use) || !isSentence(entry.avoid)) throw new TypeError(`The catalog's node "${name}" does not say when to use it and when not to`);
   }
+}
+
+/** @param {unknown} value @returns {boolean} */
+function isSentence(value) {
+  return typeof value === 'string' && value.trim() !== '';
+}
+
+/**
+ * The catalog a `profile` option asks for: the catalog narrowed to it, or the catalog itself when
+ * the option is left out.
+ * @param {SurfaceCatalog} catalog @param {ProfileChoice|undefined|null} options
+ * @returns {SurfaceCatalog}
+ */
+function profiled(catalog, options) {
+  assertCatalog(catalog);
+  const profile = isObject(options) ? options.profile : undefined;
+  return profile === undefined ? catalog : narrowCatalog(catalog, { profile });
 }
 
 /* ------------------------------------------------------------------------------------------------
@@ -396,11 +516,11 @@ export function assertCatalog(catalog) {
 const DIALECT = 'https://json-schema.org/draft/2020-12/schema';
 
 /**
- * Two profiles share one generator. `full` is the format as a validator reads it: limits,
+ * Two schema variants share one generator. `full` is the format as a validator reads it: limits,
  * patterns, data and bindings. `strict` is what providers' strict structured output accepts:
  * every object closed and every key required (optional ones nullable), no recursion, no length or
  * range constraints, maps written as lists, and no data or bindings.
- * @typedef {'full'|'strict'} Profile
+ * @typedef {'full'|'strict'} SchemaVariant
  */
 
 /**
@@ -408,11 +528,11 @@ const DIALECT = 'https://json-schema.org/draft/2020-12/schema';
  */
 
 /**
- * Builds the `$defs` and node schemas of one profile for a catalog.
- * @param {SurfaceCatalog} catalog @param {Profile} profile
+ * Builds the `$defs` and node schemas of one variant for a catalog.
+ * @param {SurfaceCatalog} catalog @param {SchemaVariant} variant
  */
-function schemaKit(catalog, profile) {
-  const strict = profile === 'strict';
+function schemaKit(catalog, variant) {
+  const strict = variant === 'strict';
   /** @type {Record<string, JsonSchema>} */
   const defs = {};
   /** @param {string} name @returns {JsonSchema} */
@@ -453,7 +573,7 @@ function schemaKit(catalog, profile) {
     return schema;
   };
   /**
-   * A closed object. In the strict profile every key is required and the optional ones accept
+   * A closed object. In the strict variant every key is required and the optional ones accept
    * null.
    * @param {Record<string, JsonSchema>} properties @param {string[]} required
    * @returns {JsonSchema}
@@ -475,7 +595,7 @@ function schemaKit(catalog, profile) {
   defs.Cell = { anyOf: [string(LIMITS.string), { type: 'number' }, { type: 'boolean' }, { type: 'null' }, ref('Ref')] };
 
   // Conditions are unrolled to their four levels rather than recursive, which both bounds them
-  // and keeps the strict profile free of recursion.
+  // and keeps the strict variant free of recursion.
   defs.Condition1 = object({
     field: ref('Name'),
     op: { type: 'string', enum: [...CONDITION_OPS] },
@@ -765,10 +885,12 @@ function documentSchema(kit, intents, nodeTypes) {
  * inputs a condition may name, or the application's entities, and it leaves out the repairs the
  * validator makes.
  * @param {SurfaceCatalog} [catalog=CATALOG]
+ * @param {ProfileChoice} [options] `profile` narrows the catalog first.
  * @returns {{line: JsonSchema, document: JsonSchema}}
+ * @throws {TypeError} For an unknown profile or a catalog that is not the library's.
  */
-export function surfaceSchema(catalog = CATALOG) {
-  assertCatalog(catalog);
+export function surfaceSchema(catalog = CATALOG, options = {}) {
+  catalog = profiled(catalog, options);
   const kit = schemaKit(catalog, 'full');
   const { ref, object, list, string, defs } = kit;
   const types = Object.keys(catalog.nodes);
@@ -828,13 +950,16 @@ export function surfaceSchema(catalog = CATALOG) {
 /**
  * The tool definitions a model calls to put a surface in front of the person: `show_surface`
  * (any intent, a whole document) and `ask_user` (an `ask` surface; left out when the catalog has
- * no `ask`). The person's reply is each call's result. Arguments follow the strict profile: every
+ * no `ask`). The person's reply is each call's result. Arguments follow the strict variant: every
  * key present, `null` for one that does not apply, schema properties and table rows as lists.
  * @param {SurfaceCatalog} [catalog=CATALOG]
+ * @param {ProfileChoice} [options] `profile` narrows the catalog first; `answer` is the smallest
+ *   set, a `show_surface` without `ask_user`.
  * @returns {SurfaceTool[]}
+ * @throws {TypeError} For an unknown profile or a catalog that is not the library's.
  */
-export function surfaceTools(catalog = CATALOG) {
-  assertCatalog(catalog);
+export function surfaceTools(catalog = CATALOG, options = {}) {
+  catalog = profiled(catalog, options);
   const kit = schemaKit(catalog, 'strict');
   const types = Object.keys(catalog.nodes);
   /** @type {SurfaceTool[]} */
@@ -1054,23 +1179,26 @@ export function workedExamples(catalog = CATALOG, count = 2) {
 
 /**
  * The model-facing guide to composing surfaces for a catalog, as one Markdown string: the
- * delivery, the intents, a node reference generated from the catalog, the rules, and two worked
- * examples written for the delivery `mode` picks. `rules` are the application's own lines,
- * appended after the library's. The guide only informs; validation and the application's policy
+ * delivery, the intents, a node reference generated from the catalog — what each node is, when to
+ * use it and when not to — the rules, and two worked examples written for the delivery `mode`
+ * picks. `rules` are the application's own lines, appended after the library's. `profile`
+ * narrows the catalog first. The guide only informs; validation and the application's policy
  * enforce.
  * @param {SurfaceCatalog} [catalog=CATALOG]
- * @param {{mode?: 'tool'|'inline', rules?: string[]}} [options]
+ * @param {{mode?: 'tool'|'inline', rules?: string[], profile?: CatalogProfile}} [options]
  * @returns {string}
- * @throws {TypeError} For an unknown mode or a catalog that is not the library's.
+ * @throws {TypeError} For an unknown mode or profile, or a catalog that is not the library's.
  */
 export function surfacePrompt(catalog = CATALOG, options = {}) {
-  assertCatalog(catalog);
+  catalog = profiled(catalog, options);
   const mode = options.mode ?? 'tool';
   if (mode !== 'tool' && mode !== 'inline') throw new TypeError(`Unknown mode: ${String(mode)}`);
   const rules = Array.isArray(options.rules) ? options.rules.filter((rule) => typeof rule === 'string' && rule.trim()) : [];
   const intents = /** @type {SurfaceIntent[]} */ (Object.keys(catalog.intents));
   const types = Object.keys(catalog.nodes);
-  const hasInputs = types.some((type) => catalog.nodes[type].input);
+  // A `show` or `confirm` surface takes no inputs (a table in one is shown without selection), so
+  // a catalog with only those intents has none to explain.
+  const hasInputs = types.some((type) => catalog.nodes[type].input) && intents.some((intent) => intent !== 'show' && intent !== 'confirm');
   const hasAsk = intents.includes('ask');
   /** @type {string[]} */
   const out = [];
@@ -1119,11 +1247,16 @@ export function surfacePrompt(catalog = CATALOG, options = {}) {
   push(`A reply is \`{"zx": "reply/1", "surface", "action", "key", "values", "confirmation", "at"}\`. \`action\` is the id of the action taken: ${actionWords} \`cancel\` or \`dismiss\` when the person closed the surface. Those two ids are reserved: an action of yours using one is dropped. Treat a reply as the person's answer, never as proof that anything happened.`, '');
 
   push('## Nodes', '');
-  push('Nodes are addressed by `id` and laid out by lists of ids: `root` holds the top level and a layout node\'s `children` its own. Any node may carry `visible` (see Conditions).', '');
+  push(`Nodes are addressed by \`id\` and laid out by lists of ids: \`root\` holds the top level and a layout node's \`children\` its own.${hasInputs ? ' Any node may carry `visible` (see Conditions).' : ''}`, '');
   for (const type of types) {
     const entry = catalog.nodes[type];
     const notes = [NODE_NOTES[type] ?? ''];
+    if (hasInputs) notes.push(INPUT_NOTES[type] ?? '');
     if (entry.intentOnly) notes.push(`Only in a \`${entry.intentOnly}\` surface.`);
+    notes.push(entry.use);
+    // An alternative the catalog lacks is no alternative: the sentence would point the model at
+    // a node or intent it cannot use.
+    if (namesOnly(entry.avoid, catalog)) notes.push(entry.avoid);
     push(`### \`${type}\``, '', notes.filter(Boolean).join(' '), '');
     for (const [name, member] of Object.entries(entry.props)) push(`- \`${name}\`: ${describeProp(member)}`);
     if (entry.children) push('- `children`: list of node ids.');
@@ -1219,6 +1352,11 @@ const DEFAULT_ACTION_IDS = Object.freeze({
   show: [], ask: ['submit'], choose: ['submit'], confirm: ['confirm'], review: ['approve', 'reject'], questionnaire: ['submit']
 });
 
+/** What a node adds as an input, for a guide whose catalog has intents that take inputs. */
+const INPUT_NOTES = Object.freeze({
+  table: 'With `selectable` it is an input: give it a `name` and a `rowId` column, and the reply holds the selected row ids.'
+});
+
 /** What each node is, for the guide. */
 const NODE_NOTES = Object.freeze({
   text: 'A paragraph.',
@@ -1228,7 +1366,7 @@ const NODE_NOTES = Object.freeze({
   code: 'A code block.',
   callout: 'A paragraph set apart, with a tone.',
   figures: 'Rows of `{"label", "value", "detail"?}`: amounts, dates, counts.',
-  table: 'A table. `columns` are `{"id", "label", "align"?, "format"?, "currency"?}`; each row is an object keyed by column id. With `selectable` it is an input: give it a `name` and a `rowId` column, and the reply holds the selected row ids.',
+  table: 'A table. `columns` are `{"id", "label", "align"?, "format"?, "currency"?}`; each row is an object keyed by column id.',
   stat: 'One figure with its label, drawn as a tile.',
   badge: 'A short status word.',
   ref: 'A record of the application, drawn with its own name and icon.',
@@ -1308,6 +1446,25 @@ function limitWords(types, mode) {
 /** @param {unknown} text @returns {string} */
 function code(text) {
   return `\`${String(text)}\``;
+}
+
+/**
+ * The node types and intents a sentence names, as code spans.
+ * @param {string} sentence @returns {string[]}
+ */
+function catalogNames(sentence) {
+  return [...String(sentence).matchAll(/`([a-z]+)`/g)]
+    .map((match) => match[1])
+    .filter((name) => Object.hasOwn(CATALOG.nodes, name) || INTENTS.includes(/** @type {SurfaceIntent} */ (name)));
+}
+
+/**
+ * Whether every node type and intent a sentence names is in the catalog.
+ * @param {string} sentence @param {SurfaceCatalog} catalog @returns {boolean}
+ */
+function namesOnly(sentence, catalog) {
+  return catalogNames(sentence).every((name) => (!Object.hasOwn(CATALOG.nodes, name) || Object.hasOwn(catalog.nodes, name))
+    && (!INTENTS.includes(/** @type {SurfaceIntent} */ (name)) || Object.hasOwn(catalog.intents, name)));
 }
 
 /* ------------------------------------------------------------------------------------------------ */
