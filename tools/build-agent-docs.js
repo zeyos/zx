@@ -45,13 +45,117 @@ const LIVE_PAGES = Object.freeze({ zeyos: 'layouts.html#zeyos-invoices' });
  */
 
 /**
+ * What a section id may be: it names the file `docs/components/<id>.md`, so lowercase letters and
+ * digits in words joined by single hyphens, nothing a path could be built from.
+ */
+const SAFE_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+/** Ids a section cannot take: the generator writes these files itself. */
+const RESERVED_IDS = new Set(['index']);
+
+/**
+ * One `<!-- doc:<id> -->` or `<!-- /doc -->` marker as written.
+ * @typedef {Object} DocMarker
+ * @property {string} text The marker, as written.
+ * @property {number} line Its line, from 1.
+ * @property {number} start Where it starts in the reference.
+ * @property {number} end Where it ends.
+ * @property {boolean} close Whether it closes a section.
+ * @property {string} rest What follows `doc` inside the comment.
+ */
+
+/**
+ * Every section marker of the reference, in order — well formed or not. A marker the reference
+ * writes about, inside backticks or a fenced code block, is not one.
+ * @param {string} reference
+ * @returns {DocMarker[]}
+ */
+function docMarkers(reference) {
+  /** @type {DocMarker[]} */
+  const markers = [];
+  let fenced = false;
+  let offset = 0;
+  reference.split('\n').forEach((line, index) => {
+    if (/^\s*```/.test(line)) fenced = !fenced;
+    else if (!fenced) {
+      // Code spans are blanked to their length, so positions still match the line.
+      const visible = line.replace(/(`+)[^`]+?\1/g, (span) => ' '.repeat(span.length));
+      for (const match of visible.matchAll(/<!--\s*(\/?)\s*doc\b([\s\S]*?)-->/g)) {
+        const start = /** @type {number} */ (match.index);
+        markers.push({
+          text: line.slice(start, start + match[0].length), line: index + 1,
+          start: offset + start, end: offset + start + match[0].length, close: match[1] === '/', rest: match[2]
+        });
+      }
+    }
+    offset += line.length + 1;
+  });
+  return markers;
+}
+
+/**
+ * Reads the reference's sections and checks their markers: each section opened once and closed
+ * once, none inside another, no id used twice, every id a safe file name.
+ * @param {string} reference
+ * @returns {{sections: {id: string, text: string}[], problems: string[]}} The sections, and one
+ *   message per problem naming the marker and its line.
+ */
+function parseReference(reference) {
+  /** @type {{id: string, text: string}[]} */
+  const sections = [];
+  /** @type {string[]} */
+  const problems = [];
+  /** @type {Map<string, number>} Line each id was first opened on. */
+  const opened = new Map();
+  /** @type {{id: string, marker: DocMarker}|null} */
+  let open = null;
+  for (const marker of docMarkers(reference)) {
+    const at = `line ${marker.line}: ${marker.text}`;
+    if (marker.close) {
+      if (marker.rest.trim()) problems.push(`${at} is not a closing marker; a section closes with <!-- /doc -->`);
+      if (!open) {
+        problems.push(`${at} closes no section`);
+        continue;
+      }
+      sections.push({ id: open.id, text: reference.slice(open.marker.end, marker.start).trim() });
+      open = null;
+      continue;
+    }
+    const named = /^\s*:([\s\S]*)$/.exec(marker.rest);
+    const id = named ? named[1].trim() : '';
+    if (!named) problems.push(`${at} is not a section marker; a section opens with <!-- doc:<id> -->`);
+    else if (!id) problems.push(`${at} names no id`);
+    else if (RESERVED_IDS.has(id)) problems.push(`${at} takes the id "${id}", which the generator's own ${id}.md uses`);
+    else if (!SAFE_ID.test(id)) problems.push(`${at} has the id "${id}", which is not a safe file name: lowercase letters and digits, joined by single hyphens`);
+    else if (opened.has(id)) problems.push(`${at} repeats the id opened on line ${opened.get(id)}`);
+    if (id && !opened.has(id)) opened.set(id, marker.line);
+    if (open) problems.push(`${at} opens inside ${open.marker.text} (line ${open.marker.line}), which is not closed yet`);
+    open = { id, marker };
+  }
+  if (open) problems.push(`line ${open.marker.line}: ${open.marker.text} is never closed`);
+  return { sections, problems };
+}
+
+/**
+ * The problems with the reference's `<!-- doc: -->` markers, which the generator checks before it
+ * writes or deletes anything: one message per problem, naming the marker and its line.
+ * @param {string} reference The text of `docs/llms.md`.
+ * @returns {string[]} Empty when every marker is sound.
+ */
+export function markerProblems(reference) {
+  return parseReference(reference).problems;
+}
+
+/**
  * The `<!-- doc:<id> -->` sections of the reference, in the order the reference has them.
  * @param {string} reference The text of `docs/llms.md`.
  * @returns {{id: string, text: string}[]}
+ * @throws {Error} Naming every marker that is not sound (see `markerProblems()`).
  */
 export function referenceSections(reference) {
-  return [...reference.matchAll(/<!--\s*doc:([\w-]+)\s*-->([\s\S]*?)<!--\s*\/doc\s*-->/g)]
-    .map((match) => ({ id: match[1], text: match[2].trim() }));
+  const { sections, problems } = parseReference(reference);
+  if (problems.length) throw new Error(`docs/llms.md has unsound section markers:\n${problems.map((problem) => `  ${problem}`).join('\n')}`);
+  return sections;
 }
 
 /**
@@ -326,7 +430,16 @@ export function agentDocsFiles() {
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const files = agentDocsFiles();
+  /** @type {Record<string, string>} */
+  let files;
+  try {
+    // Everything is generated, and the reference's markers checked, before any file is touched: a
+    // reference that cannot be read changes nothing.
+    files = agentDocsFiles();
+  } catch (error) {
+    console.error(`build-agent-docs: ${error instanceof Error ? error.message : String(error)}\nNo file was written or removed.`);
+    process.exit(1);
+  }
   // A section that was renamed or removed leaves no file behind.
   const directory = join(root, COMPONENTS_DIR);
   if (existsSync(directory)) {

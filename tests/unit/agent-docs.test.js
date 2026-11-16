@@ -13,7 +13,8 @@ import { fileURLToPath } from 'node:url';
 
 import { CATALOG, INTENTS, PROFILES } from '../../src/components/surface/catalog.js';
 import {
-  COMPONENTS_DIR, SITE, agentDocsFiles, componentPageIds, demoLede, firstSentence, markdownSection, referenceSections, shiftHeadings
+  COMPONENTS_DIR, SITE, agentDocsFiles, componentPageIds, demoLede, firstSentence, markdownSection, markerProblems, referenceSections,
+  shiftHeadings
 } from '../../tools/build-agent-docs.js';
 
 const root = resolve(fileURLToPath(new URL('../..', import.meta.url)));
@@ -78,6 +79,54 @@ test('the generator reads sections, headings, ledes and sentences the way the re
   assert.equal(demoLede("export default {\n  title: 'X',\n  examples: [{\n    blurb: 'not the lede'\n  }]\n};"), '');
   assert.equal(markdownSection('## A\ntext\n### B\nmore\n## C\nend', '## A'), 'text\n### B\nmore');
   assert.equal(markdownSection('## A\n```md\n## not C\n```\n## C', '## A'), '```md\n## not C\n```');
+});
+
+test('the generator reads only sound section markers, and names every one that is not', () => {
+  assert.deepEqual(markerProblems(reference), [], 'docs/llms.md');
+  // Markers written about — in a code span, in fenced code — are not markers.
+  const sound = [
+    'Each section is wrapped in `<!-- doc:<name> -->` markers.',
+    '<!-- doc:alpha -->', '## Alpha', 'Text.', '<!-- /doc -->',
+    '```html', '<!-- doc:in-code -->', '```',
+    '<!-- doc:beta-2 -->', '## Beta', '<!-- /doc -->'
+  ].join('\n');
+  assert.deepEqual(markerProblems(sound), []);
+  assert.deepEqual(referenceSections(sound), [{ id: 'alpha', text: '## Alpha\nText.' }, { id: 'beta-2', text: '## Beta' }]);
+
+  const malformed = [
+    '<!-- doc:alpha -->', '## Alpha',
+    '<!-- doc:beta -->', '<!-- /doc -->',
+    '<!-- /doc -->',
+    '<!-- doc:alpha -->', '<!-- /doc -->',
+    '<!-- doc:../escape -->', '<!-- /doc -->',
+    '<!-- doc:index -->', '<!-- /doc -->',
+    '<!-- doc:Upper_Case -->', '<!-- /doc -->',
+    '<!-- doc: -->', '<!-- /doc -->',
+    '<!-- doc gamma -->', '<!-- /doc -->',
+    '<!-- /doc gamma -->',
+    '<!-- doc:last -->', '## Never closed'
+  ].join('\n');
+  const expected = [
+    [3, '<!-- doc:beta -->', /opens inside <!-- doc:alpha --> \(line 1\), which is not closed yet$/],
+    [5, '<!-- /doc -->', /closes no section$/],
+    [6, '<!-- doc:alpha -->', /repeats the id opened on line 1$/],
+    [8, '<!-- doc:\.\.\/escape -->', /"\.\.\/escape", which is not a safe file name/],
+    [10, '<!-- doc:index -->', /takes the id "index"/],
+    [12, '<!-- doc:Upper_Case -->', /"Upper_Case", which is not a safe file name/],
+    [14, '<!-- doc: -->', /names no id$/],
+    [16, '<!-- doc gamma -->', /is not a section marker/],
+    [18, '<!-- \/doc gamma -->', /is not a closing marker/],
+    [18, '<!-- \/doc gamma -->', /closes no section$/],
+    [19, '<!-- doc:last -->', /is never closed$/]
+  ];
+  const problems = markerProblems(malformed);
+  assert.equal(problems.length, expected.length, problems.join('\n'));
+  expected.forEach(([line, marker, pattern], index) => {
+    assert.match(problems[index], new RegExp(`^line ${line}: ${marker} `), problems[index]);
+    assert.match(problems[index], pattern);
+  });
+  // Reading the sections refuses the whole reference, every problem named, before anything is made of it.
+  assert.throws(() => referenceSections(malformed), (error) => error instanceof Error && problems.every((problem) => error.message.includes(problem)));
 });
 
 test('llms.txt opens with the rules for agents, then a track for writing code and one for runtime surfaces', () => {
