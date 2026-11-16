@@ -55,10 +55,11 @@ test('floating Message CSS is upper-right/content-sized with an opaque transpare
   assert.match(css, /\.zx-message-region\s*\{[^}]*position:\s*fixed;[^}]*inset-block-start:/s);
   assert.match(css, /\.zx-message-region\s*\{[^}]*block-size:\s*max-content;/s);
   assert.match(css, /@media \(prefers-reduced-transparency: reduce\)[\s\S]*backdrop-filter:\s*none;/);
+  // The opaque fallback is the neutral raised surface: a message is never filled with its kind.
   for (const token of ['info-bg', 'success-bg', 'warning-bg', 'danger-bg']) {
-    assert.match(css, new RegExp(`--zx-message-fallback-bg:\\s*var\\(--zx-color-${token}\\)`));
+    assert.doesNotMatch(css, new RegExp(`var\\(--zx-color-${token}\\)`), `${token} fills a message`);
   }
-  assert.match(css, /prefers-reduced-transparency[\s\S]*background:\s*var\(--zx-message-fallback-bg\)/);
+  assert.match(css, /prefers-reduced-transparency[\s\S]*background:\s*var\(--zx-color-bg-raised\)/);
 });
 
 test('a floating placement is one of the six, and anything else is the fallback', () => {

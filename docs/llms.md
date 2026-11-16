@@ -1864,12 +1864,14 @@ Floating toasts come from statics; `new Message(target)` gives an inline, non-fl
 the same `.show()`. The toast region is `role="status"`/`aria-live` (`role="alert"` for errors).
 A floating region sits at the top of the viewport on the inline-end side by default (`top-end`:
 the upper right in a left-to-right page), sizes to its messages rather than the page, and uses the
-translucent glass surface tokens with a solid fallback.
+translucent glass surface tokens with a solid fallback. A message is a plain card with a neutral
+border; its kind shows in the icon.
 
 - **Statics** — `Message.info/success/warning/error(msg, opts)`,
-  `Message.show(msg, { kind, timeout=4000, closable, scope?, placement? })` → `{ close() }`,
-  `Message.progress(text, {scope?, placement?})` → `{ update(pct, text?), done(), fail(text?) }`,
-  `Message.setPlacement(placement)` / `Message.getPlacement()`. `scope` is an element or selector
+  `Message.show(msg, { kind, timeout=4000, closable, highlight?, scope?, placement? })` → `{ close() }`,
+  `Message.progress(text, {scope?, placement?, highlight?})` → `{ update(pct, text?), done(), fail(text?) }`,
+  `Message.setPlacement(placement)` / `Message.getPlacement()`,
+  `Message.setStack(enabled)` / `Message.getStack()`. `scope` is an element or selector
   whose nearest Zx theme scope owns that floating region; without it the focused opener supplies
   the scope.
 - **Placement** — `placement: 'top-start'|'top'|'top-end'|'bottom-start'|'bottom'|'bottom-end'`
@@ -1892,7 +1894,24 @@ translucent glass surface tokens with a solid fallback.
   and clickable above it, and moves back when it closes. A press on a toast dismisses no open menu
   or drawer.
 - **Per-message options** — `kind: 'info'`, `timeout`, `closable: true`, `maxVisible: 5` (extras
-  queue, and hovering pauses dismissal).
+  queue, and hovering pauses dismissal), `highlight: false`.
+- **Highlight** — `highlight: 'border'` (or `true`) draws the message's border in the kind colour;
+  `highlight: 'animated'` draws it faintly with a light travelling round it, and is the still
+  kind-coloured border under `prefers-reduced-motion: reduce`. Per message, or as an inline area's
+  default; the message carries it as `data-highlight`. `false` (the default) is the plain card.
+- **Stack** — `stack: true` (an inline area) or `Message.setStack(true)` (every floating region,
+  those on screen included; `getStack()` reads it) piles the visible messages into one stack: the
+  newest in front, the next two peeking out behind it a step smaller, the rest out of sight. It
+  opens — every visible message laid out with its own height — while the pointer is over it or
+  focus is inside it; a press on it that is not on a button (a tap included) keeps it open until a
+  press outside it, Escape (which returns focus to where it came from), or `collapse()`. While it
+  is open by any of these no message in it times out. `expanded: true` keeps it open without
+  holding the timers. Instance methods: `expand()` (opens and keeps it open), `collapse()`,
+  `isExpanded()`, `setStack(enabled)`; events `expand` and `collapse`. The root carries
+  `data-stack` and `data-state="collapsed"|"expanded"`; document order follows the visual order,
+  so Tab meets the messages as they are seen. A stack at the top (inline areas, `top*`) piles
+  downwards, one at the foot (`bottom*`, and every region at 640px and narrower) upwards. The
+  geometry is the exported pure helper `messageStackLayout(heights, expanded)`.
 - **Action** — `action: { label, onclick?, kind? }` renders one small button (`.zx-btn`,
   `data-size="sm"`, secondary unless `kind` is `primary`/`danger`/`ghost`) in a toast or an inline
   message; activating it runs `onclick(event)` and closes the message. A message with an action

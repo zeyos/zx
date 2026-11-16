@@ -1,6 +1,23 @@
+/*
+ * The light that travels around an animated highlight. Registered so the angle interpolates —
+ * an unregistered custom property would jump from one end of the turn to the other.
+ */
+@property --zx-message-sweep {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
 .zx-message {
+  /* Which way a stack piles: 1 from the top edge, -1 from the foot. Read by the script too. */
+  --zx-message-dir: 1;
+  /* An open stack spaces its messages like a list; a collapsed one shows each message behind the
+     front by a peek. The bleed is how far a message's shadow may reach past its clip. */
+  --zx-message-gap: var(--zx-space-2);
+  --zx-message-peek: var(--zx-space-3);
+  --zx-message-bleed: var(--zx-space-8);
   display: grid;
-  gap: var(--zx-space-2);
+  gap: var(--zx-message-gap);
 }
 
 /*
@@ -47,6 +64,7 @@
 /* At the foot the newest toast is the one nearest the edge, and toasts enter and leave downwards. */
 .zx-message-region[data-placement^="bottom"] {
   --zx-message-shift: var(--zx-space-2);
+  --zx-message-dir: -1;
   inset-block-start: auto;
   inset-block-end: var(--zx-message-inset);
 }
@@ -62,6 +80,7 @@
   .zx-message-region,
   .zx-message-region[data-placement] {
     --zx-message-shift: var(--zx-space-2);
+    --zx-message-dir: -1;
     inset-block-start: auto;
     inset-block-end: var(--zx-message-inset);
     inset-inline: var(--zx-message-inset);
@@ -75,9 +94,12 @@
   }
 }
 
+/*
+ * One message: a plain card on the overlay material, a neutral border, and the kind in its icon.
+ * A highlight (`data-highlight`) is the one way a message is made to stand out.
+ */
 .zx-message__toast {
   --zx-message-kind: var(--zx-color-info);
-  --zx-message-fallback-bg: var(--zx-color-info-bg);
   position: relative;
   display: grid;
   /* Icon and text, then whatever follows — the action, the close button — in columns of their own. */
@@ -86,42 +108,35 @@
   grid-auto-flow: column;
   align-items: start;
   gap: var(--zx-space-3);
-  border: 1px solid var(--zx-color-overlay-border);
+  border: 1px solid var(--zx-color-border);
   border-radius: var(--zx-radius-lg);
-  background: var(--zx-message-fallback-bg);
-  box-shadow: inset 0 0 0 1px var(--zx-message-kind), var(--zx-glass-raised-shadow);
+  background: var(--zx-color-bg-raised);
+  box-shadow: var(--zx-overlay-shadow);
   padding: var(--zx-space-3);
   color: var(--zx-color-text);
 }
 
 .zx-message__toast[data-kind="success"] {
   --zx-message-kind: var(--zx-color-success);
-  --zx-message-fallback-bg: var(--zx-color-success-bg);
 }
 
 .zx-message__toast[data-kind="warning"] {
   --zx-message-kind: var(--zx-color-warning);
-  --zx-message-fallback-bg: var(--zx-color-warning-bg);
 }
 
 .zx-message__toast[data-kind="error"] {
   --zx-message-kind: var(--zx-color-danger);
-  --zx-message-fallback-bg: var(--zx-color-danger-bg);
 }
 
 @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .zx-message__toast {
-    border-color: color-mix(in srgb, var(--zx-message-kind) 28%, var(--zx-color-overlay-border));
+    border-color: var(--zx-color-overlay-border);
     background-color: var(--zx-color-overlay-surface);
-    /* The status tint is composed here, not in the token: a token resolves where it is declared,
-       so a tint written into it at the theme root would be the info colour for every kind. */
-    background-image: radial-gradient(120% 160% at 0% 0%,
-      color-mix(in srgb, var(--zx-message-kind) 16%, transparent), transparent 62%),
-      var(--zx-overlay-toast-image);
+    /* The theme's toast body and nothing more: no tint for the kind, which shows in the icon. */
+    background-image: var(--zx-overlay-toast-image);
     background-clip: padding-box;
     -webkit-backdrop-filter: var(--zx-glass-filter-overlay);
     backdrop-filter: var(--zx-glass-filter-overlay);
-    /* No bar on the leading edge: the kind shows in the icon and the tinted border. */
     box-shadow: var(--zx-glass-overlay-shadow);
   }
 }
@@ -129,10 +144,52 @@
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
   .zx-message__toast {
     border-color: var(--zx-color-border);
-    background: var(--zx-message-fallback-bg);
+    background: var(--zx-color-bg-raised);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
     box-shadow: var(--zx-overlay-shadow);
+  }
+}
+
+/* A highlight draws the border in the kind colour. Listed after the material and its fallbacks so
+   it holds over every one of them. */
+.zx-message__toast[data-highlight] {
+  border-color: var(--zx-message-kind);
+}
+
+/*
+ * The animated highlight: a faint kind-coloured border with a light running round it. The light
+ * is a conic gradient on a layer the size of the border box, masked down to the border ring, so
+ * it never paints over the card's face or its content.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .zx-message__toast[data-highlight="animated"] {
+    border-color: color-mix(in srgb, var(--zx-message-kind) 30%, var(--zx-color-overlay-border));
+  }
+
+  .zx-message__toast[data-highlight="animated"]::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border: 1px solid transparent;
+    border-radius: inherit;
+    background: conic-gradient(from var(--zx-message-sweep),
+      transparent 0turn, transparent 0.55turn,
+      color-mix(in srgb, var(--zx-message-kind) 45%, transparent) 0.75turn,
+      var(--zx-message-kind) 0.92turn, transparent 1turn) border-box;
+    -webkit-mask: linear-gradient(currentColor, currentColor) padding-box,
+      linear-gradient(currentColor, currentColor) border-box;
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(currentColor, currentColor) padding-box exclude,
+      linear-gradient(currentColor, currentColor) border-box;
+    pointer-events: none;
+    animation: zx-message-sweep calc(16 * var(--zx-dur-base)) linear infinite;
+  }
+}
+
+@keyframes zx-message-sweep {
+  to {
+    --zx-message-sweep: 1turn;
   }
 }
 
@@ -183,9 +240,73 @@
   background: var(--zx-message-kind);
 }
 
+/*
+ * A stack (`data-stack`). The messages lie on top of one another, placed by the script from their
+ * measured heights: `--zx-message-y` is how far each one moves from the stack's edge,
+ * `--zx-message-scale` its size, `--zx-message-clip` what it cuts from its inner edge — all but the
+ * strip that peeks out, so no card shows through the translucent one in front — and
+ * `--zx-message-z` puts the newest on top. The clip is a rectangle (`inset()` without `round`):
+ * its cut lies along the edge of the card in front, and only the outer corners are the card's own. The stack's own height is
+ * `--zx-message-stack-size`; `--zx-message-stack-hold` keeps it from shrinking under the pointer.
+ */
+.zx-message[data-stack] {
+  isolation: isolate;
+  block-size: var(--zx-message-stack-size, 0px);
+  min-block-size: var(--zx-message-stack-hold, 0px);
+}
+
+.zx-message[data-stack]:not(.zx-message-region) {
+  position: relative;
+  display: block;
+}
+
+.zx-message-region[data-stack]:popover-open {
+  display: block;
+}
+
+.zx-message[data-stack] > .zx-message__toast {
+  position: absolute;
+  inset-block: 0 auto;
+  inset-inline: 0;
+  z-index: var(--zx-message-z, 0);
+  /* Behind the front message, each one shrinks towards the edge that peeks out. */
+  transform-origin: 50% 100%;
+  translate: 0 calc(var(--zx-message-dir) * var(--zx-message-y, 0px));
+  scale: var(--zx-message-scale, 1);
+  clip-path: inset(var(--zx-message-clip, calc(-1 * var(--zx-message-bleed)))
+    calc(-1 * var(--zx-message-bleed)) calc(-1 * var(--zx-message-bleed)));
+}
+
+.zx-message-region[data-stack][data-placement^="bottom"] > .zx-message__toast {
+  inset-block: auto 0;
+  transform-origin: 50% 0;
+  clip-path: inset(calc(-1 * var(--zx-message-bleed)) calc(-1 * var(--zx-message-bleed))
+    var(--zx-message-clip, calc(-1 * var(--zx-message-bleed))));
+}
+
+@media (max-width: 640px) {
+  .zx-message-region[data-stack] > .zx-message__toast,
+  .zx-message-region[data-stack][data-placement] > .zx-message__toast {
+    inset-block: auto 0;
+    transform-origin: 50% 0;
+    clip-path: inset(calc(-1 * var(--zx-message-bleed)) calc(-1 * var(--zx-message-bleed))
+      var(--zx-message-clip, calc(-1 * var(--zx-message-bleed))));
+  }
+}
+
+/* Collapsed, only the front message shows its content; the ones behind are its edges. */
+.zx-message[data-stack][data-state="collapsed"] > .zx-message__toast:not([data-depth="0"]) > * {
+  opacity: 0;
+}
+
+.zx-message[data-stack][data-state="collapsed"] > .zx-message__toast[data-depth="hidden"] {
+  opacity: 0;
+  pointer-events: none;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .zx-message__toast[data-state="open"] {
-    animation: zx-message-enter var(--zx-dur-base) var(--zx-ease) both;
+    animation: zx-message-enter var(--zx-dur-base) var(--zx-ease) backwards;
   }
 
   .zx-message__toast[data-state="closing"] {
@@ -195,10 +316,27 @@
   .zx-message__progress-fill {
     transition: inline-size var(--zx-dur-base) var(--zx-ease);
   }
+
+  .zx-message[data-stack] {
+    transition: block-size calc(2 * var(--zx-dur-base)) var(--zx-ease-drawer),
+      min-block-size calc(2 * var(--zx-dur-base)) var(--zx-ease-drawer);
+  }
+
+  .zx-message[data-stack] > .zx-message__toast {
+    transition: translate calc(2 * var(--zx-dur-base)) var(--zx-ease-drawer),
+      scale calc(2 * var(--zx-dur-base)) var(--zx-ease-drawer),
+      clip-path calc(2 * var(--zx-dur-base)) var(--zx-ease-drawer),
+      opacity calc(2 * var(--zx-dur-base)) var(--zx-ease-drawer);
+  }
+
+  .zx-message[data-stack] > .zx-message__toast > * {
+    transition: opacity calc(2 * var(--zx-dur-base)) var(--zx-ease);
+  }
 }
 
 /* `--zx-message-shift` is the direction a toast travels: up and out at the top of the viewport and
-   in an inline area, down and out in a region at the foot. */
+   in an inline area, down and out in a region at the foot. In a stack it is a transform of its
+   own, on top of the place the stack gives it. */
 @keyframes zx-message-enter {
   from {
     opacity: 0;

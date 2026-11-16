@@ -8,10 +8,10 @@ and friends remain the complete record.
 
 ## Unreleased
 
-Pinned columns and header groups in Table, placements for floating messages, a Chart that mounts
-when it can be measured and follows the theme, overlays and windowed tables that run in a DOM
-without a top layer, a package entry a bundler can prune, and a guide to using the class API from
-a framework.
+Pinned columns and header groups in Table, placements, stacks and highlights for messages, a Chart
+that mounts when it can be measured and follows the theme, overlays and windowed tables that run in
+a DOM without a top layer, a package entry a bundler can prune, and a guide to using the class API
+from a framework.
 
 ### Added
 
@@ -54,9 +54,24 @@ a framework.
 - The Options tables of the documentation, and `docs/api.json`, state per option how it is changed
   after construction where the source says so: the setter, or that it takes a rebuild.
 - The reference lists the stylesheet name `zx-css` needs for every Form field type.
+- **Message stacks.** `stack: true` on an inline area, or `Message.setStack(true)` for floating
+  regions (applied at once, read back with `Message.getStack()`), piles the visible messages into
+  one stack: the newest in front, two more peeking out behind it. It opens while the pointer is
+  over it or focus is inside it, and a press on it (a tap included) keeps it open until a press
+  outside it or Escape; no message times out while it is open. `expanded: true` keeps it open.
+  `expand()`, `collapse()`, `isExpanded()` and `setStack()` drive it, `expand` and `collapse`
+  report it, and the root carries `data-stack` and `data-state`. Bottom placements, and every
+  region on a phone, pile upwards. `messageStackLayout()` is the geometry, exported.
+- **Message `highlight`.** `'border'` (or `true`) draws a message's border in its kind colour;
+  `'animated'` sends a light round a faint kind-coloured border, and is the still border under
+  reduced motion. Per message, as an inline area's default, and on `Message.progress()`.
 
 ### Changed
 
+- **A message is a plain card.** The kind-tinted gradient and the kind-coloured border are gone:
+  every message has the theme's toast surface and a neutral border, and shows its kind in its
+  icon; `highlight` is the way to make one stand out. The opaque fallbacks (no backdrop filter,
+  reduced transparency, more contrast) are the neutral raised surface instead of the kind's tint.
 - **An option passed as `undefined` keeps its default**, at the top level and inside `msg`.
   It used to override the default with `undefined`. A wrapper can now forward unset props as they
   are; code that passed `undefined` to switch a default off passes `null` (or `false`) instead.

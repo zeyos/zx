@@ -1,7 +1,16 @@
-import { Avatar, button, h, Message } from '../../src/index.js';
+import { Avatar, button, h, Message, Toggle } from '../../src/index.js';
 
 /** Who asks for the approval in the "An action" example. */
 const REQUESTER = { name: 'Mara Lind' };
+
+/** What the stack examples post, in turn: a kind, the text, and sometimes a highlight. */
+const STACK_MESSAGES = [
+  { kind: 'success', text: 'Invoice INV-1042 sent to Halden & Co.' },
+  { kind: 'info', text: 'Three new comments on the Q3 forecast.' },
+  { kind: 'warning', text: 'The mail server is slow to answer; the outbox will retry.', highlight: 'border' },
+  { kind: 'error', text: 'Could not save the delivery address.', highlight: 'animated' },
+  { kind: 'success', text: 'Project Aurora moved to Review.' }
+];
 
 /** Where a floating region can sit: the block edge, then the inline position; alone, centred. */
 const PLACEMENTS = ['top-start', 'top', 'top-end', 'bottom-start', 'bottom', 'bottom-end'];
@@ -29,6 +38,111 @@ export default {
           button({ label: 'Success', kind: 'primary', onclick: () => show('success') }),
           button({ label: 'Warning', onclick: () => show('warning') }),
           button({ label: 'Error', kind: 'danger', onclick: () => show('error') })
+        ];
+      }
+    },
+    {
+      title: 'Highlight',
+      blurb: 'A message is a plain card; its kind shows in the icon. highlight makes one stand out: '
+        + '"border" (or true) draws the border in the kind colour, and "animated" sends a light '
+        + 'round it — a still kind-coloured border when the reader asks for reduced motion.',
+      render: ({ cleanup, log }) => {
+        const handles = new Set();
+        cleanup(() => handles.forEach((handle) => handle.close()));
+        return [
+          button({
+            label: 'Plain',
+            onclick: () => handles.add(Message.info('Three new comments on the Q3 forecast.'))
+          }),
+          button({
+            label: 'Border',
+            onclick: () => {
+              handles.add(Message.warning('Two fields need attention.', { highlight: 'border' }));
+              log('highlight: border');
+            }
+          }),
+          button({
+            label: 'Animated',
+            onclick: () => {
+              handles.add(Message.error('Could not save the delivery address.', {
+                highlight: 'animated',
+                timeout: 8000
+              }));
+              log('highlight: animated');
+            }
+          })
+        ];
+      }
+    },
+    {
+      title: 'A floating stack',
+      blurb: 'Message.setStack(true) piles floating messages into one stack: the newest in front, '
+        + 'two more peeking out behind it. The stack opens while the pointer is over it or focus is '
+        + 'inside it — Tab reaches it through its buttons — and a press on it, a tap included, keeps '
+        + 'it open until a press outside it or Escape. While it is open no message in it times out. '
+        + 'It applies at once, to every placement; at the foot the stack piles upwards.',
+      render: ({ cleanup, log }) => {
+        const handles = new Set();
+        const before = Message.getStack();
+        let next = 0;
+        const stacking = new Toggle(null, {
+          label: 'Stack floating messages',
+          checked: true,
+          onchange: (event) => log(`Message.setStack(${Message.setStack(event.detail.checked)})`)
+        });
+        Message.setStack(true);
+        cleanup(() => {
+          handles.forEach((handle) => handle.close());
+          stacking.destroy();
+          Message.setStack(before);
+        });
+        const post = () => {
+          const { kind, text, highlight } = STACK_MESSAGES[next % STACK_MESSAGES.length];
+          next += 1;
+          handles.add(Message.show(text, { kind, highlight, timeout: 8000 }));
+        };
+        return [
+          stacking.el,
+          button({ label: 'Add a message', kind: 'primary', onclick: post }),
+          button({
+            label: 'Add four',
+            onclick: () => {
+              for (let index = 0; index < 4; index += 1) post();
+              log('four messages stacked');
+            }
+          })
+        ];
+      }
+    },
+    {
+      title: 'An inline stack',
+      blurb: 'stack: true does the same for an inline area: the messages pile up in its place, and '
+        + 'opening the stack pushes the content after it down. expand() opens it and keeps it open, '
+        + 'collapse() folds it again, and each change fires expand or collapse. expanded: true '
+        + 'keeps it open for good.',
+      layout: 'stack',
+      render: ({ cleanup, log }) => {
+        const host = h('div');
+        const stack = new Message(host, { stack: true, timeout: 0 });
+        stack.on('expand', () => log('expand'));
+        stack.on('collapse', () => log('collapse'));
+        cleanup(() => stack.destroy());
+        let next = 0;
+        const post = () => {
+          const { kind, text, highlight } = STACK_MESSAGES[next % STACK_MESSAGES.length];
+          next += 1;
+          stack.show(text, { kind, highlight });
+        };
+        post();
+        post();
+        post();
+        return [
+          h('div', { class: 'demo-row' },
+            button({ label: 'Add a message', kind: 'primary', onclick: post }),
+            button({ label: 'expand()', onclick: () => stack.expand() }),
+            button({ label: 'collapse()', onclick: () => stack.collapse() })),
+          host,
+          h('p', { class: 'demo-caption' }, 'The form continues below the stack.')
         ];
       }
     },
@@ -92,7 +206,8 @@ export default {
     {
       title: 'Progress',
       blurb: 'Message.progress() returns a handle with update(percent, text) and done(). It never '
-        + 'times out on its own — the work that opened it decides when it is finished.',
+        + 'times out on its own — the work that opened it decides when it is finished. Here it '
+        + 'carries the animated highlight while the work runs.',
       render: ({ cleanup, log }) => {
         let timer = null;
         let handle = null;
@@ -105,7 +220,7 @@ export default {
           icon: 'reload',
           onclick: () => {
             clearInterval(timer);
-            handle = Message.progress('Preparing export…');
+            handle = Message.progress('Preparing export…', { highlight: 'animated' });
             let percent = 0;
             timer = setInterval(() => {
               percent += 10;

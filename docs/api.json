@@ -8890,6 +8890,29 @@
         "type": "number",
         "default": "5",
         "description": "Maximum number of visible messages."
+      },
+      {
+        "name": "highlight",
+        "type": "MessageHighlight",
+        "default": "false",
+        "description": "Default highlight of the messages shown here."
+      },
+      {
+        "name": "stack",
+        "type": "boolean",
+        "default": "false",
+        "description": "Piles the visible messages into one stack, the newest in front and two more peeking out behind it. The stack opens while the pointer is over it or focus is inside it, and a press on it keeps it open until a press outside it or Escape; while it is open by any of these, no message in it times out.",
+        "update": {
+          "methods": [
+            "setStack()"
+          ]
+        }
+      },
+      {
+        "name": "expanded",
+        "type": "boolean",
+        "default": "false",
+        "description": "Keeps a stack open. Its messages still time out."
       }
     ],
     "events": [],
@@ -8951,6 +8974,12 @@
         "type": "Node|{toElement: () => Node|null}|null",
         "default": "null",
         "description": "Visual shown in place of the kind icon, such as an Avatar's element. It is decorative — the message text must say what it shows."
+      },
+      {
+        "name": "highlight",
+        "type": "MessageHighlight",
+        "default": "false",
+        "description": "Draws the border in the kind colour (`'border'` or `true`), or sends a light around it (`'animated'`); the default is the area's `highlight`."
       },
       {
         "name": "scope",

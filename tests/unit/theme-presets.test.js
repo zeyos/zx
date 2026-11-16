@@ -594,7 +594,7 @@ test('every material other than the stylesheet glass is a complete, theme-neutra
   }
   // A translucent tint on its own is no backing: Smoke's body is the tint mixed into a surface.
   assert.match(MATERIAL_RECIPES.smoke['--zx-color-overlay-surface'], /var\(--zx-color-glass-tint\) \d+%, var\(--zx-color-overlay-base\)/);
-  // No recipe bakes a status tint into the toast image: the toast composes its own.
+  // No recipe bakes a status tint into the toast image: a toast shows its kind in its icon.
   for (const [id, recipe] of Object.entries(MATERIAL_RECIPES)) {
     assert.doesNotMatch(recipe['--zx-overlay-toast-image'] ?? '', /message-kind/, `${id} bakes the toast kind in`);
   }
@@ -628,7 +628,10 @@ test('the stylesheet declares the glass ingredients for both themes', () => {
   assert.match(LIGHT.get('--zx-color-glass-shade'), /^color-mix\(in srgb, var\(--zx-gray-0\) \d+%, transparent\)$/);
   assert.match(DARK.get('--zx-color-glass-shade'), /^color-mix\(in srgb, var\(--zx-gray-950\) \d+%, transparent\)$/);
   assert.match(semantic, /--zx-overlay-toast-image: var\(--zx-overlay-surface-image\);/);
-  assert.match(read('../../src/components/message/message.css'), /radial-gradient\([^;]*var\(--zx-message-kind\)[^;]*var\(--zx-overlay-toast-image\)/);
+  // The toast paints the theme's toast body and nothing over it: no tint for its kind.
+  const toast = read('../../src/components/message/message.css');
+  assert.match(toast, /background-image: var\(--zx-overlay-toast-image\);/);
+  assert.doesNotMatch(toast, /gradient\([^;]*var\(--zx-message-kind\)[^;]*var\(--zx-overlay-toast-image\)/);
   // Without backdrop filtering every glass role is opaque, cards and chrome included.
   const unsupported = /@supports not \(\(backdrop-filter[\s\S]*?\n\}/.exec(semantic)?.[0] ?? '';
   for (const name of ['--zx-color-glass-surface', '--zx-color-glass-chrome', '--zx-color-glass-control', '--zx-glass-filter-raised', '--zx-glass-filter-chrome']) {

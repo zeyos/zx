@@ -358,7 +358,7 @@
       color-mix(in srgb, var(--zx-color-glass-lift) 15%, transparent) 18%, transparent 45%),
       radial-gradient(120% 70% at 100% 100%, color-mix(in srgb, var(--zx-color-accent) 4%, transparent), transparent 62%),
       linear-gradient(var(--zx-color-glass-shade), var(--zx-color-glass-shade));
-    /* A toast adds its status tint itself, over this, so the kind set on the element reaches it. */
+    /* The toast's own body, so a theme can set it apart; the kind shows in the toast's icon. */
     --zx-overlay-toast-image: var(--zx-overlay-surface-image);
     --zx-overlay-panel-image: linear-gradient(180deg, var(--zx-color-glass-lift) 0%,
       color-mix(in srgb, var(--zx-color-glass-lift) 15%, transparent) 16%, transparent 40%),

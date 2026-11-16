@@ -47,8 +47,9 @@ test('hover and focus each hold the timer, and it resumes only once neither does
   for (const type of ['mouseenter', 'mouseleave', 'focusin', 'focusout']) {
     assert.match(source, new RegExp(`this\\.listen\\(node, '${type}'`), `no ${type} listener`);
   }
-  assert.match(source, /_resume\(entry\) \{\s*if \(entry\.closed \|\| entry\.timer !== null \|\| entry\.hovered \|\| entry\.focused\) return;/);
-  assert.match(source, /_schedule\(entry\) \{\s*if \(entry\.closed \|\| entry\.remaining <= 0 \|\| entry\.hovered \|\| entry\.focused\) return;/);
+  // An open stack holds every timer as well (`_held()`); the message's own hover and focus still count.
+  assert.match(source, /_resume\(entry\) \{\s*if \(entry\.closed \|\| entry\.timer !== null \|\| entry\.hovered \|\| entry\.focused \|\| this\._held\(\)\) return;/);
+  assert.match(source, /_schedule\(entry\) \{\s*if \(entry\.closed \|\| entry\.remaining <= 0 \|\| entry\.hovered \|\| entry\.focused \|\| this\._held\(\)\) return;/);
 });
 
 test('a leading visual takes the kind icon’s place and stays decorative', () => {

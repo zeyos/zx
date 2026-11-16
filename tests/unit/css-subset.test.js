@@ -242,9 +242,10 @@ test('--min keeps every rule and value', async () => {
   assert.doesNotMatch(min, /\/\*/);
 
   // Normalised by a real CSS parser, a stylesheet and its minified form are the same stylesheet.
-  // The parser leaves a custom property's value as written, so its spacing is evened out here.
+  // The parser leaves a custom property's value as written, and the descriptors of an `@property`
+  // rule, so their spacing and a block's last semicolon are evened out here.
   const normalise = async (source) => (await transform(source, { loader: 'css', minify: true })).code
-    .replace(/\s+/g, ' ').replace(/ ?, ?/g, ',');
+    .replace(/\s+/g, ' ').replace(/ ?, ?/g, ',').replace(/ ?; ?/g, ';').replace(/;\}/g, '}');
   assert.ok(await normalise(min) === await normalise(css), 'minifying changed the stylesheet');
 });
 
