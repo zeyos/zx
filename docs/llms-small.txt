@@ -101,6 +101,7 @@ Patterns — single screens that recur in every application:
 | `inbox` | Inbox | three panes: folders, conversations, the open thread with a reply |
 | `record-page` | Record page | one record: summary header, tabs for lines, files and history, editable details |
 | `agent-chat` | Agent chat | one agent run: plan, tool calls, an approval that holds it, a streamed answer with sources |
+| `agent-canvas` | Agent canvas | every answer a `surface/1` document — figures and a chart, a review, forms, a questionnaire — with its JSON, versions and reply in a panel |
 | `record-wizard` | Record wizard | creation in validated vertical steps with a running total and a review |
 | `checkout-wizard` | Checkout wizard | a focused horizontal flow beside a live summary |
 | `settings-workspace` | Settings workspace | personal settings in sections, saved together |
