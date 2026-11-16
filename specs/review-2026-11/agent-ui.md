@@ -6,7 +6,9 @@ An agent can produce a correct, accessible, on-brand interface by emitting data 
 typed catalogue, and always gets back exactly one structured answer. It never writes markup and
 never needs to read the library to do so.
 
-1. **Data, not code.** No HTML, expression or URL; the application resolves records, icons and links.
+1. **Data, not code.** No HTML, script or expression. Records are `$ref`s and icons are names the
+   application resolves; the only addresses are `link` nodes with a validated `https:` URL, shown
+   with their host, which the application may refuse.
 2. **A closed loop.** Every surface ends in one reply; invalid input is dropped and reported, so the
    model repairs itself.
 3. **Small by default.** The catalogue a model sees is the narrowest that does the job, and its cost
@@ -35,10 +37,12 @@ AG-UI is the transport underneath several of them. A2UI (Google, v0.9/1.0) is th
 a cross-vendor declarative standard; MCP Apps (SEP-1865, stable 2026-01-26) is the cross-host
 standard for HTML views, supported by Claude, ChatGPT, VS Code, Goose and M365 Copilot.
 
-What only Xenon has: intents with exactly one reply (reserved `cancel`/`dismiss`; "a reply is the
-person's answer, never proof"); an application-owned confirmation policy down to type-to-confirm;
-field-level `review` diffs; records as `$ref` with no URLs; a branching questionnaire with
-validation; hard limits with drop-and-report errors; a dependency-free renderer.
+What only Xenon has, among the systems reviewed: intents with exactly one reply (reserved
+`cancel`/`dismiss`; "a reply is the person's answer, never proof"); an application-owned
+confirmation policy down to type-to-confirm; field-level `review` diffs; records as `$ref` rather
+than addresses; a branching questionnaire with validation; hard limits with drop-and-report errors;
+a dependency-free renderer. A2UI is the nearest neighbour — its actions also return resolved form
+values — so "safest" is a claim for the evals (WP87) to back, not a given.
 
 ## Pattern coverage
 
@@ -46,17 +50,17 @@ validation; hard limits with drop-and-report errors; a dependency-free renderer.
 | --- | --- | --- |
 | Reasoning disclosure, tool-call cards, grouped steps, plans | AI Elements, assistant-ui, CopilotKit | RunTrace, RunStatus |
 | Sources, `[n]` citations | most | SourceList, surface text |
-| Citation hover card | AI Elements, assistant-ui | **missing** (WP89) |
+| Citation hover card | AI Elements, assistant-ui | **missing** (WP90) |
 | Artifact panel with versions | Claude, AI Elements, ChatGPT fullscreen | application-built; shown in WP85 |
 | Charts, selectable tables, forms, approvals, question flows | most | yes |
-| Option cards / carousel | ChatGPT, assistant-ui, A2UI | `choice` without imagery (WP88 cards) |
-| Steps / progress, tabs / disclosure, file | A2UI, assistant-ui | **missing** (WP88) |
-| Follow-up chips | AI Elements, assistant-ui | PromptStarters (empty state only) (WP89) |
-| Checkpoints / undo | AI Elements, assistant-ui, affectUI | **missing** (WP89) |
+| Option cards / carousel | ChatGPT, assistant-ui, A2UI | `choice` without imagery (WP89 cards) |
+| Steps / progress, tabs / disclosure, file | A2UI, assistant-ui | **missing** (WP89) |
+| Follow-up chips | AI Elements, assistant-ui | PromptStarters (empty state only) (WP90) |
+| Checkpoints / undo | AI Elements, assistant-ui, affectUI | **missing** (WP90) |
 | Context meter, message actions, queue, attachments | AI Elements, assistant-ui | yes |
 | Model picker, voice | AI Elements, assistant-ui | composer button only; no voice (later) |
 | Images, maps | A2UI, assistant-ui, ChatGPT | none, deliberately (later, `$ref` only) |
-| Live / updatable surfaces; UI → model "what the person sees" | ChatGPT, Tambo, MCP Apps, A2UI | **missing** (WP95) |
+| Live / updatable surfaces; UI → model "what the person sees" | ChatGPT, Tambo, MCP Apps, A2UI | **missing** (WP97) |
 
 ## Gaps, by when
 
@@ -66,19 +70,22 @@ validation; hard limits with drop-and-report errors; a dependency-free renderer.
 - Catalogue profiles and `use`/`avoid` per node (WP86) — cut tokens and misuse before the
   catalogue grows.
 - Documentation tiers (WP86).
+- Evals before growth (WP87): golden tasks per intent and profile, measured for valid-first-try,
+  repair rate, task success, tokens and the accessibility of the result; the layouts' steps drivers
+  in CI.
 
 **Next**
 
-- SVG chart adapter, MIT (WP87).
-- Nodes (WP88): `steps`/progress; `disclosure` with tabs as a variant (not a second node); `choice`
+- SVG chart adapter, MIT (WP88).
+- Nodes (WP89): `steps`/progress; `disclosure` with tabs as a variant (not a second node); `choice`
   with `display: "cards"`; `file` through `$ref`. Skip `timeline` until asked.
-- Chat patterns (WP89): follow-up chips, citation hover cards, checkpoint markers.
-- `bin/zx-mcp.js` (WP90), zero-dependency stdio JSON-RPC: `search_docs`, `get_component`,
+- Chat patterns (WP90): follow-up chips, citation hover cards, checkpoint markers.
+- `bin/zx-mcp.js` (WP91), zero-dependency stdio JSON-RPC: `search_docs`, `get_component`,
   `get_layout`, `get_surface_catalog(profile)`, `validate_surface`.
-- MCP Apps view (WP91): one static `ui://zx/surface` page that renders `surface/1` from a tool's
+- MCP Apps view (WP92): one static `ui://zx/surface` page that renders `surface/1` from a tool's
   `structuredContent` and answers through `tools/call`. Biggest distribution lever, and it keeps the
   no-HTML guarantee — the model still sends JSON.
-- A2UI as an *importer* to `surface/1`, lossy and reported (WP92) — a second renderer would mean a
+- A2UI as an *importer* to `surface/1`, lossy and reported (WP93) — a second renderer would mean a
   second validation path. Render AG-UI `ACTIVITY_*` (how A2UI and MCP Apps travel over AG-UI) and
   `SUBAGENT_*` attribution; progressive rendering from partial tool arguments.
 

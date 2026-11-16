@@ -22,7 +22,8 @@ free to Pro.
 | MUI | Core MIT | X Pro $299 / Premium $599 / Enterprise $1,399 per dev per year | Offline key; watermark + console warning when invalid; expired key keeps working for versions released in term |
 | AG Grid | Community MIT | Enterprise from $999 per dev, perpetual + 1 year updates | Key; watermark + console error |
 | Kendo UI | 50+ free components | $799–1,299 per dev per year | Key file; watermark on premium components |
-| Syncfusion / PrimeVue 5 | Community licence below $1M revenue, ≤ 5 devs | $959–1,199 per dev per year / per dev perpetual | Key; PrimeVue verifies offline, no telemetry |
+| Syncfusion | Community licence: < $1M revenue, ≤ 5 developers, ≤ 10 staff, limited outside funding | $959–1,199 per dev per year, min. 5 | Key registration |
+| PrimeVue 5 (Jul 2026) | MIT up to 4.5; from 5.0 the PrimeUI licence, whose Community tier has its own developer, staff, funding and organisation limits (stricter on developers than Syncfusion's; check the current agreement) | Per dev perpetual + 1 year updates; price unpublished | Key verified offline, no telemetry; licence notice without a key |
 | Handsontable | MIT ≤ 6.2.2; proprietary since 7.0 | Quote | Offline date check; blocking modal without a key |
 | Tailwind Plus | — | $299 personal / $979 team, one-time | None (copy-paste) |
 | affectUI | 74 items MIT | $249 individual / $699 team, one-time | Token-gated registry |
@@ -40,23 +41,27 @@ free to Pro.
 Xenon's buyers are B2B and ERP teams and ZeyOS partners, who buy support, templates and assurance
 more readily than a key-gated component.
 
-- **Stage 1 — weeks, no licence code.** A one-time team licence for things that do not exist yet:
-  new full application templates beyond the public Showcase, a Figma kit, a theme-builder export,
-  priority support, an LTS branch, an accessibility conformance report (VPAT / EN 301 549).
-  Delivered by authenticated download from a private repository. Never move a Showcase layout
-  into it.
+- **Stage 0 — validate demand.** Interview five partner and customer teams before building any
+  Pro product: what they would pay for, how they buy (per developer, per project, through ZeyOS
+  contracts), and what procurement needs. Build only what at least two of them would buy.
+- **Stage 1 — weeks, no licence code.** One-time assets that do not exist yet: new full
+  application templates beyond the public Showcase, a Figma kit, a theme-builder export, delivered
+  by authenticated download from a private repository. Never move a Showcase layout into it.
+  Recurring obligations — priority support, an LTS branch, an accessibility conformance report
+  (VPAT / EN 301 549) — are sold separately as a subscription, because they cost every year.
 - **Stage 2 — when one item shows pull.** `@zeyos/zx-pro`, key-gated as below. Candidates:
   advanced charts (financial, heatmap, sankey, in-cell sparklines), scheduler / Gantt, spreadsheet
   range selection with clipboard and fill handle, grouping with aggregates, pivot, XLSX / PDF
   export, an MCP Apps host frame, Surface catalogue packs for vertical domains.
-- **Keep MIT:** every current component, basic charts (WP87), the agent primitives and protocol,
+- **Keep MIT:** every current component, basic charts (WP88), the agent primitives and protocol,
   the A2UI importer, the MCP Apps view, the MCP server, theming, accessibility, localisation, and
   every bug and security fix. They drive adoption, and adoption is what Pro sells into.
-- **Only if Pro converts poorly after about 12 months**, consider C for a 6.0 — knowing 5.7.x stays
-  free.
+- **Relicensing (C) is a strategic decision, not a fallback.** Poor Pro conversion alone is no
+  reason for it: it would mostly show that Pro lacks value. Consider C for a 6.0 only if the
+  interviews show that commercial users would pay for the core itself, and knowing 5.7.x stays free.
 
-Before Stage 2, talk to five partner teams. Whether Xenon earns more as a product or as a funnel
-into ZeyOS is an open question this review cannot settle.
+Whether Xenon earns more as a product or as a funnel into ZeyOS is an open question this review
+cannot settle; Stage 0 is how to find out.
 
 ## Pricing sketch (EUR, excluding VAT)
 

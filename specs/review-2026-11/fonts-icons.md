@@ -25,7 +25,7 @@ reference it rather than bundle it.
 
 **Fonts**
 
-- Add an opt-in `@zeyos/zx/fonts.css` (WP94) shipping Inter variable (Latin + Latin Extended,
+- Add an opt-in `@zeyos/zx/fonts.css` (WP96) shipping Inter variable (Latin + Latin Extended,
   ≈ 133 KB) and Geist Mono variable (≈ 23 KB) with their OFL texts. Keep fonts out of the default
   CSS, so applications that self-host or use system fonts pay nothing.
 - Document the swap: one `--zx-font-mono` / `--zx-font-sans` override, with tested stacks for
