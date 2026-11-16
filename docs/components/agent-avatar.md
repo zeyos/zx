@@ -1,34 +1,31 @@
 # AgentAvatar
 
-A generated face for an agent without a picture: a coloured shape, or a tinted tile, with eyes that take what the agent is doing.
+A generated face for an agent without a picture: a coloured shape or a pixel creature with eyes that take what the agent is doing.
 
 Full reference: https://zx.zeyos.com/docs/llms.md · Live demo: https://zx.zeyos.com/docs.html#components/agent-avatar · All components: https://zx.zeyos.com/docs/components/index.md
 
-A generated face for an agent that has no picture: a geometric body from the tone palette with eyes
-that take the agent's activity. Everything about it is derived from a seed, so the same agent has
-the same face on every screen; it is decorative by default, like Avatar.
+A generated face for an agent that has no picture: a coloured silhouette — a geometric shape or a
+pixel creature — with eyes that take the agent's activity. Everything about it is derived from a
+seed, so the same agent has the same face on every screen; it is decorative by default, like
+Avatar.
 
 - **Options** — `seed` (the agent's stable id; `null` uses `name`, but a rename then changes the
-  face), `name`, `variant: 'token'|'glyph'`, `tone` (the Avatar tones, or `null` to derive it),
-  `body` and `eyes` (fix one trait instead of deriving it), `size: 'sm'|'md'|'lg'|<pixels>` (24 / 32
-  / 40px at the default spacing unit), `label`, `activity:
-  'idle'|'thinking'|'working'|'needs-you'|'blocked'|'offline'|null`, `activityLabel`, `indicator:
-  true`, `animate: false`, and `phase: null|number`.
-- **Variants** — `token` (default) is a free-standing silhouette in the tone's `-solid` fill —
-  circle, squircle, hexagon, triangle, drop, tilted pill, clover or dome — with white eyes
-  (`round`, `oval`, `square`) and dark pupils. `glyph` is the Avatar fallback tile, the tone's
-  `-bg` with its `-fg` ink in the theme's rounded shape, with eye glyphs (`round`, `pill`, `square`,
-  `moon`, `chevron`, `oval`) where the initials would be, and a seeded mark (none, a line, a tick, a
-  solid cheek dot). Eyes on a solid fill use `--zx-color-agent-eye` and `--zx-color-agent-pupil`,
-  which keep their colour in both themes.
-- **Traits** — `agentTraits(seed, overrides?)` returns `{variant, tone, body, eyes, spacing,
-  mark}`. The tone is `avatarTone(seed)`, so the face matches an initials tile keyed the same way;
-  each other trait hashes the same normalised key with its own salt. The tables `AGENT_BODIES`,
-  `AGENT_TOKEN_EYES`, `AGENT_GLYPH_EYES` and `AGENT_MARKS` are contract, order included.
-  `agentFace(traits, activity, px)` returns the drawing as plain data (`{tag, part, attrs,
-  children?}` in a 64-unit view box), for tests or a server.
-- **Sizes** — small sizes draw less: a token has no pupils below 20px; at 24px and below both
-  variants enlarge their eyes and a glyph drops its mark.
+  face), `name`, `tone` (the Avatar tones, or `null` to derive it), `body` and `eyes` (fix one
+  trait instead of deriving it), `size: 'sm'|'md'|'lg'|<pixels>` (24 / 32 / 40px at the default
+  spacing unit), `label`, `activity: 'idle'|'thinking'|'working'|'needs-you'|'blocked'|'offline'|null`,
+  `activityLabel`, `indicator: true`, `animate: false`, and `phase: null|number`.
+- **Silhouettes** — twelve, filled with the tone's `-solid`: circle, squircle, hexagon, triangle,
+  drop, tilted pill, clover and dome, and four pixel creatures on an 8 × 8 grid of whole-pixel cells
+  — tuft, beacon, cap and antler. Eyes are `round`, `oval` or `square`; a pixel creature draws
+  square eyes on its grid, two cells wide with a one-cell pupil. Eyes are white with dark pupils, in `--zx-color-agent-eye` and `--zx-color-agent-pupil`, which keep their
+  colour in both themes.
+- **Traits** — `agentTraits(seed, overrides?)` returns `{tone, body, eyes, spacing}`. The tone is
+  `avatarTone(seed)`, so the face matches an initials Avatar keyed the same way; each other trait
+  hashes the same normalised key with its own salt. The tables `AGENT_BODIES`, `AGENT_PIXEL_BODIES`
+  and `AGENT_EYES` are contract, order included. `agentFace(traits, activity, px)` returns the
+  drawing as plain data (`{tag, part, attrs, children?}` in a 64-unit view box), for tests or a
+  server.
+- **Sizes** — small sizes draw less: no pupils below 20px, and larger eyes at 24px and below.
 - **Activity** — the eyes take a static expression: open (idle), looking up and aside (thinking),
   lowered (working), wide (needs you), flat bars (blocked), closed on a faded, colourless face
   (offline). No mouths and nothing angry or sad. The Avatar activity dot (`indicator`) and the

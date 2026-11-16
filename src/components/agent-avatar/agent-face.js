@@ -4,34 +4,33 @@
  * draw it in one activity at one size ({@link agentFace}). Nothing here touches the DOM, so the
  * same seed gives the same face on a server, in a test, and on every screen.
  *
- * Every trait table below is contract, order included: the hash picks an index, so reordering or
- * inserting an entry re-faces every agent that has ever been drawn.
+ * Every trait table below is contract, order and length included: the hash picks an index modulo
+ * the table's length, so reordering, inserting or even appending an entry re-faces agents that
+ * have already been drawn.
  */
 import { AVATAR_TONES, avatarTone } from '../avatar/avatar.js';
 
 /** @typedef {import('../avatar/avatar.js').AvatarTone} AvatarTone */
 /** @typedef {import('../../internal/agent-model.js').AgentActivity} AgentActivity */
 
-/** @typedef {'token'|'glyph'} AgentVariant */
-/** @typedef {'circle'|'squircle'|'hexagon'|'triangle'|'drop'|'pill'|'clover'|'dome'} AgentBody */
-/** @typedef {'round'|'oval'|'square'|'pill'|'moon'|'chevron'} AgentEyes */
-/** @typedef {'none'|'line'|'tick'|'cheek'} AgentMark */
+/**
+ * @typedef {'circle'|'squircle'|'hexagon'|'triangle'|'drop'|'pill'|'clover'|'dome'
+ *   |'tuft'|'beacon'|'cap'|'antler'} AgentBody
+ */
+/** @typedef {'round'|'oval'|'square'} AgentEyes */
 
 /**
- * The traits a seed resolves to. `body` is null for a glyph and `mark` is null for a token.
+ * The traits a seed resolves to.
  * @typedef {Object} AgentTraits
- * @property {AgentVariant} variant
  * @property {AvatarTone} tone
- * @property {AgentBody|null} body
+ * @property {AgentBody} body
  * @property {AgentEyes} eyes
  * @property {0|1|2} spacing How far apart the eyes sit: narrow, middle, wide.
- * @property {AgentMark|null} mark
  */
 
 /**
- * Single traits to fix instead of deriving them. One that does not belong to the variant is ignored.
+ * Single traits to fix instead of deriving them. An unknown value is ignored.
  * @typedef {Object} AgentTraitOverrides
- * @property {AgentVariant} [variant='token']
  * @property {AvatarTone|null} [tone]
  * @property {AgentBody|null} [body]
  * @property {AgentEyes|null} [eyes]
@@ -47,31 +46,49 @@ import { AVATAR_TONES, avatarTone } from '../avatar/avatar.js';
  * @property {AgentShape[]} [children]
  */
 
-/** The variants, the first being the default. @type {ReadonlyArray<AgentVariant>} */
-export const AGENT_VARIANTS = Object.freeze(['token', 'glyph']);
+/**
+ * The silhouettes, in hash order: eight smooth geometric shapes, then four pixel creatures.
+ * @type {ReadonlyArray<AgentBody>}
+ */
+export const AGENT_BODIES = Object.freeze(['circle', 'squircle', 'hexagon', 'triangle', 'drop', 'pill', 'clover', 'dome',
+  'tuft', 'beacon', 'cap', 'antler']);
 
-/** A token's silhouettes, in hash order. @type {ReadonlyArray<AgentBody>} */
-export const AGENT_BODIES = Object.freeze(['circle', 'squircle', 'hexagon', 'triangle', 'drop', 'pill', 'clover', 'dome']);
+/**
+ * The pixel creatures among {@link AGENT_BODIES}. Their eyes are drawn on the grid — two-cell
+ * squares with a one-cell pupil — whatever the `eyes` trait says, which for them is `square`.
+ */
+export const AGENT_PIXEL_BODIES = Object.freeze(['tuft', 'beacon', 'cap', 'antler']);
 
-/** A token's eye shapes, in hash order. @type {ReadonlyArray<AgentEyes>} */
-export const AGENT_TOKEN_EYES = Object.freeze(['round', 'oval', 'square']);
-
-/** A glyph's eye shapes, in hash order. @type {ReadonlyArray<AgentEyes>} */
-export const AGENT_GLYPH_EYES = Object.freeze(['round', 'pill', 'square', 'moon', 'chevron', 'oval']);
-
-/** A glyph's marks, in hash order. @type {ReadonlyArray<AgentMark>} */
-export const AGENT_MARKS = Object.freeze(['none', 'line', 'tick', 'cheek']);
+/** The eye shapes, in hash order. @type {ReadonlyArray<AgentEyes>} */
+export const AGENT_EYES = Object.freeze(['round', 'oval', 'square']);
 
 /** The rendered pixel size each preset stands for when picking the level of detail. */
 export const AGENT_PRESET_PX = Object.freeze({ sm: 24, md: 32, lg: 40 });
 
-/** The eye spacings, as half the distance between eye centres in view-box units. */
+/** The eye spacings, as factors of a body's middle spacing. */
 const SPREAD = Object.freeze([0.85, 1, 1.15]);
-const GLYPH_SPREAD = Object.freeze([8, 9.5, 11]);
 
 /**
- * Where a token's eyes sit on each silhouette (centre height, half-spacing at the middle spacing)
- * and the shapes that draw it. Polygons round their corners with a stroke the colour of the fill.
+ * A pixel creature's cell, in view-box units: 8 × 8 cells fill the box exactly, so at 16, 24, 32,
+ * 40, 48, 64 and 128px every cell is a whole number of pixels.
+ */
+const CELL = 8;
+
+/**
+ * Pixel creatures as 8 × 8 grids, top row first, with the row their eyes start on. Each is
+ * symmetric, original — no arcade sprite's grammar — and has two full-width rows for its eyes, which
+ * sit on columns 1–2 and 5–6 with a body cell either side.
+ */
+const PIXEL_GRIDS = Object.freeze({
+  tuft: { eyeRow: 3, rows: ['##....##', '##....##', '########', '########', '########', '########', '.######.', '..#..#..'] },
+  beacon: { eyeRow: 3, rows: ['..####..', '...##...', '########', '########', '########', '########', '.##..##.', '.##..##.'] },
+  cap: { eyeRow: 2, rows: ['.######.', '########', '########', '########', '########', '..####..', '..####..', '.######.'] },
+  antler: { eyeRow: 3, rows: ['#.#..#.#', '###..###', '.######.', '########', '########', '########', '.######.', '..####..'] }
+});
+
+/**
+ * Where the eyes sit on each silhouette (centre height, half-spacing at the middle spacing) and the
+ * shapes that draw it. Polygons round their corners with a stroke the colour of the fill.
  * @type {Readonly<Record<AgentBody, {y: number, gap: number, shapes: AgentShape[]}>>}
  */
 const BODIES = Object.freeze({
@@ -86,39 +103,39 @@ const BODIES = Object.freeze({
     shape('circle', 'body', { cx: 21, cy: 43, r: 15 }), shape('circle', 'body', { cx: 43, cy: 43, r: 15 }),
     shape('rect', 'body', { x: 16, y: 16, width: 32, height: 32 })
   ] },
-  dome: { y: 36, gap: 11, shapes: [shape('path', 'body', { d: 'M5 52V40A27 27 0 0 1 59 40V52Q59 56 55 56H9Q5 56 5 52Z' })] }
+  dome: { y: 36, gap: 11, shapes: [shape('path', 'body', { d: 'M5 52V40A27 27 0 0 1 59 40V52Q59 56 55 56H9Q5 56 5 52Z' })] },
+  tuft: { y: 32, gap: 16, shapes: [pixelBody(PIXEL_GRIDS.tuft.rows)] },
+  beacon: { y: 32, gap: 16, shapes: [pixelBody(PIXEL_GRIDS.beacon.rows)] },
+  cap: { y: 24, gap: 16, shapes: [pixelBody(PIXEL_GRIDS.cap.rows)] },
+  antler: { y: 32, gap: 16, shapes: [pixelBody(PIXEL_GRIDS.antler.rows)] }
 });
 
 /**
- * Resolves the face a seed gets. The tone is `avatarTone(seed)`, so an agent's initials tile and
+ * Resolves the face a seed gets. The tone is `avatarTone(seed)`, so an agent's initials Avatar and
  * its face agree when they share a key; every other trait comes from FNV-1a over the same
- * normalised key plus a per-trait salt, independent of the tone and of each other.
+ * normalised key plus a per-trait salt, mixed, so traits are independent of the tone and of each
+ * other. A pixel creature gets square eyes unless `eyes` is fixed.
  * @param {unknown} seed The agent's stable identity — an id, or its name.
  * @param {AgentTraitOverrides} [overrides={}] Traits to fix instead of deriving them.
  * @returns {AgentTraits}
  */
 export function agentTraits(seed, overrides = {}) {
   const key = normaliseKey(seed);
-  const variant = AGENT_VARIANTS.includes(/** @type {AgentVariant} */ (overrides.variant))
-    ? /** @type {AgentVariant} */ (overrides.variant) : 'token';
   const tone = AVATAR_TONES.includes(/** @type {AvatarTone} */ (overrides.tone))
     ? /** @type {AvatarTone} */ (overrides.tone) : avatarTone(key);
-  const eyeTable = variant === 'token' ? AGENT_TOKEN_EYES : AGENT_GLYPH_EYES;
-  const eyes = eyeTable.includes(/** @type {AgentEyes} */ (overrides.eyes))
-    ? /** @type {AgentEyes} */ (overrides.eyes) : pick(key, 'eyes', eyeTable);
-  const spacing = /** @type {0|1|2} */ (pick(key, 'spacing', [0, 1, 2]));
-  if (variant === 'glyph') {
-    return { variant, tone, body: null, eyes, spacing, mark: pick(key, 'mark', AGENT_MARKS) };
-  }
   const body = AGENT_BODIES.includes(/** @type {AgentBody} */ (overrides.body))
     ? /** @type {AgentBody} */ (overrides.body) : pick(key, 'body', AGENT_BODIES);
-  return { variant, tone, body, eyes, spacing, mark: null };
+  const fixedEyes = AGENT_EYES.includes(/** @type {AgentEyes} */ (overrides.eyes));
+  const eyes = fixedEyes ? /** @type {AgentEyes} */ (overrides.eyes)
+    : AGENT_PIXEL_BODIES.includes(body) ? 'square' : pick(key, 'eyes', AGENT_EYES);
+  const spacing = /** @type {0|1|2} */ (pick(key, 'spacing', [0, 1, 2]));
+  return { tone, body, eyes, spacing };
 }
 
 /**
  * The shapes that draw a face in one activity at one rendered size, in a 64-unit view box, as
- * plain data. The level of detail follows `px`: a token drops its pupils below 20px and both
- * variants enlarge their eyes at 24px and below, where a glyph also drops its mark.
+ * plain data. The level of detail follows `px`: the pupils go below 20px, and at 24px and below the
+ * eyes grow and sit at the middle spacing.
  * @param {AgentTraits} traits From {@link agentTraits}.
  * @param {AgentActivity|string|null} [activity=null] What the agent is doing; unknown is idle.
  * @param {number} [px=32] The rendered size in CSS pixels.
@@ -127,23 +144,9 @@ export function agentTraits(seed, overrides = {}) {
 export function agentFace(traits, activity = null, px = 32) {
   const state = activity ?? 'idle';
   const small = px <= 24;
-  if (traits.variant === 'glyph') {
-    const shapeName = traits.eyes;
-    const tall = shapeName === 'pill' || shapeName === 'oval';
-    const spread = GLYPH_SPREAD[traits.spacing] ?? GLYPH_SPREAD[1];
-    const out = [eyePair({
-      xs: [32 - spread, 32 + spread], y: 28, w: small ? 12 : 9,
-      h: tall ? (small ? 16 : 13) : (small ? 12 : 9), shape: shapeName, pupils: false, heavy: small
-    }, state)];
-    if (!small) {
-      const mark = traits.mark ?? 'none';
-      if (mark === 'line') out.push(shape('rect', 'mark', { x: 23, y: 43, width: 18, height: 2.4, rx: 1.2 }));
-      if (mark === 'tick') out.push(shape('path', 'mark-line', { d: 'M46 44l4-4' }));
-      if (mark === 'cheek') out.push(shape('circle', 'mark-solid', { cx: 32 + spread + 6, cy: 39, r: 3.4 }));
-    }
-    return out;
-  }
-  const body = BODIES[traits.body ?? 'circle'] ?? BODIES.circle;
+  const body = BODIES[traits.body] ?? BODIES.circle;
+  const grid = PIXEL_GRIDS[/** @type {keyof typeof PIXEL_GRIDS} */ (traits.body)];
+  if (grid) return [shape('g', 'shape', {}, body.shapes.map(copyShape)), pixelEyes(grid.eyeRow, state, px >= 20)];
   const width = small ? 15 : 13;
   const gap = body.gap * (small ? 0.95 : (SPREAD[traits.spacing] ?? 1));
   return [
@@ -153,6 +156,60 @@ export function agentFace(traits, activity = null, px = 32) {
       shape: traits.eyes, pupils: px >= 20, heavy: small
     }, state)
   ];
+}
+
+/**
+ * A pixel creature's silhouette as one path of row runs, drawn without anti-aliasing, so cells
+ * never show seams between them and the edges stay crisp.
+ * @param {ReadonlyArray<string>} rows
+ * @returns {AgentShape}
+ */
+function pixelBody(rows) {
+  let d = '';
+  rows.forEach((row, y) => {
+    for (const run of row.matchAll(/#+/g)) {
+      d += `M${(run.index ?? 0) * CELL} ${y * CELL}h${run[0].length * CELL}v${CELL}h${-run[0].length * CELL}z`;
+    }
+  });
+  return shape('path', 'body', { d, 'stroke-width': 0, 'shape-rendering': 'crispEdges' });
+}
+
+/**
+ * A pixel creature's eyes, on its grid: two-by-two cells on columns 1–2 and 5–6 from `row`, with a
+ * one-cell pupil. Idle looks down and to the side, thinking up and to the side, working lowers the
+ * lids to the bottom row, needs-you stares straight out; blocked is a flat bar across the middle,
+ * offline a thin closed line along the bottom.
+ * @param {number} row The grid row the eyes start on.
+ * @param {string} activity
+ * @param {boolean} pupils Whether the size has room for pupils.
+ * @returns {AgentShape}
+ */
+function pixelEyes(row, activity, pupils) {
+  const top = row * CELL;
+  const size = 2 * CELL;
+  const crisp = { 'shape-rendering': 'crispEdges' };
+  /** @type {AgentShape[]} */
+  const eyes = [];
+  for (const left of [CELL, 5 * CELL]) {
+    if (activity === 'blocked') {
+      eyes.push(shape('rect', 'sclera', { x: left, y: top + CELL - 2, width: size, height: 4, ...crisp }));
+      continue;
+    }
+    if (activity === 'offline') {
+      eyes.push(shape('rect', 'sclera', { x: left, y: top + size - 3, width: size, height: 3, ...crisp }));
+      continue;
+    }
+    const lowered = activity === 'working';
+    /** @type {AgentShape[]} */
+    const parts = [shape('rect', 'sclera', { x: left, y: lowered ? top + CELL : top, width: size, height: lowered ? CELL : size, ...crisp })];
+    if (pupils) {
+      const px = activity === 'needs-you' ? left + CELL / 2 : activity === 'working' ? left : left + CELL;
+      const py = activity === 'thinking' ? top : top + CELL;
+      parts.push(shape('g', 'gaze', {}, [shape('rect', 'pupil', { x: px, y: py, width: CELL, height: CELL, ...crisp })]));
+    }
+    eyes.push(shape('g', 'eye', {}, parts));
+  }
+  return shape('g', 'eyes', {}, [shape('g', 'look', {}, eyes)]);
 }
 
 /**
@@ -197,7 +254,7 @@ function eyePair(eye, activity) {
     const cx = x + dx;
     const cy = y + dy;
     /** @type {AgentShape[]} */
-    const parts = [eyeShape(eye.shape, cx, cy, ew, eh, eye.heavy)];
+    const parts = [eyeShape(eye.shape, cx, cy, ew, eh)];
     if (eye.pupils) {
       const radius = Math.min(ew, eh) * (activity === 'needs-you' ? 0.36 : 0.3);
       parts.push(shape('g', 'gaze', {}, [shape('circle', 'pupil', { cx: r(cx + px), cy: r(cy + py), r: r(radius) })]));
@@ -210,25 +267,14 @@ function eyePair(eye, activity) {
 /**
  * One open eye.
  * @param {AgentEyes} name @param {number} x @param {number} y @param {number} w @param {number} h
- * @param {boolean} heavy
  * @returns {AgentShape}
  */
-function eyeShape(name, x, y, w, h, heavy) {
-  switch (name) {
-    case 'pill':
-      return shape('rect', 'sclera', { x: r(x - w * 0.4), y: r(y - h / 2), width: r(w * 0.8), height: r(h), rx: r(w * 0.4) });
-    case 'square':
-      return shape('rect', 'sclera', { x: r(x - w / 2), y: r(y - h / 2), width: r(w), height: r(h), rx: r(Math.min(w, h) * 0.22) });
-    case 'moon':
-      // Flat side down: a dome, which reads calm; flat side up reads as a frown.
-      return shape('path', 'sclera', { d: `M${r(x - w / 2)} ${r(y + h * 0.3)}H${r(x + w / 2)}A${r(w / 2)} ${r(h * 0.75)} 0 0 0 ${r(x - w / 2)} ${r(y + h * 0.3)}Z` });
-    case 'chevron':
-      return shape('path', 'line', { d: `M${r(x - w / 2)} ${r(y + h * 0.2)}L${r(x)} ${r(y - h * 0.3)}L${r(x + w / 2)} ${r(y + h * 0.2)}`, 'stroke-width': heavy ? 3.2 : 2.6 });
-    case 'oval':
-      return shape('ellipse', 'sclera', { cx: r(x), cy: r(y), rx: r(w * 0.42), ry: r(h / 2) });
-    default:
-      return shape('ellipse', 'sclera', { cx: r(x), cy: r(y), rx: r(w / 2), ry: r(h / 2) });
+function eyeShape(name, x, y, w, h) {
+  if (name === 'square') {
+    return shape('rect', 'sclera', { x: r(x - w / 2), y: r(y - h / 2), width: r(w), height: r(h), rx: r(Math.min(w, h) * 0.22) });
   }
+  if (name === 'oval') return shape('ellipse', 'sclera', { cx: r(x), cy: r(y), rx: r(w * 0.42), ry: r(h / 2) });
+  return shape('ellipse', 'sclera', { cx: r(x), cy: r(y), rx: r(w / 2), ry: r(h / 2) });
 }
 
 /**

@@ -350,7 +350,7 @@ const cases = [
       'the agent face is not a hidden SVG');
     assert(component.el.getAttribute('role') === 'img' && component.el.getAttribute('aria-label') === 'Ledger, Working',
       'the activity word is not in the agent avatar name');
-    assert(component.el.dataset.variant === 'token' && face.querySelector('.zx-agent-avatar__body')
+    assert(face.querySelector('.zx-agent-avatar__body')
       && face.querySelectorAll('.zx-agent-avatar__pupil').length === 2, 'the token face was not drawn');
     const traits = component.getTraits();
     assert(JSON.stringify(traits) === JSON.stringify(zx.agentTraits('agt-7f3a')), 'getTraits disagrees with agentTraits');
@@ -359,9 +359,9 @@ const cases = [
     component.setActivity('blocked', 'Waiting on the bank');
     assert(component.el.getAttribute('aria-label') === 'Ledger, Waiting on the bank', 'activityLabel ignored');
     assert(!face.querySelector('.zx-agent-avatar__pupil') && !component.refs.activity.hidden, 'blocked eyes or dot missing');
-    component.set({ variant: 'glyph', size: 'sm', indicator: false, label: null });
-    assert(component.el.dataset.variant === 'glyph' && component.el.getAttribute('aria-hidden') === 'true'
-      && component.refs.activity.hidden && !face.querySelector('.zx-agent-avatar__body'), 'glyph update failed');
+    component.set({ body: 'tuft', size: 'sm', indicator: false, label: null });
+    assert(component.el.getAttribute('aria-hidden') === 'true' && component.refs.activity.hidden
+      && face.querySelectorAll('.zx-agent-avatar__body').length === 1, 'update to a pixel body failed');
     component.set({ animate: true, activity: 'thinking' });
     assert(component.el.hasAttribute('data-animate'), 'animate did not mark the root');
     component.setActivity(null);

@@ -1,4 +1,4 @@
-import { AgentAvatar, Avatar, button, h } from '../../src/index.js';
+import { AGENT_BODIES, AgentAvatar, button, h } from '../../src/index.js';
 
 /** Agents as an agent registry returns them: a stable id, a display name, no picture. */
 const AGENTS = [
@@ -18,14 +18,14 @@ const SIZES = [16, 20, 'sm', 'md', 'lg', 56, 96];
 export default {
   title: 'AgentAvatar',
   group: 'Agents',
-  blurb: 'A generated face for an agent without a picture: a coloured shape, or a tinted tile, with '
+  blurb: 'A generated face for an agent without a picture: a coloured shape or a pixel creature with '
     + 'eyes that take what the agent is doing. The same seed always draws the same face.',
   examples: [
     {
-      title: 'Token: a shape from the agent\'s id',
-      blurb: 'The default variant. The seed — the agent\'s stable id — picks the tone, one of eight '
-        + 'silhouettes, the eye shape and the spacing, so renaming an agent keeps its face. label makes '
-        + 'a standalone avatar an image with that name; beside the name, leave it decorative.',
+      title: 'A face from the agent\'s id',
+      blurb: 'The seed — the agent\'s stable id — picks the tone, the silhouette, the eye shape and '
+        + 'the spacing, so renaming an agent keeps its face. label makes a standalone avatar an image '
+        + 'with that name; beside the name, leave it decorative.',
       layout: 'stack',
       render: ({ cleanup }) => {
         const avatars = AGENTS.map((agent) => new AgentAvatar(null, { seed: agent.id, name: agent.name, size: 48 }));
@@ -35,19 +35,15 @@ export default {
       }
     },
     {
-      title: 'Glyph: eyes on the initials tile',
-      blurb: 'variant: \'glyph\' draws the Avatar fallback tile — the tone\'s tint and ink — with eyes '
-        + 'where the initials would be, and a seeded mark. Keyed by the same value, the face and the '
-        + 'initials tile share a tone: here both are keyed by the name.',
+      title: 'Twelve silhouettes',
+      blurb: 'Eight smooth geometric shapes and four pixel creatures. A pixel creature draws its '
+        + 'eyes on its own grid: two-cell squares with a one-cell pupil.',
       layout: 'stack',
       render: ({ cleanup }) => {
-        const faces = AGENTS.map((agent) => new AgentAvatar(null, { name: agent.name, variant: 'glyph', size: 48 }));
-        const tiles = AGENTS.map((agent) => new Avatar(null, { name: agent.name, shape: 'rounded', size: 48 }));
-        cleanup(() => [...faces, ...tiles].forEach((avatar) => avatar.destroy()));
-        return [
-          h('div', { class: 'demo-row' }, faces.map((avatar) => avatar.toElement())),
-          h('div', { class: 'demo-row' }, tiles.map((avatar) => avatar.toElement()))
-        ];
+        const avatars = AGENT_BODIES.map((body) => new AgentAvatar(null, { seed: 'agt-e07b', name: 'Mosaic', body, size: 48 }));
+        cleanup(() => avatars.forEach((avatar) => avatar.destroy()));
+        return h('div', { class: 'demo-row' }, avatars.map((avatar, index) => h('div', { class: 'demo-field' },
+          avatar.toElement(), h('span', { class: 'demo-caption' }, AGENT_BODIES[index]))));
       }
     },
     {
@@ -58,19 +54,19 @@ export default {
         + 'motion.',
       layout: 'stack',
       render: ({ cleanup, log }) => {
-        const row = (variant) => ACTIVITIES.map((activity) => new AgentAvatar(null, {
-          seed: 'agt-58fd', name: 'Harbor', variant, size: 'lg', label: 'Harbor', activity, animate: true
+        const row = (body) => ACTIVITIES.map((activity) => new AgentAvatar(null, {
+          seed: 'agt-58fd', name: 'Harbor', body, size: 'lg', label: 'Harbor', activity, animate: true
         }));
-        const tokens = row('token');
-        const glyphs = row('glyph');
+        const smooth = row('circle');
+        const pixel = row('beacon');
         const nova = new AgentAvatar(null, { seed: 'agt-2a57', name: 'Nova', size: 56, label: 'Nova', activity: 'idle', animate: true });
-        cleanup(() => [...tokens, ...glyphs, nova].forEach((avatar) => avatar.destroy()));
+        cleanup(() => [...smooth, ...pixel, nova].forEach((avatar) => avatar.destroy()));
         const field = (avatar) => h('div', { class: 'demo-field' }, avatar.toElement(),
           h('span', { class: 'demo-caption' }, avatar.toElement().getAttribute('aria-label')));
         const word = h('span', { class: 'demo-caption' }, nova.toElement().getAttribute('aria-label'));
         return [
-          h('div', { class: 'demo-row' }, tokens.map(field)),
-          h('div', { class: 'demo-row' }, glyphs.map(field)),
+          h('div', { class: 'demo-row' }, smooth.map(field)),
+          h('div', { class: 'demo-row' }, pixel.map(field)),
           h('div', { class: 'demo-row' },
             h('div', { class: 'demo-field' }, nova.toElement(), word),
             button({ label: 'Next activity', onclick: () => {
@@ -85,16 +81,16 @@ export default {
     {
       title: 'Sizes',
       blurb: 'sm, md and lg are the Avatar presets, 24, 32 and 40px; a number is a pixel size. Small '
-        + 'sizes draw less: a token loses its pupils below 20px, and at 24px and below both variants '
-        + 'enlarge their eyes and a glyph drops its mark.',
+        + 'sizes draw less: the pupils go below 20px, and at 24px and below the eyes grow.',
       layout: 'stack',
       render: ({ cleanup }) => {
-        const make = (variant) => SIZES.map((size) => new AgentAvatar(null, { seed: 'agt-4d81', name: 'Juniper', variant, size }));
-        const all = [...make('token'), ...make('glyph')];
-        cleanup(() => all.forEach((avatar) => avatar.destroy()));
+        const make = (body) => SIZES.map((size) => new AgentAvatar(null, { seed: 'agt-4d81', name: 'Juniper', body, size }));
+        const smooth = make('squircle');
+        const pixel = make('tuft');
+        cleanup(() => [...smooth, ...pixel].forEach((avatar) => avatar.destroy()));
         return [
-          h('div', { class: 'demo-row' }, all.slice(0, SIZES.length).map((avatar) => avatar.toElement())),
-          h('div', { class: 'demo-row' }, all.slice(SIZES.length).map((avatar) => avatar.toElement()))
+          h('div', { class: 'demo-row' }, smooth.map((avatar) => avatar.toElement())),
+          h('div', { class: 'demo-row' }, pixel.map((avatar) => avatar.toElement()))
         ];
       }
     },

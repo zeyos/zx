@@ -1,9 +1,11 @@
 # Agent avatars — exploration, November 2026
 
-> Outcome, 2026-11-16: the product owner chose **Token** and **Glyph**; they became the two
-> variants of `AgentAvatar` in WP90 (`specs/WP-90-agent-avatar.md`). The prototype keeps the
-> study's own copies of every option. Its trait hashing has a flaw the component fixes: FNV-1a's low
-> bits make a salted trait a function of the tone, so the prototype gives one body per tone.
+> Outcome, 2026-11-16: the product owner chose **Token**; it is `AgentAvatar` in WP90
+> (`specs/WP-90-agent-avatar.md`). A first round also shipped **Glyph** as a second variant; the
+> owner dropped it and asked for pixel-creature bodies beside the geometric ones, which became
+> tuft, beacon, cap and antler. The prototype keeps the study's own copies of every option. Its
+> trait hashing has a flaw the component fixes: FNV-1a's low bits make a salted trait a function of
+> the tone, so the prototype gives one body per tone.
 
 Repository-only. `specs/` never reaches the site or the package; nothing here is approved for
 publication until a work package lifts it into a component.
@@ -58,3 +60,32 @@ indistinguishable at 24px).
 - Amber-500 with white eyes is the weakest contrast pair and should be measured.
 - Stacks: there is no AvatarGroup yet; containerless options (Token, Totem, Orbit, Prism) stack
   badly.
+
+## Body materials (second round)
+
+`materials.html` draws the shipped geometry (`agentTraits()` + `agentFace()`) with eleven body
+treatments, each on every silhouette, the size ladder, the six activities, and page, raised and
+Aurora backdrops. Sparred again with GPT-6 Sol (xhigh, read-only) and Fable on the same brief.
+
+Both partners, independently: **flat stays the default**. Most avatars render at 16–40px, where no
+material survives, and white eyes have little contrast headroom (3.7–4.3:1 on the solids; lighten a
+body by more than about 10% under the eyes and green drops below 3:1). Ranked:
+
+| Treatment | Verdict |
+|---|---|
+| Flat | Default. |
+| Soft (Fable) / Matte depth (Codex) | On-brand: a quiet tonal ramp that only darkens near the eyes. The one gradient worth an opt-in. |
+| Lip | Robust hard underside, a little toy-like; fits the pixel creatures. |
+| Rim | Utility for avatars on surfaces of their own colour. |
+| Fold, Ceramic | Acceptable for large illustration only. |
+| Duotone | The most colourful; two colours per agent weaken identity and colour-blind distinctness. |
+| Sticker, Gloss, Glass | Off-brand or gimmicks; Glass changes colour with its backdrop. |
+
+Implementation notes for any gradient: `gradientUnits="userSpaceOnUse"` (clover is five shapes),
+paint both fill and stroke (polygons round their corners with a stroke), a deterministic id per tone
+and material (`zx-agent-avatar-soft-blue`) instead of a counter, a flat fallback after `url()`, flat
+below 28px, when offline, in print and in forced colours.
+
+Both partners also questioned mixing pixel creatures into the hashed pool (two idioms in one
+roster; appending to the table re-faces seeds). They are in the pool because the owner asked for
+them; nothing has shipped, so no existing face changes.

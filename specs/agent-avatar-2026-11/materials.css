@@ -1,0 +1,19 @@
+/* Internal exploration — agent avatar materials. Not part of the site or the package. */
+
+.m-overview { display: grid; grid-template-columns: 11rem 1fr; gap: var(--zx-space-3) var(--zx-space-4); align-items: center; margin-block-end: var(--zx-space-6); padding: var(--zx-space-5); border: 1px solid var(--zx-color-border); border-radius: var(--zx-radius-lg); background: var(--zx-color-bg-surface); }
+.m-overview > h2 { grid-column: 1 / -1; margin: 0 0 var(--zx-space-2); font-size: var(--zx-text-lg); }
+.m-overview a { color: var(--zx-color-text); font-weight: var(--zx-weight-semibold); text-decoration: none; }
+.m-overview a:hover { text-decoration: underline; }
+.m-overview small { display: block; color: var(--zx-color-text-subtle); font-weight: var(--zx-weight-regular); }
+
+.m-backdrops { display: flex; flex-wrap: wrap; gap: var(--zx-space-3); }
+.m-backdrop { display: flex; flex-wrap: wrap; gap: var(--zx-space-3); align-items: center; padding: var(--zx-space-4); border-radius: var(--zx-radius-md); border: 1px solid var(--zx-color-border-subtle); }
+.m-backdrop--page { background: var(--zx-color-bg-page); }
+.m-backdrop--surface { background: var(--zx-color-bg-raised); }
+.m-backdrop--aurora { position: relative; overflow: hidden; min-inline-size: 16rem; }
+
+.m-face { display: block; flex: none; overflow: visible; }
+.m-face .zx-agent-avatar__sclera { fill: var(--zx-color-agent-eye); }
+.m-face .zx-agent-avatar__pupil { fill: var(--zx-color-agent-pupil); }
+.m-face .zx-agent-avatar__line { fill: none; stroke: var(--zx-color-agent-eye); stroke-linecap: round; }
+.m-face[data-activity="offline"] { filter: grayscale(1); opacity: .55; }

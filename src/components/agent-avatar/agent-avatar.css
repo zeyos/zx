@@ -1,9 +1,8 @@
 /*
- * AgentAvatar — a generated face. The component writes `data-variant`, `data-tone`, `data-size` and
- * `data-activity`; the face is an SVG in a 64-unit view box whose parts carry `zx-agent-avatar__*`
- * classes. A token is a free-standing silhouette in the tone's solid fill; a glyph is the Avatar
- * fallback tile (tone tint, tone ink) with eyes in place of initials. The presets are the Avatar's:
- * 24 / 32 / 40px at the default spacing unit.
+ * AgentAvatar — a generated face. The component writes `data-tone`, `data-size` and `data-activity`;
+ * the face is an SVG in a 64-unit view box whose parts carry `zx-agent-avatar__*` classes: a
+ * free-standing silhouette in the tone's solid fill with white eyes and dark pupils. The presets are
+ * the Avatar's: 24 / 32 / 40px at the default spacing unit.
  */
 .zx-agent-avatar {
   --zx-agent-avatar-size: var(--zx-space-7);
@@ -19,27 +18,21 @@
 .zx-agent-avatar[data-size="sm"] { --zx-agent-avatar-size: var(--zx-space-6); }
 .zx-agent-avatar[data-size="lg"] { --zx-agent-avatar-size: var(--zx-space-8); }
 
-.zx-agent-avatar[data-tone="blue"] { --zx-agent-avatar-solid: var(--zx-color-tone-blue-solid); --zx-agent-avatar-bg: var(--zx-color-tone-blue-bg); --zx-agent-avatar-fg: var(--zx-color-tone-blue-fg); }
-.zx-agent-avatar[data-tone="teal"] { --zx-agent-avatar-solid: var(--zx-color-tone-teal-solid); --zx-agent-avatar-bg: var(--zx-color-tone-teal-bg); --zx-agent-avatar-fg: var(--zx-color-tone-teal-fg); }
-.zx-agent-avatar[data-tone="green"] { --zx-agent-avatar-solid: var(--zx-color-tone-green-solid); --zx-agent-avatar-bg: var(--zx-color-tone-green-bg); --zx-agent-avatar-fg: var(--zx-color-tone-green-fg); }
-.zx-agent-avatar[data-tone="amber"] { --zx-agent-avatar-solid: var(--zx-color-tone-amber-solid); --zx-agent-avatar-bg: var(--zx-color-tone-amber-bg); --zx-agent-avatar-fg: var(--zx-color-tone-amber-fg); }
-.zx-agent-avatar[data-tone="orange"] { --zx-agent-avatar-solid: var(--zx-color-tone-orange-solid); --zx-agent-avatar-bg: var(--zx-color-tone-orange-bg); --zx-agent-avatar-fg: var(--zx-color-tone-orange-fg); }
-.zx-agent-avatar[data-tone="red"] { --zx-agent-avatar-solid: var(--zx-color-tone-red-solid); --zx-agent-avatar-bg: var(--zx-color-tone-red-bg); --zx-agent-avatar-fg: var(--zx-color-tone-red-fg); }
-.zx-agent-avatar[data-tone="pink"] { --zx-agent-avatar-solid: var(--zx-color-tone-pink-solid); --zx-agent-avatar-bg: var(--zx-color-tone-pink-bg); --zx-agent-avatar-fg: var(--zx-color-tone-pink-fg); }
-.zx-agent-avatar[data-tone="violet"] { --zx-agent-avatar-solid: var(--zx-color-tone-violet-solid); --zx-agent-avatar-bg: var(--zx-color-tone-violet-bg); --zx-agent-avatar-fg: var(--zx-color-tone-violet-fg); }
-.zx-agent-avatar[data-tone="slate"] { --zx-agent-avatar-solid: var(--zx-color-tone-slate-solid); --zx-agent-avatar-bg: var(--zx-color-tone-slate-bg); --zx-agent-avatar-fg: var(--zx-color-tone-slate-fg); }
+.zx-agent-avatar[data-tone="blue"] { --zx-agent-avatar-solid: var(--zx-color-tone-blue-solid); }
+.zx-agent-avatar[data-tone="teal"] { --zx-agent-avatar-solid: var(--zx-color-tone-teal-solid); }
+.zx-agent-avatar[data-tone="green"] { --zx-agent-avatar-solid: var(--zx-color-tone-green-solid); }
+.zx-agent-avatar[data-tone="amber"] { --zx-agent-avatar-solid: var(--zx-color-tone-amber-solid); }
+.zx-agent-avatar[data-tone="orange"] { --zx-agent-avatar-solid: var(--zx-color-tone-orange-solid); }
+.zx-agent-avatar[data-tone="red"] { --zx-agent-avatar-solid: var(--zx-color-tone-red-solid); }
+.zx-agent-avatar[data-tone="pink"] { --zx-agent-avatar-solid: var(--zx-color-tone-pink-solid); }
+.zx-agent-avatar[data-tone="violet"] { --zx-agent-avatar-solid: var(--zx-color-tone-violet-solid); }
+.zx-agent-avatar[data-tone="slate"] { --zx-agent-avatar-solid: var(--zx-color-tone-slate-solid); }
 
 .zx-agent-avatar__face {
   display: block;
   inline-size: 100%;
   block-size: 100%;
   overflow: visible;
-}
-
-/* A glyph is a tile, rounded like every agent's Avatar; a token is its own silhouette. */
-.zx-agent-avatar[data-variant="glyph"] > .zx-agent-avatar__face {
-  border-radius: var(--zx-radius-md);
-  background: var(--zx-agent-avatar-bg);
 }
 
 .zx-agent-avatar__body {
@@ -50,21 +43,12 @@
 .zx-agent-avatar__sclera { fill: var(--zx-color-agent-eye); }
 .zx-agent-avatar__pupil { fill: var(--zx-color-agent-pupil); }
 
-.zx-agent-avatar__line,
-.zx-agent-avatar__mark-line {
+.zx-agent-avatar__line {
   fill: none;
   stroke: var(--zx-color-agent-eye);
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-
-/* A glyph draws in its tone's ink: the Avatar fallback pair, 4.5:1 in both themes. */
-.zx-agent-avatar[data-variant="glyph"] .zx-agent-avatar__sclera,
-.zx-agent-avatar__mark { fill: var(--zx-agent-avatar-fg); }
-.zx-agent-avatar[data-variant="glyph"] .zx-agent-avatar__line,
-.zx-agent-avatar__mark-line { stroke: var(--zx-agent-avatar-fg); }
-.zx-agent-avatar__mark-line { stroke-width: 2.4px; }
-.zx-agent-avatar__mark-solid { fill: var(--zx-agent-avatar-solid); }
 
 /* Offline is closed eyes on a faded, colourless face; the dot keeps its own colour. */
 .zx-agent-avatar[data-activity="offline"] > .zx-agent-avatar__face {
@@ -132,13 +116,11 @@
     animation: zx-agent-avatar-double-blink 3.6s var(--zx-agent-avatar-delay, 0s) infinite;
   }
 
-  .zx-agent-avatar[data-animate][data-activity="thinking"] .zx-agent-avatar__gaze,
-  .zx-agent-avatar[data-animate][data-variant="glyph"][data-activity="thinking"] .zx-agent-avatar__look {
+  .zx-agent-avatar[data-animate][data-activity="thinking"] .zx-agent-avatar__gaze {
     animation: zx-agent-avatar-ponder 3.4s ease-in-out var(--zx-agent-avatar-delay, 0s) infinite;
   }
 
-  .zx-agent-avatar[data-animate][data-activity="working"] .zx-agent-avatar__gaze,
-  .zx-agent-avatar[data-animate][data-variant="glyph"][data-activity="working"] .zx-agent-avatar__look {
+  .zx-agent-avatar[data-animate][data-activity="working"] .zx-agent-avatar__gaze {
     animation: zx-agent-avatar-scan 2.2s ease-in-out var(--zx-agent-avatar-delay, 0s) infinite;
   }
 }
@@ -166,12 +148,9 @@
 /* Forced colours: the body in the text colour, eyes cut out of it in the canvas colour. */
 @media (forced-colors: active) {
   .zx-agent-avatar__body { fill: CanvasText; stroke: CanvasText; }
-  .zx-agent-avatar__sclera, .zx-agent-avatar__mark-solid { fill: Canvas; }
+  .zx-agent-avatar__sclera { fill: Canvas; }
   .zx-agent-avatar__line { stroke: Canvas; }
   .zx-agent-avatar__pupil { fill: CanvasText; }
-  .zx-agent-avatar[data-variant="glyph"] > .zx-agent-avatar__face { border: 1px solid CanvasText; background: Canvas; }
-  .zx-agent-avatar[data-variant="glyph"] :is(.zx-agent-avatar__sclera, .zx-agent-avatar__mark, .zx-agent-avatar__mark-solid) { fill: CanvasText; }
-  .zx-agent-avatar[data-variant="glyph"] :is(.zx-agent-avatar__line, .zx-agent-avatar__mark-line) { stroke: CanvasText; }
   .zx-agent-avatar[data-activity] > .zx-agent-avatar__activity { background: CanvasText; }
   .zx-agent-avatar:is([data-activity="idle"], [data-activity="offline"]) > .zx-agent-avatar__activity {
     border-color: CanvasText;

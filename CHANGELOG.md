@@ -16,12 +16,11 @@ from a framework.
 ### Added
 
 - **AgentAvatar.** A generated face for an agent without a picture, deterministic from its seed
-  (an id, so a rename keeps the face): `variant: 'token'` is a coloured silhouette with white eyes
-  and pupils, `variant: 'glyph'` the Avatar initials tile with eyes in place of the initials. The
-  eyes take the agent's `activity` — thinking, working, needs you, blocked, offline — beside the
-  Avatar activity dot, and `animate` adds the shared presence motion plus blinking. `agentTraits()`
-  and `agentFace()` expose the generator as pure data. New tokens `--zx-color-agent-eye` and
-  `--zx-color-agent-pupil`.
+  (an id, so a rename keeps the face): one of twelve coloured silhouettes — eight geometric shapes
+  and four pixel creatures — with white eyes and dark pupils. The eyes take the agent's `activity` —
+  thinking, working, needs you, blocked, offline — beside the Avatar activity dot, and `animate`
+  adds the shared presence motion plus blinking. `agentTraits()` and `agentFace()` expose the
+  generator as pure data. New tokens `--zx-color-agent-eye` and `--zx-color-agent-pupil`.
 - **Pagination: Auto page size.** `pageSize: 'auto'`, and `'auto'` among `pageSizes` ("Auto (14)"
   in the select), fits the page to `viewport` — the rows that fit below its sticky header — and
   refits when the viewport or its rows change size, keeping the page's first row. `rowHeight`,

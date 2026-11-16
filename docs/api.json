@@ -487,12 +487,6 @@
         "description": "The agent's name; the seed when `seed` is null."
       },
       {
-        "name": "variant",
-        "type": "AgentVariant",
-        "default": "'token'",
-        "description": "`token` is a free-standing coloured silhouette with white eyes and pupils; `glyph` is the Avatar fallback tile — tone tint and ink — with eyes in place of initials."
-      },
-      {
         "name": "tone",
         "type": "AvatarTone|null",
         "default": "null",
@@ -502,19 +496,19 @@
         "name": "body",
         "type": "AgentBody|null",
         "default": "null",
-        "description": "A token's silhouette, instead of the derived one."
+        "description": "The silhouette, instead of the derived one: one of eight smooth shapes or four pixel creatures."
       },
       {
         "name": "eyes",
         "type": "AgentEyes|null",
         "default": "null",
-        "description": "The eye shape, instead of the derived one. One the variant does not draw is ignored."
+        "description": "The eye shape, instead of the derived one."
       },
       {
         "name": "size",
         "type": "string|number",
         "default": "'md'",
-        "description": "Preset — `sm` 24px, `md` 32px, `lg` 40px at the default spacing unit — or a pixel size. Small sizes draw less: no pupils below 20px, larger eyes and no glyph mark at 24px and below."
+        "description": "Preset — `sm` 24px, `md` 32px, `lg` 40px at the default spacing unit — or a pixel size. Small sizes draw less: no pupils below 20px, larger eyes at 24px and below."
       },
       {
         "name": "label",

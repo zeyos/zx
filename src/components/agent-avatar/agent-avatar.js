@@ -5,11 +5,8 @@ import { ACTIVITY, AGENT_MESSAGES, normalizeActivity } from '../../internal/agen
 import { normalizePhase, presencePhase, trackPresence } from '../../internal/presence-loop.js';
 import { AGENT_PRESET_PX, agentFace, agentTraits } from './agent-face.js';
 
-export {
-  AGENT_BODIES, AGENT_GLYPH_EYES, AGENT_MARKS, AGENT_TOKEN_EYES, AGENT_VARIANTS, agentFace, agentTraits
-} from './agent-face.js';
+export { AGENT_BODIES, AGENT_EYES, AGENT_PIXEL_BODIES, agentFace, agentTraits } from './agent-face.js';
 
-/** @typedef {import('./agent-face.js').AgentVariant} AgentVariant */
 /** @typedef {import('./agent-face.js').AgentBody} AgentBody */
 /** @typedef {import('./agent-face.js').AgentEyes} AgentEyes */
 /** @typedef {import('./agent-face.js').AgentTraits} AgentTraits */
@@ -22,17 +19,14 @@ export {
  * @property {string|null} [seed=null] The agent's stable identity — an id. Every trait is derived
  * from it, so renaming an agent does not change its face. `null` uses `name`.
  * @property {string} [name=''] The agent's name; the seed when `seed` is null.
- * @property {AgentVariant} [variant='token'] `token` is a free-standing coloured silhouette with
- * white eyes and pupils; `glyph` is the Avatar fallback tile — tone tint and ink — with eyes in place
- * of initials.
  * @property {AvatarTone|null} [tone=null] Colour from the tone palette; `null` derives it from the
  * seed with `avatarTone()`, so the face matches an initials tile keyed the same way.
- * @property {AgentBody|null} [body=null] A token's silhouette, instead of the derived one.
- * @property {AgentEyes|null} [eyes=null] The eye shape, instead of the derived one. One the variant
- * does not draw is ignored.
+ * @property {AgentBody|null} [body=null] The silhouette, instead of the derived one: one of eight
+ * smooth shapes or four pixel creatures.
+ * @property {AgentEyes|null} [eyes=null] The eye shape, instead of the derived one.
  * @property {string|number} [size='md'] Preset — `sm` 24px, `md` 32px, `lg` 40px at the default
- * spacing unit — or a pixel size. Small sizes draw less: no pupils below 20px, larger eyes and no
- * glyph mark at 24px and below.
+ * spacing unit — or a pixel size. Small sizes draw less: no pupils below 20px, larger eyes at 24px
+ * and below.
  * @property {string|null} [label=null] Accessible label; null makes the avatar decorative.
  * @property {AgentActivity|null} [activity=null] What the agent is doing. The eyes take the
  * activity's expression, the activity dot shows it, and its word joins the accessible name.
@@ -52,15 +46,15 @@ export {
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 /** The values `set()` accepts. */
-const SETTABLE = Object.freeze(['seed', 'name', 'variant', 'tone', 'body', 'eyes', 'size', 'label',
+const SETTABLE = Object.freeze(['seed', 'name', 'tone', 'body', 'eyes', 'size', 'label',
   'activity', 'activityLabel', 'indicator', 'animate', 'phase']);
 
 /** How long one blink cycle takes, in seconds; the phase offsets the eyes within it. */
 const BLINK_PERIOD = 5.2;
 
 /**
- * A generated face for an agent without a picture: a geometric body from the tone palette with eyes
- * that take the agent's activity, deterministic from the agent's seed.
+ * A generated face for an agent without a picture: a coloured silhouette — a geometric shape or a
+ * pixel creature — with eyes that take the agent's activity, deterministic from the agent's seed.
  * @extends {Component<AgentAvatarOptions>}
  */
 export class AgentAvatar extends Component {
@@ -70,7 +64,6 @@ export class AgentAvatar extends Component {
   static defaults = {
     seed: null,
     name: '',
-    variant: 'token',
     tone: null,
     body: null,
     eyes: null,
@@ -161,9 +154,9 @@ export class AgentAvatar extends Component {
 
   /** @returns {AgentTraits} */
   _resolveTraits() {
-    const { seed, name, variant, tone, body, eyes } = this._state;
+    const { seed, name, tone, body, eyes } = this._state;
     const key = seed == null || String(seed).trim() === '' ? name : seed;
-    return agentTraits(key, { variant, tone, body, eyes });
+    return agentTraits(key, { tone, body, eyes });
   }
 
   /** @returns {number} The rendered size the level of detail is picked for. */
@@ -180,7 +173,6 @@ export class AgentAvatar extends Component {
     const traits = this._resolveTraits();
     this._traits = traits;
     const activity = normalizeActivity(this._state.activity);
-    root.dataset.variant = traits.variant;
     root.dataset.tone = traits.tone;
     root.dataset.size = typeof size === 'number' ? 'custom' : (['sm', 'md', 'lg'].includes(size) ? size : 'md');
     if (typeof size === 'number' && Number.isFinite(size)) {
