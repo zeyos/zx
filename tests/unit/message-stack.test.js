@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { messageStackLayout, normalizeMessageHighlight } from '../../src/components/message/message.js';
+import { Message, messageStackLayout, normalizeMessageHighlight } from '../../src/components/message/message.js';
 
 const css = readFileSync(new URL('../../src/components/message/message.css', import.meta.url), 'utf8');
 
@@ -13,6 +13,19 @@ test('a highlight is a border, an animated border, or nothing', () => {
   for (const value of [false, undefined, null, '', 'glow', 1, {}]) {
     assert.equal(normalizeMessageHighlight(value), null, `accepted ${JSON.stringify(value)}`);
   }
+});
+
+test('floating messages stack unless Message.setStack(false) says otherwise', () => {
+  assert.equal(Message.getStack(), true, 'floating regions stack by default');
+  try {
+    assert.equal(Message.setStack(false), false);
+    assert.equal(Message.getStack(), false);
+    assert.equal(Message.setStack('yes'), true, 'any truthy value stacks');
+  } finally {
+    Message.setStack(true);
+  }
+  // An inline area stacks only when asked.
+  assert.equal(Message.defaults.stack, false);
 });
 
 test('an open stack lays its messages out one after another, a gap apart', () => {

@@ -211,8 +211,9 @@ export class MessageQueue {
  * Inline message area and static toast service.
  *
  * With `stack` the visible messages pile up into one card, the newest in front, and the pile
- * opens to show them all — the same for an inline area and a floating region
- * (`Message.setStack()`). The root then carries `data-stack` and `data-state="collapsed"` or
+ * opens to show them all — the same for an inline area and a floating region. Floating regions
+ * stack by default (`Message.setStack(false)` lists their messages instead); an inline area stacks
+ * with `stack: true`. The root then carries `data-stack` and `data-state="collapsed"` or
  * `"expanded"`.
  * @extends {Component<MessageOptions>}
  * @fires Message#expand
@@ -235,8 +236,8 @@ export class Message extends Component {
   /** @type {MessagePlacement} Where floating messages appear when a call names no placement. */
   static #placement = DEFAULT_PLACEMENT;
 
-  /** @type {boolean} Whether floating regions stack their messages. */
-  static #stack = false;
+  /** @type {boolean} Whether floating regions stack their messages; they do unless told not to. */
+  static #stack = true;
 
   /** @returns {HTMLElement} */
   render() {
@@ -271,6 +272,12 @@ export class Message extends Component {
     this._wasHeld = false;
     /** @type {Element|null} Where focus came from when it entered the stack, for Escape. */
     this._stackReturn = null;
+    /** @type {number} When the stack was last pinned, so the press that pinned it does not unpin it. */
+    this._pinnedAt = -Infinity;
+    /** @type {boolean|null} Whether the stack last piled from the foot; null before the first layout. */
+    this._pileFromEnd = null;
+    /** Set while messages are moved, so the focus they lose and regain is not read as leaving. */
+    this._reordering = false;
     this._resizeObserver = typeof ResizeObserver === 'function'
       ? new ResizeObserver(() => this._syncStack()) : null;
     root.replaceChildren();
@@ -370,8 +377,9 @@ export class Message extends Component {
   }
 
   /**
-   * Sets whether floating regions stack their messages (see the `stack` option). Unlike a
-   * placement it applies at once, to the regions on screen as well as those to come.
+   * Sets whether floating regions stack their messages (see the `stack` option); they do by
+   * default, and `false` lists them one below another instead. Unlike a placement it applies at
+   * once, to the regions on screen as well as those to come.
    * @param {boolean} enabled Whether to stack.
    * @returns {boolean} Whether floating regions stack now.
    */
@@ -384,7 +392,7 @@ export class Message extends Component {
   }
 
   /**
-   * Returns whether floating regions stack their messages.
+   * Returns whether floating regions stack their messages, true unless `setStack(false)` was called.
    * @returns {boolean}
    */
   static getStack() {
@@ -447,6 +455,7 @@ export class Message extends Component {
     if (next === this._stack) return this;
     this._stack = next;
     const root = /** @type {HTMLElement} */ (this.el);
+    const wasExpanded = this._wasExpanded;
     if (next) {
       root.setAttribute('data-stack', '');
     } else {
@@ -454,13 +463,17 @@ export class Message extends Component {
       this._hovered = false;
       this._focusWithin = false;
       this._wasExpanded = false;
+      this._pileFromEnd = null;
       root.removeAttribute('data-stack');
       root.removeAttribute('data-state');
+      root.removeAttribute('data-overflow');
       for (const name of ['--zx-message-stack-size', '--zx-message-stack-hold']) root.style.removeProperty(name);
       for (const entry of this._shown) clearStackStyle(entry.node);
     }
     this._order();
     this._refreshStack();
+    // A stack that was open and is now a list has closed, as far as anyone listening knows.
+    if (!next && wasExpanded) this.emit('collapse');
     return this;
   }
 
@@ -473,6 +486,7 @@ export class Message extends Component {
   expand() {
     if (!this._stack) return this;
     this._pinned = true;
+    this._pinnedAt = now();
     this._refreshStack();
     return this;
   }
@@ -727,7 +741,7 @@ export class Message extends Component {
     if (entry.closed) return;
     entry.closed = true;
     clearEntryTimers(entry);
-    returnFocus(entry);
+    this._handOffFocus(entry);
     if (!this._queue.isActive(entry)) {
       this._queue.remove(entry);
       entry.node.remove();
@@ -792,15 +806,68 @@ export class Message extends Component {
 
   /**
    * Puts the messages in document order: oldest first, or newest first in a stack that piles from
-   * the top. Moves only when the order is wrong, since moving a node drops focus inside it.
+   * the top. Moves only when the order is wrong. A moved message keeps focus, and does not play
+   * its entrance again (`data-entered`).
+   * @param {boolean} [fromEnd] Whether the stack piles from the foot, when already known.
    * @returns {void}
    */
-  _order() {
+  _order(fromEnd = this._fromEnd()) {
     const nodes = this._shown.map((entry) => entry.node).filter((node) => node.parentNode === this.el);
-    if (this._stack && !this._fromEnd()) nodes.reverse();
+    if (this._stack && !fromEnd) nodes.reverse();
     const current = Array.from(this.el.children).filter((node) => nodes.includes(node));
     if (current.every((node, index) => node === nodes[index])) return;
-    for (const node of nodes) this.el.append(node);
+    const doc = this.el.ownerDocument;
+    const active = doc?.activeElement;
+    const keep = active && this.el.contains(active) ? /** @type {HTMLElement} */ (active) : null;
+    this._reordering = true;
+    try {
+      for (const node of nodes) {
+        node.setAttribute('data-entered', '');
+        this.el.append(node);
+      }
+      if (keep?.isConnected && doc?.activeElement !== keep) keep.focus({ preventScroll: true });
+    } finally {
+      this._reordering = false;
+    }
+  }
+
+  /**
+   * Moves focus off a message that is closing with focus inside it. In a stack it goes to the
+   * same control of the next message (the one before, for the last), so a keyboard reader closes
+   * one message after another without leaving the stack; from the stack's last message it goes
+   * back to where it was before it came into the stack. A list hands it back to where it was
+   * before it came into the message.
+   * @param {any} entry Closing message.
+   * @returns {void}
+   */
+  _handOffFocus(entry) {
+    const active = entry.node.ownerDocument?.activeElement;
+    if (!this._stack || !active || !entry.node.contains(active)) {
+      returnFocus(entry);
+      return;
+    }
+    const nodes = Array.from(this.el.children);
+    const live = this._shown.filter((other) => !other.closed && other.node.parentNode === this.el)
+      .map((other) => other.node);
+    const at = nodes.indexOf(entry.node);
+    const after = live.filter((node) => nodes.indexOf(node) > at)
+      .sort((a, b) => nodes.indexOf(a) - nodes.indexOf(b))[0];
+    const before = live.filter((node) => nodes.indexOf(node) < at)
+      .sort((a, b) => nodes.indexOf(b) - nodes.indexOf(a))[0];
+    const neighbour = after ?? before;
+    const same = active.classList.contains('zx-message__close') ? '.zx-message__close' : '.zx-message__action';
+    const target = /** @type {HTMLElement|null} */ (neighbour?.querySelector(same) ?? neighbour?.querySelector('button'));
+    if (target) {
+      target.focus({ preventScroll: true });
+      return;
+    }
+    const back = /** @type {HTMLElement|null} */ (this._stackReturn);
+    if (back?.isConnected && typeof back.focus === 'function') {
+      this._stackReturn = null;
+      back.focus({ preventScroll: true });
+      return;
+    }
+    returnFocus(entry);
   }
 
   /**
@@ -833,10 +900,17 @@ export class Message extends Component {
   _syncStack() {
     if (!this._stack || this._cleaned) return;
     const root = /** @type {HTMLElement} */ (this.el);
+    // A region crossing the phone breakpoint changes the way it piles: keep Tab in visual order.
+    const fromEnd = this._fromEnd();
+    if (fromEnd !== this._pileFromEnd) {
+      this._pileFromEnd = fromEnd;
+      this._order(fromEnd);
+    }
     const expanded = this.isExpanded();
     root.setAttribute('data-state', expanded ? 'expanded' : 'collapsed');
     const live = this._shown.filter((entry) => !entry.closed).reverse();
     const layout = messageStackLayout(live.map((entry) => entry.node.offsetHeight), expanded);
+    this._syncOverflow(expanded, layout.size, fromEnd);
     const step = expanded ? '--zx-message-gap' : '--zx-message-peek';
     live.forEach((entry, index) => {
       const item = layout.items[index];
@@ -861,6 +935,31 @@ export class Message extends Component {
   }
 
   /**
+   * An open floating stack taller than the viewport becomes a list that scrolls
+   * (`data-overflow`), the newest message in view, so every message stays reachable. An inline
+   * stack grows with the page and never needs it.
+   * @param {boolean} expanded Whether the stack is open.
+   * @param {MessageStackLength} size The open stack's height.
+   * @param {boolean} fromEnd Whether it piles from the foot.
+   * @returns {void}
+   */
+  _syncOverflow(expanded, size, fromEnd) {
+    const root = /** @type {HTMLElement} */ (this.el);
+    const view = root.ownerDocument?.defaultView;
+    let overflow = false;
+    if (expanded && this._floatingHost && view && typeof view.getComputedStyle === 'function') {
+      const gap = parseFloat(view.getComputedStyle(root).rowGap) || 0;
+      const rect = root.getBoundingClientRect();
+      // The region keeps the same offset from both viewport edges.
+      const edge = fromEnd ? view.innerHeight - rect.bottom : rect.top;
+      overflow = size.px + (size.steps * gap) > view.innerHeight - (2 * Math.max(0, edge)) + 0.5;
+    }
+    if (overflow === root.hasAttribute('data-overflow')) return;
+    root.toggleAttribute('data-overflow', overflow);
+    if (overflow && fromEnd) root.scrollTop = root.scrollHeight;
+  }
+
+  /**
    * Wires the ways a stack opens and closes: pointer over it, focus inside it, a press on it (a
    * tap included) that keeps it open until a press outside it, and Escape.
    * @param {HTMLElement} root
@@ -868,7 +967,10 @@ export class Message extends Component {
    */
   _listenStack(root) {
     this.listen(root, 'pointerenter', (event) => {
-      if (!this._stack || /** @type {PointerEvent} */ (event).pointerType === 'touch') return;
+      // An emptied stack does not open: Chrome enters the root again when the message under the
+      // pointer goes.
+      if (!this._stack || this._shown.length === 0) return;
+      if (/** @type {PointerEvent} */ (event).pointerType === 'touch') return;
       this._hovered = true;
       this._refreshStack();
     });
@@ -878,23 +980,32 @@ export class Message extends Component {
       this._refreshStack();
     });
     this.listen(root, 'pointerdown', (event) => {
-      if (!this._stack || this.isExpanded() || this._shown.length === 0) return;
+      if (!this._stack || this._pinned || this._shown.length === 0) return;
       const target = /** @type {Element|null} */ (event.target);
       // A control acts on its own message: closing the front one needs no opening first.
       if (target?.closest?.('button, a[href], input, select, textarea, [tabindex]')) return;
       this._pinned = true;
+      this._pinnedAt = now();
       this._refreshStack();
     });
     const doc = root.ownerDocument;
     if (doc) {
-      this.listen(doc, 'pointerdown', (event) => {
-        if (!this._pinned || root.contains(/** @type {Node} */ (event.target))) return;
-        this._pinned = false;
-        this._refreshStack();
+      // A press elsewhere unpins the stack once the press has been handled — after the click
+      // handlers, so a button outside that toggles the stack (`isExpanded() ? collapse() :
+      // expand()`) sees it as it was, and a stack the press pinned stays pinned. Captured, so a
+      // handler stopping propagation does not keep the stack open.
+      this.listen(doc, 'click', (event) => {
+        if (!this._stack || root.contains(/** @type {Node} */ (event.target))) return;
+        const pressed = event.timeStamp;
+        setTimeout(() => {
+          if (this._cleaned || !this._pinned || this._pinnedAt >= pressed) return;
+          this._pinned = false;
+          this._refreshStack();
+        }, 0);
       }, { capture: true });
     }
     this.listen(root, 'focusin', (event) => {
-      if (!this._stack) return;
+      if (!this._stack || this._reordering) return;
       if (!this._focusWithin) {
         const from = /** @type {FocusEvent} */ (event).relatedTarget;
         this._stackReturn = isNode(from) && !root.contains(/** @type {Node} */ (from))
@@ -904,7 +1015,7 @@ export class Message extends Component {
       this._refreshStack();
     });
     this.listen(root, 'focusout', (event) => {
-      if (!this._stack) return;
+      if (!this._stack || this._reordering) return;
       const to = /** @type {FocusEvent} */ (event).relatedTarget;
       if (isNode(to) && root.contains(/** @type {Node} */ (to))) return;
       this._focusWithin = false;
@@ -1121,6 +1232,11 @@ export function messageStackLayout(heights, expanded) {
  */
 function stackLength(length, step) {
   return `calc(${round(length.px)}px + ${round(length.steps)} * var(${step}))`;
+}
+
+/** @returns {number} The current time on the clock event time stamps use. */
+function now() {
+  return typeof performance === 'object' && typeof performance.now === 'function' ? performance.now() : Date.now();
 }
 
 /** @param {number} value @returns {number} Value rounded to two decimals, for inline styles. */

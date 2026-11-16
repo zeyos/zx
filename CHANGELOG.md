@@ -54,20 +54,24 @@ from a framework.
 - The Options tables of the documentation, and `docs/api.json`, state per option how it is changed
   after construction where the source says so: the setter, or that it takes a rebuild.
 - The reference lists the stylesheet name `zx-css` needs for every Form field type.
-- **Message stacks.** `stack: true` on an inline area, or `Message.setStack(true)` for floating
-  regions (applied at once, read back with `Message.getStack()`), piles the visible messages into
-  one stack: the newest in front, two more peeking out behind it. It opens while the pointer is
-  over it or focus is inside it, and a press on it (a tap included) keeps it open until a press
-  outside it or Escape; no message times out while it is open. `expanded: true` keeps it open.
-  `expand()`, `collapse()`, `isExpanded()` and `setStack()` drive it, `expand` and `collapse`
-  report it, and the root carries `data-stack` and `data-state`. Bottom placements, and every
-  region on a phone, pile upwards. `messageStackLayout()` is the geometry, exported.
+- **Message stacks.** Floating messages, and an inline area with `stack: true`, pile the visible
+  messages into one stack: the newest in front, two more peeking out behind it. It opens while
+  the pointer is over it or focus is inside it, and a press on it (a tap included) keeps it open
+  until a press outside it or Escape; no message times out while it is open. `expanded: true`
+  keeps it open. `expand()`, `collapse()`, `isExpanded()` and `setStack()` drive it, `expand` and
+  `collapse` report it, and the root carries `data-stack` and `data-state`. Bottom placements, and
+  every region on a phone, pile upwards; an open floating stack taller than the screen scrolls.
+  Closing a message from the keyboard moves focus on to the next one. `messageStackLayout()` is
+  the geometry, exported.
 - **Message `highlight`.** `'border'` (or `true`) draws a message's border in its kind colour;
   `'animated'` sends a light round a faint kind-coloured border, and is the still border under
   reduced motion. Per message, as an inline area's default, and on `Message.progress()`.
 
 ### Changed
 
+- **Floating messages stack by default.** A floating region piles its messages into one stack
+  instead of listing them one below another. `Message.setStack(false)` restores the list, at once
+  and for every region; `Message.getStack()` reads the setting.
 - **A message is a plain card.** The kind-tinted gradient and the kind-coloured border are gone:
   every message has the theme's toast surface and a neutral border, and shows its kind in its
   icon; `highlight` is the way to make one stand out. The opaque fallbacks (no backdrop filter,

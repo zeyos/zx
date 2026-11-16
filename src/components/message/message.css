@@ -294,6 +294,29 @@
   }
 }
 
+/* An open floating stack taller than the viewport is a list that scrolls, so every message in it
+   can be reached; the script sets `data-overflow` and scrolls the newest into view. */
+.zx-message-region[data-stack][data-overflow] {
+  block-size: max-content;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.zx-message-region[data-stack][data-overflow]:popover-open {
+  display: grid;
+  grid-auto-rows: max-content;
+  align-content: start;
+}
+
+.zx-message-region[data-stack][data-overflow][data-state] > .zx-message__toast {
+  position: relative;
+  inset: auto;
+  z-index: auto;
+  translate: none;
+  scale: none;
+  clip-path: none;
+}
+
 /* Collapsed, only the front message shows its content; the ones behind are its edges. */
 .zx-message[data-stack][data-state="collapsed"] > .zx-message__toast:not([data-depth="0"]) > * {
   opacity: 0;
@@ -305,7 +328,8 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .zx-message__toast[data-state="open"] {
+  /* A message moved from one end of its stack to the other (`data-entered`) has entered already. */
+  .zx-message__toast[data-state="open"]:not([data-entered]) {
     animation: zx-message-enter var(--zx-dur-base) var(--zx-ease) backwards;
   }
 

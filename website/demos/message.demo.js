@@ -76,21 +76,21 @@ export default {
     },
     {
       title: 'A floating stack',
-      blurb: 'Message.setStack(true) piles floating messages into one stack: the newest in front, '
-        + 'two more peeking out behind it. The stack opens while the pointer is over it or focus is '
-        + 'inside it — Tab reaches it through its buttons — and a press on it, a tap included, keeps '
-        + 'it open until a press outside it or Escape. While it is open no message in it times out. '
-        + 'It applies at once, to every placement; at the foot the stack piles upwards.',
+      blurb: 'Floating messages pile into one stack: the newest in front, two more peeking out '
+        + 'behind it. The stack opens while the pointer is over it or focus is inside it — Tab '
+        + 'reaches it through its buttons — and a press on it, a tap included, keeps it open until '
+        + 'a press outside it or Escape. While it is open no message in it times out. At the foot '
+        + 'the stack piles upwards. Message.setStack(false) lists the messages one below another '
+        + 'instead, at once and for every placement.',
       render: ({ cleanup, log }) => {
         const handles = new Set();
         const before = Message.getStack();
         let next = 0;
         const stacking = new Toggle(null, {
           label: 'Stack floating messages',
-          checked: true,
+          checked: before,
           onchange: (event) => log(`Message.setStack(${Message.setStack(event.detail.checked)})`)
         });
-        Message.setStack(true);
         cleanup(() => {
           handles.forEach((handle) => handle.close());
           stacking.destroy();
@@ -236,9 +236,9 @@ export default {
     },
     {
       title: 'The queue',
-      blurb: 'The region shows five toasts at a time. A burst of eight queues the rest and '
-        + 'promotes them as the visible ones expire, so a loop of notifications never buries the '
-        + 'screen.',
+      blurb: 'A region holds five messages at a time, three of them in sight while its stack is '
+        + 'collapsed. A burst of eight queues the rest and promotes them as the others expire, so a '
+        + 'loop of notifications never buries the screen.',
       render: ({ cleanup, log }) => {
         const handles = new Set();
         cleanup(() => handles.forEach((handle) => handle.close()));
@@ -249,7 +249,7 @@ export default {
             for (let index = 1; index <= 8; index += 1) {
               handles.add(Message.info(`Queued toast ${index}`, { timeout: 6000 }));
             }
-            log('burst queued: five visible, three waiting');
+            log('burst queued: five in the region, three waiting');
           }
         });
       }

@@ -197,11 +197,12 @@ export const cases = [
       assert.equal((await read(page)).state, 'expanded');
       await page.waitForTimeout(900);
       assert.equal((await read(page)).messages.length, 2, 'a message timed out in an open stack');
+      // A tap outside: the press and the click it ends in.
       await page.evaluate(() => {
         document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerType: 'touch' }));
+        document.body.click();
       });
-      await settle(page);
-      assert.equal((await read(page)).state, 'collapsed');
+      await page.waitForFunction(() => document.querySelector('#host').dataset.state === 'collapsed');
       await page.waitForFunction(() => document.querySelectorAll('#host .zx-message__toast').length === 0);
       // Emptied, the stack starts over closed.
       assert.equal(await page.evaluate(() => window.area.isExpanded()), false);
@@ -249,8 +250,11 @@ export const cases = [
     }
   },
   {
-    name: 'M6 floating regions stack at once, at the top downwards and at the foot upwards',
+    name: 'M6 floating regions stack by default, at the top downwards and at the foot upwards',
     async run({ page }) {
+      assert.equal(await page.evaluate(() => zx.Message.getStack()), true, 'floating messages stack by default');
+      // Listed first, then stacked at once: the switch reaches regions already on screen.
+      assert.equal(await page.evaluate(() => zx.Message.setStack(false)), false);
       await page.evaluate(() => {
         window.handles = [];
         for (const text of ['Top one', 'Top two']) window.handles.push(zx.Message.info(text, { timeout: 0 }));
@@ -294,7 +298,6 @@ export const cases = [
     async run({ page }) {
       await page.setViewportSize({ width: 390, height: 800 });
       await page.evaluate(() => {
-        zx.Message.setStack(true);
         window.handles = ['One', 'Two', 'Three'].map((text) => zx.Message.info(text, { timeout: 0 }));
       });
       await settle(page);
@@ -305,7 +308,134 @@ export const cases = [
       assert.ok(found.root.bottom <= 800 - 16);
       await page.evaluate(() => {
         window.handles.forEach((handle) => handle.close());
-        zx.Message.setStack(false);
+        zx.Message.disposeRegion(document.body);
+      });
+    }
+  },
+  {
+    name: 'M8 a mouse press pins the stack, and a toggle button outside can open and close it',
+    async run({ page }) {
+      await inline(page, { stack: true, timeout: 500 });
+      await show(page, ['First', 'Second']);
+      await page.click('#host .zx-message__content >> nth=0');
+      await page.mouse.move(1000, 800);
+      await settle(page);
+      assert.equal((await read(page)).state, 'expanded', 'the stack folded when the pointer left after a press');
+      await page.waitForTimeout(800);
+      assert.equal((await read(page)).messages.length, 2, 'a message timed out in a pinned stack');
+      await page.evaluate(() => {
+        const toggle = document.querySelector('#before');
+        toggle.onclick = () => (window.area.isExpanded() ? window.area.collapse() : window.area.expand());
+      });
+      await page.click('#before');
+      await page.waitForTimeout(50);
+      assert.equal((await read(page)).state, 'collapsed', 'the toggle did not close the pinned stack');
+      await page.click('#before');
+      await page.waitForTimeout(50);
+      assert.equal((await read(page)).state, 'expanded', 'the toggle did not open the stack');
+      await page.mouse.click(1000, 800);
+      await page.waitForFunction(() => document.querySelector('#host').dataset.state === 'collapsed');
+      assert.deepEqual(await page.evaluate(() => window.events), ['expand', 'collapse', 'expand', 'collapse']);
+      await page.evaluate(() => window.area.destroy());
+    }
+  },
+  {
+    name: 'M9 closing a message from the keyboard moves on through the stack',
+    async run({ page }) {
+      await inline(page, { stack: true, timeout: 0 });
+      await show(page, ['First', 'Second', 'Third']);
+      await page.focus('#before');
+      const focused = () => page.evaluate(() => {
+        const active = document.activeElement;
+        const toast = active.closest('.zx-message__toast');
+        return toast ? `${toast.querySelector('.zx-message__content').textContent}:${active.className}` : active.id;
+      });
+      await page.keyboard.press('Tab');
+      assert.match(await focused(), /^Third:.*zx-message__close/);
+      await page.keyboard.press('Enter');
+      await settle(page);
+      assert.match(await focused(), /^Second:.*zx-message__close/, 'focus left the stack');
+      assert.equal((await read(page)).state, 'expanded');
+      await page.keyboard.press('Enter');
+      await settle(page);
+      assert.match(await focused(), /^First:.*zx-message__close/);
+      await page.keyboard.press('Enter');
+      await page.waitForFunction(() => document.querySelectorAll('#host .zx-message__toast').length === 0);
+      assert.equal(await focused(), 'before', 'the last message did not hand focus back');
+      await page.evaluate(() => window.area.destroy());
+    }
+  },
+  {
+    name: 'M10 a stack that stops stacking reports it closed; an emptied one does not open',
+    async run({ page }) {
+      await inline(page, { stack: true, timeout: 0 });
+      await show(page, ['First', 'Second']);
+      await page.evaluate(() => {
+        window.area.expand();
+        window.area.setStack(false);
+      });
+      assert.deepEqual(await page.evaluate(() => window.events), ['expand', 'collapse']);
+      await page.evaluate(() => {
+        window.area.setStack(true);
+        window.events.length = 0;
+      });
+      // Close every message with the pointer resting on the stack.
+      await page.hover('#host .zx-message__toast >> nth=0');
+      for (let count = 2; count > 0; count -= 1) {
+        await page.click('#host .zx-message__toast >> nth=0 >> .zx-message__close');
+        await page.waitForFunction((count) => document.querySelectorAll('#host .zx-message__toast').length === count - 1, count);
+      }
+      await settle(page);
+      const found = await read(page);
+      assert.equal(found.state, 'collapsed');
+      assert.equal(found.root.height, 0, 'an emptied stack keeps its space');
+      assert.equal(await page.evaluate(() => window.area.isExpanded()), false);
+      assert.equal((await page.evaluate(() => window.events)).at(-1), 'collapse');
+      await page.evaluate(() => window.area.destroy());
+    }
+  },
+  {
+    name: 'M11 crossing the phone breakpoint keeps Tab in visual order; a tall open stack scrolls',
+    async run({ page }) {
+      await page.evaluate(() => {
+        window.handles = ['One', 'Two', 'Three'].map((text) => zx.Message.info(text, { timeout: 0 }));
+      });
+      await settle(page);
+      const order = () => read(page, '.zx-message-region').then((found) => found.messages.map((message) => message.text));
+      assert.deepEqual(await order(), ['Three', 'Two', 'One'], 'at the top the newest comes first');
+      await page.setViewportSize({ width: 390, height: 600 });
+      await page.waitForFunction(() => document.querySelector('.zx-message-region .zx-message__toast')
+        ?.querySelector('.zx-message__content').textContent === 'One');
+      assert.deepEqual(await order(), ['One', 'Two', 'Three'], 'at the foot the newest comes last');
+
+      // Five long messages with actions do not fit a 600px screen open: the stack scrolls.
+      await page.evaluate(() => {
+        window.handles.forEach((handle) => handle.close());
+        const long = 'The connection to the mail server was lost, and the outbox will retry every few '
+          + 'minutes until it is back. Nothing you wrote is lost.';
+        window.handles = [1, 2, 3, 4, 5].map((index) => zx.Message.warning(`${index}. ${long}`, {
+          timeout: 0, action: { label: 'Retry' }
+        }));
+      });
+      await page.waitForFunction(() => document.querySelectorAll('.zx-message-region .zx-message__toast').length === 5);
+      await page.focus('.zx-message-region .zx-message__action');
+      await settle(page);
+      const region = await page.evaluate(() => {
+        const node = document.querySelector('.zx-message-region');
+        const rect = node.getBoundingClientRect();
+        const toasts = Array.from(node.querySelectorAll('.zx-message__toast'), (toast) => toast.getBoundingClientRect());
+        return {
+          overflow: node.hasAttribute('data-overflow'), top: rect.top, bottom: rect.bottom,
+          scrolls: node.scrollHeight > node.clientHeight,
+          newestInView: toasts.at(-1).bottom <= rect.bottom + 1 && toasts.at(-1).top >= rect.top - 1
+        };
+      });
+      assert.equal(region.overflow, true);
+      assert.ok(region.top >= 0 && region.bottom <= 600, 'the open stack runs off the screen');
+      assert.equal(region.scrolls, true);
+      assert.equal(region.newestInView, true, 'the newest message is not in view');
+      await page.evaluate(() => {
+        window.handles.forEach((handle) => handle.close());
         zx.Message.disposeRegion(document.body);
       });
     }

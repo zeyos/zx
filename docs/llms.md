@@ -1865,7 +1865,8 @@ the same `.show()`. The toast region is `role="status"`/`aria-live` (`role="aler
 A floating region sits at the top of the viewport on the inline-end side by default (`top-end`:
 the upper right in a left-to-right page), sizes to its messages rather than the page, and uses the
 translucent glass surface tokens with a solid fallback. A message is a plain card with a neutral
-border; its kind shows in the icon.
+border; its kind shows in the icon. Floating messages pile into a stack that opens on hover, focus,
+or a press (see **Stack**).
 
 - **Statics** — `Message.info/success/warning/error(msg, opts)`,
   `Message.show(msg, { kind, timeout=4000, closable, highlight?, scope?, placement? })` → `{ close() }`,
@@ -1899,13 +1900,19 @@ border; its kind shows in the icon.
   `highlight: 'animated'` draws it faintly with a light travelling round it, and is the still
   kind-coloured border under `prefers-reduced-motion: reduce`. Per message, or as an inline area's
   default; the message carries it as `data-highlight`. `false` (the default) is the plain card.
-- **Stack** — `stack: true` (an inline area) or `Message.setStack(true)` (every floating region,
-  those on screen included; `getStack()` reads it) piles the visible messages into one stack: the
-  newest in front, the next two peeking out behind it a step smaller, the rest out of sight. It
+- **Stack** — floating regions stack by default, and `stack: true` makes an inline area stack:
+  the visible messages pile into one stack, the newest in front, the next two peeking out behind
+  it a step smaller, the rest out of sight. `Message.setStack(false)` lists floating messages one
+  below another instead (at once, those on screen included; `getStack()` reads it). It
   opens — every visible message laid out with its own height — while the pointer is over it or
   focus is inside it; a press on it that is not on a button (a tap included) keeps it open until a
   press outside it, Escape (which returns focus to where it came from), or `collapse()`. While it
-  is open by any of these no message in it times out. `expanded: true` keeps it open without
+  is open by any of these no message in it times out. The outside press is handled after its own
+  click handlers, so a button elsewhere can toggle the stack with
+  `isExpanded() ? collapse() : expand()`. Closing a message from the keyboard moves focus to the
+  same control of the next message, and from the last one back to where it was before it came
+  into the stack. An open floating stack taller than the viewport becomes a scrolling list
+  (`data-overflow`) with the newest message in view. `expanded: true` keeps it open without
   holding the timers. Instance methods: `expand()` (opens and keeps it open), `collapse()`,
   `isExpanded()`, `setStack(enabled)`; events `expand` and `collapse`. The root carries
   `data-stack` and `data-state="collapsed"|"expanded"`; document order follows the visual order,
