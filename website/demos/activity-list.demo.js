@@ -20,6 +20,21 @@ function recentChanges() {
   ];
 }
 
+// A team where people and agents work side by side. An agent's avatar carries `face` — its
+// generated AgentAvatar, seeded by its id — and `activity`, what it is doing now.
+function teamFeed() {
+  return [
+    { id: 't4', day: 'Today', actor: 'Ledger', avatar: { name: 'Ledger', face: { seed: 'agt-ledger', material: 'soft' }, activity: 'needs-you' },
+      title: 'matched 238 of 240 freight invoices', content: 'Two invoices differ from the ledger and wait for your review.',
+      timeLabel: '10:24', metadata: ['Finance', 'Reconciliation'], actions: [{ id: 'review', label: 'Review', icon: 'check' }] },
+    { id: 't3', day: 'Today', actor: 'Ada Lovelace', avatar: { name: 'Ada Lovelace' }, title: 'approved the September close', timeLabel: '10:02', metadata: ['Finance'] },
+    { id: 't2', day: 'Today', actor: 'Scout', avatar: { name: 'Scout', face: { seed: 'agt-scout', material: 'soft' }, activity: 'working' },
+      title: 'is auditing 14 supplier contracts', timeLabel: '09:40', metadata: ['Purchasing'] },
+    { id: 't1', day: 'Yesterday', actor: 'Quill', avatar: { name: 'Quill', face: { seed: 'agt-quill', material: 'soft' }, activity: 'offline' },
+      title: 'published the 4.2 release notes', timeLabel: '17:12', metadata: ['Product'] }
+  ];
+}
+
 export default {
   title: 'Activity list',
   group: 'Data',
@@ -51,6 +66,34 @@ export default {
             button({ label: 'Load older', onclick: () => list.setLoading(true) }),
             button({ label: 'Finish loading', onclick: () => list.setLoading(false) }),
             button({ label: 'Show empty', kind: 'danger', onclick: () => list.setItems([]) }))
+        ];
+      }
+    },
+    {
+      title: 'People and agents in one feed',
+      blurb: 'An agent\'s entry carries face on its avatar: the actor is drawn as its generated '
+        + 'AgentAvatar, and activity puts what it is doing on the face and the dot. People keep '
+        + 'their initials, so the two read apart at a glance.',
+      layout: 'stack',
+      width: '700px',
+      render: ({ cleanup, log }) => {
+        let next = 5;
+        const list = new ActivityList(null, {
+          items: teamFeed(),
+          groupBy: 'day',
+          label: 'Team activity',
+          ondatachange: ({ detail }) => log(`${detail.items.length} activities`)
+        });
+        cleanup(() => list.destroy());
+        return [
+          list.toElement(),
+          h('div', { class: 'demo-row' },
+            button({ label: 'Scout finishes', onclick: () => list.prependItems({
+              id: `t${next++}`, day: 'Today', actor: 'Scout',
+              avatar: { name: 'Scout', face: { seed: 'agt-scout', material: 'soft' }, activity: 'idle' },
+              title: 'finished the supplier audit', content: 'Three contracts renew in October without a price review.',
+              timeLabel: 'Just now', metadata: ['Purchasing']
+            }) }))
         ];
       }
     },
