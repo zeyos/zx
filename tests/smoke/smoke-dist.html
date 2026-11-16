@@ -141,6 +141,7 @@
       function computedStyles(frame) {
         var doc = frame.contentDocument;
         var view = frame.contentWindow;
+        var registered = registrations(frame);
         var elements = [doc.documentElement, doc.body].concat(Array.from(doc.body.querySelectorAll('*')))
           .filter(function (element) { return element.localName !== 'script'; });
         return elements.flatMap(function (element) {
@@ -151,7 +152,7 @@
             for (var index = 0; index < style.length; index += 1) {
               values[style[index]] = style.getPropertyValue(style[index]);
             }
-            return { name: name + pseudo, values: values };
+            return { name: name + pseudo, values: values, registered: registered };
           });
         });
       }
@@ -164,6 +165,38 @@
         return String(value).replace(/\s+/g, '').replace(/--zx-a-[\w-]+/g, '--zx-a');
       }
 
+      /*
+       * An `@property` rule gives its property a computed value on every element of the document
+       * that loads it, used or not: `zx.css` registers the Message's `--zx-message-sweep`, so it shows
+       * on a Select there and not in a subset without the Message. At its initial value (empty when
+       * the rule has none) a registered property sets nothing, so it compares as absent. Any other
+       * value still compares, and so does every unregistered property: a token a subset fails to
+       * carry must still fail. The rules may sit in `@layer`, `@media`, `@supports`, or an import.
+       */
+      function registrations(frame) {
+        var initials = Object.create(null);
+        var PropertyRule = frame.contentWindow.CSSPropertyRule;
+        function collect(rules) {
+          Array.from(rules || []).forEach(function (rule) {
+            if (PropertyRule && rule instanceof PropertyRule) {
+              initials[rule.name] = comparable(rule.initialValue == null ? '' : rule.initialValue);
+            } else if (rule.styleSheet) {
+              collect(rule.styleSheet.cssRules);
+            } else {
+              collect(rule.cssRules);
+            }
+          });
+        }
+        Array.from(frame.contentDocument.styleSheets).forEach(function (sheet) { collect(sheet.cssRules); });
+        return initials;
+      }
+
+      function compared(entry, property) {
+        var value = entry.values[property];
+        if (value !== undefined && entry.registered[property] === comparable(value)) value = undefined;
+        return comparable(value);
+      }
+
       function differences(reference, other) {
         if (reference.length !== other.length) {
           return [reference.length + ' elements against ' + other.length];
@@ -171,8 +204,8 @@
         var found = [];
         reference.forEach(function (entry, index) {
           Object.keys(entry.values).forEach(function (property) {
-            var value = comparable(entry.values[property]);
-            var otherValue = comparable(other[index].values[property]);
+            var value = compared(entry, property);
+            var otherValue = compared(other[index], property);
             if (value !== otherValue) found.push(entry.name + ' ' + property + ': ' + value + ' against ' + otherValue);
           });
         });
