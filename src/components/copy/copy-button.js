@@ -17,6 +17,9 @@ import { icon as createIcon } from '../../core/icons.js';
  * @property {'default'|'primary'|'ghost'} [kind='ghost'] Visual intent.
  * @property {(text: string, copied: boolean) => void} [oncopy] Called with the text and whether
  *   the clipboard accepted it.
+ * @property {AbortSignal} [signal] Ends the button's life: aborting removes its click listener,
+ *   stops a pending confirmation, and makes a copy still waiting on the clipboard report nothing.
+ *   For a button owned by something that is destroyed before the page is.
  */
 
 /** @type {Readonly<CopyButtonOptions>} */
@@ -58,10 +61,15 @@ export function copyButton(opts = {}) {
   if (!iconOnly) element.append(h('span', { class: 'zx-copy-button__label' }, String(options.label)));
   element.append(status);
 
+  const signal = options.signal ?? null;
+  if (signal?.aborted) return element;
   let timer = 0;
+  signal?.addEventListener('abort', () => clearTimeout(timer), { once: true });
   element.addEventListener('click', async () => {
     const text = typeof options.text === 'function' ? String(options.text()) : String(options.text ?? '');
     const copied = await copyToClipboard(text);
+    // The owner went away while the clipboard was answering: nobody is left to tell.
+    if (signal?.aborted) return;
     options.oncopy?.(text, copied);
     if (!copied) return;
 
@@ -75,6 +83,6 @@ export function copyButton(opts = {}) {
       glyph.replaceChildren(createIcon('copy', { size: options.size === 'sm' ? 12 : 14 }));
       status.textContent = '';
     }, Math.max(0, Number(options.feedbackDuration) || 0));
-  });
+  }, signal ? { signal } : undefined);
   return element;
 }

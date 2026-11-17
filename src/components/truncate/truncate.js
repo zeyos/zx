@@ -12,7 +12,8 @@ import { clamp } from '../../core/util.js';
  * @typedef {Object} TruncateController
  * @property {() => boolean} update Re-measures and returns whether the text is currently cut off.
  * @property {() => boolean} isTruncated Whether the text was cut off at the last measurement.
- * @property {() => void} destroy Removes the classes, the observer, and any title this set.
+ * @property {() => void} destroy Removes the classes, the observer, and any title or line count
+ *   this set, putting back the `title`, `data-lines`, and `--zx-truncate-lines` the element had.
  */
 
 /**
@@ -33,15 +34,22 @@ export function truncate(target, options = {}) {
 
   const lines = clamp(Math.trunc(Number(options.lines) || 1), 1, 10);
   const withTitle = options.title !== false;
+  const style = /** @type {HTMLElement} */ (element).style;
   const hadClass = element.classList.contains('zx-truncate');
+  const hadClassAttribute = element.getAttribute('class') !== null;
   const previousTitle = element.getAttribute('title');
+  // What a multi-line clamp overwrites, so `destroy()` hands back settings the element came with.
+  const previousLines = element.getAttribute('data-lines');
+  const hadStyle = element.getAttribute('style') !== null;
+  const previousProperty = style.getPropertyValue('--zx-truncate-lines');
+  const previousPriority = style.getPropertyPriority('--zx-truncate-lines');
   let truncated = false;
   let observer = null;
 
   element.classList.add('zx-truncate');
   if (lines > 1) {
-    element.dataset.lines = String(lines);
-    /** @type {HTMLElement} */ (element).style.setProperty('--zx-truncate-lines', String(lines));
+    element.setAttribute('data-lines', String(lines));
+    style.setProperty('--zx-truncate-lines', String(lines));
   }
 
   const update = () => {
@@ -67,8 +75,16 @@ export function truncate(target, options = {}) {
       observer?.disconnect();
       observer = null;
       if (!hadClass) element.classList.remove('zx-truncate');
-      delete element.dataset.lines;
-      /** @type {HTMLElement} */ (element).style.removeProperty('--zx-truncate-lines');
+      if (!hadClassAttribute && element.getAttribute('class') === '') element.removeAttribute('class');
+      if (lines > 1) {
+        if (previousLines === null) element.removeAttribute('data-lines');
+        else element.setAttribute('data-lines', previousLines);
+        // Through the CSSOM, never the style attribute, which a strict style-src policy blocks.
+        if (previousProperty) style.setProperty('--zx-truncate-lines', previousProperty, previousPriority);
+        else style.removeProperty('--zx-truncate-lines');
+        // Removing the only property leaves `style=""` behind on an element that had no style.
+        if (!hadStyle && element.getAttribute('style') === '') element.removeAttribute('style');
+      }
       if (!withTitle) return;
       if (previousTitle === null) element.removeAttribute('title');
       else element.setAttribute('title', previousTitle);

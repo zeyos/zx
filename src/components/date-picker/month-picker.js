@@ -122,11 +122,13 @@ export class MonthPicker extends DatePicker {
   _renderMonths() {
     if (!this.refs?.grid) return;
     this.refs.year.textContent = String(this._year);
-    const months = [];
+    const rows = [];
     for (let month = 0; month < 12; month += 1) {
       const date = new Date(this._year, month, 1);
       const selected = Boolean(this._value && sameMonth(date, this._value));
-      months.push(h('button', {
+      // Three months to a row, so the grid's cells sit in rows as the grid role requires.
+      if (month % 3 === 0) rows.push(h('div', { class: 'zx-month-picker__row', role: 'row' }));
+      rows[rows.length - 1].append(h('button', {
         class: 'zx-month-picker__month',
         type: 'button',
         role: 'gridcell',
@@ -137,7 +139,11 @@ export class MonthPicker extends DatePicker {
         dataset: { month }
       }, formatDate(date, '%b')));
     }
-    this.refs.grid.replaceChildren(...months);
+    // Redrawing replaces the focused month's button; focus follows to its replacement so the arrow
+    // keys keep working after a selection (and before `change`, so a host can still move it on).
+    const hadFocus = hasFocusWithin(this.refs.grid);
+    this.refs.grid.replaceChildren(...rows);
+    if (hadFocus) this._button(this._focusedMonth)?.focus();
   }
 
   /** @param {number} amount @returns {void} */
@@ -224,6 +230,16 @@ function validDate(value) {
 /** @param {Date|null} date @returns {Date|null} */
 function firstOfMonth(date) {
   return date ? new Date(date.getFullYear(), date.getMonth(), 1) : null;
+}
+
+/**
+ * Whether focus is on `element` or inside it, judged in its own document or shadow root.
+ * @param {Element} element Container to test.
+ * @returns {boolean}
+ */
+function hasFocusWithin(element) {
+  const active = /** @type {Document|ShadowRoot|undefined} */ (element.getRootNode?.())?.activeElement;
+  return Boolean(active) && element.contains(active);
 }
 
 /** @param {Date} a @param {Date} b @returns {boolean} */

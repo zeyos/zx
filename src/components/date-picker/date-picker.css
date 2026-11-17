@@ -154,8 +154,16 @@
   display: none;
 }
 
+/* Four rows of three months. Each row is its own three-column grid, so the cells line up exactly
+   as one 3 × 4 grid would while the row elements stay in the accessibility tree. */
 .zx-date-picker__quick-grid,
 .zx-month-picker__grid {
+  display: grid;
+  gap: var(--zx-space-2);
+}
+
+.zx-date-picker__quick-row,
+.zx-month-picker__row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--zx-space-2);

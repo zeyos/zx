@@ -234,11 +234,12 @@ export class DatePicker extends Component {
       const rowStart = addDays(start, week * 7);
       const row = h('tr');
       if (this.options.showWeekNumbers) {
+        const weekNumber = rowWeekNumber(rowStart);
         row.append(h('th', {
           class: 'zx-date-picker__week',
           scope: 'row',
-          ariaLabel: this._message('datePicker.week', 'Week %1', isoWeekNumber(rowStart))
-        }, String(isoWeekNumber(rowStart))));
+          ariaLabel: this._message('datePicker.week', 'Week %1', weekNumber)
+        }, String(weekNumber)));
       }
       for (let column = 0; column < 7; column += 1) {
         const date = addDays(rowStart, column);
@@ -262,7 +263,11 @@ export class DatePicker extends Component {
       }
       rows.push(row);
     }
+    // Redrawing replaces the focused day's button; focus follows to its replacement so the arrow
+    // keys keep working after a selection (and before `change`, so a host can still move it on).
+    const hadFocus = hasFocusWithin(this.refs.days);
     this.refs.days.replaceChildren(...rows);
+    if (hadFocus) this._buttonForDate(this._focused)?.focus();
     if (this._quickOpen) this._renderQuickPick();
   }
 
@@ -365,15 +370,25 @@ export class DatePicker extends Component {
     this._quickOpen = false;
     this.refs.quickPanel.hidden = true;
     this.refs.heading.setAttribute('aria-expanded', 'false');
+    // Stepping the year in the panel already moved the view and announced it with `monthchange`:
+    // however the panel closes, the calendar shows that month, with the roving day inside it.
+    if (this._focused.getFullYear() !== this._viewYear || this._focused.getMonth() !== this._viewMonth) {
+      this._focused = new Date(this._viewYear, this._viewMonth, Math.min(
+        this._focused.getDate(), new Date(this._viewYear, this._viewMonth + 1, 0).getDate()
+      ));
+    }
+    this._renderCalendar();
   }
 
   /** @returns {void} */
   _renderQuickPick() {
     this.refs.quickYear.textContent = String(this._viewYear);
-    const months = [];
+    const rows = [];
     for (let month = 0; month < 12; month += 1) {
       const date = new Date(this._viewYear, month, 1);
-      months.push(h('button', {
+      // Three months to a row, so the grid's cells sit in rows as the grid role requires.
+      if (month % 3 === 0) rows.push(h('div', { class: 'zx-date-picker__quick-row', role: 'row' }));
+      rows[rows.length - 1].append(h('button', {
         class: 'zx-date-picker__quick-month',
         type: 'button',
         role: 'gridcell',
@@ -382,7 +397,7 @@ export class DatePicker extends Component {
         dataset: { month }
       }, formatDate(date, '%b')));
     }
-    this.refs.quickGrid.replaceChildren(...months);
+    this.refs.quickGrid.replaceChildren(...rows);
   }
 
   /** @param {number} amount @returns {void} */
@@ -438,7 +453,6 @@ export class DatePicker extends Component {
     this._focused = dayOnly(date);
     this._viewMonth = month;
     this._closeQuickPick();
-    this._renderCalendar();
     this._emitMonthChange();
     this.focus();
   }
@@ -489,6 +503,16 @@ function dayOnly(date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
+/**
+ * Whether focus is on `element` or inside it, judged in its own document or shadow root.
+ * @param {Element} element Container to test.
+ * @returns {boolean}
+ */
+function hasFocusWithin(element) {
+  const active = /** @type {Document|ShadowRoot|undefined} */ (element.getRootNode?.())?.activeElement;
+  return Boolean(active) && element.contains(active);
+}
+
 /** @param {Date|null} date @returns {Date|null} */
 function cloneDate(date) {
   return date ? new Date(date.getTime()) : null;
@@ -505,11 +529,26 @@ function normalizeWeekStart(value) {
   return Number.isInteger(number) && number >= 0 && number <= 6 ? number : getWeekStart();
 }
 
-/** @param {Date} date @returns {number} */
-function isoWeekNumber(date) {
+/**
+ * ISO 8601 week number of a local calendar day.
+ * @param {Date} date Any time on the day.
+ * @returns {number}
+ */
+export function isoWeekNumber(date) {
   const utc = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
   const weekday = utc.getUTCDay() || 7;
   utc.setUTCDate(utc.getUTCDate() + 4 - weekday);
   const yearStart = new Date(Date.UTC(utc.getUTCFullYear(), 0, 1));
   return Math.ceil((((utc.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+}
+
+/**
+ * ISO week number for a calendar row of seven days starting on `rowStart`. A row that does not
+ * start on Monday straddles two ISO weeks; its Thursday always falls in the week that holds most of
+ * the row (for a Sunday start, Monday to Saturday), which is the week the row is labelled with.
+ * @param {Date} rowStart First day of the row.
+ * @returns {number}
+ */
+export function rowWeekNumber(rowStart) {
+  return isoWeekNumber(addDays(rowStart, (4 - rowStart.getDay() + 7) % 7));
 }

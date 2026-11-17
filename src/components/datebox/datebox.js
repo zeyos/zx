@@ -1,5 +1,5 @@
 import { Component } from '../../core/component.js';
-import { clampDate, formatDate, parseDate } from '../../core/date.js';
+import { formatDate, parseDate } from '../../core/date.js';
 import { h } from '../../core/dom.js';
 import { ICON_SIZE, icon } from '../../core/icons.js';
 import { position } from '../../core/position.js';
@@ -16,8 +16,10 @@ import { placeholderTokens } from './placeholder.js';
  *   so a date reads as the rest of the screen writes dates. It is never parsed, so it may use any
  *   `formatDate()` token, month and weekday names included. Null shows `format`.
  * @property {boolean} [time=false] Append `%H:%M` and show time controls.
- * @property {Date|null} [min=null] Earliest selectable date.
- * @property {Date|null} [max=null] Latest selectable date.
+ * @property {Date|null} [min=null] Earliest selectable date. Bounds are whole local calendar days,
+ *   as in the calendar: with `time`, any time on the `min` day is allowed.
+ * @property {Date|null} [max=null] Latest selectable date, the whole local calendar day: with
+ *   `time`, any time on the `max` day is allowed.
  * @property {string|null} [placeholder=null] Input placeholder; null derives one from the format.
  * @property {boolean} [clearable=true] Show a clear button while a value is present and the box is
  *   enabled; without it the input keeps no room for one.
@@ -76,13 +78,15 @@ export class Datebox extends Component {
 
     const content = h('div', { class: 'zx-datebox__content' },
       h('div', { ref: 'control', class: 'zx-datebox__control' },
+        // APG date picker combobox: the text field owns the expanded state of the calendar dialog.
         h('input', {
           ref: 'input',
           class: 'zx-datebox__input',
           type: 'text',
+          role: 'combobox',
           autocomplete: 'off',
           placeholder: this.options.placeholder ?? placeholderFromFormat(this._format, (key) => this.msg(key)),
-          'aria-haspopup': 'grid',
+          'aria-haspopup': 'dialog',
           ariaControls: popoverId,
           ariaExpanded: 'false'
         }),
@@ -97,7 +101,7 @@ export class Datebox extends Component {
           class: 'zx-datebox__toggle',
           type: 'button',
           ariaLabel: this.msg('datebox.choose'),
-          'aria-haspopup': 'grid',
+          'aria-haspopup': 'dialog',
           ariaControls: popoverId,
           ariaExpanded: 'false'
         }, icon('calendar'))
@@ -106,6 +110,8 @@ export class Datebox extends Component {
         ref: 'popover',
         id: popoverId,
         class: 'zx-datebox__popover',
+        role: 'dialog',
+        ariaLabel: this.msg('datebox.choose'),
         popover: 'manual',
         dataset: { state: 'closed' }
       })
@@ -298,7 +304,7 @@ export class Datebox extends Component {
     else if (typeof value === 'number' && Number.isFinite(value)) date = new Date(value * 1000);
     else if (typeof value === 'string') date = parseDate(value, this._format);
     if (!date || Number.isNaN(date.getTime())) return null;
-    return clampDate(date, this._min, this._max);
+    return clampDay(date, this._min, this._max);
   }
 
   /**
@@ -374,6 +380,26 @@ export const DateTimeBox = function DateTimeBox(target, options = {}) {
 /** @param {unknown} value @returns {Date|null} */
 function validDate(value) {
   return value instanceof Date && !Number.isNaN(value.getTime()) ? new Date(value.getTime()) : null;
+}
+
+/**
+ * Keeps a date inside the bounds by local calendar day, as the calendar does: a date on a day
+ * outside them moves to the nearest bound's day and keeps its time of day. Mutates `date`.
+ * @param {Date} date Date to clamp.
+ * @param {Date|null} min Earliest allowed day.
+ * @param {Date|null} max Latest allowed day.
+ * @returns {Date}
+ */
+function clampDay(date, min, max) {
+  const day = startOfDay(date);
+  const bound = min && day < startOfDay(min) ? min : max && day > startOfDay(max) ? max : null;
+  if (bound) date.setFullYear(bound.getFullYear(), bound.getMonth(), bound.getDate());
+  return date;
+}
+
+/** @param {Date} date @returns {number} */
+function startOfDay(date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
 }
 
 /**

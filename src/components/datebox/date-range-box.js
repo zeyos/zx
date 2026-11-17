@@ -123,7 +123,7 @@ export class DateRangeBox extends Component {
   };
 
   // State used by render() is initialized inside it, never as class fields: render() runs from the
-  // base constructor, before field initializers would reset it (see AGENTS.md).
+  // base constructor, before field initializers would reset it.
 
   /** @returns {HTMLElement} */
   render() {
@@ -145,13 +145,15 @@ export class DateRangeBox extends Component {
 
     const content = h('div', { class: 'zx-date-range-box__content' },
       h('div', { ref: 'control', class: 'zx-date-range-box__control' },
+        // APG date picker combobox: the text field owns the expanded state of the calendar dialog.
         h('input', {
           ref: 'input',
           class: 'zx-date-range-box__input',
           type: 'text',
+          role: 'combobox',
           autocomplete: 'off',
           placeholder: this.options.placeholder ?? this._placeholder(),
-          'aria-haspopup': 'grid',
+          'aria-haspopup': 'dialog',
           ariaControls: popoverId,
           ariaExpanded: 'false'
         }),
@@ -166,7 +168,7 @@ export class DateRangeBox extends Component {
           class: 'zx-date-range-box__toggle',
           type: 'button',
           ariaLabel: text('daterange.choose', 'Choose date range'),
-          'aria-haspopup': 'grid',
+          'aria-haspopup': 'dialog',
           ariaControls: popoverId,
           ariaExpanded: 'false'
         }, icon('calendar'))
@@ -175,6 +177,8 @@ export class DateRangeBox extends Component {
         ref: 'popover',
         id: popoverId,
         class: 'zx-date-range-box__popover',
+        role: 'dialog',
+        ariaLabel: text('daterange.choose', 'Choose date range'),
         popover: 'manual',
         dataset: { state: 'closed' }
       })

@@ -20,7 +20,6 @@ export function normalizeText(value) {
  * @returns {boolean} Whether every query term occurs in the combined fields.
  */
 export function matchesText(values, query) {
-  // TODO(unify): share this tiny matcher with WP4's select filter once both branches merge.
   const terms = normalizeText(query).trim().split(/\s+/).filter(Boolean);
   if (terms.length === 0) return true;
   const corpus = normalizeText(values.flat(Infinity).join(' '));

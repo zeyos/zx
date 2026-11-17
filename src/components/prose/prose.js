@@ -126,7 +126,13 @@ export function proseAnchors(root, options = {}) {
     settings.oncopy?.(url, copied);
     if (!copied) return;
     clearTimeout(timer);
-    for (const other of anchors.keys()) delete other.dataset.copied;
+    // One confirmation at a time: a link still showing its tick from an earlier copy, whose timer
+    // was just cleared, gets its own glyph back now.
+    for (const other of anchors.keys()) {
+      if (other === anchor || other.dataset.copied !== 'true') continue;
+      delete other.dataset.copied;
+      other.replaceChildren(icon('link-2'));
+    }
     anchor.dataset.copied = 'true';
     anchor.replaceChildren(icon('check'));
     if (!status.isConnected) target.append(status);

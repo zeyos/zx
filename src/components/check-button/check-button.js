@@ -1,5 +1,5 @@
 import { Component } from '../../core/component.js';
-import { h } from '../../core/dom.js';
+import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
 import { ICON_SIZE, icon } from '../../core/icons.js';
 
 /**
@@ -37,7 +37,7 @@ export class CheckButton extends Component {
     }
 
     this._createdRoot = created;
-    this._original = created ? null : snapshot(root);
+    this._original = created ? null : snapshotTarget(root);
     this._checked = Boolean(this.options.checked);
     this._disabled = Boolean(this.options.disabled);
     this._labels = normalizeLabels(this.options.label);
@@ -126,7 +126,7 @@ export class CheckButton extends Component {
     if (this._cleaned) return;
     this._cleaned = true;
     super.destroy();
-    if (!this._createdRoot && this._original) restore(this.el, this._original);
+    if (!this._createdRoot && this._original) restoreTarget(this.el, this._original);
   }
 
   /** @returns {void} */
@@ -149,19 +149,4 @@ function normalizeLabels(label) {
     return { on: String(label[0] ?? ''), off: String(label[1] ?? '') };
   }
   return { on: String(label ?? ''), off: String(label ?? '') };
-}
-
-/** @param {Element} element @returns {{attributes: [string, string][], children: Node[]}} */
-function snapshot(element) {
-  return {
-    attributes: Array.from(element.attributes, (attribute) => [attribute.name, attribute.value]),
-    children: Array.from(element.childNodes)
-  };
-}
-
-/** @param {Element} element @param {{attributes: [string, string][], children: Node[]}} state */
-function restore(element, state) {
-  for (const attribute of Array.from(element.attributes)) element.removeAttribute(attribute.name);
-  for (const [name, value] of state.attributes) element.setAttribute(name, value);
-  element.replaceChildren(...state.children);
 }

@@ -60,11 +60,15 @@ export class CopyInput extends Component {
       value: String(this.options.value ?? '')
     }));
     const { buttonTitle = this.msg('copy.copy'), feedback = this.msg('copy.copied') } = this.options;
+    // The button's listener, its confirmation timer, and a copy still awaiting the clipboard all
+    // end with this component: `destroy()` aborts it.
+    this._buttonLife = new AbortController();
     const button = copyButton({
       text: () => this.get(),
       title: buttonTitle,
       feedback,
       size: this.options.size === 'sm' ? 'sm' : 'md',
+      signal: this._buttonLife.signal,
       oncopy: (value, copied) => this.emit('copy', { value, copied })
     });
 
@@ -115,6 +119,7 @@ export class CopyInput extends Component {
   /** Restores an enhanced target to the markup it had before the takeover. @returns {void} */
   destroy() {
     const root = this.el;
+    this._buttonLife?.abort();
     super.destroy();
     if (!this._createdRoot && root) restoreTarget(root, this._snapshot);
   }

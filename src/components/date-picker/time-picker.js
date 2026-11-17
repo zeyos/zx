@@ -156,7 +156,13 @@ export class TimePicker extends Component {
     this.listen(input, 'focus', () => input.select());
     this.listen(input, 'keydown', (event) => this._onKeydown(event, segment, max));
     this.listen(input, 'input', () => this._onInput(input, segment, max));
-    this.listen(input, 'blur', () => this._commitFromInputs());
+    // Leaving a field the reader did not edit commits nothing: tabbing through an empty picker
+    // must not choose 00:00, nor round away the seconds of a value whose seconds are not shown.
+    this.listen(input, 'blur', () => {
+      if (this._inputs.some((field) => field.value !== pad(this._display[field.dataset.segment]))) {
+        this._commitFromInputs();
+      }
+    });
   }
 
   /** @param {KeyboardEvent} event @param {'h'|'m'|'s'} segment @param {number} max @returns {void} */
@@ -184,7 +190,8 @@ export class TimePicker extends Component {
 
   /** @returns {void} */
   _commitFromInputs() {
-    const next = { h: 0, m: 0, s: 0 };
+    // Start from what is shown, so a segment that is not rendered (seconds) keeps its value.
+    const next = { ...this._display };
     for (const input of this._inputs) {
       const segment = input.dataset.segment;
       const max = segment === 'h' ? 23 : 59;
@@ -249,16 +256,18 @@ export class TimePicker extends Component {
   }
 
   /**
-   * Applies a mark's value to the active unit, then moves on to the minutes so a whole time can
-   * be set with two clicks.
+   * Applies a mark's value to the active unit. An explicit pick (click, Enter, Space) of an hour
+   * then moves on to the minutes so a whole time can be set with two clicks; arrowing through the
+   * radio group passes `advance: false` and stays on the dial it is in.
    * @param {number} value Hour or minute the mark stands for.
+   * @param {{advance?: boolean}} [options={}] Whether an hour pick opens the minute dial.
    * @returns {void}
    */
-  _pick(value) {
+  _pick(value, { advance = true } = {}) {
     const next = { ...this._display, [this._clockUnit]: value };
-    const advance = this._clockUnit === 'h';
+    const toMinutes = advance && this._clockUnit === 'h';
     this.set(next);
-    if (advance) this.openClock('m');
+    if (toMinutes) this.openClock('m');
   }
 
   /** @param {KeyboardEvent} event @returns {void} */
@@ -275,8 +284,8 @@ export class TimePicker extends Component {
     else if (event.key === 'End') next = marks.length - 1;
     if (next === null) return;
     event.preventDefault();
-    // Selection follows focus, the APG behaviour for a radio group.
-    this._pick(Number(marks[next].dataset.value));
+    // Selection follows focus, the APG behaviour for a radio group — within this group only.
+    this._pick(Number(marks[next].dataset.value), { advance: false });
     this.refs.dial.querySelector(`[data-value="${marks[next].dataset.value}"]`)?.focus();
   }
 
@@ -296,14 +305,15 @@ export class TimePicker extends Component {
 
     const selected = hours ? this._display.h : this._display.m;
     const marks = hours ? hourMarks() : minuteMarks();
+    const stop = tabStop(marks, selected, hours ? 24 : 60);
     const rendered = this.refs.dial.querySelectorAll('.zx-time-picker__mark');
     // Rebuild only when the dial switches unit; otherwise just restate which mark is checked.
     if (rendered.length !== marks.length || this.refs.dial.dataset.unit !== this._clockUnit) {
       for (const mark of rendered) mark.remove();
       this.refs.dial.dataset.unit = this._clockUnit;
-      this.refs.dial.append(...marks.map((mark) => this._buildMark(mark, selected)));
+      this.refs.dial.append(...marks.map((mark) => this._buildMark(mark, selected, stop)));
     } else {
-      marks.forEach((mark, index) => this._syncMark(rendered[index], mark, selected));
+      marks.forEach((mark, index) => this._syncMark(rendered[index], mark, selected, stop));
     }
 
     const ring = hours && !isOuterHour(selected) ? 'inner' : 'outer';
@@ -312,8 +322,8 @@ export class TimePicker extends Component {
     this.refs.hand.style.setProperty('--zx-clock-angle', `${angle}deg`);
   }
 
-  /** @param {ClockMark} mark @param {number} selected @returns {HTMLElement} */
-  _buildMark(mark, selected) {
+  /** @param {ClockMark} mark @param {number} selected @param {number} stop @returns {HTMLElement} */
+  _buildMark(mark, selected, stop) {
     const element = h('button', {
       class: 'zx-time-picker__mark',
       type: 'button',
@@ -321,15 +331,18 @@ export class TimePicker extends Component {
       dataset: { value: String(mark.value), ring: mark.ring }
     }, mark.label);
     element.style.setProperty('--zx-clock-angle', `${mark.angle}deg`);
-    this._syncMark(element, mark, selected);
+    this._syncMark(element, mark, selected, stop);
     return element;
   }
 
-  /** @param {HTMLElement} element @param {ClockMark} mark @param {number} selected @returns {void} */
-  _syncMark(element, mark, selected) {
-    const checked = mark.value === selected;
-    element.setAttribute('aria-checked', String(checked));
-    element.tabIndex = checked ? 0 : -1;
+  /**
+   * @param {HTMLElement} element @param {ClockMark} mark @param {number} selected
+   * @param {number} stop Value of the one mark in the Tab order.
+   * @returns {void}
+   */
+  _syncMark(element, mark, selected, stop) {
+    element.setAttribute('aria-checked', String(mark.value === selected));
+    element.tabIndex = mark.value === stop ? 0 : -1;
   }
 
   /**
@@ -374,6 +387,28 @@ function minuteMarks() {
     marks.push({ value, label: pad(value), angle: value * 6, ring: 'outer' });
   }
   return marks;
+}
+
+/**
+ * The mark that takes the dial's Tab stop: the checked one, or — when the value falls between
+ * marks, as 12:07 does on a five-minute dial — the nearest, so the group is always reachable.
+ * @param {ClockMark[]} marks Marks on the dial.
+ * @param {number} selected Current hour or minute.
+ * @param {number} cycle Values around the dial (24 or 60).
+ * @returns {number}
+ */
+export function tabStop(marks, selected, cycle) {
+  let best = marks[0]?.value ?? 0;
+  let distance = Infinity;
+  for (const { value } of marks) {
+    const gap = Math.abs(value - selected);
+    const around = Math.min(gap, cycle - gap);
+    if (around < distance) {
+      best = value;
+      distance = around;
+    }
+  }
+  return best;
 }
 
 /** @param {number} hour @returns {boolean} */

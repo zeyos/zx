@@ -152,7 +152,7 @@ export class DateRangePicker extends Component {
   };
 
   // Every field below is initialized here rather than as a class field: render() runs inside the
-  // base constructor, before class-field initializers would overwrite it (see AGENTS.md).
+  // base constructor, before class-field initializers would overwrite it.
 
   /** @returns {HTMLElement} */
   render() {

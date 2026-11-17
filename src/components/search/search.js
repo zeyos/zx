@@ -1,5 +1,5 @@
 import { Component } from '../../core/component.js';
-import { h } from '../../core/dom.js';
+import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
 import { ICON_SIZE, icon } from '../../core/icons.js';
 
 /**
@@ -36,7 +36,7 @@ export class Search extends Component {
     const created = !this.el;
     const root = /** @type {HTMLElement} */ (this.el ?? h('form'));
     this._createdRoot = created;
-    this._original = created ? null : snapshot(root);
+    this._original = created ? null : snapshotTarget(root);
     this._inputTimer = null;
     root.setAttribute('role', 'search');
     const clearLabel = this._message('search.clear', 'Clear search');
@@ -139,7 +139,7 @@ export class Search extends Component {
     this._cleaned = true;
     if (this._inputTimer !== null) clearTimeout(this._inputTimer);
     super.destroy();
-    if (!this._createdRoot && this._original) restore(this.el, this._original);
+    if (!this._createdRoot && this._original) restoreTarget(this.el, this._original);
   }
 
   /** @returns {void} */
@@ -188,18 +188,3 @@ export class Search extends Component {
  * @event Search#clear
  * @type {CustomEvent<Record<string, never>>}
  */
-
-/** @param {Element} element @returns {{attributes: [string, string][], children: Node[]}} */
-function snapshot(element) {
-  return {
-    attributes: Array.from(element.attributes, (attribute) => [attribute.name, attribute.value]),
-    children: Array.from(element.childNodes)
-  };
-}
-
-/** @param {Element} element @param {{attributes: [string, string][], children: Node[]}} state */
-function restore(element, state) {
-  for (const attribute of Array.from(element.attributes)) element.removeAttribute(attribute.name);
-  for (const [name, value] of state.attributes) element.setAttribute(name, value);
-  element.replaceChildren(...state.children);
-}
