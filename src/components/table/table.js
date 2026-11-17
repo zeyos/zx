@@ -5,12 +5,13 @@ import { formatCurrency, formatNumber, formatPercent } from '../../core/format.j
 import { ICON_SIZE, icon } from '../../core/icons.js';
 import { printf } from '../../core/i18n.js';
 import { uid } from '../../core/util.js';
+import { sameArray, sameSet } from '../../internal/collections.js';
 import { Datebox } from '../datebox/datebox.js';
 import { NumberField } from '../number-field/number-field.js';
 import { Select } from '../select/select.js';
 import { Toggle } from '../toggle/toggle.js';
 import { sortRows } from './sort.js';
-import { RowWindow, cancelFrame, nextFrame } from './window.js';
+import { RowWindow, cancelFrame, nextFrame, pageStepRows } from './window.js';
 
 /** @typedef {Record<string, any>} TableRow */
 /** @typedef {'asc'|'desc'} TableSortDirection */
@@ -1392,11 +1393,8 @@ export class Table extends Component {
     }
     const label = this._message('table.more', 'Show %1 more', [remaining]);
     if (!this._more) {
-      this._more = h('button', {
-        class: 'zx-table__more',
-        type: 'button',
-        onclick: () => this.growBy()
-      });
+      this._more = h('button', { class: 'zx-table__more', type: 'button' });
+      this.listen(this._more, 'click', () => this.growBy());
       this.el.append(this._more);
     }
     this._more.textContent = label;
@@ -3415,10 +3413,7 @@ export function tableGridTarget(position, key, grid) {
  * @returns {number} At least 1.
  */
 export function tablePageSize(viewport, rowHeight, fallback = 10) {
-  const visible = Number(viewport);
-  const height = Number(rowHeight);
-  if (!(visible > 0) || !(height > 0)) return Math.max(1, Math.trunc(fallback) || 10);
-  return Math.max(1, Math.floor(visible / height) - 1);
+  return pageStepRows(viewport, rowHeight, fallback);
 }
 
 /**
@@ -4353,16 +4348,6 @@ function parseFraction(width) {
 /** @param {unknown} rows @returns {asserts rows is TableRow[]} */
 function assertRows(rows) {
   if (!Array.isArray(rows)) throw new TypeError('Table data must be an array');
-}
-
-/** @param {Set<unknown>} left @param {Set<unknown>} right @returns {boolean} */
-function sameSet(left, right) {
-  return left.size === right.size && [...left].every((value) => right.has(value));
-}
-
-/** @param {unknown[]} left @param {unknown[]} right @returns {boolean} */
-function sameArray(left, right) {
-  return left.length === right.length && left.every((value, index) => Object.is(value, right[index]));
 }
 
 /**

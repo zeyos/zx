@@ -1,7 +1,7 @@
 // @ts-check
 import { h, safeHref } from '../../core/dom.js';
 import { icon } from '../../core/icons.js';
-import { agentFaceTraits } from '../../internal/agent-model.js';
+import { agentAvatarOptions, authorFace } from '../../internal/agent-model.js';
 import { AgentAvatar } from '../agent-avatar/agent-avatar.js';
 import { AVATAR_TONES, avatarInitials, avatarTone } from '../avatar/avatar.js';
 import { badge } from '../badge/badge.js';
@@ -161,7 +161,7 @@ export function resolveKanbanAssignees(value) {
     const initials = source.initials == null ? avatarInitials(name) : String(source.initials);
     const tone = AVATAR_TONES.includes(source.tone) ? source.tone : avatarTone(name);
     // Records come from the server: a face contributes its trait strings and nothing else.
-    const face = source.face == null ? null : agentFaceTraits(source.face);
+    const face = source.face == null ? null : authorFace({ face: source.face });
     return { name, src, initials, tone, face };
   }).filter(Boolean));
 }
@@ -204,7 +204,7 @@ export function createKanbanAvatars(people, max, groupLabel, overflowLabel) {
     class: 'zx-kanban-view__avatar', ariaHidden: 'true', title: person.name || undefined,
     dataset: { agent: '' }
   // A face at rest holds no listener and no loop entry, so it goes with the card that holds it.
-  }, new AgentAvatar(null, { ...person.face, name: person.name, size: 'sm', label: null, animate: false }).toElement())
+  }, new AgentAvatar(null, agentAvatarOptions(person.face, { name: person.name, size: 'sm', label: null, activity: null, animate: false })).toElement())
   : h('span', {
     class: 'zx-kanban-view__avatar', ariaHidden: 'true', title: person.name || undefined,
     dataset: { tone: person.tone ?? avatarTone(person.name) }

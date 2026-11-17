@@ -205,3 +205,64 @@ test('a large whole number in the chart summary keeps every digit', () => {
   const model = chartSummaryModel({ labels: ['a'], datasets: [{ data: [1234567890123456] }] });
   assert.deepEqual(model.rows[0].values, ['1,234,567,890,123,456']);
 });
+
+test('ChartJsAdapter gives every drawn scale the theme colours the options leave unset', () => {
+  class FakeChart {
+    constructor(_canvas, config) { this.data = config.data; this.options = config.options; }
+    update() {}
+    destroy() {}
+  }
+  const theme = { color: '#eeeeee', borderColor: '#333333', background: '#101010', palette: [] };
+  const data = { labels: ['A', 'B'], datasets: [{ data: [1, 2] }] };
+  const create = (spec) => new ChartJsAdapter(FakeChart).create({}, { data, options: {}, theme, onSelect() {}, ...spec });
+
+  // Chart.js reads axis colours from its global defaults, never from the chart's own `color`.
+  const bar = create({ type: 'bar' }).instance.options;
+  for (const id of ['x', 'y']) {
+    assert.equal(bar.scales[id].ticks.color, '#eeeeee', `${id} ticks`);
+    assert.equal(bar.scales[id].title.color, '#eeeeee', `${id} title`);
+    assert.equal(bar.scales[id].grid.color, '#333333', `${id} grid`);
+    assert.equal(bar.scales[id].border.color, '#333333', `${id} border`);
+  }
+
+  // What the application set stays; only the gaps are filled, and its options are not written to.
+  const options = { scales: { y: { ticks: { color: 'red', stepSize: 1 }, grid: { display: false } } } };
+  const custom = create({ type: 'bar', options }).instance.options;
+  assert.equal(custom.scales.y.ticks.color, 'red');
+  assert.equal(custom.scales.y.ticks.stepSize, 1);
+  assert.equal(custom.scales.y.grid.display, false);
+  assert.equal(custom.scales.y.grid.color, '#333333');
+  assert.equal(custom.scales.x.ticks.color, '#eeeeee');
+  assert.deepEqual(options, { scales: { y: { ticks: { color: 'red', stepSize: 1 }, grid: { display: false } } } });
+
+  // A dataset on an axis of its own colours that axis, and no stray default axis appears.
+  const twoAxes = create({
+    type: 'line',
+    data: { labels: ['A'], datasets: [{ data: [1], yAxisID: 'left' }, { data: [2], yAxisID: 'right' }] },
+    options: { scales: { left: { position: 'left' }, right: { position: 'right' } } }
+  }).instance.options;
+  assert.deepEqual(Object.keys(twoAxes.scales).sort(), ['left', 'right', 'x']);
+  assert.equal(twoAxes.scales.right.ticks.color, '#eeeeee');
+  assert.equal(twoAxes.scales.right.position, 'right');
+
+  // The radial scale of a radar or polar-area chart: labels, spokes, rings, and a dark tick backdrop.
+  for (const type of ['radar', 'polarArea']) {
+    const radial = create({ type }).instance.options.scales;
+    assert.deepEqual(Object.keys(radial), ['r'], type);
+    assert.equal(radial.r.ticks.color, '#eeeeee');
+    assert.equal(radial.r.pointLabels.color, '#eeeeee');
+    assert.equal(radial.r.grid.color, '#333333');
+    assert.equal(radial.r.angleLines.color, '#333333');
+    assert.equal(radial.r.ticks.backdropColor, 'rgba(16, 16, 16, 0.75)');
+  }
+
+  // A pie has no scales, and naming one would make Chart.js draw axes over it.
+  assert.equal(create({ type: 'pie' }).instance.options.scales, undefined);
+  // Without theme colours (no Zx stylesheet) nothing is added.
+  assert.equal(create({ type: 'bar', theme: { palette: [] } }).instance.options.scales, undefined);
+
+  // An update carries the new theme to the scales.
+  const handle = create({ type: 'bar' });
+  handle.update({ type: 'bar', data, options: {}, theme: { ...theme, color: '#111111' }, onSelect() {} });
+  assert.equal(handle.instance.options.scales.x.ticks.color, '#111111');
+});

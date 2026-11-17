@@ -16,7 +16,9 @@ import {
  * @property {string|((node: TreeNode) => unknown)} [valueKey='ID'] Node ID property or reader.
  * @property {string|((node: TreeNode) => string)} [labelKey='name'] Node label property or reader.
  * @property {string} [childrenKey='children'] Property holding child nodes.
- * @property {unknown[]} [expanded=[]] Initially expanded node IDs.
+ * @property {unknown[]} [expanded=[]] Initially expanded node IDs. A lazy branch among them
+ *   (`hasChildren` with no children loaded yet) shows collapsed until it is expanded on its own —
+ *   clicked, →, or `expand()` — which loads it.
  * @property {false|'single'|'multi'} [selection='single'] Selection mode.
  * @property {unknown[]} [selected=[]] Initially selected node IDs.
  * @property {boolean} [checkboxes=false] Whether to render tri-state checkboxes.
@@ -97,6 +99,8 @@ export class TreeView extends Component {
     this._checked = new Set();
     /** @type {Map<unknown, Promise<boolean>>} In-flight lazy loads, keyed by node ID. */
     this._loading = new Map();
+    /** @type {Set<unknown>} Lazy branches whose children are not loaded yet, as of the last render. */
+    this._unloaded = new Set();
     this._loadGeneration = 0;
     this._destroyed = false;
     this._expanding = new Map();
@@ -217,16 +221,22 @@ export class TreeView extends Component {
   }
 
   /**
-   * Filters the tree by a label substring, keeping the ancestors of every match.
+   * Filters the tree by a label substring, keeping the ancestors of every match. Only loaded
+   * children are searched, and every surviving branch opens except a lazy one not loaded yet.
    * @param {string} query Search text; an empty string restores the full tree.
    * @returns {this}
    */
   setFilter(query) {
     this._filter = String(query ?? '');
     if (this._filter !== '') {
-      // A filtered tree is only useful expanded, so every surviving branch opens.
+      // A filtered tree is only useful expanded, so every surviving branch opens; one that would
+      // have to be fetched first stays closed rather than claim children it does not show.
+      const unloaded = this._unloadedIds();
       for (const node of this._visibleItems()) {
-        walk([node], this._readers, (child) => this._expanded.add(this._readers.value(child)));
+        walk([node], this._readers, (child) => {
+          const id = this._readers.value(child);
+          if (!unloaded.has(id)) this._expanded.add(id);
+        });
       }
     }
     this._renderRows();
@@ -278,22 +288,24 @@ export class TreeView extends Component {
   }
 
   /**
-   * Expands or collapses one branch.
+   * Expands or collapses one branch. A lazy branch not loaded yet counts as collapsed, so this
+   * loads and expands it.
    * @param {unknown} id Node ID.
    * @returns {Promise<this>}
    */
   async toggle(id) {
-    if (this._expanded.has(id)) return this.collapse(id);
+    if (this._isOpen(id, this.getNode(id))) return this.collapse(id);
     return this.expand(id);
   }
 
   /**
-   * Expands every already-loaded branch.
+   * Expands every already-loaded branch. A lazy branch whose children have not been loaded stays
+   * collapsed; `expand(id)` loads it.
    * @returns {this}
    */
   expandAll() {
     walk(this._items, this._readers, (node) => {
-      if (isBranch(node, this._readers)) this._expanded.add(this._readers.value(node));
+      if (isBranch(node, this._readers) && !this._needsLoad(node)) this._expanded.add(this._readers.value(node));
     });
     this._renderRows();
     return this;
@@ -455,6 +467,7 @@ export class TreeView extends Component {
   _renderRows() {
     const items = this._visibleItems();
     this._rows = flattenVisible(items, this._readers, this._expanded);
+    this._unloaded = this._unloadedIds();
     for (const strip of this._strips.splice(0)) strip?.destroy();
 
     if (this._rows.length === 0) {
@@ -473,7 +486,7 @@ export class TreeView extends Component {
    */
   _renderRow(row, index) {
     const branch = isBranch(row.node, this._readers);
-    const expanded = branch && this._expanded.has(row.id);
+    const expanded = branch && this._shownOpen(row.id);
     const element = h('div', {
       class: 'zx-tree__row',
       role: 'treeitem',
@@ -546,7 +559,7 @@ export class TreeView extends Component {
       const row = this._rows[index];
       if (!row) return;
       const branch = isBranch(row.node, this._readers);
-      const expanded = branch && this._expanded.has(row.id);
+      const expanded = branch && this._shownOpen(row.id);
       if (branch) element.setAttribute('aria-expanded', String(expanded));
       else element.removeAttribute('aria-expanded');
       if (this.options.selection !== false) {
@@ -643,7 +656,7 @@ export class TreeView extends Component {
     if (index < 0 || this._rows.length === 0) return;
     const row = this._rows[index];
     const branch = isBranch(row.node, this._readers);
-    const expanded = branch && this._expanded.has(row.id);
+    const expanded = branch && this._shownOpen(row.id);
 
     switch (event.key) {
       case 'ArrowDown':
@@ -663,7 +676,8 @@ export class TreeView extends Component {
             this._focusNodeId(row.id);
           }
         });
-        else if (expanded) this._focusRow(Math.min(this._rows.length - 1, index + 1));
+        // Into the first child — never onto the next sibling of a branch that shows no children.
+        else if (expanded && this._rows[index + 1]?.parent === row.node) this._focusRow(index + 1);
         return;
       }
       case 'ArrowLeft': {
@@ -713,21 +727,80 @@ export class TreeView extends Component {
   }
 
   /**
-   * Expands every sibling branch of a row, the APG `*` shortcut.
+   * Expands every sibling branch of a row, the APG `*` shortcut. A lazy sibling is loaded first,
+   * exactly as → on it would; each one opens as its children arrive, and focus stays put.
    * @param {{parent: TreeNode|null}} row Focused row.
    * @returns {void}
    */
   _expandSiblings(row) {
     const siblings = row.parent ? this._readers.children(row.parent) ?? [] : this._visibleItems();
     const focused = this._focusId;
+    const lazy = [];
     for (const node of siblings) {
-      if (isBranch(node, this._readers)) this._expanded.add(this._readers.value(node));
+      if (!isBranch(node, this._readers)) continue;
+      const id = this._readers.value(node);
+      if (this._unloaded.has(id)) lazy.push(id);
+      else this._expanded.add(id);
     }
     this._renderRows();
     this._focusNodeId(focused);
+    const generation = this._loadGeneration;
+    for (const id of lazy) {
+      void this.expand(id).then(() => {
+        if (!this._destroyed && generation === this._loadGeneration && Object.is(this._focusId, focused)) {
+          this._focusNodeId(focused);
+        }
+      });
+    }
   }
 
   /* ------------------------------------------------------------------ internals -- */
+
+  /**
+   * Whether expanding a branch has to call the loader first: a loader is configured and the
+   * branch has no children yet. The same test `expand()` applies.
+   * @param {TreeNode|null} node Node in the working tree.
+   * @returns {boolean}
+   */
+  _needsLoad(node) {
+    if (!this.options.load || !node) return false;
+    const children = this._readers.children(node);
+    return !children || children.length === 0;
+  }
+
+  /**
+   * Whether a branch is open now: expanded, and not a lazy branch still waiting for its children —
+   * an ID can sit in the expanded set before its children were ever fetched.
+   * @param {unknown} id Node ID.
+   * @param {TreeNode|null} node The node in the working tree.
+   * @returns {boolean}
+   */
+  _isOpen(id, node) {
+    return this._expanded.has(id) && !(node && isBranch(node, this._readers) && this._needsLoad(node));
+  }
+
+  /**
+   * The lazy branches whose children have not been loaded, read off the working tree — a filtered
+   * copy's pruned children say nothing about whether a branch was ever loaded.
+   * @returns {Set<unknown>} Their IDs; empty without a loader.
+   */
+  _unloadedIds() {
+    const ids = new Set();
+    if (!this.options.load) return ids;
+    walk(this._items, this._readers, (node) => {
+      if (isBranch(node, this._readers) && this._needsLoad(node)) ids.add(this._readers.value(node));
+    });
+    return ids;
+  }
+
+  /**
+   * {@link _isOpen} for a rendered row, from what the last render found unloaded.
+   * @param {unknown} id Node ID.
+   * @returns {boolean}
+   */
+  _shownOpen(id) {
+    return this._expanded.has(id) && !this._unloaded.has(id);
+  }
 
   /**
    * Loads a branch's children through the configured loader, once.

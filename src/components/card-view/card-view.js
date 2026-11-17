@@ -2,6 +2,7 @@
 import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
 import { ICON_SIZE, icon } from '../../core/icons.js';
 import { uid } from '../../core/util.js';
+import { pageStepRows } from '../table/window.js';
 import { normalizeViewFieldControls, RecordView, readViewField } from '../view/record-view.js';
 import {
   createRecordCard, resolveRecordActions
@@ -914,10 +915,7 @@ export function cardGridTarget(rects, index, key, options = {}) {
  * @returns {number} At least 1.
  */
 export function cardPageSize(viewport, rowHeight, fallback = 10) {
-  const visible = Number(viewport);
-  const height = Number(rowHeight);
-  if (!(visible > 0) || !(height > 0)) return Math.max(1, Math.trunc(fallback) || 10);
-  return Math.max(1, Math.floor(visible / height) - 1);
+  return pageStepRows(viewport, rowHeight, fallback);
 }
 
 /** @param {Element} element @returns {number} Visible height of its nearest vertical scroll container. */

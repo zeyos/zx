@@ -1,5 +1,5 @@
 import { Component } from '../../core/component.js';
-import { h } from '../../core/dom.js';
+import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
 import { formatNumber } from '../../core/format.js';
 import { translate } from '../../core/i18n.js';
 import { prefersReducedMotion, watchMotion } from '../../core/motion.js';
@@ -18,6 +18,8 @@ import { engineColor, withAlpha } from './color.js';
  *   defined (no Zx stylesheet).
  * @property {string} [borderColor] Grid and axis line colour, from `--zx-color-border`. Absent
  *   where the token is not defined.
+ * @property {string} [background] The surface the chart is drawn on, from `--zx-color-bg-surface`,
+ *   for what has to mask the grid behind a label. Absent where the token is not defined.
  * @property {string[]} palette The categorical series colours, `--zx-color-chart-1` to `-8`, in
  *   order; empty where the tokens are not defined. Series beyond the eighth start over.
  */
@@ -28,7 +30,9 @@ import { engineColor, withAlpha } from './color.js';
  * @property {ChartData} data Chart data.
  * @property {Record<string, unknown>} options Engine-specific options: the application's
  *   `chartOptions`, over `color` and `borderColor` from the theme (the same strings as
- *   `theme.color` and `theme.borderColor`, in the shape Chart.js reads them).
+ *   `theme.color` and `theme.borderColor`, in the shape Chart.js reads them). Chart.js takes the
+ *   colours of its axes from its global defaults rather than from these, so `ChartJsAdapter` also
+ *   gives every scale the theme's colours wherever the options leave one unset.
  * @property {ChartTheme} theme Resolved theme colours, including the categorical palette.
  * @property {boolean} reducedMotion Whether the chart must not animate: the operating system asks
  *   for reduced motion, or the host sits inside a `data-zx-motion="reduced"` region. An adapter turns
@@ -169,10 +173,7 @@ export class Chart extends Component {
     this._createdRoot = this.el === null;
     const root = /** @type {HTMLElement} */ (this.el ?? h('div'));
     this.el = root;
-    this._original = this._createdRoot ? null : {
-      attributes: Array.from(root.attributes, (attribute) => [attribute.name, attribute.value]),
-      children: Array.from(root.childNodes)
-    };
+    this._snapshot = this._createdRoot ? null : snapshotTarget(root);
     this._adapter = this.options.adapter;
     this._type = String(this.options.type || 'bar');
     this._data = normalizeChartData(this.options.data);
@@ -404,17 +405,12 @@ export class Chart extends Component {
   destroy() {
     if (this._destroyed) return;
     this._destroyed = true;
-    const original = this._original;
     this._observer?.disconnect();
     this._themeObserver?.disconnect();
     this._stopWatchingMotion?.();
     this._destroyHandle();
     super.destroy();
-    if (!this._createdRoot && original) {
-      for (const attribute of Array.from(this.el.attributes)) this.el.removeAttribute(attribute.name);
-      for (const [name, value] of original.attributes) this.el.setAttribute(name, value);
-      this.el.replaceChildren(...original.children);
-    }
+    if (!this._createdRoot) restoreTarget(this.el, this._snapshot);
   }
 
   /** @param {boolean} emitUpdate @returns {void} */
@@ -623,6 +619,7 @@ function chartJsConfig(spec, defaults, getInstance) {
     ...cloneChartValue(defaults),
     ...supplied
   };
+  themeChartScales(options, spec);
   // Reduced motion wins over any animation the application configured: a person who asked for
   // less motion gets it from every chart, not only from the ones that remembered to ask.
   if (spec.reducedMotion) options.animation = false;
@@ -649,6 +646,86 @@ function chartJsConfig(spec, defaults, getInstance) {
 
 /** Chart.js types whose single dataset is coloured per value rather than per series. */
 const ARC_TYPES = new Set(['pie', 'doughnut', 'polarArea']);
+/** Chart.js types drawn on an `x` and a `y` scale unless their datasets name others. */
+const CARTESIAN_TYPES = new Set(['bar', 'line', 'scatter', 'bubble']);
+/** Chart.js types drawn on one radial `r` scale unless their datasets name another. */
+const RADIAL_TYPES = new Set(['radar', 'polarArea']);
+/** How opaque a radial tick label's backdrop is: Chart.js's own white backdrop is 0.75. */
+const TICK_BACKDROP_ALPHA = 0.75;
+
+/**
+ * Gives every scale the chart will draw the theme's colours, wherever the options leave one
+ * unset. Chart.js 4 reads a scale's tick, title, grid and border colours from its global defaults
+ * (`#666`, `rgba(0, 0, 0, 0.1)`), not from the chart's own `color` and `borderColor`, so without
+ * this the axes of a dark chart are nearly invisible. Only scales that exist are touched — those
+ * the options configure and the ones the datasets' types draw on — because naming a scale makes
+ * Chart.js draw it, axes on a pie included.
+ * @param {Record<string, any>} options Chart.js options, already a copy; written to.
+ * @param {ChartSpec} spec Chart specification.
+ * @returns {void}
+ */
+function themeChartScales(options, spec) {
+  const { color, borderColor, background } = spec.theme ?? /** @type {Partial<ChartTheme>} */ ({});
+  if (!color && !borderColor) return;
+  const configured = isPlainObject(options.scales) ? options.scales : {};
+  /** @type {Map<string, boolean>} Scale id to whether it is radial. */
+  const scales = new Map(Object.entries(configured)
+    .map(([id, scale]) => [id, isPlainObject(scale) && scale.type === 'radialLinear']));
+  const datasets = Array.isArray(spec.data?.datasets) ? spec.data.datasets : [];
+  for (const dataset of datasets) {
+    const type = String(dataset?.type ?? spec.type);
+    if (CARTESIAN_TYPES.has(type)) {
+      for (const axis of ['x', 'y']) {
+        const id = String(dataset?.[`${axis}AxisID`] ?? axis);
+        if (!scales.has(id)) scales.set(id, false);
+      }
+    } else if (RADIAL_TYPES.has(type)) {
+      scales.set(String(dataset?.rAxisID ?? 'r'), true);
+    }
+  }
+  if (scales.size === 0) return;
+  const themed = { ...configured };
+  for (const [id, radial] of scales) {
+    if (configured[id] !== undefined && !isPlainObject(configured[id])) continue;
+    const scale = { ...(configured[id] ?? {}) };
+    fillColour(scale, 'ticks', 'color', color);
+    fillColour(scale, 'grid', 'color', borderColor);
+    if (radial) {
+      fillColour(scale, 'pointLabels', 'color', color);
+      fillColour(scale, 'angleLines', 'color', borderColor);
+      // Radial tick labels sit on a white backdrop by default, which a light label cannot be read on.
+      if (background) fillColour(scale, 'ticks', 'backdropColor', withAlpha(background, TICK_BACKDROP_ALPHA) ?? background);
+    } else {
+      fillColour(scale, 'title', 'color', color);
+      fillColour(scale, 'border', 'color', borderColor);
+    }
+    themed[id] = scale;
+  }
+  options.scales = themed;
+}
+
+/**
+ * Sets `scale[part][key]` to a theme colour unless the options already say something there.
+ * @param {Record<string, any>} scale One scale's options; written to.
+ * @param {string} part Option group, such as `ticks` or `grid`.
+ * @param {string} key Option inside it.
+ * @param {string|undefined} value Theme colour; nothing happens without one.
+ * @returns {void}
+ */
+function fillColour(scale, part, key, value) {
+  if (!value) return;
+  if (scale[part] !== undefined && !isPlainObject(scale[part])) return;
+  const group = { ...(scale[part] ?? {}) };
+  if (group[key] === undefined) group[key] = value;
+  scale[part] = group;
+}
+
+/** @param {unknown} value @returns {value is Record<string, any>} Whether the value is a plain object. */
+function isPlainObject(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
 
 /**
  * Gives every dataset that names no colour of its own one from the theme palette: per series, or
@@ -866,8 +943,10 @@ function chartTheme(root) {
   };
   const color = read('--zx-color-text');
   const borderColor = read('--zx-color-border');
+  const background = read('--zx-color-bg-surface');
   if (color) theme.color = color;
   if (borderColor) theme.borderColor = borderColor;
+  if (background) theme.background = background;
   theme.palette = /** @type {string[]} */ (PALETTE_TOKENS.map(read).filter(Boolean));
   probe.remove();
   return theme;
@@ -875,7 +954,7 @@ function chartTheme(root) {
 
 /** @param {ChartTheme} theme @returns {string} One string per distinct theme. */
 function themeKey(theme) {
-  return [theme.color ?? '', theme.borderColor ?? '', ...theme.palette].join('|');
+  return [theme.color ?? '', theme.borderColor ?? '', theme.background ?? '', ...theme.palette].join('|');
 }
 
 /** @param {unknown} error @param {unknown} fallback @returns {string} */

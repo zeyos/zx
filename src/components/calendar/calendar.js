@@ -1,7 +1,8 @@
 import { Component } from '../../core/component.js';
-import { h } from '../../core/dom.js';
+import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
 import { icon } from '../../core/icons.js';
 import { printf } from '../../core/i18n.js';
+import { uid } from '../../core/util.js';
 import {
   CALENDAR_VIEWS, addCalendarDays, calendarDayDifference, calendarDayKey,
   calendarEventIntersects, calendarEventSpansDays, calendarPageDate, calendarRange,
@@ -9,6 +10,9 @@ import {
   shiftCalendarEvent, startOfCalendarDay
 } from './calendar-model.js';
 import { dateLocale } from '../../internal/date-locale.js';
+
+/** The date cells of the month and year grids, which share one Tab stop and move it with the arrows. */
+const ROVING_DATES = '.zx-calendar__month-day, .zx-calendar__year-day';
 
 /** @typedef {import('./calendar-model.js').CalendarEvent} CalendarEvent */
 /** @typedef {import('./calendar-model.js').CalendarView} CalendarView */
@@ -34,7 +38,10 @@ import { dateLocale } from '../../internal/date-locale.js';
  * @property {boolean} [selectable=false] Enable pointer time-range selection.
  * @property {boolean} [editable=false] Enable event moving and resizing.
  * @property {boolean|null} [eventStartEditable=null] Global move override; null inherits editable.
- * @property {boolean|null} [eventDurationEditable=null] Global resize override; null inherits editable.
+ * @property {boolean|null|CalendarReader} [eventDurationEditable=null] Resize policy for events that
+ *   set none of their own: `true` or `false`, or null to follow `editable`. A string or function
+ *   instead names the per-event resize field, read as the other `event*` readers are
+ *   (`'durationEditable'` when none is given).
  * @property {boolean} [optimistic=true] Apply event proposals locally before persistence confirms.
  * @property {boolean} [nowIndicator=true] Show the current-time line in day/week views.
  * @property {Date|(() => Date)|null} [now=null] Current-time override for deterministic rendering.
@@ -47,7 +54,6 @@ import { dateLocale } from '../../internal/date-locale.js';
  * @property {CalendarReader} [eventColor='color'] Event colour reader.
  * @property {CalendarReader} [eventLocation='location'] Event location reader.
  * @property {CalendarReader} [eventEditable='editable'] Per-event move reader.
- * @property {CalendarReader} [eventDurationEditable='durationEditable'] Per-event resize reader.
  * @property {'milliseconds'|'seconds'} [dateUnit='milliseconds'] Unit for numeric event dates.
  * @property {Record<string, string>} [msg] Per-instance messages, keyed `calendar.*` (`calendar.today`,
  *   `calendar.next`, …). The bare keys of earlier versions (`today`, `next`) are still read, after the
@@ -126,7 +132,6 @@ export class Calendar extends Component {
     eventColor: 'color',
     eventLocation: 'location',
     eventEditable: 'editable',
-    eventDurationEditable: 'durationEditable',
     dateUnit: 'milliseconds'
   };
 
@@ -136,10 +141,7 @@ export class Calendar extends Component {
     const root = /** @type {HTMLElement} */ (this.el ?? h('section'));
     if (!this.el) this.el = root;
     this._createdRoot = createdRoot;
-    this._original = this._createdRoot ? null : {
-      attributes: Array.from(root.attributes).map(({ name, value }) => [name, value]),
-      children: Array.from(root.childNodes)
-    };
+    this._snapshot = this._createdRoot ? null : snapshotTarget(root);
     this._views = normalizeViews(this.options.views);
     this._view = this._views.includes(this.options.view) ? this.options.view : this._views[0];
     this._date = normalizeAnchorDate(this.options.date, this.options.dateUnit, this._now());
@@ -153,6 +155,8 @@ export class Calendar extends Component {
     this._suppressClickId = null;
     this._suppressDateClick = false;
     this._focusedSlot = null;
+    /** @type {string|null} Day key of the date cell the keyboard was last on. */
+    this._focusedDate = null;
     this._selection = null;
     this._nowTimer = null;
 
@@ -234,8 +238,18 @@ export class Calendar extends Component {
     return this;
   }
 
-  /** Adds one source event. @param {Record<string, any>} event @param {CalendarSetOptions} [options={}] @returns {this} */
+  /**
+   * Adds one source event. Given an event name and a listener instead, it is the `addEvent()` alias
+   * of `on()` that every component has.
+   * @param {Record<string, any>|string} event Source event, or a component event name.
+   * @param {CalendarSetOptions|import('../../core/component.js').ComponentListener|EventListenerObject} [options={}]
+   *   Set options, or the listener when `event` is a name.
+   * @returns {this}
+   */
   addEvent(event, options = {}) {
+    if (typeof event === 'string') {
+      return super.addEvent(event, /** @type {import('../../core/component.js').ComponentListener} */ (options));
+    }
     const [normalized] = normalizeCalendarEvents([event], this._normalizeOptions());
     if (this._eventById(normalized.id)) throw new RangeError(`Duplicate Calendar event id: ${normalized.id}`);
     this._events = [...this._events, normalized];
@@ -359,13 +373,8 @@ export class Calendar extends Component {
     this._destroyed = true;
     if (this._nowTimer) clearInterval(this._nowTimer);
     this._nowTimer = null;
-    const original = this._original;
     super.destroy();
-    if (!this._createdRoot && original) {
-      for (const attribute of Array.from(this.el.attributes)) this.el.removeAttribute(attribute.name);
-      for (const [name, value] of original.attributes) this.el.setAttribute(name, value);
-      this.el.replaceChildren(...original.children);
-    }
+    if (!this._createdRoot) restoreTarget(this.el, this._snapshot);
   }
 
   /** @param {string} action @param {string} label @param {string|null} [iconName=null] @returns {HTMLButtonElement} */
@@ -390,7 +399,8 @@ export class Calendar extends Component {
       eventColor: this.options.eventColor,
       eventLocation: this.options.eventLocation,
       eventEditable: this.options.eventEditable,
-      eventDurationEditable: this.options.eventDurationEditable,
+      eventDurationEditable: isCalendarReader(this.options.eventDurationEditable)
+        ? this.options.eventDurationEditable : undefined,
       untitledTitle: this.msg('calendar.untitled'),
       dateUnit: this.options.dateUnit
     };
@@ -621,6 +631,7 @@ export class Calendar extends Component {
           type: 'button',
           class: 'zx-calendar__month-day',
           role: 'gridcell',
+          tabindex: -1,
           dataset: {
             calendarAction: 'date',
             date: calendarDayKey(day),
@@ -658,6 +669,7 @@ export class Calendar extends Component {
     }
     wrapper.setAttribute('role', 'grid');
     wrapper.setAttribute('aria-label', this._rangeTitle(range));
+    this._rovingDates(wrapper);
     return wrapper;
   }
 
@@ -669,38 +681,82 @@ export class Calendar extends Component {
       const first = new Date(year, month, 1);
       const offset = (first.getDay() - this.options.weekStart + 7) % 7;
       const start = addCalendarDays(first, -offset);
-      const grid = h('div', { class: 'zx-calendar__year-grid', role: 'grid', ariaLabel: this._format(first, { month: 'long' }) },
-        h('h3', { class: 'zx-calendar__year-heading' }, this._format(first, { month: 'long' })));
+      // The month name heads the grid from outside it: a grid holds rows and nothing else.
+      const heading = h('h3', { class: 'zx-calendar__year-heading', id: uid('zx-calendar-month') },
+        this._format(first, { month: 'long' }));
+      const weekdays = h('div', { class: 'zx-calendar__year-row', role: 'row' });
       for (let dayIndex = 0; dayIndex < 7; dayIndex += 1) {
         const weekday = addCalendarDays(start, dayIndex);
-        grid.append(h('span', { class: 'zx-calendar__year-weekday', role: 'columnheader' },
+        weekdays.append(h('span', { class: 'zx-calendar__year-weekday', role: 'columnheader' },
           this._format(weekday, { weekday: 'narrow' })));
       }
-      for (let index = 0; index < 42; index += 1) {
-        const day = addCalendarDays(start, index);
-        if (day.getMonth() !== month) {
-          grid.append(h('span', { class: 'zx-calendar__year-blank', role: 'gridcell', ariaHidden: 'true' }));
-          continue;
+      const grid = h('div', { class: 'zx-calendar__year-grid', role: 'grid', ariaLabelledby: heading.id }, weekdays);
+      for (let week = 0; week < 6; week += 1) {
+        const row = h('div', { class: 'zx-calendar__year-row', role: 'row' });
+        let filled = false;
+        for (let dayIndex = 0; dayIndex < 7; dayIndex += 1) {
+          const day = addCalendarDays(start, week * 7 + dayIndex);
+          if (day.getMonth() !== month) {
+            row.append(h('span', { class: 'zx-calendar__year-blank', role: 'gridcell', ariaHidden: 'true' }));
+            continue;
+          }
+          filled = true;
+          const count = this._events.filter((event) => calendarEventIntersects(event, day, addCalendarDays(day, 1))).length;
+          row.append(h('button', {
+            type: 'button',
+            class: 'zx-calendar__year-day',
+            role: 'gridcell',
+            tabindex: -1,
+            dataset: {
+              calendarAction: 'date',
+              date: calendarDayKey(day),
+              dateCell: 'true',
+              activity: String(Math.min(3, count))
+            },
+            ariaCurrent: sameCalendarDay(day, this._now()) ? 'date' : null,
+            ariaLabel: this._dayCountLabel(day, count),
+            disabled: this.options.disabled
+          }, String(day.getDate())));
         }
-        const count = this._events.filter((event) => calendarEventIntersects(event, day, addCalendarDays(day, 1))).length;
-        grid.append(h('button', {
-          type: 'button',
-          class: 'zx-calendar__year-day',
-          role: 'gridcell',
-          dataset: {
-            calendarAction: 'date',
-            date: calendarDayKey(day),
-            dateCell: 'true',
-            activity: String(Math.min(3, count))
-          },
-          ariaCurrent: sameCalendarDay(day, this._now()) ? 'date' : null,
-          ariaLabel: this._dayCountLabel(day, count),
-          disabled: this.options.disabled
-        }, String(day.getDate())));
+        // Six weeks keep every month the same height; a week of the next month only is not a row.
+        if (!filled) row.setAttribute('aria-hidden', 'true');
+        grid.append(row);
       }
-      surface.append(grid);
+      surface.append(h('div', { class: 'zx-calendar__year-month' }, heading, grid));
     }
+    this._rovingDates(surface);
     return surface;
+  }
+
+  /**
+   * Gives the date cells of a month or year view a single Tab stop, after the APG grid pattern:
+   * the date the keyboard was last on, else the anchor date, else today, else the first day of
+   * the period. The arrow keys move it with the focus.
+   * @param {Element} container The rendered view.
+   * @returns {void}
+   */
+  _rovingDates(container) {
+    const cells = /** @type {HTMLElement[]} */ ([...container.querySelectorAll(ROVING_DATES)]);
+    if (!cells.length) return;
+    /** @param {string|null} key @returns {HTMLElement|undefined} */
+    const find = (key) => (key ? cells.find((cell) => cell.dataset.date === key) : undefined);
+    const stop = find(this._focusedDate) ?? find(calendarDayKey(this._date))
+      ?? find(calendarDayKey(this._now())) ?? cells.find((cell) => !cell.dataset.otherMonth) ?? cells[0];
+    for (const cell of cells) cell.tabIndex = cell === stop ? 0 : -1;
+  }
+
+  /**
+   * Makes a month or year date cell the grid's Tab stop, and remembers it across re-renders.
+   * @param {HTMLElement} cell Date cell.
+   * @returns {void}
+   */
+  _moveDateStop(cell) {
+    if (!cell.matches(ROVING_DATES)) return;
+    for (const stop of this.el.querySelectorAll(`:is(${ROVING_DATES})[tabindex="0"]`)) {
+      /** @type {HTMLElement} */ (stop).tabIndex = -1;
+    }
+    cell.tabIndex = 0;
+    this._focusedDate = cell.dataset.date ?? null;
   }
 
   /**
@@ -974,9 +1030,18 @@ export class Calendar extends Component {
     } else return;
     event.preventDefault();
     const targetDate = addCalendarDays(date, amount);
-    const target = this.el.querySelector(`[data-date-cell][data-date="${calendarDayKey(targetDate)}"]`);
-    if (target) target.focus();
-    else this.setDate(targetDate);
+    const key = calendarDayKey(targetDate);
+    const find = () => /** @type {HTMLElement|null} */ (this.el.querySelector(`[data-date-cell][data-date="${key}"]`));
+    let target = find();
+    if (!target) {
+      // Off the period: page to it, and land on the day itself rather than wherever focus was.
+      this._focusedDate = key;
+      this.setDate(targetDate);
+      target = find();
+    }
+    if (!target) return;
+    this._moveDateStop(target);
+    target.focus();
   }
 
   /** @param {PointerEvent} event @returns {void} */
@@ -1308,7 +1373,7 @@ export class Calendar extends Component {
   _canResize(event) {
     if (this.options.disabled) return false;
     if (event.durationEditable != null) return event.durationEditable;
-    if (this.options.eventDurationEditable != null) return Boolean(this.options.eventDurationEditable);
+    if (typeof this.options.eventDurationEditable === 'boolean') return this.options.eventDurationEditable;
     return Boolean(this.options.editable);
   }
 
@@ -1406,9 +1471,10 @@ export class Calendar extends Component {
   /** @param {HTMLElement} target @returns {void} */
   _rememberFocusedDate(target) {
     if (target.dataset.slot) this._focusedSlot = target.dataset.slot;
+    else this._moveDateStop(target);
   }
 
-  /** @returns {{eventId?: string, eventAction?: string, date?: string, slot?: string, row?: string, column?: string}|null} */
+  /** @returns {{eventId?: string, eventAction?: string, date?: string, dateCell?: string, slot?: string, row?: string, column?: string}|null} */
   _focusIdentity() {
     const active = document.activeElement;
     if (!(active instanceof HTMLElement) || !this.el.contains(active)) return null;
@@ -1416,13 +1482,14 @@ export class Calendar extends Component {
       eventId: active.dataset.eventId,
       eventAction: active.dataset.eventAction,
       date: active.dataset.date,
+      dateCell: active.dataset.dateCell,
       slot: active.dataset.slot,
       row: active.dataset.rowIndex,
       column: active.dataset.dayIndex
     };
   }
 
-  /** @param {{eventId?: string, eventAction?: string, date?: string, slot?: string, row?: string, column?: string}} identity @returns {void} */
+  /** @param {{eventId?: string, eventAction?: string, date?: string, dateCell?: string, slot?: string, row?: string, column?: string}} identity @returns {void} */
   _restoreFocus(identity) {
     let target = null;
     if (identity.eventId) target = this.el.querySelector(
@@ -1444,6 +1511,9 @@ export class Calendar extends Component {
       }
     }
     if (!target && identity.date) target = this.el.querySelector(`[data-date-cell][data-date="${cssEscape(identity.date)}"]`);
+    // A date that left the period hands the keyboard to the grid's Tab stop rather than dropping it.
+    if (!target && identity.dateCell) target = this.el.querySelector(`:is(${ROVING_DATES})[tabindex="0"]`);
+    if (target) this._moveDateStop(/** @type {HTMLElement} */ (target));
     target?.focus?.();
   }
 
@@ -1655,3 +1725,12 @@ function cssEscape(value) {
 /** @event Calendar#eventschange @type {CustomEvent<{events: CalendarEvent[]}>} */
 /** @event Calendar#new @type {CustomEvent<{date: Date, view: CalendarView, jsEvent: Event}>} */
 /** @event Calendar#moreclick @type {CustomEvent<{date: Date, count: number, jsEvent: Event}>} */
+
+/**
+ * Whether a value names a per-event field (a key or a reader function) rather than a policy.
+ * @param {unknown} value
+ * @returns {value is CalendarReader}
+ */
+function isCalendarReader(value) {
+  return (typeof value === 'string' && value !== '') || typeof value === 'function';
+}

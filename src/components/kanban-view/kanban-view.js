@@ -3,6 +3,7 @@ import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
 import { ICON_SIZE, icon } from '../../core/icons.js';
 import { printf, translate } from '../../core/i18n.js';
 import { uid } from '../../core/util.js';
+import { sameArray } from '../../internal/collections.js';
 import { badge } from '../badge/badge.js';
 import { createRecordCard, resolveRecordActions } from '../card-view/record-card.js';
 import { ContextMenu } from '../context-menu/context-menu.js';
@@ -211,7 +212,11 @@ import {
 
 /** @typedef {{record:KanbanRecord,id:unknown,index:number,column:string,lane:string|null}} KanbanCardMeta */
 /** @typedef {{column:string,lane:string|null,list:HTMLElement}} KanbanSectionMeta */
-/** @typedef {{ids:unknown[],from:KanbanMovePoint,to:KanbanMovePoint}} KanbanKeyboardMove */
+/**
+ * A keyboard move in progress: the ids moving, where the grabbed card was, where it was picked up
+ * and where it would land now (both counted among the visible cards that are not moving).
+ * @typedef {{ids:unknown[],from:KanbanMovePoint,origin:KanbanMovePoint,to:KanbanMovePoint}} KanbanKeyboardMove
+ */
 /** @typedef {((record:KanbanRecord,index:number)=>unknown)|null} KanbanCardReader */
 /**
  * @typedef {Object} KanbanCardSources
@@ -1961,13 +1966,17 @@ export class KanbanView extends RecordView {
         const card = /** @type {HTMLElement|null} */ (handle.closest('.zx-record-card'));
         if (card) delete card.dataset.grabbed;
         this._syncKeyboardTarget();
-        this._commitInteractionMove(move.ids, move.to);
+        // Dropped where it was picked up, nothing moves — not even a selection that was not one
+        // unbroken run, which committing that position would close up.
+        if (!sameMovePoint(move.to, move.origin)) this._commitInteractionMove(move.ids, move.to);
       } else {
         const from = this._recordLocation(meta.id);
         if (!from) return;
         const ids = this._movingIds(meta.id);
-        const start = { ...from, index: this._visibleIndex(meta.id) };
-        this._keyboardMove = { ids, from: { ...from }, to: start };
+        // The target is counted among the cards that stay, so the grabbed card starts after the
+        // ones before it that are not coming along.
+        const start = { ...from, index: this._visibleIndex(meta.id, new Set(ids)) };
+        this._keyboardMove = { ids, from: { ...from }, origin: { ...start }, to: start };
         handle.setAttribute('aria-pressed', 'true');
         const card = handle.closest('.zx-record-card');
         if (card) /** @type {HTMLElement} */ (card).dataset.grabbed = 'true';
@@ -2274,12 +2283,18 @@ export class KanbanView extends RecordView {
     }).length;
   }
 
-  /** @param {unknown} id Record id. @returns {number} Position among visible cards in its bucket. */
-  _visibleIndex(id) {
+  /**
+   * @param {unknown} id Record id.
+   * @param {Set<unknown>} [excluded] Cards that do not count, such as the others moving with it.
+   * @returns {number} Position among the visible cards in its bucket.
+   */
+  _visibleIndex(id, excluded = new Set()) {
     const location = this._recordLocation(id);
     if (!location) return 0;
-    const visible = this._recordsIn(location.column, location.lane)
-      .filter((entry) => this._visibleIds.has(this._viewRecordId(entry.record)));
+    const visible = this._recordsIn(location.column, location.lane).filter((entry) => {
+      const candidate = this._viewRecordId(entry.record);
+      return this._visibleIds.has(candidate) && (Object.is(candidate, id) || !hasId(excluded, candidate));
+    });
     const position = visible.findIndex((entry) => Object.is(this._viewRecordId(entry.record), id));
     return position < 0 ? visible.length : position;
   }
@@ -2662,11 +2677,6 @@ function mergeKanbanResolvedOrder(preference, descriptors, resolvedOrder, preser
 /** @param {KanbanMovePoint} left @param {KanbanMovePoint} right @returns {boolean} */
 function sameMovePoint(left, right) {
   return left.column === right.column && left.lane === right.lane && left.index === right.index;
-}
-
-/** @param {unknown[]} left @param {unknown[]} right @returns {boolean} */
-function sameArray(left, right) {
-  return left.length === right.length && left.every((value, index) => Object.is(value, right[index]));
 }
 
 /** @param {Set<unknown>|unknown[]} haystack @param {unknown} needle @returns {boolean} */

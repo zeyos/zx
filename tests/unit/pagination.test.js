@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { fitPageSize, paginationRange } from '../../src/components/pagination/pagination.js';
+import { fitPageSize, pageFitStep, paginationRange } from '../../src/components/pagination/pagination.js';
 
 /** @param {number} page @param {number} pages @param {number} siblings @param {number} boundaries */
 function window_(page, pages, siblings = 1, boundaries = 1) {
@@ -187,4 +187,84 @@ test('nothing to measure yet is 0, so a caller keeps the size it has', () => {
   assert.equal(fitPageSize({ available: 500, rowHeight: 0 }), 0);
   assert.equal(fitPageSize({ available: Number.NaN, rowHeight: 36 }), 0);
   assert.equal(fitPageSize(), 0);
+});
+
+test('a grid keeps the fitted size within [min, max] in whole rows', () => {
+  // Four cards a row and at least five: two full rows, not one row and a stray card.
+  assert.equal(fitPageSize({ available: 100, rowHeight: 200, perRow: 4, min: 5 }), 8);
+  // Three a row and at most 200: 66 full rows, not a 67th row with two cards in it.
+  assert.equal(fitPageSize({ available: 100000, rowHeight: 100, perRow: 3, max: 200 }), 198);
+  // Within the range the rows that fit decide.
+  assert.equal(fitPageSize({ available: 650, rowHeight: 200, perRow: 4, min: 5, max: 200 }), 12);
+  // A maximum below one row still leaves one row.
+  assert.equal(fitPageSize({ available: 1000, rowHeight: 100, perRow: 4, min: 1, max: 3 }), 4);
+  // No whole row lands in [5, 6] with four a row: the minimum wins, as it does for single items.
+  assert.equal(fitPageSize({ available: 100, rowHeight: 100, perRow: 4, min: 5, max: 6 }), 8);
+});
+
+/* ------------------------------------------------------------- fitting decisions -- */
+
+/**
+ * Plays a sequence of measurements through pageFitStep the way the component does: the viewport
+ * height each fit is measured at, and the height the applied fit leaves it at.
+ * @param {Array<{size: number, viewport: number, after?: number}>} steps Measurements.
+ * @param {number} start The size the pager starts with.
+ * @returns {number[]} The page size after each step.
+ */
+function playFits(steps, start) {
+  let current = start;
+  let trail = [];
+  let settled = null;
+  return steps.map(({ size, viewport, after = viewport }) => {
+    const step = pageFitStep({ size, current, trail, viewport, settled });
+    trail = step.trail;
+    if (step.apply) {
+      current = size;
+      settled = after;
+    }
+    return current;
+  });
+}
+
+test('a viewport that shrinks and grows back takes the page size with it', () => {
+  // 400px of 40px rows, a drawer halves it, the drawer closes: 10, 5, and 10 again.
+  assert.deepEqual(playFits([
+    { size: 10, viewport: 400 },
+    { size: 5, viewport: 200 },
+    { size: 10, viewport: 400 },
+    { size: 5, viewport: 200 },
+    { size: 10, viewport: 400 }
+  ], 25), [10, 5, 10, 5, 10]);
+});
+
+test('a fit that resizes its own viewport settles on the smaller size', () => {
+  // Ten rows wrap the footer, which takes 20px; nine rows unwrap it again.
+  assert.deepEqual(playFits([
+    { size: 10, viewport: 400, after: 380 },
+    { size: 9, viewport: 380, after: 400 },
+    { size: 10, viewport: 400, after: 380 },
+    { size: 10, viewport: 400, after: 380 }
+  ], 25), [10, 9, 9, 9]);
+});
+
+test('rows that change height with the page cannot make the size flip either', () => {
+  assert.deepEqual(playFits([
+    { size: 10, viewport: 400 },
+    { size: 8, viewport: 400 },
+    { size: 10, viewport: 400 }
+  ], 25), [10, 8, 8]);
+});
+
+test('a real resize after a settled loop is followed, and the trail starts over', () => {
+  const step = pageFitStep({ size: 12, current: 9, trail: [12, 9], viewport: 480, settled: 400 });
+  assert.deepEqual(step, { apply: true, trail: [12] });
+  assert.deepEqual(pageFitStep({ size: 12, current: 9, trail: [12, 9], viewport: 400, settled: 400 }),
+    { apply: false, trail: [12, 9] }, 'the same size at the settled height is the loop');
+});
+
+test('an unchanged or unknown size is never applied, and the trail stays short', () => {
+  assert.equal(pageFitStep({ size: 10, current: 10, viewport: 400, settled: 400 }).apply, false);
+  assert.equal(pageFitStep({ size: 0, current: 10, viewport: 400, settled: null }).apply, false);
+  assert.deepEqual(pageFitStep({ size: 6, current: 5, trail: [1, 2, 3, 4], viewport: 400, settled: 400 }).trail,
+    [2, 3, 4, 6]);
 });

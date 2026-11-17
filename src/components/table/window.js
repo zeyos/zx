@@ -23,6 +23,22 @@ export function cancelFrame(handle) {
 }
 
 /**
+ * How many rows a PageUp or PageDown moves: the rows that fit in the visible height, less one so
+ * the row focus leaves stays in view as context. Falls back when either height is unknown. Shared
+ * by the components that page through rows with the keyboard.
+ * @param {number} viewport Visible height of the scroll region, below any sticky header.
+ * @param {number} rowHeight Height of one row.
+ * @param {number} [fallback=10] Rows to move when the heights are unusable.
+ * @returns {number} At least 1.
+ */
+export function pageStepRows(viewport, rowHeight, fallback = 10) {
+  const visible = Number(viewport);
+  const height = Number(rowHeight);
+  if (!(visible > 0) || !(height > 0)) return Math.max(1, Math.trunc(fallback) || 10);
+  return Math.max(1, Math.floor(visible / height) - 1);
+}
+
+/**
  * Which rows to draw for a scroll position: those in view, plus `overscan` viewports' worth above
  * and below. Positions are zero-based and `end` is exclusive. The scroll position is clamped to
  * what the rows can reach, so a list that just got shorter still draws its last rows while the

@@ -325,6 +325,12 @@
   vertical-align: middle;
 }
 
+/* A pinned group never scrolls, so its label has nothing to follow: sticking clear of the pinned
+   columns would push it to the far end of its own cell. */
+.zx-table__group[data-pin] .zx-table__group-label {
+  position: static;
+}
+
 .zx-table__scroll[data-sticky-header="true"] .zx-table__group-blank {
   position: sticky;
   z-index: 2;

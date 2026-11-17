@@ -556,8 +556,12 @@
   gap: var(--zx-space-5);
   padding: var(--zx-space-5);
 }
-.zx-calendar__year-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; align-content: start; }
-.zx-calendar__year-heading { grid-column: 1 / -1; margin: 0 0 var(--zx-space-2); font-size: var(--zx-text-md); font-weight: var(--zx-weight-semibold); }
+/* A month: its name, then a grid of rows, the weekday names first. Every row lays out the same
+   seven columns, so the days line up exactly as in one seven-column grid. */
+.zx-calendar__year-month { display: grid; gap: 2px; align-content: start; }
+.zx-calendar__year-grid { display: grid; gap: 2px; }
+.zx-calendar__year-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
+.zx-calendar__year-heading { margin: 0 0 var(--zx-space-2); font-size: var(--zx-text-md); font-weight: var(--zx-weight-semibold); }
 .zx-calendar__year-weekday { color: var(--zx-color-text-muted); font-size: var(--zx-text-xs); font-weight: var(--zx-weight-medium); text-align: center; }
 .zx-calendar__year-day,
 .zx-calendar__year-blank { aspect-ratio: 1; }

@@ -3,6 +3,7 @@ import { h, highlightMatch, restoreTarget, snapshotTarget } from '../../core/dom
 import { printf } from '../../core/i18n.js';
 import { icon } from '../../core/icons.js';
 import { uid } from '../../core/util.js';
+import { sameSet } from '../../internal/collections.js';
 import { Search } from '../search/search.js';
 import { Select } from '../select/select.js';
 import { Toggle } from '../toggle/toggle.js';
@@ -1815,11 +1816,6 @@ function humanize(value) {
 /** @param {string[]} left @param {string[]} right @returns {boolean} */
 function sameList(left, right) {
   return left.length === right.length && left.every((value, index) => value === right[index]);
-}
-
-/** @param {Set<string>} left @param {Set<string>} right @returns {boolean} */
-function sameSet(left, right) {
-  return left.size === right.size && [...left].every((value) => right.has(value));
 }
 
 /** @param {ViewSettingsBoard|null} left @param {ViewSettingsBoard|null} right @returns {boolean} */

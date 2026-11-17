@@ -2,6 +2,8 @@ import { Component } from '../../core/component.js';
 import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
 import { printf } from '../../core/i18n.js';
 import { ICON_SIZE, icon } from '../../core/icons.js';
+import { clamp } from '../../core/util.js';
+import { cancelFrame, nextFrame } from '../table/window.js';
 import { Toggle } from '../toggle/toggle.js';
 
 /** @typedef {'pages'|'loadmore'} PaginationMode */
@@ -80,8 +82,10 @@ export function paginationRange({ page = 1, pages = 1, siblings = 1, boundaries 
  */
 
 /**
- * Computes how many items fill a viewport: whole rows only, times the items per row, clamped into
- * `[min, max]`. Pure arithmetic, no DOM — the component measures, this decides.
+ * Computes how many items fill a viewport: whole rows only, times the items per row. The rows are
+ * clamped so the size stays within `[min, max]` in whole rows — `min` rounds up to a full row,
+ * `max` down to one, and there is always at least one row — so a grid never ends on a partial
+ * row. Pure arithmetic, no DOM — the component measures, this decides.
  *
  * Returns 0 when there is nothing to measure yet (no height, no row height), so a caller can keep
  * the size it has rather than collapse to the minimum while a view is still hidden.
@@ -98,7 +102,41 @@ export function fitPageSize({ available, rowHeight, perRow = 1, reserve = 0, min
   const rows = Math.max(0, Math.floor((space + 0.5) / pitch));
   const lower = Math.max(1, toCount(min) || 1);
   const upper = max == null || Number(max) === Infinity ? Infinity : Math.max(lower, toCount(max) || lower);
-  return clamp(rows * columns, lower, upper);
+  // Where no whole row lands inside the range, the minimum wins, as it does for single items.
+  const fewest = Math.ceil(lower / columns);
+  const most = Math.max(fewest, Math.floor(upper / columns));
+  return clamp(rows, fewest, most) * columns;
+}
+
+/**
+ * @typedef {Object} PageFitStep
+ * @property {number} size The page size just measured.
+ * @property {number} current The page size the pager has now.
+ * @property {number[]} [trail=[]] The sizes the pager's recent fits applied, oldest first.
+ * @property {number} viewport The viewport's height now, in pixels.
+ * @property {number|null} [settled=null] The viewport's height as the pager's last applied fit
+ *   left it; null before the first fit.
+ */
+
+/**
+ * Decides whether a measured page size replaces the current one while the pager fits its
+ * viewport. Pure, no DOM — the component measures and keeps the state, this decides.
+ *
+ * A fit changes the page count, and that can change the viewport it was measured in — a footer
+ * that wraps with the longer page numbers — so two sizes could take turns for ever. While the
+ * viewport still has the height the last fit left it at, a size that would take the pager back up
+ * to where it was two fits ago is that loop, and the smaller size stays. A viewport whose height
+ * changed since was resized by something else (a drawer, the window), and its size is followed
+ * whichever way it went, with the trail starting over.
+ * @param {PageFitStep} step Measurements and the pager's recent fits.
+ * @returns {{apply: boolean, trail: number[]}} Whether to apply `size`, and the trail to keep.
+ */
+export function pageFitStep({ size, current, trail = [], viewport, settled = null }) {
+  const resized = settled == null || viewport !== settled;
+  const history = resized ? [] : trail;
+  const bounce = history.length >= 2 && history[history.length - 2] === size && size > current;
+  if (!(size > 0) || size === current || bounce) return { apply: false, trail: history };
+  return { apply: true, trail: [...history, size].slice(-4) };
 }
 
 /**
@@ -265,6 +303,8 @@ export class Pagination extends Component {
     this._frames = { fit: 0, load: 0 };
     /** @type {number[]} The fitted sizes most recently applied, to stop a resize from oscillating. */
     this._fitTrail = [];
+    /** @type {number|null} The viewport's height as the last applied fit left it. */
+    this._fitHeight = null;
     /** @type {ResizeObserver|null} */
     this._observer = null;
     /** @type {Element|null} The viewport being observed. */
@@ -434,7 +474,9 @@ export class Pagination extends Component {
   destroy() {
     if (this._destroyed) return;
     this._destroyed = true;
-    for (const kind of /** @type {Array<'fit'|'load'>} */ (['fit', 'load'])) cancelFrame(this._frames[kind]);
+    for (const kind of /** @type {Array<'fit'|'load'>} */ (['fit', 'load'])) {
+      if (this._frames[kind]) cancelFrame(this._frames[kind]);
+    }
     this._observer?.disconnect();
     this._switch?.destroy();
     const root = this.el;
@@ -474,6 +516,7 @@ export class Pagination extends Component {
         if (!this._auto) {
           this._auto = true;
           this._fitTrail = [];
+          this._fitHeight = null;
           this._pageSize = this._measure() || this._pageSize;
         }
       } else {
@@ -733,7 +776,7 @@ export class Pagination extends Component {
   _schedule(kind) {
     if (this._destroyed || this._frames[kind]) return;
     if (kind === 'fit' ? !this._auto : !this._autoLoad) return;
-    this._frames[kind] = requestFrame(() => {
+    this._frames[kind] = nextFrame(() => {
       this._frames[kind] = 0;
       if (this._destroyed) return;
       if (kind === 'fit') this._fit();
@@ -750,19 +793,33 @@ export class Pagination extends Component {
   _fit() {
     if (!this._auto || (this._continuous() && this._page > 1)) return;
     const size = this._measure();
-    if (!size || size === this._pageSize) return;
-    // A size that would take the pager back to where it was two fits ago, upwards, is a resize
-    // feeding on itself (a footer that wraps with the page count); the smaller size stays.
-    const trail = this._fitTrail;
-    if (trail.length >= 2 && trail[trail.length - 2] === size && size > this._pageSize) return;
-    trail.push(size);
-    if (trail.length > 4) trail.shift();
+    if (!size) return;
+    // A resize feeding on itself is told from a real one by the viewport's own height: see
+    // pageFitStep(). The height is read again once the fit is applied and reported, so a footer
+    // that wrapped because of it counts as the fit's doing, not as a resize.
+    const step = pageFitStep({
+      size,
+      current: this._pageSize,
+      trail: this._fitTrail,
+      viewport: this._viewportHeight(),
+      settled: this._fitHeight
+    });
+    this._fitTrail = step.trail;
+    if (!step.apply) return;
     const offset = (this._page - 1) * this._pageSize;
     this._pageSize = size;
     this._page = clamp(Math.floor(offset / size) + 1, 1, this._pageCount());
     this._sync();
     this._emitChange('fit', false);
+    if (this._destroyed) return;
+    this._fitHeight = this._viewportHeight();
     this._schedule('load');
+  }
+
+  /** @returns {number} The viewport's height now; 0 when there is none. */
+  _viewportHeight() {
+    const viewport = this._viewport();
+    return viewport?.isConnected ? viewport.clientHeight : 0;
   }
 
   /**
@@ -901,20 +958,6 @@ function scrollParent(element) {
   return null;
 }
 
-/** @param {() => void} fn @returns {number} A handle for {@link cancelFrame}. */
-function requestFrame(fn) {
-  return typeof requestAnimationFrame === 'function'
-    ? requestAnimationFrame(fn)
-    : /** @type {number} */ (/** @type {unknown} */ (setTimeout(fn, 16)));
-}
-
-/** @param {number} handle From {@link requestFrame}; 0 is no frame. @returns {void} */
-function cancelFrame(handle) {
-  if (!handle) return;
-  if (typeof cancelAnimationFrame === 'function') cancelAnimationFrame(handle);
-  else clearTimeout(handle);
-}
-
 /** @param {unknown} value @returns {number} A non-negative integer, or 0. */
 function toCount(value) {
   const number = Math.trunc(Number(value));
@@ -925,11 +968,6 @@ function toCount(value) {
 function toSize(value, fallback) {
   const number = Math.trunc(Number(value));
   return Number.isFinite(number) && number > 0 ? number : fallback;
-}
-
-/** @param {number} value @param {number} min @param {number} max @returns {number} */
-function clamp(value, min, max) {
-  return Math.min(Math.max(value, min), max);
 }
 
 /** @param {number} start @param {number} end @returns {number[]} Inclusive range, empty when reversed. */

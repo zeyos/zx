@@ -1,5 +1,5 @@
 import { Component } from '../../core/component.js';
-import { h } from '../../core/dom.js';
+import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
 import { isElement } from '../../core/util.js';
 import { button } from '../button/button.js';
 
@@ -63,8 +63,10 @@ export class MasterPanel extends Component {
     const root = /** @type {HTMLElement} */ (this.el ?? h('section'));
     this.el = root;
     this._createdRoot = created;
-    this._original = created ? null : snapshot(root);
+    this._snapshot = created ? null : snapshotTarget(root);
     this._cleaned = false;
+    /** @type {WeakMap<Element, (event: MouseEvent) => void>} Click callbacks of descriptor buttons. */
+    this._clicks = new WeakMap();
 
     const originalContent = created ? [] : Array.from(root.childNodes);
     const header = h('header', { class: 'zx-master-panel__header' },
@@ -86,6 +88,9 @@ export class MasterPanel extends Component {
       hidden: true
     });
     root.replaceChildren(header, content, footer);
+    // One listener for every descriptor button, present and future: buttons that setButtons()
+    // replaces take their callbacks with them instead of piling up listeners until destroy().
+    this.listen(this.refs.buttons, 'click', (event) => this._onButtonClick(/** @type {MouseEvent} */ (event)));
 
     const moduleName = normalizeModule(this.options.module);
     root.dataset.module = moduleName;
@@ -133,7 +138,7 @@ export class MasterPanel extends Component {
       const onclick = descriptor.onclick;
       delete descriptor.onclick;
       const element = button(descriptor);
-      if (typeof onclick === 'function') this.listen(element, 'click', onclick);
+      if (typeof onclick === 'function') this._clicks.set(element, onclick);
       return element;
     });
     this.refs.buttons.replaceChildren(...elements);
@@ -156,27 +161,24 @@ export class MasterPanel extends Component {
     if (this._cleaned) return;
     this._cleaned = true;
     super.destroy();
-    if (!this._createdRoot && this._original) restore(this.el, this._original);
+    if (!this._createdRoot) restoreTarget(this.el, this._snapshot);
   }
-}
 
-/** @param {Element} element @returns {{attributes: Array<[string, string]>, children: Node[]}} */
-function snapshot(element) {
-  return {
-    attributes: Array.from(element.attributes, (attribute) => [attribute.name, attribute.value]),
-    children: Array.from(element.childNodes)
-  };
-}
-
-/**
- * @param {Element} element
- * @param {{attributes: Array<[string, string]>, children: Node[]}} original
- * @returns {void}
- */
-function restore(element, original) {
-  for (const attribute of Array.from(element.attributes)) element.removeAttribute(attribute.name);
-  for (const [name, value] of original.attributes) element.setAttribute(name, value);
-  element.replaceChildren(...original.children);
+  /**
+   * Runs the callback of the descriptor button a click landed in, with the button as `this`.
+   * @param {MouseEvent} event Click inside the action area.
+   * @returns {void}
+   */
+  _onButtonClick(event) {
+    const area = this.refs.buttons;
+    for (let node = /** @type {Element|null} */ (event.target); node && node !== area; node = node.parentElement) {
+      const callback = this._clicks.get(node);
+      if (callback) {
+        callback.call(node, event);
+        return;
+      }
+    }
+  }
 }
 
 /** @param {Element} target @param {MasterPanelContent} content @param {string} label @returns {void} */

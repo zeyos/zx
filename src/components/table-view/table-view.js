@@ -1,5 +1,6 @@
 // @ts-check
 import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
+import { sameArray, sameSet } from '../../internal/collections.js';
 import { formatTableCell, Table } from '../table/table.js';
 import { normalizeViewFieldControls, RecordView, readViewField } from '../view/record-view.js';
 
@@ -349,14 +350,4 @@ export function tableOptionsForView(table, shared) {
 function sameSort(left, right) {
   return left === null && right === null
     || Boolean(left && right && left.id === right.id && left.dir === right.dir);
-}
-
-/** @param {Set<unknown>} left @param {Set<unknown>} right @returns {boolean} */
-function sameSet(left, right) {
-  return left.size === right.size && [...left].every((value) => right.has(value));
-}
-
-/** @param {unknown[]} left @param {unknown[]} right @returns {boolean} */
-function sameArray(left, right) {
-  return left.length === right.length && left.every((value, index) => Object.is(value, right[index]));
 }

@@ -165,3 +165,23 @@ test('event proposals are immutable and keep local clock time', () => {
   assert.deepEqual([source.start.getDate(), source.start.getHours()], [28, 9]);
   assert.equal(calendarEventSpansDays(event('all', new Date(2026, 7, 1), new Date(2026, 7, 2), { allDay: true })), true);
 });
+
+test('eventDurationEditable is a resize policy as a boolean and a per-event reader as a key', async () => {
+  const { Calendar } = await import('../../src/components/calendar/calendar.js');
+  assert.equal(Calendar.defaults.eventDurationEditable, null);
+  const canResize = (options, own = null) => Calendar.prototype._canResize.call(
+    { options: { ...Calendar.defaults, ...options } }, { durationEditable: own }
+  );
+  // A read-only calendar does not offer resizing: the default once resolved to a truthy reader key.
+  assert.equal(canResize({}), false);
+  assert.equal(canResize({ editable: true }), true);
+  assert.equal(canResize({ editable: true, eventDurationEditable: false }), false);
+  assert.equal(canResize({ eventDurationEditable: true }), true);
+  assert.equal(canResize({ eventDurationEditable: 'canResize' }), false);
+  assert.equal(canResize({}, true), true);
+  const [record] = normalizeCalendarEvents(
+    [{ id: 1, title: 'A', start: '2024-05-01T09:00', end: '2024-05-01T10:00', canResize: true }],
+    { eventDurationEditable: 'canResize' }
+  );
+  assert.equal(record.durationEditable, true);
+});
