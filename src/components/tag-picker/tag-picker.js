@@ -539,6 +539,8 @@ export class TagPicker extends Component {
   /** @param {KeyboardEvent} event @returns {void} */
   _onKeydown(event) {
     if (this._disabled || this._readonly) return;
+    // Keys that confirm or steer an IME composition (Enter, arrows) belong to the IME.
+    if (event.isComposing || event.keyCode === 229) return;
     const input = /** @type {HTMLInputElement} */ (this.refs.input);
 
     switch (event.key) {

@@ -57,7 +57,7 @@ export class Checklist extends Component {
   render() {
     // Instance state initialized here because render() runs inside the base
     // constructor, before class-field initializers would run (and clobber it).
-    this._items = []; this._visibleItems = []; this._checked = new Set(); this._query = ''; this._loadSequence = 0; this._createdRoot = false; this._active = true; this._originalChildren = []; this._originalAttributes = new Map();
+    this._items = []; this._visibleItems = []; this._checked = new Set(); this._pending = null; this._query = ''; this._loadSequence = 0; this._createdRoot = false; this._active = true; this._originalChildren = []; this._originalAttributes = new Map();
     this._createdRoot = this.el === null;
     const root = /** @type {HTMLElement} */ (this.el ?? h('div'));
     this.el = root;
@@ -117,7 +117,9 @@ export class Checklist extends Component {
   }
 
   /**
-   * Replaces items and derives checked state from `checkedKey` and `defaultChecked`.
+   * Replaces items and derives checked state from `checkedKey` and `defaultChecked` — unless
+   * `setValues()` asked for IDs the earlier items did not have yet, in which case the requested
+   * values are checked instead.
    * @param {ChecklistItem[]} items New items.
    * @returns {this}
    */
@@ -157,37 +159,43 @@ export class Checklist extends Component {
     return this._disabled;
   }
 
-  /** Returns checked IDs in item order. @returns {unknown[]} */
+  /**
+   * Returns checked IDs in item order, followed by requested IDs whose items have not been loaded
+   * yet (see `setValues()`).
+   * @returns {unknown[]}
+   */
   getValues() {
-    return this._items
+    const checked = this._items
       .map((item) => this._itemValue(item))
       .filter((value) => this._checked.has(value));
+    return this._pending ? [...checked, ...this._pending] : checked;
   }
 
   /**
-   * Replaces the checked IDs.
+   * Replaces the checked IDs. IDs that none of the current items carries are kept as requested,
+   * and checked as soon as items carrying them arrive — through `setItems()` or the `load`
+   * loader — so a value set before the items load is not lost.
    * @param {Iterable<unknown>|unknown[]} ids Checked item IDs.
    * @returns {this}
    * @fires Checklist#change
    */
   setValues(ids) {
     const requested = new Set(ids == null ? [] : Array.from(ids));
-    const next = new Set(this._items
-      .map((item) => this._itemValue(item))
-      .filter((value) => requested.has(value)));
-    this._replaceChecked(next);
+    const known = new Set(this._items.map((item) => this._itemValue(item)));
+    const next = new Set([...known].filter((value) => requested.has(value)));
+    this._replaceChecked(next, [...requested].filter((value) => !known.has(value)));
     return this;
   }
 
   /** Checks every item. @returns {this} @fires Checklist#change */
   checkAll() {
-    this._replaceChecked(new Set(this._items.map((item) => this._itemValue(item))));
+    this._replaceChecked(new Set(this._items.map((item) => this._itemValue(item))), []);
     return this;
   }
 
   /** Unchecks every item. @returns {this} @fires Checklist#change */
   uncheckAll() {
-    this._replaceChecked(new Set());
+    this._replaceChecked(new Set(), []);
     return this;
   }
 
@@ -247,9 +255,18 @@ export class Checklist extends Component {
   /** @param {ChecklistItem[]} items @returns {void} */
   _replaceItems(items) {
     this._items = Array.isArray(items) ? items.slice() : [];
-    this._checked = new Set(this._items
-      .filter((item) => Boolean(this._initialChecked(item)))
-      .map((item) => this._itemValue(item)));
+    if (this._pending) {
+      // A value requested before its items existed: it decides what is checked, not checkedKey.
+      const wanted = new Set([...this._checked, ...this._pending]);
+      const known = new Set(this._items.map((item) => this._itemValue(item)));
+      this._checked = new Set([...known].filter((value) => wanted.has(value)));
+      const pending = this._pending.filter((value) => !known.has(value));
+      this._pending = pending.length ? pending : null;
+    } else {
+      this._checked = new Set(this._items
+        .filter((item) => Boolean(this._initialChecked(item)))
+        .map((item) => this._itemValue(item)));
+    }
     this._visibleItems = matchItems(this._items, this._query, [this.options.labelKey]);
     this._renderItems();
   }
@@ -295,10 +312,13 @@ export class Checklist extends Component {
     return label == null || label === '' ? this._message('checklist.label', 'Checklist') : String(label);
   }
 
-  /** @param {Set<unknown>} next @returns {void} */
-  _replaceChecked(next) {
-    if (setsEqual(this._checked, next)) return;
+  /** @param {Set<unknown>} next @param {unknown[]} pending Requested IDs no item carries yet. @returns {void} */
+  _replaceChecked(next, pending) {
+    const nextPending = pending.length ? pending : null;
+    const pendingChanged = !setsEqual(new Set(this._pending ?? []), new Set(nextPending ?? []));
+    if (setsEqual(this._checked, next) && !pendingChanged) return;
     this._checked = next;
+    this._pending = nextPending;
     this._renderItems();
     this.emit('change', { values: this.getValues() });
   }

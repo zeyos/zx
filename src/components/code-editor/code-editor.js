@@ -78,11 +78,9 @@ export class CodeEditor extends Component {
       .map((name) => [name, root.getAttribute(name)]));
     this._language = normalizeLanguage(this.options.language);
     this._languageLabel = h('span', { class: 'zx-code-editor__language' }, this._language);
-    this._position = h('span', {
-      class: 'zx-code-editor__position',
-      role: 'status',
-      ariaLive: 'polite'
-    });
+    // A visible readout, not a live region: announced on every caret move it would talk over
+    // each keystroke.
+    this._position = h('span', { class: 'zx-code-editor__position' });
     this._header = h('div', { class: 'zx-code-editor__header' }, this._languageLabel,
       this.options.status ? this._position : null);
     this._input = /** @type {HTMLTextAreaElement} */ (h('textarea', {

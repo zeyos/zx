@@ -594,10 +594,11 @@ function clampNumber(value, min, max) {
 
 /**
  * Decimal places in a number's shortest exact notation, exponent form included (`2.5e-7` has 8).
+ * Shared with Slider, whose `stepPrecision()` is this.
  * @param {number} value Number to measure.
  * @returns {number}
  */
-function decimalsOf(value) {
+export function decimalsOf(value) {
   const [mantissa, exponent = '0'] = String(value).toLowerCase().split('e');
   const fraction = mantissa.split('.')[1]?.length ?? 0;
   return Math.max(0, fraction - Number(exponent));

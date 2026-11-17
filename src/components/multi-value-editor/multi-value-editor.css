@@ -87,8 +87,13 @@
   color: var(--zx-color-text-muted);
   cursor: grab;
   touch-action: none;
-  transition: color var(--zx-dur-fast) var(--zx-ease),
-    background-color var(--zx-dur-fast) var(--zx-ease);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .zx-multi-value-editor__handle {
+    transition: color var(--zx-dur-fast) var(--zx-ease),
+      background-color var(--zx-dur-fast) var(--zx-ease);
+  }
 }
 
 .zx-multi-value-editor__handle:hover:not(:disabled) {

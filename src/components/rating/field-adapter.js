@@ -17,6 +17,9 @@ export function registerRatingFieldAdapter() {
     });
     return {
       el: rating.el,
+      // The radiogroup is what the label names and what the field's description and validity
+      // belong to.
+      labelTarget: rating.refs.symbols,
       // Unrated reads as null rather than 0, so Form's required check treats it as empty.
       get: () => rating.get() || null,
       set: (value) => {

@@ -138,6 +138,49 @@ test('date fields keep no room for a clear button they cannot show', () => {
   });
 });
 
+test('a disabled field is not validated: it neither blocks the submit nor takes focus', () => {
+  withDocument(() => {
+    const form = new Form(null, {
+      fieldsets: [{ fields: {
+        name: { type: 'text', label: 'Name', required: true, disabled: true },
+        note: { type: 'text', label: 'Note' }
+      } }]
+    });
+    const name = form.getField('name');
+    let focused = 0;
+    name.focus = () => { focused += 1; return name; };
+    const submitted = [];
+    form.on('submit', (event) => submitted.push(event.detail.values));
+    assert.equal(form.submit(), true, 'an empty required field that is disabled does not block');
+    assert.equal(submitted.length, 1);
+    assert.equal(focused, 0);
+    assert.equal(name.el.dataset.state, undefined);
+
+    // Enabled again, it is required as before; disabled after failing, its message goes.
+    name.setDisabled(false);
+    assert.equal(form.submit(), false);
+    assert.equal(focused, 1);
+    assert.equal(name.el.dataset.state, 'danger');
+    name.setDisabled(true);
+    assert.equal(form.submit(), true);
+    assert.equal(name.el.dataset.state, undefined);
+    form.destroy();
+  });
+});
+
+test('borrowed fieldsets go back where they were, in their original order', () => {
+  withDocument(() => {
+    const parent = document.createElement('div');
+    const [a, b, c] = ['A', 'B', 'C'].map((title) => new Fieldset(null, { title }));
+    parent.append(a.el, b.el, c.el);
+    const form = new Form(null, { fieldsets: [a, b] });
+    assert.deepEqual(parent.children, [c.el]);
+    form.destroy();
+    assert.deepEqual(parent.children, [a.el, b.el, c.el]);
+    for (const fieldset of [a, b, c]) fieldset.destroy();
+  });
+});
+
 /* ------------------------------------------------------------------ helpers -- */
 
 /** @param {any} root @returns {string[]} */

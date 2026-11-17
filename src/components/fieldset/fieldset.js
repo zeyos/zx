@@ -197,7 +197,9 @@ export class Fieldset extends Component {
    * @returns {this}
    */
   clear() {
-    for (const field of [...this._fields.values()]) this._releaseField(field);
+    // Borrowed fields go back last-adopted first: each one's saved next sibling may be an
+    // earlier-adopted one, which has to be back in place before it can serve as the anchor.
+    for (const field of [...this._fields.values()].reverse()) this._releaseField(field);
     this._fields.clear();
     return this;
   }

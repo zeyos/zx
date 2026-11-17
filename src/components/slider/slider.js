@@ -1,7 +1,7 @@
 import { Component } from '../../core/component.js';
 import { h, restoreTarget, snapshotTarget } from '../../core/dom.js';
 import { clamp, uid } from '../../core/util.js';
-import { snapNumber } from '../number-field/number-field.js';
+import { decimalsOf, snapNumber } from '../number-field/number-field.js';
 
 /**
  * @typedef {Object} SliderMark
@@ -387,15 +387,13 @@ const CHANGE_KEYS = new Set([
 ]);
 
 /**
- * Decimal places a step carries, so a 0.1 step snaps to 0.3 rather than 0.30000000000000004.
+ * Decimal places a step carries, so a 0.1 step snaps to 0.3 rather than 0.30000000000000004 —
+ * exponent form included (`1.5e-7` carries 8).
  * @param {number} step Step size.
  * @returns {number}
  */
 export function stepPrecision(step) {
-  const text = String(step);
-  const exponent = /e-(\d+)$/i.exec(text);
-  if (exponent) return Number(exponent[1]);
-  return (text.split('.')[1] ?? '').length;
+  return decimalsOf(step);
 }
 
 /** @param {number} value @returns {string} */

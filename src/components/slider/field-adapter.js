@@ -24,6 +24,9 @@ export function registerSliderFieldAdapter() {
     slider.on('input', (event) => field.emit('input', { value: event.detail.value }));
     return {
       el: slider.el,
+      // The range input is what the label names and what the field's description and validity
+      // belong to; the field's label replaces the slider's own hidden one as its name.
+      labelTarget: slider.refs.input,
       get: () => slider.get(),
       set: (value) => {
         setting = true;

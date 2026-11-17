@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { snapNumber } from '../../src/components/number-field/number-field.js';
+import { decimalsOf, snapNumber } from '../../src/components/number-field/number-field.js';
 import { stepPrecision } from '../../src/components/slider/slider.js';
 
 /** The snapping a Slider performs: the shared helper, given the precision its step implies. */
@@ -18,6 +18,18 @@ test('stepPrecision counts the decimals a step carries', () => {
 
 test('stepPrecision reads a step written in exponential form', () => {
   assert.equal(stepPrecision(1e-4), 4);
+});
+
+test('stepPrecision counts the mantissa decimals of an exponential step too', () => {
+  assert.equal(stepPrecision(1.5e-7), 8);
+  assert.equal(stepPrecision(2.25e-9), 11);
+  assert.equal(stepPrecision(1e-7), 7);
+});
+
+test('Slider and NumberField read the precision of a step the same way', () => {
+  for (const step of [1, 10, 0.5, 0.25, 0.001, 1e-4, 1e-7, 1.5e-7, 2.25e-9]) {
+    assert.equal(stepPrecision(step), decimalsOf(step), `step ${step}`);
+  }
 });
 
 test('a fractional step does not accumulate floating-point error', () => {

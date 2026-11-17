@@ -678,6 +678,9 @@ export class Filter extends Component {
   _setNodeValue(id, value) {
     const node = findNode(this._value.root, id);
     if (node?.kind !== 'condition') return;
+    // One edit can reach here twice — a value <select> fires `input` and then `change`, a text
+    // input its `change` on blur after the last `input` — and only the first carries news.
+    if (sameFilterValue(node.value, value)) return;
     node.value = value;
     const result = this.validate();
     this.el.dataset.valid = String(result.valid);
@@ -974,6 +977,12 @@ function conditionNodes(node) { if (!node) return []; if (node.kind === 'conditi
 function parseScalar(value, type) { if (value === '') return null; if (['number', 'money'].includes(type)) { const number = Number(value); return Number.isFinite(number) ? number : null; } if (type === 'boolean') return value === 'true'; return value; }
 /** @param {unknown} value @returns {any} */
 function parseValueJson(value) { return cloneFilterValue(value === undefined ? null : value); }
+/**
+ * Whether two JSON-safe condition values are the same value: equal scalars, or arrays and
+ * objects with the same content.
+ * @param {unknown} left @param {unknown} right @returns {boolean}
+ */
+function sameFilterValue(left, right) { return Object.is(left, right) || JSON.stringify(left ?? null) === JSON.stringify(right ?? null); }
 /** @param {any} root @param {string} id @returns {any|null} */
 function findNode(root, id) { if (!root || root.id === id) return root ?? null; if (root.kind === 'group') for (const child of root.children) { const match = findNode(child, id); if (match) return match; } return null; }
 /** @param {any} root @param {string} id @returns {any|null} */

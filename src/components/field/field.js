@@ -37,7 +37,8 @@ import { uid } from '../../core/util.js';
  *   control has none.
  * @property {() => void} [destroy] Release adapter-owned resources.
  * @property {Element} [labelTarget] The element the field's label, description, and validity
- *   belong to when it is not `el` — the text input inside a composite control. Left out, a
+ *   belong to when it is not `el` — the text input inside a composite control. The field's label
+ *   names it through `aria-labelledby`, over any name the component gave it. Left out, a
  *   wrapper that cannot be labelled hands them to the first unnamed form control inside it.
  */
 
@@ -105,7 +106,7 @@ export class Field extends Component {
   // `adapter` (FieldAdapter), `initialValue`, `controlId` (the control's DOM id), and `name` (the
   // field name, '' when there is none) are assigned in render(); declaring them as class fields
   // would re-initialize them to undefined after the base constructor (which calls render())
-  // returns — see AGENTS.md.
+  // returns.
 
   /** @returns {HTMLElement} */
   render() {
@@ -172,7 +173,13 @@ export class Field extends Component {
     this._labelled = labelled;
     if (labelled !== control && isLabelable(labelled) && !labelled.id) labelled.id = `${this.controlId}-input`;
     label.htmlFor = isLabelable(labelled) ? labelled.id : control.id;
-    if (!isLabelable(labelled)) labelled.setAttribute('aria-labelledby', labelId);
+    // The field's label names the control. A wrapper has no `<label for>`; the input inside a
+    // composite usually carries a name of its own — an `aria-label`, which beats `<label for>`,
+    // or a visually hidden label of its own that would be read as well — so both are pointed at
+    // the label explicitly. A plain native control keeps `<label for>` alone.
+    if (!isLabelable(labelled) || labelled !== control || labelled.hasAttribute('aria-label')) {
+      labelled.setAttribute('aria-labelledby', labelId);
+    }
     this._baseDescribedBy = labelled.getAttribute('aria-describedby') ?? '';
     controlSlot.append(control);
     this._descriptionId = String(this.options.description ?? '') ? descriptionId : '';

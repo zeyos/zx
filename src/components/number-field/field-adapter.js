@@ -23,6 +23,9 @@ export function registerNumberFieldAdapter() {
     });
     return {
       el: numberField.el,
+      // The spinbutton, not the frame around it and its step buttons, is what the label names and
+      // what the field's description and validity belong to.
+      labelTarget: numberField.getInput(),
       get: () => numberField.get(),
       set: (value) => {
         setting = true;

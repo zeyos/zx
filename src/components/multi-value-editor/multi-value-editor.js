@@ -22,6 +22,7 @@ const REORDER = Object.freeze({
 });
 
 /** Focusable parts of a row, so a re-render can put focus back where the reader left it. */
+/** @typedef {'value'|'handle'|'up'|'down'} MultiValueEditorPart A row control that can take focus. */
 const PARTS = Object.freeze({
   value: '.zx-multi-value-editor__value',
   handle: '.zx-multi-value-editor__handle',
@@ -109,7 +110,7 @@ export class MultiValueEditor extends Component {
 
   /**
    * @param {number} [focusIndex=-1] Row to focus after the render, or -1 for none.
-   * @param {keyof PARTS} [focusPart='value'] Which control of that row takes focus.
+   * @param {MultiValueEditorPart} [focusPart='value'] Which control of that row takes focus.
    * @returns {void}
    */
   _renderRows(focusIndex = -1, focusPart = 'value') {
@@ -346,7 +347,7 @@ export class MultiValueEditor extends Component {
   /**
    * @param {number} from Index to move.
    * @param {number} to Destination index.
-   * @param {keyof PARTS} part Control of the moved row that takes focus.
+   * @param {MultiValueEditorPart} part Control of the moved row that takes focus.
    * @returns {boolean} Whether anything moved.
    */
   _move(from, to, part) {

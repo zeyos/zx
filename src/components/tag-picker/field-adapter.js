@@ -19,6 +19,9 @@ export function registerTagPickerFieldAdapter() {
     });
     return {
       el: picker.el,
+      // The combobox input is what the label names (in place of its generic "Add a value") and
+      // what the field's description and validity belong to.
+      labelTarget: picker.refs.input,
       get: () => picker.getValues(),
       set: (value) => {
         setting = true;

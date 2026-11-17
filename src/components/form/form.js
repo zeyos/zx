@@ -218,7 +218,8 @@ export class Form extends Component {
   }
 
   /**
-   * Validates and emits a preventable submit event.
+   * Validates and emits a preventable submit event. A disabled field — disabled itself, or inside
+   * a disabled `<fieldset>` — is not validated, so it can neither block the submit nor take focus.
    * @returns {boolean} True when valid and not prevented.
    * @fires Form#submit
    * @fires Form#invalid
@@ -228,6 +229,10 @@ export class Form extends Component {
     let firstInvalid = null;
     for (const fieldset of this._fieldsets) {
       for (const [id, field] of Object.entries(fieldset.getFields())) {
+        if (isDisabledField(field)) {
+          field.clearHighlight();
+          continue;
+        }
         const value = field.getValue();
         let message = '';
         if (field.options.required && isEmpty(value)) {
@@ -271,7 +276,9 @@ export class Form extends Component {
 
   /** @returns {void} */
   destroy() {
-    for (const fieldset of this._fieldsets ?? []) {
+    // Borrowed fieldsets go back last-adopted first: each one's saved next sibling may be an
+    // earlier-adopted one, which has to be back in place before it can serve as the anchor.
+    for (const fieldset of [...(this._fieldsets ?? [])].reverse()) {
       if (this._ownedFieldsets.has(fieldset)) fieldset.destroy();
       else {
         const origin = this._origins.get(fieldset);
@@ -288,6 +295,16 @@ export class Form extends Component {
     else this.el.setAttribute('novalidate', this._novalidateAttribute);
     super.destroy();
   }
+}
+
+/**
+ * Whether a field is disabled: through `Field#setDisabled()` (or its `disabled` option), or by a
+ * disabled `<fieldset>` around it.
+ * @param {import('../field/field.js').Field} field
+ * @returns {boolean}
+ */
+function isDisabledField(field) {
+  return field.el.dataset.disabled === 'true' || Boolean(field.el.closest?.('fieldset:disabled'));
 }
 
 /** @param {unknown} value @returns {boolean} */

@@ -322,6 +322,19 @@ test('Fieldset reads, writes, disables and releases every value component', () =
   });
 });
 
+test('borrowed fields go back where they were, in their original order', () => {
+  withDocument(() => {
+    const parent = document.createElement('div');
+    const [a, b, c] = ['A', 'B', 'C'].map((label) => new Field(null, { label }));
+    parent.append(a.el, b.el, c.el);
+    const fieldset = new Fieldset(null, { fields: { a, b } });
+    assert.deepEqual(parent.children, [c.el]);
+    fieldset.destroy();
+    assert.deepEqual(parent.children, [a.el, b.el, c.el]);
+    for (const field of [a, b, c]) field.destroy();
+  });
+});
+
 test('an adopted component reports one field change per edit', () => {
   withDocument(() => {
     const count = new NumberField(null, { value: 1, min: 0, max: 10 });

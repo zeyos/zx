@@ -2,6 +2,7 @@ import { Component } from '../../core/component.js';
 import { h } from '../../core/dom.js';
 import { ICON_SIZE, icon } from '../../core/icons.js';
 import { printf } from '../../core/i18n.js';
+import { rovingTabindex } from '../../core/keyboard.js';
 import { uid } from '../../core/util.js';
 
 /**
@@ -18,8 +19,9 @@ import { uid } from '../../core/util.js';
  */
 
 /**
- * Tag/chip editor. It uses the APG listbox/option focus model: each chip is an option, arrow keys
- * move focus, Ctrl+Left/Right reorders, and Delete/Backspace removes the focused option.
+ * Tag/chip editor. It uses the APG listbox/option focus model: the list is one tab stop (a roving
+ * tabindex), each chip is an option, arrow keys move focus, Home/End go to the first and last
+ * chip, Ctrl+Left/Right reorders, and Delete/Backspace removes the focused option.
  * @fires ValueList#change
  * @fires ValueList#add
  * @fires ValueList#remove
@@ -43,6 +45,7 @@ export class ValueList extends Component {
     const root = /** @type {HTMLElement} */ (this.el ?? h('div'));
     this._ownedNodes = [];
     this._disabled = false;
+    this._roving = null;
     this._dragIndex = -1;
     this._initialState = root.getAttribute('data-state');
     this._initialDisabled = root.getAttribute('data-disabled');
@@ -87,6 +90,7 @@ export class ValueList extends Component {
       if (event.target === root && !this._disabled) this.focus();
     });
     this._renderChips();
+    this._syncRoving();
     return root;
   }
 
@@ -176,6 +180,7 @@ export class ValueList extends Component {
     this._input.disabled = false;
     this.el.dataset.disabled = 'false';
     this._renderChips();
+    this._syncRoving();
     return this;
   }
 
@@ -187,16 +192,33 @@ export class ValueList extends Component {
     this._disabled = true;
     this._input.disabled = true;
     this.el.dataset.disabled = 'true';
+    this._syncRoving();
     this._renderChips();
     return this;
   }
 
+  /**
+   * Keeps the chips one tab stop while the list is editable; a disabled list keeps none.
+   * @returns {void}
+   */
+  _syncRoving() {
+    if (this._disabled) {
+      this._roving?.destroy();
+      this._roving = null;
+    } else {
+      this._roving ??= rovingTabindex(this._list, '.zx-value-list__chip', { orientation: 'horizontal', wrap: false });
+    }
+  }
+
   /** @returns {void} */
   _renderChips(focusIndex = -1) {
+    // The chip that held the tab stop keeps it across a redraw, unless focus moves to another.
+    const previous = [...this._list.children].findIndex((chip) => /** @type {HTMLElement} */ (chip).tabIndex === 0);
+    const tabStop = Math.min(focusIndex >= 0 ? focusIndex : Math.max(0, previous), this._values.length - 1);
     const chips = this._values.map((value, index) => h('li', {
       class: 'zx-value-list__chip',
       role: 'option',
-      tabIndex: this._disabled ? -1 : 0,
+      tabIndex: !this._disabled && index === tabStop ? 0 : -1,
       draggable: Boolean(this.options.sortable) && !this._disabled,
       ariaSelected: 'false',
       ariaDisabled: String(this._disabled),
@@ -237,12 +259,16 @@ export class ValueList extends Component {
     }
     const horizontal = event.key === 'ArrowLeft' ? -1 : event.key === 'ArrowRight' ? 1 : 0;
     const vertical = event.key === 'ArrowUp' ? -1 : event.key === 'ArrowDown' ? 1 : 0;
-    const direction = horizontal || vertical;
-    if (!direction) return;
-    event.preventDefault();
-    const next = Math.max(0, Math.min(this._values.length - 1, index + direction));
-    if (event.ctrlKey && horizontal && this.options.sortable) this._move(index, next, true);
-    else this._list.querySelector(`[data-index="${next}"]`)?.focus();
+    const next = Math.max(0, Math.min(this._values.length - 1, index + (horizontal || vertical)));
+    if (event.ctrlKey && horizontal && this.options.sortable) {
+      event.preventDefault();
+      // Redrawn under the key: the roving group finds the event's chip gone and leaves it alone.
+      this._move(index, next, true);
+    } else if (vertical) {
+      // Left, Right, Home, and End are the roving group's; Up and Down step the same way.
+      event.preventDefault();
+      this._list.querySelector(`[data-index="${next}"]`)?.focus();
+    }
   }
 
   /** @param {MouseEvent} event @returns {void} */
@@ -321,6 +347,8 @@ export class ValueList extends Component {
 
   /** @returns {void} */
   destroy() {
+    this._roving?.destroy();
+    this._roving = null;
     for (const node of this._ownedNodes ?? []) node.remove();
     if (this._initialState === null) this.el.removeAttribute('data-state');
     else this.el.setAttribute('data-state', this._initialState);

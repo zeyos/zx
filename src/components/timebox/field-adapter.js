@@ -15,6 +15,9 @@ export function registerTimeboxFieldAdapter() {
     timebox.on('change', (event) => field.emit('change', { value: event.detail.value }));
     return {
       el: timebox.el,
+      // The segment group is what the label names and what the field's description and validity
+      // belong to; each segment keeps its own name (Hours, Minutes) inside it.
+      labelTarget: timebox.el.querySelector('.zx-timebox__content') ?? undefined,
       get: () => timebox.get(),
       set: (value) => timebox.set(Number(value) || 0, { silent: true }),
       focus: () => timebox.el.querySelector('input:not([disabled]), button:not([disabled])')?.focus(),

@@ -275,7 +275,9 @@ export class Select extends Component {
   }
 
   /**
-   * Selects an item or item ID.
+   * Selects an item or item ID. An ID none of the items carries selects nothing; a whole item
+   * that is not among them — the current record of an async-filtered Select, whose results have
+   * not been loaded — is selected as given.
    * @param {unknown} idOrItem Item ID, item, or null.
    * @param {SelectSetOptions} [options={}] Update behavior.
    * @returns {this}
@@ -284,7 +286,11 @@ export class Select extends Component {
   set(idOrItem, { silent = false } = {}) {
     const previousValue = this.value;
     const candidate = typeof idOrItem === 'string' ? this._normalizeValue(idOrItem) : idOrItem;
-    const item = candidate == null ? null : this._findItem(candidate);
+    let item = candidate == null ? null : this._findItem(candidate);
+    if (item === null && candidate !== null && typeof candidate === 'object'
+      && this._itemValue(/** @type {SelectItem} */ (candidate)) != null) {
+      item = /** @type {SelectItem} */ (candidate);
+    }
     this._selected = item;
     this._syncInputValue();
     this._renderOptions();
@@ -302,14 +308,13 @@ export class Select extends Component {
    */
   setItems(items) {
     const selectedValue = this.value;
+    const query = this._typedQuery();
     this._cancelQuery();
     this._setLoading(false);
     this._items = Array.isArray(items) ? items.slice() : [];
     this._visibleItems = this._items.slice();
     this._selected = selectedValue == null ? null : this._findItem(selectedValue);
-    this._syncInputValue();
-    this._renderOptions();
-    this._position?.update();
+    this._refreshAfterItemChange(query);
     return this;
   }
 
@@ -320,13 +325,52 @@ export class Select extends Component {
    */
   setFixedItems(items) {
     const selectedValue = this.value;
+    const query = this._typedQuery();
     this._fixedItems = Array.isArray(items) ? items.slice() : [];
     this._visibleFixed = this._fixedItems.slice();
     this._selected = selectedValue == null ? null : this._findItem(selectedValue);
-    this._syncInputValue();
-    this._renderOptions();
-    this._position?.update();
+    this._refreshAfterItemChange(query);
     return this;
+  }
+
+  /**
+   * What the reader has typed into the open list, or null when the input just shows the
+   * selection (or the list is closed, or the Select does not filter).
+   * @returns {string|null}
+   */
+  _typedQuery() {
+    if (!this._open || !this.options.filter) return null;
+    const query = /** @type {HTMLInputElement} */ (this.refs.input).value;
+    return query === this._selectedLabel() ? null : query;
+  }
+
+  /**
+   * Redraws after the items were replaced. A query the reader typed into the open list stays in
+   * the input and narrows the new items — locally filtered items by matching, pinned choices
+   * always — instead of the full list replacing what they typed.
+   * @param {string|null} query Typed query from before the change (see `_typedQuery()`).
+   * @returns {void}
+   */
+  _refreshAfterItemChange(query) {
+    if (query !== null) {
+      this._visibleFixed = this._matchFixed(query);
+      if (this.options.filter === 'local') this._visibleItems = matchItems(this._items, query, this._searchKeys());
+      this._syncValueAdornment();
+      this.refs.clear.hidden = !this.options.clearable || this._selected === null;
+      this._renderOptions();
+      this._setActive(this._optionEntries.length > 0 ? 0 : -1);
+    } else {
+      this._syncInputValue();
+      this._renderOptions();
+    }
+    this._position?.update();
+  }
+
+  /** The text the input shows for the selection: '' when nothing is selected. @returns {string} */
+  _selectedLabel() {
+    if (this._selected === null) return '';
+    return typeof this.options.renderValue === 'function'
+      ? String(this.options.renderValue(this._selected) ?? '') : this._itemLabel(this._selected);
   }
 
   /** Replaces command rows without changing the selected value. @param {SelectAction[]} actions @returns {this} */
@@ -490,10 +534,12 @@ export class Select extends Component {
     // the setItems() below, which renders it again.
     const noneLabel = () => options.noneLabel
       ?? (select ? select._message('priority.none', 'No priority') : 'No priority');
+    // The requested value is the configured one, so reset() returns to it; it is applied below,
+    // once the items exist.
     select = new Select(target, {
       ...options,
       clearable,
-      value: null,
+      value: requestedValue,
       items: [],
       renderItem(item) {
         return priorityContent(item, true);
@@ -523,9 +569,11 @@ export class Select extends Component {
    */
   static status(target, options = {}) {
     const { items = null, value = null, ...rest } = options;
+    // The requested value is the configured one, so reset() returns to it; it is applied below,
+    // once the items exist.
     const select = new Select(target, {
       ...rest,
-      value: null,
+      value,
       items: [],
       renderItem(item) { return statusContent(item); },
       renderValueAdornment(item) { return statusIndicator(item); }
@@ -614,7 +662,9 @@ export class Select extends Component {
       // `filter` override. Array-backed groups still honor local/disabled filtering.
       filter: loader ?? filter,
       ...rest,
-      value: null,
+      // The requested value is the configured one, so reset() returns to it; it is applied
+      // below, once the fixed choices exist.
+      value,
       items: shareable,
       fixedItems: [],
       // The two choices carry their own ID and label, so a caller's group readers stay untouched.
@@ -642,6 +692,8 @@ export class Select extends Component {
   /** @param {KeyboardEvent} event @returns {void} */
   _onKeydown(event) {
     if (this._disabled) return;
+    // Keys that confirm or steer an IME composition (Enter, arrows) belong to the IME.
+    if (event.isComposing || event.keyCode === 229) return;
     if (this._open && isPrintable(event)) {
       const shortcut = this._optionEntries.findIndex((entry) => !entry.clear && !entry.action
         && String((/** @type {Record<string, any>|null} */ (entry.item))?.shortcut ?? '') === event.key);
@@ -666,12 +718,15 @@ export class Select extends Component {
       } else this._moveActive(-1);
       return;
     }
-    if (event.key === 'Home' && this._open) {
+    // Home and End move the caret through a query the reader typed; they move through the options
+    // of a read-only input, an empty one, or one that still just shows the selection.
+    const listKeys = this._open && !this._typedQuery();
+    if (event.key === 'Home' && listKeys) {
       event.preventDefault();
       this._setActive(0);
       return;
     }
-    if (event.key === 'End' && this._open) {
+    if (event.key === 'End' && listKeys) {
       event.preventDefault();
       this._setActive(this._optionEntries.length - 1);
       return;
