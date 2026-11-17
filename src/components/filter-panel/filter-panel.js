@@ -128,7 +128,6 @@ export class FilterPanel extends Component {
     this._restored = false;
     this._entries = [];
     this._children = [];
-    this._writing = false;
     this._draft = {};
     this._applied = {};
     this._appliedDraft = '';
@@ -335,7 +334,7 @@ export class FilterPanel extends Component {
     checklist.on('change', () => this._edited(key, checklist.getValues()));
     this._isolate(checklist);
     this._children.push(checklist);
-    this._entries.push({ key, write: (value) => checklist.setValues(/** @type {unknown[]} */ (value ?? [])) });
+    this._entries.push({ key, write: (value) => checklist.setValues(/** @type {unknown[]} */ (value ?? []), { silent: true }) });
     return checklist.toElement();
   }
 
@@ -519,7 +518,6 @@ export class FilterPanel extends Component {
 
   /** @param {string} key Field key. @param {unknown} value Raw draft value. @returns {void} */
   _edited(key, value) {
-    if (this._writing) return;
     this._draft[key] = value;
     this._afterEdit(key);
   }
@@ -531,7 +529,6 @@ export class FilterPanel extends Component {
    * @returns {void}
    */
   _editedEdge(key, edge, value) {
-    if (this._writing) return;
     const current = this._draft[key];
     const range = current !== null && typeof current === 'object' && !Array.isArray(current)
       ? { .../** @type {Record<string, unknown>} */ (current) }
@@ -594,14 +591,14 @@ export class FilterPanel extends Component {
     return serializeFilterValue(this._draft, this.options.fields, this.options.serialize, this._timeZone);
   }
 
-  /** Pushes the draft back into the controls without re-entering the edit path. @returns {void} */
+  /**
+   * Pushes the draft back into the controls without re-entering the edit path: every entry writes
+   * silently (a plain input's `value`, `{silent: true}` to the composed controls), so none of them
+   * reports the write back as an edit.
+   * @returns {void}
+   */
   _writeControls() {
-    this._writing = true;
-    try {
-      for (const entry of this._entries) entry.write(this._draft[entry.key]);
-    } finally {
-      this._writing = false;
-    }
+    for (const entry of this._entries) entry.write(this._draft[entry.key]);
   }
 
   /** @param {Record<string, unknown>} [value] The draft value, when it is already at hand. @returns {void} */

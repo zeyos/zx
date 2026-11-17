@@ -11,34 +11,19 @@ export function registerMultiValueEditorFieldAdapter() {
       ...(options.props ?? {}),
       values: Array.isArray(options.value) ? options.value : []
     }));
-    const originalDisabled = new WeakMap();
-    let disabled = false;
-    const syncDisabled = () => {
-      editor.el.setAttribute('aria-disabled', String(disabled));
-      for (const control of editor.el.querySelectorAll('input, button, select, textarea')) {
-        if (disabled) {
-          if (!originalDisabled.has(control)) originalDisabled.set(control, Boolean(control.disabled));
-          control.disabled = true;
-        } else if (originalDisabled.has(control)) {
-          control.disabled = originalDisabled.get(control);
-          originalDisabled.delete(control);
-        }
-      }
-    };
     field.listen(editor.el, 'change', (event) => event.stopImmediatePropagation());
     editor.on('change', (event) => field.emit('change', { value: event.detail.values }));
     return {
       el: editor.el,
       get: () => editor.getValues(),
-      set: (value) => {
-        editor.setValues(Array.isArray(value) ? value : [], { silent: true });
-        syncDisabled();
-      },
-      focus: () => editor.el.querySelector('.zx-multi-value-editor__value:not([disabled]), button:not([disabled])')?.focus(),
-      setDisabled: (value) => {
-        disabled = Boolean(value);
-        syncDisabled();
-      }
+      // Rows the editor renders while disabled are rendered disabled, so a value set on a
+      // disabled field needs nothing more.
+      set: (value) => editor.setValues(Array.isArray(value) ? value : [], { silent: true }),
+      // The first value, else the first control: a selector list matches in document order, which
+      // would put the drag handle ahead of the value it belongs to.
+      focus: () => (editor.el.querySelector('.zx-multi-value-editor__value:not([disabled])')
+        ?? editor.el.querySelector('button:not([disabled])'))?.focus(),
+      setDisabled: (value) => { editor.setDisabled(value); }
     };
   });
 }

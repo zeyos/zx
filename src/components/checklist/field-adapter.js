@@ -10,24 +10,16 @@ export function registerChecklistFieldAdapter() {
     // The Field's label names the list (`aria-labelledby`), so the checklist draws no heading of
     // its own under it.
     const checklist = field.own(new Checklist(null, { hideLabel: true, ...(options.props ?? {}) }));
-    let setting = false;
     field.listen(checklist.el, 'change', (event) => event.stopImmediatePropagation());
-    checklist.on('change', (event) => {
-      if (!setting) field.emit('change', { value: event.detail.values });
-    });
+    checklist.on('change', (event) => field.emit('change', { value: event.detail.values }));
     return {
       el: checklist.el,
       get: () => checklist.getValues(),
       set: (value) => {
-        setting = true;
-        try {
-          // An array is the value, an empty one included; anything else — the Field's '' when no
-          // value was given — clears what is shown and leaves items still to load their own flags.
-          if (Array.isArray(value)) checklist.setValues(value);
-          else checklist.uncheckAll();
-        } finally {
-          setting = false;
-        }
+        // An array is the value, an empty one included; anything else — the Field's '' when no
+        // value was given — clears what is shown and leaves items still to load their own flags.
+        if (Array.isArray(value)) checklist.setValues(value, { silent: true });
+        else checklist.uncheckAll({ silent: true });
       },
       focus: () => {
         const search = checklist.el.querySelector('.zx-checklist__search:not([hidden]):not([disabled])');

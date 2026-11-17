@@ -194,3 +194,26 @@ test('CodeEditor.clearHighlight and an empty message both clear, keeping foreign
   bare.setHighlight('Broken').clearHighlight();
   assert.equal(bare._input.hasAttribute('aria-describedby'), false);
 });
+
+/*
+ * Every other control spells it `readonly` / `setReadonly()`; the editor answers to both spellings.
+ * The option is checked in tests/regression/followup-api.js, where the textarea is real.
+ */
+test('CodeEditor declares the readonly option beside readOnly, both off by default', () => {
+  assert.equal(CodeEditor.defaults.readOnly, false);
+  assert.equal(CodeEditor.defaults.readonly, false);
+});
+
+test('CodeEditor.setReadonly() is setReadOnly() under the other spelling', () => {
+  const editor = Object.create(CodeEditor.prototype);
+  editor.el = fakeElement();
+  editor._input = { readOnly: false };
+  assert.equal(editor.setReadonly(true), editor);
+  assert.equal(editor._input.readOnly, true);
+  assert.equal(editor.el.dataset.readonly, 'true');
+  editor.setReadonly(0);
+  assert.equal(editor._input.readOnly, false);
+  assert.equal(editor.el.dataset.readonly, 'false');
+  editor.setReadOnly(true);
+  assert.equal(editor._input.readOnly, true, 'the original name keeps working');
+});

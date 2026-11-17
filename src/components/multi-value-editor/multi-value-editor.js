@@ -10,6 +10,8 @@ import { ICON_SIZE, icon } from '../../core/icons.js';
  *   message ("Add value").
  * @property {'both'|'buttons'|'drag'|'none'} [reorder='both'] Reordering affordances each row gets:
  *   a drag handle, the up/down buttons, both, or neither.
+ * @property {boolean} [disabled=false] Whether every row control (values, handles, move and remove
+ *   buttons) and the add button are disabled; values can still be set from code.
  * @property {(event: CustomEvent<{values: string[]}>) => void} [onchange] Values change listener.
  */
 
@@ -43,7 +45,7 @@ export class MultiValueEditor extends Component {
   static cssName = 'multi-value-editor';
 
   /** @type {MultiValueEditorOptions} */
-  static defaults = { values: [], options: null, addLabel: null, reorder: 'both' };
+  static defaults = { values: [], options: null, addLabel: null, reorder: 'both', disabled: false };
 
   /** @returns {HTMLElement} */
   render() {
@@ -52,6 +54,8 @@ export class MultiValueEditor extends Component {
     this._values = Array.isArray(this.options.values) ? this.options.values.map(String) : [];
     this._ownedNodes = [];
     this._initialState = root.getAttribute('data-state');
+    this._initialAriaDisabled = root.getAttribute('aria-disabled');
+    this._disabled = Boolean(this.options.disabled);
     this._dragIndex = -1;
     /** @type {HTMLElement|null} Row made draggable by a pointer press on its handle. */
     this._armed = null;
@@ -79,6 +83,7 @@ export class MultiValueEditor extends Component {
       this.listen(document, 'pointercancel', () => this._disarm());
     }
     this._renderRows();
+    this._syncDisabled();
     return root;
   }
 
@@ -101,6 +106,51 @@ export class MultiValueEditor extends Component {
     this._renderRows();
     if (!silent) this.emit('change', { values: this.getValues() });
     return this;
+  }
+
+  /**
+   * Disables or enables the editor. Disabled, every value input or select, drag handle, move and
+   * remove button and the add button is disabled, the root carries `aria-disabled="true"`, and
+   * neither a pointer nor the handle's keys reorder anything. `setValues()` still works, and rows
+   * it renders stay disabled.
+   * @param {boolean} disabled Disabled state.
+   * @returns {this}
+   */
+  setDisabled(disabled) {
+    this._disabled = Boolean(disabled);
+    this._syncDisabled();
+    return this;
+  }
+
+  /** Disables the editor; see `setDisabled()`. @returns {this} */
+  disable() {
+    return this.setDisabled(true);
+  }
+
+  /** Enables the editor. @returns {this} */
+  enable() {
+    return this.setDisabled(false);
+  }
+
+  /** Whether the editor is disabled. @returns {boolean} */
+  isDisabled() {
+    return this._disabled;
+  }
+
+  /**
+   * Applies the disabled state to the controls in place rather than re-rendering them, so a value
+   * typed into a row and not yet committed survives.
+   * @returns {void}
+   */
+  _syncDisabled() {
+    if (this._disabled) {
+      this.el.setAttribute('aria-disabled', 'true');
+      this._disarm();
+    } else this.el.removeAttribute('aria-disabled');
+    this._add.disabled = this._disabled;
+    for (const control of this._rows.querySelectorAll('input, select, button')) {
+      /** @type {HTMLInputElement|HTMLSelectElement|HTMLButtonElement} */ (control).disabled = this._disabled;
+    }
   }
 
   /** @returns {{drag: boolean, buttons: boolean}} */
@@ -127,6 +177,7 @@ export class MultiValueEditor extends Component {
       const control = useSelect ? h('select', {
         class: 'zx-multi-value-editor__value',
         ariaLabel: this.msg('multiValueEditor.value', index + 1),
+        disabled: this._disabled,
         dataset: { index }
       }, entries.map(([optionValue, label]) => h('option', {
         value: optionValue,
@@ -136,6 +187,7 @@ export class MultiValueEditor extends Component {
         type: 'text',
         value,
         ariaLabel: this.msg('multiValueEditor.value', index + 1),
+        disabled: this._disabled,
         dataset: { index }
       });
       return h('div', { class: 'zx-multi-value-editor__row', dataset: { row: index } },
@@ -143,6 +195,7 @@ export class MultiValueEditor extends Component {
           class: 'zx-multi-value-editor__handle',
           type: 'button',
           ariaLabel: this.msg('multiValueEditor.reorder', index + 1),
+          disabled: this._disabled,
           dataset: { action: 'grab', index }
         }, icon('drag', { size: 12 })) : null,
         control,
@@ -154,6 +207,7 @@ export class MultiValueEditor extends Component {
             // control that disables itself under the reader's finger drops focus to the document.
             ariaDisabled: String(index === 0),
             ariaLabel: this.msg('multiValueEditor.moveUp', index + 1),
+            disabled: this._disabled,
             dataset: { action: 'up', index }
           }, icon('chevron-up', { size: ICON_SIZE.chevron })) : null,
           buttons ? h('button', {
@@ -161,12 +215,14 @@ export class MultiValueEditor extends Component {
             type: 'button',
             ariaDisabled: String(index === last),
             ariaLabel: this.msg('multiValueEditor.moveDown', index + 1),
+            disabled: this._disabled,
             dataset: { action: 'down', index }
           }, icon('chevron-down', { size: ICON_SIZE.chevron })) : null,
           h('button', {
             class: 'zx-btn',
             type: 'button',
             ariaLabel: this.msg('multiValueEditor.remove', index + 1),
+            disabled: this._disabled,
             dataset: { action: 'remove', index }
           }, icon('x', { size: ICON_SIZE.dismiss }))
         )
@@ -183,7 +239,7 @@ export class MultiValueEditor extends Component {
   /** @param {MouseEvent} event @returns {void} */
   _handleClick(event) {
     const button = event.target instanceof Element ? event.target.closest('[data-action]') : null;
-    if (!button || !this.el.contains(button)) return;
+    if (this._disabled || !button || !this.el.contains(button)) return;
     if (button.getAttribute('aria-disabled') === 'true') return;
     const action = button.dataset.action;
     const index = Number(button.dataset.index);
@@ -222,7 +278,7 @@ export class MultiValueEditor extends Component {
     const handle = event.target instanceof Element
       ? event.target.closest('.zx-multi-value-editor__handle')
       : null;
-    if (!handle) return;
+    if (!handle || this._disabled) return;
     const index = Number(handle.dataset.index);
     const target = event.key === 'ArrowUp' ? index - 1
       : event.key === 'ArrowDown' ? index + 1
@@ -245,7 +301,7 @@ export class MultiValueEditor extends Component {
       ? event.target.closest('.zx-multi-value-editor__handle')
       : null;
     this._disarm();
-    if (!handle || handle.disabled) return;
+    if (!handle || handle.disabled || this._disabled) return;
     const row = /** @type {HTMLElement|null} */ (handle.closest('.zx-multi-value-editor__row'));
     if (!row) return;
     row.draggable = true;
@@ -352,7 +408,7 @@ export class MultiValueEditor extends Component {
    */
   _move(from, to, part) {
     const size = this._values.length;
-    if (from === to || from < 0 || to < 0 || from >= size || to >= size) return false;
+    if (this._disabled || from === to || from < 0 || to < 0 || from >= size || to >= size) return false;
     const [value] = this._values.splice(from, 1);
     this._values.splice(to, 0, value);
     this._renderRows(to, part);
@@ -369,6 +425,8 @@ export class MultiValueEditor extends Component {
   destroy() {
     if (this._initialState === null) this.el?.removeAttribute('data-state');
     else this.el?.setAttribute('data-state', this._initialState);
+    if (this._initialAriaDisabled === null) this.el?.removeAttribute('aria-disabled');
+    else this.el?.setAttribute('aria-disabled', this._initialAriaDisabled);
     for (const node of this._ownedNodes ?? []) node.remove();
     super.destroy();
   }

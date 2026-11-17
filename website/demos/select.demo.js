@@ -142,22 +142,18 @@ export default {
     {
       title: 'Async filtering',
       blurb: 'A filter function returning a promise turns the Select into a remote search. '
-        + 'debounce waits out the typing, and each new query aborts the request in flight — this '
-        + 'fake source adds jitter so out-of-order responses would be visible if they were not '
-        + 'discarded.',
+        + 'debounce waits out the typing, and the signal it is handed aborts when a newer query '
+        + 'starts, the list closes, or the Select is destroyed — pass it to fetch(). This fake '
+        + 'source adds jitter so out-of-order responses would be visible if they were not discarded.',
       width: '360px',
       render: ({ cleanup, log }) => {
-        let controller = null;
         const items = makeItems(80, 'Remote result');
 
         const select = new Select(null, {
           debounce: 40,
           placeholder: 'Type to fetch',
           clearable: true,
-          filter: async (query) => {
-            controller?.abort();
-            controller = new AbortController();
-            const { signal } = controller;
+          filter: async (query, { signal }) => {
             await new Promise((resolve, reject) => {
               const timer = setTimeout(resolve, 100 + ((query.length * 137) % 420));
               signal.addEventListener('abort', () => {
@@ -169,10 +165,7 @@ export default {
           }
         });
         select.on('loaded', ({ detail }) => log(`loaded items=${detail.items.length}`));
-        cleanup(() => {
-          controller?.abort();
-          select.destroy();
-        });
+        cleanup(() => select.destroy());
         return select.toElement();
       }
     },

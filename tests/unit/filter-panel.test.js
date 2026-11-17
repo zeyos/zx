@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { Checklist } from '../../src/components/checklist/checklist.js';
 import {
   FilterPanel, isActiveValue, normalizeOptions, parseFieldType, pruneValue, serializeDate,
   serializeFilterValue, toDateInput, toDraft
@@ -298,6 +299,39 @@ test('live mode has no uncommitted draft, so reset() applies there too', () => {
   });
 });
 
+/*
+ * The panel writes a draft back into a select filter's Checklist with `{silent: true}`, so the write
+ * is not heard as an edit of that filter: one `change {field: null}` per replacement, and the
+ * checklist itself reports nothing. A real edit still reports the field.
+ */
+test('writing a select filter back into its checklist is not heard as an edit', () => {
+  withDocument(() => {
+    const panel = new FilterPanel(null, { fields: { status: fields().status }, value: { status: [0] } });
+    const checklist = /** @type {Checklist} */ (panel._children.find((child) => child instanceof Checklist));
+    assert.ok(checklist, 'a select filter composes a Checklist');
+    const fieldsChanged = [];
+    const heard = [];
+    panel.on('change', ({ detail }) => fieldsChanged.push(detail.field));
+    checklist.on('change', ({ detail }) => heard.push(detail.values));
+
+    panel.setValue({ status: [1, 2] });
+    assert.deepEqual(checklist.getValues(), [1, 2]);
+    panel.reset();
+    assert.deepEqual(checklist.getValues(), [0]);
+    panel.clear();
+    assert.deepEqual(checklist.getValues(), []);
+    assert.deepEqual(fieldsChanged, [null, null, null], 'each replacement reports once, for no one field');
+    assert.deepEqual(heard, [], 'the checklist is written silently');
+
+    checklist.setValues([2]);
+    assert.deepEqual(fieldsChanged.at(-1), 'status', 'an edit of the checklist is still the filter\'s edit');
+    assert.deepEqual(panel.getValue(), {}, 'and in draft mode it waits for apply()');
+    panel.apply();
+    assert.deepEqual(panel.getValue(), { status: [2] });
+    panel.destroy();
+  });
+});
+
 /** @param {() => void} run Body that needs a document. @returns {void} */
 function withDocument(run) {
   const previous = globalThis.document;
@@ -436,6 +470,11 @@ class FakeElement extends FakeNode {
   /** Nothing in these tests dispatches a delegated event. @returns {boolean} */
   matches() {
     return false;
+  }
+
+  /** The checklist syncs its boxes' disabled state; nothing here asks for real matches. @returns {FakeElement[]} */
+  querySelectorAll() {
+    return [];
   }
 }
 

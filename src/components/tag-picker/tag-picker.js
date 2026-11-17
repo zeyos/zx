@@ -11,6 +11,16 @@ import { matchItems } from '../select/filter.js';
 /** @typedef {string|((item: TagItem) => unknown)} TagValueReader */
 /** @typedef {string|((item: TagItem) => string)} TagLabelReader */
 /**
+ * A remote filter: returns the items for a query, or a promise of them. The second argument
+ * carries an `AbortSignal` that aborts as soon as the answer would be ignored — a newer query
+ * starts, the list closes (or the picker is disabled or made read-only), `setItems()` replaces the
+ * catalogue, or the picker is destroyed — so the request can be cancelled by passing the signal on,
+ * e.g. `fetch(url, { signal })`. A result that arrives after its query was superseded is discarded
+ * whether or not the request honoured the signal, and the rejection an aborted request ends in is
+ * not reported as `error`.
+ * @typedef {(query: string, context: {signal: AbortSignal}) => Promise<TagItem[]>|TagItem[]} TagPickerFilter
+ */
+/**
  * @typedef {Object} TagPickerOptions
  * @property {TagItem[]} [items=[]] Selectable items.
  * @property {unknown[]} [values=[]] Initially selected IDs.
@@ -25,7 +35,8 @@ import { matchItems } from '../select/filter.js';
  * — the same shape, size, fill and ink it has in a list row or a record header; a tone wins over a
  * colour, and unknown names are ignored.
  * @property {Array<TagValueReader>|null} [searchKeys=null] Fields searched by local filtering.
- * @property {'local'|((query: string) => Promise<TagItem[]>|TagItem[])} [filter='local'] Filtering mode.
+ * @property {'local'|TagPickerFilter} [filter='local'] Filtering mode: `'local'` matches against
+ *   `items`; a function returns the items for each query (see `TagPickerFilter`).
  * @property {number} [minQuery=0] Minimum async query length.
  * @property {number} [debounce=200] Async query delay in milliseconds.
  * @property {boolean} [allowCreate=false] Whether unknown values may be created from the query.
@@ -108,6 +119,7 @@ export class TagPicker extends Component {
     this._loading = false;
     this._requestSequence = 0;
     this._queryTimer = null;
+    this._queryController = null;
     this._position = null;
     this._activeId = null;
     this._createdRoot = this.el === null;
@@ -669,7 +681,8 @@ export class TagPicker extends Component {
 
   /** @param {string} query @returns {void} */
   _scheduleAsyncQuery(query) {
-    this._cancelQuery();
+    // An abort listener of the application's that started another query has superseded this one.
+    if (this._cancelQuery() !== this._requestSequence) return;
     const text = String(query ?? '');
     if (text.length < Number(this.options.minQuery ?? 0)) {
       this._visible = [];
@@ -692,9 +705,17 @@ export class TagPicker extends Component {
     const sequence = this._requestSequence + 1;
     this._requestSequence = sequence;
     this._setLoading(true);
+    // The controller is in place before `query` is reported, so a listener that closes the picker,
+    // replaces its items or destroys it aborts it; and a query it superseded never starts.
+    const controller = new AbortController();
+    this._queryController = controller;
     this.emit('query', { query });
+    if (sequence !== this._requestSequence || controller.signal.aborted) {
+      if (this._queryController === controller) this._queryController = null;
+      return;
+    }
     try {
-      const result = await /** @type {Function} */ (this.options.filter)(query);
+      const result = await /** @type {TagPickerFilter} */ (this.options.filter)(query, { signal: controller.signal });
       if (sequence !== this._requestSequence) return;
       this._items = Array.isArray(result) ? result.slice() : [];
       this._visible = this._items.slice();
@@ -709,17 +730,25 @@ export class TagPicker extends Component {
         this._setActive(this._entries.length > 0 ? 0 : -1);
         this._position?.update();
       }
+      // A settled request has nothing left to cancel.
+      if (this._queryController === controller) this._queryController = null;
     }
   }
 
-  /** @returns {void} */
+  /** @returns {number} The request generation this cancellation started. */
   _cancelQuery() {
     if (this._queryTimer !== null) {
       clearTimeout(this._queryTimer);
       this._queryTimer = null;
     }
-    this._requestSequence += 1;
-    this._setLoading(false);
+    const sequence = ++this._requestSequence;
+    // The sequence has moved on first, so whatever the aborted request settles with is stale.
+    const controller = this._queryController;
+    this._queryController = null;
+    controller?.abort();
+    // An abort listener that started a newer query owns the loading state now.
+    if (sequence === this._requestSequence) this._setLoading(false);
+    return sequence;
   }
 
   /** @param {boolean} loading @returns {void} */

@@ -36,7 +36,9 @@ import {
  * @property {string} [placeholder=''] Empty control text.
  * @property {string} [label=''] Accessible combobox name; falls back to the placeholder.
  * @property {boolean} [clearable=false] Whether selection may be cleared.
- * @property {false|'local'|((query: string) => Promise<SelectItem[]>|SelectItem[])} [filter=false] Filtering mode.
+ * @property {false|'local'|SelectFilter} [filter=false] Filtering mode: no filtering (a read-only
+ *   input that opens the list), `'local'` matching against `items`, or a function that returns the
+ *   items for a query (see `SelectFilter`).
  * @property {Array<SelectValueReader>|null} [searchKeys=null] Fields searched by local filtering.
  * @property {number} [minQuery=0] Minimum async query length.
  * @property {number} [debounce=200] Async query delay in milliseconds.
@@ -69,6 +71,15 @@ import {
 /** @typedef {{id: string|number, action: SelectAction, query: string, select: Select}} SelectActionDetail */
 /** @typedef {{item: SelectItem|null, clear: boolean, action: SelectAction|null, element: HTMLElement}} SelectOptionEntry */
 /** @typedef {{silent?: boolean}} SelectSetOptions */
+/**
+ * An asynchronous filter: returns the items for a query, or a promise of them. The second argument
+ * carries an `AbortSignal` that aborts as soon as the answer would be ignored — a newer query
+ * starts, the list closes (or the Select is disabled), or the Select is destroyed — so the request
+ * can be cancelled by passing the signal on, e.g. `fetch(url, { signal })`. A result that arrives
+ * after its query was superseded is discarded whether or not the request honoured the signal, so
+ * the rejection an aborted request ends in changes nothing.
+ * @typedef {(query: string, context: {signal: AbortSignal}) => Promise<SelectItem[]>|SelectItem[]} SelectFilter
+ */
 
 // Internal factory configuration; ordinary Select instances keep their IDs unchanged.
 const NORMALIZE_VALUE = Symbol('normalizeSelectValue');
@@ -126,7 +137,7 @@ export class Select extends Component {
   render() {
     // Instance state initialized here because render() runs inside the base
     // constructor, before class-field initializers would run (and clobber it).
-    this._items = []; this._visibleItems = []; this._fixedItems = []; this._visibleFixed = []; this._actions = []; this._selected = null; this._optionEntries = []; this._activeIndex = -1; this._open = false; this._disabled = false; this._loading = false; this._requestSequence = 0; this._queryTimer = null; this._position = null; this._createdRoot = false; this._root = null; this._snapshot = null; this._pointerModality = false;
+    this._items = []; this._visibleItems = []; this._fixedItems = []; this._visibleFixed = []; this._actions = []; this._selected = null; this._optionEntries = []; this._activeIndex = -1; this._open = false; this._disabled = false; this._loading = false; this._requestSequence = 0; this._queryTimer = null; this._queryController = null; this._position = null; this._createdRoot = false; this._root = null; this._snapshot = null; this._pointerModality = false;
     /** @private @type {(value: string) => string} */
     this._normalizeValue = this.options[NORMALIZE_VALUE] ?? ((value) => value);
     this._createdRoot = this.el === null;
@@ -645,9 +656,10 @@ export class Select extends Component {
    * `true` for public, or a group ID — so the control binds straight to the record field.
    *
    * @param {Element|string|null} target Component target.
-   * @param {SelectOptions & {groups?: SelectItem[]|((query: string) => Promise<SelectItem[]>|SelectItem[])}} [options={}]
+   * @param {SelectOptions & {groups?: SelectItem[]|SelectFilter}} [options={}]
    *   Select overrides other than the fixed choices; `groups` holds the shareable groups, either as
-   *   an array (filtered locally) or as a loader function (queried remotely).
+   *   an array (filtered locally) or as a loader function (queried remotely, and handed the same
+   *   `{signal}` as any `filter` function).
    * @returns {Select}
    */
   static permission(target, options = {}) {
@@ -930,6 +942,9 @@ export class Select extends Component {
     if (this._queryTimer !== null) clearTimeout(this._queryTimer);
     this._requestSequence += 1;
     const sequence = this._requestSequence;
+    this._abortQuery();
+    // An abort listener of the application's that started another query has superseded this one.
+    if (sequence !== this._requestSequence) return;
     this._visibleFixed = this._matchFixed(query);
     if (query.length < Math.max(0, Number(this.options.minQuery) || 0)) {
       this._setLoading(false);
@@ -950,9 +965,17 @@ export class Select extends Component {
   /** @param {string} query @param {number} sequence @returns {Promise<void>} */
   async _runAsyncQuery(query, sequence) {
     if (sequence !== this._requestSequence || typeof this.options.filter !== 'function') return;
+    // The controller is in place before `query` is reported, so a listener that closes or destroys
+    // the Select aborts it; and a query it superseded or cancelled never starts.
+    const controller = new AbortController();
+    this._queryController = controller;
     this.emit('query', { query });
+    if (sequence !== this._requestSequence || controller.signal.aborted) {
+      if (this._queryController === controller) this._queryController = null;
+      return;
+    }
     try {
-      const result = await this.options.filter(query);
+      const result = await this.options.filter(query, { signal: controller.signal });
       if (sequence !== this._requestSequence || !this._open) return;
       this._items = Array.isArray(result) ? result.slice() : [];
       this._visibleItems = this._items.slice();
@@ -968,6 +991,9 @@ export class Select extends Component {
       this._setLoading(false);
       this._renderOptions();
       this._position?.update();
+    } finally {
+      // A settled request has nothing left to cancel.
+      if (this._queryController === controller) this._queryController = null;
     }
   }
 
@@ -976,6 +1002,18 @@ export class Select extends Component {
     if (this._queryTimer !== null) clearTimeout(this._queryTimer);
     this._queryTimer = null;
     this._requestSequence += 1;
+    this._abortQuery();
+  }
+
+  /**
+   * Aborts the signal handed to the filter for the request in flight. Callers move the sequence on
+   * first, so whatever the aborted request resolves or rejects with is already stale.
+   * @returns {void}
+   */
+  _abortQuery() {
+    const controller = this._queryController;
+    this._queryController = null;
+    controller?.abort();
   }
 
   /** @param {boolean} loading @returns {void} */

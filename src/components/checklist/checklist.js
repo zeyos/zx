@@ -25,6 +25,10 @@ import { matchItems } from '../select/filter.js';
  * @property {(event: CustomEvent<ChecklistLoadedDetail>) => void} [onloaded] Loaded listener.
  */
 /** @typedef {{values: unknown[]}} ChecklistChangeDetail */
+/**
+ * @typedef {Object} ChecklistSetOptions
+ * @property {boolean} [silent=false] Update the checked state without emitting `change`.
+ */
 /** @typedef {{items: ChecklistItem[]}} ChecklistLoadedDetail */
 
 /**
@@ -176,29 +180,40 @@ export class Checklist extends Component {
    * and checked as soon as items carrying them arrive — through `setItems()` or the `load`
    * loader — so a value set before the items load is not lost.
    * @param {Iterable<unknown>|unknown[]} ids Checked item IDs.
+   * @param {ChecklistSetOptions} [options={}] Set `silent` to suppress `change`.
    * @returns {this}
    * @fires Checklist#change
    */
-  setValues(ids) {
+  setValues(ids, { silent = false } = {}) {
     const requested = new Set(ids == null ? [] : Array.from(ids));
     const known = new Set(this._items.map((item) => this._itemValue(item)));
     const next = new Set([...known].filter((value) => requested.has(value)));
     const missing = [...requested].filter((value) => !known.has(value));
     // Before any item exists the request stands for the items still to come — an empty one too —
     // in place of their own checked flags.
-    this._replaceChecked(next, missing.length || this._items.length === 0 ? missing : null);
+    this._replaceChecked(next, missing.length || this._items.length === 0 ? missing : null, silent);
     return this;
   }
 
-  /** Checks every item. @returns {this} @fires Checklist#change */
-  checkAll() {
-    this._replaceChecked(new Set(this._items.map((item) => this._itemValue(item))), null);
+  /**
+   * Checks every item.
+   * @param {ChecklistSetOptions} [options={}] Set `silent` to suppress `change`.
+   * @returns {this}
+   * @fires Checklist#change
+   */
+  checkAll({ silent = false } = {}) {
+    this._replaceChecked(new Set(this._items.map((item) => this._itemValue(item))), null, silent);
     return this;
   }
 
-  /** Unchecks every item. @returns {this} @fires Checklist#change */
-  uncheckAll() {
-    this._replaceChecked(new Set(), null);
+  /**
+   * Unchecks every item.
+   * @param {ChecklistSetOptions} [options={}] Set `silent` to suppress `change`.
+   * @returns {this}
+   * @fires Checklist#change
+   */
+  uncheckAll({ silent = false } = {}) {
+    this._replaceChecked(new Set(), null, silent);
     return this;
   }
 
@@ -319,9 +334,10 @@ export class Checklist extends Component {
    * @param {Set<unknown>} next
    * @param {unknown[]|null} pending Requested IDs no item carries yet, or null when no request waits
    *   for items; an empty array is a request made before any item existed.
+   * @param {boolean} [silent=false] Whether to leave out the `change` event.
    * @returns {void}
    */
-  _replaceChecked(next, pending) {
+  _replaceChecked(next, pending, silent = false) {
     const nextPending = pending;
     const pendingChanged = !setsEqual(new Set(this._pending ?? []), new Set(nextPending ?? []));
     const unchanged = setsEqual(this._checked, next) && !pendingChanged;
@@ -329,7 +345,7 @@ export class Checklist extends Component {
     if (unchanged) return;
     this._checked = next;
     this._renderItems();
-    this.emit('change', { values: this.getValues() });
+    if (!silent) this.emit('change', { values: this.getValues() });
   }
 
   /** @param {ChecklistItem} item @returns {unknown} */

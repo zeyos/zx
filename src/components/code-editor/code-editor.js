@@ -21,6 +21,9 @@ import { uid } from '../../core/util.js';
  * @property {'off'|'soft'|'hard'} [wrap='off'] Textarea wrapping behavior.
  * @property {boolean} [spellcheck=false] Whether browser spellcheck is enabled.
  * @property {boolean} [readOnly=false] Whether content can be selected but not changed.
+ * @property {boolean} [readonly=false] The same setting under the spelling every other Zx control
+ *   uses. The editor starts read-only when either `readOnly` or `readonly` is true, so neither
+ *   spelling can switch off what the other one turned on.
  * @property {boolean} [disabled=false] Whether the editor is disabled.
  * @property {boolean} [status=true] Whether the line/column status is visible.
  * @property {(event: CustomEvent<{value:string}>) => void} [oninput] Input listener.
@@ -64,6 +67,7 @@ export class CodeEditor extends Component {
     wrap: 'off',
     spellcheck: false,
     readOnly: false,
+    readonly: false,
     disabled: false,
     status: true
   };
@@ -77,6 +81,8 @@ export class CodeEditor extends Component {
     this._initialAttributes = new Map(['data-language', 'data-readonly', 'data-disabled', 'data-state']
       .map((name) => [name, root.getAttribute(name)]));
     this._language = normalizeLanguage(this.options.language);
+    // Either spelling turns read-only on; see the `readonly` option.
+    const readOnly = Boolean(this.options.readOnly || this.options.readonly);
     this._languageLabel = h('span', { class: 'zx-code-editor__language' }, this._language);
     // A visible readout, not a live region: announced on every caret move it would talk over
     // each keystroke.
@@ -91,7 +97,7 @@ export class CodeEditor extends Component {
       rows: normalizeRows(this.options.rows),
       wrap: normalizeWrap(this.options.wrap),
       spellcheck: Boolean(this.options.spellcheck),
-      readOnly: Boolean(this.options.readOnly),
+      readOnly,
       disabled: Boolean(this.options.disabled),
       autocomplete: 'off',
       autocapitalize: 'off'
@@ -106,7 +112,7 @@ export class CodeEditor extends Component {
     this._committedValue = this._input.value;
     this._indentEditing = false;
     root.dataset.language = this._language;
-    root.dataset.readonly = String(Boolean(this.options.readOnly));
+    root.dataset.readonly = String(readOnly);
     root.dataset.disabled = String(Boolean(this.options.disabled));
     root.replaceChildren(this._header, this._input, this._highlight);
     /** Set by Escape: the next Tab moves focus instead of indenting. */
@@ -216,11 +222,26 @@ export class CodeEditor extends Component {
   /** @returns {this} */
   disable() { this._input.disabled = true; this.el.dataset.disabled = 'true'; return this; }
 
-  /** @param {boolean} value Read-only state. @returns {this} */
+  /**
+   * Makes the text selectable but not editable, or editable again; reflected as `data-readonly` on
+   * the root.
+   * @param {boolean} value Read-only state.
+   * @returns {this}
+   */
   setReadOnly(value) {
     this._input.readOnly = Boolean(value);
     this.el.dataset.readonly = String(Boolean(value));
     return this;
+  }
+
+  /**
+   * `setReadOnly()` under the spelling every other Zx control uses (`Field#setReadonly()`,
+   * `NumberField#setReadonly()`, `TagPicker#setReadonly()`); the two are interchangeable.
+   * @param {boolean} value Read-only state.
+   * @returns {this}
+   */
+  setReadonly(value) {
+    return this.setReadOnly(value);
   }
 
   /** @param {KeyboardEvent} event @returns {void} */

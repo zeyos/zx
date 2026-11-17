@@ -145,6 +145,17 @@ export class Timebox extends Component {
     return this;
   }
 
+  /**
+   * Moves focus to the hours segment, the first one a duration is typed into (the sign toggle of a
+   * `signed` timebox sits before it and stays one Shift+Tab away). Focusing selects the segment's
+   * digits, as a click into it does. A disabled timebox does not take focus.
+   * @returns {this}
+   */
+  focus() {
+    this._inputs[0]?.focus();
+    return this;
+  }
+
   /** Enables the timebox. @returns {this} */
   enable() {
     this._disabled = false;
@@ -210,9 +221,12 @@ export class Timebox extends Component {
 
   /** @returns {void} */
   _commitSegments() {
+    // Enter and the blur that follows both commit; only a commit that changed the value reports.
+    // The segments hold what is being typed, so the last committed value is the comparison.
+    const before = this._committed;
     this._parts = this._readParts();
     this._writeParts();
-    this._emitChange();
+    if (this._committed !== before) this._emitChange();
   }
 
   /** @returns {void} */
@@ -221,6 +235,8 @@ export class Timebox extends Component {
       const name = input.dataset.segment;
       input.value = name === 'hours' ? String(this._parts[name]) : pad(this._parts[name]);
     }
+    /** The value the segments were last written with: what a later commit is compared with. */
+    this._committed = joinTime(this._parts, this.options.unit);
     if (this.refs.sign) {
       this.refs.sign.textContent = this._parts.negative ? '-' : '+';
       this.refs.sign.setAttribute('aria-pressed', String(this._parts.negative));

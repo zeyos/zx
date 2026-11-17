@@ -231,6 +231,21 @@ export class FieldUpload extends Component {
     return this;
   }
 
+  /** Disables file selection and dropping; the same as `setDisabled(true)`. @returns {this} */
+  disable() {
+    return this.setDisabled(true);
+  }
+
+  /** Enables file selection and dropping; the same as `setDisabled(false)`. @returns {this} */
+  enable() {
+    return this.setDisabled(false);
+  }
+
+  /** Whether file selection and dropping are disabled. @returns {boolean} */
+  isDisabled() {
+    return this._disabled;
+  }
+
   /** @param {FileList|File[]|ArrayLike<File>} files @returns {void} */
   _selectFiles(files) {
     if (!this._setFiles(files)) return;
