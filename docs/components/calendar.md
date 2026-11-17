@@ -13,8 +13,10 @@ windowed loader.
 - **Options** — `events`, `date`, `view: 'month'`, `views: ['agenda','day','week','month','year']`,
   `locale`, `weekStart: 1`, `weekNumbers: true`, `workweek: false`, `agendaDays: 14`,
   `slotDuration: 30`, `slotMinTime: 0`, `slotMaxTime: 1440`, `scrollTime: 480`, `eventLimit: 3`,
-  `selectable: false`, `editable: false`, `eventStartEditable`, `eventDurationEditable`,
-  `optimistic: true`, `nowIndicator: true`, `now`, `disabled`, `msg`, and `renderEvent(event)`.
+  `selectable: false`, `editable: false`, `eventStartEditable` (`true`/`false` overrides
+  `editable` for moving), `eventDurationEditable` (`true`/`false` overrides `editable` for
+  resizing; a string or function instead names the per-event resize field, `'durationEditable'`
+  by default), `optimistic: true`, `nowIndicator: true`, `now`, `disabled`, `msg`, and `renderEvent(event)`.
 - **Messages** — every key is namespaced `calendar.*`: `calendar.today`, `calendar.previous`,
   `calendar.next`, `calendar.new`, `calendar.agenda`/`day`/`week`/`month`/`year` (the view
   switch), `calendar.viewSwitch`, `calendar.label` (the root's name), `calendar.loading`,
@@ -59,6 +61,8 @@ windowed loader.
   text announces the edit and its proposed times.
 - **ZeyOS binding** — `zeyosCalendar()` maps current appointment occurrence rows (`ID`, `name`,
   `location`, `color`, `datefrom`, `dateto`, and association text). `calendarEventToZeyosPatch()`
-  returns the base `ID` with Unix-second dates. The current server already expands recurrence into
+  returns the base `ID` with Unix-second dates. Pass the instance's `timeZone` to both so an all-day
+  appointment is recognised from midnight in that zone and lands on the right days for a viewer
+  elsewhere; without it the viewer's own midnight is used. The current server already expands recurrence into
   the requested window; recurrence rules, DAV synchronization, permissions, and routes therefore
   remain in ZeyOS instead of being reimplemented in core.

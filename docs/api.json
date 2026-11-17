@@ -505,6 +505,12 @@
         "description": "The eye shape, instead of the derived one."
       },
       {
+        "name": "spacing",
+        "type": "0|1|2|null",
+        "default": "null",
+        "description": "How far apart the eyes sit — narrow, middle, wide — instead of the derived spacing. With `tone`, `body` and `eyes` it gives back a look kept from {@link AgentAvatar#getTraits}."
+      },
+      {
         "name": "material",
         "type": "AgentMaterial",
         "default": "'flat'",
@@ -594,7 +600,7 @@
         "name": "getTraits",
         "signature": "getTraits()",
         "returns": "AgentTraits",
-        "description": "The traits the face is drawn from, so an application can store them — to keep a look across a rename, or to settle a collision between two agents once."
+        "description": "The traits the face is drawn from, so an application can store them — to keep a look across a rename, or to settle a collision between two agents once — and give them back as the `tone`, `body`, `eyes` and `spacing` options."
       },
       {
         "name": "destroy",
@@ -823,13 +829,15 @@
         "name": "register",
         "signature": "register(type, render)",
         "returns": "typeof AgentThread",
-        "description": "Registers how items of another type are drawn. An application's own renderer for `surface` replaces the library's drawing of that type; the types the library always draws cannot be replaced."
+        "description": "Registers how items of another type are drawn. An application's own renderer for `surface` replaces the library's drawing of that type; the types the library always draws cannot be replaced.",
+        "static": true
       },
       {
         "name": "has",
         "signature": "has(type)",
         "returns": "boolean",
-        "description": "Reports whether a type has a registered renderer. `surface` answers false until an application registers its own, so a guarded `register()` still takes effect."
+        "description": "Reports whether a type has a registered renderer. `surface` answers false until an application registers its own, so a guarded `register()` still takes effect.",
+        "static": true
       },
       {
         "name": "setItems",
@@ -880,6 +888,12 @@
         "description": "An item as it stands, an answer's streamed text included."
       },
       {
+        "name": "getItems",
+        "signature": "getItems()",
+        "returns": "ThreadItem[]",
+        "description": "Every item, in order, as it stands."
+      },
+      {
         "name": "getComponent",
         "signature": "getComponent(id)",
         "returns": "Component|null",
@@ -908,6 +922,12 @@
         "signature": "scrollToEnd()",
         "returns": "this",
         "description": "Scrolls to the end of the conversation."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": ""
       }
     ]
   },
@@ -1455,7 +1475,7 @@
         "name": "agent",
         "type": "AgentFace|true|null",
         "default": "null",
-        "description": "The agent that asks, drawn as its AgentAvatar face in place of the icon tile: its traits and name, or `true` to derive the face from the title. The face looks up at you while the request waits and rests once it is answered; it is decorative, so the title and description say what is asked.",
+        "description": "The agent that asks, drawn as its AgentAvatar face in place of the icon tile: its traits and name, or `true` to derive the face from the title. The face is keyed by the agent's `seed`, else its `name`; without either it is named after the title it is given with, and a later title never changes it. The face looks up at you while the request waits and rests once it is answered; it is decorative, so the title and description say what is asked.",
         "update": {
           "methods": [
             "update({ agent })"
@@ -1662,6 +1682,24 @@
         "description": "Settles the request from outside: an answer the application received elsewhere, a request that timed out, or a prevented answer the application has now carried out. Emits nothing."
       },
       {
+        "name": "getStatus",
+        "signature": "getStatus()",
+        "returns": "ApprovalStatus",
+        "description": "Where the request stands."
+      },
+      {
+        "name": "getValues",
+        "signature": "getValues()",
+        "returns": "Record<string, unknown>",
+        "description": "A copy of the values, edits included."
+      },
+      {
+        "name": "getEditedKeys",
+        "signature": "getEditedKeys()",
+        "returns": "string[]|null",
+        "description": "The fields listed under \"Edited by you\", in field order: empty when the request was not edited, null when every field is listed."
+      },
+      {
         "name": "focus",
         "signature": "focus([options])",
         "returns": "this",
@@ -1672,6 +1710,12 @@
         "signature": "handleKey(event)",
         "returns": "boolean",
         "description": "Answers a key: A approves, E edits, R rejects. Acts only while the request is pending, never from a text control or with a modifier held, and never while one of the card's dialogs is open. The card calls it for keys inside itself; an application may forward keys from elsewhere."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": ""
       }
     ]
   },
@@ -1896,6 +1940,12 @@
         "signature": "setActivity(activity, [label])",
         "returns": "this",
         "description": "Sets what an agent is doing and, optionally, the word for it. `null` clears the activity, and a person's `status` shows again if one is set."
+      },
+      {
+        "name": "getActivity",
+        "signature": "getActivity()",
+        "returns": "AgentActivity|null",
+        "description": "What the agent is doing, or null."
       },
       {
         "name": "hasImage",
@@ -2160,6 +2210,36 @@
         "signature": "setArtifactState(id, state)",
         "returns": "this",
         "description": "Says whether an artifact's card has its artifact open somewhere — an inspector, a drawer — so the card reads as pressed and names what it controls. The application owns the open state; the card only reflects it."
+      },
+      {
+        "name": "getBlocks",
+        "signature": "getBlocks()",
+        "returns": "Block[]",
+        "description": "A copy of the blocks."
+      },
+      {
+        "name": "isStreaming",
+        "signature": "isStreaming()",
+        "returns": "boolean",
+        "description": "Whether more is still being written."
+      },
+      {
+        "name": "toText",
+        "signature": "toText()",
+        "returns": "string",
+        "description": "The answer as plain text."
+      },
+      {
+        "name": "toMarkdown",
+        "signature": "toMarkdown()",
+        "returns": "string",
+        "description": "The answer as Markdown."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": ""
       }
     ]
   },
@@ -2428,9 +2508,9 @@
       },
       {
         "name": "eventDurationEditable",
-        "type": "boolean|null",
+        "type": "boolean|null|CalendarReader",
         "default": "null",
-        "description": "Global resize override; null inherits editable."
+        "description": "Resize policy for events that set none of their own: `true` or `false`, or null to follow `editable`. A string or function instead names the per-event resize field, read as the other `event*` readers are (`'durationEditable'` when none is given)."
       },
       {
         "name": "optimistic",
@@ -2503,12 +2583,6 @@
         "type": "CalendarReader",
         "default": "'editable'",
         "description": "Per-event move reader."
-      },
-      {
-        "name": "eventDurationEditable",
-        "type": "CalendarReader",
-        "default": "'durationEditable'",
-        "description": "Per-event resize reader."
       },
       {
         "name": "dateUnit",
@@ -2598,7 +2672,7 @@
         "name": "addEvent",
         "signature": "addEvent(event, [options])",
         "returns": "this",
-        "description": "Adds one source event."
+        "description": "Adds one source event. Given an event name and a listener instead, it is the `addEvent()` alias of `on()` that every component has."
       },
       {
         "name": "updateEvent",
@@ -3560,6 +3634,12 @@
         "signature": "disable()",
         "returns": "this",
         "description": "Disables user interaction."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": ""
       }
     ]
   },
@@ -3683,7 +3763,7 @@
         "name": "setItems",
         "signature": "setItems(items)",
         "returns": "this",
-        "description": "Replaces items and derives checked state from `checkedKey` and `defaultChecked`."
+        "description": "Replaces items and derives checked state from `checkedKey` and `defaultChecked` — unless `setValues()` asked for IDs the earlier items did not have yet, in which case the requested values are checked instead."
       },
       {
         "name": "setLabel",
@@ -3713,13 +3793,13 @@
         "name": "getValues",
         "signature": "getValues()",
         "returns": "unknown[]",
-        "description": "Returns checked IDs in item order."
+        "description": "Returns checked IDs in item order, followed by requested IDs whose items have not been loaded yet (see `setValues()`)."
       },
       {
         "name": "setValues",
         "signature": "setValues(ids)",
         "returns": "this",
-        "description": "Replaces the checked IDs."
+        "description": "Replaces the checked IDs. IDs that none of the current items carries are kept as requested, and checked as soon as items carrying them arrive — through `setItems()` or the `load` loader — so a value set before the items load is not lost."
       },
       {
         "name": "checkAll",
@@ -3862,10 +3942,22 @@
     ],
     "methods": [
       {
+        "name": "getValue",
+        "signature": "getValue()",
+        "returns": "string",
+        "description": ""
+      },
+      {
         "name": "setValue",
         "signature": "setValue(value, [options])",
         "returns": "this",
         "description": "Replaces the editor text."
+      },
+      {
+        "name": "setLanguage",
+        "signature": "setLanguage(language)",
+        "returns": "this",
+        "description": ""
       },
       {
         "name": "getInput",
@@ -3884,6 +3976,36 @@
         "signature": "clearHighlight()",
         "returns": "this",
         "description": "Clears the current validation or status message."
+      },
+      {
+        "name": "focus",
+        "signature": "focus()",
+        "returns": "this",
+        "description": ""
+      },
+      {
+        "name": "enable",
+        "signature": "enable()",
+        "returns": "this",
+        "description": ""
+      },
+      {
+        "name": "disable",
+        "signature": "disable()",
+        "returns": "this",
+        "description": ""
+      },
+      {
+        "name": "setReadOnly",
+        "signature": "setReadOnly(value)",
+        "returns": "this",
+        "description": ""
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": ""
       }
     ]
   },
@@ -3948,7 +4070,7 @@
         "name": "queue",
         "type": "boolean",
         "default": "false",
-        "description": "Whether the send key holds a message back while the agent works. It is sent when the agent is no longer busy, one message each time busy ends, in order. The queue lives as long as the composer: it is not kept with the draft.",
+        "description": "Whether the send key holds a message back while the agent works. It is sent when the agent is no longer busy, one message each time busy ends, in order; busy that ends while the composer is disabled sends when it is enabled again. The queue lives as long as the composer: it is not kept with the draft.",
         "update": {
           "rebuild": true
         }
@@ -4179,6 +4301,12 @@
         "description": "Focuses the text."
       },
       {
+        "name": "getValue",
+        "signature": "getValue()",
+        "returns": "string",
+        "description": "The text as written."
+      },
+      {
         "name": "setValue",
         "signature": "setValue(text)",
         "returns": "this",
@@ -4200,7 +4328,13 @@
         "name": "setBusy",
         "signature": "setBusy(busy)",
         "returns": "this",
-        "description": "Shows Stop in place of Send while an agent works; Escape in the text then emits `stop`. When busy ends, the first queued message is sent; the next waits for the next time it ends."
+        "description": "Shows Stop in place of Send while an agent works; Escape in the text then emits `stop`. When busy ends, the first queued message is sent; the next waits for the next time it ends. Busy that ends while the composer is disabled sends when it is enabled again."
+      },
+      {
+        "name": "isBusy",
+        "signature": "isBusy()",
+        "returns": "boolean",
+        "description": "Whether Stop is showing."
       },
       {
         "name": "setHint",
@@ -4218,7 +4352,7 @@
         "name": "setDisabled",
         "signature": "setDisabled(disabled)",
         "returns": "this",
-        "description": "Turns input on or off."
+        "description": "Turns input on or off. Turned back on, it sends the queued message that an end of busy owed while it was off."
       },
       {
         "name": "update",
@@ -4245,6 +4379,12 @@
         "description": "Attaches files, as far as `accept` and `maxFiles` allow. Emits `attach` with the files taken."
       },
       {
+        "name": "getFiles",
+        "signature": "getFiles()",
+        "returns": "File[]",
+        "description": "The attached files."
+      },
+      {
         "name": "addContext",
         "signature": "addContext(chip)",
         "returns": "this",
@@ -4255,6 +4395,18 @@
         "signature": "removeContext(id)",
         "returns": "this",
         "description": "Removes a context chip. Emits nothing."
+      },
+      {
+        "name": "getContext",
+        "signature": "getContext()",
+        "returns": "ContextChip[]",
+        "description": "The context chips."
+      },
+      {
+        "name": "getQueue",
+        "signature": "getQueue()",
+        "returns": "QueuedMessage[]",
+        "description": "Copies of the queued messages, the next to be sent first."
       },
       {
         "name": "clearQueue",
@@ -4341,7 +4493,7 @@
     "events": [
       {
         "name": "select",
-        "payload": "{value: unknown, item: MenuItem, context: Element|null}",
+        "payload": "{value, item, context, checked}",
         "description": "Selection listener."
       },
       {
@@ -4443,6 +4595,12 @@
         "type": "'default'|'primary'|'ghost'",
         "default": "'ghost'",
         "description": "Visual intent."
+      },
+      {
+        "name": "signal",
+        "type": "AbortSignal",
+        "default": null,
+        "description": "Ends the button's life: aborting removes its click listener, stops a pending confirmation, and makes a copy still waiting on the clipboard report nothing. For a button owned by something that is destroyed before the page is."
       }
     ],
     "events": [
@@ -4638,6 +4796,12 @@
         "signature": "clear()",
         "returns": "this",
         "description": "Clears every control and applies the empty state."
+      },
+      {
+        "name": "getState",
+        "signature": "getState()",
+        "returns": "Record<string, unknown>",
+        "description": "Shallow copy of state keyed by filter id."
       },
       {
         "name": "setState",
@@ -5085,13 +5249,13 @@
         "name": "min",
         "type": "Date|null",
         "default": "null",
-        "description": "Earliest selectable date."
+        "description": "Earliest selectable date. Bounds are whole local calendar days, as in the calendar: with `time`, any time on the `min` day is allowed."
       },
       {
         "name": "max",
         "type": "Date|null",
         "default": "null",
-        "description": "Latest selectable date."
+        "description": "Latest selectable date, the whole local calendar day: with `time`, any time on the `max` day is allowed."
       },
       {
         "name": "placeholder",
@@ -5321,19 +5485,22 @@
         "name": "alert",
         "signature": "alert([options])",
         "returns": "Promise<void>",
-        "description": "Opens an alert and resolves after it is dismissed."
+        "description": "Opens an alert and resolves after it is dismissed.",
+        "static": true
       },
       {
         "name": "confirm",
         "signature": "confirm([options])",
         "returns": "Promise<boolean>",
-        "description": "Opens a confirmation dialog. With `confirmText` it becomes a type-to-confirm dialog: the confirm button stays disabled until the reader has typed that text."
+        "description": "Opens a confirmation dialog. With `confirmText` it becomes a type-to-confirm dialog: the confirm button stays disabled until the reader has typed that text.",
+        "static": true
       },
       {
         "name": "prompt",
         "signature": "prompt([options])",
         "returns": "Promise<string|null>",
-        "description": "Opens a single-line text prompt."
+        "description": "Opens a single-line text prompt.",
+        "static": true
       }
     ]
   },
@@ -5705,7 +5872,7 @@
         "name": "agent",
         "type": "AgentFace|true|null",
         "default": "null",
-        "description": "Draws an agent's face in place of the icon — an empty conversation, an agent with nothing to do yet: its AgentAvatar traits and name, or `true` to derive the face from the title. Decorative and at rest, so the text says whose it is."
+        "description": "Draws an agent's face in place of the icon — an empty conversation, an agent with nothing to do yet: its AgentAvatar traits and name, or `true` to derive the face from the title. The face is keyed by the agent's `seed`, else its `name`, else the title; give the agent's seed or name so its face matches the one drawn elsewhere. Decorative and at rest, so the text says whose it is."
       },
       {
         "name": "title",
@@ -6036,6 +6203,11 @@
         "name": "invalid",
         "payload": "{message: string}",
         "description": "Validation failure listener."
+      },
+      {
+        "name": "input",
+        "payload": "{value: unknown}",
+        "description": "Live edit before it is committed, from the types whose widget tells the two apart (`code`, `slider`): every keystroke or drag step, where `change` follows only on commit."
       }
     ],
     "methods": [
@@ -6043,13 +6215,15 @@
         "name": "register",
         "signature": "register(type, adapter)",
         "returns": "typeof Field",
-        "description": "Registers or replaces a field adapter."
+        "description": "Registers or replaces a field adapter.",
+        "static": true
       },
       {
         "name": "has",
         "signature": "has(type)",
         "returns": "boolean",
-        "description": "Reports whether a field adapter is registered."
+        "description": "Reports whether a field adapter is registered.",
+        "static": true
       },
       {
         "name": "getValue",
@@ -6110,6 +6284,12 @@
         "signature": "own(component)",
         "returns": "T",
         "description": "Registers a child component for destruction with this field."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": ""
       }
     ]
   },
@@ -6227,6 +6407,12 @@
         "signature": "setDisabled(disabled)",
         "returns": "this",
         "description": "Enables or disables file selection and dropping."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": ""
       }
     ]
   },
@@ -6336,6 +6522,12 @@
         "signature": "clearHighlights()",
         "returns": "this",
         "description": "Clears every field highlight."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": ""
       }
     ]
   },
@@ -6835,6 +7027,30 @@
         "signature": "focus([id])",
         "returns": "this",
         "description": "Focuses a condition's field or the Add button."
+      },
+      {
+        "name": "setReadonly",
+        "signature": "setReadonly(readonly)",
+        "returns": "this",
+        "description": ""
+      },
+      {
+        "name": "enable",
+        "signature": "enable()",
+        "returns": "this",
+        "description": ""
+      },
+      {
+        "name": "disable",
+        "signature": "disable()",
+        "returns": "this",
+        "description": ""
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": ""
       }
     ]
   },
@@ -7296,7 +7512,13 @@
         "name": "submit",
         "signature": "submit()",
         "returns": "boolean",
-        "description": "Validates and emits a preventable submit event."
+        "description": "Validates and emits a preventable submit event. A disabled field — disabled itself, or inside a disabled `<fieldset>` — is not validated, so it can neither block the submit nor take focus."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": ""
       }
     ]
   },
@@ -7308,7 +7530,8 @@
         "name": "BillingItems",
         "signature": "BillingItems(target, [options])",
         "returns": "Grid",
-        "description": "Creates an editable hierarchical billing-line grid."
+        "description": "Creates an editable hierarchical billing-line grid.",
+        "static": true
       }
     ]
   },
@@ -7386,6 +7609,12 @@
         "signature": "setContent(content)",
         "returns": "this",
         "description": "Replaces the section body."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": ""
       }
     ]
   },
@@ -8274,6 +8503,24 @@
         "description": "Replaces every record. History is dropped because its snapshots describe records the host has just replaced, and reinstating them would resurrect data the application no longer owns."
       },
       {
+        "name": "addData",
+        "signature": "addData(records)",
+        "returns": "this",
+        "description": ""
+      },
+      {
+        "name": "updateRecord",
+        "signature": "updateRecord(id, record)",
+        "returns": "this",
+        "description": ""
+      },
+      {
+        "name": "removeRecord",
+        "signature": "removeRecord(id)",
+        "returns": "this",
+        "description": ""
+      },
+      {
         "name": "getViewState",
         "signature": "getViewState()",
         "returns": "KanbanViewState",
@@ -8929,6 +9176,12 @@
         "signature": "setFooter(content)",
         "returns": "this",
         "description": "Replaces or removes the fixed footer."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": ""
       }
     ]
   },
@@ -8978,7 +9231,7 @@
     "events": [
       {
         "name": "select",
-        "payload": "{value: unknown, item: MenuItem}",
+        "payload": "{value, item, checked}",
         "description": "Select event listener."
       },
       {
@@ -9123,31 +9376,131 @@
         "description": "Keeps a stack open. Its messages still time out."
       }
     ],
-    "events": [],
+    "events": [
+      {
+        "name": "expand",
+        "payload": "Record<string, never>",
+        "description": "Fired when a stack opens: the pointer came over it, focus came into it, it was pressed, or `expand()` was called."
+      },
+      {
+        "name": "collapse",
+        "payload": "Record<string, never>",
+        "description": "Fired when a stack closes again."
+      }
+    ],
     "methods": [
       {
-        "name": "enqueue",
-        "signature": "enqueue(item)",
-        "returns": "'active'|'pending'",
-        "description": "Adds an item, activating it immediately when capacity allows."
+        "name": "show",
+        "signature": "show(msg, [options])",
+        "returns": "MessageHandle",
+        "description": "Shows a message in this inline region."
       },
       {
-        "name": "remove",
-        "signature": "remove(item)",
-        "returns": "'active'|'pending'|null",
-        "description": "Removes an item and promotes the oldest pending item when needed."
+        "name": "info",
+        "signature": "info(msg, [options])",
+        "returns": "MessageHandle",
+        "description": "Shows a floating informational toast.",
+        "static": true
       },
       {
-        "name": "isActive",
-        "signature": "isActive(item)",
+        "name": "success",
+        "signature": "success(msg, [options])",
+        "returns": "MessageHandle",
+        "description": "Shows a floating success toast.",
+        "static": true
+      },
+      {
+        "name": "warning",
+        "signature": "warning(msg, [options])",
+        "returns": "MessageHandle",
+        "description": "Shows a floating warning toast.",
+        "static": true
+      },
+      {
+        "name": "error",
+        "signature": "error(msg, [options])",
+        "returns": "MessageHandle",
+        "description": "Shows a floating error toast.",
+        "static": true
+      },
+      {
+        "name": "show",
+        "signature": "show(msg, [options])",
+        "returns": "MessageHandle",
+        "description": "Shows a floating toast.",
+        "static": true
+      },
+      {
+        "name": "progress",
+        "signature": "progress(text, [options])",
+        "returns": "ProgressHandle",
+        "description": "Shows a floating progress status.",
+        "static": true
+      },
+      {
+        "name": "setStack",
+        "signature": "setStack(enabled)",
         "returns": "boolean",
-        "description": "Reports whether an item is active."
+        "description": "Sets whether floating regions stack their messages (see the `stack` option); they do by default, and `false` lists them one below another instead. Unlike a placement it applies at once, to the regions on screen as well as those to come.",
+        "static": true
       },
       {
-        "name": "clear",
-        "signature": "clear()",
-        "returns": "{active: T[], pending: T[]}",
-        "description": "Removes every item without activation callbacks."
+        "name": "getStack",
+        "signature": "getStack()",
+        "returns": "boolean",
+        "description": "Returns whether floating regions stack their messages, true unless `setStack(false)` was called.",
+        "static": true
+      },
+      {
+        "name": "setPlacement",
+        "signature": "setPlacement(placement)",
+        "returns": "MessagePlacement",
+        "description": "Sets where floating messages appear when a call names no `placement`. It applies to messages shown from then on; a region already on screen stays where it is until its last toast closes. The region carries the placement as `data-placement`, and its distance from the viewport edge is the `--zx-message-offset` custom property (default `var(--zx-space-4)`), read from the region's theme scope. At 640px and narrower every placement spans the foot of the viewport.",
+        "static": true
+      },
+      {
+        "name": "getPlacement",
+        "signature": "getPlacement()",
+        "returns": "MessagePlacement",
+        "description": "Returns where floating messages appear when a call names no `placement`.",
+        "static": true
+      },
+      {
+        "name": "disposeRegion",
+        "signature": "disposeRegion(scope)",
+        "returns": "boolean",
+        "description": "Removes a floating region at once, toasts and all, without waiting for them to time out. A region already removes itself when its last toast closes, and one whose host has left the document is replaced on the next toast, so this is only for a host being torn down while toasts are still showing — an application view unmounting its themed shell, say. A scope has one region per placement in use; all of them are removed.",
+        "static": true
+      },
+      {
+        "name": "setStack",
+        "signature": "setStack(enabled)",
+        "returns": "this",
+        "description": "Turns stacking on or off for this area or region (see the `stack` option). The messages on screen move into the pile, or back into a list, where they are."
+      },
+      {
+        "name": "expand",
+        "signature": "expand()",
+        "returns": "this",
+        "description": "Opens a stack and keeps it open until `collapse()`, Escape, or a press outside it. Does nothing without `stack`."
+      },
+      {
+        "name": "collapse",
+        "signature": "collapse()",
+        "returns": "this",
+        "description": "Closes a stack opened by a press, `expand()`, or the pointer. A stack holding focus stays open until focus leaves it, and one with `expanded: true` never closes."
+      },
+      {
+        "name": "isExpanded",
+        "signature": "isExpanded()",
+        "returns": "boolean",
+        "description": "Reports whether the stack is open. Always false without `stack`."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": ""
       }
     ]
   },
@@ -9575,10 +9928,22 @@
     ],
     "methods": [
       {
+        "name": "get",
+        "signature": "get()",
+        "returns": "Date|null",
+        "description": ""
+      },
+      {
         "name": "set",
         "signature": "set(date, [options])",
         "returns": "this",
         "description": "Selects the first day of a month."
+      },
+      {
+        "name": "focus",
+        "signature": "focus()",
+        "returns": "this",
+        "description": ""
       },
       {
         "name": "destroy",
@@ -9639,6 +10004,12 @@
         "signature": "setValues(values, [options])",
         "returns": "this",
         "description": "Replaces all rows."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": ""
       }
     ]
   },
@@ -9744,6 +10115,12 @@
         "signature": "setActions(list)",
         "returns": "this",
         "description": "Replaces right-aligned application actions."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": ""
       }
     ]
   },
@@ -10334,6 +10711,12 @@
         "signature": "isOpen()",
         "returns": "boolean",
         "description": "Reports whether the body is expanded."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": ""
       }
     ]
   },
@@ -10863,6 +11246,12 @@
         "signature": "focus()",
         "returns": "this",
         "description": "Moves focus to the active question, which is what a screen reader announces after a move."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": ""
       }
     ]
   },
@@ -11580,7 +11969,7 @@
         "name": "agent",
         "type": "AgentFace|true|null",
         "default": "null",
-        "description": "The agent whose run this is, drawn as its AgentAvatar face before the state: its traits and name, or `true` to derive the face from the summary. The face takes the run's expression — working while it runs, looking up at you while it waits, blocked when blocked or failed, at rest otherwise. It is decorative, and the compact pill leaves it out.",
+        "description": "The agent whose run this is, drawn as its AgentAvatar face before the state: its traits and name, or `true` to derive the face from the summary. The face is keyed by the agent's `seed`, else its `name`; without either it is named after the summary it is first drawn with, and it keeps its face while `agent` asks for the same traits, so a summary that changes as the run goes on never changes it. The face takes the run's expression — working while it runs, looking up at you while it waits, blocked when blocked or failed, at rest otherwise. It is decorative, and the compact pill leaves it out.",
         "update": {
           "methods": [
             "update({ agent })"
@@ -11661,6 +12050,12 @@
         "signature": "update(values)",
         "returns": "this",
         "description": "Merges new values and redraws. The working time carries on from where it stood unless the update brings a new `workMs`. Focus inside the panel stays where it was: an action row that did not change is kept as it is, and otherwise focus moves to the action at the same index (or the nearest one left), or to the panel itself when no action is left."
+      },
+      {
+        "name": "getState",
+        "signature": "getState()",
+        "returns": "RunStatusState",
+        "description": "The run's values as they stand, as copies."
       },
       {
         "name": "destroy",
@@ -11864,6 +12259,24 @@
         "signature": "reveal(id)",
         "returns": "this",
         "description": "Shows one step: opens the list and the step, scrolls it into view, puts focus on its row, and marks it with `data-state=\"revealed\"` for two seconds. Under reduced motion the scroll jumps. An unknown id does nothing."
+      },
+      {
+        "name": "getSteps",
+        "signature": "getSteps()",
+        "returns": "TraceStep[]",
+        "description": "Copies of the steps, in the order they were given."
+      },
+      {
+        "name": "isOpen",
+        "signature": "isOpen()",
+        "returns": "boolean",
+        "description": "Whether the step list is open."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": ""
       }
     ]
   },
@@ -11946,6 +12359,12 @@
         "signature": "clear()",
         "returns": "this",
         "description": "Clears the query and reports both the value update and clear action."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": ""
       }
     ]
   },
@@ -12183,7 +12602,7 @@
         "name": "set",
         "signature": "set(idOrItem, [options])",
         "returns": "this",
-        "description": "Selects an item or item ID."
+        "description": "Selects an item or item ID. An ID none of the items carries selects nothing; a whole item that is not among them — the current record of an async-filtered Select, whose results have not been loaded — is selected as given."
       },
       {
         "name": "setItems",
@@ -12243,49 +12662,57 @@
         "name": "locale",
         "signature": "locale(target, [options])",
         "returns": "Select",
-        "description": "Creates a locale Select with native/localized names, pinned choices, and optional flags. Values are canonical BCP 47 tags; initial values and `set()` accept underscores and any case."
+        "description": "Creates a locale Select with native/localized names, pinned choices, and optional flags. Values are canonical BCP 47 tags; initial values and `set()` accept underscores and any case.",
+        "static": true
       },
       {
         "name": "localeItems",
         "signature": "localeItems(locales, [options])",
         "returns": "ReturnType<typeof localeItems>",
-        "description": "Builds locale items without the DOM, for lists and summaries using the same names."
+        "description": "Builds locale items without the DOM, for lists and summaries using the same names.",
+        "static": true
       },
       {
         "name": "country",
         "signature": "country(target, [options])",
         "returns": "Select",
-        "description": "Creates a country Select with localized names, pinned choices, and optional flags. Search includes the English name, ISO code, and descriptions; initial values and `set()` accept either case."
+        "description": "Creates a country Select with localized names, pinned choices, and optional flags. Search includes the English name, ISO code, and descriptions; initial values and `set()` accept either case.",
+        "static": true
       },
       {
         "name": "countryItems",
         "signature": "countryItems([countries], [options])",
         "returns": "ReturnType<typeof countryItems>",
-        "description": "Builds country items without the DOM, defaulting to the ISO country catalogue."
+        "description": "Builds country items without the DOM, defaulting to the ISO country catalogue.",
+        "static": true
       },
       {
         "name": "priority",
         "signature": "priority(target, [options])",
         "returns": "Select",
-        "description": "Creates the five-level priority preset: values 0 (lowest) to 4 (highest), each drawn as grey signal bars filled to its level, except the highest, which is the one coloured level — a danger square with an exclamation mark. A \"No priority\" row (value null, a row of dashes) heads the list and labels the empty control; `clearable: false` removes it."
+        "description": "Creates the five-level priority preset: values 0 (lowest) to 4 (highest), each drawn as grey signal bars filled to its level, except the highest, which is the one coloured level — a danger square with an exclamation mark. A \"No priority\" row (value null, a row of dashes) heads the list and labels the empty control; `clearable: false` removes it.",
+        "static": true
       },
       {
         "name": "status",
         "signature": "status(target, [options])",
         "returns": "Select",
-        "description": "Creates a status picker with shape- and color-distinct workflow indicators."
+        "description": "Creates a status picker with shape- and color-distinct workflow indicators.",
+        "static": true
       },
       {
         "name": "entity",
         "signature": "entity(target, [options])",
         "returns": "Select",
-        "description": "Creates a rich entity picker with optional Recent choices and a create command."
+        "description": "Creates a rich entity picker with optional Recent choices and a create command.",
+        "static": true
       },
       {
         "name": "permission",
         "signature": "permission(target, [options])",
         "returns": "Select",
-        "description": "Creates the record-permission picker: the fixed Private and Public choices above the groups a record can be shared with. The value is the tri-state ZeyOS stores — `false` for private, `true` for public, or a group ID — so the control binds straight to the record field."
+        "description": "Creates the record-permission picker: the fixed Private and Public choices above the groups a record can be shared with. The value is the tri-state ZeyOS stores — `false` for private, `true` for public, or a group ID — so the control binds straight to the record field.",
+        "static": true
       },
       {
         "name": "destroy",
@@ -13047,6 +13474,18 @@
         "signature": "highlight(n)",
         "returns": "this",
         "description": "Points at one source, as a citation `[n]` in the answer does: scrolls it into view, puts focus on it, and marks it with `data-state=\"highlighted\"` for two seconds. A number is the source's position, from 1; a string is its `id`. Anything else does nothing."
+      },
+      {
+        "name": "getSources",
+        "signature": "getSources()",
+        "returns": "Source[]",
+        "description": "Copies of the sources, in order."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": ""
       }
     ]
   },
@@ -13832,7 +14271,8 @@
         "name": "supports",
         "signature": "supports(type)",
         "returns": "boolean",
-        "description": "Whether the adapter draws a chart type: `bar`, `line`, `pie` or `doughnut`."
+        "description": "Whether the adapter draws a chart type: `bar`, `line`, `pie` or `doughnut`.",
+        "static": true
       },
       {
         "name": "mount",
@@ -13967,6 +14407,12 @@
         "signature": "disableTab(name)",
         "returns": "this",
         "description": "Disables a tab, moving selection when it is active."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": ""
       }
     ]
   },
@@ -15239,6 +15685,12 @@
         "signature": "disable()",
         "returns": "this",
         "description": "Disables user interaction."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": ""
       }
     ]
   },
@@ -15411,7 +15863,7 @@
         "name": "hide",
         "signature": "hide()",
         "returns": "this",
-        "description": "Closes the tooltip and restores the anchor's original `aria-describedby`."
+        "description": "Closes the tooltip and takes its id out of the anchor's `aria-describedby`."
       },
       {
         "name": "toggle",
@@ -15459,7 +15911,7 @@
         "name": "destroy",
         "signature": "destroy()",
         "returns": "void",
-        "description": "Closes the tooltip, removes the bubble, and puts the anchor's ARIA back as it was found."
+        "description": "Closes the tooltip, removes the bubble, and takes its id out of the anchor's ARIA."
       }
     ]
   },
@@ -15507,7 +15959,7 @@
         "name": "expanded",
         "type": "unknown[]",
         "default": "[]",
-        "description": "Initially expanded node IDs.",
+        "description": "Initially expanded node IDs. A lazy branch among them (`hasChildren` with no children loaded yet) shows collapsed until it is expanded on its own — clicked, →, or `expand()` — which loads it.",
         "update": {
           "rebuild": true
         }
@@ -15708,7 +16160,7 @@
         "name": "setFilter",
         "signature": "setFilter(query)",
         "returns": "this",
-        "description": "Filters the tree by a label substring, keeping the ancestors of every match."
+        "description": "Filters the tree by a label substring, keeping the ancestors of every match. Only loaded children are searched, and every surviving branch opens except a lazy one not loaded yet."
       },
       {
         "name": "expand",
@@ -15726,13 +16178,13 @@
         "name": "toggle",
         "signature": "toggle(id)",
         "returns": "Promise<this>",
-        "description": "Expands or collapses one branch."
+        "description": "Expands or collapses one branch. A lazy branch not loaded yet counts as collapsed, so this loads and expands it."
       },
       {
         "name": "expandAll",
         "signature": "expandAll()",
         "returns": "this",
-        "description": "Expands every already-loaded branch."
+        "description": "Expands every already-loaded branch. A lazy branch whose children have not been loaded stays collapsed; `expand(id)` loads it."
       },
       {
         "name": "collapseAll",
@@ -16039,6 +16491,12 @@
         "signature": "disable()",
         "returns": "this",
         "description": "Disables editing, removal, and reordering."
+      },
+      {
+        "name": "destroy",
+        "signature": "destroy()",
+        "returns": "void",
+        "description": ""
       }
     ]
   },

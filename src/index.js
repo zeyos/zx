@@ -147,7 +147,7 @@ export { WorkspaceSwitcher } from './components/workspace-switcher/workspace-swi
 export { normalizeAppItems } from './internal/app-rail.js';
 export { ModuleBar, partitionModules, resolveModuleColor } from './components/module-bar/module-bar.js';
 export { AppSidebar, presentationGlyph } from './components/app-sidebar/app-sidebar.js';
-export { Message } from './components/message/message.js';
+export { Message, messageStackLayout } from './components/message/message.js';
 export { Modal } from './components/modal/modal.js';
 export { Dialog } from './components/dialog/dialog.js';
 export { Sheet } from './components/sheet/sheet.js';
@@ -202,7 +202,7 @@ export {
 } from './components/kanban-view/kanban-card.js';
 export { Grid, billingColumns, isBillingLine } from './components/grid/grid.js';
 export {
-  Chart, ChartJsAdapter, chartSummaryTable, cloneChartValue, isEmptyChartData
+  Chart, ChartJsAdapter, chartSummaryModel, chartSummaryTable, cloneChartValue, isEmptyChartData
 } from './components/chart/chart.js';
 export { SvgChartAdapter } from './components/chart/svg-adapter.js';
 export { TreeView } from './components/tree/tree.js';

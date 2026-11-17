@@ -14,8 +14,11 @@ A button that opens a `role="menu"`.
   - `href`, `target`, and `rel` render a genuine safe native link, preserving modifier clicks and
     targets. Executable URL schemes are rejected; `_blank` receives `noopener noreferrer` by
     default.
-  - `role: 'menuitemcheckbox'|'menuitemradio'` with `checked` exposes an APG checked action. The
-    application owns state changes and calls `setItems()` with the new model.
+  - `role: 'menuitemcheckbox'|'menuitemradio'` with `checked` exposes an APG checked action.
+    Choosing one updates it in place — a checkbox toggles, a radio is checked and the other radio
+    items of its section (between separators or headings) are unchecked — and `select` reports the
+    new state as `detail.checked`. Preventing `select` leaves the state as it was; the item objects
+    passed in are not modified, so call `setItems()` to keep the model in step.
   - `{type: 'choice', label, value, options: [{value, label, icon|glyph}], onselect(value, entry,
     menu)}` draws a setting chosen in place — a theme, a layout: the label, then a small segmented
     group of `menuitemradio` options named by it. Choosing an option checks it and calls

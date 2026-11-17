@@ -10,12 +10,14 @@ to a hidden textarea when the async Clipboard API is unavailable or denied.
 
 ## copyButton()
 
-- **Signature** — `copyButton({text, label, title, feedback, feedbackDuration, size, kind, oncopy})`
+- **Signature** — `copyButton({text, label, title, feedback, feedbackDuration, size, kind, oncopy, signal})`
   → `HTMLButtonElement`.
 - **Options** — `text: ''` — a string, or **a function returning one**, which is what a button
   beside a live value needs so the copy is never stale; `label: ''` (empty renders an icon-only
   ghost button), `title`, `feedback` (by default the `copy.copy` and `copy.copied` messages, and `null` gives no text), `feedbackDuration: 2000`,
-  `size: 'md'|'sm'`, `kind: 'default'|'primary'|'ghost'`.
+  `size: 'md'|'sm'`, `kind: 'default'|'primary'|'ghost'`, `signal` (an `AbortSignal`: aborting
+  removes the button's listener and timer, and a copy still waiting on the clipboard then reports
+  nothing — what a component owning the button passes from its own lifecycle).
 - **Events** — `oncopy(text, copied)` is called for every attempt; `copied` is `false` when the
   clipboard refused the write, and the button then stays untouched rather than claiming a copy
   that did not happen.

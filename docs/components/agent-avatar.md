@@ -11,7 +11,7 @@ Avatar.
 
 - **Options** — `seed` (the agent's stable id; `null` uses `name`, but a rename then changes the
   face), `name`, `tone` (the Avatar tones, or `null` to derive it), `body` and `eyes` (fix one
-  trait instead of deriving it), `material: 'flat'|'soft'`, `size: 'sm'|'md'|'lg'|<pixels>` (24 / 32 / 40px at the default
+  trait instead of deriving it), `spacing: 0|1|2` (the eye spacing), `material: 'flat'|'soft'`, `size: 'sm'|'md'|'lg'|<pixels>` (24 / 32 / 40px at the default
   spacing unit), `label`, `activity: 'idle'|'thinking'|'working'|'needs-you'|'blocked'|'offline'|null`,
   `activityLabel`, `indicator: true`, `animate: false`, and `phase: null|number`.
 - **Silhouettes** — fourteen, filled with the tone's `-solid`: circle, squircle, hexagon,

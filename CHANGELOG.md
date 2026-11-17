@@ -11,7 +11,10 @@ and friends remain the complete record.
 Pinned columns and header groups in Table, placements, stacks and highlights for messages, a Chart
 that mounts when it can be measured and follows the theme, a built-in SVG chart renderer that
 agent surfaces draw with by default, overlays and windowed tables that run in a DOM without a top
-layer, a package entry a bundler can prune, and a guide to using the class API from a framework.
+layer, a package entry a bundler can prune, a guide to using the class API from a framework, and
+the fixes of a library-wide review: focus traps, nested overlays, field labels, pickers, custom
+elements, the ZeyOS binding's request races, and type declarations that check in a consumer's
+project.
 
 ### Added
 
@@ -71,7 +74,8 @@ layer, a package entry a bundler can prune, and a guide to using the class API f
   `setAspectRatio()`, `setLabel()`, `setDescription()` and `setSummary()` change what were
   constructor-only options, on the class and on `<zx-chart>`.
 - **Chart theme for adapters.** An adapter's `create()` and `update()` receive `spec.theme` with
-  `color`, `borderColor` and `palette`, the eight `--zx-color-chart-*` colours in order. Every
+  `color`, `borderColor`, `background` (the surface, `--zx-color-bg-surface`) and `palette`, the
+  eight `--zx-color-chart-*` colours in order. Every
   colour handed to an adapter is `#rrggbb` or `rgba()`, whatever syntax the tokens are written in.
 - **Chart `summaryFormat(value, context)`** formats a cell of the summary table.
 - **Toggle `hideLabel`** keeps the label as the switch's accessible name without drawing it, and
@@ -102,6 +106,18 @@ layer, a package entry a bundler can prune, and a guide to using the class API f
 - **Message `highlight`.** `'border'` (or `true`) draws a message's border in its kind colour;
   `'animated'` sends a light round a faint kind-coloured border, and is the still border under
   reduced motion. Per message, as an inline area's default, and on `Message.progress()`.
+
+- **`zeyosCalendar()` `timeZone`.** With the ZeyOS instance's zone, all-day appointments are
+  recognised from midnight in that zone and shown on the days they name for a viewer anywhere;
+  `zeyosAppointmentToEvent()`, `zeyosAppointmentsToEvents()` and `calendarEventToZeyosPatch()`
+  take it as `{timeZone}`, so moving one stores that zone's midnight again.
+- **AgentAvatar `spacing`** (`0`, `1` or `2`), so the traits `getTraits()` returns can be given
+  back to keep a face exactly; agent and face descriptors accept it too.
+- **`copyButton({signal})`.** Aborting the signal removes the button's listener and timer, and a
+  copy still waiting on the clipboard then reports nothing.
+- `messageStackLayout()` and `chartSummaryModel()` are exported from the package entry, as the
+  reference already said.
+- The package exports `@zeyos/zx/zx.layered.min.css`.
 
 ### Changed
 
@@ -165,6 +181,25 @@ layer, a package entry a bundler can prune, and a guide to using the class API f
 - `<zx-chart>` applies `label`, `description`, `summary` and `aspect-ratio` in place instead of
   rebuilding the chart.
 
+- **MenuButton and ContextMenu update checkbox and radio items themselves.** Choosing a
+  `menuitemcheckbox` toggles it, choosing a `menuitemradio` checks it and unchecks the other radio
+  items of its section, and `select` reports the new state as `detail.checked`; preventing
+  `select` leaves it as it was. The item objects passed in are not modified. An application that
+  re-rendered the menu with `setItems()` keeps working; one that relied on the item staying as it
+  was prevents `select`.
+- **Calendar `eventDurationEditable` is one option again.** The defaults declared it twice, so the
+  per-event reader's key replaced the global setting and every event without a resize flag of its
+  own could be resized, even with `editable: false`. `true`, `false` or null (follow `editable`) is
+  the resize policy for such events; a string or function still names the per-event field.
+  Read-only calendars no longer offer resizing.
+- **Datebox and DateTimeBox `min` and `max` are whole days**, as in the calendar they open: any
+  time on the last day can be chosen, and a date outside the range moves to the boundary day and
+  keeps its time.
+- **A Composer re-enabled after the agent finished sends the queued message it owed.** It used to
+  wait for another busy cycle, so a message sent directly in the meantime overtook it.
+- **MasterPanel header buttons share one listener.** A button's callback still runs with the
+  button as `this`; `event.currentTarget` is now the button area.
+
 ### Fixed
 
 - A Dialog with `closable: false` and a Sheet with `closeButton: false` no longer show a header ✕
@@ -182,6 +217,87 @@ layer, a package entry a bundler can prune, and a guide to using the class API f
 - CodeEditor's Tab capture, its Escape release and `indent: ''` are documented.
 - The reference states that a sticky table header needs a bounded `height`, and how `Chart`'s
   `setData()`, `setLoading()` and `setError()` affect the engine.
+
+- **Focus and keyboard.** Focus traps (`focusTrap()`, a Sheet with `modal: 'trap-focus'`) no
+  longer let Tab escape past a toolbar or tab list at the end of the container, wrap Shift+Tab
+  when the container itself has focus, and leave Tab alone inside a dialog opened from the
+  trapping sheet. Arrow keys in toolbars, menus and tab lists skip items inside hidden, inert or
+  undisplayed groups. In right-to-left layouts, Tabbox and NavigationBar tabs, and the SplitView,
+  Dock and resizable Sheet handles (pointer and arrow keys) move toward the side pressed.
+- **Overlays.** Escape in a Launcher opened from a Dialog closes only the Launcher; with several
+  modals open, Escape closes the one opened last, whatever order they were created in. Selecting
+  text in a light-dismiss Modal or Sheet and releasing over the backdrop no longer closes it.
+  Destroying an open Modal, Dialog or Sheet emits `close` once and returns focus to the opener. A
+  Tooltip adds and removes only its own id in its anchor's `aria-describedby`. A ContextMenu on an
+  element that sets its own theme no longer reopens on a right-click inside the open menu, and
+  closing it returns focus. Destroying a Composer closes its "replace your text?" dialog.
+- **Field labels.** A Field's label names the input of number, select, tag picker, slider,
+  rating and duration fields — it was set on a wrapper and the component's own name won — and
+  clicking it focuses the input; the description and error belong to the input too. Form skips
+  disabled fields, and fields inside a disabled fieldset, when it validates; a Form or Fieldset
+  gives borrowed fields back in their original order.
+- **Select and TagPicker.** `Select.set()` accepts a whole item that is not in the current list;
+  priority, status and permission Selects reset to their initial value; in a searchable Select,
+  Home and End move the caret once a query is typed; replacing the items of an open list keeps the
+  typed query; Enter that confirms Japanese or Chinese input no longer picks an option (Launcher
+  too).
+- **Other inputs.** A Checklist value set before its items load is kept and checked when they
+  arrive. Filter reports one `change`, and one `apply` with `autoApply`, per edit. ValueList chips
+  are one Tab stop. CodeEditor no longer announces the line and column after every keystroke. The
+  MultiValueEditor handle respects reduced motion. Slider steps such as `1.5e-7` get the right
+  precision.
+- **Pickers.** TimePicker's arrow keys stay within the hour or minute dial; the minute dial is
+  always reachable with Tab (at 12:07 too); tabbing through its fields without editing changes
+  nothing and keeps hidden seconds. Choosing a day or month from the keyboard keeps focus in the
+  calendar; month grids expose rows; week numbers are right when the week does not start on
+  Monday; closing the month/year panel shows the year chosen in it. Datebox and DateRangeBox
+  inputs are announced as comboboxes opening a labelled dialog.
+- **Restoring the page.** Toggle, CheckButton, Search, Chart, Calendar and MasterPanel restore an
+  enhanced element without writing an inline `style` attribute, so `destroy()` works under a
+  strict Content Security Policy. `truncate()` puts back a line count the element already had.
+  CopyInput destroyed during a copy no longer fires `copy`; copying a second section link no
+  longer leaves a stuck checkmark on the first.
+- **Custom elements** keep the user's value when an attribute rebuilds the component or the
+  element is moved. A control inside a disabled `<fieldset>` stays disabled when its own
+  `disabled` is removed; a disabled `<zx-checklist>` stays disabled when its items change; a form
+  reset restores the items a `<zx-checklist>` started with checked.
+- **Data views.** Pagination with `pageSize: 'auto'` grows back when its viewport does, and fits
+  card grids to whole rows within `minPageSize`/`maxPageSize`. `ChartJsAdapter` draws axis ticks,
+  gridlines and radar labels in the theme's colours, readable in dark mode. A pinned column group's
+  label sits at the start of its cell. TreeView: a lazy branch marked expanded is closed until
+  loaded, and → and `toggle()` load it. Calendar month and year views are one Tab stop moved by the
+  arrow keys, and year-view months are proper grids. KanbanView moves several selected cards from
+  the grabbed card's place, and a drop where they started changes nothing. MasterPanel no longer
+  keeps replaced buttons' handlers.
+- **SvgChartAdapter.** Extreme values (1e16 beside 1e16 + 2, −1e308 to 1e308) no longer freeze the
+  page and always get a few distinct round ticks; slices of values too large to add up are drawn;
+  dense lines keep each value's tooltip and click target; dense grouped bars stay inside their
+  slots; every dataset of a many-ring pie gets a ring; category labels are measured as drawn and
+  shortened to fit.
+- **Agents.** An idle animated AgentAvatar or Avatar no longer freezes after its first frame; in
+  right-to-left layouts the notch for the activity dot sits under the dot; pupils stay inside the
+  eyes. RunStatus and ApprovalCard keep the agent's face when the summary or title changes, and an
+  agent with a numeric `seed` has the same face everywhere. `connectAgUi()` no longer overwrites a
+  person's message or a card whose id a streamed message reuses. Composer and AgentThread match
+  mentions as whole names in any script. Many moving avatars share one reduced-motion watcher.
+- **Core.** `storage()` keeps a value it could not save for later handles of the same namespace,
+  and after a refused write still reads everything else from the browser. `deepMerge()` treats a
+  `__proto__` key from parsed JSON as data. `Http` puts query parameters before a URL fragment and
+  reports a failed response with an HTML body as the HTTP error. `loadFontAwesome()` no longer
+  hangs on a kit script that finished loading already. Two overlays sharing an anchor leave no
+  empty `style` attribute. `toCsv()` guards cells starting with a tab or carriage return.
+  `parseDate()` accepts a time skipped by a daylight-saving change.
+- **ZeyOS binding.** `loadMore()` during a new search, filter or sort no longer appends the next
+  page of the new results to the old rows; applying a saved view without reloading drops the
+  request still in flight; `hasMore` uses the page size each request was sent with; `zeyosForm()`
+  shows and saves the record requested last when `load()` overlaps; a choice made while a Select's
+  initial value loads is kept; a failed initial lookup is no longer also an unhandled rejection;
+  `connect()` reports a resource with no API operation through `onError`.
+- **Types.** The declarations type-check in a project without `skipLibCheck` (Calendar, ModuleBar,
+  MultiValueEditor and Sheet reported errors), and the build checks them as a consumer would.
+- **Reference.** The API reference lists every public method, static ones with their class
+  (`Select.country()`), and the events declared with `@fires`; Message no longer shows
+  MessageQueue's methods.
 
 ## 5.7.1 — 2026-11-13
 

@@ -12,7 +12,9 @@ mutate the caller's data.
 - **Options** — `items` (nested), `valueKey: 'ID'`, `labelKey: 'name'`, `childrenKey: 'children'`,
   `expanded: []`, `selection: 'single'|'multi'|false`, `selected: []`, `checkboxes: false`
   (tri-state), `checked: []`, `icons: true`, `renderLabel`, `load: (node)=>Promise<children>`
-  (lazy children; mark a branch with `hasChildren: true`), `filter`, `emptyText`, `height`,
+  (lazy children; mark a branch with `hasChildren: true` — it counts as open only once its
+  children are loaded, so → and `toggle()` load it, `*` loads and opens lazy siblings, and
+  `expandAll()`, filtering and `expanded` leave unloaded branches closed), `filter`, `emptyText`, `height`,
   `rowActions: (node) => actions`, `moreLabel`. Unset, `label`, `emptyText` and `moreLabel` read the
   `tree.label`, `tree.noItems` and `tree.more` messages; `tree.empty` still wins over `emptyText`, and
   `emptyText: null` shows no text.

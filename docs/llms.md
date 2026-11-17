@@ -1317,7 +1317,7 @@ Avatar.
 
 - **Options** — `seed` (the agent's stable id; `null` uses `name`, but a rename then changes the
   face), `name`, `tone` (the Avatar tones, or `null` to derive it), `body` and `eyes` (fix one
-  trait instead of deriving it), `material: 'flat'|'soft'`, `size: 'sm'|'md'|'lg'|<pixels>` (24 / 32 / 40px at the default
+  trait instead of deriving it), `spacing: 0|1|2` (the eye spacing), `material: 'flat'|'soft'`, `size: 'sm'|'md'|'lg'|<pixels>` (24 / 32 / 40px at the default
   spacing unit), `label`, `activity: 'idle'|'thinking'|'working'|'needs-you'|'blocked'|'offline'|null`,
   `activityLabel`, `indicator: true`, `animate: false`, and `phase: null|number`.
 - **Silhouettes** — fourteen, filled with the tone's `-solid`: circle, squircle, hexagon,
@@ -1806,12 +1806,14 @@ to a hidden textarea when the async Clipboard API is unavailable or denied.
 
 #### copyButton()
 
-- **Signature** — `copyButton({text, label, title, feedback, feedbackDuration, size, kind, oncopy})`
+- **Signature** — `copyButton({text, label, title, feedback, feedbackDuration, size, kind, oncopy, signal})`
   → `HTMLButtonElement`.
 - **Options** — `text: ''` — a string, or **a function returning one**, which is what a button
   beside a live value needs so the copy is never stale; `label: ''` (empty renders an icon-only
   ghost button), `title`, `feedback` (by default the `copy.copy` and `copy.copied` messages, and `null` gives no text), `feedbackDuration: 2000`,
-  `size: 'md'|'sm'`, `kind: 'default'|'primary'|'ghost'`.
+  `size: 'md'|'sm'`, `kind: 'default'|'primary'|'ghost'`, `signal` (an `AbortSignal`: aborting
+  removes the button's listener and timer, and a copy still waiting on the clipboard then reports
+  nothing — what a component owning the button passes from its own lifecycle).
 - **Events** — `oncopy(text, copied)` is called for every attempt; `copied` is `false` when the
   clipboard refused the write, and the button then stays untouched rather than claiming a copy
   that did not happen.
@@ -2216,8 +2218,11 @@ A button that opens a `role="menu"`.
   - `href`, `target`, and `rel` render a genuine safe native link, preserving modifier clicks and
     targets. Executable URL schemes are rejected; `_blank` receives `noopener noreferrer` by
     default.
-  - `role: 'menuitemcheckbox'|'menuitemradio'` with `checked` exposes an APG checked action. The
-    application owns state changes and calls `setItems()` with the new model.
+  - `role: 'menuitemcheckbox'|'menuitemradio'` with `checked` exposes an APG checked action.
+    Choosing one updates it in place — a checkbox toggles, a radio is checked and the other radio
+    items of its section (between separators or headings) are unchecked — and `select` reports the
+    new state as `detail.checked`. Preventing `select` leaves the state as it was; the item objects
+    passed in are not modified, so call `setItems()` to keep the model in step.
   - `{type: 'choice', label, value, options: [{value, label, icon|glyph}], onselect(value, entry,
     menu)}` draws a setting chosen in place — a theme, a layout: the label, then a small segmented
     group of `menuitemradio` options named by it. Choosing an option checks it and calls
@@ -2280,7 +2285,7 @@ parked at the pointer, so it flips near a viewport edge like every other floatin
 <!-- doc:tooltip -->
 ### Tooltip
 
-A description bubble anchored to another element. The panel is a manual popover positioned by the kernel's `position()`, so it escapes clipping and stacking contexts and flips near a viewport edge; it carries `role="tooltip"` and a generated id, and the anchor gets `aria-describedby` pointing at it only while it is open — closing puts the anchor's original value back, including no value at all. The bubble contains no focusable controls and stays visible while the pointer is over either the anchor or the bubble. Keyboard focus on the anchor independently keeps it visible. Hover opens it after `delay`; keyboard focus opens it immediately, because a keyboard user cannot hover a moment longer; a touch pointer never opens it, since a bubble with no "move away" gesture would simply stick. Only one is ever visible at a time, which falls out of the dismissal rules rather than a registry.
+A description bubble anchored to another element. The panel is a manual popover positioned by the kernel's `position()`, so it escapes clipping and stacking contexts and flips near a viewport edge; it carries `role="tooltip"` and a generated id, and the anchor's `aria-describedby` includes its id only while it is open — opening adds the id to whatever the attribute holds then, and closing removes only that id, so ids added by others (a field error) stay. The bubble contains no focusable controls and stays visible while the pointer is over either the anchor or the bubble. Keyboard focus on the anchor independently keeps it visible. Hover opens it after `delay`; keyboard focus opens it immediately, because a keyboard user cannot hover a moment longer; a touch pointer never opens it, since a bubble with no "move away" gesture would simply stick. Only one is ever visible at a time, which falls out of the dismissal rules rather than a registry.
 
 - **Options** — `content` (string, Node, or a function re-evaluated on every open), `placement`
   (`'top'` default, plus top/bottom/left/right and their start/end variants), `offset` (6), `delay`
@@ -2834,8 +2839,10 @@ windowed loader.
 - **Options** — `events`, `date`, `view: 'month'`, `views: ['agenda','day','week','month','year']`,
   `locale`, `weekStart: 1`, `weekNumbers: true`, `workweek: false`, `agendaDays: 14`,
   `slotDuration: 30`, `slotMinTime: 0`, `slotMaxTime: 1440`, `scrollTime: 480`, `eventLimit: 3`,
-  `selectable: false`, `editable: false`, `eventStartEditable`, `eventDurationEditable`,
-  `optimistic: true`, `nowIndicator: true`, `now`, `disabled`, `msg`, and `renderEvent(event)`.
+  `selectable: false`, `editable: false`, `eventStartEditable` (`true`/`false` overrides
+  `editable` for moving), `eventDurationEditable` (`true`/`false` overrides `editable` for
+  resizing; a string or function instead names the per-event resize field, `'durationEditable'`
+  by default), `optimistic: true`, `nowIndicator: true`, `now`, `disabled`, `msg`, and `renderEvent(event)`.
 - **Messages** — every key is namespaced `calendar.*`: `calendar.today`, `calendar.previous`,
   `calendar.next`, `calendar.new`, `calendar.agenda`/`day`/`week`/`month`/`year` (the view
   switch), `calendar.viewSwitch`, `calendar.label` (the root's name), `calendar.loading`,
@@ -2880,7 +2887,9 @@ windowed loader.
   text announces the edit and its proposed times.
 - **ZeyOS binding** — `zeyosCalendar()` maps current appointment occurrence rows (`ID`, `name`,
   `location`, `color`, `datefrom`, `dateto`, and association text). `calendarEventToZeyosPatch()`
-  returns the base `ID` with Unix-second dates. The current server already expands recurrence into
+  returns the base `ID` with Unix-second dates. Pass the instance's `timeZone` to both so an all-day
+  appointment is recognised from midnight in that zone and lands on the right days for a viewer
+  elsewhere; without it the viewer's own midnight is used. The current server already expands recurrence into
   the requested window; recurrence rules, DAV synchronization, permissions, and routes therefore
   remain in ZeyOS instead of being reimplemented in core.
 <!-- /doc -->
@@ -3001,7 +3010,9 @@ mutate the caller's data.
 - **Options** — `items` (nested), `valueKey: 'ID'`, `labelKey: 'name'`, `childrenKey: 'children'`,
   `expanded: []`, `selection: 'single'|'multi'|false`, `selected: []`, `checkboxes: false`
   (tri-state), `checked: []`, `icons: true`, `renderLabel`, `load: (node)=>Promise<children>`
-  (lazy children; mark a branch with `hasChildren: true`), `filter`, `emptyText`, `height`,
+  (lazy children; mark a branch with `hasChildren: true` — it counts as open only once its
+  children are loaded, so → and `toggle()` load it, `*` loads and opens lazy siblings, and
+  `expandAll()`, filtering and `expanded` leave unloaded branches closed), `filter`, `emptyText`, `height`,
   `rowActions: (node) => actions`, `moreLabel`. Unset, `label`, `emptyText` and `moreLabel` read the
   `tree.label`, `tree.noItems` and `tree.more` messages; `tree.empty` still wins over `emptyText`, and
   `emptyText: null` shows no text.
