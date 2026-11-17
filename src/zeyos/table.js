@@ -95,7 +95,8 @@ const TABLE_OPTION_KEYS = [
  * @property {(options?: ZeyosTableLoadOptions) => Promise<ZeyosTableLoadResult>} load Loads/reloads a server page.
  * @property {(search: string) => Promise<ZeyosTableLoadResult>} setSearch Replaces search and reloads page zero.
  * @property {(filters: Record<string, unknown>) => Promise<ZeyosTableLoadResult>} setFilters Replaces predicates and reloads page zero.
- * @property {() => Promise<ZeyosTableLoadResult>} loadMore Appends the next page when available.
+ * @property {() => Promise<ZeyosTableLoadResult>} loadMore Appends the next page when available;
+ * sends nothing while a page-zero reload (a new search, filter, or sort) is still in flight.
  * @property {number|null} count Current server count.
  * @property {number} page Current zero-based page.
  * @property {number} pageSize Current server page size.
@@ -134,12 +135,14 @@ const TABLE_OPTION_KEYS = [
  * @property {(options?: ZeyosTableLoadOptions) => {page: number, pageSize: number, filters: Record<string, unknown>, search: string}} check
  * Validates load options without applying them; throws what `load()` would reject with.
  * @property {() => Promise<ZeyosTableLoadResult>} loadMore Appends the next page when available,
- * else resolves without a request.
+ * else resolves without a request — also while a page-zero or `replace` load is still in flight,
+ * whose rows the next page of the old query would otherwise land on.
  * @property {(sort: {id: string, dir: 'asc'|'desc'}|null) => void} setSort Replaces the sort used
  * by the next load.
  * @property {(state: {filters?: unknown, search?: unknown}) => void} setQuery Replaces filters and
  * search without loading.
- * @property {() => void} reset Forgets the loaded page, count, and `hasMore`.
+ * @property {() => void} reset Forgets the loaded page, count, and `hasMore`. A request still in
+ * flight is returned to its caller but no longer renders, and the loading state is cleared.
  * @property {() => void} destroy Stops rendering: in-flight responses are ignored, later loads reject.
  * @property {boolean} destroyed Whether `destroy()` ran.
  * @property {number|null} count Current server count.
@@ -154,7 +157,7 @@ const TABLE_OPTION_KEYS = [
 /**
  * Builds the DOM-free schema-derived columns and Table options used by {@link zeyosTable}. Entity
  * projections include an `<field>_label` alias from a real label field on the referenced resource.
- * Amount fields use each row's real `currency` value for display while retaining the WP14 typed
+ * Amount fields use each row's real `currency` value for display while retaining the typed
  * column strategy and right alignment. Enum columns show labels, date-only columns calendar days in
  * `timeZone`, and Table presentation options and listeners pass through to `tableOptions`.
  * @param {Record<string, any>} client Injected ZeyOS client instance.
@@ -281,7 +284,9 @@ export function zeyosTable(client, resource, opts = {}) {
  * the rows, a higher page appends them — and keeps `count`, `page`, and `hasMore`.
  *
  * Only the newest request may render: an older one that resolves late is returned to its caller
- * but never touches the target. After `destroy()` nothing renders at all — a response that arrives
+ * but never touches the target, and `reset()` retires every request in flight the same way. While
+ * a page-zero or `replace` load is pending, `loadMore()` sends nothing: the rows on screen belong to
+ * the previous query. After `destroy()` nothing renders at all — a response that arrives
  * afterwards is ignored, the loading state is left alone — and further loads reject.
  *
  * Validation is strict and the same for both bindings: a page must be a non-negative integer and a
@@ -301,6 +306,9 @@ export function createServerPager(options) {
   let count = null;
   let more = false;
   let sequence = 0;
+  // Sequence number of the replacing load in flight, or 0; `loading` mirrors what the target shows.
+  let replacing = 0;
+  let loading = false;
   let destroyed = false;
 
   const query = (forPage) => buildListQuery({
@@ -332,19 +340,23 @@ export function createServerPager(options) {
     // binding exactly as it was: no page size or search half-applied ahead of a bad filter.
     const next = check(request);
     const nextPage = next.page;
-    pageSize = next.pageSize;
+    // The size this request is sent with; a later load may change `pageSize` before it returns.
+    const size = next.pageSize;
+    pageSize = size;
     filters = next.filters;
     search = next.search;
     const replace = nextPage === 0 || request.replace === true;
     const sent = query(nextPage);
     const mine = ++sequence;
+    if (replace) replacing = mine;
+    loading = true;
     target.setLoading(true);
     try {
       const normalized = normalizeZeyosListResult(client, await facade.list(resource, sent));
       const total = normalized.count ?? null;
       const hasMore = total == null
-        ? normalized.data.length === pageSize
-        : nextPage * pageSize + normalized.data.length < total;
+        ? normalized.data.length === size
+        : nextPage * size + normalized.data.length < total;
       if (!destroyed && mine === sequence) {
         page = nextPage;
         count = total;
@@ -354,14 +366,18 @@ export function createServerPager(options) {
       }
       return { data: normalized.data, count: total, page: nextPage, hasMore, query: sent };
     } finally {
-      if (!destroyed && mine === sequence) target.setLoading(false);
+      if (replacing === mine) replacing = 0;
+      if (!destroyed && mine === sequence) {
+        loading = false;
+        target.setLoading(false);
+      }
     }
   };
 
   return {
     load,
     check,
-    loadMore: () => more ? load({ page: page + 1 }) : (destroyed
+    loadMore: () => more && !replacing ? load({ page: page + 1 }) : (destroyed
       ? Promise.reject(new Error(`${label} binding has been destroyed`))
       : Promise.resolve({ data: [], count, page, hasMore: false, query: query(page) })),
     setSort: (next) => { sort = next ?? null; },
@@ -371,7 +387,17 @@ export function createServerPager(options) {
       if (Object.prototype.hasOwnProperty.call(state, 'search')) search = String(state.search ?? '');
       filters = nextFilters;
     },
-    reset: () => { page = 0; count = null; more = false; },
+    reset: () => {
+      // Retire every request in flight: a response for the query being replaced must not render
+      // over the new state, and none of them is left to clear the loading state.
+      sequence += 1;
+      replacing = 0;
+      page = 0;
+      count = null;
+      more = false;
+      if (loading && !destroyed) target.setLoading(false);
+      loading = false;
+    },
     destroy: () => {
       if (destroyed) return;
       destroyed = true;

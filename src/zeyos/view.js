@@ -108,7 +108,8 @@ import { buildZeyosTableConfig, createServerPager } from './table.js';
  * @property {(options?:ZeyosViewLoadOptions)=>Promise<ZeyosViewLoadResult>} load Loads a page.
  * @property {(search:string)=>Promise<ZeyosViewLoadResult>} setSearch Replaces search and reloads.
  * @property {(filters:Record<string,unknown>)=>Promise<ZeyosViewLoadResult>} setFilters Replaces filters and reloads.
- * @property {()=>Promise<ZeyosViewLoadResult>} loadMore Loads the next page when available.
+ * @property {()=>Promise<ZeyosViewLoadResult>} loadMore Loads the next page when available; sends
+ * nothing while a page-zero reload (a new search, filter, or sort) is still in flight.
  * @property {number|null} count Current server count.
  * @property {number} page Current zero-based page.
  * @property {number} pageSize Current server page size.

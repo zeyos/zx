@@ -81,7 +81,10 @@ export function buildZeyosSelectConfig(client, resource, opts = {}) {
 /**
  * Creates an async Zx Select backed by the injected client's generated list operation. A non-null
  * initial id is hydrated through the resource get operation; await `select.ready` when code must
- * wait for that label before presenting the control.
+ * wait for that label before presenting the control. A selection made while that lookup runs wins
+ * over the initial id, and a select destroyed meanwhile is left alone. `ready` rejects when the
+ * lookup fails (reported through `connect()` like any failed request); left unawaited, that
+ * rejection is not reported a second time as unhandled.
  * @param {Record<string, any>} client Injected ZeyOS client instance.
  * @param {string} resource Resource name such as `accounts`.
  * @param {ZeyosSelectOptions} [opts={}] Query and Select options.
@@ -183,7 +186,7 @@ export function buildZeyosEntitySelectConfig(client, resource, opts = {}) {
 
 /**
  * Creates a ZeyOS Entity-box preset. Await `select.ready` when a non-null initial ID must be
- * hydrated before presentation.
+ * hydrated before presentation; it settles like {@link zeyosSelect}'s.
  * @param {Record<string, any>} client Injected ZeyOS client instance.
  * @param {string} resource Resource name.
  * @param {Record<string, any>} [opts={}] Entity Select options.
@@ -221,16 +224,37 @@ function normalizeLocalListResult(result) {
   return Number.isFinite(count) ? { data, count } : { data };
 }
 
-/** @param {Select} select @param {Record<string, any>} client @param {string} resource @param {unknown} value @returns {Promise<Select>} */
-async function hydrateInitialValue(select, client, resource, value) {
-  if (value == null) return select;
-  const record = value && typeof value === 'object'
-    ? value
-    : await connect(client).get(resource, value);
-  const normalized = normalizeRecord(record);
-  select.setItems([normalized]);
-  select.set(normalized, { silent: true });
-  return select;
+/**
+ * Shows the initial id's record once it has loaded. A selection made meanwhile — by the user or by
+ * code — wins, and a select destroyed meanwhile is left alone. The returned promise still rejects
+ * for a caller that awaits it; an internal observer keeps an unawaited failure, which `connect()`
+ * already reported, from becoming an unhandled rejection.
+ * @param {Select} select @param {Record<string, any>} client @param {string} resource @param {unknown} value
+ * @returns {Promise<Select>}
+ */
+function hydrateInitialValue(select, client, resource, value) {
+  const ready = (async () => {
+    if (value == null) return select;
+    const initial = select.value;
+    let changed = false;
+    const onChange = () => { changed = true; };
+    select.on('change', onChange);
+    try {
+      const record = value && typeof value === 'object'
+        ? value
+        : await connect(client).get(resource, value);
+      const normalized = normalizeRecord(record);
+      // The component registry forgets a destroyed select.
+      if (changed || !Object.is(select.value, initial) || Select.from(select.el) !== select) return select;
+      select.setItems([normalized]);
+      select.set(normalized, { silent: true });
+      return select;
+    } finally {
+      select.off('change', onChange);
+    }
+  })();
+  void ready.catch(() => {});
+  return ready;
 }
 
 /** @param {unknown} result @returns {Record<string, unknown>} */

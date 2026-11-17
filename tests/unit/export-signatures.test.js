@@ -20,7 +20,10 @@ const RELEASED = JSON.parse(readFileSync(new URL('./fixtures/export-parameters.j
 const OPTION_BAGS = {
   'core/date.js#formatDate': 3,
   'components/surface/catalog.js#surfaceSchema': 2,
-  'components/surface/catalog.js#surfaceTools': 2
+  'components/surface/catalog.js#surfaceTools': 2,
+  'zeyos/calendar.js#zeyosAppointmentToEvent': 2,
+  'zeyos/calendar.js#zeyosAppointmentsToEvents': 2,
+  'zeyos/calendar.js#calendarEventToZeyosPatch': 2
 };
 
 /**

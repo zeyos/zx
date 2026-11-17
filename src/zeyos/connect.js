@@ -3,6 +3,8 @@ import { Message, setLanguage } from '../index.js';
 /**
  * @typedef {Object} ConnectOptions
  * @property {(error: unknown, context?: {operation?: string, resource?: string}) => unknown} [onError] Error reporter.
+ * Every failed helper call reaches it, including one for a resource with no matching operation;
+ * `context.operation` is the operation id, or the action (`list`, `get`, …) when none was found.
  * @property {string} [locale] BCP 47 locale applied to Zx i18n/date formatting.
  */
 /**
@@ -38,8 +40,10 @@ export function connect(client, { onError, locale } = {}) {
   };
 
   const invoke = async (action, resource, input) => {
-    const operation = operationFor(client, action, resource);
+    // Resolving the operation is part of the request: a resource without one is reported too.
+    let operation = action;
     try {
+      operation = operationFor(client, action, resource);
       return await client.api[operation](input);
     } catch (error) {
       try { reportError(error, { operation, resource }); } catch { /* Preserve the API failure. */ }

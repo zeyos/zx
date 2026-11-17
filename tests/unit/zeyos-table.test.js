@@ -126,3 +126,64 @@ test('a rejected load changes nothing: every argument is checked before any is a
   assert.throws(() => pager.setQuery({ search: 'other', filters: [] }), TypeError);
   assert.equal(pager.search, 'printer', 'setQuery() is all-or-nothing as well');
 });
+
+test('loadMore() sends nothing while a page-zero reload is in flight', async () => {
+  // Infinite scroll: page 1 of the old filter is on screen when setFilters() starts a page-zero
+  // reload. A loadMore() fired meanwhile must not append the new filter's page 2 onto the old rows.
+  let gate = null;
+  const rows = Array.from({ length: 10 }, (_, index) => ({ ID: index + 1 }));
+  const { pager, target, calls } = setup({
+    pageSize: 2,
+    list: (_resource, query) => {
+      const response = { data: rows.slice(query.offset, query.offset + query.limit), count: rows.length };
+      if (!gate) return Promise.resolve(response);
+      return gate.promise.then(() => response);
+    }
+  });
+  await pager.load();
+  await pager.loadMore();
+  assert.equal(pager.page, 1);
+  gate = deferred();
+  const reload = pager.load({ filters: { status: 1 }, page: 0 });
+  const more = await pager.loadMore();
+  assert.equal(calls.length, 3, 'loadMore() sent no request during the reload');
+  assert.equal(more.data.length, 0);
+  gate.resolve();
+  await reload;
+  assert.equal(target.log.filter((entry) => entry.startsWith('add')).length, 1, 'only the first loadMore appended');
+  assert.equal(target.log.at(-2), 'set:2', 'the reload rendered page zero of the new filter');
+  assert.equal(pager.page, 0);
+  gate = null;
+  await pager.loadMore();
+  assert.deepEqual([calls.at(-1).offset, calls.at(-1).filters.status], [2, 1], 'loadMore() works again afterwards');
+});
+
+test('reset() retires requests in flight and clears the loading state', async () => {
+  const gate = deferred();
+  const { pager, target } = setup({ list: () => gate.promise });
+  const pending = pager.load({ search: 'old' });
+  pager.setQuery({ search: 'new' });
+  pager.reset();
+  assert.deepEqual(target.log, ['loading:true', 'loading:false'], 'reset() settled the loading state');
+  gate.resolve({ data: [{ ID: 1 }, { ID: 2 }], count: 9 });
+  const result = await pending;
+  assert.equal(result.data.length, 2, 'the caller still gets its data');
+  assert.deepEqual(target.log, ['loading:true', 'loading:false'], 'the stale response rendered nothing');
+  assert.equal(pager.count, null);
+  assert.equal(pager.hasMore, false);
+  assert.equal(pager.search, 'new');
+});
+
+test('hasMore is computed with the page size each request was sent with', async () => {
+  const gates = [deferred(), deferred()];
+  let index = 0;
+  const { pager } = setup({ list: () => gates[index++].promise });
+  const older = pager.load({ pageSize: 2 });
+  const newer = pager.load({ pageSize: 5 });
+  // No count in the response: a full page of the size that was asked for means "more".
+  gates[0].resolve({ data: [{ ID: 1 }, { ID: 2 }] });
+  assert.equal((await older).hasMore, true);
+  gates[1].resolve({ data: [{ ID: 1 }, { ID: 2 }, { ID: 3 }], count: 3 });
+  assert.equal((await newer).hasMore, false);
+  assert.equal(pager.pageSize, 5);
+});

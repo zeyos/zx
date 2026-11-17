@@ -87,3 +87,41 @@ test('unnamed appointment fallback translates while supplied titles remain uncha
     assert.equal(zeyosAppointmentToEvent({ ...record, name: 'Customer appointment' }).title, 'Customer appointment');
   } finally { setTranslator(null); }
 });
+
+test('all-day inference and patches follow the instance time zone, not the viewer\'s', () => {
+  // The viewer runs in Vienna (TZ above); the instance stores days as New York midnights.
+  const juneTenth = Date.UTC(2026, 5, 10, 4) / 1000; // 2026-06-10 00:00 in New York
+  const juneEleventh = Date.UTC(2026, 5, 11, 4) / 1000;
+  const record = { ID: 5, name: 'Stocktake', datefrom: juneTenth, dateto: juneEleventh };
+
+  const viewerZone = zeyosAppointmentToEvent(record);
+  assert.equal(viewerZone.allDay, false, 'without a zone, 06:00 Vienna is not midnight');
+
+  const mapped = zeyosAppointmentToEvent(record, { timeZone: 'America/New_York' });
+  assert.equal(mapped.allDay, true);
+  assert.equal(mapped.start.getTime(), new Date(2026, 5, 10).getTime(), 'shown on the day it names');
+  assert.equal(mapped.end.getTime(), new Date(2026, 5, 11).getTime());
+  assert.equal(mapped.id, `5@${juneTenth}`, 'occurrence identity keeps the stored timestamp');
+
+  assert.deepEqual(calendarEventToZeyosPatch(mapped, { timeZone: 'America/New_York' }), {
+    ID: 5, datefrom: juneTenth, dateto: juneEleventh
+  }, 'an all-day event round-trips to the same stored midnights');
+  const moved = { ...mapped, start: new Date(2026, 5, 12), end: new Date(2026, 5, 13) };
+  assert.deepEqual(calendarEventToZeyosPatch(moved, { timeZone: 'America/New_York' }), {
+    ID: 5, datefrom: juneTenth + 2 * 86400, dateto: juneEleventh + 2 * 86400
+  });
+
+  const timed = { ID: 6, name: 'Call', datefrom: juneTenth + 3600, dateto: juneTenth + 7200 };
+  const call = zeyosAppointmentToEvent(timed, { timeZone: 'America/New_York' });
+  assert.equal(call.allDay, false);
+  assert.equal(call.start.getTime(), (juneTenth + 3600) * 1000, 'timed rows stay instants');
+  assert.deepEqual(calendarEventToZeyosPatch(call, { timeZone: 'America/New_York' }), {
+    ID: 6, datefrom: juneTenth + 3600, dateto: juneTenth + 7200
+  });
+
+  const options = buildZeyosCalendarOptions({ appointments: [record], timeZone: 'America/New_York' });
+  assert.equal(options.events[0].allDay, true);
+  assert.equal(Object.prototype.hasOwnProperty.call(options, 'timeZone'), false, 'the zone is not a Calendar option');
+  assert.equal(zeyosAppointmentsToEvents([record], { timeZone: 'America/New_York' })[0].allDay, true);
+  assert.throws(() => zeyosAppointmentToEvent(record, { timeZone: 'Mars/Olympus' }), RangeError);
+});

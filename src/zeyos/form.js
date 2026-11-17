@@ -45,8 +45,12 @@ import { buildZeyosSelectConfig } from './select.js';
 /**
  * @typedef {Object} ZeyosFormBinding
  * @property {Form} form Generated Zx form.
- * @property {Promise<Record<string, unknown>|null>} ready Initial value/load readiness.
- * @property {(id: unknown) => Promise<Record<string, unknown>>} load Loads and maps one record.
+ * @property {Promise<Record<string, unknown>|null>} ready Initial value/load readiness. It rejects
+ * when the initial load fails (reported like any failed request); left unawaited, that rejection is
+ * not reported a second time as unhandled.
+ * @property {(id: unknown) => Promise<Record<string, unknown>>} load Loads and maps one record. Only
+ * the latest call shows its record and becomes the one `save()` updates: an earlier call that
+ * settles later still resolves with its record, but leaves the form alone.
  * @property {() => Promise<Record<string, unknown>|null>} save Validates and creates or updates the
  * record, then confirms with a toast in the form's scope unless `notify` is false.
  * @property {() => Form} getForm Returns the generated Zx Form.
@@ -109,7 +113,7 @@ export function buildZeyosFormConfig(client, resource, opts = {}) {
 /**
  * Generates a schema-driven Zx Form and a small async binding object. `load(id)` hydrates entity
  * labels and converts Unix seconds to Date objects. `save()` validates, maps values back to API
- * storage types, calls create/update through the WP14 connection facade, invokes
+ * storage types, calls create/update through the `connect()` facade, invokes
  * `onSaved(record)`, and shows a success toast. Its toasts — that confirmation and the report of a
  * failed request — appear in the theme scope of `opts.scope` or of the form itself, and
  * `notify: false` silences them. Await `ready` when `opts.id` or `opts.value` is supplied.
@@ -134,29 +138,41 @@ export function zeyosForm(client, resource, opts = {}) {
   let currentId = opts.value?.ID ?? opts.id ?? null;
   let destroyed = false;
   let savePending = null;
+  // Each load or value application takes a number; only the latest may write to the form.
+  let loadSequence = 0;
 
-  const applyRecord = async (record) => {
+  /**
+   * @param {Record<string, unknown>} record Record to show.
+   * @param {number} [mine] This application's sequence number.
+   * @param {unknown} [id] Record id that becomes `currentId` once the record is shown.
+   */
+  const applyRecord = async (record, mine = ++loadSequence, id = undefined) => {
     if (!record || typeof record !== 'object' || Array.isArray(record)) {
       throw new TypeError('ZeyOS form value must be a record');
     }
-    await Promise.all(config.entityFields.map(async ({ id, resource: referencedResource }) => {
-      const value = record[id];
+    const current = () => !destroyed && mine === loadSequence;
+    await Promise.all(config.entityFields.map(async ({ id: fieldId, resource: referencedResource }) => {
+      const value = record[fieldId];
       if (value == null) return;
       const selected = value && typeof value === 'object'
         ? value
         : normalizeRecord(await facade.get(referencedResource, value));
-      const select = Select.from(form.getField(id)?.getInput());
+      if (!current()) return;
+      const select = Select.from(form.getField(fieldId)?.getInput());
       if (select instanceof Select) select.setItems([selected]);
     }));
-    if (!destroyed) form.setValues(config.mapFromRecord(record), { silent: true });
+    if (!current()) return record;
+    if (id !== undefined) currentId = id;
+    form.setValues(config.mapFromRecord(record), { silent: true });
     return record;
   };
 
   const load = async (id) => {
     if (id == null || id === '') throw new TypeError('zeyosForm.load() requires an id');
+    const mine = ++loadSequence;
     const record = normalizeRecord(await facade.get(resource, id));
-    currentId = record.ID ?? id;
-    await applyRecord(record);
+    if (destroyed || mine !== loadSequence) return record;
+    await applyRecord(record, mine, record.ID ?? id);
     return record;
   };
 
@@ -203,6 +219,9 @@ export function zeyosForm(client, resource, opts = {}) {
   const ready = Object.prototype.hasOwnProperty.call(opts, 'id')
     ? load(opts.id)
     : (opts.value ? applyRecord(opts.value) : Promise.resolve(null));
+  // `ready` stays rejectable for callers that await it; this observer keeps a failure nobody awaits
+  // (already reported through `onError`) from surfacing again as an unhandled rejection.
+  void ready.catch(() => {});
 
   return {
     form,
