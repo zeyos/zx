@@ -5,7 +5,6 @@ import {
   __, appendCompact, appendCompactChild, appendContent, applyCompactProperties,
   fireCompactEvent, fragment, h, offCompactEvent, onCompactEvent, parseCompactTag
 } from '../../src/core/dom.js';
-import { installGlobals } from '../../src/compat/globals.js';
 
 test('compact tags preserve the established tag#id.class grammar', () => {
   assert.deepEqual(parseCompactTag('button#save.primary wide'), {
@@ -170,13 +169,6 @@ test('pure append helpers preserve parent and child return identities', () => {
     assert.equal(appendContent(root, 'tail'), root);
     assert.equal(root.children.length, 3);
   });
-});
-
-test('gx global installation never replaces an existing compact builder', () => {
-  const builder = () => 'compact';
-  const host = { __: builder, String, Array };
-  installGlobals(/** @type {typeof globalThis} */ (host));
-  assert.equal(host.__, builder);
 });
 
 /** @param {() => void} run */

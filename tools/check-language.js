@@ -18,13 +18,14 @@
  * Demos do not use every option, so each page also mounts a fixture with the options they leave out,
  * and each page names text that must appear, so a step that silently opens nothing fails too.
  *
- * `npm run test:browser` runs this after the smoke suites. Requires an installed Google Chrome.
+ * `npm run test:browser` runs this after the smoke suites. Requires an installed Google Chrome, or
+ * the browser `ZX_BROWSER_CHANNEL` / `ZX_BROWSER_EXECUTABLE_PATH` selects.
  */
-import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { chromium } from 'playwright-core';
+import { launchBrowser } from './browser.js';
+import { startServer } from './serve-child.js';
 import { locales } from '../src/locales/index.js';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -785,27 +786,16 @@ async function main() {
   const locale = args.find((arg) => arg.startsWith('--locale='))?.slice('--locale='.length) ?? 'de';
   const ids = args.filter((arg) => !arg.startsWith('--locale='));
   installLocale(locale);
-  const port = Number(process.env.SMOKE_PORT ?? 8398);
-  const base = `http://127.0.0.1:${port}`;
-  const server = spawn(process.execPath, [join(root, 'tools/serve.js')], {
-    cwd: root, env: { ...process.env, PORT: String(port) }, stdio: 'ignore'
-  });
-  process.on('exit', () => server.kill());
+  // Its own server on a port the system picks, unless SMOKE_PORT names one; a start that fails —
+  // the port taken, the server crashed — is reported rather than tested against.
+  const server = await startServer({ port: Number(process.env.SMOKE_PORT ?? 0), readyPath: 'website/docs.html' });
   let browser;
   try {
-    for (let attempt = 0; attempt < 50; attempt += 1) {
-      try {
-        await fetch(base);
-        break;
-      } catch {
-        await new Promise((done) => setTimeout(done, 100));
-      }
-    }
-    browser = await chromium.launch({ channel: 'chrome' });
-    return (await checkLanguage(browser, base, ids.length ? ids : undefined, locale)) ? 1 : 0;
+    browser = await launchBrowser();
+    return (await checkLanguage(browser, server.base, ids.length ? ids : undefined, locale)) ? 1 : 0;
   } finally {
     await browser?.close();
-    server.kill();
+    server.stop();
   }
 }
 

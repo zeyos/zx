@@ -27,11 +27,17 @@ export function isMissingBrowserError(error) {
 /**
  * Launches the configured installed browser. Explicit suites always fail on launch errors; only
  * optional unit checks may return null when the configured browser executable is absent.
- * @param {{optional?: boolean, env?: Record<string, string|undefined>, browserType?: Pick<typeof chromium, 'launch'>}} [options={}]
+ *
+ * `options` carries a suite's own launch settings (`args`, signal handling); the browser itself is
+ * always the configured one, so a suite cannot pin Chrome past `ZX_BROWSER_CHANNEL` or
+ * `ZX_BROWSER_EXECUTABLE_PATH`.
+ * @param {{optional?: boolean, env?: Record<string, string|undefined>, browserType?: Pick<typeof chromium, 'launch'>,
+ *   options?: Omit<import('playwright-core').LaunchOptions, 'channel'|'executablePath'>}} [settings={}]
  * @returns {Promise<import('playwright-core').Browser|null>}
  */
-export async function launchBrowser({ optional = false, env = process.env, browserType = chromium } = {}) {
-  const options = browserLaunchOptions(env);
+export async function launchBrowser({ optional = false, env = process.env, browserType = chromium, options: extra = {} } = {}) {
+  const { channel: _channel, executablePath: _executablePath, ...own } = /** @type {import('playwright-core').LaunchOptions} */ (extra);
+  const options = { ...own, ...browserLaunchOptions(env) };
   try {
     return await browserType.launch(options);
   } catch (error) {

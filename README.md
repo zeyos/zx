@@ -149,6 +149,7 @@ ZeyOS binding — see `src/zeyos/modules.js`.
 | `MenuButton` | APG menu button built on `Dropdown`. |
 | `ContextMenu` | APG right-click menu for a region or, via `selector`, per row. |
 | `Sheet` | Dockable panel that can float as a modal or nonmodal dialog. |
+| `SheetStack` | Ordered group of Sheets read as one drill-down, stacked or cascaded side by side. |
 | `Tooltip`, `tooltip()`, `describe()` | Hover/focus description bubble anchored with `position()`. |
 
 ### Data

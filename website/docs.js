@@ -904,7 +904,12 @@ function generatedApi(entry) {
       });
     }
     if (record.methods?.length) {
-      groups.push({ label: 'Methods', columns: ['Method', 'Returns', 'Description'], rows: record.methods });
+      // A static is called on the class, so its row reads as the call is written:
+      // `Select.country([options])`, not `country([options])` among the instance methods.
+      const rows = record.methods.map((method) => (method.static
+        ? { ...method, signature: `${className}.${method.signature}` }
+        : method));
+      groups.push({ label: 'Methods', columns: ['Method', 'Returns', 'Description'], rows });
     }
     if (record.events?.length) {
       groups.push({ label: 'Events', columns: ['Event', 'Payload', 'Description'], rows: record.events });

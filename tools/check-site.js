@@ -12,7 +12,9 @@
  * Every header navigation link must carry the `data-nav` attribute its glyph is chosen by.
  *
  * Absolute paths are skipped on purpose: the Getting started guides contain code samples with
- * paths like `/assets/zx.css`, which describe a consumer's deployment rather than this site.
+ * paths like `/assets/zx.css`, which describe a consumer's deployment rather than this site. The
+ * one exception is the revision tree: `/v/<rev>/…` is written only by `tools/build-site.js`, when it
+ * repoints the pages at the versioned copy, so those references are resolved against the site root.
  */
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, extname, join, relative, resolve, sep } from 'node:path';
@@ -41,12 +43,15 @@ const IMPORT_PATTERNS = [
   /\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g
 ];
 
-/** Reference positions: ES imports, HTML attributes, and CSS url(). */
+/** Reference positions: ES imports, HTML attributes, CSS url(), and quoted CSS @import. */
 const PATTERNS = [
   ...IMPORT_PATTERNS,
   /\b(?:href|src)\s*=\s*"([^"]+)"/g,
-  /\burl\(\s*["']?([^"')]+)["']?\s*\)/g
+  /\burl\(\s*["']?([^"')]+)["']?\s*\)/g,
+  /@import\s+["']([^"']+)["']/g
 ];
+/** A reference into the revision-stamped copy the build points the root pages at. */
+const REVISIONED = /^\/v\/[^/]+\//;
 /**
  * Quoted paths in scripts that name a real asset — `fetch()` targets and constants such as
  * `DOCS_URL` are references the patterns above cannot see, and they fail silently.
@@ -89,9 +94,10 @@ for (const file of files) {
     for (const [, reference] of source.matchAll(pattern)) {
       if (!isInternal(reference)) continue;
       const clean = reference.split('#')[0].split('?')[0];
-      const rooted = !clean.startsWith('./') && !clean.startsWith('../');
-      if (rooted && !SITE_ENTRIES.has(clean.split('/')[0])) continue;
-      const target = resolve(rooted ? site : dirname(file), clean);
+      const revisioned = REVISIONED.test(clean);
+      const rooted = revisioned || (!clean.startsWith('./') && !clean.startsWith('../'));
+      if (rooted && !revisioned && !SITE_ENTRIES.has(clean.split('/')[0])) continue;
+      const target = revisioned ? join(site, clean.slice(1)) : resolve(rooted ? site : dirname(file), clean);
       if (!existsSync(target)) {
         problems.push(`${relative(site, file)} → ${reference}`);
       }
@@ -134,6 +140,16 @@ if (componentIds.length === 0) problems.push('docs.js → COMPONENT_IDS is empty
 for (const id of componentIds) {
   if (!existsSync(join(site, 'demos', `${id}.demo.js`))) {
     problems.push(`docs.js COMPONENT_IDS → demos/${id}.demo.js`);
+  }
+}
+// And the other way round: a demo module no id names is published but unreachable — no page
+// builds it, no search finds it, and nothing notices when the API it shows changes.
+if (componentIds.length && existsSync(join(site, 'demos'))) {
+  const registered = new Set(componentIds);
+  for (const entry of readdirSync(join(site, 'demos'))) {
+    if (!entry.endsWith('.demo.js')) continue;
+    const id = entry.slice(0, -'.demo.js'.length);
+    if (!registered.has(id)) problems.push(`demos/${entry} → not in docs.js COMPONENT_IDS (unreachable demo)`);
   }
 }
 
@@ -244,17 +260,19 @@ for (const privatePath of [
  * because it is prose rather than a resolvable reference. That mistake has been made, which is
  * why it is checked.
  *
- * Scoped to documentation output — `.md` and `.html` — and not to published source. A code
- * comment saying "see AGENTS.md" is a pointer for a contributor reading a file that ships in the
- * package anyway; a sentence in the release notes is the site telling a customer to read
- * something they cannot have.
+ * Scoped to documentation output — `.md`, `.html`, `.txt` (the agent indexes) and the demo
+ * modules, whose source every component page shows as its example code — and not to published
+ * library source. A code comment saying "see AGENTS.md" is a pointer for a contributor reading a
+ * file that ships in the package anyway; a sentence in the release notes or an example is the site
+ * telling a customer to read something they cannot have.
  */
 const INTERNAL_MENTIONS = ['specs/', 'AGENTS.md', 'DESIGN-NOTES.md', 'RELEASING.md', 'DESIGN-SYSTEM.md'];
-const DOCUMENTATION = new Set(['.md', '.html']);
+const DOCUMENTATION = new Set(['.md', '.html', '.txt']);
 
 for (const file of files) {
   const relativePath = relative(site, file);
-  if (!DOCUMENTATION.has(extname(file))) continue;
+  const demo = relativePath.split(sep)[0] === 'demos' && extname(file) === '.js';
+  if (!DOCUMENTATION.has(extname(file)) && !demo) continue;
   // Published source carries its own contributor comments; only prose is in scope here.
   if (relativePath.split(sep)[0] === 'src') continue;
 
@@ -303,7 +321,9 @@ function isInternal(reference) {
   if (reference.includes('${') || reference.includes('$')) return false;
   if (/^[a-z][a-z0-9+.-]*:/i.test(reference)) return false;
   if (reference.startsWith('//')) return false;
-  // Absolute paths in the guides describe a consumer's deployment, not this site.
+  // The build's own revision-stamped references are this site's, and must resolve.
+  if (REVISIONED.test(reference)) return true;
+  // Any other absolute path in the guides describes a consumer's deployment, not this site.
   if (reference.startsWith('/')) return false;
   // Explicitly relative paths are always ours.
   if (reference.startsWith('./') || reference.startsWith('../')) return true;

@@ -5,6 +5,7 @@
  *   node tools/audit-layout.js mail
  *   node tools/audit-layout.js mail --themes dark --width 390 --height 844
  *   node tools/audit-layout.js mail --steps ./steps.mjs     # drive it into a state first
+ *   node tools/audit-layout.js mail --preview               # the gallery-thumbnail state
  *   node tools/audit-layout.js mail --json report.json
  *
  * What it checks, inside the layout's stage only:
@@ -12,33 +13,41 @@
  *   repeated landmarks (two navigations, two regions) are told apart by theirs;
  * - contrast: visible text against its painted background, 4.5:1 (3:1 for large text), with
  *   translucent colours, opacity, and stacked backgrounds composited the way the browser paints
- *   them; text over an image or gradient, disabled controls (and a disabled field's label), and
- *   decoration hidden with `aria-hidden` are skipped;
+ *   them — a text field's value included; text over an image or gradient, disabled controls (and a
+ *   disabled field's label), and decoration hidden with `aria-hidden` are skipped;
  * - focus: Tab walks the layout (up to 120 stops); every stop must be visible and show an indicator
  *   (outline, box shadow, border, or background differing from the unfocused state on the element
  *   or its two nearest ancestors);
  * - structure: heading levels never skip, ids are unique, no positive tabindex, nothing focusable
  *   inside `aria-hidden`, no interactive element nested in another;
- * - targets (warning only): controls smaller than 24 × 24 px that are not links inside a sentence.
+ * - targets (warning only): controls smaller than 24 × 24 px that are not links inside a sentence;
+ * - placeholders (warning only): an empty field's placeholder below the same minimum. A warning
+ *   because the placeholder colour is the theme's `--zx-color-text-placeholder`, not the layout's;
+ *   it tells a layout author nothing they can fix in the layout;
+ * - errors: an uncaught exception, a console error, a failed request or an HTTP error — a layout
+ *   stylesheet that did not load is audited unstyled, so its findings would mean nothing.
  *
  * `--steps` names a module whose default export is `async (page, { theme }) => {}`, as for
- * `tools/shoot-layout.js`. Exits non-zero when anything but a warning was found.
+ * `tools/shoot-layout.js`, and `--preview` mounts the gallery-thumbnail state as it does there.
+ * Exits non-zero when anything but a warning was found.
  *
- * Uses `tests/layouts/harness.html` through its own `tools/serve.js` on a random port. Requires an
- * installed Google Chrome, like `npm run test:browser`.
+ * Uses `tests/layouts/harness.html` through its own `tools/serve.js` on a port the system picks
+ * (`tools/serve-child.js`). Requires an installed Google Chrome, or the browser
+ * `ZX_BROWSER_CHANNEL` / `ZX_BROWSER_EXECUTABLE_PATH` selects, like `npm run test:browser`.
  */
-import { spawn } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { launchBrowser } from './browser.js';
+import { startServer } from './serve-child.js';
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
+/** Options that take no value, so the argument after one is not its value. */
+const FLAGS = new Set(['--preview']);
 const id = args.find((arg) => !arg.startsWith('--') && !isValueOf(arg));
 if (!id) {
   console.error('Usage: node tools/audit-layout.js <id> [--themes light,dark] [--preset name] '
-    + '[--width 1440] [--height 900] [--steps file.mjs] [--json file] [--limit 12]');
+    + '[--width 1440] [--height 900] [--preview] [--steps file.mjs] [--json file] [--limit 12]');
   process.exit(2);
 }
 
@@ -48,10 +57,11 @@ const width = Number(option('width') ?? 1440);
 const height = Number(option('height') ?? 900);
 const limit = Number(option('limit') ?? 12);
 const jsonPath = option('json');
+const preview = args.includes('--preview');
 const stepsPath = option('steps');
 const steps = stepsPath ? (await import(pathToFileURL(resolve(stepsPath)).href)).default : null;
-const port = 9100 + Math.floor(Math.random() * 800);
-const base = `http://127.0.0.1:${port}`;
+/** Origin of this run's server; set once it is up. */
+let base = '';
 
 /** Roles a user operates, which must have a name. */
 const NAMED_ROLES = new Set([
@@ -63,18 +73,13 @@ const NAMED_ROLES = new Set([
 /** Landmarks that need a name once there is more than one of them. */
 const LANDMARKS = new Set(['navigation', 'region', 'complementary', 'search', 'form', 'main', 'banner', 'contentinfo']);
 
-const server = spawn(process.execPath, [resolve(root, 'tools/serve.js')], {
-  cwd: root,
-  env: { ...process.env, PORT: String(port) },
-  stdio: 'ignore'
-});
-process.on('exit', () => server.kill());
-
 const report = {};
 let failed = false;
 let browser;
+let server = null;
 try {
-  await waitForServer();
+  server = await startServer({ readyPath: 'tests/layouts/harness.html' });
+  base = server.base;
   browser = await launchBrowser();
   for (const theme of themes) {
     const result = await audit(theme);
@@ -86,7 +91,7 @@ try {
   failed = true;
 } finally {
   await browser?.close();
-  server.kill();
+  server?.stop();
 }
 if (jsonPath) writeFileSync(resolve(jsonPath), JSON.stringify(report, null, 2));
 process.exit(failed ? 1 : 0);
@@ -99,9 +104,24 @@ async function audit(theme) {
   const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 1 });
   const errors = [];
   page.on('pageerror', (error) => errors.push(`uncaught: ${error.message}`));
-  const query = new URLSearchParams({ id, theme, ...(preset ? { preset } : {}) });
+  // As `tools/shoot-layout.js` does: a failed request is reported with its URL by the listeners
+  // below, so the console's own line for it is not counted twice.
+  page.on('console', (message) => {
+    if (message.type() === 'error' && !message.text().startsWith('Failed to load resource')) {
+      errors.push(`console.error: ${message.text()}`);
+    }
+  });
+  page.on('requestfailed', (request) => errors.push(`request failed: ${request.url()}`));
+  page.on('response', (response) => {
+    if (response.status() >= 400) errors.push(`HTTP ${response.status()}: ${response.url()}`);
+  });
+  const query = new URLSearchParams({ id, theme, ...(preset ? { preset } : {}), ...(preview ? { preview: '1' } : {}) });
   await page.goto(`${base}/tests/layouts/harness.html?${query}`, { waitUntil: 'load' });
-  await page.waitForSelector('body[data-ready="true"]', { timeout: 10_000 });
+  try {
+    await page.waitForSelector('body[data-ready="true"]', { timeout: 10_000 });
+  } catch (error) {
+    throw new Error([`the layout never became ready (${error.message.split('\n')[0]})`, ...errors].join('\n  '));
+  }
   await page.waitForTimeout(400);
   if (steps) await steps(page, { theme, shot: async () => {} });
 
@@ -368,30 +388,52 @@ function inPageChecks() {
     return value;
   };
   const contrast = [];
+  const placeholders = [];
   const checked = new Set();
+  /**
+   * Checks one element's rendered text against what is painted behind it.
+   * @param {Element} element
+   * @param {string} [pseudo] `'::placeholder'` for a field's placeholder.
+   * @param {string} [label] How the finding names it, when not by its own text.
+   * @param {string[]} [findings=contrast] Where a shortfall is reported.
+   */
+  const checkText = (element, pseudo, label, findings = contrast) => {
+    if (!visible(element)) return;
+    // Disabled controls — their labels included, which a disabled Field fades with the control —
+    // and decoration hidden from assistive technology are exempt (WCAG 1.4.3).
+    if (element.closest('[disabled], [aria-disabled="true"], [data-disabled="true"], [inert], [aria-hidden="true"], svg, canvas, .visually-hidden, .zx-visually-hidden')) return;
+    const style = getComputedStyle(element);
+    if (style.clipPath === 'inset(50%)' || style.clip === 'rect(0px, 0px, 0px, 0px)') return;
+    const background = backdrop(element);
+    if (!background) return;
+    const alpha = opacity(element);
+    if (alpha < 0.05) return;
+    const textStyle = pseudo ? getComputedStyle(element, pseudo) : style;
+    let foreground = over(parse(textStyle.color), background);
+    if (alpha < 1) foreground = over({ ...foreground, a: alpha }, background);
+    const size = parseFloat(style.fontSize);
+    const bold = Number(style.fontWeight) >= 700;
+    const minimum = size >= 24 || (size >= 18.66 && bold) ? 3 : 4.5;
+    const value = ratio(foreground, background);
+    if (value < minimum) findings.push(`${value.toFixed(2)}:1 < ${minimum}: ${label ?? describe(element)}`);
+  };
   const walker = document.createTreeWalker(stage, NodeFilter.SHOW_TEXT);
   for (let text = walker.nextNode(); text; text = walker.nextNode()) {
     if (!text.textContent.trim()) continue;
     const element = text.parentElement;
     if (!element || checked.has(element)) continue;
     checked.add(element);
-    if (!visible(element)) continue;
-    // Disabled controls — their labels included, which a disabled Field fades with the control —
-    // and decoration hidden from assistive technology are exempt (WCAG 1.4.3).
-    if (element.closest('[disabled], [aria-disabled="true"], [data-disabled="true"], [inert], [aria-hidden="true"], svg, canvas, .visually-hidden, .zx-visually-hidden')) continue;
-    const style = getComputedStyle(element);
-    if (style.clipPath === 'inset(50%)' || style.clip === 'rect(0px, 0px, 0px, 0px)') continue;
-    const background = backdrop(element);
-    if (!background) continue;
-    const alpha = opacity(element);
-    if (alpha < 0.05) continue;
-    let foreground = over(parse(style.color), background);
-    if (alpha < 1) foreground = over({ ...foreground, a: alpha }, background);
-    const size = parseFloat(style.fontSize);
-    const bold = Number(style.fontWeight) >= 700;
-    const minimum = size >= 24 || (size >= 18.66 && bold) ? 3 : 4.5;
-    const value = ratio(foreground, background);
-    if (value < minimum) contrast.push(`${value.toFixed(2)}:1 < ${minimum}: ${describe(element)}`);
+    checkText(element);
+  }
+  // A field's text is no text node: its value, or the placeholder it shows while empty.
+  const TEXT_INPUTS = 'textarea, input:not([type]), input[type="text"], input[type="search"], input[type="email"], '
+    + 'input[type="url"], input[type="tel"], input[type="number"], input[type="password"]';
+  for (const field of stage.querySelectorAll(TEXT_INPUTS)) {
+    const shown = field.value ? field.value : field.placeholder;
+    if (!shown.trim()) continue;
+    const tag = `<${field.localName}${[...field.classList].slice(0, 3).map((name) => `.${name}`).join('')}>`;
+    if (field.value) checkText(field, undefined, `${tag} value "${shown.slice(0, 40)}"`);
+    else checkText(field, '::placeholder', `${tag} placeholder "${shown.slice(0, 40)}"`, placeholders);
   }
 
   // ---- target size (warnings)
@@ -407,7 +449,7 @@ function inPageChecks() {
     return `${Math.round(rect.width)}×${Math.round(rect.height)}: ${describe(element)}`;
   });
 
-  return { duplicateIds, headings, tabindex, hiddenFocusable, nested, contrast, targets };
+  return { duplicateIds, headings, tabindex, hiddenFocusable, nested, contrast, targets, placeholders };
 }
 
 /**
@@ -420,15 +462,18 @@ function print(theme, findings) {
     errors: 'page errors', names: 'interactive elements without a name', landmarks: 'repeated landmarks',
     contrast: 'text below the contrast minimum', focus: 'focus problems', headings: 'skipped heading levels',
     duplicateIds: 'duplicate ids', tabindex: 'positive tabindex', hiddenFocusable: 'focusable inside aria-hidden',
-    nested: 'interactive elements nested in another', targets: 'targets under 24 × 24 px (warning)'
+    nested: 'interactive elements nested in another', targets: 'targets under 24 × 24 px (warning)',
+    placeholders: 'placeholders below the contrast minimum (warning)'
   };
+  /** Reported, but not a failure. */
+  const warnings = new Set(['targets', 'placeholders']);
   let bad = false;
   console.log(`${id} · ${theme} · ${width}×${height} · ${findings.focusStops.length} tab stops`);
   for (const [key, title] of Object.entries(titles)) {
     const list = [...new Set(findings[key] ?? [])];
     if (!list.length) continue;
-    if (key !== 'targets') bad = true;
-    console.log(`  ${key === 'targets' ? 'WARN' : 'FAIL'} ${title}: ${list.length}`);
+    if (!warnings.has(key)) bad = true;
+    console.log(`  ${warnings.has(key) ? 'WARN' : 'FAIL'} ${title}: ${list.length}`);
     for (const item of list.slice(0, limit)) console.log(`    ${item}`);
     if (list.length > limit) console.log(`    … ${list.length - limit} more`);
   }
@@ -445,17 +490,5 @@ function option(name) {
 /** @param {string} arg @returns {boolean} Whether `arg` is the value of a preceding option. */
 function isValueOf(arg) {
   const index = args.indexOf(arg);
-  return index > 0 && args[index - 1].startsWith('--');
-}
-
-/** @returns {Promise<void>} */
-async function waitForServer() {
-  for (let attempt = 0; attempt < 50; attempt += 1) {
-    try {
-      const response = await fetch(`${base}/tests/layouts/harness.html`);
-      if (response.ok) return;
-    } catch { /* not up yet */ }
-    await new Promise((done) => setTimeout(done, 100));
-  }
-  throw new Error(`server did not start on ${base}`);
+  return index > 0 && args[index - 1].startsWith('--') && !FLAGS.has(args[index - 1]);
 }

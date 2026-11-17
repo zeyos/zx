@@ -24,7 +24,8 @@
  * Exits 0 when nothing differs, 1 when a section differs, and 2 when the tool could not run. The
  * worktree and both servers are removed on every way out except SIGKILL.
  *
- * Requires an installed Google Chrome, like `npm run test:browser`.
+ * Requires an installed Google Chrome (or the browser `ZX_BROWSER_CHANNEL` /
+ * `ZX_BROWSER_EXECUTABLE_PATH` selects), like `npm run test:browser`.
  */
 import { execFileSync, spawn } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
@@ -174,7 +175,7 @@ process.exit(code);
 async function main() {
   const options = parseArguments(process.argv.slice(2));
   // Imported here because a failed static import exits 1, which here means a section differs.
-  const { chromium } = await import('playwright-core');
+  const { launchBrowser } = await import('./browser.js');
   const { LAYOUT_IDS } = await import('../website/layouts/index.js');
   const theme = await import('../website/theme-presets.js');
 
@@ -189,7 +190,7 @@ async function main() {
   };
 
   console.log(`Comparing the working tree against ${options.base} (${commit.slice(0, 7)})`);
-  const browser = await launch(chromium);
+  const browser = await launch(launchBrowser);
   try {
     const comparison = await browser.newContext().then((context) => context.newPage());
     /** @type {Difference[]} */
@@ -487,23 +488,27 @@ async function serve(directory) {
 }
 
 /**
- * @param {import('playwright-core').BrowserType} chromium
+ * Launches the configured installed browser (`tools/browser.js`: Chrome unless
+ * `ZX_BROWSER_CHANNEL` or `ZX_BROWSER_EXECUTABLE_PATH` says otherwise) with this tool's flags.
+ * @param {typeof import('./browser.js').launchBrowser} launchBrowser
  * @returns {Promise<import('playwright-core').Browser>}
  */
-async function launch(chromium) {
+async function launch(launchBrowser) {
   try {
     // The signal handlers above end the process, and Playwright closes the browser on exit.
-    return await chromium.launch({
-      channel: 'chrome',
-      // GPU raster antialiases a rounded corner differently from one render to the next, even of
-      // the same tree. Software raster gives the same pixels every time.
-      args: ['--disable-gpu'],
-      handleSIGINT: false,
-      handleSIGTERM: false,
-      handleSIGHUP: false
+    return await launchBrowser({
+      options: {
+        // GPU raster antialiases a rounded corner differently from one render to the next, even of
+        // the same tree. Software raster gives the same pixels every time.
+        args: ['--disable-gpu'],
+        handleSIGINT: false,
+        handleSIGTERM: false,
+        handleSIGHUP: false
+      }
     });
   } catch (error) {
-    throw new Error(`Chrome could not start, is Google Chrome installed? ${error.message}`);
+    throw new Error('The browser could not start; install Google Chrome or choose an installed browser '
+      + `with ZX_BROWSER_CHANNEL or ZX_BROWSER_EXECUTABLE_PATH. ${error.message}`);
   }
 }
 

@@ -51,6 +51,22 @@ test('public Surface references ship and working material stays outside the pack
   for (const path of pkg.files) assert(!/^(specs|tests|tools|\.pi|AGENTS\.md)(?:\/|$)/.test(path), path);
 });
 
+test('every stylesheet the build writes has its minified twin exported, and no files entry repeats its parent', () => {
+  const build = readFileSync(new URL('../../tools/build.js', import.meta.url), 'utf8');
+  const written = [...build.matchAll(/file: '(zx[\w.-]*\.css)'/g)].map(([, file]) => file);
+  assert.ok(written.length >= 3, 'the stylesheet list in tools/build.js changed shape');
+  for (const file of written) {
+    for (const name of [file, file.replace(/\.css$/, '.min.css')]) {
+      assert.equal(pkg.exports[`./${name}`], `./dist/${name}`, `package.json exports is missing ./${name}`);
+    }
+  }
+  const included = pkg.files.filter((entry) => !entry.startsWith('!'));
+  for (const entry of included) {
+    const parent = included.find((other) => other !== entry && entry.startsWith(`${other}/`));
+    assert.equal(parent, undefined, `files lists ${entry}, which ${parent} already publishes`);
+  }
+});
+
 test('build tools use exact existing lockfile versions and CI never falls back to install', () => {
   const lock = JSON.parse(readFileSync(new URL('../../package-lock.json', import.meta.url), 'utf8'));
   for (const [name, version] of Object.entries(pkg.devDependencies)) {

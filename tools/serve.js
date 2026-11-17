@@ -14,7 +14,8 @@ import { fileURLToPath } from 'node:url';
 
 // Defaults to the repository root (no-build development); SERVE_ROOT points it at `site/` to
 // preview exactly what gets deployed.
-const root = resolve(fileURLToPath(new URL('..', import.meta.url)), process.env.SERVE_ROOT ?? '.');
+const repository = resolve(fileURLToPath(new URL('..', import.meta.url)));
+const root = resolve(repository, process.env.SERVE_ROOT ?? '.');
 const host = process.env.HOST ?? '127.0.0.1';
 const port = Number(process.env.PORT ?? 8321);
 
@@ -36,7 +37,16 @@ const TYPES = {
 
 const server = createServer((request, response) => {
   const url = new URL(request.url, `http://${request.headers.host ?? 'localhost'}`);
-  const file = resolveFile(decodeURIComponent(url.pathname));
+  let pathname;
+  try {
+    pathname = decodeURIComponent(url.pathname);
+  } catch {
+    // A malformed escape (`/%ZZ`) is the client's mistake; it must not take the server down.
+    response.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' });
+    response.end('Bad request');
+    return;
+  }
+  const file = resolveFile(pathname);
 
   if (!file) {
     response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
@@ -50,9 +60,19 @@ const server = createServer((request, response) => {
   createReadStream(file).pipe(response);
 });
 
+// A port that is taken is a startup failure, said once and plainly; `tools/serve-child.js` reads
+// the exit as the reason the suite cannot run.
+server.on('error', (error) => {
+  console.error(`Zx dev server could not listen on ${host}:${port}: ${error.message}`);
+  process.exit(1);
+});
+
 server.listen(port, host, () => {
-  const entry = process.env.SERVE_ROOT ? 'docs.html' : 'website/docs.html';
-  console.log(`Zx dev server (${root}): http://${host}:${port}/${entry}`);
+  const entry = root === repository ? 'website/docs.html' : 'docs.html';
+  // The port actually bound: PORT=0 asks the operating system for a free one, and this line is
+  // how a caller learns which.
+  const { port: bound } = /** @type {import('node:net').AddressInfo} */ (server.address());
+  console.log(`Zx dev server (${root}): http://${host}:${bound}/${entry}`);
 });
 
 /**

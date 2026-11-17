@@ -25,7 +25,7 @@ import { writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { chromium } from 'playwright-core';
+import { launchBrowser } from './browser.js';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -61,7 +61,7 @@ let browser;
 let exitCode = 0;
 try {
   await waitForServer();
-  browser = await chromium.launch({ channel: 'chrome' });
+  browser = await launchBrowser();
   const plan = SIZES.flatMap((rows) => CASES.map((name) => ({ rows, name })))
     .filter(({ rows, name }) => args.only.every((only) => only.rows === rows && (!only.name || only.name === name)));
   if (plan.length === 0) throw new Error(`--only matched no case (sizes ${SIZES.join(', ')}; cases ${CASES.join(', ')})`);
@@ -102,7 +102,7 @@ try {
   if (results.some((result) => result.misses.length)) exitCode = 1;
 } catch (error) {
   console.error(`\nTable benchmark could not run: ${error.message}`);
-  if (String(error.message).includes('chrome')) console.error('Install Google Chrome, or set a channel Playwright can find.');
+  if (String(error.message).includes('chrome')) console.error('Install Google Chrome, or select an installed browser with ZX_BROWSER_CHANNEL or ZX_BROWSER_EXECUTABLE_PATH.');
   exitCode = 2;
 } finally {
   await browser?.close();

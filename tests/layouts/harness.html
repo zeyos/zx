@@ -20,41 +20,85 @@
     -->
     <div id="stage" class="zx-scope"></div>
     <script type="module">
+      import { LAYOUT_IDS } from '../../website/layouts/index.js';
+
       const params = new URLSearchParams(location.search);
-      const id = params.get('id') ?? 'mail';
       const root = document.documentElement;
       root.dataset.zxTheme = params.get('theme') ?? 'light';
       if (params.get('preset')) root.dataset.zxPreset = params.get('preset');
-
-      const sheet = document.createElement('link');
-      sheet.rel = 'stylesheet';
-      sheet.href = `../../website/layouts/${id}.layout.css`;
-      await new Promise((resolve) => {
-        sheet.onload = resolve;
-        sheet.onerror = resolve;
-        document.head.append(sheet);
-      });
+      const preview = params.get('preview') === '1';
 
       // Like the gallery, the stage is a styling scope of its own: overlays opened from inside the
       // layout (menus, dialogs, toasts) attach to it, and it is emptied on unmount.
       const stage = document.querySelector('#stage');
-      const controller = new AbortController();
-      const cleanups = [];
-      const { default: layout } = await import(`../../website/layouts/${id}.layout.js`);
-      layout.mount(stage, {
-        preview: params.get('preview') === '1',
-        signal: controller.signal,
-        cleanup: (fn) => cleanups.push(fn)
-      });
-      window.__layout = {
-        meta: { title: layout.title, category: layout.category, blurb: layout.blurb, components: layout.components },
-        unmount() {
+      /** The mounted layout's teardown, if one is mounted. */
+      let teardown = null;
+
+      /**
+       * Loads a layout's stylesheet. One that does not load fails the mount: a layout audited or
+       * screenshotted unstyled says nothing about the layout.
+       * @param {string} id
+       * @returns {Promise<void>}
+       */
+      function loadStylesheet(id) {
+        const href = `../../website/layouts/${id}.layout.css`;
+        if (document.head.querySelector(`link[data-layout="${id}"]`)) return Promise.resolve();
+        const sheet = document.createElement('link');
+        sheet.rel = 'stylesheet';
+        sheet.href = href;
+        sheet.dataset.layout = id;
+        return new Promise((resolve, reject) => {
+          sheet.onload = () => resolve();
+          sheet.onerror = () => reject(new Error(`The stylesheet ${href} did not load.`));
+          document.head.append(sheet);
+        });
+      }
+
+      /**
+       * Mounts one layout with the context the real hosts give it (`website/layout-host.js`):
+       * its id, `open(id)` to move to another layout of the suite, a signal, and a cleanup list.
+       * @param {string} id
+       * @returns {Promise<void>}
+       */
+      async function mount(id) {
+        await loadStylesheet(id);
+        const { default: layout } = await import(`../../website/layouts/${id}.layout.js`);
+        teardown?.();
+        const controller = new AbortController();
+        const cleanups = [];
+        layout.mount(stage, {
+          id,
+          preview,
+          signal: controller.signal,
+          cleanup: (fn) => cleanups.push(fn),
+          // The standalone page routes by its hash; the harness by its query. Either way the layout
+          // on the page is unmounted and the one named mounted in its place, in the same page.
+          open: (next) => {
+            if (!LAYOUT_IDS.includes(next) || next === id) return;
+            const url = new URL(location.href);
+            url.searchParams.set('id', next);
+            history.replaceState(null, '', url);
+            document.body.dataset.ready = 'false';
+            mount(next).then(() => { document.body.dataset.ready = 'true'; }, (error) => {
+              console.error(`The "${next}" layout could not be opened.`, error);
+            });
+          }
+        });
+        teardown = () => {
+          teardown = null;
           controller.abort();
           for (const fn of cleanups.splice(0)) fn();
           stage.replaceChildren();
-        }
-      };
-      document.title = `${layout.title} — layout harness`;
+        };
+        window.__layout = {
+          id,
+          meta: { title: layout.title, category: layout.category, blurb: layout.blurb, components: layout.components },
+          unmount() { teardown?.(); }
+        };
+        document.title = `${layout.title} — layout harness`;
+      }
+
+      await mount(params.get('id') ?? 'mail');
       document.body.dataset.ready = 'true';
     </script>
   </body>

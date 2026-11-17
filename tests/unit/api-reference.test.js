@@ -22,17 +22,106 @@ test('docs/api.json matches the JSDoc it is generated from', async () => {
     'docs/api.json is stale — run `npm run build:api` and commit the result.');
 });
 
-test('every documented option carries a type, and every method a description', async () => {
+test('every documented option carries a type, and no method description leaks a tag', async () => {
   const api = await collectApi();
   for (const [component, record] of Object.entries(api)) {
     for (const option of record.options) {
       assert.ok(option.type, `${component}.${option.name} has no type`);
     }
     for (const method of record.methods) {
-      assert.ok(method.description, `${component}.${method.name}() has no description`);
-      assert.doesNotMatch(method.description, /@(returns|fires)\b/,
+      assert.equal(typeof method.description, 'string', `${component}.${method.name}() has no description field`);
+      assert.doesNotMatch(method.description, /@(returns|fires|param)\b/,
         `${component}.${method.name}() leaked a JSDoc tag into its description`);
     }
+  }
+});
+
+/**
+ * The methods table is the API reference: a public method missing from it is undocumented, and
+ * the page drops the hand-written Methods bullet wherever a generated table exists. So the record
+ * is checked against the classes as they load — every public method a class declares is listed,
+ * statics as statics, and nothing is listed that the class does not have.
+ */
+test('every public method of a documented class is in its generated record, and only those', async () => {
+  const api = await collectApi();
+  // Named here when a class declares a public method the reference deliberately leaves out.
+  const EXCLUDED = new Set([]);
+  const isPublic = (name) => name !== 'constructor' && name !== 'render' && !name.startsWith('_');
+  let checked = 0;
+
+  for (const [component, record] of Object.entries(api)) {
+    const Class = zx[component];
+    if (typeof Class !== 'function') continue;
+    checked += 1;
+    const listed = (statics) => new Set(record.methods.filter((method) => Boolean(method.static) === statics)
+      .map((method) => method.name));
+    const instance = listed(false);
+    const statics = listed(true);
+
+    for (const name of Object.getOwnPropertyNames(Class.prototype)) {
+      const { value } = Object.getOwnPropertyDescriptor(Class.prototype, name);
+      if (typeof value !== 'function' || !isPublic(name) || EXCLUDED.has(`${component}#${name}`)) continue;
+      assert.ok(instance.has(name), `${component}#${name}() is public but missing from the generated API`);
+    }
+    for (const name of Object.getOwnPropertyNames(Class)) {
+      const { value } = Object.getOwnPropertyDescriptor(Class, name);
+      if (typeof value !== 'function' || !isPublic(name) || EXCLUDED.has(`${component}.${name}`)) continue;
+      assert.ok(statics.has(name), `${component}.${name}() is public but missing from the generated statics`);
+    }
+
+    for (const name of instance) {
+      assert.equal(typeof Class.prototype[name], 'function',
+        `${component}#${name}() is listed as an instance method, which ${component} does not have`);
+    }
+    for (const name of statics) {
+      assert.equal(typeof Class[name], 'function',
+        `${component}.${name}() is listed as a static method, which ${component} does not have`);
+    }
+  }
+  assert.ok(checked > 80, `only ${checked} generated records name an exported class`);
+});
+
+test('a class name that prefixes another in the same file reads its own methods', async () => {
+  const api = await collectApi();
+  const message = api.Message.methods.map((method) => method.name);
+  for (const name of ['enqueue', 'isActive', 'clear']) {
+    assert.ok(!message.includes(name), `Message lists MessageQueue#${name}()`);
+  }
+  assert.ok(message.includes('expand') && message.includes('isExpanded'));
+});
+
+test('methods documented by tags alone keep their row', async () => {
+  const api = await collectApi();
+  const names = (component) => api[component].methods.map((method) => method.name);
+  for (const name of ['getValue', 'setLanguage', 'focus', 'enable', 'disable']) {
+    assert.ok(names('CodeEditor').includes(name), `CodeEditor#${name}() is missing`);
+  }
+  assert.ok(names('AgentThread').includes('getItems'), 'AgentThread#getItems() is missing');
+});
+
+test('static methods are flagged as such', async () => {
+  const api = await collectApi();
+  const method = (component, name, statics) => api[component].methods
+    .find((entry) => entry.name === name && Boolean(entry.static) === statics);
+  assert.ok(method('Select', 'country', true), 'Select.country() is not flagged static');
+  assert.ok(method('Grid', 'BillingItems', true), 'Grid.BillingItems() is not flagged static');
+  // Message has both: a static `show()` that builds one, and the instance's own.
+  assert.ok(method('Message', 'show', true) && method('Message', 'show', false));
+  assert.ok(!method('Select', 'open', true) && method('Select', 'open', false));
+});
+
+test('events a class states it fires are documented even without an on* option', async () => {
+  const api = await collectApi();
+  const event = (component, name) => api[component].events.find((entry) => entry.name === name);
+  assert.ok(event('Field', 'input'), 'Field#input is missing');
+  assert.ok(event('Message', 'expand'), 'Message#expand is missing');
+  assert.ok(event('Message', 'collapse'), 'Message#collapse is missing');
+  // The `@event` block supplies the payload and the sentence.
+  assert.equal(event('Field', 'input').payload, '{value: unknown}');
+  assert.ok(event('Message', 'expand').description.length > 0);
+  for (const [component, record] of Object.entries(api)) {
+    const names = record.events.map((entry) => entry.name);
+    assert.equal(new Set(names).size, names.length, `${component} lists an event twice`);
   }
 });
 

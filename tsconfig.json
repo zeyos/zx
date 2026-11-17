@@ -30,7 +30,6 @@
   },
   "include": ["src/**/*.js"],
   "exclude": [
-    "node_modules", "dist", "site", "website", "tests", "tools",
-    "src/compat-entry.js", "src/compat/**/*"
+    "node_modules", "dist", "site", "website", "tests", "tools"
   ]
 }

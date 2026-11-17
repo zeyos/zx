@@ -90,6 +90,26 @@ try {
 const declarations = await declarationCount(resolve(dist, 'types'));
 if (declarations === 0) throw new Error('tsc emitted no declarations — dist/types is empty');
 
+// Emitting cleanly is not the same as consuming cleanly: a subclass method or static default that
+// conflicts with its base class, or a JSDoc type naming a module-private constant, emits without
+// complaint and only fails in the consumer's project. Check the package entry points the way a
+// consumer without `skipLibCheck` would.
+try {
+  await promisify(execFile)(
+    process.execPath,
+    [
+      resolve(root, 'node_modules/typescript/bin/tsc'), '--ignoreConfig', '--noEmit',
+      '--skipLibCheck', 'false', '--strict', 'false', '--target', 'es2022', '--module', 'esnext',
+      '--moduleResolution', 'bundler', '--lib', 'es2022,dom,dom.iterable',
+      resolve(dist, 'types/index.d.ts'), resolve(dist, 'types/zeyos/index.d.ts')
+    ],
+    { cwd: root }
+  );
+} catch (error) {
+  const output = [error.stdout, error.stderr].filter(Boolean).join('\n').trim();
+  throw new Error(`The emitted declarations do not type-check for a consumer:\n${output}`);
+}
+
 console.log('\nZx distribution sizes');
 console.table(report);
 console.log(`Type declarations: ${declarations} .d.ts files in dist/types`);

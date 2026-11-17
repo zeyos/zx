@@ -150,14 +150,15 @@ function partition(members) {
 }
 
 /**
- * Collects the public methods of a class: the JSDoc's leading sentence, the signature rebuilt from
- * its `@param` tags, and the return type.
+ * Collects the public methods of a class: the JSDoc's leading sentence (or, without one, the
+ * `@returns` sentence), the signature rebuilt from its `@param` tags, the return type, and whether
+ * the method is static.
  * @param {string} source
  * @param {string} className
  * @returns {object[]}
  */
 function methodsOf(source, className) {
-  const start = source.indexOf(`export class ${className}`);
+  const start = classStart(source, className);
   if (start === -1) return [];
   const body = balanced(source, source.indexOf('{', start), '{', '}');
   if (!body) return [];
@@ -167,26 +168,48 @@ function methodsOf(source, className) {
   // is a comment that no method follows, and a pattern allowed to span one swallowed the next
   // method's doc block along with it, leaving that method undocumented: sixty-three of them,
   // `Dialog.open` and `Table.commitEdit` among them.
-  const pattern = /\/\*\*((?:(?!\*\/)[\s\S])*?)\*\/\s*\n\s*(?:static\s+)?(?:async\s+)?([A-Za-z][\w]*)\s*\(/g;
+  const pattern = /\/\*\*((?:(?!\*\/)[\s\S])*?)\*\/\s*\n\s*(static\s+)?(?:async\s+)?([A-Za-z][\w]*)\s*\(/g;
   for (const match of body.value.matchAll(pattern)) {
-    const [description, ...tags] = tagLines(match[1]);
-    const name = match[2];
-    // `render` is the base class's contract, not something a caller reaches for, and a method with
-    // no sentence of its own has nothing to say in a table.
-    if (name === 'constructor' || name === 'render' || !description) continue;
+    const [prose, ...tags] = tagLines(match[1]);
+    const isStatic = Boolean(match[2]);
+    const name = match[3];
+    // `render` is the base class's contract, not something a caller reaches for.
+    if (name === 'constructor' || name === 'render') continue;
+    // A bare `/** @type {X} */` is a cast or a declaration's type, never a method's documentation.
+    if (!prose && tags.length && tags.every((tag) => tag.startsWith('@type'))) continue;
 
     const params = tags.filter((tag) => tag.startsWith('@param')).map(parseMember).filter(Boolean);
     const returns = tags.find((tag) => tag.startsWith('@returns'));
-    const returnType = returns ? balanced(returns.replace(/^@returns\s*/, ''), 0, '{', '}') : null;
+    const returnText = returns ? returns.replace(/^@returns\s*/, '') : '';
+    const returnType = returns ? balanced(returnText, 0, '{', '}') : null;
+    // A method documented by its tags alone — `/** @returns {string} */ getValue()` — is still
+    // public API, so it keeps its row. The return's own sentence stands in for the missing prose
+    // where it has one; otherwise the description is empty and the documentation app falls back
+    // to the reference's note for the method.
+    const description = prose || (returnType ? returnText.slice(returnType.end).trim() : '');
 
     methods.push({
       name,
       signature: `${name}(${params.map((p) => (p.optional ? `[${p.name}]` : p.name)).join(', ')})`,
       returns: returnType ? returnType.value.trim() : null,
-      description
+      description,
+      // Called on the class, not on an instance: `Select.country()`, `Grid.BillingItems()`.
+      ...(isStatic ? { static: true } : {})
     });
   }
   return methods;
+}
+
+/**
+ * Where a class's declaration starts. The name is matched whole, so `Message` does not find
+ * `export class MessageQueue` declared above it in the same file.
+ * @param {string} source
+ * @param {string} className
+ * @returns {number} Index of the declaration, or -1.
+ */
+function classStart(source, className) {
+  const match = new RegExp(`export class ${className}\\b`).exec(source);
+  return match ? match.index : -1;
 }
 
 /**
@@ -221,6 +244,49 @@ function expandPayload(payload, shapes) {
 }
 
 /**
+ * The events each class names in its `@fires Class#event` tags, on the class or on a method, with
+ * the payload and sentence of the matching `@event Class#event` block where the source has one.
+ * @param {{path: string, source: string}[]} sources
+ * @returns {Map<string, Map<string, {payload: string|null, description: string}>>} By class, then
+ *   event name, in the order the source first names them.
+ */
+function firedEvents(sources) {
+  /** @type {Map<string, Map<string, {payload: string|null, description: string}>>} */
+  const fired = new Map();
+  const of = (className) => {
+    if (!fired.has(className)) fired.set(className, new Map());
+    return fired.get(className);
+  };
+  /** @type {Map<string, {payload: string|null, description: string}>} */
+  const declared = new Map();
+
+  for (const { source } of sources) {
+    for (const match of source.matchAll(/\/\*\*([\s\S]*?)\*\//g)) {
+      const [prose, ...tags] = tagLines(match[1]);
+      const event = tags.map((tag) => /^@event (\w+)#(\w+)/.exec(tag)).find(Boolean);
+      if (event) {
+        const type = tags.find((tag) => tag.startsWith('@type'));
+        const typeValue = type ? balanced(type.replace(/^@type\s*/, ''), 0, '{', '}') : null;
+        const detail = typeValue ? /^CustomEvent<([\s\S]*)>$/.exec(typeValue.value.trim()) : null;
+        declared.set(`${event[1]}#${event[2]}`, { payload: detail ? detail[1].trim() : null, description: prose });
+      }
+      for (const tag of tags) {
+        const fires = /^@fires (\w+)#(\w+)/.exec(tag);
+        if (fires && !of(fires[1]).has(fires[2])) of(fires[1]).set(fires[2], { payload: null, description: '' });
+      }
+    }
+  }
+
+  for (const [className, events] of fired) {
+    for (const name of events.keys()) {
+      const declaration = declared.get(`${className}#${name}`);
+      if (declaration) events.set(name, declaration);
+    }
+  }
+  return fired;
+}
+
+/**
  * Builds the API record for every component that declares an options typedef.
  * @returns {Promise<Record<string, object>>}
  */
@@ -250,6 +316,8 @@ export async function collectApi() {
     }
   }
 
+  const fired = firedEvents(sources);
+
   for (const { source } of sources) {
     for (const match of source.matchAll(pattern)) {
       const entries = tagLines(match[1]);
@@ -265,9 +333,15 @@ export async function collectApi() {
       // An exported class may deliberately add no constructor options of its own while still
       // owning public static methods (Grid is the Table-compatible preset extension point).
       // Keep that class record; helper typedefs with no members remain noise and are skipped.
-      if (members.length === 0 && !source.includes(`export class ${className}`)) continue;
+      if (members.length === 0 && classStart(source, className) === -1) continue;
 
       const { options, events } = partition(members);
+      // An event the class states it fires (`@fires Message#expand`) but no `on*` option listens
+      // for is still emitted, and still documented.
+      const listened = new Set(events.map((event) => event.name));
+      for (const [name, event] of fired.get(className) ?? []) {
+        if (!listened.has(name)) events.push({ name, ...event });
+      }
       components[className] = {
         options,
         events: events.map((event) => ({ ...event, payload: expandPayload(event.payload, shapes) })),

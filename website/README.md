@@ -18,9 +18,11 @@ Then open:
 - <http://127.0.0.1:8321/website/theme.html> — theme studio
 
 Nothing is built: the pages load `../src/index.js` directly as an ES module and use
-`../styles/zx.css`. A production deployment would load `dist/zx.esm.js` or `dist/zx.global.js`
-instead. `tools/serve.js` sends `Cache-Control: no-store`, so an edit always shows up on the next
-reload rather than being served from the browser's heuristic cache.
+`../styles/zx.css`. The deployed site does the same — `npm run build:site` copies `src/`, `styles/`,
+and `docs/` in beside the pages and rewrites the paths that escaped `website/`, without bundling or
+minifying, so the source a page shows is the source it runs. `tools/serve.js` sends
+`Cache-Control: no-store`, so an edit always shows up on the next reload rather than being served
+from the browser's heuristic cache.
 
 ## Layout
 
@@ -144,7 +146,14 @@ contrast, focus, headings, ids). Layouts that should work narrow use `adaptiveSh
 `node tools/shoot-layout.js <id> --out <dir>` mounts one layout full-screen through
 `../tests/layouts/harness.html` and screenshots it in light and dark (`--preview` for the
 thumbnail state, `--width`/`--height`, `--steps <module>` to drive it first). It reports console
-errors, failed requests, and anything left on `<body>` after unmount.
+errors, failed requests, and anything left on `<body>` after unmount. Both tools take the same
+options, and fail when the layout's stylesheet does not load.
+
+`../tests/layouts/agent-canvas.steps.mjs` is such a `--steps` module: it drives the agent canvas
+through every scripted request and fails on a surface that reports a problem it was not written to
+have —
+`node tools/shoot-layout.js agent-canvas --steps tests/layouts/agent-canvas.steps.mjs --out <dir>`,
+or the same with `tools/audit-layout.js`.
 
 ## The theme studio
 

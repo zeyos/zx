@@ -50,6 +50,7 @@
     "./zx.core.css": "./dist/zx.core.css",
     "./zx.core.min.css": "./dist/zx.core.min.css",
     "./zx.layered.css": "./dist/zx.layered.css",
+    "./zx.layered.min.css": "./dist/zx.layered.min.css",
     "./src/components/*.js": {
       "types": "./dist/types/components/*.d.ts",
       "default": "./src/components/*.js"
@@ -75,12 +76,9 @@
   },
   "files": [
     "dist",
-    "dist/types",
     "bin",
     "styles",
     "src",
-    "!src/compat",
-    "!src/compat-entry.js",
     "docs/llms.md",
     "docs/llms.txt",
     "docs/llms-small.txt",

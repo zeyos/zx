@@ -15,17 +15,17 @@
  * gallery that opens and closes layouts in one page accumulates whatever a layout forgets to
  * destroy. Exits non-zero on a page error, a console error, or a leak.
  *
- * Uses `tests/layouts/harness.html` through its own `tools/serve.js` on a random port, so several
- * runs can go at once. Requires an installed Google Chrome, like `npm run test:browser`.
+ * Uses `tests/layouts/harness.html` through its own `tools/serve.js` on a port the system picks
+ * (`tools/serve-child.js`), so several runs can go at once. Requires an installed Google Chrome, or
+ * the browser `ZX_BROWSER_CHANNEL` / `ZX_BROWSER_EXECUTABLE_PATH` selects, like `npm run test:browser`.
  */
-import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { launchBrowser } from './browser.js';
+import { startServer } from './serve-child.js';
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
 const id = args.find((arg) => !arg.startsWith('--') && !isValueOf(arg));
 if (!id) {
@@ -42,21 +42,17 @@ const height = Number(option('height') ?? 900);
 const preview = args.includes('--preview');
 const stepsPath = option('steps');
 const steps = stepsPath ? (await import(pathToFileURL(resolve(stepsPath)).href)).default : null;
-const port = 9100 + Math.floor(Math.random() * 800);
-const base = `http://127.0.0.1:${port}`;
+/** Origin of this run's server; set once it is up. */
+let base = '';
 
 mkdirSync(out, { recursive: true });
-const server = spawn(process.execPath, [resolve(root, 'tools/serve.js')], {
-  cwd: root,
-  env: { ...process.env, PORT: String(port) },
-  stdio: 'ignore'
-});
-process.on('exit', () => server.kill());
 
 let failed = false;
 let browser;
+let server = null;
 try {
-  await waitForServer();
+  server = await startServer({ readyPath: 'tests/layouts/harness.html' });
+  base = server.base;
   browser = await launchBrowser();
   for (const theme of themes) failed = (await shoot(theme)) || failed;
 } catch (error) {
@@ -64,7 +60,7 @@ try {
   failed = true;
 } finally {
   await browser?.close();
-  server.kill();
+  server?.stop();
 }
 process.exit(failed ? 1 : 0);
 
@@ -135,16 +131,4 @@ function option(name) {
 function isValueOf(arg) {
   const index = args.indexOf(arg);
   return index > 0 && args[index - 1].startsWith('--') && args[index - 1] !== '--preview';
-}
-
-/** @returns {Promise<void>} */
-async function waitForServer() {
-  for (let attempt = 0; attempt < 50; attempt += 1) {
-    try {
-      const response = await fetch(`${base}/tests/layouts/harness.html`);
-      if (response.ok) return;
-    } catch { /* not up yet */ }
-    await new Promise((done) => setTimeout(done, 100));
-  }
-  throw new Error(`server did not start on ${base}`);
 }

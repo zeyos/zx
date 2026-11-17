@@ -11,17 +11,15 @@
  * downloads its own browsers on install. GitHub's ubuntu runners ship Google Chrome, and so does
  * every machine that develops this library, so the devDependency stays a few hundred kilobytes.
  */
-import { spawn } from 'node:child_process';
-import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { launchBrowser } from './browser.js';
+import { startServer } from './serve-child.js';
 import { buildSubset } from '../bin/zx-css.js';
 import { checkLanguage } from './check-language.js';
 import { LAYOUT_IDS, PATTERN_IDS, TEMPLATE_IDS } from '../website/layouts/index.js';
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const port = Number(process.env.SMOKE_PORT ?? 8399);
-const base = `http://127.0.0.1:${port}`;
+/** Origin of the server this run started; set once it is up. */
+let base = '';
 
 /** Where a mounted layout's root sits: inside the scope `website/layout-host.js` mounts it into. */
 const MOUNTED = '.layout-mount > .shell';
@@ -34,42 +32,85 @@ const MOUNTED = '.layout-mount > .shell';
  * it stays "Running…" with no `data-state` until the run is over.
  */
 const suites = [
-  { name: 'source', url: `${base}/tests/smoke/smoke.html`, global: '__zxSmoke', done: '#summary' },
-  { name: 'dist', url: `${base}/tests/smoke/smoke-dist.html`, global: '__zxDistSmoke', done: '#result' }
+  { name: 'source', path: '/tests/smoke/smoke.html', global: '__zxSmoke', done: '#summary' },
+  { name: 'dist', path: '/tests/smoke/smoke-dist.html', global: '__zxDistSmoke', done: '#result' }
 ];
 
-const server = spawn(process.execPath, [resolve(root, 'tools/serve.js')], {
-  cwd: root,
-  env: { ...process.env, PORT: String(port) },
-  stdio: 'ignore'
-});
-process.on('exit', () => server.kill());
+// Importing this module (as `tests/unit/run-smoke.test.js` does, for `smokeVerdict`) runs nothing.
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  let server = null;
+  let browser;
+  let failed = false;
+  try {
+    // Its own server, on a port the system picks unless SMOKE_PORT names one. The start fails —
+    // rather than testing whatever else answers on the port — when the server cannot bind or exits.
+    server = await startServer({ port: Number(process.env.SMOKE_PORT ?? 0), readyPath: 'tests/smoke/smoke.html' });
+    base = server.base;
+    browser = await launchBrowser();
+    for (const suite of suites) failed = (await run(browser, suite)) || failed;
+    failed = (await runDocumentationShell(browser)) || failed;
+    failed = (await runLayoutGallery(browser)) || failed;
+    failed = (await runStandaloneLayout(browser)) || failed;
+    failed = (await checkLanguage(browser, base)) || failed;
+  } catch (error) {
+    console.error(`\nSmoke run could not start: ${error.message}`);
+    if (server) console.error('Select an installed browser with ZX_BROWSER_CHANNEL or ZX_BROWSER_EXECUTABLE_PATH.');
+    failed = true;
+  } finally {
+    await browser?.close();
+    server?.stop();
+  }
+  if (server?.errors()) {
+    console.error(`FAIL  the dev server reported errors during the run:\n${server.errors().trim()}`);
+    failed = true;
+  }
 
-let browser;
-let failed = false;
-try {
-  await waitForServer();
-  browser = await launchBrowser();
-  for (const suite of suites) failed = (await run(browser, suite)) || failed;
-  failed = (await runDocumentationShell(browser)) || failed;
-  failed = (await runLayoutGallery(browser)) || failed;
-  failed = (await runStandaloneLayout(browser)) || failed;
-  failed = (await checkLanguage(browser, base)) || failed;
-} catch (error) {
-  console.error(`\nSmoke run could not start: ${error.message}`);
-  console.error('Select an installed browser with ZX_BROWSER_CHANNEL or ZX_BROWSER_EXECUTABLE_PATH.');
-  failed = true;
-} finally {
-  await browser?.close();
-  server.kill();
+  process.exit(failed ? 1 : 0);
 }
 
-process.exit(failed ? 1 : 0);
+/**
+ * Judges what a suite page published. The result's shape is checked, not just its failures: a page
+ * that crashed before counting anything, or published `{passed: 0, failed: 1, results: []}`, has no
+ * failing entry to find and would otherwise read as a pass.
+ *
+ * - source (`tests/smoke/smoke.js`): `{passed: number, failed: number, results: object[]}` — at
+ *   least one surface passed, none failed, and no result entry says otherwise.
+ * - dist (`tests/smoke/smoke-dist.html`): `{passed: boolean, failed: number, results: object[]}` —
+ *   `passed` is `true`, `failed` is 0, and there is at least one result, none of them failing.
+ * @param {'source'|'dist'} name Suite.
+ * @param {unknown} result The suite's global.
+ * @param {string|undefined} [state] The finished element's `data-state`, when read.
+ * @returns {{ok: boolean, count: number, reasons: string[], failures: object[]}}
+ */
+export function smokeVerdict(name, result, state) {
+  const reasons = [];
+  const record = result && typeof result === 'object' ? /** @type {Record<string, any>} */ (result) : null;
+  if (!record) return { ok: false, count: 0, reasons: ['the suite published no result object'], failures: [] };
+
+  const results = Array.isArray(record.results) ? record.results : null;
+  if (!results) reasons.push('`results` is not an array');
+  const failures = (results ?? []).filter((entry) => !entry || entry.passed === false
+    || (entry.create !== undefined && !(entry.create && entry.exercise && entry.destroy && entry.recreate)));
+  if (failures.length) reasons.push(`${failures.length} result entr${failures.length === 1 ? 'y' : 'ies'} failed`);
+  if (record.failed !== 0) reasons.push(`\`failed\` is ${JSON.stringify(record.failed)}, not 0`);
+
+  let count = 0;
+  if (name === 'dist') {
+    if (record.passed !== true) reasons.push(`\`passed\` is ${JSON.stringify(record.passed)}, not true`);
+    count = results?.length ?? 0;
+  } else {
+    if (!Number.isInteger(record.passed)) reasons.push(`\`passed\` is ${JSON.stringify(record.passed)}, not a count`);
+    else count = record.passed;
+  }
+  if (count < 1) reasons.push('no check completed');
+  if (state !== undefined && state !== 'pass') reasons.push(`the page reports "${state}"`);
+  return { ok: reasons.length === 0, count, reasons, failures };
+}
 
 /**
  * Opens one suite and reports it.
  * @param {import('playwright-core').Browser} instance Browser.
- * @param {{name: string, url: string, global: string}} suite Suite descriptor.
+ * @param {{name: "source"|"dist", path: string, global: string, done: string}} suite Suite descriptor.
  * @returns {Promise<boolean>} Whether the suite failed.
  */
 async function run(instance, suite) {
@@ -106,15 +147,18 @@ async function run(instance, suite) {
     body: buildSubset(['select'])
   }));
 
-  await page.goto(suite.url, { waitUntil: 'load' });
+  await page.goto(`${base}${suite.path}`, { waitUntil: 'load' });
   const finished = await page.waitForFunction(
     (selector) => ['pass', 'fail'].includes(document.querySelector(selector)?.dataset.state),
     suite.done,
     { timeout: 60_000 }
   ).then(() => true).catch(() => false);
-  const result = finished
-    ? await page.evaluate((name) => globalThis[name] ?? null, suite.global)
-    : null;
+  const { result, state } = finished
+    ? await page.evaluate(({ name, selector }) => ({
+      result: globalThis[name] ?? null,
+      state: document.querySelector(selector)?.dataset.state
+    }), { name: suite.global, selector: suite.done })
+    : { result: null, state: undefined };
   await page.close();
 
   if (!result) {
@@ -124,21 +168,18 @@ async function run(instance, suite) {
   }
 
   // The two pages report differently: the source suite counts surfaces, the dist page is a
-  // single pass/fail over the global bundles.
-  const failures = (result.results ?? []).filter((entry) => entry.passed === false
-    || (entry.create !== undefined && !(entry.create && entry.exercise && entry.destroy && entry.recreate)));
-  const bad = suite.name === 'dist' ? result.passed !== true : failures.length > 0;
-
-  if (bad) {
-    console.error(`FAIL  ${suite.name}`);
-    for (const entry of failures) {
-      console.error(`        ${entry.component ?? entry.name}: ${(entry.error ?? '').split('\n').join(' / ')}`);
+  // single pass/fail over the global bundles. `smokeVerdict` knows both shapes.
+  const verdict = smokeVerdict(suite.name, result, state);
+  if (!verdict.ok) {
+    console.error(`FAIL  ${suite.name}: ${verdict.reasons.join('; ')}`);
+    for (const entry of verdict.failures) {
+      console.error(`        ${entry?.component ?? entry?.name}: ${(entry?.error ?? '').split('\n').join(' / ')}`);
     }
     for (const problem of problems.slice(0, 5)) console.error(`        ${problem}`);
     return true;
   }
 
-  const count = suite.name === 'dist' ? (result.results?.length ?? 0) : result.passed;
+  const { count } = verdict;
   if (problems.length) {
     console.error(`FAIL  ${suite.name} passed its assertions but the page reported ${problems.length} problem(s)`);
     for (const problem of problems.slice(0, 5)) console.error(`        ${problem}`);
@@ -928,18 +969,4 @@ function assertRange(value, min, max, label) {
   if (value < min - .001 || value > max + .001) {
     throw new Error(`${label} ${value} is outside ${min}–${max}`);
   }
-}
-
-/** @returns {Promise<void>} */
-async function waitForServer() {
-  for (let attempt = 0; attempt < 60; attempt += 1) {
-    try {
-      const response = await fetch(`${base}/tests/smoke/smoke.html`, { method: 'HEAD' });
-      if (response.ok) return;
-    } catch {
-      // The server is still binding.
-    }
-    await new Promise((done) => setTimeout(done, 100));
-  }
-  throw new Error(`dev server did not come up on ${base}`);
 }

@@ -20,11 +20,9 @@ test('every published file entry exists', () => {
   assert.deepEqual(missing, []);
 });
 
-test('public component source and styles ship, while compatibility source stays internal', () => {
+test('public component source and styles ship, and no compatibility entry is exported', () => {
   assert.ok(manifest.files.includes('src'), 'src/ must be published for component source imports');
   assert.ok(manifest.files.includes('styles'), 'styles/ must be published for ./styles/* to resolve');
-  assert.ok(manifest.files.includes('!src/compat'));
-  assert.ok(manifest.files.includes('!src/compat-entry.js'));
   assert.equal(manifest.exports['./compat'], undefined);
   assert.equal(manifest.exports['./compat-global'], undefined);
 });

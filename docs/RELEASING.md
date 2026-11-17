@@ -212,6 +212,7 @@ Preview the deployable output exactly as it will be served:
 npm run build:site && npm run serve:site
 ```
 
-The output is host-neutral. It contains no dot-directories (the agent skill is republished as
-`skills/`), a `CNAME` file that only GitHub Pages reads, and a `.nojekyll` marker that only
-GitHub Pages needs — both inert everywhere else.
+The output is host-neutral. It contains no dot-directories — the agent skill stays in the
+repository and is never published (`tools/check-site.js` fails on a `skills/` path) — a `CNAME`
+file that only GitHub Pages reads, and a `.nojekyll` marker that only GitHub Pages needs — both
+inert everywhere else.
