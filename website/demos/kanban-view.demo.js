@@ -35,10 +35,10 @@ function opportunityFields() {
 function opportunities() {
   return [
     { ID: 101, opportunity: 'Northwind European workspace renewal', account: 'Northwind GmbH', stage: 'Qualified', owner: 'Ada Lovelace', team: ['Ada Lovelace', 'Mae Jemison'], value: 48000, updated: 'Today, 09:42', status: 'On track', priority: 'High', progress: 20, preview: './assets/zeyos-mark.svg' },
-    { ID: 102, opportunity: 'Aurora fleet analytics', account: 'Aurora AB', stage: 'Proposal', owner: 'Grace Hopper', team: ['Grace Hopper', 'Alan Turing', 'Mae Jemison'], value: 73500, updated: 'Yesterday', status: 'Needs review', priority: 'High', progress: 72, preview: './assets/missing-opportunity-preview.webp' },
+    { ID: 102, opportunity: 'Aurora fleet analytics', account: 'Aurora AB', stage: 'Proposal', owner: 'Grace Hopper', team: ['Grace Hopper', 'Forecast agent', 'Alan Turing'], value: 73500, updated: 'Yesterday', status: 'Needs review', priority: 'High', progress: 72, preview: './assets/missing-opportunity-preview.webp' },
     { ID: 103, opportunity: 'Contoso service rollout', account: 'Contoso Ltd.', stage: 'Proposal', owner: 'Ada Lovelace', team: ['Ada Lovelace'], value: 29800, updated: '22 Aug', status: 'On track', priority: 'Medium', progress: 35, preview: null },
     { ID: 104, opportunity: 'Fabrikam office automation', account: 'Fabrikam AG', stage: 'Negotiation', owner: 'Grace Hopper', team: ['Grace Hopper', 'Ada Lovelace'], value: 112000, updated: '21 Aug', status: 'At risk', priority: 'High', progress: 58, preview: './assets/zx-mark.svg' },
-    { ID: 105, opportunity: 'Alpine logistics platform', account: 'Alpine Logistics', stage: 'Negotiation', owner: 'Ada Lovelace', team: ['Ada Lovelace', 'Alan Turing'], value: 95000, updated: '18 Aug', status: 'On track', priority: 'Low', progress: 90, preview: null },
+    { ID: 105, opportunity: 'Alpine logistics platform', account: 'Alpine Logistics', stage: 'Negotiation', owner: 'Ada Lovelace', team: ['Ada Lovelace', 'Contracts agent'], value: 95000, updated: '18 Aug', status: 'On track', priority: 'Low', progress: 90, preview: null },
     { ID: 106, opportunity: 'Tailspin support extension', account: 'Tailspin Toys', stage: 'Won', owner: 'Grace Hopper', team: ['Grace Hopper'], value: 18000, updated: '12 Aug', status: 'Complete', priority: 'Low', progress: 100, preview: null }
   ];
 }
@@ -74,6 +74,13 @@ const STATUS_TONES = {
   'On track': 'success', 'Needs review': 'warning', 'At risk': 'danger', Complete: 'accent'
 };
 
+// Agents work the pipeline beside people. A team member listed here is drawn as the agent's
+// generated face rather than initials: its seed is the agent's id, so the face never changes.
+const AGENTS = {
+  'Forecast agent': { seed: 'agt-forecast', material: 'soft' },
+  'Contracts agent': { seed: 'agt-contracts', material: 'soft' }
+};
+
 const CARD_ANATOMY = {
   entityIcon: 'tag',
   identifier: (record) => `OPP-${record.ID}`,
@@ -82,7 +89,7 @@ const CARD_ANATOMY = {
   priority: 'priority',
   priorityTones: PRIORITY_TONES,
   progress: 'progress',
-  assignees: 'team'
+  assignees: (record) => record.team.map((name) => (AGENTS[name] ? { name, face: AGENTS[name] } : name))
 };
 
 const OWNERS = [
@@ -167,7 +174,8 @@ export default {
     {
       title: 'Compact opportunity pipeline',
       blurb: 'The card head names the record and how urgent it is; the footer carries completion '
-        + 'and the people responsible. Drag a card with the mouse, press and hold on a touch '
+        + 'and the people responsible — an agent on the team, given as { name, face }, draws its '
+        + 'generated face. Drag a card with the mouse, press and hold on a touch '
         + 'screen, or tab once past the card to reveal its move handle — Enter/Space grabs, '
         + 'arrows choose a target, Enter/Space drops.',
       layout: 'stack',

@@ -1,4 +1,7 @@
-import { Avatar, Card, h, icon } from '../../src/index.js';
+import { AgentAvatar, Avatar, Card, h, icon } from '../../src/index.js';
+
+// An agent's card carries its generated face, keyed by its stable id so a rename keeps it.
+const AGENT = { seed: 'agt-finance', name: 'Finance agent', tone: 'violet', material: 'soft' };
 
 function media(module, glyph) {
   return h('div', {
@@ -11,6 +14,19 @@ function media(module, glyph) {
       color: 'var(--zx-color-text-invert)'
     }
   }, icon(glyph, { size: 30 }));
+}
+
+// An agent's face, centred on a quiet panel that fills the media track.
+function agentMedia(face) {
+  return h('div', {
+    style: {
+      display: 'grid',
+      placeItems: 'center',
+      minBlockSize: '8rem',
+      blockSize: '100%',
+      background: 'var(--zx-color-bg-muted)'
+    }
+  }, face.toElement());
 }
 
 export default {
@@ -54,11 +70,13 @@ export default {
     },
     {
       title: 'Media and horizontal records',
-      blurb: 'Horizontal cards work for entity and transaction summaries. The media track stacks '
-        + 'automatically when the card container becomes narrow.',
+      blurb: 'Horizontal cards work for entity and transaction summaries — a person’s Avatar, an '
+        + 'agent’s AgentAvatar. The media track stacks automatically when the card container '
+        + 'becomes narrow.',
       layout: 'stack',
       render: ({ cleanup, log }) => {
         const avatar = new Avatar(null, { name: 'Ada Lovelace', size: 'xl', status: 'online' });
+        const face = new AgentAvatar(null, { ...AGENT, size: 56, activity: 'working' });
         const cards = [
           new Card(null, {
             title: 'Acme Industries',
@@ -78,11 +96,20 @@ export default {
             link: '#components/card',
             content: 'Product lead · ada@example.test',
             footer: '3 open tasks'
+          }),
+          new Card(null, {
+            title: AGENT.name,
+            orientation: 'horizontal',
+            media: agentMedia(face),
+            link: '#components/agent-avatar',
+            content: 'Agent · Reconciling September payments',
+            footer: 'Working · 4 of 6 steps'
           })
         ];
         cleanup(() => {
           cards.forEach((card) => card.destroy());
           avatar.destroy();
+          face.destroy();
         });
         return h('div', { class: 'demo-stack' }, cards);
       }

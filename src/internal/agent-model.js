@@ -110,6 +110,12 @@ import { formatNumber } from '../core/format.js';
  * author and the place it is drawn.
  * @typedef {{seed?: string, tone?: string, body?: string, eyes?: string, material?: 'flat'|'soft'}} AuthorFace
  */
+/**
+ * An agent drawn as its AgentAvatar face where a component would otherwise draw an icon: the
+ * face's traits and the agent's name. Size, label, activity and motion come from the place it is
+ * drawn.
+ * @typedef {AuthorFace & {name?: string}} AgentFace
+ */
 
 /** @typedef {{name: string, size?: number, type?: string}} Attachment */
 
@@ -176,6 +182,23 @@ export const ACTIVITY = Object.freeze({
   thinking: { tone: 'info', key: 'agent.activity.thinking' },
   idle: { tone: 'neutral', key: 'agent.activity.idle' },
   offline: { tone: 'muted', key: 'agent.activity.offline' }
+});
+
+/**
+ * The expression an agent's face takes while its run stands in each state: working while it runs,
+ * needs-you while it waits for a person, blocked when blocked or failed, and at rest otherwise.
+ * @type {Readonly<Record<RunState, AgentActivity>>}
+ */
+export const RUN_ACTIVITY = Object.freeze({
+  queued: 'idle',
+  running: 'working',
+  waiting: 'needs-you',
+  paused: 'idle',
+  blocked: 'blocked',
+  done: 'idle',
+  failed: 'blocked',
+  stopped: 'idle',
+  skipped: 'idle'
 });
 
 /**
@@ -514,5 +537,19 @@ export function authorFace(author) {
     const value = /** @type {Record<string, unknown>} */ (face)[key];
     if (typeof value === 'string' && value) traits[key] = value;
   }
+  return traits;
+}
+
+/**
+ * What an `agent` option asks for, read as {@link authorFace} reads a `face` — `true` derives
+ * everything, a plain object contributes its trait strings and its `name`, anything else is no
+ * face. Size, label, activity and motion always belong to the place the face is drawn.
+ * @param {unknown} agent
+ * @returns {Record<string, string>|null}
+ */
+export function agentFaceTraits(agent) {
+  const traits = authorFace({ face: /** @type {AuthorFace|true} */ (agent) });
+  const name = traits && agent && typeof agent === 'object' ? /** @type {Record<string, unknown>} */ (agent).name : null;
+  if (traits && typeof name === 'string' && name) traits.name = name;
   return traits;
 }

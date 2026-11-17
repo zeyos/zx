@@ -1,5 +1,5 @@
 import {
-  ActivityList, Avatar, Chart, ChartJsAdapter, ContextMenu, Dialog, Field,
+  ActivityList, AgentAvatar, Avatar, Chart, ChartJsAdapter, ContextMenu, Dialog, Field,
   InlineLoading, MenuButton, ProgressBar, Stepper, Table, Tabbox, Toggle, badge, button, emptyState,
   formatCurrency, formatDate, formatNumber, formatPercent, formatRelativeTime, h, icon, statTile
 } from '../../src/index.js';
@@ -34,6 +34,12 @@ const STEP_TYPES = {
   condition: { label: 'Condition', icon: 'code-branch', tone: 'violet', group: 'Logic',
     hint: 'Branch on a rule', fresh: 'Check a rule' }
 };
+
+/**
+ * The assistant that drafts and summarises: an agent, so it is drawn with its generated face —
+ * seeded by a stable id — on its steps, in the inspector, on its suggestions, and in run histories.
+ */
+const ASSISTANT = { name: 'Assistant', face: { seed: 'agt-workflow-assistant', tone: 'pink', material: 'soft' } };
 
 /** How many faces a step card shows before it counts the rest. */
 const FACES = 3;
@@ -321,7 +327,8 @@ function transcript(workflow, run) {
     elapsed += step.type === 'trigger' ? 0 : weights[index];
     const branch = step.branches ? ` — ${step.branches[run.branch].label}` : '';
     const at = addHours(run.started, span * (elapsed / total));
-    return entry(`${index}`, step.people?.[0], STEP_DONE[step.type], `${stepName(step, workflow)}${branch}`, at);
+    return entry(`${index}`, step.people?.[0], STEP_DONE[step.type], `${stepName(step, workflow)}${branch}`, at,
+      step.type === 'assistant' ? ASSISTANT : null);
   });
   const waiting = waitingOn(run);
   const since = new Date(run.waitingSince);
@@ -337,15 +344,18 @@ function transcript(workflow, run) {
 }
 
 /**
- * One transcript entry; automated steps are attributed to the workflow itself.
+ * One transcript entry; the assistant's steps are its own, other automated steps are attributed to
+ * the workflow itself.
  * @param {string} id @param {string|null|undefined} who Person id. @param {string} title
- * @param {string} content @param {Date} at @returns {object}
+ * @param {string} content @param {Date} at @param {typeof ASSISTANT|null} [agent] The agent that
+ * took the step. @returns {object}
  */
-function entry(id, who, title, content, at) {
+function entry(id, who, title, content, at, agent = null) {
   const name = person(who ?? '')?.name;
   return {
-    id, title, content, actor: name ?? 'Workflow',
-    avatar: name ? { name } : { initials: 'W', shape: 'rounded' },
+    id, title, content, actor: agent?.name ?? name ?? 'Workflow',
+    avatar: agent ? { name: agent.name, face: agent.face }
+      : name ? { name } : { initials: 'W', shape: 'rounded' },
     timestamp: at.toISOString(), timeLabel: formatDate(at, DATE.time), day: formatDate(at, DATE.day)
   };
 }
@@ -547,6 +557,18 @@ export default {
       return scope.own(new Avatar(null, { name: person(id ?? '')?.name ?? 'Unassigned', size })).toElement();
     }
 
+    /**
+     * What a step is, before its name: the assistant's face on its own steps, the kind's icon tile
+     * on every other. Both are decorative; the kind is also said in words.
+     * @param {object} step @param {ReturnType<typeof renderScope>} scope @param {'md'|'lg'} [size]
+     * @returns {HTMLElement}
+     */
+    function stepMark(step, scope, size = 'md') {
+      const type = STEP_TYPES[step.type];
+      if (step.type !== 'assistant') return iconTile(type.icon, type.tone, { size });
+      return scope.own(new AgentAvatar(null, { ...ASSISTANT.face, name: ASSISTANT.name, size: size === 'lg' ? 32 : 24 })).toElement();
+    }
+
     /** @returns {object[]} The menu: the fixed destinations, then the workflows under their section. */
     function menuItems() {
       return [
@@ -744,7 +766,8 @@ export default {
       return h('section', { class: 'flow__suggestion', 'aria-label': 'Assistant suggestion' },
         h('div', { class: 'flow__suggestion-body' },
           h('p', { class: 'flow__suggestion-kicker' },
-            icon(STEP_TYPES.assistant.icon), 'Suggestion',
+            builderScope.own(new AgentAvatar(null, { ...ASSISTANT.face, name: ASSISTANT.name, size: 16 })).toElement(),
+            'Suggestion',
             h('span', { class: 'flow__suggestion-basis' }, `Based on ${basis} runs`)),
           h('h3', { class: 'flow__suggestion-title' }, workflow.suggestion.title),
           h('p', { class: 'flow__suggestion-text' }, workflow.suggestion.text)),
@@ -787,7 +810,7 @@ export default {
           revealAside();
         }
       },
-      iconTile(type.icon, type.tone, { size: 'lg' }),
+      stepMark(step, builderScope, 'lg'),
       h('span', { class: 'flow__step-body' },
         h('span', { class: 'flow__step-kind' }, type.label),
         h('span', { class: 'flow__step-name' }, stepName(step, state.workflow)),
@@ -1054,7 +1077,7 @@ export default {
       const flat = flatten(workflow.steps);
       const set = (key) => (value) => { step[key] = value; };
       aside.replaceChildren(
-        paneHeader({ title: type.label, leading: iconTile(type.icon, type.tone), actions: menu?.toElement() }),
+        paneHeader({ title: type.label, leading: stepMark(step, asideScope), actions: menu?.toElement() }),
         h('div', { class: 'shell__body' },
           panelBlock('Step', step.type === 'trigger' ? triggerFields(workflow) : stepFields(step)),
           step.type === 'condition' ? panelBlock('Rule', ruleFields(step)) : null,

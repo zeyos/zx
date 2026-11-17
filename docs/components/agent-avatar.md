@@ -49,5 +49,11 @@ Avatar.
   name; Composer mention items and Launcher items take `agent` too; AgentThread and RunTrace authors and ActivityItem
   avatar descriptors take `face`. Only a
   face's trait strings are read, so agent-supplied data cannot animate or name it.
+- **Elsewhere** — `emptyState()`, ApprovalCard and RunStatus take `agent` (traits and `name`, or
+  `true`) in place of their icon: still and decorative, ApprovalCard's face looking up at you while
+  the request waits, RunStatus's with the run's expression. KanbanView assignee descriptors take
+  `face`, so an agent on a card's team is drawn as its face. The thread adapters
+  (`connectAgUi()`, `connectUiMessageStream()`) draw the faces the thread's own `authors` give.
+  Message `leading` and Card `media` accept an AgentAvatar like any other component.
 - **Accessibility** — the SVG is always hidden. With `label` the root is `role="img"`, named
   "label, activity word"; without one it is `aria-hidden`, for use beside the agent's name.

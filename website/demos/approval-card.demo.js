@@ -70,6 +70,9 @@ function draftInvoices() {
   ];
 }
 
+// The agent that asks, keyed by its stable id so a renamed agent keeps its face.
+const FINANCE_AGENT = { seed: 'agt-finance', name: 'Finance agent', tone: 'violet', material: 'soft' };
+
 export default {
   title: 'Approval card',
   group: 'Agents',
@@ -105,6 +108,30 @@ export default {
             button({ label: 'Focus the card', onclick: () => card.focus() }),
             button({ label: 'Ask again', onclick: () => card.setStatus('pending') }),
             button({ label: 'Let it expire', onclick: () => card.setStatus('expired') }))
+        ];
+      }
+    },
+    {
+      title: 'The agent that asks',
+      blurb: '`agent` draws the asking agent’s generated face in place of the icon tile: its '
+        + 'AgentAvatar traits and name, or true. The face looks up at you while the request waits '
+        + 'and rests once it is answered; it is decorative, so the title says what is asked.',
+      layout: 'stack',
+      width: '640px',
+      render: ({ cleanup, log }) => {
+        const card = new ApprovalCard(null, {
+          title: 'Send 3 payment reminders?',
+          description: 'The Finance agent drafted them from the overdue invoices.',
+          agent: FINANCE_AGENT,
+          details: reminderRecipients(),
+          onapprove: () => log('approve'),
+          onreject: ({ detail }) => log(`reject: ${detail.reason || 'no reason given'}`)
+        });
+        cleanup(() => card.destroy());
+        return [
+          card.toElement(),
+          h('div', { class: 'demo-row' },
+            button({ label: 'Ask again', onclick: () => card.setStatus('pending') }))
         ];
       }
     },

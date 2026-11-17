@@ -9,7 +9,9 @@ yet: an optional decorative icon, a headline, a sentence, and optional actions. 
 paragraph rather than a heading, so dropping one into a Table's empty slot or a Panel body never
 disturbs the page's heading outline.
 
-- **Options** — `icon` (an icon name, `null` for none; default `'folder-open'`), `title`,
+- **Options** — `icon` (an icon name, `null` for none; default `'folder-open'`), `agent`
+  (`{seed?, name?, tone?, body?, eyes?, material?}` or `true`: an agent's AgentAvatar face, at rest,
+  in place of the icon — an empty conversation, an agent with nothing to do yet), `title`,
   `description`, `actions: [Element | buttonOptions]`, `size: 'md'|'sm'`, `align: 'center'|'start'`.
 - **Methods** — none. `emptyState(options)` → `HTMLDivElement`, which you own and place yourself.
 - **Events** — none; action buttons carry their own `onclick`.

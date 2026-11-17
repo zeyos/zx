@@ -14,8 +14,10 @@ announces nothing itself; the thread the run belongs to announces its milestones
   sentence, text only), `steps: {done, total}|null`, `started`, `finished` and `waitingSince`
   (local ISO date-time strings or `Date`s), `workMs` (milliseconds worked; the row shows only when
   it is a number), `tokens: [in, out]|number|null` (the pair, or the total as one number),
-  `tokenBudget: number|null`, `cost: {amount, budget?, currency}|null`, `model`,
-  `actions: [{label, kind?, icon?, onclick?}]`, `ticking: true`, `compact: false|true|'icon'`,
+  `tokenBudget: number|null`, `cost: {amount, budget?, currency}|null`, `model`, `agent`
+  (`{seed?, name?, tone?, body?, eyes?, material?}` or `true`: the agent's face before the state,
+  working while it runs, looking up while it waits, blocked when blocked or failed, at rest
+  otherwise; the compact pill leaves it out), `actions: [{label, kind?, icon?, onclick?}]`, `ticking: true`, `compact: false|true|'icon'`,
   `now: (() => Date)|null`, `locale`, and `msg` (the `agent.status.*` words and the `runStatus.*`
   labels).
 - **Rendering** — the state line; the summary; a `role="progressbar"` whose `aria-valuetext` reads

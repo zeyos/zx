@@ -1,7 +1,10 @@
-import { Avatar, button, h, Message, Toggle } from '../../src/index.js';
+import { AgentAvatar, Avatar, button, h, Message, Toggle } from '../../src/index.js';
 
 /** Who asks for the approval in the "An action" example. */
 const REQUESTER = { name: 'Mara Lind' };
+
+/** The agent that asks in the same example, keyed by its stable id so a rename keeps its face. */
+const AGENT = { seed: 'agt-finance', name: 'Finance agent', tone: 'violet', material: 'soft' };
 
 /** What the stack examples post, in turn: a kind, the text, and sometimes a highlight. */
 const STACK_MESSAGES = [
@@ -172,8 +175,8 @@ export default {
         + 'runs onclick and closes the message; kind: "primary" or "danger" overrides the secondary '
         + 'default. A message with an action stays at least eight seconds and never times out while '
         + 'the pointer is over it or focus is inside it — Tab reaches the button from the message. '
-        + 'leading shows a node, here an Avatar, in place of the kind icon; it is decorative, so '
-        + 'the text names the person.',
+        + 'leading shows a node, here an Avatar or an AgentAvatar, in place of the kind icon; it is '
+        + 'decorative, so the text names who asks.',
       render: ({ cleanup, log }) => {
         const handles = new Set();
         const avatars = new Set();
@@ -197,6 +200,18 @@ export default {
                 leading: avatar,
                 timeout: 0,
                 action: { label: 'Approve', kind: 'primary', onclick: () => log('release approved') }
+              }));
+            }
+          }),
+          button({
+            label: 'An agent asks',
+            onclick: () => {
+              const avatar = new AgentAvatar(null, { ...AGENT, size: 'sm', activity: 'needs-you', indicator: false });
+              avatars.add(avatar);
+              handles.add(Message.show(`${AGENT.name} needs your approval to send 3 payment reminders.`, {
+                leading: avatar,
+                timeout: 0,
+                action: { label: 'Review', kind: 'primary', onclick: () => log('review the reminders') }
               }));
             }
           })

@@ -44,7 +44,9 @@ export const UI_MESSAGE_STREAM_VERSION = 'v1';
  * @typedef {Object} UiMessageStreamOptions
  * @property {RunStatus|null} [runStatus=null] A run status to keep up to date.
  * @property {Record<string, Author>} [authors={}] Who writes; its first author who is not a person
- * is the agent when `agent` is not given.
+ * is the agent when `agent` is not given. The thread draws authors from its own `authors`, so an
+ * agent given a `face` there is drawn as its AgentAvatar in every item the stream writes; the
+ * stream itself can never set or change a face.
  * @property {string|null} [agent=null] Author key of the assistant's output.
  * @property {Record<string, (call: ToolCall) => ThreadItem|null>} [tools={}] Tiles by tool name: the
  * application's renderer for a tool's calls, called at each status change. Its item joins the

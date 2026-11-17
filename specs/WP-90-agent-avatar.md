@@ -94,6 +94,21 @@ the same way — one owned avatar per item id, a tile's size for `kind: 'applica
 activity's word as visually hidden text after the label, so the option's name keeps everything else
 the row prints. The Agent workspace palette and the Launcher demo use it.
 
+**Everywhere else an agent stands in for an icon.** `agentFaceTraits()` in
+`src/internal/agent-model.js` reads an `agent` option as `authorFace()` reads a `face`, plus its
+`name`; `RUN_ACTIVITY` maps a run state to the expression a face takes. `emptyState()` takes
+`agent` in place of its icon (the `lg` preset, 28px at `sm`, at rest). ApprovalCard takes `agent`
+in place of its tile — one owned avatar, looking up (`needs-you`) while pending and at rest once
+answered, changed through `update()` — and RunStatus takes `agent` before the state in the full
+panel, kept across draws, with the run state's expression (the compact pill leaves it out); both
+are exposed on `<zx-approval-card>` and `<zx-run-status>` as `agent`. KanbanView assignee
+descriptors take `face`: the card draws a still AgentAvatar at the face size, without the disc,
+ring or overlap. The thread adapters need no code: faces come from the thread's own `authors`, never
+from the stream, which their documentation now says. Agent chat and Agent canvas draw the agent's
+face in their empty states and Agent chat and Agent workspace in their run panels; Workflows draws
+its Assistant as an agent on its steps, in the inspector, on suggestions and in run histories. The
+Kanban, EmptyState, ApprovalCard, RunStatus, AgentThread, Message and Card demos show it.
+
 ## API
 
 ```
@@ -127,6 +142,13 @@ the component is not focusable.
   `website/demos/run-trace.demo.js`, `activity-item.demo.js`, `activity-list.demo.js`.
 - `src/components/composer/composer.js|css`, `website/demos/composer.demo.js`: mention `agent`.
 - `src/components/launcher/launcher.js|css`, `website/demos/launcher.demo.js`: item `agent`.
+- `src/components/empty-state/empty-state.js`, `src/components/approval-card/approval-card.js|css`,
+  `src/components/run-status/run-status.js`, `src/components/kanban-view/kanban-card.js`,
+  `kanban-view.js|css`, `src/elements/kit.js` (the two `agent` attributes), the JSDoc of
+  `src/components/agent-thread/ag-ui.js` and `ui-message-stream.js`; `tests/unit/kanban-view.test.js`;
+  `website/demos/kanban-view.demo.js`, `empty-state.demo.js`, `approval-card.demo.js`,
+  `run-status.demo.js`, `agent-thread.demo.js`, `message.demo.js`, `card.demo.js`;
+  `website/layouts/workflows.layout.js`.
 - `website/layouts/agent-workspace.layout.js|css`, `agent-chat.layout.js`, `agent-canvas.layout.js`,
   `ai-chat.layout.js`; `website/demos/app-sidebar.demo.js`,
   `website/demos/module-bar.demo.js`.
@@ -137,7 +159,8 @@ the component is not focusable.
 - `docs/llms.md` (reference block), the generated `docs/api.json`, `docs/components/*`,
   `docs/llms-small.txt`, and the component lists in `docs/llms.txt`, `website/llms.txt` and
   `README.md`.
-- `tools/size-budget.json`: the JS bundles grow by about 5 KB (3 KB minified); the ZeyOS bundle,
+- `tools/size-budget.json`: the JS bundles grow by about 7 KB (4 KB minified) with the agents in
+  place of icons; the ZeyOS bundle,
   whose AppSidebar and ModuleBar now draw agents, by about 6 KB (4 KB minified).
 - `tools/check-language.js` and `tests/unit/language-audit.test.js`: a comma-joined name ("Quill,
   Offline") is explained when each part is — the German catalogue shares "Offline" with English.

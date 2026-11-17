@@ -448,6 +448,26 @@ const cases = [
       'a Launcher agent item is not drawn as its still face, or its activity is not in the option name');
     palette.close();
     palette.destroy();
+    const empty = zx.emptyState({ agent: { seed: 'agt-ledger', name: 'Ledger' }, title: 'No tasks for Ledger' });
+    assert(empty.querySelector('.zx-empty-state__icon[data-agent] > .zx-agent-avatar[aria-hidden="true"]')
+      && !empty.querySelector('.zx-empty-state__icon .zx-icon'), 'an EmptyState agent did not replace the icon');
+    const request = new zx.ApprovalCard(null, { title: 'Send 3 reminders?', agent: { seed: 'agt-ledger', name: 'Ledger' } });
+    const requestFace = () => request.el.querySelector('.zx-approval-card__tile[data-agent] > .zx-agent-avatar');
+    assert(requestFace()?.dataset.activity === 'needs-you', 'a pending ApprovalCard agent does not look up');
+    request.setStatus('approved');
+    assert(requestFace() && requestFace().dataset.activity === 'idle', 'an answered ApprovalCard agent does not rest');
+    request.update({ agent: null, icon: 'mail' });
+    assert(!requestFace() && request.el.querySelector('.zx-approval-card__tile .zx-icon'), 'ApprovalCard update did not return to the icon');
+    request.destroy();
+    const run = new zx.RunStatus(null, { state: 'running', summary: 'Matching', agent: true, ticking: false });
+    const runFace = run.el.querySelector('.zx-run-status__state > .zx-agent-avatar');
+    assert(runFace?.dataset.activity === 'working', 'a running RunStatus agent is not working');
+    run.update({ state: 'waiting' });
+    assert(run.el.querySelector('.zx-run-status__state > .zx-agent-avatar') === runFace && runFace.dataset.activity === 'needs-you',
+      'a RunStatus update re-created the face or left its expression');
+    run.update({ compact: true });
+    assert(!run.el.querySelector('.zx-agent-avatar'), 'a compact RunStatus drew the face');
+    run.destroy();
   }),
   componentCase('EntityRef', () => new zx.EntityRef(null, {
     id: 'customer-7',

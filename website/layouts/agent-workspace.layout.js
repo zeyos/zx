@@ -1270,7 +1270,9 @@ export default {
       const task = currentTask();
       const waiting = task.plan.find((step) => step.status === 'waiting' || step.status === 'blocked');
       runTitle.textContent = `Run #${task.run}`;
+      const owner = agents.find((agent) => agent.id === task.owner);
       runStatus.update({
+        agent: owner ? { seed: owner.id, name: owner.name, tone: owner.tone, material: 'soft' } : null,
         state: RUN_STATE[taskStatus(task)],
         summary: task.title,
         steps: { done: task.plan.filter((step) => step.status === 'done').length, total: task.plan.length },
