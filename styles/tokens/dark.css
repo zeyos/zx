@@ -47,7 +47,7 @@
     --zx-color-text: var(--zx-gray-200);
     --zx-color-text-muted: var(--zx-gray-400);
     --zx-color-text-subtle: color-mix(in srgb, var(--zx-gray-500) 50%, var(--zx-gray-400));
-    --zx-color-text-placeholder: var(--zx-gray-500);
+    --zx-color-text-placeholder: var(--zx-gray-400);
     --zx-color-text-invert: var(--zx-gray-950);
     --zx-color-accent: var(--zx-accent-400);
     --zx-color-accent-hover: var(--zx-accent-300);
@@ -126,7 +126,7 @@
       --zx-color-text: var(--zx-gray-200);
       --zx-color-text-muted: var(--zx-gray-400);
       --zx-color-text-subtle: color-mix(in srgb, var(--zx-gray-500) 50%, var(--zx-gray-400));
-      --zx-color-text-placeholder: var(--zx-gray-500);
+      --zx-color-text-placeholder: var(--zx-gray-400);
       --zx-color-text-invert: var(--zx-gray-950);
       --zx-color-accent: var(--zx-accent-400);
       --zx-color-accent-hover: var(--zx-accent-300);

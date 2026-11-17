@@ -152,7 +152,7 @@
     /* Icons and non-essential meta: at least 3:1 on the surface, the chrome, and a current row. */
     --zx-color-text-subtle: light-dark(color-mix(in srgb, var(--zx-gray-500) 70%, var(--zx-gray-400)),
       color-mix(in srgb, var(--zx-gray-500) 50%, var(--zx-gray-400)));
-    --zx-color-text-placeholder: light-dark(var(--zx-gray-400), var(--zx-gray-500));
+    --zx-color-text-placeholder: light-dark(color-mix(in srgb, var(--zx-gray-500) 80%, var(--zx-gray-600)), var(--zx-gray-400));
     --zx-color-text-invert: light-dark(var(--zx-gray-50), var(--zx-gray-950));
     /* Navigation at rest: one ink step under the content, so the eye lands on the page and the
        columns beside it read as places rather than as a second document. Hover, focus, and the
@@ -397,7 +397,7 @@
     --zx-color-text: var(--zx-gray-950);
     --zx-color-text-muted: color-mix(in srgb, var(--zx-gray-500) 50%, var(--zx-gray-600));
     --zx-color-text-subtle: color-mix(in srgb, var(--zx-gray-500) 70%, var(--zx-gray-400));
-    --zx-color-text-placeholder: var(--zx-gray-400);
+    --zx-color-text-placeholder: color-mix(in srgb, var(--zx-gray-500) 80%, var(--zx-gray-600));
     --zx-color-text-invert: var(--zx-gray-50);
     --zx-color-app-icon-glyph: var(--zx-gray-0);
     --zx-color-app-icon-shade: var(--zx-gray-950);
