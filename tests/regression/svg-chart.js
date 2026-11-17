@@ -110,10 +110,11 @@ export const cases = [
         await window.frames2();
         const narrow = read();
         const labels = [...chart.el.querySelectorAll('[data-axis="category"] .zx-chart__tick')];
-        const overlapping = labels.some((label, index) => index > 0
-          && label.getBoundingClientRect().left < labels[index - 1].getBoundingClientRect().right);
+        const rects = labels.map((label) => label.getBoundingClientRect());
+        const overlapping = rects.some((rect, index) => index > 0 && rect.left < rects[index - 1].right);
+        const texts = labels.map((label) => label.textContent);
         chart.destroy();
-        return { wide, narrow, kept, overlapping };
+        return { wide, narrow, kept, overlapping, texts };
       });
       assert.equal(result.wide.viewBox, result.wide.size, 'the viewBox is the plot in pixels');
       assert.equal(result.narrow.viewBox, result.narrow.size, 'and follows it when the viewport changes');
@@ -121,7 +122,133 @@ export const cases = [
       assert.equal(result.narrow.font, result.wide.font, 'text keeps its size at any width');
       assert.deepEqual(result.wide.ticks.slice(0, 2), ['30K', '35K'], 'compact round ticks');
       assert.equal(result.kept, true, 'a resize at the same size leaves the drawing alone');
+      assert.ok(result.texts.length >= 3, `the narrow chart still names its categories: ${result.texts.join(', ')}`);
+      assert.equal(result.texts[0], 'Week 1', 'labels start at the first category');
+      for (const text of result.texts) assert.match(text, /^Week [1-5]$|^W[^…]*…$/, `"${text}" is a category, whole or shortened`);
       assert.equal(result.overlapping, false, 'category labels never overlap');
+    }
+  },
+  {
+    name: 'WP88 dense category labels of wide and narrow glyphs are measured, thinned and shortened apart',
+    async run({ page }) {
+      await prepare(page);
+      const result = await page.evaluate(async () => {
+        // Wide letters in short labels, and one long label of narrow ones: the longest by
+        // characters is not the widest drawn.
+        const categories = Array.from({ length: 30 }, (_, index) => (index === 7 ? 'i'.repeat(24) : `WWWWWWWWW${index}`));
+        const chart = window.chartIn(window.box(420, 260), {
+          type: 'bar',
+          data: { labels: categories, datasets: [{ label: 'Count', data: categories.map((_, index) => index + 1) }] }
+        });
+        await window.frames2();
+        const labels = [...chart.el.querySelectorAll('[data-axis="category"] .zx-chart__tick')];
+        const rects = labels.map((label) => label.getBoundingClientRect());
+        const out = {
+          categories,
+          texts: labels.map((label) => label.textContent),
+          overlaps: rects.flatMap((rect, index) => (index > 0 && rect.left < rects[index - 1].right
+            ? [`${labels[index - 1].textContent} / ${labels[index].textContent}`] : []))
+        };
+        chart.destroy();
+        return out;
+      });
+      assert.ok(result.texts.length >= 3, `a dense axis still names some categories: ${result.texts.join(', ')}`);
+      assert.ok(result.texts.length < result.categories.length, 'and thins the rest out');
+      assert.ok(result.texts[0].startsWith('WWW'), 'labels start at the first category');
+      for (const text of result.texts) {
+        const whole = result.categories.includes(text);
+        const shortened = text.endsWith('…') && result.categories.some((category) => category.startsWith(text.slice(0, -1)));
+        assert.ok(whole || shortened, `"${text}" is a category, whole or shortened`);
+      }
+      assert.deepEqual(result.overlaps, [], 'no two labels overlap');
+    }
+  },
+  {
+    name: 'WP88 a line too dense for points keeps a titled, pressable target for every value',
+    async run({ page }) {
+      await prepare(page);
+      await page.evaluate(async () => {
+        window.selected = [];
+        const values = Array.from({ length: 100 }, (_, index) => Math.round(50 + 40 * Math.sin(index / 8)));
+        window.chart = window.chartIn(window.box(600, 300), {
+          type: 'line',
+          data: { labels: values.map((_, index) => `Day ${index + 1}`), datasets: [{ label: 'Visits', data: values }] },
+          onselect: ({ detail }) => window.selected.push({ index: detail.index, label: detail.label, value: detail.value })
+        });
+        await window.frames2();
+      });
+      const marks = await page.evaluate(() => {
+        const all = [...window.chart.el.querySelectorAll('.zx-chart__point')];
+        return {
+          count: all.length,
+          titled: all.filter((mark) => /^Day \d+ · Visits: \d+$/.test(mark.querySelector('title')?.textContent ?? '')).length,
+          hit: all.filter((mark) => mark.hasAttribute('data-hit')).length,
+          unpainted: all.filter((mark) => mark.hasAttribute('data-hit') && getComputedStyle(mark).fillOpacity === '0').length,
+          sized: all.every((mark) => Number(mark.getAttribute('r')) > 0)
+        };
+      });
+      await page.click('.zx-chart__point[data-index="50"]');
+      const selected = await page.evaluate(() => {
+        const out = window.selected;
+        window.chart.destroy();
+        return out;
+      });
+      assert.equal(marks.count, 100, 'one target per value');
+      assert.equal(marks.titled, 100, 'each names its value');
+      assert.equal(marks.hit, 100, 'too dense to draw: every point is a target only');
+      assert.equal(marks.unpainted, 100, 'and is not painted');
+      assert.equal(marks.sized, true);
+      assert.equal(selected.length, 1);
+      assert.equal(selected[0].index, 50);
+      assert.equal(selected[0].label, 'Day 51');
+    }
+  },
+  {
+    name: 'WP88 setAdapter() swaps a mounting adapter for a creating one and back without leftovers',
+    async run({ page }) {
+      await prepare(page);
+      const result = await page.evaluate(async () => {
+        const painted = [];
+        // A creating adapter paints the canvas Chart hands it; this one only records that it did.
+        const creating = {
+          create(canvas, spec) {
+            canvas.dataset.painted = spec.type;
+            painted.push(spec.type);
+            return { instance: canvas, update() {}, resize() {}, destroy() { delete canvas.dataset.painted; } };
+          }
+        };
+        const chart = window.chartIn(window.box());
+        await window.frames2();
+        const canvas = chart.refs.canvas;
+        const read = () => ({
+          drawings: chart.el.querySelectorAll('.zx-chart__drawing').length,
+          painted: canvas.dataset.painted ?? null,
+          role: canvas.getAttribute('role'),
+          label: canvas.getAttribute('aria-label'),
+          connected: canvas.isConnected && chart.refs.viewport.contains(canvas)
+        });
+        const out = { svg: read() };
+        chart.setAdapter(creating);
+        await window.frames2();
+        out.created = read();
+        chart.setAdapter(new zx.SvgChartAdapter());
+        await window.frames2();
+        out.back = read();
+        chart.setAdapter(creating).setAdapter(new zx.SvgChartAdapter()).setAdapter(new zx.SvgChartAdapter());
+        await window.frames2();
+        out.again = read();
+        out.painted = painted;
+        chart.destroy();
+        out.destroyed = document.querySelectorAll('.zx-chart__drawing').length;
+        return out;
+      });
+      const named = { role: 'img', label: 'Weeks', connected: true };
+      assert.deepEqual(result.svg, { drawings: 1, painted: null, ...named });
+      assert.deepEqual(result.created, { drawings: 0, painted: 'bar', ...named }, 'the drawing goes with its adapter');
+      assert.deepEqual(result.back, { drawings: 1, painted: null, ...named }, 'one drawing again, the canvas left clean');
+      assert.deepEqual(result.again, { drawings: 1, painted: null, ...named }, 'quick swaps leave one drawing');
+      assert.deepEqual(result.painted, ['bar', 'bar']);
+      assert.equal(result.destroyed, 0);
     }
   },
   {

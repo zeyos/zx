@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { Worker } from 'node:worker_threads';
 
 import {
   arcPath, arcSlices, barSlots, labelStep, linePath, linearScale, niceScale, niceStep, polar,
@@ -44,12 +45,73 @@ test('a flat or empty range still has an axis', () => {
   assert.deepEqual(niceScale(Number.NaN, Number.POSITIVE_INFINITY), niceScale(0, 0), 'non-finite bounds count as zero');
 });
 
+/** A scale's ticks are finite, distinct, ascending, few, and enclose the values. */
+const assertSound = (scale, low, high, message) => {
+  assert.ok(scale.ticks.length >= 2 && scale.ticks.length <= 100, `${message}: ${scale.ticks.length} ticks`);
+  assert.ok(scale.ticks.every(Number.isFinite), `${message}: finite ticks`);
+  assert.ok(scale.ticks.every((tick, index) => index === 0 || tick > scale.ticks[index - 1]), `${message}: distinct, ascending ticks`);
+  assert.equal(scale.min, scale.ticks[0]);
+  assert.equal(scale.max, scale.ticks[scale.ticks.length - 1]);
+  assert.ok(scale.min <= Math.min(low, high) && scale.max >= Math.max(low, high), `${message}: ${scale.min}…${scale.max} encloses the values`);
+  return scale;
+};
+
+/**
+ * Scales computed in a worker, so that one that never finishes fails the test after a second
+ * instead of stalling the whole run.
+ * @param {Array<[number, number, number]>} cases
+ * @returns {Promise<Array<import('../../src/components/chart/svg-geometry.js').NiceScale>>}
+ */
+const scalesInWorker = (cases) => new Promise((resolve, reject) => {
+  const worker = new Worker(`
+    const { parentPort, workerData } = require('node:worker_threads');
+    import(workerData.module).then(({ niceScale }) => parentPort.postMessage(workerData.cases.map((args) => niceScale(...args))));
+  `, { eval: true, workerData: { module: new URL('../../src/components/chart/svg-geometry.js', import.meta.url).href, cases } });
+  const timer = setTimeout(() => {
+    void worker.terminate();
+    reject(new Error('niceScale did not finish within a second'));
+  }, 1000);
+  worker.once('message', (scales) => { clearTimeout(timer); void worker.terminate(); resolve(scales); });
+  worker.once('error', (error) => { clearTimeout(timer); reject(error); });
+});
+
+test('any finite values give a few distinct ticks, and never hang', async () => {
+  // Each of the first four looped forever once: an index of 2e16 that adding one no longer
+  // changes, a step finer than the values can tell apart, a span wider than a double.
+  const cases = [
+    [1e16, 1e16 + 2, 5, 'a step below the values’ precision'],
+    [2 ** 53, 2 ** 53 + 2, 5, 'past the safe integers'],
+    [-1e308, 1e308, 5, 'a span wider than a double'],
+    [-Number.MAX_VALUE, Number.MAX_VALUE, 1, 'the whole range in one interval'],
+    [Number.MAX_VALUE, Number.MAX_VALUE, 5, 'the largest double alone'],
+    [0, Number.MIN_VALUE, 5, 'the smallest double'],
+    [1e300, 1.0000000001e300, 8, 'a narrow range of huge values'],
+    [-1e-310, 1e-310, 5, 'subnormal values'],
+    [0, 1, 1e9, 'a billion intervals asked for'],
+    [0, 1, Number.POSITIVE_INFINITY, 'infinitely many asked for']
+  ];
+  const scales = await scalesInWorker(cases.map(([low, high, count]) => [low, high, count]));
+  cases.forEach(([low, high, , message], index) => assertSound(scales[index], low, high, message));
+  assert.deepEqual(scales[2].ticks, [-1e308, -5e307, 0, 5e307, 1e308]);
+  assert.equal(scales[8].ticks.length, 51, 'the interval count is capped');
+  assert.equal(scales[9].ticks.length, 51);
+});
+
+test('ticks keep the digits their step has', () => {
+  const scale = assertSound(niceScale(1e12, 1e12 + 1, 5), 1e12, 1e12 + 1, 'a fraction of a trillion');
+  assert.deepEqual(scale.ticks, [1e12, 1e12 + 0.2, 1e12 + 0.4, 1e12 + 0.6, 1e12 + 0.8, 1e12 + 1]);
+  const fine = assertSound(niceScale(123456789.123, 123456789.124, 5), 123456789.123, 123456789.124, 'thousandths');
+  assert.deepEqual(fine.ticks.slice(0, 2), [123456789.123, 123456789.1232]);
+});
+
 test('a linear scale maps the domain onto a range that may run backwards', () => {
   const y = linearScale(0, 100, 200, 0);
   assert.equal(y(0), 200);
   assert.equal(y(100), 0);
   assert.equal(y(25), 150);
   assert.equal(linearScale(5, 5, 0, 10)(5), 0, 'an empty domain does not divide by zero');
+  const wide = linearScale(-Number.MAX_VALUE, Number.MAX_VALUE, 100, 0);
+  assert.deepEqual([wide(-Number.MAX_VALUE), wide(0), wide(Number.MAX_VALUE)], [100, 50, 0], 'a domain wider than a double');
 });
 
 test('bars of a category sit side by side in the middle of the band', () => {
@@ -60,7 +122,22 @@ test('bars of a category sit side by side in the middle of the band', () => {
   const [capped] = barSlots(0, 400, 1, 50);
   close(capped.width, 50, 'a bar is never wider than the cap');
   close(capped.x, 175, 'a capped bar stays centred');
-  assert.equal(barSlots(0, 0.5, 3)[0].width, 1, 'a bar is at least one unit wide');
+  close(barSlots(0, 1.3, 1)[0].width, 1, 'a bar is at least one unit wide where its slot has room');
+});
+
+test('bars never leave their slot, however narrow the band', () => {
+  for (const [band, count] of [[5, 12], [0.5, 3], [1.2, 2], [100, 2], [3, 1]]) {
+    const slots = barSlots(10, band, count);
+    const slot = (band * 0.8) / count;
+    slots.forEach((bar, index) => {
+      assert.ok(bar.width > 0 && bar.width <= slot + 1e-9, `${band}/${count}: bar ${index} is ${bar.width} wide in a ${slot} slot`);
+      assert.ok(bar.x >= 10 && bar.x + bar.width <= 10 + band + 1e-9, `${band}/${count}: bar ${index} stays in the band`);
+      if (index > 0) {
+        const previous = slots[index - 1];
+        assert.ok(previous.x + previous.width <= bar.x + 1e-9, `${band}/${count}: bar ${index} does not cover bar ${index - 1}`);
+      }
+    });
+  }
 });
 
 test('labels are thinned to every n-th category when they would overlap', () => {
@@ -84,6 +161,16 @@ test('pie slices start at twelve o’clock and skip what is not a positive numbe
   close(slices[1].end, Math.PI, 'a second quarter');
   close(slices[2].end, Math.PI * 2, 'a half closes the circle');
   assert.deepEqual(arcSlices([0, null, Number.NaN]), [], 'nothing positive, no slices');
+  assert.deepEqual(slices.map((slice) => slice.share), [0.25, 0.25, 0.5], 'each slice knows its share');
+});
+
+test('values whose sum a double cannot hold still divide the circle', () => {
+  const [first, second] = arcSlices([1e308, 1e308]);
+  close(first.end, Math.PI, 'half');
+  close(second.end, Math.PI * 2, 'and half');
+  assert.deepEqual([first.share, second.share], [0.5, 0.5]);
+  const shares = arcSlices([Number.MAX_VALUE, Number.MAX_VALUE / 2, Number.MAX_VALUE / 2]).map((slice) => slice.share);
+  assert.deepEqual(shares, [0.5, 0.25, 0.25]);
 });
 
 test('slices give up a pad angle only when there are neighbours, never more than half each', () => {
@@ -100,6 +187,17 @@ test('rings divide the radius outermost first, the doughnut hole left empty', ()
   assert.deepEqual(ringRadii(1, 100), [{ outer: 100, inner: 0 }]);
   assert.deepEqual(ringRadii(2, 100, 0.5, 2), [{ outer: 100, inner: 77 }, { outer: 75, inner: 50 }]);
   assert.deepEqual(ringRadii(2, 100, 0, 2), [{ outer: 100, inner: 52 }, { outer: 50, inner: 0 }]);
+});
+
+test('every dataset keeps a ring when the gap is wider than the rings are thick', () => {
+  for (const [count, radius, hole, gap] of [[12, 50, 0.5, 3], [40, 60, 0, 4], [3, 10, 0.5, 20]]) {
+    const rings = ringRadii(count, radius, hole, gap);
+    assert.equal(rings.length, count);
+    rings.forEach((ring, index) => {
+      assert.ok(ring.outer - ring.inner > 0, `${count} rings: ring ${index} is ${ring.outer - ring.inner} thick`);
+      if (index > 0) assert.ok(rings[index - 1].inner >= ring.outer, `${count} rings: ring ${index} does not overlap the one outside it`);
+    });
+  }
 });
 
 test('arc paths: a wedge, a ring band, a large arc, and a whole circle', () => {

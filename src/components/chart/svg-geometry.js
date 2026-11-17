@@ -12,23 +12,37 @@
 const TAU = Math.PI * 2;
 /** Tolerance for a quotient that should be a whole number but is not, by float noise. */
 const EPSILON = 1e-9;
+/**
+ * The finest step a scale takes, relative to its largest value: sixteen units in the last place
+ * of a double, so that consecutive ticks stay distinct numbers (1e16 + 0.5 is 1e16) and rounding a
+ * tick to its step's digits cannot land on a neighbour.
+ */
+const PRECISION = 2 ** -48;
+/** The most intervals a scale is asked for; whatever the input, a scale has a handful of ticks. */
+const MAX_INTERVALS = 50;
+/** A bound on the tick loop, well above what `MAX_INTERVALS` produces: it can never run away. */
+const MAX_TICKS = 200;
+/** The largest round step a double holds: 2 × 10³⁰⁸ is beyond it. */
+const LARGEST_STEP = 1e308;
 
 /**
  * @typedef {Object} NiceScale
  * @property {number} min The lowest tick, at or below the lowest value.
  * @property {number} max The highest tick, at or above the highest value.
  * @property {number} step The distance between ticks: 1, 2 or 5 × 10ⁿ.
- * @property {number[]} ticks Every tick from `min` to `max`, free of float noise (0.3, not
- *   0.30000000000000004).
+ * @property {number[]} ticks Every tick from `min` to `max`, distinct and free of float noise
+ *   (0.3, not 0.30000000000000004).
  */
 
 /**
  * A linear scale over `[min, max]`, widened outwards to round ticks. A range of one value is
  * widened to zero (or to one when the value is zero), so a flat series still sits on an axis;
- * values that are not finite count as zero.
+ * values that are not finite count as zero. Any finite bounds give a few distinct ticks: the step
+ * is never finer than the values can tell apart, and an outer tick a double cannot hold is the
+ * largest one it can.
  * @param {number} min Lowest value.
  * @param {number} max Highest value.
- * @param {number} [count=5] About how many intervals the scale should have, at least 1.
+ * @param {number} [count=5] About how many intervals the scale should have, 1 to 50.
  * @returns {NiceScale}
  */
 export function niceScale(min, max, count = 5) {
@@ -40,11 +54,27 @@ export function niceScale(min, max, count = 5) {
     else if (low < 0) high = 0;
     else high = 1;
   }
-  const step = niceStep((high - low) / Math.max(1, Math.round(count) || 1));
-  const first = Math.floor(low / step + EPSILON);
-  const last = Math.ceil(high / step - EPSILON);
+  const intervals = Math.min(MAX_INTERVALS, Math.max(1, Math.round(count) || 1));
+  // Halved, the span stays finite whatever the bounds: -1e308 to 1e308 is wider than a double.
+  // Neither can the step round away to nothing between two of the tiniest doubles.
+  const raw = Math.max(Number.MIN_VALUE, Math.min(Number.MAX_VALUE, ((high / 2 - low / 2) / intervals) * 2));
+  const finest = Math.max(Math.abs(low), Math.abs(high)) * PRECISION;
+  const step = niceStep(Math.max(raw, finest));
+  const exponent = Math.floor(Math.log10(step) + EPSILON);
+  /** @param {number} index @returns {number} */
+  const tickAt = (index) => tickValue(index * step, exponent);
+  let first = Math.floor(low / step + EPSILON);
+  let last = Math.ceil(high / step - EPSILON);
+  // The quotients of very large values are rounded: the outer ticks must still enclose the data.
+  if (tickAt(first) - low > step * EPSILON) first -= 1;
+  if (high - tickAt(last) > step * EPSILON) last += 1;
+  if (last <= first) last = first + 1;
   const ticks = [];
-  for (let index = first; index <= last; index += 1) ticks.push(clean(index * step));
+  // A small counter, not the tick index itself: at 2e16 adding one no longer changes a double.
+  for (let offset = 0; offset <= last - first && offset < MAX_TICKS; offset += 1) {
+    const tick = tickAt(first + offset);
+    if (tick !== ticks[ticks.length - 1]) ticks.push(tick);
+  }
   return { min: ticks[0], max: ticks[ticks.length - 1], step, ticks };
 }
 
@@ -57,9 +87,11 @@ export function niceScale(min, max, count = 5) {
 export function niceStep(raw) {
   if (!(raw > 0) || !Number.isFinite(raw)) return 1;
   const power = 10 ** Math.floor(Math.log10(raw));
+  if (!(power > 0)) return Number.MIN_VALUE;
   const fraction = raw / power;
   const factor = fraction >= Math.SQRT2 * 5 ? 10 : fraction >= Math.sqrt(10) ? 5 : fraction >= Math.SQRT2 ? 2 : 1;
-  return clean(factor * power);
+  const step = clean(factor * power);
+  return Number.isFinite(step) ? step : LARGEST_STEP;
 }
 
 /**
@@ -73,18 +105,23 @@ export function niceStep(raw) {
  */
 export function linearScale(min, max, from, to) {
   const span = max - min || 1;
-  return (value) => from + ((value - min) / span) * (to - from);
+  if (Number.isFinite(span)) return (value) => from + ((value - min) / span) * (to - from);
+  // A domain wider than a double holds (-1e308 to 1e308) is measured in halves.
+  const half = max / 2 - min / 2;
+  return (value) => from + ((value / 2 - min / 2) / half) * (to - from);
 }
 
 /**
  * @typedef {Object} BarSlot
  * @property {number} x Left edge.
- * @property {number} width Width, at least 1.
+ * @property {number} width Width, never more than its slot.
  */
 
 /**
  * Where the bars of one category go: `count` series side by side across the middle 80% of the
- * band, each bar 90% of its slot and at most `maxWidth` wide, the group centred in the band.
+ * band, each bar 90% of its slot (at least one unit where the slot has room) and at most
+ * `maxWidth` wide, the group centred in the band. A bar never leaves its slot, so in a band too
+ * narrow for whole pixels the bars grow thin rather than paint over each other.
  * @param {number} start Left edge of the band.
  * @param {number} band Width of the band.
  * @param {number} count Series in the group, at least 1.
@@ -94,7 +131,7 @@ export function linearScale(min, max, from, to) {
 export function barSlots(start, band, count, maxWidth = Infinity) {
   const series = Math.max(1, Math.floor(count) || 1);
   const slot = Math.min((band * 0.8) / series, maxWidth / 0.9);
-  const width = Math.max(1, slot * 0.9);
+  const width = Math.max(0, Math.min(slot, Math.max(1, slot * 0.9)));
   const left = start + (band - slot * series) / 2;
   return Array.from({ length: series }, (_, index) => ({ x: left + index * slot + (slot - width) / 2, width }));
 }
@@ -136,6 +173,7 @@ export function linePath(points) {
  * @typedef {Object} ArcSlice
  * @property {number} index Position of the value in the list.
  * @property {number} value The value.
+ * @property {number} share The value's part of the whole, 0 to 1.
  * @property {number} start Start angle.
  * @property {number} end End angle.
  */
@@ -144,7 +182,8 @@ export function linePath(points) {
  * The slices of a pie: one per positive value, in order clockwise from twelve o'clock, each
  * sweeping its share of the circle. Zero, negative and non-finite values have no slice. With two
  * slices or more, each gives up `padAngle` (half at either edge, never more than half its sweep)
- * so neighbours stand apart whatever lies behind the chart.
+ * so neighbours stand apart whatever lies behind the chart. Shares are taken relative to the
+ * largest value, so values whose sum a double cannot hold (1e308 twice) still divide the circle.
  * @param {unknown[]} values Values.
  * @param {number} [padAngle=0] Gap between slices.
  * @returns {ArcSlice[]} Empty when no value is positive.
@@ -153,16 +192,18 @@ export function arcSlices(values, padAngle = 0) {
   const shown = values
     .map((value, index) => ({ index, value: typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 0 }))
     .filter((entry) => entry.value > 0);
-  const total = shown.reduce((sum, entry) => sum + entry.value, 0);
-  if (!(total > 0)) return [];
+  const largest = shown.reduce((most, entry) => Math.max(most, entry.value), 0);
+  if (!(largest > 0)) return [];
+  const total = shown.reduce((sum, entry) => sum + entry.value / largest, 0);
   const pad = shown.length > 1 ? Math.max(0, padAngle) : 0;
   let angle = 0;
   return shown.map(({ index, value }) => {
-    const sweep = (value / total) * TAU;
+    const share = value / largest / total;
+    const sweep = share * TAU;
     const start = angle;
     angle += sweep;
     const inset = Math.min(pad, sweep / 2) / 2;
-    return { index, value, start: start + inset, end: angle - inset };
+    return { index, value, share, start: start + inset, end: angle - inset };
   });
 }
 
@@ -174,7 +215,8 @@ export function arcSlices(values, padAngle = 0) {
 
 /**
  * The rings of a pie or doughnut with several datasets, outermost first: equal thickness between
- * `radius` and the hole, `gap` apart.
+ * `radius` and the hole, `gap` apart. The gap gives up at most half a ring's share of the radius,
+ * so however many datasets there are, each keeps a ring of its own.
  * @param {number} count Rings, at least 1.
  * @param {number} radius Outer radius of the outermost ring.
  * @param {number} [hole=0] Radius of the hole as a fraction of `radius`: 0 for a pie.
@@ -186,9 +228,10 @@ export function ringRadii(count, radius, hole = 0, gap = 0) {
   const outermost = Math.max(0, radius);
   const innermost = outermost * Math.min(1, Math.max(0, hole));
   const thickness = (outermost - innermost) / rings;
+  const space = Math.min(Math.max(0, gap), thickness / 2);
   return Array.from({ length: rings }, (_, index) => {
     const outer = outermost - index * thickness;
-    const inner = index === rings - 1 ? innermost : Math.min(outer, outer - thickness + Math.max(0, gap));
+    const inner = index === rings - 1 ? innermost : outer - thickness + space;
     return { outer, inner };
   });
 }
@@ -257,6 +300,20 @@ export function tickPrecision(ticks, step) {
 /** @param {number} value @returns {number} The value without float noise. */
 function clean(value) {
   return Number(value.toPrecision(12));
+}
+
+/**
+ * A tick rounded to the digits its step has, and no further: 1e12 + 0.2 keeps its fraction, 0.1 × 3
+ * loses its noise. A tick past the largest double is the largest double.
+ * @param {number} value The tick as multiplied out.
+ * @param {number} exponent The power of ten of the step's one significant digit.
+ * @returns {number}
+ */
+function tickValue(value, exponent) {
+  if (value === 0) return 0;
+  if (!Number.isFinite(value)) return value > 0 ? Number.MAX_VALUE : -Number.MAX_VALUE;
+  const digits = Math.floor(Math.log10(Math.abs(value)) + EPSILON) - exponent + 1;
+  return Number(value.toPrecision(Math.min(100, Math.max(1, digits))));
 }
 
 /** @param {number} value @returns {string} The value to two decimals, as short as it goes. */

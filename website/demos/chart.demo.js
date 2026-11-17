@@ -33,6 +33,28 @@ function regionData() {
   };
 }
 
+/** Revenue and costs by month, for bars and lines. The label and description travel with the data. */
+const REVENUE = {
+  label: 'Revenue and costs by month',
+  description: 'Monthly values in thousands of euros. A semantic table follows for non-visual access.',
+  data: revenueData
+};
+
+/** Orders by region, for pies and doughnuts: one slice per region. */
+const ORDERS = {
+  label: 'Orders by region',
+  description: 'Orders this quarter, one slice per sales region. A semantic table follows for non-visual access.',
+  data: regionData
+};
+
+/** The kinds the built-in adapter example switches between, each with what it shows. */
+const SVG_KINDS = [
+  { type: 'bar', name: 'Bar', shows: REVENUE },
+  { type: 'line', name: 'Line', shows: REVENUE },
+  { type: 'pie', name: 'Pie', shows: ORDERS },
+  { type: 'doughnut', name: 'Doughnut', shows: ORDERS }
+];
+
 /** One series of amounts in euros; the summary table prints each with `summaryFormat`. */
 function quarterlyData() {
   return {
@@ -63,26 +85,21 @@ export default {
       title: 'Built-in SVG adapter',
       blurb: 'SvgChartAdapter needs nothing but Zx: grouped bars, lines, pies and doughnuts, coloured from the theme’s chart palette, with a legend and round ticks. setType() redraws as another kind; pointing at a mark names its value, and pressing one fires select.',
       render: ({ cleanup, log }) => {
-        const kinds = {
-          bar: { label: 'Bar', data: revenueData },
-          line: { label: 'Line', data: revenueData },
-          pie: { label: 'Pie', data: regionData },
-          doughnut: { label: 'Doughnut', data: regionData }
-        };
         const chart = new Chart(null, {
           adapter: new SvgChartAdapter(),
           type: 'bar',
-          label: 'Revenue and costs by month',
-          description: 'Monthly values in thousands of euros. A semantic table follows for non-visual access.',
-          data: revenueData(),
+          label: REVENUE.label,
+          description: REVENUE.description,
+          data: REVENUE.data(),
           onselect: ({ detail }) => log(`select ${detail.label} · ${detail.dataset.label}: ${detail.value}`)
         });
-        const choices = Object.entries(kinds).map(([kind, { label, data }]) => button({
-          label,
+        // A switch of kind is a switch of data too: the name, description and table follow it.
+        const choices = SVG_KINDS.map(({ type, name, shows }) => button({
+          label: name,
           onclick: (event) => {
             for (const choice of choices) choice.setAttribute('aria-pressed', String(choice === event.currentTarget));
-            chart.setType(kind).setData(data());
-            log(`setType('${kind}')`);
+            chart.setType(type).setLabel(shows.label).setDescription(shows.description).setData(shows.data());
+            log(`setType('${type}')`);
           }
         }));
         choices[0].setAttribute('aria-pressed', 'true');

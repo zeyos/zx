@@ -292,26 +292,46 @@ function drawCartesian(plot, model, box, font, type, formats) {
   plot.prepend(grid);
 
   // Category labels: every one where they fit, every second or third where they do not, and
-  // shortened only when a single label is wider than any band could be.
+  // shortened only when a single label is wider than any band could be. How often a label fits
+  // comes from every label's width, measured off-screen once per distinct text; the labels drawn
+  // are then measured as rendered and shortened to their room, so wide glyphs never overlap.
   const xAxis = svgElement(doc, 'g', { class: 'zx-chart__axis', 'data-axis': 'category' });
   plot.append(xAxis);
-  const longest = model.labels.reduce((best, label) => (label.length > best.length ? label : best), '');
-  const probe = svgElement(doc, 'text', { class: 'zx-chart__tick' });
-  probe.textContent = longest;
-  xAxis.append(probe);
-  const widest = textWidth(probe, font);
-  probe.remove();
-  const cap = Math.max(font * 8, band - gap);
-  const step = labelStep(Math.min(widest, cap), band, gap);
-  const room = step * band - gap;
-  const perCharacter = longest.length ? widest / longest.length : font * 0.6;
-  const fits = Math.max(1, Math.floor(room / perCharacter));
   const baseline = round(top + plotHeight + pad + font);
-  model.labels.forEach((text, index) => {
-    if (index % step !== 0) return;
-    const label = svgElement(doc, 'text', { class: 'zx-chart__tick', 'text-anchor': 'middle', x: round(left + band * (index + 0.5)), y: baseline });
-    label.textContent = text.length > fits ? `${text.slice(0, Math.max(1, fits - 1))}…` : text;
-    xAxis.append(label);
+  const estimate = textEstimator(xAxis, font);
+  let widest = 0;
+  for (const text of new Set(model.labels)) widest = Math.max(widest, estimate(text));
+  const cap = Math.max(font * 8, band - gap);
+  const ellipsis = svgElement(doc, 'text', { class: 'zx-chart__tick' });
+  ellipsis.textContent = '…';
+  /** @param {number} every @returns {SVGTextElement[]} The labels drawn, every `every`-th. */
+  const drawLabels = (every) => {
+    const drawn = [];
+    for (let index = 0; index < model.labels.length; index += every) {
+      const label = svgElement(doc, 'text', { class: 'zx-chart__tick', 'text-anchor': 'middle', x: round(left + band * (index + 0.5)), y: baseline });
+      label.textContent = model.labels[index];
+      drawn.push(label);
+    }
+    xAxis.replaceChildren(...drawn, ellipsis);
+    return drawn;
+  };
+  let step = labelStep(Math.min(widest, cap), band, gap);
+  let shown = drawLabels(step);
+  let widths = shown.map((label) => textWidth(label, font));
+  // The off-screen width can fall a little short of the drawn one: thin out once more if it did.
+  const drawnStep = labelStep(Math.min(widths.reduce((most, width) => Math.max(most, width), 0), cap), band, gap);
+  if (drawnStep > step) {
+    step = drawnStep;
+    shown = drawLabels(step);
+    widths = shown.map((label) => textWidth(label, font));
+  }
+  const room = step * band - gap;
+  // Everything is read before anything is written, so the axis is laid out once.
+  const ellipsisWidth = textWidth(ellipsis, font);
+  const shortened = shown.map((label, index) => shortenedText(label, widths[index], room, ellipsisWidth));
+  ellipsis.remove();
+  shown.forEach((label, index) => {
+    if (shortened[index] !== null) label.textContent = shortened[index];
   });
 
   const zero = crisp(y(Math.min(scale.max, Math.max(scale.min, 0))));
@@ -340,15 +360,19 @@ function drawCartesian(plot, model, box, font, type, formats) {
         : /** @type {[number, number]} */ ([left + band * (index + 0.5), y(value)])));
       group.append(svgElement(doc, 'path', { class: 'zx-chart__line', d: linePath(points) }));
       // A point is drawn where there is room, and always where it stands alone: a value between
-      // two gaps has no line to show it.
+      // two gaps has no line to show it. Where the points are too dense to draw, each value keeps
+      // a target that names it and can be pressed, unpainted and no wider than its band.
+      const radius = Math.max(2, font / 4);
       points.forEach((point, index) => {
         if (!point) return;
         const alone = !points[index - 1] && !points[index + 1];
-        if (band < font && !alone) return;
+        const hidden = band < font && !alone;
         const dot = svgElement(doc, 'circle', {
-          class: 'zx-chart__point zx-chart__mark', cx: round(point[0]), cy: round(point[1]), r: round(Math.max(2, font / 4)),
+          class: 'zx-chart__point zx-chart__mark', cx: round(point[0]), cy: round(point[1]),
+          r: round(hidden ? Math.max(0.5, Math.min(radius, band / 2)) : radius),
           'data-dataset': series.index, 'data-index': index
         });
+        if (hidden) dot.setAttribute('data-hit', '');
         titled(dot, `${model.labels[index]} · ${series.name}: ${formats.value(series.values[index])}`);
         group.append(dot);
       });
@@ -386,14 +410,13 @@ function drawArcs(plot, model, box, font, doughnut, formats) {
       group.append(svgElement(doc, 'path', { class: 'zx-chart__track', d: arcPath(cx, cy, outer, inner, 0, Math.PI * 2) }));
       return;
     }
-    const total = slices.reduce((sum, slice) => sum + slice.value, 0);
     for (const slice of slices) {
       const path = svgElement(doc, 'path', {
         class: 'zx-chart__slice zx-chart__mark', d: arcPath(cx, cy, outer, inner, slice.start, slice.end),
         'data-dataset': series.index, 'data-index': slice.index
       });
       paint(path, slice.index);
-      titled(path, `${model.labels[slice.index]} · ${series.name}: ${formats.value(slice.value)} (${formats.percent(slice.value / total)})`);
+      titled(path, `${model.labels[slice.index]} · ${series.name}: ${formats.value(slice.value)} (${formats.percent(slice.share)})`);
       group.append(path);
     }
   });
@@ -447,6 +470,64 @@ function textWidth(text, font) {
   let width = 0;
   try { width = typeof text.getComputedTextLength === 'function' ? text.getComputedTextLength() : 0; } catch { width = 0; }
   return width > 0 ? width : (text.textContent ?? '').length * font * 0.6;
+}
+
+/**
+ * A cheap width for any text in an element's font: measured off-screen on a canvas, without
+ * laying anything out, or estimated from the text size where there is no canvas. Close to what
+ * the SVG draws, not exact (font features apply only there).
+ * @param {Element} element @param {number} font
+ * @returns {(text: string) => number}
+ */
+function textEstimator(element, font) {
+  const doc = element.ownerDocument;
+  const view = doc.defaultView;
+  /** @type {CanvasRenderingContext2D|null} */
+  let context = null;
+  try { context = doc.createElement('canvas').getContext('2d'); } catch { context = null; }
+  if (!context || !view || typeof view.getComputedStyle !== 'function') return (text) => text.length * font * 0.6;
+  const style = view.getComputedStyle(element);
+  context.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+  if (typeof context.letterSpacing === 'string' && style.letterSpacing !== 'normal') context.letterSpacing = style.letterSpacing;
+  const measuring = context;
+  return (text) => measuring.measureText(text).width;
+}
+
+/**
+ * The text a category label is shortened to so that it fits `room`, or null when it fits as it
+ * is: the longest start that leaves space for the ellipsis, measured as rendered where the
+ * browser can say, estimated from the label's own average glyph width where it cannot. It only
+ * reads, so the labels of an axis are measured in one layout.
+ * @param {SVGTextElement} label @param {number} width Its rendered width.
+ * @param {number} room @param {number} ellipsis Width of "…".
+ * @returns {string|null}
+ */
+function shortenedText(label, width, room, ellipsis) {
+  const text = label.textContent ?? '';
+  if (width <= room || text.length < 2) return null;
+  const target = room - ellipsis;
+  /** @param {number} count @returns {number} Width of the first `count` characters, or NaN. */
+  const prefix = (count) => {
+    try { return typeof label.getSubStringLength === 'function' ? label.getSubStringLength(0, count) : NaN; } catch { return NaN; }
+  };
+  let keep;
+  if (prefix(text.length) > 0) {
+    let low = 0;
+    let high = text.length - 1;
+    while (low < high) {
+      const middle = Math.ceil((low + high) / 2);
+      if (prefix(middle) <= target) low = middle;
+      else high = middle - 1;
+    }
+    keep = low;
+  } else {
+    keep = Math.floor(target / (width / text.length));
+  }
+  keep = Math.min(text.length - 1, Math.max(1, keep));
+  // Never between the halves of a surrogate pair.
+  const code = text.charCodeAt(keep - 1);
+  if (code >= 0xd800 && code <= 0xdbff && keep > 1) keep -= 1;
+  return `${text.slice(0, keep).trimEnd() || text.slice(0, keep)}…`;
 }
 
 /**

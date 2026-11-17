@@ -188,8 +188,12 @@
 .zx-chart__slice[data-cycle="2"] { fill-opacity: .55; }
 [data-cycle="2"] > .zx-chart__line { stroke-dasharray: 6 4; }
 
+/* A line too dense for points keeps an unpainted target per value, which names it on hover. */
+.zx-chart__point[data-hit] { fill-opacity: 0; }
+
 @media (hover: hover) {
   .zx-chart__mark:hover { opacity: .8; }
+  .zx-chart__point[data-hit]:hover { fill-opacity: 1; }
 }
 
 /* The first drawing grows in; a redraw never does (the adapter sets data-animate once). */
