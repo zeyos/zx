@@ -117,9 +117,13 @@ function isRecord(value) {
  * @returns {string}
  */
 export function errorMessage(error) {
-  if (error instanceof Error && error.message) return error.message;
-  if (error && typeof error === 'object' && typeof error.message === 'string') return error.message;
-  return String(error ?? 'ZeyOS request failed');
+  // An object's text is its `message`, never its `[object Object]` string form.
+  const message = error && typeof error === 'object'
+    ? /** @type {{message?: unknown}} */ (error).message
+    : error;
+  const text = message == null ? '' : String(message);
+  // A blank message reads as an empty toast; the generic sentence at least says what failed.
+  return text.trim() ? text : 'ZeyOS request failed';
 }
 
 /** @param {string} value @returns {string} */

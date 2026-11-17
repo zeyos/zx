@@ -37,7 +37,7 @@ import { clamp } from '../../core/util.js';
  * @returns {HTMLSpanElement}
  */
 export function skeleton(opts = {}) {
-  const options = { width: '100%', height: '1rem', radius: 'sm', ...opts };
+  const options = { width: '100%', height: '1rem', radius: 'sm', ...given(opts) };
   return /** @type {HTMLSpanElement} */ (h('span', {
     class: 'zx-skeleton',
     ariaHidden: 'true',
@@ -52,7 +52,7 @@ export function skeleton(opts = {}) {
  * @returns {HTMLDivElement}
  */
 export function skeletonText(opts = {}) {
-  const options = { lines: 3, width: '100%', heading: false, lastLineWidth: '60%', ...opts };
+  const options = { lines: 3, width: '100%', heading: false, lastLineWidth: '60%', ...given(opts) };
   const lines = clamp(Math.trunc(Number(options.lines) || 0), 1, 20);
   const element = /** @type {HTMLDivElement} */ (h('div', {
     class: 'zx-skeleton-text',
@@ -81,7 +81,7 @@ export function skeletonText(opts = {}) {
  * @returns {HTMLDivElement}
  */
 export function skeletonTable(opts = {}) {
-  const options = { rows: 5, columns: 4, header: true, ...opts };
+  const options = { rows: 5, columns: 4, header: true, ...given(opts) };
   const rows = clamp(Math.trunc(Number(options.rows) || 0), 1, 50);
   const columns = clamp(Math.trunc(Number(options.columns) || 0), 1, 20);
   const element = /** @type {HTMLDivElement} */ (h('div', {
@@ -127,6 +127,19 @@ function row(columns, kind) {
 function cellWidth(index, columns) {
   if (index === columns - 1) return '55%';
   return index % 2 === 0 ? '80%' : '65%';
+}
+
+/**
+ * The options actually passed: one passed as `undefined` is an option not passed, so its default
+ * applies — the way component options and destructuring defaults read it. `null` is still a value.
+ * @template {object} T
+ * @param {T|null|undefined} opts Options as passed.
+ * @returns {Partial<T>}
+ */
+function given(opts) {
+  return /** @type {Partial<T>} */ (Object.fromEntries(
+    Object.entries(opts ?? {}).filter(([, value]) => value !== undefined)
+  ));
 }
 
 /**

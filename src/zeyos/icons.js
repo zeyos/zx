@@ -24,7 +24,10 @@ export const ZEYOS_ICON_KIT = 'https://kit.fontawesome.com/ae8320b210.js';
  * @returns {Promise<object>} Resolves with the icon configuration once the kit has loaded.
  */
 export function useZeyosIcons(options = {}) {
-  return loadFontAwesome({ kit: ZEYOS_ICON_KIT, ...options });
+  // A kit passed as `undefined` is a kit not passed, so a wrapper forwarding an unset setting
+  // still loads the ZeyOS kit.
+  const { kit = ZEYOS_ICON_KIT, ...rest } = options ?? {};
+  return loadFontAwesome({ ...rest, kit });
 }
 
 /**
@@ -113,5 +116,7 @@ export function moduleChip(name, options = {}) {
  * @returns {HTMLElement}
  */
 export function zeyosAppIcon(name, options = {}) {
-  return moduleChip(name, { shape: 'circle', ...options });
+  // An unset shape — absent or passed as undefined — is the AppIcon's circle.
+  const { shape = 'circle', ...rest } = options ?? {};
+  return moduleChip(name, { ...rest, shape });
 }

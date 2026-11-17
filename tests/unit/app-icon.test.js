@@ -63,7 +63,7 @@ test('AppIcon does not pass an absent badge to native replaceChildren', () => {
 test('ZeyOS AppIcon and compact module chips keep separate shape defaults', () => {
   const source = readFileSync(fileURLToPath(new URL(
     '../../src/zeyos/icons.js', import.meta.url)), 'utf8');
-  assert.match(source, /moduleChip\(name, \{ shape: 'circle', \.\.\.options \}\)/);
+  assert.match(source, /const \{ shape = 'circle', \.\.\.rest \} = options \?\? \{\};/);
   assert.match(source, /shape: options\.shape \?\? 'tile'/);
 });
 
