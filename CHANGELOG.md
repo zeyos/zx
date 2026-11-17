@@ -8,13 +8,14 @@ and friends remain the complete record.
 
 ## Unreleased
 
+## 5.8.0 — 2026-11-17
+
 Pinned columns and header groups in Table, placements, stacks and highlights for messages, a Chart
 that mounts when it can be measured and follows the theme, a built-in SVG chart renderer that
 agent surfaces draw with by default, overlays and windowed tables that run in a DOM without a top
 layer, a package entry a bundler can prune, a guide to using the class API from a framework, and
-the fixes of a library-wide review: focus traps, nested overlays, field labels, pickers, custom
-elements, the ZeyOS binding's request races, and type declarations that check in a consumer's
-project.
+a broad round of fixes: focus traps, nested overlays, field labels, pickers, custom elements, the
+ZeyOS binding's request races, and type declarations that check in a consumer's project.
 
 ### Added
 
