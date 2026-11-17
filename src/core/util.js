@@ -91,7 +91,9 @@ export function uid(prefix = 'zx') {
 
 /**
  * Recursively merges plain objects without mutating either input.
- * Arrays and other values are replaced rather than merged.
+ * Arrays and other values are replaced rather than merged. Only own enumerable keys are copied,
+ * each as an own data property, so a `__proto__` key from parsed JSON stays an ordinary key and
+ * never changes the result's prototype.
  * @template T
  * @template U
  * @param {T} a Base value.
@@ -103,10 +105,11 @@ export function deepMerge(a, b) {
   if (!isPlainObject(b)) return /** @type {T & U} */ (cloneValue(b));
 
   for (const [key, value] of Object.entries(b)) {
-    if (isPlainObject(value) && isPlainObject(result[key])) {
-      result[key] = deepMerge(result[key], value);
+    const current = Object.hasOwn(result, key) ? result[key] : undefined;
+    if (isPlainObject(value) && isPlainObject(current)) {
+      defineOwn(result, key, deepMerge(current, value));
     } else {
-      result[key] = cloneValue(value);
+      defineOwn(result, key, cloneValue(value));
     }
   }
   return /** @type {T & U} */ (result);
@@ -344,8 +347,16 @@ function isPlainObject(value) {
 /** @param {Record<string, any>} value @returns {Record<string, any>} */
 function clonePlainObject(value) {
   const result = {};
-  for (const [key, item] of Object.entries(value)) result[key] = cloneValue(item);
+  for (const [key, item] of Object.entries(value)) defineOwn(result, key, cloneValue(item));
   return result;
+}
+
+/**
+ * Sets an own, enumerable data property. Plain assignment would run the `__proto__` setter.
+ * @param {Record<string, any>} target @param {string} key @param {unknown} value @returns {void}
+ */
+function defineOwn(target, key, value) {
+  Object.defineProperty(target, key, { value, enumerable: true, writable: true, configurable: true });
 }
 
 /** @param {any} value @returns {any} */

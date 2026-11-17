@@ -37,7 +37,6 @@ export function position(anchor, floating, options = {}) {
   const offset = Number(options.offset ?? 4);
   const flip = options.flip ?? true;
   const matchWidth = options.matchWidth ?? false;
-  const anchorStyle = anchor.getAttribute('style');
   const floatingStyle = floating.getAttribute('style');
   const popover = floating.getAttribute('popover');
   let destroyed = false;
@@ -113,7 +112,8 @@ export function position(anchor, floating, options = {}) {
         const rest = anchorNames(anchor).filter((name) => name !== anchorName);
         if (rest.length) /** @type {HTMLElement} */ (anchor).style.setProperty('anchor-name', rest.join(', '));
         else /** @type {HTMLElement} */ (anchor).style.removeProperty('anchor-name');
-        if (!anchorStyle && anchor.getAttribute('style') === '') anchor.removeAttribute('style');
+        // Whichever controller leaves last, an attribute emptied by our names goes with them.
+        if (anchor.getAttribute('style') === '') anchor.removeAttribute('style');
       }
       restoreInlineStyle(floating, floatingStyle);
       restoreAttribute(floating, 'popover', popover);

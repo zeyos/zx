@@ -27,8 +27,7 @@ import { INVALID_ATTRIBUTE, coerceAttribute, serializeAttribute } from './reflec
  * @property {string[]|null} [events=null] The component's events. Declared, each also reaches the
  * host under its plain name, and no DOM event of that name passes through from inside the
  * component. Left out, the common `zx-*` set is bridged.
- * @property {ElementMethodMap|null} [methods=null] Component methods the element forwards. Declared,
- * the element also carries its live values across a rebuild and across removal.
+ * @property {ElementMethodMap|null} [methods=null] Component methods the element forwards.
  */
 
 /*
@@ -89,7 +88,7 @@ const CHECKLIST_ATTRS = /* @__PURE__ */ (() => attributes({
   search: bool({ rebuild: true }),
   height: number({ default: 280, rebuild: true }),
   'default-checked': bool({ property: 'defaultChecked', default: false, rebuild: true }),
-  disabled: bool({ option: null, always: true, set: setChecklistDisabled }),
+  disabled: bool({ option: null, always: true, set: setDisabled }),
   name: text({ option: null, default: '' })
 }))();
 
@@ -174,6 +173,10 @@ const ELEMENTS = /* @__PURE__ */ (() => Object.freeze([
  * Groupbox and Dialog wrappers adopt their host's initial children as component content;
  * other wrappers leave unrelated host children untouched and append their component root.
  *
+ * Every wrapper carries its component's live values — what the user selected, typed, checked, or
+ * opened — across a rebuild (an attribute that needs a new component changed) and across removal
+ * and reinsertion, so moving the element keeps its state.
+ *
  * A wrapper that declares `methods` forwards them: `element.upsert(item)` calls the component, and
  * a call made while no component exists is queued and runs, in order, once it does. A forwarded
  * call returns the component's answer, with the component itself replaced by the element; a
@@ -220,8 +223,10 @@ export function elementFor(ComponentClass, {
       if (this._component) return;
       this._upgradeProperties(definitions);
       if (contentElement && this._contentNodes === null) this._contentNodes = Array.from(this.childNodes);
-      if (formAssociated && this._defaults === null) this._captureDefaults(definitions);
+      const capture = formAssociated && this._defaults === null;
+      const explicit = capture && this._captureDefaults(definitions);
       this._createComponent(ComponentClass, definitions, contentElement);
+      if (capture && !explicit) this._captureInitialValue(definitions);
       this._calls.drain((name, args) => this._invoke(name, args), () => this._component !== null);
     }
 
@@ -332,14 +337,37 @@ export function elementFor(ComponentClass, {
       }
     }
 
-    /** @param {Record<string, ElementAttribute>} defs @returns {void} */
+    /**
+     * Records the value a form reset returns to, when the element was given one explicitly — as an
+     * attribute or a property set before connection.
+     * @param {Record<string, ElementAttribute>} defs
+     * @returns {boolean} Whether an explicit value was recorded.
+     */
     _captureDefaults(defs) {
       this._defaults = new Map();
+      const entry = this._controlDefinition(defs);
+      if (!entry) return false;
+      const explicit = this._propertyValues.has(entry.property)
+        || (entry.observed && this.hasAttribute(entry.attribute));
+      if (explicit) this._defaults.set(entry.property, cloneDefault(this._readProperty(entry)));
+      return explicit;
+    }
+
+    /**
+     * Records the value the new component started with as the reset value, for an element given no
+     * explicit one: a checklist whose items arrive checked through `checkedKey` resets to them.
+     * @param {Record<string, ElementAttribute>} defs
+     * @returns {void}
+     */
+    _captureInitialValue(defs) {
+      const entry = this._controlDefinition(defs);
+      if (entry && this._defaults) this._defaults.set(entry.property, cloneDefault(this._readProperty(entry)));
+    }
+
+    /** @param {Record<string, ElementAttribute>} defs @returns {ElementAttribute|undefined} The form value's definition. */
+    _controlDefinition(defs) {
       const property = formControlProperty(ComponentClass);
-      if (property) {
-        const entry = Object.values(defs).find((definition) => definition.property === property);
-        if (entry) this._defaults.set(property, cloneDefault(this._readProperty(entry)));
-      }
+      return property ? Object.values(defs).find((definition) => definition.property === property) : undefined;
     }
 
     /**
@@ -469,12 +497,12 @@ export function elementFor(ComponentClass, {
 
     /**
      * Copies the component's live values to the host, so the next component starts where this one
-     * stopped. Only an element that forwards methods can drift from what it was given.
+     * stopped. Any wrapper can drift from what it was given: the user changes a select, a toggle,
+     * or a date, and a forwarded method changes its component directly.
      * @param {ElementAttribute|null} changed The definition being replaced, which keeps its new value.
      * @returns {void}
      */
     _keepLiveValues(changed) {
-      if (!methods) return;
       for (const definition of Object.values(definitions)) {
         if (!definition.get || definition === changed) continue;
         this._propertyValues.set(definition.property, definition.get(this._component, this));
@@ -524,9 +552,14 @@ export function elementFor(ComponentClass, {
         this._syncFormState(ComponentClass);
         return;
       }
+      const normalized = normalizeValue(definition, value, this);
+      // The control's own `disabled` combines with a disabled fieldset or form around it: removing
+      // the attribute inside a disabled fieldset leaves the control disabled.
+      const applied = name === 'disabled' && definition === definitions.disabled
+        ? Boolean(normalized) || this._disabledByForm : normalized;
       this._applying = true;
       try {
-        definition.set(this._component, normalizeValue(definition, value, this), this);
+        definition.set(this._component, applied, this);
       } finally {
         this._applying = false;
       }
@@ -667,13 +700,6 @@ function normalizeValue(definition, value, host) {
 function setDisabled(component, disabled) {
   if (disabled) component.disable();
   else component.enable();
-}
-
-/** @param {any} component @param {boolean} disabled @returns {void} */
-function setChecklistDisabled(component, disabled) {
-  component.el.setAttribute('aria-disabled', String(disabled));
-  if (component.refs.search) component.refs.search.disabled = disabled;
-  for (const input of component.refs.list?.querySelectorAll('input') ?? []) input.disabled = disabled;
 }
 
 /** @param {unknown} value @returns {unknown} */

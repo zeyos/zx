@@ -91,3 +91,31 @@ test('success and request-construction errors remove caller abort listeners', as
     assert.equal(handlers.size, 0);
   }
 });
+
+test('query parameters go before a fragment and join an existing query', async () => {
+  const urls = [];
+  globalThis.fetch = async (url) => { urls.push(url); return new Response('{}'); };
+  const http = new Http({ timeout: 0 });
+  await http.get('/api#section', { q: 'x' });
+  await http.get('/api?page=2#section', { q: 'x' });
+  await http.get('/api?page=2', { q: 'x' });
+  await http.get('/api#a?b', 'q=x');
+  assert.deepEqual(urls, ['/api?q=x#section', '/api?page=2&q=x#section', '/api?page=2&q=x', '/api?q=x#a?b']);
+});
+
+test('a failed response with a non-JSON body reports the HTTP error, not a parse error', async () => {
+  globalThis.fetch = async () => new Response('<html><body>Bad Gateway</body></html>', {
+    status: 502, statusText: 'Bad Gateway', headers: { 'Content-Type': 'text/html' }
+  });
+  await assert.rejects(new Http({ timeout: 0 }).get('/api'), (error) => {
+    assert.equal(error.message, 'HTTP 502 Bad Gateway');
+    assert.equal(error.response.status, 502);
+    return true;
+  });
+
+  // A JSON error body still carries its own message, and a successful non-JSON body is still invalid.
+  globalThis.fetch = async () => new Response('{"error":"Record locked"}', { status: 409 });
+  await assert.rejects(new Http({ timeout: 0 }).get('/api'), { message: 'Record locked' });
+  globalThis.fetch = async () => new Response('<html></html>', { status: 200 });
+  await assert.rejects(new Http({ timeout: 0 }).get('/api'), { message: 'Invalid JSON response' });
+});

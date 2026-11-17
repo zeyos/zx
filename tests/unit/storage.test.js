@@ -347,3 +347,61 @@ test('an externally removed cached value does not return after fallback', () => 
     });
   }
 });
+
+test('a value that could not be persisted is still there for the next view of the namespace', () => {
+  for (const area of [undefined, THROWING_AREA]) {
+    withArea('localStorage', area, () => {
+      const namespace = `shared-${area ? 'throwing' : 'missing'}`;
+      storage(namespace).set('size', 240);
+      // A component re-created on the same page asks for a fresh view of the same namespace.
+      assert.equal(storage(namespace).get('size'), 240);
+      assert.deepEqual(storage(namespace).keys(), ['size']);
+      assert.equal(storage(namespace, { area: 'session' }).get('size'), undefined, 'areas stay apart');
+      assert.equal(storage(`${namespace}-other`).get('size'), undefined, 'namespaces stay apart');
+      storage(namespace).clear();
+      assert.equal(storage(namespace).get('size'), undefined);
+    });
+  }
+
+  const full = new FakeStorage();
+  full.setItem = () => { throw new Error('QuotaExceededError'); };
+  withArea('localStorage', full, () => {
+    storage('split').set('size', 300);
+    assert.equal(storage('split').get('size'), 300);
+  });
+});
+
+test('a refused write leaves every other key readable from the real area', () => {
+  const area = new FakeStorage();
+  withArea('localStorage', area, () => {
+    area.setItem('zx2:3:app:unseen', '"persisted"');
+    const store = storage('app');
+    store.set('kept', 'written');
+    const write = area.setItem.bind(area);
+    area.setItem = () => { throw new Error('QuotaExceededError'); };
+    store.set('refused', 'memory');
+
+    // Keys this view never read before the failure, and changes made by another tab afterwards.
+    assert.equal(store.get('unseen'), 'persisted');
+    area.map.set('zx2:3:app:kept', '"changed elsewhere"');
+    assert.equal(store.get('kept'), 'changed elsewhere');
+    assert.equal(store.get('refused'), 'memory');
+    assert.deepEqual(store.keys().sort(), ['kept', 'refused', 'unseen']);
+
+    // Once there is room again, the next write persists and replaces the value held in memory.
+    area.setItem = write;
+    store.set('refused', 'persisted now');
+    assert.equal(area.getItem('zx2:3:app:refused'), '"persisted now"');
+    area.map.set('zx2:3:app:refused', '"newer"');
+    assert.equal(store.get('refused'), 'newer');
+  });
+
+  // An area whose quota is already full when the view is created still reads what it holds.
+  const full = new FakeStorage();
+  full.setItem('zx2:3:app:saved', '42');
+  full.setItem = () => { throw new Error('QuotaExceededError'); };
+  withArea('localStorage', full, () => {
+    assert.equal(storage('app').get('saved'), 42);
+    assert.deepEqual(storage('app').keys(), ['saved']);
+  });
+});

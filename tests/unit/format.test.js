@@ -166,6 +166,12 @@ test('formatRelativeTime numeric: always suppresses the idiomatic phrasing', () 
   assert.equal(formatRelativeTime(at(DAY), options), 'in 1 day');
 });
 
+test('formatRelativeTime reads a numeric now as Unix seconds, as documented', () => {
+  const nowSeconds = NOW.getTime() / 1000;
+  assert.equal(formatRelativeTime(at(-DAY), { now: nowSeconds, locale: EN }), 'yesterday');
+  assert.equal(formatRelativeTime(at(-DAY), { now: String(nowSeconds), locale: EN }), 'yesterday');
+});
+
 test('formatRelativeTime accepts Date, Unix seconds, and ISO string inputs', () => {
   const yesterday = at(-DAY);
   const options = { now: NOW, locale: EN };

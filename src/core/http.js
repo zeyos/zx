@@ -79,27 +79,35 @@ export class Http {
       const text = await response.text();
       controller.signal.throwIfAborted();
       let json = null;
+      let parseError = null;
       if (text !== '') {
         try {
           json = JSON.parse(text);
         } catch (cause) {
-          const error = /** @type {Error & {response?: Response}} */ (
-            new Error('Invalid JSON response', { cause })
-          );
-          error.response = response;
-          throw error;
+          parseError = cause;
         }
       }
 
       if (!response.ok) {
-        try {
-          parseResult(json);
-        } catch (error) {
-          /** @type {Error & {response?: Response}} */ (error).response = response;
-          throw error;
+        // A failed response is reported as the HTTP error it is: a gateway's HTML error page is
+        // not an invalid JSON response. Only a JSON body can carry a more specific legacy error.
+        if (parseError === null) {
+          try {
+            parseResult(json);
+          } catch (error) {
+            /** @type {Error & {response?: Response}} */ (error).response = response;
+            throw error;
+          }
         }
         const error = /** @type {Error & {response?: Response}} */ (
           new Error(`HTTP ${response.status} ${response.statusText}`.trim())
+        );
+        error.response = response;
+        throw error;
+      }
+      if (parseError !== null) {
+        const error = /** @type {Error & {response?: Response}} */ (
+          new Error('Invalid JSON response', { cause: parseError })
         );
         error.response = response;
         throw error;
@@ -209,7 +217,11 @@ function appendQuery(url, query) {
     encoded = parameters.toString();
   }
   if (!encoded) return url;
-  return url + (url.includes('?') ? '&' : '?') + encoded;
+  // Parameters belong to the query, which ends where a fragment begins.
+  const hash = url.indexOf('#');
+  const target = hash < 0 ? url : url.slice(0, hash);
+  const fragment = hash < 0 ? '' : url.slice(hash);
+  return target + (target.includes('?') ? '&' : '?') + encoded + fragment;
 }
 
 /** @param {URLSearchParams} parameters @param {string} key @param {unknown} value @returns {void} */

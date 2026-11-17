@@ -31,6 +31,43 @@ test('parseDate rejects mismatches and calendar overflow', () => {
   assert.equal(parseDate('2026/07/19', '%Y-%m-%d'), null);
 });
 
+test('parseDate accepts a time the clock skips at a daylight-saving change and moves it forward', (t) => {
+  // Run in a child process pinned to a zone with a known spring-forward gap, whatever zone the
+  // machine running the suite is in.
+  const module = JSON.stringify(new URL('../../src/core/date.js', import.meta.url).href);
+  const script = `
+    import { formatDate, parseDate } from ${module};
+    const show = (text, format) => {
+      const parsed = parseDate(text, format);
+      return parsed === null ? null : formatDate(parsed, '%Y-%m-%d %H:%M:%S');
+    };
+    console.log(JSON.stringify({
+      offset: [new Date(2024, 0, 15).getTimezoneOffset(), new Date(2024, 6, 15).getTimezoneOffset()],
+      gap: show('2024-03-31 02:30', '%Y-%m-%d %H:%M'),
+      gapSeconds: show('31.03.2024 02:00:15', '%d.%m.%Y %H:%M:%S'),
+      ordinary: show('2024-03-31 03:30', '%Y-%m-%d %H:%M'),
+      hour: show('2024-03-31 24:00', '%Y-%m-%d %H:%M'),
+      minute: show('2024-03-31 02:60', '%Y-%m-%d %H:%M'),
+      second: show('2024-03-31 01:00:60', '%Y-%m-%d %H:%M:%S')
+    }));
+  `;
+  const { stdout, status } = spawnSync(process.execPath, ['--input-type=module', '--eval', script], {
+    env: { ...process.env, TZ: 'Europe/Berlin' }, encoding: 'utf8'
+  });
+  assert.equal(status, 0);
+  const result = JSON.parse(stdout);
+  if (result.offset[0] !== -60 || result.offset[1] !== -120) t.skip('this runtime has no Europe/Berlin zone data');
+  assert.deepEqual(result, {
+    offset: [-60, -120],
+    gap: '2024-03-31 03:30:00',
+    gapSeconds: '2024-03-31 03:00:15',
+    ordinary: '2024-03-31 03:30:00',
+    hour: null,
+    minute: null,
+    second: null
+  });
+});
+
 test('date arithmetic does not mutate inputs and clamps month ends', () => {
   const januaryEnd = new Date(2024, 0, 31, 12, 30);
   const februaryEnd = addMonths(januaryEnd, 1);

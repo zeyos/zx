@@ -6,7 +6,7 @@ const FOCUSABLE_SELECTOR = [
 ].join(',');
 
 /** Attributes that change whether a roving item is available; nothing else is observed. */
-const AVAILABILITY_ATTRIBUTES = ['hidden', 'disabled', 'aria-disabled', 'aria-hidden'];
+const AVAILABILITY_ATTRIBUTES = ['hidden', 'inert', 'disabled', 'aria-disabled', 'aria-hidden'];
 /** `<input>` types without a caret, which a roving group may move focus away from freely. */
 const CARETLESS_INPUT_TYPES = new Set(['button', 'checkbox', 'color', 'file', 'image', 'reset', 'submit']);
 
@@ -54,6 +54,10 @@ export function focusTrap(container) {
   /** @returns {void} */
   function onKeydown(event) {
     if (event.key !== 'Tab') return;
+    const active = document.activeElement;
+    // A modal dialog opened from inside the container but hosted elsewhere owns Tab: the container
+    // is inert behind it, so pulling focus back would leave the reader stranded.
+    if (inForeignModal(container, active)) return;
     const items = focusableItems(container);
     if (items.length === 0) {
       event.preventDefault();
@@ -62,10 +66,13 @@ export function focusTrap(container) {
     }
     const first = items[0];
     const last = items[items.length - 1];
-    if (event.shiftKey && (document.activeElement === first || !container.contains(document.activeElement))) {
+    const inside = active !== null && container.contains(active);
+    // Positions are compared in document order, so focus on the container itself, or on an element
+    // outside the tab order (`tabindex="-1"`) before the first or after the last stop, wraps too.
+    if (event.shiftKey && (!inside || active === first || precedes(active, first))) {
       event.preventDefault();
       last.focus();
-    } else if (!event.shiftKey && (document.activeElement === last || !container.contains(document.activeElement))) {
+    } else if (!event.shiftKey && (!inside || active === last || precedes(last, active))) {
       event.preventDefault();
       first.focus();
     }
@@ -105,10 +112,14 @@ export function focusTrap(container) {
  * the neighbouring item, so a reader is never trapped in it. Under `dir="rtl"` the horizontal
  * arrows follow the visual order.
  *
+ * An item is skipped while it is hidden, disabled, or `aria-hidden`, while an element between it
+ * and the container is `hidden` or `inert`, and — once the container is rendered — while it is not
+ * rendered itself. A group built detached or hidden still initializes from its attributes alone.
+ *
  * The group re-reads its items when children are added or removed and when an availability
- * attribute (`hidden`, `disabled`, `aria-disabled`, `aria-hidden`) changes on an item or on an
- * element inside the container that holds items — a `<fieldset disabled>` toggled around them; its
- * own `tabindex` writes and unrelated attribute churn are not observed.
+ * attribute (`hidden`, `inert`, `disabled`, `aria-disabled`, `aria-hidden`) changes on an item or
+ * on an element inside the container that holds items — a `<fieldset disabled>` toggled around
+ * them; its own `tabindex` writes and unrelated attribute churn are not observed.
  * @param {Element} container Event and query container.
  * @param {string} itemSelector Selector for roving items.
  * @param {RovingOptions} [options={}] Behavior options.
@@ -156,10 +167,11 @@ export function rovingTabindex(container, itemSelector, { orientation = 'vertica
     const current = /** @type {HTMLElement[]} */ (Array.from(container.querySelectorAll(itemSelector)));
     const present = new Set(current);
     for (const item of originals.keys()) if (!present.has(item)) release(item);
+    const rendered = isRendered(container);
     return current
       .filter((item) => {
         remember(item);
-        return isAvailable(item);
+        return isRovingAvailable(item, container, rendered);
       });
   }
 
@@ -478,10 +490,63 @@ function isRightToLeft(container, rtl) {
   }
 }
 
-/** @param {Element} container @returns {HTMLElement[]} */
+/**
+ * The Tab stops inside a container, in document order. A control taken out of the tab order with a
+ * negative `tabindex` — every item but one of a roving toolbar or tab list — is no stop, and so can
+ * never be the first or last one a focus trap wraps around.
+ * @param {Element} container @returns {HTMLElement[]}
+ */
 function focusableItems(container) {
   return /** @type {HTMLElement[]} */ (Array.from(container.querySelectorAll(FOCUSABLE_SELECTOR)))
-    .filter((item) => isAvailable(item) && item.getClientRects().length > 0);
+    .filter((item) => isAvailable(item) && !(Number.parseInt(item.getAttribute('tabindex') ?? '', 10) < 0)
+      && !item.closest('[inert]') && item.getClientRects().length > 0);
+}
+
+/**
+ * Whether `a` comes before `b` in document order; an ancestor comes before its descendants.
+ * @param {Node} a @param {Node} b @returns {boolean}
+ */
+function precedes(a, b) {
+  return a !== b && Boolean(b.compareDocumentPosition(a) & Node.DOCUMENT_POSITION_PRECEDING);
+}
+
+/**
+ * Whether focus sits in a modal dialog the container is not part of.
+ * @param {Element} container Trap container.
+ * @param {Element|null} active Focused element.
+ * @returns {boolean}
+ */
+function inForeignModal(container, active) {
+  if (!active || typeof active.closest !== 'function' || container.contains(active)) return false;
+  let dialog;
+  try {
+    dialog = active.closest('dialog:modal');
+  } catch {
+    // Without `:modal`, an open dialog is known by its attribute.
+    dialog = active.closest('dialog[open]');
+  }
+  return dialog !== null && !dialog.contains(container);
+}
+
+/**
+ * Whether a roving item can take focus now.
+ * @param {HTMLElement} item Candidate item.
+ * @param {Element} container Group container.
+ * @param {boolean} rendered Whether the container is rendered, so the item's own rendering counts.
+ * @returns {boolean}
+ */
+function isRovingAvailable(item, container, rendered) {
+  if (!isAvailable(item)) return false;
+  // Only holders inside the group count: a hidden or inert group as a whole still initializes.
+  const holder = item.closest('[hidden], [inert]');
+  if (holder && holder !== container && container.contains(holder)) return false;
+  return !rendered || item.getClientRects().length > 0;
+}
+
+/** @param {Element} container @returns {boolean} Whether the container is connected and laid out. */
+function isRendered(container) {
+  return container.isConnected && typeof container.getClientRects === 'function'
+    && container.getClientRects().length > 0;
 }
 
 /** @param {Element} item @returns {item is HTMLElement} */

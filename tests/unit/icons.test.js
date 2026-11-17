@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
 import {
-  faIconClasses, faNames, faStyles, kitUrl, parseIconSpec
+  faIconClasses, faNames, faStyles, kitUrl, loadFontAwesomeKit, parseIconSpec
 } from '../../src/core/fontawesome.js';
 import {
   ICON_SIZE, configureIcons, icon, iconAliases, iconNames, icons, registerIcons, useBuiltinIcons,
@@ -75,6 +75,31 @@ test('every built-in glyph resolves to a Font Awesome name', () => {
   }
   for (const source of Object.keys(faNames)) {
     assert.ok(Object.hasOwn(icons, source), `${source} maps a glyph that no longer exists`);
+  }
+});
+
+test('a kit script the page already loaded is adopted without waiting for a load event', async () => {
+  const listeners = [];
+  const script = {
+    src: 'https://assets.example/vendor/fontawesome/kit.js',
+    addEventListener: (type) => listeners.push(type)
+  };
+  const previous = globalThis.document;
+  globalThis.document = /** @type {any} */ ({
+    baseURI: 'https://assets.example/app/', scripts: [script], readyState: 'complete',
+    createElement: () => { throw new Error('the existing script must be adopted, not duplicated'); }
+  });
+  try {
+    // Self-hosted, so no FontAwesomeKitConfig global: only the finished document says it has run.
+    const settled = await Promise.race([
+      loadFontAwesomeKit('/vendor/fontawesome/kit.js').then(() => 'resolved'),
+      new Promise((done) => setTimeout(() => done('pending'), 50))
+    ]);
+    assert.equal(settled, 'resolved');
+    assert.deepEqual(listeners, []);
+  } finally {
+    if (previous === undefined) delete globalThis.document;
+    else globalThis.document = previous;
   }
 });
 

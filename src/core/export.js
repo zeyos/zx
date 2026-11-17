@@ -18,8 +18,8 @@
  * @property {string} [type='text/plain;charset=utf-8'] MIME type of the generated blob.
  */
 
-/** Characters that make a spreadsheet treat a text cell as a formula. */
-const FORMULA_STARTERS = ['=', '+', '-', '@'];
+/** Leading characters that can make a spreadsheet treat a text cell as a formula (OWASP list). */
+const FORMULA_STARTERS = ['=', '+', '-', '@', '\t', '\r'];
 /** Object URLs are revoked late so the browser has started the download before they disappear. */
 const REVOKE_DELAY = 1000;
 
@@ -28,8 +28,8 @@ const REVOKE_DELAY = 1000;
  *
  * Fields containing the delimiter, a double quote, CR, or LF are quoted with inner quotes doubled.
  * Dates become ISO strings, null and undefined become empty fields, and text that starts with
- * `=`, `+`, `-`, or `@` is prefixed with a tab so spreadsheets treat it as text rather than a
- * formula. Numbers are never prefixed, so negative amounts survive intact.
+ * `=`, `+`, `-`, `@`, a tab, or a carriage return is prefixed with a tab so spreadsheets treat it
+ * as text rather than a formula. Numbers are never prefixed, so negative amounts survive intact.
  *
  * @param {Iterable<any>|null|undefined} rows Row objects.
  * @param {Array<string|CsvColumn>} columns Column ids, or descriptors with a label and accessor.

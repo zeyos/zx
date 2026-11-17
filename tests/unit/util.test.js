@@ -17,6 +17,23 @@ test('deepMerge recursively merges plain objects without mutating inputs', () =>
   assert.notEqual(result.list, override.list);
 });
 
+test('deepMerge keeps a parsed __proto__ key as data and never changes a prototype', () => {
+  const hostile = JSON.parse('{"__proto__":{"isAdmin":true},"nested":{"__proto__":{"polluted":true}}}');
+  const merged = deepMerge({}, hostile);
+  assert.equal(Object.getPrototypeOf(merged), Object.prototype);
+  assert.equal(merged.isAdmin, undefined);
+  assert.equal(merged.nested.polluted, undefined);
+  assert.deepEqual(Object.getOwnPropertyDescriptor(merged, '__proto__').value, { isAdmin: true });
+  assert.equal({}.isAdmin, undefined, 'Object.prototype is untouched');
+
+  // The same key in the base is cloned as data too, and merged with the override's.
+  const base = JSON.parse('{"__proto__":{"a":1}}');
+  const both = deepMerge(base, JSON.parse('{"__proto__":{"b":2}}'));
+  assert.equal(Object.getPrototypeOf(both), Object.prototype);
+  assert.deepEqual(Object.getOwnPropertyDescriptor(both, '__proto__').value, { a: 1, b: 2 });
+  assert.equal(deepMerge(hostile, null), null);
+});
+
 test('uid returns unique identifiers with the requested prefix', () => {
   const generated = new Set(Array.from({ length: 250 }, () => uid('test')));
   assert.equal(generated.size, 250);

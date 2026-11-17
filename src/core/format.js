@@ -31,7 +31,9 @@ import { formattingLocale } from './i18n.js';
 
 /**
  * @typedef {Object} RelativeTimeFormatOptions
- * @property {Date|number|string} [now=new Date()] Reference point the date is measured against.
+ * @property {Date|number|string} [now=new Date()] Reference point the date is measured against: a
+ *   Date, a Unix timestamp in seconds (not milliseconds — wrap `Date.now()` in a Date), or a date
+ *   string, read the same way as the date itself.
  * @property {string} [locale=getLanguage()] BCP 47 language tag.
  * @property {'auto'|'always'} [numeric='auto'] `auto` produces "yesterday", `always` "1 day ago".
  */

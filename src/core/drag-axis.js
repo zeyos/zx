@@ -13,11 +13,13 @@ export const STEP_LARGE = 64;
  *   drag begins. Return `false` to refuse it — the usual reason being that there is nothing to
  *   resize on either side of the handle.
  * @property {(delta: number) => void} onMove Called at most once per frame with the signed pixel
- *   distance travelled along the axis since pointer-down.
+ *   distance travelled along the axis since pointer-down. A horizontal distance is logical: positive
+ *   towards the inline end, which is leftwards when the handle's computed `direction` is `rtl`.
  * @property {(delta: number, moved: boolean) => void} [onEnd] Called once the pointer is released.
  *   `moved` is false for a press that never travelled, which is a click rather than a drag.
  * @property {(direction: -1|1, large: boolean) => void} [onStep] Called for an arrow key along the
- *   axis. `large` is true while Shift is held.
+ *   axis. `large` is true while Shift is held. `1` is ArrowDown, or towards the inline end:
+ *   ArrowRight, and ArrowLeft under `rtl`, so the handle moves the way the arrow points.
  * @property {(edge: 'min'|'max') => void} [onJump] Called for Home and End.
  * @property {() => void} [onActivate] Called for Enter and Space, which components use for the
  *   collapse affordance a splitter is expected to offer.
@@ -41,7 +43,8 @@ export const STEP_LARGE = 64;
  * sheet grows in the opposite direction depending on which edge it is attached to. What they do
  * share is the fiddly part — pointer capture that survives the pointer leaving the handle, one
  * write per frame however fast the pointer reports, telling a click apart from a zero-distance
- * drag, and the WAI-ARIA keyboard map.
+ * drag, and the WAI-ARIA keyboard map. Its distances are logical, like the layouts it serves:
+ * under `dir="rtl"` a horizontal handle mirrors both the pointer and the arrow keys.
  *
  * @param {Element} handle Element the pointer grabs; also the keyboard target.
  * @param {DragAxisOptions} options Axis and callbacks.
@@ -60,6 +63,8 @@ export function dragAxis(handle, options) {
   let pointerId = null;
   let startClient = 0;
   let client = 0;
+  /** `-1` while a horizontal drag runs right to left, which turns physical distance into logical. */
+  let sign = 1;
   let moved = false;
   /** Handle of the frame a pending update is scheduled in; `0` if none. */
   let frame = 0;
@@ -69,6 +74,16 @@ export function dragAxis(handle, options) {
 
   /** @returns {boolean} */
   const blocked = () => Boolean(options.disabled?.());
+
+  /** @returns {boolean} Whether a horizontal handle lays out right to left. */
+  const rightToLeft = () => {
+    if (vertical) return false;
+    try {
+      return globalThis.getComputedStyle?.(handle)?.direction === 'rtl';
+    } catch {
+      return false;
+    }
+  };
 
   /** @returns {void} */
   const releasePointer = () => {
@@ -108,6 +123,7 @@ export function dragAxis(handle, options) {
      */
     dragging = true;
     pointerId = pointer.pointerId;
+    sign = rightToLeft() ? -1 : 1;
     startClient = axis(pointer);
     client = startClient;
     moved = false;
@@ -127,7 +143,7 @@ export function dragAxis(handle, options) {
     if (frame !== 0) return;
     frame = requestAnimationFrame(() => {
       frame = 0;
-      if (dragging) options.onMove(client - startClient);
+      if (dragging) options.onMove(sign * (client - startClient));
     });
   }, { signal });
 
@@ -138,7 +154,7 @@ export function dragAxis(handle, options) {
     cancelFrame();
     client = axis(pointer);
     const travelled = moved;
-    const delta = client - startClient;
+    const delta = sign * (client - startClient);
     finish();
     options.onEnd?.(delta, travelled);
   };
@@ -159,8 +175,9 @@ export function dragAxis(handle, options) {
       options.onJump(key.key === 'Home' ? 'min' : 'max');
       return;
     }
-    const decrease = vertical ? 'ArrowUp' : 'ArrowLeft';
-    const increase = vertical ? 'ArrowDown' : 'ArrowRight';
+    const reversed = rightToLeft();
+    const decrease = vertical ? 'ArrowUp' : reversed ? 'ArrowRight' : 'ArrowLeft';
+    const increase = vertical ? 'ArrowDown' : reversed ? 'ArrowLeft' : 'ArrowRight';
     if (key.key !== decrease && key.key !== increase) return;
     if (!options.onStep) return;
     key.preventDefault();

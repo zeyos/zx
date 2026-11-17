@@ -54,7 +54,8 @@ export function formatDate(date, fmt, options) {
 
 /**
  * Parses numeric date tokens from a string, returning null for mismatches or invalid dates.
- * Unspecified fields default to 1970-01-01 00:00:00 local time.
+ * Unspecified fields default to 1970-01-01 00:00:00 local time. A time that the local clock skips
+ * at a daylight-saving change is accepted and moved forward, as `Date` does.
  * @param {string} str Date text.
  * @param {string} fmt Matching numeric format.
  * @returns {Date|null}
@@ -94,6 +95,9 @@ export function parseDate(str, fmt) {
   const hour = values['%H'] ?? 0;
   const minute = values['%M'] ?? 0;
   const second = values['%S'] ?? 0;
+  // The time is checked by range rather than read back: a wall-clock time inside a daylight-saving
+  // gap (02:30 on the night clocks jump to 03:00) is valid input, which Date moves forward.
+  if (hour > 23 || minute > 59 || second > 59) return null;
   const parsed = new Date(0);
   parsed.setHours(0, 0, 0, 0);
   parsed.setFullYear(year, month, day);
@@ -105,9 +109,6 @@ export function parseDate(str, fmt) {
   if (values['%m'] !== undefined && parsed.getMonth() !== month) return null;
   if (values['%d'] !== undefined && parsed.getDate() !== day) return null;
   if (values['%e'] !== undefined && parsed.getDate() !== day) return null;
-  if (values['%H'] !== undefined && parsed.getHours() !== hour) return null;
-  if (values['%M'] !== undefined && parsed.getMinutes() !== minute) return null;
-  if (values['%S'] !== undefined && parsed.getSeconds() !== second) return null;
   return parsed;
 }
 

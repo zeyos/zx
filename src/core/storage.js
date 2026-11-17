@@ -18,8 +18,20 @@
 const PREFIX = 'zx2:';
 /** The previous format cannot distinguish namespace separators from key separators. */
 const LEGACY_PREFIX = 'zx:';
-/** Written and removed once to detect an area that exists but refuses writes. */
+/** Read once to detect an area that exists but refuses access altogether. */
 const PROBE_KEY = 'zx:__probe__';
+
+/*
+ * The in-memory fallbacks, one per storage area, shared by every view of that area: a value a view
+ * could not persist is still there for the next `storage()` call with the same namespace — a
+ * component re-created on the same page reads back what its predecessor wrote. Module state is
+ * deliberate here; the "no module-level mutable state" rule is for components. An area that exists
+ * is keyed by its Storage object, so a replaced area starts with a clean fallback.
+ */
+/** @type {WeakMap<Storage, Map<string, string>>} */
+const AREA_FALLBACKS = new WeakMap();
+/** @type {Map<string, Map<string, string>>} */
+const MISSING_AREA_FALLBACKS = new Map();
 
 /**
  * Creates a namespaced, JSON-encoded view of `localStorage` or `sessionStorage`.
@@ -27,9 +39,10 @@ const PROBE_KEY = 'zx:__probe__';
  * Keys use `zx2:<namespace length>:<namespace>:<key>`, so namespaces cannot overlap. Existing
  * `zx:` keys are copied only when explicitly requested through `migrateLegacy(keys)`; they are
  * never deleted. `clear()` only touches the current namespace. When the storage area is
- * unavailable or refuses a write — private browsing, a full quota, cookies disabled — the view
- * transparently falls back to an in-memory map that lives as long as the page, so callers never
- * need a try/catch and never see an exception.
+ * unavailable or refuses a write — private browsing, a full quota, cookies disabled — the value
+ * goes to an in-memory map that lives as long as the page and is shared by every view of the same
+ * area, so callers never need a try/catch and never see an exception. A refused write affects only
+ * that value: everything else is still read from, and written to, the real storage area.
  *
  * @param {string} namespace Namespace segment, typically an application or feature name.
  * @param {StorageOptions} [options={}] Area selection.
@@ -41,48 +54,37 @@ export function storage(namespace, options = {}) {
   const prefix = `${PREFIX}${name.length}:${name}:`;
   const legacyPrefix = `${LEGACY_PREFIX}${name}:`;
   const migratedPrefix = `zx2m:${name.length}:${name}:`;
-  /** @type {Map<string, string>} */
-  const memory = new Map();
   let backing = resolveArea(area);
+  const memory = fallbackFor(area, backing);
 
   /** @param {string} key @returns {string|null} */
   const readRaw = (key) => {
+    // A value held in memory is one the area refused: it is newer than whatever the area kept.
+    if (memory.has(key)) return /** @type {string} */ (memory.get(key));
     if (backing !== null) {
       try {
-        const raw = backing.getItem(key);
-        if (raw === null) memory.delete(key);
-        else memory.set(key, raw);
-        return raw;
+        return backing.getItem(key);
       } catch {
         backing = null;
       }
     }
-    return memory.has(key) ? memory.get(key) : null;
+    return null;
   };
 
   /** @param {string} key @param {string} raw @returns {void} */
   const writeRaw = (key, raw) => {
-    // Retain successful writes as well: a later quota failure must not hide this view's data.
-    memory.set(key, raw);
     if (backing !== null) {
       try {
         backing.setItem(key, raw);
+        // Persisted, so an older refused value must not shadow it any longer.
+        memory.delete(key);
         return;
       } catch {
-        // Reconcile entries that another storage user may have changed or removed, while reads
-        // still work. The failed write itself stays in memory as the caller's intended value.
-        for (const cached of memory.keys()) {
-          if (cached === key) continue;
-          try {
-            const current = backing.getItem(cached);
-            if (current === null) memory.delete(cached);
-            else memory.set(cached, current);
-          } catch { break; }
-        }
-        // A quota error mid-session degrades this view to memory rather than throwing.
-        backing = null;
+        // A full quota refuses this write only. The area stays in use for reads and later writes;
+        // the refused value is kept in memory as the caller's intended value.
       }
     }
+    memory.set(key, raw);
   };
 
   /** @param {string} key @returns {void} */
@@ -99,19 +101,19 @@ export function storage(namespace, options = {}) {
 
   /** @returns {string[]} */
   const rawKeys = () => {
+    const found = new Set();
     if (backing !== null) {
       try {
-        const found = [];
         for (let index = 0; index < backing.length; index += 1) {
           const key = backing.key(index);
-          if (typeof key === 'string' && key.startsWith(prefix)) found.push(key);
+          if (typeof key === 'string' && key.startsWith(prefix)) found.add(key);
         }
-        return found;
       } catch {
         backing = null;
       }
     }
-    return [...memory.keys()].filter((key) => key.startsWith(prefix));
+    for (const key of memory.keys()) if (key.startsWith(prefix)) found.add(key);
+    return [...found];
   };
 
   return {
@@ -209,7 +211,10 @@ export function storage(namespace, options = {}) {
 }
 
 /**
- * Returns a usable Web Storage area, or null when it is missing or rejects writes.
+ * Returns a readable Web Storage area, or null when it is missing or refuses access.
+ *
+ * An area that reads but refuses writes — Safari's private mode, a quota already full — is still
+ * returned: what it holds stays readable, and each refused write falls back on its own.
  * @param {'local'|'session'} area Area name.
  * @returns {Storage|null}
  */
@@ -218,11 +223,26 @@ function resolveArea(area) {
   try {
     const candidate = globalThis[name];
     if (!candidate || typeof candidate.getItem !== 'function') return null;
-    // Safari's private mode exposes the API and throws on write, so probe before trusting it.
-    candidate.setItem(PROBE_KEY, '1');
-    candidate.removeItem(PROBE_KEY);
+    candidate.getItem(PROBE_KEY);
     return candidate;
   } catch {
     return null;
   }
+}
+
+/**
+ * The shared in-memory fallback for an area.
+ * @param {'local'|'session'} area Area name.
+ * @param {Storage|null} backing The resolved area, or null when there is none.
+ * @returns {Map<string, string>}
+ */
+function fallbackFor(area, backing) {
+  const table = backing === null ? MISSING_AREA_FALLBACKS : AREA_FALLBACKS;
+  const key = backing ?? (area === 'session' ? 'session' : 'local');
+  let memory = table.get(/** @type {any} */ (key));
+  if (!memory) {
+    memory = new Map();
+    table.set(/** @type {any} */ (key), memory);
+  }
+  return memory;
 }

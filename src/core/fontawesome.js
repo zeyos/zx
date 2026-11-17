@@ -158,9 +158,15 @@ export function loadFontAwesomeKit(kit) {
   const promise = /** @type {Promise<void>} */ (new Promise((resolve, reject) => {
     const absolute = new URL(url, document.baseURI).href;
     const existing = [...document.scripts].find((script) => script.src === absolute);
-    if (existing && globalThis.FontAwesomeKitConfig) {
-      resolve();
-      return;
+    if (existing) {
+      // A script element cannot be asked whether it has run, and one that already has never fires
+      // `load` again. A hosted kit announces itself through its config; a finished document has run
+      // every script it holds; otherwise the script's own `load`, or the document's, is still due.
+      if (globalThis.FontAwesomeKitConfig || document.readyState === 'complete') {
+        resolve();
+        return;
+      }
+      globalThis.addEventListener?.('load', () => resolve(), { once: true });
     }
 
     const script = existing ?? document.createElement('script');

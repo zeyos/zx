@@ -66,6 +66,13 @@ test('toCsv defuses text that a spreadsheet would run as a formula', () => {
   }
 });
 
+test('toCsv also defuses text that starts with a tab or a carriage return', () => {
+  assert.equal(toCsv([{ a: '\t=SUM(A1)' }], ['a'], { header: false }), '\t\t=SUM(A1)');
+  // A carriage return forces quoting as well; the guard sits inside the quotes.
+  assert.equal(toCsv([{ a: '\r=SUM(A1)' }], ['a'], { header: false }), '"\t\r=SUM(A1)"');
+  assert.equal(toCsv([{ a: 'plain\ttext' }], ['a'], { header: false }), 'plain\ttext', 'only a leading tab counts');
+});
+
 test('toCsv leaves negative numbers alone', () => {
   // The guard is for text only, so a numeric -5 keeps its meaning.
   assert.equal(toCsv([{ a: -5 }], ['a'], { header: false }), '-5');
