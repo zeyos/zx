@@ -8,6 +8,7 @@ import { badge } from '../badge/badge.js';
 import { renderBlocks } from '../block-view/block-view.js';
 import { button } from '../button/button.js';
 import { Chart } from '../chart/chart.js';
+import { SvgChartAdapter } from '../chart/svg-adapter.js';
 import { registerChecklistFieldAdapter } from '../checklist/field-adapter.js';
 import { registerDateboxFieldAdapters } from '../datebox/field-adapter.js';
 import { Dialog } from '../dialog/dialog.js';
@@ -109,8 +110,10 @@ import { dateLocale } from '../../internal/date-locale.js';
  *   restored from a stored conversation: it starts as its receipt and replies no more.
  * @property {string|null} [labelledBy=null] The id of an element that already shows the title,
  *   such as a Dialog's; the surface then draws no title of its own and is labelled by it.
- * @property {ChartAdapter|null} [chartAdapter=null] The engine that draws `chart` nodes; without
- *   one a chart shows its data table.
+ * @property {ChartAdapter|null} [chartAdapter] The engine that draws `chart` nodes: a shared
+ *   `SvgChartAdapter` by default, which needs no library; another adapter, such as a
+ *   `ChartJsAdapter`, to draw with that engine; null to draw none, so that each chart shows its
+ *   data table instead.
  * @property {Record<string, string>|Record<string, Record<string, string>>} [msg] Localized messages.
  * @property {(event: CustomEvent<{reply: SurfaceReply}>) => void} [onreply] Reply listener.
  * @property {(event: CustomEvent<{errors: SurfaceError[]}>) => void} [onerror] Error listener.
@@ -165,6 +168,8 @@ const MAX_TOKEN = 512;
 const SURFACE_ID = new RegExp(ID_PATTERN);
 /** The defaults that answer: they check the inputs and send their values. */
 const ANSWERING = new Set(['submit', 'confirm', 'approve']);
+/** What draws a surface's charts unless the application says otherwise: no dependency, no state. */
+const SVG_CHARTS = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ new SvgChartAdapter());
 
 /**
  * A surface an agent composed as JSON — a rich answer, or a dialog asking the person something —
@@ -201,7 +206,7 @@ export class Surface extends Component {
     token: null,
     reply: null,
     labelledBy: null,
-    chartAdapter: null
+    chartAdapter: SVG_CHARTS
   };
 
   /** @returns {HTMLElement} */
@@ -1026,8 +1031,8 @@ export class Surface extends Component {
   }
 
   /**
-   * A chart; its data table is shown when there is no engine, and offered behind a toggle when
-   * there is.
+   * A chart; its data table is shown when there is no engine (`chartAdapter: null`), and offered
+   * behind a toggle when there is.
    * @private
    * @param {NodeView} view @param {Record<string, any>} props
    * @returns {NodeView}

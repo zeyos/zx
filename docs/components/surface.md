@@ -16,7 +16,9 @@ in `src/components/surface/catalog.js` and `validate.js`, importable on a server
   `catalog` (a narrowed catalog; the full one by default), `token: null` (the application's opaque
   string, at most 512 characters, copied unchanged into every reply), `reply: null` (a stored reply:
   the surface starts as its receipt), `labelledBy: null` (the id of a title shown by a host),
-  `chartAdapter: null` (draws `chart` nodes; without one a chart shows its data table), `msg`.
+  `chartAdapter` (draws `chart` nodes: a shared `SvgChartAdapter` by default, offering each chart's
+  data table behind a toggle; pass another adapter to draw with it, or `null` to draw none and show
+  each chart's data table instead), `msg`.
 - **Methods** — `apply(op)`, `write(chunk)` (operation lines in chunks), `end()` (the stream is
   over), `getValues()`, `getErrors()`, `cancel(reason)`, `supersede()`, `focus()`, `toDocument()`,
   `getReply()`, `destroy()`.

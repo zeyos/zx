@@ -131,7 +131,7 @@ a second navigation.
 | A tree | `TreeView` (one column) or `Finder` (Miller columns) | nested `<ul>`s |
 | Events over time | `Calendar` (agenda, day, week, month, year) | — |
 | One number with context | `StatTile` (delta, sparkline, loading; plain and one leading for a record's figures) | a card with a big figure |
-| A chart | `Chart` with `ChartJsAdapter` (Chart.js injected, never bundled) | — |
+| A chart | `Chart` with `SvgChartAdapter` (bar, line, pie, doughnut; no dependency), or `ChartJsAdapter` for other types (Chart.js injected, never bundled) | a hand-drawn SVG |
 | A linked record inline | `EntityRef` | a link |
 | Files | `FileItem` / `FileList`; uploading: `FieldUpload` | — |
 | History, comments, a feed | `ActivityItem` / `ActivityList` | — |
@@ -251,7 +251,7 @@ Each is the component's section of the full reference: https://zx.zeyos.com/docs
 - [CardView](https://zx.zeyos.com/docs/components/card-view.md)
 - [KanbanView](https://zx.zeyos.com/docs/components/kanban-view.md)
 - [Grid and Grid.BillingItems()](https://zx.zeyos.com/docs/components/grid.md)
-- [Chart and ChartJsAdapter](https://zx.zeyos.com/docs/components/chart.md)
+- [Chart, SvgChartAdapter and ChartJsAdapter](https://zx.zeyos.com/docs/components/chart.md)
 - [Calendar](https://zx.zeyos.com/docs/components/calendar.md)
 - [DataFilter](https://zx.zeyos.com/docs/components/data-filter.md)
 - [FilterPanel](https://zx.zeyos.com/docs/components/filter-panel.md)

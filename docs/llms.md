@@ -14,10 +14,12 @@
 ## Optional integration requirements
 
 Zx has no package runtime dependencies and its source modules import no external runtime packages.
-Optional integrations still need application-provided assets or clients. `Chart` requires an injected
-renderer; the only supplied renderer, `ChartJsAdapter`, requires Chart.js 4 supplied by the host.
-There is no built-in chart renderer. Chart.js 4.5.1 is pinned as a development dependency and copied
-to the documentation site's self-hosted vendor assets during its build; it is not bundled into Zx.
+Optional integrations still need application-provided assets or clients. `Chart` draws through an
+adapter: the built-in `SvgChartAdapter` draws bar, line, pie and doughnut charts as SVG with nothing
+else loaded, and `Surface` draws its `chart` nodes with it by default; `ChartJsAdapter` draws any
+Chart.js 4 type with a Chart.js the host supplies. Chart.js 4.5.1 is pinned as a development
+dependency and copied to the documentation site's self-hosted vendor assets during its build; it is
+not bundled into Zx.
 Core icons use bundled SVG by default. Opting into Font Awesome requires host-loaded CSS or a kit.
 ZeyOS `moduleIcon()`, `moduleChip()`, and `zeyosAppIcon()` default to glyphs from the external custom
 ZeyOS Font Awesome kit; `standard: true` still needs stock Font Awesome assets. `ZeyOS.connect()`
@@ -218,7 +220,7 @@ a second navigation.
 | A tree | `TreeView` (one column) or `Finder` (Miller columns) | nested `<ul>`s |
 | Events over time | `Calendar` (agenda, day, week, month, year) | — |
 | One number with context | `StatTile` (delta, sparkline, loading; plain and one leading for a record's figures) | a card with a big figure |
-| A chart | `Chart` with `ChartJsAdapter` (Chart.js injected, never bundled) | — |
+| A chart | `Chart` with `SvgChartAdapter` (bar, line, pie, doughnut; no dependency), or `ChartJsAdapter` for other types (Chart.js injected, never bundled) | a hand-drawn SVG |
 | A linked record inline | `EntityRef` | a link |
 | Files | `FileItem` / `FileList`; uploading: `FieldUpload` | — |
 | History, comments, a feed | `ActivityItem` / `ActivityList` | — |
@@ -2713,12 +2715,22 @@ editable cells/rows, loading, events, and teardown keep the Table contract.
 <!-- /doc -->
 
 <!-- doc:chart -->
-### Chart and `ChartJsAdapter`
+### Chart, `SvgChartAdapter` and `ChartJsAdapter`
 
 An accessible, engine-neutral chart host. Zx renders state, canvas, semantic data summary, tokens,
-and lifecycle; an injected adapter owns the drawing engine. The Zx runtime imports no Chart.js
-code. A renderer must be injected: without one Chart cannot draw data. The only supplied renderer
-is `ChartJsAdapter`, which requires host-provided Chart.js 4.
+and lifecycle; an adapter owns the drawing. Two are supplied: `SvgChartAdapter` draws bar, line,
+pie and doughnut charts as SVG and needs nothing else; `ChartJsAdapter` draws any Chart.js type
+with a Chart.js 4 the host supplies (the Zx runtime imports no Chart.js code). Without an adapter
+Chart draws nothing, and the data lives in its summary table alone.
+
+```js
+const chart = new Chart(null, {
+  adapter: new SvgChartAdapter(),
+  type: 'bar',
+  label: 'Invoiced and collected per week',
+  data: { labels: ['Week 1', 'Week 2'], datasets: [{ label: 'Invoiced', data: [52300, 61200] }] }
+});
+```
 
 - **Options** — `adapter`, `type: 'bar'`, `data`, engine-specific `chartOptions`, `label`,
   `description`, `summary: 'hidden'|'visible'`, `summaryFormat: null`, `loading`,
@@ -2756,7 +2768,11 @@ is `ChartJsAdapter`, which requires host-provided Chart.js 4.
   cover: a stylesheet swap, a class, an inline custom property.
 - **Adapter contract** — `adapter.create(canvas, {type, data, options, theme, reducedMotion, onSelect})`
   returns `{update(spec), resize(), destroy(), instance?}`; `update(spec)` is called for new data,
-  type or options and whenever the theme or the motion preference changes. `spec.theme` is
+  type or options and whenever the theme or the motion preference changes. An adapter that draws
+  an element of its own implements `mount(viewport, spec)` instead, with the same spec and handle:
+  Chart calls `mount()` when an adapter has it, `create()` otherwise. The canvas then stays in
+  place, empty, keeping the chart's accessible name and description; what `mount()` appends lies
+  over it, is presentational (`aria-hidden="true"`), and goes with the handle's `destroy()`. `spec.theme` is
   `{color?, borderColor?, palette}`: text colour, grid and axis colour, and the series colours in
   order (empty where the tokens are not defined; series beyond the eighth start over).
   `spec.options` is the application's `chartOptions` over `color` and `borderColor`, the same two
@@ -2766,6 +2782,24 @@ is `ChartJsAdapter`, which requires host-provided Chart.js 4.
   resources and must not retain the component after teardown. `reducedMotion` is true under the
   system preference or inside a `data-zx-motion="reduced"` region, and an adapter must then turn its
   engine's animation off; Chart watches for the answer changing and updates the mounted engine.
+- **`SvgChartAdapter`** — `new SvgChartAdapter({animation: true, legend: null})` draws `bar`
+  (grouped), `line`, `pie` and `doughnut`; any other type puts the chart in its error state, and
+  `SvgChartAdapter.supports(type)` answers first. A value is a number, or the `y` (else `r`) of a
+  point object; null and anything not finite is a gap — no bar, a break in the line, no slice.
+  Bars stand on zero; a line's scale spans its data; ticks fall on 1, 2 or 5 × 10ⁿ and are written
+  compactly in the active language ("250K"). Pie and doughnut draw one ring per dataset, a slice
+  per positive value. The legend lists the series (the labels, for pie and doughnut) when there are
+  two or more and for the arc kinds; `legend: true|false` forces it. Colours come through CSS from
+  `--zx-color-chart-1`…`-8`, so a theme or preset switch repaints without a redraw; a dataset's own
+  colour keys are not read, and series past the eighth take the palette again, lighter (dashed, for
+  a line). The plot's `viewBox` is its size in pixels, so text keeps its size: it scales with the
+  viewport and is laid out again on the next resize, thinning category labels rather than
+  overlapping them. Each mark has a `<title>` ("Week 1 · Invoiced: 52,300") and pressing one fires
+  `select` with the usual detail; there is no keyboard path through the marks — the summary table is
+  the accessible one. The first drawing grows in unless motion is reduced (system, or a
+  `data-zx-motion="reduced"` region) or `animation` is false; per chart, `chartOptions.animation` and
+  `chartOptions.legend` decide over the adapter's options. `getInstance()` returns the drawing
+  element. One adapter serves any number of charts.
 - **`ChartJsAdapter`** — construct it with a Chart.js constructor or namespace:
   `new ChartJsAdapter(window.Chart)`. The documentation pins Chart.js 4.5.1 as a development dependency and copies it to its
   self-hosted vendor assets during the website build; `package.json` has no runtime dependencies and application builds explicitly choose how
@@ -2774,9 +2808,10 @@ is `ChartJsAdapter`, which requires host-provided Chart.js 4.
   coloured from the theme palette: one colour per series (a bar filled with it, a line, radar or
   point series stroked with it and filled at half opacity), or one per value for `pie`,
   `doughnut` and `polarArea`. A dataset that names either is left exactly as written.
-- **Accessibility** — the canvas always has a name and optional description, while synchronized
-  labels and dataset values live in a semantic table. `summary: 'hidden'` keeps it visually hidden
-  for assistive technology; `'visible'` makes exact values part of the interface. `setLabel()`
+- **Accessibility** — the canvas always has a name and optional description, whichever adapter
+  draws, while synchronized labels and dataset values live in a semantic table.
+  `summary: 'hidden'` keeps it visually hidden for assistive technology; `'visible'` makes exact
+  values part of the interface. `setLabel()`
   renames the canvas and the table's caption, `setDescription()` and `setSummary()` change the
   other two.
 - **Summary values** — a number is written for the active language (the chart's `lang`, else
@@ -4400,7 +4435,9 @@ in `src/components/surface/catalog.js` and `validate.js`, importable on a server
   `catalog` (a narrowed catalog; the full one by default), `token: null` (the application's opaque
   string, at most 512 characters, copied unchanged into every reply), `reply: null` (a stored reply:
   the surface starts as its receipt), `labelledBy: null` (the id of a title shown by a host),
-  `chartAdapter: null` (draws `chart` nodes; without one a chart shows its data table), `msg`.
+  `chartAdapter` (draws `chart` nodes: a shared `SvgChartAdapter` by default, offering each chart's
+  data table behind a toggle; pass another adapter to draw with it, or `null` to draw none and show
+  each chart's data table instead), `msg`.
 - **Methods** — `apply(op)`, `write(chunk)` (operation lines in chunks), `end()` (the stream is
   over), `getValues()`, `getErrors()`, `cancel(reason)`, `supersede()`, `focus()`, `toDocument()`,
   `getReply()`, `destroy()`.

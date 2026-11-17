@@ -45,12 +45,20 @@ import { engineColor, withAlpha } from './color.js';
  */
 /**
  * @typedef {Object} ChartAdapter
- * The contract between Chart and a chart engine.
- * @property {(canvas: HTMLCanvasElement, spec: ChartSpec) => ChartHandle} create Creates the
- *   engine. Chart calls it once the canvas is connected to a document and its viewport has a size,
- *   so the engine can measure the canvas and `spec.theme` carries real values; a chart that is
- *   loading, empty or in error has no engine. Where the environment has no `ResizeObserver`, or no
- *   layout at all, there is nothing to wait for and `create()` runs as soon as the chart has data.
+ * The contract between Chart and a chart engine. An engine that paints a canvas implements
+ * `create()`; one that draws an element of its own, such as an SVG, implements `mount()`. Chart
+ * calls `mount()` when an adapter has it, `create()` otherwise.
+ * @property {(canvas: HTMLCanvasElement, spec: ChartSpec) => ChartHandle} [create] Creates the
+ *   engine on the chart's canvas. Chart calls it once the canvas is connected to a document and its
+ *   viewport has a size, so the engine can measure the canvas and `spec.theme` carries real values;
+ *   a chart that is loading, empty or in error has no engine. Where the environment has no
+ *   `ResizeObserver`, or no layout at all, there is nothing to wait for and `create()` runs as soon
+ *   as the chart has data.
+ * @property {(viewport: HTMLElement, spec: ChartSpec) => ChartHandle} [mount] Creates the engine
+ *   with an element of its own, appended to the chart's viewport, at the moment `create()` would
+ *   run. The canvas stays in place, empty, and keeps the chart's accessible name and description;
+ *   what the adapter appends lies over it, is presentational (`aria-hidden="true"`), and is removed
+ *   by the handle's `destroy()`. `SvgChartAdapter` is one.
  */
 /**
  * @typedef {Object} ChartSummaryContext
@@ -83,7 +91,9 @@ import { engineColor, withAlpha } from './color.js';
  */
 /**
  * @typedef {Object} ChartOptions
- * @property {ChartAdapter|null} [adapter=null] Injected engine adapter.
+ * @property {ChartAdapter|null} [adapter=null] The engine that draws: `new SvgChartAdapter()`
+ *   needs nothing else, `new ChartJsAdapter(Chart)` an injected Chart.js. Without one the chart
+ *   draws nothing, and its data lives in the summary table alone.
  * @property {string} [type='bar'] Chart type passed to the adapter.
  * @property {ChartData} [data={labels: [], datasets: []}] Chart data.
  * @property {Record<string, unknown>} [chartOptions={}] Engine-specific options.
@@ -415,7 +425,8 @@ export class Chart extends Component {
       this._destroyHandle();
       return;
     }
-    if (!this._adapter || typeof this._adapter.create !== 'function') {
+    const adapter = this._adapter;
+    if (!adapter || (typeof adapter.mount !== 'function' && typeof adapter.create !== 'function')) {
       this._destroyHandle();
       return;
     }
@@ -425,9 +436,13 @@ export class Chart extends Component {
     try {
       if (this._handle) this._handle.update(spec);
       else {
-        this._handle = this._adapter.create(/** @type {HTMLCanvasElement} */ (this.refs.canvas), spec);
+        // An adapter that draws its own element gets the viewport; one that paints gets the canvas.
+        const mounts = typeof adapter.mount === 'function';
+        this._handle = mounts
+          ? adapter.mount(/** @type {HTMLElement} */ (this.refs.viewport), spec)
+          : adapter.create(/** @type {HTMLCanvasElement} */ (this.refs.canvas), spec);
         if (!this._handle || typeof this._handle.destroy !== 'function') {
-          throw new TypeError('Chart adapter create() must return a lifecycle handle');
+          throw new TypeError(`Chart adapter ${mounts ? 'mount' : 'create'}() must return a lifecycle handle`);
         }
         this.emit('ready', { instance: this.getInstance() });
       }

@@ -494,7 +494,9 @@ const PAGES = {
     expect: [
       'Diagramm', 'Keine Diagrammdaten', 'Diagramm wird geladen…', 'Diagramm kann nicht dargestellt werden',
       'Bezeichnung', 'Reihe 1'
-    ]
+    ],
+    // An SVG mark's title is the demo's label and series around a number: "Jan · Revenue: 42".
+    demoText: [/^[^·]+ · [^:]+: [^\p{L}]+$/u]
   },
 
   tree: {

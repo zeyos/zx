@@ -68,10 +68,12 @@ owned root is removed, while an enhanced target is restored.
 ## Optional integration requirements
 
 Zx has no package runtime dependencies and its source modules import no external runtime packages.
-Optional integrations still need application-provided assets or clients. `Chart` requires an injected
-renderer; the only supplied renderer, `ChartJsAdapter`, requires Chart.js 4 supplied by the host.
-There is no built-in chart renderer. Chart.js 4.5.1 is pinned as a development dependency and copied
-to the documentation site's self-hosted vendor assets during its build; it is not bundled into Zx.
+Optional integrations still need application-provided assets or clients. `Chart` draws through an
+adapter: the built-in `SvgChartAdapter` draws bar, line, pie and doughnut charts as SVG with nothing
+else loaded, and `Surface` draws its `chart` nodes with it by default; `ChartJsAdapter` draws any
+Chart.js 4 type with a Chart.js the host supplies. Chart.js 4.5.1 is pinned as a development
+dependency and copied to the documentation site's self-hosted vendor assets during its build; it is
+not bundled into Zx.
 Core icons use bundled SVG by default. Opting into Font Awesome requires host-loaded CSS or a kit.
 ZeyOS `moduleIcon()`, `moduleChip()`, and `zeyosAppIcon()` default to glyphs from the external custom
 ZeyOS Font Awesome kit; `standard: true` still needs stock Font Awesome assets. `ZeyOS.connect()`
@@ -162,7 +164,7 @@ ZeyOS binding — see `src/zeyos/modules.js`.
 | `CardView` | Responsive record cards with configurable fields, safe preview media, grouping, actions, sorting, and selection. |
 | `KanbanView` | Record board with configurable columns, swim lanes, WIP guidance, and cancelable pointer/keyboard movement. |
 | `Grid`, `Grid.BillingItems()` | Table-compatible preset surface with editable currencies, units, totals, and sub-items. |
-| `Chart`, `ChartJsAdapter` | Accessible chart host requiring an injected renderer; the supplied adapter requires host-provided Chart.js 4. |
+| `Chart`, `SvgChartAdapter`, `ChartJsAdapter` | Accessible chart host; `SvgChartAdapter` draws bar, line, pie and doughnut charts with no dependency, `ChartJsAdapter` any Chart.js type with host-provided Chart.js 4. |
 | `Calendar` | Agenda/day/week/month/year scheduling with timed collisions, spanning events, range selection, and configurable optimistic drag/resize editing. |
 | `Filter` | Nested, backend-neutral filter expression editor. |
 | `DataFilter` | Declarative select, text, and custom filters for client-side row sets. |

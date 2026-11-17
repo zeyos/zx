@@ -9,9 +9,9 @@ and friends remain the complete record.
 ## Unreleased
 
 Pinned columns and header groups in Table, placements, stacks and highlights for messages, a Chart
-that mounts when it can be measured and follows the theme, overlays and windowed tables that run in
-a DOM without a top layer, a package entry a bundler can prune, and a guide to using the class API
-from a framework.
+that mounts when it can be measured and follows the theme, a built-in SVG chart renderer that
+agent surfaces draw with by default, overlays and windowed tables that run in a DOM without a top
+layer, a package entry a bundler can prune, and a guide to using the class API from a framework.
 
 ### Added
 
@@ -42,6 +42,15 @@ from a framework.
 - **Aurora: Mesh, Ribbon and Bloom presets and ambient motion.** `motion: 'drift'|'flow'` (and
   `setMotion()`) moves the field by transform alone, behind the reduced-motion preference;
   `--zx-aurora-duration` sets the pace. Presets now write their gradients into `--zx-aurora-image`.
+- **`SvgChartAdapter`: charts with no dependency.** Draws `bar` (grouped), `line`, `pie` and
+  `doughnut` charts as SVG — round ticks, a legend, one ring per dataset in a pie, a `<title>` and
+  `select` on every mark — coloured from `--zx-color-chart-1`…`-8` through CSS, in both themes and
+  every preset. Its `viewBox` follows the plot, so text keeps its size at any width. The first
+  drawing grows in unless motion is reduced; `animation` and `legend` are options of the adapter
+  and of `chartOptions`. `SvgChartAdapter.supports(type)` names the four types.
+- **`ChartAdapter.mount(viewport, spec)`.** An adapter may draw an element of its own instead of
+  painting the canvas; Chart calls `mount()` when an adapter has it, `create()` otherwise. The
+  canvas keeps the chart's accessible name and description either way.
 - **Table and Grid: pinned columns and header groups.** `pin: 'start'|'end'` on a column keeps it
   in view while the table scrolls sideways, following the writing direction; several pinned
   columns stack, and the row handle and selection columns stay with the first `'start'` column.
@@ -101,6 +110,9 @@ from a framework.
   website hero drifts.
 - **Documentation:** the Icons page no longer carries the ZeyOS module gallery; the ZeyOS binding's
   module icons stay documented with the binding.
+- **Surface draws its charts.** `chartAdapter` defaults to a shared `SvgChartAdapter`, so a `chart`
+  node draws without Chart.js and offers its data table behind a toggle. `chartAdapter: null`
+  restores the data table alone; any other adapter is used as before.
 - **Floating messages stack by default.** A floating region piles its messages into one stack
   instead of listing them one below another. `Message.setStack(false)` restores the list, at once
   and for every region; `Message.getStack()` reads the setting.

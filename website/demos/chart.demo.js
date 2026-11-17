@@ -1,4 +1,4 @@
-import { Chart, ChartJsAdapter, button, formatCurrency, h } from '../../src/index.js';
+import { Chart, ChartJsAdapter, SvgChartAdapter, button, formatCurrency, h } from '../../src/index.js';
 
 let chartJsPromise = null;
 
@@ -25,6 +25,14 @@ function revenueData() {
   };
 }
 
+/** One series per region; as a pie, each region is a slice. */
+function regionData() {
+  return {
+    labels: ['North', 'South', 'East', 'West', 'Online'],
+    datasets: [{ label: 'Orders', data: [320, 214, 181, 126, 172] }]
+  };
+}
+
 /** One series of amounts in euros; the summary table prints each with `summaryFormat`. */
 function quarterlyData() {
   return {
@@ -48,12 +56,81 @@ function capacityData() {
 export default {
   title: 'Chart',
   group: 'Data',
-  api: ['Chart', 'ChartJsAdapter'],
-  blurb: 'An accessible engine-neutral chart host. Zx stays dependency-free; ChartJsAdapter receives an explicitly injected Chart.js engine.',
+  api: ['Chart', 'SvgChartAdapter', 'ChartJsAdapter'],
+  blurb: 'An accessible engine-neutral chart host. SvgChartAdapter draws bar, line, pie and doughnut charts with no dependency; ChartJsAdapter receives an explicitly injected Chart.js engine.',
   examples: [
     {
+      title: 'Built-in SVG adapter',
+      blurb: 'SvgChartAdapter needs nothing but Zx: grouped bars, lines, pies and doughnuts, coloured from the theme’s chart palette, with a legend and round ticks. setType() redraws as another kind; pointing at a mark names its value, and pressing one fires select.',
+      render: ({ cleanup, log }) => {
+        const kinds = {
+          bar: { label: 'Bar', data: revenueData },
+          line: { label: 'Line', data: revenueData },
+          pie: { label: 'Pie', data: regionData },
+          doughnut: { label: 'Doughnut', data: regionData }
+        };
+        const chart = new Chart(null, {
+          adapter: new SvgChartAdapter(),
+          type: 'bar',
+          label: 'Revenue and costs by month',
+          description: 'Monthly values in thousands of euros. A semantic table follows for non-visual access.',
+          data: revenueData(),
+          onselect: ({ detail }) => log(`select ${detail.label} · ${detail.dataset.label}: ${detail.value}`)
+        });
+        const choices = Object.entries(kinds).map(([kind, { label, data }]) => button({
+          label,
+          onclick: (event) => {
+            for (const choice of choices) choice.setAttribute('aria-pressed', String(choice === event.currentTarget));
+            chart.setType(kind).setData(data());
+            log(`setType('${kind}')`);
+          }
+        }));
+        choices[0].setAttribute('aria-pressed', 'true');
+        cleanup(() => chart.destroy());
+        return h('div', { style: 'inline-size: 100%' },
+          h('div', { class: 'demo-row', role: 'group', 'aria-label': 'Chart type' }, choices),
+          chart.toElement());
+      }
+    },
+    {
+      title: 'Visible accessible summary',
+      blurb: 'The chart always has a synchronized semantic table. Set summary: "visible" when the exact values belong in the visual interface too. Numbers are written for the active language; summaryFormat decides what a value reads as — here, an amount in euros.',
+      render: ({ cleanup }) => {
+        const chart = new Chart(null, {
+          adapter: new SvgChartAdapter(),
+          label: 'Quarterly revenue',
+          summary: 'visible',
+          summaryFormat: (value) => formatCurrency(value, 'EUR'),
+          data: quarterlyData()
+        });
+        cleanup(() => chart.destroy());
+        return chart.toElement();
+      }
+    },
+    {
+      title: 'Filling its container',
+      blurb: 'With fill: true the chart takes the height of its container instead of deriving one from aspectRatio — a dashboard tile, a split pane. The container needs a height of its own; here the buttons change it and the chart lays itself out again.',
+      render: ({ cleanup, log }) => {
+        const chart = new Chart(null, {
+          adapter: new SvgChartAdapter(),
+          type: 'line',
+          fill: true,
+          label: 'Capacity by weekday',
+          data: capacityData(),
+          onready: () => log('ready: the engine is created once the chart is in the page')
+        });
+        const tile = h('div', { style: 'block-size: 220px' }, chart.toElement());
+        const resize = (height) => button({
+          label: `${height}px tall`,
+          onclick: () => { tile.style.blockSize = `${height}px`; }
+        });
+        cleanup(() => chart.destroy());
+        return h('div', { style: 'inline-size: 100%' }, h('div', { class: 'demo-row' }, [160, 220, 320].map(resize)), tile);
+      }
+    },
+    {
       title: 'Injected Chart.js adapter',
-      blurb: 'This documentation loads the pinned Chart.js 4.5.1 UMD development asset, then injects its constructor. The Zx runtime imports no chart engine.',
+      blurb: 'For chart types beyond the four, inject an engine. This documentation loads the pinned Chart.js 4.5.1 UMD development asset, then hands its constructor to ChartJsAdapter. The Zx runtime imports no chart engine.',
       render: ({ cleanup, log }) => {
         const host = h('div', {}, h('p', { class: 'demo-caption' }, 'Loading Chart.js adapter…'));
         let chart = null;
@@ -62,10 +139,10 @@ export default {
           if (disposed) return;
           chart = new Chart(null, {
             adapter: new ChartJsAdapter(engine),
-            type: 'bar',
-            label: 'Revenue and costs by month',
-            description: 'Monthly values in thousands of euros. A semantic table follows for non-visual access.',
-            data: revenueData(),
+            type: 'radar',
+            label: 'Capacity by weekday',
+            description: 'A radar chart, which only an injected engine draws.',
+            data: capacityData(),
             chartOptions: {
               interaction: { mode: 'nearest', intersect: true },
               plugins: { legend: { position: 'bottom' } }
@@ -74,56 +151,6 @@ export default {
           });
           host.replaceChildren(chart.toElement());
         }).catch((error) => host.replaceChildren(h('p', { class: 'docs-note' }, error.message)));
-        cleanup(() => { disposed = true; chart?.destroy(); });
-        return host;
-      }
-    },
-    {
-      title: 'Visible accessible summary',
-      blurb: 'The canvas always has a synchronized semantic table. Set summary: "visible" when the exact values belong in the visual interface too. Numbers are written for the active language; summaryFormat decides what a value reads as — here, an amount in euros.',
-      render: ({ cleanup }) => {
-        const host = h('div', {}, h('p', { class: 'demo-caption' }, 'Loading Chart.js adapter…'));
-        let chart = null;
-        let disposed = false;
-        loadChartJs().then((engine) => {
-          if (disposed) return;
-          chart = new Chart(null, {
-            adapter: new ChartJsAdapter(engine),
-            label: 'Quarterly revenue',
-            summary: 'visible',
-            summaryFormat: (value) => formatCurrency(value, 'EUR'),
-            data: quarterlyData()
-          });
-          host.replaceChildren(chart.toElement());
-        }).catch((error) => host.replaceChildren(h('p', { class: 'docs-note' }, error.message)));
-        cleanup(() => { disposed = true; chart?.destroy(); });
-        return host;
-      }
-    },
-    {
-      title: 'Filling its container',
-      blurb: 'With fill: true the chart takes the height of its container instead of deriving one from aspectRatio — a dashboard tile, a split pane. The container needs a height of its own; here the buttons change it and the chart follows.',
-      render: ({ cleanup, log }) => {
-        const tile = h('div', { style: 'block-size: 220px' }, h('p', { class: 'demo-caption' }, 'Loading Chart.js adapter…'));
-        const resize = (height) => button({
-          label: `${height}px tall`,
-          onclick: () => { tile.style.blockSize = `${height}px`; }
-        });
-        const host = h('div', { style: 'inline-size: 100%' }, h('div', { class: 'demo-row' }, [160, 220, 320].map(resize)), tile);
-        let chart = null;
-        let disposed = false;
-        loadChartJs().then((engine) => {
-          if (disposed) return;
-          chart = new Chart(null, {
-            adapter: new ChartJsAdapter(engine),
-            type: 'line',
-            fill: true,
-            label: 'Capacity by weekday',
-            data: capacityData(),
-            onready: () => log('ready: the engine is created once the chart is in the page')
-          });
-          tile.replaceChildren(chart.toElement());
-        }).catch((error) => tile.replaceChildren(h('p', { class: 'docs-note' }, error.message)));
         cleanup(() => { disposed = true; chart?.destroy(); });
         return host;
       }
