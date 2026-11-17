@@ -194,6 +194,15 @@ export function rovingTabindex(container, itemSelector, { orientation = 'vertica
       if (item.tabIndex !== tabindex) item.tabIndex = tabindex;
       managed.set(item, item.getAttribute('tabindex'));
     }
+    // An item out of reach only for now — in a hidden or undisplayed holder — is parked out of the
+    // Tab order, so revealing its holder by a class or style change, which nothing observes, cannot
+    // add a second tab stop to the group.
+    const reachable = new Set(available);
+    for (const item of originals.keys()) {
+      if (reachable.has(item) || !isAvailable(item) || !container.contains(item)) continue;
+      if (item.tabIndex !== -1) item.tabIndex = -1;
+      managed.set(item, item.getAttribute('tabindex'));
+    }
   }
 
   /** @param {KeyboardEvent} event @returns {void} */

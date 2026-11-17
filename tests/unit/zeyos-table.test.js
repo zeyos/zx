@@ -158,6 +158,30 @@ test('loadMore() sends nothing while a page-zero reload is in flight', async () 
   assert.deepEqual([calls.at(-1).offset, calls.at(-1).filters.status], [2, 1], 'loadMore() works again afterwards');
 });
 
+test('a failed replacement stops loadMore() until a replacement succeeds', async () => {
+  const rows = Array.from({ length: 10 }, (_, index) => ({ ID: index + 1 }));
+  let fail = false;
+  const { pager, target, calls } = setup({
+    pageSize: 2,
+    list: (_resource, query) => fail
+      ? Promise.reject(new Error('offline'))
+      : Promise.resolve({ data: rows.slice(query.offset, query.offset + query.limit), count: rows.length })
+  });
+  await pager.load();
+  await pager.loadMore();
+  fail = true;
+  await assert.rejects(() => pager.load({ search: 'new', page: 0 }), /offline/);
+  fail = false;
+  const more = await pager.loadMore();
+  assert.equal(more.data.length, 0, 'loadMore() appended the new query to the old rows');
+  assert.equal(calls.length, 3);
+  assert.equal(target.log.filter((entry) => entry.startsWith('add')).length, 1);
+  await pager.load({ page: 0 });
+  await pager.loadMore();
+  assert.equal(calls.length, 5);
+  assert.equal(calls.at(-1).offset, 2, 'paging resumes after a replacement');
+});
+
 test('reset() retires requests in flight and clears the loading state', async () => {
   const gate = deferred();
   const { pager, target } = setup({ list: () => gate.promise });

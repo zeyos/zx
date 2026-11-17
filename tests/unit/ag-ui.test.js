@@ -1333,6 +1333,19 @@ test('an answer the adapter did not draw is taken over and continued, not replac
   assert.deepEqual(log.errors, []);
 });
 
+test('continuing an answer takes over that answer only, not one named like its piece', () => {
+  const { thread, play } = setup();
+  thread.upsert({ id: 'm1', type: 'answer', author: 'finance', blocks: [], text: 'First. ' });
+  thread.upsert({ id: 'm1#2', type: 'answer', author: 'finance', blocks: [], text: 'Another answer.' });
+  play(run('r1', [
+    { type: 'TEXT_MESSAGE_START', messageId: 'm1' },
+    { type: 'TEXT_MESSAGE_CONTENT', messageId: 'm1', delta: 'Continued.' },
+    { type: 'TEXT_MESSAGE_END', messageId: 'm1' }
+  ]));
+  assert.equal(thread.items.get('m1').text, 'First. Continued.');
+  assert.equal(thread.items.get('m1#2').text, 'Another answer.');
+});
+
 test('a piece after a fence never overwrites an item that holds its id', () => {
   const { thread, play } = setup({ inlineSurfaces: true });
   thread.upsert({ id: 'm1#2', type: 'user', text: 'Mine' });

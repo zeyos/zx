@@ -134,6 +134,30 @@ test('destroy() on an open overlay settles its close and emits close once', asyn
   }
 });
 
+test('close() followed at once by destroy() still emits close with its result', async () => {
+  for (const create of [
+    () => new Modal(null, { content: 'Body' }),
+    () => new Dialog(null, { title: 'Edit', content: 'Body' })
+  ]) {
+    await withDocument(async (doc) => {
+      const opener = doc.body.appendChild(doc.createElement('button'));
+      const overlay = create();
+      const results = [];
+      overlay.on('close', (event) => results.push(event.detail.result));
+      opener.focus();
+      overlay.open();
+      await flush();
+      // The native close event is queued; destroy() runs before it arrives.
+      overlay.close({ saved: true });
+      overlay.destroy();
+      await flush();
+      assert.deepEqual(results, [{ saved: true }], 'one close event carrying the close() result');
+      assert.notEqual(overlay.el.dataset.state, 'open');
+      assert.equal(doc.activeElement, opener, 'focus goes back to the opener');
+    });
+  }
+});
+
 test('a second cycle restores to the opener that opened it, not the first one', async () => {
   await withDocument(async (doc) => {
     const first = doc.body.appendChild(doc.createElement('button'));

@@ -160,13 +160,14 @@ export function loadFontAwesomeKit(kit) {
     const existing = [...document.scripts].find((script) => script.src === absolute);
     if (existing) {
       // A script element cannot be asked whether it has run, and one that already has never fires
-      // `load` again. A hosted kit announces itself through its config; a finished document has run
-      // every script it holds; otherwise the script's own `load`, or the document's, is still due.
-      if (globalThis.FontAwesomeKitConfig || document.readyState === 'complete') {
+      // `load` again. What it leaves behind can: a hosted kit's config, the API a self-hosted
+      // build defines, or the finished fetch in resource timing. Without any of them it is still on
+      // its way, and its own `load` or `error` settles this. A finished document is no proof — a
+      // script inserted after it finished may still be loading.
+      if (scriptHasLoaded(absolute)) {
         resolve();
         return;
       }
-      globalThis.addEventListener?.('load', () => resolve(), { once: true });
     }
 
     const script = existing ?? document.createElement('script');
@@ -184,4 +185,20 @@ export function loadFontAwesomeKit(kit) {
 
   kitLoads.set(url, promise);
   return promise;
+}
+
+/**
+ * Whether a script already on the page has visibly finished: Font Awesome's kit config or API is
+ * defined, or the browser recorded its completed fetch.
+ * @param {string} url Absolute script URL.
+ * @returns {boolean}
+ */
+function scriptHasLoaded(url) {
+  if (globalThis.FontAwesomeKitConfig || globalThis.FontAwesome) return true;
+  try {
+    return globalThis.performance?.getEntriesByName?.(url, 'resource')
+      .some((entry) => /** @type {PerformanceResourceTiming} */ (entry).responseEnd > 0) ?? false;
+  } catch {
+    return false;
+  }
 }

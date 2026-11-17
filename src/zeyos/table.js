@@ -365,6 +365,12 @@ export function createServerPager(options) {
         else target.addData(normalized.data);
       }
       return { data: normalized.data, count: total, page: nextPage, hasMore, query: sent };
+    } catch (error) {
+      // A failed replacement leaves the previous query's rows on screen while the query already
+      // names the new one: appending to them would mix the two, so paging waits for a replacement
+      // that succeeds.
+      if (replace && !destroyed && mine === sequence) more = false;
+      throw error;
     } finally {
       if (replacing === mine) replacing = 0;
       if (!destroyed && mine === sequence) {

@@ -1004,11 +1004,9 @@ export function connectAgUi(thread, options = {}) {
     }
     if (adopted) {
       // An answer already in the thread — from an earlier connection, say — goes on where it
-      // stands, with the pieces it has, as a reopened message does.
-      /** @param {string} piece @returns {boolean} */
-      const loose = (piece) => /** @type {any} */ (thread.get(piece))?.type === 'answer' && !drawnAnswer(piece);
-      for (let n = 2; loose(`${id}#${n}`); n += 1) message.segments.push(`${id}#${n}`);
-      for (const segment of message.segments) message.written.add(segment);
+      // stands, as a reopened message does. Only that answer: an item named like one of its pieces
+      // (`m1#2`) may be another answer altogether, so nothing else is taken over with it.
+      message.written.add(itemId);
       reopenMessage(message, run);
       return;
     }

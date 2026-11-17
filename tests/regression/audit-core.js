@@ -99,6 +99,15 @@ export const cases = [
       await page.keyboard.press('End');
       assert.equal(await activeId(page), 'five');
 
+      // Revealed by a style change, which nothing observes, an undisplayed item adds no tab stop.
+      const stops = await page.evaluate(() => {
+        root.children[3].style.display = '';
+        return Array.from(root.querySelectorAll('button'), (button) => button.tabIndex)
+          .filter((tabIndex, index) => index !== 1 && index !== 2 && tabIndex === 0).length;
+      });
+      assert.equal(stops, 1, 'one tab stop in the group');
+      await page.evaluate(() => { root.children[3].style.display = 'none'; });
+
       // A holder that becomes visible again rejoins the group.
       await page.evaluate(() => { root.children[1].hidden = false; });
       await settle(page);

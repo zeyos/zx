@@ -506,14 +506,16 @@ export class Modal extends Component {
   destroy() {
     if (this.#destroying) return;
     this.#destroying = true;
-    if (this.isOpen()) {
-      this._dismiss();
-      /*
-       * The queued close that would settle it never arrives once listeners are aborted, so it is
-       * settled here: `close` is emitted once, as on every other close path, and focus goes back
-       * to the opener while that listener is still attached.
-       */
-      if (this.el.dataset.state === 'open') this._settleClose(this.#presentation);
+    if (this.isOpen()) this._dismiss();
+    /*
+     * A close under way — started just now, or by a `close()` called just before — settles from a
+     * queued event that never arrives once listeners are aborted, so it is settled here: `close` is
+     * emitted once with that close's result, as on every other close path, and focus goes back to
+     * the opener while that listener is still attached.
+     */
+    if (this.el.dataset.state === 'open') {
+      this.#nativeClosingPresentations.length = 0;
+      this._settleClose(this.#presentation);
     }
     this._releaseOverlay();
     super.destroy();

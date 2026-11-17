@@ -405,3 +405,23 @@ test('a refused write leaves every other key readable from the real area', () =>
     assert.deepEqual(storage('app').keys(), ['saved']);
   });
 });
+
+test('values a view has seen survive an area that stops answering later', () => {
+  const area = new FakeStorage();
+  withArea('localStorage', area, () => {
+    area.setItem('zx2:3:app:read', '"from the area"');
+    const store = storage('app');
+    store.set('saved', 'kept');
+    assert.equal(store.get('read'), 'from the area');
+    store.set('gone', 1);
+    store.remove('gone');
+    // Access is revoked mid-session: every call on the area throws from now on.
+    for (const method of ['getItem', 'setItem', 'removeItem', 'key']) {
+      area[method] = () => { throw new Error('access revoked'); };
+    }
+    assert.equal(store.get('saved'), 'kept');
+    assert.equal(store.get('read'), 'from the area');
+    assert.equal(store.get('gone', 'missing'), 'missing');
+    assert.deepEqual(store.keys().sort(), ['read', 'saved']);
+  });
+});

@@ -180,6 +180,15 @@ export class Field extends Component {
     if (!isLabelable(labelled) || labelled !== control || labelled.hasAttribute('aria-label')) {
       labelled.setAttribute('aria-labelledby', labelId);
     }
+    // A group (a rating's radios, a duration's segments) cannot be the target of `<label for>`, so
+    // a click on the label is turned into the adapter's own focus.
+    if (!isLabelable(labelled)) {
+      this.listen(label, 'click', (event) => {
+        if (event.defaultPrevented) return;
+        event.preventDefault();
+        this.adapter.focus();
+      });
+    }
     this._baseDescribedBy = labelled.getAttribute('aria-describedby') ?? '';
     controlSlot.append(control);
     this._descriptionId = String(this.options.description ?? '') ? descriptionId : '';

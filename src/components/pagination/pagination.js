@@ -113,9 +113,10 @@ export function fitPageSize({ available, rowHeight, perRow = 1, reserve = 0, min
  * @property {number} size The page size just measured.
  * @property {number} current The page size the pager has now.
  * @property {number[]} [trail=[]] The sizes the pager's recent fits applied, oldest first.
- * @property {number} viewport The viewport's height now, in pixels.
- * @property {number|null} [settled=null] The viewport's height as the pager's last applied fit
- *   left it; null before the first fit.
+ * @property {number|string} viewport The viewport's size now: its height in pixels, or a key that
+ *   changes with its width and height (`'640x300'`), as the component passes.
+ * @property {number|string|null} [settled=null] The viewport's size, in the same form, as the
+ *   pager's last applied fit left it; null before the first fit.
  */
 
 /**
@@ -124,10 +125,10 @@ export function fitPageSize({ available, rowHeight, perRow = 1, reserve = 0, min
  *
  * A fit changes the page count, and that can change the viewport it was measured in — a footer
  * that wraps with the longer page numbers — so two sizes could take turns for ever. While the
- * viewport still has the height the last fit left it at, a size that would take the pager back up
+ * viewport still has the size the last fit left it at, a size that would take the pager back up
  * to where it was two fits ago is that loop, and the smaller size stays. A viewport whose height
- * changed since was resized by something else (a drawer, the window), and its size is followed
- * whichever way it went, with the trail starting over.
+ * or width changed since was resized by something else (a drawer, the window, a card grid's
+ * columns), and its size is followed whichever way it went, with the trail starting over.
  * @param {PageFitStep} step Measurements and the pager's recent fits.
  * @returns {{apply: boolean, trail: number[]}} Whether to apply `size`, and the trail to keep.
  */
@@ -304,7 +305,7 @@ export class Pagination extends Component {
     /** @type {number[]} The fitted sizes most recently applied, to stop a resize from oscillating. */
     this._fitTrail = [];
     /** @type {number|null} The viewport's height as the last applied fit left it. */
-    this._fitHeight = null;
+    this._fitSize = null;
     /** @type {ResizeObserver|null} */
     this._observer = null;
     /** @type {Element|null} The viewport being observed. */
@@ -516,7 +517,7 @@ export class Pagination extends Component {
         if (!this._auto) {
           this._auto = true;
           this._fitTrail = [];
-          this._fitHeight = null;
+          this._fitSize = null;
           this._pageSize = this._measure() || this._pageSize;
         }
       } else {
@@ -794,15 +795,15 @@ export class Pagination extends Component {
     if (!this._auto || (this._continuous() && this._page > 1)) return;
     const size = this._measure();
     if (!size) return;
-    // A resize feeding on itself is told from a real one by the viewport's own height: see
-    // pageFitStep(). The height is read again once the fit is applied and reported, so a footer
+    // A resize feeding on itself is told from a real one by the viewport's own size: see
+    // pageFitStep(). The size is read again once the fit is applied and reported, so a footer
     // that wrapped because of it counts as the fit's doing, not as a resize.
     const step = pageFitStep({
       size,
       current: this._pageSize,
       trail: this._fitTrail,
-      viewport: this._viewportHeight(),
-      settled: this._fitHeight
+      viewport: this._viewportSize(),
+      settled: this._fitSize
     });
     this._fitTrail = step.trail;
     if (!step.apply) return;
@@ -812,14 +813,14 @@ export class Pagination extends Component {
     this._sync();
     this._emitChange('fit', false);
     if (this._destroyed) return;
-    this._fitHeight = this._viewportHeight();
+    this._fitSize = this._viewportSize();
     this._schedule('load');
   }
 
-  /** @returns {number} The viewport's height now; 0 when there is none. */
-  _viewportHeight() {
+  /** @returns {string} The viewport's width and height now, as one key; '' when there is none. */
+  _viewportSize() {
     const viewport = this._viewport();
-    return viewport?.isConnected ? viewport.clientHeight : 0;
+    return viewport?.isConnected ? `${viewport.clientWidth}x${viewport.clientHeight}` : '';
   }
 
   /**

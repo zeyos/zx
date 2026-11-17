@@ -183,19 +183,22 @@ export class Checklist extends Component {
     const requested = new Set(ids == null ? [] : Array.from(ids));
     const known = new Set(this._items.map((item) => this._itemValue(item)));
     const next = new Set([...known].filter((value) => requested.has(value)));
-    this._replaceChecked(next, [...requested].filter((value) => !known.has(value)));
+    const missing = [...requested].filter((value) => !known.has(value));
+    // Before any item exists the request stands for the items still to come — an empty one too —
+    // in place of their own checked flags.
+    this._replaceChecked(next, missing.length || this._items.length === 0 ? missing : null);
     return this;
   }
 
   /** Checks every item. @returns {this} @fires Checklist#change */
   checkAll() {
-    this._replaceChecked(new Set(this._items.map((item) => this._itemValue(item))), []);
+    this._replaceChecked(new Set(this._items.map((item) => this._itemValue(item))), null);
     return this;
   }
 
   /** Unchecks every item. @returns {this} @fires Checklist#change */
   uncheckAll() {
-    this._replaceChecked(new Set(), []);
+    this._replaceChecked(new Set(), null);
     return this;
   }
 
@@ -255,7 +258,7 @@ export class Checklist extends Component {
   /** @param {ChecklistItem[]} items @returns {void} */
   _replaceItems(items) {
     this._items = Array.isArray(items) ? items.slice() : [];
-    if (this._pending) {
+    if (this._pending !== null) {
       // A value requested before its items existed: it decides what is checked, not checkedKey.
       const wanted = new Set([...this._checked, ...this._pending]);
       const known = new Set(this._items.map((item) => this._itemValue(item)));
@@ -312,13 +315,19 @@ export class Checklist extends Component {
     return label == null || label === '' ? this._message('checklist.label', 'Checklist') : String(label);
   }
 
-  /** @param {Set<unknown>} next @param {unknown[]} pending Requested IDs no item carries yet. @returns {void} */
+  /**
+   * @param {Set<unknown>} next
+   * @param {unknown[]|null} pending Requested IDs no item carries yet, or null when no request waits
+   *   for items; an empty array is a request made before any item existed.
+   * @returns {void}
+   */
   _replaceChecked(next, pending) {
-    const nextPending = pending.length ? pending : null;
+    const nextPending = pending;
     const pendingChanged = !setsEqual(new Set(this._pending ?? []), new Set(nextPending ?? []));
-    if (setsEqual(this._checked, next) && !pendingChanged) return;
-    this._checked = next;
+    const unchanged = setsEqual(this._checked, next) && !pendingChanged;
     this._pending = nextPending;
+    if (unchanged) return;
+    this._checked = next;
     this._renderItems();
     this.emit('change', { values: this.getValues() });
   }

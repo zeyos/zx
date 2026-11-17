@@ -56,6 +56,12 @@ export function storage(namespace, options = {}) {
   const migratedPrefix = `zx2m:${name.length}:${name}:`;
   let backing = resolveArea(area);
   const memory = fallbackFor(area, backing);
+  /**
+   * What this view last read from or wrote to the area, so values it has seen survive an area that
+   * stops answering later in the session (access revoked, storage disabled).
+   * @type {Map<string, string>}
+   */
+  const known = new Map();
 
   /** @param {string} key @returns {string|null} */
   const readRaw = (key) => {
@@ -63,12 +69,15 @@ export function storage(namespace, options = {}) {
     if (memory.has(key)) return /** @type {string} */ (memory.get(key));
     if (backing !== null) {
       try {
-        return backing.getItem(key);
+        const raw = backing.getItem(key);
+        if (raw === null) known.delete(key);
+        else known.set(key, raw);
+        return raw;
       } catch {
         backing = null;
       }
     }
-    return null;
+    return known.has(key) ? /** @type {string} */ (known.get(key)) : null;
   };
 
   /** @param {string} key @param {string} raw @returns {void} */
@@ -78,6 +87,7 @@ export function storage(namespace, options = {}) {
         backing.setItem(key, raw);
         // Persisted, so an older refused value must not shadow it any longer.
         memory.delete(key);
+        known.set(key, raw);
         return;
       } catch {
         // A full quota refuses this write only. The area stays in use for reads and later writes;
@@ -97,6 +107,7 @@ export function storage(namespace, options = {}) {
       }
     }
     memory.delete(key);
+    known.delete(key);
   };
 
   /** @returns {string[]} */
@@ -112,6 +123,7 @@ export function storage(namespace, options = {}) {
         backing = null;
       }
     }
+    if (backing === null) for (const key of known.keys()) if (key.startsWith(prefix)) found.add(key);
     for (const key of memory.keys()) if (key.startsWith(prefix)) found.add(key);
     return [...found];
   };

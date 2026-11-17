@@ -21,7 +21,10 @@ export function registerChecklistFieldAdapter() {
       set: (value) => {
         setting = true;
         try {
-          checklist.setValues(Array.isArray(value) ? value : []);
+          // An array is the value, an empty one included; anything else — the Field's '' when no
+          // value was given — clears what is shown and leaves items still to load their own flags.
+          if (Array.isArray(value)) checklist.setValues(value);
+          else checklist.uncheckAll();
         } finally {
           setting = false;
         }

@@ -85,18 +85,46 @@ test('a kit script the page already loaded is adopted without waiting for a load
     addEventListener: (type) => listeners.push(type)
   };
   const previous = globalThis.document;
+  const lookup = performance.getEntriesByName;
   globalThis.document = /** @type {any} */ ({
     baseURI: 'https://assets.example/app/', scripts: [script], readyState: 'complete',
     createElement: () => { throw new Error('the existing script must be adopted, not duplicated'); }
   });
+  // Self-hosted, so no FontAwesomeKitConfig global: its finished fetch says it has run.
+  performance.getEntriesByName = (name, type) => name === script.src && type === 'resource'
+    ? /** @type {any} */ ([{ responseEnd: 12 }]) : [];
   try {
-    // Self-hosted, so no FontAwesomeKitConfig global: only the finished document says it has run.
     const settled = await Promise.race([
       loadFontAwesomeKit('/vendor/fontawesome/kit.js').then(() => 'resolved'),
       new Promise((done) => setTimeout(() => done('pending'), 50))
     ]);
     assert.equal(settled, 'resolved');
     assert.deepEqual(listeners, []);
+  } finally {
+    performance.getEntriesByName = lookup;
+    if (previous === undefined) delete globalThis.document;
+    else globalThis.document = previous;
+  }
+});
+
+test('a kit script still loading after the document finished is waited for', async () => {
+  /** @type {Record<string, () => void>} */
+  const listeners = {};
+  const script = {
+    src: 'https://assets.example/vendor/fontawesome/late.js',
+    addEventListener: (type, listener) => { listeners[type] = listener; }
+  };
+  const previous = globalThis.document;
+  globalThis.document = /** @type {any} */ ({
+    baseURI: 'https://assets.example/app/', scripts: [script], readyState: 'complete',
+    createElement: () => { throw new Error('the existing script must be adopted, not duplicated'); }
+  });
+  try {
+    const load = loadFontAwesomeKit('/vendor/fontawesome/late.js').then(() => 'resolved');
+    const early = await Promise.race([load, new Promise((done) => setTimeout(() => done('pending'), 30))]);
+    assert.equal(early, 'pending', 'a finished document is no proof the script has run');
+    listeners.load();
+    assert.equal(await load, 'resolved');
   } finally {
     if (previous === undefined) delete globalThis.document;
     else globalThis.document = previous;

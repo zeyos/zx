@@ -84,6 +84,11 @@ export const cases = [
       assert.equal(await named.owner.getAttribute('aria-expanded'), 'false');
       await page.locator('[data-field-id=share] .zx-field__label').click();
       assert.equal(await focused(), 'share:range');
+      // Groups take no <label for>: the click is turned into the field's own focus.
+      await page.locator('[data-field-id=score] .zx-field__label').click();
+      assert.match(await focused(), /^score:/, 'a click on the rating label did not focus it');
+      await page.locator('[data-field-id=spent] .zx-field__label').click();
+      assert.match(await focused(), /^spent:/, 'a click on the duration label did not focus it');
       await page.evaluate(() => window.form.destroy());
     }
   },
@@ -118,11 +123,19 @@ export const cases = [
         list.disable();
         const disabled = list.isDisabled();
         list.destroy();
-        return { before, after, checked, waiting, applied, derived, cleared, api, disabled };
+
+        // An empty value set before the items exist clears them too, over their own flags.
+        const empty = new zx.Checklist(null, { items: [] });
+        empty.setValues([]);
+        empty.setItems([{ ID: 1, name: 'One', on: true }]);
+        const emptied = empty.getValues();
+        empty.destroy();
+        return { before, after, checked, waiting, applied, derived, cleared, api, disabled, emptied };
       });
       assert.deepEqual(result.before, [1, 3], 'the value is kept while the items load');
       assert.deepEqual(result.after, [1, 3]);
       assert.deepEqual(result.checked, ['One', 'Three']);
+      assert.deepEqual(result.emptied, [], 'an empty early value stands for the items still to come');
       assert.deepEqual(result.waiting, ['b']);
       assert.deepEqual(result.applied, ['b']);
       assert.deepEqual(result.derived, ['a']);

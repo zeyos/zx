@@ -227,7 +227,8 @@ project.
 - **Overlays.** Escape in a Launcher opened from a Dialog closes only the Launcher; with several
   modals open, Escape closes the one opened last, whatever order they were created in. Selecting
   text in a light-dismiss Modal or Sheet and releasing over the backdrop no longer closes it.
-  Destroying an open Modal, Dialog or Sheet emits `close` once and returns focus to the opener. A
+  Destroying an open Modal, Dialog or Sheet — or one whose `close()` was just called — emits
+  `close` once, with its result, and returns focus to the opener. A
   Tooltip adds and removes only its own id in its anchor's `aria-describedby`. A ContextMenu on an
   element that sets its own theme no longer reopens on a right-click inside the open menu, and
   closing it returns focus. Destroying a Composer closes its "replace your text?" dialog.
@@ -241,8 +242,8 @@ project.
   Home and End move the caret once a query is typed; replacing the items of an open list keeps the
   typed query; Enter that confirms Japanese or Chinese input no longer picks an option (Launcher
   too).
-- **Other inputs.** A Checklist value set before its items load is kept and checked when they
-  arrive. Filter reports one `change`, and one `apply` with `autoApply`, per edit. ValueList chips
+- **Other inputs.** A Checklist value set before its items load — an empty one too — is kept and
+  applied when they arrive. Filter reports one `change`, and one `apply` with `autoApply`, per edit. ValueList chips
   are one Tab stop. CodeEditor no longer announces the line and column after every keystroke. The
   MultiValueEditor handle respects reduced motion. Slider steps such as `1.5e-7` get the right
   precision.
@@ -261,7 +262,8 @@ project.
   element is moved. A control inside a disabled `<fieldset>` stays disabled when its own
   `disabled` is removed; a disabled `<zx-checklist>` stays disabled when its items change; a form
   reset restores the items a `<zx-checklist>` started with checked.
-- **Data views.** Pagination with `pageSize: 'auto'` grows back when its viewport does, and fits
+- **Data views.** Pagination with `pageSize: 'auto'` grows back when its viewport does, or when a
+  card grid gains columns at the same height, and fits
   card grids to whole rows within `minPageSize`/`maxPageSize`. `ChartJsAdapter` draws axis ticks,
   gridlines and radar labels in the theme's colours, readable in dark mode. A pinned column group's
   label sits at the start of its cell. TreeView: a lazy branch marked expanded is closed until
@@ -278,17 +280,19 @@ project.
   right-to-left layouts the notch for the activity dot sits under the dot; pupils stay inside the
   eyes. RunStatus and ApprovalCard keep the agent's face when the summary or title changes, and an
   agent with a numeric `seed` has the same face everywhere. `connectAgUi()` no longer overwrites a
-  person's message or a card whose id a streamed message reuses. Composer and AgentThread match
+  person's message or a card whose id a streamed message reuses, and continues a saved answer
+  without taking over another one named like its continuation. Composer and AgentThread match
   mentions as whole names in any script. Many moving avatars share one reduced-motion watcher.
 - **Core.** `storage()` keeps a value it could not save for later handles of the same namespace,
-  and after a refused write still reads everything else from the browser. `deepMerge()` treats a
+  after a refused write still reads everything else from the browser, and keeps what it has seen
+  when the browser's storage stops answering. `deepMerge()` treats a
   `__proto__` key from parsed JSON as data. `Http` puts query parameters before a URL fragment and
   reports a failed response with an HTML body as the HTTP error. `loadFontAwesome()` no longer
-  hangs on a kit script that finished loading already. Two overlays sharing an anchor leave no
+  hangs on a kit script that finished loading already, and waits for one still loading. Two overlays sharing an anchor leave no
   empty `style` attribute. `toCsv()` guards cells starting with a tab or carriage return.
   `parseDate()` accepts a time skipped by a daylight-saving change.
-- **ZeyOS binding.** `loadMore()` during a new search, filter or sort no longer appends the next
-  page of the new results to the old rows; applying a saved view without reloading drops the
+- **ZeyOS binding.** `loadMore()` during a new search, filter or sort, or after one failed, no
+  longer appends the next page of the new results to the old rows; applying a saved view without reloading drops the
   request still in flight; `hasMore` uses the page size each request was sent with; `zeyosForm()`
   shows and saves the record requested last when `load()` overlaps; a choice made while a Select's
   initial value loads is kept; a failed initial lookup is no longer also an unhandled rejection;

@@ -237,6 +237,15 @@ test('a viewport that shrinks and grows back takes the page size with it', () =>
   ], 25), [10, 5, 10, 5, 10]);
 });
 
+test('a card grid whose columns change at the same height takes the page size with it', () => {
+  // 300px of 100px rows at a fixed height; the window narrows from 4 to 3 columns and widens back.
+  assert.deepEqual(playFits([
+    { size: 12, viewport: '800x300' },
+    { size: 9, viewport: '600x300' },
+    { size: 12, viewport: '800x300' }
+  ], 25), [12, 9, 12]);
+});
+
 test('a fit that resizes its own viewport settles on the smaller size', () => {
   // Ten rows wrap the footer, which takes 20px; nine rows unwrap it again.
   assert.deepEqual(playFits([
