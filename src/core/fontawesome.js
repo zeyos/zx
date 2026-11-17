@@ -189,15 +189,18 @@ export function loadFontAwesomeKit(kit) {
 
 /**
  * Whether a script already on the page has visibly finished: Font Awesome's kit config or API is
- * defined, or the browser recorded its completed fetch.
+ * defined, or the browser recorded a completed fetch of that URL made by a script element — not by
+ * `fetch()` or a preload, which say nothing about the script having run.
  * @param {string} url Absolute script URL.
  * @returns {boolean}
  */
 function scriptHasLoaded(url) {
   if (globalThis.FontAwesomeKitConfig || globalThis.FontAwesome) return true;
   try {
-    return globalThis.performance?.getEntriesByName?.(url, 'resource')
-      .some((entry) => /** @type {PerformanceResourceTiming} */ (entry).responseEnd > 0) ?? false;
+    return globalThis.performance?.getEntriesByName?.(url, 'resource').some((entry) => {
+      const timing = /** @type {PerformanceResourceTiming} */ (entry);
+      return timing.initiatorType === 'script' && timing.responseEnd > 0;
+    }) ?? false;
   } catch {
     return false;
   }

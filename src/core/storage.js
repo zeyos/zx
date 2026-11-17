@@ -28,9 +28,9 @@ const PROBE_KEY = 'zx:__probe__';
  * deliberate here; the "no module-level mutable state" rule is for components. An area that exists
  * is keyed by its Storage object, so a replaced area starts with a clean fallback.
  */
-/** @type {WeakMap<Storage, Map<string, string>>} */
+/** @type {WeakMap<Storage, {memory: Map<string, string>, known: Map<string, string>}>} */
 const AREA_FALLBACKS = new WeakMap();
-/** @type {Map<string, Map<string, string>>} */
+/** @type {Map<string, {memory: Map<string, string>, known: Map<string, string>}>} */
 const MISSING_AREA_FALLBACKS = new Map();
 
 /**
@@ -56,12 +56,9 @@ export function storage(namespace, options = {}) {
   const migratedPrefix = `zx2m:${name.length}:${name}:`;
   let backing = resolveArea(area);
   const memory = fallbackFor(area, backing);
-  /**
-   * What this view last read from or wrote to the area, so values it has seen survive an area that
-   * stops answering later in the session (access revoked, storage disabled).
-   * @type {Map<string, string>}
-   */
-  const known = new Map();
+  // What views of this area last read from or wrote to it, so values seen survive an area that
+  // stops answering later in the session (access revoked, storage disabled).
+  const known = knownFor(area, backing);
 
   /** @param {string} key @returns {string|null} */
   const readRaw = (key) => {
@@ -249,12 +246,32 @@ function resolveArea(area) {
  * @returns {Map<string, string>}
  */
 function fallbackFor(area, backing) {
+  return fallbackEntry(area, backing).memory;
+}
+
+/**
+ * The values views of an area last read from or wrote to it, shared like the fallback so a value
+ * removed through one view does not come back through another once the area stops answering.
+ * @param {'local'|'session'} area
+ * @param {Storage|null} backing
+ * @returns {Map<string, string>}
+ */
+function knownFor(area, backing) {
+  return fallbackEntry(area, backing).known;
+}
+
+/**
+ * @param {'local'|'session'} area
+ * @param {Storage|null} backing
+ * @returns {{memory: Map<string, string>, known: Map<string, string>}}
+ */
+function fallbackEntry(area, backing) {
   const table = backing === null ? MISSING_AREA_FALLBACKS : AREA_FALLBACKS;
   const key = backing ?? (area === 'session' ? 'session' : 'local');
-  let memory = table.get(/** @type {any} */ (key));
-  if (!memory) {
-    memory = new Map();
-    table.set(/** @type {any} */ (key), memory);
+  let entry = table.get(/** @type {any} */ (key));
+  if (!entry) {
+    entry = { memory: new Map(), known: new Map() };
+    table.set(/** @type {any} */ (key), entry);
   }
-  return memory;
+  return entry;
 }

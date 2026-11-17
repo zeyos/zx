@@ -425,3 +425,20 @@ test('values a view has seen survive an area that stops answering later', () => 
     assert.deepEqual(store.keys().sort(), ['read', 'saved']);
   });
 });
+
+test('a value removed through one view stays removed for another once the area stops answering', () => {
+  const area = new FakeStorage();
+  withArea('localStorage', area, () => {
+    const a = storage('cross');
+    const b = storage('cross');
+    a.set('key', 'old');
+    for (const method of ['getItem', 'setItem', 'removeItem', 'key']) {
+      area[method] = () => { throw new Error('access revoked'); };
+    }
+    b.set('key', 'new');
+    assert.equal(a.get('key'), 'new');
+    b.remove('key');
+    assert.equal(b.get('key', 'missing'), 'missing');
+    assert.equal(a.get('key', 'missing'), 'missing', 'the other view brought the removed value back');
+  });
+});
