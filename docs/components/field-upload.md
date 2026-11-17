@@ -13,6 +13,7 @@ Aborted uploads ignore late progress and success callbacks.
 
 - **Options** — `url`, `paramName: 'upload'`, `params`, `headers`, `multiple: false`, `accept`,
   `maxSize`, `autoUpload: true`, `preview: true`, `http`.
-- **Methods** — `upload(files?)`, `abort()`, `clear()`, `setDisabled()`.
+- **Methods** — `upload(files?)`, `abort()`, `clear()`, `setDisabled(bool)`,
+  `enable()`/`disable()`, `isDisabled()`.
 - **Events** — `select {files}`, `progress {percent}`, `success {response}`, `error {error}`,
   `abort`.

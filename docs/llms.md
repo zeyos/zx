@@ -1135,7 +1135,9 @@ reads as a two-state control. Pressed, the button goes neutral (the `--zx-color-
 a stronger border, the text colour); only the check glyph, the mark, keeps the accent.
 
 - **Options** — `label: '' | [onLabel, offLabel]`, `checked: false`, `icon: true`,
-  `disabled: false`.
+  `disabled: false`. Prefer one label: the pressed state is announced already, and a name that
+  changes with it is read twice over, which the APG toggle-button pattern advises against; an
+  on/off setting reads better as a Toggle.
 - **Methods** — `get()`, `set(checked, {silent})`, `toggle()`, `setLabel()`, `enable()`/`disable()`.
 - **Events** — `change {checked}`, fired only on a real state change.
 - **Keyboard** — Space/Enter.
@@ -1560,8 +1562,12 @@ Unifies single-select, local filtering, and async loading.
   `labelKey: 'name'` (string or `(item)=>string`), `renderItem`, `renderValue`,
   `renderValueAdornment`, `renderNone`, `noneLabel`, `actions`, `value`, `disabled`, `placeholder`,
   `label` (accessible combobox name; defaults to the placeholder or "Select"),
-  `clearable: false`, `filter: false | 'local' | async (query)=>items`, `searchKeys`,
+  `clearable: false`, `filter: false | 'local' | async (query, {signal})=>items`, `searchKeys`,
   `minQuery: 0`, `debounce: 200`, `listHeight: 280`, `groupKey`.
+- **Async filter** — the function's second argument carries an `AbortSignal` that aborts once the
+  answer would be ignored: a newer query starts, the list closes (or the Select is disabled), or the
+  Select is destroyed. Pass it on (`fetch(url, { signal })`) to cancel the request; a late result
+  is discarded either way.
 - **Getters** — `.value`, `.selected`.
 - **Methods** — `get()` (the same as `.value`), `set(id, {silent})`, `setItems()`,
   `setFixedItems()`, `setActions()`, `reset()`, `open()`/`close()`, `enable()`/`disable()`,
@@ -1582,7 +1588,7 @@ Unifies single-select, local filtering, and async loading.
   and accepts replacement `items` (each `{ID, name, indicator, tone, description?, shortcut?}`);
   `Select.permission(target, {groups, value})` pins Private and
   Public above record-access groups. Its value is the tri-state ZeyOS stores (`false` private,
-  `true` public, or a group ID), and `groups` takes an array or loader `(query)=>items`.
+  `true` public, or a group ID), and `groups` takes an array or loader `(query, {signal})=>items`.
 - **Glyphs** — `statusIcon(status, {tone?, indicator?, label?})` and `priorityIcon(level, {label?})`
   return the exact glyphs the two presets draw (`.zx-status-icon`, `.zx-priority-icon`; inside a
   Select they also carry `.zx-select__status-indicator` / `.zx-select__priority-icon`), for list
@@ -1711,7 +1717,8 @@ Searchable multi-check list with optional async loading.
   the heading; the group keeps its text as `aria-label`), `load: async ()=>items`.
 - **In a Field** — field type `checklist` draws no heading of its own: the field's label names the
   group (`aria-labelledby`).
-- **Methods** — `setItems()`, `getValues()`, `setValues(ids)`, `checkAll()`/`uncheckAll()`,
+- **Methods** — `setItems()`, `getValues()`, `setValues(ids, {silent})`,
+  `checkAll({silent})`/`uncheckAll({silent})` (`silent` updates the boxes without a `change`),
   `search(query)`, `reload()`, `setLabel(text)`, `enable()`/`disable()`, `isDisabled()`. Disabled,
   the search field and every checkbox are disabled (`aria-disabled="true"` on the group) through
   searches, `setItems()` and reloads; values can still be set from code.
@@ -1921,7 +1928,8 @@ use `TimePicker` or `DateTimeBox`.
 
 - **Options** — `value: 0`, `unit: 'minutes'|'seconds'|'hours'`, `seconds: false`, `signed: false`,
   `disabled`.
-- **Methods** — `get(unit)`, `set(value, unit?, {silent})`, `enable()`/`disable()`.
+- **Methods** — `get(unit)`, `set(value, unit?, {silent})`, `focus()` (the hours segment),
+  `enable()`/`disable()`.
 - **Events** — `change {value}`, in `options.unit`.
 - **Also exported** — the pure helpers `splitTime` and `joinTime`.
 - **Quiet fields** — inside `[data-zx-fields="quiet"]` the segments (native inputs) and the sign
@@ -3201,9 +3209,10 @@ stays a separate policy decision.
 - **Options** — `value`, `name`, `language` (shown to the reader and exposed as data),
   `label`, `placeholder`, `rows` (clamped 2–100), `indent: '\t'` (inserted by Tab, removed by
   Shift+Tab; `'  '` for two spaces, `''` to leave Tab alone), `wrap: 'off'|'soft'|'hard'`,
-  `spellcheck`, `readOnly`, `disabled`, `status` (the line/column readout).
-- **Methods** — `setValue()`, `getValue()`, `setLanguage()`, `setReadOnly()`,
-  `enable()`/`disable()`, `getInput()` (the
+  `spellcheck`, `readOnly` (also spelled `readonly`, as on every other control; either one set to
+  true makes the editor read-only), `disabled`, `status` (the line/column readout).
+- **Methods** — `setValue()`, `getValue()`, `setLanguage()`, `setReadOnly()` (also spelled
+  `setReadonly()`), `enable()`/`disable()`, `getInput()` (the
   native textarea: the element that carries the name, validity and description, and the one a
   `<label for>` names), `setHighlight(message, kind = 'danger')`, `clearHighlight()`, `focus()`.
 - **Events** — `input {value}`, `change {value}`, `invalid {message}`.
@@ -3361,8 +3370,11 @@ Ordered value editor with explicit rows (add / remove / move).
 
 - **Options** — `values`, `options` (allowed values, which turns the rows into selects),
   `addLabel`, `reorder: 'both'` (`'both'` | `'buttons'` | `'drag'` | `'none'` — a drag handle, the
-  up/down buttons, both, or neither).
-- **Methods** — `getValues()`, `setValues()`.
+  up/down buttons, both, or neither), `disabled: false`.
+- **Methods** — `getValues()`, `setValues(values, {silent})`, `setDisabled(bool)`,
+  `enable()`/`disable()`, `isDisabled()`. Disabled, every value input or select, handle, move and
+  remove button and the add button is disabled (`aria-disabled="true"` on the root) and nothing
+  reorders; values can still be set from code.
 - **Events** — `change {values}`.
 - Dragging goes through a dedicated handle, so text selection inside a row's input still works. The
   handle is also a keyboard control (Arrow keys, Home, End), which is what keeps `reorder: 'drag'`
@@ -3381,7 +3393,8 @@ Aborted uploads ignore late progress and success callbacks.
 
 - **Options** — `url`, `paramName: 'upload'`, `params`, `headers`, `multiple: false`, `accept`,
   `maxSize`, `autoUpload: true`, `preview: true`, `http`.
-- **Methods** — `upload(files?)`, `abort()`, `clear()`, `setDisabled()`.
+- **Methods** — `upload(files?)`, `abort()`, `clear()`, `setDisabled(bool)`,
+  `enable()`/`disable()`, `isDisabled()`.
 - **Events** — `select {files}`, `progress {percent}`, `success {response}`, `error {error}`,
   `abort`.
 <!-- /doc -->
@@ -3397,7 +3410,9 @@ yet. Field type: `tagpicker`.
 
 - **Options** — `items`, `values: []`, `valueKey: 'ID'`, `labelKey: 'name'`, `iconKey: 'icon'`,
   `colorKey: 'color'`, `toneKey: 'tone'`, `searchKeys`,
-  `filter: 'local'|(query)=>Promise<items>`, `minQuery: 0`, `debounce: 200`, `allowCreate: false`,
+  `filter: 'local'|(query, {signal})=>Promise<items>` (the signal aborts when a newer query
+  starts, the list closes, `setItems()` replaces the catalogue, or the picker is destroyed; a late
+  result is discarded either way), `minQuery: 0`, `debounce: 200`, `allowCreate: false`,
   `max` (maximum tags; further options become `aria-disabled`), `closeOnSelect: false`,
   `placeholder`, `listHeight: 260`, `disabled`, `readonly`, `renderItem`, `renderTag`.
 - **Tags are Badges** — every selected tag is built by `badge()` (`.zx-badge.zx-tag-picker__tag`):

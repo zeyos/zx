@@ -12,7 +12,9 @@ yet. Field type: `tagpicker`.
 
 - **Options** — `items`, `values: []`, `valueKey: 'ID'`, `labelKey: 'name'`, `iconKey: 'icon'`,
   `colorKey: 'color'`, `toneKey: 'tone'`, `searchKeys`,
-  `filter: 'local'|(query)=>Promise<items>`, `minQuery: 0`, `debounce: 200`, `allowCreate: false`,
+  `filter: 'local'|(query, {signal})=>Promise<items>` (the signal aborts when a newer query
+  starts, the list closes, `setItems()` replaces the catalogue, or the picker is destroyed; a late
+  result is discarded either way), `minQuery: 0`, `debounce: 200`, `allowCreate: false`,
   `max` (maximum tags; further options become `aria-disabled`), `closeOnSelect: false`,
   `placeholder`, `listHeight: 260`, `disabled`, `readonly`, `renderItem`, `renderTag`.
 - **Tags are Badges** — every selected tag is built by `badge()` (`.zx-badge.zx-tag-picker__tag`):

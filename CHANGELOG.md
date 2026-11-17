@@ -8,6 +8,48 @@ and friends remain the complete record.
 
 ## Unreleased
 
+### Added
+
+- **`Component#listen(element, type, fn, {signal})`** takes a shorter-lived signal: the listener
+  goes when that signal aborts or the component is destroyed, whichever comes first — for a
+  listener that belongs to one rendering of a part.
+- **Async filters get a signal.** An async `filter` on Select and TagPicker is called with
+  `(query, { signal })`; the signal aborts when a newer query starts, the list closes, or the
+  control is destroyed (and on `TagPicker#setItems()`), so passing it to `fetch()` cancels requests
+  nobody waits for.
+- **The same small API on sibling inputs.** `Timebox#focus()`; CodeEditor's `readonly` option and
+  `setReadonly()`, the spelling every other control uses (`readOnly` and `setReadOnly()` keep
+  working, and either set to true makes it read-only); MultiValueEditor's `disabled` option with
+  `setDisabled()`, `disable()`, `enable()` and `isDisabled()`, which the `multivalueeditor` field
+  type now uses; FieldUpload's `disable()`, `enable()` and `isDisabled()`; and `{ silent }` on
+  Checklist's `setValues()`, `checkAll()` and `uncheckAll()`.
+
+### Changed
+
+- **Placeholder text meets 4.5:1 contrast.** `--zx-color-text-placeholder` is darker in light mode
+  (a mix of gray-500 and gray-600, still lighter than muted text) and lighter in dark mode
+  (gray-400, the colour of muted text there), so an empty field's hint is readable on every
+  surface.
+
+- **Timebox reports a change only when the value changed.** Enter followed by leaving the field
+  reported the same edit twice, and Enter without an edit reported one.
+
+### Fixed
+
+- A click on a `multivalueeditor` field's label focuses its first value instead of the drag
+  handle. Setting a `checklist` field's value from code no longer lets the inner Checklist
+  announce a `change` of its own.
+- A drag on a SplitView, Dock or resizable Sheet handle whose pointer could not be captured ends
+  when the pointer is released off the handle; it used to stay open and refuse every later press.
+- `skeleton()`, `skeletonText()` and `skeletonTable()` keep their defaults when an option is passed
+  as `undefined`, so a forwarded unset height no longer draws an invisible block.
+- ZeyOS: `zeyosAppIcon()` keeps its circle when `shape` is passed as `undefined`;
+  `useZeyosIcons({ kit: undefined })` loads the ZeyOS kit instead of rejecting; a failed request
+  whose error has an empty message, or none, is reported with the generic message instead of an
+  empty notification or "[object Object]".
+- The CheckButton reference explains why a single label reads better than an
+  `[onLabel, offLabel]` pair.
+
 ## 5.8.0 — 2026-11-17
 
 Pinned columns and header groups in Table, placements, stacks and highlights for messages, a Chart

@@ -155,7 +155,8 @@ git push origin "v$ZX_RELEASE_VERSION"
 ```
 
 Then create a GitHub Release for the new tag. Publishing it starts `publish.yml`, which
-re-verifies the version, runs the tests, builds `dist/`, and publishes.
+re-verifies the version, runs the tests, builds `dist/`, checks the size budget, runs the browser
+regressions and smoke suites, builds and checks the site, and only then publishes.
 
 A **draft** release does not start anything — the workflow triggers on `release: published` — so a
 release can be staged with its notes ready and completed with one click once npm is in order.

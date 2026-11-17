@@ -39,6 +39,17 @@ jobs:
       - name: Build distribution bundles
         run: npm run build
 
+      # The same gates CI runs on main, on the tagged commit itself: a release must not reach npm
+      # with a bundle over budget, a browser regression, or a site that does not assemble.
+      - name: Check gzipped sizes against the budget
+        run: node tools/check-size.js
+
+      - name: Browser regressions and smoke suites
+        run: npm run test:browser
+
+      - name: Build and check the documentation site
+        run: npm run build:site && node tools/check-site.js
+
       # A pre-release must not become `latest`, or `npm i @zeyos/zx` hands everyone an alpha.
       # Any semver pre-release (`2.0.0-alpha.1`) publishes under `next`; a stable version
       # publishes under `latest`. Nothing to remember at release time.

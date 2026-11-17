@@ -10,8 +10,12 @@ Unifies single-select, local filtering, and async loading.
   `labelKey: 'name'` (string or `(item)=>string`), `renderItem`, `renderValue`,
   `renderValueAdornment`, `renderNone`, `noneLabel`, `actions`, `value`, `disabled`, `placeholder`,
   `label` (accessible combobox name; defaults to the placeholder or "Select"),
-  `clearable: false`, `filter: false | 'local' | async (query)=>items`, `searchKeys`,
+  `clearable: false`, `filter: false | 'local' | async (query, {signal})=>items`, `searchKeys`,
   `minQuery: 0`, `debounce: 200`, `listHeight: 280`, `groupKey`.
+- **Async filter** — the function's second argument carries an `AbortSignal` that aborts once the
+  answer would be ignored: a newer query starts, the list closes (or the Select is disabled), or the
+  Select is destroyed. Pass it on (`fetch(url, { signal })`) to cancel the request; a late result
+  is discarded either way.
 - **Getters** — `.value`, `.selected`.
 - **Methods** — `get()` (the same as `.value`), `set(id, {silent})`, `setItems()`,
   `setFixedItems()`, `setActions()`, `reset()`, `open()`/`close()`, `enable()`/`disable()`,
@@ -32,7 +36,7 @@ Unifies single-select, local filtering, and async loading.
   and accepts replacement `items` (each `{ID, name, indicator, tone, description?, shortcut?}`);
   `Select.permission(target, {groups, value})` pins Private and
   Public above record-access groups. Its value is the tri-state ZeyOS stores (`false` private,
-  `true` public, or a group ID), and `groups` takes an array or loader `(query)=>items`.
+  `true` public, or a group ID), and `groups` takes an array or loader `(query, {signal})=>items`.
 - **Glyphs** — `statusIcon(status, {tone?, indicator?, label?})` and `priorityIcon(level, {label?})`
   return the exact glyphs the two presets draw (`.zx-status-icon`, `.zx-priority-icon`; inside a
   Select they also carry `.zx-select__status-indicator` / `.zx-select__priority-icon`), for list

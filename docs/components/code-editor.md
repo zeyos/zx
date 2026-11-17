@@ -12,9 +12,10 @@ stays a separate policy decision.
 - **Options** — `value`, `name`, `language` (shown to the reader and exposed as data),
   `label`, `placeholder`, `rows` (clamped 2–100), `indent: '\t'` (inserted by Tab, removed by
   Shift+Tab; `'  '` for two spaces, `''` to leave Tab alone), `wrap: 'off'|'soft'|'hard'`,
-  `spellcheck`, `readOnly`, `disabled`, `status` (the line/column readout).
-- **Methods** — `setValue()`, `getValue()`, `setLanguage()`, `setReadOnly()`,
-  `enable()`/`disable()`, `getInput()` (the
+  `spellcheck`, `readOnly` (also spelled `readonly`, as on every other control; either one set to
+  true makes the editor read-only), `disabled`, `status` (the line/column readout).
+- **Methods** — `setValue()`, `getValue()`, `setLanguage()`, `setReadOnly()` (also spelled
+  `setReadonly()`), `enable()`/`disable()`, `getInput()` (the
   native textarea: the element that carries the name, validity and description, and the one a
   `<label for>` names), `setHighlight(message, kind = 'danger')`, `clearHighlight()`, `focus()`.
 - **Events** — `input {value}`, `change {value}`, `invalid {message}`.

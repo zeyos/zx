@@ -3551,7 +3551,7 @@
         "name": "label",
         "type": "string|[string, string]",
         "default": "''",
-        "description": "A shared label or `[onLabel, offLabel]`.",
+        "description": "A shared label or `[onLabel, offLabel]`. Prefer one label: the button is announced as pressed or not, and the APG toggle-button pattern advises against a name that changes with the state, which a screen reader then reads twice over (\"Disabled, toggle button, not pressed\"). A pair suits a visible state word only where that repetition is acceptable; for an on/off setting a Toggle reads better.",
         "update": {
           "methods": [
             "setLabel()"
@@ -3797,19 +3797,19 @@
       },
       {
         "name": "setValues",
-        "signature": "setValues(ids)",
+        "signature": "setValues(ids, [options])",
         "returns": "this",
         "description": "Replaces the checked IDs. IDs that none of the current items carries are kept as requested, and checked as soon as items carrying them arrive — through `setItems()` or the `load` loader — so a value set before the items load is not lost."
       },
       {
         "name": "checkAll",
-        "signature": "checkAll()",
+        "signature": "checkAll([options])",
         "returns": "this",
         "description": "Checks every item."
       },
       {
         "name": "uncheckAll",
-        "signature": "uncheckAll()",
+        "signature": "uncheckAll([options])",
         "returns": "this",
         "description": "Unchecks every item."
       },
@@ -3832,6 +3832,18 @@
         "description": "Restores an enhanced target and invalidates pending loads."
       }
     ]
+  },
+  "ChecklistSet": {
+    "options": [
+      {
+        "name": "silent",
+        "type": "boolean",
+        "default": "false",
+        "description": "Update the checked state without emitting `change`."
+      }
+    ],
+    "events": [],
+    "methods": []
   },
   "CodeEditor": {
     "options": [
@@ -3907,6 +3919,17 @@
         "update": {
           "methods": [
             "setReadOnly()"
+          ]
+        }
+      },
+      {
+        "name": "readonly",
+        "type": "boolean",
+        "default": "false",
+        "description": "The same setting under the spelling every other Zx control uses. The editor starts read-only when either `readOnly` or `readonly` is true, so neither spelling can switch off what the other one turned on.",
+        "update": {
+          "methods": [
+            "setReadonly()"
           ]
         }
       },
@@ -3999,7 +4022,13 @@
         "name": "setReadOnly",
         "signature": "setReadOnly(value)",
         "returns": "this",
-        "description": ""
+        "description": "Makes the text selectable but not editable, or editable again; reflected as `data-readonly` on the root."
+      },
+      {
+        "name": "setReadonly",
+        "signature": "setReadonly(value)",
+        "returns": "this",
+        "description": "`setReadOnly()` under the spelling every other Zx control uses (`Field#setReadonly()`, `NumberField#setReadonly()`, `TagPicker#setReadonly()`); the two are interchangeable."
       },
       {
         "name": "destroy",
@@ -6407,6 +6436,24 @@
         "signature": "setDisabled(disabled)",
         "returns": "this",
         "description": "Enables or disables file selection and dropping."
+      },
+      {
+        "name": "disable",
+        "signature": "disable()",
+        "returns": "this",
+        "description": "Disables file selection and dropping; the same as `setDisabled(true)`."
+      },
+      {
+        "name": "enable",
+        "signature": "enable()",
+        "returns": "this",
+        "description": "Enables file selection and dropping; the same as `setDisabled(false)`."
+      },
+      {
+        "name": "isDisabled",
+        "signature": "isDisabled()",
+        "returns": "boolean",
+        "description": "Whether file selection and dropping are disabled."
       },
       {
         "name": "destroy",
@@ -9983,6 +10030,17 @@
         "type": "'both'|'buttons'|'drag'|'none'",
         "default": "'both'",
         "description": "Reordering affordances each row gets: a drag handle, the up/down buttons, both, or neither."
+      },
+      {
+        "name": "disabled",
+        "type": "boolean",
+        "default": "false",
+        "description": "Whether every row control (values, handles, move and remove buttons) and the add button are disabled; values can still be set from code.",
+        "update": {
+          "methods": [
+            "setDisabled()"
+          ]
+        }
       }
     ],
     "events": [
@@ -10004,6 +10062,30 @@
         "signature": "setValues(values, [options])",
         "returns": "this",
         "description": "Replaces all rows."
+      },
+      {
+        "name": "setDisabled",
+        "signature": "setDisabled(disabled)",
+        "returns": "this",
+        "description": "Disables or enables the editor. Disabled, every value input or select, drag handle, move and remove button and the add button is disabled, the root carries `aria-disabled=\"true\"`, and neither a pointer nor the handle's keys reorder anything. `setValues()` still works, and rows it renders stay disabled."
+      },
+      {
+        "name": "disable",
+        "signature": "disable()",
+        "returns": "this",
+        "description": "Disables the editor; see `setDisabled()`."
+      },
+      {
+        "name": "enable",
+        "signature": "enable()",
+        "returns": "this",
+        "description": "Enables the editor."
+      },
+      {
+        "name": "isDisabled",
+        "signature": "isDisabled()",
+        "returns": "boolean",
+        "description": "Whether the editor is disabled."
       },
       {
         "name": "destroy",
@@ -12503,9 +12585,9 @@
       },
       {
         "name": "filter",
-        "type": "false|'local'|((query: string) => Promise<SelectItem[]>|SelectItem[])",
+        "type": "false|'local'|SelectFilter",
         "default": "false",
-        "description": "Filtering mode.",
+        "description": "Filtering mode: no filtering (a read-only input that opens the list), `'local'` matching against `items`, or a function that returns the items for a query (see `SelectFilter`).",
         "update": {
           "rebuild": true
         }
@@ -15198,9 +15280,9 @@
       },
       {
         "name": "filter",
-        "type": "'local'|((query: string) => Promise<TagItem[]>|TagItem[])",
+        "type": "'local'|TagPickerFilter",
         "default": "'local'",
-        "description": "Filtering mode."
+        "description": "Filtering mode: `'local'` matches against `items`; a function returns the items for each query (see `TagPickerFilter`)."
       },
       {
         "name": "minQuery",
@@ -15566,6 +15648,12 @@
         "signature": "set(value, [unit], [options])",
         "returns": "this",
         "description": "Sets the current duration."
+      },
+      {
+        "name": "focus",
+        "signature": "focus()",
+        "returns": "this",
+        "description": "Moves focus to the hours segment, the first one a duration is typed into (the sign toggle of a `signed` timebox sits before it and stays one Shift+Tab away). Focusing selects the segment's digits, as a click into it does. A disabled timebox does not take focus."
       },
       {
         "name": "enable",

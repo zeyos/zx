@@ -4,7 +4,11 @@ import { ICON_SIZE, icon } from '../../core/icons.js';
 
 /**
  * @typedef {Object} CheckButtonOptions
- * @property {string|[string, string]} [label=''] A shared label or `[onLabel, offLabel]`.
+ * @property {string|[string, string]} [label=''] A shared label or `[onLabel, offLabel]`. Prefer one
+ *   label: the button is announced as pressed or not, and the APG toggle-button pattern advises
+ *   against a name that changes with the state, which a screen reader then reads twice over
+ *   ("Disabled, toggle button, not pressed"). A pair suits a visible state word only where that
+ *   repetition is acceptable; for an on/off setting a Toggle reads better.
  * @property {boolean} [checked=false] Initial pressed state.
  * @property {boolean} [icon=true] Whether to show the check indicator.
  * @property {boolean} [disabled=false] Initial disabled state.
