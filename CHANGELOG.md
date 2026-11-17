@@ -8,6 +8,11 @@ and friends remain the complete record.
 
 ## Unreleased
 
+## 5.8.1 — 2026-11-17
+
+Placeholder text that meets 4.5:1, the same small API on sibling inputs, cancellable async
+filters, and fixes for drags, Timebox changes and a few defaults.
+
 ### Added
 
 - **`Component#listen(element, type, fn, {signal})`** takes a shorter-lived signal: the listener
