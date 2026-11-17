@@ -16,8 +16,8 @@ function media(module, glyph) {
   }, icon(glyph, { size: 30 }));
 }
 
-// An agent's face, centred on a quiet panel that fills the media track.
-function agentMedia(face) {
+// A person's avatar or an agent's face, centred on a quiet panel that fills the media track.
+function portraitMedia(face) {
   return h('div', {
     style: {
       display: 'grid',
@@ -75,7 +75,7 @@ export default {
         + 'becomes narrow.',
       layout: 'stack',
       render: ({ cleanup, log }) => {
-        const avatar = new Avatar(null, { name: 'Ada Lovelace', size: 'xl', status: 'online' });
+        const avatar = new Avatar(null, { name: 'Ada Lovelace', size: 56, status: 'online' });
         const face = new AgentAvatar(null, { ...AGENT, size: 56, activity: 'working' });
         const cards = [
           new Card(null, {
@@ -92,7 +92,7 @@ export default {
           new Card(null, {
             title: 'Ada Lovelace',
             orientation: 'horizontal',
-            media: avatar,
+            media: portraitMedia(avatar),
             link: '#components/card',
             content: 'Product lead · ada@example.test',
             footer: '3 open tasks'
@@ -100,7 +100,7 @@ export default {
           new Card(null, {
             title: AGENT.name,
             orientation: 'horizontal',
-            media: agentMedia(face),
+            media: portraitMedia(face),
             link: '#components/agent-avatar',
             content: 'Agent · Reconciling September payments',
             footer: 'Working · 4 of 6 steps'
